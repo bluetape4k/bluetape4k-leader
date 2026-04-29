@@ -77,6 +77,57 @@ LeaderGroupElectionOptions(
 )
 ```
 
+## Sequence Diagrams
+
+### Single-leader: lock acquire/release
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant LeaderElection
+    participant LockStore
+
+    Caller->>LeaderElection: runIfLeader(lockName, action)
+    LeaderElection->>LockStore: tryLock(lockName, waitTime, leaseTime)
+
+    alt lock acquired
+        LockStore-->>LeaderElection: true
+        LeaderElection->>Caller: action()
+        Caller-->>LeaderElection: result
+        LeaderElection->>LockStore: unlock(lockName)
+        LeaderElection-->>Caller: result (T)
+    else not acquired within waitTime
+        LockStore-->>LeaderElection: false
+        LeaderElection-->>Caller: null
+    end
+```
+
+### Multi-leader group: slot-based semaphore (maxLeaders = N)
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant GroupElection
+    participant LockStore
+
+    Caller->>GroupElection: runIfLeader(lockName, action)
+    loop slot = 0..N-1
+        GroupElection->>LockStore: tryLock(lockName:slot:i, ...)
+        alt slot acquired
+            LockStore-->>GroupElection: true
+            Note over GroupElection: acquired slot i
+            GroupElection->>Caller: action()
+            Caller-->>GroupElection: result
+            GroupElection->>LockStore: unlock(lockName:slot:i)
+            GroupElection-->>Caller: result (T)
+        else slot busy
+            LockStore-->>GroupElection: false
+            Note over GroupElection: try next slot
+        end
+    end
+    Note over GroupElection: all slots busy → return null
+```
+
 ## Local Implementations
 
 All local implementations use JVM primitives (`ReentrantLock`, `Semaphore`) — no external dependencies.

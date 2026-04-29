@@ -26,18 +26,18 @@ graph TD
     Core["leader-core\n(Interfaces + Local impls)"]
     Lettuce["leader-redis-lettuce\n(Lettuce Redis)"]
     Redisson["leader-redis-redisson\n(Redisson Redis)"]
+    Hazelcast["leader-hazelcast\n(Hazelcast)"]
     Exposed["leader-exposed\n(planned)"]
     Mongo["leader-mongodb\n(planned)"]
-    Hazelcast["leader-hazelcast\n(planned)"]
     SB3["leader-spring-boot3\n(planned)"]
     SB4["leader-spring-boot4\n(planned)"]
     Metrics["leader-micrometer\n(planned)"]
 
     Lettuce --> Core
     Redisson --> Core
+    Hazelcast --> Core
     Exposed --> Core
     Mongo --> Core
-    Hazelcast --> Core
     SB3 --> Core
     SB4 --> Core
     Metrics --> Core
@@ -50,9 +50,9 @@ graph TD
 | `leader-core` | Stable | Interfaces + local in-process implementations |
 | `leader-redis-lettuce` | Stable | Lettuce-based Redis backend |
 | `leader-redis-redisson` | Stable | Redisson-based Redis backend |
+| `leader-hazelcast` | Stable | Hazelcast backend (IMap-based, no CP Subsystem) |
 | `leader-exposed` | Planned | Exposed/JDBC backend |
 | `leader-mongodb` | Planned | MongoDB backend |
-| `leader-hazelcast` | Planned | Hazelcast backend |
 | `leader-micrometer` | Planned | Micrometer metrics integration |
 | `leader-spring-boot3` | Planned | Spring Boot 3 auto-configuration |
 | `leader-spring-boot4` | Planned | Spring Boot 4 auto-configuration |
@@ -121,6 +121,58 @@ val election = LocalLeaderElection()
 val result = election.runIfLeader("job") { "done" }
 ```
 
+## How `runIfLeader` Works
+
+Multiple nodes call `runIfLeader` concurrently — only one acquires the lock and runs the action; the rest return `null`.
+
+```mermaid
+sequenceDiagram
+    participant NodeA
+    participant NodeB
+    participant LockStore
+
+    par NodeA attempts
+        NodeA->>LockStore: tryLock("job", waitTime, leaseTime)
+    and NodeB attempts
+        NodeB->>LockStore: tryLock("job", waitTime, leaseTime)
+    end
+
+    LockStore-->>NodeA: acquired (true)
+    LockStore-->>NodeB: not acquired → wait/retry until timeout
+
+    NodeA->>NodeA: action()
+    NodeA->>LockStore: unlock("job")
+    NodeA-->>NodeA: return action() result
+
+    LockStore-->>NodeB: timeout (false)
+    NodeB-->>NodeB: return null
+```
+
+### Multi-leader group: slot-based semaphore
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant GroupElection
+    participant LockStore
+
+    Caller->>GroupElection: runIfLeader(lockName, action)
+    loop slot = 0..maxLeaders-1
+        GroupElection->>LockStore: tryLock(lockName:slot:i, ...)
+        alt slot acquired
+            LockStore-->>GroupElection: true
+            GroupElection->>Caller: action()
+            Caller-->>GroupElection: result
+            GroupElection->>LockStore: unlock(lockName:slot:i)
+            GroupElection-->>Caller: result
+        else slot busy
+            LockStore-->>GroupElection: false
+            Note over GroupElection: try next slot
+        end
+    end
+    Note over GroupElection: all slots busy → return null
+```
+
 ## API Overview
 
 ### Core interfaces
@@ -164,7 +216,7 @@ LeaderGroupElectionOptions(
 | Spring integration | Planned | Yes (core feature) |
 | JDBC/SQL | Planned | Yes |
 | MongoDB | Planned | Yes |
-| Hazelcast | Planned | Yes |
+| Hazelcast | Yes | Yes |
 
 ## Requirements
 

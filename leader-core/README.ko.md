@@ -77,6 +77,57 @@ LeaderGroupElectionOptions(
 )
 ```
 
+## 시퀀스 다이어그램
+
+### 단일 리더: 락 획득/해제
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant LeaderElection
+    participant LockStore
+
+    Caller->>LeaderElection: runIfLeader(lockName, action)
+    LeaderElection->>LockStore: tryLock(lockName, waitTime, leaseTime)
+
+    alt 락 획득 성공
+        LockStore-->>LeaderElection: true
+        LeaderElection->>Caller: action()
+        Caller-->>LeaderElection: result
+        LeaderElection->>LockStore: unlock(lockName)
+        LeaderElection-->>Caller: result (T)
+    else waitTime 내 획득 실패
+        LockStore-->>LeaderElection: false
+        LeaderElection-->>Caller: null
+    end
+```
+
+### 복수 리더 그룹: 슬롯 기반 세마포어 (maxLeaders = N)
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant GroupElection
+    participant LockStore
+
+    Caller->>GroupElection: runIfLeader(lockName, action)
+    loop slot = 0..N-1
+        GroupElection->>LockStore: tryLock(lockName:slot:i, ...)
+        alt 슬롯 획득 성공
+            LockStore-->>GroupElection: true
+            Note over GroupElection: 슬롯 i 확보
+            GroupElection->>Caller: action()
+            Caller-->>GroupElection: result
+            GroupElection->>LockStore: unlock(lockName:slot:i)
+            GroupElection-->>Caller: result (T)
+        else 슬롯 사용 중
+            LockStore-->>GroupElection: false
+            Note over GroupElection: 다음 슬롯 시도
+        end
+    end
+    Note over GroupElection: 모든 슬롯 사용 중 → null 반환
+```
+
 ## 로컬 구현체 목록
 
 모든 로컬 구현체는 JVM 기본 동기화 프리미티브(`ReentrantLock`, `Semaphore`)를 사용합니다. 외부 의존 없음.
