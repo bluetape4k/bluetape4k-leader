@@ -69,6 +69,7 @@ class HazelcastLeaderGroupElection private constructor(
         log.debug { "리더 그룹 슬롯 획득을 요청합니다. lockName=$lockName, maxLeaders=$maxLeaders" }
 
         val acquiredLock = (0 until maxLeaders)
+            .asSequence()
             .map { slot -> HazelcastLock(lockMap, slotKey(lockName, slot)) }
             .firstOrNull { lock -> lock.tryLock(slotWaitTime, leaseTime) }
 
@@ -100,6 +101,7 @@ class HazelcastLeaderGroupElection private constructor(
 
         return CompletableFuture.supplyAsync({
             (0 until maxLeaders)
+                .asSequence()
                 .map { slot -> HazelcastLock(lockMap, slotKey(lockName, slot)) }
                 .firstOrNull { lock -> lock.tryLock(slotWaitTime, leaseTime) }
         }, executor).thenComposeAsync({ acquiredLock ->
@@ -111,6 +113,7 @@ class HazelcastLeaderGroupElection private constructor(
                 val actionFuture = runCatching { action() }
                     .getOrElse { error ->
                         runCatching { acquiredLock.unlock() }
+                            .onFailure { e -> log.error(e) { "Fail to release group slot on action error (async). lockName=$lockName" } }
                         return@thenComposeAsync CompletableFuture.failedFuture(error)
                     }
                 actionFuture.whenCompleteAsync({ _, _ ->

@@ -68,7 +68,7 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
         executor.submit {
             singleElection.runIfLeader(lockName) {
                 acquiredLatch.countDown()
-                holdLatch.await()
+                holdLatch.await(5, TimeUnit.SECONDS)
             }
         }
 

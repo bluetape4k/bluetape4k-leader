@@ -93,6 +93,7 @@ class HazelcastLeaderElection private constructor(
                     val actionFuture = runCatching { action() }
                         .getOrElse { error ->
                             runCatching { lock.unlock() }
+                                .onFailure { e -> log.error(e) { "Fail to release lock on action error (async). lockName=$lockName" } }
                             return@thenComposeAsync CompletableFuture.failedFuture(error)
                         }
                     actionFuture.whenCompleteAsync({ _, _ ->

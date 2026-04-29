@@ -74,7 +74,7 @@ class HazelcastSuspendLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
             )
             blockingElection.runIfLeader(lockName) {
                 acquiredLatch.countDown()
-                holdLatch.await()
+                holdLatch.await(5, TimeUnit.SECONDS)
             }
         }
 

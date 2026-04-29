@@ -11,8 +11,9 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 /**
@@ -64,11 +65,12 @@ class HazelcastSuspendLeaderGroupElection private constructor(
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         lockName.requireNotBlank("lockName")
 
-        val slotWaitTime = if (maxLeaders > 0) waitTime.dividedBy(maxLeaders.toLong()) else waitTime
+        val slotWaitTime = waitTime.dividedBy(maxLeaders.toLong())
         log.debug { "리더 그룹 슬롯 획득을 요청합니다 (suspend). lockName=$lockName, maxLeaders=$maxLeaders" }
 
         var acquiredLock: HazelcastSuspendLock? = null
         for (slot in 0 until maxLeaders) {
+            currentCoroutineContext().ensureActive()
             val lock = HazelcastSuspendLock(lockMap, slotKey(lockName, slot))
             if (lock.tryLock(slotWaitTime, leaseTime)) {
                 acquiredLock = lock
@@ -90,8 +92,6 @@ class HazelcastSuspendLeaderGroupElection private constructor(
                     try {
                         acquiredLock.unlock()
                         log.debug { "리더 그룹 슬롯을 반납했습니다 (suspend). lockName=$lockName" }
-                    } catch (e: CancellationException) {
-                        throw e
                     } catch (e: Exception) {
                         log.warn(e) { "Fail to release group slot (suspend). lockName=$lockName" }
                     }
@@ -104,7 +104,7 @@ class HazelcastSuspendLeaderGroupElection private constructor(
 /**
  * Hazelcast 분산 세마포어(슬롯 기반)를 이용하여 최대 [options.maxLeaders]개의 리더로 선출된 경우에만 suspend [action]을 실행합니다.
  */
-suspend inline fun <T> HazelcastInstance.runSuspendIfLeaderGroup(
+suspend inline fun <T> HazelcastInstance.suspendRunIfLeaderGroup(
     lockName: String,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     crossinline action: suspend () -> T,
