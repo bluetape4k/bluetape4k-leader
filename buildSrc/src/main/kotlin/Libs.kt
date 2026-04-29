@@ -102,6 +102,7 @@ object Libs {
     const val bluetape4k_bom = "io.github.bluetape4k:bluetape4k-bom:1.8.0-SNAPSHOT"
     const val bluetape4k_core = "io.github.bluetape4k:bluetape4k-core"
     const val bluetape4k_coroutines = "io.github.bluetape4k:bluetape4k-coroutines"
+    const val bluetape4k_idgenerators = "io.github.bluetape4k:bluetape4k-idgenerators"
     const val bluetape4k_logging = "io.github.bluetape4k:bluetape4k-logging"
     const val bluetape4k_junit5 = "io.github.bluetape4k:bluetape4k-junit5"
     const val bluetape4k_lettuce = "io.github.bluetape4k:bluetape4k-lettuce"

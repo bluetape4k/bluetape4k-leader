@@ -7,9 +7,6 @@ import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
-import io.bluetape4k.redis.redisson.AbstractRedissonTest
-import io.bluetape4k.redis.redisson.RedissonTestUtils.randomName
-import io.bluetape4k.redis.redisson.RedissonTestUtils.redissonClient
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeLessOrEqualTo
@@ -18,7 +15,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
-import org.redisson.client.RedisException
 import java.time.Duration
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
@@ -28,7 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
 
-class RedissonLeaderGroupElectionTest: AbstractRedissonTest() {
+class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
     companion object: KLogging()
 
@@ -74,7 +70,7 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonTest() {
     }
 
     @Test
-    fun `runIfLeader - maxLeaders 슬롯이 모두 사용 중이면 waitTime 초과 시 RedisException 이 발생한다`() {
+    fun `runIfLeader - maxLeaders 슬롯이 모두 사용 중이면 waitTime 초과 시 null 을 반환한다`() {
         val shortWaitOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = Duration.ofMillis(100))
         val singleElection = RedissonLeaderGroupElection(redissonClient, shortWaitOptions)
         val lockName = randomName()
@@ -91,9 +87,8 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonTest() {
 
         try {
             acquiredLatch.await(2, TimeUnit.SECONDS)
-            assertThrows<RedisException> {
-                singleElection.runIfLeader(lockName) { }
-            }
+            val result = singleElection.runIfLeader(lockName) { }
+            result shouldBeEqualTo null
         } finally {
             holdLatch.countDown()
             executor.shutdownNow()
