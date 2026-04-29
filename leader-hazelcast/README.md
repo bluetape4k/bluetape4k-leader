@@ -159,6 +159,71 @@ Release: IMap.remove(lockKey, token)
 Check:   IMap.get(lockKey) == token
 ```
 
+### Lock acquire/release sequence
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant HazelcastLock
+    participant IMap
+
+    Caller->>HazelcastLock: tryLock(waitTime, leaseTime)
+    loop until deadline
+        HazelcastLock->>IMap: putIfAbsent(lockKey, token, leaseTimeMs)
+        alt key absent (null returned)
+            IMap-->>HazelcastLock: null
+            HazelcastLock-->>Caller: true (acquired)
+        else key exists
+            IMap-->>HazelcastLock: existingToken
+            HazelcastLock->>HazelcastLock: sleep min(50ms, remaining)
+        end
+    end
+    HazelcastLock-->>Caller: false (timeout)
+
+    Note over Caller,IMap: action() executes while lock is held (TTL counts down)
+
+    Caller->>HazelcastLock: isHeldByCurrentInstance()
+    HazelcastLock->>IMap: get(lockKey)
+    IMap-->>HazelcastLock: storedToken
+    HazelcastLock-->>Caller: storedToken == token
+
+    Caller->>HazelcastLock: unlock()
+    HazelcastLock->>IMap: remove(lockKey, token)
+    alt token matches
+        IMap-->>HazelcastLock: true
+        Note over HazelcastLock: lock released
+    else token mismatch (TTL expired, another holder)
+        IMap-->>HazelcastLock: false
+        Note over HazelcastLock: warn — split-leader possible
+    end
+```
+
+### Group election slot sequence (maxLeaders = N)
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant GroupElection
+    participant IMap
+
+    Caller->>GroupElection: runIfLeader(lockName)
+    loop slot = 0..N-1
+        GroupElection->>IMap: putIfAbsent(lockName:slot:i, token, leaseTimeMs)
+        alt slot acquired
+            IMap-->>GroupElection: null
+            Note over GroupElection: acquiredLock = slot i
+            GroupElection->>Caller: action()
+            Caller-->>GroupElection: result
+            GroupElection->>IMap: remove(lockName:slot:i, token)
+            GroupElection-->>Caller: result
+        else slot busy
+            IMap-->>GroupElection: existingToken
+            Note over GroupElection: try next slot
+        end
+    end
+    Note over GroupElection: all slots busy → return null
+```
+
 Group election simulates a semaphore with N slot keys (`lockName:slot:0` … `lockName:slot:N-1`). Each caller tries slots in sequence; first acquired slot wins.
 
 Lock map names:
