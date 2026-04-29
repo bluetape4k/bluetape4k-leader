@@ -1,0 +1,144 @@
+# leader-core
+
+[English](README.md)
+
+`bluetape4k-leader`의 핵심 인터페이스와 로컬 인메모리 구현체를 제공합니다.
+
+---
+
+## 개요
+
+`leader-core`는 모든 리더 선출 백엔드의 계약(인터페이스)을 정의하고, 외부 인프라 없이 동작하는 로컬(인메모리) 구현체를 포함합니다. 단일 인스턴스 환경이나 테스트에서 로컬 구현체를 사용하세요.
+
+## 아키텍처
+
+```mermaid
+classDiagram
+    class AsyncLeaderElection {
+        <<interface>>
+        +runAsyncIfLeader(lockName, action) CompletableFuture~T?~
+    }
+    class LeaderElection {
+        <<interface>>
+        +runIfLeader(lockName, action) T?
+    }
+    class VirtualThreadLeaderElection {
+        <<interface>>
+        +runIfLeader(lockName, action) T?
+    }
+    class SuspendLeaderElection {
+        <<interface>>
+        +runIfLeader(lockName, action) T?
+    }
+    class AsyncLeaderGroupElection {
+        <<interface>>
+        +runAsyncIfLeader(lockName, action) CompletableFuture~T?~
+        +state(lockName) LeaderGroupState
+        +activeCount(lockName) Int
+        +availableSlots(lockName) Int
+    }
+    class LeaderGroupElection {
+        <<interface>>
+        +runIfLeader(lockName, action) T?
+    }
+    class SuspendLeaderGroupElection {
+        <<interface>>
+        +runIfLeader(lockName, action) T?
+    }
+
+    LeaderElection --|> AsyncLeaderElection
+    VirtualThreadLeaderElection --|> AsyncLeaderElection
+    LeaderGroupElection --|> AsyncLeaderGroupElection
+    SuspendLeaderGroupElection --|> AsyncLeaderGroupElection
+```
+
+## API 계약
+
+### `runIfLeader(lockName, action): T?`
+
+- 지정한 이름의 락(또는 그룹 선출의 경우 세마포어 슬롯)을 획득 시도합니다
+- 획득 성공: `action`을 실행하고 결과를 반환합니다
+- `waitTime` 내 획득 실패: **`null`** 반환 (경쟁 상황에서 예외를 던지지 않음)
+- `action` 내부에서 발생한 예외는 호출자에게 전파됩니다
+- `action` 완료 후 (또는 예외 발생 시) 락이 해제됩니다
+
+### 옵션 클래스
+
+```kotlin
+LeaderElectionOptions(
+    waitTime: Duration = Duration.ofSeconds(5),   // 락 획득 최대 대기 시간
+    leaseTime: Duration = Duration.ofSeconds(60)  // 락 보유(임대) 최대 시간
+)
+
+LeaderGroupElectionOptions(
+    maxLeaders: Int = 2,                          // 최대 동시 리더 수
+    waitTime: Duration = Duration.ofSeconds(5),
+    leaseTime: Duration = Duration.ofSeconds(60)
+)
+```
+
+## 로컬 구현체 목록
+
+모든 로컬 구현체는 JVM 기본 동기화 프리미티브(`ReentrantLock`, `Semaphore`)를 사용합니다. 외부 의존 없음.
+
+| 클래스 | 구현 인터페이스 | 설명 |
+|-------|--------------|------|
+| `LocalLeaderElection` | `LeaderElection` | 블로킹, `ReentrantLock` 기반 |
+| `LocalAsyncLeaderElection` | `AsyncLeaderElection` | 스레드풀 기반 `CompletableFuture` |
+| `LocalVirtualThreadLeaderElection` | `VirtualThreadLeaderElection` | 가상 스레드 1개/선출 |
+| `LocalSuspendLeaderElection` | `SuspendLeaderElection` | 코루틴 `Mutex` 기반 |
+| `LocalLeaderGroupElection` | `LeaderGroupElection` | `Semaphore` 기반 복수 리더 |
+| `LocalSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | 코루틴 `Semaphore` 기반 |
+
+## 사용 예시
+
+### 블로킹 단일 리더
+
+```kotlin
+val election = LocalLeaderElection()
+
+val result = election.runIfLeader("daily-job") {
+    processData()
+}
+// result: 선출 성공이면 processData() 결과, 실패이면 null
+```
+
+### 코루틴 suspend 단일 리더
+
+```kotlin
+val election = LocalSuspendLeaderElection()
+
+val result = election.runIfLeader("nightly-sync") {
+    syncToRemote()
+}
+```
+
+### 복수 리더 그룹 (세마포어)
+
+```kotlin
+val options = LeaderGroupElectionOptions(maxLeaders = 3)
+val election = LocalLeaderGroupElection(options)
+
+// 최대 3개의 동시 호출이 action을 실행 가능
+val result = election.runIfLeader("parallel-batch") {
+    processChunk()
+}
+
+println(election.activeCount("parallel-batch"))    // 현재 활성 리더 수 (0~3)
+println(election.availableSlots("parallel-batch")) // 잔여 슬롯 수
+```
+
+### 상태 조회
+
+```kotlin
+val state: LeaderGroupState = election.state("parallel-batch")
+println(state.activeCount)  // 현재 리더 수
+println(state.maxLeaders)   // 옵션의 maxLeaders 값
+```
+
+## 의존성 추가
+
+```kotlin
+// build.gradle.kts
+implementation("io.github.bluetape4k.leader:leader-core:0.1.0-SNAPSHOT")
+```
