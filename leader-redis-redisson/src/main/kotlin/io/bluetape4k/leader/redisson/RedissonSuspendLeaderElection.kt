@@ -20,7 +20,8 @@ import java.util.concurrent.TimeUnit
  * Redisson 분산 락을 이용하여 리더 선출을 통한 suspend 작업을 실행합니다.
  *
  * 락 획득에 성공하면 [action]을 실행하고, 완료 후 락을 해제합니다.
- * 락 획득 실패 시 [org.redisson.client.RedisException]을 던집니다.
+ * [LeaderElectionOptions.waitTime] 내 락 획득에 실패하면 `null`을 반환합니다 (ShedLock skip 방식).
+ * 락 대기 중 인터럽트가 발생하면 [org.redisson.client.RedisException]으로 래핑되어 전파됩니다.
  *
  * ```kotlin
  * val result = redissonClient.suspendRunIfLeader("my-job") {
@@ -109,13 +110,13 @@ class RedissonSuspendLeaderElection private constructor(
      * Redisson Lock을 이용하여, 리더로 선출되면 [action]을 수행하고, 그렇지 않다면 수행하지 않습니다.
      *
      * Coroutine 환경에서 스레드 전환으로 인한 락 소유자 불일치를 방지하기 위해,
-     * `Thread.currentThread().threadId()` 대신 Redis `RAtomicLong` 기반의
-     * [io.bluetape4k.redis.redisson.coroutines.getLockId]로 발급한 고유 ID를 락 식별자로 사용합니다.
+     * `Thread.currentThread().threadId()` 대신 PID-seeded Snowflake-like ID
+     * (`timestamp | pid%(2^10) | seq`, 동반자 객체의 `nextLockId()` 참고)를 락 식별자로 사용합니다.
      *
      * @param lockName 락 이름 — 락 획득에 성공하면 리더로 승격됩니다.
      * @param action 리더로 승격되었을 때 수행할 suspend 코드 블록
-     * @return [action] 실행 결과
-     * @throws org.redisson.client.RedisException 락 획득 실패 또는 인터럽트 발생 시
+     * @return [action] 실행 결과, 리더 획득 실패 시 `null`
+     * @throws org.redisson.client.RedisException 락 대기 중 인터럽트가 발생한 경우
      */
     override suspend fun <T> runIfLeader(
         lockName: String,

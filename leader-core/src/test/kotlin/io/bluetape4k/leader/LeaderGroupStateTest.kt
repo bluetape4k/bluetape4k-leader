@@ -5,6 +5,7 @@ import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class LeaderGroupStateTest {
 
@@ -48,5 +49,35 @@ class LeaderGroupStateTest {
         state.availableSlots shouldBeEqualTo 10
         state.isEmpty.shouldBeTrue()
         state.isFull.shouldBeFalse()
+    }
+
+    @Test
+    fun `blank lockName 으로 생성 시 예외가 발생한다`() {
+        assertThrows<IllegalArgumentException> {
+            LeaderGroupState(lockName = "", maxLeaders = 3, activeCount = 0)
+        }
+        assertThrows<IllegalArgumentException> {
+            LeaderGroupState(lockName = "   ", maxLeaders = 3, activeCount = 0)
+        }
+    }
+
+    @Test
+    fun `maxLeaders 가 0 이하이면 예외가 발생한다`() {
+        assertThrows<IllegalArgumentException> {
+            LeaderGroupState(lockName = "job", maxLeaders = 0, activeCount = 0)
+        }
+        assertThrows<IllegalArgumentException> {
+            LeaderGroupState(lockName = "job", maxLeaders = -1, activeCount = 0)
+        }
+    }
+
+    @Test
+    fun `activeCount 가 범위를 벗어나면 예외가 발생한다`() {
+        assertThrows<IllegalArgumentException> {
+            LeaderGroupState(lockName = "job", maxLeaders = 3, activeCount = -1)
+        }
+        assertThrows<IllegalArgumentException> {
+            LeaderGroupState(lockName = "job", maxLeaders = 3, activeCount = 4)
+        }
     }
 }

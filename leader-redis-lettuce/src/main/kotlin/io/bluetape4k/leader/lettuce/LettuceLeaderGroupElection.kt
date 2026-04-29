@@ -5,6 +5,7 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import io.bluetape4k.logging.warn
 import io.bluetape4k.leader.lettuce.semaphore.LettuceSemaphore
 import io.bluetape4k.support.requireNotBlank
 import io.lettuce.core.api.StatefulRedisConnection
@@ -21,7 +22,7 @@ import java.util.concurrent.Executor
  * val result = election.runIfLeader("batch-job") { processChunk() }
  * ```
  *
- * @param options    리더 선출 옵션 (기본값: [LeaderElectionOptions.Default])
+ * @param options    리더 선출 옵션 (기본값: [LeaderGroupElectionOptions.Default])
  * @return [LettuceLeaderGroupElection] 인스턴스
  */
 fun StatefulRedisConnection<String, String>.leaderGroupElection(
@@ -99,6 +100,7 @@ class LettuceLeaderGroupElection(
             return action()
         } finally {
             runCatching { semaphore.release() }
+                .onFailure { log.warn(it) { "Fail to release semaphore slot. lockName=$lockName" } }
         }
     }
 
@@ -125,9 +127,11 @@ class LettuceLeaderGroupElection(
                 try {
                     action().whenComplete { _, _ ->
                         runCatching { semaphore.release() }
+                .onFailure { log.warn(it) { "Fail to release semaphore slot. lockName=$lockName" } }
                     }
                 } catch (e: Throwable) {
                     runCatching { semaphore.release() }
+                .onFailure { log.warn(it) { "Fail to release semaphore slot. lockName=$lockName" } }
                     CompletableFuture.failedFuture(e)
                 }
             }

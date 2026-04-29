@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap
  * - 이 구현체는 `kotlinx.coroutines.sync.Semaphore`(코루틴 suspend)를 사용합니다.
  *
  * ```kotlin
- * val election = LocalSuspendLeaderGroupElection(maxLeaders = 3)
+ * val election = LocalSuspendLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
  *
  * // 최대 3개 코루틴이 동시에 실행
  * val result = election.runIfLeader("batch-job") { processChunkSuspend() }
@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap
  * println(election.state("batch-job"))
  * ```
  *
- * @param maxLeaders 허용하는 최대 동시 리더 수. 기본값 2
+ * @param options 리더 그룹 선출 옵션. 기본값은 [LeaderGroupElectionOptions.Default]
  */
 class LocalSuspendLeaderGroupElection private constructor(
     private val options: LeaderGroupElectionOptions,

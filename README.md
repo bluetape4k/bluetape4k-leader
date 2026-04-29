@@ -27,7 +27,9 @@ graph TD
     Lettuce["leader-redis-lettuce\n(Lettuce Redis)"]
     Redisson["leader-redis-redisson\n(Redisson Redis)"]
     Hazelcast["leader-hazelcast\n(Hazelcast)"]
-    Exposed["leader-exposed\n(planned)"]
+    ExposedCore["leader-exposed-core\n(planned)"]
+    ExposedJdbc["leader-exposed-jdbc\n(planned)"]
+    ExposedR2dbc["leader-exposed-r2dbc\n(planned)"]
     Mongo["leader-mongodb\n(planned)"]
     SB3["leader-spring-boot3\n(planned)"]
     SB4["leader-spring-boot4\n(planned)"]
@@ -36,7 +38,9 @@ graph TD
     Lettuce --> Core
     Redisson --> Core
     Hazelcast --> Core
-    Exposed --> Core
+    ExposedCore --> Core
+    ExposedJdbc --> ExposedCore
+    ExposedR2dbc --> ExposedCore
     Mongo --> Core
     SB3 --> Core
     SB4 --> Core
@@ -51,7 +55,9 @@ graph TD
 | `leader-redis-lettuce` | Stable | Lettuce-based Redis backend |
 | `leader-redis-redisson` | Stable | Redisson-based Redis backend |
 | `leader-hazelcast` | Stable | Hazelcast backend (IMap-based, no CP Subsystem) |
-| `leader-exposed` | Planned | Exposed/JDBC backend |
+| `leader-exposed-core` | Planned | Common Exposed schema (no JDBC/R2DBC driver) |
+| `leader-exposed-jdbc` | Planned | Exposed JDBC backend |
+| `leader-exposed-r2dbc` | Planned | Exposed R2DBC backend |
 | `leader-mongodb` | Planned | MongoDB backend |
 | `leader-micrometer` | Planned | Micrometer metrics integration |
 | `leader-spring-boot3` | Planned | Spring Boot 3 auto-configuration |

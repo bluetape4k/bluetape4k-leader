@@ -6,7 +6,9 @@ package io.bluetape4k.leader.coroutines
  * ## 동작/계약
  * - 구현체는 동일 [lockName]에 대해 리더 획득 성공 호출만 [action]을 실행합니다.
  * - [action]은 suspend 함수이며 호출 컨텍스트/디스패처는 구현체 정책을 따릅니다.
- * - 리더 선출 실패/취소/예외 전파 규칙은 구현체에 위임됩니다.
+ * - 리더 획득 실패 시 `null`을 반환합니다 (ShedLock skip 방식).
+ * - [action] 실행 중 코루틴 취소 시 락/슬롯은 반드시 반환되어야 하며,
+ *   `CancellationException`은 반환 작업 후 호출자에게 재전파해야 합니다.
  *
  * ```kotlin
  * val result = election.runIfLeader("sync-job") { "ok" }

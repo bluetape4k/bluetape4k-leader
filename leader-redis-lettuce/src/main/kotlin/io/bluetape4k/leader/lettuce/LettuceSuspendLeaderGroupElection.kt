@@ -5,17 +5,21 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElection
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import io.bluetape4k.logging.warn
 import io.bluetape4k.leader.lettuce.semaphore.LettuceSemaphore
 import io.bluetape4k.support.requireNotBlank
 import io.lettuce.core.api.StatefulRedisConnection
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
 /**
  * [StatefulRedisConnection]에서 [LettuceSuspendLeaderGroupElection] 인스턴스를 생성합니다.
  *
  * ```kotlin
- * val election = connection.suspendLeaderGroupElection(maxLeaders = 3)
+ * val election = connection.suspendLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = election.runIfLeader("batch-job") { processChunkSuspend() }
  * ```
  *
@@ -93,7 +97,14 @@ class LettuceSuspendLeaderGroupElection(
         try {
             return action()
         } finally {
-            runCatching { semaphore.releaseAsync().await() }
+            // NonCancellable: 코루틴 취소 시에도 슬롯 반납이 중단되지 않도록 보호
+            withContext(NonCancellable) {
+                runCatching { semaphore.releaseAsync().await() }
+                    .onFailure { error ->
+                        if (error is CancellationException) throw error
+                        log.warn(error) { "Fail to release semaphore slot. lockName=$lockName" }
+                    }
+            }
         }
     }
 }

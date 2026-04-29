@@ -4,9 +4,13 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.coroutines.SuspendLeaderElection
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import io.bluetape4k.logging.warn
 import io.bluetape4k.leader.lettuce.lock.LettuceSuspendLock
 import io.bluetape4k.support.requireNotBlank
 import io.lettuce.core.api.StatefulRedisConnection
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 /**
  * [StatefulRedisConnection]에서 [LettuceSuspendLeaderElection] 인스턴스를 생성합니다.
@@ -58,8 +62,13 @@ class LettuceSuspendLeaderElection(
         try {
             return action()
         } finally {
-            if (lock.isHeldByCurrentInstance()) {
-                runCatching { lock.unlock() }
+            // NonCancellable: 코루틴 취소 시에도 락 해제가 중단되지 않도록 보호
+            withContext(NonCancellable) {
+                runCatching { if (lock.isHeldByCurrentInstance()) lock.unlock() }
+                    .onFailure { error ->
+                        if (error is CancellationException) throw error
+                        log.warn(error) { "Fail to release lock. lockName=$lockName" }
+                    }
             }
         }
     }
