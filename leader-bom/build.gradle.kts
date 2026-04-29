@@ -13,7 +13,9 @@ dependencies {
         api(project(":leader-core"))
         api(project(":leader-redis-lettuce"))
         api(project(":leader-redis-redisson"))
-        api(project(":leader-exposed"))
+        api(project(":leader-exposed-core"))
+        api(project(":leader-exposed-jdbc"))
+        api(project(":leader-exposed-r2dbc"))
         api(project(":leader-mongodb"))
         api(project(":leader-hazelcast"))
         api(project(":leader-spring-boot3"))
@@ -57,7 +59,4 @@ publishing {
     }
 }
 
-signing {
-    useGpgCmd()
-    sign(publishing.publications["BluetapeLeaderBom"])
-}
+configurePublishingSigning("BluetapeLeaderBom")
