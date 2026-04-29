@@ -26,22 +26,22 @@ graph TD
     Core["leader-core\n(인터페이스 + 로컬 구현)"]
     Lettuce["leader-redis-lettuce\n(Lettuce Redis)"]
     Redisson["leader-redis-redisson\n(Redisson Redis)"]
+    Hazelcast["leader-hazelcast\n(Hazelcast)"]
     ExposedCore["leader-exposed-core\n(예정)"]
     ExposedJdbc["leader-exposed-jdbc\n(예정)"]
     ExposedR2dbc["leader-exposed-r2dbc\n(예정)"]
     Mongo["leader-mongodb\n(예정)"]
-    Hazelcast["leader-hazelcast\n(예정)"]
     SB3["leader-spring-boot3\n(예정)"]
     SB4["leader-spring-boot4\n(예정)"]
     Metrics["leader-micrometer\n(예정)"]
 
     Lettuce --> Core
     Redisson --> Core
+    Hazelcast --> Core
     ExposedCore --> Core
     ExposedJdbc --> ExposedCore
     ExposedR2dbc --> ExposedCore
     Mongo --> Core
-    Hazelcast --> Core
     SB3 --> Core
     SB4 --> Core
     Metrics --> Core
@@ -54,11 +54,11 @@ graph TD
 | `leader-core` | 안정 | 인터페이스 + 로컬 인메모리 구현체 |
 | `leader-redis-lettuce` | 안정 | Lettuce 기반 Redis 백엔드 |
 | `leader-redis-redisson` | 안정 | Redisson 기반 Redis 백엔드 |
+| `leader-hazelcast` | 안정 | Hazelcast 백엔드 (IMap 기반, CP Subsystem 불필요) |
 | `leader-exposed-core` | 예정 | Exposed 공통 스키마 (JDBC/R2DBC 드라이버 미포함) |
 | `leader-exposed-jdbc` | 예정 | Exposed JDBC 백엔드 |
 | `leader-exposed-r2dbc` | 예정 | Exposed R2DBC 백엔드 |
 | `leader-mongodb` | 예정 | MongoDB 백엔드 |
-| `leader-hazelcast` | 예정 | Hazelcast 백엔드 |
 | `leader-micrometer` | 예정 | Micrometer 메트릭 연동 |
 | `leader-spring-boot3` | 예정 | Spring Boot 3 자동 구성 |
 | `leader-spring-boot4` | 예정 | Spring Boot 4 자동 구성 |
@@ -127,6 +127,58 @@ val election = LocalLeaderElection()
 val result = election.runIfLeader("job") { "done" }
 ```
 
+## `runIfLeader` 동작 원리
+
+여러 노드가 동시에 `runIfLeader`를 호출하면 하나만 락을 획득하고 action을 실행하며, 나머지는 `null`을 반환합니다.
+
+```mermaid
+sequenceDiagram
+    participant NodeA
+    participant NodeB
+    participant LockStore
+
+    par NodeA 시도
+        NodeA->>LockStore: tryLock("job", waitTime, leaseTime)
+    and NodeB 시도
+        NodeB->>LockStore: tryLock("job", waitTime, leaseTime)
+    end
+
+    LockStore-->>NodeA: 획득 성공 (true)
+    LockStore-->>NodeB: 획득 실패 → waitTime까지 재시도
+
+    NodeA->>NodeA: action()
+    NodeA->>LockStore: unlock("job")
+    NodeA-->>NodeA: action() 결과 반환
+
+    LockStore-->>NodeB: 타임아웃 (false)
+    NodeB-->>NodeB: null 반환
+```
+
+### 복수 리더 그룹: 슬롯 기반 세마포어
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant GroupElection
+    participant LockStore
+
+    Caller->>GroupElection: runIfLeader(lockName, action)
+    loop slot = 0..maxLeaders-1
+        GroupElection->>LockStore: tryLock(lockName:slot:i, ...)
+        alt 슬롯 획득 성공
+            LockStore-->>GroupElection: true
+            GroupElection->>Caller: action()
+            Caller-->>GroupElection: result
+            GroupElection->>LockStore: unlock(lockName:slot:i)
+            GroupElection-->>Caller: result
+        else 슬롯 사용 중
+            LockStore-->>GroupElection: false
+            Note over GroupElection: 다음 슬롯 시도
+        end
+    end
+    Note over GroupElection: 모든 슬롯 사용 중 → null 반환
+```
+
 ## API 개요
 
 ### 핵심 인터페이스
@@ -172,7 +224,7 @@ LeaderGroupElectionOptions(
 | Spring 연동 | 예정 | 지원 (핵심 기능) |
 | JDBC/SQL | 예정 | 지원 |
 | MongoDB | 예정 | 지원 |
-| Hazelcast | 예정 | 지원 |
+| Hazelcast | 지원 | 지원 |
 
 ## 요구사항
 
