@@ -4,7 +4,6 @@ configurations {
 
 dependencies {
     api(project(":leader-core"))
-    api(Libs.bluetape4k_lettuce)
     api(Libs.lettuce_core)
 
     testImplementation(Libs.bluetape4k_junit5)

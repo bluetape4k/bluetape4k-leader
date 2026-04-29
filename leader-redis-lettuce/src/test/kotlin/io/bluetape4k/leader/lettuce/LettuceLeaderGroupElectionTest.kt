@@ -4,10 +4,6 @@ import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.redis.lettuce.AbstractLettuceTest
-import io.bluetape4k.redis.lettuce.LettuceClients
-import io.bluetape4k.redis.lettuce.LettuceTestUtils
-import io.lettuce.core.codec.StringCodec
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeGreaterOrEqualTo
 import org.amshove.kluent.shouldBeInRange
@@ -19,11 +15,9 @@ import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 
-class LettuceLeaderGroupElectionTest: AbstractLettuceTest() {
+class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
 
-    companion object: KLogging() {
-        private val connection by lazy { LettuceClients.connect(LettuceTestUtils.client, StringCodec.UTF8) }
-    }
+    companion object: KLogging()
 
     private val maxLeaders = 3
     private val options = LeaderGroupElectionOptions(maxLeaders, Duration.ofSeconds(5), Duration.ofSeconds(10))
@@ -98,7 +92,6 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceTest() {
             election.runIfLeader(lockName) { throw RuntimeException("오류") }
         } catch (_: RuntimeException) {
         }
-        // 슬롯이 반환되어 다시 선출 가능
         val result = election.runIfLeader(lockName) { "recovered" }
         result shouldBeEqualTo "recovered"
     }
@@ -156,7 +149,6 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceTest() {
             }
             .run()
 
-        // 동시 실행 수는 maxLeaders 이하여야 함
         maxConcurrent.get() shouldBeInRange 1..maxLeaders
         executed.get() shouldBeGreaterOrEqualTo 1
     }

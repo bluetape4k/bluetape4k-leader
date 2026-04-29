@@ -169,11 +169,11 @@ object Libs {
     const val awaitility_kotlin = "org.awaitility:awaitility-kotlin:${Versions.awaitility}"
 
     const val testcontainers_bom = "org.testcontainers:testcontainers-bom:${Versions.testcontainers}"
-    const val testcontainers = "org.testcontainers:testcontainers"
-    const val testcontainers_junit_jupiter = "org.testcontainers:junit-jupiter"
-    const val testcontainers_redis = "org.testcontainers:toxiproxy"
-    const val testcontainers_mongodb = "org.testcontainers:mongodb"
-    const val testcontainers_hazelcast = "org.testcontainers:hazelcast"
-    const val testcontainers_postgresql = "org.testcontainers:postgresql"
-    const val testcontainers_mysql = "org.testcontainers:mysql"
+    const val testcontainers = "org.testcontainers:testcontainers:${Versions.testcontainers}"
+    const val testcontainers_junit_jupiter = "org.testcontainers:testcontainers-junit-jupiter:${Versions.testcontainers}"
+    const val testcontainers_redis = "org.testcontainers:testcontainers-redis:${Versions.testcontainers}"
+    const val testcontainers_mongodb = "org.testcontainers:testcontainers-mongodb:${Versions.testcontainers}"
+    const val testcontainers_hazelcast = "org.testcontainers:testcontainers-hazelcast:${Versions.testcontainers}"
+    const val testcontainers_postgresql = "org.testcontainers:testcontainers-postgresql:${Versions.testcontainers}"
+    const val testcontainers_mysql = "org.testcontainers:testcontainers-mysql:${Versions.testcontainers}"
 }
