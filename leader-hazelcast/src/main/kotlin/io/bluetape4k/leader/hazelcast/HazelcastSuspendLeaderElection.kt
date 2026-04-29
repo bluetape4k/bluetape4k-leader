@@ -63,12 +63,14 @@ class HazelcastSuspendLeaderElection private constructor(
             // NonCancellable: 코루틴 취소 시에도 락 해제가 중단되지 않도록 보호
             withContext(NonCancellable) {
                 if (lock.isHeldByCurrentInstance()) {
-                    runCatching { lock.unlock() }
-                        .onSuccess { log.debug { "Leader 권한을 반납했습니다 (suspend). lockName=$lockName" } }
-                        .onFailure { e ->
-                            if (e is CancellationException) throw e
-                            log.warn(e) { "Fail to release lock (suspend). lockName=$lockName" }
-                        }
+                    try {
+                        lock.unlock()
+                        log.debug { "Leader 권한을 반납했습니다 (suspend). lockName=$lockName" }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        log.warn(e) { "Fail to release lock (suspend). lockName=$lockName" }
+                    }
                 }
             }
         }

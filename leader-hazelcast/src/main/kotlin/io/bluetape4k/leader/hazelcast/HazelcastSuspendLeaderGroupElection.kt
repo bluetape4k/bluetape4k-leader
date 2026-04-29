@@ -67,9 +67,14 @@ class HazelcastSuspendLeaderGroupElection private constructor(
         val slotWaitTime = if (maxLeaders > 0) waitTime.dividedBy(maxLeaders.toLong()) else waitTime
         log.debug { "리더 그룹 슬롯 획득을 요청합니다 (suspend). lockName=$lockName, maxLeaders=$maxLeaders" }
 
-        val acquiredLock = (0 until maxLeaders)
-            .map { slot -> HazelcastSuspendLock(lockMap, slotKey(lockName, slot)) }
-            .firstOrNull { lock -> lock.tryLock(slotWaitTime, leaseTime) }
+        var acquiredLock: HazelcastSuspendLock? = null
+        for (slot in 0 until maxLeaders) {
+            val lock = HazelcastSuspendLock(lockMap, slotKey(lockName, slot))
+            if (lock.tryLock(slotWaitTime, leaseTime)) {
+                acquiredLock = lock
+                break
+            }
+        }
 
         if (acquiredLock == null) {
             log.debug { "리더 그룹 슬롯 획득 실패 (슬롯 없음, suspend). lockName=$lockName" }
@@ -82,12 +87,14 @@ class HazelcastSuspendLeaderGroupElection private constructor(
         } finally {
             withContext(NonCancellable) {
                 if (acquiredLock.isHeldByCurrentInstance()) {
-                    runCatching { acquiredLock.unlock() }
-                        .onSuccess { log.debug { "리더 그룹 슬롯을 반납했습니다 (suspend). lockName=$lockName" } }
-                        .onFailure { e ->
-                            if (e is CancellationException) throw e
-                            log.warn(e) { "Fail to release group slot (suspend). lockName=$lockName" }
-                        }
+                    try {
+                        acquiredLock.unlock()
+                        log.debug { "리더 그룹 슬롯을 반납했습니다 (suspend). lockName=$lockName" }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        log.warn(e) { "Fail to release group slot (suspend). lockName=$lockName" }
+                    }
                 }
             }
         }
