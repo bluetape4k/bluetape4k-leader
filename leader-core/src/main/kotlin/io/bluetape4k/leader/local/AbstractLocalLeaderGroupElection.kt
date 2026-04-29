@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
  * - [LocalAsyncLeaderGroupElection]: 비동기([java.util.concurrent.CompletableFuture]) 실행만
  * - [LocalVirtualThreadLeaderGroupElection]: [io.bluetape4k.concurrent.virtualthread.VirtualFuture] 실행
  *
- * @param maxLeaders 허용하는 최대 동시 리더 수
+ * @param options 리더 그룹 선출 옵션 (maxLeaders, waitTime, leaseTime). 기본값은 [LeaderGroupElectionOptions.Default]
  */
 abstract class AbstractLocalLeaderGroupElection(
     protected val options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,

@@ -38,14 +38,34 @@ class LeaderElectionOptionsTest {
     @Test
     fun `LeaderGroupElectionOptions maxLeaders 가 0 이하면 예외가 발생한다`() {
         assertThrows<IllegalArgumentException> {
-            io.bluetape4k.leader.local.LocalLeaderGroupElection(
-                LeaderGroupElectionOptions(maxLeaders = 0)
-            )
+            LeaderGroupElectionOptions(maxLeaders = 0)
         }
         assertThrows<IllegalArgumentException> {
-            io.bluetape4k.leader.local.LocalLeaderGroupElection(
-                LeaderGroupElectionOptions(maxLeaders = -1)
-            )
+            LeaderGroupElectionOptions(maxLeaders = -1)
+        }
+    }
+
+    @Test
+    fun `LeaderElectionOptions leaseTime 이 0 이하면 예외가 발생한다`() {
+        assertThrows<IllegalArgumentException> {
+            LeaderElectionOptions(leaseTime = Duration.ZERO)
+        }
+        assertThrows<IllegalArgumentException> {
+            LeaderElectionOptions(leaseTime = Duration.ofSeconds(-1))
+        }
+    }
+
+    @Test
+    fun `LeaderElectionOptions waitTime 이 음수면 예외가 발생한다`() {
+        assertThrows<IllegalArgumentException> {
+            LeaderElectionOptions(waitTime = Duration.ofMillis(-1))
+        }
+    }
+
+    @Test
+    fun `LeaderGroupElectionOptions leaseTime 이 0 이하면 예외가 발생한다`() {
+        assertThrows<IllegalArgumentException> {
+            LeaderGroupElectionOptions(leaseTime = Duration.ZERO)
         }
     }
 

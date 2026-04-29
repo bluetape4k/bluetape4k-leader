@@ -22,7 +22,7 @@ import java.util.concurrent.Executor
  * - 상태 조회 메서드([state], [activeCount], [availableSlots])는 [LeaderGroupElectionState]에서 상속합니다.
  *
  * ```kotlin
- * val election: AsyncLeaderGroupElection = LocalAsyncLeaderGroupElection(maxLeaders = 3)
+ * val election: AsyncLeaderGroupElection = LocalAsyncLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = election.runAsyncIfLeader("batch-job") {
  *     CompletableFuture.completedFuture(processChunk())
  * }.join()

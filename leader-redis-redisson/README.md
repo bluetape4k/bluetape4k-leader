@@ -164,25 +164,14 @@ val election = RedissonSuspendLeaderElection(client, LeaderElectionOptions.Defau
 
 ## Test Infrastructure
 
-Tests use Testcontainers `GenericContainer("redis:7-alpine")` — self-contained, no dependency on external test utilities:
+Tests use `bluetape4k-testcontainers` `RedisServer.Launcher.redis`, a JVM-wide singleton Redis container:
 
 ```kotlin
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractRedissonLeaderTest {
     companion object : KLogging() {
-        private val redisContainer =
-            GenericContainer("redis:7-alpine").withExposedPorts(6379)
-
-        init { redisContainer.start() }
-
-        val redisUrl: String
-            get() = "redis://${redisContainer.host}:${redisContainer.getMappedPort(6379)}"
-
-        val redissonClient: RedissonClient by lazy {
-            val config = Config().apply {
-                useSingleServer().setAddress(redisUrl)
-            }
-            Redisson.create(config)
-        }
+        val redis = RedisServer.Launcher.redis
+        val redisUrl: String get() = redis.url
     }
 }
 ```

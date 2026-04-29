@@ -22,7 +22,7 @@ import java.time.Duration
  *
  * ```kotlin
  * val client: RedissonClient = ...
- * val options = RedissonLeaderGroupElectionOptions(maxLeaders = 3)
+ * val options = LeaderGroupElectionOptions(maxLeaders = 3)
  * val result: Int = client.runSuspendIfLeaderGroup("batch-job", options) {
  *     // 최대 3개 프로세스가 동시에 실행
  *     delay(100)
@@ -51,18 +51,18 @@ suspend fun <T> RedissonClient.runSuspendIfLeaderGroup(
  *
  * ## 동작
  * - `lockName`별로 Redis 분산 `RSemaphore(maxLeaders)`를 생성하여 동시 실행 수를 제한합니다.
- * - 슬롯이 가득 찬 경우 [LeaderGroupElectionOptions.waitTime] 내에 슬롯을 획득하지 못하면
- *   [RedisException]을 던집니다.
+ * - 슬롯이 가득 찬 경우 [LeaderGroupElectionOptions.waitTime] 내에 슬롯을 획득하지 못하면 `null`을 반환합니다 (ShedLock skip 방식).
+ * - 슬롯 대기 중 인터럽트가 발생하면 [RedisException]으로 래핑되어 전파됩니다.
  * - `tryAcquireAsync`/`releaseAsync`를 사용하여 호출 코루틴을 블로킹하지 않습니다.
  * - `action` 예외 발생 시에도 슬롯은 반드시 반환됩니다.
  * - 여러 JVM 프로세스에 걸친 분산 동시 실행 제한에 적합합니다.
  *
  * ## [RedissonLeaderGroupElection] 과의 차이
  * - [RedissonLeaderGroupElection]은 스레드를 블로킹합니다.
- * - 이 구현체는 `awit()`으로 코루틴을 suspend합니다.
+ * - 이 구현체는 `await()`으로 코루틴을 suspend합니다.
  *
  * ```kotlin
- * val options = RedissonLeaderGroupElectionOptions(maxLeaders = 3)
+ * val options = LeaderGroupElectionOptions(maxLeaders = 3)
  * val election = RedissonSuspendLeaderGroupElection(redissonClient, options)
  *
  * // 최대 3개 코루틴/프로세스가 동시에 실행
@@ -136,13 +136,13 @@ class RedissonSuspendLeaderGroupElection private constructor(
     /**
      * [lockName]의 분산 [RSemaphore] 슬롯을 비동기로 획득하고 suspend [action]을 실행합니다.
      *
-     * - 슬롯이 가득 찬 경우 [waitTime] 내 슬롯을 획득하지 못하면 [RedisException]을 던집니다.
+     * - 슬롯이 가득 찬 경우 [waitTime] 내 슬롯을 획득하지 못하면 `null`을 반환합니다 (ShedLock skip 방식).
      * - [action] 예외 발생 시에도 슬롯은 반드시 반환됩니다.
      *
      * @param lockName 리더 그룹 선출에 사용할 락 이름
      * @param action 슬롯 획득 성공 시 실행할 suspend 작업
-     * @return [action] 실행 결과
-     * @throws RedisException 슬롯 획득 실패 또는 인터럽트 발생 시
+     * @return [action] 실행 결과, 슬롯 획득 실패 시 `null`
+     * @throws RedisException 슬롯 대기 중 인터럽트가 발생한 경우
      */
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         lockName.requireNotBlank("lockName")

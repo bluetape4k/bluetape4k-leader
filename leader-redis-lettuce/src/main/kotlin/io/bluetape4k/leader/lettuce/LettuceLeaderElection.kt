@@ -4,6 +4,7 @@ import io.bluetape4k.leader.LeaderElection
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import io.bluetape4k.logging.warn
 import io.bluetape4k.leader.lettuce.lock.LettuceLock
 import io.bluetape4k.support.requireNotBlank
 import io.lettuce.core.api.StatefulRedisConnection
@@ -60,9 +61,8 @@ class LettuceLeaderElection(
         try {
             return action()
         } finally {
-            if (lock.isHeldByCurrentInstance()) {
-                runCatching { lock.unlock() }
-            }
+            runCatching { if (lock.isHeldByCurrentInstance()) lock.unlock() }
+                .onFailure { log.warn(it) { "Fail to release lock. lockName=$lockName" } }
         }
     }
 
@@ -87,14 +87,12 @@ class LettuceLeaderElection(
                 log.debug { "리더 선출 성공 (async): lockName=$lockName" }
                 try {
                     action().whenComplete { _, _ ->
-                        if (lock.isHeldByCurrentInstance()) {
-                            runCatching { lock.unlock() }
-                        }
+                        runCatching { if (lock.isHeldByCurrentInstance()) lock.unlock() }
+                            .onFailure { log.warn(it) { "Fail to release lock. lockName=$lockName" } }
                     }
                 } catch (e: Throwable) {
-                    if (lock.isHeldByCurrentInstance()) {
-                        runCatching { lock.unlock() }
-                    }
+                    runCatching { if (lock.isHeldByCurrentInstance()) lock.unlock() }
+                        .onFailure { log.warn(it) { "Fail to release lock. lockName=$lockName" } }
                     CompletableFuture.failedFuture(e)
                 }
             }

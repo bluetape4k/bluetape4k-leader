@@ -21,7 +21,8 @@ import java.util.concurrent.TimeUnit
  * ## 동작
  * - [runIfLeader]: 동기 방식으로 락을 획득한 뒤 [LeaderElection.runIfLeader]를 실행하고, 완료 후 락을 해제합니다.
  * - [runAsyncIfLeader]: `tryLockAsync`로 비동기 락을 획득하고, `CompletableFuture` 완료 시 [RLock.unlockAsync]로 락을 해제합니다.
- * - 락 획득 실패 시 [org.redisson.client.RedisException]을 던집니다.
+ * - [LeaderElectionOptions.waitTime] 내 락 획득에 실패하면 `null`을 반환합니다 (ShedLock skip 방식).
+ * - 락 대기 중 인터럽트가 발생하면 [org.redisson.client.RedisException]으로 래핑되어 전파됩니다.
  *
  * ```kotlin
  * val election = RedissonLeaderElection(redissonClient)
@@ -58,7 +59,8 @@ class RedissonLeaderElection private constructor(
      *
      * @param lockName lock name - lock 획득에 성공하면 leader로 승격되는 것이다.
      * @param action leader 로 승격되면 수행할 코드 블럭
-     * @return 작업 결과
+     * @return [action] 실행 결과, 리더 획득 실패 시 `null`
+     * @throws org.redisson.client.RedisException 락 대기 중 인터럽트가 발생한 경우
      */
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         lockName.requireNotBlank("lockName")
@@ -98,7 +100,7 @@ class RedissonLeaderElection private constructor(
      * @param lockName lock name - lock 획득에 성공하면 leader로 승격되는 것이다.
      * @param executor 작업이 수행될 executor
      * @param action leader 로 승격되면 수행할 코드 블럭
-     * @return 작업 결과
+     * @return [action] 실행 결과를 담은 [CompletableFuture]. 리더 획득 실패 시 `null`로 완료됨
      */
     override fun <T> runAsyncIfLeader(
         lockName: String,
@@ -233,7 +235,7 @@ inline fun <T> RedissonClient.runIfLeader(
  * @param executor 작업을 수행할 Executor
  * @param options 리더 선출 옵션
  * @param action 리더로 선출되었을 때 수행할 비동기 작업
- * @return 작업 결과를 담은 []CompletableFuture] 인스턴스
+ * @return 작업 결과를 담은 [CompletableFuture] 인스턴스. 리더 획득 실패 시 `null`로 완료됨
  */
 inline fun <T> RedissonClient.runAsyncIfLeader(
     jobName: String,

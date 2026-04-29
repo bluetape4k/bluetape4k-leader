@@ -20,6 +20,14 @@ data class LeaderGroupState(
     val maxLeaders: Int,
     val activeCount: Int,
 ) {
+    init {
+        require(lockName.isNotBlank()) { "lockName must not be blank" }
+        require(maxLeaders >= 1) { "maxLeaders must be >= 1: $maxLeaders" }
+        require(activeCount in 0..maxLeaders) {
+            "activeCount must be in 0..$maxLeaders: $activeCount"
+        }
+    }
+
     /**
      * 새 리더를 수용할 수 있는 남은 슬롯 수.
      *

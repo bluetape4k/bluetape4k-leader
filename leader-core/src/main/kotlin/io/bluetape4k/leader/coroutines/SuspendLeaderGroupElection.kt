@@ -15,12 +15,13 @@ import io.bluetape4k.leader.LeaderGroupElectionState
  *
  * ## 동작/계약
  * - 구현체는 `lockName` 기준으로 최대 [maxLeaders]개의 `action`을 동시에 실행합니다.
- * - 슬롯이 가득 찬 경우, 빈 슬롯이 생길 때까지 호출 코루틴이 suspend됩니다.
+ * - 슬롯이 가득 찬 경우 [waitTime] 내 슬롯을 획득하지 못하면 `null`을 반환합니다 (ShedLock skip 방식).
  * - `action` 예외 발생 시에도 슬롯이 반드시 반환됩니다.
+ * - 코루틴 취소 시 슬롯은 반드시 반환되어야 하며, `CancellationException`은 반환 작업 후 재전파해야 합니다.
  * - 상태 조회 메서드([state], [activeCount], [availableSlots])는 근사값을 반환할 수 있습니다.
  *
  * ```kotlin
- * val election = LocalSuspendLeaderGroupElection(maxLeaders = 3)
+ * val election = LocalSuspendLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = election.runIfLeader("batch-job") { processChunkSuspend() }
  *
  * println(election.state("batch-job"))  // LeaderGroupState(activeCount=2, ...)
