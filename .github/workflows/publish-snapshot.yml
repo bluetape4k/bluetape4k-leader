@@ -1,0 +1,68 @@
+name: Publish Snapshot
+
+on:
+  schedule:
+    - cron: '0 18 * * *'  # 매일 03:00 KST (18:00 UTC)
+  workflow_dispatch:
+
+concurrency:
+  group: publish-snapshot
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '21'
+  JAVA_DISTRIBUTION: 'temurin'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  check-activity:
+    name: Check Recent Commits
+    runs-on: ubuntu-latest
+    outputs:
+      has_commits: ${{ steps.check.outputs.has_commits }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: develop
+      - name: Check commits in last 24 hours
+        id: check
+        run: |
+          COUNT=$(git log --oneline --since="24 hours ago" origin/develop | wc -l)
+          echo "Recent commit count: $COUNT"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "has_commits=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_commits=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    name: Publish SNAPSHOT to Maven Central
+    runs-on: ubuntu-latest
+    needs: check-activity
+    if: |
+      needs.check-activity.outputs.has_commits == 'true' ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+          cache-read-only: true
+      - name: Publish SNAPSHOT
+        run: |
+          ./gradlew publishAggregationToCentralSnapshots \
+            --no-daemon --no-configuration-cache --no-build-cache
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}

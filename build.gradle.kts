@@ -3,6 +3,7 @@ import io.gitlab.arturbosch.detekt.report.ReportMergeTask
 import nmcp.NmcpAggregationExtension
 import nmcp.NmcpExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+import java.util.concurrent.TimeUnit
 
 plugins {
     base
@@ -28,8 +29,9 @@ plugins {
     id(Plugins.kover) version Plugins.Versions.kover
 }
 
-val centralUser: String = providers.gradleProperty("centralPortalUsername").orElse("").get()
-val centralPassword: String = providers.gradleProperty("centralPortalPassword").orElse("").get()
+val centralPublishing = resolveCentralPublishingConfig()
+val centralUser: String = centralPublishing.username
+val centralPassword: String = centralPublishing.password
 val centralSnapshotsParallelism: Int = providers
     .gradleProperty("centralSnapshotsParallelism")
     .map(String::toInt)
@@ -48,6 +50,14 @@ allprojects {
         mavenLocal()
         mavenCentral()
         google()
+        // bluetape4k SNAPSHOT 버전 사용 시
+        maven {
+            name = "central-snapshots"
+            url = uri("https://central.sonatype.com/repository/maven-snapshots/")
+        }
+    }
+    configurations.all {
+        resolutionStrategy.cacheChangingModulesFor(1, TimeUnit.DAYS)
     }
 }
 
@@ -297,10 +307,7 @@ subprojects {
         }
     }
 
-    signing {
-        useGpgCmd()
-        sign(publishing.publications["BluetapeLeader"])
-    }
+    configurePublishingSigning("BluetapeLeader")
 }
 
 extensions.configure<NmcpAggregationExtension>("nmcpAggregation") {

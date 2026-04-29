@@ -1,28 +1,22 @@
 package io.bluetape4k.leader.redisson
 
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.testcontainers.storage.RedisServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
 import org.redisson.Redisson
 import org.redisson.api.RedissonClient
 import org.redisson.config.Config
-import org.testcontainers.containers.GenericContainer
 import java.util.UUID
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractRedissonLeaderTest {
 
     companion object: KLogging() {
-        private val redisContainer: GenericContainer<*> =
-            GenericContainer("redis:7-alpine").withExposedPorts(6379)
+        val redis = RedisServer.Launcher.redis
 
-        init {
-            redisContainer.start()
-        }
-
-        val redisUrl: String
-            get() = "redis://${redisContainer.host}:${redisContainer.getMappedPort(6379)}"
+        val redisUrl: String get() = redis.url
 
         val redissonClient: RedissonClient by lazy {
             val config = Config().apply {
@@ -44,6 +38,6 @@ abstract class AbstractRedissonLeaderTest {
 
     @AfterAll
     fun teardownRedisson() {
-        // 컨테이너는 JVM 종료 시 자동 정리됨 (companion object lazy)
+        // ShutdownQueue 에 등록된 컨테이너는 JVM 종료 시 자동 정리됨
     }
 }

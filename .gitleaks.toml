@@ -1,0 +1,25 @@
+title = "bluetape4k-leader gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlisted paths and patterns"
+
+paths = [
+    '''.idea/''',
+    '''build/''',
+    '''.gradle/''',
+    '''gradle/wrapper/''',
+    '''src/test/resources/''',
+    '''docs/''',
+    '''README\.md''',
+    '''README\.ko\.md''',
+    '''.worktrees/''',
+]
+
+regexes = [
+    '''YOUR_.*_HERE''',
+    '''example[-_]key''',
+    '''test[-_]api[-_]key''',
+]

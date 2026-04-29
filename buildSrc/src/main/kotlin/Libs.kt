@@ -105,6 +105,7 @@ object Libs {
     const val bluetape4k_idgenerators = "io.github.bluetape4k:bluetape4k-idgenerators"
     const val bluetape4k_logging = "io.github.bluetape4k:bluetape4k-logging"
     const val bluetape4k_junit5 = "io.github.bluetape4k:bluetape4k-junit5"
+    const val bluetape4k_testcontainers = "io.github.bluetape4k:bluetape4k-testcontainers"
     const val bluetape4k_lettuce = "io.github.bluetape4k:bluetape4k-lettuce"
     const val bluetape4k_redisson = "io.github.bluetape4k:bluetape4k-redisson"
 
