@@ -5,7 +5,7 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElection
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
-import io.bluetape4k.redis.lettuce.semaphore.LettuceSemaphore
+import io.bluetape4k.leader.lettuce.semaphore.LettuceSemaphore
 import io.bluetape4k.support.requireNotBlank
 import io.lettuce.core.api.StatefulRedisConnection
 import kotlinx.coroutines.future.await

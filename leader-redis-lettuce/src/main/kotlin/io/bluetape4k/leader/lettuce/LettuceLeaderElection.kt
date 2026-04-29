@@ -4,7 +4,7 @@ import io.bluetape4k.leader.LeaderElection
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
-import io.bluetape4k.redis.lettuce.lock.LettuceLock
+import io.bluetape4k.leader.lettuce.lock.LettuceLock
 import io.bluetape4k.support.requireNotBlank
 import io.lettuce.core.api.StatefulRedisConnection
 import java.util.concurrent.CompletableFuture

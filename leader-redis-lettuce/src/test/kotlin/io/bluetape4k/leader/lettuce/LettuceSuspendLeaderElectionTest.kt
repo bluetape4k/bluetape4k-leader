@@ -4,10 +4,6 @@ import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.redis.lettuce.AbstractLettuceTest
-import io.bluetape4k.redis.lettuce.LettuceClients
-import io.bluetape4k.redis.lettuce.LettuceTestUtils
-import io.lettuce.core.codec.StringCodec
 import kotlinx.coroutines.delay
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeGreaterOrEqualTo
@@ -18,11 +14,9 @@ import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 
-class LettuceSuspendLeaderElectionTest: AbstractLettuceTest() {
+class LettuceSuspendLeaderElectionTest: AbstractLettuceLeaderTest() {
 
-    companion object: KLogging() {
-        private val connection by lazy { LettuceClients.connect(LettuceTestUtils.client, StringCodec.UTF8) }
-    }
+    companion object: KLogging()
 
     private val options = LeaderElectionOptions(waitTime = Duration.ofSeconds(2), Duration.ofSeconds(10))
 

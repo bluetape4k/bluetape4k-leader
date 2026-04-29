@@ -4,10 +4,6 @@ import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.redis.lettuce.AbstractLettuceTest
-import io.bluetape4k.redis.lettuce.LettuceClients
-import io.bluetape4k.redis.lettuce.LettuceTestUtils
-import io.lettuce.core.codec.StringCodec
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
@@ -22,16 +18,13 @@ import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 
-class LettuceSuspendLeaderGroupElectionTest: AbstractLettuceTest() {
+class LettuceSuspendLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
 
-    companion object: KLogging() {
-        private val connection by lazy { LettuceClients.connect(LettuceTestUtils.client, StringCodec.UTF8) }
-    }
+    companion object: KLogging()
 
     private val maxLeaders = 3
     private val options = LeaderGroupElectionOptions(maxLeaders, Duration.ofSeconds(5), Duration.ofSeconds(10))
 
-    private lateinit var election: LettuceLeaderGroupElection
     private lateinit var suspendElection: LettuceSuspendLeaderGroupElection
     private lateinit var lockName: String
 
@@ -118,7 +111,6 @@ class LettuceSuspendLeaderGroupElectionTest: AbstractLettuceTest() {
             }
             .run()
 
-        // 동시 실행 수는 maxLeaders 이하여야 함
         maxConcurrent.get() shouldBeInRange 1..maxLeaders
         executed.get() shouldBeGreaterOrEqualTo 1
     }
@@ -139,8 +131,6 @@ class LettuceSuspendLeaderGroupElectionTest: AbstractLettuceTest() {
             }
             .run()
 
-        // SuspendedJobTester: 총 실행 횟수 = rounds (workers는 병렬도만 제어)
         executed.get() shouldBeEqualTo rounds
     }
-
 }
