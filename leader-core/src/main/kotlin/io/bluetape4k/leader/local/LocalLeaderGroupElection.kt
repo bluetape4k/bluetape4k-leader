@@ -62,10 +62,10 @@ class LocalLeaderGroupElection private constructor(options: LeaderGroupElectionO
      *
      * @param lockName 리더 그룹 선출에 사용할 락 이름
      * @param action 슬롯 획득 성공 시 실행할 동기 작업
-     * @return [action] 실행 결과
+     * @return [action] 실행 결과, 슬롯 획득 실패 시 `null`
      */
-    override fun <T> runIfLeader(lockName: String, action: () -> T): T {
-        return withPermit(lockName, action)
+    override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
+        return tryWithPermit(lockName, action)
     }
 
     /**
@@ -82,15 +82,15 @@ class LocalLeaderGroupElection private constructor(options: LeaderGroupElectionO
      * @param lockName 리더 그룹 선출에 사용할 락 이름
      * @param executor 비동기 실행에 사용할 [Executor]. 기본값은 [VirtualThreadExecutor]
      * @param action 슬롯 획득 성공 시 실행할 비동기 작업
-     * @return [action] 실행 결과를 담은 [CompletableFuture]
+     * @return [action] 실행 결과를 담은 [CompletableFuture]. 슬롯 획득 실패 시 `null`로 완료됨
      */
     override fun <T> runAsyncIfLeader(
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T> =
+    ): CompletableFuture<T?> =
         CompletableFuture.supplyAsync(
-            { withPermit(lockName) { action().join() } },
+            { tryWithPermit(lockName) { action().join() } },
             executor
         )
 }

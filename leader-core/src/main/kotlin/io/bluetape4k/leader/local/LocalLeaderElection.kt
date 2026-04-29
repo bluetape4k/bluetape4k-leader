@@ -39,10 +39,10 @@ class LocalLeaderElection(
      *
      * @param lockName 리더 선출에 사용할 락 이름
      * @param action 리더 획득 성공 시 실행할 동기 작업
-     * @return [action] 실행 결과
+     * @return [action] 실행 결과, 리더 획득 실패 시 `null`
      */
-    override fun <T> runIfLeader(lockName: String, action: () -> T): T =
-        withLeaderLock(lockName, action)
+    override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
+        tryWithLeaderLock(lockName, options.waitTime, action)
 
     /**
      * [lockName]에 대한 [ReentrantLock]을 획득하고 [action]을 [executor]에서 비동기로 실행합니다.
@@ -61,15 +61,15 @@ class LocalLeaderElection(
      * @param lockName 리더 선출에 사용할 락 이름
      * @param executor 비동기 실행에 사용할 [Executor]
      * @param action 리더 획득 성공 시 실행할 비동기 작업
-     * @return [action] 실행 결과를 담은 [CompletableFuture]
+     * @return [action] 실행 결과를 담은 [CompletableFuture]. 리더 획득 실패 시 `null`로 완료됨
      */
     override fun <T> runAsyncIfLeader(
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T> =
+    ): CompletableFuture<T?> =
         CompletableFuture.supplyAsync(
-            { withLeaderLock(lockName) { action().join() } },
+            { tryWithLeaderLock(lockName, options.waitTime) { action().join() } },
             executor
         )
 }

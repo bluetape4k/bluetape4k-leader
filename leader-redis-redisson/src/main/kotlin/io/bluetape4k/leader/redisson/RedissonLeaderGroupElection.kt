@@ -38,7 +38,7 @@ inline fun <T> RedissonClient.runIfLeaderGroup(
     lockName: String,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     crossinline action: () -> T,
-): T {
+): T? {
     lockName.requireNotBlank("lockName")
     return RedissonLeaderGroupElection(this, options).runIfLeader(lockName) { action() }
 }
@@ -145,7 +145,7 @@ class RedissonLeaderGroupElection private constructor(
     override fun <T> runIfLeader(
         lockName: String,
         action: () -> T,
-    ): T {
+    ): T? {
         lockName.requireNotBlank("lockName")
 
         val semaphore = getSemaphore(lockName)
@@ -161,7 +161,8 @@ class RedissonLeaderGroupElection private constructor(
             }
 
         if (!acquired) {
-            throw RedisException("Fail to acquire semaphore slot within waitTime. lockName=$lockName")
+            log.debug { "리더 그룹 슬롯 획득 실패 (슬롯 없음). lockName=$lockName" }
+            return null
         }
 
         log.debug { "리더 그룹 슬롯을 획득하여 작업을 수행합니다. lockName=$lockName" }
@@ -189,7 +190,7 @@ class RedissonLeaderGroupElection private constructor(
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T> {
+    ): CompletableFuture<T?> {
         return try {
             lockName.requireNotBlank("lockName")
             val semaphore = getSemaphore(lockName)
@@ -200,9 +201,8 @@ class RedissonLeaderGroupElection private constructor(
                 .toCompletableFuture()
                 .thenComposeAsync({ acquired ->
                     if (!acquired) {
-                        failedCompletableFutureOf(
-                            RedisException("Fail to acquire semaphore slot within waitTime. lockName=$lockName")
-                        )
+                        log.debug { "리더 그룹 슬롯 획득 실패 (슬롯 없음, 비동기). lockName=$lockName" }
+                        CompletableFuture.completedFuture(null)
                     } else {
                         executeGroupActionAsync(semaphore, lockName, action)
                     }
@@ -222,7 +222,7 @@ class RedissonLeaderGroupElection private constructor(
         semaphore: RSemaphore,
         lockName: String,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T> {
+    ): CompletableFuture<T?> {
         log.debug { "리더 그룹 슬롯을 획득하여 비동기 작업을 수행합니다. lockName=$lockName" }
 
         val actionFuture = runCatching { action() }

@@ -7,6 +7,7 @@ import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -35,7 +36,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @param maxLeaders 허용하는 최대 동시 리더 수. 기본값 2
  */
 class LocalSuspendLeaderGroupElection private constructor(
-    options: LeaderGroupElectionOptions,
+    private val options: LeaderGroupElectionOptions,
 ): SuspendLeaderGroupElection {
 
     companion object: KLogging() {
@@ -131,8 +132,19 @@ class LocalSuspendLeaderGroupElection private constructor(
      *
      * @param lockName 리더 그룹 선출에 사용할 락 이름
      * @param action 슬롯 획득 성공 시 실행할 suspend 작업
-     * @return [action] 실행 결과
+     * @return [action] 실행 결과, 슬롯 획득 실패 시 `null`
      */
-    override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T =
-        getSemaphore(lockName).withPermit { action() }
+    override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
+        val semaphore = getSemaphore(lockName)
+        // withTimeoutOrNull 은 semaphore 획득 시도에만 적용합니다. action() 실행은 포함하지 않습니다.
+        val acquired = withTimeoutOrNull(options.waitTime.toMillis()) {
+            semaphore.acquire()
+            true
+        } ?: return null
+        return try {
+            action()
+        } finally {
+            if (acquired) semaphore.release()
+        }
+    }
 }

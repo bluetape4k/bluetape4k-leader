@@ -40,7 +40,7 @@ suspend inline fun <T> RedissonClient.suspendRunIfLeader(
     jobName: String,
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: suspend () -> T,
-): T {
+): T? {
     jobName.requireNotBlank("jobName")
 
     val leaderElection = RedissonSuspendLeaderElection(this, options)
@@ -111,7 +111,7 @@ class RedissonSuspendLeaderElection private constructor(
     override suspend fun <T> runIfLeader(
         lockName: String,
         action: suspend () -> T,
-    ): T {
+    ): T? {
         lockName.requireNotBlank("lockName")
 
         val lock: RLock = redissonClient.getLock(lockName)
@@ -155,7 +155,8 @@ class RedissonSuspendLeaderElection private constructor(
                     }
                 }
             } else {
-                throw RedisException("Fail to acquire lock. lock=$lockName")
+                log.debug { "Leader 승격 실패 (슬롯 없음). lock=$lockName" }
+                return null
             }
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()

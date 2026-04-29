@@ -1,15 +1,20 @@
 package io.bluetape4k.leader.local
 
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import org.amshove.kluent.shouldBeEqualTo
+import org.amshove.kluent.shouldBeNull
+import org.amshove.kluent.shouldNotBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.time.Duration
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.random.Random
 
 class LocalLeaderElectionTest {
@@ -161,5 +166,78 @@ class LocalLeaderElectionTest {
             .run()
 
         counter.get() shouldBeEqualTo numThreads * roundsPerThread
+    }
+
+    // ── skip-behavior (ShedLock 방식): 락 획득 실패 시 null 반환 ──────────
+
+    @Test
+    fun `runIfLeader - waitTime 내 락 획득 실패 시 null 을 반환한다`() {
+        // 짧은 waitTime 으로 설정한 단일 election 인스턴스 사용
+        val skipElection = LocalLeaderElection(
+            LeaderElectionOptions(waitTime = Duration.ofMillis(100))
+        )
+        val lockName = randomLockName()
+        val latch = java.util.concurrent.CountDownLatch(1)
+        val releaseLatch = java.util.concurrent.CountDownLatch(1)
+
+        // 첫 번째 스레드: 동일 election 으로 락을 획득하고 오래 대기
+        val firstThread = Thread {
+            skipElection.runIfLeader(lockName) {
+                latch.countDown()
+                releaseLatch.await() // 메인 스레드가 skip 확인 후 해제
+            }
+        }.apply { start() }
+
+        latch.await() // 첫 번째 스레드가 락을 획득할 때까지 대기
+
+        // 두 번째 시도: 동일 election, 짧은 waitTime(100ms) 으로 → null 반환
+        val result = skipElection.runIfLeader(lockName) { "should-skip" }
+        result.shouldBeNull()
+
+        releaseLatch.countDown()
+        firstThread.join()
+    }
+
+    @Test
+    fun `runIfLeader - 락이 해제되면 이후 호출이 정상 실행된다`() {
+        val shortWaitElection = LocalLeaderElection(
+            LeaderElectionOptions(waitTime = Duration.ofMillis(100))
+        )
+        val lockName = randomLockName()
+
+        // 첫 번째 실행: 정상적으로 락 획득 및 해제
+        val first = shortWaitElection.runIfLeader(lockName) { "first" }
+        first shouldBeEqualTo "first"
+
+        // 두 번째 실행: 락이 해제된 후이므로 정상 실행
+        val second = shortWaitElection.runIfLeader(lockName) { "second" }
+        second shouldBeEqualTo "second"
+    }
+
+    @Test
+    fun `runAsyncIfLeader - waitTime 내 락 획득 실패 시 null 을 반환한다`() {
+        val skipElection = LocalLeaderElection(
+            LeaderElectionOptions(waitTime = Duration.ofMillis(100))
+        )
+        val lockName = randomLockName()
+        val latch = java.util.concurrent.CountDownLatch(1)
+        val releaseLatch = java.util.concurrent.CountDownLatch(1)
+
+        val firstThread = Thread {
+            skipElection.runIfLeader(lockName) {
+                latch.countDown()
+                releaseLatch.await()
+            }
+        }.apply { start() }
+
+        latch.await()
+
+        val result = skipElection.runAsyncIfLeader(lockName) {
+            CompletableFuture.completedFuture("should-skip")
+        }.join()
+        result.shouldBeNull()
+
+        releaseLatch.countDown()
+        firstThread.join()
     }
 }

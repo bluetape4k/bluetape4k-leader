@@ -45,13 +45,14 @@ class LettuceSuspendLeaderElection(
 
     companion object: KLogging()
 
-    override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T {
+    override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         lockName.requireNotBlank("lockName")
 
         val lock = LettuceSuspendLock(connection, lockName, options.leaseTime)
         val acquired = lock.tryLock(options.waitTime, options.leaseTime)
         if (!acquired) {
-            throw IllegalStateException("리더 선출 실패 (suspend): lockName=$lockName")
+            log.debug { "리더 선출 실패 (슬롯 없음, suspend): lockName=$lockName" }
+            return null
         }
         log.debug { "리더 선출 성공 (suspend): lockName=$lockName" }
         try {

@@ -7,6 +7,7 @@ import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
 
 /**
  * 로컬(단일 JVM) 리더 그룹 선출 구현체들의 공통 상태 관리를 제공하는 추상 클래스입니다.
@@ -24,7 +25,7 @@ import java.util.concurrent.Semaphore
  * @param maxLeaders 허용하는 최대 동시 리더 수
  */
 abstract class AbstractLocalLeaderGroupElection(
-    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
+    protected val options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
 ): LeaderGroupElectionState {
 
     init {
@@ -69,6 +70,29 @@ abstract class AbstractLocalLeaderGroupElection(
         semaphore.acquire()
         try {
             return action()
+        } finally {
+            semaphore.release()
+        }
+    }
+
+    /**
+     * [lockName]의 슬롯을 [waitTime] 내에 획득하면 [action]을 실행하고, 실패하면 `null`을 반환합니다.
+     *
+     * ```kotlin
+     * val result = tryWithPermit("batch-job") { "done" }
+     * // result == "done" (획득 성공) 또는 null (획득 실패)
+     * ```
+     *
+     * @param lockName 락 이름
+     * @param action 슬롯 획득 성공 시 실행할 작업
+     * @return [action] 실행 결과, 획득 실패 시 `null`
+     */
+    protected inline fun <T> tryWithPermit(lockName: String, action: () -> T): T? {
+        val semaphore = getSemaphore(lockName)
+        val acquired = semaphore.tryAcquire(options.waitTime.toMillis(), TimeUnit.MILLISECONDS)
+        if (!acquired) return null
+        return try {
+            action()
         } finally {
             semaphore.release()
         }

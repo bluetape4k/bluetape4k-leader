@@ -78,9 +78,17 @@ class LettuceSuspendLeaderGroupElection(
         return LeaderGroupState(lockName, maxLeaders, active)
     }
 
-    override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T {
+    override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         val semaphore = getSemaphore(lockName)
-        semaphore.acquireAsync(waitTime = options.waitTime).await()
+        val acquired = try {
+            semaphore.acquireAsync(waitTime = options.waitTime).await()
+            true
+        } catch (e: IllegalStateException) {
+            log.debug { "리더 선출 실패 (슬롯 없음, suspend): lockName=$lockName" }
+            false
+        }
+        if (!acquired) return null
+
         log.debug { "리더 선출 성공 (suspend): lockName=$lockName" }
         try {
             return action()

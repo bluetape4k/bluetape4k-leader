@@ -43,16 +43,17 @@ interface AsyncLeaderGroupElection: LeaderGroupElectionState {
      * val result = election.runAsyncIfLeader("job-lock") {
      *     CompletableFuture.completedFuture(42)
      * }.join()
+     * // result == 42 (슬롯 획득 성공) 또는 null (획득 실패)
      * ```
      *
      * @param lockName 리더 그룹 선출에 사용할 락 이름
      * @param executor 비동기 실행에 사용할 [Executor]. 기본값은 [VirtualThreadExecutor] 싱글턴
      * @param action 리더 선출 성공 시 실행할 비동기 작업
-     * @return [action] 실행 결과를 담은 [CompletableFuture]
+     * @return [action] 실행 결과를 담은 [CompletableFuture]. 슬롯 획득 실패 시 `null`로 완료됨
      */
     fun <T> runAsyncIfLeader(
         lockName: String,
         executor: Executor = VirtualThreadExecutor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T>
+    ): CompletableFuture<T?>
 }

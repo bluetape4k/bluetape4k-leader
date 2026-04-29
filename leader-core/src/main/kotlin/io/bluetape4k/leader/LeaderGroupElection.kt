@@ -37,11 +37,12 @@ interface LeaderGroupElection: AsyncLeaderGroupElection {
      *
      * ```kotlin
      * val result = election.runIfLeader("job-lock") { compute() }
+     * // result == compute() 반환값 (슬롯 획득 성공) 또는 null (획득 실패)
      * ```
      *
      * @param lockName 리더 그룹 선출에 사용할 락 이름
      * @param action 리더 선출 성공 시 실행할 동기 작업
-     * @return [action] 실행 결과
+     * @return [action] 실행 결과, 슬롯 획득 실패 시 `null`
      */
-    fun <T> runIfLeader(lockName: String, action: () -> T): T
+    fun <T> runIfLeader(lockName: String, action: () -> T): T?
 }

@@ -38,11 +38,12 @@ interface SuspendLeaderGroupElection: LeaderGroupElectionState {
      *
      * ```kotlin
      * val result = election.runIfLeader("job-lock") { computeSuspend() }
+     * // result == computeSuspend() 반환값 (슬롯 획득 성공) 또는 null (획득 실패)
      * ```
      *
      * @param lockName 리더 그룹 선출에 사용할 락 이름
      * @param action 리더 선출 성공 시 실행할 suspend 작업
-     * @return [action] 실행 결과
+     * @return [action] 실행 결과, 슬롯 획득 실패 시 `null`
      */
-    suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T
+    suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T?
 }

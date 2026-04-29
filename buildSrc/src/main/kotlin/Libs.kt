@@ -104,6 +104,8 @@ object Libs {
     const val bluetape4k_coroutines = "io.github.bluetape4k:bluetape4k-coroutines"
     const val bluetape4k_logging = "io.github.bluetape4k:bluetape4k-logging"
     const val bluetape4k_junit5 = "io.github.bluetape4k:bluetape4k-junit5"
+    const val bluetape4k_lettuce = "io.github.bluetape4k:bluetape4k-lettuce"
+    const val bluetape4k_redisson = "io.github.bluetape4k:bluetape4k-redisson"
 
     // Redis — Lettuce
     const val lettuce_core = "io.lettuce:lettuce-core:${Versions.lettuce}"

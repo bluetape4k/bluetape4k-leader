@@ -47,13 +47,14 @@ class LettuceLeaderElection(
 
     companion object: KLogging()
 
-    override fun <T> runIfLeader(lockName: String, action: () -> T): T {
+    override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         lockName.requireNotBlank("lockName")
 
         val lock = LettuceLock(connection, lockName, options.leaseTime)
         val acquired = lock.tryLock(options.waitTime, options.leaseTime)
         if (!acquired) {
-            throw IllegalStateException("리더 선출 실패: lockName=$lockName")
+            log.debug { "리더 선출 실패 (슬롯 없음): lockName=$lockName" }
+            return null
         }
         log.debug { "리더 선출 성공: lockName=$lockName" }
         try {
@@ -69,28 +70,33 @@ class LettuceLeaderElection(
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T> {
+    ): CompletableFuture<T?> {
         lockName.requireNotBlank("lockName")
 
         val lock = LettuceLock(connection, lockName, options.leaseTime)
         return CompletableFuture.supplyAsync({
             val acquired = lock.tryLock(options.waitTime, options.leaseTime)
             if (!acquired) {
-                throw IllegalStateException("리더 선출 실패 (async): lockName=$lockName")
+                log.debug { "리더 선출 실패 (슬롯 없음, async): lockName=$lockName" }
             }
-            log.debug { "리더 선출 성공 (async): lockName=$lockName" }
-        }, executor).thenCompose {
-            try {
-                action().whenComplete { _, _ ->
+            acquired
+        }, executor).thenCompose { acquired ->
+            if (!acquired) {
+                CompletableFuture.completedFuture(null)
+            } else {
+                log.debug { "리더 선출 성공 (async): lockName=$lockName" }
+                try {
+                    action().whenComplete { _, _ ->
+                        if (lock.isHeldByCurrentInstance()) {
+                            runCatching { lock.unlock() }
+                        }
+                    }
+                } catch (e: Throwable) {
                     if (lock.isHeldByCurrentInstance()) {
                         runCatching { lock.unlock() }
                     }
+                    CompletableFuture.failedFuture(e)
                 }
-            } catch (e: Throwable) {
-                if (lock.isHeldByCurrentInstance()) {
-                    runCatching { lock.unlock() }
-                }
-                CompletableFuture.failedFuture(e)
             }
         }
     }

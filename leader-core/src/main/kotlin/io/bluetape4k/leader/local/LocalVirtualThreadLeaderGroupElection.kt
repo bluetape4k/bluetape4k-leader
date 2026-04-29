@@ -66,10 +66,10 @@ class LocalVirtualThreadLeaderGroupElection private constructor(
      *
      * @param lockName 리더 그룹 선출에 사용할 락 이름
      * @param action 슬롯 획득 성공 시 실행할 작업
-     * @return [action] 실행 결과를 담은 [VirtualFuture]
+     * @return [action] 실행 결과를 담은 [VirtualFuture]. 슬롯 획득 실패 시 `null`로 완료됨
      */
-    override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T> =
+    override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?> =
         virtualFuture {
-            withPermit(lockName, action)
+            tryWithPermit(lockName, action)
         }
 }

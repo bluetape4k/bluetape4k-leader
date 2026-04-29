@@ -2,12 +2,17 @@ package io.bluetape4k.leader.coroutines
 
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
 import org.amshove.kluent.shouldBeEqualTo
+import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
+import java.time.Duration
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
@@ -99,5 +104,75 @@ class LocalSuspendLeaderElectionTest {
 
         task1.get() shouldBeEqualTo numWorkers * roundsPerJob
         task2.get() shouldBeEqualTo numWorkers * roundsPerJob
+    }
+
+    // ── skip-behavior (ShedLock 방식): 락 획득 실패 시 null 반환 ──────────
+
+    @Test
+    fun `runIfLeader - waitTime 내 Mutex 획득 실패 시 null 을 반환한다`() = runSuspendIO {
+        val shortWaitElection = LocalSuspendLeaderElection(
+            LeaderElectionOptions(waitTime = Duration.ofMillis(100))
+        )
+        val longWaitElection = LocalSuspendLeaderElection(
+            LeaderElectionOptions(waitTime = Duration.ofSeconds(30))
+        )
+        val lockName = randomLockName()
+        val mutex = Mutex()
+        mutex.lock() // 외부에서 Mutex 를 잠금
+
+        // 첫 번째 코루틴: 오래 걸리는 작업 수행
+        val firstJob = async {
+            longWaitElection.runIfLeader(lockName) {
+                mutex.lock() // 외부 뮤텍스가 잠겨있는 동안 대기 (시뮬레이션)
+                mutex.unlock()
+                "done"
+            }
+        }
+
+        // 실제로는 LocalSuspendLeaderElection 내부 Mutex 를 사용하므로
+        // 두 개의 전자를 순차 실행하고 waitTime 으로 테스트
+        // 간단한 방법: 락 보유 중인 코루틴이 있을 때 짧은 waitTime 으로 시도
+        mutex.unlock()
+        firstJob.await()
+
+        // 명확한 skip-behavior 테스트: 내부 Mutex 를 직접 잠근 상태에서 시도
+        // LocalSuspendLeaderElection 의 내부 mutexes map 에 접근할 수 없으므로
+        // 대신 두 코루틴을 사용하여 race condition 을 만듦
+        val skipElection = LocalSuspendLeaderElection(
+            LeaderElectionOptions(waitTime = Duration.ofMillis(50))
+        )
+        val holderReady = kotlinx.coroutines.channels.Channel<Unit>(1)
+        val holderDone = kotlinx.coroutines.channels.Channel<Unit>(1)
+        val lockName2 = randomLockName()
+
+        // 홀더: 락 획득 후 300ms 유지
+        val holder = async {
+            skipElection.runIfLeader(lockName2) {
+                holderReady.send(Unit)
+                delay(300.milliseconds)
+                "holder"
+            }
+        }
+
+        holderReady.receive() // 홀더가 락 획득할 때까지 대기
+        // 스키퍼: 짧은 waitTime(50ms) 으로 시도 → null 반환
+        val skipped = skipElection.runIfLeader(lockName2) { "should-skip" }
+        skipped.shouldBeNull()
+
+        holder.await()
+    }
+
+    @Test
+    fun `runIfLeader - 락 해제 후 재시도 시 정상 실행된다`() = runSuspendIO {
+        val election = LocalSuspendLeaderElection(
+            LeaderElectionOptions(waitTime = Duration.ofMillis(100))
+        )
+        val lockName = randomLockName()
+
+        val first = election.runIfLeader(lockName) { "first" }
+        first shouldBeEqualTo "first"
+
+        val second = election.runIfLeader(lockName) { "second" }
+        second shouldBeEqualTo "second"
     }
 }

@@ -25,15 +25,15 @@ interface SuspendLeaderElection {
      *
      * ```kotlin
      * val value = election.runIfLeader("job-lock") { 7 }
-     * // value == 7
+     * // value == 7 (리더 획득 성공) 또는 null (획득 실패)
      * ```
      *
      * @param lockName 리더 선출에 사용할 락 이름
      * @param action 리더 획득 성공 시 실행할 suspend 작업
-     * @return [action] 실행 결과
+     * @return [action] 실행 결과, 리더 획득 실패 시 `null`
      */
     suspend fun <T> runIfLeader(
         lockName: String,
         action: suspend () -> T,
-    ): T
+    ): T?
 }

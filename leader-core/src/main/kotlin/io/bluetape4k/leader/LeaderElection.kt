@@ -24,16 +24,17 @@ interface LeaderElection: AsyncLeaderElection {
      * - [lockName]에 대한 리더 획득 성공 시 [action]을 1회 실행합니다.
      * - [action]에서 발생한 예외는 호출자에게 전파됩니다.
      * - [lockName] 유효성(blank 허용 여부)은 구현체의 입력 검증 규칙을 따릅니다.
+     * - [waitTime] 내 리더 획득 실패 시 `null`을 반환합니다 (ShedLock 방식).
      *
      * ```kotlin
      * val value = leaderElection.runIfLeader("job-lock") { 42 }
-     * // value == 42
+     * // value == 42 (리더 획득 성공) 또는 null (획득 실패)
      * ```
      *
      * @param lockName 리더 선출에 사용할 락 이름
      * @param action 리더 획득 성공 시 실행할 동기 작업
-     * @return [action] 실행 결과
+     * @return [action] 실행 결과, 리더 획득 실패 시 `null`
      */
-    fun <T> runIfLeader(lockName: String, action: () -> T): T
+    fun <T> runIfLeader(lockName: String, action: () -> T): T?
 
 }
