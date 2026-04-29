@@ -24,11 +24,28 @@
 - [ ] leader-redis-redisson: HA(복수 JVM) 시나리오
 - [ ] 통합 테스트: 다중 백엔드 혼합 사용
 
-### #7 — leader-exposed (Exposed/JDBC 백엔드)
+### #7 → #21/#22/#23 — leader-exposed 모듈 분리 (완료)
 
-- DB 행 수준 잠금으로 리더 선출 구현 (PostgreSQL `SELECT FOR UPDATE SKIP LOCKED` 활용)
-- `ExposedLeaderElection`, `ExposedSuspendLeaderElection`
+- ✅ `leader-exposed-core`: 공통 스키마 정의 (PR #24 merged)
+- ✅ `leader-exposed-jdbc`: JDBC 블로킹 구현 (모듈 생성 완료)
+- ✅ `leader-exposed-r2dbc`: R2DBC 코루틴 구현 (모듈 생성 완료)
+
+### #21 — leader-exposed-jdbc 구현
+
+- PostgreSQL `SELECT FOR UPDATE SKIP LOCKED` 기반 행 수준 잠금
+- `ExposedJdbcLeaderElection` + HikariCP 커넥션 풀
 - 테스트: Testcontainers PostgreSQL
+
+### #22 — leader-exposed-r2dbc 구현
+
+- R2DBC + Coroutines 기반 비동기 리더 선출
+- `ExposedR2dbcSuspendLeaderElection`
+- 테스트: Testcontainers PostgreSQL (r2dbc-postgresql)
+
+### #23 — leader-exposed-core 스키마 구현
+
+- `LeaderTable` Exposed Table 정의 (공통 스키마)
+- JDBC/R2DBC 양쪽에서 재사용 가능한 DDL 생성 유틸
 
 ### #8 — leader-mongodb (MongoDB 백엔드)
 
@@ -69,6 +86,125 @@
 - ✅ leader-redis-lettuce README 작성 (2026-04-29)
 - ✅ leader-redis-redisson README 작성 (2026-04-29)
 - [ ] 모듈 구현 완료 후 각 모듈 README 업데이트
+
+### #25 — 예제 시나리오 모듈 (`leader-examples`)
+
+실무 시나리오 5종을 다양한 백엔드로 구현한 실행 가능한 예제 모음.  
+각 예제는 독립적으로 실행 가능하며 Testcontainers로 외부 의존성을 자동 프로비저닝한다.
+
+---
+
+## 예제 시나리오
+
+### E1 — 분산 배치 스케줄러 (Redis-Lettuce)
+
+**문제**: 동일 배치 서비스가 3대 이상 배포되었을 때 새벽 정산 Job이 중복 실행되는 문제  
+**해법**: `LeaderElection.runIfLeader { }` 로 리더 노드만 Job 실행, 나머지는 즉시 skip
+
+```kotlin
+// Spring @Scheduled 환경
+@Scheduled(cron = "0 0 2 * * *")
+fun dailySettlement() {
+    leaderElection.runIfLeader {
+        settlementService.runDailyJob()
+    } ?: log.info("리더 아님 — 이번 배치는 다른 노드가 처리")
+}
+```
+
+- 백엔드: `leader-redis-lettuce`
+- 핵심 포인트: `runIfLeader()` 반환 `null` = 선출 실패, 예외 아님
+- 시연: 3개 JVM 인스턴스 + Redis 1대, Job 실행 로그로 단일 실행 확인
+
+---
+
+### E2 — 롤링 배포 시 DB 마이그레이션 게이트 (Exposed-JDBC)
+
+**문제**: Kubernetes 롤링 배포 중 N개 Pod가 동시 기동할 때 Flyway 마이그레이션이 중복 충돌  
+**해법**: 리더 Pod만 마이그레이션 실행, 나머지는 리더 완료까지 대기 후 합류
+
+```kotlin
+fun onApplicationReady() {
+    val migrated = leaderElection.runIfLeader(waitTime = 30.seconds) {
+        flyway.migrate()
+    }
+    if (migrated == null) {
+        awaitMigrationComplete() // 폴링 또는 DB 상태 확인
+    }
+}
+```
+
+- 백엔드: `leader-exposed-jdbc` (PostgreSQL)
+- 핵심 포인트: `waitTime` 으로 리더 선출 최대 대기 시간 제어
+- 시연: Docker Compose로 동일 이미지 3개 병렬 기동, 마이그레이션 1회 실행 확인
+
+---
+
+### E3 — 외부 Webhook 이벤트 폴러 (MongoDB)
+
+**문제**: 외부 결제 PG의 Webhook을 여러 인스턴스가 동시에 폴링하면 중복 처리 발생  
+**해법**: 리더만 폴링 루프를 실행, 나머지는 내부 이벤트 버스 소비자로만 동작
+
+```kotlin
+// Coroutine 기반 suspend 버전
+suspend fun startPollingIfLeader() {
+    suspendLeaderElection.runIfLeader {
+        while (isActive) {
+            val events = webhookClient.poll()
+            events.forEach { eventBus.publish(it) }
+            delay(5.seconds)
+        }
+    }
+}
+```
+
+- 백엔드: `leader-mongodb` (TTL 인덱스 + `findOneAndUpdate`)
+- 핵심 포인트: `SuspendLeaderElection` + 코루틴 취소 연동
+- 시연: Testcontainers MongoDB + MockWebServer, 3 인스턴스 중 폴링 1건 확인
+
+---
+
+### E4 — 분산 캐시 파티션 워머 (Hazelcast + LeaderGroup)
+
+**문제**: 글로벌 상품 카탈로그를 5개 리전 캐시에 나눠 저장할 때,  
+각 리전 캐시의 만료 갱신을 누가 담당할지 충돌  
+**해법**: `LeaderGroup`으로 리전별 독립 리더 선출 → 각 리더가 자기 파티션만 갱신
+
+```kotlin
+val leaderGroup = HazelcastLeaderGroup(hazelcastInstance)
+
+regions.forEach { region ->
+    launch {
+        leaderGroup.forKey(region).runIfLeader {
+            cacheWarmer.warmRegion(region)
+        }
+    }
+}
+```
+
+- 백엔드: `leader-hazelcast` (`FencedLock` 기반)
+- 핵심 포인트: `LeaderGroup.forKey(partitionKey)` — 파티션별 독립 선출
+- 시연: 5개 리전 × 3개 인스턴스 = 15 경합, 리전당 정확히 1 워머 실행 확인
+
+---
+
+### E5 — 멀티테넌트 실시간 집계 (Exposed-R2DBC + LeaderGroup)
+
+**문제**: SaaS 서비스에서 테넌트(조직)별 실시간 사용량 집계를 스케줄링할 때,  
+동일 테넌트 집계가 여러 워커에서 중복 실행되어 통계 오염  
+**해법**: `LeaderGroup.forKey(tenantId)` 로 테넌트별 독립 리더가 집계 담당
+
+```kotlin
+// R2DBC 비동기 집계
+suspend fun aggregateTenant(tenantId: TenantId) {
+    leaderGroup.forKey(tenantId.value).runIfLeader {
+        r2dbcAggregator.computeAndStore(tenantId)
+    } ?: return // 이 워커는 해당 테넌트의 리더 아님
+}
+```
+
+- 백엔드: `leader-exposed-r2dbc` (PostgreSQL R2DBC)
+- 핵심 포인트: `LeaderGroup` + `SuspendLeaderElection` 조합, 테넌트 격리 보장
+- 시연: 100 테넌트 × 5 워커, 테넌트별 집계 정확히 1회 실행 + Micrometer 카운터 검증
 
 ---
 
