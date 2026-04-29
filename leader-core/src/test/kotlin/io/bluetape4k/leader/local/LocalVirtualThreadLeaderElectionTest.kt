@@ -1,12 +1,17 @@
 package io.bluetape4k.leader.local
 
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import org.amshove.kluent.shouldBeEqualTo
+import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
+import java.time.Duration
 import java.util.*
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
@@ -94,5 +99,47 @@ class LocalVirtualThreadLeaderElectionTest {
             .run()
 
         counter.get() shouldBeEqualTo numThreads * roundsPerThread
+    }
+
+    // ── skip-behavior (ShedLock 방식): 락 획득 실패 시 null 반환 ──────────
+
+    @Test
+    fun `runAsyncIfLeader - waitTime 내 락 획득 실패 시 null 을 반환한다`() {
+        val skipElection = LocalVirtualThreadLeaderElection(
+            LeaderElectionOptions(waitTime = Duration.ofMillis(100))
+        )
+        val lockName = randomLockName()
+        val latch = CountDownLatch(1)
+        val releaseLatch = CountDownLatch(1)
+
+        // 동일 election 인스턴스로 락 점유
+        val firstThread = Thread {
+            skipElection.runAsyncIfLeader(lockName) {
+                latch.countDown()
+                releaseLatch.await()
+            }.await()
+        }.apply { start() }
+
+        latch.await(2, TimeUnit.SECONDS)
+
+        val result = skipElection.runAsyncIfLeader(lockName) { "should-skip" }.await()
+        result.shouldBeNull()
+
+        releaseLatch.countDown()
+        firstThread.join()
+    }
+
+    @Test
+    fun `runAsyncIfLeader - 락 해제 후 재시도 시 정상 실행된다`() {
+        val shortWaitElection = LocalVirtualThreadLeaderElection(
+            LeaderElectionOptions(waitTime = Duration.ofMillis(100))
+        )
+        val lockName = randomLockName()
+
+        val first = shortWaitElection.runAsyncIfLeader(lockName) { "first" }.await()
+        first shouldBeEqualTo "first"
+
+        val second = shortWaitElection.runAsyncIfLeader(lockName) { "second" }.await()
+        second shouldBeEqualTo "second"
     }
 }

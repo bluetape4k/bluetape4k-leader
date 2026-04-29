@@ -12,8 +12,10 @@ import kotlinx.coroutines.delay
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeLessOrEqualTo
+import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
+import java.time.Duration
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
@@ -188,5 +190,46 @@ class LocalSuspendLeaderGroupElectionTest {
 
         task1.get() shouldBeEqualTo numWorkers * roundsPerJob
         task2.get() shouldBeEqualTo numWorkers * roundsPerJob
+    }
+
+    // ── skip-behavior (ShedLock 방식): 슬롯 획득 실패 시 null 반환 ──────────
+
+    @Test
+    fun `runIfLeader - waitTime 내 슬롯 획득 실패 시 null 을 반환한다`() = runSuspendIO {
+        val skipElection = LocalSuspendLeaderGroupElection(
+            LeaderGroupElectionOptions(maxLeaders = 1, waitTime = Duration.ofMillis(50))
+        )
+        val lockName = randomLockName()
+        val holderReady = kotlinx.coroutines.channels.Channel<Unit>(1)
+
+        // 홀더: 슬롯을 300ms 동안 점유
+        val holder = async {
+            skipElection.runIfLeader(lockName) {
+                holderReady.send(Unit)
+                delay(300.milliseconds)
+                "holder"
+            }
+        }
+
+        holderReady.receive() // 홀더가 슬롯 획득할 때까지 대기
+        // 스키퍼: 짧은 waitTime(50ms) 으로 시도 → null 반환
+        val skipped = skipElection.runIfLeader(lockName) { "should-skip" }
+        skipped.shouldBeNull()
+
+        holder.await()
+    }
+
+    @Test
+    fun `runIfLeader - 슬롯 해제 후 재시도 시 정상 실행된다`() = runSuspendIO {
+        val election = LocalSuspendLeaderGroupElection(
+            LeaderGroupElectionOptions(maxLeaders = 1, waitTime = Duration.ofMillis(100))
+        )
+        val lockName = randomLockName()
+
+        val first = election.runIfLeader(lockName) { "first" }
+        first shouldBeEqualTo "first"
+
+        val second = election.runIfLeader(lockName) { "second" }
+        second shouldBeEqualTo "second"
     }
 }

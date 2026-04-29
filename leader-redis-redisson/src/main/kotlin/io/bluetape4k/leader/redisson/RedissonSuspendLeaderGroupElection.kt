@@ -39,7 +39,7 @@ suspend fun <T> RedissonClient.runSuspendIfLeaderGroup(
     lockName: String,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     action: suspend () -> T,
-): T {
+): T? {
     lockName.requireNotBlank("lockName")
     options.maxLeaders.requirePositiveNumber("maxLeaders")
     return RedissonSuspendLeaderGroupElection(this, options).runIfLeader(lockName, action)
@@ -144,7 +144,7 @@ class RedissonSuspendLeaderGroupElection private constructor(
      * @return [action] 실행 결과
      * @throws RedisException 슬롯 획득 실패 또는 인터럽트 발생 시
      */
-    override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T {
+    override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         lockName.requireNotBlank("lockName")
 
         val semaphore = getInitializedSemaphoreAsync(lockName)
@@ -159,7 +159,8 @@ class RedissonSuspendLeaderGroupElection private constructor(
         }
 
         if (!acquired) {
-            throw RedisException("Fail to acquire semaphore slot within waitTime. lockName=$lockName")
+            log.debug { "리더 그룹 슬롯 획득 실패 (슬롯 없음). lockName=$lockName" }
+            return null
         }
 
         log.debug { "리더 그룹 슬롯을 획득하여 suspend 작업을 수행합니다. lockName=$lockName" }

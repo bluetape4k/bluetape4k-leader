@@ -4,6 +4,7 @@ configurations {
 
 dependencies {
     api(project(":leader-core"))
+    api(Libs.bluetape4k_redisson)
     api(Libs.redisson)
 
     testImplementation(Libs.bluetape4k_junit5)

@@ -4,6 +4,7 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.support.requireNotBlank
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -26,7 +27,7 @@ import java.util.concurrent.ConcurrentHashMap
  * ```
  */
 class LocalSuspendLeaderElection(
-    options: LeaderElectionOptions = LeaderElectionOptions.Default,
+    private val options: LeaderElectionOptions = LeaderElectionOptions.Default,
 ): SuspendLeaderElection {
 
     private val mutexes = ConcurrentHashMap<String, Mutex>()
@@ -49,8 +50,19 @@ class LocalSuspendLeaderElection(
      *
      * @param lockName 리더 선출에 사용할 락 이름
      * @param action 리더 획득 성공 시 실행할 suspend 작업
-     * @return [action] 실행 결과
+     * @return [action] 실행 결과, 리더 획득 실패 시 `null`
      */
-    override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T =
-        getMutex(lockName).withLock { action() }
+    override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
+        val mutex = getMutex(lockName)
+        // withTimeoutOrNull 은 lock 획득 시도에만 적용합니다. action() 실행은 포함하지 않습니다.
+        val acquired = withTimeoutOrNull(options.waitTime.toMillis()) {
+            mutex.lock()
+            true
+        } ?: return null
+        return try {
+            action()
+        } finally {
+            if (acquired) mutex.unlock()
+        }
+    }
 }

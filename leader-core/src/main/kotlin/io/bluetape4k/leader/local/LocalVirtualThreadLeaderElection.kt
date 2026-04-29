@@ -46,10 +46,10 @@ class LocalVirtualThreadLeaderElection(
      *
      * @param lockName 리더 선출에 사용할 락 이름
      * @param action 리더 획득 성공 시 실행할 작업
-     * @return [action] 실행 결과를 담은 [VirtualFuture]
+     * @return [action] 실행 결과를 담은 [VirtualFuture]. 리더 획득 실패 시 `null`로 완료됨
      */
-    override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T> =
+    override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?> =
         virtualFuture {
-            withLeaderLock(lockName, action)
+            tryWithLeaderLock(lockName, options.waitTime, action)
         }
 }

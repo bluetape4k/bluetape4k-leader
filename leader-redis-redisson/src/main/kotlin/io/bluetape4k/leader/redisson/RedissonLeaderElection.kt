@@ -60,7 +60,7 @@ class RedissonLeaderElection private constructor(
      * @param action leader 로 승격되면 수행할 코드 블럭
      * @return 작업 결과
      */
-    override fun <T> runIfLeader(lockName: String, action: () -> T): T {
+    override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         lockName.requireNotBlank("lockName")
 
         val lock: RLock = redissonClient.getLock(lockName)
@@ -82,7 +82,8 @@ class RedissonLeaderElection private constructor(
                     }
                 }
             } else {
-                throw RedisException("Fail to acquire lock. lock=$lockName")
+                log.debug { "Leader 승격 실패 (슬롯 없음). lock=$lockName" }
+                return null
             }
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
@@ -103,7 +104,7 @@ class RedissonLeaderElection private constructor(
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T> {
+    ): CompletableFuture<T?> {
         lockName.requireNotBlank("lockName")
 
         val lock: RLock = redissonClient.getLock(lockName)
@@ -118,7 +119,8 @@ class RedissonLeaderElection private constructor(
                     if (acquired) {
                         executeActionAsync(lock, currentThreadId, executor, action)
                     } else {
-                        failedCompletableFutureOf(RedisException("Fail to acquire lock. lock=$lockName"))
+                        log.debug { "Leader 승격 실패 (슬롯 없음). lock=$lockName" }
+                        CompletableFuture.completedFuture(null)
                     }
                 }, executor)
                 .toCompletableFuture()
@@ -150,7 +152,7 @@ class RedissonLeaderElection private constructor(
         currentThreadId: Long,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T> {
+    ): CompletableFuture<T?> {
         val lockName = lock.name
         log.debug { "Leader로 승격하여 비동기 작업을 수행합니다. lock=$lockName, threadId=$currentThreadId" }
 
@@ -205,7 +207,7 @@ inline fun <T> RedissonClient.runIfLeader(
     jobName: String,
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: () -> T,
-): T {
+): T? {
     jobName.requireNotBlank("jobName")
     val leaderElection = RedissonLeaderElection(this, options)
     return leaderElection.runIfLeader(jobName) { action() }
@@ -238,7 +240,7 @@ inline fun <T> RedissonClient.runAsyncIfLeader(
     executor: Executor = ForkJoinPool.commonPool(),
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: () -> CompletableFuture<T>,
-): CompletableFuture<T> {
+): CompletableFuture<T?> {
     jobName.requireNotBlank("jobName")
     val leaderElection = RedissonLeaderElection(this, options)
     return leaderElection.runAsyncIfLeader(jobName, executor) { action() }

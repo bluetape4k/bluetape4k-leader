@@ -46,15 +46,15 @@ class LocalAsyncLeaderElection(
      * @param lockName 리더 선출에 사용할 락 이름
      * @param executor 비동기 실행에 사용할 [Executor]
      * @param action 리더 획득 성공 시 실행할 비동기 작업
-     * @return [action] 실행 결과를 담은 [CompletableFuture]
+     * @return [action] 실행 결과를 담은 [CompletableFuture]. 리더 획득 실패 시 `null`로 완료됨
      */
     override fun <T> runAsyncIfLeader(
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T> =
+    ): CompletableFuture<T?> =
         CompletableFuture.supplyAsync(
-            { withLeaderLock(lockName) { action().join() } },
+            { tryWithLeaderLock(lockName, options.waitTime) { action().join() } },
             executor
         )
 }

@@ -82,10 +82,18 @@ class LettuceLeaderGroupElection(
         return LeaderGroupState(lockName, maxLeaders, active)
     }
 
-    override fun <T> runIfLeader(lockName: String, action: () -> T): T {
+    override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         val semaphore = getSemaphore(lockName)
 
-        semaphore.acquire(waitTime = options.waitTime)
+        val acquired = try {
+            semaphore.acquire(waitTime = options.waitTime)
+            true
+        } catch (e: IllegalStateException) {
+            log.debug { "리더 선출 실패 (슬롯 없음): lockName=$lockName" }
+            false
+        }
+        if (!acquired) return null
+
         log.debug { "리더 선출 성공: lockName=$lockName" }
         try {
             return action()
@@ -98,20 +106,30 @@ class LettuceLeaderGroupElection(
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
-    ): CompletableFuture<T> {
+    ): CompletableFuture<T?> {
         val semaphore = getSemaphore(lockName)
 
         return CompletableFuture.supplyAsync({
-            semaphore.acquire(waitTime = options.waitTime)
-            log.debug { "리더 선출 성공 (async): lockName=$lockName" }
-        }, executor).thenCompose {
             try {
-                action().whenComplete { _, _ ->
+                semaphore.acquire(waitTime = options.waitTime)
+                true
+            } catch (e: IllegalStateException) {
+                log.debug { "리더 선출 실패 (슬롯 없음, async): lockName=$lockName" }
+                false
+            }
+        }, executor).thenCompose { acquired ->
+            if (!acquired) {
+                CompletableFuture.completedFuture(null)
+            } else {
+                log.debug { "리더 선출 성공 (async): lockName=$lockName" }
+                try {
+                    action().whenComplete { _, _ ->
+                        runCatching { semaphore.release() }
+                    }
+                } catch (e: Throwable) {
                     runCatching { semaphore.release() }
+                    CompletableFuture.failedFuture(e)
                 }
-            } catch (e: Throwable) {
-                runCatching { semaphore.release() }
-                CompletableFuture.failedFuture(e)
             }
         }
     }

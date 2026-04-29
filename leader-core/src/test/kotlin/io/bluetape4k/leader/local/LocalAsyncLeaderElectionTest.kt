@@ -1,14 +1,19 @@
 package io.bluetape4k.leader.local
 
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import org.amshove.kluent.shouldBeEqualTo
+import org.amshove.kluent.shouldBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.time.Duration
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
@@ -108,5 +113,55 @@ class LocalAsyncLeaderElectionTest {
             .run()
 
         counter.get() shouldBeEqualTo numThreads * roundsPerThread
+    }
+
+    // ── skip-behavior (ShedLock 방식): 락 획득 실패 시 null 반환 ──────────
+
+    @Test
+    fun `runAsyncIfLeader - waitTime 내 락 획득 실패 시 null 을 반환한다`() {
+        val skipElection = LocalAsyncLeaderElection(
+            LeaderElectionOptions(waitTime = Duration.ofMillis(100))
+        )
+        val lockName = randomLockName()
+        val latch = CountDownLatch(1)
+        val releaseLatch = CountDownLatch(1)
+
+        // 동일 election 인스턴스로 락 점유
+        val firstThread = Thread {
+            skipElection.runAsyncIfLeader(lockName) {
+                CompletableFuture.runAsync {
+                    latch.countDown()
+                    releaseLatch.await()
+                }
+            }.join()
+        }.apply { start() }
+
+        latch.await(2, TimeUnit.SECONDS)
+
+        val result = skipElection.runAsyncIfLeader(lockName) {
+            CompletableFuture.completedFuture("should-skip")
+        }.join()
+        result.shouldBeNull()
+
+        releaseLatch.countDown()
+        firstThread.join()
+    }
+
+    @Test
+    fun `runAsyncIfLeader - 락 해제 후 재시도 시 정상 실행된다`() {
+        val shortWaitElection = LocalAsyncLeaderElection(
+            LeaderElectionOptions(waitTime = Duration.ofMillis(100))
+        )
+        val lockName = randomLockName()
+
+        val first = shortWaitElection.runAsyncIfLeader(lockName) {
+            CompletableFuture.completedFuture("first")
+        }.join()
+        first shouldBeEqualTo "first"
+
+        val second = shortWaitElection.runAsyncIfLeader(lockName) {
+            CompletableFuture.completedFuture("second")
+        }.join()
+        second shouldBeEqualTo "second"
     }
 }

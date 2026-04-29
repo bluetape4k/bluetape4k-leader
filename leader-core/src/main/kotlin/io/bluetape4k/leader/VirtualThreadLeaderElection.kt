@@ -34,14 +34,15 @@ interface VirtualThreadLeaderElection {
      *
      * ```kotlin
      * val result = election.runAsyncIfLeader("job-lock") { computeResult() }.await()
+     * // result == computeResult() 반환값 (리더 획득 성공) 또는 null (획득 실패)
      * ```
      *
      * @param lockName 리더 선출에 사용할 락 이름
      * @param action 리더 획득 성공 시 실행할 작업. 결과를 직접 반환합니다.
-     * @return [action] 실행 결과를 담은 [VirtualFuture]
+     * @return [action] 실행 결과를 담은 [VirtualFuture]. 리더 획득 실패 시 `null`로 완료됨
      */
     fun <T> runAsyncIfLeader(
         lockName: String,
         action: () -> T,
-    ): VirtualFuture<T>
+    ): VirtualFuture<T?>
 }
