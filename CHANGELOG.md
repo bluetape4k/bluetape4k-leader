@@ -9,9 +9,20 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **leader-redis-lettuce coroutine cancellation safety**: `LettuceSuspendLeaderElection` and `LettuceSuspendLeaderGroupElection` now wrap unlock/release in `withContext(NonCancellable)` so the Redis key/permit is reliably released when the calling coroutine is cancelled mid-`action`. Previously, cancellation between `action()` and the `finally` block could leak the Redis lock until lease expiry. (daily review)
+- **Lettuce backend observability**: `runCatching { unlock/release }` blocks in Lettuce single- and group-leader implementations now surface failures via `.onFailure { log.warn }`. Token mismatch / Redis errors during release were previously dropped silently. (daily review)
+
+### Changed
+
+- **Argument validation pushed into option/state types**: `LeaderElectionOptions`, `LeaderGroupElectionOptions`, and `LeaderGroupState` now reject invalid arguments in their `init {}` blocks (`waitTime` ≥ 0, `leaseTime` > 0, `maxLeaders` ≥ 1, `activeCount ∈ 0..maxLeaders`, `lockName` non-blank). Previously these only blew up later inside semaphore/lock code. (daily review)
+- **Redisson KDoc accuracy**: removed stale "throws RedisException on contention" claims and replaced with the actual ShedLock-style `null` return contract; `@throws RedisException` now only documents the interrupt path. (daily review)
+- **Suspend interface contract** (`SuspendLeaderElection`, `SuspendLeaderGroupElection`): added explicit cancellation contract to KDoc — implementations must release the lock/slot and rethrow `CancellationException`. (daily review)
+
 ### Planned
 
-- `leader-exposed` — Exposed/JDBC backend (issue #7)
+- `leader-exposed-core`/`leader-exposed-jdbc`/`leader-exposed-r2dbc` — Exposed backends (issue #7, refactor #24)
 - `leader-mongodb` — MongoDB backend (issue #8)
 - `leader-hazelcast` — Hazelcast backend (issue #9)
 - `leader-micrometer` — Micrometer metrics integration (issue #10)

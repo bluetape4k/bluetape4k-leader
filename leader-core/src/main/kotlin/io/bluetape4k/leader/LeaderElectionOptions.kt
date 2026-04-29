@@ -23,6 +23,11 @@ data class LeaderElectionOptions(
     val waitTime: Duration = Duration.ofSeconds(5),
     val leaseTime: Duration = Duration.ofSeconds(60),
 ): Serializable {
+    init {
+        require(!waitTime.isNegative) { "waitTime must not be negative: $waitTime" }
+        require(!leaseTime.isNegative && !leaseTime.isZero) { "leaseTime must be positive: $leaseTime" }
+    }
+
     companion object {
         /**
          * 기본 옵션 인스턴스 (`waitTime=5s`, `leaseTime=60s`).

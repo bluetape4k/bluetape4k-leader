@@ -26,7 +26,9 @@ graph TD
     Core["leader-core\n(인터페이스 + 로컬 구현)"]
     Lettuce["leader-redis-lettuce\n(Lettuce Redis)"]
     Redisson["leader-redis-redisson\n(Redisson Redis)"]
-    Exposed["leader-exposed\n(예정)"]
+    ExposedCore["leader-exposed-core\n(예정)"]
+    ExposedJdbc["leader-exposed-jdbc\n(예정)"]
+    ExposedR2dbc["leader-exposed-r2dbc\n(예정)"]
     Mongo["leader-mongodb\n(예정)"]
     Hazelcast["leader-hazelcast\n(예정)"]
     SB3["leader-spring-boot3\n(예정)"]
@@ -35,7 +37,9 @@ graph TD
 
     Lettuce --> Core
     Redisson --> Core
-    Exposed --> Core
+    ExposedCore --> Core
+    ExposedJdbc --> ExposedCore
+    ExposedR2dbc --> ExposedCore
     Mongo --> Core
     Hazelcast --> Core
     SB3 --> Core
@@ -50,7 +54,9 @@ graph TD
 | `leader-core` | 안정 | 인터페이스 + 로컬 인메모리 구현체 |
 | `leader-redis-lettuce` | 안정 | Lettuce 기반 Redis 백엔드 |
 | `leader-redis-redisson` | 안정 | Redisson 기반 Redis 백엔드 |
-| `leader-exposed` | 예정 | Exposed/JDBC 백엔드 |
+| `leader-exposed-core` | 예정 | Exposed 공통 스키마 (JDBC/R2DBC 드라이버 미포함) |
+| `leader-exposed-jdbc` | 예정 | Exposed JDBC 백엔드 |
+| `leader-exposed-r2dbc` | 예정 | Exposed R2DBC 백엔드 |
 | `leader-mongodb` | 예정 | MongoDB 백엔드 |
 | `leader-hazelcast` | 예정 | Hazelcast 백엔드 |
 | `leader-micrometer` | 예정 | Micrometer 메트릭 연동 |

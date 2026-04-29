@@ -21,7 +21,7 @@ import io.bluetape4k.concurrent.virtualthread.VirtualFuture
  * - 상태 조회 메서드([state], [activeCount], [availableSlots])는 [LeaderGroupElectionState]에서 상속합니다.
  *
  * ```kotlin
- * val election = LocalVirtualThreadLeaderGroupElection(maxLeaders = 3)
+ * val election = LocalVirtualThreadLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = election.runAsyncIfLeader("batch-job") { processChunk() }.await()
  * ```
  */

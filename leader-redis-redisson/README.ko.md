@@ -158,25 +158,14 @@ val election = RedissonLeaderElection(client, options)
 
 ## 테스트 인프라
 
-테스트는 Testcontainers `GenericContainer("redis:7-alpine")`을 직접 사용합니다. 외부 테스트 유틸 클래스에 대한 의존이 없습니다:
+테스트는 `bluetape4k-testcontainers` 의 `RedisServer.Launcher.redis` (JVM 전역 싱글톤 Redis 컨테이너) 를 사용합니다:
 
 ```kotlin
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractRedissonLeaderTest {
     companion object : KLogging() {
-        private val redisContainer =
-            GenericContainer("redis:7-alpine").withExposedPorts(6379)
-
-        init { redisContainer.start() }
-
-        val redisUrl: String
-            get() = "redis://${redisContainer.host}:${redisContainer.getMappedPort(6379)}"
-
-        val redissonClient: RedissonClient by lazy {
-            val config = Config().apply {
-                useSingleServer().setAddress(redisUrl)
-            }
-            Redisson.create(config)
-        }
+        val redis = RedisServer.Launcher.redis
+        val redisUrl: String get() = redis.url
     }
 }
 ```

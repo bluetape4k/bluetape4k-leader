@@ -21,13 +21,13 @@ import io.bluetape4k.support.requirePositiveNumber
  * - 반환이 [VirtualFuture]로 `await()` API가 명시적입니다.
  *
  * ```kotlin
- * val election = LocalVirtualThreadLeaderGroupElection(maxLeaders = 3)
+ * val election = LocalVirtualThreadLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
  *
  * // 최대 3개 Virtual Thread 가 동시에 실행
  * val result = election.runAsyncIfLeader("batch-job") { processChunk() }.await()
  * ```
  *
- * @param maxLeaders 허용하는 최대 동시 리더 수. 기본값 2
+ * @param options 리더 그룹 선출 옵션. 기본값은 [LeaderGroupElectionOptions.Default]
  */
 class LocalVirtualThreadLeaderGroupElection private constructor(
     options: LeaderGroupElectionOptions,

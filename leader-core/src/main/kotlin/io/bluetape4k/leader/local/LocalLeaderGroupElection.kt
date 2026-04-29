@@ -17,7 +17,7 @@ import java.util.concurrent.Executor
  * - 분산 환경이 아닌 단일 JVM 프로세스 내 동시 실행 제한에 적합합니다.
  *
  * ```kotlin
- * val election = LocalLeaderGroupElection(maxLeaders = 3)
+ * val election = LocalLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
  *
  * // 동기 실행 (최대 3개 스레드 동시)
  * val result = election.runIfLeader("batch-job") { processChunk() }
@@ -26,7 +26,7 @@ import java.util.concurrent.Executor
  * val future = election.runAsyncIfLeader("batch-job") { CompletableFuture.completedFuture(42) }
  * ```
  *
- * @param maxLeaders 허용하는 최대 동시 리더 수. 기본값 2
+ * @param options 리더 그룹 선출 옵션. 기본값은 [LeaderGroupElectionOptions.Default]
  */
 class LocalLeaderGroupElection private constructor(options: LeaderGroupElectionOptions):
     AbstractLocalLeaderGroupElection(options), LeaderGroupElection {
