@@ -1,28 +1,22 @@
 package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.testcontainers.storage.RedisServer
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.codec.StringCodec
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
-import org.testcontainers.containers.GenericContainer
 import java.util.UUID
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractLettuceLeaderTest {
 
     companion object: KLogging() {
-        private val redisContainer: GenericContainer<*> =
-            GenericContainer("redis:7-alpine").withExposedPorts(6379)
+        val redis = RedisServer.Launcher.redis
 
-        init {
-            redisContainer.start()
-        }
-
-        val redisUri: String
-            get() = "redis://${redisContainer.host}:${redisContainer.getMappedPort(6379)}"
+        val redisUri: String get() = redis.url
 
         fun randomName(): String = "leader-test:${UUID.randomUUID().toString().take(8)}"
     }
