@@ -6,7 +6,7 @@ import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireNotBlank
-import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.future.await
@@ -52,13 +52,13 @@ suspend inline fun <T> RedissonClient.suspendRunIfLeader(
  * Redisson 분산 락을 이용하여 여러 프로세스/스레드 중 단 하나만 작업을 수행하도록 리더를 선출합니다.
  * Coroutine 환경에서 사용할 수 있는 suspend 버전입니다.
  *
- * ## threadId 대신 getLockId()를 사용하는 이유
+ * ## threadId 대신 PID-seeded Snowflake ID를 사용하는 이유
  * Redisson의 [RLock]은 락 소유자를 스레드 ID로 식별합니다.
  * 그러나 Coroutine은 여러 스레드를 오가며 실행되므로, 락 획득 시점의 스레드와
  * 락 해제 시점의 스레드가 달라질 수 있습니다.
- * 이를 해결하기 위해 [io.bluetape4k.redis.redisson.coroutines.getLockId]를 사용하여
- * Snowflake 알고리즘으로 Coroutine 세션마다 고유한 ID를 발급하고 (Redis 왕복 없음),
- * 이 ID를 락 획득/해제 양쪽에 동일하게 사용합니다.
+ * 이를 해결하기 위해 `timestamp | pid%(2^10) | seq` 형태의 ID를 생성하여
+ * 같은 머신의 다른 프로세스, 같은 프로세스의 다른 코루틴 사이에서 충돌 없이
+ * 락 소유자를 식별합니다. (Redis 왕복 없음)
  *
  * ```kotlin
  * val election = RedissonSuspendLeaderElection(redissonClient)
@@ -79,12 +79,21 @@ class RedissonSuspendLeaderElection private constructor(
 ): SuspendLeaderElection {
 
     companion object: KLoggingChannel() {
-        /**
-         * [RedissonSuspendLeaderElection] 인스턴스를 생성합니다.
-         *
-         * @param redissonClient RedissonClient 인스턴스
-         * @param options 리더 선출 옵션
-         */
+        // PID-seeded Snowflake-like ID 생성기
+        // timestamp(42bit) | pid%(2^10)(10bit) | seq(12bit)
+        // - 단일 JVM: seq 단조 증가로 충돌 없음
+        // - HA (동일 머신 다중 프로세스): pid % 1024 가 달라 충돌 없음
+        // - HA (다중 머신): 같은 pid % 1024 가 같은 ms 에 같은 seq 를 가질 경우만 충돌 (무시할 확률)
+        private val machineId = ProcessHandle.current().pid() and 0x3FFL  // 10비트
+        private val lockIdSeq = AtomicLong(0L)
+
+        private fun nextLockId(): Long {
+            val ts = System.currentTimeMillis() shl 22
+            val mid = machineId shl 12
+            val seq = lockIdSeq.getAndIncrement() and 0xFFFL  // 12비트
+            return ts or mid or seq
+        }
+
         operator fun invoke(
             redissonClient: RedissonClient,
             options: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -119,9 +128,7 @@ class RedissonSuspendLeaderElection private constructor(
         try {
             log.debug { "Leader 승격을 요청합니다 ..." }
 
-            // Coroutine 환경에서 Thread ID 대신 랜덤 ID를 사용하여 락 소유자를 식별합니다.
-            // Thread ID는 코루틴이 여러 스레드 사이를 이동하기 때문에 사용할 수 없습니다.
-            val lockId = ThreadLocalRandom.current().nextLong()
+            val lockId = nextLockId()
 
             val acquired = lock
                 .tryLockAsync(
