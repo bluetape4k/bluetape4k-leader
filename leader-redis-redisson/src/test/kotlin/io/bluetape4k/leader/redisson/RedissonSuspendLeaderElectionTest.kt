@@ -1,28 +1,22 @@
 package io.bluetape4k.leader.redisson
 
-import io.bluetape4k.coroutines.support.log
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
-import io.bluetape4k.redis.redisson.AbstractRedissonTest
-import io.bluetape4k.redis.redisson.RedissonTestUtils.randomName
-import io.bluetape4k.redis.redisson.RedissonTestUtils.redissonClient
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
-import org.redisson.client.RedisException
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 
-class RedissonSuspendLeaderElectionTest: AbstractRedissonTest() {
+class RedissonSuspendLeaderElectionTest: AbstractRedissonLeaderTest() {
 
     companion object: KLoggingChannel()
 
@@ -38,7 +32,7 @@ class RedissonSuspendLeaderElectionTest: AbstractRedissonTest() {
                     randomDelay()
                     log.debug { "작업 1 을 종료합니다." }
                 }
-            }.log("job1")
+            }
 
             launch {
                 leaderElection.runIfLeader(lockName) {
@@ -46,7 +40,7 @@ class RedissonSuspendLeaderElectionTest: AbstractRedissonTest() {
                     randomDelay()
                     log.debug { "작업 2 을 종료합니다." }
                 }
-            }.log("job2")
+            }
         }
     }
 
@@ -86,7 +80,7 @@ class RedissonSuspendLeaderElectionTest: AbstractRedissonTest() {
     }
 
     @Test
-    fun `run action should throw when lock is not acquired`() = runSuspendIO {
+    fun `run action should return null when lock is not acquired`() = runSuspendIO {
         val lockName = randomName()
         val options = LeaderElectionOptions(
             waitTime = Duration.ofMillis(100),
@@ -97,11 +91,8 @@ class RedissonSuspendLeaderElectionTest: AbstractRedissonTest() {
 
         lock.lock(3, TimeUnit.SECONDS)
         try {
-            val result = runCatching {
-                leaderElection.runIfLeader(lockName) { 1 }
-            }
-            result.isFailure.shouldBeTrue()
-            (result.exceptionOrNull() is RedisException).shouldBeTrue()
+            val result = leaderElection.runIfLeader(lockName) { 1 }
+            result shouldBeEqualTo null
         } finally {
             if (lock.isHeldByCurrentThread) {
                 lock.unlock()

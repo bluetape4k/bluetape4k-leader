@@ -7,9 +7,6 @@ import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
-import io.bluetape4k.redis.redisson.AbstractRedissonTest
-import io.bluetape4k.redis.redisson.RedissonTestUtils.randomName
-import io.bluetape4k.redis.redisson.RedissonTestUtils.redissonClient
 import io.bluetape4k.utils.Runtimex
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeGreaterThan
@@ -17,7 +14,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
-import org.redisson.client.RedisException
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
@@ -27,7 +23,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
-class RedissonLeaderElectionTest: AbstractRedissonTest() {
+class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
 
     companion object: KLogging()
 
@@ -119,7 +115,7 @@ class RedissonLeaderElectionTest: AbstractRedissonTest() {
     }
 
     @Test
-    fun `run action should throw when lock is not acquired`() {
+    fun `run action should return null when lock is not acquired`() {
         val lockName = randomName()
         val options = LeaderElectionOptions(
             waitTime = Duration.ofMillis(100),
@@ -142,9 +138,8 @@ class RedissonLeaderElectionTest: AbstractRedissonTest() {
 
         try {
             lockAcquired.await(1, TimeUnit.SECONDS)
-            assertThrows<RedisException> {
-                leaderElection.runIfLeader(lockName) { 1 }
-            }
+            val result = leaderElection.runIfLeader(lockName) { 1 }
+            result shouldBeEqualTo null
         } finally {
             releaseLock.countDown()
             lockHolder.shutdownNow()
