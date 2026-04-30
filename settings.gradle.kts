@@ -21,6 +21,7 @@ include(
     "leader-exposed-r2dbc",
     "leader-mongodb",
     "leader-hazelcast",
+    "leader-spring-boot-common",
     "leader-spring-boot3",
     "leader-spring-boot4",
     "leader-micrometer",
