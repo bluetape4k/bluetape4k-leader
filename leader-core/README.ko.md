@@ -140,8 +140,72 @@ sequenceDiagram
 | `LocalSuspendLeaderElection` | `SuspendLeaderElection` | 코루틴 `Mutex` 기반 |
 | `LocalLeaderGroupElection` | `LeaderGroupElection` | `Semaphore` 기반 복수 리더 |
 | `LocalSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | 코루틴 `Semaphore` 기반 |
+| `LocalStrategicLeaderElection` | `StrategicLeaderElection` | 전략 기반 블로킹 선출 |
+| `LocalStrategicSuspendLeaderElection` | `StrategicSuspendLeaderElection` | 전략 기반 코루틴 선출 |
+
+## 전략 기반 선출 (Strategic Election)
+
+### 개요
+
+전략 기반 선출은 **후보 등록 단계**와 **전략 적용 단계**를 분리하여 유연한 리더 선출 정책을 가능하게 합니다.
+
+```
+registerCandidate() → selectLeader(strategy) → 1명 선출, 나머지 skip
+```
+
+### 내장 전략
+
+| 전략 | 설명 |
+|------|------|
+| `FifoElectionStrategy` | 등록 시각이 가장 이른 후보 선출 |
+| `RandomElectionStrategy(seed)` | seed 기반 결정론적 무작위 선출 (분산 환경: 공유 seed 필수) |
+| `ScoredElectionStrategy(scorer)` | 점수 최고 후보 선출 |
+
+### 내장 Scorer (0–100 정규화)
+
+| Scorer | 설명 |
+|--------|------|
+| `IdleTimeScorer` | 마지막 완료 후 가장 오래 쉰 노드 우선 |
+| `SuccessRateScorer` | 성공률 높은 노드 우선 |
+| `RecentSuccessScorer` | 가장 최근에 성공 완료한 노드 우선 |
+| `WeightedScorer` | 복수 Scorer 가중 합산 |
+
+### 핵심 인터페이스
+
+```kotlin
+interface StrategicLeaderElection {
+    val nodeId: String
+    fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration = Duration.ZERO)
+    fun unregisterCandidate(lockName: String, nodeId: String)
+    fun listCandidates(lockName: String): List<CandidateInfo>
+    fun <T> runIfLeader(lockName: String, strategy: ElectionStrategy, options: LeaderElectionOptions, action: () -> T): T?
+}
+```
 
 ## 사용 예시
+
+### 전략 기반 선출 — IdleTime Scorer
+
+```kotlin
+val election = LocalStrategicLeaderElection("node-1")
+
+election.registerCandidate("batch-job", CandidateInfo("node-1"))
+election.registerCandidate("batch-job", CandidateInfo("node-2"))
+
+val result = election.runIfLeader("batch-job", ScoredElectionStrategy(IdleTimeScorer)) {
+    processBatch()
+}
+// 가장 오래 쉰 노드만 processBatch() 실행, 나머지는 null 반환
+```
+
+### 전략 기반 선출 — 가중 Scorer
+
+```kotlin
+val scorer = WeightedScorer(IdleTimeScorer to 0.4, SuccessRateScorer to 0.6)
+val strategy = ScoredElectionStrategy(scorer)
+
+val result = election.runIfLeader("weighted-job", strategy) { work() }
+```
 
 ### 블로킹 단일 리더
 

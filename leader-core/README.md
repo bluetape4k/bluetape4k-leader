@@ -140,8 +140,72 @@ All local implementations use JVM primitives (`ReentrantLock`, `Semaphore`) — 
 | `LocalSuspendLeaderElection` | `SuspendLeaderElection` | Coroutine with `Mutex` |
 | `LocalLeaderGroupElection` | `LeaderGroupElection` | `Semaphore`-based multi-leader |
 | `LocalSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | Coroutine `Semaphore` |
+| `LocalStrategicLeaderElection` | `StrategicLeaderElection` | Strategy-based blocking election |
+| `LocalStrategicSuspendLeaderElection` | `StrategicSuspendLeaderElection` | Strategy-based coroutine election |
+
+## Strategic Election
+
+### Overview
+
+Strategic election separates the **nomination phase** (candidate registration) from the **decision phase** (strategy application), enabling flexible leader selection policies.
+
+```
+registerCandidate() → selectLeader(strategy) → 1 winner, rest skipped
+```
+
+### Built-in Strategies
+
+| Strategy | Description |
+|----------|-------------|
+| `FifoElectionStrategy` | Earliest registered candidate wins |
+| `RandomElectionStrategy(seed)` | Deterministic random selection (seed required for distributed use) |
+| `ScoredElectionStrategy(scorer)` | Highest-scoring candidate wins |
+
+### Built-in Scorers (0–100 normalized)
+
+| Scorer | Description |
+|--------|-------------|
+| `IdleTimeScorer` | Node idle longest since last completion |
+| `SuccessRateScorer` | Highest success-rate node |
+| `RecentSuccessScorer` | Most recently succeeded node |
+| `WeightedScorer` | Weighted sum of multiple scorers |
+
+### Key Interfaces
+
+```kotlin
+interface StrategicLeaderElection {
+    val nodeId: String
+    fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration = Duration.ZERO)
+    fun unregisterCandidate(lockName: String, nodeId: String)
+    fun listCandidates(lockName: String): List<CandidateInfo>
+    fun <T> runIfLeader(lockName: String, strategy: ElectionStrategy, options: LeaderElectionOptions, action: () -> T): T?
+}
+```
 
 ## Usage Examples
+
+### Strategic election — scored idle-time
+
+```kotlin
+val election = LocalStrategicLeaderElection("node-1")
+
+election.registerCandidate("batch-job", CandidateInfo("node-1"))
+election.registerCandidate("batch-job", CandidateInfo("node-2"))
+
+val result = election.runIfLeader("batch-job", ScoredElectionStrategy(IdleTimeScorer)) {
+    processBatch()
+}
+// Only the node idle longest runs processBatch(); others return null
+```
+
+### Strategic election — weighted scorer
+
+```kotlin
+val scorer = WeightedScorer(IdleTimeScorer to 0.4, SuccessRateScorer to 0.6)
+val strategy = ScoredElectionStrategy(scorer)
+
+val result = election.runIfLeader("weighted-job", strategy) { work() }
+```
 
 ### Blocking single-leader
 

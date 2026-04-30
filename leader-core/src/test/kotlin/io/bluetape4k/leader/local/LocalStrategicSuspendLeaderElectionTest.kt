@@ -3,7 +3,9 @@ package io.bluetape4k.leader.local
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
@@ -65,5 +67,23 @@ class LocalStrategicSuspendLeaderElectionTest {
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
         node1.unregisterCandidate(lockName, "node-1")
         node1.listCandidates(lockName).isEmpty().shouldBeTrue()
+    }
+
+    @Test
+    fun `CancellationException - 코루틴 취소 시 failureCount 증가 없음`() = runTest {
+        node1.registerCandidate(lockName, CandidateInfo("node-1"))
+        var caughtCancellation = false
+        try {
+            withTimeout(50L) {
+                node1.runIfLeader(lockName, FifoElectionStrategy) {
+                    delay(10_000L) // 타임아웃보다 훨씬 긴 지연
+                }
+            }
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            caughtCancellation = true
+        }
+        caughtCancellation.shouldBeTrue()
+        val candidate = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+        candidate.failureCount shouldBeEqualTo 0L
     }
 }
