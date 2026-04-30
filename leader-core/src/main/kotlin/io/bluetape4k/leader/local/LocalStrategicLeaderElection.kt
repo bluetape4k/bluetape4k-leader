@@ -9,6 +9,7 @@ import io.bluetape4k.leader.strategy.ElectionStrategy
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.info
+import kotlinx.coroutines.CancellationException
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
@@ -82,6 +83,8 @@ class LocalStrategicLeaderElection(
             val value = action()
             updateResult(lockName, nodeId, CandidateResult.SUCCESS)
             value
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             updateResult(lockName, nodeId, CandidateResult.FAILURE)
             throw e

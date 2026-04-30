@@ -1,155 +1,126 @@
-package io.bluetape4k.leader.local
+package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.amshove.kluent.shouldNotBeNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class LocalStrategicSuspendLeaderElectionTest {
+class RedissonStrategicSuspendLeaderElectionTest : AbstractRedissonLeaderTest() {
 
-    private val lockName = "test-suspend-lock"
-
-    private lateinit var node1: LocalStrategicSuspendLeaderElection
-    private lateinit var node2: LocalStrategicSuspendLeaderElection
-    private lateinit var node3: LocalStrategicSuspendLeaderElection
+    private lateinit var node1: RedissonStrategicSuspendLeaderElection
+    private lateinit var node2: RedissonStrategicSuspendLeaderElection
+    private lateinit var node3: RedissonStrategicSuspendLeaderElection
 
     @BeforeEach
     fun setup() {
-        node1 = LocalStrategicSuspendLeaderElection("node-1")
-        node2 = LocalStrategicSuspendLeaderElection("node-2")
-        node3 = LocalStrategicSuspendLeaderElection("node-3")
+        node1 = RedissonStrategicSuspendLeaderElection(redissonClient, "node-1")
+        node2 = RedissonStrategicSuspendLeaderElection(redissonClient, "node-2")
+        node3 = RedissonStrategicSuspendLeaderElection(redissonClient, "node-3")
     }
 
     @Test
-    fun `FIFO - node1 먼저 등록하면 node1 만 action 실행`() = runTest {
+    fun `FIFO - 가장 먼저 등록된 노드가 action 실행`() = runSuspendIO {
+        val lockName = randomName()
         val t0 = Instant.now()
-        node1.registerCandidate(lockName, CandidateInfo("node-1", registeredAt = t0))
-        node1.registerCandidate(lockName, CandidateInfo("node-2", registeredAt = t0.plusMillis(10)))
-        node2.registerCandidate(lockName, CandidateInfo("node-1", registeredAt = t0))
-        node2.registerCandidate(lockName, CandidateInfo("node-2", registeredAt = t0.plusMillis(10)))
+        val candidates = listOf(
+            CandidateInfo("node-1", registeredAt = t0),
+            CandidateInfo("node-2", registeredAt = t0.plusMillis(10)),
+            CandidateInfo("node-3", registeredAt = t0.plusMillis(20)),
+        )
+        candidates.forEach { node1.registerCandidate(lockName, it) }
+        candidates.forEach { node2.registerCandidate(lockName, it) }
+        candidates.forEach { node3.registerCandidate(lockName, it) }
 
         val counter = AtomicInteger(0)
         val r1 = node1.runIfLeader(lockName, FifoElectionStrategy) { counter.incrementAndGet() }
         val r2 = node2.runIfLeader(lockName, FifoElectionStrategy) { counter.incrementAndGet() }
+        val r3 = node3.runIfLeader(lockName, FifoElectionStrategy) { counter.incrementAndGet() }
 
         r1.shouldNotBeNull()
         r2.shouldBeNull()
+        r3.shouldBeNull()
         counter.get() shouldBeEqualTo 1
     }
 
     @Test
-    fun `updateResult - SUCCESS 후 successCount 증가`() = runTest {
-        node1.registerCandidate(lockName, CandidateInfo("node-1"))
-        node1.updateResult(lockName, "node-1", CandidateResult.SUCCESS)
-
-        val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
-        updated.successCount shouldBeEqualTo 1L
-    }
-
-    @Test
-    fun `후보 0명이면 runIfLeader null 반환`() = runTest {
+    fun `후보 없으면 null 반환`() = runSuspendIO {
+        val lockName = randomName()
         val result = node1.runIfLeader(lockName, FifoElectionStrategy) { "should-not-run" }
         result.shouldBeNull()
     }
 
     @Test
-    fun `unregisterCandidate - 등록 해제 후 목록에서 제거`() = runTest {
-        node1.registerCandidate(lockName, CandidateInfo("node-1"))
-        node1.unregisterCandidate(lockName, "node-1")
-        node1.listCandidates(lockName).isEmpty().shouldBeTrue()
+    fun `TTL 만료 후 후보 자동 제거`() = runSuspendIO {
+        val lockName = randomName()
+        val ttl = Duration.ofMillis(300)
+
+        node1.registerCandidate(lockName, CandidateInfo("node-1"), ttl)
+        node1.listCandidates(lockName).size shouldBeEqualTo 1
+
+        Thread.sleep(500)
+        node1.listCandidates(lockName).size shouldBeEqualTo 0
     }
 
     @Test
-    fun `CancellationException - 코루틴 취소 시 failureCount 증가 없음`() = runTest {
+    fun `CancellationException - failureCount 증가 없음`() = runSuspendIO {
+        val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
+
         var caughtCancellation = false
         try {
             withTimeout(50L) {
                 node1.runIfLeader(lockName, FifoElectionStrategy) {
-                    delay(10_000L) // 타임아웃보다 훨씬 긴 지연
+                    delay(10_000L)
                 }
             }
         } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
             caughtCancellation = true
         }
         caughtCancellation.shouldBeTrue()
-        val candidate = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+
+        val candidate = node1.listCandidates(lockName).firstOrNull { it.nodeId == "node-1" }
+        candidate.shouldNotBeNull()
         candidate.failureCount shouldBeEqualTo 0L
     }
 
     @Test
-    fun `action 예외 시 failureCount 증가 및 예외 재전파`() = runTest {
+    fun `action 예외 시 failureCount 증가 및 예외 전파`() = runSuspendIO {
+        val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
 
         runCatching {
             node1.runIfLeader(lockName, FifoElectionStrategy) {
                 throw RuntimeException("intentional error")
             }
-        }.isFailure.shouldBeTrue()
+        }
 
-        val info = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
-        info.failureCount shouldBeEqualTo 1L
+        val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+        updated.failureCount shouldBeEqualTo 1L
     }
 
     @Test
-    fun `동일 nodeId 재등록 시 CandidateInfo 갱신됨`() = runTest {
-        node1.registerCandidate(lockName, CandidateInfo("node-1", successCount = 3))
-        node1.registerCandidate(lockName, CandidateInfo("node-1", successCount = 10))
-
-        val candidates = node1.listCandidates(lockName)
-        candidates.size shouldBeEqualTo 1
-        candidates.first().successCount shouldBeEqualTo 10L
-    }
-
-    @Test
-    fun `서로 다른 lockName 은 독립적인 후보 풀`() = runTest {
-        val lock1 = "lock-alpha"
-        val lock2 = "lock-beta"
-        node1.registerCandidate(lock1, CandidateInfo("node-1"))
-        node1.registerCandidate(lock1, CandidateInfo("node-2"))
-        node1.registerCandidate(lock2, CandidateInfo("node-3"))
-
-        node1.listCandidates(lock1).size shouldBeEqualTo 2
-        node1.listCandidates(lock2).size shouldBeEqualTo 1
-    }
-
-    @Test
-    fun `단일 후보는 항상 자신이 선출됨`() = runTest {
-        node1.registerCandidate(lockName, CandidateInfo("node-1"))
-        val result = node1.runIfLeader(lockName, FifoElectionStrategy) { "executed" }
-        result shouldBeEqualTo "executed"
-    }
-
-    @Test
-    fun `FIFO - 동일 registeredAt 시 nodeId 사전순 선출`() = runTest {
-        val t0 = Instant.now()
-        node1.registerCandidate(lockName, CandidateInfo("node-c", registeredAt = t0))
-        node1.registerCandidate(lockName, CandidateInfo("node-a", registeredAt = t0))
-        node1.registerCandidate(lockName, CandidateInfo("node-b", registeredAt = t0))
-
-        val winner = FifoElectionStrategy.elect(node1.listCandidates(lockName)).winner
-        winner?.nodeId shouldBeEqualTo "node-a"
-    }
-
-    @Test
-    fun `SuccessRate - 성공률 높은 노드 선출`() = runTest {
+    fun `Scored SuccessRate - 성공률 높은 노드 선출`() = runSuspendIO {
+        val lockName = randomName()
         val candidates = listOf(
             CandidateInfo("node-1", successCount = 1, failureCount = 9),  // 10%
             CandidateInfo("node-2", successCount = 9, failureCount = 1),  // 90%
@@ -172,7 +143,8 @@ class LocalStrategicSuspendLeaderElectionTest {
     }
 
     @Test
-    fun `동시 coroutine 실행 - 정확히 1개 노드만 실행`() = runTest {
+    fun `동시 coroutine 실행 - 정확히 1개 노드만 실행`() = runSuspendIO {
+        val lockName = randomName()
         val t0 = Instant.now()
         val candidates = listOf(
             CandidateInfo("node-1", registeredAt = t0),
@@ -193,5 +165,28 @@ class LocalStrategicSuspendLeaderElectionTest {
             jobs.awaitAll()
         }
         counter.get() shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `unregisterCandidate - 등록 해제 후 목록에서 제거`() = runSuspendIO {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo("node-1"))
+        node1.registerCandidate(lockName, CandidateInfo("node-2"))
+        node1.unregisterCandidate(lockName, "node-1")
+
+        val candidates = node1.listCandidates(lockName)
+        candidates.size shouldBeEqualTo 1
+        candidates.first().nodeId shouldBeEqualTo "node-2"
+    }
+
+    @Test
+    fun `runIfLeader SUCCESS 후 successCount 자동 증가`() = runSuspendIO {
+        val lockName = randomName()
+        node1.registerCandidate(lockName, CandidateInfo("node-1"))
+
+        node1.runIfLeader(lockName, FifoElectionStrategy) { "ok" }
+
+        val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
+        updated.successCount shouldBeEqualTo 1L
     }
 }

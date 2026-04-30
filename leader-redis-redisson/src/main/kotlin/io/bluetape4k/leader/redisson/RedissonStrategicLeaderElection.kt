@@ -9,6 +9,7 @@ import io.bluetape4k.leader.strategy.ElectionStrategy
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.info
+import kotlinx.coroutines.CancellationException
 import org.redisson.api.RedissonClient
 import java.time.Duration
 
@@ -75,6 +76,8 @@ class RedissonStrategicLeaderElection(
             val value = action()
             updateResult(lockName, nodeId, CandidateResult.SUCCESS)
             value
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             updateResult(lockName, nodeId, CandidateResult.FAILURE)
             throw e

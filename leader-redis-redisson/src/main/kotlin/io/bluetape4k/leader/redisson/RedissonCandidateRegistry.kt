@@ -46,6 +46,13 @@ class RedissonCandidateRegistry(private val redissonClient: RedissonClient) {
     fun updateResult(lockName: String, nodeId: String, result: CandidateResult) {
         val cache = mapCacheFor(lockName)
         val current = cache[nodeId] ?: return
-        cache.put(nodeId, current.withResult(result))
+        val updated = current.withResult(result)
+        // remainTimeToLive: -1 = no TTL, -2 = absent
+        val remainMs = cache.remainTimeToLive(nodeId)
+        if (remainMs > 0) {
+            cache.put(nodeId, updated, remainMs, TimeUnit.MILLISECONDS)
+        } else {
+            cache.put(nodeId, updated)
+        }
     }
 }
