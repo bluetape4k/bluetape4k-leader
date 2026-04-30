@@ -9,6 +9,7 @@ import io.bluetape4k.leader.strategy.ElectionStrategy
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.info
+import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import org.redisson.api.RedissonClient
 import java.time.Duration
@@ -74,12 +75,14 @@ class RedissonStrategicLeaderElection(
 
         return try {
             val value = action()
-            updateResult(lockName, nodeId, CandidateResult.SUCCESS)
+            runCatching { updateResult(lockName, nodeId, CandidateResult.SUCCESS) }
+                .onFailure { log.warn(it) { "[$lockName] successCount 업데이트 실패 — 무시됨" } }
             value
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
-            updateResult(lockName, nodeId, CandidateResult.FAILURE)
+            runCatching { updateResult(lockName, nodeId, CandidateResult.FAILURE) }
+                .onFailure { log.warn(it) { "[$lockName] failureCount 업데이트 실패 — 무시됨" } }
             throw e
         }
     }
