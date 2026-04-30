@@ -64,7 +64,14 @@ class LocalStrategicLeaderElection(
             strategy.elect(listCandidates(lockName))
         }
         val winner = result.winner ?: return null
-        log.info { "[$lockName] 선출: ${winner.nodeId} (전략: ${strategy::class.simpleName}, 후보: ${result.eliminations.size + 1}명)" }
+        val total = result.eliminations.size + 1
+        log.info { "[$lockName] 선출: ${winner.nodeId} (전략: ${strategy::class.simpleName}, 후보: ${total}명)" }
+        if (result.scores.isNotEmpty()) {
+            val scoreText = result.scores.entries
+                .sortedByDescending { it.value }
+                .joinToString(", ") { (id, s) -> "$id=%.2f".format(s) }
+            log.debug { "[$lockName] 점수: $scoreText" }
+        }
         result.eliminations.forEach { e ->
             log.debug { "[$lockName] 탈락: ${e.candidate.nodeId} — ${e.reason}" }
         }

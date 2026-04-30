@@ -35,6 +35,6 @@ class ScoredElectionStrategy(val scorer: CandidateScorer) : ElectionStrategy {
                 }
                 Elimination(c, reason)
             }
-        return ElectionResult(winner, eliminations)
+        return ElectionResult(winner, eliminations, scores.mapKeys { it.key.nodeId })
     }
 }
