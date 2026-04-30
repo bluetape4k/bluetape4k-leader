@@ -6,6 +6,8 @@ import io.bluetape4k.leader.coroutines.StrategicSuspendLeaderElection
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.ElectionStrategy
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -24,6 +26,8 @@ import java.util.concurrent.ConcurrentHashMap
 class LocalStrategicSuspendLeaderElection(
     override val nodeId: String = TimebasedUuid.Epoch.nextIdAsString(),
 ) : StrategicSuspendLeaderElection {
+
+    companion object : KLogging()
 
     private val registry = ConcurrentHashMap<String, ConcurrentHashMap<String, CandidateInfo>>()
     private val mutexes = ConcurrentHashMap<String, Mutex>()
@@ -56,9 +60,13 @@ class LocalStrategicSuspendLeaderElection(
         action: suspend () -> T,
     ): T? {
         // 선출 단계만 lockName 단위 뮤텍스로 보호
-        val winner = mutexFor(lockName).withLock {
-            strategy.selectLeader(listCandidates(lockName))
-        } ?: return null
+        val result = mutexFor(lockName).withLock {
+            strategy.elect(listCandidates(lockName))
+        }
+        result.eliminations.forEach { e ->
+            log.debug { "[$lockName] 탈락: ${e.candidate.nodeId} — ${e.reason}" }
+        }
+        val winner = result.winner ?: return null
         if (winner.nodeId != nodeId) return null
 
         // action 은 뮤텍스 외부에서 실행

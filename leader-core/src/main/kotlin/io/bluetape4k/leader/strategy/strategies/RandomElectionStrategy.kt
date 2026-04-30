@@ -1,7 +1,9 @@
 package io.bluetape4k.leader.strategy.strategies
 
 import io.bluetape4k.leader.strategy.CandidateInfo
+import io.bluetape4k.leader.strategy.ElectionResult
 import io.bluetape4k.leader.strategy.ElectionStrategy
+import io.bluetape4k.leader.strategy.Elimination
 import kotlin.random.Random
 
 /**
@@ -20,10 +22,14 @@ import kotlin.random.Random
  */
 class RandomElectionStrategy(val seed: Long? = null) : ElectionStrategy {
 
-    override fun selectLeader(candidates: List<CandidateInfo>): CandidateInfo? {
-        if (candidates.isEmpty()) return null
+    override fun elect(candidates: List<CandidateInfo>): ElectionResult {
+        if (candidates.isEmpty()) return ElectionResult.EMPTY
         val sorted = candidates.sortedBy(CandidateInfo::nodeId)
         val random = if (seed != null) Random(seed) else Random.Default
-        return sorted[random.nextInt(sorted.size)]
+        val winner = sorted[random.nextInt(sorted.size)]
+        val eliminations = candidates
+            .filter { it.nodeId != winner.nodeId }
+            .map { c -> Elimination(c, "랜덤 선출 탈락 (winner: ${winner.nodeId})") }
+        return ElectionResult(winner, eliminations)
     }
 }

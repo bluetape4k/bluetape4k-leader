@@ -8,13 +8,13 @@ package io.bluetape4k.leader.strategy
  *
  * 동점 발생 시 기본 tie-breaker: `registeredAt` 오름차순 → `nodeId` 사전순.
  */
-fun interface ElectionStrategy {
+interface ElectionStrategy {
 
     /**
-     * [candidates] 중 리더를 선출합니다.
+     * [candidates] 중 리더를 선출하고, 탈락 후보별 사유를 포함한 [ElectionResult]를 반환합니다.
      *
      * @param candidates 선출에 참여할 후보 목록
-     * @return 선출된 리더, 후보가 없으면 `null`
+     * @return 선출 결과 (winner + 탈락자 목록)
      */
-    fun selectLeader(candidates: List<CandidateInfo>): CandidateInfo?
+    fun elect(candidates: List<CandidateInfo>): ElectionResult
 }

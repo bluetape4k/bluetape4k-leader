@@ -6,6 +6,8 @@ import io.bluetape4k.leader.StrategicLeaderElection
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.ElectionStrategy
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
@@ -23,6 +25,8 @@ import kotlin.concurrent.withLock
 class LocalStrategicLeaderElection(
     override val nodeId: String = TimebasedUuid.Epoch.nextIdAsString(),
 ) : StrategicLeaderElection {
+
+    companion object : KLogging()
 
     private val registry = ConcurrentHashMap<String, ConcurrentHashMap<String, CandidateInfo>>()
     private val locks = ConcurrentHashMap<String, ReentrantLock>()
@@ -55,9 +59,13 @@ class LocalStrategicLeaderElection(
         action: () -> T,
     ): T? {
         // 선출 단계만 lockName 단위 락으로 보호
-        val winner = lockFor(lockName).withLock {
-            strategy.selectLeader(listCandidates(lockName))
-        } ?: return null
+        val result = lockFor(lockName).withLock {
+            strategy.elect(listCandidates(lockName))
+        }
+        result.eliminations.forEach { e ->
+            log.debug { "[$lockName] 탈락: ${e.candidate.nodeId} — ${e.reason}" }
+        }
+        val winner = result.winner ?: return null
         if (winner.nodeId != nodeId) return null
 
         // action 은 락 외부에서 실행
