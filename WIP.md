@@ -13,7 +13,7 @@
 | #3 | leader-redis-redisson 테스트 자립화 (AbstractRedissonLeaderTest) | ✅ 완료 | #17 merged |
 | #15 | runIfLeader() 반환 타입 T?로 변경 (skip 동작) | ✅ 완료 | merged |
 | #27 | leader-spring-boot-common — Boot 버전 독립 공통 모듈 | ✅ 완료 | #28 merged |
-| #29 | 플러그형 선출 전략 (StrategicLeaderElection) — leader-core pilot | 🔄 진행 중 | feat/strategic-leader-election |
+| #29 | 플러그형 선출 전략 (StrategicLeaderElection) — leader-core pilot | 🔄 진행 중 | #30 review |
 
 ---
 
