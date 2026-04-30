@@ -8,6 +8,7 @@ import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.ElectionStrategy
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import io.bluetape4k.logging.info
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -63,10 +64,11 @@ class LocalStrategicSuspendLeaderElection(
         val result = mutexFor(lockName).withLock {
             strategy.elect(listCandidates(lockName))
         }
+        val winner = result.winner ?: return null
+        log.info { "[$lockName] 선출: ${winner.nodeId} (전략: ${strategy::class.simpleName}, 후보: ${result.eliminations.size + 1}명)" }
         result.eliminations.forEach { e ->
             log.debug { "[$lockName] 탈락: ${e.candidate.nodeId} — ${e.reason}" }
         }
-        val winner = result.winner ?: return null
         if (winner.nodeId != nodeId) return null
 
         // action 은 뮤텍스 외부에서 실행
