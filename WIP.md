@@ -12,10 +12,26 @@
 | #2 | LettuceLock/Semaphore 이식 및 bluetape4k-lettuce 의존성 제거 | ✅ 완료 | merged |
 | #3 | leader-redis-redisson 테스트 자립화 (AbstractRedissonLeaderTest) | ✅ 완료 | #17 merged |
 | #15 | runIfLeader() 반환 타입 T?로 변경 (skip 동작) | ✅ 완료 | merged |
+| #27 | leader-spring-boot-common — Boot 버전 독립 공통 모듈 | ✅ 완료 | #28 merged |
+| #29 | 플러그형 선출 전략 (StrategicLeaderElection) — leader-core pilot | 🔄 진행 중 | feat/strategic-leader-election |
 
 ---
 
 ## 예정 작업
+
+### #29 — 플러그형 선출 전략 (StrategicLeaderElection) 🔄 진행 중
+
+> Spec: [docs/spec/strategic-leader-election.md](docs/spec/strategic-leader-election.md)
+> Plan: [docs/plan/strategic-leader-election.md](docs/plan/strategic-leader-election.md)
+
+- ✅ leader-core pilot 구현: CandidateInfo, ElectionStrategy, CandidateScorer, Local 구현체
+- ✅ 내장 전략: FifoElectionStrategy, RandomElectionStrategy, ScoredElectionStrategy
+- ✅ 내장 Scorer: IdleTimeScorer, SuccessRateScorer, RecentSuccessScorer, WeightedScorer
+- [ ] Redis(Redisson/Lettuce) 백엔드 구현 (CandidateRegistry — sorted set/hash + TTL)
+- [ ] Exposed/MongoDB 백엔드 구현
+- [ ] 분산 epoch seed 공유 (RandomElectionStrategy 분산 결정론)
+
+---
 
 ### #4 — 테스트 커버리지 확대
 
