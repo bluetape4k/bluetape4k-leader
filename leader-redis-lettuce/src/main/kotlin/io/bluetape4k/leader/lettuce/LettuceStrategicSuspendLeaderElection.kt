@@ -65,7 +65,15 @@ class LettuceStrategicSuspendLeaderElection(
         options: LeaderElectionOptions,
         action: suspend () -> T,
     ): T? {
-        val result = strategy.elect(listCandidates(lockName))
+        val candidates = try {
+            listCandidates(lockName)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            log.warn(e) { "[$lockName] 후보 목록 조회 실패 — 선출 skip" }
+            return null
+        }
+        val result = strategy.elect(candidates)
         val winner = result.winner ?: return null
 
         val total = result.eliminations.size + 1

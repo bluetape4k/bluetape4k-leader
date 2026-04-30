@@ -2,6 +2,7 @@ package io.bluetape4k.leader.redisson
 
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
+import io.bluetape4k.logging.KLogging
 import org.redisson.api.RedissonClient
 import java.time.Duration
 import java.util.concurrent.TimeUnit
@@ -21,6 +22,8 @@ import java.util.concurrent.TimeUnit
  * @param redissonClient Redisson 클라이언트
  */
 internal class RedissonCandidateRegistry(private val redissonClient: RedissonClient) {
+
+    companion object: KLogging()
 
     private fun cacheKey(lockName: String) = "leader:strategy:candidates:$lockName"
 

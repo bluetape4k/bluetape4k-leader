@@ -1,8 +1,12 @@
 package io.bluetape4k.leader.strategy
 
 import io.bluetape4k.leader.strategy.scorers.IdleTimeScorer
+import io.bluetape4k.leader.strategy.scorers.RecentSuccessScorer
 import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.scorers.WeightedScorer
+import org.amshove.kluent.invoking
+import org.amshove.kluent.shouldBeIn
+import org.amshove.kluent.shouldThrow
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.RandomElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
@@ -172,5 +176,122 @@ class ElectionStrategyTest {
     @Test
     fun `Scored - 후보 없으면 null 반환`() {
         ScoredElectionStrategy(IdleTimeScorer).elect(emptyList()).winner.shouldBeNull()
+    }
+
+    @Test
+    fun `Scored - 모든 후보 점수 0 (이력 없음) tie-breaker로 선출`() {
+        val candidates = listOf(
+            candidate("z", registeredAt = t1),
+            candidate("a", registeredAt = t0),
+            candidate("m", registeredAt = t0),
+        )
+        val winner = ScoredElectionStrategy(SuccessRateScorer).elect(candidates).winner
+        winner.shouldNotBeNull()
+        winner.nodeId shouldBeEqualTo "a"
+    }
+
+    // ── RecentSuccessScorer ──────────────────────────────────────────────────
+
+    @Test
+    fun `RecentSuccess - successCount 0 이면 점수 0`() {
+        val now = Instant.now()
+        val c = candidate("x", successCount = 0, lastCompletionTime = now)
+        RecentSuccessScorer.score(c, listOf(c)) shouldBeEqualTo 0.0
+    }
+
+    @Test
+    fun `RecentSuccess - lastCompletionTime null 이면 점수 0`() {
+        val c = candidate("x", successCount = 5, lastCompletionTime = null)
+        RecentSuccessScorer.score(c, listOf(c)) shouldBeEqualTo 0.0
+    }
+
+    @Test
+    fun `RecentSuccess - lastCompletion이 lastStart보다 이전이면 점수 0 (실행 중)`() {
+        val now = Instant.now()
+        val c = CandidateInfo(
+            nodeId = "x",
+            registeredAt = t0,
+            lastStartTime = now,
+            lastCompletionTime = now.minusSeconds(10),
+            successCount = 5,
+        )
+        RecentSuccessScorer.score(c, listOf(c)) shouldBeEqualTo 0.0
+    }
+
+    @Test
+    fun `RecentSuccess - 단일 성공 후보는 100점`() {
+        val now = Instant.now()
+        val c = candidate("only", successCount = 1, lastCompletionTime = now)
+        RecentSuccessScorer.score(c, listOf(c)) shouldBeEqualTo 100.0
+    }
+
+    @Test
+    fun `RecentSuccess - 동일 시각 다수 후보 모두 100점`() {
+        val now = Instant.now()
+        val a = candidate("a", successCount = 1, lastCompletionTime = now)
+        val b = candidate("b", successCount = 1, lastCompletionTime = now)
+        val all = listOf(a, b)
+        RecentSuccessScorer.score(a, all) shouldBeEqualTo 100.0
+        RecentSuccessScorer.score(b, all) shouldBeEqualTo 100.0
+    }
+
+    @Test
+    fun `RecentSuccess - 가장 최근 완료 후보가 가장 높은 점수`() {
+        val now = Instant.now()
+        val recent = candidate("recent", successCount = 1, lastCompletionTime = now)
+        val older = candidate("older", successCount = 1, lastCompletionTime = now.minusSeconds(100))
+        val candidates = listOf(older, recent)
+        val recentScore = RecentSuccessScorer.score(recent, candidates)
+        val olderScore = RecentSuccessScorer.score(older, candidates)
+        recentScore shouldBeEqualTo 100.0
+        olderScore shouldBeEqualTo 0.0
+    }
+
+    @Test
+    fun `RecentSuccess - 모든 후보가 successCount 0 이면 모두 0점`() {
+        val a = candidate("a", successCount = 0, failureCount = 3)
+        val b = candidate("b", successCount = 0, failureCount = 5)
+        val all = listOf(a, b)
+        RecentSuccessScorer.score(a, all) shouldBeEqualTo 0.0
+        RecentSuccessScorer.score(b, all) shouldBeEqualTo 0.0
+    }
+
+    // ── RandomElectionStrategy (null seed) ─────────────────────────────────
+
+    @Test
+    fun `Random null seed - 단일 후보면 항상 자기 자신 선출`() {
+        val only = candidate("solo")
+        repeat(20) {
+            RandomElectionStrategy().elect(listOf(only)).winner?.nodeId shouldBeEqualTo "solo"
+        }
+    }
+
+    @Test
+    fun `Random null seed - winner는 항상 입력 리스트의 멤버`() {
+        val candidates = (1..5).map { candidate("n$it") }
+        val ids = candidates.map { it.nodeId }
+        val strategy = RandomElectionStrategy()
+        repeat(50) {
+            val w = strategy.elect(candidates).winner
+            w.shouldNotBeNull()
+            w.nodeId shouldBeIn ids
+        }
+    }
+
+    // ── WeightedScorer validation ─────────────────────────────────────────
+
+    @Test
+    fun `WeightedScorer - 빈 scorer 목록은 require 실패`() {
+        invoking { WeightedScorer(emptyList()) } shouldThrow IllegalArgumentException::class
+    }
+
+    @Test
+    fun `WeightedScorer - 음수 weight 는 require 실패`() {
+        invoking { WeightedScorer(IdleTimeScorer to -0.5) } shouldThrow IllegalArgumentException::class
+    }
+
+    @Test
+    fun `WeightedScorer - 0 weight 는 require 실패`() {
+        invoking { WeightedScorer(IdleTimeScorer to 0.0) } shouldThrow IllegalArgumentException::class
     }
 }

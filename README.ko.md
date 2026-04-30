@@ -32,6 +32,7 @@ graph TD
     ExposedJdbc["leader-exposed-jdbc\n(예정)"]
     ExposedR2dbc["leader-exposed-r2dbc\n(예정)"]
     Mongo["leader-mongodb\n(예정)"]
+    SBCommon["leader-spring-boot-common\n(Boot 버전 독립)"]
     SB3["leader-spring-boot3\n(예정)"]
     SB4["leader-spring-boot4\n(예정)"]
     Metrics["leader-micrometer\n(예정)"]
@@ -43,8 +44,9 @@ graph TD
     ExposedJdbc --> ExposedCore
     ExposedR2dbc --> ExposedCore
     Mongo --> Core
-    SB3 --> Core
-    SB4 --> Core
+    SBCommon --> Core
+    SB3 --> SBCommon
+    SB4 --> SBCommon
     Metrics --> Core
 ```
 
@@ -61,6 +63,7 @@ graph TD
 | `leader-exposed-r2dbc` | 예정 | Exposed R2DBC 백엔드 |
 | `leader-mongodb` | 예정 | MongoDB 백엔드 |
 | `leader-micrometer` | 예정 | Micrometer 메트릭 연동 |
+| `leader-spring-boot-common` | 안정 | Boot 버전 독립 속성 + 자동 구성 지원 클래스 |
 | `leader-spring-boot3` | 예정 | Spring Boot 3 자동 구성 |
 | `leader-spring-boot4` | 예정 | Spring Boot 4 자동 구성 |
 

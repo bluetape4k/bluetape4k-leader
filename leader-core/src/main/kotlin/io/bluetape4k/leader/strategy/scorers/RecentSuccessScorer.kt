@@ -11,6 +11,15 @@ import io.bluetape4k.leader.strategy.CandidateScorer
  * - 마지막 실행이 실패 또는 이력 없음: 0.0
  *
  * 직전 작업이 성공한 노드를 재선출하여 연속 성공 가능성을 높입니다.
+ *
+ * ```kotlin
+ * // sticky leader: 성공한 노드 우선 + 일부 부하 분산
+ * val scorer = WeightedScorer(
+ *     RecentSuccessScorer to 0.7,
+ *     IdleTimeScorer to 0.3,
+ * )
+ * val strategy = ScoredElectionStrategy(scorer)
+ * ```
  */
 object RecentSuccessScorer : CandidateScorer {
 

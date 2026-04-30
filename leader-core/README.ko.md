@@ -150,7 +150,7 @@ sequenceDiagram
 전략 기반 선출은 **후보 등록 단계**와 **전략 적용 단계**를 분리하여 유연한 리더 선출 정책을 가능하게 합니다.
 
 ```
-registerCandidate() → selectLeader(strategy) → 1명 선출, 나머지 skip
+registerCandidate() → elect(strategy) → 1명 선출, 나머지 skip
 ```
 
 ### 내장 전략

@@ -56,7 +56,10 @@ class RedissonStrategicLeaderElection(
         options: LeaderElectionOptions,
         action: () -> T,
     ): T? {
-        val result = strategy.elect(listCandidates(lockName))
+        val candidates = runCatching { listCandidates(lockName) }
+            .onFailure { log.warn(it) { "[$lockName] 후보 목록 조회 실패 — 선출 skip" } }
+            .getOrElse { return null }
+        val result = strategy.elect(candidates)
         val winner = result.winner ?: return null
 
         val total = result.eliminations.size + 1
