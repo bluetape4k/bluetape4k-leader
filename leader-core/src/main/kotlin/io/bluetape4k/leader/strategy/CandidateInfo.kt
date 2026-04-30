@@ -1,6 +1,5 @@
 package io.bluetape4k.leader.strategy
 
-import io.bluetape4k.idgenerators.uuid.TimebasedUuid
 import java.io.Serializable
 import java.time.Duration
 import java.time.Instant
@@ -10,7 +9,7 @@ import java.time.Instant
  *
  * [idleDuration] 은 마지막 완료 이후 경과 시간을 나타내며, 실행 이력이 없으면 [registeredAt] 부터 계산합니다.
  *
- * @property nodeId 노드 식별자. 미지정 시 UUID v7([TimebasedUuid.Epoch])로 자동 생성됩니다.
+ * @property nodeId 노드 식별자. 노드 인스턴스 생성 시 UUID v7으로 할당하고 재사용해야 합니다.
  * @property registeredAt 후보 등록 시각
  * @property lastStartTime 마지막 작업 시작 시각
  * @property lastCompletionTime 마지막 작업 완료 시각
@@ -19,7 +18,7 @@ import java.time.Instant
  * @property metadata 확장 메타데이터
  */
 data class CandidateInfo(
-    val nodeId: String = TimebasedUuid.Epoch.nextIdAsString(),
+    val nodeId: String,
     val registeredAt: Instant = Instant.now(),
     val lastStartTime: Instant? = null,
     val lastCompletionTime: Instant? = null,
