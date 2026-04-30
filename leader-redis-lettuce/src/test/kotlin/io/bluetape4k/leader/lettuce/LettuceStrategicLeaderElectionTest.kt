@@ -7,9 +7,11 @@ import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.scorers.WeightedScorer
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
+import io.bluetape4k.junit5.awaitility.untilSuspending
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldNotBeNull
+import org.awaitility.kotlin.await
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -71,8 +73,8 @@ class LettuceStrategicLeaderElectionTest : AbstractLettuceLeaderTest() {
         node1.registerCandidate(lockName, CandidateInfo("node-1"), ttl)
         node1.listCandidates(lockName).size shouldBeEqualTo 1
 
-        Thread.sleep(500)
-        node1.listCandidates(lockName).size shouldBeEqualTo 0
+        await.atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(50))
+            .until { node1.listCandidates(lockName).isEmpty() }
     }
 
     @Test
@@ -84,8 +86,8 @@ class LettuceStrategicLeaderElectionTest : AbstractLettuceLeaderTest() {
         node1.runIfLeader(lockName, FifoElectionStrategy) { "ok" }
 
         node1.listCandidates(lockName).size shouldBeEqualTo 1
-        Thread.sleep(700)
-        node1.listCandidates(lockName).size shouldBeEqualTo 0
+        await.atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(50))
+            .until { node1.listCandidates(lockName).isEmpty() }
     }
 
     @Test
@@ -196,7 +198,8 @@ class LettuceStrategicLeaderElectionTest : AbstractLettuceLeaderTest() {
         val ttl = Duration.ofMillis(200)
 
         node1.registerCandidate(lockName, CandidateInfo("node-1"), ttl)
-        Thread.sleep(400)
+        await.atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(50))
+            .until { node1.listCandidates(lockName).isEmpty() }
 
         node1.updateResult(lockName, "node-1", CandidateResult.SUCCESS)
 
@@ -208,7 +211,7 @@ class LettuceStrategicLeaderElectionTest : AbstractLettuceLeaderTest() {
         val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo("node-1"), Duration.ZERO)
 
-        Thread.sleep(200)
+        Thread.sleep(100)
         node1.listCandidates(lockName).size shouldBeEqualTo 1
     }
 

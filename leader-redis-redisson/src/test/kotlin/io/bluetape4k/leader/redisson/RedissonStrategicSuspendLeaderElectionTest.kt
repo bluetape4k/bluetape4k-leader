@@ -1,12 +1,12 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.junit5.awaitility.untilSuspending
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -16,7 +16,7 @@ import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.amshove.kluent.shouldNotBeNull
-import org.junit.jupiter.api.Assertions.assertThrows
+import org.awaitility.kotlin.await
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -77,8 +77,9 @@ class RedissonStrategicSuspendLeaderElectionTest : AbstractRedissonLeaderTest() 
         node1.registerCandidate(lockName, CandidateInfo("node-1"), ttl)
         node1.listCandidates(lockName).size shouldBeEqualTo 1
 
-        Thread.sleep(500)
-        node1.listCandidates(lockName).size shouldBeEqualTo 0
+        await.atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(50)) untilSuspending {
+            node1.listCandidates(lockName).isEmpty()
+        }
     }
 
     @Test

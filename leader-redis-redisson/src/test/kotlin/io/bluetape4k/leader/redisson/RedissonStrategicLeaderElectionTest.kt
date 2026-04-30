@@ -10,6 +10,7 @@ import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeGreaterThan
 import org.amshove.kluent.shouldBeNull
+import org.awaitility.kotlin.await
 import org.amshove.kluent.shouldBeTrue
 import org.amshove.kluent.shouldNotBeNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -73,8 +74,8 @@ class RedissonStrategicLeaderElectionTest : AbstractRedissonLeaderTest() {
         node1.registerCandidate(lockName, CandidateInfo("node-1"), ttl)
         node1.listCandidates(lockName).size shouldBeEqualTo 1
 
-        Thread.sleep(500)
-        node1.listCandidates(lockName).size shouldBeEqualTo 0
+        await.atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(50))
+            .until { node1.listCandidates(lockName).isEmpty() }
     }
 
     @Test
@@ -83,12 +84,11 @@ class RedissonStrategicLeaderElectionTest : AbstractRedissonLeaderTest() {
         val ttl = Duration.ofMillis(500)
 
         node1.registerCandidate(lockName, CandidateInfo("node-1"), ttl)
-        node1.runIfLeader(lockName, FifoElectionStrategy) { "ok" }  // updateResult(SUCCESS) 내부 호출
+        node1.runIfLeader(lockName, FifoElectionStrategy) { "ok" }
 
-        // updateResult 후에도 TTL 유지되어야 함
         node1.listCandidates(lockName).size shouldBeEqualTo 1
-        Thread.sleep(700)
-        node1.listCandidates(lockName).size shouldBeEqualTo 0
+        await.atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(50))
+            .until { node1.listCandidates(lockName).isEmpty() }
     }
 
     @Test

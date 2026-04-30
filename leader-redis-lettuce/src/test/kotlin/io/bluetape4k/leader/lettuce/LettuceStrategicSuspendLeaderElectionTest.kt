@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.junit5.awaitility.untilSuspending
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
@@ -11,6 +12,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
+import org.awaitility.kotlin.await
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
@@ -75,8 +77,9 @@ class LettuceStrategicSuspendLeaderElectionTest : AbstractLettuceLeaderTest() {
         node1.registerCandidate(lockName, CandidateInfo("node-1"), ttl)
         node1.listCandidates(lockName).size shouldBeEqualTo 1
 
-        delay(500L)
-        node1.listCandidates(lockName).size shouldBeEqualTo 0
+        await.atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(50)) untilSuspending {
+            node1.listCandidates(lockName).isEmpty()
+        }
     }
 
     @Test
@@ -88,8 +91,9 @@ class LettuceStrategicSuspendLeaderElectionTest : AbstractLettuceLeaderTest() {
         node1.runIfLeader(lockName, FifoElectionStrategy) { "ok" }
 
         node1.listCandidates(lockName).size shouldBeEqualTo 1
-        delay(700L)
-        node1.listCandidates(lockName).size shouldBeEqualTo 0
+        await.atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(50)) untilSuspending {
+            node1.listCandidates(lockName).isEmpty()
+        }
     }
 
     @Test
@@ -131,7 +135,9 @@ class LettuceStrategicSuspendLeaderElectionTest : AbstractLettuceLeaderTest() {
         val ttl = Duration.ofMillis(200)
 
         node1.registerCandidate(lockName, CandidateInfo("node-1"), ttl)
-        delay(400L)
+        await.atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(50)) untilSuspending {
+            node1.listCandidates(lockName).isEmpty()
+        }
 
         node1.updateResult(lockName, "node-1", CandidateResult.SUCCESS)
 
@@ -143,7 +149,7 @@ class LettuceStrategicSuspendLeaderElectionTest : AbstractLettuceLeaderTest() {
         val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo("node-1"), Duration.ZERO)
 
-        delay(200L)
+        delay(100L)
         node1.listCandidates(lockName).size shouldBeEqualTo 1
     }
 

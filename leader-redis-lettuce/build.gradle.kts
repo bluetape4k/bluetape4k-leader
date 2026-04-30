@@ -5,6 +5,7 @@ configurations {
 dependencies {
     api(project(":leader-core"))
     api(Libs.lettuce_core)
+    api(Libs.kotlinx_coroutines_reactive)
 
     testImplementation(Libs.bluetape4k_junit5)
     testImplementation(Libs.bluetape4k_testcontainers)
