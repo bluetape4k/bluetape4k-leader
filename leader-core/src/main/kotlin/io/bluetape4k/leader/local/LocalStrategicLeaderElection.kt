@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.idgenerators.uuid.TimebasedUuid
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.StrategicLeaderElection
 import io.bluetape4k.leader.strategy.CandidateInfo
@@ -17,9 +18,11 @@ import kotlin.concurrent.withLock
  * lockName 단위 [ReentrantLock] 으로 선출 단계의 스레드 안전성을 보장합니다.
  * action 실행은 락 외부에서 수행하여 무관한 lockName 간 간섭을 방지합니다.
  *
- * @property nodeId 이 인스턴스가 나타내는 노드 식별자
+ * @property nodeId 이 인스턴스가 나타내는 노드 식별자. 미지정 시 UUID v7([TimebasedUuid.Epoch])로 자동 생성됩니다.
  */
-class LocalStrategicLeaderElection(override val nodeId: String) : StrategicLeaderElection {
+class LocalStrategicLeaderElection(
+    override val nodeId: String = TimebasedUuid.Epoch.nextIdAsString(),
+) : StrategicLeaderElection {
 
     private val registry = ConcurrentHashMap<String, ConcurrentHashMap<String, CandidateInfo>>()
     private val locks = ConcurrentHashMap<String, ReentrantLock>()

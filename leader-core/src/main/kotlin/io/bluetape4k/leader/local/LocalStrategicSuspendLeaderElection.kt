@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.idgenerators.uuid.TimebasedUuid
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.coroutines.StrategicSuspendLeaderElection
 import io.bluetape4k.leader.strategy.CandidateInfo
@@ -18,9 +19,11 @@ import java.util.concurrent.ConcurrentHashMap
  * action 실행은 뮤텍스 외부에서 수행하여 무관한 lockName 간 간섭을 방지합니다.
  * [CancellationException] 은 작업 실패로 간주하지 않으며, failureCount 를 증가시키지 않고 즉시 재전파합니다.
  *
- * @property nodeId 이 인스턴스가 나타내는 노드 식별자
+ * @property nodeId 이 인스턴스가 나타내는 노드 식별자. 미지정 시 UUID v7([TimebasedUuid.Epoch])로 자동 생성됩니다.
  */
-class LocalStrategicSuspendLeaderElection(override val nodeId: String) : StrategicSuspendLeaderElection {
+class LocalStrategicSuspendLeaderElection(
+    override val nodeId: String = TimebasedUuid.Epoch.nextIdAsString(),
+) : StrategicSuspendLeaderElection {
 
     private val registry = ConcurrentHashMap<String, ConcurrentHashMap<String, CandidateInfo>>()
     private val mutexes = ConcurrentHashMap<String, Mutex>()

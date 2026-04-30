@@ -4,6 +4,7 @@ configurations {
 
 dependencies {
     api(Libs.bluetape4k_core)
+    api(Libs.bluetape4k_idgenerators)
     api(Libs.bluetape4k_logging)
 
     implementation(Libs.kotlinx_coroutines_core)
