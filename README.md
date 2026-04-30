@@ -16,6 +16,7 @@ Provides blocking, async, coroutine, and virtual-thread APIs backed by Redis (Le
 - **Null-returning API** — `runIfLeader()` returns `null` when not elected (no exceptions thrown on contention)
 - **Multiple execution models** — blocking, `CompletableFuture`, virtual threads, coroutines
 - **Multi-leader support** — `LeaderGroupElection` allows N concurrent leaders via distributed semaphore
+- **Strategic election** — pluggable candidate-registry + election strategy (FIFO, scored, weighted); no distributed lock required
 - **Self-contained Redis test infrastructure** — Testcontainers, no external test-util dependencies
 - **ShedLock-compatible skip semantics** — action is simply skipped if the lock cannot be acquired
 
@@ -191,6 +192,8 @@ sequenceDiagram
 | `SuspendLeaderElection` | `T?` | Coroutine suspend single-leader |
 | `LeaderGroupElection` | `T?` | Blocking multi-leader (semaphore) |
 | `SuspendLeaderGroupElection` | `T?` | Coroutine multi-leader (semaphore) |
+| `StrategicLeaderElection` | `T?` | Blocking strategic election (candidate registry) |
+| `StrategicSuspendLeaderElection` | `T?` | Coroutine strategic election (candidate registry) |
 
 `runIfLeader(lockName, action)` — returns `action()` result on success, `null` if not elected.
 
@@ -208,6 +211,87 @@ LeaderGroupElectionOptions(
     leaseTime: Duration = 60.seconds
 )
 ```
+
+## Strategic Election
+
+Strategic election replaces the distributed-lock acquisition race with a **candidate registry + pluggable strategy**. Each node registers itself as a candidate; on each `runIfLeader` call, all candidates are loaded and a strategy deterministically selects the winner. No lock is held — only the winning node executes the action.
+
+### CandidateInfo
+
+```kotlin
+CandidateInfo(
+    nodeId: String,                      // unique node identifier
+    registeredAt: Instant,               // registration timestamp (for FIFO)
+    lastCompletionTime: Instant? = null, // for idle-time scoring
+    successCount: Long = 0L,             // auto-incremented on success
+    failureCount: Long = 0L,             // auto-incremented on failure
+    metadata: Map<String, String> = emptyMap(),
+)
+```
+
+### Built-in strategies
+
+| Strategy | Description |
+|----------|-------------|
+| `FifoElectionStrategy` | Earliest `registeredAt` wins; ties broken by `nodeId` lexicographic order |
+| `RandomElectionStrategy` | Random pick each round |
+| `ScoredElectionStrategy(scorer)` | Highest-score candidate wins |
+
+### Built-in scorers
+
+| Scorer | Description |
+|--------|-------------|
+| `SuccessRateScorer` | `successCount / (successCount + failureCount)` |
+| `IdleTimeScorer` | Longer idle time → higher score (load balancing) |
+| `RecentSuccessScorer` | Recency-weighted success rate |
+| `WeightedScorer(vararg pairs)` | Linear combination of multiple scorers |
+
+### Example — FIFO (Lettuce)
+
+```kotlin
+val election = LettuceStrategicLeaderElection(connection, nodeId = "node-1")
+
+// register this node
+election.registerCandidate("batch-job", CandidateInfo("node-1"), ttl = Duration.ofMinutes(5))
+
+// elect and run
+val result = election.runIfLeader("batch-job", FifoElectionStrategy) {
+    processBatch()
+}
+// result: processBatch() on the winning node, null on others
+```
+
+### Example — Success-rate scoring (coroutine, Redisson)
+
+```kotlin
+val election = RedissonStrategicSuspendLeaderElection(redissonClient, nodeId = "node-1")
+election.registerCandidate("ml-job", CandidateInfo("node-1"), ttl = Duration.ofMinutes(10))
+
+val strategy = ScoredElectionStrategy(SuccessRateScorer)
+val result = election.runIfLeader("ml-job", strategy) {
+    runInference()
+}
+```
+
+### Example — Weighted composite scorer
+
+```kotlin
+val scorer = WeightedScorer(
+    SuccessRateScorer to 0.7,
+    IdleTimeScorer    to 0.3,
+)
+val result = election.runIfLeader("job", ScoredElectionStrategy(scorer)) { doWork() }
+```
+
+### Strategic election vs lock-based election
+
+| Aspect | Lock-based | Strategic |
+|--------|-----------|-----------|
+| Winner selection | First to acquire lock | Deterministic strategy |
+| Candidate history | None | `successCount`, `failureCount`, `idleDuration` |
+| TTL per candidate | No (lock-level TTL) | Yes (per-node expiry) |
+| Custom scorer | No | Yes (`CandidateScorer`) |
+| Network RTT | 1 (tryLock) | 2 (list + elect) |
 
 ## Comparison with ShedLock
 
