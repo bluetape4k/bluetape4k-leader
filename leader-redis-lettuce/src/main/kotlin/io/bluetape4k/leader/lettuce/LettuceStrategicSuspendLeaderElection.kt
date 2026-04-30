@@ -1,8 +1,10 @@
-package io.bluetape4k.leader.redisson
+@file:OptIn(ExperimentalLettuceCoroutinesApi::class)
+
+package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.idgenerators.uuid.Uuid
 import io.bluetape4k.leader.LeaderElectionOptions
-import io.bluetape4k.leader.StrategicLeaderElection
+import io.bluetape4k.leader.coroutines.StrategicSuspendLeaderElection
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.ElectionStrategy
@@ -10,51 +12,58 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.info
 import io.bluetape4k.logging.warn
+import io.lettuce.core.ExperimentalLettuceCoroutinesApi
+import io.lettuce.core.api.StatefulRedisConnection
 import kotlinx.coroutines.CancellationException
-import org.redisson.api.RedissonClient
 import java.time.Duration
 
 /**
- * Redisson 백엔드 기반 [StrategicLeaderElection] 구현체입니다.
+ * Lettuce 백엔드 기반 [StrategicSuspendLeaderElection] 구현체입니다.
  *
- * ## 선출 방식
- * 분산 락 없이 결정론적 전략을 사용합니다.
- * 모든 노드가 동일한 후보 목록에 동일한 전략을 적용하면 동일한 winner를 계산합니다.
- * winner 인 노드만 action 을 실행합니다.
+ * [LettuceSuspendCandidateRegistry] 에 위임하여 Lettuce coroutines API 로 Redis 명령을 실행합니다.
+ * Lettuce Netty 비동기 I/O 기반이므로 [kotlinx.coroutines.Dispatchers.IO] 전환이 불필요합니다.
  *
- * ## 주의
- * 후보 등록/만료 타이밍 차이로 노드마다 다른 후보 목록을 볼 수 있습니다.
- * 엄격한 상호 배제가 필요한 경우 [RedissonLeaderElection] (락 기반)을 사용하세요.
+ * [CancellationException] 은 작업 실패가 아니므로 failureCount 를 증가시키지 않고 재전파합니다.
  *
- * @param redissonClient Redisson 클라이언트
+ * @param connection Lettuce StatefulRedisConnection (StringCodec 기반)
  * @param nodeId 이 인스턴스의 노드 식별자. 미지정 시 UUID v7 자동 생성.
  */
-class RedissonStrategicLeaderElection(
-    redissonClient: RedissonClient,
+class LettuceStrategicSuspendLeaderElection(
+    connection: StatefulRedisConnection<String, String>,
     override val nodeId: String = Uuid.V7.nextBase62(),
-) : StrategicLeaderElection {
+) : StrategicSuspendLeaderElection {
 
     companion object : KLogging()
 
-    private val registry = RedissonCandidateRegistry(redissonClient)
+    private val registry = LettuceSuspendCandidateRegistry(connection)
 
-    override fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
+    override suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) =
         registry.registerCandidate(lockName, info, ttl)
 
-    override fun unregisterCandidate(lockName: String, nodeId: String) =
+    override suspend fun unregisterCandidate(lockName: String, nodeId: String) =
         registry.unregisterCandidate(lockName, nodeId)
 
-    override fun listCandidates(lockName: String): List<CandidateInfo> =
+    override suspend fun listCandidates(lockName: String): List<CandidateInfo> =
         registry.listCandidates(lockName)
 
-    override fun updateResult(lockName: String, nodeId: String, result: CandidateResult) =
+    override suspend fun updateResult(lockName: String, nodeId: String, result: CandidateResult) =
         registry.updateResult(lockName, nodeId, result)
 
-    override fun <T> runIfLeader(
+    /**
+     * 전략으로 리더를 선출하고 winner 인 경우에만 [action] 을 실행합니다.
+     *
+     * 분산 락 없이 결정론적 선출을 사용하므로 [options] 의 waitTime/leaseTime 은 적용되지 않습니다.
+     * 후보 등록 시 TTL 을 직접 설정하세요.
+     *
+     * [CancellationException] 은 실패로 처리하지 않으며 failureCount 를 증가시키지 않습니다.
+     *
+     * @return [action] 실행 결과, 후보 없거나 다른 노드가 winner 이면 `null`
+     */
+    override suspend fun <T> runIfLeader(
         lockName: String,
         strategy: ElectionStrategy,
         options: LeaderElectionOptions,
-        action: () -> T,
+        action: suspend () -> T,
     ): T? {
         val result = strategy.elect(listCandidates(lockName))
         val winner = result.winner ?: return null

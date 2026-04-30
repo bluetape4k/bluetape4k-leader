@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
  *
  * @param redissonClient Redisson 클라이언트
  */
-class RedissonCandidateRegistry(private val redissonClient: RedissonClient) {
+internal class RedissonCandidateRegistry(private val redissonClient: RedissonClient) {
 
     private fun cacheKey(lockName: String) = "leader:strategy:candidates:$lockName"
 
@@ -47,12 +47,11 @@ class RedissonCandidateRegistry(private val redissonClient: RedissonClient) {
         val cache = mapCacheFor(lockName)
         val current = cache[nodeId] ?: return
         val updated = current.withResult(result)
-        // remainTimeToLive: -1 = no TTL, -2 = absent
-        val remainMs = cache.remainTimeToLive(nodeId)
-        if (remainMs > 0) {
-            cache.put(nodeId, updated, remainMs, TimeUnit.MILLISECONDS)
-        } else {
-            cache.put(nodeId, updated)
+        val remainMs = cache.remainTimeToLive(nodeId)  // -1 = no TTL, -2 = absent
+        when {
+            remainMs > 0L   -> cache.put(nodeId, updated, remainMs, TimeUnit.MILLISECONDS)
+            remainMs == -1L -> cache.put(nodeId, updated)
+            // remainMs == -2: key expired between GET and TTL check — skip to avoid zombie
         }
     }
 }
