@@ -13,12 +13,29 @@ import java.time.Duration
  * ## 선출 흐름
  * 1. [registerCandidate] 로 후보 등록
  * 2. [listCandidates] 로 현재 후보 목록 조회
- * 3. [ElectionStrategy.selectLeader] 로 winner 결정
+ * 3. [ElectionStrategy.elect] 로 winner 결정
  * 4. winner 이면 action 실행, 아니면 null 반환
  *
  * ## 분산 일관성 주의
  * 모든 노드가 동일한 후보 목록에 결정론적 전략을 적용하면 동일 winner 를 계산합니다.
  * 단, 후보 등록/조회 시점 차이로 인한 불일치는 백엔드 구현에서 처리해야 합니다.
+ *
+ * ## 사용 예제
+ *
+ * ```kotlin
+ * val election = LocalStrategicLeaderElection("node-1")
+ *
+ * // 1. 후보 등록 — 분산 환경에서는 heartbeat 주기로 갱신
+ * election.registerCandidate("nightly-job", CandidateInfo(election.nodeId))
+ *
+ * // 2. ScoredElectionStrategy + IdleTimeScorer — 가장 오래 쉰 노드 선출
+ * val strategy = ScoredElectionStrategy(IdleTimeScorer)
+ *
+ * // 3. 선출되면 action 실행, 아니면 null
+ * val result: Report? = election.runIfLeader("nightly-job", strategy) {
+ *     generateNightlyReport()
+ * }
+ * ```
  */
 interface StrategicLeaderElection {
 

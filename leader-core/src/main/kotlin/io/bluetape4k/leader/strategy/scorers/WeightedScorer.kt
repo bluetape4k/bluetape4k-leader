@@ -19,6 +19,13 @@ class WeightedScorer(
     val scorers: List<Pair<CandidateScorer, Double>>,
 ) : CandidateScorer {
 
+    init {
+        require(scorers.isNotEmpty()) { "WeightedScorer requires at least one scorer" }
+        require(scorers.all { (_, w) -> w > 0.0 }) {
+            "All scorer weights must be positive: ${scorers.map { it.second }}"
+        }
+    }
+
     constructor(vararg scorers: Pair<CandidateScorer, Double>) : this(scorers.toList())
 
     override fun score(candidate: CandidateInfo, all: List<CandidateInfo>): Double =

@@ -150,7 +150,7 @@ All local implementations use JVM primitives (`ReentrantLock`, `Semaphore`) — 
 Strategic election separates the **nomination phase** (candidate registration) from the **decision phase** (strategy application), enabling flexible leader selection policies.
 
 ```
-registerCandidate() → selectLeader(strategy) → 1 winner, rest skipped
+registerCandidate() → elect(strategy) → 1 winner, rest skipped
 ```
 
 ### Built-in Strategies

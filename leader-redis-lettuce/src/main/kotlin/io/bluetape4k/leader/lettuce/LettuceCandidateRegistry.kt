@@ -2,6 +2,8 @@ package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.warn
 import io.lettuce.core.ScanArgs
 import io.lettuce.core.ScanCursor
 import io.lettuce.core.SetArgs
@@ -25,6 +27,11 @@ import java.time.Duration
 internal class LettuceCandidateRegistry(
     private val connection: StatefulRedisConnection<String, String>,
 ) {
+    companion object: KLogging() {
+        /** Redis SCAN 페이지 크기 힌트. 상한이 아니라 페이지당 반환 키 개수 가이드입니다. */
+        private const val SCAN_PAGE_SIZE = 1000L
+    }
+
     private val sync = connection.sync()
 
     private fun candidateKey(lockName: String, nodeId: String) =
@@ -58,13 +65,23 @@ internal class LettuceCandidateRegistry(
         sync.del(candidateKey(lockName, nodeId))
     }
 
-    /** [lockName] 에 등록된 현재 후보 목록을 반환합니다. */
+    /**
+     * [lockName] 에 등록된 현재 후보 목록을 반환합니다.
+     *
+     * 손상된 단일 항목(잘못된 인코딩, 숫자 파싱 실패 등)은 경고 로그를 남기고 skip 합니다.
+     * 한 항목 때문에 전체 선출 라운드가 중단되지 않도록 보호합니다.
+     */
     fun listCandidates(lockName: String): List<CandidateInfo> {
         validateLockName(lockName)
         val keys = scanKeys(lockName)
         if (keys.isEmpty()) return emptyList()
         return sync.mget(*keys.toTypedArray())
-            .mapNotNull { kv -> kv.value?.let { LettuceCandidateInfoCodec.decode(it) } }
+            .mapNotNull { kv ->
+                val raw = kv.value ?: return@mapNotNull null
+                runCatching { LettuceCandidateInfoCodec.decode(raw) }
+                    .onFailure { log.warn(it) { "[$lockName] CandidateInfo 디코딩 실패 — 항목 skip: key=${kv.key}" } }
+                    .getOrNull()
+            }
     }
 
     /**
@@ -82,7 +99,7 @@ internal class LettuceCandidateRegistry(
     }
 
     private fun scanKeys(lockName: String): List<String> {
-        val args = ScanArgs.Builder.matches(keyPattern(lockName)).limit(1000)
+        val args = ScanArgs.Builder.matches(keyPattern(lockName)).limit(SCAN_PAGE_SIZE)
         val keys = mutableListOf<String>()
         var cursor: ScanCursor = ScanCursor.INITIAL
         do {

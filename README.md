@@ -32,6 +32,7 @@ graph TD
     ExposedJdbc["leader-exposed-jdbc\n(planned)"]
     ExposedR2dbc["leader-exposed-r2dbc\n(planned)"]
     Mongo["leader-mongodb\n(planned)"]
+    SBCommon["leader-spring-boot-common\n(Boot version-independent)"]
     SB3["leader-spring-boot3\n(planned)"]
     SB4["leader-spring-boot4\n(planned)"]
     Metrics["leader-micrometer\n(planned)"]
@@ -43,8 +44,9 @@ graph TD
     ExposedJdbc --> ExposedCore
     ExposedR2dbc --> ExposedCore
     Mongo --> Core
-    SB3 --> Core
-    SB4 --> Core
+    SBCommon --> Core
+    SB3 --> SBCommon
+    SB4 --> SBCommon
     Metrics --> Core
 ```
 
@@ -61,6 +63,7 @@ graph TD
 | `leader-exposed-r2dbc` | Planned | Exposed R2DBC backend |
 | `leader-mongodb` | Planned | MongoDB backend |
 | `leader-micrometer` | Planned | Micrometer metrics integration |
+| `leader-spring-boot-common` | Stable | Boot version-independent properties + auto-config support |
 | `leader-spring-boot3` | Planned | Spring Boot 3 auto-configuration |
 | `leader-spring-boot4` | Planned | Spring Boot 4 auto-configuration |
 

@@ -18,8 +18,9 @@ class ScoredElectionStrategy(val scorer: CandidateScorer) : ElectionStrategy {
     override fun elect(candidates: List<CandidateInfo>): ElectionResult {
         if (candidates.isEmpty()) return ElectionResult.EMPTY
         val scores = candidates.associateWith { scorer.score(it, candidates) }
-        val maxScore = scores.values.max()
+        val maxScore = scores.values.maxOrNull() ?: return ElectionResult.EMPTY
         val topCandidates = candidates.filter { scores[it] == maxScore }
+        if (topCandidates.isEmpty()) return ElectionResult.EMPTY
         val winner = topCandidates.minWith(
             compareBy(CandidateInfo::registeredAt).thenBy(CandidateInfo::nodeId)
         )

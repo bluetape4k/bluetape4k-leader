@@ -39,11 +39,41 @@ internal object LettuceCandidateInfoCodec {
         if (s.isEmpty()) return emptyMap()
         return s.split(",").associate { kv ->
             val idx = kv.indexOf("=")
-            if (idx < 0) kv.unesc() to ""
-            else kv.substring(0, idx).unesc() to kv.substring(idx + 1).unesc()
+            require(idx >= 0) { "metadata 항목에 '=' 가 없습니다: $kv" }
+            kv.substring(0, idx).unesc() to kv.substring(idx + 1).unesc()
         }
     }
 
     private fun String.esc() = replace("%", "%25").replace("|", "%7C").replace(",", "%2C").replace("=", "%3D")
-    private fun String.unesc() = replace("%7C", "|").replace("%2C", ",").replace("%3D", "=").replace("%25", "%")
+
+    /**
+     * 단일 패스 percent-decoder. 체이닝 [String.replace] 는 nested 토큰
+     * (예: 인코딩된 `%7C` = `%257C`) 에서 잘못된 결과를 낳으므로 직접 스캔합니다.
+     */
+    private fun String.unesc(): String {
+        if (isEmpty() || !contains('%')) return this
+        val sb = StringBuilder(length)
+        var i = 0
+        while (i < length) {
+            val c = this[i]
+            if (c == '%' && i + 2 < length) {
+                val token = substring(i + 1, i + 3)
+                val replaced = when (token) {
+                    "25" -> '%'
+                    "7C" -> '|'
+                    "2C" -> ','
+                    "3D" -> '='
+                    else -> null
+                }
+                if (replaced != null) {
+                    sb.append(replaced)
+                    i += 3
+                    continue
+                }
+            }
+            sb.append(c)
+            i++
+        }
+        return sb.toString()
+    }
 }

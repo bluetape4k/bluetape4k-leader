@@ -35,10 +35,10 @@ class LocalStrategicSuspendLeaderElection(
     private val mutexes = ConcurrentHashMap<String, Mutex>()
 
     private fun candidatesFor(lockName: String): ConcurrentHashMap<String, CandidateInfo> =
-        registry.getOrPut(lockName) { ConcurrentHashMap() }
+        registry.computeIfAbsent(lockName) { ConcurrentHashMap() }
 
     private fun mutexFor(lockName: String): Mutex =
-        mutexes.getOrPut(lockName) { Mutex() }
+        mutexes.computeIfAbsent(lockName) { Mutex() }
 
     override suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
         candidatesFor(lockName)[info.nodeId] = info

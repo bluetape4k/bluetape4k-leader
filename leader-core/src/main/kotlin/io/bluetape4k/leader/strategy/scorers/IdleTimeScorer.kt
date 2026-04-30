@@ -11,6 +11,13 @@ import io.bluetape4k.leader.strategy.CandidateScorer
  *
  * 점수는 후보 풀 내 최대 idle 시간을 기준으로 0.0 ~ 100.0 범위로 정규화됩니다.
  * [WeightedScorer] 와 다른 scorer 를 함께 사용할 때 단위 통일을 위함입니다.
+ *
+ * ```kotlin
+ * val strategy = ScoredElectionStrategy(IdleTimeScorer)
+ * election.runIfLeader("rotating-batch", strategy) {
+ *     processBatch()
+ * }
+ * ```
  */
 object IdleTimeScorer : CandidateScorer {
 

@@ -35,10 +35,10 @@ class LocalStrategicLeaderElection(
     private val locks = ConcurrentHashMap<String, ReentrantLock>()
 
     private fun candidatesFor(lockName: String): ConcurrentHashMap<String, CandidateInfo> =
-        registry.getOrPut(lockName) { ConcurrentHashMap() }
+        registry.computeIfAbsent(lockName) { ConcurrentHashMap() }
 
     private fun lockFor(lockName: String): ReentrantLock =
-        locks.getOrPut(lockName) { ReentrantLock() }
+        locks.computeIfAbsent(lockName) { ReentrantLock() }
 
     override fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
         candidatesFor(lockName)[info.nodeId] = info
