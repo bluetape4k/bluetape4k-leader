@@ -28,7 +28,7 @@ def module_from_path(root_dir: str, path: str) -> str:
     rel = os.path.relpath(path, root_dir)
     parts = rel.split(os.sep)
     for i in range(len(parts) - 1, -1, -1):
-        if parts[i] == "reports" and i >= 1:
+        if parts[i] == "build" and i >= 1:
             return parts[i - 1]
     return os.path.basename(os.path.dirname(os.path.dirname(path)))
 
