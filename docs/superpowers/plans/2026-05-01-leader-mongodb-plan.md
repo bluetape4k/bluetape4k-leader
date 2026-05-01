@@ -207,8 +207,8 @@
   - `companion object : KLoggingChannel() { suspend operator fun invoke(...) { ensureIndexes; ... } }`
   - `override suspend fun <T> runIfLeader(lockName, action): T?`
     - lockName 검증
-    - `val lock = MongoSuspendLock(collection, lockName)`
-    - `if (!lock.tryLock(...)) return null`
+    - `val lock = MongoSuspendLock(collection, lockName, options.retryDelay)` — **H1: retryDelay 생성자 주입**
+    - `if (!lock.tryLock(options.leaderOptions.waitTime, options.leaderOptions.leaseTime)) return null` — **H2: `options.leaderOptions.waitTime/leaseTime`**
     - 스펙 §2.3 finally 패턴:
       ```
       try {
@@ -238,10 +238,10 @@
     - `override val maxLeaders: Int get() = options.maxLeaders`
     - `override fun state(lockName: String): LeaderGroupState = LeaderGroupState(lockName, maxLeaders, activeCount(lockName))`
   - **`AsyncLeaderGroupElection.runAsyncIfLeader` 필수 구현** (H3 — `LeaderGroupElection extends AsyncLeaderGroupElection`):
-    - `override fun <T> runAsyncIfLeader(lockName, executor, action): CF<T?>` — T3의 async 3-경로 동일 패턴 적용
-      1. tryLock 실패 → `completedFuture(null)`
-      2. `action()` 동기 throw → `lock.unlock(); failedFuture(e)`
-      3. CF 완료 → `whenCompleteAsync { _, _ -> if (lock.isHeldByCurrentInstance()) unlock() }`
+    - `override fun <T> runAsyncIfLeader(lockName, executor, action): CF<T?>` — T3와 완전히 동일한 3-경로 + cleanup 패턴 적용 (M5):
+      1. tryLock 실패 → `completedFuture(null)` (unlock 불필요)
+      2. `action()` 동기 throw → `if (lock.isHeldByCurrentInstance()) runCatching { lock.unlock() }.onFailure { log.warn(...) }` 후 `failedFuture(e)` — **cleanup 실패가 failedFuture 를 오염시키면 안 됨**
+      3. CF 완료 → `cf.whenCompleteAsync { _, _ -> if (lock.isHeldByCurrentInstance()) runCatching { lock.unlock() }.onFailure { log.warn(...) } }` — **cleanup 예외가 CF exceptional completion 유발 금지**
   - `override fun <T> runIfLeader(lockName, action): T?`
     - lockName 검증 (단일과 동일)
     - `val leaseTime = options.leaderGroupOptions.leaseTime` — **H3: `options.leaderGroupOptions.leaseTime` (직접 아님)**
@@ -280,13 +280,23 @@
     - `val lock = MongoSuspendLock(coroutineGroupCollection, slotKey, options.retryDelay)` — **H2 retryDelay 전달**
     - `if (!lock.tryLock(perSlotWait, options.leaderGroupOptions.leaseTime)) continue` — **H3: `options.leaderGroupOptions.leaseTime`**
     - `try { return action() } finally { withContext(NonCancellable) { withTimeout(options.releaseTimeout.toMillis()) { if (lock.isHeldByCurrentInstance()) lock.unlock() } } }` — **H4 isHeldByCurrentInstance() 가드 필수**
-  - 확장 함수: `suspend fun CoroutineMongoCollection<Document>.suspendRunIfLeaderGroup(...)`
+  - **확장 함수 불가** (H3): `CoroutineMongoCollection` 단일 receiver 로는 state 조회용 sync `MongoCollection` 을 제공할 수 없음.
+    → **top-level 함수**로 대체:
+    ```kotlin
+    suspend fun <T> suspendRunIfLeaderGroup(
+        syncGroupCollection: MongoCollection<Document>,
+        coroutineGroupCollection: CoroutineMongoCollection<Document>,
+        options: MongoLeaderGroupElectionOptions,
+        lockName: String,
+        action: suspend () -> T,
+    ): T? = MongoSuspendLeaderGroupElection(syncGroupCollection, coroutineGroupCollection, options).runIfLeader(lockName, action)
+    ```
 - **검증**: 컴파일 통과, T8d 에서 검증
 
 ### T7: AbstractMongoLeaderTest
 - **파일**: `leader-mongodb/src/test/kotlin/io/bluetape4k/leader/mongodb/AbstractMongoLeaderTest.kt`
 - **complexity**: low
-- **depends_on**: T10a, T10b
+- **depends_on**: T1, T2, T10a, T10b
 - **수행**:
   - 스펙 §8.1 그대로:
     - `@TestInstance(PER_CLASS)` `abstract class`
@@ -311,8 +321,8 @@
   - Unlock 토큰 불일치: TTL 만료/수동 삭제 후 unlock → warn 만, throw 없음
   - Async sync throw: action 이 CF 반환 전에 throw → `failedFuture(e)`, lock 해제 검증
   - Async CF 완료: action 정상 CF → CF 완료 시 unlock 호출 검증 (collection 비어있음)
-  - Auth 13/18: **M8 — MockK 는 MongoDB driver final class mock 어려움. Fake collection wrapper 사용**: `findOneAndUpdate` 가 `MongoCommandException(message, 13, ...)` 을 throw 하는 간단한 Kotlin class 구현 → `MongoLock` 에 주입 → `runIfLeader` 결과 `null` + error 로그 검증
-  - ensureIndexes 실패 재시도: 첫 호출 시 createIndex throw 모킹 → `ensuredNamespaces` 에서 제거 확인, 두 번째 호출 성공 (반사적으로 `ensuredNamespaces` 접근하거나 expose helper 추가 — 검증 가능 범위 내에서 작성)
+  - Auth 13/18: **H4 — MongoDB driver final class 는 Kotlin class fake 로 대체 불가**. **integration test 방식으로 확정**: `MongoDBContainer("mongo:7")` 에 auth 활성화 + write 권한 없는 user 생성 → 해당 user credential 로 `MongoClient` 생성 → `runIfLeader` → `null` + error 로그 검증. (`AbstractMongoLeaderTest` 에 별도 `authClient` 팩토리 추가). production abstraction 증가(adapter) 는 채택하지 않음.
+  - ensureIndexes 실패 재시도: **M7 — MongoDB collection mocking 불안정. `@VisibleForTesting internal resetEnsuredFor(ns)` helper 사용으로 확정**. 테스트에서 helper 로 set 에서 namespace 제거 → TTL index 가 이미 있는 컬렉션에 재호출 → `createIndex` 는 idempotent 로 성공 → `ensuredNamespaces.add(ns)` 가 다시 true 반환한 것과 동일 효과 검증
   - `:slot:` 양 경로: `runIfLeader("a:slot:b")`, `runIfLeaderGroup("a:slot:b")` 둘 다 IAE
 - **검증**: `./gradlew :leader-mongodb:test --tests "*MongoLeaderElectionTest"` 통과, AAA 구조, Kluent matcher
 
@@ -348,7 +358,7 @@
   - `runTest` + `async` 경합
   - 동시 점유 ≤ maxLeaders
   - **SuspendGroup 취소**: action 중 cancel + join → 슬롯 컬렉션에서 해당 lockName 의 slot document 가 모두 삭제되었는지 검증
-  - activeCount/availableSlots suspend 동작 검증
+  - **non-suspend** `activeCount`/`availableSlots` 동작 검증 (M6: suspend group 이지만 state API 는 non-suspend — 실수로 suspend 오버라이드하면 컴파일 에러)
 - **검증**: `./gradlew :leader-mongodb:test --tests "*MongoSuspendLeaderGroupElectionTest"` 통과
 
 ### T9a: leader-mongodb/README.md
@@ -401,7 +411,7 @@
   - **M9 사전**: `./gradlew :leader-mongodb:tasks --all | grep -i kover` 로 실제 태스크명 확인 (`koverHtmlReport` / `koverXmlReport` / `koverVerify` 중 실제 등록된 것 사용)
   - Kover 리포트 생성 후 line coverage 80%+ 확인
   - `./gradlew :leader-bom:build` 통과
-- **검증**: 모든 명령어 exit 0, koverReport 커버리지 스크린샷 또는 수치 캡처
+- **검증**: 모든 명령어 exit 0, 확인된 Kover 태스크의 line coverage 수치 캡처 (L9)
 
 ### T12: 6중 코드 리뷰 (PR 전 필수)
 - **complexity**: high
