@@ -13,6 +13,7 @@
 | #3 | leader-redis-redisson 테스트 자립화 (AbstractRedissonLeaderTest) | ✅ 완료 | #17 merged |
 | #15 | runIfLeader() 반환 타입 T?로 변경 (skip 동작) | ✅ 완료 | merged |
 | #27 | leader-spring-boot-common — Boot 버전 독립 공통 모듈 | ✅ 완료 | #28 merged |
+| #8 | leader-mongodb — MongoDB findOneAndUpdate + TTL 기반 분산 락 | ✅ 완료 | #46 merged |
 | #29 | 플러그형 선출 전략 (StrategicLeaderElection) — leader-core pilot | 🔄 진행 중 | #30 review |
 
 ---
@@ -62,12 +63,6 @@
 
 - `LeaderTable` Exposed Table 정의 (공통 스키마)
 - JDBC/R2DBC 양쪽에서 재사용 가능한 DDL 생성 유틸
-
-### #8 — leader-mongodb (MongoDB 백엔드)
-
-- MongoDB `findOneAndUpdate` + TTL 인덱스 기반 잠금
-- `MongoLeaderElection`, `MongoSuspendLeaderElection`
-- 테스트: Testcontainers MongoDB
 
 ### #33 — leader-hazelcast (Hazelcast 백엔드)
 

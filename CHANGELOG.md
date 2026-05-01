@@ -20,15 +20,26 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Redisson KDoc accuracy**: removed stale "throws RedisException on contention" claims and replaced with the actual ShedLock-style `null` return contract; `@throws RedisException` now only documents the interrupt path. (daily review)
 - **Suspend interface contract** (`SuspendLeaderElection`, `SuspendLeaderGroupElection`): added explicit cancellation contract to KDoc — implementations must release the lock/slot and rethrow `CancellationException`. (daily review)
 
+### Added
+
+- **`leader-mongodb`**: MongoDB `findOneAndUpdate` + TTL index 기반 분산 락 백엔드 (issue #8, PR #46)
+  - `MongoLock` — sync blocking, `findOneAndUpdate` upsert + `deleteOne(token)` 소유자 전용 해제
+  - `MongoSuspendLock` — Kotlin coroutine driver 기반 suspend 분산 락
+  - `MongoLeaderElection` — blocking 단일 리더 선출 (sync + `CompletableFuture` async)
+  - `MongoSuspendLeaderElection` — coroutine 단일 리더 선출
+  - `MongoLeaderGroupElection` — blocking 복수 리더 선출 (`lockName:slot:N` 슬롯 기반)
+  - `MongoSuspendLeaderGroupElection` — coroutine 복수 리더 선출 (이중 컬렉션 설계)
+  - 라인 커버리지 82.4% (42 테스트)
+  - Testcontainers MongoDB 통합 테스트
+
 ### Planned
 
-- `leader-exposed-core`/`leader-exposed-jdbc`/`leader-exposed-r2dbc` — Exposed backends (issue #7, refactor #24)
-- `leader-mongodb` — MongoDB backend (issue #8)
-- `leader-hazelcast` — Hazelcast backend (issue #9)
+- `leader-exposed-core`/`leader-exposed-jdbc`/`leader-exposed-r2dbc` — Exposed backends (issue #23, #21, #22)
+- `leader-hazelcast` — Hazelcast backend (issue #33)
+- `leader-zookeeper` — ZooKeeper/Curator backend (issue #34)
 - `leader-micrometer` — Micrometer metrics integration (issue #10)
 - `leader-spring-boot3` — Spring Boot 3 auto-configuration (issue #11)
 - `leader-spring-boot4` — Spring Boot 4 auto-configuration (issue #12)
-- CI/CD pipeline setup (issue #13)
 - Expanded test coverage (issue #4)
 
 ---
