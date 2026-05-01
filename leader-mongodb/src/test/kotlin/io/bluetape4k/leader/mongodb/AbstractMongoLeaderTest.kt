@@ -1,39 +1,34 @@
 package io.bluetape4k.leader.mongodb
 
-import com.mongodb.client.MongoClients
-import com.mongodb.kotlin.client.coroutine.MongoClient as CoroutineMongoClient
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.testcontainers.storage.MongoDBServer
 import io.bluetape4k.utils.ShutdownQueue
 import org.bson.Document
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestInstance
-import org.testcontainers.containers.MongoDBContainer
-import java.util.UUID
 
 /**
  * MongoDB 기반 리더 선출 테스트의 기반 클래스입니다.
  *
- * [MongoDBContainer] 로 격리된 MongoDB 인스턴스를 시작하고,
+ * [MongoDBServer.Launcher.mongoDB] 로 격리된 MongoDB 인스턴스를 시작하고,
  * 동기/코루틴 클라이언트와 컬렉션 참조를 제공합니다.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractMongoLeaderTest {
 
     companion object : KLogging() {
-        val mongoContainer: MongoDBContainer = MongoDBContainer("mongo:7").also { it.start() }
-
-        val mongoUri: String
-            get() = "mongodb://${mongoContainer.host}:${mongoContainer.getMappedPort(27017)}"
+        val mongoServer: MongoDBServer = MongoDBServer.Launcher.mongoDB
 
         val mongoClient by lazy {
-            MongoClients.create(mongoUri).also {
+            MongoDBServer.Launcher.getClient().also {
                 ShutdownQueue.register { it.close() }
             }
         }
 
         val coroutineMongoClient by lazy {
-            CoroutineMongoClient.create(mongoUri).also {
+            MongoDBServer.Launcher.getCoroutineClient().also {
                 ShutdownQueue.register { it.close() }
             }
         }
@@ -51,7 +46,7 @@ abstract class AbstractMongoLeaderTest {
             coroutineDb.getCollection<Document>(MongoLock.GROUP_LOCK_COLLECTION_NAME)
         }
 
-        fun randomLockName(): String = "test-${UUID.randomUUID().toString().take(8)}"
+        fun randomLockName(): String = "test-${Base58.randomString(8)}"
     }
 
     @BeforeEach
