@@ -6,10 +6,10 @@ import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.LeaderGroupElection
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.mongodb.lock.MongoLock
+import io.bluetape4k.leader.mongodb.lock.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
-import io.bluetape4k.support.requireNotBlank
 import org.bson.Document
 import java.util.Date
 import java.util.concurrent.CompletableFuture
@@ -96,11 +96,9 @@ class MongoLeaderGroupElection private constructor(
             try {
                 return action()
             } finally {
-                if (lock.isHeldByCurrentInstance()) {
-                    runCatching { lock.unlock() }
-                        .onSuccess { log.debug { "리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
-                        .onFailure { e -> log.warn(e) { "그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" } }
-                }
+                runCatching { lock.unlock() }
+                    .onSuccess { log.debug { "리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
+                    .onFailure { e -> log.warn(e) { "그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" } }
             }
         }
 
@@ -136,28 +134,18 @@ class MongoLeaderGroupElection private constructor(
                 log.debug { "리더 그룹 슬롯을 획득하여 비동기 작업을 수행합니다. lockName=$lockName, slot=$slot" }
                 val actionFuture = runCatching { action() }
                     .getOrElse { e ->
-                        if (lock.isHeldByCurrentInstance()) {
-                            runCatching { lock.unlock() }
-                                .onFailure { ex -> log.warn(ex) { "그룹 슬롯 해제 실패 (action 오류 경로). lockName=$lockName, slot=$slot" } }
-                        }
+                        runCatching { lock.unlock() }
+                            .onFailure { ex -> log.warn(ex) { "그룹 슬롯 해제 실패 (action 오류 경로). lockName=$lockName, slot=$slot" } }
                         return@thenComposeAsync CompletableFuture.failedFuture(e)
                     }
                 actionFuture.whenCompleteAsync({ _, _ ->
-                    if (lock.isHeldByCurrentInstance()) {
-                        runCatching { lock.unlock() }
-                            .onSuccess { log.debug { "비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
-                            .onFailure { e -> log.warn(e) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" } }
-                    }
+                    runCatching { lock.unlock() }
+                        .onSuccess { log.debug { "비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
+                        .onFailure { e -> log.warn(e) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" } }
                 }, executor)
             }
         }, executor)
     }
-}
-
-private fun validateLockName(lockName: String) {
-    lockName.requireNotBlank("lockName")
-    require(!lockName.contains('.')) { "lockName must not contain '.': $lockName" }
-    require(!lockName.contains(":slot:")) { "lockName must not contain ':slot:': $lockName" }
 }
 
 /**

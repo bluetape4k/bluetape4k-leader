@@ -4,10 +4,10 @@ import com.mongodb.client.MongoCollection
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.LeaderElection
 import io.bluetape4k.leader.mongodb.lock.MongoLock
+import io.bluetape4k.leader.mongodb.lock.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
-import io.bluetape4k.support.requireNotBlank
 import org.bson.Document
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
@@ -61,11 +61,9 @@ class MongoLeaderElection private constructor(
         try {
             return action()
         } finally {
-            if (lock.isHeldByCurrentInstance()) {
-                runCatching { lock.unlock() }
-                    .onSuccess { log.debug { "리더 권한을 반납했습니다. lockName=$lockName" } }
-                    .onFailure { e -> log.warn(e) { "락 해제 실패. lockName=$lockName" } }
-            }
+            runCatching { lock.unlock() }
+                .onSuccess { log.debug { "리더 권한을 반납했습니다. lockName=$lockName" } }
+                .onFailure { e -> log.warn(e) { "락 해제 실패. lockName=$lockName" } }
         }
     }
 
@@ -87,28 +85,18 @@ class MongoLeaderElection private constructor(
                     log.debug { "리더로 승격하여 비동기 작업을 수행합니다. lockName=$lockName" }
                     val actionFuture = runCatching { action() }
                         .getOrElse { e ->
-                            if (lock.isHeldByCurrentInstance()) {
-                                runCatching { lock.unlock() }
-                                    .onFailure { ex -> log.warn(ex) { "락 해제 실패 (action 오류 경로). lockName=$lockName" } }
-                            }
+                            runCatching { lock.unlock() }
+                                .onFailure { ex -> log.warn(ex) { "락 해제 실패 (action 오류 경로). lockName=$lockName" } }
                             return@thenComposeAsync CompletableFuture.failedFuture(e)
                         }
                     actionFuture.whenCompleteAsync({ _, _ ->
-                        if (lock.isHeldByCurrentInstance()) {
-                            runCatching { lock.unlock() }
-                                .onSuccess { log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" } }
-                                .onFailure { e -> log.warn(e) { "비동기 락 해제 실패. lockName=$lockName" } }
-                        }
+                        runCatching { lock.unlock() }
+                            .onSuccess { log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" } }
+                            .onFailure { e -> log.warn(e) { "비동기 락 해제 실패. lockName=$lockName" } }
                     }, executor)
                 }
             }, executor)
     }
-}
-
-private fun validateLockName(lockName: String) {
-    lockName.requireNotBlank("lockName")
-    require(!lockName.contains('.')) { "lockName must not contain '.': $lockName" }
-    require(!lockName.contains(":slot:")) { "lockName must not contain ':slot:': $lockName" }
 }
 
 /**

@@ -3,10 +3,11 @@ package io.bluetape4k.leader.mongodb
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import io.bluetape4k.leader.coroutines.SuspendLeaderElection
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
+import io.bluetape4k.leader.mongodb.lock.validateLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
-import io.bluetape4k.support.requireNotBlank
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import org.bson.Document
@@ -36,7 +37,6 @@ class MongoSuspendLeaderElection private constructor(
 
     companion object : KLoggingChannel() {
 
-        @JvmStatic
         suspend operator fun invoke(
             collection: MongoCollection<Document>,
             options: MongoLeaderElectionOptions = MongoLeaderElectionOptions.Default,
@@ -64,18 +64,14 @@ class MongoSuspendLeaderElection private constructor(
                 try {
                     lock.unlock()
                     log.debug { "리더 권한을 반납했습니다 (suspend). lockName=$lockName" }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     log.warn(e) { "락 해제 실패 (suspend). lockName=$lockName" }
                 }
             }
         }
     }
-}
-
-private fun validateLockName(lockName: String) {
-    lockName.requireNotBlank("lockName")
-    require(!lockName.contains('.')) { "lockName must not contain '.': $lockName" }
-    require(!lockName.contains(":slot:")) { "lockName must not contain ':slot:': $lockName" }
 }
 
 /**

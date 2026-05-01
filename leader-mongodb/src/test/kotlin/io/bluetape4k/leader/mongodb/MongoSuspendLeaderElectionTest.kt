@@ -11,6 +11,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.amshove.kluent.shouldBeEqualTo
+import org.amshove.kluent.shouldBeGreaterOrEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
@@ -49,7 +50,7 @@ class MongoSuspendLeaderElectionTest : AbstractMongoLeaderTest() {
         jobs.awaitAll()
 
         log.debug { "동시 실행 성공 횟수: ${successCount.get()}" }
-        (successCount.get() >= 1).shouldBeTrue()
+        successCount.get() shouldBeGreaterOrEqualTo 1
     }
 
     @Test

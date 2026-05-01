@@ -7,10 +7,11 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElection
 import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
+import io.bluetape4k.leader.mongodb.lock.validateLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
-import io.bluetape4k.support.requireNotBlank
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -47,9 +48,15 @@ class MongoSuspendLeaderGroupElection private constructor(
     val options: MongoLeaderGroupElectionOptions,
 ) : SuspendLeaderGroupElection {
 
+    init {
+        require(groupCollection.namespace.fullName == coroutineGroupCollection.namespace.fullName) {
+            "groupCollection과 coroutineGroupCollection은 동일한 namespace여야 합니다: " +
+                "${groupCollection.namespace.fullName} vs ${coroutineGroupCollection.namespace.fullName}"
+        }
+    }
+
     companion object : KLoggingChannel() {
 
-        @JvmStatic
         suspend operator fun invoke(
             groupCollection: MongoCollection<Document>,
             coroutineGroupCollection: CoroutineMongoCollection<Document>,
@@ -124,18 +131,14 @@ class MongoSuspendLeaderGroupElection private constructor(
                 try {
                     lock.unlock()
                     log.debug { "리더 그룹 슬롯을 반납했습니다 (suspend). lockName=$lockName, slot=$slot" }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     log.warn(e) { "그룹 슬롯 해제 실패 (suspend). lockName=$lockName, slot=$slot" }
                 }
             }
         }
     }
-}
-
-private fun validateLockName(lockName: String) {
-    lockName.requireNotBlank("lockName")
-    require(!lockName.contains('.')) { "lockName must not contain '.': $lockName" }
-    require(!lockName.contains(":slot:")) { "lockName must not contain ':slot:': $lockName" }
 }
 
 /**
