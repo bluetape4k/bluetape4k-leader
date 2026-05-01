@@ -3,13 +3,14 @@
 - 작성일: 2026-05-01
 - 모듈: `leader-mongodb`
 - 워크트리: `.worktrees/feat/leader-mongodb`
-- 상태: Draft v4 (2-R 6-Tier + peer review 2차 반영)
+- 상태: Draft v5 (Opus 최종 리뷰 반영 — APPROVE)
 - 베이스 브랜치: `develop`
 
 ### Changelog
 
 | 버전 | 주요 변경 |
 |---|---|
+| v5 | `runAsyncIfLeader` tryLock=false 경로 §2.2 명시; ensureIndexes TOCTOU §9 위험 표 추가; 생성자 throw 범위 §7 명시; §8.2 테스트 케이스 3건 추가 (Auth 13/18, ensureIndexes 재시도, :slot: 양 경로); Regex.escape PCRE 호환 노트 |
 | v4 | 단일/그룹 컬렉션 분리 (keyspace collision 방지); lockName `:slot:` 금지; ensureIndexes 실패 시 guard 복원; MongoCommandException Auth(13/18) 분기 추가; leaseTime 위험 명시; activeCount regex 개선 (`\\d+$`); WriteConcern 보장 차이 강화 |
 | v3 | 옵션 분리(단일/그룹); WriteConcern caller 책임; ensureIndexes namespace-based guard; activeCount expireAt>now 필터; Auth 예외 분기; Options init 검증; runAsyncIfLeader 양 경로 명시; MongoDBContainer |
 | v2 | retryDelay 파라미터화; takeover 패턴; jitter retry; 슬롯 랜덤 시작 |
@@ -61,8 +62,9 @@
 Hazelcast 와 동일하게 두 경로 모두 lock release 를 보장한다.
 
 ```
-1. action() 호출 전 throw (synchronous) → CompletableFuture.failedFuture(e) 반환, lock 해제
-2. action() 이 반환한 CF 완료 시 → whenCompleteAsync { _, _ -> unlock() }
+1. tryLock=false (리더 아님) → CompletableFuture.completedFuture(null) 반환, unlock 불필요
+2. tryLock=true, action() 호출 전 throw (synchronous) → CompletableFuture.failedFuture(e) 반환, lock 해제
+3. tryLock=true, action() 이 반환한 CF 완료 시 → whenCompleteAsync { _, _ -> unlock() }
 ```
 
 ### 2.3 코루틴 취소 안전성 계약
@@ -319,6 +321,9 @@ override fun activeCount(lockName: String): Int =
 > `^...:slot:\\d+$` — `lockName:slot:0:extra` 나 `lockName:slot:` 같은 손상/수동 삽입 문서를 제외.
 > TTL sweeper 전 만료 document 는 `expireAt < now` 이므로 자연 제외.
 > 쿼리 이후 write race 는 불가피하므로 근사치임을 KDoc 에 명시.
+> ⚠️ `Regex.escape` 는 Kotlin/JVM 기준 `\Q...\E` (Pattern.quote) 형식을 출력한다.
+> MongoDB 4.0+ (mongo:7 타겟) 의 PCRE 엔진은 이를 지원하지만, 3.x 잔존 환경에서는 regex 매칭이
+> 실패할 수 있다. `mongo:7` 미만 버전은 지원 대상 외다.
 
 ---
 
@@ -400,6 +405,8 @@ val groupElection = MongoLeaderGroupElection(groupLockCollection)
 
 ## 7. 패턴 준수 사항
 
+- **생성자/팩토리 throw**: `ensureIndexes` 실패 시 `MongoException` 을 그대로 throw 한다.
+  `runIfLeader()` 의 never-throws 계약은 **lock 획득/해제 단계**에만 적용되며 생성자는 해당 없다.
 - **private constructor + companion object `invoke()`**
 - **로깅**: 블로킹 → `KLogging`, suspend → `KLoggingChannel` (`lock/` 레이어 포함)
 - **검증**: `requireNotBlank` + `.` 포함 금지 + `:slot:` 포함 금지
@@ -476,6 +483,9 @@ abstract class AbstractMongoLeaderTest {
 | Async — CF 완료 | CF 완료 → whenCompleteAsync 로 unlock |
 | SuspendGroup 취소 | group action 중 취소 → 슬롯 release DB 검증 |
 | activeCount 필터 | 만료 document 는 activeCount 에서 제외됨을 검증 |
+| Auth 오류 (code 13/18) | MongoCommandException code=13 → 즉시 null + error 로그, throw 없음 |
+| ensureIndexes 실패 재시도 | createIndex 실패 → ensuredNamespaces 제거 확인, 다음 인스턴스 생성 시 재시도 성공 |
+| `:slot:` 검증 (양 경로) | `runIfLeader("a:slot:b")` → `IllegalArgumentException`; `runIfLeaderGroup("a:slot:b")` → 동일 |
 
 ### 8.3 테스트 규칙
 
@@ -505,6 +515,7 @@ abstract class AbstractMongoLeaderTest {
 | ensureIndexes 일시 오류 후 silent skip | 실패 시 `remove(ns)` guard 복원 → 재시도 가능 |
 | ensureIndexes TTL 충돌 | 예외 전파 (swallow 금지) |
 | activeCount 손상 문서 오염 | regex `^...:slot:\\d+$` 앵커로 정확히 매칭 |
+| ensureIndexes TOCTOU 윈도우 | 첫 caller createIndex 수행 중 둘째 caller 가 set에서 true 반환 후 인덱스 완성 전 진입 가능; createIndex 는 idempotent + 빠름이므로 실용적으로 무해; KDoc에 주석 명시 |
 | MongoClient 누수 | caller 소유 명시 |
 | AP 수준 (파티션 시 복수 리더 가능) | CP 필요 시 leader-zookeeper 사용 권고 |
 | 시계 왜곡 | NTP 동기화 필수, 편차 < leaseTime/10 KDoc 경고 |
