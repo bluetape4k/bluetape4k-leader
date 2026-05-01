@@ -63,10 +63,10 @@ class MongoLeaderGroupElection private constructor(
      * **주의:** 이 값은 근사치입니다. TTL 만료 주기(최대 60초) 동안 만료 문서가 잔류할 수 있습니다.
      */
     override fun activeCount(lockName: String): Int {
-        val pattern = Regex.escape(lockName) + ":slot:\\d+$"
+        val ids = (0 until maxLeaders).map { slotKey(lockName, it) }
         return groupCollection.countDocuments(
             Filters.and(
-                Filters.regex("_id", "^$pattern"),
+                Filters.`in`("_id", ids),
                 Filters.gt("expireAt", Date())
             )
         ).toInt()

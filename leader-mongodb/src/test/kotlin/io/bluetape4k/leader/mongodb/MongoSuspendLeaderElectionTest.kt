@@ -170,4 +170,12 @@ class MongoSuspendLeaderElectionTest : AbstractMongoLeaderTest() {
             result shouldBeEqualTo "round-$i"
         }
     }
+
+    @Test
+    fun `ensureIndexes - resetEnsuredFor 후 재호출 시 에러 없이 완료된다 (suspend)`() = runSuspendIO {
+        val namespace = coroutineLockCollection.namespace.fullName
+        io.bluetape4k.leader.mongodb.lock.MongoSuspendLock.resetEnsuredFor(namespace)
+
+        io.bluetape4k.leader.mongodb.lock.MongoSuspendLock.ensureIndexes(coroutineLockCollection)
+    }
 }

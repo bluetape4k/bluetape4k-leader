@@ -219,4 +219,20 @@ class MongoLeaderGroupElectionTest : AbstractMongoLeaderTest() {
         }.get(5, TimeUnit.SECONDS)
         result shouldBeEqualTo "복구 성공"
     }
+
+    @Test
+    fun `runAsyncIfLeader - action 동기 throw 후 슬롯 락 문서가 즉시 삭제된다`() {
+        val lockName = randomLockName()
+
+        assertThrows<CompletionException> {
+            election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
+                throw IllegalStateException("action 동기 예외")
+            }.join()
+        }
+
+        val ids = (0 until options.maxLeaders).map { "$lockName:slot:$it" }
+        groupLockCollection.countDocuments(
+            com.mongodb.client.model.Filters.`in`("_id", ids)
+        ) shouldBeEqualTo 0L
+    }
 }
