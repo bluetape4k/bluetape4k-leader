@@ -9,43 +9,28 @@
 
 | 이슈 | 제목 | 상태 | PR |
 |------|------|------|----|
+| #1/#15 | runIfLeader() 반환 타입 T?로 변경 (skip 동작) | ✅ 완료 | merged |
 | #2 | LettuceLock/Semaphore 이식 및 bluetape4k-lettuce 의존성 제거 | ✅ 완료 | merged |
 | #3 | leader-redis-redisson 테스트 자립화 (AbstractRedissonLeaderTest) | ✅ 완료 | #17 merged |
-| #15 | runIfLeader() 반환 타입 T?로 변경 (skip 동작) | ✅ 완료 | merged |
+| #4/#5/#6 | leader-core/lettuce/redisson 컴파일 + 테스트 통과 | ✅ 완료 | #45 merged |
+| #7/#24 | leader-exposed 모듈 분리 (core/jdbc/r2dbc) — 구조 생성 | ✅ 완료 | #24 merged |
+| #9 | leader-hazelcast — IMap 토큰 락 기반 분산 리더 선출 | ✅ 완료 | merged |
+| #13/#35 | GitHub Actions CI/CD 파이프라인 구성 | ✅ 완료 | #19/#44 merged |
+| #14 | README.md / README.ko.md 전 모듈 작성 | ✅ 완료 | #18 merged |
+| #25 | 코루틴 취소 안전성 강화 + 옵션/상태 검증 | ✅ 완료 | #25 merged |
 | #27 | leader-spring-boot-common — Boot 버전 독립 공통 모듈 | ✅ 완료 | #28 merged |
+| #29/#31/#32 | StrategicLeaderElection (leader-core + Redis 백엔드) | ✅ 완료 | merged |
 | #8 | leader-mongodb — MongoDB findOneAndUpdate + TTL 기반 분산 락 | ✅ 완료 | #46 merged |
-| #29 | 플러그형 선출 전략 (StrategicLeaderElection) — leader-core pilot | 🔄 진행 중 | #30 review |
 
 ---
 
 ## 예정 작업
 
-### #29 — 플러그형 선출 전략 (StrategicLeaderElection) 🔄 진행 중
-
-> Spec: [docs/spec/strategic-leader-election.md](docs/spec/strategic-leader-election.md)
-> Plan: [docs/plan/strategic-leader-election.md](docs/plan/strategic-leader-election.md)
-
-- ✅ leader-core pilot 구현: CandidateInfo, ElectionStrategy, CandidateScorer, Local 구현체
-- ✅ 내장 전략: FifoElectionStrategy, RandomElectionStrategy, ScoredElectionStrategy
-- ✅ 내장 Scorer: IdleTimeScorer, SuccessRateScorer, RecentSuccessScorer, WeightedScorer
-- [ ] Redis(Redisson/Lettuce) 백엔드 구현 (CandidateRegistry — sorted set/hash + TTL)
-- [ ] Exposed/MongoDB 백엔드 구현
-- [ ] 분산 epoch seed 공유 (RandomElectionStrategy 분산 결정론)
-
----
-
 ### #4 — 테스트 커버리지 확대
 
-- [ ] leader-core: `LocalLeaderElection` 엣지 케이스 (waitTime 만료, 동시성)
 - [ ] leader-redis-lettuce: 네트워크 단절 시나리오
 - [ ] leader-redis-redisson: HA(복수 JVM) 시나리오
 - [ ] 통합 테스트: 다중 백엔드 혼합 사용
-
-### #7 → #21/#22/#23 — leader-exposed 모듈 분리 (완료)
-
-- ✅ `leader-exposed-core`: 공통 스키마 정의 (PR #24 merged)
-- ✅ `leader-exposed-jdbc`: JDBC 블로킹 구현 (모듈 생성 완료)
-- ✅ `leader-exposed-r2dbc`: R2DBC 코루틴 구현 (모듈 생성 완료)
 
 ### #21 — leader-exposed-jdbc 구현
 
