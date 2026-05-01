@@ -16,7 +16,7 @@ leader-core/             # Interfaces + local in-process implementations
 leader-redis-lettuce/    # Lettuce-based Redis backend
 leader-redis-redisson/   # Redisson-based Redis backend
 leader-exposed/          # (planned) Exposed/JDBC backend
-leader-mongodb/          # (planned) MongoDB backend
+leader-mongodb/          # MongoDB backend (findOneAndUpdate + TTL index)
 leader-hazelcast/        # (planned) Hazelcast backend
 leader-micrometer/       # (planned) Micrometer metrics integration
 leader-spring-boot3/     # (planned) Spring Boot 3 auto-configuration
