@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.mongodb
 
 import com.mongodb.client.model.Filters
+import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -9,7 +10,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.runTest
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeLessOrEqualTo
@@ -42,7 +42,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
         )
 
     @Test
-    fun `runIfLeader - 리더로 선출되어 suspend action을 실행하고 결과를 반환한다`() = runTest {
+    fun `runIfLeader - 리더로 선출되어 suspend action을 실행하고 결과를 반환한다`() = runSuspendIO {
         val election = makeElection()
         val lockName = randomLockName()
 
@@ -52,7 +52,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
     }
 
     @Test
-    fun `runIfLeader - 동시 실행 중인 리더 수가 maxLeaders를 초과하지 않는다`() = runTest {
+    fun `runIfLeader - 동시 실행 중인 리더 수가 maxLeaders를 초과하지 않는다`() = runSuspendIO {
         val maxLeaders = 3
         val election = makeElection(maxLeaders = maxLeaders)
         val lockName = randomLockName()
@@ -76,7 +76,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
     }
 
     @Test
-    fun `runIfLeader - action 예외 발생 후 슬롯이 반환되어 다음 호출이 성공한다`() = runTest {
+    fun `runIfLeader - action 예외 발생 후 슬롯이 반환되어 다음 호출이 성공한다`() = runSuspendIO {
         val election = makeElection()
         val lockName = randomLockName()
 
@@ -89,7 +89,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
     }
 
     @Test
-    fun `runIfLeader - 콜론슬롯콜론이 포함된 lockName은 IllegalArgumentException을 던진다`() = runTest {
+    fun `runIfLeader - 콜론슬롯콜론이 포함된 lockName은 IllegalArgumentException을 던진다`() = runSuspendIO {
         val election = makeElection()
 
         assertFailsWith<IllegalArgumentException> {
@@ -98,7 +98,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
     }
 
     @Test
-    fun `activeCount와 availableSlots와 state는 non-suspend 메서드이다`() = runTest {
+    fun `activeCount와 availableSlots와 state는 non-suspend 메서드이다`() = runSuspendIO {
         val election = makeElection(maxLeaders = 3)
         val lockName = randomLockName()
 
@@ -116,7 +116,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
     }
 
     @Test
-    fun `runIfLeader - 코루틴 취소 시 슬롯 문서가 삭제된다`() = runTest {
+    fun `runIfLeader - 코루틴 취소 시 슬롯 문서가 삭제된다`() = runSuspendIO {
         val election = makeElection()
         val lockName = randomLockName()
 
@@ -140,7 +140,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
     }
 
     @Test
-    fun `runIfLeader - 모든 슬롯 포화 시 짧은 waitTime으로 null을 반환한다`() = runTest {
+    fun `runIfLeader - 모든 슬롯 포화 시 짧은 waitTime으로 null을 반환한다`() = runSuspendIO {
         val lockName = randomLockName()
         val holdingElection = makeElection(maxLeaders = 1, waitTime = Duration.ofSeconds(10))
         val shortWaitElection = makeElection(maxLeaders = 1, waitTime = Duration.ofMillis(50))
