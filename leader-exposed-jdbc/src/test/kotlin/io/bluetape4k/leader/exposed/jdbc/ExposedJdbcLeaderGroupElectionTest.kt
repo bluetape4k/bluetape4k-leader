@@ -229,8 +229,11 @@ class ExposedJdbcLeaderGroupElectionTest : AbstractExposedJdbcLeaderTest() {
         val election = ExposedJdbcLeaderGroupElection(db, options)
 
         val expiredLock = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
-        expiredLock.tryLock(Duration.ofSeconds(1), Duration.ofMillis(100))
-        Thread.sleep(200)
+        val leaseDuration = Duration.ofMillis(100)
+        expiredLock.tryLock(Duration.ofSeconds(1), leaseDuration)
+        // Wait 2x lease duration to ensure the acquired slot is expired before counting.
+        val waitForExpirationMs = leaseDuration.toMillis() * 2
+        Thread.sleep(waitForExpirationMs)
 
         election.activeCount(lockName) shouldBeEqualTo 0
     }
