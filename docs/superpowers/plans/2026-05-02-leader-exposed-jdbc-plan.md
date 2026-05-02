@@ -12,20 +12,23 @@
 
 ```
 T0 (build.gradle.kts)
- └── T1 (RetryStrategy)
-      └── T7 (옵션 클래스)
-           ├── T2 (ExposedJdbcLock)
+ └── T1 (RetryStrategy) [complexity: low]
+      ├── T1a (RetryStrategyTest) [complexity: low]
+      └── T7a (옵션 클래스 + ensureSchema + validateExposedLockName)
+           ├── T2 (ExposedJdbcLock, internal constructor)
            │    └── T4 (ExposedJdbcLeaderElection)
-           │         └── T6 (ExposedJdbcVirtualThreadLeaderElection)
-           │              └── T10 (VirtualThread 테스트)
+           │         ├── T6 (ExposedJdbcVirtualThreadLeaderElection)
+           │         │    └── T10 (VirtualThread 테스트)
+           │         └── T7b (확장 함수)  ← T4, T5 완성 후
            │
-           └── T3 (ExposedJdbcGroupLock)
+           └── T3 (ExposedJdbcGroupLock, internal constructor)
                 └── T5 (ExposedJdbcLeaderGroupElection)
+                     └── T7b (확장 함수)  ← T4, T5 완성 후
 
 T4 → T8 (단일 리더 테스트)
 T5 → T9 (그룹 리더 테스트)
-T8, T9, T10 → T11 (README)
-T11 → T12 (KDoc 최종 검수)
+T8, T9, T10 → T11 (README + CLAUDE.md)
+T8, T9, T10 → T12 (KDoc 최종 검수)  ← T12는 T11과 병렬 가능
 ```
 
 ---
@@ -51,7 +54,7 @@ T11 → T12 (KDoc 최종 검수)
 
 ### T1: RetryStrategy sealed class 구현
 
-- **complexity: high**
+- **complexity: low** ← [H1 수정: 스펙 Section 3.4에 완전한 구현 코드 제공됨, 단순 전사 수준]
 - **의존성**: T0
 - **구현 위치**: `leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/RetryStrategy.kt`
 - **핵심 구현 포인트**:
@@ -68,26 +71,48 @@ T11 → T12 (KDoc 최종 검수)
 
 ---
 
+### T1a: RetryStrategy 단위 테스트
+
+- **complexity: low** ← [H2 추가: T1 대응 단위 테스트]
+- **의존성**: T1
+- **구현 위치**: `leader-exposed-jdbc/src/test/kotlin/io/bluetape4k/leader/exposed/jdbc/RetryStrategyTest.kt`
+- **핵심 구현 포인트**:
+  - `Jitter.delayMs(attempt, remaining=1)` → 반환값 = 1 (remaining coerce)
+  - `Exponential(attempt=11)` → 오버플로 없이 maxDelayMs로 클램프
+  - `Jitter(baseDelayMs=1)` → `nextLong(1, coerceAtLeast(2)=2)` → IllegalArgumentException 없음
+  - `Fixed.delayMs(attempt, remaining=10)` → fixedMs.coerceAtMost(10) 정상
+  - 모든 전략: `0 < delayMs <= remaining` 범위 보장
+- **완료 조건**:
+  - 경계값 테스트 (remaining=1, attempt=0, attempt=20) 모두 통과
+  - 컴파일 + 테스트 성공
+
+---
+
 ### T2: ExposedJdbcLock 구현 (UPDATE+INSERT 패턴, token 기반 fencing)
 
 - **complexity: high**
 - **의존성**: T0, T1, T7
 - **구현 위치**: `leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/lock/ExposedJdbcLock.kt`
 - **핵심 구현 포인트**:
-  - 생성자: `(db: Database, lockName: String, retryStrategy: RetryStrategy)` + `private val token = UUID.randomUUID().toString()`
+  - **생성자 접근 제어: `internal constructor`** ← [H10 수정: `lock/` 서브패키지 분리로 private constructor는 같은 패키지에서만 접근 가능. internal로 선언하여 동일 모듈(leader-exposed-jdbc) 내 ExposedJdbcLeaderElection이 접근 가능하게 함. 외부 모듈에서 직접 생성 방지]
+    - `internal class ExposedJdbcLock internal constructor(db: Database, lockName: String, retryStrategy: RetryStrategy)`
+    - `private val token = UUID.randomUUID().toString()`
   - **tryLock(waitTime, leaseTime): Boolean** -- deadline 루프:
     1. `transaction(db) {}` 내에서 UPDATE (만료 조건) -> INSERT (PK 충돌 runCatching) -> SELECT (token 검증)
     2. 성공: `return true`
     3. 실패: `Thread.sleep(retryStrategy.delayMs(attempt++, remaining))` -- **트랜잭션 바깥**에서 sleep (HikariCP 풀 고갈 방지)
     4. deadline 초과: `return false`
+  - **오류 처리 계약** ← [I2/C1 수정]:
+    - PK 충돌 (INSERT 실패): `runCatching { insert {} }.onFailure { return@transaction false }` → retry (catch-all, vendor code 불필요)
+    - DB 연결 오류 / 그 외 SQL 예외: `tryLock` 전체를 `runCatching` 래핑 → `false` 반환 + warn 로그 (재시도 없음)
   - **unlock()** -- `transaction(db) { deleteWhere { (lockName eq name) and (token eq currentToken) } }`, deleted=0이면 warn 로그
-  - **isHeldByCurrentInstance(): Boolean** -- SELECT WHERE lockName + token 일치 확인
-  - PK 충돌: `runCatching { insert {} }.onFailure { return@transaction false }` -- vendor-specific error code 판별 불필요 (catch-all 재시도)
+  - **isHeldByCurrentInstance(): Boolean** -- `SELECT WHERE (lockName eq name) AND (token eq this.token) AND (lockedUntil greater now)` ← [I2 수정: 만료 조건 포함]
   - Exposed 1.2.0 import: `org.jetbrains.exposed.v1.core.SqlExpressionBuilder.eq`, `org.jetbrains.exposed.v1.core.and`, `org.jetbrains.exposed.v1.jdbc.insert` 등
 - **완료 조건**:
   - 단일 트랜잭션 내 UPDATE+INSERT+SELECT 원자성 보장
   - sleep이 transaction 블록 바깥에서만 호출됨
   - token 1개 원칙 준수 (인스턴스 생성 시 1회 발급)
+  - DB 연결 오류 → false + warn 로그 (예외 미전파)
   - `!!` 미사용, `@Synchronized` 미사용
   - 컴파일 성공
 
@@ -99,16 +124,21 @@ T11 → T12 (KDoc 최종 검수)
 - **의존성**: T0, T1, T7
 - **구현 위치**: `leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/lock/ExposedJdbcGroupLock.kt`
 - **핵심 구현 포인트**:
-  - 생성자: `(db: Database, lockName: String, slot: Int, retryStrategy: RetryStrategy)` + `private val token = UUID.randomUUID().toString()`
+  - **생성자 접근 제어: `internal constructor`** ← [H10 수정: T2와 동일한 이유]
+    - `internal class ExposedJdbcGroupLock internal constructor(db, lockName, slot, retryStrategy)`
+    - `private val token = UUID.randomUUID().toString()`
   - **tryLock(waitTime, leaseTime): Boolean** -- T2와 동일한 UPDATE+INSERT+SELECT 패턴, `LeaderGroupLockTable` 사용
     - UPDATE WHERE: `(lockName eq name) and (slot eq slotNumber) and (lockedUntil less now)`
     - INSERT: `lockName`, `slot`, `token`, `lockOwner`, `lockedAt`, `lockedUntil`
     - SELECT 검증: `(lockName eq name) and (slot eq slotNumber)` -> token 일치 확인
+  - **오류 처리 계약**: T2와 동일 (PK 충돌 → retry, DB 연결 오류 → false + warn)
   - **unlock()** -- `deleteWhere { (lockName eq name) and (slot eq slotNumber) and (token eq currentToken) }`
+  - **isHeldByCurrentInstance() 미포함** ← [L4 결정: 스펙 Section 4.2에 미정의, 그룹 선출은 슬롯 순회로 상태 확인] 필요 시 추후 추가
   - `(lockName, slot)` 복합 PK 충돌 처리: T2와 동일 runCatching 패턴
 - **완료 조건**:
   - LeaderGroupLockTable의 복합 PK (lockName, slot) 정합성 보장
   - T2(ExposedJdbcLock)과 동일한 안전 속성 (token fencing, 트랜잭션 바깥 sleep)
+  - DB 연결 오류 → false + warn 로그
   - 컴파일 성공
 
 ---
@@ -190,7 +220,7 @@ T11 → T12 (KDoc 최종 검수)
 
 ---
 
-### T7: 옵션 클래스 구현 + ensureSchema + validateExposedLockName
+### T7a: 옵션 클래스 + ensureSchema + validateExposedLockName
 
 - **complexity: medium**
 - **의존성**: T1 (RetryStrategy)
@@ -198,25 +228,58 @@ T11 → T12 (KDoc 최종 검수)
   - `leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/ExposedJdbcLeaderElectionOptions.kt`
   - `leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/ExposedJdbcLeaderGroupElectionOptions.kt`
   - `leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/lock/ExposedJdbcSchemaInitializer.kt`
-  - `leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/ExposedJdbcLeaderElectionExtensions.kt`
 - **핵심 구현 포인트**:
-  - **ExposedJdbcLeaderElectionOptions**: `data class(leaderOptions, retryStrategy, recordHistory, lockOwner?)` + `Serializable`
-    - init 블록: `lockOwner?.let { require(it.length <= 255) }`
+  - **ExposedJdbcLeaderElectionOptions**: `data class(leaderOptions, retryStrategy, recordHistory, lockOwner: String? = null)` + `Serializable`
+    - [C2 수정]: `lockOwner: String? = null` 사용. `defaultLockOwner()` 함수 없음 — 스펙 Section 5.1이 권위 소스
+    - init 블록: `lockOwner?.let { require(it.length <= 255) { "lockOwner must be <= 255 chars" } }`
     - `companion object { @JvmField val Default = ExposedJdbcLeaderElectionOptions() }`
-  - **ExposedJdbcLeaderGroupElectionOptions**: `data class(leaderGroupOptions, retryStrategy, recordHistory, lockOwner?)` + `Serializable`
+  - **ExposedJdbcLeaderGroupElectionOptions**: `data class(leaderGroupOptions, retryStrategy, recordHistory, lockOwner: String? = null)` + `Serializable`
     - `val maxLeaders: Int get() = leaderGroupOptions.maxLeaders`
     - init 블록: `require(maxLeaders > 0)` + lockOwner 길이 검증
   - **ExposedJdbcSchemaInitializer (ensureSchema)**:
     - `ConcurrentHashMap<String, Boolean>` 기반 1회 실행 보장
     - `transaction(db) { SchemaUtils.createMissingTablesAndColumns(*ExposedLeaderSchema.allTables) }`
     - key = `db.url`
-  - **validateExposedLockName**: `io.bluetape4k.leader.validateLockName(lockName)` 위임 (Exposed 전용 추가 규칙 없음)
-  - **ExposedJdbcLeaderElectionExtensions**: `Database.runIfLeader()`, `Database.runAsyncIfLeader()`, `Database.runIfLeaderGroup()` 확장 함수
+    - [H8 수정]: `SchemaUtils.createMissingTablesAndColumns` 실패 시 guard key 제거 — MongoDB `MongoLock.ensureIndexes` 패턴 동일:
+      ```kotlin
+      initializedDbs.computeIfAbsent(dbKey) {
+          runCatching {
+              transaction(db) { SchemaUtils.createMissingTablesAndColumns(*allTables) }
+              true
+          }.getOrElse { e ->
+              initializedDbs.remove(dbKey)  // 실패 시 guard 제거 → 재시도 허용
+              throw e
+          }
+      }
+      ```
+  - **validateExposedLockName** ← [C1 수정]: `leader-core`에 `validateLockName` 미존재 → 이 모듈에 직접 구현
+    ```kotlin
+    fun validateExposedLockName(lockName: String) {
+        require(lockName.isNotBlank()) { "lockName must not be blank" }
+        require(lockName.length <= 255) { "lockName must be <= 255 chars" }
+    }
+    ```
 - **완료 조건**:
   - data class copy() / equals() / hashCode() 정상 동작
   - lockOwner 255자 초과 시 IllegalArgumentException
   - ensureSchema가 동일 DB URL에 대해 1회만 실행
-  - 확장 함수가 내부적으로 invoke() 팩토리 경유 (ensureSchema 보장)
+  - ensureSchema 실패 시 guard key 제거 (재시도 가능)
+  - validateExposedLockName: blank → exception, 256자 → exception
+  - 컴파일 성공
+
+---
+
+### T7b: 확장 함수 구현
+
+- **complexity: low**
+- **의존성**: T4 (ExposedJdbcLeaderElection), T5 (ExposedJdbcLeaderGroupElection) ← [H3 수정: T4/T5 완성 후에만 작성 가능]
+- **구현 위치**: `leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/ExposedJdbcLeaderElectionExtensions.kt`
+- **핵심 구현 포인트**:
+  - `Database.runIfLeader(lockName, options, action)` → `ExposedJdbcLeaderElection(this, options).runIfLeader(lockName, action)` (invoke 경유 → ensureSchema 보장)
+  - `Database.runAsyncIfLeader(lockName, executor, options, action)` → `ExposedJdbcLeaderElection(this, options).runAsyncIfLeader(...)`
+  - `Database.runIfLeaderGroup(lockName, options, action)` → `ExposedJdbcLeaderGroupElection(this, options).runIfLeader(lockName, action)`
+- **완료 조건**:
+  - 확장 함수가 invoke() 팩토리 경유 (ensureSchema 보장)
   - 컴파일 성공
 
 ---
@@ -247,11 +310,18 @@ T11 → T12 (KDoc 최종 검수)
     - contention -> null 반환
     - leaseTime 만료 후 takeover
     - runAsyncIfLeader 비동기 경로
+    - [H5 추가] `runIfLeader - action에서 CancellationException 발생 시 actionFailed=false로 즉시 재전파한다`
+    - [H5 추가] `runIfLeader - CancellationException 시 이력이 FAILED 아닌 채로 처리된다 (recordHistory=true)`
+    - [H6 추가] `runIfLeader - recordHistory=true일 때 이력 ACQUIRED INSERT 실패해도 action이 정상 실행된다`
+    - [H6 추가] `runIfLeader - recordHistory=true일 때 이력 COMPLETED UPDATE 실패해도 결과가 반환된다`
   - JUnit 5 + Kluent + backtick 테스트 이름
+  - [TE2 수정] `src/test/resources/junit-platform.properties` (`lifecycle.default=per_class`, `parallel.enabled=false`) 생성 확인
 - **완료 조건**:
   - 3-DB (H2, PostgreSQL, MySQL_V8) 모두 통과
   - 멀티스레드 경합 테스트 포함
   - takeover 시나리오 검증
+  - CancellationException 재전파 검증
+  - history best-effort 실패 → action 계속 검증
   - `./gradlew :leader-exposed-jdbc:test` 성공
 
 ---
@@ -261,13 +331,17 @@ T11 → T12 (KDoc 최종 검수)
 - **complexity: medium**
 - **의존성**: T5 (ExposedJdbcLeaderGroupElection)
 - **구현 위치**:
+  - `leader-exposed-jdbc/src/test/kotlin/io/bluetape4k/leader/exposed/jdbc/AbstractExposedJdbcLeaderGroupTest.kt` ← [H4 추가]
   - `leader-exposed-jdbc/src/test/kotlin/io/bluetape4k/leader/exposed/jdbc/ExposedJdbcLeaderGroupElectionTest.kt`
   - `leader-exposed-jdbc/src/test/kotlin/io/bluetape4k/leader/exposed/jdbc/lock/ExposedJdbcGroupLockTest.kt`
 - **핵심 구현 포인트**:
+  - [H4 수정] **AbstractExposedJdbcLeaderGroupTest**: `AbstractExposedJdbcLeaderTest` 상속. `maxLeaders=3` 기본 설정, `ExposedJdbcLeaderGroupElectionOptions` 생성.
   - **ExposedJdbcGroupLockTest** (3-DB 파라미터화):
     - 슬롯별 락 획득/해제
     - 동일 슬롯 경합 -> 실패
     - 복합 PK (lockName, slot) 충돌 처리
+    - [TE6 추가] `unlock - 토큰 불일치 시 다른 소유자의 슬롯 레코드를 삭제하지 않는다`
+    - [TE7 추가] `tryLock - leaseTime 만료된 슬롯을 재획득할 수 있다`
   - **ExposedJdbcLeaderGroupElectionTest** (3-DB 파라미터화):
     - runIfLeader 그룹 슬롯 획득 -> action 실행
     - maxLeaders개까지 동시 실행 허용 검증
@@ -278,6 +352,8 @@ T11 → T12 (KDoc 최종 검수)
 - **완료 조건**:
   - 3-DB (H2, PostgreSQL, MySQL_V8) 모두 통과
   - maxLeaders 동시 실행 제한 정확성 검증
+  - group token fencing (zombie unlock 방지) 검증
+  - lease 만료 후 슬롯 재획득 검증
   - `./gradlew :leader-exposed-jdbc:test` 성공
 
 ---
@@ -301,13 +377,14 @@ T11 → T12 (KDoc 최종 검수)
 
 ---
 
-### T11: README.md + README.ko.md 작성
+### T11: README.md + README.ko.md + CLAUDE.md 업데이트
 
 - **complexity: low**
 - **의존성**: T8, T9, T10 (모든 테스트 통과 후)
 - **구현 위치**:
   - `leader-exposed-jdbc/README.md`
   - `leader-exposed-jdbc/README.ko.md`
+  - `CLAUDE.md` ← [H7 추가]
 - **핵심 구현 포인트**:
   - 모듈 목적 설명: RDBMS 기반 분산 리더 선출 (Exposed JDBC)
   - 지원 DB: H2, PostgreSQL, MySQL 8
@@ -317,10 +394,13 @@ T11 → T12 (KDoc 최종 검수)
   - 옵션 설명: RetryStrategy 종류, recordHistory, lockOwner
   - Gradle 의존성 선언 예시
   - leader-mongodb 기존 README 포맷 참조
+  - [H7] `CLAUDE.md` Repository Layout 섹션: `leader-exposed/   # (planned)` → `leader-exposed-jdbc/   # Exposed JDBC backend` 로 업데이트
+  - [H7] `CLAUDE.md` Interfaces 테이블에 `ExposedJdbcLeaderElection`, `ExposedJdbcLeaderGroupElection`, `ExposedJdbcVirtualThreadLeaderElection` 추가
 - **완료 조건**:
   - 영문 README.md + 한국어 README.ko.md 쌍
   - 코드 예제 컴파일 가능한 형태
   - 주요 옵션/설정 설명 포함
+  - CLAUDE.md Repository Layout + Interfaces 테이블 반영
 
 ---
 
@@ -344,42 +424,44 @@ T11 → T12 (KDoc 최종 검수)
 
 ## Phase 구분
 
-### Phase 1: 기반 클래스 (T0, T1, T7)
+### Phase 1: 기반 클래스 (T0, T1, T1a, T7a)
 
 | 태스크 | complexity | 핵심 산출물 |
 |--------|-----------|------------|
 | T0 | low | build.gradle.kts 의존성 완성 |
-| T1 | high | RetryStrategy sealed class |
-| T7 | medium | Options 2종 + ensureSchema + validateExposedLockName + 확장 함수 |
+| T1 | low | RetryStrategy sealed class |
+| T1a | low | RetryStrategyTest (경계값 테스트) |
+| T7a | medium | Options 2종 + ensureSchema (guard 제거 포함) + validateExposedLockName (로컬) |
 
-### Phase 2: 락 클래스 (T2, T3)
+### Phase 2: 락 클래스 (T2, T3 — 병렬 가능)
 
 | 태스크 | complexity | 핵심 산출물 |
 |--------|-----------|------------|
-| T2 | high | ExposedJdbcLock (UPDATE+INSERT+SELECT, token fencing) |
-| T3 | high | ExposedJdbcGroupLock (복합 PK 슬롯 락) |
+| T2 | high | ExposedJdbcLock (internal ctor, UPDATE+INSERT+SELECT, token fencing, DB 오류 처리) |
+| T3 | high | ExposedJdbcGroupLock (internal ctor, 복합 PK 슬롯 락) |
 
-### Phase 3: Election 클래스 (T4, T5, T6)
+### Phase 3: Election 클래스 (T4, T5 — 병렬 가능; T6, T7b는 T4/T5 후)
 
 | 태스크 | complexity | 핵심 산출물 |
 |--------|-----------|------------|
 | T4 | high | ExposedJdbcLeaderElection (private ctor + invoke + 이력) |
 | T5 | medium | ExposedJdbcLeaderGroupElection (슬롯 순회) |
 | T6 | medium | ExposedJdbcVirtualThreadLeaderElection (delegate) |
+| T7b | low | 확장 함수 (T4/T5 의존) |
 
-### Phase 4: 테스트 (T8, T9, T10)
+### Phase 4: 테스트 (T8, T9, T10 — 병렬 가능)
 
 | 태스크 | complexity | 핵심 산출물 |
 |--------|-----------|------------|
-| T8 | medium | 단일 리더 + Lock 단위 테스트 (3-DB) |
-| T9 | medium | 그룹 리더 + GroupLock 단위 테스트 (3-DB) |
+| T8 | medium | 단일 리더 + Lock 단위 테스트 + CancellationException + history best-effort (3-DB) |
+| T9 | medium | 그룹 리더 + GroupLock (token fencing + lease 재획득) (3-DB) |
 | T10 | medium | VirtualThread 테스트 (3-DB) |
 
-### Phase 5: 문서 (T11, T12)
+### Phase 5: 문서 (T11, T12 — 병렬 가능)
 
 | 태스크 | complexity | 핵심 산출물 |
 |--------|-----------|------------|
-| T11 | low | README.md + README.ko.md |
+| T11 | low | README.md + README.ko.md + CLAUDE.md 업데이트 |
 | T12 | low | KDoc 최종 검수 |
 
 ---
@@ -393,6 +475,25 @@ T11 → T12 (KDoc 최종 검수)
 | HikariCP 풀 고갈 | T2, T3 | Thread.sleep을 transaction 바깥에서만 호출 (구현 규칙으로 강제) |
 | Exposed 1.2.0 deprecated API | T2-T6 | `org.jetbrains.exposed.v1.*` import 사용, ide_diagnostics로 deprecated 검출 |
 | 타임존 불일치 | T2, T3, T8 | Instant.now() 바인딩 + 테스트 기반에서 UTC 강제 |
+| ensureSchema 실패 시 영구 차단 | T7a | 실패 시 guard key 제거 (MongoDB ensureIndexes 패턴 동일) |
+| validateLockName 미존재 (leader-core) | T7a | 이 모듈에 직접 구현 — 추후 leader-core 격상 별도 이슈 |
+
+---
+
+## 완료 기준 (DoD)
+
+- [ ] `RetryStrategy` sealed class (Jitter / Exponential / Fixed) ← [H9 추가]
+- [ ] `ExposedJdbcLock` (UPDATE+INSERT+SELECT, internal ctor, token fencing)
+- [ ] `ExposedJdbcGroupLock` (복합 PK, internal ctor)
+- [ ] `ExposedJdbcLeaderElection` (private ctor + invoke + 이력 기록)
+- [ ] `ExposedJdbcLeaderGroupElection` (슬롯 순회 + 이력)
+- [ ] `ExposedJdbcVirtualThreadLeaderElection` (delegate 패턴)
+- [ ] 3-DB (H2, PostgreSQL, MySQL_V8) 모든 테스트 통과
+- [ ] CancellationException 재전파 테스트 포함
+- [ ] history best-effort 실패 → action 계속 테스트 포함
+- [ ] README.md + README.ko.md 작성
+- [ ] CLAUDE.md Repository Layout + Interfaces 업데이트
+- [ ] KDoc (모든 public API 한국어)
 
 ---
 
@@ -404,21 +505,23 @@ leader-exposed-jdbc/
 └── src/
     ├── main/kotlin/io/bluetape4k/leader/exposed/jdbc/
     │   ├── RetryStrategy.kt                                            [T1]
-    │   ├── ExposedJdbcLeaderElectionOptions.kt                         [T7]
-    │   ├── ExposedJdbcLeaderGroupElectionOptions.kt                    [T7]
+    │   ├── ExposedJdbcLeaderElectionOptions.kt                         [T7a]
+    │   ├── ExposedJdbcLeaderGroupElectionOptions.kt                    [T7a]
     │   ├── ExposedJdbcLeaderElection.kt                                [T4]
     │   ├── ExposedJdbcLeaderGroupElection.kt                           [T5]
     │   ├── ExposedJdbcVirtualThreadLeaderElection.kt                   [T6]
-    │   ├── ExposedJdbcLeaderElectionExtensions.kt                      [T7]
+    │   ├── ExposedJdbcLeaderElectionExtensions.kt                      [T7b]
     │   └── lock/
     │       ├── ExposedJdbcLock.kt                                      [T2]
     │       ├── ExposedJdbcGroupLock.kt                                 [T3]
-    │       └── ExposedJdbcSchemaInitializer.kt                         [T7]
+    │       └── ExposedJdbcSchemaInitializer.kt                         [T7a]
     └── test/kotlin/io/bluetape4k/leader/exposed/jdbc/
         ├── AbstractExposedJdbcLeaderTest.kt                            [T8]
+        ├── AbstractExposedJdbcLeaderGroupTest.kt                       [T9]
         ├── ExposedJdbcLeaderElectionTest.kt                            [T8]
         ├── ExposedJdbcLeaderGroupElectionTest.kt                       [T9]
         ├── ExposedJdbcVirtualThreadLeaderElectionTest.kt               [T10]
+        ├── RetryStrategyTest.kt                                        [T1a]
         └── lock/
             ├── ExposedJdbcLockTest.kt                                  [T8]
             └── ExposedJdbcGroupLockTest.kt                             [T9]
