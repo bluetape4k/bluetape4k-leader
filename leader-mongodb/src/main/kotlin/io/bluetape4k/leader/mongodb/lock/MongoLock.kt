@@ -193,8 +193,7 @@ class MongoLock private constructor(
     }
 }
 
-internal fun validateLockName(lockName: String) {
-    require(lockName.isNotBlank()) { "lockName must not be blank" }
-    require(!lockName.contains('.')) { "lockName must not contain '.': $lockName" }
+internal fun validateMongoLockName(lockName: String) {
+    io.bluetape4k.leader.validateLockName(lockName)
     require(!lockName.contains(":slot:")) { "lockName must not contain ':slot:': $lockName" }
 }

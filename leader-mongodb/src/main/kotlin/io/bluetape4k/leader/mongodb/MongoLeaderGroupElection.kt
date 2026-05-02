@@ -6,7 +6,7 @@ import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.LeaderGroupElection
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.mongodb.lock.MongoLock
-import io.bluetape4k.leader.mongodb.lock.validateLockName
+import io.bluetape4k.leader.mongodb.lock.validateMongoLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -78,7 +78,7 @@ class MongoLeaderGroupElection private constructor(
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
-        validateLockName(lockName)
+        validateMongoLockName(lockName)
 
         val leaseTime = options.leaderGroupOptions.leaseTime
         val perSlotWait = options.leaderGroupOptions.waitTime.dividedBy(maxLeaders.toLong())
@@ -111,7 +111,7 @@ class MongoLeaderGroupElection private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
-        validateLockName(lockName)
+        validateMongoLockName(lockName)
 
         val leaseTime = options.leaderGroupOptions.leaseTime
         val perSlotWait = options.leaderGroupOptions.waitTime.dividedBy(maxLeaders.toLong())
