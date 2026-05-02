@@ -29,6 +29,8 @@ object Plugins {
 }
 
 object Versions {
+    const val bluetape4k = "1.7.0"
+
     const val kotlin = "2.3.21"
     const val kotlinx_coroutines = "1.10.2"
     const val kotlinx_serialization = "1.11.0"
@@ -99,7 +101,7 @@ object Libs {
     const val logback_core = "ch.qos.logback:logback-core:${Versions.logback}"
 
     // bluetape4k
-    const val bluetape4k_bom = "io.github.bluetape4k:bluetape4k-bom:1.8.0-SNAPSHOT"
+    const val bluetape4k_bom = "io.github.bluetape4k:bluetape4k-bom:${Versions.bluetape4k}"
     const val bluetape4k_core = "io.github.bluetape4k:bluetape4k-core"
     const val bluetape4k_coroutines = "io.github.bluetape4k:bluetape4k-coroutines"
     const val bluetape4k_idgenerators = "io.github.bluetape4k:bluetape4k-idgenerators"
