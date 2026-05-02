@@ -30,6 +30,8 @@ jobs:
   resolve-version:
     name: Resolve release version
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       version: ${{ steps.resolve.outputs.version }}
       ref: ${{ steps.resolve.outputs.ref }}
@@ -60,6 +62,8 @@ jobs:
     needs: resolve-version
     runs-on: ubuntu-latest
     environment: maven-central-release
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
