@@ -3,6 +3,7 @@ package io.bluetape4k.leader.exposed.jdbc
 import org.amshove.kluent.shouldBeInRange
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.assertThrows
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RetryStrategyTest {
@@ -15,8 +16,14 @@ class RetryStrategyTest {
     }
 
     @Test
-    fun `Jitter - baseDelayMs가 1일 때 IllegalArgumentException이 발생하지 않는다`() {
-        val strategy = RetryStrategy.Jitter(baseDelayMs = 1L)
+    fun `Jitter - baseDelayMs가 1 이하면 IllegalArgumentException 발생`() {
+        assertThrows<IllegalArgumentException> { RetryStrategy.Jitter(baseDelayMs = 1L) }
+        assertThrows<IllegalArgumentException> { RetryStrategy.Jitter(baseDelayMs = 0L) }
+    }
+
+    @Test
+    fun `Jitter - baseDelayMs 2 이상은 정상 생성된다`() {
+        val strategy = RetryStrategy.Jitter(baseDelayMs = 2L)
         val delay = strategy.delayMs(attempt = 0, remaining = 100L)
         delay shouldBeInRange 1L..100L
     }

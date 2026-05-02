@@ -5,6 +5,7 @@ import io.bluetape4k.leader.exposed.tables.LeaderLockTable
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
+import kotlinx.coroutines.CancellationException
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
@@ -61,9 +62,11 @@ internal class ExposedJdbcLock internal constructor(
         var attempt = 0
 
         do {
-            val acquired = runCatching {
+            val acquired = try {
                 tryAcquireOnce(leaseTime)
-            }.getOrElse { e ->
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
                 log.warn(e) { "DB 오류 (재시도 유지): lockName=$lockName, attempt=$attempt" }
                 false
             }
@@ -76,7 +79,14 @@ internal class ExposedJdbcLock internal constructor(
             val remaining = deadline - System.currentTimeMillis()
             if (remaining > 0L) {
                 // sleep은 transaction 바깥에서만 호출 (HikariCP 풀 고갈 방지)
-                Thread.sleep(retryStrategy.delayMs(attempt++, remaining))
+                // InterruptedException 발생 시 interrupt flag 복원 후 false 반환 (never-throws 계약)
+                try {
+                    Thread.sleep(retryStrategy.delayMs(attempt++, remaining))
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    log.debug { "sleep interrupted; 재시도 중단: lockName=$lockName" }
+                    return false
+                }
             }
         } while (System.currentTimeMillis() < deadline)
 

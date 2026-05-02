@@ -25,15 +25,27 @@ import java.util.concurrent.Executor
  * Exposed JDBC 기반 단일 리더 선출 구현체.
  *
  * `UPDATE + INSERT + SELECT` 패턴으로 DB 행 수준 락을 구현합니다.
- * H2, PostgreSQL, MySQL 8 호환.
+ * 지원 DB는 모듈 README의 호환성 매트릭스를 참조하세요.
  *
+ * ### 기본 사용
  * ```kotlin
  * val election = ExposedJdbcLeaderElection(db)
  * val result = election.runIfLeader("daily-job") { processData() }
  * // result == processData() 반환값 (리더 획득 성공) 또는 null (획득 실패)
  * ```
  *
- * **private constructor** — [invoke]를 통해서만 생성하세요. 생성 시 [ensureSchema]를 보장합니다.
+ * ### 경합 시 skip
+ * ```kotlin
+ * // 다른 노드가 이미 리더면 즉시 null 반환 (예외 없음)
+ * val report = election.runIfLeader("nightly-report") { generateReport() }
+ *     ?: run {
+ *         logger.info("리더가 아니므로 작업 건너뜀")
+ *         return
+ *     }
+ * ```
+ *
+ * **private constructor** — [invoke] 팩터리를 통해서만 생성하세요.
+ * 첫 호출 시 [ExposedJdbcSchemaInitializer.ensureSchema]가 실행되어 스키마가 자동으로 생성됩니다.
  *
  * @param db Exposed [Database] 인스턴스
  * @param options 단일 리더 선출 옵션
@@ -60,6 +72,19 @@ class ExposedJdbcLeaderElection private constructor(
         }
     }
 
+    /**
+     * [lockName]에 대해 리더로 승격되면 [action]을 실행하고 결과를 반환합니다.
+     *
+     * - 리더 획득에 성공하면 [action] 결과를 반환합니다.
+     * - 리더 획득에 실패하면 `null`을 반환합니다 (**예외 없음** — ShedLock 호환 skip-on-contention 계약).
+     * - [action]이 던지는 예외는 그대로 전파되며, 락은 항상 해제됩니다.
+     * - [CancellationException]은 재전파되며 FAILED 이력에 기록되지 않습니다.
+     *
+     * @param lockName 락 식별자 (영숫자/하이픈/언더스코어/콜론, 1-255자)
+     * @param action 리더 획득 성공 시 실행할 작업
+     * @return [action] 결과 또는 `null`
+     * @throws IllegalArgumentException [lockName]이 유효하지 않은 경우
+     */
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         validateExposedLockName(lockName)
 
@@ -100,6 +125,25 @@ class ExposedJdbcLeaderElection private constructor(
         }
     }
 
+    /**
+     * [lockName]에 대해 리더로 승격되면 비동기로 [action]을 실행합니다.
+     *
+     * 비동기 실행 성공/실패는 반환된 [CompletableFuture]에 반영되며, [action]이 동기적으로
+     * 던지는 예외는 [CompletableFuture.failedFuture]로 래핑되어 전파됩니다.
+     *
+     * ```kotlin
+     * val future: CompletableFuture<Report?> = election.runAsyncIfLeader(
+     *     lockName = "report-job",
+     *     executor = VirtualThreadExecutor,
+     *     action = { generateReportAsync() }, // CompletableFuture<Report> 반환
+     * )
+     * ```
+     *
+     * @param lockName 락 식별자
+     * @param executor 비동기 실행자
+     * @param action 리더 획득 성공 시 실행할 비동기 작업
+     * @return 작업 결과를 담은 [CompletableFuture] (리더 획득 실패 시 `null`로 완료)
+     */
     override fun <T> runAsyncIfLeader(
         lockName: String,
         executor: Executor,
@@ -129,10 +173,12 @@ class ExposedJdbcLeaderElection private constructor(
                         }
 
                     actionFuture.whenCompleteAsync({ _, throwable ->
-                        if (throwable != null) {
-                            recordFailed(historyId, lock.token, startedAt)
-                        } else {
-                            recordCompleted(historyId, lock.token, startedAt)
+                        when {
+                            throwable == null -> recordCompleted(historyId, lock.token, startedAt)
+                            // CompletableFuture.cancel 또는 코루틴 취소: FAILED 미기록 (취소이므로)
+                            throwable is java.util.concurrent.CancellationException -> { /* skip */ }
+                            throwable is CancellationException -> { /* skip */ }
+                            else -> recordFailed(historyId, lock.token, startedAt)
                         }
                         runCatching { lock.unlock() }
                             .onSuccess { log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" } }

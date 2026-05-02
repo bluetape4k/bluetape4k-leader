@@ -111,14 +111,29 @@ val result = election.runIfLeader("parallel-batch") {
 // 최대 3개 노드가 동시 실행; 나머지는 null 반환
 ```
 
+### 그룹 상태 조회
+
+```kotlin
+val state = election.state("parallel-batch")
+println("active=${state.activeCount} max=${state.maxLeaders} full=${state.isFull}")
+println("사용 가능 슬롯: ${election.availableSlots("parallel-batch")}")
+```
+
 ### 가상 스레드 단일 리더
 
 ```kotlin
-val election = ExposedJdbcVirtualThreadLeaderElection(db)
+// 기존 ExposedJdbcLeaderElection을 래핑
+val election = ExposedJdbcLeaderElection(db)
+val vtElection = ExposedJdbcVirtualThreadLeaderElection(election)
 
-val result = election.runInVirtualThread("nightly-sync") {
+val future: VirtualFuture<Result?> = vtElection.runAsyncIfLeader("nightly-sync") {
     syncData()
 }
+val result = future.get(5, TimeUnit.SECONDS)
+
+// 또는 Database 확장함수로 간편하게
+val result2 = db.runVirtualIfLeader("nightly-sync") { syncData() }
+    .get(5, TimeUnit.SECONDS)
 ```
 
 ### 옵션 커스터마이징
@@ -162,6 +177,14 @@ sealed class RetryStrategy {
 ```
 
 기본값은 `Jitter(50ms)` — 대부분의 OLTP 워크로드에 적합합니다.
+
+각 전략은 생성 시점에 파라미터를 검증합니다:
+
+| 변형 | 제약 |
+|---|---|
+| `Jitter` | `baseDelayMs >= 2` |
+| `Exponential` | `baseDelayMs >= 1`, `maxDelayMs >= baseDelayMs` |
+| `Fixed` | `fixedMs >= 1` |
 
 ## 이력 기록
 

@@ -4,6 +4,7 @@ import io.bluetape4k.leader.exposed.ExposedLeaderSchema
 import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import io.bluetape4k.logging.warn
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -27,6 +28,9 @@ internal object ExposedJdbcSchemaInitializer : KLogging() {
     /**
      * [db]에 리더 선출 테이블이 없으면 생성합니다. 동일 DB URL에 대해 최초 1회만 실행됩니다.
      *
+     * 스키마 생성 실패 시 guard key를 설정하지 않으므로 다음 호출 시 재시도됩니다.
+     * 실패 시 컨텍스트 로그를 남기고 원본 예외를 그대로 전파합니다.
+     *
      * @throws Exception 스키마 생성 중 DB 오류 발생 시 (재시도 허용)
      */
     fun ensureSchema(db: Database) {
@@ -34,21 +38,39 @@ internal object ExposedJdbcSchemaInitializer : KLogging() {
         if (initializedDbs.containsKey(dbKey)) return
         initLock.withLock {
             if (initializedDbs.containsKey(dbKey)) return
-            transaction(db) {
-                SchemaUtils.createMissingTablesAndColumns(*ExposedLeaderSchema.allTables)
+            try {
+                transaction(db) {
+                    SchemaUtils.createMissingTablesAndColumns(*ExposedLeaderSchema.allTables)
+                }
+            } catch (e: Throwable) {
+                log.warn(e) { "리더 선출 스키마 초기화 실패 (다음 호출 시 재시도): ${sanitizeUrl(dbKey)}" }
+                throw e
             }
             initializedDbs[dbKey] = true
             log.debug { "리더 선출 스키마 초기화 완료: ${sanitizeUrl(dbKey)}" }
         }
     }
 
-    private fun sanitizeUrl(url: String): String {
+    /**
+     * JDBC URL 내 userinfo(특히 password)를 `***`로 마스킹합니다.
+     *
+     * `jdbc:` 접두사를 제거한 후 [URI]로 파싱하여 userinfo 부분만 치환합니다.
+     * 파싱 실패 시 원본 URL을 반환합니다 (best-effort).
+     */
+    internal fun sanitizeUrl(url: String): String {
+        // "jdbc:postgresql://user:pw@host/db" → URI는 opaque로 파싱하므로 rawUserInfo == null.
+        // 접두사 제거 후 hierarchical URI로 재파싱하여 userinfo 추출.
+        val (prefix, rest) = if (url.startsWith("jdbc:", ignoreCase = true)) {
+            "jdbc:" to url.substring(5)
+        } else {
+            "" to url
+        }
         return try {
-            val uri = URI(url)
-            val rawUserInfo = uri.rawUserInfo ?: return url
-            if (rawUserInfo.isEmpty()) return url
+            val uri = URI(rest)
+            val rawUserInfo = uri.rawUserInfo
+            if (rawUserInfo.isNullOrEmpty()) return url
 
-            URI(
+            val sanitized = URI(
                 uri.scheme,
                 "***",
                 uri.host,
@@ -57,6 +79,7 @@ internal object ExposedJdbcSchemaInitializer : KLogging() {
                 uri.query,
                 uri.fragment
             ).toString()
+            prefix + sanitized
         } catch (_: URISyntaxException) {
             url
         } catch (_: IllegalArgumentException) {

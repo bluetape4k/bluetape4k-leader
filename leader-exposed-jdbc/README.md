@@ -111,14 +111,29 @@ val result = election.runIfLeader("parallel-batch") {
 // Up to 3 nodes run concurrently; others return null
 ```
 
+### Inspecting group state
+
+```kotlin
+val state = election.state("parallel-batch")
+println("active=${state.activeCount} max=${state.maxLeaders} full=${state.isFull}")
+println("available slots: ${election.availableSlots("parallel-batch")}")
+```
+
 ### Virtual-thread single-leader
 
 ```kotlin
-val election = ExposedJdbcVirtualThreadLeaderElection(db)
+// Wrap an existing ExposedJdbcLeaderElection
+val election = ExposedJdbcLeaderElection(db)
+val vtElection = ExposedJdbcVirtualThreadLeaderElection(election)
 
-val result = election.runInVirtualThread("nightly-sync") {
+val future: VirtualFuture<Result?> = vtElection.runAsyncIfLeader("nightly-sync") {
     syncData()
 }
+val result = future.get(5, TimeUnit.SECONDS)
+
+// Or use the Database extension shortcut
+val result2 = db.runVirtualIfLeader("nightly-sync") { syncData() }
+    .get(5, TimeUnit.SECONDS)
 ```
 
 ### Custom options
@@ -162,6 +177,14 @@ sealed class RetryStrategy {
 ```
 
 Default is `Jitter(50ms)` — suitable for most OLTP workloads.
+
+Each variant validates its parameters at construction:
+
+| Variant | Constraint |
+|---|---|
+| `Jitter` | `baseDelayMs >= 2` |
+| `Exponential` | `baseDelayMs >= 1`, `maxDelayMs >= baseDelayMs` |
+| `Fixed` | `fixedMs >= 1` |
 
 ## History Recording
 
