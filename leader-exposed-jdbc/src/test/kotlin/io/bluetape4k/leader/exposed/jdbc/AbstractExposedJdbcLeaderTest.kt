@@ -21,12 +21,23 @@ import java.util.UUID
 abstract class AbstractExposedJdbcLeaderTest {
 
     companion object : KLogging() {
+        /**
+         * CI에서 `LEADER_TEST_DB` 환경 변수로 단일 DB를 선택할 수 있습니다.
+         * 미설정 시 H2 / PostgreSQL / MySQL_V8 전체 실행 (로컬 개발 기본값).
+         *
+         * 허용 값: `H2`, `POSTGRESQL` (또는 `POSTGRES`), `MYSQL_V8` (또는 `MYSQL`)
+         */
         @JvmStatic
-        fun enableDialects(): List<TestDB> = listOf(
-            TestDB.H2,
-            TestDB.POSTGRESQL,
-            TestDB.MYSQL_V8,
-        )
+        fun enableDialects(): List<TestDB> {
+            val filter = System.getenv("LEADER_TEST_DB")?.uppercase()
+                ?: return listOf(TestDB.H2, TestDB.POSTGRESQL, TestDB.MYSQL_V8)
+            return when (filter) {
+                "H2" -> listOf(TestDB.H2)
+                "POSTGRESQL", "POSTGRES" -> listOf(TestDB.POSTGRESQL)
+                "MYSQL_V8", "MYSQL" -> listOf(TestDB.MYSQL_V8)
+                else -> listOf(TestDB.H2, TestDB.POSTGRESQL, TestDB.MYSQL_V8)
+            }
+        }
     }
 
     /** testDB에 대한 DB 연결을 반환합니다 (캐시 재사용). */
