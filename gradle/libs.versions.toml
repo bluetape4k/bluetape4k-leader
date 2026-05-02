@@ -1,0 +1,153 @@
+# @formatter:off
+# Gradle Version Catalog — migrated from buildSrc/src/main/kotlin/Libs.kt
+
+[versions]
+bluetape4k = "1.7.0"
+
+kotlin = "2.3.21"
+kotlinx-coroutines = "1.10.2"
+kotlinx-atomicfu = "0.32.1"
+
+spring-boot3 = "3.5.14"
+spring-boot4 = "4.0.6"
+
+lettuce = "6.8.2.RELEASE"
+redisson = "4.3.1"
+
+exposed = "1.2.0"
+
+mongo-driver = "5.6.4"
+
+hazelcast = "5.6.0"
+
+micrometer = "1.16.4"
+
+slf4j = "2.0.17"
+logback = "1.5.32"
+
+junit-jupiter = "6.0.3"
+kluent = "1.73"
+mockk = "1.14.9"
+springmockk = "5.0.1"
+awaitility = "4.3.0"
+testcontainers = "2.0.4"
+
+hikaricp = "6.3.0"
+postgresql = "42.7.5"
+r2dbc-postgresql = "1.0.7.RELEASE"
+
+# Plugin versions
+detekt = "1.23.8"
+dependency-management = "1.1.7"
+dokka = "2.2.0"
+kover = "0.9.8"
+test-logger = "4.0.0"
+nmcp = "1.4.4"
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+kotlin-allopen = { id = "org.jetbrains.kotlin.plugin.allopen", version.ref = "kotlin" }
+kotlin-noarg = { id = "org.jetbrains.kotlin.plugin.noarg", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kotlinx-atomicfu = { id = "org.jetbrains.kotlinx.atomicfu", version.ref = "kotlinx-atomicfu" }
+
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+dependency-management = { id = "io.spring.dependency-management", version.ref = "dependency-management" }
+spring-boot3 = { id = "org.springframework.boot", version.ref = "spring-boot3" }
+spring-boot4 = { id = "org.springframework.boot", version.ref = "spring-boot4" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+test-logger = { id = "com.adarshr.test-logger", version.ref = "test-logger" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
+nmcp = { id = "com.gradleup.nmcp", version.ref = "nmcp" }
+nmcp-aggregation = { id = "com.gradleup.nmcp.aggregation", version.ref = "nmcp" }
+
+[libraries]
+jetbrains-annotations = { module = "org.jetbrains:annotations", version = "26.0.2" }
+
+# bluetape4k
+bluetape4k-bom = { module = "io.github.bluetape4k:bluetape4k-bom", version.ref = "bluetape4k" }
+bluetape4k-core = { module = "io.github.bluetape4k:bluetape4k-core" }
+bluetape4k-idgenerators = { module = "io.github.bluetape4k:bluetape4k-idgenerators" }
+bluetape4k-logging = { module = "io.github.bluetape4k:bluetape4k-logging" }
+bluetape4k-junit5 = { module = "io.github.bluetape4k:bluetape4k-junit5" }
+bluetape4k-testcontainers = { module = "io.github.bluetape4k:bluetape4k-testcontainers" }
+bluetape4k-redisson = { module = "io.github.bluetape4k:bluetape4k-redisson" }
+
+# Kotlin
+kotlin-bom = { module = "org.jetbrains.kotlin:kotlin-bom", version.ref = "kotlin" }
+kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib" }
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test" }
+kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5" }
+
+# Kotlinx Coroutines
+kotlinx-coroutines-bom = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-bom", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core" }
+kotlinx-coroutines-reactive = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-reactive" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test" }
+kotlinx-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "kotlinx-atomicfu" }
+
+# Logging
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+jcl-over-slf4j = { module = "org.slf4j:jcl-over-slf4j", version.ref = "slf4j" }
+jul-to-slf4j = { module = "org.slf4j:jul-to-slf4j", version.ref = "slf4j" }
+log4j-over-slf4j = { module = "org.slf4j:log4j-over-slf4j", version.ref = "slf4j" }
+logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+
+# Redis — Lettuce
+lettuce-core = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }
+
+# Redis — Redisson
+redisson = { module = "org.redisson:redisson", version.ref = "redisson" }
+
+# Exposed
+exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
+exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
+exposed-r2dbc = { module = "org.jetbrains.exposed:exposed-r2dbc", version.ref = "exposed" }
+exposed-dao = { module = "org.jetbrains.exposed:exposed-dao", version.ref = "exposed" }
+exposed-kotlin-datetime = { module = "org.jetbrains.exposed:exposed-kotlin-datetime", version.ref = "exposed" }
+
+# MongoDB
+mongodb-driver-sync = { module = "org.mongodb:mongodb-driver-sync", version.ref = "mongo-driver" }
+mongodb-driver-kotlin-coroutine = { module = "org.mongodb:mongodb-driver-kotlin-coroutine", version.ref = "mongo-driver" }
+
+# Hazelcast
+hazelcast = { module = "com.hazelcast:hazelcast", version.ref = "hazelcast" }
+
+# Micrometer
+micrometer-bom = { module = "io.micrometer:micrometer-bom", version.ref = "micrometer" }
+micrometer-core = { module = "io.micrometer:micrometer-core" }
+micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
+
+# Spring Boot
+spring-boot3-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot3" }
+spring-boot4-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot4" }
+spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-autoconfigure" }
+spring-boot-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor" }
+spring-boot-test = { module = "org.springframework.boot:spring-boot-test" }
+spring-context = { module = "org.springframework:spring-context" }
+spring-tx = { module = "org.springframework:spring-tx" }
+
+# JDBC / Connection Pool
+hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikaricp" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+
+# R2DBC
+r2dbc-postgresql = { module = "org.postgresql:r2dbc-postgresql", version.ref = "r2dbc-postgresql" }
+
+# Test
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit-jupiter" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-engine = { module = "org.junit.platform:junit-platform-engine" }
+
+kluent = { module = "org.amshove.kluent:kluent", version.ref = "kluent" }
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+springmockk = { module = "com.ninja-squad:springmockk", version.ref = "springmockk" }
+awaitility-kotlin = { module = "org.awaitility:awaitility-kotlin", version.ref = "awaitility" }
+
+testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
+testcontainers = { module = "org.testcontainers:testcontainers" }
+testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter" }
+testcontainers-mongodb = { module = "org.testcontainers:mongodb" }
+testcontainers-postgresql = { module = "org.testcontainers:postgresql" }

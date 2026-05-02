@@ -3,12 +3,12 @@ configurations {
 }
 
 dependencies {
-    api(Libs.bluetape4k_core)
-    api(Libs.bluetape4k_idgenerators)
-    api(Libs.bluetape4k_logging)
+    api(libs.bluetape4k.core)
+    api(libs.bluetape4k.idgenerators)
+    api(libs.bluetape4k.logging)
 
-    implementation(Libs.kotlinx_coroutines_core)
+    implementation(libs.kotlinx.coroutines.core)
 
-    testImplementation(Libs.bluetape4k_junit5)
-    testImplementation(Libs.kotlinx_coroutines_test)
+    testImplementation(libs.bluetape4k.junit5)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
