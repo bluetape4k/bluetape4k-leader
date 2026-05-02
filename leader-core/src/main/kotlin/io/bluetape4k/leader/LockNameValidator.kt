@@ -10,9 +10,6 @@ package io.bluetape4k.leader
  * **2-tier 설계**: 이 함수는 모든 백엔드에 공통적인 최소 규칙만 검증.
  * 백엔드 고유 규칙(예: MongoDB의 `:slot:` 금지, Lettuce의 glob 메타문자 금지)은
  * 각 백엔드 모듈의 내부 검증 함수가 이 함수 호출 후 추가로 수행.
- *
- * **Breaking Change**: 기존에 `.`(점), 공백, 기타 특수문자를 lockName에 사용하던 경우
- * 이 화이트리스트 정규식에 의해 거부됨. 의도적인 변경.
  */
 // 첫 문자 1자(영숫자) + 이후 0~254자(영숫자/언더스코어/하이픈/콜론) = 최대 255자
 private val LOCK_NAME_PATTERN = Regex("^[a-zA-Z0-9][a-zA-Z0-9_\\-:]{0,254}$")

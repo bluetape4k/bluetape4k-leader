@@ -128,7 +128,7 @@ class LeaderLockHistoryTableTest : AbstractExposedTableTest() {
     fun `30일 이전 데이터 삭제가 성공한다`(testDB: TestDB) {
         withTables(testDB, LeaderLockHistoryTable) {
             val now = Instant.now()
-            // [CRITICAL-3] DB-native INTERVAL 대신 Kotlin Instant 파라미터 바인딩
+            // DB-native INTERVAL 대신 Kotlin Instant 파라미터 바인딩 — H2/PG/MySQL INTERVAL 문법 불일치 회피
             val cutoff = now.minus(31, ChronoUnit.DAYS)
             val oldTime = now.minus(35, ChronoUnit.DAYS)
 
