@@ -67,11 +67,21 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         val expiredLock = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
         expiredLock.tryLock(Duration.ofSeconds(1), Duration.ofMillis(150))
 
-        Thread.sleep(300)
-
         val newLock = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
-        newLock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(10)).shouldBeTrue()
-        newLock.unlock()
+        val deadlineNanos = System.nanoTime() + Duration.ofSeconds(2).toNanos()
+        var acquired = false
+
+        while (System.nanoTime() < deadlineNanos && !acquired) {
+            acquired = newLock.tryLock(Duration.ofMillis(50), Duration.ofSeconds(10))
+            if (!acquired) {
+                Thread.yield()
+            }
+        }
+
+        acquired.shouldBeTrue()
+        if (acquired) {
+            newLock.unlock()
+        }
     }
 
     @ParameterizedTest
