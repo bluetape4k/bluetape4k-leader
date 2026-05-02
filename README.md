@@ -28,8 +28,8 @@ graph TD
     Lettuce["leader-redis-lettuce\n(Lettuce Redis)"]
     Redisson["leader-redis-redisson\n(Redisson Redis)"]
     Hazelcast["leader-hazelcast\n(Hazelcast)"]
-    ExposedCore["leader-exposed-core\n(planned)"]
-    ExposedJdbc["leader-exposed-jdbc\n(planned)"]
+    ExposedCore["leader-exposed-core\n(Stable)"]
+    ExposedJdbc["leader-exposed-jdbc\n(Stable)"]
     ExposedR2dbc["leader-exposed-r2dbc\n(planned)"]
     Mongo["leader-mongodb\n(MongoDB)"]
     SBCommon["leader-spring-boot-common\n(Boot version-independent)"]
@@ -58,8 +58,8 @@ graph TD
 | `leader-redis-lettuce` | Stable | Lettuce-based Redis backend |
 | `leader-redis-redisson` | Stable | Redisson-based Redis backend |
 | `leader-hazelcast` | Stable | Hazelcast backend (IMap-based, no CP Subsystem) |
-| `leader-exposed-core` | Planned | Common Exposed schema (no JDBC/R2DBC driver) |
-| `leader-exposed-jdbc` | Planned | Exposed JDBC backend |
+| `leader-exposed-core` | Stable | Common Exposed schema (no JDBC/R2DBC driver) |
+| `leader-exposed-jdbc` | Stable | Exposed JDBC backend (H2, PostgreSQL, MySQL) |
 | `leader-exposed-r2dbc` | Planned | Exposed R2DBC backend |
 | `leader-mongodb` | Stable | MongoDB backend (`findOneAndUpdate` + TTL index) |
 | `leader-micrometer` | Planned | Micrometer metrics integration |
@@ -72,12 +72,51 @@ graph TD
 ### Gradle
 
 ```kotlin
+// Redis (Redisson or Lettuce)
 implementation("io.github.bluetape4k.leader:leader-redis-redisson:0.1.0-SNAPSHOT")
 // or
 implementation("io.github.bluetape4k.leader:leader-redis-lettuce:0.1.0-SNAPSHOT")
+
+// JDBC (H2 / PostgreSQL / MySQL via Exposed)
+implementation("io.github.bluetape4k.leader:leader-exposed-jdbc:0.1.0-SNAPSHOT")
 ```
 
-### Blocking (single leader)
+### Exposed JDBC (H2 / PostgreSQL / MySQL)
+
+```kotlin
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
+import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElection
+
+val dataSource = HikariDataSource(HikariConfig().apply {
+    jdbcUrl = "jdbc:postgresql://localhost:5432/mydb"
+    username = "user"
+    password = "pass"
+})
+
+val election = ExposedJdbcLeaderElection(dataSource)
+
+val result = election.runIfLeader("daily-report-job") {
+    generateReport()
+}
+// result == generateReport() on the leader, null on other nodes
+```
+
+Multi-leader group (JDBC):
+
+```kotlin
+import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElection
+import io.bluetape4k.leader.core.LeaderGroupElectionOptions
+
+val options = LeaderGroupElectionOptions(maxLeaders = 3)
+val groupElection = ExposedJdbcLeaderGroupElection(dataSource, options)
+
+val result = groupElection.runIfLeader("parallel-batch") {
+    processNextChunk()
+}
+```
+
+### Blocking (single leader — Redis)
 
 ```kotlin
 val config = Config().apply { useSingleServer().setAddress("redis://localhost:6379") }
@@ -307,7 +346,7 @@ val result = election.runIfLeader("job", ScoredElectionStrategy(scorer)) { doWor
 | Redis (Lettuce) | Yes | Yes |
 | Redis (Redisson) | Yes | Yes |
 | Spring integration | Planned | Yes (core feature) |
-| JDBC/SQL | Planned | Yes |
+| JDBC/SQL | Yes (Exposed JDBC) | Yes |
 | MongoDB | Planned | Yes |
 | Hazelcast | Yes | Yes |
 
