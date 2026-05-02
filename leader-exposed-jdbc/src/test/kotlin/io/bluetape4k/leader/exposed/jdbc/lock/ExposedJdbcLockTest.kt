@@ -54,16 +54,26 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
         cleanTables(db)
         val lockName = randomName()
 
+        val leaseTime = Duration.ofMillis(150)
         val expiredLock = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        expiredLock.tryLock(Duration.ofSeconds(1), Duration.ofMillis(150))
-
-        Thread.sleep(300)
+        expiredLock.tryLock(Duration.ofSeconds(1), leaseTime)
 
         val newLock = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        val acquired = newLock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(10))
+        val deadlineNanos = System.nanoTime() + Duration.ofSeconds(2).toNanos()
+        val pollIntervalMs = 25L
+        var acquired = false
+
+        while (System.nanoTime() < deadlineNanos && !acquired) {
+            acquired = newLock.tryLock(Duration.ZERO, Duration.ofSeconds(10))
+            if (!acquired) {
+                Thread.sleep(pollIntervalMs)
+            }
+        }
 
         acquired.shouldBeTrue()
-        newLock.unlock()
+        if (acquired) {
+            newLock.unlock()
+        }
     }
 
     @ParameterizedTest
