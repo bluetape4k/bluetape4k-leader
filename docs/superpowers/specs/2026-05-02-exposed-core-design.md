@@ -58,6 +58,7 @@ leader-exposed-core/
     │   │   ├── LeaderGroupLockTable.kt       — 그룹 리더 락 테이블
     │   │   └── LeaderLockHistoryTable.kt     — 선출 이력 테이블
     │   ├── ExposedLeaderConstants.kt         — 테이블명, 컬럼 길이 등 상수
+    │   ├── ExposedLeaderSchema.kt            — SchemaUtils 헬퍼 (create/drop)
     │   └── ExposedLeaderExceptions.kt        — Exposed 백엔드 전용 예외 (선택)
     └── test/
         ├── kotlin/io/bluetape4k/leader/exposed/
@@ -65,7 +66,8 @@ leader-exposed-core/
         │   │   ├── LeaderLockTableTest.kt
         │   │   ├── LeaderGroupLockTableTest.kt
         │   │   └── LeaderLockHistoryTableTest.kt
-        │   └── AbstractExposedTableTest.kt   — 공통 테스트 인프라
+        │   ├── AbstractExposedTableTest.kt   — 공통 테스트 인프라
+        │   └── ExposedLeaderSchemaTest.kt    — Schema create/drop 테스트
         └── resources/
             ├── junit-platform.properties     — PER_CLASS + parallel=false
             └── logback-test.xml
@@ -188,6 +190,9 @@ object LeaderGroupLockTable : Table(GROUP_LOCK_TABLE_NAME) {
 | `id` | BIGINT | **PK, AUTO_INCREMENT** | 이력 레코드 ID |
 | `lock_name` | VARCHAR(255) | NOT NULL | 락 식별자 |
 | `lock_owner` | VARCHAR(255) | nullable | 인스턴스 식별자 |
+| `token` | VARCHAR(36) | NOT NULL | 락 획득 시 발급된 UUID token — EXPIRED 식별에 사용 |
+| `slot` | INT | nullable | 그룹 락 슬롯 번호 (단일 리더 락은 null) |
+| `locked_until` | TIMESTAMP | NOT NULL | 이 락 획득의 만료 시각 — `locked_until < NOW()` 로 EXPIRED 판정 |
 | `status` | VARCHAR(20) | NOT NULL | `ACQUIRED`, `COMPLETED`, `FAILED`, `EXPIRED` |
 | `started_at` | TIMESTAMP | NOT NULL | 선출 시작 시각 |
 | `finished_at` | TIMESTAMP | nullable | 작업 완료 시각 |
@@ -203,6 +208,7 @@ import io.bluetape4k.leader.exposed.ExposedLeaderConstants.LOCK_HISTORY_TABLE_NA
 import io.bluetape4k.leader.exposed.ExposedLeaderConstants.LOCK_NAME_LENGTH
 import io.bluetape4k.leader.exposed.ExposedLeaderConstants.LOCK_OWNER_LENGTH
 import io.bluetape4k.leader.exposed.ExposedLeaderConstants.STATUS_LENGTH
+import io.bluetape4k.leader.exposed.ExposedLeaderConstants.TOKEN_LENGTH
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.javatime.timestamp
 
@@ -210,8 +216,10 @@ import org.jetbrains.exposed.v1.javatime.timestamp
  * 리더 선출 이력을 보관하는 감사(audit) 테이블입니다.
  *
  * - 1개월치 이력을 보관하여 운영 모니터링, 디버깅, 분석에 활용합니다.
- * - 30일 이상 경과한 데이터는 애플리케이션 레벨에서 주기적으로 삭제합니다
- *   (RDBMS에는 MongoDB TTL 인덱스 같은 자동 만료 메커니즘이 없으므로).
+ * - `token`으로 락 테이블과의 1:1 대응을 식별하고, ACQUIRED → EXPIRED 전환 시 정확한 이력을 찾을 수 있습니다.
+ * - `slot`은 그룹 락에만 사용됩니다 (단일 리더 락은 null).
+ * - `locked_until < NOW()` 조건으로 이 이력 항목의 만료 여부를 판정합니다.
+ * - 30일 이상 경과한 데이터는 애플리케이션 레벨에서 주기적으로 삭제합니다.
  * - `duration_ms`는 `finished_at - started_at` 기반으로 JDBC/R2DBC 구현체에서 계산합니다.
  */
 object LeaderLockHistoryTable : Table(LOCK_HISTORY_TABLE_NAME) {
@@ -219,6 +227,9 @@ object LeaderLockHistoryTable : Table(LOCK_HISTORY_TABLE_NAME) {
     val id = long("id").autoIncrement()
     val lockName = varchar("lock_name", LOCK_NAME_LENGTH)
     val lockOwner = varchar("lock_owner", LOCK_OWNER_LENGTH).nullable()
+    val token = varchar("token", TOKEN_LENGTH)         // NOT NULL — ACQUIRED 시점의 fencing token
+    val slot = integer("slot").nullable()              // 그룹 락 슬롯 (단일 리더 락은 null)
+    val lockedUntil = timestamp("locked_until")        // 이 획득의 만료 시각 — EXPIRED 판정 기준
     val status = varchar("status", STATUS_LENGTH)
     val startedAt = timestamp("started_at")
     val finishedAt = timestamp("finished_at").nullable()
@@ -228,6 +239,7 @@ object LeaderLockHistoryTable : Table(LOCK_HISTORY_TABLE_NAME) {
 
     init {
         index(customIndexName = "idx_history_lock_started", isUnique = false, lockName, startedAt)
+        index(customIndexName = "idx_history_token", isUnique = false, token)
     }
 }
 ```
@@ -322,7 +334,47 @@ object ExposedLeaderConstants {
 
 ---
 
-## 5. leader-core 변경 사항
+## 5. ExposedLeaderSchema (Migration/SchemaUtils 헬퍼)
+
+`leader-exposed-jdbc`, `leader-exposed-r2dbc` 구현 모듈이 테이블을 생성/삭제할 때 사용하는
+SchemaUtils 래퍼입니다.
+
+```kotlin
+package io.bluetape4k.leader.exposed
+
+import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
+import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.exposed.tables.LeaderLockTable
+import org.jetbrains.exposed.v1.core.Table
+
+/**
+ * leader-exposed 모듈에서 사용하는 모든 테이블과 SchemaUtils 헬퍼를 제공합니다.
+ *
+ * 구현 모듈(leader-exposed-jdbc, leader-exposed-r2dbc)에서 앱 시작 시
+ * `ExposedLeaderSchema.createMissingTablesAndColumns(database)` 를 호출하세요.
+ */
+object ExposedLeaderSchema {
+
+    /** 모든 leader 관련 테이블 배열 */
+    val allTables: Array<Table> = arrayOf(
+        LeaderLockTable,
+        LeaderGroupLockTable,
+        LeaderLockHistoryTable,
+    )
+}
+```
+
+> **왜 `ExposedLeaderSchema`가 필요한가?**
+> 구현 모듈에서 `SchemaUtils.createMissingTablesAndColumns(*ExposedLeaderSchema.allTables)`를 호출하면
+> 모든 테이블을 일관되게 생성할 수 있습니다.
+> `allTables`를 직접 참조함으로써 새 테이블 추가 시 구현 모듈을 수정할 필요가 없습니다.
+>
+> 실제 `SchemaUtils.create()` / `createMissingTablesAndColumns()` 호출은 트랜잭션 컨텍스트가 필요하므로
+> `leader-exposed-core`는 `allTables` 목록만 제공하고, 호출은 구현 모듈 책임으로 둡니다.
+
+---
+
+## 6. leader-core 변경 사항
 
 ### validateLockName() 이동
 
@@ -358,7 +410,8 @@ package io.bluetape4k.leader
  * @throws IllegalArgumentException 유효하지 않은 lockName
  */
 
-private val LOCK_NAME_PATTERN = Regex("^[a-zA-Z0-9][a-zA-Z0-9_\\-:]{0,253}$")
+// 첫 문자 1자 + 이후 0~254자 = 최대 255자
+private val LOCK_NAME_PATTERN = Regex("^[a-zA-Z0-9][a-zA-Z0-9_\\-:]{0,254}$")
 
 fun validateLockName(lockName: String) {
     require(lockName.isNotBlank()) { "lockName must not be blank" }
@@ -374,6 +427,13 @@ fun validateLockName(lockName: String) {
 > Prepared statement를 사용하므로 SQL injection 위험은 낮지만,
 > 예상치 못한 특수문자로 인한 운영 혼선과 로그 파싱 문제를 예방합니다.
 >
+> **Breaking Change 여부:** 기존 MongoDB 사용자가 `.`(점) 포함 lockName을 사용하고 있었다면 이 변경으로 거부됩니다.
+> 이는 **의도적인 breaking change**입니다. `.`은 MongoDB 필드 경로 구분자와 충돌하므로 원래부터 금지되어 있었습니다.
+> 단, 영숫자/언더스코어/하이픈/콜론 외의 문자(공백, `@`, `#` 등)는 이 정규식에 의해 새로 거부됩니다.
+>
+> **회귀 테스트 요구사항:** `leader-mongodb`의 기존 테스트에서 사용하는 lockName이 새 화이트리스트를 통과하는지
+> `leader-core`로 이동 후 확인 필요.
+>
 > **`:slot:` 금지 유지 이유:** `leader-core`로 공통화 시 MongoDB 백엔드 호환성을 위해 유지합니다.
 > RDBMS 백엔드에서는 slot이 별도 컬럼으로 분리되므로 이 규칙은 중복이지만, 전체 일관성을 위해 유지합니다.
 
@@ -384,7 +444,7 @@ fun validateLockName(lockName: String) {
 
 ---
 
-## 6. build.gradle.kts 변경 사항
+## 7. build.gradle.kts 변경 사항
 
 ### 6.1 leader-exposed-core/build.gradle.kts
 
@@ -446,7 +506,7 @@ testcontainers-mysql = { module = "org.testcontainers:mysql", version.ref = "tes
 
 ---
 
-## 7. 테스트 전략
+## 8. 테스트 전략
 
 ### 7.1 테스트 인프라
 
@@ -493,8 +553,13 @@ abstract class AbstractExposedTableTest {
 | `테이블 생성 및 삭제가 성공한다` | DDL 확인 |
 | `복합 PK (lockName, slot) 삽입이 성공한다` | 동일 lockName, 다른 slot |
 | `동일 (lockName, slot) 중복 삽입 시 예외가 발생한다` | 복합 PK 중복 |
-| `lockName별 활성 슬롯 수를 카운트할 수 있다` | COUNT WHERE 조건 |
+| `활성 슬롯은 locked_until >= NOW() 조건으로만 카운트한다` | 만료된 row는 available로 계산됨 확인 |
+| `만료된 슬롯은 신규 획득 가능하다` | `WHERE slot = ? AND locked_until < NOW()` UPDATE |
 | `특정 slot 범위 질의가 가능하다` | `WHERE slot BETWEEN 0 AND ?` |
+
+> **활성 슬롯 계산 기준:** `COUNT(*) WHERE lock_name = ? AND locked_until >= NOW()`
+> RDBMS는 Redis/MongoDB TTL 자동 만료가 없으므로, 만료된 row도 물리적으로 존재합니다.
+> 활성 슬롯 수는 반드시 `locked_until >= NOW()` 조건을 포함해야 합니다.
 
 #### LeaderLockHistoryTableTest
 
@@ -517,7 +582,7 @@ abstract class AbstractExposedTableTest {
 
 ---
 
-## 8. Exposed API 참고 (exposed-java-time)
+## 9. Exposed API 참고 (exposed-java-time)
 
 Exposed 1.2.0의 `exposed-java-time` 모듈은 `java.time.Instant` 매핑을 위해
 `timestamp()` 컬럼 타입을 제공합니다.
@@ -542,7 +607,7 @@ LeaderLockTable.insert {
 
 ---
 
-## 9. MongoDB 패턴과의 대응 관계
+## 10. MongoDB 패턴과의 대응 관계
 
 | MongoDB (MongoLock) | RDBMS (Exposed) | 비고 |
 |---------------------|-----------------|------|
@@ -557,7 +622,7 @@ LeaderLockTable.insert {
 
 ---
 
-## 10. 운영 요구사항 및 한계
+## 11. 운영 요구사항 및 한계
 
 ### 10.1 시각 동기화 요구사항
 
@@ -629,9 +694,10 @@ WHERE lock_name = ? AND token = ?;
 
 - [ ] `LeaderLockTable` 테이블 정의 (`leader-exposed-core`)
 - [ ] `LeaderGroupLockTable` 테이블 정의 (`leader-exposed-core`)
-- [ ] `LeaderLockHistoryTable` 테이블 정의 (`leader-exposed-core`)
+- [ ] `LeaderLockHistoryTable` 테이블 정의 — token, slot, locked_until 컬럼 포함 (`leader-exposed-core`)
 - [ ] `HistoryStatus` 열거형 (`leader-exposed-core`)
 - [ ] `ExposedLeaderConstants` 상수 정의 (`leader-exposed-core`)
+- [ ] `ExposedLeaderSchema` SchemaUtils 헬퍼 — `allTables` 배열 제공 (`leader-exposed-core`)
 - [ ] `ExposedLeaderExceptions` 예외 타입 (선택)
 
 ### 인프라 변경
@@ -645,9 +711,13 @@ WHERE lock_name = ? AND token = ?;
 - [ ] H2 테이블 생성/삭제 테스트 통과
 - [ ] PostgreSQL (Testcontainers) 테이블 생성/삭제 테스트 통과
 - [ ] MySQL 8 (Testcontainers) 테이블 생성/삭제 테스트 통과
+- [ ] `ExposedLeaderSchema.allTables`로 `SchemaUtils.createMissingTablesAndColumns` 실행 테스트 통과
 - [ ] 각 테이블별 CRUD 테스트 통과
 - [ ] PK 중복 삽입 예외 확인
 - [ ] timestamp 정밀도 확인 (DB별)
+- [ ] 그룹 락 만료 슬롯이 활성 카운트에서 제외됨 확인 (`locked_until >= NOW()` 조건)
+- [ ] `LeaderLockHistoryTable` token/slot/locked_until 컬럼 포함 DDL 확인
+- [ ] `validateLockName()` 이동 후 기존 MongoDB 테스트 lockName 회귀 확인
 
 ### 빌드 & 문서
 
@@ -670,17 +740,19 @@ WHERE lock_name = ? AND token = ?;
 | 4 | `HistoryStatus.kt` 작성 | MEDIUM | - |
 | 5 | `LeaderLockTable.kt` 작성 | HIGH | #2, #3 |
 | 6 | `LeaderGroupLockTable.kt` 작성 | HIGH | #2, #3 |
-| 7 | `LeaderLockHistoryTable.kt` 작성 | HIGH | #2, #3, #4 |
-| 8 | `validateLockName()` → `leader-core` 이동 | MEDIUM | - |
-| 9 | `leader-mongodb` import 경로 수정 (회귀 확인) | MEDIUM | #8 |
-| 10 | `AbstractExposedTableTest.kt` 작성 | HIGH | #2 |
-| 11 | `LeaderLockTableTest.kt` 작성 | HIGH | #5, #10 |
-| 12 | `LeaderGroupLockTableTest.kt` 작성 | HIGH | #6, #10 |
-| 13 | `LeaderLockHistoryTableTest.kt` 작성 | HIGH | #7, #10 |
-| 14 | `compileKotlin` 클린 확인 | HIGH | #5, #6, #7 |
-| 15 | 전체 테스트 실행 (H2 + PG + MySQL) | HIGH | #11, #12, #13 |
-| 16 | MongoDB 모듈 회귀 테스트 | MEDIUM | #9 |
-| 17 | README.md + README.ko.md 작성 | LOW | #15 |
+| 7 | `LeaderLockHistoryTable.kt` 작성 (token/slot/locked_until 포함) | HIGH | #2, #3, #4 |
+| 8 | `ExposedLeaderSchema.kt` 작성 (allTables 헬퍼) | HIGH | #5, #6, #7 |
+| 9 | `validateLockName()` → `leader-core` 이동 (regex + 회귀 테스트) | MEDIUM | - |
+| 10 | `leader-mongodb` import 경로 수정 (회귀 확인) | MEDIUM | #9 |
+| 11 | `AbstractExposedTableTest.kt` 작성 | HIGH | #2 |
+| 12 | `LeaderLockTableTest.kt` 작성 | HIGH | #5, #11 |
+| 13 | `LeaderGroupLockTableTest.kt` 작성 (만료 슬롯 테스트 포함) | HIGH | #6, #11 |
+| 14 | `LeaderLockHistoryTableTest.kt` 작성 | HIGH | #7, #11 |
+| 15 | `ExposedLeaderSchemaTest.kt` 작성 | HIGH | #8, #11 |
+| 16 | `compileKotlin` 클린 확인 | HIGH | #5, #6, #7, #8 |
+| 17 | 전체 테스트 실행 (H2 + PG + MySQL) | HIGH | #12, #13, #14, #15 |
+| 18 | MongoDB 모듈 회귀 테스트 | MEDIUM | #10 |
+| 19 | README.md + README.ko.md 작성 | LOW | #17 |
 
 ---
 
