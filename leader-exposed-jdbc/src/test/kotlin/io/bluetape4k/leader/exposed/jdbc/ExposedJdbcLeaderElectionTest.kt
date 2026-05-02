@@ -100,10 +100,13 @@ class ExposedJdbcLeaderElectionTest : AbstractExposedJdbcLeaderTest() {
         cleanTables(db)
         val lockName = randomName()
 
+        val leaseTime = Duration.ofMillis(200)
         val holderLock = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        holderLock.tryLock(Duration.ofSeconds(1), Duration.ofMillis(200))
+        holderLock.tryLock(Duration.ofSeconds(1), leaseTime)
 
-        Thread.sleep(350)
+        // leaseTime(200ms) 만료를 확실히 넘기기 위해 1.5배 + buffer(50ms) 대기
+        val waitForExpiryMillis = (leaseTime.toMillis() * 3 / 2) + 50
+        Thread.sleep(waitForExpiryMillis)
 
         val election = ExposedJdbcLeaderElection(
             db,
