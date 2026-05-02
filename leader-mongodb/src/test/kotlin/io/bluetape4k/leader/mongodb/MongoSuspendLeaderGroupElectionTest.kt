@@ -163,4 +163,42 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
         release.complete(Unit)
         holder.join()
     }
+
+    @Test
+    fun `runIfLeader - 슬롯 획득 중 코루틴 취소 시 부분 획득된 슬롯이 없다`() = runSuspendIO {
+        val lockName = randomLockName()
+        val maxLeaders = 1
+        val holder = makeElection(maxLeaders = maxLeaders, waitTime = Duration.ofSeconds(30))
+        // 모든 슬롯 점유 중인 election
+        val acquired = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+
+        val holderJob = launch {
+            holder.runIfLeader(lockName) {
+                acquired.complete(Unit)
+                release.await()
+            }
+        }
+        acquired.await()
+
+        // 점유된 슬롯에 진입 시도하다가 취소되는 contender
+        val contender = makeElection(maxLeaders = maxLeaders, waitTime = Duration.ofSeconds(30))
+        val contenderJob = launch {
+            contender.runIfLeader(lockName) { "never" }
+        }
+
+        delay(100)
+        contenderJob.cancel()
+        contenderJob.join()
+
+        // 취소된 contender가 슬롯을 점유하지 않았음을 검증 (holder만 보유)
+        val ids = (0 until maxLeaders).map { "$lockName:slot:$it" }
+        val activeCount = groupLockCollection.countDocuments(
+            com.mongodb.client.model.Filters.`in`("_id", ids)
+        )
+        activeCount shouldBeEqualTo 1L
+
+        release.complete(Unit)
+        holderJob.join()
+    }
 }

@@ -5,7 +5,6 @@ import com.mongodb.client.model.Filters
 import com.mongodb.kotlin.client.coroutine.MongoCollection as CoroutineMongoCollection
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElection
-import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
 import io.bluetape4k.leader.mongodb.lock.validateLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -62,7 +61,7 @@ class MongoSuspendLeaderGroupElection private constructor(
             coroutineGroupCollection: CoroutineMongoCollection<Document>,
             options: MongoLeaderGroupElectionOptions = MongoLeaderGroupElectionOptions.Default,
         ): MongoSuspendLeaderGroupElection {
-            MongoLock.ensureIndexes(groupCollection)
+            // 두 컬렉션은 동일 namespace이므로 coroutine 드라이버에서 한 번만 인덱스 생성하면 충분
             MongoSuspendLock.ensureIndexes(coroutineGroupCollection)
             return MongoSuspendLeaderGroupElection(groupCollection, coroutineGroupCollection, options)
         }
@@ -78,10 +77,10 @@ class MongoSuspendLeaderGroupElection private constructor(
      * **주의:** 이 값은 근사치입니다. TTL 만료 주기(최대 60초) 동안 만료 문서가 잔류할 수 있습니다.
      */
     override fun activeCount(lockName: String): Int {
-        val pattern = Regex.escape(lockName) + ":slot:\\d+$"
+        val ids = (0 until maxLeaders).map { slotKey(lockName, it) }
         return groupCollection.countDocuments(
             Filters.and(
-                Filters.regex("_id", "^$pattern"),
+                Filters.`in`("_id", ids),
                 Filters.gt("expireAt", Date())
             )
         ).toInt()
@@ -144,13 +143,12 @@ class MongoSuspendLeaderGroupElection private constructor(
 /**
  * MongoDB 분산 세마포어(슬롯 기반)를 이용하여 최대 [options.maxLeaders]개의 리더로 선출된 경우에만 suspend [action]을 실행합니다.
  *
- * state 조회용 동기 [syncGroupCollection]과 락 획득/해제용 코루틴 [coroutineGroupCollection]을 모두 전달해야 합니다.
+ * 수신자는 state 조회용 동기 컬렉션이고, 락 획득/해제용 [coroutineGroupCollection]을 함께 전달해야 합니다.
  * 이는 [MongoSuspendLeaderGroupElection]의 이중 컬렉션 설계 때문입니다.
  */
-suspend fun <T> suspendRunIfLeaderGroup(
-    syncGroupCollection: MongoCollection<Document>,
+suspend fun <T> MongoCollection<Document>.suspendRunIfLeaderGroup(
     coroutineGroupCollection: CoroutineMongoCollection<Document>,
     lockName: String,
     options: MongoLeaderGroupElectionOptions = MongoLeaderGroupElectionOptions.Default,
     action: suspend () -> T,
-): T? = MongoSuspendLeaderGroupElection(syncGroupCollection, coroutineGroupCollection, options).runIfLeader(lockName, action)
+): T? = MongoSuspendLeaderGroupElection(this, coroutineGroupCollection, options).runIfLeader(lockName, action)

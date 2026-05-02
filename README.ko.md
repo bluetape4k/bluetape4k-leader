@@ -31,7 +31,7 @@ graph TD
     ExposedCore["leader-exposed-core\n(예정)"]
     ExposedJdbc["leader-exposed-jdbc\n(예정)"]
     ExposedR2dbc["leader-exposed-r2dbc\n(예정)"]
-    Mongo["leader-mongodb\n(예정)"]
+    Mongo["leader-mongodb\n(MongoDB)"]
     SBCommon["leader-spring-boot-common\n(Boot 버전 독립)"]
     SB3["leader-spring-boot3\n(예정)"]
     SB4["leader-spring-boot4\n(예정)"]
@@ -61,7 +61,7 @@ graph TD
 | `leader-exposed-core` | 예정 | Exposed 공통 스키마 (JDBC/R2DBC 드라이버 미포함) |
 | `leader-exposed-jdbc` | 예정 | Exposed JDBC 백엔드 |
 | `leader-exposed-r2dbc` | 예정 | Exposed R2DBC 백엔드 |
-| `leader-mongodb` | 예정 | MongoDB 백엔드 |
+| `leader-mongodb` | 안정 | MongoDB 백엔드 (`findOneAndUpdate` + TTL 인덱스) |
 | `leader-micrometer` | 예정 | Micrometer 메트릭 연동 |
 | `leader-spring-boot-common` | 안정 | Boot 버전 독립 속성 + 자동 구성 지원 클래스 |
 | `leader-spring-boot3` | 예정 | Spring Boot 3 자동 구성 |

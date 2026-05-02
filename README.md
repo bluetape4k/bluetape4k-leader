@@ -31,7 +31,7 @@ graph TD
     ExposedCore["leader-exposed-core\n(planned)"]
     ExposedJdbc["leader-exposed-jdbc\n(planned)"]
     ExposedR2dbc["leader-exposed-r2dbc\n(planned)"]
-    Mongo["leader-mongodb\n(planned)"]
+    Mongo["leader-mongodb\n(MongoDB)"]
     SBCommon["leader-spring-boot-common\n(Boot version-independent)"]
     SB3["leader-spring-boot3\n(planned)"]
     SB4["leader-spring-boot4\n(planned)"]
@@ -61,7 +61,7 @@ graph TD
 | `leader-exposed-core` | Planned | Common Exposed schema (no JDBC/R2DBC driver) |
 | `leader-exposed-jdbc` | Planned | Exposed JDBC backend |
 | `leader-exposed-r2dbc` | Planned | Exposed R2DBC backend |
-| `leader-mongodb` | Planned | MongoDB backend |
+| `leader-mongodb` | Stable | MongoDB backend (`findOneAndUpdate` + TTL index) |
 | `leader-micrometer` | Planned | Micrometer metrics integration |
 | `leader-spring-boot-common` | Stable | Boot version-independent properties + auto-config support |
 | `leader-spring-boot3` | Planned | Spring Boot 3 auto-configuration |

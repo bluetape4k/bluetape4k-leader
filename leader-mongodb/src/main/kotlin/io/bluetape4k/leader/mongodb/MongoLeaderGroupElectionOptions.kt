@@ -18,13 +18,11 @@ import java.time.Duration
  * ```
  *
  * @property leaderGroupOptions 그룹 리더 선출 옵션 (maxLeaders, waitTime, leaseTime)
- * @property retryDelay 락 획득 재시도 대기 기본 시간 (jitter 적용 전). 기본값 50ms
- * @property releaseTimeout suspend 코드에서 락 해제 시 적용할 타임아웃. 기본값 5초
+ * @property retryDelay 락 획득 재시도 시 적용할 full jitter 상한 (`[1ms, retryDelay)` 균등 분포). 기본값 50ms
  */
 data class MongoLeaderGroupElectionOptions(
     val leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     val retryDelay: Duration = Duration.ofMillis(50),
-    val releaseTimeout: Duration = Duration.ofSeconds(5),
 ) : Serializable {
 
     /** 허용하는 최대 동시 리더 수 ([LeaderGroupElectionOptions.maxLeaders] 위임). */
@@ -33,7 +31,6 @@ data class MongoLeaderGroupElectionOptions(
     init {
         require(maxLeaders > 0) { "maxLeaders must be positive: $maxLeaders" }
         require(retryDelay > Duration.ZERO) { "retryDelay must be positive: $retryDelay" }
-        require(releaseTimeout > Duration.ZERO) { "releaseTimeout must be positive: $releaseTimeout" }
     }
 
     companion object {

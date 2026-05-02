@@ -21,22 +21,19 @@ import java.time.Duration
  * ```
  *
  * @property leaderOptions 단일 리더 선출 옵션 (waitTime, leaseTime)
- * @property retryDelay 락 획득 재시도 대기 기본 시간 (jitter 적용 전). 기본값 50ms
- * @property releaseTimeout suspend 코드에서 락 해제 시 적용할 타임아웃. 기본값 5초
+ * @property retryDelay 락 획득 재시도 시 적용할 full jitter 상한 (`[1ms, retryDelay)` 균등 분포). 기본값 50ms
  */
 data class MongoLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
     val retryDelay: Duration = Duration.ofMillis(50),
-    val releaseTimeout: Duration = Duration.ofSeconds(5),
 ) : Serializable {
     init {
         require(retryDelay > Duration.ZERO) { "retryDelay must be positive: $retryDelay" }
-        require(releaseTimeout > Duration.ZERO) { "releaseTimeout must be positive: $releaseTimeout" }
     }
 
     companion object {
         /**
-         * 기본 옵션 인스턴스 (`waitTime=5s`, `leaseTime=60s`, `retryDelay=50ms`, `releaseTimeout=5s`).
+         * 기본 옵션 인스턴스 (`waitTime=5s`, `leaseTime=60s`, `retryDelay=50ms`).
          */
         @JvmField
         val Default = MongoLeaderElectionOptions()

@@ -11,6 +11,7 @@ import io.bluetape4k.logging.debug
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeGreaterOrEqualTo
 import org.amshove.kluent.shouldBeNull
+import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Duration
@@ -209,5 +210,36 @@ class MongoLeaderElectionTest : AbstractMongoLeaderTest() {
     fun `ensureIndexes - 연속 호출 시 멱등하게 동작한다`() {
         MongoLock.ensureIndexes(lockCollection)
         MongoLock.ensureIndexes(lockCollection)
+    }
+
+    @Test
+    fun `unlock - takeover 후 원소유자가 unlock 시도해도 신규 소유자의 락 문서는 유지된다`() {
+        val lockName = randomLockName()
+        val oldLock = MongoLock(lockCollection, lockName)
+        oldLock.tryLock(Duration.ofSeconds(1), Duration.ofMillis(200)).shouldBeTrue()
+
+        Thread.sleep(350)
+
+        val newLock = MongoLock(lockCollection, lockName)
+        newLock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(10)).shouldBeTrue()
+
+        oldLock.unlock()
+
+        newLock.isHeldByCurrentInstance().shouldBeTrue()
+        lockCollection.countDocuments(Filters.eq("_id", lockName)) shouldBeEqualTo 1L
+
+        newLock.unlock()
+    }
+
+    @Test
+    fun `runAsyncIfLeader - 정상 완료 후 락 문서가 삭제된다`() {
+        val lockName = randomLockName()
+        val election = MongoLeaderElection(lockCollection)
+
+        election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
+            futureOf { "ok" }
+        }.get(5, TimeUnit.SECONDS) shouldBeEqualTo "ok"
+
+        lockCollection.countDocuments(Filters.eq("_id", lockName)) shouldBeEqualTo 0L
     }
 }

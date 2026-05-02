@@ -159,8 +159,9 @@ class MongoSuspendLock private constructor(
 
             val remaining = deadline - System.currentTimeMillis()
             if (remaining > 0L) {
-                val jitter = Random.nextLong(retryDelay.toMillis() / 2 + 1)
-                delay(minOf(retryDelay.toMillis() + jitter, remaining).milliseconds)
+                // AWS full jitter: delay ∈ [1ms, retryDelay) — 동일 retry 윈도우에 인스턴스가 몰리는 것을 방지
+                val jitter = Random.nextLong(1, retryDelay.toMillis().coerceAtLeast(2))
+                delay(minOf(jitter, remaining).milliseconds)
             }
         } while (System.currentTimeMillis() < deadline)
 
