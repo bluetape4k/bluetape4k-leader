@@ -59,8 +59,8 @@ internal class ExposedJdbcGroupLock internal constructor(
             val acquired = runCatching {
                 tryAcquireOnce(leaseTime)
             }.getOrElse { e ->
-                log.warn(e) { "DB 오류로 그룹 슬롯 락 획득 실패: lockName=$lockName, slot=$slot" }
-                return false
+                log.warn(e) { "DB 오류 (재시도 유지): lockName=$lockName, slot=$slot, attempt=$attempt" }
+                false
             }
 
             if (acquired) {
@@ -117,14 +117,14 @@ internal class ExposedJdbcGroupLock internal constructor(
             }
 
             // SELECT으로 token 소유 확인 (복합 PK 조건)
-            LeaderGroupLockTable
+            !LeaderGroupLockTable
                 .selectAll()
                 .where {
                     (LeaderGroupLockTable.lockName eq lockNameVal) and
                         (LeaderGroupLockTable.slot eq slotVal) and
                         (LeaderGroupLockTable.token eq tokenVal)
                 }
-                .count() > 0
+                .empty()
         }
     }
 

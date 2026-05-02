@@ -64,8 +64,8 @@ internal class ExposedJdbcLock internal constructor(
             val acquired = runCatching {
                 tryAcquireOnce(leaseTime)
             }.getOrElse { e ->
-                log.warn(e) { "DB 오류로 락 획득 실패: lockName=$lockName" }
-                return false
+                log.warn(e) { "DB 오류 (재시도 유지): lockName=$lockName, attempt=$attempt" }
+                false
             }
 
             if (acquired) {
@@ -119,10 +119,10 @@ internal class ExposedJdbcLock internal constructor(
             }
 
             // Step 3: token 소유 확인
-            LeaderLockTable
+            !LeaderLockTable
                 .selectAll()
                 .where { (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal) }
-                .count() > 0
+                .empty()
         }
     }
 
@@ -134,14 +134,14 @@ internal class ExposedJdbcLock internal constructor(
     fun isHeldByCurrentInstance(): Boolean = runCatching {
         transaction(db) {
             val now = Instant.now()
-            LeaderLockTable
+            !LeaderLockTable
                 .selectAll()
                 .where {
                     (LeaderLockTable.lockName eq lockName) and
                         (LeaderLockTable.token eq token) and
                         (LeaderLockTable.lockedUntil greater now)
                 }
-                .count() > 0
+                .empty()
         }
     }.getOrElse { false }
 

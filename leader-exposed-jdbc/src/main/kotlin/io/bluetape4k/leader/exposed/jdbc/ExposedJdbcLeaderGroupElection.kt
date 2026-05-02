@@ -1,0 +1,237 @@
+package io.bluetape4k.leader.exposed.jdbc
+
+import io.bluetape4k.leader.LeaderGroupElection
+import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcGroupLock
+import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializer
+import io.bluetape4k.leader.exposed.jdbc.lock.validateExposedLockName
+import io.bluetape4k.leader.exposed.tables.HistoryStatus
+import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
+import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.debug
+import io.bluetape4k.logging.warn
+import kotlinx.coroutines.CancellationException
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greater
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.update
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import java.time.Duration
+import java.time.Instant
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executor
+import kotlin.random.Random
+
+/**
+ * Exposed JDBC 기반 복수 리더 그룹 선출 구현체.
+ *
+ * `(lockName, slot)` 복합 PK 기반 슬롯 순회로 최대 [options.maxLeaders]개의 동시 리더를 허용합니다.
+ * 슬롯 시작 위치를 랜덤화하여 핫스팟을 방지합니다.
+ *
+ * ```kotlin
+ * val election = ExposedJdbcLeaderGroupElection(db, ExposedJdbcLeaderGroupElectionOptions(
+ *     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3)
+ * ))
+ * val result = election.runIfLeader("batch-job") { processChunk() }
+ * ```
+ *
+ * **private constructor** — [invoke]를 통해서만 생성하세요.
+ *
+ * @param db Exposed [Database] 인스턴스
+ * @param options 그룹 리더 선출 옵션
+ */
+class ExposedJdbcLeaderGroupElection private constructor(
+    private val db: Database,
+    val options: ExposedJdbcLeaderGroupElectionOptions,
+) : LeaderGroupElection {
+
+    companion object : KLogging() {
+
+        /**
+         * [ExposedJdbcLeaderGroupElection] 인스턴스를 생성합니다.
+         *
+         * 첫 호출 시 리더 선출 테이블 스키마를 자동으로 생성합니다 (최초 1회).
+         */
+        @JvmStatic
+        operator fun invoke(
+            db: Database,
+            options: ExposedJdbcLeaderGroupElectionOptions = ExposedJdbcLeaderGroupElectionOptions.Default,
+        ): ExposedJdbcLeaderGroupElection {
+            ExposedJdbcSchemaInitializer.ensureSchema(db)
+            return ExposedJdbcLeaderGroupElection(db, options)
+        }
+    }
+
+    override val maxLeaders: Int get() = options.maxLeaders
+
+    override fun activeCount(lockName: String): Int = runCatching {
+        transaction(db) {
+            val now = Instant.now()
+            LeaderGroupLockTable
+                .selectAll()
+                .where {
+                    (LeaderGroupLockTable.lockName eq lockName) and
+                        (LeaderGroupLockTable.lockedUntil greater now)
+                }
+                .count()
+                .toInt()
+        }
+    }.getOrElse { 0 }
+
+    override fun availableSlots(lockName: String): Int = maxLeaders - activeCount(lockName)
+
+    override fun state(lockName: String): LeaderGroupState =
+        LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
+
+    override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
+        validateExposedLockName(lockName)
+
+        val leaseTime = options.leaderGroupOptions.leaseTime
+        val perSlotWait = options.leaderGroupOptions.waitTime.dividedBy(maxLeaders.toLong())
+        val start = Random.nextInt(maxLeaders)
+
+        log.debug { "그룹 슬롯 획득을 요청합니다. lockName=$lockName, maxLeaders=$maxLeaders" }
+
+        for (i in 0 until maxLeaders) {
+            val slot = (start + i) % maxLeaders
+            val lock = ExposedJdbcGroupLock(db, lockName, slot, options.retryStrategy, options.lockOwner)
+
+            if (!lock.tryLock(perSlotWait, leaseTime)) continue
+
+            log.debug { "그룹 슬롯을 획득하여 작업을 수행합니다. lockName=$lockName, slot=$slot" }
+
+            val historyId = recordAcquired(lockName, lock.token, slot)
+            val startedAt = Instant.now()
+            var actionSucceeded = false
+            var actionFailed = false
+
+            try {
+                val result = action()
+                actionSucceeded = true
+                return result
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                actionFailed = true
+                throw e
+            } finally {
+                when {
+                    actionSucceeded -> recordCompleted(historyId, lock.token, startedAt, slot)
+                    actionFailed -> recordFailed(historyId, lock.token, startedAt, slot)
+                }
+                runCatching { lock.unlock() }
+                    .onSuccess { log.debug { "그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
+                    .onFailure { e -> log.warn(e) { "그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" } }
+            }
+        }
+
+        log.debug { "그룹 슬롯 획득 실패 (슬롯 없음). lockName=$lockName" }
+        return null
+    }
+
+    override fun <T> runAsyncIfLeader(
+        lockName: String,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> {
+        validateExposedLockName(lockName)
+
+        val leaseTime = options.leaderGroupOptions.leaseTime
+        val perSlotWait = options.leaderGroupOptions.waitTime.dividedBy(maxLeaders.toLong())
+        val start = Random.nextInt(maxLeaders)
+
+        return CompletableFuture.supplyAsync({
+            (0 until maxLeaders)
+                .asSequence()
+                .map { i ->
+                    val slot = (start + i) % maxLeaders
+                    ExposedJdbcGroupLock(db, lockName, slot, options.retryStrategy, options.lockOwner) to slot
+                }
+                .firstOrNull { (lock, _) -> lock.tryLock(perSlotWait, leaseTime) }
+        }, executor).thenComposeAsync({ acquired ->
+            if (acquired == null) {
+                log.debug { "그룹 슬롯 획득 실패 (비동기). lockName=$lockName" }
+                CompletableFuture.completedFuture(null)
+            } else {
+                val (lock, slot) = acquired
+                log.debug { "그룹 슬롯 비동기 작업 수행. lockName=$lockName, slot=$slot" }
+
+                val historyId = recordAcquired(lockName, lock.token, slot)
+                val startedAt = Instant.now()
+
+                val actionFuture = runCatching { action() }
+                    .getOrElse { e ->
+                        recordFailed(historyId, lock.token, startedAt, slot)
+                        runCatching { lock.unlock() }
+                            .onFailure { ex -> log.warn(ex) { "슬롯 해제 실패 (action 오류 경로). slot=$slot" } }
+                        return@thenComposeAsync CompletableFuture.failedFuture(e)
+                    }
+
+                actionFuture.whenCompleteAsync({ _, throwable ->
+                    if (throwable != null) {
+                        recordFailed(historyId, lock.token, startedAt, slot)
+                    } else {
+                        recordCompleted(historyId, lock.token, startedAt, slot)
+                    }
+                    runCatching { lock.unlock() }
+                        .onSuccess { log.debug { "비동기 그룹 슬롯 반납. lockName=$lockName, slot=$slot" } }
+                        .onFailure { e -> log.warn(e) { "비동기 슬롯 해제 실패. lockName=$lockName, slot=$slot" } }
+                }, executor)
+            }
+        }, executor)
+    }
+
+    private fun recordAcquired(lockName: String, token: String, slot: Int): Long? {
+        if (!options.recordHistory) return null
+        return runCatching {
+            transaction(db) {
+                LeaderLockHistoryTable.insert {
+                    it[LeaderLockHistoryTable.lockName] = lockName
+                    it[LeaderLockHistoryTable.lockOwner] = options.lockOwner
+                    it[LeaderLockHistoryTable.token] = token
+                    it[LeaderLockHistoryTable.slot] = slot
+                    it[LeaderLockHistoryTable.lockedUntil] = Instant.now().plusMillis(options.leaderGroupOptions.leaseTime.toMillis())
+                    it[LeaderLockHistoryTable.status] = HistoryStatus.ACQUIRED.name
+                    it[LeaderLockHistoryTable.startedAt] = Instant.now()
+                }[LeaderLockHistoryTable.id]
+            }
+        }.getOrElse { e ->
+            log.warn(e) { "이력 ACQUIRED 기록 실패 (best-effort, 무시): lockName=$lockName, slot=$slot" }
+            null
+        }
+    }
+
+    private fun recordCompleted(historyId: Long?, token: String, startedAt: Instant, slot: Int) =
+        recordFinished(historyId, token, startedAt, slot, HistoryStatus.COMPLETED)
+
+    private fun recordFailed(historyId: Long?, token: String, startedAt: Instant, slot: Int) =
+        recordFinished(historyId, token, startedAt, slot, HistoryStatus.FAILED)
+
+    private fun recordFinished(
+        historyId: Long?,
+        token: String,
+        startedAt: Instant,
+        slot: Int,
+        status: HistoryStatus,
+    ) {
+        if (!options.recordHistory || historyId == null) return
+        val finishedAt = Instant.now()
+        runCatching {
+            transaction(db) {
+                LeaderLockHistoryTable.update(
+                    where = { (LeaderLockHistoryTable.id eq historyId) and (LeaderLockHistoryTable.token eq token) }
+                ) {
+                    it[LeaderLockHistoryTable.status] = status.name
+                    it[LeaderLockHistoryTable.finishedAt] = finishedAt
+                    it[LeaderLockHistoryTable.durationMs] = Duration.between(startedAt, finishedAt).toMillis()
+                }
+            }
+        }.getOrElse { e ->
+            log.warn(e) { "이력 ${status.name} 기록 실패 (best-effort): historyId=$historyId, slot=$slot" }
+        }
+    }
+}
