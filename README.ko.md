@@ -28,8 +28,8 @@ graph TD
     Lettuce["leader-redis-lettuce\n(Lettuce Redis)"]
     Redisson["leader-redis-redisson\n(Redisson Redis)"]
     Hazelcast["leader-hazelcast\n(Hazelcast)"]
-    ExposedCore["leader-exposed-core\n(예정)"]
-    ExposedJdbc["leader-exposed-jdbc\n(예정)"]
+    ExposedCore["leader-exposed-core\n(안정)"]
+    ExposedJdbc["leader-exposed-jdbc\n(안정)"]
     ExposedR2dbc["leader-exposed-r2dbc\n(예정)"]
     Mongo["leader-mongodb\n(MongoDB)"]
     SBCommon["leader-spring-boot-common\n(Boot 버전 독립)"]
@@ -58,8 +58,8 @@ graph TD
 | `leader-redis-lettuce` | 안정 | Lettuce 기반 Redis 백엔드 |
 | `leader-redis-redisson` | 안정 | Redisson 기반 Redis 백엔드 |
 | `leader-hazelcast` | 안정 | Hazelcast 백엔드 (IMap 기반, CP Subsystem 불필요) |
-| `leader-exposed-core` | 예정 | Exposed 공통 스키마 (JDBC/R2DBC 드라이버 미포함) |
-| `leader-exposed-jdbc` | 예정 | Exposed JDBC 백엔드 |
+| `leader-exposed-core` | 안정 | Exposed 공통 스키마 (JDBC/R2DBC 드라이버 미포함) |
+| `leader-exposed-jdbc` | 안정 | Exposed JDBC 백엔드 (H2, PostgreSQL, MySQL) |
 | `leader-exposed-r2dbc` | 예정 | Exposed R2DBC 백엔드 |
 | `leader-mongodb` | 안정 | MongoDB 백엔드 (`findOneAndUpdate` + TTL 인덱스) |
 | `leader-micrometer` | 예정 | Micrometer 메트릭 연동 |
@@ -72,12 +72,51 @@ graph TD
 ### Gradle 의존성 추가
 
 ```kotlin
+// Redis (Redisson 또는 Lettuce)
 implementation("io.github.bluetape4k.leader:leader-redis-redisson:0.1.0-SNAPSHOT")
 // 또는
 implementation("io.github.bluetape4k.leader:leader-redis-lettuce:0.1.0-SNAPSHOT")
+
+// JDBC (H2 / PostgreSQL / MySQL, Exposed 기반)
+implementation("io.github.bluetape4k.leader:leader-exposed-jdbc:0.1.0-SNAPSHOT")
 ```
 
-### 블로킹 방식 (단일 리더)
+### Exposed JDBC 방식 (H2 / PostgreSQL / MySQL)
+
+```kotlin
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
+import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElection
+
+val dataSource = HikariDataSource(HikariConfig().apply {
+    jdbcUrl = "jdbc:postgresql://localhost:5432/mydb"
+    username = "user"
+    password = "pass"
+})
+
+val election = ExposedJdbcLeaderElection(dataSource)
+
+val result = election.runIfLeader("daily-report-job") {
+    generateReport()  // 리더로 선출된 노드에서만 실행
+}
+// result: 리더이면 generateReport() 결과, 그 외 노드는 null
+```
+
+복수 리더 그룹 (JDBC):
+
+```kotlin
+import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElection
+import io.bluetape4k.leader.core.LeaderGroupElectionOptions
+
+val options = LeaderGroupElectionOptions(maxLeaders = 3)
+val groupElection = ExposedJdbcLeaderGroupElection(dataSource, options)
+
+val result = groupElection.runIfLeader("parallel-batch") {
+    processNextChunk()
+}
+```
+
+### 블로킹 방식 (단일 리더 — Redis)
 
 ```kotlin
 val config = Config().apply { useSingleServer().setAddress("redis://localhost:6379") }
@@ -309,7 +348,7 @@ val result = election.runIfLeader("job", ScoredElectionStrategy(scorer)) { doWor
 | Redis (Lettuce) | 지원 | 지원 |
 | Redis (Redisson) | 지원 | 지원 |
 | Spring 연동 | 예정 | 지원 (핵심 기능) |
-| JDBC/SQL | 예정 | 지원 |
+| JDBC/SQL | 지원 (Exposed JDBC) | 지원 |
 | MongoDB | 예정 | 지원 |
 | Hazelcast | 지원 | 지원 |
 
