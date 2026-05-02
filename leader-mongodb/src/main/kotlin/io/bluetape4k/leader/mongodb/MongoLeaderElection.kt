@@ -4,7 +4,7 @@ import com.mongodb.client.MongoCollection
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.LeaderElection
 import io.bluetape4k.leader.mongodb.lock.MongoLock
-import io.bluetape4k.leader.mongodb.lock.validateLockName
+import io.bluetape4k.leader.mongodb.lock.validateMongoLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -48,7 +48,7 @@ class MongoLeaderElection private constructor(
     }
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
-        validateLockName(lockName)
+        validateMongoLockName(lockName)
         val lock = MongoLock(collection, lockName, options.retryDelay)
         log.debug { "리더 승격을 요청합니다. lockName=$lockName" }
 
@@ -72,7 +72,7 @@ class MongoLeaderElection private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
-        validateLockName(lockName)
+        validateMongoLockName(lockName)
         val lock = MongoLock(collection, lockName, options.retryDelay)
 
         return CompletableFuture

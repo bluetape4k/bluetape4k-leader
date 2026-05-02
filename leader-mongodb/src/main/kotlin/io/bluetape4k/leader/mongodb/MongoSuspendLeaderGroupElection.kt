@@ -6,7 +6,7 @@ import com.mongodb.kotlin.client.coroutine.MongoCollection as CoroutineMongoColl
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElection
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
-import io.bluetape4k.leader.mongodb.lock.validateLockName
+import io.bluetape4k.leader.mongodb.lock.validateMongoLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -92,7 +92,7 @@ class MongoSuspendLeaderGroupElection private constructor(
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
-        validateLockName(lockName)
+        validateMongoLockName(lockName)
 
         val leaseTime = options.leaderGroupOptions.leaseTime
         val perSlotWait = options.leaderGroupOptions.waitTime.dividedBy(maxLeaders.toLong())

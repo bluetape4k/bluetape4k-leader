@@ -3,7 +3,7 @@ package io.bluetape4k.leader.mongodb
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import io.bluetape4k.leader.coroutines.SuspendLeaderElection
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
-import io.bluetape4k.leader.mongodb.lock.validateLockName
+import io.bluetape4k.leader.mongodb.lock.validateMongoLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -47,7 +47,7 @@ class MongoSuspendLeaderElection private constructor(
     }
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
-        validateLockName(lockName)
+        validateMongoLockName(lockName)
         val lock = MongoSuspendLock(collection, lockName, options.retryDelay)
         log.debug { "리더 승격을 요청합니다 (suspend). lockName=$lockName" }
 
