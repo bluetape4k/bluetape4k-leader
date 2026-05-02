@@ -7,6 +7,9 @@ on:
     branches: [develop]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: publish-snapshot
   cancel-in-progress: true
