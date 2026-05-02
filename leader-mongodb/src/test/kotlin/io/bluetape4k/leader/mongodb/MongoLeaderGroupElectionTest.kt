@@ -222,7 +222,7 @@ class MongoLeaderGroupElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `runAsyncIfLeader - action 동기 throw 후 슬롯 락 문서가 즉시 삭제된다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
 
         assertThrows<CompletionException> {
             election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {

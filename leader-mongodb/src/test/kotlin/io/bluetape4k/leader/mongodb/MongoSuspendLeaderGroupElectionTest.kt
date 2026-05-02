@@ -166,7 +166,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `runIfLeader - 슬롯 획득 중 코루틴 취소 시 부분 획득된 슬롯이 없다`() = runSuspendIO {
-        val lockName = randomLockName()
+        val lockName = randomName()
         val maxLeaders = 1
         val holder = makeElection(maxLeaders = maxLeaders, waitTime = Duration.ofSeconds(30))
         // 모든 슬롯 점유 중인 election

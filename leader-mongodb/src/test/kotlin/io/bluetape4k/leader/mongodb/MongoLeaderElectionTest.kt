@@ -214,7 +214,7 @@ class MongoLeaderElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `unlock - takeover 후 원소유자가 unlock 시도해도 신규 소유자의 락 문서는 유지된다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
         val oldLock = MongoLock(lockCollection, lockName)
         oldLock.tryLock(Duration.ofSeconds(1), Duration.ofMillis(200)).shouldBeTrue()
 
@@ -233,7 +233,7 @@ class MongoLeaderElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `runAsyncIfLeader - 정상 완료 후 락 문서가 삭제된다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
         val election = MongoLeaderElection(lockCollection)
 
         election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
