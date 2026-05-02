@@ -146,13 +146,14 @@ class ExposedJdbcLeaderElection private constructor(
         if (!options.recordHistory) return null
         return runCatching {
             transaction(db) {
+                val now = Instant.now()
                 LeaderLockHistoryTable.insert {
                     it[LeaderLockHistoryTable.lockName] = lockName
                     it[LeaderLockHistoryTable.lockOwner] = options.lockOwner
                     it[LeaderLockHistoryTable.token] = token
-                    it[LeaderLockHistoryTable.lockedUntil] = Instant.now().plusMillis(options.leaderOptions.leaseTime.toMillis())
+                    it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(options.leaderOptions.leaseTime.toMillis())
                     it[LeaderLockHistoryTable.status] = HistoryStatus.ACQUIRED.name
-                    it[LeaderLockHistoryTable.startedAt] = Instant.now()
+                    it[LeaderLockHistoryTable.startedAt] = now
                 }[LeaderLockHistoryTable.id]
             }
         }.getOrElse { e ->

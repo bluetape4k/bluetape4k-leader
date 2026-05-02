@@ -80,7 +80,10 @@ class ExposedJdbcLeaderGroupElection private constructor(
                 .count()
                 .toInt()
         }
-    }.getOrElse { 0 }
+    }.getOrElse { e ->
+        log.warn(e) { "activeCount DB 오류 (0 반환): lockName=$lockName" }
+        0
+    }
 
     override fun availableSlots(lockName: String): Int = maxLeaders - activeCount(lockName)
 
@@ -91,7 +94,9 @@ class ExposedJdbcLeaderGroupElection private constructor(
         validateExposedLockName(lockName)
 
         val leaseTime = options.leaderGroupOptions.leaseTime
-        val perSlotWait = options.leaderGroupOptions.waitTime.dividedBy(maxLeaders.toLong())
+        val perSlotWait = options.leaderGroupOptions.waitTime
+            .dividedBy(maxLeaders.toLong())
+            .coerceAtLeast(Duration.ofMillis(1L))
         val start = Random.nextInt(maxLeaders)
 
         log.debug { "그룹 슬롯 획득을 요청합니다. lockName=$lockName, maxLeaders=$maxLeaders" }
@@ -141,7 +146,9 @@ class ExposedJdbcLeaderGroupElection private constructor(
         validateExposedLockName(lockName)
 
         val leaseTime = options.leaderGroupOptions.leaseTime
-        val perSlotWait = options.leaderGroupOptions.waitTime.dividedBy(maxLeaders.toLong())
+        val perSlotWait = options.leaderGroupOptions.waitTime
+            .dividedBy(maxLeaders.toLong())
+            .coerceAtLeast(Duration.ofMillis(1L))
         val start = Random.nextInt(maxLeaders)
 
         return CompletableFuture.supplyAsync({
@@ -189,14 +196,15 @@ class ExposedJdbcLeaderGroupElection private constructor(
         if (!options.recordHistory) return null
         return runCatching {
             transaction(db) {
+                val now = Instant.now()
                 LeaderLockHistoryTable.insert {
                     it[LeaderLockHistoryTable.lockName] = lockName
                     it[LeaderLockHistoryTable.lockOwner] = options.lockOwner
                     it[LeaderLockHistoryTable.token] = token
                     it[LeaderLockHistoryTable.slot] = slot
-                    it[LeaderLockHistoryTable.lockedUntil] = Instant.now().plusMillis(options.leaderGroupOptions.leaseTime.toMillis())
+                    it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(options.leaderGroupOptions.leaseTime.toMillis())
                     it[LeaderLockHistoryTable.status] = HistoryStatus.ACQUIRED.name
-                    it[LeaderLockHistoryTable.startedAt] = Instant.now()
+                    it[LeaderLockHistoryTable.startedAt] = now
                 }[LeaderLockHistoryTable.id]
             }
         }.getOrElse { e ->

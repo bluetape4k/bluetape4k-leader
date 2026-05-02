@@ -52,7 +52,7 @@ internal class ExposedJdbcGroupLock internal constructor(
      * @return 락 획득 성공 시 `true`, 타임아웃 또는 오류 시 `false`
      */
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
-        val deadline = System.currentTimeMillis() + waitTime.toMillis()
+        val deadline = System.currentTimeMillis() + waitTime.toMillis().coerceAtLeast(0L)
         var attempt = 0
 
         do {
@@ -64,7 +64,7 @@ internal class ExposedJdbcGroupLock internal constructor(
             }
 
             if (acquired) {
-                log.debug { "그룹 슬롯 락 획득 성공: lockName=$lockName, slot=$slot, token=$token" }
+                log.debug { "그룹 슬롯 락 획득 성공: lockName=$lockName, slot=$slot, token=${token.take(8)}" }
                 return true
             }
 
@@ -111,7 +111,8 @@ internal class ExposedJdbcGroupLock internal constructor(
                         it[LeaderGroupLockTable.lockedAt] = now
                         it[LeaderGroupLockTable.lockedUntil] = lockedUntil
                     }
-                }.onFailure {
+                }.onFailure { e ->
+                    log.debug { "INSERT 실패 (PK 충돌 예상 또는 DB 오류): lockName=$lockName, slot=$slot, error=${e.message}" }
                     return@transaction false
                 }
             }

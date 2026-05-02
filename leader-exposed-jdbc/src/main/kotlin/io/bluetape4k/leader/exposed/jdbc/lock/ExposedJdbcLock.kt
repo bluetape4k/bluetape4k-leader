@@ -57,7 +57,7 @@ internal class ExposedJdbcLock internal constructor(
      * @return 락 획득 성공 시 `true`, 타임아웃 또는 오류 시 `false`
      */
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
-        val deadline = System.currentTimeMillis() + waitTime.toMillis()
+        val deadline = System.currentTimeMillis() + waitTime.toMillis().coerceAtLeast(0L)
         var attempt = 0
 
         do {
@@ -69,7 +69,7 @@ internal class ExposedJdbcLock internal constructor(
             }
 
             if (acquired) {
-                log.debug { "락 획득 성공: lockName=$lockName, token=$token" }
+                log.debug { "락 획득 성공: lockName=$lockName, token=${token.take(8)}" }
                 return true
             }
 
@@ -113,7 +113,8 @@ internal class ExposedJdbcLock internal constructor(
                         it[LeaderLockTable.lockedAt] = now
                         it[LeaderLockTable.lockedUntil] = lockedUntil
                     }
-                }.onFailure {
+                }.onFailure { e ->
+                    log.debug { "INSERT 실패 (PK 충돌 예상 또는 DB 오류): lockName=$lockName, error=${e.message}" }
                     return@transaction false
                 }
             }
@@ -143,7 +144,10 @@ internal class ExposedJdbcLock internal constructor(
                 }
                 .empty()
         }
-    }.getOrElse { false }
+    }.getOrElse { e ->
+        log.warn(e) { "isHeldByCurrentInstance DB 오류 (false 반환): lockName=$lockName" }
+        false
+    }
 
     /**
      * 현재 인스턴스가 보유한 락을 해제합니다.
@@ -161,9 +165,9 @@ internal class ExposedJdbcLock internal constructor(
                 }
             }
             if (deleted == 0) {
-                log.warn { "락 해제 실패 — 토큰 불일치 또는 이미 만료됨: lockName=$lockName, token=$token" }
+                log.warn { "락 해제 실패 — 토큰 불일치 또는 이미 만료됨: lockName=$lockName, token=${token.take(8)}" }
             } else {
-                log.debug { "락 해제 성공: lockName=$lockName, token=$token" }
+                log.debug { "락 해제 성공: lockName=$lockName, token=${token.take(8)}" }
             }
         }.onFailure { e ->
             log.warn(e) { "락 해제 중 DB 오류: lockName=$lockName" }

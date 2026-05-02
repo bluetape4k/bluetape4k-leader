@@ -8,6 +8,8 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * Exposed JDBC 리더 선출 테이블 스키마 초기화 유틸리티.
@@ -18,28 +20,28 @@ import java.util.concurrent.ConcurrentHashMap
 internal object ExposedJdbcSchemaInitializer : KLogging() {
 
     private val initializedDbs = ConcurrentHashMap<String, Boolean>()
+    private val initLock = ReentrantLock()
 
     /**
      * [db]에 리더 선출 테이블이 없으면 생성합니다. 동일 DB URL에 대해 최초 1회만 실행됩니다.
      *
-     * @throws Exception 스키마 생성 중 DB 오류 발생 시 (guard key 제거 후 재전파)
+     * @throws Exception 스키마 생성 중 DB 오류 발생 시 (재시도 허용)
      */
     fun ensureSchema(db: Database) {
         val dbKey = db.url
-        initializedDbs.computeIfAbsent(dbKey) {
-            runCatching {
-                transaction(db) {
-                    SchemaUtils.createMissingTablesAndColumns(*ExposedLeaderSchema.allTables)
-                }
-                log.debug { "리더 선출 스키마 초기화 완료: $dbKey" }
-                true
-            }.getOrElse { e ->
-                // 실패 시 guard key 제거 → 재시도 허용 (MongoDB ensureIndexes 패턴 동일)
-                initializedDbs.remove(dbKey)
-                throw e
+        if (initializedDbs.containsKey(dbKey)) return
+        initLock.withLock {
+            if (initializedDbs.containsKey(dbKey)) return
+            transaction(db) {
+                SchemaUtils.createMissingTablesAndColumns(*ExposedLeaderSchema.allTables)
             }
+            initializedDbs[dbKey] = true
+            log.debug { "리더 선출 스키마 초기화 완료: ${sanitizeUrl(dbKey)}" }
         }
     }
+
+    private fun sanitizeUrl(url: String): String =
+        url.replace(Regex("(://)[^@]+@"), "$1***@")
 
     /** 테스트에서 특정 DB의 초기화 상태를 초기화합니다. */
     internal fun resetFor(db: Database) {

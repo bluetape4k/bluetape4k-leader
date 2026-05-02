@@ -2,7 +2,6 @@ package io.bluetape4k.leader.exposed.jdbc
 
 import org.amshove.kluent.shouldBeGreaterOrEqualTo
 import org.amshove.kluent.shouldBeLessOrEqualTo
-import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 
@@ -78,7 +77,8 @@ class RetryStrategyTest {
         for (strategy in strategies) {
             for (attempt in 0..20) {
                 val delay = strategy.delayMs(attempt = attempt, remaining = remaining)
-                (delay in 1L..remaining).shouldBeTrue()
+                delay shouldBeGreaterOrEqualTo 1L
+                delay shouldBeLessOrEqualTo remaining
             }
         }
     }
