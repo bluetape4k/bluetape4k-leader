@@ -7,6 +7,8 @@ import io.bluetape4k.logging.debug
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import java.net.URI
+import java.net.URISyntaxException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -40,8 +42,27 @@ internal object ExposedJdbcSchemaInitializer : KLogging() {
         }
     }
 
-    private fun sanitizeUrl(url: String): String =
-        url.replace(Regex("(://)[^@]+@"), "$1***@")
+    private fun sanitizeUrl(url: String): String {
+        return try {
+            val uri = URI(url)
+            val rawUserInfo = uri.rawUserInfo ?: return url
+            if (rawUserInfo.isEmpty()) return url
+
+            URI(
+                uri.scheme,
+                "***",
+                uri.host,
+                uri.port,
+                uri.path,
+                uri.query,
+                uri.fragment
+            ).toString()
+        } catch (_: URISyntaxException) {
+            url
+        } catch (_: IllegalArgumentException) {
+            url
+        }
+    }
 
     /** 테스트에서 특정 DB의 초기화 상태를 초기화합니다. */
     internal fun resetFor(db: Database) {
