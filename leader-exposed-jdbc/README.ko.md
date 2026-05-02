@@ -1,0 +1,196 @@
+# leader-exposed-jdbc
+
+[English](README.md)
+
+[Exposed](https://github.com/JetBrains/Exposed) JDBC 기반 분산 리더 선출 구현체입니다. 블로킹과 비동기(CompletableFuture) API를 제공합니다.
+
+H2, PostgreSQL, MySQL 8 호환.
+
+---
+
+## 개요
+
+`leader-exposed-jdbc`는 Exposed JDBC DSL을 사용하여 `leader-core` 인터페이스를 구현합니다. `LeaderLockTable`의 단일 행(PK = `lockName`)이 분산 뮤텍스 역할을 하며, UUID fencing token으로 락 소유권을 추적합니다.
+
+락 전략: `UPDATE WHERE lockedUntil < NOW()` → `INSERT (PK 충돌 시 skip)` → `SELECT WHERE token = ?`. 세 단계 모두 하나의 트랜잭션 안에서 실행됩니다.
+
+스키마는 최초 선출 호출 시 `SchemaUtils.createMissingTablesAndColumns`로 자동 생성됩니다.
+
+## 아키텍처
+
+```mermaid
+classDiagram
+    class LeaderElection {
+        <<interface>>
+    }
+    class AsyncLeaderElection {
+        <<interface>>
+    }
+    class LeaderGroupElection {
+        <<interface>>
+    }
+    class VirtualThreadLeaderElection {
+        <<interface>>
+    }
+
+    class ExposedJdbcLock {
+        +tryLock(waitTime, leaseTime) Boolean
+        +unlock()
+        +isHeldByCurrentInstance() Boolean
+        +token: String
+    }
+    class ExposedJdbcGroupLock {
+        +tryLock(waitTime, leaseTime) Boolean
+        +unlock()
+        +slot: Int
+        +token: String
+    }
+
+    ExposedJdbcLeaderElection ..|> LeaderElection
+    ExposedJdbcLeaderElection ..|> AsyncLeaderElection
+    ExposedJdbcLeaderGroupElection ..|> LeaderGroupElection
+    ExposedJdbcVirtualThreadLeaderElection ..|> VirtualThreadLeaderElection
+
+    ExposedJdbcLeaderElection --> ExposedJdbcLock
+    ExposedJdbcLeaderGroupElection --> ExposedJdbcGroupLock
+    ExposedJdbcVirtualThreadLeaderElection --> ExposedJdbcLeaderElection
+```
+
+## 구현체 목록
+
+| 클래스 | 구현 인터페이스 | 설명 |
+|-------|--------------|------|
+| `ExposedJdbcLeaderElection` | `LeaderElection` + `AsyncLeaderElection` | 블로킹 / CompletableFuture 단일 리더 |
+| `ExposedJdbcLeaderGroupElection` | `LeaderGroupElection` | 블로킹 복수 리더 (슬롯 세마포어) |
+| `ExposedJdbcVirtualThreadLeaderElection` | `VirtualThreadLeaderElection` | 가상 스레드 단일 리더 |
+
+## 사용 예시
+
+### 초기화
+
+```kotlin
+val db = Database.connect(hikariDataSource)
+```
+
+스키마 테이블은 최초 선출 호출 시 자동으로 생성됩니다.
+
+### 블로킹 단일 리더
+
+```kotlin
+val election = ExposedJdbcLeaderElection(db)
+
+val result = election.runIfLeader("daily-report") {
+    generateReport()
+}
+// result: 리더 노드에서는 generateReport() 결과, 나머지 노드는 null
+```
+
+### 비동기 단일 리더 (CompletableFuture)
+
+```kotlin
+val election = ExposedJdbcLeaderElection(db)
+
+val future: CompletableFuture<Report?> = election.runAsyncIfLeader(
+    lockName = "daily-report",
+    executor = executor,
+    action = { generateReportAsync() }   // CompletableFuture<Report> 반환
+)
+```
+
+### 블로킹 복수 리더 그룹
+
+```kotlin
+val options = ExposedJdbcLeaderGroupElectionOptions(
+    leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3)
+)
+val election = ExposedJdbcLeaderGroupElection(db, options)
+
+val result = election.runIfLeader("parallel-batch") {
+    processChunk()
+}
+// 최대 3개 노드가 동시 실행; 나머지는 null 반환
+```
+
+### 가상 스레드 단일 리더
+
+```kotlin
+val election = ExposedJdbcVirtualThreadLeaderElection(db)
+
+val result = election.runInVirtualThread("nightly-sync") {
+    syncData()
+}
+```
+
+### 옵션 커스터마이징
+
+```kotlin
+val options = ExposedJdbcLeaderElectionOptions(
+    leaderOptions = LeaderElectionOptions(
+        waitTime = Duration.ofSeconds(5),
+        leaseTime = Duration.ofMinutes(1)
+    ),
+    retryStrategy = RetryStrategy.Jitter(baseDelayMs = 50),
+    recordHistory = true,
+    lockOwner = "node-1"
+)
+val election = ExposedJdbcLeaderElection(db, options)
+```
+
+## 락 내부 동작
+
+`ExposedJdbcLock`은 단일 트랜잭션 내 **UPDATE+INSERT+SELECT** 패턴을 사용합니다:
+
+1. **UPDATE** `SET token=?, lockedUntil=? WHERE lockName=? AND lockedUntil < NOW()` — 만료된 락 갱신
+2. **INSERT** `(lockName, token, lockedUntil, ...)` — 행이 없으면 신규 삽입 (경합 시 PK 충돌 → 조용히 스킵)
+3. **SELECT** `WHERE lockName=? AND token=?` — 소유권 확인
+
+이 패턴은 DB 방언별 특수 문법 없이 모든 지원 DB에서 동작합니다.
+
+## 재시도 전략
+
+```kotlin
+sealed class RetryStrategy {
+    // Full jitter: [1ms, min(baseDelayMs, remaining)) 균등 분포
+    data class Jitter(val baseDelayMs: Long = 50L) : RetryStrategy()
+
+    // 지수 백오프, maxDelayMs 상한
+    data class Exponential(val baseDelayMs: Long = 50L, val maxDelayMs: Long = 5_000L) : RetryStrategy()
+
+    // 고정 간격
+    data class Fixed(val fixedMs: Long = 50L) : RetryStrategy()
+}
+```
+
+기본값은 `Jitter(50ms)` — 대부분의 OLTP 워크로드에 적합합니다.
+
+## 이력 기록
+
+`recordHistory = true`(기본: `false`)로 설정하면 각 선출 시도가 `LeaderLockHistoryTable`에 기록됩니다:
+
+| 상태 | 시점 |
+|------|------|
+| `ACQUIRED` | 락 획득 |
+| `COMPLETED` | action 정상 반환 |
+| `FAILED` | action 예외 발생 |
+
+이력 기록은 best-effort입니다 — 기록 실패가 락 동작에 영향을 주지 않습니다.
+
+## DB 호환성
+
+| DB | 테스트 버전 |
+|----|-----------|
+| H2 | 2.x (in-memory, 테스트용) |
+| PostgreSQL | 14+ |
+| MySQL | 8.0+ |
+
+## 의존성 추가
+
+```kotlin
+// build.gradle.kts
+implementation("io.github.bluetape4k.leader:leader-exposed-jdbc:0.1.0-SNAPSHOT")
+
+// Exposed + JDBC 드라이버가 클래스패스에 있어야 합니다
+implementation("org.jetbrains.exposed:exposed-jdbc:1.2.0")
+implementation("com.zaxxer:HikariCP:6.x.x")
+implementation("org.postgresql:postgresql:42.x.x")  // 또는 mysql-connector-j 등
+```
