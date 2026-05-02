@@ -27,14 +27,14 @@ class MongoLeaderElectionTest : AbstractMongoLeaderTest() {
     fun `runIfLeader - 리더로 선출되어 action을 실행하고 결과를 반환한다`() {
         val election = MongoLeaderElection(lockCollection)
 
-        val result = election.runIfLeader(randomLockName()) { "hello" }
+        val result = election.runIfLeader(randomName()) { "hello" }
 
         result shouldBeEqualTo "hello"
     }
 
     @Test
     fun `runIfLeader - 동일 lockName에 여러 스레드 동시 접근 시 최소 1개 이상 성공한다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
         val options = MongoLeaderElectionOptions(
             leaderOptions = LeaderElectionOptions(
                 waitTime = Duration.ofSeconds(5),
@@ -88,7 +88,7 @@ class MongoLeaderElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 전파되고 lock document가 삭제된다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
         val election = MongoLeaderElection(lockCollection)
 
         assertThrows<RuntimeException> {
@@ -103,7 +103,7 @@ class MongoLeaderElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `runIfLeader - action 예외 발생 후에도 lock이 해제되어 다음 호출이 성공한다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
         val election = MongoLeaderElection(lockCollection)
 
         runCatching { election.runIfLeader(lockName) { throw RuntimeException("실패") } }
@@ -114,7 +114,7 @@ class MongoLeaderElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `runIfLeader - 락 보유 중 짧은 waitTime으로 호출하면 null을 반환한다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
         val holderLock = MongoLock(lockCollection, lockName)
         holderLock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(10))
 
@@ -137,7 +137,7 @@ class MongoLeaderElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `runIfLeader - leaseTime 만료 후 takeover가 성공한다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
         val holderLock = MongoLock(lockCollection, lockName)
         holderLock.tryLock(Duration.ofSeconds(1), Duration.ofMillis(200))
 
@@ -158,7 +158,7 @@ class MongoLeaderElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `unlock - 토큰 불일치 시 예외 없이 경고 로그만 남긴다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
         val lock = MongoLock(lockCollection, lockName)
         lock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10))
 
@@ -173,7 +173,7 @@ class MongoLeaderElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `runAsyncIfLeader - 리더로 선출되어 비동기 action을 실행하고 결과를 반환한다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
         val election = MongoLeaderElection(lockCollection)
 
         val result = election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
@@ -185,7 +185,7 @@ class MongoLeaderElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `runAsyncIfLeader - action이 CF 반환 전 throw하면 CompletionException으로 전파되고 락이 해제된다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
         val election = MongoLeaderElection(lockCollection)
 
         assertThrows<CompletionException> {

@@ -39,15 +39,15 @@ class MongoLeaderGroupElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `runIfLeader - 리더로 선출되어 action을 실행하고 결과를 반환한다`() {
-        val result = election.runIfLeader(randomLockName()) { "hello" }
+        val result = election.runIfLeader(randomName()) { "hello" }
 
         result shouldBeEqualTo "hello"
     }
 
     @Test
     fun `runIfLeader - 서로 다른 lockName은 독립적인 슬롯 풀을 가진다`() {
-        val result1 = election.runIfLeader(randomLockName()) { "a" }
-        val result2 = election.runIfLeader(randomLockName()) { "b" }
+        val result1 = election.runIfLeader(randomName()) { "a" }
+        val result2 = election.runIfLeader(randomName()) { "b" }
 
         result1 shouldBeEqualTo "a"
         result2 shouldBeEqualTo "b"
@@ -55,7 +55,7 @@ class MongoLeaderGroupElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `runIfLeader - 동시 실행 중인 리더 수가 maxLeaders를 초과하지 않는다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
         val currentConcurrent = AtomicInteger(0)
         val peakConcurrent = AtomicInteger(0)
 
@@ -78,7 +78,7 @@ class MongoLeaderGroupElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `runIfLeader - action 예외 발생 후 슬롯이 반환되어 다음 호출이 성공한다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
         runCatching { election.runIfLeader(lockName) { throw RuntimeException("실패") } }
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
@@ -95,7 +95,7 @@ class MongoLeaderGroupElectionTest : AbstractMongoLeaderTest() {
             )
         )
         val singleElection = MongoLeaderGroupElection(groupLockCollection, shortWaitOptions)
-        val lockName = randomLockName()
+        val lockName = randomName()
         val acquiredLatch = CountDownLatch(1)
         val holdLatch = CountDownLatch(1)
         val executor = Executors.newSingleThreadExecutor()
@@ -127,7 +127,7 @@ class MongoLeaderGroupElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `state - 초기 상태는 activeCount=0, isEmpty=true, isFull=false이다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
         val state = election.state(lockName)
 
         state.lockName shouldBeEqualTo lockName
@@ -140,7 +140,7 @@ class MongoLeaderGroupElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `state - 슬롯 획득 중 activeCount가 증가하고 해제 후 0으로 돌아온다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
         val maxLeaders = 3
         // perSlotWait = 5s / 3 ≈ 1.67s → 최악 경우 3.3s 소요, 10s 이내 완료 보장
         val fastOptions = MongoLeaderGroupElectionOptions(
@@ -184,7 +184,7 @@ class MongoLeaderGroupElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `activeCount - 만료된 문서는 집계에서 제외된다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
 
         groupLockCollection.insertOne(
             Document("_id", "$lockName:slot:0")
@@ -197,7 +197,7 @@ class MongoLeaderGroupElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `runAsyncIfLeader - 리더로 선출되어 비동기 action을 실행하고 결과를 반환한다`() {
-        val result = election.runAsyncIfLeader(randomLockName(), VirtualThreadExecutor) {
+        val result = election.runAsyncIfLeader(randomName(), VirtualThreadExecutor) {
             futureOf { "async 성공" }
         }.get(5, TimeUnit.SECONDS)
 
@@ -206,7 +206,7 @@ class MongoLeaderGroupElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `runAsyncIfLeader - action 예외 발생 후 슬롯이 반환되어 다음 호출이 성공한다`() {
-        val lockName = randomLockName()
+        val lockName = randomName()
 
         assertThrows<CompletionException> {
             election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {

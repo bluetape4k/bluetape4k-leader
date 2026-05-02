@@ -46,7 +46,7 @@ abstract class AbstractMongoLeaderTest {
             coroutineDb.getCollection<Document>(MongoLock.GROUP_LOCK_COLLECTION_NAME)
         }
 
-        fun randomLockName(): String = "test-${Base58.randomString(8)}"
+        fun randomName(): String = "test-${Base58.randomString(8)}"
     }
 
     @BeforeEach

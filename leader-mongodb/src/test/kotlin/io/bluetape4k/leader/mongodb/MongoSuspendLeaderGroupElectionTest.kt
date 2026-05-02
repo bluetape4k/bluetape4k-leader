@@ -44,7 +44,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
     @Test
     fun `runIfLeader - 리더로 선출되어 suspend action을 실행하고 결과를 반환한다`() = runSuspendIO {
         val election = makeElection()
-        val lockName = randomLockName()
+        val lockName = randomName()
 
         val result = election.runIfLeader(lockName) { "success" }
 
@@ -55,7 +55,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
     fun `runIfLeader - 동시 실행 중인 리더 수가 maxLeaders를 초과하지 않는다`() = runSuspendIO {
         val maxLeaders = 3
         val election = makeElection(maxLeaders = maxLeaders)
-        val lockName = randomLockName()
+        val lockName = randomName()
         val currentConcurrent = AtomicInteger(0)
         val peakConcurrent = AtomicInteger(0)
 
@@ -78,7 +78,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
     @Test
     fun `runIfLeader - action 예외 발생 후 슬롯이 반환되어 다음 호출이 성공한다`() = runSuspendIO {
         val election = makeElection()
-        val lockName = randomLockName()
+        val lockName = randomName()
 
         runCatching {
             election.runIfLeader(lockName) { throw RuntimeException("슬롯 반환 테스트") }
@@ -100,7 +100,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
     @Test
     fun `activeCount와 availableSlots와 state는 non-suspend 메서드이다`() = runSuspendIO {
         val election = makeElection(maxLeaders = 3)
-        val lockName = randomLockName()
+        val lockName = randomName()
 
         val count = election.activeCount(lockName)
         val slots = election.availableSlots(lockName)
@@ -118,7 +118,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
     @Test
     fun `runIfLeader - 코루틴 취소 시 슬롯 문서가 삭제된다`() = runSuspendIO {
         val election = makeElection()
-        val lockName = randomLockName()
+        val lockName = randomName()
 
         val acquired = CompletableDeferred<Unit>()
 
@@ -141,7 +141,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `runIfLeader - 모든 슬롯 포화 시 짧은 waitTime으로 null을 반환한다`() = runSuspendIO {
-        val lockName = randomLockName()
+        val lockName = randomName()
         val holdingElection = makeElection(maxLeaders = 1, waitTime = Duration.ofSeconds(10))
         val shortWaitElection = makeElection(maxLeaders = 1, waitTime = Duration.ofMillis(50))
 

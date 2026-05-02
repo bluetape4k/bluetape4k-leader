@@ -26,7 +26,7 @@ class MongoSuspendLeaderElectionTest : AbstractMongoLeaderTest() {
     @Test
     fun `runIfLeader - 리더로 선출되어 suspend action을 실행하고 결과를 반환한다`() = runSuspendIO {
         val election = MongoSuspendLeaderElection(coroutineLockCollection)
-        val lockName = randomLockName()
+        val lockName = randomName()
 
         val result = election.runIfLeader(lockName) { "success" }
 
@@ -36,7 +36,7 @@ class MongoSuspendLeaderElectionTest : AbstractMongoLeaderTest() {
     @Test
     fun `runIfLeader - 코루틴 10개 동시 실행 시 최소 1개 이상 성공한다`() = runSuspendIO {
         val election = MongoSuspendLeaderElection(coroutineLockCollection)
-        val lockName = randomLockName()
+        val lockName = randomName()
         val successCount = AtomicInteger(0)
 
         val jobs = (1..10).map {
@@ -82,7 +82,7 @@ class MongoSuspendLeaderElectionTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `runIfLeader - 락 보유 중 짧은 waitTime으로 경합하면 null을 반환한다`() = runSuspendIO {
-        val lockName = randomLockName()
+        val lockName = randomName()
         val holdingElection = MongoSuspendLeaderElection(coroutineLockCollection)
         val shortWaitElection = MongoSuspendLeaderElection(
             coroutineLockCollection,
@@ -116,7 +116,7 @@ class MongoSuspendLeaderElectionTest : AbstractMongoLeaderTest() {
     @Test
     fun `runIfLeader - action이 예외를 던지면 예외가 호출자에게 전파된다`() = runSuspendIO {
         val election = MongoSuspendLeaderElection(coroutineLockCollection)
-        val lockName = randomLockName()
+        val lockName = randomName()
 
         val result = runCatching {
             election.runIfLeader(lockName) { throw RuntimeException("테스트 예외") }
@@ -128,7 +128,7 @@ class MongoSuspendLeaderElectionTest : AbstractMongoLeaderTest() {
     @Test
     fun `runIfLeader - action 예외 발생 후 lock이 해제되어 다음 호출이 성공한다`() = runSuspendIO {
         val election = MongoSuspendLeaderElection(coroutineLockCollection)
-        val lockName = randomLockName()
+        val lockName = randomName()
 
         runCatching {
             election.runIfLeader(lockName) { throw RuntimeException("실패") }
@@ -141,7 +141,7 @@ class MongoSuspendLeaderElectionTest : AbstractMongoLeaderTest() {
     @Test
     fun `runIfLeader - 코루틴 취소 시 락 문서가 삭제된다`() = runSuspendIO {
         val election = MongoSuspendLeaderElection(coroutineLockCollection)
-        val lockName = randomLockName()
+        val lockName = randomName()
 
         val acquired = CompletableDeferred<Unit>()
 
@@ -163,7 +163,7 @@ class MongoSuspendLeaderElectionTest : AbstractMongoLeaderTest() {
     @Test
     fun `runIfLeader - 반복 실행 시 매번 성공한다`() = runSuspendIO {
         val election = MongoSuspendLeaderElection(coroutineLockCollection)
-        val lockName = randomLockName()
+        val lockName = randomName()
 
         repeat(5) { i ->
             val result = election.runIfLeader(lockName) { "round-$i" }
