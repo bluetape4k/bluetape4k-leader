@@ -3,7 +3,7 @@
 - 작성일: 2026-05-02
 - 모듈: `leader-exposed-jdbc`
 - 워크트리: `.worktrees/feat/issue-21-exposed-jdbc`
-- 상태: Draft v2 (2-R Critic 반영)
+- 상태: Draft v3 (Codex 리뷰 반영)
 - 베이스 브랜치: `develop`
 - 선행 모듈: `leader-exposed-core` (스키마 정의 — 이미 구현 완료)
 - 참조 구현: `leader-mongodb` (MongoLock 패턴)
@@ -91,11 +91,17 @@ api(libs.exposed.java.time)
 
 // bluetape4k exposed JDBC 테스트 유틸리티 (TestDB, withDb, withTables)
 testImplementation(libs.bluetape4k.exposed.jdbc.tests)
+
+// bluetape4k-exposed-jdbc (VirtualThread 아님 — virtualFuture는 bluetape4k.core 전이 의존성으로 제공됨)
+// 이 의존성은 실제 필요한 API가 확인된 경우에만 추가
+// api(libs.bluetape4k.exposed.jdbc)  // ← 현재 불필요, 제거
 ```
 
 **근거**: `leader-exposed-core/build.gradle.kts`가 H2 + MySQL + `bluetape4k.exposed.jdbc.tests`를 포함하고 있으며,
 `AbstractExposedTableTest`의 `enableDialects()`가 H2, POSTGRESQL, MYSQL_V8을 반환합니다.
 동일한 3-DB 테스트 매트릭스를 사용해야 합니다.
+
+> **[Codex M6]** `virtualFuture`/`VirtualFuture`는 `bluetape4k.core` → `leader-core` 전이 의존성으로 제공. `bluetape4k.exposed.jdbc` 별도 추가 불필요.
 
 ---
 
@@ -136,19 +142,22 @@ testImplementation(libs.bluetape4k.exposed.jdbc.tests)
 #### 단일 리더 락 획득 시퀀스 (ExposedJdbcLock.tryLock — UPDATE+INSERT 방식)
 
 ```
+// ExposedJdbcLock 인스턴스 생성 시 token 1회 발급 (MongoDB MongoLock과 동일)
+// val token = UUID.randomUUID().toString()  ← 인스턴스 필드, 매 시도마다 재생성하지 않음
+
 ┌─ deadline = now + waitTime ──────────────────────────────────────────┐
 │                                                                        │
+│  var attempt = 0                                                       │
 │  do {                                                                  │
 │    // 트랜잭션 시작 (기본 격리: READ_COMMITTED)                          │
 │    val acquired = transaction(db) {                                    │
-│      val newToken = UUID.randomUUID().toString()                       │
 │      val now = Instant.now()                                           │
 │                                                                        │
-│      // Step 1: 만료된 락 갱신 시도                                      │
+│      // Step 1: 만료된 락 갱신 시도 (내 token으로)                       │
 │      val updated = LeaderLockTable.update(                             │
 │        where = { (lockName eq name) and (lockedUntil less now) }       │
 │      ) {                                                               │
-│        it[token] = newToken                                            │
+│        it[token] = this@ExposedJdbcLock.token  // 인스턴스 필드        │
 │        it[lockedAt] = now                                              │
 │        it[lockedUntil] = now + leaseTime                               │
 │      }                                                                 │
@@ -158,7 +167,7 @@ testImplementation(libs.bluetape4k.exposed.jdbc.tests)
 │        runCatching {                                                   │
 │          LeaderLockTable.insert {                                       │
 │            it[lockName] = name                                         │
-│            it[token] = newToken                                        │
+│            it[token] = this@ExposedJdbcLock.token  // 인스턴스 필드   │
 │            it[lockedAt] = now                                          │
 │            it[lockedUntil] = now + leaseTime                           │
 │          }                                                             │
@@ -171,11 +180,13 @@ testImplementation(libs.bluetape4k.exposed.jdbc.tests)
 │        .where { LeaderLockTable.lockName eq name }                     │
 │        .singleOrNull()?.get(LeaderLockTable.token)                     │
 │                                                                        │
-│      storedToken == newToken  // 내 token이면 획득 성공                   │
+│      storedToken == token  // 인스턴스 token과 일치하면 획득 성공          │
 │    } // 트랜잭션 종료 — connection 반납                                   │
 │                                                                        │
 │    if (acquired) return true                                           │
-│    retryStrategy.sleep(deadline - now)  // 트랜잭션 바깥에서 sleep       │
+│    val remaining = deadline.toEpochMilli() - Instant.now().toEpochMilli()
+│    if (remaining <= 0) break                                           │
+│    Thread.sleep(retryStrategy.delayMs(attempt++, remaining))  // 트랜잭션 바깥에서 sleep
 │  } while (Instant.now() < deadline)                                    │
 │                                                                        │
 │  return false  (타임아웃)                                               │
@@ -183,8 +194,9 @@ testImplementation(libs.bluetape4k.exposed.jdbc.tests)
 ```
 
 **핵심 포인트**:
+- **token 1개 원칙**: 인스턴스 생성 시 1회 발급. `tryLock` 성공 후 `unlock`/`isHeldByCurrentInstance`/`history`가 동일 token 사용 (MongoDB 패턴 동일)
 - UPDATE + INSERT + SELECT가 **단일 `transaction {}` 블록** 내에서 실행됨 (원자성 보장)
-- `retryStrategy.sleep()`은 **트랜잭션 블록 바깥**에서 실행 → connection 반납 후 sleep (HikariCP 풀 고갈 방지)
+- `Thread.sleep(retryStrategy.delayMs(...))`는 **트랜잭션 블록 바깥**에서 실행 → connection 반납 후 sleep (HikariCP 풀 고갈 방지)
 - `UPDATE WHERE lockedUntil < now`로 유효한 락은 절대 덮어쓰지 않음 (안전 속성 보장)
 - PK 충돌은 `runCatching`으로 포착 → retry 루프 계속
 
@@ -299,37 +311,61 @@ LeaderGroupLockTable.deleteWhere {
 
 #### 이력 기록 흐름
 
+> **[Codex H3 수정]** `historyId`를 transaction 바깥으로 반환. action은 `try/catch/finally` 계약으로 명시. audit 실패 정책: **best-effort** (audit 저장 실패가 리더 실행을 실패시키지 않음).
+
 ```kotlin
 // recordHistory = true일 때만 실행
-if (options.recordHistory) {
-    transaction {
-        // 1. ACQUIRED 이력 삽입 (action 실행 전)
-        val historyId = LeaderLockHistoryTable.insert {
-            it[lockName] = name
-            it[lockOwner] = owner
-            it[token] = currentToken
-            it[slot] = slotNumber        // 그룹 락이면 슬롯 번호, 단일 락이면 null
-            it[lockedUntil] = expireAt
-            it[status] = HistoryStatus.ACQUIRED.name
-            it[startedAt] = now
-        } get LeaderLockHistoryTable.id
-    }
-
-    // 2. action 실행
-    val result = action()
-
-    // 3. COMPLETED/FAILED 이력 업데이트 (action 완료 후)
-    transaction {
-        LeaderLockHistoryTable.update(
-            where = { LeaderLockHistoryTable.id eq historyId }
-        ) {
-            it[status] = HistoryStatus.COMPLETED.name  // 또는 FAILED
-            it[finishedAt] = Instant.now()
-            it[durationMs] = elapsed
+// historyId는 transaction 밖의 지역 변수 (스코프 문제 해결)
+val historyId: Long? = if (options.recordHistory) {
+    // 1. ACQUIRED 이력 삽입 (action 실행 전, 별도 트랜잭션)
+    runCatching {
+        transaction(db) {
+            LeaderLockHistoryTable.insert {
+                it[lockName] = name
+                it[lockOwner] = owner
+                it[token] = lock.token   // 인스턴스 token (수명 통일)
+                it[slot] = slotNumber    // 그룹 락이면 슬롯 번호, 단일 락이면 null
+                it[lockedUntil] = expireAt
+                it[status] = HistoryStatus.ACQUIRED.name
+                it[startedAt] = startedAt
+            } get LeaderLockHistoryTable.id
         }
+    }.getOrElse { e ->
+        log.warn(e) { "이력 ACQUIRED 기록 실패 (best-effort). lockName=$name" }
+        null  // audit 실패는 리더 실행을 막지 않음
+    }
+} else null
+
+// 2. action 실행 — try/catch/finally 계약
+var actionFailed = false
+val result = try {
+    action()
+} catch (e: Throwable) {
+    actionFailed = true
+    throw e  // 예외 재전파 (CancellationException 포함)
+} finally {
+    // 3. COMPLETED/FAILED 이력 업데이트 (action 완료/실패 후, best-effort)
+    if (historyId != null) {
+        val finishedAt = Instant.now()
+        runCatching {
+            transaction(db) {
+                LeaderLockHistoryTable.update(
+                    where = { LeaderLockHistoryTable.id eq historyId }
+                ) {
+                    it[status] = if (actionFailed) HistoryStatus.FAILED.name else HistoryStatus.COMPLETED.name
+                    it[this.finishedAt] = finishedAt
+                    it[durationMs] = finishedAt.toEpochMilli() - startedAt.toEpochMilli()
+                }
+            }
+        }.onFailure { e -> log.warn(e) { "이력 완료 기록 실패 (best-effort). lockName=$name" } }
     }
 }
 ```
+
+**audit 실패 정책: best-effort**
+- ACQUIRED/COMPLETED/FAILED 이력 INSERT/UPDATE 실패는 warn 로그만 남기고 무시
+- `runIfLeader` never-throws 계약을 audit 실패로 깨지 않음
+- `actionFailed` 플래그로 `finally` 블록에서 action 예외 여부 판별
 
 ### 3.4 재시도 전략 (RetryStrategy)
 
@@ -337,20 +373,23 @@ if (options.recordHistory) {
 
 #### RetryStrategy 설계
 
+> **[Codex M5 수정]** `nextDelayMs` → `delayMs`. `sleep`은 전략에서 제거, 호출부에서 `Thread.sleep(retryStrategy.delayMs(...))` 사용. Jitter 프로퍼티와 메서드 파라미터 중복 제거.
+
 ```kotlin
 sealed class RetryStrategy {
-    abstract fun nextDelayMs(attempt: Int, baseDelayMs: Long, remaining: Long): Long
+    /** 다음 대기 시간(ms) 반환. 호출부에서 Thread.sleep()으로 실행. */
+    abstract fun delayMs(attempt: Int, remaining: Long): Long
 
-    /** AWS full jitter: [1ms, baseDelay) 균등 분포 — thundering herd 방지 (기본값) */
+    /** AWS full jitter: [1ms, baseDelayMs) 균등 분포 — thundering herd 방지 (기본값) */
     data class Jitter(val baseDelayMs: Long = 50L) : RetryStrategy() {
-        override fun nextDelayMs(attempt: Int, baseDelayMs: Long, remaining: Long): Long =
+        override fun delayMs(attempt: Int, remaining: Long): Long =
             ThreadLocalRandom.current().nextLong(1, baseDelayMs.coerceAtLeast(2))
                 .coerceAtMost(remaining)
     }
 
-    /** 지수 백오프: min(baseDelay * 2^attempt, maxDelay) — 드문 재시도에 유리 */
+    /** 지수 백오프: min(baseDelayMs * 2^attempt, maxDelayMs) — 드문 재시도에 유리 */
     data class Exponential(val baseDelayMs: Long = 50L, val maxDelayMs: Long = 5_000L) : RetryStrategy() {
-        override fun nextDelayMs(attempt: Int, baseDelayMs: Long, remaining: Long): Long =
+        override fun delayMs(attempt: Int, remaining: Long): Long =
             (baseDelayMs * (1L shl attempt.coerceAtMost(10)))
                 .coerceAtMost(maxDelayMs)
                 .coerceAtMost(remaining)
@@ -358,10 +397,16 @@ sealed class RetryStrategy {
 
     /** 고정 간격: 항상 fixedMs 대기 — 단순/예측 가능 */
     data class Fixed(val fixedMs: Long = 50L) : RetryStrategy() {
-        override fun nextDelayMs(attempt: Int, baseDelayMs: Long, remaining: Long): Long =
+        override fun delayMs(attempt: Int, remaining: Long): Long =
             fixedMs.coerceAtMost(remaining)
     }
 }
+```
+
+**사용 패턴** (호출부):
+```kotlin
+// tryLock 내부 retry 루프
+Thread.sleep(retryStrategy.delayMs(attempt++, remaining))
 ```
 
 #### 전략별 비교
@@ -402,17 +447,22 @@ data class ExposedJdbcLeaderElectionOptions(
 - JDBC 블로킹 I/O를 VirtualThread에서 실행 → carrier thread 반납 → 플랫폼 스레드 풀 효율 증가
 - `VirtualFuture<T?>` 반환으로 `VirtualThreadLeaderElection` 인터페이스 계약 충족
 
-#### 추가 의존성
+#### virtualFuture 의존성 경로
+
+> **[Codex M6 수정]** `virtualFuture`/`VirtualFuture`는 `io.bluetape4k.concurrent.virtualthread` 패키지에 있으며,
+> `bluetape4k-core`가 제공합니다 (`io.github.bluetape4k:bluetape4k-core`).
+> `leader-core`가 `api(libs.bluetape4k.core)`로 노출하므로 `leader-exposed-jdbc`는 전이 의존성으로 이미 사용 가능합니다.
+> **별도 의존성 추가 불필요**.
 
 ```kotlin
-// build.gradle.kts에 추가 필요
-api(libs.bluetape4k.exposed.jdbc)  // virtualFuture, VirtualFuture
+// leader-core → api(libs.bluetape4k.core) → virtualFuture, VirtualFuture 전이 노출됨
+// leader-exposed-jdbc: api(project(":leader-core")) 에서 자동 제공
+
+// import io.bluetape4k.concurrent.virtualthread.VirtualFuture
+// import io.bluetape4k.concurrent.virtualthread.virtualFuture
 ```
 
-`libs.versions.toml`에 다음 항목 추가 필요:
-```toml
-bluetape4k-exposed-jdbc = { module = "io.github.bluetape4k:bluetape4k-exposed-jdbc" }
-```
+Section 2.3의 `bluetape4k.exposed.jdbc` 의존성은 **VirtualThread 때문이 아닌 다른 필요성이 없으면 제거합니다**.
 
 ---
 
@@ -462,8 +512,10 @@ class ExposedJdbcGroupLock(
 
 ### 4.3 ExposedJdbcLeaderElection
 
+> **[Codex H2 수정]** 생성자를 `private`으로 강제. 모든 진입점(확장 함수 포함)이 반드시 `invoke` 팩토리를 통과하여 `ensureSchema` 보장.
+
 ```kotlin
-class ExposedJdbcLeaderElection(
+class ExposedJdbcLeaderElection private constructor(  // private — 직접 생성 금지
     private val db: Database,
     val options: ExposedJdbcLeaderElectionOptions = ExposedJdbcLeaderElectionOptions.Default,
 ) : LeaderElection {
@@ -473,7 +525,7 @@ class ExposedJdbcLeaderElection(
             db: Database,
             options: ExposedJdbcLeaderElectionOptions = ExposedJdbcLeaderElectionOptions.Default,
         ): ExposedJdbcLeaderElection {
-            ensureSchema(db)
+            ensureSchema(db)                          // 항상 보장
             return ExposedJdbcLeaderElection(db, options)
         }
     }
@@ -484,14 +536,17 @@ class ExposedJdbcLeaderElection(
 ```
 
 **패턴**: MongoDB `MongoLeaderElection`과 1:1 대응.
-- `companion object`에 `invoke` 팩토리 — 스키마 초기화 보장
+- 생성자 `private` → 외부에서 직접 생성 불가. 반드시 `ExposedJdbcLeaderElection(db, options)` (invoke) 경유
+- 확장 함수(`Database.runIfLeader`)도 `ExposedJdbcLeaderElection(this, options)` → 내부적으로 `invoke` 호출 (스키마 초기화 보장)
 - `runIfLeader`: lockName 검증 → `ExposedJdbcLock.tryLock` → action 실행 → `finally { lock.unlock() }`
 - `runAsyncIfLeader`: `CompletableFuture.supplyAsync` + `thenComposeAsync` 체인 (MongoDB 패턴 동일)
 
 ### 4.4 ExposedJdbcLeaderGroupElection
 
+> **[Codex H2 수정]** 동일: `private constructor` + `companion invoke`로 `ensureSchema` 보장.
+
 ```kotlin
-class ExposedJdbcLeaderGroupElection(
+class ExposedJdbcLeaderGroupElection private constructor(  // private — 직접 생성 금지
     private val db: Database,
     val options: ExposedJdbcLeaderGroupElectionOptions = ExposedJdbcLeaderGroupElectionOptions.Default,
 ) : LeaderGroupElection {
@@ -622,14 +677,25 @@ fun ensureSchema(db: Database) {
 
 ## 7. 인터페이스 계약 (runIfLeader never-throws)
 
+> **[Codex M4 수정]** lock 계층(Boolean)과 election 계층(T?) 반환값 분리.
+
+### Lock 계층 (`ExposedJdbcLock.tryLock(): Boolean`)
+
+| 결과 상황 | 반환값 |
+|---|---|
+| 락 획득 성공 | `true` |
+| 락 획득 실패 (`waitTime` 초과) | `false` |
+| PK 충돌 (재시도 후 타임아웃) | `false` |
+| DB 연결 오류 등 SQL 예외 | `false` + warn 로그 (재시도 없음) |
+
+### Election 계층 (`ExposedJdbcLeaderElection.runIfLeader(): T?`)
+
 | 결과 상황 | 반환값 / 동작 |
 |---|---|
-| 락 획득 성공 → action 정상 종료 | `action()` 의 반환값 |
-| 락 획득 실패 (`waitTime` 초과) | `null` |
-| PK 충돌 (`ExposedSQLException`, duplicate key) | 재시도 후 `null` |
-| SQL 예외 (connection 오류 등) | **즉시 `false`** (warn 로그, 재시도 없음) |
-| `action()` 내부에서 throw | 예외 전파, finally에서 락 해제 |
-| `lockName.isBlank()` | `IllegalArgumentException` |
+| `tryLock() == true` → action 정상 종료 | `action()` 의 반환값 (`T`) |
+| `tryLock() == false` (락 미획득) | `null` |
+| `action()` 내부에서 throw | 예외 전파, `finally { lock.unlock() }` |
+| `lockName.isBlank()` | `IllegalArgumentException` (validate 단계에서 즉시) |
 | `lockName` 규칙 위반 | `IllegalArgumentException` (공통 `validateLockName()`) |
 
 **MongoDB와의 차이**: MongoDB는 `MongoCommandException`/`MongoWriteException` 등 세분화된 예외 분기가 필요하지만,
