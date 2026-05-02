@@ -9,25 +9,27 @@ plugins {
     base
     `maven-publish`
     signing
-    kotlin("jvm") version Versions.kotlin
+    alias(libs.plugins.kotlin.jvm)
 
-    kotlin("plugin.spring") version Versions.kotlin apply false
-    kotlin("plugin.allopen") version Versions.kotlin apply false
-    kotlin("plugin.noarg") version Versions.kotlin apply false
-    kotlin("plugin.serialization") version Versions.kotlin apply false
-    id("org.jetbrains.kotlinx.atomicfu") version Versions.kotlinx_atomicfu
+    alias(libs.plugins.kotlin.spring) apply false
+    alias(libs.plugins.kotlin.allopen) apply false
+    alias(libs.plugins.kotlin.noarg) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
+    alias(libs.plugins.kotlinx.atomicfu)
 
-    id(Plugins.detekt) version Plugins.Versions.detekt
-    id(Plugins.dependency_management) version Plugins.Versions.dependency_management
+    alias(libs.plugins.detekt)
+    alias(libs.plugins.dependency.management)
 
-    id(Plugins.dokka) version Plugins.Versions.dokka
-    id(Plugins.testLogger) version Plugins.Versions.testLogger
+    alias(libs.plugins.dokka)
+    alias(libs.plugins.test.logger)
 
-    id(Plugins.nmcp_aggregation) version Plugins.Versions.nmcp
-    id(Plugins.nmcp) version Plugins.Versions.nmcp apply false
+    alias(libs.plugins.nmcp.aggregation)
+    alias(libs.plugins.nmcp) apply false
 
-    id(Plugins.kover) version Plugins.Versions.kover
+    alias(libs.plugins.kover)
 }
+
+val rootLibs = libs
 
 val centralPublishing = resolveCentralPublishingConfig()
 val centralUser: String = centralPublishing.username
@@ -63,7 +65,7 @@ allprojects {
 
 subprojects {
     if (name != "leader-bom") {
-        apply(plugin = Plugins.nmcp)
+        apply(plugin = "com.gradleup.nmcp")
     }
 
     configurations.matching { it.name.startsWith("nmcp") }.configureEach {
@@ -75,7 +77,7 @@ subprojects {
         }
     }
 
-    plugins.withId(Plugins.nmcp) {
+    plugins.withId("com.gradleup.nmcp") {
         extensions.configure<NmcpExtension>("nmcp") {
             publishAllPublicationsToCentralPortal {
                 username.set(centralUser)
@@ -96,12 +98,12 @@ subprojects {
         plugin<JavaLibraryPlugin>()
         plugin("org.jetbrains.kotlin.jvm")
         plugin("org.jetbrains.kotlinx.atomicfu")
-        plugin(Plugins.kover)
+        plugin("org.jetbrains.kotlinx.kover")
         plugin("maven-publish")
         plugin("signing")
-        plugin(Plugins.dependency_management)
-        plugin(Plugins.dokka)
-        plugin(Plugins.testLogger)
+        plugin("io.spring.dependency-management")
+        plugin("org.jetbrains.dokka")
+        plugin("com.adarshr.test-logger")
     }
 
     pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
@@ -223,12 +225,12 @@ subprojects {
     dependencyManagement {
         setApplyMavenExclusions(false)
         imports {
-            mavenBom(Libs.bluetape4k_bom)
-            mavenBom(Libs.kotlinx_coroutines_bom)
-            mavenBom(Libs.kotlin_bom)
-            mavenBom(Libs.junit_bom)
-            mavenBom(Libs.micrometer_bom)
-            mavenBom(Libs.testcontainers_bom)
+            mavenBom(rootLibs.bluetape4k.bom.get().toString())
+            mavenBom(rootLibs.kotlinx.coroutines.bom.get().toString())
+            mavenBom(rootLibs.kotlin.bom.get().toString())
+            mavenBom(rootLibs.junit.bom.get().toString())
+            mavenBom(rootLibs.micrometer.bom.get().toString())
+            mavenBom(rootLibs.testcontainers.bom.get().toString())
         }
     }
 
@@ -238,28 +240,28 @@ subprojects {
         val testImplementation by configurations
         val testRuntimeOnly by configurations
 
-        api(Libs.jetbrains_annotations)
+        api(rootLibs.jetbrains.annotations)
 
-        implementation(Libs.kotlin_stdlib)
-        implementation(Libs.kotlin_reflect)
-        testImplementation(Libs.kotlin_test)
-        testImplementation(Libs.kotlin_test_junit5)
+        implementation(rootLibs.kotlin.stdlib)
+        implementation(rootLibs.kotlin.reflect)
+        testImplementation(rootLibs.kotlin.test)
+        testImplementation(rootLibs.kotlin.test.junit5)
 
-        implementation(Libs.kotlinx_coroutines_core)
-        implementation(Libs.kotlinx_atomicfu)
+        implementation(rootLibs.kotlinx.coroutines.core)
+        implementation(rootLibs.kotlinx.atomicfu)
 
-        api(Libs.slf4j_api)
-        testImplementation(Libs.logback)
-        testImplementation(Libs.jcl_over_slf4j)
-        testImplementation(Libs.jul_to_slf4j)
-        testImplementation(Libs.log4j_over_slf4j)
+        api(rootLibs.slf4j.api)
+        testImplementation(rootLibs.logback)
+        testImplementation(rootLibs.jcl.over.slf4j)
+        testImplementation(rootLibs.jul.to.slf4j)
+        testImplementation(rootLibs.log4j.over.slf4j)
 
-        testImplementation(Libs.junit_jupiter)
-        testRuntimeOnly(Libs.junit_platform_engine)
+        testImplementation(rootLibs.junit.jupiter)
+        testRuntimeOnly(rootLibs.junit.platform.engine)
 
-        testImplementation(Libs.kluent)
-        testImplementation(Libs.awaitility_kotlin)
-        testImplementation(Libs.mockk)
+        testImplementation(rootLibs.kluent)
+        testImplementation(rootLibs.awaitility.kotlin)
+        testImplementation(rootLibs.mockk)
     }
 
     publishing {

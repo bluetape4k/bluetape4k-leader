@@ -7,18 +7,18 @@ dependencies {
     api(project(":leader-exposed-core"))
 
     // Exposed R2DBC
-    api(Libs.exposed_core)
-    api(Libs.exposed_r2dbc)
-    api(Libs.exposed_kotlin_datetime)
+    api(libs.exposed.core)
+    api(libs.exposed.r2dbc)
+    api(libs.exposed.kotlin.datetime)
 
     // R2DBC PostgreSQL
-    compileOnly(Libs.r2dbc_postgresql)
+    compileOnly(libs.r2dbc.postgresql)
 
-    testImplementation(Libs.bluetape4k_junit5)
-    testImplementation(Libs.bluetape4k_testcontainers)
-    testImplementation(Libs.kotlinx_coroutines_test)
-    testImplementation(Libs.r2dbc_postgresql)
-    testImplementation(Libs.testcontainers)
-    testImplementation(Libs.testcontainers_junit_jupiter)
-    testImplementation(Libs.testcontainers_postgresql)
+    testImplementation(libs.bluetape4k.junit5)
+    testImplementation(libs.bluetape4k.testcontainers)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.r2dbc.postgresql)
+    testImplementation(libs.testcontainers)
+    testImplementation(libs.testcontainers.junit.jupiter)
+    testImplementation(libs.testcontainers.postgresql)
 }

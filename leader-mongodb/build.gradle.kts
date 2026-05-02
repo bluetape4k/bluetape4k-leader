@@ -4,15 +4,15 @@ configurations {
 
 dependencies {
     api(project(":leader-core"))
-    api(Libs.mongodb_driver_sync)
-    compileOnly(Libs.mongodb_driver_kotlin_coroutine)
+    api(libs.mongodb.driver.sync)
+    compileOnly(libs.mongodb.driver.kotlin.coroutine)
 
-    testImplementation(Libs.bluetape4k_junit5)
-    testImplementation(Libs.kotlinx_coroutines_test)
-    testImplementation(Libs.mongodb_driver_kotlin_coroutine)
+    testImplementation(libs.bluetape4k.junit5)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.mongodb.driver.kotlin.coroutine)
 
-    testImplementation(Libs.bluetape4k_testcontainers)
-    testImplementation(Libs.testcontainers)
-    testImplementation(Libs.testcontainers_junit_jupiter)
-    testImplementation(Libs.testcontainers_mongodb)
+    testImplementation(libs.bluetape4k.testcontainers)
+    testImplementation(libs.testcontainers)
+    testImplementation(libs.testcontainers.junit.jupiter)
+    testImplementation(libs.testcontainers.mongodb)
 }

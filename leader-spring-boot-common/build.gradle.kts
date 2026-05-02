@@ -1,5 +1,5 @@
 dependencies {
     api(project(":leader-core"))
 
-    testImplementation(Libs.bluetape4k_junit5)
+    testImplementation(libs.bluetape4k.junit5)
 }

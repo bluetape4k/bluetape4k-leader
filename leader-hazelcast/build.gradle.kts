@@ -4,11 +4,11 @@ configurations {
 
 dependencies {
     api(project(":leader-core"))
-    api(Libs.hazelcast)
+    api(libs.hazelcast)
 
-    testImplementation(Libs.bluetape4k_junit5)
-    testImplementation(Libs.bluetape4k_testcontainers)
-    testImplementation(Libs.kotlinx_coroutines_test)
-    testImplementation(Libs.testcontainers)
-    testImplementation(Libs.testcontainers_junit_jupiter)
+    testImplementation(libs.bluetape4k.junit5)
+    testImplementation(libs.bluetape4k.testcontainers)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.testcontainers)
+    testImplementation(libs.testcontainers.junit.jupiter)
 }

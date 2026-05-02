@@ -1,7 +1,7 @@
 plugins {
-    kotlin("plugin.spring")
-    kotlin("plugin.allopen")
-    id(Plugins.spring_boot) version Plugins.Versions.spring_boot3 apply false
+    alias(libs.plugins.kotlin.spring)
+    alias(libs.plugins.kotlin.allopen)
+    alias(libs.plugins.spring.boot3) apply false
 }
 
 configurations {
@@ -10,7 +10,7 @@ configurations {
 
 dependencyManagement {
     imports {
-        mavenBom(Libs.spring_boot3_dependencies)
+        mavenBom(libs.spring.boot3.dependencies.get().toString())
     }
 }
 
@@ -24,18 +24,18 @@ dependencies {
     compileOnly(project(":leader-hazelcast"))
     compileOnly(project(":leader-micrometer"))
 
-    api(Libs.spring_boot_autoconfigure)
-    compileOnly(Libs.spring_boot_configuration_processor)
-    compileOnly(Libs.spring_context)
-    compileOnly(Libs.spring_tx)
+    api(libs.spring.boot.autoconfigure)
+    compileOnly(libs.spring.boot.configuration.processor)
+    compileOnly(libs.spring.context)
+    compileOnly(libs.spring.tx)
 
-    testImplementation(Libs.bluetape4k_junit5)
-    testImplementation(Libs.kotlinx_coroutines_test)
-    testImplementation(Libs.spring_boot_test)
-    testImplementation(Libs.springmockk)
+    testImplementation(libs.bluetape4k.junit5)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.spring.boot.test)
+    testImplementation(libs.springmockk)
     testImplementation(project(":leader-redis-redisson"))
-    testImplementation(Libs.testcontainers)
-    testImplementation(Libs.testcontainers_junit_jupiter)
+    testImplementation(libs.testcontainers)
+    testImplementation(libs.testcontainers.junit.jupiter)
 }
 
 // Spring Boot Configuration Processor
