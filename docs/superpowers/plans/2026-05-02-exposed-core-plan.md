@@ -11,9 +11,10 @@
 
 ```
 Group 0 (병렬, 선행 없음)
-├── T1: gradle/libs.versions.toml 의존성 추가
-├── T2: ExposedLeaderConstants.kt 상수 정의
-└── T3: HistoryStatus.kt 열거형 작성
+├── T1:  gradle/libs.versions.toml 의존성 추가
+├── T2:  ExposedLeaderConstants.kt 상수 정의
+├── T3:  HistoryStatus.kt 열거형 작성
+└── T16: junit-platform.properties  ← [HIGH-1] T11 실행 전 배치 필수
 
 Group 1 (T1 완료 후)
 └── T4: leader-exposed-core/build.gradle.kts 업데이트
@@ -27,10 +28,10 @@ Group 3 (T5, T6, T7 완료 후)
 └── T8: ExposedLeaderSchema.kt
 
 Group 4 (T1 완료 후, Group 0~3과 독립)
-├── T9:  validateLockName() → leader-core 이동
-└── T10: leader-mongodb import 경로 수정 (T9 완료 후)
+├── T9:  validateLockName() 2-tier 설계 (core + MongoDB)
+└── T10: leader-mongodb import 경로 수정 + MongoLock.kt 업데이트 (T9 완료 후)
 
-Group 5 (T4 완료 후)
+Group 5 (T4, T16 완료 후)
 └── T11: AbstractExposedTableTest.kt 테스트 베이스
 
 Group 6 (T5+T11, T6+T11, T7+T11, T8+T11 완료 후 — 병렬)
@@ -39,10 +40,9 @@ Group 6 (T5+T11, T6+T11, T7+T11, T8+T11 완료 후 — 병렬)
 ├── T14: LeaderLockHistoryTableTest.kt
 └── T15: ExposedLeaderSchemaTest.kt
 
-Group 7 (T12~T15 완료 후)
-├── T16: junit-platform.properties
+Group 7 (T12~T15, T10 완료 후)
 ├── T17: 전체 빌드 + 테스트 검증
-└── T18: MongoDB 모듈 회귀 테스트 (T10 완료 후)
+└── T18: MongoDB 모듈 회귀 테스트
 
 Group 8 (T17, T18 완료 후)
 └── T19: README.md + README.ko.md 작성
@@ -273,6 +273,8 @@ Group 8 (T17, T18 완료 후)
     ```
   - import: `LeaderLockTable`, `LeaderGroupLockTable`, `LeaderLockHistoryTable`, `org.jetbrains.exposed.v1.core.Table`
   - KDoc에 구현 모듈에서 `SchemaUtils.createMissingTablesAndColumns(*ExposedLeaderSchema.allTables)` 호출 패턴 안내
+  - **[HIGH-3]** `Array<Table>` 유지 이유: `SchemaUtils.create(vararg tables: Table)` 등 Exposed API가 vararg를
+    받으므로 `*allTables` 스프레드 연산자로 바로 전달 가능. `List<Table>` 대비 복사 없이 O(1)
 - **완료 기준**:
   - [ ] `allTables`에 3개 테이블이 순서대로 포함됨
   - [ ] KDoc 작성됨
@@ -280,65 +282,86 @@ Group 8 (T17, T18 완료 후)
 
 ---
 
-### T9: validateLockName() → leader-core 이동
+### T9: validateLockName() 2-tier 설계 (leader-core + leader-mongodb)
 
 - **complexity**: high
+- **[CRITICAL-1] 2-tier 설계**: common 최소 검증은 `leader-core`, 백엔드 고유 규칙은 각 백엔드 모듈
 - **대상 파일**:
   - **신규 생성**: `leader-core/src/main/kotlin/io/bluetape4k/leader/LockNameValidator.kt`
-  - **수정**: `leader-mongodb/src/main/kotlin/io/bluetape4k/leader/mongodb/lock/MongoLock.kt` (기존 함수 삭제)
+  - **신규 생성**: `leader-core/src/test/kotlin/io/bluetape4k/leader/LockNameValidatorTest.kt`
+  - **수정**: `leader-mongodb/src/main/kotlin/io/bluetape4k/leader/mongodb/lock/MongoLock.kt`
+    (기존 `internal fun validateLockName()` → core 호출 wrapper로 변경, `:slot:` 검증 추가 유지)
 - **구현 지침**:
   - `leader-core`에 `LockNameValidator.kt` 신규 생성:
     ```kotlin
     package io.bluetape4k.leader
 
     // 첫 문자 1자(영숫자) + 이후 0~254자(영숫자/언더스코어/하이픈/콜론) = 최대 255자
+    // 콜론(:)은 허용 — 백엔드별 `:slot:` 등의 특수 패턴 검증은 각 백엔드 담당
     private val LOCK_NAME_PATTERN = Regex("^[a-zA-Z0-9][a-zA-Z0-9_\\-:]{0,254}$")
 
+    /**
+     * lockName의 공통 최소 검증. 백엔드 고유 규칙(예: MongoDB의 `:slot:` 금지)은
+     * 각 백엔드 모듈의 내부 검증 함수가 추가로 수행.
+     */
     fun validateLockName(lockName: String) {
         require(lockName.isNotBlank()) { "lockName must not be blank" }
         require(lockName.length <= 255) { "lockName must not exceed 255 characters: length=${lockName.length}" }
         require(LOCK_NAME_PATTERN.matches(lockName)) {
             "lockName contains invalid characters. Allowed: [a-zA-Z0-9_\\-:], got: $lockName"
         }
+    }
+    ```
+  - `leader-mongodb/lock/MongoLock.kt`의 기존 `internal fun validateLockName()` 수정:
+    ```kotlin
+    // 기존 독립 검증 → core 공통 검증 + MongoDB 고유 규칙으로 변경
+    internal fun validateMongoLockName(lockName: String) {
+        validateLockName(lockName)  // core 공통 검증 호출
         require(!lockName.contains(":slot:")) { "lockName must not contain ':slot:': $lockName" }
     }
     ```
   - `validateLockName`은 `public` (패키지 레벨 최상위 함수)
   - `LOCK_NAME_PATTERN`은 `private val` (파일 레벨)
-  - KDoc 작성: 허용 문자, 길이 제한, `:slot:` 금지 이유 포함
-  - `leader-mongodb/lock/MongoLock.kt` 하단의 `internal fun validateLockName()` (196~200번째 줄) 삭제
-  - **Breaking Change 인지**: 기존에 `.`(점)이나 공백, 특수문자를 사용하던 lockName은 새 정규식에 의해 거부됨
+  - KDoc 작성: 허용 문자, 길이 제한, 2-tier 설계 의도 포함
+  - `LockNameValidatorTest.kt` 작성: 유효/무효 lockName 경계값 테스트
+  - **Breaking Change 인지**: 기존에 `.`(점)이나 공백, 특수문자를 사용하던 lockName은 새 정규식에 의해 거부됨.
     이는 의도적인 변경이며 스펙에 명시되어 있음
 - **완료 기준**:
   - [ ] `leader-core`에 `LockNameValidator.kt` 생성됨
-  - [ ] 화이트리스트 정규식 `LOCK_NAME_PATTERN` 적용됨
-  - [ ] `leader-mongodb/lock/MongoLock.kt`의 기존 `validateLockName` 삭제됨
+  - [ ] 화이트리스트 정규식 `LOCK_NAME_PATTERN` 적용됨 (`:slot:` 검증 제외)
+  - [ ] `leader-mongodb/lock/MongoLock.kt`에 `validateMongoLockName`이 core 호출 + `:slot:` 검증 수행
+  - [ ] `LockNameValidatorTest.kt` 경계값 테스트 작성됨
   - [ ] `./gradlew :leader-core:compileKotlin` 클린
   - [ ] KDoc 작성됨
 - **의존**: 없음
 
 ---
 
-### T10: leader-mongodb import 경로 수정 + 회귀 확인
+### T10: leader-mongodb import 경로 수정 + MongoLock.kt 업데이트 + 회귀 확인
 
 - **complexity**: medium
-- **대상 파일** (4개 파일의 import 경로 수정):
+- **[MEDIUM-2]**: MongoLock.kt 내부 함수 호출 교체 포함
+- **대상 파일** (5개 파일):
+  - `leader-mongodb/src/main/kotlin/io/bluetape4k/leader/mongodb/lock/MongoLock.kt`
+    — T9에서 `validateMongoLockName` 으로 이름 변경 확인 + core import 추가
   - `leader-mongodb/src/main/kotlin/io/bluetape4k/leader/mongodb/MongoLeaderElection.kt`
   - `leader-mongodb/src/main/kotlin/io/bluetape4k/leader/mongodb/MongoLeaderGroupElection.kt`
   - `leader-mongodb/src/main/kotlin/io/bluetape4k/leader/mongodb/MongoSuspendLeaderElection.kt`
   - `leader-mongodb/src/main/kotlin/io/bluetape4k/leader/mongodb/MongoSuspendLeaderGroupElection.kt`
 - **구현 지침**:
-  - 4개 파일에서 import 변경:
+  - `MongoLock.kt` 내부: `validateLockName(lockName)` 호출부를 `validateMongoLockName(lockName)`으로 교체
+  - 나머지 4개 파일에서 import 변경:
     ```diff
     - import io.bluetape4k.leader.mongodb.lock.validateLockName
-    + import io.bluetape4k.leader.validateLockName
+    + import io.bluetape4k.leader.mongodb.lock.validateMongoLockName
     ```
-  - 함수 호출 코드는 변경 불필요 (함수명 동일)
+  - 함수 호출 코드도 `validateMongoLockName(lockName)` 으로 변경
   - **회귀 검증**: 기존 MongoDB 테스트에서 사용하는 lockName이 새 화이트리스트를 통과하는지 확인
     - 기존 테스트 lockName 예시: `"daily-report"`, `"batch-job"` 등 — 영숫자+하이픈이므로 통과 예상
   - `./gradlew :leader-mongodb:compileKotlin` 클린 확인
 - **완료 기준**:
-  - [ ] 4개 파일의 import 경로가 `io.bluetape4k.leader.validateLockName`으로 변경됨
+  - [ ] 4개 파일의 import + 호출부가 `validateMongoLockName`으로 변경됨
+  - [ ] `MongoLock.kt`가 core의 `validateLockName` import + MongoDB 래퍼 구조로 업데이트됨
   - [ ] `./gradlew :leader-mongodb:compileKotlin` 에러 없음
   - [ ] 기존 MongoDB 테스트 lockName이 새 정규식에 통과됨 (수동 확인)
 - **의존**: T9
@@ -365,11 +388,16 @@ Group 8 (T17, T18 완료 후)
   - `@JvmStatic` on `enableDialects()` — JUnit 5 `@MethodSource` 필수 조건
   - `TestDB` import: `bluetape4k-exposed-jdbc-tests`에서 제공
   - 실제 DB 구동: `withTables(testDB, *tables) { ... }` 유틸리티가 Testcontainers 기동/정리 담당
+  - **[HIGH-2] 경고**: 하위 클래스에서 자체 `companion object` 정의 금지.
+    정의하면 `AbstractExposedTableTest`의 `companion object`가 shadow되어 `@MethodSource("enableDialects")`가
+    하위 클래스의 companion을 탐색하지만 `enableDialects()`가 없어 `No factory method found` 예외 발생.
+    → 하위 클래스는 `companion object` 없이 `@MethodSource("enableDialects")` 직접 참조만 사용.
 - **완료 기준**:
   - [ ] `AbstractExposedTableTest` 추상 클래스 생성됨
   - [ ] `enableDialects()` 메서드가 H2, POSTGRESQL, MYSQL_V8 반환
   - [ ] `@JvmStatic` + `companion object : KLogging()` 올바르게 구성됨
-- **의존**: T4
+  - [ ] KDoc에 하위 클래스의 `companion object` 정의 금지 주의사항 작성됨
+- **의존**: T4, T16
 
 ---
 
@@ -391,6 +419,7 @@ Group 8 (T17, T18 완료 후)
   - SELECT: `LeaderLockTable.selectAll().where { LeaderLockTable.lockName eq ... }`
   - Kluent 매처 사용: `shouldBeEqualTo`, `shouldNotBeNull` 등
   - timestamp 정밀도: H2(나노초), PostgreSQL(마이크로초), MySQL(마이크로초) — 밀리초 단위 비교로 통일
+  - **[CRITICAL-2]**: 만료 row 삽입 시 반드시 `Instant.now().minusSeconds(60)` 이상 과거 시각 사용
 - **완료 기준**:
   - [ ] 6개 테스트 케이스 작성됨
   - [ ] H2, PostgreSQL, MySQL 파라미터화 테스트로 동작
@@ -413,13 +442,15 @@ Group 8 (T17, T18 완료 후)
     4. `활성 슬롯은 locked_until >= NOW() 조건으로만 카운트한다` — 만료된 row 제외 확인
     5. `만료된 슬롯은 신규 획득 가능하다` — `WHERE slot = ? AND locked_until < NOW()` UPDATE
     6. `특정 slot 범위 질의가 가능하다` — `WHERE slot BETWEEN 0 AND ?` SELECT
+  - **[CRITICAL-2] 만료 row 오프셋 최소값**: `Instant.now().minusSeconds(60)` 이상 과거만 사용.
+    작은 오프셋(1ms 미만)은 DB clock-to-JVM drift로 인해 flaky 테스트 유발.
   - **핵심**: 테스트 4번에서 `locked_until`을 과거 시각으로 설정한 row가 활성 카운트에서 제외되는지 검증
     ```kotlin
-    // 만료된 슬롯
+    // 만료된 슬롯 — 최소 60초 이전 사용 (clock drift 방지)
     LeaderGroupLockTable.insert {
         it[lockName] = "test-group"
         it[slot] = 0
-        it[lockedUntil] = Instant.now().minusSeconds(60)  // 이미 만료
+        it[lockedUntil] = Instant.now().minusSeconds(60)  // 이미 만료 (60초 여유)
         ...
     }
     // 활성 슬롯 카운트 = 0 이어야 함
@@ -449,7 +480,14 @@ Group 8 (T17, T18 완료 후)
   - `HistoryStatus.ACQUIRED.name` 형태로 status 값 저장
   - slot은 그룹 락이면 `0`, 단일 리더 락이면 `null`
   - token은 `UUID.randomUUID().toString()`
-  - locked_until은 `Instant.now().plusSeconds(60)` (ACQUIRED), 과거 시각 (EXPIRED 판정용)
+  - locked_until은 `Instant.now().plusSeconds(60)` (ACQUIRED), `Instant.now().minusSeconds(60)` (EXPIRED 판정용)
+  - **[CRITICAL-3] 30일 삭제 쿼리**: DB-native INTERVAL 대신 Kotlin Instant binding 사용.
+    H2/PostgreSQL/MySQL의 INTERVAL 문법이 상이하므로 JVM 단에서 파라미터를 계산해 전달:
+    ```kotlin
+    val cutoff = Instant.now().minus(31, ChronoUnit.DAYS)
+    LeaderLockHistoryTable.deleteWhere { startedAt less cutoff }
+    ```
+    `cutoff`는 Kotlin `Instant`; Exposed가 DB별 `timestamp` 파라미터 바인딩 처리함.
 - **완료 기준**:
   - [ ] 6개 테스트 케이스 작성됨
   - [ ] AUTO_INCREMENT id 검증됨
@@ -470,15 +508,22 @@ Group 8 (T17, T18 완료 후)
     1. `allTables에 3개 테이블이 포함되어 있다` — `ExposedLeaderSchema.allTables.size shouldBeEqualTo 3`
     2. `allTables로 SchemaUtils.createMissingTablesAndColumns 실행이 성공한다` — DDL 일괄 실행 검증
     3. `allTables로 SchemaUtils.drop 실행이 성공한다` — 테이블 일괄 삭제 검증
-  - 테스트 2, 3은 `withTables` 대신 직접 `SchemaUtils` 호출:
+  - **[MEDIUM-3]**: Exposed 1.2.0에 `withDb`는 없음. 직접 `transaction(database) { ... }` 사용:
     ```kotlin
-    withDb(testDB) {
+    // bluetape4k-exposed-jdbc-tests의 TestDB.connect() 로 Database 인스턴스 획득
+    val db = testDB.connect()
+    transaction(db) {
         SchemaUtils.createMissingTablesAndColumns(*ExposedLeaderSchema.allTables)
-        // 테이블 존재 확인
+    }
+    // 테이블 존재 확인 후
+    transaction(db) {
         SchemaUtils.drop(*ExposedLeaderSchema.allTables)
     }
     ```
-  - `withDb` 유틸리티가 `bluetape4k-exposed-jdbc-tests`에서 제공되는지 확인, 없으면 `withTables` 패턴 활용
+  - `TestDB.connect()` 반환 타입 확인 — `bluetape4k-exposed-jdbc-tests` 소스에서 확인 후 구현
+  - 대안: `withTables(testDB, *ExposedLeaderSchema.allTables) { ... }` 패턴도 가능 (withTables 내부가 트랜잭션 포함 시)
+  - **[HIGH-3]** `allTables`는 `Array<Table>` 유지. `SchemaUtils.create(vararg tables: Table)` vararg를
+    `*ExposedLeaderSchema.allTables` 스프레드로 직접 전달 가능 (List 변환 없이 O(1))
 - **완료 기준**:
   - [ ] 3개 테스트 케이스 작성됨
   - [ ] `allTables` 배열로 일괄 create/drop 검증됨
@@ -490,6 +535,9 @@ Group 8 (T17, T18 완료 후)
 ### T16: junit-platform.properties 작성
 
 - **complexity**: low
+- **[HIGH-1] 실행 순서**: Group 0에 배치 — T11(AbstractExposedTableTest) 작성 전에 반드시 존재해야 함.
+  JUnit 5는 `junit-platform.properties`를 클래스패스에서 읽어 `@TestInstance(PER_CLASS)` 상속 동작을 결정.
+  T16이 T11보다 늦게 실행되면 테스트 실행 환경이 `PER_METHOD`(기본값)로 동작해 companion 팩토리 오류 가능.
 - **대상 파일**: `leader-exposed-core/src/test/resources/junit-platform.properties`
 - **구현 지침**:
   - 기존 `leader-mongodb` 모듈의 설정을 그대로 복사:
@@ -505,7 +553,7 @@ Group 8 (T17, T18 완료 후)
 - **완료 기준**:
   - [ ] `junit-platform.properties` 생성됨
   - [ ] PER_CLASS + parallel=false 설정됨
-- **의존**: 없음
+- **의존**: 없음 (Group 0, T11 이전 완료 필수)
 
 ---
 
@@ -589,18 +637,19 @@ Group 8 (T17, T18 완료 후)
 
 | 그룹 | 태스크 | 병렬 가능 | 예상 시간 |
 |------|--------|-----------|-----------|
-| 0 | T1, T2, T3 | 모두 병렬 | 5분 |
+| 0 | T1, T2, T3, **T16** | 모두 병렬 | 5분 |
 | 1 | T4 | 단독 | 5분 |
 | 2 | T5, T6, T7 | 모두 병렬 | 10분 |
 | 3 | T8 | 단독 | 3분 |
 | 4 | T9, T10 | 순차 (T9→T10) | 10분 |
-| 5 | T11 | 단독 | 5분 |
+| 5 | T11 (T4, T16 완료 후) | 단독 | 5분 |
 | 6 | T12, T13, T14, T15 | 모두 병렬 | 15분 |
-| 7 | T16, T17, T18 | T17→T18 순차 | 10분 |
+| 7 | T17, T18 | T17→T18 순차 | 10분 |
 | 8 | T19 | 단독 | 10분 |
 
-> Group 0~3 (스키마 구현)과 Group 4 (validateLockName 이동)는 독립적으로 병렬 진행 가능.
-> Group 5 (테스트 베이스)는 Group 1 완료 후 즉시 시작 가능.
+> Group 0~3 (스키마 구현)과 Group 4 (validateLockName 2-tier)는 독립적으로 병렬 진행 가능.
+> **T16은 Group 0에 배치** — T11 실행 전에 `junit-platform.properties`가 존재해야 함.
+> Group 5 (테스트 베이스)는 T4 + T16 완료 후 즉시 시작 가능.
 
 ---
 
