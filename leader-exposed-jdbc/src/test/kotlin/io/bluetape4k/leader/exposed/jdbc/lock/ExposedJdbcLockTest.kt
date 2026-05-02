@@ -109,7 +109,7 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
                 val lock = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 10L))
                 if (lock.tryLock(Duration.ofMillis(200), Duration.ofSeconds(5))) {
                     successCount.incrementAndGet()
-                    Thread.sleep(20)
+                    Thread.sleep(100)
                     lock.unlock()
                 }
                 latch.countDown()
