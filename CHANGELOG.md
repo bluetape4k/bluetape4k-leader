@@ -37,9 +37,21 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - 내장 Scorer: `IdleTimeScorer`, `SuccessRateScorer`, `RecentSuccessScorer`, `WeightedScorer`
   - Redis 백엔드 `CandidateRegistry` (Redisson sorted set/hash + TTL, Lettuce 버전 포함)
 
-- **`leader-exposed-core/jdbc/r2dbc`**: 모듈 구조 생성 (issue #7, refactor #24)
-  - `leader-exposed-core`, `leader-exposed-jdbc`, `leader-exposed-r2dbc` 3개 모듈 분리
-  - 실제 구현은 별도 이슈 (#21, #22, #23) 로 관리
+- **`leader-exposed-core`**: Exposed 공통 스키마 정의 (issue #23)
+  - `LeaderLockTable`, `LeaderGroupLockTable` — JDBC/R2DBC 양쪽 모듈이 공유하는 Exposed Table DDL
+
+- **`leader-exposed-jdbc`**: Exposed + JDBC blocking 분산 락 백엔드 (issue #21, PR #52)
+  - `ExposedJdbcLock` — INSERT UPSERT + token 기반 소유자 전용 해제 (H2/PostgreSQL/MySQL)
+  - `ExposedJdbcGroupLock` — `(lockName, slot)` composite PK 슬롯 기반 그룹 락
+  - `ExposedJdbcLeaderElection` — blocking 단일 리더 선출 (sync + CompletableFuture async)
+  - `ExposedJdbcLeaderGroupElection` — blocking 복수 리더 선출
+  - `isHeldByCurrentInstance()` — token + `lockedUntil > NOW()` 기반 소유권 확인
+  - H2/PostgreSQL/MySQL Testcontainers 통합 테스트 (196 테스트 통과)
+
+- **`leader-exposed-r2dbc`**: Exposed + R2DBC coroutine 분산 락 백엔드 (issue #22, PR #62)
+  - `ExposedR2dbcSuspendLeaderElection` — coroutine 단일 리더 선출
+  - `ExposedR2dbcSuspendLeaderGroupElection` — coroutine 복수 리더 선출
+  - R2DBC PostgreSQL Testcontainers 통합 테스트
 
 - **CI/CD**: GitHub Actions 파이프라인 (issue #13, #35, PR #19, #20, #44)
   - Build(compile-only), Test(core/lettuce/redisson), Secret Scan(gitleaks), Validate Gradle Wrapper
@@ -60,6 +72,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   이전에는 토큰 불일치/Redis 오류가 무시됨 (daily review)
 - **Kover 모듈별 coverage 집계 스크립트** 버그 수정 — 결과 집계 누락 문제
 - **deprecated API 교체**: `TimebasedUuid.Epoch` → `Uuid.V7` (Kotlin 2.3+ 대응)
+- **`ExposedJdbcGroupLock.isHeldByCurrentInstance()`**: token + `lockedUntil > NOW()` 체크 누락 메서드 추가 (issue #59, PR #63)
+- **`ExposedJdbcGroupLock.tryLock()` DB 오류 전파**: `Boolean?` tri-state 반환으로 DB 오류와 슬롯 경합 실패 구분 가능 (issue #60, PR #63)
+- **Exposed Lock 클래스 `KLoggingChannel` 이식**: `KLogging` → `KLoggingChannel` (coroutine 컨텍스트 로거) (issue #61, PR #63)
 
 ### Changed
 
@@ -70,15 +85,13 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Suspend 인터페이스 계약**: `SuspendLeaderElection`, `SuspendLeaderGroupElection` KDoc에
   취소 계약 명시 — 구현체는 락/슬롯 해제 후 `CancellationException` 재throw 필수 (daily review)
 - **`validateLockName` 중복 제거**: 6개 파일의 `private fun` → `internal fun` (MongoLock.kt) 단일 추출
-- **`isHeldByCurrentInstance()` 제거**: 불필요한 pre-check DB 왕복 제거. 토큰 기반 `deleteOne`이 이미 안전
+- **`isHeldByCurrentInstance()` 제거** (MongoDB): 불필요한 pre-check DB 왕복 제거. 토큰 기반 `deleteOne`이 이미 안전
+- **`ExposedJdbcGroupLock.tryLock()` 반환 타입 `Boolean → Boolean?`**: `null` = DB 오류(순회 중단 신호), `false` = 슬롯 경합, `true` = 획득 성공 (issue #60, PR #63)
 - **Suspend 테스트 `runTest` → `runSuspendIO`**: 실제 IO(MongoDB/Testcontainers) 테스트는
   virtual time 대신 `runBlocking(Dispatchers.IO)` 사용
 
 ### Planned
 
-- `leader-exposed-jdbc` — Exposed + JDBC blocking implementation (issue #21)
-- `leader-exposed-r2dbc` — Exposed + R2DBC coroutine implementation (issue #22)
-- `leader-exposed-core` — 공통 DB 스키마 정의 (issue #23)
 - `leader-hazelcast` FencedLock 버전 (issue #33)
 - `leader-zookeeper` — ZooKeeper/Curator backend (issue #34)
 - `leader-micrometer` — Micrometer metrics integration (issue #10)

@@ -36,6 +36,8 @@ graph TD
     SB3["leader-spring-boot3\n(예정)"]
     SB4["leader-spring-boot4\n(예정)"]
     Metrics["leader-micrometer\n(예정)"]
+    Ktor["leader-ktor\n(예정)"]
+    ZK["leader-zookeeper\n(예정)"]
 
     Lettuce --> Core
     Redisson --> Core
@@ -48,6 +50,8 @@ graph TD
     SB3 --> SBCommon
     SB4 --> SBCommon
     Metrics --> Core
+    Ktor --> Core
+    ZK --> Core
 ```
 
 ## 모듈 목록
@@ -66,6 +70,8 @@ graph TD
 | `leader-spring-boot-common` | 안정 | Boot 버전 독립 속성 + 자동 구성 지원 클래스 |
 | `leader-spring-boot3` | 예정 | Spring Boot 3 자동 구성 |
 | `leader-spring-boot4` | 예정 | Spring Boot 4 자동 구성 |
+| `leader-ktor` | 예정 | Ktor Plugin DSL + `leaderScheduled()` 스케줄링 헬퍼 |
+| `leader-zookeeper` | 예정 | ZooKeeper/Curator 백엔드 (`InterProcessMutex` / `InterProcessSemaphoreV2`) |
 
 ## 빠른 시작
 

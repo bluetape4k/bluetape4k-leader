@@ -14,6 +14,10 @@
 | #3 | leader-redis-redisson 테스트 자립화 (AbstractRedissonLeaderTest) | ✅ 완료 | #17 merged |
 | #4/#5/#6 | leader-core/lettuce/redisson 컴파일 + 테스트 통과 | ✅ 완료 | #45 merged |
 | #7/#24 | leader-exposed 모듈 분리 (core/jdbc/r2dbc) — 구조 생성 | ✅ 완료 | #24 merged |
+| #23 | leader-exposed-core — 공통 스키마 구현 | ✅ 완료 | #52/#62 포함 |
+| #21 | leader-exposed-jdbc — Exposed JDBC 분산 락 구현 | ✅ 완료 | #52 merged |
+| #22 | leader-exposed-r2dbc — Exposed R2DBC 코루틴 구현 | ✅ 완료 | #62 merged |
+| #59/#60/#61 | ExposedJdbcGroupLock: isHeldByCurrentInstance, tryLock Boolean?, KLoggingChannel | ✅ 완료 | #63 merged |
 | #9 | leader-hazelcast — IMap 토큰 락 기반 분산 리더 선출 | ✅ 완료 | merged |
 | #13/#35 | GitHub Actions CI/CD 파이프라인 구성 | ✅ 완료 | #19/#44 merged |
 | #14 | README.md / README.ko.md 전 모듈 작성 | ✅ 완료 | #18 merged |
@@ -31,23 +35,6 @@
 - [ ] leader-redis-lettuce: 네트워크 단절 시나리오
 - [ ] leader-redis-redisson: HA(복수 JVM) 시나리오
 - [ ] 통합 테스트: 다중 백엔드 혼합 사용
-
-### #21 — leader-exposed-jdbc 구현
-
-- PostgreSQL `SELECT FOR UPDATE SKIP LOCKED` 기반 행 수준 잠금
-- `ExposedJdbcLeaderElection` + HikariCP 커넥션 풀
-- 테스트: Testcontainers PostgreSQL
-
-### #22 — leader-exposed-r2dbc 구현
-
-- R2DBC + Coroutines 기반 비동기 리더 선출
-- `ExposedR2dbcSuspendLeaderElection`
-- 테스트: Testcontainers PostgreSQL (r2dbc-postgresql)
-
-### #23 — leader-exposed-core 스키마 구현
-
-- `LeaderTable` Exposed Table 정의 (공통 스키마)
-- JDBC/R2DBC 양쪽에서 재사용 가능한 DDL 생성 유틸
 
 ### #33 — leader-hazelcast (Hazelcast 백엔드)
 

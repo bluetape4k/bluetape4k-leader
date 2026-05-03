@@ -36,6 +36,8 @@ graph TD
     SB3["leader-spring-boot3\n(planned)"]
     SB4["leader-spring-boot4\n(planned)"]
     Metrics["leader-micrometer\n(planned)"]
+    Ktor["leader-ktor\n(planned)"]
+    ZK["leader-zookeeper\n(planned)"]
 
     Lettuce --> Core
     Redisson --> Core
@@ -48,6 +50,8 @@ graph TD
     SB3 --> SBCommon
     SB4 --> SBCommon
     Metrics --> Core
+    Ktor --> Core
+    ZK --> Core
 ```
 
 ## Modules
@@ -66,6 +70,8 @@ graph TD
 | `leader-spring-boot-common` | Stable | Boot version-independent properties + auto-config support |
 | `leader-spring-boot3` | Planned | Spring Boot 3 auto-configuration |
 | `leader-spring-boot4` | Planned | Spring Boot 4 auto-configuration |
+| `leader-ktor` | Planned | Ktor Plugin DSL + `leaderScheduled()` scheduling helper |
+| `leader-zookeeper` | Planned | ZooKeeper/Curator backend (`InterProcessMutex` / `InterProcessSemaphoreV2`) |
 
 ## Quick Start
 
