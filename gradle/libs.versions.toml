@@ -78,6 +78,7 @@ bluetape4k-testcontainers = { module = "io.github.bluetape4k:bluetape4k-testcont
 bluetape4k-lettuce = { module = "io.github.bluetape4k:bluetape4k-lettuce" }
 bluetape4k-redisson = { module = "io.github.bluetape4k:bluetape4k-redisson" }
 bluetape4k-exposed-jdbc-tests = { module = "io.github.bluetape4k:bluetape4k-exposed-jdbc-tests" }
+bluetape4k-exposed-r2dbc-tests = { module = "io.github.bluetape4k:bluetape4k-exposed-r2dbc-tests" }
 
 # Kotlin
 kotlin-bom = { module = "org.jetbrains.kotlin:kotlin-bom", version.ref = "kotlin" }

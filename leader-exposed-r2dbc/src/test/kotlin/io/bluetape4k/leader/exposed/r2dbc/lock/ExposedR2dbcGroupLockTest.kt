@@ -8,6 +8,7 @@ import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeGreaterOrEqualTo
@@ -15,10 +16,11 @@ import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
-class ExposedR2dbcGroupLockTest : AbstractExposedR2dbcLeaderTest() {
+class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     @ParameterizedTest
     @MethodSource("enableDialects")
@@ -78,7 +80,7 @@ class ExposedR2dbcGroupLockTest : AbstractExposedR2dbcLeaderTest() {
         val expiredLock = ExposedR2dbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
         expiredLock.tryLock(Duration.ofSeconds(1), leaseTime)
 
-        kotlinx.coroutines.delay(leaseTime.toMillis() * 2 + 50)
+        delay(timeMillis = leaseTime.toMillis() * 2 + 50)
 
         val newLock = ExposedR2dbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
         val acquired = newLock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(10))
@@ -149,7 +151,7 @@ class ExposedR2dbcGroupLockTest : AbstractExposedR2dbcLeaderTest() {
         val lock = ExposedR2dbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
         lock.tryLock(Duration.ofSeconds(1), leaseTime)
 
-        kotlinx.coroutines.delay(leaseTime.toMillis() * 2)
+        delay(timeMillis = leaseTime.toMillis() * 2)
 
         lock.isHeldByCurrentInstance().shouldBeFalse()
         lock.unlock()
@@ -169,7 +171,7 @@ class ExposedR2dbcGroupLockTest : AbstractExposedR2dbcLeaderTest() {
                 if (lock.tryLock(Duration.ofMillis(200), Duration.ofSeconds(5))) {
                     successCount.incrementAndGet()
                     // action delay > waitTime(200ms) → 나머지 경합자들이 모두 타임아웃
-                    kotlinx.coroutines.delay(300)
+                    delay(300.milliseconds)
                     lock.unlock()
                 }
             }
@@ -196,7 +198,7 @@ class ExposedR2dbcGroupLockTest : AbstractExposedR2dbcLeaderTest() {
                 if (lock.tryLock(Duration.ofMillis(200), Duration.ofSeconds(5))) {
                     slot0Count.incrementAndGet()
                     // action delay > waitTime(200ms) → 나머지 경합자들이 모두 타임아웃
-                    kotlinx.coroutines.delay(300)
+                    delay(300.milliseconds)
                     lock.unlock()
                 }
             }
@@ -207,7 +209,7 @@ class ExposedR2dbcGroupLockTest : AbstractExposedR2dbcLeaderTest() {
                 if (lock.tryLock(Duration.ofMillis(200), Duration.ofSeconds(5))) {
                     slot1Count.incrementAndGet()
                     // action delay > waitTime(200ms) → 나머지 경합자들이 모두 타임아웃
-                    kotlinx.coroutines.delay(300)
+                    delay(300.milliseconds)
                     lock.unlock()
                 }
             }

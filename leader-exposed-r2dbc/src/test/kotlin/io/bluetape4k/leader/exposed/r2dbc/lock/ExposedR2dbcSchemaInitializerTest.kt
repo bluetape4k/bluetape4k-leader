@@ -5,7 +5,6 @@ import io.bluetape4k.leader.exposed.r2dbc.AbstractExposedR2dbcLeaderTest
 import io.bluetape4k.leader.exposed.r2dbc.TestR2dbcDB
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeTrue
 import org.amshove.kluent.shouldContain
 import org.amshove.kluent.shouldNotContain
@@ -13,9 +12,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 
-class ExposedR2dbcSchemaInitializerTest : AbstractExposedR2dbcLeaderTest() {
+class ExposedR2dbcSchemaInitializerTest: AbstractExposedR2dbcLeaderTest() {
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     // ─── DB 연동 테스트 ───────────────────────────────────────────────────────
 
