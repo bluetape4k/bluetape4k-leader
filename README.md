@@ -30,7 +30,7 @@ graph TD
     Hazelcast["leader-hazelcast\n(Hazelcast)"]
     ExposedCore["leader-exposed-core\n(Stable)"]
     ExposedJdbc["leader-exposed-jdbc\n(Stable)"]
-    ExposedR2dbc["leader-exposed-r2dbc\n(planned)"]
+    ExposedR2dbc["leader-exposed-r2dbc\n(Stable)"]
     Mongo["leader-mongodb\n(MongoDB)"]
     SBCommon["leader-spring-boot-common\n(Boot version-independent)"]
     SB3["leader-spring-boot3\n(planned)"]
@@ -60,7 +60,7 @@ graph TD
 | `leader-hazelcast` | Stable | Hazelcast backend (IMap-based, no CP Subsystem) |
 | `leader-exposed-core` | Stable | Common Exposed schema (no JDBC/R2DBC driver) |
 | `leader-exposed-jdbc` | Stable | Exposed JDBC backend (H2, PostgreSQL, MySQL) |
-| `leader-exposed-r2dbc` | Planned | Exposed R2DBC backend |
+| `leader-exposed-r2dbc` | Stable | Exposed R2DBC backend (coroutine-native, H2/PostgreSQL/MySQL) |
 | `leader-mongodb` | Stable | MongoDB backend (`findOneAndUpdate` + TTL index) |
 | `leader-micrometer` | Planned | Micrometer metrics integration |
 | `leader-spring-boot-common` | Stable | Boot version-independent properties + auto-config support |
@@ -79,6 +79,9 @@ implementation("io.github.bluetape4k.leader:leader-redis-lettuce:0.1.0-SNAPSHOT"
 
 // JDBC (H2 / PostgreSQL / MySQL via Exposed)
 implementation("io.github.bluetape4k.leader:leader-exposed-jdbc:0.1.0-SNAPSHOT")
+
+// R2DBC coroutine-native (H2 / PostgreSQL / MySQL via Exposed)
+implementation("io.github.bluetape4k.leader:leader-exposed-r2dbc:0.1.0-SNAPSHOT")
 ```
 
 ### Exposed JDBC (H2 / PostgreSQL / MySQL)
