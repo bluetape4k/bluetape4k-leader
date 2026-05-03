@@ -566,6 +566,16 @@ T13 → T14 (KDoc + README)
 
 ---
 
+## 전역 완료 기준 (전 Task 공통)
+
+- **테스트 커버리지**: `leader-exposed-r2dbc` 라인 커버리지 **80% 이상** (`./gradlew :leader-exposed-r2dbc:jacocoTestReport`)
+- **3-DB 통과**: H2 + PostgreSQL + MySQL 8 모든 테스트 green
+- **컴파일**: `./gradlew :leader-exposed-r2dbc:compileKotlin` 경고 0
+- **Detekt**: `./gradlew :leader-exposed-r2dbc:detekt` 위반 0
+- **PR 전 6-Tier 코드 리뷰**: CRITICAL/HIGH 0 확인 후 PR
+
+---
+
 ## 위험 요소 대응 매핑
 
 | Risk | 대응 Task | 검증 방법 |

@@ -595,6 +595,9 @@ suspend fun <T> R2dbcDatabase.suspendRunIfLeaderGroup(
 
 ## 5. 테스트 전략
 
+> **커버리지 요건**: `leader-exposed-r2dbc` 모듈 전체 라인 커버리지 **80% 이상** 필수.
+> `./gradlew :leader-exposed-r2dbc:jacocoTestReport` 결과 기준. CI에서 80% 미만 시 빌드 실패 처리.
+
 ### 5.1 테스트 인프라
 
 | DB | 드라이버 | 설정 |
