@@ -89,7 +89,7 @@ T13 → T14 (KDoc + README)
    - 패키지 선언 변경: `io.bluetape4k.leader.exposed.jdbc` -> `io.bluetape4k.leader.exposed.retry`
    - `leader-exposed-core`는 추가 의존성 불필요 (`RetryStrategy`는 `java.util.concurrent.ThreadLocalRandom` + `java.io.Serializable`만 사용)
 
-2. **leader-exposed-jdbc에 typealias 추가** (바이너리 호환성):
+2. **leader-exposed-jdbc에 typealias 추가** (⚠️ **소스 호환성만** — Kotlin typealias는 JVM class 미생성, 바이너리 참조 깨짐. 바이너리 호환 필요 시 기존 클래스 유지 + 내부에서 새 경로 위임):
    - 기존 RetryStrategy.kt 파일 내용을 `@Deprecated(level = HIDDEN)` typealias로 교체
    - `@file:Suppress("DEPRECATION_ERROR")` 추가
 
@@ -161,14 +161,15 @@ T13 → T14 (KDoc + README)
    - JDBC `org.jetbrains.exposed.v1.jdbc.insert/update/selectAll/deleteWhere` -> R2DBC `org.jetbrains.exposed.v1.r2dbc.insert/update/selectAll/deleteWhere`
 
 2. **DB별 INSERT 충돌 분기 (CRITICAL -- Risk 1 대응)**:
-   - PostgreSQL: `INSERT ... ON CONFLICT DO NOTHING` (UPSERT) 또는 Exposed `upsert {}`
-   - H2 / MySQL: `runCatching { insert {} }` 패턴 유지
-   - 분기 기준: `db.dialect` 또는 connection metadata 기반 vendor 감지
+   - PostgreSQL: `INSERT ... ON CONFLICT (lock_name) DO NOTHING` **고정** — `ON CONFLICT DO UPDATE`는 유효한 holder를 덮어쓸 수 있으므로 **절대 금지**
+   - H2 / MySQL: `runCatching { insert {} }` 패턴 유지 (statement 실패가 트랜잭션 abort 안 함)
+   - 분기 기준: `db.dialect` 기반 vendor 감지
 
 3. **PostgreSQL INSERT 전략 (우선순위)**:
-   - 1차: Exposed R2DBC `upsert {}` 또는 `insertIgnore {}` 지원 여부 확인 -> 지원 시 사용
-   - 2차: raw SQL `INSERT INTO ... ON CONFLICT (lock_name) DO NOTHING`
+   - 1차: raw SQL `INSERT INTO ... ON CONFLICT (lock_name) DO NOTHING` (안전, 확실)
+   - 2차: Exposed R2DBC `upsert {}` — 단, `updateWhere { lockedUntil < now }` 조건이 보장되는 conditional upsert만 허용
    - 3차: SAVEPOINT 패턴 (raw SQL `SAVEPOINT` / `ROLLBACK TO SAVEPOINT`)
+   - ⚠️ `ON CONFLICT DO UPDATE` without 조건: **락 안전성 파괴 → 절대 금지**
 
 4. **tryLock 루프 구조**:
    - 루프 시작 `currentCoroutineContext().ensureActive()` 호출로 취소 감지
@@ -208,7 +209,10 @@ T13 → T14 (KDoc + README)
 3. **`isHeldByCurrentInstance()` 포함** (JDBC GroupLock에는 누락되었으나 R2DBC에서는 포함):
    - `selectAll().where { lockName eq ... and slot eq ... and token eq ... and lockedUntil greater now }`
 
-4. **슬롯 순회 시 DB 오류 즉시 중단 계약**: `tryLock()`이 DB 오류 시 `false` 반환 -> 상위 Election에서 연속 실패 감지 시 루프 종료 권장 (KDoc 문서화)
+4. **슬롯 순회 시 DB 오류 vs 정상 경합 구분**:
+   - DB 오류(R2dbcException, connection 실패): 예외를 그대로 전파 → Election 레이어에서 `catch (e: CancellationException) { throw e }` + `catch (e: Exception) { log; return null }` 분기로 처리
+   - 정상 경합 실패(다른 holder가 점유): `false` 반환 → 다음 슬롯 시도
+   - `false`만으로는 원인 구분 불가 → DB 오류는 **반드시 예외로 전파** (KDoc 문서화)
 
 #### 완료 조건
 - `./gradlew :leader-exposed-r2dbc:compileKotlin` 성공
@@ -301,7 +305,8 @@ T13 → T14 (KDoc + README)
    - `activeCount` 초기값: `0`
    - `availableSlots` 초기값: `maxLeaders` (= maxLeaders - 0)
    - `AtomicInteger` 또는 `atomicfu` 기반 캐시 변수
-   - `runIfLeader` 호출 시 내부에서 suspend DB 카운트 실행 -> 캐시 갱신
+   - `runIfLeader` 호출 시 내부에서 suspend DB 카운트 실행 → 캐시 갱신
+   - ⚠️ **stale 계약**: `activeCount()` / `availableSlots()` / `state()`는 마지막 `runIfLeader` 이후 변경된 상태를 반영하지 않는 무기한 stale 값 반환 가능. KDoc + README에 명시 필수
 
 3. **슬롯 순회 패턴** (JDBC 참조 + suspend 변환):
    - `Random.nextInt(maxLeaders)` 랜덤 시작 -> 핫스팟 방지
