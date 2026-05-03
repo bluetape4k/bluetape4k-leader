@@ -4,8 +4,7 @@ import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.logging.KLogging
-import org.amshove.kluent.shouldBeFalse
-import org.amshove.kluent.shouldBeTrue
+import org.amshove.kluent.shouldBe
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
@@ -23,7 +22,7 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         cleanTables(db)
         val lock = ExposedJdbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
 
-        lock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(10)).shouldBeTrue()
+        lock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(10)) shouldBe true
         lock.unlock()
     }
 
@@ -37,7 +36,7 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         holder.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(30))
 
         val contender = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 10L))
-        contender.tryLock(Duration.ofMillis(100), Duration.ofSeconds(5)).shouldBeFalse()
+        contender.tryLock(Duration.ofMillis(100), Duration.ofSeconds(5)) shouldBe false
 
         holder.unlock()
     }
@@ -52,8 +51,8 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         val lock0 = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
         val lock1 = ExposedJdbcGroupLock(db, lockName, slot = 1, RetryStrategy.Jitter())
 
-        lock0.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10)).shouldBeTrue()
-        lock1.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10)).shouldBeTrue()
+        lock0.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10)) shouldBe true
+        lock1.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10)) shouldBe true
 
         lock0.unlock()
         lock1.unlock()
@@ -74,13 +73,13 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         var acquired = false
 
         while (System.nanoTime() < deadlineNanos && !acquired) {
-            acquired = newLock.tryLock(Duration.ofMillis(50), Duration.ofSeconds(10))
+            acquired = newLock.tryLock(Duration.ofMillis(50), Duration.ofSeconds(10)) == true
             if (!acquired) {
                 Thread.yield()
             }
         }
 
-        acquired.shouldBeTrue()
+        acquired shouldBe true
         if (acquired) {
             newLock.unlock()
         }
@@ -112,6 +111,45 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         lock.unlock()
 
         lock.unlock()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `isHeldByCurrentInstance - 락 획득 후 true를 반환한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lock = ExposedJdbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
+        lock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(30))
+
+        lock.isHeldByCurrentInstance() shouldBe true
+        lock.unlock()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `isHeldByCurrentInstance - 다른 인스턴스 token으로는 false를 반환한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val holder = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
+        holder.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(30))
+
+        val other = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
+        other.isHeldByCurrentInstance() shouldBe false
+
+        holder.unlock()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `isHeldByCurrentInstance - unlock 후 false를 반환한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lock = ExposedJdbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
+        lock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(30))
+        lock.unlock()
+
+        lock.isHeldByCurrentInstance() shouldBe false
     }
 
     @Test

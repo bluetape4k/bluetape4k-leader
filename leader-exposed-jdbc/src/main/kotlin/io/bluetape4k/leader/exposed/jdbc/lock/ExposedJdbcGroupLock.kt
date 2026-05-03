@@ -2,12 +2,13 @@ package io.bluetape4k.leader.exposed.jdbc.lock
 
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -46,7 +47,7 @@ internal class ExposedJdbcGroupLock internal constructor(
         require(slot >= 0) { "slot must be >= 0: $slot" }
     }
 
-    companion object : KLogging()
+    companion object : KLoggingChannel()
 
     /** 인스턴스별 고유 fencing token. */
     val token: String = UUID.randomUUID().toString()
@@ -54,9 +55,9 @@ internal class ExposedJdbcGroupLock internal constructor(
     /**
      * [waitTime] 내에 슬롯 락 획득을 시도합니다.
      *
-     * @return 락 획득 성공 시 `true`, 타임아웃 또는 오류 시 `false`
+     * @return 락 획득 성공 시 `true`, 경합 실패(타임아웃) 시 `false`, DB 오류 시 `null`
      */
-    fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
+    fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean? {
         val deadline = System.currentTimeMillis() + waitTime.toMillis().coerceAtLeast(0L)
         var attempt = 0
 
@@ -66,8 +67,8 @@ internal class ExposedJdbcGroupLock internal constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
-                log.warn(e) { "DB 오류 (재시도 유지): lockName=$lockName, slot=$slot, attempt=$attempt" }
-                false
+                log.warn(e) { "DB 오류로 슬롯 순회 중단: lockName=$lockName, slot=$slot, attempt=$attempt" }
+                return null
             }
 
             if (acquired) {
@@ -125,6 +126,7 @@ internal class ExposedJdbcGroupLock internal constructor(
                         it[LeaderGroupLockTable.lockedUntil] = lockedUntil
                     }
                 }.onFailure { e ->
+                    if (e is CancellationException) throw e
                     log.debug { "INSERT 실패 (PK 충돌 예상 또는 DB 오류): lockName=$lockName, slot=$slot, error=${e.message}" }
                     return@transaction false
                 }
@@ -140,6 +142,32 @@ internal class ExposedJdbcGroupLock internal constructor(
                 }
                 .empty()
         }
+    }
+
+    /**
+     * 현재 인스턴스(token)가 유효한 슬롯 락을 보유하고 있는지 확인합니다.
+     *
+     * 리스 만료 후 타 인스턴스가 재획득한 경우 `false`를 반환합니다.
+     */
+    fun isHeldByCurrentInstance(): Boolean = runCatching {
+        val lockNameVal = lockName
+        val slotVal = slot
+        val tokenVal = token
+        transaction(db) {
+            val now = Instant.now()
+            !LeaderGroupLockTable
+                .selectAll()
+                .where {
+                    (LeaderGroupLockTable.lockName eq lockNameVal) and
+                        (LeaderGroupLockTable.slot eq slotVal) and
+                        (LeaderGroupLockTable.token eq tokenVal) and
+                        (LeaderGroupLockTable.lockedUntil greater now)
+                }
+                .empty()
+        }
+    }.getOrElse { e ->
+        log.warn(e) { "isHeldByCurrentInstance DB 오류 (false 반환): lockName=$lockName, slot=$slot" }
+        false
     }
 
     /**
