@@ -298,6 +298,67 @@ class ExposedJdbcLeaderGroupElectionTest : AbstractExposedJdbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
+    fun `runAsyncIfLeader - action이 failedFuture 반환 시 슬롯이 반환되어 다음 호출 성공한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val election = ExposedJdbcLeaderGroupElection(db, makeOptions(maxLeaders = 1))
+
+        assertThrows<CompletionException> {
+            election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
+                java.util.concurrent.CompletableFuture.failedFuture(IllegalStateException("async 실패"))
+            }.join()
+        }
+
+        val result = election.runIfLeader(lockName) { "복구 성공" }
+        result shouldBeEqualTo "복구 성공"
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `runIfLeader - maxLeaders=1 일 때 단일 리더 시맨틱과 동일하게 동작한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val options = makeOptions(maxLeaders = 1)
+        val election = ExposedJdbcLeaderGroupElection(db, options)
+
+        // 첫 획득 → 정상
+        val result = election.runIfLeader(lockName) { "ok" }
+        result shouldBeEqualTo "ok"
+
+        // 보유자가 잡고 있는 동안 다른 획득 시도 → null
+        val acquiredLatch = CountDownLatch(1)
+        val holdLatch = CountDownLatch(1)
+        val executor = Executors.newSingleThreadExecutor()
+        executor.submit {
+            election.runIfLeader(lockName) {
+                acquiredLatch.countDown()
+                holdLatch.await()
+            }
+        }
+        try {
+            acquiredLatch.await(5, TimeUnit.SECONDS)
+            val shortElection = ExposedJdbcLeaderGroupElection(
+                db,
+                ExposedJdbcLeaderGroupElectionOptions(
+                    leaderGroupOptions = LeaderGroupElectionOptions(
+                        maxLeaders = 1,
+                        waitTime = Duration.ofMillis(100),
+                        leaseTime = Duration.ofSeconds(5),
+                    ),
+                ),
+            )
+            shortElection.runIfLeader(lockName) { "should-not-run" }.shouldBeNull()
+        } finally {
+            holdLatch.countDown()
+            executor.shutdown()
+            executor.awaitTermination(5, TimeUnit.SECONDS)
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
     fun `Database 확장함수 runIfLeaderGroup - 정상 동작한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)

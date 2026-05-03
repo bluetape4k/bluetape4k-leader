@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.exposed.jdbc
 
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.exposed.ExposedLeaderConstants
 import java.io.Serializable
 
 /**
@@ -11,14 +12,15 @@ import java.io.Serializable
  *     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3),
  *     retryStrategy = RetryStrategy.Exponential(),
  *     recordHistory = true,
+ *     lockOwner = "worker-1",
  * )
  * val election = ExposedJdbcLeaderGroupElection(db, options)
  * ```
  *
- * @property leaderGroupOptions 그룹 리더 선출 옵션 (maxLeaders, waitTime, leaseTime)
+ * @property leaderGroupOptions 그룹 리더 선출 옵션 (maxLeaders, waitTime, leaseTime). `maxLeaders`는 양수여야 함
  * @property retryStrategy 락 획득 재시도 전략. 기본값 [RetryStrategy.Jitter]
  * @property recordHistory `true`이면 획득/완료/실패 이력을 기록
- * @property lockOwner 락 보유자 식별자. `null`이면 미기록
+ * @property lockOwner 락 보유자 식별자. 컬럼 폭 [ExposedLeaderConstants.LOCK_OWNER_LENGTH]자 이내. `null`이면 미기록
  */
 data class ExposedJdbcLeaderGroupElectionOptions(
     val leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -33,12 +35,21 @@ data class ExposedJdbcLeaderGroupElectionOptions(
     init {
         require(maxLeaders > 0) { "maxLeaders must be positive: $maxLeaders" }
         lockOwner?.let {
-            require(it.length <= 255) { "lockOwner must be <= 255 chars, but was ${it.length}" }
+            require(it.length <= ExposedLeaderConstants.LOCK_OWNER_LENGTH) {
+                "lockOwner must be <= ${ExposedLeaderConstants.LOCK_OWNER_LENGTH} chars, but was ${it.length}"
+            }
         }
     }
 
     companion object {
-        /** 기본 옵션 인스턴스. */
+        /**
+         * 기본 옵션 인스턴스.
+         *
+         * - leaderGroupOptions = [LeaderGroupElectionOptions.Default]
+         * - retryStrategy = [RetryStrategy.Jitter]
+         * - recordHistory = `false`
+         * - lockOwner = `null`
+         */
         @JvmField
         val Default = ExposedJdbcLeaderGroupElectionOptions()
     }

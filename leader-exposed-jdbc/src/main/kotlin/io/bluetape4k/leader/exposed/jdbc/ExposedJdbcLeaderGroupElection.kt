@@ -29,17 +29,30 @@ import kotlin.random.Random
 /**
  * Exposed JDBC 기반 복수 리더 그룹 선출 구현체.
  *
- * `(lockName, slot)` 복합 PK 기반 슬롯 순회로 최대 [options.maxLeaders]개의 동시 리더를 허용합니다.
+ * `(lockName, slot)` 복합 PK 기반 슬롯 순회로 최대
+ * [ExposedJdbcLeaderGroupElectionOptions.maxLeaders]개의 동시 리더를 허용합니다.
  * 슬롯 시작 위치를 랜덤화하여 핫스팟을 방지합니다.
  *
+ * ### 기본 사용
  * ```kotlin
- * val election = ExposedJdbcLeaderGroupElection(db, ExposedJdbcLeaderGroupElectionOptions(
- *     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3)
- * ))
+ * val election = ExposedJdbcLeaderGroupElection(
+ *     db,
+ *     ExposedJdbcLeaderGroupElectionOptions(
+ *         leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3),
+ *     ),
+ * )
  * val result = election.runIfLeader("batch-job") { processChunk() }
+ * // 최대 3개 노드 동시 실행, 나머지는 null 반환
  * ```
  *
- * **private constructor** — [invoke]를 통해서만 생성하세요.
+ * ### 그룹 상태 조회
+ * ```kotlin
+ * val state = election.state("batch-job")
+ * println("active=${state.activeCount} / max=${state.maxLeaders}")
+ * println("available=${election.availableSlots("batch-job")}")
+ * ```
+ *
+ * **private constructor** — [invoke] 팩터리를 사용하세요. 첫 호출 시 스키마가 자동으로 생성됩니다.
  *
  * @param db Exposed [Database] 인스턴스
  * @param options 그룹 리더 선출 옵션
@@ -66,8 +79,14 @@ class ExposedJdbcLeaderGroupElection private constructor(
         }
     }
 
+    /** 동시 허용 리더 수 ([ExposedJdbcLeaderGroupElectionOptions.maxLeaders] 위임). */
     override val maxLeaders: Int get() = options.maxLeaders
 
+    /**
+     * [lockName]의 현재 활성 슬롯 수(만료되지 않은 lease 보유 행)를 반환합니다.
+     *
+     * DB 오류 발생 시 best-effort로 `0`을 반환합니다 (호출자에게 예외를 전파하지 않음).
+     */
     override fun activeCount(lockName: String): Int = runCatching {
         transaction(db) {
             val now = Instant.now()
@@ -85,11 +104,22 @@ class ExposedJdbcLeaderGroupElection private constructor(
         0
     }
 
+    /** [lockName]에서 즉시 획득 가능한 슬롯 수. */
     override fun availableSlots(lockName: String): Int = maxLeaders - activeCount(lockName)
 
+    /** [lockName]에 대한 [LeaderGroupState] 스냅샷을 반환합니다. */
     override fun state(lockName: String): LeaderGroupState =
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
+    /**
+     * [lockName] 그룹의 빈 슬롯을 하나 획득하면 [action]을 실행합니다.
+     *
+     * - 모든 슬롯이 사용 중이면 `null`을 반환합니다 (예외 없음).
+     * - [action] 예외는 그대로 전파되며, 슬롯은 항상 반납됩니다.
+     * - [CancellationException]은 재전파되며 FAILED 이력에 기록되지 않습니다.
+     *
+     * @throws IllegalArgumentException [lockName]이 유효하지 않은 경우
+     */
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         validateExposedLockName(lockName)
 
@@ -138,6 +168,18 @@ class ExposedJdbcLeaderGroupElection private constructor(
         return null
     }
 
+    /**
+     * [lockName] 그룹의 슬롯을 비동기로 획득하여 [action]을 실행합니다.
+     *
+     * 슬롯 획득 실패 시 `null`로 완료된 [CompletableFuture]를 반환합니다.
+     * action이 동기적으로 던지는 예외는 [CompletableFuture.failedFuture]로 래핑됩니다.
+     *
+     * ```kotlin
+     * val future = election.runAsyncIfLeader("batch", VirtualThreadExecutor) {
+     *     processChunkAsync()  // CompletableFuture<Result>
+     * }
+     * ```
+     */
     override fun <T> runAsyncIfLeader(
         lockName: String,
         executor: Executor,
@@ -179,10 +221,12 @@ class ExposedJdbcLeaderGroupElection private constructor(
                     }
 
                 actionFuture.whenCompleteAsync({ _, throwable ->
-                    if (throwable != null) {
-                        recordFailed(historyId, lock.token, startedAt, slot)
-                    } else {
-                        recordCompleted(historyId, lock.token, startedAt, slot)
+                    when {
+                        throwable == null -> recordCompleted(historyId, lock.token, startedAt, slot)
+                        // 취소(코루틴/CompletableFuture)는 FAILED로 기록하지 않음
+                        throwable is java.util.concurrent.CancellationException -> { /* skip */ }
+                        throwable is CancellationException -> { /* skip */ }
+                        else -> recordFailed(historyId, lock.token, startedAt, slot)
                     }
                     runCatching { lock.unlock() }
                         .onSuccess { log.debug { "비동기 그룹 슬롯 반납. lockName=$lockName, slot=$slot" } }

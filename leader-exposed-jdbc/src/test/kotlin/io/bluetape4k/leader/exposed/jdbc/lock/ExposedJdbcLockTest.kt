@@ -105,6 +105,68 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
+    fun `isHeldByCurrentInstance - 락 획득 후 true 반환`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
+        lock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10)).shouldBeTrue()
+
+        lock.isHeldByCurrentInstance().shouldBeTrue()
+
+        lock.unlock()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `isHeldByCurrentInstance - unlock 이후 false 반환`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
+        lock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10))
+        lock.unlock()
+
+        lock.isHeldByCurrentInstance().shouldBeFalse()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `isHeldByCurrentInstance - leaseTime 만료 시 false 반환`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
+        val leaseTime = Duration.ofMillis(150)
+        lock.tryLock(Duration.ofSeconds(1), leaseTime)
+
+        Thread.sleep(leaseTime.toMillis() * 2)
+
+        lock.isHeldByCurrentInstance().shouldBeFalse()
+        lock.unlock()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `isHeldByCurrentInstance - 만료 후 다른 인스턴스 takeover 시 원본 인스턴스는 false 반환`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+
+        val original = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
+        original.tryLock(Duration.ofSeconds(1), Duration.ofMillis(150))
+        Thread.sleep(250)
+
+        val takeover = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
+        takeover.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10)).shouldBeTrue()
+
+        // 원본 인스턴스 token은 더 이상 유효하지 않음
+        original.isHeldByCurrentInstance().shouldBeFalse()
+        // 새 인스턴스는 자신 token으로 보유 중
+        takeover.isHeldByCurrentInstance().shouldBeTrue()
+
+        takeover.unlock()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
     fun `tryLock - 멀티스레드 경합 시 단 하나만 락 획득에 성공한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)

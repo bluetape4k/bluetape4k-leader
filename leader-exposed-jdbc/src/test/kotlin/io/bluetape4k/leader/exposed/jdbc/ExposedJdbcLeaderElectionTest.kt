@@ -25,6 +25,7 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -301,6 +302,43 @@ class ExposedJdbcLeaderElectionTest : AbstractExposedJdbcLeaderTest() {
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `runAsyncIfLeader - action이 failedFuture 반환 시 FAILED 이력 기록 후 락 해제된다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val options = ExposedJdbcLeaderElectionOptions(
+            recordHistory = true,
+            leaderOptions = LeaderElectionOptions(
+                waitTime = Duration.ofSeconds(2),
+                leaseTime = Duration.ofSeconds(10),
+            ),
+        )
+        val election = ExposedJdbcLeaderElection(db, options)
+
+        assertThrows<CompletionException> {
+            election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
+                CompletableFuture.failedFuture(IllegalStateException("async 실패"))
+            }.join()
+        }
+
+        // 다음 호출이 성공해야 함 (락 해제됨)
+        val result = election.runIfLeader(lockName) { "복구 성공" }
+        result shouldBeEqualTo "복구 성공"
+
+        // FAILED 이력 1건 + 복구 시도의 ACQUIRED+COMPLETED 1건 (총 history 2건 중 FAILED 1건)
+        val failedCount = transaction(db) {
+            LeaderLockHistoryTable.selectAll()
+                .where {
+                    (LeaderLockHistoryTable.lockName eq lockName) and
+                        (LeaderLockHistoryTable.status eq HistoryStatus.FAILED.name)
+                }
+                .count()
+        }
+        failedCount shouldBeEqualTo 1L
     }
 
     @ParameterizedTest
