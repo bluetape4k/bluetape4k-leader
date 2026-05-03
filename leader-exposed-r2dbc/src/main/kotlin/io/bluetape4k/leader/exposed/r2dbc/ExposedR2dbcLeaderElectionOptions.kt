@@ -1,4 +1,4 @@
-package io.bluetape4k.leader.exposed.jdbc
+package io.bluetape4k.leader.exposed.r2dbc
 
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.exposed.ExposedLeaderConstants
@@ -6,10 +6,10 @@ import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import java.io.Serializable
 
 /**
- * Exposed JDBC 기반 단일 리더 선출 옵션.
+ * Exposed R2DBC 기반 단일 리더 선출 옵션.
  *
  * ```kotlin
- * val options = ExposedJdbcLeaderElectionOptions(
+ * val options = ExposedR2dbcLeaderElectionOptions(
  *     leaderOptions = LeaderElectionOptions(
  *         waitTime = Duration.ofSeconds(3),
  *         leaseTime = Duration.ofSeconds(30),
@@ -18,7 +18,7 @@ import java.io.Serializable
  *     recordHistory = true,
  *     lockOwner = "worker-1",
  * )
- * val election = ExposedJdbcLeaderElection(db, options)
+ * val election = ExposedR2dbcSuspendLeaderElection(db, options)
  * ```
  *
  * @property leaderOptions 단일 리더 선출 옵션 (waitTime, leaseTime)
@@ -26,7 +26,7 @@ import java.io.Serializable
  * @property recordHistory `true`이면 획득/완료/실패 이력을 [io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable]에 기록
  * @property lockOwner 락 보유자 식별자. 컬럼 폭 [ExposedLeaderConstants.LOCK_OWNER_LENGTH]자 이내. `null`이면 미기록
  */
-data class ExposedJdbcLeaderElectionOptions(
+data class ExposedR2dbcLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
     val retryStrategy: RetryStrategy = RetryStrategy.Jitter(),
     val recordHistory: Boolean = false,
@@ -51,6 +51,6 @@ data class ExposedJdbcLeaderElectionOptions(
          * - lockOwner = `null`
          */
         @JvmField
-        val Default = ExposedJdbcLeaderElectionOptions()
+        val Default = ExposedR2dbcLeaderElectionOptions()
     }
 }
