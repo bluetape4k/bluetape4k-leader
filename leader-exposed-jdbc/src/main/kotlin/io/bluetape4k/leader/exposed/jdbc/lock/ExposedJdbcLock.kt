@@ -2,7 +2,7 @@ package io.bluetape4k.leader.exposed.jdbc.lock
 
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
-import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
@@ -45,7 +45,7 @@ internal class ExposedJdbcLock internal constructor(
     private val retryStrategy: RetryStrategy,
     private val lockOwner: String? = null,
 ) {
-    companion object : KLogging()
+    companion object : KLoggingChannel()
 
     /** 인스턴스별 고유 fencing token. unlock 시 zombie 방지에 사용됩니다. */
     val token: String = UUID.randomUUID().toString()
@@ -124,6 +124,7 @@ internal class ExposedJdbcLock internal constructor(
                         it[LeaderLockTable.lockedUntil] = lockedUntil
                     }
                 }.onFailure { e ->
+                    if (e is CancellationException) throw e
                     log.debug { "INSERT 실패 (PK 충돌 예상 또는 DB 오류): lockName=$lockName, error=${e.message}" }
                     return@transaction false
                 }

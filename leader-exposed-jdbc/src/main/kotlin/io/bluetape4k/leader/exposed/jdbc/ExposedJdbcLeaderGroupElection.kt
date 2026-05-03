@@ -135,7 +135,14 @@ class ExposedJdbcLeaderGroupElection private constructor(
             val slot = (start + i) % maxLeaders
             val lock = ExposedJdbcGroupLock(db, lockName, slot, options.retryStrategy, options.lockOwner)
 
-            if (!lock.tryLock(perSlotWait, leaseTime)) continue
+            when (lock.tryLock(perSlotWait, leaseTime)) {
+                true -> { /* 획득 성공 — 아래 로직 계속 */ }
+                false -> continue
+                null -> {
+                    log.warn { "DB 오류로 슬롯 순회 중단: lockName=$lockName" }
+                    return null
+                }
+            }
 
             log.debug { "그룹 슬롯을 획득하여 작업을 수행합니다. lockName=$lockName, slot=$slot" }
 
@@ -194,13 +201,20 @@ class ExposedJdbcLeaderGroupElection private constructor(
         val start = Random.nextInt(maxLeaders)
 
         return CompletableFuture.supplyAsync({
-            (0 until maxLeaders)
-                .asSequence()
-                .map { i ->
-                    val slot = (start + i) % maxLeaders
-                    ExposedJdbcGroupLock(db, lockName, slot, options.retryStrategy, options.lockOwner) to slot
+            var acquired: Pair<ExposedJdbcGroupLock, Int>? = null
+            for (i in 0 until maxLeaders) {
+                val slot = (start + i) % maxLeaders
+                val lock = ExposedJdbcGroupLock(db, lockName, slot, options.retryStrategy, options.lockOwner)
+                when (lock.tryLock(perSlotWait, leaseTime)) {
+                    true -> { acquired = lock to slot; break }
+                    false -> continue
+                    null -> {
+                        log.warn { "DB 오류로 비동기 슬롯 순회 중단: lockName=$lockName, slot=$slot" }
+                        return@supplyAsync null
+                    }
                 }
-                .firstOrNull { (lock, _) -> lock.tryLock(perSlotWait, leaseTime) }
+            }
+            acquired
         }, executor).thenComposeAsync({ acquired ->
             if (acquired == null) {
                 log.debug { "그룹 슬롯 획득 실패 (비동기). lockName=$lockName" }
