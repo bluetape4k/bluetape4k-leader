@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.exposed.jdbc
 
+import io.bluetape4k.leader.exposed.retry.RetryStrategy
+
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.exposed.tests.TestDB
