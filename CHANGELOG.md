@@ -75,6 +75,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`ExposedJdbcGroupLock.isHeldByCurrentInstance()`**: token + `lockedUntil > NOW()` 체크 누락 메서드 추가 (issue #59, PR #63)
 - **`ExposedJdbcGroupLock.tryLock()` DB 오류 전파**: `Boolean?` tri-state 반환으로 DB 오류와 슬롯 경합 실패 구분 가능 (issue #60, PR #63)
 - **Exposed Lock 클래스 `KLoggingChannel` 이식**: `KLogging` → `KLoggingChannel` (coroutine 컨텍스트 로거) (issue #61, PR #63)
+- **`ExposedR2dbcGroupLock.tryLock()` DB 오류 전파**: `Boolean?` tri-state 반환으로 JDBC 형제 모듈과 contract 통일 (daily review 2026-05-04)
+- **Exposed Lock SELECT 술어 강화**: JDBC `tryAcquireOnce` Step 3 SELECT에 `lockedUntil > NOW()` 추가 — split-brain 방지 + R2DBC 대칭 (daily review 2026-05-04)
 
 ### Changed
 

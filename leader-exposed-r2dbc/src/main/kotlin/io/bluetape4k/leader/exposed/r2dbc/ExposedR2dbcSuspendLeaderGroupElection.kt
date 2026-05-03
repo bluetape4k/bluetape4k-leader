@@ -155,7 +155,14 @@ class ExposedR2dbcSuspendLeaderGroupElection private constructor(
             val slot = (start + i) % maxLeaders
             val lock = ExposedR2dbcGroupLock(db, lockName, slot, options.retryStrategy, options.lockOwner)
 
-            if (!lock.tryLock(perSlotWait, leaseTime)) continue
+            when (lock.tryLock(perSlotWait, leaseTime)) {
+                true -> { /* 획득 성공 — 아래 로직 계속 */ }
+                false -> continue
+                null -> {
+                    log.warn { "DB 오류로 슬롯 순회 중단: lockName=$lockName" }
+                    return null
+                }
+            }
 
             log.debug { "그룹 슬롯을 획득하여 작업을 수행합니다. lockName=$lockName, slot=$slot" }
             cachedActiveCount.incrementAndGet()

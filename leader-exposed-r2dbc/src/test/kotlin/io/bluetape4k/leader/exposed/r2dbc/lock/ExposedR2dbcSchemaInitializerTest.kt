@@ -4,6 +4,9 @@ import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.exposed.r2dbc.AbstractExposedR2dbcLeaderTest
 import io.bluetape4k.leader.exposed.r2dbc.TestR2dbcDB
 import io.bluetape4k.logging.coroutines.KLoggingChannel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeTrue
@@ -36,6 +39,22 @@ class ExposedR2dbcSchemaInitializerTest : AbstractExposedR2dbcLeaderTest() {
 
         ExposedR2dbcSchemaInitializer.ensureSchema(db)
         ExposedR2dbcSchemaInitializer.ensureSchema(db)
+        ExposedR2dbcSchemaInitializer.ensureSchema(db)
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `ensureSchema - 동시 호출 10건에도 예외 없이 단일 초기화로 수렴한다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = connectDb(testDB)
+        ExposedR2dbcSchemaInitializer.resetFor(db)
+
+        coroutineScope {
+            (1..10).map {
+                async { ExposedR2dbcSchemaInitializer.ensureSchema(db) }
+            }.awaitAll()
+        }
+
+        // 후속 호출도 정상 (이미 초기화 완료)
         ExposedR2dbcSchemaInitializer.ensureSchema(db)
     }
 

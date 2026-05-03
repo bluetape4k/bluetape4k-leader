@@ -124,6 +124,21 @@ class ExposedR2dbcLockTest : AbstractExposedR2dbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
+    fun `isHeldByCurrentInstance - 다른 인스턴스 token으로는 false를 반환한다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val holder = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
+        holder.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(30)).shouldBeTrue()
+
+        val other = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
+        other.isHeldByCurrentInstance().shouldBeFalse()
+
+        holder.unlock()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
     fun `isHeldByCurrentInstance - leaseTime 만료 시 false 반환`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)

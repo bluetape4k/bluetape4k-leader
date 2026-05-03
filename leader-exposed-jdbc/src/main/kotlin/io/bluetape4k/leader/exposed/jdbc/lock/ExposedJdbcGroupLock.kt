@@ -132,13 +132,14 @@ internal class ExposedJdbcGroupLock internal constructor(
                 }
             }
 
-            // SELECT으로 token 소유 확인 (복합 PK 조건)
+            // SELECT으로 token 소유 + lease 유효성 확인 (R2DBC 형제 모듈과 대칭)
             !LeaderGroupLockTable
                 .selectAll()
                 .where {
                     (LeaderGroupLockTable.lockName eq lockNameVal) and
                         (LeaderGroupLockTable.slot eq slotVal) and
-                        (LeaderGroupLockTable.token eq tokenVal)
+                        (LeaderGroupLockTable.token eq tokenVal) and
+                        (LeaderGroupLockTable.lockedUntil greater now)
                 }
                 .empty()
         }
