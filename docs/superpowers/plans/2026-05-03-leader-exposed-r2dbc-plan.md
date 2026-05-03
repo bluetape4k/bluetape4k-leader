@@ -155,8 +155,9 @@ T13 → T14 (KDoc + README)
    - `transaction(db) {}` -> `suspendTransaction(db) {}`
    - `Thread.sleep(ms)` -> `delay(ms)` (suspendTransaction **바깥**에서 호출)
    - `Thread.currentThread().interrupt()` -> N/A (코루틴은 `CancellationException`)
-   - `KLogging()` 유지 — internal Lock/GroupLock은 sync 내부 클래스이므로 `KLogging()` 사용
-   - (Election 구현 클래스 `ExposedR2dbcSuspendLeaderElection` 등은 `KLoggingChannel()`)
+   - **`KLogging()` vs `KLoggingChannel()` 선택 기준**: internal/public 구분이 아닌 **동기 vs 코루틴** 구분
+     - 동기(blocking) 클래스 (suspend 함수 없음) → `KLogging()`
+     - suspend 함수를 하나라도 포함하는 클래스 → `KLoggingChannel()` (Lock, GroupLock, Election 모두 해당)
    - JDBC `org.jetbrains.exposed.v1.jdbc.insert/update/selectAll/deleteWhere` -> R2DBC `org.jetbrains.exposed.v1.r2dbc.insert/update/selectAll/deleteWhere`
 
 2. **DB별 INSERT 충돌 분기 (CRITICAL -- Risk 1 대응)**:
@@ -434,7 +435,8 @@ T13 → T14 (KDoc + README)
 8. **`DB 오류 시 null 반환 (never-throws)`**: 트랜잭션 실패 -> null 반환
 
 #### 테스트 패턴
-- 모든 테스트 `runSuspendIO { }` 사용 (bluetape4k-coroutines, 실제 IO + delay 정상 동작)
+- `delay()` 포함 테스트 (재시도/만료 검증) → **`runSuspendIO { }`** (실제 시간, bluetape4k-coroutines 제공)
+- `delay()` 없는 단순 suspend 테스트 → `runTest { }` (가상 시간, 빠름)
 - `@MethodSource("enableDialects")` 3-DB 파라미터화
 - 각 테스트 전 `cleanTables(db)` 호출
 - lockName은 `randomName()` 사용
