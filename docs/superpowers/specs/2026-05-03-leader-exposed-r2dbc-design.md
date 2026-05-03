@@ -280,7 +280,7 @@ internal class ExposedR2dbcLock internal constructor(
     private val retryStrategy: RetryStrategy,
     private val lockOwner: String? = null,
 ) {
-    companion object : KLoggingChannel()  // suspend 컨텍스트 지원 — Lock/GroupLock 모두 KLoggingChannel 통일
+    companion object : KLogging()  // internal sync 클래스 — KLogging() 사용 (suspend Election 클래스는 KLoggingChannel)
 
     /** 인스턴스별 고유 fencing token (UUID). */
     val token: String
@@ -342,7 +342,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
     private val retryStrategy: RetryStrategy,
     private val lockOwner: String? = null,
 ) {
-    companion object : KLoggingChannel()
+    companion object : KLogging()  // internal sync 클래스 — KLogging() 사용
 
     val token: String
 
@@ -651,10 +651,10 @@ abstract class AbstractExposedR2dbcLeaderTest {
 - 각 테스트 메서드 전에 `cleanTables(db)` 호출 (suspendTransaction 내 deleteAll)
 - lockName은 `randomName()` (UUID 기반)으로 생성하여 테스트 간 간섭 방지
 - `junit-platform.properties`에 `PER_CLASS` + `parallel=false` 설정
-- **모든 suspend 테스트는 `runTest { }` 사용** (kotlinx-coroutines-test)
-  - `runTest`는 가상 시간을 자동 진행하므로 `delay()` 호출이 실제 대기 없이 즉시 완료됨
-  - leaseTime 만료 테스트에서 `advanceTimeBy(leaseTime.toMillis())` 사용
-  - 주의: R2DBC 실제 I/O는 `Dispatchers.IO`에서 실행되므로, `delay()` 기반 retry가 가상 시간에서 즉시 완료되어 테스트 동작이 달라질 수 있음 → 필요 시 `advanceUntilIdle()` 사용
+- **모든 suspend 테스트는 `runSuspendIO { }` 사용** (bluetape4k-coroutines 제공)
+  - R2DBC 실제 I/O가 포함된 통합 테스트에서 `runTest`(가상 시간)는 실제 DB I/O와 충돌 가능
+  - `runSuspendIO`는 실제 코루틴 스코프에서 실행하므로 `delay()` + 실제 DB 작업이 정상 동작
+  - `delay()` 기반 재시도 검증 시에도 실제 시간으로 동작하여 테스트 결과 신뢰성 보장
 
 ---
 
@@ -674,7 +674,8 @@ abstract class AbstractExposedR2dbcLeaderTest {
 | `Thread.currentThread().interrupt()` | N/A (코루틴은 CancellationException 사용) |
 | `System.currentTimeMillis()` | `System.currentTimeMillis()` (동일) |
 | `ConcurrentHashMap` | `ConcurrentHashMap` (코루틴에서도 thread-safe) |
-| `KLogging()` | `KLoggingChannel()` (suspend 컨텍스트 지원) |
+| `KLogging()` — sync/blocking class | `KLogging()` — internal Lock/GroupLock (sync 내부 클래스) |
+| `KLogging()` — 상위 Election 클래스 | `KLoggingChannel()` — suspend Election 구현 클래스 (SuspendLeaderElection 구현체) |
 
 ---
 
