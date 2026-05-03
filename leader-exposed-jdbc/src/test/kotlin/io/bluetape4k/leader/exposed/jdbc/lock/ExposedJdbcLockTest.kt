@@ -2,7 +2,7 @@ package io.bluetape4k.leader.exposed.jdbc.lock
 
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
-import io.bluetape4k.leader.exposed.jdbc.RetryStrategy
+import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.logging.KLogging
 import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeGreaterOrEqualTo

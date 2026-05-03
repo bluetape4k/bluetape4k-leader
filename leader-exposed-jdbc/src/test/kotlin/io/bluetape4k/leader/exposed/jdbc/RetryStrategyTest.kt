@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.exposed.jdbc
 
+import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import org.amshove.kluent.shouldBeInRange
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
