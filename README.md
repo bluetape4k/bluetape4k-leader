@@ -33,8 +33,8 @@ graph TD
     ExposedR2dbc["leader-exposed-r2dbc\n(Stable)"]
     Mongo["leader-mongodb\n(MongoDB)"]
     SBCommon["leader-spring-boot-common\n(Boot version-independent)"]
-    SB3["leader-spring-boot3\n(planned)"]
-    SB4["leader-spring-boot4\n(planned)"]
+    SB3["leader-spring-boot3\n(AOP + AutoConfig)"]
+    SB4["leader-spring-boot4\n(AOP + AutoConfig)"]
     Metrics["leader-micrometer\n(planned)"]
     Ktor["leader-ktor\n(planned)"]
     ZK["leader-zookeeper\n(planned)"]
@@ -67,9 +67,9 @@ graph TD
 | `leader-exposed-r2dbc` | Stable | Exposed R2DBC backend (coroutine-native, H2/PostgreSQL/MySQL) |
 | `leader-mongodb` | Stable | MongoDB backend (`findOneAndUpdate` + TTL index) |
 | `leader-micrometer` | Planned | Micrometer metrics integration |
-| `leader-spring-boot-common` | Stable | Boot version-independent properties + auto-config support |
-| `leader-spring-boot3` | Planned | Spring Boot 3 auto-configuration |
-| `leader-spring-boot4` | Planned | Spring Boot 4 auto-configuration |
+| `leader-spring-boot-common` | Stable | `@LeaderElection` / `@LeaderGroupElection` AOP annotations + Boot-version-independent infrastructure |
+| `leader-spring-boot3` | Stable | Spring Boot 3 auto-configuration + AOP (Spring proxy) |
+| `leader-spring-boot4` | Stable | Spring Boot 4 auto-configuration + AOP (AspectJ post-compile weaving) |
 | `leader-ktor` | Planned | Ktor Plugin DSL + `leaderScheduled()` scheduling helper |
 | `leader-zookeeper` | Planned | ZooKeeper/Curator backend (`InterProcessMutex` / `InterProcessSemaphoreV2`) |
 

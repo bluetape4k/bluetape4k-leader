@@ -4,6 +4,18 @@ plugins {
     alias(libs.plugins.spring.boot3) apply false
 }
 
+kover {
+    reports {
+        verify {
+            rule {
+                bound {
+                    minValue = 80
+                }
+            }
+        }
+    }
+}
+
 configurations {
     testImplementation.get().extendsFrom(compileOnly.get(), runtimeOnly.get())
 }

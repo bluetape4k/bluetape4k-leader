@@ -15,12 +15,15 @@ leader-bom/              # BOM (bill of materials) for consumers
 leader-core/             # Interfaces + local in-process implementations
 leader-redis-lettuce/    # Lettuce-based Redis backend
 leader-redis-redisson/   # Redisson-based Redis backend
-leader-exposed/          # (planned) Exposed/JDBC backend
+leader-exposed-core/     # Exposed ORM common types
+leader-exposed-jdbc/     # Exposed JDBC backend
+leader-exposed-r2dbc/    # Exposed R2DBC backend
 leader-mongodb/          # MongoDB backend (findOneAndUpdate + TTL index)
-leader-hazelcast/        # (planned) Hazelcast backend
+leader-hazelcast/        # Hazelcast backend
 leader-micrometer/       # (planned) Micrometer metrics integration
-leader-spring-boot3/     # (planned) Spring Boot 3 auto-configuration
-leader-spring-boot4/     # (planned) Spring Boot 4 auto-configuration
+leader-spring-boot-common/ # Boot-version-independent AOP annotations + infrastructure
+leader-spring-boot3/     # Spring Boot 3 auto-configuration + AOP (Spring proxy)
+leader-spring-boot4/     # Spring Boot 4 auto-configuration + AOP (AspectJ post-compile weaving)
 buildSrc/                # Versions, plugins, dependency catalog (Libs.kt, Versions.kt)
 ```
 
@@ -34,6 +37,41 @@ buildSrc/                # Versions, plugins, dependency catalog (Libs.kt, Versi
 ./gradlew :leader-redis-redisson:test
 ./gradlew test --tests "io.bluetape4k.leader.redisson.RedissonLeaderElectionTest"
 ./gradlew detekt
+
+# AOP modules
+./gradlew :leader-spring-boot-common:test
+./gradlew :leader-spring-boot3:test
+./gradlew :leader-spring-boot4:test
+```
+
+## AOP Annotation Guide
+
+`@LeaderElection` / `@LeaderGroupElection` are declared in `leader-spring-boot-common` and
+applied via Spring AOP (Boot 3) or AspectJ post-compile weaving (Boot 4).
+
+### Key rules for annotated methods
+- Methods must be `open` in Kotlin when using Boot 3 (Spring proxy-based AOP)
+- Boot 4 (Freefair AspectJ weaving) does not require `open`
+- `private` methods are never intercepted — startup validation will warn or fail
+- `suspend` / `Mono` / `Flux` / `Flow` returns are not supported (sync-only in v1.x)
+
+### SpEL name rules
+- Static: `name = "my-lock"` (no quotes around the whole expression needed)
+- Dynamic: `name = "'prefix-' + #param"` (literal must be quoted inside SpEL)
+- Spring placeholder: `name = "\${app.lock.name}"` (resolved before SpEL)
+- ❌ `name = "prefix-#param"` — `prefix-` is parsed as an identifier, causing startup failure
+
+### Startup validation (BeanPostProcessor)
+`LeaderAnnotationValidatorBeanPostProcessor` runs at application startup:
+- `strict = false` (default): WARN log on footgun
+- `strict = true`: throws `IllegalStateException` on final/private/suspend methods
+- `maxLeaders ≤ 1` and SpEL parse errors always throw regardless of `strict`
+
+### AutoConfiguration load order
+```
+LeaderAopFactoryAutoConfiguration   ← registers LeaderElectionFactory beans (6 backends)
+  ↓ (after)
+LeaderAopAutoConfiguration          ← registers LeaderElectionAspect + BPP + HealthIndicator
 ```
 
 ## Key Design Contracts

@@ -2,6 +2,18 @@ plugins {
     alias(libs.plugins.dependency.management)
 }
 
+kover {
+    reports {
+        verify {
+            rule {
+                bound {
+                    minValue = 80
+                }
+            }
+        }
+    }
+}
+
 // Boot 3 BOM 을 compileOnly 로만 import — 버전 lock 용 (transitive 누출 회피).
 // 실제 Spring 의존성은 consumer (leader-spring-boot3-aop / leader-spring-boot4-aspectj) 가 자체 BOM 으로 제공.
 dependencyManagement {
