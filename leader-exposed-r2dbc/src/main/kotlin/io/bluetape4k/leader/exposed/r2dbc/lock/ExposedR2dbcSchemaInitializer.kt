@@ -55,8 +55,9 @@ internal object ExposedR2dbcSchemaInitializer : KLoggingChannel() {
     /**
      * R2DBC URL 내 userinfo(특히 password)를 `***`로 마스킹합니다.
      *
-     * `r2dbc:` 접두사를 제거한 후 [URI]로 파싱하여 userinfo 부분만 치환합니다.
-     * 파싱 실패 시 원본 URL을 반환합니다 (best-effort).
+     * `r2dbc:` 접두사를 제거한 뒤 [URI]로 파싱하여 새 [URI]를 재구성하므로,
+     * userinfo는 `***`로, 나머지 컴포넌트(scheme/host/port/path/query/fragment)는 그대로 보존됩니다.
+     * 파싱 실패([java.net.URISyntaxException], [IllegalArgumentException] 등)시 원본 URL을 반환합니다 (best-effort).
      */
     internal fun sanitizeUrl(url: String): String {
         val (prefix, rest) = when {

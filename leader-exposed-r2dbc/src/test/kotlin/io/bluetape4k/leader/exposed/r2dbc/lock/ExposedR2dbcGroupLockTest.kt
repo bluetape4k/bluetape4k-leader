@@ -31,7 +31,7 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
 
         val acquired = lock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(10))
 
-        acquired.shouldBeTrue()
+        acquired shouldBe true
         lock.unlock()
     }
 
@@ -47,8 +47,8 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         val acquired0 = lock0.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(10))
         val acquired1 = lock1.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(10))
 
-        acquired0.shouldBeTrue()
-        acquired1.shouldBeTrue()
+        acquired0 shouldBe true
+        acquired1 shouldBe true
         lock0.unlock()
         lock1.unlock()
     }
@@ -65,7 +65,7 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         val contender = ExposedR2dbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 10L))
         val acquired = contender.tryLock(Duration.ofMillis(100), Duration.ofSeconds(5))
 
-        acquired.shouldBeFalse()
+        acquired shouldBe false
         holder.unlock()
     }
 
@@ -85,7 +85,7 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         val newLock = ExposedR2dbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
         val acquired = newLock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(10))
 
-        acquired.shouldBeTrue()
+        acquired shouldBe true
         newLock.unlock()
     }
 
@@ -101,7 +101,7 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         lock.unlock()
 
         val reacquire = ExposedR2dbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
-        reacquire.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10)).shouldBeTrue()
+        reacquire.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10)) shouldBe true
         reacquire.unlock()
     }
 
@@ -123,7 +123,7 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         val db = setupDb(testDB)
         cleanTables(db)
         val lock = ExposedR2dbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
-        lock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10)).shouldBeTrue()
+        lock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10)) shouldBe true
 
         lock.isHeldByCurrentInstance().shouldBeTrue()
 
@@ -140,6 +140,21 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         lock.unlock()
 
         lock.isHeldByCurrentInstance().shouldBeFalse()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `isHeldByCurrentInstance - 다른 인스턴스 token으로는 false를 반환한다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val holder = ExposedR2dbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
+        holder.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(30)) shouldBe true
+
+        val other = ExposedR2dbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
+        other.isHeldByCurrentInstance().shouldBeFalse()
+
+        holder.unlock()
     }
 
     @ParameterizedTest
@@ -168,7 +183,7 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         val jobs = (1..10).map {
             async {
                 val lock = ExposedR2dbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 10L))
-                if (lock.tryLock(Duration.ofMillis(200), Duration.ofSeconds(5))) {
+                if (lock.tryLock(Duration.ofMillis(200), Duration.ofSeconds(5)) == true) {
                     successCount.incrementAndGet()
                     // action delay > waitTime(200ms) → 나머지 경합자들이 모두 타임아웃
                     delay(300.milliseconds)
@@ -195,7 +210,7 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         val jobs0 = (1..5).map {
             async {
                 val lock = ExposedR2dbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 10L))
-                if (lock.tryLock(Duration.ofMillis(200), Duration.ofSeconds(5))) {
+                if (lock.tryLock(Duration.ofMillis(200), Duration.ofSeconds(5)) == true) {
                     slot0Count.incrementAndGet()
                     // action delay > waitTime(200ms) → 나머지 경합자들이 모두 타임아웃
                     delay(300.milliseconds)
@@ -206,7 +221,7 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
         val jobs1 = (1..5).map {
             async {
                 val lock = ExposedR2dbcGroupLock(db, lockName, slot = 1, RetryStrategy.Fixed(fixedMs = 10L))
-                if (lock.tryLock(Duration.ofMillis(200), Duration.ofSeconds(5))) {
+                if (lock.tryLock(Duration.ofMillis(200), Duration.ofSeconds(5)) == true) {
                     slot1Count.incrementAndGet()
                     // action delay > waitTime(200ms) → 나머지 경합자들이 모두 타임아웃
                     delay(300.milliseconds)

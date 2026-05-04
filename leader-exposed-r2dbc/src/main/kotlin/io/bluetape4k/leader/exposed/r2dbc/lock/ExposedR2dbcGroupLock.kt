@@ -35,8 +35,7 @@ import java.util.UUID
  *
  * ## DB 오류 vs 정상 경합 실패 구분
  * - **정상 경합 실패** (다른 노드가 슬롯 점유 중): `tryAcquireOnce()`가 `false` 반환
- * - **DB 오류** (연결 끊김, 타임아웃 등): `tryLock()`의 outer catch가 예외를 `warn` 로그 후 `false` 반환
- *   → retry 허용. 복구 불가 오류는 caller가 판단
+ * - **DB 오류** (연결 끊김, 타임아웃 등): `tryLock()`이 `null` 반환 → caller가 슬롯 순회를 중단할 수 있음 (JDBC 형제와 동일 contract)
  *
  * @param db Exposed [R2dbcDatabase] 인스턴스
  * @param lockName 그룹 락 식별자
@@ -63,9 +62,9 @@ internal class ExposedR2dbcGroupLock internal constructor(
     /**
      * [waitTime] 내에 슬롯 락 획득을 시도합니다.
      *
-     * @return 락 획득 성공 시 `true`, 타임아웃 또는 오류 시 `false`
+     * @return 락 획득 성공 시 `true`, 경합 실패(타임아웃) 시 `false`, DB 오류 시 `null`
      */
-    suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
+    suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean? {
         val deadline = System.currentTimeMillis() + waitTime.toMillis().coerceAtLeast(0L)
         var attempt = 0
 
@@ -77,8 +76,8 @@ internal class ExposedR2dbcGroupLock internal constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
-                log.warn(e) { "DB 오류 (재시도 유지): lockName=$lockName, slot=$slot, attempt=$attempt" }
-                false
+                log.warn(e) { "DB 오류로 슬롯 순회 중단: lockName=$lockName, slot=$slot, attempt=$attempt" }
+                return null
             }
 
             if (acquired) {

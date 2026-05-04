@@ -10,6 +10,7 @@ import io.bluetape4k.logging.debug
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import org.amshove.kluent.shouldBe
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeGreaterOrEqualTo
 import org.amshove.kluent.shouldBeInRange
@@ -95,7 +96,7 @@ class ExposedR2dbcSuspendLeaderGroupElectionTest : AbstractExposedR2dbcLeaderTes
         // ExposedR2dbcGroupLock으로 모든 슬롯을 직접 선점 (타이밍 의존성 제거)
         val locks = (0 until maxLeaders).map { slot ->
             ExposedR2dbcGroupLock(db, lockName, slot, RetryStrategy.Jitter()).also { lock ->
-                lock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(30)).shouldBeTrue()
+                lock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(30)) shouldBe true
             }
         }
 

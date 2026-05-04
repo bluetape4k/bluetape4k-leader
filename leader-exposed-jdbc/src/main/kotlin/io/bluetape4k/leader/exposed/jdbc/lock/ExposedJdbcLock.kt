@@ -130,10 +130,14 @@ internal class ExposedJdbcLock internal constructor(
                 }
             }
 
-            // Step 3: token 소유 확인
+            // Step 3: token 소유 + lease 유효성 확인 (R2DBC 형제 모듈과 대칭)
             !LeaderLockTable
                 .selectAll()
-                .where { (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal) }
+                .where {
+                    (LeaderLockTable.lockName eq lockNameVal) and
+                        (LeaderLockTable.token eq tokenVal) and
+                        (LeaderLockTable.lockedUntil greater now)
+                }
                 .empty()
         }
     }
