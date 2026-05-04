@@ -15,7 +15,6 @@ import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeGreaterOrEqualTo
 import org.amshove.kluent.shouldBeInRange
 import org.amshove.kluent.shouldBeNull
-import org.amshove.kluent.shouldBeTrue
 import org.amshove.kluent.shouldNotBeNull
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
@@ -24,9 +23,9 @@ import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 
-class ExposedR2dbcSuspendLeaderGroupElectionTest : AbstractExposedR2dbcLeaderTest() {
+class ExposedR2dbcSuspendLeaderGroupElectionTest: AbstractExposedR2dbcLeaderTest() {
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     private val maxLeaders = 3
 
@@ -179,7 +178,7 @@ class ExposedR2dbcSuspendLeaderGroupElectionTest : AbstractExposedR2dbcLeaderTes
                 "held"
             }
         }
-        delay(100)
+        delay(100.milliseconds)
 
         val count = election.activeCountSuspend(lockName)
         log.debug { "활성 슬롯 수: $count" }

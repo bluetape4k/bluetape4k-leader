@@ -21,10 +21,15 @@ import java.time.Duration
  * @property leaseTime 슬롯 보유(임대) 최대 시간. 기본값 60초
  */
 data class LeaderGroupProperties(
-    val maxLeaders: Int = 2,
-    val waitTime: Duration = Duration.ofSeconds(5),
-    val leaseTime: Duration = Duration.ofSeconds(60),
+    val maxLeaders: Int = DefaultMaxLeaders,
+    val waitTime: Duration = DefaultWaitTime,
+    val leaseTime: Duration = DefaultLeaseTime,
 ) {
+    companion object {
+        const val DefaultMaxLeaders: Int = 2
+        val DefaultWaitTime: Duration = Duration.ofSeconds(5)
+        val DefaultLeaseTime: Duration = Duration.ofSeconds(60)
+    }
     /**
      * 이 속성을 [LeaderGroupElectionOptions]으로 변환합니다.
      */

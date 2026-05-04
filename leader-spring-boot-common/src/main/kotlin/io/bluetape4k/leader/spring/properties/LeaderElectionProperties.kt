@@ -24,10 +24,15 @@ import java.time.Duration
  * @property group 복수 리더 그룹 선출 속성
  */
 data class LeaderElectionProperties(
-    val waitTime: Duration = Duration.ofSeconds(5),
-    val leaseTime: Duration = Duration.ofSeconds(60),
+    val waitTime: Duration = DefaultWaitTime,
+    val leaseTime: Duration = DefaultLeaseTime,
     val group: LeaderGroupProperties = LeaderGroupProperties(),
 ) {
+    companion object {
+        val DefaultWaitTime: Duration = Duration.ofSeconds(5)
+        val DefaultLeaseTime: Duration = Duration.ofSeconds(60)
+    }
+
     /**
      * 이 속성을 [LeaderElectionOptions]으로 변환합니다.
      */

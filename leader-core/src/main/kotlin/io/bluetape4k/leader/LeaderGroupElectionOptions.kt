@@ -26,6 +26,7 @@ data class LeaderGroupElectionOptions(
     val waitTime: Duration = Duration.ofSeconds(5),
     val leaseTime: Duration = Duration.ofSeconds(60),
 ): Serializable {
+
     init {
         require(maxLeaders >= 1) { "maxLeaders must be >= 1: $maxLeaders" }
         require(!waitTime.isNegative) { "waitTime must not be negative: $waitTime" }
@@ -33,6 +34,10 @@ data class LeaderGroupElectionOptions(
     }
 
     companion object {
+        const val DefaultMaxLeaders: Int = 2
+        val DefaultWaitTime: Duration = Duration.ofSeconds(5)
+        val DefaultLeaseTime: Duration = Duration.ofSeconds(60)
+
         /**
          * 기본 옵션 인스턴스 (`maxLeaders=2`, `waitTime=5s`, `leaseTime=60s`).
          *

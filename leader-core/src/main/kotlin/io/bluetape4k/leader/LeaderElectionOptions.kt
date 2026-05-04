@@ -29,6 +29,9 @@ data class LeaderElectionOptions(
     }
 
     companion object {
+        val DefaultWaitTime: Duration = Duration.ofSeconds(5)
+        val DefaultLeaseTime: Duration = Duration.ofSeconds(60)
+
         /**
          * 기본 옵션 인스턴스 (`waitTime=5s`, `leaseTime=60s`).
          *

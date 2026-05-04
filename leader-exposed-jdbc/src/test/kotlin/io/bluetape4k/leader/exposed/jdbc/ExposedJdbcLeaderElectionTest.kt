@@ -1,13 +1,13 @@
 package io.bluetape4k.leader.exposed.jdbc
 
-import io.bluetape4k.leader.exposed.retry.RetryStrategy
-
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcLock
+import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.HistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
@@ -17,7 +17,6 @@ import kotlinx.coroutines.CancellationException
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeGreaterOrEqualTo
 import org.amshove.kluent.shouldBeNull
-import org.amshove.kluent.shouldBeTrue
 import org.amshove.kluent.shouldNotBeNull
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -32,9 +31,9 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-class ExposedJdbcLeaderElectionTest : AbstractExposedJdbcLeaderTest() {
+class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     @ParameterizedTest
     @MethodSource("enableDialects")
@@ -134,7 +133,7 @@ class ExposedJdbcLeaderElectionTest : AbstractExposedJdbcLeaderTest() {
 
         assertThrows<RuntimeException> {
             election.runIfLeader(lockName) {
-                throw RuntimeException("테스트 예외")
+                throw LeaderElectionException("테스트 예외")
             }
         }
 
@@ -154,7 +153,7 @@ class ExposedJdbcLeaderElectionTest : AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
         val election = ExposedJdbcLeaderElection(db)
 
-        runCatching { election.runIfLeader(lockName) { throw RuntimeException("실패") } }
+        runCatching { election.runIfLeader(lockName) { throw LeaderElectionException("실패") } }
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
@@ -185,7 +184,7 @@ class ExposedJdbcLeaderElectionTest : AbstractExposedJdbcLeaderTest() {
             LeaderLockHistoryTable.selectAll()
                 .where {
                     (LeaderLockHistoryTable.lockName eq lockName) and
-                        (LeaderLockHistoryTable.status eq HistoryStatus.FAILED.name)
+                            (LeaderLockHistoryTable.status eq HistoryStatus.FAILED.name)
                 }
                 .count()
         }
@@ -233,7 +232,7 @@ class ExposedJdbcLeaderElectionTest : AbstractExposedJdbcLeaderTest() {
         )
         val election = ExposedJdbcLeaderElection(db, options)
 
-        runCatching { election.runIfLeader(lockName) { throw RuntimeException("fail") } }
+        runCatching { election.runIfLeader(lockName) { throw LeaderElectionException("fail") } }
 
         val rows = transaction(db) {
             LeaderLockHistoryTable.selectAll()
@@ -336,7 +335,7 @@ class ExposedJdbcLeaderElectionTest : AbstractExposedJdbcLeaderTest() {
             LeaderLockHistoryTable.selectAll()
                 .where {
                     (LeaderLockHistoryTable.lockName eq lockName) and
-                        (LeaderLockHistoryTable.status eq HistoryStatus.FAILED.name)
+                            (LeaderLockHistoryTable.status eq HistoryStatus.FAILED.name)
                 }
                 .count()
         }
@@ -404,8 +403,7 @@ class ExposedJdbcLeaderElectionTest : AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
 
-        val result = db.runVirtualIfLeader(randomName()) { "virtual ext 성공" }
-            .get(5, TimeUnit.SECONDS)
+        val result = db.runVirtualIfLeader(randomName()) { "virtual ext 성공" }[5, TimeUnit.SECONDS]
 
         result shouldBeEqualTo "virtual ext 성공"
     }
@@ -418,8 +416,7 @@ class ExposedJdbcLeaderElectionTest : AbstractExposedJdbcLeaderTest() {
         val election = ExposedJdbcLeaderElection(db)
         val vtElection = ExposedJdbcVirtualThreadLeaderElection(election)
 
-        val result = vtElection.runAsyncIfLeader(randomName()) { "vt 성공" }
-            .get(5, TimeUnit.SECONDS)
+        val result = vtElection.runAsyncIfLeader(randomName()) { "vt 성공" }[5, TimeUnit.SECONDS]
 
         result shouldBeEqualTo "vt 성공"
     }

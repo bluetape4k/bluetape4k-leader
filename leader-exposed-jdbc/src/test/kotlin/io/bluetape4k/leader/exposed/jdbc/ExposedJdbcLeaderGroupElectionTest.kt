@@ -1,13 +1,13 @@
 package io.bluetape4k.leader.exposed.jdbc
 
-import io.bluetape4k.leader.exposed.retry.RetryStrategy
-
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcGroupLock
+import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.HistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.logging.KLogging
@@ -18,7 +18,6 @@ import org.amshove.kluent.shouldBeLessOrEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.amshove.kluent.shouldNotBeNull
-import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -33,9 +32,9 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 
-class ExposedJdbcLeaderGroupElectionTest : AbstractExposedJdbcLeaderTest() {
+class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private fun makeOptions(maxLeaders: Int = 3, waitSec: Long = 10, leaseSec: Long = 30) =
         ExposedJdbcLeaderGroupElectionOptions(
@@ -156,7 +155,7 @@ class ExposedJdbcLeaderGroupElectionTest : AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
         val election = ExposedJdbcLeaderGroupElection(db, makeOptions())
 
-        runCatching { election.runIfLeader(lockName) { throw RuntimeException("실패") } }
+        runCatching { election.runIfLeader(lockName) { throw LeaderElectionException("실패") } }
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"

@@ -1,20 +1,22 @@
 package io.bluetape4k.leader.spring.properties
 
+import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.logging.KLogging
 import org.amshove.kluent.shouldBeEqualTo
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 import java.time.Duration
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionPropertiesTest {
+
+    companion object: KLogging()
 
     @Test
     fun `기본값으로 LeaderElectionOptions 생성`() {
         val props = LeaderElectionProperties()
         val options = props.toOptions()
 
-        options.waitTime shouldBeEqualTo Duration.ofSeconds(5)
-        options.leaseTime shouldBeEqualTo Duration.ofSeconds(60)
+        options.waitTime shouldBeEqualTo LeaderElectionOptions.DefaultWaitTime
+        options.leaseTime shouldBeEqualTo LeaderElectionOptions.DefaultLeaseTime
     }
 
     @Test
@@ -32,8 +34,8 @@ class LeaderElectionPropertiesTest {
     @Test
     fun `group 속성 기본값`() {
         val props = LeaderElectionProperties()
-        props.group.maxLeaders shouldBeEqualTo 2
-        props.group.waitTime shouldBeEqualTo Duration.ofSeconds(5)
-        props.group.leaseTime shouldBeEqualTo Duration.ofSeconds(60)
+        props.group.maxLeaders shouldBeEqualTo LeaderGroupProperties.DefaultMaxLeaders
+        props.group.waitTime shouldBeEqualTo LeaderGroupProperties.DefaultWaitTime
+        props.group.leaseTime shouldBeEqualTo LeaderGroupProperties.DefaultLeaseTime
     }
 }
