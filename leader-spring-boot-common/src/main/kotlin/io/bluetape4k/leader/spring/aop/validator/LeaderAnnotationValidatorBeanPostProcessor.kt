@@ -37,23 +37,16 @@ class LeaderAnnotationValidatorBeanPostProcessor(
 ) : BeanPostProcessor {
 
     override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
-        runCatching { validateBean(bean, beanName) }
-            .onFailure { log.warn(it) { "BPP self-throw on bean '$beanName' — validation skipped" } }
-        return bean
-    }
+        // [Step 3-P-Rel] reflection 자체 throw (ClassNotFound, NPE 등) 는 격리 — validation 결과는 그대로 전파
+        val collected = runCatching { collectAnnotatedMethods(bean) }
+            .getOrElse {
+                log.warn(it) { "BPP self-throw collecting annotated methods on bean '$beanName' — validation skipped" }
+                return bean
+            } ?: return bean
 
-    private fun validateBean(bean: Any, beanName: String) {
-        val targetClass = AopUtils.getTargetClass(bean)
-        // skip Spring infrastructure beans + AOP proxies + interceptor 자체
-        if (MethodInterceptor::class.java.isAssignableFrom(targetClass)) return
-
-        val annotated = targetClass.declaredMethods.filter { method ->
-            method.isAnnotationPresent(LeaderElection::class.java) ||
-                method.isAnnotationPresent(LeaderGroupElection::class.java)
-        }
-
+        val (targetClass, annotated) = collected
         for (method in annotated) {
-            validateMethod(method, beanName, targetClass)
+            validateMethod(method, beanName, targetClass)  // require/error 는 정당한 fail-fast — 그대로 throw
         }
 
         // [R-31] best-effort self-invocation WARN
@@ -63,6 +56,18 @@ class LeaderAnnotationValidatorBeanPostProcessor(
                     "(2+ annotated methods — proxy bypass via self-invocation possible)"
             }
         }
+        return bean
+    }
+
+    private fun collectAnnotatedMethods(bean: Any): Pair<Class<*>, List<Method>>? {
+        val targetClass = AopUtils.getTargetClass(bean)
+        if (MethodInterceptor::class.java.isAssignableFrom(targetClass)) return null
+
+        val annotated = targetClass.declaredMethods.filter { method ->
+            method.isAnnotationPresent(LeaderElection::class.java) ||
+                method.isAnnotationPresent(LeaderGroupElection::class.java)
+        }
+        return targetClass to annotated
     }
 
     private fun validateMethod(method: Method, beanName: String, targetClass: Class<*>) {

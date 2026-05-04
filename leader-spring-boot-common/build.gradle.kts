@@ -36,5 +36,6 @@ dependencies {
     testImplementation(libs.spring.aop)
     testImplementation(libs.spring.expression)
     testImplementation(libs.spring.boot.autoconfigure)
+    testImplementation(libs.spring.boot.actuator)
     testImplementation(libs.aspectjweaver)
 }

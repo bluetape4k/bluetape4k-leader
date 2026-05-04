@@ -104,6 +104,9 @@ class LeaderElectionAspect(
         } catch (e: CancellationException) {
             // [Rel-2] CancellationException 항상 우선 재throw
             throw e
+        } catch (bodyMarker: BodyThrownMarker) {
+            // [Rel-1] body 예외는 wrapping 없이 그대로 전파 — failureMode 무관
+            throw bodyMarker.cause
         } catch (backendEx: Throwable) {
             // [Sec-3][R-33] backend 예외만 LeaderElectionException 으로 wrapping
             val wrapped = LeaderElectionException("leader backend error for lock '$lockName'", backendEx)
@@ -124,6 +127,9 @@ class LeaderElectionAspect(
     /**
      * [Rel-1] body 실행 — 사용자 본문 throw 는 wrapping 없이 그대로 전파.
      * [CancellationException] 우선 재throw [Rel-2].
+     *
+     * body 예외는 [BodyThrownMarker] 로 감싸서 outer catch 가 backend 예외와 구분할 수 있게 한다.
+     * outer catch 가 [BodyThrownMarker] 를 만나면 cause 를 그대로 re-throw (wrapping 없음).
      */
     private fun executeBody(pjp: ProceedingJoinPoint, lockName: String, start: Long): Any? {
         return try {
@@ -132,11 +138,13 @@ class LeaderElectionAspect(
             fanOut { it.onTaskFailed(lockName, (System.nanoTime() - start).nanoseconds, e) }
             throw e
         } catch (bodyEx: Throwable) {
-            // body 예외는 LeaderElectionException 으로 wrapping 안 함 — 호출자에게 그대로 전파
             fanOut { it.onTaskFailed(lockName, (System.nanoTime() - start).nanoseconds, bodyEx) }
-            throw bodyEx
+            throw BodyThrownMarker(bodyEx)
         }
     }
+
+    /** Body throw vs backend throw 구분용 internal marker — outer catch 에서 cause 만 re-throw. */
+    private class BodyThrownMarker(override val cause: Throwable) : RuntimeException(cause)
 
     /**
      * [T2.14] SpEL pre-parse hook — startup 시점 모든 `@LeaderElection` 메서드의 SpEL 검증.

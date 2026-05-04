@@ -87,6 +87,8 @@ class LeaderGroupElectionAspect(
             result
         } catch (e: CancellationException) {
             throw e
+        } catch (bodyMarker: BodyThrownMarker) {
+            throw bodyMarker.cause
         } catch (backendEx: Throwable) {
             val wrapped = LeaderGroupElectionException("leader group backend error for lock '$lockName'", backendEx)
             fanOut {
@@ -111,9 +113,12 @@ class LeaderGroupElectionAspect(
             throw e
         } catch (bodyEx: Throwable) {
             fanOut { it.onTaskFailed(lockName, (System.nanoTime() - start).nanoseconds, bodyEx) }
-            throw bodyEx
+            throw BodyThrownMarker(bodyEx)
         }
     }
+
+    /** Body throw vs backend throw 구분용 internal marker. */
+    private class BodyThrownMarker(override val cause: Throwable) : RuntimeException(cause)
 
     override fun afterSingletonsInstantiated() {
         // BPP/Validator 가 별도 검증 — Aspect 는 캐시 워밍 미수행
