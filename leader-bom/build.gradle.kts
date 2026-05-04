@@ -20,7 +20,9 @@ dependencies {
         api(project(":leader-hazelcast"))
         api(project(":leader-spring-boot-common"))
         api(project(":leader-spring-boot3"))
+        api(project(":leader-spring-boot3-aop"))
         api(project(":leader-spring-boot4"))
+        api(project(":leader-spring-boot4-aspectj"))
         api(project(":leader-micrometer"))
     }
 }

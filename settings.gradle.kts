@@ -23,6 +23,8 @@ include(
     "leader-hazelcast",
     "leader-spring-boot-common",
     "leader-spring-boot3",
+    "leader-spring-boot3-aop",
     "leader-spring-boot4",
+    "leader-spring-boot4-aspectj",
     "leader-micrometer",
 )
