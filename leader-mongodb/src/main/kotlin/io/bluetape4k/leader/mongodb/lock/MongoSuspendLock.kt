@@ -12,6 +12,7 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Updates
 import com.mongodb.kotlin.client.coroutine.MongoCollection
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
@@ -21,12 +22,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import org.bson.Document
 import java.time.Duration
-import java.util.Date
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * MongoDB `findOneAndUpdate` upsert + TTL index 기반 코루틴 토큰 분산 락입니다.
@@ -93,7 +93,7 @@ class MongoSuspendLock private constructor(
         }
     }
 
-    private val token: String = UUID.randomUUID().toString()
+    private val token: String = Base58.randomString(8)
 
     /**
      * [waitTime] 내에 락 획득을 시도합니다. 성공 시 `true`, 타임아웃 또는 오류 시 `false`를 반환합니다.

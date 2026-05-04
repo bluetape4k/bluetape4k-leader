@@ -2,30 +2,33 @@ package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.junit5.awaitility.untilSuspending
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
-import org.awaitility.kotlin.await
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
-import org.amshove.kluent.shouldBeTrue
 import org.amshove.kluent.shouldNotBeNull
+import org.awaitility.kotlin.await
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.assertThrows
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class LettuceStrategicSuspendLeaderElectionTest : AbstractLettuceLeaderTest() {
+class LettuceStrategicSuspendLeaderElectionTest: AbstractLettuceLeaderTest() {
 
     private lateinit var node1: LettuceStrategicSuspendLeaderElection
     private lateinit var node2: LettuceStrategicSuspendLeaderElection
@@ -149,7 +152,7 @@ class LettuceStrategicSuspendLeaderElectionTest : AbstractLettuceLeaderTest() {
         val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo("node-1"), Duration.ZERO)
 
-        delay(100L)
+        delay(100L.milliseconds)
         node1.listCandidates(lockName).size shouldBeEqualTo 1
     }
 
@@ -171,17 +174,13 @@ class LettuceStrategicSuspendLeaderElectionTest : AbstractLettuceLeaderTest() {
         val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
 
-        var caughtCancellation = false
-        try {
-            withTimeout(50L) {
+        assertThrows<TimeoutCancellationException> {
+            withTimeout(50L.milliseconds) {
                 node1.runIfLeader(lockName, FifoElectionStrategy) {
-                    delay(10_000L)
+                    delay(10_000L.milliseconds)
                 }
             }
-        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-            caughtCancellation = true
         }
-        caughtCancellation.shouldBeTrue()
 
         val candidate = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
         candidate.failureCount shouldBeEqualTo 0L
@@ -192,11 +191,11 @@ class LettuceStrategicSuspendLeaderElectionTest : AbstractLettuceLeaderTest() {
         val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
 
-        runCatching {
+        assertThrows<LeaderElectionException> {
             node1.runIfLeader(lockName, FifoElectionStrategy) {
-                throw RuntimeException("intentional")
+                throw LeaderElectionException("intentional")
             }
-        }.isFailure.shouldBeTrue()
+        }
 
         val updated = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
         updated.failureCount shouldBeEqualTo 1L

@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -9,7 +11,6 @@ import org.amshove.kluent.shouldBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Duration
-import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
@@ -23,7 +24,7 @@ class LocalAsyncLeaderElectionTest {
 
     private val election = LocalAsyncLeaderElection()
 
-    private fun randomLockName() = "lock-${UUID.randomUUID()}"
+    private fun randomLockName() = "lock-${Base58.randomString(8)}"
 
     @Test
     fun `runAsyncIfLeader - 리더로 선출되어 비동기 action 을 실행하고 결과를 반환한다`() {
@@ -77,7 +78,7 @@ class LocalAsyncLeaderElectionTest {
     fun `runAsyncIfLeader - action 내부 예외 발생 시 CompletionException 이 전파된다`() {
         assertThrows<CompletionException> {
             election.runAsyncIfLeader(randomLockName()) {
-                CompletableFuture.supplyAsync<Int> { throw RuntimeException("action 내부 예외") }
+                CompletableFuture.supplyAsync<Int> { throw LeaderElectionException("action 내부 예외") }
             }.join()
         }
     }

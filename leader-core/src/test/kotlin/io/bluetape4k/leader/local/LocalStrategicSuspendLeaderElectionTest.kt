@@ -1,10 +1,14 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.codec.Base58
+import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -17,14 +21,13 @@ import org.amshove.kluent.shouldBeTrue
 import org.amshove.kluent.shouldNotBeNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LocalStrategicSuspendLeaderElectionTest {
 
-    private val lockName = "test-suspend-lock"
+    private val lockName = "test-suspend-lock-" + Base58.randomString(8)
 
     private lateinit var node1: LocalStrategicSuspendLeaderElection
     private lateinit var node2: LocalStrategicSuspendLeaderElection
@@ -77,16 +80,16 @@ class LocalStrategicSuspendLeaderElectionTest {
     }
 
     @Test
-    fun `CancellationException - 코루틴 취소 시 failureCount 증가 없음`() = runTest {
+    fun `CancellationException - 코루틴 취소 시 failureCount 증가 없음`() = runSuspendIO {
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
         var caughtCancellation = false
         try {
-            withTimeout(50L) {
+            withTimeout(50L.milliseconds) {
                 node1.runIfLeader(lockName, FifoElectionStrategy) {
-                    delay(10_000L) // 타임아웃보다 훨씬 긴 지연
+                    delay(10_000L.milliseconds) // 타임아웃보다 훨씬 긴 지연
                 }
             }
-        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+        } catch (e: TimeoutCancellationException) {
             caughtCancellation = true
         }
         caughtCancellation.shouldBeTrue()
@@ -100,7 +103,7 @@ class LocalStrategicSuspendLeaderElectionTest {
 
         runCatching {
             node1.runIfLeader(lockName, FifoElectionStrategy) {
-                throw RuntimeException("intentional error")
+                throw LeaderElectionException("intentional error")
             }
         }.isFailure.shouldBeTrue()
 

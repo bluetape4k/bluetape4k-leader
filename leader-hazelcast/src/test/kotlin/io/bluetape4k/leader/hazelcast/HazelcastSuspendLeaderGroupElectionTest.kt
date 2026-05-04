@@ -2,6 +2,7 @@ package io.bluetape4k.leader.hazelcast
 
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
+import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -21,6 +22,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
 
 class HazelcastSuspendLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
 
@@ -36,7 +38,7 @@ class HazelcastSuspendLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
     @Test
     fun `runIfLeader - 리더로 선출되어 suspend action 을 실행하고 결과를 반환한다`() = runTest {
         val result = election.runIfLeader(randomName()) {
-            delay(10)
+            delay(10.milliseconds)
             "hello"
         }
         result shouldBeEqualTo "hello"
@@ -53,7 +55,7 @@ class HazelcastSuspendLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
     @Test
     fun `runIfLeader - action 예외 발생 후에도 슬롯이 반환되어 다음 호출이 성공한다`() = runTest {
         val lockName = randomName()
-        runCatching { election.runIfLeader(lockName) { throw RuntimeException("실패") } }
+        runCatching { election.runIfLeader(lockName) { throw LeaderGroupElectionException("실패") } }
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
     }
@@ -102,7 +104,7 @@ class HazelcastSuspendLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
                     election.runIfLeader(lockName) {
                         val current = currentConcurrent.incrementAndGet()
                         peakConcurrent.updateAndGet { max(it, current) }
-                        delay(Random.nextLong(5, 15))
+                        delay(Random.nextLong(5, 15).milliseconds)
                         currentConcurrent.decrementAndGet()
                     }
                 }
@@ -127,7 +129,7 @@ class HazelcastSuspendLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
                     election.runIfLeader(lockName) {
                         val current = currentConcurrent.incrementAndGet()
                         peakConcurrent.updateAndGet { max(it, current) }
-                        delay(Random.nextLong(5, 15))
+                        delay(Random.nextLong(5, 15).milliseconds)
                         currentConcurrent.decrementAndGet()
                     }
                 }

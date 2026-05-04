@@ -2,6 +2,7 @@ package io.bluetape4k.leader.mongodb
 
 import com.mongodb.client.model.Filters
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -20,10 +21,11 @@ import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.test.assertFailsWith
+import kotlin.time.Duration.Companion.milliseconds
 
-class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
+class MongoSuspendLeaderGroupElectionTest: AbstractMongoLeaderTest() {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private suspend fun makeElection(
         maxLeaders: Int = 3,
@@ -64,7 +66,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
                 election.runIfLeader(lockName) {
                     val current = currentConcurrent.incrementAndGet()
                     peakConcurrent.updateAndGet { max(it, current) }
-                    delay(20)
+                    delay(20.milliseconds)
                     currentConcurrent.decrementAndGet()
                 }
             }
@@ -81,7 +83,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
         val lockName = randomName()
 
         runCatching {
-            election.runIfLeader(lockName) { throw RuntimeException("슬롯 반환 테스트") }
+            election.runIfLeader(lockName) { throw LeaderGroupElectionException("슬롯 반환 테스트") }
         }
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
@@ -125,7 +127,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
         val job = launch {
             election.runIfLeader(lockName) {
                 acquired.complete(Unit)
-                delay(Long.MAX_VALUE)
+                delay(Long.MAX_VALUE.milliseconds)
             }
         }
 
@@ -187,7 +189,7 @@ class MongoSuspendLeaderGroupElectionTest : AbstractMongoLeaderTest() {
             contender.runIfLeader(lockName) { "never" }
         }
 
-        delay(100)
+        delay(100.milliseconds)
         contenderJob.cancel()
         contenderJob.join()
 

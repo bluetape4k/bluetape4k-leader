@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import org.amshove.kluent.shouldBeEqualTo
@@ -7,7 +9,6 @@ import org.amshove.kluent.shouldBeTrue
 import org.amshove.kluent.shouldNotBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
@@ -22,7 +23,7 @@ class AbstractLocalLeaderElectionTest {
 
     companion object: KLogging()
 
-    private fun randomLockName() = "lock-${UUID.randomUUID()}"
+    private fun randomLockName() = "lock-${Base58.randomString(8)}"
 
     // ── 기본 락 관리 동작 ─────────────────────────────────────────────────
 
@@ -125,7 +126,7 @@ class AbstractLocalLeaderElectionTest {
         val lockName = randomLockName()
 
         repeat(3) {
-            runCatching { election.runIfLeader(lockName) { throw RuntimeException("반복 실패 $it") } }
+            runCatching { election.runIfLeader(lockName) { throw LeaderElectionException("반복 실패 $it") } }
         }
 
         // 락이 정상 해제되었으면 이 호출이 블로킹 없이 완료됨

@@ -124,8 +124,8 @@ object LeaderLockTable : Table(LOCK_TABLE_NAME) {
 **설계 근거:**
 - `lockName` PK: MongoDB `_id` = lockKey 패턴과 동일. 자연키(natural key) 사용으로 JOIN/조회 단순화
 - `token` (UUID, **NOT NULL**): `MongoLock`의 토큰 기반 중복 해제 방지 패턴을 RDBMS에 적용.
-  `unlock()` 시 `WHERE lock_name = ? AND token = ?` 조건으로 타 인스턴스의 락을 실수로 해제하는 것을 방지.
-  구현체에서는 반드시 `java.util.UUID.randomUUID().toString()` (SecureRandom 기반)을 사용해야 합니다.
+  `unlock()` 시 `WHERE lock_name = ? AND token = ?` 조건으로 타 인스턴스의 락을 실수로 해제하는 것을 방지. 구현체에서는 반드시
+  `java.util.Base58.randomString(8)` (SecureRandom 기반)을 사용해야 합니다.
 - `locked_until`: TTL 인덱스 대신 SQL `WHERE locked_until < CURRENT_TIMESTAMP` 조건으로 만료 판정
 
 > ⚠️ **`locked_until` 설정 주의:** `locked_until`은 애플리케이션의 `Instant.now() + leaseTime`으로 계산됩니다.
@@ -596,7 +596,7 @@ val lockedAt = timestamp("locked_at")
 // 사용 예시
 LeaderLockTable.insert {
     it[lockName] = "daily-job"
-    it[token] = UUID.randomUUID().toString()
+    it[token] = Base58.randomString(8)
     it[lockedAt] = Instant.now()
     it[lockedUntil] = Instant.now().plus(Duration.ofSeconds(60))
 }

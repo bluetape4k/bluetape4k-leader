@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.exposed.r2dbc.lock
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -21,7 +22,6 @@ import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
 import java.time.Duration
 import java.time.Instant
-import java.util.UUID
 
 /**
  * Exposed R2DBC 기반 그룹 락 (복합 PK 슬롯 기반).
@@ -54,10 +54,10 @@ internal class ExposedR2dbcGroupLock internal constructor(
         require(slot >= 0) { "slot must be >= 0: $slot" }
     }
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     /** 인스턴스별 고유 fencing token. */
-    val token: String = UUID.randomUUID().toString()
+    val token: String = Base58.randomString(length = 8)
 
     /**
      * [waitTime] 내에 슬롯 락 획득을 시도합니다.
@@ -88,7 +88,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
             val remaining = deadline - System.currentTimeMillis()
             if (remaining > 0L) {
                 // delay는 suspendTransaction 바깥에서 호출 (R2DBC 커넥션 풀 점유 방지)
-                delay(retryStrategy.delayMs(attempt++, remaining))
+                delay(timeMillis = retryStrategy.delayMs(attempt++, remaining))
             }
         } while (System.currentTimeMillis() < deadline)
 
@@ -109,8 +109,8 @@ internal class ExposedR2dbcGroupLock internal constructor(
             val updated = LeaderGroupLockTable.update(
                 where = {
                     (LeaderGroupLockTable.lockName eq lockNameVal) and
-                        (LeaderGroupLockTable.slot eq slotVal) and
-                        (LeaderGroupLockTable.lockedUntil less now)
+                            (LeaderGroupLockTable.slot eq slotVal) and
+                            (LeaderGroupLockTable.lockedUntil less now)
                 }
             ) {
                 it[LeaderGroupLockTable.lockOwner] = lockOwnerVal
@@ -149,9 +149,9 @@ internal class ExposedR2dbcGroupLock internal constructor(
                     .selectAll()
                     .where {
                         (LeaderGroupLockTable.lockName eq lockNameVal) and
-                            (LeaderGroupLockTable.slot eq slotVal) and
-                            (LeaderGroupLockTable.token eq tokenVal) and
-                            (LeaderGroupLockTable.lockedUntil greater now)
+                                (LeaderGroupLockTable.slot eq slotVal) and
+                                (LeaderGroupLockTable.token eq tokenVal) and
+                                (LeaderGroupLockTable.lockedUntil greater now)
                     }
                     .empty()
             }
@@ -173,9 +173,9 @@ internal class ExposedR2dbcGroupLock internal constructor(
                 .selectAll()
                 .where {
                     (LeaderGroupLockTable.lockName eq lockName) and
-                        (LeaderGroupLockTable.slot eq slot) and
-                        (LeaderGroupLockTable.token eq token) and
-                        (LeaderGroupLockTable.lockedUntil greater now)
+                            (LeaderGroupLockTable.slot eq slot) and
+                            (LeaderGroupLockTable.token eq token) and
+                            (LeaderGroupLockTable.lockedUntil greater now)
                 }
                 .empty()
         }
@@ -198,8 +198,8 @@ internal class ExposedR2dbcGroupLock internal constructor(
             val deleted = suspendTransaction(db) {
                 LeaderGroupLockTable.deleteWhere {
                     (LeaderGroupLockTable.lockName eq lockNameVal) and
-                        (LeaderGroupLockTable.slot eq slotVal) and
-                        (LeaderGroupLockTable.token eq tokenVal)
+                            (LeaderGroupLockTable.slot eq slotVal) and
+                            (LeaderGroupLockTable.token eq tokenVal)
                 }
             }
             if (deleted == 0) {

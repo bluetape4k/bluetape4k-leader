@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.exposed.jdbc.lock
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -14,11 +15,10 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
-import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import java.time.Duration
 import java.time.Instant
-import java.util.UUID
 
 /**
  * Exposed JDBC 기반 그룹 락 (복합 PK 슬롯 기반).
@@ -50,7 +50,7 @@ internal class ExposedJdbcGroupLock internal constructor(
     companion object : KLoggingChannel()
 
     /** 인스턴스별 고유 fencing token. */
-    val token: String = UUID.randomUUID().toString()
+    val token: String = Base58.randomString(8)
 
     /**
      * [waitTime] 내에 슬롯 락 획득을 시도합니다.

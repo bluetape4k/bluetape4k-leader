@@ -2,6 +2,7 @@ package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.delay
@@ -10,6 +11,7 @@ import org.amshove.kluent.shouldBeGreaterOrEqualTo
 import org.amshove.kluent.shouldNotBeNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
@@ -45,9 +47,10 @@ class LettuceSuspendLeaderElectionTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `코루틴 리더 선출 - action 예외 후 재선출 가능`() = runSuspendIO {
-        try {
-            suspendElection.runIfLeader(lockName) { throw RuntimeException("suspend 오류") }
-        } catch (_: RuntimeException) {
+        assertThrows<LeaderElectionException> {
+            suspendElection.runIfLeader(lockName) {
+                throw LeaderElectionException("suspend 오류")
+            }
         }
         val result = suspendElection.runIfLeader(lockName) { "recovered" }
         result shouldBeEqualTo "recovered"

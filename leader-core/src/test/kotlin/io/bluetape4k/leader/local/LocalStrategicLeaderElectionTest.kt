@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.scorers.IdleTimeScorer
@@ -16,14 +17,12 @@ import org.amshove.kluent.shouldNotBeNull
 import org.amshove.kluent.shouldThrow
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LocalStrategicLeaderElectionTest {
 
-    private val lockName = "test-lock"
+    private val lockName = "test-lock-" + Base58.randomString(8)
 
     private lateinit var node1: LocalStrategicLeaderElection
     private lateinit var node2: LocalStrategicLeaderElection
@@ -38,10 +37,12 @@ class LocalStrategicLeaderElectionTest {
 
     private fun registerAll(vararg nodes: LocalStrategicLeaderElection, registeredAt: Instant = Instant.now()) {
         nodes.forEachIndexed { i, node ->
-            node.registerCandidate(lockName, CandidateInfo(
-                nodeId = node.nodeId,
-                registeredAt = registeredAt.plusMillis(i.toLong() * 10),
-            ))
+            node.registerCandidate(
+                lockName, CandidateInfo(
+                    nodeId = node.nodeId,
+                    registeredAt = registeredAt.plusMillis(i.toLong() * 10),
+                )
+            )
         }
     }
 

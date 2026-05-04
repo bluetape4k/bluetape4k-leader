@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.exposed.jdbc.lock
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -14,11 +15,10 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
-import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import java.time.Duration
 import java.time.Instant
-import java.util.UUID
 
 /**
  * Exposed JDBC UPDATE+INSERT+SELECT 패턴 기반 토큰 분산 락.
@@ -45,10 +45,10 @@ internal class ExposedJdbcLock internal constructor(
     private val retryStrategy: RetryStrategy,
     private val lockOwner: String? = null,
 ) {
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     /** 인스턴스별 고유 fencing token. unlock 시 zombie 방지에 사용됩니다. */
-    val token: String = UUID.randomUUID().toString()
+    val token: String = Base58.randomString(8)
 
     /**
      * [waitTime] 내에 락 획득을 시도합니다.
@@ -135,8 +135,8 @@ internal class ExposedJdbcLock internal constructor(
                 .selectAll()
                 .where {
                     (LeaderLockTable.lockName eq lockNameVal) and
-                        (LeaderLockTable.token eq tokenVal) and
-                        (LeaderLockTable.lockedUntil greater now)
+                            (LeaderLockTable.token eq tokenVal) and
+                            (LeaderLockTable.lockedUntil greater now)
                 }
                 .empty()
         }
@@ -154,8 +154,8 @@ internal class ExposedJdbcLock internal constructor(
                 .selectAll()
                 .where {
                     (LeaderLockTable.lockName eq lockName) and
-                        (LeaderLockTable.token eq token) and
-                        (LeaderLockTable.lockedUntil greater now)
+                            (LeaderLockTable.token eq token) and
+                            (LeaderLockTable.lockedUntil greater now)
                 }
                 .empty()
         }

@@ -2,13 +2,14 @@ package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
+import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeGreaterOrEqualTo
-import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
@@ -48,21 +49,15 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `리더 선출 - action 예외 발생 시 예외 전파`() {
-        var threw = false
-        try {
-            election.runIfLeader(lockName) { throw RuntimeException("오류") }
-        } catch (e: RuntimeException) {
-            threw = true
-            e.message shouldBeEqualTo "오류"
+        assertThrows<LeaderElectionException> {
+            election.runIfLeader(lockName) { throw LeaderElectionException("오류") }
         }
-        threw.shouldBeTrue()
     }
 
     @Test
     fun `리더 선출 - action 예외 후 락 해제되어 재선출 가능`() {
-        try {
-            election.runIfLeader(lockName) { throw RuntimeException("오류") }
-        } catch (_: RuntimeException) {
+        assertThrows<LeaderElectionException> {
+            election.runIfLeader(lockName) { throw LeaderElectionException("오류") }
         }
         val result = election.runIfLeader(lockName) { "recovered" }
         result shouldBeEqualTo "recovered"

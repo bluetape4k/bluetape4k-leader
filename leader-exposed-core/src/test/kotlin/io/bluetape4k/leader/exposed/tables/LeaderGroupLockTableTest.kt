@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.exposed.tables
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.exposed.tests.withTables
 import io.bluetape4k.leader.exposed.AbstractExposedTableTest
@@ -17,7 +18,6 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
-import java.util.UUID
 
 class LeaderGroupLockTableTest : AbstractExposedTableTest() {
 
@@ -40,7 +40,7 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
                     it[lockName] = "group-job"
                     it[LeaderGroupLockTable.slot] = slot
                     it[lockOwner] = "owner-$slot"
-                    it[token] = UUID.randomUUID().toString()
+                    it[token] = Base58.randomString(8)
                     it[lockedAt] = now
                     it[lockedUntil] = now.plusSeconds(60)
                 }
@@ -61,7 +61,7 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
             LeaderGroupLockTable.insert {
                 it[lockName] = "dup-group"
                 it[slot] = 0
-                it[token] = UUID.randomUUID().toString()
+                it[token] = Base58.randomString(8)
                 it[lockedAt] = now
                 it[lockedUntil] = now.plusSeconds(60)
             }
@@ -70,7 +70,7 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
                 LeaderGroupLockTable.insert {
                     it[lockName] = "dup-group"
                     it[slot] = 0
-                    it[token] = UUID.randomUUID().toString()
+                    it[token] = Base58.randomString(8)
                     it[lockedAt] = now
                     it[lockedUntil] = now.plusSeconds(60)
                 }
@@ -89,7 +89,7 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
             LeaderGroupLockTable.insert {
                 it[lockName] = "test-group"
                 it[slot] = 0
-                it[token] = UUID.randomUUID().toString()
+                it[token] = Base58.randomString(8)
                 it[lockedAt] = expired
                 it[lockedUntil] = expired.plusSeconds(30) // 이미 만료
             }
@@ -97,7 +97,7 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
             LeaderGroupLockTable.insert {
                 it[lockName] = "test-group"
                 it[slot] = 1
-                it[token] = UUID.randomUUID().toString()
+                it[token] = Base58.randomString(8)
                 it[lockedAt] = now
                 it[lockedUntil] = now.plusSeconds(60)
             }
@@ -123,12 +123,12 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
             LeaderGroupLockTable.insert {
                 it[lockName] = "renew-group"
                 it[slot] = 0
-                it[token] = UUID.randomUUID().toString()
+                it[token] = Base58.randomString(8)
                 it[lockedAt] = expired
                 it[lockedUntil] = expired.plusSeconds(30)
             }
 
-            val newToken = UUID.randomUUID().toString()
+            val newToken = Base58.randomString(8)
             val updated = LeaderGroupLockTable.update(
                 where = {
                     LeaderGroupLockTable.lockName eq "renew-group" and
@@ -155,7 +155,7 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
                 LeaderGroupLockTable.insert {
                     it[lockName] = "range-group"
                     it[slot] = s
-                    it[token] = UUID.randomUUID().toString()
+                    it[token] = Base58.randomString(8)
                     it[lockedAt] = now
                     it[lockedUntil] = now.plusSeconds(60)
                 }

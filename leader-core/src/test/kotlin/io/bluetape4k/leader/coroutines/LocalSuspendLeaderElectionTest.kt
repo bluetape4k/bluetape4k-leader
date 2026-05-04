@@ -1,11 +1,14 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import org.amshove.kluent.shouldBeEqualTo
@@ -13,7 +16,6 @@ import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
 import java.time.Duration
-import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
@@ -24,7 +26,7 @@ class LocalSuspendLeaderElectionTest {
 
     private val election = LocalSuspendLeaderElection()
 
-    private fun randomLockName() = "lock-${UUID.randomUUID()}"
+    private fun randomLockName() = "lock-${Base58.randomString(8)}"
 
     @Test
     fun `runIfLeader - 리더로 선출되어 suspend action 을 실행하고 결과를 반환한다`() = runSuspendIO {
@@ -45,7 +47,7 @@ class LocalSuspendLeaderElectionTest {
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() = runSuspendIO {
         val result = runCatching {
             election.runIfLeader(randomLockName()) {
-                throw RuntimeException("테스트 예외")
+                throw LeaderElectionException("테스트 예외")
             }
         }
         result.isFailure.shouldBeTrue()
@@ -56,7 +58,7 @@ class LocalSuspendLeaderElectionTest {
     fun `runIfLeader - action 예외 후에도 Mutex 가 해제되어 다음 호출이 성공한다`() = runSuspendIO {
         val lockName = randomLockName()
         runCatching {
-            election.runIfLeader(lockName) { throw RuntimeException("실패") }
+            election.runIfLeader(lockName) { throw LeaderElectionException("실패") }
         }
 
         // Mutex 가 해제된 상태여야 다음 호출이 정상 실행된다
@@ -141,8 +143,8 @@ class LocalSuspendLeaderElectionTest {
         val skipElection = LocalSuspendLeaderElection(
             LeaderElectionOptions(waitTime = Duration.ofMillis(50))
         )
-        val holderReady = kotlinx.coroutines.channels.Channel<Unit>(1)
-        val holderDone = kotlinx.coroutines.channels.Channel<Unit>(1)
+        val holderReady = Channel<Unit>(1)
+        val holderDone = Channel<Unit>(1)
         val lockName2 = randomLockName()
 
         // 홀더: 락 획득 후 300ms 유지

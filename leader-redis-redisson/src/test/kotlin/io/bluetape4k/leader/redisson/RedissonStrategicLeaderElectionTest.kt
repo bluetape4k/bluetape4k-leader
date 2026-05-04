@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.redisson
 
+import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.scorers.IdleTimeScorer
@@ -8,21 +9,17 @@ import io.bluetape4k.leader.strategy.scorers.WeightedScorer
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
 import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeGreaterThan
 import org.amshove.kluent.shouldBeNull
-import org.awaitility.kotlin.await
-import org.amshove.kluent.shouldBeTrue
 import org.amshove.kluent.shouldNotBeNull
-import org.junit.jupiter.api.Assertions.assertThrows
+import org.awaitility.kotlin.await
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.assertThrows
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class RedissonStrategicLeaderElectionTest : AbstractRedissonLeaderTest() {
+class RedissonStrategicLeaderElectionTest: AbstractRedissonLeaderTest() {
 
     private lateinit var node1: RedissonStrategicLeaderElection
     private lateinit var node2: RedissonStrategicLeaderElection
@@ -222,9 +219,9 @@ class RedissonStrategicLeaderElectionTest : AbstractRedissonLeaderTest() {
         val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
 
-        assertThrows(RuntimeException::class.java) {
+        assertThrows<LeaderElectionException> {
             node1.runIfLeader(lockName, FifoElectionStrategy) {
-                throw RuntimeException("intentional error")
+                throw LeaderElectionException("intentional error")
             }
         }
 

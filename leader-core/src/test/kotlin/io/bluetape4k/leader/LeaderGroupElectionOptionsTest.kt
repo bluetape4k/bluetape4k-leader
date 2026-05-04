@@ -13,17 +13,17 @@ class LeaderGroupElectionOptionsTest {
     @Test
     fun `기본 옵션 값이 올바르다`() {
         val options = LeaderGroupElectionOptions.Default
-        options.maxLeaders shouldBeEqualTo 2
-        options.waitTime shouldBeEqualTo Duration.ofSeconds(5)
-        options.leaseTime shouldBeEqualTo Duration.ofSeconds(60)
+        options.maxLeaders shouldBeEqualTo LeaderGroupElectionOptions.DefaultMaxLeaders
+        options.waitTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultWaitTime
+        options.leaseTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultLeaseTime
     }
 
     @Test
     fun `커스텀 maxLeaders 를 설정할 수 있다`() {
         val options = LeaderGroupElectionOptions(maxLeaders = 5)
         options.maxLeaders shouldBeEqualTo 5
-        options.waitTime shouldBeEqualTo Duration.ofSeconds(5)
-        options.leaseTime shouldBeEqualTo Duration.ofSeconds(60)
+        options.waitTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultWaitTime
+        options.leaseTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultLeaseTime
     }
 
     @Test

@@ -367,7 +367,7 @@ T13 → T14 (KDoc + README)
 
 4. **`cleanTables()` suspend**: `suspendTransaction(db) { deleteAll() }` 3 테이블
 
-5. **`randomName()` 유틸**: `"test-${UUID.randomUUID().toString().take(8)}"`
+5. **`randomName()` 유틸**: `"test-${Base58.randomString(8).take(8)}"`
 
 6. **`junit-platform.properties`**: 이미 존재 확인 (`PER_CLASS` + `parallel=false`)
 

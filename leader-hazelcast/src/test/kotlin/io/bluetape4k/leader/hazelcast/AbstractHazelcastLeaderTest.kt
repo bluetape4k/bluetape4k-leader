@@ -3,11 +3,11 @@ package io.bluetape4k.leader.hazelcast
 import com.hazelcast.client.HazelcastClient
 import com.hazelcast.client.config.ClientConfig
 import com.hazelcast.core.HazelcastInstance
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.storage.HazelcastServer
 import io.bluetape4k.utils.ShutdownQueue
 import org.junit.jupiter.api.TestInstance
-import java.util.UUID
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractHazelcastLeaderTest {
@@ -23,7 +23,7 @@ abstract class AbstractHazelcastLeaderTest {
                 ShutdownQueue.register { it.shutdown() }
             }
         }
-
-        fun randomName(): String = "leader-test:${UUID.randomUUID().toString().take(8)}"
     }
+
+    fun randomName(): String = "leader-test:${Base58.randomString(8)}"
 }

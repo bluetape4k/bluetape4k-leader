@@ -624,7 +624,7 @@ abstract class AbstractExposedR2dbcLeaderTest {
 
     protected suspend fun connectR2dbc(/* DB 선택 파라미터 */): R2dbcDatabase
     protected suspend fun cleanTables(db: R2dbcDatabase)
-    protected fun randomName(): String = "test-${UUID.randomUUID().toString().take(8)}"
+    protected fun randomName(): String = "test-${Base58.randomString(8).take(8)}"
 }
 ```
 

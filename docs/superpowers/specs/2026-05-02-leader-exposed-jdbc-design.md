@@ -143,7 +143,7 @@ testImplementation(libs.bluetape4k.exposed.jdbc.tests)
 
 ```
 // ExposedJdbcLock 인스턴스 생성 시 token 1회 발급 (MongoDB MongoLock과 동일)
-// val token = UUID.randomUUID().toString()  ← 인스턴스 필드, 매 시도마다 재생성하지 않음
+// val token = Base58.randomString(8)  ← 인스턴스 필드, 매 시도마다 재생성하지 않음
 
 ┌─ deadline = now + waitTime ──────────────────────────────────────────┐
 │                                                                        │
@@ -254,7 +254,7 @@ return null  // 모든 슬롯 획득 실패
 
 ```kotlin
 // ExposedJdbcGroupLock 인스턴스 생성 시 token 1회 발급 (인스턴스 필드, 매 시도마다 재생성하지 않음)
-// val token = UUID.randomUUID().toString()  ← Section 4.2 참조
+// val token = Base58.randomString(8)  ← Section 4.2 참조
 
 // tryLock — Step 1: 만료된 슬롯 갱신 (인스턴스 token 사용)
 val updated = LeaderGroupLockTable.update(
@@ -483,7 +483,7 @@ class ExposedJdbcLock(
     val lockName: String,
     private val retryStrategy: RetryStrategy = RetryStrategy.Jitter(baseDelayMs = 50L),
 ) {
-    private val token: String = UUID.randomUUID().toString()
+    private val token: String = Base58.randomString(8)
 
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean
     fun isHeldByCurrentInstance(): Boolean
@@ -508,7 +508,7 @@ class ExposedJdbcGroupLock(
     val slot: Int,                                                        // 0 until maxLeaders
     private val retryStrategy: RetryStrategy = RetryStrategy.Jitter(baseDelayMs = 50L),
 ) {
-    private val token: String = UUID.randomUUID().toString()
+    private val token: String = Base58.randomString(8)
 
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean
     fun unlock()

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.local.LocalAsyncLeaderElection
 import io.bluetape4k.leader.local.LocalLeaderElection
 import io.bluetape4k.logging.KLogging
@@ -7,7 +8,6 @@ import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executors
@@ -22,7 +22,7 @@ class AsyncLeaderElectionContractTest {
 
     companion object: KLogging()
 
-    private fun randomLockName() = "lock-${UUID.randomUUID()}"
+    private fun randomLockName() = "lock-${Base58.randomString(8)}"
 
     // ── LocalAsyncLeaderElection 을 통한 AsyncLeaderElection 계약 검증 ──
 

@@ -4,6 +4,7 @@ import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
+import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -51,7 +52,7 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
     @Test
     fun `runIfLeader - action 예외 발생 후에도 슬롯이 반환되어 다음 호출이 성공한다`() {
         val lockName = randomName()
-        runCatching { election.runIfLeader(lockName) { throw RuntimeException("실패") } }
+        runCatching { election.runIfLeader(lockName) { throw LeaderGroupElectionException("실패") } }
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
     }
@@ -150,7 +151,7 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
         val lockName = randomName()
         runCatching {
             election.runAsyncIfLeader(lockName) {
-                futureOf<Int> { throw RuntimeException("실패") }
+                futureOf<Int> { throw LeaderGroupElectionException("실패") }
             }.join()
         }
         val result = election.runAsyncIfLeader(lockName) { futureOf { "복구 성공" } }.join()

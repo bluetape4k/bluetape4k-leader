@@ -415,7 +415,7 @@ Group 8 (T17, T18 완료 후)
     4. `만료된 락을 갱신할 수 있다` — `WHERE locked_until < NOW()` UPDATE 검증
     5. `token 불일치 시 삭제되지 않는다` — DELETE WHERE token 조건 검증
     6. `timestamp 정밀도가 보존된다` — Instant 저장/조회 후 비교 (DB별 정밀도 차이 고려)
-  - INSERT: `LeaderLockTable.insert { it[lockName] = ...; it[token] = UUID.randomUUID().toString(); ... }`
+  - INSERT: `LeaderLockTable.insert { it[lockName] = ...; it[token] = Base58.randomString(8); ... }`
   - SELECT: `LeaderLockTable.selectAll().where { LeaderLockTable.lockName eq ... }`
   - Kluent 매처 사용: `shouldBeEqualTo`, `shouldNotBeNull` 등
   - timestamp 정밀도: H2(나노초), PostgreSQL(마이크로초), MySQL(마이크로초) — 밀리초 단위 비교로 통일
@@ -479,7 +479,7 @@ Group 8 (T17, T18 완료 후)
     6. `30일 이전 데이터 삭제가 성공한다` — `DELETE WHERE started_at < NOW() - 30일` 쿼리 검증
   - `HistoryStatus.ACQUIRED.name` 형태로 status 값 저장
   - slot은 그룹 락이면 `0`, 단일 리더 락이면 `null`
-  - token은 `UUID.randomUUID().toString()`
+  - token은 `Base58.randomString(8)`
   - locked_until은 `Instant.now().plusSeconds(60)` (ACQUIRED), `Instant.now().minusSeconds(60)` (EXPIRED 판정용)
   - **[CRITICAL-3] 30일 삭제 쿼리**: DB-native INTERVAL 대신 Kotlin Instant binding 사용.
     H2/PostgreSQL/MySQL의 INTERVAL 문법이 상이하므로 JVM 단에서 파라미터를 계산해 전달:

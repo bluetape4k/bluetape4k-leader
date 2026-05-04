@@ -2,6 +2,7 @@ package io.bluetape4k.leader.redisson
 
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -15,6 +16,7 @@ import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeLessOrEqualTo
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
@@ -52,16 +54,22 @@ class RedissonSuspendLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() = runSuspendIO {
-        val result = runCatching {
-            election.runIfLeader(randomName()) { throw RuntimeException("테스트 예외") }
+        assertThrows<LeaderGroupElectionException> {
+            election.runIfLeader(randomName()) {
+                throw LeaderGroupElectionException("테스트 예외")
+            }
         }
-        result.isFailure.shouldBeTrue()
     }
 
     @Test
     fun `runIfLeader - action 예외 발생 후에도 슬롯이 반환되어 다음 호출이 성공한다`() = runSuspendIO {
         val lockName = randomName()
-        runCatching { election.runIfLeader(lockName) { throw RuntimeException("실패") } }
+
+        assertThrows<LeaderGroupElectionException> {
+            election.runIfLeader(lockName) {
+                throw LeaderGroupElectionException("실패")
+            }
+        }
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"

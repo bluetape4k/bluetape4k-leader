@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.exposed.tables
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.exposed.tests.withTables
 import io.bluetape4k.leader.exposed.AbstractExposedTableTest
@@ -18,7 +19,6 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
-import java.util.*
 
 class LeaderLockTableTest: AbstractExposedTableTest() {
 
@@ -35,7 +35,7 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
     fun `락 레코드 삽입 및 조회가 성공한다`(testDB: TestDB) {
         withTables(testDB, LeaderLockTable) {
             val name = "test-lock"
-            val tok = UUID.randomUUID().toString()
+            val tok = Base58.randomString(8)
             val now = Instant.now()
 
             LeaderLockTable.insert {
@@ -65,7 +65,7 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
 
             LeaderLockTable.insert {
                 it[lockName] = name
-                it[token] = UUID.randomUUID().toString()
+                it[token] = Base58.randomString(8)
                 it[lockedAt] = now
                 it[lockedUntil] = now.plusSeconds(60)
             }
@@ -73,7 +73,7 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
             assertThrows<Exception> {
                 LeaderLockTable.insert {
                     it[lockName] = name
-                    it[token] = UUID.randomUUID().toString()
+                    it[token] = Base58.randomString(8)
                     it[lockedAt] = now
                     it[lockedUntil] = now.plusSeconds(60)
                 }
@@ -91,12 +91,12 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
 
             LeaderLockTable.insert {
                 it[lockName] = name
-                it[token] = UUID.randomUUID().toString()
+                it[token] = Base58.randomString(8)
                 it[lockedAt] = expired
                 it[lockedUntil] = expired.plusSeconds(30) // 이미 만료
             }
 
-            val newToken = UUID.randomUUID().toString()
+            val newToken = Base58.randomString(8)
             val updated = LeaderLockTable.update(
                 where = { LeaderLockTable.lockName eq name and (LeaderLockTable.lockedUntil less now) }
             ) {
@@ -119,7 +119,7 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
     fun `token 불일치 시 삭제되지 않는다`(testDB: TestDB) {
         withTables(testDB, LeaderLockTable) {
             val name = "token-test"
-            val correctToken = UUID.randomUUID().toString()
+            val correctToken = Base58.randomString(8)
             val now = Instant.now()
 
             LeaderLockTable.insert {
@@ -154,7 +154,7 @@ class LeaderLockTableTest: AbstractExposedTableTest() {
 
             LeaderLockTable.insert {
                 it[lockName] = name
-                it[token] = UUID.randomUUID().toString()
+                it[token] = Base58.randomString(8)
                 it[lockedAt] = now
                 it[lockedUntil] = now.plusSeconds(60)
             }

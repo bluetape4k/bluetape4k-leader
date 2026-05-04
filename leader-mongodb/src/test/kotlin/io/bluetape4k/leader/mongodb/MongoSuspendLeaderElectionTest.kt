@@ -2,6 +2,7 @@ package io.bluetape4k.leader.mongodb
 
 import com.mongodb.client.model.Filters
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -18,10 +19,11 @@ import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertFailsWith
+import kotlin.time.Duration.Companion.milliseconds
 
-class MongoSuspendLeaderElectionTest : AbstractMongoLeaderTest() {
+class MongoSuspendLeaderElectionTest: AbstractMongoLeaderTest() {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     @Test
     fun `runIfLeader - 리더로 선출되어 suspend action을 실행하고 결과를 반환한다`() = runSuspendIO {
@@ -43,7 +45,7 @@ class MongoSuspendLeaderElectionTest : AbstractMongoLeaderTest() {
             async {
                 election.runIfLeader(lockName) {
                     successCount.incrementAndGet()
-                    delay(10)
+                    delay(10.milliseconds)
                 }
             }
         }
@@ -119,7 +121,7 @@ class MongoSuspendLeaderElectionTest : AbstractMongoLeaderTest() {
         val lockName = randomName()
 
         val result = runCatching {
-            election.runIfLeader(lockName) { throw RuntimeException("테스트 예외") }
+            election.runIfLeader(lockName) { throw LeaderElectionException("테스트 예외") }
         }
 
         result.isFailure.shouldBeTrue()
@@ -131,7 +133,7 @@ class MongoSuspendLeaderElectionTest : AbstractMongoLeaderTest() {
         val lockName = randomName()
 
         runCatching {
-            election.runIfLeader(lockName) { throw RuntimeException("실패") }
+            election.runIfLeader(lockName) { throw LeaderElectionException("실패") }
         }
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
@@ -148,7 +150,7 @@ class MongoSuspendLeaderElectionTest : AbstractMongoLeaderTest() {
         val job = launch {
             election.runIfLeader(lockName) {
                 acquired.complete(Unit)
-                delay(Long.MAX_VALUE)
+                delay(Long.MAX_VALUE.milliseconds)
             }
         }
 

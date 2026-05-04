@@ -2,6 +2,7 @@ package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
+import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
 import org.amshove.kluent.shouldBeEqualTo
@@ -11,6 +12,7 @@ import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
@@ -88,9 +90,8 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `action 예외 발생 시 슬롯 반환 후 재선출 가능`() {
-        try {
-            election.runIfLeader(lockName) { throw RuntimeException("오류") }
-        } catch (_: RuntimeException) {
+        assertThrows<LeaderGroupElectionException> {
+            election.runIfLeader(lockName) { throw LeaderGroupElectionException("오류") }
         }
         val result = election.runIfLeader(lockName) { "recovered" }
         result shouldBeEqualTo "recovered"

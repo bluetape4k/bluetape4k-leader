@@ -5,11 +5,9 @@ import org.amshove.kluent.invoking
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldThrow
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 import java.time.Instant
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class LettuceCandidateInfoCodecTest {
+class LettuceCandidateInfoCodecTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `roundtrip - 기본 필드 보존`() {

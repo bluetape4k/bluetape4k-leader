@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -12,7 +14,6 @@ import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Duration
-import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
@@ -30,7 +31,7 @@ class LocalAsyncLeaderGroupElectionTest {
     private val options = LeaderGroupElectionOptions(maxLeaders)
     private val election = LocalAsyncLeaderGroupElection(options)
 
-    private fun randomLockName() = "lock-${UUID.randomUUID()}"
+    private fun randomLockName() = "lock-${Base58.randomString(8)}"
 
     // ── 기본 동작 ──────────────────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ class LocalAsyncLeaderGroupElectionTest {
         val lockName = randomLockName()
         runCatching {
             election.runAsyncIfLeader(lockName) {
-                CompletableFuture.failedFuture<Int>(RuntimeException("실패"))
+                CompletableFuture.failedFuture<Int>(LeaderGroupElectionException("실패"))
             }.join()
         }
 

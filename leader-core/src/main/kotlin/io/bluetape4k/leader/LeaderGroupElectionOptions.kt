@@ -22,9 +22,9 @@ import java.time.Duration
  * @property leaseTime 리더 보유(임대) 최대 시간. 기본값 60초
  */
 data class LeaderGroupElectionOptions(
-    val maxLeaders: Int = 2,
-    val waitTime: Duration = Duration.ofSeconds(5),
-    val leaseTime: Duration = Duration.ofSeconds(60),
+    val maxLeaders: Int = DefaultMaxLeaders,
+    val waitTime: Duration = DefaultWaitTime,
+    val leaseTime: Duration = DefaultLeaseTime,
 ): Serializable {
 
     init {
@@ -47,5 +47,7 @@ data class LeaderGroupElectionOptions(
          */
         @JvmField
         val Default = LeaderGroupElectionOptions()
+
+        private const val serialVersionUID = 1L
     }
 }

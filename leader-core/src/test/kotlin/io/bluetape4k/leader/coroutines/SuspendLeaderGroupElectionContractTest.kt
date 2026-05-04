@@ -1,7 +1,9 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -14,7 +16,6 @@ import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeLessOrEqualTo
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
-import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
@@ -34,7 +35,7 @@ class SuspendLeaderGroupElectionContractTest {
     private val options = LeaderGroupElectionOptions(maxLeaders)
     private val election: SuspendLeaderGroupElection = LocalSuspendLeaderGroupElection(options)
 
-    private fun randomLockName() = "lock-${UUID.randomUUID()}"
+    private fun randomLockName() = "lock-${Base58.randomString(8)}"
 
     // ── 기본 동작 ──────────────────────────────────────────────────────────
 
@@ -55,7 +56,7 @@ class SuspendLeaderGroupElectionContractTest {
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() = runSuspendIO {
         val result = runCatching {
-            election.runIfLeader(randomLockName()) { throw RuntimeException("그룹 계약 예외") }
+            election.runIfLeader(randomLockName()) { throw LeaderGroupElectionException("그룹 계약 예외") }
         }
         result.isFailure.shouldBeTrue()
     }
@@ -63,7 +64,7 @@ class SuspendLeaderGroupElectionContractTest {
     @Test
     fun `runIfLeader - action 예외 후에도 슬롯이 반환되어 다음 호출이 성공한다`() = runSuspendIO {
         val lockName = randomLockName()
-        runCatching { election.runIfLeader(lockName) { throw RuntimeException("실패") } }
+        runCatching { election.runIfLeader(lockName) { throw LeaderGroupElectionException("실패") } }
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"

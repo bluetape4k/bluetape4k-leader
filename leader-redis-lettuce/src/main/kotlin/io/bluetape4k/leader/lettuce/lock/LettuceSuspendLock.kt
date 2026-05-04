@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.lettuce.lock
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.lettuce.script.RedisScript
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -12,7 +13,6 @@ import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import java.time.Duration
-import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -61,7 +61,7 @@ class LettuceSuspendLock(
         waitTime: Duration = Duration.ZERO,
         leaseTime: Duration = defaultLeaseTime,
     ): Boolean {
-        val token = UUID.randomUUID().toString()
+        val token = Base58.randomString(length = 8)
         val leaseMs = leaseTime.toMillis()
         val deadline = System.currentTimeMillis() + waitTime.toMillis()
 
@@ -86,7 +86,7 @@ class LettuceSuspendLock(
         leaseTime: Duration = defaultLeaseTime,
         maxWaitTime: Duration = Duration.ofMinutes(DEFAULT_MAX_WAIT_MINUTES),
     ) {
-        val token = UUID.randomUUID().toString()
+        val token = Base58.randomString(length = 8)
         val leaseMs = leaseTime.toMillis()
         val deadline = System.currentTimeMillis() + maxWaitTime.toMillis()
 
@@ -98,10 +98,8 @@ class LettuceSuspendLock(
                 log.debug { "Lock 획득 성공 (suspend): lockKey=$lockKey" }
                 return
             }
-            if (System.currentTimeMillis() >= deadline) {
-                throw IllegalStateException(
-                    "Lock 획득 시간 초과 (suspend): lockKey=$lockKey, maxWaitTime=$maxWaitTime"
-                )
+            check(System.currentTimeMillis() < deadline) {
+                "Lock 획득 시간 초과 (suspend): lockKey=$lockKey, maxWaitTime=$maxWaitTime"
             }
             delay(RETRY_DELAY_MS.milliseconds)
         }
@@ -116,8 +114,8 @@ class LettuceSuspendLock(
             asyncCommands, UNLOCK_SCRIPT, ScriptOutputType.INTEGER, arrayOf(lockKey), token
         )
 
-        if (released == 0L) {
-            throw IllegalStateException("Lock 해제 실패 (토큰 불일치 또는 만료, suspend): lockKey=$lockKey")
+        check(released > 0L) {
+            "Lock 해제 실패 (토큰 불일치 또는 만료, suspend): lockKey=$lockKey"
         }
         log.debug { "Lock 해제 성공 (suspend): lockKey=$lockKey" }
     }

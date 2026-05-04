@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.lettuce.lock
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.lettuce.script.RedisScript
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.logging.KLogging
@@ -11,11 +12,9 @@ import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.api.sync.RedisCommands
 import kotlinx.atomicfu.atomic
 import java.time.Duration
-import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.LockSupport
-
 
 /**
  * Lettuce Redis 클라이언트를 이용한 분산 락(Distributed Lock) 구현체입니다.
@@ -69,7 +68,7 @@ class LettuceLock(
         waitTime: Duration = Duration.ZERO,
         leaseTime: Duration = defaultLeaseTime,
     ): Boolean {
-        val token = UUID.randomUUID().toString()
+        val token = Base58.randomString(8)
         val leaseMs = leaseTime.toMillis()
         val deadline = System.currentTimeMillis() + waitTime.toMillis()
 
@@ -91,7 +90,7 @@ class LettuceLock(
     }
 
     fun lock(leaseTime: Duration = defaultLeaseTime, maxWaitTime: Duration = Duration.ofMinutes(5)) {
-        val token = UUID.randomUUID().toString()
+        val token = Base58.randomString(length = 8)
         val leaseMs = leaseTime.toMillis()
         val args = SetArgs().nx().px(leaseMs)
         val deadline = System.nanoTime() + maxWaitTime.toNanos()
@@ -103,8 +102,8 @@ class LettuceLock(
                 log.debug { "Lock 획득 성공: lockKey=$lockKey" }
                 return
             }
-            if (System.nanoTime() > deadline) {
-                throw IllegalStateException("Lock 획득 시간 초과: lockKey=$lockKey, maxWaitTime=$maxWaitTime")
+            check(System.nanoTime() <= deadline) {
+                "Lock 획득 시간 초과: lockKey=$lockKey, maxWaitTime=$maxWaitTime"
             }
             LockSupport.parkNanos(RETRY_DELAY_NANOS)
         }
@@ -117,8 +116,8 @@ class LettuceLock(
         val released = RedisScriptRunner.run<Long>(
             syncCommands, UNLOCK_SCRIPT, ScriptOutputType.INTEGER, arrayOf(lockKey), token
         )
-        if (released == 0L) {
-            throw IllegalStateException("Lock 해제 실패 (토큰 불일치 또는 만료): lockKey=$lockKey")
+        check(released > 0L) {
+            "Lock 해제 실패 (토큰 불일치 또는 만료): lockKey=$lockKey"
         }
         log.debug { "Lock 해제 성공: lockKey=$lockKey" }
     }
@@ -131,7 +130,7 @@ class LettuceLock(
         waitTime: Duration = Duration.ZERO,
         leaseTime: Duration = defaultLeaseTime,
     ): CompletableFuture<Boolean> {
-        val token = UUID.randomUUID().toString()
+        val token = Base58.randomString(length = 8)
         val leaseMs = leaseTime.toMillis()
         val deadline = System.currentTimeMillis() + waitTime.toMillis()
 
@@ -160,7 +159,7 @@ class LettuceLock(
         leaseTime: Duration = defaultLeaseTime,
         maxWaitTime: Duration = Duration.ofMinutes(5),
     ): CompletableFuture<Unit> {
-        val token = UUID.randomUUID().toString()
+        val token = Base58.randomString(length = 8)
         val leaseMs = leaseTime.toMillis()
         val deadline = System.currentTimeMillis() + maxWaitTime.toMillis()
 
@@ -195,8 +194,8 @@ class LettuceLock(
         return RedisScriptRunner.runAsync<Long>(
             asyncCommands, UNLOCK_SCRIPT, ScriptOutputType.INTEGER, arrayOf(lockKey), token
         ).thenApply { released ->
-            if (released == 0L) {
-                throw IllegalStateException("Lock 해제 실패 (토큰 불일치 또는 만료, async): lockKey=$lockKey")
+            check(released > 0L) {
+                "Lock 해제 실패 (토큰 불일치 또는 만료, async): lockKey=$lockKey"
             }
             log.debug { "Lock 해제 성공 (async): lockKey=$lockKey" }
         }

@@ -13,8 +13,8 @@ class LeaderElectionOptionsTest {
     @Test
     fun `기본 옵션 값이 올바르다`() {
         val options = LeaderElectionOptions.Default
-        options.waitTime shouldBeEqualTo Duration.ofSeconds(5)
-        options.leaseTime shouldBeEqualTo Duration.ofSeconds(60)
+        options.waitTime shouldBeEqualTo LeaderElectionOptions.DefaultWaitTime
+        options.leaseTime shouldBeEqualTo LeaderElectionOptions.DefaultLeaseTime
     }
 
     @Test
@@ -30,9 +30,9 @@ class LeaderElectionOptionsTest {
     @Test
     fun `LeaderGroupElectionOptions 기본 값이 올바르다`() {
         val options = LeaderGroupElectionOptions.Default
-        options.maxLeaders shouldBeEqualTo 2
-        options.waitTime shouldBeEqualTo Duration.ofSeconds(5)
-        options.leaseTime shouldBeEqualTo Duration.ofSeconds(60)
+        options.maxLeaders shouldBeEqualTo LeaderGroupElectionOptions.DefaultMaxLeaders
+        options.waitTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultWaitTime
+        options.leaseTime shouldBeEqualTo LeaderElectionOptions.DefaultLeaseTime
     }
 
     @Test

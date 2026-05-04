@@ -412,7 +412,7 @@ val groupElection = MongoLeaderGroupElection(groupLockCollection)
 - **검증**: `requireNotBlank` + `.` 포함 금지 + `:slot:` 포함 금지
 - **slot 랜덤 시작**: `Random.nextInt(maxLeaders)`
 - **NonCancellable finally**: `withContext(NonCancellable) { withTimeout(releaseTimeout) { ... } }`
-- **immutability**: `private val token = UUID.randomUUID().toString()`
+- **immutability**: `private val token = Base58.randomString(8)`
 - **`!!` 사용 금지**
 - **예외 분기**: `MongoWriteException(11000) → false`, `MongoCommandException(11000) → false`, `MongoCommandException(13/18) → 즉시 false + error`, `MongoTimeoutException → 즉시 false`, `MongoSecurityException → 즉시 false + error`, `MongoException → false + warn`
 - **`LOCK_COLLECTION_NAME = "bluetape4k_leader_locks"`** (단일 리더 컬렉션, companion object)

@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -11,7 +13,6 @@ import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
 import java.time.Duration
-import java.util.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -27,7 +28,7 @@ class LocalVirtualThreadLeaderGroupElectionTest {
     private val options = LeaderGroupElectionOptions(maxLeaders)
     private val election = LocalVirtualThreadLeaderGroupElection(options)
 
-    private fun randomLockName() = "lock-${UUID.randomUUID()}"
+    private fun randomLockName() = "vt-lock-${Base58.randomString(8)}"
 
     // ── 기본 동작 ──────────────────────────────────────────────────────────
 
@@ -50,7 +51,7 @@ class LocalVirtualThreadLeaderGroupElectionTest {
     fun `runAsyncIfLeader - action 예외 발생 시 await 호출 시 예외가 전파된다`() {
         val result = runCatching {
             election.runAsyncIfLeader(randomLockName()) {
-                throw RuntimeException("테스트 예외")
+                throw LeaderGroupElectionException("테스트 예외")
             }.await()
         }
         result.isFailure.shouldBeTrue()
@@ -61,7 +62,7 @@ class LocalVirtualThreadLeaderGroupElectionTest {
         val lockName = randomLockName()
         runCatching {
             election.runAsyncIfLeader(lockName) {
-                throw RuntimeException("실패")
+                throw LeaderGroupElectionException("실패")
             }.await()
         }
 

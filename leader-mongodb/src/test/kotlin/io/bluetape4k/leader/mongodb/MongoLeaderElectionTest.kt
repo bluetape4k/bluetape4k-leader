@@ -4,6 +4,7 @@ import com.mongodb.client.model.Filters
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.logging.KLogging
@@ -19,9 +20,9 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-class MongoLeaderElectionTest : AbstractMongoLeaderTest() {
+class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     @Test
     fun `runIfLeader - 리더로 선출되어 action을 실행하고 결과를 반환한다`() {
@@ -91,9 +92,9 @@ class MongoLeaderElectionTest : AbstractMongoLeaderTest() {
         val lockName = randomName()
         val election = MongoLeaderElection(lockCollection)
 
-        assertThrows<RuntimeException> {
+        assertThrows<LeaderElectionException> {
             election.runIfLeader(lockName) {
-                throw RuntimeException("테스트 예외")
+                throw LeaderElectionException("테스트 예외")
             }
         }
 
@@ -106,7 +107,7 @@ class MongoLeaderElectionTest : AbstractMongoLeaderTest() {
         val lockName = randomName()
         val election = MongoLeaderElection(lockCollection)
 
-        runCatching { election.runIfLeader(lockName) { throw RuntimeException("실패") } }
+        runCatching { election.runIfLeader(lockName) { throw LeaderElectionException("실패") } }
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"

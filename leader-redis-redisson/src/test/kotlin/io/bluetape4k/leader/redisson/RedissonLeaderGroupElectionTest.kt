@@ -4,11 +4,13 @@ import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
+import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeFalse
+import org.amshove.kluent.shouldBeInstanceOf
 import org.amshove.kluent.shouldBeLessOrEqualTo
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
@@ -55,15 +57,22 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() {
-        assertThrows<RuntimeException> {
-            election.runIfLeader(randomName()) { throw RuntimeException("테스트 예외") }
+        assertThrows<LeaderGroupElectionException> {
+            election.runIfLeader(randomName()) {
+                throw LeaderGroupElectionException("테스트 예외")
+            }
         }
     }
 
     @Test
     fun `runIfLeader - action 예외 발생 후에도 슬롯이 반환되어 다음 호출이 성공한다`() {
         val lockName = randomName()
-        runCatching { election.runIfLeader(lockName) { throw RuntimeException("실패") } }
+
+        assertThrows<LeaderGroupElectionException> {
+            election.runIfLeader(lockName) {
+                throw LeaderGroupElectionException("실패")
+            }
+        }
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
@@ -282,11 +291,12 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
     @Test
     fun `runAsyncIfLeader - action 예외 발생 후에도 슬롯이 반환되어 다음 호출이 성공한다`() {
         val lockName = randomName()
-        runCatching {
+
+        assertThrows<CompletionException> {
             election.runAsyncIfLeader(lockName) {
-                futureOf<Int> { throw RuntimeException("실패") }
+                futureOf<Int> { throw LeaderGroupElectionException("실패") }
             }.join()
-        }
+        }.cause shouldBeInstanceOf LeaderGroupElectionException::class
 
         val result = election.runAsyncIfLeader(lockName) { futureOf { "복구 성공" } }.join()
         result shouldBeEqualTo "복구 성공"
@@ -300,7 +310,7 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
             election.runAsyncIfLeader(lockName) {
                 futureOf<Int> { throw IllegalStateException("boom") }
             }.join()
-        }
+        }.cause shouldBeInstanceOf IllegalStateException::class
 
         // 슬롯이 반환되어 다음 호출이 성공해야 함
         val result = election.runAsyncIfLeader(lockName) { futureOf { 42 } }.join()

@@ -2,7 +2,6 @@ package io.bluetape4k.leader
 
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldThrow
-import org.amshove.kluent.withMessage
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.ParameterizedTest
@@ -12,17 +11,19 @@ import org.junit.jupiter.params.provider.ValueSource
 class LockNameValidatorTest {
 
     @ParameterizedTest
-    @ValueSource(strings = [
-        "a",
-        "A",
-        "0",
-        "job",
-        "daily-report",
-        "batch_job",
-        "leader:election",
-        "job-123",
-        "JOB_NAME",
-    ])
+    @ValueSource(
+        strings = [
+            "a",
+            "A",
+            "0",
+            "job",
+            "daily-report",
+            "batch_job",
+            "leader:election",
+            "job-123",
+            "JOB_NAME",
+        ]
+    )
     fun `유효한 lockName은 검증을 통과한다`(lockName: String) {
         validateLockName(lockName)
     }
@@ -52,16 +53,18 @@ class LockNameValidatorTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = [
-        ".leading-dot",
-        "has.dot",
-        "has space",
-        "has@at",
-        "has#hash",
-        "-leading-hyphen",
-        ":leading-colon",
-        "_leading-underscore",
-    ])
+    @ValueSource(
+        strings = [
+            ".leading-dot",
+            "has.dot",
+            "has space",
+            "has@at",
+            "has#hash",
+            "-leading-hyphen",
+            ":leading-colon",
+            "_leading-underscore",
+        ]
+    )
     fun `허용되지 않는 문자나 패턴은 예외가 발생한다`(lockName: String) {
         { validateLockName(lockName) } shouldThrow IllegalArgumentException::class
     }

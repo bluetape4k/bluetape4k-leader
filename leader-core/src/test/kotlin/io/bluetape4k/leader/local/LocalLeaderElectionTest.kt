@@ -1,20 +1,19 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
-import org.amshove.kluent.shouldNotBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Duration
-import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.locks.ReentrantLock
 import kotlin.random.Random
 
 class LocalLeaderElectionTest {
@@ -23,7 +22,7 @@ class LocalLeaderElectionTest {
 
     private val election = LocalLeaderElection()
 
-    private fun randomLockName() = "lock-${UUID.randomUUID()}"
+    private fun randomLockName() = "lock-${Base58.randomString(8)}"
 
     @Test
     fun `runIfLeader - 리더로 선출되어 action 을 실행하고 결과를 반환한다`() {
@@ -42,9 +41,9 @@ class LocalLeaderElectionTest {
 
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() {
-        assertThrows<RuntimeException> {
+        assertThrows<LeaderElectionException> {
             election.runIfLeader(randomLockName()) {
-                throw RuntimeException("테스트 예외")
+                throw LeaderElectionException("테스트 예외")
             }
         }
     }
@@ -53,7 +52,7 @@ class LocalLeaderElectionTest {
     fun `runIfLeader - action 예외 후에도 락이 해제되어 다음 호출이 성공한다`() {
         val lockName = randomLockName()
         runCatching {
-            election.runIfLeader(lockName) { throw RuntimeException("실패") }
+            election.runIfLeader(lockName) { throw LeaderElectionException("실패") }
         }
 
         // 락이 해제된 상태여야 다음 호출이 정상 실행된다

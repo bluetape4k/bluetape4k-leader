@@ -135,7 +135,7 @@
 - **수행**:
   - `class MongoLock private constructor(private val collection: MongoCollection<Document>, val lockKey: String, private val retryDelay: Duration)` — **retryDelay 생성자 주입** (H2: tryLock 파라미터 전달 대신 생성자 주입으로 단일 책임)
   - `companion object : KLogging() { const val LOCK_COLLECTION_NAME = "bluetape4k_leader_locks"; const val GROUP_LOCK_COLLECTION_NAME = "bluetape4k_leader_group_locks"; private val ensuredNamespaces = ConcurrentHashMap.newKeySet<String>(); fun ensureIndexes(c) {...}; operator fun invoke(collection, lockKey, retryDelay): MongoLock { ensureIndexes(collection); return MongoLock(collection, lockKey, retryDelay) } }`
-  - `private val token = UUID.randomUUID().toString()`
+  - `private val token = Base58.randomString(8)`
   - `fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean` — retryDelay 는 `this.retryDelay` 사용 (파라미터 없음); 스펙 §4.4 코드 그대로 (deadline loop, jitter, FindOneAndUpdate upsert + filter `expireAt < now`, returnDocument AFTER, token 비교)
   - 예외 분기 (스펙 §4.4):
     - `MongoWriteException(11000)` → `false`

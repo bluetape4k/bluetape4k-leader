@@ -2,11 +2,11 @@ package io.bluetape4k.leader.hazelcast.lock
 
 import com.hazelcast.core.HazelcastException
 import com.hazelcast.map.IMap
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import java.time.Duration
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 /**
@@ -32,7 +32,7 @@ class HazelcastLock(
         private const val RETRY_DELAY_MS = 50L
     }
 
-    private val token: String = UUID.randomUUID().toString()
+    private val token: String = Base58.randomString(8)
 
     /**
      * [waitTime] 내에 락 획득을 시도합니다. 성공하면 `true`, 타임아웃이거나 클러스터 오류이면 `false`를 반환합니다.

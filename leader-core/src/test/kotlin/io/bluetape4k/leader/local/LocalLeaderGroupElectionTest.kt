@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -12,7 +14,6 @@ import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Duration
-import java.util.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -28,7 +29,7 @@ class LocalLeaderGroupElectionTest {
     private val options = LeaderGroupElectionOptions(maxLeaders)
     private val election = LocalLeaderGroupElection(options)
 
-    private fun randomLockName() = "lock-${UUID.randomUUID()}"
+    private fun randomLockName() = "lock-${Base58.randomString(8)}"
 
     // ── 기본 동작 ──────────────────────────────────────────────────────────
 
@@ -49,15 +50,15 @@ class LocalLeaderGroupElectionTest {
 
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() {
-        assertThrows<RuntimeException> {
-            election.runIfLeader(randomLockName()) { throw RuntimeException("테스트 예외") }
+        assertThrows<LeaderGroupElectionException> {
+            election.runIfLeader(randomLockName()) { throw LeaderGroupElectionException("테스트 예외") }
         }
     }
 
     @Test
     fun `runIfLeader - action 예외 발생 후에도 슬롯이 반환되어 다음 호출이 성공한다`() {
         val lockName = randomLockName()
-        runCatching { election.runIfLeader(lockName) { throw RuntimeException("실패") } }
+        runCatching { election.runIfLeader(lockName) { throw LeaderGroupElectionException("실패") } }
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"

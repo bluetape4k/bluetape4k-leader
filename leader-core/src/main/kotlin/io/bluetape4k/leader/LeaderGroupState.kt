@@ -1,5 +1,7 @@
 package io.bluetape4k.leader
 
+import java.io.Serializable
+
 /**
  * 리더 그룹의 현재 상태 정보를 담는 불변 데이터 클래스입니다.
  *
@@ -19,7 +21,12 @@ data class LeaderGroupState(
     val lockName: String,
     val maxLeaders: Int,
     val activeCount: Int,
-) {
+): Serializable {
+
+    companion object {
+        private const val serialVersionUID = 1L
+    }
+
     init {
         require(lockName.isNotBlank()) { "lockName must not be blank" }
         require(maxLeaders >= 1) { "maxLeaders must be >= 1: $maxLeaders" }

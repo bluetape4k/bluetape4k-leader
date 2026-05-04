@@ -96,7 +96,7 @@ T8, T9, T10 → T12 (KDoc 최종 검수)  ← T12는 T11과 병렬 가능
 - **핵심 구현 포인트**:
   - **생성자 접근 제어: `internal constructor`** ← [H10 수정: `lock/` 서브패키지 분리로 private constructor는 같은 패키지에서만 접근 가능. internal로 선언하여 동일 모듈(leader-exposed-jdbc) 내 ExposedJdbcLeaderElection이 접근 가능하게 함. 외부 모듈에서 직접 생성 방지]
     - `internal class ExposedJdbcLock internal constructor(db: Database, lockName: String, retryStrategy: RetryStrategy)`
-    - `private val token = UUID.randomUUID().toString()`
+    - `private val token = Base58.randomString(8)`
   - **tryLock(waitTime, leaseTime): Boolean** -- deadline 루프:
     1. `transaction(db) {}` 내에서 UPDATE (만료 조건) -> INSERT (PK 충돌 runCatching) -> SELECT (token 검증)
     2. 성공: `return true`
@@ -126,7 +126,7 @@ T8, T9, T10 → T12 (KDoc 최종 검수)  ← T12는 T11과 병렬 가능
 - **핵심 구현 포인트**:
   - **생성자 접근 제어: `internal constructor`** ← [H10 수정: T2와 동일한 이유]
     - `internal class ExposedJdbcGroupLock internal constructor(db, lockName, slot, retryStrategy)`
-    - `private val token = UUID.randomUUID().toString()`
+    - `private val token = Base58.randomString(8)`
   - **tryLock(waitTime, leaseTime): Boolean** -- T2와 동일한 UPDATE+INSERT+SELECT 패턴, `LeaderGroupLockTable` 사용
     - UPDATE WHERE: `(lockName eq name) and (slot eq slotNumber) and (lockedUntil less now)`
     - INSERT: `lockName`, `slot`, `token`, `lockOwner`, `lockedAt`, `lockedUntil`

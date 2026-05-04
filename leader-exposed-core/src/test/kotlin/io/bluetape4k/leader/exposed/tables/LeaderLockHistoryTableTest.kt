@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.exposed.tables
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.exposed.tests.withTables
 import io.bluetape4k.leader.exposed.AbstractExposedTableTest
@@ -16,7 +17,6 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import java.util.*
 
 class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
 
@@ -36,7 +36,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
             HistoryStatus.entries.forEach { s ->
                 LeaderLockHistoryTable.insert {
                     it[lockName] = "history-lock"
-                    it[token] = UUID.randomUUID().toString()
+                    it[token] = Base58.randomString(8)
                     it[lockedUntil] = now.plusSeconds(60)
                     it[status] = s.name
                     it[startedAt] = now
@@ -60,7 +60,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
 
             fun insertRow(): Long = LeaderLockHistoryTable.insert {
                 it[lockName] = "auto-inc"
-                it[token] = UUID.randomUUID().toString()
+                it[token] = Base58.randomString(8)
                 it[lockedUntil] = now.plusSeconds(60)
                 it[status] = HistoryStatus.ACQUIRED.name
                 it[startedAt] = now
@@ -83,7 +83,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
             repeat(3) { i ->
                 LeaderLockHistoryTable.insert {
                     it[lockName] = name
-                    it[token] = UUID.randomUUID().toString()
+                    it[token] = Base58.randomString(8)
                     it[lockedUntil] = now.plusSeconds(60)
                     it[status] = HistoryStatus.COMPLETED.name
                     it[startedAt] = now.plusSeconds(i.toLong())
@@ -105,7 +105,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
 
             val id = LeaderLockHistoryTable.insert {
                 it[lockName] = "nullable-test"
-                it[token] = UUID.randomUUID().toString()
+                it[token] = Base58.randomString(8)
                 it[lockedUntil] = now.plusSeconds(60)
                 it[status] = HistoryStatus.ACQUIRED.name
                 it[startedAt] = now
@@ -135,7 +135,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
             repeat(3) {
                 LeaderLockHistoryTable.insert {
                     it[lockName] = "old-lock"
-                    it[token] = UUID.randomUUID().toString()
+                    it[token] = Base58.randomString(8)
                     it[lockedUntil] = oldTime.plusSeconds(60)
                     it[status] = HistoryStatus.COMPLETED.name
                     it[startedAt] = oldTime
@@ -144,7 +144,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
             // 최근 레코드 삽입
             LeaderLockHistoryTable.insert {
                 it[lockName] = "recent-lock"
-                it[token] = UUID.randomUUID().toString()
+                it[token] = Base58.randomString(8)
                 it[lockedUntil] = now.plusSeconds(60)
                 it[status] = HistoryStatus.COMPLETED.name
                 it[startedAt] = now

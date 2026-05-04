@@ -41,5 +41,7 @@ data class LeaderElectionOptions(
          */
         @JvmField
         val Default = LeaderElectionOptions()
+
+        private const val serialVersionUID = 1L
     }
 }

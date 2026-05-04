@@ -3,6 +3,7 @@ package io.bluetape4k.leader.mongodb
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -15,7 +16,7 @@ import org.bson.Document
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Duration
-import java.util.Date
+import java.util.*
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -24,9 +25,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
 
-class MongoLeaderGroupElectionTest : AbstractMongoLeaderTest() {
+class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private val options = MongoLeaderGroupElectionOptions(
         leaderGroupOptions = LeaderGroupElectionOptions(
@@ -79,7 +80,7 @@ class MongoLeaderGroupElectionTest : AbstractMongoLeaderTest() {
     @Test
     fun `runIfLeader - action 예외 발생 후 슬롯이 반환되어 다음 호출이 성공한다`() {
         val lockName = randomName()
-        runCatching { election.runIfLeader(lockName) { throw RuntimeException("실패") } }
+        runCatching { election.runIfLeader(lockName) { throw LeaderGroupElectionException("실패") } }
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"

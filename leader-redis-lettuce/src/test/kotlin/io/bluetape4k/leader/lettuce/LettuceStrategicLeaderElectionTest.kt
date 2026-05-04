@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.scorers.IdleTimeScorer
@@ -7,7 +8,6 @@ import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.scorers.WeightedScorer
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
-import io.bluetape4k.junit5.awaitility.untilSuspending
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldNotBeNull
@@ -21,7 +21,7 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class LettuceStrategicLeaderElectionTest : AbstractLettuceLeaderTest() {
+class LettuceStrategicLeaderElectionTest: AbstractLettuceLeaderTest() {
 
     private lateinit var node1: LettuceStrategicLeaderElection
     private lateinit var node2: LettuceStrategicLeaderElection
@@ -147,9 +147,9 @@ class LettuceStrategicLeaderElectionTest : AbstractLettuceLeaderTest() {
         val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
 
-        assertThrows<RuntimeException> {
+        assertThrows<LeaderGroupElectionException> {
             node1.runIfLeader(lockName, FifoElectionStrategy) {
-                throw RuntimeException("intentional")
+                throw LeaderGroupElectionException("intentional")
             }
         }
 

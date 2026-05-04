@@ -1,5 +1,6 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.local.LocalAsyncLeaderGroupElection
 import io.bluetape4k.leader.local.LocalLeaderGroupElection
 import io.bluetape4k.logging.KLogging
@@ -8,7 +9,6 @@ import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeLessOrEqualTo
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
-import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -30,7 +30,7 @@ class AsyncLeaderGroupElectionContractTest {
     private val maxLeaders = 3
     private val options = LeaderGroupElectionOptions(maxLeaders)
 
-    private fun randomLockName() = "lock-${UUID.randomUUID()}"
+    private fun randomLockName() = "lock-${Base58.randomString(8)}"
 
     // ── 기본 동작 ──────────────────────────────────────────────────────────
 
