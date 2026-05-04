@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.exposed.r2dbc
 
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcGroupLock
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
@@ -21,6 +22,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
 
 class ExposedR2dbcSuspendLeaderGroupElectionTest : AbstractExposedR2dbcLeaderTest() {
 
@@ -122,7 +124,7 @@ class ExposedR2dbcSuspendLeaderGroupElectionTest : AbstractExposedR2dbcLeaderTes
         val election = makeGroupElection(testDB)
 
         runCatching {
-            election.runIfLeader(lockName) { throw RuntimeException("그룹 오류") }
+            election.runIfLeader(lockName) { throw LeaderGroupElectionException("그룹 오류") }
         }
 
         val result = election.runIfLeader(lockName) { "group-recovered" }
@@ -173,7 +175,7 @@ class ExposedR2dbcSuspendLeaderGroupElectionTest : AbstractExposedR2dbcLeaderTes
 
         val holdJob = async {
             election.runIfLeader(lockName) {
-                delay(500)
+                delay(500.milliseconds)
                 "held"
             }
         }
@@ -211,7 +213,7 @@ class ExposedR2dbcSuspendLeaderGroupElectionTest : AbstractExposedR2dbcLeaderTes
                 election.runIfLeader(lockName) {
                     val current = concurrent.incrementAndGet()
                     maxConcurrent.updateAndGet { max -> maxOf(max, current) }
-                    delay(60)
+                    delay(60.milliseconds)
                     concurrent.decrementAndGet()
                     executed.incrementAndGet()
                 }

@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.exposed.retry
 
+import io.bluetape4k.logging.KLogging
 import java.io.Serializable
 import java.util.concurrent.ThreadLocalRandom
 
@@ -15,6 +16,10 @@ import java.util.concurrent.ThreadLocalRandom
  *   먼저 검증하므로 실제로 사용되지 않습니다.
  */
 sealed class RetryStrategy : Serializable {
+
+    companion object: KLogging() {
+        private const val serialVersionUID = 1L
+    }
 
     /**
      * 시도 횟수와 남은 시간을 기반으로 대기 시간(밀리초)을 계산합니다.

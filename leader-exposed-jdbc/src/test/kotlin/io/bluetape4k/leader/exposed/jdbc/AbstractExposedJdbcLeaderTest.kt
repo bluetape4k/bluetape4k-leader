@@ -1,16 +1,16 @@
 package io.bluetape4k.leader.exposed.jdbc
 
 import io.bluetape4k.exposed.tests.TestDB
+import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializer
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
-import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializer
 import io.bluetape4k.logging.KLogging
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.TestInstance
-import java.util.UUID
+import org.testcontainers.utility.Base58
 
 /**
  * leader-exposed-jdbc 멀티 DB 테스트의 공통 베이스 클래스.
@@ -20,7 +20,7 @@ import java.util.UUID
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractExposedJdbcLeaderTest {
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         /**
          * CI에서 `LEADER_TEST_DB` 환경 변수로 단일 DB를 선택할 수 있습니다.
          * 미설정 시 H2 / PostgreSQL / MySQL_V8 전체 실행 (로컬 개발 기본값).
@@ -31,11 +31,12 @@ abstract class AbstractExposedJdbcLeaderTest {
         fun enableDialects(): List<TestDB> {
             val filter = System.getenv("LEADER_TEST_DB")?.uppercase()
                 ?: return listOf(TestDB.H2, TestDB.POSTGRESQL, TestDB.MYSQL_V8)
+
             return when (filter) {
-                "H2" -> listOf(TestDB.H2)
+                "H2"                -> listOf(TestDB.H2)
                 "POSTGRESQL", "POSTGRES" -> listOf(TestDB.POSTGRESQL)
                 "MYSQL_V8", "MYSQL" -> listOf(TestDB.MYSQL_V8)
-                else -> listOf(TestDB.H2, TestDB.POSTGRESQL, TestDB.MYSQL_V8)
+                else                -> listOf(TestDB.H2, TestDB.POSTGRESQL, TestDB.MYSQL_V8)
             }
         }
     }
@@ -56,5 +57,5 @@ abstract class AbstractExposedJdbcLeaderTest {
         }
     }
 
-    protected fun randomName(): String = "test-${UUID.randomUUID().toString().take(8)}"
+    protected fun randomName(): String = "test-${Base58.randomString(8)}"
 }

@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.exposed.r2dbc
 
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
@@ -23,10 +24,11 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
 
-class ExposedR2dbcSuspendLeaderElectionTest : AbstractExposedR2dbcLeaderTest() {
+class ExposedR2dbcSuspendLeaderElectionTest: AbstractExposedR2dbcLeaderTest() {
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     private suspend fun makeElection(testDB: TestR2dbcDB): ExposedR2dbcSuspendLeaderElection {
         val db = setupDb(testDB)
@@ -71,11 +73,11 @@ class ExposedR2dbcSuspendLeaderElectionTest : AbstractExposedR2dbcLeaderTest() {
 
         val holderJob = async {
             holder.runIfLeader(lockName) {
-                delay(500)
+                delay(500.milliseconds)
                 "leader"
             }
         }
-        delay(100)
+        delay(100.milliseconds)
 
         val contenderOptions = ExposedR2dbcLeaderElectionOptions(
             leaderOptions = LeaderElectionOptions(
@@ -100,7 +102,7 @@ class ExposedR2dbcSuspendLeaderElectionTest : AbstractExposedR2dbcLeaderTest() {
         val election = makeElection(testDB)
 
         runCatching {
-            election.runIfLeader(lockName) { throw RuntimeException("오류 발생") }
+            election.runIfLeader(lockName) { throw LeaderElectionException("오류 발생") }
         }
 
         val result = election.runIfLeader(lockName) { "recovered" }
@@ -177,7 +179,7 @@ class ExposedR2dbcSuspendLeaderElectionTest : AbstractExposedR2dbcLeaderTest() {
                 election.runIfLeader(lockName) {
                     val current = concurrent.incrementAndGet()
                     maxConcurrent.updateAndGet { max -> maxOf(max, current) }
-                    delay(50)
+                    delay(50.milliseconds)
                     concurrent.decrementAndGet()
                     executed.incrementAndGet()
                 }
@@ -232,9 +234,9 @@ class ExposedR2dbcSuspendLeaderElectionTest : AbstractExposedR2dbcLeaderTest() {
 
         // withTimeout으로 CancellationException 강제 발생 → NonCancellable finally에서 락 해제
         runCatching {
-            withTimeout(200) {
+            withTimeout(200.milliseconds) {
                 ExposedR2dbcSuspendLeaderElection(db, options).runIfLeader(lockName) {
-                    delay(10_000)
+                    delay(10_000.milliseconds)
                 }
             }
         }
@@ -259,13 +261,13 @@ class ExposedR2dbcSuspendLeaderElectionTest : AbstractExposedR2dbcLeaderTest() {
         )
         val election = ExposedR2dbcSuspendLeaderElection(db, options)
 
-        runCatching { election.runIfLeader(lockName) { throw RuntimeException("의도적 실패") } }
+        runCatching { election.runIfLeader(lockName) { throw LeaderElectionException("의도적 실패") } }
 
         val failedCount = suspendTransaction(db) {
             LeaderLockHistoryTable.selectAll()
                 .where {
                     (LeaderLockHistoryTable.lockName eq lockName) and
-                        (LeaderLockHistoryTable.status eq "FAILED")
+                            (LeaderLockHistoryTable.status eq "FAILED")
                 }
                 .count()
         }

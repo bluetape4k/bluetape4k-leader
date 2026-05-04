@@ -6,7 +6,6 @@ import io.bluetape4k.leader.exposed.AbstractExposedTableTest
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeGreaterThan
 import org.amshove.kluent.shouldBeNull
-import org.amshove.kluent.shouldNotBeNull
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -17,9 +16,9 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import java.util.UUID
+import java.util.*
 
-class LeaderLockHistoryTableTest : AbstractExposedTableTest() {
+class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")

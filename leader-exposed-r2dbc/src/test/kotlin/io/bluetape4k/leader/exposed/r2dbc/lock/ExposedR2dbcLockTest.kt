@@ -8,6 +8,7 @@ import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeGreaterOrEqualTo
@@ -16,9 +17,9 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Duration
 
-class ExposedR2dbcLockTest : AbstractExposedR2dbcLeaderTest() {
+class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
 
-    companion object : KLoggingChannel()
+    companion object: KLoggingChannel()
 
     @ParameterizedTest
     @MethodSource("enableDialects")
@@ -61,7 +62,7 @@ class ExposedR2dbcLockTest : AbstractExposedR2dbcLeaderTest() {
         expiredLock.tryLock(Duration.ofSeconds(1), leaseTime)
 
         // leaseTime 만료 대기
-        kotlinx.coroutines.delay(leaseTime.toMillis() * 2 + 50)
+        delay(timeMillis = leaseTime.toMillis() * 2 + 50)
 
         val newLock = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
         val acquired = newLock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(10))

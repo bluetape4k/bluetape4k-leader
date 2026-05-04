@@ -6,13 +6,13 @@ import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
 import io.bluetape4k.logging.coroutines.KLoggingChannel
+import io.bluetape4k.testcontainers.database.MySQL8Server
+import io.bluetape4k.testcontainers.database.PostgreSQLServer
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.deleteAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.junit.jupiter.api.TestInstance
-import org.testcontainers.containers.MySQLContainer
-import org.testcontainers.containers.PostgreSQLContainer
-import java.util.UUID
+import org.testcontainers.utility.Base58
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -28,14 +28,14 @@ import java.util.concurrent.ConcurrentHashMap
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractExposedR2dbcLeaderTest {
 
-    companion object : KLoggingChannel() {
+    companion object: KLoggingChannel() {
 
-        private val pgContainer: PostgreSQLContainer<*> by lazy {
-            PostgreSQLContainer("postgres:15-alpine").also { it.start() }
+        private val postgreSQLServer: PostgreSQLServer by lazy {
+            PostgreSQLServer.Launcher.postgres
         }
 
-        private val mysqlContainer: MySQLContainer<*> by lazy {
-            MySQLContainer("mysql:8.0").also { it.start() }
+        private val mysql8Server: MySQL8Server by lazy {
+            MySQL8Server.Launcher.mysql
         }
 
         private val dbCache = ConcurrentHashMap<TestR2dbcDB, R2dbcDatabase>()
@@ -51,29 +51,29 @@ abstract class AbstractExposedR2dbcLeaderTest {
             val filter = System.getenv("LEADER_TEST_DB")?.uppercase()
                 ?: return listOf(TestR2dbcDB.H2, TestR2dbcDB.POSTGRESQL, TestR2dbcDB.MYSQL_V8)
             return when (filter) {
-                "H2" -> listOf(TestR2dbcDB.H2)
+                "H2"                -> listOf(TestR2dbcDB.H2)
                 "POSTGRESQL", "POSTGRES" -> listOf(TestR2dbcDB.POSTGRESQL)
                 "MYSQL_V8", "MYSQL" -> listOf(TestR2dbcDB.MYSQL_V8)
-                else -> listOf(TestR2dbcDB.H2, TestR2dbcDB.POSTGRESQL, TestR2dbcDB.MYSQL_V8)
+                else                -> listOf(TestR2dbcDB.H2, TestR2dbcDB.POSTGRESQL, TestR2dbcDB.MYSQL_V8)
             }
         }
 
         fun r2dbcUrl(testDB: TestR2dbcDB): String = when (testDB) {
-            TestR2dbcDB.H2 -> "r2dbc:h2:mem:///leader_test;MODE=MySQL;DB_CLOSE_DELAY=-1"
+            TestR2dbcDB.H2         -> "r2dbc:h2:mem:///leader_test;MODE=MySQL;DB_CLOSE_DELAY=-1"
             TestR2dbcDB.POSTGRESQL -> {
-                val c = pgContainer
+                val c = postgreSQLServer
                 "r2dbc:postgresql://${c.host}:${c.getMappedPort(5432)}/${c.databaseName}"
             }
-            TestR2dbcDB.MYSQL_V8 -> {
-                val c = mysqlContainer
+            TestR2dbcDB.MYSQL_V8   -> {
+                val c = mysql8Server
                 "r2dbc:mysql://${c.host}:${c.getMappedPort(3306)}/${c.databaseName}"
             }
         }
 
-        fun r2dbcCredentials(testDB: TestR2dbcDB): Pair<String, String> = when (testDB) {
-            TestR2dbcDB.H2 -> "" to ""
-            TestR2dbcDB.POSTGRESQL -> pgContainer.username to pgContainer.password
-            TestR2dbcDB.MYSQL_V8 -> mysqlContainer.username to mysqlContainer.password
+        fun r2dbcCredentials(testDB: TestR2dbcDB): Pair<String?, String?> = when (testDB) {
+            TestR2dbcDB.H2         -> "" to ""
+            TestR2dbcDB.POSTGRESQL -> postgreSQLServer.username to postgreSQLServer.password
+            TestR2dbcDB.MYSQL_V8   -> mysql8Server.username to mysql8Server.password
         }
     }
 
@@ -81,7 +81,7 @@ abstract class AbstractExposedR2dbcLeaderTest {
     protected fun connectDb(testDB: TestR2dbcDB): R2dbcDatabase = dbCache.getOrPut(testDB) {
         val url = r2dbcUrl(testDB)
         val (user, password) = r2dbcCredentials(testDB)
-        R2dbcDatabase.connect(url, user = user, password = password)
+        R2dbcDatabase.connect(url, user = user ?: "", password = password ?: "")
     }
 
     /** 테스트 전 스키마 보장 및 테이블 초기화. */
@@ -98,8 +98,12 @@ abstract class AbstractExposedR2dbcLeaderTest {
         }
     }
 
-    protected fun randomName(): String = "test-${UUID.randomUUID().toString().take(8)}"
+    protected fun randomName(): String = "test-${Base58.randomString(8)}"
 }
 
 /** 테스트 대상 R2DBC DB 종류. */
-enum class TestR2dbcDB { H2, POSTGRESQL, MYSQL_V8 }
+enum class TestR2dbcDB {
+    H2,
+    POSTGRESQL,
+    MYSQL_V8
+}
