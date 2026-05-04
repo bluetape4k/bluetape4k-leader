@@ -1,6 +1,6 @@
 # ShedLock vs bluetape4k-leader 비교
 
-> 마지막 업데이트: 2026-04-30  
+> 마지막 업데이트: 2026-05-04  
 > **기능 추가/완료 시 이 문서의 백엔드·기능 비교 표를 반드시 업데이트할 것.**  
 > 연관 문서: [WIP.md](../../WIP.md) — `ShedLock 비교에서 도출한 추가 과제` 섹션
 
@@ -65,7 +65,7 @@
 | `lockAtMostFor` (최대 보유) | ✅ | ✅ `leaseTime` |
 | `waitTime` (획득 대기) | ❌ (즉시 skip) | ✅ |
 | AOP 애노테이션 (`@Leader`) | ✅ `@SchedulerLock` | 🚧 [#41](https://github.com/bluetape4k/bluetape4k-leader/issues/41) |
-| SpEL 락 이름 표현식 | ✅ | ❌ |
+| SpEL 락 이름 표현식 | ✅ | 🚧 [#69](https://github.com/bluetape4k/bluetape4k-leader/issues/69) |
 | 멀티테넌시 | ✅ | 🚧 [#42](https://github.com/bluetape4k/bluetape4k-leader/issues/42) |
 | Micrometer 메트릭 | ✅ (Spring 통합) | 🚧 [#10](https://github.com/bluetape4k/bluetape4k-leader/issues/10) |
 | Actuator 엔드포인트 | ✅ | 🚧 [#11](https://github.com/bluetape4k/bluetape4k-leader/issues/11)/[#12](https://github.com/bluetape4k/bluetape4k-leader/issues/12) |

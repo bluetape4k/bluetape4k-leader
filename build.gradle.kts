@@ -107,6 +107,14 @@ subprojects {
     }
 
     pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
+        configurations.matching { it.name == "kotlinCompilerClasspath" || it.name == "kotlinCompilerPluginClasspath" }.configureEach {
+            resolutionStrategy.eachDependency {
+                if (requested.group == "org.jetbrains.kotlin") {
+                    useVersion(rootLibs.versions.kotlin.get())
+                    because("KGP build-tools requires matching kotlin-compiler version")
+                }
+            }
+        }
         kotlin {
             jvmToolchain(21)
             compilerOptions {

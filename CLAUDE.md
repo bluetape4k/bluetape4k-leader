@@ -91,18 +91,27 @@ After every `.kt` edit:
 
 ## Test Infrastructure
 
-Tests use Testcontainers `GenericContainer("redis:7-alpine")` directly — no dependency on external test utility classes. Each Redis-backed test module has its own `AbstractXxxLeaderTest` base class that starts and manages the container.
+모든 테스트는 **`bluetape4k-testcontainers`의 `XxxServer.Launcher.xxx` 표준** 사용. `GenericContainer` 직접 사용 금지. 컨테이너 자동 시동 + JVM 종료 시 정리 + 모듈 간 일관성 보장.
 
 ```kotlin
-// Pattern — self-contained base class
+// Redis
 abstract class AbstractRedissonLeaderTest {
-    companion object : KLogging() {
-        private val redisContainer = GenericContainer("redis:7-alpine").withExposedPorts(6379)
-        init { redisContainer.start() }
-        val redisUrl: String get() = "redis://${redisContainer.host}:${redisContainer.getMappedPort(6379)}"
+    companion object: KLogging() {
+        val redis = RedisServer.Launcher.redis
+        val redisUrl: String get() = redis.url
+    }
+}
+
+// MongoDB
+abstract class AbstractMongoLeaderTest {
+    companion object: KLogging() {
+        val mongo = MongoDBServer.Launcher.mongoDB
+        val connectionString: String get() = mongo.url
     }
 }
 ```
+
+테스트 의존성: `testImplementation(libs.bluetape4k.testcontainers)`
 
 ## Test Requirements
 

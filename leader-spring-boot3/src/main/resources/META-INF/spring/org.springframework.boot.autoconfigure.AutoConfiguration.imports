@@ -1,0 +1,2 @@
+io.bluetape4k.leader.spring.boot3.LeaderElectionAutoConfiguration
+io.bluetape4k.leader.spring.boot3.backend.LocalLeaderConfiguration
