@@ -78,7 +78,7 @@ suspend / Reactor 분기는 (a) `kotlinx-coroutines-reactor` 누출 (R-6), (b) `
 | **R-30 NEW** | **metrics elected vs body-null 구분 한계 — 코어 SPI `runIfLeader(name, action): T?` 의 `null` 이 본문 null 반환 vs 미선출 구분 불가** | Codex 2nd round M1 | MEDIUM | 본 PR `onLockNotAcquired` 은 best-effort (null 반환 → CONTENTION 기록). 정확한 elected vs skipped 분리는 후속 [#85] sealed `LeaderRunResult` SPI 도입 시 가능. README/KDoc 한계 명시 [M1] |
 | **R-31 NEW** | **self-invocation 정확 검출 한계 — reflection 으로는 메서드 본문 호출 그래프 분석 불가. ASM/Javassist 또는 AspectJ LTW 도입은 본 PR scope 외** | Codex 2nd round M2 | MEDIUM | 본 PR self-invocation 검출은 best-effort: 같은 클래스에 `@LeaderElection` 또는 `@LeaderGroupElection` 부착된 메서드 2+ 존재 시 WARN. 정확한 검출은 README LIMITATIONS 섹션 명시 (AspectJ LTW 또는 컴파일 타임 분석 도구 필요) [M2] |
 | **R-32 NEW** | **SpEL `withMethodResolvers()` 가 임의 인스턴스 메서드 호출 허용 (CVE-2022-22947 회색지대) — `#root.target.shutdown()` 같은 부작용 가능** | Step 3-P Security persona | **CRITICAL** | `withMethodResolvers()` default 제거. property `bluetape4k.leader.aop.spel.allow-method-invocation=false` (default) 로 명시적 opt-in. `#root.target` 노출도 default 제거 [Step 3-P-Sec-1] |
-| **R-33 NEW** | **RETHROW 모드 backend 예외 (Lettuce/Redisson/Mongo) 가 host/credentials/topology hint 누출 — REST handler 가 default ExceptionHandler 로 노출 시 인프라 정보 disclosure** | Step 3-P Security persona | HIGH | `LeaderBackendException(lockName, cause)` wrapping — message = `"leader backend error for lock '$lockName'"` 일반화, `getLocalizedMessage()` override 로 cause message 누출 차단. cause 는 보존 (logging/디버깅용) [Step 3-P-Sec-3] |
+| **R-33 NEW** | **RETHROW 모드 backend 예외 (Lettuce/Redisson/Mongo) 가 host/credentials/topology hint 누출 — REST handler 가 default ExceptionHandler 로 노출 시 인프라 정보 disclosure** | Step 3-P Security persona | HIGH | **`leader-core` 기존 `LeaderElectionException` / `LeaderGroupElectionException` 재사용 (신규 wrapper 미정의)** — `LeaderElectionException("leader backend error for lock '$lockName'", cause)` wrapping. message 일반화로 host/credentials 누출 차단, cause 는 보존 (logging/디버깅용) [Step 3-P-Sec-3] |
 | **R-34 NEW** | **Lock-namespace pollution — SpEL 결과가 다른 비즈니스 락과 충돌 가능 (e.g., `tenantId="daily-settlement"` 가 정확히 동일한 비즈니스 락과 충돌)** | Step 3-P Security persona | HIGH | `LockNameValidator` charset 화이트리스트 (`^[A-Za-z0-9_:.\-]+$`) + max length 256 (Redis < 1KB, MongoDB index 1024). property `bluetape4k.leader.aop.lock-name-prefix` (default `"${spring.application.name}:"`) 자동 prefix — empty string opt-out [Step 3-P-Sec-2] |
 
 ---
@@ -141,7 +141,7 @@ include(":leader-spring-boot4-aspectj")
 | `AbstractLeaderGroupElectionAspect` | 동일, group 분기 |
 | `SpelExpressionEvaluator` | `SimpleEvaluationContext.forPropertyAccessors().withMethodResolvers()` [Q4][R-16]. Caffeine `maximumSize(1024) + expireAfterAccess(1h)` 캐시 [R-17]. 리터럴 fast-path. `${...}` placeholder → `embeddedValueResolver.resolveStringValue()` 선행 (ShedLock 차용). **`TemplateParserContext` 미사용** — plain SpEL 만 (`#region`, `#user.tenantId`) [Q-X2]. 혼합 표현식은 후속 [#82] |
 | `LockNameValidator` | **[Step 3-P-Sec-2][R-34 NEW] charset 화이트리스트 강화 — `^[A-Za-z0-9_:.\-]+$` + max length 256 (Redis < 1KB, MongoDB index 1024 byte)**. 위반 시 `IllegalArgumentException` startup 또는 호출 fail-fast. property `bluetape4k.leader.aop.lock-name-prefix` (default `"${spring.application.name}:"`) 자동 prefix 로 lock-namespace pollution 방어 — empty string opt-out 가능 |
-| `LeaderBackendException` | **[Step 3-P-Sec-3][R-33 NEW]** RETHROW 모드 backend 예외 wrapper. message = `"leader backend error for lock '$lockName'"` (host/credentials 누출 차단). cause 보존하되 `getLocalizedMessage()` override 로 default Spring `ExceptionHandler` 가 cause message 노출 안 하도록. README 보안 가이드에 `@ExceptionHandler(LeaderBackendException::class)` 등록 권장 |
+| `LeaderElectionException` / `LeaderGroupElectionException` (재사용) | **[Step 3-P-Sec-3][R-33 NEW]** `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderExceptions.kt` 의 기존 클래스 재사용 (신규 wrapper 미정의). RETHROW 모드 backend 예외 → single-leader = `LeaderElectionException("leader backend error for lock '$lockName'", cause)`, group = `LeaderGroupElectionException(...)` wrapping. message 일반화로 host/credentials 누출 차단, cause 보존 (logging 용). README 보안 가이드에 `@ExceptionHandler(LeaderElectionException::class)` 등록 권장 |
 | `LeaderBeanSelector` | ① `bean` 명시 → `getBean(name, LeaderElectionFactory::class)`, ② 단일 factory 빈, ③ `@Primary`, ④ ambiguous → `NoUniqueBeanDefinitionException` |
 | `DurationParser` | **두 형식 양쪽 지원** (ShedLock `StringToDurationConverter.java:54-97`): (a) ISO-8601 `"PT10S"`, `"PT1H"` → `Duration.parse()`, (b) simple `"10s"`, `"5m"`, `"1h"`, `"500ms"` → 정규식 + 단위 매핑. 음수/0 검증 + `leaseTime < waitTime` WARN |
 | `LeaderAnnotationValidatorBeanPostProcessor` | Section 10 — Footgun 검출, strict 모드 fail [H5][Q9] |
@@ -304,8 +304,8 @@ fun around(pjp: ProceedingJoinPoint): Any? {
         // [Step 3-P-Rel-2] inner 가 이미 처리하지만 backend 자체 cancel 도 방어
         throw e
     } catch (backendEx: Throwable) {
-        // [Step 3-P-Sec-3][R-33 NEW] backend 예외만 LeaderBackendException wrapping — host/credentials 등 인프라 메시지 누출 차단
-        val wrapped = LeaderBackendException(lockName, backendEx)
+        // [Step 3-P-Sec-3][R-33 NEW] backend 예외 wrapping — leader-core 의 기존 LeaderElectionException 재사용 (group Aspect 는 LeaderGroupElectionException). message 일반화로 host/credentials 누출 차단, cause 보존
+        val wrapped = LeaderElectionException("leader backend error for lock '$lockName'", backendEx)
         fanOut { it.onLockNotAcquired(lockName, opts, SkipReason.BACKEND_ERROR) }
         when (ann.failureMode) {
             LeaderAspectFailureMode.RETHROW -> throw wrapped
@@ -644,7 +644,7 @@ class LeaderAnnotationValidatorBeanPostProcessor(
 - [ ] **[Step 3-P-Sec-1][R-32] `allow-method-invocation=true` opt-in 테스트** — property `true` 시 메서드 호출 허용 + `#root.target` 노출 검증
 - [ ] **[Step 3-P-Sec-2][R-34] `LockNameValidator` charset 화이트리스트 테스트** — `^[A-Za-z0-9_:.\-]+$` 외 문자 (e.g., space, `/`, `;`) 시 fail. max length 256 초과 시 fail
 - [ ] **[Step 3-P-Sec-2][R-34] `lock-name-prefix` 자동 prefix 테스트** — default `${spring.application.name}:` 적용 + empty string opt-out 동작
-- [ ] **[Step 3-P-Sec-3][R-33] `LeaderBackendException` wrapping 테스트** — RETHROW 모드 backend throw → wrapped exception, message 에 host/credentials 미포함 검증. cause 는 보존
+- [ ] **[Step 3-P-Sec-3][R-33] `LeaderElectionException` / `LeaderGroupElectionException` wrapping 테스트** — RETHROW 모드 backend throw → wrapped 기존 예외, message 일반화 (host/credentials 미포함), cause 보존. group Aspect 는 `LeaderGroupElectionException` 사용 검증
 - [ ] **[Step 3-P-Rel-1] body 예외 vs backend 예외 분리 테스트** — RETHROW 모드에서 본문 throw 시 wrapping 없이 그대로 전파 (LeaderBackendException 으로 wrap 되지 않음). backend throw 시에만 wrapping
 - [ ] **[Step 3-P-Rel-2][CLAUDE.md memory] CancellationException 우선 재throw 테스트** — SKIP 모드에서도 CancellationException 흡수되지 않고 재throw
 - [ ] **plain SpEL 평가 테스트** — `#region`, `#user.tenantId`, `"'prefix-' + #arg"` (TemplateParserContext 없음 검증, 리터럴 prefix 따옴표 검증) [H1][R-28][Q-X2]
