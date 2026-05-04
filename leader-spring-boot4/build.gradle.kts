@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.kotlin.spring)
     alias(libs.plugins.kotlin.allopen)
     alias(libs.plugins.spring.boot4) apply false
+    // [#41 leader-aop merged] Freefair AspectJ post-compile-weaving — common 의 @Aspect 클래스를 ajc aspectpath 로 사용
+    id("io.freefair.aspectj.post-compile-weaving") version "9.5.0"
 }
 
 configurations {
@@ -36,6 +38,9 @@ dependencies {
     api(project(":leader-core"))
     api(project(":leader-spring-boot-common"))
 
+    // [#41 leader-aop merged] common 의 @Aspect 클래스를 Freefair aspectpath 로 weaving
+    aspect(project(":leader-spring-boot-common"))
+
     compileOnly(project(":leader-redis-lettuce"))
     compileOnly(project(":leader-redis-redisson"))
     compileOnly(project(":leader-exposed-jdbc"))
@@ -51,6 +56,13 @@ dependencies {
     compileOnly(libs.hazelcast)
 
     api(libs.spring.boot.autoconfigure)
+    // [#41 leader-aop merged] Spring AOP / SpEL / AspectJ — Boot 4 7.x runtime + Freefair compile-time weaving
+    api(libs.spring.aop)
+    api(libs.spring.expression)
+    api(libs.spring.aspects)
+    api(libs.aspectjweaver)
+    api(libs.aspectjrt)
+    compileOnly(libs.spring.boot.actuator)
     compileOnly(libs.spring.boot.configuration.processor)
     compileOnly(libs.spring.context)
     compileOnly(libs.spring.tx)

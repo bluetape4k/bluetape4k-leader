@@ -13,7 +13,7 @@
 
 | Q | 결정 | 영향 |
 |---|------|------|
-| **Q-P1** | (b) — 6 backend 의 factory `@Bean` 등록은 **AOP autoconfig** (`leader-spring-boot3-aop` / `leader-spring-boot4-aspectj`) 에서 직접. backend 모듈은 `spring-context` 의존 미추가 — 순수 Kotlin 유지 | T1.4-T1.8 Notes, T3.5b/T4.5b |
+| **Q-P1** | (b) — 6 backend 의 factory `@Bean` 등록은 **AOP autoconfig** (`leader-spring-boot3 (merged)` / `leader-spring-boot4 (merged)`) 에서 직접. backend 모듈은 `spring-context` 의존 미추가 — 순수 Kotlin 유지 | T1.4-T1.8 Notes, T3.5b/T4.5b |
 | **Q-P2** | (a) — `AbstractLeaderElectionAspect` / `AbstractLeaderGroupElectionAspect` abstract class 를 common 모듈에 본체로 두고, Boot 3 / Boot 4 concrete Aspect 는 **빈 subclass + `@Aspect @Component @Order @Role` 어노테이션만**. Freefair weaving 호환성 verify task 추가 | T2.19/T2.20, T3.3/T3.4, T4.3/T4.4 |
 | **Q-P3** | (b) — common 모듈 `spring-context:6.2.x` `compileOnly` lock + Boot 4 module 이 7.x runtime 제공. Spring 6 vs 7 API surface 차이 점검 task 신설 | T2.18, T2.21 |
 | **Q-P4** | 변경 없음 — pointcut `@annotation(LeaderElection)` 직접 부착만, 메타 어노테이션 [#84] 후속 | spec §11.2 |
@@ -88,7 +88,7 @@ per-call options 를 깨끗하게 처리하기 위해 `LeaderElectionFactory` / 
 
 ---
 
-## Phase 3 — Boot 3 AOP 모듈 (`leader-spring-boot3-aop`) — 신규 module [M3]
+## Phase 3 — Boot 3 AOP 모듈 (`leader-spring-boot3 (merged)`) — 신규 module [M3]
 
 flat naming 신규 모듈. Spring AOP 런타임 프록시. concrete Aspect (빈 subclass) + AutoConfiguration + `AutoConfiguration.imports`.
 
@@ -96,34 +96,34 @@ flat naming 신규 모듈. Spring AOP 런타임 프록시. concrete Aspect (빈 
 
 | Task | Description | Complexity | Files | Notes |
 |------|-------------|------------|-------|-------|
-| T3.1 | `settings.gradle.kts` 에 `:leader-spring-boot3-aop` include | low | `settings.gradle.kts` | [M3] |
-| **T3.2** | `build.gradle.kts` — common + Boot 3 BOM (`spring-context:6.2.x`) + `spring-aop` + 6 backend `compileOnly`. 표준 자원: `junit-platform.properties` (PER_CLASS + parallel=false) + `logback-test.xml` [M-6] | low | `leader-spring-boot3-aop/build.gradle.kts`, `.../src/test/resources/junit-platform.properties`, `.../logback-test.xml` | CLAUDE.md 표준 |
+| T3.1 | `settings.gradle.kts` 에 `:leader-spring-boot3 (merged)` include | low | `settings.gradle.kts` | [M3] |
+| **T3.2** | `build.gradle.kts` — common + Boot 3 BOM (`spring-context:6.2.x`) + `spring-aop` + 6 backend `compileOnly`. 표준 자원: `junit-platform.properties` (PER_CLASS + parallel=false) + `logback-test.xml` [M-6] | low | `leader-spring-boot3 (merged)/build.gradle.kts`, `.../src/test/resources/junit-platform.properties`, `.../logback-test.xml` | CLAUDE.md 표준 |
 | ~~T3.3~~ | **폐기** [T4.1a Option A] — Aspect는 common의 `final class @Aspect`. autoconfig `@Bean` 등록 (T3.5b) | — | — | spike 결과 |
 | ~~T3.4~~ | **폐기** [T4.1a Option A] — 동일 | — | — | spike 결과 |
 | **T3.5a** [H-1][Codex-H3] | `LeaderAopFactoryAutoConfiguration` — Phase 1. `@AutoConfiguration @ConditionalOnClass(Aspect) @ConditionalOnProperty(enabled, matchIfMissing=true)` + **6 backend × 2 factory `@Bean` (12개)** 각 `@ConditionalOnClass/Bean(BackendClient)` 가드. unconditional 평가되어야 다음 단계 `@ConditionalOnBean(LeaderElectionFactory)` 가 충족됨 | medium | `.../boot3/aop/autoconfigure/LeaderAopFactoryAutoConfiguration.kt` | Q-P1 (b) — backend 모듈 spring-context 의존 미추가 |
 | **T3.5b** [H-1][H-9][Codex-H3][T4.1a Option A] | `LeaderAopAutoConfiguration` — Phase 2. `@AutoConfiguration(after = LeaderAopFactoryAutoConfiguration::class) @ConditionalOnBean(LeaderElectionFactory) @EnableAspectJAutoProxy(proxyTargetClass=true)`. **Aspect 2 `@Bean` 직접 등록** — `@Bean @Order(AOP_ORDER) @Role(ROLE_INFRASTRUCTURE) @ConditionalOnMissingBean fun leaderElectionAspect(...) = LeaderElectionAspect(...)` + group. **`spring-boot-starter-aop` 의존성 미추가** (issue #1050 advice 2회 회피, `@EnableAspectJAutoProxy` 만으로 활성화). + Validator + Health + Properties + SpEL/MetricsRecorder 빈. 모두 `@Role(ROLE_INFRASTRUCTURE)` | high | `.../boot3/aop/autoconfigure/LeaderAopAutoConfiguration.kt` | factory autoconfig 분리로 self-reference 회피 |
-| T3.6 | `AutoConfiguration.imports` 두 줄 (`LeaderAopFactoryAutoConfiguration` + `LeaderAopAutoConfiguration`) | low | `leader-spring-boot3-aop/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` | Codex-H3 |
-| T3.7 | `additional-spring-configuration-metadata.json` | low | `leader-spring-boot3-aop/src/main/resources/META-INF/spring/additional-spring-configuration-metadata.json` | IDE 자동완성. `aot.factories` Notes only [CR-3] (scope 외) |
+| T3.6 | `AutoConfiguration.imports` 두 줄 (`LeaderAopFactoryAutoConfiguration` + `LeaderAopAutoConfiguration`) | low | `leader-spring-boot3 (merged)/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` | Codex-H3 |
+| T3.7 | `additional-spring-configuration-metadata.json` | low | `leader-spring-boot3 (merged)/src/main/resources/META-INF/spring/additional-spring-configuration-metadata.json` | IDE 자동완성. `aot.factories` Notes only [CR-3] (scope 외) |
 | T3.8 | `leader-bom/build.gradle.kts` 에 신규 module 추가 | low | `leader-bom/build.gradle.kts` | |
 
 ---
 
-## Phase 4 — Boot 4 AspectJ 모듈 (`leader-spring-boot4-aspectj`) — 신규 module [M3]
+## Phase 4 — Boot 4 AspectJ 모듈 (`leader-spring-boot4 (merged)`) — 신규 module [M3]
 
 flat naming 신규 모듈. AspectJ post-compile-weaving (Freefair 플러그인) 으로 모듈 자체 클래스 advice 매칭 검증. 사용자 빈에 대한 advice 는 동일 Spring AOP 런타임 프록시. **Spring `7.x` runtime 제공** [Q-P3 (b)].
 
 | Task | Description | Complexity | Files | Notes |
 |------|-------------|------------|-------|-------|
-| T4.1 | `settings.gradle.kts` 에 `:leader-spring-boot4-aspectj` include | low | `settings.gradle.kts` | [M3] |
+| T4.1 | `settings.gradle.kts` 에 `:leader-spring-boot4 (merged)` include | low | `settings.gradle.kts` | [M3] |
 | **T4.1a NEW** [Step 3-P-Arch-2] | **Freefair × final class spike** — abstract class 채택 정당성 사전 검증. spike: (a) `final class LeaderElectionAspect` + Freefair post-compile-weaving → 모듈 자체 advice 매칭 검증 → 통과하면 abstract class (Q-P2 a) 재고. (b) abstract + 빈 subclass 가 Freefair 와 호환되는지도 동시 검증. 결과 노트 작성. spike 결과에 따라 T2.19/T2.20 + T3.3/T3.4 + T4.3/T4.4 폐기 가능 | medium | `docs/superpowers/notes/2026-05-04-freefair-final-class-spike.md` | over-engineering 회피 |
-| **T4.2** [T4.1a Option A] | `build.gradle.kts` — common + Boot 4 BOM (`spring-context:7.x` runtime) + `io.freefair.aspectj.post-compile-weaving` + `aspectjweaver`/`aspectjrt` + **`aspect(project(":leader-spring-boot-common"))`** (dependency JAR `@Aspect` 클래스를 ajc aspectpath 로 weaving) + 6 backend `compileOnly`. **`spring-boot-starter-aop` 미추가** (issue #1050 advice 2회 회피). Freefair 호환성 verify (Boot 4 / Kotlin 2.3 / JVM 21 / Spring 7 + final class `@Aspect` weaving) [Q-P2]. 표준 자원: `junit-platform.properties` + `logback-test.xml` [M-6] | medium | `leader-spring-boot4-aspectj/build.gradle.kts`, `.../src/test/resources/junit-platform.properties`, `.../logback-test.xml` | CLAUDE.md 표준 + spike B-1/B-2 |
+| **T4.2** [T4.1a Option A] | `build.gradle.kts` — common + Boot 4 BOM (`spring-context:7.x` runtime) + `io.freefair.aspectj.post-compile-weaving` + `aspectjweaver`/`aspectjrt` + **`aspect(project(":leader-spring-boot-common"))`** (dependency JAR `@Aspect` 클래스를 ajc aspectpath 로 weaving) + 6 backend `compileOnly`. **`spring-boot-starter-aop` 미추가** (issue #1050 advice 2회 회피). Freefair 호환성 verify (Boot 4 / Kotlin 2.3 / JVM 21 / Spring 7 + final class `@Aspect` weaving) [Q-P2]. 표준 자원: `junit-platform.properties` + `logback-test.xml` [M-6] | medium | `leader-spring-boot4 (merged)/build.gradle.kts`, `.../src/test/resources/junit-platform.properties`, `.../logback-test.xml` | CLAUDE.md 표준 + spike B-1/B-2 |
 | ~~T4.3~~ | **폐기** [T4.1a Option A] — Aspect는 common의 `final class @Aspect`. autoconfig `@Bean` 등록 (T4.5b) | — | — | spike 결과 |
 | ~~T4.4~~ | **폐기** [T4.1a Option A] — 동일 | — | — | spike 결과 |
 | **T4.5a** [H-1][Codex-H3] | `LeaderAopFactoryAutoConfiguration` — Boot 3 동일 패턴 (6 backend × 2 factory `@Bean` Phase 1) | medium | `.../boot4/aop/autoconfigure/LeaderAopFactoryAutoConfiguration.kt` | factory unconditional |
 | **T4.5b** [H-1][H-9][Codex-H3][T4.1a Option A] | `LeaderAopAutoConfiguration` — Boot 3 동일 패턴 (Phase 2). **Aspect 2 `@Bean` 직접 등록** (T3.5b 동일) + `@AutoConfiguration(after=...)` + `@ConditionalOnBean(LeaderElectionFactory)` + Validator/Health/Props/SpEL/MetricsRecorder 빈 | high | `.../boot4/aop/autoconfigure/LeaderAopAutoConfiguration.kt` | self-reference 회피 + Aspect `@Bean` 등록 |
 | T4.6 [신규] | Boot 4 GA `@AutoConfiguration` API 변경 verify — `@AutoConfiguration` 패키지 위치, `AutoConfiguration.imports` 경로, `@ConditionalOnClass/Bean` 동작 변경 여부 | low | `docs/superpowers/notes/2026-05-04-boot4-autoconfig-verify.md` | GA milestone 시 재확인 |
-| T4.7 | `AutoConfiguration.imports` 두 줄 (`LeaderAopFactoryAutoConfiguration` + `LeaderAopAutoConfiguration`) | low | `leader-spring-boot4-aspectj/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` | Codex-H3 |
-| T4.8 | `additional-spring-configuration-metadata.json` | low | `leader-spring-boot4-aspectj/src/main/resources/META-INF/spring/additional-spring-configuration-metadata.json` | `aot.factories` Notes only [CR-3] |
+| T4.7 | `AutoConfiguration.imports` 두 줄 (`LeaderAopFactoryAutoConfiguration` + `LeaderAopAutoConfiguration`) | low | `leader-spring-boot4 (merged)/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` | Codex-H3 |
+| T4.8 | `additional-spring-configuration-metadata.json` | low | `leader-spring-boot4 (merged)/src/main/resources/META-INF/spring/additional-spring-configuration-metadata.json` | `aot.factories` Notes only [CR-3] |
 | T4.9 | `leader-bom/build.gradle.kts` 에 신규 module 추가 | low | `leader-bom/build.gradle.kts` | |
 
 ---
@@ -166,7 +166,7 @@ flat naming 신규 모듈. AspectJ post-compile-weaving (Freefair 플러그인) 
 
 | Task | Description | Complexity | Files | Notes |
 |------|-------------|------------|-------|-------|
-| T5.13 | Boot 3 × Local backend — `@LeaderElection`, `@LeaderGroupElection`, plain SpEL, `${...}` placeholder, simple Duration | medium | `leader-spring-boot3-aop/src/test/kotlin/.../integration/Boot3LocalAopIntegrationTest.kt` | infra 없음 |
+| T5.13 | Boot 3 × Local backend — `@LeaderElection`, `@LeaderGroupElection`, plain SpEL, `${...}` placeholder, simple Duration | medium | `leader-spring-boot3 (merged)/src/test/kotlin/.../integration/Boot3LocalAopIntegrationTest.kt` | infra 없음 |
 | **T5.13a** [CR-1] | **Boot 3 × Lettuce backend** — `RedisServer.Launcher.redis` | medium | `.../integration/Boot3LettuceAopIntegrationTest.kt` | 6 backend cover |
 | T5.14 | Boot 3 × Redisson backend — `RedisServer.Launcher.redis` | medium | `.../integration/Boot3RedissonAopIntegrationTest.kt` | |
 | **T5.14a** [CR-1] | **Boot 3 × Hazelcast backend** — `HazelcastServer.Launcher.hazelcast` (있으면) 또는 embedded `HazelcastInstance` | medium | `.../integration/Boot3HazelcastAopIntegrationTest.kt` | 6 backend cover |
@@ -178,11 +178,11 @@ flat naming 신규 모듈. AspectJ post-compile-weaving (Freefair 플러그인) 
 | T5.19 | Boot 3 — `failureMode` RETHROW + SKIP × 백엔드 throw 매트릭스 | medium | `.../integration/Boot3FailureModeIntegrationTest.kt` | |
 | **T5.20** [M-4] | Boot 3 — 메트릭스 best-effort. 6 callback 순서: elected (`Attempt→Acquired→Started→Finished`) / skipped (`Attempt→NotAcquired`) / failed (`Attempt→Acquired→Started→Failed`). `List<Recorder>` 1개 throw 시 다른 recorder 영향 없음 (try-catch isolation) | medium | `.../integration/Boot3MetricsIntegrationTest.kt` | [M1][R-30] |
 | **T5.21a** | Boot 3 — `LeaderAopHealthIndicator` 노출 검증 (Actuator `/actuator/health`) | low | `.../integration/Boot3HealthIntegrationTest.kt` | |
-| **T5.21b** [L-3] | Boot 4 — Actuator `@WebMvcTest` security (Spring Security 7 변동 대응) — `/actuator/health` permitAll, `/actuator/beans` 인증 필요 패턴 | low | `leader-spring-boot4-aspectj/src/test/kotlin/.../integration/Boot4ActuatorSecurityTest.kt` | Boot 4 GA 재확인 |
+| **T5.21b** [L-3] | Boot 4 — Actuator `@WebMvcTest` security (Spring Security 7 변동 대응) — `/actuator/health` permitAll, `/actuator/beans` 인증 필요 패턴 | low | `leader-spring-boot4 (merged)/src/test/kotlin/.../integration/Boot4ActuatorSecurityTest.kt` | Boot 4 GA 재확인 |
 | T5.22 | Boot 3 — proxy → target class annotation lookup 폴백 통합 (인터페이스 메서드 부착 + 구현체 분리) | medium | `.../integration/Boot3InterfaceAnnotationLookupTest.kt` | [R-24] |
 | T5.23 | Boot 3 — 외부 advice 순서 검증 (`@LeaderElection` × `@Transactional`) — leader 락 → tx 시작 → body → tx 커밋 → 락 해제 순서 | medium | `.../integration/Boot3AdviceOrderTest.kt` | [R-14][M3] |
 | T5.24 | Boot 3 — 전역 default property fallback 통합 (어노테이션 빈 → property → 코어 Default) | low | `.../integration/Boot3DefaultPropertyTest.kt` | |
-| **T5.25** [H-8] | **Boot 4 × 6 backend 매트릭스** — Local + Lettuce + Redisson + Mongo + Hazelcast + Exposed JDBC. Boot 3 통합과 동일 시나리오 | medium | `leader-spring-boot4-aspectj/src/test/kotlin/.../integration/Boot4*AopIntegrationTest.kt` (6 파일) | Boot 4 GA 호환 |
+| **T5.25** [H-8] | **Boot 4 × 6 backend 매트릭스** — Local + Lettuce + Redisson + Mongo + Hazelcast + Exposed JDBC. Boot 3 통합과 동일 시나리오 | medium | `leader-spring-boot4 (merged)/src/test/kotlin/.../integration/Boot4*AopIntegrationTest.kt` (6 파일) | Boot 4 GA 호환 |
 | T5.26 | Boot 4 — Freefair AspectJ post-compile-weaving 적용 검증 (모듈 클래스 advice 매칭 + abstract class subclass weaving) | medium | `.../integration/Boot4AspectjWeavingTest.kt` | [4.1] R-2 정직 처리 + [Q-P2] |
 
 ---
@@ -193,11 +193,11 @@ README (영문 + 한글), CLAUDE.md, KDoc.
 
 | Task | Description | Complexity | Files | Notes |
 |------|-------------|------------|-------|-------|
-| **T6.1a** [H-2] | README 섹션 (a) — 사용법 + 설정 + plain SpEL 문법 (리터럴 prefix 따옴표). Quick Start, 어노테이션 reference, properties reference, Duration 두 형식, `${...}` placeholder | medium | `leader-spring-boot3-aop/README.md` | [H1][R-28] |
+| **T6.1a** [H-2] | README 섹션 (a) — 사용법 + 설정 + plain SpEL 문법 (리터럴 prefix 따옴표). Quick Start, 어노테이션 reference, properties reference, Duration 두 형식, `${...}` placeholder | medium | `leader-spring-boot3 (merged)/README.md` | [H1][R-28] |
 | **T6.1b** [H-2] | README 섹션 (b) — 한계 + 0.x 마이그레이션. sync only / 메타 어노테이션 [#84] / `minLeaseTime` [#77] / `FAIL_OPEN_RUN` [#81] / `TemplateParserContext` [#82] / metrics best-effort [#85] / self-invocation 한계 / factory 미등록 비활성 | medium | 동일 파일 | cross-ref |
 | **T6.1c** [H-2][M-13][CR-4] | README 섹션 (c) — ShedLock 매핑 표 (8건 + `minLeaseTime`/`leaderId` 미지원) + 외부 advice 순서 표 (`@Transactional`, `@Retry`, `@Cacheable`) + factory bean name 강조 | medium | 동일 파일 | T6.7 흡수 [M-13] |
-| T6.2 | `README.ko.md` — T6.1a/b/c 한글 번역 | medium | `leader-spring-boot3-aop/README.ko.md` | |
-| T6.3 | Boot 4 README + `.ko.md` (boot3-aop + Freefair + Spring 7 안내) | medium | `leader-spring-boot4-aspectj/README.md`, `.ko.md` | |
+| T6.2 | `README.ko.md` — T6.1a/b/c 한글 번역 | medium | `leader-spring-boot3 (merged)/README.ko.md` | |
+| T6.3 | Boot 4 README + `.ko.md` (boot3-aop + Freefair + Spring 7 안내) | medium | `leader-spring-boot4 (merged)/README.md`, `.ko.md` | |
 | T6.4 | Common README + `.ko.md` 갱신 — 신규 SPI + abstract class Aspect 안내 | low | `leader-spring-boot-common/README.md`, `.ko.md` | |
 | **T6.5a** [H-12] | 6 backend README 갱신 — factory class 위치 + 빈 이름 (`{backend}LeaderElectionFactory`) + 사용 예시 | low | 6 backend README + `.ko.md` (12개) | [Q-P1 (b)] |
 | **T6.5b** [H-12] | 루트 README + `.ko.md` 갱신 — 신규 두 module + AOP 사용법 요약 | low | `README.md`, `README.ko.md` | |
@@ -215,10 +215,10 @@ nightly 워크플로우에 신규 module job 추가 + Kover threshold.
 | Task | Description | Complexity | Files | Notes |
 |------|-------------|------------|-------|-------|
 | **T7.0** [M-14] | **`nightly.yml` 기존 job pattern + module job naming convention 확인 task** — `:leader-redis-redisson` job 이 어떤 trigger / matrix / setup-java 패턴을 쓰는지 grep 후 신규 module job 일관성 보장 | low | `.github/workflows/nightly.yml` (read-only verify) | |
-| T7.1 | `nightly.yml` 에 `leader-spring-boot3-aop` job 추가 (build + test) — T7.0 의 패턴 그대로 | low | `.github/workflows/nightly.yml` | |
-| T7.2 | `nightly.yml` 에 `leader-spring-boot4-aspectj` job 추가 | low | `.github/workflows/nightly.yml` | |
+| T7.1 | `nightly.yml` 에 `leader-spring-boot3 (merged)` job 추가 (build + test) — T7.0 의 패턴 그대로 | low | `.github/workflows/nightly.yml` | |
+| T7.2 | `nightly.yml` 에 `leader-spring-boot4 (merged)` job 추가 | low | `.github/workflows/nightly.yml` | |
 | T7.3 | `ci.yml` 에 신규 module 빌드 포함 검증 (이미 `./gradlew build` 일괄 실행이면 변경 불필요) | low | `.github/workflows/ci.yml` | verify only |
-| **T7.4** [M-7] | **Kover line coverage 80% threshold 3 모듈 적용** — `leader-spring-boot-common`, `leader-spring-boot3-aop`, `leader-spring-boot4-aspectj`. `koverHtmlReport` task 활성화 + `koverVerify` 실패 시 build fail | low | 위 3 모듈 `build.gradle.kts` | Kover plugin 이미 root 적용 가정 |
+| **T7.4** [M-7] | **Kover line coverage 80% threshold 3 모듈 적용** — `leader-spring-boot-common`, `leader-spring-boot3 (merged)`, `leader-spring-boot4 (merged)`. `koverHtmlReport` task 활성화 + `koverVerify` 실패 시 build fail | low | 위 3 모듈 `build.gradle.kts` | Kover plugin 이미 root 적용 가정 |
 
 ---
 
