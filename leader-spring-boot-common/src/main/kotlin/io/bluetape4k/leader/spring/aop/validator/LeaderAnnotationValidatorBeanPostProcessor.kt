@@ -61,12 +61,17 @@ class LeaderAnnotationValidatorBeanPostProcessor(
 
     private fun collectAnnotatedMethods(bean: Any): Pair<Class<*>, List<Method>>? {
         val targetClass = AopUtils.getTargetClass(bean)
+        // Skip AOP infrastructure beans — interceptors, BPP, @Aspect classes, and Spring internals
         if (MethodInterceptor::class.java.isAssignableFrom(targetClass)) return null
+        if (BeanPostProcessor::class.java.isAssignableFrom(targetClass)) return null
+        if (targetClass.isAnnotationPresent(org.aspectj.lang.annotation.Aspect::class.java)) return null
+        if (targetClass.`package`?.name?.startsWith("org.springframework") == true) return null
 
         val annotated = targetClass.declaredMethods.filter { method ->
             method.isAnnotationPresent(LeaderElection::class.java) ||
                 method.isAnnotationPresent(LeaderGroupElection::class.java)
         }
+        if (annotated.isEmpty()) return null
         return targetClass to annotated
     }
 

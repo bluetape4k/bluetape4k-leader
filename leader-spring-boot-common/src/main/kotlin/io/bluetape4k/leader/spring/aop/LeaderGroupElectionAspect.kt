@@ -96,6 +96,7 @@ class LeaderGroupElectionAspect(
                 it.onTaskFailed(lockName, (System.nanoTime() - start).nanoseconds, backendEx)
             }
             when (meta.failureMode) {
+                LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
                 LeaderAspectFailureMode.RETHROW -> throw wrapped
                 LeaderAspectFailureMode.SKIP -> {
                     log.warn(backendEx) { "leader.aop.skipped lockName=$lockName reason=BACKEND_ERROR" }
@@ -159,13 +160,19 @@ class LeaderGroupElectionAspect(
         val selected = beanSelector.selectGroupElectionFactory(ann.bean)
         val literal = if (LITERAL_PATTERN.matches(ann.name)) ann.name else null
 
+        val effectiveFailureMode = if (ann.failureMode == LeaderAspectFailureMode.INHERIT) {
+            props.failureMode
+        } else {
+            ann.failureMode
+        }
+
         return GroupAdviceMetadata(
             nameExpression = ann.name,
             literalName = literal,
             options = opts,
             factoryBeanName = selected.beanName,
             factory = selected.bean,
-            failureMode = ann.failureMode,
+            failureMode = effectiveFailureMode,
             leaseTimeWarnThresholdNanos = (leaseTime.toNanos() * LEASE_WARN_RATIO).toLong(),
         )
     }

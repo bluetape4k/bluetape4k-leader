@@ -17,7 +17,13 @@ package io.bluetape4k.leader.spring.aop
  * 항상 그대로 전파된다 (wrapping 없음, [SKIP] 모드도 동일).
  */
 enum class LeaderAspectFailureMode {
-    /** Default — 백엔드 예외를 wrapping 후 호출자에게 전파. */
+    /**
+     * Sentinel — `LeaderAopProperties.failureMode` 전역 default 사용.
+     * 어노테이션에서만 사용. `LeaderAopProperties.failureMode` default 는 [RETHROW].
+     */
+    INHERIT,
+
+    /** 백엔드 예외를 wrapping 후 호출자에게 전파. */
     RETHROW,
 
     /** 백엔드 예외 흡수 후 `null` 반환 (ShedLock skip 동등). */

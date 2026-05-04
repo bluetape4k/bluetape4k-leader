@@ -35,5 +35,5 @@ annotation class LeaderGroupElection(
     val waitTime: String = "",
     val leaseTime: String = "",
     val bean: String = "",
-    val failureMode: LeaderAspectFailureMode = LeaderAspectFailureMode.RETHROW,
+    val failureMode: LeaderAspectFailureMode = LeaderAspectFailureMode.INHERIT,
 )

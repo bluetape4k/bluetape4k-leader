@@ -20,6 +20,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.EnableAspectJAutoProxy
@@ -47,6 +48,7 @@ import org.springframework.core.annotation.Order
 @AutoConfiguration(after = [LeaderAopFactoryAutoConfiguration::class])
 @ConditionalOnClass(name = ["org.aspectj.lang.annotation.Aspect"])
 @ConditionalOnBean(LeaderElectionFactory::class)
+@ConditionalOnProperty(prefix = "bluetape4k.leader.aop", name = ["enabled"], havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(LeaderAopProperties::class)
 @EnableAspectJAutoProxy(proxyTargetClass = true)
 class LeaderAopAutoConfiguration {

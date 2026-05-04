@@ -115,6 +115,7 @@ class LeaderElectionAspect(
                 it.onTaskFailed(lockName, (System.nanoTime() - start).nanoseconds, backendEx)
             }
             when (meta.failureMode) {
+                LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
                 LeaderAspectFailureMode.RETHROW -> throw wrapped
                 LeaderAspectFailureMode.SKIP -> {
                     log.warn(backendEx) { "leader.aop.skipped lockName=$lockName reason=BACKEND_ERROR" }
@@ -177,13 +178,19 @@ class LeaderElectionAspect(
         // literal fast-path 분류 — SpEL 평가 우회 가능 여부 사전 판단
         val literal = if (LITERAL_PATTERN.matches(ann.name)) ann.name else null
 
+        val effectiveFailureMode = if (ann.failureMode == LeaderAspectFailureMode.INHERIT) {
+            props.failureMode
+        } else {
+            ann.failureMode
+        }
+
         return AdviceMetadata(
             nameExpression = ann.name,
             literalName = literal,
             options = opts,
             factoryBeanName = selected.beanName,
             factory = selected.bean,
-            failureMode = ann.failureMode,
+            failureMode = effectiveFailureMode,
             leaseTimeWarnThresholdNanos = (leaseTime.toNanos() * LEASE_WARN_RATIO).toLong(),
         )
     }
