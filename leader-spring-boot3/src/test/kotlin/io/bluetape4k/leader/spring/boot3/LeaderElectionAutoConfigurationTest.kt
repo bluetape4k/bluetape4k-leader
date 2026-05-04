@@ -16,6 +16,8 @@ import org.amshove.kluent.shouldNotBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.redisson.api.RedissonClient
+import org.springframework.beans.factory.getBean
+import org.springframework.beans.factory.getBeanNamesForType
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
@@ -31,17 +33,17 @@ class LeaderElectionAutoConfigurationTest: AbstractRedissonAutoConfigurationTest
     @Test
     fun `Redisson 4 종 election 빈이 모두 정상 주입`() {
         runner.run { ctx ->
-            ctx.getBean(LeaderElection::class.java) shouldBeInstanceOf RedissonLeaderElection::class
-            ctx.getBean(SuspendLeaderElection::class.java) shouldBeInstanceOf RedissonSuspendLeaderElection::class
-            ctx.getBean(LeaderGroupElection::class.java) shouldBeInstanceOf RedissonLeaderGroupElection::class
-            ctx.getBean(SuspendLeaderGroupElection::class.java) shouldBeInstanceOf RedissonSuspendLeaderGroupElection::class
+            ctx.getBean<LeaderElection>() shouldBeInstanceOf RedissonLeaderElection::class
+            ctx.getBean<SuspendLeaderElection>() shouldBeInstanceOf RedissonSuspendLeaderElection::class
+            ctx.getBean<LeaderGroupElection>() shouldBeInstanceOf RedissonLeaderGroupElection::class
+            ctx.getBean<SuspendLeaderGroupElection>() shouldBeInstanceOf RedissonSuspendLeaderGroupElection::class
         }
     }
 
     @Test
     fun `runIfLeader sync 호출이 정상 동작`() {
         runner.run { ctx ->
-            val election = ctx.getBean(LeaderElection::class.java)
+            val election = ctx.getBean<LeaderElection>()
             val lockName = "auto-config-test-${Base58.randomString(8)}"
             val result = election.runIfLeader(lockName) { 42 }
             result shouldBeEqualTo 42
@@ -51,7 +53,7 @@ class LeaderElectionAutoConfigurationTest: AbstractRedissonAutoConfigurationTest
     @Test
     fun `runIfLeader suspend 호출이 정상 동작`() {
         runner.run { ctx ->
-            val election = ctx.getBean(SuspendLeaderElection::class.java)
+            val election = ctx.getBean<SuspendLeaderElection>()
             val lockName = "auto-config-suspend-${Base58.randomString(8)}"
             val result = runBlocking { election.runIfLeader(lockName) { 99 } }
             result shouldBeEqualTo 99
@@ -63,7 +65,7 @@ class LeaderElectionAutoConfigurationTest: AbstractRedissonAutoConfigurationTest
         runner
             .withPropertyValues("bluetape4k.leader.group.max-leaders=3")
             .run { ctx ->
-                val group = ctx.getBean(LeaderGroupElection::class.java)
+                val group = ctx.getBean<LeaderGroupElection>()
                 group.maxLeaders shouldBeEqualTo 3
             }
     }
@@ -76,7 +78,7 @@ class LeaderElectionAutoConfigurationTest: AbstractRedissonAutoConfigurationTest
                 "bluetape4k.leader.lease-time=15s",
             )
             .run { ctx ->
-                val props = ctx.getBean(Boot3LeaderProperties::class.java)
+                val props = ctx.getBean<Boot3LeaderProperties>()
                 props.shouldNotBeNull()
                 props.waitTime.seconds shouldBeEqualTo 2L
                 props.leaseTime.seconds shouldBeEqualTo 15L

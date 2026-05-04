@@ -20,6 +20,7 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElection
 import io.bluetape4k.leader.lettuce.LettuceLeaderElection
 import io.bluetape4k.leader.local.LocalLeaderElection
 import io.bluetape4k.leader.redisson.RedissonLeaderElection
+import io.bluetape4k.leader.spring.boot3.backend.LocalLeaderConfiguration
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
 import org.amshove.kluent.shouldBeEqualTo
@@ -30,6 +31,8 @@ import org.junit.jupiter.api.TestInstance
 import org.redisson.Redisson
 import org.redisson.api.RedissonClient
 import org.redisson.config.Config as RedissonConfig
+import org.springframework.beans.factory.getBean
+import org.springframework.beans.factory.getBeanNamesForType
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
@@ -56,7 +59,7 @@ class BackendConditionalTest {
         .withConfiguration(
             AutoConfigurations.of(
                 LeaderElectionAutoConfiguration::class.java,
-                io.bluetape4k.leader.spring.boot3.backend.LocalLeaderConfiguration::class.java,
+                LocalLeaderConfiguration::class.java,
             ),
         )
 
@@ -66,10 +69,10 @@ class BackendConditionalTest {
     fun `백엔드 빈 미설정 시 Local 4 빈만 활성`() {
         contextRunner.run { ctx ->
             ctx.getBean("localLeaderElection") shouldBeInstanceOf LocalLeaderElection::class
-            ctx.getBeanNamesForType(LeaderElection::class.java) shouldHaveSize 1
-            ctx.getBeanNamesForType(SuspendLeaderElection::class.java) shouldHaveSize 1
-            ctx.getBeanNamesForType(LeaderGroupElection::class.java) shouldHaveSize 1
-            ctx.getBeanNamesForType(SuspendLeaderGroupElection::class.java) shouldHaveSize 1
+            ctx.getBeanNamesForType<LeaderElection>() shouldHaveSize 1
+            ctx.getBeanNamesForType<SuspendLeaderElection>() shouldHaveSize 1
+            ctx.getBeanNamesForType<LeaderGroupElection>() shouldHaveSize 1
+            ctx.getBeanNamesForType<SuspendLeaderGroupElection>() shouldHaveSize 1
         }
     }
 
@@ -81,10 +84,10 @@ class BackendConditionalTest {
             .withUserConfiguration(RedissonClientConfig::class.java)
             .run { ctx ->
                 ctx.getBean("redissonLeaderElection") shouldBeInstanceOf RedissonLeaderElection::class
-                ctx.getBeanNamesForType(LeaderElection::class.java) shouldHaveSize 1
-                ctx.getBeanNamesForType(SuspendLeaderElection::class.java) shouldHaveSize 1
-                ctx.getBeanNamesForType(LeaderGroupElection::class.java) shouldHaveSize 1
-                ctx.getBeanNamesForType(SuspendLeaderGroupElection::class.java) shouldHaveSize 1
+                ctx.getBeanNamesForType<LeaderElection>() shouldHaveSize 1
+                ctx.getBeanNamesForType<SuspendLeaderElection>() shouldHaveSize 1
+                ctx.getBeanNamesForType<LeaderGroupElection>() shouldHaveSize 1
+                ctx.getBeanNamesForType<SuspendLeaderGroupElection>() shouldHaveSize 1
                 ctx.containsBean("localLeaderElection") shouldBeEqualTo false
             }
     }
@@ -178,7 +181,7 @@ class BackendConditionalTest {
                 ctx.containsBean("redissonLeaderElection") shouldBeEqualTo true
                 ctx.containsBean("lettuceLeaderElection") shouldBeEqualTo true
                 ctx.containsBean("localLeaderElection") shouldBeEqualTo false
-                ctx.getBeanNamesForType(LeaderElection::class.java) shouldHaveSize 2
+                ctx.getBeanNamesForType<LeaderElection>() shouldHaveSize 2
             }
     }
 
@@ -188,7 +191,7 @@ class BackendConditionalTest {
             .withUserConfiguration(UserOverrideRedissonConfig::class.java)
             .run { ctx ->
                 val bean = ctx.getBean("redissonLeaderElection")
-                (bean === ctx.getBean(UserOverrideRedissonConfig::class.java).custom) shouldBeEqualTo true
+                (bean === ctx.getBean<UserOverrideRedissonConfig>().custom) shouldBeEqualTo true
             }
     }
 
