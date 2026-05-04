@@ -63,14 +63,14 @@ per-call options 를 깨끗하게 처리하기 위해 `LeaderElectionFactory` / 
 | T2.10 | `SpelExpressionEvaluator` — `SimpleEvaluationContext.forPropertyAccessors().build()` (메서드 호출 차단 default — `withMethodResolvers()` 는 property `bluetape4k.leader.aop.spel.allow-method-invocation=true` 시에만 [Step 3-P-Sec-1][R-32]), Caffeine cache (`maximumSize=1024, expireAfterAccess=1h`), literal fast-path, `${...}` placeholder, plain SpEL only (no `TemplateParserContext`). **Method-level cache 추가** [Step 3-P-Perf-2]: `ConcurrentHashMap<Method, ResolvedNameTemplate>` 로 (a) `${...}` 해석 결과 (b) literal vs SpEL 분류 (c) parsed `Expression` 참조 한 번에 캐싱 | high | `.../aop/spel/SpelExpressionEvaluator.kt` | [Q4][R-16][R-17][R-28][R-32] |
 | T2.11 | `LeaderBeanSelector` — factory bean 선택 (`bean` 명시 → 단일 → `@Primary` → ambiguous fail) | medium | `.../aop/LeaderBeanSelector.kt` | [R-13] |
 | T2.12 | `findAnnotationWithTargetFallback()` 헬퍼 (proxy → target class lookup) | medium | `.../aop/util/AnnotationLookup.kt` | [R-24] ShedLock 차용 |
-| **T2.13** [H-4] | `AbstractLeaderElectionAspect.aroundLeader(pjp)` `@Around` 본체 — sync `T?` only, metrics fan-out, RETHROW/SKIP, lease warn (`elapsed > leaseTime*0.8`), `findAnnotationWithTargetFallback()`. `private val factoryCache = ConcurrentHashMap<FactoryCacheKey, LeaderElection>()` + KLogging 4 events (`leader.aop.elected/skipped/failed/lease-warn`) [M-9][L-1]. **[Step 3-P-Rel-1]** body 예외 vs backend 예외 분리 — inner `try { proceed() } catch (CancellationException) { throw } catch (Throwable) { throw bodyEx }` + outer `catch (CancellationException) { throw } catch (backendEx) { wrap LeaderBackendException + failureMode 분기 }`. **[Step 3-P-Sec-3][R-33]** `LeaderElectionException("leader backend error for lock '$lockName'", cause)` wrapping (`leader-core` 기존 예외 재사용 — 신규 wrapper 미정의). **[Step 3-P-Perf-1]** `metrics.isEmpty()` fast-path — fanOut 진입 시 즉시 return. K=1 시 `metrics.first().runCatching { ... }` 직접 호출. **[Step 3-P-Perf-2]** Method-level cache: `findAnnotationWithTargetFallback` 결과 + `leaseTimeWarnThresholdNanos = (leaseTime.inWholeNanoseconds * 0.8).toLong()` 사전계산 + factory bean name resolution 모두 `ConcurrentHashMap<Method, AdviceMetadata>` 에 캐싱 (호출당 1회 lookup) | high | `leader-spring-boot-common/src/main/kotlin/io/bluetape4k/leader/spring/aop/AbstractLeaderElectionAspect.kt` | [H10][R-32][R-33] |
-| **T2.14** [H-4] | `AbstractLeaderElectionAspect` SpEL pre-parse hook — `SmartInitializingSingleton.afterSingletonsInstantiated()` → `@LeaderElection` 메서드 스캔 → SpEL pre-parse, 실패 시 startup fail (method FQN 포함) | medium | 동일 파일 | [H6] |
-| **T2.15** [H-4] | `AbstractLeaderGroupElectionAspect.aroundLeader(pjp)` `@Around` 본체 — `LeaderGroupElectionFactory` + `maxLeaders`, 그 외 T2.13 동일 (Step 3-P 권장 사항 동일 적용: body/backend 분리, CancellationException 우선, LeaderBackendException wrap, metrics fast-path, Method-level cache). `ConcurrentHashMap<GroupFactoryCacheKey, LeaderGroupElection>` + KLogging 4 events [M-9][L-1] | high | `.../aop/AbstractLeaderGroupElectionAspect.kt` | [H10][R-32][R-33] |
-| **T2.16** [H-4] | `AbstractLeaderGroupElectionAspect` SpEL pre-parse hook (T2.14 동일 패턴) | medium | 동일 파일 | [H6] |
+| **T2.13** [H-4][T4.1a Option A] | `LeaderElectionAspect.aroundLeader(pjp)` `@Around` 본체 — **`final class @Aspect`** (Boot 3/4 공통, autoconfig `@Bean` 등록). sync `T?` only, metrics fan-out, RETHROW/SKIP, lease warn (`elapsed > leaseTime*0.8`), `findAnnotationWithTargetFallback()`. `private val factoryCache = ConcurrentHashMap<FactoryCacheKey, LeaderElection>()` + KLogging 4 events (`leader.aop.elected/skipped/failed/lease-warn`) [M-9][L-1]. **[Step 3-P-Rel-1]** body 예외 vs backend 예외 분리 — inner `try { proceed() } catch (CancellationException) { throw } catch (Throwable) { throw bodyEx }` + outer `catch (CancellationException) { throw } catch (backendEx) { wrap LeaderElectionException + failureMode 분기 }`. **[Step 3-P-Sec-3][R-33]** `LeaderElectionException("leader backend error for lock '$lockName'", cause)` wrapping (`leader-core` 기존 예외 재사용). **[Step 3-P-Perf-1]** `metrics.isEmpty()` fast-path. **[Step 3-P-Perf-2]** Method-level cache: `findAnnotationWithTargetFallback` 결과 + `leaseTimeWarnThresholdNanos` 사전계산 + factory bean name resolution `ConcurrentHashMap<Method, AdviceMetadata>` (호출당 1회 lookup) | high | `leader-spring-boot-common/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspect.kt` | [H10][R-32][R-33] |
+| **T2.14** [H-4][T4.1a Option A] | `LeaderElectionAspect` SpEL pre-parse hook — `SmartInitializingSingleton.afterSingletonsInstantiated()` → `@LeaderElection` 메서드 스캔 → SpEL pre-parse, 실패 시 startup fail (method FQN 포함) | medium | 동일 파일 | [H6] |
+| **T2.15** [H-4][T4.1a Option A] | `LeaderGroupElectionAspect.aroundLeader(pjp)` `@Around` 본체 — **`final class @Aspect`**. `LeaderGroupElectionFactory` + `maxLeaders`, 그 외 T2.13 동일 (Step 3-P body/backend 분리, CancellationException 우선, `LeaderGroupElectionException` wrap, metrics fast-path, Method-level cache). `ConcurrentHashMap<GroupFactoryCacheKey, LeaderGroupElection>` + KLogging 4 events [M-9][L-1] | high | `.../aop/LeaderGroupElectionAspect.kt` | [H10][R-32][R-33] |
+| **T2.16** [H-4][T4.1a Option A] | `LeaderGroupElectionAspect` SpEL pre-parse hook (T2.14 동일 패턴) | medium | 동일 파일 | [H6] |
 | T2.17 | `LeaderAnnotationValidatorBeanPostProcessor` — final/private/maxLeaders/suspend/reactive/SpEL pre-parse 검출 + best-effort self-invocation WARN | medium | `.../aop/validator/LeaderAnnotationValidatorBeanPostProcessor.kt` | [H5][R-22][R-31][M2] |
 | T2.18 | `LeaderAopProperties` — `enabled`, `strict`, `failureMode`, `defaultLeaseTime`, `defaultWaitTime`. **[Step 3-P-Sec-1][R-32]** `spel.allowMethodInvocation: Boolean = false` 추가. **[Step 3-P-Sec-2][R-34]** `lockNamePrefix: String = "${spring.application.name}:"` 추가 | low | `.../aop/properties/LeaderAopProperties.kt` | `default-min-lease-time` 미지원 [#77] |
-| **T2.19** [H-10] | `AbstractLeaderElectionAspect` abstract class 선언 (비-`@Aspect`) — Boot 3/4 subclass 가 어노테이션 부착. `open fun aroundLeader(pjp): Any?` 노출 [Q-P2 (a)] | medium | `leader-spring-boot-common/src/main/kotlin/io/bluetape4k/leader/spring/aop/AbstractLeaderElectionAspect.kt` | T2.13/T2.14 의 클래스 선언 |
-| **T2.20** [H-10] | `AbstractLeaderGroupElectionAspect` abstract class 선언 (비-`@Aspect`) | medium | `.../aop/AbstractLeaderGroupElectionAspect.kt` | T2.15/T2.16 의 클래스 선언 |
+| **T2.19** [H-10][T4.1a Option A] | `LeaderElectionAspect` **`final class`** + **`@Aspect`** 선언 (Boot 3/4 공통, `@Component` 절대 미부착) — autoconfig `@Bean` 등록 책임. `SmartInitializingSingleton` 구현 (T2.14 pre-parse hook). T2.13/T2.14 의 클래스 본체 | medium | `leader-spring-boot-common/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspect.kt` | spike 결과 — `@Aspect` 는 auto-proxy 제외 → final OK |
+| **T2.20** [H-10][T4.1a Option A] | `LeaderGroupElectionAspect` **`final class`** + **`@Aspect`** 선언 | medium | `.../aop/LeaderGroupElectionAspect.kt` | T2.15/T2.16 의 클래스 본체 |
 | **T2.21** [H-11] | Spring 6/7 API 호환성 verify — `SimpleEvaluationContext.withMethodResolvers()` 시그니처, `BeanFactoryResolver` deprecated, `@AutoConfiguration` 패키지 변동, Caffeine API 동일 여부. 산출물: verify 노트 + 차이 발견 시 conditional path | medium | `docs/superpowers/notes/2026-05-04-spring6-vs-spring7-verify.md` | [Q-P3 (b)] |
 | T2.22 | `LeaderAopHealthIndicator` — advice 메서드 수, SpEL cache size, 누적 카운터 | low | `.../aop/health/LeaderAopHealthIndicator.kt` | [M4] |
 | T2.23 | `build.gradle.kts` 의존성 — `spring-context:6.2.x compileOnly` [Q-P3], `spring-aop`, `spring-expression`, Caffeine, `kotlin-reflect` [CR-2], `spring-boot-actuator` (optional) | low | `leader-spring-boot-common/build.gradle.kts` | Boot 4 module 이 7.x runtime 제공 |
@@ -83,8 +83,8 @@ per-call options 를 깨끗하게 처리하기 위해 `LeaderElectionFactory` / 
 | T2.14 (sync pre-parse) | T2.13, T2.10 |
 | T2.15 (group 본체) | T1.2, T2.2, T2.3, T2.6–T2.12 |
 | T2.16 (group pre-parse) | T2.15, T2.10 |
-| T2.19 (sync abstract class) | T2.13, T2.14 |
-| T2.20 (group abstract class) | T2.15, T2.16 |
+| T2.19 (sync `final class @Aspect`) | T2.13, T2.14 |
+| T2.20 (group `final class @Aspect`) | T2.15, T2.16 |
 
 ---
 
@@ -98,10 +98,10 @@ flat naming 신규 모듈. Spring AOP 런타임 프록시. concrete Aspect (빈 
 |------|-------------|------------|-------|-------|
 | T3.1 | `settings.gradle.kts` 에 `:leader-spring-boot3-aop` include | low | `settings.gradle.kts` | [M3] |
 | **T3.2** | `build.gradle.kts` — common + Boot 3 BOM (`spring-context:6.2.x`) + `spring-aop` + 6 backend `compileOnly`. 표준 자원: `junit-platform.properties` (PER_CLASS + parallel=false) + `logback-test.xml` [M-6] | low | `leader-spring-boot3-aop/build.gradle.kts`, `.../src/test/resources/junit-platform.properties`, `.../logback-test.xml` | CLAUDE.md 표준 |
-| **T3.3** [Q-P2] | `LeaderElectionAspect` — 빈 subclass + `@Aspect @Component @Order(AOP_ORDER) @Role(ROLE_INFRASTRUCTURE)` (extends `AbstractLeaderElectionAspect`) | low | `leader-spring-boot3-aop/src/main/kotlin/io/bluetape4k/leader/spring/boot3/aop/LeaderElectionAspect.kt` | 본체는 common |
-| **T3.4** [Q-P2] | `LeaderGroupElectionAspect` — 빈 subclass | low | `.../boot3/aop/LeaderGroupElectionAspect.kt` | |
+| ~~T3.3~~ | **폐기** [T4.1a Option A] — Aspect는 common의 `final class @Aspect`. autoconfig `@Bean` 등록 (T3.5b) | — | — | spike 결과 |
+| ~~T3.4~~ | **폐기** [T4.1a Option A] — 동일 | — | — | spike 결과 |
 | **T3.5a** [H-1][Codex-H3] | `LeaderAopFactoryAutoConfiguration` — Phase 1. `@AutoConfiguration @ConditionalOnClass(Aspect) @ConditionalOnProperty(enabled, matchIfMissing=true)` + **6 backend × 2 factory `@Bean` (12개)** 각 `@ConditionalOnClass/Bean(BackendClient)` 가드. unconditional 평가되어야 다음 단계 `@ConditionalOnBean(LeaderElectionFactory)` 가 충족됨 | medium | `.../boot3/aop/autoconfigure/LeaderAopFactoryAutoConfiguration.kt` | Q-P1 (b) — backend 모듈 spring-context 의존 미추가 |
-| **T3.5b** [H-1][H-9][Codex-H3] | `LeaderAopAutoConfiguration` — Phase 2. `@AutoConfiguration(after = LeaderAopFactoryAutoConfiguration::class) @ConditionalOnBean(LeaderElectionFactory) @EnableAspectJAutoProxy(proxyTargetClass=true)` + Aspect 2 + Validator + Health + Properties + SpEL/MetricsRecorder 빈. 모두 `@Role(ROLE_INFRASTRUCTURE)` | high | `.../boot3/aop/autoconfigure/LeaderAopAutoConfiguration.kt` | factory autoconfig 분리로 self-reference 회피 |
+| **T3.5b** [H-1][H-9][Codex-H3][T4.1a Option A] | `LeaderAopAutoConfiguration` — Phase 2. `@AutoConfiguration(after = LeaderAopFactoryAutoConfiguration::class) @ConditionalOnBean(LeaderElectionFactory) @EnableAspectJAutoProxy(proxyTargetClass=true)`. **Aspect 2 `@Bean` 직접 등록** — `@Bean @Order(AOP_ORDER) @Role(ROLE_INFRASTRUCTURE) @ConditionalOnMissingBean fun leaderElectionAspect(...) = LeaderElectionAspect(...)` + group. **`spring-boot-starter-aop` 의존성 미추가** (issue #1050 advice 2회 회피, `@EnableAspectJAutoProxy` 만으로 활성화). + Validator + Health + Properties + SpEL/MetricsRecorder 빈. 모두 `@Role(ROLE_INFRASTRUCTURE)` | high | `.../boot3/aop/autoconfigure/LeaderAopAutoConfiguration.kt` | factory autoconfig 분리로 self-reference 회피 |
 | T3.6 | `AutoConfiguration.imports` 두 줄 (`LeaderAopFactoryAutoConfiguration` + `LeaderAopAutoConfiguration`) | low | `leader-spring-boot3-aop/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` | Codex-H3 |
 | T3.7 | `additional-spring-configuration-metadata.json` | low | `leader-spring-boot3-aop/src/main/resources/META-INF/spring/additional-spring-configuration-metadata.json` | IDE 자동완성. `aot.factories` Notes only [CR-3] (scope 외) |
 | T3.8 | `leader-bom/build.gradle.kts` 에 신규 module 추가 | low | `leader-bom/build.gradle.kts` | |
@@ -116,11 +116,11 @@ flat naming 신규 모듈. AspectJ post-compile-weaving (Freefair 플러그인) 
 |------|-------------|------------|-------|-------|
 | T4.1 | `settings.gradle.kts` 에 `:leader-spring-boot4-aspectj` include | low | `settings.gradle.kts` | [M3] |
 | **T4.1a NEW** [Step 3-P-Arch-2] | **Freefair × final class spike** — abstract class 채택 정당성 사전 검증. spike: (a) `final class LeaderElectionAspect` + Freefair post-compile-weaving → 모듈 자체 advice 매칭 검증 → 통과하면 abstract class (Q-P2 a) 재고. (b) abstract + 빈 subclass 가 Freefair 와 호환되는지도 동시 검증. 결과 노트 작성. spike 결과에 따라 T2.19/T2.20 + T3.3/T3.4 + T4.3/T4.4 폐기 가능 | medium | `docs/superpowers/notes/2026-05-04-freefair-final-class-spike.md` | over-engineering 회피 |
-| **T4.2** | `build.gradle.kts` — common + Boot 4 BOM (`spring-context:7.x` runtime) + `io.freefair.aspectj.post-compile-weaving` + `spring-aspects` + `aspectjweaver`/`aspectjrt` + 6 backend `compileOnly`. Freefair 호환성 verify (Boot 4 / Kotlin 2.3 / JVM 21 / Spring 7 + abstract class subclass weaving) [Q-P2]. 표준 자원: `junit-platform.properties` + `logback-test.xml` [M-6] | medium | `leader-spring-boot4-aspectj/build.gradle.kts`, `.../src/test/resources/junit-platform.properties`, `.../logback-test.xml` | CLAUDE.md 표준 |
-| **T4.3** [Q-P2] | `LeaderElectionAspect` — 빈 subclass (Boot 3 동일 패턴) | low | `leader-spring-boot4-aspectj/src/main/kotlin/io/bluetape4k/leader/spring/boot4/aop/LeaderElectionAspect.kt` | |
-| **T4.4** [Q-P2] | `LeaderGroupElectionAspect` — 빈 subclass | low | `.../boot4/aop/LeaderGroupElectionAspect.kt` | |
+| **T4.2** [T4.1a Option A] | `build.gradle.kts` — common + Boot 4 BOM (`spring-context:7.x` runtime) + `io.freefair.aspectj.post-compile-weaving` + `aspectjweaver`/`aspectjrt` + **`aspect(project(":leader-spring-boot-common"))`** (dependency JAR `@Aspect` 클래스를 ajc aspectpath 로 weaving) + 6 backend `compileOnly`. **`spring-boot-starter-aop` 미추가** (issue #1050 advice 2회 회피). Freefair 호환성 verify (Boot 4 / Kotlin 2.3 / JVM 21 / Spring 7 + final class `@Aspect` weaving) [Q-P2]. 표준 자원: `junit-platform.properties` + `logback-test.xml` [M-6] | medium | `leader-spring-boot4-aspectj/build.gradle.kts`, `.../src/test/resources/junit-platform.properties`, `.../logback-test.xml` | CLAUDE.md 표준 + spike B-1/B-2 |
+| ~~T4.3~~ | **폐기** [T4.1a Option A] — Aspect는 common의 `final class @Aspect`. autoconfig `@Bean` 등록 (T4.5b) | — | — | spike 결과 |
+| ~~T4.4~~ | **폐기** [T4.1a Option A] — 동일 | — | — | spike 결과 |
 | **T4.5a** [H-1][Codex-H3] | `LeaderAopFactoryAutoConfiguration` — Boot 3 동일 패턴 (6 backend × 2 factory `@Bean` Phase 1) | medium | `.../boot4/aop/autoconfigure/LeaderAopFactoryAutoConfiguration.kt` | factory unconditional |
-| **T4.5b** [H-1][H-9][Codex-H3] | `LeaderAopAutoConfiguration` — Boot 3 동일 패턴 (Phase 2 Aspect/BPP/Health/Props 빈 + `@AutoConfiguration(after=...)` + `@ConditionalOnBean(LeaderElectionFactory)`) | high | `.../boot4/aop/autoconfigure/LeaderAopAutoConfiguration.kt` | self-reference 회피 |
+| **T4.5b** [H-1][H-9][Codex-H3][T4.1a Option A] | `LeaderAopAutoConfiguration` — Boot 3 동일 패턴 (Phase 2). **Aspect 2 `@Bean` 직접 등록** (T3.5b 동일) + `@AutoConfiguration(after=...)` + `@ConditionalOnBean(LeaderElectionFactory)` + Validator/Health/Props/SpEL/MetricsRecorder 빈 | high | `.../boot4/aop/autoconfigure/LeaderAopAutoConfiguration.kt` | self-reference 회피 + Aspect `@Bean` 등록 |
 | T4.6 [신규] | Boot 4 GA `@AutoConfiguration` API 변경 verify — `@AutoConfiguration` 패키지 위치, `AutoConfiguration.imports` 경로, `@ConditionalOnClass/Bean` 동작 변경 여부 | low | `docs/superpowers/notes/2026-05-04-boot4-autoconfig-verify.md` | GA milestone 시 재확인 |
 | T4.7 | `AutoConfiguration.imports` 두 줄 (`LeaderAopFactoryAutoConfiguration` + `LeaderAopAutoConfiguration`) | low | `leader-spring-boot4-aspectj/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` | Codex-H3 |
 | T4.8 | `additional-spring-configuration-metadata.json` | low | `leader-spring-boot4-aspectj/src/main/resources/META-INF/spring/additional-spring-configuration-metadata.json` | `aot.factories` Notes only [CR-3] |
@@ -257,11 +257,11 @@ Phase 1 (코어 SPI + 6 백엔드 factory)
 
 ## 작업량 추정
 
-- **신규 파일**: 약 109개 (Phase 1: 14, Phase 2: 22 [T2.8a 폐기], Phase 3: 8, Phase 4: 10 [+T4.1a 노트], Phase 5: 45 [+T5.9a-f, T5.17a 7개], Phase 6: 14, Phase 7/8: 0)
+- **신규 파일**: 약 105개 (Phase 1: 14, Phase 2: 22, Phase 3: 6 [T3.3/T3.4 폐기], Phase 4: 8 [T4.3/T4.4 폐기, T4.1a 노트 +1], Phase 5: 45, Phase 6: 14, Phase 7/8: 0)
 - **수정 파일**: 약 16개 (`settings.gradle.kts`, `leader-bom`, `CLAUDE.md`, `nightly.yml`, `ci.yml`, common README, 3 신규 모듈 build + Kover, root README × 2)
-- **코드 라인**: 약 7,750 (구현 3,250 + 테스트 3,900 + 문서 600)
-- **총 task 수**: **104개** (high 10 / medium 53 [+8 Step 3-P] / low 41 [T2.8a 폐기])
-- **예상 시간**: 36–44 시간 (통합 + 디버깅 + 6중 리뷰 + verify + Step 3-P security/perf 검증 포함)
+- **코드 라인**: 약 7,500 (구현 3,000 + 테스트 3,900 + 문서 600)
+- **총 task 수**: **100개** (high 10 / medium 53 / low 37 [T3.3/T3.4/T4.3/T4.4 폐기])
+- **예상 시간**: 34–42 시간 (Aspect 모듈당 빈 subclass 보일러플레이트 제거)
 
 ---
 
@@ -312,7 +312,7 @@ DoD 체크리스트는 spec §12 + 아래 신규 task DoD 항목 추가.
 ## DoD — 신규 task 추가 항목 (spec §12 보완)
 
 - [ ] T2.13–T2.16 4 task 구현 + 단위 테스트 [H-4]
-- [ ] T2.19/T2.20 abstract class Aspect — Boot 3/4 빈 subclass 어노테이션만 [Q-P2]
+- [ ] T2.19/T2.20 **`final class @Aspect`** in common — Boot 3/4 autoconfig `@Bean` 등록 [T4.1a Option A spike]
 - [ ] T2.21 Spring 6/7 API verify 노트 작성 [Q-P3]
 - [ ] T3.5b/T4.5b 6 backend × 2 factory = 12 `@Bean` 등록 + `@ConditionalOnClass(BackendClient)` [Q-P1][H-9]
 - [ ] T4.6 Boot 4 GA `@AutoConfiguration` verify
@@ -367,6 +367,7 @@ DoD 체크리스트는 spec §12 + 아래 신규 task DoD 항목 추가.
 | 사용자 결정 | 4 | Q-P1 (b), Q-P2 (a), Q-P3 (b), Q-P4 (변경 없음) |
 | **Step 3-P 5 blocker (Sec/Rel)** | **5** | **R-32 SpEL methodResolvers default 제거 (T2.10/T2.18/T5.9a), R-33 LeaderBackendException wrap (T2.8a/T2.13/T5.9c), R-34 LockNameValidator + lock-name-prefix (T2.8/T2.18/T5.9b), Step 3-P-Rel-1 body/backend 분리 (T2.13/T2.15/T5.9d), Step 3-P-Rel-2 CancellationException 우선 재throw (T2.13/T2.15/T5.9d)** |
 | **Step 3-P 5 권장 (Perf/Arch)** | **5** | **Step 3-P-Perf-1 metrics fast-path (T2.13/T5.9e), Step 3-P-Perf-2 Method-level cache (T2.10/T2.13/T5.9f), Step 3-P-Arch-1 AutoConfig race verify (T5.17a), Step 3-P-Arch-2 Freefair × final class spike (T4.1a) — over-engineering 회피, lease overrun ERROR 격상 → README LIMITATIONS 만 (#73 후속)** |
+| **T4.1a Spike 결과 적용 (Option A)** | **6 task 변경** | **T2.19/T2.20 abstract → `final class @Aspect` 이름 변경, T2.13/T2.14/T2.15/T2.16 파일 경로 갱신, T3.3/T3.4/T4.3/T4.4 폐기 (4 task), T3.5b/T4.5b Aspect `@Bean` 등록 추가, T4.2 `aspect(project(...))` Freefair config + `spring-boot-starter-aop` 미추가 (issue #1050)** |
 
 **Spec 일관성**: sync only / `RETHROW+SKIP` / plain SpEL / 메타 어노테이션 [#84] / factory bean name 명확 / `FactoryCacheKey` / factory-only 조건 / best-effort metrics & self-inv / flat naming — 모두 유지.
 

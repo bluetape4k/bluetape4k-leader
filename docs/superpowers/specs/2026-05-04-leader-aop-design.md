@@ -137,8 +137,8 @@ include(":leader-spring-boot4-aspectj")
 | `@LeaderElection` | `@Target(AnnotationTarget.FUNCTION)` — **본 PR 직접 부착만 매칭** [C2][R-27]. `@Target(ANNOTATION_TYPE)` 메타-어노테이션 컴포지션은 후속 [#84] (`AnnotationMatchingPointcut` advisor 별도 설계 필요). 필드: `name: String` (required, SpEL + `${...}` placeholder, **plain SpEL — 리터럴 prefix 는 따옴표** [H1][R-28]. 예: `"'process-' + #region"`), `waitTime: String = ""` (빈 → property `bluetape4k.leader.aop.default-wait-time` → 코어 `Default.waitTime`), `leaseTime: String = ""` (빈 → property `bluetape4k.leader.aop.default-lease-time` → 코어 `Default.leaseTime`), `bean: String = ""` (literal only — **factory bean name** [H1][R-25], 다중 백엔드 시 사용. 예: `"redissonLeaderElectionFactory"`), `failureMode: LeaderAspectFailureMode = RETHROW` [Q1]. **`leaderId` 필드 없음** [#72]. **`minLeaseTime` 필드 없음** [#77] |
 | `@LeaderGroupElection` | `@Target(AnnotationTarget.FUNCTION)` 동일 — 본 PR 직접 부착만 [C2][R-27]. 위 동일 + `maxLeaders: Int = -1` (≤1 → startup fail [H7]). **`leaderId` 필드 없음** [#72]. **`minLeaseTime` 필드 없음** [#77] |
 | `LeaderAspectFailureMode` (enum) | `RETHROW` (default), `SKIP` (예외 흡수 + null 매핑) [Q-X1]. **`FAIL_OPEN_RUN` 본 PR 제거** → 후속 [#81] (LeaderResult sealed wrapper 와 함께 도입) |
-| `AbstractLeaderElectionAspect` | `@Around` 공통 advice 골격 (sync only) + `findAnnotationWithTargetFallback()` 헬퍼 [R-24] |
-| `AbstractLeaderGroupElectionAspect` | 동일, group 분기 |
+| `LeaderElectionAspect` | `@Around` 공통 advice 골격 (sync only) + `findAnnotationWithTargetFallback()` 헬퍼 [R-24] |
+| `LeaderGroupElectionAspect` | 동일, group 분기 |
 | `SpelExpressionEvaluator` | `SimpleEvaluationContext.forPropertyAccessors().withMethodResolvers()` [Q4][R-16]. Caffeine `maximumSize(1024) + expireAfterAccess(1h)` 캐시 [R-17]. 리터럴 fast-path. `${...}` placeholder → `embeddedValueResolver.resolveStringValue()` 선행 (ShedLock 차용). **`TemplateParserContext` 미사용** — plain SpEL 만 (`#region`, `#user.tenantId`) [Q-X2]. 혼합 표현식은 후속 [#82] |
 | `LockNameValidator` | **[Step 3-P-Sec-2][R-34 NEW] charset 화이트리스트 강화 — `^[A-Za-z0-9_:.\-]+$` + max length 256 (Redis < 1KB, MongoDB index 1024 byte)**. 위반 시 `IllegalArgumentException` startup 또는 호출 fail-fast. property `bluetape4k.leader.aop.lock-name-prefix` (default `"${spring.application.name}:"`) 자동 prefix 로 lock-namespace pollution 방어 — empty string opt-out 가능 |
 | `LeaderElectionException` / `LeaderGroupElectionException` (재사용) | **[Step 3-P-Sec-3][R-33 NEW]** `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderExceptions.kt` 의 기존 클래스 재사용 (신규 wrapper 미정의). RETHROW 모드 backend 예외 → single-leader = `LeaderElectionException("leader backend error for lock '$lockName'", cause)`, group = `LeaderGroupElectionException(...)` wrapping. message 일반화로 host/credentials 누출 차단, cause 보존 (logging 용). README 보안 가이드에 `@ExceptionHandler(LeaderElectionException::class)` 등록 권장 |
@@ -170,10 +170,10 @@ fun audit() { ... }
 
 | 클래스 | 비고 |
 |--------|------|
-| `LeaderElectionAspect` | `extends AbstractLeaderElectionAspect`, `@Aspect @Component`, `@Order(LeaderAspectOrder.AOP_ORDER)` [M3], `@Role(BeanDefinition.ROLE_INFRASTRUCTURE)` |
-| `LeaderGroupElectionAspect` | 동일, group 분기, `@Role(ROLE_INFRASTRUCTURE)` |
-| `LeaderAopFactoryAutoConfiguration` | **AutoConfig 분리 — Phase 1** [Codex-H3]. `@AutoConfiguration` + `@ConditionalOnClass(Aspect::class)` + `@ConditionalOnProperty(bluetape4k.leader.aop.enabled, matchIfMissing=true)`. **factory @Bean 6쌍 등록** (각 `@ConditionalOnBean(RedissonClient::class)` 등 backend client 조건). factory 빈 등록은 unconditional 으로 평가되어야 다음 단계에서 `@ConditionalOnBean(LeaderElectionFactory)` 가 충족됨 |
-| `LeaderAopAutoConfiguration` | **AutoConfig 분리 — Phase 2** [Codex-H3]. `@AutoConfiguration(after = LeaderAopFactoryAutoConfiguration::class)` + `@ConditionalOnBean(LeaderElectionFactory::class)` + `@EnableAspectJAutoProxy(proxyTargetClass = true)` [R-9]. Aspect/BPP/Health/MetricsRecorder 빈 등록. 모두 `@Role(ROLE_INFRASTRUCTURE)`. **사용자가 backend client 빈 미등록 시 factory 비활성 → 본 autoconfig `@ConditionalOnBean` 미충족 → AOP 전체 비활성** (안전한 기본 동작) — README 명시 + 마이그레이션 가이드 |
+| `LeaderElectionAspect` (common) | **`final class @Aspect`** [T4.1a Option A spike]. `@Component` 미부착 — autoconfig 만 `@Bean` 등록 책임. Boot 3/4 모두 동일 클래스 사용 (별도 subclass 없음) |
+| `LeaderGroupElectionAspect` (common) | 동일 패턴, group 분기 |
+| `LeaderAopFactoryAutoConfiguration` (Boot 3/4 각각) | **AutoConfig 분리 — Phase 1** [Codex-H3]. `@AutoConfiguration` + `@ConditionalOnClass(Aspect::class)` + `@ConditionalOnProperty(bluetape4k.leader.aop.enabled, matchIfMissing=true)`. **factory @Bean 6쌍 등록** (각 `@ConditionalOnBean(RedissonClient::class)` 등 backend client 조건). factory 빈 등록은 unconditional 으로 평가되어야 다음 단계에서 `@ConditionalOnBean(LeaderElectionFactory)` 가 충족됨 |
+| `LeaderAopAutoConfiguration` (Boot 3/4 각각) | **AutoConfig 분리 — Phase 2** [Codex-H3][T4.1a Option A]. `@AutoConfiguration(after = LeaderAopFactoryAutoConfiguration::class)` + `@ConditionalOnBean(LeaderElectionFactory::class)` + `@EnableAspectJAutoProxy(proxyTargetClass = true)` [R-9]. **Aspect 2 `@Bean` 직접 등록** — `@Bean @Order(AOP_ORDER) @Role(ROLE_INFRASTRUCTURE) @ConditionalOnMissingBean fun leaderElectionAspect(...) = LeaderElectionAspect(...)` + group. **`spring-boot-starter-aop` 의존성 미추가** (issue #1050 advice 2회 회피). + Validator/Health/Properties/SpEL/MetricsRecorder 빈. 모두 `@Role(ROLE_INFRASTRUCTURE)`. **사용자가 backend client 빈 미등록 시 factory 비활성 → 본 autoconfig `@ConditionalOnBean` 미충족 → AOP 전체 비활성** (안전한 기본 동작) — README 명시 + 마이그레이션 가이드 |
 | `LeaderAspectOrder` (object) | 상수: `AOP_ORDER = Ordered.HIGHEST_PRECEDENCE + 100`. 외부 advice 순서 표 README에 명시 [M3] |
 | `LeaderAopHealthIndicator` | advice 메서드 수, SpEL cache size 노출 [M4], `@Role(ROLE_INFRASTRUCTURE)` |
 | `LeaderAopProperties` | `@ConfigurationProperties("bluetape4k.leader.aop")` — `enabled`, `strict`, `failureMode`, `defaultLeaseTime`, `defaultWaitTime` |
@@ -405,7 +405,7 @@ fun evaluate(expr: String, method: Method, args: Array<*>, target: Any): String 
 
 ### 6.4 SmartInitializingSingleton pre-parse [H6]
 
-`AbstractLeaderElectionAspect`가 `SmartInitializingSingleton` 구현 → 컨텍스트 시작 시 모든 `@LeaderElection`/`@LeaderGroupElection` 메서드 스캔 → SpEL `name` 필드 사전 parse. 잘못된 표현식은 startup에서 메서드 FQN 포함 에러 메시지로 fail-fast.
+`LeaderElectionAspect`가 `SmartInitializingSingleton` 구현 → 컨텍스트 시작 시 모든 `@LeaderElection`/`@LeaderGroupElection` 메서드 스캔 → SpEL `name` 필드 사전 parse. 잘못된 표현식은 startup에서 메서드 FQN 포함 에러 메시지로 fail-fast.
 
 ---
 
@@ -595,7 +595,7 @@ class LeaderAnnotationValidatorBeanPostProcessor(
 ### 11.1 본 PR scope (sync only)
 
 - 어노테이션 (`@LeaderElection`, `@LeaderGroupElection`, **`@Target(AnnotationTarget.FUNCTION)` 직접 부착만** — 메타 어노테이션 컴포지션 [#84] 후속 [C2][R-27]) + `LeaderAspectFailureMode { RETHROW, SKIP }` enum
-- `AbstractLeaderElectionAspect` / `AbstractLeaderGroupElectionAspect` (sync `T?` only) + `findAnnotationWithTargetFallback()` (ShedLock 차용)
+- `LeaderElectionAspect` / `LeaderGroupElectionAspect` (sync `T?` only) + `findAnnotationWithTargetFallback()` (ShedLock 차용)
 - `SpelExpressionEvaluator` (SimpleEvaluationContext + Caffeine cache + literal fast-path + pre-parse + `${...}` placeholder + plain SpEL — TemplateParserContext 미사용 — **리터럴 prefix 는 따옴표** [H1][R-28])
 - `DurationParser` — simple `"10s"` + ISO-8601 `"PT10S"` 양쪽 (ShedLock 차용)
 - `LeaderElectionFactory` / `LeaderGroupElectionFactory` SPI 2종 + **6 백엔드 sync 구현** (Local, Lettuce, Redisson, MongoDB sync, Hazelcast, Exposed JDBC) + AOP **`ConcurrentHashMap<FactoryCacheKey, LeaderElection>` 캐싱** ([C1][R-26] cross-backend collision 방지)
@@ -654,7 +654,7 @@ class LeaderAnnotationValidatorBeanPostProcessor(
 - [ ] **`${...}` Spring property placeholder 평가 통합 테스트** (ShedLock 차용)
 - [ ] **`DurationParser` 두 형식 단위 테스트** — `"10s"` / `"5m"` / `"1h"` simple + `"PT10S"` / `"PT1H"` ISO-8601 (ShedLock 차용)
 - [ ] **proxy → target class annotation lookup 폴백 테스트** — 인터페이스 메서드에만 `@LeaderElection` 부착 + 구현체 분리 케이스 [R-24]
-- [ ] `AbstractLeaderElectionAspect`, `AbstractLeaderGroupElectionAspect` (sync `T?` only)
+- [ ] `LeaderElectionAspect`, `LeaderGroupElectionAspect` (sync `T?` only)
 - [ ] `LeaderElectionFactory` / `LeaderGroupElectionFactory` SPI 2종 + **6 백엔드 sync 구현** (Local, Lettuce, Redisson, MongoDB sync, Hazelcast, Exposed JDBC) [C1][R-20][M2]
 - [ ] **`FactoryCacheKey(factoryBeanName, options)` 캐싱 검증** — 다중 백엔드 같은 옵션 → 다른 instance 캐싱 (cross-backend collision 방지) [C1][R-26]
 - [ ] **`bean` 필드 factory bean 이름 명시 + 잘못된 bean 이름 → 명확한 에러** (`NoSuchBeanDefinitionException` 또는 `BeanNotOfRequiredTypeException`) [H1][R-25]
