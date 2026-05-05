@@ -4,7 +4,61 @@ Spring Boot 4 auto-configuration for [bluetape4k-leader](../README.md).
 Auto-registers `LeaderElection` / `SuspendLeaderElection` / `LeaderGroupElection` / `SuspendLeaderGroupElection` beans
 based on the backend client beans available in your Spring context.
 
-## Quick Start
+## AOP Quick Start (`@LeaderElection`)
+
+Add `@LeaderElection` or `@LeaderGroupElection` to any Spring-managed method.
+`leader-spring-boot4` uses **AspectJ post-compile weaving** (Freefair plugin) — the `open` modifier is
+not required, unlike Spring AOP proxy-based weaving in `leader-spring-boot3`.
+
+```kotlin
+@Service
+class ScheduledJobService {
+    @Scheduled(cron = "0 0 2 * * *")
+    @LeaderElection(name = "nightly-settlement")
+    fun nightlySettlement() {                        // no `open` needed with Freefair weaving
+        // executes on only one node in the cluster
+    }
+
+    // Dynamic lock name via SpEL
+    @LeaderElection(name = "'process-' + #region", failureMode = LeaderAspectFailureMode.SKIP)
+    fun processRegion(region: String): Result? = service.process(region)
+
+    // Multi-leader (semaphore-based): up to 3 concurrent leaders
+    @LeaderGroupElection(name = "batch-shard", maxLeaders = 3)
+    fun batchShard() { ... }
+}
+```
+
+**SpEL rules for `name`** — see [leader-spring-boot-common](../leader-spring-boot-common/README.md#aop-annotations) for full reference.
+
+### Advice Order
+
+| Aspect | Order |
+|--------|-------|
+| `LeaderElectionAspect` | `HIGHEST_PRECEDENCE + 100` |
+| `@CircuitBreaker` (Resilience4j) | `LOWEST_PRECEDENCE - 4` |
+| `@Retry` (Resilience4j) | `LOWEST_PRECEDENCE - 3` |
+| `@Transactional` | `LOWEST_PRECEDENCE` |
+
+### AOP Configuration
+
+```yaml
+bluetape4k:
+  leader:
+    aop:
+      enabled: true               # default true
+      strict: false               # strict = true → startup fail on footgun
+      failure-mode: RETHROW       # RETHROW (default) or SKIP
+      default-wait-time: PT5S
+      default-lease-time: PT1M
+      lock-name-prefix: ""        # default: "${spring.application.name}:"
+      spel:
+        allow-method-invocation: false
+```
+
+---
+
+## Backend Quick Start
 
 ### 1. Add dependency
 
@@ -128,5 +182,5 @@ so it activates only when no other backend produces the same type bean.
 
 ## See Also
 
-- [leader-spring-boot-common](../leader-spring-boot-common/README.md) — Boot-version-independent properties + config support
+- [leader-spring-boot-common](../leader-spring-boot-common/README.md) — AOP annotations, SpEL guide, startup validation, failure modes
 - [Project root README](../README.md)

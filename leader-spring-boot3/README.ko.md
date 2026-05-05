@@ -4,7 +4,62 @@
 Spring 컨텍스트에 등록된 백엔드 클라이언트 빈에 따라 `LeaderElection` / `SuspendLeaderElection` /
 `LeaderGroupElection` / `SuspendLeaderGroupElection` 빈을 자동 등록합니다.
 
-## 빠른 시작
+## AOP 빠른 시작 (`@LeaderElection`)
+
+Spring 관리 `open` 메서드에 `@LeaderElection` 또는 `@LeaderGroupElection`을 추가하면 됩니다.
+AOP 어드바이스는 백엔드 빈과 함께 자동 구성되므로 추가 설정이 필요 없습니다.
+
+```kotlin
+@Service
+class ScheduledJobService {
+    @Scheduled(cron = "0 0 2 * * *")
+    @LeaderElection(name = "nightly-settlement")
+    open fun nightlySettlement() {
+        // 클러스터에서 단 한 노드에서만 실행됩니다
+    }
+
+    // SpEL을 이용한 동적 락 이름
+    @LeaderElection(name = "'process-' + #region", failureMode = LeaderAspectFailureMode.SKIP)
+    open fun processRegion(region: String): Result? = service.process(region)
+
+    // 복수 리더 (세마포어 기반): 최대 3개 동시 리더
+    @LeaderGroupElection(name = "batch-shard", maxLeaders = 3)
+    open fun batchShard() { ... }
+}
+```
+
+**`name`에 대한 SpEL 규칙** — 전체 내용은 [leader-spring-boot-common](../leader-spring-boot-common/README.ko.md#aop-어노테이션)을 참조하세요.
+
+### 어드바이스 순서
+
+Leader Aspect는 `Ordered.HIGHEST_PRECEDENCE + 100`에서 실행됩니다 — 기본적으로 가장 바깥쪽.
+
+| Aspect | Order |
+|--------|-------|
+| `LeaderElectionAspect` | `HIGHEST_PRECEDENCE + 100` |
+| `@CircuitBreaker` (Resilience4j) | `LOWEST_PRECEDENCE - 4` |
+| `@Retry` (Resilience4j) | `LOWEST_PRECEDENCE - 3` |
+| `@Transactional` | `LOWEST_PRECEDENCE` |
+
+### AOP 설정
+
+```yaml
+bluetape4k:
+  leader:
+    aop:
+      enabled: true               # 기본값 true
+      strict: false               # strict = true → 풋건 발견 시 시작 실패
+      failure-mode: RETHROW       # RETHROW (기본값) 또는 SKIP
+      default-wait-time: PT5S
+      default-lease-time: PT1M
+      lock-name-prefix: ""        # 기본값: "${spring.application.name}:"
+      spel:
+        allow-method-invocation: false
+```
+
+---
+
+## 백엔드 빠른 시작
 
 ### 1. 의존성 추가
 
@@ -125,5 +180,5 @@ fun customRedissonLeader(client: RedissonClient): LeaderElection =
 
 ## 관련 문서
 
-- [leader-spring-boot-common](../leader-spring-boot-common/README.ko.md) — Boot 버전 독립 공통 properties + config support
+- [leader-spring-boot-common](../leader-spring-boot-common/README.ko.md) — AOP 어노테이션, SpEL 가이드, 시작 시 검증, 실패 모드
 - [프로젝트 루트 README](../README.ko.md)

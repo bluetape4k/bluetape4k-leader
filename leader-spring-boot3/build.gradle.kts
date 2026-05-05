@@ -4,6 +4,18 @@ plugins {
     alias(libs.plugins.spring.boot3) apply false
 }
 
+kover {
+    reports {
+        verify {
+            rule {
+                bound {
+                    minValue = 60
+                }
+            }
+        }
+    }
+}
+
 configurations {
     testImplementation.get().extendsFrom(compileOnly.get(), runtimeOnly.get())
 }
@@ -41,6 +53,11 @@ dependencies {
     compileOnly(libs.hazelcast)
 
     api(libs.spring.boot.autoconfigure)
+    // [#41 leader-aop merged] Spring AOP / SpEL / AspectJ — runtime proxy 활성화
+    api(libs.spring.aop)
+    api(libs.spring.expression)
+    api(libs.aspectjweaver)
+    compileOnly(libs.spring.boot.actuator)
     compileOnly(libs.spring.boot.configuration.processor)
     compileOnly(libs.spring.context)
     compileOnly(libs.spring.tx)

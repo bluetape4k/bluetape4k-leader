@@ -11,6 +11,10 @@ kotlinx-atomicfu = "0.32.1"
 spring-boot3 = "3.5.14"
 spring-boot4 = "4.0.6"
 
+# AOP / SpEL deps for leader-spring-boot-common (#41)
+caffeine = "3.2.0"
+aspectjweaver = "1.9.24"
+
 lettuce = "6.8.2.RELEASE"
 redisson = "4.3.1"
 
@@ -131,12 +135,19 @@ micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-p
 spring-boot3-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot3" }
 spring-boot4-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot4" }
 spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-autoconfigure" }
+spring-boot-actuator = { module = "org.springframework.boot:spring-boot-actuator" }
 spring-boot-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor" }
 spring-boot-test = { module = "org.springframework.boot:spring-boot-test" }
 spring-boot-test-autoconfigure = { module = "org.springframework.boot:spring-boot-test-autoconfigure" }
 spring-test = { module = "org.springframework:spring-test" }
 spring-context = { module = "org.springframework:spring-context" }
 spring-tx = { module = "org.springframework:spring-tx" }
+spring-aop = { module = "org.springframework:spring-aop" }
+spring-expression = { module = "org.springframework:spring-expression" }
+spring-aspects = { module = "org.springframework:spring-aspects" }
+aspectjweaver = { module = "org.aspectj:aspectjweaver", version.ref = "aspectjweaver" }
+aspectjrt = { module = "org.aspectj:aspectjrt", version.ref = "aspectjweaver" }
+caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
 
 # JDBC / Connection Pool
 hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikaricp" }
