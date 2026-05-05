@@ -2,8 +2,8 @@ package io.bluetape4k.leader.spring.boot4.metrics
 
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder
-import io.bluetape4k.leader.spring.aop.metrics.LeaderAopMetricsRecorder
-import io.bluetape4k.leader.spring.aop.metrics.SkipReason
+import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder
+import io.bluetape4k.leader.metrics.SkipReason
 import io.bluetape4k.leader.spring.boot4.aop.autoconfigure.LeaderAopAutoConfiguration
 import io.bluetape4k.leader.spring.boot4.aop.autoconfigure.LeaderAopFactoryAutoConfiguration
 import io.bluetape4k.logging.KLogging
