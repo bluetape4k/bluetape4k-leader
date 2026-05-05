@@ -33,3 +33,10 @@ local.properties
 .omx/
 
 **/.profileconfig.json
+
+## AI
+.claude/
+!.claude/skills/
+.code-review-graph/
+.omc/
+.omx/
