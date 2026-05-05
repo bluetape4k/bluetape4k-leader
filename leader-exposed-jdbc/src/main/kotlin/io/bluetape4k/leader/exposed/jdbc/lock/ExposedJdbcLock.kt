@@ -8,6 +8,7 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
@@ -26,7 +27,7 @@ import java.time.Instant
  * ## 동작 방식
  * 단일 트랜잭션 내에서:
  * 1. **UPDATE**: `lockedUntil < NOW()` 조건으로 만료 락 갱신 시도
- * 2. **INSERT**: UPDATE 미성공 시 신규 행 삽입 시도 (PK 충돌 → runCatching)
+ * 2. **INSERT**: UPDATE 미성공 시 신규 행 삽입 시도 (PK 충돌만 흡수 → retry; 그 외 DB 오류는 재전파)
  * 3. **SELECT**: 현재 인스턴스 token 소유 여부 확인
  *
  * ## 주의사항
@@ -114,8 +115,8 @@ internal class ExposedJdbcLock internal constructor(
             }
 
             if (updated == 0) {
-                // Step 2: 신규 행 삽입 시도 (PK 충돌 시 runCatching으로 흡수 → retry)
-                runCatching {
+                // Step 2: 신규 행 삽입 시도 (PK 충돌만 흡수 → retry; 그 외 DB 오류는 재전파)
+                try {
                     LeaderLockTable.insert {
                         it[LeaderLockTable.lockName] = lockNameVal
                         it[LeaderLockTable.lockOwner] = lockOwnerVal
@@ -123,10 +124,15 @@ internal class ExposedJdbcLock internal constructor(
                         it[LeaderLockTable.lockedAt] = now
                         it[LeaderLockTable.lockedUntil] = lockedUntil
                     }
-                }.onFailure { e ->
-                    if (e is CancellationException) throw e
-                    log.debug { "INSERT 실패 (PK 충돌 예상 또는 DB 오류): lockName=$lockName, error=${e.message}" }
-                    return@transaction false
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: ExposedSQLException) {
+                    // SQLState "23xxx" = integrity constraint violation (PK 충돌 = 정상 경합)
+                    if (e.sqlState.startsWith("23")) {
+                        log.debug { "INSERT 실패 (PK 충돌 — 정상 경합): lockName=$lockName" }
+                        return@transaction false
+                    }
+                    throw e  // DB 연결 오류, 권한 부족, schema drift 등은 호출자에게 전파
                 }
             }
 
