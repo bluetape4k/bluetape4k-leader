@@ -36,6 +36,7 @@
 | #87 | test: Boot4 Freefair CTW double-fire 방지 검증 테스트 | ✅ 완료 | #113 merged |
 | #85 | feat: LeaderRunResult sealed interface — elected vs skipped 구분 | ✅ 완료 | #114 merged |
 | #81 | feat: FAIL_OPEN_RUN failureMode 구현 | ✅ 완료 | #116 merged |
+| #84 | feat: 메타 어노테이션 (@AliasFor) 지원 | ✅ 완료 | #117 open |
 
 ---
 
@@ -99,7 +100,7 @@
 | 이슈 | 제목 | 선행 조건 |
 |------|------|----------|
 | #82 | feat: SpEL TemplateParserContext 혼합 표현식 지원 | #41 ✅ |
-| #84 | feat: 메타 어노테이션 (@AliasFor) 지원 | #41 ✅ |
+| **#84** | **feat: 메타 어노테이션 (@AliasFor) 지원** | #41 ✅ | **✅ 완료 — PR #117** |
 | #78 | feat: 클래스/패키지 레벨 @LeaderElectionBackend 메타 어노테이션 | #41 ✅ |
 
 ### P3 — Wave 5 suspend/Mono 지원 (순차 의존, 난이도 높음)
