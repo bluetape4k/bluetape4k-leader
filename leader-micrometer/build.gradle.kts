@@ -15,7 +15,7 @@ configurations {
 }
 
 dependencies {
-    api(project(":leader-spring-boot-common"))
+    api(project(":leader-core"))
     api(libs.micrometer.core)
 
     testImplementation(libs.bluetape4k.junit5)

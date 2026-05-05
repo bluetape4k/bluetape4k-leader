@@ -1,5 +1,0 @@
-io.bluetape4k.leader.spring.boot4.LeaderElectionAutoConfiguration
-io.bluetape4k.leader.spring.boot4.backend.LocalLeaderConfiguration
-io.bluetape4k.leader.spring.boot4.aop.autoconfigure.LeaderAopFactoryAutoConfiguration
-io.bluetape4k.leader.spring.boot4.metrics.LeaderMicrometerAutoConfiguration
-io.bluetape4k.leader.spring.boot4.aop.autoconfigure.LeaderAopAutoConfiguration

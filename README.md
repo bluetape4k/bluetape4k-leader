@@ -32,9 +32,7 @@ graph TD
     ExposedJdbc["leader-exposed-jdbc\n(Stable)"]
     ExposedR2dbc["leader-exposed-r2dbc\n(Stable)"]
     Mongo["leader-mongodb\n(MongoDB)"]
-    SBCommon["leader-spring-boot-common\n(Boot version-independent)"]
-    SB3["leader-spring-boot3\n(AOP + AutoConfig)"]
-    SB4["leader-spring-boot4\n(AOP + AutoConfig)"]
+    SB["leader-spring-boot\n(Boot 4, CTW)"]
     Metrics["leader-micrometer\n(Micrometer metrics)"]
     Ktor["leader-ktor\n(planned)"]
     ZK["leader-zookeeper\n(planned)"]
@@ -46,9 +44,7 @@ graph TD
     ExposedJdbc --> ExposedCore
     ExposedR2dbc --> ExposedCore
     Mongo --> Core
-    SBCommon --> Core
-    SB3 --> SBCommon
-    SB4 --> SBCommon
+    SB --> Core
     Metrics --> Core
     Ktor --> Core
     ZK --> Core
@@ -67,9 +63,7 @@ graph TD
 | `leader-exposed-r2dbc` | Stable | Exposed R2DBC backend (coroutine-native, H2/PostgreSQL/MySQL) |
 | `leader-mongodb` | Stable | MongoDB backend (`findOneAndUpdate` + TTL index) |
 | `leader-micrometer` | Stable | Micrometer metrics integration (`MicrometerLeaderAopMetricsRecorder`) |
-| `leader-spring-boot-common` | Stable | `@LeaderElection` / `@LeaderGroupElection` AOP annotations + Boot-version-independent infrastructure |
-| `leader-spring-boot3` | Stable | Spring Boot 3 auto-configuration + AOP (Spring proxy) |
-| `leader-spring-boot4` | Stable | Spring Boot 4 auto-configuration + AOP (AspectJ post-compile weaving) |
+| `leader-spring-boot` | Stable | Spring Boot 4 auto-configuration + AOP (AspectJ CTW, Freefair post-compile weaving) |
 | `leader-ktor` | Planned | Ktor Plugin DSL + `leaderScheduled()` scheduling helper |
 | `leader-zookeeper` | Planned | ZooKeeper/Curator backend (`InterProcessMutex` / `InterProcessSemaphoreV2`) |
 
@@ -351,11 +345,7 @@ When using Spring Boot AOP (`@LeaderElection`), add `leader-micrometer` to expos
 ### Dependency
 
 ```kotlin
-// Spring Boot 3
-implementation("io.github.bluetape4k.leader:leader-spring-boot3:0.1.0-SNAPSHOT")
-implementation("io.github.bluetape4k.leader:leader-micrometer:0.1.0-SNAPSHOT")
-// Spring Boot 4
-implementation("io.github.bluetape4k.leader:leader-spring-boot4:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:leader-spring-boot:0.1.0-SNAPSHOT")
 implementation("io.github.bluetape4k.leader:leader-micrometer:0.1.0-SNAPSHOT")
 ```
 

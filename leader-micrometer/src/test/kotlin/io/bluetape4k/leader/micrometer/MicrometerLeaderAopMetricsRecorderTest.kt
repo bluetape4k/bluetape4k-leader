@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.micrometer
 
 import io.bluetape4k.leader.LeaderElectionOptions
-import io.bluetape4k.leader.spring.aop.metrics.SkipReason
+import io.bluetape4k.leader.metrics.SkipReason
 import io.bluetape4k.logging.KLogging
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import kotlinx.coroutines.Dispatchers
