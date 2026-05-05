@@ -26,7 +26,7 @@ package io.bluetape4k.leader.annotation
  *
  * @see LeaderElection 단일 리더 변형
  */
-@Target(AnnotationTarget.FUNCTION)
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 @MustBeDocumented
 annotation class LeaderGroupElection(

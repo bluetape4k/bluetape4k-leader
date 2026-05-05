@@ -11,6 +11,7 @@ import io.bluetape4k.leader.metrics.SkipReason
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
+import io.bluetape4k.leader.spring.aop.validator.ComposedLeaderElection
 import io.bluetape4k.logging.KLogging
 import io.mockk.clearMocks
 import io.mockk.every
@@ -419,5 +420,33 @@ class LeaderElectionAspectTest {
         val aspect = newAspect()
         val ex = assertThrows<IllegalStateException> { aspect.aroundLeader(pjp) }
         ex shouldBeEqualTo bodyEx
+    }
+
+    // ── #84: 메타 어노테이션(@AliasFor) — Aspect lockName 해석 ──
+
+    @Test
+    fun `composed @LeaderElection - Aspect가 merged name 으로 elected 실행`() {
+        class SampleComposed {
+            @ComposedLeaderElection(name = "composed-alias-job")
+            open fun run(): String? = SAMPLE_RESULT
+        }
+
+        val target = SampleComposed()
+        val method = SampleComposed::class.java.getDeclaredMethod("run")
+        configureJoinPoint(method, target, emptyArray())
+
+        val nameSlot = slot<String>()
+        every { election.runIfLeaderResult<Any?>(capture(nameSlot), any()) } answers {
+            @Suppress("UNCHECKED_CAST")
+            (secondArg<() -> Any?>())()
+            LeaderRunResult.Elected(SAMPLE_RESULT)
+        }
+        every { pjp.proceed() } returns SAMPLE_RESULT
+
+        val aspect = newAspect()
+        val result = aspect.aroundLeader(pjp)
+
+        result shouldBeEqualTo SAMPLE_RESULT
+        nameSlot.captured shouldBeEqualTo "composed-alias-job"
     }
 }

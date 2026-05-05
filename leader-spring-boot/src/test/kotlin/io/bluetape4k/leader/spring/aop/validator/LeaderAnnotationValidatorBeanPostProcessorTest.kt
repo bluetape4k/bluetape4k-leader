@@ -11,8 +11,29 @@ import org.aspectj.lang.annotation.Aspect
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
+import org.springframework.core.annotation.AliasFor
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+
+// ── #84: 메타 어노테이션 테스트용 composed annotations ──
+
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+@LeaderElection(name = "")
+annotation class ComposedLeaderElection(
+    @get:AliasFor(annotation = LeaderElection::class, attribute = "name")
+    val name: String = "composed-default-job",
+)
+
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+@LeaderGroupElection(name = "", maxLeaders = 3)
+annotation class ComposedGroupElection(
+    @get:AliasFor(annotation = LeaderGroupElection::class, attribute = "name")
+    val name: String = "composed-group-job",
+    @get:AliasFor(annotation = LeaderGroupElection::class, attribute = "maxLeaders")
+    val maxLeaders: Int = 3,
+)
 
 /**
  * [LeaderAnnotationValidatorBeanPostProcessor] — footgun 검출 매트릭스 (T5.5).
@@ -171,5 +192,47 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
         val aspect = SampleAspect()
         bpp.postProcessAfterInitialization(aspect, "aspect") shouldBeEqualTo aspect
+    }
+
+    // ── #84: 메타 어노테이션(@AliasFor) 지원 ──
+
+    @Test
+    fun `composed @LeaderElection - BPP 검출 및 통과`() {
+        class SampleComposed {
+            @ComposedLeaderElection(name = "composed-job")
+            open fun run(): String = "ok"
+        }
+        val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+        assertDoesNotThrow { bpp.postProcessAfterInitialization(SampleComposed(), "sample") }
+    }
+
+    @Test
+    fun `composed @LeaderElection final method - BPP 검출 및 strict fail`() {
+        class SampleComposedFinal {
+            @ComposedLeaderElection(name = "composed-job")
+            fun run(): String = "ok"  // final
+        }
+        val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+        assertThrows<IllegalStateException> { bpp.postProcessAfterInitialization(SampleComposedFinal(), "sample") }
+    }
+
+    @Test
+    fun `composed @LeaderElection 잘못된 SpEL - strict 무관 startup fail`() {
+        class SampleBadSpel {
+            @ComposedLeaderElection(name = "'unclosed")
+            open fun run(): String = "ok"
+        }
+        val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
+        assertThrows<IllegalStateException> { bpp.postProcessAfterInitialization(SampleBadSpel(), "sample") }
+    }
+
+    @Test
+    fun `composed @LeaderGroupElection maxLeaders 1 - strict 무관 startup fail`() {
+        class SampleBadGroup {
+            @ComposedGroupElection(name = "group-job", maxLeaders = 1)
+            open fun run(): String = "ok"
+        }
+        val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
+        assertThrows<IllegalArgumentException> { bpp.postProcessAfterInitialization(SampleBadGroup(), "sample") }
     }
 }

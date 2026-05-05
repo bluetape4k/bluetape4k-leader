@@ -46,7 +46,7 @@ package io.bluetape4k.leader.annotation
  * @see LeaderGroupElection 다중 리더 (semaphore-based) 변형
  * @see LeaderAspectFailureMode failure mode enum
  */
-@Target(AnnotationTarget.FUNCTION)
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 @MustBeDocumented
 annotation class LeaderElection(
