@@ -12,14 +12,14 @@ class LeaderAspectFailureModeTest {
     companion object : KLogging()
 
     @Test
-    fun `enum 항목 3개 존재 확인`() {
-        LeaderAspectFailureMode.entries.size shouldBeEqualTo 3
+    fun `enum 항목 4개 존재 확인`() {
+        LeaderAspectFailureMode.entries.size shouldBeEqualTo 4
     }
 
     @Test
-    fun `INHERIT, RETHROW, SKIP 모두 포함`() {
+    fun `INHERIT, RETHROW, SKIP, FAIL_OPEN_RUN 모두 포함`() {
         val entries = LeaderAspectFailureMode.entries.map { it.name }
-        entries shouldContainAll listOf("INHERIT", "RETHROW", "SKIP")
+        entries shouldContainAll listOf("INHERIT", "RETHROW", "SKIP", "FAIL_OPEN_RUN")
     }
 
     @Test
@@ -27,5 +27,6 @@ class LeaderAspectFailureModeTest {
         LeaderAspectFailureMode.valueOf("INHERIT") shouldBeEqualTo LeaderAspectFailureMode.INHERIT
         LeaderAspectFailureMode.valueOf("RETHROW") shouldBeEqualTo LeaderAspectFailureMode.RETHROW
         LeaderAspectFailureMode.valueOf("SKIP") shouldBeEqualTo LeaderAspectFailureMode.SKIP
+        LeaderAspectFailureMode.valueOf("FAIL_OPEN_RUN") shouldBeEqualTo LeaderAspectFailureMode.FAIL_OPEN_RUN
     }
 }
