@@ -34,22 +34,24 @@
 | #103 | feat: LeaderAopProperties Metrics 중첩 클래스 추가 (IDE 자동완성) | ✅ 완료 | #111 merged |
 | #102 | feat: LeaderMicrometerHealthAutoConfiguration 추가 | ✅ 완료 | #112 merged |
 | #87 | test: Boot4 Freefair CTW double-fire 방지 검증 테스트 | ✅ 완료 | #113 merged |
+| #85 | feat: LeaderRunResult sealed interface — elected vs skipped 구분 | ✅ 완료 | #114 merged |
+| #81 | feat: FAIL_OPEN_RUN failureMode 구현 | ✅ 완료 | #116 merged |
 
 ---
 
 ## 이슈 의존 관계
 
 ```
-#41 (AOP) ✅ ─── #75 (Micrometer) ✅ ──┬── #85 (elected/skipped SPI)
-                                        ├── #102 (HealthAutoConfiguration)
-                                        └── #103 (MetricsProperties)
+#41 (AOP) ✅ ─── #75 (Micrometer) ✅ ──┬── #85 (elected/skipped SPI) ✅
+                                        ├── #102 (HealthAutoConfiguration) ✅
+                                        └── #103 (MetricsProperties) ✅
 
 #41 ✅ ────────────────────────────────┬── #94 (bug: failureMode bypass) ← P0
                                        ├── #95 (test: LeaderGroupElectionAspect) ← P0
                                        ├── #96 (test: BPP suspend/Mono 분기) ← P0
                                        ├── #97 (test: SpEL null + placeholder) ← P0
                                        ├── #87 (Boot4 double-fire 검증)
-                                       ├── #81 (FAIL_OPEN_RUN + LeaderResult)
+                                       ├── #81 (FAIL_OPEN_RUN + LeaderResult) ✅
                                        └── #80 sub-issues ─── #88 → #89 → #90 → #91 → #92
 
 독립 기능 (병렬 가능):
@@ -89,8 +91,8 @@
 
 | 이슈 | 제목 | 선행 조건 | 우선순위 |
 |------|------|----------|---------|
-| **#85** | **feat: 백엔드 SPI elected vs skipped 명확 구분 (metrics 정확도)** | #75 ✅ | ⭐ 최우선 |
-| #81 | feat: FAIL_OPEN_RUN 모드 + LeaderResult sealed wrapper | #41 ✅ | 중간 |
+| **#85** | **feat: 백엔드 SPI elected vs skipped 명확 구분 (metrics 정확도)** | #75 ✅ | ✅ 완료 |
+| **#81** | **feat: FAIL_OPEN_RUN failureMode 구현** | #41 ✅ | **✅ 완료** |
 
 ### P2 — 독립 기능 확장 (병렬 가능)
 
