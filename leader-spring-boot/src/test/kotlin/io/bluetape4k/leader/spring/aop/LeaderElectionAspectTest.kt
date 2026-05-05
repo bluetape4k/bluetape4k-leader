@@ -82,7 +82,7 @@ class LeaderElectionAspectTest {
 
     private fun newAspect(recorders: List<LeaderAopMetricsRecorder> = emptyList()): LeaderElectionAspect {
         every { factoryMock.create(any()) } returns election
-        every { beanSelector.selectElectionFactory(any()) } returns
+        every { beanSelector.selectElectionFactory(any(), any()) } returns
                 LeaderBeanSelector.Selected("testFactory", factoryMock)
 
         return LeaderElectionAspect(
@@ -241,7 +241,7 @@ class LeaderElectionAspectTest {
         val actionSlot = slot<() -> Any?>()
         every { election.runIfLeaderResult<Any?>(any(), capture(actionSlot)) } answers { LeaderRunResult.Elected(actionSlot.captured.invoke()) }
         every { factoryMock.create(any()) } returns election
-        every { beanSelector.selectElectionFactory(any()) } returns
+        every { beanSelector.selectElectionFactory(any(), any()) } returns
                 LeaderBeanSelector.Selected("testFactory", factoryMock)
 
         val aspect = LeaderElectionAspect(
@@ -260,7 +260,7 @@ class LeaderElectionAspectTest {
         }
 
         // beanSelector.selectElectionFactory 는 100번이 아니라 1번만 호출 (cache hit)
-        verify(exactly = 1) { beanSelector.selectElectionFactory(any()) }
+        verify(exactly = 1) { beanSelector.selectElectionFactory(any(), any()) }
     }
 
     @Test

@@ -84,7 +84,7 @@ class LeaderGroupElectionAspectTest {
 
     private fun newAspect(recorders: List<LeaderAopMetricsRecorder> = emptyList()): LeaderGroupElectionAspect {
         every { factoryMock.create(any()) } returns election
-        every { beanSelector.selectGroupElectionFactory(any()) } returns
+        every { beanSelector.selectGroupElectionFactory(any(), any()) } returns
                 LeaderBeanSelector.Selected("testGroupFactory", factoryMock)
 
         return LeaderGroupElectionAspect(
@@ -219,7 +219,7 @@ class LeaderGroupElectionAspectTest {
         val actionSlot = slot<() -> Any?>()
         every { election.runIfLeaderResult<Any?>(any(), capture(actionSlot)) } answers { LeaderRunResult.Elected(actionSlot.captured.invoke()) }
         every { factoryMock.create(any()) } returns election
-        every { beanSelector.selectGroupElectionFactory(any()) } returns
+        every { beanSelector.selectGroupElectionFactory(any(), any()) } returns
                 LeaderBeanSelector.Selected("testGroupFactory", factoryMock)
 
         val aspect = LeaderGroupElectionAspect(
@@ -236,7 +236,7 @@ class LeaderGroupElectionAspectTest {
             aspect.aroundLeader(pjp)
         }
 
-        verify(exactly = 1) { beanSelector.selectGroupElectionFactory(any()) }
+        verify(exactly = 1) { beanSelector.selectGroupElectionFactory(any(), any()) }
     }
 
     @Test

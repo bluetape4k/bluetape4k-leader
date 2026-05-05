@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.spring.aop
 
 import io.bluetape4k.leader.LeaderElectorFactory
+import io.bluetape4k.leader.annotation.LeaderElection
+import io.bluetape4k.leader.annotation.LeaderElectionBackend
 import io.bluetape4k.logging.KLogging
 import io.mockk.clearMocks
 import io.mockk.every
@@ -87,5 +89,72 @@ class LeaderBeanSelectorTest {
 
         val sut = LeaderBeanSelector(bf)
         assertThrows<NoUniqueBeanDefinitionException> { sut.selectElectionFactory("") }
+    }
+
+    // ── #78: @LeaderElectionBackend 탐색 테스트 ──
+
+    private class WithMethodBackend {
+        @LeaderElectionBackend("redissonFactory")
+        @LeaderElection(name = "test")
+        fun doWork() {}
+    }
+
+    @LeaderElectionBackend("mongoFactory")
+    private class WithClassBackend {
+        @LeaderElection(name = "test")
+        fun doWork() {}
+    }
+
+    private class NoBackendAnnotation {
+        @LeaderElection(name = "test")
+        fun doWork() {}
+    }
+
+    @Test
+    fun `step2 - 메서드 @LeaderElectionBackend 우선 선택`() {
+        val method = WithMethodBackend::class.java.getDeclaredMethod("doWork")
+        every { bf.getBean("redissonFactory", LeaderElectorFactory::class.java) } returns factoryA
+
+        val sut = LeaderBeanSelector(bf)
+        val selected = sut.selectElectionFactory("", method)
+
+        selected.beanName shouldBeEqualTo "redissonFactory"
+        selected.bean shouldBeEqualTo factoryA
+    }
+
+    @Test
+    fun `step3 - 클래스 @LeaderElectionBackend 탐색`() {
+        val method = WithClassBackend::class.java.getDeclaredMethod("doWork")
+        every { bf.getBean("mongoFactory", LeaderElectorFactory::class.java) } returns factoryB
+
+        val sut = LeaderBeanSelector(bf)
+        val selected = sut.selectElectionFactory("", method)
+
+        selected.beanName shouldBeEqualTo "mongoFactory"
+        selected.bean shouldBeEqualTo factoryB
+    }
+
+    @Test
+    fun `step1 우선 - explicit bean이 있으면 @LeaderElectionBackend 무시`() {
+        val method = WithMethodBackend::class.java.getDeclaredMethod("doWork")
+        every { bf.getBean("explicitFactory", LeaderElectorFactory::class.java) } returns factoryA
+
+        val sut = LeaderBeanSelector(bf)
+        val selected = sut.selectElectionFactory("explicitFactory", method)
+
+        selected.beanName shouldBeEqualTo "explicitFactory"
+        selected.bean shouldBeEqualTo factoryA
+    }
+
+    @Test
+    fun `@LeaderElectionBackend 없음 - 단일 빈 자동 선택으로 fallback`() {
+        val method = NoBackendAnnotation::class.java.getDeclaredMethod("doWork")
+        every { bf.getBeansOfType(LeaderElectorFactory::class.java) } returns mapOf("only" to factoryA)
+
+        val sut = LeaderBeanSelector(bf)
+        val selected = sut.selectElectionFactory("", method)
+
+        selected.beanName shouldBeEqualTo "only"
+        selected.bean shouldBeEqualTo factoryA
     }
 }
