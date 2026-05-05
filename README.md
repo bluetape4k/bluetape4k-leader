@@ -351,6 +351,45 @@ val result = election.runIfLeader("job", ScoredElectionStrategy(scorer)) { doWor
 | Custom scorer | No | Yes (`CandidateScorer`) |
 | Network RTT | 1 (tryLock) | 2 (list + elect) |
 
+## Spring Boot AOP
+
+`leader-spring-boot` provides `@LeaderElection` and `@LeaderGroupElection` annotations backed by AspectJ CTW (Freefair post-compile weaving).
+
+```kotlin
+@Service
+class ReportService {
+    @LeaderElection(name = "daily-report-job")
+    fun generateReport(): String { /* runs only on elected node */ }
+
+    // Fail-open: run the body even when lock is not acquired or backend is unavailable
+    @LeaderElection(name = "nightly-cleanup", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
+    fun cleanup(): String { /* always runs, lock is best-effort */ }
+}
+```
+
+### `failureMode`
+
+Controls what happens when the lock is **not** acquired (contention or backend error):
+
+| Value | Behaviour |
+|-------|-----------|
+| `SKIP` (default) | Return `null` — body is not executed |
+| `RETHROW` | Throw `LeaderElectionException` wrapping the backend error |
+| `FAIL_OPEN_RUN` | Run the method body anyway and return its result |
+
+`FAIL_OPEN_RUN` is designed for jobs where skipping is worse than running without the distributed lock guarantee (e.g., best-effort idempotent tasks). Metrics record `SkipReason.FAIL_OPEN_FORCED` so dashboards can track lock-free executions separately.
+
+### Global default via properties
+
+```yaml
+bluetape4k:
+  leader:
+    aop:
+      default-failure-mode: FAIL_OPEN_RUN   # SKIP | RETHROW | FAIL_OPEN_RUN
+```
+
+---
+
 ## Micrometer Metrics
 
 When using Spring Boot AOP (`@LeaderElection`), add `leader-micrometer` to expose Prometheus/Datadog metrics automatically.
