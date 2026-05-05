@@ -8,6 +8,7 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
@@ -116,7 +117,8 @@ internal class ExposedJdbcGroupLock internal constructor(
             }
 
             if (updated == 0) {
-                runCatching {
+                // PK 충돌만 흡수 → retry; 그 외 DB 오류는 재전파
+                try {
                     LeaderGroupLockTable.insert {
                         it[LeaderGroupLockTable.lockName] = lockNameVal
                         it[LeaderGroupLockTable.slot] = slotVal
@@ -125,10 +127,14 @@ internal class ExposedJdbcGroupLock internal constructor(
                         it[LeaderGroupLockTable.lockedAt] = now
                         it[LeaderGroupLockTable.lockedUntil] = lockedUntil
                     }
-                }.onFailure { e ->
-                    if (e is CancellationException) throw e
-                    log.debug { "INSERT 실패 (PK 충돌 예상 또는 DB 오류): lockName=$lockName, slot=$slot, error=${e.message}" }
-                    return@transaction false
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: ExposedSQLException) {
+                    if (e.sqlState.startsWith("23")) {
+                        log.debug { "INSERT 실패 (PK 충돌 — 정상 경합): lockName=$lockName, slot=$slot" }
+                        return@transaction false
+                    }
+                    throw e
                 }
             }
 

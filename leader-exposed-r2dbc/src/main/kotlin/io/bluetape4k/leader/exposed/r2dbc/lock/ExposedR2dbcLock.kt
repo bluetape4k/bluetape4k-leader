@@ -8,6 +8,7 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
+import org.jetbrains.exposed.v1.exceptions.UnsupportedByDialectException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import org.jetbrains.exposed.v1.core.and
@@ -130,8 +131,9 @@ internal class ExposedR2dbcLock internal constructor(
                     true
                 } catch (e: CancellationException) {
                     throw e
-                } catch (e: Throwable) {
-                    log.debug { "insertIgnore 실패: lockName=$lockName, error=${e.message}" }
+                } catch (e: UnsupportedByDialectException) {
+                    // H2 default mode: insertIgnore 미지원 → 경합 실패로 처리
+                    log.debug { "insertIgnore 미지원 dialect (H2 default mode?): lockName=$lockName" }
                     false
                 }
 
