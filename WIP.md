@@ -100,9 +100,10 @@
 
 | 이슈 | 제목 | 선행 조건 |
 |------|------|----------|
-| #82 | feat: SpEL TemplateParserContext 혼합 표현식 지원 | #41 ✅ |
+| **#82** | **feat: SpEL TemplateParserContext 혼합 표현식 지원** | #41 ✅ | **✅ 완료 — PR #119** |
 | **#84** | **feat: 메타 어노테이션 (@AliasFor) 지원** | #41 ✅ | **✅ 완료 — PR #117** |
 | **#78** | **feat: 클래스/패키지 레벨 @LeaderElectionBackend 메타 어노테이션** | #41 ✅ | **✅ 완료 — PR #118** |
+| **#82** | **feat: SpEL TemplateParserContext 혼합 표현식 지원** | #41 ✅ | **✅ 완료 — PR #119** |
 
 ### P3 — Wave 5 suspend/Mono 지원 (순차 의존, 난이도 높음)
 
