@@ -32,6 +32,18 @@ internal object ExposedR2dbcSchemaInitializer : KLoggingChannel() {
      * 스키마 생성 실패 시 guard key를 설정하지 않으므로 다음 호출 시 재시도됩니다.
      * 실패 시 컨텍스트 로그를 남기고 원본 예외를 그대로 전파합니다.
      *
+     * ## H2 사용 시 필수 설정
+     *
+     * H2 in-memory 데이터베이스를 사용하는 경우 R2DBC URL에 `MODE=MySQL` 또는
+     * `MODE=PostgreSQL`을 **반드시** 설정해야 합니다. Default 모드에서는 `insertIgnore`가
+     * 지원되지 않아 락 획득이 정상적으로 동작하지 않습니다.
+     *
+     * 권장 URL 예시:
+     * - H2 in-memory:  `r2dbc:h2:mem:///test;MODE=MySQL;DB_CLOSE_DELAY=-1`
+     * - H2 파일:       `r2dbc:h2:file:///./data/leader;MODE=MySQL`
+     * - PostgreSQL:    `r2dbc:postgresql://host:5432/db`
+     * - MySQL:         `r2dbc:mysql://host:3306/db`
+     *
      * @throws Exception 스키마 생성 중 DB 오류 발생 시 (재시도 허용)
      */
     suspend fun ensureSchema(db: R2dbcDatabase) {

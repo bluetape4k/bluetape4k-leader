@@ -83,9 +83,15 @@ class ExposedJdbcLeaderGroupElection private constructor(
     override val maxLeaders: Int get() = options.maxLeaders
 
     /**
-     * [lockName]의 현재 활성 슬롯 수(만료되지 않은 lease 보유 행)를 반환합니다.
+     * [lockName]의 현재 활성 슬롯 수(만료되지 않은 lease 보유 행)를 DB에서 실시간으로 반환합니다.
      *
-     * DB 오류 발생 시 best-effort로 `0`을 반환합니다 (호출자에게 예외를 전파하지 않음).
+     * 만료된 슬롯(`lockedUntil <= NOW()`)은 카운트에서 제외됩니다.
+     * 호출 비용: `SELECT COUNT(*)` — 자주 호출 시 캐시 layer 구성 권장.
+     *
+     * ⚠️ 반환값은 호출 시점 스냅샷입니다. 조회 직후 다른 인스턴스가 슬롯을 획득/해제할 수 있으므로
+     * 동시성 결정 기준으로 사용하지 마세요 (모니터링/로깅 전용).
+     *
+     * DB 오류 발생 시 best-effort로 `0`을 반환합니다 (예외 전파 없음).
      */
     override fun activeCount(lockName: String): Int = runCatching {
         transaction(db) {
@@ -117,6 +123,21 @@ class ExposedJdbcLeaderGroupElection private constructor(
      * - 모든 슬롯이 사용 중이면 `null`을 반환합니다 (예외 없음).
      * - [action] 예외는 그대로 전파되며, 슬롯은 항상 반납됩니다.
      * - [CancellationException]은 재전파되며 FAILED 이력에 기록되지 않습니다.
+     *
+     * ## 슬롯 경합 시 skip
+     * ```kotlin
+     * val result = election.runIfLeader("batch-job") { processChunk() }
+     * when (result) {
+     *     null -> log.debug { "슬롯 없음 — 이번 실행은 다른 인스턴스가 처리" }
+     *     else -> log.info { "처리 완료: $result" }
+     * }
+     * ```
+     *
+     * ## 슬롯 내부 tryLock tri-state
+     * 슬롯 순회 시 각 슬롯의 tryLock 결과:
+     * - `true` — 슬롯 획득 성공, [action] 실행
+     * - `false` — 해당 슬롯 경합 실패, 다음 슬롯으로 순회 계속
+     * - `null` — DB 오류, 순회 중단 후 `null` 반환 (warn 로그로 구분 가능)
      *
      * @throws IllegalArgumentException [lockName]이 유효하지 않은 경우
      */

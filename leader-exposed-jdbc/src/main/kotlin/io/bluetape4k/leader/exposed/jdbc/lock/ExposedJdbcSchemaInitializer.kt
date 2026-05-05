@@ -31,6 +31,18 @@ internal object ExposedJdbcSchemaInitializer : KLogging() {
      * 스키마 생성 실패 시 guard key를 설정하지 않으므로 다음 호출 시 재시도됩니다.
      * 실패 시 컨텍스트 로그를 남기고 원본 예외를 그대로 전파합니다.
      *
+     * ## H2 사용 시 권장 설정
+     *
+     * H2를 사용하는 경우 JDBC URL에 `MODE=MySQL` 또는 `MODE=PostgreSQL`을 설정하는 것을
+     * 권장합니다. Default 모드에서는 일부 컬럼 타입/syntax 차이로 DDL 또는 DML이
+     * 예상과 다르게 동작할 수 있습니다.
+     *
+     * 권장 URL 예시:
+     * - H2 in-memory:  `jdbc:h2:mem:test;MODE=MySQL;DB_CLOSE_DELAY=-1`
+     * - H2 파일:       `jdbc:h2:file:./data/leader;MODE=MySQL`
+     * - PostgreSQL:    `jdbc:postgresql://host:5432/db`
+     * - MySQL:         `jdbc:mysql://host:3306/db`
+     *
      * @throws Exception 스키마 생성 중 DB 오류 발생 시 (재시도 허용)
      */
     fun ensureSchema(db: Database) {

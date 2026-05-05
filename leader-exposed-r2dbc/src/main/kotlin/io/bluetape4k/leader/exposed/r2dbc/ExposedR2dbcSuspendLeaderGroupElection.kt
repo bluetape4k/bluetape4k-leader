@@ -50,8 +50,10 @@ import kotlin.random.Random
  * ```
  *
  * ## 상태 조회
- * [activeCount], [availableSlots], [state]는 캐시 기반 근사값을 반환합니다.
- * `runIfLeader` 호출 이후 외부에서 변경된 상태는 반영되지 않을 수 있습니다.
+ * - [activeCount] / [availableSlots] / [state] — 캐시 기반 근사값. `runIfLeader` 이후 자동 갱신.
+ *   다른 JVM 인스턴스의 변경은 반영되지 않음 → 모니터링/로깅 전용으로 사용.
+ * - [activeCountSuspend] — DB SELECT 실시간 조회. 멀티 JVM 환경에서 정확한 값이 필요할 때 사용.
+ *   호출 비용 있음 (SELECT COUNT(*)); 동시성 판단 기준으로는 사용 금지.
  *
  * **private constructor** — [invoke] 팩터리를 사용하세요. 첫 호출 시 스키마가 자동으로 생성됩니다.
  *
@@ -105,7 +107,19 @@ class ExposedR2dbcSuspendLeaderGroupElection private constructor(
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
     /**
-     * [lockName]의 현재 활성 슬롯 수를 DB에서 직접 조회합니다.
+     * [lockName]의 현재 활성 슬롯 수를 DB에서 실시간으로 조회합니다.
+     *
+     * [activeCount]와 달리 캐시를 사용하지 않고 DB에서 직접 `SELECT COUNT(*)`를 실행합니다.
+     * 만료된 슬롯(`lockedUntil <= NOW()`)은 카운트에서 제외됩니다.
+     *
+     * 조회 후 내부 캐시([activeCount])도 동기화됩니다.
+     *
+     * ```kotlin
+     * // 멀티 JVM 환경에서 정확한 슬롯 수 확인
+     * val realCount = election.activeCountSuspend("batch-job")
+     * println("active=$realCount / max=${election.maxLeaders}")
+     * // ⚠️ 조회 직후 다른 인스턴스가 슬롯을 획득/해제할 수 있음 — 동시성 결정 기준으로 사용 금지
+     * ```
      *
      * DB 오류 발생 시 best-effort로 `0`을 반환합니다.
      *
@@ -137,6 +151,19 @@ class ExposedR2dbcSuspendLeaderGroupElection private constructor(
      * - 모든 슬롯이 사용 중이면 `null`을 반환합니다 (예외 없음).
      * - [action] 예외는 그대로 전파되며, 슬롯은 항상 반납됩니다.
      * - [CancellationException]은 재전파되며 FAILED 이력에 기록되지 않습니다.
+     *
+     * ## 슬롯 경합 시 skip
+     * ```kotlin
+     * val result = election.runIfLeader("batch-job") { processChunk() }
+     * when (result) {
+     *     null -> log.debug { "슬롯 없음 — 이번 실행은 다른 인스턴스가 처리" }
+     *     else -> log.info { "처리 완료: $result" }
+     * }
+     * ```
+     *
+     * ## DB 오류 vs 정상 경합
+     * 슬롯 순회 중 DB 오류가 발생하면 순회를 중단하고 `null`을 반환합니다.
+     * (정상 경합으로 인한 `null`과 동일한 반환값이지만, warn 로그로 구분 가능)
      *
      * @throws IllegalArgumentException [lockName]이 유효하지 않은 경우
      */
