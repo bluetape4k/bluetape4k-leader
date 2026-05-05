@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.mongodb
 
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.support.requireGt
 import java.io.Serializable
 import java.time.Duration
 
@@ -28,7 +29,7 @@ data class MongoLeaderElectionOptions(
     val retryDelay: Duration = Duration.ofMillis(50),
 ) : Serializable {
     init {
-        require(retryDelay > Duration.ZERO) { "retryDelay must be positive: $retryDelay" }
+        retryDelay.requireGt(Duration.ZERO, "retryDelay")
     }
 
     companion object {

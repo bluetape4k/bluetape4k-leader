@@ -40,7 +40,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runIfLeader - 리더로 선출되어 action을 실행하고 결과를 반환한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
-        val election = ExposedJdbcLeaderElection(db)
+        val election = ExposedJdbcLeaderElector(db)
 
         val result = election.runIfLeader(randomName()) { "hello" }
 
@@ -51,7 +51,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     @MethodSource("enableDialects")
     fun `runIfLeader - blank lockName은 IllegalArgumentException을 발생시킨다`(testDB: TestDB) {
         val db = connectDb(testDB)
-        val election = ExposedJdbcLeaderElection(db)
+        val election = ExposedJdbcLeaderElector(db)
 
         assertThrows<IllegalArgumentException> {
             election.runIfLeader("   ") { }
@@ -62,7 +62,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     @MethodSource("enableDialects")
     fun `runIfLeader - 255자 초과 lockName은 IllegalArgumentException을 발생시킨다`(testDB: TestDB) {
         val db = connectDb(testDB)
-        val election = ExposedJdbcLeaderElection(db)
+        val election = ExposedJdbcLeaderElector(db)
 
         assertThrows<IllegalArgumentException> {
             election.runIfLeader("x".repeat(256)) { }
@@ -86,7 +86,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                     leaseTime = Duration.ofSeconds(5),
                 )
             )
-            val election = ExposedJdbcLeaderElection(db, shortOptions)
+            val election = ExposedJdbcLeaderElector(db, shortOptions)
             val result = election.runIfLeader(lockName) { "실행하면 안 됨" }
 
             result.shouldBeNull()
@@ -110,7 +110,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val waitForExpiryMillis = (leaseTime.toMillis() * 3 / 2) + 50
         Thread.sleep(waitForExpiryMillis)
 
-        val election = ExposedJdbcLeaderElection(
+        val election = ExposedJdbcLeaderElector(
             db,
             ExposedJdbcLeaderElectionOptions(
                 leaderOptions = LeaderElectionOptions(
@@ -129,7 +129,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
         val lockName = randomName()
-        val election = ExposedJdbcLeaderElection(db)
+        val election = ExposedJdbcLeaderElector(db)
 
         assertThrows<RuntimeException> {
             election.runIfLeader(lockName) {
@@ -151,7 +151,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
         val lockName = randomName()
-        val election = ExposedJdbcLeaderElection(db)
+        val election = ExposedJdbcLeaderElector(db)
 
         runCatching { election.runIfLeader(lockName) { throw LeaderElectionException("실패") } }
 
@@ -172,7 +172,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                 leaseTime = Duration.ofSeconds(10),
             )
         )
-        val election = ExposedJdbcLeaderElection(db, options)
+        val election = ExposedJdbcLeaderElector(db, options)
 
         assertThrows<CancellationException> {
             election.runIfLeader(lockName) {
@@ -204,7 +204,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                 leaseTime = Duration.ofSeconds(10),
             )
         )
-        val election = ExposedJdbcLeaderElection(db, options)
+        val election = ExposedJdbcLeaderElector(db, options)
 
         election.runIfLeader(lockName) { "done" }
 
@@ -230,7 +230,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                 leaseTime = Duration.ofSeconds(10),
             )
         )
-        val election = ExposedJdbcLeaderElection(db, options)
+        val election = ExposedJdbcLeaderElector(db, options)
 
         runCatching { election.runIfLeader(lockName) { throw LeaderElectionException("fail") } }
 
@@ -255,7 +255,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                 leaseTime = Duration.ofSeconds(10),
             )
         )
-        val election = ExposedJdbcLeaderElection(db, options)
+        val election = ExposedJdbcLeaderElector(db, options)
         val successCount = AtomicInteger(0)
 
         MultithreadingTester()
@@ -278,7 +278,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `runAsyncIfLeader - 리더로 선출되어 비동기 action을 실행하고 결과를 반환한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
-        val election = ExposedJdbcLeaderElection(db)
+        val election = ExposedJdbcLeaderElector(db)
 
         val result = election.runAsyncIfLeader(randomName(), VirtualThreadExecutor) {
             futureOf { "async 성공" }
@@ -293,7 +293,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
         val lockName = randomName()
-        val election = ExposedJdbcLeaderElection(db)
+        val election = ExposedJdbcLeaderElector(db)
 
         assertThrows<CompletionException> {
             election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
@@ -318,7 +318,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                 leaseTime = Duration.ofSeconds(10),
             ),
         )
-        val election = ExposedJdbcLeaderElection(db, options)
+        val election = ExposedJdbcLeaderElector(db, options)
 
         assertThrows<CompletionException> {
             election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
@@ -348,7 +348,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
         val lockName = randomName()
-        val election = ExposedJdbcLeaderElection(db)
+        val election = ExposedJdbcLeaderElector(db)
 
         election.runAsyncIfLeader(lockName, VirtualThreadExecutor) {
             futureOf { "ok" }
@@ -413,8 +413,8 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
     fun `VirtualThread 선출 - runAsyncIfLeader 정상 동작한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
-        val election = ExposedJdbcLeaderElection(db)
-        val vtElection = ExposedJdbcVirtualThreadLeaderElection(election)
+        val election = ExposedJdbcLeaderElector(db)
+        val vtElection = ExposedJdbcVirtualThreadLeaderElector(election)
 
         val result = vtElection.runAsyncIfLeader(randomName()) { "vt 성공" }[5, TimeUnit.SECONDS]
 
@@ -438,8 +438,8 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                     leaseTime = Duration.ofSeconds(5),
                 )
             )
-            val election = ExposedJdbcLeaderElection(db, shortOptions)
-            val vtElection = ExposedJdbcVirtualThreadLeaderElection(election)
+            val election = ExposedJdbcLeaderElector(db, shortOptions)
+            val vtElection = ExposedJdbcVirtualThreadLeaderElector(election)
             val result = vtElection.runAsyncIfLeader(lockName) { "실행하면 안 됨" }
                 .get(5, TimeUnit.SECONDS)
 

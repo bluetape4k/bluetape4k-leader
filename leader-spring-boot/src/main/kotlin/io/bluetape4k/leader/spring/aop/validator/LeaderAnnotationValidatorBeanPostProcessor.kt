@@ -5,6 +5,7 @@ import io.bluetape4k.leader.annotation.LeaderGroupElection
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
+import io.bluetape4k.support.requireGe
 import org.aopalliance.intercept.MethodInterceptor
 import org.springframework.aop.support.AopUtils
 import org.springframework.beans.factory.config.BeanPostProcessor
@@ -92,9 +93,7 @@ class LeaderAnnotationValidatorBeanPostProcessor(
 
         method.getAnnotation(LeaderGroupElection::class.java)?.let { group ->
             // maxLeaders <= 1 은 strict 무관 항상 fail
-            require(group.maxLeaders >= 2) {
-                "@LeaderGroupElection.maxLeaders must be >= 2 on ${targetClass.name}#${method.name}, got ${group.maxLeaders}"
-            }
+            group.maxLeaders.requireGe(2, "group.maxLeaders")
         }
 
         // SpEL pre-parse — 실패 시 strict 무관 항상 fail (잘못된 표현식은 startup 즉시 노출)

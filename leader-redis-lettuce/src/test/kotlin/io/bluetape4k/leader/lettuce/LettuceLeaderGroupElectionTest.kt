@@ -24,12 +24,12 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
     private val maxLeaders = 3
     private val options = LeaderGroupElectionOptions(maxLeaders, Duration.ofSeconds(5), Duration.ofSeconds(10))
 
-    private lateinit var election: LettuceLeaderGroupElection
+    private lateinit var election: LettuceLeaderGroupElector
     private lateinit var lockName: String
 
     @BeforeEach
     fun setup() {
-        election = LettuceLeaderGroupElection(connection, options)
+        election = LettuceLeaderGroupElector(connection, options)
         lockName = randomName()
     }
 
@@ -131,7 +131,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `MultithreadingTester - 동시 리더 그룹 선출 maxLeaders 제한 검증`() {
-        val el = LettuceLeaderGroupElection(connection, options)
+        val el = LettuceLeaderGroupElector(connection, options)
         val concurrent = AtomicInteger(0)
         val maxConcurrent = AtomicInteger(0)
         val executed = AtomicInteger(0)
@@ -156,7 +156,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `MultithreadingTester - 동시 비동기 리더 그룹 선출 안정성`() {
-        val el = LettuceLeaderGroupElection(connection, options)
+        val el = LettuceLeaderGroupElector(connection, options)
         val executed = AtomicInteger(0)
 
         MultithreadingTester()
@@ -181,7 +181,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `StructuredTaskScopeTester - 동시 리더 그룹 선출 maxLeaders 제한 검증`() {
-        val el = LettuceLeaderGroupElection(connection, options)
+        val el = LettuceLeaderGroupElector(connection, options)
         val concurrent = AtomicInteger(0)
         val maxConcurrent = AtomicInteger(0)
         val executed = AtomicInteger(0)

@@ -1,10 +1,10 @@
 package io.bluetape4k.leader.spring.backend
 
-import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElection
+import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElector
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElectionOptions
-import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElection
+import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElector
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElectionOptions
-import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcVirtualThreadLeaderElection
+import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcVirtualThreadLeaderElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -34,8 +34,8 @@ class ExposedJdbcLeaderConfiguration {
     fun exposedJdbcLeaderElection(
         db: Database,
         props: LeaderProperties,
-    ): ExposedJdbcLeaderElection =
-        ExposedJdbcLeaderElection(
+    ): ExposedJdbcLeaderElector =
+        ExposedJdbcLeaderElector(
             db,
             ExposedJdbcLeaderElectionOptions(leaderOptions = PropertiesAdapter.toCommonElection(props)),
         )
@@ -45,8 +45,8 @@ class ExposedJdbcLeaderConfiguration {
     fun exposedJdbcLeaderGroupElection(
         db: Database,
         props: LeaderProperties,
-    ): ExposedJdbcLeaderGroupElection =
-        ExposedJdbcLeaderGroupElection(
+    ): ExposedJdbcLeaderGroupElector =
+        ExposedJdbcLeaderGroupElector(
             db,
             ExposedJdbcLeaderGroupElectionOptions(leaderGroupOptions = PropertiesAdapter.toCommonGroup(props)),
         )
@@ -54,7 +54,7 @@ class ExposedJdbcLeaderConfiguration {
     @Bean
     @ConditionalOnMissingBean(name = ["exposedJdbcVirtualThreadLeaderElection"])
     fun exposedJdbcVirtualThreadLeaderElection(
-        delegate: ExposedJdbcLeaderElection,
-    ): ExposedJdbcVirtualThreadLeaderElection =
-        ExposedJdbcVirtualThreadLeaderElection(delegate)
+        delegate: ExposedJdbcLeaderElector,
+    ): ExposedJdbcVirtualThreadLeaderElector =
+        ExposedJdbcVirtualThreadLeaderElector(delegate)
 }

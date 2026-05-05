@@ -1,5 +1,7 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.support.requireGe
+import io.bluetape4k.support.requireGt
 import java.io.Serializable
 import java.time.Duration
 
@@ -28,9 +30,9 @@ data class LeaderGroupElectionOptions(
 ): Serializable {
 
     init {
-        require(maxLeaders >= 1) { "maxLeaders must be >= 1: $maxLeaders" }
-        require(!waitTime.isNegative) { "waitTime must not be negative: $waitTime" }
-        require(!leaseTime.isNegative && !leaseTime.isZero) { "leaseTime must be positive: $leaseTime" }
+        maxLeaders.requireGe(1, "maxLeaders")
+        waitTime.requireGe(Duration.ZERO, "waitTime")
+        leaseTime.requireGt(Duration.ZERO, "leaseTime")
     }
 
     companion object {

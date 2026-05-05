@@ -36,7 +36,7 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
             leaseTime = Duration.ofSeconds(60),
         )
     )
-    private val election by lazy { MongoLeaderGroupElection(groupLockCollection, options) }
+    private val election by lazy { MongoLeaderGroupElector(groupLockCollection, options) }
 
     @Test
     fun `runIfLeader - 리더로 선출되어 action을 실행하고 결과를 반환한다`() {
@@ -95,7 +95,7 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
                 leaseTime = Duration.ofSeconds(10),
             )
         )
-        val singleElection = MongoLeaderGroupElection(groupLockCollection, shortWaitOptions)
+        val singleElection = MongoLeaderGroupElector(groupLockCollection, shortWaitOptions)
         val lockName = randomName()
         val acquiredLatch = CountDownLatch(1)
         val holdLatch = CountDownLatch(1)
@@ -151,7 +151,7 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
                 leaseTime = Duration.ofSeconds(60),
             )
         )
-        val fastElection = MongoLeaderGroupElection(groupLockCollection, fastOptions)
+        val fastElection = MongoLeaderGroupElector(groupLockCollection, fastOptions)
         val acquiredLatch = CountDownLatch(maxLeaders)
         val holdLatch = CountDownLatch(1)
         val executor = Executors.newFixedThreadPool(maxLeaders)

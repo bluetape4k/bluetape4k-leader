@@ -1,14 +1,14 @@
 package io.bluetape4k.leader.spring
 
 import io.bluetape4k.codec.Base58
-import io.bluetape4k.leader.LeaderElection
-import io.bluetape4k.leader.LeaderGroupElection
-import io.bluetape4k.leader.coroutines.SuspendLeaderElection
-import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElection
-import io.bluetape4k.leader.redisson.RedissonLeaderElection
-import io.bluetape4k.leader.redisson.RedissonLeaderGroupElection
-import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElection
-import io.bluetape4k.leader.redisson.RedissonSuspendLeaderGroupElection
+import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.LeaderGroupElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.redisson.RedissonLeaderElector
+import io.bluetape4k.leader.redisson.RedissonLeaderGroupElector
+import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector
+import io.bluetape4k.leader.redisson.RedissonSuspendLeaderGroupElector
 import kotlinx.coroutines.runBlocking
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeInstanceOf
@@ -32,17 +32,17 @@ class LeaderElectionAutoConfigurationTest: AbstractRedissonAutoConfigurationTest
     @Test
     fun `Redisson 4 종 election 빈이 모두 정상 주입`() {
         runner.run { ctx ->
-            ctx.getBean<LeaderElection>() shouldBeInstanceOf RedissonLeaderElection::class
-            ctx.getBean<SuspendLeaderElection>() shouldBeInstanceOf RedissonSuspendLeaderElection::class
-            ctx.getBean<LeaderGroupElection>() shouldBeInstanceOf RedissonLeaderGroupElection::class
-            ctx.getBean<SuspendLeaderGroupElection>() shouldBeInstanceOf RedissonSuspendLeaderGroupElection::class
+            ctx.getBean<LeaderElector>() shouldBeInstanceOf RedissonLeaderElector::class
+            ctx.getBean<SuspendLeaderElector>() shouldBeInstanceOf RedissonSuspendLeaderElector::class
+            ctx.getBean<LeaderGroupElector>() shouldBeInstanceOf RedissonLeaderGroupElector::class
+            ctx.getBean<SuspendLeaderGroupElector>() shouldBeInstanceOf RedissonSuspendLeaderGroupElector::class
         }
     }
 
     @Test
     fun `runIfLeader sync 호출이 정상 동작`() {
         runner.run { ctx ->
-            val election = ctx.getBean<LeaderElection>()
+            val election = ctx.getBean<LeaderElector>()
             val lockName = "auto-config-test-${Base58.randomString(8)}"
             val result = election.runIfLeader(lockName) { 42 }
             result shouldBeEqualTo 42
@@ -52,7 +52,7 @@ class LeaderElectionAutoConfigurationTest: AbstractRedissonAutoConfigurationTest
     @Test
     fun `runIfLeader suspend 호출이 정상 동작`() {
         runner.run { ctx ->
-            val election = ctx.getBean<SuspendLeaderElection>()
+            val election = ctx.getBean<SuspendLeaderElector>()
             val lockName = "auto-config-suspend-${Base58.randomString(8)}"
             val result = runBlocking { election.runIfLeader(lockName) { 99 } }
             result shouldBeEqualTo 99
@@ -64,7 +64,7 @@ class LeaderElectionAutoConfigurationTest: AbstractRedissonAutoConfigurationTest
         runner
             .withPropertyValues("bluetape4k.leader.group.max-leaders=3")
             .run { ctx ->
-                val group = ctx.getBean<LeaderGroupElection>()
+                val group = ctx.getBean<LeaderGroupElector>()
                 group.maxLeaders shouldBeEqualTo 3
             }
     }

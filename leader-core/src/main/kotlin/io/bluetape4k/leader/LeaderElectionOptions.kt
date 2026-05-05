@@ -1,5 +1,7 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.support.requireGe
+import io.bluetape4k.support.requireGt
 import java.io.Serializable
 import java.time.Duration
 
@@ -20,12 +22,12 @@ import java.time.Duration
  * @property leaseTime 리더 보유(임대) 최대 시간. 기본값 60초
  */
 data class LeaderElectionOptions(
-    val waitTime: Duration = Duration.ofSeconds(5),
-    val leaseTime: Duration = Duration.ofSeconds(60),
+    val waitTime: Duration = DefaultWaitTime,
+    val leaseTime: Duration = DefaultLeaseTime,
 ): Serializable {
     init {
-        require(!waitTime.isNegative) { "waitTime must not be negative: $waitTime" }
-        require(!leaseTime.isNegative && !leaseTime.isZero) { "leaseTime must be positive: $leaseTime" }
+        waitTime.requireGe(Duration.ZERO, "waitTime")
+        leaseTime.requireGt(Duration.ZERO, "leaseTime")
     }
 
     companion object {

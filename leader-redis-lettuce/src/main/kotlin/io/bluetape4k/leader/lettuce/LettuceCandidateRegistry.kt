@@ -3,6 +3,7 @@ package io.bluetape4k.leader.lettuce
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.logging.warn
 import io.lettuce.core.ScanArgs
 import io.lettuce.core.ScanCursor
@@ -41,7 +42,7 @@ internal class LettuceCandidateRegistry(
         "leader:strategy:candidates:$lockName:*"
 
     private fun validateLockName(lockName: String) {
-        require(lockName.isNotBlank()) { "lockName must not be blank" }
+        lockName.requireNotBlank("lockName")
         require(lockName.none { it in "*?[]\\" }) { "lockName must not contain SCAN glob metacharacters: $lockName" }
     }
 

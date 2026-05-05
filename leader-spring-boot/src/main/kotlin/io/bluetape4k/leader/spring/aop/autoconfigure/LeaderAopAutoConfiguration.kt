@@ -1,6 +1,6 @@
 package io.bluetape4k.leader.spring.aop.autoconfigure
 
-import io.bluetape4k.leader.LeaderElectionFactory
+import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder
 import io.bluetape4k.leader.spring.aop.LeaderAspectOrder
 import io.bluetape4k.leader.spring.aop.LeaderBeanSelector
@@ -37,7 +37,7 @@ import org.springframework.core.annotation.Order
  */
 @AutoConfiguration(after = [LeaderAopFactoryAutoConfiguration::class])
 @ConditionalOnClass(name = ["org.aspectj.lang.annotation.Aspect"])
-@ConditionalOnBean(LeaderElectionFactory::class)
+@ConditionalOnBean(LeaderElectorFactory::class)
 @ConditionalOnProperty(prefix = "bluetape4k.leader.aop", name = ["enabled"], havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(LeaderAopProperties::class)
 class LeaderAopAutoConfiguration {

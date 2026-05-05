@@ -1,10 +1,9 @@
 package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.leader.strategy.CandidateInfo
-import org.amshove.kluent.invoking
 import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldThrow
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.time.Instant
 
 class LettuceCandidateInfoCodecTest: AbstractLettuceLeaderTest() {
@@ -93,7 +92,9 @@ class LettuceCandidateInfoCodecTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `decode - 잘못된 포맷이면 IllegalArgumentException`() {
-        invoking { LettuceCandidateInfoCodec.decode("only|three|fields") } shouldThrow IllegalArgumentException::class
+        assertThrows<IllegalArgumentException> {
+            LettuceCandidateInfoCodec.decode("only|three|fields")
+        }
     }
 
     @Test
@@ -101,6 +102,9 @@ class LettuceCandidateInfoCodecTest: AbstractLettuceLeaderTest() {
         // 7개 필드 형식은 맞지만 metadata 마지막 필드의 한 항목에 = 가 없음
         val now = Instant.now().toEpochMilli()
         val malformed = "node|$now|||0|0|key1=val1,brokenpair"
-        invoking { LettuceCandidateInfoCodec.decode(malformed) } shouldThrow IllegalArgumentException::class
+
+        assertThrows<IllegalArgumentException> {
+            LettuceCandidateInfoCodec.decode(malformed)
+        }
     }
 }

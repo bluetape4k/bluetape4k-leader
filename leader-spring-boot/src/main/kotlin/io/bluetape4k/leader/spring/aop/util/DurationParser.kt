@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.spring.aop.util
 
+import io.bluetape4k.support.requireGt
+import io.bluetape4k.support.requireNotBlank
 import java.time.Duration
 
 /**
@@ -29,7 +31,7 @@ object DurationParser {
      * @throws IllegalArgumentException [text] 가 빈 문자열이거나 형식 불일치 또는 음수/0
      */
     fun parse(text: String): Duration {
-        require(text.isNotBlank()) { "Duration text must not be blank" }
+        text.requireNotBlank("text")
         val trimmed = text.trim()
 
         val duration = if (trimmed.startsWith("PT", ignoreCase = true) || trimmed.startsWith("P", ignoreCase = true)) {
@@ -52,9 +54,7 @@ object DurationParser {
             }
         }
 
-        require(!duration.isNegative && !duration.isZero) {
-            "Duration must be positive: '$text' → $duration"
-        }
+        duration.requireGt(Duration.ZERO, "duration")
         return duration
     }
 

@@ -1,11 +1,14 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.support.requireGe
+import io.bluetape4k.support.requireInRange
+import io.bluetape4k.support.requireNotBlank
 import java.io.Serializable
 
 /**
  * 리더 그룹의 현재 상태 정보를 담는 불변 데이터 클래스입니다.
  *
- * [LeaderGroupElection] 및 [SuspendLeaderGroupElection] 구현체에서 공통으로 사용합니다.
+ * [LeaderGroupElector] 및 [SuspendLeaderGroupElection] 구현체에서 공통으로 사용합니다.
  *
  * ```kotlin
  * val state = election.state("batch-lock")
@@ -28,11 +31,9 @@ data class LeaderGroupState(
     }
 
     init {
-        require(lockName.isNotBlank()) { "lockName must not be blank" }
-        require(maxLeaders >= 1) { "maxLeaders must be >= 1: $maxLeaders" }
-        require(activeCount in 0..maxLeaders) {
-            "activeCount must be in 0..$maxLeaders: $activeCount"
-        }
+        lockName.requireNotBlank("lockName")
+        maxLeaders.requireGe(1, "maxLeaders")
+        activeCount.requireInRange(0, maxLeaders, "activeCount")
     }
 
     /**

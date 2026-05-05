@@ -36,7 +36,7 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
         leaseTime = Duration.ofSeconds(60),
 
         )
-    private val election by lazy { RedissonLeaderGroupElection(redissonClient, options) }
+    private val election by lazy { RedissonLeaderGroupElector(redissonClient, options) }
 
     // ── 기본 동작 ──────────────────────────────────────────────────────────
 
@@ -81,7 +81,7 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
     @Test
     fun `runIfLeader - maxLeaders 슬롯이 모두 사용 중이면 waitTime 초과 시 null 을 반환한다`() {
         val shortWaitOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = Duration.ofMillis(100))
-        val singleElection = RedissonLeaderGroupElection(redissonClient, shortWaitOptions)
+        val singleElection = RedissonLeaderGroupElector(redissonClient, shortWaitOptions)
         val lockName = randomName()
         val acquiredLatch = CountDownLatch(1)
         val holdLatch = CountDownLatch(1)
@@ -107,7 +107,7 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
     @Test
     fun `maxLeaders=1 이면 LeaderElection 과 동일하게 직렬 실행된다`() {
         val oneLeader = options.copy(maxLeaders = 1)
-        val singleElection = RedissonLeaderGroupElection(redissonClient, oneLeader)
+        val singleElection = RedissonLeaderGroupElector(redissonClient, oneLeader)
         val lockName = randomName()
         val counter = AtomicInteger(0)
         val numThreads = 6
@@ -408,7 +408,7 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
     /**
      * [MultithreadingTester]를 사용하여 짧은 `waitTime` + `maxLeaders=3` 환경에서
-     * 동시 다수 스레드가 [RedissonLeaderGroupElection.runIfLeader]를 호출할 때,
+     * 동시 다수 스레드가 [RedissonLeaderGroupElector.runIfLeader]를 호출할 때,
      * 항상 `maxLeaders` 이하의 동시 실행자만 존재하는지 검증한다.
      * 락 획득 실패(RedisException)는 [runCatching]으로 안전하게 처리한다.
      */
@@ -420,7 +420,7 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
             waitTime = Duration.ofMillis(50),
             leaseTime = Duration.ofSeconds(5),
         )
-        val limitedElection = RedissonLeaderGroupElection(redissonClient, shortWaitOptions)
+        val limitedElection = RedissonLeaderGroupElector(redissonClient, shortWaitOptions)
         val currentConcurrent = AtomicInteger(0)
         val peakConcurrent = AtomicInteger(0)
 

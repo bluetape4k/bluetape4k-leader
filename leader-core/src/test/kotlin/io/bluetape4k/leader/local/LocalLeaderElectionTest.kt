@@ -20,7 +20,7 @@ class LocalLeaderElectionTest {
 
     companion object: KLogging()
 
-    private val election = LocalLeaderElection()
+    private val election = LocalLeaderElector()
 
     private fun randomLockName() = "lock-${Base58.randomString(8)}"
 
@@ -172,7 +172,7 @@ class LocalLeaderElectionTest {
     @Test
     fun `runIfLeader - waitTime 내 락 획득 실패 시 null 을 반환한다`() {
         // 짧은 waitTime 으로 설정한 단일 election 인스턴스 사용
-        val skipElection = LocalLeaderElection(
+        val skipElection = LocalLeaderElector(
             LeaderElectionOptions(waitTime = Duration.ofMillis(100))
         )
         val lockName = randomLockName()
@@ -199,7 +199,7 @@ class LocalLeaderElectionTest {
 
     @Test
     fun `runIfLeader - 락이 해제되면 이후 호출이 정상 실행된다`() {
-        val shortWaitElection = LocalLeaderElection(
+        val shortWaitElection = LocalLeaderElector(
             LeaderElectionOptions(waitTime = Duration.ofMillis(100))
         )
         val lockName = randomLockName()
@@ -215,7 +215,7 @@ class LocalLeaderElectionTest {
 
     @Test
     fun `runAsyncIfLeader - waitTime 내 락 획득 실패 시 null 을 반환한다`() {
-        val skipElection = LocalLeaderElection(
+        val skipElection = LocalLeaderElector(
             LeaderElectionOptions(waitTime = Duration.ofMillis(100))
         )
         val lockName = randomLockName()

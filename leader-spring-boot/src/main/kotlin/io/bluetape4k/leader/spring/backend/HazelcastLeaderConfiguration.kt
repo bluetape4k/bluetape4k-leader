@@ -1,10 +1,10 @@
 package io.bluetape4k.leader.spring.backend
 
 import com.hazelcast.core.HazelcastInstance
-import io.bluetape4k.leader.hazelcast.HazelcastLeaderElection
-import io.bluetape4k.leader.hazelcast.HazelcastLeaderGroupElection
-import io.bluetape4k.leader.hazelcast.HazelcastSuspendLeaderElection
-import io.bluetape4k.leader.hazelcast.HazelcastSuspendLeaderGroupElection
+import io.bluetape4k.leader.hazelcast.HazelcastLeaderElector
+import io.bluetape4k.leader.hazelcast.HazelcastLeaderGroupElector
+import io.bluetape4k.leader.hazelcast.HazelcastSuspendLeaderElector
+import io.bluetape4k.leader.hazelcast.HazelcastSuspendLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -28,30 +28,30 @@ class HazelcastLeaderConfiguration {
     fun hazelcastLeaderElection(
         hazelcast: HazelcastInstance,
         props: LeaderProperties,
-    ): HazelcastLeaderElection =
-        HazelcastLeaderElection(hazelcast, PropertiesAdapter.toCommonElection(props))
+    ): HazelcastLeaderElector =
+        HazelcastLeaderElector(hazelcast, PropertiesAdapter.toCommonElection(props))
 
     @Bean
     @ConditionalOnMissingBean(name = ["hazelcastSuspendLeaderElection"])
     fun hazelcastSuspendLeaderElection(
         hazelcast: HazelcastInstance,
         props: LeaderProperties,
-    ): HazelcastSuspendLeaderElection =
-        HazelcastSuspendLeaderElection(hazelcast, PropertiesAdapter.toCommonElection(props))
+    ): HazelcastSuspendLeaderElector =
+        HazelcastSuspendLeaderElector(hazelcast, PropertiesAdapter.toCommonElection(props))
 
     @Bean
     @ConditionalOnMissingBean(name = ["hazelcastLeaderGroupElection"])
     fun hazelcastLeaderGroupElection(
         hazelcast: HazelcastInstance,
         props: LeaderProperties,
-    ): HazelcastLeaderGroupElection =
-        HazelcastLeaderGroupElection(hazelcast, PropertiesAdapter.toCommonGroup(props))
+    ): HazelcastLeaderGroupElector =
+        HazelcastLeaderGroupElector(hazelcast, PropertiesAdapter.toCommonGroup(props))
 
     @Bean
     @ConditionalOnMissingBean(name = ["hazelcastSuspendLeaderGroupElection"])
     fun hazelcastSuspendLeaderGroupElection(
         hazelcast: HazelcastInstance,
         props: LeaderProperties,
-    ): HazelcastSuspendLeaderGroupElection =
-        HazelcastSuspendLeaderGroupElection(hazelcast, PropertiesAdapter.toCommonGroup(props))
+    ): HazelcastSuspendLeaderGroupElector =
+        HazelcastSuspendLeaderGroupElector(hazelcast, PropertiesAdapter.toCommonGroup(props))
 }

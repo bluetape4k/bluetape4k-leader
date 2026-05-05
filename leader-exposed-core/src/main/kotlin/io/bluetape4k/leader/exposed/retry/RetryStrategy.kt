@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.exposed.retry
 
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.support.requireGe
 import java.io.Serializable
 import java.util.concurrent.ThreadLocalRandom
 
@@ -40,7 +41,7 @@ sealed class RetryStrategy : Serializable {
      */
     data class Jitter(val baseDelayMs: Long = 50L) : RetryStrategy() {
         init {
-            require(baseDelayMs >= 2L) { "baseDelayMs must be >= 2: $baseDelayMs" }
+            baseDelayMs.requireGe(2L, "baseDelayMs")
         }
 
         override fun delayMs(attempt: Int, remaining: Long): Long {
@@ -59,8 +60,8 @@ sealed class RetryStrategy : Serializable {
      */
     data class Exponential(val baseDelayMs: Long = 50L, val maxDelayMs: Long = 5_000L) : RetryStrategy() {
         init {
-            require(baseDelayMs >= 1L) { "baseDelayMs must be >= 1: $baseDelayMs" }
-            require(maxDelayMs >= baseDelayMs) { "maxDelayMs ($maxDelayMs) must be >= baseDelayMs ($baseDelayMs)" }
+            baseDelayMs.requireGe(1L, "baseDelayMs")
+            maxDelayMs.requireGe(baseDelayMs, "maxDelayMs")
         }
 
         override fun delayMs(attempt: Int, remaining: Long): Long {
@@ -78,7 +79,7 @@ sealed class RetryStrategy : Serializable {
      */
     data class Fixed(val fixedMs: Long = 50L) : RetryStrategy() {
         init {
-            require(fixedMs >= 1L) { "fixedMs must be >= 1: $fixedMs" }
+            fixedMs.requireGe(1L, "fixedMs")
         }
 
         override fun delayMs(attempt: Int, remaining: Long): Long {

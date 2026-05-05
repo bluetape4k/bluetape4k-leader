@@ -1,14 +1,14 @@
 package io.bluetape4k.leader.spring.aop
 
-import io.bluetape4k.leader.LeaderElectionFactory
-import io.bluetape4k.leader.LeaderGroupElectionFactory
+import io.bluetape4k.leader.LeaderElectorFactory
+import io.bluetape4k.leader.LeaderGroupElectorFactory
 import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.beans.factory.NoUniqueBeanDefinitionException
 
 /**
- * AOP advice 가 호출 단위로 사용할 [LeaderElectionFactory] / [LeaderGroupElectionFactory] 빈을 선택한다.
+ * AOP advice 가 호출 단위로 사용할 [LeaderElectorFactory] / [LeaderGroupElectorFactory] 빈을 선택한다.
  *
  * ## 우선순위
  * 1. 어노테이션 `bean` 명시 → `getBean(name, Type::class)` (literal only)
@@ -23,21 +23,21 @@ class LeaderBeanSelector(
 ) {
 
     /**
-     * 단일 리더 [LeaderElectionFactory] 빈 선택.
+     * 단일 리더 [LeaderElectorFactory] 빈 선택.
      *
      * @param explicitBeanName 어노테이션 `bean` 필드. 빈 문자열 시 자동 선택
      * @return 선택된 factory + 빈 이름
      * @throws NoSuchBeanDefinitionException [explicitBeanName] 이 명시되었지만 빈 미존재
      * @throws NoUniqueBeanDefinitionException 자동 선택 시 ambiguous
      */
-    fun selectElectionFactory(explicitBeanName: String): Selected<LeaderElectionFactory> =
-        select(explicitBeanName, LeaderElectionFactory::class.java)
+    fun selectElectionFactory(explicitBeanName: String): Selected<LeaderElectorFactory> =
+        select(explicitBeanName, LeaderElectorFactory::class.java)
 
     /**
-     * 다중 리더 [LeaderGroupElectionFactory] 빈 선택.
+     * 다중 리더 [LeaderGroupElectorFactory] 빈 선택.
      */
-    fun selectGroupElectionFactory(explicitBeanName: String): Selected<LeaderGroupElectionFactory> =
-        select(explicitBeanName, LeaderGroupElectionFactory::class.java)
+    fun selectGroupElectionFactory(explicitBeanName: String): Selected<LeaderGroupElectorFactory> =
+        select(explicitBeanName, LeaderGroupElectorFactory::class.java)
 
     private fun <T : Any> select(explicitBeanName: String, type: Class<T>): Selected<T> {
         if (explicitBeanName.isNotBlank()) {

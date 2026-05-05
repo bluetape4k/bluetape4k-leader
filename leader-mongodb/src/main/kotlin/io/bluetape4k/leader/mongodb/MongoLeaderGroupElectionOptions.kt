@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.mongodb
 
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.support.requireGt
+import io.bluetape4k.support.requirePositiveNumber
 import java.io.Serializable
 import java.time.Duration
 
@@ -29,8 +31,8 @@ data class MongoLeaderGroupElectionOptions(
     val maxLeaders: Int get() = leaderGroupOptions.maxLeaders
 
     init {
-        require(maxLeaders > 0) { "maxLeaders must be positive: $maxLeaders" }
-        require(retryDelay > Duration.ZERO) { "retryDelay must be positive: $retryDelay" }
+        maxLeaders.requirePositiveNumber("maxLeaders")
+        retryDelay.requireGt(Duration.ZERO, "retryDelay")
     }
 
     companion object {
