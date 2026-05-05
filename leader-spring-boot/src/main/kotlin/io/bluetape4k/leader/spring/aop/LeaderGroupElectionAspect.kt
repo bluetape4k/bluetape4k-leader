@@ -201,7 +201,7 @@ class LeaderGroupElectionAspect(
             waitTime = waitTime,
             leaseTime = leaseTime,
         )
-        val selected = beanSelector.selectGroupElectionFactory(ann.bean)
+        val selected = beanSelector.selectGroupElectionFactory(ann.bean, method)
         val literal = if (LITERAL_PATTERN.matches(ann.name)) ann.name else null
 
         val effectiveFailureMode = if (ann.failureMode == LeaderAspectFailureMode.INHERIT) {

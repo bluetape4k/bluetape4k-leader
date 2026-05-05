@@ -217,7 +217,7 @@ class LeaderElectionAspect(
         val leaseTime = DurationParser.parseOrDefault(ann.leaseTime, props.defaultLeaseTime)
 
         val opts = LeaderElectionOptions(waitTime = waitTime, leaseTime = leaseTime)
-        val selected = beanSelector.selectElectionFactory(ann.bean)
+        val selected = beanSelector.selectElectionFactory(ann.bean, method)
 
         // literal fast-path 분류 — SpEL 평가 우회 가능 여부 사전 판단
         val literal = if (LITERAL_PATTERN.matches(ann.name)) ann.name else null
