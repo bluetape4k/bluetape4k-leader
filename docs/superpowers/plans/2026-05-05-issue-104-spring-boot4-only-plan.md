@@ -39,9 +39,11 @@ A → B → C → D → E → F → G → H → I → J
 - A first: `leader-core` is a leaf — extract SPI before any consumer reroutes its imports.
 - B second: `leader-micrometer` is the only existing consumer that needs immediate fixup; doing it before deleting `leader-spring-boot-common` keeps the build green.
 - C → D → E: build the new `leader-spring-boot` skeleton, then move common, then move boot4 (boot4 references common types so common moves first).
+- **T37 (settings.gradle.kts)** must execute at the START of Phase C — before `./gradlew :leader-spring-boot:build` can discover the new module. See T12a.
+- D 중간 compile checkpoint (T27a): Phase D 파일 이동 완료 후 `compileKotlin` 통과 확인. Phase E 시작 전 필수.
 - F: tests after sources for parallelism with code reviewer.
-- G/H: meta files (settings, BOM, workflows, CLAUDE.md) — small isolated edits.
-- I last before J: only delete the old module directories once everything compiles against new packages, so we keep an escape hatch if D/E fail.
+- G/H: meta files (BOM, workflows, CLAUDE.md) — settings는 Phase C에서 먼저 처리.
+- I last before J: only delete the old module directories once everything compiles against new packages, so we keep an escape hatch if D/E fail. **git tag pre-issue-104-delete 생성 후 실행.**
 - J: full build + diagnostics + grep verification.
 
 ### File path conventions
@@ -149,6 +151,12 @@ All paths below are relative to the repo root: `/Users/debop/work/worktrees/blue
 **Goal**: Create the empty `leader-spring-boot` module with build script, resources, and directory layout per spec §4–§6. No source code is moved yet.
 
 **Complexity**: medium
+
+### T12a. ⚠️ settings.gradle.kts 먼저 업데이트 (PREREQUISITE)
+- **Complexity**: low
+- **Files**: `settings.gradle.kts`
+- **Action**: `leader-spring-boot-common`, `leader-spring-boot3`, `leader-spring-boot4` 제거, `leader-spring-boot` 추가. **이 작업 없이 `./gradlew :leader-spring-boot:build`는 모듈을 인식하지 못함.**
+- **Verify**: `./gradlew projects` 출력에서 `:leader-spring-boot` 확인, 구 3개 모듈 없음.
 
 ### T12. Create directory structure for leader-spring-boot
 - **Complexity**: low
@@ -308,6 +316,12 @@ All paths below are relative to the repo root: `/Users/debop/work/worktrees/blue
   - `leader-spring-boot-common/.../config/LeaderElectionConfigSupport.kt` (must NOT be moved)
 - **Action**: No move. These are listed as deleted in spec §2.2 (Boot 4 incompat / no inheritors). Their tests are also deleted in T34.
 - **Verify**: `ls leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/health/` does not exist; `ls .../config/LeaderElectionConfigSupport.kt` does not exist.
+
+### T27a. ⚠️ Phase D compile checkpoint (MANDATORY before Phase E)
+- **Complexity**: low
+- **Files**: none (verification only)
+- **Action**: `./gradlew :leader-spring-boot:compileKotlin`. Phase D에서 10개 소스 파일을 이동했으므로, Phase E 시작 전에 모든 import가 해결되어 있는지 확인한다. 컴파일 오류 발생 시 Phase E로 넘어가지 말고 해당 파일로 돌아가 수정한다.
+- **Verify**: `compileKotlin` task BUILD SUCCESSFUL; `ide_diagnostics` returns zero unresolved imports for all files moved in T18–T27.
 
 ---
 
@@ -616,6 +630,7 @@ All paths below are relative to the repo root: `/Users/debop/work/worktrees/blue
 | T26 | D | medium | Move `LeaderAnnotationValidatorBeanPostProcessor.kt` + update imports |
 | T27 | D | low | Move `properties/{LeaderElection,LeaderGroup}Properties.kt` |
 | T28 | D | low | Confirm `LeaderAopHealthIndicator` + `LeaderElectionConfigSupport` are NOT moved |
+| T27a | D | low | ⚠️ Phase D compile checkpoint: `compileKotlin` before Phase E |
 | T29 | E | medium | Move + repackage all boot4 sources (drop `boot4` segment) |
 | T30 | E | medium | Rename class `Boot4LeaderProperties` → `LeaderProperties` |
 | T31 | E | low | Remove `@EnableAspectJAutoProxy` from `LeaderAopAutoConfiguration` ⚠️ |
