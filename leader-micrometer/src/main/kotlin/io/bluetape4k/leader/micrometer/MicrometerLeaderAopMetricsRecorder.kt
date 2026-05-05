@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.micrometer
 
 import io.bluetape4k.leader.LeaderElectionOptions
-import io.bluetape4k.leader.spring.aop.metrics.LeaderAopMetricsRecorder
-import io.bluetape4k.leader.spring.aop.metrics.SkipReason
+import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder
+import io.bluetape4k.leader.metrics.SkipReason
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import io.micrometer.core.instrument.Counter
