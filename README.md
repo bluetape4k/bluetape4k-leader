@@ -244,7 +244,7 @@ sequenceDiagram
 
 ### Distinguishing elected vs skipped: `LeaderRunResult`
 
-`runIfLeader()` returns `null` for two distinct cases: (a) lock not acquired and (b) `action()` legitimately returning `null`. Use `runIfLeaderResult` / `runIfGroupLeaderResult` when you need to tell them apart — for example, in metrics or conditional post-processing:
+`runIfLeader()` returns `null` for two distinct cases: (a) lock not acquired and (b) `action()` legitimately returning `null`. Use `runIfLeaderResult` (available on both `LeaderElector` and `LeaderGroupElector`) when you need to tell them apart — for example, in metrics or conditional post-processing:
 
 ```kotlin
 when (val r = election.runIfLeaderResult("daily-job") { compute() }) {

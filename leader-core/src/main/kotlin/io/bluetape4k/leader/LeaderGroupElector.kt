@@ -49,6 +49,7 @@ interface LeaderGroupElector: AsyncLeaderGroupElector {
     /**
      * 리더 그룹 선출 결과를 [LeaderRunResult]로 반환합니다.
      *
+     * [LeaderElector.runIfLeaderResult]와 동일 메서드명 — "Group" 컨텍스트는 인터페이스 타입으로 전달.
      * `runIfLeader`의 `null` 반환 모호성을 해결합니다:
      * action()이 null을 반환해도 [LeaderRunResult.Elected]로 구분되고,
      * 슬롯 미획득은 [LeaderRunResult.Skipped]로 구분됩니다.
@@ -61,7 +62,7 @@ interface LeaderGroupElector: AsyncLeaderGroupElector {
      * @param action 슬롯 획득 성공 시 실행할 동기 작업
      * @return [LeaderRunResult.Elected] (action 실행됨) 또는 [LeaderRunResult.Skipped] (슬롯 미획득)
      */
-    fun <T> runIfGroupLeaderResult(lockName: String, action: () -> T): LeaderRunResult<T> {
+    fun <T> runIfLeaderResult(lockName: String, action: () -> T): LeaderRunResult<T> {
         var elected = false
         val value = runIfLeader(lockName) { elected = true; action() }
         return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped

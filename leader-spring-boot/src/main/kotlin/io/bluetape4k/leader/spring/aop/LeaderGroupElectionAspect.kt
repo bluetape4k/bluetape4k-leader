@@ -74,7 +74,7 @@ class LeaderGroupElectionAspect(
 
             fanOut { it.onLockAttempt(resolvedName, coreOpts) }
 
-            val runResult = election.runIfGroupLeaderResult(resolvedName) {
+            val runResult = election.runIfLeaderResult(resolvedName) {
                 fanOut {
                     it.onLockAcquired(resolvedName, coreOpts, (System.nanoTime() - start).nanoseconds)
                     it.onTaskStarted(resolvedName)

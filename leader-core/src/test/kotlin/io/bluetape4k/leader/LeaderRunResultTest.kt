@@ -56,19 +56,19 @@ class LeaderRunResultTest {
         output shouldBeEqualTo "value"
     }
 
-    // --- LeaderGroupElector.runIfGroupLeaderResult ---
+    // --- LeaderGroupElector.runIfLeaderResult ---
 
     @Test
-    fun `runIfGroupLeaderResult - 슬롯 획득 성공 시 Elected 반환`() {
-        val result = groupElection.runIfGroupLeaderResult(randomLockName()) { "group-done" }
+    fun `group runIfLeaderResult - 슬롯 획득 성공 시 Elected 반환`() {
+        val result = groupElection.runIfLeaderResult(randomLockName()) { "group-done" }
 
         result shouldBeInstanceOf LeaderRunResult.Elected::class
         (result as LeaderRunResult.Elected).value shouldBeEqualTo "group-done"
     }
 
     @Test
-    fun `runIfGroupLeaderResult - action 이 null 반환해도 Elected 로 분류`() {
-        val result = groupElection.runIfGroupLeaderResult(randomLockName()) { null }
+    fun `group runIfLeaderResult - action 이 null 반환해도 Elected 로 분류`() {
+        val result = groupElection.runIfLeaderResult(randomLockName()) { null }
 
         result shouldBeInstanceOf LeaderRunResult.Elected::class
         (result as LeaderRunResult.Elected).value.shouldBeNull()

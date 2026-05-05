@@ -244,7 +244,7 @@ sequenceDiagram
 
 ### 선출/미선출 구분: `LeaderRunResult`
 
-`runIfLeader()`는 (a) 락 미획득과 (b) `action()`이 정상적으로 `null`을 반환하는 두 경우 모두 `null`을 돌려줍니다. 두 경우를 명확히 구분해야 할 때(예: metrics 기록, 조건부 후처리) `runIfLeaderResult` / `runIfGroupLeaderResult`를 사용하세요.
+`runIfLeader()`는 (a) 락 미획득과 (b) `action()`이 정상적으로 `null`을 반환하는 두 경우 모두 `null`을 돌려줍니다. 두 경우를 명확히 구분해야 할 때(예: metrics 기록, 조건부 후처리) `runIfLeaderResult`를 사용하세요(`LeaderElector` 및 `LeaderGroupElector` 모두 동일 메서드명으로 제공).
 
 ```kotlin
 when (val r = election.runIfLeaderResult("daily-job") { compute() }) {

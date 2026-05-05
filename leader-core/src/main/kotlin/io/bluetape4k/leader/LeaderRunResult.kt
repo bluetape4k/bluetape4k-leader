@@ -1,7 +1,7 @@
 package io.bluetape4k.leader
 
 /**
- * [LeaderElector.runIfLeaderResult] / [LeaderGroupElector.runIfGroupLeaderResult] 호출 결과를 나타내는 sealed interface.
+ * [LeaderElector.runIfLeaderResult] / [LeaderGroupElector.runIfLeaderResult] 호출 결과를 나타내는 sealed interface.
  *
  * ## 목적
  * [LeaderElector.runIfLeader]는 (a) lock 미획득 시와 (b) action()이 null을 반환할 때
