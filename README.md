@@ -35,7 +35,7 @@ graph TD
     SBCommon["leader-spring-boot-common\n(Boot version-independent)"]
     SB3["leader-spring-boot3\n(AOP + AutoConfig)"]
     SB4["leader-spring-boot4\n(AOP + AutoConfig)"]
-    Metrics["leader-micrometer\n(planned)"]
+    Metrics["leader-micrometer\n(Micrometer metrics)"]
     Ktor["leader-ktor\n(planned)"]
     ZK["leader-zookeeper\n(planned)"]
 
@@ -66,7 +66,7 @@ graph TD
 | `leader-exposed-jdbc` | Stable | Exposed JDBC backend (H2, PostgreSQL, MySQL) |
 | `leader-exposed-r2dbc` | Stable | Exposed R2DBC backend (coroutine-native, H2/PostgreSQL/MySQL) |
 | `leader-mongodb` | Stable | MongoDB backend (`findOneAndUpdate` + TTL index) |
-| `leader-micrometer` | Planned | Micrometer metrics integration |
+| `leader-micrometer` | Stable | Micrometer metrics integration (`MicrometerLeaderAopMetricsRecorder`) |
 | `leader-spring-boot-common` | Stable | `@LeaderElection` / `@LeaderGroupElection` AOP annotations + Boot-version-independent infrastructure |
 | `leader-spring-boot3` | Stable | Spring Boot 3 auto-configuration + AOP (Spring proxy) |
 | `leader-spring-boot4` | Stable | Spring Boot 4 auto-configuration + AOP (AspectJ post-compile weaving) |
@@ -343,6 +343,85 @@ val result = election.runIfLeader("job", ScoredElectionStrategy(scorer)) { doWor
 | TTL per candidate | No (lock-level TTL) | Yes (per-node expiry) |
 | Custom scorer | No | Yes (`CandidateScorer`) |
 | Network RTT | 1 (tryLock) | 2 (list + elect) |
+
+## Micrometer Metrics
+
+When using Spring Boot AOP (`@LeaderElection`), add `leader-micrometer` to expose Prometheus/Datadog metrics automatically.
+
+### Dependency
+
+```kotlin
+// Spring Boot 3
+implementation("io.github.bluetape4k.leader:leader-spring-boot3:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:leader-micrometer:0.1.0-SNAPSHOT")
+// Spring Boot 4
+implementation("io.github.bluetape4k.leader:leader-spring-boot4:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:leader-micrometer:0.1.0-SNAPSHOT")
+```
+
+`MicrometerLeaderAopMetricsRecorder` is auto-registered when a `MeterRegistry` bean is present. Disable with:
+
+```yaml
+bluetape4k:
+  leader:
+    aop:
+      metrics:
+        enabled: false
+```
+
+### Meter Catalog
+
+| Meter name | Type | Description |
+|------------|------|-------------|
+| `leader.aop.attempts` | Counter | Lock acquisition attempts per `lock.name` |
+| `leader.aop.acquired` | Counter | Successful leader elections |
+| `leader.aop.lock.not.acquired` | Counter | Skipped executions; tagged with `reason` (`CONTENTION` / `BACKEND_ERROR`) |
+| `leader.aop.execution.duration` | Timer | Elapsed time of the leader action |
+| `leader.aop.task.failed` | Counter | Action body exceptions; tagged with `exception` class name |
+| `leader.aop.active` | Gauge | Currently running leader actions (JVM-local) |
+
+All meters are tagged with `lock.name`. Micrometer's `NamingConvention` converts names per backend (e.g., `leader_aop_attempts_total` for Prometheus).
+
+> **Multi-instance note:** `leader.aop.active` is JVM-local. Use `max by (lock_name) (leader_aop_active)` in Prometheus — not `sum` — to avoid counting each node's gauge separately.
+
+### Pre-registration (optional)
+
+Pre-register static lock names at startup so metrics appear in dashboards even before the first execution:
+
+```kotlin
+@Component
+class MetricsPreRegistrar(private val recorder: MicrometerLeaderAopMetricsRecorder) : SmartInitializingSingleton {
+    override fun afterSingletonsInstantiated() {
+        recorder.registerMetricsFor("daily-report-job", "nightly-cleanup")
+    }
+}
+```
+
+### Health Indicator
+
+When `spring-boot-actuator` is on the classpath, a `leaderMicrometerHealthContributor` bean is registered automatically:
+
+```
+GET /actuator/health/leaderMicrometerHealthContributor
+{
+  "status": "UP",
+  "details": {
+    "metrics.registered": true,
+    "attempts.total": 42.0
+  }
+}
+```
+
+### Custom recorder
+
+Provide your own `LeaderAopMetricsRecorder` bean to replace the default Micrometer implementation:
+
+```kotlin
+@Bean
+fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
+```
+
+---
 
 ## Comparison with ShedLock
 

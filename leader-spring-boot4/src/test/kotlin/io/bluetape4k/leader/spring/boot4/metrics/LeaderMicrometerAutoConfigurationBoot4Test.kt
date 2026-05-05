@@ -1,0 +1,145 @@
+package io.bluetape4k.leader.spring.boot4.metrics
+
+import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder
+import io.bluetape4k.leader.spring.aop.metrics.LeaderAopMetricsRecorder
+import io.bluetape4k.leader.spring.aop.metrics.SkipReason
+import io.bluetape4k.leader.spring.boot4.aop.autoconfigure.LeaderAopAutoConfiguration
+import io.bluetape4k.leader.spring.boot4.aop.autoconfigure.LeaderAopFactoryAutoConfiguration
+import io.bluetape4k.logging.KLogging
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import org.amshove.kluent.shouldBeEqualTo
+import org.amshove.kluent.shouldBeGreaterOrEqualTo
+import org.amshove.kluent.shouldBeInstanceOf
+import org.amshove.kluent.shouldBeTrue
+import org.amshove.kluent.shouldNotBeNull
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
+import org.springframework.beans.factory.getBeansOfType
+import org.springframework.boot.autoconfigure.AutoConfigurations
+import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import kotlin.time.Duration.Companion.milliseconds
+
+/**
+ * Spring Boot 4 `LeaderMicrometerAutoConfiguration` 통합 테스트.
+ *
+ * ## Boot 4 고려사항
+ * Boot4는 Freefair AspectJ post-compile weaving을 사용한다.
+ * `@LeaderElection`-annotated 메서드는 컴파일 시 advice가 woven되어
+ * Spring AOP runtime proxy와 함께 사용하면 double-advice 위험이 있다.
+ * 따라서 테스트 5/6은 AOP proxy를 거치지 않고 recorder를 직접 호출하여 메트릭을 검증한다.
+ */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class LeaderMicrometerAutoConfigurationBoot4Test {
+
+    companion object : KLogging()
+
+    private val runner = ApplicationContextRunner()
+        .withConfiguration(
+            AutoConfigurations.of(
+                LeaderAopFactoryAutoConfiguration::class.java,
+                LeaderMicrometerAutoConfiguration::class.java,
+                LeaderAopAutoConfiguration::class.java,
+            )
+        )
+
+    @Test
+    fun `MeterRegistry 빈 존재 시 MicrometerLeaderAopMetricsRecorder 자동 등록`() {
+        runner
+            .withUserConfiguration(MeterRegistryConfig::class.java)
+            .run { ctx ->
+                ctx.getBean(MicrometerLeaderAopMetricsRecorder::class.java).shouldNotBeNull()
+            }
+    }
+
+    @Test
+    fun `MeterRegistry 빈 없을 때 recorder 빈 미등록`() {
+        runner.run { ctx ->
+            ctx.getBeansOfType<LeaderAopMetricsRecorder>().isEmpty().shouldBeTrue()
+        }
+    }
+
+    @Test
+    fun `enabled=false 시 빈 미등록`() {
+        runner
+            .withUserConfiguration(MeterRegistryConfig::class.java)
+            .withPropertyValues("bluetape4k.leader.aop.metrics.enabled=false")
+            .run { ctx ->
+                ctx.getBeansOfType<LeaderAopMetricsRecorder>().isEmpty().shouldBeTrue()
+            }
+    }
+
+    @Test
+    fun `사용자 정의 LeaderAopMetricsRecorder가 우선`() {
+        runner
+            .withUserConfiguration(MeterRegistryConfig::class.java, CustomRecorderConfig::class.java)
+            .run { ctx ->
+                ctx.getBeansOfType<MicrometerLeaderAopMetricsRecorder>().isEmpty().shouldBeTrue()
+                ctx.getBean(LeaderAopMetricsRecorder::class.java) shouldBeInstanceOf LeaderAopMetricsRecorder.NoOp::class
+            }
+    }
+
+    @Test
+    fun `recorder 콜백 호출 시 attempts+acquired+timer+active 전체 검증`() {
+        // Boot4는 AspectJ CTW + Spring AOP 동시 활성 시 double-advice 위험이 있어
+        // recorder를 직접 호출하여 메트릭 기록을 검증한다.
+        runner
+            .withUserConfiguration(MeterRegistryConfig::class.java)
+            .run { ctx ->
+                val recorder = ctx.getBean(MicrometerLeaderAopMetricsRecorder::class.java)
+                val registry = ctx.getBean(SimpleMeterRegistry::class.java)
+                val options = LeaderElectionOptions.Default
+
+                recorder.onLockAttempt("test-lock", options)
+                recorder.onLockAcquired("test-lock", options, 5.milliseconds)
+                recorder.onTaskStarted("test-lock")
+                recorder.onTaskFinished("test-lock", 100.milliseconds)
+
+                registry.get("leader.aop.attempts")
+                    .tag("lock.name", "test-lock")
+                    .counter().count() shouldBeGreaterOrEqualTo 1.0
+                registry.get("leader.aop.acquired")
+                    .tag("lock.name", "test-lock")
+                    .counter().count() shouldBeGreaterOrEqualTo 1.0
+                registry.get("leader.aop.execution.duration")
+                    .tag("lock.name", "test-lock")
+                    .timer().count() shouldBeGreaterOrEqualTo 1L
+                registry.find("leader.aop.active")
+                    .tag("lock.name", "test-lock")
+                    .gauge()?.value() shouldBeEqualTo 0.0
+            }
+    }
+
+    @Test
+    fun `backend 예외 발생 시 lock_not_acquired reason=BACKEND_ERROR 메트릭 증가`() {
+        runner
+            .withUserConfiguration(MeterRegistryConfig::class.java)
+            .run { ctx ->
+                val recorder = ctx.getBean(MicrometerLeaderAopMetricsRecorder::class.java)
+                val registry = ctx.getBean(SimpleMeterRegistry::class.java)
+
+                recorder.onLockNotAcquired("test-lock", LeaderElectionOptions.Default, SkipReason.BACKEND_ERROR)
+
+                registry.get("leader.aop.lock.not.acquired")
+                    .tag("lock.name", "test-lock")
+                    .tag("reason", "BACKEND_ERROR")
+                    .counter().count() shouldBeEqualTo 1.0
+            }
+    }
+
+    // ── Config helpers ──────────────────────────────────────────────
+
+    @Configuration(proxyBeanMethods = false)
+    class MeterRegistryConfig {
+        @Bean
+        fun simpleMeterRegistry(): SimpleMeterRegistry = SimpleMeterRegistry()
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class CustomRecorderConfig {
+        @Bean
+        fun customRecorder(): LeaderAopMetricsRecorder = LeaderAopMetricsRecorder.NoOp
+    }
+}
