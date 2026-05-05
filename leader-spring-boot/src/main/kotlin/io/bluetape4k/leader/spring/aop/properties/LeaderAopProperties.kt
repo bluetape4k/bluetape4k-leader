@@ -18,6 +18,8 @@ import java.time.Duration
  *       default-wait-time: PT5S
  *       default-lease-time: PT1M
  *       lock-name-prefix: "myapp:"   # default "${spring.application.name}:"
+ *       metrics:
+ *         enabled: true              # default true — Micrometer 통합 활성화
  *       spel:
  *         allow-method-invocation: false  # default false (CVE-2022-22947 회색지대 차단)
  * ```
@@ -28,6 +30,7 @@ import java.time.Duration
  * @property defaultWaitTime 전역 default waitTime (어노테이션 미지정 시)
  * @property defaultLeaseTime 전역 default leaseTime (어노테이션 미지정 시)
  * @property lockNamePrefix [Step 3-P-Sec-2][R-34] SpEL 평가 결과 앞에 자동 prefix. empty string opt-out
+ * @property metrics Micrometer metrics 활성화 옵션
  * @property spel SpEL 보안 옵션
  */
 @ConfigurationProperties(prefix = LeaderAopProperties.PREFIX)
@@ -38,8 +41,18 @@ data class LeaderAopProperties(
     val defaultWaitTime: Duration = DEFAULT_WAIT_TIME,
     val defaultLeaseTime: Duration = DEFAULT_LEASE_TIME,
     val lockNamePrefix: String = DEFAULT_LOCK_NAME_PREFIX,
+    val metrics: Metrics = Metrics(),
     val spel: Spel = Spel(),
 ) {
+    /**
+     * Micrometer metrics 활성화 옵션. `bluetape4k.leader.aop.metrics.*` namespace.
+     *
+     * @property enabled Micrometer 통합 활성화 (default `true`)
+     */
+    data class Metrics(
+        val enabled: Boolean = true,
+    )
+
     /**
      * SpEL 보안 옵션.
      *

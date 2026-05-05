@@ -63,6 +63,7 @@ dependencies {
     api(libs.aspectjweaver)
     api(libs.aspectjrt)
     compileOnly(libs.spring.boot.actuator)
+    compileOnly(libs.spring.boot.health)
     compileOnly(libs.spring.boot.configuration.processor)
     compileOnly(libs.spring.context)
     compileOnly(libs.spring.tx)
