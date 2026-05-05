@@ -152,11 +152,28 @@ All paths below are relative to the repo root: `/Users/debop/work/worktrees/blue
 
 **Complexity**: medium
 
-### T12a. ⚠️ settings.gradle.kts 먼저 업데이트 (PREREQUISITE)
+### T12a. ⚠️ settings.gradle.kts — 신규 모듈 추가만 (PREREQUISITE)
 - **Complexity**: low
 - **Files**: `settings.gradle.kts`
-- **Action**: `leader-spring-boot-common`, `leader-spring-boot3`, `leader-spring-boot4` 제거, `leader-spring-boot` 추가. **이 작업 없이 `./gradlew :leader-spring-boot:build`는 모듈을 인식하지 못함.**
-- **Verify**: `./gradlew projects` 출력에서 `:leader-spring-boot` 확인, 구 3개 모듈 없음.
+- **Action**: `include(":leader-spring-boot")` 한 줄만 추가. **구 3개 모듈(`leader-spring-boot-common`, `leader-spring-boot3`, `leader-spring-boot4`)은 아직 제거하지 않는다.** BOM이 구 모듈을 `project(...)` 참조하므로 settings에서 먼저 제거하면 Gradle 프로젝트 평가가 실패한다. 구 모듈 제거는 Phase I (T37_cleanup)에서 BOM과 동시에 처리한다.
+- **Verify**: `./gradlew projects` 출력에 `:leader-spring-boot` 포함 확인. 구 모듈 3개 여전히 존재.
+
+### T12b. ⚠️ leader-bom에 신규 모듈 제약 추가 (BOM atomicity)
+- **Complexity**: low
+- **Files**: `leader-bom/build.gradle.kts`
+- **Action**: constraints 블록에 `api(project(":leader-spring-boot"))` 추가. 구 3개 모듈 제약은 아직 유지. 구 모듈 제약 제거는 Phase I (T37_cleanup)에서 settings 제거와 동시에 처리.
+- **Verify**: `./gradlew :leader-bom:build` 성공; BOM에 `:leader-spring-boot` 포함.
+
+### T12c. ⚠️ CTW 단독 동작 검증 (CRITICAL proof task)
+- **Complexity**: medium
+- **Files**: `leader-spring-boot4/src/main/kotlin/.../aop/autoconfigure/LeaderAopAutoConfiguration.kt` (임시 수정)
+- **Action**: 기존 boot4 모듈에서 `@EnableAspectJAutoProxy`를 **임시로** 주석 처리한 뒤 `./gradlew :leader-spring-boot4:test`를 실행한다.
+  - 테스트 통과 → CTW weaving이 Spring `@Bean` aspect와 정상 동작. `@EnableAspectJAutoProxy` 제거해도 안전.
+  - 테스트 실패 → 현재 weaving은 Spring AOP 의존. 다음 해결책 중 하나 선택 후 진행:
+    - **Option A (권장)**: `@Aspect`에 `@Component` 추가 + AutoConfig에서 `@Bean` 직접 등록 제거 → CTW가 Spring-managed singleton 사용
+    - **Option B**: `@Configuration(proxyBeanMethods = false)` + `@SpringBeanAutowiredFields` / `@Configurable` 방식
+  - 결과를 plan 노트에 기록 후 Phase E T31 전에 전략 확정.
+- **Verify**: 테스트 pass/fail 결과 + aspect advice 실제 실행 여부 log 확인 (`DEBUG io.bluetape4k.leader.spring.aop.LeaderElectionAspect`). 검증 후 `@EnableAspectJAutoProxy` 주석 원복.
 
 ### T12. Create directory structure for leader-spring-boot
 - **Complexity**: low
@@ -317,10 +334,11 @@ All paths below are relative to the repo root: `/Users/debop/work/worktrees/blue
 - **Action**: No move. These are listed as deleted in spec §2.2 (Boot 4 incompat / no inheritors). Their tests are also deleted in T34.
 - **Verify**: `ls leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/health/` does not exist; `ls .../config/LeaderElectionConfigSupport.kt` does not exist.
 
-### T27a. ⚠️ Phase D compile checkpoint (MANDATORY before Phase E)
+### T27a. ⚠️ Phase D common-source compile checkpoint (MANDATORY before Phase E)
 - **Complexity**: low
 - **Files**: none (verification only)
-- **Action**: `./gradlew :leader-spring-boot:compileKotlin`. Phase D에서 10개 소스 파일을 이동했으므로, Phase E 시작 전에 모든 import가 해결되어 있는지 확인한다. 컴파일 오류 발생 시 Phase E로 넘어가지 말고 해당 파일로 돌아가 수정한다.
+- **Action**: `./gradlew :leader-spring-boot:compileKotlin`. Phase D에서 common 소스 파일을 이동했으므로, Phase E 시작 전에 모든 import가 해결되어 있는지 확인한다. 컴파일 오류 발생 시 Phase E로 넘어가지 말고 해당 파일로 돌아가 수정한다.
+  - 이 checkpoint는 common 소스(T18–T27)에 대한 검증만 수행. AutoConfiguration.imports, CTW 동작, boot4 소스 이동은 T32a에서 별도 확인.
 - **Verify**: `compileKotlin` task BUILD SUCCESSFUL; `ide_diagnostics` returns zero unresolved imports for all files moved in T18–T27.
 
 ---
@@ -352,6 +370,7 @@ All paths below are relative to the repo root: `/Users/debop/work/worktrees/blue
      - `io.bluetape4k.leader.spring.aop.LeaderAspectFailureMode` → `io.bluetape4k.leader.annotation.LeaderAspectFailureMode`
      - `io.bluetape4k.leader.spring.aop.metrics.LeaderAopMetricsRecorder` → `io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder`
      - `io.bluetape4k.leader.spring.aop.metrics.SkipReason` → `io.bluetape4k.leader.metrics.SkipReason`
+- **Note — local factory condition policy**: `LeaderAopFactoryAutoConfiguration`의 local factory beans (`localLeaderElectionFactory`, `localLeaderGroupElectionFactory`)은 name-based `@ConditionalOnMissingBean(name = [...])` 사용 중. Spec §3.2가 "type-based @ConditionalOnMissingBean" 으로 잘못 기술되어 있으나, **현재 동작(name-based, 항상 등록)을 그대로 유지**한다. Local과 backend factory가 공존하며 `LeaderBeanSelector`가 런타임에 적절한 factory를 선택한다. Spec §3.2는 T39에서 수정 문서화한다.
 - **Verify**: After all moves, `rg "io\.bluetape4k\.leader\.spring\.boot4" leader-spring-boot/` returns 0; `ide_diagnostics` clean per file.
 
 ### T30. Rename class `Boot4LeaderProperties` → `LeaderProperties` (all references)
@@ -375,6 +394,15 @@ All paths below are relative to the repo root: `/Users/debop/work/worktrees/blue
 - **Files**: `LeaderElectionAspect.kt`, `LeaderGroupElectionAspect.kt` (already in new location after T20/T21).
 - **Action**: Re-grep both files to ensure neither contains `io.bluetape4k.leader.spring.aop.LeaderElection` or `LeaderGroupElection` in any string literal. They should reference `io.bluetape4k.leader.annotation.*`.
 - **Verify**: `rg "leader\.spring\.aop\.Leader(Election|GroupElection)" leader-spring-boot/src/main/kotlin/.../aop/Leader*Aspect.kt` returns 0.
+
+### T32a. ⚠️ Phase E post-compile checkpoint + ApplicationContext smoke test
+- **Complexity**: medium
+- **Files**: none (verification only)
+- **Action**:
+  1. `./gradlew :leader-spring-boot:compileKotlin processResources` — boot4 소스 이동 후 전체 컴파일 확인.
+  2. `ApplicationContextRunner` 기반 smoke test 실행 (이미 T35에서 마이그레이션된 테스트 중 `LeaderElectionAutoConfigurationTest.kt`): boot4 소스 이동 후 AutoConfiguration이 정상 로드되는지 확인.
+  3. T12c 결과에 따라 CTW 동작 확인: `DEBUG io.bluetape4k.leader.spring.aop.LeaderElectionAspect` 로그로 advice 실행 1회 검증.
+- **Verify**: 컴파일 성공; `@EnableAspectJAutoProxy` 없이 advice가 1회 실행됨.
 
 ---
 
@@ -411,6 +439,17 @@ All paths below are relative to the repo root: `/Users/debop/work/worktrees/blue
 - **Action**: Delete files (do not move).
 - **Verify**: files no longer present; no orphan imports elsewhere reference these classes.
 
+### T35a. Boot3 테스트 audit (삭제 전 검증)
+- **Complexity**: low
+- **Files**: `leader-spring-boot3/src/test/kotlin/` (read-only scan)
+- **Action**: `fd . leader-spring-boot3/src/test/kotlin/ --extension kt` 로 모든 boot3 테스트 클래스 목록 추출. 각 클래스에 대해 boot4 또는 `leader-spring-boot` 테스트에 동등한 커버리지가 존재하는지 확인. 매핑 테이블 작성:
+  | boot3 test class | boot4/new equivalent | 상태 |
+  |---|---|---|
+  | `LeaderMicrometerAutoConfigurationBoot3Test.kt` | `LeaderMicrometerAutoConfigurationTest.kt` | 대체됨 |
+  | ... | ... | ... |
+  boot4 동등 테스트가 없는 boot3-only 테스트는 이관 후 T36 삭제 대신 `leader-spring-boot`로 이동.
+- **Verify**: 모든 boot3 테스트 클래스가 "대체됨" 또는 "이관" 중 하나로 분류됨. "미분류" 항목 0.
+
 ### T35. Move + rename leader-spring-boot4 tests
 - **Complexity**: low
 - **Files**: per spec §8.3.
@@ -439,30 +478,31 @@ All paths below are relative to the repo root: `/Users/debop/work/worktrees/blue
 
 **Complexity**: low
 
-### T37. Update `settings.gradle.kts`
+### T37. settings.gradle.kts — 이미 Phase C에서 처리됨 (NOTE)
 - **Complexity**: low
-- **Files**:
-  - `settings.gradle.kts`
-- **Action**: Remove `include(":leader-spring-boot-common")`, `include(":leader-spring-boot3")`, `include(":leader-spring-boot4")`. Add `include(":leader-spring-boot")`. Preserve alphabetical or current ordering convention.
-- **Verify**: `./gradlew projects` lists `leader-spring-boot` and not the three old ones.
+- **Action**: `include(":leader-spring-boot")` 추가는 T12a에서 완료됨. 구 모듈 `include` 제거는 **Phase I T37_cleanup에서 물리 디렉터리 삭제(T42-T44)와 동시에** 처리한다. 이 task는 T38 (BOM 최종 정리)과 함께 Phase I로 이동되었다. 이 Phase G 슬롯은 노트로만 남긴다.
+- **Verify**: N/A (실제 작업은 T37_cleanup 참조).
 
-### T38. Update `leader-bom/build.gradle.kts`
+### T38. leader-bom — 이미 Phase C에서 처리됨 (NOTE)
 - **Complexity**: low
-- **Files**:
-  - `leader-bom/build.gradle.kts`
-- **Action**: In the `constraints {}` (or `api` list), remove the three old modules and add `api(project(":leader-spring-boot"))`.
-- **Verify**: `./gradlew :leader-bom:build` succeeds; published BOM shows only the new module.
+- **Action**: `:leader-spring-boot` 제약 추가는 T12b에서 완료됨. 구 모듈 제약 제거는 **Phase I T37_cleanup에서 settings 제거와 동시에** 처리한다. 이 Phase G 슬롯은 노트로만 남긴다.
+- **Verify**: N/A (실제 작업은 T37_cleanup 참조).
 
-### T39. Update `CLAUDE.md` module list + AOP guide
+### T39. Update `CLAUDE.md` module list + AOP guide + spec correction
 - **Complexity**: low
 - **Files**:
   - `CLAUDE.md`
+  - `docs/superpowers/specs/2026-05-05-issue-104-spring-boot4-only-design.md` (spec §3.2 수정)
 - **Action**:
   1. In the **Repository Layout** code block, remove the three old `leader-spring-boot*` lines and add `leader-spring-boot/         # Spring Boot 4 auto-configuration + AOP (Freefair CTW)`.
   2. In **Build Commands**, remove the three old gradle test invocations and add `./gradlew :leader-spring-boot:test`.
   3. In **AOP Annotation Guide → Key rules for annotated methods**: replace the Boot 3 / Boot 4 distinction with a single statement that `open` is no longer required (CTW-only).
   4. In **AutoConfiguration load order**: replace pre-existing block with the spec §3.3 ordering (5 entries).
-- **Verify**: rendered file lists correct modules; no boot3/boot4 references remain.
+  5. Add section **"AOP Factory Beans (Two distinct paths)"**:
+     - **Election backend path**: `LocalLeaderConfiguration` → registers `LocalLeaderElection` / `LocalLeaderGroupElection` beans (application-level default backend, `@ConditionalOnMissingBean` type-based)
+     - **AOP factory path**: `LeaderAopFactoryAutoConfiguration` → registers `{backend}LeaderElectionFactory` / `{backend}LeaderGroupElectionFactory` beans (AOP interceptor glue, name-based `@ConditionalOnMissingBean`). Local factory is always registered alongside backend factories; `LeaderBeanSelector` selects the right one at runtime.
+  6. **Spec §3.2 수정**: "LocalLeaderElectionFactory uses type-level @ConditionalOnMissingBean" 문구를 실제 동작(name-based, 항상 등록)으로 교정.
+- **Verify**: rendered file lists correct modules; no boot3/boot4 references remain; local factory behavior documented accurately.
 
 ---
 
@@ -499,6 +539,17 @@ All paths below are relative to the repo root: `/Users/debop/work/worktrees/blue
 **Goal**: Physically remove the three retired module directories. Only safe AFTER Phases A–H pass and the new module compiles + tests pass against new packages.
 
 **Complexity**: low
+
+### T37_cleanup. ⚠️ settings + BOM 구 모듈 제거 (atomic, BEFORE T42–T44)
+- **Complexity**: low
+- **Files**:
+  - `settings.gradle.kts`
+  - `leader-bom/build.gradle.kts`
+- **Action**: 두 파일을 **같은 커밋**에서 처리한다:
+  1. `settings.gradle.kts`: `include(":leader-spring-boot-common")`, `include(":leader-spring-boot3")`, `include(":leader-spring-boot4")` 세 줄 제거.
+  2. `leader-bom/build.gradle.kts`: constraints 블록에서 구 3개 모듈 `api(project(...))` 제거.
+  - **이유**: settings에서 모듈 제거 후 BOM이 해당 모듈을 `project(...)` 참조하면 Gradle 프로젝트 평가 실패. 두 파일은 반드시 함께 수정해야 한다.
+- **Verify**: `./gradlew projects` 출력에서 구 3개 모듈 없음; `./gradlew :leader-bom:build` 성공.
 
 ### T42. Delete `leader-spring-boot-common/` directory
 - **Complexity**: low
@@ -613,6 +664,9 @@ All paths below are relative to the repo root: `/Users/debop/work/worktrees/blue
 | T9 | B | low | Update `MicrometerLeaderAopMetricsRecorder.kt` imports |
 | T10 | B | low | Update leader-micrometer test imports |
 | T11 | B | low | Build verify: `./gradlew :leader-micrometer:test` |
+| T12a | C | low | ⚠️ settings.gradle.kts — 신규 모듈 추가만 (구 모듈 유지) |
+| T12b | C | low | ⚠️ BOM에 신규 모듈 제약 추가 (구 제약 유지) |
+| T12c | C | medium | ⚠️ CTW 단독 동작 검증 (proof task) |
 | T12 | C | low | Create directory structure for leader-spring-boot |
 | T13 | C | medium | Write `leader-spring-boot/build.gradle.kts` |
 | T14 | C | low | Write `AutoConfiguration.imports` |
@@ -630,20 +684,23 @@ All paths below are relative to the repo root: `/Users/debop/work/worktrees/blue
 | T26 | D | medium | Move `LeaderAnnotationValidatorBeanPostProcessor.kt` + update imports |
 | T27 | D | low | Move `properties/{LeaderElection,LeaderGroup}Properties.kt` |
 | T28 | D | low | Confirm `LeaderAopHealthIndicator` + `LeaderElectionConfigSupport` are NOT moved |
-| T27a | D | low | ⚠️ Phase D compile checkpoint: `compileKotlin` before Phase E |
-| T29 | E | medium | Move + repackage all boot4 sources (drop `boot4` segment) |
+| T27a | D | low | ⚠️ Phase D common-source compile checkpoint |
+| T29 | E | medium | Move + repackage all boot4 sources (drop `boot4` segment); local factory note |
 | T30 | E | medium | Rename class `Boot4LeaderProperties` → `LeaderProperties` |
 | T31 | E | low | Remove `@EnableAspectJAutoProxy` from `LeaderAopAutoConfiguration` ⚠️ |
 | T32 | E | low | Confirm `@Around` pointcut FQCNs are migrated |
+| T32a | E | medium | ⚠️ Phase E post-compile checkpoint + ApplicationContext smoke test |
 | T33 | F | low | Move surviving leader-spring-boot-common tests |
 | T34 | F | low | Delete obsolete common tests (Health + ConfigSupport) |
+| T35a | F | low | ⚠️ Boot3 test audit (삭제 전 매핑 테이블) |
 | T35 | F | low | Move + rename leader-spring-boot4 tests |
-| T36 | F | low | Delete all leader-spring-boot3 tests |
-| T37 | G | low | Update `settings.gradle.kts` |
-| T38 | G | low | Update `leader-bom/build.gradle.kts` |
+| T36 | F | low | Delete all leader-spring-boot3 tests (audit 기반) |
+| T37 | G | low | settings — Phase C T12a에서 처리됨 (note only) |
+| T38 | G | low | BOM — Phase C T12b에서 처리됨 (note only) |
 | T39 | G | low | Update `CLAUDE.md` module list + AOP guide |
 | T40 | H | low | Update `.github/workflows/ci.yml` |
 | T41 | H | low | Update `.github/workflows/nightly.yml` |
+| T37_cleanup | I | low | ⚠️ settings + BOM 구 모듈 제거 (atomic) |
 | T42 | I | low | Delete `leader-spring-boot-common/` |
 | T43 | I | low | Delete `leader-spring-boot3/` |
 | T44 | I | low | Delete `leader-spring-boot4/` |
