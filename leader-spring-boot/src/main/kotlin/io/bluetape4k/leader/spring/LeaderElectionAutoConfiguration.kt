@@ -1,6 +1,6 @@
 package io.bluetape4k.leader.spring
 
-import io.bluetape4k.leader.LeaderElection
+import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.spring.backend.ExposedJdbcLeaderConfiguration
 import io.bluetape4k.leader.spring.backend.ExposedR2dbcLeaderConfiguration
 import io.bluetape4k.leader.spring.backend.HazelcastLeaderConfiguration
@@ -25,7 +25,7 @@ import org.springframework.context.annotation.Import
  * @see LeaderProperties yaml `bluetape4k.leader.*` 속성 바인딩
  */
 @AutoConfiguration
-@ConditionalOnClass(LeaderElection::class)
+@ConditionalOnClass(LeaderElector::class)
 @EnableConfigurationProperties(LeaderProperties::class)
 @Import(
     RedissonLeaderConfiguration::class,

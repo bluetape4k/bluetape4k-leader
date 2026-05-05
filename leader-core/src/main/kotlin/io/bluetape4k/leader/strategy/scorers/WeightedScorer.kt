@@ -2,6 +2,7 @@ package io.bluetape4k.leader.strategy.scorers
 
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateScorer
+import io.bluetape4k.support.requireNotEmpty
 
 /**
  * 복수의 [CandidateScorer] 에 가중치를 적용해 합산하는 복합 scorer 입니다.
@@ -20,7 +21,7 @@ class WeightedScorer(
 ) : CandidateScorer {
 
     init {
-        require(scorers.isNotEmpty()) { "WeightedScorer requires at least one scorer" }
+        scorers.requireNotEmpty("scorers")
         require(scorers.all { (_, w) -> w > 0.0 }) {
             "All scorer weights must be positive: ${scorers.map { it.second }}"
         }

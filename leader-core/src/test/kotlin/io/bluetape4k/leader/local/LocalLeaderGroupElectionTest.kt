@@ -27,7 +27,7 @@ class LocalLeaderGroupElectionTest {
 
     private val maxLeaders = 3
     private val options = LeaderGroupElectionOptions(maxLeaders)
-    private val election = LocalLeaderGroupElection(options)
+    private val election = LocalLeaderGroupElector(options)
 
     private fun randomLockName() = "lock-${Base58.randomString(8)}"
 
@@ -66,7 +66,7 @@ class LocalLeaderGroupElectionTest {
 
     @Test
     fun `maxLeaders=1 이면 LeaderElection 과 동일하게 직렬 실행된다`() {
-        val singleElection = LocalLeaderGroupElection(LeaderGroupElectionOptions(1))
+        val singleElection = LocalLeaderGroupElector(LeaderGroupElectionOptions(1))
         val lockName = randomLockName()
         val counter = AtomicInteger(0)
         val numThreads = 6
@@ -220,7 +220,7 @@ class LocalLeaderGroupElectionTest {
 
     @Test
     fun `runIfLeader - waitTime 내 슬롯 획득 실패 시 null 을 반환한다`() {
-        val skipElection = LocalLeaderGroupElection(
+        val skipElection = LocalLeaderGroupElector(
             LeaderGroupElectionOptions(maxLeaders = 1, waitTime = Duration.ofMillis(100))
         )
         val lockName = randomLockName()
@@ -248,7 +248,7 @@ class LocalLeaderGroupElectionTest {
 
     @Test
     fun `runIfLeader - 슬롯 해제 후 재시도 시 정상 실행된다`() {
-        val shortWaitElection = LocalLeaderGroupElection(
+        val shortWaitElection = LocalLeaderGroupElector(
             LeaderGroupElectionOptions(maxLeaders = 1, waitTime = Duration.ofMillis(100))
         )
         val lockName = randomLockName()

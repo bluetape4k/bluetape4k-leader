@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.spring.aop
 
-import io.bluetape4k.leader.LeaderElection as CoreLeaderElection
+import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectionException
-import io.bluetape4k.leader.LeaderElectionFactory
+import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.leader.annotation.LeaderElection
@@ -58,7 +58,7 @@ class LeaderElectionAspect(
     private val metadataCache = ConcurrentHashMap<Method, AdviceMetadata>()
 
     /** [C1][R-26] FactoryCacheKey 기반 cross-backend collision-safe 캐싱. */
-    private val factoryCache = ConcurrentHashMap<FactoryCacheKey, CoreLeaderElection>()
+    private val factoryCache = ConcurrentHashMap<FactoryCacheKey, LeaderElector>()
 
     /** [Perf-1] recorder 0개일 때 fast-path 활성화. */
     private val hasRecorders = recorders.isNotEmpty()
@@ -210,7 +210,7 @@ class LeaderElectionAspect(
         val literalName: String?,
         val options: LeaderElectionOptions,
         val factoryBeanName: String,
-        val factory: LeaderElectionFactory,
+        val factory: LeaderElectorFactory,
         val failureMode: LeaderAspectFailureMode,
         val leaseTimeWarnThresholdNanos: Long,
     )

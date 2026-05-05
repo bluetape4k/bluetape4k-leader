@@ -3,6 +3,7 @@ package io.bluetape4k.leader.exposed.jdbc
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.exposed.ExposedLeaderConstants
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
+import io.bluetape4k.support.requireLe
 import java.io.Serializable
 
 /**
@@ -35,9 +36,7 @@ data class ExposedJdbcLeaderElectionOptions(
 
     init {
         lockOwner?.let {
-            require(it.length <= ExposedLeaderConstants.LOCK_OWNER_LENGTH) {
-                "lockOwner must be <= ${ExposedLeaderConstants.LOCK_OWNER_LENGTH} chars, but was ${it.length}"
-            }
+            it.length.requireLe(ExposedLeaderConstants.LOCK_OWNER_LENGTH, "lockOwner.length")
         }
     }
 

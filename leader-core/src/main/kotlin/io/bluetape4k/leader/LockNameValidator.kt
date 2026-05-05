@@ -1,5 +1,8 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.support.requireLe
+import io.bluetape4k.support.requireNotBlank
+
 /**
  * lockName의 공통 최소 검증.
  *
@@ -19,8 +22,8 @@ private val LOCK_NAME_PATTERN = Regex("^[a-zA-Z0-9][a-zA-Z0-9_\\-:]{0,254}$")
  * 규칙 위반 시 [IllegalArgumentException] 발생.
  */
 fun validateLockName(lockName: String) {
-    require(lockName.isNotBlank()) { "lockName must not be blank" }
-    require(lockName.length <= 255) { "lockName must not exceed 255 characters: length=${lockName.length}" }
+    lockName.requireNotBlank("lockName")
+    lockName.length.requireLe(255, "lockName.length")
     require(LOCK_NAME_PATTERN.matches(lockName)) {
         "lockName contains invalid characters. Allowed: [a-zA-Z0-9_\\-:], first char must be alphanumeric, got: $lockName"
     }

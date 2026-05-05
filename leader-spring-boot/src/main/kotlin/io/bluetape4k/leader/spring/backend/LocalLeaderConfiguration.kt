@@ -1,13 +1,13 @@
 package io.bluetape4k.leader.spring.backend
 
-import io.bluetape4k.leader.LeaderElection
-import io.bluetape4k.leader.LeaderGroupElection
-import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElection
-import io.bluetape4k.leader.coroutines.LocalSuspendLeaderGroupElection
-import io.bluetape4k.leader.coroutines.SuspendLeaderElection
-import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElection
-import io.bluetape4k.leader.local.LocalLeaderElection
-import io.bluetape4k.leader.local.LocalLeaderGroupElection
+import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.LeaderGroupElector
+import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
+import io.bluetape4k.leader.coroutines.LocalSuspendLeaderGroupElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.local.LocalLeaderElector
+import io.bluetape4k.leader.local.LocalLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderElectionAutoConfiguration
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
@@ -29,22 +29,22 @@ import org.springframework.context.annotation.Bean
 class LocalLeaderConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean(LeaderElection::class)
-    fun localLeaderElection(props: LeaderProperties): LeaderElection =
-        LocalLeaderElection(PropertiesAdapter.toCommonElection(props))
+    @ConditionalOnMissingBean(LeaderElector::class)
+    fun localLeaderElection(props: LeaderProperties): LeaderElector =
+        LocalLeaderElector(PropertiesAdapter.toCommonElection(props))
 
     @Bean
-    @ConditionalOnMissingBean(SuspendLeaderElection::class)
-    fun localSuspendLeaderElection(props: LeaderProperties): SuspendLeaderElection =
-        LocalSuspendLeaderElection(PropertiesAdapter.toCommonElection(props))
+    @ConditionalOnMissingBean(SuspendLeaderElector::class)
+    fun localSuspendLeaderElection(props: LeaderProperties): SuspendLeaderElector =
+        LocalSuspendLeaderElector(PropertiesAdapter.toCommonElection(props))
 
     @Bean
-    @ConditionalOnMissingBean(LeaderGroupElection::class)
-    fun localLeaderGroupElection(props: LeaderProperties): LeaderGroupElection =
-        LocalLeaderGroupElection(PropertiesAdapter.toCommonGroup(props))
+    @ConditionalOnMissingBean(LeaderGroupElector::class)
+    fun localLeaderGroupElection(props: LeaderProperties): LeaderGroupElector =
+        LocalLeaderGroupElector(PropertiesAdapter.toCommonGroup(props))
 
     @Bean
-    @ConditionalOnMissingBean(SuspendLeaderGroupElection::class)
-    fun localSuspendLeaderGroupElection(props: LeaderProperties): SuspendLeaderGroupElection =
-        LocalSuspendLeaderGroupElection(PropertiesAdapter.toCommonGroup(props))
+    @ConditionalOnMissingBean(SuspendLeaderGroupElector::class)
+    fun localSuspendLeaderGroupElection(props: LeaderProperties): SuspendLeaderGroupElector =
+        LocalSuspendLeaderGroupElector(PropertiesAdapter.toCommonGroup(props))
 }

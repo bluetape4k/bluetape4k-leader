@@ -2,6 +2,7 @@ package io.bluetape4k.leader.exposed.r2dbc.lock
 
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
+import io.bluetape4k.support.requireZeroOrPositiveNumber
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -52,7 +53,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
     private val lockOwner: String? = null,
 ) {
     init {
-        require(slot >= 0) { "slot must be >= 0: $slot" }
+        slot.requireZeroOrPositiveNumber("slot")
     }
 
     companion object: KLoggingChannel()

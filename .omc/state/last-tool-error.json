@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"/opt/homebrew/bin/rg -n \\\"invoking\\\\|shouldThrow\\\" /Users/debop/work/bluetape4k/bluetape4k-leader/.worktrees/refactor/100-leader-elector/leader-core/src/test/kotlin/io/bluetape4k/leader/st...",
+  "error": "Exit code 1",
+  "timestamp": "2026-05-05T13:49:55.575Z",
+  "retry_count": 1
+}

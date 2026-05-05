@@ -1,9 +1,9 @@
 package io.bluetape4k.leader.spring.backend
 
-import io.bluetape4k.leader.redisson.RedissonLeaderElection
-import io.bluetape4k.leader.redisson.RedissonLeaderGroupElection
-import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElection
-import io.bluetape4k.leader.redisson.RedissonSuspendLeaderGroupElection
+import io.bluetape4k.leader.redisson.RedissonLeaderElector
+import io.bluetape4k.leader.redisson.RedissonLeaderGroupElector
+import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector
+import io.bluetape4k.leader.redisson.RedissonSuspendLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
 import org.redisson.api.RedissonClient
@@ -28,30 +28,30 @@ class RedissonLeaderConfiguration {
     fun redissonLeaderElection(
         client: RedissonClient,
         props: LeaderProperties,
-    ): RedissonLeaderElection =
-        RedissonLeaderElection(client, PropertiesAdapter.toCommonElection(props))
+    ): RedissonLeaderElector =
+        RedissonLeaderElector(client, PropertiesAdapter.toCommonElection(props))
 
     @Bean
     @ConditionalOnMissingBean(name = ["redissonSuspendLeaderElection"])
     fun redissonSuspendLeaderElection(
         client: RedissonClient,
         props: LeaderProperties,
-    ): RedissonSuspendLeaderElection =
-        RedissonSuspendLeaderElection(client, PropertiesAdapter.toCommonElection(props))
+    ): RedissonSuspendLeaderElector =
+        RedissonSuspendLeaderElector(client, PropertiesAdapter.toCommonElection(props))
 
     @Bean
     @ConditionalOnMissingBean(name = ["redissonLeaderGroupElection"])
     fun redissonLeaderGroupElection(
         client: RedissonClient,
         props: LeaderProperties,
-    ): RedissonLeaderGroupElection =
-        RedissonLeaderGroupElection(client, PropertiesAdapter.toCommonGroup(props))
+    ): RedissonLeaderGroupElector =
+        RedissonLeaderGroupElector(client, PropertiesAdapter.toCommonGroup(props))
 
     @Bean
     @ConditionalOnMissingBean(name = ["redissonSuspendLeaderGroupElection"])
     fun redissonSuspendLeaderGroupElection(
         client: RedissonClient,
         props: LeaderProperties,
-    ): RedissonSuspendLeaderGroupElection =
-        RedissonSuspendLeaderGroupElection(client, PropertiesAdapter.toCommonGroup(props))
+    ): RedissonSuspendLeaderGroupElector =
+        RedissonSuspendLeaderGroupElector(client, PropertiesAdapter.toCommonGroup(props))
 }

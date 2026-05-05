@@ -16,9 +16,9 @@ internal object LettuceCandidateInfoCodec {
         val meta = info.metadata.entries
             .joinToString(",") { (k, v) -> "${k.esc()}=${v.esc()}" }
         return "${info.nodeId.esc()}|${info.registeredAt.toEpochMilli()}|" +
-            "${info.lastStartTime?.toEpochMilli() ?: ""}|" +
-            "${info.lastCompletionTime?.toEpochMilli() ?: ""}|" +
-            "${info.successCount}|${info.failureCount}|$meta"
+                "${info.lastStartTime?.toEpochMilli() ?: ""}|" +
+                "${info.lastCompletionTime?.toEpochMilli() ?: ""}|" +
+                "${info.successCount}|${info.failureCount}|$meta"
     }
 
     fun decode(encoded: String): CandidateInfo {

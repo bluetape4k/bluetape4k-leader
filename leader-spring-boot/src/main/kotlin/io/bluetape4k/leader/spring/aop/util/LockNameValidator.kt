@@ -1,5 +1,9 @@
 package io.bluetape4k.leader.spring.aop.util
 
+import io.bluetape4k.support.requireLe
+import io.bluetape4k.support.requireNotBlank
+import io.bluetape4k.support.requirePositiveNumber
+
 /**
  * AOP 어노테이션 lock name 검증 + 자동 prefix 적용.
  *
@@ -28,7 +32,7 @@ class LockNameValidator(
     val maxLength: Int = DEFAULT_MAX_LENGTH,
 ) {
     init {
-        require(maxLength > 0) { "maxLength must be positive: $maxLength" }
+        maxLength.requirePositiveNumber("maxLength")
     }
 
     /**
@@ -37,10 +41,8 @@ class LockNameValidator(
      * @throws IllegalArgumentException 위반 시
      */
     fun validate(name: String) {
-        require(name.isNotBlank()) { "lock name must not be blank" }
-        require(name.length <= maxLength) {
-            "lock name must not exceed $maxLength characters: length=${name.length}"
-        }
+        name.requireNotBlank("name")
+        name.length.requireLe(maxLength, "name.length")
         require(NAME_PATTERN.matches(name)) {
             "lock name contains invalid characters. Allowed: [A-Za-z0-9_:.\\-], got: '$name'"
         }

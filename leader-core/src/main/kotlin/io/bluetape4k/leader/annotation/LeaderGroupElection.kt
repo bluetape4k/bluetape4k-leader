@@ -21,7 +21,7 @@ package io.bluetape4k.leader.annotation
  * @property maxLeaders 동시 리더 수 (≥2 필수). ≤1 시 startup fail
  * @property waitTime 슬롯 획득 대기 시간 — 빈 문자열 시 property 또는 코어 default 폴백
  * @property leaseTime 슬롯 보유 시간 — 빈 문자열 시 property 또는 코어 default 폴백
- * @property bean 사용할 [io.bluetape4k.leader.LeaderGroupElectionFactory] 빈 이름 (literal only)
+ * @property bean 사용할 [io.bluetape4k.leader.LeaderGroupElectorFactory] 빈 이름 (literal only)
  * @property failureMode 백엔드 예외 처리 정책. default `RETHROW`
  *
  * @see LeaderElection 단일 리더 변형

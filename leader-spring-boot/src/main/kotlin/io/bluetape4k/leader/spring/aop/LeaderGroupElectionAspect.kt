@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.spring.aop
 
-import io.bluetape4k.leader.LeaderGroupElection as CoreLeaderGroupElection
+import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupElectionException
-import io.bluetape4k.leader.LeaderGroupElectionFactory
+import io.bluetape4k.leader.LeaderGroupElectorFactory
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.leader.annotation.LeaderGroupElection
@@ -17,6 +17,7 @@ import io.bluetape4k.leader.spring.aop.util.LockNameValidator
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
+import io.bluetape4k.support.requireGe
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.Around
 import org.aspectj.lang.annotation.Aspect
@@ -43,7 +44,7 @@ class LeaderGroupElectionAspect(
 ) : SmartInitializingSingleton {
 
     private val metadataCache = ConcurrentHashMap<Method, GroupAdviceMetadata>()
-    private val factoryCache = ConcurrentHashMap<GroupFactoryCacheKey, CoreLeaderGroupElection>()
+    private val factoryCache = ConcurrentHashMap<GroupFactoryCacheKey, LeaderGroupElector>()
     private val hasRecorders = recorders.isNotEmpty()
 
     @Around("@annotation(io.bluetape4k.leader.annotation.LeaderGroupElection)")
@@ -147,9 +148,7 @@ class LeaderGroupElectionAspect(
         val ann = AnnotationLookup.findAnnotationWithTargetFallback(method, target, LeaderGroupElection::class.java)
             ?: error("@LeaderGroupElection not found on ${method.declaringClass.name}#${method.name}")
 
-        require(ann.maxLeaders >= 2) {
-            "@LeaderGroupElection.maxLeaders must be >= 2 on ${method.declaringClass.name}#${method.name}, got ${ann.maxLeaders}"
-        }
+        ann.maxLeaders.requireGe(2, "ann.maxLeaders")
 
         val waitTime = DurationParser.parseOrDefault(ann.waitTime, props.defaultWaitTime)
         val leaseTime = DurationParser.parseOrDefault(ann.leaseTime, props.defaultLeaseTime)
@@ -195,7 +194,7 @@ class LeaderGroupElectionAspect(
         val literalName: String?,
         val options: LeaderGroupElectionOptions,
         val factoryBeanName: String,
-        val factory: LeaderGroupElectionFactory,
+        val factory: LeaderGroupElectorFactory,
         val failureMode: LeaderAspectFailureMode,
         val leaseTimeWarnThresholdNanos: Long,
     )

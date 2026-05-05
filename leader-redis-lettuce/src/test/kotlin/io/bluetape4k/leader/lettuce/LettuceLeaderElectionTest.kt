@@ -20,12 +20,12 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
 
     private val options = LeaderElectionOptions(waitTime = Duration.ofSeconds(2), Duration.ofSeconds(10))
 
-    private lateinit var election: LettuceLeaderElection
+    private lateinit var election: LettuceLeaderElector
     private lateinit var lockName: String
 
     @BeforeEach
     fun setup() {
-        election = LettuceLeaderElection(connection, options)
+        election = LettuceLeaderElector(connection, options)
         lockName = randomName()
     }
 
@@ -93,7 +93,7 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `MultithreadingTester - 동시 리더 선출 상호 배제 검증`() {
-        val el = LettuceLeaderElection(connection, options)
+        val el = LettuceLeaderElector(connection, options)
         val concurrent = AtomicInteger(0)
         val maxConcurrent = AtomicInteger(0)
         val executed = AtomicInteger(0)
@@ -118,7 +118,7 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `MultithreadingTester - 동시 비동기 리더 선출 안정성`() {
-        val el = LettuceLeaderElection(connection, options)
+        val el = LettuceLeaderElector(connection, options)
         val executed = AtomicInteger(0)
 
         MultithreadingTester()
@@ -142,7 +142,7 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `StructuredTaskScopeTester - 동시 리더 선출 상호 배제 검증`() {
-        val el = LettuceLeaderElection(connection, options)
+        val el = LettuceLeaderElector(connection, options)
         val concurrent = AtomicInteger(0)
         val maxConcurrent = AtomicInteger(0)
         val executed = AtomicInteger(0)

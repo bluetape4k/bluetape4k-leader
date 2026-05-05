@@ -27,7 +27,7 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
 
     @Test
     fun `runIfLeader - 리더로 선출되어 action 을 실행하고 결과를 반환한다`() {
-        val election = HazelcastLeaderElection(hazelcastClient)
+        val election = HazelcastLeaderElector(hazelcastClient)
         val result = election.runIfLeader(randomName()) { "hello" }
         result shouldBeEqualTo "hello"
     }
@@ -39,7 +39,7 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
             waitTime = Duration.ofMillis(100),
             leaseTime = Duration.ofSeconds(5),
         )
-        val election = HazelcastLeaderElection(hazelcastClient, shortWaitOptions)
+        val election = HazelcastLeaderElector(hazelcastClient, shortWaitOptions)
         val lockAcquired = CountDownLatch(1)
         val releaseLock = CountDownLatch(1)
         val holder = Executors.newSingleThreadExecutor()
@@ -64,7 +64,7 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
     @Test
     fun `runIfLeader - 멀티스레드 환경에서 순차적으로 leader 작업이 실행된다`() {
         val lockName = randomName()
-        val election = HazelcastLeaderElection(hazelcastClient)
+        val election = HazelcastLeaderElector(hazelcastClient)
         val task1 = AtomicInteger(0)
         val task2 = AtomicInteger(0)
         val numThreads = 8
@@ -97,7 +97,7 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
     @Test
     fun `runIfLeader - Virtual Thread 환경에서 순차적으로 leader 작업이 실행된다`() {
         val lockName = randomName()
-        val election = HazelcastLeaderElection(hazelcastClient)
+        val election = HazelcastLeaderElector(hazelcastClient)
         val task1 = AtomicInteger(0)
         val task2 = AtomicInteger(0)
 
@@ -126,7 +126,7 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
     @Test
     fun `runAsyncIfLeader - 리더로 선출되어 비동기 action 을 실행하고 결과를 반환한다`() {
         val lockName = randomName()
-        val election = HazelcastLeaderElection(hazelcastClient)
+        val election = HazelcastLeaderElector(hazelcastClient)
         val latch = CountDownLatch(2)
 
         val future1 = futureOf {
@@ -158,7 +158,7 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
     fun `runAsyncIfLeader - action 실패 후에도 lock 이 해제되어 다음 호출이 성공한다`() {
         val lockName = randomName()
         val options = LeaderElectionOptions(waitTime = Duration.ofSeconds(2), leaseTime = Duration.ofSeconds(10))
-        val election = HazelcastLeaderElection(hazelcastClient, options)
+        val election = HazelcastLeaderElector(hazelcastClient, options)
 
         runCatching {
             election.runAsyncIfLeader(lockName) {
@@ -174,7 +174,7 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
     @Test
     fun `runAsyncIfLeader - 멀티스레드 환경에서 순차적으로 비동기 leader 작업이 실행된다`() {
         val lockName = randomName()
-        val election = HazelcastLeaderElection(hazelcastClient)
+        val election = HazelcastLeaderElector(hazelcastClient)
         val task1 = AtomicInteger(0)
         val task2 = AtomicInteger(0)
         val numThreads = 8
@@ -209,7 +209,7 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
     @Test
     fun `runAsyncIfLeader - Virtual Thread 환경에서 순차적으로 비동기 leader 작업이 실행된다`() {
         val lockName = randomName()
-        val election = HazelcastLeaderElection(hazelcastClient)
+        val election = HazelcastLeaderElector(hazelcastClient)
         val task1 = AtomicInteger(0)
         val task2 = AtomicInteger(0)
 

@@ -3,7 +3,7 @@ package io.bluetape4k.leader
 /**
  * 리더 그룹 선출의 상태 조회 메서드를 정의하는 공통 인터페이스입니다.
  *
- * [AsyncLeaderGroupElection], [LeaderGroupElection], [VirtualThreadLeaderGroupElection] 등
+ * [AsyncLeaderGroupElector], [LeaderGroupElector], [VirtualThreadLeaderGroupElector] 등
  * 모든 리더 그룹 선출 인터페이스가 이 인터페이스를 상속하여 상태 조회 메서드를 공유합니다.
  *
  * ```kotlin

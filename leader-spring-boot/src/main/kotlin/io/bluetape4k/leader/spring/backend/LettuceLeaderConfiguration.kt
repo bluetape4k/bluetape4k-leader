@@ -1,9 +1,9 @@
 package io.bluetape4k.leader.spring.backend
 
-import io.bluetape4k.leader.lettuce.LettuceLeaderElection
-import io.bluetape4k.leader.lettuce.LettuceLeaderGroupElection
-import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderElection
-import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderGroupElection
+import io.bluetape4k.leader.lettuce.LettuceLeaderElector
+import io.bluetape4k.leader.lettuce.LettuceLeaderGroupElector
+import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderElector
+import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
 import io.lettuce.core.api.StatefulRedisConnection
@@ -28,30 +28,30 @@ class LettuceLeaderConfiguration {
     fun lettuceLeaderElection(
         connection: StatefulRedisConnection<String, String>,
         props: LeaderProperties,
-    ): LettuceLeaderElection =
-        LettuceLeaderElection(connection, PropertiesAdapter.toCommonElection(props))
+    ): LettuceLeaderElector =
+        LettuceLeaderElector(connection, PropertiesAdapter.toCommonElection(props))
 
     @Bean
     @ConditionalOnMissingBean(name = ["lettuceSuspendLeaderElection"])
     fun lettuceSuspendLeaderElection(
         connection: StatefulRedisConnection<String, String>,
         props: LeaderProperties,
-    ): LettuceSuspendLeaderElection =
-        LettuceSuspendLeaderElection(connection, PropertiesAdapter.toCommonElection(props))
+    ): LettuceSuspendLeaderElector =
+        LettuceSuspendLeaderElector(connection, PropertiesAdapter.toCommonElection(props))
 
     @Bean
     @ConditionalOnMissingBean(name = ["lettuceLeaderGroupElection"])
     fun lettuceLeaderGroupElection(
         connection: StatefulRedisConnection<String, String>,
         props: LeaderProperties,
-    ): LettuceLeaderGroupElection =
-        LettuceLeaderGroupElection(connection, PropertiesAdapter.toCommonGroup(props))
+    ): LettuceLeaderGroupElector =
+        LettuceLeaderGroupElector(connection, PropertiesAdapter.toCommonGroup(props))
 
     @Bean
     @ConditionalOnMissingBean(name = ["lettuceSuspendLeaderGroupElection"])
     fun lettuceSuspendLeaderGroupElection(
         connection: StatefulRedisConnection<String, String>,
         props: LeaderProperties,
-    ): LettuceSuspendLeaderGroupElection =
-        LettuceSuspendLeaderGroupElection(connection, PropertiesAdapter.toCommonGroup(props))
+    ): LettuceSuspendLeaderGroupElector =
+        LettuceSuspendLeaderGroupElector(connection, PropertiesAdapter.toCommonGroup(props))
 }

@@ -1,8 +1,8 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.codec.Base58
-import io.bluetape4k.leader.local.LocalAsyncLeaderGroupElection
-import io.bluetape4k.leader.local.LocalLeaderGroupElection
+import io.bluetape4k.leader.local.LocalAsyncLeaderGroupElector
+import io.bluetape4k.leader.local.LocalLeaderGroupElector
 import io.bluetape4k.logging.KLogging
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeFalse
@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 /**
  * [LeaderGroupElectionState] 인터페이스 계약을 검증하는 테스트입니다.
  *
- * [LocalLeaderGroupElection]과 [LocalAsyncLeaderGroupElection] 구현체를 통해
+ * [LocalLeaderGroupElector]과 [LocalAsyncLeaderGroupElector] 구현체를 통해
  * [LeaderGroupElectionState]의 상태 조회 메서드([activeCount], [availableSlots], [state])를 검증합니다.
  */
 class LeaderGroupElectionStateTest {
@@ -31,21 +31,21 @@ class LeaderGroupElectionStateTest {
 
     @Test
     fun `activeCount - 초기 상태에서 0을 반환한다 (sync 구현체)`() {
-        val election: LeaderGroupElectionState = LocalLeaderGroupElection(options)
+        val election: LeaderGroupElectionState = LocalLeaderGroupElector(options)
         val lockName = randomLockName()
         election.activeCount(lockName) shouldBeEqualTo 0
     }
 
     @Test
     fun `availableSlots - 초기 상태에서 maxLeaders 를 반환한다 (sync 구현체)`() {
-        val election: LeaderGroupElectionState = LocalLeaderGroupElection(options)
+        val election: LeaderGroupElectionState = LocalLeaderGroupElector(options)
         val lockName = randomLockName()
         election.availableSlots(lockName) shouldBeEqualTo maxLeaders
     }
 
     @Test
     fun `state - 초기 상태 스냅샷이 정확하다 (sync 구현체)`() {
-        val election: LeaderGroupElectionState = LocalLeaderGroupElection(options)
+        val election: LeaderGroupElectionState = LocalLeaderGroupElector(options)
         val lockName = randomLockName()
         val state = election.state(lockName)
 
@@ -59,7 +59,7 @@ class LeaderGroupElectionStateTest {
 
     @Test
     fun `state - 슬롯 점유 중 activeCount 가 증가한다 (sync 구현체)`() {
-        val election = LocalLeaderGroupElection(options)
+        val election = LocalLeaderGroupElector(options)
         val lockName = randomLockName()
         val startLatch = CountDownLatch(2)
         val holdLatch = CountDownLatch(1)
@@ -88,21 +88,21 @@ class LeaderGroupElectionStateTest {
 
     @Test
     fun `activeCount - 초기 상태에서 0을 반환한다 (async 구현체)`() {
-        val election: LeaderGroupElectionState = LocalAsyncLeaderGroupElection(options)
+        val election: LeaderGroupElectionState = LocalAsyncLeaderGroupElector(options)
         val lockName = randomLockName()
         election.activeCount(lockName) shouldBeEqualTo 0
     }
 
     @Test
     fun `availableSlots - 초기 상태에서 maxLeaders 를 반환한다 (async 구현체)`() {
-        val election: LeaderGroupElectionState = LocalAsyncLeaderGroupElection(options)
+        val election: LeaderGroupElectionState = LocalAsyncLeaderGroupElector(options)
         val lockName = randomLockName()
         election.availableSlots(lockName) shouldBeEqualTo maxLeaders
     }
 
     @Test
     fun `state - maxLeaders 프로퍼티가 올바르다`() {
-        val election: LeaderGroupElectionState = LocalLeaderGroupElection(options)
+        val election: LeaderGroupElectionState = LocalLeaderGroupElector(options)
         election.maxLeaders shouldBeEqualTo maxLeaders
     }
 }

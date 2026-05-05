@@ -30,7 +30,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
     @Test
     fun `run action if leader`() {
         val lockName = randomName()
-        val leaderElection = RedissonLeaderElection(redissonClient)
+        val leaderElection = RedissonLeaderElector(redissonClient)
 
         val executor = Executors.newFixedThreadPool(Runtimex.availableProcessors)
         try {
@@ -62,7 +62,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
     @Test
     fun `run async action if leader`() {
         val lockName = randomName()
-        val leaderElection = RedissonLeaderElection(redissonClient)
+        val leaderElection = RedissonLeaderElector(redissonClient)
         val countDownLatch = CountDownLatch(2)
 
         val future1 = futureOf {
@@ -99,7 +99,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
             waitTime = Duration.ofSeconds(1),
             leaseTime = Duration.ofSeconds(30),
         )
-        val leaderElection = RedissonLeaderElection(redissonClient, options)
+        val leaderElection = RedissonLeaderElector(redissonClient, options)
 
         assertThrows<CompletionException> {
             leaderElection
@@ -121,7 +121,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
             waitTime = Duration.ofMillis(100),
             leaseTime = Duration.ofSeconds(5),
         )
-        val leaderElection = RedissonLeaderElection(redissonClient, options)
+        val leaderElection = RedissonLeaderElector(redissonClient, options)
         val lockAcquired = CountDownLatch(1)
         val releaseLock = CountDownLatch(1)
         val lockHolder = Executors.newSingleThreadExecutor()
@@ -149,7 +149,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
     @Test
     fun `run action if leader in multi threading`() {
         val lockName = randomName()
-        val leaderElection = RedissonLeaderElection(redissonClient)
+        val leaderElection = RedissonLeaderElector(redissonClient)
 
         val task1 = AtomicInteger(0)
         val task2 = AtomicInteger(0)
@@ -185,7 +185,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
     @Test
     fun `run action if leader in virtual threads`() {
         val lockName = randomName()
-        val leaderElection = RedissonLeaderElection(redissonClient)
+        val leaderElection = RedissonLeaderElector(redissonClient)
 
         val task1 = AtomicInteger(0)
         val task2 = AtomicInteger(0)
@@ -219,7 +219,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
     @Test
     fun `run async action if leader in multi threading`() {
         val lockName = randomName()
-        val leaderElection = RedissonLeaderElection(redissonClient)
+        val leaderElection = RedissonLeaderElector(redissonClient)
 
         val task1 = AtomicInteger(0)
         val task2 = AtomicInteger(0)
@@ -261,7 +261,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
     @Test
     fun `run async action if leader in virtual threads`() {
         val lockName = randomName()
-        val leaderElection = RedissonLeaderElection(redissonClient)
+        val leaderElection = RedissonLeaderElector(redissonClient)
 
         val task1 = AtomicInteger(0)
         val task2 = AtomicInteger(0)
@@ -301,7 +301,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
     /**
      * [MultithreadingTester]를 사용하여 짧은 `waitTime` 환경에서 동시 리더 선출 경쟁을 테스트한다.
      *
-     * 여러 스레드가 동일한 락 이름으로 [RedissonLeaderElection.runIfLeader]를 동시에 호출할 때,
+     * 여러 스레드가 동일한 락 이름으로 [RedissonLeaderElector.runIfLeader]를 동시에 호출할 때,
      * 리더로 선출된 스레드는 카운터를 증가시키고,
      * 락 획득에 실패한 스레드는 [RedisException]을 안전하게 삼킨다.
      */
@@ -312,7 +312,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
             waitTime = Duration.ofMillis(50),
             leaseTime = Duration.ofSeconds(5),
         )
-        val leaderElection = RedissonLeaderElection(redissonClient, shortWaitOptions)
+        val leaderElection = RedissonLeaderElector(redissonClient, shortWaitOptions)
         val successCount = AtomicInteger(0)
 
         MultithreadingTester()
@@ -344,7 +344,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
             waitTime = Duration.ofMillis(50),
             leaseTime = Duration.ofSeconds(5),
         )
-        val leaderElection = RedissonLeaderElection(redissonClient, shortWaitOptions)
+        val leaderElection = RedissonLeaderElector(redissonClient, shortWaitOptions)
         val successCount = AtomicInteger(0)
 
         StructuredTaskScopeTester()

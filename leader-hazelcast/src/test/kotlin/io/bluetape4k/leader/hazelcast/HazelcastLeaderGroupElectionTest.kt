@@ -33,7 +33,7 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
         waitTime = Duration.ofSeconds(10),
         leaseTime = Duration.ofSeconds(60),
     )
-    private val election by lazy { HazelcastLeaderGroupElection(hazelcastClient, options) }
+    private val election by lazy { HazelcastLeaderGroupElector(hazelcastClient, options) }
 
     @Test
     fun `runIfLeader - 리더로 선출되어 action 을 실행하고 결과를 반환한다`() {
@@ -60,7 +60,7 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
     @Test
     fun `runIfLeader - 모든 슬롯이 사용 중이면 waitTime 초과 시 null 을 반환한다`() {
         val shortWaitOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = Duration.ofMillis(100))
-        val singleElection = HazelcastLeaderGroupElection(hazelcastClient, shortWaitOptions)
+        val singleElection = HazelcastLeaderGroupElector(hazelcastClient, shortWaitOptions)
         val lockName = randomName()
         val acquiredLatch = CountDownLatch(1)
         val holdLatch = CountDownLatch(1)

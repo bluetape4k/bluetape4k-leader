@@ -1,7 +1,7 @@
 package io.bluetape4k.leader.contract
 
 import io.bluetape4k.codec.Base58
-import io.bluetape4k.leader.LeaderElection
+import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.logging.KLogging
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
@@ -10,11 +10,11 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 /**
- * 6 백엔드 ([LeaderElection]) `runIfLeader` unlock 계약 회귀 베이스.
+ * 6 백엔드 ([LeaderElector]) `runIfLeader` unlock 계약 회귀 베이스.
  *
  * ## 검증 계약 (CRITICAL — R-19, C-4)
  *
- * 모든 [LeaderElection] 구현체는 다음 두 가지를 보장해야 한다:
+ * 모든 [LeaderElector] 구현체는 다음 두 가지를 보장해야 한다:
  *
  * 1. **본문 정상 종료 → 락 해제** — `runIfLeader` 본문이 정상적으로 값 또는 `null`을 반환한 후,
  *    동일 클라이언트가 즉시 동일 lockName 으로 재획득할 수 있어야 한다. lease 만료를 기다려서는
@@ -51,12 +51,12 @@ abstract class AbstractLeaderUnlockContractTest {
     }
 
     /**
-     * 검증 대상 [LeaderElection] 인스턴스 생성.
+     * 검증 대상 [LeaderElector] 인스턴스 생성.
      *
      * 호출마다 새 인스턴스를 반환해도 무방하지만, 동일 백엔드 (락 namespace) 를 가리켜야 한다.
      * 그렇지 않으면 두 인스턴스 간 락 격리가 잘못된 통과를 유발한다 (예: Local 의 정적 락 맵).
      */
-    protected abstract fun newElection(): LeaderElection
+    protected abstract fun newElection(): LeaderElector
 
     private fun randomLockName(): String = "unlock-${Base58.randomString(8)}"
 

@@ -71,7 +71,7 @@ class LeaderElectionOptionsTest {
 
     @Test
     fun `blank lockName 으로 호출 시 예외가 발생한다`() {
-        val election = io.bluetape4k.leader.local.LocalLeaderElection()
+        val election = io.bluetape4k.leader.local.LocalLeaderElector()
         assertThrows<IllegalArgumentException> {
             election.runIfLeader("") { "should fail" }
         }

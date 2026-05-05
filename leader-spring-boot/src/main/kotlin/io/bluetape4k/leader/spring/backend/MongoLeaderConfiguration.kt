@@ -2,12 +2,12 @@ package io.bluetape4k.leader.spring.backend
 
 import com.mongodb.client.MongoDatabase
 import com.mongodb.kotlin.client.coroutine.MongoDatabase as CoroutineMongoDatabase
-import io.bluetape4k.leader.mongodb.MongoLeaderElection
+import io.bluetape4k.leader.mongodb.MongoLeaderElector
 import io.bluetape4k.leader.mongodb.MongoLeaderElectionOptions
-import io.bluetape4k.leader.mongodb.MongoLeaderGroupElection
+import io.bluetape4k.leader.mongodb.MongoLeaderGroupElector
 import io.bluetape4k.leader.mongodb.MongoLeaderGroupElectionOptions
-import io.bluetape4k.leader.mongodb.MongoSuspendLeaderElection
-import io.bluetape4k.leader.mongodb.MongoSuspendLeaderGroupElection
+import io.bluetape4k.leader.mongodb.MongoSuspendLeaderElector
+import io.bluetape4k.leader.mongodb.MongoSuspendLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
 import kotlinx.coroutines.runBlocking
@@ -45,9 +45,9 @@ class MongoLeaderConfiguration {
     fun mongoLeaderElection(
         db: MongoDatabase,
         props: LeaderProperties,
-    ): MongoLeaderElection {
+    ): MongoLeaderElector {
         val collection = db.getCollection(props.mongo.singleCollection, Document::class.java)
-        return MongoLeaderElection(collection, electionOptions(props))
+        return MongoLeaderElector(collection, electionOptions(props))
     }
 
     @Bean
@@ -56,9 +56,9 @@ class MongoLeaderConfiguration {
     fun mongoLeaderGroupElection(
         db: MongoDatabase,
         props: LeaderProperties,
-    ): MongoLeaderGroupElection {
+    ): MongoLeaderGroupElector {
         val collection = db.getCollection(props.mongo.groupCollection, Document::class.java)
-        return MongoLeaderGroupElection(collection, groupOptions(props))
+        return MongoLeaderGroupElector(collection, groupOptions(props))
     }
 
     @Bean
@@ -67,9 +67,9 @@ class MongoLeaderConfiguration {
     fun mongoSuspendLeaderElection(
         coroutineDb: CoroutineMongoDatabase,
         props: LeaderProperties,
-    ): MongoSuspendLeaderElection = runBlocking {
+    ): MongoSuspendLeaderElector = runBlocking {
         val collection = coroutineDb.getCollection<Document>(props.mongo.singleCollection)
-        MongoSuspendLeaderElection(collection, electionOptions(props))
+        MongoSuspendLeaderElector(collection, electionOptions(props))
     }
 
     @Bean
@@ -79,9 +79,9 @@ class MongoLeaderConfiguration {
         db: MongoDatabase,
         coroutineDb: CoroutineMongoDatabase,
         props: LeaderProperties,
-    ): MongoSuspendLeaderGroupElection = runBlocking {
+    ): MongoSuspendLeaderGroupElector = runBlocking {
         val syncCollection = db.getCollection(props.mongo.groupCollection, Document::class.java)
         val coroutineCollection = coroutineDb.getCollection<Document>(props.mongo.groupCollection)
-        MongoSuspendLeaderGroupElection(syncCollection, coroutineCollection, groupOptions(props))
+        MongoSuspendLeaderGroupElector(syncCollection, coroutineCollection, groupOptions(props))
     }
 }

@@ -2,21 +2,20 @@ package io.bluetape4k.leader.spring.aop.autoconfigure
 
 import com.hazelcast.core.HazelcastInstance
 import com.mongodb.client.MongoClient
-import io.bluetape4k.leader.LeaderElectionFactory
-import io.bluetape4k.leader.LeaderGroupElectionFactory
-import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElectionFactory
-import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElectionFactory
-import io.bluetape4k.leader.hazelcast.HazelcastLeaderElectionFactory
-import io.bluetape4k.leader.hazelcast.HazelcastLeaderGroupElectionFactory
-import io.bluetape4k.leader.lettuce.LettuceLeaderElectionFactory
-import io.bluetape4k.leader.lettuce.LettuceLeaderGroupElectionFactory
-import io.bluetape4k.leader.local.LocalLeaderElectionFactory
-import io.bluetape4k.leader.local.LocalLeaderGroupElectionFactory
-import io.bluetape4k.leader.mongodb.MongoLeaderElectionFactory
-import io.bluetape4k.leader.mongodb.MongoLeaderGroupElectionFactory
-import io.bluetape4k.leader.redisson.RedissonLeaderElectionFactory
-import io.bluetape4k.leader.redisson.RedissonLeaderGroupElectionFactory
-import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
+import io.bluetape4k.leader.LeaderElectorFactory
+import io.bluetape4k.leader.LeaderGroupElectorFactory
+import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElectorFactory
+import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElectorFactory
+import io.bluetape4k.leader.hazelcast.HazelcastLeaderElectorFactory
+import io.bluetape4k.leader.hazelcast.HazelcastLeaderGroupElectorFactory
+import io.bluetape4k.leader.lettuce.LettuceLeaderElectorFactory
+import io.bluetape4k.leader.lettuce.LettuceLeaderGroupElectorFactory
+import io.bluetape4k.leader.local.LocalLeaderElectorFactory
+import io.bluetape4k.leader.local.LocalLeaderGroupElectorFactory
+import io.bluetape4k.leader.mongodb.MongoLeaderElectorFactory
+import io.bluetape4k.leader.mongodb.MongoLeaderGroupElectorFactory
+import io.bluetape4k.leader.redisson.RedissonLeaderElectorFactory
+import io.bluetape4k.leader.redisson.RedissonLeaderGroupElectorFactory
 import io.lettuce.core.api.StatefulRedisConnection
 import org.aspectj.lang.annotation.Aspect
 import org.bson.Document
@@ -57,17 +56,17 @@ class LeaderAopFactoryAutoConfiguration {
     @Bean(name = ["localLeaderElectionFactory"])
     @ConditionalOnMissingBean(name = ["localLeaderElectionFactory"])
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-    fun localLeaderElectionFactory(): LeaderElectionFactory = LocalLeaderElectionFactory()
+    fun localLeaderElectionFactory(): LeaderElectorFactory = LocalLeaderElectorFactory()
 
     @Bean(name = ["localLeaderGroupElectionFactory"])
     @ConditionalOnMissingBean(name = ["localLeaderGroupElectionFactory"])
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-    fun localLeaderGroupElectionFactory(): LeaderGroupElectionFactory = LocalLeaderGroupElectionFactory()
+    fun localLeaderGroupElectionFactory(): LeaderGroupElectorFactory = LocalLeaderGroupElectorFactory()
 
     // ── Lettuce ──────────────────────────────────────────────────
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(StatefulRedisConnection::class, LettuceLeaderElectionFactory::class)
+    @ConditionalOnClass(StatefulRedisConnection::class, LettuceLeaderElectorFactory::class)
     class LettuceFactoryConfig {
 
         @Bean(name = ["lettuceLeaderElectionFactory"])
@@ -76,7 +75,7 @@ class LeaderAopFactoryAutoConfiguration {
         @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
         fun lettuceLeaderElectionFactory(
             connection: StatefulRedisConnection<String, String>,
-        ): LeaderElectionFactory = LettuceLeaderElectionFactory(connection)
+        ): LeaderElectorFactory = LettuceLeaderElectorFactory(connection)
 
         @Bean(name = ["lettuceLeaderGroupElectionFactory"])
         @ConditionalOnBean(StatefulRedisConnection::class)
@@ -84,34 +83,34 @@ class LeaderAopFactoryAutoConfiguration {
         @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
         fun lettuceLeaderGroupElectionFactory(
             connection: StatefulRedisConnection<String, String>,
-        ): LeaderGroupElectionFactory = LettuceLeaderGroupElectionFactory(connection)
+        ): LeaderGroupElectorFactory = LettuceLeaderGroupElectorFactory(connection)
     }
 
     // ── Redisson ─────────────────────────────────────────────────
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(RedissonClient::class, RedissonLeaderElectionFactory::class)
+    @ConditionalOnClass(RedissonClient::class, RedissonLeaderElectorFactory::class)
     class RedissonFactoryConfig {
 
         @Bean(name = ["redissonLeaderElectionFactory"])
         @ConditionalOnBean(RedissonClient::class)
         @ConditionalOnMissingBean(name = ["redissonLeaderElectionFactory"])
         @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-        fun redissonLeaderElectionFactory(client: RedissonClient): LeaderElectionFactory =
-            RedissonLeaderElectionFactory(client)
+        fun redissonLeaderElectionFactory(client: RedissonClient): LeaderElectorFactory =
+            RedissonLeaderElectorFactory(client)
 
         @Bean(name = ["redissonLeaderGroupElectionFactory"])
         @ConditionalOnBean(RedissonClient::class)
         @ConditionalOnMissingBean(name = ["redissonLeaderGroupElectionFactory"])
         @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-        fun redissonLeaderGroupElectionFactory(client: RedissonClient): LeaderGroupElectionFactory =
-            RedissonLeaderGroupElectionFactory(client)
+        fun redissonLeaderGroupElectionFactory(client: RedissonClient): LeaderGroupElectorFactory =
+            RedissonLeaderGroupElectorFactory(client)
     }
 
     // ── MongoDB sync ─────────────────────────────────────────────
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(MongoClient::class, MongoLeaderElectionFactory::class)
+    @ConditionalOnClass(MongoClient::class, MongoLeaderElectorFactory::class)
     class MongoFactoryConfig {
 
         @Bean(name = ["mongoLeaderElectionFactory"])
@@ -121,7 +120,7 @@ class LeaderAopFactoryAutoConfiguration {
         fun mongoLeaderElectionFactory(
             @org.springframework.beans.factory.annotation.Qualifier("leaderLockMongoCollection")
             collection: com.mongodb.client.MongoCollection<Document>,
-        ): LeaderElectionFactory = MongoLeaderElectionFactory(collection)
+        ): LeaderElectorFactory = MongoLeaderElectorFactory(collection)
 
         @Bean(name = ["mongoLeaderGroupElectionFactory"])
         @ConditionalOnBean(name = ["leaderGroupLockMongoCollection"])
@@ -130,48 +129,48 @@ class LeaderAopFactoryAutoConfiguration {
         fun mongoLeaderGroupElectionFactory(
             @org.springframework.beans.factory.annotation.Qualifier("leaderGroupLockMongoCollection")
             groupCollection: com.mongodb.client.MongoCollection<Document>,
-        ): LeaderGroupElectionFactory = MongoLeaderGroupElectionFactory(groupCollection)
+        ): LeaderGroupElectorFactory = MongoLeaderGroupElectorFactory(groupCollection)
     }
 
     // ── Hazelcast ────────────────────────────────────────────────
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(HazelcastInstance::class, HazelcastLeaderElectionFactory::class)
+    @ConditionalOnClass(HazelcastInstance::class, HazelcastLeaderElectorFactory::class)
     class HazelcastFactoryConfig {
 
         @Bean(name = ["hazelcastLeaderElectionFactory"])
         @ConditionalOnBean(HazelcastInstance::class)
         @ConditionalOnMissingBean(name = ["hazelcastLeaderElectionFactory"])
         @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-        fun hazelcastLeaderElectionFactory(hazelcast: HazelcastInstance): LeaderElectionFactory =
-            HazelcastLeaderElectionFactory(hazelcast)
+        fun hazelcastLeaderElectionFactory(hazelcast: HazelcastInstance): LeaderElectorFactory =
+            HazelcastLeaderElectorFactory(hazelcast)
 
         @Bean(name = ["hazelcastLeaderGroupElectionFactory"])
         @ConditionalOnBean(HazelcastInstance::class)
         @ConditionalOnMissingBean(name = ["hazelcastLeaderGroupElectionFactory"])
         @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-        fun hazelcastLeaderGroupElectionFactory(hazelcast: HazelcastInstance): LeaderGroupElectionFactory =
-            HazelcastLeaderGroupElectionFactory(hazelcast)
+        fun hazelcastLeaderGroupElectionFactory(hazelcast: HazelcastInstance): LeaderGroupElectorFactory =
+            HazelcastLeaderGroupElectorFactory(hazelcast)
     }
 
     // ── Exposed JDBC ─────────────────────────────────────────────
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(Database::class, ExposedJdbcLeaderElectionFactory::class)
+    @ConditionalOnClass(Database::class, ExposedJdbcLeaderElectorFactory::class)
     class ExposedJdbcFactoryConfig {
 
         @Bean(name = ["exposedJdbcLeaderElectionFactory"])
         @ConditionalOnBean(Database::class)
         @ConditionalOnMissingBean(name = ["exposedJdbcLeaderElectionFactory"])
         @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-        fun exposedJdbcLeaderElectionFactory(db: Database): LeaderElectionFactory =
-            ExposedJdbcLeaderElectionFactory(db)
+        fun exposedJdbcLeaderElectionFactory(db: Database): LeaderElectorFactory =
+            ExposedJdbcLeaderElectorFactory(db)
 
         @Bean(name = ["exposedJdbcLeaderGroupElectionFactory"])
         @ConditionalOnBean(Database::class)
         @ConditionalOnMissingBean(name = ["exposedJdbcLeaderGroupElectionFactory"])
         @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-        fun exposedJdbcLeaderGroupElectionFactory(db: Database): LeaderGroupElectionFactory =
-            ExposedJdbcLeaderGroupElectionFactory(db)
+        fun exposedJdbcLeaderGroupElectionFactory(db: Database): LeaderGroupElectorFactory =
+            ExposedJdbcLeaderGroupElectorFactory(db)
     }
 }
