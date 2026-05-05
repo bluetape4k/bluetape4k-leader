@@ -22,8 +22,5 @@ include(
     "leader-mongodb",
     "leader-hazelcast",
     "leader-spring-boot",
-    "leader-spring-boot-common",
-    "leader-spring-boot3",
-    "leader-spring-boot4",
     "leader-micrometer",
 )
