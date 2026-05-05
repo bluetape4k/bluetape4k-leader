@@ -10,7 +10,8 @@ import org.springframework.expression.spel.SpelEvaluationException
  * [SpelExpressionEvaluator] (T5.1 + T5.9a):
  * - literal fast-path
  * - plain SpEL (`#region`, `'process-' + #region`, `#user.tenantId`)
- * - `${...}` placeholder 해석
+ * - `${...}` placeholder 해석 → literal 경로 / SpEL 경로
+ * - SpEL null 결과 → IllegalStateException (메서드 FQN 포함)
  * - SpEL pre-parse 실패 (메서드 FQN 포함)
  * - [Step 3-P-Sec-1][R-32] 메서드 호출 차단 default + opt-in
  * - 시스템 타입 / Spring 빈 참조 차단
@@ -121,5 +122,42 @@ class SpelExpressionEvaluatorTest {
         sut.preParse("#region", method("process"))
         sut.preParse("'x-' + #region", method("process"))
         check(sut.cacheSize() >= 2L) { "cacheSize should be >= 2, got ${sut.cacheSize()}" }
+    }
+
+    // ── #97: 누락 경로 테스트 ──
+
+    @Test
+    fun `SpEL null 결과 - IllegalStateException 메서드 FQN 포함`() {
+        val sut = newEvaluator()
+        // #a0 = null → getValue(String::class.java) = null → error() 분기
+        val ex = assertThrows<IllegalStateException> {
+            sut.evaluate("#a0", method("process"), arrayOf<Any?>(null), SampleService())
+        }
+        ex.message!!.contains("SampleService") shouldBeEqualTo true
+        ex.message!!.contains("process") shouldBeEqualTo true
+    }
+
+    @Test
+    fun `placeholder - 해석 후 literal 경로 진입`() {
+        // "\${app.lock.name}" → "daily-job" → literal fast-path (SpEL 우회)
+        val sut = SpelExpressionEvaluator(
+            embeddedValueResolver = { expr -> if (expr == "\${app.lock.name}") "daily-job" else expr }
+        )
+        sut.evaluate("\${app.lock.name}", method("process"), arrayOf("X"), SampleService()) shouldBeEqualTo "daily-job"
+        sut.cacheSize() shouldBeEqualTo 0L  // literal 이므로 cache 미적재
+    }
+
+    @Test
+    fun `placeholder - 해석 후 SpEL 경로 진입`() {
+        // "\${lock.prefix} + #region" → "'batch-' + #region" → SpEL → "batch-EU"
+        val sut = SpelExpressionEvaluator(
+            embeddedValueResolver = { expr -> expr.replace("\${lock.prefix}", "'batch-'") }
+        )
+        sut.evaluate(
+            "\${lock.prefix} + #region",
+            method("process"),
+            arrayOf("EU"),
+            SampleService(),
+        ) shouldBeEqualTo "batch-EU"
     }
 }
