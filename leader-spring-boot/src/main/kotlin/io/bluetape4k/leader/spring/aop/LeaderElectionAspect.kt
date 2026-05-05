@@ -97,9 +97,21 @@ class LeaderElectionAspect(
             }
             when (runResult) {
                 is LeaderRunResult.Skipped -> {
-                    fanOut { it.onLockNotAcquired(resolvedName, opts, SkipReason.CONTENTION) }
-                    log.debug { "leader.aop.skipped lockName=$resolvedName reason=CONTENTION" }
-                    null
+                    if (meta.failureMode == LeaderAspectFailureMode.FAIL_OPEN_RUN) {
+                        fanOut {
+                            it.onLockNotAcquired(resolvedName, opts, SkipReason.FAIL_OPEN_FORCED)
+                            it.onTaskStarted(resolvedName)
+                        }
+                        log.debug { "leader.aop.fail-open lockName=$resolvedName reason=CONTENTION" }
+                        val result = executeBody(pjp, resolvedName, start)
+                        val elapsed = System.nanoTime() - start
+                        fanOut { it.onTaskFinished(resolvedName, elapsed.nanoseconds) }
+                        result
+                    } else {
+                        fanOut { it.onLockNotAcquired(resolvedName, opts, SkipReason.CONTENTION) }
+                        log.debug { "leader.aop.skipped lockName=$resolvedName reason=CONTENTION" }
+                        null
+                    }
                 }
                 is LeaderRunResult.Elected -> {
                     val elapsed = System.nanoTime() - start
@@ -123,16 +135,35 @@ class LeaderElectionAspect(
             // [Sec-3][R-33] backend 예외만 LeaderElectionException 으로 wrapping (host/credentials 누출 차단)
             val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
             val wrapped = LeaderElectionException("leader backend error for lock '$effectiveName'", backendEx)
-            fanOut {
-                it.onLockNotAcquired(effectiveName, opts, SkipReason.BACKEND_ERROR)
-                it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx)
-            }
             when (meta.failureMode) {
                 LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
-                LeaderAspectFailureMode.RETHROW -> throw wrapped
+                LeaderAspectFailureMode.RETHROW -> {
+                    fanOut { it.onLockNotAcquired(effectiveName, opts, SkipReason.BACKEND_ERROR) }
+                    fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
+                    throw wrapped
+                }
                 LeaderAspectFailureMode.SKIP -> {
+                    fanOut { it.onLockNotAcquired(effectiveName, opts, SkipReason.BACKEND_ERROR) }
+                    fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                     log.warn(backendEx) { "leader.aop.skipped lockName=$effectiveName reason=BACKEND_ERROR" }
                     null
+                }
+                LeaderAspectFailureMode.FAIL_OPEN_RUN -> {
+                    fanOut { it.onLockNotAcquired(effectiveName, opts, SkipReason.FAIL_OPEN_FORCED) }
+                    log.warn(backendEx) { "leader.aop.fail-open lockName=$effectiveName reason=BACKEND_ERROR" }
+                    fanOut { it.onTaskStarted(effectiveName) }
+                    try {
+                        val result = pjp.proceed()
+                        val elapsed = System.nanoTime() - start
+                        fanOut { it.onTaskFinished(effectiveName, elapsed.nanoseconds) }
+                        result
+                    } catch (ce: CancellationException) {
+                        fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, ce) }
+                        throw ce
+                    } catch (bodyEx: Throwable) {
+                        fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, bodyEx) }
+                        throw bodyEx
+                    }
                 }
             }
         }

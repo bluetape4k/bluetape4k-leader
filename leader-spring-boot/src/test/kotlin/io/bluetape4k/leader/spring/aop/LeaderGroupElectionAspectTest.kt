@@ -310,4 +310,88 @@ class LeaderGroupElectionAspectTest {
 
         aspect.aroundLeader(pjp).shouldBeNull()
     }
+
+    // ── group FAIL_OPEN_RUN 시나리오 ──
+
+    @Test
+    fun `group FAIL_OPEN_RUN - 경쟁(Skipped) 시 락 없이 본문 실행 후 결과 반환`() {
+        class SampleFailOpen {
+            @LeaderGroupElection(name = "fail-open-group-job", maxLeaders = 2, failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
+            fun run(): String? = SAMPLE_RESULT
+        }
+
+        val target = SampleFailOpen()
+        val method = SampleFailOpen::class.java.getDeclaredMethod("run")
+        configureJoinPoint(method, target, emptyArray())
+        every { pjp.proceed() } returns SAMPLE_RESULT
+        every { election.runIfLeaderResult<Any?>(any(), any()) } returns LeaderRunResult.Skipped
+
+        val aspect = newAspect(listOf(recorder))
+        val result = aspect.aroundLeader(pjp)
+
+        result shouldBeEqualTo SAMPLE_RESULT
+        verify(exactly = 1) { recorder.onLockNotAcquired("fail-open-group-job", any(), SkipReason.FAIL_OPEN_FORCED) }
+        verify(exactly = 1) { recorder.onTaskStarted("fail-open-group-job") }
+        verify(exactly = 1) { recorder.onTaskFinished("fail-open-group-job", any()) }
+    }
+
+    @Test
+    fun `group FAIL_OPEN_RUN - 경쟁(Skipped) 시 본문 throw 는 그대로 전파`() {
+        class SampleFailOpen {
+            @LeaderGroupElection(name = "fail-open-group-job", maxLeaders = 2, failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
+            fun run(): String? = SAMPLE_RESULT
+        }
+
+        val target = SampleFailOpen()
+        val method = SampleFailOpen::class.java.getDeclaredMethod("run")
+        configureJoinPoint(method, target, emptyArray())
+        val bodyEx = RuntimeException("body failure during group fail-open")
+        every { pjp.proceed() } throws bodyEx
+        every { election.runIfLeaderResult<Any?>(any(), any()) } returns LeaderRunResult.Skipped
+
+        val aspect = newAspect()
+        val ex = assertThrows<RuntimeException> { aspect.aroundLeader(pjp) }
+        ex shouldBeEqualTo bodyEx
+    }
+
+    @Test
+    fun `group FAIL_OPEN_RUN - backend 예외 시 락 없이 본문 실행 후 결과 반환`() {
+        class SampleFailOpen {
+            @LeaderGroupElection(name = "fail-open-group-job", maxLeaders = 2, failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
+            fun run(): String? = SAMPLE_RESULT
+        }
+
+        val target = SampleFailOpen()
+        val method = SampleFailOpen::class.java.getDeclaredMethod("run")
+        configureJoinPoint(method, target, emptyArray())
+        every { pjp.proceed() } returns SAMPLE_RESULT
+        every { election.runIfLeaderResult<Any?>(any(), any()) } throws RuntimeException("redis cluster down")
+
+        val aspect = newAspect(listOf(recorder))
+        val result = aspect.aroundLeader(pjp)
+
+        result shouldBeEqualTo SAMPLE_RESULT
+        verify(exactly = 1) { recorder.onLockNotAcquired("fail-open-group-job", any(), SkipReason.FAIL_OPEN_FORCED) }
+        verify(exactly = 1) { recorder.onTaskStarted("fail-open-group-job") }
+        verify(exactly = 1) { recorder.onTaskFinished("fail-open-group-job", any()) }
+    }
+
+    @Test
+    fun `group FAIL_OPEN_RUN - backend 예외 후 본문 throw 는 그대로 전파`() {
+        class SampleFailOpen {
+            @LeaderGroupElection(name = "fail-open-group-job", maxLeaders = 2, failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
+            fun run(): String? = SAMPLE_RESULT
+        }
+
+        val target = SampleFailOpen()
+        val method = SampleFailOpen::class.java.getDeclaredMethod("run")
+        configureJoinPoint(method, target, emptyArray())
+        val bodyEx = IllegalStateException("body failure after group backend error")
+        every { pjp.proceed() } throws bodyEx
+        every { election.runIfLeaderResult<Any?>(any(), any()) } throws RuntimeException("backend down")
+
+        val aspect = newAspect()
+        val ex = assertThrows<IllegalStateException> { aspect.aroundLeader(pjp) }
+        ex shouldBeEqualTo bodyEx
+    }
 }

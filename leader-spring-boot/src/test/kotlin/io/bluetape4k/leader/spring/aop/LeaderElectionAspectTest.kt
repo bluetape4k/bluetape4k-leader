@@ -335,4 +335,89 @@ class LeaderElectionAspectTest {
         // SKIP 모드 → backend I/O 실패를 흡수하고 null 반환
         aspect.aroundLeader(pjp).shouldBeNull()
     }
+
+    // ── FAIL_OPEN_RUN 시나리오 ──
+
+    @Test
+    fun `FAIL_OPEN_RUN - 경쟁(Skipped) 시 락 없이 본문 실행 후 결과 반환`() {
+        class SampleFailOpen {
+            @LeaderElection(name = "fail-open-job", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
+            fun run(): String? = SAMPLE_RESULT
+        }
+
+        val target = SampleFailOpen()
+        val method = SampleFailOpen::class.java.getDeclaredMethod("run")
+        configureJoinPoint(method, target, emptyArray())
+        every { pjp.proceed() } returns SAMPLE_RESULT
+        every { election.runIfLeaderResult<Any?>(any(), any()) } returns LeaderRunResult.Skipped
+
+        val aspect = newAspect(listOf(recorder))
+        val result = aspect.aroundLeader(pjp)
+
+        result shouldBeEqualTo SAMPLE_RESULT
+        verify(exactly = 1) { recorder.onLockNotAcquired("fail-open-job", any(), SkipReason.FAIL_OPEN_FORCED) }
+        verify(exactly = 1) { recorder.onTaskStarted("fail-open-job") }
+        verify(exactly = 1) { recorder.onTaskFinished("fail-open-job", any()) }
+    }
+
+    @Test
+    fun `FAIL_OPEN_RUN - 경쟁(Skipped) 시 본문 throw 는 그대로 전파`() {
+        class SampleFailOpen {
+            @LeaderElection(name = "fail-open-job", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
+            fun run(): String? = SAMPLE_RESULT
+        }
+
+        val target = SampleFailOpen()
+        val method = SampleFailOpen::class.java.getDeclaredMethod("run")
+        configureJoinPoint(method, target, emptyArray())
+        val bodyEx = RuntimeException("body failure during fail-open")
+        every { pjp.proceed() } throws bodyEx
+        every { election.runIfLeaderResult<Any?>(any(), any()) } returns LeaderRunResult.Skipped
+
+        val aspect = newAspect()
+        val ex = assertThrows<RuntimeException> { aspect.aroundLeader(pjp) }
+        ex shouldBeEqualTo bodyEx
+    }
+
+    @Test
+    fun `FAIL_OPEN_RUN - backend 예외 시 락 없이 본문 실행 후 결과 반환`() {
+        class SampleFailOpen {
+            @LeaderElection(name = "fail-open-job", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
+            fun run(): String? = SAMPLE_RESULT
+        }
+
+        val target = SampleFailOpen()
+        val method = SampleFailOpen::class.java.getDeclaredMethod("run")
+        configureJoinPoint(method, target, emptyArray())
+        every { pjp.proceed() } returns SAMPLE_RESULT
+        val backendEx = RuntimeException("redis down")
+        every { election.runIfLeaderResult<Any?>(any(), any()) } throws backendEx
+
+        val aspect = newAspect(listOf(recorder))
+        val result = aspect.aroundLeader(pjp)
+
+        result shouldBeEqualTo SAMPLE_RESULT
+        verify(exactly = 1) { recorder.onLockNotAcquired("fail-open-job", any(), SkipReason.FAIL_OPEN_FORCED) }
+        verify(exactly = 1) { recorder.onTaskStarted("fail-open-job") }
+        verify(exactly = 1) { recorder.onTaskFinished("fail-open-job", any()) }
+    }
+
+    @Test
+    fun `FAIL_OPEN_RUN - backend 예외 후 본문 throw 는 그대로 전파`() {
+        class SampleFailOpen {
+            @LeaderElection(name = "fail-open-job", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
+            fun run(): String? = SAMPLE_RESULT
+        }
+
+        val target = SampleFailOpen()
+        val method = SampleFailOpen::class.java.getDeclaredMethod("run")
+        configureJoinPoint(method, target, emptyArray())
+        val bodyEx = IllegalStateException("body failure after backend error")
+        every { pjp.proceed() } throws bodyEx
+        every { election.runIfLeaderResult<Any?>(any(), any()) } throws RuntimeException("backend down")
+
+        val aspect = newAspect()
+        val ex = assertThrows<IllegalStateException> { aspect.aroundLeader(pjp) }
+        ex shouldBeEqualTo bodyEx
+    }
 }

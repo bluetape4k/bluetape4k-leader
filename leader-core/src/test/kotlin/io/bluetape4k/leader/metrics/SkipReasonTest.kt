@@ -12,19 +12,20 @@ class SkipReasonTest {
     companion object : KLogging()
 
     @Test
-    fun `enum 항목 2개 존재 확인`() {
-        SkipReason.entries.size shouldBeEqualTo 2
+    fun `enum 항목 3개 존재 확인`() {
+        SkipReason.entries.size shouldBeEqualTo 3
     }
 
     @Test
-    fun `CONTENTION, BACKEND_ERROR 모두 포함`() {
+    fun `CONTENTION, BACKEND_ERROR, FAIL_OPEN_FORCED 모두 포함`() {
         val entries = SkipReason.entries.map { it.name }
-        entries shouldContainAll listOf("CONTENTION", "BACKEND_ERROR")
+        entries shouldContainAll listOf("CONTENTION", "BACKEND_ERROR", "FAIL_OPEN_FORCED")
     }
 
     @Test
     fun `valueOf 동작 확인`() {
         SkipReason.valueOf("CONTENTION") shouldBeEqualTo SkipReason.CONTENTION
         SkipReason.valueOf("BACKEND_ERROR") shouldBeEqualTo SkipReason.BACKEND_ERROR
+        SkipReason.valueOf("FAIL_OPEN_FORCED") shouldBeEqualTo SkipReason.FAIL_OPEN_FORCED
     }
 }

@@ -353,6 +353,45 @@ val result = election.runIfLeader("job", ScoredElectionStrategy(scorer)) { doWor
 | 커스텀 스코어러 | 없음 | 가능 (`CandidateScorer`) |
 | 네트워크 RTT | 1회 (tryLock) | 2회 (list + elect) |
 
+## Spring Boot AOP
+
+`leader-spring-boot`는 AspectJ CTW(Freefair post-compile weaving) 기반의 `@LeaderElection` / `@LeaderGroupElection` 어노테이션을 제공합니다.
+
+```kotlin
+@Service
+class ReportService {
+    @LeaderElection(name = "daily-report-job")
+    fun generateReport(): String { /* 리더 노드에서만 실행 */ }
+
+    // Fail-open: 락을 획득하지 못해도 본문 실행
+    @LeaderElection(name = "nightly-cleanup", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
+    fun cleanup(): String { /* 항상 실행, 분산 락은 베스트에포트 */ }
+}
+```
+
+### `failureMode`
+
+락을 **획득하지 못했을 때** (경쟁 또는 백엔드 오류) 동작을 제어합니다:
+
+| 값 | 동작 |
+|----|------|
+| `SKIP` (기본값) | `null` 반환 — 본문 미실행 |
+| `RETHROW` | 백엔드 오류를 `LeaderElectionException`으로 감싸 throw |
+| `FAIL_OPEN_RUN` | 락 없이 본문을 실행하여 결과 반환 |
+
+`FAIL_OPEN_RUN`은 스킵보다 실행이 안전한 경우(예: 멱등성이 보장된 태스크)에 적합합니다. 메트릭에 `SkipReason.FAIL_OPEN_FORCED`가 기록되어 락 없이 실행된 횟수를 대시보드에서 별도 추적할 수 있습니다.
+
+### 전역 기본값 (properties)
+
+```yaml
+bluetape4k:
+  leader:
+    aop:
+      default-failure-mode: FAIL_OPEN_RUN   # SKIP | RETHROW | FAIL_OPEN_RUN
+```
+
+---
+
 ## Micrometer 메트릭
 
 Spring Boot AOP(`@LeaderElection`)를 사용할 때 `leader-micrometer`를 추가하면 Prometheus/Datadog 메트릭이 자동으로 노출됩니다.

@@ -87,6 +87,7 @@ dependencies {
     testImplementation(project(":leader-mongodb"))
     testImplementation(libs.bluetape4k.testcontainers)
     testImplementation(libs.testcontainers.mongodb)
+    testImplementation(libs.testcontainers.toxiproxy)
     testImplementation(libs.r2dbc.h2)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
