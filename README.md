@@ -242,6 +242,19 @@ sequenceDiagram
 
 `runIfLeader(lockName, action)` — returns `action()` result on success, `null` if not elected.
 
+### Distinguishing elected vs skipped: `LeaderRunResult`
+
+`runIfLeader()` returns `null` for two distinct cases: (a) lock not acquired and (b) `action()` legitimately returning `null`. Use `runIfLeaderResult` (available on both `LeaderElector` and `LeaderGroupElector`) when you need to tell them apart — for example, in metrics or conditional post-processing:
+
+```kotlin
+when (val r = election.runIfLeaderResult("daily-job") { compute() }) {
+    is LeaderRunResult.Elected -> println("elected, result=${r.value}")
+    is LeaderRunResult.Skipped -> println("skipped — lock not acquired")
+}
+```
+
+`LeaderRunResult` is a sealed interface with two variants: `Elected<T>(value: T?)` and `Skipped`. Available on synchronous `LeaderElector` and `LeaderGroupElector` only (async/suspend equivalents planned for a future release).
+
 ### Options
 
 ```kotlin

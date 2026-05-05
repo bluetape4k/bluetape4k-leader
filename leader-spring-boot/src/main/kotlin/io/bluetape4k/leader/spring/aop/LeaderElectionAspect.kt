@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.aop
 
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectionException
+import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
@@ -87,27 +88,31 @@ class LeaderElectionAspect(
 
             fanOut { it.onLockAttempt(resolvedName, opts) }
 
-            val result = election.runIfLeader(resolvedName) {
+            val runResult = election.runIfLeaderResult(resolvedName) {
                 fanOut {
                     it.onLockAcquired(resolvedName, opts, (System.nanoTime() - start).nanoseconds)
                     it.onTaskStarted(resolvedName)
                 }
                 executeBody(pjp, resolvedName, start)
             }
-            if (result == null) {
-                fanOut { it.onLockNotAcquired(resolvedName, opts, SkipReason.CONTENTION) }
-                log.debug { "leader.aop.skipped lockName=$resolvedName reason=CONTENTION" }
-            } else {
-                val elapsed = System.nanoTime() - start
-                fanOut { it.onTaskFinished(resolvedName, elapsed.nanoseconds) }
-                log.debug { "leader.aop.elected lockName=$resolvedName elapsedNs=$elapsed" }
-                if (elapsed > meta.leaseTimeWarnThresholdNanos) {
-                    log.warn {
-                        "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${opts.leaseTime.toNanos()}"
+            when (runResult) {
+                is LeaderRunResult.Skipped -> {
+                    fanOut { it.onLockNotAcquired(resolvedName, opts, SkipReason.CONTENTION) }
+                    log.debug { "leader.aop.skipped lockName=$resolvedName reason=CONTENTION" }
+                    null
+                }
+                is LeaderRunResult.Elected -> {
+                    val elapsed = System.nanoTime() - start
+                    fanOut { it.onTaskFinished(resolvedName, elapsed.nanoseconds) }
+                    log.debug { "leader.aop.elected lockName=$resolvedName elapsedNs=$elapsed" }
+                    if (elapsed > meta.leaseTimeWarnThresholdNanos) {
+                        log.warn {
+                            "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${opts.leaseTime.toNanos()}"
+                        }
                     }
+                    runResult.value
                 }
             }
-            result
         } catch (e: CancellationException) {
             // [Rel-2] CancellationException 항상 우선 재throw
             throw e

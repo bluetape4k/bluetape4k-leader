@@ -242,6 +242,19 @@ sequenceDiagram
 
 `runIfLeader(lockName, action)` — 선출 성공 시 `action()` 결과, 실패 시 `null` 반환.
 
+### 선출/미선출 구분: `LeaderRunResult`
+
+`runIfLeader()`는 (a) 락 미획득과 (b) `action()`이 정상적으로 `null`을 반환하는 두 경우 모두 `null`을 돌려줍니다. 두 경우를 명확히 구분해야 할 때(예: metrics 기록, 조건부 후처리) `runIfLeaderResult`를 사용하세요(`LeaderElector` 및 `LeaderGroupElector` 모두 동일 메서드명으로 제공).
+
+```kotlin
+when (val r = election.runIfLeaderResult("daily-job") { compute() }) {
+    is LeaderRunResult.Elected -> println("선출됨, 결과=${r.value}")
+    is LeaderRunResult.Skipped -> println("미선출 — 락 획득 실패")
+}
+```
+
+`LeaderRunResult`는 `Elected<T>(value: T?)`와 `Skipped` 두 변형을 가진 sealed interface입니다. 동기 `LeaderElector` 및 `LeaderGroupElector`에서만 제공되며, 비동기/코루틴 동등 메서드는 향후 릴리즈에서 추가될 예정입니다.
+
 ### 옵션 클래스
 
 ```kotlin

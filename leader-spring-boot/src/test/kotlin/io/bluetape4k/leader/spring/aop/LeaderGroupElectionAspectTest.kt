@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.aop
 
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElector
+import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderGroupElectorFactory
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.leader.annotation.LeaderGroupElection
@@ -103,7 +104,7 @@ class LeaderGroupElectionAspectTest {
         every { pjp.proceed() } returns SAMPLE_RESULT
 
         val actionSlot = slot<() -> Any?>()
-        every { election.runIfLeader<Any?>(any(), capture(actionSlot)) } answers { actionSlot.captured.invoke() }
+        every { election.runIfLeaderResult<Any?>(any(), capture(actionSlot)) } answers { LeaderRunResult.Elected(actionSlot.captured.invoke()) }
 
         val aspect = newAspect(listOf(recorder))
 
@@ -122,7 +123,7 @@ class LeaderGroupElectionAspectTest {
         val method = SampleService::class.java.getDeclaredMethod("runSync")
         configureJoinPoint(method, target, emptyArray())
 
-        every { election.runIfLeader<Any?>(any(), any()) } returns null
+        every { election.runIfLeaderResult<Any?>(any(), any()) } returns LeaderRunResult.Skipped
 
         val aspect = newAspect(listOf(recorder))
 
@@ -139,7 +140,7 @@ class LeaderGroupElectionAspectTest {
         every { pjp.proceed() } throws bodyEx
 
         val actionSlot = slot<() -> Any?>()
-        every { election.runIfLeader<Any?>(any(), capture(actionSlot)) } answers { actionSlot.captured.invoke() }
+        every { election.runIfLeaderResult<Any?>(any(), capture(actionSlot)) } answers { LeaderRunResult.Elected(actionSlot.captured.invoke()) }
 
         val aspect = newAspect()
         val ex = assertThrows<RuntimeException> { aspect.aroundLeader(pjp) }
@@ -153,7 +154,7 @@ class LeaderGroupElectionAspectTest {
         configureJoinPoint(method, target, emptyArray())
 
         val backendEx = RuntimeException("Connection to redis-prod-01.internal:6379 timeout")
-        every { election.runIfLeader<Any?>(any(), any()) } throws backendEx
+        every { election.runIfLeaderResult<Any?>(any(), any()) } throws backendEx
 
         val aspect = newAspect()
         val wrapped = assertThrows<LeaderGroupElectionException> { aspect.aroundLeader(pjp) }
@@ -171,7 +172,7 @@ class LeaderGroupElectionAspectTest {
         every { pjp.proceed() } throws cancelEx
 
         val actionSlot = slot<() -> Any?>()
-        every { election.runIfLeader<Any?>(any(), capture(actionSlot)) } answers { actionSlot.captured.invoke() }
+        every { election.runIfLeaderResult<Any?>(any(), capture(actionSlot)) } answers { LeaderRunResult.Elected(actionSlot.captured.invoke()) }
 
         val aspect = newAspect()
         val ex = assertThrows<CancellationException> { aspect.aroundLeader(pjp) }
@@ -190,7 +191,7 @@ class LeaderGroupElectionAspectTest {
         configureJoinPoint(skipMethod, skipTarget, emptyArray())
 
         val backendEx = RuntimeException("backend down")
-        every { election.runIfLeader<Any?>(any(), any()) } throws backendEx
+        every { election.runIfLeaderResult<Any?>(any(), any()) } throws backendEx
 
         val aspect = newAspect()
         aspect.aroundLeader(pjp).shouldBeNull()
@@ -204,7 +205,7 @@ class LeaderGroupElectionAspectTest {
         every { pjp.proceed() } returns SAMPLE_RESULT
 
         val actionSlot = slot<() -> Any?>()
-        every { election.runIfLeader<Any?>(any(), capture(actionSlot)) } answers { actionSlot.captured.invoke() }
+        every { election.runIfLeaderResult<Any?>(any(), capture(actionSlot)) } answers { LeaderRunResult.Elected(actionSlot.captured.invoke()) }
 
         val aspect = newAspect(recorders = emptyList())
         aspect.aroundLeader(pjp) shouldBeEqualTo SAMPLE_RESULT
@@ -216,7 +217,7 @@ class LeaderGroupElectionAspectTest {
         val method = SampleService::class.java.getDeclaredMethod("runSync")
 
         val actionSlot = slot<() -> Any?>()
-        every { election.runIfLeader<Any?>(any(), capture(actionSlot)) } answers { actionSlot.captured.invoke() }
+        every { election.runIfLeaderResult<Any?>(any(), capture(actionSlot)) } answers { LeaderRunResult.Elected(actionSlot.captured.invoke()) }
         every { factoryMock.create(any()) } returns election
         every { beanSelector.selectGroupElectionFactory(any()) } returns
                 LeaderBeanSelector.Selected("testGroupFactory", factoryMock)
@@ -248,8 +249,8 @@ class LeaderGroupElectionAspectTest {
         val actionSlot = slot<() -> Any?>()
         val nameSlot = slot<String>()
         every {
-            election.runIfLeader<Any?>(capture(nameSlot), capture(actionSlot))
-        } answers { actionSlot.captured.invoke() }
+            election.runIfLeaderResult<Any?>(capture(nameSlot), capture(actionSlot))
+        } answers { LeaderRunResult.Elected(actionSlot.captured.invoke()) }
 
         val aspect = newAspect()
         val result = aspect.aroundLeader(pjp)
@@ -264,7 +265,7 @@ class LeaderGroupElectionAspectTest {
         val method = SampleService::class.java.getDeclaredMethod("runSync")
         configureJoinPoint(method, target, emptyArray())
 
-        every { election.runIfLeader<Any?>(any(), any()) } throws IllegalStateException("backend")
+        every { election.runIfLeaderResult<Any?>(any(), any()) } throws IllegalStateException("backend")
 
         val aspect = newAspect()
         val ex = assertThrows<LeaderGroupElectionException> { aspect.aroundLeader(pjp) }

@@ -37,4 +37,32 @@ interface LeaderElector: AsyncLeaderElector {
      */
     fun <T> runIfLeader(lockName: String, action: () -> T): T?
 
+    /**
+     * 리더 선출 결과를 [LeaderRunResult]로 반환합니다.
+     *
+     * `runIfLeader`의 `null` 반환 모호성을 해결합니다:
+     * action()이 null을 반환해도 [LeaderRunResult.Elected]로 구분되고,
+     * lock 미획득은 [LeaderRunResult.Skipped]로 구분됩니다.
+     *
+     * NOTE: 동기 [LeaderElector] 전용입니다.
+     * `SuspendLeaderElector` / `AsyncLeaderElector` / `VirtualThreadLeaderElector` 의 동등
+     * 메서드는 v1.x 후속 이슈에서 추가 예정입니다.
+     *
+     * ```kotlin
+     * when (val r = election.runIfLeaderResult("job-lock") { compute() }) {
+     *     is LeaderRunResult.Elected -> println("elected, value=${r.value}")
+     *     is LeaderRunResult.Skipped -> println("skipped — lock not acquired")
+     * }
+     * ```
+     *
+     * @param lockName 리더 선출에 사용할 락 이름
+     * @param action 리더 획득 성공 시 실행할 동기 작업
+     * @return [LeaderRunResult.Elected] (action 실행됨) 또는 [LeaderRunResult.Skipped] (lock 미획득)
+     */
+    fun <T> runIfLeaderResult(lockName: String, action: () -> T): LeaderRunResult<T> {
+        var elected = false
+        val value = runIfLeader(lockName) { elected = true; action() }
+        return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
+    }
+
 }
