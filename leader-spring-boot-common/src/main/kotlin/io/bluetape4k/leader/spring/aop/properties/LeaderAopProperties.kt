@@ -30,7 +30,7 @@ import java.time.Duration
  * @property lockNamePrefix [Step 3-P-Sec-2][R-34] SpEL 평가 결과 앞에 자동 prefix. empty string opt-out
  * @property spel SpEL 보안 옵션
  */
-@ConfigurationProperties(prefix = "bluetape4k.leader.aop")
+@ConfigurationProperties(prefix = LeaderAopProperties.PREFIX)
 data class LeaderAopProperties(
     val enabled: Boolean = true,
     val strict: Boolean = false,
