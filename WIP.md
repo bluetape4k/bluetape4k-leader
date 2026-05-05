@@ -31,6 +31,9 @@
 | #104/#105 | Spring Boot 3 드랍 — leader-spring-boot 단일 모듈 통합 | ✅ 완료 | merged |
 | #76 | spring-boot 디렉토리 재구조화 | ✅ 완료 | #104/#105로 해소 |
 | #100 | LeaderElection/LeaderGroupElection → LeaderElector/LeaderGroupElector rename | ✅ 완료 | #106 merged |
+| #103 | feat: LeaderAopProperties Metrics 중첩 클래스 추가 (IDE 자동완성) | ✅ 완료 | #111 merged |
+| #102 | feat: LeaderMicrometerHealthAutoConfiguration 추가 | ✅ 완료 | #112 merged |
+| #87 | test: Boot4 Freefair CTW double-fire 방지 검증 테스트 | ✅ 완료 | #113 merged |
 
 ---
 
@@ -87,9 +90,6 @@
 | 이슈 | 제목 | 선행 조건 | 우선순위 |
 |------|------|----------|---------|
 | **#85** | **feat: 백엔드 SPI elected vs skipped 명확 구분 (metrics 정확도)** | #75 ✅ | ⭐ 최우선 |
-| #102 | feat: LeaderMicrometerHealthAutoConfiguration 추가 | #75 ✅ | 높음 |
-| #103 | feat: LeaderMetricsProperties @ConfigurationProperties 추가 | #75 ✅ | 높음 |
-| #87 | feat: Boot4 Freefair double-fire 검증 테스트 | #41 ✅ | 중간 |
 | #81 | feat: FAIL_OPEN_RUN 모드 + LeaderResult sealed wrapper | #41 ✅ | 중간 |
 
 ### P2 — 독립 기능 확장 (병렬 가능)
