@@ -44,6 +44,10 @@ interface LeaderElector: AsyncLeaderElector {
      * action()이 null을 반환해도 [LeaderRunResult.Elected]로 구분되고,
      * lock 미획득은 [LeaderRunResult.Skipped]로 구분됩니다.
      *
+     * NOTE: 동기 [LeaderElector] 전용입니다.
+     * `SuspendLeaderElector` / `AsyncLeaderElector` / `VirtualThreadLeaderElector` 의 동등
+     * 메서드는 v1.x 후속 이슈에서 추가 예정입니다.
+     *
      * ```kotlin
      * when (val r = election.runIfLeaderResult("job-lock") { compute() }) {
      *     is LeaderRunResult.Elected -> println("elected, value=${r.value}")

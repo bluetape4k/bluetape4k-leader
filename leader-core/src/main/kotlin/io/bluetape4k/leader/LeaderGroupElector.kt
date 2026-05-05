@@ -53,6 +53,10 @@ interface LeaderGroupElector: AsyncLeaderGroupElector {
      * action()이 null을 반환해도 [LeaderRunResult.Elected]로 구분되고,
      * 슬롯 미획득은 [LeaderRunResult.Skipped]로 구분됩니다.
      *
+     * NOTE: 동기 [LeaderGroupElector] 전용입니다.
+     * `SuspendLeaderGroupElector` / `AsyncLeaderGroupElector` 의 동등 메서드는
+     * v1.x 후속 이슈에서 추가 예정입니다.
+     *
      * @param lockName 리더 그룹 선출에 사용할 락 이름
      * @param action 슬롯 획득 성공 시 실행할 동기 작업
      * @return [LeaderRunResult.Elected] (action 실행됨) 또는 [LeaderRunResult.Skipped] (슬롯 미획득)

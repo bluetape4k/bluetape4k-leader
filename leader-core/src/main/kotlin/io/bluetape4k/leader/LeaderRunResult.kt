@@ -18,6 +18,9 @@ sealed interface LeaderRunResult<out T> {
      * 리더 선출 성공 — action 실행 완료.
      *
      * action 반환값이 null이어도 [Elected]로 분류됩니다.
+     *
+     * NOTE: T가 non-null 타입이어도 [value]는 `T?`로 선언됩니다.
+     * 이는 `runIfLeader()` 반환 타입 `T?`를 통한 클로저 패턴의 제약입니다.
      */
     data class Elected<out T>(val value: T?) : LeaderRunResult<T>
 
