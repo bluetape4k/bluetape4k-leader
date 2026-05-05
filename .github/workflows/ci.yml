@@ -134,6 +134,44 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 7
 
+  # ── leader-micrometer 테스트 (Docker 불필요) ────────────────────────────
+  test-micrometer:
+    name: Test / leader-micrometer
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+          cache-read-only: true
+      - name: Test leader-micrometer
+        run: ./gradlew :leader-micrometer:test --no-daemon
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+      - name: Generate Kover XML report
+        if: always()
+        run: ./gradlew :leader-micrometer:koverXmlReport --no-daemon
+        continue-on-error: true
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-micrometer
+          path: '**/build/test-results/test/*.xml'
+          retention-days: 7
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-micrometer
+          path: '**/build/reports/kover/'
+          retention-days: 7
+
   # ── 4. leader-redis-lettuce 테스트 (Testcontainers) ─────────────────────
   test-redis-lettuce:
     name: Test / leader-redis-lettuce
@@ -369,6 +407,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - test-core
+      - test-micrometer
       - test-redis-lettuce
       - test-redis-redisson
       - test-exposed-jdbc-h2
@@ -406,6 +445,7 @@ jobs:
       - gitleaks
       - build
       - test-core
+      - test-micrometer
       - test-redis-lettuce
       - test-redis-redisson
       - test-exposed-jdbc-h2
