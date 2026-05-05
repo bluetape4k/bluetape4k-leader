@@ -34,7 +34,7 @@
 
 ## Task List
 
-### T1. [complexity: low] build.gradle.kts 의존성 교체
+### T1. [complexity: low] build.gradle.kts 의존성 교체 + Kover threshold
 
 **파일**: `leader-micrometer/build.gradle.kts`
 
@@ -42,8 +42,21 @@
 - `api(project(":leader-core"))` → `api(project(":leader-spring-boot-common"))` 로 라인 교체
   (`leader-core`는 `leader-spring-boot-common`이 transitive로 노출하므로 별도 명시 불필요)
 - `api(libs.micrometer.core)` 유지
-- `testImplementation(libs.micrometer.registry.prometheus)` 유지 (단순 미터레지스트리 검증용)
+- `testImplementation(libs.micrometer.registry.prometheus)` 유지
 - `testImplementation(libs.bluetape4k.junit5)` / `kotlinx.coroutines.test` 유지
+- **Kover 80% threshold 추가** (`feedback_coverage_kover.md`):
+  ```kotlin
+  kover {
+      reports {
+          verify {
+              rule {
+                  minBound(80)
+              }
+          }
+      }
+  }
+  ```
+  기존 다른 모듈 (`leader-core`, `leader-redis-lettuce` 등)의 Kover 설정 블록 참조하여 동일 패턴 적용.
 
 **검증**: `./gradlew :leader-micrometer:dependencies | grep "leader-spring-boot-common"`
 
@@ -84,6 +97,14 @@ internal object MicrometerNames {
 
 **작업**: Spec §4.1 기준 단일 클래스. 핵심 구성 요소:
 
+0. **명시적 import 블록** (파일 상단 — IDE 자동 완성 오류 방지)
+   ```kotlin
+   import io.bluetape4k.leader.LeaderElectionOptions          // ✅ NOT io.bluetape4k.leader.options.*
+   import io.bluetape4k.leader.spring.aop.metrics.LeaderAopMetricsRecorder
+   import io.bluetape4k.leader.spring.aop.metrics.SkipReason
+   import kotlin.time.toJavaDuration
+   ```
+
 1. **클래스 시그니처**
    ```kotlin
    class MicrometerLeaderAopMetricsRecorder(
@@ -122,7 +143,8 @@ internal object MicrometerNames {
    - `buildActiveGauge(lockName: String): AtomicInteger` — Spec §3.5 람다 패턴 (`{ it.get().toDouble() }`) 사용. **`!!` 금지**.
    - `Gauge.builder(METER_ACTIVE, counter) { it.get().toDouble() }.tag(TAG_LOCK_NAME, lockName).register(registry)`
 
-7. **카디널리티 경고 로깅** — `attemptCounter(name)` 안에서 `computeIfAbsent`의 람다가 호출될 때마다 (= 신규 lockName 첫 등장) `log.warn("Registering new lock.name='{}' for leader.aop metrics — beware tag cardinality if using dynamic SpEL", name)` 출력. KLogging companion 사용.
+7. **카디널리티 경고 로깅** — `attemptCounter(name)` 안에서 `computeIfAbsent`의 람다가 호출될 때만 (= 신규 lockName 첫 등장) `log.warn("Registering new lock.name='{}' for leader.aop metrics — beware tag cardinality if using dynamic SpEL", name)` 출력. KLogging companion 사용.
+   > ⚠️ **`registerMetricsFor`는 cardinality warn을 발생시키지 않는다.** `registerMetricsFor`는 `attemptCounter(name)` 헬퍼를 통하지 않고 `attemptCounters.computeIfAbsent(name) { buildAttemptCounter(name) }` 를 직접 호출해야 한다. 이렇게 해야 사전 등록된 정적 lock name이 warn을 유발하지 않고, 런타임에 예상치 못한 동적 lock name만 warn을 유발한다.
 
 8. **격리(Isolation) 보장** — 본 클래스 자체에서 throw 금지. `Counter.increment()` 등 Micrometer API 외부 throw는 무시 가능 수준이므로 별도 try/catch 미적용. 단, `log.warn`이 매번 호출되지 않도록 `computeIfAbsent` 람다 안에서만 호출.
 
@@ -166,13 +188,19 @@ internal object MicrometerNames {
    ```
 
 3. **HealthContributor @Bean** (Boot3 only — Spec §4.4)
+   Spring Boot의 동일 `@Configuration` 클래스 내 `@ConditionalOnBean`은 빈 순서 미보장으로 신뢰 불가. **별도 inner `@Configuration` 클래스**로 분리:
    ```kotlin
-   @Bean
-   @ConditionalOnBean(value = [MeterRegistry::class, MicrometerLeaderAopMetricsRecorder::class])
+   @Configuration(proxyBeanMethods = false)
+   @ConditionalOnBean(MicrometerLeaderAopMetricsRecorder::class)
    @ConditionalOnClass(name = ["org.springframework.boot.actuate.health.HealthContributor"])
-   @ConditionalOnMissingBean(name = ["leaderMicrometerHealthContributor"])
-   fun leaderMicrometerHealthContributor(registry: MeterRegistry): HealthIndicator { ... }
+   inner class HealthConfig {
+       @Bean
+       @ConditionalOnMissingBean(name = ["leaderMicrometerHealthContributor"])
+       fun leaderMicrometerHealthContributor(registry: MeterRegistry): HealthIndicator { ... }
+   }
    ```
+   - 반환 타입은 `HealthIndicator` (단일 노드). `CompositeHealthContributor`가 아님.
+   - `leaderMicrometerHealthContributor` 빈 이름 명시 (`leaderAopHealthIndicator`와 충돌 방지)
    - `attempts.total = registry.find(METER_ATTEMPTS).counters().sumOf { it.count() }`
    - `metrics.registered = counters.isNotEmpty()`
    - 항상 `Health.up()` 반환 (attempts 0 일 때도)
@@ -248,7 +276,7 @@ Boot4 imports도 동일 패턴 (`boot4` 패키지로).
 10. `onTaskStarted then onTaskFailed - active gauge returns to 0`
 11. `registerMetricsFor - meters appear before first callback`
 12. `registerMetricsFor - idempotent second call does not duplicate meters` ← **멱등성 검증 (mandatory)**
-13. `concurrent onTaskStarted and onTaskFinished - active gauge thread safe` ← **mandatory**: `coroutineScope { repeat(1000) { launch { recorder.onTaskStarted("k"); recorder.onTaskFinished("k", 1.milliseconds) } } }` 후 active = 0 검증
+13. `concurrent onTaskStarted and onTaskFinished - active gauge thread safe` ← **mandatory**: JVM 실제 스레드 병렬성 사용. `runBlocking(Dispatchers.Default) { coroutineScope { repeat(1000) { launch { recorder.onTaskStarted("k"); recorder.onTaskFinished("k", 1.milliseconds) } } } }` 후 active = 0 검증. `Dispatchers.Default` 명시 필수 (단일 스레드 디스패처 사용 시 AtomicInteger의 thread-safety가 검증되지 않음)
 14. `deregisterMetricsFor - removes meters from registry` ← `registry.find(METER_ACTIVE).tag(TAG_LOCK_NAME, name).gauge()` 가 null 반환
 
 모든 assertion은 `tag(TAG_LOCK_NAME, "test-lock")` 명시.
@@ -269,7 +297,11 @@ Boot4 imports도 동일 패턴 (`boot4` 패키지로).
 2. `MeterRegistry 빈 없을 때 recorder 빈 미등록` — `@ConditionalOnBean(MeterRegistry)` 검증. context에서 `getBeansOfType(LeaderAopMetricsRecorder).isEmpty()` 검증
 3. `enabled=false 시 빈 미등록` — `@TestPropertySource(properties = ["bluetape4k.leader.aop.metrics.enabled=false"])`
 4. `사용자 정의 LeaderAopMetricsRecorder가 우선` — TestConfig 에서 `@Bean fun customRecorder(): LeaderAopMetricsRecorder = NoOpRecorder()` 등록 후 `MicrometerLeaderAopMetricsRecorder` 빈 미등록 검증
-5. `LeaderElectionAspect 통과 시 attempts+acquired+timer 전체 검증` — `LocalLeaderElection` + `@LeaderElection` 메서드 호출 → `registry.get(METER_ATTEMPTS).counter().count()` ≥ 1, `registry.get(METER_EXECUTION_DURATION).timer().count()` ≥ 1
+5. `LeaderElectionAspect 통과 시 attempts+acquired+timer+active 전체 검증` — `LocalLeaderElection` + `@LeaderElection` 메서드 호출 → 다음을 **모두** 검증:
+   - `registry.get(METER_ATTEMPTS).tag(TAG_LOCK_NAME, "test-lock").counter().count()` ≥ 1
+   - `registry.get(METER_ACQUIRED).tag(TAG_LOCK_NAME, "test-lock").counter().count()` ≥ 1
+   - `registry.get(METER_EXECUTION_DURATION).tag(TAG_LOCK_NAME, "test-lock").timer().count()` ≥ 1
+   - `registry.find(METER_ACTIVE).tag(TAG_LOCK_NAME, "test-lock").gauge()?.value()` == 0.0 (메서드 반환 후)
 6. `backend 예외 시 lock.not.acquired reason=BACKEND_ERROR 증가` — Mock LeaderElection 이 throw → `tag(TAG_REASON, "BACKEND_ERROR")` counter 증가 검증
 7. `leaderMicrometerHealthContributor 빈 등록 검증` — `Health.up()` + `details["metrics.registered"]` 존재
 
@@ -283,18 +315,27 @@ Boot4 imports도 동일 패턴 (`boot4` 패키지로).
 
 **파일**: `leader-spring-boot4/src/test/kotlin/io/bluetape4k/leader/spring/boot4/metrics/LeaderMicrometerAutoConfigurationBoot4Test.kt`
 
-**작업**: T8과 **동일 시나리오**. 차이점:
-- 패키지/AutoConfig 클래스 → `boot4`
-- HealthContributor 검증 케이스 **제외** (Boot4 미등록)
-- AspectJ post-compile weaving 환경 — `@LeaderElection` 메서드는 `open` 불필요
+**작업**: T8과 동일한 테스트 케이스를 아래 목록으로 명시 구현. 패키지/클래스만 `boot4` 로 변경.
+
+테스트 케이스 (HealthContributor 제외):
+1. `MeterRegistry 빈 존재 시 MicrometerLeaderAopMetricsRecorder 자동 등록`
+2. `MeterRegistry 빈 없을 때 recorder 빈 미등록`
+3. `enabled=false 시 빈 미등록`
+4. `사용자 정의 LeaderAopMetricsRecorder가 우선`
+5. `LeaderElectionAspect 통과 시 attempts+acquired+timer+active 전체 검증` — T8 #5와 동일 assertion (4가지 모두 검증)
+6. `backend 예외 시 lock.not.acquired reason=BACKEND_ERROR 증가`
+
+> **Boot4 차이점**: AspectJ post-compile weaving 환경. `@LeaderElection` 메서드에 `open` 불필요. Boot4 `LeaderAopAutoConfiguration` 클래스 FQN은 `io.bluetape4k.leader.spring.boot4.aop.autoconfigure.LeaderAopAutoConfiguration` (boot3와 다름 — 패키지 확인 필수).
 
 **의존**: T5, T6
 
 ---
 
-### T10. [complexity: low] junit-platform.properties (leader-micrometer)
+### T10. [complexity: low] junit-platform.properties + logback-test.xml (leader-micrometer)
 
-**파일**: `leader-micrometer/src/test/resources/junit-platform.properties`
+**파일**:
+- `leader-micrometer/src/test/resources/junit-platform.properties`
+- `leader-micrometer/src/test/resources/logback-test.xml`
 
 **작업**: 메모리 규칙 `feedback_junit_platform_per_class.md` 표준 적용.
 
@@ -303,9 +344,9 @@ junit.jupiter.testinstance.lifecycle.default=per_class
 junit.jupiter.execution.parallel.enabled=false
 ```
 
-기존 다른 모듈 (`leader-redis-redisson`, `leader-mongodb` 등) 의 동일 파일 내용 그대로 복사.
+`logback-test.xml`은 다른 모듈의 기존 파일 그대로 복사. `log.warn` 카디널리티 경고가 테스트 로그에 출력되도록 최소 WARN 레벨 설정.
 
-**의존**: T7
+**의존**: 없음 ← T7 실행 **전에** 반드시 완료해야 함
 
 ---
 
@@ -361,16 +402,16 @@ junit.jupiter.execution.parallel.enabled=false
 ```
 T1 (gradle) ──┬─→ T3 (recorder) ──┬─→ T4 (boot3 autoconfig) ──┬─→ T6 (imports) ──┬─→ T8 (boot3 test)
 T2 (names)  ──┘                   │                           │                  └─→ T9 (boot4 test)
+T10 (junit) ──────────────────────│───────────────────────────│──────────────────→ T7 (unit test)
                                   ├─→ T5 (boot4 autoconfig) ──┘
-                                  ├─→ T7 (unit test) ──→ T10 (junit-platform.properties)
                                   └─→ T11 (README + KDoc)
 ```
 
 병렬 가능 그룹:
-- T1 + T2 (선행 없음)
-- T4 + T5 + T7 (T3 완료 후)
-- T8 + T9 (T4/T5/T6 완료 후)
-- T10 + T11 (각 선행 완료 후)
+- **T1 + T2 + T10** (선행 없음 — T10은 T7 실행 전에 완료 필수)
+- **T4 + T5 + T7** (T1+T2+T3+T10 완료 후)
+- **T8 + T9** (T4/T5/T6 완료 후)
+- **T11** (T3+T4+T5 완료 후)
 
 ---
 
