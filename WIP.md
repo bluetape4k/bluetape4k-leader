@@ -82,10 +82,10 @@
 
 | 이슈 | 제목 | 선행 조건 |
 |------|------|----------|
-| **#94** | **fix: factory.create() pre-try I/O가 failureMode + LeaderElectionException wrap 우회** | 없음 |
-| #97 | test: SpelExpressionEvaluator null 결과 + `${...}` placeholder 경로 미테스트 | 없음 |
-| #96 | test: LeaderAnnotationValidatorBeanPostProcessor suspend/Mono/Flux/Flow/@Aspect skip 미테스트 | 없음 |
-| #95 | test: LeaderGroupElectionAspect 전체 테스트 부재 | 없음 |
+| **#94** | **fix: factory.create() pre-try I/O가 failureMode + LeaderElectionException wrap 우회** | ✅ #116에 포함 |
+| #97 | test: SpelExpressionEvaluator null 결과 + `${...}` placeholder 경로 미테스트 | ✅ #116에 포함 |
+| #96 | test: LeaderAnnotationValidatorBeanPostProcessor suspend/Mono/Flux/Flow/@Aspect skip 미테스트 | ✅ #116에 포함 |
+| #95 | test: LeaderGroupElectionAspect 전체 테스트 부재 | ✅ #116에 포함 |
 
 ### P1 — #75 완료 이후 연쇄 (지금 가능)
 
