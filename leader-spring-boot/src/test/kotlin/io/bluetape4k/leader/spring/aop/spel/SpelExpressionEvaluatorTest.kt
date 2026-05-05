@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.aop.spel
 
 import io.bluetape4k.logging.KLogging
 import org.amshove.kluent.shouldBeEqualTo
+import org.amshove.kluent.shouldContain
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.expression.spel.SpelEvaluationException
@@ -133,8 +134,8 @@ class SpelExpressionEvaluatorTest {
         val ex = assertThrows<IllegalStateException> {
             sut.evaluate("#a0", method("process"), arrayOf<Any?>(null), SampleService())
         }
-        ex.message!!.contains("SampleService") shouldBeEqualTo true
-        ex.message!!.contains("process") shouldBeEqualTo true
+        ex.message!! shouldContain "SampleService"
+        ex.message!! shouldContain "process"
     }
 
     @Test
