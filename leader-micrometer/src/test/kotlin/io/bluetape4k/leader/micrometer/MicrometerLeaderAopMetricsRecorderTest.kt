@@ -11,7 +11,6 @@ import kotlinx.coroutines.runBlocking
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeGreaterOrEqualTo
 import org.amshove.kluent.shouldBeNull
-import org.amshove.kluent.shouldBeTrue
 import org.amshove.kluent.shouldNotBeNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -115,7 +114,7 @@ class MicrometerLeaderAopMetricsRecorderTest {
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .gauge()?.value() ?: 0.0
 
-        (gaugeValue >= 0.0).shouldBeTrue()
+        gaugeValue shouldBeGreaterOrEqualTo 0.0
         gaugeValue shouldBeEqualTo 0.0
     }
 

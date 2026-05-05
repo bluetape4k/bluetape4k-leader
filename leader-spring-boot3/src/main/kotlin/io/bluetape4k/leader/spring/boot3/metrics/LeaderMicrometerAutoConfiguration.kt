@@ -36,7 +36,10 @@ import org.springframework.context.annotation.Role
     after = [LeaderAopFactoryAutoConfiguration::class],
     before = [LeaderAopAutoConfiguration::class],
 )
-@ConditionalOnClass(name = ["io.micrometer.core.instrument.MeterRegistry"])
+@ConditionalOnClass(name = [
+    "io.micrometer.core.instrument.MeterRegistry",
+    "io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder",
+])
 @ConditionalOnProperty(
     prefix = "bluetape4k.leader.aop.metrics",
     name = ["enabled"],

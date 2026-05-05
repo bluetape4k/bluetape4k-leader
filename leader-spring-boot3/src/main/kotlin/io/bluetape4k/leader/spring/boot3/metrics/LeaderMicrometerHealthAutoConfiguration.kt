@@ -21,7 +21,11 @@ import org.springframework.context.annotation.Bean
  * [MicrometerLeaderAopMetricsRecorder]가 등록되지 않으므로 이 AutoConfig도 비활성화된다.
  */
 @AutoConfiguration(after = [LeaderMicrometerAutoConfiguration::class])
-@ConditionalOnClass(HealthIndicator::class)
+@ConditionalOnClass(name = [
+    "io.micrometer.core.instrument.MeterRegistry",
+    "io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder",
+    "org.springframework.boot.actuate.health.HealthIndicator",
+])
 @ConditionalOnBean(MicrometerLeaderAopMetricsRecorder::class)
 @ConditionalOnProperty(
     prefix = "bluetape4k.leader.aop.metrics",
