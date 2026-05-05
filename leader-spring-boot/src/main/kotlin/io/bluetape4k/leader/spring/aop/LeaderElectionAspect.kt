@@ -39,6 +39,7 @@ import kotlin.time.Duration.Companion.nanoseconds
  * - **Rel-2**: [CancellationException] 항상 우선 재throw (CLAUDE.md memory feedback_cancellation_exception)
  * - **Perf-1**: metrics fan-out 시 `metrics.isEmpty()` fast-path
  * - **Perf-2**: Method-level cache — annotation lookup + lease threshold 사전계산 + factory bean name resolution
+ * - **Fix-94**: [resolveLockName] + [factory.create] 를 try 안으로 이동 — backend I/O 실패가 failureMode 우회하던 버그 수정
  *
  * @param beanSelector factory 빈 선택기
  * @param props AOP 전역 속성
@@ -70,35 +71,39 @@ class LeaderElectionAspect(
         val args = pjp.args
 
         val meta = metadataCache.computeIfAbsent(method) { resolveMetadata(it, target) }
-        val lockName = resolveLockName(meta, method, args, target)
         val opts = meta.options
-        val factoryBeanName = meta.factoryBeanName
-        val factory = meta.factory
 
-        val cacheKey = FactoryCacheKey(factoryBeanName, opts)
-        val election = factoryCache.computeIfAbsent(cacheKey) { factory.create(opts) }
-
-        fanOut { it.onLockAttempt(lockName, opts) }
+        // [Fix-94] resolveLockName + factory.create 를 try 안으로 이동
+        // catch 에서 lockName 이 필요하므로 nullable var 로 선언, 성공 시 resolvedName 을 val 로 분리
+        var lockName: String? = null
         val start = System.nanoTime()
 
         return try {
-            val result = election.runIfLeader(lockName) {
+            val resolvedName = resolveLockName(meta, method, args, target)
+            lockName = resolvedName
+
+            val cacheKey = FactoryCacheKey(meta.factoryBeanName, opts)
+            val election = factoryCache.computeIfAbsent(cacheKey) { meta.factory.create(opts) }
+
+            fanOut { it.onLockAttempt(resolvedName, opts) }
+
+            val result = election.runIfLeader(resolvedName) {
                 fanOut {
-                    it.onLockAcquired(lockName, opts, (System.nanoTime() - start).nanoseconds)
-                    it.onTaskStarted(lockName)
+                    it.onLockAcquired(resolvedName, opts, (System.nanoTime() - start).nanoseconds)
+                    it.onTaskStarted(resolvedName)
                 }
-                executeBody(pjp, lockName, start)
+                executeBody(pjp, resolvedName, start)
             }
             if (result == null) {
-                fanOut { it.onLockNotAcquired(lockName, opts, SkipReason.CONTENTION) }
-                log.debug { "leader.aop.skipped lockName=$lockName reason=CONTENTION" }
+                fanOut { it.onLockNotAcquired(resolvedName, opts, SkipReason.CONTENTION) }
+                log.debug { "leader.aop.skipped lockName=$resolvedName reason=CONTENTION" }
             } else {
                 val elapsed = System.nanoTime() - start
-                fanOut { it.onTaskFinished(lockName, elapsed.nanoseconds) }
-                log.debug { "leader.aop.elected lockName=$lockName elapsedNs=$elapsed" }
+                fanOut { it.onTaskFinished(resolvedName, elapsed.nanoseconds) }
+                log.debug { "leader.aop.elected lockName=$resolvedName elapsedNs=$elapsed" }
                 if (elapsed > meta.leaseTimeWarnThresholdNanos) {
                     log.warn {
-                        "leader.aop.lease-warn lockName=$lockName elapsedNs=$elapsed leaseTimeNs=${opts.leaseTime.toNanos()}"
+                        "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${opts.leaseTime.toNanos()}"
                     }
                 }
             }
@@ -110,17 +115,18 @@ class LeaderElectionAspect(
             // [Rel-1] body 예외는 wrapping 없이 그대로 전파 — failureMode 무관
             throw bodyMarker.cause
         } catch (backendEx: Throwable) {
-            // [Sec-3][R-33] backend 예외만 LeaderElectionException 으로 wrapping
-            val wrapped = LeaderElectionException("leader backend error for lock '$lockName'", backendEx)
+            // [Sec-3][R-33] backend 예외만 LeaderElectionException 으로 wrapping (host/credentials 누출 차단)
+            val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
+            val wrapped = LeaderElectionException("leader backend error for lock '$effectiveName'", backendEx)
             fanOut {
-                it.onLockNotAcquired(lockName, opts, SkipReason.BACKEND_ERROR)
-                it.onTaskFailed(lockName, (System.nanoTime() - start).nanoseconds, backendEx)
+                it.onLockNotAcquired(effectiveName, opts, SkipReason.BACKEND_ERROR)
+                it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx)
             }
             when (meta.failureMode) {
                 LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
                 LeaderAspectFailureMode.RETHROW -> throw wrapped
                 LeaderAspectFailureMode.SKIP -> {
-                    log.warn(backendEx) { "leader.aop.skipped lockName=$lockName reason=BACKEND_ERROR" }
+                    log.warn(backendEx) { "leader.aop.skipped lockName=$effectiveName reason=BACKEND_ERROR" }
                     null
                 }
             }

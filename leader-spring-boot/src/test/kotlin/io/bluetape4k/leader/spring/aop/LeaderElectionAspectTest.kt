@@ -296,4 +296,42 @@ class LeaderElectionAspectTest {
         val ex = assertThrows<LeaderElectionException> { aspect.aroundLeader(pjp) }
         ex shouldBeInstanceOf LeaderElectionException::class
     }
+
+    // ── Fix-94: factory.create() I/O 실패가 failureMode 우회하던 버그 회귀 테스트 ──
+
+    @Test
+    fun `Fix-94 - factory create 실패 RETHROW - LeaderElectionException wrapping + lockName 포함 + host 누출 없음`() {
+        val target = SampleServiceImpl()
+        val method = SampleService::class.java.getDeclaredMethod("runSync")
+        configureJoinPoint(method, target, emptyArray())
+
+        val backendEx = RuntimeException("Connection to redis-prod-01.internal:6379 refused")
+        val aspect = newAspect()
+        // factory.create 가 backend I/O 실패로 throw — try 블록 안으로 이동되어야 failureMode 가 적용됨
+        every { factoryMock.create(any()) } throws backendEx
+
+        val wrapped = assertThrows<LeaderElectionException> { aspect.aroundLeader(pjp) }
+        wrapped.cause shouldBeEqualTo backendEx
+        // lockName 은 포함, backend host 정보는 누출 안 됨 (R-33)
+        wrapped.message!!.contains("static-job") shouldBeEqualTo true
+        wrapped.message!!.contains("redis-prod-01") shouldBeEqualTo false
+    }
+
+    @Test
+    fun `Fix-94 - factory create 실패 SKIP - null 반환으로 흡수`() {
+        class SampleSkipOnCreate {
+            @LeaderElection(name = "create-fail-job", failureMode = LeaderAspectFailureMode.SKIP)
+            fun run(): String? = SAMPLE_RESULT
+        }
+
+        val skipTarget = SampleSkipOnCreate()
+        val skipMethod = SampleSkipOnCreate::class.java.getDeclaredMethod("run")
+        configureJoinPoint(skipMethod, skipTarget, emptyArray())
+
+        val aspect = newAspect()
+        every { factoryMock.create(any()) } throws RuntimeException("factory backend init error")
+
+        // SKIP 모드 → backend I/O 실패를 흡수하고 null 반환
+        aspect.aroundLeader(pjp).shouldBeNull()
+    }
 }
