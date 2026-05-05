@@ -161,4 +161,57 @@ class SpelExpressionEvaluatorTest {
             SampleService(),
         ) shouldBeEqualTo "batch-EU"
     }
+
+    // ── #82: TemplateParserContext 혼합 표현식 ──
+
+    @Test
+    fun `template - prefix-#{#region}-suffix 혼합 표현식 평가`() {
+        val sut = newEvaluator()
+        sut.evaluate("prefix-#{#region}-suffix", method("process"), arrayOf("EU"), SampleService()) shouldBeEqualTo "prefix-EU-suffix"
+    }
+
+    @Test
+    fun `template - 리터럴만 있는 템플릿 표현식`() {
+        val sut = newEvaluator()
+        sut.evaluate("static-#{#region}", method("process"), arrayOf("KR"), SampleService()) shouldBeEqualTo "static-KR"
+    }
+
+    @Test
+    fun `template - 복수 SpEL 구간 평가`() {
+        val sut = newEvaluator()
+        // "#{#a0}-job-#{#a1}" 이 가능한지 테스트 — 메서드에 파라미터 2개 필요
+        val twoParamMethod = TwoParamService::class.java.getDeclaredMethod("process", String::class.java, String::class.java)
+        sut.evaluate(
+            "#{#env}-lock-#{#zone}",
+            twoParamMethod,
+            arrayOf("prod", "us-east"),
+            TwoParamService(),
+        ) shouldBeEqualTo "prod-lock-us-east"
+    }
+
+    @Test
+    fun `template - pre-parse 정상 통과`() {
+        val sut = newEvaluator()
+        sut.preParse("daily-#{#region}", method("process"))
+        sut.cacheSize() shouldBeEqualTo 1L  // template 표현식 cache 적재 ("T:daily-#{#region}")
+    }
+
+    @Test
+    fun `template - 잘못된 SpEL 구간 startup fail`() {
+        val sut = newEvaluator()
+        val ex = runCatching { sut.preParse("prefix-#{'unclosed}", method("process")) }.exceptionOrNull()
+        check(ex != null) { "expected throw" }
+        check(ex.message!!.contains("SpEL template")) { "message should mention 'SpEL template': ${ex.message}" }
+    }
+
+    @Test
+    fun `template - plain SpEL 과 자동 구분 — 해시만 있고 중괄호 없으면 plain 모드`() {
+        val sut = newEvaluator()
+        // #region 은 plain SpEL, "#{" 없으므로 template 모드 아님
+        sut.evaluate("#region", method("process"), arrayOf("EU"), SampleService()) shouldBeEqualTo "EU"
+    }
+
+    private class TwoParamService {
+        fun process(env: String, zone: String): String = "$env-$zone"
+    }
 }
