@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.spring.aop.properties
 
 import io.bluetape4k.leader.spring.aop.LeaderAspectFailureMode
+import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 
 /**
@@ -29,6 +30,7 @@ import java.time.Duration
  * @property lockNamePrefix [Step 3-P-Sec-2][R-34] SpEL 평가 결과 앞에 자동 prefix. empty string opt-out
  * @property spel SpEL 보안 옵션
  */
+@ConfigurationProperties(prefix = "bluetape4k.leader.aop")
 data class LeaderAopProperties(
     val enabled: Boolean = true,
     val strict: Boolean = false,
