@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"rtk git worktree remove .worktrees/refactor/100-leader-elector --force && rtk git branch -d refactor/100-leader-elector && rtk git push origin --delete refactor/100-leader-elector 2>&1\",\"d...",
-  "error": "Exit code 1\nok\nok\nFAILED: git push\nerror: unable to delete 'refactor/100-leader-elector': remote ref does not exist\nerror: failed to push some refs to 'https://github.com/bluetape4k/bluetape4k-leader.git'",
-  "timestamp": "2026-05-05T14:02:06.362Z",
-  "retry_count": 1
-}
