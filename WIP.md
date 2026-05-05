@@ -27,29 +27,35 @@
 | #8 | leader-mongodb — MongoDB findOneAndUpdate + TTL 기반 분산 락 | ✅ 완료 | #46 merged |
 | #11/#12 | leader-spring-boot3 / leader-spring-boot4 AutoConfiguration | ✅ 완료 | merged |
 | **#41** | **@LeaderElection, @LeaderGroupElection AOP 애노테이션 (Spring Boot 3/4)** | **✅ 완료** | **#86 merged** |
+| #75/#101 | leader-aop Micrometer metrics 통합 | ✅ 완료 | #84 merged |
+| #104/#105 | Spring Boot 3 드랍 — leader-spring-boot 단일 모듈 통합 | ✅ 완료 | merged |
+| #76 | spring-boot 디렉토리 재구조화 | ✅ 완료 | #104/#105로 해소 |
+| #100 | LeaderElection/LeaderGroupElection → LeaderElector/LeaderGroupElector rename | ✅ 완료 | #106 merged |
 
 ---
 
 ## 이슈 의존 관계
 
 ```
-#41 (AOP annotations) ─── DONE ──┬── #75 (Micrometer metrics) ─── #85 (elected/skipped SPI)
-                                  │
-                                  ├── #81 (FAIL_OPEN_RUN + LeaderResult sealed)
-                                  │
-                                  ├── #76 (Boot 디렉토리 재구조화)          ← 독립
-                                  │
-                                  ├── #87 (Boot4 double-fire 검증)           ← 독립
-                                  │
-                                  └── #80 sub-issues ─── #88 → #89 → #90 → #91 → #92
+#41 (AOP) ✅ ─── #75 (Micrometer) ✅ ──┬── #85 (elected/skipped SPI)
+                                        ├── #102 (HealthAutoConfiguration)
+                                        └── #103 (MetricsProperties)
+
+#41 ✅ ────────────────────────────────┬── #94 (bug: failureMode bypass) ← P0
+                                       ├── #95 (test: LeaderGroupElectionAspect) ← P0
+                                       ├── #96 (test: BPP suspend/Mono 분기) ← P0
+                                       ├── #97 (test: SpEL null + placeholder) ← P0
+                                       ├── #87 (Boot4 double-fire 검증)
+                                       ├── #81 (FAIL_OPEN_RUN + LeaderResult)
+                                       └── #80 sub-issues ─── #88 → #89 → #90 → #91 → #92
 
 독립 기능 (병렬 가능):
-  #65 (fix: Exposed INSERT)
-  #66/#67 (docs KDoc)
   #82 (SpEL TemplateParserContext)
-  #83 (Result<T> 반환)
   #84 (메타 어노테이션 @AliasFor)
   #78 (@LeaderElectionBackend 클래스/패키지 레벨)
+
+보류:
+  #83 (Result<T> 반환) — 파괴적 변경, 0.1.0 출시 이후 별도 논의
 
 백로그 (낮은 우선순위):
   #40 (이벤트 리스너) → #75 이후 자연스럽게 연동 가능
@@ -67,47 +73,39 @@
 
 ## 실행 순서
 
-### Wave 1 — 즉시 실행 가능 (독립, #41 의존 없음)
+### P0 — 버그 수정 (즉시, 병렬 가능)
 
 | 이슈 | 제목 | 선행 조건 |
 |------|------|----------|
-| #65 | fix: Exposed Lock INSERT runCatching이 PK 충돌 외 SQL 예외도 흡수 | 없음 |
-| #66 | docs: leader-exposed KDoc 예제 보강 | 없음 |
-| #67 | docs: ExposedR2dbcSchemaInitializer KDoc H2 요구사항 명시 | 없음 |
+| **#94** | **fix: factory.create() pre-try I/O가 failureMode + LeaderElectionException wrap 우회** | 없음 |
+| #97 | test: SpelExpressionEvaluator null 결과 + `${...}` placeholder 경로 미테스트 | 없음 |
+| #96 | test: LeaderAnnotationValidatorBeanPostProcessor suspend/Mono/Flux/Flow/@Aspect skip 미테스트 | 없음 |
+| #95 | test: LeaderGroupElectionAspect 전체 테스트 부재 | 없음 |
 
-### Wave 2 — #41 완료 이후 핵심 (병렬 가능)
+### P1 — #75 완료 이후 연쇄 (지금 가능)
 
 | 이슈 | 제목 | 선행 조건 | 우선순위 |
 |------|------|----------|---------|
-| **#75** | **feat: leader-aop Micrometer metrics 통합** | #41 ✅ | ⭐ 최우선 |
-| #76 | chore: spring-boot 디렉토리 재구조화 | #41 ✅ | 중간 |
+| **#85** | **feat: 백엔드 SPI elected vs skipped 명확 구분 (metrics 정확도)** | #75 ✅ | ⭐ 최우선 |
+| #102 | feat: LeaderMicrometerHealthAutoConfiguration 추가 | #75 ✅ | 높음 |
+| #103 | feat: LeaderMetricsProperties @ConfigurationProperties 추가 | #75 ✅ | 높음 |
 | #87 | feat: Boot4 Freefair double-fire 검증 테스트 | #41 ✅ | 중간 |
-| #81 | feat: FAIL_OPEN_RUN 모드 + LeaderResult sealed wrapper | #41 ✅ | 높음 |
+| #81 | feat: FAIL_OPEN_RUN 모드 + LeaderResult sealed wrapper | #41 ✅ | 중간 |
 
-> **#75 최우선 이유**: ShedLock에도 `leader-micrometer` 모듈이 별도 존재.  
-> `LeaderAopMetricsRecorder` SPI를 먼저 정의해야 #85(elected/skipped 구분)와 E5 예제가 완성된다.
-
-### Wave 3 — #75 이후 연쇄
-
-| 이슈 | 제목 | 선행 조건 |
-|------|------|----------|
-| #85 | feat: 백엔드 SPI elected vs skipped 명확 구분 (metrics 정확도) | #75 |
-
-### Wave 4 — 독립 기능 확장 (병렬 가능)
+### P2 — 독립 기능 확장 (병렬 가능)
 
 | 이슈 | 제목 | 선행 조건 |
 |------|------|----------|
 | #82 | feat: SpEL TemplateParserContext 혼합 표현식 지원 | #41 ✅ |
-| #83 | feat: runIfLeader {} 반환을 Result<T>로 변경 | #41 ✅ |
 | #84 | feat: 메타 어노테이션 (@AliasFor) 지원 | #41 ✅ |
 | #78 | feat: 클래스/패키지 레벨 @LeaderElectionBackend 메타 어노테이션 | #41 ✅ |
 
-### Wave 5 — #80 sub-issues (순차 의존)
+### P3 — Wave 5 suspend/Mono 지원 (순차 의존, 난이도 높음)
 
 | 이슈 | 제목 | 선행 조건 |
 |------|------|----------|
-| #88 | feat: SuspendLeaderElectionFactory SPI 정의 + Local 구현 | #41 ✅ |
-| #89 | feat: SuspendLeaderElectionFactory 백엔드 구현 (Lettuce/Redisson/Mongo/ExposedR2dbc) | #88 |
+| #88 | feat: SuspendLeaderElectorFactory SPI 정의 + Local 구현 | #41 ✅ |
+| #89 | feat: SuspendLeaderElectorFactory 백엔드 구현 (Lettuce/Redisson/Mongo/ExposedR2dbc) | #88 |
 | #90 | feat: Aspect suspend 반환 타입 분기 (Spring AOP + Kotlin Coroutines) | #89 |
 | #91 | feat: Aspect Mono<T> 반환 타입 분기 | #90 |
 | #92 | feat: LeaderElectionInfo CoroutineContext element + Reactor context propagation | #91 |
@@ -131,6 +129,7 @@
 | #38 | lockAtLeastFor (최소 락 보유 시간) | #77 로 흡수 검토 |
 | #39 | useDbTime — DB 서버 시간 기준 락 | Exposed 백엔드 한정 |
 | #50 | 공통 리더 선출 이력 감사 계약 | 낮음 |
+| #83 | runIfLeader {} 반환을 Result<T>로 변경 | 파괴적 변경 — 0.1.0 출시 이후 |
 | #10 | leader-micrometer 독립 모듈 (InstrumentedLeaderElection) | #75 로 방향 전환 검토 |
 | #34 | leader-zookeeper (Apache Curator 기반) | 낮음 |
 | #36 | leader-examples (실무 시나리오 5종) | 기능 안정 후 |
