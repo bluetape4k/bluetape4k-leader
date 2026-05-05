@@ -20,10 +20,8 @@ leader-exposed-jdbc/     # Exposed JDBC backend
 leader-exposed-r2dbc/    # Exposed R2DBC backend
 leader-mongodb/          # MongoDB backend (findOneAndUpdate + TTL index)
 leader-hazelcast/        # Hazelcast backend
-leader-micrometer/       # (planned) Micrometer metrics integration
-leader-spring-boot-common/ # Boot-version-independent AOP annotations + infrastructure
-leader-spring-boot3/     # Spring Boot 3 auto-configuration + AOP (Spring proxy)
-leader-spring-boot4/     # Spring Boot 4 auto-configuration + AOP (AspectJ post-compile weaving)
+leader-micrometer/       # Micrometer metrics integration
+leader-spring-boot/      # Spring Boot 4 auto-configuration + AOP (AspectJ CTW, Freefair post-compile weaving)
 buildSrc/                # Versions, plugins, dependency catalog (Libs.kt, Versions.kt)
 ```
 
@@ -38,20 +36,18 @@ buildSrc/                # Versions, plugins, dependency catalog (Libs.kt, Versi
 ./gradlew test --tests "io.bluetape4k.leader.redisson.RedissonLeaderElectionTest"
 ./gradlew detekt
 
-# AOP modules
-./gradlew :leader-spring-boot-common:test
-./gradlew :leader-spring-boot3:test
-./gradlew :leader-spring-boot4:test
+# AOP module
+./gradlew :leader-spring-boot:test
 ```
 
 ## AOP Annotation Guide
 
-`@LeaderElection` / `@LeaderGroupElection` are declared in `leader-spring-boot-common` and
-applied via Spring AOP (Boot 3) or AspectJ post-compile weaving (Boot 4).
+`@LeaderElection` / `@LeaderGroupElection` are declared in `leader-core` (`io.bluetape4k.leader.annotation`)
+and applied via AspectJ CTW (Freefair post-compile weaving) in `leader-spring-boot`.
 
 ### Key rules for annotated methods
-- Methods must be `open` in Kotlin when using Boot 3 (Spring proxy-based AOP)
-- Boot 4 (Freefair AspectJ weaving) does not require `open`
+- CTW (compile-time weaving) does not require `open` — works on final Kotlin methods
+- `@EnableAspectJAutoProxy` must NOT be used — CTW handles weaving at compile time
 - `private` methods are never intercepted — startup validation will warn or fail
 - `suspend` / `Mono` / `Flux` / `Flow` returns are not supported (sync-only in v1.x)
 
@@ -69,9 +65,12 @@ applied via Spring AOP (Boot 3) or AspectJ post-compile weaving (Boot 4).
 
 ### AutoConfiguration load order
 ```
-LeaderAopFactoryAutoConfiguration   ← registers LeaderElectionFactory beans (6 backends)
+LeaderElectionAutoConfiguration         ← registers backend election beans (Redisson/Lettuce/…)
+LeaderAopFactoryAutoConfiguration       ← registers LeaderElectionFactory beans (6 backends)
   ↓ (after)
-LeaderAopAutoConfiguration          ← registers LeaderElectionAspect + BPP + HealthIndicator
+LeaderMicrometerAutoConfiguration       ← registers MicrometerLeaderAopMetricsRecorder (after Factory, before AOP)
+  ↓ (after)
+LeaderAopAutoConfiguration              ← registers LeaderElectionAspect + BPP + HealthIndicator
 ```
 
 ## Key Design Contracts
