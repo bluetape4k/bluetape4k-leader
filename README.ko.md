@@ -35,7 +35,7 @@ graph TD
     SBCommon["leader-spring-boot-common\n(Boot 버전 독립)"]
     SB3["leader-spring-boot3\n(AOP + 자동 구성)"]
     SB4["leader-spring-boot4\n(AOP + 자동 구성)"]
-    Metrics["leader-micrometer\n(예정)"]
+    Metrics["leader-micrometer\n(Micrometer 메트릭)"]
     Ktor["leader-ktor\n(예정)"]
     ZK["leader-zookeeper\n(예정)"]
 
@@ -66,7 +66,7 @@ graph TD
 | `leader-exposed-jdbc` | 안정 | Exposed JDBC 백엔드 (H2, PostgreSQL, MySQL) |
 | `leader-exposed-r2dbc` | 안정 | Exposed R2DBC 백엔드 (코루틴 네이티브, H2/PostgreSQL/MySQL) |
 | `leader-mongodb` | 안정 | MongoDB 백엔드 (`findOneAndUpdate` + TTL 인덱스) |
-| `leader-micrometer` | 예정 | Micrometer 메트릭 연동 |
+| `leader-micrometer` | 안정 | Micrometer 메트릭 연동 (`MicrometerLeaderAopMetricsRecorder`) |
 | `leader-spring-boot-common` | 안정 | `@LeaderElection` / `@LeaderGroupElection` AOP 어노테이션 + Boot 버전 독립 인프라 |
 | `leader-spring-boot3` | 안정 | Spring Boot 3 자동 구성 + AOP (Spring 프록시) |
 | `leader-spring-boot4` | 안정 | Spring Boot 4 자동 구성 + AOP (AspectJ 포스트 컴파일 위빙) |
@@ -345,6 +345,85 @@ val result = election.runIfLeader("job", ScoredElectionStrategy(scorer)) { doWor
 | 후보별 TTL | 없음 (락 레벨) | 있음 (노드별 만료) |
 | 커스텀 스코어러 | 없음 | 가능 (`CandidateScorer`) |
 | 네트워크 RTT | 1회 (tryLock) | 2회 (list + elect) |
+
+## Micrometer 메트릭
+
+Spring Boot AOP(`@LeaderElection`)를 사용할 때 `leader-micrometer`를 추가하면 Prometheus/Datadog 메트릭이 자동으로 노출됩니다.
+
+### 의존성 추가
+
+```kotlin
+// Spring Boot 3
+implementation("io.github.bluetape4k.leader:leader-spring-boot3:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:leader-micrometer:0.1.0-SNAPSHOT")
+// Spring Boot 4
+implementation("io.github.bluetape4k.leader:leader-spring-boot4:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:leader-micrometer:0.1.0-SNAPSHOT")
+```
+
+`MeterRegistry` 빈이 존재하면 `MicrometerLeaderAopMetricsRecorder`가 자동 등록됩니다. 비활성화:
+
+```yaml
+bluetape4k:
+  leader:
+    aop:
+      metrics:
+        enabled: false
+```
+
+### 메터 카탈로그
+
+| 메터 이름 | 타입 | 설명 |
+|-----------|------|------|
+| `leader.aop.attempts` | Counter | `lock.name`별 락 획득 시도 횟수 |
+| `leader.aop.acquired` | Counter | 리더 선출 성공 횟수 |
+| `leader.aop.lock.not.acquired` | Counter | 실행 건너뜀 횟수; `reason` 태그로 사유 구분 (`CONTENTION` / `BACKEND_ERROR`) |
+| `leader.aop.execution.duration` | Timer | 리더 작업 실행 시간 |
+| `leader.aop.task.failed` | Counter | 작업 본문 예외 발생 횟수; `exception` 태그로 예외 클래스명 구분 |
+| `leader.aop.active` | Gauge | 현재 실행 중인 리더 작업 수 (JVM 로컬) |
+
+모든 메터는 `lock.name` 태그를 공유합니다. Micrometer의 `NamingConvention`이 백엔드별로 이름을 변환합니다 (Prometheus: `leader_aop_attempts_total` 등).
+
+> **멀티 인스턴스 주의:** `leader.aop.active`는 JVM 로컬 값입니다. Prometheus에서 클러스터 전체 리더 수를 보려면 `sum` 대신 `max by (lock_name) (leader_aop_active)`를 사용하세요.
+
+### 메터 사전 등록 (선택)
+
+앱 기동 시 정적 lock 이름을 미리 등록하면 첫 실행 전에도 dashboard에 0이 표시됩니다:
+
+```kotlin
+@Component
+class MetricsPreRegistrar(private val recorder: MicrometerLeaderAopMetricsRecorder) : SmartInitializingSingleton {
+    override fun afterSingletonsInstantiated() {
+        recorder.registerMetricsFor("daily-report-job", "nightly-cleanup")
+    }
+}
+```
+
+### Health Indicator
+
+`spring-boot-actuator`가 classpath에 있으면 `leaderMicrometerHealthContributor` 빈이 자동 등록됩니다:
+
+```
+GET /actuator/health/leaderMicrometerHealthContributor
+{
+  "status": "UP",
+  "details": {
+    "metrics.registered": true,
+    "attempts.total": 42.0
+  }
+}
+```
+
+### 커스텀 Recorder
+
+자체 `LeaderAopMetricsRecorder` 빈을 등록하면 기본 Micrometer 구현체를 대체합니다:
+
+```kotlin
+@Bean
+fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
+```
+
+---
 
 ## ShedLock과의 비교
 
