@@ -10,7 +10,9 @@ import org.amshove.kluent.shouldNotBeNull
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * [ExposedR2DbcSuspendLeaderGroupElectorFactory] — SPI contract 테스트.
@@ -38,7 +40,7 @@ class ExposedR2DbcSuspendLeaderGroupElectorFactoryTest : AbstractExposedR2dbcLea
     @MethodSource("enableDialects")
     fun `create - 커스텀 maxLeaders 옵션으로 인스턴스 반환`(testDB: TestR2dbcDB) = runSuspendIO {
         val factory = makeFactory(testDB)
-        val opts = LeaderGroupElectionOptions(maxLeaders = 5, waitTime = Duration.ofSeconds(1), leaseTime = Duration.ofSeconds(10))
+        val opts = LeaderGroupElectionOptions(maxLeaders = 5, waitTime = 1.seconds, leaseTime = 10.seconds)
         val elector = factory.create(opts)
         elector.shouldNotBeNull()
         elector.maxLeaders shouldBeEqualTo 5

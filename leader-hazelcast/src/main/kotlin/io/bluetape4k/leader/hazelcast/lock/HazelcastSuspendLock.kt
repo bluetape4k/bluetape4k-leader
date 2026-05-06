@@ -9,7 +9,9 @@ import io.bluetape4k.logging.warn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -46,8 +48,8 @@ class HazelcastSuspendLock(
      * `runIfLeader()` 가 절대 throws하지 않는 계약을 보장합니다.
      */
     suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
-        val deadline = System.currentTimeMillis() + waitTime.toMillis()
-        val leaseMs = leaseTime.toMillis()
+        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
+        val leaseMs = leaseTime.inWholeMilliseconds
 
         do {
             val previous = try {

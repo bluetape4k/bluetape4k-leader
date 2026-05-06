@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.properties
 
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import java.time.Duration
+import kotlin.time.toKotlinDuration
 
 /**
  * 복수 리더 그룹 선출 자동 구성 속성입니다.
@@ -34,7 +35,7 @@ data class LeaderGroupProperties(
     fun toOptions(): LeaderGroupElectionOptions =
         LeaderGroupElectionOptions(
             maxLeaders = maxLeaders,
-            waitTime = waitTime,
-            leaseTime = leaseTime,
+            waitTime = waitTime.toKotlinDuration(),
+            leaseTime = leaseTime.toKotlinDuration(),
         )
 }

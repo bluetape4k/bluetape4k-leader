@@ -10,7 +10,9 @@ import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
@@ -121,7 +123,7 @@ class LocalAsyncLeaderElectorTest {
     @Test
     fun `runAsyncIfLeader - waitTime 내 락 획득 실패 시 null 을 반환한다`() {
         val skipElection = LocalAsyncLeaderElector(
-            LeaderElectionOptions(waitTime = Duration.ofMillis(100))
+            LeaderElectionOptions(waitTime = 100.milliseconds)
         )
         val lockName = randomLockName()
         val latch = CountDownLatch(1)
@@ -151,7 +153,7 @@ class LocalAsyncLeaderElectorTest {
     @Test
     fun `runAsyncIfLeader - 락 해제 후 재시도 시 정상 실행된다`() {
         val shortWaitElection = LocalAsyncLeaderElector(
-            LeaderElectionOptions(waitTime = Duration.ofMillis(100))
+            LeaderElectionOptions(waitTime = 100.milliseconds)
         )
         val lockName = randomLockName()
 

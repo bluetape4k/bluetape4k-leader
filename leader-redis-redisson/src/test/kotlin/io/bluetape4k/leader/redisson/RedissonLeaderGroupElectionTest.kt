@@ -17,7 +17,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -32,8 +34,8 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
     private val options = LeaderGroupElectionOptions(
         maxLeaders = 3,
-        waitTime = Duration.ofSeconds(30),
-        leaseTime = Duration.ofSeconds(60),
+        waitTime = 30.seconds,
+        leaseTime = 60.seconds,
 
         )
     private val election by lazy { RedissonLeaderGroupElector(redissonClient, options) }
@@ -80,7 +82,7 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
     @Test
     fun `runIfLeader - maxLeaders 슬롯이 모두 사용 중이면 waitTime 초과 시 null 을 반환한다`() {
-        val shortWaitOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = Duration.ofMillis(100))
+        val shortWaitOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 100.milliseconds)
         val singleElection = RedissonLeaderGroupElector(redissonClient, shortWaitOptions)
         val lockName = randomName()
         val acquiredLatch = CountDownLatch(1)
@@ -417,8 +419,8 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
         val lockName = randomName()
         val shortWaitOptions = LeaderGroupElectionOptions(
             maxLeaders = 3,
-            waitTime = Duration.ofMillis(50),
-            leaseTime = Duration.ofSeconds(5),
+            waitTime = 50.milliseconds,
+            leaseTime = 5.seconds,
         )
         val limitedElection = RedissonLeaderGroupElector(redissonClient, shortWaitOptions)
         val currentConcurrent = AtomicInteger(0)

@@ -89,7 +89,7 @@ abstract class AbstractLocalLeaderGroupElector(
      */
     protected inline fun <T> tryWithPermit(lockName: String, action: () -> T): T? {
         val semaphore = getSemaphore(lockName)
-        val acquired = semaphore.tryAcquire(options.waitTime.toMillis(), TimeUnit.MILLISECONDS)
+        val acquired = semaphore.tryAcquire(options.waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS)
         if (!acquired) return null
         return try {
             action()

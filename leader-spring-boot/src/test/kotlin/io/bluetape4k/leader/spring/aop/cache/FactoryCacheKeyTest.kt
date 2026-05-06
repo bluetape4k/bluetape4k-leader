@@ -6,7 +6,7 @@ import io.bluetape4k.logging.KLogging
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldNotBeEqualTo
 import org.junit.jupiter.api.Test
-import java.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * [FactoryCacheKey] / [GroupFactoryCacheKey] — equals/hashCode + cross-backend collision 방지 검증.
@@ -32,15 +32,15 @@ class FactoryCacheKeyTest {
 
     @Test
     fun `같은 factory bean - 다른 waitTime = 다른 key`() {
-        val a = FactoryCacheKey("X", LeaderElectionOptions(waitTime = Duration.ofSeconds(3)))
-        val b = FactoryCacheKey("X", LeaderElectionOptions(waitTime = Duration.ofSeconds(5)))
+        val a = FactoryCacheKey("X", LeaderElectionOptions(waitTime = 3.seconds))
+        val b = FactoryCacheKey("X", LeaderElectionOptions(waitTime = 5.seconds))
         a shouldNotBeEqualTo b
     }
 
     @Test
     fun `같은 factory bean - 다른 leaseTime = 다른 key`() {
-        val a = FactoryCacheKey("X", LeaderElectionOptions(leaseTime = Duration.ofSeconds(30)))
-        val b = FactoryCacheKey("X", LeaderElectionOptions(leaseTime = Duration.ofSeconds(60)))
+        val a = FactoryCacheKey("X", LeaderElectionOptions(leaseTime = 30.seconds))
+        val b = FactoryCacheKey("X", LeaderElectionOptions(leaseTime = 60.seconds))
         a shouldNotBeEqualTo b
     }
 

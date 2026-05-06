@@ -159,8 +159,8 @@ val result = election.runIfLeader("parallel-batch") {
 
 ```kotlin
 val options = LeaderElectionOptions(
-    waitTime = Duration.ofSeconds(3),   // 락 획득 최대 대기 시간
-    leaseTime = Duration.ofSeconds(30)  // 락 보유(임대) 최대 시간
+    waitTime = 3.seconds,   // 락 획득 최대 대기 시간
+    leaseTime = 30.seconds  // 락 보유(임대) 최대 시간
 )
 val election = RedissonLeaderElector(client, options)
 ```
@@ -312,7 +312,7 @@ CandidateInfo(
 val election = LettuceStrategicLeaderElector(connection, nodeId = "node-1")
 
 // 이 노드를 후보로 등록
-election.registerCandidate("batch-job", CandidateInfo("node-1"), ttl = Duration.ofMinutes(5))
+election.registerCandidate("batch-job", CandidateInfo("node-1"), ttl = 5.minutes)
 
 // 선출 후 실행
 val result = election.runIfLeader("batch-job", FifoElectionStrategy) {
@@ -325,7 +325,7 @@ val result = election.runIfLeader("batch-job", FifoElectionStrategy) {
 
 ```kotlin
 val election = RedissonStrategicSuspendLeaderElector(redissonClient, nodeId = "node-1")
-election.registerCandidate("ml-job", CandidateInfo("node-1"), ttl = Duration.ofMinutes(10))
+election.registerCandidate("ml-job", CandidateInfo("node-1"), ttl = 10.minutes)
 
 val strategy = ScoredElectionStrategy(SuccessRateScorer)
 val result = election.runIfLeader("ml-job", strategy) {

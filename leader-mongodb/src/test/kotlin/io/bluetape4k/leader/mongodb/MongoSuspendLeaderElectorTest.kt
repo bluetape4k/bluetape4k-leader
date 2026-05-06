@@ -16,7 +16,9 @@ import org.amshove.kluent.shouldBeGreaterOrEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.assertThrows
@@ -91,8 +93,8 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
             coroutineLockCollection,
             MongoLeaderElectionOptions(
                 leaderOptions = LeaderElectionOptions(
-                    waitTime = Duration.ofMillis(50),
-                    leaseTime = Duration.ofSeconds(10),
+                    waitTime = 50.milliseconds,
+                    leaseTime = 10.seconds,
                 )
             )
         )

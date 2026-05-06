@@ -16,7 +16,9 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
@@ -197,7 +199,7 @@ class ExposedJdbcLeaderElector private constructor(
                     it[LeaderLockHistoryTable.lockName] = lockName
                     it[LeaderLockHistoryTable.lockOwner] = options.lockOwner
                     it[LeaderLockHistoryTable.token] = token
-                    it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(options.leaderOptions.leaseTime.toMillis())
+                    it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(options.leaderOptions.leaseTime.inWholeMilliseconds)
                     it[LeaderLockHistoryTable.status] = HistoryStatus.ACQUIRED.name
                     it[LeaderLockHistoryTable.startedAt] = now
                 }[LeaderLockHistoryTable.id]
@@ -224,7 +226,7 @@ class ExposedJdbcLeaderElector private constructor(
                 ) {
                     it[LeaderLockHistoryTable.status] = status.name
                     it[LeaderLockHistoryTable.finishedAt] = finishedAt
-                    it[LeaderLockHistoryTable.durationMs] = Duration.between(startedAt, finishedAt).toMillis()
+                    it[LeaderLockHistoryTable.durationMs] = finishedAt.toEpochMilli() - startedAt.toEpochMilli()
                 }
             }
         }.getOrElse { e ->

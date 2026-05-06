@@ -12,8 +12,10 @@ import io.lettuce.core.api.async.RedisAsyncCommands
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
-import java.time.Duration
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Lettuce Redis 클라이언트를 이용한 분산 락의 코루틴 구현체입니다.
@@ -35,7 +37,7 @@ import kotlin.time.Duration.Companion.milliseconds
 class LettuceSuspendLock(
     private val connection: StatefulRedisConnection<String, String>,
     val lockKey: String,
-    val defaultLeaseTime: Duration = Duration.ofSeconds(30),
+    val defaultLeaseTime: Duration = 30.seconds,
 ) {
     companion object: KLoggingChannel() {
         private const val RETRY_DELAY_MS = 50L
@@ -62,8 +64,8 @@ class LettuceSuspendLock(
         leaseTime: Duration = defaultLeaseTime,
     ): Boolean {
         val token = Base58.randomString(length = 8)
-        val leaseMs = leaseTime.toMillis()
-        val deadline = System.currentTimeMillis() + waitTime.toMillis()
+        val leaseMs = leaseTime.inWholeMilliseconds
+        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
 
         do {
             val args = SetArgs().nx().px(leaseMs)
@@ -84,11 +86,11 @@ class LettuceSuspendLock(
 
     suspend fun lock(
         leaseTime: Duration = defaultLeaseTime,
-        maxWaitTime: Duration = Duration.ofMinutes(DEFAULT_MAX_WAIT_MINUTES),
+        maxWaitTime: Duration = DEFAULT_MAX_WAIT_MINUTES.minutes,
     ) {
         val token = Base58.randomString(length = 8)
-        val leaseMs = leaseTime.toMillis()
-        val deadline = System.currentTimeMillis() + maxWaitTime.toMillis()
+        val leaseMs = leaseTime.inWholeMilliseconds
+        val deadline = System.currentTimeMillis() + maxWaitTime.inWholeMilliseconds
 
         while (true) {
             val args = SetArgs().nx().px(leaseMs)

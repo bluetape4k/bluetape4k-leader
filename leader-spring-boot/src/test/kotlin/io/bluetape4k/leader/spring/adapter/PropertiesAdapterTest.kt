@@ -6,6 +6,8 @@ import org.amshove.kluent.shouldBeEqualTo
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Duration
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PropertiesAdapterTest {
@@ -17,8 +19,8 @@ class PropertiesAdapterTest {
             leaseTime = Duration.ofMinutes(1),
         )
         val options = PropertiesAdapter.toCommonElection(props)
-        options.waitTime shouldBeEqualTo Duration.ofSeconds(7)
-        options.leaseTime shouldBeEqualTo Duration.ofMinutes(1)
+        options.waitTime shouldBeEqualTo 7.seconds
+        options.leaseTime shouldBeEqualTo 1.minutes
     }
 
     @Test
@@ -32,15 +34,15 @@ class PropertiesAdapterTest {
         )
         val options = PropertiesAdapter.toCommonGroup(props)
         options.maxLeaders shouldBeEqualTo 4
-        options.waitTime shouldBeEqualTo Duration.ofSeconds(2)
-        options.leaseTime shouldBeEqualTo Duration.ofSeconds(30)
+        options.waitTime shouldBeEqualTo 2.seconds
+        options.leaseTime shouldBeEqualTo 30.seconds
     }
 
     @Test
     fun `default LeaderProperties 가 5초 wait, 60초 lease 변환`() {
         val options = PropertiesAdapter.toCommonElection(LeaderProperties())
-        options.waitTime shouldBeEqualTo Duration.ofSeconds(5)
-        options.leaseTime shouldBeEqualTo Duration.ofSeconds(60)
+        options.waitTime shouldBeEqualTo 5.seconds
+        options.leaseTime shouldBeEqualTo 60.seconds
     }
 
     @Test

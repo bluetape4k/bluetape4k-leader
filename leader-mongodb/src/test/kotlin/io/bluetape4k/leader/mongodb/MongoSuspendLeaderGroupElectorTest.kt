@@ -17,7 +17,9 @@ import org.amshove.kluent.shouldBeLessOrEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlinx.coroutines.runBlocking
@@ -30,7 +32,7 @@ class MongoSuspendLeaderGroupElectorTest: AbstractMongoLeaderTest() {
 
     private suspend fun makeElection(
         maxLeaders: Int = 3,
-        waitTime: Duration = Duration.ofSeconds(10),
+        waitTime: Duration = 10.seconds,
     ): MongoSuspendLeaderGroupElector =
         MongoSuspendLeaderGroupElector(
             groupCollection = groupLockCollection,
@@ -39,7 +41,7 @@ class MongoSuspendLeaderGroupElectorTest: AbstractMongoLeaderTest() {
                 LeaderGroupElectionOptions(
                     maxLeaders = maxLeaders,
                     waitTime = waitTime,
-                    leaseTime = Duration.ofSeconds(60),
+                    leaseTime = 60.seconds,
                 )
             )
         )
@@ -145,8 +147,8 @@ class MongoSuspendLeaderGroupElectorTest: AbstractMongoLeaderTest() {
     @Test
     fun `runIfLeader - 모든 슬롯 포화 시 짧은 waitTime으로 null을 반환한다`() = runSuspendIO {
         val lockName = randomName()
-        val holdingElection = makeElection(maxLeaders = 1, waitTime = Duration.ofSeconds(10))
-        val shortWaitElection = makeElection(maxLeaders = 1, waitTime = Duration.ofMillis(50))
+        val holdingElection = makeElection(maxLeaders = 1, waitTime = 10.seconds)
+        val shortWaitElection = makeElection(maxLeaders = 1, waitTime = 50.milliseconds)
 
         val acquired = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
@@ -171,7 +173,7 @@ class MongoSuspendLeaderGroupElectorTest: AbstractMongoLeaderTest() {
     fun `runIfLeader - 슬롯 획득 중 코루틴 취소 시 부분 획득된 슬롯이 없다`() = runSuspendIO {
         val lockName = randomName()
         val maxLeaders = 1
-        val holder = makeElection(maxLeaders = maxLeaders, waitTime = Duration.ofSeconds(30))
+        val holder = makeElection(maxLeaders = maxLeaders, waitTime = 30.seconds)
         // 모든 슬롯 점유 중인 election
         val acquired = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
@@ -185,7 +187,7 @@ class MongoSuspendLeaderGroupElectorTest: AbstractMongoLeaderTest() {
         acquired.await()
 
         // 점유된 슬롯에 진입 시도하다가 취소되는 contender
-        val contender = makeElection(maxLeaders = maxLeaders, waitTime = Duration.ofSeconds(30))
+        val contender = makeElection(maxLeaders = maxLeaders, waitTime = 30.seconds)
         val contenderJob = launch {
             contender.runIfLeader(lockName) { "never" }
         }

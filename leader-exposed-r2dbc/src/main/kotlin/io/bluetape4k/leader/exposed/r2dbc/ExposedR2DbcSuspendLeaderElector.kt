@@ -18,7 +18,9 @@ import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.insert
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 
 /**
@@ -129,7 +131,7 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
                     it[LeaderLockHistoryTable.lockName] = lockName
                     it[LeaderLockHistoryTable.lockOwner] = options.lockOwner
                     it[LeaderLockHistoryTable.token] = token
-                    it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(options.leaderOptions.leaseTime.toMillis())
+                    it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(options.leaderOptions.leaseTime.inWholeMilliseconds)
                     it[LeaderLockHistoryTable.status] = HistoryStatus.ACQUIRED.name
                     it[LeaderLockHistoryTable.startedAt] = now
                 }[LeaderLockHistoryTable.id]
@@ -156,7 +158,7 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
                 ) {
                     it[LeaderLockHistoryTable.status] = status.name
                     it[LeaderLockHistoryTable.finishedAt] = finishedAt
-                    it[LeaderLockHistoryTable.durationMs] = Duration.between(startedAt, finishedAt).toMillis()
+                    it[LeaderLockHistoryTable.durationMs] = finishedAt.toEpochMilli() - startedAt.toEpochMilli()
                 }
             }
         }.getOrElse { e ->

@@ -20,7 +20,9 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
@@ -145,9 +147,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
         validateExposedLockName(lockName)
 
         val leaseTime = options.leaderGroupOptions.leaseTime
-        val perSlotWait = options.leaderGroupOptions.waitTime
-            .dividedBy(maxLeaders.toLong())
-            .coerceAtLeast(Duration.ofMillis(1L))
+        val perSlotWait = (options.leaderGroupOptions.waitTime / maxLeaders).coerceAtLeast(1.milliseconds)
         val start = Random.nextInt(maxLeaders)
 
         log.debug { "그룹 슬롯 획득을 요청합니다. lockName=$lockName, maxLeaders=$maxLeaders" }
@@ -216,9 +216,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
         validateExposedLockName(lockName)
 
         val leaseTime = options.leaderGroupOptions.leaseTime
-        val perSlotWait = options.leaderGroupOptions.waitTime
-            .dividedBy(maxLeaders.toLong())
-            .coerceAtLeast(Duration.ofMillis(1L))
+        val perSlotWait = (options.leaderGroupOptions.waitTime / maxLeaders).coerceAtLeast(1.milliseconds)
         val start = Random.nextInt(maxLeaders)
 
         return CompletableFuture.supplyAsync({
@@ -281,7 +279,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                     it[LeaderLockHistoryTable.lockOwner] = options.lockOwner
                     it[LeaderLockHistoryTable.token] = token
                     it[LeaderLockHistoryTable.slot] = slot
-                    it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(options.leaderGroupOptions.leaseTime.toMillis())
+                    it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(options.leaderGroupOptions.leaseTime.inWholeMilliseconds)
                     it[LeaderLockHistoryTable.status] = HistoryStatus.ACQUIRED.name
                     it[LeaderLockHistoryTable.startedAt] = now
                 }[LeaderLockHistoryTable.id]
@@ -314,7 +312,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                 ) {
                     it[LeaderLockHistoryTable.status] = status.name
                     it[LeaderLockHistoryTable.finishedAt] = finishedAt
-                    it[LeaderLockHistoryTable.durationMs] = Duration.between(startedAt, finishedAt).toMillis()
+                    it[LeaderLockHistoryTable.durationMs] = finishedAt.toEpochMilli() - startedAt.toEpochMilli()
                 }
             }
         }.getOrElse { e ->

@@ -16,7 +16,9 @@ import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -30,8 +32,8 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
 
     private val options = LeaderGroupElectionOptions(
         maxLeaders = 3,
-        waitTime = Duration.ofSeconds(10),
-        leaseTime = Duration.ofSeconds(60),
+        waitTime = 10.seconds,
+        leaseTime = 60.seconds,
     )
     private val election by lazy { HazelcastLeaderGroupElector(hazelcastClient, options) }
 
@@ -59,7 +61,7 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
 
     @Test
     fun `runIfLeader - 모든 슬롯이 사용 중이면 waitTime 초과 시 null 을 반환한다`() {
-        val shortWaitOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = Duration.ofMillis(100))
+        val shortWaitOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 100.milliseconds)
         val singleElection = HazelcastLeaderGroupElector(hazelcastClient, shortWaitOptions)
         val lockName = randomName()
         val acquiredLatch = CountDownLatch(1)

@@ -16,7 +16,9 @@ import io.lettuce.core.api.coroutines
 import io.lettuce.core.api.coroutines.RedisCoroutinesCommands
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.toList
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Lettuce coroutines API 기반 suspend 후보 레지스트리입니다.
@@ -57,7 +59,7 @@ internal class LettuceSuspendCandidateRegistry(
         val key = candidateKey(lockName, info.nodeId)
         val value = LettuceCandidateInfoCodec.encode(info)
         if (ttl == Duration.ZERO) cmds.set(key, value)
-        else cmds.psetex(key, ttl.toMillis(), value)
+        else cmds.psetex(key, ttl.inWholeMilliseconds, value)
     }
 
     /** 후보를 등록 해제합니다. 존재하지 않는 nodeId 는 무시됩니다. */

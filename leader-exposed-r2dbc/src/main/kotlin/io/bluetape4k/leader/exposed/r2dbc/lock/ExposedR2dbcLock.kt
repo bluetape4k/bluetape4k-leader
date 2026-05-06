@@ -21,7 +21,9 @@ import org.jetbrains.exposed.v1.r2dbc.insertIgnore
 import org.jetbrains.exposed.v1.r2dbc.selectAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 
 /**
@@ -64,7 +66,7 @@ internal class ExposedR2dbcLock internal constructor(
      * @return 락 획득 성공 시 `true`, 타임아웃 또는 오류 시 `false`
      */
     suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
-        val deadline = System.currentTimeMillis() + waitTime.toMillis().coerceAtLeast(0L)
+        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds.coerceAtLeast(0L)
         var attempt = 0
 
         do {
@@ -102,7 +104,7 @@ internal class ExposedR2dbcLock internal constructor(
 
         return suspendTransaction(db) {
             val now = Instant.now()
-            val lockedUntil = now.plusMillis(leaseTime.toMillis())
+            val lockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
 
             // Step 1: 만료된 락 갱신 시도
             val updated = LeaderLockTable.update(

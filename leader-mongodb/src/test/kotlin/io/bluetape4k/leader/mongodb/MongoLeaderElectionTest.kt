@@ -15,7 +15,9 @@ import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -38,8 +40,8 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
         val lockName = randomName()
         val options = MongoLeaderElectionOptions(
             leaderOptions = LeaderElectionOptions(
-                waitTime = Duration.ofSeconds(5),
-                leaseTime = Duration.ofSeconds(10),
+                waitTime = 5.seconds,
+                leaseTime = 10.seconds,
             )
         )
         val election = MongoLeaderElector(lockCollection, options)
@@ -117,13 +119,13 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
     fun `runIfLeader - 락 보유 중 짧은 waitTime으로 호출하면 null을 반환한다`() {
         val lockName = randomName()
         val holderLock = MongoLock(lockCollection, lockName)
-        holderLock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(10))
+        holderLock.tryLock(2.seconds, 10.seconds)
 
         try {
             val shortWaitOptions = MongoLeaderElectionOptions(
                 leaderOptions = LeaderElectionOptions(
-                    waitTime = Duration.ofMillis(100),
-                    leaseTime = Duration.ofSeconds(5),
+                    waitTime = 100.milliseconds,
+                    leaseTime = 5.seconds,
                 )
             )
             val election = MongoLeaderElector(lockCollection, shortWaitOptions)
@@ -140,7 +142,7 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
     fun `runIfLeader - leaseTime 만료 후 takeover가 성공한다`() {
         val lockName = randomName()
         val holderLock = MongoLock(lockCollection, lockName)
-        holderLock.tryLock(Duration.ofSeconds(1), Duration.ofMillis(200))
+        holderLock.tryLock(1.seconds, 200.milliseconds)
 
         Thread.sleep(350)
 
@@ -148,8 +150,8 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
             lockCollection,
             MongoLeaderElectionOptions(
                 leaderOptions = LeaderElectionOptions(
-                    waitTime = Duration.ofSeconds(2),
-                    leaseTime = Duration.ofSeconds(10),
+                    waitTime = 2.seconds,
+                    leaseTime = 10.seconds,
                 )
             )
         )
@@ -161,7 +163,7 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
     fun `unlock - 토큰 불일치 시 예외 없이 경고 로그만 남긴다`() {
         val lockName = randomName()
         val lock = MongoLock(lockCollection, lockName)
-        lock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10))
+        lock.tryLock(1.seconds, 10.seconds)
 
         lockCollection.deleteOne(Filters.eq("_id", lockName))
 
@@ -217,12 +219,12 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
     fun `unlock - takeover 후 원소유자가 unlock 시도해도 신규 소유자의 락 문서는 유지된다`() {
         val lockName = randomName()
         val oldLock = MongoLock(lockCollection, lockName)
-        oldLock.tryLock(Duration.ofSeconds(1), Duration.ofMillis(200)).shouldBeTrue()
+        oldLock.tryLock(1.seconds, 200.milliseconds).shouldBeTrue()
 
         Thread.sleep(350)
 
         val newLock = MongoLock(lockCollection, lockName)
-        newLock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(10)).shouldBeTrue()
+        newLock.tryLock(2.seconds, 10.seconds).shouldBeTrue()
 
         oldLock.unlock()
 

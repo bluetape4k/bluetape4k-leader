@@ -15,7 +15,10 @@ import kotlinx.coroutines.withContext
 import org.redisson.api.RSemaphore
 import org.redisson.api.RedissonClient
 import org.redisson.client.RedisException
-import java.time.Duration
+import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Redisson 분산 Semaphore를 이용하여 복수 리더 선출을 통한 suspend 작업을 수행합니다.
@@ -151,7 +154,7 @@ class RedissonSuspendLeaderGroupElector private constructor(
         log.debug { "리더 그룹 슬롯 획득을 요청합니다. lockName=$lockName, maxLeaders=$maxLeaders" }
 
         val acquired = try {
-            semaphore.tryAcquireAsync(waitTime).await()
+            semaphore.tryAcquireAsync(waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS).await()
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
             log.warn(e) { "슬롯 획득 대기 중 인터럽트가 발생했습니다. lockName=$lockName" }

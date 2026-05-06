@@ -6,8 +6,8 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
-import java.time.Duration
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
 
 /**
  * [IMap] 기반 분산 락 구현체입니다.
@@ -42,8 +42,8 @@ class HazelcastLock(
      * 계약을 보장합니다.
      */
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
-        val deadline = System.currentTimeMillis() + waitTime.toMillis()
-        val leaseMs = leaseTime.toMillis()
+        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
+        val leaseMs = leaseTime.inWholeMilliseconds
 
         do {
             val previous = try {

@@ -4,7 +4,9 @@ import io.bluetape4k.logging.KLogging
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldNotBeNull
 import org.junit.jupiter.api.Test
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class LeaderGroupElectionOptionsTest {
 
@@ -30,12 +32,12 @@ class LeaderGroupElectionOptionsTest {
     fun `커스텀 waitTime 과 leaseTime 을 설정할 수 있다`() {
         val options = LeaderGroupElectionOptions(
             maxLeaders = 4,
-            waitTime = Duration.ofSeconds(10),
-            leaseTime = Duration.ofSeconds(120),
+            waitTime = 10.seconds,
+            leaseTime = 120.seconds,
         )
         options.maxLeaders shouldBeEqualTo 4
-        options.waitTime shouldBeEqualTo Duration.ofSeconds(10)
-        options.leaseTime shouldBeEqualTo Duration.ofSeconds(120)
+        options.waitTime shouldBeEqualTo 10.seconds
+        options.leaseTime shouldBeEqualTo 120.seconds
     }
 
     @Test

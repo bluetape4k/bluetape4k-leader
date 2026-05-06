@@ -4,7 +4,9 @@ import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.logging.KLogging
 import org.redisson.api.RedissonClient
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.TimeUnit
 
 /**
@@ -35,7 +37,7 @@ internal class RedissonCandidateRegistry(private val redissonClient: RedissonCli
         if (ttl == Duration.ZERO) {
             cache.put(info.nodeId, info)
         } else {
-            cache.put(info.nodeId, info, ttl.toMillis(), TimeUnit.MILLISECONDS)
+            cache.put(info.nodeId, info, ttl.inWholeMilliseconds, TimeUnit.MILLISECONDS)
         }
     }
 

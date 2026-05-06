@@ -3,7 +3,8 @@ package io.bluetape4k.leader
 import io.bluetape4k.support.requireGe
 import io.bluetape4k.support.requireGt
 import java.io.Serializable
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * 복수 리더 그룹 선출에 사용하는 옵션 데이터 클래스입니다.
@@ -11,8 +12,8 @@ import java.time.Duration
  * ```kotlin
  * val options = LeaderGroupElectionOptions(
  *     maxLeaders = 3,
- *     waitTime = Duration.ofSeconds(3),
- *     leaseTime = Duration.ofSeconds(30),
+ *     waitTime = 3.seconds,
+ *     leaseTime = 30.seconds,
  * )
  * val election = LocalLeaderGroupElector(options)
  * val result = election.runIfLeader("batch-job") { "done" }
@@ -37,8 +38,8 @@ data class LeaderGroupElectionOptions(
 
     companion object {
         const val DefaultMaxLeaders: Int = 2
-        val DefaultWaitTime: Duration = Duration.ofSeconds(5)
-        val DefaultLeaseTime: Duration = Duration.ofSeconds(60)
+        val DefaultWaitTime: Duration = 5.seconds
+        val DefaultLeaseTime: Duration = 60.seconds
 
         /**
          * 기본 옵션 인스턴스 (`maxLeaders=2`, `waitTime=5s`, `leaseTime=60s`).

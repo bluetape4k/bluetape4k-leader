@@ -19,7 +19,9 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 
 /**
@@ -60,7 +62,7 @@ internal class ExposedJdbcGroupLock internal constructor(
      * @return 락 획득 성공 시 `true`, 경합 실패(타임아웃) 시 `false`, DB 오류 시 `null`
      */
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean? {
-        val deadline = System.currentTimeMillis() + waitTime.toMillis().coerceAtLeast(0L)
+        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds.coerceAtLeast(0L)
         var attempt = 0
 
         do {
@@ -102,7 +104,7 @@ internal class ExposedJdbcGroupLock internal constructor(
 
         return transaction(db) {
             val now = Instant.now()
-            val lockedUntil = now.plusMillis(leaseTime.toMillis())
+            val lockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
 
             val updated = LeaderGroupLockTable.update(
                 where = {

@@ -28,6 +28,7 @@ import java.lang.reflect.Method
 import java.util.concurrent.CancellationException
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.toKotlinDuration
 
 /**
  * `@LeaderGroupElection` 어노테이션 처리 Aspect — sync `T?` only.
@@ -105,7 +106,7 @@ class LeaderGroupElectionAspect(
                     log.debug { "leader.aop.elected lockName=$resolvedName elapsedNs=$elapsed" }
                     if (elapsed > meta.leaseTimeWarnThresholdNanos) {
                         log.warn {
-                            "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${opts.leaseTime.toNanos()}"
+                            "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${opts.leaseTime.inWholeNanoseconds}"
                         }
                     }
                     runResult.value
@@ -193,8 +194,8 @@ class LeaderGroupElectionAspect(
 
         ann.maxLeaders.requireGe(2, "ann.maxLeaders")
 
-        val waitTime = DurationParser.parseOrDefault(ann.waitTime, props.defaultWaitTime)
-        val leaseTime = DurationParser.parseOrDefault(ann.leaseTime, props.defaultLeaseTime)
+        val waitTime = DurationParser.parseOrDefault(ann.waitTime, props.defaultWaitTime).toKotlinDuration()
+        val leaseTime = DurationParser.parseOrDefault(ann.leaseTime, props.defaultLeaseTime).toKotlinDuration()
 
         val opts = LeaderGroupElectionOptions(
             maxLeaders = ann.maxLeaders,
@@ -217,7 +218,7 @@ class LeaderGroupElectionAspect(
             factoryBeanName = selected.beanName,
             factory = selected.bean,
             failureMode = effectiveFailureMode,
-            leaseTimeWarnThresholdNanos = (leaseTime.toNanos() * LEASE_WARN_RATIO).toLong(),
+            leaseTimeWarnThresholdNanos = (leaseTime.inWholeNanoseconds * LEASE_WARN_RATIO).toLong(),
         )
     }
 

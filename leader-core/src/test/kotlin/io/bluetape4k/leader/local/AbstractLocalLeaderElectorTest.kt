@@ -12,6 +12,7 @@ import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * [AbstractLocalLeaderElector] 추상 클래스의 공통 락 관리 동작을 검증하는 테스트입니다.
@@ -80,8 +81,8 @@ class AbstractLocalLeaderElectorTest {
     @Test
     fun `커스텀 LeaderElectionOptions 으로 구현체를 생성할 수 있다`() {
         val options = LeaderElectionOptions(
-            waitTime = java.time.Duration.ofSeconds(10),
-            leaseTime = java.time.Duration.ofSeconds(120),
+            waitTime = 10.seconds,
+            leaseTime = 120.seconds,
         )
         val election = LocalLeaderElector(options)
         election.shouldNotBeNull()

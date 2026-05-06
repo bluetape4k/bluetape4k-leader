@@ -3,7 +3,9 @@ package io.bluetape4k.leader.mongodb
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.support.requireGt
 import java.io.Serializable
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * MongoDB 기반 리더 선출에 사용하는 옵션 데이터 클래스입니다.
@@ -11,10 +13,10 @@ import java.time.Duration
  * ```kotlin
  * val options = MongoLeaderElectionOptions(
  *     leaderOptions = LeaderElectionOptions(
- *         waitTime = Duration.ofSeconds(3),
- *         leaseTime = Duration.ofSeconds(30),
+ *         waitTime = 3.seconds,
+ *         leaseTime = 30.seconds,
  *     ),
- *     retryDelay = Duration.ofMillis(100),
+ *     retryDelay = 100.milliseconds,
  * )
  * val election = MongoLeaderElector(collection, options)
  * val result = election.runIfLeader("job-lock") { "done" }
@@ -26,7 +28,7 @@ import java.time.Duration
  */
 data class MongoLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
-    val retryDelay: Duration = Duration.ofMillis(50),
+    val retryDelay: Duration = 50.milliseconds,
 ) : Serializable {
     init {
         retryDelay.requireGt(Duration.ZERO, "retryDelay")

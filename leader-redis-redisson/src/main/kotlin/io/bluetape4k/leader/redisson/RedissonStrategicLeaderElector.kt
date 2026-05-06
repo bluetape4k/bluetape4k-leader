@@ -12,7 +12,9 @@ import io.bluetape4k.logging.info
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import org.redisson.api.RedissonClient
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Redisson 백엔드 기반 [StrategicLeaderElector] 구현체입니다.

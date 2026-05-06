@@ -4,7 +4,9 @@ import io.bluetape4k.logging.KLogging
 import org.amshove.kluent.shouldBeEqualTo
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class LeaderElectionOptionsTest {
 
@@ -20,11 +22,11 @@ class LeaderElectionOptionsTest {
     @Test
     fun `커스텀 옵션 값을 설정할 수 있다`() {
         val options = LeaderElectionOptions(
-            waitTime = Duration.ofSeconds(10),
-            leaseTime = Duration.ofSeconds(120),
+            waitTime = 10.seconds,
+            leaseTime = 120.seconds,
         )
-        options.waitTime shouldBeEqualTo Duration.ofSeconds(10)
-        options.leaseTime shouldBeEqualTo Duration.ofSeconds(120)
+        options.waitTime shouldBeEqualTo 10.seconds
+        options.leaseTime shouldBeEqualTo 120.seconds
     }
 
     @Test
@@ -51,14 +53,14 @@ class LeaderElectionOptionsTest {
             LeaderElectionOptions(leaseTime = Duration.ZERO)
         }
         assertThrows<IllegalArgumentException> {
-            LeaderElectionOptions(leaseTime = Duration.ofSeconds(-1))
+            LeaderElectionOptions(leaseTime = -1.seconds)
         }
     }
 
     @Test
     fun `LeaderElectionOptions waitTime 이 음수면 예외가 발생한다`() {
         assertThrows<IllegalArgumentException> {
-            LeaderElectionOptions(waitTime = Duration.ofMillis(-1))
+            LeaderElectionOptions(waitTime = -1.milliseconds)
         }
     }
 

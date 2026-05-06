@@ -10,7 +10,9 @@ import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -107,7 +109,7 @@ class LocalVirtualThreadLeaderElectorTest {
     @Test
     fun `runAsyncIfLeader - waitTime 내 락 획득 실패 시 null 을 반환한다`() {
         val skipElection = LocalVirtualThreadLeaderElector(
-            LeaderElectionOptions(waitTime = Duration.ofMillis(100))
+            LeaderElectionOptions(waitTime = 100.milliseconds)
         )
         val lockName = randomLockName()
         val latch = CountDownLatch(1)
@@ -133,7 +135,7 @@ class LocalVirtualThreadLeaderElectorTest {
     @Test
     fun `runAsyncIfLeader - 락 해제 후 재시도 시 정상 실행된다`() {
         val shortWaitElection = LocalVirtualThreadLeaderElector(
-            LeaderElectionOptions(waitTime = Duration.ofMillis(100))
+            LeaderElectionOptions(waitTime = 100.milliseconds)
         )
         val lockName = randomLockName()
 

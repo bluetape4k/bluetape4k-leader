@@ -10,7 +10,9 @@ import io.lettuce.core.SetArgs
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.api.sync.RedisCommands
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.LockSupport
@@ -102,10 +104,10 @@ return v"""
         return acquired
     }
 
-    fun acquire(permits: Int = 1, waitTime: Duration = Duration.ofSeconds(30)) {
+    fun acquire(permits: Int = 1, waitTime: Duration = 30.seconds) {
         permits.requirePositiveNumber("permits")
 
-        val deadline = System.currentTimeMillis() + waitTime.toMillis()
+        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
         while (System.currentTimeMillis() < deadline) {
             if (tryAcquire(permits)) return
             LockSupport.parkNanos(RETRY_DELAY_NANOS)
@@ -140,9 +142,9 @@ return v"""
         }
     }
 
-    fun acquireAsync(permits: Int = 1, waitTime: Duration = Duration.ofSeconds(30)): CompletableFuture<Unit> {
+    fun acquireAsync(permits: Int = 1, waitTime: Duration = 30.seconds): CompletableFuture<Unit> {
         permits.requirePositiveNumber("permits")
-        val deadline = System.currentTimeMillis() + waitTime.toMillis()
+        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
 
         fun attempt(): CompletableFuture<Unit> =
             tryAcquireAsync(permits).thenCompose { acquired ->

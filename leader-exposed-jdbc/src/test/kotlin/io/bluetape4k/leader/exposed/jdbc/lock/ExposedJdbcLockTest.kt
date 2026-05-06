@@ -9,7 +9,9 @@ import org.amshove.kluent.shouldBeGreaterOrEqualTo
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -25,7 +27,7 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
         cleanTables(db)
         val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
 
-        val acquired = lock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(10))
+        val acquired = lock.tryLock(2.seconds, 10.seconds)
 
         acquired.shouldBeTrue()
         lock.unlock()
@@ -38,10 +40,10 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
         cleanTables(db)
         val lockName = randomName()
         val holder = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        holder.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(30))
+        holder.tryLock(1.seconds, 30.seconds)
 
         val contender = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 10L))
-        val acquired = contender.tryLock(Duration.ofMillis(100), Duration.ofSeconds(5))
+        val acquired = contender.tryLock(100.milliseconds, 5.seconds)
 
         acquired.shouldBeFalse()
         holder.unlock()
@@ -54,17 +56,17 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
         cleanTables(db)
         val lockName = randomName()
 
-        val leaseTime = Duration.ofMillis(150)
+        val leaseTime = 150.milliseconds
         val expiredLock = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        expiredLock.tryLock(Duration.ofSeconds(1), leaseTime)
+        expiredLock.tryLock(1.seconds, leaseTime)
 
         val newLock = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        val deadlineNanos = System.nanoTime() + Duration.ofSeconds(2).toNanos()
+        val deadlineNanos = System.nanoTime() + 2.seconds.inWholeNanoseconds
         val pollIntervalMs = 25L
         var acquired = false
 
         while (System.nanoTime() < deadlineNanos && !acquired) {
-            acquired = newLock.tryLock(Duration.ZERO, Duration.ofSeconds(10))
+            acquired = newLock.tryLock(Duration.ZERO, 10.seconds)
             if (!acquired) {
                 Thread.sleep(pollIntervalMs)
             }
@@ -82,12 +84,12 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
         val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
-        lock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10))
+        lock.tryLock(1.seconds, 10.seconds)
 
         lock.unlock()
 
         val reacquire = ExposedJdbcLock(db, lock.lockName, RetryStrategy.Jitter())
-        reacquire.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10)).shouldBeTrue()
+        reacquire.tryLock(1.seconds, 10.seconds).shouldBeTrue()
         reacquire.unlock()
     }
 
@@ -97,7 +99,7 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
         val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
-        lock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10))
+        lock.tryLock(1.seconds, 10.seconds)
         lock.unlock()
 
         lock.unlock()
@@ -109,7 +111,7 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
         val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
-        lock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10)).shouldBeTrue()
+        lock.tryLock(1.seconds, 10.seconds).shouldBeTrue()
 
         lock.isHeldByCurrentInstance().shouldBeTrue()
 
@@ -122,7 +124,7 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
         val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
-        lock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10))
+        lock.tryLock(1.seconds, 10.seconds)
         lock.unlock()
 
         lock.isHeldByCurrentInstance().shouldBeFalse()
@@ -134,10 +136,10 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
         val lock = ExposedJdbcLock(db, randomName(), RetryStrategy.Jitter())
-        val leaseTime = Duration.ofMillis(150)
-        lock.tryLock(Duration.ofSeconds(1), leaseTime)
+        val leaseTime = 150.milliseconds
+        lock.tryLock(1.seconds, leaseTime)
 
-        Thread.sleep(leaseTime.toMillis() * 2)
+        Thread.sleep(leaseTime.inWholeMilliseconds * 2)
 
         lock.isHeldByCurrentInstance().shouldBeFalse()
         lock.unlock()
@@ -151,11 +153,11 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
 
         val original = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        original.tryLock(Duration.ofSeconds(1), Duration.ofMillis(150))
+        original.tryLock(1.seconds, 150.milliseconds)
         Thread.sleep(250)
 
         val takeover = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        takeover.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10)).shouldBeTrue()
+        takeover.tryLock(1.seconds, 10.seconds).shouldBeTrue()
 
         // 원본 인스턴스 token은 더 이상 유효하지 않음
         original.isHeldByCurrentInstance().shouldBeFalse()
@@ -179,7 +181,7 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
         repeat(threads) {
             executor.submit {
                 val lock = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 10L))
-                if (lock.tryLock(Duration.ofMillis(200), Duration.ofSeconds(5))) {
+                if (lock.tryLock(200.milliseconds, 5.seconds)) {
                     successCount.incrementAndGet()
                     Thread.sleep(100)
                     lock.unlock()

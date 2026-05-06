@@ -10,7 +10,9 @@ import org.amshove.kluent.shouldBeGreaterOrEqualTo
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -18,7 +20,7 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
 
     companion object: KLogging()
 
-    private val options = LeaderElectionOptions(waitTime = Duration.ofSeconds(2), Duration.ofSeconds(10))
+    private val options = LeaderElectionOptions(waitTime = 2.seconds, 10.seconds)
 
     private lateinit var election: LettuceLeaderElector
     private lateinit var lockName: String

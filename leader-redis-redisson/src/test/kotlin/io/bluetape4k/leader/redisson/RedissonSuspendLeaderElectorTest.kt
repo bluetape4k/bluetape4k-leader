@@ -10,7 +10,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.amshove.kluent.shouldBeEqualTo
 import org.junit.jupiter.api.Test
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
@@ -83,8 +85,8 @@ class RedissonSuspendLeaderElectorTest: AbstractRedissonLeaderTest() {
     fun `run action should return null when lock is not acquired`() = runSuspendIO {
         val lockName = randomName()
         val options = LeaderElectionOptions(
-            waitTime = Duration.ofMillis(100),
-            leaseTime = Duration.ofSeconds(5),
+            waitTime = 100.milliseconds,
+            leaseTime = 5.seconds,
         )
         val leaderElection = RedissonSuspendLeaderElector(redissonClient, options)
         val lock = redissonClient.getLock(lockName)
@@ -110,8 +112,8 @@ class RedissonSuspendLeaderElectorTest: AbstractRedissonLeaderTest() {
     fun `동시 다수 코루틴에서 suspendRunIfLeader 호출 시 성공하거나 RedisException 을 안전하게 처리한다`() = runSuspendIO {
         val lockName = randomName()
         val shortWaitOptions = LeaderElectionOptions(
-            waitTime = Duration.ofMillis(50),
-            leaseTime = Duration.ofSeconds(5),
+            waitTime = 50.milliseconds,
+            leaseTime = 5.seconds,
         )
         val leaderElection = RedissonSuspendLeaderElector(redissonClient, shortWaitOptions)
         val successCount = AtomicInteger(0)

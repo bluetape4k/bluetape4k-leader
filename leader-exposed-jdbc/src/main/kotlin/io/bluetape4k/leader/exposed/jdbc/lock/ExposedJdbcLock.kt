@@ -18,7 +18,9 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 
 /**
@@ -59,7 +61,7 @@ internal class ExposedJdbcLock internal constructor(
      * @return 락 획득 성공 시 `true`, 타임아웃 또는 오류 시 `false`
      */
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
-        val deadline = System.currentTimeMillis() + waitTime.toMillis().coerceAtLeast(0L)
+        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds.coerceAtLeast(0L)
         var attempt = 0
 
         do {
@@ -102,7 +104,7 @@ internal class ExposedJdbcLock internal constructor(
 
         return transaction(db) {
             val now = Instant.now()
-            val lockedUntil = now.plusMillis(leaseTime.toMillis())
+            val lockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
 
             // Step 1: 만료된 락 갱신 시도
             val updated = LeaderLockTable.update(

@@ -16,11 +16,13 @@ import kotlinx.coroutines.withTimeout
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldNotBeNull
-import org.awaitility.kotlin.await
+import org.awaitility.kotlin.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
@@ -72,12 +74,12 @@ class RedissonStrategicSuspendLeaderElectorTest: AbstractRedissonLeaderTest() {
     @Test
     fun `TTL 만료 후 후보 자동 제거`() = runSuspendIO {
         val lockName = randomName()
-        val ttl = Duration.ofMillis(300)
+        val ttl = 300.milliseconds
 
         node1.registerCandidate(lockName, CandidateInfo("node-1"), ttl)
         node1.listCandidates(lockName).size shouldBeEqualTo 1
 
-        await.atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(50)) untilSuspending {
+        await.atMost(2.seconds).withPollInterval(50.milliseconds) untilSuspending {
             node1.listCandidates(lockName).isEmpty()
         }
     }

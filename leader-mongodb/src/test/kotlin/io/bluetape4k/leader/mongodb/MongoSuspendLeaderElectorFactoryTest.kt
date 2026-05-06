@@ -9,7 +9,9 @@ import org.amshove.kluent.shouldBeInstanceOf
 import org.amshove.kluent.shouldNotBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * [MongoSuspendLeaderElectorFactory] — SPI contract 테스트.
@@ -31,7 +33,7 @@ class MongoSuspendLeaderElectorFactoryTest : AbstractMongoLeaderTest() {
 
     @Test
     fun `create - 커스텀 옵션으로 인스턴스 반환`() = runSuspendIO {
-        val opts = LeaderElectionOptions(waitTime = Duration.ofSeconds(1), leaseTime = Duration.ofSeconds(10))
+        val opts = LeaderElectionOptions(waitTime = 1.seconds, leaseTime = 10.seconds)
         val elector = factory.create(opts)
         elector.shouldNotBeNull()
         elector.shouldBeInstanceOf<MongoSuspendLeaderElector>()
