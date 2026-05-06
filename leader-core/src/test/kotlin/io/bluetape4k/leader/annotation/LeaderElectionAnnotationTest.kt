@@ -26,7 +26,7 @@ class LeaderElectionAnnotationTest {
 
     @Test
     fun `기본 속성값 확인`() {
-        val annotation = ::annotatedMethod.findAnnotation<LeaderElector>()!!
+        val annotation = ::annotatedMethod.findAnnotation<LeaderElection>()!!
         annotation.name shouldBeEqualTo "test-lock"
         annotation.waitTime shouldBeEqualTo ""
         annotation.leaseTime shouldBeEqualTo ""
@@ -36,7 +36,7 @@ class LeaderElectionAnnotationTest {
 
     @Test
     fun `커스텀 속성값 확인`() {
-        val annotation = ::fullyAnnotatedMethod.findAnnotation<LeaderElector>()!!
+        val annotation = ::fullyAnnotatedMethod.findAnnotation<LeaderElection>()!!
         annotation.name shouldBeEqualTo "custom-lock"
         annotation.waitTime shouldBeEqualTo "PT5S"
         annotation.leaseTime shouldBeEqualTo "PT60S"
@@ -46,7 +46,7 @@ class LeaderElectionAnnotationTest {
 
     @Test
     fun `@Target FUNCTION 확인`() {
-        val targets = LeaderElector::class.annotations
+        val targets = LeaderElection::class.annotations
             .filterIsInstance<Target>()
             .first()
             .allowedTargets
@@ -55,7 +55,7 @@ class LeaderElectionAnnotationTest {
 
     @Test
     fun `@Retention RUNTIME 확인`() {
-        val retention = LeaderElector::class.annotations
+        val retention = LeaderElection::class.annotations
             .filterIsInstance<Retention>()
             .first()
             .value

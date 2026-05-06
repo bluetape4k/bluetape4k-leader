@@ -27,7 +27,7 @@ class LeaderGroupElectionAnnotationTest {
 
     @Test
     fun `기본 속성값 확인`() {
-        val annotation = ::annotatedMethod.findAnnotation<LeaderGroupElector>()!!
+        val annotation = ::annotatedMethod.findAnnotation<LeaderGroupElection>()!!
         annotation.name shouldBeEqualTo "group-lock"
         annotation.maxLeaders shouldBeEqualTo -1
         annotation.waitTime shouldBeEqualTo ""
@@ -38,7 +38,7 @@ class LeaderGroupElectionAnnotationTest {
 
     @Test
     fun `커스텀 속성값 확인`() {
-        val annotation = ::fullyAnnotatedMethod.findAnnotation<LeaderGroupElector>()!!
+        val annotation = ::fullyAnnotatedMethod.findAnnotation<LeaderGroupElection>()!!
         annotation.name shouldBeEqualTo "custom-group"
         annotation.maxLeaders shouldBeEqualTo 3
         annotation.waitTime shouldBeEqualTo "PT5S"
@@ -49,7 +49,7 @@ class LeaderGroupElectionAnnotationTest {
 
     @Test
     fun `@Target FUNCTION 확인`() {
-        val targets = LeaderGroupElector::class.annotations
+        val targets = LeaderGroupElection::class.annotations
             .filterIsInstance<Target>()
             .first()
             .allowedTargets
@@ -58,7 +58,7 @@ class LeaderGroupElectionAnnotationTest {
 
     @Test
     fun `@Retention RUNTIME 확인`() {
-        val retention = LeaderGroupElector::class.annotations
+        val retention = LeaderGroupElection::class.annotations
             .filterIsInstance<Retention>()
             .first()
             .value
