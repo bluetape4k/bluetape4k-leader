@@ -35,7 +35,7 @@ dependencyManagement {
         dependency("org.mongodb:mongodb-driver-core:${libs.versions.mongo.driver.get()}")
         dependency("org.mongodb:mongodb-driver-reactivestreams:${libs.versions.mongo.driver.get()}")
         // r2dbc-h2 1.0.x는 h2 2.1.x의 API에 의존 — h2 2.4.x ABI 충돌 회피
-        dependency("com.h2database:h2:2.1.214")
+        dependency("com.h2database:h2:2.2.220")
     }
 }
 
