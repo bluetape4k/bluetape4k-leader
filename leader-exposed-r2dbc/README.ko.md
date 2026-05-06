@@ -57,6 +57,8 @@ classDiagram
 |--------|-----------|------|
 | `ExposedR2dbcSuspendLeaderElection` | `SuspendLeaderElection` | `ExposedR2dbcLock` 기반 코루틴 단일 리더 |
 | `ExposedR2dbcSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | `ExposedR2dbcGroupLock` 기반 코루틴 복수 리더 |
+| `ExposedR2DbcSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `ExposedR2dbcSuspendLeaderElection` 생성 |
+| `ExposedR2DbcSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `ExposedR2dbcSuspendLeaderGroupElection` 생성 |
 
 ## 사용법
 
@@ -135,6 +137,26 @@ val options = ExposedR2dbcLeaderElectionOptions(
     lockOwner = "worker-1",
 )
 val election = ExposedR2dbcSuspendLeaderElection(db, options)
+```
+
+### SPI 팩토리 사용
+
+```kotlin
+val factory: SuspendLeaderElectorFactory = ExposedR2DbcSuspendLeaderElectorFactory(db)
+
+coroutineScope {
+    val elector = factory.create(LeaderElectionOptions.Default)
+    val result = elector.runIfLeader("daily-job") { generateReport() }
+}
+```
+
+```kotlin
+val groupFactory: SuspendLeaderGroupElectorFactory = ExposedR2DbcSuspendLeaderGroupElectorFactory(db)
+
+coroutineScope {
+    val elector = groupFactory.create(LeaderGroupElectionOptions(maxLeaders = 3))
+    val result = elector.runIfLeader("parallel-batch") { processChunk() }
+}
 ```
 
 ## 락 전략

@@ -55,6 +55,8 @@ classDiagram
 | `MongoLeaderGroupElection` | `LeaderGroupElection` | Blocking multi-leader via slot-based `MongoLock` |
 | `MongoSuspendLeaderElection` | `SuspendLeaderElection` | Coroutine single-leader via `MongoSuspendLock` |
 | `MongoSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | Coroutine multi-leader via slot-based `MongoSuspendLock` |
+| `MongoSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `MongoSuspendLeaderElection` per call |
+| `MongoSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `MongoSuspendLeaderGroupElection` per call |
 
 ## Collections
 
@@ -152,6 +154,31 @@ val options = MongoLeaderElectionOptions(
     retryDelay = Duration.ofMillis(100),
 )
 val election = MongoLeaderElection(lockCollection, options)
+```
+
+### Using SPI factories
+
+```kotlin
+val coroutineCollection = coroutineDb.getCollection<Document>("bluetape4k_leader_locks")
+val factory: SuspendLeaderElectorFactory =
+    MongoSuspendLeaderElectorFactory(coroutineCollection)
+
+coroutineScope {
+    val elector = factory.create(LeaderElectionOptions.Default)
+    val result = elector.runIfLeader("daily-job") { doWork() }
+}
+```
+
+```kotlin
+val syncGroupCollection = db.getCollection("bluetape4k_leader_group_locks")
+val coroutineGroupCollection = coroutineDb.getCollection<Document>("bluetape4k_leader_group_locks")
+val groupFactory: SuspendLeaderGroupElectorFactory =
+    MongoSuspendLeaderGroupElectorFactory(syncGroupCollection, coroutineGroupCollection)
+
+coroutineScope {
+    val elector = groupFactory.create(LeaderGroupElectionOptions(maxLeaders = 3))
+    val result = elector.runIfLeader("parallel-job") { processChunk() }
+}
 ```
 
 ## Lock Internals

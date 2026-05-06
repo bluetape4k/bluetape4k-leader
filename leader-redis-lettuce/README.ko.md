@@ -65,6 +65,8 @@ classDiagram
 | `LettuceLeaderGroupElection` | `LeaderGroupElection` | `LettuceSemaphore` 기반 블로킹 복수 리더 |
 | `LettuceSuspendLeaderElection` | `SuspendLeaderElection` | `LettuceSuspendLock` 기반 코루틴 단일 리더 |
 | `LettuceSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | `LettuceSuspendSemaphore` 기반 코루틴 복수 리더 |
+| `LettuceSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `LettuceSuspendLeaderElection` 생성 |
+| `LettuceSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `LettuceSuspendLeaderGroupElection` 생성 |
 
 ## 사용 예시
 
@@ -135,6 +137,26 @@ val options = LeaderElectionOptions(
     leaseTime = Duration.ofSeconds(30)
 )
 val election = LettuceLeaderElection(connection, options)
+```
+
+### SPI 팩토리 사용
+
+```kotlin
+val factory: SuspendLeaderElectorFactory = LettuceSuspendLeaderElectorFactory(connection)
+
+coroutineScope {
+    val elector = factory.create(LeaderElectionOptions.Default)
+    val result = elector.runIfLeader("daily-job") { doWork() }
+}
+```
+
+```kotlin
+val groupFactory: SuspendLeaderGroupElectorFactory = LettuceSuspendLeaderGroupElectorFactory(connection)
+
+coroutineScope {
+    val elector = groupFactory.create(LeaderGroupElectionOptions(maxLeaders = 3))
+    val result = elector.runIfLeader("parallel-job") { processChunk() }
+}
 ```
 
 ## 락 내부 동작

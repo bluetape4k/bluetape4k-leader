@@ -55,6 +55,8 @@ classDiagram
 | `MongoLeaderGroupElection` | `LeaderGroupElection` | 슬롯 기반 `MongoLock`을 이용한 블로킹 복수 리더 |
 | `MongoSuspendLeaderElection` | `SuspendLeaderElection` | `MongoSuspendLock` 기반 코루틴 단일 리더 |
 | `MongoSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | 슬롯 기반 `MongoSuspendLock`을 이용한 코루틴 복수 리더 |
+| `MongoSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `MongoSuspendLeaderElection` 생성 |
+| `MongoSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `MongoSuspendLeaderGroupElection` 생성 |
 
 ## 컬렉션
 
@@ -152,6 +154,31 @@ val options = MongoLeaderElectionOptions(
     retryDelay = Duration.ofMillis(100),
 )
 val election = MongoLeaderElection(lockCollection, options)
+```
+
+### SPI 팩토리 사용
+
+```kotlin
+val coroutineCollection = coroutineDb.getCollection<Document>("bluetape4k_leader_locks")
+val factory: SuspendLeaderElectorFactory =
+    MongoSuspendLeaderElectorFactory(coroutineCollection)
+
+coroutineScope {
+    val elector = factory.create(LeaderElectionOptions.Default)
+    val result = elector.runIfLeader("daily-job") { doWork() }
+}
+```
+
+```kotlin
+val syncGroupCollection = db.getCollection("bluetape4k_leader_group_locks")
+val coroutineGroupCollection = coroutineDb.getCollection<Document>("bluetape4k_leader_group_locks")
+val groupFactory: SuspendLeaderGroupElectorFactory =
+    MongoSuspendLeaderGroupElectorFactory(syncGroupCollection, coroutineGroupCollection)
+
+coroutineScope {
+    val elector = groupFactory.create(LeaderGroupElectionOptions(maxLeaders = 3))
+    val result = elector.runIfLeader("parallel-job") { processChunk() }
+}
 ```
 
 ## 락 내부 동작

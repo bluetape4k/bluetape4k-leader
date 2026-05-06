@@ -65,6 +65,8 @@ classDiagram
 | `LettuceLeaderGroupElection` | `LeaderGroupElection` | Blocking multi-leader via `LettuceSemaphore` |
 | `LettuceSuspendLeaderElection` | `SuspendLeaderElection` | Coroutine single-leader via `LettuceSuspendLock` |
 | `LettuceSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | Coroutine multi-leader via `LettuceSuspendSemaphore` |
+| `LettuceSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `LettuceSuspendLeaderElection` per call |
+| `LettuceSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `LettuceSuspendLeaderGroupElection` per call |
 
 ## Usage
 
@@ -135,6 +137,26 @@ val options = LeaderElectionOptions(
     leaseTime = Duration.ofSeconds(30)
 )
 val election = LettuceLeaderElection(connection, options)
+```
+
+### Using factories
+
+```kotlin
+val factory: SuspendLeaderElectorFactory = LettuceSuspendLeaderElectorFactory(connection)
+
+coroutineScope {
+    val elector = factory.create(LeaderElectionOptions.Default)
+    val result = elector.runIfLeader("daily-job") { doWork() }
+}
+```
+
+```kotlin
+val groupFactory: SuspendLeaderGroupElectorFactory = LettuceSuspendLeaderGroupElectorFactory(connection)
+
+coroutineScope {
+    val elector = groupFactory.create(LeaderGroupElectionOptions(maxLeaders = 3))
+    val result = elector.runIfLeader("parallel-job") { processChunk() }
+}
 ```
 
 ## Lock Internals

@@ -64,6 +64,8 @@ classDiagram
 | `RedissonLeaderGroupElection` | `LeaderGroupElection` | `RSemaphore` 기반 블로킹 복수 리더 |
 | `RedissonSuspendLeaderElection` | `SuspendLeaderElection` | 코루틴, PID 시드 Snowflake 락 ID |
 | `RedissonSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | `RSemaphoreAsync` 기반 코루틴 복수 리더 |
+| `RedissonSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `RedissonSuspendLeaderElection` 생성 |
+| `RedissonSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `RedissonSuspendLeaderGroupElection` 생성 |
 
 ## 코루틴 락 ID 설계
 
@@ -154,6 +156,26 @@ val options = LeaderElectionOptions(
     leaseTime = Duration.ofSeconds(30)
 )
 val election = RedissonLeaderElection(client, options)
+```
+
+### SPI 팩토리 사용
+
+```kotlin
+val factory: SuspendLeaderElectorFactory = RedissonSuspendLeaderElectorFactory(client)
+
+coroutineScope {
+    val elector = factory.create(LeaderElectionOptions.Default)
+    val result = elector.runIfLeader("daily-job") { doWork() }
+}
+```
+
+```kotlin
+val groupFactory: SuspendLeaderGroupElectorFactory = RedissonSuspendLeaderGroupElectorFactory(client)
+
+coroutineScope {
+    val elector = groupFactory.create(LeaderGroupElectionOptions(maxLeaders = 3))
+    val result = elector.runIfLeader("parallel-job") { processChunk() }
+}
 ```
 
 ## 테스트 인프라
