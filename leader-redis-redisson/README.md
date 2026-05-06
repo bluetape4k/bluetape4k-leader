@@ -64,6 +64,8 @@ classDiagram
 | `RedissonLeaderGroupElection` | `LeaderGroupElection` | Blocking multi-leader via `RSemaphore` |
 | `RedissonSuspendLeaderElection` | `SuspendLeaderElection` | Coroutine, PID-seeded Snowflake lock ID |
 | `RedissonSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | Coroutine multi-leader via `RSemaphoreAsync` |
+| `RedissonSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `RedissonSuspendLeaderElection` per call |
+| `RedissonSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `RedissonSuspendLeaderGroupElection` per call |
 
 ## Coroutine Lock ID Design
 
@@ -160,6 +162,26 @@ val election = RedissonLeaderElection(client, options)
 
 ```kotlin
 val election = RedissonSuspendLeaderElection(client, LeaderElectionOptions.Default)
+```
+
+### Using SPI factories
+
+```kotlin
+val factory: SuspendLeaderElectorFactory = RedissonSuspendLeaderElectorFactory(client)
+
+coroutineScope {
+    val elector = factory.create(LeaderElectionOptions.Default)
+    val result = elector.runIfLeader("daily-job") { doWork() }
+}
+```
+
+```kotlin
+val groupFactory: SuspendLeaderGroupElectorFactory = RedissonSuspendLeaderGroupElectorFactory(client)
+
+coroutineScope {
+    val elector = groupFactory.create(LeaderGroupElectionOptions(maxLeaders = 3))
+    val result = elector.runIfLeader("parallel-job") { processChunk() }
+}
 ```
 
 ## Test Infrastructure

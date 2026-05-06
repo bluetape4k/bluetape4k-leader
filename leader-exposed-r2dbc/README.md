@@ -57,6 +57,8 @@ classDiagram
 |-------|-----------|-------------|
 | `ExposedR2dbcSuspendLeaderElection` | `SuspendLeaderElection` | Coroutine single-leader via `ExposedR2dbcLock` |
 | `ExposedR2dbcSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | Coroutine multi-leader via `ExposedR2dbcGroupLock` |
+| `ExposedR2DbcSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `ExposedR2dbcSuspendLeaderElection` per call |
+| `ExposedR2DbcSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `ExposedR2dbcSuspendLeaderGroupElection` per call |
 
 ## Usage
 
@@ -135,6 +137,26 @@ val options = ExposedR2dbcLeaderElectionOptions(
     lockOwner = "worker-1",
 )
 val election = ExposedR2dbcSuspendLeaderElection(db, options)
+```
+
+### Using SPI factories
+
+```kotlin
+val factory: SuspendLeaderElectorFactory = ExposedR2DbcSuspendLeaderElectorFactory(db)
+
+coroutineScope {
+    val elector = factory.create(LeaderElectionOptions.Default)
+    val result = elector.runIfLeader("daily-job") { generateReport() }
+}
+```
+
+```kotlin
+val groupFactory: SuspendLeaderGroupElectorFactory = ExposedR2DbcSuspendLeaderGroupElectorFactory(db)
+
+coroutineScope {
+    val elector = groupFactory.create(LeaderGroupElectionOptions(maxLeaders = 3))
+    val result = elector.runIfLeader("parallel-batch") { processChunk() }
+}
 ```
 
 ## Lock Strategy
