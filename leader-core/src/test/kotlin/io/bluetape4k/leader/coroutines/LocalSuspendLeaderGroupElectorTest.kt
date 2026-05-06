@@ -18,7 +18,9 @@ import org.amshove.kluent.shouldBeLessOrEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
@@ -199,7 +201,7 @@ class LocalSuspendLeaderGroupElectorTest {
     @Test
     fun `runIfLeader - waitTime 내 슬롯 획득 실패 시 null 을 반환한다`() = runSuspendIO {
         val skipElection = LocalSuspendLeaderGroupElector(
-            LeaderGroupElectionOptions(maxLeaders = 1, waitTime = Duration.ofMillis(50))
+            LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 50.milliseconds)
         )
         val lockName = randomLockName()
         val holderReady = kotlinx.coroutines.channels.Channel<Unit>(1)
@@ -224,7 +226,7 @@ class LocalSuspendLeaderGroupElectorTest {
     @Test
     fun `runIfLeader - 슬롯 해제 후 재시도 시 정상 실행된다`() = runSuspendIO {
         val election = LocalSuspendLeaderGroupElector(
-            LeaderGroupElectionOptions(maxLeaders = 1, waitTime = Duration.ofMillis(100))
+            LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 100.milliseconds)
         )
         val lockName = randomLockName()
 

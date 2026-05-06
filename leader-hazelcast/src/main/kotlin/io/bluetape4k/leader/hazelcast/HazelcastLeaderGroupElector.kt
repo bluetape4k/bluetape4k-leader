@@ -65,7 +65,7 @@ class HazelcastLeaderGroupElector private constructor(
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         lockName.requireNotBlank("lockName")
 
-        val slotWaitTime = waitTime.dividedBy(maxLeaders.toLong())
+        val slotWaitTime = waitTime / maxLeaders
         log.debug { "리더 그룹 슬롯 획득을 요청합니다. lockName=$lockName, maxLeaders=$maxLeaders" }
 
         val acquiredLock = (0 until maxLeaders)
@@ -97,7 +97,7 @@ class HazelcastLeaderGroupElector private constructor(
     ): CompletableFuture<T?> {
         lockName.requireNotBlank("lockName")
 
-        val slotWaitTime = waitTime.dividedBy(maxLeaders.toLong())
+        val slotWaitTime = waitTime / maxLeaders
 
         return CompletableFuture.supplyAsync({
             (0 until maxLeaders)

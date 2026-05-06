@@ -3,15 +3,16 @@ package io.bluetape4k.leader
 import io.bluetape4k.support.requireGe
 import io.bluetape4k.support.requireGt
 import java.io.Serializable
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * 리더 선출에 사용하는 옵션 데이터 클래스입니다.
  *
  * ```kotlin
  * val options = LeaderElectionOptions(
- *     waitTime = Duration.ofSeconds(3),
- *     leaseTime = Duration.ofSeconds(30),
+ *     waitTime = 3.seconds,
+ *     leaseTime = 30.seconds,
  * )
  * val election = LocalLeaderElector(options)
  * val result = election.runIfLeader("job-lock") { "done" }
@@ -31,8 +32,8 @@ data class LeaderElectionOptions(
     }
 
     companion object {
-        val DefaultWaitTime: Duration = Duration.ofSeconds(5)
-        val DefaultLeaseTime: Duration = Duration.ofSeconds(60)
+        val DefaultWaitTime: Duration = 5.seconds
+        val DefaultLeaseTime: Duration = 60.seconds
 
         /**
          * 기본 옵션 인스턴스 (`waitTime=5s`, `leaseTime=60s`).

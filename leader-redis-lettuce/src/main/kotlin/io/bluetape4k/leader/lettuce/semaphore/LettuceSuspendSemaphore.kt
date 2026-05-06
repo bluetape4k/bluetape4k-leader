@@ -11,7 +11,9 @@ import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.async.RedisAsyncCommands
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -97,10 +99,10 @@ return v"""
         return acquired
     }
 
-    suspend fun acquire(permits: Int = 1, waitTime: Duration = Duration.ofSeconds(30)) {
+    suspend fun acquire(permits: Int = 1, waitTime: Duration = 30.seconds) {
         permits.requirePositiveNumber("permits")
 
-        val deadline = System.currentTimeMillis() + waitTime.toMillis()
+        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
         while (System.currentTimeMillis() < deadline) {
             if (tryAcquire(permits)) return
             delay(RETRY_DELAY_MS.milliseconds)

@@ -4,7 +4,9 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.ElectionStrategy
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * 코루틴 기반 플러그형 선출 전략을 지원하는 리더 선출 인터페이스입니다.

@@ -2,11 +2,11 @@ package io.bluetape4k.leader.local
 
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.support.requireNotBlank
-import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import kotlin.time.Duration
 
 /**
  * 로컬(단일 JVM) 리더 선출 구현체들의 공통 락 관리를 제공하는 추상 클래스입니다.
@@ -72,7 +72,7 @@ abstract class AbstractLocalLeaderElector(
      */
     protected inline fun <T> tryWithLeaderLock(lockName: String, waitTime: Duration, action: () -> T): T? {
         val lock = getLock(lockName)
-        val acquired = lock.tryLock(waitTime.toMillis(), TimeUnit.MILLISECONDS)
+        val acquired = lock.tryLock(waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS)
         if (!acquired) return null
         return try {
             action()

@@ -65,7 +65,7 @@ class HazelcastSuspendLeaderGroupElector private constructor(
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         lockName.requireNotBlank("lockName")
 
-        val slotWaitTime = waitTime.dividedBy(maxLeaders.toLong())
+        val slotWaitTime = waitTime / maxLeaders
         log.debug { "리더 그룹 슬롯 획득을 요청합니다 (suspend). lockName=$lockName, maxLeaders=$maxLeaders" }
 
         var acquiredLock: HazelcastSuspendLock? = null

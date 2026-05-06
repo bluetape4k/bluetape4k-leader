@@ -14,7 +14,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
@@ -96,8 +98,8 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
     fun `run async action should release lock even when action fails`() {
         val lockName = randomName()
         val options = LeaderElectionOptions(
-            waitTime = Duration.ofSeconds(1),
-            leaseTime = Duration.ofSeconds(30),
+            waitTime = 1.seconds,
+            leaseTime = 30.seconds,
         )
         val leaderElection = RedissonLeaderElector(redissonClient, options)
 
@@ -118,8 +120,8 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
     fun `run action should return null when lock is not acquired`() {
         val lockName = randomName()
         val options = LeaderElectionOptions(
-            waitTime = Duration.ofMillis(100),
-            leaseTime = Duration.ofSeconds(5),
+            waitTime = 100.milliseconds,
+            leaseTime = 5.seconds,
         )
         val leaderElection = RedissonLeaderElector(redissonClient, options)
         val lockAcquired = CountDownLatch(1)
@@ -309,8 +311,8 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
     fun `동시 다수 스레드에서 runIfLeader 호출 시 성공하거나 RedisException 을 발생시킨다`() {
         val lockName = randomName()
         val shortWaitOptions = LeaderElectionOptions(
-            waitTime = Duration.ofMillis(50),
-            leaseTime = Duration.ofSeconds(5),
+            waitTime = 50.milliseconds,
+            leaseTime = 5.seconds,
         )
         val leaderElection = RedissonLeaderElector(redissonClient, shortWaitOptions)
         val successCount = AtomicInteger(0)
@@ -341,8 +343,8 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
     fun `Virtual Thread 에서 runIfLeader 호출 시 성공하거나 RedisException 을 안전하게 처리한다`() {
         val lockName = randomName()
         val shortWaitOptions = LeaderElectionOptions(
-            waitTime = Duration.ofMillis(50),
-            leaseTime = Duration.ofSeconds(5),
+            waitTime = 50.milliseconds,
+            leaseTime = 5.seconds,
         )
         val leaderElection = RedissonLeaderElector(redissonClient, shortWaitOptions)
         val successCount = AtomicInteger(0)

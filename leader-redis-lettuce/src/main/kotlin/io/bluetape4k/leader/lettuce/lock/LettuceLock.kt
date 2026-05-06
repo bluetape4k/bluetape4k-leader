@@ -11,7 +11,10 @@ import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.api.sync.RedisCommands
 import kotlinx.atomicfu.atomic
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.LockSupport
@@ -37,7 +40,7 @@ import java.util.concurrent.locks.LockSupport
 class LettuceLock(
     private val connection: StatefulRedisConnection<String, String>,
     val lockKey: String,
-    val defaultLeaseTime: Duration = Duration.ofSeconds(30),
+    val defaultLeaseTime: Duration = 30.seconds,
 ) {
     companion object: KLogging() {
         private const val RETRY_DELAY_MS = 50L
@@ -69,8 +72,8 @@ class LettuceLock(
         leaseTime: Duration = defaultLeaseTime,
     ): Boolean {
         val token = Base58.randomString(8)
-        val leaseMs = leaseTime.toMillis()
-        val deadline = System.currentTimeMillis() + waitTime.toMillis()
+        val leaseMs = leaseTime.inWholeMilliseconds
+        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
 
         do {
             val args = SetArgs().nx().px(leaseMs)
@@ -89,11 +92,11 @@ class LettuceLock(
         return false
     }
 
-    fun lock(leaseTime: Duration = defaultLeaseTime, maxWaitTime: Duration = Duration.ofMinutes(5)) {
+    fun lock(leaseTime: Duration = defaultLeaseTime, maxWaitTime: Duration = 5.minutes) {
         val token = Base58.randomString(length = 8)
-        val leaseMs = leaseTime.toMillis()
+        val leaseMs = leaseTime.inWholeMilliseconds
         val args = SetArgs().nx().px(leaseMs)
-        val deadline = System.nanoTime() + maxWaitTime.toNanos()
+        val deadline = System.nanoTime() + maxWaitTime.inWholeNanoseconds
 
         while (true) {
             val result = syncCommands.set(lockKey, token, args)
@@ -131,8 +134,8 @@ class LettuceLock(
         leaseTime: Duration = defaultLeaseTime,
     ): CompletableFuture<Boolean> {
         val token = Base58.randomString(length = 8)
-        val leaseMs = leaseTime.toMillis()
-        val deadline = System.currentTimeMillis() + waitTime.toMillis()
+        val leaseMs = leaseTime.inWholeMilliseconds
+        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
 
         fun attempt(): CompletableFuture<Boolean> {
             val args = SetArgs().nx().px(leaseMs)
@@ -157,11 +160,11 @@ class LettuceLock(
 
     fun lockAsync(
         leaseTime: Duration = defaultLeaseTime,
-        maxWaitTime: Duration = Duration.ofMinutes(5),
+        maxWaitTime: Duration = 5.minutes,
     ): CompletableFuture<Unit> {
         val token = Base58.randomString(length = 8)
-        val leaseMs = leaseTime.toMillis()
-        val deadline = System.currentTimeMillis() + maxWaitTime.toMillis()
+        val leaseMs = leaseTime.inWholeMilliseconds
+        val deadline = System.currentTimeMillis() + maxWaitTime.inWholeMilliseconds
 
         fun attempt(): CompletableFuture<Unit> {
             val args = SetArgs().nx().px(leaseMs)

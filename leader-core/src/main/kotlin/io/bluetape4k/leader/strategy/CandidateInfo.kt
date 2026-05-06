@@ -1,7 +1,9 @@
 package io.bluetape4k.leader.strategy
 
 import java.io.Serializable
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 
 /**
@@ -32,8 +34,8 @@ data class CandidateInfo(
      * 완료 이력이 없으면 [registeredAt] 부터 계산합니다 (미실행 노드 = 등록 이후 전체 경과 시간).
      */
     val idleDuration: Duration
-        get() = lastCompletionTime?.let { Duration.between(it, Instant.now()) }
-            ?: Duration.between(registeredAt, Instant.now())
+        get() = lastCompletionTime?.let { (Instant.now().toEpochMilli() - it.toEpochMilli()).milliseconds }
+            ?: (Instant.now().toEpochMilli() - registeredAt.toEpochMilli()).milliseconds
 
     /** 성공률 (0.0 ~ 1.0). 이력 없으면 0.0. */
     val successRate: Double

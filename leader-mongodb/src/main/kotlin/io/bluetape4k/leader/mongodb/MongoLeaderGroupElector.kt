@@ -81,7 +81,7 @@ class MongoLeaderGroupElector private constructor(
         validateMongoLockName(lockName)
 
         val leaseTime = options.leaderGroupOptions.leaseTime
-        val perSlotWait = options.leaderGroupOptions.waitTime.dividedBy(maxLeaders.toLong())
+        val perSlotWait = options.leaderGroupOptions.waitTime / maxLeaders
         val start = Random.nextInt(maxLeaders)
 
         log.debug { "리더 그룹 슬롯 획득을 요청합니다. lockName=$lockName, maxLeaders=$maxLeaders" }
@@ -114,7 +114,7 @@ class MongoLeaderGroupElector private constructor(
         validateMongoLockName(lockName)
 
         val leaseTime = options.leaderGroupOptions.leaseTime
-        val perSlotWait = options.leaderGroupOptions.waitTime.dividedBy(maxLeaders.toLong())
+        val perSlotWait = options.leaderGroupOptions.waitTime / maxLeaders
         val start = Random.nextInt(maxLeaders)
 
         return CompletableFuture.supplyAsync({

@@ -9,7 +9,9 @@ import io.lettuce.core.ScanArgs
 import io.lettuce.core.ScanCursor
 import io.lettuce.core.SetArgs
 import io.lettuce.core.api.StatefulRedisConnection
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Lettuce [StatefulRedisConnection] 기반 후보 레지스트리입니다.
@@ -57,7 +59,7 @@ internal class LettuceCandidateRegistry(
         val key = candidateKey(lockName, info.nodeId)
         val value = LettuceCandidateInfoCodec.encode(info)
         if (ttl == Duration.ZERO) sync.set(key, value)
-        else sync.psetex(key, ttl.toMillis(), value)
+        else sync.psetex(key, ttl.inWholeMilliseconds, value)
     }
 
     /** 후보를 등록 해제합니다. 존재하지 않는 nodeId 는 무시됩니다. */

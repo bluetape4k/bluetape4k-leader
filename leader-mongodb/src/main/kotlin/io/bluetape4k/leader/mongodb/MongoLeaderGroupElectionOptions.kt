@@ -4,7 +4,9 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.support.requireGt
 import io.bluetape4k.support.requirePositiveNumber
 import java.io.Serializable
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * MongoDB 기반 복수 리더 그룹 선출에 사용하는 옵션 데이터 클래스입니다.
@@ -12,7 +14,7 @@ import java.time.Duration
  * ```kotlin
  * val options = MongoLeaderGroupElectionOptions(
  *     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3),
- *     retryDelay = Duration.ofMillis(100),
+ *     retryDelay = 100.milliseconds,
  * )
  * val election = MongoLeaderGroupElector(groupCollection, options)
  * val result = election.runIfLeader("batch-job") { processChunk() }
@@ -24,7 +26,7 @@ import java.time.Duration
  */
 data class MongoLeaderGroupElectionOptions(
     val leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-    val retryDelay: Duration = Duration.ofMillis(50),
+    val retryDelay: Duration = 50.milliseconds,
 ) : Serializable {
 
     /** 허용하는 최대 동시 리더 수 ([LeaderGroupElectionOptions.maxLeaders] 위임). */

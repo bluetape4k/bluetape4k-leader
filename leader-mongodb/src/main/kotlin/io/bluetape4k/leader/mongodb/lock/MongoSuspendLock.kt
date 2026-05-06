@@ -21,7 +21,9 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import org.bson.Document
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -86,7 +88,7 @@ class MongoSuspendLock private constructor(
         suspend operator fun invoke(
             collection: MongoCollection<Document>,
             lockKey: String,
-            retryDelay: Duration = Duration.ofMillis(50),
+            retryDelay: Duration = 50.milliseconds,
         ): MongoSuspendLock {
             ensureIndexes(collection)
             return MongoSuspendLock(collection, lockKey, retryDelay)
@@ -106,7 +108,7 @@ class MongoSuspendLock private constructor(
      * @return 락 획득 성공 시 `true`, 실패 또는 오류 시 `false`
      */
     suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
-        val deadline = System.currentTimeMillis() + waitTime.toMillis()
+        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
 
         do {
             currentCoroutineContext().ensureActive()
@@ -119,7 +121,7 @@ class MongoSuspendLock private constructor(
                     ),
                     Updates.combine(
                         Updates.set("token", token),
-                        Updates.set("expireAt", Date(System.currentTimeMillis() + leaseTime.toMillis()))
+                        Updates.set("expireAt", Date(System.currentTimeMillis() + leaseTime.inWholeMilliseconds))
                     ),
                     FindOneAndUpdateOptions().upsert(true).returnDocument(ReturnDocument.AFTER)
                 )
@@ -160,7 +162,7 @@ class MongoSuspendLock private constructor(
             val remaining = deadline - System.currentTimeMillis()
             if (remaining > 0L) {
                 // AWS full jitter: delay ∈ [1ms, retryDelay) — 동일 retry 윈도우에 인스턴스가 몰리는 것을 방지
-                val jitter = Random.nextLong(1, retryDelay.toMillis().coerceAtLeast(2))
+                val jitter = Random.nextLong(1, retryDelay.inWholeMilliseconds.coerceAtLeast(2))
                 delay(minOf(jitter, remaining).milliseconds)
             }
         } while (System.currentTimeMillis() < deadline)

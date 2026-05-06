@@ -25,7 +25,9 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
@@ -77,13 +79,13 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
 
         val holderLock = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        holderLock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(30))
+        holderLock.tryLock(1.seconds, 30.seconds)
 
         try {
             val shortOptions = ExposedJdbcLeaderElectionOptions(
                 leaderOptions = LeaderElectionOptions(
-                    waitTime = Duration.ofMillis(100),
-                    leaseTime = Duration.ofSeconds(5),
+                    waitTime = 100.milliseconds,
+                    leaseTime = 5.seconds,
                 )
             )
             val election = ExposedJdbcLeaderElector(db, shortOptions)
@@ -102,20 +104,20 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         cleanTables(db)
         val lockName = randomName()
 
-        val leaseTime = Duration.ofMillis(200)
+        val leaseTime = 200.milliseconds
         val holderLock = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        holderLock.tryLock(Duration.ofSeconds(1), leaseTime)
+        holderLock.tryLock(1.seconds, leaseTime)
 
         // leaseTime(200ms) 만료를 확실히 넘기기 위해 1.5배 + buffer(50ms) 대기
-        val waitForExpiryMillis = (leaseTime.toMillis() * 3 / 2) + 50
+        val waitForExpiryMillis = (leaseTime.inWholeMilliseconds * 3 / 2) + 50
         Thread.sleep(waitForExpiryMillis)
 
         val election = ExposedJdbcLeaderElector(
             db,
             ExposedJdbcLeaderElectionOptions(
                 leaderOptions = LeaderElectionOptions(
-                    waitTime = Duration.ofSeconds(2),
-                    leaseTime = Duration.ofSeconds(10),
+                    waitTime = 2.seconds,
+                    leaseTime = 10.seconds,
                 )
             )
         )
@@ -168,8 +170,8 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val options = ExposedJdbcLeaderElectionOptions(
             recordHistory = true,
             leaderOptions = LeaderElectionOptions(
-                waitTime = Duration.ofSeconds(2),
-                leaseTime = Duration.ofSeconds(10),
+                waitTime = 2.seconds,
+                leaseTime = 10.seconds,
             )
         )
         val election = ExposedJdbcLeaderElector(db, options)
@@ -200,8 +202,8 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val options = ExposedJdbcLeaderElectionOptions(
             recordHistory = true,
             leaderOptions = LeaderElectionOptions(
-                waitTime = Duration.ofSeconds(2),
-                leaseTime = Duration.ofSeconds(10),
+                waitTime = 2.seconds,
+                leaseTime = 10.seconds,
             )
         )
         val election = ExposedJdbcLeaderElector(db, options)
@@ -226,8 +228,8 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val options = ExposedJdbcLeaderElectionOptions(
             recordHistory = true,
             leaderOptions = LeaderElectionOptions(
-                waitTime = Duration.ofSeconds(2),
-                leaseTime = Duration.ofSeconds(10),
+                waitTime = 2.seconds,
+                leaseTime = 10.seconds,
             )
         )
         val election = ExposedJdbcLeaderElector(db, options)
@@ -251,8 +253,8 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
         val options = ExposedJdbcLeaderElectionOptions(
             leaderOptions = LeaderElectionOptions(
-                waitTime = Duration.ofSeconds(5),
-                leaseTime = Duration.ofSeconds(10),
+                waitTime = 5.seconds,
+                leaseTime = 10.seconds,
             )
         )
         val election = ExposedJdbcLeaderElector(db, options)
@@ -314,8 +316,8 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val options = ExposedJdbcLeaderElectionOptions(
             recordHistory = true,
             leaderOptions = LeaderElectionOptions(
-                waitTime = Duration.ofSeconds(2),
-                leaseTime = Duration.ofSeconds(10),
+                waitTime = 2.seconds,
+                leaseTime = 10.seconds,
             ),
         )
         val election = ExposedJdbcLeaderElector(db, options)
@@ -429,13 +431,13 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
 
         val holderLock = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
-        holderLock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(30))
+        holderLock.tryLock(1.seconds, 30.seconds)
 
         try {
             val shortOptions = ExposedJdbcLeaderElectionOptions(
                 leaderOptions = LeaderElectionOptions(
-                    waitTime = Duration.ofMillis(100),
-                    leaseTime = Duration.ofSeconds(5),
+                    waitTime = 100.milliseconds,
+                    leaseTime = 5.seconds,
                 )
             )
             val election = ExposedJdbcLeaderElector(db, shortOptions)

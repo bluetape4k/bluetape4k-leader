@@ -19,7 +19,9 @@ import org.amshove.kluent.shouldNotBeNull
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -36,8 +38,8 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
             ExposedR2dbcLeaderGroupElectionOptions(
                 leaderGroupOptions = LeaderGroupElectionOptions(
                     maxLeaders = maxLeaders,
-                    waitTime = Duration.ofSeconds(3),
-                    leaseTime = Duration.ofSeconds(10),
+                    waitTime = 3.seconds,
+                    leaseTime = 10.seconds,
                 ),
                 retryStrategy = RetryStrategy.Jitter(),
             ),
@@ -67,8 +69,8 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
         val options = ExposedR2dbcLeaderGroupElectionOptions(
             leaderGroupOptions = LeaderGroupElectionOptions(
                 maxLeaders = maxLeaders,
-                waitTime = Duration.ofSeconds(5),
-                leaseTime = Duration.ofSeconds(10),
+                waitTime = 5.seconds,
+                leaseTime = 10.seconds,
             ),
         )
 
@@ -95,15 +97,15 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
         // ExposedR2dbcGroupLock으로 모든 슬롯을 직접 선점 (타이밍 의존성 제거)
         val locks = (0 until maxLeaders).map { slot ->
             ExposedR2dbcGroupLock(db, lockName, slot, RetryStrategy.Jitter()).also { lock ->
-                lock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(30)) shouldBe true
+                lock.tryLock(2.seconds, 30.seconds) shouldBe true
             }
         }
 
         val contenderOptions = ExposedR2dbcLeaderGroupElectionOptions(
             leaderGroupOptions = LeaderGroupElectionOptions(
                 maxLeaders = maxLeaders,
-                waitTime = Duration.ofMillis(200),
-                leaseTime = Duration.ofSeconds(10),
+                waitTime = 200.milliseconds,
+                leaseTime = 10.seconds,
             ),
             retryStrategy = RetryStrategy.Fixed(fixedMs = 10L),
         )
@@ -166,8 +168,8 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
         val options = ExposedR2dbcLeaderGroupElectionOptions(
             leaderGroupOptions = LeaderGroupElectionOptions(
                 maxLeaders = maxLeaders,
-                waitTime = Duration.ofSeconds(5),
-                leaseTime = Duration.ofSeconds(30),
+                waitTime = 5.seconds,
+                leaseTime = 30.seconds,
             ),
         )
         val election = ExposedR2DbcSuspendLeaderGroupElector(db, options)
@@ -200,8 +202,8 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
         val options = ExposedR2dbcLeaderGroupElectionOptions(
             leaderGroupOptions = LeaderGroupElectionOptions(
                 maxLeaders = maxLeaders,
-                waitTime = Duration.ofMillis(500),
-                leaseTime = Duration.ofSeconds(5),
+                waitTime = 500.milliseconds,
+                leaseTime = 5.seconds,
             ),
             retryStrategy = RetryStrategy.Fixed(fixedMs = 10L),
         )

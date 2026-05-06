@@ -103,8 +103,8 @@ class RedissonSuspendLeaderElector private constructor(
         }
     }
 
-    private val waitTimeMills = options.waitTime.toMillis()
-    private val leaseTimeMills = options.leaseTime.toMillis()
+    private val waitTimeMills = options.waitTime.inWholeMilliseconds
+    private val leaseTimeMills = options.leaseTime.inWholeMilliseconds
 
     /**
      * Redisson Lock을 이용하여, 리더로 선출되면 [action]을 수행하고, 그렇지 않다면 수행하지 않습니다.

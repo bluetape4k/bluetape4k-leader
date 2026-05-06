@@ -15,7 +15,9 @@ import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
@@ -113,10 +115,10 @@ class LocalSuspendLeaderElectorTest {
     @Test
     fun `runIfLeader - waitTime 내 Mutex 획득 실패 시 null 을 반환한다`() = runSuspendIO {
         val shortWaitElection = LocalSuspendLeaderElector(
-            LeaderElectionOptions(waitTime = Duration.ofMillis(100))
+            LeaderElectionOptions(waitTime = 100.milliseconds)
         )
         val longWaitElection = LocalSuspendLeaderElector(
-            LeaderElectionOptions(waitTime = Duration.ofSeconds(30))
+            LeaderElectionOptions(waitTime = 30.seconds)
         )
         val lockName = randomLockName()
         val mutex = Mutex()
@@ -141,7 +143,7 @@ class LocalSuspendLeaderElectorTest {
         // LocalSuspendLeaderElector 의 내부 mutexes map 에 접근할 수 없으므로
         // 대신 두 코루틴을 사용하여 race condition 을 만듦
         val skipElection = LocalSuspendLeaderElector(
-            LeaderElectionOptions(waitTime = Duration.ofMillis(50))
+            LeaderElectionOptions(waitTime = 50.milliseconds)
         )
         val holderReady = Channel<Unit>(1)
         val holderDone = Channel<Unit>(1)
@@ -167,7 +169,7 @@ class LocalSuspendLeaderElectorTest {
     @Test
     fun `runIfLeader - 락 해제 후 재시도 시 정상 실행된다`() = runSuspendIO {
         val election = LocalSuspendLeaderElector(
-            LeaderElectionOptions(waitTime = Duration.ofMillis(100))
+            LeaderElectionOptions(waitTime = 100.milliseconds)
         )
         val lockName = randomLockName()
 

@@ -24,7 +24,9 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -40,8 +42,8 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         ExposedJdbcLeaderGroupElectionOptions(
             leaderGroupOptions = LeaderGroupElectionOptions(
                 maxLeaders = maxLeaders,
-                waitTime = Duration.ofSeconds(waitSec),
-                leaseTime = Duration.ofSeconds(leaseSec),
+                waitTime = waitSec.seconds,
+                leaseTime = leaseSec.seconds,
             )
         )
 
@@ -90,8 +92,8 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         val shortOptions = ExposedJdbcLeaderGroupElectionOptions(
             leaderGroupOptions = LeaderGroupElectionOptions(
                 maxLeaders = 1,
-                waitTime = Duration.ofMillis(200),
-                leaseTime = Duration.ofSeconds(10),
+                waitTime = 200.milliseconds,
+                leaseTime = 10.seconds,
             )
         )
         val singleElection = ExposedJdbcLeaderGroupElector(db, shortOptions)
@@ -230,10 +232,10 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         val election = ExposedJdbcLeaderGroupElector(db, options)
 
         val expiredLock = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
-        val leaseDuration = Duration.ofMillis(100)
-        expiredLock.tryLock(Duration.ofSeconds(1), leaseDuration)
+        val leaseDuration = 100.milliseconds
+        expiredLock.tryLock(1.seconds, leaseDuration)
         // Wait 2x lease duration to ensure the acquired slot is expired before counting.
-        val waitForExpirationMs = leaseDuration.toMillis() * 2
+        val waitForExpirationMs = leaseDuration.inWholeMilliseconds * 2
         Thread.sleep(waitForExpirationMs)
 
         election.activeCount(lockName) shouldBeEqualTo 0
@@ -345,8 +347,8 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
                 ExposedJdbcLeaderGroupElectionOptions(
                     leaderGroupOptions = LeaderGroupElectionOptions(
                         maxLeaders = 1,
-                        waitTime = Duration.ofMillis(100),
-                        leaseTime = Duration.ofSeconds(5),
+                        waitTime = 100.milliseconds,
+                        leaseTime = 5.seconds,
                     ),
                 ),
             )

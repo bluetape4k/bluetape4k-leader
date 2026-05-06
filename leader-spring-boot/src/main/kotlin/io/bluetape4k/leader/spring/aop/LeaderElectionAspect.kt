@@ -27,6 +27,7 @@ import java.lang.reflect.Method
 import java.util.concurrent.CancellationException
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.toKotlinDuration
 
 /**
  * `@LeaderElection` 어노테이션 처리 Aspect — sync `T?` only.
@@ -119,7 +120,7 @@ class LeaderElectionAspect(
                     log.debug { "leader.aop.elected lockName=$resolvedName elapsedNs=$elapsed" }
                     if (elapsed > meta.leaseTimeWarnThresholdNanos) {
                         log.warn {
-                            "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${opts.leaseTime.toNanos()}"
+                            "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${opts.leaseTime.inWholeNanoseconds}"
                         }
                     }
                     runResult.value
@@ -213,8 +214,8 @@ class LeaderElectionAspect(
         val ann = AnnotationLookup.findAnnotationWithTargetFallback(method, target, LeaderElection::class.java)
             ?: error("@LeaderElection not found on ${method.declaringClass.name}#${method.name}")
 
-        val waitTime = DurationParser.parseOrDefault(ann.waitTime, props.defaultWaitTime)
-        val leaseTime = DurationParser.parseOrDefault(ann.leaseTime, props.defaultLeaseTime)
+        val waitTime = DurationParser.parseOrDefault(ann.waitTime, props.defaultWaitTime).toKotlinDuration()
+        val leaseTime = DurationParser.parseOrDefault(ann.leaseTime, props.defaultLeaseTime).toKotlinDuration()
 
         val opts = LeaderElectionOptions(waitTime = waitTime, leaseTime = leaseTime)
         val selected = beanSelector.selectElectionFactory(ann.bean, method)
@@ -235,7 +236,7 @@ class LeaderElectionAspect(
             factoryBeanName = selected.beanName,
             factory = selected.bean,
             failureMode = effectiveFailureMode,
-            leaseTimeWarnThresholdNanos = (leaseTime.toNanos() * LEASE_WARN_RATIO).toLong(),
+            leaseTimeWarnThresholdNanos = (leaseTime.inWholeNanoseconds * LEASE_WARN_RATIO).toLong(),
         )
     }
 

@@ -15,7 +15,9 @@ import org.amshove.kluent.shouldBeTrue
 import org.bson.Document
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.*
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
@@ -32,8 +34,8 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
     private val options = MongoLeaderGroupElectionOptions(
         leaderGroupOptions = LeaderGroupElectionOptions(
             maxLeaders = 3,
-            waitTime = Duration.ofSeconds(30),
-            leaseTime = Duration.ofSeconds(60),
+            waitTime = 30.seconds,
+            leaseTime = 60.seconds,
         )
     )
     private val election by lazy { MongoLeaderGroupElector(groupLockCollection, options) }
@@ -91,8 +93,8 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
         val shortWaitOptions = MongoLeaderGroupElectionOptions(
             leaderGroupOptions = LeaderGroupElectionOptions(
                 maxLeaders = 1,
-                waitTime = Duration.ofMillis(100),
-                leaseTime = Duration.ofSeconds(10),
+                waitTime = 100.milliseconds,
+                leaseTime = 10.seconds,
             )
         )
         val singleElection = MongoLeaderGroupElector(groupLockCollection, shortWaitOptions)
@@ -147,8 +149,8 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
         val fastOptions = MongoLeaderGroupElectionOptions(
             leaderGroupOptions = LeaderGroupElectionOptions(
                 maxLeaders = maxLeaders,
-                waitTime = Duration.ofSeconds(5),
-                leaseTime = Duration.ofSeconds(60),
+                waitTime = 5.seconds,
+                leaseTime = 60.seconds,
             )
         )
         val fastElection = MongoLeaderGroupElector(groupLockCollection, fastOptions)

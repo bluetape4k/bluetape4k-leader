@@ -23,8 +23,8 @@ object IdleTimeScorer : CandidateScorer {
 
     override fun score(candidate: CandidateInfo, all: List<CandidateInfo>): Double {
         if (all.isEmpty()) return 0.0
-        val maxIdleMillis = all.maxOf { it.idleDuration.toMillis() }
+        val maxIdleMillis = all.maxOf { it.idleDuration.inWholeMilliseconds }
         if (maxIdleMillis == 0L) return 0.0
-        return candidate.idleDuration.toMillis().toDouble() / maxIdleMillis * 100.0
+        return candidate.idleDuration.inWholeMilliseconds.toDouble() / maxIdleMillis * 100.0
     }
 }

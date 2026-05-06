@@ -18,7 +18,9 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
 import io.bluetape4k.logging.warn
 import org.bson.Document
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -86,7 +88,7 @@ class MongoLock private constructor(
         operator fun invoke(
             collection: MongoCollection<Document>,
             lockKey: String,
-            retryDelay: Duration = Duration.ofMillis(50),
+            retryDelay: Duration = 50.milliseconds,
         ): MongoLock {
             ensureIndexes(collection)
             return MongoLock(collection, lockKey, retryDelay)
@@ -105,7 +107,7 @@ class MongoLock private constructor(
      * @return 락 획득 성공 시 `true`, 실패 또는 오류 시 `false`
      */
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
-        val deadline = System.currentTimeMillis() + waitTime.toMillis()
+        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
 
         do {
             val result: Document? = try {
@@ -116,7 +118,7 @@ class MongoLock private constructor(
                     ),
                     Updates.combine(
                         Updates.set("token", token),
-                        Updates.set("expireAt", Date(System.currentTimeMillis() + leaseTime.toMillis()))
+                        Updates.set("expireAt", Date(System.currentTimeMillis() + leaseTime.inWholeMilliseconds))
                     ),
                     FindOneAndUpdateOptions().upsert(true).returnDocument(ReturnDocument.AFTER)
                 )
@@ -157,7 +159,7 @@ class MongoLock private constructor(
             val remaining = deadline - System.currentTimeMillis()
             if (remaining > 0L) {
                 // AWS full jitter: sleep ∈ [1ms, retryDelay) — 동일 retry 윈도우에 인스턴스가 몰리는 것을 방지
-                val jitter = Random.nextLong(1, retryDelay.toMillis().coerceAtLeast(2))
+                val jitter = Random.nextLong(1, retryDelay.inWholeMilliseconds.coerceAtLeast(2))
                 Thread.sleep(minOf(jitter, remaining))
             }
         } while (System.currentTimeMillis() < deadline)

@@ -22,7 +22,9 @@ import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -36,8 +38,8 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
             db,
             ExposedR2dbcLeaderElectionOptions(
                 leaderOptions = LeaderElectionOptions(
-                    waitTime = Duration.ofSeconds(2),
-                    leaseTime = Duration.ofSeconds(10),
+                    waitTime = 2.seconds,
+                    leaseTime = 10.seconds,
                 ),
                 retryStrategy = RetryStrategy.Jitter(),
             ),
@@ -65,8 +67,8 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
 
         val leaderOptions = ExposedR2dbcLeaderElectionOptions(
             leaderOptions = LeaderElectionOptions(
-                waitTime = Duration.ofSeconds(30),
-                leaseTime = Duration.ofSeconds(30),
+                waitTime = 30.seconds,
+                leaseTime = 30.seconds,
             ),
         )
         val holder = ExposedR2DbcSuspendLeaderElector(db, leaderOptions)
@@ -81,8 +83,8 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
 
         val contenderOptions = ExposedR2dbcLeaderElectionOptions(
             leaderOptions = LeaderElectionOptions(
-                waitTime = Duration.ofMillis(100),
-                leaseTime = Duration.ofSeconds(30),
+                waitTime = 100.milliseconds,
+                leaseTime = 30.seconds,
             ),
             retryStrategy = RetryStrategy.Fixed(fixedMs = 10L),
         )
@@ -143,8 +145,8 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
         cleanTables(db)
         val options = ExposedR2dbcLeaderElectionOptions(
             leaderOptions = LeaderElectionOptions(
-                waitTime = Duration.ofSeconds(2),
-                leaseTime = Duration.ofSeconds(10),
+                waitTime = 2.seconds,
+                leaseTime = 10.seconds,
             ),
             recordHistory = true,
             lockOwner = "test-worker",
@@ -170,8 +172,8 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
             async {
                 val options = ExposedR2dbcLeaderElectionOptions(
                     leaderOptions = LeaderElectionOptions(
-                        waitTime = Duration.ofMillis(300),
-                        leaseTime = Duration.ofSeconds(5),
+                        waitTime = 300.milliseconds,
+                        leaseTime = 5.seconds,
                     ),
                     retryStrategy = RetryStrategy.Fixed(fixedMs = 10L),
                 )
@@ -227,8 +229,8 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
         val lockName = randomName()
         val options = ExposedR2dbcLeaderElectionOptions(
             leaderOptions = LeaderElectionOptions(
-                waitTime = Duration.ofSeconds(2),
-                leaseTime = Duration.ofSeconds(30),
+                waitTime = 2.seconds,
+                leaseTime = 30.seconds,
             ),
         )
 
@@ -253,8 +255,8 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
         val lockName = randomName()
         val options = ExposedR2dbcLeaderElectionOptions(
             leaderOptions = LeaderElectionOptions(
-                waitTime = Duration.ofSeconds(2),
-                leaseTime = Duration.ofSeconds(10),
+                waitTime = 2.seconds,
+                leaseTime = 10.seconds,
             ),
             recordHistory = true,
             lockOwner = "test-worker",

@@ -14,7 +14,9 @@ import org.amshove.kluent.shouldNotBeNull
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -23,7 +25,7 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
     companion object: KLogging()
 
     private val maxLeaders = 3
-    private val options = LeaderGroupElectionOptions(maxLeaders, Duration.ofSeconds(5), Duration.ofSeconds(10))
+    private val options = LeaderGroupElectionOptions(maxLeaders, 5.seconds, 10.seconds)
 
     private lateinit var suspendElection: LettuceSuspendLeaderGroupElector
     private lateinit var lockName: String

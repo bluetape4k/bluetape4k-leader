@@ -17,7 +17,9 @@ import org.amshove.kluent.shouldBeLessOrEqualTo
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
@@ -30,8 +32,8 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
     private val maxLeaders = 3
     private val options = LeaderGroupElectionOptions(
         maxLeaders = maxLeaders,
-        waitTime = Duration.ofSeconds(30),
-        leaseTime = Duration.ofSeconds(60),
+        waitTime = 30.seconds,
+        leaseTime = 60.seconds,
     )
     private val election by lazy { RedissonSuspendLeaderGroupElector(redissonClient, options) }
 

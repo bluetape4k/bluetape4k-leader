@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.properties
 
 import io.bluetape4k.leader.LeaderElectionOptions
 import java.time.Duration
+import kotlin.time.toKotlinDuration
 
 /**
  * 리더 선출 자동 구성 속성입니다.
@@ -32,7 +33,7 @@ data class LeaderElectionProperties(
 
     fun toOptions(): LeaderElectionOptions =
         LeaderElectionOptions(
-            waitTime = waitTime,
-            leaseTime = leaseTime,
+            waitTime = waitTime.toKotlinDuration(),
+            leaseTime = leaseTime.toKotlinDuration(),
         )
 }

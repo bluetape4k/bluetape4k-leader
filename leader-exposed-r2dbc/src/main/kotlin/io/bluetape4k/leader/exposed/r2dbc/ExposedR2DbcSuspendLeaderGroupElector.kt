@@ -22,7 +22,9 @@ import org.jetbrains.exposed.v1.r2dbc.insert
 import org.jetbrains.exposed.v1.r2dbc.selectAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
@@ -171,9 +173,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         validateExposedR2dbcLockName(lockName)
 
         val leaseTime = options.leaderGroupOptions.leaseTime
-        val perSlotWait = options.leaderGroupOptions.waitTime
-            .dividedBy(maxLeaders.toLong())
-            .coerceAtLeast(Duration.ofMillis(1L))
+        val perSlotWait = (options.leaderGroupOptions.waitTime / maxLeaders).coerceAtLeast(1.milliseconds)
         val start = Random.nextInt(maxLeaders)
 
         log.debug { "그룹 슬롯 획득을 요청합니다. lockName=$lockName, maxLeaders=$maxLeaders" }
@@ -237,7 +237,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                     it[LeaderLockHistoryTable.lockOwner] = options.lockOwner
                     it[LeaderLockHistoryTable.token] = token
                     it[LeaderLockHistoryTable.slot] = slot
-                    it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(options.leaderGroupOptions.leaseTime.toMillis())
+                    it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(options.leaderGroupOptions.leaseTime.inWholeMilliseconds)
                     it[LeaderLockHistoryTable.status] = HistoryStatus.ACQUIRED.name
                     it[LeaderLockHistoryTable.startedAt] = now
                 }[LeaderLockHistoryTable.id]
@@ -270,7 +270,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                 ) {
                     it[LeaderLockHistoryTable.status] = status.name
                     it[LeaderLockHistoryTable.finishedAt] = finishedAt
-                    it[LeaderLockHistoryTable.durationMs] = Duration.between(startedAt, finishedAt).toMillis()
+                    it[LeaderLockHistoryTable.durationMs] = finishedAt.toEpochMilli() - startedAt.toEpochMilli()
                 }
             }
         }.getOrElse { e ->

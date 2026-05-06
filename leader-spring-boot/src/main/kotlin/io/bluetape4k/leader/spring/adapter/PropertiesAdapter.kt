@@ -3,6 +3,7 @@ package io.bluetape4k.leader.spring.adapter
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.spring.LeaderProperties
+import kotlin.time.toKotlinDuration
 
 /**
  * [LeaderProperties] → 백엔드별 Options 변환 어댑터.
@@ -16,13 +17,16 @@ internal object PropertiesAdapter {
 
     /** 공통 [LeaderElectionOptions] 변환. */
     fun toCommonElection(props: LeaderProperties): LeaderElectionOptions =
-        LeaderElectionOptions(waitTime = props.waitTime, leaseTime = props.leaseTime)
+        LeaderElectionOptions(
+            waitTime = props.waitTime.toKotlinDuration(),
+            leaseTime = props.leaseTime.toKotlinDuration(),
+        )
 
     /** 공통 [LeaderGroupElectionOptions] 변환. */
     fun toCommonGroup(props: LeaderProperties): LeaderGroupElectionOptions =
         LeaderGroupElectionOptions(
             maxLeaders = props.group.maxLeaders,
-            waitTime = props.group.waitTime,
-            leaseTime = props.group.leaseTime,
+            waitTime = props.group.waitTime.toKotlinDuration(),
+            leaseTime = props.group.leaseTime.toKotlinDuration(),
         )
 }

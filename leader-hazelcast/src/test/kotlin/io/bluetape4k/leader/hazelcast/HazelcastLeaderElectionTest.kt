@@ -13,7 +13,9 @@ import org.amshove.kluent.shouldBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -36,8 +38,8 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
     fun `runIfLeader - lock 이 이미 보유된 경우 waitTime 초과 시 null 을 반환한다`() {
         val lockName = randomName()
         val shortWaitOptions = LeaderElectionOptions(
-            waitTime = Duration.ofMillis(100),
-            leaseTime = Duration.ofSeconds(5),
+            waitTime = 100.milliseconds,
+            leaseTime = 5.seconds,
         )
         val election = HazelcastLeaderElector(hazelcastClient, shortWaitOptions)
         val lockAcquired = CountDownLatch(1)
@@ -157,7 +159,7 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
     @Test
     fun `runAsyncIfLeader - action 실패 후에도 lock 이 해제되어 다음 호출이 성공한다`() {
         val lockName = randomName()
-        val options = LeaderElectionOptions(waitTime = Duration.ofSeconds(2), leaseTime = Duration.ofSeconds(10))
+        val options = LeaderElectionOptions(waitTime = 2.seconds, leaseTime = 10.seconds)
         val election = HazelcastLeaderElector(hazelcastClient, options)
 
         runCatching {

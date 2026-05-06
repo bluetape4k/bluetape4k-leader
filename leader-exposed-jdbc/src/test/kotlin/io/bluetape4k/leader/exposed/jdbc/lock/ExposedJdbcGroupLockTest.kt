@@ -9,7 +9,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
 
@@ -22,7 +24,7 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         cleanTables(db)
         val lock = ExposedJdbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
 
-        lock.tryLock(Duration.ofSeconds(2), Duration.ofSeconds(10)) shouldBe true
+        lock.tryLock(2.seconds, 10.seconds) shouldBe true
         lock.unlock()
     }
 
@@ -33,10 +35,10 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         cleanTables(db)
         val lockName = randomName()
         val holder = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
-        holder.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(30))
+        holder.tryLock(1.seconds, 30.seconds)
 
         val contender = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 10L))
-        contender.tryLock(Duration.ofMillis(100), Duration.ofSeconds(5)) shouldBe false
+        contender.tryLock(100.milliseconds, 5.seconds) shouldBe false
 
         holder.unlock()
     }
@@ -51,8 +53,8 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         val lock0 = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
         val lock1 = ExposedJdbcGroupLock(db, lockName, slot = 1, RetryStrategy.Jitter())
 
-        lock0.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10)) shouldBe true
-        lock1.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10)) shouldBe true
+        lock0.tryLock(1.seconds, 10.seconds) shouldBe true
+        lock1.tryLock(1.seconds, 10.seconds) shouldBe true
 
         lock0.unlock()
         lock1.unlock()
@@ -66,14 +68,14 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
 
         val expiredLock = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
-        expiredLock.tryLock(Duration.ofSeconds(1), Duration.ofMillis(150))
+        expiredLock.tryLock(1.seconds, 150.milliseconds)
 
         val newLock = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
-        val deadlineNanos = System.nanoTime() + Duration.ofSeconds(2).toNanos()
+        val deadlineNanos = System.nanoTime() + 2.seconds.inWholeNanoseconds
         var acquired = false
 
         while (System.nanoTime() < deadlineNanos && !acquired) {
-            acquired = newLock.tryLock(Duration.ofMillis(50), Duration.ofSeconds(10)) == true
+            acquired = newLock.tryLock(50.milliseconds, 10.seconds) == true
             if (!acquired) {
                 Thread.yield()
             }
@@ -93,7 +95,7 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
 
         val holder = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
-        holder.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10))
+        holder.tryLock(1.seconds, 10.seconds)
 
         val stranger = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
         stranger.unlock()
@@ -107,7 +109,7 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
         val lock = ExposedJdbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
-        lock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(10))
+        lock.tryLock(1.seconds, 10.seconds)
         lock.unlock()
 
         lock.unlock()
@@ -119,7 +121,7 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
         val lock = ExposedJdbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
-        lock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(30))
+        lock.tryLock(1.seconds, 30.seconds)
 
         lock.isHeldByCurrentInstance() shouldBe true
         lock.unlock()
@@ -132,7 +134,7 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         cleanTables(db)
         val lockName = randomName()
         val holder = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
-        holder.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(30))
+        holder.tryLock(1.seconds, 30.seconds)
 
         val other = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
         other.isHeldByCurrentInstance() shouldBe false
@@ -146,7 +148,7 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         cleanTables(db)
         val lock = ExposedJdbcGroupLock(db, randomName(), slot = 0, RetryStrategy.Jitter())
-        lock.tryLock(Duration.ofSeconds(1), Duration.ofSeconds(30))
+        lock.tryLock(1.seconds, 30.seconds)
         lock.unlock()
 
         lock.isHeldByCurrentInstance() shouldBe false

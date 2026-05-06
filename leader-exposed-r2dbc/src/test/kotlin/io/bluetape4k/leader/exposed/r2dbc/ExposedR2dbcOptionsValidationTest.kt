@@ -10,7 +10,9 @@ import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class ExposedR2dbcOptionsValidationTest {
 
@@ -50,8 +52,8 @@ class ExposedR2dbcOptionsValidationTest {
     @Test
     fun `커스텀 leaderOptions가 적용된다`() {
         val custom = LeaderElectionOptions(
-            waitTime = Duration.ofSeconds(3),
-            leaseTime = Duration.ofSeconds(60),
+            waitTime = 3.seconds,
+            leaseTime = 60.seconds,
         )
         val opts = ExposedR2dbcLeaderElectionOptions(leaderOptions = custom)
         opts.leaderOptions shouldBeEqualTo custom
@@ -119,8 +121,8 @@ class ExposedR2dbcOptionsValidationTest {
     fun `그룹 커스텀 leaderGroupOptions가 적용된다`() {
         val custom = LeaderGroupElectionOptions(
             maxLeaders = 4,
-            waitTime = Duration.ofSeconds(5),
-            leaseTime = Duration.ofSeconds(30),
+            waitTime = 5.seconds,
+            leaseTime = 30.seconds,
         )
         val opts = ExposedR2dbcLeaderGroupElectionOptions(leaderGroupOptions = custom)
         opts.leaderGroupOptions shouldBeEqualTo custom

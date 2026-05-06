@@ -11,7 +11,9 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.info
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock

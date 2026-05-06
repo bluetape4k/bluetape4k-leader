@@ -15,7 +15,9 @@ import io.bluetape4k.logging.warn
 import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.api.StatefulRedisConnection
 import kotlinx.coroutines.CancellationException
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Lettuce 백엔드 기반 [StrategicSuspendLeaderElector] 구현체입니다.

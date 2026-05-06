@@ -11,12 +11,14 @@ import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldNotBeNull
-import org.awaitility.kotlin.await
+import org.awaitility.kotlin.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -68,25 +70,25 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
     @Test
     fun `TTL 만료 후 후보 자동 제거`() {
         val lockName = randomName()
-        val ttl = Duration.ofMillis(300)
+        val ttl = 300.milliseconds
 
         node1.registerCandidate(lockName, CandidateInfo("node-1"), ttl)
         node1.listCandidates(lockName).size shouldBeEqualTo 1
 
-        await.atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(50))
+        await.atMost(2.seconds).withPollInterval(50.milliseconds)
             .until { node1.listCandidates(lockName).isEmpty() }
     }
 
     @Test
     fun `updateResult 후 TTL 보존 - 항목이 여전히 만료됨`() {
         val lockName = randomName()
-        val ttl = Duration.ofMillis(500)
+        val ttl = 500.milliseconds
 
         node1.registerCandidate(lockName, CandidateInfo("node-1"), ttl)
         node1.runIfLeader(lockName, FifoElectionStrategy) { "ok" }
 
         node1.listCandidates(lockName).size shouldBeEqualTo 1
-        await.atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(50))
+        await.atMost(2.seconds).withPollInterval(50.milliseconds)
             .until { node1.listCandidates(lockName).isEmpty() }
     }
 
@@ -195,10 +197,10 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
     @Test
     fun `updateResult - TTL 만료 후 호출 시 좀비 항목 생성 없음`() {
         val lockName = randomName()
-        val ttl = Duration.ofMillis(200)
+        val ttl = 200.milliseconds
 
         node1.registerCandidate(lockName, CandidateInfo("node-1"), ttl)
-        await.atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(50))
+        await.atMost(2.seconds).withPollInterval(50.milliseconds)
             .until { node1.listCandidates(lockName).isEmpty() }
 
         node1.updateResult(lockName, "node-1", CandidateResult.SUCCESS)

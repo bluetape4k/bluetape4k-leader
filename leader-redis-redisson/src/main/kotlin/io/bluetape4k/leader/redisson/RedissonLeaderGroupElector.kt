@@ -12,9 +12,12 @@ import io.bluetape4k.support.requirePositiveNumber
 import org.redisson.api.RSemaphore
 import org.redisson.api.RedissonClient
 import org.redisson.client.RedisException
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
 
 /**
  * Redisson 분산 Semaphore를 이용하여 복수 리더 선출을 통한 작업을 수행합니다.
@@ -152,7 +155,7 @@ class RedissonLeaderGroupElector private constructor(
 
         val acquired =
             try {
-                semaphore.tryAcquire(waitTime)
+                semaphore.tryAcquire(waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS)
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()
                 log.error(e) { "슬롯 획득 대기 중 인터럽트가 발생했습니다. lockName=$lockName" }
@@ -195,7 +198,7 @@ class RedissonLeaderGroupElector private constructor(
             log.debug { "리더 그룹 슬롯 획득을 요청합니다 (비동기). lockName=$lockName, maxLeaders=$maxLeaders" }
 
             semaphore
-                .tryAcquireAsync(waitTime)
+                .tryAcquireAsync(waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS)
                 .toCompletableFuture()
                 .thenComposeAsync({ acquired ->
                     if (!acquired) {
