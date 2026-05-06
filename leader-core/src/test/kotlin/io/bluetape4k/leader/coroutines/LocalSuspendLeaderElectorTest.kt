@@ -131,14 +131,14 @@ class LocalSuspendLeaderElectorTest {
             }
         }
 
-        // 실제로는 LocalSuspendLeaderElection 내부 Mutex 를 사용하므로
+        // 실제로는 LocalSuspendLeaderElector 내부 Mutex 를 사용하므로
         // 두 개의 전자를 순차 실행하고 waitTime 으로 테스트
         // 간단한 방법: 락 보유 중인 코루틴이 있을 때 짧은 waitTime 으로 시도
         mutex.unlock()
         firstJob.await()
 
         // 명확한 skip-behavior 테스트: 내부 Mutex 를 직접 잠근 상태에서 시도
-        // LocalSuspendLeaderElection 의 내부 mutexes map 에 접근할 수 없으므로
+        // LocalSuspendLeaderElector 의 내부 mutexes map 에 접근할 수 없으므로
         // 대신 두 코루틴을 사용하여 race condition 을 만듦
         val skipElection = LocalSuspendLeaderElector(
             LeaderElectionOptions(waitTime = Duration.ofMillis(50))

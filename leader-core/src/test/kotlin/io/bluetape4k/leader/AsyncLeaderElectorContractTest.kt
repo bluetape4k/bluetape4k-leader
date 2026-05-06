@@ -24,7 +24,7 @@ class AsyncLeaderElectorContractTest {
 
     private fun randomLockName() = "lock-${Base58.randomString(8)}"
 
-    // ── LocalAsyncLeaderElection 을 통한 AsyncLeaderElection 계약 검증 ──
+    // ── LocalAsyncLeaderElector 을 통한 AsyncLeaderElector 계약 검증 ──
 
     @Test
     fun `runAsyncIfLeader - 리더 획득 성공 시 CompletableFuture action 을 실행한다`() {
@@ -85,10 +85,10 @@ class AsyncLeaderElectorContractTest {
         }
     }
 
-    // ── LocalLeaderElection 을 통한 AsyncLeaderElection 계약 검증 ──
+    // ── LocalLeaderElector 을 통한 AsyncLeaderElector 계약 검증 ──
 
     @Test
-    fun `runAsyncIfLeader - LocalLeaderElection 도 AsyncLeaderElection 계약을 준수한다`() {
+    fun `runAsyncIfLeader - LocalLeaderElector 도 AsyncLeaderElector 계약을 준수한다`() {
         val election: AsyncLeaderElector = LocalLeaderElector()
         val result = election.runAsyncIfLeader(randomLockName()) {
             CompletableFuture.completedFuture(99)

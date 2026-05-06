@@ -69,7 +69,7 @@ class LocalSuspendLeaderGroupElectorTest {
     }
 
     @Test
-    fun `maxLeaders=1 이면 SuspendLeaderElection 과 동일하게 직렬 실행된다`() = runSuspendIO {
+    fun `maxLeaders=1 이면 SuspendLeaderElector 과 동일하게 직렬 실행된다`() = runSuspendIO {
         val singleElection = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 1))
         val lockName = randomLockName()
         val counter = AtomicInteger(0)
