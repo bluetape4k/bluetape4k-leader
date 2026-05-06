@@ -43,13 +43,13 @@ package io.bluetape4k.leader.annotation
  * @property bean 사용할 [io.bluetape4k.leader.LeaderElectorFactory] 빈 이름 (literal only). 빈 문자열 시 default factory
  * @property failureMode 백엔드 예외 처리 정책. default `RETHROW`
  *
- * @see LeaderGroupElector 다중 리더 (semaphore-based) 변형
+ * @see LeaderGroupElection 다중 리더 (semaphore-based) 변형
  * @see LeaderAspectFailureMode failure mode enum
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 @MustBeDocumented
-annotation class LeaderElector(
+annotation class LeaderElection(
     val name: String,
     val waitTime: String = "",
     val leaseTime: String = "",
