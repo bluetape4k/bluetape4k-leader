@@ -18,11 +18,11 @@
 
 ```mermaid
 classDiagram
-    class LeaderElection { <<interface>> }
-    class AsyncLeaderElection { <<interface>> }
-    class LeaderGroupElection { <<interface>> }
-    class SuspendLeaderElection { <<interface>> }
-    class SuspendLeaderGroupElection { <<interface>> }
+    class LeaderElector { <<interface>> }
+    class AsyncLeaderElector { <<interface>> }
+    class LeaderGroupElector { <<interface>> }
+    class SuspendLeaderElector { <<interface>> }
+    class SuspendLeaderGroupElector { <<interface>> }
 
     class MongoLock {
         +tryLock(waitTime, leaseTime) Boolean
@@ -35,28 +35,28 @@ classDiagram
         +isHeldByCurrentInstance() Boolean
     }
 
-    MongoLeaderElection ..|> LeaderElection
-    MongoLeaderElection ..|> AsyncLeaderElection
-    MongoLeaderGroupElection ..|> LeaderGroupElection
-    MongoSuspendLeaderElection ..|> SuspendLeaderElection
-    MongoSuspendLeaderGroupElection ..|> SuspendLeaderGroupElection
+    MongoLeaderElector ..|> LeaderElector
+    MongoLeaderElector ..|> AsyncLeaderElector
+    MongoLeaderGroupElector ..|> LeaderGroupElector
+    MongoSuspendLeaderElector ..|> SuspendLeaderElector
+    MongoSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
 
-    MongoLeaderElection --> MongoLock
-    MongoLeaderGroupElection --> MongoLock
-    MongoSuspendLeaderElection --> MongoSuspendLock
-    MongoSuspendLeaderGroupElection --> MongoSuspendLock
+    MongoLeaderElector --> MongoLock
+    MongoLeaderGroupElector --> MongoLock
+    MongoSuspendLeaderElector --> MongoSuspendLock
+    MongoSuspendLeaderGroupElector --> MongoSuspendLock
 ```
 
 ## 구현 클래스
 
 | 클래스 | 인터페이스 | 설명 |
 |--------|-----------|------|
-| `MongoLeaderElection` | `LeaderElection` + `AsyncLeaderElection` | `MongoLock` 기반 블로킹/비동기 단일 리더 |
-| `MongoLeaderGroupElection` | `LeaderGroupElection` | 슬롯 기반 `MongoLock`을 이용한 블로킹 복수 리더 |
-| `MongoSuspendLeaderElection` | `SuspendLeaderElection` | `MongoSuspendLock` 기반 코루틴 단일 리더 |
-| `MongoSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | 슬롯 기반 `MongoSuspendLock`을 이용한 코루틴 복수 리더 |
-| `MongoSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `MongoSuspendLeaderElection` 생성 |
-| `MongoSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `MongoSuspendLeaderGroupElection` 생성 |
+| `MongoLeaderElector` | `LeaderElector` + `AsyncLeaderElector` | `MongoLock` 기반 블로킹/비동기 단일 리더 |
+| `MongoLeaderGroupElector` | `LeaderGroupElector` | 슬롯 기반 `MongoLock`을 이용한 블로킹 복수 리더 |
+| `MongoSuspendLeaderElector` | `SuspendLeaderElector` | `MongoSuspendLock` 기반 코루틴 단일 리더 |
+| `MongoSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | 슬롯 기반 `MongoSuspendLock`을 이용한 코루틴 복수 리더 |
+| `MongoSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `MongoSuspendLeaderElector` 생성 |
+| `MongoSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `MongoSuspendLeaderGroupElector` 생성 |
 
 ## 컬렉션
 
@@ -80,7 +80,7 @@ val lockCollection = db.getCollection("bluetape4k_leader_locks")
 ### 블로킹 단일 리더
 
 ```kotlin
-val election = MongoLeaderElection(lockCollection)
+val election = MongoLeaderElector(lockCollection)
 
 val result = election.runIfLeader("daily-report") {
     generateReport()
@@ -95,7 +95,7 @@ val options = MongoLeaderGroupElectionOptions(
     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3)
 )
 val groupCollection = db.getCollection("bluetape4k_leader_group_locks")
-val election = MongoLeaderGroupElection(groupCollection, options)
+val election = MongoLeaderGroupElector(groupCollection, options)
 
 val result = election.runIfLeader("parallel-batch") {
     processChunk()
@@ -106,7 +106,7 @@ val result = election.runIfLeader("parallel-batch") {
 ### 비동기 단일 리더
 
 ```kotlin
-val election = MongoLeaderElection(lockCollection)
+val election = MongoLeaderElector(lockCollection)
 
 val future: CompletableFuture<String?> = election.runAsyncIfLeader(
     "async-job",
@@ -120,10 +120,10 @@ val result = future.get(5, TimeUnit.SECONDS)
 ### 코루틴 단일 리더
 
 ```kotlin
-// MongoSuspendLeaderElection은 suspend 팩토리 함수입니다
+// MongoSuspendLeaderElector은 suspend 팩토리 함수입니다
 val coroutineCollection = coroutineMongoClient.getDatabase("mydb")
     .getCollection<Document>("bluetape4k_leader_locks")
-val election = MongoSuspendLeaderElection(coroutineCollection)
+val election = MongoSuspendLeaderElector(coroutineCollection)
 
 val result = election.runIfLeader("nightly-sync") {
     syncData()
@@ -135,7 +135,7 @@ val result = election.runIfLeader("nightly-sync") {
 ```kotlin
 val syncCollection = db.getCollection("bluetape4k_leader_group_locks")
 val coroutineCollection = coroutineDb.getCollection<Document>("bluetape4k_leader_group_locks")
-val election = MongoSuspendLeaderGroupElection(syncCollection, coroutineCollection)
+val election = MongoSuspendLeaderGroupElector(syncCollection, coroutineCollection)
 
 val result = election.runIfLeader("task-group") {
     processTask()
@@ -153,7 +153,7 @@ val options = MongoLeaderElectionOptions(
     ),
     retryDelay = Duration.ofMillis(100),
 )
-val election = MongoLeaderElection(lockCollection, options)
+val election = MongoLeaderElector(lockCollection, options)
 ```
 
 ### SPI 팩토리 사용
@@ -210,12 +210,12 @@ try {
 }
 ```
 
-## 이중 컬렉션 설계 (`MongoSuspendLeaderGroupElection`)
+## 이중 컬렉션 설계 (`MongoSuspendLeaderGroupElector`)
 
 `activeCount()`, `availableSlots()`, `state()`는 non-suspend 인터페이스 메서드입니다. 코루틴 드라이버의 `countDocuments`는 `suspend` 함수이므로, 상태 조회는 **동기 드라이버**를, 락 작업은 **코루틴 드라이버**를 각각 사용합니다:
 
 ```kotlin
-MongoSuspendLeaderGroupElection(
+MongoSuspendLeaderGroupElector(
     groupCollection = db.getCollection("bluetape4k_leader_group_locks"),        // 동기 — state() 전용
     coroutineGroupCollection = coroutineDb.getCollection("bluetape4k_leader_group_locks"),  // suspend — 락 전용
 )

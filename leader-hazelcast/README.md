@@ -20,10 +20,10 @@ Lock strategy: `IMap.putIfAbsent(key, token, leaseTimeMs, MILLISECONDS)` for ato
 
 ```mermaid
 classDiagram
-    class LeaderElection { <<interface>> }
-    class LeaderGroupElection { <<interface>> }
-    class SuspendLeaderElection { <<interface>> }
-    class SuspendLeaderGroupElection { <<interface>> }
+    class LeaderElector { <<interface>> }
+    class LeaderGroupElector { <<interface>> }
+    class SuspendLeaderElector { <<interface>> }
+    class SuspendLeaderGroupElector { <<interface>> }
 
     class HazelcastLock {
         +tryLock(waitTime, leaseTime) Boolean
@@ -36,25 +36,25 @@ classDiagram
         +unlock()
     }
 
-    HazelcastLeaderElection ..|> LeaderElection
-    HazelcastLeaderGroupElection ..|> LeaderGroupElection
-    HazelcastSuspendLeaderElection ..|> SuspendLeaderElection
-    HazelcastSuspendLeaderGroupElection ..|> SuspendLeaderGroupElection
+    HazelcastLeaderElector ..|> LeaderElector
+    HazelcastLeaderGroupElector ..|> LeaderGroupElector
+    HazelcastSuspendLeaderElector ..|> SuspendLeaderElector
+    HazelcastSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
 
-    HazelcastLeaderElection --> HazelcastLock
-    HazelcastLeaderGroupElection --> HazelcastLock
-    HazelcastSuspendLeaderElection --> HazelcastSuspendLock
-    HazelcastSuspendLeaderGroupElection --> HazelcastSuspendLock
+    HazelcastLeaderElector --> HazelcastLock
+    HazelcastLeaderGroupElector --> HazelcastLock
+    HazelcastSuspendLeaderElector --> HazelcastSuspendLock
+    HazelcastSuspendLeaderGroupElector --> HazelcastSuspendLock
 ```
 
 ## Implementations
 
 | Class | Interface | Description |
 |-------|-----------|-------------|
-| `HazelcastLeaderElection` | `LeaderElection` | Blocking + async single-leader |
-| `HazelcastLeaderGroupElection` | `LeaderGroupElection` | Blocking + async multi-leader (slot-based) |
-| `HazelcastSuspendLeaderElection` | `SuspendLeaderElection` | Coroutine single-leader |
-| `HazelcastSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | Coroutine multi-leader (slot-based) |
+| `HazelcastLeaderElector` | `LeaderElector` | Blocking + async single-leader |
+| `HazelcastLeaderGroupElector` | `LeaderGroupElector` | Blocking + async multi-leader (slot-based) |
+| `HazelcastSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine single-leader |
+| `HazelcastSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader (slot-based) |
 
 ## Usage
 
@@ -70,7 +70,7 @@ val hazelcast = HazelcastClient.newHazelcastClient(config)
 ### Blocking single-leader
 
 ```kotlin
-val election = HazelcastLeaderElection(hazelcast)
+val election = HazelcastLeaderElector(hazelcast)
 
 val result = election.runIfLeader("daily-report") {
     generateReport()
@@ -82,7 +82,7 @@ val result = election.runIfLeader("daily-report") {
 
 ```kotlin
 val options = LeaderGroupElectionOptions(maxLeaders = 3)
-val election = HazelcastLeaderGroupElection(hazelcast, options)
+val election = HazelcastLeaderGroupElector(hazelcast, options)
 
 val result = election.runIfLeader("parallel-batch") {
     processChunk()
@@ -93,7 +93,7 @@ val result = election.runIfLeader("parallel-batch") {
 ### Async single-leader
 
 ```kotlin
-val election = HazelcastLeaderElection(hazelcast)
+val election = HazelcastLeaderElector(hazelcast)
 
 val future: CompletableFuture<Report?> = election.runAsyncIfLeader("daily-report") {
     CompletableFuture.supplyAsync { generateReport() }
@@ -103,7 +103,7 @@ val future: CompletableFuture<Report?> = election.runAsyncIfLeader("daily-report
 ### Coroutine single-leader
 
 ```kotlin
-val election = HazelcastSuspendLeaderElection(hazelcast)
+val election = HazelcastSuspendLeaderElector(hazelcast)
 
 val result = election.runIfLeader("nightly-sync") {
     delay(100)
@@ -115,7 +115,7 @@ val result = election.runIfLeader("nightly-sync") {
 
 ```kotlin
 val options = LeaderGroupElectionOptions(maxLeaders = 2)
-val election = HazelcastSuspendLeaderGroupElection(hazelcast, options)
+val election = HazelcastSuspendLeaderGroupElector(hazelcast, options)
 
 coroutineScope {
     val jobs = (1..5).map {
@@ -144,7 +144,7 @@ val options = LeaderElectionOptions(
     waitTime = Duration.ofSeconds(3),
     leaseTime = Duration.ofSeconds(60)
 )
-val election = HazelcastLeaderElection(hazelcast, options)
+val election = HazelcastLeaderElector(hazelcast, options)
 ```
 
 ## Lock Internals

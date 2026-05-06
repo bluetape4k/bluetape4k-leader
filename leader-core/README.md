@@ -14,42 +14,42 @@ Core interfaces and local in-process implementations for `bluetape4k-leader`.
 
 ```mermaid
 classDiagram
-    class AsyncLeaderElection {
+    class AsyncLeaderElector {
         <<interface>>
         +runAsyncIfLeader(lockName, action) CompletableFuture~T?~
     }
-    class LeaderElection {
+    class LeaderElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
     }
-    class VirtualThreadLeaderElection {
+    class VirtualThreadLeaderElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
     }
-    class SuspendLeaderElection {
+    class SuspendLeaderElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
     }
-    class AsyncLeaderGroupElection {
+    class AsyncLeaderGroupElector {
         <<interface>>
         +runAsyncIfLeader(lockName, action) CompletableFuture~T?~
         +state(lockName) LeaderGroupState
         +activeCount(lockName) Int
         +availableSlots(lockName) Int
     }
-    class LeaderGroupElection {
+    class LeaderGroupElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
     }
-    class SuspendLeaderGroupElection {
+    class SuspendLeaderGroupElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
     }
 
-    LeaderElection --|> AsyncLeaderElection
-    VirtualThreadLeaderElection --|> AsyncLeaderElection
-    LeaderGroupElection --|> AsyncLeaderGroupElection
-    SuspendLeaderGroupElection --|> AsyncLeaderGroupElection
+    LeaderElector --|> AsyncLeaderElector
+    VirtualThreadLeaderElector --|> AsyncLeaderElector
+    LeaderGroupElector --|> AsyncLeaderGroupElector
+    SuspendLeaderGroupElector --|> AsyncLeaderGroupElector
 ```
 
 ## API Contract
@@ -84,21 +84,21 @@ LeaderGroupElectionOptions(
 ```mermaid
 sequenceDiagram
     participant Caller
-    participant LeaderElection
+    participant LeaderElector
     participant LockStore
 
-    Caller->>LeaderElection: runIfLeader(lockName, action)
-    LeaderElection->>LockStore: tryLock(lockName, waitTime, leaseTime)
+    Caller->>LeaderElector: runIfLeader(lockName, action)
+    LeaderElector->>LockStore: tryLock(lockName, waitTime, leaseTime)
 
     alt lock acquired
-        LockStore-->>LeaderElection: true
-        LeaderElection->>Caller: action()
-        Caller-->>LeaderElection: result
-        LeaderElection->>LockStore: unlock(lockName)
-        LeaderElection-->>Caller: result (T)
+        LockStore-->>LeaderElector: true
+        LeaderElector->>Caller: action()
+        Caller-->>LeaderElector: result
+        LeaderElector->>LockStore: unlock(lockName)
+        LeaderElector-->>Caller: result (T)
     else not acquired within waitTime
-        LockStore-->>LeaderElection: false
-        LeaderElection-->>Caller: null
+        LockStore-->>LeaderElector: false
+        LeaderElector-->>Caller: null
     end
 ```
 
@@ -134,14 +134,14 @@ All local implementations use JVM primitives (`ReentrantLock`, `Semaphore`) — 
 
 | Class | Interface | Description |
 |-------|-----------|-------------|
-| `LocalLeaderElection` | `LeaderElection` | Blocking, `ReentrantLock`-based |
-| `LocalAsyncLeaderElection` | `AsyncLeaderElection` | `CompletableFuture` on thread pool |
-| `LocalVirtualThreadLeaderElection` | `VirtualThreadLeaderElection` | Virtual thread per election |
-| `LocalSuspendLeaderElection` | `SuspendLeaderElection` | Coroutine with `Mutex` |
-| `LocalLeaderGroupElection` | `LeaderGroupElection` | `Semaphore`-based multi-leader |
-| `LocalSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | Coroutine `Semaphore` |
-| `LocalStrategicLeaderElection` | `StrategicLeaderElection` | Strategy-based blocking election |
-| `LocalStrategicSuspendLeaderElection` | `StrategicSuspendLeaderElection` | Strategy-based coroutine election |
+| `LocalLeaderElector` | `LeaderElector` | Blocking, `ReentrantLock`-based |
+| `LocalAsyncLeaderElector` | `AsyncLeaderElector` | `CompletableFuture` on thread pool |
+| `LocalVirtualThreadLeaderElector` | `VirtualThreadLeaderElector` | Virtual thread per election |
+| `LocalSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine with `Mutex` |
+| `LocalLeaderGroupElector` | `LeaderGroupElector` | `Semaphore`-based multi-leader |
+| `LocalSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine `Semaphore` |
+| `LocalStrategicLeaderElector` | `StrategicLeaderElector` | Strategy-based blocking election |
+| `LocalStrategicSuspendLeaderElector` | `StrategicSuspendLeaderElector` | Strategy-based coroutine election |
 
 ## Strategic Election
 
@@ -173,7 +173,7 @@ registerCandidate() → elect(strategy) → 1 winner, rest skipped
 ### Key Interfaces
 
 ```kotlin
-interface StrategicLeaderElection {
+interface StrategicLeaderElector {
     val nodeId: String
     fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration = Duration.ZERO)
     fun unregisterCandidate(lockName: String, nodeId: String)
@@ -187,7 +187,7 @@ interface StrategicLeaderElection {
 ### Strategic election — scored idle-time
 
 ```kotlin
-val election = LocalStrategicLeaderElection("node-1")
+val election = LocalStrategicLeaderElector("node-1")
 
 election.registerCandidate("batch-job", CandidateInfo("node-1"))
 election.registerCandidate("batch-job", CandidateInfo("node-2"))
@@ -210,7 +210,7 @@ val result = election.runIfLeader("weighted-job", strategy) { work() }
 ### Blocking single-leader
 
 ```kotlin
-val election = LocalLeaderElection()
+val election = LocalLeaderElector()
 
 val result = election.runIfLeader("daily-job") {
     processData()
@@ -221,7 +221,7 @@ val result = election.runIfLeader("daily-job") {
 ### Coroutine suspend single-leader
 
 ```kotlin
-val election = LocalSuspendLeaderElection()
+val election = LocalSuspendLeaderElector()
 
 val result = election.runIfLeader("nightly-sync") {
     syncToRemote()
@@ -232,7 +232,7 @@ val result = election.runIfLeader("nightly-sync") {
 
 ```kotlin
 val options = LeaderGroupElectionOptions(maxLeaders = 3)
-val election = LocalLeaderGroupElection(options)
+val election = LocalLeaderGroupElector(options)
 
 // Up to 3 concurrent calls can run this action at once
 val result = election.runIfLeader("parallel-batch") {

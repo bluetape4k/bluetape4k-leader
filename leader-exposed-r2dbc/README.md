@@ -16,11 +16,11 @@ Lock strategy: `UPDATE WHERE lockedUntil < NOW()` + `INSERT IGNORE` in a single 
 
 ```mermaid
 classDiagram
-    class SuspendLeaderElection {
+    class SuspendLeaderElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
     }
-    class SuspendLeaderGroupElection {
+    class SuspendLeaderGroupElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
         +state(lockName) LeaderGroupState
@@ -42,23 +42,23 @@ classDiagram
         +resetFor(db)
     }
 
-    ExposedR2dbcSuspendLeaderElection ..|> SuspendLeaderElection
-    ExposedR2dbcSuspendLeaderGroupElection ..|> SuspendLeaderGroupElection
+    ExposedR2dbcSuspendLeaderElector ..|> SuspendLeaderElector
+    ExposedR2dbcSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
 
-    ExposedR2dbcSuspendLeaderElection --> ExposedR2dbcLock
-    ExposedR2dbcSuspendLeaderGroupElection --> ExposedR2dbcGroupLock
-    ExposedR2dbcSuspendLeaderElection --> ExposedR2dbcSchemaInitializer
-    ExposedR2dbcSuspendLeaderGroupElection --> ExposedR2dbcSchemaInitializer
+    ExposedR2dbcSuspendLeaderElector --> ExposedR2dbcLock
+    ExposedR2dbcSuspendLeaderGroupElector --> ExposedR2dbcGroupLock
+    ExposedR2dbcSuspendLeaderElector --> ExposedR2dbcSchemaInitializer
+    ExposedR2dbcSuspendLeaderGroupElector --> ExposedR2dbcSchemaInitializer
 ```
 
 ## Implementations
 
 | Class | Interface | Description |
 |-------|-----------|-------------|
-| `ExposedR2dbcSuspendLeaderElection` | `SuspendLeaderElection` | Coroutine single-leader via `ExposedR2dbcLock` |
-| `ExposedR2dbcSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | Coroutine multi-leader via `ExposedR2dbcGroupLock` |
-| `ExposedR2DbcSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `ExposedR2dbcSuspendLeaderElection` per call |
-| `ExposedR2DbcSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `ExposedR2dbcSuspendLeaderGroupElection` per call |
+| `ExposedR2dbcSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine single-leader via `ExposedR2dbcLock` |
+| `ExposedR2dbcSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader via `ExposedR2dbcGroupLock` |
+| `ExposedR2DbcSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `ExposedR2dbcSuspendLeaderElector` per call |
+| `ExposedR2DbcSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `ExposedR2dbcSuspendLeaderGroupElector` per call |
 
 ## Usage
 
@@ -80,7 +80,7 @@ Schema is created automatically on the first call to `runIfLeader`.
 ### Coroutine single-leader
 
 ```kotlin
-val election = ExposedR2dbcSuspendLeaderElection(db)
+val election = ExposedR2dbcSuspendLeaderElector(db)
 
 val result = election.runIfLeader("daily-report") {
     delay(100)
@@ -95,7 +95,7 @@ val result = election.runIfLeader("daily-report") {
 val options = ExposedR2dbcLeaderGroupElectionOptions(
     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3)
 )
-val election = ExposedR2dbcSuspendLeaderGroupElection(db, options)
+val election = ExposedR2dbcSuspendLeaderGroupElector(db, options)
 
 coroutineScope {
     val jobs = (1..10).map {
@@ -136,7 +136,7 @@ val options = ExposedR2dbcLeaderElectionOptions(
     recordHistory = true,
     lockOwner = "worker-1",
 )
-val election = ExposedR2dbcSuspendLeaderElection(db, options)
+val election = ExposedR2dbcSuspendLeaderElector(db, options)
 ```
 
 ### Using SPI factories

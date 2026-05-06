@@ -15,7 +15,7 @@ Provides blocking, async, coroutine, and virtual-thread APIs backed by Redis (Le
 
 - **Null-returning API** — `runIfLeader()` returns `null` when not elected (no exceptions thrown on contention)
 - **Multiple execution models** — blocking, `CompletableFuture`, virtual threads, coroutines
-- **Multi-leader support** — `LeaderGroupElection` allows N concurrent leaders via distributed semaphore
+- **Multi-leader support** — `LeaderGroupElector` allows N concurrent leaders via distributed semaphore
 - **Strategic election** — pluggable candidate-registry + election strategy (FIFO, scored, weighted); no distributed lock required
 - **Self-contained Redis test infrastructure** — Testcontainers, no external test-util dependencies
 - **ShedLock-compatible skip semantics** — action is simply skipped if the lock cannot be acquired
@@ -89,7 +89,7 @@ implementation("io.github.bluetape4k.leader:leader-exposed-r2dbc:0.1.0-SNAPSHOT"
 ```kotlin
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElection
+import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElector
 
 val dataSource = HikariDataSource(HikariConfig().apply {
     jdbcUrl = "jdbc:postgresql://localhost:5432/mydb"
@@ -97,7 +97,7 @@ val dataSource = HikariDataSource(HikariConfig().apply {
     password = "pass"
 })
 
-val election = ExposedJdbcLeaderElection(dataSource)
+val election = ExposedJdbcLeaderElector(dataSource)
 
 val result = election.runIfLeader("daily-report-job") {
     generateReport()
@@ -108,11 +108,11 @@ val result = election.runIfLeader("daily-report-job") {
 Multi-leader group (JDBC):
 
 ```kotlin
-import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElection
+import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElector
 import io.bluetape4k.leader.core.LeaderGroupElectionOptions
 
 val options = LeaderGroupElectionOptions(maxLeaders = 3)
-val groupElection = ExposedJdbcLeaderGroupElection(dataSource, options)
+val groupElection = ExposedJdbcLeaderGroupElector(dataSource, options)
 
 val result = groupElection.runIfLeader("parallel-batch") {
     processNextChunk()
@@ -125,7 +125,7 @@ val result = groupElection.runIfLeader("parallel-batch") {
 val config = Config().apply { useSingleServer().setAddress("redis://localhost:6379") }
 val client = Redisson.create(config)
 
-val election = RedissonLeaderElection(client)
+val election = RedissonLeaderElector(client)
 
 val result = election.runIfLeader("daily-report-job") {
     generateReport()  // runs only on the elected node
@@ -136,7 +136,7 @@ val result = election.runIfLeader("daily-report-job") {
 ### Coroutines (suspend)
 
 ```kotlin
-val election = RedissonSuspendLeaderElection(client)
+val election = RedissonSuspendLeaderElector(client)
 
 val result = election.runIfLeader("nightly-cleanup") {
     cleanupExpiredSessions()
@@ -147,7 +147,7 @@ val result = election.runIfLeader("nightly-cleanup") {
 
 ```kotlin
 val options = LeaderGroupElectionOptions(maxLeaders = 3)
-val election = RedissonLeaderGroupElection(client, options)
+val election = RedissonLeaderGroupElector(client, options)
 
 // Up to 3 concurrent leaders can run this action simultaneously
 val result = election.runIfLeader("parallel-batch") {
@@ -162,14 +162,14 @@ val options = LeaderElectionOptions(
     waitTime = Duration.ofSeconds(3),   // how long to wait for the lock
     leaseTime = Duration.ofSeconds(30)  // how long to hold the lock
 )
-val election = RedissonLeaderElection(client, options)
+val election = RedissonLeaderElector(client, options)
 ```
 
 ### Local (in-process, no Redis)
 
 ```kotlin
 // Useful for single-instance or testing scenarios
-val election = LocalLeaderElection()
+val election = LocalLeaderElector()
 val result = election.runIfLeader("job") { "done" }
 ```
 
@@ -231,14 +231,14 @@ sequenceDiagram
 
 | Interface | Returns | Description |
 |-----------|---------|-------------|
-| `LeaderElection` | `T?` | Blocking single-leader |
-| `AsyncLeaderElection` | `CompletableFuture<T?>` | Async single-leader |
-| `VirtualThreadLeaderElection` | `T?` | Virtual thread single-leader |
-| `SuspendLeaderElection` | `T?` | Coroutine suspend single-leader |
-| `LeaderGroupElection` | `T?` | Blocking multi-leader (semaphore) |
-| `SuspendLeaderGroupElection` | `T?` | Coroutine multi-leader (semaphore) |
-| `StrategicLeaderElection` | `T?` | Blocking strategic election (candidate registry) |
-| `StrategicSuspendLeaderElection` | `T?` | Coroutine strategic election (candidate registry) |
+| `LeaderElector` | `T?` | Blocking single-leader |
+| `AsyncLeaderElector` | `CompletableFuture<T?>` | Async single-leader |
+| `VirtualThreadLeaderElector` | `T?` | Virtual thread single-leader |
+| `SuspendLeaderElector` | `T?` | Coroutine suspend single-leader |
+| `LeaderGroupElector` | `T?` | Blocking multi-leader (semaphore) |
+| `SuspendLeaderGroupElector` | `T?` | Coroutine multi-leader (semaphore) |
+| `StrategicLeaderElector` | `T?` | Blocking strategic election (candidate registry) |
+| `StrategicSuspendLeaderElector` | `T?` | Coroutine strategic election (candidate registry) |
 
 `runIfLeader(lockName, action)` — returns `action()` result on success, `null` if not elected.
 
@@ -307,7 +307,7 @@ CandidateInfo(
 ### Example — FIFO (Lettuce)
 
 ```kotlin
-val election = LettuceStrategicLeaderElection(connection, nodeId = "node-1")
+val election = LettuceStrategicLeaderElector(connection, nodeId = "node-1")
 
 // register this node
 election.registerCandidate("batch-job", CandidateInfo("node-1"), ttl = Duration.ofMinutes(5))
@@ -322,7 +322,7 @@ val result = election.runIfLeader("batch-job", FifoElectionStrategy) {
 ### Example — Success-rate scoring (coroutine, Redisson)
 
 ```kotlin
-val election = RedissonStrategicSuspendLeaderElection(redissonClient, nodeId = "node-1")
+val election = RedissonStrategicSuspendLeaderElector(redissonClient, nodeId = "node-1")
 election.registerCandidate("ml-job", CandidateInfo("node-1"), ttl = Duration.ofMinutes(10))
 
 val strategy = ScoredElectionStrategy(SuccessRateScorer)
@@ -472,7 +472,7 @@ fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
 | Skip on contention | `null` return | annotation-based skip |
 | Coroutine support | Native | No |
 | Virtual thread support | Yes | No |
-| Multi-leader (group) | `LeaderGroupElection` | No |
+| Multi-leader (group) | `LeaderGroupElector` | No |
 | Redis (Lettuce) | Yes | Yes |
 | Redis (Redisson) | Yes | Yes |
 | Spring integration | Planned | Yes (core feature) |

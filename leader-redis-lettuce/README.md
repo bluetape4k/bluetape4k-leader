@@ -16,16 +16,16 @@ Lock strategy: Redis `SET key value NX PX ttl` (atomic compare-and-set). Renewal
 
 ```mermaid
 classDiagram
-    class LeaderElection {
+    class LeaderElector {
         <<interface>>
     }
-    class LeaderGroupElection {
+    class LeaderGroupElector {
         <<interface>>
     }
-    class SuspendLeaderElection {
+    class SuspendLeaderElector {
         <<interface>>
     }
-    class SuspendLeaderGroupElection {
+    class SuspendLeaderGroupElector {
         <<interface>>
     }
 
@@ -46,27 +46,27 @@ classDiagram
         +release(key, permits)
     }
 
-    LettuceLeaderElection ..|> LeaderElection
-    LettuceLeaderGroupElection ..|> LeaderGroupElection
-    LettuceSuspendLeaderElection ..|> SuspendLeaderElection
-    LettuceSuspendLeaderGroupElection ..|> SuspendLeaderGroupElection
+    LettuceLeaderElector ..|> LeaderElector
+    LettuceLeaderGroupElector ..|> LeaderGroupElector
+    LettuceSuspendLeaderElector ..|> SuspendLeaderElector
+    LettuceSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
 
-    LettuceLeaderElection --> LettuceLock
-    LettuceLeaderGroupElection --> LettuceSemaphore
-    LettuceSuspendLeaderElection --> LettuceSuspendLock
-    LettuceSuspendLeaderGroupElection --> LettuceSuspendSemaphore
+    LettuceLeaderElector --> LettuceLock
+    LettuceLeaderGroupElector --> LettuceSemaphore
+    LettuceSuspendLeaderElector --> LettuceSuspendLock
+    LettuceSuspendLeaderGroupElector --> LettuceSuspendSemaphore
 ```
 
 ## Implementations
 
 | Class | Interface | Description |
 |-------|-----------|-------------|
-| `LettuceLeaderElection` | `LeaderElection` | Blocking single-leader via `LettuceLock` |
-| `LettuceLeaderGroupElection` | `LeaderGroupElection` | Blocking multi-leader via `LettuceSemaphore` |
-| `LettuceSuspendLeaderElection` | `SuspendLeaderElection` | Coroutine single-leader via `LettuceSuspendLock` |
-| `LettuceSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | Coroutine multi-leader via `LettuceSuspendSemaphore` |
-| `LettuceSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `LettuceSuspendLeaderElection` per call |
-| `LettuceSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `LettuceSuspendLeaderGroupElection` per call |
+| `LettuceLeaderElector` | `LeaderElector` | Blocking single-leader via `LettuceLock` |
+| `LettuceLeaderGroupElector` | `LeaderGroupElector` | Blocking multi-leader via `LettuceSemaphore` |
+| `LettuceSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine single-leader via `LettuceSuspendLock` |
+| `LettuceSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader via `LettuceSuspendSemaphore` |
+| `LettuceSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `LettuceSuspendLeaderElector` per call |
+| `LettuceSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `LettuceSuspendLeaderGroupElector` per call |
 
 ## Usage
 
@@ -80,7 +80,7 @@ val connection = redisClient.connect()
 ### Blocking single-leader
 
 ```kotlin
-val election = LettuceLeaderElection(connection)
+val election = LettuceLeaderElector(connection)
 
 val result = election.runIfLeader("daily-report") {
     generateReport()
@@ -92,7 +92,7 @@ val result = election.runIfLeader("daily-report") {
 
 ```kotlin
 val options = LeaderGroupElectionOptions(maxLeaders = 3)
-val election = LettuceLeaderGroupElection(connection, options)
+val election = LettuceLeaderGroupElector(connection, options)
 
 val result = election.runIfLeader("parallel-batch") {
     processChunk()
@@ -102,7 +102,7 @@ val result = election.runIfLeader("parallel-batch") {
 ### Coroutine suspend single-leader
 
 ```kotlin
-val election = LettuceSuspendLeaderElection(connection)
+val election = LettuceSuspendLeaderElector(connection)
 
 coroutineScope {
     val result = election.runIfLeader("nightly-sync") {
@@ -115,7 +115,7 @@ coroutineScope {
 
 ```kotlin
 val options = LeaderGroupElectionOptions(maxLeaders = 2)
-val election = LettuceSuspendLeaderGroupElection(connection, options)
+val election = LettuceSuspendLeaderGroupElector(connection, options)
 
 coroutineScope {
     val jobs = (1..5).map {
@@ -136,7 +136,7 @@ val options = LeaderElectionOptions(
     waitTime = Duration.ofSeconds(3),
     leaseTime = Duration.ofSeconds(30)
 )
-val election = LettuceLeaderElection(connection, options)
+val election = LettuceLeaderElector(connection, options)
 ```
 
 ### Using factories

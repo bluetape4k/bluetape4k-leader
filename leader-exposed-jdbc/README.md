@@ -20,16 +20,16 @@ Schema is created automatically on first use via `SchemaUtils.createMissingTable
 
 ```mermaid
 classDiagram
-    class LeaderElection {
+    class LeaderElector {
         <<interface>>
     }
-    class AsyncLeaderElection {
+    class AsyncLeaderElector {
         <<interface>>
     }
-    class LeaderGroupElection {
+    class LeaderGroupElector {
         <<interface>>
     }
-    class VirtualThreadLeaderElection {
+    class VirtualThreadLeaderElector {
         <<interface>>
     }
 
@@ -46,23 +46,23 @@ classDiagram
         +token: String
     }
 
-    ExposedJdbcLeaderElection ..|> LeaderElection
-    ExposedJdbcLeaderElection ..|> AsyncLeaderElection
-    ExposedJdbcLeaderGroupElection ..|> LeaderGroupElection
-    ExposedJdbcVirtualThreadLeaderElection ..|> VirtualThreadLeaderElection
+    ExposedJdbcLeaderElector ..|> LeaderElector
+    ExposedJdbcLeaderElector ..|> AsyncLeaderElector
+    ExposedJdbcLeaderGroupElector ..|> LeaderGroupElector
+    ExposedJdbcVirtualThreadLeaderElector ..|> VirtualThreadLeaderElector
 
-    ExposedJdbcLeaderElection --> ExposedJdbcLock
-    ExposedJdbcLeaderGroupElection --> ExposedJdbcGroupLock
-    ExposedJdbcVirtualThreadLeaderElection --> ExposedJdbcLeaderElection
+    ExposedJdbcLeaderElector --> ExposedJdbcLock
+    ExposedJdbcLeaderGroupElector --> ExposedJdbcGroupLock
+    ExposedJdbcVirtualThreadLeaderElector --> ExposedJdbcLeaderElector
 ```
 
 ## Implementations
 
 | Class | Interface | Description |
 |-------|-----------|-------------|
-| `ExposedJdbcLeaderElection` | `LeaderElection` + `AsyncLeaderElection` | Blocking / CompletableFuture single-leader |
-| `ExposedJdbcLeaderGroupElection` | `LeaderGroupElection` | Blocking multi-leader (slot semaphore) |
-| `ExposedJdbcVirtualThreadLeaderElection` | `VirtualThreadLeaderElection` | Virtual-thread single-leader |
+| `ExposedJdbcLeaderElector` | `LeaderElector` + `AsyncLeaderElector` | Blocking / CompletableFuture single-leader |
+| `ExposedJdbcLeaderGroupElector` | `LeaderGroupElector` | Blocking multi-leader (slot semaphore) |
+| `ExposedJdbcVirtualThreadLeaderElector` | `VirtualThreadLeaderElector` | Virtual-thread single-leader |
 
 ## Usage
 
@@ -77,7 +77,7 @@ Schema tables are created automatically on first election call.
 ### Blocking single-leader
 
 ```kotlin
-val election = ExposedJdbcLeaderElection(db)
+val election = ExposedJdbcLeaderElector(db)
 
 val result = election.runIfLeader("daily-report") {
     generateReport()
@@ -88,7 +88,7 @@ val result = election.runIfLeader("daily-report") {
 ### Async single-leader (CompletableFuture)
 
 ```kotlin
-val election = ExposedJdbcLeaderElection(db)
+val election = ExposedJdbcLeaderElector(db)
 
 val future: CompletableFuture<Report?> = election.runAsyncIfLeader(
     lockName = "daily-report",
@@ -103,7 +103,7 @@ val future: CompletableFuture<Report?> = election.runAsyncIfLeader(
 val options = ExposedJdbcLeaderGroupElectionOptions(
     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3)
 )
-val election = ExposedJdbcLeaderGroupElection(db, options)
+val election = ExposedJdbcLeaderGroupElector(db, options)
 
 val result = election.runIfLeader("parallel-batch") {
     processChunk()
@@ -122,9 +122,9 @@ println("available slots: ${election.availableSlots("parallel-batch")}")
 ### Virtual-thread single-leader
 
 ```kotlin
-// Wrap an existing ExposedJdbcLeaderElection
-val election = ExposedJdbcLeaderElection(db)
-val vtElection = ExposedJdbcVirtualThreadLeaderElection(election)
+// Wrap an existing ExposedJdbcLeaderElector
+val election = ExposedJdbcLeaderElector(db)
+val vtElection = ExposedJdbcVirtualThreadLeaderElector(election)
 
 val future: VirtualFuture<Result?> = vtElection.runAsyncIfLeader("nightly-sync") {
     syncData()
@@ -148,7 +148,7 @@ val options = ExposedJdbcLeaderElectionOptions(
     recordHistory = true,
     lockOwner = "node-1"
 )
-val election = ExposedJdbcLeaderElection(db, options)
+val election = ExposedJdbcLeaderElector(db, options)
 ```
 
 ## Lock Internals
