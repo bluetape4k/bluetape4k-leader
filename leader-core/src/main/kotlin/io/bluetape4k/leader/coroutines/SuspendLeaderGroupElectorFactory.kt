@@ -23,5 +23,5 @@ fun interface SuspendLeaderGroupElectorFactory {
      * @param options 새 인스턴스에 적용할 옵션 (maxLeaders, waitTime, leaseTime)
      * @return 호출 단위 옵션이 적용된 [SuspendLeaderGroupElector] 인스턴스
      */
-    fun create(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector
+    suspend fun create(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector
 }

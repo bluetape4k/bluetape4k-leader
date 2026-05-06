@@ -24,14 +24,14 @@ class LocalSuspendLeaderGroupElectorFactoryTest {
     private fun randomLockName() = "lock-${Base58.randomString(8)}"
 
     @Test
-    fun `create - 기본 옵션으로 SuspendLeaderGroupElector 인스턴스 반환`() {
+    fun `create - 기본 옵션으로 SuspendLeaderGroupElector 인스턴스 반환`() = runSuspendIO {
         val elector = factory.create(LeaderGroupElectionOptions.Default)
         elector.shouldNotBeNull()
         elector.shouldBeInstanceOf<LocalSuspendLeaderGroupElector>()
     }
 
     @Test
-    fun `create - 커스텀 maxLeaders 옵션으로 인스턴스 반환`() {
+    fun `create - 커스텀 maxLeaders 옵션으로 인스턴스 반환`() = runSuspendIO {
         val opts = LeaderGroupElectionOptions(maxLeaders = 5, waitTime = Duration.ofSeconds(1), leaseTime = Duration.ofSeconds(10))
         val elector = factory.create(opts)
         elector.shouldNotBeNull()
@@ -39,7 +39,7 @@ class LocalSuspendLeaderGroupElectorFactoryTest {
     }
 
     @Test
-    fun `create - 호출마다 새 인스턴스 반환`() {
+    fun `create - 호출마다 새 인스턴스 반환`() = runSuspendIO {
         val a = factory.create(LeaderGroupElectionOptions.Default)
         val b = factory.create(LeaderGroupElectionOptions.Default)
         (a !== b).shouldBeEqualTo(true)

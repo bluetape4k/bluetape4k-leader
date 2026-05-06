@@ -27,21 +27,21 @@ class LocalSuspendLeaderElectorFactoryTest {
     private fun randomLockName() = "lock-${Base58.randomString(8)}"
 
     @Test
-    fun `create - 기본 옵션으로 SuspendLeaderElector 인스턴스 반환`() {
+    fun `create - 기본 옵션으로 SuspendLeaderElector 인스턴스 반환`() = runSuspendIO {
         val elector = factory.create(LeaderElectionOptions.Default)
         elector.shouldNotBeNull()
         elector.shouldBeInstanceOf<LocalSuspendLeaderElector>()
     }
 
     @Test
-    fun `create - 커스텀 옵션으로 인스턴스 반환`() {
+    fun `create - 커스텀 옵션으로 인스턴스 반환`() = runSuspendIO {
         val opts = LeaderElectionOptions(waitTime = Duration.ofSeconds(1), leaseTime = Duration.ofSeconds(10))
         val elector = factory.create(opts)
         elector.shouldNotBeNull()
     }
 
     @Test
-    fun `create - 호출마다 새 인스턴스 반환`() {
+    fun `create - 호출마다 새 인스턴스 반환`() = runSuspendIO {
         val a = factory.create(LeaderElectionOptions.Default)
         val b = factory.create(LeaderElectionOptions.Default)
         // 팩토리는 매번 새 인스턴스를 반환 (동일성 보장 안 함)

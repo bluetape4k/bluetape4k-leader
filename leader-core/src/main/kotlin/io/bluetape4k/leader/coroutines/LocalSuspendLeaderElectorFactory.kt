@@ -14,6 +14,6 @@ import io.bluetape4k.leader.LeaderElectionOptions
  */
 class LocalSuspendLeaderElectorFactory : SuspendLeaderElectorFactory {
 
-    override fun create(options: LeaderElectionOptions): SuspendLeaderElector =
+    override suspend fun create(options: LeaderElectionOptions): SuspendLeaderElector =
         LocalSuspendLeaderElector(options)
 }
