@@ -24,32 +24,32 @@ import org.springframework.context.annotation.Configuration
 class LettuceLeaderConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean(name = ["lettuceLeaderElection"])
-    fun lettuceLeaderElection(
+    @ConditionalOnMissingBean(name = ["lettuceLeaderElector"])
+    fun lettuceLeaderElector(
         connection: StatefulRedisConnection<String, String>,
         props: LeaderProperties,
     ): LettuceLeaderElector =
         LettuceLeaderElector(connection, PropertiesAdapter.toCommonElection(props))
 
     @Bean
-    @ConditionalOnMissingBean(name = ["lettuceSuspendLeaderElection"])
-    fun lettuceSuspendLeaderElection(
+    @ConditionalOnMissingBean(name = ["lettuceSuspendLeaderElector"])
+    fun lettuceSuspendLeaderElector(
         connection: StatefulRedisConnection<String, String>,
         props: LeaderProperties,
     ): LettuceSuspendLeaderElector =
         LettuceSuspendLeaderElector(connection, PropertiesAdapter.toCommonElection(props))
 
     @Bean
-    @ConditionalOnMissingBean(name = ["lettuceLeaderGroupElection"])
-    fun lettuceLeaderGroupElection(
+    @ConditionalOnMissingBean(name = ["lettuceLeaderGroupElector"])
+    fun lettuceLeaderGroupElector(
         connection: StatefulRedisConnection<String, String>,
         props: LeaderProperties,
     ): LettuceLeaderGroupElector =
         LettuceLeaderGroupElector(connection, PropertiesAdapter.toCommonGroup(props))
 
     @Bean
-    @ConditionalOnMissingBean(name = ["lettuceSuspendLeaderGroupElection"])
-    fun lettuceSuspendLeaderGroupElection(
+    @ConditionalOnMissingBean(name = ["lettuceSuspendLeaderGroupElector"])
+    fun lettuceSuspendLeaderGroupElector(
         connection: StatefulRedisConnection<String, String>,
         props: LeaderProperties,
     ): LettuceSuspendLeaderGroupElector =

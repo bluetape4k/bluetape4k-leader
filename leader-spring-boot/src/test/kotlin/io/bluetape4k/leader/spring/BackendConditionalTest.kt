@@ -68,7 +68,7 @@ class BackendConditionalTest {
     @Test
     fun `백엔드 빈 미설정 시 Local 4 빈만 활성`() {
         contextRunner.run { ctx ->
-            ctx.getBean("localLeaderElection") shouldBeInstanceOf LocalLeaderElector::class
+            ctx.getBean("localLeaderElector") shouldBeInstanceOf LocalLeaderElector::class
             ctx.getBeanNamesForType<LeaderElector>() shouldHaveSize 1
             ctx.getBeanNamesForType<SuspendLeaderElector>() shouldHaveSize 1
             ctx.getBeanNamesForType<LeaderGroupElector>() shouldHaveSize 1
@@ -83,12 +83,12 @@ class BackendConditionalTest {
         contextRunner
             .withUserConfiguration(RedissonClientConfig::class.java)
             .run { ctx ->
-                ctx.getBean("redissonLeaderElection") shouldBeInstanceOf RedissonLeaderElector::class
+                ctx.getBean("redissonLeaderElector") shouldBeInstanceOf RedissonLeaderElector::class
                 ctx.getBeanNamesForType<LeaderElector>() shouldHaveSize 1
                 ctx.getBeanNamesForType<SuspendLeaderElector>() shouldHaveSize 1
                 ctx.getBeanNamesForType<LeaderGroupElector>() shouldHaveSize 1
                 ctx.getBeanNamesForType<SuspendLeaderGroupElector>() shouldHaveSize 1
-                ctx.containsBean("localLeaderElection") shouldBeEqualTo false
+                ctx.containsBean("localLeaderElector") shouldBeEqualTo false
             }
     }
 
@@ -99,8 +99,8 @@ class BackendConditionalTest {
         contextRunner
             .withUserConfiguration(LettuceConnectionConfig::class.java)
             .run { ctx ->
-                ctx.getBean("lettuceLeaderElection") shouldBeInstanceOf LettuceLeaderElector::class
-                ctx.containsBean("localLeaderElection") shouldBeEqualTo false
+                ctx.getBean("lettuceLeaderElector") shouldBeInstanceOf LettuceLeaderElector::class
+                ctx.containsBean("localLeaderElector") shouldBeEqualTo false
             }
     }
 
@@ -111,11 +111,11 @@ class BackendConditionalTest {
         contextRunner
             .withUserConfiguration(HazelcastInstanceConfig::class.java)
             .run { ctx ->
-                ctx.containsBean("hazelcastLeaderElection") shouldBeEqualTo true
-                ctx.containsBean("hazelcastSuspendLeaderElection") shouldBeEqualTo true
-                ctx.containsBean("hazelcastLeaderGroupElection") shouldBeEqualTo true
-                ctx.containsBean("hazelcastSuspendLeaderGroupElection") shouldBeEqualTo true
-                ctx.containsBean("localLeaderElection") shouldBeEqualTo false
+                ctx.containsBean("hazelcastLeaderElector") shouldBeEqualTo true
+                ctx.containsBean("hazelcastSuspendLeaderElector") shouldBeEqualTo true
+                ctx.containsBean("hazelcastLeaderGroupElector") shouldBeEqualTo true
+                ctx.containsBean("hazelcastSuspendLeaderGroupElector") shouldBeEqualTo true
+                ctx.containsBean("localLeaderElector") shouldBeEqualTo false
             }
     }
 
@@ -126,10 +126,10 @@ class BackendConditionalTest {
         contextRunner
             .withUserConfiguration(ExposedJdbcConfig::class.java)
             .run { ctx ->
-                ctx.getBean("exposedJdbcLeaderElection") shouldBeInstanceOf ExposedJdbcLeaderElector::class
-                ctx.containsBean("exposedJdbcLeaderGroupElection") shouldBeEqualTo true
-                ctx.containsBean("exposedJdbcVirtualThreadLeaderElection") shouldBeEqualTo true
-                ctx.containsBean("localLeaderElection") shouldBeEqualTo false
+                ctx.getBean("exposedJdbcLeaderElector") shouldBeInstanceOf ExposedJdbcLeaderElector::class
+                ctx.containsBean("exposedJdbcLeaderGroupElector") shouldBeEqualTo true
+                ctx.containsBean("exposedJdbcVirtualThreadLeaderElector") shouldBeEqualTo true
+                ctx.containsBean("localLeaderElector") shouldBeEqualTo false
             }
     }
 
@@ -140,9 +140,9 @@ class BackendConditionalTest {
         contextRunner
             .withUserConfiguration(ExposedR2dbcConfig::class.java)
             .run { ctx ->
-                ctx.getBean("exposedR2dbcSuspendLeaderElection") shouldBeInstanceOf ExposedR2DbcSuspendLeaderElector::class
-                ctx.containsBean("exposedR2dbcSuspendLeaderGroupElection") shouldBeEqualTo true
-                ctx.containsBean("localSuspendLeaderElection") shouldBeEqualTo false
+                ctx.getBean("exposedR2dbcSuspendLeaderElector") shouldBeInstanceOf ExposedR2DbcSuspendLeaderElector::class
+                ctx.containsBean("exposedR2dbcSuspendLeaderGroupElector") shouldBeEqualTo true
+                ctx.containsBean("localSuspendLeaderElector") shouldBeEqualTo false
             }
     }
 
@@ -153,9 +153,9 @@ class BackendConditionalTest {
         contextRunner
             .withUserConfiguration(MongoSyncConfig::class.java)
             .run { ctx ->
-                ctx.getBean("mongoLeaderElection") shouldBeInstanceOf MongoLeaderElector::class
-                ctx.containsBean("mongoLeaderGroupElection") shouldBeEqualTo true
-                ctx.containsBean("localLeaderElection") shouldBeEqualTo false
+                ctx.getBean("mongoLeaderElector") shouldBeInstanceOf MongoLeaderElector::class
+                ctx.containsBean("mongoLeaderGroupElector") shouldBeEqualTo true
+                ctx.containsBean("localLeaderElector") shouldBeEqualTo false
             }
     }
 
@@ -164,10 +164,10 @@ class BackendConditionalTest {
         contextRunner
             .withUserConfiguration(MongoSyncConfig::class.java, MongoCoroutineConfig::class.java)
             .run { ctx ->
-                ctx.containsBean("mongoLeaderElection") shouldBeEqualTo true
-                ctx.containsBean("mongoSuspendLeaderElection") shouldBeEqualTo true
-                ctx.containsBean("mongoLeaderGroupElection") shouldBeEqualTo true
-                ctx.containsBean("mongoSuspendLeaderGroupElection") shouldBeEqualTo true
+                ctx.containsBean("mongoLeaderElector") shouldBeEqualTo true
+                ctx.containsBean("mongoSuspendLeaderElector") shouldBeEqualTo true
+                ctx.containsBean("mongoLeaderGroupElector") shouldBeEqualTo true
+                ctx.containsBean("mongoSuspendLeaderGroupElector") shouldBeEqualTo true
             }
     }
 
@@ -178,9 +178,9 @@ class BackendConditionalTest {
         contextRunner
             .withUserConfiguration(RedissonClientConfig::class.java, LettuceConnectionConfig::class.java)
             .run { ctx ->
-                ctx.containsBean("redissonLeaderElection") shouldBeEqualTo true
-                ctx.containsBean("lettuceLeaderElection") shouldBeEqualTo true
-                ctx.containsBean("localLeaderElection") shouldBeEqualTo false
+                ctx.containsBean("redissonLeaderElector") shouldBeEqualTo true
+                ctx.containsBean("lettuceLeaderElector") shouldBeEqualTo true
+                ctx.containsBean("localLeaderElector") shouldBeEqualTo false
                 ctx.getBeanNamesForType<LeaderElector>() shouldHaveSize 2
             }
     }
@@ -190,7 +190,7 @@ class BackendConditionalTest {
         contextRunner
             .withUserConfiguration(UserOverrideRedissonConfig::class.java)
             .run { ctx ->
-                val bean = ctx.getBean("redissonLeaderElection")
+                val bean = ctx.getBean("redissonLeaderElector")
                 (bean === ctx.getBean<UserOverrideRedissonConfig>().custom) shouldBeEqualTo true
             }
     }
@@ -226,7 +226,7 @@ class BackendConditionalTest {
         @Bean
         fun redissonClient(): RedissonClient = newRedissonClient()
 
-        @Bean(name = ["redissonLeaderElection"])
+        @Bean(name = ["redissonLeaderElector"])
         fun customRedisson(): RedissonLeaderElector = custom
     }
 

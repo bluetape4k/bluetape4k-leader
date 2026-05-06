@@ -20,9 +20,9 @@ import org.springframework.context.annotation.Configuration
  * `org.jetbrains.exposed.v1.jdbc.Database` 빈이 등록된 경우에만 활성화됩니다.
  *
  * 등록 빈:
- * - `exposedJdbcLeaderElection` — sync 단일 리더
- * - `exposedJdbcLeaderGroupElection` — sync 그룹 리더
- * - `exposedJdbcVirtualThreadLeaderElection` — Virtual Thread 변형 (sync 빈을 wrapping)
+ * - `exposedJdbcLeaderElector` — sync 단일 리더
+ * - `exposedJdbcLeaderGroupElector` — sync 그룹 리더
+ * - `exposedJdbcVirtualThreadLeaderElector` — Virtual Thread 변형 (sync 빈을 wrapping)
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(Database::class)
@@ -30,8 +30,8 @@ import org.springframework.context.annotation.Configuration
 class ExposedJdbcLeaderConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean(name = ["exposedJdbcLeaderElection"])
-    fun exposedJdbcLeaderElection(
+    @ConditionalOnMissingBean(name = ["exposedJdbcLeaderElector"])
+    fun exposedJdbcLeaderElector(
         db: Database,
         props: LeaderProperties,
     ): ExposedJdbcLeaderElector =
@@ -41,8 +41,8 @@ class ExposedJdbcLeaderConfiguration {
         )
 
     @Bean
-    @ConditionalOnMissingBean(name = ["exposedJdbcLeaderGroupElection"])
-    fun exposedJdbcLeaderGroupElection(
+    @ConditionalOnMissingBean(name = ["exposedJdbcLeaderGroupElector"])
+    fun exposedJdbcLeaderGroupElector(
         db: Database,
         props: LeaderProperties,
     ): ExposedJdbcLeaderGroupElector =
@@ -52,8 +52,8 @@ class ExposedJdbcLeaderConfiguration {
         )
 
     @Bean
-    @ConditionalOnMissingBean(name = ["exposedJdbcVirtualThreadLeaderElection"])
-    fun exposedJdbcVirtualThreadLeaderElection(
+    @ConditionalOnMissingBean(name = ["exposedJdbcVirtualThreadLeaderElector"])
+    fun exposedJdbcVirtualThreadLeaderElector(
         delegate: ExposedJdbcLeaderElector,
     ): ExposedJdbcVirtualThreadLeaderElector =
         ExposedJdbcVirtualThreadLeaderElector(delegate)
