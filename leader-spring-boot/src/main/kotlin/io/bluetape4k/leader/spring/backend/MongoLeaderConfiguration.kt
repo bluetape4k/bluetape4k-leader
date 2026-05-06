@@ -41,8 +41,8 @@ class MongoLeaderConfiguration {
 
     @Bean
     @ConditionalOnBean(MongoDatabase::class)
-    @ConditionalOnMissingBean(name = ["mongoLeaderElection"])
-    fun mongoLeaderElection(
+    @ConditionalOnMissingBean(name = ["mongoLeaderElector"])
+    fun mongoLeaderElector(
         db: MongoDatabase,
         props: LeaderProperties,
     ): MongoLeaderElector {
@@ -52,8 +52,8 @@ class MongoLeaderConfiguration {
 
     @Bean
     @ConditionalOnBean(MongoDatabase::class)
-    @ConditionalOnMissingBean(name = ["mongoLeaderGroupElection"])
-    fun mongoLeaderGroupElection(
+    @ConditionalOnMissingBean(name = ["mongoLeaderGroupElector"])
+    fun mongoLeaderGroupElector(
         db: MongoDatabase,
         props: LeaderProperties,
     ): MongoLeaderGroupElector {
@@ -63,8 +63,8 @@ class MongoLeaderConfiguration {
 
     @Bean
     @ConditionalOnBean(CoroutineMongoDatabase::class)
-    @ConditionalOnMissingBean(name = ["mongoSuspendLeaderElection"])
-    fun mongoSuspendLeaderElection(
+    @ConditionalOnMissingBean(name = ["mongoSuspendLeaderElector"])
+    fun mongoSuspendLeaderElector(
         coroutineDb: CoroutineMongoDatabase,
         props: LeaderProperties,
     ): MongoSuspendLeaderElector = runBlocking {
@@ -74,8 +74,8 @@ class MongoLeaderConfiguration {
 
     @Bean
     @ConditionalOnBean(MongoDatabase::class, CoroutineMongoDatabase::class)
-    @ConditionalOnMissingBean(name = ["mongoSuspendLeaderGroupElection"])
-    fun mongoSuspendLeaderGroupElection(
+    @ConditionalOnMissingBean(name = ["mongoSuspendLeaderGroupElector"])
+    fun mongoSuspendLeaderGroupElector(
         db: MongoDatabase,
         coroutineDb: CoroutineMongoDatabase,
         props: LeaderProperties,
