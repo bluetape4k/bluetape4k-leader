@@ -27,8 +27,8 @@ import org.springframework.context.annotation.Configuration
 class ExposedR2dbcLeaderConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean(name = ["exposedR2dbcSuspendLeaderElection"])
-    fun exposedR2dbcSuspendLeaderElection(
+    @ConditionalOnMissingBean(name = ["exposedR2dbcSuspendLeaderElector"])
+    fun exposedR2dbcSuspendLeaderElector(
         db: R2dbcDatabase,
         props: LeaderProperties,
     ): ExposedR2DbcSuspendLeaderElector = runBlocking {
@@ -39,8 +39,8 @@ class ExposedR2dbcLeaderConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(name = ["exposedR2dbcSuspendLeaderGroupElection"])
-    fun exposedR2dbcSuspendLeaderGroupElection(
+    @ConditionalOnMissingBean(name = ["exposedR2dbcSuspendLeaderGroupElector"])
+    fun exposedR2dbcSuspendLeaderGroupElector(
         db: R2dbcDatabase,
         props: LeaderProperties,
     ): ExposedR2DbcSuspendLeaderGroupElector = runBlocking {

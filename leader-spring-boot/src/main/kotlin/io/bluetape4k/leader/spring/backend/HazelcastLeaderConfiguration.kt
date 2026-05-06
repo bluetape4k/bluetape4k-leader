@@ -24,32 +24,32 @@ import org.springframework.context.annotation.Configuration
 class HazelcastLeaderConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean(name = ["hazelcastLeaderElection"])
-    fun hazelcastLeaderElection(
+    @ConditionalOnMissingBean(name = ["hazelcastLeaderElector"])
+    fun hazelcastLeaderElector(
         hazelcast: HazelcastInstance,
         props: LeaderProperties,
     ): HazelcastLeaderElector =
         HazelcastLeaderElector(hazelcast, PropertiesAdapter.toCommonElection(props))
 
     @Bean
-    @ConditionalOnMissingBean(name = ["hazelcastSuspendLeaderElection"])
-    fun hazelcastSuspendLeaderElection(
+    @ConditionalOnMissingBean(name = ["hazelcastSuspendLeaderElector"])
+    fun hazelcastSuspendLeaderElector(
         hazelcast: HazelcastInstance,
         props: LeaderProperties,
     ): HazelcastSuspendLeaderElector =
         HazelcastSuspendLeaderElector(hazelcast, PropertiesAdapter.toCommonElection(props))
 
     @Bean
-    @ConditionalOnMissingBean(name = ["hazelcastLeaderGroupElection"])
-    fun hazelcastLeaderGroupElection(
+    @ConditionalOnMissingBean(name = ["hazelcastLeaderGroupElector"])
+    fun hazelcastLeaderGroupElector(
         hazelcast: HazelcastInstance,
         props: LeaderProperties,
     ): HazelcastLeaderGroupElector =
         HazelcastLeaderGroupElector(hazelcast, PropertiesAdapter.toCommonGroup(props))
 
     @Bean
-    @ConditionalOnMissingBean(name = ["hazelcastSuspendLeaderGroupElection"])
-    fun hazelcastSuspendLeaderGroupElection(
+    @ConditionalOnMissingBean(name = ["hazelcastSuspendLeaderGroupElector"])
+    fun hazelcastSuspendLeaderGroupElector(
         hazelcast: HazelcastInstance,
         props: LeaderProperties,
     ): HazelcastSuspendLeaderGroupElector =

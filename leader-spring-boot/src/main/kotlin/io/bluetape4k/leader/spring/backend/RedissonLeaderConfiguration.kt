@@ -24,32 +24,32 @@ import org.springframework.context.annotation.Configuration
 class RedissonLeaderConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean(name = ["redissonLeaderElection"])
-    fun redissonLeaderElection(
+    @ConditionalOnMissingBean(name = ["redissonLeaderElector"])
+    fun redissonLeaderElector(
         client: RedissonClient,
         props: LeaderProperties,
     ): RedissonLeaderElector =
         RedissonLeaderElector(client, PropertiesAdapter.toCommonElection(props))
 
     @Bean
-    @ConditionalOnMissingBean(name = ["redissonSuspendLeaderElection"])
-    fun redissonSuspendLeaderElection(
+    @ConditionalOnMissingBean(name = ["redissonSuspendLeaderElector"])
+    fun redissonSuspendLeaderElector(
         client: RedissonClient,
         props: LeaderProperties,
     ): RedissonSuspendLeaderElector =
         RedissonSuspendLeaderElector(client, PropertiesAdapter.toCommonElection(props))
 
     @Bean
-    @ConditionalOnMissingBean(name = ["redissonLeaderGroupElection"])
-    fun redissonLeaderGroupElection(
+    @ConditionalOnMissingBean(name = ["redissonLeaderGroupElector"])
+    fun redissonLeaderGroupElector(
         client: RedissonClient,
         props: LeaderProperties,
     ): RedissonLeaderGroupElector =
         RedissonLeaderGroupElector(client, PropertiesAdapter.toCommonGroup(props))
 
     @Bean
-    @ConditionalOnMissingBean(name = ["redissonSuspendLeaderGroupElection"])
-    fun redissonSuspendLeaderGroupElection(
+    @ConditionalOnMissingBean(name = ["redissonSuspendLeaderGroupElector"])
+    fun redissonSuspendLeaderGroupElector(
         client: RedissonClient,
         props: LeaderProperties,
     ): RedissonSuspendLeaderGroupElector =
