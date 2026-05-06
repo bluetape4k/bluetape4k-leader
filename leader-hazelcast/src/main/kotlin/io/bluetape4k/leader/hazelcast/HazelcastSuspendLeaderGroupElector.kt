@@ -20,7 +20,7 @@ import kotlinx.coroutines.withContext
  * [IMap] 슬롯 기반 분산 세마포어를 이용한 코루틴 기반 복수 리더 선출 구현체입니다.
  *
  * ```kotlin
- * val election = HazelcastSuspendLeaderGroupElection(hazelcastInstance, LeaderGroupElectionOptions(maxLeaders = 3))
+ * val election = HazelcastSuspendLeaderGroupElector(hazelcastInstance, LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = election.runIfLeader("batch-job") {
  *     delay(100)
  *     processChunk()

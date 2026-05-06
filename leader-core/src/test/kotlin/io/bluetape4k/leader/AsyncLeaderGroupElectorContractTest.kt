@@ -72,7 +72,7 @@ class AsyncLeaderGroupElectorContractTest {
     // ── 상태 조회 (LeaderGroupElectionState 상속) ─────────────────────────
 
     @Test
-    fun `maxLeaders - AsyncLeaderGroupElection 의 maxLeaders 가 올바르다`() {
+    fun `maxLeaders - AsyncLeaderGroupElector 의 maxLeaders 가 올바르다`() {
         val election: AsyncLeaderGroupElector = LocalAsyncLeaderGroupElector(options)
         election.maxLeaders shouldBeEqualTo maxLeaders
     }
@@ -141,10 +141,10 @@ class AsyncLeaderGroupElectorContractTest {
         peakConcurrent.get() shouldBeLessOrEqualTo maxLeaders
     }
 
-    // ── LocalLeaderGroupElection 도 AsyncLeaderGroupElection 계약을 준수한다 ──
+    // ── LocalLeaderGroupElector 도 AsyncLeaderGroupElector 계약을 준수한다 ──
 
     @Test
-    fun `LocalLeaderGroupElection 은 AsyncLeaderGroupElection 계약을 준수한다`() {
+    fun `LocalLeaderGroupElector 은 AsyncLeaderGroupElector 계약을 준수한다`() {
         val election: AsyncLeaderGroupElector = LocalLeaderGroupElector(options)
         val result = election.runAsyncIfLeader(randomLockName()) {
             CompletableFuture.completedFuture(42)

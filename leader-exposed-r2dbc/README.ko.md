@@ -16,11 +16,11 @@
 
 ```mermaid
 classDiagram
-    class SuspendLeaderElection {
+    class SuspendLeaderElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
     }
-    class SuspendLeaderGroupElection {
+    class SuspendLeaderGroupElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
         +state(lockName) LeaderGroupState
@@ -42,23 +42,23 @@ classDiagram
         +resetFor(db)
     }
 
-    ExposedR2dbcSuspendLeaderElection ..|> SuspendLeaderElection
-    ExposedR2dbcSuspendLeaderGroupElection ..|> SuspendLeaderGroupElection
+    ExposedR2dbcSuspendLeaderElector ..|> SuspendLeaderElector
+    ExposedR2dbcSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
 
-    ExposedR2dbcSuspendLeaderElection --> ExposedR2dbcLock
-    ExposedR2dbcSuspendLeaderGroupElection --> ExposedR2dbcGroupLock
-    ExposedR2dbcSuspendLeaderElection --> ExposedR2dbcSchemaInitializer
-    ExposedR2dbcSuspendLeaderGroupElection --> ExposedR2dbcSchemaInitializer
+    ExposedR2dbcSuspendLeaderElector --> ExposedR2dbcLock
+    ExposedR2dbcSuspendLeaderGroupElector --> ExposedR2dbcGroupLock
+    ExposedR2dbcSuspendLeaderElector --> ExposedR2dbcSchemaInitializer
+    ExposedR2dbcSuspendLeaderGroupElector --> ExposedR2dbcSchemaInitializer
 ```
 
 ## 구현체
 
 | 클래스 | 인터페이스 | 설명 |
 |--------|-----------|------|
-| `ExposedR2dbcSuspendLeaderElection` | `SuspendLeaderElection` | `ExposedR2dbcLock` 기반 코루틴 단일 리더 |
-| `ExposedR2dbcSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | `ExposedR2dbcGroupLock` 기반 코루틴 복수 리더 |
-| `ExposedR2DbcSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `ExposedR2dbcSuspendLeaderElection` 생성 |
-| `ExposedR2DbcSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `ExposedR2dbcSuspendLeaderGroupElection` 생성 |
+| `ExposedR2dbcSuspendLeaderElector` | `SuspendLeaderElector` | `ExposedR2dbcLock` 기반 코루틴 단일 리더 |
+| `ExposedR2dbcSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | `ExposedR2dbcGroupLock` 기반 코루틴 복수 리더 |
+| `ExposedR2DbcSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `ExposedR2dbcSuspendLeaderElector` 생성 |
+| `ExposedR2DbcSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `ExposedR2dbcSuspendLeaderGroupElector` 생성 |
 
 ## 사용법
 
@@ -80,7 +80,7 @@ val db = R2dbcDatabase.connect("r2dbc:mysql://user:pass@localhost:3306/mydb")
 ### 코루틴 단일 리더
 
 ```kotlin
-val election = ExposedR2dbcSuspendLeaderElection(db)
+val election = ExposedR2dbcSuspendLeaderElector(db)
 
 val result = election.runIfLeader("daily-report") {
     delay(100)
@@ -95,7 +95,7 @@ val result = election.runIfLeader("daily-report") {
 val options = ExposedR2dbcLeaderGroupElectionOptions(
     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3)
 )
-val election = ExposedR2dbcSuspendLeaderGroupElection(db, options)
+val election = ExposedR2dbcSuspendLeaderGroupElector(db, options)
 
 coroutineScope {
     val jobs = (1..10).map {
@@ -136,7 +136,7 @@ val options = ExposedR2dbcLeaderElectionOptions(
     recordHistory = true,
     lockOwner = "worker-1",
 )
-val election = ExposedR2dbcSuspendLeaderElection(db, options)
+val election = ExposedR2dbcSuspendLeaderElector(db, options)
 ```
 
 ### SPI 팩토리 사용

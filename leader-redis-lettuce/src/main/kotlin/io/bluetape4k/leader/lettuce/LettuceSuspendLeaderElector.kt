@@ -16,14 +16,14 @@ import kotlinx.coroutines.withContext
  * [StatefulRedisConnection]에서 [LettuceSuspendLeaderElector] 인스턴스를 생성합니다.
  *
  * ```kotlin
- * val election = connection.suspendLeaderElection()
+ * val election = connection.suspendLeaderElector()
  * val result = election.runIfLeader("daily-job") { "done" }
  * ```
  *
  * @param options 리더 선출 옵션 (기본값: [LeaderElectionOptions.Default])
  * @return [LettuceSuspendLeaderElector] 인스턴스
  */
-fun StatefulRedisConnection<String, String>.suspendLeaderElection(
+fun StatefulRedisConnection<String, String>.suspendLeaderElector(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
 ): LettuceSuspendLeaderElector =
     LettuceSuspendLeaderElector(this, options)
@@ -35,7 +35,7 @@ fun StatefulRedisConnection<String, String>.suspendLeaderElection(
  * [LettuceSuspendLock]을 사용하여 비동기적으로 리더를 선출합니다.
  *
  * ```kotlin
- * val election = LettuceSuspendLeaderElection(connection)
+ * val election = LettuceSuspendLeaderElector(connection)
  * val result = election.runIfLeader("daily-job") { "done" }
  * ```
  *

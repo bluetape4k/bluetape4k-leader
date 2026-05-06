@@ -29,7 +29,7 @@ import kotlin.random.Random
  *
  * ```kotlin
  * val db = mongoClient.getDatabase("mydb")
- * val election = MongoSuspendLeaderGroupElection(
+ * val election = MongoSuspendLeaderGroupElector(
  *     groupCollection = db.getCollection("bluetape4k_leader_group_locks"),
  *     coroutineGroupCollection = db.toCoroutineDatabase().getCollection("bluetape4k_leader_group_locks"),
  *     options = MongoLeaderGroupElectionOptions(LeaderGroupElectionOptions(maxLeaders = 3)),

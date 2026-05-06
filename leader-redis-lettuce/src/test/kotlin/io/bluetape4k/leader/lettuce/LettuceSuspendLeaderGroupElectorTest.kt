@@ -71,7 +71,7 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
     // =========================================================================
 
     @Test
-    fun `확장 함수로 LettuceLeaderGroupElection 생성`() {
+    fun `확장 함수로 LettuceLeaderGroupElector 생성`() {
         val el = connection.leaderGroupElection(options)
         el.shouldNotBeNull()
         val result = el.runIfLeader(lockName) { "ext" }
@@ -79,8 +79,8 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
     }
 
     @Test
-    fun `확장 함수로 LettuceSuspendLeaderGroupElection 생성`() = runSuspendIO {
-        val el = connection.suspendLeaderGroupElection(options)
+    fun `확장 함수로 LettuceSuspendLeaderGroupElector 생성`() = runSuspendIO {
+        val el = connection.suspendLeaderGroupElector(options)
         el.shouldNotBeNull()
         val result = el.runIfLeader(lockName) { "ext-suspend" }
         result shouldBeEqualTo "ext-suspend"

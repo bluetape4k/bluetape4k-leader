@@ -88,12 +88,12 @@ val result = leaderElection.runIfLeader("job-lock") { doWork() }
 
 | Interface | Execution model |
 |---|---|
-| `LeaderElection` | Blocking (synchronous) |
-| `AsyncLeaderElection` | `CompletableFuture`-based async |
-| `VirtualThreadLeaderElection` | Virtual thread per election |
-| `SuspendLeaderElection` | Kotlin coroutine suspend |
-| `LeaderGroupElection` | Blocking, semaphore-based multi-leader |
-| `SuspendLeaderGroupElection` | Coroutine, semaphore-based multi-leader |
+| `LeaderElector` | Blocking (synchronous) |
+| `AsyncLeaderElector` | `CompletableFuture`-based async |
+| `VirtualThreadLeaderElector` | Virtual thread per election |
+| `SuspendLeaderElector` | Kotlin coroutine suspend |
+| `LeaderGroupElector` | Blocking, semaphore-based multi-leader |
+| `SuspendLeaderGroupElector` | Coroutine, semaphore-based multi-leader |
 
 ### Options
 

@@ -19,14 +19,14 @@ import java.util.concurrent.ConcurrentHashMap
  * [StatefulRedisConnection]에서 [LettuceSuspendLeaderGroupElector] 인스턴스를 생성합니다.
  *
  * ```kotlin
- * val election = connection.suspendLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+ * val election = connection.suspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = election.runIfLeader("batch-job") { processChunkSuspend() }
  * ```
  *
  * @param options    리더 선출 옵션 (기본값: [LeaderGroupElectionOptions.Default])
  * @return [LettuceSuspendLeaderGroupElector] 인스턴스
  */
-fun StatefulRedisConnection<String, String>.suspendLeaderGroupElection(
+fun StatefulRedisConnection<String, String>.suspendLeaderGroupElector(
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
 ): LettuceSuspendLeaderGroupElector =
     LettuceSuspendLeaderGroupElector(this, options)
@@ -39,7 +39,7 @@ fun StatefulRedisConnection<String, String>.suspendLeaderGroupElection(
  *
  * ```kotlin
  * val options = LeaderGroupElectionOptions(maxLeaders = 3)
- * val election = LettuceSuspendLeaderGroupElection(connection, options)
+ * val election = LettuceSuspendLeaderGroupElector(connection, options)
  * val result = election.runIfLeader("batch-job") { processChunk() }
  * println(election.state("batch-job"))
  * ```

@@ -11,8 +11,8 @@ import io.bluetape4k.leader.VirtualThreadLeaderElector
  * 스키마 초기화는 delegate에서 보장됩니다.
  *
  * ```kotlin
- * val election = ExposedJdbcLeaderElection(db)
- * val vtElection = ExposedJdbcVirtualThreadLeaderElection(election)
+ * val election = ExposedJdbcLeaderElector(db)
+ * val vtElection = ExposedJdbcVirtualThreadLeaderElector(election)
  * val result: String? = vtElection.runAsyncIfLeader("job-lock") { processData() }
  *     .get(5, TimeUnit.SECONDS)
  * ```

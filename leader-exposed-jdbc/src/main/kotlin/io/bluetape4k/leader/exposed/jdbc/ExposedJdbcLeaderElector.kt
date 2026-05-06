@@ -29,7 +29,7 @@ import java.util.concurrent.Executor
  *
  * ### 기본 사용
  * ```kotlin
- * val election = ExposedJdbcLeaderElection(db)
+ * val election = ExposedJdbcLeaderElector(db)
  * val result = election.runIfLeader("daily-job") { processData() }
  * // result == processData() 반환값 (리더 획득 성공) 또는 null (획득 실패)
  * ```

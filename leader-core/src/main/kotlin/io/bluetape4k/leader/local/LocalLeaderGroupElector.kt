@@ -17,7 +17,7 @@ import java.util.concurrent.Executor
  * - 분산 환경이 아닌 단일 JVM 프로세스 내 동시 실행 제한에 적합합니다.
  *
  * ```kotlin
- * val election = LocalLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+ * val election = LocalLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
  *
  * // 동기 실행 (최대 3개 스레드 동시)
  * val result = election.runIfLeader("batch-job") { processChunk() }
@@ -37,7 +37,7 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
          * [LeaderGroupElectionOptions]을 이용해 [LocalLeaderGroupElector] 인스턴스를 생성합니다.
          *
          * ```kotlin
-         * val election = LocalLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+         * val election = LocalLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
          * val result = election.runIfLeader("batch-job") { "done" }
          * // result == "done"
          * ```
@@ -55,7 +55,7 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
      * [lockName]의 슬롯을 획득하고 [action]을 동기로 실행합니다.
      *
      * ```kotlin
-     * val election = LocalLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+     * val election = LocalLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
      * val result = election.runIfLeader("batch-job") { "done" }
      * // result == "done"
      * ```
@@ -72,7 +72,7 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
      * [lockName]의 슬롯을 [executor]에서 획득하고 비동기 [action]을 실행합니다.
      *
      * ```kotlin
-     * val election = LocalLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+     * val election = LocalLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
      * val result = election.runAsyncIfLeader("batch-job") {
      *     CompletableFuture.completedFuture(42)
      * }.join()

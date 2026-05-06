@@ -23,7 +23,7 @@ import kotlin.random.Random
  * 슬롯 시작 위치를 랜덤화하여 핫스팟을 방지합니다.
  *
  * ```kotlin
- * val election = MongoLeaderGroupElection(
+ * val election = MongoLeaderGroupElector(
  *     database.getCollection("bluetape4k_leader_group_locks"),
  *     MongoLeaderGroupElectionOptions(LeaderGroupElectionOptions(maxLeaders = 3))
  * )

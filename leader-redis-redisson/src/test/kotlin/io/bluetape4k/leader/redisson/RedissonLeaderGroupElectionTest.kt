@@ -105,7 +105,7 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
     }
 
     @Test
-    fun `maxLeaders=1 이면 LeaderElection 과 동일하게 직렬 실행된다`() {
+    fun `maxLeaders=1 이면 LeaderElector 과 동일하게 직렬 실행된다`() {
         val oneLeader = options.copy(maxLeaders = 1)
         val singleElection = RedissonLeaderGroupElector(redissonClient, oneLeader)
         val lockName = randomName()

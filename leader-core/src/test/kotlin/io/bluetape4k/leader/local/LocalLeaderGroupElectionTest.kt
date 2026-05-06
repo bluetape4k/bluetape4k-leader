@@ -65,7 +65,7 @@ class LocalLeaderGroupElectionTest {
     }
 
     @Test
-    fun `maxLeaders=1 이면 LeaderElection 과 동일하게 직렬 실행된다`() {
+    fun `maxLeaders=1 이면 LeaderElector 과 동일하게 직렬 실행된다`() {
         val singleElection = LocalLeaderGroupElector(LeaderGroupElectionOptions(1))
         val lockName = randomLockName()
         val counter = AtomicInteger(0)

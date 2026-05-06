@@ -19,7 +19,7 @@ import java.util.concurrent.Executor
  * Virtual Thread, ThreadPool 환경에서 모두 안전하게 동작합니다.
  *
  * ```kotlin
- * val election = HazelcastLeaderElection(hazelcastInstance)
+ * val election = HazelcastLeaderElector(hazelcastInstance)
  * val result = election.runIfLeader("daily-job") { processData() }
  * // result == processData() 반환값 (리더 획득 성공) 또는 null (획득 실패)
  * ```

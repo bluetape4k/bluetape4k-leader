@@ -18,7 +18,7 @@ import kotlinx.coroutines.withContext
  * 토큰 기반 락(`putIfAbsent` + TTL)으로 코루틴 스레드 전환과 무관하게 안전하게 동작합니다.
  *
  * ```kotlin
- * val election = HazelcastSuspendLeaderElection(hazelcastInstance)
+ * val election = HazelcastSuspendLeaderElector(hazelcastInstance)
  * val result = election.runIfLeader("daily-job") {
  *     delay(100)
  *     processData()

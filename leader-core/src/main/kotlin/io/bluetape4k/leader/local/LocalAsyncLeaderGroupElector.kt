@@ -18,7 +18,7 @@ import java.util.concurrent.Executor
  * - 분산 환경이 아닌 단일 JVM 프로세스 내 동시 실행 제한에 적합합니다.
  *
  * ```kotlin
- * val election = LocalAsyncLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+ * val election = LocalAsyncLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
  *
  * // 최대 3개 Virtual Thread 가 동시에 실행
  * val result = election.runAsyncIfLeader("batch-job") {
@@ -37,7 +37,7 @@ class LocalAsyncLeaderGroupElector private constructor(
          * [LeaderGroupElectionOptions]을 이용해 [LocalAsyncLeaderGroupElector] 인스턴스를 생성합니다.
          *
          * ```kotlin
-         * val election = LocalAsyncLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+         * val election = LocalAsyncLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
          * val result = election.runAsyncIfLeader("batch-job") {
          *     CompletableFuture.completedFuture("done")
          * }.join()
@@ -59,7 +59,7 @@ class LocalAsyncLeaderGroupElector private constructor(
      * [lockName]의 슬롯을 [executor]에서 획득하고 비동기 [action]을 실행합니다.
      *
      * ```kotlin
-     * val election = LocalAsyncLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+     * val election = LocalAsyncLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
      * val result = election.runAsyncIfLeader("batch-job") {
      *     CompletableFuture.completedFuture(42)
      * }.join()

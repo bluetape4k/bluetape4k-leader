@@ -34,7 +34,7 @@ import org.junit.jupiter.api.assertThrows
  *     companion object: KLogging() {
  *         val redis = RedisServer.Launcher.redis
  *     }
- *     override fun newElection(): LeaderElection = RedissonLeaderElection(client)
+ *     override fun newElection(): LeaderElector = RedissonLeaderElector(client)
  * }
  * ```
  *

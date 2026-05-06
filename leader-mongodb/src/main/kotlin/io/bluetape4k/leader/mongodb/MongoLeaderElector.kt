@@ -19,7 +19,7 @@ import java.util.concurrent.Executor
  * 스레드에 귀속되지 않으며 Virtual Thread 환경에서 안전합니다.
  *
  * ```kotlin
- * val election = MongoLeaderElection(database.getCollection("bluetape4k_leader_locks"))
+ * val election = MongoLeaderElector(database.getCollection("bluetape4k_leader_locks"))
  * val result = election.runIfLeader("daily-job") { processData() }
  * // result == processData() 반환값 (리더 획득 성공) 또는 null (획득 실패)
  * ```

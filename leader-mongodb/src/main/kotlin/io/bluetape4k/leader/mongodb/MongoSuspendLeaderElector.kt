@@ -18,7 +18,7 @@ import org.bson.Document
  * 토큰 기반 락 (`findOneAndUpdate` + TTL)으로 코루틴 스레드 전환과 무관하게 안전합니다.
  *
  * ```kotlin
- * val election = MongoSuspendLeaderElection(coroutineDatabase.getCollection("bluetape4k_leader_locks"))
+ * val election = MongoSuspendLeaderElector(coroutineDatabase.getCollection("bluetape4k_leader_locks"))
  * val result = election.runIfLeader("daily-job") {
  *     delay(100)
  *     processData()

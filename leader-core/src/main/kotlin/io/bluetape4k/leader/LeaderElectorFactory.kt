@@ -17,7 +17,7 @@ package io.bluetape4k.leader
  *
  * ## 책임 분리
  * - 본 SPI: 호출자가 요청한 옵션으로 새 [LeaderElector] 인스턴스 생성
- * - 캐싱: AOP 레이어 또는 호출자 책임 (`ConcurrentHashMap<FactoryCacheKey, LeaderElection>` 등)
+ * - 캐싱: AOP 레이어 또는 호출자 책임 (`ConcurrentHashMap<FactoryCacheKey, LeaderElector>` 등)
  * - 백엔드 클라이언트(`RedissonClient`, `MongoClient` 등) 수명: 호출자 또는 DI 컨테이너 책임
  *
  * @see LeaderGroupElectorFactory 그룹 리더 선출용 팩토리

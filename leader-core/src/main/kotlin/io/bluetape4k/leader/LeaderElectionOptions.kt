@@ -13,7 +13,7 @@ import java.time.Duration
  *     waitTime = Duration.ofSeconds(3),
  *     leaseTime = Duration.ofSeconds(30),
  * )
- * val election = LocalLeaderElection(options)
+ * val election = LocalLeaderElector(options)
  * val result = election.runIfLeader("job-lock") { "done" }
  * // result == "done"
  * ```
@@ -38,7 +38,7 @@ data class LeaderElectionOptions(
          * 기본 옵션 인스턴스 (`waitTime=5s`, `leaseTime=60s`).
          *
          * ```kotlin
-         * val election = LocalLeaderElection(LeaderElectionOptions.Default)
+         * val election = LocalLeaderElector(LeaderElectionOptions.Default)
          * ```
          */
         @JvmField

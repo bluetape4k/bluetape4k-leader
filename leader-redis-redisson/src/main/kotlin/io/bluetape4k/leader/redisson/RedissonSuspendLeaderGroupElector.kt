@@ -63,7 +63,7 @@ suspend fun <T> RedissonClient.runSuspendIfLeaderGroup(
  *
  * ```kotlin
  * val options = LeaderGroupElectionOptions(maxLeaders = 3)
- * val election = RedissonSuspendLeaderGroupElection(redissonClient, options)
+ * val election = RedissonSuspendLeaderGroupElector(redissonClient, options)
  *
  * // 최대 3개 코루틴/프로세스가 동시에 실행
  * val result = election.runIfLeader("batch-job") { processChunkSuspend() }

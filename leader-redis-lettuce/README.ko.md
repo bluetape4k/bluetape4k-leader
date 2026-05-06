@@ -16,16 +16,16 @@
 
 ```mermaid
 classDiagram
-    class LeaderElection {
+    class LeaderElector {
         <<interface>>
     }
-    class LeaderGroupElection {
+    class LeaderGroupElector {
         <<interface>>
     }
-    class SuspendLeaderElection {
+    class SuspendLeaderElector {
         <<interface>>
     }
-    class SuspendLeaderGroupElection {
+    class SuspendLeaderGroupElector {
         <<interface>>
     }
 
@@ -46,27 +46,27 @@ classDiagram
         +release(key, permits)
     }
 
-    LettuceLeaderElection ..|> LeaderElection
-    LettuceLeaderGroupElection ..|> LeaderGroupElection
-    LettuceSuspendLeaderElection ..|> SuspendLeaderElection
-    LettuceSuspendLeaderGroupElection ..|> SuspendLeaderGroupElection
+    LettuceLeaderElector ..|> LeaderElector
+    LettuceLeaderGroupElector ..|> LeaderGroupElector
+    LettuceSuspendLeaderElector ..|> SuspendLeaderElector
+    LettuceSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
 
-    LettuceLeaderElection --> LettuceLock
-    LettuceLeaderGroupElection --> LettuceSemaphore
-    LettuceSuspendLeaderElection --> LettuceSuspendLock
-    LettuceSuspendLeaderGroupElection --> LettuceSuspendSemaphore
+    LettuceLeaderElector --> LettuceLock
+    LettuceLeaderGroupElector --> LettuceSemaphore
+    LettuceSuspendLeaderElector --> LettuceSuspendLock
+    LettuceSuspendLeaderGroupElector --> LettuceSuspendSemaphore
 ```
 
 ## 구현체 목록
 
 | 클래스 | 구현 인터페이스 | 설명 |
 |-------|--------------|------|
-| `LettuceLeaderElection` | `LeaderElection` | `LettuceLock` 기반 블로킹 단일 리더 |
-| `LettuceLeaderGroupElection` | `LeaderGroupElection` | `LettuceSemaphore` 기반 블로킹 복수 리더 |
-| `LettuceSuspendLeaderElection` | `SuspendLeaderElection` | `LettuceSuspendLock` 기반 코루틴 단일 리더 |
-| `LettuceSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | `LettuceSuspendSemaphore` 기반 코루틴 복수 리더 |
-| `LettuceSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `LettuceSuspendLeaderElection` 생성 |
-| `LettuceSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `LettuceSuspendLeaderGroupElection` 생성 |
+| `LettuceLeaderElector` | `LeaderElector` | `LettuceLock` 기반 블로킹 단일 리더 |
+| `LettuceLeaderGroupElector` | `LeaderGroupElector` | `LettuceSemaphore` 기반 블로킹 복수 리더 |
+| `LettuceSuspendLeaderElector` | `SuspendLeaderElector` | `LettuceSuspendLock` 기반 코루틴 단일 리더 |
+| `LettuceSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | `LettuceSuspendSemaphore` 기반 코루틴 복수 리더 |
+| `LettuceSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `LettuceSuspendLeaderElector` 생성 |
+| `LettuceSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `LettuceSuspendLeaderGroupElector` 생성 |
 
 ## 사용 예시
 
@@ -80,7 +80,7 @@ val connection = redisClient.connect()
 ### 블로킹 단일 리더
 
 ```kotlin
-val election = LettuceLeaderElection(connection)
+val election = LettuceLeaderElector(connection)
 
 val result = election.runIfLeader("daily-report") {
     generateReport()
@@ -92,7 +92,7 @@ val result = election.runIfLeader("daily-report") {
 
 ```kotlin
 val options = LeaderGroupElectionOptions(maxLeaders = 3)
-val election = LettuceLeaderGroupElection(connection, options)
+val election = LettuceLeaderGroupElector(connection, options)
 
 val result = election.runIfLeader("parallel-batch") {
     processChunk()
@@ -102,7 +102,7 @@ val result = election.runIfLeader("parallel-batch") {
 ### 코루틴 suspend 단일 리더
 
 ```kotlin
-val election = LettuceSuspendLeaderElection(connection)
+val election = LettuceSuspendLeaderElector(connection)
 
 coroutineScope {
     val result = election.runIfLeader("nightly-sync") {
@@ -115,7 +115,7 @@ coroutineScope {
 
 ```kotlin
 val options = LeaderGroupElectionOptions(maxLeaders = 2)
-val election = LettuceSuspendLeaderGroupElection(connection, options)
+val election = LettuceSuspendLeaderGroupElector(connection, options)
 
 coroutineScope {
     val jobs = (1..5).map {
@@ -136,7 +136,7 @@ val options = LeaderElectionOptions(
     waitTime = Duration.ofSeconds(3),
     leaseTime = Duration.ofSeconds(30)
 )
-val election = LettuceLeaderElection(connection, options)
+val election = LettuceLeaderElector(connection, options)
 ```
 
 ### SPI 팩토리 사용

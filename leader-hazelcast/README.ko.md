@@ -22,10 +22,10 @@ Hazelcast 기반 분산 리더 선출 — 블로킹, 비동기, Virtual Thread, 
 
 ```mermaid
 classDiagram
-    class LeaderElection { <<interface>> }
-    class LeaderGroupElection { <<interface>> }
-    class SuspendLeaderElection { <<interface>> }
-    class SuspendLeaderGroupElection { <<interface>> }
+    class LeaderElector { <<interface>> }
+    class LeaderGroupElector { <<interface>> }
+    class SuspendLeaderElector { <<interface>> }
+    class SuspendLeaderGroupElector { <<interface>> }
 
     class HazelcastLock {
         +tryLock(waitTime, leaseTime) Boolean
@@ -38,25 +38,25 @@ classDiagram
         +unlock()
     }
 
-    HazelcastLeaderElection ..|> LeaderElection
-    HazelcastLeaderGroupElection ..|> LeaderGroupElection
-    HazelcastSuspendLeaderElection ..|> SuspendLeaderElection
-    HazelcastSuspendLeaderGroupElection ..|> SuspendLeaderGroupElection
+    HazelcastLeaderElector ..|> LeaderElector
+    HazelcastLeaderGroupElector ..|> LeaderGroupElector
+    HazelcastSuspendLeaderElector ..|> SuspendLeaderElector
+    HazelcastSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
 
-    HazelcastLeaderElection --> HazelcastLock
-    HazelcastLeaderGroupElection --> HazelcastLock
-    HazelcastSuspendLeaderElection --> HazelcastSuspendLock
-    HazelcastSuspendLeaderGroupElection --> HazelcastSuspendLock
+    HazelcastLeaderElector --> HazelcastLock
+    HazelcastLeaderGroupElector --> HazelcastLock
+    HazelcastSuspendLeaderElector --> HazelcastSuspendLock
+    HazelcastSuspendLeaderGroupElector --> HazelcastSuspendLock
 ```
 
 ## 구현체
 
 | 클래스 | 인터페이스 | 설명 |
 |--------|-----------|------|
-| `HazelcastLeaderElection` | `LeaderElection` | 블로킹 + 비동기 단일 리더 |
-| `HazelcastLeaderGroupElection` | `LeaderGroupElection` | 블로킹 + 비동기 복수 리더 (슬롯 기반) |
-| `HazelcastSuspendLeaderElection` | `SuspendLeaderElection` | 코루틴 단일 리더 |
-| `HazelcastSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | 코루틴 복수 리더 (슬롯 기반) |
+| `HazelcastLeaderElector` | `LeaderElector` | 블로킹 + 비동기 단일 리더 |
+| `HazelcastLeaderGroupElector` | `LeaderGroupElector` | 블로킹 + 비동기 복수 리더 (슬롯 기반) |
+| `HazelcastSuspendLeaderElector` | `SuspendLeaderElector` | 코루틴 단일 리더 |
+| `HazelcastSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | 코루틴 복수 리더 (슬롯 기반) |
 
 ## 사용법
 
@@ -72,7 +72,7 @@ val hazelcast = HazelcastClient.newHazelcastClient(config)
 ### 블로킹 단일 리더
 
 ```kotlin
-val election = HazelcastLeaderElection(hazelcast)
+val election = HazelcastLeaderElector(hazelcast)
 
 val result = election.runIfLeader("daily-report") {
     generateReport()
@@ -84,7 +84,7 @@ val result = election.runIfLeader("daily-report") {
 
 ```kotlin
 val options = LeaderGroupElectionOptions(maxLeaders = 3)
-val election = HazelcastLeaderGroupElection(hazelcast, options)
+val election = HazelcastLeaderGroupElector(hazelcast, options)
 
 val result = election.runIfLeader("parallel-batch") {
     processChunk()
@@ -95,7 +95,7 @@ val result = election.runIfLeader("parallel-batch") {
 ### 비동기 단일 리더
 
 ```kotlin
-val election = HazelcastLeaderElection(hazelcast)
+val election = HazelcastLeaderElector(hazelcast)
 
 val future: CompletableFuture<Report?> = election.runAsyncIfLeader("daily-report") {
     CompletableFuture.supplyAsync { generateReport() }
@@ -105,7 +105,7 @@ val future: CompletableFuture<Report?> = election.runAsyncIfLeader("daily-report
 ### 코루틴 단일 리더
 
 ```kotlin
-val election = HazelcastSuspendLeaderElection(hazelcast)
+val election = HazelcastSuspendLeaderElector(hazelcast)
 
 val result = election.runIfLeader("nightly-sync") {
     delay(100)
@@ -117,7 +117,7 @@ val result = election.runIfLeader("nightly-sync") {
 
 ```kotlin
 val options = LeaderGroupElectionOptions(maxLeaders = 2)
-val election = HazelcastSuspendLeaderGroupElection(hazelcast, options)
+val election = HazelcastSuspendLeaderGroupElector(hazelcast, options)
 
 coroutineScope {
     val jobs = (1..5).map {
@@ -146,7 +146,7 @@ val options = LeaderElectionOptions(
     waitTime = Duration.ofSeconds(3),
     leaseTime = Duration.ofSeconds(60)
 )
-val election = HazelcastLeaderElection(hazelcast, options)
+val election = HazelcastLeaderElector(hazelcast, options)
 ```
 
 ## 락 내부 구현

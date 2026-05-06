@@ -34,7 +34,7 @@ fun StatefulRedisConnection<String, String>.leaderElection(
  * 동기([runIfLeader])와 비동기([runAsyncIfLeader]) 방식을 모두 지원합니다.
  *
  * ```kotlin
- * val election = LettuceLeaderElection(connection)
+ * val election = LettuceLeaderElector(connection)
  * val result = election.runIfLeader("daily-job") { "done" }
  * ```
  *
