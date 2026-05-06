@@ -39,7 +39,7 @@ fun StatefulRedisConnection<String, String>.leaderGroupElection(
  *
  * ```kotlin
  * val options = LeaderGroupElectionOptions(maxLeaders = 3)
- * val election = LettuceLeaderGroupElection(connection, options)
+ * val election = LettuceLeaderGroupElector(connection, options)
  * val result = election.runIfLeader("batch-job") { processChunk() }
  * println(election.state("batch-job"))
  * ```

@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap
  * - 이 구현체는 `kotlinx.coroutines.sync.Semaphore`(코루틴 suspend)를 사용합니다.
  *
  * ```kotlin
- * val election = LocalSuspendLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+ * val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
  *
  * // 최대 3개 코루틴이 동시에 실행
  * val result = election.runIfLeader("batch-job") { processChunkSuspend() }
@@ -44,7 +44,7 @@ class LocalSuspendLeaderGroupElector private constructor(
          * [LeaderGroupElectionOptions]을 이용해 [LocalSuspendLeaderGroupElector] 인스턴스를 생성합니다.
          *
          * ```kotlin
-         * val election = LocalSuspendLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+         * val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
          * val result = election.runIfLeader("batch-job") { "done" }
          * // result == "done"
          * ```
@@ -75,7 +75,7 @@ class LocalSuspendLeaderGroupElector private constructor(
      * `maxLeaders - availablePermits`로 계산하므로 근사값입니다.
      *
      * ```kotlin
-     * val election = LocalSuspendLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+     * val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
      * val count = election.activeCount("batch-job")
      * // count == 0  (아무도 실행 중이 아닐 때)
      * ```
@@ -90,7 +90,7 @@ class LocalSuspendLeaderGroupElector private constructor(
      * [lockName]에 대해 새 리더를 수용할 수 있는 남은 슬롯 수를 반환합니다.
      *
      * ```kotlin
-     * val election = LocalSuspendLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+     * val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
      * val slots = election.availableSlots("batch-job")
      * // slots == 3  (아무도 실행 중이 아닐 때)
      * ```
@@ -105,7 +105,7 @@ class LocalSuspendLeaderGroupElector private constructor(
      * [lockName]에 대한 현재 [LeaderGroupState] 스냅샷을 반환합니다.
      *
      * ```kotlin
-     * val election = LocalSuspendLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+     * val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
      * val state = election.state("batch-job")
      * // state.maxLeaders == 3
      * // state.activeCount == 0
@@ -125,7 +125,7 @@ class LocalSuspendLeaderGroupElector private constructor(
      * - [action] 예외 발생 시에도 슬롯은 반드시 반환됩니다.
      *
      * ```kotlin
-     * val election = LocalSuspendLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+     * val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
      * val result = election.runIfLeader("batch-job") { "done" }
      * // result == "done"
      * ```

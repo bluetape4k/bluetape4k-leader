@@ -14,7 +14,7 @@ import java.time.Duration
  *     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3),
  *     retryDelay = Duration.ofMillis(100),
  * )
- * val election = MongoLeaderGroupElection(groupCollection, options)
+ * val election = MongoLeaderGroupElector(groupCollection, options)
  * val result = election.runIfLeader("batch-job") { processChunk() }
  * // result == processChunk() 반환값 (슬롯 획득 성공) 또는 null (슬롯 없음)
  * ```

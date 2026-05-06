@@ -35,7 +35,7 @@ import kotlin.random.Random
  *
  * ### 기본 사용
  * ```kotlin
- * val election = ExposedJdbcLeaderGroupElection(
+ * val election = ExposedJdbcLeaderGroupElector(
  *     db,
  *     ExposedJdbcLeaderGroupElectionOptions(
  *         leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3),

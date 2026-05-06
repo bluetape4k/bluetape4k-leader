@@ -21,7 +21,7 @@ import java.util.concurrent.Executor
  * CP Subsystem 없이 동작하며 토큰 기반이므로 스레드에 귀속되지 않습니다.
  *
  * ```kotlin
- * val election = HazelcastLeaderGroupElection(hazelcastInstance, LeaderGroupElectionOptions(maxLeaders = 3))
+ * val election = HazelcastLeaderGroupElector(hazelcastInstance, LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = election.runIfLeader("batch-job") { processChunk() }
  * ```
  *

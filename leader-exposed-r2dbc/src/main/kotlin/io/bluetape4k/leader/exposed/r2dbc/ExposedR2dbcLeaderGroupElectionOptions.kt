@@ -17,7 +17,7 @@ import java.io.Serializable
  *     recordHistory = true,
  *     lockOwner = "worker-1",
  * )
- * val election = ExposedR2dbcSuspendLeaderGroupElection(db, options)
+ * val election = ExposedR2dbcSuspendLeaderGroupElector(db, options)
  * ```
  *
  * @property leaderGroupOptions 그룹 리더 선출 옵션 (maxLeaders, waitTime, leaseTime). `maxLeaders`는 양수여야 함

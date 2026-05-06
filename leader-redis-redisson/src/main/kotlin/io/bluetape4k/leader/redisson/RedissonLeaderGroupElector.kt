@@ -58,7 +58,7 @@ inline fun <T> RedissonClient.runIfLeaderGroup(
  *
  * ```kotlin
  * val options = LeaderGroupElectionOptions(maxLeaders = 3)
- * val election = RedissonLeaderGroupElection(redissonClient, options)
+ * val election = RedissonLeaderGroupElector(redissonClient, options)
  *
  * // 최대 3개 스레드/프로세스가 동시에 실행
  * val result = election.runIfLeader("batch-job") { processChunk() }

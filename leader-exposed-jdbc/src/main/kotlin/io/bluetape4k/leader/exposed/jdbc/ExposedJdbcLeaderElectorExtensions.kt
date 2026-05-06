@@ -9,7 +9,7 @@ import java.util.concurrent.Executor
 /**
  * 이 [Database]에 대한 단일 리더 선출을 실행합니다.
  *
- * `ExposedJdbcLeaderElection(this, options).runIfLeader(lockName, action)`의 편의 함수입니다.
+ * `ExposedJdbcLeaderElector(this, options).runIfLeader(lockName, action)`의 편의 함수입니다.
  * [ExposedJdbcLeaderElector.invoke]를 통해 ensureSchema가 보장됩니다.
  *
  * ```kotlin

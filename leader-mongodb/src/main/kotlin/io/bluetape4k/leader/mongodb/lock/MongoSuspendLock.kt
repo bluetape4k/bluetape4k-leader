@@ -38,7 +38,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * `unlock()`은 코루틴 취소에 취약합니다.
  * **반드시 `withContext(NonCancellable)` 블록 안에서 호출해야 합니다.**
  * 취소된 컨텍스트에서 직접 호출하면 CancellationException으로 즉시 중단됩니다.
- * Election 구현체 (예: [MongoSuspendLeaderElection])가 이 보장을 담당합니다.
+ * Election 구현체 (예: [MongoSuspendLeaderElector])가 이 보장을 담당합니다.
  *
  * ## 설계 주의사항
  * - [leaseTime]은 action의 최대 실행 시간보다 충분히 커야 합니다.

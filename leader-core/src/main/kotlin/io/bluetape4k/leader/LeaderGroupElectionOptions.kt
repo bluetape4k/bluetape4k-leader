@@ -14,7 +14,7 @@ import java.time.Duration
  *     waitTime = Duration.ofSeconds(3),
  *     leaseTime = Duration.ofSeconds(30),
  * )
- * val election = LocalLeaderGroupElection(options)
+ * val election = LocalLeaderGroupElector(options)
  * val result = election.runIfLeader("batch-job") { "done" }
  * // result == "done"
  * ```
@@ -44,7 +44,7 @@ data class LeaderGroupElectionOptions(
          * 기본 옵션 인스턴스 (`maxLeaders=2`, `waitTime=5s`, `leaseTime=60s`).
          *
          * ```kotlin
-         * val election = LocalLeaderGroupElection(LeaderGroupElectionOptions.Default)
+         * val election = LocalLeaderGroupElector(LeaderGroupElectionOptions.Default)
          * ```
          */
         @JvmField
