@@ -103,7 +103,7 @@ class FailOpenRunIntegrationTest {
         factory: LeaderElectorFactory,
         waitTime: Duration = Duration.ZERO,
     ): LeaderElectionAspect {
-        every { beanSelector.selectElectionFactory(any()) } returns
+        every { beanSelector.selectElectionFactory(any(), any()) } returns
                 LeaderBeanSelector.Selected("lettuceFactory", factory)
         return LeaderElectionAspect(
             beanSelector = beanSelector,
