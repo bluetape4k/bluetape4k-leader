@@ -36,7 +36,7 @@ import kotlin.random.Random
  *
  * ## 기본 사용
  * ```kotlin
- * val election = ExposedR2dbcSuspendLeaderGroupElection(
+ * val election = ExposedR2dbcSuspendLeaderGroupElector(
  *     db,
  *     ExposedR2dbcLeaderGroupElectionOptions(
  *         leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3),

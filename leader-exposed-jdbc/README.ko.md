@@ -20,16 +20,16 @@ H2, PostgreSQL, MySQL 8 호환.
 
 ```mermaid
 classDiagram
-    class LeaderElection {
+    class LeaderElector {
         <<interface>>
     }
-    class AsyncLeaderElection {
+    class AsyncLeaderElector {
         <<interface>>
     }
-    class LeaderGroupElection {
+    class LeaderGroupElector {
         <<interface>>
     }
-    class VirtualThreadLeaderElection {
+    class VirtualThreadLeaderElector {
         <<interface>>
     }
 
@@ -46,23 +46,23 @@ classDiagram
         +token: String
     }
 
-    ExposedJdbcLeaderElection ..|> LeaderElection
-    ExposedJdbcLeaderElection ..|> AsyncLeaderElection
-    ExposedJdbcLeaderGroupElection ..|> LeaderGroupElection
-    ExposedJdbcVirtualThreadLeaderElection ..|> VirtualThreadLeaderElection
+    ExposedJdbcLeaderElector ..|> LeaderElector
+    ExposedJdbcLeaderElector ..|> AsyncLeaderElector
+    ExposedJdbcLeaderGroupElector ..|> LeaderGroupElector
+    ExposedJdbcVirtualThreadLeaderElector ..|> VirtualThreadLeaderElector
 
-    ExposedJdbcLeaderElection --> ExposedJdbcLock
-    ExposedJdbcLeaderGroupElection --> ExposedJdbcGroupLock
-    ExposedJdbcVirtualThreadLeaderElection --> ExposedJdbcLeaderElection
+    ExposedJdbcLeaderElector --> ExposedJdbcLock
+    ExposedJdbcLeaderGroupElector --> ExposedJdbcGroupLock
+    ExposedJdbcVirtualThreadLeaderElector --> ExposedJdbcLeaderElector
 ```
 
 ## 구현체 목록
 
 | 클래스 | 구현 인터페이스 | 설명 |
 |-------|--------------|------|
-| `ExposedJdbcLeaderElection` | `LeaderElection` + `AsyncLeaderElection` | 블로킹 / CompletableFuture 단일 리더 |
-| `ExposedJdbcLeaderGroupElection` | `LeaderGroupElection` | 블로킹 복수 리더 (슬롯 세마포어) |
-| `ExposedJdbcVirtualThreadLeaderElection` | `VirtualThreadLeaderElection` | 가상 스레드 단일 리더 |
+| `ExposedJdbcLeaderElector` | `LeaderElector` + `AsyncLeaderElector` | 블로킹 / CompletableFuture 단일 리더 |
+| `ExposedJdbcLeaderGroupElector` | `LeaderGroupElector` | 블로킹 복수 리더 (슬롯 세마포어) |
+| `ExposedJdbcVirtualThreadLeaderElector` | `VirtualThreadLeaderElector` | 가상 스레드 단일 리더 |
 
 ## 사용 예시
 
@@ -77,7 +77,7 @@ val db = Database.connect(hikariDataSource)
 ### 블로킹 단일 리더
 
 ```kotlin
-val election = ExposedJdbcLeaderElection(db)
+val election = ExposedJdbcLeaderElector(db)
 
 val result = election.runIfLeader("daily-report") {
     generateReport()
@@ -88,7 +88,7 @@ val result = election.runIfLeader("daily-report") {
 ### 비동기 단일 리더 (CompletableFuture)
 
 ```kotlin
-val election = ExposedJdbcLeaderElection(db)
+val election = ExposedJdbcLeaderElector(db)
 
 val future: CompletableFuture<Report?> = election.runAsyncIfLeader(
     lockName = "daily-report",
@@ -103,7 +103,7 @@ val future: CompletableFuture<Report?> = election.runAsyncIfLeader(
 val options = ExposedJdbcLeaderGroupElectionOptions(
     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3)
 )
-val election = ExposedJdbcLeaderGroupElection(db, options)
+val election = ExposedJdbcLeaderGroupElector(db, options)
 
 val result = election.runIfLeader("parallel-batch") {
     processChunk()
@@ -122,9 +122,9 @@ println("사용 가능 슬롯: ${election.availableSlots("parallel-batch")}")
 ### 가상 스레드 단일 리더
 
 ```kotlin
-// 기존 ExposedJdbcLeaderElection을 래핑
-val election = ExposedJdbcLeaderElection(db)
-val vtElection = ExposedJdbcVirtualThreadLeaderElection(election)
+// 기존 ExposedJdbcLeaderElector을 래핑
+val election = ExposedJdbcLeaderElector(db)
+val vtElection = ExposedJdbcVirtualThreadLeaderElector(election)
 
 val future: VirtualFuture<Result?> = vtElection.runAsyncIfLeader("nightly-sync") {
     syncData()
@@ -148,7 +148,7 @@ val options = ExposedJdbcLeaderElectionOptions(
     recordHistory = true,
     lockOwner = "node-1"
 )
-val election = ExposedJdbcLeaderElection(db, options)
+val election = ExposedJdbcLeaderElector(db, options)
 ```
 
 ## 락 내부 동작

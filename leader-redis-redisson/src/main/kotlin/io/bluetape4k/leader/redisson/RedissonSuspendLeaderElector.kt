@@ -62,7 +62,7 @@ suspend inline fun <T> RedissonClient.suspendRunIfLeader(
  * 락 소유자를 식별합니다. (Redis 왕복 없음)
  *
  * ```kotlin
- * val election = RedissonSuspendLeaderElection(redissonClient)
+ * val election = RedissonSuspendLeaderElector(redissonClient)
  * val result = election.runIfLeader("my-job") {
  *     // 리더로 선출된 경우에만 실행되는 suspend 작업
  *     delay(100)

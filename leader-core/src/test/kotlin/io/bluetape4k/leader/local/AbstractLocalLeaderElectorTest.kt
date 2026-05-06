@@ -43,7 +43,7 @@ class AbstractLocalLeaderElectorTest {
     }
 
     @Test
-    fun `blank lockName 으로 호출 시 IllegalArgumentException 이 발생한다 (LocalLeaderElection)`() {
+    fun `blank lockName 으로 호출 시 IllegalArgumentException 이 발생한다 (LocalLeaderElector)`() {
         val election = LocalLeaderElector()
 
         assertThrows<IllegalArgumentException> {
@@ -55,7 +55,7 @@ class AbstractLocalLeaderElectorTest {
     }
 
     @Test
-    fun `blank lockName 으로 호출 시 IllegalArgumentException 이 발생한다 (LocalAsyncLeaderElection)`() {
+    fun `blank lockName 으로 호출 시 IllegalArgumentException 이 발생한다 (LocalAsyncLeaderElector)`() {
         val election = LocalAsyncLeaderElector()
 
         assertThrows<Exception> {
@@ -66,7 +66,7 @@ class AbstractLocalLeaderElectorTest {
     }
 
     @Test
-    fun `blank lockName 으로 호출 시 IllegalArgumentException 이 발생한다 (LocalVirtualThreadLeaderElection)`() {
+    fun `blank lockName 으로 호출 시 IllegalArgumentException 이 발생한다 (LocalVirtualThreadLeaderElector)`() {
         val election = LocalVirtualThreadLeaderElector()
 
         val result = runCatching {

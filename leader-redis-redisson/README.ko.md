@@ -16,60 +16,62 @@
 
 ```mermaid
 classDiagram
-    class LeaderElection {
+    class LeaderElector {
         <<interface>>
     }
-    class LeaderGroupElection {
+    class LeaderGroupElector {
         <<interface>>
     }
-    class SuspendLeaderElection {
+    class SuspendLeaderElector {
         <<interface>>
     }
-    class SuspendLeaderGroupElection {
+    class SuspendLeaderGroupElector {
         <<interface>>
     }
 
-    class RedissonLeaderElection {
+    class RedissonLeaderElector {
         -redissonClient RedissonClient
         -options LeaderElectionOptions
         +runIfLeader(lockName, action) T?
     }
-    class RedissonLeaderGroupElection {
+    class RedissonLeaderGroupElector {
         -redissonClient RedissonClient
         -options LeaderGroupElectionOptions
         +runIfLeader(lockName, action) T?
     }
-    class RedissonSuspendLeaderElection {
+    class RedissonSuspendLeaderElector {
         -redissonClient RedissonClient
         -options LeaderElectionOptions
         +runIfLeader(lockName, action) T?
     }
-    class RedissonSuspendLeaderGroupElection {
+    class RedissonSuspendLeaderGroupElector {
         -redissonClient RedissonClient
         -options LeaderGroupElectionOptions
         +runIfLeader(lockName, action) T?
     }
 
-    RedissonLeaderElection ..|> LeaderElection
-    RedissonLeaderGroupElection ..|> LeaderGroupElection
-    RedissonSuspendLeaderElection ..|> SuspendLeaderElection
-    RedissonSuspendLeaderGroupElection ..|> SuspendLeaderGroupElection
+    RedissonLeaderElector ..|> LeaderElector
+    RedissonLeaderGroupElector ..|> LeaderGroupElector
+    RedissonSuspendLeaderElector ..|> SuspendLeaderElector
+    RedissonSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
 ```
 
 ## 구현체 목록
 
 | 클래스 | 구현 인터페이스 | 설명 |
 |-------|--------------|------|
-| `RedissonLeaderElection` | `LeaderElection` | `RLock.tryLock()` 기반 블로킹 |
-| `RedissonLeaderGroupElection` | `LeaderGroupElection` | `RSemaphore` 기반 블로킹 복수 리더 |
-| `RedissonSuspendLeaderElection` | `SuspendLeaderElection` | 코루틴, PID 시드 Snowflake 락 ID |
-| `RedissonSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | `RSemaphoreAsync` 기반 코루틴 복수 리더 |
+| `RedissonLeaderElector` | `LeaderElector` | `RLock.tryLock()` 기반 블로킹 |
+| `RedissonLeaderGroupElector` | `LeaderGroupElector` | `RSemaphore` 기반 블로킹 복수 리더 |
+| `RedissonSuspendLeaderElector` | `SuspendLeaderElector` | 코루틴, PID 시드 Snowflake 락 ID |
+| `RedissonSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | `RSemaphoreAsync` 기반 코루틴 복수 리더 |
+| `RedissonSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `RedissonSuspendLeaderElector` 생성 |
+| `RedissonSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `RedissonSuspendLeaderGroupElector` 생성 |
 
 ## 코루틴 락 ID 설계
 
 Redisson은 락 ID(스레드 ID)를 "소유자" 식별자로 사용합니다. 동일한 ID는 "내가 이 락을 보유 중"을 의미하며, 재진입성(reentrancy)을 활성화합니다. 코루틴 환경에서는 여러 코루틴이 같은 스레드에서 실행될 수 있으므로, 스레드 기반 ID를 사용하면 잘못된 재진입이 발생합니다.
 
-`RedissonSuspendLeaderElection`은 `runIfLeader` 호출마다 미니 Snowflake로 고유한 락 ID를 생성합니다:
+`RedissonSuspendLeaderElector`은 `runIfLeader` 호출마다 미니 Snowflake로 고유한 락 ID를 생성합니다:
 
 ```
 timestamp(42비트) | pid%(2^10)(10비트) | seq(12비트)
@@ -96,7 +98,7 @@ val client = Redisson.create(config)
 ### 블로킹 단일 리더
 
 ```kotlin
-val election = RedissonLeaderElection(client)
+val election = RedissonLeaderElector(client)
 
 val result = election.runIfLeader("daily-report") {
     generateReport()
@@ -108,7 +110,7 @@ val result = election.runIfLeader("daily-report") {
 
 ```kotlin
 val options = LeaderGroupElectionOptions(maxLeaders = 3)
-val election = RedissonLeaderGroupElection(client, options)
+val election = RedissonLeaderGroupElector(client, options)
 
 val result = election.runIfLeader("parallel-batch") {
     processChunk()
@@ -121,7 +123,7 @@ println(election.availableSlots("parallel-batch")) // 잔여 슬롯 수
 ### 코루틴 suspend 단일 리더
 
 ```kotlin
-val election = RedissonSuspendLeaderElection(client)
+val election = RedissonSuspendLeaderElector(client)
 
 val result = election.runIfLeader("nightly-sync") {
     syncData()
@@ -132,7 +134,7 @@ val result = election.runIfLeader("nightly-sync") {
 
 ```kotlin
 val options = LeaderGroupElectionOptions(maxLeaders = 2)
-val election = RedissonSuspendLeaderGroupElection(client, options)
+val election = RedissonSuspendLeaderGroupElector(client, options)
 
 coroutineScope {
     val jobs = (1..5).map {
@@ -153,7 +155,27 @@ val options = LeaderElectionOptions(
     waitTime = Duration.ofSeconds(3),
     leaseTime = Duration.ofSeconds(30)
 )
-val election = RedissonLeaderElection(client, options)
+val election = RedissonLeaderElector(client, options)
+```
+
+### SPI 팩토리 사용
+
+```kotlin
+val factory: SuspendLeaderElectorFactory = RedissonSuspendLeaderElectorFactory(client)
+
+coroutineScope {
+    val elector = factory.create(LeaderElectionOptions.Default)
+    val result = elector.runIfLeader("daily-job") { doWork() }
+}
+```
+
+```kotlin
+val groupFactory: SuspendLeaderGroupElectorFactory = RedissonSuspendLeaderGroupElectorFactory(client)
+
+coroutineScope {
+    val elector = groupFactory.create(LeaderGroupElectionOptions(maxLeaders = 3))
+    val result = elector.runIfLeader("parallel-job") { processChunk() }
+}
 ```
 
 ## 테스트 인프라

@@ -27,7 +27,7 @@ class LeaderGroupElectionStateTest {
 
     private fun randomLockName() = "lock-${Base58.randomString(8)}"
 
-    // ── LocalLeaderGroupElection 을 통한 LeaderGroupElectionState 계약 검증 ──
+    // ── LocalLeaderGroupElector 을 통한 LeaderGroupElectionState 계약 검증 ──
 
     @Test
     fun `activeCount - 초기 상태에서 0을 반환한다 (sync 구현체)`() {
@@ -84,7 +84,7 @@ class LeaderGroupElectionStateTest {
         executor.awaitTermination(3, TimeUnit.SECONDS)
     }
 
-    // ── LocalAsyncLeaderGroupElection 을 통한 LeaderGroupElectionState 계약 검증 ──
+    // ── LocalAsyncLeaderGroupElector 을 통한 LeaderGroupElectionState 계약 검증 ──
 
     @Test
     fun `activeCount - 초기 상태에서 0을 반환한다 (async 구현체)`() {

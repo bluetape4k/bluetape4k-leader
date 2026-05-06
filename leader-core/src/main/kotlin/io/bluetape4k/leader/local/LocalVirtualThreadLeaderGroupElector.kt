@@ -21,7 +21,7 @@ import io.bluetape4k.support.requirePositiveNumber
  * - 반환이 [VirtualFuture]로 `await()` API가 명시적입니다.
  *
  * ```kotlin
- * val election = LocalVirtualThreadLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+ * val election = LocalVirtualThreadLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
  *
  * // 최대 3개 Virtual Thread 가 동시에 실행
  * val result = election.runAsyncIfLeader("batch-job") { processChunk() }.await()
@@ -39,7 +39,7 @@ class LocalVirtualThreadLeaderGroupElector private constructor(
          * [LeaderGroupElectionOptions]을 이용해 [LocalVirtualThreadLeaderGroupElector] 인스턴스를 생성합니다.
          *
          * ```kotlin
-         * val election = LocalVirtualThreadLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+         * val election = LocalVirtualThreadLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
          * val result = election.runAsyncIfLeader("batch-job") { "done" }.await()
          * // result == "done"
          * ```
@@ -59,7 +59,7 @@ class LocalVirtualThreadLeaderGroupElector private constructor(
      * [lockName]의 슬롯을 Virtual Thread에서 획득하고 [action]을 실행합니다.
      *
      * ```kotlin
-     * val election = LocalVirtualThreadLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+     * val election = LocalVirtualThreadLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
      * val result = election.runAsyncIfLeader("batch-job") { 42 }.await()
      * // result == 42
      * ```

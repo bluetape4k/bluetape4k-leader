@@ -18,11 +18,11 @@ Lock strategy:
 
 ```mermaid
 classDiagram
-    class LeaderElection { <<interface>> }
-    class AsyncLeaderElection { <<interface>> }
-    class LeaderGroupElection { <<interface>> }
-    class SuspendLeaderElection { <<interface>> }
-    class SuspendLeaderGroupElection { <<interface>> }
+    class LeaderElector { <<interface>> }
+    class AsyncLeaderElector { <<interface>> }
+    class LeaderGroupElector { <<interface>> }
+    class SuspendLeaderElector { <<interface>> }
+    class SuspendLeaderGroupElector { <<interface>> }
 
     class MongoLock {
         +tryLock(waitTime, leaseTime) Boolean
@@ -35,26 +35,28 @@ classDiagram
         +isHeldByCurrentInstance() Boolean
     }
 
-    MongoLeaderElection ..|> LeaderElection
-    MongoLeaderElection ..|> AsyncLeaderElection
-    MongoLeaderGroupElection ..|> LeaderGroupElection
-    MongoSuspendLeaderElection ..|> SuspendLeaderElection
-    MongoSuspendLeaderGroupElection ..|> SuspendLeaderGroupElection
+    MongoLeaderElector ..|> LeaderElector
+    MongoLeaderElector ..|> AsyncLeaderElector
+    MongoLeaderGroupElector ..|> LeaderGroupElector
+    MongoSuspendLeaderElector ..|> SuspendLeaderElector
+    MongoSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
 
-    MongoLeaderElection --> MongoLock
-    MongoLeaderGroupElection --> MongoLock
-    MongoSuspendLeaderElection --> MongoSuspendLock
-    MongoSuspendLeaderGroupElection --> MongoSuspendLock
+    MongoLeaderElector --> MongoLock
+    MongoLeaderGroupElector --> MongoLock
+    MongoSuspendLeaderElector --> MongoSuspendLock
+    MongoSuspendLeaderGroupElector --> MongoSuspendLock
 ```
 
 ## Implementations
 
 | Class | Interface | Description |
 |-------|-----------|-------------|
-| `MongoLeaderElection` | `LeaderElection` + `AsyncLeaderElection` | Blocking / async single-leader via `MongoLock` |
-| `MongoLeaderGroupElection` | `LeaderGroupElection` | Blocking multi-leader via slot-based `MongoLock` |
-| `MongoSuspendLeaderElection` | `SuspendLeaderElection` | Coroutine single-leader via `MongoSuspendLock` |
-| `MongoSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | Coroutine multi-leader via slot-based `MongoSuspendLock` |
+| `MongoLeaderElector` | `LeaderElector` + `AsyncLeaderElector` | Blocking / async single-leader via `MongoLock` |
+| `MongoLeaderGroupElector` | `LeaderGroupElector` | Blocking multi-leader via slot-based `MongoLock` |
+| `MongoSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine single-leader via `MongoSuspendLock` |
+| `MongoSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader via slot-based `MongoSuspendLock` |
+| `MongoSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `MongoSuspendLeaderElector` per call |
+| `MongoSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `MongoSuspendLeaderGroupElector` per call |
 
 ## Collections
 
@@ -78,7 +80,7 @@ val lockCollection = db.getCollection("bluetape4k_leader_locks")
 ### Blocking single-leader
 
 ```kotlin
-val election = MongoLeaderElection(lockCollection)
+val election = MongoLeaderElector(lockCollection)
 
 val result = election.runIfLeader("daily-report") {
     generateReport()
@@ -93,7 +95,7 @@ val options = MongoLeaderGroupElectionOptions(
     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3)
 )
 val groupCollection = db.getCollection("bluetape4k_leader_group_locks")
-val election = MongoLeaderGroupElection(groupCollection, options)
+val election = MongoLeaderGroupElector(groupCollection, options)
 
 val result = election.runIfLeader("parallel-batch") {
     processChunk()
@@ -104,7 +106,7 @@ val result = election.runIfLeader("parallel-batch") {
 ### Async single-leader
 
 ```kotlin
-val election = MongoLeaderElection(lockCollection)
+val election = MongoLeaderElector(lockCollection)
 
 val future: CompletableFuture<String?> = election.runAsyncIfLeader(
     "async-job",
@@ -118,10 +120,10 @@ val result = future.get(5, TimeUnit.SECONDS)
 ### Coroutine single-leader
 
 ```kotlin
-// MongoSuspendLeaderElection is a suspend factory
+// MongoSuspendLeaderElector is a suspend factory
 val coroutineCollection = coroutineMongoClient.getDatabase("mydb")
     .getCollection<Document>("bluetape4k_leader_locks")
-val election = MongoSuspendLeaderElection(coroutineCollection)
+val election = MongoSuspendLeaderElector(coroutineCollection)
 
 val result = election.runIfLeader("nightly-sync") {
     syncData()
@@ -133,7 +135,7 @@ val result = election.runIfLeader("nightly-sync") {
 ```kotlin
 val syncCollection = db.getCollection("bluetape4k_leader_group_locks")
 val coroutineCollection = coroutineDb.getCollection<Document>("bluetape4k_leader_group_locks")
-val election = MongoSuspendLeaderGroupElection(syncCollection, coroutineCollection)
+val election = MongoSuspendLeaderGroupElector(syncCollection, coroutineCollection)
 
 val result = election.runIfLeader("task-group") {
     processTask()
@@ -151,7 +153,32 @@ val options = MongoLeaderElectionOptions(
     ),
     retryDelay = Duration.ofMillis(100),
 )
-val election = MongoLeaderElection(lockCollection, options)
+val election = MongoLeaderElector(lockCollection, options)
+```
+
+### Using SPI factories
+
+```kotlin
+val coroutineCollection = coroutineDb.getCollection<Document>("bluetape4k_leader_locks")
+val factory: SuspendLeaderElectorFactory =
+    MongoSuspendLeaderElectorFactory(coroutineCollection)
+
+coroutineScope {
+    val elector = factory.create(LeaderElectionOptions.Default)
+    val result = elector.runIfLeader("daily-job") { doWork() }
+}
+```
+
+```kotlin
+val syncGroupCollection = db.getCollection("bluetape4k_leader_group_locks")
+val coroutineGroupCollection = coroutineDb.getCollection<Document>("bluetape4k_leader_group_locks")
+val groupFactory: SuspendLeaderGroupElectorFactory =
+    MongoSuspendLeaderGroupElectorFactory(syncGroupCollection, coroutineGroupCollection)
+
+coroutineScope {
+    val elector = groupFactory.create(LeaderGroupElectionOptions(maxLeaders = 3))
+    val result = elector.runIfLeader("parallel-job") { processChunk() }
+}
 ```
 
 ## Lock Internals
@@ -183,12 +210,12 @@ try {
 }
 ```
 
-## Dual-collection design (`MongoSuspendLeaderGroupElection`)
+## Dual-collection design (`MongoSuspendLeaderGroupElector`)
 
 `activeCount()`, `availableSlots()`, and `state()` are non-suspend interface methods. The coroutine driver's `countDocuments` is `suspend`, so state queries use the **sync driver** and lock operations use the **coroutine driver**:
 
 ```kotlin
-MongoSuspendLeaderGroupElection(
+MongoSuspendLeaderGroupElector(
     groupCollection = db.getCollection("bluetape4k_leader_group_locks"),        // sync — for state()
     coroutineGroupCollection = coroutineDb.getCollection("bluetape4k_leader_group_locks"),  // suspend — for locks
 )

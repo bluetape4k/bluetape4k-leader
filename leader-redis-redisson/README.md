@@ -16,60 +16,62 @@ The coroutine implementation uses a PID-seeded mini-Snowflake ID generator to pr
 
 ```mermaid
 classDiagram
-    class LeaderElection {
+    class LeaderElector {
         <<interface>>
     }
-    class LeaderGroupElection {
+    class LeaderGroupElector {
         <<interface>>
     }
-    class SuspendLeaderElection {
+    class SuspendLeaderElector {
         <<interface>>
     }
-    class SuspendLeaderGroupElection {
+    class SuspendLeaderGroupElector {
         <<interface>>
     }
 
-    class RedissonLeaderElection {
+    class RedissonLeaderElector {
         -redissonClient RedissonClient
         -options LeaderElectionOptions
         +runIfLeader(lockName, action) T?
     }
-    class RedissonLeaderGroupElection {
+    class RedissonLeaderGroupElector {
         -redissonClient RedissonClient
         -options LeaderGroupElectionOptions
         +runIfLeader(lockName, action) T?
     }
-    class RedissonSuspendLeaderElection {
+    class RedissonSuspendLeaderElector {
         -redissonClient RedissonClient
         -options LeaderElectionOptions
         +runIfLeader(lockName, action) T?
     }
-    class RedissonSuspendLeaderGroupElection {
+    class RedissonSuspendLeaderGroupElector {
         -redissonClient RedissonClient
         -options LeaderGroupElectionOptions
         +runIfLeader(lockName, action) T?
     }
 
-    RedissonLeaderElection ..|> LeaderElection
-    RedissonLeaderGroupElection ..|> LeaderGroupElection
-    RedissonSuspendLeaderElection ..|> SuspendLeaderElection
-    RedissonSuspendLeaderGroupElection ..|> SuspendLeaderGroupElection
+    RedissonLeaderElector ..|> LeaderElector
+    RedissonLeaderGroupElector ..|> LeaderGroupElector
+    RedissonSuspendLeaderElector ..|> SuspendLeaderElector
+    RedissonSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
 ```
 
 ## Implementations
 
 | Class | Interface | Description |
 |-------|-----------|-------------|
-| `RedissonLeaderElection` | `LeaderElection` | Blocking via `RLock.tryLock()` |
-| `RedissonLeaderGroupElection` | `LeaderGroupElection` | Blocking multi-leader via `RSemaphore` |
-| `RedissonSuspendLeaderElection` | `SuspendLeaderElection` | Coroutine, PID-seeded Snowflake lock ID |
-| `RedissonSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | Coroutine multi-leader via `RSemaphoreAsync` |
+| `RedissonLeaderElector` | `LeaderElector` | Blocking via `RLock.tryLock()` |
+| `RedissonLeaderGroupElector` | `LeaderGroupElector` | Blocking multi-leader via `RSemaphore` |
+| `RedissonSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine, PID-seeded Snowflake lock ID |
+| `RedissonSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader via `RSemaphoreAsync` |
+| `RedissonSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `RedissonSuspendLeaderElector` per call |
+| `RedissonSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `RedissonSuspendLeaderGroupElector` per call |
 
 ## Coroutine Lock ID Design
 
 Redisson treats the lock ID (thread ID) as the "owner" identifier — the same ID means "I own this lock" and enables reentrancy. In coroutine environments, multiple coroutines run on the same thread, so a thread-based ID would cause false reentrancy.
 
-`RedissonSuspendLeaderElection` generates a unique lock ID per `runIfLeader` call using a mini-Snowflake:
+`RedissonSuspendLeaderElector` generates a unique lock ID per `runIfLeader` call using a mini-Snowflake:
 
 ```
 timestamp(42 bits) | pid%(2^10)(10 bits) | seq(12 bits)
@@ -96,7 +98,7 @@ val client = Redisson.create(config)
 ### Blocking single-leader
 
 ```kotlin
-val election = RedissonLeaderElection(client)
+val election = RedissonLeaderElector(client)
 
 val result = election.runIfLeader("daily-report") {
     generateReport()
@@ -108,7 +110,7 @@ val result = election.runIfLeader("daily-report") {
 
 ```kotlin
 val options = LeaderGroupElectionOptions(maxLeaders = 3)
-val election = RedissonLeaderGroupElection(client, options)
+val election = RedissonLeaderGroupElector(client, options)
 
 val result = election.runIfLeader("parallel-batch") {
     processChunk()
@@ -121,7 +123,7 @@ println(election.availableSlots("parallel-batch")) // remaining slots
 ### Coroutine suspend single-leader
 
 ```kotlin
-val election = RedissonSuspendLeaderElection(client)
+val election = RedissonSuspendLeaderElector(client)
 
 val result = election.runIfLeader("nightly-sync") {
     syncData()
@@ -132,7 +134,7 @@ val result = election.runIfLeader("nightly-sync") {
 
 ```kotlin
 val options = LeaderGroupElectionOptions(maxLeaders = 2)
-val election = RedissonSuspendLeaderGroupElection(client, options)
+val election = RedissonSuspendLeaderGroupElector(client, options)
 
 coroutineScope {
     val jobs = (1..5).map {
@@ -153,13 +155,33 @@ val options = LeaderElectionOptions(
     waitTime = Duration.ofSeconds(3),
     leaseTime = Duration.ofSeconds(30)
 )
-val election = RedissonLeaderElection(client, options)
+val election = RedissonLeaderElector(client, options)
 ```
 
 ### Using `invoke` factory
 
 ```kotlin
-val election = RedissonSuspendLeaderElection(client, LeaderElectionOptions.Default)
+val election = RedissonSuspendLeaderElector(client, LeaderElectionOptions.Default)
+```
+
+### Using SPI factories
+
+```kotlin
+val factory: SuspendLeaderElectorFactory = RedissonSuspendLeaderElectorFactory(client)
+
+coroutineScope {
+    val elector = factory.create(LeaderElectionOptions.Default)
+    val result = elector.runIfLeader("daily-job") { doWork() }
+}
+```
+
+```kotlin
+val groupFactory: SuspendLeaderGroupElectorFactory = RedissonSuspendLeaderGroupElectorFactory(client)
+
+coroutineScope {
+    val elector = groupFactory.create(LeaderGroupElectionOptions(maxLeaders = 3))
+    val result = elector.runIfLeader("parallel-job") { processChunk() }
+}
 ```
 
 ## Test Infrastructure

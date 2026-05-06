@@ -5,7 +5,7 @@ import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 /**
  * 이 [R2dbcDatabase]에 대한 단일 리더 선출을 suspend 실행합니다.
  *
- * `ExposedR2dbcSuspendLeaderElection(this, options).runIfLeader(lockName, action)`의 편의 함수입니다.
+ * `ExposedR2dbcSuspendLeaderElector(this, options).runIfLeader(lockName, action)`의 편의 함수입니다.
  * [ExposedR2DbcSuspendLeaderElector.invoke]를 통해 ensureSchema가 보장됩니다.
  *
  * **주의**: 호출마다 [ExposedR2DbcSuspendLeaderElector] 인스턴스가 새로 생성됩니다.
@@ -32,7 +32,7 @@ suspend fun <T> R2dbcDatabase.suspendRunIfLeader(
 /**
  * 이 [R2dbcDatabase]에 대한 그룹 리더 선출을 suspend 실행합니다.
  *
- * `ExposedR2dbcSuspendLeaderGroupElection(this, options).runIfLeader(lockName, action)`의 편의 함수입니다.
+ * `ExposedR2dbcSuspendLeaderGroupElector(this, options).runIfLeader(lockName, action)`의 편의 함수입니다.
  * [ExposedR2DbcSuspendLeaderGroupElector.invoke]를 통해 ensureSchema가 보장됩니다.
  *
  * **주의**: 호출마다 [ExposedR2DbcSuspendLeaderGroupElector] 인스턴스가 새로 생성됩니다.

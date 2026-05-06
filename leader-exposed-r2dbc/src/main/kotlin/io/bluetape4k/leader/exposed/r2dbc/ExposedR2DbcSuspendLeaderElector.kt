@@ -28,7 +28,7 @@ import java.time.Instant
  *
  * ## 기본 사용
  * ```kotlin
- * val election = ExposedR2dbcSuspendLeaderElection(db)
+ * val election = ExposedR2dbcSuspendLeaderElector(db)
  * val result = election.runIfLeader("daily-job") {
  *     delay(100)
  *     processData()

@@ -21,7 +21,7 @@ import io.bluetape4k.leader.LeaderGroupElectionState
  * - 상태 조회 메서드([state], [activeCount], [availableSlots])는 근사값을 반환할 수 있습니다.
  *
  * ```kotlin
- * val election = LocalSuspendLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+ * val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = election.runIfLeader("batch-job") { processChunkSuspend() }
  *
  * println(election.state("batch-job"))  // LeaderGroupState(activeCount=2, ...)

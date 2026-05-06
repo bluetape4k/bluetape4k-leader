@@ -10,7 +10,7 @@ import io.bluetape4k.concurrent.virtualthread.VirtualFuture
  * - [VirtualThreadLeaderGroupElector]은 [maxLeaders]개까지 동시에 리더를 허용합니다.
  *
  * ## [LeaderGroupElector] 과의 차이
- * - [LeaderGroupElector]의 [LeaderGroupElection.runAsyncIfLeader]는 [java.util.concurrent.CompletableFuture]를 반환합니다.
+ * - [LeaderGroupElector]의 [LeaderGroupElector.runAsyncIfLeader]는 [java.util.concurrent.CompletableFuture]를 반환합니다.
  * - 이 인터페이스의 [runAsyncIfLeader]는 [VirtualFuture]를 반환하며, `action`이 `() -> T` 람다로 단순합니다.
  * - Virtual Thread 기반이므로 I/O 블로킹 작업에 carrier thread를 소모하지 않습니다.
  *
@@ -21,7 +21,7 @@ import io.bluetape4k.concurrent.virtualthread.VirtualFuture
  * - 상태 조회 메서드([state], [activeCount], [availableSlots])는 [LeaderGroupElectionState]에서 상속합니다.
  *
  * ```kotlin
- * val election = LocalVirtualThreadLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+ * val election = LocalVirtualThreadLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = election.runAsyncIfLeader("batch-job") { processChunk() }.await()
  * ```
  */

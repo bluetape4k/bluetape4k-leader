@@ -22,7 +22,7 @@ import java.util.concurrent.locks.ReentrantLock
  * - Virtual Thread 기반이므로 I/O 블로킹 작업에 carrier thread를 소모하지 않습니다.
  *
  * ```kotlin
- * val election = LocalVirtualThreadLeaderElection()
+ * val election = LocalVirtualThreadLeaderElector()
  * val result = election.runAsyncIfLeader("job-lock") { "done" }.await()
  * // result == "done"
  * ```
@@ -39,7 +39,7 @@ class LocalVirtualThreadLeaderElector(
      * - 동일 스레드에서 동일 `lockName`으로 중첩 호출(재진입)이 가능합니다.
      *
      * ```kotlin
-     * val election = LocalVirtualThreadLeaderElection()
+     * val election = LocalVirtualThreadLeaderElector()
      * val result = election.runAsyncIfLeader("job-lock") { "done" }.await()
      * // result == "done"
      * ```

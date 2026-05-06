@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit
  * - 락 대기 중 인터럽트가 발생하면 [org.redisson.client.RedisException]으로 래핑되어 전파됩니다.
  *
  * ```kotlin
- * val election = RedissonLeaderElection(redissonClient)
+ * val election = RedissonLeaderElector(redissonClient)
  * val result = election.runIfLeader("my-job") {
  *     // 리더로 선출된 경우에만 실행
  *     processData()

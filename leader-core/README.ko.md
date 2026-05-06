@@ -14,42 +14,42 @@
 
 ```mermaid
 classDiagram
-    class AsyncLeaderElection {
+    class AsyncLeaderElector {
         <<interface>>
         +runAsyncIfLeader(lockName, action) CompletableFuture~T?~
     }
-    class LeaderElection {
+    class LeaderElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
     }
-    class VirtualThreadLeaderElection {
+    class VirtualThreadLeaderElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
     }
-    class SuspendLeaderElection {
+    class SuspendLeaderElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
     }
-    class AsyncLeaderGroupElection {
+    class AsyncLeaderGroupElector {
         <<interface>>
         +runAsyncIfLeader(lockName, action) CompletableFuture~T?~
         +state(lockName) LeaderGroupState
         +activeCount(lockName) Int
         +availableSlots(lockName) Int
     }
-    class LeaderGroupElection {
+    class LeaderGroupElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
     }
-    class SuspendLeaderGroupElection {
+    class SuspendLeaderGroupElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
     }
 
-    LeaderElection --|> AsyncLeaderElection
-    VirtualThreadLeaderElection --|> AsyncLeaderElection
-    LeaderGroupElection --|> AsyncLeaderGroupElection
-    SuspendLeaderGroupElection --|> AsyncLeaderGroupElection
+    LeaderElector --|> AsyncLeaderElector
+    VirtualThreadLeaderElector --|> AsyncLeaderElector
+    LeaderGroupElector --|> AsyncLeaderGroupElector
+    SuspendLeaderGroupElector --|> AsyncLeaderGroupElector
 ```
 
 ## API 계약
@@ -84,21 +84,21 @@ LeaderGroupElectionOptions(
 ```mermaid
 sequenceDiagram
     participant Caller
-    participant LeaderElection
+    participant LeaderElector
     participant LockStore
 
-    Caller->>LeaderElection: runIfLeader(lockName, action)
-    LeaderElection->>LockStore: tryLock(lockName, waitTime, leaseTime)
+    Caller->>LeaderElector: runIfLeader(lockName, action)
+    LeaderElector->>LockStore: tryLock(lockName, waitTime, leaseTime)
 
     alt 락 획득 성공
-        LockStore-->>LeaderElection: true
-        LeaderElection->>Caller: action()
-        Caller-->>LeaderElection: result
-        LeaderElection->>LockStore: unlock(lockName)
-        LeaderElection-->>Caller: result (T)
+        LockStore-->>LeaderElector: true
+        LeaderElector->>Caller: action()
+        Caller-->>LeaderElector: result
+        LeaderElector->>LockStore: unlock(lockName)
+        LeaderElector-->>Caller: result (T)
     else waitTime 내 획득 실패
-        LockStore-->>LeaderElection: false
-        LeaderElection-->>Caller: null
+        LockStore-->>LeaderElector: false
+        LeaderElector-->>Caller: null
     end
 ```
 
@@ -134,14 +134,14 @@ sequenceDiagram
 
 | 클래스 | 구현 인터페이스 | 설명 |
 |-------|--------------|------|
-| `LocalLeaderElection` | `LeaderElection` | 블로킹, `ReentrantLock` 기반 |
-| `LocalAsyncLeaderElection` | `AsyncLeaderElection` | 스레드풀 기반 `CompletableFuture` |
-| `LocalVirtualThreadLeaderElection` | `VirtualThreadLeaderElection` | 가상 스레드 1개/선출 |
-| `LocalSuspendLeaderElection` | `SuspendLeaderElection` | 코루틴 `Mutex` 기반 |
-| `LocalLeaderGroupElection` | `LeaderGroupElection` | `Semaphore` 기반 복수 리더 |
-| `LocalSuspendLeaderGroupElection` | `SuspendLeaderGroupElection` | 코루틴 `Semaphore` 기반 |
-| `LocalStrategicLeaderElection` | `StrategicLeaderElection` | 전략 기반 블로킹 선출 |
-| `LocalStrategicSuspendLeaderElection` | `StrategicSuspendLeaderElection` | 전략 기반 코루틴 선출 |
+| `LocalLeaderElector` | `LeaderElector` | 블로킹, `ReentrantLock` 기반 |
+| `LocalAsyncLeaderElector` | `AsyncLeaderElector` | 스레드풀 기반 `CompletableFuture` |
+| `LocalVirtualThreadLeaderElector` | `VirtualThreadLeaderElector` | 가상 스레드 1개/선출 |
+| `LocalSuspendLeaderElector` | `SuspendLeaderElector` | 코루틴 `Mutex` 기반 |
+| `LocalLeaderGroupElector` | `LeaderGroupElector` | `Semaphore` 기반 복수 리더 |
+| `LocalSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | 코루틴 `Semaphore` 기반 |
+| `LocalStrategicLeaderElector` | `StrategicLeaderElector` | 전략 기반 블로킹 선출 |
+| `LocalStrategicSuspendLeaderElector` | `StrategicSuspendLeaderElector` | 전략 기반 코루틴 선출 |
 
 ## 전략 기반 선출 (Strategic Election)
 
@@ -173,7 +173,7 @@ registerCandidate() → elect(strategy) → 1명 선출, 나머지 skip
 ### 핵심 인터페이스
 
 ```kotlin
-interface StrategicLeaderElection {
+interface StrategicLeaderElector {
     val nodeId: String
     fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration = Duration.ZERO)
     fun unregisterCandidate(lockName: String, nodeId: String)
@@ -187,7 +187,7 @@ interface StrategicLeaderElection {
 ### 전략 기반 선출 — IdleTime Scorer
 
 ```kotlin
-val election = LocalStrategicLeaderElection("node-1")
+val election = LocalStrategicLeaderElector("node-1")
 
 election.registerCandidate("batch-job", CandidateInfo("node-1"))
 election.registerCandidate("batch-job", CandidateInfo("node-2"))
@@ -210,7 +210,7 @@ val result = election.runIfLeader("weighted-job", strategy) { work() }
 ### 블로킹 단일 리더
 
 ```kotlin
-val election = LocalLeaderElection()
+val election = LocalLeaderElector()
 
 val result = election.runIfLeader("daily-job") {
     processData()
@@ -221,7 +221,7 @@ val result = election.runIfLeader("daily-job") {
 ### 코루틴 suspend 단일 리더
 
 ```kotlin
-val election = LocalSuspendLeaderElection()
+val election = LocalSuspendLeaderElector()
 
 val result = election.runIfLeader("nightly-sync") {
     syncToRemote()
@@ -232,7 +232,7 @@ val result = election.runIfLeader("nightly-sync") {
 
 ```kotlin
 val options = LeaderGroupElectionOptions(maxLeaders = 3)
-val election = LocalLeaderGroupElection(options)
+val election = LocalLeaderGroupElector(options)
 
 // 최대 3개의 동시 호출이 action을 실행 가능
 val result = election.runIfLeader("parallel-batch") {

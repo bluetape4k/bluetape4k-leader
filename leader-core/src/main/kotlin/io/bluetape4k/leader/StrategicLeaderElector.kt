@@ -23,7 +23,7 @@ import java.time.Duration
  * ## 사용 예제
  *
  * ```kotlin
- * val election = LocalStrategicLeaderElection("node-1")
+ * val election = LocalStrategicLeaderElector("node-1")
  *
  * // 1. 후보 등록 — 분산 환경에서는 heartbeat 주기로 갱신
  * election.registerCandidate("nightly-job", CandidateInfo(election.nodeId))

@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap
  *   재진입이 필요한 경우 [io.bluetape4k.leader.local.LocalLeaderElector] ([java.util.concurrent.locks.ReentrantLock] 기반)을 사용하세요.
  *
  * ```kotlin
- * val election = LocalSuspendLeaderElection()
+ * val election = LocalSuspendLeaderElector()
  * val result = election.runIfLeader("job-lock") { "done" }
  * // result == "done"
  * ```
@@ -42,7 +42,7 @@ class LocalSuspendLeaderElector(
      * 다른 코루틴이 동일 [lockName]의 [Mutex]를 보유 중이면 해제될 때까지 suspend됩니다.
      *
      * ```kotlin
-     * val election = LocalSuspendLeaderElection()
+     * val election = LocalSuspendLeaderElector()
      * val result = election.runIfLeader("job-lock") { "done" }
      * // result == "done"
      * ```

@@ -22,7 +22,7 @@ import org.bson.Document
  * MongoDB 백엔드 고유 옵션 (`retryDelay`)은 [baseOptions]를 통해 factory 생성 시점에 고정되며,
  * 매 호출마다 `baseOptions.copy(leaderOptions = options)`로 [LeaderElectionOptions]만 교체한다.
  *
- * `MongoLeaderElection(...)` 호출은 companion `operator fun invoke`로 라우팅되어
+ * `MongoLeaderElector(...)` 호출은 companion `operator fun invoke`로 라우팅되어
  * [MongoLock.ensureIndexes]가 함께 실행된다.
  *
  * @param collection 락 컬렉션

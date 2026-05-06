@@ -19,7 +19,7 @@ import java.io.Serializable
  *     recordHistory = true,
  *     lockOwner = "worker-1",
  * )
- * val election = ExposedJdbcLeaderElection(db, options)
+ * val election = ExposedJdbcLeaderElector(db, options)
  * ```
  *
  * @property leaderOptions 단일 리더 선출 옵션 (waitTime, leaseTime)

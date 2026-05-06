@@ -39,7 +39,7 @@ private typealias FailedKey = Pair<String, String>
  *
  * ## 카디널리티 경고
  *
- * `lock.name` 은 [io.bluetape4k.leader.spring.LeaderElection.name] SpEL 결과 그대로 태그가 된다.
+ * `lock.name` 은 [io.bluetape4k.leader.spring.LeaderElector.name] SpEL 결과 그대로 태그가 된다.
  * 동적 SpEL (`'tenant-' + #tenantId`) 을 그대로 노출하면 메터 인스턴스가 무한 증식해 백엔드를 고사시킬 수 있다.
  * 첫 등록 시 한 번 WARN 로그를 남기지만 — 정적 화이트리스트 사용을 권장한다.
  *

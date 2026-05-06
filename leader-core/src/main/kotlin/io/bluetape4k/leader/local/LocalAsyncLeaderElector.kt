@@ -17,7 +17,7 @@ import java.util.concurrent.locks.ReentrantLock
  * - 분산 환경이 아닌 단일 JVM 프로세스 내 비동기 실행 직렬화에 적합합니다.
  *
  * ```kotlin
- * val election = LocalAsyncLeaderElection()
+ * val election = LocalAsyncLeaderElector()
  * val result = election.runAsyncIfLeader("job-lock") {
  *     CompletableFuture.completedFuture("done")
  * }.join()
@@ -36,7 +36,7 @@ class LocalAsyncLeaderElector(
      * - 다른 스레드가 동일 [lockName]의 락을 보유 중이면 [executor] 스레드가 블로킹됩니다.
      *
      * ```kotlin
-     * val election = LocalAsyncLeaderElection()
+     * val election = LocalAsyncLeaderElector()
      * val result = election.runAsyncIfLeader("job-lock") {
      *     CompletableFuture.completedFuture("done")
      * }.join()

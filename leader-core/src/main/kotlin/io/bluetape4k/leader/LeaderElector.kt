@@ -9,7 +9,7 @@ package io.bluetape4k.leader
  * - [action] 실행 시점의 스레드와 컨텍스트는 구현체에 따라 달라질 수 있습니다.
  *
  * ```kotlin
- * val leaderElection = DefaultLeaderElection()
+ * val leaderElection = DefaultLeaderElector()
  * val result = leaderElection.runIfLeader("daily-job") {
  *     "done"
  * }

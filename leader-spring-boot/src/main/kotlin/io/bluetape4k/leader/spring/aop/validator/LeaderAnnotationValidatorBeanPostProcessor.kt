@@ -9,6 +9,7 @@ import io.bluetape4k.support.requireGe
 import org.aopalliance.intercept.MethodInterceptor
 import org.springframework.aop.support.AopUtils
 import org.springframework.beans.factory.config.BeanPostProcessor
+import org.springframework.core.annotation.AnnotatedElementUtils
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import kotlin.coroutines.Continuation
@@ -23,6 +24,11 @@ import kotlin.coroutines.Continuation
  * - reactive 반환 (`Mono` / `Flux` / `Flow`) — sync only PR
  * - SpEL pre-parse 실패
  * - 같은 클래스에 어노테이션 부착 메서드 2+ (best-effort self-invocation WARN)
+ *
+ * ## 메타 어노테이션 지원 (#84)
+ * `@AliasFor`로 구성된 composed 어노테이션도 검출한다.
+ * 예: `@DailyJob` → `@LeaderElection(name = "daily-job")` 합성 어노테이션.
+ * [AnnotatedElementUtils.hasAnnotation] / [AnnotatedElementUtils.findMergedAnnotation] 사용.
  *
  * ## strict 모드
  * - `true`: 위반 발견 시 startup fail (`maxLeaders ≤ 1` / SpEL 실패는 strict 무관 항상 fail)
@@ -69,8 +75,8 @@ class LeaderAnnotationValidatorBeanPostProcessor(
         if (targetClass.`package`?.name?.startsWith("org.springframework") == true) return null
 
         val annotated = targetClass.declaredMethods.filter { method ->
-            method.isAnnotationPresent(LeaderElection::class.java) ||
-                method.isAnnotationPresent(LeaderGroupElection::class.java)
+            AnnotatedElementUtils.hasAnnotation(method, LeaderElection::class.java) ||
+                AnnotatedElementUtils.hasAnnotation(method, LeaderGroupElection::class.java)
         }
         if (annotated.isEmpty()) return null
         return targetClass to annotated
@@ -91,14 +97,15 @@ class LeaderAnnotationValidatorBeanPostProcessor(
             violations += "$returnTypeName 반환 타입 (sync only PR — see #80)"
         }
 
-        method.getAnnotation(LeaderGroupElection::class.java)?.let { group ->
+        // [#84] composed 어노테이션(@AliasFor) 지원 — findMergedAnnotation 으로 합성 어노테이션 속성 해석
+        AnnotatedElementUtils.findMergedAnnotation(method, LeaderGroupElection::class.java)?.let { group ->
             // maxLeaders <= 1 은 strict 무관 항상 fail
             group.maxLeaders.requireGe(2, "group.maxLeaders")
         }
 
         // SpEL pre-parse — 실패 시 strict 무관 항상 fail (잘못된 표현식은 startup 즉시 노출)
-        method.getAnnotation(LeaderElection::class.java)?.let { spel.preParse(it.name, method) }
-        method.getAnnotation(LeaderGroupElection::class.java)?.let { spel.preParse(it.name, method) }
+        AnnotatedElementUtils.findMergedAnnotation(method, LeaderElection::class.java)?.let { spel.preParse(it.name, method) }
+        AnnotatedElementUtils.findMergedAnnotation(method, LeaderGroupElection::class.java)?.let { spel.preParse(it.name, method) }
 
         if (violations.isEmpty()) return
 

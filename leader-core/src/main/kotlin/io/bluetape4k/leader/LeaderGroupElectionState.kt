@@ -7,7 +7,7 @@ package io.bluetape4k.leader
  * 모든 리더 그룹 선출 인터페이스가 이 인터페이스를 상속하여 상태 조회 메서드를 공유합니다.
  *
  * ```kotlin
- * val election: LeaderGroupElectionState = LocalLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+ * val election: LeaderGroupElectionState = LocalLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
  * val state = election.state("batch-job")  // LeaderGroupState
  * ```
  */
@@ -20,7 +20,7 @@ interface LeaderGroupElectionState {
      * [lockName]에 대해 현재 활성(실행 중인) 리더 수를 반환합니다.
      *
      * ```kotlin
-     * val election = LocalLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+     * val election = LocalLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
      * val count = election.activeCount("batch-job")
      * // count == 0  (아무도 실행 중이 아닐 때)
      * ```
@@ -34,7 +34,7 @@ interface LeaderGroupElectionState {
      * [lockName]에 대해 새 리더를 수용할 수 있는 남은 슬롯 수를 반환합니다.
      *
      * ```kotlin
-     * val election = LocalLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+     * val election = LocalLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
      * val slots = election.availableSlots("batch-job")
      * // slots == 3  (아무도 실행 중이 아닐 때)
      * ```
@@ -48,7 +48,7 @@ interface LeaderGroupElectionState {
      * [lockName]에 대한 현재 [LeaderGroupState]를 반환합니다.
      *
      * ```kotlin
-     * val election = LocalLeaderGroupElection(LeaderGroupElectionOptions(maxLeaders = 3))
+     * val election = LocalLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
      * val state = election.state("batch-job")
      * // state.maxLeaders == 3
      * // state.activeCount == 0

@@ -16,7 +16,7 @@ import java.time.Duration
  *     ),
  *     retryDelay = Duration.ofMillis(100),
  * )
- * val election = MongoLeaderElection(collection, options)
+ * val election = MongoLeaderElector(collection, options)
  * val result = election.runIfLeader("job-lock") { "done" }
  * // result == "done"
  * ```
