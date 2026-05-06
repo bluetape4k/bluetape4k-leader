@@ -159,8 +159,8 @@ val result = election.runIfLeader("parallel-batch") {
 
 ```kotlin
 val options = LeaderElectionOptions(
-    waitTime = Duration.ofSeconds(3),   // how long to wait for the lock
-    leaseTime = Duration.ofSeconds(30)  // how long to hold the lock
+    waitTime = 3.seconds,   // how long to wait for the lock
+    leaseTime = 30.seconds  // how long to hold the lock
 )
 val election = RedissonLeaderElector(client, options)
 ```
@@ -310,7 +310,7 @@ CandidateInfo(
 val election = LettuceStrategicLeaderElector(connection, nodeId = "node-1")
 
 // register this node
-election.registerCandidate("batch-job", CandidateInfo("node-1"), ttl = Duration.ofMinutes(5))
+election.registerCandidate("batch-job", CandidateInfo("node-1"), ttl = 5.minutes)
 
 // elect and run
 val result = election.runIfLeader("batch-job", FifoElectionStrategy) {
@@ -323,7 +323,7 @@ val result = election.runIfLeader("batch-job", FifoElectionStrategy) {
 
 ```kotlin
 val election = RedissonStrategicSuspendLeaderElector(redissonClient, nodeId = "node-1")
-election.registerCandidate("ml-job", CandidateInfo("node-1"), ttl = Duration.ofMinutes(10))
+election.registerCandidate("ml-job", CandidateInfo("node-1"), ttl = 10.minutes)
 
 val strategy = ScoredElectionStrategy(SuccessRateScorer)
 val result = election.runIfLeader("ml-job", strategy) {
