@@ -44,6 +44,7 @@ jobs:
   gitleaks:
     name: Secret Scan (gitleaks)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -63,6 +64,7 @@ jobs:
   validate-wrapper:
     name: Validate Gradle Wrapper
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: gradle/actions/wrapper-validation@v4
@@ -71,6 +73,7 @@ jobs:
   build:
     name: Build (compile only)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: validate-wrapper
     steps:
       - uses: actions/checkout@v4
@@ -94,6 +97,7 @@ jobs:
   test-core:
     name: Test / leader-core
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build
     steps:
       - uses: actions/checkout@v4
@@ -138,6 +142,7 @@ jobs:
   test-micrometer:
     name: Test / leader-micrometer
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build
     steps:
       - uses: actions/checkout@v4
@@ -176,6 +181,7 @@ jobs:
   test-redis-lettuce:
     name: Test / leader-redis-lettuce
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build
     steps:
       - uses: actions/checkout@v4
@@ -221,6 +227,7 @@ jobs:
   test-redis-redisson:
     name: Test / leader-redis-redisson
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build
     steps:
       - uses: actions/checkout@v4
@@ -266,6 +273,7 @@ jobs:
   test-exposed-jdbc-h2:
     name: Test / leader-exposed-jdbc (H2)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build
     steps:
       - uses: actions/checkout@v4
@@ -311,6 +319,7 @@ jobs:
   test-exposed-jdbc-postgresql:
     name: Test / leader-exposed-jdbc (PostgreSQL)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build
     steps:
       - uses: actions/checkout@v4
@@ -358,6 +367,7 @@ jobs:
   test-exposed-jdbc-mysql:
     name: Test / leader-exposed-jdbc (MySQL 8)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build
     steps:
       - uses: actions/checkout@v4
@@ -405,6 +415,7 @@ jobs:
   test-spring-boot:
     name: Test / leader-spring-boot (Testcontainers)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build
     steps:
       - uses: actions/checkout@v4
@@ -445,6 +456,7 @@ jobs:
   coverage-report:
     name: Coverage Report
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs:
       - test-core
       - test-micrometer
@@ -482,6 +494,7 @@ jobs:
   ci-status:
     name: CI Status
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs:
       - gitleaks
       - build
