@@ -1,28 +1,24 @@
-# CLAUDE.md
+# CLAUDE.md — bluetape4k-leader
 
-Guidance for Claude Code when working in this repository.
+분산 리더 선출 라이브러리. blocking/async/coroutine/virtual-thread API, Redis(Lettuce·Redisson) 백엔드.
 
-## Project Overview
-
-`bluetape4k-leader` is a standalone Kotlin/JVM distributed leader election library. It provides blocking, async, coroutine, and virtual-thread APIs for leader election and leader-group (semaphore-based multi-leader) election, backed by Redis (Lettuce, Redisson) with more backends planned.
-
-This project is published independently to Maven Central under group `io.github.bluetape4k.leader`.
+- **Group**: `io.github.bluetape4k.leader` · **Publishing**: Maven Central (NMCP)
 
 ## Repository Layout
 
 ```
-leader-bom/              # BOM (bill of materials) for consumers
+leader-bom/              # BOM
 leader-core/             # Interfaces + local in-process implementations
-leader-redis-lettuce/    # Lettuce-based Redis backend
-leader-redis-redisson/   # Redisson-based Redis backend
+leader-redis-lettuce/    # Lettuce Redis backend
+leader-redis-redisson/   # Redisson Redis backend
 leader-exposed-core/     # Exposed ORM common types
 leader-exposed-jdbc/     # Exposed JDBC backend
 leader-exposed-r2dbc/    # Exposed R2DBC backend
 leader-mongodb/          # MongoDB backend (findOneAndUpdate + TTL index)
 leader-hazelcast/        # Hazelcast backend
 leader-micrometer/       # Micrometer metrics integration
-leader-spring-boot/      # Spring Boot 4 auto-configuration + AOP (AspectJ CTW, Freefair post-compile weaving)
-buildSrc/                # Versions, plugins, dependency catalog (Libs.kt, Versions.kt)
+leader-spring-boot/      # Spring Boot 4 auto-configuration + AOP (AspectJ CTW)
+buildSrc/                # Versions, plugins, dependency catalog
 ```
 
 ## Build Commands
@@ -34,54 +30,21 @@ buildSrc/                # Versions, plugins, dependency catalog (Libs.kt, Versi
 ./gradlew :leader-redis-lettuce:test
 ./gradlew :leader-redis-redisson:test
 ./gradlew test --tests "io.bluetape4k.leader.redisson.RedissonLeaderElectionTest"
-./gradlew detekt
-
-# AOP module
 ./gradlew :leader-spring-boot:test
-```
-
-## AOP Annotation Guide
-
-`@LeaderElection` / `@LeaderGroupElection` are declared in `leader-core` (`io.bluetape4k.leader.annotation`)
-and applied via AspectJ CTW (Freefair post-compile weaving) in `leader-spring-boot`.
-
-### Key rules for annotated methods
-- CTW (compile-time weaving) does not require `open` — works on final Kotlin methods
-- `@EnableAspectJAutoProxy` must NOT be used — CTW handles weaving at compile time
-- `private` methods are never intercepted — startup validation will warn or fail
-- `suspend` / `Mono` / `Flux` / `Flow` returns are not supported (sync-only in v1.x)
-
-### SpEL name rules
-- Static: `name = "my-lock"` (no quotes around the whole expression needed)
-- Dynamic: `name = "'prefix-' + #param"` (literal must be quoted inside SpEL)
-- Spring placeholder: `name = "\${app.lock.name}"` (resolved before SpEL)
-- ❌ `name = "prefix-#param"` — `prefix-` is parsed as an identifier, causing startup failure
-
-### Startup validation (BeanPostProcessor)
-`LeaderAnnotationValidatorBeanPostProcessor` runs at application startup:
-- `strict = false` (default): WARN log on footgun
-- `strict = true`: throws `IllegalStateException` on final/private/suspend methods
-- `maxLeaders ≤ 1` and SpEL parse errors always throw regardless of `strict`
-
-### AutoConfiguration load order
-```
-LeaderElectionAutoConfiguration         ← registers backend election beans (Redisson/Lettuce/…)
-LeaderAopFactoryAutoConfiguration       ← registers LeaderElectionFactory beans (6 backends)
-  ↓ (after)
-LeaderMicrometerAutoConfiguration       ← registers MicrometerLeaderAopMetricsRecorder (after Factory, before AOP)
-  ↓ (after)
-LeaderAopAutoConfiguration              ← registers LeaderElectionAspect + BPP + HealthIndicator
+./gradlew detekt
+./gradlew publishBluetape4kLeaderPublicationToBluetape4kLeaderRepository           # SNAPSHOT
+./gradlew publishBluetape4kLeaderPublicationToBluetape4kLeaderRepository -PsnapshotVersion=  # RELEASE
 ```
 
 ## Key Design Contracts
 
-### `runIfLeader()` returns `T?`
+### `runIfLeader()` 반환값
 
-**Never throws** on lock acquisition failure. Returns `null` when the caller is not elected leader (lock not acquired within `waitTime`). This matches ShedLock's skip-on-contention behavior.
+**절대 throw 하지 않음**. 리더 선출 실패(lock 미획득) 시 `null` 반환. ShedLock 의 skip-on-contention 동작과 동일.
 
 ```kotlin
 val result = leaderElection.runIfLeader("job-lock") { doWork() }
-// result == doWork() return value on success, null if not elected
+// result == doWork() 반환값 (선출 성공) 또는 null (미선출)
 ```
 
 ### Interfaces
@@ -98,96 +61,44 @@ val result = leaderElection.runIfLeader("job-lock") { doWork() }
 ### Options
 
 ```kotlin
-// Single-leader options
 LeaderElectionOptions(waitTime = 5.seconds, leaseTime = 60.seconds)
-
-// Multi-leader group options
 LeaderGroupElectionOptions(maxLeaders = 3, waitTime = 5.seconds, leaseTime = 60.seconds)
+// Default constants: LeaderElectionOptions.Default, LeaderGroupElectionOptions.Default
 ```
 
-`LeaderElectionOptions.Default` and `LeaderGroupElectionOptions.Default` are pre-built constants.
+## AOP Annotation Guide (`leader-spring-boot`)
 
-## Kotlin Edit Workflow (MANDATORY)
+`@LeaderElection` / `@LeaderGroupElection` — `leader-core` 선언, AspectJ CTW (Freefair post-compile weaving) 적용.
 
-After every `.kt` edit:
+### 핵심 규칙
 
-1. Run `ide_diagnostics` — check import errors and `@Deprecated` warnings
-2. Import errors → fix with `ide_optimize_imports`
-3. `@Deprecated` → apply Quick Fix via `lsp_code_actions` — never leave unresolved
-4. Build/compile only after passing the above steps
+- CTW → `open` 불필요 (final Kotlin 메서드에도 동작)
+- `@EnableAspectJAutoProxy` **사용 금지** — CTW가 컴파일 타임에 weaving 처리
+- `private` 메서드는 인터셉트 안 됨 — startup validation에서 warn/fail
+- `suspend` / `Mono` / `Flux` / `Flow` 반환 타입 미지원 (v1.x sync-only)
 
-## Coding Rules
-
-- **Kotlin 2.3+**, JVM 21 toolchain
-- **Coroutines-first**: all async work uses coroutines; wrap blocking APIs with `withContext(Dispatchers.IO)`
-- **Null safety**: never use `!!`; prefer `?.`, `?:`, `requireNotNull()`
-- **Immutability**: prefer `val`; use `data class` for options/state
-- **Error handling**: `runCatching {}` for throwable boundaries; never catch `CancellationException` without rethrowing
-- **No `@Synchronized`/`synchronized {}`**: use `reentrantLock()` for virtual-thread safety
-- **atomicfu**: class-property level only — never method-local variables
-
-## Test Infrastructure
-
-모든 테스트는 **`bluetape4k-testcontainers`의 `XxxServer.Launcher.xxx` 표준** 사용. `GenericContainer` 직접 사용 금지. 컨테이너 자동 시동 + JVM 종료 시 정리 + 모듈 간 일관성 보장.
+### SpEL name 규칙
 
 ```kotlin
-// Redis
-abstract class AbstractRedissonLeaderTest {
-    companion object: KLogging() {
-        val redis = RedisServer.Launcher.redis
-        val redisUrl: String get() = redis.url
-    }
-}
-
-// MongoDB
-abstract class AbstractMongoLeaderTest {
-    companion object: KLogging() {
-        val mongo = MongoDBServer.Launcher.mongoDB
-        val connectionString: String get() = mongo.url
-    }
-}
+name = "my-lock"                  // ✅ static
+name = "'prefix-' + #param"       // ✅ dynamic (리터럴은 SpEL 내부에서 quote)
+name = "\${app.lock.name}"        // ✅ Spring placeholder
+name = "prefix-#param"            // ❌ prefix- 가 identifier로 파싱됨 → startup failure
 ```
 
-테스트 의존성: `testImplementation(libs.bluetape4k.testcontainers)`
+### Startup validation (`LeaderAnnotationValidatorBeanPostProcessor`)
 
-## Test Requirements
+- `strict = false` (default): footgun → WARN log
+- `strict = true`: final/private/suspend 메서드 → `IllegalStateException` throw
+- `maxLeaders ≤ 1` + SpEL 파싱 오류 → strict 무관하게 항상 throw
 
-- JUnit 5 + MockK + Kluent
-- `@TestInstance(TestInstance.Lifecycle.PER_CLASS)` on all test base classes
-- Use `runTest` for suspend tests (auto-advances virtual time)
-- Use backtick-quoted descriptive test names
-- Use Kluent comparison matchers (`shouldBeGreaterOrEqualTo`) — never `(x >= y).shouldBeTrue()`
+### AutoConfiguration 로드 순서
 
-## Commit Convention
-
-Korean + conventional prefix:
 ```
-feat: 새 기능 설명
-fix: 버그 수정 설명
-refactor: 리팩토링 설명
-test: 테스트 추가/수정
-docs: 문서 수정
-chore: 빌드/설정 변경
+LeaderElectionAutoConfiguration         ← backend election beans
+LeaderAopFactoryAutoConfiguration       ← LeaderElectionFactory beans
+  ↓ (after)
+LeaderMicrometerAutoConfiguration       ← MicrometerLeaderAopMetricsRecorder
+  ↓ (after)
+LeaderAopAutoConfiguration              ← LeaderElectionAspect + BPP + HealthIndicator
 ```
-
-## Git Workflow
-
-- Base branch: `develop`
-- Feature work: `git worktree add .worktrees/<branch> -b <branch>`
-- One issue = one PR, squash-merged into `develop`
-- `main` branch = publish-only (release cuts only)
-
-## Publishing
-
-```bash
-./gradlew publishBluetape4kLeaderPublicationToBluetape4kLeaderRepository           # SNAPSHOT
-./gradlew publishBluetape4kLeaderPublicationToBluetape4kLeaderRepository -PsnapshotVersion=  # RELEASE
-```
-
-Published to Maven Central via NMCP (New Maven Central Publishing).
-
-## After Code Changes
-
-- [ ] Compile + test changed module
-- [ ] Update `README.md` and `README.ko.md` for changed module
-- [ ] KDoc updated for new/modified public APIs
