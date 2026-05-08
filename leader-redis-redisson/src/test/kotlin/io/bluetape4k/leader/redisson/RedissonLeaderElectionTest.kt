@@ -8,10 +8,10 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.utils.Runtimex
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
 import kotlin.time.Duration
@@ -103,7 +103,7 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
         )
         val leaderElection = RedissonLeaderElector(redissonClient, options)
 
-        assertThrows<CompletionException> {
+        assertFailsWith<CompletionException> {
             leaderElection
                 .runAsyncIfLeader(lockName) {
                     CompletableFuture.failedFuture<Int>(IllegalStateException("boom"))

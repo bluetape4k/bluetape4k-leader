@@ -1,10 +1,10 @@
 package io.bluetape4k.leader.spring.aop.util
 
 import io.bluetape4k.logging.KLogging
-import org.amshove.kluent.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeEqualTo
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 
@@ -47,19 +47,19 @@ class LockNameValidatorTest {
         ],
     )
     fun `validate - 화이트리스트 외 문자는 거부`(name: String) {
-        assertThrows<IllegalArgumentException> { validator.validate(name) }
+        assertFailsWith<IllegalArgumentException> { validator.validate(name) }
     }
 
     @Test
     fun `validate - blank 거부`() {
-        assertThrows<IllegalArgumentException> { validator.validate("") }
-        assertThrows<IllegalArgumentException> { validator.validate("   ") }
+        assertFailsWith<IllegalArgumentException> { validator.validate("") }
+        assertFailsWith<IllegalArgumentException> { validator.validate("   ") }
     }
 
     @Test
     fun `validate - max length 256 초과 시 거부`() {
         val tooLong = "a".repeat(257)
-        assertThrows<IllegalArgumentException> { validator.validate(tooLong) }
+        assertFailsWith<IllegalArgumentException> { validator.validate(tooLong) }
     }
 
     @Test
@@ -80,7 +80,7 @@ class LockNameValidatorTest {
 
     @Test
     fun `init - maxLength 0 또는 음수 거부`() {
-        assertThrows<IllegalArgumentException> { LockNameValidator(maxLength = 0) }
-        assertThrows<IllegalArgumentException> { LockNameValidator(maxLength = -1) }
+        assertFailsWith<IllegalArgumentException> { LockNameValidator(maxLength = 0) }
+        assertFailsWith<IllegalArgumentException> { LockNameValidator(maxLength = -1) }
     }
 }

@@ -6,10 +6,10 @@ import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeNull
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -43,7 +43,7 @@ class LocalLeaderElectionTest {
 
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() {
-        assertThrows<LeaderElectionException> {
+        assertFailsWith<LeaderElectionException> {
             election.runIfLeader(randomLockName()) {
                 throw LeaderElectionException("테스트 예외")
             }
@@ -113,7 +113,7 @@ class LocalLeaderElectionTest {
 
     @Test
     fun `runAsyncIfLeader - action future 실패 시 CompletionException 이 전파된다`() {
-        assertThrows<CompletionException> {
+        assertFailsWith<CompletionException> {
             election.runAsyncIfLeader(randomLockName()) {
                 CompletableFuture.failedFuture<String>(IllegalStateException("비동기 실패"))
             }.join()

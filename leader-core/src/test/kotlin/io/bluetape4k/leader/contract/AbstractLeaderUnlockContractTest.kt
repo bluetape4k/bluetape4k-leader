@@ -3,11 +3,11 @@ package io.bluetape4k.leader.contract
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.logging.KLogging
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeNull
-import org.amshove.kluent.shouldNotBeNull
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 
 /**
  * 6 백엔드 ([LeaderElector]) `runIfLeader` unlock 계약 회귀 베이스.
@@ -79,7 +79,7 @@ abstract class AbstractLeaderUnlockContractTest {
         val election = newElection()
         val lockName = randomLockName()
 
-        assertThrows<RuntimeException> {
+        assertFailsWith<RuntimeException> {
             election.runIfLeader<Unit>(lockName) {
                 throw sampleException
             }

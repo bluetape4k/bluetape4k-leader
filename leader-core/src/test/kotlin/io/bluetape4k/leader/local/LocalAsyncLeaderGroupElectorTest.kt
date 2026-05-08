@@ -6,13 +6,13 @@ import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeFalse
-import org.amshove.kluent.shouldBeLessOrEqualTo
-import org.amshove.kluent.shouldBeNull
-import org.amshove.kluent.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -57,7 +57,7 @@ class LocalAsyncLeaderGroupElectorTest {
 
     @Test
     fun `runAsyncIfLeader - action future 실패 시 CompletionException 이 전파된다`() {
-        assertThrows<CompletionException> {
+        assertFailsWith<CompletionException> {
             election.runAsyncIfLeader(randomLockName()) {
                 CompletableFuture.failedFuture<String>(IllegalStateException("비동기 실패"))
             }.join()

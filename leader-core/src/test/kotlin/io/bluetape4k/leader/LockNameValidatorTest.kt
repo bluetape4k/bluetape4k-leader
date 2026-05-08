@@ -1,7 +1,7 @@
 package io.bluetape4k.leader
 
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldThrow
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.ParameterizedTest
@@ -37,19 +37,19 @@ class LockNameValidatorTest {
 
     @Test
     fun `빈 문자열은 예외가 발생한다`() {
-        { validateLockName("") } shouldThrow IllegalArgumentException::class
+        assertFailsWith<IllegalArgumentException> { validateLockName("") }
     }
 
     @Test
     fun `공백 문자열은 예외가 발생한다`() {
-        { validateLockName("   ") } shouldThrow IllegalArgumentException::class
+        assertFailsWith<IllegalArgumentException> { validateLockName("   ") }
     }
 
     @Test
     fun `256자 lockName은 예외가 발생한다`() {
         val tooLong = "a" + "b".repeat(255)
         tooLong.length shouldBeEqualTo 256
-        { validateLockName(tooLong) } shouldThrow IllegalArgumentException::class
+        assertFailsWith<IllegalArgumentException> { validateLockName(tooLong) }
     }
 
     @ParameterizedTest
@@ -66,7 +66,7 @@ class LockNameValidatorTest {
         ]
     )
     fun `허용되지 않는 문자나 패턴은 예외가 발생한다`(lockName: String) {
-        { validateLockName(lockName) } shouldThrow IllegalArgumentException::class
+        assertFailsWith<IllegalArgumentException> { validateLockName(lockName) }
     }
 
     @Test

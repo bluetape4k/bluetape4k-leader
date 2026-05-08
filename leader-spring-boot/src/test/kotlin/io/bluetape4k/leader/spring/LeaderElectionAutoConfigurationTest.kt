@@ -10,9 +10,9 @@ import io.bluetape4k.leader.redisson.RedissonLeaderGroupElector
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderGroupElector
 import kotlinx.coroutines.runBlocking
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeInstanceOf
-import org.amshove.kluent.shouldNotBeNull
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldNotBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.redisson.api.RedissonClient

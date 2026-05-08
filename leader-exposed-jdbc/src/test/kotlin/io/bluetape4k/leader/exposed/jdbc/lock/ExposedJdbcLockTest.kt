@@ -4,9 +4,9 @@ import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.logging.KLogging
-import org.amshove.kluent.shouldBeFalse
-import org.amshove.kluent.shouldBeGreaterOrEqualTo
-import org.amshove.kluent.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.time.Duration

@@ -2,7 +2,7 @@ package io.bluetape4k.leader.spring.adapter
 
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
-import org.amshove.kluent.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeEqualTo
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Duration

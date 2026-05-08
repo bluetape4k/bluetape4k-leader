@@ -1,11 +1,11 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.logging.KLogging
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeFalse
-import org.amshove.kluent.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 
 class LeaderGroupStateTest {
 
@@ -53,30 +53,30 @@ class LeaderGroupStateTest {
 
     @Test
     fun `blank lockName 으로 생성 시 예외가 발생한다`() {
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             LeaderGroupState(lockName = "", maxLeaders = 3, activeCount = 0)
         }
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             LeaderGroupState(lockName = "   ", maxLeaders = 3, activeCount = 0)
         }
     }
 
     @Test
     fun `maxLeaders 가 0 이하이면 예외가 발생한다`() {
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             LeaderGroupState(lockName = "job", maxLeaders = 0, activeCount = 0)
         }
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             LeaderGroupState(lockName = "job", maxLeaders = -1, activeCount = 0)
         }
     }
 
     @Test
     fun `activeCount 가 범위를 벗어나면 예외가 발생한다`() {
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             LeaderGroupState(lockName = "job", maxLeaders = 3, activeCount = -1)
         }
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             LeaderGroupState(lockName = "job", maxLeaders = 3, activeCount = 4)
         }
     }

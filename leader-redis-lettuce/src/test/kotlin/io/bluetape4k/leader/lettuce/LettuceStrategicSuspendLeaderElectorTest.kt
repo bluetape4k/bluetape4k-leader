@@ -14,14 +14,14 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeNull
-import org.amshove.kluent.shouldNotBeNull
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
 import org.awaitility.kotlin.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -176,7 +176,7 @@ class LettuceStrategicSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
         val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
 
-        assertThrows<TimeoutCancellationException> {
+        assertFailsWith<TimeoutCancellationException> {
             withTimeout(50L.milliseconds) {
                 node1.runIfLeader(lockName, FifoElectionStrategy) {
                     delay(10_000L.milliseconds)
@@ -193,7 +193,7 @@ class LettuceStrategicSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
         val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
 
-        assertThrows<LeaderElectionException> {
+        assertFailsWith<LeaderElectionException> {
             node1.runIfLeader(lockName, FifoElectionStrategy) {
                 throw LeaderElectionException("intentional")
             }

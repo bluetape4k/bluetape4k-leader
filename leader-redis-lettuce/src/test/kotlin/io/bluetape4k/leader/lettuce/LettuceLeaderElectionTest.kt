@@ -5,11 +5,11 @@ import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -51,14 +51,14 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `리더 선출 - action 예외 발생 시 예외 전파`() {
-        assertThrows<LeaderElectionException> {
+        assertFailsWith<LeaderElectionException> {
             election.runIfLeader(lockName) { throw LeaderElectionException("오류") }
         }
     }
 
     @Test
     fun `리더 선출 - action 예외 후 락 해제되어 재선출 가능`() {
-        assertThrows<LeaderElectionException> {
+        assertFailsWith<LeaderElectionException> {
             election.runIfLeader(lockName) { throw LeaderElectionException("오류") }
         }
         val result = election.runIfLeader(lockName) { "recovered" }

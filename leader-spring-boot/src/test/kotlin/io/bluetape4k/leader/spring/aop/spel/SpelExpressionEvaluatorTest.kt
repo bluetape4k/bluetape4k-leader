@@ -1,10 +1,10 @@
 package io.bluetape4k.leader.spring.aop.spel
 
 import io.bluetape4k.logging.KLogging
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldContain
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldContain
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import org.springframework.expression.spel.SpelEvaluationException
 
 /**
@@ -82,7 +82,7 @@ class SpelExpressionEvaluatorTest {
     @Test
     fun `보안 - T(System) 타입 참조 차단`() {
         val sut = newEvaluator()
-        assertThrows<SpelEvaluationException> {
+        assertFailsWith<SpelEvaluationException> {
             sut.evaluate("T(java.lang.System).getProperty('user.home')", method("process"), arrayOf("X"), SampleService())
         }
     }
@@ -90,7 +90,7 @@ class SpelExpressionEvaluatorTest {
     @Test
     fun `보안 default - 메서드 호출 차단 (R-32)`() {
         val sut = newEvaluator(allowMethodInvocation = false)
-        assertThrows<SpelEvaluationException> {
+        assertFailsWith<SpelEvaluationException> {
             sut.evaluate("#region.toUpperCase()", method("process"), arrayOf("eu"), SampleService())
         }
     }
@@ -131,7 +131,7 @@ class SpelExpressionEvaluatorTest {
     fun `SpEL null 결과 - IllegalStateException 메서드 FQN 포함`() {
         val sut = newEvaluator()
         // #a0 = null → getValue(String::class.java) = null → error() 분기
-        val ex = assertThrows<IllegalStateException> {
+        val ex = assertFailsWith<IllegalStateException> {
             sut.evaluate("#a0", method("process"), arrayOf<Any?>(null), SampleService())
         }
         ex.message!! shouldContain "SampleService"

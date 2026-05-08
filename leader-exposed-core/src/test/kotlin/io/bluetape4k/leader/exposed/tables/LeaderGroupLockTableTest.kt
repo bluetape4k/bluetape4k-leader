@@ -4,8 +4,8 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.exposed.tests.withTables
 import io.bluetape4k.leader.exposed.AbstractExposedTableTest
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greaterEq
@@ -14,7 +14,7 @@ import org.jetbrains.exposed.v1.jdbc.exists
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
@@ -66,7 +66,7 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
                 it[lockedUntil] = now.plusSeconds(60)
             }
 
-            assertThrows<Exception> {
+            assertFailsWith<Exception> {
                 LeaderGroupLockTable.insert {
                     it[lockName] = "dup-group"
                     it[slot] = 0

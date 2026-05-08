@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.annotation
 
 import io.bluetape4k.logging.KLogging
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldContainAll
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldContainAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 

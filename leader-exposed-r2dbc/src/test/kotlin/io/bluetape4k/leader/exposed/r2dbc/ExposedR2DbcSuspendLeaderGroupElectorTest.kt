@@ -10,13 +10,13 @@ import io.bluetape4k.logging.debug
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
-import org.amshove.kluent.shouldBe
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeGreaterOrEqualTo
-import org.amshove.kluent.shouldBeInRange
-import org.amshove.kluent.shouldBeNull
-import org.amshove.kluent.shouldNotBeNull
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInRange
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.time.Duration
@@ -97,7 +97,7 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
         // ExposedR2dbcGroupLock으로 모든 슬롯을 직접 선점 (타이밍 의존성 제거)
         val locks = (0 until maxLeaders).map { slot ->
             ExposedR2dbcGroupLock(db, lockName, slot, RetryStrategy.Jitter()).also { lock ->
-                lock.tryLock(2.seconds, 30.seconds) shouldBe true
+                lock.tryLock(2.seconds, 30.seconds).shouldBeTrue()
             }
         }
 
@@ -139,7 +139,7 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
         cleanTables(db)
         val election = makeGroupElection(testDB)
 
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             election.runIfLeader("has space") { "never" }
         }
     }

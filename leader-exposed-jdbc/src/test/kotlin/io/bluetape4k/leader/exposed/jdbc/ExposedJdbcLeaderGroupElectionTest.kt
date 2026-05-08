@@ -12,16 +12,16 @@ import io.bluetape4k.leader.exposed.tables.HistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeFalse
-import org.amshove.kluent.shouldBeLessOrEqualTo
-import org.amshove.kluent.shouldBeNull
-import org.amshove.kluent.shouldBeTrue
-import org.amshove.kluent.shouldNotBeNull
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.time.Duration
@@ -65,7 +65,7 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         val election = ExposedJdbcLeaderGroupElector(db, makeOptions())
 
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             election.runIfLeader("   ") { }
         }
     }
@@ -287,7 +287,7 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
         val election = ExposedJdbcLeaderGroupElector(db, makeOptions())
 
-        assertThrows<CompletionException> {
+        assertFailsWith<CompletionException> {
             election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
                 throw IllegalStateException("action 동기 예외")
             }.join()
@@ -307,7 +307,7 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
         val election = ExposedJdbcLeaderGroupElector(db, makeOptions(maxLeaders = 1))
 
-        assertThrows<CompletionException> {
+        assertFailsWith<CompletionException> {
             election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
                 java.util.concurrent.CompletableFuture.failedFuture(IllegalStateException("async 실패"))
             }.join()

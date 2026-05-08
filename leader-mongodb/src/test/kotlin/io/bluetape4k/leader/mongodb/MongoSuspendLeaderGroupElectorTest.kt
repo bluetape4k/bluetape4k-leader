@@ -11,11 +11,11 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeFalse
-import org.amshove.kluent.shouldBeLessOrEqualTo
-import org.amshove.kluent.shouldBeNull
-import org.amshove.kluent.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -23,7 +23,7 @@ import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration.Companion.milliseconds
 
 class MongoSuspendLeaderGroupElectorTest: AbstractMongoLeaderTest() {
@@ -97,7 +97,7 @@ class MongoSuspendLeaderGroupElectorTest: AbstractMongoLeaderTest() {
     fun `runIfLeader - 콜론슬롯콜론이 포함된 lockName은 IllegalArgumentException을 던진다`() = runSuspendIO {
         val election = makeElection()
 
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             runBlocking { election.runIfLeader("a:slot:b") { "never" } }
         }
     }

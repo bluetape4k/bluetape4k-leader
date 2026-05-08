@@ -4,9 +4,9 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderGroupElector
 import io.bluetape4k.logging.KLogging
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeInstanceOf
-import org.amshove.kluent.shouldBeNull
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 

@@ -4,11 +4,11 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeTrue
-import org.amshove.kluent.shouldNotBeNull
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
@@ -47,10 +47,10 @@ class AbstractLocalLeaderElectorTest {
     fun `blank lockName 으로 호출 시 IllegalArgumentException 이 발생한다 (LocalLeaderElector)`() {
         val election = LocalLeaderElector()
 
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             election.runIfLeader("") { "should fail" }
         }
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             election.runIfLeader("   ") { "should fail" }
         }
     }
@@ -59,7 +59,7 @@ class AbstractLocalLeaderElectorTest {
     fun `blank lockName 으로 호출 시 IllegalArgumentException 이 발생한다 (LocalAsyncLeaderElector)`() {
         val election = LocalAsyncLeaderElector()
 
-        assertThrows<Exception> {
+        assertFailsWith<Exception> {
             election.runAsyncIfLeader("") {
                 CompletableFuture.completedFuture("should fail")
             }.join()
