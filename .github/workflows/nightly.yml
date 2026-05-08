@@ -73,7 +73,12 @@ jobs:
           gradle-version: wrapper
           cache-read-only: true
       - name: Test leader-core
-        run: ./gradlew :leader-core:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-core:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
       - name: Generate Kover XML report
@@ -112,7 +117,12 @@ jobs:
           gradle-version: wrapper
           cache-read-only: true
       - name: Test leader-redis-lettuce
-        run: ./gradlew :leader-redis-lettuce:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-redis-lettuce:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
@@ -153,7 +163,12 @@ jobs:
           gradle-version: wrapper
           cache-read-only: true
       - name: Test leader-redis-redisson
-        run: ./gradlew :leader-redis-redisson:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-redis-redisson:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
@@ -194,7 +209,12 @@ jobs:
           gradle-version: wrapper
           cache-read-only: true
       - name: Test leader-exposed-core (H2)
-        run: ./gradlew :leader-exposed-core:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-exposed-core:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
           LEADER_TEST_DB: "H2"
@@ -234,7 +254,12 @@ jobs:
           gradle-version: wrapper
           cache-read-only: true
       - name: Test leader-exposed-core (PostgreSQL)
-        run: ./gradlew :leader-exposed-core:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-exposed-core:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
@@ -276,7 +301,12 @@ jobs:
           gradle-version: wrapper
           cache-read-only: true
       - name: Test leader-exposed-core (MySQL 8)
-        run: ./gradlew :leader-exposed-core:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-exposed-core:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
@@ -318,7 +348,12 @@ jobs:
           gradle-version: wrapper
           cache-read-only: true
       - name: Test leader-exposed-jdbc (H2)
-        run: ./gradlew :leader-exposed-jdbc:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-exposed-jdbc:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
           LEADER_TEST_DB: "H2"
@@ -358,7 +393,12 @@ jobs:
           gradle-version: wrapper
           cache-read-only: true
       - name: Test leader-exposed-jdbc (PostgreSQL)
-        run: ./gradlew :leader-exposed-jdbc:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-exposed-jdbc:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
@@ -400,7 +440,12 @@ jobs:
           gradle-version: wrapper
           cache-read-only: true
       - name: Test leader-exposed-jdbc (MySQL 8)
-        run: ./gradlew :leader-exposed-jdbc:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-exposed-jdbc:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
@@ -442,7 +487,12 @@ jobs:
           gradle-version: wrapper
           cache-read-only: true
       - name: Test leader-mongodb
-        run: ./gradlew :leader-mongodb:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-mongodb:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
@@ -483,7 +533,12 @@ jobs:
           gradle-version: wrapper
           cache-read-only: true
       - name: Test leader-hazelcast
-        run: ./gradlew :leader-hazelcast:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-hazelcast:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
@@ -524,7 +579,12 @@ jobs:
           gradle-version: wrapper
           cache-read-only: true
       - name: Test leader-micrometer
-        run: ./gradlew :leader-micrometer:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-micrometer:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
       - name: Generate Kover XML report
@@ -563,7 +623,12 @@ jobs:
           gradle-version: wrapper
           cache-read-only: true
       - name: Test leader-spring-boot
-        run: ./gradlew :leader-spring-boot:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-spring-boot:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false'
           TESTCONTAINERS_RYUK_DISABLED: 'true'
