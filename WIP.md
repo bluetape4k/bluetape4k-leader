@@ -39,6 +39,8 @@
 | #84 | feat: 메타 어노테이션 (@AliasFor) 지원 | ✅ 완료 | #117 merged |
 | #78 | feat: 클래스/패키지 레벨 @LeaderElectionBackend 메타 어노테이션 | ✅ 완료 | #118 merged |
 | #82 | feat: SpEL TemplateParserContext 혼합 표현식 지원 | ✅ 완료 | #119 merged |
+| #128 | fix: Hazelcast suspend elector CancellationException 재전파 | ✅ 완료 | PR 예정 |
+| #34 | feat: leader-zookeeper (Apache Curator 기반) | ✅ 완료 | PR 예정 |
 
 ---
 
@@ -136,7 +138,6 @@
 | #50 | 공통 리더 선출 이력 감사 계약 | 낮음 |
 | #83 | runIfLeader {} 반환을 Result<T>로 변경 | 파괴적 변경 — 0.1.0 출시 이후 |
 | #10 | leader-micrometer 독립 모듈 (InstrumentedLeaderElection) | #75 로 방향 전환 검토 |
-| #34 | leader-zookeeper (Apache Curator 기반) | 낮음 |
 | #36 | leader-examples (실무 시나리오 5종) | 기능 안정 후 |
 | #37 | leader-ktor 통합 (Ktor 3.x Plugin DSL) | Spring 완료 후 |
 | #42 | 멀티테넌시 지원 (테넌트별 락 네임스페이스) | 낮음 |

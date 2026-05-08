@@ -8,7 +8,7 @@
 [English](README.md)
 
 Kotlin/JVM 기반 **분산 리더 선출(Distributed Leader Election)** 독립 라이브러리입니다.  
-블로킹, 비동기, 코루틴, 가상 스레드 API를 지원하며, Redis(Lettuce, Redisson) 백엔드를 제공합니다. 추가 백엔드는 개발 중입니다.
+블로킹, 비동기, 코루틴, 가상 스레드 API를 지원하며 Redis, Exposed, MongoDB, Hazelcast, ZooKeeper 백엔드를 제공합니다.
 
 ---
 
@@ -36,7 +36,7 @@ graph TD
     SB["leader-spring-boot\n(Boot 4, CTW)"]
     Metrics["leader-micrometer\n(Micrometer 메트릭)"]
     Ktor["leader-ktor\n(예정)"]
-    ZK["leader-zookeeper\n(예정)"]
+    ZK["leader-zookeeper\n(ZooKeeper)"]
 
     Lettuce --> Core
     Redisson --> Core
@@ -65,8 +65,8 @@ graph TD
 | `leader-mongodb` | 안정 | MongoDB 백엔드 (`findOneAndUpdate` + TTL 인덱스) |
 | `leader-micrometer` | 안정 | Micrometer 메트릭 연동 (`MicrometerLeaderAopMetricsRecorder`) |
 | `leader-spring-boot` | 안정 | Spring Boot 4 자동 구성 + AOP (AspectJ CTW, Freefair 포스트 컴파일 위빙) |
+| `leader-zookeeper` | 안정 | ZooKeeper/Curator 백엔드 (`InterProcessMutex` / `InterProcessSemaphoreV2`) |
 | `leader-ktor` | 예정 | Ktor Plugin DSL + `leaderScheduled()` 스케줄링 헬퍼 |
-| `leader-zookeeper` | 예정 | ZooKeeper/Curator 백엔드 (`InterProcessMutex` / `InterProcessSemaphoreV2`) |
 
 ## 빠른 시작
 
@@ -83,6 +83,9 @@ implementation("io.github.bluetape4k.leader:leader-exposed-jdbc:0.1.0-SNAPSHOT")
 
 // R2DBC 코루틴 네이티브 (H2 / PostgreSQL / MySQL, Exposed 기반)
 implementation("io.github.bluetape4k.leader:leader-exposed-r2dbc:0.1.0-SNAPSHOT")
+
+// ZooKeeper / Apache Curator
+implementation("io.github.bluetape4k.leader:leader-zookeeper:0.1.0-SNAPSHOT")
 ```
 
 ### Exposed JDBC 방식 (H2 / PostgreSQL / MySQL)

@@ -32,7 +32,7 @@
 | jOOQ | ✅ | ❌ |
 | MongoDB | ✅ | 🚧 [#8](https://github.com/bluetape4k/bluetape4k-leader/issues/8) |
 | Hazelcast | ✅ | 🚧 [#33](https://github.com/bluetape4k/bluetape4k-leader/issues/33) |
-| ZooKeeper | ✅ | 🚧 [#34](https://github.com/bluetape4k/bluetape4k-leader/issues/34) (Curator) |
+| ZooKeeper | ✅ | ✅ [#34](https://github.com/bluetape4k/bluetape4k-leader/issues/34) (Curator) |
 | DynamoDB | ✅ | 🚫 계획 없음 |
 | Cassandra | ✅ | 🚫 계획 없음 |
 | Elasticsearch | ✅ | 🚫 계획 없음 |
@@ -151,7 +151,7 @@ WIP.md 이슈와 연결.
 | 멀티테넌시 | 하 | [#42](https://github.com/bluetape4k/bluetape4k-leader/issues/42) |
 | DB 서버 시간 기준 (`dbTime`) | 중 | [#39](https://github.com/bluetape4k/bluetape4k-leader/issues/39) |
 | 리더 이벤트 리스너 (`onElected`, `onRevoked`) | 중 | [#40](https://github.com/bluetape4k/bluetape4k-leader/issues/40) |
-| ZooKeeper 백엔드 | 중 | [#34](https://github.com/bluetape4k/bluetape4k-leader/issues/34) |
+| ZooKeeper 백엔드 | 중 | ✅ [#34](https://github.com/bluetape4k/bluetape4k-leader/issues/34) |
 | DynamoDB / Cassandra / S3 등 | — | 🚫 지원 안 함 |
 
 ---

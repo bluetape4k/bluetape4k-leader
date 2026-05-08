@@ -8,7 +8,7 @@
 [한국어](README.ko.md)
 
 A standalone Kotlin/JVM library for **distributed leader election**.  
-Provides blocking, async, coroutine, and virtual-thread APIs backed by Redis (Lettuce, Redisson), with more backends planned.
+Provides blocking, async, coroutine, and virtual-thread APIs backed by Redis, Exposed, MongoDB, Hazelcast, and ZooKeeper.
 
 ---
 
@@ -36,7 +36,7 @@ graph TD
     SB["leader-spring-boot\n(Boot 4, CTW)"]
     Metrics["leader-micrometer\n(Micrometer metrics)"]
     Ktor["leader-ktor\n(planned)"]
-    ZK["leader-zookeeper\n(planned)"]
+    ZK["leader-zookeeper\n(ZooKeeper)"]
 
     Lettuce --> Core
     Redisson --> Core
@@ -65,8 +65,8 @@ graph TD
 | `leader-mongodb` | Stable | MongoDB backend (`findOneAndUpdate` + TTL index) |
 | `leader-micrometer` | Stable | Micrometer metrics integration (`MicrometerLeaderAopMetricsRecorder`) |
 | `leader-spring-boot` | Stable | Spring Boot 4 auto-configuration + AOP (AspectJ CTW, Freefair post-compile weaving) |
+| `leader-zookeeper` | Stable | ZooKeeper/Curator backend (`InterProcessMutex` / `InterProcessSemaphoreV2`) |
 | `leader-ktor` | Planned | Ktor Plugin DSL + `leaderScheduled()` scheduling helper |
-| `leader-zookeeper` | Planned | ZooKeeper/Curator backend (`InterProcessMutex` / `InterProcessSemaphoreV2`) |
 
 ## Quick Start
 
@@ -83,6 +83,9 @@ implementation("io.github.bluetape4k.leader:leader-exposed-jdbc:0.1.0-SNAPSHOT")
 
 // R2DBC coroutine-native (H2 / PostgreSQL / MySQL via Exposed)
 implementation("io.github.bluetape4k.leader:leader-exposed-r2dbc:0.1.0-SNAPSHOT")
+
+// ZooKeeper / Apache Curator
+implementation("io.github.bluetape4k.leader:leader-zookeeper:0.1.0-SNAPSHOT")
 ```
 
 ### Exposed JDBC (H2 / PostgreSQL / MySQL)
