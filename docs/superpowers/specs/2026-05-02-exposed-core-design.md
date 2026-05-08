@@ -492,7 +492,7 @@ dependencies {
 exposed-java-time = { module = "org.jetbrains.exposed:exposed-java-time", version.ref = "exposed" }
 
 # bluetape4k — Exposed JDBC 테스트 유틸리티
-bluetape4k-exposed-jdbc-tests = { module = "io.github.bluetape4k:bluetape4k-exposed-jdbc-tests" }
+bluetape4k-exposed-jdbc-tests = { module = "io.bluetape4k.exposed:bluetape4k-exposed-jdbc-tests", version.ref = "bluetape4k" }
 
 # H2 Database (테스트용)
 h2-v2 = { module = "com.h2database:h2", version = "2.4.240" }
