@@ -153,13 +153,13 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
     }
 
     @Test
-    fun `Mono 반환 타입 strict true - startup fail`() {
+    fun `Mono 반환 타입 - 위반 없음 (#91 이후 지원)`() {
         class SampleMono {
             @LeaderElection(name = "mono-job")
             open fun process(): Mono<String> = Mono.just("ok")
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
-        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleMono(), "sample") }
+        assertNotFails { bpp.postProcessAfterInitialization(SampleMono(), "sample") }
     }
 
     @Test
