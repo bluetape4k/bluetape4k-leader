@@ -30,7 +30,6 @@ slf4j = "2.0.17"
 logback = "1.5.32"
 
 junit-jupiter = "6.0.3"
-kluent = "1.73"
 mockk = "1.14.9"
 springmockk = "5.0.1"
 awaitility = "4.3.0"
@@ -80,6 +79,7 @@ bluetape4k-logging = { module = "io.github.bluetape4k:bluetape4k-logging" }
 bluetape4k-junit5 = { module = "io.github.bluetape4k:bluetape4k-junit5" }
 bluetape4k-testcontainers = { module = "io.github.bluetape4k:bluetape4k-testcontainers" }
 bluetape4k-lettuce = { module = "io.github.bluetape4k:bluetape4k-lettuce" }
+bluetape4k-assertions = { module = "io.github.bluetape4k:bluetape4k-assertions", version.ref = "bluetape4k" }
 bluetape4k-redisson = { module = "io.github.bluetape4k:bluetape4k-redisson" }
 bluetape4k-exposed-jdbc-tests = { module = "io.github.bluetape4k.exposed:bluetape4k-exposed-jdbc-tests", version.ref = "bluetape4k" }
 bluetape4k-exposed-r2dbc-tests = { module = "io.github.bluetape4k.exposed:bluetape4k-exposed-r2dbc-tests", version.ref = "bluetape4k" }
@@ -167,7 +167,6 @@ junit-bom = { module = "org.junit:junit-bom", version.ref = "junit-jupiter" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-engine = { module = "org.junit.platform:junit-platform-engine" }
 
-kluent = { module = "org.amshove.kluent:kluent", version.ref = "kluent" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 springmockk = { module = "com.ninja-squad:springmockk", version.ref = "springmockk" }
 awaitility-kotlin = { module = "org.awaitility:awaitility-kotlin", version.ref = "awaitility" }
