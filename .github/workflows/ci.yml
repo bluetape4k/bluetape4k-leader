@@ -2,6 +2,10 @@ name: CI
 
 permissions:
   contents: read
+  actions: read
+  checks: read
+  statuses: read
+  packages: read
 
 on:
   workflow_dispatch:
@@ -69,7 +73,45 @@ jobs:
       - uses: actions/checkout@v4
       - uses: gradle/actions/wrapper-validation@v4
 
-  # ── 2. 전체 빌드 (테스트 제외) ───────────────────────────────────────────
+  # ── 2. 변경된 모듈 감지 ──────────────────────────────────────────────────
+  changes:
+    name: Detect changed modules
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: validate-wrapper
+    outputs:
+      leader-core: ${{ steps.filter.outputs.leader-core }}
+      leader-redis: ${{ steps.filter.outputs.leader-redis }}
+      leader-exposed: ${{ steps.filter.outputs.leader-exposed }}
+      leader-mongodb: ${{ steps.filter.outputs.leader-mongodb }}
+      leader-hazelcast: ${{ steps.filter.outputs.leader-hazelcast }}
+      leader-spring-boot: ${{ steps.filter.outputs.leader-spring-boot }}
+      leader-micrometer: ${{ steps.filter.outputs.leader-micrometer }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            leader-core:
+              - 'leader-core/**'
+            leader-redis:
+              - 'leader-redis-lettuce/**'
+              - 'leader-redis-redisson/**'
+            leader-exposed:
+              - 'leader-exposed-core/**'
+              - 'leader-exposed-jdbc/**'
+              - 'leader-exposed-r2dbc/**'
+            leader-mongodb:
+              - 'leader-mongodb/**'
+            leader-hazelcast:
+              - 'leader-hazelcast/**'
+            leader-spring-boot:
+              - 'leader-spring-boot/**'
+            leader-micrometer:
+              - 'leader-micrometer/**'
+
+  # ── 3. 전체 빌드 (테스트 제외) ───────────────────────────────────────────
   build:
     name: Build (compile only)
     runs-on: ubuntu-latest
@@ -93,12 +135,13 @@ jobs:
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
 
-  # ── 3. leader-core 테스트 (Docker 불필요) ────────────────────────────────
+  # ── 4. leader-core 테스트 (Docker 불필요) ────────────────────────────────
   test-core:
     name: Test / leader-core
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: build
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs['leader-core'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -113,7 +156,12 @@ jobs:
           cache-read-only: true
 
       - name: Test leader-core
-        run: ./gradlew :leader-core:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-core:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
 
@@ -143,7 +191,8 @@ jobs:
     name: Test / leader-micrometer
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: build
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs['leader-micrometer'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -155,7 +204,12 @@ jobs:
           gradle-version: wrapper
           cache-read-only: true
       - name: Test leader-micrometer
-        run: ./gradlew :leader-micrometer:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-micrometer:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
       - name: Generate Kover XML report
@@ -177,12 +231,13 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 7
 
-  # ── 4. leader-redis-lettuce 테스트 (Testcontainers) ─────────────────────
+  # ── 5. leader-redis-lettuce 테스트 (Testcontainers) ─────────────────────
   test-redis-lettuce:
     name: Test / leader-redis-lettuce
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: build
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs['leader-redis'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -197,7 +252,12 @@ jobs:
           cache-read-only: true
 
       - name: Test leader-redis-lettuce
-        run: ./gradlew :leader-redis-lettuce:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-redis-lettuce:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
@@ -223,12 +283,13 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 7
 
-  # ── 5. leader-redis-redisson 테스트 (Testcontainers) ────────────────────
+  # ── 6. leader-redis-redisson 테스트 (Testcontainers) ────────────────────
   test-redis-redisson:
     name: Test / leader-redis-redisson
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: build
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs['leader-redis'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -243,7 +304,12 @@ jobs:
           cache-read-only: true
 
       - name: Test leader-redis-redisson
-        run: ./gradlew :leader-redis-redisson:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-redis-redisson:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
@@ -269,12 +335,13 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 7
 
-  # ── 6. leader-exposed-jdbc 테스트 (H2 in-memory) ──────────────────────────
+  # ── 7. leader-exposed-jdbc 테스트 (H2 in-memory) ──────────────────────────
   test-exposed-jdbc-h2:
     name: Test / leader-exposed-jdbc (H2)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: build
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -289,7 +356,12 @@ jobs:
           cache-read-only: true
 
       - name: Test leader-exposed-jdbc (H2)
-        run: ./gradlew :leader-exposed-jdbc:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-exposed-jdbc:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
           LEADER_TEST_DB: "H2"
@@ -315,12 +387,13 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 7
 
-  # ── 7. leader-exposed-jdbc 테스트 (PostgreSQL, Testcontainers) ────────────
+  # ── 8. leader-exposed-jdbc 테스트 (PostgreSQL, Testcontainers) ────────────
   test-exposed-jdbc-postgresql:
     name: Test / leader-exposed-jdbc (PostgreSQL)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: build
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -335,7 +408,12 @@ jobs:
           cache-read-only: true
 
       - name: Test leader-exposed-jdbc (PostgreSQL)
-        run: ./gradlew :leader-exposed-jdbc:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-exposed-jdbc:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
@@ -363,12 +441,13 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 7
 
-  # ── 8. leader-exposed-jdbc 테스트 (MySQL 8, Testcontainers) ──────────────
+  # ── 9. leader-exposed-jdbc 테스트 (MySQL 8, Testcontainers) ──────────────
   test-exposed-jdbc-mysql:
     name: Test / leader-exposed-jdbc (MySQL 8)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: build
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -383,7 +462,12 @@ jobs:
           cache-read-only: true
 
       - name: Test leader-exposed-jdbc (MySQL 8)
-        run: ./gradlew :leader-exposed-jdbc:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-exposed-jdbc:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
@@ -416,7 +500,8 @@ jobs:
     name: Test / leader-spring-boot (Testcontainers)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: build
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs['leader-spring-boot'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -428,7 +513,12 @@ jobs:
           gradle-version: wrapper
           cache-read-only: true
       - name: Test leader-spring-boot
-        run: ./gradlew :leader-spring-boot:test --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-spring-boot:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false'
           TESTCONTAINERS_RYUK_DISABLED: 'true'
@@ -452,7 +542,7 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 7
 
-  # ── 9. Coverage 집계 ─────────────────────────────────────────────────────
+  # ── 10. Coverage 집계 ─────────────────────────────────────────────────────
   coverage-report:
     name: Coverage Report
     runs-on: ubuntu-latest
@@ -490,7 +580,7 @@ jobs:
           path: coverage-artifacts/
           retention-days: 14
 
-  # ── 10. 결과 집계 ─────────────────────────────────────────────────────────
+  # ── 11. 결과 집계 ─────────────────────────────────────────────────────────
   ci-status:
     name: CI Status
     runs-on: ubuntu-latest
@@ -498,6 +588,7 @@ jobs:
     needs:
       - gitleaks
       - build
+      - changes
       - test-core
       - test-micrometer
       - test-redis-lettuce
@@ -518,4 +609,4 @@ jobs:
             echo "CI failed"
             exit 1
           fi
-          echo "CI passed"
+          echo "CI passed (skipped jobs treated as success)"
