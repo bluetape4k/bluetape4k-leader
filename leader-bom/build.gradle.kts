@@ -53,9 +53,6 @@ publishing {
             }
         }
     }
-    repositories {
-        mavenLocal()
-    }
 }
 
 configurePublishingSigning("BluetapeLeaderBom")
