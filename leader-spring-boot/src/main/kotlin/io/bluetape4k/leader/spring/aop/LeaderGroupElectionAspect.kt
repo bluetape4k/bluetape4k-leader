@@ -7,6 +7,8 @@ import io.bluetape4k.leader.LeaderGroupElectorFactory
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.leader.annotation.LeaderGroupElection
+import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder
 import io.bluetape4k.leader.metrics.SkipReason
 import io.bluetape4k.leader.spring.aop.cache.GroupFactoryCacheKey
@@ -27,17 +29,22 @@ import org.springframework.beans.factory.SmartInitializingSingleton
 import java.lang.reflect.Method
 import java.util.concurrent.CancellationException
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
+import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.toKotlinDuration
 
 /**
- * `@LeaderGroupElection` 어노테이션 처리 Aspect — sync `T?` only.
+ * `@LeaderGroupElection` 어노테이션 처리 Aspect — sync `T?` 및 suspend `T?` 지원.
  *
  * [LeaderElectionAspect] 와 동일 패턴 + `maxLeaders` 분기. backend 예외는
  * [LeaderGroupElectionException] 으로 wrapping.
  *
- * Fix-94: [resolveLockName] + [factory.create] 를 try 안으로 이동 —
- * backend I/O 실패가 failureMode 우회하던 버그 수정.
+ * ## suspend 지원 (#90)
+ * [LeaderElectionAspect.aroundLeaderSuspend] 와 동일 패턴 — [SuspendLeaderGroupElectorFactory] 사용.
+ *
+ * Fix-94: [resolveLockName] + [factory.create] 를 try 안으로 이동.
  */
 @Aspect
 class LeaderGroupElectionAspect(
@@ -50,6 +57,7 @@ class LeaderGroupElectionAspect(
 
     private val metadataCache = ConcurrentHashMap<Method, GroupAdviceMetadata>()
     private val factoryCache = ConcurrentHashMap<GroupFactoryCacheKey, LeaderGroupElector>()
+    private val suspendElectorCache = ConcurrentHashMap<GroupFactoryCacheKey, SuspendLeaderGroupElector>()
     private val hasRecorders = recorders.isNotEmpty()
 
     @Around("@annotation(io.bluetape4k.leader.annotation.LeaderGroupElection)")
@@ -59,10 +67,14 @@ class LeaderGroupElectionAspect(
         val args = pjp.args
 
         val meta = metadataCache.computeIfAbsent(method) { resolveMetadata(it, target) }
+
+        if (meta.isSuspend) {
+            return aroundLeaderSuspend(pjp, meta)
+        }
+
         val opts = meta.options
         val coreOpts = opts.toCoreOptions()
 
-        // [Fix-94] resolveLockName + factory.create 를 try 안으로 이동
         var lockName: String? = null
         val start = System.nanoTime()
 
@@ -153,6 +165,134 @@ class LeaderGroupElectionAspect(
         }
     }
 
+    /**
+     * suspend 메서드 처리 — [LeaderElectionAspect.aroundLeaderSuspend] 와 동일 패턴.
+     */
+    private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any? {
+        @Suppress("UNCHECKED_CAST")
+        val continuation = pjp.args.last() as Continuation<Any?>
+        val start = System.nanoTime()
+        val method = (pjp.signature as MethodSignature).method
+        val coreOpts = meta.options.toCoreOptions()
+
+        val suspendBlock: suspend () -> Any? = {
+            var lockName: String? = null
+            try {
+                val resolvedName = resolveLockName(meta, method, pjp.args, pjp.target)
+                lockName = resolvedName
+                val cacheKey = GroupFactoryCacheKey(meta.suspendElectorFactoryBeanName, meta.options)
+                val elector = suspendElectorCache[cacheKey]
+                    ?: meta.suspendElectorFactory!!.create(meta.options)
+                        .also { suspendElectorCache.putIfAbsent(cacheKey, it) }
+
+                fanOut { it.onLockAttempt(resolvedName, coreOpts) }
+
+                val result = elector.runIfLeader(resolvedName) {
+                    fanOut {
+                        it.onLockAcquired(resolvedName, coreOpts, (System.nanoTime() - start).nanoseconds)
+                        it.onTaskStarted(resolvedName)
+                    }
+                    try {
+                        @Suppress("UNCHECKED_CAST")
+                        val bodyResult = suspendCoroutineUninterceptedOrReturn<Any?> { innerCont ->
+                            val newArgs = pjp.args.copyOf()
+                            newArgs[newArgs.lastIndex] = innerCont as Continuation<Any?>
+                            pjp.proceed(newArgs)
+                        }
+                        val elapsed = System.nanoTime() - start
+                        fanOut { it.onTaskFinished(resolvedName, elapsed.nanoseconds) }
+                        if (elapsed > meta.leaseTimeWarnThresholdNanos) {
+                            log.warn { "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}" }
+                        }
+                        log.debug { "leader.aop.elected lockName=$resolvedName elapsedNs=$elapsed" }
+                        bodyResult
+                    } catch (ce: CancellationException) {
+                        fanOut { it.onTaskFailed(resolvedName, (System.nanoTime() - start).nanoseconds, ce) }
+                        throw ce
+                    } catch (bodyEx: Throwable) {
+                        fanOut { it.onTaskFailed(resolvedName, (System.nanoTime() - start).nanoseconds, bodyEx) }
+                        throw BodyThrownMarker(bodyEx)
+                    }
+                }
+
+                if (result == null) {
+                    if (meta.failureMode == LeaderAspectFailureMode.FAIL_OPEN_RUN) {
+                        fanOut {
+                            it.onLockNotAcquired(resolvedName, coreOpts, SkipReason.FAIL_OPEN_FORCED)
+                            it.onTaskStarted(resolvedName)
+                        }
+                        log.debug { "leader.aop.fail-open lockName=$resolvedName reason=CONTENTION" }
+                        try {
+                            @Suppress("UNCHECKED_CAST")
+                            val failOpenResult = suspendCoroutineUninterceptedOrReturn<Any?> { innerCont ->
+                                val newArgs = pjp.args.copyOf()
+                                newArgs[newArgs.lastIndex] = innerCont as Continuation<Any?>
+                                pjp.proceed(newArgs)
+                            }
+                            fanOut { it.onTaskFinished(resolvedName, (System.nanoTime() - start).nanoseconds) }
+                            failOpenResult
+                        } catch (ce: CancellationException) {
+                            fanOut { it.onTaskFailed(resolvedName, (System.nanoTime() - start).nanoseconds, ce) }
+                            throw ce
+                        } catch (bodyEx: Throwable) {
+                            fanOut { it.onTaskFailed(resolvedName, (System.nanoTime() - start).nanoseconds, bodyEx) }
+                            throw bodyEx
+                        }
+                    } else {
+                        fanOut { it.onLockNotAcquired(resolvedName, coreOpts, SkipReason.CONTENTION) }
+                        log.debug { "leader.aop.skipped lockName=$resolvedName reason=CONTENTION" }
+                        null
+                    }
+                } else {
+                    result
+                }
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (bm: BodyThrownMarker) {
+                throw bm.cause
+            } catch (backendEx: Throwable) {
+                val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
+                val wrapped = LeaderGroupElectionException("leader group backend error for lock '$effectiveName'", backendEx)
+                when (meta.failureMode) {
+                    LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
+                    LeaderAspectFailureMode.RETHROW -> {
+                        fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
+                        fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
+                        throw wrapped
+                    }
+                    LeaderAspectFailureMode.SKIP -> {
+                        fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
+                        fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
+                        log.warn(backendEx) { "leader.aop.skipped lockName=$effectiveName reason=BACKEND_ERROR" }
+                        null
+                    }
+                    LeaderAspectFailureMode.FAIL_OPEN_RUN -> {
+                        fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.FAIL_OPEN_FORCED) }
+                        log.warn(backendEx) { "leader.aop.fail-open lockName=$effectiveName reason=BACKEND_ERROR" }
+                        fanOut { it.onTaskStarted(effectiveName) }
+                        try {
+                            @Suppress("UNCHECKED_CAST")
+                            val failOpenResult = suspendCoroutineUninterceptedOrReturn<Any?> { innerCont ->
+                                val newArgs = pjp.args.copyOf()
+                                newArgs[newArgs.lastIndex] = innerCont as Continuation<Any?>
+                                pjp.proceed(newArgs)
+                            }
+                            fanOut { it.onTaskFinished(effectiveName, (System.nanoTime() - start).nanoseconds) }
+                            failOpenResult
+                        } catch (ce: CancellationException) {
+                            fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, ce) }
+                            throw ce
+                        } catch (bodyEx: Throwable) {
+                            fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, bodyEx) }
+                            throw bodyEx
+                        }
+                    }
+                }
+            }
+        }
+        return suspendBlock.startCoroutineUninterceptedOrReturn(continuation)
+    }
+
     private fun executeBody(pjp: ProceedingJoinPoint, lockName: String, start: Long): Any? {
         return try {
             pjp.proceed()
@@ -211,6 +351,14 @@ class LeaderGroupElectionAspect(
             ann.failureMode
         }
 
+        val isSuspend = method.parameterTypes.lastOrNull() == Continuation::class.java
+        val (suspendElectorFactory, suspendElectorFactoryBeanName) = if (isSuspend) {
+            val suspendSelected = beanSelector.selectSuspendGroupElectorFactory(ann.bean, method)
+            suspendSelected.bean to suspendSelected.beanName
+        } else {
+            null to ""
+        }
+
         return GroupAdviceMetadata(
             nameExpression = ann.name,
             literalName = literal,
@@ -219,6 +367,9 @@ class LeaderGroupElectionAspect(
             factory = selected.bean,
             failureMode = effectiveFailureMode,
             leaseTimeWarnThresholdNanos = (leaseTime.inWholeNanoseconds * LEASE_WARN_RATIO).toLong(),
+            isSuspend = isSuspend,
+            suspendElectorFactory = suspendElectorFactory,
+            suspendElectorFactoryBeanName = suspendElectorFactoryBeanName,
         )
     }
 
@@ -241,6 +392,9 @@ class LeaderGroupElectionAspect(
         val factory: LeaderGroupElectorFactory,
         val failureMode: LeaderAspectFailureMode,
         val leaseTimeWarnThresholdNanos: Long,
+        val isSuspend: Boolean,
+        val suspendElectorFactory: SuspendLeaderGroupElectorFactory?,
+        val suspendElectorFactoryBeanName: String,
     )
 
     companion object: KLogging() {

@@ -8,9 +8,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import io.bluetape4k.assertions.shouldBeEqualTo
 import org.aspectj.lang.annotation.Aspect
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertDoesNotThrow
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.assertNotFails
+import org.junit.jupiter.api.Test
 import org.springframework.core.annotation.AliasFor
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -61,7 +61,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             open fun ok() {}  // Kotlin default-final 회피 — open 명시
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
-        assertDoesNotThrow { bpp.postProcessAfterInitialization(Sample(), "sample") }
+        assertNotFails { bpp.postProcessAfterInitialization(Sample(), "sample") }
     }
 
     @Test
@@ -82,7 +82,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             fun finalMethod() {}
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
-        assertDoesNotThrow { bpp.postProcessAfterInitialization(Sample(), "sample") }
+        assertNotFails { bpp.postProcessAfterInitialization(Sample(), "sample") }
     }
 
     @Test
@@ -116,7 +116,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
         // self-inv 자체는 strict 모드에서도 WARN 만 (정확 검출 불가)
-        assertDoesNotThrow { bpp.postProcessAfterInitialization(Sample(), "sample") }
+        assertNotFails { bpp.postProcessAfterInitialization(Sample(), "sample") }
     }
 
     @Test
@@ -133,23 +133,23 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
     // ── #96: 누락 분기 — suspend / Mono / Flux / Flow / @Aspect ──
 
     @Test
-    fun `suspend method strict true - startup fail`() {
+    fun `suspend method strict true - 위반 없음 (#90 지원)`() {
         class SampleSuspend {
             @LeaderElection(name = "suspend-job")
             open suspend fun doWork(): String = "ok"
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
-        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleSuspend(), "sample") }
+        assertNotFails { bpp.postProcessAfterInitialization(SampleSuspend(), "sample") }
     }
 
     @Test
-    fun `suspend method strict false - WARN 만 (throw 안 함)`() {
+    fun `suspend method strict false - 위반 없음 (#90 지원)`() {
         class SampleSuspend {
             @LeaderElection(name = "suspend-job")
             open suspend fun doWork(): String = "ok"
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
-        assertDoesNotThrow { bpp.postProcessAfterInitialization(SampleSuspend(), "sample") }
+        assertNotFails { bpp.postProcessAfterInitialization(SampleSuspend(), "sample") }
     }
 
     @Test
@@ -203,7 +203,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             open fun run(): String = "ok"
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
-        assertDoesNotThrow { bpp.postProcessAfterInitialization(SampleComposed(), "sample") }
+        assertNotFails { bpp.postProcessAfterInitialization(SampleComposed(), "sample") }
     }
 
     @Test
