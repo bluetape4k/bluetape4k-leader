@@ -4,7 +4,7 @@ import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import org.amshove.kluent.shouldBeInRange
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RetryStrategyTest {
@@ -18,8 +18,8 @@ class RetryStrategyTest {
 
     @Test
     fun `Jitter - baseDelayMs가 1 이하면 IllegalArgumentException 발생`() {
-        assertThrows<IllegalArgumentException> { RetryStrategy.Jitter(baseDelayMs = 1L) }
-        assertThrows<IllegalArgumentException> { RetryStrategy.Jitter(baseDelayMs = 0L) }
+        assertFailsWith<IllegalArgumentException> { RetryStrategy.Jitter(baseDelayMs = 1L) }
+        assertFailsWith<IllegalArgumentException> { RetryStrategy.Jitter(baseDelayMs = 0L) }
     }
 
     @Test

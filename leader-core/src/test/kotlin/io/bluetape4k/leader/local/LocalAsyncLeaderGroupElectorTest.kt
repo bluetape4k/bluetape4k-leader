@@ -12,7 +12,7 @@ import org.amshove.kluent.shouldBeLessOrEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -57,7 +57,7 @@ class LocalAsyncLeaderGroupElectorTest {
 
     @Test
     fun `runAsyncIfLeader - action future 실패 시 CompletionException 이 전파된다`() {
-        assertThrows<CompletionException> {
+        assertFailsWith<CompletionException> {
             election.runAsyncIfLeader(randomLockName()) {
                 CompletableFuture.failedFuture<String>(IllegalStateException("비동기 실패"))
             }.join()

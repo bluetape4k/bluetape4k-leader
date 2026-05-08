@@ -6,7 +6,7 @@ import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.logging.KLogging
 import org.amshove.kluent.shouldBe
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.time.Duration
@@ -157,7 +157,7 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
     @Test
     fun `생성자 - slot 음수는 IllegalArgumentException 발생`() {
         // DB 연결 없이 init 검증만 확인 — connectDb 불필요
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             ExposedJdbcGroupLock(
                 org.jetbrains.exposed.v1.jdbc.Database.connect("jdbc:h2:mem:slot-validate;DB_CLOSE_DELAY=-1"),
                 lockName = "slot-validate",

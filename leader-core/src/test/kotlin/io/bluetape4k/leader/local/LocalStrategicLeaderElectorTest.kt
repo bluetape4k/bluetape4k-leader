@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateResult
@@ -9,12 +10,10 @@ import io.bluetape4k.leader.strategy.scorers.WeightedScorer
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
 import kotlinx.coroutines.CancellationException
-import org.amshove.kluent.invoking
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.amshove.kluent.shouldNotBeNull
-import org.amshove.kluent.shouldThrow
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -285,11 +284,11 @@ class LocalStrategicLeaderElectorTest {
     fun `CancellationException은 failureCount를 증가시키지 않고 전파된다`() {
         node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
 
-        invoking {
+        assertFailsWith<CancellationException> {
             node1.runIfLeader(lockName, FifoElectionStrategy) {
                 throw CancellationException("작업 취소됨")
             }
-        } shouldThrow CancellationException::class
+        }
 
         val info = node1.listCandidates(lockName).first { it.nodeId == node1.nodeId }
         info.failureCount shouldBeEqualTo 0L
@@ -300,11 +299,11 @@ class LocalStrategicLeaderElectorTest {
     fun `일반 예외는 failureCount 증가 후 전파된다`() {
         node1.registerCandidate(lockName, CandidateInfo(node1.nodeId))
 
-        invoking {
+        assertFailsWith<IllegalStateException> {
             node1.runIfLeader(lockName, FifoElectionStrategy) {
                 error("boom")
             }
-        } shouldThrow IllegalStateException::class
+        }
 
         val info = node1.listCandidates(lockName).first { it.nodeId == node1.nodeId }
         info.failureCount shouldBeEqualTo 1L

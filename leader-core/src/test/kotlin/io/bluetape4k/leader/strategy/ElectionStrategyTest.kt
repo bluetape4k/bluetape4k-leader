@@ -5,7 +5,7 @@ import io.bluetape4k.leader.strategy.scorers.RecentSuccessScorer
 import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.scorers.WeightedScorer
 import org.amshove.kluent.shouldBeIn
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.RandomElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
@@ -281,16 +281,16 @@ class ElectionStrategyTest {
 
     @Test
     fun `WeightedScorer - 빈 scorer 목록은 require 실패`() {
-        assertThrows<IllegalArgumentException> { WeightedScorer(emptyList()) }
+        assertFailsWith<IllegalArgumentException> { WeightedScorer(emptyList()) }
     }
 
     @Test
     fun `WeightedScorer - 음수 weight 는 require 실패`() {
-        assertThrows<IllegalArgumentException> { WeightedScorer(IdleTimeScorer to -0.5) }
+        assertFailsWith<IllegalArgumentException> { WeightedScorer(IdleTimeScorer to -0.5) }
     }
 
     @Test
     fun `WeightedScorer - 0 weight 는 require 실패`() {
-        assertThrows<IllegalArgumentException> { WeightedScorer(IdleTimeScorer to 0.0) }
+        assertFailsWith<IllegalArgumentException> { WeightedScorer(IdleTimeScorer to 0.0) }
     }
 }

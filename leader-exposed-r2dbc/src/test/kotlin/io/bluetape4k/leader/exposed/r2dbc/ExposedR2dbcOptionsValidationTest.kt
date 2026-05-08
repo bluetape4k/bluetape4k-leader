@@ -9,7 +9,7 @@ import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -38,7 +38,7 @@ class ExposedR2dbcOptionsValidationTest {
     @Test
     fun `lockOwner 최대 길이 초과 시 IllegalArgumentException이 발생한다`() {
         val tooLong = "a".repeat(ExposedLeaderConstants.LOCK_OWNER_LENGTH + 1)
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             ExposedR2dbcLeaderElectionOptions(lockOwner = tooLong)
         }
     }
@@ -87,7 +87,7 @@ class ExposedR2dbcOptionsValidationTest {
 
     @Test
     fun `그룹 maxLeaders = 0 이면 IllegalArgumentException이 발생한다`() {
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             ExposedR2dbcLeaderGroupElectionOptions(
                 leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 0)
             )
@@ -96,7 +96,7 @@ class ExposedR2dbcOptionsValidationTest {
 
     @Test
     fun `그룹 maxLeaders 음수이면 IllegalArgumentException이 발생한다`() {
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             ExposedR2dbcLeaderGroupElectionOptions(
                 leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = -1)
             )
@@ -106,7 +106,7 @@ class ExposedR2dbcOptionsValidationTest {
     @Test
     fun `그룹 lockOwner 최대 길이 초과 시 IllegalArgumentException이 발생한다`() {
         val tooLong = "b".repeat(ExposedLeaderConstants.LOCK_OWNER_LENGTH + 1)
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             ExposedR2dbcLeaderGroupElectionOptions(lockOwner = tooLong)
         }
     }

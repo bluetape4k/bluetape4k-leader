@@ -12,7 +12,7 @@ import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -92,7 +92,7 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `action 예외 발생 시 슬롯 반환 후 재선출 가능`() {
-        assertThrows<LeaderGroupElectionException> {
+        assertFailsWith<LeaderGroupElectionException> {
             election.runIfLeader(lockName) { throw LeaderGroupElectionException("오류") }
         }
         val result = election.runIfLeader(lockName) { "recovered" }

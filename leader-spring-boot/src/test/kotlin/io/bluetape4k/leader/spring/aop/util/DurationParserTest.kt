@@ -3,7 +3,7 @@ package io.bluetape4k.leader.spring.aop.util
 import io.bluetape4k.logging.KLogging
 import org.amshove.kluent.shouldBeEqualTo
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import java.time.Duration
@@ -33,13 +33,13 @@ class DurationParserTest {
     @ParameterizedTest
     @CsvSource("0s", "PT0S", "PT-1S")
     fun `parse - 음수와 0은 거부한다`(input: String) {
-        assertThrows<IllegalArgumentException> { DurationParser.parse(input) }
+        assertFailsWith<IllegalArgumentException> { DurationParser.parse(input) }
     }
 
     @ParameterizedTest
     @CsvSource("'   '", "'invalid'", "'10'", "'10x'", "'PT'")
     fun `parse - 형식 불일치는 거부한다`(input: String) {
-        assertThrows<IllegalArgumentException> { DurationParser.parse(input) }
+        assertFailsWith<IllegalArgumentException> { DurationParser.parse(input) }
     }
 
     @Test

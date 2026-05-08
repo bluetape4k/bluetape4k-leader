@@ -14,7 +14,7 @@ import org.amshove.kluent.shouldBeGreaterOrEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -66,7 +66,7 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
     fun `runIfLeader - blank lockName은 IllegalArgumentException을 발생시킨다`() {
         val election = MongoLeaderElector(lockCollection)
 
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             election.runIfLeader("   ") { }
         }
     }
@@ -75,7 +75,7 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
     fun `runIfLeader - dot을 포함한 lockName은 IllegalArgumentException을 발생시킨다`() {
         val election = MongoLeaderElector(lockCollection)
 
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             election.runIfLeader("a.b") { }
         }
     }
@@ -84,7 +84,7 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
     fun `runIfLeader - colon-slot-colon을 포함한 lockName은 IllegalArgumentException을 발생시킨다`() {
         val election = MongoLeaderElector(lockCollection)
 
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             election.runIfLeader("a:slot:b") { }
         }
     }
@@ -94,7 +94,7 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
         val lockName = randomName()
         val election = MongoLeaderElector(lockCollection)
 
-        assertThrows<LeaderElectionException> {
+        assertFailsWith<LeaderElectionException> {
             election.runIfLeader(lockName) {
                 throw LeaderElectionException("테스트 예외")
             }
@@ -191,7 +191,7 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
         val lockName = randomName()
         val election = MongoLeaderElector(lockCollection)
 
-        assertThrows<CompletionException> {
+        assertFailsWith<CompletionException> {
             election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
                 throw IllegalStateException("action 동기 예외")
             }.join()

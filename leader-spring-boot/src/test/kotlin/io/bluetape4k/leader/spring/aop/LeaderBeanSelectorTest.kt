@@ -11,7 +11,7 @@ import org.amshove.kluent.shouldBeEqualTo
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.beans.factory.NoUniqueBeanDefinitionException
@@ -60,7 +60,7 @@ class LeaderBeanSelectorTest {
         every { bf.getBeansOfType(LeaderElectorFactory::class.java) } returns emptyMap()
 
         val sut = LeaderBeanSelector(bf)
-        assertThrows<NoSuchBeanDefinitionException> { sut.selectElectionFactory("") }
+        assertFailsWith<NoSuchBeanDefinitionException> { sut.selectElectionFactory("") }
     }
 
     @Test
@@ -88,7 +88,7 @@ class LeaderBeanSelectorTest {
         every { bf.getBean(LeaderElectorFactory::class.java) } throws NoUniqueBeanDefinitionException(LeaderElectorFactory::class.java)
 
         val sut = LeaderBeanSelector(bf)
-        assertThrows<NoUniqueBeanDefinitionException> { sut.selectElectionFactory("") }
+        assertFailsWith<NoUniqueBeanDefinitionException> { sut.selectElectionFactory("") }
     }
 
     // ── #78: @LeaderElectionBackend 탐색 테스트 ──

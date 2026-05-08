@@ -15,7 +15,7 @@ import org.awaitility.kotlin.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -149,7 +149,7 @@ class LettuceStrategicLeaderElectorTest: AbstractLettuceLeaderTest() {
         val lockName = randomName()
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
 
-        assertThrows<LeaderGroupElectionException> {
+        assertFailsWith<LeaderGroupElectionException> {
             node1.runIfLeader(lockName, FifoElectionStrategy) {
                 throw LeaderGroupElectionException("intentional")
             }

@@ -23,7 +23,7 @@ import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration.Companion.milliseconds
 
 class MongoSuspendLeaderGroupElectorTest: AbstractMongoLeaderTest() {
@@ -97,7 +97,7 @@ class MongoSuspendLeaderGroupElectorTest: AbstractMongoLeaderTest() {
     fun `runIfLeader - 콜론슬롯콜론이 포함된 lockName은 IllegalArgumentException을 던진다`() = runSuspendIO {
         val election = makeElection()
 
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             runBlocking { election.runIfLeader("a:slot:b") { "never" } }
         }
     }

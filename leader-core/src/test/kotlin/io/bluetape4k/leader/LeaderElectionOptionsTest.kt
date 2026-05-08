@@ -3,7 +3,7 @@ package io.bluetape4k.leader
 import io.bluetape4k.logging.KLogging
 import org.amshove.kluent.shouldBeEqualTo
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -39,34 +39,34 @@ class LeaderElectionOptionsTest {
 
     @Test
     fun `LeaderGroupElectionOptions maxLeaders 가 0 이하면 예외가 발생한다`() {
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             LeaderGroupElectionOptions(maxLeaders = 0)
         }
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             LeaderGroupElectionOptions(maxLeaders = -1)
         }
     }
 
     @Test
     fun `LeaderElectionOptions leaseTime 이 0 이하면 예외가 발생한다`() {
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             LeaderElectionOptions(leaseTime = Duration.ZERO)
         }
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             LeaderElectionOptions(leaseTime = -1.seconds)
         }
     }
 
     @Test
     fun `LeaderElectionOptions waitTime 이 음수면 예외가 발생한다`() {
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             LeaderElectionOptions(waitTime = -1.milliseconds)
         }
     }
 
     @Test
     fun `LeaderGroupElectionOptions leaseTime 이 0 이하면 예외가 발생한다`() {
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             LeaderGroupElectionOptions(leaseTime = Duration.ZERO)
         }
     }
@@ -74,10 +74,10 @@ class LeaderElectionOptionsTest {
     @Test
     fun `blank lockName 으로 호출 시 예외가 발생한다`() {
         val election = io.bluetape4k.leader.local.LocalLeaderElector()
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             election.runIfLeader("") { "should fail" }
         }
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             election.runIfLeader("   ") { "should fail" }
         }
     }

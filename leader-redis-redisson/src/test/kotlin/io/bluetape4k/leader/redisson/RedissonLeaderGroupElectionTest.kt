@@ -14,7 +14,7 @@ import org.amshove.kluent.shouldBeInstanceOf
 import org.amshove.kluent.shouldBeLessOrEqualTo
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
 import kotlin.time.Duration
@@ -59,7 +59,7 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() {
-        assertThrows<LeaderGroupElectionException> {
+        assertFailsWith<LeaderGroupElectionException> {
             election.runIfLeader(randomName()) {
                 throw LeaderGroupElectionException("테스트 예외")
             }
@@ -70,7 +70,7 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
     fun `runIfLeader - action 예외 발생 후에도 슬롯이 반환되어 다음 호출이 성공한다`() {
         val lockName = randomName()
 
-        assertThrows<LeaderGroupElectionException> {
+        assertFailsWith<LeaderGroupElectionException> {
             election.runIfLeader(lockName) {
                 throw LeaderGroupElectionException("실패")
             }
@@ -294,7 +294,7 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
     fun `runAsyncIfLeader - action 예외 발생 후에도 슬롯이 반환되어 다음 호출이 성공한다`() {
         val lockName = randomName()
 
-        assertThrows<CompletionException> {
+        assertFailsWith<CompletionException> {
             election.runAsyncIfLeader(lockName) {
                 futureOf<Int> { throw LeaderGroupElectionException("실패") }
             }.join()
@@ -308,7 +308,7 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
     fun `runAsyncIfLeader - failed future 발생 시 CompletionException 으로 전파되고 슬롯이 반환된다`() {
         val lockName = randomName()
 
-        assertThrows<CompletionException> {
+        assertFailsWith<CompletionException> {
             election.runAsyncIfLeader(lockName) {
                 futureOf<Int> { throw IllegalStateException("boom") }
             }.join()

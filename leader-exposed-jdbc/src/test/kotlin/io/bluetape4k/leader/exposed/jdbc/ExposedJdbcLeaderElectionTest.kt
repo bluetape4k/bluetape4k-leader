@@ -22,7 +22,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.time.Duration
@@ -55,7 +55,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         val election = ExposedJdbcLeaderElector(db)
 
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             election.runIfLeader("   ") { }
         }
     }
@@ -66,7 +66,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val db = connectDb(testDB)
         val election = ExposedJdbcLeaderElector(db)
 
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             election.runIfLeader("x".repeat(256)) { }
         }
     }
@@ -133,7 +133,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
         val election = ExposedJdbcLeaderElector(db)
 
-        assertThrows<RuntimeException> {
+        assertFailsWith<RuntimeException> {
             election.runIfLeader(lockName) {
                 throw LeaderElectionException("테스트 예외")
             }
@@ -176,7 +176,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         )
         val election = ExposedJdbcLeaderElector(db, options)
 
-        assertThrows<CancellationException> {
+        assertFailsWith<CancellationException> {
             election.runIfLeader(lockName) {
                 throw CancellationException("취소 테스트")
             }
@@ -297,7 +297,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val lockName = randomName()
         val election = ExposedJdbcLeaderElector(db)
 
-        assertThrows<CompletionException> {
+        assertFailsWith<CompletionException> {
             election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
                 throw IllegalStateException("action 동기 예외")
             }.join()
@@ -322,7 +322,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         )
         val election = ExposedJdbcLeaderElector(db, options)
 
-        assertThrows<CompletionException> {
+        assertFailsWith<CompletionException> {
             election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
                 CompletableFuture.failedFuture(IllegalStateException("async 실패"))
             }.join()

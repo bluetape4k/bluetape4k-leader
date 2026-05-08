@@ -14,7 +14,7 @@ import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.bson.Document
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -123,7 +123,7 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
 
     @Test
     fun `runIfLeader - colon-slot-colon을 포함한 lockName은 IllegalArgumentException을 발생시킨다`() {
-        assertThrows<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             election.runIfLeader("a:slot:b") { }
         }
     }
@@ -211,7 +211,7 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
     fun `runAsyncIfLeader - action 예외 발생 후 슬롯이 반환되어 다음 호출이 성공한다`() {
         val lockName = randomName()
 
-        assertThrows<CompletionException> {
+        assertFailsWith<CompletionException> {
             election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
                 throw IllegalStateException("action 동기 예외")
             }.join()
@@ -227,7 +227,7 @@ class MongoLeaderGroupElectionTest: AbstractMongoLeaderTest() {
     fun `runAsyncIfLeader - action 동기 throw 후 슬롯 락 문서가 즉시 삭제된다`() {
         val lockName = randomName()
 
-        assertThrows<CompletionException> {
+        assertFailsWith<CompletionException> {
             election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
                 throw IllegalStateException("action 동기 예외")
             }.join()

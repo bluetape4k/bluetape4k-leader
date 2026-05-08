@@ -26,7 +26,7 @@ import org.aspectj.lang.reflect.MethodSignature
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import java.util.concurrent.CancellationException
 
 /**
@@ -143,7 +143,7 @@ class LeaderGroupElectionAspectTest {
         every { election.runIfLeaderResult<Any?>(any(), capture(actionSlot)) } answers { LeaderRunResult.Elected(actionSlot.captured.invoke()) }
 
         val aspect = newAspect()
-        val ex = assertThrows<RuntimeException> { aspect.aroundLeader(pjp) }
+        val ex = assertFailsWith<RuntimeException> { aspect.aroundLeader(pjp) }
         ex shouldBeEqualTo bodyEx
     }
 
@@ -157,7 +157,7 @@ class LeaderGroupElectionAspectTest {
         every { election.runIfLeaderResult<Any?>(any(), any()) } throws backendEx
 
         val aspect = newAspect()
-        val wrapped = assertThrows<LeaderGroupElectionException> { aspect.aroundLeader(pjp) }
+        val wrapped = assertFailsWith<LeaderGroupElectionException> { aspect.aroundLeader(pjp) }
         wrapped.cause shouldBeEqualTo backendEx
         wrapped.message!!.contains("redis-prod-01") shouldBeEqualTo false
         wrapped.message!! shouldContain "static-group-job"
@@ -175,7 +175,7 @@ class LeaderGroupElectionAspectTest {
         every { election.runIfLeaderResult<Any?>(any(), capture(actionSlot)) } answers { LeaderRunResult.Elected(actionSlot.captured.invoke()) }
 
         val aspect = newAspect()
-        val ex = assertThrows<CancellationException> { aspect.aroundLeader(pjp) }
+        val ex = assertFailsWith<CancellationException> { aspect.aroundLeader(pjp) }
         ex shouldBeEqualTo cancelEx
     }
 
@@ -268,7 +268,7 @@ class LeaderGroupElectionAspectTest {
         every { election.runIfLeaderResult<Any?>(any(), any()) } throws IllegalStateException("backend")
 
         val aspect = newAspect()
-        val ex = assertThrows<LeaderGroupElectionException> { aspect.aroundLeader(pjp) }
+        val ex = assertFailsWith<LeaderGroupElectionException> { aspect.aroundLeader(pjp) }
         ex shouldBeInstanceOf LeaderGroupElectionException::class
     }
 
@@ -284,7 +284,7 @@ class LeaderGroupElectionAspectTest {
         val aspect = newAspect()
         every { factoryMock.create(any()) } throws backendEx
 
-        val wrapped = assertThrows<LeaderGroupElectionException> { aspect.aroundLeader(pjp) }
+        val wrapped = assertFailsWith<LeaderGroupElectionException> { aspect.aroundLeader(pjp) }
         wrapped.cause shouldBeEqualTo backendEx
         wrapped.message!! shouldContain "static-group-job"
         wrapped.message!!.contains("redis-prod-01") shouldBeEqualTo false
@@ -350,7 +350,7 @@ class LeaderGroupElectionAspectTest {
         every { election.runIfLeaderResult<Any?>(any(), any()) } returns LeaderRunResult.Skipped
 
         val aspect = newAspect()
-        val ex = assertThrows<RuntimeException> { aspect.aroundLeader(pjp) }
+        val ex = assertFailsWith<RuntimeException> { aspect.aroundLeader(pjp) }
         ex shouldBeEqualTo bodyEx
     }
 
@@ -391,7 +391,7 @@ class LeaderGroupElectionAspectTest {
         every { election.runIfLeaderResult<Any?>(any(), any()) } throws RuntimeException("backend down")
 
         val aspect = newAspect()
-        val ex = assertThrows<IllegalStateException> { aspect.aroundLeader(pjp) }
+        val ex = assertFailsWith<IllegalStateException> { aspect.aroundLeader(pjp) }
         ex shouldBeEqualTo bodyEx
     }
 }

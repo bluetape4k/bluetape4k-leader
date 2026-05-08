@@ -12,7 +12,7 @@ import org.amshove.kluent.shouldBeLessOrEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -52,7 +52,7 @@ class LocalLeaderGroupElectionTest {
 
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() {
-        assertThrows<LeaderGroupElectionException> {
+        assertFailsWith<LeaderGroupElectionException> {
             election.runIfLeader(randomLockName()) { throw LeaderGroupElectionException("테스트 예외") }
         }
     }

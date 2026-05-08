@@ -26,7 +26,7 @@ import org.aspectj.lang.reflect.MethodSignature
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import java.util.concurrent.CancellationException
 
 /**
@@ -141,7 +141,7 @@ class LeaderElectionAspectTest {
         every { election.runIfLeaderResult<Any?>(any(), capture(actionSlot)) } answers { LeaderRunResult.Elected(actionSlot.captured.invoke()) }
 
         val aspect = newAspect()
-        val ex = assertThrows<RuntimeException> { aspect.aroundLeader(pjp) }
+        val ex = assertFailsWith<RuntimeException> { aspect.aroundLeader(pjp) }
         ex shouldBeEqualTo bodyEx  // wrapping 없음
     }
 
@@ -155,7 +155,7 @@ class LeaderElectionAspectTest {
         every { election.runIfLeaderResult<Any?>(any(), any()) } throws backendEx
 
         val aspect = newAspect()
-        val wrapped = assertThrows<LeaderElectionException> { aspect.aroundLeader(pjp) }
+        val wrapped = assertFailsWith<LeaderElectionException> { aspect.aroundLeader(pjp) }
         wrapped.cause shouldBeEqualTo backendEx
         // message 일반화 — host 정보 미포함
         wrapped.message!!.contains("redis-prod-01") shouldBeEqualTo false
@@ -174,7 +174,7 @@ class LeaderElectionAspectTest {
         every { election.runIfLeaderResult<Any?>(any(), capture(actionSlot)) } answers { LeaderRunResult.Elected(actionSlot.captured.invoke()) }
 
         val aspect = newAspect()
-        val ex = assertThrows<CancellationException> { aspect.aroundLeader(pjp) }
+        val ex = assertFailsWith<CancellationException> { aspect.aroundLeader(pjp) }
         ex shouldBeEqualTo cancelEx  // wrapping 없음
     }
 
@@ -295,7 +295,7 @@ class LeaderElectionAspectTest {
         every { election.runIfLeaderResult<Any?>(any(), any()) } throws IllegalStateException("backend")
 
         val aspect = newAspect()
-        val ex = assertThrows<LeaderElectionException> { aspect.aroundLeader(pjp) }
+        val ex = assertFailsWith<LeaderElectionException> { aspect.aroundLeader(pjp) }
         ex shouldBeInstanceOf LeaderElectionException::class
     }
 
@@ -312,7 +312,7 @@ class LeaderElectionAspectTest {
         // factory.create 가 backend I/O 실패로 throw — try 블록 안으로 이동되어야 failureMode 가 적용됨
         every { factoryMock.create(any()) } throws backendEx
 
-        val wrapped = assertThrows<LeaderElectionException> { aspect.aroundLeader(pjp) }
+        val wrapped = assertFailsWith<LeaderElectionException> { aspect.aroundLeader(pjp) }
         wrapped.cause shouldBeEqualTo backendEx
         // lockName 은 포함, backend host 정보는 누출 안 됨 (R-33)
         wrapped.message!!.contains("static-job") shouldBeEqualTo true
@@ -376,7 +376,7 @@ class LeaderElectionAspectTest {
         every { election.runIfLeaderResult<Any?>(any(), any()) } returns LeaderRunResult.Skipped
 
         val aspect = newAspect()
-        val ex = assertThrows<RuntimeException> { aspect.aroundLeader(pjp) }
+        val ex = assertFailsWith<RuntimeException> { aspect.aroundLeader(pjp) }
         ex shouldBeEqualTo bodyEx
     }
 
@@ -418,7 +418,7 @@ class LeaderElectionAspectTest {
         every { election.runIfLeaderResult<Any?>(any(), any()) } throws RuntimeException("backend down")
 
         val aspect = newAspect()
-        val ex = assertThrows<IllegalStateException> { aspect.aroundLeader(pjp) }
+        val ex = assertFailsWith<IllegalStateException> { aspect.aroundLeader(pjp) }
         ex shouldBeEqualTo bodyEx
     }
 

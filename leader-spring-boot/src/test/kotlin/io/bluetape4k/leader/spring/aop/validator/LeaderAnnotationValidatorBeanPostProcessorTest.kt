@@ -10,7 +10,7 @@ import org.amshove.kluent.shouldBeEqualTo
 import org.aspectj.lang.annotation.Aspect
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import org.springframework.core.annotation.AliasFor
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -72,7 +72,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             fun finalMethod() {}
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
-        assertThrows<IllegalStateException> { bpp.postProcessAfterInitialization(Sample(), "sample") }
+        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(Sample(), "sample") }
     }
 
     @Test
@@ -92,7 +92,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             open fun bad() {}
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
-        assertThrows<IllegalArgumentException> { bpp.postProcessAfterInitialization(Sample(), "sample") }
+        assertFailsWith<IllegalArgumentException> { bpp.postProcessAfterInitialization(Sample(), "sample") }
     }
 
     @Test
@@ -102,7 +102,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             open fun bad() {}
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
-        assertThrows<IllegalStateException> { bpp.postProcessAfterInitialization(Sample(), "sample") }
+        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(Sample(), "sample") }
     }
 
     @Test
@@ -139,7 +139,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             open suspend fun doWork(): String = "ok"
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
-        assertThrows<IllegalStateException> { bpp.postProcessAfterInitialization(SampleSuspend(), "sample") }
+        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleSuspend(), "sample") }
     }
 
     @Test
@@ -159,7 +159,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             open fun process(): Mono<String> = Mono.just("ok")
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
-        assertThrows<IllegalStateException> { bpp.postProcessAfterInitialization(SampleMono(), "sample") }
+        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleMono(), "sample") }
     }
 
     @Test
@@ -169,7 +169,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             open fun process(): Flux<String> = Flux.just("ok")
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
-        assertThrows<IllegalStateException> { bpp.postProcessAfterInitialization(SampleFlux(), "sample") }
+        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleFlux(), "sample") }
     }
 
     @Test
@@ -179,7 +179,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             open fun process(): Flow<String> = flowOf("ok")
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
-        assertThrows<IllegalStateException> { bpp.postProcessAfterInitialization(SampleFlow(), "sample") }
+        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleFlow(), "sample") }
     }
 
     @Test
@@ -213,7 +213,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             fun run(): String = "ok"  // final
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
-        assertThrows<IllegalStateException> { bpp.postProcessAfterInitialization(SampleComposedFinal(), "sample") }
+        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleComposedFinal(), "sample") }
     }
 
     @Test
@@ -223,7 +223,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             open fun run(): String = "ok"
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
-        assertThrows<IllegalStateException> { bpp.postProcessAfterInitialization(SampleBadSpel(), "sample") }
+        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleBadSpel(), "sample") }
     }
 
     @Test
@@ -233,6 +233,6 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             open fun run(): String = "ok"
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
-        assertThrows<IllegalArgumentException> { bpp.postProcessAfterInitialization(SampleBadGroup(), "sample") }
+        assertFailsWith<IllegalArgumentException> { bpp.postProcessAfterInitialization(SampleBadGroup(), "sample") }
     }
 }

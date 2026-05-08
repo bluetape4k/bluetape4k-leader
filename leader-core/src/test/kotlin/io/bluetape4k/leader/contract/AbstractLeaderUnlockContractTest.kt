@@ -7,7 +7,7 @@ import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldNotBeNull
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 
 /**
  * 6 백엔드 ([LeaderElector]) `runIfLeader` unlock 계약 회귀 베이스.
@@ -79,7 +79,7 @@ abstract class AbstractLeaderUnlockContractTest {
         val election = newElection()
         val lockName = randomLockName()
 
-        assertThrows<RuntimeException> {
+        assertFailsWith<RuntimeException> {
             election.runIfLeader<Unit>(lockName) {
                 throw sampleException
             }

@@ -11,7 +11,7 @@ import org.amshove.kluent.shouldBeGreaterOrEqualTo
 import org.amshove.kluent.shouldNotBeNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -49,7 +49,7 @@ class LettuceSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
 
     @Test
     fun `코루틴 리더 선출 - action 예외 후 재선출 가능`() = runSuspendIO {
-        assertThrows<LeaderElectionException> {
+        assertFailsWith<LeaderElectionException> {
             suspendElection.runIfLeader(lockName) {
                 throw LeaderElectionException("suspend 오류")
             }

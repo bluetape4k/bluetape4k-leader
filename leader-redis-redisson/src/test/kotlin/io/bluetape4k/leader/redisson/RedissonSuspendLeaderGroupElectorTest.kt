@@ -16,7 +16,7 @@ import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeLessOrEqualTo
 import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -56,7 +56,7 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
 
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() = runSuspendIO {
-        assertThrows<LeaderGroupElectionException> {
+        assertFailsWith<LeaderGroupElectionException> {
             election.runIfLeader(randomName()) {
                 throw LeaderGroupElectionException("테스트 예외")
             }
@@ -67,7 +67,7 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
     fun `runIfLeader - action 예외 발생 후에도 슬롯이 반환되어 다음 호출이 성공한다`() = runSuspendIO {
         val lockName = randomName()
 
-        assertThrows<LeaderGroupElectionException> {
+        assertFailsWith<LeaderGroupElectionException> {
             election.runIfLeader(lockName) {
                 throw LeaderGroupElectionException("실패")
             }
