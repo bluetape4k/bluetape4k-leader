@@ -259,8 +259,9 @@ jobs:
             [ $attempt -lt 3 ] && sleep 10 || exit 1
           done
         env:
-          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
+          DOCKER_HOST: "unix:///var/run/docker.sock"
 
       - name: Generate Kover XML report
         if: always()
@@ -311,8 +312,9 @@ jobs:
             [ $attempt -lt 3 ] && sleep 10 || exit 1
           done
         env:
-          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
+          DOCKER_HOST: "unix:///var/run/docker.sock"
 
       - name: Generate Kover XML report
         if: always()
