@@ -64,9 +64,7 @@ allprojects {
 }
 
 subprojects {
-    if (name != "leader-bom") {
-        apply(plugin = "com.gradleup.nmcp")
-    }
+    apply(plugin = "com.gradleup.nmcp")
 
     configurations.matching { it.name.startsWith("nmcp") }.configureEach {
         resolutionStrategy.eachDependency {
@@ -331,7 +329,6 @@ extensions.configure<NmcpAggregationExtension>("nmcpAggregation") {
 
 dependencies {
     subprojects
-        .filter { it.name != "leader-bom" }
         .forEach { add("nmcpAggregation", project(it.path)) }
 }
 
