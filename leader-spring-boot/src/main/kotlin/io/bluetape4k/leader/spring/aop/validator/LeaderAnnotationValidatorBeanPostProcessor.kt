@@ -19,7 +19,7 @@ import java.lang.reflect.Modifier
  * ## 검출 항목
  * - `final` / `private` 메서드 (proxy 적용 불가)
  * - `@LeaderGroupElection.maxLeaders` ≤ 1
- * - reactive 반환 (`Mono` / `Flux` / `Flow`) — sync only PR
+ * - reactive 반환 (`Flux` / `Flow`) — 미지원 (`Mono`는 #91 이후 지원)
  * - SpEL pre-parse 실패
  * - 같은 클래스에 어노테이션 부착 메서드 2+ (best-effort self-invocation WARN)
  *
@@ -87,11 +87,10 @@ class LeaderAnnotationValidatorBeanPostProcessor(
         if (Modifier.isPrivate(method.modifiers)) violations += "private method (proxy 적용 불가)"
 
         val returnTypeName = method.returnType.name
-        if (returnTypeName.endsWith(".Mono") ||
-            returnTypeName.endsWith(".Flux") ||
+        if (returnTypeName.endsWith(".Flux") ||
             returnTypeName == "kotlinx.coroutines.flow.Flow"
         ) {
-            violations += "$returnTypeName 반환 타입 (sync only PR — see #80)"
+            violations += "$returnTypeName 반환 타입 (미지원 — Mono는 #91 이후 지원, Flux/Flow 미지원)"
         }
 
         // [#84] composed 어노테이션(@AliasFor) 지원 — findMergedAnnotation 으로 합성 어노테이션 속성 해석

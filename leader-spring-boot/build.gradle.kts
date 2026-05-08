@@ -68,6 +68,8 @@ dependencies {
     compileOnly(libs.spring.context)
     compileOnly(libs.spring.tx)
 
+    compileOnly(libs.kotlinx.coroutines.reactor)
+
     // Caffeine — LeaderBeanSelector factory cache
     implementation(libs.caffeine)
 
