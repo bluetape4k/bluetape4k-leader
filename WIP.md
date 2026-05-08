@@ -39,8 +39,8 @@
 | #84 | feat: 메타 어노테이션 (@AliasFor) 지원 | ✅ 완료 | #117 merged |
 | #78 | feat: 클래스/패키지 레벨 @LeaderElectionBackend 메타 어노테이션 | ✅ 완료 | #118 merged |
 | #82 | feat: SpEL TemplateParserContext 혼합 표현식 지원 | ✅ 완료 | #119 merged |
-| #128 | fix: Hazelcast suspend elector CancellationException 재전파 | ✅ 완료 | PR 예정 |
-| #34 | feat: leader-zookeeper (Apache Curator 기반) | ✅ 완료 | PR 예정 |
+| #128 | fix: Hazelcast suspend elector CancellationException 재전파 | ✅ 완료 | #138 |
+| #34 | feat: leader-zookeeper (Apache Curator 기반) | ✅ 완료 | #138 |
 
 ---
 
