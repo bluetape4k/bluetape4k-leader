@@ -424,10 +424,37 @@ bluetape4k:
 | `leader.aop.execution.duration` | Timer | 리더 작업 실행 시간 |
 | `leader.aop.task.failed` | Counter | 작업 본문 예외 발생 횟수; `exception` 태그로 예외 클래스명 구분 |
 | `leader.aop.active` | Gauge | 현재 실행 중인 리더 작업 수 (JVM 로컬) |
+| `shedlock.leader.acquired` | Counter | 데코레이터 기반 리더 작업 성공 횟수 |
+| `shedlock.leader.not_acquired` | Counter | 데코레이터 기반 실행 건너뜀 횟수 |
+| `shedlock.leader.duration` | Timer | 데코레이터 기반 리더 작업 실행 시간 |
+| `shedlock.leader.active` | Gauge | 데코레이터 기반 현재 실행 중인 리더 작업 수 (JVM 로컬) |
 
 모든 메터는 `lock.name` 태그를 공유합니다. Micrometer의 `NamingConvention`이 백엔드별로 이름을 변환합니다 (Prometheus: `leader_aop_attempts_total` 등).
 
 > **멀티 인스턴스 주의:** `leader.aop.active`는 JVM 로컬 값입니다. Prometheus에서 클러스터 전체 리더 수를 보려면 `sum` 대신 `max by (lock_name) (leader_aop_active)`를 사용하세요.
+
+### 데코레이터 메트릭
+
+Spring AOP가 아니라 leader elector를 직접 호출하는 경우 데코레이터 래퍼를 사용합니다:
+
+```kotlin
+val election = InstrumentedLeaderElector(delegate, registry)
+val result = election.runIfLeader("daily-report-job") {
+    generateReport()
+}
+
+val groupElection = InstrumentedLeaderGroupElector(groupDelegate, registry)
+groupElection.runIfLeader("batch-shard") {
+    processShard()
+}
+
+val suspendElection = InstrumentedSuspendLeaderElector(suspendDelegate, registry)
+suspendElection.runIfLeader("sync-job") {
+    syncData()
+}
+```
+
+`lockName = "static-job"`를 전달하면 고정 `lock.name` 태그를 사용하고, 생략하면 호출별 lock 이름을 사용합니다.
 
 ### 메터 사전 등록 (선택)
 
