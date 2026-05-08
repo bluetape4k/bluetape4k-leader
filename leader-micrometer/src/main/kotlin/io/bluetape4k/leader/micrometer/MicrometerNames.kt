@@ -49,4 +49,18 @@ internal object MicrometerNames {
 
     /** 익명 클래스 등 `simpleName == null` 인 경우 [TAG_EXCEPTION] 태그 대체값. */
     const val UNKNOWN_EXCEPTION = "Unknown"
+
+    // --- Decorator meter names ---
+
+    /** 데코레이터 기반 리더 선출 성공 Counter. */
+    const val METER_LEADER_ACQUIRED = "shedlock.leader.acquired"
+
+    /** 데코레이터 기반 리더 미획득 Counter. */
+    const val METER_LEADER_NOT_ACQUIRED = "shedlock.leader.not_acquired"
+
+    /** 데코레이터 기반 리더 작업 실행 시간 Timer. */
+    const val METER_LEADER_DURATION = "shedlock.leader.duration"
+
+    /** 데코레이터 기반 현재 실행 중인 리더 작업 수 Gauge. */
+    const val METER_LEADER_ACTIVE = "shedlock.leader.active"
 }

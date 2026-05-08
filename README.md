@@ -422,10 +422,37 @@ bluetape4k:
 | `leader.aop.execution.duration` | Timer | Elapsed time of the leader action |
 | `leader.aop.task.failed` | Counter | Action body exceptions; tagged with `exception` class name |
 | `leader.aop.active` | Gauge | Currently running leader actions (JVM-local) |
+| `shedlock.leader.acquired` | Counter | Decorator-based successful leader executions |
+| `shedlock.leader.not_acquired` | Counter | Decorator-based skipped executions |
+| `shedlock.leader.duration` | Timer | Decorator-based leader action duration |
+| `shedlock.leader.active` | Gauge | Decorator-based currently running leader actions (JVM-local) |
 
 All meters are tagged with `lock.name`. Micrometer's `NamingConvention` converts names per backend (e.g., `leader_aop_attempts_total` for Prometheus).
 
 > **Multi-instance note:** `leader.aop.active` is JVM-local. Use `max by (lock_name) (leader_aop_active)` in Prometheus — not `sum` — to avoid counting each node's gauge separately.
+
+### Decorator metrics
+
+Use the decorator wrappers when you call leader electors directly instead of Spring AOP:
+
+```kotlin
+val election = InstrumentedLeaderElector(delegate, registry)
+val result = election.runIfLeader("daily-report-job") {
+    generateReport()
+}
+
+val groupElection = InstrumentedLeaderGroupElector(groupDelegate, registry)
+groupElection.runIfLeader("batch-shard") {
+    processShard()
+}
+
+val suspendElection = InstrumentedSuspendLeaderElector(suspendDelegate, registry)
+suspendElection.runIfLeader("sync-job") {
+    syncData()
+}
+```
+
+Pass `lockName = "static-job"` to any wrapper to use a fixed `lock.name` tag; omit it to use the per-call lock name.
 
 ### Pre-registration (optional)
 
