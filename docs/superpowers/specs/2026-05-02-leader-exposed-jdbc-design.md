@@ -448,7 +448,7 @@ data class ExposedJdbcLeaderElectionOptions(
 구체적인 구현은 **Section 4.5** 참조. Section 4.5가 권위 있는 유일한 구현 소스입니다.
 
 `bluetape4k-exposed-jdbc`의 `virtualFuture { }` 유틸리티:
-- `io.bluetape4k.exposed:bluetape4k-exposed-jdbc` 제공
+- `io.github.bluetape4k.exposed:bluetape4k-exposed-jdbc` 제공
 - JDBC 블로킹 I/O를 VirtualThread에서 실행 → carrier thread 반납 → 플랫폼 스레드 풀 효율 증가
 - `VirtualFuture<T?>` 반환으로 `VirtualThreadLeaderElection` 인터페이스 계약 충족
 
