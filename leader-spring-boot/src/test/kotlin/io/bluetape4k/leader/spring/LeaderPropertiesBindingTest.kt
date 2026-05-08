@@ -1,6 +1,6 @@
 package io.bluetape4k.leader.spring
 
-import org.amshove.kluent.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeEqualTo
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.context.properties.EnableConfigurationProperties

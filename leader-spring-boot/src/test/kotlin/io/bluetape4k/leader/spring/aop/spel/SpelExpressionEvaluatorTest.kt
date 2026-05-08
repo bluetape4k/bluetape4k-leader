@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.spring.aop.spel
 
 import io.bluetape4k.logging.KLogging
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldContain
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldContain
 import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
 import org.springframework.expression.spel.SpelEvaluationException

@@ -20,7 +20,7 @@ import io.lettuce.core.codec.StringCodec
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
-import org.amshove.kluent.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeEqualTo
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.reflect.MethodSignature
 import org.junit.jupiter.api.BeforeEach

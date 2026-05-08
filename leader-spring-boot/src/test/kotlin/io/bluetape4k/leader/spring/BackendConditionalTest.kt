@@ -23,9 +23,9 @@ import io.bluetape4k.leader.redisson.RedissonLeaderElector
 import io.bluetape4k.leader.spring.backend.LocalLeaderConfiguration
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeInstanceOf
-import org.amshove.kluent.shouldHaveSize
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldHaveSize
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.redisson.Redisson

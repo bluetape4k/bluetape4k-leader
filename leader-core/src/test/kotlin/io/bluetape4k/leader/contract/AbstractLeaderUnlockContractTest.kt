@@ -3,9 +3,9 @@ package io.bluetape4k.leader.contract
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.logging.KLogging
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeNull
-import org.amshove.kluent.shouldNotBeNull
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
 import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
 

@@ -4,9 +4,9 @@ import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldContain
-import org.amshove.kluent.shouldNotContain
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldContain
+import io.bluetape4k.assertions.shouldNotContain
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource

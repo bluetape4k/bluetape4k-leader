@@ -6,7 +6,7 @@ import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
-import org.amshove.kluent.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeEqualTo
 import org.aspectj.lang.annotation.Aspect
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow

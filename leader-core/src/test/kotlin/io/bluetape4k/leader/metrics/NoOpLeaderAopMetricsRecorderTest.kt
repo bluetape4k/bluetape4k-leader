@@ -2,7 +2,7 @@ package io.bluetape4k.leader.metrics
 
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
-import org.amshove.kluent.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.seconds

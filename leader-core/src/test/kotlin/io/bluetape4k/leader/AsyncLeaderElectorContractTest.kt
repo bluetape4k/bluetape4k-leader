@@ -4,8 +4,8 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.local.LocalAsyncLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.logging.KLogging
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
 import java.util.concurrent.CompletableFuture
