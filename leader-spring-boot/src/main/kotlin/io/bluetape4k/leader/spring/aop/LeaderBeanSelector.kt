@@ -3,6 +3,8 @@ package io.bluetape4k.leader.spring.aop
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.LeaderGroupElectorFactory
 import io.bluetape4k.leader.annotation.LeaderElectionBackend
+import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
+import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
@@ -45,6 +47,18 @@ class LeaderBeanSelector(
      */
     fun selectGroupElectionFactory(explicitBeanName: String, method: Method? = null): Selected<LeaderGroupElectorFactory> =
         select(explicitBeanName, method, LeaderGroupElectorFactory::class.java)
+
+    /**
+     * suspend 단일 리더 [SuspendLeaderElectorFactory] 빈 선택.
+     */
+    fun selectSuspendElectorFactory(explicitBeanName: String, method: Method? = null): Selected<SuspendLeaderElectorFactory> =
+        select(explicitBeanName, method, SuspendLeaderElectorFactory::class.java)
+
+    /**
+     * suspend 다중 리더 [SuspendLeaderGroupElectorFactory] 빈 선택.
+     */
+    fun selectSuspendGroupElectorFactory(explicitBeanName: String, method: Method? = null): Selected<SuspendLeaderGroupElectorFactory> =
+        select(explicitBeanName, method, SuspendLeaderGroupElectorFactory::class.java)
 
     private fun <T : Any> select(explicitBeanName: String, method: Method?, type: Class<T>): Selected<T> {
         // Step 1: 어노테이션 bean 필드 명시

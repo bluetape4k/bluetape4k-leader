@@ -12,7 +12,6 @@ import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.core.annotation.AnnotatedElementUtils
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
-import kotlin.coroutines.Continuation
 
 /**
  * `@LeaderElection` / `@LeaderGroupElection` 부착 메서드 footgun 검출 BeanPostProcessor.
@@ -20,7 +19,6 @@ import kotlin.coroutines.Continuation
  * ## 검출 항목
  * - `final` / `private` 메서드 (proxy 적용 불가)
  * - `@LeaderGroupElection.maxLeaders` ≤ 1
- * - suspend 메서드 (sync only PR — 후속 [#80])
  * - reactive 반환 (`Mono` / `Flux` / `Flow`) — sync only PR
  * - SpEL pre-parse 실패
  * - 같은 클래스에 어노테이션 부착 메서드 2+ (best-effort self-invocation WARN)
@@ -87,7 +85,6 @@ class LeaderAnnotationValidatorBeanPostProcessor(
 
         if (Modifier.isFinal(method.modifiers)) violations += "final method (proxy 적용 불가)"
         if (Modifier.isPrivate(method.modifiers)) violations += "private method (proxy 적용 불가)"
-        if (isSuspend(method)) violations += "suspend method (sync only PR — see #80)"
 
         val returnTypeName = method.returnType.name
         if (returnTypeName.endsWith(".Mono") ||
@@ -118,9 +115,6 @@ class LeaderAnnotationValidatorBeanPostProcessor(
             log.warn { msg }
         }
     }
-
-    private fun isSuspend(method: Method): Boolean =
-        method.parameterTypes.lastOrNull() == Continuation::class.java
 
     companion object: KLogging()
 }

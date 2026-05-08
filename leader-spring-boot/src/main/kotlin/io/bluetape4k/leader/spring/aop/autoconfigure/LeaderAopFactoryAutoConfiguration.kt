@@ -4,23 +4,37 @@ import com.hazelcast.core.HazelcastInstance
 import com.mongodb.client.MongoClient
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.LeaderGroupElectorFactory
+import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElectorFactory
+import io.bluetape4k.leader.coroutines.LocalSuspendLeaderGroupElectorFactory
+import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
+import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElectorFactory
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElectorFactory
+import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderElectorFactory
+import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.hazelcast.HazelcastLeaderElectorFactory
 import io.bluetape4k.leader.hazelcast.HazelcastLeaderGroupElectorFactory
 import io.bluetape4k.leader.lettuce.LettuceLeaderElectorFactory
 import io.bluetape4k.leader.lettuce.LettuceLeaderGroupElectorFactory
+import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderElectorFactory
+import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.local.LocalLeaderElectorFactory
 import io.bluetape4k.leader.local.LocalLeaderGroupElectorFactory
 import io.bluetape4k.leader.mongodb.MongoLeaderElectorFactory
 import io.bluetape4k.leader.mongodb.MongoLeaderGroupElectorFactory
+import io.bluetape4k.leader.mongodb.MongoSuspendLeaderElectorFactory
+import io.bluetape4k.leader.mongodb.MongoSuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.redisson.RedissonLeaderElectorFactory
 import io.bluetape4k.leader.redisson.RedissonLeaderGroupElectorFactory
+import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElectorFactory
+import io.bluetape4k.leader.redisson.RedissonSuspendLeaderGroupElectorFactory
 import io.lettuce.core.api.StatefulRedisConnection
 import org.aspectj.lang.annotation.Aspect
 import org.bson.Document
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.redisson.api.RedissonClient
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.config.BeanDefinition
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -32,7 +46,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Role
 
 /**
- * AutoConfig Phase 1 — 6 backend factory `@Bean` 등록.
+ * AutoConfig Phase 1 — 6 backend factory `@Bean` 등록 (sync + suspend).
  *
  * ## [Codex H3] 분리 사유
  * factory `@Bean` 등록을 [LeaderAopAutoConfiguration] 의 Aspect/BPP 등록과 분리하여
@@ -63,6 +77,16 @@ class LeaderAopFactoryAutoConfiguration {
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     fun localLeaderGroupElectionFactory(): LeaderGroupElectorFactory = LocalLeaderGroupElectorFactory()
 
+    @Bean(name = ["localSuspendLeaderElectorFactory"])
+    @ConditionalOnMissingBean(name = ["localSuspendLeaderElectorFactory"])
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+    fun localSuspendLeaderElectorFactory(): SuspendLeaderElectorFactory = LocalSuspendLeaderElectorFactory()
+
+    @Bean(name = ["localSuspendLeaderGroupElectorFactory"])
+    @ConditionalOnMissingBean(name = ["localSuspendLeaderGroupElectorFactory"])
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+    fun localSuspendLeaderGroupElectorFactory(): SuspendLeaderGroupElectorFactory = LocalSuspendLeaderGroupElectorFactory()
+
     // ── Lettuce ──────────────────────────────────────────────────
 
     @Configuration(proxyBeanMethods = false)
@@ -84,6 +108,24 @@ class LeaderAopFactoryAutoConfiguration {
         fun lettuceLeaderGroupElectionFactory(
             connection: StatefulRedisConnection<String, String>,
         ): LeaderGroupElectorFactory = LettuceLeaderGroupElectorFactory(connection)
+
+        @Bean(name = ["lettuceSuspendLeaderElectorFactory"])
+        @ConditionalOnBean(StatefulRedisConnection::class)
+        @ConditionalOnMissingBean(name = ["lettuceSuspendLeaderElectorFactory"])
+        @ConditionalOnClass(name = ["io.bluetape4k.leader.lettuce.LettuceSuspendLeaderElectorFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun lettuceSuspendLeaderElectorFactory(
+            connection: StatefulRedisConnection<String, String>,
+        ): SuspendLeaderElectorFactory = LettuceSuspendLeaderElectorFactory(connection)
+
+        @Bean(name = ["lettuceSuspendLeaderGroupElectorFactory"])
+        @ConditionalOnBean(StatefulRedisConnection::class)
+        @ConditionalOnMissingBean(name = ["lettuceSuspendLeaderGroupElectorFactory"])
+        @ConditionalOnClass(name = ["io.bluetape4k.leader.lettuce.LettuceSuspendLeaderGroupElectorFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun lettuceSuspendLeaderGroupElectorFactory(
+            connection: StatefulRedisConnection<String, String>,
+        ): SuspendLeaderGroupElectorFactory = LettuceSuspendLeaderGroupElectorFactory(connection)
     }
 
     // ── Redisson ─────────────────────────────────────────────────
@@ -105,6 +147,22 @@ class LeaderAopFactoryAutoConfiguration {
         @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
         fun redissonLeaderGroupElectionFactory(client: RedissonClient): LeaderGroupElectorFactory =
             RedissonLeaderGroupElectorFactory(client)
+
+        @Bean(name = ["redissonSuspendLeaderElectorFactory"])
+        @ConditionalOnBean(RedissonClient::class)
+        @ConditionalOnMissingBean(name = ["redissonSuspendLeaderElectorFactory"])
+        @ConditionalOnClass(name = ["io.bluetape4k.leader.redisson.RedissonSuspendLeaderElectorFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun redissonSuspendLeaderElectorFactory(client: RedissonClient): SuspendLeaderElectorFactory =
+            RedissonSuspendLeaderElectorFactory(client)
+
+        @Bean(name = ["redissonSuspendLeaderGroupElectorFactory"])
+        @ConditionalOnBean(RedissonClient::class)
+        @ConditionalOnMissingBean(name = ["redissonSuspendLeaderGroupElectorFactory"])
+        @ConditionalOnClass(name = ["io.bluetape4k.leader.redisson.RedissonSuspendLeaderGroupElectorFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun redissonSuspendLeaderGroupElectorFactory(client: RedissonClient): SuspendLeaderGroupElectorFactory =
+            RedissonSuspendLeaderGroupElectorFactory(client)
     }
 
     // ── MongoDB sync ─────────────────────────────────────────────
@@ -118,7 +176,7 @@ class LeaderAopFactoryAutoConfiguration {
         @ConditionalOnMissingBean(name = ["mongoLeaderElectionFactory"])
         @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
         fun mongoLeaderElectionFactory(
-            @org.springframework.beans.factory.annotation.Qualifier("leaderLockMongoCollection")
+            @Qualifier("leaderLockMongoCollection")
             collection: com.mongodb.client.MongoCollection<Document>,
         ): LeaderElectorFactory = MongoLeaderElectorFactory(collection)
 
@@ -127,9 +185,41 @@ class LeaderAopFactoryAutoConfiguration {
         @ConditionalOnMissingBean(name = ["mongoLeaderGroupElectionFactory"])
         @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
         fun mongoLeaderGroupElectionFactory(
-            @org.springframework.beans.factory.annotation.Qualifier("leaderGroupLockMongoCollection")
+            @Qualifier("leaderGroupLockMongoCollection")
             groupCollection: com.mongodb.client.MongoCollection<Document>,
         ): LeaderGroupElectorFactory = MongoLeaderGroupElectorFactory(groupCollection)
+    }
+
+    // ── MongoDB suspend (coroutine driver) ───────────────────────
+
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(
+        name = [
+            "com.mongodb.kotlin.client.coroutine.MongoCollection",
+            "io.bluetape4k.leader.mongodb.MongoSuspendLeaderElectorFactory",
+        ]
+    )
+    class MongoSuspendFactoryConfig {
+
+        @Bean(name = ["mongoSuspendLeaderElectorFactory"])
+        @ConditionalOnBean(name = ["leaderLockMongoCoroutineCollection"])
+        @ConditionalOnMissingBean(name = ["mongoSuspendLeaderElectorFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun mongoSuspendLeaderElectorFactory(
+            @Qualifier("leaderLockMongoCoroutineCollection")
+            collection: com.mongodb.kotlin.client.coroutine.MongoCollection<Document>,
+        ): SuspendLeaderElectorFactory = MongoSuspendLeaderElectorFactory(collection)
+
+        @Bean(name = ["mongoSuspendLeaderGroupElectorFactory"])
+        @ConditionalOnBean(name = ["leaderGroupLockMongoCollection", "leaderGroupLockMongoCoroutineCollection"])
+        @ConditionalOnMissingBean(name = ["mongoSuspendLeaderGroupElectorFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun mongoSuspendLeaderGroupElectorFactory(
+            @Qualifier("leaderGroupLockMongoCollection")
+            syncGroupCollection: com.mongodb.client.MongoCollection<Document>,
+            @Qualifier("leaderGroupLockMongoCoroutineCollection")
+            coroutineGroupCollection: com.mongodb.kotlin.client.coroutine.MongoCollection<Document>,
+        ): SuspendLeaderGroupElectorFactory = MongoSuspendLeaderGroupElectorFactory(syncGroupCollection, coroutineGroupCollection)
     }
 
     // ── Hazelcast ────────────────────────────────────────────────
@@ -172,5 +262,26 @@ class LeaderAopFactoryAutoConfiguration {
         @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
         fun exposedJdbcLeaderGroupElectionFactory(db: Database): LeaderGroupElectorFactory =
             ExposedJdbcLeaderGroupElectorFactory(db)
+    }
+
+    // ── Exposed R2DBC suspend ─────────────────────────────────────
+
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(R2dbcDatabase::class, ExposedR2DbcSuspendLeaderElectorFactory::class)
+    class ExposedR2dbcSuspendFactoryConfig {
+
+        @Bean(name = ["exposedR2dbcSuspendLeaderElectorFactory"])
+        @ConditionalOnBean(R2dbcDatabase::class)
+        @ConditionalOnMissingBean(name = ["exposedR2dbcSuspendLeaderElectorFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun exposedR2dbcSuspendLeaderElectorFactory(db: R2dbcDatabase): SuspendLeaderElectorFactory =
+            ExposedR2DbcSuspendLeaderElectorFactory(db)
+
+        @Bean(name = ["exposedR2dbcSuspendLeaderGroupElectorFactory"])
+        @ConditionalOnBean(R2dbcDatabase::class)
+        @ConditionalOnMissingBean(name = ["exposedR2dbcSuspendLeaderGroupElectorFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun exposedR2dbcSuspendLeaderGroupElectorFactory(db: R2dbcDatabase): SuspendLeaderGroupElectorFactory =
+            ExposedR2DbcSuspendLeaderGroupElectorFactory(db)
     }
 }
