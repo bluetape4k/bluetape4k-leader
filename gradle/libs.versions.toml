@@ -23,6 +23,7 @@ exposed = "1.2.0"
 mongo-driver = "5.6.4"
 
 hazelcast = "5.6.0"
+curator = "5.9.0"
 
 micrometer = "1.16.4"
 
@@ -126,6 +127,9 @@ mongodb-driver-kotlin-coroutine = { module = "org.mongodb:mongodb-driver-kotlin-
 
 # Hazelcast
 hazelcast = { module = "com.hazelcast:hazelcast", version.ref = "hazelcast" }
+
+# Apache Curator / ZooKeeper
+curator-recipes = { module = "org.apache.curator:curator-recipes", version.ref = "curator" }
 
 # Micrometer
 micrometer-bom = { module = "io.micrometer:micrometer-bom", version.ref = "micrometer" }

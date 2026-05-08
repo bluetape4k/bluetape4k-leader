@@ -9,6 +9,7 @@ import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireNotBlank
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
@@ -65,6 +66,8 @@ class HazelcastSuspendLeaderElector private constructor(
                     try {
                         lock.unlock()
                         log.debug { "Leader 권한을 반납했습니다 (suspend). lockName=$lockName" }
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         log.warn(e) { "Fail to release lock (suspend). lockName=$lockName" }
                     }

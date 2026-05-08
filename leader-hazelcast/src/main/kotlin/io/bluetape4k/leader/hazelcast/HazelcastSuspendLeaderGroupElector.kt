@@ -11,6 +11,7 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -92,6 +93,8 @@ class HazelcastSuspendLeaderGroupElector private constructor(
                     try {
                         acquiredLock.unlock()
                         log.debug { "리더 그룹 슬롯을 반납했습니다 (suspend). lockName=$lockName" }
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         log.warn(e) { "Fail to release group slot (suspend). lockName=$lockName" }
                     }

@@ -18,6 +18,7 @@ dependencies {
         api(project(":leader-exposed-r2dbc"))
         api(project(":leader-mongodb"))
         api(project(":leader-hazelcast"))
+        api(project(":leader-zookeeper"))
         api(project(":leader-spring-boot"))
         api(project(":leader-micrometer"))
     }
