@@ -62,6 +62,16 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - 루트, leader-core, leader-redis-lettuce, leader-redis-redisson, leader-hazelcast
   - ShedLock 비교 문서, Spring Boot / Ktor 통합 자료조사 문서
 
+- **`leader-zookeeper`**: ZooKeeper/Curator 기반 리더 선출 백엔드를 추가했습니다 ([PR #138](https://github.com/bluetape4k/bluetape4k-leader/pull/138)).
+
+- **Instrumented leader electors**: 리더 선출 동작을 계측 가능한 electors로 감싸는 경로를 추가했습니다 ([PR #136](https://github.com/bluetape4k/bluetape4k-leader/pull/136)).
+
+- **`leader-core` lifecycle listeners**: `LeaderElectionListener`, listener-aware decorators, and suspend event stream backed by `PublishSubject` internally (issue #40, PR #146).
+
+- **`leader-micrometer` listener counters**: `MicrometerLeaderElectionListener` records `leader.election.events` with `lock.name` and `event` tags (issue #40, PR #146).
+
+- **`leader-bom` README**: BOM usage documentation was added in English and Korean ([PR #141](https://github.com/bluetape4k/bluetape4k-leader/pull/141)).
+
 ### Fixed
 
 - **Coroutine cancellation safety**: 전 코루틴 백엔드(Lettuce, Redisson, Hazelcast, MongoDB)에서
@@ -77,6 +87,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Exposed Lock 클래스 `KLoggingChannel` 이식**: `KLogging` → `KLoggingChannel` (coroutine 컨텍스트 로거) (issue #61, PR #63)
 - **`ExposedR2dbcGroupLock.tryLock()` DB 오류 전파**: `Boolean?` tri-state 반환으로 JDBC 형제 모듈과 contract 통일 (daily review 2026-05-04)
 - **Exposed Lock SELECT 술어 강화**: JDBC `tryAcquireOnce` Step 3 SELECT에 `lockedUntil > NOW()` 추가 — split-brain 방지 + R2DBC 대칭 (daily review 2026-05-04)
+- **leader-bom publishing**: NMCP aggregation and Central Snapshots publishing were fixed for `leader-bom` ([PR #140](https://github.com/bluetape4k/bluetape4k-leader/pull/140)).
+- **factory failure handling**: `factory.create()` I/O failures now respect the configured failure mode instead of bypassing it ([PR #107](https://github.com/bluetape4k/bluetape4k-leader/pull/107)).
+- **LeaderAopProperties binding**: `@ConfigurationProperties` was added where required for AOP properties binding ([PR #93](https://github.com/bluetape4k/bluetape4k-leader/pull/93)).
 
 ### Changed
 
@@ -91,17 +104,20 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`ExposedJdbcGroupLock.tryLock()` 반환 타입 `Boolean → Boolean?`**: `null` = DB 오류(순회 중단 신호), `false` = 슬롯 경합, `true` = 획득 성공 (issue #60, PR #63)
 - **Suspend 테스트 `runTest` → `runSuspendIO`**: 실제 IO(MongoDB/Testcontainers) 테스트는
   virtual time 대신 `runBlocking(Dispatchers.IO)` 사용
+- Spring Boot 3/4 split was removed from leader Spring integration: `leader-spring-boot-common`, `leader-spring-boot3`, and `leader-spring-boot4` were consolidated into a single `leader-spring-boot` module ([PR #105](https://github.com/bluetape4k/bluetape4k-leader/pull/105)).
+- `LeaderElection` / `LeaderGroupElection` interfaces were renamed to `LeaderElector` / `LeaderGroupElector` and documentation was updated accordingly ([PR #106](https://github.com/bluetape4k/bluetape4k-leader/pull/106), [PR #123](https://github.com/bluetape4k/bluetape4k-leader/pull/123), [PR #125](https://github.com/bluetape4k/bluetape4k-leader/pull/125)).
+- Duration APIs migrated from `java.time.Duration` to `kotlin.time.Duration` ([PR #126](https://github.com/bluetape4k/bluetape4k-leader/pull/126)).
+- Test code migrated from JUnit `assertThrows` and Kluent patterns to Kotlin/assertions-friendly APIs ([PR #131](https://github.com/bluetape4k/bluetape4k-leader/pull/131), [PR #139](https://github.com/bluetape4k/bluetape4k-leader/pull/139)).
+- CI uses paths-filter and retry configuration to reduce unnecessary test work and transient failure noise ([PR #135](https://github.com/bluetape4k/bluetape4k-leader/pull/135)).
+- Prometheus export coverage now proves AOP and direct elector metrics through `PrometheusServer` scrape tests ([PR #144](https://github.com/bluetape4k/bluetape4k-leader/pull/144)).
 
-### Planned
+### Open Follow-ups
 
-- `leader-hazelcast` FencedLock 버전 (issue #33)
-- `leader-zookeeper` — ZooKeeper/Curator backend (issue #34)
-- `leader-micrometer` — Micrometer metrics integration (issue #10)
-- `leader-spring-boot3` — Spring Boot 3 auto-configuration (issue #11)
-- `leader-spring-boot4` — Spring Boot 4 auto-configuration (issue #12)
-- `lockAtLeastFor` (`minLeaseTime`) 지원 (issue #38)
-- `@Leader` AOP 애노테이션 (issue #41)
-- 멀티테넌시 — 테넌트별 락 네임스페이스 (issue #42)
+- watchdog / lease auto-extend for long-running leader AOP work (issue #73)
+- `minLeaseTime` backend TTL delegation and `lockAtLeastFor` semantics (issue #77)
+- `LockExtender` / `LockAssert` style explicit lease extension API (issue #79)
+- Flux/Flow AOP return type support after lease renewal semantics are settled (issue #74)
+- Election state API, audit contract, multitenancy, Ktor integration, and runnable examples (issues #68, #50, #42, #37, #36, #145)
 
 ---
 
@@ -119,9 +135,6 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `LeaderElectionOptions(waitTime, leaseTime)` — shared option data class
   - `LeaderGroupElectionOptions(maxLeaders, waitTime, leaseTime)` — group option data class
   - Local implementations: `LocalLeaderElection`, `LocalLeaderGroupElection`, `LocalSuspendLeaderElection`, `LocalSuspendLeaderGroupElection`, `LocalAsyncLeaderElection`, `LocalVirtualThreadLeaderElection`
-
-- **`leader-core` lifecycle listeners**: `LeaderElectionListener`, listener-aware decorators, and suspend event stream backed by `PublishSubject` internally (issue #40, PR #146)
-- **`leader-micrometer` listener counters**: `MicrometerLeaderElectionListener` records `leader.election.events` with `lock.name` and `event` tags (issue #40, PR #146)
 
 - **`leader-redis-lettuce`**: Lettuce-based Redis backend
   - `LettuceLeaderElection` — blocking, uses `SET NX PX` via `LettuceLock`
