@@ -12,6 +12,7 @@ bluetape4k leader election을 위한 Micrometer 계측 모듈입니다.
 
 - `leader-spring-boot`의 어노테이션 AOP를 위한 `MicrometerLeaderAopMetricsRecorder`
 - elector를 직접 호출할 때 사용하는 `InstrumentedLeaderElector`, `InstrumentedLeaderGroupElector`, `InstrumentedSuspendLeaderElector` 데코레이터
+- `LeaderElectionListenerRegistry` 생명주기 callback을 counter로 기록하는 `MicrometerLeaderElectionListener`
 
 이 모듈은 `leader-core`와 Micrometer core에만 의존합니다. Prometheus, Datadog, OTLP 같은 export 형식은 애플리케이션이 선택한 Micrometer registry가 결정합니다.
 
@@ -23,13 +24,17 @@ graph TD
     Recorder["MicrometerLeaderAopMetricsRecorder"]
     Direct["직접 elector 호출"]
     Decorators["Instrumented*Elector decorators"]
+    Listener["LeaderElectionListener callbacks"]
+    ListenerMetrics["MicrometerLeaderElectionListener"]
     Registry["MeterRegistry"]
     Backend["Prometheus / Datadog / OTLP"]
 
     Aop --> Recorder
     Direct --> Decorators
+    Listener --> ListenerMetrics
     Recorder --> Registry
     Decorators --> Registry
+    ListenerMetrics --> Registry
     Registry --> Backend
 ```
 
@@ -104,6 +109,21 @@ suspendElection.runIfLeader("sync-job") {
 
 데코레이터 생성자에 `lockName = "static-job"`을 넘기면 실제 호출 lock 이름과 무관하게 고정 `lock.name` 태그를 사용합니다.
 
+## Listener 이벤트 메트릭
+
+elector를 instrumented decorator로 감싸지 않고 생명주기 counter만 기록하려면 `MicrometerLeaderElectionListener`를 사용합니다.
+
+```kotlin
+val listener = MicrometerLeaderElectionListener(registry)
+val election = LocalLeaderElector().apply {
+    addListener(listener)
+}
+
+election.runIfLeader("daily-report") {
+    reportService.generate()
+}
+```
+
 ## Meter Catalog
 
 ### AOP Meter
@@ -125,6 +145,12 @@ suspendElection.runIfLeader("sync-job") {
 | `shedlock.leader.not_acquired` | Counter | `lock.name` | 데코레이터 skip |
 | `shedlock.leader.duration` | Timer | `lock.name` | 데코레이터 본문 실행 시간 |
 | `shedlock.leader.active` | Gauge | `lock.name` | 현재 JVM에서 실행 중인 데코레이터 본문 수 |
+
+### Listener 이벤트 Meter
+
+| Meter | 타입 | 태그 | 설명 |
+|-------|------|------|------|
+| `leader.election.events` | Counter | `lock.name`, `event` | 생명주기 callback: `elected`, `revoked`, `skipped` |
 
 Micrometer naming convention이 export backend에 맞춰 이름을 바꿉니다. Prometheus에서는 `leader_aop_attempts_total`, `leader_aop_execution_duration_seconds`, `shedlock_leader_acquired_total` 같은 이름으로 노출됩니다.
 

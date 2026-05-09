@@ -3,6 +3,9 @@ package io.bluetape4k.leader.local
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionState
 import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.leader.LeaderElectionListener
+import io.bluetape4k.leader.LeaderElectionListenerRegistry
+import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 import java.util.concurrent.ConcurrentHashMap
@@ -26,7 +29,7 @@ import java.util.concurrent.TimeUnit
  */
 abstract class AbstractLocalLeaderGroupElector(
     protected val options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-): LeaderGroupElectionState {
+): LeaderGroupElectionState, LeaderElectionListenerRegistry {
 
     init {
         options.maxLeaders.requirePositiveNumber("maxLeaders")
@@ -35,6 +38,13 @@ abstract class AbstractLocalLeaderGroupElector(
     override val maxLeaders: Int = options.maxLeaders
 
     private val semaphores = ConcurrentHashMap<String, Semaphore>()
+    private val listeners = LeaderElectionListenerSupport()
+
+    override fun addListener(listener: LeaderElectionListener): AutoCloseable =
+        listeners.addListener(listener)
+
+    override fun removeListener(listener: LeaderElectionListener): Boolean =
+        listeners.removeListener(listener)
 
     /**
      * [lockName]에 대한 [Semaphore]를 반환합니다. 없으면 `Semaphore(maxLeaders, fair=true)`를 생성합니다.
@@ -65,7 +75,7 @@ abstract class AbstractLocalLeaderGroupElector(
      * @param action 슬롯을 획득한 상태에서 실행할 작업
      * @return [action] 실행 결과
      */
-    protected inline fun <T> withPermit(lockName: String, action: () -> T): T {
+    protected fun <T> withPermit(lockName: String, action: () -> T): T {
         val semaphore = getSemaphore(lockName)
         semaphore.acquire()
         try {
@@ -87,14 +97,19 @@ abstract class AbstractLocalLeaderGroupElector(
      * @param action 슬롯 획득 성공 시 실행할 작업
      * @return [action] 실행 결과, 획득 실패 시 `null`
      */
-    protected inline fun <T> tryWithPermit(lockName: String, action: () -> T): T? {
+    protected fun <T> tryWithPermit(lockName: String, action: () -> T): T? {
         val semaphore = getSemaphore(lockName)
         val acquired = semaphore.tryAcquire(options.waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS)
-        if (!acquired) return null
+        if (!acquired) {
+            listeners.notifySkipped(lockName)
+            return null
+        }
+        listeners.notifyElected(lockName)
         return try {
             action()
         } finally {
             semaphore.release()
+            listeners.notifyRevoked(lockName)
         }
     }
 

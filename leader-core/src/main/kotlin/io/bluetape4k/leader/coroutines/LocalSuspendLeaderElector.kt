@@ -1,7 +1,14 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.coroutines.flow.extensions.subject.PublishSubject
+import io.bluetape4k.leader.LeaderElectionEvent
+import io.bluetape4k.leader.LeaderElectionEventPublisher
+import io.bluetape4k.leader.LeaderElectionListener
+import io.bluetape4k.leader.LeaderElectionListenerRegistry
+import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.support.requireNotBlank
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
@@ -27,9 +34,19 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class LocalSuspendLeaderElector(
     private val options: LeaderElectionOptions = LeaderElectionOptions.Default,
-): SuspendLeaderElector {
+): SuspendLeaderElector, LeaderElectionListenerRegistry, LeaderElectionEventPublisher {
 
     private val mutexes = ConcurrentHashMap<String, Mutex>()
+    private val listeners = LeaderElectionListenerSupport()
+    private val eventSubject = PublishSubject<LeaderElectionEvent>()
+
+    override val events: Flow<LeaderElectionEvent> = eventSubject
+
+    override fun addListener(listener: LeaderElectionListener): AutoCloseable =
+        listeners.addListener(listener)
+
+    override fun removeListener(listener: LeaderElectionListener): Boolean =
+        listeners.removeListener(listener)
 
     private fun getMutex(lockName: String): Mutex {
         lockName.requireNotBlank("lockName")
@@ -57,11 +74,19 @@ class LocalSuspendLeaderElector(
         val acquired = withTimeoutOrNull(options.waitTime) {
             mutex.lock()
             true
-        } ?: return null
+        } ?: run {
+            listeners.notifySkipped(lockName)
+            eventSubject.emit(LeaderElectionEvent.Skipped(lockName))
+            return null
+        }
+        listeners.notifyElected(lockName)
+        eventSubject.emit(LeaderElectionEvent.Elected(lockName))
         return try {
             action()
         } finally {
             if (acquired) mutex.unlock()
+            listeners.notifyRevoked(lockName)
+            eventSubject.emit(LeaderElectionEvent.Revoked(lockName))
         }
     }
 }

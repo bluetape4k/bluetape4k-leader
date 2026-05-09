@@ -62,6 +62,43 @@ classDiagram
 - Exceptions from `action` are propagated to the caller
 - Lock is released after `action` completes (or on exception)
 
+### Election lifecycle listeners
+
+`LeaderElectionListenerRegistry` implementations support `addListener` and `removeListener` for lifecycle callbacks:
+
+- `onElected(lockName)` before the guarded action starts
+- `onRevoked(lockName)` after the held lock or slot is released by the current call
+- `onSkipped(lockName)` when the action is not run because leadership was not acquired
+
+For suspend electors, `LeaderElectionEventPublisher.events` exposes the same lifecycle as a hot `Flow<LeaderElectionEvent>`.
+
+```kotlin
+val election = LocalLeaderElector()
+val handle = election.addListener(object : LeaderElectionListener {
+    override fun onElected(lockName: String) {
+        println("elected: $lockName")
+    }
+})
+
+try {
+    election.runIfLeader("daily-job") { processData() }
+} finally {
+    handle.close()
+}
+```
+
+```kotlin
+val election = LocalSuspendLeaderElector()
+
+launch {
+    election.events.collect { event ->
+        println(event)
+    }
+}
+
+election.runIfLeader("nightly-sync") { syncToRemote() }
+```
+
 ### Options
 
 ```kotlin
