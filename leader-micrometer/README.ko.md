@@ -165,7 +165,8 @@ max by (lock_name) (leader_aop_active)
 
 `leader.aop.active`, `shedlock.leader.active`는 JVM 로컬 gauge입니다. 여러 인스턴스를 볼 때는 의도적으로 합산해야 하는 경우가 아니라면 `max by (lock_name)`을 우선 사용하세요.
 
-Prometheus container 기반 통합 검증은 issue #137에서 추적합니다. 이 모듈의 단위 테스트는 이미 Micrometer registry 기준 meter 등록과 값을 검증합니다.
+`PrometheusExportTest`는 Micrometer text exposition과 `bluetape4k-testcontainers`의 `PrometheusServer`를 사용한 실제 Prometheus scrape를 함께 검증합니다.
+검증 대상은 `leader_aop_acquired_total`, `shedlock_leader_acquired_total` 같은 Prometheus 이름과 변환된 `lock_name` label을 포함합니다.
 
 ## 사전 등록
 

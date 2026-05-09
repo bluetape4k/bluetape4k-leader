@@ -165,7 +165,9 @@ max by (lock_name) (leader_aop_active)
 
 `leader.aop.active` and `shedlock.leader.active` are JVM-local gauges. Prefer `max by (lock_name)` across instances unless you intentionally need per-instance totals.
 
-Prometheus container-based integration coverage is tracked by issue #137. Unit tests in this module already verify meter registration and values against Micrometer registries.
+`PrometheusExportTest` verifies both Micrometer text exposition and a real Prometheus scrape using `PrometheusServer` from `bluetape4k-testcontainers`.
+The coverage checks that AOP and direct elector metrics are exported with Prometheus names such as `leader_aop_acquired_total`,
+`shedlock_leader_acquired_total`, and the converted `lock_name` label.
 
 ## Pre-Registration
 
