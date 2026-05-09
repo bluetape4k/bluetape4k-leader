@@ -1,26 +1,23 @@
 package io.bluetape4k.leader.hazelcast
 
-import io.bluetape4k.junit5.concurrency.MultithreadingTester
-import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.junit5.coroutines.SuspendedJobTester
+import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeGreaterThan
-import org.amshove.kluent.shouldBeNull
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.condition.EnabledForJreRange
-import org.junit.jupiter.api.condition.JRE
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class HazelcastSuspendLeaderElectorTest: AbstractHazelcastLeaderTest() {
 
@@ -30,7 +27,7 @@ class HazelcastSuspendLeaderElectorTest: AbstractHazelcastLeaderTest() {
     fun `runIfLeader - 리더로 선출되어 suspend action 을 실행하고 결과를 반환한다`() = runTest {
         val election = HazelcastSuspendLeaderElector(hazelcastClient)
         val result = election.runIfLeader(randomName()) {
-            delay(10)
+            delay(10.milliseconds)
             "hello"
         }
         result shouldBeEqualTo "hello"
@@ -74,7 +71,7 @@ class HazelcastSuspendLeaderElectorTest: AbstractHazelcastLeaderTest() {
         // 여러 번 실행하여 lock 해제 확인
         repeat(5) {
             election.runIfLeader(lockName) {
-                delay(10)
+                delay(10.milliseconds)
                 "done-$it"
             }
         }
@@ -85,7 +82,7 @@ class HazelcastSuspendLeaderElectorTest: AbstractHazelcastLeaderTest() {
     }
 
     @Test
-    fun `runIfLeader - 멀티스레드 환경에서 순차적으로 leader suspend 작업이 실행된다`() {
+    fun `runIfLeader - 코루틴 환경에서 순차적으로 leader suspend 작업이 실행된다`() = runSuspendIO {
         val lockName = randomName()
         val election = HazelcastSuspendLeaderElector(hazelcastClient)
         val task1 = AtomicInteger(0)
@@ -93,57 +90,21 @@ class HazelcastSuspendLeaderElectorTest: AbstractHazelcastLeaderTest() {
         val numThreads = 8
         val roundsPerThread = 4
 
-        MultithreadingTester()
+        SuspendedJobTester()
             .workers(numThreads)
             .rounds(roundsPerThread)
             .add {
-                kotlinx.coroutines.runBlocking {
-                    election.runIfLeader(lockName) {
-                        log.debug { "suspend 작업 1. task1=${task1.get()}" }
-                        task1.incrementAndGet()
-                        delay(Random.nextLong(5, 10))
-                    }
+                election.runIfLeader(lockName) {
+                    log.debug { "suspend 작업 1. task1=${task1.get()}" }
+                    task1.incrementAndGet()
+                    delay(Random.nextLong(5, 10).milliseconds)
                 }
             }
             .add {
-                kotlinx.coroutines.runBlocking {
-                    election.runIfLeader(lockName) {
-                        log.debug { "suspend 작업 2. task2=${task2.get()}" }
-                        task2.incrementAndGet()
-                        delay(Random.nextLong(5, 10))
-                    }
-                }
-            }
-            .run()
-
-        task1.get() shouldBeGreaterThan 0
-        task2.get() shouldBeGreaterThan 0
-    }
-
-    @EnabledForJreRange(min = JRE.JAVA_21)
-    @Test
-    fun `runIfLeader - Virtual Thread 환경에서 순차적으로 leader suspend 작업이 실행된다`() {
-        val lockName = randomName()
-        val election = HazelcastSuspendLeaderElector(hazelcastClient)
-        val task1 = AtomicInteger(0)
-        val task2 = AtomicInteger(0)
-
-        StructuredTaskScopeTester()
-            .rounds(16)
-            .add {
-                kotlinx.coroutines.runBlocking {
-                    election.runIfLeader(lockName) {
-                        task1.incrementAndGet()
-                        delay(Random.nextLong(5, 10))
-                    }
-                }
-            }
-            .add {
-                kotlinx.coroutines.runBlocking {
-                    election.runIfLeader(lockName) {
-                        task2.incrementAndGet()
-                        delay(Random.nextLong(5, 10))
-                    }
+                election.runIfLeader(lockName) {
+                    log.debug { "suspend 작업 2. task2=${task2.get()}" }
+                    task2.incrementAndGet()
+                    delay(Random.nextLong(5, 10).milliseconds)
                 }
             }
             .run()

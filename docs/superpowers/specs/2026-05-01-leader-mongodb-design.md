@@ -491,7 +491,7 @@ abstract class AbstractMongoLeaderTest {
 
 - `@TestInstance(PER_CLASS)` 모든 베이스
 - suspend 테스트 → `runTest`
-- 백틱 테스트명, Kluent matcher
+- 백틱 테스트명, bluetape4k-assertions matcher
 - `activeCount` 검증 → 정상 unlock 직후만 (TTL sweeper 대기 금지)
 - 취소 안전성 → cancel + join 후 컬렉션 직접 조회
 

@@ -7,6 +7,7 @@ dependencies {
     api(libs.mongodb.driver.sync)
     compileOnly(libs.mongodb.driver.kotlin.coroutine)
 
+    testImplementation(libs.bluetape4k.virtualthread.jdk21)
     testImplementation(libs.bluetape4k.junit5)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.mongodb.driver.kotlin.coroutine)

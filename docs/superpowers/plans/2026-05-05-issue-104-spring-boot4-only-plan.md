@@ -101,7 +101,7 @@ All paths below are relative to the repo root: `/Users/debop/work/worktrees/blue
   - `leader-core/src/test/kotlin/io/bluetape4k/leader/annotation/LeaderAspectFailureModeTest.kt`
   - `leader-core/src/test/kotlin/io/bluetape4k/leader/metrics/SkipReasonTest.kt`
   - `leader-core/src/test/kotlin/io/bluetape4k/leader/metrics/NoOpLeaderAopMetricsRecorderTest.kt`
-- **Action**: Implement per spec §8.1. Pattern: JUnit 5 + Kluent, `@TestInstance(PER_CLASS)`, backtick test names. Verify default attribute values, `@Retention(RUNTIME)`, `@Target(FUNCTION)`, enum completeness, NoOp callable without exception.
+- **Action**: Implement per spec §8.1. Pattern: JUnit 5 + bluetape4k-assertions, `@TestInstance(PER_CLASS)`, backtick test names. Verify default attribute values, `@Retention(RUNTIME)`, `@Target(FUNCTION)`, enum completeness, NoOp callable without exception.
 - **Verify**: each file compiles; no Spring deps in `leader-core/build.gradle.kts` are required.
 
 ### T7. Build verify leader-core
