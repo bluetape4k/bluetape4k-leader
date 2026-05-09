@@ -123,12 +123,13 @@ class MongoSuspendLeaderGroupElector private constructor(
         log.debug { "리더 그룹 슬롯을 획득하여 suspend 작업을 수행합니다. lockName=$lockName, slot=$acquiredSlot" }
         val lock = acquiredLock
         val slot = acquiredSlot
+        val acquiredAtNanos = System.nanoTime()
         try {
             return action()
         } finally {
             withContext(NonCancellable) {
                 try {
-                    lock.unlock()
+                    lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
                     log.debug { "리더 그룹 슬롯을 반납했습니다 (suspend). lockName=$lockName, slot=$slot" }
                 } catch (e: CancellationException) {
                     throw e

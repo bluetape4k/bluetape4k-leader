@@ -45,9 +45,23 @@ class FactoryCacheKeyTest {
     }
 
     @Test
+    fun `같은 factory bean - 다른 minLeaseTime = 다른 key`() {
+        val a = FactoryCacheKey("X", LeaderElectionOptions(minLeaseTime = 5.seconds))
+        val b = FactoryCacheKey("X", LeaderElectionOptions(minLeaseTime = 10.seconds))
+        a shouldNotBeEqualTo b
+    }
+
+    @Test
     fun `Group key - 같은 factory bean - 다른 maxLeaders = 다른 key`() {
         val a = GroupFactoryCacheKey("X", LeaderGroupElectionOptions(maxLeaders = 2))
         val b = GroupFactoryCacheKey("X", LeaderGroupElectionOptions(maxLeaders = 3))
+        a shouldNotBeEqualTo b
+    }
+
+    @Test
+    fun `Group key - 같은 factory bean - 다른 minLeaseTime = 다른 key`() {
+        val a = GroupFactoryCacheKey("X", LeaderGroupElectionOptions(maxLeaders = 2, minLeaseTime = 5.seconds))
+        val b = GroupFactoryCacheKey("X", LeaderGroupElectionOptions(maxLeaders = 2, minLeaseTime = 10.seconds))
         a shouldNotBeEqualTo b
     }
 }

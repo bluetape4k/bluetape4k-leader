@@ -112,7 +112,7 @@ Use `bean = "..."` on the annotation when more than one backend is available.
 @Service
 class SettlementJobs {
     @Scheduled(cron = "0 0 2 * * *")
-    @LeaderElection(name = "daily-settlement", leaseTime = "30m")
+    @LeaderElection(name = "daily-settlement", leaseTime = "30m", minLeaseTime = "10s")
     fun settleDaily(): SettlementReport? =
         settlementService.settle()
 

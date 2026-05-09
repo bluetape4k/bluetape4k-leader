@@ -64,6 +64,26 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
     }
 
     @Test
+    fun `runIfLeader - 빠른 종료 시 minLeaseTime 동안 Hazelcast TTL 로 락을 보존한다`() {
+        val lockName = randomName()
+        val election = HazelcastLeaderElector(
+            hazelcastClient,
+            LeaderElectionOptions(
+                waitTime = 100.milliseconds,
+                leaseTime = 3.seconds,
+                minLeaseTime = 2.seconds,
+            )
+        )
+
+        election.runIfLeader(lockName) { "done" } shouldBeEqualTo "done"
+        election.runIfLeader(lockName) { "too-early" }.shouldBeNull()
+
+        Thread.sleep(2_200)
+
+        election.runIfLeader(lockName) { "after-min" } shouldBeEqualTo "after-min"
+    }
+
+    @Test
     fun `runIfLeader - 멀티스레드 환경에서 순차적으로 leader 작업이 실행된다`() {
         val lockName = randomName()
         val election = HazelcastLeaderElector(hazelcastClient)

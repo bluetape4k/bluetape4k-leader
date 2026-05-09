@@ -10,6 +10,7 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.utils.Runtimex
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeNull
 import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
 import org.junit.jupiter.api.condition.EnabledForJreRange
@@ -114,6 +115,36 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
         leaderElection
             .runAsyncIfLeader(lockName) { CompletableFuture.completedFuture(1) }
             .get(2, TimeUnit.SECONDS) shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `run action should keep Redis TTL until minLeaseTime after fast return`() {
+        val lockName = randomName()
+        val leaderElection = RedissonLeaderElector(
+            redissonClient,
+            LeaderElectionOptions(
+                waitTime = 100.milliseconds,
+                leaseTime = 2.seconds,
+                minLeaseTime = 300.milliseconds,
+            )
+        )
+
+        leaderElection.runIfLeader(lockName) { "done" } shouldBeEqualTo "done"
+
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            executor.submit<String?> {
+                leaderElection.runIfLeader(lockName) { "too-early" }
+            }.get(2, TimeUnit.SECONDS).shouldBeNull()
+
+            Thread.sleep(450)
+
+            executor.submit<String?> {
+                leaderElection.runIfLeader(lockName) { "after-min" }
+            }.get(2, TimeUnit.SECONDS) shouldBeEqualTo "after-min"
+        } finally {
+            executor.shutdownNow()
+        }
     }
 
     @Test

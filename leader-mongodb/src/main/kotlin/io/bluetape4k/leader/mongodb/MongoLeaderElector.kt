@@ -57,11 +57,12 @@ class MongoLeaderElector private constructor(
             return null
         }
 
+        val acquiredAtNanos = System.nanoTime()
         log.debug { "리더로 승격하여 작업을 수행합니다. lockName=$lockName" }
         try {
             return action()
         } finally {
-            runCatching { lock.unlock() }
+            runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
                 .onSuccess { log.debug { "리더 권한을 반납했습니다. lockName=$lockName" } }
                 .onFailure { e -> log.warn(e) { "락 해제 실패. lockName=$lockName" } }
         }
@@ -82,15 +83,16 @@ class MongoLeaderElector private constructor(
                     log.debug { "리더 승격 실패 (슬롯 없음, 비동기). lockName=$lockName" }
                     CompletableFuture.completedFuture(null)
                 } else {
+                    val acquiredAtNanos = System.nanoTime()
                     log.debug { "리더로 승격하여 비동기 작업을 수행합니다. lockName=$lockName" }
                     val actionFuture = runCatching { action() }
                         .getOrElse { e ->
-                            runCatching { lock.unlock() }
+                            runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
                                 .onFailure { ex -> log.warn(ex) { "락 해제 실패 (action 오류 경로). lockName=$lockName" } }
                             return@thenComposeAsync CompletableFuture.failedFuture(e)
                         }
                     actionFuture.whenCompleteAsync({ _, _ ->
-                        runCatching { lock.unlock() }
+                        runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
                             .onSuccess { log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" } }
                             .onFailure { e -> log.warn(e) { "비동기 락 해제 실패. lockName=$lockName" } }
                     }, executor)

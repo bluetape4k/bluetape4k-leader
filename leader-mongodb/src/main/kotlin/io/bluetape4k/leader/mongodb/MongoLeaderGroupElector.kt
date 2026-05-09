@@ -92,11 +92,12 @@ class MongoLeaderGroupElector private constructor(
 
             if (!lock.tryLock(perSlotWait, leaseTime)) continue
 
+            val acquiredAtNanos = System.nanoTime()
             log.debug { "리더 그룹 슬롯을 획득하여 작업을 수행합니다. lockName=$lockName, slot=$slot" }
             try {
                 return action()
             } finally {
-                runCatching { lock.unlock() }
+                runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
                     .onSuccess { log.debug { "리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
                     .onFailure { e -> log.warn(e) { "그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" } }
             }
@@ -131,15 +132,16 @@ class MongoLeaderGroupElector private constructor(
                 CompletableFuture.completedFuture(null)
             } else {
                 val (lock, slot) = acquired
+                val acquiredAtNanos = System.nanoTime()
                 log.debug { "리더 그룹 슬롯을 획득하여 비동기 작업을 수행합니다. lockName=$lockName, slot=$slot" }
                 val actionFuture = runCatching { action() }
                     .getOrElse { e ->
-                        runCatching { lock.unlock() }
+                        runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
                             .onFailure { ex -> log.warn(ex) { "그룹 슬롯 해제 실패 (action 오류 경로). lockName=$lockName, slot=$slot" } }
                         return@thenComposeAsync CompletableFuture.failedFuture(e)
                     }
                 actionFuture.whenCompleteAsync({ _, _ ->
-                    runCatching { lock.unlock() }
+                    runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
                         .onSuccess { log.debug { "비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
                         .onFailure { e -> log.warn(e) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" } }
                 }, executor)

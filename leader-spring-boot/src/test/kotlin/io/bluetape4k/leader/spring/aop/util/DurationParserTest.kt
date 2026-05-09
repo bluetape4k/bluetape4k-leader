@@ -51,4 +51,14 @@ class DurationParserTest {
     fun `parseOrDefault - 비어있지 않으면 parse 결과`() {
         DurationParser.parseOrDefault("PT3M", Duration.ofSeconds(99)) shouldBeEqualTo Duration.ofMinutes(3)
     }
+
+    @Test
+    fun `parseNonNegativeOrDefault - PT0S 는 0으로 허용한다`() {
+        DurationParser.parseNonNegativeOrDefault("PT0S", Duration.ofSeconds(99)) shouldBeEqualTo Duration.ZERO
+    }
+
+    @Test
+    fun `parseNonNegativeOrDefault - 양수는 parse 결과를 반환한다`() {
+        DurationParser.parseNonNegativeOrDefault("10s", Duration.ZERO) shouldBeEqualTo Duration.ofSeconds(10)
+    }
 }

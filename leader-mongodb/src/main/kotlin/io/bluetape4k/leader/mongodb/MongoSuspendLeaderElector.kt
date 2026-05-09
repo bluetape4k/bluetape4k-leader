@@ -56,13 +56,14 @@ class MongoSuspendLeaderElector private constructor(
             return null
         }
 
+        val acquiredAtNanos = System.nanoTime()
         log.debug { "리더로 승격하여 suspend 작업을 수행합니다. lockName=$lockName" }
         try {
             return action()
         } finally {
             withContext(NonCancellable) {
                 try {
-                    lock.unlock()
+                    lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos)
                     log.debug { "리더 권한을 반납했습니다 (suspend). lockName=$lockName" }
                 } catch (e: CancellationException) {
                     throw e

@@ -459,11 +459,16 @@ class LeaderGroupElectionAspect(
 
         val waitTime = DurationParser.parseOrDefault(ann.waitTime, props.defaultWaitTime).toKotlinDuration()
         val leaseTime = DurationParser.parseOrDefault(ann.leaseTime, props.defaultLeaseTime).toKotlinDuration()
+        val minLeaseTime = DurationParser.parseNonNegativeOrDefault(
+            ann.minLeaseTime,
+            java.time.Duration.ZERO,
+        ).toKotlinDuration()
 
         val opts = LeaderGroupElectionOptions(
             maxLeaders = ann.maxLeaders,
             waitTime = waitTime,
             leaseTime = leaseTime,
+            minLeaseTime = minLeaseTime,
         )
         val selected = beanSelector.selectGroupElectionFactory(ann.bean, method)
         val literal = if (LITERAL_PATTERN.matches(ann.name)) ann.name else null
@@ -507,7 +512,11 @@ class LeaderGroupElectionAspect(
     }
 
     private fun LeaderGroupElectionOptions.toCoreOptions(): io.bluetape4k.leader.LeaderElectionOptions =
-        io.bluetape4k.leader.LeaderElectionOptions(waitTime = waitTime, leaseTime = leaseTime)
+        io.bluetape4k.leader.LeaderElectionOptions(
+            waitTime = waitTime,
+            leaseTime = leaseTime,
+            minLeaseTime = minLeaseTime,
+        )
 
     private data class GroupAdviceMetadata(
         val nameExpression: String,

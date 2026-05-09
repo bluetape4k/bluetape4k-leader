@@ -56,12 +56,13 @@ class HazelcastLeaderElector private constructor(
             return null
         }
 
+        val acquiredAtNanos = System.nanoTime()
         log.debug { "Leader로 승격하여 작업을 수행합니다. lockName=$lockName" }
         try {
             return action()
         } finally {
             if (lock.isHeldByCurrentInstance()) {
-                runCatching { lock.unlock() }
+                runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanos) }
                     .onSuccess { log.debug { "Leader 권한을 반납했습니다. lockName=$lockName" } }
                     .onFailure { e -> log.error(e) { "Fail to release lock. lockName=$lockName" } }
             }
@@ -89,16 +90,17 @@ class HazelcastLeaderElector private constructor(
                     log.debug { "Leader 승격 실패 (슬롯 없음, 비동기). lockName=$lockName" }
                     CompletableFuture.completedFuture(null)
                 } else {
+                    val acquiredAtNanos = System.nanoTime()
                     log.debug { "Leader로 승격하여 비동기 작업을 수행합니다. lockName=$lockName" }
                     val actionFuture = runCatching { action() }
                         .getOrElse { error ->
-                            runCatching { lock.unlock() }
+                            runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanos) }
                                 .onFailure { e -> log.error(e) { "Fail to release lock on action error (async). lockName=$lockName" } }
                             return@thenComposeAsync CompletableFuture.failedFuture(error)
                         }
                     actionFuture.whenCompleteAsync({ _, _ ->
                         if (lock.isHeldByCurrentInstance()) {
-                            runCatching { lock.unlock() }
+                            runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanos) }
                                 .onSuccess { log.debug { "비동기 Leader 권한을 반납했습니다. lockName=$lockName" } }
                                 .onFailure { e -> log.error(e) { "Fail to release lock (async). lockName=$lockName" } }
                         }

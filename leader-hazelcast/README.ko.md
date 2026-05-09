@@ -15,6 +15,8 @@ Hazelcast 기반 분산 리더 선출 — 블로킹, 비동기, Virtual Thread, 
 > **주의:** `leaseTime`은 action의 최대 실행 시간보다 충분히 커야 합니다.
 > TTL이 만료되면 락이 자동 해제되며, 갱신(watchdog)은 수행되지 않습니다.
 >
+> `minLeaseTime` 설정 시 작업이 빨리 끝나도 token을 남은 최소 lease TTL로 보존하여 다른 노드가 최소 보유 시간 전에는 같은 락을 재획득하지 못하게 합니다.
+>
 > **주의:** 락 맵에는 near-cache를 절대 활성화하지 마십시오.
 > 오래된 near-cache 값이 `isHeldByCurrentInstance()` 오판을 유발할 수 있습니다.
 

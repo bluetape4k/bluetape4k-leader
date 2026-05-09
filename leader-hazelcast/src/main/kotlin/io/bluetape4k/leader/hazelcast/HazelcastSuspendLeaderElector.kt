@@ -56,6 +56,7 @@ class HazelcastSuspendLeaderElector private constructor(
             return null
         }
 
+        val acquiredAtNanos = System.nanoTime()
         log.debug { "Leader로 승격하여 suspend 작업을 수행합니다. lockName=$lockName" }
         try {
             return action()
@@ -64,7 +65,7 @@ class HazelcastSuspendLeaderElector private constructor(
             withContext(NonCancellable) {
                 if (lock.isHeldByCurrentInstance()) {
                     try {
-                        lock.unlock()
+                        lock.unlock(options.minLeaseTime, acquiredAtNanos)
                         log.debug { "Leader 권한을 반납했습니다 (suspend). lockName=$lockName" }
                     } catch (e: CancellationException) {
                         throw e

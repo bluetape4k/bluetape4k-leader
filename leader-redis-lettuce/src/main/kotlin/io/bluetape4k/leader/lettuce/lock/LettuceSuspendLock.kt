@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.lettuce.lock
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.lettuce.script.RedisScript
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -44,7 +45,16 @@ class LettuceSuspendLock(
         private const val DEFAULT_MAX_WAIT_MINUTES = 5L
 
         private val UNLOCK_SCRIPT = RedisScript(
-            "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end"
+            """
+if redis.call('get', KEYS[1]) == ARGV[1] then
+  local ttl = tonumber(ARGV[2])
+  if ttl and ttl > 0 then
+    return redis.call('pexpire', KEYS[1], ttl)
+  end
+  return redis.call('del', KEYS[1])
+else
+  return 0
+end"""
         )
     }
 
@@ -107,13 +117,17 @@ class LettuceSuspendLock(
         }
     }
 
-    suspend fun unlock() {
+    suspend fun unlock(
+        minLeaseTime: Duration = Duration.ZERO,
+        acquiredAtNanos: Long = System.nanoTime(),
+    ) {
         val token =
             tokenRef.getAndSet(null)
                 ?: throw IllegalStateException("현재 인스턴스가 락을 보유하지 않습니다: lockKey=$lockKey")
+        val remainingMs = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime).inWholeMilliseconds
 
         val released = RedisScriptRunner.runSuspending<Long>(
-            asyncCommands, UNLOCK_SCRIPT, ScriptOutputType.INTEGER, arrayOf(lockKey), token
+            asyncCommands, UNLOCK_SCRIPT, ScriptOutputType.INTEGER, arrayOf(lockKey), token, remainingMs.toString()
         )
 
         check(released > 0L) {

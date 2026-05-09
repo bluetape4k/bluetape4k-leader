@@ -20,6 +20,7 @@ class LeaderGroupElectionAnnotationTest {
         maxLeaders = 3,
         waitTime = "PT5S",
         leaseTime = "PT60S",
+        minLeaseTime = "PT10S",
         bean = "redissonLeaderGroupElectionFactory",
         failureMode = LeaderAspectFailureMode.RETHROW,
     )
@@ -32,6 +33,7 @@ class LeaderGroupElectionAnnotationTest {
         annotation.maxLeaders shouldBeEqualTo -1
         annotation.waitTime shouldBeEqualTo ""
         annotation.leaseTime shouldBeEqualTo ""
+        annotation.minLeaseTime shouldBeEqualTo "PT0S"
         annotation.bean shouldBeEqualTo ""
         annotation.failureMode shouldBeEqualTo LeaderAspectFailureMode.INHERIT
     }
@@ -43,6 +45,7 @@ class LeaderGroupElectionAnnotationTest {
         annotation.maxLeaders shouldBeEqualTo 3
         annotation.waitTime shouldBeEqualTo "PT5S"
         annotation.leaseTime shouldBeEqualTo "PT60S"
+        annotation.minLeaseTime shouldBeEqualTo "PT10S"
         annotation.bean shouldBeEqualTo "redissonLeaderGroupElectionFactory"
         annotation.failureMode shouldBeEqualTo LeaderAspectFailureMode.RETHROW
     }

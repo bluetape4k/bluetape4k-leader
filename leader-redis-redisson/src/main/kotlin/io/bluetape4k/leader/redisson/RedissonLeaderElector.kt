@@ -3,6 +3,7 @@ package io.bluetape4k.leader.redisson
 import io.bluetape4k.concurrent.failedCompletableFutureOf
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
@@ -53,6 +54,7 @@ class RedissonLeaderElector private constructor(
 
     private val waitTimeMills = options.waitTime.inWholeMilliseconds
     private val leaseTimeMills = options.leaseTime.inWholeMilliseconds
+    private val minLeaseTime = options.minLeaseTime
 
     /**
      * Redisson Lock을 이용하여, 리더로 선출되면 [action]을 수행하고, 그렇지 않다면 수행하지 않습니다.
@@ -72,13 +74,14 @@ class RedissonLeaderElector private constructor(
         try {
             val acquired = lock.tryLock(waitTimeMills, leaseTimeMills, TimeUnit.MILLISECONDS)
             if (acquired) {
+                val acquiredAtNanos = System.nanoTime()
                 log.debug { "Leader로 승격하여 작업을 수행합니다. lock=$lockName" }
                 try {
                     return action()
                 } finally {
                     if (lock.isHeldByCurrentThread) {
                         runCatching {
-                            lock.unlock()
+                            releaseLock(lock, acquiredAtNanos)
                             log.debug { "작업이 완료되어 Leader 권한을 반납했습니다. lock=$lockName" }
                         }
                     }
@@ -119,7 +122,7 @@ class RedissonLeaderElector private constructor(
                 .tryLockAsync(waitTimeMills, leaseTimeMills, TimeUnit.MILLISECONDS, currentThreadId)
                 .thenComposeAsync({ acquired ->
                     if (acquired) {
-                        executeActionAsync(lock, currentThreadId, executor, action)
+                        executeActionAsync(lock, currentThreadId, executor, System.nanoTime(), action)
                     } else {
                         log.debug { "Leader 승격 실패 (슬롯 없음). lock=$lockName" }
                         CompletableFuture.completedFuture(null)
@@ -153,6 +156,7 @@ class RedissonLeaderElector private constructor(
         lock: RLock,
         currentThreadId: Long,
         executor: Executor,
+        acquiredAtNanos: Long,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val lockName = lock.name
@@ -161,20 +165,36 @@ class RedissonLeaderElector private constructor(
         val actionFuture = runCatching { action() }
             .getOrElse { error ->
                 // action() 이 동기적으로 예외를 던진 경우에도 락을 반드시 해제해야 한다 (락 유출 방지)
-                releaseLockAsync(lock, currentThreadId)
+                releaseLockAsync(lock, currentThreadId, acquiredAtNanos)
                 return failedCompletableFutureOf(error)
             }
 
         return actionFuture.whenCompleteAsync({ _, _ ->
-            releaseLockAsync(lock, currentThreadId)
+            releaseLockAsync(lock, currentThreadId, acquiredAtNanos)
         }, executor)
     }
 
-    private fun releaseLockAsync(lock: RLock, currentThreadId: Long) {
+    private fun releaseLock(lock: RLock, acquiredAtNanos: Long) {
+        val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
+        if (remaining > kotlin.time.Duration.ZERO) {
+            redissonClient.keys.expire(remaining.toJavaDuration(), lock.name)
+        } else {
+            lock.unlock()
+        }
+    }
+
+    private fun releaseLockAsync(lock: RLock, currentThreadId: Long, acquiredAtNanos: Long) {
         val lockName = lock.name
         if (lock.isHeldByThread(currentThreadId)) {
-            lock
-                .unlockAsync(currentThreadId)
+            val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
+            val releaseFuture: CompletableFuture<*> = if (remaining > kotlin.time.Duration.ZERO) {
+                CompletableFuture.supplyAsync {
+                    redissonClient.keys.expire(remaining.toJavaDuration(), lockName)
+                }
+            } else {
+                lock.unlockAsync(currentThreadId).toCompletableFuture()
+            }
+            releaseFuture
                 .whenComplete { _, error ->
                     if (error != null) {
                         log.error(error) { "Fail to release lock. lock=$lockName, threadId=$currentThreadId" }
@@ -184,6 +204,9 @@ class RedissonLeaderElector private constructor(
                 }
         }
     }
+
+    private fun kotlin.time.Duration.toJavaDuration(): java.time.Duration =
+        java.time.Duration.ofNanos(inWholeNanoseconds)
 }
 
 

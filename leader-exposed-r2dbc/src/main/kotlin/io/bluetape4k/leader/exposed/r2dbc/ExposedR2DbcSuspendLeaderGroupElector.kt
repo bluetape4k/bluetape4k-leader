@@ -196,6 +196,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
 
             val historyId = recordAcquired(lockName, lock.token, slot)
             val startedAt = Instant.now()
+            val acquiredAtNanos = System.nanoTime()
             var actionSucceeded = false
             var actionFailed = false
 
@@ -216,7 +217,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                         actionSucceeded -> recordCompleted(historyId, lock.token, startedAt, slot)
                         actionFailed -> recordFailed(historyId, lock.token, startedAt, slot)
                     }
-                    runCatching { lock.unlock() }
+                    runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
                         .onSuccess { log.debug { "그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
                         .onFailure { e -> log.warn(e) { "그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" } }
                 }

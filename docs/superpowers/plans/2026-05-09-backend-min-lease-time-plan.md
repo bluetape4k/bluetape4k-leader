@@ -2,8 +2,8 @@
 
 ## Phase 1. AOP option restoration
 
-- Add `minLeaseTime: String = ""` to both annotations.
-- Parse `minLeaseTime` with `DurationParser.parseOrDefault(..., Duration.ZERO)`.
+- Add `minLeaseTime: String = "PT0S"` to both annotations.
+- Parse `minLeaseTime` with a non-negative duration parser so `PT0S` is valid while negative values still fail.
 - Include it in `LeaderElectionOptions` / `LeaderGroupElectionOptions`.
 - Update annotation, aspect, validator, cache-key tests.
 
@@ -17,7 +17,7 @@
 
 - Lettuce single lock: Lua `DEL` vs `PEXPIRE` based on remaining min lease.
 - Mongo single/group slot locks: `deleteOne` vs `updateOne(expireAt = now + remaining)`.
-- Hazelcast single/group slot locks: `remove` vs `setTtl`.
+- Hazelcast single/group slot locks: `remove` vs re-set the current token with the remaining TTL.
 - Exposed JDBC/R2DBC single/group slot locks: `deleteWhere` vs `update lockedUntil`.
 - Redisson single lock: key TTL update vs normal unlock.
 

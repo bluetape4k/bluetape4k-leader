@@ -2,12 +2,14 @@ package io.bluetape4k.leader.redisson
 
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireNotBlank
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withContext
@@ -105,6 +107,7 @@ class RedissonSuspendLeaderElector private constructor(
 
     private val waitTimeMills = options.waitTime.inWholeMilliseconds
     private val leaseTimeMills = options.leaseTime.inWholeMilliseconds
+    private val minLeaseTime = options.minLeaseTime
 
     /**
      * Redisson Lock을 이용하여, 리더로 선출되면 [action]을 수행하고, 그렇지 않다면 수행하지 않습니다.
@@ -141,6 +144,7 @@ class RedissonSuspendLeaderElector private constructor(
                 .await()
 
             if (acquired) {
+                val acquiredAtNanos = System.nanoTime()
                 log.debug { "Leader로 승격되어 작업을 수행합니다. lock=$lockName, lockId=$lockId" }
                 try {
                     return action()
@@ -148,7 +152,7 @@ class RedissonSuspendLeaderElector private constructor(
                     if (lock.isHeldByThread(lockId)) {
                         // NonCancellable: 코루틴 취소 시에도 락 해제가 중단되지 않도록 보호
                         withContext(NonCancellable) {
-                            runCatching { lock.unlockAsync(lockId).await() }
+                            runCatching { releaseLock(lock, lockId, acquiredAtNanos) }
                                 .onSuccess {
                                     log.debug { "작업이 완료되어 Leader 권한을 반납했습니다. lock=$lockName, lockId=$lockId" }
                                 }
@@ -169,4 +173,18 @@ class RedissonSuspendLeaderElector private constructor(
             throw RedisException("Interrupted while acquiring lock. lock=$lockName", e)
         }
     }
+
+    private suspend fun releaseLock(lock: RLock, lockId: Long, acquiredAtNanos: Long) {
+        val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
+        if (remaining > kotlin.time.Duration.ZERO) {
+            withContext(Dispatchers.IO) {
+                redissonClient.keys.expire(remaining.toJavaDuration(), lock.name)
+            }
+        } else {
+            lock.unlockAsync(lockId).await()
+        }
+    }
+
+    private fun kotlin.time.Duration.toJavaDuration(): java.time.Duration =
+        java.time.Duration.ofNanos(inWholeNanoseconds)
 }

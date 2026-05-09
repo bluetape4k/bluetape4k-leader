@@ -453,8 +453,12 @@ class LeaderElectionAspect(
 
         val waitTime = DurationParser.parseOrDefault(ann.waitTime, props.defaultWaitTime).toKotlinDuration()
         val leaseTime = DurationParser.parseOrDefault(ann.leaseTime, props.defaultLeaseTime).toKotlinDuration()
+        val minLeaseTime = DurationParser.parseNonNegativeOrDefault(
+            ann.minLeaseTime,
+            java.time.Duration.ZERO,
+        ).toKotlinDuration()
 
-        val opts = LeaderElectionOptions(waitTime = waitTime, leaseTime = leaseTime)
+        val opts = LeaderElectionOptions(waitTime = waitTime, leaseTime = leaseTime, minLeaseTime = minLeaseTime)
         val selected = beanSelector.selectElectionFactory(ann.bean, method)
         val literal = if (LITERAL_PATTERN.matches(ann.name)) ann.name else null
 

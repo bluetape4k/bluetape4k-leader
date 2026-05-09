@@ -50,6 +50,7 @@ class HazelcastSuspendLeaderGroupElector private constructor(
     override val maxLeaders: Int = options.maxLeaders
     private val waitTime = options.waitTime
     private val leaseTime = options.leaseTime
+    private val minLeaseTime = options.minLeaseTime
 
     private val lockMap: IMap<String, String> = hazelcast.getMap(HazelcastLeaderGroupElector.LOCK_MAP_NAME)
 
@@ -85,13 +86,14 @@ class HazelcastSuspendLeaderGroupElector private constructor(
         }
 
         log.debug { "리더 그룹 슬롯을 획득하여 suspend 작업을 수행합니다. lockName=$lockName" }
+        val acquiredAtNanos = System.nanoTime()
         try {
             return action()
         } finally {
             withContext(NonCancellable) {
                 if (acquiredLock.isHeldByCurrentInstance()) {
                     try {
-                        acquiredLock.unlock()
+                        acquiredLock.unlock(minLeaseTime, acquiredAtNanos)
                         log.debug { "리더 그룹 슬롯을 반납했습니다 (suspend). lockName=$lockName" }
                     } catch (e: CancellationException) {
                         throw e

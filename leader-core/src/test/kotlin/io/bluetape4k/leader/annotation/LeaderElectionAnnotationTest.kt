@@ -19,6 +19,7 @@ class LeaderElectionAnnotationTest {
         name = "custom-lock",
         waitTime = "PT5S",
         leaseTime = "PT60S",
+        minLeaseTime = "PT10S",
         bean = "redissonLeaderElectionFactory",
         failureMode = LeaderAspectFailureMode.SKIP,
     )
@@ -30,6 +31,7 @@ class LeaderElectionAnnotationTest {
         annotation.name shouldBeEqualTo "test-lock"
         annotation.waitTime shouldBeEqualTo ""
         annotation.leaseTime shouldBeEqualTo ""
+        annotation.minLeaseTime shouldBeEqualTo "PT0S"
         annotation.bean shouldBeEqualTo ""
         annotation.failureMode shouldBeEqualTo LeaderAspectFailureMode.INHERIT
     }
@@ -40,6 +42,7 @@ class LeaderElectionAnnotationTest {
         annotation.name shouldBeEqualTo "custom-lock"
         annotation.waitTime shouldBeEqualTo "PT5S"
         annotation.leaseTime shouldBeEqualTo "PT60S"
+        annotation.minLeaseTime shouldBeEqualTo "PT10S"
         annotation.bean shouldBeEqualTo "redissonLeaderElectionFactory"
         annotation.failureMode shouldBeEqualTo LeaderAspectFailureMode.SKIP
     }

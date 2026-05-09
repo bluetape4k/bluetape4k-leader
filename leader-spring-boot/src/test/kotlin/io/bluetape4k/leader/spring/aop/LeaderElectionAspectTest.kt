@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.aop
 
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import io.bluetape4k.assertions.assertFailsWith
 import java.util.concurrent.CancellationException
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * [LeaderElectionAspect] 통합 (T5.6 + T5.9c/d/e/f):
@@ -50,6 +52,7 @@ class LeaderElectionAspectTest {
     private interface SampleService {
         fun runSync(): String?
         fun runWithArg(region: String): String?
+        fun runWithMinLease(): String?
     }
 
     private class SampleServiceImpl: SampleService {
@@ -58,6 +61,9 @@ class LeaderElectionAspectTest {
 
         @LeaderElection(name = "'r-' + #region")
         override fun runWithArg(region: String): String? = "result-$region"
+
+        @LeaderElection(name = "min-job", leaseTime = "PT30S", minLeaseTime = "PT10S")
+        override fun runWithMinLease(): String? = SAMPLE_RESULT
     }
 
     // Class-level mocks — reused across all tests, cleared in @BeforeEach
@@ -127,6 +133,29 @@ class LeaderElectionAspectTest {
 
         aspect.aroundLeader(pjp).shouldBeNull()
         verify(exactly = 1) { recorder.onLockNotAcquired("static-job", any(), SkipReason.CONTENTION) }
+    }
+
+    @Test
+    fun `minLeaseTime - 어노테이션 값을 core options 로 전달한다`() {
+        val target = SampleServiceImpl()
+        val method = SampleService::class.java.getDeclaredMethod("runWithMinLease")
+        configureJoinPoint(method, target, emptyArray())
+        every { pjp.proceed() } returns SAMPLE_RESULT
+
+        val actionSlot = slot<() -> Any?>()
+        every { election.runIfLeaderResult<Any?>(any(), capture(actionSlot)) } answers {
+            LeaderRunResult.Elected(actionSlot.captured.invoke())
+        }
+        val optionsSlot = slot<LeaderElectionOptions>()
+
+        val aspect = newAspect()
+        every { factoryMock.create(capture(optionsSlot)) } returns election
+
+        val result = aspect.aroundLeader(pjp)
+
+        result shouldBeEqualTo SAMPLE_RESULT
+        optionsSlot.captured.leaseTime shouldBeEqualTo 30.seconds
+        optionsSlot.captured.minLeaseTime shouldBeEqualTo 10.seconds
     }
 
     @Test

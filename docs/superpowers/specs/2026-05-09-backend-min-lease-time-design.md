@@ -28,7 +28,7 @@ This preserves caller fast return and node-death behavior.
 
 ### Redisson single lock
 
-`RLock` does not expose `expire`, but the Redis lock key can be treated as an expirable object by key name. If the current lock owner is still valid and `remaining > 0`, update the key TTL and skip `unlock`; otherwise use the normal Redisson unlock path.
+`RLock` does not expose `expire`, but Redisson `RKeys.expire(Duration, key)` can update the Redis lock key TTL by name. If the current lock owner is still valid and `remaining > 0`, update the key TTL and skip `unlock`; otherwise use the normal Redisson unlock path. Same-thread reentrancy remains a Redisson `RLock` property; cross-thread/node contenders are blocked until the key expires.
 
 ### Redis semaphore-style groups
 

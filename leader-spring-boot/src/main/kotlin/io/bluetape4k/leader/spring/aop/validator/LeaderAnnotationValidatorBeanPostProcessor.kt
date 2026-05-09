@@ -3,6 +3,7 @@ package io.bluetape4k.leader.spring.aop.validator
 import io.bluetape4k.leader.annotation.LeaderElection
 import io.bluetape4k.leader.annotation.LeaderGroupElection
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
+import io.bluetape4k.leader.spring.aop.util.DurationParser
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireGe
@@ -94,9 +95,14 @@ class LeaderAnnotationValidatorBeanPostProcessor(
         }
 
         // [#84] composed 어노테이션(@AliasFor) 지원 — findMergedAnnotation 으로 합성 어노테이션 속성 해석
+        AnnotatedElementUtils.findMergedAnnotation(method, LeaderElection::class.java)?.let { leader ->
+            validateMinLeaseTime(leader.leaseTime, leader.minLeaseTime, "leader")
+        }
+
         AnnotatedElementUtils.findMergedAnnotation(method, LeaderGroupElection::class.java)?.let { group ->
             // maxLeaders <= 1 은 strict 무관 항상 fail
             group.maxLeaders.requireGe(2, "group.maxLeaders")
+            validateMinLeaseTime(group.leaseTime, group.minLeaseTime, "group")
         }
 
         // SpEL pre-parse — 실패 시 strict 무관 항상 fail (잘못된 표현식은 startup 즉시 노출)
@@ -112,6 +118,16 @@ class LeaderAnnotationValidatorBeanPostProcessor(
             error(msg)
         } else {
             log.warn { msg }
+        }
+    }
+
+    private fun validateMinLeaseTime(leaseTimeText: String, minLeaseTimeText: String, prefix: String) {
+        val minLeaseTime = DurationParser.parseNonNegativeOrDefault(minLeaseTimeText, java.time.Duration.ZERO)
+        if (minLeaseTime == java.time.Duration.ZERO) return
+        if (leaseTimeText.isBlank()) return
+        val leaseTime = DurationParser.parse(leaseTimeText)
+        require(minLeaseTime.compareTo(leaseTime) <= 0) {
+            "$prefix.minLeaseTime must not exceed $prefix.leaseTime: minLeaseTime=$minLeaseTime, leaseTime=$leaseTime"
         }
     }
 
