@@ -1,4 +1,4 @@
-# Implementation Plan — minLeaseTime (#38)
+# 구현 계획 — minLeaseTime (#38)
 
 - **Issue**: #38
 - **작성일**: 2026-05-09
@@ -6,7 +6,7 @@
 
 ---
 
-## Task List
+## 작업 목록
 
 ### T1. Options 확장
 
@@ -34,13 +34,13 @@
 - suspend single/group min hold test
 - exception path min hold test
 
-### T5. Docs
+### T5. 문서
 
 - root README / Korean README option 예시 갱신
 - `leader-core` README / Korean README option 예시 갱신
 - #77과의 scope split 명시
 
-### T6. Verification / Review
+### T6. 검증 / 리뷰
 
 - `git diff --check`
 - `./gradlew compileKotlin --continue`
