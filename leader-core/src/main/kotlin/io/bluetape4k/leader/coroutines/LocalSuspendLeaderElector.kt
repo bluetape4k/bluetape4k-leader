@@ -7,6 +7,8 @@ import io.bluetape4k.leader.LeaderElectionListener
 import io.bluetape4k.leader.LeaderElectionListenerRegistry
 import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderState
+import io.bluetape4k.leader.local.LocalLeaderStateRegistry
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.support.requireNotBlank
 import kotlinx.coroutines.NonCancellable
@@ -43,6 +45,7 @@ class LocalSuspendLeaderElector(
     private val mutexes = ConcurrentHashMap<String, Mutex>()
     private val listeners = LeaderElectionListenerSupport()
     private val eventSubject = PublishSubject<LeaderElectionEvent>()
+    private val states = LocalLeaderStateRegistry()
 
     override val events: Flow<LeaderElectionEvent> = eventSubject
 
@@ -84,24 +87,29 @@ class LocalSuspendLeaderElector(
             return null
         }
         val startedAtNanos = System.nanoTime()
+        states.acquireSingle(lockName, options.nodeId, options.leaseTime)
         listeners.notifyElected(lockName)
         eventSubject.emit(LeaderElectionEvent.Elected(lockName))
         return try {
             action()
         } finally {
-            delayRemainingMinLeaseTime(startedAtNanos)
-            if (acquired) mutex.unlock()
-            listeners.notifyRevoked(lockName)
-            eventSubject.emit(LeaderElectionEvent.Revoked(lockName))
+            withContext(NonCancellable) {
+                delayRemainingMinLeaseTime(startedAtNanos)
+                states.releaseSingle(lockName)
+                if (acquired) mutex.unlock()
+                listeners.notifyRevoked(lockName)
+                eventSubject.emit(LeaderElectionEvent.Revoked(lockName))
+            }
         }
     }
 
     private suspend fun delayRemainingMinLeaseTime(startedAtNanos: Long) {
         val remaining = remainingMinLeaseTime(startedAtNanos, options.minLeaseTime)
         if (remaining > kotlin.time.Duration.ZERO) {
-            withContext(NonCancellable) {
-                delay(remaining)
-            }
+            delay(remaining)
         }
     }
+
+    override fun state(lockName: String): LeaderState =
+        states.singleState(lockName)
 }
