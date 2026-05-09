@@ -169,6 +169,12 @@ val options = LeaderElectionOptions(
 val election = RedissonLeaderElector(client, options)
 ```
 
+### Migration notes
+
+- Kotlin API options use `kotlin.time.Duration`. Prefer `5.seconds`, `60.seconds`, `1.minutes` over `java.time.Duration.ofSeconds(...)`.
+- Spring Boot YAML still uses Spring's duration binding (`5s`, `60s`, `PT1M`).
+- Spring bean names use `LeaderElector` terminology. Prefer `redissonLeaderElectionFactory`, `lettuceSuspendLeaderElectorFactory`, and similar names.
+
 ### Local (in-process, no Redis)
 
 ```kotlin
@@ -377,8 +383,8 @@ Controls what happens when the lock is **not** acquired (contention or backend e
 
 | Value | Behaviour |
 |-------|-----------|
-| `SKIP` (default) | Return `null` — body is not executed |
-| `RETHROW` | Throw `LeaderElectionException` wrapping the backend error |
+| `RETHROW` (default) | Throw `LeaderElectionException` wrapping the backend error |
+| `SKIP` | Return `null` — body is not executed |
 | `FAIL_OPEN_RUN` | Run the method body anyway and return its result |
 
 `FAIL_OPEN_RUN` is designed for jobs where skipping is worse than running without the distributed lock guarantee (e.g., best-effort idempotent tasks). Metrics record `SkipReason.FAIL_OPEN_FORCED` so dashboards can track lock-free executions separately.
@@ -389,7 +395,7 @@ Controls what happens when the lock is **not** acquired (contention or backend e
 bluetape4k:
   leader:
     aop:
-      default-failure-mode: FAIL_OPEN_RUN   # SKIP | RETHROW | FAIL_OPEN_RUN
+      failure-mode: FAIL_OPEN_RUN   # RETHROW | SKIP | FAIL_OPEN_RUN
 ```
 
 ---
@@ -472,15 +478,15 @@ class MetricsPreRegistrar(private val recorder: MicrometerLeaderAopMetricsRecord
 
 ### Health Indicator
 
-When `spring-boot-actuator` is on the classpath, a `leaderMicrometerHealthContributor` bean is registered automatically:
+When `spring-boot-actuator` is on the classpath, a `leaderMetricsHealthIndicator` bean is registered automatically:
 
 ```
-GET /actuator/health/leaderMicrometerHealthContributor
+GET /actuator/health/leaderMetricsHealthIndicator
 {
   "status": "UP",
   "details": {
-    "metrics.registered": true,
-    "attempts.total": 42.0
+    "active": 0,
+    "trackedLocks": 2
   }
 }
 ```
@@ -506,10 +512,11 @@ fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
 | Multi-leader (group) | `LeaderGroupElector` | No |
 | Redis (Lettuce) | Yes | Yes |
 | Redis (Redisson) | Yes | Yes |
-| Spring integration | Planned | Yes (core feature) |
+| Spring integration | Yes (Boot 4 + AspectJ CTW) | Yes (core feature) |
 | JDBC/SQL | Yes (Exposed JDBC) | Yes |
-| MongoDB | Planned | Yes |
+| MongoDB | Yes | Yes |
 | Hazelcast | Yes | Yes |
+| ZooKeeper | Yes | No |
 
 ## Requirements
 

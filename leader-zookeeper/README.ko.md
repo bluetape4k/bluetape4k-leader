@@ -50,6 +50,10 @@ classDiagram
 | `ZooKeeperLeaderGroupElector` | `LeaderGroupElector` | 블로킹 + 비동기 복수 리더 |
 | `ZooKeeperSuspendLeaderElector` | `SuspendLeaderElector` | 코루틴 단일 리더 |
 | `ZooKeeperSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | 코루틴 복수 리더 |
+| `ZooKeeperLeaderElectorFactory` | `LeaderElectorFactory` | 팩토리: 호출마다 `ZooKeeperLeaderElector` 생성 |
+| `ZooKeeperLeaderGroupElectorFactory` | `LeaderGroupElectorFactory` | 팩토리: 호출마다 `ZooKeeperLeaderGroupElector` 생성 |
+| `ZooKeeperSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `ZooKeeperSuspendLeaderElector` 생성 |
+| `ZooKeeperSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `ZooKeeperSuspendLeaderGroupElector` 생성 |
 
 ## 사용법
 
@@ -121,6 +125,16 @@ curator.runIfLeaderGroup("job", LeaderGroupElectionOptions(maxLeaders = 2)) { do
 
 curator.suspendRunIfLeader("job") { doWork() }
 curator.suspendRunIfLeaderGroup("job", LeaderGroupElectionOptions(maxLeaders = 2)) { doWork() }
+```
+
+### Factory 사용
+
+```kotlin
+val factory: LeaderElectorFactory = ZooKeeperLeaderElectorFactory(curator)
+val election = factory.create(LeaderElectionOptions.Default)
+
+val suspendFactory: SuspendLeaderElectorFactory = ZooKeeperSuspendLeaderElectorFactory(curator)
+val suspendElection = suspendFactory.create(LeaderElectionOptions.Default)
 ```
 
 ## 설정 옵션

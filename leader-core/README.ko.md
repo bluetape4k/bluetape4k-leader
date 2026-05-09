@@ -66,14 +66,14 @@ classDiagram
 
 ```kotlin
 LeaderElectionOptions(
-    waitTime: Duration = Duration.ofSeconds(5),   // 락 획득 최대 대기 시간
-    leaseTime: Duration = Duration.ofSeconds(60)  // 락 보유(임대) 최대 시간
+    waitTime: Duration = 5.seconds,   // 락 획득 최대 대기 시간
+    leaseTime: Duration = 60.seconds  // 락 보유(임대) 최대 시간
 )
 
 LeaderGroupElectionOptions(
     maxLeaders: Int = 2,                          // 최대 동시 리더 수
-    waitTime: Duration = Duration.ofSeconds(5),
-    leaseTime: Duration = Duration.ofSeconds(60)
+    waitTime: Duration = 5.seconds,
+    leaseTime: Duration = 60.seconds
 )
 ```
 

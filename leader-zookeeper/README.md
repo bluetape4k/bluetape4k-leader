@@ -50,6 +50,10 @@ classDiagram
 | `ZooKeeperLeaderGroupElector` | `LeaderGroupElector` | Blocking + async multi-leader |
 | `ZooKeeperSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine single-leader |
 | `ZooKeeperSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader |
+| `ZooKeeperLeaderElectorFactory` | `LeaderElectorFactory` | Factory: creates `ZooKeeperLeaderElector` per call |
+| `ZooKeeperLeaderGroupElectorFactory` | `LeaderGroupElectorFactory` | Factory: creates `ZooKeeperLeaderGroupElector` per call |
+| `ZooKeeperSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `ZooKeeperSuspendLeaderElector` per call |
+| `ZooKeeperSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `ZooKeeperSuspendLeaderGroupElector` per call |
 
 ## Usage
 
@@ -121,6 +125,16 @@ curator.runIfLeaderGroup("job", LeaderGroupElectionOptions(maxLeaders = 2)) { do
 
 curator.suspendRunIfLeader("job") { doWork() }
 curator.suspendRunIfLeaderGroup("job", LeaderGroupElectionOptions(maxLeaders = 2)) { doWork() }
+```
+
+### Using factories
+
+```kotlin
+val factory: LeaderElectorFactory = ZooKeeperLeaderElectorFactory(curator)
+val election = factory.create(LeaderElectionOptions.Default)
+
+val suspendFactory: SuspendLeaderElectorFactory = ZooKeeperSuspendLeaderElectorFactory(curator)
+val suspendElection = suspendFactory.create(LeaderElectionOptions.Default)
 ```
 
 ## Configuration

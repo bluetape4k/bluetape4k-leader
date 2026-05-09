@@ -129,8 +129,8 @@ val result = db.suspendRunIfLeaderGroup("worker-pool") {
 ```kotlin
 val options = ExposedR2dbcLeaderElectionOptions(
     leaderOptions = LeaderElectionOptions(
-        waitTime = Duration.ofSeconds(3),
-        leaseTime = Duration.ofSeconds(30),
+        waitTime = 3.seconds,
+        leaseTime = 30.seconds,
     ),
     retryStrategy = RetryStrategy.Jitter(baseDelayMs = 50L),
     recordHistory = true,

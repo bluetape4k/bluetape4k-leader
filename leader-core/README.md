@@ -66,14 +66,14 @@ classDiagram
 
 ```kotlin
 LeaderElectionOptions(
-    waitTime: Duration = Duration.ofSeconds(5),   // max wait for lock acquisition
-    leaseTime: Duration = Duration.ofSeconds(60)  // max lock hold time
+    waitTime: Duration = 5.seconds,   // max wait for lock acquisition
+    leaseTime: Duration = 60.seconds  // max lock hold time
 )
 
 LeaderGroupElectionOptions(
     maxLeaders: Int = 2,                          // max concurrent leaders
-    waitTime: Duration = Duration.ofSeconds(5),
-    leaseTime: Duration = Duration.ofSeconds(60)
+    waitTime: Duration = 5.seconds,
+    leaseTime: Duration = 60.seconds
 )
 ```
 

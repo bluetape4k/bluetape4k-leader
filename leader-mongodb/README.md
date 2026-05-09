@@ -148,10 +148,10 @@ val result = election.runIfLeader("task-group") {
 ```kotlin
 val options = MongoLeaderElectionOptions(
     leaderOptions = LeaderElectionOptions(
-        waitTime = Duration.ofSeconds(5),
-        leaseTime = Duration.ofSeconds(60),
+        waitTime = 5.seconds,
+        leaseTime = 60.seconds,
     ),
-    retryDelay = Duration.ofMillis(100),
+    retryDelay = 100.milliseconds,
 )
 val election = MongoLeaderElector(lockCollection, options)
 ```
