@@ -104,15 +104,19 @@ election.runIfLeader("nightly-sync") { syncToRemote() }
 ```kotlin
 LeaderElectionOptions(
     waitTime: Duration = 5.seconds,   // max wait for lock acquisition
-    leaseTime: Duration = 60.seconds  // max lock hold time
+    leaseTime: Duration = 60.seconds, // max lock hold time
+    minLeaseTime: Duration = Duration.ZERO // minimum local hold time
 )
 
 LeaderGroupElectionOptions(
     maxLeaders: Int = 2,                          // max concurrent leaders
     waitTime: Duration = 5.seconds,
-    leaseTime: Duration = 60.seconds
+    leaseTime: Duration = 60.seconds,
+    minLeaseTime: Duration = Duration.ZERO
 )
 ```
+
+`minLeaseTime` is the local lockAtLeastFor equivalent. Local electors keep the lock or slot until the minimum hold time has elapsed. Distributed backend TTL delegation is handled separately in #77.
 
 ## Sequence Diagrams
 

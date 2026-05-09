@@ -10,6 +10,7 @@ import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import io.bluetape4k.assertions.shouldBeEqualTo
@@ -235,5 +236,36 @@ class LocalSuspendLeaderGroupElectorTest {
 
         val second = election.runIfLeader(lockName) { "second" }
         second shouldBeEqualTo "second"
+    }
+
+    @Test
+    fun `runIfLeader - action 이 빨리 끝나도 minLeaseTime 동안 슬롯을 보유한다`() = runSuspendIO {
+        val minLeaseElection = LocalSuspendLeaderGroupElector(
+            LeaderGroupElectionOptions(
+                maxLeaders = 1,
+                waitTime = 30.milliseconds,
+                leaseTime = 1.seconds,
+                minLeaseTime = 200.milliseconds,
+            )
+        )
+        val lockName = randomLockName()
+        val actionReturned = Channel<Unit>(1)
+
+        val holder = async {
+            minLeaseElection.runIfLeader(lockName) {
+                actionReturned.send(Unit)
+                "fast"
+            }
+        }
+
+        actionReturned.receive()
+
+        val skipped = minLeaseElection.runIfLeader(lockName) { "too-early" }
+        skipped.shouldBeNull()
+
+        holder.await()
+
+        val acquiredAfterMinLease = minLeaseElection.runIfLeader(lockName) { "after" }
+        acquiredAfterMinLease shouldBeEqualTo "after"
     }
 }

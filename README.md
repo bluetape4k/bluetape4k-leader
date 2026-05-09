@@ -164,7 +164,8 @@ val result = election.runIfLeader("parallel-batch") {
 ```kotlin
 val options = LeaderElectionOptions(
     waitTime = 3.seconds,   // how long to wait for the lock
-    leaseTime = 30.seconds  // how long to hold the lock
+    leaseTime = 30.seconds, // maximum lock lease
+    minLeaseTime = 0.seconds // minimum local hold time; backend TTL delegation follows in #77
 )
 val election = RedissonLeaderElector(client, options)
 ```

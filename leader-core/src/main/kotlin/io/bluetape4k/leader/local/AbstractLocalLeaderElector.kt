@@ -1,9 +1,10 @@
 package io.bluetape4k.leader.local
 
-import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElectionListener
 import io.bluetape4k.leader.LeaderElectionListenerRegistry
 import io.bluetape4k.leader.LeaderElectionListenerSupport
+import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.parkRemainingMinLeaseTime
 import io.bluetape4k.support.requireNotBlank
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -87,10 +88,12 @@ abstract class AbstractLocalLeaderElector(
             listeners.notifySkipped(lockName)
             return null
         }
+        val startedAtNanos = System.nanoTime()
         listeners.notifyElected(lockName)
         return try {
             action()
         } finally {
+            parkRemainingMinLeaseTime(startedAtNanos, options.minLeaseTime)
             lock.unlock()
             listeners.notifyRevoked(lockName)
         }

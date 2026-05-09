@@ -164,7 +164,8 @@ val result = election.runIfLeader("parallel-batch") {
 ```kotlin
 val options = LeaderElectionOptions(
     waitTime = 3.seconds,   // 락 획득 최대 대기 시간
-    leaseTime = 30.seconds  // 락 보유(임대) 최대 시간
+    leaseTime = 30.seconds, // 락 보유(임대) 최대 시간
+    minLeaseTime = 0.seconds // 로컬 최소 보유 시간. backend TTL 위임은 #77에서 처리
 )
 val election = RedissonLeaderElector(client, options)
 ```

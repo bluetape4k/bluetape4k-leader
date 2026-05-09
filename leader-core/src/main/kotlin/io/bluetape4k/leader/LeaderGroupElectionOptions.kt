@@ -23,17 +23,23 @@ import kotlin.time.Duration.Companion.seconds
  * @property maxLeaders 허용하는 최대 동시 리더 수. 기본값 2
  * @property waitTime 리더 획득 대기 최대 시간. 기본값 5초
  * @property leaseTime 리더 보유(임대) 최대 시간. 기본값 60초
+ * @property minLeaseTime 작업이 빨리 끝나도 리더 그룹 슬롯을 최소로 보유할 시간. 기본값 0초
  */
 data class LeaderGroupElectionOptions(
     val maxLeaders: Int = DefaultMaxLeaders,
     val waitTime: Duration = DefaultWaitTime,
     val leaseTime: Duration = DefaultLeaseTime,
+    val minLeaseTime: Duration = Duration.ZERO,
 ): Serializable {
 
     init {
         maxLeaders.requireGe(1, "maxLeaders")
         waitTime.requireGe(Duration.ZERO, "waitTime")
         leaseTime.requireGt(Duration.ZERO, "leaseTime")
+        minLeaseTime.requireGe(Duration.ZERO, "minLeaseTime")
+        require(minLeaseTime <= leaseTime) {
+            "minLeaseTime must not exceed leaseTime: minLeaseTime=$minLeaseTime, leaseTime=$leaseTime"
+        }
     }
 
     companion object {

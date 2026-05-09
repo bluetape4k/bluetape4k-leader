@@ -104,15 +104,19 @@ election.runIfLeader("nightly-sync") { syncToRemote() }
 ```kotlin
 LeaderElectionOptions(
     waitTime: Duration = 5.seconds,   // 락 획득 최대 대기 시간
-    leaseTime: Duration = 60.seconds  // 락 보유(임대) 최대 시간
+    leaseTime: Duration = 60.seconds, // 락 보유(임대) 최대 시간
+    minLeaseTime: Duration = Duration.ZERO // 로컬 최소 보유 시간
 )
 
 LeaderGroupElectionOptions(
     maxLeaders: Int = 2,                          // 최대 동시 리더 수
     waitTime: Duration = 5.seconds,
-    leaseTime: Duration = 60.seconds
+    leaseTime: Duration = 60.seconds,
+    minLeaseTime: Duration = Duration.ZERO
 )
 ```
+
+`minLeaseTime`은 로컬 lockAtLeastFor 대응 옵션입니다. 로컬 elector는 최소 보유 시간이 지날 때까지 락 또는 슬롯을 유지합니다. 분산 backend TTL 위임은 #77에서 별도로 처리합니다.
 
 ## 시퀀스 다이어그램
 

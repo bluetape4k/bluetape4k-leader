@@ -8,11 +8,15 @@ import io.bluetape4k.leader.LeaderElectionListenerRegistry
 import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 
@@ -161,14 +165,25 @@ class LocalSuspendLeaderGroupElector private constructor(
             eventSubject.emit(LeaderElectionEvent.Skipped(lockName))
             return null
         }
+        val startedAtNanos = System.nanoTime()
         listeners.notifyElected(lockName)
         eventSubject.emit(LeaderElectionEvent.Elected(lockName))
         return try {
             action()
         } finally {
+            delayRemainingMinLeaseTime(startedAtNanos)
             if (acquired) semaphore.release()
             listeners.notifyRevoked(lockName)
             eventSubject.emit(LeaderElectionEvent.Revoked(lockName))
+        }
+    }
+
+    private suspend fun delayRemainingMinLeaseTime(startedAtNanos: Long) {
+        val remaining = remainingMinLeaseTime(startedAtNanos, options.minLeaseTime)
+        if (remaining > kotlin.time.Duration.ZERO) {
+            withContext(NonCancellable) {
+                delay(remaining)
+            }
         }
     }
 }
