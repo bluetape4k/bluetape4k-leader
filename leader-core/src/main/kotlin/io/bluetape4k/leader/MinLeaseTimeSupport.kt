@@ -4,7 +4,13 @@ import java.util.concurrent.locks.LockSupport
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
 
-internal fun remainingMinLeaseTime(startedAtNanos: Long, minLeaseTime: Duration): Duration {
+/**
+ * Returns the remaining minimum lease duration from [startedAtNanos].
+ *
+ * Backend adapters use this value to delegate lock retention to their storage TTL
+ * instead of blocking caller threads after a fast action returns.
+ */
+fun remainingMinLeaseTime(startedAtNanos: Long, minLeaseTime: Duration): Duration {
     if (minLeaseTime <= Duration.ZERO) {
         return Duration.ZERO
     }

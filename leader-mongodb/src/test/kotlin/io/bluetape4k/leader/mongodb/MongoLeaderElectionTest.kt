@@ -116,6 +116,28 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
     }
 
     @Test
+    fun `runIfLeader - 빠른 종료 시 minLeaseTime 동안 Mongo TTL 로 락을 보존한다`() {
+        val lockName = randomName()
+        val election = MongoLeaderElector(
+            lockCollection,
+            MongoLeaderElectionOptions(
+                leaderOptions = LeaderElectionOptions(
+                    waitTime = 100.milliseconds,
+                    leaseTime = 2.seconds,
+                    minLeaseTime = 300.milliseconds,
+                )
+            )
+        )
+
+        election.runIfLeader(lockName) { "done" } shouldBeEqualTo "done"
+        election.runIfLeader(lockName) { "too-early" }.shouldBeNull()
+
+        Thread.sleep(450)
+
+        election.runIfLeader(lockName) { "after-min" } shouldBeEqualTo "after-min"
+    }
+
+    @Test
     fun `runIfLeader - 락 보유 중 짧은 waitTime으로 호출하면 null을 반환한다`() {
         val lockName = randomName()
         val holderLock = MongoLock(lockCollection, lockName)

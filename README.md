@@ -166,10 +166,12 @@ val options = LeaderElectionOptions(
     waitTime = 3.seconds,   // how long to wait for the lock
     leaseTime = 30.seconds, // how long to hold the lock
     nodeId = "worker-a",    // id exposed by state snapshots
-    minLeaseTime = 0.seconds // minimum local hold time; backend TTL delegation follows in #77
+    minLeaseTime = 0.seconds // lockAtLeastFor-style minimum lease retention
 )
 val election = RedissonLeaderElector(client, options)
 ```
+
+`minLeaseTime` is the `lockAtLeastFor` equivalent. Local electors wait before releasing; supported distributed backends delegate the remaining minimum lease to storage TTL so callers can return immediately.
 
 ### State snapshots
 

@@ -3,6 +3,7 @@ package io.bluetape4k.leader.hazelcast.lock
 import com.hazelcast.core.HazelcastException
 import com.hazelcast.map.IMap
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -89,9 +90,22 @@ class HazelcastSuspendLock(
      * 토큰 일치 여부를 검증한 후 원자적으로 제거합니다.
      * 토큰 불일치(리스 만료로 인한 타 노드 재획득 등)인 경우 경고 로그를 남깁니다.
      */
-    suspend fun unlock() = withContext(Dispatchers.IO) {
-        val removed = lockMap.remove(lockKey, token)
-        if (removed) {
+    suspend fun unlock(
+        minLeaseTime: Duration = Duration.ZERO,
+        acquiredAtNanos: Long = System.nanoTime(),
+    ) = withContext(Dispatchers.IO) {
+        val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
+        val released = if (remaining > Duration.ZERO) {
+            if (lockMap[lockKey] == token) {
+                lockMap.set(lockKey, token, remaining.inWholeMilliseconds, TimeUnit.MILLISECONDS)
+                true
+            } else {
+                false
+            }
+        } else {
+            lockMap.remove(lockKey, token)
+        }
+        if (released) {
             log.debug { "Lock 해제 성공 (suspend): lockKey=$lockKey" }
         } else {
             log.warn { "Lock 해제 실패 — 토큰 불일치 (리스 만료 가능성, suspend). lockKey=$lockKey" }

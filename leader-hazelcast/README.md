@@ -14,6 +14,8 @@ Lock strategy: `IMap.putIfAbsent(key, token, leaseTimeMs, MILLISECONDS)` for ato
 
 > **Note:** `leaseTime` must be longer than the expected action duration. TTL expiry automatically releases the lock; no watchdog renewal is performed.
 >
+> `minLeaseTime` retains the token with a shortened map-entry TTL when work finishes early, so other nodes cannot reacquire the same lock until the minimum lease has elapsed.
+>
 > **Note:** Never enable near-cache on the lock map. Stale near-cache reads can cause `isHeldByCurrentInstance()` to misidentify the lock holder.
 
 ## Architecture

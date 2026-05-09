@@ -96,6 +96,7 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
 
         val historyId = recordAcquired(lockName, lock.token)
         val startedAt = Instant.now()
+        val acquiredAtNanos = System.nanoTime()
         var actionSucceeded = false
         var actionFailed = false
 
@@ -115,7 +116,7 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
                     actionSucceeded -> recordCompleted(historyId, lock.token, startedAt)
                     actionFailed -> recordFailed(historyId, lock.token, startedAt)
                 }
-                runCatching { lock.unlock() }
+                runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
                     .onSuccess { log.debug { "리더 권한을 반납했습니다. lockName=$lockName" } }
                     .onFailure { e -> log.warn(e) { "락 해제 실패. lockName=$lockName" } }
             }

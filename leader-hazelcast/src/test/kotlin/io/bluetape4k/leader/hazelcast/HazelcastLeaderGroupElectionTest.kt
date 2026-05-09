@@ -60,6 +60,27 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
     }
 
     @Test
+    fun `runIfLeader - 빠른 종료 시 minLeaseTime 동안 Hazelcast 슬롯 TTL 을 보존한다`() {
+        val lockName = randomName()
+        val singleElection = HazelcastLeaderGroupElector(
+            hazelcastClient,
+            LeaderGroupElectionOptions(
+                maxLeaders = 1,
+                waitTime = 100.milliseconds,
+                leaseTime = 3.seconds,
+                minLeaseTime = 2.seconds,
+            )
+        )
+
+        singleElection.runIfLeader(lockName) { "done" } shouldBeEqualTo "done"
+        singleElection.runIfLeader(lockName) { "too-early" }.shouldBeNull()
+
+        Thread.sleep(2_200)
+
+        singleElection.runIfLeader(lockName) { "after-min" } shouldBeEqualTo "after-min"
+    }
+
+    @Test
     fun `runIfLeader - 모든 슬롯이 사용 중이면 waitTime 초과 시 null 을 반환한다`() {
         val shortWaitOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 100.milliseconds)
         val singleElection = HazelcastLeaderGroupElector(hazelcastClient, shortWaitOptions)

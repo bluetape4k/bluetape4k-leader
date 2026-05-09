@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.lettuce.lock
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.lettuce.script.RedisScript
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.logging.KLogging
@@ -47,7 +48,16 @@ class LettuceLock(
         private const val RETRY_DELAY_NANOS = RETRY_DELAY_MS * 1_000_000L
 
         private val UNLOCK_SCRIPT = RedisScript(
-            "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end"
+            """
+if redis.call('get', KEYS[1]) == ARGV[1] then
+  local ttl = tonumber(ARGV[2])
+  if ttl and ttl > 0 then
+    return redis.call('pexpire', KEYS[1], ttl)
+  end
+  return redis.call('del', KEYS[1])
+else
+  return 0
+end"""
         )
     }
 
@@ -112,12 +122,16 @@ class LettuceLock(
         }
     }
 
-    fun unlock() {
+    fun unlock(
+        minLeaseTime: Duration = Duration.ZERO,
+        acquiredAtNanos: Long = System.nanoTime(),
+    ) {
         val token = tokenRef.getAndSet(null)
             ?: throw IllegalStateException("현재 인스턴스가 락을 보유하지 않습니다: lockKey=$lockKey")
+        val remainingMs = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime).inWholeMilliseconds
 
         val released = RedisScriptRunner.run<Long>(
-            syncCommands, UNLOCK_SCRIPT, ScriptOutputType.INTEGER, arrayOf(lockKey), token
+            syncCommands, UNLOCK_SCRIPT, ScriptOutputType.INTEGER, arrayOf(lockKey), token, remainingMs.toString()
         )
         check(released > 0L) {
             "Lock 해제 실패 (토큰 불일치 또는 만료): lockKey=$lockKey"
@@ -188,14 +202,18 @@ class LettuceLock(
         return attempt()
     }
 
-    fun unlockAsync(): CompletableFuture<Unit> {
+    fun unlockAsync(
+        minLeaseTime: Duration = Duration.ZERO,
+        acquiredAtNanos: Long = System.nanoTime(),
+    ): CompletableFuture<Unit> {
         val token = tokenRef.getAndSet(null)
             ?: return CompletableFuture.failedFuture(
                 IllegalStateException("현재 인스턴스가 락을 보유하지 않습니다: lockKey=$lockKey")
             )
+        val remainingMs = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime).inWholeMilliseconds
 
         return RedisScriptRunner.runAsync<Long>(
-            asyncCommands, UNLOCK_SCRIPT, ScriptOutputType.INTEGER, arrayOf(lockKey), token
+            asyncCommands, UNLOCK_SCRIPT, ScriptOutputType.INTEGER, arrayOf(lockKey), token, remainingMs.toString()
         ).thenApply { released ->
             check(released > 0L) {
                 "Lock 해제 실패 (토큰 불일치 또는 만료, async): lockKey=$lockKey"

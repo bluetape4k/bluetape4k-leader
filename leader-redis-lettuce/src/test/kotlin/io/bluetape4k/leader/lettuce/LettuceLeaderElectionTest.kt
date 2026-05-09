@@ -7,6 +7,7 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
@@ -47,6 +48,25 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
         val result2 = election.runIfLeader(lockName) { 2 }
         result1 shouldBeEqualTo 1
         result2 shouldBeEqualTo 2
+    }
+
+    @Test
+    fun `리더 선출 - 빠른 종료 시 minLeaseTime 동안 Redis TTL 로 락을 보존한다`() {
+        val el = LettuceLeaderElector(
+            connection,
+            LeaderElectionOptions(
+                waitTime = 100.milliseconds,
+                leaseTime = 2.seconds,
+                minLeaseTime = 300.milliseconds,
+            )
+        )
+
+        el.runIfLeader(lockName) { "done" } shouldBeEqualTo "done"
+        el.runIfLeader(lockName) { "too-early" }.shouldBeNull()
+
+        Thread.sleep(450)
+
+        el.runIfLeader(lockName) { "after-min" } shouldBeEqualTo "after-min"
     }
 
     @Test

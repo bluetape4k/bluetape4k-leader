@@ -49,6 +49,7 @@ class HazelcastLeaderGroupElector private constructor(
     override val maxLeaders: Int = options.maxLeaders
     private val waitTime = options.waitTime
     private val leaseTime = options.leaseTime
+    private val minLeaseTime = options.minLeaseTime
 
     private val lockMap: IMap<String, String> = hazelcast.getMap(LOCK_MAP_NAME)
 
@@ -78,12 +79,13 @@ class HazelcastLeaderGroupElector private constructor(
             return null
         }
 
+        val acquiredAtNanos = System.nanoTime()
         log.debug { "리더 그룹 슬롯을 획득하여 작업을 수행합니다. lockName=$lockName" }
         try {
             return action()
         } finally {
             if (acquiredLock.isHeldByCurrentInstance()) {
-                runCatching { acquiredLock.unlock() }
+                runCatching { acquiredLock.unlock(minLeaseTime, acquiredAtNanos) }
                     .onSuccess { log.debug { "리더 그룹 슬롯을 반납했습니다. lockName=$lockName" } }
                     .onFailure { e -> log.error(e) { "Fail to release group slot. lockName=$lockName" } }
             }
@@ -109,16 +111,17 @@ class HazelcastLeaderGroupElector private constructor(
                 log.debug { "리더 그룹 슬롯 획득 실패 (비동기). lockName=$lockName" }
                 CompletableFuture.completedFuture(null)
             } else {
+                val acquiredAtNanos = System.nanoTime()
                 log.debug { "리더 그룹 슬롯을 획득하여 비동기 작업을 수행합니다. lockName=$lockName" }
                 val actionFuture = runCatching { action() }
                     .getOrElse { error ->
-                        runCatching { acquiredLock.unlock() }
+                        runCatching { acquiredLock.unlock(minLeaseTime, acquiredAtNanos) }
                             .onFailure { e -> log.error(e) { "Fail to release group slot on action error (async). lockName=$lockName" } }
                         return@thenComposeAsync CompletableFuture.failedFuture(error)
                     }
                 actionFuture.whenCompleteAsync({ _, _ ->
                     if (acquiredLock.isHeldByCurrentInstance()) {
-                        runCatching { acquiredLock.unlock() }
+                        runCatching { acquiredLock.unlock(minLeaseTime, acquiredAtNanos) }
                             .onSuccess { log.debug { "비동기 리더 그룹 슬롯을 반납했습니다. lockName=$lockName" } }
                             .onFailure { e -> log.error(e) { "Fail to release group slot (async). lockName=$lockName" } }
                     }

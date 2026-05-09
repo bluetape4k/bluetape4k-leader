@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.aop
 
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElector
+import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderGroupElectorFactory
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import io.bluetape4k.assertions.assertFailsWith
 import java.util.concurrent.CancellationException
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * [LeaderGroupElectionAspect] 통합 테스트 (#95):
@@ -52,6 +54,7 @@ class LeaderGroupElectionAspectTest {
     private interface SampleService {
         fun runSync(): String?
         fun runWithArg(region: String): String?
+        fun runWithMinLease(): String?
     }
 
     private class SampleServiceImpl: SampleService {
@@ -60,6 +63,9 @@ class LeaderGroupElectionAspectTest {
 
         @LeaderGroupElection(name = "'r-' + #region", maxLeaders = 2)
         override fun runWithArg(region: String): String? = "result-$region"
+
+        @LeaderGroupElection(name = "min-group-job", maxLeaders = 3, leaseTime = "PT30S", minLeaseTime = "PT10S")
+        override fun runWithMinLease(): String? = SAMPLE_RESULT
     }
 
     // Class-level mocks — reused across all tests, cleared in @BeforeEach
@@ -115,6 +121,29 @@ class LeaderGroupElectionAspectTest {
         verify(exactly = 1) { recorder.onLockAcquired("static-group-job", any(), any()) }
         verify(exactly = 1) { recorder.onTaskStarted("static-group-job") }
         verify(exactly = 1) { recorder.onTaskFinished("static-group-job", any()) }
+    }
+
+    @Test
+    fun `minLeaseTime - 어노테이션 값을 group core options 로 전달한다`() {
+        val target = SampleServiceImpl()
+        val method = SampleService::class.java.getDeclaredMethod("runWithMinLease")
+        configureJoinPoint(method, target, emptyArray())
+        every { pjp.proceed() } returns SAMPLE_RESULT
+
+        val actionSlot = slot<() -> Any?>()
+        every { election.runIfLeaderResult<Any?>(any(), capture(actionSlot)) } answers {
+            LeaderRunResult.Elected(actionSlot.captured.invoke())
+        }
+        val optionsSlot = slot<LeaderGroupElectionOptions>()
+
+        val aspect = newAspect()
+        every { factoryMock.create(capture(optionsSlot)) } returns election
+
+        val result = aspect.aroundLeader(pjp)
+
+        result shouldBeEqualTo SAMPLE_RESULT
+        optionsSlot.captured.leaseTime shouldBeEqualTo 30.seconds
+        optionsSlot.captured.minLeaseTime shouldBeEqualTo 10.seconds
     }
 
     @Test

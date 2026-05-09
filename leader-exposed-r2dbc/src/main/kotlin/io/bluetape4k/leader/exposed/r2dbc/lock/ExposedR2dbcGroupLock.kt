@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.exposed.r2dbc.lock
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.support.requireZeroOrPositiveNumber
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
@@ -194,20 +195,36 @@ internal class ExposedR2dbcGroupLock internal constructor(
      *
      * 토큰 불일치 시 경고 로그만 남기며 다른 소유자의 슬롯을 삭제하지 않습니다.
      */
-    suspend fun unlock() {
+    suspend fun unlock(
+        minLeaseTime: Duration = Duration.ZERO,
+        acquiredAtNanos: Long = System.nanoTime(),
+    ) {
         val lockNameVal = this@ExposedR2dbcGroupLock.lockName
         val slotVal = this@ExposedR2dbcGroupLock.slot
         val tokenVal = this@ExposedR2dbcGroupLock.token
+        val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
 
         runCatching {
-            val deleted = suspendTransaction(db) {
-                LeaderGroupLockTable.deleteWhere {
-                    (LeaderGroupLockTable.lockName eq lockNameVal) and
+            val matched = suspendTransaction(db) {
+                if (remaining > Duration.ZERO) {
+                    LeaderGroupLockTable.update(
+                        where = {
+                            (LeaderGroupLockTable.lockName eq lockNameVal) and
+                                (LeaderGroupLockTable.slot eq slotVal) and
+                                (LeaderGroupLockTable.token eq tokenVal)
+                        }
+                    ) {
+                        it[LeaderGroupLockTable.lockedUntil] = Instant.now().plusMillis(remaining.inWholeMilliseconds)
+                    }
+                } else {
+                    LeaderGroupLockTable.deleteWhere {
+                        (LeaderGroupLockTable.lockName eq lockNameVal) and
                             (LeaderGroupLockTable.slot eq slotVal) and
                             (LeaderGroupLockTable.token eq tokenVal)
+                    }
                 }
             }
-            if (deleted == 0) {
+            if (matched == 0) {
                 log.warn { "그룹 슬롯 해제 실패 — 토큰 불일치 또는 이미 만료됨: lockName=$lockName, slot=$slot" }
             } else {
                 log.debug { "그룹 슬롯 해제 성공: lockName=$lockName, slot=$slot" }

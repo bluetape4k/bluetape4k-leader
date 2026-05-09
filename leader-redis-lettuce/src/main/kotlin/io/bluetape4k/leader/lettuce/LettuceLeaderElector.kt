@@ -57,11 +57,16 @@ class LettuceLeaderElector(
             log.debug { "리더 선출 실패 (슬롯 없음): lockName=$lockName" }
             return null
         }
+        val acquiredAtNanos = System.nanoTime()
         log.debug { "리더 선출 성공: lockName=$lockName" }
         try {
             return action()
         } finally {
-            runCatching { if (lock.isHeldByCurrentInstance()) lock.unlock() }
+            runCatching {
+                if (lock.isHeldByCurrentInstance()) {
+                    lock.unlock(options.minLeaseTime, acquiredAtNanos)
+                }
+            }
                 .onFailure { log.warn(it) { "Fail to release lock. lockName=$lockName" } }
         }
     }
@@ -84,14 +89,23 @@ class LettuceLeaderElector(
             if (!acquired) {
                 CompletableFuture.completedFuture(null)
             } else {
+                val acquiredAtNanos = System.nanoTime()
                 log.debug { "리더 선출 성공 (async): lockName=$lockName" }
                 try {
                     action().whenComplete { _, _ ->
-                        runCatching { if (lock.isHeldByCurrentInstance()) lock.unlock() }
+                        runCatching {
+                            if (lock.isHeldByCurrentInstance()) {
+                                lock.unlock(options.minLeaseTime, acquiredAtNanos)
+                            }
+                        }
                             .onFailure { log.warn(it) { "Fail to release lock. lockName=$lockName" } }
                     }
                 } catch (e: Throwable) {
-                    runCatching { if (lock.isHeldByCurrentInstance()) lock.unlock() }
+                    runCatching {
+                        if (lock.isHeldByCurrentInstance()) {
+                            lock.unlock(options.minLeaseTime, acquiredAtNanos)
+                        }
+                    }
                         .onFailure { log.warn(it) { "Fail to release lock. lockName=$lockName" } }
                     CompletableFuture.failedFuture(e)
                 }

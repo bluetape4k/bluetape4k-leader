@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.exposed.jdbc.lock
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -177,17 +178,29 @@ internal class ExposedJdbcLock internal constructor(
      *
      * 토큰 불일치(리스 만료로 인한 타 인스턴스 재획득 등) 시 경고 로그만 남깁니다.
      */
-    fun unlock() {
+    fun unlock(
+        minLeaseTime: Duration = Duration.ZERO,
+        acquiredAtNanos: Long = System.nanoTime(),
+    ) {
         val lockNameVal = this@ExposedJdbcLock.lockName
         val tokenVal = this@ExposedJdbcLock.token
+        val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
 
         runCatching {
-            val deleted = transaction(db) {
-                LeaderLockTable.deleteWhere {
-                    (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal)
+            val matched = transaction(db) {
+                if (remaining > Duration.ZERO) {
+                    LeaderLockTable.update(
+                        where = { (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal) }
+                    ) {
+                        it[LeaderLockTable.lockedUntil] = Instant.now().plusMillis(remaining.inWholeMilliseconds)
+                    }
+                } else {
+                    LeaderLockTable.deleteWhere {
+                        (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal)
+                    }
                 }
             }
-            if (deleted == 0) {
+            if (matched == 0) {
                 log.warn { "락 해제 실패 — 토큰 불일치 또는 이미 만료됨: lockName=$lockName, token=${token.take(8)}" }
             } else {
                 log.debug { "락 해제 성공: lockName=$lockName, token=${token.take(8)}" }

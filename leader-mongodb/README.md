@@ -10,9 +10,11 @@ MongoDB-backed leader election using `findOneAndUpdate` + TTL index — blocking
 
 `leader-mongodb` implements `leader-core` interfaces using MongoDB's `findOneAndUpdate` with `upsert=true` as the atomic lock primitive. A TTL index on `expireAt` handles automatic expiry. Lock ownership is tracked by a per-instance UUID token, making it safe across coroutine thread switches.
 
+When `minLeaseTime` is configured, unlock updates `expireAt` to the remaining minimum lease instead of deleting the document, matching ShedLock `lockAtLeastFor` behavior without blocking the caller.
+
 Lock strategy:
 - **Acquire**: `findOneAndUpdate(filter: {_id, expireAt < now}, update: {token, expireAt}, upsert=true, returnDocument=AFTER)` — succeeds if the returned token matches; `E11000` means a live lock exists → retry.
-- **Release**: `deleteOne({_id, token})` — only the owner can release.
+- **Release**: `deleteOne({_id, token})`, or `updateOne({_id, token}, expireAt = now + remainingMinLeaseTime)` when `minLeaseTime` still has time left.
 
 ## Architecture
 

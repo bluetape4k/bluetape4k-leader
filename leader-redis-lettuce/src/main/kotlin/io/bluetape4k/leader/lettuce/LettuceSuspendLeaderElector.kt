@@ -58,13 +58,18 @@ class LettuceSuspendLeaderElector(
             log.debug { "리더 선출 실패 (슬롯 없음, suspend): lockName=$lockName" }
             return null
         }
+        val acquiredAtNanos = System.nanoTime()
         log.debug { "리더 선출 성공 (suspend): lockName=$lockName" }
         try {
             return action()
         } finally {
             // NonCancellable: 코루틴 취소 시에도 락 해제가 중단되지 않도록 보호
             withContext(NonCancellable) {
-                runCatching { if (lock.isHeldByCurrentInstance()) lock.unlock() }
+                runCatching {
+                    if (lock.isHeldByCurrentInstance()) {
+                        lock.unlock(options.minLeaseTime, acquiredAtNanos)
+                    }
+                }
                     .onFailure { error ->
                         if (error is CancellationException) throw error
                         log.warn(error) { "Fail to release lock. lockName=$lockName" }

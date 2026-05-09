@@ -166,10 +166,12 @@ val options = LeaderElectionOptions(
     waitTime = 3.seconds,   // 락 획득 최대 대기 시간
     leaseTime = 30.seconds, // 락 보유(임대) 최대 시간
     nodeId = "worker-a",    // 상태 스냅샷에 노출할 노드 식별자
-    minLeaseTime = 0.seconds // 로컬 최소 보유 시간. backend TTL 위임은 #77에서 처리
+    minLeaseTime = 0.seconds // lockAtLeastFor 방식의 최소 lease 보존 시간
 )
 val election = RedissonLeaderElector(client, options)
 ```
+
+`minLeaseTime`은 ShedLock `lockAtLeastFor` 대응 옵션입니다. 로컬 elector는 release 전 대기하고, 지원되는 분산 backend는 남은 최소 lease를 storage TTL에 위임하므로 caller는 즉시 반환됩니다.
 
 ### 상태 스냅샷
 

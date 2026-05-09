@@ -102,6 +102,7 @@ class ExposedJdbcLeaderElector private constructor(
 
         val historyId = recordAcquired(lockName, lock.token)
         val startedAt = Instant.now()
+        val acquiredAtNanos = System.nanoTime()
         var actionSucceeded = false
         var actionFailed = false
 
@@ -121,7 +122,7 @@ class ExposedJdbcLeaderElector private constructor(
                 actionFailed -> recordFailed(historyId, lock.token, startedAt)
                 // CancellationException: 이력 미기록 (취소이므로 FAILED 아님)
             }
-            runCatching { lock.unlock() }
+            runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
                 .onSuccess { log.debug { "리더 권한을 반납했습니다. lockName=$lockName" } }
                 .onFailure { e -> log.warn(e) { "락 해제 실패. lockName=$lockName" } }
         }
@@ -165,11 +166,12 @@ class ExposedJdbcLeaderElector private constructor(
                     log.debug { "리더로 승격하여 비동기 작업을 수행합니다. lockName=$lockName" }
                     val historyId = recordAcquired(lockName, lock.token)
                     val startedAt = Instant.now()
+                    val acquiredAtNanos = System.nanoTime()
 
                     val actionFuture = runCatching { action() }
                         .getOrElse { e ->
                             recordFailed(historyId, lock.token, startedAt)
-                            runCatching { lock.unlock() }
+                            runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
                                 .onFailure { ex -> log.warn(ex) { "락 해제 실패 (action 오류 경로). lockName=$lockName" } }
                             return@thenComposeAsync CompletableFuture.failedFuture(e)
                         }
@@ -182,7 +184,7 @@ class ExposedJdbcLeaderElector private constructor(
                             throwable is CancellationException -> { /* skip */ }
                             else -> recordFailed(historyId, lock.token, startedAt)
                         }
-                        runCatching { lock.unlock() }
+                        runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
                             .onSuccess { log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" } }
                             .onFailure { e -> log.warn(e) { "비동기 락 해제 실패. lockName=$lockName" } }
                     }, executor)

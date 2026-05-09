@@ -116,7 +116,7 @@ LeaderGroupElectionOptions(
 )
 ```
 
-`minLeaseTime` is the local lockAtLeastFor equivalent. Local electors keep the lock or slot until the minimum hold time has elapsed. Distributed backend TTL delegation is handled separately in #77.
+`minLeaseTime` is the lockAtLeastFor equivalent. Local electors keep the lock or slot until the minimum hold time has elapsed. Supported distributed backends delegate the remaining minimum lease to their storage TTL on release.
 
 ## Sequence Diagrams
 

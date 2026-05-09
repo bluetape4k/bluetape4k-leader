@@ -13,6 +13,7 @@ import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Updates
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
@@ -187,11 +188,22 @@ class MongoSuspendLock private constructor(
      *
      * 토큰 불일치 시 경고 로그만 남깁니다.
      */
-    suspend fun unlock() {
-        val result = collection.deleteOne(
-            Filters.and(Filters.eq("_id", lockKey), Filters.eq("token", token))
-        )
-        if (result.deletedCount == 0L) {
+    suspend fun unlock(
+        minLeaseTime: Duration = Duration.ZERO,
+        acquiredAtNanos: Long = System.nanoTime(),
+    ) {
+        val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
+        val matched = if (remaining > Duration.ZERO) {
+            collection.updateOne(
+                Filters.and(Filters.eq("_id", lockKey), Filters.eq("token", token)),
+                Updates.set("expireAt", Date(System.currentTimeMillis() + remaining.inWholeMilliseconds))
+            ).matchedCount
+        } else {
+            collection.deleteOne(
+                Filters.and(Filters.eq("_id", lockKey), Filters.eq("token", token))
+            ).deletedCount
+        }
+        if (matched == 0L) {
             log.warn { "락 해제 실패 — 토큰 불일치 또는 이미 만료됨 (suspend): lockKey=$lockKey" }
         } else {
             log.debug { "락 해제 성공 (suspend): lockKey=$lockKey" }

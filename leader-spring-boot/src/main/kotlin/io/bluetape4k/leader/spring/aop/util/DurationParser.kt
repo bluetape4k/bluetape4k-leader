@@ -11,7 +11,8 @@ import java.time.Duration
  * - **ISO-8601**: `"PT10S"`, `"PT1H"`, `"PT500MS"` → [Duration.parse]
  * - **simple**: `"10s"`, `"5m"`, `"1h"`, `"500ms"` → 정규식 + 단위 매핑
  *
- * 음수/0 거부. 빈 문자열 시 default 폴백 헬퍼 [parseOrDefault] 사용.
+ * 기본 [parse]는 음수/0을 거부합니다. `minLeaseTime`처럼 0을 허용하는 값은
+ * [parseNonNegativeOrDefault]를 사용합니다.
  *
  * ## 사용 예
  * ```kotlin
@@ -63,4 +64,20 @@ object DurationParser {
      */
     fun parseOrDefault(text: String, default: Duration): Duration =
         if (text.isBlank()) default else parse(text)
+
+    /**
+     * [text] 가 빈 문자열이면 [default] 를 반환, 그 외에는 0 이상 [Duration] 으로 파싱합니다.
+     */
+    fun parseNonNegativeOrDefault(text: String, default: Duration): Duration {
+        if (text.isBlank()) return default
+        val duration = runCatching { parse(text) }
+            .getOrElse { error ->
+                val trimmed = text.trim()
+                if (trimmed == "0" || trimmed.equals("PT0S", ignoreCase = true)) {
+                    return Duration.ZERO
+                }
+                throw error
+            }
+        return duration
+    }
 }

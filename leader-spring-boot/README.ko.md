@@ -112,7 +112,7 @@ Spring 설정 속성은 Spring Boot duration binding을 사용하므로 `5s`, `6
 @Service
 class SettlementJobs {
     @Scheduled(cron = "0 0 2 * * *")
-    @LeaderElection(name = "daily-settlement", leaseTime = "30m")
+    @LeaderElection(name = "daily-settlement", leaseTime = "30m", minLeaseTime = "10s")
     fun settleDaily(): SettlementReport? =
         settlementService.settle()
 
