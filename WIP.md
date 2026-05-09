@@ -26,10 +26,10 @@
 | #29/#31/#32 | StrategicLeaderElection (leader-core + Redis 백엔드) | ✅ 완료 | merged |
 | #8 | leader-mongodb — MongoDB findOneAndUpdate + TTL 기반 분산 락 | ✅ 완료 | #46 merged |
 | #11/#12 | leader-spring-boot3 / leader-spring-boot4 AutoConfiguration | ✅ 완료 | merged |
-| **#41** | **@LeaderElection, @LeaderGroupElection AOP 애노테이션 (Spring Boot 3/4)** | **✅ 완료** | **#86 merged** |
-| #75/#101 | leader-aop Micrometer metrics 통합 | ✅ 완료 | #84 merged |
-| #104/#105 | Spring Boot 3 드랍 — leader-spring-boot 단일 모듈 통합 | ✅ 완료 | merged |
-| #76 | spring-boot 디렉토리 재구조화 | ✅ 완료 | #104/#105로 해소 |
+| **[#41](https://github.com/bluetape4k/bluetape4k-leader/issues/41)** | **@LeaderElection, @LeaderGroupElection AOP 애노테이션 (Spring Boot 3/4)** | **✅ 완료** | **[#86](https://github.com/bluetape4k/bluetape4k-leader/pull/86) merged** |
+| [#75](https://github.com/bluetape4k/bluetape4k-leader/issues/75)/[#101](https://github.com/bluetape4k/bluetape4k-leader/pull/101) | leader-aop Micrometer metrics 통합 | ✅ 완료 | [#101](https://github.com/bluetape4k/bluetape4k-leader/pull/101) merged |
+| [#104](https://github.com/bluetape4k/bluetape4k-leader/issues/104)/[#105](https://github.com/bluetape4k/bluetape4k-leader/pull/105) | Spring Boot 3 드랍 — leader-spring-boot 단일 모듈 통합 | ✅ 완료 | [#105](https://github.com/bluetape4k/bluetape4k-leader/pull/105) merged |
+| [#76](https://github.com/bluetape4k/bluetape4k-leader/issues/76) | spring-boot 디렉토리 재구조화 | ✅ 완료 | [#105](https://github.com/bluetape4k/bluetape4k-leader/pull/105)로 해소 |
 | #100 | LeaderElection/LeaderGroupElection → LeaderElector/LeaderGroupElector rename | ✅ 완료 | #106 merged |
 | #103 | feat: LeaderAopProperties Metrics 중첩 클래스 추가 (IDE 자동완성) | ✅ 완료 | #111 merged |
 | #102 | feat: LeaderMicrometerHealthAutoConfiguration 추가 | ✅ 완료 | #112 merged |
@@ -39,10 +39,25 @@
 | #84 | feat: 메타 어노테이션 (@AliasFor) 지원 | ✅ 완료 | #117 merged |
 | #78 | feat: 클래스/패키지 레벨 @LeaderElectionBackend 메타 어노테이션 | ✅ 완료 | #118 merged |
 | #82 | feat: SpEL TemplateParserContext 혼합 표현식 지원 | ✅ 완료 | #119 merged |
-| #128 | fix: Hazelcast suspend elector CancellationException 재전파 | ✅ 완료 | #138 |
-| #34 | feat: leader-zookeeper (Apache Curator 기반) | ✅ 완료 | #138 |
+| [#69](https://github.com/bluetape4k/bluetape4k-leader/issues/69) | feat: SpEL 기반 동적 락 이름 표현식 지원 | ✅ 완료 | [#86](https://github.com/bluetape4k/bluetape4k-leader/pull/86)/[#119](https://github.com/bluetape4k/bluetape4k-leader/pull/119) merged |
+| [#80](https://github.com/bluetape4k/bluetape4k-leader/issues/80)/[#88-#92](https://github.com/bluetape4k/bluetape4k-leader/issues?q=88+89+90+91+92) | leader-aop suspend / Mono / context propagation 지원 | ✅ 완료 | [#120](https://github.com/bluetape4k/bluetape4k-leader/pull/120)/[#122](https://github.com/bluetape4k/bluetape4k-leader/pull/122)/[#132](https://github.com/bluetape4k/bluetape4k-leader/pull/132)/[#133](https://github.com/bluetape4k/bluetape4k-leader/pull/133) merged |
+| [#10](https://github.com/bluetape4k/bluetape4k-leader/issues/10)/[#136](https://github.com/bluetape4k/bluetape4k-leader/pull/136) | leader-micrometer 독립 모듈 / instrumented elector | ✅ 완료 | [#136](https://github.com/bluetape4k/bluetape4k-leader/pull/136) merged |
+| [#115](https://github.com/bluetape4k/bluetape4k-leader/issues/115) | docs: README rename drift — *Election → *Elector | ✅ 완료 | [#123](https://github.com/bluetape4k/bluetape4k-leader/pull/123) merged |
+| [#128](https://github.com/bluetape4k/bluetape4k-leader/issues/128) | fix: Hazelcast suspend elector CancellationException 재전파 | ✅ 완료 | [#138](https://github.com/bluetape4k/bluetape4k-leader/pull/138) merged |
+| [#34](https://github.com/bluetape4k/bluetape4k-leader/issues/34) | feat: leader-zookeeper (Apache Curator 기반) | ✅ 완료 | [#138](https://github.com/bluetape4k/bluetape4k-leader/pull/138) merged |
 
 ---
+
+## 최근 이슈 정리 (2026-05-09)
+
+| 이슈 | 처리 | 근거 PR |
+|------|------|---------|
+| [#41](https://github.com/bluetape4k/bluetape4k-leader/issues/41) | 닫음 | [#86](https://github.com/bluetape4k/bluetape4k-leader/pull/86) |
+| [#69](https://github.com/bluetape4k/bluetape4k-leader/issues/69) | 닫음 | [#86](https://github.com/bluetape4k/bluetape4k-leader/pull/86), [#119](https://github.com/bluetape4k/bluetape4k-leader/pull/119) |
+| [#75](https://github.com/bluetape4k/bluetape4k-leader/issues/75) | 닫음 | [#101](https://github.com/bluetape4k/bluetape4k-leader/pull/101), 후속 [#112](https://github.com/bluetape4k/bluetape4k-leader/pull/112), [#136](https://github.com/bluetape4k/bluetape4k-leader/pull/136) |
+| [#76](https://github.com/bluetape4k/bluetape4k-leader/issues/76) | 닫음 | [#105](https://github.com/bluetape4k/bluetape4k-leader/pull/105) |
+| [#80](https://github.com/bluetape4k/bluetape4k-leader/issues/80) | 닫음 | [#120](https://github.com/bluetape4k/bluetape4k-leader/pull/120), [#122](https://github.com/bluetape4k/bluetape4k-leader/pull/122), [#132](https://github.com/bluetape4k/bluetape4k-leader/pull/132), [#133](https://github.com/bluetape4k/bluetape4k-leader/pull/133) |
+| [#115](https://github.com/bluetape4k/bluetape4k-leader/issues/115) | 닫음 | [#123](https://github.com/bluetape4k/bluetape4k-leader/pull/123) |
 
 ## 이슈 의존 관계
 
@@ -51,28 +66,31 @@
                                         ├── #102 (HealthAutoConfiguration) ✅
                                         └── #103 (MetricsProperties) ✅
 
-#41 ✅ ────────────────────────────────┬── #94 (bug: failureMode bypass) ← P0
-                                       ├── #95 (test: LeaderGroupElectionAspect) ← P0
-                                       ├── #96 (test: BPP suspend/Mono 분기) ← P0
-                                       ├── #97 (test: SpEL null + placeholder) ← P0
+#41 ✅ ────────────────────────────────┬── #94 (bug: failureMode bypass) ✅
+                                       ├── #95 (test: LeaderGroupElectionAspect) ✅
+                                       ├── #96 (test: BPP suspend/Mono 분기) ✅
+                                       ├── #97 (test: SpEL null + placeholder) ✅
                                        ├── #87 (Boot4 double-fire 검증)
                                        ├── #81 (FAIL_OPEN_RUN + LeaderResult) ✅
-                                       └── #80 sub-issues ─── #88 → #89 → #90 → #91 → #92
+                                       └── #80 ✅ ─── #88 ✅ → #89 ✅ → #90 ✅ → #91 ✅ → #92 ✅
 
 독립 기능 (병렬 가능):
-  #82 (SpEL TemplateParserContext)
-  #84 (메타 어노테이션 @AliasFor)
-  #78 (@LeaderElectionBackend 클래스/패키지 레벨)
+  #82 (SpEL TemplateParserContext) ✅
+  #84 (메타 어노테이션 @AliasFor) ✅
+  #78 (@LeaderElectionBackend 클래스/패키지 레벨) ✅
+  #69 (SpEL 동적 락 이름) ✅
 
 보류:
   #83 (Result<T> 반환) — 파괴적 변경, 0.1.0 출시 이후 별도 논의
 
 백로그 (낮은 우선순위):
+  #137 (leader-micrometer Prometheus export 검증/연동)
+  #129 (leader-spring-boot, leader-micrometer README 부재 + 마이그레이션 문서)
   #40 (이벤트 리스너) → #75 이후 자연스럽게 연동 가능
   #68 (Election 상태 조회 API)
-  #69 (SpEL 동적 락 이름) ─── #82 와 합칠 수 있음
   #72 (LeaderGroup leaderId 지원)
   #73 (watchdog / lease auto-extend)
+  #74 (Flux/Flow 반환 타입 지원 — lease renewal 필요)
   #77 (minLeaseTime 백엔드 TTL 위임)
   #79 (LockExtender / LockAssert)
   #38/#39 (lockAtLeastFor, useDbTime)
@@ -87,10 +105,10 @@
 
 | 이슈 | 제목 | 선행 조건 |
 |------|------|----------|
-| **#94** | **fix: factory.create() pre-try I/O가 failureMode + LeaderElectionException wrap 우회** | ✅ #116에 포함 |
-| #97 | test: SpelExpressionEvaluator null 결과 + `${...}` placeholder 경로 미테스트 | ✅ #116에 포함 |
-| #96 | test: LeaderAnnotationValidatorBeanPostProcessor suspend/Mono/Flux/Flow/@Aspect skip 미테스트 | ✅ #116에 포함 |
-| #95 | test: LeaderGroupElectionAspect 전체 테스트 부재 | ✅ #116에 포함 |
+| **[#94](https://github.com/bluetape4k/bluetape4k-leader/issues/94)** | **fix: factory.create() pre-try I/O가 failureMode + LeaderElectionException wrap 우회** | ✅ [#107](https://github.com/bluetape4k/bluetape4k-leader/pull/107) merged |
+| [#97](https://github.com/bluetape4k/bluetape4k-leader/issues/97) | test: SpelExpressionEvaluator null 결과 + `${...}` placeholder 경로 미테스트 | ✅ [#108](https://github.com/bluetape4k/bluetape4k-leader/pull/108) merged |
+| [#96](https://github.com/bluetape4k/bluetape4k-leader/issues/96) | test: LeaderAnnotationValidatorBeanPostProcessor suspend/Mono/Flux/Flow/@Aspect skip 미테스트 | ✅ [#109](https://github.com/bluetape4k/bluetape4k-leader/pull/109) merged |
+| [#95](https://github.com/bluetape4k/bluetape4k-leader/issues/95) | test: LeaderGroupElectionAspect 전체 테스트 부재 | ✅ [#110](https://github.com/bluetape4k/bluetape4k-leader/pull/110) merged |
 
 ### P1 — #75 완료 이후 연쇄 (지금 가능)
 
@@ -103,19 +121,20 @@
 
 | 이슈 | 제목 | 선행 조건 |
 |------|------|----------|
-| **#82** | **feat: SpEL TemplateParserContext 혼합 표현식 지원** | #41 ✅ | **✅ 완료 — PR #119 merged** |
-| **#84** | **feat: 메타 어노테이션 (@AliasFor) 지원** | #41 ✅ | **✅ 완료 — PR #117 merged** |
-| **#78** | **feat: 클래스/패키지 레벨 @LeaderElectionBackend 메타 어노테이션** | #41 ✅ | **✅ 완료 — PR #118 merged** |
+| **[#82](https://github.com/bluetape4k/bluetape4k-leader/issues/82)** | **feat: SpEL TemplateParserContext 혼합 표현식 지원** | #41 ✅ | **✅ 완료 — PR [#119](https://github.com/bluetape4k/bluetape4k-leader/pull/119) merged** |
+| **[#84](https://github.com/bluetape4k/bluetape4k-leader/issues/84)** | **feat: 메타 어노테이션 (@AliasFor) 지원** | #41 ✅ | **✅ 완료 — PR [#117](https://github.com/bluetape4k/bluetape4k-leader/pull/117) merged** |
+| **[#78](https://github.com/bluetape4k/bluetape4k-leader/issues/78)** | **feat: 클래스/패키지 레벨 @LeaderElectionBackend 메타 어노테이션** | #41 ✅ | **✅ 완료 — PR [#118](https://github.com/bluetape4k/bluetape4k-leader/pull/118) merged** |
+| **[#69](https://github.com/bluetape4k/bluetape4k-leader/issues/69)** | **feat: SpEL 기반 동적 락 이름 표현식 지원** | #41 ✅ | **✅ 완료 — PR [#86](https://github.com/bluetape4k/bluetape4k-leader/pull/86)/[#119](https://github.com/bluetape4k/bluetape4k-leader/pull/119) merged** |
 
 ### P3 — Wave 5 suspend/Mono 지원 (순차 의존, 난이도 높음)
 
 | 이슈 | 제목 | 선행 조건 |
 |------|------|----------|
-| #88 | feat: SuspendLeaderElectorFactory SPI 정의 + Local 구현 | #41 ✅ |
-| #89 | feat: SuspendLeaderElectorFactory 백엔드 구현 (Lettuce/Redisson/Mongo/ExposedR2dbc) | #88 |
-| #90 | feat: Aspect suspend 반환 타입 분기 (Spring AOP + Kotlin Coroutines) | #89 |
-| #91 | feat: Aspect Mono<T> 반환 타입 분기 | #90 |
-| #92 | feat: LeaderElectionInfo CoroutineContext element + Reactor context propagation | #91 |
+| [#88](https://github.com/bluetape4k/bluetape4k-leader/issues/88) | feat: SuspendLeaderElectorFactory SPI 정의 + Local 구현 | ✅ [#120](https://github.com/bluetape4k/bluetape4k-leader/pull/120) merged |
+| [#89](https://github.com/bluetape4k/bluetape4k-leader/issues/89) | feat: SuspendLeaderElectorFactory 백엔드 구현 (Lettuce/Redisson/Mongo/ExposedR2dbc) | ✅ [#122](https://github.com/bluetape4k/bluetape4k-leader/pull/122) merged |
+| [#90](https://github.com/bluetape4k/bluetape4k-leader/issues/90) | feat: Aspect suspend 반환 타입 분기 (Spring AOP + Kotlin Coroutines) | ✅ [#132](https://github.com/bluetape4k/bluetape4k-leader/pull/132) merged |
+| [#91](https://github.com/bluetape4k/bluetape4k-leader/issues/91) | feat: Aspect Mono<T> 반환 타입 분기 | ✅ [#133](https://github.com/bluetape4k/bluetape4k-leader/pull/133) merged |
+| [#92](https://github.com/bluetape4k/bluetape4k-leader/issues/92) | feat: LeaderElectionInfo CoroutineContext element + Reactor context propagation | ✅ [#133](https://github.com/bluetape4k/bluetape4k-leader/pull/133) merged |
 
 > **⚠️ suspend/Mono 지원 난이도**: Spring AOP CGLib 기반에서 suspend/Mono 반환 타입 인터셉트는  
 > 기술적 난관이 크다. #88부터 단계적 검증 후 진행.
@@ -126,10 +145,12 @@
 
 | 이슈 | 제목 | 비고 |
 |------|------|------|
+| #137 | leader-micrometer Prometheus export 검증/연동 | `bluetape4k-micrometer`, `bluetape4k-testcontainers` PrometheusServer 활용 검토 |
+| #129 | leader-spring-boot, leader-micrometer 모듈 README 부재 + Duration/Bean 리네이밍 미반영 | 실제 README 부재 확인 — 닫지 않음 |
 | #40 | 리더 이벤트 리스너 (onElected / onRevoked) | #75 이후 자연 연동 |
 | #68 | Election 상태 조회 API (시작 시각, 남은 slot 등) | #41 이후 |
-| #69 | SpEL 기반 동적 락 이름 표현식 | #82 와 통합 검토 |
 | #72 | @LeaderGroupElection leaderId 지원 (Group API 변경) | 파괴적 변경 — 별도 마이너 |
+| #74 | leader-aop Flux/Flow 반환 타입 지원 | lease renewal 필요 — #80과 분리 추적 |
 | #73 | watchdog / lease auto-extend (split-brain 방지) | 복잡도 높음 |
 | #77 | minLeaseTime 백엔드 TTL 위임 + lockAtLeastFor 검증 | #38 흡수 |
 | #79 | LockExtender / LockAssert 등가 API | ShedLock 기능 대응 |
@@ -137,7 +158,6 @@
 | #39 | useDbTime — DB 서버 시간 기준 락 | Exposed 백엔드 한정 |
 | #50 | 공통 리더 선출 이력 감사 계약 | 낮음 |
 | #83 | runIfLeader {} 반환을 Result<T>로 변경 | 파괴적 변경 — 0.1.0 출시 이후 |
-| #10 | leader-micrometer 독립 모듈 (InstrumentedLeaderElection) | #75 로 방향 전환 검토 |
 | #36 | leader-examples (실무 시나리오 5종) | 기능 안정 후 |
 | #37 | leader-ktor 통합 (Ktor 3.x Plugin DSL) | Spring 완료 후 |
 | #42 | 멀티테넌시 지원 (테넌트별 락 네임스페이스) | 낮음 |
