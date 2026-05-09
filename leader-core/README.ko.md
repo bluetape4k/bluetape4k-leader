@@ -287,10 +287,19 @@ println(election.availableSlots("parallel-batch")) // 잔여 슬롯 수
 ### 상태 조회
 
 ```kotlin
-val state: LeaderGroupState = election.state("parallel-batch")
-println(state.activeCount)  // 현재 리더 수
-println(state.maxLeaders)   // 옵션의 maxLeaders 값
+val single: LeaderState = LocalLeaderElector(
+    LeaderElectionOptions(nodeId = "node-a")
+).state("daily-job")
+println(single.status)        // Empty 또는 Occupied
+println(single.leader?.leaderId)
+
+val group: LeaderGroupState = election.state("parallel-batch")
+println(group.activeCount)    // 현재 리더 수
+println(group.maxLeaders)     // 옵션의 maxLeaders 값
+println(group.leaders.map { it.leaderId })
 ```
+
+상태 조회는 진단과 메트릭을 위한 best-effort 스냅샷입니다. 락 획득을 대체하는 API가 아닙니다.
 
 ## 의존성 추가
 

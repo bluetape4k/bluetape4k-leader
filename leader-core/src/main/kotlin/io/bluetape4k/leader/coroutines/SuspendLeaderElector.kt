@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.leader.LeaderElectionState
+
 /**
  * 코루틴 기반 리더 선출 실행 계약을 정의합니다.
  *
@@ -15,7 +17,7 @@ package io.bluetape4k.leader.coroutines
  * // result == "ok"
  * ```
  */
-interface SuspendLeaderElector {
+interface SuspendLeaderElector: LeaderElectionState {
 
     /**
      * 리더 획득 성공 시 suspend [action]을 실행합니다.

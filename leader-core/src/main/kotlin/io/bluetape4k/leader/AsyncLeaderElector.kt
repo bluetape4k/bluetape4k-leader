@@ -20,7 +20,7 @@ import java.util.concurrent.Executor
  * // future.join() == "ok"
  * ```
  */
-interface AsyncLeaderElector {
+interface AsyncLeaderElector: LeaderElectionState {
 
     /**
      * 리더 획득 성공 시 비동기 [action]을 실행합니다.

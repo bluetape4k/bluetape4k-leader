@@ -40,6 +40,7 @@ abstract class AbstractLocalLeaderGroupElector(
 
     private val semaphores = ConcurrentHashMap<String, Semaphore>()
     private val listeners = LeaderElectionListenerSupport()
+    private val states = LocalLeaderStateRegistry()
 
     override fun addListener(listener: LeaderElectionListener): AutoCloseable =
         listeners.addListener(listener)
@@ -106,11 +107,13 @@ abstract class AbstractLocalLeaderGroupElector(
             return null
         }
         val startedAtNanos = System.nanoTime()
+        val lease = states.acquireGroup(lockName, options.nodeId, options.leaseTime, maxLeaders)
         listeners.notifyElected(lockName)
         return try {
             action()
         } finally {
             parkRemainingMinLeaseTime(startedAtNanos, options.minLeaseTime)
+            states.releaseGroup(lockName, lease)
             semaphore.release()
             listeners.notifyRevoked(lockName)
         }
@@ -158,5 +161,5 @@ abstract class AbstractLocalLeaderGroupElector(
      * @return 현재 리더 그룹 상태 스냅샷
      */
     override fun state(lockName: String): LeaderGroupState =
-        LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
+        states.groupState(lockName, maxLeaders, activeCount(lockName))
 }
