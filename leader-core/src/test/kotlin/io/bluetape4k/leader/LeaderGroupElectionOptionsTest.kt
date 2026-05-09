@@ -18,6 +18,7 @@ class LeaderGroupElectionOptionsTest {
         options.maxLeaders shouldBeEqualTo LeaderGroupElectionOptions.DefaultMaxLeaders
         options.waitTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultWaitTime
         options.leaseTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultLeaseTime
+        options.minLeaseTime shouldBeEqualTo Duration.ZERO
     }
 
     @Test
@@ -26,6 +27,7 @@ class LeaderGroupElectionOptionsTest {
         options.maxLeaders shouldBeEqualTo 5
         options.waitTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultWaitTime
         options.leaseTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultLeaseTime
+        options.minLeaseTime shouldBeEqualTo Duration.ZERO
     }
 
     @Test
@@ -34,10 +36,12 @@ class LeaderGroupElectionOptionsTest {
             maxLeaders = 4,
             waitTime = 10.seconds,
             leaseTime = 120.seconds,
+            minLeaseTime = 5.seconds,
         )
         options.maxLeaders shouldBeEqualTo 4
         options.waitTime shouldBeEqualTo 10.seconds
         options.leaseTime shouldBeEqualTo 120.seconds
+        options.minLeaseTime shouldBeEqualTo 5.seconds
     }
 
     @Test

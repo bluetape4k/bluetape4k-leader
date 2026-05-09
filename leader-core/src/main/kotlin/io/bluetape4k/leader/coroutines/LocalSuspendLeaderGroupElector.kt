@@ -9,11 +9,15 @@ import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.local.LocalLeaderStateRegistry
+import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 
@@ -163,16 +167,27 @@ class LocalSuspendLeaderGroupElector private constructor(
             eventSubject.emit(LeaderElectionEvent.Skipped(lockName))
             return null
         }
+        val startedAtNanos = System.nanoTime()
         val lease = states.acquireGroup(lockName, options.nodeId, options.leaseTime, maxLeaders)
         listeners.notifyElected(lockName)
         eventSubject.emit(LeaderElectionEvent.Elected(lockName))
         return try {
             action()
         } finally {
-            states.releaseGroup(lockName, lease)
-            if (acquired) semaphore.release()
-            listeners.notifyRevoked(lockName)
-            eventSubject.emit(LeaderElectionEvent.Revoked(lockName))
+            withContext(NonCancellable) {
+                delayRemainingMinLeaseTime(startedAtNanos)
+                states.releaseGroup(lockName, lease)
+                if (acquired) semaphore.release()
+                listeners.notifyRevoked(lockName)
+                eventSubject.emit(LeaderElectionEvent.Revoked(lockName))
+            }
+        }
+    }
+
+    private suspend fun delayRemainingMinLeaseTime(startedAtNanos: Long) {
+        val remaining = remainingMinLeaseTime(startedAtNanos, options.minLeaseTime)
+        if (remaining > kotlin.time.Duration.ZERO) {
+            delay(remaining)
         }
     }
 }

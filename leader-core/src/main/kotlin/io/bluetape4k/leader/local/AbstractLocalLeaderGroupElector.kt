@@ -6,6 +6,7 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderElectionListener
 import io.bluetape4k.leader.LeaderElectionListenerRegistry
 import io.bluetape4k.leader.LeaderElectionListenerSupport
+import io.bluetape4k.leader.parkRemainingMinLeaseTime
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 import java.util.concurrent.ConcurrentHashMap
@@ -105,11 +106,13 @@ abstract class AbstractLocalLeaderGroupElector(
             listeners.notifySkipped(lockName)
             return null
         }
+        val startedAtNanos = System.nanoTime()
         val lease = states.acquireGroup(lockName, options.nodeId, options.leaseTime, maxLeaders)
         listeners.notifyElected(lockName)
         return try {
             action()
         } finally {
+            parkRemainingMinLeaseTime(startedAtNanos, options.minLeaseTime)
             states.releaseGroup(lockName, lease)
             semaphore.release()
             listeners.notifyRevoked(lockName)

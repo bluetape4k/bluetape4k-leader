@@ -254,6 +254,36 @@ class LocalLeaderElectionTest {
     }
 
     @Test
+    fun `runIfLeader - action 이 빨리 끝나도 minLeaseTime 동안 락을 보유한다`() {
+        val minLeaseElection = LocalLeaderElector(
+            LeaderElectionOptions(
+                waitTime = 30.milliseconds,
+                leaseTime = 1.seconds,
+                minLeaseTime = 200.milliseconds,
+            )
+        )
+        val lockName = randomLockName()
+        val actionReturned = java.util.concurrent.CountDownLatch(1)
+
+        val holder = Thread {
+            minLeaseElection.runIfLeader(lockName) {
+                actionReturned.countDown()
+                "fast"
+            }
+        }.apply { start() }
+
+        actionReturned.await()
+
+        val skipped = minLeaseElection.runIfLeader(lockName) { "too-early" }
+        skipped.shouldBeNull()
+
+        holder.join()
+
+        val acquiredAfterMinLease = minLeaseElection.runIfLeader(lockName) { "after" }
+        acquiredAfterMinLease shouldBeEqualTo "after"
+    }
+
+    @Test
     fun `runAsyncIfLeader - waitTime 내 락 획득 실패 시 null 을 반환한다`() {
         val skipElection = LocalLeaderElector(
             LeaderElectionOptions(waitTime = 100.milliseconds)

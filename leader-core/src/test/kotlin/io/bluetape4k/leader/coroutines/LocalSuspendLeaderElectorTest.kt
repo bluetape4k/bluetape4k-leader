@@ -179,4 +179,34 @@ class LocalSuspendLeaderElectorTest {
         val second = election.runIfLeader(lockName) { "second" }
         second shouldBeEqualTo "second"
     }
+
+    @Test
+    fun `runIfLeader - action 이 빨리 끝나도 minLeaseTime 동안 Mutex 를 보유한다`() = runSuspendIO {
+        val minLeaseElection = LocalSuspendLeaderElector(
+            LeaderElectionOptions(
+                waitTime = 30.milliseconds,
+                leaseTime = 1.seconds,
+                minLeaseTime = 200.milliseconds,
+            )
+        )
+        val lockName = randomLockName()
+        val actionReturned = Channel<Unit>(1)
+
+        val holder = async {
+            minLeaseElection.runIfLeader(lockName) {
+                actionReturned.send(Unit)
+                "fast"
+            }
+        }
+
+        actionReturned.receive()
+
+        val skipped = minLeaseElection.runIfLeader(lockName) { "too-early" }
+        skipped.shouldBeNull()
+
+        holder.await()
+
+        val acquiredAfterMinLease = minLeaseElection.runIfLeader(lockName) { "after" }
+        acquiredAfterMinLease shouldBeEqualTo "after"
+    }
 }

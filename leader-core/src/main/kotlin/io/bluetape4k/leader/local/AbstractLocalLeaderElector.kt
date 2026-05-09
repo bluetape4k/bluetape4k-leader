@@ -6,6 +6,7 @@ import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElectionState
 import io.bluetape4k.leader.LeaderState
+import io.bluetape4k.leader.parkRemainingMinLeaseTime
 import io.bluetape4k.support.requireNotBlank
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -90,11 +91,13 @@ abstract class AbstractLocalLeaderElector(
             listeners.notifySkipped(lockName)
             return null
         }
+        val startedAtNanos = System.nanoTime()
         states.acquireSingle(lockName, options.nodeId, options.leaseTime)
         listeners.notifyElected(lockName)
         return try {
             action()
         } finally {
+            parkRemainingMinLeaseTime(startedAtNanos, options.minLeaseTime)
             states.releaseSingle(lockName)
             lock.unlock()
             listeners.notifyRevoked(lockName)

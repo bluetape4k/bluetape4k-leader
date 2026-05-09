@@ -17,6 +17,7 @@ class LeaderElectionOptionsTest {
         val options = LeaderElectionOptions.Default
         options.waitTime shouldBeEqualTo LeaderElectionOptions.DefaultWaitTime
         options.leaseTime shouldBeEqualTo LeaderElectionOptions.DefaultLeaseTime
+        options.minLeaseTime shouldBeEqualTo Duration.ZERO
     }
 
     @Test
@@ -24,9 +25,11 @@ class LeaderElectionOptionsTest {
         val options = LeaderElectionOptions(
             waitTime = 10.seconds,
             leaseTime = 120.seconds,
+            minLeaseTime = 5.seconds,
         )
         options.waitTime shouldBeEqualTo 10.seconds
         options.leaseTime shouldBeEqualTo 120.seconds
+        options.minLeaseTime shouldBeEqualTo 5.seconds
     }
 
     @Test
@@ -35,6 +38,7 @@ class LeaderElectionOptionsTest {
         options.maxLeaders shouldBeEqualTo LeaderGroupElectionOptions.DefaultMaxLeaders
         options.waitTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultWaitTime
         options.leaseTime shouldBeEqualTo LeaderElectionOptions.DefaultLeaseTime
+        options.minLeaseTime shouldBeEqualTo Duration.ZERO
     }
 
     @Test
@@ -65,9 +69,29 @@ class LeaderElectionOptionsTest {
     }
 
     @Test
+    fun `LeaderElectionOptions minLeaseTime 이 음수거나 leaseTime 보다 크면 예외가 발생한다`() {
+        assertFailsWith<IllegalArgumentException> {
+            LeaderElectionOptions(minLeaseTime = -1.milliseconds)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            LeaderElectionOptions(leaseTime = 1.seconds, minLeaseTime = 2.seconds)
+        }
+    }
+
+    @Test
     fun `LeaderGroupElectionOptions leaseTime 이 0 이하면 예외가 발생한다`() {
         assertFailsWith<IllegalArgumentException> {
             LeaderGroupElectionOptions(leaseTime = Duration.ZERO)
+        }
+    }
+
+    @Test
+    fun `LeaderGroupElectionOptions minLeaseTime 이 음수거나 leaseTime 보다 크면 예외가 발생한다`() {
+        assertFailsWith<IllegalArgumentException> {
+            LeaderGroupElectionOptions(minLeaseTime = -1.milliseconds)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            LeaderGroupElectionOptions(leaseTime = 1.seconds, minLeaseTime = 2.seconds)
         }
     }
 

@@ -266,6 +266,37 @@ class LocalLeaderGroupElectionTest {
         second shouldBeEqualTo "second"
     }
 
+    @Test
+    fun `runIfLeader - action 이 빨리 끝나도 minLeaseTime 동안 그룹 슬롯을 보유한다`() {
+        val minLeaseElection = LocalLeaderGroupElector(
+            LeaderGroupElectionOptions(
+                maxLeaders = 1,
+                waitTime = 30.milliseconds,
+                leaseTime = 1.seconds,
+                minLeaseTime = 200.milliseconds,
+            )
+        )
+        val lockName = randomLockName()
+        val actionReturned = CountDownLatch(1)
+
+        val holder = Thread {
+            minLeaseElection.runIfLeader(lockName) {
+                actionReturned.countDown()
+                "fast"
+            }
+        }.apply { start() }
+
+        actionReturned.await(2, TimeUnit.SECONDS)
+
+        val skipped = minLeaseElection.runIfLeader(lockName) { "too-early" }
+        skipped.shouldBeNull()
+
+        holder.join()
+
+        val acquiredAfterMinLease = minLeaseElection.runIfLeader(lockName) { "after" }
+        acquiredAfterMinLease shouldBeEqualTo "after"
+    }
+
     // ── 스트레스 테스트 ────────────────────────────────────────────────────
 
     @Test
