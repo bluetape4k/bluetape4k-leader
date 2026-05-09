@@ -100,7 +100,6 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `leader-spring-boot3` — Spring Boot 3 auto-configuration (issue #11)
 - `leader-spring-boot4` — Spring Boot 4 auto-configuration (issue #12)
 - `lockAtLeastFor` (`minLeaseTime`) 지원 (issue #38)
-- `LeaderElectionListener` (`onElected` / `onRevoked`) (issue #40)
 - `@Leader` AOP 애노테이션 (issue #41)
 - 멀티테넌시 — 테넌트별 락 네임스페이스 (issue #42)
 
@@ -120,6 +119,9 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `LeaderElectionOptions(waitTime, leaseTime)` — shared option data class
   - `LeaderGroupElectionOptions(maxLeaders, waitTime, leaseTime)` — group option data class
   - Local implementations: `LocalLeaderElection`, `LocalLeaderGroupElection`, `LocalSuspendLeaderElection`, `LocalSuspendLeaderGroupElection`, `LocalAsyncLeaderElection`, `LocalVirtualThreadLeaderElection`
+
+- **`leader-core` lifecycle listeners**: `LeaderElectionListener`, listener-aware decorators, and suspend event stream backed by `PublishSubject` internally (issue #40, PR #146)
+- **`leader-micrometer` listener counters**: `MicrometerLeaderElectionListener` records `leader.election.events` with `lock.name` and `event` tags (issue #40, PR #146)
 
 - **`leader-redis-lettuce`**: Lettuce-based Redis backend
   - `LettuceLeaderElection` — blocking, uses `SET NX PX` via `LettuceLock`

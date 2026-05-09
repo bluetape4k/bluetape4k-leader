@@ -47,6 +47,7 @@
 | [#137](https://github.com/bluetape4k/bluetape4k-leader/issues/137) | test: leader-micrometer Prometheus export 검증/연동 | ✅ 완료 | [#144](https://github.com/bluetape4k/bluetape4k-leader/pull/144) merged |
 | [#128](https://github.com/bluetape4k/bluetape4k-leader/issues/128) | fix: Hazelcast suspend elector CancellationException 재전파 | ✅ 완료 | [#138](https://github.com/bluetape4k/bluetape4k-leader/pull/138) merged |
 | [#34](https://github.com/bluetape4k/bluetape4k-leader/issues/34) | feat: leader-zookeeper (Apache Curator 기반) | ✅ 완료 | [#138](https://github.com/bluetape4k/bluetape4k-leader/pull/138) merged |
+| [#40](https://github.com/bluetape4k/bluetape4k-leader/issues/40) | feat: 리더 이벤트 리스너 / coroutine event stream / Micrometer listener counter | ✅ 완료 | [#146](https://github.com/bluetape4k/bluetape4k-leader/pull/146) merged |
 
 ---
 
@@ -61,6 +62,7 @@
 | [#80](https://github.com/bluetape4k/bluetape4k-leader/issues/80) | 닫음 | [#120](https://github.com/bluetape4k/bluetape4k-leader/pull/120), [#122](https://github.com/bluetape4k/bluetape4k-leader/pull/122), [#132](https://github.com/bluetape4k/bluetape4k-leader/pull/132), [#133](https://github.com/bluetape4k/bluetape4k-leader/pull/133) |
 | [#115](https://github.com/bluetape4k/bluetape4k-leader/issues/115) | 닫음 | [#123](https://github.com/bluetape4k/bluetape4k-leader/pull/123) |
 | [#137](https://github.com/bluetape4k/bluetape4k-leader/issues/137) | 닫음 | [#144](https://github.com/bluetape4k/bluetape4k-leader/pull/144) |
+| [#40](https://github.com/bluetape4k/bluetape4k-leader/issues/40) | 닫음 | [#146](https://github.com/bluetape4k/bluetape4k-leader/pull/146) |
 
 ## 남은 이슈 우선순위 (2026-05-09)
 
@@ -68,11 +70,13 @@
 |----------|------|------|------|
 | P0 | [#129](https://github.com/bluetape4k/bluetape4k-leader/issues/129) | 새 핵심 모듈 README 부재 + Duration/Bean rename 문서 drift | ✅ 완료 - [#143](https://github.com/bluetape4k/bluetape4k-leader/pull/143) |
 | P1 | [#137](https://github.com/bluetape4k/bluetape4k-leader/issues/137) | Prometheus export 검증은 metrics 완성도와 운영 가시성에 직접 영향 | ✅ 완료 - [#144](https://github.com/bluetape4k/bluetape4k-leader/pull/144) merged |
-| P2 | [#40](https://github.com/bluetape4k/bluetape4k-leader/issues/40) | 이벤트 리스너는 metrics, audit, 상태 전파의 공통 확장 지점 | 다음 작업 |
-| P3 | [#68](https://github.com/bluetape4k/bluetape4k-leader/issues/68) | leader 상태 API는 운영/metrics/audit 확장의 기반 | 대기 |
-| P4 | [#73](https://github.com/bluetape4k/bluetape4k-leader/issues/73), [#74](https://github.com/bluetape4k/bluetape4k-leader/issues/74), [#77](https://github.com/bluetape4k/bluetape4k-leader/issues/77), [#79](https://github.com/bluetape4k/bluetape4k-leader/issues/79), [#38](https://github.com/bluetape4k/bluetape4k-leader/issues/38) | lease renewal / lockAtLeastFor / explicit extend는 같은 lease semantics 축 | 대기 |
-| P5 | [#37](https://github.com/bluetape4k/bluetape4k-leader/issues/37), [#36](https://github.com/bluetape4k/bluetape4k-leader/issues/36) | Ktor 통합과 examples는 core API 안정 후 적용 | 대기 |
-| P6 | [#42](https://github.com/bluetape4k/bluetape4k-leader/issues/42), [#50](https://github.com/bluetape4k/bluetape4k-leader/issues/50), [#72](https://github.com/bluetape4k/bluetape4k-leader/issues/72), [#39](https://github.com/bluetape4k/bluetape4k-leader/issues/39) | API/스토리지 설계 영향이 커서 별도 design pass 필요 | 대기 |
+| P2 | [#40](https://github.com/bluetape4k/bluetape4k-leader/issues/40) | 이벤트 리스너는 metrics, audit, 상태 전파의 공통 확장 지점 | ✅ 완료 - [#146](https://github.com/bluetape4k/bluetape4k-leader/pull/146) merged |
+| P3 | [#68](https://github.com/bluetape4k/bluetape4k-leader/issues/68) | leader 상태 API는 운영/metrics/audit 확장의 기반 | 다음 작업 후보 |
+| P4 | [#38](https://github.com/bluetape4k/bluetape4k-leader/issues/38), [#77](https://github.com/bluetape4k/bluetape4k-leader/issues/77) | lockAtLeastFor/minLeaseTime 의미론은 split-brain 방지의 핵심 축 | 대기 |
+| P5 | [#39](https://github.com/bluetape4k/bluetape4k-leader/issues/39) | Exposed JDBC/R2DBC 시계 기준 통일은 DB 백엔드 운영 안정성에 영향 | 대기 |
+| P6 | [#73](https://github.com/bluetape4k/bluetape4k-leader/issues/73), [#74](https://github.com/bluetape4k/bluetape4k-leader/issues/74), [#79](https://github.com/bluetape4k/bluetape4k-leader/issues/79) | lease renewal / explicit extend / streaming 반환은 긴 실행 시간 의미론 정리 후 진행 | 대기 |
+| P7 | [#145](https://github.com/bluetape4k/bluetape4k-leader/issues/145), [#37](https://github.com/bluetape4k/bluetape4k-leader/issues/37), [#36](https://github.com/bluetape4k/bluetape4k-leader/issues/36) | runnable 예제와 Ktor 통합은 core API 안정 후 적용 | 대기 |
+| P8 | [#42](https://github.com/bluetape4k/bluetape4k-leader/issues/42), [#50](https://github.com/bluetape4k/bluetape4k-leader/issues/50), [#72](https://github.com/bluetape4k/bluetape4k-leader/issues/72) | API/스토리지 설계 영향이 커서 별도 design pass 필요 | 대기 |
 
 ## 이슈 의존 관계
 
@@ -91,6 +95,7 @@
 
 독립 기능 (병렬 가능):
   #137 (leader-micrometer Prometheus export 검증/연동) ✅
+  #40 (이벤트 리스너) ✅
   #82 (SpEL TemplateParserContext) ✅
   #84 (메타 어노테이션 @AliasFor) ✅
   #78 (@LeaderElectionBackend 클래스/패키지 레벨) ✅
@@ -100,7 +105,6 @@
   #83 (Result<T> 반환) — 파괴적 변경, 0.1.0 출시 이후 별도 논의
 
 백로그 (낮은 우선순위):
-  #40 (이벤트 리스너) → #75 이후 자연스럽게 연동 가능
   #68 (Election 상태 조회 API)
   #72 (LeaderGroup leaderId 지원)
   #73 (watchdog / lease auto-extend)
@@ -159,7 +163,6 @@
 
 | 이슈 | 제목 | 비고 |
 |------|------|------|
-| #40 | 리더 이벤트 리스너 (onElected / onRevoked) | #75 이후 자연 연동 |
 | #68 | Election 상태 조회 API (시작 시각, 남은 slot 등) | #41 이후 |
 | #72 | @LeaderGroupElection leaderId 지원 (Group API 변경) | 파괴적 변경 — 별도 마이너 |
 | #74 | leader-aop Flux/Flow 반환 타입 지원 | lease renewal 필요 — #80과 분리 추적 |
