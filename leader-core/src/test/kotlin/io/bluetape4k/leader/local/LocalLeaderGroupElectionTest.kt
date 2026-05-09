@@ -181,6 +181,9 @@ class LocalLeaderGroupElectionTest {
         val activeState = election.state(lockName)
         activeState.activeCount shouldBeEqualTo 2
         activeState.availableSlots shouldBeEqualTo maxLeaders - 2
+        activeState.leaders.size shouldBeEqualTo 2
+        activeState.leaders.map { it.leaderId }.all { it == options.nodeId }.shouldBeTrue()
+        activeState.leaders.mapNotNull { it.slot }.toSet().size shouldBeEqualTo 2
         activeState.isEmpty.shouldBeFalse()
         activeState.isFull.shouldBeFalse()
 
@@ -191,6 +194,7 @@ class LocalLeaderGroupElectionTest {
         // 모두 완료 후 초기 상태로 복귀
         election.activeCount(lockName) shouldBeEqualTo 0
         election.availableSlots(lockName) shouldBeEqualTo maxLeaders
+        election.state(lockName).leaders shouldBeEqualTo emptyList()
     }
 
     @Test

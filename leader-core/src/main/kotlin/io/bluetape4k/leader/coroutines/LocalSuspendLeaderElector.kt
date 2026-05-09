@@ -7,6 +7,8 @@ import io.bluetape4k.leader.LeaderElectionListener
 import io.bluetape4k.leader.LeaderElectionListenerRegistry
 import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderState
+import io.bluetape4k.leader.local.LocalLeaderStateRegistry
 import io.bluetape4k.support.requireNotBlank
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
@@ -39,6 +41,7 @@ class LocalSuspendLeaderElector(
     private val mutexes = ConcurrentHashMap<String, Mutex>()
     private val listeners = LeaderElectionListenerSupport()
     private val eventSubject = PublishSubject<LeaderElectionEvent>()
+    private val states = LocalLeaderStateRegistry()
 
     override val events: Flow<LeaderElectionEvent> = eventSubject
 
@@ -79,14 +82,19 @@ class LocalSuspendLeaderElector(
             eventSubject.emit(LeaderElectionEvent.Skipped(lockName))
             return null
         }
+        states.acquireSingle(lockName, options.nodeId, options.leaseTime)
         listeners.notifyElected(lockName)
         eventSubject.emit(LeaderElectionEvent.Elected(lockName))
         return try {
             action()
         } finally {
+            states.releaseSingle(lockName)
             if (acquired) mutex.unlock()
             listeners.notifyRevoked(lockName)
             eventSubject.emit(LeaderElectionEvent.Revoked(lockName))
         }
     }
+
+    override fun state(lockName: String): LeaderState =
+        states.singleState(lockName)
 }

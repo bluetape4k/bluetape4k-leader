@@ -2,6 +2,7 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.support.requireGe
 import io.bluetape4k.support.requireGt
+import io.bluetape4k.support.requireNotBlank
 import java.io.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -23,17 +24,20 @@ import kotlin.time.Duration.Companion.seconds
  * @property maxLeaders 허용하는 최대 동시 리더 수. 기본값 2
  * @property waitTime 리더 획득 대기 최대 시간. 기본값 5초
  * @property leaseTime 리더 보유(임대) 최대 시간. 기본값 60초
+ * @property nodeId 상태 조회에 노출할 노드 식별자. 기본값은 JVM 프로세스 단위 stable id
  */
 data class LeaderGroupElectionOptions(
     val maxLeaders: Int = DefaultMaxLeaders,
     val waitTime: Duration = DefaultWaitTime,
     val leaseTime: Duration = DefaultLeaseTime,
+    val nodeId: String = LeaderNodeId.Default,
 ): Serializable {
 
     init {
         maxLeaders.requireGe(1, "maxLeaders")
         waitTime.requireGe(Duration.ZERO, "waitTime")
         leaseTime.requireGt(Duration.ZERO, "leaseTime")
+        nodeId.requireNotBlank("nodeId")
     }
 
     companion object {

@@ -8,6 +8,7 @@ import io.bluetape4k.leader.LeaderElectionListenerRegistry
 import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.leader.local.LocalLeaderStateRegistry
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
@@ -69,6 +70,7 @@ class LocalSuspendLeaderGroupElector private constructor(
     private val semaphores = ConcurrentHashMap<String, Semaphore>()
     private val listeners = LeaderElectionListenerSupport()
     private val eventSubject = PublishSubject<LeaderElectionEvent>()
+    private val states = LocalLeaderStateRegistry()
 
     override val events: Flow<LeaderElectionEvent> = eventSubject
 
@@ -132,7 +134,7 @@ class LocalSuspendLeaderGroupElector private constructor(
      * @return 현재 리더 그룹 상태 스냅샷
      */
     override fun state(lockName: String): LeaderGroupState =
-        LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
+        states.groupState(lockName, maxLeaders, activeCount(lockName))
 
     /**
      * [lockName]의 [Semaphore] 슬롯을 획득하고 suspend [action]을 실행합니다.
@@ -161,11 +163,13 @@ class LocalSuspendLeaderGroupElector private constructor(
             eventSubject.emit(LeaderElectionEvent.Skipped(lockName))
             return null
         }
+        val lease = states.acquireGroup(lockName, options.nodeId, options.leaseTime, maxLeaders)
         listeners.notifyElected(lockName)
         eventSubject.emit(LeaderElectionEvent.Elected(lockName))
         return try {
             action()
         } finally {
+            states.releaseGroup(lockName, lease)
             if (acquired) semaphore.release()
             listeners.notifyRevoked(lockName)
             eventSubject.emit(LeaderElectionEvent.Revoked(lockName))

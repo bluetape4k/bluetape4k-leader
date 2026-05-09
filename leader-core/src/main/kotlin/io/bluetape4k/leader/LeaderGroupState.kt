@@ -19,11 +19,13 @@ import java.io.Serializable
  * @property lockName 리더 그룹 식별에 사용하는 락 이름
  * @property maxLeaders 허용하는 최대 동시 리더 수
  * @property activeCount 현재 활성(실행 중인) 리더 수
+ * @property leaders 현재 리더로 선출된 노드/슬롯 lease 목록. backend에 따라 빈 목록일 수 있습니다.
  */
 data class LeaderGroupState(
     val lockName: String,
     val maxLeaders: Int,
     val activeCount: Int,
+    val leaders: List<LeaderLease> = emptyList(),
 ): Serializable {
 
     companion object {
@@ -34,6 +36,7 @@ data class LeaderGroupState(
         lockName.requireNotBlank("lockName")
         maxLeaders.requireGe(1, "maxLeaders")
         activeCount.requireInRange(0, maxLeaders, "activeCount")
+        leaders.size.requireInRange(0, maxLeaders, "leaders.size")
     }
 
     /**

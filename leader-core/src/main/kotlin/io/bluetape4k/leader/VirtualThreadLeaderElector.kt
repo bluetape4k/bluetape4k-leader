@@ -21,7 +21,7 @@ import io.bluetape4k.concurrent.virtualthread.VirtualFuture
  * val result = future.await()  // "ok"
  * ```
  */
-interface VirtualThreadLeaderElector {
+interface VirtualThreadLeaderElector: LeaderElectionState {
 
     /**
      * 리더 획득 성공 시 [action]을 Virtual Thread에서 비동기로 실행합니다.

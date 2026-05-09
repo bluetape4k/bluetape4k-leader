@@ -1,9 +1,11 @@
 package io.bluetape4k.leader.local
 
-import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElectionListener
 import io.bluetape4k.leader.LeaderElectionListenerRegistry
 import io.bluetape4k.leader.LeaderElectionListenerSupport
+import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderElectionState
+import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.support.requireNotBlank
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -25,10 +27,11 @@ import kotlin.time.Duration
  */
 abstract class AbstractLocalLeaderElector(
     protected val options: LeaderElectionOptions = LeaderElectionOptions.Default,
-) : LeaderElectionListenerRegistry {
+) : LeaderElectionListenerRegistry, LeaderElectionState {
 
     private val locks = ConcurrentHashMap<String, ReentrantLock>()
     private val listeners = LeaderElectionListenerSupport()
+    private val states = LocalLeaderStateRegistry()
 
     override fun addListener(listener: LeaderElectionListener): AutoCloseable =
         listeners.addListener(listener)
@@ -87,12 +90,17 @@ abstract class AbstractLocalLeaderElector(
             listeners.notifySkipped(lockName)
             return null
         }
+        states.acquireSingle(lockName, options.nodeId, options.leaseTime)
         listeners.notifyElected(lockName)
         return try {
             action()
         } finally {
+            states.releaseSingle(lockName)
             lock.unlock()
             listeners.notifyRevoked(lockName)
         }
     }
+
+    override fun state(lockName: String): LeaderState =
+        states.singleState(lockName)
 }

@@ -21,6 +21,9 @@ class ListeningLeaderElector(
     override fun removeListener(listener: LeaderElectionListener): Boolean =
         listeners.removeListener(listener)
 
+    override fun state(lockName: String): LeaderState =
+        delegate.state(lockName)
+
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         var elected = false
         val result = delegate.runIfLeader(lockName) {

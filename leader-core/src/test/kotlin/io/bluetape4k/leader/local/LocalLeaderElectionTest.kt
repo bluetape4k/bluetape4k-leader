@@ -4,10 +4,12 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderStatus
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
 import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
@@ -39,6 +41,42 @@ class LocalLeaderElectionTest {
 
         result1 shouldBeEqualTo "a"
         result2 shouldBeEqualTo "b"
+    }
+
+    @Test
+    fun `state - 실행 중에는 occupied 이고 완료 후 empty 로 돌아간다`() {
+        val nodeId = "local-node-a"
+        val stateElection = LocalLeaderElector(
+            LeaderElectionOptions(nodeId = nodeId)
+        )
+        val lockName = randomLockName()
+        val started = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+
+        val holder = Thread {
+            stateElection.runIfLeader(lockName) {
+                started.countDown()
+                release.await()
+            }
+        }.apply { start() }
+
+        started.await()
+
+        val occupied = stateElection.state(lockName)
+        occupied.status shouldBeEqualTo LeaderStatus.Occupied
+        occupied.isOccupied shouldBeEqualTo true
+        val leader = occupied.leader.shouldNotBeNull()
+        leader.leaderId shouldBeEqualTo nodeId
+        leader.electedAt.shouldNotBeNull()
+        leader.leaseUntil.shouldNotBeNull()
+
+        release.countDown()
+        holder.join()
+
+        val empty = stateElection.state(lockName)
+        empty.status shouldBeEqualTo LeaderStatus.Empty
+        empty.isEmpty shouldBeEqualTo true
+        empty.leader.shouldBeNull()
     }
 
     @Test
