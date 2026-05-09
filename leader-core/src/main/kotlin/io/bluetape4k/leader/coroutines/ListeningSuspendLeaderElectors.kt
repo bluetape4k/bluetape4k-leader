@@ -7,6 +7,7 @@ import io.bluetape4k.leader.LeaderElectionListener
 import io.bluetape4k.leader.LeaderElectionListenerRegistry
 import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.leader.LeaderState
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -26,6 +27,9 @@ class ListeningSuspendLeaderElector(
 
     override fun removeListener(listener: LeaderElectionListener): Boolean =
         listeners.removeListener(listener)
+
+    override fun state(lockName: String): LeaderState =
+        delegate.state(lockName)
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         var elected = false

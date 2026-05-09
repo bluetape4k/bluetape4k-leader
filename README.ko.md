@@ -164,10 +164,27 @@ val result = election.runIfLeader("parallel-batch") {
 ```kotlin
 val options = LeaderElectionOptions(
     waitTime = 3.seconds,   // 락 획득 최대 대기 시간
-    leaseTime = 30.seconds  // 락 보유(임대) 최대 시간
+    leaseTime = 30.seconds, // 락 보유(임대) 최대 시간
+    nodeId = "worker-a"     // 상태 스냅샷에 노출할 노드 식별자
 )
 val election = RedissonLeaderElector(client, options)
 ```
+
+### 상태 스냅샷
+
+```kotlin
+val single = election.state("daily-report-job")
+if (single.isOccupied) {
+    println("leader=${single.leader?.leaderId}")
+}
+
+val group = groupElection.state("parallel-batch")
+println("active=${group.activeCount}/${group.maxLeaders}")
+println("available=${group.availableSlots}")
+println("leaders=${group.leaders.map { it.leaderId }}")
+```
+
+상태 API는 진단과 메트릭을 위한 best-effort 스냅샷입니다. 이 값으로 작업 실행 여부를 직접 판단하지 말고, 항상 `runIfLeader`를 사용해 backend가 원자적으로 락을 획득하게 해야 합니다.
 
 ### 마이그레이션 노트
 

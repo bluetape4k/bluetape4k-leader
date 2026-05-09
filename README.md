@@ -164,10 +164,27 @@ val result = election.runIfLeader("parallel-batch") {
 ```kotlin
 val options = LeaderElectionOptions(
     waitTime = 3.seconds,   // how long to wait for the lock
-    leaseTime = 30.seconds  // how long to hold the lock
+    leaseTime = 30.seconds, // how long to hold the lock
+    nodeId = "worker-a"     // id exposed by state snapshots
 )
 val election = RedissonLeaderElector(client, options)
 ```
+
+### State snapshots
+
+```kotlin
+val single = election.state("daily-report-job")
+if (single.isOccupied) {
+    println("leader=${single.leader?.leaderId}")
+}
+
+val group = groupElection.state("parallel-batch")
+println("active=${group.activeCount}/${group.maxLeaders}")
+println("available=${group.availableSlots}")
+println("leaders=${group.leaders.map { it.leaderId }}")
+```
+
+State APIs return best-effort snapshots for diagnostics and metrics. Do not use a snapshot to decide whether to run work; always use `runIfLeader` so the backend can acquire the lock atomically.
 
 ### Migration notes
 
