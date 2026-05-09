@@ -57,6 +57,8 @@ classDiagram
 | `HazelcastLeaderGroupElector` | `LeaderGroupElector` | 블로킹 + 비동기 복수 리더 (슬롯 기반) |
 | `HazelcastSuspendLeaderElector` | `SuspendLeaderElector` | 코루틴 단일 리더 |
 | `HazelcastSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | 코루틴 복수 리더 (슬롯 기반) |
+| `HazelcastLeaderElectorFactory` | `LeaderElectorFactory` | 팩토리: 호출마다 `HazelcastLeaderElector` 생성 |
+| `HazelcastLeaderGroupElectorFactory` | `LeaderGroupElectorFactory` | 팩토리: 호출마다 `HazelcastLeaderGroupElector` 생성 |
 
 ## 사용법
 
@@ -143,10 +145,20 @@ hazelcast.suspendRunIfLeaderGroup("job", options) { doWork() }
 
 ```kotlin
 val options = LeaderElectionOptions(
-    waitTime = Duration.ofSeconds(3),
-    leaseTime = Duration.ofSeconds(60)
+    waitTime = 3.seconds,
+    leaseTime = 60.seconds
 )
 val election = HazelcastLeaderElector(hazelcast, options)
+```
+
+### Factory 사용
+
+```kotlin
+val factory: LeaderElectorFactory = HazelcastLeaderElectorFactory(hazelcast)
+val election = factory.create(LeaderElectionOptions.Default)
+
+val groupFactory: LeaderGroupElectorFactory = HazelcastLeaderGroupElectorFactory(hazelcast)
+val groupElection = groupFactory.create(LeaderGroupElectionOptions(maxLeaders = 3))
 ```
 
 ## 락 내부 구현

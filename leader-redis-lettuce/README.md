@@ -133,8 +133,8 @@ coroutineScope {
 
 ```kotlin
 val options = LeaderElectionOptions(
-    waitTime = Duration.ofSeconds(3),
-    leaseTime = Duration.ofSeconds(30)
+    waitTime = 3.seconds,
+    leaseTime = 30.seconds
 )
 val election = LettuceLeaderElector(connection, options)
 ```

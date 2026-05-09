@@ -55,6 +55,8 @@ classDiagram
 | `HazelcastLeaderGroupElector` | `LeaderGroupElector` | Blocking + async multi-leader (slot-based) |
 | `HazelcastSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine single-leader |
 | `HazelcastSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader (slot-based) |
+| `HazelcastLeaderElectorFactory` | `LeaderElectorFactory` | Factory: creates `HazelcastLeaderElector` per call |
+| `HazelcastLeaderGroupElectorFactory` | `LeaderGroupElectorFactory` | Factory: creates `HazelcastLeaderGroupElector` per call |
 
 ## Usage
 
@@ -141,10 +143,20 @@ hazelcast.suspendRunIfLeaderGroup("job", options) { doWork() }
 
 ```kotlin
 val options = LeaderElectionOptions(
-    waitTime = Duration.ofSeconds(3),
-    leaseTime = Duration.ofSeconds(60)
+    waitTime = 3.seconds,
+    leaseTime = 60.seconds
 )
 val election = HazelcastLeaderElector(hazelcast, options)
+```
+
+### Using factories
+
+```kotlin
+val factory: LeaderElectorFactory = HazelcastLeaderElectorFactory(hazelcast)
+val election = factory.create(LeaderElectionOptions.Default)
+
+val groupFactory: LeaderGroupElectorFactory = HazelcastLeaderGroupElectorFactory(hazelcast)
+val groupElection = groupFactory.create(LeaderGroupElectionOptions(maxLeaders = 3))
 ```
 
 ## Lock Internals

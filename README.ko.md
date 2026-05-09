@@ -169,6 +169,12 @@ val options = LeaderElectionOptions(
 val election = RedissonLeaderElector(client, options)
 ```
 
+### 마이그레이션 노트
+
+- Kotlin API option은 `kotlin.time.Duration`을 사용합니다. `java.time.Duration.ofSeconds(...)` 대신 `5.seconds`, `60.seconds`, `1.minutes`를 사용하세요.
+- Spring Boot YAML은 계속 Spring duration binding을 사용합니다 (`5s`, `60s`, `PT1M`).
+- Spring bean 이름은 `LeaderElector` 용어를 사용합니다. `redissonLeaderElectionFactory`, `lettuceSuspendLeaderElectorFactory` 같은 이름을 우선 사용하세요.
+
 ### 로컬 방식 (인메모리, Redis 불필요)
 
 ```kotlin
@@ -379,8 +385,8 @@ class ReportService {
 
 | 값 | 동작 |
 |----|------|
-| `SKIP` (기본값) | `null` 반환 — 본문 미실행 |
-| `RETHROW` | 백엔드 오류를 `LeaderElectionException`으로 감싸 throw |
+| `RETHROW` (기본값) | 백엔드 오류를 `LeaderElectionException`으로 감싸 throw |
+| `SKIP` | `null` 반환 — 본문 미실행 |
 | `FAIL_OPEN_RUN` | 락 없이 본문을 실행하여 결과 반환 |
 
 `FAIL_OPEN_RUN`은 스킵보다 실행이 안전한 경우(예: 멱등성이 보장된 태스크)에 적합합니다. 메트릭에 `SkipReason.FAIL_OPEN_FORCED`가 기록되어 락 없이 실행된 횟수를 대시보드에서 별도 추적할 수 있습니다.
@@ -391,7 +397,7 @@ class ReportService {
 bluetape4k:
   leader:
     aop:
-      default-failure-mode: FAIL_OPEN_RUN   # SKIP | RETHROW | FAIL_OPEN_RUN
+      failure-mode: FAIL_OPEN_RUN   # RETHROW | SKIP | FAIL_OPEN_RUN
 ```
 
 ---
@@ -474,15 +480,15 @@ class MetricsPreRegistrar(private val recorder: MicrometerLeaderAopMetricsRecord
 
 ### Health Indicator
 
-`spring-boot-actuator`가 classpath에 있으면 `leaderMicrometerHealthContributor` 빈이 자동 등록됩니다:
+`spring-boot-actuator`가 classpath에 있으면 `leaderMetricsHealthIndicator` 빈이 자동 등록됩니다:
 
 ```
-GET /actuator/health/leaderMicrometerHealthContributor
+GET /actuator/health/leaderMetricsHealthIndicator
 {
   "status": "UP",
   "details": {
-    "metrics.registered": true,
-    "attempts.total": 42.0
+    "active": 0,
+    "trackedLocks": 2
   }
 }
 ```
@@ -508,10 +514,11 @@ fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
 | 복수 리더 그룹 | `LeaderGroupElector` | 미지원 |
 | Redis (Lettuce) | 지원 | 지원 |
 | Redis (Redisson) | 지원 | 지원 |
-| Spring 연동 | 예정 | 지원 (핵심 기능) |
+| Spring 연동 | 지원 (Boot 4 + AspectJ CTW) | 지원 (핵심 기능) |
 | JDBC/SQL | 지원 (Exposed JDBC) | 지원 |
-| MongoDB | 예정 | 지원 |
+| MongoDB | 지원 | 지원 |
 | Hazelcast | 지원 | 지원 |
+| ZooKeeper | 지원 | 미지원 |
 
 ## 요구사항
 

@@ -141,8 +141,8 @@ val result2 = db.runVirtualIfLeader("nightly-sync") { syncData() }
 ```kotlin
 val options = ExposedJdbcLeaderElectionOptions(
     leaderOptions = LeaderElectionOptions(
-        waitTime = Duration.ofSeconds(5),
-        leaseTime = Duration.ofMinutes(1)
+        waitTime = 5.seconds,
+        leaseTime = 1.minutes
     ),
     retryStrategy = RetryStrategy.Jitter(baseDelayMs = 50),
     recordHistory = true,
