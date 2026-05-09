@@ -287,10 +287,19 @@ println(election.availableSlots("parallel-batch")) // 3 - activeCount
 ### State inspection
 
 ```kotlin
-val state: LeaderGroupState = election.state("parallel-batch")
-println(state.activeCount)    // current leader count
-println(state.maxLeaders)     // maxLeaders from options
+val single: LeaderState = LocalLeaderElector(
+    LeaderElectionOptions(nodeId = "node-a")
+).state("daily-job")
+println(single.status)        // Empty or Occupied
+println(single.leader?.leaderId)
+
+val group: LeaderGroupState = election.state("parallel-batch")
+println(group.activeCount)    // current leader count
+println(group.maxLeaders)     // maxLeaders from options
+println(group.leaders.map { it.leaderId })
 ```
+
+State inspection is a best-effort snapshot for diagnostics and metrics. It is not a lock acquisition primitive.
 
 ## Dependency
 

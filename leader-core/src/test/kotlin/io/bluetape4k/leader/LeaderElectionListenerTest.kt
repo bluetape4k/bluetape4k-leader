@@ -239,6 +239,9 @@ class LeaderElectionListenerTest {
         private val elected: Boolean,
     ) : LeaderElector {
 
+        override fun state(lockName: String): LeaderState =
+            LeaderState.empty(lockName)
+
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
             if (elected) action() else null
 

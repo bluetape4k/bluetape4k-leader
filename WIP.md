@@ -1,301 +1,65 @@
-# WIP — 작업 중 (Work In Progress)
+# WIP - bluetape4k-leader
 
-> 현재 진행 중이거나 예정된 작업을 추적합니다.  
-> 완료된 항목은 CHANGELOG.md로 이동합니다.
+Snapshot: 2026-05-09 KST
+Scope: open GitHub issues assigned to `debop`, created on or after 2026-01-01.
+Open count: 13 issues.
 
----
+## Current Direction
 
-## 현재 단계: 0.1.0-SNAPSHOT
+Completed implementation history belongs in `CHANGELOG.md` and merged PRs. The
+active WIP is now centered on lease safety, state/audit semantics, and examples.
 
-| 이슈 | 제목 | 상태 | PR |
-|------|------|------|----|
-| #1/#15 | runIfLeader() 반환 타입 T?로 변경 (skip 동작) | ✅ 완료 | merged |
-| #2 | LettuceLock/Semaphore 이식 및 bluetape4k-lettuce 의존성 제거 | ✅ 완료 | merged |
-| #3 | leader-redis-redisson 테스트 자립화 (AbstractRedissonLeaderTest) | ✅ 완료 | #17 merged |
-| #4/#5/#6 | leader-core/lettuce/redisson 컴파일 + 테스트 통과 | ✅ 완료 | #45 merged |
-| #7/#24 | leader-exposed 모듈 분리 (core/jdbc/r2dbc) — 구조 생성 | ✅ 완료 | #24 merged |
-| #23 | leader-exposed-core — 공통 스키마 구현 | ✅ 완료 | #52/#62 포함 |
-| #21 | leader-exposed-jdbc — Exposed JDBC 분산 락 구현 | ✅ 완료 | #52 merged |
-| #22 | leader-exposed-r2dbc — Exposed R2DBC 코루틴 구현 | ✅ 완료 | #62 merged |
-| #59/#60/#61 | ExposedJdbcGroupLock: isHeldByCurrentInstance, tryLock Boolean?, KLoggingChannel | ✅ 완료 | #63 merged |
-| #9 | leader-hazelcast — IMap 토큰 락 기반 분산 리더 선출 | ✅ 완료 | merged |
-| #13/#35 | GitHub Actions CI/CD 파이프라인 구성 | ✅ 완료 | #19/#44 merged |
-| #14 | README.md / README.ko.md 전 모듈 작성 | ✅ 완료 | #18 merged |
-| #25 | 코루틴 취소 안전성 강화 + 옵션/상태 검증 | ✅ 완료 | #25 merged |
-| #27 | leader-spring-boot-common — Boot 버전 독립 공통 모듈 | ✅ 완료 | #28 merged |
-| #29/#31/#32 | StrategicLeaderElection (leader-core + Redis 백엔드) | ✅ 완료 | merged |
-| #8 | leader-mongodb — MongoDB findOneAndUpdate + TTL 기반 분산 락 | ✅ 완료 | #46 merged |
-| #11/#12 | leader-spring-boot3 / leader-spring-boot4 AutoConfiguration | ✅ 완료 | merged |
-| **[#41](https://github.com/bluetape4k/bluetape4k-leader/issues/41)** | **@LeaderElection, @LeaderGroupElection AOP 애노테이션 (Spring Boot 3/4)** | **✅ 완료** | **[#86](https://github.com/bluetape4k/bluetape4k-leader/pull/86) merged** |
-| [#75](https://github.com/bluetape4k/bluetape4k-leader/issues/75)/[#101](https://github.com/bluetape4k/bluetape4k-leader/pull/101) | leader-aop Micrometer metrics 통합 | ✅ 완료 | [#101](https://github.com/bluetape4k/bluetape4k-leader/pull/101) merged |
-| [#104](https://github.com/bluetape4k/bluetape4k-leader/issues/104)/[#105](https://github.com/bluetape4k/bluetape4k-leader/pull/105) | Spring Boot 3 드랍 — leader-spring-boot 단일 모듈 통합 | ✅ 완료 | [#105](https://github.com/bluetape4k/bluetape4k-leader/pull/105) merged |
-| [#76](https://github.com/bluetape4k/bluetape4k-leader/issues/76) | spring-boot 디렉토리 재구조화 | ✅ 완료 | [#105](https://github.com/bluetape4k/bluetape4k-leader/pull/105)로 해소 |
-| #100 | LeaderElection/LeaderGroupElection → LeaderElector/LeaderGroupElector rename | ✅ 완료 | #106 merged |
-| #103 | feat: LeaderAopProperties Metrics 중첩 클래스 추가 (IDE 자동완성) | ✅ 완료 | #111 merged |
-| #102 | feat: LeaderMicrometerHealthAutoConfiguration 추가 | ✅ 완료 | #112 merged |
-| #87 | test: Boot4 Freefair CTW double-fire 방지 검증 테스트 | ✅ 완료 | #113 merged |
-| #85 | feat: LeaderRunResult sealed interface — elected vs skipped 구분 | ✅ 완료 | #114 merged |
-| #81 | feat: FAIL_OPEN_RUN failureMode 구현 | ✅ 완료 | #116 merged |
-| #84 | feat: 메타 어노테이션 (@AliasFor) 지원 | ✅ 완료 | #117 merged |
-| #78 | feat: 클래스/패키지 레벨 @LeaderElectionBackend 메타 어노테이션 | ✅ 완료 | #118 merged |
-| #82 | feat: SpEL TemplateParserContext 혼합 표현식 지원 | ✅ 완료 | #119 merged |
-| [#69](https://github.com/bluetape4k/bluetape4k-leader/issues/69) | feat: SpEL 기반 동적 락 이름 표현식 지원 | ✅ 완료 | [#86](https://github.com/bluetape4k/bluetape4k-leader/pull/86)/[#119](https://github.com/bluetape4k/bluetape4k-leader/pull/119) merged |
-| [#80](https://github.com/bluetape4k/bluetape4k-leader/issues/80)/[#88-#92](https://github.com/bluetape4k/bluetape4k-leader/issues?q=88+89+90+91+92) | leader-aop suspend / Mono / context propagation 지원 | ✅ 완료 | [#120](https://github.com/bluetape4k/bluetape4k-leader/pull/120)/[#122](https://github.com/bluetape4k/bluetape4k-leader/pull/122)/[#132](https://github.com/bluetape4k/bluetape4k-leader/pull/132)/[#133](https://github.com/bluetape4k/bluetape4k-leader/pull/133) merged |
-| [#10](https://github.com/bluetape4k/bluetape4k-leader/issues/10)/[#136](https://github.com/bluetape4k/bluetape4k-leader/pull/136) | leader-micrometer 독립 모듈 / instrumented elector | ✅ 완료 | [#136](https://github.com/bluetape4k/bluetape4k-leader/pull/136) merged |
-| [#115](https://github.com/bluetape4k/bluetape4k-leader/issues/115) | docs: README rename drift — *Election → *Elector | ✅ 완료 | [#123](https://github.com/bluetape4k/bluetape4k-leader/pull/123) merged |
-| [#129](https://github.com/bluetape4k/bluetape4k-leader/issues/129) | docs: leader-spring-boot, leader-micrometer README 부재 + 마이그레이션 문서 | ✅ 완료 | [#143](https://github.com/bluetape4k/bluetape4k-leader/pull/143) merged |
-| [#137](https://github.com/bluetape4k/bluetape4k-leader/issues/137) | test: leader-micrometer Prometheus export 검증/연동 | ✅ 완료 | [#144](https://github.com/bluetape4k/bluetape4k-leader/pull/144) merged |
-| [#128](https://github.com/bluetape4k/bluetape4k-leader/issues/128) | fix: Hazelcast suspend elector CancellationException 재전파 | ✅ 완료 | [#138](https://github.com/bluetape4k/bluetape4k-leader/pull/138) merged |
-| [#34](https://github.com/bluetape4k/bluetape4k-leader/issues/34) | feat: leader-zookeeper (Apache Curator 기반) | ✅ 완료 | [#138](https://github.com/bluetape4k/bluetape4k-leader/pull/138) merged |
-| [#40](https://github.com/bluetape4k/bluetape4k-leader/issues/40) | feat: 리더 이벤트 리스너 / coroutine event stream / Micrometer listener counter | ✅ 완료 | [#146](https://github.com/bluetape4k/bluetape4k-leader/pull/146) merged |
+Do not start example-heavy work until long-running lease behavior is clear.
 
----
+## Priority Queue
 
-## 최근 이슈 정리 (2026-05-09)
+| Priority | Issue | Difficulty | Notes |
+|---|---|---:|---|
+| P1 | [#73](https://github.com/bluetape4k/bluetape4k-leader/issues/73) watchdog / lease auto-extend | L | Addresses split-brain risk for long-running AOP work. |
+| P1 | [#77](https://github.com/bluetape4k/bluetape4k-leader/issues/77) minLeaseTime backend TTL delegation | L | More concrete replacement for `#38`; align semantics before implementing both. |
+| P1 | [#79](https://github.com/bluetape4k/bluetape4k-leader/issues/79) LockExtender / LockAssert | M | Builds on watchdog semantics and explicit extension behavior. |
+| P1 | [#74](https://github.com/bluetape4k/bluetape4k-leader/issues/74) Flux/Flow AOP support | L | Depends on `#73`; streaming lease renewal must be solved first. |
+| P2 | [#68](https://github.com/bluetape4k/bluetape4k-leader/issues/68) election state API | M | Useful for metrics and operational visibility. |
+| P2 | [#50](https://github.com/bluetape4k/bluetape4k-leader/issues/50) common audit contract | M | Define history semantics before durable audit implementations. |
+| P2 | [#72](https://github.com/bluetape4k/bluetape4k-leader/issues/72) `@LeaderGroupElection` leaderId | M | Group API change; do after AOP baseline is stable. |
+| P2 | [#39](https://github.com/bluetape4k/bluetape4k-leader/issues/39) use DB server time | M | Exposed backend-specific; depends on backend maturity. |
+| P2 | [#42](https://github.com/bluetape4k/bluetape4k-leader/issues/42) multitenancy namespace | M | Valuable after lease and state contracts settle. |
+| P3 | [#36](https://github.com/bluetape4k/bluetape4k-leader/issues/36) leader examples | L | Wait for lease safety and state/audit decisions. |
+| P3 | [#37](https://github.com/bluetape4k/bluetape4k-leader/issues/37) leader-ktor | M | Integration after API shape stabilizes. |
+| P3 | [#145](https://github.com/bluetape4k/bluetape4k-leader/issues/145) Prometheus scrape runnable example | S | After state/metrics examples are stable. |
+| P4 | [#38](https://github.com/bluetape4k/bluetape4k-leader/issues/38) lockAtLeastFor | M | Duplicate candidate; merge useful text into `#77`, then close as duplicate. |
 
-| 이슈 | 처리 | 근거 PR |
-|------|------|---------|
-| [#41](https://github.com/bluetape4k/bluetape4k-leader/issues/41) | 닫음 | [#86](https://github.com/bluetape4k/bluetape4k-leader/pull/86) |
-| [#69](https://github.com/bluetape4k/bluetape4k-leader/issues/69) | 닫음 | [#86](https://github.com/bluetape4k/bluetape4k-leader/pull/86), [#119](https://github.com/bluetape4k/bluetape4k-leader/pull/119) |
-| [#75](https://github.com/bluetape4k/bluetape4k-leader/issues/75) | 닫음 | [#101](https://github.com/bluetape4k/bluetape4k-leader/pull/101), 후속 [#112](https://github.com/bluetape4k/bluetape4k-leader/pull/112), [#136](https://github.com/bluetape4k/bluetape4k-leader/pull/136) |
-| [#76](https://github.com/bluetape4k/bluetape4k-leader/issues/76) | 닫음 | [#105](https://github.com/bluetape4k/bluetape4k-leader/pull/105) |
-| [#80](https://github.com/bluetape4k/bluetape4k-leader/issues/80) | 닫음 | [#120](https://github.com/bluetape4k/bluetape4k-leader/pull/120), [#122](https://github.com/bluetape4k/bluetape4k-leader/pull/122), [#132](https://github.com/bluetape4k/bluetape4k-leader/pull/132), [#133](https://github.com/bluetape4k/bluetape4k-leader/pull/133) |
-| [#115](https://github.com/bluetape4k/bluetape4k-leader/issues/115) | 닫음 | [#123](https://github.com/bluetape4k/bluetape4k-leader/pull/123) |
-| [#137](https://github.com/bluetape4k/bluetape4k-leader/issues/137) | 닫음 | [#144](https://github.com/bluetape4k/bluetape4k-leader/pull/144) |
-| [#40](https://github.com/bluetape4k/bluetape4k-leader/issues/40) | 닫음 | [#146](https://github.com/bluetape4k/bluetape4k-leader/pull/146) |
+## Dependency Map
 
-## 남은 이슈 우선순위 (2026-05-09)
+```text
+#73 watchdog / auto-extend
+  -> #74 Flux/Flow support
+  -> #79 explicit lease extension API
 
-| 우선순위 | 이슈 | 이유 | 상태 |
-|----------|------|------|------|
-| P0 | [#129](https://github.com/bluetape4k/bluetape4k-leader/issues/129) | 새 핵심 모듈 README 부재 + Duration/Bean rename 문서 drift | ✅ 완료 - [#143](https://github.com/bluetape4k/bluetape4k-leader/pull/143) |
-| P1 | [#137](https://github.com/bluetape4k/bluetape4k-leader/issues/137) | Prometheus export 검증은 metrics 완성도와 운영 가시성에 직접 영향 | ✅ 완료 - [#144](https://github.com/bluetape4k/bluetape4k-leader/pull/144) merged |
-| P2 | [#40](https://github.com/bluetape4k/bluetape4k-leader/issues/40) | 이벤트 리스너는 metrics, audit, 상태 전파의 공통 확장 지점 | ✅ 완료 - [#146](https://github.com/bluetape4k/bluetape4k-leader/pull/146) merged |
-| P3 | [#68](https://github.com/bluetape4k/bluetape4k-leader/issues/68) | leader 상태 API는 운영/metrics/audit 확장의 기반 | 다음 작업 후보 |
-| P4 | [#38](https://github.com/bluetape4k/bluetape4k-leader/issues/38), [#77](https://github.com/bluetape4k/bluetape4k-leader/issues/77) | lockAtLeastFor/minLeaseTime 의미론은 split-brain 방지의 핵심 축 | 대기 |
-| P5 | [#39](https://github.com/bluetape4k/bluetape4k-leader/issues/39) | Exposed JDBC/R2DBC 시계 기준 통일은 DB 백엔드 운영 안정성에 영향 | 대기 |
-| P6 | [#73](https://github.com/bluetape4k/bluetape4k-leader/issues/73), [#74](https://github.com/bluetape4k/bluetape4k-leader/issues/74), [#79](https://github.com/bluetape4k/bluetape4k-leader/issues/79) | lease renewal / explicit extend / streaming 반환은 긴 실행 시간 의미론 정리 후 진행 | 대기 |
-| P7 | [#145](https://github.com/bluetape4k/bluetape4k-leader/issues/145), [#37](https://github.com/bluetape4k/bluetape4k-leader/issues/37), [#36](https://github.com/bluetape4k/bluetape4k-leader/issues/36) | runnable 예제와 Ktor 통합은 core API 안정 후 적용 | 대기 |
-| P8 | [#42](https://github.com/bluetape4k/bluetape4k-leader/issues/42), [#50](https://github.com/bluetape4k/bluetape4k-leader/issues/50), [#72](https://github.com/bluetape4k/bluetape4k-leader/issues/72) | API/스토리지 설계 영향이 커서 별도 design pass 필요 | 대기 |
+#38 lockAtLeastFor
+#77 minLeaseTime backend TTL delegation
+  -> keep #77 as implementation issue; close #38 as duplicate after migration
 
-## 이슈 의존 관계
+#68 state API
+#50 audit contract
+  -> #145 Prometheus runnable example
 
-```
-#41 (AOP) ✅ ─── #75 (Micrometer) ✅ ──┬── #85 (elected/skipped SPI) ✅
-                                        ├── #102 (HealthAutoConfiguration) ✅
-                                        └── #103 (MetricsProperties) ✅
-
-#41 ✅ ────────────────────────────────┬── #94 (bug: failureMode bypass) ✅
-                                       ├── #95 (test: LeaderGroupElectionAspect) ✅
-                                       ├── #96 (test: BPP suspend/Mono 분기) ✅
-                                       ├── #97 (test: SpEL null + placeholder) ✅
-                                       ├── #87 (Boot4 double-fire 검증)
-                                       ├── #81 (FAIL_OPEN_RUN + LeaderResult) ✅
-                                       └── #80 ✅ ─── #88 ✅ → #89 ✅ → #90 ✅ → #91 ✅ → #92 ✅
-
-독립 기능 (병렬 가능):
-  #137 (leader-micrometer Prometheus export 검증/연동) ✅
-  #40 (이벤트 리스너) ✅
-  #82 (SpEL TemplateParserContext) ✅
-  #84 (메타 어노테이션 @AliasFor) ✅
-  #78 (@LeaderElectionBackend 클래스/패키지 레벨) ✅
-  #69 (SpEL 동적 락 이름) ✅
-
-보류:
-  #83 (Result<T> 반환) — 파괴적 변경, 0.1.0 출시 이후 별도 논의
-
-백로그 (낮은 우선순위):
-  #68 (Election 상태 조회 API)
-  #72 (LeaderGroup leaderId 지원)
-  #73 (watchdog / lease auto-extend)
-  #74 (Flux/Flow 반환 타입 지원 — lease renewal 필요)
-  #77 (minLeaseTime 백엔드 TTL 위임)
-  #79 (LockExtender / LockAssert)
-  #38/#39 (lockAtLeastFor, useDbTime)
-  #50 (리더 선출 이력 감사)
+#36 examples
+#37 Ktor integration
+  -> after core semantics stabilize
 ```
 
----
+## WIP Limits
 
-## 실행 순서
+| Lane | Limit | Current next |
+|---|---:|---|
+| Lease safety | 1 | `#73`, then `#77/#79/#74`. |
+| State/audit | 1 | `#68` or `#50`. |
+| Examples/integration | 0 until semantics settle | `#36/#37/#145` wait. |
 
-### P0 — 버그 수정 (즉시, 병렬 가능)
+## Cleanup Actions
 
-| 이슈 | 제목 | 선행 조건 |
-|------|------|----------|
-| **[#94](https://github.com/bluetape4k/bluetape4k-leader/issues/94)** | **fix: factory.create() pre-try I/O가 failureMode + LeaderElectionException wrap 우회** | ✅ [#107](https://github.com/bluetape4k/bluetape4k-leader/pull/107) merged |
-| [#97](https://github.com/bluetape4k/bluetape4k-leader/issues/97) | test: SpelExpressionEvaluator null 결과 + `${...}` placeholder 경로 미테스트 | ✅ [#108](https://github.com/bluetape4k/bluetape4k-leader/pull/108) merged |
-| [#96](https://github.com/bluetape4k/bluetape4k-leader/issues/96) | test: LeaderAnnotationValidatorBeanPostProcessor suspend/Mono/Flux/Flow/@Aspect skip 미테스트 | ✅ [#109](https://github.com/bluetape4k/bluetape4k-leader/pull/109) merged |
-| [#95](https://github.com/bluetape4k/bluetape4k-leader/issues/95) | test: LeaderGroupElectionAspect 전체 테스트 부재 | ✅ [#110](https://github.com/bluetape4k/bluetape4k-leader/pull/110) merged |
-
-### P1 — #75 완료 이후 연쇄 (지금 가능)
-
-| 이슈 | 제목 | 선행 조건 | 우선순위 |
-|------|------|----------|---------|
-| **#85** | **feat: 백엔드 SPI elected vs skipped 명확 구분 (metrics 정확도)** | #75 ✅ | ✅ 완료 |
-| **#81** | **feat: FAIL_OPEN_RUN failureMode 구현** | #41 ✅ | **✅ 완료** |
-
-### P2 — 독립 기능 확장 (병렬 가능)
-
-| 이슈 | 제목 | 선행 조건 |
-|------|------|----------|
-| **[#82](https://github.com/bluetape4k/bluetape4k-leader/issues/82)** | **feat: SpEL TemplateParserContext 혼합 표현식 지원** | #41 ✅ | **✅ 완료 — PR [#119](https://github.com/bluetape4k/bluetape4k-leader/pull/119) merged** |
-| **[#84](https://github.com/bluetape4k/bluetape4k-leader/issues/84)** | **feat: 메타 어노테이션 (@AliasFor) 지원** | #41 ✅ | **✅ 완료 — PR [#117](https://github.com/bluetape4k/bluetape4k-leader/pull/117) merged** |
-| **[#78](https://github.com/bluetape4k/bluetape4k-leader/issues/78)** | **feat: 클래스/패키지 레벨 @LeaderElectionBackend 메타 어노테이션** | #41 ✅ | **✅ 완료 — PR [#118](https://github.com/bluetape4k/bluetape4k-leader/pull/118) merged** |
-| **[#69](https://github.com/bluetape4k/bluetape4k-leader/issues/69)** | **feat: SpEL 기반 동적 락 이름 표현식 지원** | #41 ✅ | **✅ 완료 — PR [#86](https://github.com/bluetape4k/bluetape4k-leader/pull/86)/[#119](https://github.com/bluetape4k/bluetape4k-leader/pull/119) merged** |
-
-### P3 — Wave 5 suspend/Mono 지원 (순차 의존, 난이도 높음)
-
-| 이슈 | 제목 | 선행 조건 |
-|------|------|----------|
-| [#88](https://github.com/bluetape4k/bluetape4k-leader/issues/88) | feat: SuspendLeaderElectorFactory SPI 정의 + Local 구현 | ✅ [#120](https://github.com/bluetape4k/bluetape4k-leader/pull/120) merged |
-| [#89](https://github.com/bluetape4k/bluetape4k-leader/issues/89) | feat: SuspendLeaderElectorFactory 백엔드 구현 (Lettuce/Redisson/Mongo/ExposedR2dbc) | ✅ [#122](https://github.com/bluetape4k/bluetape4k-leader/pull/122) merged |
-| [#90](https://github.com/bluetape4k/bluetape4k-leader/issues/90) | feat: Aspect suspend 반환 타입 분기 (Spring AOP + Kotlin Coroutines) | ✅ [#132](https://github.com/bluetape4k/bluetape4k-leader/pull/132) merged |
-| [#91](https://github.com/bluetape4k/bluetape4k-leader/issues/91) | feat: Aspect Mono<T> 반환 타입 분기 | ✅ [#133](https://github.com/bluetape4k/bluetape4k-leader/pull/133) merged |
-| [#92](https://github.com/bluetape4k/bluetape4k-leader/issues/92) | feat: LeaderElectionInfo CoroutineContext element + Reactor context propagation | ✅ [#133](https://github.com/bluetape4k/bluetape4k-leader/pull/133) merged |
-
-> **⚠️ suspend/Mono 지원 난이도**: Spring AOP CGLib 기반에서 suspend/Mono 반환 타입 인터셉트는  
-> 기술적 난관이 크다. #88부터 단계적 검증 후 진행.
-
----
-
-## 백로그 (우선순위 미정)
-
-| 이슈 | 제목 | 비고 |
-|------|------|------|
-| #68 | Election 상태 조회 API (시작 시각, 남은 slot 등) | #41 이후 |
-| #72 | @LeaderGroupElection leaderId 지원 (Group API 변경) | 파괴적 변경 — 별도 마이너 |
-| #74 | leader-aop Flux/Flow 반환 타입 지원 | lease renewal 필요 — #80과 분리 추적 |
-| #73 | watchdog / lease auto-extend (split-brain 방지) | 복잡도 높음 |
-| #77 | minLeaseTime 백엔드 TTL 위임 + lockAtLeastFor 검증 | #38 흡수 |
-| #79 | LockExtender / LockAssert 등가 API | ShedLock 기능 대응 |
-| #38 | lockAtLeastFor (최소 락 보유 시간) | #77 로 흡수 검토 |
-| #39 | useDbTime — DB 서버 시간 기준 락 | Exposed 백엔드 한정 |
-| #50 | 공통 리더 선출 이력 감사 계약 | 낮음 |
-| #83 | runIfLeader {} 반환을 Result<T>로 변경 | 파괴적 변경 — 0.1.0 출시 이후 |
-| #36 | leader-examples (실무 시나리오 5종) | 기능 안정 후 |
-| #37 | leader-ktor 통합 (Ktor 3.x Plugin DSL) | Spring 완료 후 |
-| #42 | 멀티테넌시 지원 (테넌트별 락 네임스페이스) | 낮음 |
-
----
-
-## 예제 시나리오
-
-### E1 — 분산 배치 스케줄러 (Redis-Lettuce)
-
-**문제**: 동일 배치 서비스가 3대 이상 배포되었을 때 새벽 정산 Job이 중복 실행되는 문제  
-**해법**: `LeaderElection.runIfLeader { }` 로 리더 노드만 Job 실행, 나머지는 즉시 skip
-
-```kotlin
-// Spring @Scheduled 환경
-@Scheduled(cron = "0 0 2 * * *")
-fun dailySettlement() {
-    leaderElection.runIfLeader {
-        settlementService.runDailyJob()
-    } ?: log.info("리더 아님 — 이번 배치는 다른 노드가 처리")
-}
-```
-
-- 백엔드: `leader-redis-lettuce`
-- 핵심 포인트: `runIfLeader()` 반환 `null` = 선출 실패, 예외 아님
-- 시연: 3개 JVM 인스턴스 + Redis 1대, Job 실행 로그로 단일 실행 확인
-
----
-
-### E2 — 롤링 배포 시 DB 마이그레이션 게이트 (Exposed-JDBC)
-
-**문제**: Kubernetes 롤링 배포 중 N개 Pod가 동시 기동할 때 Flyway 마이그레이션이 중복 충돌  
-**해법**: 리더 Pod만 마이그레이션 실행, 나머지는 리더 완료까지 대기 후 합류
-
-```kotlin
-fun onApplicationReady() {
-    val migrated = leaderElection.runIfLeader(waitTime = 30.seconds) {
-        flyway.migrate()
-    }
-    if (migrated == null) {
-        awaitMigrationComplete() // 폴링 또는 DB 상태 확인
-    }
-}
-```
-
-- 백엔드: `leader-exposed-jdbc` (PostgreSQL)
-- 핵심 포인트: `waitTime` 으로 리더 선출 최대 대기 시간 제어
-- 시연: Docker Compose로 동일 이미지 3개 병렬 기동, 마이그레이션 1회 실행 확인
-
----
-
-### E3 — 외부 Webhook 이벤트 폴러 (MongoDB)
-
-**문제**: 외부 결제 PG의 Webhook을 여러 인스턴스가 동시에 폴링하면 중복 처리 발생  
-**해법**: 리더만 폴링 루프를 실행, 나머지는 내부 이벤트 버스 소비자로만 동작
-
-```kotlin
-// Coroutine 기반 suspend 버전
-suspend fun startPollingIfLeader() {
-    suspendLeaderElection.runIfLeader {
-        while (isActive) {
-            val events = webhookClient.poll()
-            events.forEach { eventBus.publish(it) }
-            delay(5.seconds)
-        }
-    }
-}
-```
-
-- 백엔드: `leader-mongodb` (TTL 인덱스 + `findOneAndUpdate`)
-- 핵심 포인트: `SuspendLeaderElection` + 코루틴 취소 연동
-- 시연: Testcontainers MongoDB + MockWebServer, 3 인스턴스 중 폴링 1건 확인
-
----
-
-### E4 — 분산 캐시 파티션 워머 (Hazelcast + LeaderGroup)
-
-**문제**: 글로벌 상품 카탈로그를 5개 리전 캐시에 나눠 저장할 때,  
-각 리전 캐시의 만료 갱신을 누가 담당할지 충돌  
-**해법**: `LeaderGroup`으로 리전별 독립 리더 선출 → 각 리더가 자기 파티션만 갱신
-
-```kotlin
-val leaderGroup = HazelcastLeaderGroup(hazelcastInstance)
-
-regions.forEach { region ->
-    launch {
-        leaderGroup.forKey(region).runIfLeader {
-            cacheWarmer.warmRegion(region)
-        }
-    }
-}
-```
-
-- 백엔드: `leader-hazelcast` (`FencedLock` 기반)
-- 핵심 포인트: `LeaderGroup.forKey(partitionKey)` — 파티션별 독립 선출
-- 시연: 5개 리전 × 3개 인스턴스 = 15 경합, 리전당 정확히 1 워머 실행 확인
-
----
-
-### E5 — 멀티테넌트 실시간 집계 (Exposed-R2DBC + LeaderGroup)
-
-**문제**: SaaS 서비스에서 테넌트(조직)별 실시간 사용량 집계를 스케줄링할 때,  
-동일 테넌트 집계가 여러 워커에서 중복 실행되어 통계 오염  
-**해법**: `LeaderGroup.forKey(tenantId)` 로 테넌트별 독립 리더가 집계 담당
-
-```kotlin
-// R2DBC 비동기 집계
-suspend fun aggregateTenant(tenantId: TenantId) {
-    leaderGroup.forKey(tenantId.value).runIfLeader {
-        r2dbcAggregator.computeAndStore(tenantId)
-    } ?: return // 이 워커는 해당 테넌트의 리더 아님
-}
-```
-
-- 백엔드: `leader-exposed-r2dbc` (PostgreSQL R2DBC)
-- 핵심 포인트: `LeaderGroup` + `SuspendLeaderElection` 조합, 테넌트 격리 보장
-- 시연: 100 테넌트 × 5 워커, 테넌트별 집계 정확히 1회 실행 + Micrometer 카운터 검증
-
----
-
-## 개발 규칙 메모
-
-- `develop` 브랜치가 일상 작업 기준; `main`은 릴리즈 전용
-- 모든 구현 작업은 `.worktrees/<branch>`에서 수행
-- 이슈 1개 = PR 1개 = squash merge
-- 커밋: 한국어 + conventional prefix (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`)
+| Candidate | Action |
+|---|---|
+| `#38` | Move any option-validation detail into `#77`, comment that `#77` supersedes it, then close `#38` as duplicate. |
+| `#36` vs `bluetape4k-workshop #10` | Keep both only if this repo owns small library examples and workshop owns runnable scenario apps. |
