@@ -62,6 +62,43 @@ classDiagram
 - `action` 내부에서 발생한 예외는 호출자에게 전파됩니다
 - `action` 완료 후 (또는 예외 발생 시) 락이 해제됩니다
 
+### 선출 생명주기 listener
+
+`LeaderElectionListenerRegistry` 구현체는 `addListener`, `removeListener`로 생명주기 callback을 등록할 수 있습니다.
+
+- `onElected(lockName)`: 보호된 작업이 시작되기 직전
+- `onRevoked(lockName)`: 현재 호출이 보유하던 락 또는 슬롯을 반납한 직후
+- `onSkipped(lockName)`: 리더십을 획득하지 못해 작업을 실행하지 않을 때
+
+suspend elector는 같은 생명주기를 `LeaderElectionEventPublisher.events`의 hot `Flow<LeaderElectionEvent>` stream으로도 제공합니다.
+
+```kotlin
+val election = LocalLeaderElector()
+val handle = election.addListener(object : LeaderElectionListener {
+    override fun onElected(lockName: String) {
+        println("elected: $lockName")
+    }
+})
+
+try {
+    election.runIfLeader("daily-job") { processData() }
+} finally {
+    handle.close()
+}
+```
+
+```kotlin
+val election = LocalSuspendLeaderElector()
+
+launch {
+    election.events.collect { event ->
+        println(event)
+    }
+}
+
+election.runIfLeader("nightly-sync") { syncToRemote() }
+```
+
 ### 옵션 클래스
 
 ```kotlin

@@ -12,6 +12,7 @@ Micrometer instrumentation for bluetape4k leader election.
 
 - `MicrometerLeaderAopMetricsRecorder` for Spring AOP annotations from `leader-spring-boot`
 - `InstrumentedLeaderElector`, `InstrumentedLeaderGroupElector`, and `InstrumentedSuspendLeaderElector` decorators for direct elector calls
+- `MicrometerLeaderElectionListener` for lifecycle callback counters from `LeaderElectionListenerRegistry`
 
 The module depends only on `leader-core` and Micrometer core. Export format is chosen by the application's Micrometer registry, such as Prometheus, Datadog, OTLP, or a composite registry.
 
@@ -23,13 +24,17 @@ graph TD
     Recorder["MicrometerLeaderAopMetricsRecorder"]
     Direct["Direct elector calls"]
     Decorators["Instrumented*Elector decorators"]
+    Listener["LeaderElectionListener callbacks"]
+    ListenerMetrics["MicrometerLeaderElectionListener"]
     Registry["MeterRegistry"]
     Backend["Prometheus / Datadog / OTLP"]
 
     Aop --> Recorder
     Direct --> Decorators
+    Listener --> ListenerMetrics
     Recorder --> Registry
     Decorators --> Registry
+    ListenerMetrics --> Registry
     Registry --> Backend
 ```
 
@@ -104,6 +109,21 @@ suspendElection.runIfLeader("sync-job") {
 
 Pass `lockName = "static-job"` to a decorator constructor when every call should use the same `lock.name` tag regardless of the runtime lock name.
 
+## Listener Event Metrics
+
+Use `MicrometerLeaderElectionListener` when you need lifecycle counters without wrapping the elector in an instrumented decorator.
+
+```kotlin
+val listener = MicrometerLeaderElectionListener(registry)
+val election = LocalLeaderElector().apply {
+    addListener(listener)
+}
+
+election.runIfLeader("daily-report") {
+    reportService.generate()
+}
+```
+
 ## Meter Catalog
 
 ### AOP Meters
@@ -125,6 +145,12 @@ Pass `lockName = "static-job"` to a decorator constructor when every call should
 | `shedlock.leader.not_acquired` | Counter | `lock.name` | Decorator skips |
 | `shedlock.leader.duration` | Timer | `lock.name` | Decorator body duration |
 | `shedlock.leader.active` | Gauge | `lock.name` | Currently running decorator bodies in this JVM |
+
+### Listener Event Meters
+
+| Meter | Type | Tags | Description |
+|-------|------|------|-------------|
+| `leader.election.events` | Counter | `lock.name`, `event` | Lifecycle callbacks: `elected`, `revoked`, `skipped` |
 
 Micrometer naming conventions convert names for the export backend. Prometheus exposes examples such as `leader_aop_attempts_total`, `leader_aop_execution_duration_seconds`, and `shedlock_leader_acquired_total`.
 

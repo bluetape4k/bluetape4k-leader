@@ -1,6 +1,9 @@
 package io.bluetape4k.leader.local
 
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderElectionListener
+import io.bluetape4k.leader.LeaderElectionListenerRegistry
+import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.support.requireNotBlank
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -22,9 +25,16 @@ import kotlin.time.Duration
  */
 abstract class AbstractLocalLeaderElector(
     protected val options: LeaderElectionOptions = LeaderElectionOptions.Default,
-) {
+) : LeaderElectionListenerRegistry {
 
     private val locks = ConcurrentHashMap<String, ReentrantLock>()
+    private val listeners = LeaderElectionListenerSupport()
+
+    override fun addListener(listener: LeaderElectionListener): AutoCloseable =
+        listeners.addListener(listener)
+
+    override fun removeListener(listener: LeaderElectionListener): Boolean =
+        listeners.removeListener(listener)
 
     /**
      * [lockName]에 대한 [ReentrantLock]을 반환합니다. 없으면 새로 생성합니다.
@@ -54,7 +64,7 @@ abstract class AbstractLocalLeaderElector(
      * @param action 락을 획득한 상태에서 실행할 작업
      * @return [action] 실행 결과
      */
-    protected inline fun <T> withLeaderLock(lockName: String, action: () -> T): T =
+    protected fun <T> withLeaderLock(lockName: String, action: () -> T): T =
         getLock(lockName).withLock(action)
 
     /**
@@ -70,14 +80,19 @@ abstract class AbstractLocalLeaderElector(
      * @param action 락 획득 성공 시 실행할 작업
      * @return [action] 실행 결과, 획득 실패 시 `null`
      */
-    protected inline fun <T> tryWithLeaderLock(lockName: String, waitTime: Duration, action: () -> T): T? {
+    protected fun <T> tryWithLeaderLock(lockName: String, waitTime: Duration, action: () -> T): T? {
         val lock = getLock(lockName)
         val acquired = lock.tryLock(waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS)
-        if (!acquired) return null
+        if (!acquired) {
+            listeners.notifySkipped(lockName)
+            return null
+        }
+        listeners.notifyElected(lockName)
         return try {
             action()
         } finally {
             lock.unlock()
+            listeners.notifyRevoked(lockName)
         }
     }
 }

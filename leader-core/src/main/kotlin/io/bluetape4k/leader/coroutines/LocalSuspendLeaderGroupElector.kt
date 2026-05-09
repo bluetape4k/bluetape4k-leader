@@ -1,12 +1,18 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.coroutines.flow.extensions.subject.PublishSubject
+import io.bluetape4k.leader.LeaderElectionEvent
+import io.bluetape4k.leader.LeaderElectionEventPublisher
+import io.bluetape4k.leader.LeaderElectionListener
+import io.bluetape4k.leader.LeaderElectionListenerRegistry
+import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 
@@ -37,7 +43,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class LocalSuspendLeaderGroupElector private constructor(
     private val options: LeaderGroupElectionOptions,
-): SuspendLeaderGroupElector {
+): SuspendLeaderGroupElector, LeaderElectionListenerRegistry, LeaderElectionEventPublisher {
 
     companion object: KLogging() {
         /**
@@ -61,6 +67,16 @@ class LocalSuspendLeaderGroupElector private constructor(
     }
 
     private val semaphores = ConcurrentHashMap<String, Semaphore>()
+    private val listeners = LeaderElectionListenerSupport()
+    private val eventSubject = PublishSubject<LeaderElectionEvent>()
+
+    override val events: Flow<LeaderElectionEvent> = eventSubject
+
+    override fun addListener(listener: LeaderElectionListener): AutoCloseable =
+        listeners.addListener(listener)
+
+    override fun removeListener(listener: LeaderElectionListener): Boolean =
+        listeners.removeListener(listener)
 
     private fun getSemaphore(lockName: String): Semaphore {
         lockName.requireNotBlank("lockName")
@@ -140,11 +156,19 @@ class LocalSuspendLeaderGroupElector private constructor(
         val acquired = withTimeoutOrNull(options.waitTime) {
             semaphore.acquire()
             true
-        } ?: return null
+        } ?: run {
+            listeners.notifySkipped(lockName)
+            eventSubject.emit(LeaderElectionEvent.Skipped(lockName))
+            return null
+        }
+        listeners.notifyElected(lockName)
+        eventSubject.emit(LeaderElectionEvent.Elected(lockName))
         return try {
             action()
         } finally {
             if (acquired) semaphore.release()
+            listeners.notifyRevoked(lockName)
+            eventSubject.emit(LeaderElectionEvent.Revoked(lockName))
         }
     }
 }
