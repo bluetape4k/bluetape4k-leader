@@ -324,7 +324,7 @@
   - Auth 13/18: **H4 — MongoDB driver final class 는 Kotlin class fake 로 대체 불가**. **integration test 방식으로 확정**: `MongoDBContainer("mongo:7")` 에 auth 활성화 + write 권한 없는 user 생성 → 해당 user credential 로 `MongoClient` 생성 → `runIfLeader` → `null` + error 로그 검증. (`AbstractMongoLeaderTest` 에 별도 `authClient` 팩토리 추가). production abstraction 증가(adapter) 는 채택하지 않음.
   - ensureIndexes 실패 재시도: **M7 — MongoDB collection mocking 불안정. `@VisibleForTesting internal resetEnsuredFor(ns)` helper 사용으로 확정**. 테스트에서 helper 로 set 에서 namespace 제거 → TTL index 가 이미 있는 컬렉션에 재호출 → `createIndex` 는 idempotent 로 성공 → `ensuredNamespaces.add(ns)` 가 다시 true 반환한 것과 동일 효과 검증
   - `:slot:` 양 경로: `runIfLeader("a:slot:b")`, `runIfLeaderGroup("a:slot:b")` 둘 다 IAE
-- **검증**: `./gradlew :leader-mongodb:test --tests "*MongoLeaderElectionTest"` 통과, AAA 구조, Kluent matcher
+- **검증**: `./gradlew :leader-mongodb:test --tests "*MongoLeaderElectionTest"` 통과, AAA 구조, bluetape4k-assertions matcher
 
 ### T8b: MongoSuspendLeaderElectionTest
 - **파일**: `leader-mongodb/src/test/kotlin/io/bluetape4k/leader/mongodb/MongoSuspendLeaderElectionTest.kt`

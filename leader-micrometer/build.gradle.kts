@@ -18,6 +18,7 @@ dependencies {
     api(project(":leader-core"))
     api(libs.micrometer.core)
 
+    testImplementation(libs.bluetape4k.virtualthread.jdk21)
     testImplementation(libs.bluetape4k.junit5)
     testImplementation(libs.bluetape4k.testcontainers)
     testImplementation(libs.kotlinx.coroutines.test)

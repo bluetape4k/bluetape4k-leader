@@ -3,10 +3,10 @@ package io.bluetape4k.leader.zookeeper
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderElectionOptions
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeGreaterThan
-import org.amshove.kluent.shouldBeLessOrEqualTo
-import org.amshove.kluent.shouldBeNull
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE

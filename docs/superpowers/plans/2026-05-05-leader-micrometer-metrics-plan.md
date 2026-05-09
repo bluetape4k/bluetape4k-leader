@@ -260,7 +260,7 @@ Boot4 imports도 동일 패턴 (`boot4` 패키지로).
 테스트 클래스 헤더:
 - `@TestInstance(TestInstance.Lifecycle.PER_CLASS)` (메모리 규칙 `feedback_junit_platform_per_class.md`)
 - `KLogging companion`
-- JUnit 5 + Kluent matcher (`shouldBeEqualTo`, `shouldBeGreaterOrEqualTo`)
+- JUnit 5 + bluetape4k-assertions matcher (`shouldBeEqualTo`, `shouldBeGreaterOrEqualTo`)
 
 테스트 케이스 (모두 backtick-quoted Korean/English):
 

@@ -314,7 +314,7 @@ T8, T9, T10 → T12 (KDoc 최종 검수)  ← T12는 T11과 병렬 가능
     - [H5 추가] `runIfLeader - CancellationException 시 이력이 FAILED 아닌 채로 처리된다 (recordHistory=true)`
     - [H6 추가] `runIfLeader - recordHistory=true일 때 이력 ACQUIRED INSERT 실패해도 action이 정상 실행된다`
     - [H6 추가] `runIfLeader - recordHistory=true일 때 이력 COMPLETED UPDATE 실패해도 결과가 반환된다`
-  - JUnit 5 + Kluent + backtick 테스트 이름
+  - JUnit 5 + bluetape4k-assertions + backtick 테스트 이름
   - [TE2 수정] `src/test/resources/junit-platform.properties` (`lifecycle.default=per_class`, `parallel.enabled=false`) 생성 확인
 - **완료 조건**:
   - 3-DB (H2, PostgreSQL, MySQL_V8) 모두 통과
@@ -348,7 +348,7 @@ T8, T9, T10 → T12 (KDoc 최종 검수)  ← T12는 T11과 병렬 가능
     - activeCount / availableSlots 정확성
     - 모든 슬롯 점유 시 null 반환
     - runAsyncIfLeader 비동기 경로
-  - JUnit 5 + Kluent + backtick 테스트 이름
+  - JUnit 5 + bluetape4k-assertions + backtick 테스트 이름
 - **완료 조건**:
   - 3-DB (H2, PostgreSQL, MySQL_V8) 모두 통과
   - maxLeaders 동시 실행 제한 정확성 검증

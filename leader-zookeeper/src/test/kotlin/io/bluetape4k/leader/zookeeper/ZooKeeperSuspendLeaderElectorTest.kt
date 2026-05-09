@@ -4,10 +4,10 @@ import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.leader.LeaderElectionOptions
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeGreaterThan
-import org.amshove.kluent.shouldBeLessOrEqualTo
-import org.amshove.kluent.shouldBeNull
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors

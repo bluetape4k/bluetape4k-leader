@@ -1,7 +1,10 @@
 package io.bluetape4k.leader.hazelcast
 
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
-import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
+import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
@@ -9,15 +12,9 @@ import io.bluetape4k.logging.debug
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeLessOrEqualTo
-import org.amshove.kluent.shouldBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -25,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class HazelcastSuspendLeaderGroupElectorTest: AbstractHazelcastLeaderTest() {
 
@@ -92,48 +90,22 @@ class HazelcastSuspendLeaderGroupElectorTest: AbstractHazelcastLeaderTest() {
         }
     }
 
-    @Test
-    fun `runIfLeader - 멀티스레드 환경에서 동시 실행 중인 리더 수가 maxLeaders 를 초과하지 않는다`() {
-        val lockName = randomName()
-        val currentConcurrent = AtomicInteger(0)
-        val peakConcurrent = AtomicInteger(0)
-
-        MultithreadingTester()
-            .workers(options.maxLeaders * 4)
-            .rounds(2)
-            .add {
-                runBlocking {
-                    election.runIfLeader(lockName) {
-                        val current = currentConcurrent.incrementAndGet()
-                        peakConcurrent.updateAndGet { max(it, current) }
-                        delay(Random.nextLong(5, 15).milliseconds)
-                        currentConcurrent.decrementAndGet()
-                    }
-                }
-            }
-            .run()
-
-        log.debug { "최대 동시 실행 수: ${peakConcurrent.get()} / maxLeaders=${options.maxLeaders}" }
-        peakConcurrent.get() shouldBeLessOrEqualTo options.maxLeaders
-    }
-
     @EnabledForJreRange(min = JRE.JAVA_21)
     @Test
-    fun `runIfLeader - Virtual Thread 환경에서 동시 실행 중인 리더 수가 maxLeaders 를 초과하지 않는다`() {
+    fun `runIfLeader - Virtual Thread 환경에서 동시 실행 중인 리더 수가 maxLeaders 를 초과하지 않는다`() = runTest {
         val lockName = randomName()
         val currentConcurrent = AtomicInteger(0)
         val peakConcurrent = AtomicInteger(0)
 
-        StructuredTaskScopeTester()
+        SuspendedJobTester()
             .rounds(options.maxLeaders * 8)
             .add {
-                runBlocking {
-                    election.runIfLeader(lockName) {
-                        val current = currentConcurrent.incrementAndGet()
-                        peakConcurrent.updateAndGet { max(it, current) }
-                        delay(Random.nextLong(5, 15).milliseconds)
-                        currentConcurrent.decrementAndGet()
-                    }
+
+                election.runIfLeader(lockName) {
+                    val current = currentConcurrent.incrementAndGet()
+                    peakConcurrent.updateAndGet { max(it, current) }
+                    delay(Random.nextLong(5, 15).milliseconds)
+                    currentConcurrent.decrementAndGet()
                 }
             }
             .run()

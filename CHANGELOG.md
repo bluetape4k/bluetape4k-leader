@@ -107,7 +107,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Spring Boot 3/4 split was removed from leader Spring integration: `leader-spring-boot-common`, `leader-spring-boot3`, and `leader-spring-boot4` were consolidated into a single `leader-spring-boot` module ([PR #105](https://github.com/bluetape4k/bluetape4k-leader/pull/105)).
 - `LeaderElection` / `LeaderGroupElection` interfaces were renamed to `LeaderElector` / `LeaderGroupElector` and documentation was updated accordingly ([PR #106](https://github.com/bluetape4k/bluetape4k-leader/pull/106), [PR #123](https://github.com/bluetape4k/bluetape4k-leader/pull/123), [PR #125](https://github.com/bluetape4k/bluetape4k-leader/pull/125)).
 - Duration APIs migrated from `java.time.Duration` to `kotlin.time.Duration` ([PR #126](https://github.com/bluetape4k/bluetape4k-leader/pull/126)).
-- Test code migrated from JUnit `assertThrows` and Kluent patterns to Kotlin/assertions-friendly APIs ([PR #131](https://github.com/bluetape4k/bluetape4k-leader/pull/131), [PR #139](https://github.com/bluetape4k/bluetape4k-leader/pull/139)).
+- Test code migrated from JUnit `assertThrows` and bluetape4k-assertions patterns to Kotlin/assertions-friendly APIs ([PR #131](https://github.com/bluetape4k/bluetape4k-leader/pull/131), [PR #139](https://github.com/bluetape4k/bluetape4k-leader/pull/139)).
 - CI uses paths-filter and retry configuration to reduce unnecessary test work and transient failure noise ([PR #135](https://github.com/bluetape4k/bluetape4k-leader/pull/135)).
 - Prometheus export coverage now proves AOP and direct elector metrics through `PrometheusServer` scrape tests ([PR #144](https://github.com/bluetape4k/bluetape4k-leader/pull/144)).
 

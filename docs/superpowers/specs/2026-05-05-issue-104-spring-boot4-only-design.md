@@ -305,7 +305,7 @@ dependencies {
 
     // 테스트
     testImplementation(libs.bluetape4k.junit5)
-    testImplementation(libs.kluent)
+    testImplementation(libs.bluetape4k.assertions)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.spring.boot.test)

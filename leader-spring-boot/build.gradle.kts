@@ -34,8 +34,6 @@ dependencyManagement {
         // mongodb-driver-core 버전을 driver-sync/driver-kotlin-coroutine과 일치시킨다.
         dependency("org.mongodb:mongodb-driver-core:${libs.versions.mongo.driver.get()}")
         dependency("org.mongodb:mongodb-driver-reactivestreams:${libs.versions.mongo.driver.get()}")
-        // r2dbc-h2 1.0.x는 h2 2.1.x의 API에 의존 — h2 2.4.x ABI 충돌 회피
-        dependency("com.h2database:h2:2.2.220")
     }
 }
 
@@ -82,17 +80,14 @@ dependencies {
     testImplementation(libs.spring.boot.test.autoconfigure)
     testImplementation(libs.spring.test)
     testImplementation(libs.springmockk)
-    testImplementation(project(":leader-redis-redisson"))
-    testImplementation(project(":leader-redis-lettuce"))
-    testImplementation(project(":leader-exposed-jdbc"))
-    testImplementation(project(":leader-exposed-r2dbc"))
-    testImplementation(project(":leader-mongodb"))
+    testImplementation(libs.bluetape4k.virtualthread.jdk21)
     testImplementation(libs.bluetape4k.testcontainers)
+    testImplementation(libs.testcontainers)
+    testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.mongodb)
     testImplementation(libs.testcontainers.toxiproxy)
     testImplementation(libs.r2dbc.h2)
-    testImplementation(libs.testcontainers)
-    testImplementation(libs.testcontainers.junit.jupiter)
+
     testImplementation("org.assertj:assertj-core")
 }
 

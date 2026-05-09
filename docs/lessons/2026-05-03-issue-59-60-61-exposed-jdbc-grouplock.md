@@ -7,12 +7,12 @@
 
 ### 문제
 `ExposedJdbcGroupLock.tryLock()` 반환 타입을 `Boolean → Boolean?`으로 변경했을 때,
-테스트 파일에서 `.shouldBeTrue()` / `.shouldBeFalse()` (Kluent `Boolean` extension)가
+테스트 파일에서 `.shouldBeTrue()` / `.shouldBeFalse()` (bluetape4k-assertions `Boolean` extension)가
 `Boolean?`에 직접 적용되지 않아 컴파일 오류 발생.
 
 ### 교훈
 `internal class`라도 테스트에서 직접 사용하는 경우 반환 타입 변경 시 테스트 파일 확인 필수.
-Kluent의 `shouldBeTrue()` / `shouldBeFalse()`는 non-nullable `Boolean`에만 정의됨.
+bluetape4k-assertions의 `shouldBeTrue()` / `shouldBeFalse()`는 non-nullable `Boolean`에만 정의됨.
 `Boolean?` 결과는 `shouldBe(true)` / `shouldBe(false)` (infix, nullable 허용)로 대체.
 
 ---

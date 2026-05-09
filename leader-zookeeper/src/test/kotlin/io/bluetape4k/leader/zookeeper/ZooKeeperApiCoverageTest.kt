@@ -3,7 +3,7 @@ package io.bluetape4k.leader.zookeeper
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import kotlinx.coroutines.test.runTest
-import org.amshove.kluent.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeEqualTo
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import kotlin.time.Duration.Companion.seconds

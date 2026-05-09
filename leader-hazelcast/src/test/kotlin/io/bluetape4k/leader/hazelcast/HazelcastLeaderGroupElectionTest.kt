@@ -1,5 +1,10 @@
 package io.bluetape4k.leader.hazelcast
 
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
@@ -8,23 +13,17 @@ import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldBeFalse
-import org.amshove.kluent.shouldBeLessOrEqualTo
-import org.amshove.kluent.shouldBeNull
-import org.amshove.kluent.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
 

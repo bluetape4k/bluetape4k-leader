@@ -417,7 +417,7 @@ Group 8 (T17, T18 완료 후)
     6. `timestamp 정밀도가 보존된다` — Instant 저장/조회 후 비교 (DB별 정밀도 차이 고려)
   - INSERT: `LeaderLockTable.insert { it[lockName] = ...; it[token] = Base58.randomString(8); ... }`
   - SELECT: `LeaderLockTable.selectAll().where { LeaderLockTable.lockName eq ... }`
-  - Kluent 매처 사용: `shouldBeEqualTo`, `shouldNotBeNull` 등
+  - bluetape4k-assertions 매처 사용: `shouldBeEqualTo`, `shouldNotBeNull` 등
   - timestamp 정밀도: H2(나노초), PostgreSQL(마이크로초), MySQL(마이크로초) — 밀리초 단위 비교로 통일
   - **[CRITICAL-2]**: 만료 row 삽입 시 반드시 `Instant.now().minusSeconds(60)` 이상 과거 시각 사용
 - **완료 기준**:
