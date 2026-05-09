@@ -69,7 +69,7 @@
 | 멀티테넌시 | ✅ | 🚧 [#42](https://github.com/bluetape4k/bluetape4k-leader/issues/42) |
 | Micrometer 메트릭 | ✅ (Spring 통합) | 🚧 [#10](https://github.com/bluetape4k/bluetape4k-leader/issues/10) |
 | Actuator 엔드포인트 | ✅ | 🚧 [#11](https://github.com/bluetape4k/bluetape4k-leader/issues/11)/[#12](https://github.com/bluetape4k/bluetape4k-leader/issues/12) |
-| 리더 이벤트 리스너 | ❌ | 🚧 [#40](https://github.com/bluetape4k/bluetape4k-leader/issues/40) |
+| 리더 이벤트 리스너 | ❌ | ✅ [#40](https://github.com/bluetape4k/bluetape4k-leader/issues/40) |
 | Spring Boot AutoConfiguration | ✅ | 🚧 [#11](https://github.com/bluetape4k/bluetape4k-leader/issues/11)/[#12](https://github.com/bluetape4k/bluetape4k-leader/issues/12) |
 | Ktor 통합 | ❌ | 🚧 [#37](https://github.com/bluetape4k/bluetape4k-leader/issues/37) |
 | Micronaut 통합 | ✅ | ❌ |
@@ -150,7 +150,7 @@ WIP.md 이슈와 연결.
 | SpEL 락 이름 표현식 | 하 | 백로그 |
 | 멀티테넌시 | 하 | [#42](https://github.com/bluetape4k/bluetape4k-leader/issues/42) |
 | DB 서버 시간 기준 (`dbTime`) | 중 | [#39](https://github.com/bluetape4k/bluetape4k-leader/issues/39) |
-| 리더 이벤트 리스너 (`onElected`, `onRevoked`) | 중 | [#40](https://github.com/bluetape4k/bluetape4k-leader/issues/40) |
+| 리더 이벤트 리스너 (`onElected`, `onRevoked`) | 완료 | ✅ [#40](https://github.com/bluetape4k/bluetape4k-leader/issues/40) |
 | ZooKeeper 백엔드 | 중 | ✅ [#34](https://github.com/bluetape4k/bluetape4k-leader/issues/34) |
 | DynamoDB / Cassandra / S3 등 | — | 🚫 지원 안 함 |
 
