@@ -27,4 +27,5 @@ include(
     "examples:batch-scheduler",
     "examples:migration-gate",
     "examples:webhook-poller",
+    "examples:cache-warmer",
 )
