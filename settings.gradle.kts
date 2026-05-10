@@ -23,6 +23,7 @@ include(
     "leader-hazelcast",
     "leader-zookeeper",
     "leader-spring-boot",
+    "leader-ktor",
     "leader-micrometer",
     "examples:batch-scheduler",
     "examples:migration-gate",

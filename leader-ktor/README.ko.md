@@ -1,0 +1,124 @@
+# bluetape4k-leader-ktor
+
+한국어 | [English](./README.md)
+
+`bluetape4k-leader` 의 Ktor 3.x 통합 모듈입니다. Ktor 애플리케이션 플러그인 DSL 과
+Spring `@Scheduled` 스타일의 주기적 리더 전용 작업 헬퍼를 제공합니다.
+
+## Architecture
+
+`leader-ktor` 는 `leader-core` 위에 세 가지 통합 요소를 제공합니다:
+
+1. **`LeaderElectionPlugin`** — `createApplicationPlugin` DSL 로 정의된 플러그인.
+   `SuspendLeaderElector` (필요 시 `SuspendLeaderGroupElector`) 를 받아 `Application.attributes`
+   에 저장하여 확장 함수에서 재사용할 수 있게 합니다.
+2. **`leaderElectionPluginConfig()`** — `Application` 확장 함수. 저장된 설정을 조회합니다.
+3. **`Application.leaderScheduled(...)`** — 주기적으로 리더 전용 suspend 작업을 실행합니다.
+   `Application` 코루틴 스코프에서 `launch` 하여 `ApplicationStopped` 시 자동 취소됩니다.
+
+```mermaid
+sequenceDiagram
+    participant App as Application (Ktor)
+    participant Plugin as LeaderElectionPlugin
+    participant Helper as leaderScheduled
+    participant Elector as SuspendLeaderElector
+
+    App->>Plugin: install(LeaderElectionPlugin) { leaderElection = ... }
+    Plugin-->>App: attributes 에 설정 저장
+    App->>Helper: leaderScheduled("job", 1.minutes) { ... }
+    Helper-->>App: 백그라운드 Job launch
+    Note over Helper,Elector: 매 cycle 마다
+    Helper->>Elector: runIfLeader("job") { action() }
+    Elector-->>Helper: 결과 또는 null (skip)
+    Helper->>Helper: delay(period)
+    App->>Plugin: ApplicationStopped
+    Plugin-->>App: application scope 취소
+```
+
+## Core Features
+
+- Ktor 3.x 호환, coroutine-native (`SuspendLeaderElector` 기반)
+- `ApplicationStopped` 시 `Application` 코루틴 스코프가 자동 취소 처리
+- cycle 별 예외 격리 — `action` 예외는 로그만 남기고 다음 cycle 진행 (poison-pill 방지)
+- `CancellationException` 은 항상 재전파되어 구조적 동시성 보존
+- 입력 검증: `lockName` 은 blank 금지, `period` 는 양수 필수
+- 백엔드 자유 선택: `SuspendLeaderElector` 구현체
+  (`leader-redis-redisson`, `leader-redis-lettuce`, `leader-mongodb` 등)
+
+## Usage Examples
+
+```kotlin
+import io.bluetape4k.leader.ktor.LeaderElectionPlugin
+import io.bluetape4k.leader.ktor.leaderScheduled
+import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector
+import io.ktor.server.application.Application
+import io.ktor.server.application.install
+import kotlin.time.Duration.Companion.minutes
+
+fun Application.module() {
+    val redisson = redissonClient()
+
+    install(LeaderElectionPlugin) {
+        leaderElection = RedissonSuspendLeaderElector(redisson)
+    }
+
+    leaderScheduled("daily-report", period = 1.minutes) {
+        reportService.generate()
+    }
+}
+```
+
+수동 취소:
+
+```kotlin
+val job = leaderScheduled("inventory-sync", 5.minutes) { syncInventory() }
+// ... 나중에
+job.cancel()
+```
+
+플러그인을 우회하여 elector 직접 주입 (advanced):
+
+```kotlin
+leaderScheduled(
+    lockName = "ad-hoc",
+    period = 30.seconds,
+    leaderElection = customElector,
+) {
+    doWork()
+}
+```
+
+## Configuration Options
+
+| 필드                  | 타입                          | 필수 | 설명                                       |
+|-----------------------|-------------------------------|------|--------------------------------------------|
+| `leaderElection`      | `SuspendLeaderElector?`       | 예   | 단일 리더 선출 백엔드                      |
+| `leaderGroupElection` | `SuspendLeaderGroupElector?`  | 아니오 | 그룹/멀티 리더 백엔드 (선택)             |
+
+`leaderScheduled` 파라미터:
+
+| 파라미터          | 타입                      | 기본값                           | 비고                                       |
+|-------------------|---------------------------|----------------------------------|--------------------------------------------|
+| `lockName`        | `String`                  | —                                | blank 금지                                 |
+| `period`          | `kotlin.time.Duration`    | —                                | 양수 필수                                  |
+| `leaderElection`  | `SuspendLeaderElector`    | 설치된 플러그인 설정에서 조회    | 미지정 시 플러그인 설정 사용               |
+| `action`          | `suspend () -> Unit`      | —                                | 리더로 선출되었을 때만 실행                |
+
+## Dependency
+
+Gradle (Kotlin DSL):
+
+```kotlin
+dependencies {
+    implementation("io.github.bluetape4k.leader:leader-ktor:$bluetape4kLeaderVersion")
+    implementation("io.github.bluetape4k.leader:leader-redis-redisson:$bluetape4kLeaderVersion") // 또는 다른 백엔드
+    implementation("io.ktor:ktor-server-core:3.4.3")
+}
+```
+
+`ktor-server-core` 는 본 모듈에서 `compileOnly` 로만 선언되므로, 사용 애플리케이션에서
+직접 의존성을 추가해야 합니다.
+
+## License
+
+Apache License 2.0

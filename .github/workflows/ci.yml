@@ -87,6 +87,7 @@ jobs:
       leader-hazelcast: ${{ steps.filter.outputs.leader-hazelcast }}
       leader-zookeeper: ${{ steps.filter.outputs.leader-zookeeper }}
       leader-spring-boot: ${{ steps.filter.outputs.leader-spring-boot }}
+      leader-ktor: ${{ steps.filter.outputs.leader-ktor }}
       leader-micrometer: ${{ steps.filter.outputs.leader-micrometer }}
       examples-batch-scheduler: ${{ steps.filter.outputs.examples-batch-scheduler }}
       examples-migration-gate: ${{ steps.filter.outputs.examples-migration-gate }}
@@ -116,6 +117,9 @@ jobs:
               - 'leader-zookeeper/**'
             leader-spring-boot:
               - 'leader-spring-boot/**'
+            leader-ktor:
+              - 'leader-ktor/**'
+              - 'leader-core/**'
             leader-micrometer:
               - 'leader-micrometer/**'
             examples-batch-scheduler:
@@ -753,6 +757,53 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 7
 
+  # ── leader-ktor 테스트 (Testcontainers: Redis) ─────────────────────────
+  test-leader-ktor:
+    name: Test / leader-ktor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs['leader-ktor'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+          cache-read-only: true
+      - name: Test leader-ktor
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :leader-ktor:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
+        env:
+          GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false'
+          TESTCONTAINERS_RYUK_DISABLED: 'true'
+          DOCKER_HOST: 'unix:///var/run/docker.sock'
+      - name: Generate Kover XML report
+        if: always()
+        run: ./gradlew :leader-ktor:koverXmlReport --no-daemon
+        continue-on-error: true
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-leader-ktor
+          path: '**/build/test-results/test/*.xml'
+          retention-days: 7
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-leader-ktor
+          path: '**/build/reports/kover/'
+          retention-days: 7
+
   # ── leader-mongodb 테스트 (Testcontainers: MongoDB) ─────────────────────
   test-mongodb:
     name: Test / leader-mongodb
@@ -908,6 +959,7 @@ jobs:
       - test-exposed-jdbc-postgresql
       - test-exposed-jdbc-mysql
       - test-spring-boot
+      - test-leader-ktor
       - test-mongodb
       - test-hazelcast
       - test-zookeeper
@@ -957,6 +1009,7 @@ jobs:
       - test-exposed-jdbc-postgresql
       - test-exposed-jdbc-mysql
       - test-spring-boot
+      - test-leader-ktor
       - test-mongodb
       - test-hazelcast
       - test-zookeeper

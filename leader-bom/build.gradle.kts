@@ -20,6 +20,7 @@ dependencies {
         api(project(":leader-hazelcast"))
         api(project(":leader-zookeeper"))
         api(project(":leader-spring-boot"))
+        api(project(":leader-ktor"))
         api(project(":leader-micrometer"))
     }
 }
