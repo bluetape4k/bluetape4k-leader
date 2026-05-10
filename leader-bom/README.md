@@ -28,9 +28,10 @@ graph TB
       Zk[leader-zookeeper]
     end
 
-    subgraph "Spring / Metrics"
+    subgraph "Spring / Metrics / Ktor"
       SB[leader-spring-boot]
       Mm[leader-micrometer]
+      Ktor[leader-ktor]
     end
 
     Consumer -->|platform import| BOM
@@ -39,6 +40,7 @@ graph TB
     BOM -.->|version constraints| Mongo
     BOM -.->|version constraints| SB
     BOM -.->|version constraints| Mm
+    BOM -.->|version constraints| Ktor
 ```
 
 The BOM is a Gradle `java-platform` that publishes only `<dependencyManagement>` constraints — no runtime classes.
@@ -64,6 +66,7 @@ The BOM is a Gradle `java-platform` that publishes only `<dependencyManagement>`
 | `bluetape4k-leader-zookeeper` | Apache ZooKeeper backend |
 | `bluetape4k-leader-spring-boot` | Spring Boot auto-configuration + AOP (`@LeaderElection`) |
 | `bluetape4k-leader-micrometer` | Micrometer metrics instrumentation |
+| `bluetape4k-leader-ktor` | Ktor 3.x integration — `LeaderElectionPlugin` + `leaderScheduled()` |
 
 ## Usage Examples
 

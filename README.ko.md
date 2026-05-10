@@ -9,6 +9,7 @@
 
 Kotlin/JVM 기반 **분산 리더 선출(Distributed Leader Election)** 독립 라이브러리입니다.  
 블로킹, 비동기, 코루틴, 가상 스레드 API를 지원하며 Redis, Exposed, MongoDB, Hazelcast, ZooKeeper 백엔드를 제공합니다.
+Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
 
 ---
 
@@ -35,7 +36,7 @@ graph TD
     Mongo["leader-mongodb\n(MongoDB)"]
     SB["leader-spring-boot\n(Boot 4, CTW)"]
     Metrics["leader-micrometer\n(Micrometer 메트릭)"]
-    Ktor["leader-ktor\n(예정)"]
+    Ktor["leader-ktor\n(Ktor 3.x)"]
     ZK["leader-zookeeper\n(ZooKeeper)"]
 
     Lettuce --> Core
@@ -66,7 +67,22 @@ graph TD
 | `leader-micrometer` | 안정 | Micrometer 메트릭 연동 (`MicrometerLeaderAopMetricsRecorder`) |
 | `leader-spring-boot` | 안정 | Spring Boot 4 자동 구성 + AOP (AspectJ CTW, Freefair 포스트 컴파일 위빙) |
 | `leader-zookeeper` | 안정 | ZooKeeper/Curator 백엔드 (`InterProcessMutex` / `InterProcessSemaphoreV2`) |
-| `leader-ktor` | 예정 | Ktor Plugin DSL + `leaderScheduled()` 스케줄링 헬퍼 |
+| `leader-ktor` | 안정 | Ktor 3.x 통합 — `LeaderElectionPlugin` + `leaderScheduled()` |
+
+## 예제 (Examples)
+
+`examples/` 디렉토리의 실행 가능한 예제 모듈은 모든 지원 백엔드의 운영 시나리오를 보여줍니다. 예제 모듈은 publishing 대상이 아닙니다 (`path.startsWith(":examples:")` 가 publish/sign/NMCP 에서 제외됨). 자체 서비스에 복사하여 사용하세요.
+
+| 예제 | 백엔드 | 시나리오 |
+|------|--------|---------|
+| [`examples/batch-scheduler`](./examples/batch-scheduler) | Lettuce Redis | 주기 batch 작업 (예: 야간 정산) — N 인스턴스 단일 실행 보장 |
+| [`examples/migration-gate`](./examples/migration-gate) | Exposed JDBC (PostgreSQL/H2) | 부팅 시 schema migration 게이트 — 정확히 1 인스턴스만 실행 |
+| [`examples/webhook-poller`](./examples/webhook-poller) | MongoDB | 외부 webhook 폴링 — 리더만 폴링 + dispatch |
+| [`examples/cache-warmer`](./examples/cache-warmer) | Hazelcast | 파티션별 독립 leader-election — 파티션당 정확히 1 인스턴스 워밍 |
+| [`examples/tenant-aggregator`](./examples/tenant-aggregator) | Exposed R2DBC | 코루틴 네이티브 멀티 테넌트 집계 — 테넌트별 독립 리더 |
+| [`examples/ktor-app`](./examples/ktor-app) | Ktor 3.x + Lettuce Redis | `LeaderElectionPlugin` + `Application.leaderScheduled()` 사용 Ktor 앱 |
+
+`./gradlew :examples:<name>:run` 으로 실행 (Testcontainers 기반 데모는 Docker 필요).
 
 ## 빠른 시작
 
@@ -86,6 +102,9 @@ implementation("io.github.bluetape4k.leader:leader-exposed-r2dbc:0.1.0-SNAPSHOT"
 
 // ZooKeeper / Apache Curator
 implementation("io.github.bluetape4k.leader:leader-zookeeper:0.1.0-SNAPSHOT")
+
+// Ktor 3.x 통합 (LeaderElectionPlugin + leaderScheduled())
+implementation("io.github.bluetape4k.leader:leader-ktor:0.1.0-SNAPSHOT")
 ```
 
 ### Exposed JDBC 방식 (H2 / PostgreSQL / MySQL)

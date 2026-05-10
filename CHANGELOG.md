@@ -11,7 +11,22 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **`leader-ktor`**: Ktor 3.x 통합 모듈 (issue #37)
+- **`examples/`**: Runnable example modules demonstrating production scenarios for `bluetape4k-leader` (issue #36)
+  - `examples/batch-scheduler` — Lettuce Redis 기반 분산 batch 스케줄러; 야간 정산 등 주기 작업의
+    멀티 인스턴스 단일 실행 보장 (PR #159)
+  - `examples/migration-gate` — Exposed JDBC 기반 마이그레이션 게이트; PostgreSQL/H2에서
+    부팅 시 1개 인스턴스만 schema migration 수행 (PR #160)
+  - `examples/webhook-poller` — MongoDB 기반 webhook poller; `findOneAndUpdate` + TTL index
+    리더 선출로 단일 인스턴스만 외부 webhook 폴링 (PR #161)
+  - `examples/cache-warmer` — Hazelcast 기반 partition 별 독립 leader-election 캐시 워머;
+    파티션별 lockName 으로 "partition P 당 정확히 1 인스턴스" 계약 보장 (PR #162)
+  - `examples/tenant-aggregator` — Exposed R2DBC 기반 코루틴 네이티브 멀티 테넌트 집계기;
+    테넌트별 독립 leader-election + suspend 처리 (PR #163)
+  - `examples/ktor-app` — Ktor 3.x + Lettuce Redis 통합 예제; `LeaderElectionPlugin` +
+    `leaderScheduled()` 사용 (PR #166)
+  - 모든 examples 모듈은 publishing 대상에서 자동 제외 (`path.startsWith(":examples:")` 가드)
+
+- **`leader-ktor`**: Ktor 3.x 통합 모듈 (issue #37, PR #164)
   - `LeaderElectionPlugin` — `createApplicationPlugin` DSL, `SuspendLeaderElector` 기반
   - `Application.leaderScheduled(lockName, period) { ... }` — Spring `@Scheduled` 스타일
     리더 전용 주기 작업 헬퍼; `Application` 코루틴 스코프에서 launch 되어
@@ -19,6 +34,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `Application.leaderElectionPluginConfig()` — 설치된 플러그인 설정 조회 확장
   - Testcontainers Redis 기반 통합 테스트 (`testApplication` DSL + Redisson 백엔드)
   - Ktor 버전: 3.4.3
+  - `leader-bom` 에 등록되어 BOM consumer 가 버전 명시 없이 사용 가능
 - **`leader-mongodb`**: MongoDB `findOneAndUpdate` + TTL index 기반 분산 락 백엔드 (issue #8, PR #46)
   - `MongoLock` — sync blocking, `findOneAndUpdate` upsert + `deleteOne(token)` 소유자 전용 해제
   - `MongoSuspendLock` — Kotlin coroutine driver 기반 suspend 분산 락
@@ -125,7 +141,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `minLeaseTime` backend TTL delegation and `lockAtLeastFor` semantics (issue #77)
 - `LockExtender` / `LockAssert` style explicit lease extension API (issue #79)
 - Flux/Flow AOP return type support after lease renewal semantics are settled (issue #74)
-- Election state API, audit contract, multitenancy, Ktor integration, and runnable examples (issues #68, #50, #42, #37, #36, #145)
+- Election state API, audit contract, multitenancy, and Prometheus runnable example (issues #68, #50, #42, #145)
 
 ---
 
