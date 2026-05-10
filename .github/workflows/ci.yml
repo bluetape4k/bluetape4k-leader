@@ -92,6 +92,7 @@ jobs:
       examples-migration-gate: ${{ steps.filter.outputs.examples-migration-gate }}
       examples-webhook-poller: ${{ steps.filter.outputs.examples-webhook-poller }}
       examples-cache-warmer: ${{ steps.filter.outputs.examples-cache-warmer }}
+      examples-tenant-aggregator: ${{ steps.filter.outputs.examples-tenant-aggregator }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -132,6 +133,11 @@ jobs:
             examples-cache-warmer:
               - 'examples/cache-warmer/**'
               - 'leader-hazelcast/**'
+              - 'leader-core/**'
+            examples-tenant-aggregator:
+              - 'examples/tenant-aggregator/**'
+              - 'leader-exposed-r2dbc/**'
+              - 'leader-exposed-core/**'
               - 'leader-core/**'
 
   # ── 3. 전체 빌드 (테스트 제외) ───────────────────────────────────────────
@@ -628,6 +634,42 @@ jobs:
           path: '**/build/test-results/test/*.xml'
           retention-days: 7
 
+  # ── examples-tenant-aggregator (Testcontainers PostgreSQL + H2) ─────────────
+  test-examples-tenant-aggregator:
+    name: Test / examples-tenant-aggregator
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs['examples-tenant-aggregator'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+          cache-read-only: true
+      - name: Test examples-tenant-aggregator
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :examples:tenant-aggregator:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+          DOCKER_HOST: "unix:///var/run/docker.sock"
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-examples-tenant-aggregator
+          path: '**/build/test-results/test/*.xml'
+          retention-days: 7
+
   # ── examples-batch-scheduler (Testcontainers Redis) ─────────────────────────
   test-examples-batch-scheduler:
     name: Test / examples-batch-scheduler
@@ -873,6 +915,7 @@ jobs:
       - test-examples-migration-gate
       - test-examples-webhook-poller
       - test-examples-cache-warmer
+      - test-examples-tenant-aggregator
     if: always()
     steps:
       - uses: actions/checkout@v4
@@ -921,6 +964,7 @@ jobs:
       - test-examples-migration-gate
       - test-examples-webhook-poller
       - test-examples-cache-warmer
+      - test-examples-tenant-aggregator
       - coverage-report
     if: always()
     steps:
