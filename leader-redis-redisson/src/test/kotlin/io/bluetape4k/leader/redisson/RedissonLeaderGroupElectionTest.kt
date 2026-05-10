@@ -480,4 +480,97 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
         task1.get() shouldBeEqualTo numThreads * roundsPerThread / 2
         task2.get() shouldBeEqualTo numThreads * roundsPerThread / 2
     }
+
+    // =========================================================================
+    // minLeaseTime 시맨틱 (slot-token TTL 모델)
+    // =========================================================================
+
+    @Test
+    fun `minLeaseTime 보유 - 빠른 action 종료 후에도 다른 client 는 즉시 acquire 실패한다`() {
+        val opts = LeaderGroupElectionOptions(
+            maxLeaders = 1,
+            waitTime = 100.milliseconds,
+            leaseTime = 10.seconds,
+            minLeaseTime = 800.milliseconds,
+        )
+        val el = RedissonLeaderGroupElector(redissonClient, opts)
+        val lockName = randomName()
+
+        el.runIfLeader(lockName) { "fast" } shouldBeEqualTo "fast"
+
+        val secondElector = RedissonLeaderGroupElector(redissonClient, opts)
+        secondElector.runIfLeader(lockName) { "should-not" } shouldBeEqualTo null
+    }
+
+    @Test
+    fun `minLeaseTime 만료 후 다음 acquire 가 성공한다`() {
+        val opts = LeaderGroupElectionOptions(
+            maxLeaders = 1,
+            waitTime = 100.milliseconds,
+            leaseTime = 10.seconds,
+            minLeaseTime = 300.milliseconds,
+        )
+        val el = RedissonLeaderGroupElector(redissonClient, opts)
+        val lockName = randomName()
+
+        el.runIfLeader(lockName) { "first" } shouldBeEqualTo "first"
+
+        Thread.sleep(400)
+
+        val secondElector = RedissonLeaderGroupElector(redissonClient, opts)
+        secondElector.runIfLeader(lockName) { "second" } shouldBeEqualTo "second"
+    }
+
+    @Test
+    fun `minLeaseTime=0 회귀 - 즉시 release 가 정상 동작한다`() {
+        val opts = LeaderGroupElectionOptions(
+            maxLeaders = 1,
+            waitTime = 100.milliseconds,
+            leaseTime = 10.seconds,
+        )
+        val el = RedissonLeaderGroupElector(redissonClient, opts)
+        val lockName = randomName()
+
+        el.runIfLeader(lockName) { "a" } shouldBeEqualTo "a"
+
+        val secondElector = RedissonLeaderGroupElector(redissonClient, opts)
+        secondElector.runIfLeader(lockName) { "b" } shouldBeEqualTo "b"
+    }
+
+    @Test
+    fun `maxLeaders 동시 점유 + 모두 minLease 보유 - 추가 client 는 실패한다`() {
+        val opts = LeaderGroupElectionOptions(
+            maxLeaders = 2,
+            waitTime = 100.milliseconds,
+            leaseTime = 10.seconds,
+            minLeaseTime = 1.seconds,
+        )
+        val el = RedissonLeaderGroupElector(redissonClient, opts)
+        val lockName = randomName()
+
+        repeat(opts.maxLeaders) {
+            el.runIfLeader(lockName) { "fast" } shouldBeEqualTo "fast"
+        }
+
+        val third = RedissonLeaderGroupElector(redissonClient, opts)
+        third.runIfLeader(lockName) { "third" } shouldBeEqualTo null
+    }
+
+    @Test
+    fun `crash recovery - release 미호출 시 leaseTime 만료 후 다른 client 가 acquire 한다`() {
+        val lockName = randomName()
+        // 짧은 leaseTime 으로 직접 permit 을 잡고 release 하지 않음
+        val crashSemaphore = redissonClient.getPermitExpirableSemaphore("lg:{$lockName}")
+        crashSemaphore.trySetPermits(1)
+        val crashedPermit = crashSemaphore.tryAcquire(
+            200, 400, java.util.concurrent.TimeUnit.MILLISECONDS
+        )
+        crashedPermit shouldBeEqualTo crashedPermit
+
+        val opts = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 1.seconds, leaseTime = 5.seconds)
+        val el = RedissonLeaderGroupElector(redissonClient, opts)
+        Thread.sleep(500) // leaseTime(400ms) 만료 대기
+
+        el.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
+    }
 }

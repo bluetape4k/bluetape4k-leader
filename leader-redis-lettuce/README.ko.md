@@ -8,9 +8,13 @@
 
 ## 개요
 
-`leader-redis-lettuce`는 Lettuce 리액티브 Redis 클라이언트를 사용하여 `leader-core` 인터페이스를 구현합니다. 락 프리미티브(`LettuceLock`, `LettuceSemaphore`)는 이 모듈에 직접 이식되어 있어 `bluetape4k-lettuce`에 대한 런타임 의존이 없습니다.
+`leader-redis-lettuce`는 Lettuce 리액티브 Redis 클라이언트를 사용하여 `leader-core` 인터페이스를 구현합니다. 락 프리미티브(`LettuceLock`, `LettuceSlotTokenGroup`)는 이 모듈에 직접 이식되어 있어 `bluetape4k-lettuce`에 대한 런타임 의존이 없습니다.
 
-락 전략: Redis `SET key value NX PX ttl` (원자적 compare-and-set). `LeaderElectionOptions(autoExtend = true)`를 사용하면 단일 리더 elector가 action 실행 중 token 조건부 `PEXPIRE`로 TTL을 갱신합니다. 그룹/세마포어 갱신은 자동으로 수행하지 않습니다.
+단일 리더 전략: Redis `SET key value NX PX ttl` (원자적 compare-and-set). `LeaderElectionOptions(autoExtend = true)`를 사용하면 단일 리더 elector가 action 실행 중 token 조건부 `PEXPIRE`로 TTL을 갱신합니다.
+
+그룹 전략 (slot-token TTL 모델): 단일 ZSET 키 `lg:{lockName}` 의 member 는 슬롯별 token (`Base58.randomString(8)`) 이고 score 는 `expiryAtMs` 입니다. ACQUIRE / RELEASE / STATUS Lua 스크립트는 모두 `redis.call('TIME')` 으로 Redis 서버 시간을 읽어 사용하므로 클라이언트 clock skew 영향이 없으며, ACQUIRE 시점에 `ZREMRANGEBYSCORE` 로 만료된 entry 를 자동 회수합니다. 클라이언트 crash 시 (release 미호출) 다음 acquire 시 자동 정리되므로 외부 reaper 가 필요 없습니다.
+
+> 기존 `LettuceSemaphore` / `LettuceSuspendSemaphore` 는 `LettuceSlotTokenGroup` 으로 대체되며 `@Deprecated` 처리되었습니다. 새 `lg:{lockName}` 키 prefix 는 롤링 배포 시 구버전 키와의 충돌을 피하기 위해 의도적으로 분리되었습니다.
 
 ## 아키텍처
 
@@ -33,17 +37,14 @@ classDiagram
         +tryLock(key, value, ttl) Boolean
         +unlock(key, value)
     }
-    class LettuceSemaphore {
-        +acquire(key, permits, ttl) Boolean
-        +release(key, permits)
+    class LettuceSlotTokenGroup {
+        +tryAcquire(waitTime, leaseTime) String?
+        +release(token, remainingMinLeaseMs)
+        +activeCount() Int
     }
     class LettuceSuspendLock {
         +tryLock(key, value, ttl) Boolean
         +unlock(key, value)
-    }
-    class LettuceSuspendSemaphore {
-        +acquire(key, permits, ttl) Boolean
-        +release(key, permits)
     }
 
     LettuceLeaderElector ..|> LeaderElector
@@ -52,9 +53,75 @@ classDiagram
     LettuceSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
 
     LettuceLeaderElector --> LettuceLock
-    LettuceLeaderGroupElector --> LettuceSemaphore
+    LettuceLeaderGroupElector --> LettuceSlotTokenGroup
     LettuceSuspendLeaderElector --> LettuceSuspendLock
-    LettuceSuspendLeaderGroupElector --> LettuceSuspendSemaphore
+    LettuceSuspendLeaderGroupElector --> LettuceSlotTokenGroup
+```
+
+## 그룹 락 흐름
+
+slot-token TTL 모델은 두 시나리오로 가장 잘 이해할 수 있습니다: 정상 acquire/release 와 crash recovery, 그리고 `minLeaseTime` 의 backend ZSET score 위임.
+
+### 시나리오 1 — 정상 acquire/release 와 crash recovery
+
+```mermaid
+sequenceDiagram
+    participant ClientA
+    participant ClientB
+    participant Redis as "Redis (lg:{lockName} ZSET)"
+
+    Note over ClientA,Redis: 정상 흐름 — slot-token TTL
+    ClientA->>Redis: EVALSHA ACQUIRE (maxLeaders=2, token=A1, leaseMs=10s)
+    Redis->>Redis: TIME -> nowMs<br/>ZREMRANGEBYSCORE 0 nowMs<br/>ZCARD < maxLeaders<br/>ZADD score=(nowMs+10s) member=A1<br/>PEXPIRE key (15s)
+    Redis-->>ClientA: token A1
+    ClientA->>ClientA: action() 실행
+
+    Note over ClientB,Redis: ClientA 작업 중
+    ClientB->>Redis: EVALSHA ACQUIRE (token=B1)
+    Redis-->>ClientB: token B1 (slot 2)
+
+    ClientA->>Redis: EVALSHA RELEASE (A1, remainingMinLeaseMs=0)
+    Redis->>Redis: ZREM lg:{lockName} A1
+    Redis-->>ClientA: 1
+
+    Note over ClientA,Redis: ClientA crash 시뮬레이션 (release 호출 안 됨)
+    ClientA->>Redis: EVALSHA ACQUIRE (token=A2, leaseMs=2s)
+    Redis-->>ClientA: token A2
+    ClientA->>ClientA: release 전 crash
+
+    Note over ClientB,Redis: 2초 후 leaseTime 만료
+    ClientB->>Redis: EVALSHA ACQUIRE (token=B3)
+    Redis->>Redis: ZREMRANGEBYSCORE -> A2 자동 정리<br/>ZADD B3
+    Redis-->>ClientB: token B3 (자동 회수)
+```
+
+### 시나리오 2 — `minLeaseTime` 의 backend TTL 위임
+
+```mermaid
+sequenceDiagram
+    participant ClientA
+    participant ClientB
+    participant Redis as "Redis (lg:{lockName} ZSET)"
+
+    Note over ClientA,Redis: minLeaseTime=300ms, action 빨리 종료 (50ms)
+
+    ClientA->>Redis: ACQUIRE token=A1
+    Redis-->>ClientA: token A1
+    ClientA->>ClientA: action() 50ms 실행
+    ClientA->>Redis: RELEASE (A1, remainingMinLeaseMs=250)
+    Redis->>Redis: TIME -> nowMs<br/>ZADD XX score=(nowMs+250) A1
+    Redis-->>ClientA: 1
+    Note over ClientA: caller 즉시 반환 (park 없음)
+
+    Note over ClientB,Redis: 250ms 이내
+    ClientB->>Redis: ACQUIRE (waitTime=100ms)
+    Redis->>Redis: ZREMRANGEBYSCORE -> A1 미만료<br/>ZCARD == maxLeaders
+    Redis-->>ClientB: '' (실패)
+
+    Note over ClientB,Redis: 250ms 후
+    ClientB->>Redis: ACQUIRE
+    Redis->>Redis: ZREMRANGEBYSCORE -> A1 만료 정리
+    Redis-->>ClientB: token B1 (성공)
 ```
 
 ## 구현체 목록
@@ -62,9 +129,9 @@ classDiagram
 | 클래스 | 구현 인터페이스 | 설명 |
 |-------|--------------|------|
 | `LettuceLeaderElector` | `LeaderElector` | `LettuceLock` 기반 블로킹 단일 리더 |
-| `LettuceLeaderGroupElector` | `LeaderGroupElector` | `LettuceSemaphore` 기반 블로킹 복수 리더 |
+| `LettuceLeaderGroupElector` | `LeaderGroupElector` | `LettuceSlotTokenGroup` (slot-token TTL) 기반 블로킹 복수 리더 |
 | `LettuceSuspendLeaderElector` | `SuspendLeaderElector` | `LettuceSuspendLock` 기반 코루틴 단일 리더 |
-| `LettuceSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | `LettuceSuspendSemaphore` 기반 코루틴 복수 리더 |
+| `LettuceSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | `LettuceSlotTokenGroup` 기반 코루틴 복수 리더 |
 | `LettuceSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `LettuceSuspendLeaderElector` 생성 |
 | `LettuceSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `LettuceSuspendLeaderGroupElector` 생성 |
 
@@ -139,6 +206,19 @@ val options = LeaderElectionOptions(
 val election = LettuceLeaderElector(connection, options)
 ```
 
+### 그룹 옵션 — `minLeaseTime` 은 backend TTL 에 위임
+
+복수 리더 그룹에서 `LeaderGroupElectionOptions(minLeaseTime = ...)` 는 슬롯이 최소 그 시간만큼 점유 상태로 유지되도록 합니다. 구현은 caller 를 park 하지 않고 release 시점에 슬롯 ZSET score (서버 측 TTL) 만 연장하므로, `runIfLeader` 는 `action` 종료 직후 즉시 반환합니다:
+
+```kotlin
+val options = LeaderGroupElectionOptions(
+    maxLeaders = 3,
+    leaseTime = 30.seconds,
+    minLeaseTime = 1.seconds, // 빠른 action 종료 시에도 최소 1초 슬롯 유지
+)
+val election = LettuceLeaderGroupElector(connection, options)
+```
+
 ### SPI 팩토리 사용
 
 ```kotlin
@@ -171,7 +251,18 @@ else
 end
 ```
 
-`LettuceSemaphore`는 Redis 리스트에 permit 토큰을 관리합니다. 획득 시 토큰 추가, 반환 시 토큰 제거.
+### `LettuceSlotTokenGroup` — slot-token TTL 모델
+
+`LettuceLeaderGroupElector` / `LettuceSuspendLeaderGroupElector` 가 사용하는 그룹 프리미티브:
+
+- 단일 ZSET 키 `lg:{lockName}` — `member = Base58 token (8자)`, `score = expiryAtMs`.
+- ACQUIRE / RELEASE / STATUS Lua 스크립트는 `redis.call('TIME')` 으로 시간을 읽어 클라이언트 clock skew 영향 없음.
+- ACQUIRE 시점에 `ZREMRANGEBYSCORE 0 nowMs` 로 만료된 entry 를 자동 회수 — 외부 reaper 불필요, crash recovery 자동.
+- RELEASE 시 `remainingMinLeaseMs > 0` 이면 `ZADD XX` 로 score 를 갱신하여 슬롯을 유지 (`minLeaseTime` 을 backend TTL 에 위임). 그렇지 않으면 member 를 제거.
+- 슬롯 미획득 시 `null` 반환 (waitTime 초과) — `IllegalStateException` 미발생.
+- `lg:{lockName}` prefix 는 구버전 `LettuceSemaphore` 키와의 충돌을 방지하기 위해 의도적으로 분리되었습니다.
+
+> 기존 `LettuceSemaphore` / `LettuceSuspendSemaphore` (Redis 카운터 + permit 토큰 리스트) 는 소스 트리에 `@Deprecated` 로 남아 있으며, 그룹 elector 와 더 이상 연결되지 않습니다.
 
 ## 의존성 추가
 

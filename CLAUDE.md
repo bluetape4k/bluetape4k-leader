@@ -66,6 +66,26 @@ LeaderGroupElectionOptions(maxLeaders = 3, waitTime = 5.seconds, leaseTime = 60.
 // Default constants: LeaderElectionOptions.Default, LeaderGroupElectionOptions.Default
 ```
 
+### Group elector — Redis backends (slot-token TTL model)
+
+`leader-redis-lettuce` / `leader-redis-redisson` 의 group elector 는 모두 **slot-token TTL 모델** 로 동작.
+
+| 항목 | Lettuce (`LettuceSlotTokenGroup`) | Redisson (`RPermitExpirableSemaphore`) |
+|---|---|---|
+| Key | `lg:{lockName}` ZSET | `lg:{lockName}` permit semaphore |
+| Slot 식별자 | `Base58 token (8자)` | Redisson 발급 `permitId` |
+| 시간 기준 | Lua `redis.call('TIME')` (server-side) | Redisson 내부 |
+| 초기화 | 첫 acquire 시 `ZREMRANGEBYSCORE` 만료 정리 | 첫 access 시 `trySetPermits(maxLeaders)` 멱등 호출 |
+| `minLeaseTime > 0` | RELEASE 시 `ZADD XX` 로 score 갱신 | `updateLeaseTime` / `updateLeaseTimeAsync` |
+| Crash recovery | `leaseTime` 만료 후 다음 acquire 시 자동 회수 | `leaseTime` 만료 후 Redisson 자동 회수 |
+
+**핵심 계약**:
+
+- `minLeaseTime` 은 backend TTL 에 위임 — caller-park 없음. `runIfLeader` 는 `action` 종료 직후 즉시 반환.
+- 외부 reaper / cleanup 작업 불필요 — 두 backend 모두 만료 슬롯 자동 회수.
+- `lg:{lockName}` key prefix 는 의도적으로 분리 — 구버전 (`LettuceSemaphore`, `RSemaphore`) 키와 충돌 회피, 롤링 배포 호환.
+- Lettuce 측 구버전 `LettuceSemaphore` / `LettuceSuspendSemaphore` 는 `@Deprecated` (소스에 잔존, 새 elector 와 미연결).
+
 ## AOP Annotation Guide (`leader-spring-boot`)
 
 `@LeaderElection` / `@LeaderGroupElection` — `leader-core` 선언, AspectJ CTW (Freefair post-compile weaving) 적용.

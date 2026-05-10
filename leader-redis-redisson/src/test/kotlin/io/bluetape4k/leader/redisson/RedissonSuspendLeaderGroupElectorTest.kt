@@ -9,6 +9,7 @@ import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import io.bluetape4k.assertions.shouldBeEqualTo
@@ -184,5 +185,119 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
 
         task1.get() shouldBeEqualTo numWorkers * roundsPerJob
         task2.get() shouldBeEqualTo numWorkers * roundsPerJob
+    }
+
+    // =========================================================================
+    // minLeaseTime 시맨틱 (slot-token TTL 모델)
+    // =========================================================================
+
+    @Test
+    fun `minLeaseTime 보유 - 빠른 action 종료 후에도 다른 client 는 즉시 acquire 실패한다`() = runSuspendIO {
+        val opts = LeaderGroupElectionOptions(
+            maxLeaders = 1,
+            waitTime = 100.milliseconds,
+            leaseTime = 10.seconds,
+            minLeaseTime = 800.milliseconds,
+        )
+        val el = RedissonSuspendLeaderGroupElector(redissonClient, opts)
+        val lockName = randomName()
+        el.runIfLeader(lockName) { "fast" } shouldBeEqualTo "fast"
+
+        val secondElector = RedissonSuspendLeaderGroupElector(redissonClient, opts)
+        secondElector.runIfLeader(lockName) { "should-not" } shouldBeEqualTo null
+    }
+
+    @Test
+    fun `minLeaseTime 만료 후 다음 acquire 가 성공한다 (suspend)`() = runSuspendIO {
+        val opts = LeaderGroupElectionOptions(
+            maxLeaders = 1,
+            waitTime = 100.milliseconds,
+            leaseTime = 10.seconds,
+            minLeaseTime = 300.milliseconds,
+        )
+        val el = RedissonSuspendLeaderGroupElector(redissonClient, opts)
+        val lockName = randomName()
+        el.runIfLeader(lockName) { "first" } shouldBeEqualTo "first"
+
+        delay(400.milliseconds)
+
+        val secondElector = RedissonSuspendLeaderGroupElector(redissonClient, opts)
+        secondElector.runIfLeader(lockName) { "second" } shouldBeEqualTo "second"
+    }
+
+    @Test
+    fun `minLeaseTime=0 회귀 - 즉시 release 가 정상 동작한다 (suspend)`() = runSuspendIO {
+        val opts = LeaderGroupElectionOptions(
+            maxLeaders = 1,
+            waitTime = 100.milliseconds,
+            leaseTime = 10.seconds,
+        )
+        val el = RedissonSuspendLeaderGroupElector(redissonClient, opts)
+        val lockName = randomName()
+        el.runIfLeader(lockName) { "a" } shouldBeEqualTo "a"
+
+        val secondElector = RedissonSuspendLeaderGroupElector(redissonClient, opts)
+        secondElector.runIfLeader(lockName) { "b" } shouldBeEqualTo "b"
+    }
+
+    @Test
+    fun `maxLeaders 동시 점유 + 모두 minLease 보유 - 추가 client 는 실패한다 (suspend)`() = runSuspendIO {
+        val opts = LeaderGroupElectionOptions(
+            maxLeaders = 2,
+            waitTime = 100.milliseconds,
+            leaseTime = 10.seconds,
+            minLeaseTime = 1.seconds,
+        )
+        val el = RedissonSuspendLeaderGroupElector(redissonClient, opts)
+        val lockName = randomName()
+        repeat(opts.maxLeaders) {
+            el.runIfLeader(lockName) { "fast" } shouldBeEqualTo "fast"
+        }
+
+        val third = RedissonSuspendLeaderGroupElector(redissonClient, opts)
+        third.runIfLeader(lockName) { "third" } shouldBeEqualTo null
+    }
+
+    @Test
+    fun `crash recovery - release 미호출 시 leaseTime 만료 후 다른 client 가 acquire 한다 (suspend)`() = runSuspendIO {
+        val lockName = randomName()
+        val crashSemaphore = redissonClient.getPermitExpirableSemaphore("lg:{$lockName}")
+        crashSemaphore.trySetPermits(1)
+        crashSemaphore.tryAcquire(200, 400, java.util.concurrent.TimeUnit.MILLISECONDS)
+
+        val opts = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 1.seconds, leaseTime = 5.seconds)
+        val el = RedissonSuspendLeaderGroupElector(redissonClient, opts)
+        delay(500.milliseconds)
+
+        el.runIfLeader(lockName) { "recovered" } shouldBeEqualTo "recovered"
+    }
+
+    @Test
+    fun `코루틴 취소 + minLeaseTime 보유 - NonCancellable 로 score 갱신 보장`() = runSuspendIO {
+        val opts = LeaderGroupElectionOptions(
+            maxLeaders = 1,
+            waitTime = 200.milliseconds,
+            leaseTime = 10.seconds,
+            minLeaseTime = 800.milliseconds,
+        )
+        val el = RedissonSuspendLeaderGroupElector(redissonClient, opts)
+        val cancelLock = randomName()
+
+        coroutineScope {
+            val deferred = async {
+                el.runIfLeader(cancelLock) {
+                    delay(50.milliseconds)
+                    "cancelled-action"
+                }
+            }
+            delay(20.milliseconds)
+            deferred.cancelAndJoin()
+        }
+
+        val secondElector = RedissonSuspendLeaderGroupElector(redissonClient, opts)
+        secondElector.runIfLeader(cancelLock) { "should-not" } shouldBeEqualTo null
+
+        delay(900.milliseconds)
+        secondElector.runIfLeader(cancelLock) { "later" } shouldBeEqualTo "later"
     }
 }
