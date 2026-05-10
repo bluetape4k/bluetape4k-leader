@@ -26,4 +26,5 @@ include(
     "leader-micrometer",
     "examples:batch-scheduler",
     "examples:migration-gate",
+    "examples:webhook-poller",
 )
