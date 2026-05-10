@@ -741,18 +741,7 @@ internal class CaptureInvariantException(message: String) : IllegalStateExceptio
 private suspend fun aroundLeaderSuspendBody(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
     val identity = meta.resolveLockIdentity(AdviceBranch.SUSPEND)  // R5-F6 — suspend branch (Mono 분기는 AdviceBranch.MONO)
 
-    // 1) Reentrant peek — coroutineContext only (R7)
-    val outer = currentCoroutineContext()[LockHandleElement]?.handle as? LeaderLockHandle.Real
-    if (outer != null && outer.matchesIdentity(identity)) {
-        // ⭐ R3-F4 — LeaderElectionInfo + LockHandleElement 결합 push (기존 aspect 가 LeaderElectionInfo 주입)
-        val passthrough = outer.withReentryDepth(outer.reentryDepth + 1)
-        return withContext(LeaderElectionInfo(identity.lockName, true) + LockHandleElement(passthrough)) {
-            suspendBlock.startCoroutineUninterceptedOrReturn(...)
-        }
-    }
-
-    // 2) 정상 경로 — body / capture-invariant / backend exception 분리 (R4-F2 + R5-F2 + R5-F3 + R6-F1)
-    // ⭐ R6-F1 — suspend body 호출은 `suspendCoroutineUninterceptedOrReturn { innerCont -> pjp.proceed(newArgs) }` 패턴 필수.
+    // ⭐ R6-F1 + R7-Codex-2 — suspend body 호출 helper. reentrant + elected + fail-open 3 분기 모두에서 사용.
     //   `suspendBlock.startCoroutineUninterceptedOrReturn(...)` 직접 반환은 COROUTINE_SUSPENDED sentinel 위험 —
     //   elector 가 body 종료로 오인하고 lock release 가능 (LeaderElectionAspect.kt:212 기존 패턴 동일).
     suspend fun proceedProtected(): Any? = try {
@@ -768,6 +757,17 @@ private suspend fun aroundLeaderSuspendBody(pjp: ProceedingJoinPoint, meta: Advi
         throw BodyThrownMarker(e)
     }
 
+    // 1) Reentrant peek — coroutineContext only (R7)
+    val outer = currentCoroutineContext()[LockHandleElement]?.handle as? LeaderLockHandle.Real
+    if (outer != null && outer.matchesIdentity(identity)) {
+        // ⭐ R3-F4 — LeaderElectionInfo + LockHandleElement 결합 push (기존 aspect 가 LeaderElectionInfo 주입)
+        val passthrough = outer.withReentryDepth(outer.reentryDepth + 1)
+        return withContext(LeaderElectionInfo(identity.lockName, true) + LockHandleElement(passthrough)) {
+            proceedProtected()  // ⭐ R7-Codex-2 — reentrant body 도 동일 helper 사용
+        }
+    }
+
+    // 2) 정상 경로 — body / capture-invariant / backend exception 분리 (R4-F2 + R5-F2 + R5-F3)
     return try {
         when (val result = suspendElector.runIfLeaderResultSuspend(identity.lockName) {
             val handle = LeaderLockHandleCapture.poll()
@@ -828,15 +828,23 @@ private suspend fun aroundLeaderSuspendBody(pjp: ProceedingJoinPoint, meta: Advi
 internal data class AdviceMetadata(
     val lockName: String,
     val failureMode: LeaderAspectFailureMode,
+    val annotationKind: LockIdentity.AnnotationKind,  // ⭐ R7-Codex-1 — explicit (groupParams 와 독립 보존)
     val syncFactoryBeanName: String?,           // sync branch 용
     val suspendFactoryBeanName: String?,        // suspend / Mono branch 용
-    val groupParams: LockIdentity.GroupParams?, // group annotation 일 때만 non-null
+    val groupParams: LockIdentity.GroupParams?, // GROUP annotation 일 때만 non-null
     // ... 기존 필드
 ) {
-    /** branch 에 맞는 factoryBeanName 으로 LockIdentity 생성. */
+    init {
+        // ⭐ R7-Codex-1 — annotation metadata drift 검출 (groupParams ↔ annotationKind 일치)
+        require((annotationKind == LockIdentity.AnnotationKind.GROUP) == (groupParams != null)) {
+            "annotationKind=$annotationKind inconsistent with groupParams=$groupParams"
+        }
+    }
+
+    /** branch 에 맞는 factoryBeanName 으로 LockIdentity 생성. annotationKind 는 metadata 에서 직접 전달. */
     fun resolveLockIdentity(branch: AdviceBranch): LockIdentity = LockIdentity(
         lockName = lockName,
-        kind = if (groupParams != null) AnnotationKind.GROUP else AnnotationKind.SINGLE,
+        kind = annotationKind,                   // ⭐ R7-Codex-1 — explicit metadata 사용 (tautology 차단)
         factoryBeanName = when (branch) {
             AdviceBranch.SYNC -> requireNotNull(syncFactoryBeanName)
             AdviceBranch.SUSPEND, AdviceBranch.MONO -> requireNotNull(suspendFactoryBeanName)
@@ -991,7 +999,12 @@ unsupported 행은 concrete test class 부재 (skip 아님). matrix 자체가 AC
     ```
   - R2DBC / Local 은 native suspend → default OK (Local 은 non-blocking, R2DBC 는 suspend native)
 - [ ] **AC-22**: AOP CTW weave smoke test — sync/suspend/Mono 각각 실제 woven bean 호출로 `LockHandleElement` propagation 검증 (R3-F13).
-- [ ] **AC-22b**: `leader-ktor` plugin propagation smoke test — Ktor `Application.routing` 안에서 `LockAssert.assertLockedSuspend()` 호출 시 plugin 이 inject 한 `LockHandleElement` 가 정확히 동작 (R7-A1). 실패 시 README "미지원 시나리오" 명시.
+- [ ] **AC-22b**: `leader-ktor` plugin propagation smoke test (R7-A1 + R7-Codex-3):
+  - 실제 plugin surface = `leaderScheduled { ... }` background action (request routing 아님)
+  - `Ktor leaderScheduled { LockAssert.assertLockedSuspend() }` 시 leader 인 동안 throw 없이 통과 검증
+  - plugin 자체는 `Application.attributes` 만 사용 — `LockHandleElement` 전파는 `leaderScheduled` 가 호출하는 elector 의 capture 메커니즘에 의존
+  - 만약 background action 외 surface (request routing, custom interceptor 등) 에서 propagation 실패 → README "미지원 시나리오" 명시 (Mono 분기 동일 정책)
+  - T17/T18 task 에 leader-ktor 통합 검증 포함, 또는 별도 unsupported 문서화 commit
 - [ ] **AC-23**: `handle.extendDelegate === watchdog.delegate` reference 검증 — 각 backend elector 모듈 안에 unit test (`leader-redis-lettuce`, `leader-redis-redisson`, ...) — `extendDelegate` 가 `internal` 이라 cross-module access 불가 (R3-F14).
 - [ ] **AC-24**: SPI 분산 backend classifier 검증 (R3-F9 / R5-F4):
   - `leader-core` 의 `BackendErrorClassifier` SPI + `CoreBackendErrorClassifier` (JDK/공통) + `CompositeBackendErrorClassifier`
@@ -1258,6 +1271,43 @@ LockExtender.extendActiveLock(Duration.ofMinutes(5));
 - R6 dispatch 시 polish/nit 영역 진입 예상 (P1 ≤ 2, P2/P3 위주).
 
 총 review 합계: **103 finding** (Codex 56 + perspective 47), 모두 적용.
+
+---
+
+## Appendix F — Round 7 Review 통합 (multi-perspective + Codex)
+
+R7 Phase 1 (multi-perspective 4 parallel) + Phase 3 (Codex) — 통합 7 finding.
+
+### Phase 1 (multi-perspective)
+- code-reviewer: 0 finding (수렴)
+- silent-failure-hunter: 0 finding (수렴)
+- type-design-analyzer: 2 HIGH (R7-T1 LockIdentity init invariant, R7-T2 BackendError(Exception))
+- code-architect: 2 HIGH (R7-A1 leader-ktor smoke test, R7-A2 WIP/CLAUDE.md drift fix)
+
+### Phase 3 (Codex) — 3 P1
+- R7-Codex-1: AdviceMetadata.annotationKind explicit 보존 (groupParams 와 독립) — invariant tautology 차단
+- R7-Codex-2: suspend reentrant branch 도 proceedProtected() helper 사용 (COROUTINE_SUSPENDED sentinel 위험 균일 차단)
+- R7-Codex-3: AC-22b ktor scope 정확화 — `leaderScheduled` background (Application.routing 아님)
+
+### 적용 (7건 모두)
+
+- §5.2a `LockIdentity init { require((kind==GROUP)==(groupParams!=null)) }`
+- §5.3 `ExtendOutcome.BackendError(cause: Exception)` (Throwable → Exception)
+- §11 leader-ktor smoke test + WIP.md ShedLock 섹션 + 3 CLAUDE.md drift + ktor-app README 추가
+- §7.5b `AdviceMetadata.annotationKind` field + init require + resolveLockIdentity 가 explicit 사용
+- §7.2 suspend `proceedProtected` helper 가 reentrant 분기 진입 전 정의 + 모든 suspend body 호출 위치에서 사용
+- AC-22b wording 갱신 (leaderScheduled 검증)
+
+### Round 7 결정 기록
+
+33. **AdviceMetadata.annotationKind explicit** — groupParams 추론 방식은 tautology. annotation 자체에서 kind 보존 + invariant require.
+34. **`ExtendOutcome.BackendError(Exception)`** — Throwable 차단으로 FATAL Error wrap 차단 (compile-time 강제).
+35. **suspend `proceedProtected` 단일 helper** — reentrant + elected + fail-open 3 분기 모두 동일 패턴 (sentinel 위험 균일 차단).
+
+### 수렴 평가
+- R1 (63) → R2 (12) → R3 (15) → R4 (7) → R5 (6) → R6 (4) → R7 (7).
+- R7 finding 모두 적용. R8 dispatch 시 polish 영역 진입 예상.
+- 통합 reviewer 합계: **117 finding** (Codex 63 + perspective 54), 모두 적용.
 
 ---
 
