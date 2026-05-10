@@ -278,6 +278,12 @@ data class LockIdentity(
     val factoryBeanName: String,
     val groupParams: GroupParams? = null,
 ) {
+    init {
+        // ⭐ R7-T1 — kind ↔ groupParams invariant 강제
+        require((kind == AnnotationKind.GROUP) == (groupParams != null)) {
+            "GROUP kind requires groupParams; SINGLE kind forbids it"
+        }
+    }
     enum class AnnotationKind { SINGLE, GROUP }
     /** Currently `maxLeaders` only — future fields require default values for binary-compat. */
     data class GroupParams(val maxLeaders: Int)
@@ -386,7 +392,7 @@ sealed interface ExtendOutcome {
     data class Extended(val observedExpireAt: Instant) : ExtendOutcome
     data object NotHeld : ExtendOutcome              // token mismatch / lease expired / takeover
     data object WrongThread : ExtendOutcome          // Redisson thread-bound
-    data class BackendError(val cause: Throwable) : ExtendOutcome  // transient: false 변환, non-transient: throw
+    data class BackendError(val cause: Exception) : ExtendOutcome  // ⭐ R7-T2 — Throwable 대신 Exception (FATAL Error 차단). transient: false 변환, non-transient: throw
 
     val isExtended: Boolean get() = this is Extended
 }
@@ -985,6 +991,7 @@ unsupported 행은 concrete test class 부재 (skip 아님). matrix 자체가 AC
     ```
   - R2DBC / Local 은 native suspend → default OK (Local 은 non-blocking, R2DBC 는 suspend native)
 - [ ] **AC-22**: AOP CTW weave smoke test — sync/suspend/Mono 각각 실제 woven bean 호출로 `LockHandleElement` propagation 검증 (R3-F13).
+- [ ] **AC-22b**: `leader-ktor` plugin propagation smoke test — Ktor `Application.routing` 안에서 `LockAssert.assertLockedSuspend()` 호출 시 plugin 이 inject 한 `LockHandleElement` 가 정확히 동작 (R7-A1). 실패 시 README "미지원 시나리오" 명시.
 - [ ] **AC-23**: `handle.extendDelegate === watchdog.delegate` reference 검증 — 각 backend elector 모듈 안에 unit test (`leader-redis-lettuce`, `leader-redis-redisson`, ...) — `extendDelegate` 가 `internal` 이라 cross-module access 불가 (R3-F14).
 - [ ] **AC-24**: SPI 분산 backend classifier 검증 (R3-F9 / R5-F4):
   - `leader-core` 의 `BackendErrorClassifier` SPI + `CoreBackendErrorClassifier` (JDK/공통) + `CompositeBackendErrorClassifier`
@@ -1038,10 +1045,15 @@ LockExtender.extendActiveLock(Duration.ofMinutes(5));
 - **`leader-spring-boot/README.md` + `README.ko.md`** — 신규 섹션 "LockAssert & LockExtender (ShedLock-equivalent)" + Mermaid sequenceDiagram.
 - 8 backend 모듈 README — "extend now supported" 한 줄 노트.
 - **`leader-ktor/README.md`** — 한 줄 노트: "plugin 안에서 `LockAssert.assertLockedSuspend()` 사용 가능" (Architect A8).
+- **`leader-ktor` propagation smoke test** (R7-A1): plugin 의 `coroutineScope` + `withContext(LockHandleElement(...))` propagation 검증 1건. Ktor `call.attributes` / `PipelineContext` dispatch 시 element 가 떨어지면 README "미지원 시나리오" 명시 (Mono 분기 동일 정책).
 - KDoc — 모든 신규 public surface + `ExtendOutcome` variants.
 - **CHANGELOG.md** — `LockHandleElement` 추가, `LockAssert`/`LockExtender` API 신규, validator `CompletableFuture` 차단, watchdog × extend 가시성 (Architect A9).
-- **`WIP.md`** — Issue #79 완료 표시.
-- **CLAUDE.md (root + leader-bom)** — "v1.x sync-only" 문구 → "suspend + Mono 지원, Flux/Flow 미지원" 으로 갱신 (Architect A11).
+- **`WIP.md`** (R7-A2) — Issue #79 완료 표시 + "ShedLock 호환 ergonomic API 도입" 섹션 (3-5줄 요약 + 신규 API surface 링크 — `LockAssert`, `LockExtender`, `ExtendOutcome`, `LeaderLockHandle`).
+- **CLAUDE.md drift fix** (R7-A2 / Architect A11):
+  - `bluetape4k/CLAUDE.md` (workspace root) — "v1.x sync-only" 문구 → "suspend + Mono 지원, Flux/Flow 미지원"
+  - `bluetape4k-leader/CLAUDE.md` (project root) — 동일 갱신
+  - worktree CLAUDE.md (`leader-bom/CLAUDE.md`) — 동일
+- **`examples/ktor-app/README.md`** (R7-A2) — `LockAssert.assertLockedSuspend()` 사용 예 1건 추가 (downstream consumer 가 새 API 발견 가능하게).
 - **`docs/lessons/2026-05-10-lock-extender.md`** — PR merge 후: Hazelcast EntryProcessor 함정, Redisson owner-Lua, capture invariant, sealed `ExtendOutcome` 도입, ShedLock semantics divergence.
 
 ---
@@ -1068,7 +1080,7 @@ LockExtender.extendActiveLock(Duration.ofMinutes(5));
 | **T16** | `LeaderAnnotationValidatorBeanPostProcessor` — `CompletableFuture` 반환 fail-fast (`leader-spring-boot`) | medium | — |
 | **T17** | 통합 테스트 — 모든 시나리오 (`leader-spring-boot` + 각 backend 모듈 contract) | high | T7–T16 |
 | **T18** | README (`leader-spring-boot/README.md` + `.ko.md`) + Mermaid sequenceDiagram + 8 backend README 노트 + `leader-ktor` 노트 | medium | T17 |
-| **T19** | CHANGELOG.md + WIP.md 업데이트 + 두 CLAUDE.md drift 수정 (root + leader-bom) | low | T18 |
+| **T19** | CHANGELOG.md + WIP.md (ShedLock 호환 API 섹션 추가) + 3 CLAUDE.md drift 수정 (workspace root / bluetape4k-leader / leader-bom) + `examples/ktor-app/README.md` LockAssertSuspend 예제 1건 (R7-A2) | low | T18 |
 
 **Critical path**: T1 → T4 → T14 → T17 → T18 → T19. T7–T13 backend 별 병렬 가능 (T1 완료 후).
 
