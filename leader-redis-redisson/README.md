@@ -8,11 +8,13 @@ Redis-backed leader election using [Redisson](https://redisson.org/) — blockin
 
 ## Overview
 
-`leader-redis-redisson` implements `leader-core` interfaces using Redisson's `RLock` and `RSemaphore`. It supports blocking, async, coroutine, and virtual-thread execution models.
+`leader-redis-redisson` implements `leader-core` interfaces using Redisson's `RLock` and `RPermitExpirableSemaphore`. It supports blocking, async, coroutine, and virtual-thread execution models.
 
-For single-leader elections, `LeaderElectionOptions(autoExtend = true)` uses Redisson's native lock watchdog by acquiring `RLock` without an explicit lease timeout. `minLeaseTime > 0` is rejected with `autoExtend=true` because watchdog release semantics would be ambiguous. Group/semaphore auto-extension is not implemented.
+For single-leader elections, `LeaderElectionOptions(autoExtend = true)` uses Redisson's native lock watchdog by acquiring `RLock` without an explicit lease timeout. `minLeaseTime > 0` is rejected with `autoExtend=true` because watchdog release semantics would be ambiguous.
 
-The coroutine implementation uses a PID-seeded mini-Snowflake ID generator to produce unique per-coroutine lock IDs without Redis round-trips, ensuring safety in HA (multi-JVM) deployments.
+For multi-leader groups, the elector binds to a `RPermitExpirableSemaphore` keyed `lg:{lockName}` and calls `trySetPermits(maxLeaders)` idempotently on first access (without it the semaphore would default to 0 permits and `tryAcquire` would deadlock). Each acquire returns a Redisson-issued `permitId` used to release or extend the slot. `minLeaseTime` is delegated to the backend TTL via `updateLeaseTime` (sync) / `updateLeaseTimeAsync` (async) — `runIfLeader` returns immediately when `action` finishes, with no caller-side parking. Crash recovery is automatic: a permit's TTL expires and the slot is reclaimed by Redisson on the next acquire. The `lg:{lockName}` key prefix is intentionally distinct from any pre-existing semaphore keys to avoid collisions during rolling deployment.
+
+The coroutine single-leader implementation uses a PID-seeded mini-Snowflake ID generator to produce unique per-coroutine lock IDs without Redis round-trips, ensuring safety in HA (multi-JVM) deployments.
 
 ## Architecture
 
@@ -58,14 +60,77 @@ classDiagram
     RedissonSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
 ```
 
+## Group Lock Flow
+
+The `RPermitExpirableSemaphore`-backed group elector behaves equivalently to the Lettuce slot-token TTL model. Two scenarios illustrate the contract: a normal acquire/release with crash recovery, and `minLeaseTime` extension via `updateLeaseTime`.
+
+### Scenario 1 — Normal acquire/release plus crash recovery
+
+```mermaid
+sequenceDiagram
+    participant ClientA
+    participant ClientB
+    participant Redis as "Redis (RPermitExpirableSemaphore)"
+
+    Note over ClientA,Redis: First use — trySetPermits idempotent init
+    ClientA->>Redis: getPermitExpirableSemaphore(lg:{lockName})
+    ClientA->>Redis: trySetPermits(maxLeaders=2)
+    Redis-->>ClientA: ok
+
+    ClientA->>Redis: tryAcquire(waitMs, leaseMs)
+    Redis-->>ClientA: permitId A1
+    ClientA->>ClientA: action()
+
+    ClientB->>Redis: tryAcquire(...)
+    Redis-->>ClientB: permitId B1
+
+    ClientA->>Redis: release(A1)
+    Redis-->>ClientA: ok
+
+    Note over ClientA,Redis: ClientA crash simulation
+    ClientA->>Redis: tryAcquire (lease=2s)
+    Redis-->>ClientA: permitId A2
+    ClientA->>ClientA: crash
+
+    Note over ClientB,Redis: 2s later — lease expired
+    ClientB->>Redis: tryAcquire
+    Redis-->>ClientB: permitId B3 (auto-recovered)
+```
+
+### Scenario 2 — `minLeaseTime` via `updateLeaseTime`
+
+```mermaid
+sequenceDiagram
+    participant ClientA
+    participant ClientB
+    participant Redis
+
+    Note over ClientA: minLeaseTime=300ms, action 50ms
+
+    ClientA->>Redis: tryAcquire
+    Redis-->>ClientA: permitId A1
+    ClientA->>ClientA: action() 50ms
+
+    ClientA->>Redis: updateLeaseTime(A1, remaining=250ms)
+    Redis-->>ClientA: true
+    Note over ClientA: caller returns immediately
+
+    ClientB->>Redis: tryAcquire (waitMs=100)
+    Redis-->>ClientB: null (not expired within 250ms)
+
+    Note over ClientB: after 250ms
+    ClientB->>Redis: tryAcquire
+    Redis-->>ClientB: permitId B1 (success)
+```
+
 ## Implementations
 
 | Class | Interface | Description |
 |-------|-----------|-------------|
 | `RedissonLeaderElector` | `LeaderElector` | Blocking via `RLock.tryLock()` |
-| `RedissonLeaderGroupElector` | `LeaderGroupElector` | Blocking multi-leader via `RSemaphore` |
+| `RedissonLeaderGroupElector` | `LeaderGroupElector` | Blocking multi-leader via `RPermitExpirableSemaphore` (`lg:{lockName}`) |
 | `RedissonSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine, PID-seeded Snowflake lock ID |
-| `RedissonSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader via `RSemaphoreAsync` |
+| `RedissonSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader via `RPermitExpirableSemaphoreAsync` |
 | `RedissonSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `RedissonSuspendLeaderElector` per call |
 | `RedissonSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `RedissonSuspendLeaderGroupElector` per call |
 
@@ -82,6 +147,20 @@ timestamp(42 bits) | pid%(2^10)(10 bits) | seq(12 bits)
 - `pid % 1024` as machine ID — reasonably collision-resistant across JVM processes in HA
 - Per-instance `AtomicLong` sequence counter (12 bits, wraps after 4096)
 - Zero Redis I/O — pure in-memory computation
+
+## Group Internals — `RPermitExpirableSemaphore`
+
+`RedissonLeaderGroupElector` and `RedissonSuspendLeaderGroupElector` use `RPermitExpirableSemaphore` keyed `lg:{lockName}`:
+
+- `trySetPermits(maxLeaders)` is invoked idempotently on the first access for each `lockName`. Without this, the semaphore would default to 0 permits and `tryAcquire` would always return `null`.
+- Each `tryAcquire(waitTime, leaseTime, ms)` returns a unique `permitId: String?` (or `null` on contention). The `permitId` is used to release or extend the exact slot — no positional ambiguity even when one elector instance holds multiple slots concurrently.
+- On `runIfLeader` finally:
+  - if `remainingMinLeaseTime > 0` → `updateLeaseTime(permitId, remainingMs, MILLISECONDS)` extends the backend TTL (the async path uses `updateLeaseTimeAsync`).
+  - otherwise → `release(permitId)` returns the slot immediately.
+- Crash recovery is automatic: when a holder dies without releasing, Redisson reclaims the permit after `leaseTime` expires.
+- `minLeaseTime` is delegated to the backend TTL (no caller-side park) — `runIfLeader` returns as soon as `action` finishes.
+
+> Earlier versions used `RSemaphore` with anonymous permits. The shift to `RPermitExpirableSemaphore` plus the new `lg:{lockName}` key prefix avoids collisions with any legacy keys during rolling upgrades.
 
 ## Usage
 
@@ -158,6 +237,17 @@ val options = LeaderElectionOptions(
     leaseTime = 30.seconds
 )
 val election = RedissonLeaderElector(client, options)
+```
+
+### Group `minLeaseTime` — backend TTL extension
+
+```kotlin
+val options = LeaderGroupElectionOptions(
+    maxLeaders = 3,
+    leaseTime = 30.seconds,
+    minLeaseTime = 1.seconds, // extends the permit TTL via updateLeaseTime
+)
+val election = RedissonLeaderGroupElector(client, options)
 ```
 
 ### Using `invoke` factory

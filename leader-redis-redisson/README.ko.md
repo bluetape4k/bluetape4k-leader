@@ -8,11 +8,13 @@
 
 ## 개요
 
-`leader-redis-redisson`은 Redisson의 `RLock`과 `RSemaphore`를 사용하여 `leader-core` 인터페이스를 구현합니다. 블로킹, 비동기, 코루틴, 가상 스레드 실행 모델을 모두 지원합니다.
+`leader-redis-redisson`은 Redisson의 `RLock`과 `RPermitExpirableSemaphore` 를 사용하여 `leader-core` 인터페이스를 구현합니다. 블로킹, 비동기, 코루틴, 가상 스레드 실행 모델을 모두 지원합니다.
 
-단일 리더 선출에서 `LeaderElectionOptions(autoExtend = true)`를 사용하면 명시적 lease timeout 없이 `RLock`을 획득해 Redisson 자체 watchdog에 위임합니다. watchdog release semantics가 모호하므로 `autoExtend=true`와 `minLeaseTime > 0` 조합은 거부합니다. 그룹/세마포어 auto-extension은 구현하지 않았습니다.
+단일 리더 선출에서 `LeaderElectionOptions(autoExtend = true)`를 사용하면 명시적 lease timeout 없이 `RLock`을 획득해 Redisson 자체 watchdog에 위임합니다. watchdog release semantics가 모호하므로 `autoExtend=true`와 `minLeaseTime > 0` 조합은 거부합니다.
 
-코루틴 구현체는 PID 시드 기반의 미니 Snowflake ID 생성기를 사용하여 Redis 라운드트립 없이 코루틴별 고유 락 ID를 생성합니다. HA(다중 JVM) 환경에서 안전하게 동작합니다.
+복수 리더 그룹 elector 는 `lg:{lockName}` 키의 `RPermitExpirableSemaphore` 를 사용하며, 첫 접근 시 `trySetPermits(maxLeaders)` 를 멱등적으로 호출합니다 (호출하지 않으면 0 permits 로 시작하여 acquire 가 영구 실패). 각 acquire 는 Redisson 이 발급한 고유한 `permitId` 를 반환하며, release / 연장 시 정확히 그 슬롯을 식별합니다. `minLeaseTime` 은 `updateLeaseTime` (sync) / `updateLeaseTimeAsync` (async) 로 backend TTL 에 위임되어 — caller 를 park 하지 않고 `runIfLeader` 가 `action` 종료 직후 즉시 반환합니다. 클라이언트 crash 시 (release 미호출) `leaseTime` 만료 후 Redisson 이 자동으로 슬롯을 회수합니다. `lg:{lockName}` key prefix 는 롤링 배포 시 구버전 semaphore 키와의 충돌을 피하기 위해 의도적으로 분리되었습니다.
+
+코루틴 단일 리더 구현체는 PID 시드 기반의 미니 Snowflake ID 생성기를 사용하여 Redis 라운드트립 없이 코루틴별 고유 락 ID를 생성합니다. HA(다중 JVM) 환경에서 안전하게 동작합니다.
 
 ## 아키텍처
 
@@ -58,14 +60,77 @@ classDiagram
     RedissonSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
 ```
 
+## 그룹 락 흐름
+
+`RPermitExpirableSemaphore` 기반 그룹 elector 는 Lettuce slot-token TTL 모델과 동등하게 동작합니다. 두 시나리오로 계약을 설명합니다: 정상 acquire/release 와 crash recovery, 그리고 `updateLeaseTime` 을 통한 `minLeaseTime` 연장.
+
+### 시나리오 1 — 정상 acquire/release 와 crash recovery
+
+```mermaid
+sequenceDiagram
+    participant ClientA
+    participant ClientB
+    participant Redis as "Redis (RPermitExpirableSemaphore)"
+
+    Note over ClientA,Redis: 첫 사용 — trySetPermits 멱등 초기화
+    ClientA->>Redis: getPermitExpirableSemaphore(lg:{lockName})
+    ClientA->>Redis: trySetPermits(maxLeaders=2)
+    Redis-->>ClientA: ok
+
+    ClientA->>Redis: tryAcquire(waitMs, leaseMs)
+    Redis-->>ClientA: permitId A1
+    ClientA->>ClientA: action()
+
+    ClientB->>Redis: tryAcquire(...)
+    Redis-->>ClientB: permitId B1
+
+    ClientA->>Redis: release(A1)
+    Redis-->>ClientA: ok
+
+    Note over ClientA,Redis: ClientA crash 시뮬레이션
+    ClientA->>Redis: tryAcquire (lease=2s)
+    Redis-->>ClientA: permitId A2
+    ClientA->>ClientA: crash
+
+    Note over ClientB,Redis: 2초 후 lease 만료
+    ClientB->>Redis: tryAcquire
+    Redis-->>ClientB: permitId B3 (자동 회수)
+```
+
+### 시나리오 2 — `updateLeaseTime` 을 통한 `minLeaseTime`
+
+```mermaid
+sequenceDiagram
+    participant ClientA
+    participant ClientB
+    participant Redis
+
+    Note over ClientA: minLeaseTime=300ms, action 50ms
+
+    ClientA->>Redis: tryAcquire
+    Redis-->>ClientA: permitId A1
+    ClientA->>ClientA: action() 50ms
+
+    ClientA->>Redis: updateLeaseTime(A1, remaining=250ms)
+    Redis-->>ClientA: true
+    Note over ClientA: caller 즉시 반환
+
+    ClientB->>Redis: tryAcquire (waitMs=100)
+    Redis-->>ClientB: null (250ms 안에 만료 X)
+
+    Note over ClientB: 250ms 후
+    ClientB->>Redis: tryAcquire
+    Redis-->>ClientB: permitId B1 (성공)
+```
+
 ## 구현체 목록
 
 | 클래스 | 구현 인터페이스 | 설명 |
 |-------|--------------|------|
 | `RedissonLeaderElector` | `LeaderElector` | `RLock.tryLock()` 기반 블로킹 |
-| `RedissonLeaderGroupElector` | `LeaderGroupElector` | `RSemaphore` 기반 블로킹 복수 리더 |
+| `RedissonLeaderGroupElector` | `LeaderGroupElector` | `RPermitExpirableSemaphore` (`lg:{lockName}`) 기반 블로킹 복수 리더 |
 | `RedissonSuspendLeaderElector` | `SuspendLeaderElector` | 코루틴, PID 시드 Snowflake 락 ID |
-| `RedissonSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | `RSemaphoreAsync` 기반 코루틴 복수 리더 |
+| `RedissonSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | `RPermitExpirableSemaphoreAsync` 기반 코루틴 복수 리더 |
 | `RedissonSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `RedissonSuspendLeaderElector` 생성 |
 | `RedissonSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `RedissonSuspendLeaderGroupElector` 생성 |
 
@@ -82,6 +147,20 @@ timestamp(42비트) | pid%(2^10)(10비트) | seq(12비트)
 - `pid % 1024`를 머신 ID로 사용 — HA 환경에서 JVM 프로세스 간 충돌 최소화
 - 인스턴스 내 `AtomicLong` 시퀀스 카운터 (12비트, 4096 이후 순환)
 - Redis I/O 없음 — 순수 인메모리 연산
+
+## 그룹 내부 동작 — `RPermitExpirableSemaphore`
+
+`RedissonLeaderGroupElector` 와 `RedissonSuspendLeaderGroupElector` 는 `lg:{lockName}` 키의 `RPermitExpirableSemaphore` 를 사용합니다:
+
+- 각 `lockName` 의 첫 접근에서 `trySetPermits(maxLeaders)` 를 멱등적으로 호출. 호출하지 않으면 0 permits 로 시작해 `tryAcquire` 가 항상 `null` 을 반환합니다.
+- 각 `tryAcquire(waitTime, leaseTime, ms)` 는 고유한 `permitId: String?` 를 반환 (경합 시 `null`). 이 `permitId` 로 정확한 슬롯을 release / 연장하므로 동일 elector 인스턴스가 동시에 여러 슬롯을 보유해도 안전합니다.
+- `runIfLeader` finally 블록에서:
+  - `remainingMinLeaseTime > 0` → `updateLeaseTime(permitId, remainingMs, MILLISECONDS)` 로 backend TTL 연장 (async 경로는 `updateLeaseTimeAsync`).
+  - 그 외 → `release(permitId)` 로 즉시 슬롯 반납.
+- 클라이언트 crash 시 (release 미호출) `leaseTime` 만료 후 Redisson 이 자동으로 permit 을 회수합니다.
+- `minLeaseTime` 을 backend TTL 에 위임 (caller-park 없음) — `runIfLeader` 는 `action` 종료 직후 즉시 반환.
+
+> 이전 버전은 익명 permit 의 `RSemaphore` 를 사용했습니다. `RPermitExpirableSemaphore` 로의 전환과 새 `lg:{lockName}` key prefix 는 롤링 업그레이드 시 구버전 키와의 충돌을 방지합니다.
 
 ## 사용 예시
 
@@ -158,6 +237,17 @@ val options = LeaderElectionOptions(
     leaseTime = 30.seconds
 )
 val election = RedissonLeaderElector(client, options)
+```
+
+### 그룹 `minLeaseTime` — backend TTL 연장
+
+```kotlin
+val options = LeaderGroupElectionOptions(
+    maxLeaders = 3,
+    leaseTime = 30.seconds,
+    minLeaseTime = 1.seconds, // updateLeaseTime 으로 permit TTL 연장
+)
+val election = RedissonLeaderGroupElector(client, options)
 ```
 
 ### SPI 팩토리 사용
