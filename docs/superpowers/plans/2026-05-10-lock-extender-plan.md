@@ -2447,6 +2447,20 @@ class RedissonThreadIdSemanticsTest {
 # Expected: PASS
 ```
 
+- [ ] **Step 7b: Write `RedissonExtendDelegateReferenceTest` (AC-23 — Plan-R3-P1-2)**
+
+```kotlin
+// leader-redis-redisson/src/test/kotlin/io/bluetape4k/leader/redisson/RedissonExtendDelegateReferenceTest.kt
+class RedissonExtendDelegateReferenceTest {
+    @Test fun `delegate reference shared with watchdog`() {
+        // T7 의 LettuceExtendDelegateReferenceTest 와 동일 패턴 — Redisson elector
+    }
+}
+```
+```bash
+./gradlew :leader-redis-redisson:test --tests "*ExtendDelegateReferenceTest" --no-daemon
+```
+
 - [ ] **Step 8: Commit**
 
 ```bash
@@ -2600,6 +2614,17 @@ rg -n '\$gt.*expireAt|expireAt.*\$gt' leader-mongodb/src/main/kotlin/
 # Expected: PASS
 ```
 
+- [ ] **Step 8b: Write `MongoExtendDelegateReferenceTest` (AC-23 — Plan-R3-P1-2)**
+
+```kotlin
+class MongoExtendDelegateReferenceTest {
+    @Test fun `delegate reference shared with watchdog`() { /* T7 패턴 — MongoLeaderElector */ }
+}
+```
+```bash
+./gradlew :leader-mongodb:test --tests "*ExtendDelegateReferenceTest" --no-daemon
+```
+
 - [ ] **Step 9: Commit**
 
 ```bash
@@ -2691,6 +2716,17 @@ class ExposedJdbcLockExtenderContractTest : AbstractSyncLockExtenderContractTest
 # Expected: PASS
 ```
 
+- [ ] **Step 6b: Write `ExposedJdbcExtendDelegateReferenceTest` (AC-23 — Plan-R3-P1-2)**
+
+```kotlin
+class ExposedJdbcExtendDelegateReferenceTest {
+    @Test fun `delegate reference shared with watchdog`() { /* T7 패턴 — ExposedJdbcLeaderElector */ }
+}
+```
+```bash
+./gradlew :leader-exposed-jdbc:test --tests "*ExtendDelegateReferenceTest" --no-daemon
+```
+
 - [ ] **Step 7: Commit**
 
 ```bash
@@ -2774,6 +2810,17 @@ class ExposedR2dbcSuspendGroupLockExtenderContractTest : AbstractSuspendGroupLoc
 ```bash
 ./gradlew :leader-exposed-r2dbc:test --tests "*LockExtenderContractTest" --no-daemon
 # Expected: PASS
+```
+
+- [ ] **Step 5b: Write `ExposedR2dbcExtendDelegateReferenceTest` (AC-23 — Plan-R3-P1-2)**
+
+```kotlin
+class ExposedR2dbcExtendDelegateReferenceTest {
+    @Test fun `delegate reference shared with watchdog`() { /* T7 패턴 — ExposedR2dbcSuspendLeaderElector */ }
+}
+```
+```bash
+./gradlew :leader-exposed-r2dbc:test --tests "*ExtendDelegateReferenceTest" --no-daemon
 ```
 
 - [ ] **Step 6: Commit**
@@ -2903,6 +2950,17 @@ fun `AC-7 — extend uses EntryProcessor, not setTtl`() {
 # Expected: PASS
 ```
 
+- [ ] **Step 7b: Write `HazelcastExtendDelegateReferenceTest` (AC-23 — Plan-R3-P1-2)**
+
+```kotlin
+class HazelcastExtendDelegateReferenceTest {
+    @Test fun `delegate reference shared with watchdog`() { /* T7 패턴 — HazelcastLeaderElector */ }
+}
+```
+```bash
+./gradlew :leader-hazelcast:test --tests "*ExtendDelegateReferenceTest" --no-daemon
+```
+
 - [ ] **Step 8: Commit**
 
 ```bash
@@ -2996,6 +3054,20 @@ fun `AC-20 — autoExtend=true emits WARN at startup`() {
 ```bash
 ./gradlew :leader-zookeeper:test --tests "*LockExtenderContractTest" --no-daemon
 # Expected: PASS
+```
+
+- [ ] **Step 6b: Write `ZkExtendDelegateReferenceTest` (AC-23 — Plan-R3-P1-2)**
+
+```kotlin
+class ZkExtendDelegateReferenceTest {
+    @Test fun `delegate reference shared with watchdog`() {
+        // T7 패턴 — ZkLeaderElector. ZK 는 autoExtend=false 강제이므로 watchdog.delegate 는 noop placeholder.
+        // 그래도 handle.extendDelegate === watchdog.delegate reference 일관성 검증.
+    }
+}
+```
+```bash
+./gradlew :leader-zookeeper:test --tests "*ExtendDelegateReferenceTest" --no-daemon
 ```
 
 - [ ] **Step 7: Commit**
@@ -4110,6 +4182,15 @@ Two execution options:
 2. **Inline Execution** — batch execution with checkpoints (REQUIRED SUB-SKILL: `superpowers:executing-plans`).
 
 **Critical path:** T1 → T2 → T3 → T4 → T14 → T17 → T18 → T19.
-**Parallel-eligible:** T5-T13 backend 별 (T1-T3 완료 후).
+
+**Parallel windows** (Plan-R3-P1-1 — handoff 동기화, 상단 dependency graph 와 일치):
+- T5 는 T1, T3 후 시작 (BackendErrorClassifier SPI + LeaderLeaseAutoExtender signature)
+- T6 는 T4, T5 후 시작 (AbstractLockExtenderContractTest base)
+- T7~T13 backend tasks 는 **T5, T6 완료 후** 병렬 가능
+- T11 (R2DBC) 는 T10 (JDBC) 의 SQL 패턴 참조 — T10 → T11 직렬
+- T14 는 T1~T4 모두 완료 후 시작 (LockAssert/LockExtender 사용)
+- T15 는 T14 후
+- T16 (validator) 는 T1~T4 의존 — T14 와 병렬 가능
+
 **Estimated effort:** 19 tasks — high(6) / medium(8) / low(5).
 
