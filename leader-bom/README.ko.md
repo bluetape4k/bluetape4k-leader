@@ -27,9 +27,10 @@ graph TB
       Zk[leader-zookeeper]
     end
 
-    subgraph "Spring / 메트릭"
+    subgraph "Spring / 메트릭 / Ktor"
       SB[leader-spring-boot]
       Mm[leader-micrometer]
+      Ktor[leader-ktor]
     end
 
     Consumer -->|platform import| BOM
@@ -38,6 +39,7 @@ graph TB
     BOM -.->|버전 constraint| Mongo
     BOM -.->|버전 constraint| SB
     BOM -.->|버전 constraint| Mm
+    BOM -.->|버전 constraint| Ktor
 ```
 
 BOM은 Gradle `java-platform` 으로 `<dependencyManagement>` constraint 만 게시한다.
@@ -63,6 +65,7 @@ BOM은 Gradle `java-platform` 으로 `<dependencyManagement>` constraint 만 게
 | `bluetape4k-leader-zookeeper` | Apache ZooKeeper 백엔드 |
 | `bluetape4k-leader-spring-boot` | Spring Boot auto-configuration + AOP (`@LeaderElection`) |
 | `bluetape4k-leader-micrometer` | Micrometer 메트릭 instrumentation |
+| `bluetape4k-leader-ktor` | Ktor 3.x 통합 — `LeaderElectionPlugin` + `leaderScheduled()` |
 
 ## 사용 예제
 

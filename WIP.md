@@ -1,15 +1,27 @@
 # WIP - bluetape4k-leader
 
-Snapshot: 2026-05-09 KST
+Snapshot: 2026-05-10 KST
 Scope: open GitHub issues assigned to `debop`, created on or after 2026-01-01.
-Open count: 13 issues.
+
+## Recently Completed (now in CHANGELOG `[Unreleased]`)
+
+- **#37 leader-ktor** — Ktor 3.x integration (`LeaderElectionPlugin`,
+  `Application.leaderScheduled`) — PR #164.
+- **#36 leader examples** — six runnable examples covering every supported
+  backend:
+  - `examples/batch-scheduler` (Lettuce Redis) — PR #159
+  - `examples/migration-gate` (Exposed JDBC) — PR #160
+  - `examples/webhook-poller` (MongoDB) — PR #161
+  - `examples/cache-warmer` (Hazelcast) — PR #162
+  - `examples/tenant-aggregator` (Exposed R2DBC) — PR #163
+  - `examples/ktor-app` (Ktor 3.x + Lettuce) — PR #166
 
 ## Current Direction
 
-Completed implementation history belongs in `CHANGELOG.md` and merged PRs. The
-active WIP is now centered on lease safety, state/audit semantics, and examples.
-
-Do not start example-heavy work until long-running lease behavior is clear.
+Examples and Ktor integration are now landed. The remaining open work is
+centered on **lease safety**, **state/audit semantics**, and **multi-tenancy**.
+`#145` (Prometheus runnable example) remains in the examples lane but is
+single-issue rather than a phase.
 
 ## Priority Queue
 
@@ -24,8 +36,6 @@ Do not start example-heavy work until long-running lease behavior is clear.
 | P2 | [#72](https://github.com/bluetape4k/bluetape4k-leader/issues/72) `@LeaderGroupElection` leaderId | M | Group API change; do after AOP baseline is stable. |
 | P2 | [#39](https://github.com/bluetape4k/bluetape4k-leader/issues/39) use DB server time | M | Exposed backend-specific; depends on backend maturity. |
 | P2 | [#42](https://github.com/bluetape4k/bluetape4k-leader/issues/42) multitenancy namespace | M | Valuable after lease and state contracts settle. |
-| P3 | [#36](https://github.com/bluetape4k/bluetape4k-leader/issues/36) leader examples | L | Wait for lease safety and state/audit decisions. |
-| P3 | [#37](https://github.com/bluetape4k/bluetape4k-leader/issues/37) leader-ktor | M | Integration after API shape stabilizes. |
 | P3 | [#145](https://github.com/bluetape4k/bluetape4k-leader/issues/145) Prometheus scrape runnable example | S | After state/metrics examples are stable. |
 | P4 | [#38](https://github.com/bluetape4k/bluetape4k-leader/issues/38) lockAtLeastFor | M | Duplicate candidate; merge useful text into `#77`, then close as duplicate. |
 
@@ -43,10 +53,6 @@ Do not start example-heavy work until long-running lease behavior is clear.
 #68 state API
 #50 audit contract
   -> #145 Prometheus runnable example
-
-#36 examples
-#37 Ktor integration
-  -> after core semantics stabilize
 ```
 
 ## WIP Limits
@@ -55,11 +61,11 @@ Do not start example-heavy work until long-running lease behavior is clear.
 |---|---:|---|
 | Lease safety | 1 | `#73`, then `#77/#79/#74`. |
 | State/audit | 1 | `#68` or `#50`. |
-| Examples/integration | 0 until semantics settle | `#36/#37/#145` wait. |
+| Examples/integration | 1 | `#145` Prometheus example after state/audit lands. |
 
 ## Cleanup Actions
 
 | Candidate | Action |
 |---|---|
 | `#38` | Move any option-validation detail into `#77`, comment that `#77` supersedes it, then close `#38` as duplicate. |
-| `#36` vs `bluetape4k-workshop #10` | Keep both only if this repo owns small library examples and workshop owns runnable scenario apps. |
+| `#36` vs `bluetape4k-workshop #10` | `#36` closed in this repo as the six small library examples landed. Workshop continues to own runnable scenario apps. |

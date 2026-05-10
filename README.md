@@ -9,6 +9,7 @@
 
 A standalone Kotlin/JVM library for **distributed leader election**.  
 Provides blocking, async, coroutine, and virtual-thread APIs backed by Redis, Exposed, MongoDB, Hazelcast, and ZooKeeper.
+Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
 
 ---
 
@@ -35,7 +36,7 @@ graph TD
     Mongo["leader-mongodb\n(MongoDB)"]
     SB["leader-spring-boot\n(Boot 4, CTW)"]
     Metrics["leader-micrometer\n(Micrometer metrics)"]
-    Ktor["leader-ktor\n(planned)"]
+    Ktor["leader-ktor\n(Ktor 3.x)"]
     ZK["leader-zookeeper\n(ZooKeeper)"]
 
     Lettuce --> Core
@@ -66,7 +67,22 @@ graph TD
 | `leader-micrometer` | Stable | Micrometer metrics integration (`MicrometerLeaderAopMetricsRecorder`) |
 | `leader-spring-boot` | Stable | Spring Boot 4 auto-configuration + AOP (AspectJ CTW, Freefair post-compile weaving) |
 | `leader-zookeeper` | Stable | ZooKeeper/Curator backend (`InterProcessMutex` / `InterProcessSemaphoreV2`) |
-| `leader-ktor` | Planned | Ktor Plugin DSL + `leaderScheduled()` scheduling helper |
+| `leader-ktor` | Stable | Ktor 3.x integration — `LeaderElectionPlugin` + `leaderScheduled()` |
+
+## Examples
+
+Runnable example modules under `examples/` demonstrate production scenarios across every supported backend. Examples are **not** publishing artifacts (`path.startsWith(":examples:")` is excluded from publish/sign/NMCP); copy them into your own service to start.
+
+| Example | Backend | Scenario |
+|---------|---------|----------|
+| [`examples/batch-scheduler`](./examples/batch-scheduler) | Lettuce Redis | Periodic batch job (e.g. nightly settlement) — single execution across N instances |
+| [`examples/migration-gate`](./examples/migration-gate) | Exposed JDBC (PostgreSQL/H2) | Boot-time schema migration gate — exactly one instance runs migrations |
+| [`examples/webhook-poller`](./examples/webhook-poller) | MongoDB | External webhook polling — only the leader polls and dispatches |
+| [`examples/cache-warmer`](./examples/cache-warmer) | Hazelcast | Per-partition leader election — exactly one instance warms each partition |
+| [`examples/tenant-aggregator`](./examples/tenant-aggregator) | Exposed R2DBC | Coroutine-native multi-tenant aggregation — independent leader per tenant |
+| [`examples/ktor-app`](./examples/ktor-app) | Ktor 3.x + Lettuce Redis | Ktor application using `LeaderElectionPlugin` and `Application.leaderScheduled()` |
+
+Run any example with `./gradlew :examples:<name>:run` (Docker required for Testcontainers-backed demos).
 
 ## Quick Start
 
@@ -86,6 +102,9 @@ implementation("io.github.bluetape4k.leader:leader-exposed-r2dbc:0.1.0-SNAPSHOT"
 
 // ZooKeeper / Apache Curator
 implementation("io.github.bluetape4k.leader:leader-zookeeper:0.1.0-SNAPSHOT")
+
+// Ktor 3.x integration (LeaderElectionPlugin + leaderScheduled())
+implementation("io.github.bluetape4k.leader:leader-ktor:0.1.0-SNAPSHOT")
 ```
 
 ### Exposed JDBC (H2 / PostgreSQL / MySQL)
