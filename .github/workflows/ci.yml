@@ -94,6 +94,7 @@ jobs:
       examples-webhook-poller: ${{ steps.filter.outputs.examples-webhook-poller }}
       examples-cache-warmer: ${{ steps.filter.outputs.examples-cache-warmer }}
       examples-tenant-aggregator: ${{ steps.filter.outputs.examples-tenant-aggregator }}
+      examples-ktor-app: ${{ steps.filter.outputs.examples-ktor-app }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -142,6 +143,11 @@ jobs:
               - 'examples/tenant-aggregator/**'
               - 'leader-exposed-r2dbc/**'
               - 'leader-exposed-core/**'
+              - 'leader-core/**'
+            examples-ktor-app:
+              - 'examples/ktor-app/**'
+              - 'leader-ktor/**'
+              - 'leader-redis-lettuce/**'
               - 'leader-core/**'
 
   # ── 3. 전체 빌드 (테스트 제외) ───────────────────────────────────────────
@@ -710,6 +716,42 @@ jobs:
           path: '**/build/test-results/test/*.xml'
           retention-days: 7
 
+  # ── examples-ktor-app (Testcontainers Redis + Ktor 3.x) ─────────────────────
+  test-examples-ktor-app:
+    name: Test / examples-ktor-app
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs['examples-ktor-app'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+          cache-read-only: true
+      - name: Test examples-ktor-app
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :examples:ktor-app:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+          DOCKER_HOST: "unix:///var/run/docker.sock"
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-examples-ktor-app
+          path: '**/build/test-results/test/*.xml'
+          retention-days: 7
+
   # ── leader-spring-boot 테스트 (Testcontainers: Redis + MongoDB + H2) ────────
   test-spring-boot:
     name: Test / leader-spring-boot (Testcontainers)
@@ -968,6 +1010,7 @@ jobs:
       - test-examples-webhook-poller
       - test-examples-cache-warmer
       - test-examples-tenant-aggregator
+      - test-examples-ktor-app
     if: always()
     steps:
       - uses: actions/checkout@v4
@@ -1018,6 +1061,7 @@ jobs:
       - test-examples-webhook-poller
       - test-examples-cache-warmer
       - test-examples-tenant-aggregator
+      - test-examples-ktor-app
       - coverage-report
     if: always()
     steps:
