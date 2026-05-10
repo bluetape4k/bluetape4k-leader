@@ -21,6 +21,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
@@ -304,6 +306,43 @@ class WebhookPollerTest: AbstractWebhookPollerTest() {
         delay(200.milliseconds)
         job.cancelAndJoin()
         job.isCancelled shouldBeEqualTo true
+    }
+
+    @Test
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    fun `동시 start - 하나만 성공하고 나머지는 이미 실행 중으로 실패`() = runBlocking {
+        val lockName = randomLockName()
+        val elector = newElector()
+        val poller = WebhookPoller(
+            elector = elector,
+            eventCollection = eventCollection,
+            options = fastOptions("node-concurrent-start", lockName),
+        ) { delay(10.milliseconds) }
+
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val executor = Executors.newFixedThreadPool(16)
+        val startGate = CountDownLatch(1)
+        try {
+            val attempts = (1..32).map {
+                executor.submit<Result<Unit>> {
+                    startGate.await()
+                    runCatching {
+                        poller.start(scope)
+                        Unit
+                    }
+                }
+            }
+
+            startGate.countDown()
+            val results = attempts.map { it.get(5, TimeUnit.SECONDS) }
+
+            results.count { it.isSuccess } shouldBeEqualTo 1
+            results.count { it.exceptionOrNull() is IllegalStateException } shouldBeEqualTo 31
+        } finally {
+            executor.shutdownNow()
+            poller.stopGracefully(2.seconds)
+            scope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin()
+        }
     }
 
     /**

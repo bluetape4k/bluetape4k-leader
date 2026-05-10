@@ -24,6 +24,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.bson.Document
 import java.time.Instant
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * 분산 webhook 이벤트 polling 워커.
@@ -97,6 +99,13 @@ class WebhookPoller(
         internal const val FIELD_CREATED_AT = "createdAt"
     }
 
+    /**
+     * [start] / [stopGracefully] 의 동시 호출을 직렬화하기 위한 락.
+     *
+     * 가상 스레드 환경에서도 안전하도록 `synchronized` 가 아닌 [ReentrantLock] 을 사용한다.
+     */
+    private val lifecycleLock = ReentrantLock()
+
     @Volatile
     private var pollerJob: Job? = null
 
@@ -109,7 +118,7 @@ class WebhookPoller(
      * - 동일 인스턴스에서 두 번 호출 금지 (이미 실행 중이면 [IllegalStateException]).
      * - [scope] 가 cancel 되면 자동 종료.
      */
-    fun start(scope: CoroutineScope): Job {
+    fun start(scope: CoroutineScope): Job = lifecycleLock.withLock {
         check(pollerJob == null || pollerJob?.isActive != true) {
             "WebhookPoller(nodeId=${options.nodeId}) is already running"
         }
@@ -125,14 +134,14 @@ class WebhookPoller(
             }
         }
         pollerJob = job
-        return job
+        job
     }
 
     /**
      * 폴링 루프를 정상 종료한다. [timeout] 안에 종료되지 않으면 강제 cancel 후 반환.
      */
     suspend fun stopGracefully(timeout: Duration = 30.seconds) {
-        val job = pollerJob ?: return
+        val job = lifecycleLock.withLock { pollerJob } ?: return
         try {
             withTimeoutOrNull(timeout) { job.cancelAndJoin() }
         } catch (e: CancellationException) {
@@ -140,7 +149,9 @@ class WebhookPoller(
         } catch (e: Exception) {
             log.warn(e) { "[${options.nodeId}] stopGracefully encountered error" }
         } finally {
-            pollerJob = null
+            lifecycleLock.withLock {
+                if (pollerJob === job) pollerJob = null
+            }
         }
     }
 
@@ -167,7 +178,7 @@ class WebhookPoller(
 
     private suspend fun runLoop() {
         while (kotlin.coroutines.coroutineContext[Job]?.isActive != false) {
-            val processed = try {
+            try {
                 elector.runIfLeader(options.lockName) {
                     log.debug { "[${options.nodeId}] 리더 선출 — batch 처리 시작" }
                     processBatch()
