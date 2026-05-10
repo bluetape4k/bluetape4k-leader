@@ -24,4 +24,5 @@ include(
     "leader-zookeeper",
     "leader-spring-boot",
     "leader-micrometer",
+    "examples:batch-scheduler",
 )
