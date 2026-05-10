@@ -25,4 +25,5 @@ include(
     "leader-spring-boot",
     "leader-micrometer",
     "examples:batch-scheduler",
+    "examples:migration-gate",
 )
