@@ -1993,7 +1993,7 @@ git commit -m "test(leader-core): T6 abstract contract bases + Local concrete te
 
 **Complexity:** high
 **Module:** `leader-redis-lettuce`
-**Depends on:** T1, T3, T5
+**Depends on:** T1, T3, T5, T6 (AbstractLockExtenderContractTest base — Plan-R2-P1-2)
 **Satisfies AC:** AC-1 (Lettuce rows), AC-15 (delegate ref), AC-16 (server-side TIME grep), AC-18 (CancellationException re-throw), AC-21 (extendSuspend override), AC-23 (per-module ref test), AC-24 (Lettuce classifier)
 
 **Files:**
@@ -2259,9 +2259,19 @@ rg -n "withContext\(Dispatchers\.IO\)" leader-redis-lettuce/src/main/kotlin/
 class LettuceExtendDelegateReferenceTest {
     @Test fun `delegate reference shared with watchdog`() {
         // T5 의 LocalExtendDelegateReferenceTest 와 동일 패턴 — Lettuce elector
+        // - acquire 한 elector 의 watchdog.delegate 와 handle.extendDelegate 가 === 동일 reference
+        // - `extendDelegate` 가 `internal` 접근 가능 (backend module 안 test 이므로 OK)
+        // - mockk 또는 reflection 으로 reference equality 검증
     }
 }
 ```
+
+> 💡 **AC-23 per-backend ref test pattern (Plan-R2-P1-3)** — T8~T13 모두 동일 패턴 적용:
+> - `RedissonExtendDelegateReferenceTest` (T8), `MongoExtendDelegateReferenceTest` (T9),
+> - `ExposedJdbcExtendDelegateReferenceTest` (T10), `ExposedR2dbcExtendDelegateReferenceTest` (T11),
+> - `HazelcastExtendDelegateReferenceTest` (T12), `ZkExtendDelegateReferenceTest` (T13).
+>
+> 각 backend module 의 test sourceSet 안에 위치 — `extendDelegate` 가 `internal` 이므로 cross-module 접근 불가, same-module test 만 가능. **각 task 의 마지막 step 으로 "Write `{Backend}ExtendDelegateReferenceTest` (AC-23)" 추가 의무.**
 
 - [ ] **Step 13: Run module build + tests**
 
@@ -2283,7 +2293,7 @@ git commit -m "feat(leader-redis-lettuce): T7 extend ExtendOutcome + group exten
 
 **Complexity:** high
 **Module:** `leader-redis-redisson`
-**Depends on:** T1, T3, T5
+**Depends on:** T1, T3, T5, T6 (AbstractLockExtenderContractTest base — Plan-R2-P1-2)
 **Satisfies AC:** AC-1 (Redisson rows), AC-8 (thread-id semantics), AC-15, AC-18, AC-21, AC-23, AC-24
 
 **Files:**
@@ -2450,7 +2460,7 @@ git commit -m "feat(leader-redis-redisson): T8 owner-guarded Lua + group updateL
 
 **Complexity:** medium
 **Module:** `leader-mongodb`
-**Depends on:** T1, T3, T5
+**Depends on:** T1, T3, T5, T6 (AbstractLockExtenderContractTest base — Plan-R2-P1-2)
 **Satisfies AC:** AC-1 (Mongo rows), AC-15, AC-17 (filter grep), AC-18, AC-21, AC-23, AC-24
 
 **Files:**
@@ -2603,7 +2613,7 @@ git commit -m "feat(leader-mongodb): T9 extend filter expireAt>now + group exten
 
 **Complexity:** medium
 **Module:** `leader-exposed-jdbc`
-**Depends on:** T1, T3, T5
+**Depends on:** T1, T3, T5, T6 (AbstractLockExtenderContractTest base — Plan-R2-P1-2)
 **Satisfies AC:** AC-1 (Exposed JDBC rows), AC-15, AC-18, AC-21, AC-23, AC-24
 
 **Files:**
@@ -2779,7 +2789,7 @@ git commit -m "feat(leader-exposed-r2dbc): T11 suspend extend SQL + classifier"
 
 **Complexity:** high
 **Module:** `leader-hazelcast`
-**Depends on:** T1, T3, T5
+**Depends on:** T1, T3, T5, T6 (AbstractLockExtenderContractTest base — Plan-R2-P1-2)
 **Satisfies AC:** AC-1 (Hazelcast rows), AC-7 (EntryProcessor — plain setTtl 금지), AC-15, AC-18, AC-21, AC-23, AC-24
 
 **Files:**
@@ -2906,7 +2916,7 @@ git commit -m "feat(leader-hazelcast): T12 ExtendEntryProcessor + capture + clas
 
 **Complexity:** low
 **Module:** `leader-zookeeper`
-**Depends on:** T1, T3, T5
+**Depends on:** T1, T3, T5, T6 (AbstractLockExtenderContractTest base — Plan-R2-P1-2)
 **Satisfies AC:** AC-1 (ZK rows — passthrough), AC-15, AC-20 (autoExtend WARN), AC-23, AC-24
 
 **Files:**
@@ -3437,6 +3447,26 @@ fun `AC-2b — @LeaderElection + @LeaderGroupElection same lockName both acquire
     // outer SyncSingleBean (lockName="X") + inner SyncGroupBean (lockName="X")
     // verify(exactly = 1) { singleElector.runIfLeaderResult("X", any()) }
     // verify(exactly = 1) { groupElector.runIfLeaderResult("X", any()) }
+}
+```
+
+- [ ] **Step 6b: Group FailOpen sentinel reentrant test (Plan-R2-P1-1)**
+
+```kotlin
+@Test
+fun `Plan-R2-P1-1 — group FailOpen sentinel scope nested same identity — backend untouched + sentinel preserved (sync)`() {
+    // outer @LeaderGroupElection("gA") backend exception → FAIL_OPEN_RUN → sentinel push
+    //   inner @LeaderGroupElection("gA") 진입 → reentrant peek 가 FailOpen sentinel 감지 → 동일 sentinel 유지
+    // verify(exactly = 0) { groupElector.runIfLeaderResult("gA", any()) }  // inner backend 미접촉
+    // assert LockStateHolder.peekSync() is LeaderLockHandle.FailOpen
+    // assertFailsWith<IllegalStateException> { LockAssert.assertLocked() }
+}
+
+@Test
+fun `Plan-R2-P1-1 — group FailOpen sentinel scope nested same identity (suspend)`() = runTest {
+    // 동일 시나리오 suspend 분기 — coroutineContext[LockHandleElement]?.handle is FailOpen + identity 일치 시 sentinel 유지
+    // currentCoroutineContext()[LockHandleElement]?.handle.shouldBeInstanceOf<LeaderLockHandle.FailOpen>()
+    // assertFailsWith<IllegalStateException> { LockAssert.assertLockedSuspend() }
 }
 ```
 
