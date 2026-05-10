@@ -28,4 +28,5 @@ include(
     "examples:migration-gate",
     "examples:webhook-poller",
     "examples:cache-warmer",
+    "examples:tenant-aggregator",
 )
