@@ -1058,7 +1058,7 @@ LockExtender.extendActiveLock(Duration.ofMinutes(5));
 - **`leader-spring-boot/README.md` + `README.ko.md`** — 신규 섹션 "LockAssert & LockExtender (ShedLock-equivalent)" + Mermaid sequenceDiagram.
 - 8 backend 모듈 README — "extend now supported" 한 줄 노트.
 - **`leader-ktor/README.md`** — 한 줄 노트: "plugin 안에서 `LockAssert.assertLockedSuspend()` 사용 가능" (Architect A8).
-- **`leader-ktor` propagation smoke test** (R7-A1): plugin 의 `coroutineScope` + `withContext(LockHandleElement(...))` propagation 검증 1건. Ktor `call.attributes` / `PipelineContext` dispatch 시 element 가 떨어지면 README "미지원 시나리오" 명시 (Mono 분기 동일 정책).
+- **`leader-ktor` propagation smoke test** (R7-A1 / R7-Codex-3): 실제 plugin surface 인 `leaderScheduled { ... }` background action 안에서 `LockAssert.assertLockedSuspend()` / `LockExtender.extendActiveLockSuspend()` 가 정확히 동작 검증. plugin 자체는 `Application.attributes` 만 사용하며 request routing context 는 주입하지 않음 — `Application.routing` / `PipelineContext` / 임의 Reactor operator 등 비-leaderScheduled 표면에서 propagation 실패 시 README "미지원 시나리오" 명시 (Mono 분기 동일 정책).
 - KDoc — 모든 신규 public surface + `ExtendOutcome` variants.
 - **CHANGELOG.md** — `LockHandleElement` 추가, `LockAssert`/`LockExtender` API 신규, validator `CompletableFuture` 차단, watchdog × extend 가시성 (Architect A9).
 - **`WIP.md`** (R7-A2) — Issue #79 완료 표시 + "ShedLock 호환 ergonomic API 도입" 섹션 (3-5줄 요약 + 신규 API surface 링크 — `LockAssert`, `LockExtender`, `ExtendOutcome`, `LeaderLockHandle`).
