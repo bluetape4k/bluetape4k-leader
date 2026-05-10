@@ -515,20 +515,27 @@ sealed interface LeaderRunResult<out T> {
 - **suspend 변형 default fun 추가** (R4-F1):
 
 ```kotlin
-// SuspendLeaderElector.kt — default fun 신규 추가
+// SuspendLeaderElector.kt — default fun 신규 추가 (R5-F1)
+// ⭐ `elected` flag 패턴 — action 이 정상 실행 후 null 반환해도 Elected 분류
+//   (기존 sync `runIfLeaderResult` default fun 의 LeaderElector.kt:62 패턴 동일)
 suspend fun <T> runIfLeaderResultSuspend(
     lockName: String,
     action: suspend () -> T,
 ): LeaderRunResult<T> {
-    val value = runIfLeader(lockName, action)
-    return if (value != null) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
+    var elected = false
+    val value = runIfLeader(lockName) { elected = true; action() }
+    return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
 }
 
-// SuspendLeaderGroupElector.kt — 동일
+// SuspendLeaderGroupElector.kt — 동일 패턴
 suspend fun <T> runIfLeaderResultSuspend(
     lockName: String,
     action: suspend () -> T,
-): LeaderRunResult<T> { ... }
+): LeaderRunResult<T> {
+    var elected = false
+    val value = runIfLeader(lockName) { elected = true; action() }
+    return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
+}
 ```
 
 - ⚠️ **`options` 인자 spec sketch 에서 제거** (R4-F1) — 기존 `runIfLeader` API 가 `options` 를 별도 인자로 받지 않고 `LeaderElectionOptions` 는 elector 생성 시점 또는 어노테이션 메타데이터로 전달. spec §7.1/§7.2 sketch 의 `meta.options` 인자는 **메타데이터 전달 용 (caller side context)** 이며, 실제 `runIfLeaderResult*` 호출 시 인자로 넣지 않음. (default fun 이 기존 `runIfLeader(name, action)` 만 호출.)
@@ -572,42 +579,61 @@ suspend fun <T> runIfLeaderResultSuspend(
 
 ### Backend exception policy (SF9 + R4-F5)
 
+**SPI 패턴 — backend module 의존성 역전** (R5-F4): `leader-core` 는 backend exception class 직접 참조 불가 (build dependency 문제). SPI interface + JDK/common 분류만 core 에 두고, 각 backend module 이 자기 classifier 등록.
+
 ```kotlin
 // leader-core/src/main/kotlin/io/bluetape4k/leader/internal/BackendErrorClassifier.kt
-internal enum class BackendErrorKind { TRANSIENT, NON_TRANSIENT, FATAL }
+package io.bluetape4k.leader.internal
 
-internal object BackendErrorClassifier {
-    /** backend 별 known exception 매핑 — TRANSIENT 는 BackendError 변환, NON_TRANSIENT 는 throw, FATAL 은 propagate. */
-    fun classify(cause: Throwable): BackendErrorKind = when {
-        cause is OutOfMemoryError || cause is StackOverflowError || cause is LinkageError -> FATAL
-        // Lettuce
-        cause is io.lettuce.core.RedisCommandTimeoutException -> TRANSIENT
-        cause is io.lettuce.core.RedisConnectionException -> TRANSIENT
-        cause is io.lettuce.core.RedisCommandExecutionException -> NON_TRANSIENT  // Lua syntax / auth
-        // Redisson
-        cause is org.redisson.client.RedisTimeoutException -> TRANSIENT
-        cause is org.redisson.client.RedisConnectionException -> TRANSIENT
-        // Mongo
-        cause is com.mongodb.MongoSocketException -> TRANSIENT
-        cause is com.mongodb.MongoTimeoutException -> TRANSIENT
-        cause is com.mongodb.MongoCommandException -> NON_TRANSIENT  // auth / index 오류
-        // Exposed JDBC / R2DBC
-        cause is java.sql.SQLTransientException -> TRANSIENT
-        cause is java.sql.SQLRecoverableException -> TRANSIENT
-        cause is java.sql.SQLNonTransientException -> NON_TRANSIENT
-        cause is io.r2dbc.spi.R2dbcTransientException -> TRANSIENT
-        cause is io.r2dbc.spi.R2dbcNonTransientException -> NON_TRANSIENT
-        // Hazelcast
-        cause is com.hazelcast.spi.exception.RetryableHazelcastException -> TRANSIENT
-        cause is com.hazelcast.core.OperationTimeoutException -> TRANSIENT
-        // ZooKeeper / Curator
-        cause is org.apache.zookeeper.KeeperException.ConnectionLossException -> TRANSIENT
-        cause is org.apache.zookeeper.KeeperException.SessionExpiredException -> NON_TRANSIENT
-        // 기본 — 알 수 없는 RuntimeException 은 NON_TRANSIENT (안전한 default — caller 가 보도록)
-        else -> NON_TRANSIENT
+enum class BackendErrorKind { TRANSIENT, NON_TRANSIENT, FATAL }
+
+/** SPI — 각 backend module 이 자기 backend 용 구현 등록. */
+fun interface BackendErrorClassifier {
+    fun classify(cause: Throwable): BackendErrorKind?  // null = 분류 불가, chain next
+}
+
+/** JDK / 공통 분류 — backend dependency 없음 (R5-F4). */
+internal object CoreBackendErrorClassifier : BackendErrorClassifier {
+    override fun classify(cause: Throwable): BackendErrorKind = when (cause) {
+        is OutOfMemoryError, is StackOverflowError, is LinkageError -> BackendErrorKind.FATAL
+        is java.sql.SQLTransientException -> BackendErrorKind.TRANSIENT
+        is java.sql.SQLRecoverableException -> BackendErrorKind.TRANSIENT
+        is java.sql.SQLNonTransientException -> BackendErrorKind.NON_TRANSIENT
+        is java.net.SocketTimeoutException -> BackendErrorKind.TRANSIENT
+        is java.net.ConnectException -> BackendErrorKind.TRANSIENT
+        else -> BackendErrorKind.NON_TRANSIENT  // safe default
     }
 }
+
+/** classifier chain — 각 elector 가 (자기 backend classifier + Core) 합성 호출. */
+internal class CompositeBackendErrorClassifier(
+    private val backendSpecific: BackendErrorClassifier,
+) : BackendErrorClassifier {
+    override fun classify(cause: Throwable): BackendErrorKind =
+        backendSpecific.classify(cause) ?: CoreBackendErrorClassifier.classify(cause) ?: BackendErrorKind.NON_TRANSIENT
+}
 ```
+
+각 backend module 의 classifier (예시):
+
+```kotlin
+// leader-redis-lettuce/.../internal/LettuceBackendErrorClassifier.kt
+internal object LettuceBackendErrorClassifier : BackendErrorClassifier {
+    override fun classify(cause: Throwable): BackendErrorKind? = when (cause) {
+        is io.lettuce.core.RedisCommandTimeoutException -> BackendErrorKind.TRANSIENT
+        is io.lettuce.core.RedisConnectionException -> BackendErrorKind.TRANSIENT
+        is io.lettuce.core.RedisCommandExecutionException -> BackendErrorKind.NON_TRANSIENT
+        else -> null  // Core classifier 에 위임
+    }
+}
+// leader-redis-redisson/.../RedissonBackendErrorClassifier.kt
+// leader-mongodb/.../MongoBackendErrorClassifier.kt
+// leader-exposed-r2dbc/.../R2dbcBackendErrorClassifier.kt  (R2dbcTransientException 등)
+// leader-hazelcast/.../HazelcastBackendErrorClassifier.kt
+// leader-zookeeper/.../ZkBackendErrorClassifier.kt
+```
+
+각 elector 가 `CompositeBackendErrorClassifier(LettuceBackendErrorClassifier)` 형태로 합성 — `leader-core` build 깨지지 않음.
 
 - **Transient** → `ExtendOutcome.BackendError(cause)` 반환 + WARN log + metric.
 - **Non-transient** → throw — caller 가 결정.
@@ -640,7 +666,7 @@ val handle = LeaderLockHandle.Real(..., extendDelegate = extendDelegate, ...)
 
 ```kotlin
 private fun aroundLeader(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
-    val identity = meta.resolveLockIdentity(pjp)  // (lockName, kind=SINGLE, factoryBeanId, groupParams=null)
+    val identity = meta.resolveLockIdentity(AdviceBranch.SYNC)  // R5-F6 — sync branch
 
     // 1) Reentrant peek — full identity (Codex F3)
     val outer = LockStateHolder.peekSync()
@@ -648,28 +674,32 @@ private fun aroundLeader(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
         return LockStateHolder.withPushed(outer.withReentryDepth(outer.reentryDepth + 1)) { pjp.proceed() }
     }
 
-    // 2) 정상 경로 — body exception 과 backend exception 을 명확히 분리 (R4-F2)
+    // 2) 정상 경로 — body / capture-invariant / backend exception 명확히 분리 (R4-F2 + R5-F2 + R5-F3)
     val elector = ... // 기존 캐시 로직
+
+    /** ⭐ R5-F2 — body 실행을 BodyThrownMarker 로 보호하는 helper. elected/fail-open 양쪽에 사용. */
+    fun proceedProtected(): Any? = try {
+        pjp.proceed()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Throwable) {
+        throw BodyThrownMarker(e)
+    }
+
     return try {
         when (val result = elector.runIfLeaderResult(identity.lockName) {
-            // ⭐ Elector 가 acquire 직후 LeaderLockHandleCapture.set(handle) 호출
-            // capture 누락 = elector 구현 버그 — IllegalStateException 직접 throw (R10).
-            // ⚠️ failureMode 변환 대상 아님 — outer catch 보다 먼저 propagate.
+            // ⭐ capture 누락 = elector 구현 버그 — CaptureInvariantException 직접 throw (R5-F3).
+            //   일반 IllegalStateException 과 구분 (backend 도 ISE throw 가능).
             val handle = LeaderLockHandleCapture.poll()
-                ?: throw IllegalStateException("elector did not capture handle — bug in ${elector::class.simpleName}")
-            // ⭐ Body exception 은 BodyThrownMarker 로 wrap → outer catch 가 backend exception 과 구분 (R4-F2)
-            try {
-                LockStateHolder.withPushed(handle) { pjp.proceed() }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Throwable) {
-                throw BodyThrownMarker(e)  // body exception 분리 — failureMode 변환 안 함
-            }
+                ?: throw CaptureInvariantException("elector did not capture handle — bug in ${elector::class.simpleName}")
+            LockStateHolder.withPushed(handle) { proceedProtected() }
         }) {
             is LeaderRunResult.Elected -> result.value
             is LeaderRunResult.Skipped -> when (meta.failureMode) {
-                FAIL_OPEN_RUN -> LockStateHolder.withPushed(LeaderLockHandle.failOpen(identity)) { pjp.proceed() }
-                SKIP, RETHROW -> null   // ⭐ R3-F1 — contention 정상 흐름. RETHROW 는 Exception 분기에서만 throw.
+                FAIL_OPEN_RUN -> LockStateHolder.withPushed(LeaderLockHandle.failOpen(identity)) {
+                    proceedProtected()  // ⭐ R5-F2 — fail-open body 도 BodyThrownMarker 보호
+                }
+                SKIP, RETHROW -> null   // ⭐ R3-F1 — contention 정상 흐름.
                 INHERIT -> error("INHERIT must be resolved in resolveMetadata")
             }
         }
@@ -677,11 +707,13 @@ private fun aroundLeader(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
         throw e
     } catch (e: BodyThrownMarker) {
         throw e.cause!!   // body exception 그대로 propagate — failureMode 무관
-    } catch (e: IllegalStateException) {
-        throw e            // capture invariant failure 등 spec invariant — 그대로 propagate
+    } catch (e: CaptureInvariantException) {
+        throw e            // ⭐ R5-F3 — 전용 exception type (일반 ISE 와 구분)
     } catch (e: Exception) {  // ⭐ backend exception 만 (R3-F5 — Throwable 아님)
         when (meta.failureMode) {
-            FAIL_OPEN_RUN -> LockStateHolder.withPushed(LeaderLockHandle.failOpen(identity)) { pjp.proceed() }
+            FAIL_OPEN_RUN -> LockStateHolder.withPushed(LeaderLockHandle.failOpen(identity)) {
+                proceedProtected()  // ⭐ R5-F2 — backend fail-open body 도 보호
+            }
             SKIP -> null  // 침묵 + WARN log + metric
             RETHROW -> throw e
             INHERIT -> error("INHERIT must be resolved in resolveMetadata")
@@ -689,15 +721,18 @@ private fun aroundLeader(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
     }
 }
 
-/** body exception 을 backend exception 과 구분하기 위한 internal marker (R4-F2) */
+/** body exception marker (R4-F2) */
 private class BodyThrownMarker(cause: Throwable) : RuntimeException(cause)
+
+/** capture invariant 실패 전용 exception — 일반 IllegalStateException 과 구분 (R5-F3) */
+internal class CaptureInvariantException(message: String) : IllegalStateException(message)
 ```
 
 ### 7.2 Suspend 분기 (`aroundLeaderSuspend`)
 
 ```kotlin
 private suspend fun aroundLeaderSuspendBody(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
-    val identity = meta.resolveLockIdentity(pjp)
+    val identity = meta.resolveLockIdentity(AdviceBranch.SUSPEND)  // R5-F6 — suspend branch (Mono 분기는 AdviceBranch.MONO)
 
     // 1) Reentrant peek — coroutineContext only (R7)
     val outer = currentCoroutineContext()[LockHandleElement]?.handle as? LeaderLockHandle.Real
@@ -709,25 +744,27 @@ private suspend fun aroundLeaderSuspendBody(pjp: ProceedingJoinPoint, meta: Advi
         }
     }
 
-    // 2) 정상 경로 — body 와 backend exception 분리 (R4-F2)
+    // 2) 정상 경로 — body / capture-invariant / backend exception 분리 (R4-F2 + R5-F2 + R5-F3)
+    suspend fun proceedProtected(): Any? = try {
+        suspendBlock.startCoroutineUninterceptedOrReturn(...)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Throwable) {
+        throw BodyThrownMarker(e)
+    }
+
     return try {
         when (val result = suspendElector.runIfLeaderResultSuspend(identity.lockName) {
             val handle = LeaderLockHandleCapture.poll()
-                ?: throw IllegalStateException("suspend elector did not capture handle — bug in ${suspendElector::class.simpleName}")
-            try {
-                withContext(LeaderElectionInfo(identity.lockName, true) + LockHandleElement(handle)) {
-                    suspendBlock.startCoroutineUninterceptedOrReturn(...)
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Throwable) {
-                throw BodyThrownMarker(e)
+                ?: throw CaptureInvariantException("suspend elector did not capture handle — bug in ${suspendElector::class.simpleName}")
+            withContext(LeaderElectionInfo(identity.lockName, true) + LockHandleElement(handle)) {
+                proceedProtected()
             }
         }) {
             is LeaderRunResult.Elected -> result.value
             is LeaderRunResult.Skipped -> when (meta.failureMode) {
                 FAIL_OPEN_RUN -> withContext(LeaderElectionInfo(identity.lockName, false) + LockHandleElement(LeaderLockHandle.failOpen(identity))) {
-                    suspendBlock.startCoroutineUninterceptedOrReturn(...)
+                    proceedProtected()  // ⭐ R5-F2 — contention fail-open body 도 보호
                 }
                 SKIP, RETHROW -> null
                 INHERIT -> error("INHERIT must be resolved")
@@ -737,12 +774,12 @@ private suspend fun aroundLeaderSuspendBody(pjp: ProceedingJoinPoint, meta: Advi
         throw e
     } catch (e: BodyThrownMarker) {
         throw e.cause!!
-    } catch (e: IllegalStateException) {
+    } catch (e: CaptureInvariantException) {
         throw e
     } catch (e: Exception) {  // ⭐ backend exception 만 (R3-F5)
         when (meta.failureMode) {
             FAIL_OPEN_RUN -> withContext(LeaderElectionInfo(identity.lockName, false) + LockHandleElement(LeaderLockHandle.failOpen(identity))) {
-                suspendBlock.startCoroutineUninterceptedOrReturn(...)
+                proceedProtected()  // ⭐ R5-F2 — backend fail-open body 도 보호
             }
             SKIP -> null
             RETHROW -> throw e
@@ -940,15 +977,27 @@ unsupported 행은 concrete test class 부재 (skip 아님). matrix 자체가 AC
   - R2DBC / Local 은 native suspend → default OK (Local 은 non-blocking, R2DBC 는 suspend native)
 - [ ] **AC-22**: AOP CTW weave smoke test — sync/suspend/Mono 각각 실제 woven bean 호출로 `LockHandleElement` propagation 검증 (R3-F13).
 - [ ] **AC-23**: `handle.extendDelegate === watchdog.delegate` reference 검증 — 각 backend elector 모듈 안에 unit test (`leader-redis-lettuce`, `leader-redis-redisson`, ...) — `extendDelegate` 가 `internal` 이라 cross-module access 불가 (R3-F14).
-- [ ] **AC-24**: backend 별 transient/non-transient exception 분류 표 — KDoc / `BackendErrorClassifier` 헬퍼 노출. classifier test 가 backend 별 known exception 모두 cover (R3-F9).
+- [ ] **AC-24**: SPI 분산 backend classifier 검증 (R3-F9 / R5-F4):
+  - `leader-core` 의 `BackendErrorClassifier` SPI + `CoreBackendErrorClassifier` (JDK/공통) + `CompositeBackendErrorClassifier`
+  - 각 backend module 의 자기 classifier 구현 + 단위 테스트 (known exception 모두 cover)
+  - **`leader-core` build 가 backend exception class 직접 참조 0회** (소스 grep verify)
+- [ ] **AC-25**: Kotlin interface default fun binary-compat 검증 (R5-F5):
+  - `-jvm-default=enable` 으로 default fun 이 JVM `default` method 로 컴파일됨 확인 (`javap -p` inspection)
+  - 기존 구현체 (LettuceLeaderElector 등) 가 `runIfLeaderResultSuspend` 를 override 하지 않아도 compile/runtime OK 검증
 
 ---
 
 ## 10. Migration / Compatibility
 
 ### 10.1 Source-compat
-- `SuspendLeaderElector` / `SuspendLeaderGroupElector` 에 `runIfLeaderResultSuspend` default fun 추가 — source 호환 (R3-F3).
+- `SuspendLeaderElector` / `SuspendLeaderGroupElector` 에 `runIfLeaderResultSuspend` default fun 추가 — **source-compatible**.
 - `LeaderElector` / `LeaderGroupElector` / `AsyncLeaderElector` / `VirtualThreadLeaderElector` 무변경.
+
+### 10.1b Binary-compat 주의 (R5-F5)
+- 본 repo 는 `-jvm-default=enable` 사용 — Kotlin interface default fun 이 JVM `default` method 로 컴파일.
+- 외부에서 컴파일된 기존 구현체 (Java 또는 Kotlin) 는 default 메서드 가용 시 자동 사용 — **binary 호환 가능성 높음**.
+- 다만 `-jvm-default` 전략 변경 시 `AbstractMethodError` 위험 → **AC-25 추가 — generated bytecode 확인 또는 외부 구현체 reflection 호환 테스트**.
+- 본 PR 에서 backend 별 elector 구현체는 모두 동일 module 내 컴파일 → caller-side 호환만 검증하면 충분.
 - `LeaderElectionInfo` 무변경 — 별도 `LockHandleElement` 추가 (R8 / Type T8).
 - `LockAssert`, `LockExtender`, `LeaderLockHandle`, `ExtendOutcome` 모두 신규 — 추가 only.
 
@@ -1157,6 +1206,37 @@ LockExtender.extendActiveLock(Duration.ofMinutes(5));
 - **합계 97 finding**, 모두 spec 반영
 - Round 4 P0 = 0 → architectural 수렴
 - Round 5 추가 review 시 polish/nit 영역으로 진입 예상
+
+---
+
+## Appendix E — Round 5 Review 통합 (Codex 단독 — 수렴 미달)
+
+총 6 finding (P0×0, P1×4, P2×1, P3×1).
+
+### 적용 (P1×4 + P2×1 + P3×1)
+
+- **R5-F1** (P1) → §5.7 `runIfLeaderResultSuspend` default fun `elected: Boolean` flag 패턴 사용 (sync `runIfLeaderResult` LeaderElector.kt:62 와 동일). action 정상 실행 후 null 반환 시 `Skipped` 오분류 차단
+- **R5-F2** (P1) → §7.1/§7.2 sketch `proceedProtected()` helper 도입 — elected/contention-fail-open/backend-fail-open 3 분기 모두에서 `BodyThrownMarker` 보호. body exception 이 outer `catch (Exception)` 에 잘못 잡혀 fail-open 재실행되는 footgun 차단
+- **R5-F3** (P1) → §7.1/§7.2 `CaptureInvariantException : IllegalStateException` 전용 type 도입. capture 누락은 `throw CaptureInvariantException(...)`, outer catch 에서 `catch (e: CaptureInvariantException) { throw e }` 우선. 일반 `IllegalStateException` (backend 가 throw 가능) 은 backend exception 분기로 흘러감
+- **R5-F4** (P1) → §6 `BackendErrorClassifier` SPI 분산 — `leader-core` 에 SPI interface + JDK/공통 분류만, 각 backend module 에 자기 classifier 구현. `CompositeBackendErrorClassifier` 로 chain. `leader-core` build dependency 깨짐 차단
+- **R5-F5** (P2) → §10.1 source-compat 만 확정, §10.1b binary-compat 별도 섹션 + AC-25 추가 (`-jvm-default=enable` bytecode 검증)
+- **R5-F6** (P3) → §7.1 / §7.2 sketch `meta.resolveLockIdentity(pjp)` → `meta.resolveLockIdentity(AdviceBranch.SYNC)` / `(AdviceBranch.SUSPEND)` 시그니처 일치
+
+### Round 5 결정 기록
+
+28. **suspend default fun `elected` flag** — sync 와 일관된 정확한 Elected/Skipped 분류 (action null return 시 Skipped 오분류 차단).
+29. **`proceedProtected()` helper** — elected / contention-fail-open / backend-fail-open 3 분기 모두에서 body exception 을 BodyThrownMarker 로 wrap → outer catch 가 backend exception 과 정확히 구분.
+30. **`CaptureInvariantException` 전용 type** — capture 누락 (spec invariant 위반) 과 backend `IllegalStateException` (token mismatch 등 정상 backend 동작) 을 type level 에서 구분.
+31. **`BackendErrorClassifier` SPI 분산** — `leader-core` 가 backend exception class 의존하지 않도록 의존성 역전. `CompositeBackendErrorClassifier(backendSpecific, core)` chain.
+32. **Binary-compat 진술 약화** — `-jvm-default=enable` bytecode 의존, source-compat 만 확정.
+
+### Round 5 후 수렴 평가
+
+- R1 (63) → R2 (12) → R3 (15) → R4 (7) → R5 (6) — finding 수 단조 감소.
+- R5 P0 = 0, P1 4 (모두 architectural correctness — type/SPI/structure).
+- R6 dispatch 시 polish/nit 영역 진입 예상 (P1 ≤ 2, P2/P3 위주).
+
+총 review 합계: **103 finding** (Codex 56 + perspective 47), 모두 적용.
 
 ---
 
