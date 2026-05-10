@@ -10,7 +10,14 @@
 
 **Spec:** [`docs/superpowers/specs/2026-05-10-lock-extender-design.md`](../specs/2026-05-10-lock-extender-design.md) — Round 8 architectural convergence (Codex P0/P1=0), 117 finding 통합.
 
-**Critical path:** T1 → T2 → T3 → T4 → T14 → T17 → T18 → T19. T5-T13 backend 별 병렬 가능 (T1-T3 완료 후).
+**Critical path:** T1 → T2 → T3 → T4 → T14 → T17 → T18 → T19.
+
+**Parallel windows** (R3-Plan-R1-P3 — dependency graph 정확화):
+- T5 는 T1, T3 후 시작 (backend 의 capture/extend 가 의존)
+- T7~T13 backend tasks 는 **T5 완료 후** 병렬 가능 (단 T11 R2DBC 는 T10 JDBC 의 SQL 패턴 참조 — T10 → T11 직렬)
+- T14 는 T1~T4 모두 완료 후 시작 (LockAssert/LockExtender 사용)
+- T15 는 T14 후
+- T16 (validator) 는 T1~T4 의존 — T14 와 병렬 가능
 
 **Effort estimate (19 tasks):**
 - high (8): T7, T8, T12, T14, T15, T17 + critical paths
@@ -2994,7 +3001,7 @@ git commit -m "feat(leader-zookeeper): T13 passthrough extend + autoExtend=false
 
 **Complexity:** high
 **Module:** `leader-spring-boot`
-**Depends on:** T1, T2, T3
+**Depends on:** T1, T2, T3, T4 (LockAssert/LockExtender 사용)
 **Satisfies AC:** AC-2 (reentrant counter 0), AC-2b (cross-kind dedupe 차단), AC-4 (fail-open sentinel), AC-4b (failure mode 행렬), AC-5 (sync/suspend/Mono), AC-22 (CTW weave)
 
 **Files:**
@@ -3095,6 +3102,15 @@ class LeaderElectionAspectReentrantTest {
     fun `same lockName different factoryBean — both acquire`() {
         // factoryBeanName 이 다르면 LockIdentity 가 다르므로 passthrough 안 함
     }
+
+    @Test
+    fun `Plan-R1-P1-1 — FailOpen sentinel scope nested same identity — backend untouched + sentinel preserved`() {
+        // outer @LeaderElection("job-X") backend exception → FAIL_OPEN_RUN → sentinel push
+        //   inner @LeaderElection("job-X") 진입 → reentrant peek 가 FailOpen sentinel 감지 → 동일 sentinel 유지
+        // verify(exactly = 0) { elector.runIfLeaderResult("job-X", any()) }  // inner backend 미접촉
+        // assert LockStateHolder.peekSync() is LeaderLockHandle.FailOpen
+        // assertFailsWith<IllegalStateException> { LockAssert.assertLocked() }  // sentinel scope 일관 throw
+    }
 }
 ```
 
@@ -3105,11 +3121,19 @@ class LeaderElectionAspectReentrantTest {
 private fun aroundLeader(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
     val identity = meta.resolveLockIdentity(AdviceBranch.SYNC)
 
-    // 1) Reentrant peek — full identity (R1 / Codex F3)
+    // 1) Reentrant peek — full identity (R1 / Codex F3 / Plan-R1-P1-1)
     val outer = LockStateHolder.peekSync()
-    if (outer is LeaderLockHandle.Real && outer.matchesIdentity(identity)) {
-        return LockStateHolder.withPushed(outer.withReentryDepth(outer.reentryDepth + 1)) {
-            pjp.proceed()
+    when {
+        outer is LeaderLockHandle.Real && outer.matchesIdentity(identity) -> {
+            // 실 lock 보유 — passthrough copy
+            return LockStateHolder.withPushed(outer.withReentryDepth(outer.reentryDepth + 1)) {
+                pjp.proceed()
+            }
+        }
+        outer is LeaderLockHandle.FailOpen && outer.identity == identity -> {
+            // ⭐ Plan-R1-P1-1 — FailOpen sentinel scope 안 nested @LeaderElection 동일 identity → backend 미접촉.
+            //   sentinel 유지 (lock 보유 아님). nested body 안 LockAssert.assertLocked() 도 throw 일관.
+            return LockStateHolder.withPushed(outer) { pjp.proceed() }
         }
     }
 
@@ -3182,11 +3206,19 @@ private suspend fun aroundLeaderSuspendBody(pjp: ProceedingJoinPoint, meta: Advi
         throw BodyThrownMarker(e)
     }
 
-    val outer = currentCoroutineContext()[LockHandleElement]?.handle as? LeaderLockHandle.Real
-    if (outer != null && outer.matchesIdentity(identity)) {
-        val passthrough = outer.withReentryDepth(outer.reentryDepth + 1)
-        return withContext(LeaderElectionInfo(identity.lockName, true) + LockHandleElement(passthrough)) {
-            proceedProtected()
+    val outerElement = currentCoroutineContext()[LockHandleElement]?.handle
+    when {
+        outerElement is LeaderLockHandle.Real && outerElement.matchesIdentity(identity) -> {
+            val passthrough = outerElement.withReentryDepth(outerElement.reentryDepth + 1)
+            return withContext(LeaderElectionInfo(identity.lockName, true) + LockHandleElement(passthrough)) {
+                proceedProtected()
+            }
+        }
+        outerElement is LeaderLockHandle.FailOpen && outerElement.identity == identity -> {
+            // ⭐ Plan-R1-P1-1 — FailOpen sentinel scope 안 nested suspend @LeaderElection 동일 identity → backend 미접촉.
+            return withContext(LeaderElectionInfo(identity.lockName, false) + LockHandleElement(outerElement)) {
+                proceedProtected()
+            }
         }
     }
 
@@ -3523,12 +3555,14 @@ git commit -m "feat(leader-spring-boot): T16 validator rejects CompletableFuture
 
 ---
 
-## Task 17: Cross-cutting integration tests — 모든 시나리오 (8 backend × failure mode × Reentrant × Watchdog × Mono × ktor)
+## Task 17: Cross-cutting integration tests — aspect 통합 + watchdog race + ktor smoke + AC grep (각 backend contract test 는 backend module 안 — Plan-R1-P1-2)
 
 **Complexity:** high
-**Module:** `leader-spring-boot` + `leader-ktor`
+**Module:** `leader-spring-boot` (AOP integration) + `leader-ktor` (smoke) — backend contract test 는 각 backend module 안 (T7~T13)
 **Depends on:** T7–T16
-**Satisfies AC:** AC-1 전체, AC-4b matrix integration, AC-5 (sync/suspend/Mono 3 분기 × 2 API), AC-6 (watchdog race-free), AC-6b (watchdog override WARN), AC-9 (Mermaid 검증은 T18), AC-12 (coverage 80%+), AC-18 (CancellationException grep — 통합 점검), AC-22b (leader-ktor `leaderScheduled`)
+**Satisfies AC:** AC-1 (각 backend module 의 contract test — T7~T13 에서 검증), AC-4b matrix integration, AC-5 (sync/suspend/Mono 3 분기 × 2 API), AC-6 (watchdog race-free), AC-6b (watchdog override WARN/clock 진행 검증 — Plan-R1-P1-4), AC-9 (Mermaid 검증은 T18), AC-12 (coverage 80%+), AC-18 (CancellationException grep — 통합 점검), AC-22b (leader-ktor `leaderScheduled`), AC-23 (extendDelegate reference — 각 backend module 안)
+
+> ⚠️ **Test ownership (Plan-R1-P1-2 — Codex)**: backend contract test (Lettuce/Redisson/Mongo/JDBC/R2DBC/Hazelcast/ZK) 는 **각 backend module 안** 위치 — AC-23 의 `extendDelegate === watchdog.delegate` 가 `internal` 접근 필요. leader-spring-boot 는 backend module 의존성 없음 (특히 `leader-zookeeper` 미의존). T17 은 **aspect-level cross-cutting** (Local backend 만 spring-boot 안 통합) + ktor smoke + AC grep 검증에 한정.
 
 **Files:**
 - Create: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/integration/LockExtenderCrossBackendIntegrationTest.kt`
@@ -3542,14 +3576,19 @@ git commit -m "feat(leader-spring-boot): T16 validator rejects CompletableFuture
 ```kotlin
 @SpringBootTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class LockExtenderCrossBackendIntegrationTest {
+class LockAssertAspectIntegrationTest {
+    // ⭐ Plan-R1-P1-2 — Local backend 만 spring-boot test classpath 에 포함.
+    //   각 backend (lettuce/redisson/mongodb/exposed-jdbc/exposed-r2dbc/hazelcast/zk) 의 contract test 는
+    //   해당 backend module 안 — T7~T13 의 `*LockExtenderContractTest` 가 담당.
 
-    @ParameterizedTest
-    @ValueSource(strings = ["lettuce", "redisson", "mongodb", "exposed-jdbc", "exposed-r2dbc", "hazelcast", "zookeeper", "local"])
-    fun `LockAssert assertLocked passes across all 8 backends`(backend: String) {
-        val bean = beanForBackend(backend)
-        bean.annotatedMethod()    // throw 없으면 통과
+    @Test
+    fun `LockAssert assertLocked passes in @LeaderElection annotated method (Local backend)`() {
+        annotatedBean.annotatedSyncMethod()
     }
+    @Test
+    fun `LockAssert assertLockedSuspend passes in @LeaderElection suspend method`() = runTest { ... }
+    @Test
+    fun `LockAssert assertLockedSuspend passes in @LeaderElection Mono method`() { ... }
 }
 ```
 
@@ -3588,6 +3627,27 @@ class WatchdogOverrideWarnTest {
         }
         logs.any { it.contains("lock_extender_overridden") || it.contains("watchdog will reduce") } shouldBeEqualTo true
         // metric `lock_extender_overridden_total` increment 검증
+    }
+
+    @Test
+    fun `AC-6b clock progression — watchdog next tick semantics with TestDispatcher`() = runTest {
+        // ⭐ Plan-R1-P1-4 — fake scheduler / TestDispatcher 로 시간 진행 검증.
+        //   `extendActiveLock(60s)` 직후 watchdog tick (leaseTime/3 = 10s 후) 가 실제 TTL 을 어떻게 처리?
+        val expireRecords = mutableListOf<Long>()  // backend extend 호출 시 expireAt 기록
+        val watchdog = LeaderLeaseAutoExtender.start(
+            enabled = true,
+            leaseTime = 30.seconds,
+            delegate = TestExtendDelegate(expireRecords),
+            scheduler = TestCoroutineScheduler(),  // virtual clock
+        )
+        // T+0: acquire → backend expireAt = now+30
+        elector.runIfLeader("clock-A") {
+            // T+1: user explicit extend(60s) → expireAt = now+60
+            LockExtender.extendActiveLock(60.seconds)
+            advanceTimeBy(10.seconds)   // T+11: watchdog tick — backend extend(30s) 호출 시 expireAt = now+30 (사용자 60s 의도와 충돌)
+        }
+        // 검증: AC-6b 정책은 "last-write-wins, 사용자에게 WARN" — 시간 진행 후 expireAt 이 user-extended 보다 작을 수 있음 확인 + WARN log 발생
+        expireRecords.last() shouldBeLessThan (initialTime + 60.seconds.inWholeMilliseconds)
     }
 }
 ```
