@@ -687,6 +687,41 @@ jobs:
           path: '**/build/test-results/test/*.xml'
           retention-days: 14
 
+  # ── examples-webhook-poller (Testcontainers MongoDB) ────────────────────────
+  test-examples-webhook-poller:
+    name: Test / examples-webhook-poller (Testcontainers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+          cache-read-only: true
+      - name: Test examples-webhook-poller
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :examples:webhook-poller:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+          DOCKER_HOST: "unix:///var/run/docker.sock"
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-examples-webhook-poller
+          path: '**/build/test-results/test/*.xml'
+          retention-days: 14
+
   # ── examples-batch-scheduler (Testcontainers Redis) ─────────────────────────
   test-examples-batch-scheduler:
     name: Test / examples-batch-scheduler (Testcontainers)
@@ -789,6 +824,7 @@ jobs:
       - test-spring-boot
       - test-examples-batch-scheduler
       - test-examples-migration-gate
+      - test-examples-webhook-poller
     if: always()
     steps:
       - uses: actions/checkout@v4
@@ -835,6 +871,7 @@ jobs:
       - test-spring-boot
       - test-examples-batch-scheduler
       - test-examples-migration-gate
+      - test-examples-webhook-poller
       - coverage-report
     if: always()
     steps:
