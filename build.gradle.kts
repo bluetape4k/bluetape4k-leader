@@ -63,6 +63,9 @@ allprojects {
 }
 
 subprojects {
+    if (path.startsWith(":examples:")) {
+        return@subprojects
+    }
     apply(plugin = "com.gradleup.nmcp")
 
     configurations.matching { it.name.startsWith("nmcp") }.configureEach {
@@ -91,13 +94,17 @@ subprojects {
         return@subprojects
     }
 
+    val isExample = path.startsWith(":examples:")
+
     apply {
         plugin<JavaLibraryPlugin>()
         plugin("org.jetbrains.kotlin.jvm")
         plugin("org.jetbrains.kotlinx.atomicfu")
         plugin("org.jetbrains.kotlinx.kover")
-        plugin("maven-publish")
-        plugin("signing")
+        if (!isExample) {
+            plugin("maven-publish")
+            plugin("signing")
+        }
         plugin("io.spring.dependency-management")
         plugin("org.jetbrains.dokka")
         plugin("com.adarshr.test-logger")
@@ -268,6 +275,10 @@ subprojects {
         testImplementation(rootLibs.mockk)
     }
 
+    if (isExample) {
+        return@subprojects
+    }
+
     publishing {
         publications {
             create<MavenPublication>("BluetapeLeader") {
@@ -331,11 +342,12 @@ extensions.configure<NmcpAggregationExtension>("nmcpAggregation") {
 
 dependencies {
     subprojects
+        .filter { !it.path.startsWith(":examples:") }
         .forEach { add("nmcpAggregation", project(it.path)) }
 }
 
 dependencies {
     subprojects
-        .filter { it.name != "leader-bom" }
+        .filter { it.name != "leader-bom" && !it.path.startsWith(":examples:") }
         .forEach { sub -> kover(project(sub.path)) }
 }
