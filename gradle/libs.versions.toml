@@ -27,6 +27,8 @@ curator = "5.9.0"  # https://mvnrepository.com/artifact/org.apache.curator/curat
 
 micrometer = "1.16.5"  # https://mvnrepository.com/artifact/io.micrometer/micrometer-bom
 
+ktor = "3.4.3"  # https://mvnrepository.com/artifact/io.ktor/ktor-bom
+
 slf4j = "2.0.17"  # https://mvnrepository.com/artifact/org.slf4j/slf4j-api
 logback = "1.5.32"  # https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
 
@@ -187,3 +189,9 @@ testcontainers-mongodb = { module = "org.testcontainers:testcontainers-mongodb",
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
 testcontainers-mysql = { module = "org.testcontainers:testcontainers-mysql", version.ref = "testcontainers" }
 testcontainers-toxiproxy = { module = "org.testcontainers:testcontainers-toxiproxy", version.ref = "testcontainers" }
+
+# Ktor
+ktor-bom = { module = "io.ktor:ktor-bom", version.ref = "ktor" }
+ktor-server-core = { module = "io.ktor:ktor-server-core" }
+ktor-server-cio = { module = "io.ktor:ktor-server-cio" }
+ktor-server-test-host = { module = "io.ktor:ktor-server-test-host" }

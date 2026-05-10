@@ -11,6 +11,14 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`leader-ktor`**: Ktor 3.x 통합 모듈 (issue #37)
+  - `LeaderElectionPlugin` — `createApplicationPlugin` DSL, `SuspendLeaderElector` 기반
+  - `Application.leaderScheduled(lockName, period) { ... }` — Spring `@Scheduled` 스타일
+    리더 전용 주기 작업 헬퍼; `Application` 코루틴 스코프에서 launch 되어
+    `ApplicationStopped` 시 자동 취소, action 예외는 cycle 격리 후 다음 cycle 진행
+  - `Application.leaderElectionPluginConfig()` — 설치된 플러그인 설정 조회 확장
+  - Testcontainers Redis 기반 통합 테스트 (`testApplication` DSL + Redisson 백엔드)
+  - Ktor 버전: 3.4.3
 - **`leader-mongodb`**: MongoDB `findOneAndUpdate` + TTL index 기반 분산 락 백엔드 (issue #8, PR #46)
   - `MongoLock` — sync blocking, `findOneAndUpdate` upsert + `deleteOne(token)` 소유자 전용 해제
   - `MongoSuspendLock` — Kotlin coroutine driver 기반 suspend 분산 락
