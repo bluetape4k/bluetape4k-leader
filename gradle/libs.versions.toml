@@ -195,3 +195,5 @@ ktor-bom = { module = "io.ktor:ktor-bom", version.ref = "ktor" }
 ktor-server-core = { module = "io.ktor:ktor-server-core" }
 ktor-server-cio = { module = "io.ktor:ktor-server-cio" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host" }
+ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation" }
+ktor-serialization-jackson = { module = "io.ktor:ktor-serialization-jackson" }

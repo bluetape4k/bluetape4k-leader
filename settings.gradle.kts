@@ -30,4 +30,5 @@ include(
     "examples:webhook-poller",
     "examples:cache-warmer",
     "examples:tenant-aggregator",
+    "examples:ktor-app",
 )
