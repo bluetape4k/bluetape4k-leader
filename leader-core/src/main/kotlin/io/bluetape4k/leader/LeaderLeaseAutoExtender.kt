@@ -2,8 +2,8 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
-import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -32,10 +32,12 @@ import kotlin.time.Duration.Companion.milliseconds
 object LeaderLeaseAutoExtender : KLogging() {
 
     private val threadSeq = AtomicInteger()
-    private val scheduler = Executors.newScheduledThreadPool(DEFAULT_WATCHDOG_THREADS) { runnable ->
+    private val scheduler = ScheduledThreadPoolExecutor(DEFAULT_WATCHDOG_THREADS) { runnable ->
         Thread(runnable, "bluetape4k-leader-lease-watchdog-${threadSeq.incrementAndGet()}").apply {
             isDaemon = true
         }
+    }.apply {
+        removeOnCancelPolicy = true
     }
 
     /**
