@@ -12,9 +12,10 @@
 
 **Critical path:** T1 → T2 → T3 → T4 → T14 → T17 → T18 → T19.
 
-**Parallel windows** (R3-Plan-R1-P3 — dependency graph 정확화):
-- T5 는 T1, T3 후 시작 (backend 의 capture/extend 가 의존)
-- T7~T13 backend tasks 는 **T5 완료 후** 병렬 가능 (단 T11 R2DBC 는 T10 JDBC 의 SQL 패턴 참조 — T10 → T11 직렬)
+**Parallel windows** (Plan-R3-P1-1 + Plan-R4-P1 — dependency graph 정확화 + handoff 동기화):
+- T5 는 T1, T3 후 시작 (BackendErrorClassifier SPI + LeaderLeaseAutoExtender signature)
+- T6 는 T4, T5 후 시작 (AbstractLockExtenderContractTest base)
+- T7~T13 backend tasks 는 **T5, T6 모두 완료 후** 병렬 가능 (단 T11 R2DBC 는 T10 JDBC 의 SQL 패턴 참조 — T10 → T11 직렬)
 - T14 는 T1~T4 모두 완료 후 시작 (LockAssert/LockExtender 사용)
 - T15 는 T14 후
 - T16 (validator) 는 T1~T4 의존 — T14 와 병렬 가능
