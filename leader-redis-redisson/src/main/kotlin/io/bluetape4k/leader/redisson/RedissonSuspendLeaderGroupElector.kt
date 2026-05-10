@@ -3,93 +3,48 @@ package io.bluetape4k.leader.redisson
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withContext
-import org.redisson.api.RSemaphore
+import org.redisson.api.RPermitExpirableSemaphore
 import org.redisson.api.RedissonClient
 import org.redisson.client.RedisException
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
- * Redisson 분산 Semaphore를 이용하여 복수 리더 선출을 통한 suspend 작업을 수행합니다.
+ * Redisson 분산 [RPermitExpirableSemaphore]를 이용한 코루틴 복수 리더 선출 구현체입니다.
+ *
+ * ## 동작/계약
+ *
+ * - `lockName` 별로 `lg:{lockName}` Redisson [RPermitExpirableSemaphore] 를 사용합니다.
+ * - 슬롯 획득 실패 시 `null` 반환 (ShedLock skip-on-contention).
+ * - `options.minLeaseTime > 0` 이면 빠른 action 종료 시 `updateLeaseTimeAsync` 로
+ *   slot 의 TTL 을 minLeaseTime 만큼 연장하여 유지합니다 (caller-park 없음).
+ * - 코루틴 취소 시에도 `withContext(NonCancellable)` 안에서 release 가 보장됩니다.
+ * - `CancellationException` 은 항상 re-throw 합니다.
  *
  * ```kotlin
- * val client: RedissonClient = ...
- * val options = LeaderGroupElectionOptions(maxLeaders = 3)
- * val result: Int = client.runSuspendIfLeaderGroup("batch-job", options) {
- *     // 최대 3개 프로세스가 동시에 실행
- *     delay(100)
- *     42
- * }
- * ```
- *
- * @param lockName 락 이름
- * @param options 리더 선출 옵션
- * @param action 리더 그룹 슬롯 획득 시 수행할 suspend 작업
- * @return 작업 결과
- */
-suspend fun <T> RedissonClient.runSuspendIfLeaderGroup(
-    lockName: String,
-    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-    action: suspend () -> T,
-): T? {
-    lockName.requireNotBlank("lockName")
-    options.maxLeaders.requirePositiveNumber("maxLeaders")
-    return RedissonSuspendLeaderGroupElector(this, options).runIfLeader(lockName, action)
-}
-
-
-/**
- * Redisson 분산 [RSemaphore]를 이용한 코루틴 기반 복수 리더 선출 구현체입니다.
- *
- * ## 동작
- * - `lockName`별로 Redis 분산 `RSemaphore(maxLeaders)`를 생성하여 동시 실행 수를 제한합니다.
- * - 슬롯이 가득 찬 경우 [LeaderGroupElectionOptions.waitTime] 내에 슬롯을 획득하지 못하면 `null`을 반환합니다 (ShedLock skip 방식).
- * - 슬롯 대기 중 인터럽트가 발생하면 [RedisException]으로 래핑되어 전파됩니다.
- * - `tryAcquireAsync`/`releaseAsync`를 사용하여 호출 코루틴을 블로킹하지 않습니다.
- * - `action` 예외 발생 시에도 슬롯은 반드시 반환됩니다.
- * - 여러 JVM 프로세스에 걸친 분산 동시 실행 제한에 적합합니다.
- *
- * ## [RedissonLeaderGroupElector] 과의 차이
- * - [RedissonLeaderGroupElector]은 스레드를 블로킹합니다.
- * - 이 구현체는 `await()`으로 코루틴을 suspend합니다.
- *
- * ```kotlin
- * val options = LeaderGroupElectionOptions(maxLeaders = 3)
+ * val options = LeaderGroupElectionOptions(maxLeaders = 3, minLeaseTime = 1.seconds)
  * val election = RedissonSuspendLeaderGroupElector(redissonClient, options)
- *
- * // 최대 3개 코루틴/프로세스가 동시에 실행
  * val result = election.runIfLeader("batch-job") { processChunkSuspend() }
- *
- * // 상태 조회
- * println(election.state("batch-job"))
  * ```
  *
  * @param redissonClient Redisson 클라이언트
- * @param options 리더 선출 옵션 (maxLeader, waitTime, leaseTime)
+ * @param options 리더 선출 옵션 (maxLeaders, waitTime, leaseTime, minLeaseTime)
  */
 class RedissonSuspendLeaderGroupElector private constructor(
     private val redissonClient: RedissonClient,
-    options: LeaderGroupElectionOptions,
+    val options: LeaderGroupElectionOptions,
 ): SuspendLeaderGroupElector {
 
     companion object: KLoggingChannel() {
-        /**
-         * [RedissonSuspendLeaderGroupElector] 인스턴스를 생성합니다.
-         *
-         * @param redissonClient Redisson 클라이언트
-         * @param options 리더 선출 옵션 (maxLeader, waitTime, leaseTime)
-         */
         operator fun invoke(
             redissonClient: RedissonClient,
             options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -101,86 +56,104 @@ class RedissonSuspendLeaderGroupElector private constructor(
 
     override val maxLeaders: Int = options.maxLeaders
     private val waitTime: Duration = options.waitTime
+    private val leaseTime: Duration = options.leaseTime
 
-    private fun getInitializedSemaphore(lockName: String): RSemaphore {
+    /**
+     * Codex P1: `trySetPermits(maxLeaders)` 멱등 호출 — 누락 시 acquire 영구 실패.
+     */
+    private fun getInitializedPermitSemaphore(lockName: String): RPermitExpirableSemaphore {
         lockName.requireNotBlank("lockName")
-        val semaphore = redissonClient.getSemaphore(lockName)
+        val semaphore = redissonClient.getPermitExpirableSemaphore("lg:{$lockName}")
         semaphore.trySetPermits(maxLeaders)
         return semaphore
     }
 
-    private suspend fun getInitializedSemaphoreAsync(lockName: String): RSemaphore {
+    private suspend fun getInitializedPermitSemaphoreAsync(lockName: String): RPermitExpirableSemaphore {
         lockName.requireNotBlank("lockName")
-        val semaphore = redissonClient.getSemaphore(lockName)
+        val semaphore = redissonClient.getPermitExpirableSemaphore("lg:{$lockName}")
         semaphore.trySetPermitsAsync(maxLeaders).await()
         return semaphore
     }
 
-    /**
-     * [lockName]에 대해 현재 활성(실행 중인) 리더 수를 반환합니다.
-     *
-     * `maxLeaders - availablePermits()`로 계산하므로 근사값입니다.
-     */
     override fun activeCount(lockName: String): Int =
-        maxLeaders - getInitializedSemaphore(lockName).availablePermits()
+        maxLeaders - getInitializedPermitSemaphore(lockName).availablePermits()
 
-    /**
-     * [lockName]에 대해 새 리더를 수용할 수 있는 남은 슬롯 수를 반환합니다.
-     */
     override fun availableSlots(lockName: String): Int =
-        getInitializedSemaphore(lockName).availablePermits()
+        getInitializedPermitSemaphore(lockName).availablePermits()
 
-    /**
-     * [lockName]에 대한 현재 [LeaderGroupState] 스냅샷을 반환합니다.
-     */
     override fun state(lockName: String): LeaderGroupState =
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
-    /**
-     * [lockName]의 분산 [RSemaphore] 슬롯을 비동기로 획득하고 suspend [action]을 실행합니다.
-     *
-     * - 슬롯이 가득 찬 경우 [waitTime] 내 슬롯을 획득하지 못하면 `null`을 반환합니다 (ShedLock skip 방식).
-     * - [action] 예외 발생 시에도 슬롯은 반드시 반환됩니다.
-     *
-     * @param lockName 리더 그룹 선출에 사용할 락 이름
-     * @param action 슬롯 획득 성공 시 실행할 suspend 작업
-     * @return [action] 실행 결과, 슬롯 획득 실패 시 `null`
-     * @throws RedisException 슬롯 대기 중 인터럽트가 발생한 경우
-     */
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         lockName.requireNotBlank("lockName")
 
-        val semaphore = getInitializedSemaphoreAsync(lockName)
-        log.debug { "리더 그룹 슬롯 획득을 요청합니다. lockName=$lockName, maxLeaders=$maxLeaders" }
+        val semaphore = getInitializedPermitSemaphoreAsync(lockName)
+        log.debug { "슬롯 획득 요청. lockName=$lockName, maxLeaders=$maxLeaders" }
 
-        val acquired = try {
-            semaphore.tryAcquireAsync(waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS).await()
+        val permitId: String? = try {
+            semaphore.tryAcquireAsync(
+                waitTime.inWholeMilliseconds,
+                leaseTime.inWholeMilliseconds,
+                TimeUnit.MILLISECONDS,
+            ).await()
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
-            log.warn(e) { "슬롯 획득 대기 중 인터럽트가 발생했습니다. lockName=$lockName" }
-            throw RedisException("Interrupted while acquiring semaphore slot. lockName=$lockName", e)
+            log.warn(e) { "슬롯 획득 대기 중 인터럽트. lockName=$lockName" }
+            throw RedisException("Interrupted while acquiring permit. lockName=$lockName", e)
         }
 
-        if (!acquired) {
-            log.debug { "리더 그룹 슬롯 획득 실패 (슬롯 없음). lockName=$lockName" }
+        if (permitId == null) {
+            log.debug { "슬롯 획득 실패. lockName=$lockName" }
             return null
         }
+        // Codex P2: acquire 성공 후 startedAtNanos 캡처
+        val startedAtNanos = System.nanoTime()
+        log.debug { "슬롯 획득 성공. lockName=$lockName, permitId=$permitId" }
 
-        log.debug { "리더 그룹 슬롯을 획득하여 suspend 작업을 수행합니다. lockName=$lockName" }
         try {
             return action()
         } finally {
-            // NonCancellable: 코루틴 취소 시에도 세마포어 슬롯 반납이 중단되지 않도록 보호
+            // NonCancellable: 코루틴 취소 시에도 release/extend 가 중단되지 않도록 보호
             withContext(NonCancellable) {
-                runCatching { semaphore.releaseAsync().await() }
-                    .onSuccess {
-                        log.debug { "작업이 완료되어 슬롯을 반납했습니다. lockName=$lockName" }
+                try {
+                    val remainingMs = remainingMinLeaseTime(startedAtNanos, options.minLeaseTime).inWholeMilliseconds
+                    if (remainingMs > 0) {
+                        semaphore.updateLeaseTimeAsync(permitId, remainingMs, TimeUnit.MILLISECONDS).await()
+                        log.debug {
+                            "minLease 유지를 위해 leaseTime 갱신. lockName=$lockName, permitId=$permitId, remainingMs=$remainingMs"
+                        }
+                    } else {
+                        semaphore.releaseAsync(permitId).await()
+                        log.debug { "슬롯 즉시 반납. lockName=$lockName, permitId=$permitId" }
                     }
-                    .onFailure { error ->
-                        if (error is CancellationException) throw error
-                        log.warn(error) { "Fail to release semaphore slot. lockName=$lockName" }
-                    }
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    log.warn(e) { "Failed to release/extend permit. lockName=$lockName, permitId=$permitId" }
+                }
             }
         }
     }
+}
+
+/**
+ * Redisson 분산 [RPermitExpirableSemaphore] 를 이용하여 복수 리더 선출을 통한 suspend 작업을 수행합니다.
+ *
+ * ```kotlin
+ * val client: RedissonClient = ...
+ * val options = LeaderGroupElectionOptions(maxLeaders = 3)
+ * val result: Int = client.runSuspendIfLeaderGroup("batch-job", options) {
+ *     delay(100)
+ *     42
+ * }
+ * ```
+ */
+suspend fun <T> RedissonClient.runSuspendIfLeaderGroup(
+    lockName: String,
+    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
+    action: suspend () -> T,
+): T? {
+    lockName.requireNotBlank("lockName")
+    options.maxLeaders.requirePositiveNumber("maxLeaders")
+    return RedissonSuspendLeaderGroupElector(this, options).runIfLeader(lockName, action)
 }

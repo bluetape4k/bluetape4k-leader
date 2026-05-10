@@ -36,6 +36,10 @@ import java.util.concurrent.locks.LockSupport
  * @param semaphoreKey Redis에 저장될 세마포어 키
  * @param totalPermits 전체 허가 수
  */
+@Deprecated(
+    "Replaced by LettuceSlotTokenGroup which supports slot-token TTL and crash recovery",
+    level = DeprecationLevel.WARNING,
+)
 class LettuceSemaphore(
     private val connection: StatefulRedisConnection<String, String>,
     val semaphoreKey: String,
