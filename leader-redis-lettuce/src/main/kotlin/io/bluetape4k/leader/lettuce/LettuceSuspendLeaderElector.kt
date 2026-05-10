@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -10,6 +11,11 @@ import io.bluetape4k.support.requireNotBlank
 import io.lettuce.core.api.StatefulRedisConnection
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -58,22 +64,47 @@ class LettuceSuspendLeaderElector(
             log.debug { "리더 선출 실패 (슬롯 없음, suspend): lockName=$lockName" }
             return null
         }
-        val acquiredAtNanos = System.nanoTime()
-        log.debug { "리더 선출 성공 (suspend): lockName=$lockName" }
-        try {
-            return action()
-        } finally {
-            // NonCancellable: 코루틴 취소 시에도 락 해제가 중단되지 않도록 보호
-            withContext(NonCancellable) {
-                runCatching {
-                    if (lock.isHeldByCurrentInstance()) {
-                        lock.unlock(options.minLeaseTime, acquiredAtNanos)
+        return coroutineScope {
+            val acquiredAtNanos = System.nanoTime()
+            val watchdog = if (options.autoExtend) {
+                launch {
+                    val period = LeaderLeaseAutoExtender.renewalPeriod(options.leaseTime)
+                    while (isActive) {
+                        delay(period)
+                        val extended = try {
+                            lock.extend(options.leaseTime)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            log.warn(e) { "leader.lease.auto-extend.failed lockName=$lockName" }
+                            false
+                        }
+                        if (!extended) {
+                            log.warn { "leader.lease.auto-extend.stopped lockName=$lockName reason=NOT_OWNER" }
+                            break
+                        }
                     }
                 }
-                    .onFailure { error ->
-                        if (error is CancellationException) throw error
-                        log.warn(error) { "Fail to release lock. lockName=$lockName" }
+            } else {
+                null
+            }
+            log.debug { "리더 선출 성공 (suspend): lockName=$lockName" }
+            try {
+                action()
+            } finally {
+                // NonCancellable: 코루틴 취소 시에도 락 해제가 중단되지 않도록 보호
+                withContext(NonCancellable) {
+                    watchdog?.cancelAndJoin()
+                    try {
+                        if (lock.isHeldByCurrentInstance()) {
+                            lock.unlock(options.minLeaseTime, acquiredAtNanos)
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        log.warn(e) { "Fail to release lock. lockName=$lockName" }
                     }
+                }
             }
         }
     }

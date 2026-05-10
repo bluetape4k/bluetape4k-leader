@@ -108,6 +108,13 @@ class RedissonSuspendLeaderElector private constructor(
     private val waitTimeMills = options.waitTime.inWholeMilliseconds
     private val leaseTimeMills = options.leaseTime.inWholeMilliseconds
     private val minLeaseTime = options.minLeaseTime
+    private val autoExtend = options.autoExtend
+
+    init {
+        require(!(autoExtend && minLeaseTime > kotlin.time.Duration.ZERO)) {
+            "Redisson autoExtend does not support minLeaseTime because watchdog release semantics are ambiguous"
+        }
+    }
 
     /**
      * Redisson Lock을 이용하여, 리더로 선출되면 [action]을 수행하고, 그렇지 않다면 수행하지 않습니다.
@@ -137,7 +144,7 @@ class RedissonSuspendLeaderElector private constructor(
             val acquired = lock
                 .tryLockAsync(
                     waitTimeMills,
-                    leaseTimeMills,
+                    if (autoExtend) -1L else leaseTimeMills,
                     TimeUnit.MILLISECONDS,
                     lockId
                 )
@@ -152,14 +159,14 @@ class RedissonSuspendLeaderElector private constructor(
                     if (lock.isHeldByThread(lockId)) {
                         // NonCancellable: 코루틴 취소 시에도 락 해제가 중단되지 않도록 보호
                         withContext(NonCancellable) {
-                            runCatching { releaseLock(lock, lockId, acquiredAtNanos) }
-                                .onSuccess {
-                                    log.debug { "작업이 완료되어 Leader 권한을 반납했습니다. lock=$lockName, lockId=$lockId" }
-                                }
-                                .onFailure { error ->
-                                    if (error is CancellationException) throw error
-                                    log.warn(error) { "Fail to release lock. lock=$lockName, lockId=$lockId" }
-                                }
+                            try {
+                                releaseLock(lock, lockId, acquiredAtNanos)
+                                log.debug { "작업이 완료되어 Leader 권한을 반납했습니다. lock=$lockName, lockId=$lockId" }
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                log.warn(e) { "Fail to release lock. lock=$lockName, lockId=$lockId" }
+                            }
                         }
                     }
                 }

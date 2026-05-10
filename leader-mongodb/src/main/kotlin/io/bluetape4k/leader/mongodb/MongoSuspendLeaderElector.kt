@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.mongodb
 
 import com.mongodb.kotlin.client.coroutine.MongoCollection
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
 import io.bluetape4k.leader.mongodb.lock.validateMongoLockName
@@ -9,6 +10,11 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.bson.Document
 
@@ -56,19 +62,44 @@ class MongoSuspendLeaderElector private constructor(
             return null
         }
 
-        val acquiredAtNanos = System.nanoTime()
-        log.debug { "리더로 승격하여 suspend 작업을 수행합니다. lockName=$lockName" }
-        try {
-            return action()
-        } finally {
-            withContext(NonCancellable) {
-                try {
-                    lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos)
-                    log.debug { "리더 권한을 반납했습니다 (suspend). lockName=$lockName" }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    log.warn(e) { "락 해제 실패 (suspend). lockName=$lockName" }
+        return coroutineScope {
+            val acquiredAtNanos = System.nanoTime()
+            val watchdog = if (options.leaderOptions.autoExtend) {
+                launch {
+                    val period = LeaderLeaseAutoExtender.renewalPeriod(options.leaderOptions.leaseTime)
+                    while (isActive) {
+                        delay(period)
+                        val extended = try {
+                            lock.extend(options.leaderOptions.leaseTime)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            log.warn(e) { "leader.lease.auto-extend.failed lockName=$lockName" }
+                            false
+                        }
+                        if (!extended) {
+                            log.warn { "leader.lease.auto-extend.stopped lockName=$lockName reason=NOT_OWNER" }
+                            break
+                        }
+                    }
+                }
+            } else {
+                null
+            }
+            log.debug { "리더로 승격하여 suspend 작업을 수행합니다. lockName=$lockName" }
+            try {
+                action()
+            } finally {
+                withContext(NonCancellable) {
+                    watchdog?.cancelAndJoin()
+                    try {
+                        lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos)
+                        log.debug { "리더 권한을 반납했습니다 (suspend). lockName=$lockName" }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        log.warn(e) { "락 해제 실패 (suspend). lockName=$lockName" }
+                    }
                 }
             }
         }

@@ -80,6 +80,36 @@ class LocalLeaderElectionTest {
     }
 
     @Test
+    fun `autoExtend - 실행 중 state leaseUntil 을 갱신한다`() {
+        val stateElection = LocalLeaderElector(
+            LeaderElectionOptions(
+                leaseTime = 120.milliseconds,
+                autoExtend = true,
+            )
+        )
+        val lockName = randomLockName()
+        val started = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+
+        val holder = Thread {
+            stateElection.runIfLeader(lockName) {
+                started.countDown()
+                release.await()
+            }
+        }.apply { start() }
+
+        started.await()
+        val initialLeaseUntil = stateElection.state(lockName).leader.shouldNotBeNull().leaseUntil.shouldNotBeNull()
+        Thread.sleep(180)
+        val extendedLeaseUntil = stateElection.state(lockName).leader.shouldNotBeNull().leaseUntil.shouldNotBeNull()
+
+        release.countDown()
+        holder.join()
+
+        extendedLeaseUntil.isAfter(initialLeaseUntil) shouldBeEqualTo true
+    }
+
+    @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() {
         assertFailsWith<LeaderElectionException> {
             election.runIfLeader(randomLockName()) {

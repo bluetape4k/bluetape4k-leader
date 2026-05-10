@@ -24,12 +24,14 @@ import kotlin.time.Duration.Companion.seconds
  * @property leaseTime 리더 보유(임대) 최대 시간. 기본값 60초
  * @property nodeId 상태 조회에 노출할 노드 식별자. 기본값은 JVM 프로세스 단위 stable id
  * @property minLeaseTime 작업이 빨리 끝나도 리더 lease를 최소로 보유할 시간. 기본값 0초
+ * @property autoExtend 작업 실행 중 lease를 주기적으로 연장할지 여부. 기본값 false
  */
 data class LeaderElectionOptions(
     val waitTime: Duration = DefaultWaitTime,
     val leaseTime: Duration = DefaultLeaseTime,
     val nodeId: String = LeaderNodeId.Default,
     val minLeaseTime: Duration = Duration.ZERO,
+    val autoExtend: Boolean = false,
 ): Serializable {
     init {
         waitTime.requireGe(Duration.ZERO, "waitTime")

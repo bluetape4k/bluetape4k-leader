@@ -53,6 +53,7 @@ class LeaderElectionAspectTest {
         fun runSync(): String?
         fun runWithArg(region: String): String?
         fun runWithMinLease(): String?
+        fun runWithAutoExtend(): String?
     }
 
     private class SampleServiceImpl: SampleService {
@@ -64,6 +65,9 @@ class LeaderElectionAspectTest {
 
         @LeaderElection(name = "min-job", leaseTime = "PT30S", minLeaseTime = "PT10S")
         override fun runWithMinLease(): String? = SAMPLE_RESULT
+
+        @LeaderElection(name = "auto-job", leaseTime = "PT30S", autoExtend = true)
+        override fun runWithAutoExtend(): String? = SAMPLE_RESULT
     }
 
     // Class-level mocks — reused across all tests, cleared in @BeforeEach
@@ -156,6 +160,28 @@ class LeaderElectionAspectTest {
         result shouldBeEqualTo SAMPLE_RESULT
         optionsSlot.captured.leaseTime shouldBeEqualTo 30.seconds
         optionsSlot.captured.minLeaseTime shouldBeEqualTo 10.seconds
+    }
+
+    @Test
+    fun `autoExtend - 어노테이션 값을 core options 로 전달한다`() {
+        val target = SampleServiceImpl()
+        val method = SampleService::class.java.getDeclaredMethod("runWithAutoExtend")
+        configureJoinPoint(method, target, emptyArray())
+        every { pjp.proceed() } returns SAMPLE_RESULT
+
+        val actionSlot = slot<() -> Any?>()
+        every { election.runIfLeaderResult<Any?>(any(), capture(actionSlot)) } answers {
+            LeaderRunResult.Elected(actionSlot.captured.invoke())
+        }
+        val optionsSlot = slot<LeaderElectionOptions>()
+
+        val aspect = newAspect()
+        every { factoryMock.create(capture(optionsSlot)) } returns election
+
+        val result = aspect.aroundLeader(pjp)
+
+        result shouldBeEqualTo SAMPLE_RESULT
+        optionsSlot.captured.autoExtend shouldBeEqualTo true
     }
 
     @Test

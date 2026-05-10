@@ -55,6 +55,13 @@ class RedissonLeaderElector private constructor(
     private val waitTimeMills = options.waitTime.inWholeMilliseconds
     private val leaseTimeMills = options.leaseTime.inWholeMilliseconds
     private val minLeaseTime = options.minLeaseTime
+    private val autoExtend = options.autoExtend
+
+    init {
+        require(!(autoExtend && minLeaseTime > kotlin.time.Duration.ZERO)) {
+            "Redisson autoExtend does not support minLeaseTime because watchdog release semantics are ambiguous"
+        }
+    }
 
     /**
      * Redisson Lock을 이용하여, 리더로 선출되면 [action]을 수행하고, 그렇지 않다면 수행하지 않습니다.
@@ -72,7 +79,11 @@ class RedissonLeaderElector private constructor(
         log.debug { "Leader 승격을 요청합니다 ..." }
 
         try {
-            val acquired = lock.tryLock(waitTimeMills, leaseTimeMills, TimeUnit.MILLISECONDS)
+            val acquired = if (autoExtend) {
+                lock.tryLock(waitTimeMills, TimeUnit.MILLISECONDS)
+            } else {
+                lock.tryLock(waitTimeMills, leaseTimeMills, TimeUnit.MILLISECONDS)
+            }
             if (acquired) {
                 val acquiredAtNanos = System.nanoTime()
                 log.debug { "Leader로 승격하여 작업을 수행합니다. lock=$lockName" }
@@ -119,7 +130,12 @@ class RedissonLeaderElector private constructor(
             log.debug { "Leader 승격을 요청합니다 ... lock=$lockName, currentThreadId=$currentThreadId" }
 
             return lock
-                .tryLockAsync(waitTimeMills, leaseTimeMills, TimeUnit.MILLISECONDS, currentThreadId)
+                .tryLockAsync(
+                    waitTimeMills,
+                    if (autoExtend) -1L else leaseTimeMills,
+                    TimeUnit.MILLISECONDS,
+                    currentThreadId,
+                )
                 .thenComposeAsync({ acquired ->
                     if (acquired) {
                         executeActionAsync(lock, currentThreadId, executor, System.nanoTime(), action)

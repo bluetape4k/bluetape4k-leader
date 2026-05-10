@@ -458,7 +458,12 @@ class LeaderElectionAspect(
             java.time.Duration.ZERO,
         ).toKotlinDuration()
 
-        val opts = LeaderElectionOptions(waitTime = waitTime, leaseTime = leaseTime, minLeaseTime = minLeaseTime)
+        val opts = LeaderElectionOptions(
+            waitTime = waitTime,
+            leaseTime = leaseTime,
+            minLeaseTime = minLeaseTime,
+            autoExtend = ann.autoExtend,
+        )
         val selected = beanSelector.selectElectionFactory(ann.bean, method)
         val literal = if (LITERAL_PATTERN.matches(ann.name)) ann.name else null
 

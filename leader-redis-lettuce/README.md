@@ -10,7 +10,7 @@ Redis-backed leader election using [Lettuce](https://lettuce.io/) — blocking a
 
 `leader-redis-lettuce` implements `leader-core` interfaces using Lettuce's reactive Redis client. Lock primitives (`LettuceLock`, `LettuceSemaphore`) are ported directly into this module — no runtime dependency on `bluetape4k-lettuce`.
 
-Lock strategy: Redis `SET key value NX PX ttl` (atomic compare-and-set). Renewal is not automatic; the caller must ensure `leaseTime` is longer than the expected action duration.
+Lock strategy: Redis `SET key value NX PX ttl` (atomic compare-and-set). With `LeaderElectionOptions(autoExtend = true)`, single-leader electors renew the TTL with a token-conditional `PEXPIRE` while the action is running. Group/semaphore renewal is not automatic.
 
 ## Architecture
 

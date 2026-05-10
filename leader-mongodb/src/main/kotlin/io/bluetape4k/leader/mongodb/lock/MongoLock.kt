@@ -205,6 +205,15 @@ class MongoLock private constructor(
             log.debug { "락 해제 성공: lockKey=$lockKey" }
         }
     }
+
+    fun extend(leaseTime: Duration): Boolean {
+        val matched = collection.updateOne(
+            Filters.and(Filters.eq("_id", lockKey), Filters.eq("token", token)),
+            Updates.set("expireAt", Date(System.currentTimeMillis() + leaseTime.inWholeMilliseconds))
+        ).matchedCount
+
+        return matched > 0L
+    }
 }
 
 internal fun validateMongoLockName(lockName: String) {

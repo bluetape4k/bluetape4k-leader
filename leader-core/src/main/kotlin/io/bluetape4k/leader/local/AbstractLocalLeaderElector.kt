@@ -5,6 +5,7 @@ import io.bluetape4k.leader.LeaderElectionListenerRegistry
 import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElectionState
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.parkRemainingMinLeaseTime
 import io.bluetape4k.support.requireNotBlank
@@ -93,10 +94,14 @@ abstract class AbstractLocalLeaderElector(
         }
         val startedAtNanos = System.nanoTime()
         states.acquireSingle(lockName, options.nodeId, options.leaseTime)
+        val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime) {
+            states.extendSingle(lockName, options.leaseTime)
+        }
         listeners.notifyElected(lockName)
         return try {
             action()
         } finally {
+            watchdog.close()
             parkRemainingMinLeaseTime(startedAtNanos, options.minLeaseTime)
             states.releaseSingle(lockName)
             lock.unlock()

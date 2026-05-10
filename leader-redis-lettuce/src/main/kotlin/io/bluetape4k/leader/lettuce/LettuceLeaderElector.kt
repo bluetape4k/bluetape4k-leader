@@ -2,6 +2,7 @@ package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -58,10 +59,14 @@ class LettuceLeaderElector(
             return null
         }
         val acquiredAtNanos = System.nanoTime()
+        val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime) {
+            lock.extend(options.leaseTime)
+        }
         log.debug { "리더 선출 성공: lockName=$lockName" }
         try {
             return action()
         } finally {
+            watchdog.close()
             runCatching {
                 if (lock.isHeldByCurrentInstance()) {
                     lock.unlock(options.minLeaseTime, acquiredAtNanos)
@@ -90,9 +95,13 @@ class LettuceLeaderElector(
                 CompletableFuture.completedFuture(null)
             } else {
                 val acquiredAtNanos = System.nanoTime()
+                val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime) {
+                    lock.extend(options.leaseTime)
+                }
                 log.debug { "리더 선출 성공 (async): lockName=$lockName" }
                 try {
                     action().whenComplete { _, _ ->
+                        watchdog.close()
                         runCatching {
                             if (lock.isHeldByCurrentInstance()) {
                                 lock.unlock(options.minLeaseTime, acquiredAtNanos)
@@ -101,6 +110,7 @@ class LettuceLeaderElector(
                             .onFailure { log.warn(it) { "Fail to release lock. lockName=$lockName" } }
                     }
                 } catch (e: Throwable) {
+                    watchdog.close()
                     runCatching {
                         if (lock.isHeldByCurrentInstance()) {
                             lock.unlock(options.minLeaseTime, acquiredAtNanos)

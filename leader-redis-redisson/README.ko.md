@@ -10,6 +10,8 @@
 
 `leader-redis-redisson`은 Redisson의 `RLock`과 `RSemaphore`를 사용하여 `leader-core` 인터페이스를 구현합니다. 블로킹, 비동기, 코루틴, 가상 스레드 실행 모델을 모두 지원합니다.
 
+단일 리더 선출에서 `LeaderElectionOptions(autoExtend = true)`를 사용하면 명시적 lease timeout 없이 `RLock`을 획득해 Redisson 자체 watchdog에 위임합니다. watchdog release semantics가 모호하므로 `autoExtend=true`와 `minLeaseTime > 0` 조합은 거부합니다. 그룹/세마포어 auto-extension은 구현하지 않았습니다.
+
 코루틴 구현체는 PID 시드 기반의 미니 Snowflake ID 생성기를 사용하여 Redis 라운드트립 없이 코루틴별 고유 락 ID를 생성합니다. HA(다중 JVM) 환경에서 안전하게 동작합니다.
 
 ## 아키텍처
