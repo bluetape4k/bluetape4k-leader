@@ -166,12 +166,15 @@ val options = LeaderElectionOptions(
     waitTime = 3.seconds,   // 락 획득 최대 대기 시간
     leaseTime = 30.seconds, // 락 보유(임대) 최대 시간
     nodeId = "worker-a",    // 상태 스냅샷에 노출할 노드 식별자
-    minLeaseTime = 0.seconds // lockAtLeastFor 방식의 최소 lease 보존 시간
+    minLeaseTime = 0.seconds, // lockAtLeastFor 방식의 최소 lease 보존 시간
+    autoExtend = true // action 실행 중 단일 리더 lease를 갱신
 )
 val election = RedissonLeaderElector(client, options)
 ```
 
 `minLeaseTime`은 ShedLock `lockAtLeastFor` 대응 옵션입니다. 로컬 elector는 release 전 대기하고, 지원되는 분산 backend는 남은 최소 lease를 storage TTL에 위임하므로 caller는 즉시 반환됩니다.
+
+`autoExtend`는 단일 리더 선출에서 opt-in으로 동작합니다. Local, Lettuce, MongoDB, Redisson은 action 실행 중 lease를 유지하며, Redisson은 자체 watchdog에 위임합니다. `@LeaderGroupElection`은 아직 auto-extension을 지원하지 않습니다. Redisson은 watchdog release semantics가 모호하므로 `autoExtend=true`와 `minLeaseTime > 0` 조합을 거부합니다.
 
 ### 상태 스냅샷
 

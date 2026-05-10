@@ -10,7 +10,7 @@
 
 `leader-mongodb`는 `leader-core` 인터페이스를 MongoDB의 `findOneAndUpdate` (`upsert=true`)를 원자적 락 기본 연산으로 구현합니다. `expireAt` 필드의 TTL 인덱스가 자동 만료를 담당합니다. 락 소유권은 인스턴스 별 UUID 토큰으로 추적하여 코루틴 스레드 전환에 무관하게 안전합니다.
 
-`minLeaseTime` 설정 시 unlock은 문서를 즉시 삭제하지 않고 남은 최소 lease만큼 `expireAt`을 갱신합니다. caller를 블로킹하지 않으면서 ShedLock `lockAtLeastFor`와 같은 동작을 제공합니다.
+`minLeaseTime` 설정 시 unlock은 문서를 즉시 삭제하지 않고 남은 최소 lease만큼 `expireAt`을 갱신합니다. caller를 블로킹하지 않으면서 ShedLock `lockAtLeastFor`와 같은 동작을 제공합니다. `LeaderElectionOptions(autoExtend = true)`를 사용하면 단일 리더 elector가 저장된 token이 현재 owner와 일치할 때만 `expireAt`을 주기적으로 갱신합니다.
 
 락 전략:
 - **획득**: `findOneAndUpdate(filter: {_id, expireAt < 현재}, update: {token, expireAt}, upsert=true, returnDocument=AFTER)` — 반환된 token이 일치하면 성공; `E11000`은 유효한 락이 이미 존재함을 의미 → 재시도.
@@ -225,7 +225,7 @@ MongoSuspendLeaderGroupElector(
 
 ## 주의사항
 
-- `leaseTime`은 action의 최대 실행 시간보다 충분히 커야 합니다 (자동 갱신 없음).
+- 단일 리더 선출은 `autoExtend=true`로 action 실행 중 `expireAt`을 갱신할 수 있습니다. 그룹 선출은 여전히 `leaseTime`이 예상 action 시간을 충분히 덮어야 합니다.
 - MongoDB TTL 인덱스는 최대 60초 주기로 실행 — 만료 문서가 잠시 잔류할 수 있습니다.
 - `activeCount()` / `availableSlots()`는 TTL 만료 주기로 인해 근사치입니다.
 - Replica Set 환경: 강한 일관성을 위해 `WriteConcern.MAJORITY` 권장.

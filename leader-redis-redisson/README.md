@@ -10,6 +10,8 @@ Redis-backed leader election using [Redisson](https://redisson.org/) — blockin
 
 `leader-redis-redisson` implements `leader-core` interfaces using Redisson's `RLock` and `RSemaphore`. It supports blocking, async, coroutine, and virtual-thread execution models.
 
+For single-leader elections, `LeaderElectionOptions(autoExtend = true)` uses Redisson's native lock watchdog by acquiring `RLock` without an explicit lease timeout. `minLeaseTime > 0` is rejected with `autoExtend=true` because watchdog release semantics would be ambiguous. Group/semaphore auto-extension is not implemented.
+
 The coroutine implementation uses a PID-seeded mini-Snowflake ID generator to produce unique per-coroutine lock IDs without Redis round-trips, ensuring safety in HA (multi-JVM) deployments.
 
 ## Architecture

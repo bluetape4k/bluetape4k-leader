@@ -118,6 +118,58 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
     }
 
     @Test
+    fun `autoExtend with minLeaseTime fails fast`() {
+        assertFailsWith<IllegalArgumentException> {
+            RedissonLeaderElector(
+                redissonClient,
+                LeaderElectionOptions(
+                    leaseTime = 1.seconds,
+                    minLeaseTime = 100.milliseconds,
+                    autoExtend = true,
+                )
+            )
+        }
+    }
+
+    @Test
+    fun `autoExtend uses Redisson watchdog while action exceeds explicit leaseTime`() {
+        val lockName = randomName()
+        val leaderElection = RedissonLeaderElector(
+            redissonClient,
+            LeaderElectionOptions(
+                waitTime = 100.milliseconds,
+                leaseTime = 250.milliseconds,
+                autoExtend = true,
+            )
+        )
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val executor = Executors.newSingleThreadExecutor()
+
+        try {
+            val holder = executor.submit<String?> {
+                leaderElection.runIfLeader(lockName) {
+                    started.countDown()
+                    release.await(1, TimeUnit.SECONDS)
+                    "holder"
+                }
+            }
+
+            started.await(1, TimeUnit.SECONDS)
+            Thread.sleep(450)
+
+            leaderElection.runIfLeader(lockName) { "contender" }.shouldBeNull()
+
+            release.countDown()
+            holder.get(2, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+            leaderElection.runIfLeader(lockName) { "after-release" } shouldBeEqualTo "after-release"
+        } finally {
+            release.countDown()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
     fun `run action should keep Redis TTL until minLeaseTime after fast return`() {
         val lockName = randomName()
         val leaderElection = RedissonLeaderElector(

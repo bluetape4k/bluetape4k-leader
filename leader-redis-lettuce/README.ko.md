@@ -10,7 +10,7 @@
 
 `leader-redis-lettuce`는 Lettuce 리액티브 Redis 클라이언트를 사용하여 `leader-core` 인터페이스를 구현합니다. 락 프리미티브(`LettuceLock`, `LettuceSemaphore`)는 이 모듈에 직접 이식되어 있어 `bluetape4k-lettuce`에 대한 런타임 의존이 없습니다.
 
-락 전략: Redis `SET key value NX PX ttl` (원자적 compare-and-set). 자동 갱신(renewal)은 지원하지 않으므로 `leaseTime`은 예상 작업 시간보다 길게 설정해야 합니다.
+락 전략: Redis `SET key value NX PX ttl` (원자적 compare-and-set). `LeaderElectionOptions(autoExtend = true)`를 사용하면 단일 리더 elector가 action 실행 중 token 조건부 `PEXPIRE`로 TTL을 갱신합니다. 그룹/세마포어 갱신은 자동으로 수행하지 않습니다.
 
 ## 아키텍처
 

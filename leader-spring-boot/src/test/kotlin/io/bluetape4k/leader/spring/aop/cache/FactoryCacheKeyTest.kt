@@ -52,6 +52,13 @@ class FactoryCacheKeyTest {
     }
 
     @Test
+    fun `같은 factory bean - 다른 autoExtend = 다른 key`() {
+        val a = FactoryCacheKey("X", LeaderElectionOptions(autoExtend = false))
+        val b = FactoryCacheKey("X", LeaderElectionOptions(autoExtend = true))
+        a shouldNotBeEqualTo b
+    }
+
+    @Test
     fun `Group key - 같은 factory bean - 다른 maxLeaders = 다른 key`() {
         val a = GroupFactoryCacheKey("X", LeaderGroupElectionOptions(maxLeaders = 2))
         val b = GroupFactoryCacheKey("X", LeaderGroupElectionOptions(maxLeaders = 3))

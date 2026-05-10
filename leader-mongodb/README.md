@@ -10,7 +10,7 @@ MongoDB-backed leader election using `findOneAndUpdate` + TTL index — blocking
 
 `leader-mongodb` implements `leader-core` interfaces using MongoDB's `findOneAndUpdate` with `upsert=true` as the atomic lock primitive. A TTL index on `expireAt` handles automatic expiry. Lock ownership is tracked by a per-instance UUID token, making it safe across coroutine thread switches.
 
-When `minLeaseTime` is configured, unlock updates `expireAt` to the remaining minimum lease instead of deleting the document, matching ShedLock `lockAtLeastFor` behavior without blocking the caller.
+When `minLeaseTime` is configured, unlock updates `expireAt` to the remaining minimum lease instead of deleting the document, matching ShedLock `lockAtLeastFor` behavior without blocking the caller. With `LeaderElectionOptions(autoExtend = true)`, single-leader electors periodically update `expireAt` only when the stored token still matches the owner.
 
 Lock strategy:
 - **Acquire**: `findOneAndUpdate(filter: {_id, expireAt < now}, update: {token, expireAt}, upsert=true, returnDocument=AFTER)` — succeeds if the returned token matches; `E11000` means a live lock exists → retry.
@@ -225,7 +225,7 @@ MongoSuspendLeaderGroupElector(
 
 ## Notes
 
-- `leaseTime` must be longer than the expected action duration (no automatic renewal).
+- For single-leader elections, `autoExtend=true` can renew `expireAt` while the action runs. Group elections still require `leaseTime` to cover the expected action duration.
 - MongoDB TTL index fires at most every 60 seconds — expired documents may linger briefly.
 - `activeCount()` / `availableSlots()` are approximate due to the TTL expiry window.
 - Replica Set environments: `WriteConcern.MAJORITY` is recommended for strong consistency.

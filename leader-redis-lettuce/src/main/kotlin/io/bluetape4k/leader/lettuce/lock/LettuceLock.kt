@@ -59,6 +59,15 @@ else
   return 0
 end"""
         )
+
+        private val EXTEND_SCRIPT = RedisScript(
+            """
+if redis.call('get', KEYS[1]) == ARGV[1] then
+  return redis.call('pexpire', KEYS[1], ARGV[2])
+else
+  return 0
+end"""
+        )
     }
 
     private val tokenRef = atomic<String?>(null)
@@ -137,6 +146,16 @@ end"""
             "Lock 해제 실패 (토큰 불일치 또는 만료): lockKey=$lockKey"
         }
         log.debug { "Lock 해제 성공: lockKey=$lockKey" }
+    }
+
+    fun extend(leaseTime: Duration = defaultLeaseTime): Boolean {
+        val token = tokenRef.value ?: return false
+        val leaseMs = leaseTime.inWholeMilliseconds
+
+        val extended = RedisScriptRunner.run<Long>(
+            syncCommands, EXTEND_SCRIPT, ScriptOutputType.INTEGER, arrayOf(lockKey), token, leaseMs.toString()
+        )
+        return extended > 0L
     }
 
     // =========================================================================
@@ -220,5 +239,14 @@ end"""
             }
             log.debug { "Lock 해제 성공 (async): lockKey=$lockKey" }
         }
+    }
+
+    fun extendAsync(leaseTime: Duration = defaultLeaseTime): CompletableFuture<Boolean> {
+        val token = tokenRef.value ?: return CompletableFuture.completedFuture(false)
+        val leaseMs = leaseTime.inWholeMilliseconds
+
+        return RedisScriptRunner.runAsync<Long>(
+            asyncCommands, EXTEND_SCRIPT, ScriptOutputType.INTEGER, arrayOf(lockKey), token, leaseMs.toString()
+        ).thenApply { it > 0L }
     }
 }

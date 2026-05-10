@@ -166,12 +166,15 @@ val options = LeaderElectionOptions(
     waitTime = 3.seconds,   // how long to wait for the lock
     leaseTime = 30.seconds, // how long to hold the lock
     nodeId = "worker-a",    // id exposed by state snapshots
-    minLeaseTime = 0.seconds // lockAtLeastFor-style minimum lease retention
+    minLeaseTime = 0.seconds, // lockAtLeastFor-style minimum lease retention
+    autoExtend = true // renew single-leader leases while the action is running
 )
 val election = RedissonLeaderElector(client, options)
 ```
 
 `minLeaseTime` is the `lockAtLeastFor` equivalent. Local electors wait before releasing; supported distributed backends delegate the remaining minimum lease to storage TTL so callers can return immediately.
+
+`autoExtend` is opt-in for single-leader elections. Local, Lettuce, MongoDB, and Redisson keep the lease alive while the action is running; Redisson delegates to its native watchdog. `@LeaderGroupElection` does not support auto-extension yet. Redisson rejects `autoExtend=true` with `minLeaseTime > 0` because watchdog release semantics would be ambiguous.
 
 ### State snapshots
 

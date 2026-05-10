@@ -3,6 +3,7 @@ package io.bluetape4k.leader.mongodb
 import com.mongodb.client.MongoCollection
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.leader.mongodb.lock.validateMongoLockName
 import io.bluetape4k.logging.KLogging
@@ -58,10 +59,17 @@ class MongoLeaderElector private constructor(
         }
 
         val acquiredAtNanos = System.nanoTime()
+        val watchdog = LeaderLeaseAutoExtender.start(
+            options.leaderOptions.autoExtend,
+            options.leaderOptions.leaseTime,
+        ) {
+            lock.extend(options.leaderOptions.leaseTime)
+        }
         log.debug { "리더로 승격하여 작업을 수행합니다. lockName=$lockName" }
         try {
             return action()
         } finally {
+            watchdog.close()
             runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
                 .onSuccess { log.debug { "리더 권한을 반납했습니다. lockName=$lockName" } }
                 .onFailure { e -> log.warn(e) { "락 해제 실패. lockName=$lockName" } }
@@ -84,14 +92,22 @@ class MongoLeaderElector private constructor(
                     CompletableFuture.completedFuture(null)
                 } else {
                     val acquiredAtNanos = System.nanoTime()
+                    val watchdog = LeaderLeaseAutoExtender.start(
+                        options.leaderOptions.autoExtend,
+                        options.leaderOptions.leaseTime,
+                    ) {
+                        lock.extend(options.leaderOptions.leaseTime)
+                    }
                     log.debug { "리더로 승격하여 비동기 작업을 수행합니다. lockName=$lockName" }
                     val actionFuture = runCatching { action() }
                         .getOrElse { e ->
+                            watchdog.close()
                             runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
                                 .onFailure { ex -> log.warn(ex) { "락 해제 실패 (action 오류 경로). lockName=$lockName" } }
                             return@thenComposeAsync CompletableFuture.failedFuture(e)
                         }
                     actionFuture.whenCompleteAsync({ _, _ ->
+                        watchdog.close()
                         runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
                             .onSuccess { log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" } }
                             .onFailure { e -> log.warn(e) { "비동기 락 해제 실패. lockName=$lockName" } }

@@ -105,7 +105,8 @@ election.runIfLeader("nightly-sync") { syncToRemote() }
 LeaderElectionOptions(
     waitTime: Duration = 5.seconds,   // 락 획득 최대 대기 시간
     leaseTime: Duration = 60.seconds, // 락 보유(임대) 최대 시간
-    minLeaseTime: Duration = Duration.ZERO // 로컬 최소 보유 시간
+    minLeaseTime: Duration = Duration.ZERO, // 로컬 최소 보유 시간
+    autoExtend: Boolean = false // action 실행 중 단일 리더 lease 갱신
 )
 
 LeaderGroupElectionOptions(
@@ -117,6 +118,8 @@ LeaderGroupElectionOptions(
 ```
 
 `minLeaseTime`은 lockAtLeastFor 대응 옵션입니다. 로컬 elector는 최소 보유 시간이 지날 때까지 락 또는 슬롯을 유지합니다. 지원되는 분산 backend는 release 시 남은 최소 lease를 storage TTL에 위임합니다.
+
+`autoExtend`는 단일 리더 옵션입니다. 로컬 elector는 JVM lock으로 상호 배제를 유지하고 상태 스냅샷을 갱신하며, 분산 backend는 owner 조건부 lease 갱신을 구현합니다.
 
 ## 시퀀스 다이어그램
 

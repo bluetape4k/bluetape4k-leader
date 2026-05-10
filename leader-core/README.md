@@ -105,7 +105,8 @@ election.runIfLeader("nightly-sync") { syncToRemote() }
 LeaderElectionOptions(
     waitTime: Duration = 5.seconds,   // max wait for lock acquisition
     leaseTime: Duration = 60.seconds, // max lock hold time
-    minLeaseTime: Duration = Duration.ZERO // minimum local hold time
+    minLeaseTime: Duration = Duration.ZERO, // minimum local hold time
+    autoExtend: Boolean = false // renew a single-leader lease while action runs
 )
 
 LeaderGroupElectionOptions(
@@ -117,6 +118,8 @@ LeaderGroupElectionOptions(
 ```
 
 `minLeaseTime` is the lockAtLeastFor equivalent. Local electors keep the lock or slot until the minimum hold time has elapsed. Supported distributed backends delegate the remaining minimum lease to their storage TTL on release.
+
+`autoExtend` is a single-leader option. Local electors keep mutual exclusion with the JVM lock and refresh state snapshots while distributed backends implement owner-conditional lease renewal.
 
 ## Sequence Diagrams
 

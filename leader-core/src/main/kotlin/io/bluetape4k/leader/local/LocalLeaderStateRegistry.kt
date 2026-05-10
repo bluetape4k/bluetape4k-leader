@@ -43,6 +43,15 @@ internal class LocalLeaderStateRegistry {
         }
     }
 
+    fun extendSingle(lockName: String, leaseTime: Duration): Boolean =
+        lock.withLock {
+            val current = singleLeases[lockName] ?: return false
+            current.lease = current.lease.copy(
+                leaseUntil = Instant.now().plusMillis(leaseTime.inWholeMilliseconds),
+            )
+            true
+        }
+
     fun singleState(lockName: String): LeaderState {
         lockName.requireNotBlank("lockName")
         return lock.withLock {
@@ -95,7 +104,7 @@ internal class LocalLeaderStateRegistry {
     }
 
     private data class LeaseRef(
-        val lease: LeaderLease,
+        var lease: LeaderLease,
         var holdCount: Int = 1,
     )
 }

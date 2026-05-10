@@ -138,6 +138,46 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
     }
 
     @Test
+    fun `runIfLeader - autoExtend 가 leaseTime 초과 action 의 takeover 를 막는다`() {
+        val lockName = randomName()
+        val election = MongoLeaderElector(
+            lockCollection,
+            MongoLeaderElectionOptions(
+                leaderOptions = LeaderElectionOptions(
+                    waitTime = 100.milliseconds,
+                    leaseTime = 250.milliseconds,
+                    autoExtend = true,
+                )
+            )
+        )
+        val started = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+
+        try {
+            val holder = executor.submit<String?> {
+                election.runIfLeader(lockName) {
+                    started.countDown()
+                    release.await(1, TimeUnit.SECONDS)
+                    "holder"
+                }
+            }
+
+            started.await(1, TimeUnit.SECONDS)
+            Thread.sleep(450)
+
+            election.runIfLeader(lockName) { "contender" }.shouldBeNull()
+
+            release.countDown()
+            holder.get(2, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+            election.runIfLeader(lockName) { "after-release" } shouldBeEqualTo "after-release"
+        } finally {
+            release.countDown()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
     fun `runIfLeader - 락 보유 중 짧은 waitTime으로 호출하면 null을 반환한다`() {
         val lockName = randomName()
         val holderLock = MongoLock(lockCollection, lockName)

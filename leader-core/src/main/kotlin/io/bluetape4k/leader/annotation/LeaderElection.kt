@@ -41,6 +41,7 @@ package io.bluetape4k.leader.annotation
  * @property waitTime 리더 획득 대기 시간 — 빈 문자열 시 property 또는 코어 default 폴백
  * @property leaseTime 리더 보유 시간 — 빈 문자열 시 property 또는 코어 default 폴백
  * @property minLeaseTime 최소 리더 보유 시간. `PT0S`이면 빠른 종료 시 즉시 해제
+ * @property autoExtend 작업 실행 중 단일 리더 lease를 backend watchdog으로 주기 연장할지 여부
  * @property bean 사용할 [io.bluetape4k.leader.LeaderElectorFactory] 빈 이름 (literal only). 빈 문자열 시 default factory
  * @property failureMode 백엔드 예외 처리 정책. default `RETHROW`
  *
@@ -55,6 +56,7 @@ annotation class LeaderElection(
     val waitTime: String = "",
     val leaseTime: String = "",
     val minLeaseTime: String = "PT0S",
+    val autoExtend: Boolean = false,
     val bean: String = "",
     val failureMode: LeaderAspectFailureMode = LeaderAspectFailureMode.INHERIT,
 )

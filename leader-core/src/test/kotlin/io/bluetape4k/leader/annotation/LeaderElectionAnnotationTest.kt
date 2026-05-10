@@ -20,6 +20,7 @@ class LeaderElectionAnnotationTest {
         waitTime = "PT5S",
         leaseTime = "PT60S",
         minLeaseTime = "PT10S",
+        autoExtend = true,
         bean = "redissonLeaderElectionFactory",
         failureMode = LeaderAspectFailureMode.SKIP,
     )
@@ -32,6 +33,7 @@ class LeaderElectionAnnotationTest {
         annotation.waitTime shouldBeEqualTo ""
         annotation.leaseTime shouldBeEqualTo ""
         annotation.minLeaseTime shouldBeEqualTo "PT0S"
+        annotation.autoExtend shouldBeEqualTo false
         annotation.bean shouldBeEqualTo ""
         annotation.failureMode shouldBeEqualTo LeaderAspectFailureMode.INHERIT
     }
@@ -43,6 +45,7 @@ class LeaderElectionAnnotationTest {
         annotation.waitTime shouldBeEqualTo "PT5S"
         annotation.leaseTime shouldBeEqualTo "PT60S"
         annotation.minLeaseTime shouldBeEqualTo "PT10S"
+        annotation.autoExtend shouldBeEqualTo true
         annotation.bean shouldBeEqualTo "redissonLeaderElectionFactory"
         annotation.failureMode shouldBeEqualTo LeaderAspectFailureMode.SKIP
     }

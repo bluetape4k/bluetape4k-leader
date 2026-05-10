@@ -70,6 +70,43 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
     }
 
     @Test
+    fun `autoExtend - leaseTime 을 초과하는 action 실행 중 contender 는 획득하지 못한다`() {
+        val el = LettuceLeaderElector(
+            connection,
+            LeaderElectionOptions(
+                waitTime = 100.milliseconds,
+                leaseTime = 250.milliseconds,
+                autoExtend = true,
+            )
+        )
+        val started = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+
+        try {
+            val holder = executor.submit<String?> {
+                el.runIfLeader(lockName) {
+                    started.countDown()
+                    release.await(1, java.util.concurrent.TimeUnit.SECONDS)
+                    "holder"
+                }
+            }
+
+            started.await(1, java.util.concurrent.TimeUnit.SECONDS)
+            Thread.sleep(450)
+
+            el.runIfLeader(lockName) { "contender" }.shouldBeNull()
+
+            release.countDown()
+            holder.get(2, java.util.concurrent.TimeUnit.SECONDS) shouldBeEqualTo "holder"
+            el.runIfLeader(lockName) { "after-release" } shouldBeEqualTo "after-release"
+        } finally {
+            release.countDown()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
     fun `리더 선출 - action 예외 발생 시 예외 전파`() {
         assertFailsWith<LeaderElectionException> {
             election.runIfLeader(lockName) { throw LeaderElectionException("오류") }
