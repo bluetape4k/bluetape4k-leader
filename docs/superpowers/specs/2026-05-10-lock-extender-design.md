@@ -337,7 +337,8 @@ sealed class LeaderLockHandle {
             return Real(identity, token, acquiredAtNanos, slotId, acquiringThreadId, n, extendDelegate)
         }
 
-        // 명시적 equals/hashCode/toString — delegate 제외, (identity, token, reentryDepth, slotId) 기반
+        // 명시적 equals/hashCode/toString — delegate/acquiringThreadId 제외, (identity, token, reentryDepth, slotId) 기반.
+        // acquiringThreadId 는 ownership 비교에 사용 금지 (R6-P2) — Redisson cross-thread debug 정보 only.
         override fun equals(other: Any?): Boolean { ... }
         override fun hashCode(): Int { ... }
         override fun toString(): String =
@@ -551,7 +552,7 @@ suspend fun <T> runIfLeaderResultSuspend(
 | `SuspendLeaderGroupElector` | **default fun 신규 추가** | 동일 |
 | `AsyncLeaderElector` / `VirtualThreadLeaderElector` | 추가 안 함 (out-of-scope) | — |
 
-**§10.1 source-compat 갱신**: "모든 elector 인터페이스 무변경" → "**`SuspendLeaderElector`/`SuspendLeaderGroupElector` 에 default fun 추가** (source/binary 호환), 그 외 무변경".
+**§10.1 source-compat 갱신**: "모든 elector 인터페이스 무변경" → "**`SuspendLeaderElector`/`SuspendLeaderGroupElector` 에 default fun 추가** (source-compatible; binary-compat 은 §10.1b 의 `-jvm-default=enable` 검증 의존), 그 외 무변경".
 
 ---
 
@@ -706,7 +707,7 @@ private fun aroundLeader(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
     } catch (e: CancellationException) {
         throw e
     } catch (e: BodyThrownMarker) {
-        throw e.cause!!   // body exception 그대로 propagate — failureMode 무관
+        throw e.cause   // override val cause: Throwable → non-null 보장 (R6-P2)   // body exception 그대로 propagate — failureMode 무관
     } catch (e: CaptureInvariantException) {
         throw e            // ⭐ R5-F3 — 전용 exception type (일반 ISE 와 구분)
     } catch (e: Exception) {  // ⭐ backend exception 만 (R3-F5 — Throwable 아님)
@@ -721,8 +722,8 @@ private fun aroundLeader(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
     }
 }
 
-/** body exception marker (R4-F2) */
-private class BodyThrownMarker(cause: Throwable) : RuntimeException(cause)
+/** body exception marker (R4-F2 + R6-P2 — `override val cause` 로 non-null 보장). */
+private class BodyThrownMarker(override val cause: Throwable) : RuntimeException(cause)
 
 /** capture invariant 실패 전용 exception — 일반 IllegalStateException 과 구분 (R5-F3) */
 internal class CaptureInvariantException(message: String) : IllegalStateException(message)
@@ -744,9 +745,17 @@ private suspend fun aroundLeaderSuspendBody(pjp: ProceedingJoinPoint, meta: Advi
         }
     }
 
-    // 2) 정상 경로 — body / capture-invariant / backend exception 분리 (R4-F2 + R5-F2 + R5-F3)
+    // 2) 정상 경로 — body / capture-invariant / backend exception 분리 (R4-F2 + R5-F2 + R5-F3 + R6-F1)
+    // ⭐ R6-F1 — suspend body 호출은 `suspendCoroutineUninterceptedOrReturn { innerCont -> pjp.proceed(newArgs) }` 패턴 필수.
+    //   `suspendBlock.startCoroutineUninterceptedOrReturn(...)` 직접 반환은 COROUTINE_SUSPENDED sentinel 위험 —
+    //   elector 가 body 종료로 오인하고 lock release 가능 (LeaderElectionAspect.kt:212 기존 패턴 동일).
     suspend fun proceedProtected(): Any? = try {
-        suspendBlock.startCoroutineUninterceptedOrReturn(...)
+        @Suppress("UNCHECKED_CAST")
+        suspendCoroutineUninterceptedOrReturn<Any?> { innerCont ->
+            val newArgs = pjp.args.copyOf()
+            newArgs[newArgs.lastIndex] = innerCont as Continuation<Any?>
+            pjp.proceed(newArgs)
+        }
     } catch (e: CancellationException) {
         throw e
     } catch (e: Throwable) {
@@ -773,7 +782,7 @@ private suspend fun aroundLeaderSuspendBody(pjp: ProceedingJoinPoint, meta: Advi
     } catch (e: CancellationException) {
         throw e
     } catch (e: BodyThrownMarker) {
-        throw e.cause!!
+        throw e.cause   // override val cause: Throwable → non-null 보장 (R6-P2)
     } catch (e: CaptureInvariantException) {
         throw e
     } catch (e: Exception) {  // ⭐ backend exception 만 (R3-F5)
