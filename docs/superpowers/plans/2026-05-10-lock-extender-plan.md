@@ -4195,3 +4195,112 @@ Two execution options:
 
 **Estimated effort:** 19 tasks — high(6) / medium(8) / low(5).
 
+---
+
+## PR Split Strategy (Step 3-P 후 결정 — Hybrid)
+
+Devil's Advocate scope challenge + Reliability isolation 권고 통합. Full scope (4-5주, 19 task) 단일 PR 위험 → **9 PR 분할**.
+
+### PR 순서 (직렬 + backend별 isolated)
+
+| PR | Tasks | Module | Effort | Goal |
+|---|---|---|---|---|
+| **PR 1 (Core)** | T1-T6 + T14-T16 + T18 (core) + T19 | leader-core + leader-spring-boot + docs | 3-4일 | SPI/sealed types/aspect/validator invariant 잠금 + Local backend + Issue #79 본질 (ShedLock ergonomic API) early delivery |
+| **PR 2** | T7 + AC-15/16/18 grep | leader-redis-lettuce | 2일 | Lettuce single + group (server-side TIME Lua) — most-used backend, SPI 검증 |
+| **PR 3** | T8 + AC-8 thread-id semantics | leader-redis-redisson | 2일 | Redisson owner-guarded Lua + group `updateLeaseTime` |
+| **PR 4** | T9 + AC-17 (`$$NOW` server-side 강화) | leader-mongodb | 1.5일 | MongoDB extend filter + group `extendSlot` |
+| **PR 5** | T10 | leader-exposed-jdbc | 1일 | Exposed JDBC extend SQL |
+| **PR 6** | T11 (T10 dependency) | leader-exposed-r2dbc | 1일 | Exposed R2DBC suspend SQL |
+| **PR 7** | T12 + AC-7 (EntryProcessor) | leader-hazelcast | 1.5일 | Hazelcast atomic extend |
+| **PR 8** | T13 + AC-20 (autoExtend=false) | leader-zookeeper | 0.5일 | ZK passthrough |
+| **PR 9** | T17 leader-ktor smoke (AC-22b) | leader-ktor | 0.5일 | leaderScheduled smoke test |
+
+**합계 ~13-14일** (full scope 4-5주 vs).
+
+### PR 1 (Core) — Critical Path
+
+- 모든 후속 PR 이 PR 1 의 invariants 의존
+- PR 1 머지 후 backend PR 들 develop rebase + 자기 backend 만 구현
+- T17 (cross-cutting integration) 는 PR 1 의 Local + Lettuce (PR 2) 머지 후 마지막 PR (또는 PR 2 안에 통합 가능)
+
+### Per-PR DoD
+
+각 PR 마다 다음 의무:
+- 해당 backend 의 `*LockExtenderContractTest` (4 capability) 통과
+- `*ExtendDelegateReferenceTest` (AC-23) 통과
+- Detekt + Kover 80%+ 신규 코드
+- README.md + README.ko.md 노트 (해당 backend)
+- KDoc 신규 public surface
+- code-reviewer (Tier 4) CRITICAL/HIGH 0 + Codex (Tier 7) P0/P1 0
+
+---
+
+## Step 3-P Top 5 Risks — Mitigation Integration (PR 1 적용)
+
+### R1 (CRITICAL) — Capture invariant silent fail-open
+
+**문제**: elector `LeaderLockHandleCapture.set()` 누락 시 → `BodyThrownMarker` 가 `CaptureInvariantException` 을 catch → silent fail-open. spec §7.1/§7.2 이미 `catch (e: CaptureInvariantException) { throw e }` 가 `BodyThrownMarker` 보다 먼저 위치.
+
+**추가 mitigation (PR 1 적용)**:
+- `internal inline fun <T> runWithCapture(handle: LeaderLockHandle.Real, action: () -> T): T` helper 추출 (`leader-core/.../internal/CaptureScope.kt`)
+- 각 elector 가 `LeaderLockHandleCapture.set/clear` 직접 호출 X → `runWithCapture(handle) { ... action ... }` 사용
+- AC 추가: `grep -r "LeaderLockHandleCapture.set" leader-*/src/main` → 0 match (CaptureScope.kt 외)
+
+### R2 (CRITICAL) — Watchdog × LockExtender split-brain
+
+**문제**: user `extend(60s)` 후 watchdog tick (lease/3) 가 `lease=30s` 로 silently override → 사용자 작업 중 lock 만료.
+
+**Mitigation (PR 1 적용)**:
+- `ExtendDelegate` interface 에 `lastExtendDeadline: AtomicReference<Instant>` 필드 추가
+- `LeaderLeaseAutoExtender` tick 마다 `now() + watchdogCadence < lastExtendDeadline.get()` 이면 backend extend 호출 skip (이미 충분히 큰 lease 보유)
+- AC-6b 강화: TestDispatcher 로 watchdog tick skip 동작 검증
+
+### R3 (HIGH) — `LockIdentity.factoryBeanName` equality deadlock
+
+**문제**: `runBlocking { @LeaderElectionSuspend }` 동일 lockName + 다른 factoryBean → 별개 identity → inner physical acquire → wait timeout deadlock.
+
+**Mitigation (PR 1 적용)**:
+- `LockIdentity.equals/hashCode` 에서 `factoryBeanName` 제거 — `(lockName, kind, groupParams)` 만 비교
+- `factoryBeanName` 은 진단 metadata 로 demote
+- AC 추가: sync→suspend 동일 lockName nested reentrant test (inner 가 backend acquire 0 호출)
+
+### R4 (HIGH) — Mongo extend filter clock authority
+
+**문제**: spec `expireAt > now` 인데 `now` 출처 미명시. Client `Instant.now()` 사용 시 clock skew → expired lock revival.
+
+**Mitigation (PR 4 적용 — leader-mongodb)**:
+- `findOneAndUpdate` aggregation pipeline `$expr: { $gt: ["$expireAt", "$$NOW"] }` server-side 강제
+- AC-17 강화: `grep "Instant.now()" leader-mongodb/src/main` → extend filter 안 0 match
+
+### R5 (HIGH) — Reactor non-suspend operator silently fail
+
+**문제**: `@LeaderElection fun foo(): Mono<X> = svc.call().map { LockAssert.assertLocked(); ... }` → ThreadLocal/CoroutineContext 둘 다 없음 → throw.
+
+**Mitigation (PR 1 적용)**:
+- `LockAssert.assertLocked()` / `LockExtender.extendActiveLock()` KDoc 명시:
+  > ⚠️ Reactor non-suspend operator (`.map`, `.filter`) 미지원. `.flatMap { mono { LockAssert.assertLockedSuspend() } }` 패턴 사용.
+- 부정 테스트 추가: `MonoReactorOperatorTest`
+  - `.map { assertLocked() }` → throw 검증
+  - `.flatMap { mono { assertLockedSuspend() } }` → 통과 검증
+
+### Additional Security Mitigations (PR 1 적용)
+
+- **S1 handle forgery**: `internal` 우회 reflection 명시 — KDoc "not a security boundary" (이미 spec). 추가: production 환경 JPMS module export 제한 권장 README
+- **S2 lockName injection**: `LeaderAnnotationValidatorBeanPostProcessor` 에 `^[a-zA-Z0-9_:\-]{1,128}$` regex validation 추가 (resolved name 검증)
+- **S4 SpEL RCE**: `SimpleEvaluationContext.forReadOnlyDataBinding().build()` 강제 — `StandardEvaluationContext` 금지
+
+### Performance Mitigations
+
+- **P1 Mongo expireAt index** (PR 4 적용): `{name: 1, token: 1, expireAt: 1}` 복합 인덱스 startup `ensureIndexes()` hook
+- **P2 watchdog double-rate**: R2 mitigation 으로 자동 해결 (lastExtendDeadline skip)
+
+---
+
+## PR 1 Implementation Scope (확정)
+
+**Tasks**: T1, T2, T3, T4, T5, T6, T14, T15, T16, T18(core), T19
+**Excluded from PR 1**: T7~T13 (backend별 후속 PR), T17 (cross-backend integration — 후속 PR 통합)
+**Estimated**: 3-4일
+
+PR 1 머지 후 → PR 2 (Lettuce) 시작.
+
