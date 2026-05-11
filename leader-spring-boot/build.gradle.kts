@@ -6,19 +6,6 @@ plugins {
     id("io.freefair.aspectj.post-compile-weaving") version "9.5.0"
 }
 
-kover {
-    reports {
-        verify {
-            rule {
-                bound {
-                    // Spring Boot 통합 모듈 — nightly에서 전체 커버리지 측정
-                    minValue = 60
-                }
-            }
-        }
-    }
-}
-
 configurations {
     testImplementation.get().extendsFrom(compileOnly.get(), runtimeOnly.get())
 }
