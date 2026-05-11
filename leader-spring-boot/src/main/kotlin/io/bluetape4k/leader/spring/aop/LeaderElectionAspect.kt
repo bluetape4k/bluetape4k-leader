@@ -387,9 +387,11 @@ class LeaderElectionAspect(
                     val resolvedName = resolveLockName(meta, method, pjp.args, pjp.target)
                     lockName = resolvedName
                     val cacheKey = FactoryCacheKey(meta.suspendElectorFactoryBeanName, meta.options)
+                    val factory = checkNotNull(meta.suspendElectorFactory) {
+                        "suspendElectorFactory must be non-null in REACTIVE branch (Mono)"
+                    }
                     val elector = suspendElectorCache[cacheKey]
-                        ?: meta.suspendElectorFactory!!.create(meta.options)
-                            .also { suspendElectorCache.putIfAbsent(cacheKey, it) }
+                        ?: factory.create(meta.options).also { suspendElectorCache.putIfAbsent(cacheKey, it) }
 
                     fanOut { it.onLockAttempt(resolvedName, meta.options) }
 
