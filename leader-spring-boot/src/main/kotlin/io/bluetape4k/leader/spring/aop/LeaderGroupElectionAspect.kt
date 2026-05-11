@@ -512,7 +512,7 @@ class LeaderGroupElectionAspect(
     }
 
     private fun resolveMetadata(method: Method, target: Any): GroupAdviceMetadata {
-        val ann = AnnotationLookup.findAnnotationWithTargetFallback(method, target, LeaderGroupElection::class.java)
+        val ann = AnnotationLookup.findAnnotationWithTargetFallback<LeaderGroupElection>(method, target)
             ?: error("@LeaderGroupElection not found on ${method.declaringClass.name}#${method.name}")
 
         ann.maxLeaders.requireGe(2, "ann.maxLeaders")

@@ -5,11 +5,11 @@ import io.bluetape4k.leader.LeaderGroupElectorFactory
 import io.bluetape4k.leader.annotation.LeaderElectionBackend
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
+import io.bluetape4k.leader.spring.aop.util.findMergedAnnotationOrNull
 import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.beans.factory.NoUniqueBeanDefinitionException
-import org.springframework.core.annotation.AnnotatedElementUtils
 import java.lang.reflect.Method
 
 /**
@@ -103,13 +103,13 @@ class LeaderBeanSelector(
      */
     private fun resolveFromBackendAnnotation(method: Method): String? {
         // Step 2: 메서드 @LeaderElectionBackend
-        AnnotatedElementUtils.findMergedAnnotation(method, LeaderElectionBackend::class.java)
+        method.findMergedAnnotationOrNull<LeaderElectionBackend>()
             ?.bean?.takeIf { it.isNotBlank() }?.let { return it }
 
         val declaringClass = method.declaringClass
 
         // Step 3: 선언 클래스 @LeaderElectionBackend
-        AnnotatedElementUtils.findMergedAnnotation(declaringClass, LeaderElectionBackend::class.java)
+        declaringClass.findMergedAnnotationOrNull<LeaderElectionBackend>()
             ?.bean?.takeIf { it.isNotBlank() }?.let { return it }
 
         // Step 4: 패키지 @LeaderElectionBackend (@file:LeaderElectionBackend)

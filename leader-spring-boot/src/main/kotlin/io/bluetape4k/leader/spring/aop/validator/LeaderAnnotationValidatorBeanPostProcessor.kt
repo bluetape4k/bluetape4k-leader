@@ -4,6 +4,8 @@ import io.bluetape4k.leader.annotation.LeaderElection
 import io.bluetape4k.leader.annotation.LeaderGroupElection
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.DurationParser
+import io.bluetape4k.leader.spring.aop.util.findMergedAnnotationOrNull
+import io.bluetape4k.leader.spring.aop.util.hasMergedAnnotation
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireGe
@@ -74,8 +76,7 @@ class LeaderAnnotationValidatorBeanPostProcessor(
         if (targetClass.`package`?.name?.startsWith("org.springframework") == true) return null
 
         val annotated = targetClass.declaredMethods.filter { method ->
-            AnnotatedElementUtils.hasAnnotation(method, LeaderElection::class.java) ||
-                AnnotatedElementUtils.hasAnnotation(method, LeaderGroupElection::class.java)
+            method.hasMergedAnnotation<LeaderElection>() || method.hasMergedAnnotation<LeaderGroupElection>()
         }
         if (annotated.isEmpty()) return null
         return targetClass to annotated
@@ -101,19 +102,19 @@ class LeaderAnnotationValidatorBeanPostProcessor(
         }
 
         // [#84] composed 어노테이션(@AliasFor) 지원 — findMergedAnnotation 으로 합성 어노테이션 속성 해석
-        AnnotatedElementUtils.findMergedAnnotation(method, LeaderElection::class.java)?.let { leader ->
-            validateMinLeaseTime(leader.leaseTime, leader.minLeaseTime, "leader")
-        }
+        val leaderAnn = method.findMergedAnnotationOrNull<LeaderElection>()
+        val groupAnn = method.findMergedAnnotationOrNull<LeaderGroupElection>()
 
-        AnnotatedElementUtils.findMergedAnnotation(method, LeaderGroupElection::class.java)?.let { group ->
+        leaderAnn?.let { validateMinLeaseTime(it.leaseTime, it.minLeaseTime, "leader") }
+        groupAnn?.let {
             // maxLeaders <= 1 은 strict 무관 항상 fail
-            group.maxLeaders.requireGe(2, "group.maxLeaders")
-            validateMinLeaseTime(group.leaseTime, group.minLeaseTime, "group")
+            it.maxLeaders.requireGe(2, "group.maxLeaders")
+            validateMinLeaseTime(it.leaseTime, it.minLeaseTime, "group")
         }
 
         // SpEL pre-parse — 실패 시 strict 무관 항상 fail (잘못된 표현식은 startup 즉시 노출)
-        AnnotatedElementUtils.findMergedAnnotation(method, LeaderElection::class.java)?.let { spel.preParse(it.name, method) }
-        AnnotatedElementUtils.findMergedAnnotation(method, LeaderGroupElection::class.java)?.let { spel.preParse(it.name, method) }
+        leaderAnn?.let { spel.preParse(it.name, method) }
+        groupAnn?.let { spel.preParse(it.name, method) }
 
         if (violations.isEmpty()) return
 

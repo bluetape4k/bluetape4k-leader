@@ -515,7 +515,7 @@ class LeaderElectionAspect(
     }
 
     private fun resolveMetadata(method: Method, target: Any): AdviceMetadata {
-        val ann = AnnotationLookup.findAnnotationWithTargetFallback(method, target, LeaderElection::class.java)
+        val ann = AnnotationLookup.findAnnotationWithTargetFallback<LeaderElection>(method, target)
             ?: error("@LeaderElection not found on ${method.declaringClass.name}#${method.name}")
 
         val waitTime = DurationParser.parseOrDefault(ann.waitTime, props.defaultWaitTime).toKotlinDuration()
