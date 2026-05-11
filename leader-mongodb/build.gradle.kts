@@ -16,4 +16,7 @@ dependencies {
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.mongodb)
+
+    // T9 PR 4 — Abstract*ContractTest 사용
+    testImplementation(testFixtures(project(":leader-core")))
 }

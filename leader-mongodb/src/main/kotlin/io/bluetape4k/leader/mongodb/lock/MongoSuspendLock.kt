@@ -13,6 +13,7 @@ import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Updates
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -22,6 +23,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import org.bson.Document
+import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import java.util.*
@@ -209,12 +211,49 @@ class MongoSuspendLock private constructor(
         }
     }
 
-    suspend fun extend(leaseTime: Duration): Boolean {
+    /**
+     * 락의 expireAt 을 [leaseTime] 만큼 연장합니다.
+     *
+     * @deprecated [extendDetailed] 사용 권장 — R6 filter 적용 + [ExtendOutcome] 반환.
+     */
+    @Deprecated(
+        message = "Use extendDetailed(leaseTime) for R6 filter (expireAt > now) and ExtendOutcome result.",
+        replaceWith = ReplaceWith("extendDetailed(leaseTime).isExtended"),
+    )
+    suspend fun extend(leaseTime: Duration): Boolean = extendDetailed(leaseTime).isExtended
+
+    /**
+     * 락의 expireAt 을 [leaseTime] 만큼 atomic 하게 연장하고 [ExtendOutcome] 을 반환합니다.
+     *
+     * ## R6 filter (Issue #79 PR 4)
+     * 필터에 `expireAt > now()` 를 추가하여 만료된 문서를 다른 인스턴스가 재획득한 race 상황에서
+     * stale token 으로 expired-doc 을 revival 시키는 split-brain 을 차단합니다.
+     *
+     * ## 반환
+     * - matchedCount == 1 → [ExtendOutcome.Extended] ( `observedExpireAt = now + leaseTime` best-effort )
+     * - matchedCount == 0 → [ExtendOutcome.NotHeld] (토큰 불일치 / lease 만료 / takeover 발생)
+     * - backend exception 은 caller (delegate) 가 [ExtendOutcome.BackendError] 로 wrap — 본 함수는 그대로 throw
+     *
+     * Coroutine driver 는 reactive native 이므로 `withContext(Dispatchers.IO)` 불필요.
+     */
+    suspend fun extendDetailed(leaseTime: Duration): ExtendOutcome {
+        val nowMs = System.currentTimeMillis()
+        val leaseMs = leaseTime.inWholeMilliseconds
+        val newExpireAt = Date(nowMs + leaseMs)
         val matched = collection.updateOne(
-            Filters.and(Filters.eq("_id", lockKey), Filters.eq("token", token)),
-            Updates.set("expireAt", Date(System.currentTimeMillis() + leaseTime.inWholeMilliseconds))
+            Filters.and(
+                Filters.eq("_id", lockKey),
+                Filters.eq("token", token),
+                Filters.gt("expireAt", Date(nowMs)),  // R6: expired-doc revival 차단
+            ),
+            Updates.set("expireAt", newExpireAt),
         ).matchedCount
 
-        return matched > 0L
+        return if (matched > 0L) {
+            ExtendOutcome.Extended(Instant.ofEpochMilli(nowMs + leaseMs))
+        } else {
+            log.debug { "MongoDB extend 실패 (NotHeld, suspend): lockKey=$lockKey" }
+            ExtendOutcome.NotHeld
+        }
     }
 }
