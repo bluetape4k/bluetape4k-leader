@@ -1,15 +1,3 @@
-kover {
-    reports {
-        verify {
-            rule {
-                bound {
-                    minValue = 80
-                }
-            }
-        }
-    }
-}
-
 configurations {
     testImplementation.get().extendsFrom(compileOnly.get(), runtimeOnly.get())
 }

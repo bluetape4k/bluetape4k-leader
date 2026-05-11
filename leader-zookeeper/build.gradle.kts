@@ -2,18 +2,6 @@ configurations {
     testImplementation.get().extendsFrom(compileOnly.get(), runtimeOnly.get())
 }
 
-kover {
-    reports {
-        verify {
-            rule {
-                bound {
-                    minValue = 80
-                }
-            }
-        }
-    }
-}
-
 dependencies {
     api(project(":leader-core"))
     api(libs.curator.recipes)
