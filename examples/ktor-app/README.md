@@ -64,6 +64,11 @@ fun Application.module(
 
     val aggregator = StatsAggregator()
     leaderScheduled("hourly-stats-aggregation", period = aggregationPeriod) {
+        // (issue #79) inside leader-only block — assert lock + extend if needed
+        LockAssert.assertLockedSuspend()
+        if (aggregator.estimatedDuration() > aggregationPeriod) {
+            LockExtender.extendActiveLockSuspend(aggregationPeriod * 3)
+        }
         aggregator.aggregate()
     }
 

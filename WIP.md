@@ -1,10 +1,19 @@
 # WIP - bluetape4k-leader
 
-Snapshot: 2026-05-10 KST
+Snapshot: 2026-05-11 KST
 Scope: open GitHub issues assigned to `debop`, created on or after 2026-01-01.
 
 ## Recently Completed (now in CHANGELOG `[Unreleased]`)
 
+- **#79 LockExtender / LockAssert (PR 1 Core)** — ShedLock-호환 ergonomic API + reentrant + 명시적 lease 연장.
+  - `leader-core`: `LockAssert` / `LockExtender` top-level API, `LeaderLockHandle` sealed, `LockIdentity`
+    (factoryBeanName equals 제외), `ExtendOutcome` sealed, `LockHandleElement` (`CoroutineContext.Element`),
+    `BackendErrorClassifier` SPI 분산, `ExtendDelegate.lastExtendDeadline` (watchdog × explicit extend race-free),
+    Local elector capture/extend 통합
+  - `leader-spring-boot`: aspect 3 branch (sync / COROUTINES / REACTIVE) — reentrant peek + sentinel push
+    + capture invariant. Validator 가 `CompletableFuture` / `Future` / `Deferred` 반환 차단 (R12).
+  - PR 분할 전략: PR 1 Core 머지 후 backend 별 PR (Lettuce / Redisson / Mongo / Exposed JDBC/R2DBC / Hazelcast / ZooKeeper / Ktor smoke).
+  - 8 round Spec + 5 round Plan review 누적 117 finding 적용 후 architectural 수렴.
 - **#37 leader-ktor** — Ktor 3.x integration (`LeaderElectionPlugin`,
   `Application.leaderScheduled`) — PR #164.
 - **#36 leader examples** — six runnable examples covering every supported
@@ -29,7 +38,6 @@ single-issue rather than a phase.
 |---|---|---:|---|
 | P1 | [#73](https://github.com/bluetape4k/bluetape4k-leader/issues/73) watchdog / lease auto-extend | L | Addresses split-brain risk for long-running AOP work. |
 | P1 | [#77](https://github.com/bluetape4k/bluetape4k-leader/issues/77) minLeaseTime backend TTL delegation | L | More concrete replacement for `#38`; align semantics before implementing both. |
-| P1 | [#79](https://github.com/bluetape4k/bluetape4k-leader/issues/79) LockExtender / LockAssert | M | Builds on watchdog semantics and explicit extension behavior. |
 | P1 | [#74](https://github.com/bluetape4k/bluetape4k-leader/issues/74) Flux/Flow AOP support | L | Depends on `#73`; streaming lease renewal must be solved first. |
 | P2 | [#68](https://github.com/bluetape4k/bluetape4k-leader/issues/68) election state API | M | Useful for metrics and operational visibility. |
 | P2 | [#50](https://github.com/bluetape4k/bluetape4k-leader/issues/50) common audit contract | M | Define history semantics before durable audit implementations. |
@@ -44,7 +52,7 @@ single-issue rather than a phase.
 ```text
 #73 watchdog / auto-extend
   -> #74 Flux/Flow support
-  -> #79 explicit lease extension API
+  -> #79 explicit lease extension API ✅ (PR 1 Core landed)
 
 #38 lockAtLeastFor
 #77 minLeaseTime backend TTL delegation
