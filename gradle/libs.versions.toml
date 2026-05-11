@@ -52,7 +52,7 @@ dependency-management = "1.1.7"  # https://mvnrepository.com/artifact/io.spring.
 dokka = "2.2.0"  # https://mvnrepository.com/artifact/org.jetbrains.dokka/dokka-gradle-plugin
 kover = "0.9.8"  # https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kover-gradle-plugin
 test-logger = "4.0.0"  # https://mvnrepository.com/artifact/com.adarshr/gradle-test-logger-plugin
-nmcp = "1.4.4"  # https://mvnrepository.com/artifact/com.gradleup.nmcp/nmcp
+nmcp = "1.5.0"  # https://mvnrepository.com/artifact/com.gradleup.nmcp/nmcp
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
