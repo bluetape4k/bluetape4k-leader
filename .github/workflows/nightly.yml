@@ -617,8 +617,6 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
           TESTCONTAINERS_RYUK_DISABLED: "true"
           DOCKER_HOST: "unix:///var/run/docker.sock"
-          TESTCONTAINERS_RYUK_DISABLED: "true"
-          DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
         run: ./gradlew :leader-zookeeper:koverXmlReport --no-daemon
@@ -931,8 +929,6 @@ jobs:
           done
         env:
           GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false'
-          TESTCONTAINERS_RYUK_DISABLED: 'true'
-          DOCKER_HOST: 'unix:///var/run/docker.sock'
           TESTCONTAINERS_RYUK_DISABLED: 'true'
           DOCKER_HOST: 'unix:///var/run/docker.sock'
       - name: Generate Kover XML report
