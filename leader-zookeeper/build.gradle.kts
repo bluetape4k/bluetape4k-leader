@@ -18,6 +18,8 @@ dependencies {
     api(project(":leader-core"))
     api(libs.curator.recipes)
 
+    testImplementation(testFixtures(project(":leader-core")))
+
     testImplementation(libs.bluetape4k.virtualthread.jdk21)
     testImplementation(libs.bluetape4k.junit5)
     testImplementation(libs.bluetape4k.testcontainers)

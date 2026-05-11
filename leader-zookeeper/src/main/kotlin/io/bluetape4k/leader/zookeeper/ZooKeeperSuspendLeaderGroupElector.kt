@@ -1,8 +1,15 @@
 package io.bluetape4k.leader.zookeeper
 
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.zookeeper.internal.ZooKeeperBackendErrorClassifier
+import io.bluetape4k.leader.zookeeper.internal.ZooKeeperSuspendSlotExtendDelegate
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -23,6 +30,15 @@ import java.util.concurrent.TimeUnit
  * - lease 획득에 실패하면 [action]을 실행하지 않고 `null`을 반환합니다.
  * - 취소 중에도 `withContext(NonCancellable)`에서 lease를 반납하고 [CancellationException]은 재전파합니다.
  *
+ * ## ExtendDelegate 통합 (T13 PR 8 / Issue #79)
+ *
+ * - acquire 된 per-slot lease 에 [ZooKeeperSuspendSlotExtendDelegate] wrap — [LeaderLockHandle.Real] 와 동일 reference 공유 (AC-15).
+ * - suspend group: `setCapture(handle)` + `withContext(createLockHandleElement(handle))` 양쪽에 push.
+ *
+ * ## R16 enforce
+ *
+ * [LeaderLeaseAutoExtender.start] 는 항상 `enabled=false` — ZK 는 TTL 없음.
+ *
  * ```kotlin
  * val elector = ZooKeeperSuspendLeaderGroupElector(curator, LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = elector.runIfLeader("batch-job") { processChunk() }
@@ -40,6 +56,8 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
 
     companion object: KLoggingChannel() {
         const val DEFAULT_BASE_PATH = "/leader-group-election"
+        internal const val ZOOKEEPER_SUSPEND_GROUP_FACTORY_BEAN_NAME = "zookeeper-suspend-leader-group-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ZooKeeperBackendErrorClassifier)
 
         @JvmStatic
         operator fun invoke(
@@ -54,6 +72,7 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
 
     override val maxLeaders: Int = options.maxLeaders
     private val waitTime = options.waitTime
+    private val leaseTime = options.leaseTime
 
     override fun activeCount(lockName: String): Int {
         val semaphore = semaphore(lockName)
@@ -88,12 +107,53 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
         } ?: return null
 
         log.debug { "ZooKeeper suspend group lease 획득 성공. path=$path" }
+
+        val acquiredAtNanos = System.nanoTime()
+        val slotKey = path
+        val delegate = ZooKeeperSuspendSlotExtendDelegate(slotKey)
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.GROUP,
+            factoryBeanName = ZOOKEEPER_SUSPEND_GROUP_FACTORY_BEAN_NAME,
+            groupParams = LockIdentity.GroupParams(maxLeaders),
+        )
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = slotKey,
+            acquiredAtNanos = acquiredAtNanos,
+            slotId = lease.nodeName,
+            extendDelegate = delegate,
+        )
+        // R16 enforce: ZK 는 TTL 없음 — group 도 autoExtend=false (옵션 자체가 없음)
+        val watchdog = LeaderLeaseAutoExtender.start(
+            enabled = false,
+            leaseTime = leaseTime,
+            delegate = delegate,
+            classifier = ERROR_CLASSIFIER,
+        )
+
         try {
-            return action()
+            AopScopeAccess.setCapture(handle)
+            try {
+                return withContext(AopScopeAccess.createLockHandleElement(handle)) {
+                    action()
+                }
+            } finally {
+                AopScopeAccess.clearCapture()
+            }
         } finally {
-            withContext(NonCancellable + Dispatchers.IO) {
+            // NonCancellable: 코루틴 취소 시에도 watchdog close + release 가 중단되지 않도록 보호
+            withContext(NonCancellable) {
                 try {
-                    lease.close()
+                    watchdog.close()
+                } catch (e: Exception) {
+                    log.warn(e) { "ZooKeeper suspend group watchdog close 실패. path=$path" }
+                }
+                delegate.markReleased()
+                try {
+                    withContext(Dispatchers.IO) {
+                        lease.close()
+                    }
                     log.debug { "ZooKeeper suspend group lease 반납 완료. path=$path" }
                 } catch (e: CancellationException) {
                     throw e
