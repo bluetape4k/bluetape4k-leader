@@ -2,10 +2,17 @@ package io.bluetape4k.leader.hazelcast
 
 import com.hazelcast.core.HazelcastInstance
 import com.hazelcast.map.IMap
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.hazelcast.internal.HazelcastBackendErrorClassifier
+import io.bluetape4k.leader.hazelcast.internal.HazelcastSlotExtendDelegate
 import io.bluetape4k.leader.hazelcast.lock.HazelcastLock
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
@@ -19,6 +26,12 @@ import java.util.concurrent.Executor
  *
  * `${lockName}:slot:N` 키를 사용하는 [HazelcastLock] N개로 `maxLeaders` 슬롯을 시뮬레이션합니다.
  * CP Subsystem 없이 동작하며 토큰 기반이므로 스레드에 귀속되지 않습니다.
+ *
+ * ## ExtendDelegate 통합 (T12 PR 7 / Issue #79)
+ *
+ * - acquire 된 per-slot [HazelcastLock] 을 [HazelcastSlotExtendDelegate] 로 wrap 하여 watchdog 와 동일 reference 공유 (AC-15).
+ * - aspect 가 `LockExtender.extendActiveLock` 호출 시 동일 delegate 를 통해 R6 (IMap auto-evict) 적용된 extend 실행.
+ * - sync group: `withPushedSync(handle)` + `setCapture(handle)` 양쪽에 push.
  *
  * ```kotlin
  * val election = HazelcastLeaderGroupElector(hazelcastInstance, LeaderGroupElectionOptions(maxLeaders = 3))
@@ -35,6 +48,8 @@ class HazelcastLeaderGroupElector private constructor(
 
     companion object: KLogging() {
         const val LOCK_MAP_NAME = "bluetape4k:leader:group:locks"
+        internal const val HAZELCAST_GROUP_FACTORY_BEAN_NAME = "hazelcast-leader-group-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(HazelcastBackendErrorClassifier)
 
         @JvmStatic
         operator fun invoke(
@@ -69,25 +84,64 @@ class HazelcastLeaderGroupElector private constructor(
         val slotWaitTime = waitTime / maxLeaders
         log.debug { "리더 그룹 슬롯 획득을 요청합니다. lockName=$lockName, maxLeaders=$maxLeaders" }
 
-        val acquiredLock = (0 until maxLeaders)
-            .asSequence()
-            .map { slot -> HazelcastLock(lockMap, slotKey(lockName, slot)) }
-            .firstOrNull { lock -> lock.tryLock(slotWaitTime, leaseTime) }
+        var acquiredLock: HazelcastLock? = null
+        var acquiredSlot = -1
+        var acquiredSlotKey: String? = null
 
-        if (acquiredLock == null) {
+        for (slot in 0 until maxLeaders) {
+            val slotKeyValue = slotKey(lockName, slot)
+            val lock = HazelcastLock(lockMap, slotKeyValue)
+            if (lock.tryLock(slotWaitTime, leaseTime)) {
+                acquiredLock = lock
+                acquiredSlot = slot
+                acquiredSlotKey = slotKeyValue
+                break
+            }
+        }
+
+        if (acquiredLock == null || acquiredSlotKey == null) {
             log.debug { "리더 그룹 슬롯 획득 실패 (슬롯 없음). lockName=$lockName" }
             return null
         }
 
+        val lock = acquiredLock
+        val slot = acquiredSlot
+        val slotKeyValue = acquiredSlotKey
         val acquiredAtNanos = System.nanoTime()
-        log.debug { "리더 그룹 슬롯을 획득하여 작업을 수행합니다. lockName=$lockName" }
+        log.debug { "리더 그룹 슬롯을 획득하여 작업을 수행합니다. lockName=$lockName, slot=$slot" }
+
+        val delegate = HazelcastSlotExtendDelegate(lock)
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.GROUP,
+            factoryBeanName = HAZELCAST_GROUP_FACTORY_BEAN_NAME,
+            groupParams = LockIdentity.GroupParams(maxLeaders),
+        )
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = slotKeyValue,
+            acquiredAtNanos = acquiredAtNanos,
+            slotId = slot.toString(),
+            extendDelegate = delegate,
+        )
+        // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
+        val watchdog = LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
+
         try {
-            return action()
+            return AopScopeAccess.withPushedSync(handle) {
+                AopScopeAccess.setCapture(handle)
+                try {
+                    action()
+                } finally {
+                    AopScopeAccess.clearCapture()
+                }
+            }
         } finally {
-            if (acquiredLock.isHeldByCurrentInstance()) {
-                runCatching { acquiredLock.unlock(minLeaseTime, acquiredAtNanos) }
-                    .onSuccess { log.debug { "리더 그룹 슬롯을 반납했습니다. lockName=$lockName" } }
-                    .onFailure { e -> log.error(e) { "Fail to release group slot. lockName=$lockName" } }
+            watchdog.close()
+            if (lock.isHeldByCurrentInstance()) {
+                runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
+                    .onSuccess { log.debug { "리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
+                    .onFailure { e -> log.error(e) { "Fail to release group slot. lockName=$lockName, slot=$slot" } }
             }
         }
     }
@@ -104,26 +158,33 @@ class HazelcastLeaderGroupElector private constructor(
         return CompletableFuture.supplyAsync({
             (0 until maxLeaders)
                 .asSequence()
-                .map { slot -> HazelcastLock(lockMap, slotKey(lockName, slot)) }
-                .firstOrNull { lock -> lock.tryLock(slotWaitTime, leaseTime) }
-        }, executor).thenComposeAsync({ acquiredLock ->
-            if (acquiredLock == null) {
+                .map { slot -> HazelcastLock(lockMap, slotKey(lockName, slot)) to slot }
+                .firstOrNull { (lock, _) -> lock.tryLock(slotWaitTime, leaseTime) }
+        }, executor).thenComposeAsync({ acquired ->
+            if (acquired == null) {
                 log.debug { "리더 그룹 슬롯 획득 실패 (비동기). lockName=$lockName" }
                 CompletableFuture.completedFuture(null)
             } else {
+                val (lock, slot) = acquired
                 val acquiredAtNanos = System.nanoTime()
-                log.debug { "리더 그룹 슬롯을 획득하여 비동기 작업을 수행합니다. lockName=$lockName" }
+                log.debug { "리더 그룹 슬롯을 획득하여 비동기 작업을 수행합니다. lockName=$lockName, slot=$slot" }
+                val delegate = HazelcastSlotExtendDelegate(lock)
+                // Group elector: watchdog disabled (autoExtend 옵션 부재)
+                val watchdog = LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
+                // async path 는 handle push 미수행 (AOP scope sync/suspend 만 지원)
                 val actionFuture = runCatching { action() }
-                    .getOrElse { error ->
-                        runCatching { acquiredLock.unlock(minLeaseTime, acquiredAtNanos) }
-                            .onFailure { e -> log.error(e) { "Fail to release group slot on action error (async). lockName=$lockName" } }
-                        return@thenComposeAsync CompletableFuture.failedFuture(error)
+                    .getOrElse { e ->
+                        watchdog.close()
+                        runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
+                            .onFailure { ex -> log.error(ex) { "Fail to release group slot on action error (async). lockName=$lockName, slot=$slot" } }
+                        return@thenComposeAsync CompletableFuture.failedFuture(e)
                     }
                 actionFuture.whenCompleteAsync({ _, _ ->
-                    if (acquiredLock.isHeldByCurrentInstance()) {
-                        runCatching { acquiredLock.unlock(minLeaseTime, acquiredAtNanos) }
-                            .onSuccess { log.debug { "비동기 리더 그룹 슬롯을 반납했습니다. lockName=$lockName" } }
-                            .onFailure { e -> log.error(e) { "Fail to release group slot (async). lockName=$lockName" } }
+                    watchdog.close()
+                    if (lock.isHeldByCurrentInstance()) {
+                        runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
+                            .onSuccess { log.debug { "비동기 리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
+                            .onFailure { e -> log.error(e) { "Fail to release group slot (async). lockName=$lockName, slot=$slot" } }
                     }
                 }, executor)
             }

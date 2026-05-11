@@ -3,6 +3,7 @@ package io.bluetape4k.leader.hazelcast.lock
 import com.hazelcast.core.HazelcastException
 import com.hazelcast.map.IMap
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -10,10 +11,9 @@ import io.bluetape4k.logging.warn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
+import java.time.Instant
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -109,6 +109,35 @@ class HazelcastSuspendLock(
             log.debug { "Lock 해제 성공 (suspend): lockKey=$lockKey" }
         } else {
             log.warn { "Lock 해제 실패 — 토큰 불일치 (리스 만료 가능성, suspend). lockKey=$lockKey" }
+        }
+    }
+
+    /**
+     * 락의 TTL 을 [leaseTime] 만큼 atomic 하게 연장하고 [ExtendOutcome] 을 반환합니다 (suspend) — T12 PR 7 (Issue #79).
+     *
+     * Hazelcast IMap 은 blocking API 이므로 `withContext(Dispatchers.IO)` 로 래핑하여 suspend 화합니다.
+     * 동작/계약은 [HazelcastLock.extendDetailed] 와 동일합니다 (R6 — IMap auto-evict 가 expired-doc revival 차단).
+     */
+    suspend fun extendDetailed(leaseTime: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
+        val leaseMs = leaseTime.inWholeMilliseconds
+        val nowMs = System.currentTimeMillis()
+        try {
+            // 1) CAS — value 가 우리 토큰일 때만 (no-op replace) 성공
+            val matched = lockMap.replace(lockKey, token, token)
+            if (!matched) {
+                log.debug { "Hazelcast extend NotHeld (suspend): lockKey=$lockKey" }
+                ExtendOutcome.NotHeld
+            } else {
+                val updated = lockMap.setTtl(lockKey, leaseMs, TimeUnit.MILLISECONDS)
+                if (updated) {
+                    ExtendOutcome.Extended(Instant.ofEpochMilli(nowMs + leaseMs))
+                } else {
+                    log.debug { "Hazelcast extend NotHeld (setTtl 실패 — race, suspend): lockKey=$lockKey" }
+                    ExtendOutcome.NotHeld
+                }
+            }
+        } catch (e: HazelcastException) {
+            ExtendOutcome.BackendError(e)
         }
     }
 }
