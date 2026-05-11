@@ -76,7 +76,7 @@ object LeaderLeaseAutoExtender : KLogging() {
      * @param leaseTime backend lease 시간 — cadence = leaseTime / 3 (최소 [MIN_RENEWAL_PERIOD])
      * @param delegate backend extend SPI — [ExtendDelegate.extend] + [ExtendDelegate.lastExtendDeadline]
      */
-    internal fun start(
+    fun start(
         enabled: Boolean,
         leaseTime: Duration,
         delegate: ExtendDelegate,
