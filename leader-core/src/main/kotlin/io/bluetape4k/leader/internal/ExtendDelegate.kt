@@ -6,7 +6,10 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * Backend lock 의 atomic extend 를 단일 reference 로 제공하는 internal SPI.
+ * Backend lock 의 atomic extend 를 단일 reference 로 제공하는 SPI.
+ *
+ * ⚠️ **Backend module (leader-redis-lettuce, leader-redis-redisson, leader-mongodb 등) 전용 SPI**.
+ * 애플리케이션 코드에서 직접 구현 X — [LockAssert] / [LockExtender] 만 사용.
  *
  * [LeaderLockHandle.Real.extendDelegate] 와 [LeaderLeaseAutoExtender] (Watchdog) 가 동일 인스턴스를
  * 공유 — race-free 보장 (Step 3-P R2 mitigation).
@@ -23,7 +26,7 @@ import kotlin.time.Duration
  * Watchdog cadence = leaseTime/3 (e.g. 10s for 30s lease). Tick 시 `now + 10s < deadline` 이면 skip.
  * → user-extended lease 가 watchdog 에 의해 silently 축소되는 split-brain 차단.
  */
-internal interface ExtendDelegate {
+interface ExtendDelegate {
 
     fun extend(lockAtMostFor: Duration): ExtendOutcome
 

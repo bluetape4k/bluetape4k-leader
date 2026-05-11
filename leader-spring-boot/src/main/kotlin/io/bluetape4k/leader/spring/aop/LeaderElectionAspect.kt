@@ -112,9 +112,11 @@ class LeaderElectionAspect(
             val resolvedName = resolveLockName(meta, method, args, target)
             lockName = resolvedName
 
-            // ── Reentrant short-circuit (T14): sync 분기에서 동일 lockName 이미 보유 중이면 backend 미호출 ──
+            // ── Reentrant short-circuit (T14 + Tier 7 P1-1): full LockIdentity 매칭 시에만 short-circuit ──
+            //   동일 lockName + 다른 annotation kind (SINGLE vs GROUP) 또는 다른 groupParams 는 별개 lock — 새 acquire.
+            val identity = meta.resolveLockIdentity(resolvedName, AdviceBranch.SYNC)
             val existing = AopScopeAccess.peekSyncMatching(resolvedName)
-            if (existing is LeaderLockHandle.Real) {
+            if (existing is LeaderLockHandle.Real && existing.matchesIdentity(identity)) {
                 log.debug { "leader.aop.reentrant lockName=$resolvedName depth=${existing.reentryDepth + 1}" }
                 val reentrantHandle = AopScopeAccess.incrementReentryDepth(existing)
                 return AopScopeAccess.withPushedSync(reentrantHandle) {

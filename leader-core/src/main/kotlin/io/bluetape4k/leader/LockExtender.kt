@@ -212,11 +212,23 @@ object LockExtender : KLogging() {
         return ExtendOutcome.NotHeld
     }
 
+    /**
+     * Boolean ↔ Detailed 변환.
+     *
+     * 모든 false 반환 경로에 WARN 로그 — 운영 가시성 우선. [outsideScope] 와 fail-open sentinel 경로는
+     * 이미 path-specific WARN 로그를 찍은 후 [ExtendOutcome.NotHeld] 를 반환 — double log 허용 (정보 가치 우선).
+     *
+     * **모든 [ExtendOutcome.BackendError] 는 Boolean API 에서 `false` 반환** (transient/non-transient 무관).
+     * non-transient 명시적 처리 필요 시 caller 가 [extendActiveLockDetailed]/[extendActiveLockDetailedSuspend]
+     * 사용 후 [io.bluetape4k.leader.internal.BackendErrorClassifier] 로 분류 + throw 결정.
+     * Boolean API 자체는 ShedLock 호환 contract — 항상 boolean 반환, throw 없음.
+     */
     private fun processBooleanResult(outcome: ExtendOutcome): Boolean = when (outcome) {
         is ExtendOutcome.Extended -> true
         is ExtendOutcome.NotHeld -> {
-            // WARN already logged by outsideScope() or FailOpen path; avoid double-log for those paths.
-            // For NotHeld returned directly from backend (token mismatch / takeover), log here.
+            // backend-origin NotHeld — token mismatch / takeover / lease expired
+            // (outsideScope / FailOpen path 에서 온 NotHeld 는 path-specific WARN 이미 발생 — double log)
+            log.warn { "LockExtender — extend returned NotHeld (token mismatch / takeover / lease expired / scope absent)" }
             false
         }
         is ExtendOutcome.WrongThread -> {
@@ -224,7 +236,10 @@ object LockExtender : KLogging() {
             false
         }
         is ExtendOutcome.BackendError -> {
-            log.warn(outcome.cause) { "LockExtender — backend error during extend (transient assumed; non-transient should be classified upstream)" }
+            log.warn(outcome.cause) {
+                "LockExtender — backend error during extend " +
+                    "(use extendActiveLockDetailed + BackendErrorClassifier for non-transient classification)"
+            }
             false
         }
     }

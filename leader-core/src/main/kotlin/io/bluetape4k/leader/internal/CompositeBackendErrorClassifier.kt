@@ -23,7 +23,7 @@ package io.bluetape4k.leader.internal
  *
  * @param backendSpecific backend 모듈이 제공하는 backend-specific [BackendErrorClassifier]
  */
-internal class CompositeBackendErrorClassifier(
+class CompositeBackendErrorClassifier(
     private val backendSpecific: BackendErrorClassifier,
 ) : BackendErrorClassifier {
 

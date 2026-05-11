@@ -124,7 +124,9 @@ abstract class AbstractLocalLeaderGroupElector(
         val startedAtNanos = System.nanoTime()
         val token = Base58.randomString(8)
         val lease = states.acquireGroup(lockName, options.nodeId, options.leaseTime, maxLeaders)
-        val slot = lease.slot!!
+        val slot = requireNotNull(lease.slot) {
+            "Group lease.slot must be non-null for lockName=$lockName, kind=GROUP"
+        }
 
         val identity = LockIdentity(
             lockName = lockName,

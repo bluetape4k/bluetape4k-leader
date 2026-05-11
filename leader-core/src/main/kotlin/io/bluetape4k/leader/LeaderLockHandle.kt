@@ -59,7 +59,8 @@ sealed class LeaderLockHandle : Serializable {
         val slotId: String? = null,
         val acquiringThreadId: Long? = null,
         override val reentryDepth: Int = 0,
-        internal val extendDelegate: ExtendDelegate,
+        /** ⚠️ Backend module / aspect 전용 SPI — 애플리케이션 코드에서 직접 접근 금지. */
+        val extendDelegate: ExtendDelegate,
     ) : LeaderLockHandle() {
 
         /**
@@ -146,8 +147,14 @@ sealed class LeaderLockHandle : Serializable {
     companion object {
         private const val serialVersionUID = 1L
 
-        /** internal factory — 외부 source API 차단. AOP aspect / elector 만 호출. */
-        internal fun real(
+        /**
+         * Backend module 전용 factory. AOP aspect / elector 가 호출.
+         *
+         * ⚠️ 애플리케이션 코드에서 직접 호출 금지 — 외부 사용자는 `LockAssert` / `LockExtender` 만 사용.
+         * 본 factory 는 `leader-redis-lettuce`, `leader-redis-redisson`, `leader-mongodb`, `leader-exposed-jdbc`,
+         * `leader-exposed-r2dbc`, `leader-hazelcast`, `leader-zookeeper` 등 backend module 에서 사용.
+         */
+        fun real(
             identity: LockIdentity,
             token: String,
             acquiredAtNanos: Long,
@@ -157,7 +164,11 @@ sealed class LeaderLockHandle : Serializable {
             extendDelegate: ExtendDelegate,
         ): Real = Real(identity, token, acquiredAtNanos, slotId, acquiringThreadId, reentryDepth, extendDelegate)
 
-        /** internal factory — sentinel 생성. */
-        internal fun failOpen(identity: LockIdentity): FailOpen = FailOpen(identity)
+        /**
+         * Backend module / aspect 전용 sentinel factory. `failureMode = FAIL_OPEN_RUN` 시 사용.
+         *
+         * ⚠️ 애플리케이션 코드에서 직접 호출 금지.
+         */
+        fun failOpen(identity: LockIdentity): FailOpen = FailOpen(identity)
     }
 }
