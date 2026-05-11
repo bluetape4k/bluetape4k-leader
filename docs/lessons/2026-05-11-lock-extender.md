@@ -127,3 +127,47 @@ PR 한 번에 9개 백엔드 CI 동시 실행 + Testcontainers 사용 → 러너
 - PR 2-8: backend-by-backend (각 PR 이 PR 1 만 의존) — 병렬 진행 가능
 - PR 9: cross-cutting smoke (ktor) → 마지막
 - 한 PR 당 7-17 files, +500-900 LOC. Tier 4 review (opus) 각 PR 별 명확.
+
+---
+
+## L11: async path watchdog wiring 누락 — review checklist 패턴
+
+### 문제
+PR 5 (JDBC) 구현 시 sync `runIfLeader` 경로는 ExtendDelegate + watchdog 등록을 모두 처리했지만, `runAsyncIfLeader` 경로는 watchdog 등록 누락. `autoExtend = true` + long-running async action 시 backend lease 갱신 안 되어 다른 노드 takeover → split-brain 가능. Tier 4 review (opus) 가 1차에서 HIGH-1으로 캐치하여 머지 전 fix.
+
+### 교훈
+Sync / async / suspend 모든 entry path 가 동일한 ExtendDelegate + watchdog wiring 패턴을 가져야 함. **review checklist 에 "all entry paths watchdog parity" 항목 추가**:
+- sync `runIfLeader`
+- async `runAsyncIfLeader` (CompletableFuture)
+- suspend `runIfLeader` (coroutine)
+- VirtualThread `runIfLeader` (가상 스레드)
+
+각 경로마다 (1) delegate 생성, (2) handle 에 동일 reference 전달, (3) watchdog start, (4) finally / whenComplete 에서 watchdog.close() 확인.
+
+---
+
+## L12: workflow YAML regex 편집 함정 — 인접 env 블록 중복 발생
+
+### 문제
+PR 199 에서 `koverVerify` step 4개 제거하려고 Python regex 로 일괄 삭제. 그러나 "Verify Kover threshold" step 의 `env:` 블록 일부 라인이 인접한 다음 step (혹은 잔존하는 env 블록) 과 합쳐져 **`TESTCONTAINERS_RYUK_DISABLED` / `DOCKER_HOST` 키가 중복 정의됨**. `gh workflow run` 시도 시 GitHub Actions 가 HTTP 422 `'TESTCONTAINERS_RYUK_DISABLED' is already defined` 반환 — workflow 자체가 invalid 로 인식.
+
+### 교훈
+- **YAML 구조 편집 시 regex 사용 금지** — 들여쓰기 + 인접 블록 경계 인식 못 함. 대신 `yq` (Yet another YAML processor) 사용:
+  ```bash
+  yq eval 'del(.jobs.*.steps[] | select(.name == "Verify Kover threshold"))' -i nightly.yml
+  ```
+- regex 로 편집했으면 **반드시 `gh workflow view` 또는 `gh workflow run` (dry) 로 syntax 검증**. push 전 lint 단계 필수.
+- pre-push hook 에 `actionlint` 또는 `yamllint` 추가 검토.
+
+---
+
+## L13: kover rigid threshold → flexible coverage 가시화 (사용자 피드백)
+
+### 문제
+nightly CI 가 `koverVerify` 로 4개 모듈 (core/micrometer/spring-boot/zookeeper) 의 coverage threshold (60-80%) 를 hard gate 로 검증. Issue #79 PR 8 (ZK) 가 5개 internal 파일 추가하면서 79.71% < 80% → koverVerify FAILED. 사용자 피드백: rigid 한 hard gate 가 새 코드 추가 시마다 build break → 개발 흐름에 마찰.
+
+### 교훈
+- **coverage 는 가시화 지표 (Codecov / koverXmlReport) 로 유지**, hard gate 로 강제하지 않음. 목표는 "trend 모니터링 + 의식적 테스트 추가 활동" 이지 "build break" 아님.
+- `kover { reports { verify { rule { bound { minValue } } } } }` 블록 제거 + nightly.yml `Verify Kover threshold` step 제거.
+- `koverXmlReport` + Codecov 업로드는 유지 — coverage 변화 추적 가능.
+- 도구는 entry 패턴이지 정책 자체가 아님 — 정책 (80% threshold) 은 코드 리뷰 + 팀 합의로 관리.
