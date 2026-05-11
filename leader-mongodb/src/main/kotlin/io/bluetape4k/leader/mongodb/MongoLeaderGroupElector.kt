@@ -3,8 +3,15 @@ package io.bluetape4k.leader.mongodb
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Filters
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
+import io.bluetape4k.leader.mongodb.internal.MongoSlotExtendDelegate
 import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.leader.mongodb.lock.validateMongoLockName
 import io.bluetape4k.logging.KLogging
@@ -21,6 +28,13 @@ import kotlin.random.Random
  *
  * `${lockName}:slot:N` 키를 사용하는 [MongoLock] N개로 `maxLeaders` 슬롯을 시뮬레이션합니다.
  * 슬롯 시작 위치를 랜덤화하여 핫스팟을 방지합니다.
+ *
+ * ## ExtendDelegate 통합 (T9 PR 4 / Issue #79)
+ *
+ * - acquire 된 per-slot [MongoLock] 을 [MongoSlotExtendDelegate] 로 wrap 하여 watchdog 와 동일 reference 공유 (AC-15).
+ * - aspect 가 `LockExtender.extendActiveLock` 호출 시 동일 delegate 를 통해 R6 filter (`expireAt > now`) 적용된
+ *   extend 실행.
+ * - sync group: `withPushedSync(handle)` + `setCapture(handle)` 양쪽에 push.
  *
  * ```kotlin
  * val election = MongoLeaderGroupElector(
@@ -42,6 +56,8 @@ class MongoLeaderGroupElector private constructor(
 ) : LeaderGroupElector {
 
     companion object : KLogging() {
+        internal const val MONGO_GROUP_FACTORY_BEAN_NAME = "mongo-leader-group-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(MongoBackendErrorClassifier)
 
         @JvmStatic
         operator fun invoke(
@@ -88,15 +104,42 @@ class MongoLeaderGroupElector private constructor(
 
         for (i in 0 until maxLeaders) {
             val slot = (start + i) % maxLeaders
-            val lock = MongoLock(groupCollection, slotKey(lockName, slot), options.retryDelay)
+            val slotKeyValue = slotKey(lockName, slot)
+            val lock = MongoLock(groupCollection, slotKeyValue, options.retryDelay)
 
             if (!lock.tryLock(perSlotWait, leaseTime)) continue
 
             val acquiredAtNanos = System.nanoTime()
             log.debug { "리더 그룹 슬롯을 획득하여 작업을 수행합니다. lockName=$lockName, slot=$slot" }
+
+            val delegate = MongoSlotExtendDelegate(lock)
+            val identity = LockIdentity(
+                lockName = lockName,
+                kind = LockIdentity.AnnotationKind.GROUP,
+                factoryBeanName = MONGO_GROUP_FACTORY_BEAN_NAME,
+                groupParams = LockIdentity.GroupParams(maxLeaders),
+            )
+            val handle = LeaderLockHandle.real(
+                identity = identity,
+                token = slotKeyValue,
+                acquiredAtNanos = acquiredAtNanos,
+                slotId = slot.toString(),
+                extendDelegate = delegate,
+            )
+            // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
+            val watchdog = LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
+
             try {
-                return action()
+                return AopScopeAccess.withPushedSync(handle) {
+                    AopScopeAccess.setCapture(handle)
+                    try {
+                        action()
+                    } finally {
+                        AopScopeAccess.clearCapture()
+                    }
+                }
             } finally {
+                watchdog.close()
                 runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
                     .onSuccess { log.debug { "리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
                     .onFailure { e -> log.warn(e) { "그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" } }
@@ -134,13 +177,19 @@ class MongoLeaderGroupElector private constructor(
                 val (lock, slot) = acquired
                 val acquiredAtNanos = System.nanoTime()
                 log.debug { "리더 그룹 슬롯을 획득하여 비동기 작업을 수행합니다. lockName=$lockName, slot=$slot" }
+                val delegate = MongoSlotExtendDelegate(lock)
+                // Group elector: watchdog disabled (autoExtend 옵션 부재)
+                val watchdog = LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
+                // async path 는 handle push 미수행 (AOP scope sync/suspend 만 지원)
                 val actionFuture = runCatching { action() }
                     .getOrElse { e ->
+                        watchdog.close()
                         runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
                             .onFailure { ex -> log.warn(ex) { "그룹 슬롯 해제 실패 (action 오류 경로). lockName=$lockName, slot=$slot" } }
                         return@thenComposeAsync CompletableFuture.failedFuture(e)
                     }
                 actionFuture.whenCompleteAsync({ _, _ ->
+                    watchdog.close()
                     runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
                         .onSuccess { log.debug { "비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
                         .onFailure { e -> log.warn(e) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" } }

@@ -3,8 +3,15 @@ package io.bluetape4k.leader.mongodb
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Filters
 import com.mongodb.kotlin.client.coroutine.MongoCollection as CoroutineMongoCollection
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
+import io.bluetape4k.leader.mongodb.internal.MongoSuspendSlotExtendDelegate
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
 import io.bluetape4k.leader.mongodb.lock.validateMongoLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -26,6 +33,12 @@ import kotlin.random.Random
  * [LeaderGroupState] 인터페이스의 `activeCount`, `availableSlots`, `state`는 non-suspend 계약입니다.
  * 코루틴 드라이버의 `countDocuments`는 suspend 함수이므로 state 조회에 사용할 수 없습니다.
  * 따라서 state 조회는 동기 [groupCollection]으로, 락 획득/해제는 코루틴 [coroutineGroupCollection]으로 처리합니다.
+ *
+ * ## ExtendDelegate 통합 (T9 PR 4 / Issue #79)
+ *
+ * - acquire 된 per-slot [MongoSuspendLock] 을 [MongoSuspendSlotExtendDelegate] 로 wrap 하여 watchdog 와 동일 reference 공유 (AC-15).
+ * - aspect 의 `LockExtenderSuspend.extendActiveLockSuspend` 는 동일 delegate reference 를 사용합니다.
+ * - suspend group: `setCapture(handle)` + `withContext(createLockHandleElement(handle))` 양쪽에 push.
  *
  * ```kotlin
  * val db = mongoClient.getDatabase("mydb")
@@ -55,6 +68,8 @@ class MongoSuspendLeaderGroupElector private constructor(
     }
 
     companion object : KLoggingChannel() {
+        internal const val MONGO_SUSPEND_GROUP_FACTORY_BEAN_NAME = "mongo-suspend-leader-group-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(MongoBackendErrorClassifier)
 
         suspend operator fun invoke(
             groupCollection: MongoCollection<Document>,
@@ -102,20 +117,23 @@ class MongoSuspendLeaderGroupElector private constructor(
 
         var acquiredLock: MongoSuspendLock? = null
         var acquiredSlot = -1
+        var acquiredSlotKey: String? = null
 
         for (i in 0 until maxLeaders) {
             currentCoroutineContext().ensureActive()
             val slot = (start + i) % maxLeaders
-            val lock = MongoSuspendLock(coroutineGroupCollection, slotKey(lockName, slot), options.retryDelay)
+            val slotKeyValue = slotKey(lockName, slot)
+            val lock = MongoSuspendLock(coroutineGroupCollection, slotKeyValue, options.retryDelay)
 
             if (lock.tryLock(perSlotWait, leaseTime)) {
                 acquiredLock = lock
                 acquiredSlot = slot
+                acquiredSlotKey = slotKeyValue
                 break
             }
         }
 
-        if (acquiredLock == null) {
+        if (acquiredLock == null || acquiredSlotKey == null) {
             log.debug { "리더 그룹 슬롯 획득 실패 (슬롯 없음, suspend). lockName=$lockName" }
             return null
         }
@@ -123,11 +141,40 @@ class MongoSuspendLeaderGroupElector private constructor(
         log.debug { "리더 그룹 슬롯을 획득하여 suspend 작업을 수행합니다. lockName=$lockName, slot=$acquiredSlot" }
         val lock = acquiredLock
         val slot = acquiredSlot
+        val slotKeyValue = acquiredSlotKey
         val acquiredAtNanos = System.nanoTime()
+
+        val delegate = MongoSuspendSlotExtendDelegate(lock)
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.GROUP,
+            factoryBeanName = MONGO_SUSPEND_GROUP_FACTORY_BEAN_NAME,
+            groupParams = LockIdentity.GroupParams(maxLeaders),
+        )
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = slotKeyValue,
+            acquiredAtNanos = acquiredAtNanos,
+            slotId = slot.toString(),
+            extendDelegate = delegate,
+        )
+        // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
+        val watchdog = LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
+
         try {
-            return action()
+            // setCapture: ThreadLocal capture 도 함께 push (aspect dual-source: ThreadLocal + coroutineContext)
+            AopScopeAccess.setCapture(handle)
+            try {
+                return withContext(AopScopeAccess.createLockHandleElement(handle)) {
+                    action()
+                }
+            } finally {
+                AopScopeAccess.clearCapture()
+            }
         } finally {
+            // NonCancellable: 코루틴 취소 시에도 watchdog close + release 가 중단되지 않도록 보호
             withContext(NonCancellable) {
+                watchdog.close()
                 try {
                     lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
                     log.debug { "리더 그룹 슬롯을 반납했습니다 (suspend). lockName=$lockName, slot=$slot" }

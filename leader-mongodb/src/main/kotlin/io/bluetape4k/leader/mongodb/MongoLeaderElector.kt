@@ -2,8 +2,14 @@ package io.bluetape4k.leader.mongodb
 
 import com.mongodb.client.MongoCollection
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
+import io.bluetape4k.leader.mongodb.internal.MongoLockExtendDelegate
 import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.leader.mongodb.lock.validateMongoLockName
 import io.bluetape4k.logging.KLogging
@@ -18,6 +24,13 @@ import java.util.concurrent.Executor
  *
  * `findOneAndUpdate` upsert + TTL index 방식의 토큰 기반 락이므로
  * 스레드에 귀속되지 않으며 Virtual Thread 환경에서 안전합니다.
+ *
+ * ## ExtendDelegate 통합 (T9 PR 4 / Issue #79)
+ *
+ * - acquire 후 [MongoLockExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 동일 reference 공유 (AC-15).
+ * - aspect 가 `LockExtender.extendActiveLock` 호출 시 동일 delegate 를 통해 R6 filter (`expireAt > now`) 적용된
+ *   extend 실행.
+ * - autoExtend 옵션은 [LeaderLeaseAutoExtender] 의 watchdog 가 처리 (R2 watchdog skip semantics 보장).
  *
  * ```kotlin
  * val election = MongoLeaderElector(database.getCollection("bluetape4k_leader_locks"))
@@ -37,6 +50,8 @@ class MongoLeaderElector private constructor(
 ) : LeaderElector {
 
     companion object : KLogging() {
+        internal const val MONGO_FACTORY_BEAN_NAME = "mongo-leader-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(MongoBackendErrorClassifier)
 
         @JvmStatic
         operator fun invoke(
@@ -59,15 +74,27 @@ class MongoLeaderElector private constructor(
         }
 
         val acquiredAtNanos = System.nanoTime()
+        val delegate = MongoLockExtendDelegate(lock)
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            factoryBeanName = MONGO_FACTORY_BEAN_NAME,
+        )
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = lockName,
+            acquiredAtNanos = acquiredAtNanos,
+            extendDelegate = delegate,
+        )
         val watchdog = LeaderLeaseAutoExtender.start(
             options.leaderOptions.autoExtend,
             options.leaderOptions.leaseTime,
-        ) {
-            lock.extend(options.leaderOptions.leaseTime)
-        }
+            delegate,
+            ERROR_CLASSIFIER,
+        )
         log.debug { "리더로 승격하여 작업을 수행합니다. lockName=$lockName" }
         try {
-            return action()
+            return AopScopeAccess.withPushedSync(handle) { action() }
         } finally {
             watchdog.close()
             runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
@@ -92,13 +119,15 @@ class MongoLeaderElector private constructor(
                     CompletableFuture.completedFuture(null)
                 } else {
                     val acquiredAtNanos = System.nanoTime()
+                    val delegate = MongoLockExtendDelegate(lock)
                     val watchdog = LeaderLeaseAutoExtender.start(
                         options.leaderOptions.autoExtend,
                         options.leaderOptions.leaseTime,
-                    ) {
-                        lock.extend(options.leaderOptions.leaseTime)
-                    }
+                        delegate,
+                        ERROR_CLASSIFIER,
+                    )
                     log.debug { "리더로 승격하여 비동기 작업을 수행합니다. lockName=$lockName" }
+                    // async path 는 handle push 미수행 (AOP scope sync/suspend 만 지원 — Lettuce 패턴 정합)
                     val actionFuture = runCatching { action() }
                         .getOrElse { e ->
                             watchdog.close()
