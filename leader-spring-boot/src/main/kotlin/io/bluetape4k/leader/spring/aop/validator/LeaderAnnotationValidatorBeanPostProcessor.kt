@@ -93,6 +93,12 @@ class LeaderAnnotationValidatorBeanPostProcessor(
         ) {
             violations += "$returnTypeName 반환 타입 (미지원 — Mono는 #91 이후 지원, Flux/Flow 미지원)"
         }
+        // [#79 R12] CompletableFuture / Future / ListenableFuture / Deferred 차단
+        //   aspect 가 sync 분기로 처리 → action 종료 (= release) 가 future 완료 전 발생 → split-brain 위험
+        if (isUnsupportedFutureReturn(method.returnType)) {
+            violations += "$returnTypeName 반환 타입 (Future / CompletableFuture / ListenableFuture / Deferred — v1 미지원, " +
+                "lock release 가 future 완료 전 발생 → split-brain 위험)"
+        }
 
         // [#84] composed 어노테이션(@AliasFor) 지원 — findMergedAnnotation 으로 합성 어노테이션 속성 해석
         AnnotatedElementUtils.findMergedAnnotation(method, LeaderElection::class.java)?.let { leader ->
@@ -129,6 +135,31 @@ class LeaderAnnotationValidatorBeanPostProcessor(
         require(minLeaseTime.compareTo(leaseTime) <= 0) {
             "$prefix.minLeaseTime must not exceed $prefix.leaseTime: minLeaseTime=$minLeaseTime, leaseTime=$leaseTime"
         }
+    }
+
+    /**
+     * Future / CompletableFuture / ListenableFuture / Deferred 반환 타입 검출 (R12).
+     *
+     * - `java.util.concurrent.Future` 와 sub-type (CompletableFuture 포함)
+     * - `com.google.common.util.concurrent.ListenableFuture` (Guava optional — classNotFound 시 silent skip)
+     * - `kotlinx.coroutines.Deferred`
+     *
+     * aspect 가 sync 분기로 처리 시 action 종료 시점에 lock release → future 완료 전 release 발생.
+     */
+    private fun isUnsupportedFutureReturn(returnType: Class<*>): Boolean {
+        // java.util.concurrent.Future 와 그 sub-types (CompletableFuture 등)
+        if (java.util.concurrent.Future::class.java.isAssignableFrom(returnType)) return true
+        // kotlinx.coroutines.Deferred
+        if (returnType.name == "kotlinx.coroutines.Deferred") return true
+        // Guava ListenableFuture — optional dependency, Class.forName 으로 safe check
+        return runCatching {
+            val listenableFutureClass = Class.forName(
+                "com.google.common.util.concurrent.ListenableFuture",
+                false,
+                returnType.classLoader,
+            )
+            listenableFutureClass.isAssignableFrom(returnType)
+        }.getOrElse { false }
     }
 
     companion object: KLogging()

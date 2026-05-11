@@ -182,6 +182,52 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleFlow(), "sample") }
     }
 
+    // ── #79 R12: Future / CompletableFuture / Deferred 차단 ──
+
+    @Test
+    fun `CompletableFuture 반환 타입 strict true - startup fail (R12)`() {
+        class SampleFuture {
+            @LeaderElection(name = "future-job")
+            open fun process(): java.util.concurrent.CompletableFuture<String> =
+                java.util.concurrent.CompletableFuture.completedFuture("ok")
+        }
+        val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleFuture(), "sample") }
+    }
+
+    @Test
+    fun `Future 반환 타입 strict true - startup fail (R12)`() {
+        class SampleFuture {
+            @LeaderElection(name = "future-job")
+            open fun process(): java.util.concurrent.Future<String> =
+                java.util.concurrent.CompletableFuture.completedFuture("ok")
+        }
+        val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleFuture(), "sample") }
+    }
+
+    @Test
+    fun `Deferred 반환 타입 strict true - startup fail (R12)`() {
+        class SampleDeferred {
+            @LeaderElection(name = "deferred-job")
+            open fun process(): kotlinx.coroutines.Deferred<String> =
+                kotlinx.coroutines.CompletableDeferred("ok")
+        }
+        val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleDeferred(), "sample") }
+    }
+
+    @Test
+    fun `CompletableFuture 반환 타입 strict false - WARN 만 (throw 안 함)`() {
+        class SampleFuture {
+            @LeaderElection(name = "future-job")
+            open fun process(): java.util.concurrent.CompletableFuture<String> =
+                java.util.concurrent.CompletableFuture.completedFuture("ok")
+        }
+        val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
+        assertNotFails { bpp.postProcessAfterInitialization(SampleFuture(), "sample") }
+    }
+
     @Test
     fun `@Aspect 클래스 - skip (검증 대상 아님)`() {
         @Aspect
