@@ -118,21 +118,23 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
     }
 
     @Test
-    fun `autoExtend with minLeaseTime fails fast`() {
-        assertFailsWith<IllegalArgumentException> {
-            RedissonLeaderElector(
-                redissonClient,
-                LeaderElectionOptions(
-                    leaseTime = 1.seconds,
-                    minLeaseTime = 100.milliseconds,
-                    autoExtend = true,
-                )
+    fun `autoExtend with minLeaseTime is allowed since LeaderLeaseAutoExtender owns the watchdog`() {
+        // T8 PR 3: Redisson built-in watchdog 비활성 — LeaderLeaseAutoExtender 가 단일 watchdog.
+        // 기존 init constraint 제거 — autoExtend 와 minLeaseTime 동시 사용 가능.
+        val lockName = randomName()
+        val leaderElection = RedissonLeaderElector(
+            redissonClient,
+            LeaderElectionOptions(
+                leaseTime = 1.seconds,
+                minLeaseTime = 100.milliseconds,
+                autoExtend = true,
             )
-        }
+        )
+        leaderElection.runIfLeader(lockName) { "ok" } shouldBeEqualTo "ok"
     }
 
     @Test
-    fun `autoExtend uses Redisson watchdog while action exceeds explicit leaseTime`() {
+    fun `autoExtend uses LeaderLeaseAutoExtender while action exceeds explicit leaseTime`() {
         val lockName = randomName()
         val leaderElection = RedissonLeaderElector(
             redissonClient,

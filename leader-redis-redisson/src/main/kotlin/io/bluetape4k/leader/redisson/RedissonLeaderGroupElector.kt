@@ -1,9 +1,16 @@
 package io.bluetape4k.leader.redisson
 
 import io.bluetape4k.concurrent.failedCompletableFutureOf
-import io.bluetape4k.leader.LeaderGroupElector
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
+import io.bluetape4k.leader.redisson.internal.RedissonSemaphoreExtendDelegate
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -22,7 +29,7 @@ import kotlin.time.Duration
 /**
  * Redisson 분산 [RPermitExpirableSemaphore] 를 이용한 복수 리더 선출 구현체입니다.
  *
- * ## 동작/계약
+ * ## 동작/계약 (T8 PR 3)
  *
  * - `lockName` 별로 `lg:{lockName}` Redisson [RPermitExpirableSemaphore] 를 사용합니다.
  * - 각 acquire 는 고유 permitId 를 반환하며, release 시 permitId 로 정확한 슬롯을 식별합니다.
@@ -31,8 +38,11 @@ import kotlin.time.Duration
  * - 클라이언트 crash 시 (release 미호출) leaseTime 만료 후 Redisson 이 자동 회수합니다.
  * - 슬롯 미획득 시 `null` 반환 (ShedLock skip-on-contention).
  *
- * ## [io.bluetape4k.leader.local.LocalLeaderGroupElector] 과의 차이
- * - 이 구현체는 Redis 기반이므로 여러 JVM 프로세스에 걸친 동시 실행 제한에 적합합니다.
+ * ## ExtendDelegate 통합
+ *
+ * - acquire 후 [RedissonSemaphoreExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 동일 reference 공유 (AC-15).
+ * - aspect 가 `LockExtender.extendActiveLock` 호출 시 동일 delegate 를 통해 `RPermitExpirableSemaphore.updateLeaseTime` 실행.
+ * - `LockStateHolder` + `LeaderLockHandleCapture` (via AopScopeAccess) 양쪽에 handle 을 push.
  *
  * ```kotlin
  * val options = LeaderGroupElectionOptions(maxLeaders = 3, minLeaseTime = 1.seconds)
@@ -48,6 +58,9 @@ class RedissonLeaderGroupElector private constructor(
     val options: LeaderGroupElectionOptions,
 ): LeaderGroupElector {
     companion object: KLogging() {
+        internal const val REDISSON_GROUP_FACTORY_BEAN_NAME = "redisson-leader-group-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(RedissonBackendErrorClassifier)
+
         @JvmStatic
         operator fun invoke(
             redissonClient: RedissonClient,
@@ -112,9 +125,34 @@ class RedissonLeaderGroupElector private constructor(
         val startedAtNanos = System.nanoTime()
         log.debug { "슬롯 획득 성공. lockName=$lockName, permitId=$permitId" }
 
+        val delegate = RedissonSemaphoreExtendDelegate(semaphore, permitId)
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.GROUP,
+            factoryBeanName = REDISSON_GROUP_FACTORY_BEAN_NAME,
+            groupParams = LockIdentity.GroupParams(maxLeaders),
+        )
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = permitId,
+            acquiredAtNanos = startedAtNanos,
+            slotId = permitId,
+            extendDelegate = delegate,
+        )
+        // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
+        val watchdog = LeaderLeaseAutoExtender.start(false, options.leaseTime, delegate, ERROR_CLASSIFIER)
+
         try {
-            return action()
+            return AopScopeAccess.withPushedSync(handle) {
+                AopScopeAccess.setCapture(handle)
+                try {
+                    action()
+                } finally {
+                    AopScopeAccess.clearCapture()
+                }
+            }
         } finally {
+            watchdog.close()
             releaseOrExtend(semaphore, permitId, startedAtNanos, lockName)
         }
     }
@@ -183,7 +221,6 @@ class RedissonLeaderGroupElector private constructor(
         try {
             val remainingMs = remainingMinLeaseTime(startedAtNanos, options.minLeaseTime).inWholeMilliseconds
             if (remainingMs > 0) {
-                // Codex P2: tryUpdateLeaseTime 미존재. updateLeaseTime 만 존재.
                 semaphore.updateLeaseTime(permitId, remainingMs, TimeUnit.MILLISECONDS)
                 log.debug {
                     "minLease 유지를 위해 leaseTime 갱신. lockName=$lockName, permitId=$permitId, remainingMs=$remainingMs"
