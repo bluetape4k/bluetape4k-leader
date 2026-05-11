@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.lettuce.lock
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.lettuce.script.RedisScript
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
@@ -12,8 +13,8 @@ import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.api.sync.RedisCommands
 import kotlinx.atomicfu.atomic
+import java.time.Instant
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CompletableFuture
@@ -82,6 +83,14 @@ end"""
         return syncCommands.get(lockKey) == token
     }
 
+    /**
+     * 현재 lock 토큰을 반환합니다 (acquire 후, unlock 전).
+     *
+     * Backend module elector 가 [io.bluetape4k.leader.LeaderLockHandle.Real.token] 에 주입할 값으로 사용.
+     * 미보유 시 `null`.
+     */
+    fun currentToken(): String? = tokenRef.value
+
     // =========================================================================
     // 동기 API
     // =========================================================================
@@ -148,14 +157,42 @@ end"""
         log.debug { "Lock 해제 성공: lockKey=$lockKey" }
     }
 
-    fun extend(leaseTime: Duration = defaultLeaseTime): Boolean {
-        val token = tokenRef.value ?: return false
+    /**
+     * Lua atomic extend — token guard + PEXPIRE.
+     *
+     * ## 동작/계약
+     * - token 미보유 ([tokenRef] null) → `false`
+     * - script 결과 `1` → `true` (PEXPIRE 성공)
+     * - script 결과 `0` → `false` (token mismatch / lease 만료)
+     *
+     * 자세한 분류 결과가 필요하면 [extendDetailed] 사용.
+     */
+    fun extend(leaseTime: Duration = defaultLeaseTime): Boolean =
+        extendDetailed(leaseTime).isExtended
+
+    /**
+     * Lua atomic extend — [ExtendOutcome] 반환 (T7 PR 2).
+     *
+     * ## 동작/계약
+     * - token 미보유 → [ExtendOutcome.NotHeld]
+     * - script 결과 `1` → [ExtendOutcome.Extended] (`observedExpireAt = Instant.now() + leaseTime` best-effort)
+     * - script 결과 `0` → [ExtendOutcome.NotHeld] (token mismatch / lease 만료)
+     *
+     * **caller (`LettuceLockExtendDelegate`) 가 try/catch 로 backend exception → [ExtendOutcome.BackendError] 변환**.
+     * 이 메서드는 backend exception 을 propagate.
+     */
+    fun extendDetailed(leaseTime: Duration = defaultLeaseTime): ExtendOutcome {
+        val token = tokenRef.value ?: return ExtendOutcome.NotHeld
         val leaseMs = leaseTime.inWholeMilliseconds
 
         val extended = RedisScriptRunner.run<Long>(
             syncCommands, EXTEND_SCRIPT, ScriptOutputType.INTEGER, arrayOf(lockKey), token, leaseMs.toString()
         )
-        return extended > 0L
+        return if (extended > 0L) {
+            ExtendOutcome.Extended(Instant.now().plusMillis(leaseMs))
+        } else {
+            ExtendOutcome.NotHeld
+        }
     }
 
     // =========================================================================

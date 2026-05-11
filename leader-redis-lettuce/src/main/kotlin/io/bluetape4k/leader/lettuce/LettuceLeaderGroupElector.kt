@@ -1,8 +1,13 @@
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.lettuce.internal.LettuceSlotExtendDelegate
 import io.bluetape4k.leader.lettuce.semaphore.LettuceSlotTokenGroup
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
@@ -35,16 +40,12 @@ fun StatefulRedisConnection<String, String>.leaderGroupElection(
 /**
  * Lettuce Redis 클라이언트 기반의 복수 리더 선출 구현체입니다.
  *
- * ## 동작/계약
+ * ## 동작/계약 (T7 PR 2)
  *
  * - 내부적으로 [LettuceSlotTokenGroup] (ZSET + Lua) 을 사용하여 slot-token 모델로 동작합니다.
- * - 각 acquire 는 고유 token 을 반환하며, release 시 token 으로 정확한 슬롯을 식별합니다.
- * - `options.minLeaseTime > 0` 이면 빠른 action 종료 시 slot 의 score 만 갱신하여
- *   `minLeaseTime` 동안 backend TTL 로 슬롯을 유지합니다 (caller-park 없음).
- * - 클라이언트 crash 시 (release 미호출) leaseTime 만료 후 다음 acquire 시 자동 회수됩니다.
- * - `runAsyncIfLeader` 가 반환한 [CompletableFuture] 는 action 완료 + slot release 가 모두 끝난 후에만
- *   complete 됩니다. 따라서 chained `runAsyncIfLeader` 호출은 slot 이 freed 된 이후 시점에 acquire 를 시도합니다.
- *   release 자체의 실패는 warn log 로 남기되 outer future 의 결과에는 영향을 주지 않습니다.
+ * - acquire 후 [LettuceSlotExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 동일 reference 공유 (AC-15).
+ * - aspect 가 `LockExtender.extendActiveLock` 호출 시 동일 delegate 를 통해 server-side TIME Lua 실행 (AC-16).
+ * - `LockStateHolder` + `LeaderLockHandleCapture` (via AopScopeAccess) 양쪽에 handle 을 push 하여 aspect 가 reentrant peek + capture poll 모두 가능.
  *
  * ```kotlin
  * val options = LeaderGroupElectionOptions(maxLeaders = 3, minLeaseTime = 1.seconds)
@@ -60,7 +61,9 @@ class LettuceLeaderGroupElector(
     val options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
 ): LeaderGroupElector {
 
-    companion object: KLogging()
+    companion object: KLogging() {
+        internal const val LETTUCE_GROUP_FACTORY_BEAN_NAME = "lettuce-leader-group-elector"
+    }
 
     override val maxLeaders: Int = options.maxLeaders
 
@@ -91,10 +94,34 @@ class LettuceLeaderGroupElector(
         }
         // Codex P2: acquire 성공 후 startedAtNanos 캡처. acquire 전 캡처 시 waitTime 이 minLease 에서 차감.
         val startedAtNanos = System.nanoTime()
+        val delegate = LettuceSlotExtendDelegate(slotGroup, token)
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.GROUP,
+            factoryBeanName = LETTUCE_GROUP_FACTORY_BEAN_NAME,
+            groupParams = LockIdentity.GroupParams(maxLeaders),
+        )
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = token,
+            acquiredAtNanos = startedAtNanos,
+            slotId = token,
+            extendDelegate = delegate,
+        )
+        // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
+        val watchdog = LeaderLeaseAutoExtender.start(false, options.leaseTime, delegate)
         log.debug { "리더 선출 성공: lockName=$lockName, token=$token" }
         try {
-            return action()
+            return AopScopeAccess.withPushedSync(handle) {
+                AopScopeAccess.setCapture(handle)
+                try {
+                    action()
+                } finally {
+                    AopScopeAccess.clearCapture()
+                }
+            }
         } finally {
+            watchdog.close()
             val remainingMs = remainingMinLeaseTime(startedAtNanos, options.minLeaseTime).inWholeMilliseconds
             try {
                 slotGroup.release(token, remainingMs)
@@ -121,11 +148,9 @@ class LettuceLeaderGroupElector(
                 log.debug { "리더 선출 성공 (async): lockName=$lockName, token=$token" }
 
                 // Codex P2-2: action 결과(성공/실패)와 무관하게 release 완료까지 대기한 뒤 outer future 를 complete.
-                // 기존 구현은 release 를 fire-and-forget 으로 trigger 하여 chained 호출이 slot 이 아직 점유된 채로 보일 수 있었음.
                 val actionFuture: CompletableFuture<T> = try {
                     action()
                 } catch (e: Throwable) {
-                    // action 자체가 sync throw 한 경우에도 release 를 sequential 하게 chain.
                     return@thenComposeAsync releaseAndPropagate<T>(slotGroup, lockName, token, startedAtNanos, e, null)
                 }
 
@@ -138,13 +163,6 @@ class LettuceLeaderGroupElector(
         }, executor)
     }
 
-    /**
-     * action 종료 후 slot 을 release 하고, release 완료 시점에 결과(value 또는 error)로 future 를 complete 합니다.
-     *
-     * release 자체의 실패는 warn log 로만 남기고 outer future 의 결과에 영향을 주지 않습니다 — caller 는 action
-     * 의 성공/실패만 알면 충분하기 때문입니다. release 완료 전에는 outer future 가 complete 되지 않으므로
-     * 동일 elector 에 대한 chained `runAsyncIfLeader` 호출은 slot 이 정확히 freed 된 이후에만 acquire 를 시도합니다.
-     */
     private fun <T> releaseAndPropagate(
         slotGroup: LettuceSlotTokenGroup,
         lockName: String,

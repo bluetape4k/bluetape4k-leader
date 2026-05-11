@@ -57,6 +57,38 @@ object AopScopeAccess {
     fun pollCapture(): LeaderLockHandle.Real? = LeaderLockHandleCapture.poll()
 
     /**
+     * Backend module 전용 — group elector 의 acquire 직후 aspect 가 poll 할 handle 을 set 합니다.
+     *
+     * ⚠️ 애플리케이션 코드에서 직접 호출 금지 — `leader-redis-lettuce`, `leader-redis-redisson`,
+     * `leader-mongodb` 등의 group elector 가 동일 thread 에서 `setCapture` → action → [clearCapture] 시퀀스를 보장해야 합니다.
+     *
+     * 일반적으로 try/finally 패턴으로 사용:
+     *
+     * ```kotlin
+     * AopScopeAccess.setCapture(handle)
+     * try {
+     *     action()  // aspect 가 first statement 로 pollCapture 호출
+     * } finally {
+     *     AopScopeAccess.clearCapture()
+     * }
+     * ```
+     *
+     * Single elector 는 capture 가 필요 없으므로 호출하지 않습니다.
+     */
+    fun setCapture(handle: LeaderLockHandle.Real) {
+        LeaderLockHandleCapture.set(handle)
+    }
+
+    /**
+     * Backend module 전용 — [setCapture] 로 set 한 ThreadLocal 을 명시적으로 clear 합니다.
+     *
+     * `try/finally` finally 블록에서 호출하여 ThreadLocal leak 을 방지합니다.
+     */
+    fun clearCapture() {
+        LeaderLockHandleCapture.clear()
+    }
+
+    /**
      * Fail-open sentinel [LeaderLockHandle.FailOpen] 을 생성합니다.
      *
      * `failureMode = FAIL_OPEN_RUN` 분기에서 body 실행 시 [LockAssert] / [LockExtender] 가

@@ -17,4 +17,7 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
+
+    // T7 PR 2 — Abstract*ContractTest 사용
+    testImplementation(testFixtures(project(":leader-core")))
 }

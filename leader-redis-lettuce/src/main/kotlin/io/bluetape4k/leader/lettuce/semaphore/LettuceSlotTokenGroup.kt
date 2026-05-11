@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.lettuce.semaphore
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.lettuce.script.RedisScript
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.logging.KLogging
@@ -13,11 +14,14 @@ import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.api.sync.RedisCommands
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.future.await
+import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.LockSupport
+import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
@@ -137,6 +141,59 @@ local active = redis.call('ZCARD', KEYS[1])
 return { active, tonumber(ARGV[1]) - active }
 """
         )
+
+        /**
+         * EXTEND 스크립트 (T7 PR 2, AC-16).
+         *
+         * 서버 시간 `redis.call('TIME')` 만 사용하여 client clock skew 영향 없이 만료 판정.
+         *
+         * KEYS[1] = slotKey
+         * ARGV[1] = token (Base58 8자)
+         * ARGV[2] = leaseTimeMs
+         *
+         * 반환:
+         *  - `1` : 토큰이 살아있고 (score > nowMs) score 를 `nowMs + leaseTimeMs` 로 갱신
+         *  - `0` : 토큰 부재 또는 이미 만료 — extend 실패
+         *
+         * ZSET key TTL `PEXPIRE k leaseTimeMs + SLOT_KEY_TTL_MARGIN_MS` 도 함께 갱신.
+         */
+        private val EXTEND_SCRIPT = RedisScript(
+            """
+redis.replicate_commands()
+local t = redis.call('TIME')
+local nowMs = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
+local cur = redis.call('ZSCORE', KEYS[1], ARGV[1])
+if cur and tonumber(cur) > nowMs then
+  redis.call('ZADD', KEYS[1], 'XX', nowMs + tonumber(ARGV[2]), ARGV[1])
+  redis.call('PEXPIRE', KEYS[1], tonumber(ARGV[2]) + $SLOT_KEY_TTL_MARGIN_MS)
+  return 1
+end
+return 0
+"""
+        )
+
+        /**
+         * IS_HELD 스크립트 (T7 PR 2).
+         *
+         * server-side TIME 으로 만료 여부 판정 — client clock skew 차단.
+         *
+         * KEYS[1] = slotKey
+         * ARGV[1] = token
+         *
+         * 반환: `1` (살아있음) / `0` (만료 또는 부재)
+         */
+        private val IS_HELD_SCRIPT = RedisScript(
+            """
+redis.replicate_commands()
+local t = redis.call('TIME')
+local nowMs = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
+local cur = redis.call('ZSCORE', KEYS[1], ARGV[1])
+if cur and tonumber(cur) > nowMs then
+  return 1
+end
+return 0
+"""
+        )
     }
 
     init {
@@ -178,6 +235,44 @@ return { active, tonumber(ARGV[1]) - active }
             }
             LockSupport.parkNanos(SPIN_DELAY_NANOS)
         }
+    }
+
+    /**
+     * 슬롯의 lease 를 atomic 으로 연장합니다 (sync, T7 PR 2, AC-16).
+     *
+     * ## 동작/계약
+     * - server-side `redis.call('TIME')` 으로 client clock skew 영향 차단
+     * - token 의 score 가 nowMs 보다 작으면 (이미 만료) → [ExtendOutcome.NotHeld]
+     * - score > nowMs → ZADD XX 로 `nowMs + leaseTime` 갱신 + ZSET key TTL `PEXPIRE` 갱신 → [ExtendOutcome.Extended]
+     *
+     * **caller 가 backend exception 을 try/catch 로 [ExtendOutcome.BackendError] 변환**.
+     */
+    fun extendSlot(token: String, leaseTime: Duration): ExtendOutcome {
+        token.requireNotBlank("token")
+        val leaseMs = leaseTime.inWholeMilliseconds
+        val extended = RedisScriptRunner.run<Long>(
+            syncCommands, EXTEND_SCRIPT, ScriptOutputType.INTEGER,
+            arrayOf(slotKey), token, leaseMs.toString()
+        )
+        return if (extended > 0L) {
+            ExtendOutcome.Extended(Instant.now().plusMillis(leaseMs))
+        } else {
+            ExtendOutcome.NotHeld
+        }
+    }
+
+    /**
+     * 슬롯이 backend 에 살아있는지 확인합니다 (sync).
+     *
+     * server-side `redis.call('TIME')` 으로 만료 여부 판정 — client clock skew 차단.
+     */
+    fun isSlotHeld(token: String): Boolean {
+        token.requireNotBlank("token")
+        val result = RedisScriptRunner.run<Long>(
+            syncCommands, IS_HELD_SCRIPT, ScriptOutputType.INTEGER,
+            arrayOf(slotKey), token
+        )
+        return result > 0L
     }
 
     /**
@@ -310,6 +405,40 @@ return { active, tonumber(ARGV[1]) - active }
             }
             delay(SPIN_DELAY_MS)
         }
+    }
+
+    /**
+     * 슬롯의 lease 를 atomic 으로 연장합니다 (suspend, T7 PR 2, AC-16).
+     *
+     * - Lettuce `asyncCommands` 는 Netty event-loop 기반 non-blocking 이지만 R9 권고에 따라
+     *   suspend 진입점은 `coroutineContext.ensureActive()` 로 cancellation 을 명시적으로 확인.
+     */
+    suspend fun extendSlotSuspending(token: String, leaseTime: Duration): ExtendOutcome {
+        coroutineContext.ensureActive()
+        token.requireNotBlank("token")
+        val leaseMs = leaseTime.inWholeMilliseconds
+        val extended = RedisScriptRunner.runSuspending<Long>(
+            asyncCommands, EXTEND_SCRIPT, ScriptOutputType.INTEGER,
+            arrayOf(slotKey), token, leaseMs.toString()
+        )
+        return if (extended > 0L) {
+            ExtendOutcome.Extended(Instant.now().plusMillis(leaseMs))
+        } else {
+            ExtendOutcome.NotHeld
+        }
+    }
+
+    /**
+     * 슬롯이 backend 에 살아있는지 확인합니다 (suspend).
+     */
+    suspend fun isSlotHeldSuspending(token: String): Boolean {
+        coroutineContext.ensureActive()
+        token.requireNotBlank("token")
+        val result = RedisScriptRunner.runSuspending<Long>(
+            asyncCommands, IS_HELD_SCRIPT, ScriptOutputType.INTEGER,
+            arrayOf(slotKey), token
+        )
+        return result > 0L
     }
 
     suspend fun releaseSuspending(token: String, remainingMinLeaseMs: Long) {
