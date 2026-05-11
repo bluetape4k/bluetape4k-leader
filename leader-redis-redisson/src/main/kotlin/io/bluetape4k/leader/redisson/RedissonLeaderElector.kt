@@ -1,8 +1,15 @@
 package io.bluetape4k.leader.redisson
 
 import io.bluetape4k.concurrent.failedCompletableFutureOf
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
+import io.bluetape4k.leader.redisson.internal.RedissonLockExtendDelegate
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -19,16 +26,22 @@ import java.util.concurrent.TimeUnit
 /**
  * Redisson 분산 락을 이용하여 여러 프로세스/스레드 중 단 하나만 작업을 수행하도록 리더를 선출합니다.
  *
- * ## 동작
+ * ## 동작 (T8 PR 3)
  * - [runIfLeader]: 동기 방식으로 락을 획득한 뒤 [LeaderElector.runIfLeader]를 실행하고, 완료 후 락을 해제합니다.
  * - [runAsyncIfLeader]: `tryLockAsync`로 비동기 락을 획득하고, `CompletableFuture` 완료 시 [RLock.unlockAsync]로 락을 해제합니다.
  * - [LeaderElectionOptions.waitTime] 내 락 획득에 실패하면 `null`을 반환합니다 (ShedLock skip 방식).
  * - 락 대기 중 인터럽트가 발생하면 [org.redisson.client.RedisException]으로 래핑되어 전파됩니다.
  *
+ * ## ExtendDelegate 통합
+ *
+ * - acquire 후 [RedissonLockExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 동일 reference 공유 (AC-15).
+ * - aspect 가 `LockExtender.extendActiveLock` 호출 시 동일 delegate 를 통해 `RLock.expire(d)` 실행.
+ * - autoExtend 여부와 무관하게 항상 명시적 `leaseTime` 으로 acquire — Redisson 내장 watchdog 비활성화.
+ *   [LeaderLeaseAutoExtender] 가 단일 watchdog 으로 동작하여 R2 watchdog skip semantics 보장.
+ *
  * ```kotlin
  * val election = RedissonLeaderElector(redissonClient)
  * val result = election.runIfLeader("my-job") {
- *     // 리더로 선출된 경우에만 실행
  *     processData()
  * }
  * ```
@@ -39,10 +52,13 @@ import java.util.concurrent.TimeUnit
  */
 class RedissonLeaderElector private constructor(
     private val redissonClient: RedissonClient,
-    options: LeaderElectionOptions,
+    private val options: LeaderElectionOptions,
 ): LeaderElector {
 
     companion object: KLogging() {
+        internal const val REDISSON_FACTORY_BEAN_NAME = "redisson-leader-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(RedissonBackendErrorClassifier)
+
         @JvmStatic
         operator fun invoke(
             redissonClient: RedissonClient,
@@ -54,23 +70,7 @@ class RedissonLeaderElector private constructor(
 
     private val waitTimeMills = options.waitTime.inWholeMilliseconds
     private val leaseTimeMills = options.leaseTime.inWholeMilliseconds
-    private val minLeaseTime = options.minLeaseTime
-    private val autoExtend = options.autoExtend
 
-    init {
-        require(!(autoExtend && minLeaseTime > kotlin.time.Duration.ZERO)) {
-            "Redisson autoExtend does not support minLeaseTime because watchdog release semantics are ambiguous"
-        }
-    }
-
-    /**
-     * Redisson Lock을 이용하여, 리더로 선출되면 [action]을 수행하고, 그렇지 않다면 수행하지 않습니다.
-     *
-     * @param lockName lock name - lock 획득에 성공하면 leader로 승격되는 것이다.
-     * @param action leader 로 승격되면 수행할 코드 블럭
-     * @return [action] 실행 결과, 리더 획득 실패 시 `null`
-     * @throws org.redisson.client.RedisException 락 대기 중 인터럽트가 발생한 경우
-     */
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         lockName.requireNotBlank("lockName")
 
@@ -79,27 +79,44 @@ class RedissonLeaderElector private constructor(
         log.debug { "Leader 승격을 요청합니다 ..." }
 
         try {
-            val acquired = if (autoExtend) {
-                lock.tryLock(waitTimeMills, TimeUnit.MILLISECONDS)
-            } else {
-                lock.tryLock(waitTimeMills, leaseTimeMills, TimeUnit.MILLISECONDS)
-            }
-            if (acquired) {
-                val acquiredAtNanos = System.nanoTime()
-                log.debug { "Leader로 승격하여 작업을 수행합니다. lock=$lockName" }
-                try {
-                    return action()
-                } finally {
-                    if (lock.isHeldByCurrentThread) {
-                        runCatching {
-                            releaseLock(lock, acquiredAtNanos)
-                            log.debug { "작업이 완료되어 Leader 권한을 반납했습니다. lock=$lockName" }
-                        }
-                    }
-                }
-            } else {
+            // T8: autoExtend 여부와 무관하게 항상 명시적 leaseTime 사용 — Redisson 내장 watchdog 비활성화.
+            val acquired = lock.tryLock(waitTimeMills, leaseTimeMills, TimeUnit.MILLISECONDS)
+            if (!acquired) {
                 log.debug { "Leader 승격 실패 (슬롯 없음). lock=$lockName" }
                 return null
+            }
+            val acquiredAtNanos = System.nanoTime()
+            val acquiringThreadId = Thread.currentThread().threadId()
+            val delegate = RedissonLockExtendDelegate(redissonClient, lock, acquiringThreadId)
+            val identity = LockIdentity(
+                lockName = lockName,
+                kind = LockIdentity.AnnotationKind.SINGLE,
+                factoryBeanName = REDISSON_FACTORY_BEAN_NAME,
+            )
+            val handle = LeaderLockHandle.real(
+                identity = identity,
+                token = lockName,
+                acquiredAtNanos = acquiredAtNanos,
+                acquiringThreadId = acquiringThreadId,
+                extendDelegate = delegate,
+            )
+            val watchdog = LeaderLeaseAutoExtender.start(
+                options.autoExtend,
+                options.leaseTime,
+                delegate,
+                ERROR_CLASSIFIER,
+            )
+            log.debug { "Leader로 승격하여 작업을 수행합니다. lock=$lockName" }
+            try {
+                return AopScopeAccess.withPushedSync(handle) { action() }
+            } finally {
+                watchdog.close()
+                if (lock.isHeldByThread(acquiringThreadId)) {
+                    runCatching {
+                        releaseLock(lock, acquiredAtNanos)
+                        log.debug { "작업이 완료되어 Leader 권한을 반납했습니다. lock=$lockName" }
+                    }
+                }
             }
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
@@ -108,14 +125,6 @@ class RedissonLeaderElector private constructor(
         }
     }
 
-    /**
-     * Redisson Lock을 이용하여, 리더로 선출되면 [action]을 수행하고, 그렇지 않다면 수행하지 않습니다.
-     *
-     * @param lockName lock name - lock 획득에 성공하면 leader로 승격되는 것이다.
-     * @param executor 작업이 수행될 executor
-     * @param action leader 로 승격되면 수행할 코드 블럭
-     * @return [action] 실행 결과를 담은 [CompletableFuture]. 리더 획득 실패 시 `null`로 완료됨
-     */
     override fun <T> runAsyncIfLeader(
         lockName: String,
         executor: Executor,
@@ -129,13 +138,9 @@ class RedissonLeaderElector private constructor(
             val currentThreadId = Thread.currentThread().threadId()
             log.debug { "Leader 승격을 요청합니다 ... lock=$lockName, currentThreadId=$currentThreadId" }
 
+            // T8: 항상 명시적 leaseTime — Redisson 내장 watchdog 비활성화.
             return lock
-                .tryLockAsync(
-                    waitTimeMills,
-                    if (autoExtend) -1L else leaseTimeMills,
-                    TimeUnit.MILLISECONDS,
-                    currentThreadId,
-                )
+                .tryLockAsync(waitTimeMills, leaseTimeMills, TimeUnit.MILLISECONDS, currentThreadId)
                 .thenComposeAsync({ acquired ->
                     if (acquired) {
                         executeActionAsync(lock, currentThreadId, executor, System.nanoTime(), action)
@@ -155,18 +160,7 @@ class RedissonLeaderElector private constructor(
     /**
      * 락을 보유한 상태에서 비동기 [action]을 실행하고, 완료(성공/실패) 후 락을 해제합니다.
      *
-     * ## 동작 상세
-     * - [action] 호출 자체가 예외를 던지면 즉시 실패한 [CompletableFuture]를 반환합니다.
-     * - [action]이 반환한 [CompletableFuture] 완료 시 `whenCompleteAsync`에서 락을 비동기 해제합니다.
-     * - 락 해제는 [currentThreadId]로 식별합니다. 이는 Redisson이 락을 스레드 단위로 관리하기 때문이며,
-     *   비동기 컨텍스트에서 락 획득 시 사용한 스레드 ID와 동일한 값으로 해제해야 합니다.
-     * - 락 해제 실패 시 예외를 로그에만 기록하고 [action] 결과에는 영향을 주지 않습니다.
-     *
-     * @param lock 해제 대상 [RLock]
-     * @param currentThreadId 락 획득 시 사용한 스레드 ID ([Thread.currentThread.threadId] 기준)
-     * @param executor 완료 콜백을 실행할 [Executor]
-     * @param action 실행할 비동기 작업
-     * @return [action] 실행 결과를 담은 [CompletableFuture]
+     * Lettuce 패턴 정합 — async path 에서는 handle push 를 수행하지 않습니다 (AOP scope 는 sync/suspend 만 지원).
      */
     private inline fun <T> executeActionAsync(
         lock: RLock,
@@ -176,22 +170,30 @@ class RedissonLeaderElector private constructor(
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val lockName = lock.name
+        val delegate = RedissonLockExtendDelegate(redissonClient, lock, currentThreadId)
+        val watchdog = LeaderLeaseAutoExtender.start(
+            options.autoExtend,
+            options.leaseTime,
+            delegate,
+            ERROR_CLASSIFIER,
+        )
         log.debug { "Leader로 승격하여 비동기 작업을 수행합니다. lock=$lockName, threadId=$currentThreadId" }
 
         val actionFuture = runCatching { action() }
             .getOrElse { error ->
-                // action() 이 동기적으로 예외를 던진 경우에도 락을 반드시 해제해야 한다 (락 유출 방지)
+                watchdog.close()
                 releaseLockAsync(lock, currentThreadId, acquiredAtNanos)
                 return failedCompletableFutureOf(error)
             }
 
         return actionFuture.whenCompleteAsync({ _, _ ->
+            watchdog.close()
             releaseLockAsync(lock, currentThreadId, acquiredAtNanos)
         }, executor)
     }
 
     private fun releaseLock(lock: RLock, acquiredAtNanos: Long) {
-        val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
+        val remaining = remainingMinLeaseTime(acquiredAtNanos, options.minLeaseTime)
         if (remaining > kotlin.time.Duration.ZERO) {
             redissonClient.keys.expire(remaining.toJavaDuration(), lock.name)
         } else {
@@ -202,7 +204,7 @@ class RedissonLeaderElector private constructor(
     private fun releaseLockAsync(lock: RLock, currentThreadId: Long, acquiredAtNanos: Long) {
         val lockName = lock.name
         if (lock.isHeldByThread(currentThreadId)) {
-            val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
+            val remaining = remainingMinLeaseTime(acquiredAtNanos, options.minLeaseTime)
             val releaseFuture: CompletableFuture<*> = if (remaining > kotlin.time.Duration.ZERO) {
                 CompletableFuture.supplyAsync {
                     redissonClient.keys.expire(remaining.toJavaDuration(), lockName)
@@ -228,21 +230,6 @@ class RedissonLeaderElector private constructor(
 
 /**
  * Redisson 분산 락을 이용하여 리더 선출을 통한 작업을 수행합니다.
- *
- * ```
- * val client: RedissonClient = ...
- * val result: Int = client.runIfLeader("jobName") {
- *    // 리더로 선출되었을 때 수행할 작업
- *    ...
- *    42
- * }
- * // result is 42
- * ```
- *
- * @param jobName 작업 이름
- * @param options 리더 선출 옵션
- * @param action 리더로 선출되었을 때 수행할 작업
- * @return 작업 결과
  */
 inline fun <T> RedissonClient.runIfLeader(
     jobName: String,
@@ -256,25 +243,6 @@ inline fun <T> RedissonClient.runIfLeader(
 
 /**
  * Redisson 분산 락을 이용하여 리더 선출을 통한 비동기 작업을 수행합니다.
- *
- * ```
- * val client: RedissonClient = ...
- * val result:CompletalbeFuture<Int> = client.runAsyncIfLeader("jobName") {
- *   // 리더로 선출되었을 때 수행할 작업
- *   futureOf {
- *      ...
- *      // 작업 결과
- *      42
- *   }
- * }
- * // result.get() is 42
- * ```
- *
- * @param jobName 작업 이름
- * @param executor 작업을 수행할 Executor
- * @param options 리더 선출 옵션
- * @param action 리더로 선출되었을 때 수행할 비동기 작업
- * @return 작업 결과를 담은 [CompletableFuture] 인스턴스. 리더 획득 실패 시 `null`로 완료됨
  */
 inline fun <T> RedissonClient.runAsyncIfLeader(
     jobName: String,
