@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.exposed.jdbc.lock
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
@@ -207,6 +208,63 @@ internal class ExposedJdbcLock internal constructor(
             }
         }.onFailure { e ->
             log.warn(e) { "락 해제 중 DB 오류: lockName=$lockName" }
+        }
+    }
+
+    /**
+     * 락의 `lockedUntil` 을 [leaseTime] 만큼 연장합니다.
+     *
+     * @deprecated [extendDetailed] 사용 권장 — R6 guard 적용 + [ExtendOutcome] 반환.
+     */
+    @Deprecated(
+        message = "Use extendDetailed(leaseTime) for R6 guard (lockedUntil > now) and ExtendOutcome result.",
+        replaceWith = ReplaceWith("extendDetailed(leaseTime).isExtended"),
+    )
+    fun extend(leaseTime: Duration): Boolean = extendDetailed(leaseTime).isExtended
+
+    /**
+     * 락의 `lockedUntil` 을 [leaseTime] 만큼 atomic 하게 연장하고 [ExtendOutcome] 을 반환합니다.
+     *
+     * ## R6 guard (Issue #79 PR 5)
+     * `WHERE` 절에 `lockedUntil > now()` 를 추가하여 만료된 행을 다른 인스턴스가 재획득한 race 에서
+     * stale token 으로 expired row 를 revival 시키는 split-brain 을 차단합니다.
+     *
+     * ## SQL
+     * ```sql
+     * UPDATE leader_lock
+     * SET locked_until = ? -- now + leaseTime
+     * WHERE lock_name = ? AND token = ? AND locked_until > ?  -- now
+     * ```
+     *
+     * ## 반환
+     * - `affectedRows == 1` → [ExtendOutcome.Extended] (`observedExpireAt = now + leaseTime`)
+     * - `affectedRows == 0` → [ExtendOutcome.NotHeld] (토큰 불일치 / lease 만료 / takeover)
+     * - DB 예외는 caller (delegate) 가 [ExtendOutcome.BackendError] 로 wrap — 본 함수는 그대로 throw
+     *
+     * Token-based 락이므로 [ExtendOutcome.WrongThread] 는 발생하지 않습니다 (Virtual Thread 안전).
+     */
+    fun extendDetailed(leaseTime: Duration): ExtendOutcome {
+        val lockNameVal = this@ExposedJdbcLock.lockName
+        val tokenVal = this@ExposedJdbcLock.token
+
+        return transaction(db) {
+            val now = Instant.now()
+            val newLockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
+            val updated = LeaderLockTable.update(
+                where = {
+                    (LeaderLockTable.lockName eq lockNameVal) and
+                        (LeaderLockTable.token eq tokenVal) and
+                        (LeaderLockTable.lockedUntil greater now)  // R6: expired row revival 차단
+                }
+            ) {
+                it[LeaderLockTable.lockedUntil] = newLockedUntil
+            }
+            if (updated > 0) {
+                ExtendOutcome.Extended(newLockedUntil)
+            } else {
+                log.debug { "Exposed JDBC extend 실패 (NotHeld): lockName=$lockName" }
+                ExtendOutcome.NotHeld
+            }
         }
     }
 }

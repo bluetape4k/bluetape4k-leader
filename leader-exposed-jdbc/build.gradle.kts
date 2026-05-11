@@ -32,4 +32,7 @@ dependencies {
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.testcontainers.mysql)
+
+    // T10 PR 5 — Abstract*ContractTest 사용 (Issue #79)
+    testImplementation(testFixtures(project(":leader-core")))
 }
