@@ -1,13 +1,20 @@
 package io.bluetape4k.leader.exposed.jdbc
 
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.exposed.jdbc.internal.ExposedJdbcBackendErrorClassifier
+import io.bluetape4k.leader.exposed.jdbc.internal.ExposedJdbcSlotExtendDelegate
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcGroupLock
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializer
 import io.bluetape4k.leader.exposed.jdbc.lock.validateExposedLockName
 import io.bluetape4k.leader.exposed.tables.HistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -65,6 +72,9 @@ class ExposedJdbcLeaderGroupElector private constructor(
 ) : LeaderGroupElector {
 
     companion object : KLogging() {
+
+        internal const val EXPOSED_JDBC_GROUP_FACTORY_BEAN_NAME = "exposed-jdbc-leader-group-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedJdbcBackendErrorClassifier)
 
         /**
          * [ExposedJdbcLeaderGroupElector] 인스턴스를 생성합니다.
@@ -170,11 +180,37 @@ class ExposedJdbcLeaderGroupElector private constructor(
             val historyId = recordAcquired(lockName, lock.token, slot)
             val startedAt = Instant.now()
             val acquiredAtNanos = System.nanoTime()
+
+            // T10 PR 5 (Issue #79) — per-slot ExtendDelegate / handle / watchdog 단일 reference 공유 (AC-15).
+            val delegate = ExposedJdbcSlotExtendDelegate(lock)
+            val identity = LockIdentity(
+                lockName = lockName,
+                kind = LockIdentity.AnnotationKind.GROUP,
+                factoryBeanName = EXPOSED_JDBC_GROUP_FACTORY_BEAN_NAME,
+                groupParams = LockIdentity.GroupParams(maxLeaders),
+            )
+            val handle = LeaderLockHandle.real(
+                identity = identity,
+                token = lock.token,
+                acquiredAtNanos = acquiredAtNanos,
+                slotId = slot.toString(),
+                extendDelegate = delegate,
+            )
+            // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
+            val watchdog = LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
+
             var actionSucceeded = false
             var actionFailed = false
 
             try {
-                val result = action()
+                val result = AopScopeAccess.withPushedSync(handle) {
+                    AopScopeAccess.setCapture(handle)
+                    try {
+                        action()
+                    } finally {
+                        AopScopeAccess.clearCapture()
+                    }
+                }
                 actionSucceeded = true
                 return result
             } catch (e: CancellationException) {
@@ -183,6 +219,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                 actionFailed = true
                 throw e
             } finally {
+                watchdog.close()
                 when {
                     actionSucceeded -> recordCompleted(historyId, lock.token, startedAt, slot)
                     actionFailed -> recordFailed(historyId, lock.token, startedAt, slot)
@@ -246,9 +283,19 @@ class ExposedJdbcLeaderGroupElector private constructor(
                 val historyId = recordAcquired(lockName, lock.token, slot)
                 val startedAt = Instant.now()
                 val acquiredAtNanos = System.nanoTime()
+                // T10 PR 5: async path 도 sync path 와 동일하게 watchdog/delegate 등록 (split-brain 방지)
+                // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
+                val delegate = ExposedJdbcSlotExtendDelegate(lock)
+                val watchdog = LeaderLeaseAutoExtender.start(
+                    false,
+                    options.leaderGroupOptions.leaseTime,
+                    delegate,
+                    ERROR_CLASSIFIER,
+                )
 
                 val actionFuture = runCatching { action() }
                     .getOrElse { e ->
+                        watchdog.close()
                         recordFailed(historyId, lock.token, startedAt, slot)
                         runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
                             .onFailure { ex -> log.warn(ex) { "슬롯 해제 실패 (action 오류 경로). slot=$slot" } }
@@ -256,6 +303,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                     }
 
                 actionFuture.whenCompleteAsync({ _, throwable ->
+                    watchdog.close()
                     when {
                         throwable == null -> recordCompleted(historyId, lock.token, startedAt, slot)
                         // 취소(코루틴/CompletableFuture)는 FAILED로 기록하지 않음

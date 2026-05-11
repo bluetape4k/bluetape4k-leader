@@ -1,12 +1,19 @@
 package io.bluetape4k.leader.exposed.jdbc
 
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.exposed.jdbc.internal.ExposedJdbcBackendErrorClassifier
+import io.bluetape4k.leader.exposed.jdbc.internal.ExposedJdbcLockExtendDelegate
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcLock
 import kotlinx.coroutines.CancellationException
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializer
 import io.bluetape4k.leader.exposed.jdbc.lock.validateExposedLockName
 import io.bluetape4k.leader.exposed.tables.HistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -59,6 +66,9 @@ class ExposedJdbcLeaderElector private constructor(
 
     companion object : KLogging() {
 
+        internal const val EXPOSED_JDBC_FACTORY_BEAN_NAME = "exposed-jdbc-leader-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedJdbcBackendErrorClassifier)
+
         /**
          * [ExposedJdbcLeaderElector] 인스턴스를 생성합니다.
          *
@@ -103,11 +113,32 @@ class ExposedJdbcLeaderElector private constructor(
         val historyId = recordAcquired(lockName, lock.token)
         val startedAt = Instant.now()
         val acquiredAtNanos = System.nanoTime()
+
+        // T10 PR 5 (Issue #79) — ExtendDelegate / handle / watchdog 단일 reference 공유 (AC-15).
+        val delegate = ExposedJdbcLockExtendDelegate(lock)
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            factoryBeanName = EXPOSED_JDBC_FACTORY_BEAN_NAME,
+        )
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = lock.token,
+            acquiredAtNanos = acquiredAtNanos,
+            extendDelegate = delegate,
+        )
+        val watchdog = LeaderLeaseAutoExtender.start(
+            options.leaderOptions.autoExtend,
+            options.leaderOptions.leaseTime,
+            delegate,
+            ERROR_CLASSIFIER,
+        )
+
         var actionSucceeded = false
         var actionFailed = false
 
         try {
-            val result = action()
+            val result = AopScopeAccess.withPushedSync(handle) { action() }
             actionSucceeded = true
             return result
         } catch (e: CancellationException) {
@@ -117,6 +148,7 @@ class ExposedJdbcLeaderElector private constructor(
             actionFailed = true
             throw e
         } finally {
+            watchdog.close()
             when {
                 actionSucceeded -> recordCompleted(historyId, lock.token, startedAt)
                 actionFailed -> recordFailed(historyId, lock.token, startedAt)
@@ -167,9 +199,18 @@ class ExposedJdbcLeaderElector private constructor(
                     val historyId = recordAcquired(lockName, lock.token)
                     val startedAt = Instant.now()
                     val acquiredAtNanos = System.nanoTime()
+                    // T10 PR 5: async path 도 sync path 와 동일하게 watchdog/delegate 등록 (split-brain 방지)
+                    val delegate = ExposedJdbcLockExtendDelegate(lock)
+                    val watchdog = LeaderLeaseAutoExtender.start(
+                        options.leaderOptions.autoExtend,
+                        options.leaderOptions.leaseTime,
+                        delegate,
+                        ERROR_CLASSIFIER,
+                    )
 
                     val actionFuture = runCatching { action() }
                         .getOrElse { e ->
+                            watchdog.close()
                             recordFailed(historyId, lock.token, startedAt)
                             runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
                                 .onFailure { ex -> log.warn(ex) { "락 해제 실패 (action 오류 경로). lockName=$lockName" } }
@@ -177,6 +218,7 @@ class ExposedJdbcLeaderElector private constructor(
                         }
 
                     actionFuture.whenCompleteAsync({ _, throwable ->
+                        watchdog.close()
                         when {
                             throwable == null -> recordCompleted(historyId, lock.token, startedAt)
                             // CompletableFuture.cancel 또는 코루틴 취소: FAILED 미기록 (취소이므로)
