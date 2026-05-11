@@ -2,8 +2,18 @@ name: Nightly
 
 on:
   schedule:
-    - cron: '0 19 * * *'  # 매일 UTC 19:00 (KST 04:00)
+    - cron: '0 19 * * 1-6'  # Daily smoke, UTC 19:00 (KST 04:00) Mon-Sat
+    - cron: '0 19 * * 0'    # Weekly full, UTC 19:00 (KST 04:00) Sunday
   workflow_dispatch:
+    inputs:
+      scope:
+        description: 'Nightly scope to run'
+        required: true
+        type: choice
+        default: full
+        options:
+          - smoke
+          - full
 
 permissions:
   contents: read
@@ -103,6 +113,8 @@ jobs:
   # ── leader-redis-lettuce (Testcontainers: Redis) ────────────────────────────
   test-redis-lettuce:
     name: Test / leader-redis-lettuce (Testcontainers)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -149,6 +161,8 @@ jobs:
   # ── leader-redis-redisson (Testcontainers: Redis) ───────────────────────────
   test-redis-redisson:
     name: Test / leader-redis-redisson (Testcontainers)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -240,6 +254,8 @@ jobs:
   # ── leader-exposed-core (PostgreSQL, Testcontainers) ───────────────────────
   test-exposed-core-postgresql:
     name: Test / leader-exposed-core (PostgreSQL)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -287,6 +303,8 @@ jobs:
   # ── leader-exposed-core (MySQL 8, Testcontainers) ──────────────────────────
   test-exposed-core-mysql:
     name: Test / leader-exposed-core (MySQL 8)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -379,6 +397,8 @@ jobs:
   # ── leader-exposed-jdbc (PostgreSQL, Testcontainers) ───────────────────────
   test-exposed-jdbc-postgresql:
     name: Test / leader-exposed-jdbc (PostgreSQL)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -426,6 +446,8 @@ jobs:
   # ── leader-exposed-jdbc (MySQL 8, Testcontainers) ──────────────────────────
   test-exposed-jdbc-mysql:
     name: Test / leader-exposed-jdbc (MySQL 8)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -473,6 +495,8 @@ jobs:
   # ── leader-mongodb (Testcontainers: MongoDB) ────────────────────────────────
   test-mongodb:
     name: Test / leader-mongodb (Testcontainers)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -519,6 +543,8 @@ jobs:
   # ── leader-hazelcast (Testcontainers: Hazelcast) ────────────────────────────
   test-hazelcast:
     name: Test / leader-hazelcast (Testcontainers)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -565,6 +591,8 @@ jobs:
   # ── leader-zookeeper (Testcontainers: ZooKeeper) ───────────────────────────
   test-zookeeper:
     name: Test / leader-zookeeper (Testcontainers)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -655,6 +683,8 @@ jobs:
   # ── examples-migration-gate (Testcontainers PostgreSQL + H2) ────────────────
   test-examples-migration-gate:
     name: Test / examples-migration-gate (Testcontainers)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -690,6 +720,8 @@ jobs:
   # ── examples-webhook-poller (Testcontainers MongoDB) ────────────────────────
   test-examples-webhook-poller:
     name: Test / examples-webhook-poller (Testcontainers)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -725,6 +757,8 @@ jobs:
   # ── examples-cache-warmer (Testcontainers Hazelcast) ────────────────────────
   test-examples-cache-warmer:
     name: Test / examples-cache-warmer (Testcontainers)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -760,6 +794,8 @@ jobs:
   # tenant-aggregator (Testcontainers PostgreSQL + H2)
   test-examples-tenant-aggregator:
     name: Test / examples-tenant-aggregator (Testcontainers)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -795,6 +831,8 @@ jobs:
   # ── examples-batch-scheduler (Testcontainers Redis) ─────────────────────────
   test-examples-batch-scheduler:
     name: Test / examples-batch-scheduler (Testcontainers)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -830,6 +868,8 @@ jobs:
   # ── examples-ktor-app (Testcontainers Redis + Ktor 3.x) ─────────────────────
   test-examples-ktor-app:
     name: Test / examples-ktor-app (Testcontainers)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -865,6 +905,8 @@ jobs:
   # ── leader-spring-boot (Testcontainers: Redis + MongoDB + H2) ───────────────
   test-spring-boot:
     name: Test / leader-spring-boot (Testcontainers)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -911,6 +953,8 @@ jobs:
   # ── leader-ktor (Testcontainers: Redis) ────────────────────────────────────
   test-leader-ktor:
     name: Test / leader-ktor (Testcontainers)
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
@@ -956,6 +1000,7 @@ jobs:
 
   coverage-report:
     name: Coverage Report
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs:
@@ -980,7 +1025,7 @@ jobs:
       - test-examples-cache-warmer
       - test-examples-tenant-aggregator
       - test-examples-ktor-app
-    if: always()
+    if: ${{ always() && ((github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full')) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
