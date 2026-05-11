@@ -1,18 +1,24 @@
 package io.bluetape4k.leader.local
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.LeaderElectionListener
 import io.bluetape4k.leader.LeaderElectionListenerRegistry
 import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElectionState
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderState
+import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.parkRemainingMinLeaseTime
+import io.bluetape4k.leader.internal.ExtendDelegate
+import io.bluetape4k.leader.internal.LockStateHolder
 import io.bluetape4k.support.requireNotBlank
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 import kotlin.time.Duration
 
 /**
@@ -30,6 +36,11 @@ import kotlin.time.Duration
 abstract class AbstractLocalLeaderElector(
     protected val options: LeaderElectionOptions = LeaderElectionOptions.Default,
 ) : LeaderElectionListenerRegistry, LeaderElectionState {
+
+    companion object {
+        /** [LockIdentity.factoryBeanName] 진단 metadata 용 상수 — Local backend. */
+        internal const val LOCAL_FACTORY_BEAN_NAME = "local-leader-elector"
+    }
 
     private val locks = ConcurrentHashMap<String, ReentrantLock>()
     private val listeners = LeaderElectionListenerSupport()
@@ -69,8 +80,15 @@ abstract class AbstractLocalLeaderElector(
      * @param action 락을 획득한 상태에서 실행할 작업
      * @return [action] 실행 결과
      */
-    protected fun <T> withLeaderLock(lockName: String, action: () -> T): T =
-        getLock(lockName).withLock(action)
+    protected fun <T> withLeaderLock(lockName: String, action: () -> T): T {
+        val lock = getLock(lockName)
+        lock.lock()
+        try {
+            return action()
+        } finally {
+            lock.unlock()
+        }
+    }
 
     /**
      * [lockName]의 락을 [waitTime] 내에 획득하면 [action]을 실행하고, 실패하면 `null`을 반환합니다.
@@ -87,19 +105,55 @@ abstract class AbstractLocalLeaderElector(
      */
     protected fun <T> tryWithLeaderLock(lockName: String, waitTime: Duration, action: () -> T): T? {
         val lock = getLock(lockName)
+
+        // Reentrant: same thread holds the lock — wrap in a passthrough handle
+        val existing = LockStateHolder.peekSyncMatching(lockName)
+        if (lock.isHeldByCurrentThread && existing is LeaderLockHandle.Real) {
+            val reentrant = existing.withReentryDepth(existing.reentryDepth + 1)
+            return LockStateHolder.withPushed(reentrant) { action() }
+        }
+
         val acquired = lock.tryLock(waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS)
         if (!acquired) {
             listeners.notifySkipped(lockName)
             return null
         }
         val startedAtNanos = System.nanoTime()
+        val token = Base58.randomString(8)
         states.acquireSingle(lockName, options.nodeId, options.leaseTime)
-        val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime) {
-            states.extendSingle(lockName, options.leaseTime)
+
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            factoryBeanName = LOCAL_FACTORY_BEAN_NAME,
+        )
+        val lastExtendDeadline = AtomicReference(Instant.EPOCH)
+        val delegate = object : ExtendDelegate {
+            private val _lastExtendDeadline = lastExtendDeadline
+            override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
+            override fun extend(lockAtMostFor: Duration): io.bluetape4k.leader.ExtendOutcome {
+                val extended = states.extendSingle(lockName, lockAtMostFor)
+                return if (extended) {
+                    io.bluetape4k.leader.ExtendOutcome.Extended(
+                        Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds)
+                    )
+                } else {
+                    io.bluetape4k.leader.ExtendOutcome.NotHeld
+                }
+            }
+            override fun isHeld(): Boolean = states.singleState(lockName).isOccupied
         }
+
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = token,
+            acquiredAtNanos = startedAtNanos,
+            extendDelegate = delegate,
+        )
+        val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate)
         listeners.notifyElected(lockName)
         return try {
-            action()
+            LockStateHolder.withPushed(handle) { action() }
         } finally {
             watchdog.close()
             parkRemainingMinLeaseTime(startedAtNanos, options.minLeaseTime)

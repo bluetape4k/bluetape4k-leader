@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.coroutines
 
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.coroutines.flow.extensions.subject.PublishSubject
+import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
 import io.bluetape4k.leader.LeaderElectionListener
@@ -8,7 +10,11 @@ import io.bluetape4k.leader.LeaderElectionListenerRegistry
 import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderState
+import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.internal.ExtendDelegate
+import io.bluetape4k.leader.local.AbstractLocalLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderStateRegistry
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.support.requireNotBlank
@@ -18,7 +24,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Coroutines [Mutex]를 이용한 로컬(단일 JVM) suspend 리더 선출 구현체입니다.
@@ -88,14 +96,42 @@ class LocalSuspendLeaderElector(
             return null
         }
         val startedAtNanos = System.nanoTime()
+        val token = Base58.randomString(8)
         states.acquireSingle(lockName, options.nodeId, options.leaseTime)
-        val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime) {
-            states.extendSingle(lockName, options.leaseTime)
+
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            factoryBeanName = AbstractLocalLeaderElector.LOCAL_FACTORY_BEAN_NAME,
+        )
+        val lastExtendDeadlineRef = AtomicReference(Instant.EPOCH)
+        val delegate = object : ExtendDelegate {
+            private val _lastExtendDeadline = lastExtendDeadlineRef
+            override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
+            override fun extend(lockAtMostFor: kotlin.time.Duration): ExtendOutcome {
+                val extended = states.extendSingle(lockName, lockAtMostFor)
+                return if (extended) {
+                    ExtendOutcome.Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+                } else {
+                    ExtendOutcome.NotHeld
+                }
+            }
+            override fun isHeld(): Boolean = states.singleState(lockName).isOccupied
         }
+
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = token,
+            acquiredAtNanos = startedAtNanos,
+            extendDelegate = delegate,
+        )
+        val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate)
         listeners.notifyElected(lockName)
         eventSubject.emit(LeaderElectionEvent.Elected(lockName))
         return try {
-            action()
+            withContext(LockHandleElement(handle)) {
+                action()
+            }
         } finally {
             withContext(NonCancellable) {
                 watchdog.close()
