@@ -7,6 +7,8 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceSlotExtendDelegate
 import io.bluetape4k.leader.lettuce.semaphore.LettuceSlotTokenGroup
 import io.bluetape4k.leader.remainingMinLeaseTime
@@ -63,6 +65,7 @@ class LettuceLeaderGroupElector(
 
     companion object: KLogging() {
         internal const val LETTUCE_GROUP_FACTORY_BEAN_NAME = "lettuce-leader-group-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(LettuceBackendErrorClassifier)
     }
 
     override val maxLeaders: Int = options.maxLeaders
@@ -109,7 +112,7 @@ class LettuceLeaderGroupElector(
             extendDelegate = delegate,
         )
         // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
-        val watchdog = LeaderLeaseAutoExtender.start(false, options.leaseTime, delegate)
+        val watchdog = LeaderLeaseAutoExtender.start(false, options.leaseTime, delegate, ERROR_CLASSIFIER)
         log.debug { "리더 선출 성공: lockName=$lockName, token=$token" }
         try {
             return AopScopeAccess.withPushedSync(handle) {

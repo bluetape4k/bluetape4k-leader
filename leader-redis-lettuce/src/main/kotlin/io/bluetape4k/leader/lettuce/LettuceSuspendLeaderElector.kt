@@ -6,6 +6,8 @@ import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceSuspendLockExtendDelegate
 import io.bluetape4k.leader.lettuce.lock.LettuceSuspendLock
 import io.bluetape4k.logging.KLogging
@@ -61,6 +63,7 @@ class LettuceSuspendLeaderElector(
 
     companion object: KLogging() {
         internal const val LETTUCE_SUSPEND_FACTORY_BEAN_NAME = "lettuce-suspend-leader-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(LettuceBackendErrorClassifier)
     }
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
@@ -73,7 +76,7 @@ class LettuceSuspendLeaderElector(
             return null
         }
         val acquiredAtNanos = System.nanoTime()
-        val token = lock.currentToken() ?: ""
+        val token = lock.currentToken() ?: error("token missing after tryLock — lockName=$lockName")
         val delegate = LettuceSuspendLockExtendDelegate(lock)
         val identity = LockIdentity(
             lockName = lockName,
@@ -86,7 +89,7 @@ class LettuceSuspendLeaderElector(
             acquiredAtNanos = acquiredAtNanos,
             extendDelegate = delegate,
         )
-        val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate)
+        val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
         log.debug { "리더 선출 성공 (suspend): lockName=$lockName" }
         try {
             return withContext(AopScopeAccess.createLockHandleElement(handle)) {

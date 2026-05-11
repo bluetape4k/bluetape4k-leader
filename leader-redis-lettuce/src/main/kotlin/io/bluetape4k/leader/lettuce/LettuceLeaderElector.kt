@@ -6,6 +6,8 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceLockExtendDelegate
 import io.bluetape4k.leader.lettuce.lock.LettuceLock
 import io.bluetape4k.logging.KLogging
@@ -59,6 +61,7 @@ class LettuceLeaderElector(
 
     companion object: KLogging() {
         internal const val LETTUCE_FACTORY_BEAN_NAME = "lettuce-leader-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(LettuceBackendErrorClassifier)
     }
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
@@ -71,7 +74,7 @@ class LettuceLeaderElector(
             return null
         }
         val acquiredAtNanos = System.nanoTime()
-        val token = lock.currentToken() ?: ""
+        val token = lock.currentToken() ?: error("token missing after tryLock — lockName=$lockName")
         val delegate = LettuceLockExtendDelegate(lock)
         val identity = LockIdentity(
             lockName = lockName,
@@ -84,7 +87,7 @@ class LettuceLeaderElector(
             acquiredAtNanos = acquiredAtNanos,
             extendDelegate = delegate,
         )
-        val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate)
+        val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
         log.debug { "리더 선출 성공: lockName=$lockName" }
         try {
             return AopScopeAccess.withPushedSync(handle) { action() }
@@ -118,7 +121,7 @@ class LettuceLeaderElector(
             } else {
                 val acquiredAtNanos = System.nanoTime()
                 val delegate = LettuceLockExtendDelegate(lock)
-                val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate)
+                val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
                 log.debug { "리더 선출 성공 (async): lockName=$lockName" }
                 try {
                     action().whenComplete { _, _ ->

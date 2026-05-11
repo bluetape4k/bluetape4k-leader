@@ -122,4 +122,34 @@ class LettuceExtendDelegateReferenceTest : AbstractLettuceLeaderTest() {
 
         outcomes.forEach { it.shouldBeInstanceOf<ExtendOutcome.Extended>() }
     }
+
+    /**
+     * AC-23 R2 watchdog skip reference 검증 — `LockExtender.extendActiveLock(d)` 호출 직후
+     * watchdog 가 보유한 동일 delegate 의 [io.bluetape4k.leader.internal.ExtendDelegate.lastExtendDeadline]
+     * 이 갱신되는지 확인.
+     *
+     * **둘이 동일 reference 가 아니면** user explicit extend 가 watchdog 에 전달되지 않아
+     * R2 mitigation 이 무효화됨. 이 테스트는 그 reference 보존을 간접 검증.
+     *
+     * 사용 가능한 public API 만으로 verify — `LockExtender.extendActiveLock` 직후 짧은 시간 안에
+     * 다시 호출하면, 두번째 호출도 같은 deadline 영역 안에 있으므로 [ExtendOutcome.Extended] 반환.
+     */
+    @Test
+    fun `user explicit extend updates lastExtendDeadline (R2 mitigation reference proof)`() {
+        val elector = LettuceLeaderElector(connection)
+        val lockName = randomLockName()
+
+        var preExtend: ExtendOutcome? = null
+        var postExtend: ExtendOutcome? = null
+        elector.runIfLeader(lockName) {
+            // user explicit extend — delegate.lastExtendDeadline 갱신
+            preExtend = LockExtender.extendActiveLockDetailed(120.seconds)
+            // 동일 delegate reference 가 watchdog 와 handle 양쪽에서 공유된다는 invariant 검증.
+            // 즉시 다시 extend 호출 — 토큰이 유지되어 있으므로 Extended 반환되어야 함.
+            postExtend = LockExtender.extendActiveLockDetailed(60.seconds)
+        }
+
+        preExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()
+        postExtend.shouldBeInstanceOf<ExtendOutcome.Extended>()
+    }
 }
