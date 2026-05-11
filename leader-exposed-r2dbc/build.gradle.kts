@@ -41,4 +41,7 @@ dependencies {
     testImplementation(libs.testcontainers.mysql)
     testImplementation(libs.postgresql)
     testImplementation(libs.mysql.connector.j)
+
+    // T11 PR 6 — Abstract*ContractTest 사용 (Issue #79)
+    testImplementation(testFixtures(project(":leader-core")))
 }

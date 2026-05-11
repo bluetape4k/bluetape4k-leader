@@ -1,13 +1,20 @@
 package io.bluetape4k.leader.exposed.r2dbc
 
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcBackendErrorClassifier
+import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcSuspendSlotExtendDelegate
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcGroupLock
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcSchemaInitializer
 import io.bluetape4k.leader.exposed.r2dbc.lock.validateExposedR2dbcLockName
 import io.bluetape4k.leader.exposed.tables.HistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -68,6 +75,9 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
 ) : SuspendLeaderGroupElector {
 
     companion object : KLoggingChannel() {
+
+        internal const val EXPOSED_R2DBC_SUSPEND_GROUP_FACTORY_BEAN_NAME = "exposed-r2dbc-suspend-leader-group-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedR2dbcBackendErrorClassifier)
 
         /**
          * [ExposedR2DbcSuspendLeaderGroupElector] 인스턴스를 생성합니다.
@@ -197,29 +207,59 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
             val historyId = recordAcquired(lockName, lock.token, slot)
             val startedAt = Instant.now()
             val acquiredAtNanos = System.nanoTime()
+
+            // T11 PR 6 (Issue #79) — per-slot ExtendDelegate / handle / watchdog 단일 reference 공유 (AC-15).
+            val delegate = ExposedR2dbcSuspendSlotExtendDelegate(lock)
+            val identity = LockIdentity(
+                lockName = lockName,
+                kind = LockIdentity.AnnotationKind.GROUP,
+                factoryBeanName = EXPOSED_R2DBC_SUSPEND_GROUP_FACTORY_BEAN_NAME,
+                groupParams = LockIdentity.GroupParams(maxLeaders),
+            )
+            val handle = LeaderLockHandle.real(
+                identity = identity,
+                token = lock.token,
+                acquiredAtNanos = acquiredAtNanos,
+                slotId = slot.toString(),
+                extendDelegate = delegate,
+            )
+            // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
+            val watchdog = LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
+
             var actionSucceeded = false
             var actionFailed = false
 
             try {
-                val result = action()
+                // setCapture: ThreadLocal capture 도 함께 push (aspect dual-source: ThreadLocal + coroutineContext)
+                AopScopeAccess.setCapture(handle)
+                val result = withContext(AopScopeAccess.createLockHandleElement(handle)) {
+                    action()
+                }
                 actionSucceeded = true
                 return result
             } catch (e: CancellationException) {
-                actionFailed = true
                 throw e
             } catch (e: Throwable) {
                 actionFailed = true
                 throw e
             } finally {
+                // NonCancellable: 코루틴 취소 시에도 watchdog close + 캡쳐 clear + 락 해제가 중단되지 않도록 보호
                 withContext(NonCancellable) {
+                    AopScopeAccess.clearCapture()
+                    watchdog.close()
                     cachedActiveCount.updateAndGet { it.coerceAtLeast(1) - 1 }
                     when {
                         actionSucceeded -> recordCompleted(historyId, lock.token, startedAt, slot)
                         actionFailed -> recordFailed(historyId, lock.token, startedAt, slot)
                     }
-                    runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
-                        .onSuccess { log.debug { "그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
-                        .onFailure { e -> log.warn(e) { "그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" } }
+                    try {
+                        lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
+                        log.debug { "그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        log.warn(e) { "그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
+                    }
                 }
             }
         }
