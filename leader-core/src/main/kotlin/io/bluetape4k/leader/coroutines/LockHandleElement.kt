@@ -23,7 +23,7 @@ import kotlin.coroutines.CoroutineContext
  * ```
  */
 @ConsistentCopyVisibility
-data class LockHandleElement internal constructor(
+data class LockHandleElement(
     internal val handle: LeaderLockHandle,
 ) : CoroutineContext.Element {
 
