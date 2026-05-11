@@ -304,6 +304,86 @@ println(group.leaders.map { it.leaderId })
 
 State inspection is a best-effort snapshot for diagnostics and metrics. It is not a lock acquisition primitive.
 
+## Lock Assert & Extend
+
+`LockAssert` and `LockExtender` provide ShedLock-equivalent ergonomic APIs for asserting lock ownership and extending lease durations from within an active `@LeaderElection` / `@LeaderGroupElection` body.
+
+### LockAssert
+
+```kotlin
+@LeaderElection(name = "report-job")
+fun runReport() {
+    LockAssert.assertLocked()           // throws if no active lock scope
+    LockAssert.assertLocked("report-job") // throws if named lock not held
+
+    if (!LockAssert.isLocked()) return  // query without throw
+}
+
+// In a suspend context — uses coroutineContext only (no ThreadLocal fallback)
+@LeaderElection(name = "async-job")
+suspend fun runAsync() {
+    LockAssert.assertLockedSuspend()
+    LockAssert.assertLockedSuspend("async-job")
+
+    val held: Boolean = LockAssert.isLockedSuspend()
+}
+```
+
+- `assertLocked()` / `assertLocked(lockName)` — throws `IllegalStateException` when called outside an active scope or inside a fail-open sentinel scope.
+- `isLocked()` / `isLocked(lockName)` — returns `Boolean` without throwing.
+- `assertLockedSuspend()` / `isLockedSuspend()` — suspend variants; inspect `coroutineContext[LockHandleElement]` only (no ThreadLocal fallback per R7).
+
+### LockExtender
+
+```kotlin
+@LeaderElection(name = "long-job", leaseTime = 30.seconds)
+fun runJob() {
+    // ... 25 seconds of work ...
+    LockExtender.extendActiveLock(60.seconds)  // renew TTL to now + 60s
+    // ... 50 more seconds of work ...
+}
+
+// Detailed sealed result
+when (val outcome = LockExtender.extendActiveLockDetailed(60.seconds)) {
+    is ExtendOutcome.Extended    -> log.info { "expires at ${outcome.observedExpireAt}" }
+    is ExtendOutcome.NotHeld     -> rollback()
+    is ExtendOutcome.WrongThread -> log.warn { "Redisson thread-bound violation" }
+    is ExtendOutcome.BackendError -> retry(outcome.cause)
+}
+
+// Java-friendly java.time.Duration overload
+LockExtender.extendActiveLock(Duration.ofSeconds(60))
+
+// Suspend variant
+suspend fun runSuspend() {
+    LockExtender.extendActiveLockSuspend(60.seconds)
+}
+```
+
+- Returns `true` on success, `false` on failure (no active scope, fail-open, token mismatch, backend error).
+- Updates `lastExtendDeadline` on the watchdog delegate to prevent watchdog from silently shrinking the extended lease (R2 mitigation).
+
+### ⚠️ Reactor non-suspend operator limitation (R5)
+
+Calling `LockAssert.assertLocked()` or `LockExtender.extendActiveLock()` inside non-suspend Reactor operators (`.map {}`, `.filter {}`) will fail — neither ThreadLocal nor `CoroutineContext` is available there.
+
+Use the suspend variants inside `mono {}` builder instead:
+
+```kotlin
+// NOT recommended — fails in async/cross-thread Reactor operators
+mono.map { LockAssert.assertLocked() }
+
+// Recommended — works correctly
+mono.flatMap { value ->
+    mono {
+        withContext(LockHandleElement(handle)) {
+            LockAssert.assertLockedSuspend()
+            value
+        }
+    }
+}
+```
+
 ## Dependency
 
 ```kotlin

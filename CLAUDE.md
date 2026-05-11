@@ -95,7 +95,8 @@ LeaderGroupElectionOptions(maxLeaders = 3, waitTime = 5.seconds, leaseTime = 60.
 - CTW → `open` 불필요 (final Kotlin 메서드에도 동작)
 - `@EnableAspectJAutoProxy` **사용 금지** — CTW가 컴파일 타임에 weaving 처리
 - `private` 메서드는 인터셉트 안 됨 — startup validation에서 warn/fail
-- `suspend` / `Mono` / `Flux` / `Flow` 반환 타입 미지원 (v1.x sync-only)
+- `suspend` / `Mono` 반환 타입 지원 (#90 / #91). `Flux` / `Flow` 미지원 (validator startup fail/WARN)
+- `CompletableFuture` / `Future` / `ListenableFuture` / `kotlinx.coroutines.Deferred` 반환 타입 차단 (#79 — lock release 가 future 완료 전 발생 → split-brain 위험)
 
 ### SpEL name 규칙
 

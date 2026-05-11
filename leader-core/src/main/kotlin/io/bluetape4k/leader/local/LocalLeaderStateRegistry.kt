@@ -82,6 +82,21 @@ internal class LocalLeaderStateRegistry {
         }
     }
 
+    fun extendGroup(lockName: String, slot: Int, leaseTime: Duration): Boolean =
+        lock.withLock {
+            val leases = groupLeases[lockName] ?: return false
+            val current = leases[slot] ?: return false
+            leases[slot] = current.copy(
+                leaseUntil = Instant.now().plusMillis(leaseTime.inWholeMilliseconds),
+            )
+            true
+        }
+
+    fun isSlotHeld(lockName: String, slot: Int): Boolean =
+        lock.withLock {
+            groupLeases[lockName]?.containsKey(slot) == true
+        }
+
     fun groupState(lockName: String, maxLeaders: Int, activeCount: Int): LeaderGroupState {
         lockName.requireNotBlank("lockName")
         return lock.withLock {

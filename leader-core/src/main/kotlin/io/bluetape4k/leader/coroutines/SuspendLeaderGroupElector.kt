@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.coroutines
 
 import io.bluetape4k.leader.LeaderGroupElectionState
+import io.bluetape4k.leader.LeaderRunResult
 
 /**
  * 코루틴 기반 복수 리더 선출 계약을 정의합니다.
@@ -47,4 +48,39 @@ interface SuspendLeaderGroupElector: LeaderGroupElectionState {
      * @return [action] 실행 결과, 슬롯 획득 실패 시 `null`
      */
     suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T?
+
+    /**
+     * 리더 선출 결과를 명시적으로 표현하는 결과형 API.
+     *
+     * [runIfLeader] 가 `null` 을 반환할 때 (a) 슬롯 미획득 vs (b) action 이 null 반환 모호함을 제거.
+     *
+     * ## 동작/계약
+     * - 슬롯 획득 성공 → [LeaderRunResult.Elected]`(value)` — `value` 는 action 반환값 (null 가능)
+     * - 슬롯 미획득 → [LeaderRunResult.Skipped]
+     * - `elected: Boolean` flag 패턴으로 정확 분류 (action 이 null 반환해도 [LeaderRunResult.Elected])
+     *
+     * ## binary-compat (Step 2-R R3-F3)
+     * Kotlin interface default fun 으로 추가 — `-jvm-default=enable` 빌드 하에서 JVM `default` method 로 컴파일,
+     * 기존 외부 구현체 binary 호환 보존.
+     *
+     * ```kotlin
+     * val result = election.runIfLeaderResultSuspend("batch-job") { processChunkSuspend() }
+     * when (result) {
+     *     is LeaderRunResult.Elected -> println("elected, value=${result.value}")
+     *     LeaderRunResult.Skipped   -> println("slot full — skipped")
+     * }
+     * ```
+     *
+     * @param lockName 리더 그룹 선출에 사용할 락 이름
+     * @param action 슬롯 획득 성공 시 실행할 suspend 작업
+     * @return [LeaderRunResult.Elected] (action 실행됨) 또는 [LeaderRunResult.Skipped] (슬롯 미획득)
+     */
+    suspend fun <T> runIfLeaderResultSuspend(
+        lockName: String,
+        action: suspend () -> T,
+    ): LeaderRunResult<T> {
+        var elected = false
+        val value = runIfLeader(lockName) { elected = true; action() }
+        return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
+    }
 }

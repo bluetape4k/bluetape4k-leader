@@ -188,6 +188,104 @@ class RedisBackedJobs {
 
 `FAIL_OPEN_RUN`은 여러 노드가 동시에 본문을 실행할 수 있으므로 멱등 작업에만 사용해야 합니다.
 
+## LockAssert & LockExtender (ShedLock-등가 — issue #79)
+
+`leader-core` 가 ShedLock 스타일의 ergonomic API 를 제공합니다. `@LeaderElection` / `@LeaderGroupElection` 본문 안에서 호출 가능:
+
+```kotlin
+@Service
+class ReportJobs {
+    @LeaderElection(name = "daily-report", leaseTime = "30m", minLeaseTime = "10s")
+    fun runReport(): Report? {
+        LockAssert.assertLocked()    // 활성 leader scope 가 아니면 IllegalStateException
+        // ... 작업 ...
+        if (needsExtraTime) {
+            LockExtender.extendActiveLock(60.seconds)    // 성공 시 true
+        }
+        return reportService.generate()
+    }
+}
+```
+
+### Lock identity
+
+동일 thread/coroutine 안에서 동일 `name` 으로 nested 호출하면 **`LockIdentity` (lockName + 어노테이션 종류 + group params)** 로 reentrant 판정 — backend acquire 정확히 1회. `factoryBeanName` 은 equality 에서 제외 — sync ↔ suspend 중첩 호출도 정확히 reentrant 처리 (Step 3-P R3).
+
+### Suspend / Mono
+
+`suspend` / `Mono` 본문에서는 lock handle 이 `CoroutineContext` 로 전파됩니다 (`ThreadLocal` fallback 없음). suspend 변형 사용:
+
+```kotlin
+@LeaderElection(name = "stream-job")
+suspend fun stream(): Result? {
+    LockAssert.assertLockedSuspend()
+    LockExtender.extendActiveLockSuspend(2.minutes)
+    return streamService.process()
+}
+```
+
+⚠️ **Reactor non-suspend operator (`.map`, `.filter`) 는 미지원.** `.flatMap { mono { ... } }` 안에서 `LockAssert.assertLockedSuspend()` 호출 권장:
+
+```kotlin
+@LeaderElection(name = "mono-job")
+fun process(): Mono<String> =
+    sourceMono
+        .flatMap { value ->
+            mono {
+                LockAssert.assertLockedSuspend()    // ✅
+                transform(value)
+            }
+        }
+```
+
+### 시퀀스 — reentrant `@LeaderElection`
+
+```mermaid
+sequenceDiagram
+    actor Caller
+    participant Aspect as LeaderElectionAspect
+    participant Stack as LockStateHolder
+    participant Elector as LeaderElector
+    participant Backend as Redis / Mongo / ...
+
+    Caller->>Aspect: @LeaderElection("daily-report") outerMethod()
+    Aspect->>Stack: peekSyncMatching("daily-report")
+    Stack-->>Aspect: null (첫 진입)
+    Aspect->>Elector: runIfLeaderResult("daily-report") { ... }
+    Elector->>Backend: SET / EXPIRE (acquire)
+    Backend-->>Elector: ok (token=abc)
+    Elector->>Stack: push(LeaderLockHandle.Real(token=abc))
+    Elector->>Caller: body()
+    Note over Caller: outerMethod() 가 innerMethod() 호출
+    Caller->>Aspect: @LeaderElection("daily-report") innerMethod()
+    Aspect->>Stack: peekSyncMatching("daily-report")
+    Stack-->>Aspect: Real(token=abc) — reentrant
+    Aspect->>Aspect: incrementReentryDepth(handle)
+    Aspect->>Stack: push(Real(token=abc, depth=1))
+    Aspect->>Caller: pjp.proceed() — backend 미접촉
+    Note over Caller: LockExtender.extendActiveLock(60s) 가 outer delegate 재사용
+    Caller-->>Aspect: innerMethod() 반환
+    Aspect->>Stack: pop()
+    Caller-->>Elector: outerMethod() 반환
+    Elector->>Backend: DEL / release
+    Elector->>Stack: pop()
+```
+
+### Watchdog × LockExtender
+
+둘 다 **동일 `ExtendDelegate` reference** 공유 (token-guarded backend operation 으로 atomicity 보장). `LockExtender.extendActiveLock(d)` 호출 시 delegate 가 `lastExtendDeadline = now + d` 갱신 — 다음 watchdog tick 이 user 가 지정한 deadline 이 더 크면 backend 재extend 를 skip. 엄격한 deadline (ShedLock 동등) 이 필요하면 watchdog OFF.
+
+### 반환값
+
+| API | scope 밖 | `Real` 안 | `FailOpen` sentinel |
+|---|---|---|---|
+| `LockAssert.assertLocked()` | `IllegalStateException` | passes | throws |
+| `LockAssert.isLocked()` | `false` | `true` | `false` |
+| `LockExtender.extendActiveLock(d)` | `false` + WARN | backend 결과 | `false` + WARN |
+| `LockExtender.extendActiveLockDetailed(d)` | `NotHeld` | `Extended` / `NotHeld` / `WrongThread` / `BackendError` | `NotHeld` |
+
+Java caller 는 `@JvmStatic` overload — `kotlin.time.Duration` 과 `java.time.Duration` 모두 지원.
+
 ## 자동 구성 순서
 
 1. `LeaderElectionAutoConfiguration`: 공통 backend 속성 바인딩

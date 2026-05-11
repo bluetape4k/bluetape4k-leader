@@ -11,6 +11,40 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`leader-core`**: ShedLock-호환 ergonomic API + reentrant + 명시적 lease 연장 (issue #79 PR 1 Core)
+  - `LockAssert` — `assertLocked()` / `assertLocked(lockName)` / `isLocked()` 그리고 suspend 변형
+    (`assertLockedSuspend` / `isLockedSuspend`)
+  - `LockExtender` — `extendActiveLock(Duration): Boolean` + Java `java.time.Duration` overload
+    + `extendActiveLockDetailed(Duration): ExtendOutcome` (sealed result) + suspend 변형
+  - `LeaderLockHandle` sealed class (`Real` / `FailOpen`) — `internal constructor` + companion factory
+  - `LockIdentity` — `(lockName, kind, factoryBeanName, groupParams)` 4-tuple. `equals/hashCode` 에서
+    `factoryBeanName` 제외 — sync ↔ suspend nested 호출 시에도 reentrant 정확 (Step 3-P R3)
+  - `ExtendOutcome` sealed — `Extended` / `NotHeld` / `WrongThread` / `BackendError(Exception)`
+  - `LockHandleElement` — `CoroutineContext.Element` (internal handle, public Key)
+  - `BackendErrorClassifier` SPI + `CoreBackendErrorClassifier` (JDK/공통) + `CompositeBackendErrorClassifier`
+  - `runIfLeaderResultSuspend` default fun on `SuspendLeaderElector` / `SuspendLeaderGroupElector`
+    (binary-compat via `-jvm-default=enable`)
+  - `LeaderLeaseAutoExtender.start(delegate: ExtendDelegate)` 신규 시그니처. 기존 `(Duration) -> Boolean`
+    `@Deprecated`. `ExtendDelegate.lastExtendDeadline` 으로 watchdog × user-extend last-write-wins
+    metric 가시화 (Step 3-P R2)
+  - Local elector (sync / suspend / group / suspend-group) — `CaptureScope` + `LeaderLockHandle` 통합
+
+- **`leader-spring-boot`**: `@LeaderElection` / `@LeaderGroupElection` aspect 의 `LockAssert` / `LockExtender` 통합
+  (issue #79 PR 1)
+  - sync / suspend / Mono 3 branch — reentrant peek (Real handle) + sentinel push (FAIL_OPEN_RUN)
+    + `BodyThrownMarker` (body exception 보호) + `CaptureInvariantException` (spec invariant fail-fast)
+  - `AdviceBranch { SYNC, COROUTINES, REACTIVE }` enum (카테고리 명칭 — Flow / Flux 등 향후 확장 여지)
+  - `AdviceMetadata.annotationKind` explicit field + `resolveLockIdentity(branch)`
+  - `LeaderAnnotationValidatorBeanPostProcessor` — `CompletableFuture` / `Future` / `ListenableFuture`
+    / `kotlinx.coroutines.Deferred` 반환 타입 차단 (Step 3-P R12 — lock release 가 future 완료 전 발생 위험)
+  - Kotlin reified `findMergedAnnotationOrNull<A>()` / `hasMergedAnnotation<A>()` extension
+    (`AnnotationExt.kt`, idiom 적용)
+
+### Changed
+
+- `LeaderElectionAspect` / `LeaderGroupElectionAspect` — outer `catch (Exception)` (Throwable 아님 —
+  `OutOfMemoryError` / `StackOverflowError` / `LinkageError` 차단)
+
 - **`examples/`**: Runnable example modules demonstrating production scenarios for `bluetape4k-leader` (issue #36)
   - `examples/batch-scheduler` — Lettuce Redis 기반 분산 batch 스케줄러; 야간 정산 등 주기 작업의
     멀티 인스턴스 단일 실행 보장 (PR #159)

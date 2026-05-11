@@ -188,6 +188,104 @@ class RedisBackedJobs {
 
 `FAIL_OPEN_RUN` is only appropriate for idempotent work because multiple nodes may execute the body concurrently.
 
+## LockAssert & LockExtender (ShedLock-equivalent — issue #79)
+
+`leader-core` ships ShedLock-style ergonomic APIs that you can call from within `@LeaderElection` / `@LeaderGroupElection` bodies:
+
+```kotlin
+@Service
+class ReportJobs {
+    @LeaderElection(name = "daily-report", leaseTime = "30m", minLeaseTime = "10s")
+    fun runReport(): Report? {
+        LockAssert.assertLocked()    // throws IllegalStateException if not inside an active leader scope
+        // ... critical work ...
+        if (needsExtraTime) {
+            LockExtender.extendActiveLock(60.seconds)    // returns true on success
+        }
+        return reportService.generate()
+    }
+}
+```
+
+### Lock identity
+
+Reentrant `@LeaderElection` calls (same `name`, same JVM, same thread/coroutine) are detected by **`LockIdentity` (lockName + annotation kind + group params)** — the backend is acquired exactly once. `factoryBeanName` is intentionally excluded from equality so that sync ↔ suspend nested calls work correctly (Step 3-P R3).
+
+### Suspend / Mono
+
+Inside `suspend` and `Mono`-returning bodies, the lock handle propagates via `CoroutineContext` (no `ThreadLocal` fallback). Use the suspend variants:
+
+```kotlin
+@LeaderElection(name = "stream-job")
+suspend fun stream(): Result? {
+    LockAssert.assertLockedSuspend()
+    LockExtender.extendActiveLockSuspend(2.minutes)
+    return streamService.process()
+}
+```
+
+⚠️ **Reactor non-suspend operators (`.map`, `.filter`) are unsupported.** Call `LockAssert.assertLockedSuspend()` inside `.flatMap { mono { ... } }`:
+
+```kotlin
+@LeaderElection(name = "mono-job")
+fun process(): Mono<String> =
+    sourceMono
+        .flatMap { value ->
+            mono {
+                LockAssert.assertLockedSuspend()    // ✅
+                transform(value)
+            }
+        }
+```
+
+### Sequence: reentrant `@LeaderElection`
+
+```mermaid
+sequenceDiagram
+    actor Caller
+    participant Aspect as LeaderElectionAspect
+    participant Stack as LockStateHolder
+    participant Elector as LeaderElector
+    participant Backend as Redis / Mongo / ...
+
+    Caller->>Aspect: @LeaderElection("daily-report") outerMethod()
+    Aspect->>Stack: peekSyncMatching("daily-report")
+    Stack-->>Aspect: null (first entry)
+    Aspect->>Elector: runIfLeaderResult("daily-report") { ... }
+    Elector->>Backend: SET / EXPIRE (acquire)
+    Backend-->>Elector: ok (token=abc)
+    Elector->>Stack: push(LeaderLockHandle.Real(token=abc))
+    Elector->>Caller: body()
+    Note over Caller: outerMethod() calls innerMethod()
+    Caller->>Aspect: @LeaderElection("daily-report") innerMethod()
+    Aspect->>Stack: peekSyncMatching("daily-report")
+    Stack-->>Aspect: Real(token=abc) — reentrant
+    Aspect->>Aspect: incrementReentryDepth(handle)
+    Aspect->>Stack: push(Real(token=abc, depth=1))
+    Aspect->>Caller: pjp.proceed() — backend untouched
+    Note over Caller: LockExtender.extendActiveLock(60s) reuses outer delegate
+    Caller-->>Aspect: returns from innerMethod()
+    Aspect->>Stack: pop()
+    Caller-->>Elector: returns from outerMethod()
+    Elector->>Backend: DEL / release
+    Elector->>Stack: pop()
+```
+
+### Watchdog × LockExtender
+
+Both share the **same `ExtendDelegate` reference** (atomicity guaranteed by token-guarded backend operations). When you call `LockExtender.extendActiveLock(d)`, the delegate records `now + d` in `lastExtendDeadline` so the next watchdog tick will skip backend re-extend if the user-provided deadline is larger. For strict deadline semantics (ShedLock parity), turn off watchdog.
+
+### Return values
+
+| API | Outside scope | Inside `Real` | Inside `FailOpen` sentinel |
+|---|---|---|---|
+| `LockAssert.assertLocked()` | throws `IllegalStateException` | passes | throws |
+| `LockAssert.isLocked()` | `false` | `true` | `false` |
+| `LockExtender.extendActiveLock(d)` | `false` + WARN | backend result | `false` + WARN |
+| `LockExtender.extendActiveLockDetailed(d)` | `NotHeld` | `Extended` / `NotHeld` / `WrongThread` / `BackendError` | `NotHeld` |
+
+For Java callers, `@JvmStatic` overloads accept both `kotlin.time.Duration` and `java.time.Duration`.
+
 ## Auto-Configuration Order
 
 1. `LeaderElectionAutoConfiguration` binds shared backend properties.
