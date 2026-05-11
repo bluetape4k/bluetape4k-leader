@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.exposed.r2dbc.lock
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.support.requireZeroOrPositiveNumber
@@ -231,6 +232,54 @@ internal class ExposedR2dbcGroupLock internal constructor(
             }
         }.onFailure { e ->
             log.warn(e) { "그룹 슬롯 해제 중 DB 오류: lockName=$lockName, slot=$slot" }
+        }
+    }
+
+    /**
+     * 슬롯 락의 `lockedUntil` 을 [leaseTime] 만큼 atomic 하게 연장하고 [ExtendOutcome] 을 반환합니다.
+     *
+     * ## R6 guard (Issue #79 PR 6)
+     * `WHERE` 절에 `lockedUntil > now()` 를 추가하여 만료된 행을 다른 인스턴스가 재획득한 race 에서
+     * stale token 으로 expired row 를 revival 시키는 split-brain 을 차단합니다.
+     *
+     * ## SQL
+     * ```sql
+     * UPDATE leader_group_lock
+     * SET locked_until = ? -- now + leaseTime
+     * WHERE lock_name = ? AND slot = ? AND token = ? AND locked_until > ?  -- now
+     * ```
+     *
+     * ## 반환
+     * - `affectedRows == 1` → [ExtendOutcome.Extended] (`observedExpireAt = now + leaseTime`)
+     * - `affectedRows == 0` → [ExtendOutcome.NotHeld] (토큰 불일치 / lease 만료 / takeover)
+     * - R2DBC 예외는 caller (delegate) 가 [ExtendOutcome.BackendError] 로 wrap — 본 함수는 그대로 throw
+     *
+     * Token-based 락이므로 [ExtendOutcome.WrongThread] 는 발생하지 않습니다.
+     */
+    suspend fun extendDetailed(leaseTime: Duration): ExtendOutcome {
+        val lockNameVal = this@ExposedR2dbcGroupLock.lockName
+        val slotVal = this@ExposedR2dbcGroupLock.slot
+        val tokenVal = this@ExposedR2dbcGroupLock.token
+
+        return suspendTransaction(db) {
+            val now = Instant.now()
+            val newLockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
+            val updated = LeaderGroupLockTable.update(
+                where = {
+                    (LeaderGroupLockTable.lockName eq lockNameVal) and
+                        (LeaderGroupLockTable.slot eq slotVal) and
+                        (LeaderGroupLockTable.token eq tokenVal) and
+                        (LeaderGroupLockTable.lockedUntil greater now)  // R6: expired row revival 차단
+                }
+            ) {
+                it[LeaderGroupLockTable.lockedUntil] = newLockedUntil
+            }
+            if (updated > 0) {
+                ExtendOutcome.Extended(newLockedUntil)
+            } else {
+                log.debug { "Exposed R2DBC group extend 실패 (NotHeld): lockName=$lockName, slot=$slot" }
+                ExtendOutcome.NotHeld
+            }
         }
     }
 }

@@ -1,11 +1,18 @@
 package io.bluetape4k.leader.exposed.r2dbc
 
+import io.bluetape4k.leader.AopScopeAccess
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcBackendErrorClassifier
+import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcSuspendLockExtendDelegate
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcLock
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcSchemaInitializer
 import io.bluetape4k.leader.exposed.r2dbc.lock.validateExposedR2dbcLockName
 import io.bluetape4k.leader.exposed.tables.HistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -54,6 +61,9 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
 
     companion object : KLoggingChannel() {
 
+        internal const val EXPOSED_R2DBC_SUSPEND_FACTORY_BEAN_NAME = "exposed-r2dbc-suspend-leader-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedR2dbcBackendErrorClassifier)
+
         /**
          * [ExposedR2DbcSuspendLeaderElector] 인스턴스를 생성합니다.
          *
@@ -97,28 +107,59 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
         val historyId = recordAcquired(lockName, lock.token)
         val startedAt = Instant.now()
         val acquiredAtNanos = System.nanoTime()
+
+        // T11 PR 6 (Issue #79) — ExtendDelegate / handle / watchdog 단일 reference 공유 (AC-15).
+        val delegate = ExposedR2dbcSuspendLockExtendDelegate(lock)
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            factoryBeanName = EXPOSED_R2DBC_SUSPEND_FACTORY_BEAN_NAME,
+        )
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = lock.token,
+            acquiredAtNanos = acquiredAtNanos,
+            extendDelegate = delegate,
+        )
+        val watchdog = LeaderLeaseAutoExtender.start(
+            options.leaderOptions.autoExtend,
+            options.leaderOptions.leaseTime,
+            delegate,
+            ERROR_CLASSIFIER,
+        )
+
         var actionSucceeded = false
         var actionFailed = false
 
         try {
-            val result = action()
+            val result = withContext(AopScopeAccess.createLockHandleElement(handle)) {
+                action()
+            }
             actionSucceeded = true
             return result
         } catch (e: CancellationException) {
-            actionFailed = true
+            // CancellationException은 actionFailed 미설정 + 즉시 재전파 (코루틴 취소 계약)
             throw e
         } catch (e: Throwable) {
             actionFailed = true
             throw e
         } finally {
+            // NonCancellable: 코루틴 취소 시에도 watchdog close + 락 해제가 중단되지 않도록 보호
             withContext(NonCancellable) {
+                watchdog.close()
                 when {
                     actionSucceeded -> recordCompleted(historyId, lock.token, startedAt)
                     actionFailed -> recordFailed(historyId, lock.token, startedAt)
+                    // CancellationException: 이력 미기록 (취소이므로 FAILED 아님)
                 }
-                runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
-                    .onSuccess { log.debug { "리더 권한을 반납했습니다. lockName=$lockName" } }
-                    .onFailure { e -> log.warn(e) { "락 해제 실패. lockName=$lockName" } }
+                try {
+                    lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos)
+                    log.debug { "리더 권한을 반납했습니다. lockName=$lockName" }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    log.warn(e) { "락 해제 실패. lockName=$lockName" }
+                }
             }
         }
     }
