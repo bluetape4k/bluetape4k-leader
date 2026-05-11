@@ -37,8 +37,8 @@ internal data class AdviceMetadata(
     val annotationKind: LockIdentity.AnnotationKind = LockIdentity.AnnotationKind.SINGLE,
     val groupParams: LockIdentity.GroupParams? = null,
 ) {
-    val isSuspend: Boolean get() = branch == AdviceBranch.SUSPEND
-    val isMono: Boolean get() = branch == AdviceBranch.MONO
+    val isSuspend: Boolean get() = branch == AdviceBranch.COROUTINES
+    val isMono: Boolean get() = branch == AdviceBranch.REACTIVE
 
     /**
      * 주어진 [branch] 에 맞는 [LockIdentity] 를 생성합니다.
@@ -49,7 +49,7 @@ internal data class AdviceMetadata(
     fun resolveLockIdentity(lockName: String, branch: AdviceBranch): LockIdentity {
         val beanName = when (branch) {
             AdviceBranch.SYNC -> factoryBeanName
-            AdviceBranch.SUSPEND, AdviceBranch.MONO -> suspendElectorFactoryBeanName
+            AdviceBranch.COROUTINES, AdviceBranch.REACTIVE -> suspendElectorFactoryBeanName
         }
         return LockIdentity(
             lockName = lockName,

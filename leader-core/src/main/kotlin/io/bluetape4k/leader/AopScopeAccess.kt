@@ -104,4 +104,31 @@ object AopScopeAccess {
             extendDelegate = io.bluetape4k.leader.internal.NoopExtendDelegate,
         )
     }
+
+    /**
+     * 테스트용 group `LeaderLockHandle.Real` 생성. `slotId` 와 `groupParams` 보유.
+     *
+     * `@LeaderGroupElection` aspect 의 reentrant 단위 테스트에서 stack 에 push 할 handle 생성용.
+     */
+    fun createSyntheticGroupReal(
+        lockName: String,
+        factoryBeanName: String,
+        maxLeaders: Int,
+        slotId: String = "0",
+        token: String = "test-group-token",
+    ): LeaderLockHandle.Real {
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.GROUP,
+            factoryBeanName = factoryBeanName,
+            groupParams = LockIdentity.GroupParams(maxLeaders = maxLeaders),
+        )
+        return LeaderLockHandle.real(
+            identity = identity,
+            token = token,
+            acquiredAtNanos = System.nanoTime(),
+            slotId = slotId,
+            extendDelegate = io.bluetape4k.leader.internal.NoopExtendDelegate,
+        )
+    }
 }

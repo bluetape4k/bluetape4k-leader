@@ -273,7 +273,7 @@ class LeaderElectionAspect(
 
                 if (result == null) {
                     if (meta.failureMode == LeaderAspectFailureMode.FAIL_OPEN_RUN) {
-                        val identity = meta.resolveLockIdentity(resolvedName, AdviceBranch.SUSPEND)
+                        val identity = meta.resolveLockIdentity(resolvedName, AdviceBranch.COROUTINES)
                         val failOpenHandle = AopScopeAccess.createFailOpen(identity)
                         fanOut {
                             it.onLockNotAcquired(resolvedName, meta.options, SkipReason.FAIL_OPEN_FORCED)
@@ -330,7 +330,7 @@ class LeaderElectionAspect(
                         null
                     }
                     LeaderAspectFailureMode.FAIL_OPEN_RUN -> {
-                        val identity = meta.resolveLockIdentity(effectiveName, AdviceBranch.SUSPEND)
+                        val identity = meta.resolveLockIdentity(effectiveName, AdviceBranch.COROUTINES)
                         val failOpenHandle = AopScopeAccess.createFailOpen(identity)
                         fanOut { it.onLockNotAcquired(effectiveName, meta.options, SkipReason.FAIL_OPEN_FORCED) }
                         log.warn(backendEx) { "leader.aop.fail-open lockName=$effectiveName reason=BACKEND_ERROR" }
@@ -415,7 +415,7 @@ class LeaderElectionAspect(
 
                     if (result == null) {
                         if (meta.failureMode == LeaderAspectFailureMode.FAIL_OPEN_RUN) {
-                            val identity = meta.resolveLockIdentity(resolvedName, AdviceBranch.MONO)
+                            val identity = meta.resolveLockIdentity(resolvedName, AdviceBranch.REACTIVE)
                             val failOpenHandle = AopScopeAccess.createFailOpen(identity)
                             fanOut {
                                 it.onLockNotAcquired(resolvedName, meta.options, SkipReason.FAIL_OPEN_FORCED)
@@ -460,7 +460,7 @@ class LeaderElectionAspect(
                             null
                         }
                         LeaderAspectFailureMode.FAIL_OPEN_RUN -> {
-                            val identity = meta.resolveLockIdentity(effectiveName, AdviceBranch.MONO)
+                            val identity = meta.resolveLockIdentity(effectiveName, AdviceBranch.REACTIVE)
                             val failOpenHandle = AopScopeAccess.createFailOpen(identity)
                             fanOut { it.onLockNotAcquired(effectiveName, meta.options, SkipReason.FAIL_OPEN_FORCED) }
                             log.warn(backendEx) { "leader.aop.fail-open lockName=$effectiveName reason=BACKEND_ERROR" }
@@ -543,8 +543,8 @@ class LeaderElectionAspect(
         val isSuspend = method.parameterTypes.lastOrNull() == Continuation::class.java
         val isMono = !isSuspend && method.returnType.name == "reactor.core.publisher.Mono"
         val branch = when {
-            isSuspend -> AdviceBranch.SUSPEND
-            isMono -> AdviceBranch.MONO
+            isSuspend -> AdviceBranch.COROUTINES
+            isMono -> AdviceBranch.REACTIVE
             else -> AdviceBranch.SYNC
         }
 
