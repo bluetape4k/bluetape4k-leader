@@ -104,6 +104,27 @@ leaderScheduled(
 | `leaderElection`  | `SuspendLeaderElector`    | 설치된 플러그인 설정에서 조회    | 미지정 시 플러그인 설정 사용               |
 | `action`          | `suspend () -> Unit`      | —                                | 리더로 선출되었을 때만 실행                |
 
+## `leaderScheduled` 안의 LockAssert / LockExtender (Issue #79)
+
+`leaderScheduled { ... }` background action 안에서 `LockAssert.assertLockedSuspend()` 와
+`LockExtender.extendActiveLockDetailedSuspend(d)` 가 정상 동작합니다. 내부 `SuspendLeaderElector` 의
+capture 메커니즘이 `LockHandleElement` 를 action 의 `CoroutineContext` 로 전파합니다.
+
+```kotlin
+leaderScheduled("daily-report", period = 1.hours) {
+    LockAssert.assertLockedSuspend()                              // 리더일 때 통과
+    val outcome = LockExtender.extendActiveLockDetailedSuspend(10.minutes)
+    if (outcome is ExtendOutcome.Extended) {
+        runLongRunningReport()
+    }
+}
+```
+
+**미지원 시나리오**: `Application.routing` 핸들러, `PipelineContext`, 그 외 `leaderScheduled` 가 아닌
+표면 (Ktor request pipeline 등). 플러그인은 `Application.attributes` 에만 설정을 저장하며 Ktor
+routing pipeline 에 `LockHandleElement` 를 주입하지 않습니다. 보장된 전파를 위해 반드시
+`leaderScheduled` 안에서 사용하세요.
+
 ## Dependency
 
 Gradle (Kotlin DSL):

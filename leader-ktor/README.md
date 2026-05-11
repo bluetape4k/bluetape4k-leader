@@ -108,6 +108,28 @@ leaderScheduled(
 | `leaderElection` | `SuspendLeaderElector`     | from installed plugin                | Falls back to plugin config if omitted      |
 | `action`         | `suspend () -> Unit`       | —                                    | Executed only when this node is leader      |
 
+## LockAssert / LockExtender inside `leaderScheduled` (Issue #79)
+
+`LockAssert.assertLockedSuspend()` and `LockExtender.extendActiveLockDetailedSuspend(d)`
+work inside the `leaderScheduled { ... }` background action — the underlying
+`SuspendLeaderElector`'s capture mechanism propagates `LockHandleElement` through
+the action's `CoroutineContext`.
+
+```kotlin
+leaderScheduled("daily-report", period = 1.hours) {
+    LockAssert.assertLockedSuspend()                              // passes when we are leader
+    val outcome = LockExtender.extendActiveLockDetailedSuspend(10.minutes)
+    if (outcome is ExtendOutcome.Extended) {
+        runLongRunningReport()
+    }
+}
+```
+
+**Unsupported scenarios**: `Application.routing` handlers, `PipelineContext`,
+or any non-`leaderScheduled` surface. The plugin only stores configuration in
+`Application.attributes`; `LockHandleElement` is not injected into Ktor's
+routing pipeline. Use `leaderScheduled` for guaranteed propagation.
+
 ## Dependency
 
 Gradle (Kotlin DSL):
