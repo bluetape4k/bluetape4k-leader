@@ -2,9 +2,16 @@ package io.bluetape4k.leader.hazelcast
 
 import com.hazelcast.core.HazelcastInstance
 import com.hazelcast.map.IMap
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.hazelcast.internal.HazelcastBackendErrorClassifier
+import io.bluetape4k.leader.hazelcast.internal.HazelcastLockExtendDelegate
 import io.bluetape4k.leader.hazelcast.lock.HazelcastLock
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
@@ -17,6 +24,12 @@ import java.util.concurrent.Executor
  *
  * `putIfAbsent` + TTL 방식의 토큰 기반 락이므로 스레드에 귀속되지 않으며
  * Virtual Thread, ThreadPool 환경에서 모두 안전하게 동작합니다.
+ *
+ * ## ExtendDelegate 통합 (T12 PR 7 / Issue #79)
+ *
+ * - acquire 후 [HazelcastLockExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 동일 reference 공유 (AC-15).
+ * - aspect 가 `LockExtender.extendActiveLock` 호출 시 동일 delegate 를 통해 R6 (IMap auto-evict 가 expired entry 차단) 적용된 extend 실행.
+ * - autoExtend 옵션은 [LeaderLeaseAutoExtender] 의 watchdog 가 처리 (R2 watchdog skip semantics 보장).
  *
  * ```kotlin
  * val election = HazelcastLeaderElector(hazelcastInstance)
@@ -34,6 +47,8 @@ class HazelcastLeaderElector private constructor(
 
     companion object: KLogging() {
         const val LOCK_MAP_NAME = "bluetape4k:leader:locks"
+        internal const val HAZELCAST_FACTORY_BEAN_NAME = "hazelcast-leader-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(HazelcastBackendErrorClassifier)
 
         @JvmStatic
         operator fun invoke(
@@ -57,10 +72,29 @@ class HazelcastLeaderElector private constructor(
         }
 
         val acquiredAtNanos = System.nanoTime()
+        val delegate = HazelcastLockExtendDelegate(lock)
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            factoryBeanName = HAZELCAST_FACTORY_BEAN_NAME,
+        )
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = lockName,
+            acquiredAtNanos = acquiredAtNanos,
+            extendDelegate = delegate,
+        )
+        val watchdog = LeaderLeaseAutoExtender.start(
+            options.autoExtend,
+            options.leaseTime,
+            delegate,
+            ERROR_CLASSIFIER,
+        )
         log.debug { "Leader로 승격하여 작업을 수행합니다. lockName=$lockName" }
         try {
-            return action()
+            return AopScopeAccess.withPushedSync(handle) { action() }
         } finally {
+            watchdog.close()
             if (lock.isHeldByCurrentInstance()) {
                 runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanos) }
                     .onSuccess { log.debug { "Leader 권한을 반납했습니다. lockName=$lockName" } }
@@ -91,14 +125,24 @@ class HazelcastLeaderElector private constructor(
                     CompletableFuture.completedFuture(null)
                 } else {
                     val acquiredAtNanos = System.nanoTime()
+                    val delegate = HazelcastLockExtendDelegate(lock)
+                    val watchdog = LeaderLeaseAutoExtender.start(
+                        options.autoExtend,
+                        options.leaseTime,
+                        delegate,
+                        ERROR_CLASSIFIER,
+                    )
                     log.debug { "Leader로 승격하여 비동기 작업을 수행합니다. lockName=$lockName" }
+                    // async path 는 handle push 미수행 (AOP scope sync/suspend 만 지원)
                     val actionFuture = runCatching { action() }
                         .getOrElse { error ->
+                            watchdog.close()
                             runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanos) }
                                 .onFailure { e -> log.error(e) { "Fail to release lock on action error (async). lockName=$lockName" } }
                             return@thenComposeAsync CompletableFuture.failedFuture(error)
                         }
                     actionFuture.whenCompleteAsync({ _, _ ->
+                        watchdog.close()
                         if (lock.isHeldByCurrentInstance()) {
                             runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanos) }
                                 .onSuccess { log.debug { "비동기 Leader 권한을 반납했습니다. lockName=$lockName" } }

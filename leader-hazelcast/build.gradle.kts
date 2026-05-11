@@ -4,6 +4,7 @@ configurations {
 
 dependencies {
     api(project(":leader-core"))
+    testImplementation(testFixtures(project(":leader-core")))
 
     api(libs.hazelcast)
 
