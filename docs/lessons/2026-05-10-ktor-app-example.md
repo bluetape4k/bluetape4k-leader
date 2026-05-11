@@ -42,7 +42,7 @@ main 은 `RedisClient.create(url) → client.connect(StringCodec.UTF8) → modul
 ### 증상
 ```
 GET /stats body=
-java.lang.IllegalArgumentException: runCount field missing in response: 
+java.lang.IllegalArgumentException: runCount field missing in response:
 ```
 
 ### 교훈
