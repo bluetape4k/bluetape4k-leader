@@ -37,7 +37,7 @@ import org.aspectj.lang.reflect.MethodSignature
 import org.springframework.beans.factory.SmartInitializingSingleton
 import reactor.core.publisher.Mono
 import java.lang.reflect.Method
-import java.util.concurrent.CancellationException
+import kotlinx.coroutines.CancellationException
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
@@ -237,9 +237,13 @@ class LeaderElectionAspect(
                 val resolvedName = resolveLockName(meta, method, pjp.args, pjp.target)
                 lockName = resolvedName
                 val cacheKey = FactoryCacheKey(meta.suspendElectorFactoryBeanName, meta.options)
+                // Tier 5 C1 — `!!` 제거. SuspendLeaderElectorFactory.create 는 suspend 이므로 computeIfAbsent 사용 불가.
+                // 첫 miss 동시 호출 시 패배자 elector 인스턴스 GC — SuspendLeaderElector 에 close() 없어 자원 leak 없음.
+                val factory = checkNotNull(meta.suspendElectorFactory) {
+                    "suspendElectorFactory must be non-null in COROUTINES/REACTIVE branch (branch=${meta.branch})"
+                }
                 val elector = suspendElectorCache[cacheKey]
-                    ?: meta.suspendElectorFactory!!.create(meta.options)
-                        .also { suspendElectorCache.putIfAbsent(cacheKey, it) }
+                    ?: factory.create(meta.options).also { suspendElectorCache.putIfAbsent(cacheKey, it) }
 
                 fanOut { it.onLockAttempt(resolvedName, meta.options) }
 

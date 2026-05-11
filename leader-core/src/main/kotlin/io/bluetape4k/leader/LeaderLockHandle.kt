@@ -1,6 +1,7 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.leader.internal.ExtendDelegate
+import io.bluetape4k.support.requireGe
 import java.io.Serializable
 import kotlin.time.Duration
 
@@ -86,7 +87,7 @@ sealed class LeaderLockHandle : Serializable {
          * **inner extend 는 outer 의 [extendDelegate] 그대로 호출 → outer/backend lease 갱신** (R5-F3 / SF11).
          */
         internal fun withReentryDepth(n: Int): Real {
-            require(n >= 0) { "reentryDepth must be >= 0: $n" }
+            n.requireGe(0, "n")
             return Real(identity, token, acquiredAtNanos, slotId, acquiringThreadId, n, extendDelegate)
         }
 

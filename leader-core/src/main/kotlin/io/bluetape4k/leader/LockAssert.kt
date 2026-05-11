@@ -49,13 +49,9 @@ object LockAssert : KLogging() {
     @JvmStatic
     fun assertLocked() {
         val handle = LockStateHolder.peekSync()
-            ?: throw IllegalStateException(
-                "LockAssert.assertLocked() called outside an active @LeaderElection / @LeaderGroupElection scope"
-            )
-        if (handle is LeaderLockHandle.FailOpen) {
-            throw IllegalStateException(
-                "LockAssert.assertLocked() — current scope is fail-open (no real lock held). lockName=${handle.lockName}"
-            )
+            ?: error("LockAssert.assertLocked() called outside an active @LeaderElection / @LeaderGroupElection scope")
+        check(handle !is LeaderLockHandle.FailOpen) {
+            "LockAssert.assertLocked() — current scope is fail-open (no real lock held). lockName=${handle.lockName}"
         }
     }
 
@@ -68,13 +64,9 @@ object LockAssert : KLogging() {
     @JvmStatic
     fun assertLocked(lockName: String) {
         val handle = LockStateHolder.peekSyncMatching(lockName)
-            ?: throw IllegalStateException(
-                "LockAssert.assertLocked('$lockName') — no active scope with this lock"
-            )
-        if (handle is LeaderLockHandle.FailOpen) {
-            throw IllegalStateException(
-                "LockAssert.assertLocked('$lockName') — current scope is fail-open"
-            )
+            ?: error("LockAssert.assertLocked('$lockName') — no active scope with this lock")
+        check(handle !is LeaderLockHandle.FailOpen) {
+            "LockAssert.assertLocked('$lockName') — current scope is fail-open"
         }
     }
 
@@ -111,13 +103,9 @@ object LockAssert : KLogging() {
      */
     suspend fun assertLockedSuspend() {
         val handle = coroutineContext[LockHandleElement]?.handle
-            ?: throw IllegalStateException(
-                "LockAssert.assertLockedSuspend() called outside an active @LeaderElection scope"
-            )
-        if (handle is LeaderLockHandle.FailOpen) {
-            throw IllegalStateException(
-                "LockAssert.assertLockedSuspend() — current scope is fail-open. lockName=${handle.lockName}"
-            )
+            ?: error("LockAssert.assertLockedSuspend() called outside an active @LeaderElection scope")
+        check(handle !is LeaderLockHandle.FailOpen) {
+            "LockAssert.assertLockedSuspend() — current scope is fail-open. lockName=${handle.lockName}"
         }
     }
 
@@ -129,18 +117,12 @@ object LockAssert : KLogging() {
      */
     suspend fun assertLockedSuspend(lockName: String) {
         val handle = coroutineContext[LockHandleElement]?.handle
-            ?: throw IllegalStateException(
-                "LockAssert.assertLockedSuspend('$lockName') — no active scope"
-            )
-        if (handle.lockName != lockName) {
-            throw IllegalStateException(
-                "LockAssert.assertLockedSuspend('$lockName') — active lock is '${handle.lockName}'"
-            )
+            ?: error("LockAssert.assertLockedSuspend('$lockName') — no active scope")
+        check(handle.lockName == lockName) {
+            "LockAssert.assertLockedSuspend('$lockName') — active lock is '${handle.lockName}'"
         }
-        if (handle is LeaderLockHandle.FailOpen) {
-            throw IllegalStateException(
-                "LockAssert.assertLockedSuspend('$lockName') — current scope is fail-open"
-            )
+        check(handle !is LeaderLockHandle.FailOpen) {
+            "LockAssert.assertLockedSuspend('$lockName') — current scope is fail-open"
         }
     }
 

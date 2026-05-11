@@ -191,9 +191,13 @@ object LockExtender : KLogging() {
             return ExtendOutcome.NotHeld
         }
         val real = handle as LeaderLockHandle.Real
-        // R2 mitigation — lastExtendDeadline 갱신으로 watchdog skip 유도
-        real.extendDelegate.lastExtendDeadline.set(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
-        return real.extend(lockAtMostFor)
+        // ⚠️ Tier 8 T8-H1 — backend extend 호출 후 Extended 일 때만 lastExtendDeadline 갱신.
+        //   pre-extend 갱신 시 backend 가 NotHeld/BackendError 반환해도 watchdog 가 deadline 기준 skip → split-brain.
+        val outcome = real.extend(lockAtMostFor)
+        if (outcome is ExtendOutcome.Extended) {
+            real.extendDelegate.lastExtendDeadline.set(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+        }
+        return outcome
     }
 
     private suspend fun extendDetailedSuspendInternal(handle: LeaderLockHandle, lockAtMostFor: Duration): ExtendOutcome {
@@ -202,9 +206,12 @@ object LockExtender : KLogging() {
             return ExtendOutcome.NotHeld
         }
         val real = handle as LeaderLockHandle.Real
-        // R2 mitigation — lastExtendDeadline 갱신으로 watchdog skip 유도
-        real.extendDelegate.lastExtendDeadline.set(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
-        return real.extendSuspend(lockAtMostFor)
+        // ⚠️ Tier 8 T8-H1 — backend extend 호출 후 Extended 일 때만 lastExtendDeadline 갱신.
+        val outcome = real.extendSuspend(lockAtMostFor)
+        if (outcome is ExtendOutcome.Extended) {
+            real.extendDelegate.lastExtendDeadline.set(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+        }
+        return outcome
     }
 
     private fun outsideScope(): ExtendOutcome {

@@ -1,6 +1,7 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.support.requireNotBlank
+import io.bluetape4k.support.requirePositiveNumber
 import java.io.Serializable
 
 /**
@@ -81,7 +82,7 @@ class LockIdentity(
     data class GroupParams(val maxLeaders: Int) : Serializable {
 
         init {
-            require(maxLeaders >= 1) { "maxLeaders must be >= 1: $maxLeaders" }
+            maxLeaders.requirePositiveNumber("maxLeaders")
         }
 
         companion object {

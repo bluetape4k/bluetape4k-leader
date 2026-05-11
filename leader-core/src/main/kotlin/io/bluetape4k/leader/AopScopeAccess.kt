@@ -90,7 +90,7 @@ object AopScopeAccess {
     fun createSyntheticReal(
         lockName: String,
         factoryBeanName: String,
-        token: String = "test-token",
+        token: String = SYNTHETIC_SINGLE_TOKEN,
     ): LeaderLockHandle.Real {
         val identity = LockIdentity(
             lockName = lockName,
@@ -114,8 +114,8 @@ object AopScopeAccess {
         lockName: String,
         factoryBeanName: String,
         maxLeaders: Int,
-        slotId: String = "0",
-        token: String = "test-group-token",
+        slotId: String = SYNTHETIC_DEFAULT_SLOT,
+        token: String = SYNTHETIC_GROUP_TOKEN,
     ): LeaderLockHandle.Real {
         val identity = LockIdentity(
             lockName = lockName,
@@ -131,4 +131,13 @@ object AopScopeAccess {
             extendDelegate = io.bluetape4k.leader.internal.NoopExtendDelegate,
         )
     }
+
+    /** Synthetic single handle default token — production 환경에서 의존 금지. */
+    private const val SYNTHETIC_SINGLE_TOKEN = "test-token"
+
+    /** Synthetic group handle default token — production 환경에서 의존 금지. */
+    private const val SYNTHETIC_GROUP_TOKEN = "test-group-token"
+
+    /** Synthetic group handle default slotId. */
+    private const val SYNTHETIC_DEFAULT_SLOT = "0"
 }
