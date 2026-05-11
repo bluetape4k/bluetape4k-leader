@@ -1,11 +1,48 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
 version: 2
 updates:
-  - package-ecosystem: "dependabot" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: "gradle"
+    directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 8
+    assignees:
+      - "debop"
+    groups:
+      kotlin:
+        patterns:
+          - "org.jetbrains.kotlin*"
+          - "org.jetbrains.kotlinx*"
+          - "com.google.devtools.ksp*"
+      spring:
+        patterns:
+          - "org.springframework*"
+          - "io.spring*"
+      testcontainers:
+        patterns:
+          - "org.testcontainers*"
+      jackson:
+        patterns:
+          - "com.fasterxml.jackson*"
+          - "tools.jackson*"
+      bluetape4k:
+        patterns:
+          - "io.github.bluetape4k*"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:30"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    assignees:
+      - "debop"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
