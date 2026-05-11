@@ -1,8 +1,15 @@
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
+import io.bluetape4k.leader.lettuce.internal.LettuceSuspendSlotExtendDelegate
 import io.bluetape4k.leader.lettuce.semaphore.LettuceSlotTokenGroup
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
@@ -10,6 +17,7 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireNotBlank
 import io.lettuce.core.api.StatefulRedisConnection
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
@@ -34,11 +42,11 @@ fun StatefulRedisConnection<String, String>.suspendLeaderGroupElector(
 /**
  * Lettuce Redis 기반의 코루틴 복수 리더 선출 구현체입니다.
  *
- * ## 동작/계약
+ * ## 동작/계약 (T7 PR 2)
  *
- * - 내부적으로 [LettuceSlotTokenGroup] (ZSET + Lua) 을 사용합니다.
- * - 슬롯 획득 실패 시 `null` 을 반환합니다 (ShedLock skip-on-contention).
- * - `options.minLeaseTime > 0` 이면 빠른 action 종료 시 score 만 갱신하여 minLeaseTime 동안 슬롯 유지.
+ * - 내부적으로 [LettuceSlotTokenGroup] (ZSET + Lua, server-side TIME) 사용.
+ * - acquire 후 [LettuceSuspendSlotExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 동일 reference 공유 (AC-15).
+ * - `withContext(AopScopeAccess.createLockHandleElement(handle))` + `setCapture` 로 coroutineContext 와 ThreadLocal 양쪽에 handle 전파.
  * - 코루틴 취소 시에도 `withContext(NonCancellable)` 안에서 release 가 보장됩니다.
  * - `CancellationException` 은 항상 re-throw 합니다.
  *
@@ -56,7 +64,10 @@ class LettuceSuspendLeaderGroupElector(
     val options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
 ): SuspendLeaderGroupElector {
 
-    companion object: KLogging()
+    companion object: KLogging() {
+        internal const val LETTUCE_SUSPEND_GROUP_FACTORY_BEAN_NAME = "lettuce-suspend-leader-group-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(LettuceBackendErrorClassifier)
+    }
 
     override val maxLeaders: Int = options.maxLeaders
 
@@ -86,17 +97,42 @@ class LettuceSuspendLeaderGroupElector(
         }
         // Codex P2: acquire 성공 후 startedAtNanos 캡처
         val startedAtNanos = System.nanoTime()
+        val delegate = LettuceSuspendSlotExtendDelegate(slotGroup, token)
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.GROUP,
+            factoryBeanName = LETTUCE_SUSPEND_GROUP_FACTORY_BEAN_NAME,
+            groupParams = LockIdentity.GroupParams(maxLeaders),
+        )
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = token,
+            acquiredAtNanos = startedAtNanos,
+            slotId = token,
+            extendDelegate = delegate,
+        )
+        // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
+        val watchdog = LeaderLeaseAutoExtender.start(false, options.leaseTime, delegate, ERROR_CLASSIFIER)
         log.debug { "리더 선출 성공 (suspend): lockName=$lockName, token=$token" }
 
         try {
-            return action()
+            // setCapture: ThreadLocal capture 도 함께 push (aspect dual-source: ThreadLocal + coroutineContext)
+            AopScopeAccess.setCapture(handle)
+            try {
+                return withContext(AopScopeAccess.createLockHandleElement(handle)) {
+                    action()
+                }
+            } finally {
+                AopScopeAccess.clearCapture()
+            }
         } finally {
             // NonCancellable: 코루틴 취소 시에도 슬롯 반납이 중단되지 않도록 보호
             withContext(NonCancellable) {
+                watchdog.close()
                 try {
                     val remainingMs = remainingMinLeaseTime(startedAtNanos, options.minLeaseTime).inWholeMilliseconds
                     slotGroup.releaseSuspending(token, remainingMs)
-                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                } catch (e: CancellationException) {
                     throw e
                 } catch (e: Throwable) {
                     log.warn(e) { "Failed to release slot. lockName=$lockName, token=$token" }

@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.lettuce.lock
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.lettuce.script.RedisScript
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
@@ -12,7 +13,10 @@ import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.async.RedisAsyncCommands
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.future.await
+import java.time.Instant
+import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
@@ -77,6 +81,14 @@ end"""
         val token = tokenRef.value ?: return false
         return asyncCommands.get(lockKey).await() == token
     }
+
+    /**
+     * 현재 lock 토큰을 반환합니다 (acquire 후, unlock 전).
+     *
+     * Backend module elector 가 [io.bluetape4k.leader.LeaderLockHandle.Real.token] 에 주입할 값으로 사용.
+     * 미보유 시 `null`.
+     */
+    fun currentToken(): String? = tokenRef.value
 
     suspend fun tryLock(
         waitTime: Duration = Duration.ZERO,
@@ -145,13 +157,36 @@ end"""
         log.debug { "Lock 해제 성공 (suspend): lockKey=$lockKey" }
     }
 
-    suspend fun extend(leaseTime: Duration = defaultLeaseTime): Boolean {
-        val token = tokenRef.value ?: return false
+    /**
+     * Lua atomic extend — token guard + PEXPIRE (suspend variant).
+     *
+     * 자세한 분류 결과가 필요하면 [extendDetailed] 사용.
+     */
+    suspend fun extend(leaseTime: Duration = defaultLeaseTime): Boolean =
+        extendDetailed(leaseTime).isExtended
+
+    /**
+     * Lua atomic extend — [ExtendOutcome] 반환 (T7 PR 2, suspend variant).
+     *
+     * ## 동작/계약
+     * - Lettuce `asyncCommands` 는 Netty event-loop 기반 non-blocking 이지만, R9 권고에 따라
+     *   suspend 진입점은 `coroutineContext.ensureActive()` 로 cancellation 을 명시적으로 확인.
+     * - token 미보유 → [ExtendOutcome.NotHeld]
+     * - script 결과 `1` → [ExtendOutcome.Extended] (`observedExpireAt = Instant.now() + leaseTime` best-effort)
+     * - script 결과 `0` → [ExtendOutcome.NotHeld]
+     */
+    suspend fun extendDetailed(leaseTime: Duration = defaultLeaseTime): ExtendOutcome {
+        coroutineContext.ensureActive()
+        val token = tokenRef.value ?: return ExtendOutcome.NotHeld
         val leaseMs = leaseTime.inWholeMilliseconds
 
         val extended = RedisScriptRunner.runSuspending<Long>(
             asyncCommands, EXTEND_SCRIPT, ScriptOutputType.INTEGER, arrayOf(lockKey), token, leaseMs.toString()
         )
-        return extended > 0L
+        return if (extended > 0L) {
+            ExtendOutcome.Extended(Instant.now().plusMillis(leaseMs))
+        } else {
+            ExtendOutcome.NotHeld
+        }
     }
 }

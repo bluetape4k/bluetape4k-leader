@@ -4,7 +4,9 @@ import io.bluetape4k.leader.ExtendOutcome.BackendError
 import io.bluetape4k.leader.ExtendOutcome.Extended
 import io.bluetape4k.leader.ExtendOutcome.NotHeld
 import io.bluetape4k.leader.ExtendOutcome.WrongThread
+import io.bluetape4k.leader.internal.BackendErrorClassifier
 import io.bluetape4k.leader.internal.BackendErrorKind
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.CoreBackendErrorClassifier
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.logging.KLogging
@@ -77,12 +79,18 @@ object LeaderLeaseAutoExtender : KLogging() {
      * @param enabled `false` 이면 no-op closeable 반환
      * @param leaseTime backend lease 시간 — cadence = leaseTime / 3 (최소 [MIN_RENEWAL_PERIOD])
      * @param delegate backend extend SPI — [ExtendDelegate.extend] + [ExtendDelegate.lastExtendDeadline]
+     * @param classifier backend-specific [BackendErrorClassifier]. `null` (default) 이면
+     * [CoreBackendErrorClassifier] (JDK / SQL only) 사용 — backend 별 transient 분류 누락 가능.
+     * 각 backend module 은 자신의 classifier ([io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier]
+     * 등) 를 [CompositeBackendErrorClassifier] 로 wrap 하여 전달 권장.
      */
     fun start(
         enabled: Boolean,
         leaseTime: Duration,
         delegate: ExtendDelegate,
+        classifier: BackendErrorClassifier? = null,
     ): AutoCloseable {
+        val errorClassifier: BackendErrorClassifier = classifier ?: CoreBackendErrorClassifier
         if (!enabled) {
             return NoopCloseable
         }
@@ -120,7 +128,7 @@ object LeaderLeaseAutoExtender : KLogging() {
                         }
                     }
                     is BackendError -> {
-                        val kind = CoreBackendErrorClassifier.classify(outcome.cause)
+                        val kind = errorClassifier.classify(outcome.cause)
                             ?: BackendErrorKind.NON_TRANSIENT
                         when (kind) {
                             BackendErrorKind.TRANSIENT -> {

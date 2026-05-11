@@ -1,21 +1,22 @@
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
+import io.bluetape4k.leader.lettuce.internal.LettuceSuspendLockExtendDelegate
+import io.bluetape4k.leader.lettuce.lock.LettuceSuspendLock
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
-import io.bluetape4k.leader.lettuce.lock.LettuceSuspendLock
 import io.bluetape4k.support.requireNotBlank
 import io.lettuce.core.api.StatefulRedisConnection
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -40,6 +41,13 @@ fun StatefulRedisConnection<String, String>.suspendLeaderElector(
  *
  * [LettuceSuspendLock]을 사용하여 비동기적으로 리더를 선출합니다.
  *
+ * ## 동작/계약 (T7 PR 2)
+ *
+ * - acquire 후 [LettuceSuspendLockExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 공유합니다.
+ * - aspect 의 `LockExtenderSuspend.extendActiveLockSuspend` 는 동일 delegate reference 를 사용합니다 (AC-15).
+ * - watchdog 은 [LeaderLeaseAutoExtender.start] 새 시그니처를 사용해 R2 watchdog skip semantics 활성화.
+ * - `withContext(AopScopeAccess.createLockHandleElement(handle))` 로 coroutineContext 에 handle 전파.
+ *
  * ```kotlin
  * val election = LettuceSuspendLeaderElector(connection)
  * val result = election.runIfLeader("daily-job") { "done" }
@@ -53,7 +61,10 @@ class LettuceSuspendLeaderElector(
     val options: LeaderElectionOptions = LeaderElectionOptions.Default,
 ): SuspendLeaderElector {
 
-    companion object: KLogging()
+    companion object: KLogging() {
+        internal const val LETTUCE_SUSPEND_FACTORY_BEAN_NAME = "lettuce-suspend-leader-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(LettuceBackendErrorClassifier)
+    }
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         lockName.requireNotBlank("lockName")
@@ -64,46 +75,38 @@ class LettuceSuspendLeaderElector(
             log.debug { "리더 선출 실패 (슬롯 없음, suspend): lockName=$lockName" }
             return null
         }
-        return coroutineScope {
-            val acquiredAtNanos = System.nanoTime()
-            val watchdog = if (options.autoExtend) {
-                launch {
-                    val period = LeaderLeaseAutoExtender.renewalPeriod(options.leaseTime)
-                    while (isActive) {
-                        delay(period)
-                        val extended = try {
-                            lock.extend(options.leaseTime)
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            log.warn(e) { "leader.lease.auto-extend.failed lockName=$lockName" }
-                            false
-                        }
-                        if (!extended) {
-                            log.warn { "leader.lease.auto-extend.stopped lockName=$lockName reason=NOT_OWNER" }
-                            break
-                        }
-                    }
-                }
-            } else {
-                null
-            }
-            log.debug { "리더 선출 성공 (suspend): lockName=$lockName" }
-            try {
+        val acquiredAtNanos = System.nanoTime()
+        val token = lock.currentToken() ?: error("token missing after tryLock — lockName=$lockName")
+        val delegate = LettuceSuspendLockExtendDelegate(lock)
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            factoryBeanName = LETTUCE_SUSPEND_FACTORY_BEAN_NAME,
+        )
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = token,
+            acquiredAtNanos = acquiredAtNanos,
+            extendDelegate = delegate,
+        )
+        val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
+        log.debug { "리더 선출 성공 (suspend): lockName=$lockName" }
+        try {
+            return withContext(AopScopeAccess.createLockHandleElement(handle)) {
                 action()
-            } finally {
-                // NonCancellable: 코루틴 취소 시에도 락 해제가 중단되지 않도록 보호
-                withContext(NonCancellable) {
-                    watchdog?.cancelAndJoin()
-                    try {
-                        if (lock.isHeldByCurrentInstance()) {
-                            lock.unlock(options.minLeaseTime, acquiredAtNanos)
-                        }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        log.warn(e) { "Fail to release lock. lockName=$lockName" }
+            }
+        } finally {
+            // NonCancellable: 코루틴 취소 시에도 lease 정리가 중단되지 않도록 보호
+            withContext(NonCancellable) {
+                watchdog.close()
+                try {
+                    if (lock.isHeldByCurrentInstance()) {
+                        lock.unlock(options.minLeaseTime, acquiredAtNanos)
                     }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    log.warn(e) { "Fail to release lock. lockName=$lockName" }
                 }
             }
         }

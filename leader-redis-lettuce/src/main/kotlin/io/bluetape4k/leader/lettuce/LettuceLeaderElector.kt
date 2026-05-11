@@ -1,12 +1,18 @@
 package io.bluetape4k.leader.lettuce
 
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
+import io.bluetape4k.leader.lettuce.internal.LettuceLockExtendDelegate
+import io.bluetape4k.leader.lettuce.lock.LettuceLock
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
-import io.bluetape4k.leader.lettuce.lock.LettuceLock
 import io.bluetape4k.support.requireNotBlank
 import io.lettuce.core.api.StatefulRedisConnection
 import java.util.concurrent.CompletableFuture
@@ -34,6 +40,12 @@ fun StatefulRedisConnection<String, String>.leaderElection(
  * [LettuceLock]을 사용하여 분산 환경에서 단일 리더를 선출합니다.
  * 동기([runIfLeader])와 비동기([runAsyncIfLeader]) 방식을 모두 지원합니다.
  *
+ * ## 동작/계약 (T7 PR 2)
+ *
+ * - acquire 후 [LettuceLockExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 공유합니다.
+ * - aspect 가 `LockAssert` / `LockExtender` 로 lease 연장 시 동일 delegate reference 를 사용합니다 (AC-15).
+ * - watchdog 의 [LeaderLeaseAutoExtender.start] 도 동일 delegate 를 받아 R2 watchdog skip semantics 를 활성화합니다.
+ *
  * ```kotlin
  * val election = LettuceLeaderElector(connection)
  * val result = election.runIfLeader("daily-job") { "done" }
@@ -47,7 +59,10 @@ class LettuceLeaderElector(
     private val options: LeaderElectionOptions = LeaderElectionOptions.Default,
 ): LeaderElector {
 
-    companion object: KLogging()
+    companion object: KLogging() {
+        internal const val LETTUCE_FACTORY_BEAN_NAME = "lettuce-leader-elector"
+        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(LettuceBackendErrorClassifier)
+    }
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         lockName.requireNotBlank("lockName")
@@ -59,20 +74,30 @@ class LettuceLeaderElector(
             return null
         }
         val acquiredAtNanos = System.nanoTime()
-        val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime) {
-            lock.extend(options.leaseTime)
-        }
+        val token = lock.currentToken() ?: error("token missing after tryLock — lockName=$lockName")
+        val delegate = LettuceLockExtendDelegate(lock)
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            factoryBeanName = LETTUCE_FACTORY_BEAN_NAME,
+        )
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = token,
+            acquiredAtNanos = acquiredAtNanos,
+            extendDelegate = delegate,
+        )
+        val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
         log.debug { "리더 선출 성공: lockName=$lockName" }
         try {
-            return action()
+            return AopScopeAccess.withPushedSync(handle) { action() }
         } finally {
             watchdog.close()
             runCatching {
                 if (lock.isHeldByCurrentInstance()) {
                     lock.unlock(options.minLeaseTime, acquiredAtNanos)
                 }
-            }
-                .onFailure { log.warn(it) { "Fail to release lock. lockName=$lockName" } }
+            }.onFailure { log.warn(it) { "Fail to release lock. lockName=$lockName" } }
         }
     }
 
@@ -95,9 +120,8 @@ class LettuceLeaderElector(
                 CompletableFuture.completedFuture(null)
             } else {
                 val acquiredAtNanos = System.nanoTime()
-                val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime) {
-                    lock.extend(options.leaseTime)
-                }
+                val delegate = LettuceLockExtendDelegate(lock)
+                val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
                 log.debug { "리더 선출 성공 (async): lockName=$lockName" }
                 try {
                     action().whenComplete { _, _ ->
@@ -106,8 +130,7 @@ class LettuceLeaderElector(
                             if (lock.isHeldByCurrentInstance()) {
                                 lock.unlock(options.minLeaseTime, acquiredAtNanos)
                             }
-                        }
-                            .onFailure { log.warn(it) { "Fail to release lock. lockName=$lockName" } }
+                        }.onFailure { log.warn(it) { "Fail to release lock. lockName=$lockName" } }
                     }
                 } catch (e: Throwable) {
                     watchdog.close()
@@ -115,11 +138,11 @@ class LettuceLeaderElector(
                         if (lock.isHeldByCurrentInstance()) {
                             lock.unlock(options.minLeaseTime, acquiredAtNanos)
                         }
-                    }
-                        .onFailure { log.warn(it) { "Fail to release lock. lockName=$lockName" } }
+                    }.onFailure { log.warn(it) { "Fail to release lock. lockName=$lockName" } }
                     CompletableFuture.failedFuture(e)
                 }
             }
         }
     }
 }
+
