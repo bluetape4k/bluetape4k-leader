@@ -8,7 +8,7 @@ kotlin = "2.3.21"  # https://mvnrepository.com/artifact/org.jetbrains.kotlin/kot
 kotlinx-coroutines = "1.11.0"  # https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-coroutines-bom
 kotlinx-atomicfu = "0.32.1"  # https://mvnrepository.com/artifact/org.jetbrains.kotlinx/atomicfu
 
-spring-boot3 = "3.5.14"  # https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-dependencies
+spring-boot3 = "4.0.6"  # https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-dependencies
 spring-boot4 = "4.0.6"  # https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-dependencies
 
 # AOP / SpEL deps for leader-spring-boot-common (#41)
