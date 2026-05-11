@@ -304,6 +304,88 @@ println(group.leaders.map { it.leaderId })
 
 상태 조회는 진단과 메트릭을 위한 best-effort 스냅샷입니다. 락 획득을 대체하는 API가 아닙니다.
 
+## Lock Assert & Extend
+
+`LockAssert` 와 `LockExtender` 는 ShedLock 과 동일한 사용감으로 lock 보유 여부를 단언하고
+`@LeaderElection` / `@LeaderGroupElection` 본문 안에서 lease 를 명시적으로 연장합니다.
+
+### LockAssert
+
+```kotlin
+@LeaderElection(name = "report-job")
+fun runReport() {
+    LockAssert.assertLocked()              // 활성 scope 없으면 throw
+    LockAssert.assertLocked("report-job") // 이름 불일치 시 throw
+
+    if (!LockAssert.isLocked()) return     // throw 없는 조회
+}
+
+// suspend 컨텍스트 — coroutineContext 만 검사 (ThreadLocal fallback 없음, R7)
+@LeaderElection(name = "async-job")
+suspend fun runAsync() {
+    LockAssert.assertLockedSuspend()
+    LockAssert.assertLockedSuspend("async-job")
+
+    val held: Boolean = LockAssert.isLockedSuspend()
+}
+```
+
+- `assertLocked()` / `assertLocked(lockName)` — 활성 scope 없거나 fail-open sentinel 이면 `IllegalStateException` throw.
+- `isLocked()` / `isLocked(lockName)` — throw 없이 `Boolean` 반환.
+- `assertLockedSuspend()` / `isLockedSuspend()` — suspend 변형; `coroutineContext[LockHandleElement]` 만 검사 (ThreadLocal fallback 없음 R7).
+
+### LockExtender
+
+```kotlin
+@LeaderElection(name = "long-job", leaseTime = 30.seconds)
+fun runJob() {
+    // ... 25초 작업 ...
+    LockExtender.extendActiveLock(60.seconds)  // TTL = now + 60s 로 갱신
+    // ... 추가 50초 작업 ...
+}
+
+// 상세 sealed result
+when (val outcome = LockExtender.extendActiveLockDetailed(60.seconds)) {
+    is ExtendOutcome.Extended    -> log.info { "만료 시각 ${outcome.observedExpireAt}" }
+    is ExtendOutcome.NotHeld     -> rollback()
+    is ExtendOutcome.WrongThread -> log.warn { "Redisson thread-bound 위반" }
+    is ExtendOutcome.BackendError -> retry(outcome.cause)
+}
+
+// Java 호환 java.time.Duration overload
+LockExtender.extendActiveLock(Duration.ofSeconds(60))
+
+// suspend 변형
+suspend fun runSuspend() {
+    LockExtender.extendActiveLockSuspend(60.seconds)
+}
+```
+
+- 성공 시 `true`, 실패 시 `false` 반환 (활성 scope 없음, fail-open, token mismatch, backend 오류).
+- `lastExtendDeadline` 을 갱신해 watchdog 가 user 가 연장한 lease 를 silently 축소하지 않도록 차단 (R2 mitigation).
+
+### ⚠️ Reactor non-suspend operator 미지원 (R5)
+
+`LockAssert.assertLocked()` / `LockExtender.extendActiveLock()` 를 non-suspend Reactor operator (`.map {}`, `.filter {}`) 안에서 호출하면 실패합니다.
+ThreadLocal 도 `CoroutineContext` 도 전파되지 않기 때문입니다.
+
+suspend 변형을 `mono {}` builder 안에서 사용하세요:
+
+```kotlin
+// 비권장 — 비동기/cross-thread Reactor operator 에서 실패
+mono.map { LockAssert.assertLocked() }
+
+// 권장 — 올바른 패턴
+mono.flatMap { value ->
+    mono {
+        withContext(LockHandleElement(handle)) {
+            LockAssert.assertLockedSuspend()
+            value
+        }
+    }
+}
+```
+
 ## 의존성 추가
 
 ```kotlin
