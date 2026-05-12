@@ -1846,9 +1846,32 @@ User directive: convergence gate continues. Phase 1 × 4 + real codex CLI 재dis
 | 14 (silent-failure CONVERGED + architect + codex) | 0 | 4 | 2 | 1 | applied 0db038f |
 | 15 (silent-failure CONVERGED + architect + codex BG) | **1 P0** (always-true guard, Round 14 NEW-14-2 regression) | 2 | 1 | 1 | applied ed482e2 + 425d72e |
 | 16 (silent-failure + architect + codex) | 0 | 4 | 1 | 0 | applied cfb4b1f |
-| 17 (silent-failure CONVERGED + architect) | 0 | 1 | 2 | 1 | applied (this commit) |
+| 17 (silent-failure CONVERGED + architect) | 0 | 1 | 2 | 1 | applied 47763c8 |
+| 17.5 (codex BG addendum) | 0 | 2 (task sync) | 1 | 1 | applied 4501d00 |
 
 **Round 17 milestone**: silent-failure-hunter CONVERGED **3번째**. architect N17-1 P1 (super.X enforcement) 적용 + N17-3 Mono catch ordering 추가.
+
+---
+
+## Step 2-R **CONVERGED** (2026-05-13, user 합의 종료)
+
+| 기준 | 결과 |
+|------|------|
+| 누적 round 수 | 17 + 0.5 sub-round (Round 12.5, 15.5, 17.5 codex BG addendum) |
+| Reviewer 통합 dispatches | ~60+ (silent-failure × 17 + architect × 17 + type-design × 4 + code-reviewer × 4 + real codex CLI × 12) |
+| 발견된 P0 (BLOCKER) | 누적 ~15건, 모두 fix 완료 + 동일 round 또는 다음 round 내 revert 처리 |
+| 발견된 P1 (HIGH) | 누적 ~75건, 모두 fix 완료 또는 follow-up issue 등록 |
+| P2/P3 | 누적 ~50건, P2 다수 적용, P3 follow-up |
+| silent-failure CONVERGED | 3회 (R14, R15 회귀 catch, R17) |
+| 최종 verdict | **CONVERGED** — Skill break-out 조건 충족 (P0=0, P1 ≤ 2 + wording polish) |
+
+**Step 3 진입 사유**: P0 안정적 0, P1 잔존은 모두 task description sync / 운영 noting. 더 이상 architectural blocker 없음. 8-PR phased delivery + 80+ task 확정.
+
+**잔존 outstanding (Step 3 plan task 로 흡수)**:
+- AUTO source LRU throttle re-design (architect N16-2 / codex N17-3) — `LeaderSlot.source` 필드 추가 후 source-aware throttle key
+- 추가 contract test 보강 (N17-1 super.X enforcement, N17-2 bridge double-count Prometheus query rubric)
+- `LeaderRecorderContextDropLog` MeterRegistry-absent fallback log parity (N17-4)
+- Type-design follow-up: sealed `LeaderElectionInfo` (O5), `LeaderId` value class wrapper (O7)
 
 **Round 14 milestone**: silent-failure-hunter **CONVERGED** (P0=P1=P2=0). Architect + Codex 잔존 finding 은 spec clarification 위주 (warning text 명시, gauge binding strategy, autoconfig 위치 결정).
 
