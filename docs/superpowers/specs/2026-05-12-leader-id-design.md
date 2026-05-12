@@ -903,7 +903,7 @@ abstract class AbstractVirtualThreadLeaderIdContractTest { /* StructuredTaskScop
 - `io.bluetape4k.leader.identity.RandomLeaderIdProvider` / `HostnamePidLeaderIdProvider` / `CompositeLeaderIdProvider` — `leader-core`
 - `io.bluetape4k.leader.identity.LeaderIdSource` (enum) — `leader-core`
 - `io.bluetape4k.leader.identity.LeaderIdResolutionException` — `leader-core`
-- `SkipReason.LEADER_ID_RESOLUTION` — `io.bluetape4k.leader.spring.aop.SkipReason` (기존 enum 확장)
+- (Round 3 NF1 — `SkipReason.LEADER_ID_RESOLUTION` 제거; `LeaderIdResolutionException` 은 always-RETHROW 라 enum value 도달 불가 → Micrometer `MeterRegistry.counter("leader.aop.leader_id.resolution_failed")` 사용)
 
 ### LeaderIdProvider thread-safety enforcement (Round 2 F14)
 
@@ -975,7 +975,7 @@ abstract class AbstractVirtualThreadLeaderIdContractTest { /* StructuredTaskScop
 - [ ] `LeaderSlot(lockName, leaderId)` value object 추가, `leader-core` 공개 API
 - [ ] `LeaderIdProvider` 인터페이스 + 3개 구현 (`Random`, `HostnamePid`, `Composite`) 추가, length/suffixLength `requireGt(0)` 적용
 - [ ] `LeaderIdSource` enum + `LeaderElectionInfo.leaderIdSource` + Micrometer `leader.id.source` tag 노출 (R8/D10)
-- [ ] `LeaderIdResolutionException` + `SkipReason.LEADER_ID_RESOLUTION` 추가, `failureMode` 무관하게 always-RETHROW (R4/O10)
+- [ ] `LeaderIdResolutionException` 추가, `failureMode` 무관하게 always-RETHROW (R4/O10); 실패 metric 은 `MeterRegistry.counter("leader.aop.leader_id.resolution_failed")` 로 기록 (Round 3 NF1)
 - [ ] `safeNextLeaderId(lockName)` defensive wrapper — 모든 elector + Aspect 에서 사용 (R6/D2)
 - [ ] 8개 elector 인터페이스 (sync × group/single + suspend × g/s + async × g/s + VT × g/s) 에 `LeaderSlot` primary + Result variant 추가, binary-compat
 - [ ] `LeaderLease.leaderId` → `auditLeaderId` rename + `@Deprecated val leaderId` getter + `serialVersionUID = 2L` (R1/D3)
@@ -1093,7 +1093,7 @@ Phase K — Docs (PR8)
 
 Round 1 추가 task (Step 2-R 결과 반영)
   T47 [low]   identity/LeaderIdSource.kt — enum (D10/R8)
-  T48 [med]   identity/LeaderIdResolutionException.kt + SkipReason.LEADER_ID_RESOLUTION (R4/O10)
+  T48 [med]   identity/LeaderIdResolutionException.kt (R4/O10); SkipReason enum value 미추가 (Round 3 NF1)
   T49 [med]   identity/LeaderIdProviders.kt — internal safeNextLeaderId top-level helper (R6/D2/A3)
   T50 [high]  Phase A0 확장 grep gate script (worktree + workshops + serialization + positional + named-arg + fencing-token 비교)
   T51 [med]   AbstractLeaderIdContractTest — reentrant audit preservation test (D9 / Silent-failure [medium])
@@ -1208,9 +1208,29 @@ Round 3 추가 task (Step 2-R Round 3 결과 반영)
 - **R3-M1**: testFixture freeze docs file PR1 placeholder + PR1-followup commit 으로 hash 채우기 (chicken-and-egg fix)
 - **R3-M2**: `safeNextLeaderId` 에 `InterruptedException` rethrow + interrupt flag 복원
 
-### Round 4 (planned — break-out 조건 검토)
+### Round 4 (2026-05-12) — delta verification → **CONVERGED**
 
-Round 3 fix 적용 후 break-out 조건:
-- 모든 reviewer P0 = 0 ✓
-- 모든 reviewer P1 ≤ 2 + 동일 영역 wording polish — Round 4 verification 으로 확인
-- 또는 user 합의 후 종료
+| Reviewer | Round 3 fix resolution | New findings |
+|----------|------------------------|--------------|
+| Independent delta verifier | 10/10 RESOLVED at primary sites | 1 P1 (NF1 leftover refs) + 1 P3 (CHANGELOG headline wording) |
+| **Round 4 통합 (pre-fix)** | — | **1 P1 / 1 P3** — NEEDS ROUND 5 |
+| **Round 4 통합 (post-fix)** | — | **0 P0 / 0 P1** — **CONVERGED** |
+
+**Round 4 fixes (mechanical)**:
+- NF1 leftover: §13 package paths 의 `SkipReason.LEADER_ID_RESOLUTION` 제거 (Round 3 NF1 fix 확장)
+- §15 DoD: `SkipReason.LEADER_ID_RESOLUTION` 항목을 `MeterRegistry.counter` 로 교체
+- §17 T48: `SkipReason.LEADER_ID_RESOLUTION` 부분 제거
+
+### Step 2-R Final Status: ✅ **CONVERGED**
+
+- 4 rounds × 4-5 reviewers 통합 결과: **P0 = 0 AND P1 = 0**
+- Spec 은 Step 3 (Implementation Plan) 진행 가능
+
+| Round | P0 | P1 | P2 | P3 | Status |
+|-------|----|----|----|----|--------|
+| 1 | 2 | 13 | 19 | 16 | applied 7008d57 |
+| 2 | 3 | 11 | 6 | 2 | applied 444f094 |
+| 3 | 2 | 8 | 3 | 1 | applied 92dc382 |
+| 4 | 0 | 1 → 0 | 0 | 1 | applied (this commit) |
+
+총 67 task. 8 PR phased delivery (PR1..PR8 depends-on graph).
