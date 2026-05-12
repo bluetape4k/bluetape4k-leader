@@ -387,11 +387,10 @@ interface LeaderElector : AsyncLeaderElector {
             LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         }
         var elected = false
-        // Round 13 architect P0 BLOCKER fix — REVERTED Round 12 bypass.
-        // 이유: `runIfLeader(slot.lockName, ...)` bypass 시 backend 의 lockName wrapper 가
-        // `safeNextLeaderId` 로 새 leaderId 생성 → slot.leaderId 사일런트 폐기 → audit 거짓 attribution
-        // (Round 6 C1 silent fabrication 재도입)
-        // 결정: `runIfLeader(slot, ...)` 로 nested dispatch 복원. counter double-count 는 LRU drift 로 허용 (benign vs audit correctness)
+        // Round 13 architect P0 fix — `runIfLeader(slot, ...)` nested dispatch (audit correctness 우선)
+        // Round 14 NEW-14-1 노트: backend 가 둘 다 미override 시 inner slot-bridge 가 warnOnBridgeUse 도 호출
+        //   → result + slot 두 WARN 동시 발생. 의도된 동작 (다른 message, 다른 cache, 다른 counter — operator 가 두 path 식별 가능)
+        //   suppress 안 함 (audit correctness > log noise. 두 WARN 은 distinct, 분석 가능)
         val v = runIfLeader(slot) { elected = true; action() }
         return if (elected) {
             // bridge default — backend 가 audit stamp 했는지 보장 못 함 → leaderId=null
@@ -451,12 +450,13 @@ class LeaderElectorBridgeLog(private val cacheSize: Int = DEFAULT_CACHE_SIZE) {
             firstTime = warnedResultPairs.put(key, true) == null
         }
         if (firstTime) {
-            // Round 11/12/13 codex — execution-model-neutral message
+            // Round 11/12/13 codex + Round 14 codex NEW-14-1 — LeaderSlot 시그니처 명시
+            // (이전: `runIfLeader` 가 String + LeaderSlot 둘 다 존재 → 모호)
             log.warn {
-                "${implClass.simpleName} used default result bridge; " +
-                "Elected.leaderId will be null for '${slot.leaderId}' — backend MUST override the " +
-                "execution-model-specific result variant (runIfLeaderResult / runAsyncIfLeaderResult / " +
-                "runIfLeaderResultSuspend) AND its non-result counterpart (runIfLeader / runAsyncIfLeader) " +
+                "[OMC-BRIDGE-RESULT-DROP] ${implClass.simpleName} used default result bridge; " +     // Round 14 N14-5
+                "Elected.leaderId will be null for '${slot.leaderId}' — backend MUST override BOTH " +
+                "runIfLeader(LeaderSlot, ...) / runAsyncIfLeader(LeaderSlot, ...) / runIfLeader(LeaderSlot, ...) (suspend) " +
+                "AND runIfLeaderResult(LeaderSlot, ...) / runAsyncIfLeaderResult(LeaderSlot, ...) / runIfLeaderResultSuspend(LeaderSlot, ...) " +
                 "to stamp audit (see T72)"
             }
         }
@@ -464,6 +464,14 @@ class LeaderElectorBridgeLog(private val cacheSize: Int = DEFAULT_CACHE_SIZE) {
 
     // Round 13 silent-failure NEW-13-1: Async/VT/Suspend slot-bridge 의 guard 를 inline 으로 정정
     // (이전: undefined `warnOnBridgeUseIfApplicable` 호출 → compile fail 또는 silent skip)
+
+    // Round 14 NEW-14-2 — Single elector variant 도 동일 inline guard 패턴 사용:
+    //   AsyncLeaderElector (single) — `this::class != AsyncLeaderElector::class`
+    //   VirtualThreadLeaderElector (single) — `this::class != VirtualThreadLeaderElector::class`
+    //   SuspendLeaderElector (single) — `this::class != SuspendLeaderElector::class`
+    //   각 interface 의 자기 KClass 와 비교. group 의 KClass 와 비교하면 모든 single impl 이 != 라서 WARN 항상 발생 (false positive)
+    //   또는 모든 impl 이 == 가 아니므로 WARN 절대 발생 안 함 (false negative).
+    //   PR1 acceptance test 가 inline guard self-reference 검증 의무
 
     private val droppedResultCounter = AtomicLong(0)
     fun droppedResultBridgeCount(): Long = droppedResultCounter.get()
@@ -1576,7 +1584,7 @@ Round 3 추가 task (Step 2-R Round 3 결과 반영)
 Round 5 추가 task (real codex CLI 결과 반영)
   T68 [high]  PR1 — 모든 elector interface (sync/suspend/async/VT × single/group = 8) 에 LeaderSlot bridge `default` 메서드 추가, 기존 lockName overload 으로 delegate (Round 5 codex B1 — backend 컴파일 깨짐 방지)
   T69 [med]   LeaderAopMetricsRecorder API 확장 — LeaderAopMetricsContext(leaderId, leaderIdSource) data class + backward-compat default method (Round 5 codex H2)
-  T70 [low]   leader-micrometer/MicrometerNames.kt — TAG_LEADER_ID + TAG_LEADER_ID_SOURCE **public** 상수 추가 (cross-module access 보장, Round 13 codex NEW-13-2 — leader-spring-boot 가 compileOnly dependency 라 internal 불가) + MicrometerLeaderAopMetricsRecorder 가 신규 overload override (Round 5 codex H2) + bridge drop gauge 2종 등록: `leader.aop.bridge.dropped` (← `LeaderElectorBridgeLog.global().droppedAuditCount()`) + `leader.aop.bridge.result-dropped` (← `droppedResultBridgeCount()`). 등록 위치: **`leader-micrometer` 모듈의 public helper** (예: `LeaderBridgeMetrics.register(registry)`) — `LeaderMicrometerAutoConfiguration` (leader-micrometer) 또는 `LeaderMicrometerHealthAutoConfiguration` (leader-spring-boot) 에서 호출. **NOT** `LeaderAopAutoConfiguration` (cross-module internal access 불가). 정확한 AutoConfig 위치는 CLAUDE.md AutoConfig 로드 순서 따름 — `LeaderMicrometerAutoConfiguration` 이 적합 (gauge 등록은 metrics module 책임) (Round 12 codex NEW-12-2 + Round 13 codex NEW-13-2 + architect NEW-13-2)
+  T70 [low]   leader-micrometer/MicrometerNames.kt — TAG_LEADER_ID + TAG_LEADER_ID_SOURCE **public** 상수 추가 (Round 13 codex NEW-13-2) + MicrometerLeaderAopMetricsRecorder 가 신규 overload override + bridge drop gauge 2종 등록: `leader.aop.bridge.dropped` + `leader.aop.bridge.result-dropped`. **gauge binding 은 lambda supplier** (Round 14 NEW-14-3): `Gauge.builder("leader.aop.bridge.dropped") { LeaderElectorBridgeLog.global().droppedAuditCount().toDouble() }.register(registry)`. setGlobal swap 시 lambda 가 새 instance counter re-read. 등록 helper: `leader-micrometer/LeaderBridgeMetrics.register(registry)` public. **등록 호출은 `LeaderMicrometerAutoConfiguration` 만** (Round 14 codex NEW-14-2 — `LeaderMicrometerHealthAutoConfiguration` 은 actuator-gated 이므로 metrics-only deployment 에서 누락). Aspect 의 leader.id tag 호출 site 는 string literal "leader.id" 대신 `MicrometerNames.TAG_LEADER_ID` import 의무 (Round 14 NEW-14-4). (Round 12 codex NEW-12-2 + Round 13 codex NEW-13-2 + Round 14 NEW-14-2/3/4)
 
 Round 7 추가 task (real codex CLI 결과 반영)
   T71 [high]  [PR7] LeaderGroupElectionAspect / LeaderElectionAspect — 6개 recorder call site 모두에 context overload 통과: onLockAttempt, onLockAcquired, onLockNotAcquired, onTaskStarted, onTaskFinished, onTaskFailed. resolved audit 있으면 `LeaderAopMetricsContext.Identified(resolved.value, resolved.source)`, 없으면 `LeaderAopMetricsContext.Unknown` (Round 7 codex #3 + Round 8 codex #2 sealed 호환)
@@ -1821,7 +1829,10 @@ User directive: convergence gate continues. Phase 1 × 4 + real codex CLI 재dis
 | 10 (silent-failure + architect + codex) | 1 | 5 | 0 | 2 | applied c9fa36a |
 | 11 (silent-failure + architect + codex) | 0 | 3 | 4 | 2 | applied 3a11baf |
 | 12 (silent-failure + architect + codex BG) | 0 | 3 | 6 | 1 | applied bd16290 + afae663 |
-| 13 (silent-failure + architect + codex) | **1 P0 (BLOCKER)** | 3 | 2 | 1 | applied (this commit) |
-| 14 | (pending dispatch) | | | | |
+| 13 (silent-failure + architect + codex) | **1 P0 (BLOCKER)** | 3 | 2 | 1 | applied 0110a62 |
+| 14 (silent-failure CONVERGED + architect + codex) | 0 | 4 | 2 | 1 | applied (this commit) |
+| 15 | (pending dispatch) | | | | |
+
+**Round 14 milestone**: silent-failure-hunter **CONVERGED** (P0=P1=P2=0). Architect + Codex 잔존 finding 은 spec clarification 위주 (warning text 명시, gauge binding strategy, autoconfig 위치 결정).
 
 총 70 task (+ T68b/T68c/T69b 신규 verification task). 8 PR phased delivery.
