@@ -408,19 +408,28 @@ internal object LeaderElectorBridgeLog {
 }
 ```
 
-**T68b 신규 task (Round 7 N7-3 fix)**: PR1 — `LeaderElectorFactory` SPI 에 `targetElectorClass: KClass<out LeaderElector>` (또는 group variant) accessor 추가. `LeaderAopAutoConfiguration` 가 startup 시 모든 등록된 factory 의 `targetElectorClass` 를 reflection 으로 검사하여 `runIfLeader(LeaderSlot, ...)` 메서드가 declared (override 됨) 인지 확인. 미override 시 WARN log (factory 별 + targetClass list). **Probe 대상은 elector bean 이 아닌 factory.targetElectorClass** — factory pattern 때문에 elector 는 lazy 생성됨
+**T68b 신규 task (Round 7 N7-3 / codex Round 7 #4 fix)**: **PR7 Phase I** (PR1 아님 — autoconfig 위치 정정). `LeaderElectorFactory` SPI 에 `targetElectorClass: KClass<out LeaderElector>` (또는 group variant) accessor 추가. `LeaderAopAutoConfiguration` 가 startup 시 모든 등록된 factory 의 `targetElectorClass` 를 reflection 으로 검사하여 `runIfLeader(LeaderSlot, ...)` AND `runIfLeaderResult(LeaderSlot, ...)` 메서드 둘 다 declared (override 됨) 인지 확인. 미override 시 WARN log (factory 별 + targetClass list + which method missing). **Probe 대상은 elector bean 이 아닌 factory.targetElectorClass** — factory pattern 때문에 elector 는 lazy 생성됨
 
-**Note**: T69b (recorder probe) 는 `ObjectProvider<LeaderAopMetricsRecorder>` 로 actually 등록된 bean 검사 → 그대로 유효 (architect N7-3 확인됨)
+**T69b (Round 6 H2 / codex Round 7 #4 phase fix)**: **PR7 Phase I**, `LeaderMicrometerAutoConfiguration` 이후 (`@AutoConfigureAfter(LeaderMicrometerAutoConfiguration::class)`). `ObjectProvider<LeaderAopMetricsRecorder>` 로 actually 등록된 모든 recorder bean 의 6개 context overload (`onLockAttempt/Acquired/NotAcquired/Started/Finished/Failed` × context) override 여부 reflection 검사. 미override 시 WARN log + `bluetape4k.leader.aop.leader-id.metrics-required=true` 시 startup fail
 
 **T69b 신규 task (Round 6 H2)**: `LeaderAopAutoConfiguration` 가 startup 시 reflection 으로 모든 등록 `LeaderAopMetricsRecorder` bean 의 4-arg overload (`onLockAcquired/.../context`) override 여부 확인. 미override 시 WARN log + property `bluetape4k.leader.aop.leader-id.metrics-required=true` 설정 시 startup fail. Default property `false` (warn only). 사용자 정의 recorder 의 audit tag 누락 silent-failure 방지
 
 **T68c 신규 task (Round 6 M2 — bridge SOE recursion)**: detekt custom rule 또는 contract test 가 backend `runIfLeader(lockName, action)` override 가 `runIfLeader(LeaderSlot(...), action)` 호출 ↔ `runIfLeader(LeaderSlot, action)` override 가 `runIfLeader(slot.lockName, action)` 호출 의 circular delegate 검출. `AbstractLeaderIdContractTest` 에 small-stack invocation 테스트 추가
 
 // PR2-6 backend override — slot.leaderId 를 LeaderLease 에 stamp
+// Round 7 codex #2 fix: 반드시 BOTH runIfLeader(slot) AND runIfLeaderResult(slot) override
 class LettuceLeaderGroupElector(...) : LeaderGroupElector {
     override fun <T> runIfLeader(slot: LeaderSlot, action: () -> T): T? {
         // 실제 audit 통합 구현 — slot.leaderId 를 LeaderLockHandle/LeaderLease 에 전달
         return acquireWithAudit(slot.lockName, slot.leaderId, action)
+    }
+
+    // Round 7 codex #2: backend audit stamp 후 Elected.leaderId 노출 — 반드시 override
+    override fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
+        var elected = false
+        val v = runIfLeader(slot) { elected = true; action() }
+        return if (elected) LeaderRunResult.Elected(v, slot.leaderId)  // ← stamp 보장된 후 노출
+               else LeaderRunResult.Skipped
     }
 
     // 기존 lockName overload — wrapper 로 변경 (deprecated 아님)
@@ -428,6 +437,8 @@ class LettuceLeaderGroupElector(...) : LeaderGroupElector {
         runIfLeader(LeaderSlot(lockName, safeNextLeaderId(idProvider, lockName)), action)
 }
 ```
+
+**Round 7 codex #2 — backend override 의무**: `runIfLeader(slot)` 만 override 하고 `runIfLeaderResult(slot)` 는 bridge default 그대로면, audit stamp 후에도 `Elected.leaderId == null` 반환됨. 모든 backend PR (PR2-PR6) 의 acceptance criteria 에 **BOTH override 의무** 명시 + contract test 가 `assertEquals(slot.leaderId, result.leaderId)` 로 검증
 
 **Round 7 H5/H6 — 4 execution model 별 bridge body 명시**:
 
@@ -1351,6 +1362,11 @@ Round 5 추가 task (real codex CLI 결과 반영)
   T68 [high]  PR1 — 모든 elector interface (sync/suspend/async/VT × single/group = 8) 에 LeaderSlot bridge `default` 메서드 추가, 기존 lockName overload 으로 delegate (Round 5 codex B1 — backend 컴파일 깨짐 방지)
   T69 [med]   LeaderAopMetricsRecorder API 확장 — LeaderAopMetricsContext(leaderId, leaderIdSource) data class + backward-compat default method (Round 5 codex H2)
   T70 [low]   leader-micrometer/MicrometerNames.kt — TAG_LEADER_ID + TAG_LEADER_ID_SOURCE 상수 추가 + MicrometerLeaderAopMetricsRecorder 가 신규 overload override (Round 5 codex H2)
+
+Round 7 추가 task (real codex CLI 결과 반영)
+  T71 [high]  LeaderGroupElectionAspect / LeaderElectionAspect — 6개 recorder call site 모두에 context overload 통과: onLockAttempt, onLockAcquired, onLockNotAcquired, onTaskStarted, onTaskFinished, onTaskFailed. context = LeaderAopMetricsContext(resolved.value, resolved.source) (Round 7 codex #3)
+  T72 [high]  모든 backend PR2-6: runIfLeader(slot) AND runIfLeaderResult(slot) BOTH override 의무. contract test 가 assertEquals(slot.leaderId, result.leaderId) 검증 (Round 7 codex #2)
+  T73 [med]   T68b/T69b 를 PR7 Phase I 로 이동 + AutoConfig 순서 명시 (Round 7 codex #4)
 ```
 
 총 70 task. Complexity 분포: high 18, medium 29, low 23.
@@ -1516,6 +1532,12 @@ Round 6 dispatched 5 parallel reviewers:
 - **H6 P1**: Suspend bridge body 명시 — manual try-catch + `CancellationException` rethrow first (CLAUDE.md 준수, runCatching 금지)
 - **N7-3 P1**: T68b probe 대상 변경 — `LeaderElectorFactory.targetElectorClass` SPI 통해 reflection. factory 가 elector 를 lazy 생성하므로 bean 직접 검사 불가
 - **N7-4 P1**: testFixture contract test 명시 — `LeaderRunResult Elected carries leaderId AFTER backend migration` 으로 의미 명료화. bridge transition window 중에는 `leaderId=null` 가능
+
+**Round 7 추가 codex BG 결과 (4 finding, follow-up commit 으로 적용)**:
+- **codex #1 D10 blocker** (이미 N7-1 fix 으로 해소 — actual API 6 메서드 기준 재작성)
+- **codex #2 high — backend BOTH override 의무**: spec 의 backend 예시는 `runIfLeader(slot)` 만 override; `runIfLeaderResult(slot)` 도 override 의무 추가 → backend 가 audit stamp 후 `Elected(v, slot.leaderId)` 노출 — T72 신규
+- **codex #3 high — aspect 6 recorder call site context propagation**: spec 은 `onLockAcquired(..., ctx)` 만 언급. 다른 5 메서드 (`onLockAttempt/NotAcquired/Started/Finished/Failed`) 도 ctx 통과 의무 명시 → T71 신규
+- **codex #4 medium — probe phase**: T68b 가 PR1 라벨이지만 Spring autoconfig 위치 (PR7 territory). T69b 는 `LeaderMicrometerAutoConfiguration` 이후 실행 필요 → T73 신규, T68b/T69b 둘 다 PR7 Phase I 명시
 
 **Deferred (적용 안 함)**:
 - H3 (default 4→3 drop WARN/counter) — T69b startup probe 로 부분 cover, per-call WARN 은 follow-up
