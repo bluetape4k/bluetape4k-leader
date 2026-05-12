@@ -91,7 +91,7 @@ T<NN> [complexity] — <one-line title>
 
 ```
 PR1 (Phase A + B + C + testFixture contract)
-  ├── PR1.5 (freeze hash fill-in commit)
+  │     (PR1 자체에 freeze doc 포함 — Step 3-R B1: PR1.5 develop push 제거)
   │     │
   │     ├── PR2 (Phase D — Lettuce + Redisson)
   │     ├── PR3 (Phase E — Mongo)
@@ -104,9 +104,13 @@ PR1 (Phase A + B + C + testFixture contract)
   │                   └── PR8 (Phase J + K — cross-backend tests + docs/CHANGELOG)
 ```
 
-**Critical path 길이**: PR1 → PR1.5 → PR2-6 (병렬) → PR7 → PR8 = 4 sequential merges + 5 parallel backend PRs.
+**Critical path 길이**: PR1 → PR2-6 (병렬) → PR7 → PR8 = 4 sequential merges + 5 parallel backend PRs (PR1.5 develop push 제거 per B1).
 
-**PR1.5 sub-commit**: PR1 merge **직후** develop 에 단일 commit — `2026-05-13-leader-id-testfixture-freeze.md` 의 `<frozen commit hash: TBD>` placeholder 를 PR1 merge commit hash 로 치환. 별도 PR 아니며 develop 직접 push (PR1 author 가 즉시 수행). PR2-6 worker 는 PR1.5 commit base 로 worktree 분기.
+**Freeze reference 방식** (Step 3-R B1 fix — workspace `CLAUDE.md` branch protection: develop 직접 push 금지):
+- PR1.5 sub-commit 메커니즘 **제거**. PR1 자체에 freeze doc 포함 (placeholder hash 없이 **GitHub PR 번호 reference** 사용).
+- `2026-05-13-leader-id-testfixture-freeze.md` 에 `Frozen at: PR #<TBD> merge to develop` 로 작성 (commit SHA 가 아닌 PR 번호 reference)
+- PR2-6 worker 는 PR1 merge 후 `origin/develop` HEAD 에서 worktree 분기 — `git fetch && git checkout origin/develop` 만 필요. 명시 freeze commit hash 의존 없음.
+- testFixture API 변경이 발생하면 별도 follow-up PR 로 처리; freeze contract 의 의도(시그니처 안정)는 PR2-6 worker 가 PR1 merge 직후 분기하는 것으로 자연스럽게 보존
 
 ---
 
@@ -532,7 +536,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
   - `leader-core/src/testFixtures/kotlin/io/bluetape4k/leader/contract/AbstractSuspendLeaderIdContractTest.kt` (NEW)
   - `leader-core/src/testFixtures/kotlin/io/bluetape4k/leader/contract/AbstractAsyncLeaderIdContractTest.kt` (NEW)
   - `leader-core/src/testFixtures/kotlin/io/bluetape4k/leader/contract/AbstractVirtualThreadLeaderIdContractTest.kt` (NEW)
-- **Depends-on**: T68, T75, T76, T74, T65, T82
+- **Depends-on**: T68, T75, T76, T74, T65 (Step 3-R codex #1 fix — T82 cycle 제거; T82 는 T16 본문 내부에 통합 test case 로 포함)
 - **Description**: spec §10 + Round 5 codex M5 + Round 6 codex #4 + Round 7 N7-4 + Round 17 N17-1.
   - `abstract fun createGroupElector(maxLeaders: Int)`, `abstract fun createSingleElector()`
   - 핵심 테스트:
@@ -579,11 +583,11 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 #### T82 [medium] — `super.X` enforcement contract test (Round 17 N17-1)
 - **PR**: PR1
 - **Files**:
-  - 추가 `@Test` in `AbstractLeaderIdContractTest.kt` (T16 의 일부)
-- **Depends-on**: T16, T75
+  - 추가 `@Test` 케이스 (T16 contract test 본문에 통합 — 별도 file 아님; Step 3-R codex #1 cycle fix)
+- **Depends-on**: T75 (Step 3-R codex #1 fix — T16 dep 제거; T82 는 T16 본문 내부 추가 case 로 deliver)
 - **Description**: Round 17 N17-1 — backend override 안에서 `super.runIfLeader(slot, ...)` / `super.runIfLeaderResult(...)` 호출 금지. contract test 는 backend override 후 `LeaderElectorBridgeLog.global().droppedAuditCount()` / `droppedResultBridgeCount()` 가 **0** 임을 검증.
 - **Acceptance**:
-  - `@BeforeEach` 에서 `LeaderElectorBridgeLog.setGlobal(LeaderElectorBridgeLog())` reset (state 격리)
+  - `@BeforeEach` 에서 `LeaderElectorBridgeLog.setGlobal(LeaderElectorBridgeLog())` AND `LeaderRecorderContextDropLog.setGlobal(LeaderRecorderContextDropLog())` reset 둘 다 (Step 3-R test-engineer symmetric reset)
   - test 종료 시 두 counter 모두 0
   - 위반 시 명확한 fail 메시지
 
@@ -614,8 +618,8 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
   - 7개 grep 모두 실행 + zero exit code
   - host:pid 기대 reader 0 (worktree 내), 발견 시 PR description 에 patch 또는 decision log
 
-#### T67 [low] — testFixture API freeze docs placeholder commit + PR1.5 hash fill-in
-- **PR**: PR1 (placeholder) + PR1.5 (hash fill-in)
+#### T67 [low] — testFixture API freeze docs (Step 3-R B1 revised — PR1 self-contained, NO sub-commit)
+- **PR**: PR1 only (no PR1.5 — branch protection forbids develop direct push)
 - **Files**:
   - `docs/superpowers/specs/2026-05-13-leader-id-testfixture-freeze.md` (NEW)
 - **Depends-on**: T16, T56
@@ -624,12 +628,15 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
     - 각 abstract method signature 명시 (`createGroupElector` / `createSingleElector` / contract test method 리스트)
     - `LeaderLockHandle.Real` constructor positional 순서 (`identity, token, acquiredAtNanos, slotId, acquiringThreadId, reentryDepth, extendDelegate, auditLeaderId`)
     - `LeaderLockHandle.real(...)` factory positional 동일
-    - **`<frozen commit hash: TBD>`** placeholder
-  - **PR1 merge 직후 PR1.5 commit** (develop 직접 push): TBD → PR1 merge commit hash 로 치환
+    - **Step 3-R B2 fix — 추가 freeze 대상**:
+      - `LeaderElectorBridgeLog` global holder API: `companion fun global()`, `setGlobal(LeaderElectorBridgeLog)`, instance `droppedAuditCount()`, `droppedResultBridgeCount()`, `warnOnBridgeUse(KClass, LeaderSlot)`, `warnOnResultBridgeUse(KClass, LeaderSlot)`
+      - `LeaderRecorderContextDropLog` global holder API: `companion fun global()`, `setGlobal(LeaderRecorderContextDropLog)`, `droppedCount()`, `warnOnDrop(KClass, LeaderAopMetricsContext)`
+      - `LeaderAopMetricsContext.Identified(leaderId: String, leaderIdSource: LeaderIdSource)` constructor positional
+    - **Freeze reference**: `Frozen at: PR #<TBD> merge to develop` (commit SHA 아닌 GitHub PR 번호 reference) — Step 3-R B1 fix
 - **Acceptance**:
-  - PR1 description 에 "PR1 merges → PR1.5 commit lands on develop → PR2-6 branch from PR1.5 hash" 절차 명시
-  - PR1.5 commit message: `docs(leader-id): freeze testFixture contract at <hash>`
-- **변경 contract**: 향후 PR2-6 진행 중 testFixture 또는 factory 변경 발생 시 coordinator 통보 → 모든 open PR rebase → frozen hash 갱신 + CHANGELOG internal-API note
+  - PR1 description 에 PR2-6 worker branching 절차 명시: "PR1 merge 후 `git fetch && git checkout origin/develop`"
+  - freeze doc 는 PR1 자체에 포함 (PR1.5 commit 제거)
+- **변경 contract**: 향후 PR2-6 진행 중 testFixture 또는 factory 변경 발생 시 coordinator 통보 → 모든 open PR rebase → 별도 follow-up PR 로 freeze doc 업데이트 (workspace branch protection 준수)
 
 #### T66 [low] — Micrometer counter `leader.aop.leader_id.resolution_failed` (placeholder)
 - **PR**: PR1
@@ -678,7 +685,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 - [ ] CHANGELOG `## [Unreleased]` 섹션 — `leader-core` 신규 타입 + interface default 추가 + `LeaderLease.leaderId → auditLeaderId` rename + `serialVersionUID 1L → 2L` headline
 - [ ] testFixture freeze docs (T67) PR1 placeholder commit 포함
 - [ ] PR description: 모든 test command (`./gradlew :leader-core:test`) + 통과수 + 소요시간 + A0 grep 결과 표
-- [ ] PR1.5 commit message draft 첨부
+- [ ] PR description 에 PR2-6 worker branching 절차 명시 (Step 3-R B1 — PR1.5 제거)
 
 ### PR1 test list (file 단위 명시)
 
@@ -715,20 +722,16 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 
 ---
 
-## PR1.5 (sub-commit) — testFixture freeze hash fill-in
+## PR1.5 — **REMOVED** (Step 3-R B1)
 
-- **Depends-on**: PR1 merge
-- **Scope**: develop 직접 push, 단일 commit
-- **Files**:
-  - `docs/superpowers/specs/2026-05-13-leader-id-testfixture-freeze.md` (MODIFY — `<frozen commit hash: TBD>` 치환)
-- **Commit message**: `docs(leader-id): freeze testFixture contract at <hash>`
-- **Coordinator 의무**: PR1 merge 즉시 PR1.5 commit push → PR2-6 worker 가 PR1.5 commit base 로 worktree 분기 (`git worktree add ... <PR1.5 hash>`)
+이전: develop 직접 push sub-commit. workspace `CLAUDE.md` branch protection 위반.
+대체: PR1 자체에 freeze doc 포함 (T67 — `Frozen at: PR #<TBD> merge to develop` GitHub PR 번호 reference 사용). PR2-6 worker 는 PR1 merge 후 `origin/develop` HEAD 에서 worktree 분기. commit SHA 의존 없음.
 
 ---
 
 ## 2. PR2 — Phase D — Lettuce + Redisson backends
 
-- **depends-on**: PR1 (PR1.5 hash base)
+- **depends-on**: PR1 (`origin/develop` HEAD after PR1 merge — Step 3-R B1)
 - **scope**: 두 Redis backend 가 `LeaderSlot` overload + `slot.leaderId` audit 통합. Lettuce 는 Lua HSET meta, Redisson 은 `RMap<permitId, leaderId>` 병행
 - **freeze**: NO
 
@@ -1743,9 +1746,20 @@ Step 3-R 의 P0=0 / P1≤2 도달 후 PR1 implementation 진입.
 
 | Round | Reviewer set | P0 | P1 | P2 | P3 | Action / commit |
 |-------|--------------|----|----|----|----|----------------|
-| 1 | architect / silent-failure / type-design / code-reviewer | TBD | TBD | TBD | TBD | TBD |
-| 2 | + codex CLI | TBD | TBD | TBD | TBD | TBD |
-| ... | ... | ... | ... | ... | ... | ... |
+| 1 | architect + test-engineer + codex CLI (2026-05-13) | **3** (B1 PR1.5/B2 freeze surface/codex#1 T16↔T82 cycle) | 12 | 7 | 1 | applied (this commit) |
+| 2 | (pending dispatch) | | | | | |
+
+**Round 1 fixes 적용 (P0 + 핵심 P1)**:
+- B1: PR1.5 sub-commit 메커니즘 제거 — PR1 자체에 freeze doc 포함, GitHub PR# reference 사용 (commit SHA 의존 없음). workspace branch protection 준수
+- B2: T67 freeze surface 확장 — `LeaderElectorBridgeLog` + `LeaderRecorderContextDropLog` global API + `LeaderAopMetricsContext.Identified` constructor 추가
+- codex #1: T16 ↔ T82 cycle 해소 — T82 를 T16 본문 내부 test case 로 통합 (별도 task file 아님), T82 depends-on T75 로 변경
+- T82 acceptance: symmetric reset for `LeaderElectorBridgeLog` AND `LeaderRecorderContextDropLog` global (test-engineer)
+
+**Round 1 deferred (Round 2 dispatch 후 평가)**:
+- HIGH: PR1 split (PR1a/PR1b), TDD ordering reorder, PR7 T68b factory-probe specificity, PR2-6 CHANGELOG conflict
+- test-engineer: T38 8th case, T78 dedicated test, T39 hash, T51 recursive, T52 rollback, T58 Java compat, MeterRegistry-absent test
+- M1-M3: metric name SoT, KDoc per-task, count mismatch
+- codex P2/P3: A0 grep extended, downstream verification, complexity recalc, README count
 
 각 round 의 P0 (blocker) / P1 (high) 모두 fix 후 다음 round dispatch — Step 2-R 와 동일 convergence gate pattern.
 
