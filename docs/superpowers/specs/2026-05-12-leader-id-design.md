@@ -197,7 +197,14 @@ class CompositeLeaderIdProvider(
   @LeaderInternalApi
   public fun safeNextLeaderId(provider: LeaderIdProvider, lockName: String): String =
       try {
-          provider.nextLeaderId(lockName).ifBlank { RandomLeaderIdProvider.Default.nextLeaderId(lockName) }
+          val raw = provider.nextLeaderId(lockName)
+          if (raw.isBlank()) {
+              // Round 10 N10-5 fix — blank-result path도 명시 log (이전: silent fall-through)
+              log.warn {
+                  "LeaderIdProvider returned blank; falling back to Default. provider=${provider::class.simpleName} lockName=$lockName"
+              }
+              RandomLeaderIdProvider.Default.nextLeaderId(lockName)
+          } else raw
       } catch (e: kotlinx.coroutines.CancellationException) {
           throw e                                     // Round 2 A3 — never swallow cancellation
       } catch (e: InterruptedException) {
@@ -415,7 +422,7 @@ class LeaderElectorBridgeLog(private val cacheSize: Int = DEFAULT_CACHE_SIZE) {
 
     fun warnOnBridgeUse(implClass: KClass<*>, slot: LeaderSlot) {
         droppedCounter.incrementAndGet()
-        val key = "${implClass.qualifiedName}|${slot.leaderId}"
+        val key = "${implClass.qualifiedName}|slot|${slot.leaderId}"
         // Round 9 N9-3 — synchronized 외부에서 log.warn 호출 (contention 회피)
         val firstTime: Boolean
         synchronized(warnedPairs) {
@@ -428,16 +435,47 @@ class LeaderElectorBridgeLog(private val cacheSize: Int = DEFAULT_CACHE_SIZE) {
         }
     }
 
+    // Round 10 N10-1 P0 fix — partial-override 감지용 separate WARN
+    // backend 가 runIfLeader(slot) 만 override + runIfLeaderResult(slot) 미override 시 호출
+    fun warnOnResultBridgeUse(implClass: KClass<*>, slot: LeaderSlot) {
+        droppedResultCounter.incrementAndGet()
+        val key = "${implClass.qualifiedName}|result|${slot.leaderId}"     // distinct namespace
+        val firstTime: Boolean
+        synchronized(warnedPairs) {
+            firstTime = warnedPairs.put(key, true) == null
+        }
+        if (firstTime) {
+            log.warn {
+                "${implClass.simpleName} overrode runIfLeader(LeaderSlot) but NOT runIfLeaderResult(LeaderSlot); " +
+                "Elected.leaderId will be null for '${slot.leaderId}' (partial-override; see T72)"
+            }
+        }
+    }
+
+    private val droppedResultCounter = AtomicLong(0)
+    fun droppedResultBridgeCount(): Long = droppedResultCounter.get()
+
     companion object {
         private val log = KotlinLogging.logger { }
 
         const val DEFAULT_CACHE_SIZE: Int = 256        // Round 9 I-R9-1 UPPER_SNAKE_CASE
 
-        // Round 9 N9-2 fix — Global holder pattern for interface default-method access
-        // (non-Spring users 도 default no-op instance 로 동작; Spring autoconfig 가 instance 교체)
+        // Round 9 N9-2 + Round 10 N10-3 fix — Global holder pattern + audit swap log
+        // Trade-off acknowledged (Round 8 NEW-1 superseded): interface default methods
+        // cannot inject DI; static holder is deliberate. Test isolation requires explicit
+        // setGlobal() reset per @DirtiesContext.
         @Volatile
         private var globalInstance: LeaderElectorBridgeLog = LeaderElectorBridgeLog()
-        fun setGlobal(instance: LeaderElectorBridgeLog) { globalInstance = instance }
+        fun setGlobal(instance: LeaderElectorBridgeLog) {
+            val prev = globalInstance
+            globalInstance = instance
+            if (prev !== instance) {
+                log.info {
+                    "LeaderElectorBridgeLog.global swapped: prev.dropped=${prev.droppedAuditCount()}, " +
+                    "prev.resultDropped=${prev.droppedResultBridgeCount()}"
+                }
+            }
+        }
         fun global(): LeaderElectorBridgeLog = globalInstance
     }
 }
@@ -593,8 +631,14 @@ private fun resolveLeaderId(
                 "SpEL evaluation failed for @LeaderGroupElection.leaderId='$spelExpr' on $method", e
             )
         }
-        if (evaluated.isNotBlank()) return ResolvedLeaderId(evaluated, LeaderIdSource.SPEL)
-        // blank result falls through (defensive — never throw on blank)
+        // Round 10 N10-4 fix: 개발자가 명시적 SpEL 사용 시 blank 결과 = 미스컨피그 → throw
+        // silent AUTO downgrade 가 audit 거짓 attribution 야기
+        if (evaluated.isBlank()) {
+            throw LeaderIdResolutionException(
+                "SpEL '$spelExpr' evaluated to blank — explicit SpEL must yield non-blank id (on $method)"
+            )
+        }
+        return ResolvedLeaderId(evaluated, LeaderIdSource.SPEL)
     }
 
     // Step 2: property fallback
@@ -619,6 +663,9 @@ try {
     val resolved = resolveLeaderId(meta, method, args, target, lockName)
     val slot = LeaderSlot(lockName, resolved.value)
     val info = LeaderElectionInfo(lockName, wasElected = true, leaderId = resolved.value, leaderIdSource = resolved.source)  // Round 9 NEW-9-2 — pairing invariant
+    // Round 10 architect P2 — NotElected 분기 (skip / fail-open):
+    //   val skipInfo = LeaderElectionInfo(lockName, wasElected = false, leaderId = null, leaderIdSource = null)
+    //   wasElected=false 시 leaderId/source 반드시 둘 다 null — init invariant (PR7) 충족
     elector.runIfLeaderResult(slot) { /* action */ }
     // metric/info: resolved.source 로 LeaderIdSource 노출
 } catch (e: CancellationException) {
@@ -874,9 +921,16 @@ class LeaderRecorderContextDropLog {
 
         // Round 9 N9-2 fix — Global holder for interface default-method access
         // (interface default 는 DI inject 불가; Spring autoconfig 가 instance 를 set)
+        // Round 10 N10-3 fix — log on swap
         @Volatile
         private var globalInstance: LeaderRecorderContextDropLog = LeaderRecorderContextDropLog()
-        fun setGlobal(instance: LeaderRecorderContextDropLog) { globalInstance = instance }
+        fun setGlobal(instance: LeaderRecorderContextDropLog) {
+            val prev = globalInstance
+            globalInstance = instance
+            if (prev !== instance) {
+                log.info { "LeaderRecorderContextDropLog.global swapped: prev.dropped=${prev.droppedCount()}" }
+            }
+        }
         fun global(): LeaderRecorderContextDropLog = globalInstance
     }
 }
@@ -1477,14 +1531,14 @@ Round 7 추가 task (real codex CLI 결과 반영)
   T73 [med]   [PR7] T68b/T69b 를 Phase I 로 이동 + AutoConfig 순서 명시 (Round 7 codex #4)
 
 Round 7.6 추가 task (잔존 P1 적용)
-  T74 [med]   [PR1] LeaderRecorderContextDropLog.Throttle — 4-arg default 호출 시 context drop WARN (recorder class 당 1회) + drop counter. ApplicationContext-scoped bean (Round 8 NEW-1 lifecycle fix) (Round 7 H3)
+  T74 [med]   [PR1] LeaderRecorderContextDropLog (single class, Round 9 N9-1 collapse) — 4-arg default 호출 시 context drop WARN (recorder class 당 1회) + drop counter. Global holder pattern (Round 9 N9-2). Round 8 NEW-1 lifecycle-scoped 약속은 SUPERSEDED — interface default 가 DI 못 받음, 명시적 static holder + 명시 setGlobal swap log (Round 10) (Round 7 H3)
   T75 [med]   [PR1] LeaderElectorBridgeLog — (class, leaderId) pair LRU throttle (cap configurable via `bluetape4k.leader.bridge.warn-cache-size`, default 256) + droppedCounter. LinkedHashMap accessOrder=true (Round 8 codex #3) (Round 7 H4)
   T76 [med]   [PR1] LeaderAopMetricsContext sealed interface 도입 — Unknown data object / Identified(leaderId, source) data class. Identified.init { leaderId.requireNotBlank }. Empty companion = Unknown alias (Round 7 N7-5 / type-design)
 
 Round 8 추가 task (Round 8 fix 반영)
   T77 [high]  [PR1] LeaderRecorderContextDropLog sealed 호환 — `context as? Identified ?: return` 패턴 (Round 8 N8-1 / codex #1 — sealed 도입과 동시 commit 시 미반영)
   T78 [med]   [PR7] resolveLeaderId final blank guard — fallback chain 4 level 모두 통과 후 결과가 blank 면 LeaderIdResolutionException throw. Identified.init 도달 시 user method 영향 차단 (Round 8 NEW-3)
-  T79 [low]   [PR1] LeaderElectorBridgeLog throttle 도 instance-scoped Throttle class 로 변경 — Spring context restart 시 stale state 차단 (Round 8 NEW-1)
+  T79 [low]   [PR1] LeaderElectorBridgeLog Global holder + setGlobal swap log — Round 8 NEW-1 lifecycle-scoped 약속 SUPERSEDED (interface default DI 불가); Spring autoconfig PR7 가 setGlobal 로 instance 교체 (Round 10 N10-2 reconcile)
   T80 [low]   §11 CHANGELOG row 를 짧은 pointer 로 변경 + 별도 `### CHANGELOG draft` 섹션 (Round 8 codex #4 / N8-3)
 ```
 
@@ -1670,7 +1724,7 @@ Round 6 dispatched 5 parallel reviewers:
 
 **Round 8 fixes 적용**:
 - **N8-1 / Q2 / codex #1 P0**: `LeaderRecorderContextDropLog` sealed 호환 — `context as? Identified ?: return` 패턴 사용 (T77)
-- **NEW-1 P0**: `LeaderRecorderContextDropLog.Throttle` 와 `LeaderElectorBridgeLog` 둘 다 `ApplicationContext-scoped` class 로 변경 (static singleton 폐기) → context restart 시 state reset (T79)
+- **NEW-1 P0** (Round 8 — SUPERSEDED by Round 9 N9-1/N9-2 + Round 10 N10-2): 원래 `LeaderRecorderContextDropLog.Throttle` 와 `LeaderElectorBridgeLog` 둘 다 ApplicationContext-scoped class 로 변경 시도. 실제로는 interface default method 가 DI 못 받음 → Round 9 에서 Global holder pattern + setGlobal swap log 로 전환. Round 10 에서 명시적 trade-off 인정. context restart 는 명시 setGlobal 호출 필수 (test 시 @DirtiesContext 로 reset 안 됨)
 - **NEW-3 P1**: `resolveLeaderId` 마지막 fallback (provider) 결과가 blank 일 때 `LeaderIdResolutionException` throw — Identified.init 에 blank 도달 차단 (T78)
 - **N8-2 P1**: T74/T75/T76 에 `[PR1]` 라벨, T71 `[PR7]`, T72 `[PR2-6]`, T73 `[PR7]` 추가
 - **codex #2 P1**: T71 `LeaderAopMetricsContext(resolved.value, resolved.source)` flat constructor 표현을 `LeaderAopMetricsContext.Identified(...)` 로 갱신 (sealed 호환)
@@ -1709,7 +1763,9 @@ User directive: convergence gate continues. Phase 1 × 4 + real codex CLI 재dis
 | 5 (real codex first run) | 1 | 2 | 2 | 0 | applied 83328f4 |
 | 6 (Phase 1 × 4 + real codex) | 1 | 2 | 4 | 1 | applied 6e72973 |
 | 7 (silent-failure + architect + codex BG) | 3 | 5 | 0 | 1 | applied 7bfd178 + 6969fda + e82b374 |
-| 8 (silent-failure + architect + codex BG) | 2 | 4 | 1 | 2 | applied (this commit) |
-| 9 | (pending dispatch) | | | | |
+| 8 (silent-failure + architect + codex BG) | 2 | 4 | 1 | 2 | applied 0297042 |
+| 9 (silent-failure + architect + type-design + code-reviewer + codex) | 0 | 7 | 1 | 1 | applied 4af9a79 |
+| 10 (silent-failure + architect + codex) | 1 | 5 | 0 | 2 | applied (this commit) |
+| 11 | (pending dispatch) | | | | |
 
 총 70 task (+ T68b/T68c/T69b 신규 verification task). 8 PR phased delivery.
