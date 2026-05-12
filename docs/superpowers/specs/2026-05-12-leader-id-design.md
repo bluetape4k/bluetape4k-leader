@@ -378,15 +378,19 @@ interface LeaderElector : AsyncLeaderElector {
         return runIfLeader(slot.lockName, action)     // ← bridge — backend 가 override 안 해도 동작
     }
 
-    // Result variant — Round 6 C1 + Codex #1 + Round 9 NEW-9-2 fix
+    // Result variant — Round 6 C1 + Codex #1 + Round 9 NEW-9-2 + Round 12 architect P1 fix
     fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
-        // Round 9 NEW-9-2 — backend 가 runIfLeader(slot) 만 override 한 partial-override 감지
-        // separate WARN: result variant bridge 사용 시 (구분 가능한 메시지)
+        // Round 9 NEW-9-2 + Round 11 NEW-11-1 — result-bridge 사용 시 audit 누락 가시화
+        // backend 가 runIfLeader(slot) override 하더라도 runIfLeaderResult(slot) 미override → 이 path 통과
+        // backend 가 둘 다 미override 도 마찬가지 — generic 메시지 (Round 11 N11-1)
         if (slot.leaderId.isNotBlank() && this::class != LeaderElector::class) {
             LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         }
         var elected = false
-        val v = runIfLeader(slot) { elected = true; action() }
+        // Round 12 architect P1 fix — bridge bypass nested call:
+        // `runIfLeader(slot.lockName, ...)` 로 직접 호출하여 inner slot-bridge counter 중복 증가 차단
+        // (이전: `runIfLeader(slot) { ... }` → nested bridge 호출로 droppedAuditCount 도 증가)
+        val v = runIfLeader(slot.lockName) { elected = true; action() }
         return if (elected) {
             // bridge default — backend 가 audit stamp 했는지 보장 못 함 → leaderId=null
             // backend override 시 slot.leaderId stamp 보장 후 Elected(v, slot.leaderId) 직접 반환
@@ -547,8 +551,12 @@ interface AsyncLeaderGroupElector : LeaderGroupElectionState {
     }
 
     fun <T> runAsyncIfLeaderResult(slot: LeaderSlot, executor: Executor, action: () -> CompletableFuture<T>): CompletableFuture<LeaderRunResult<T>> {
+        if (slot.leaderId.isNotBlank() && this::class != AsyncLeaderGroupElector::class) {
+            LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
+        }
         val elected = AtomicBoolean(false)                    // H5 — memory-safe across async hop
-        return runAsyncIfLeader(slot, executor) { elected.set(true); action() }
+        // Round 12 architect P1 fix — bypass nested slot-bridge (lockName 직접 호출)
+        return runAsyncIfLeader(slot.lockName, executor) { elected.set(true); action() }
             .thenApply { v ->
                 if (elected.get()) LeaderRunResult.Elected(v, leaderId = null)    // bridge — leaderId=null
                 else LeaderRunResult.Skipped
@@ -564,8 +572,12 @@ interface VirtualThreadLeaderGroupElector : LeaderGroupElectionState {
         return runAsyncIfLeader(slot.lockName, action)
     }
     fun <T> runAsyncIfLeaderResult(slot: LeaderSlot, action: () -> T): VirtualFuture<LeaderRunResult<T>> {
+        if (slot.leaderId.isNotBlank() && this::class != VirtualThreadLeaderGroupElector::class) {
+            LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
+        }
         val elected = AtomicBoolean(false)                    // H5 — memory-safe across VT
-        return runAsyncIfLeader(slot) { elected.set(true); action() }
+        // Round 12 architect P1 fix — bypass nested slot-bridge
+        return runAsyncIfLeader(slot.lockName) { elected.set(true); action() }
             .map { v -> if (elected.get()) LeaderRunResult.Elected(v, leaderId = null) else LeaderRunResult.Skipped }
     }
 }
@@ -579,10 +591,14 @@ interface SuspendLeaderGroupElector : LeaderGroupElectionState {
     }
 
     suspend fun <T> runIfLeaderResultSuspend(slot: LeaderSlot, action: suspend () -> T): LeaderRunResult<T> {
+        if (slot.leaderId.isNotBlank() && this::class != SuspendLeaderGroupElector::class) {
+            LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
+        }
         var elected = false
         // Manual try-catch — NO runCatching (CLAUDE.md rule); CancellationException rethrow first
+        // Round 12 architect P1 fix — bypass nested slot-bridge
         val v = try {
-            runIfLeader(slot) { elected = true; action() }
+            runIfLeader(slot.lockName) { elected = true; action() }
         } catch (e: CancellationException) {
             throw e                                            // H6 — never swallow CE
         }
@@ -1788,7 +1804,8 @@ User directive: convergence gate continues. Phase 1 × 4 + real codex CLI 재dis
 | 8 (silent-failure + architect + codex BG) | 2 | 4 | 1 | 2 | applied 0297042 |
 | 9 (silent-failure + architect + type-design + code-reviewer + codex) | 0 | 7 | 1 | 1 | applied 4af9a79 |
 | 10 (silent-failure + architect + codex) | 1 | 5 | 0 | 2 | applied c9fa36a |
-| 11 (silent-failure + architect + codex) | 0 | 3 | 4 | 2 | applied (this commit) |
-| 12 | (pending dispatch) | | | | |
+| 11 (silent-failure + architect + codex) | 0 | 3 | 4 | 2 | applied 3a11baf |
+| 12 (silent-failure + architect) | 0 | 2 | 5 | 1 | applied (this commit) |
+| 13 | (pending dispatch) | | | | |
 
 총 70 task (+ T68b/T68c/T69b 신규 verification task). 8 PR phased delivery.
