@@ -449,10 +449,12 @@ class LeaderElectorBridgeLog(private val cacheSize: Int = DEFAULT_CACHE_SIZE) {
             firstTime = warnedResultPairs.put(key, true) == null
         }
         if (firstTime) {
-            // Round 11 codex NEW-11-1 fix — generic message (neither method overridden 도 cover)
+            // Round 11 codex NEW-11-1 + Round 12 codex NEW-12-1 fix — correct remediation:
+            // backend 는 BOTH `runIfLeader(slot)` AND `runIfLeaderResult(slot)` 둘 다 override 의무 (T72)
             log.warn {
                 "${implClass.simpleName} used default runIfLeaderResult(LeaderSlot) bridge; " +
-                "Elected.leaderId will be null for '${slot.leaderId}' — override runIfLeaderResult to stamp audit (see T72)"
+                "Elected.leaderId will be null for '${slot.leaderId}' — backend MUST override BOTH " +
+                "runIfLeader(LeaderSlot) AND runIfLeaderResult(LeaderSlot) to stamp audit (see T72)"
             }
         }
     }
@@ -1561,7 +1563,7 @@ Round 3 추가 task (Step 2-R Round 3 결과 반영)
 Round 5 추가 task (real codex CLI 결과 반영)
   T68 [high]  PR1 — 모든 elector interface (sync/suspend/async/VT × single/group = 8) 에 LeaderSlot bridge `default` 메서드 추가, 기존 lockName overload 으로 delegate (Round 5 codex B1 — backend 컴파일 깨짐 방지)
   T69 [med]   LeaderAopMetricsRecorder API 확장 — LeaderAopMetricsContext(leaderId, leaderIdSource) data class + backward-compat default method (Round 5 codex H2)
-  T70 [low]   leader-micrometer/MicrometerNames.kt — TAG_LEADER_ID + TAG_LEADER_ID_SOURCE 상수 추가 + MicrometerLeaderAopMetricsRecorder 가 신규 overload override (Round 5 codex H2)
+  T70 [low]   leader-micrometer/MicrometerNames.kt — TAG_LEADER_ID + TAG_LEADER_ID_SOURCE 상수 추가 + MicrometerLeaderAopMetricsRecorder 가 신규 overload override (Round 5 codex H2) + bridge drop gauge 2종 등록: `leader.aop.bridge.dropped` (← `LeaderElectorBridgeLog.global().droppedAuditCount()`) + `leader.aop.bridge.result-dropped` (← `droppedResultBridgeCount()`). leader-spring-boot 의 LeaderMicrometerAutoConfiguration 또는 LeaderAopAutoConfiguration 에서 등록 (Round 12 codex NEW-12-2)
 
 Round 7 추가 task (real codex CLI 결과 반영)
   T71 [high]  [PR7] LeaderGroupElectionAspect / LeaderElectionAspect — 6개 recorder call site 모두에 context overload 통과: onLockAttempt, onLockAcquired, onLockNotAcquired, onTaskStarted, onTaskFinished, onTaskFailed. resolved audit 있으면 `LeaderAopMetricsContext.Identified(resolved.value, resolved.source)`, 없으면 `LeaderAopMetricsContext.Unknown` (Round 7 codex #3 + Round 8 codex #2 sealed 호환)
