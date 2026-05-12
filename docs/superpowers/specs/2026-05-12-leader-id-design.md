@@ -366,20 +366,23 @@ interface LeaderElector : AsyncLeaderElector {
     // Round 6 H1: WARN log 가 backend non-override 즉시 가시화
     fun <T> runIfLeader(slot: LeaderSlot, action: () -> T): T? {
         if (slot.leaderId.isNotBlank() && this::class != LeaderElector::class) {
-            LeaderElectorBridgeLog.warnOnBridgeUse(this::class, slot)
+            LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
         }
         return runIfLeader(slot.lockName, action)     // ← bridge — backend 가 override 안 해도 동작
     }
 
-    // Result variant — Round 6 C1 + Codex #1 fix
-    // (1) elected flag pattern 보존 — action 이 null 반환하는 경우와 elected-but-null 구분
-    // (2) leaderId=null 반환 — bridge 는 audit stamp 보장 못 함
+    // Result variant — Round 6 C1 + Codex #1 + Round 9 NEW-9-2 fix
     fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
+        // Round 9 NEW-9-2 — backend 가 runIfLeader(slot) 만 override 한 partial-override 감지
+        // separate WARN: result variant bridge 사용 시 (구분 가능한 메시지)
+        if (slot.leaderId.isNotBlank() && this::class != LeaderElector::class) {
+            LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
+        }
         var elected = false
         val v = runIfLeader(slot) { elected = true; action() }
         return if (elected) {
-            // backend 가 override 안 한 경우 (bridge path 통과) leaderId=null
-            // backend override 시 slot.leaderId 가 stamp 되었음을 보장 후 직접 반환
+            // bridge default — backend 가 audit stamp 했는지 보장 못 함 → leaderId=null
+            // backend override 시 slot.leaderId stamp 보장 후 Elected(v, slot.leaderId) 직접 반환
             LeaderRunResult.Elected(v, leaderId = null)
         } else {
             LeaderRunResult.Skipped
@@ -392,15 +395,14 @@ interface LeaderElector : AsyncLeaderElector {
 - 이전 spec: bridge default 가 `Elected(v, slot.leaderId)` 반환 — backend 가 audit 안 찍었는데 결과는 찍힌 척 → multi-tenant forensics 거짓 attribution
 - 신규: bridge default 는 `Elected(v, null)` 반환 → "backend 가 audit 보장 못함" 명시. backend 가 override 시에만 `Elected(v, slot.leaderId)` 직접 반환 (실제 stamp 보장)
 
-**H1 + H4 + Round 8 NEW-1 fix — bridge transition window 가시화 + configurable LRU throttle + lifecycle scoped**:
+**H1 + H4 + Round 8 NEW-1 + Round 9 N9-2/3/5 + I-R9-1/2 fix**:
 ```kotlin
 // leader-core/.../identity/LeaderElectorBridgeLog.kt
-// Round 8 NEW-1: ApplicationContext-scoped — Spring context restart 시 state reset
-class LeaderElectorBridgeLog(private val cacheSize: Int = DefaultCacheSize) {
-    private val log = KotlinLogging.logger { }
+class LeaderElectorBridgeLog(private val cacheSize: Int = DEFAULT_CACHE_SIZE) {
+    init { cacheSize.requireGt(0, "cacheSize") }       // Round 9 N9-5 — fail-fast validation
 
-    // Round 7 H4 + Round 8 codex #3 — configurable cap
-    // LinkedHashMap accessOrder=true: get() promotes to MRU; put 후 동일 key get() 호출 시 promote
+    // LinkedHashMap accessOrder=true: put on new key 는 MRU 자동 배치
+    // put on existing key 도 accessOrder 갱신 — separate get() 불필요 (Round 9 N9-4)
     private val warnedPairs: MutableMap<String, Boolean> = Collections.synchronizedMap(
         object : LinkedHashMap<String, Boolean>(cacheSize, 0.75f, /* accessOrder = */ true) {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>?): Boolean =
@@ -414,22 +416,36 @@ class LeaderElectorBridgeLog(private val cacheSize: Int = DefaultCacheSize) {
     fun warnOnBridgeUse(implClass: KClass<*>, slot: LeaderSlot) {
         droppedCounter.incrementAndGet()
         val key = "${implClass.qualifiedName}|${slot.leaderId}"
+        // Round 9 N9-3 — synchronized 외부에서 log.warn 호출 (contention 회피)
+        val firstTime: Boolean
         synchronized(warnedPairs) {
-            val firstTime = warnedPairs.put(key, true) == null
-            warnedPairs[key]  // accessOrder promotion (LRU 정확 동작)
-            if (firstTime) {
-                log.warn {
-                    "${implClass.simpleName} has not overridden runIfLeader(LeaderSlot, ...); audit identity '${slot.leaderId}' is dropped during PR2-PR6 transition window"
-                }
+            firstTime = warnedPairs.put(key, true) == null
+        }
+        if (firstTime) {
+            log.warn {
+                "${implClass.simpleName} has not overridden runIfLeader(LeaderSlot, ...); audit identity '${slot.leaderId}' is dropped during PR2-PR6 transition window"
             }
         }
     }
 
     companion object {
-        const val DefaultCacheSize: Int = 256  // configurable: bluetape4k.leader.bridge.warn-cache-size
+        private val log = KotlinLogging.logger { }
+
+        const val DEFAULT_CACHE_SIZE: Int = 256        // Round 9 I-R9-1 UPPER_SNAKE_CASE
+
+        // Round 9 N9-2 fix — Global holder pattern for interface default-method access
+        // (non-Spring users 도 default no-op instance 로 동작; Spring autoconfig 가 instance 교체)
+        @Volatile
+        private var globalInstance: LeaderElectorBridgeLog = LeaderElectorBridgeLog()
+        fun setGlobal(instance: LeaderElectorBridgeLog) { globalInstance = instance }
+        fun global(): LeaderElectorBridgeLog = globalInstance
     }
 }
 ```
+
+- **Interface default 호출 site** (Round 9 N9-2): `LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)`
+- **Spring autoconfig (PR7 Phase I)**: `@Bean fun bridgeLog(props): LeaderElectorBridgeLog = LeaderElectorBridgeLog(props.bridge.warnCacheSize).also { LeaderElectorBridgeLog.setGlobal(it) }`
+- **ContextClosedEvent listener**: `LeaderElectorBridgeLog.setGlobal(LeaderElectorBridgeLog())` 로 fresh instance reset
 - (class, leaderId) pair LRU throttle — multi-tenant 환경 distinct tenant 별 1회 WARN
 - **Cap configurable** (Round 8 codex #3): `bluetape4k.leader.bridge.warn-cache-size` property, default 256. 10k+ tenant 환경에서 4096 이상 권장
 - **Lifecycle scoped** (Round 8 NEW-1): static singleton 아닌 ApplicationContext-scoped bean → `@DirtiesContext` 테스트 또는 context restart 시 state reset
@@ -602,7 +618,7 @@ try {
     val lockName = resolveLockName(meta, method, args, target)
     val resolved = resolveLeaderId(meta, method, args, target, lockName)
     val slot = LeaderSlot(lockName, resolved.value)
-    val info = LeaderElectionInfo(lockName, wasElected = true, leaderId = resolved.value)
+    val info = LeaderElectionInfo(lockName, wasElected = true, leaderId = resolved.value, leaderIdSource = resolved.source)  // Round 9 NEW-9-2 — pairing invariant
     elector.runIfLeaderResult(slot) { /* action */ }
     // metric/info: resolved.source 로 LeaderIdSource 노출
 } catch (e: CancellationException) {
@@ -805,60 +821,72 @@ interface LeaderAopMetricsRecorder {
     // Round 7 H3 fix — context != Empty 일 때 first-call WARN (recorder class 당 1회)
     // + drop counter 증가 (operator 가 누락 규모 observability)
     fun onLockAttempt(name: String, options: LeaderElectionOptions, context: LeaderAopMetricsContext) {
-        LeaderRecorderContextDropLog.warnOnDrop(this::class, context)
+        LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
         onLockAttempt(name, options)
     }
     fun onLockAcquired(name: String, options: LeaderElectionOptions, acquireElapsed: Duration, context: LeaderAopMetricsContext) {
-        LeaderRecorderContextDropLog.warnOnDrop(this::class, context)
+        LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
         onLockAcquired(name, options, acquireElapsed)
     }
     fun onLockNotAcquired(name: String, options: LeaderElectionOptions, reason: SkipReason, context: LeaderAopMetricsContext) {
-        LeaderRecorderContextDropLog.warnOnDrop(this::class, context)
+        LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
         onLockNotAcquired(name, options, reason)
     }
     fun onTaskStarted(name: String, context: LeaderAopMetricsContext) {
-        LeaderRecorderContextDropLog.warnOnDrop(this::class, context)
+        LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
         onTaskStarted(name)
     }
     fun onTaskFinished(name: String, executionTime: Duration, context: LeaderAopMetricsContext) {
-        LeaderRecorderContextDropLog.warnOnDrop(this::class, context)
+        LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
         onTaskFinished(name, executionTime)
     }
     fun onTaskFailed(name: String, executionTime: Duration, throwable: Throwable, context: LeaderAopMetricsContext) {
-        LeaderRecorderContextDropLog.warnOnDrop(this::class, context)
+        LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
         onTaskFailed(name, executionTime, throwable)
     }
 
     object NoOp : LeaderAopMetricsRecorder
 }
 
-// leader-core/.../metrics/LeaderRecorderContextDropLog.kt — Round 7 H3 + Round 8 N8-1 fix
-// Round 8 N8-1 P0 fix: sealed LeaderAopMetricsContext 호환 predicate (Unknown 에는 필드 없음)
-internal object LeaderRecorderContextDropLog {
-    private val log = KotlinLogging.logger { }
+// leader-core/.../metrics/LeaderRecorderContextDropLog.kt
+// Round 9 N9-1 + Issue 1 + C-R9-1 + NEW-9-5 fix: collapse outer object → single class
+// All state (warnedClasses + droppedCounter) on instance — context restart 시 모두 reset
+class LeaderRecorderContextDropLog {
+    private val warnedClasses = ConcurrentHashMap.newKeySet<KClass<*>>()
     private val droppedCounter = AtomicLong(0)
     fun droppedCount(): Long = droppedCounter.get()
 
-    // Round 8 NEW-1 fix: warnedClasses 를 instance-scoped 로 만들어 Spring context restart 영향 차단
-    // 실제 wiring: LeaderAopAutoConfiguration 에서 ApplicationContext-scoped bean 으로 등록
-    class Throttle {
-        private val warnedClasses = ConcurrentHashMap.newKeySet<KClass<*>>()
-        fun warnOnDrop(recorderClass: KClass<*>, context: LeaderAopMetricsContext) {
-            // sealed type 패턴 매칭 — Unknown 은 early-return
-            val identified = context as? LeaderAopMetricsContext.Identified ?: return
-            droppedCounter.incrementAndGet()
-            if (warnedClasses.add(recorderClass)) {
-                log.warn {
-                    "${recorderClass.simpleName} did not override 4-arg context overload; " +
-                    "audit context (leaderId=${identified.leaderId}, source=${identified.leaderIdSource}) is dropped"
-                }
+    fun warnOnDrop(recorderClass: KClass<*>, context: LeaderAopMetricsContext) {
+        // sealed type 패턴 매칭 — Unknown 은 early-return (Round 8 N8-1)
+        val identified = context as? LeaderAopMetricsContext.Identified ?: return
+        droppedCounter.incrementAndGet()
+        val firstTime = warnedClasses.add(recorderClass)
+        if (firstTime) {
+            log.warn {                                  // Round 9 N9-3: synchronized 내 log 호출 회피 (single-set, lock-free add)
+                "${recorderClass.simpleName} did not override 4-arg context overload; " +
+                "audit context (leaderId=${identified.leaderId}, source=${identified.leaderIdSource}) is dropped"
             }
         }
     }
 
-    // Spring context restart 시 fresh Throttle 생성 — Round 8 NEW-1
-    // ApplicationContext-scoped singleton bean
+    companion object {
+        private val log = KotlinLogging.logger { }
+
+        // Round 9 N9-2 fix — Global holder for interface default-method access
+        // (interface default 는 DI inject 불가; Spring autoconfig 가 instance 를 set)
+        @Volatile
+        private var globalInstance: LeaderRecorderContextDropLog = LeaderRecorderContextDropLog()
+        fun setGlobal(instance: LeaderRecorderContextDropLog) { globalInstance = instance }
+        fun global(): LeaderRecorderContextDropLog = globalInstance
+    }
 }
+
+// Interface default 호출 site:
+//   LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
+// Spring autoconfig (PR7 Phase I):
+//   @Bean fun recorderDropLog(): LeaderRecorderContextDropLog =
+//       LeaderRecorderContextDropLog().also { LeaderRecorderContextDropLog.setGlobal(it) }
+//   ContextClosedEvent listener 가 setGlobal(LeaderRecorderContextDropLog()) 로 fresh instance 로 reset
 
 // MicrometerLeaderAopMetricsRecorder 가 신규 메서드 override 하여 leader.id / leader.id.source tag 기록
 // leader-micrometer/.../MicrometerNames.kt 에 신규 상수 추가:
@@ -1348,9 +1376,9 @@ Phase A — Core types (PR1)
   T4 [low]    identity/HostnamePidLeaderIdProvider.kt — opt-in PII
   T5 [low]    identity/CompositeLeaderIdProvider.kt — prefix wrap
   T6 [med]    LeaderLease.kt — add nodeId, semantic shift KDoc
-  T7 [med]    LeaderRunResult.kt — add leaderId="" to Elected
+  T7 [med]    LeaderRunResult.kt — add `leaderId: String? = null` (nullable, NOT "") to Elected (Round 9 NEW-9-3 — align with D4 nullable contract)
   T8 [med]    LeaderLockHandle.kt — add auditLeaderId, copy preserve
-  T9 [low]    coroutines/LeaderElectionInfo.kt — add leaderId=""
+  T9 [low]    coroutines/LeaderElectionInfo.kt — add `leaderId: String? = null` + `leaderIdSource: LeaderIdSource? = null` (nullable, NOT "") + paired (Round 9 NEW-9-3 — align with D5 nullable contract)
 
 Phase B — Core interfaces (PR1)
   T10 [high]  LeaderElector.kt + LeaderGroupElector.kt — LeaderSlot primary + Result variant
