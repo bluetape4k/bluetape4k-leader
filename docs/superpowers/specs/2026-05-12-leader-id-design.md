@@ -180,15 +180,30 @@ class CompositeLeaderIdProvider(
 
 - Default bound bean = `RandomLeaderIdProvider.Default` (PII conservative)
 - `HostnamePidLeaderIdProvider` KDoc: "Emits hostname:pid in audit logs; do NOT use in multi-tenant SaaS where hostname is sensitive."
-- **Defensive elector wrapper** (R6 대응):
+- **Defensive helper** (R6 / Round 2 A3 / N8 — top-level fun in `leader-core/.../identity/`):
   ```kotlin
-  protected fun safeNextLeaderId(lockName: String): String =
-      try { idProvider.nextLeaderId(lockName).ifBlank { RandomLeaderIdProvider.Default.nextLeaderId(lockName) } }
-      catch (e: Exception) {
-          log.error(e) { "LeaderIdProvider failed; falling back to Default. provider=${idProvider::class.simpleName} lockName=$lockName" }
+  // leader-core/src/main/kotlin/io/bluetape4k/leader/identity/LeaderIdProviders.kt
+  private val log = KotlinLogging.logger { }
+
+  /**
+   * Defensive wrapper: calls [provider].nextLeaderId(lockName) and falls back to
+   * [RandomLeaderIdProvider.Default] on any exception or blank result.
+   *
+   * CancellationException is rethrown before broad-catch per CLAUDE.md.
+   */
+  internal fun safeNextLeaderId(provider: LeaderIdProvider, lockName: String): String =
+      try {
+          provider.nextLeaderId(lockName).ifBlank { RandomLeaderIdProvider.Default.nextLeaderId(lockName) }
+      } catch (e: kotlinx.coroutines.CancellationException) {
+          throw e                                     // Round 2 A3 — never swallow cancellation
+      } catch (e: Exception) {
+          log.error(e) { "LeaderIdProvider failed; falling back to Default. provider=${provider::class.simpleName} lockName=$lockName" }
           RandomLeaderIdProvider.Default.nextLeaderId(lockName)
       }
   ```
+  - **Top-level `internal fun`** (N8 — 별도 abstract base 없이 elector + Aspect 공통 사용)
+  - `CancellationException` 명시 re-throw (A3 — bluetape4k-patterns rule)
+  - Caller usage: backend `runIfLeader(lockName, action)` wrapper, `LeaderGroupElectionAspect.resolveLeaderId` step 3, `LeaderElectionAspect.resolveLeaderId` step 3
 
 ### D3. `nodeId` vs `leaderId` — **rename strategy (revised)**
 
@@ -214,12 +229,25 @@ data class LeaderLease(
 
     /**
      * Legacy accessor for the previous `leaderId` field.
-     * Returns the node identity ([nodeId]) when present, otherwise [auditLeaderId].
-     * Existing callers reading `lease.leaderId` expecting `host:pid` should migrate
-     * to [nodeId]; callers needing audit identity should use [auditLeaderId].
+     *
+     * **IMPORTANT — semantic regression note (Round 2 N2)**: Before this rename,
+     * `leaderId` carried different values depending on backend:
+     * - Local backend: `host:pid` (nodeId).
+     * - Lettuce / Mongo / some Redis backends: **backend fencing/ownership token**
+     *   (Base58 random per acquisition).
+     *
+     * This deprecated getter returns `nodeId ?: auditLeaderId` — it does **NOT**
+     * expose the backend ownership/fencing token. Callers using `lease.leaderId`
+     * for ownership verification (e.g., `if (writer.id == lease.leaderId)`) MUST
+     * migrate to `LeaderLockHandle.token` instead.
+     *
+     * Migration:
+     * - `lease.leaderId` (expecting nodeId/host:pid)        → `lease.nodeId`
+     * - `lease.leaderId` (expecting per-election audit id)  → `lease.auditLeaderId`
+     * - `lease.leaderId` (expecting fencing/ownership token) → `handle.token`
      */
     @Deprecated(
-        message = "Use auditLeaderId for per-election audit identity, or nodeId for JVM node identity.",
+        message = "Use auditLeaderId (audit) / nodeId (JVM node) / LeaderLockHandle.token (ownership). NOT a fencing-token accessor.",
         replaceWith = ReplaceWith("auditLeaderId"),
     )
     val leaderId: String get() = nodeId ?: auditLeaderId
@@ -237,42 +265,57 @@ data class LeaderLease(
   - `grep -r "lease.leaderId\|LeaderLease.*leaderId" /Users/debop/work/bluetape4k/{bluetape4k-workshop,ocean-workshop,clinic-appointment}` (downstream consumers)
   - `grep -rE "@JsonCreator.*LeaderLease|Kryo.*LeaderLease"` — 직렬화 consumer
   - `grep -r "LeaderLease(" --include="*.kt" --include="*.java"` — positional constructor caller (5번째 positional 깨질 위험)
+  - `grep -rE "LeaderLease\(.*leaderId\s*="` — named-arg constructor caller (F8): `LeaderLease(leaderId = "x")` 호출은 rename 후 컴파일 fail
+  - `grep -rE "\.leaderId\s*==|\.leaderId\.equals\("` — fencing-token 비교 패턴 (N2 — `handle.token` 마이그레이션 대상)
 - **CHANGELOG release-note headline**: "BREAKING (audit): `LeaderLease.leaderId` deprecated → `auditLeaderId` (per-election) + `nodeId` (JVM node). `serialVersionUID` bumped 1→2."
 
-### D4. `LeaderRunResult.Elected` — `leaderId` 추가 (nullable, revised)
+### D4. `LeaderRunResult.Elected` — `leaderId` 추가 (nullable + `@JvmOverloads`, revised per F7)
 
 ```kotlin
-data class Elected<out T>(val value: T?, val leaderId: String? = null) : LeaderRunResult<T>
+data class Elected<out T> @JvmOverloads constructor(
+    val value: T?,
+    val leaderId: String? = null,
+) : LeaderRunResult<T>
 ```
 
-- **Nullable** (Type-design [high] T2 대응) — `null` 은 "audit id 미제공" 의미. `""` sentinel ambiguity 제거.
-- Source-compat: `Elected(value)` (1-arg positional) 보존.
-- Binary-compat note: data class default-arg 추가는 byte-code `<init>(value, leaderId)` + bridge `<init>(value)` 생성. **CHANGELOG 에 "모든 leader-* 모듈 + downstream consumer 동시 recompile 필수" 명시** (Architect [low] 지적).
-- `componentN`: 기존 `val (v) = elected` 동작; 신규 `val (v, id) = elected` 추가.
+- **Nullable** (Type-design [high]) — `null` 은 "audit id 미제공" 의미. `""` sentinel ambiguity 제거.
+- **`@JvmOverloads`** (Round 2 F7 fix) — Kotlin data class 의 default-arg 는 Java byte-code 에서 single-arg overload 자동 생성 안 됨. `@JvmOverloads` 명시로 `<init>(T?)` + `<init>(T?, String?)` 두 bridge 생성 → 기존 Java caller `new LeaderRunResult.Elected<>(value)` 호출 binary-compat
+- Source-compat: `Elected(value)` (1-arg positional) Kotlin/Java 모두 보존
+- **CHANGELOG**: data class equals/hashCode 가 `leaderId` 포함 → 기존 `Elected(x) == Elected(x)` 비교는 둘 다 default `null` 이므로 passing 유지. 단 cross-version JAR 혼합 시 `NoSuchMethodError` 회피 위해 동시 recompile 권장
+- `componentN`: 기존 `val (v) = elected` 동작; 신규 `val (v, id) = elected` 추가
 
-### D5. `LeaderElectionInfo` — `leaderId` 추가 (nullable, snippet 정정)
+### D5. `LeaderElectionInfo` — `leaderId` + `leaderIdSource` 추가 (revised — invariant deferred per A1/F5)
 
 ```kotlin
 // 기존 shape: AbstractCoroutineContextElement 가 아닌 CoroutineContext.Element 직접 구현
 data class LeaderElectionInfo(
     val lockName: String,
     val wasElected: Boolean,
-    val leaderId: String? = null,                 // NEW — nullable for explicit "no audit"
+    val leaderId: String? = null,                 // NEW — nullable; null when source == null
+    val leaderIdSource: LeaderIdSource? = null,   // NEW (D10) — provenance, paired with leaderId
 ) : CoroutineContext.Element {
-    init {
-        require(!wasElected || !leaderId.isNullOrBlank()) {
-            "wasElected=true requires non-blank leaderId; got leaderId=$leaderId"
-        }
-    }
+    // NO init invariant in PR1 — defer to PR7 (F5/A1).
+    // Rationale: existing aspect call sites construct LeaderElectionInfo(name, wasElected=true)
+    // without leaderId; adding require(...) in PR1 breaks every backend test.
+    // PR7 (AOP) migrates all aspect call sites THEN re-introduces the invariant.
+
     override val key: CoroutineContext.Key<*> get() = Key
     companion object Key : CoroutineContext.Key<LeaderElectionInfo>
 }
 ```
 
+**Pairing invariant** (N3 — enforced by **convention + KDoc** in PR1, by **init require** in PR7 after all callers migrated):
+
+```kotlin
+// Invariant (documented now, enforced in PR7):
+//   leaderId == null   ↔   leaderIdSource == null   ↔   wasElected == false 만 허용
+//   leaderId != null   ↔   leaderIdSource != null   ↔   wasElected == true
+```
+
 - Snippet 정정 (Architect [low]): `AbstractCoroutineContextElement` 아닌 `CoroutineContext.Element` 직접 구현 + explicit `key` override (worktree 기존 shape 와 일치)
-- Nullable `leaderId` — `null` = "no audit", non-blank string = "audit available"
-- Init invariant: `wasElected=true` 시 `leaderId` 반드시 non-blank — lying-state `(true, null)` 컴파일/런타임 거부
-- Coroutine context consumer: `coroutineContext[LeaderElectionInfo]?.leaderId`
+- Nullable `leaderId` + `leaderIdSource` — pairing 일치
+- **Init invariant 는 PR7 도입** (F5/A1 deferred) — PR1 에서 invariant 부여 시 모든 기존 aspect call site `LeaderElectionInfo(name, true)` 가 런타임 throw. PR7 에서 모든 aspect call site 가 `(name, true, resolved.value, resolved.source)` 마이그레이션 후 invariant 추가
+- Coroutine context consumer: `coroutineContext[LeaderElectionInfo]?.leaderId` / `?.leaderIdSource`
 
 ### D6. 기존 `runIfLeader(lockName, action)` — Non-deprecated wrapper
 
@@ -332,30 +375,36 @@ private fun resolveLeaderId(
     val prop = props.defaultLeaderId
     if (prop.isNotBlank()) return ResolvedLeaderId(prop, LeaderIdSource.PROPERTY)
 
-    // Step 3: provider — defensively wrapped (safeNextLeaderId, see D2)
-    val auto = safeNextLeaderId(lockName)
+    // Step 3: provider — defensively wrapped (safeNextLeaderId top-level helper, see D2)
+    val auto = safeNextLeaderId(idProvider, lockName)
     return ResolvedLeaderId(auto, LeaderIdSource.AUTO)
 }
 
-// Aspect 의 sync/suspend/Mono 분기 — try block 내부 호출, dedicated catch
+// Aspect 의 sync/suspend/Mono 분기 — LeaderIdResolutionException 은 OUTER catch 앞에서 dedicated catch (Round 2 N1 P0)
 try {
     val lockName = resolveLockName(meta, method, args, target)
-    val resolved = try {
-        resolveLeaderId(meta, method, args, target, lockName)
-    } catch (e: LeaderIdResolutionException) {
-        // failureMode 무관하게 항상 throw — 코드 버그 silent misdiagnose 방지
-        throw e
-    }
+    val resolved = resolveLeaderId(meta, method, args, target, lockName)
     val slot = LeaderSlot(lockName, resolved.value)
     val info = LeaderElectionInfo(lockName, wasElected = true, leaderId = resolved.value)
     elector.runIfLeaderResult(slot) { /* action */ }
     // metric/info: resolved.source 로 LeaderIdSource 노출
 } catch (e: CancellationException) {
     throw e
+} catch (e: LeaderIdResolutionException) {       // ← dedicated catch BEFORE broad Exception
+    throw e                                       // failureMode 무관하게 항상 throw — Round 2 N1 P0 fix
 } catch (backendEx: Exception) {
     /* 기존 failureMode 정책 — backend 장애만 적용 */
 }
 ```
+
+**Round 2 N1 fix**: 외부 broad `catch (backendEx: Exception)` 가 `LeaderIdResolutionException` 을 silently 잡아 `failureMode` 정책으로 swallow 했던 문제. catch order: `CancellationException` → `LeaderIdResolutionException` → `Exception` 순.
+
+**Round 2 F1 fix — `spel.resolvePlaceholders(it)` 신규 public API**:
+
+Worktree 실태 (`SpelExpressionEvaluator.kt:120`): private `resolveplaceholder(expression)` (소문자 오타) 만 존재 — public 접근 불가. 두 가지 사전 작업 필요:
+
+1. **Phase H 사전 task (T36-pre)**: `SpelExpressionEvaluator` 에 public `fun resolvePlaceholders(value: String): String` 추가; 기존 private `resolveplaceholder` → `resolvePlaceholder` rename (typo fix); `evaluate()` 내부 호출 path 업데이트
+2. 본 spec 의 `spel.resolvePlaceholders(it)` 사용은 이 신규 API 의존 — Phase H 작업 순서: 먼저 evaluator API 확장 → 그 후 aspect 의 `resolveLeaderId` 구현
 
 - **Step 0**: Spring `${...}` placeholder 먼저 resolve — `name` 필드와 동일 precedent (Architect [medium] 대응)
 - **Step 1**: SpEL eval. 실패 시 `LeaderIdResolutionException` throw (level 별 always-RETHROW)
@@ -378,51 +427,91 @@ try {
 | PR7 | H+I | AOP + Spring auto-config | **PR1..PR6 모두** |
 | PR8 | J+K | Cross-backend integration tests + README + CHANGELOG | **PR1..PR7 모두** |
 
-**testFixture API freeze (Architect [high] 대응)**:
-- PR1 merge 직후 `AbstractLeaderIdContractTest` 의 abstract 메서드 시그니처 freeze (frozen commit hash 기록)
-- PR2-6 subclass 작업은 frozen commit base 로 분기, 동시 진행 가능
-- 만약 contract API 변경 필요 → coordinator 가 모든 open PR rebase 조율 후 진행
-- 변경 강제 발생 시 frozen commit hash 갱신 + CHANGELOG 에 internal-API change 명시
+**testFixture API freeze (Architect [high] / Round 2 N4 revised)**:
+
+Freeze 대상 = 실제 코드 파일들 (spec 본 문서 아님):
+- `leader-core/src/testFixtures/kotlin/io/bluetape4k/leader/contract/AbstractLeaderIdContractTest.kt` 및 변형 8개 (single/group × sync/suspend/async/VT)
+- `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderLockHandle.kt` 의 `Real` constructor + `LeaderLockHandle.real(...)` factory signature
+
+PR1 merge 직후 다음 문서 생성:
+```
+docs/superpowers/specs/2026-05-12-leader-id-testfixture-freeze.md
+```
+- 위 파일들의 frozen commit hash (PR1 merge commit) 기록
+- 각 abstract method signature 명시
+- `Real` constructor 와 `real(...)` factory 의 frozen positional arg 순서 명시
+
+PR2-6 backend 작업자:
+- 위 frozen commit base 로 worktree 분기
+- subclass 작업 동시 진행 (서로 다른 backend module 파일이므로 conflict 없음)
+- contract API / factory signature 변경 필요 시 coordinator 통보 → 모든 open PR rebase 조율 → frozen commit hash 갱신 + CHANGELOG internal-API change
 
 PR7 (AOP) 가 PR2-6 의존인 이유: `LeaderGroupElectionAspect.resolveLeaderId` 가 모든 backend `runIfLeader(slot, ...)` primary 를 호출하므로 전 backend merge 후에만 컴파일 깨끗.
 
-### D9. `LeaderLockHandle.Real.auditLeaderId` — 명시 결정 (Architect/Silent-failure [high])
+### D9. `LeaderLockHandle.Real.auditLeaderId` — 명시 결정 (revised per Codex F2/F3/N5)
+
+**Worktree 실태** (`leader-core/.../LeaderLockHandle.kt:56-92`):
+- `Real` 은 `class internal constructor`. **`data class` 아님** — 따라서 `copy()` 없음
+- 기존 positional: `(identity, token, acquiredAtNanos, slotId=null, acquiringThreadId=null, reentryDepth=0, extendDelegate)`
+- `withReentryDepth(n)` 은 explicit constructor call (line 89-92): `Real(identity, token, acquiredAtNanos, slotId, acquiringThreadId, n, extendDelegate)`
+- Custom `equals/hashCode` 는 `(identity, token, reentryDepth, slotId)` 기반
+
+**변경 — additive at END of positional (N5 silent-rebind 회피)**:
 
 ```kotlin
-sealed interface LeaderLockHandle {
-    @InternalLeaderApi
-    data class Real(
-        val identity: LockIdentity,
-        val token: String,                    // ownership token (release/extend key)
-        val acquiredAtNanos: Long,
-        val auditLeaderId: String? = null,    // NEW — nullable, "no audit" = null (not "")
-        val slotId: String? = null,
-        val reentryDepth: Int = 0,
-        val extendDelegate: LeaseExtendDelegate? = null,
-    ) : LeaderLockHandle {
-        override fun equals(other: Any?): Boolean {                  // unchanged equality contract
-            if (this === other) return true
-            if (other !is Real) return false
-            return identity == other.identity
-                && token == other.token
-                && reentryDepth == other.reentryDepth
-                && slotId == other.slotId
-            // auditLeaderId NOT included — metadata, not identity (Type-design [low] confirmed correct)
-        }
-        override fun hashCode(): Int = Objects.hash(identity, token, reentryDepth, slotId)
+class Real internal constructor(
+    override val identity: LockIdentity,
+    val token: String,                                  // ownership token (release/extend key)
+    val acquiredAtNanos: Long,
+    val slotId: String? = null,
+    val acquiringThreadId: Long? = null,
+    override val reentryDepth: Int = 0,
+    val extendDelegate: ExtendDelegate,
+    val auditLeaderId: String? = null,                  // NEW — additive at END, nullable
+) : LeaderLockHandle() {
+    // ... 기존 extend / extendSuspend / isStillHeld 동일 ...
 
-        fun withReentryDepth(depth: Int): Real = copy(
-            reentryDepth = depth,
-            // auditLeaderId is automatically preserved by data-class copy()
+    internal fun withReentryDepth(n: Int): Real {
+        n.requireGe(0, "n")
+        return Real(                                    // explicit constructor — thread auditLeaderId
+            identity, token, acquiredAtNanos,
+            slotId, acquiringThreadId, n,
+            extendDelegate, auditLeaderId,              // ← preserved through reentry
         )
     }
+
+    // equals/hashCode 변경 없음 — auditLeaderId 는 metadata, identity 아님
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Real) return false
+        return identity == other.identity &&
+            token == other.token &&
+            reentryDepth == other.reentryDepth &&
+            slotId == other.slotId
+        // auditLeaderId 제외 — Type-design [low] confirmed
+    }
+    override fun hashCode(): Int { /* identity, token, reentryDepth, slotId — unchanged */ }
 }
+
+// Factory — additive last param at line 158-166
+fun real(
+    identity: LockIdentity,
+    token: String,
+    acquiredAtNanos: Long,
+    slotId: String? = null,
+    acquiringThreadId: Long? = null,
+    reentryDepth: Int = 0,
+    extendDelegate: ExtendDelegate,
+    auditLeaderId: String? = null,                      // NEW — at END of factory positional
+): Real = Real(identity, token, acquiredAtNanos, slotId, acquiringThreadId, reentryDepth, extendDelegate, auditLeaderId)
 ```
 
-- **Nullable** (`String?` not `""`) — Silent-failure [high] / Type-design [high] consensus
+- **End-position additive** (Codex N5/F3 대응): 기존 backend 호출 site `LeaderLockHandle.real(identity, token, acquiredAtNanos, slotId, threadId, reentryDepth, delegate)` 그대로 컴파일 (default null 자동 적용); positional rebind silent-failure 방지
+- **`Real` 은 `class` 유지** (Codex F3) — `data class` 전환 시 custom `equals/hashCode` 충돌 및 `internal constructor` 경계 약화. spec 의 "copy() 자동 보존" 표현은 부정확했음 (Round 1 오류)
+- **`withReentryDepth` 는 explicit constructor 통해 `auditLeaderId` 명시 propagate** (F2) — `data class copy()` 의존 불가
 - `equals/hashCode` 에서 제외 — value identity 는 `token` 이 결정 (audit 는 metadata)
-- `withReentryDepth(depth)` 가 `data class copy()` 통해 `auditLeaderId` 자동 보존 — explicit test 필요 (Phase J)
 - **모든 backend 의 `LeaderLockHandle.real(...)` factory 호출 site 업데이트 필요** — Phase 의 backend matrix (§8) 에 file 별 명시
+- Phase J 의 reentrant audit preservation contract test (T51) 가 load-bearing 검증
 
 ### D10. `LeaderIdSource` provenance enum (Silent-failure [high] R8 대응)
 
@@ -520,7 +609,7 @@ Aspect → LeaderRunResult.Elected(value, "leader-A")
 | ZooKeeper | `leader-zookeeper/.../ZooKeeperLeaderGroupElector.kt` | `ZooKeeperLeaderElector.kt` | `ZooKeeperSuspendLeaderGroupElector.kt` | `ZooKeeperSuspendLeaderElector.kt` | znode payload JSON 에 `auditLeaderId` 추가 (schema vN+1) |
 | Exposed-JDBC | `leader-exposed-jdbc/.../ExposedLeaderGroupElector.kt` | `ExposedLeaderElector.kt` | n/a | n/a | 컬럼은 `leader-exposed-core` 공유 테이블에 추가 (아래 행 참조) |
 | Exposed-R2DBC | mirror | mirror | suspend native | suspend native | 동일 컬럼 사용 |
-| Exposed-core (shared schema) | `leader-exposed-core/.../tables/LeaderGroupLockTable.kt` + `LeaderLockTable.kt` (single) | — | — | — | `audit_leader_id VARCHAR(256) NULL` additive 컬럼 (group + single 모두) |
+| Exposed-core (shared schema) | `leader-exposed-core/.../tables/LeaderGroupLockTable.kt` + `LeaderLockTable.kt` (single) | — | — | — | `audit_leader_id VARCHAR(256) NULL` additive 컬럼 (group + single 모두). ALTER DDL 및 권한 요구는 §13 Migration 참조 |
 
 각 backend 변경 패턴 (uniform):
 
@@ -602,6 +691,15 @@ val defaultLeaderId: String = ""
 @ConditionalOnMissingBean(LeaderIdProvider::class)
 fun leaderIdProvider(): LeaderIdProvider = RandomLeaderIdProvider.Default
 ```
+
+### §9.1 Multi-annotation 공존 (Round 2 F6)
+
+`@LeaderGroupElection` 과 `@LeaderElection` 이 동일 클래스/메서드에 공존 시 contract:
+
+- **단일 `LeaderIdProvider` bean 공유** — 두 aspect 모두 동일 bean injected (default `RandomLeaderIdProvider.Default`)
+- **동일 메서드 overlap 거부** — 한 메서드에 두 annotation 동시 부여 시 `LeaderAnnotationValidatorBeanPostProcessor` 가 startup `IllegalStateException`. 기존 `name` 필드 overlap 검증과 동일 path
+- **Property 공유**: `bluetape4k.leader.aop.default-leader-id` 는 두 aspect 모두에 동일하게 적용. annotation-별 분리 property 미제공 (필요 시 `LeaderIdProvider` bean override 권장)
+- **다른 메서드에 각각 부여 가능**: 동일 클래스의 메서드 A 에 `@LeaderElection(leaderId="x")`, 메서드 B 에 `@LeaderGroupElection(leaderId="y")` — 독립 평가
 
 ---
 
@@ -728,9 +826,61 @@ abstract class AbstractVirtualThreadLeaderIdContractTest { /* StructuredTaskScop
 - **Default provider** = `RandomLeaderIdProvider` (no host/pid)
 - `HostnamePidLeaderIdProvider` KDoc 명시 경고
 - SpEL `leaderId` 평가는 `name` 과 동일 envelope: `bluetape4k.leader.aop.spel.allow-method-invocation=false` 기본
+- `leaderId` collision 은 correctness invariant 아님 — backend ownership token (Base58/permitId/Mongo token) 이 correctness 보장. Codex review note 기록
+
+### Metrics cardinality (Round 2 A2)
+
+- `leader.id` Micrometer tag 의 cardinality 가 무한대로 폭증 위험. 다음 정책:
+  - `leaderIdSource ∈ {LITERAL, SPEL, PROPERTY}` — `leader.id` 전체값 노출 (사용자 정의, bounded)
+  - `leaderIdSource == AUTO` — `leader.id` hash-prefix (예: 첫 4자) 만 노출 + `leader.id.source=AUTO` tag. Prometheus 저장 폭발 회피
+- `leader.id.source` tag 는 항상 노출 (`AUTO` / `LITERAL` / `SPEL` / `PROPERTY` 4가지 — bounded)
+
+### Consumer ergonomics (Round 2 F10)
+
+- **Suspend 경로**: `coroutineContext[LeaderElectionInfo]?.leaderId` / `?.leaderIdSource` 로 읽음
+- **Sync 경로**: `LeaderElectionInfo` 미접근. `LeaderLockHandle.Real.auditLeaderId` 로 읽기 가능. `leaderIdSource` 는 sync 경로에 미노출 — Micrometer tag (`leader.id.source`) 통해서만 관찰
+- Spec §11 README 에 위 분기 명시
+
+### fanOut runCatching audit (Round 2 F11)
+
+- `LeaderGroupElectionAspect.kt:576` 의 `fanOut` 함수는 `runCatching { action(recorder) }` 사용 — metrics recorder 실패 swallow
+- 신규 `leaderId` stamping (e.g., `recorder.onLockAcquired(slot.leaderId, ...)`) 은 동일 `fanOut` path 통과 → recorder 실패 시 silent — 의도된 동작 (metrics 실패가 lock 동작 방해 금지)
+- 단, fanOut 호출 site 는 sync 전용 — suspend path 의 metrics recorder 는 별도 path 필요 (`CancellationException` rethrow 검증)
+
+### Downstream scope boundary (Round 2 F12)
+
+- 본 spec PR 범위 = `bluetape4k-leader` repo only
+- `bluetape4k-workshop`, `ocean-workshop`, `clinic-appointment` 등 downstream consumer 는 deprecated `LeaderLease.leaderId` getter 계속 사용 가능 (한 release cycle)
+- coordinator 가 follow-up issue 를 repo 별로 등록하여 점진 migration 진행
+
+### Package paths (Round 2 F13)
+
+- `io.bluetape4k.leader.identity.LeaderIdProvider` — `leader-core`
+- `io.bluetape4k.leader.identity.RandomLeaderIdProvider` / `HostnamePidLeaderIdProvider` / `CompositeLeaderIdProvider` — `leader-core`
+- `io.bluetape4k.leader.identity.LeaderIdSource` (enum) — `leader-core`
+- `io.bluetape4k.leader.identity.LeaderIdResolutionException` — `leader-core`
+- `SkipReason.LEADER_ID_RESOLUTION` — `io.bluetape4k.leader.spring.aop.SkipReason` (기존 enum 확장)
+
+### LeaderIdProvider thread-safety enforcement (Round 2 F14)
+
+- KDoc 의 "MUST be thread-safe" 는 contract 문서; 실제 enforcement 는 contract test 가 수행
+- `AbstractLeaderIdContractTest.concurrent runIfLeader calls each have distinct leaderId` 가 `MultithreadingTester` 로 검증 — race 발생 시 fail
+- 사용자 custom provider 가 위반 시 silent corruption (non-unique id) — KDoc 명시 + contract test 권장
 
 ### Migration
-- **`LeaderLease.leaderId` rename → `auditLeaderId`** (R1 / D3 revised) — `@Deprecated val leaderId` getter 한 release cycle 유지; `serialVersionUID` 1L → 2L; Phase A0 grep gate **확장** (worktree + workshops/examples + serialization consumer)
+- **Exposed `audit_leader_id` 컬럼 ALTER DDL** (Round 2 N6/F4):
+  ```sql
+  -- group lock table
+  ALTER TABLE leader_group_lock ADD COLUMN audit_leader_id VARCHAR(256) NULL;
+  -- single lock table
+  ALTER TABLE leader_lock       ADD COLUMN audit_leader_id VARCHAR(256) NULL;
+  ```
+  - Postgres / MySQL 8.0+ / H2 / SQL Server 모두 호환 — metadata-only (NULL default)
+  - **`SchemaUtils.createMissingTablesAndColumns()` auto-ALTER** — `ExposedJdbcSchemaInitializer.kt:55` 가 startup 시 자동 호출. 운영 DB 가 read-only 또는 DML-only role 사용 시 startup fail 발생. README 에 명시 필요:
+    > **Required privilege**: `ALTER TABLE` on `leader_group_lock` and `leader_lock`. If your application uses a DML-only role, run the ALTER manually before deploying the new version.
+  - Flyway / Liquibase 사용자는 위 ALTER 를 migration script 로 추가
+  - 순수 `SchemaUtils.create()` (테이블 생성만) 사용자는 신규 column 으로 새 테이블 생성됨 — 이슈 없음
+- **`LeaderLease.leaderId` rename → `auditLeaderId`** (R1 / D3 revised) — `@Deprecated val leaderId` getter 한 release cycle 유지; `serialVersionUID` 1L → 2L; Phase A0 grep gate **확장** (worktree + workshops/examples + serialization consumer + named-arg constructor + fencing-token 비교 패턴)
 - `LeaderRunResult.Elected.leaderId: String?` nullable (D4 revised — Type-design [high] 대응)
 - `LeaderElectionInfo.leaderId: String?` nullable + `wasElected=true` 시 non-blank 강제 (D5)
 - `LeaderLockHandle.Real.auditLeaderId: String?` nullable (D9)
@@ -886,15 +1036,25 @@ Phase K — Docs (PR8)
 Round 1 추가 task (Step 2-R 결과 반영)
   T47 [low]   identity/LeaderIdSource.kt — enum (D10/R8)
   T48 [med]   identity/LeaderIdResolutionException.kt + SkipReason.LEADER_ID_RESOLUTION (R4/O10)
-  T49 [med]   identity/safeNextLeaderId helper — elector 공통 (R6/D2)
-  T50 [high]  Phase A0 확장 grep gate script (worktree + workshops + serialization + positional constructor)
+  T49 [med]   identity/LeaderIdProviders.kt — internal safeNextLeaderId top-level helper (R6/D2/A3)
+  T50 [high]  Phase A0 확장 grep gate script (worktree + workshops + serialization + positional + named-arg + fencing-token 비교)
   T51 [med]   AbstractLeaderIdContractTest — reentrant audit preservation test (D9 / Silent-failure [medium])
   T52 [med]   Exposed rollback test (Silent-failure [medium]) — new code 작성 row + 옛 code 읽기
-  T53 [low]   testFixture API freeze checkpoint 문서 — PR1 머지 후 frozen commit hash 기록 (D8 / Architect [high])
-  T54 [med]   LeaderElectionInfo init invariant (`wasElected=true` non-blank) 단위 테스트 (D5/Type-design)
+  T53 [low]   testFixture API freeze docs — `docs/superpowers/specs/2026-05-12-leader-id-testfixture-freeze.md` (D8 / Architect [high] / N4)
+  T54 [med]   LeaderElectionInfo init invariant — **PR7 에서 도입** (`wasElected=true` non-blank) 단위 테스트 (A1/F5)
+
+Round 2 추가 task (Step 2-R Round 2 결과 반영)
+  T55 [med]   SpelExpressionEvaluator public `resolvePlaceholders` API + typo fix `resolveplaceholder → resolvePlaceholder` (F1/Phase H pre)
+  T56 [high]  LeaderLockHandle.kt — `Real` constructor (auditLeaderId at END) + `withReentryDepth` explicit constructor thread audit + factory `real(...)` END positional (F2/F3/N5/D9)
+  T57 [med]   LeaderLease.kt — rename `leaderId → auditLeaderId`, `@Deprecated val leaderId` getter (N2 fencing-token clarification), `serialVersionUID = 2L`
+  T58 [low]   `@JvmOverloads` on `LeaderRunResult.Elected` constructor (F7 — Java binary-compat)
+  T59 [med]   §9.1 multi-annotation overlap validator — `LeaderAnnotationValidatorBeanPostProcessor` 가 동일 메서드의 `@LeaderElection` + `@LeaderGroupElection` 공존 거부 (F6)
+  T60 [low]   Exposed README — `audit_leader_id` ALTER DDL snippet + `ALTER TABLE` privilege 요구 명시 (N6/F4)
+  T61 [med]   Micrometer cardinality policy — `leader.id` tag value AUTO source 시 hash-prefix 만 (A2)
+  T62 [low]   `fanOut runCatching` audit — sync only, suspend path 별도 검증 (F11)
 ```
 
-총 54 task. Complexity 분포: high 15, medium 22, low 17.
+총 62 task. Complexity 분포: high 16, medium 27, low 19.
 
 ---
 
@@ -930,11 +1090,39 @@ Round 1 추가 task (Step 2-R 결과 반영)
 
 **Round 1 commit**: pending Round 1 fix commit hash 기록 예정
 
-### Round 2 (planned) — verification
+### Round 2 (2026-05-12) — Critic integration + Codex independent
 
-Round 1 fix 반영 후 dispatch:
-- Phase 1 multi-perspective (architect + silent-failure + type-design + code-reviewer) 재실행
-- Phase 2 critic integration (Round 1 + Round 2 통합)
-- Phase 3 Codex independent second-opinion
+| Reviewer | Findings | Verdict |
+|----------|----------|---------|
+| Critic (integration of Round 1 + new) | 1 P0 (N1) / 5 P1 (N2/N3/N4/N5/N6) + A1 | NEEDS ROUND 3 |
+| Codex (independent F1-F14) | 2 blocker (F1/F2) + 1 high (F3) + 5 high (F4/F5/F6/F7) | REQUEST CHANGES |
+| **Round 2 통합** | **3 P0 / 11 P1 / 6 P2 / 2 P3** | **REQUEST CHANGES** |
 
-Convergence target: 모든 reviewer 통합 P0 = 0 AND P1 = 0.
+**P0 fixes 적용 (Round 2 commit 예정)**:
+- N1: D7 aspect snippet catch order — `LeaderIdResolutionException` dedicated catch BEFORE broad `Exception`
+- F1: SpEL `resolvePlaceholders` 신규 public API task (Phase H pre-step) — private `resolveplaceholder` typo fix + public expose
+- F2/F3: D9 재작성 — `Real` 은 `class` (NOT `data class`); `auditLeaderId` END positional; `withReentryDepth` explicit constructor 통해 propagate
+
+**P1 fixes 적용**:
+- N2: D3 deprecated getter — fencing-token semantics 보존 안 됨 명시; KDoc 에 `handle.token` migration 안내
+- N3: D5/D10 pairing invariant — `leaderId ↔ leaderIdSource` 둘 다 null/non-null 일치 (convention in PR1, init invariant in PR7)
+- N4: testFixture freeze target — 별도 docs file 에 frozen commit hash 기록
+- N5: D9 auditLeaderId END positional (silent rebind 회피)
+- N6/F4: §13 Migration — ALTER DDL snippet + `SchemaUtils.createMissingTablesAndColumns` auto-ALTER privilege 명시
+- A1/F5: D5 init invariant **PR7 로 defer** — PR1 도입 시 모든 aspect call 즉시 throw
+- F6: §9.1 multi-annotation contract (single provider bean, overlap validator, property 공유)
+- F7: D4 `@JvmOverloads` on Elected (Java binary-compat)
+- F8: Phase A0 grep gate 에 named-arg constructor + fencing-token 비교 패턴 추가
+- F10: §13 consumer ergonomics — suspend (coroutine context) vs sync (LockHandle) 분기 명시
+- F11: §13 fanOut runCatching audit — sync 전용, suspend path 별도 검증
+- F12: §13 downstream scope boundary — workshops 는 follow-up issue
+- F13: §13 package paths — `io.bluetape4k.leader.identity.*` 명시
+- F14: §13 provider thread-safety — contract test 가 enforcement
+- A2: §13 metrics cardinality — AUTO source 는 hash-prefix 노출, `leader.id.source` tag bounded
+- A3: D2 `safeNextLeaderId` — `CancellationException` 명시 re-throw
+
+### Round 3 (planned) — Round 2 fix 반영 후 verification
+
+- Phase 1 multi-perspective 재실행 (delta review — Round 2 fix 영역만)
+- Phase 3 Codex re-review (independent confirm)
+- Convergence target: 모든 reviewer 통합 P0 = 0 AND P1 = 0.
