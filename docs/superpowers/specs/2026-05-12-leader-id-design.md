@@ -392,21 +392,41 @@ interface LeaderElector : AsyncLeaderElector {
 - 이전 spec: bridge default 가 `Elected(v, slot.leaderId)` 반환 — backend 가 audit 안 찍었는데 결과는 찍힌 척 → multi-tenant forensics 거짓 attribution
 - 신규: bridge default 는 `Elected(v, null)` 반환 → "backend 가 audit 보장 못함" 명시. backend 가 override 시에만 `Elected(v, slot.leaderId)` 직접 반환 (실제 stamp 보장)
 
-**H1 fix — bridge transition window 가시화**:
+**H1 + H4 fix — bridge transition window 가시화 + bounded LRU throttle (Round 7 H4)**:
 ```kotlin
 // leader-core/.../identity/LeaderElectorBridgeLog.kt
 internal object LeaderElectorBridgeLog {
     private val log = KotlinLogging.logger { }
-    private val warnedClasses = ConcurrentHashMap.newKeySet<KClass<*>>()
+    private const val LRU_CAP: Int = 256
+
+    // Round 7 H4 — (class, leaderId) pair LRU throttle 로 multi-tenant 가시성 보장
+    private val warnedPairs: MutableMap<String, Boolean> = Collections.synchronizedMap(
+        object : LinkedHashMap<String, Boolean>(LRU_CAP, 0.75f, /* accessOrder = */ true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>?): Boolean =
+                size > LRU_CAP
+        }
+    )
+
+    // dropped audit-id count metric — operator 가 누락 규모 인지
+    private val droppedCounter = AtomicLong(0)
+    fun droppedAuditCount(): Long = droppedCounter.get()
+
     fun warnOnBridgeUse(implClass: KClass<*>, slot: LeaderSlot) {
-        if (warnedClasses.add(implClass)) {       // throttle — class 당 1회
-            log.warn {
-                "${implClass.simpleName} has not overridden runIfLeader(LeaderSlot, ...); audit identity '${slot.leaderId}' is dropped during PR2-PR6 transition window"
+        droppedCounter.incrementAndGet()
+        val key = "${implClass.qualifiedName}|${slot.leaderId}"
+        synchronized(warnedPairs) {
+            if (warnedPairs.put(key, true) == null) {       // not previously logged
+                log.warn {
+                    "${implClass.simpleName} has not overridden runIfLeader(LeaderSlot, ...); audit identity '${slot.leaderId}' is dropped during PR2-PR6 transition window"
+                }
             }
         }
     }
 }
 ```
+- (class, leaderId) pair throttle — multi-tenant 환경에서 distinct tenant 별 1회 WARN
+- LRU cap 256 — 무한 메모리 증가 방지
+- `droppedAuditCount()` 카운터 → Micrometer `leader.aop.bridge.dropped` gauge 로 노출 가능
 
 **T68b 신규 task (Round 7 N7-3 / codex Round 7 #4 fix)**: **PR7 Phase I** (PR1 아님 — autoconfig 위치 정정). `LeaderElectorFactory` SPI 에 `targetElectorClass: KClass<out LeaderElector>` (또는 group variant) accessor 추가. `LeaderAopAutoConfiguration` 가 startup 시 모든 등록된 factory 의 `targetElectorClass` 를 reflection 으로 검사하여 `runIfLeader(LeaderSlot, ...)` AND `runIfLeaderResult(LeaderSlot, ...)` 메서드 둘 다 declared (override 됨) 인지 확인. 미override 시 WARN log (factory 별 + targetClass list + which method missing). **Probe 대상은 elector bean 이 아닌 factory.targetElectorClass** — factory pattern 때문에 elector 는 lazy 생성됨
 
@@ -718,27 +738,36 @@ enum class LeaderIdSource {
 
 ```kotlin
 // 신규 metadata context (leader-core/.../metrics/LeaderAopMetricsContext.kt)
-// Round 7 C2/N7-2 fix — init require 제거, opt-in validate() 로 downgrade
-// 사유: aspect 가 fanOut { runCatching {...} } 외부에서 context 생성 시 init throw 가
-//      §13 metrics never-throw 계약 위반. validate() 만 defensive 호출 가능
-data class LeaderAopMetricsContext(
-    val leaderId: String? = null,
-    val leaderIdSource: LeaderIdSource? = null,
-) {
-    /**
-     * Pairing invariant — leaderId == null ↔ leaderIdSource == null.
-     * NOT enforced in init (Round 7 N7-2). Call explicitly if defensive needed.
-     * Sealed redesign follow-up: O11.
-     */
-    fun validate(): LeaderAopMetricsContext = apply {
-        require((leaderId == null) == (leaderIdSource == null)) {
-            "LeaderAopMetricsContext pairing violated: leaderId=$leaderId, leaderIdSource=$leaderIdSource"
+// Round 7 N7-5 fix — sealed 로 전환 (pairing invariant compile-time 강제)
+// 이전 (Round 6/7) flat data class + opt-in validate() → sealed 로 type-level 보장
+// type-design [high] 해소
+sealed interface LeaderAopMetricsContext {
+    /** Empty — legacy 3-arg path 또는 audit 정보 미가용. recorder 가 무시. */
+    data object Unknown : LeaderAopMetricsContext
+
+    /** Identified — leaderId + source 둘 다 non-null/non-blank 보장 (compile-time pairing). */
+    data class Identified(
+        val leaderId: String,
+        val leaderIdSource: LeaderIdSource,
+    ) : LeaderAopMetricsContext {
+        init {
+            leaderId.requireNotBlank("leaderId")  // 단일 필드 invariant — fanOut 외부 throw 위험 없음
         }
     }
+
     companion object {
-        val Empty = LeaderAopMetricsContext()
+        @JvmField val Empty: LeaderAopMetricsContext = Unknown
     }
 }
+
+// Aspect 호출 site 예시 (Round 7 codex #3):
+//   val ctx: LeaderAopMetricsContext = LeaderAopMetricsContext.Identified(resolved.value, resolved.source)
+//   fanOut { recorder.onLockAcquired(name, options, elapsed, ctx) }
+// Recorder consumer:
+//   when (ctx) {
+//       is LeaderAopMetricsContext.Identified -> registry.counter("...", "leader.id", ctx.leaderId, "leader.id.source", ctx.leaderIdSource.name).increment()
+//       LeaderAopMetricsContext.Unknown -> registry.counter("...").increment()
+//   }
 
 // recorder API 확장 — Round 7 N7-1 fix: actual recorder API 6 메서드 기준으로 재작성
 // 실제 시그니처 (leader-core/.../metrics/LeaderAopMetricsRecorder.kt:28-50):
@@ -758,26 +787,51 @@ interface LeaderAopMetricsRecorder {
     fun onTaskFailed(name: String, executionTime: Duration, throwable: Throwable) {}
 
     // NEW — context overload, 모든 6 메서드 backward-compat default 로 추가
+    // Round 7 H3 fix — context != Empty 일 때 first-call WARN (recorder class 당 1회)
+    // + drop counter 증가 (operator 가 누락 규모 observability)
     fun onLockAttempt(name: String, options: LeaderElectionOptions, context: LeaderAopMetricsContext) {
+        LeaderRecorderContextDropLog.warnOnDrop(this::class, context)
         onLockAttempt(name, options)
     }
     fun onLockAcquired(name: String, options: LeaderElectionOptions, acquireElapsed: Duration, context: LeaderAopMetricsContext) {
+        LeaderRecorderContextDropLog.warnOnDrop(this::class, context)
         onLockAcquired(name, options, acquireElapsed)
     }
     fun onLockNotAcquired(name: String, options: LeaderElectionOptions, reason: SkipReason, context: LeaderAopMetricsContext) {
+        LeaderRecorderContextDropLog.warnOnDrop(this::class, context)
         onLockNotAcquired(name, options, reason)
     }
     fun onTaskStarted(name: String, context: LeaderAopMetricsContext) {
+        LeaderRecorderContextDropLog.warnOnDrop(this::class, context)
         onTaskStarted(name)
     }
     fun onTaskFinished(name: String, executionTime: Duration, context: LeaderAopMetricsContext) {
+        LeaderRecorderContextDropLog.warnOnDrop(this::class, context)
         onTaskFinished(name, executionTime)
     }
     fun onTaskFailed(name: String, executionTime: Duration, throwable: Throwable, context: LeaderAopMetricsContext) {
+        LeaderRecorderContextDropLog.warnOnDrop(this::class, context)
         onTaskFailed(name, executionTime, throwable)
     }
 
     object NoOp : LeaderAopMetricsRecorder
+}
+
+// leader-core/.../metrics/LeaderRecorderContextDropLog.kt — Round 7 H3 fix
+internal object LeaderRecorderContextDropLog {
+    private val log = KotlinLogging.logger { }
+    private val warnedClasses = ConcurrentHashMap.newKeySet<KClass<*>>()
+    private val droppedCounter = AtomicLong(0)
+    fun droppedCount(): Long = droppedCounter.get()
+    fun warnOnDrop(recorderClass: KClass<*>, context: LeaderAopMetricsContext) {
+        if (context.leaderId == null && context.leaderIdSource == null) return  // Empty context — no audit info to drop
+        droppedCounter.incrementAndGet()
+        if (warnedClasses.add(recorderClass)) {
+            log.warn {
+                "${recorderClass.simpleName} did not override 4-arg context overload; audit context (leaderId=${context.leaderId}, source=${context.leaderIdSource}) is dropped"
+            }
+        }
+    }
 }
 
 // MicrometerLeaderAopMetricsRecorder 가 신규 메서드 override 하여 leader.id / leader.id.source tag 기록
@@ -1051,7 +1105,7 @@ abstract class AbstractVirtualThreadLeaderIdContractTest { /* StructuredTaskScop
 | `leader-{hazelcast,zookeeper}/README.md` + `README.ko.md` | metadata location noting |
 | `leader-exposed-{jdbc,r2dbc}/README.md` + `README.ko.md` | `audit_leader_id` 컬럼 ALTER 안내 |
 | Root `README.md` + `README.ko.md` | feature highlight + cross-link |
-| `CHANGELOG.md` | **`LeaderLease.leaderId` semantic change** + additive `nodeId` field + `Elected` destructuring 변경 + Exposed 스키마 추가 |
+| `CHANGELOG.md` | **`LeaderLease.leaderId` semantic change** (R1/D3 — rename `leaderId` → `auditLeaderId`, `@Deprecated val leaderId` getter, `serialVersionUID 1L → 2L`) + additive `LeaderLease.nodeId` + `LeaderRunResult.Elected(value, leaderId)` + `@JvmOverloads` + `LeaderElectionInfo.leaderId/leaderIdSource` + `LeaderLockHandle.Real.auditLeaderId` + **Round 7 N7-1: `LeaderAopMetricsRecorder` 6 메서드 모두에 `LeaderAopMetricsContext` overload 추가 (backward-compat default)** + **Round 7 N7-5: sealed `LeaderAopMetricsContext` (Unknown/Identified)** + Exposed `audit_leader_id VARCHAR(256)` column on group + single tables + Micrometer `leader.id` / `leader.id.source` tags + **BREAKING: multi-annotation `@LeaderElection` + `@LeaderGroupElection` 공존 시 startup-fail** |
 
 - 모든 public 변경 KDoc은 **English**
 - README locale set 동기화 (다국어 정책)
@@ -1367,6 +1421,11 @@ Round 7 추가 task (real codex CLI 결과 반영)
   T71 [high]  LeaderGroupElectionAspect / LeaderElectionAspect — 6개 recorder call site 모두에 context overload 통과: onLockAttempt, onLockAcquired, onLockNotAcquired, onTaskStarted, onTaskFinished, onTaskFailed. context = LeaderAopMetricsContext(resolved.value, resolved.source) (Round 7 codex #3)
   T72 [high]  모든 backend PR2-6: runIfLeader(slot) AND runIfLeaderResult(slot) BOTH override 의무. contract test 가 assertEquals(slot.leaderId, result.leaderId) 검증 (Round 7 codex #2)
   T73 [med]   T68b/T69b 를 PR7 Phase I 로 이동 + AutoConfig 순서 명시 (Round 7 codex #4)
+
+Round 7.6 추가 task (잔존 P1 적용)
+  T74 [med]   LeaderRecorderContextDropLog — 4-arg default 호출 시 context drop WARN (recorder class 당 1회) + drop counter (Round 7 H3)
+  T75 [med]   LeaderElectorBridgeLog 를 (class, leaderId) pair LRU(256) throttle 으로 변경 + droppedCounter (Round 7 H4)
+  T76 [med]   LeaderAopMetricsContext sealed interface 도입 — Unknown / Identified(leaderId, source) (Round 7 N7-5 / type-design)
 ```
 
 총 70 task. Complexity 분포: high 18, medium 29, low 23.
@@ -1539,11 +1598,11 @@ Round 6 dispatched 5 parallel reviewers:
 - **codex #3 high — aspect 6 recorder call site context propagation**: spec 은 `onLockAcquired(..., ctx)` 만 언급. 다른 5 메서드 (`onLockAttempt/NotAcquired/Started/Finished/Failed`) 도 ctx 통과 의무 명시 → T71 신규
 - **codex #4 medium — probe phase**: T68b 가 PR1 라벨이지만 Spring autoconfig 위치 (PR7 territory). T69b 는 `LeaderMicrometerAutoConfiguration` 이후 실행 필요 → T73 신규, T68b/T69b 둘 다 PR7 Phase I 명시
 
-**Deferred (적용 안 함)**:
-- H3 (default 4→3 drop WARN/counter) — T69b startup probe 로 부분 cover, per-call WARN 은 follow-up
-- H4 (throttle multi-tenant) — bounded LRU 또는 metric 추가는 follow-up
-- N7-5 (O11 sealed mitigation) — type-design follow-up
-- N7-6 (CHANGELOG 보강) — Phase K T45 에 흡수
+**Round 7.6 추가 적용 (잔존 P1, user directive B)**:
+- **H3**: `LeaderRecorderContextDropLog.warnOnDrop` — 4-arg default 호출 시 recorder class 당 1회 WARN + drop counter. context==Empty 인 경우는 무시 (legacy 3-arg path)
+- **H4**: `LeaderElectorBridgeLog` 를 (class, leaderId) pair LRU(256) throttle 로 변경 + `droppedAuditCount()` counter. multi-tenant 환경 distinct tenant 별 1회 WARN
+- **N7-5**: `LeaderAopMetricsContext` sealed interface (`Unknown` data object / `Identified(leaderId, leaderIdSource)` data class) — pairing invariant compile-time 강제 + `Identified.init { leaderId.requireNotBlank }` 단일 필드 invariant 만 (fanOut 외부 throw 위험 없음). 기존 `flat data class + init require + validate()` → sealed 로 type-level 보장
+- **N7-6**: §11 CHANGELOG row 확장 — recorder API context overload, sealed `LeaderAopMetricsContext`, Micrometer tag 추가, BREAKING multi-annotation 항목 명시
 
 ### Round 8 (planned)
 
