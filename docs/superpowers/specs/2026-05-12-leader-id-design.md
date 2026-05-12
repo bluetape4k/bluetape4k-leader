@@ -465,11 +465,12 @@ class LeaderElectorBridgeLog(private val cacheSize: Int = DEFAULT_CACHE_SIZE) {
     // Round 13 silent-failure NEW-13-1: Async/VT/Suspend slot-bridge 의 guard 를 inline 으로 정정
     // (이전: undefined `warnOnBridgeUseIfApplicable` 호출 → compile fail 또는 silent skip)
 
-    // Round 15 NEW-15-1: inline guard 단순화 — `if (slot.leaderId.isNotBlank())` 만으로 충분
-    // 이유: interface default 본문 실행 자체가 "backend 가 override 안 함" 의미 (Kotlin interface default semantics)
-    // 이전 (Round 14): `this::class != XxxElector::class` 클래스 비교는 항상 true — interface KClass 와 concrete class 비교는
-    //                무조건 != 이므로 모든 invocation 에서 WARN 발생 → throttle 무력화. Round 15 architect 발견.
-    // Single elector variants (AsyncLeaderElector / VirtualThreadLeaderElector / SuspendLeaderElector) 도 동일 단순 guard
+    // Round 16 N16-1 — bridge default WARN 은 unconditional (LeaderSlot.init 가 non-blank 강제 → 모든 guard 가 dead code)
+    // 진화 기록:
+    //   - Round 14: `this::class != XxxElector::class` 가드 — concrete vs interface KClass 비교는 항상 true (Round 15 architect 발견)
+    //   - Round 15: `slot.leaderId.isNotBlank()` 만 — LeaderSlot.init 가 non-blank 강제로 이것도 항상 true (Round 16 architect 발견)
+    //   - Round 16: guard 자체 제거. backend override 가 super.X 호출 금지 (T68c/T72 contract test 로 enforce)
+    // Single elector variants (AsyncLeaderElector / VirtualThreadLeaderElector / SuspendLeaderElector) 도 동일 패턴 적용
 
     private val droppedResultCounter = AtomicLong(0)
     fun droppedResultBridgeCount(): Long = droppedResultCounter.get()
@@ -1596,16 +1597,16 @@ Round 3 추가 task (Step 2-R Round 3 결과 반영)
 Round 5 추가 task (real codex CLI 결과 반영)
   T68 [high]  PR1 — 모든 elector interface (sync/suspend/async/VT × single/group = 8) 에 LeaderSlot bridge `default` 메서드 추가, 기존 lockName overload 으로 delegate (Round 5 codex B1 — backend 컴파일 깨짐 방지)
   T69 [med]   LeaderAopMetricsRecorder API 확장 — LeaderAopMetricsContext(leaderId, leaderIdSource) data class + backward-compat default method (Round 5 codex H2)
-  T70 [low]   leader-micrometer/MicrometerNames.kt — TAG_LEADER_ID + TAG_LEADER_ID_SOURCE **public** 상수 추가 (Round 13 codex NEW-13-2) + MicrometerLeaderAopMetricsRecorder 가 신규 overload override + bridge drop gauge 2종 등록: `leader.aop.bridge.dropped` + `leader.aop.bridge.result-dropped`. **gauge binding 은 lambda supplier** (Round 14 NEW-14-3): `Gauge.builder("leader.aop.bridge.dropped") { LeaderElectorBridgeLog.global().droppedAuditCount().toDouble() }.register(registry)`. setGlobal swap 시 lambda 가 새 instance counter re-read. 등록 helper: `leader-micrometer/LeaderBridgeMetrics.register(registry)` public. **등록 호출은 `LeaderMicrometerAutoConfiguration` 의 별도 `@Bean` (NOT `MicrometerLeaderAopMetricsRecorder` bean 내부)** — Round 15 codex 발견: 기존 recorder bean 은 `@ConditionalOnMissingBean(LeaderAopMetricsRecorder::class)` 가드 → custom recorder 등록 시 bridge gauge 도 silent suppress. **별도 bean**: `@Bean @ConditionalOnBean(MeterRegistry::class) fun leaderBridgeMetrics(registry: MeterRegistry): LeaderBridgeMetrics = LeaderBridgeMetrics.register(registry)`. recorder bean 과 independent. Aspect 의 leader.id tag 호출 site 는 string literal "leader.id" 대신 `MicrometerNames.TAG_LEADER_ID` import 의무 (Round 14 NEW-14-4). (Round 12 codex NEW-12-2 + Round 13 codex NEW-13-2 + Round 14 NEW-14-2/3/4 + Round 15 codex)
+  T70 [low]   leader-micrometer/MicrometerNames.kt — TAG_LEADER_ID + TAG_LEADER_ID_SOURCE **public** 상수 추가 (Round 13 codex NEW-13-2) + MicrometerLeaderAopMetricsRecorder 가 신규 overload override + bridge drop gauge 2종 등록: `leader.aop.bridge.dropped` + `leader.aop.bridge.result-dropped`. **gauge binding 은 lambda supplier** (Round 14 NEW-14-3): `Gauge.builder("leader.aop.bridge.dropped") { LeaderElectorBridgeLog.global().droppedAuditCount().toDouble() }.register(registry)`. setGlobal swap 시 lambda 가 새 instance counter re-read. 등록 helper: `leader-micrometer/LeaderBridgeMetrics.register(registry)` public. **등록 호출은 `LeaderMicrometerAutoConfiguration` 의 별도 `@Bean` (NOT `MicrometerLeaderAopMetricsRecorder` bean 내부)** — Round 15 codex 발견. **별도 bean**: `@Bean @ConditionalOnBean(MeterRegistry::class) fun leaderBridgeMetrics(...)`. recorder bean 과 independent. Aspect 의 leader.id tag 호출 site 는 `MicrometerNames.TAG_LEADER_ID` import 의무. **MeterRegistry 부재 fallback** (Round 16 silent-failure NEW-16-2 + Round 17 codex NEW-17-2): non-conditional `@Bean` 이 startup INFO log emit 의무 — `LeaderElectorBridgeLog.global().droppedAuditCount()` / `LeaderRecorderContextDropLog.global().droppedCount()` 직접 query 안내. **PromQL** (Round 16 codex NEW-16-1 + Round 17 codex NEW-17-2): `rate()` 사용 금지 (Gauge에 부적합) → `idelta()` 또는 raw + setGlobal swap timestamp correlation. KDoc 명시 의무. (Round 12-17 통합)
 
 Round 7 추가 task (real codex CLI 결과 반영)
   T71 [high]  [PR7] LeaderGroupElectionAspect / LeaderElectionAspect — 6개 recorder call site 모두에 context overload 통과: onLockAttempt, onLockAcquired, onLockNotAcquired, onTaskStarted, onTaskFinished, onTaskFailed. resolved audit 있으면 `LeaderAopMetricsContext.Identified(resolved.value, resolved.source)`, 없으면 `LeaderAopMetricsContext.Unknown` (Round 7 codex #3 + Round 8 codex #2 sealed 호환)
-  T72 [high]  [PR2-6] 모든 backend: runIfLeader(slot) AND runIfLeaderResult(slot) BOTH override 의무. contract test 가 assertEquals(slot.leaderId, result.leaderId) 검증 (Round 7 codex #2)
+  T72 [high]  [PR2-6] 모든 backend: runIfLeader(slot) AND runIfLeaderResult(slot) BOTH override 의무. contract test: (a) assertEquals(slot.leaderId, result.leaderId), (b) **bridge WARN counter == 0 after backend override** (Round 17 N17-1 + codex NEW-17-1 — super.X / super.runIfLeader(slot,...) 호출 금지 enforce). T68c detekt rule 도 동일 검증 (Round 7 codex #2 + Round 17 N17-1)
   T73 [med]   [PR7] T68b/T69b 를 Phase I 로 이동 + AutoConfig 순서 명시 (Round 7 codex #4)
 
 Round 7.6 추가 task (잔존 P1 적용)
   T74 [med]   [PR1] LeaderRecorderContextDropLog (single class, Round 9 N9-1 collapse) — 4-arg default 호출 시 context drop WARN (recorder class 당 1회) + drop counter. Global holder pattern (Round 9 N9-2). Round 8 NEW-1 lifecycle-scoped 약속은 SUPERSEDED — interface default 가 DI 못 받음, 명시적 static holder + 명시 setGlobal swap log (Round 10) (Round 7 H3)
-  T75 [med]   [PR1] LeaderElectorBridgeLog — (class, leaderId) pair LRU throttle (cap configurable via `bluetape4k.leader.bridge.warn-cache-size`, default 256) + droppedCounter. LinkedHashMap accessOrder=true (Round 8 codex #3) (Round 7 H4)
+  T75 [med]   [PR1] LeaderElectorBridgeLog — (class, leaderId) pair LRU throttle (cap configurable via `bluetape4k.leader.bridge.warn-cache-size`, default 256) + droppedCounter. LinkedHashMap accessOrder=true (Round 8 codex #3). **Acknowledged limitation** (Round 16 architect N16-2 + Round 17 codex NEW-17-3): AUTO source 의 unique-per-call leaderId 는 LRU churn → unthrottled WARN flood. Follow-up issue: `LeaderSlot.source` field 추가 후 source-aware throttle key (LITERAL/PROPERTY/SPEL → per-leaderId, AUTO → per-class). 현 PR1 scope: LITERAL/PROPERTY 가 dominant assumption (Round 7 H4)
   T76 [med]   [PR1] LeaderAopMetricsContext sealed interface 도입 — Unknown data object / Identified(leaderId, source) data class. Identified.init { leaderId.requireNotBlank }. Empty companion = Unknown alias (Round 7 N7-5 / type-design)
 
 Round 8 추가 task (Round 8 fix 반영)
