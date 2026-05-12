@@ -435,25 +435,37 @@ class LeaderElectorBridgeLog(private val cacheSize: Int = DEFAULT_CACHE_SIZE) {
         }
     }
 
-    // Round 10 N10-1 P0 fix — partial-override 감지용 separate WARN
+    // Round 10 N10-1 P0 fix — partial-override 감지용 separate WARN + Round 11 N11-4 separate cache
     // backend 가 runIfLeader(slot) 만 override + runIfLeaderResult(slot) 미override 시 호출
     fun warnOnResultBridgeUse(implClass: KClass<*>, slot: LeaderSlot) {
         droppedResultCounter.incrementAndGet()
-        val key = "${implClass.qualifiedName}|result|${slot.leaderId}"     // distinct namespace
+        val key = "${implClass.qualifiedName}|${slot.leaderId}"            // Round 11 N11-4: warnedResultPairs 자체가 분리됨
         val firstTime: Boolean
-        synchronized(warnedPairs) {
-            firstTime = warnedPairs.put(key, true) == null
+        synchronized(warnedResultPairs) {
+            firstTime = warnedResultPairs.put(key, true) == null
         }
         if (firstTime) {
+            // Round 11 codex NEW-11-1 fix — generic message (neither method overridden 도 cover)
             log.warn {
-                "${implClass.simpleName} overrode runIfLeader(LeaderSlot) but NOT runIfLeaderResult(LeaderSlot); " +
-                "Elected.leaderId will be null for '${slot.leaderId}' (partial-override; see T72)"
+                "${implClass.simpleName} used default runIfLeaderResult(LeaderSlot) bridge; " +
+                "Elected.leaderId will be null for '${slot.leaderId}' — override runIfLeaderResult to stamp audit (see T72)"
             }
         }
     }
 
     private val droppedResultCounter = AtomicLong(0)
     fun droppedResultBridgeCount(): Long = droppedResultCounter.get()
+    // Round 11 N11-1 — Micrometer mapping: `leader.aop.bridge.result-dropped` gauge ← droppedResultBridgeCount()
+    // (T70 task: leader-micrometer 에 두 gauge 모두 등록 — `leader.aop.bridge.dropped` + `leader.aop.bridge.result-dropped`)
+
+    // Round 11 N11-4 — slot vs result WARN cache 분리 (LRU 상호 eviction 회피)
+    // 위 warnedPairs 는 slot bridge 전용. result bridge 는 별도 map:
+    private val warnedResultPairs: MutableMap<String, Boolean> = Collections.synchronizedMap(
+        object : LinkedHashMap<String, Boolean>(cacheSize, 0.75f, /* accessOrder = */ true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>?): Boolean =
+                size > cacheSize
+        }
+    )
 
     companion object {
         private val log = KotlinLogging.logger { }
@@ -486,7 +498,7 @@ class LeaderElectorBridgeLog(private val cacheSize: Int = DEFAULT_CACHE_SIZE) {
 - **ContextClosedEvent listener**: `LeaderElectorBridgeLog.setGlobal(LeaderElectorBridgeLog())` 로 fresh instance reset
 - (class, leaderId) pair LRU throttle — multi-tenant 환경 distinct tenant 별 1회 WARN
 - **Cap configurable** (Round 8 codex #3): `bluetape4k.leader.bridge.warn-cache-size` property, default 256. 10k+ tenant 환경에서 4096 이상 권장
-- **Lifecycle scoped** (Round 8 NEW-1): static singleton 아닌 ApplicationContext-scoped bean → `@DirtiesContext` 테스트 또는 context restart 시 state reset
+- **Lifecycle** (Round 8 NEW-1 SUPERSEDED by Round 9 N9-2 + Round 10 N10-2): interface default method 가 DI 못 받음 → **명시적 static `@Volatile var globalInstance` holder** 채택. Spring autoconfig (PR7 Phase I) 가 `setGlobal(LeaderElectorBridgeLog(props.bridge.warnCacheSize))` 호출. `ContextClosedEvent` listener 가 `setGlobal(LeaderElectorBridgeLog())` 로 reset. **Test 시 `@DirtiesContext` 만으로 state 자동 reset 안 됨** — 명시적 `LeaderElectorBridgeLog.setGlobal(LeaderElectorBridgeLog())` 호출 필수 (`@BeforeEach` 또는 test base class). setGlobal swap 시 `log.info` 로 prev counter 가시화
 - `droppedAuditCount()` counter — Micrometer `leader.aop.bridge.dropped` gauge 로 노출. **누적 drop 수 == 누적 WARN 수 가 아님** (cache eviction 으로 drop 후 재로깅 가능). cardinality 의미: "bounded recent-pair throttle" — 정확한 distinct-tenant 카운트 아님
 - KDoc 명시: gauge 는 "total drop volume" 의미; distinct tenant count 는 별도 (`bluetape4k.leader.bridge.warn-cache-size` 이내일 때만 정확)
 
@@ -626,6 +638,8 @@ private fun resolveLeaderId(
     if (spelExpr.isNotBlank()) {
         val evaluated = try {
             spel.evaluate(spelExpr, method, args, target)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e                                       // Round 11 NEW-1 fix — never swallow CE (suspend/Mono branch)
         } catch (e: Exception) {
             throw LeaderIdResolutionException(
                 "SpEL evaluation failed for @LeaderGroupElection.leaderId='$spelExpr' on $method", e
@@ -1289,7 +1303,15 @@ abstract class AbstractVirtualThreadLeaderIdContractTest { /* StructuredTaskScop
 
 - `LeaderGroupElectionAspect.kt:576` 의 `fanOut` 함수는 `runCatching { action(recorder) }` 사용 — metrics recorder 실패 swallow
 - 신규 `leaderId` stamping (e.g., `recorder.onLockAcquired(slot.leaderId, ...)`) 은 동일 `fanOut` path 통과 → recorder 실패 시 silent — 의도된 동작 (metrics 실패가 lock 동작 방해 금지)
-- 단, fanOut 호출 site 는 sync 전용 — suspend path 의 metrics recorder 는 별도 path 필요 (`CancellationException` rethrow 검증)
+- 단, fanOut 호출 site 는 sync 전용 — suspend path 의 metrics recorder 는 별도 path 필요. 명시 snippet (Round 11 NEW-2):
+  ```kotlin
+  // suspend / Mono 분기 — fanOut runCatching 사용 금지 (CE swallow). manual try-catch:
+  for (recorder in recorders) {
+      try { recorder.onLockAcquired(name, options, elapsed, ctx) }
+      catch (e: kotlinx.coroutines.CancellationException) { throw e }
+      catch (e: Exception) { log.warn(e) { "recorder.onLockAcquired failed: ${recorder::class.simpleName}" } }
+  }
+  ```
 
 ### Downstream scope boundary (Round 2 F12)
 
@@ -1765,7 +1787,8 @@ User directive: convergence gate continues. Phase 1 × 4 + real codex CLI 재dis
 | 7 (silent-failure + architect + codex BG) | 3 | 5 | 0 | 1 | applied 7bfd178 + 6969fda + e82b374 |
 | 8 (silent-failure + architect + codex BG) | 2 | 4 | 1 | 2 | applied 0297042 |
 | 9 (silent-failure + architect + type-design + code-reviewer + codex) | 0 | 7 | 1 | 1 | applied 4af9a79 |
-| 10 (silent-failure + architect + codex) | 1 | 5 | 0 | 2 | applied (this commit) |
-| 11 | (pending dispatch) | | | | |
+| 10 (silent-failure + architect + codex) | 1 | 5 | 0 | 2 | applied c9fa36a |
+| 11 (silent-failure + architect + codex) | 0 | 3 | 4 | 2 | applied (this commit) |
+| 12 | (pending dispatch) | | | | |
 
 총 70 task (+ T68b/T68c/T69b 신규 verification task). 8 PR phased delivery.
