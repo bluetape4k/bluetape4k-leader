@@ -372,7 +372,7 @@ interface LeaderElector : AsyncLeaderElector {
     // NEW PR1 — bridge default → existing lockName overload 으로 delegate
     // Round 6 H1: WARN log 가 backend non-override 즉시 가시화
     fun <T> runIfLeader(slot: LeaderSlot, action: () -> T): T? {
-        if (slot.leaderId.isNotBlank() && this::class != LeaderElector::class) {
+        if (slot.leaderId.isNotBlank()) {  // Round 15 NEW-15-1 fix — class check redundant (interface default execution implies non-override)
             LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
         }
         return runIfLeader(slot.lockName, action)     // ← bridge — backend 가 override 안 해도 동작
@@ -383,7 +383,7 @@ interface LeaderElector : AsyncLeaderElector {
         // Round 9 NEW-9-2 + Round 11 NEW-11-1 — result-bridge 사용 시 audit 누락 가시화
         // backend 가 runIfLeader(slot) override 하더라도 runIfLeaderResult(slot) 미override → 이 path 통과
         // backend 가 둘 다 미override 도 마찬가지 — generic 메시지 (Round 11 N11-1)
-        if (slot.leaderId.isNotBlank() && this::class != LeaderElector::class) {
+        if (slot.leaderId.isNotBlank()) {  // Round 15 NEW-15-1 fix — class check redundant (interface default execution implies non-override)
             LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         }
         var elected = false
@@ -427,6 +427,7 @@ class LeaderElectorBridgeLog(private val cacheSize: Int = DEFAULT_CACHE_SIZE) {
 
     fun warnOnBridgeUse(implClass: KClass<*>, slot: LeaderSlot) {
         droppedCounter.incrementAndGet()
+        // Round 14 NEW-15-5 — log token symmetry: slot-bridge 도 [OMC-BRIDGE-SLOT-DROP] 토큰 추가
         val key = "${implClass.qualifiedName}|slot|${slot.leaderId}"
         // Round 9 N9-3 — synchronized 외부에서 log.warn 호출 (contention 회피)
         val firstTime: Boolean
@@ -435,7 +436,7 @@ class LeaderElectorBridgeLog(private val cacheSize: Int = DEFAULT_CACHE_SIZE) {
         }
         if (firstTime) {
             log.warn {
-                "${implClass.simpleName} has not overridden runIfLeader(LeaderSlot, ...); audit identity '${slot.leaderId}' is dropped during PR2-PR6 transition window"
+                "[OMC-BRIDGE-SLOT-DROP] ${implClass.simpleName} has not overridden runIfLeader(LeaderSlot, ...); audit identity '${slot.leaderId}' is dropped during PR2-PR6 transition window"
             }
         }
     }
@@ -465,13 +466,11 @@ class LeaderElectorBridgeLog(private val cacheSize: Int = DEFAULT_CACHE_SIZE) {
     // Round 13 silent-failure NEW-13-1: Async/VT/Suspend slot-bridge 의 guard 를 inline 으로 정정
     // (이전: undefined `warnOnBridgeUseIfApplicable` 호출 → compile fail 또는 silent skip)
 
-    // Round 14 NEW-14-2 — Single elector variant 도 동일 inline guard 패턴 사용:
-    //   AsyncLeaderElector (single) — `this::class != AsyncLeaderElector::class`
-    //   VirtualThreadLeaderElector (single) — `this::class != VirtualThreadLeaderElector::class`
-    //   SuspendLeaderElector (single) — `this::class != SuspendLeaderElector::class`
-    //   각 interface 의 자기 KClass 와 비교. group 의 KClass 와 비교하면 모든 single impl 이 != 라서 WARN 항상 발생 (false positive)
-    //   또는 모든 impl 이 == 가 아니므로 WARN 절대 발생 안 함 (false negative).
-    //   PR1 acceptance test 가 inline guard self-reference 검증 의무
+    // Round 15 NEW-15-1: inline guard 단순화 — `if (slot.leaderId.isNotBlank())` 만으로 충분
+    // 이유: interface default 본문 실행 자체가 "backend 가 override 안 함" 의미 (Kotlin interface default semantics)
+    // 이전 (Round 14): `this::class != XxxElector::class` 클래스 비교는 항상 true — interface KClass 와 concrete class 비교는
+    //                무조건 != 이므로 모든 invocation 에서 WARN 발생 → throttle 무력화. Round 15 architect 발견.
+    // Single elector variants (AsyncLeaderElector / VirtualThreadLeaderElector / SuspendLeaderElector) 도 동일 단순 guard
 
     private val droppedResultCounter = AtomicLong(0)
     fun droppedResultBridgeCount(): Long = droppedResultCounter.get()
@@ -563,14 +562,14 @@ interface AsyncLeaderGroupElector : LeaderGroupElectionState {
 
     fun <T> runAsyncIfLeader(slot: LeaderSlot, executor: Executor, action: () -> CompletableFuture<T>): CompletableFuture<T?> {
         // Round 13 silent-failure NEW-13-1 fix — inline guard (이전: undefined helper)
-        if (slot.leaderId.isNotBlank() && this::class != AsyncLeaderGroupElector::class) {
+        if (slot.leaderId.isNotBlank()) {  // Round 15 NEW-15-1 fix
             LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
         }
         return runAsyncIfLeader(slot.lockName, executor, action)
     }
 
     fun <T> runAsyncIfLeaderResult(slot: LeaderSlot, executor: Executor, action: () -> CompletableFuture<T>): CompletableFuture<LeaderRunResult<T>> {
-        if (slot.leaderId.isNotBlank() && this::class != AsyncLeaderGroupElector::class) {
+        if (slot.leaderId.isNotBlank()) {  // Round 15 NEW-15-1 fix
             LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         }
         val elected = AtomicBoolean(false)                    // H5 — memory-safe across async hop
@@ -587,13 +586,13 @@ interface AsyncLeaderGroupElector : LeaderGroupElectionState {
 interface VirtualThreadLeaderGroupElector : LeaderGroupElectionState {
     fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?>
     fun <T> runAsyncIfLeader(slot: LeaderSlot, action: () -> T): VirtualFuture<T?> {
-        if (slot.leaderId.isNotBlank() && this::class != VirtualThreadLeaderGroupElector::class) {
+        if (slot.leaderId.isNotBlank()) {  // Round 15 NEW-15-1 fix
             LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
         }
         return runAsyncIfLeader(slot.lockName, action)
     }
     fun <T> runAsyncIfLeaderResult(slot: LeaderSlot, action: () -> T): VirtualFuture<LeaderRunResult<T>> {
-        if (slot.leaderId.isNotBlank() && this::class != VirtualThreadLeaderGroupElector::class) {
+        if (slot.leaderId.isNotBlank()) {  // Round 15 NEW-15-1 fix
             LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         }
         val elected = AtomicBoolean(false)                    // H5 — memory-safe across VT
@@ -607,14 +606,14 @@ interface VirtualThreadLeaderGroupElector : LeaderGroupElectionState {
 interface SuspendLeaderGroupElector : LeaderGroupElectionState {
     suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T?
     suspend fun <T> runIfLeader(slot: LeaderSlot, action: suspend () -> T): T? {
-        if (slot.leaderId.isNotBlank() && this::class != SuspendLeaderGroupElector::class) {
+        if (slot.leaderId.isNotBlank()) {  // Round 15 NEW-15-1 fix
             LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
         }
         return runIfLeader(slot.lockName, action)
     }
 
     suspend fun <T> runIfLeaderResultSuspend(slot: LeaderSlot, action: suspend () -> T): LeaderRunResult<T> {
-        if (slot.leaderId.isNotBlank() && this::class != SuspendLeaderGroupElector::class) {
+        if (slot.leaderId.isNotBlank()) {  // Round 15 NEW-15-1 fix
             LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         }
         var elected = false
@@ -1325,12 +1324,15 @@ abstract class AbstractVirtualThreadLeaderIdContractTest { /* StructuredTaskScop
 - SpEL `leaderId` 평가는 `name` 과 동일 envelope: `bluetape4k.leader.aop.spel.allow-method-invocation=false` 기본
 - `leaderId` collision 은 correctness invariant 아님 — backend ownership token (Base58/permitId/Mongo token) 이 correctness 보장. Codex review note 기록
 
-### Metrics cardinality (Round 2 A2)
+### Metrics cardinality (Round 2 A2 + Round 15 NEW-15-2)
 
 - `leader.id` Micrometer tag 의 cardinality 가 무한대로 폭증 위험. 다음 정책:
-  - `leaderIdSource ∈ {LITERAL, SPEL, PROPERTY}` — `leader.id` 전체값 노출 (사용자 정의, bounded)
-  - `leaderIdSource == AUTO` — `leader.id` hash-prefix (예: 첫 4자) 만 노출 + `leader.id.source=AUTO` tag. Prometheus 저장 폭발 회피
+  - `leaderIdSource == LITERAL` — `leader.id` 전체값 노출 (config-bounded, 안전)
+  - `leaderIdSource == PROPERTY` — `leader.id` 전체값 노출 (config-bounded)
+  - `leaderIdSource == SPEL` — **runtime evaluated, 잠재적 unbounded** (Round 15 NEW-15-2). 기본: hash-prefix 만 노출. `bluetape4k.leader.aop.metrics.allow-full-spel-leader-id=true` 명시 시 전체값 (사용자가 cardinality 책임)
+  - `leaderIdSource == AUTO` — `leader.id` hash-prefix (예: 첫 4자) 만 노출. Prometheus 저장 폭발 회피
 - `leader.id.source` tag 는 항상 노출 (`AUTO` / `LITERAL` / `SPEL` / `PROPERTY` 4가지 — bounded)
+- **Gauge reset semantics** (Round 15 NEW-15-3): `LeaderElectorBridgeLog.setGlobal()` swap 시 new instance counter 0 부터 시작. Micrometer Gauge 가 lambda supplier 로 binding 되어 새 instance 값 read → Prometheus 시점에 따라 "음수 delta" 관측 가능. 운영자는 `rate()` query 로 단조 증가 관찰 (절대값 아닌 변화율 기반). T70 KDoc 에 명시 의무
 
 ### Consumer ergonomics (Round 2 F10)
 
@@ -1830,8 +1832,9 @@ User directive: convergence gate continues. Phase 1 × 4 + real codex CLI 재dis
 | 11 (silent-failure + architect + codex) | 0 | 3 | 4 | 2 | applied 3a11baf |
 | 12 (silent-failure + architect + codex BG) | 0 | 3 | 6 | 1 | applied bd16290 + afae663 |
 | 13 (silent-failure + architect + codex) | **1 P0 (BLOCKER)** | 3 | 2 | 1 | applied 0110a62 |
-| 14 (silent-failure CONVERGED + architect + codex) | 0 | 4 | 2 | 1 | applied (this commit) |
-| 15 | (pending dispatch) | | | | |
+| 14 (silent-failure CONVERGED + architect + codex) | 0 | 4 | 2 | 1 | applied 0db038f |
+| 15 (silent-failure CONVERGED + architect + codex BG) | **1 P0** (always-true guard, Round 14 NEW-14-2 regression) | 2 | 1 | 1 | applied (this commit) |
+| 16 | (pending dispatch) | | | | |
 
 **Round 14 milestone**: silent-failure-hunter **CONVERGED** (P0=P1=P2=0). Architect + Codex 잔존 finding 은 spec clarification 위주 (warning text 명시, gauge binding strategy, autoconfig 위치 결정).
 
