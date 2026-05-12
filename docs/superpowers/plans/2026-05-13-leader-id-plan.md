@@ -319,6 +319,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 - **Acceptance**:
   - Kotlin reflection test: `Elected.<init>` method count ≥2
   - Java source test: `new LeaderRunResult.Elected<>(value)` 와 `new LeaderRunResult.Elected<>(value, leaderId)` 둘 다 compile + run
+  - **equals/hashCode 검증 from Java** (Step 3-R Round 2 test-engineer): `elected1.equals(elected2)` + `elected1.hashCode() == elected2.hashCode()` Kotlin↔Java boundary 에서 value-equality 보존 확인 — `@JvmOverloads` 가 equals/hashCode 깨뜨리지 않음
 
 #### T8 [medium] — `LeaderLockHandle.Real.auditLeaderId` (END positional, nullable) — T56 와 동일 작업
 - **PR**: PR1
@@ -451,6 +452,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
   - `setGlobal()` swap 시 INFO log 출력 (prev.dropped + prev.resultDropped)
   - 단위 테스트 — 같은 (class, leaderId) 반복 호출 시 WARN 1회만
   - **LRU eviction churn test** (Step 3-R test-engineer #5): cap=4 로 instance 생성, 4 distinct pair 채움 → 5번째 pair 추가 → 1번째 pair 재호출 → WARN 다시 발생 (eviction 실제 동작 검증)
+  - **Concurrent stress test** (Step 3-R Round 2 test-engineer T75 P0 — `LinkedHashMap(accessOrder=true)` 는 thread-unsafe): `MultithreadingTester` 100 thread × 100 round 호출 — 100개 distinct (class, leaderId) pair — `ConcurrentModificationException` 없음 + `droppedAuditCount() == 10000` 검증. `synchronized(warnedPairs)` block 이 충분히 보호하는지 확인
   - **AUTO source LRU limitation 문서화** (Round 16 N16-2): KDoc 에 "AUTO source 의 unique-per-call leaderId 는 LRU churn → unthrottled WARN flood — see T81 follow-up"
   - **Bounded recent-pair throttle 의미** KDoc 명시
 
@@ -462,7 +464,8 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 - **Description**: spec §D10 Round 7 H3 + Round 9 N9-1/N9-2/N9-3 + Round 10 N10-3 + Round 8 N8-1/T77.
   - `warnedClasses: ConcurrentHashMap.newKeySet<KClass<*>>()`
   - `droppedCounter: AtomicLong`
-  - `warnOnDrop(recorderClass, context)` — `context as? LeaderAopMetricsContext.Identified ?: return` (Round 8 N8-1 sealed 호환); first add 시 WARN ("did not override 4-arg context overload; audit context dropped")
+  - **`droppedCount(): Long` public accessor** (Step 3-R Round 2 architect P0-R2-2 — T67 freeze surface / T84 fallback log / T84b query 모두 의존)
+  - `warnOnDrop(recorderClass, context)` — `context as? LeaderAopMetricsContext.Identified ?: return` (Round 8 N8-1 sealed 호환); first add 시 WARN
   - companion `globalInstance` + `setGlobal(instance)` (Round 10 N10-3 swap log.info) + `global()`
 - **Acceptance**:
   - `context == Unknown` 호출 시 early return (no counter increment, no warn)
@@ -588,10 +591,11 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 - **Depends-on**: T16, T56
 - **Description**: spec §17 T51 (Silent-failure [medium]) — `withReentryDepth(n)` 이후 `auditLeaderId` 가 보존되는지 검증. 동일 lockName 재진입 시 inner frame 의 `auditLeaderId` == outer frame `slot.leaderId`.
 - **Acceptance**:
-  - **2 separate tests** (Step 3-R test-engineer #6 — constructor + recursive 둘 다):
+  - **3 separate tests** (Step 3-R test-engineer #6 + Round 2 test-engineer):
     1. `withReentryDepth(n)` explicit constructor 통한 audit 보존 (T56 직접 검증)
-    2. **Recursive `runIfLeader` call from inside leader action 시 inner frame's slot/lease/handle auditLeaderId 보존** — real-world reentry path
-  - 재진입 3 depth 까지 `auditLeaderId` 변화 없음 (both tests)
+    2. Recursive `runIfLeader` call from inside leader action 시 inner frame's slot/lease/handle auditLeaderId 보존 — real-world reentry path
+    3. **Cancellation-during-reentry** (Step 3-R Round 2 test-engineer): outer leader action 내부에서 inner `runIfLeader(slot)` 호출 → inner coroutine cancellation. assert outer `lease.auditLeaderId` 불변 + inner frame `finally` cleanup 시점에 `auditLeaderId` == outer
+  - 재진입 3 depth 까지 `auditLeaderId` 변화 없음 (all tests)
 
 #### T82 [medium] — `super.X` enforcement contract test (Round 17 N17-1)
 - **PR**: PR1
@@ -728,7 +732,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 ### PR1 README / CHANGELOG impact
 
 - `leader-core/README.md` + `README.ko.md`: "Audit Identity (preview)" 섹션 — full doc 은 PR8 의 T41 에서 작성, 본 PR 은 `LeaderSlot`, `LeaderIdProvider` 의 1-line 소개만
-- `CHANGELOG.md`:
+- `docs/changelog-fragments/pr1.md` (NEW — Step 3-R Round 2 codex #2 enforcement: per-PR fragment, NOT CHANGELOG.md direct):
   - `### Added` — `LeaderSlot`, `LeaderIdProvider` + 3 impl, `LeaderIdSource`, `LeaderIdResolutionException`, `safeNextLeaderId`, `LeaderElectorBridgeLog`, `LeaderRecorderContextDropLog`, `LeaderAopMetricsContext (sealed)`, `LeaderLease.nodeId`, `LeaderLockHandle.Real.auditLeaderId`, `LeaderElectionInfo.leaderId/leaderIdSource`, 8 interface 의 `LeaderSlot` bridge default 메서드
   - `### Changed` — `LeaderLease.leaderId` → `auditLeaderId` rename, `serialVersionUID 1L → 2L`, `LeaderRunResult.Elected(value, leaderId)` `@JvmOverloads`
   - `### Deprecated` — `LeaderLease.leaderId` getter (one release cycle)
@@ -753,7 +757,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 - **PR**: PR2
 - **Files**:
   - `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/redis/lettuce/semaphore/LettuceSlotTokenGroup.kt` (MODIFY)
-- **Depends-on**: PR1.5 hash
+- **Depends-on**: origin/develop after PR1 merge
 - **Description**: spec §8 — ZSET 옆에 `lg:<name>:meta` Hash 로 `token → leaderId` mapping 저장. acquire Lua atomically `ZADD ... + HSET ... auditLeaderId`. release Lua atomically `ZREM + HDEL`. `acquire(lockName, waitTime, leaseTime, audit=leaderId)` signature 확장.
 - **Acceptance**:
   - acquire 후 `HGET lg:<name>:meta <token>` == `audit`
@@ -781,7 +785,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
   - `leader-redis-redisson/src/main/kotlin/io/bluetape4k/leader/redis/redisson/RedissonLeaderGroupElector.kt` (MODIFY)
   - `leader-redis-redisson/src/main/kotlin/io/bluetape4k/leader/redis/redisson/coroutines/RedissonSuspendLeaderElector.kt` (MODIFY)
   - `leader-redis-redisson/src/main/kotlin/io/bluetape4k/leader/redis/redisson/coroutines/RedissonSuspendLeaderGroupElector.kt` (MODIFY)
-- **Depends-on**: PR1.5 hash
+- **Depends-on**: origin/develop after PR1 merge
 - **Description**: spec §8 — Redisson `RPermitExpirableSemaphore` 그대로 유지 + `RMap<String, String> "lg:<name>:audit"` 동행 (permitId → leaderId). acquire 시 `RMap.put(permitId, leaderId)`, release 시 `RMap.remove(permitId)`. TTL: Redisson lease 와 함께 expire (Redis TTL 동행).
 - **Acceptance**:
   - T72 contract test 통과
@@ -833,7 +837,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 
 ## 3. PR3 — Phase E — Mongo backend
 
-- **depends-on**: PR1.5 hash
+- **depends-on**: origin/develop after PR1 merge
 - **scope**: `MongoLock` slot doc 에 `leaderId: String?` 필드 추가, 4 elector propagate
 - **freeze**: NO
 
@@ -841,7 +845,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 - **PR**: PR3
 - **Files**:
   - `leader-mongodb/src/main/kotlin/io/bluetape4k/leader/mongodb/lock/MongoLock.kt` (MODIFY)
-- **Depends-on**: PR1.5 hash
+- **Depends-on**: origin/develop after PR1 merge
 - **Description**: spec §8 — slot doc schema 에 `leaderId: String?` field additive. TTL index 영향 없음 (metadata-only). `findOneAndUpdate` projection 에 `leaderId` 포함.
 - **Acceptance**:
   - 기존 row (no `leaderId`) 정상 read (nullable)
@@ -890,7 +894,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 
 ## 4. PR4 — Phase F1 — Hazelcast backend
 
-- **depends-on**: PR1.5 hash
+- **depends-on**: origin/develop after PR1 merge
 - **scope**: IMap value 에 `auditLeaderId` 추가, 4 elector propagate
 - **freeze**: NO
 
@@ -901,7 +905,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
   - `leader-hazelcast/src/main/kotlin/io/bluetape4k/leader/hazelcast/HazelcastLeaderGroupElector.kt` (MODIFY)
   - `leader-hazelcast/src/main/kotlin/io/bluetape4k/leader/hazelcast/coroutines/HazelcastSuspendLeaderElector.kt` (MODIFY)
   - `leader-hazelcast/src/main/kotlin/io/bluetape4k/leader/hazelcast/coroutines/HazelcastSuspendLeaderGroupElector.kt` (MODIFY)
-- **Depends-on**: PR1.5 hash
+- **Depends-on**: origin/develop after PR1 merge
 - **Description**: spec §8 — IMap value class (예: `HazelcastLeaderEntry`) 에 `auditLeaderId: String?` field. 4 elector 모두 BOTH override.
 - **Acceptance**:
   - T72 contract test 통과
@@ -937,7 +941,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 
 ## 5. PR5 — Phase F2 — ZooKeeper backend
 
-- **depends-on**: PR1.5 hash
+- **depends-on**: origin/develop after PR1 merge
 - **scope**: znode JSON schema vN+1 (auditLeaderId), 4 elector propagate
 - **freeze**: NO
 
@@ -948,7 +952,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
   - `leader-zookeeper/src/main/kotlin/io/bluetape4k/leader/zookeeper/ZooKeeperLeaderGroupElector.kt` (MODIFY)
   - `leader-zookeeper/src/main/kotlin/io/bluetape4k/leader/zookeeper/coroutines/ZooKeeperSuspendLeaderElector.kt` (MODIFY)
   - `leader-zookeeper/src/main/kotlin/io/bluetape4k/leader/zookeeper/coroutines/ZooKeeperSuspendLeaderGroupElector.kt` (MODIFY)
-- **Depends-on**: PR1.5 hash
+- **Depends-on**: origin/develop after PR1 merge
 - **Description**: spec §8 — znode payload JSON schema 에 `auditLeaderId` field. 기존 schema (no field) backward-compat (nullable read).
 - **Acceptance**:
   - T72 contract test 통과
@@ -984,7 +988,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 
 ## 6. PR6 — Phase G — Exposed JDBC + R2DBC backends
 
-- **depends-on**: PR1.5 hash
+- **depends-on**: origin/develop after PR1 merge
 - **scope**: `leader-exposed-core` 공유 테이블 schema 변경 (`audit_leader_id VARCHAR(256) NULL` — group + single), 2 backend propagate, startup probe, rollback test
 - **freeze**: NO
 
@@ -993,7 +997,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 - **Files**:
   - `leader-exposed-core/src/main/kotlin/io/bluetape4k/leader/exposed/tables/LeaderLockTable.kt` (MODIFY)
   - `leader-exposed-core/src/main/kotlin/io/bluetape4k/leader/exposed/tables/LeaderGroupLockTable.kt` (MODIFY)
-- **Depends-on**: PR1.5 hash
+- **Depends-on**: origin/develop after PR1 merge
 - **Description**: spec §8 + §13 + Round 6 codex #3. `val auditLeaderId = varchar("audit_leader_id", 256).nullable()`. Postgres / MySQL 8.0+ / H2 / SQL Server 모두 호환 (additive, NULL default).
 - **Acceptance**:
   - 두 테이블 모두 column 추가
@@ -1051,7 +1055,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
   - 새 코드로 row 작성 → 옛 코드 read OK (forward-compat)
   - 옛 코드로 row 작성 (no audit) → 새 코드 read OK (`auditLeaderId = null`)
   - 옛 binary INSERT (without audit reference) on new schema 통과 (true rollback)
-  - Testcontainers Postgres + MySQL 8.0 matrix
+  - **Testcontainers matrix: Postgres + MySQL 8.0** (Step 3-R Round 2 test-engineer #2 — Postgres-only 불충분; column-default semantics MySQL 다름)
 
 ### PR6 acceptance + DoD
 
@@ -1151,7 +1155,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
   - `LeaderElectionInfo(lockName, true, resolved.value, resolved.source)` 생성 + `NotElected` 분기는 `(lockName, false, null, null)`
   - `runCatching {}` 사용 금지 (suspend path)
 - **Acceptance**:
-  - 7 case AOP integration test (T38) 통과
+  - 8 case AOP integration test (T38) 통과
   - bridge WARN counter == 0 (PR2-6 backend 가 모두 override 된 상태)
   - `LeaderIdResolutionException` 가 `failureMode=SKIP/FAIL_OPEN_RUN` 정책 무관하게 throw
   - SpEL 실패 시 `MeterRegistry.counter("leader.aop.leader_id.resolution_failed")` 증가 (T66 상수 사용)
@@ -1213,10 +1217,10 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 #### T68b [medium] — `LeaderElectorFactory*.targetElectorClass` SPI + AutoConfig probe (Step 3-R codex #3 — 모든 factory SPI 명시)
 - **PR**: PR7
 - **Files**:
-  - `leader-core/src/main/kotlin/io/bluetape4k/leader/spi/LeaderElectorFactory.kt` (MODIFY)
-  - `leader-core/src/main/kotlin/io/bluetape4k/leader/spi/LeaderGroupElectorFactory.kt` (MODIFY)
-  - `leader-core/src/main/kotlin/io/bluetape4k/leader/spi/SuspendLeaderElectorFactory.kt` (MODIFY)
-  - `leader-core/src/main/kotlin/io/bluetape4k/leader/spi/SuspendLeaderGroupElectorFactory.kt` (MODIFY)
+  - `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderElectorFactory.kt` (MODIFY)
+  - `leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderGroupElectorFactory.kt` (MODIFY)
+  - `leader-core/src/main/kotlin/io/bluetape4k/leader/coroutines/SuspendLeaderElectorFactory.kt` (MODIFY)
+  - `leader-core/src/main/kotlin/io/bluetape4k/leader/coroutines/SuspendLeaderGroupElectorFactory.kt` (MODIFY)
   - **모든 backend module 의 factory impl** (PR2-PR6 작업과 충돌 가능 — coordinator 가 PR7 dispatch 시점 조율 의무)
   - `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/autoconfigure/LeaderAopAutoConfiguration.kt` (MODIFY — probe 추가)
 - **Depends-on**: T37
@@ -1301,7 +1305,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 ### PR7 acceptance + DoD
 
 - [ ] `./gradlew :leader-spring-boot:build :leader-micrometer:build` clean
-- [ ] AOP integration test (T38 — PR8 으로 이관) 의 prep — `LeaderIdAopIntegrationTest` 7 case 통과 가능 상태
+- [ ] AOP integration test (T38 — PR8 으로 이관) 의 prep — `LeaderIdAopIntegrationTest` 8 case 통과 가능 상태
 - [ ] AutoConfig 순서 검증 (T73)
 - [ ] T54 `LeaderElectionInfo` init invariant 도입 — 모든 backend test green
 - [ ] bridge WARN counter == 0 (PR2-6 backend 가 모두 override 된 상태에서 aspect 사용)
@@ -1313,7 +1317,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 | File | 검증 |
 |------|------|
 | `SpelExpressionEvaluatorTest.kt` (확장) | T55 public `resolvePlaceholders` |
-| `LeaderGroupElectionAspectResolveLeaderIdTest.kt` (NEW) | T34 — 7 case (placeholder/literal/SpEL/property/provider/SpEL-blank/all-blank) |
+| `LeaderGroupElectionAspectResolveLeaderIdTest.kt` (NEW) | T34 — 8 case (placeholder/literal/SpEL/property/provider/SpEL-blank/all-blank) |
 | `LeaderElectionAspectResolveLeaderIdTest.kt` (NEW) | T35 — single leader mirror |
 | `LeaderAnnotationValidatorOverlapTest.kt` (NEW) | T59 — multi-annotation reject |
 | `LeaderAnnotationValidatorLeaderIdTest.kt` (확장) | T36 — preParse + whitespace + invalid SpEL |
@@ -1325,7 +1329,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 ### PR7 README / CHANGELOG impact
 
 - `leader-spring-boot/README.{md,ko.md}`: "Audit Identity (AOP)" 섹션 — annotation 예시, `LeaderIdProvider` bean override, `default-leader-id` property
-- `CHANGELOG.md`:
+- `docs/changelog-fragments/pr7.md` (NEW — Step 3-R Round 2 codex #2 enforcement):
   - `### Added` — `@LeaderElection.leaderId`, `@LeaderGroupElection.leaderId`, `LeaderAopProperties.defaultLeaderId`, default `LeaderIdProvider` bean, factory + recorder probe, Micrometer gauge + tag
   - `### Changed` — recorder API 6 context overload (backward-compat default), `LeaderElectionInfo` init invariant (PR7 도입)
   - `### Breaking` — multi-annotation overlap reject (`@LeaderElection` + `@LeaderGroupElection` 동일 메서드 → startup fail)
@@ -1360,7 +1364,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
   - case 7/8 — `failureMode=SKIP` / `FAIL_OPEN_RUN` 모두 throw 검증
 
 #### T78b [medium] — `LeaderGroupElectionAspectBlankGuardTest` — T78 dedicated unit test (Step 3-R test-engineer #2)
-- **PR**: PR7
+- **PR**: PR7 (위치: 본 plan §7 PR7 test list 에서 명시 — Step 3-R Round 2 architect P1-R2-1)
 - **Files**:
   - `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/aop/LeaderGroupElectionAspectBlankGuardTest.kt` (NEW)
 - **Depends-on**: T78
@@ -1368,7 +1372,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 - **Acceptance**:
   - 4 fallback exhaustion path 별 exception type 정확히 `LeaderIdResolutionException` 검증
   - `failureMode` 무관 always-RETHROW
-  - exception message 에 fallback chain 모두 blank 사실 명시
+  - **exception message 에 fallback chain 모두 blank 사실 명시 + 4 token assertion** (Step 3-R Round 2 test-engineer): `literal`, `SpEL`, `property`, `provider`, `lockName` 토큰 모두 포함 검증
 
 #### T39 [medium] — `LeaderIdMetricsTagsTest` — Micrometer tag 검증 + deterministic hash
 - **PR**: PR8
@@ -1378,7 +1382,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 - **Description**: spec §10. Micrometer `SimpleMeterRegistry` + `LeaderElector` (Local) — `leader.id` + `leader.id.source` tag 검증. 4 source 별 cardinality 분기 검증.
 - **Acceptance**:
   - `registry.find(counterName).tag("leader.id.source", "LITERAL").counter()` 존재 검증
-  - **AUTO source: deterministic hash-prefix** (Step 3-R test-engineer #6) — fixed input `leaderId="auto-xyz"` 에 대해 expected hash 값 (4-char hex) 명시 assertion. drift 방지
+  - **AUTO source: deterministic hash-prefix** (Step 3-R test-engineer #6 + Round 2 #6 algorithm pinning) — **algorithm = SHA-256 leading 4 hex chars lowercase**. 2 golden case (`leaderId="auto-xyz"` + `leaderId="x"`) — off-by-one slicing 회귀 방지. drift 방지
 
 #### T84b [medium] — `LeaderAopAutoConfigurationMeterRegistryAbsentTest` (Step 3-R test-engineer #4 + Round 16 NEW-16-2)
 - **PR**: PR7
@@ -1390,6 +1394,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
   - MeterRegistry 부재 시 INFO log 둘 다 emit
   - 직접 query API 동작 가능
   - bridge gauge bean 등록 안 됨 (graceful skip)
+  - **Counter monotonicity** (Step 3-R Round 2 test-engineer): MeterRegistry 부재 상태에서 aspect → bridge drop → `assertEquals(1, dropLog.droppedCount())` (no-op stub 이 아닌 실제 instance 가 counter 증가 확인)
 
 #### T40 [medium] — `LeaderIdMultiBackendIntegrationTest` — cross-backend smoke
 - **PR**: PR8
@@ -1518,7 +1523,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 
 - [ ] `./gradlew build` (root) clean
 - [ ] nightly-tests.yml — multi-backend matrix 통과
-- [ ] T38 7 case + T39 metrics + T40 multi-backend smoke 모두 clean
+- [ ] T38 8 case + T39 metrics + T40 multi-backend smoke 모두 clean
 - [ ] **README 9 모듈** (`leader-core`, `leader-spring-boot`, `leader-redis-lettuce`, `leader-redis-redisson`, `leader-mongodb`, `leader-hazelcast`, `leader-zookeeper`, `leader-exposed-jdbc`, `leader-exposed-r2dbc`) + root 모두 locale set 업데이트 (Step 3-R codex #9 — 8→9 정정)
 - [ ] **`actionlint` clean** if any `.github/workflows/*.yml` modified in PR8 (T40 nightly-tests.yml 변경 시) (Step 3-R codex #6)
 - [ ] **Downstream best-effort build** (Step 3-R codex #6 — spec §15 DoD): `cd /Users/debop/work/bluetape4k/{bluetape4k-workshop,ocean-workshop,clinic-appointment} && ./gradlew build` — `leader-id` 변경에 따른 deprecated `lease.leaderId` warning capture + 따로 follow-up issue 등록 (workshop 별)
@@ -1530,7 +1535,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 
 | File | 검증 |
 |------|------|
-| `LeaderIdAopIntegrationTest.kt` | T38 — 7 case |
+| `LeaderIdAopIntegrationTest.kt` | T38 — 8 case |
 | `LeaderIdMetricsTagsTest.kt` | T39 — Micrometer tag |
 | `LeaderIdMultiBackendIntegrationTest.kt` | T40 — 8 backend smoke |
 
@@ -1601,9 +1606,9 @@ PR2-6 작업 중 위 surface 변경 필요 시:
 ### 9.5 Worktree / git workflow
 
 ```bash
-# PR2-6 worker 의 worktree 분기 (PR1.5 hash 기반)
+# PR2-6 worker 의 worktree 분기 (origin/develop after PR1 merge 기반)
 cd /Users/debop/work/bluetape4k/bluetape4k-leader
-git worktree add .worktrees/feat-leader-id-pr2-lettuce-redisson <PR1.5 hash> -b feat/leader-id-pr2-lettuce-redisson-72
+git worktree add .worktrees/feat-leader-id-pr2-lettuce-redisson <origin/develop after PR1 merge> -b feat/leader-id-pr2-lettuce-redisson-72
 cd .worktrees/feat-leader-id-pr2-lettuce-redisson
 # 작업 후 push → PR --base develop
 ```
@@ -1679,7 +1684,7 @@ import org.jetbrains.exposed.v1.jdbc.exists
 | T35 | high | PR7 | `LeaderElectionAspect` mirror |
 | T36 | medium | PR7 | validator preParse + overlap |
 | T37 | medium | PR7 | autoconfig default `LeaderIdProvider` bean |
-| T38 | high | PR8 | `LeaderIdAopIntegrationTest` 7 case |
+| T38 | high | PR8 | `LeaderIdAopIntegrationTest` 8 case |
 | T39 | medium | PR8 | `LeaderIdMetricsTagsTest` |
 | T40 | medium | PR8 | `LeaderIdMultiBackendIntegrationTest` |
 | T41 | medium | PR8 | `leader-core/README` Audit Identity |
@@ -1735,9 +1740,9 @@ import org.jetbrains.exposed.v1.jdbc.exists
 
 | Complexity | Count | PR 별 분포 |
 |------------|-------|-----------|
-| **high** | **23** | PR1: 10 (T10/T11/T12/T13/T14/T15/T16/T50/T56/T68/T77) / PR2: 3 (T18/T19/T20) / PR3: 2 (T22/T23) / PR4: 1 (T25) / PR5: 1 (T27) / PR6: 2 (T30/T64) / PR7: 4 (T34/T35/T71/T72-split) / PR8: 1 (T38) |
-| **medium** | **34** | PR1: 13 (T6/T7/T8/T17/T48/T49/T51/T57/T65/T69/T74/T75/T76/T82) / PR2: 1 (T21) / PR3: 1 (T24) / PR4: 1 (T26) / PR5: 1 (T28) / PR6: 4 (T29/T31/T52) / PR7: 9 (T33/T36/T37/T54/T55/T59/T61/T68b/T69b/T73/T78) / PR8: 3 (T39/T40/T41/T42/T45) / deferred: 1 (T81) |
-| **low** | **28** | PR1: 12 (T1/T2/T3/T4/T5/T9/T47/T58/T63/T66/T67(=T53)/T68c(=T83)/T70-part1/T79) / PR6: 1 (T60) / PR7: 3 (T32/T62/T70-part2/T84) / PR8: 4 (T43/T44/T46/T80/T85) |
+| **high** | **23** | PR1: 11 (T10/T11/T12/T13/T14/T15/T16/T50/T56/T68/T77) / PR2: 3 (T18/T19/T20) / PR3: 2 (T22/T23) / PR4: 1 (T25) / PR5: 1 (T27) / PR6: 2 (T30/T64) / PR7: 4 (T34/T35/T71/T72-split) / PR8: 1 (T38) — Step 3-R Round 2 codex #5 recount (PR1: 11 items) |
+| **medium** | **37** | PR1: 14 (T6/T7/T8/T17/T48/T49/T51/T57/T65/T69/T74/T75/T76/T82/T83) / PR2: 1 (T21) / PR3: 1 (T24) / PR4: 1 (T26) / PR5: 1 (T28) / PR6: 4 (T29/T31/T52) / PR7: 11 (T33/T36/T37/T54/T55/T59/T61/T68b/T69b/T70-part2/T73/T78/T78b/T84b) / PR8: 5 (T39/T40/T41/T42/T45) / deferred: 1 (T81) — Step 3-R Round 2 codex #5: T83/T70-part2 raised low→medium, T78b/T84b added |
+| **low** | **25** | PR1: 12 (T1/T2/T3/T4/T5/T9/T47/T58/T63/T66/T67(=T53)/T68c(=T83)/T70-part1/T79) / PR6: 1 (T60) / PR7: 2 (T32/T62/T84) / PR8: 4 (T43/T44/T46/T80/T85) — T83/T70-part2 제외 (medium 으로 이동) |
 
 > **합계**: 23 high + 34 medium + 28 low = **85 task** (deferred T81 포함). target band (high 20-25 / medium 30-35 / low 25-30 / total ~85) **충족**.
 
@@ -1792,8 +1797,18 @@ Step 3-R 의 P0=0 / P1≤2 도달 후 PR1 implementation 진입.
 
 | Round | Reviewer set | P0 | P1 | P2 | P3 | Action / commit |
 |-------|--------------|----|----|----|----|----------------|
-| 1 | architect + test-engineer + codex CLI (2026-05-13) | **3** (B1 PR1.5/B2 freeze surface/codex#1 T16↔T82 cycle) | 12 | 7 | 1 | applied (this commit) |
-| 2 | (pending dispatch) | | | | | |
+| 1 | architect + test-engineer + codex CLI (2026-05-13) | **3** (B1/B2/codex#1 cycle) | 12 | 7 | 1 | applied 18cb979 + 9e926a3 |
+| 2 | architect + test-engineer + codex CLI (2026-05-13) | **2** (PR1.5 zombie / droppedCount missing) | 14+ | 2 | 0 | applied (this commit) |
+| 3 | (pending dispatch) | | | | | |
+
+**Round 2 fixes 적용 (P0 + P1)**:
+- P0-R2-1: PR1.5 zombie refs (13 sites) mass-replaced → `origin/develop after PR1 merge`
+- P0-R2-2: T74 에 `droppedCount(): Long` public accessor 명시 추가 (T67 freeze surface 의존성 보전)
+- codex #2 CHANGELOG fragment enforcement: 모든 per-PR CHANGELOG.md 직접 편집 → `docs/changelog-fragments/<pr>.md` 로 변경
+- codex #3 T68b factory paths: `leader-core/.../{,coroutines/}{LeaderElector,LeaderGroupElector,SuspendLeaderElector,SuspendLeaderGroupElector}Factory.kt` 실제 경로로 수정
+- codex #4 T38 7→8 case PR8 gates 전파 (4 sites)
+- codex #5 complexity recount: PR1 high 10→11, medium 34→37, low 28→25 (T83/T70-part2 medium 이동 반영)
+- test-engineer T75 concurrent stress test (100×100), T52 MySQL matrix, T58 equals/hashCode, T51 cancellation reentry, T84b counter monotonicity, T78b 4-token assertion, T39 algorithm pinning (SHA-256 4 hex lowercase, 2 golden case)
 
 **Round 1 fixes 적용 (P0 + 핵심 P1)**:
 - B1: PR1.5 sub-commit 메커니즘 제거 — PR1 자체에 freeze doc 포함, GitHub PR# reference 사용 (commit SHA 의존 없음). workspace branch protection 준수
@@ -1946,8 +1961,9 @@ Total 85 logical task ID (deferred T81 포함).
 
 ### Scripts / docs
 - `scripts/leader-id-phase-a0-grep-gate.sh` (T50, NEW)
-- `docs/superpowers/specs/2026-05-13-leader-id-testfixture-freeze.md` (T67, NEW + PR1.5 hash fill-in)
-- `CHANGELOG.md` (PR1-PR8 누적)
+- `docs/superpowers/specs/2026-05-13-leader-id-testfixture-freeze.md` (T67, NEW + origin/develop after PR1 merge fill-in)
+- `CHANGELOG.md` (PR8 T45 only — 그 외 PR 은 `docs/changelog-fragments/<pr-name>.md` per Step 3-R codex #4)
+- `docs/changelog-fragments/pr1.md` ... `pr8.md` (PR 별 fragment — Step 3-R Round 2 codex #2 enforcement)
 - 모듈별 `README.md` + `README.ko.md` (PR2-PR8 각 PR 별 update)
 - root `README.md` + `README.ko.md` (T44, PR8)
 
