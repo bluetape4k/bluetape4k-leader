@@ -528,7 +528,10 @@ class LeaderElectorBridgeLog(private val cacheSize: Int = DEFAULT_CACHE_SIZE) {
 
 **T69b 신규 task (Round 6 H2)**: `LeaderAopAutoConfiguration` 가 startup 시 reflection 으로 모든 등록 `LeaderAopMetricsRecorder` bean 의 4-arg overload (`onLockAcquired/.../context`) override 여부 확인. 미override 시 WARN log + property `bluetape4k.leader.aop.leader-id.metrics-required=true` 설정 시 startup fail. Default property `false` (warn only). 사용자 정의 recorder 의 audit tag 누락 silent-failure 방지
 
-**T68c 신규 task (Round 6 M2 — bridge SOE recursion)**: detekt custom rule 또는 contract test 가 backend `runIfLeader(lockName, action)` override 가 `runIfLeader(LeaderSlot(...), action)` 호출 ↔ `runIfLeader(LeaderSlot, action)` override 가 `runIfLeader(slot.lockName, action)` 호출 의 circular delegate 검출. `AbstractLeaderIdContractTest` 에 small-stack invocation 테스트 추가
+**T68c 신규 task (Round 6 M2 + Round 17 N17-1 확장)**: detekt custom rule 이 다음 모두 검출:
+- (Round 6) circular delegate: backend `runIfLeader(lockName)` override → `runIfLeader(LeaderSlot, ...)` 호출 ↔ `runIfLeader(LeaderSlot)` override → `runIfLeader(slot.lockName, ...)` 호출
+- (Round 17 N17-1) **super-call forbid**: 모든 backend override 안에서 `super.runIfLeader(slot, ...)` / `super.runIfLeaderResult(slot, ...)` / `super.runAsyncIfLeader(slot, ...)` / suspend variant 호출 금지 — bridge default 재진입 → false-positive WARN 발생
+`AbstractLeaderIdContractTest` 신규 assertion: `bridge WARN counter is zero when backend overrides slot variants` — 위반 시 CI fail
 
 // PR2-6 backend override — slot.leaderId 를 LeaderLease 에 stamp
 // Round 7 codex #2 fix: 반드시 BOTH runIfLeader(slot) AND runIfLeaderResult(slot) override
@@ -728,6 +731,15 @@ try {
 ```
 
 **Round 2 N1 fix**: 외부 broad `catch (backendEx: Exception)` 가 `LeaderIdResolutionException` 을 silently 잡아 `failureMode` 정책으로 swallow 했던 문제. catch order: `CancellationException` → `LeaderIdResolutionException` → `Exception` 순.
+
+**Round 17 N17-3 — Mono / Reactive branch**:
+```kotlin
+// aroundLeaderMono 분기 — Mono.onErrorResume catch ordering 도 동일 우선순위
+return Mono.defer { /* resolveLeaderId, runIfLeaderResult */ }
+    .onErrorResume(LeaderIdResolutionException::class.java) { Mono.error(it) }   // always-RETHROW (절대 swallow 금지)
+    .onErrorResume(Exception::class.java) { /* failureMode 정책 적용 */ }
+```
+`.onErrorResume(Throwable)` 단일 catch 사용 시 `LeaderIdResolutionException` 도 `failureMode` 로 swallow → 동일 silent-failure 패턴. Reactive 사용 시 명시적 type-specific catch 필수
 
 **Round 2 F1 fix — `spel.resolvePlaceholders(it)` 신규 public API**:
 
@@ -1832,8 +1844,10 @@ User directive: convergence gate continues. Phase 1 × 4 + real codex CLI 재dis
 | 13 (silent-failure + architect + codex) | **1 P0 (BLOCKER)** | 3 | 2 | 1 | applied 0110a62 |
 | 14 (silent-failure CONVERGED + architect + codex) | 0 | 4 | 2 | 1 | applied 0db038f |
 | 15 (silent-failure CONVERGED + architect + codex BG) | **1 P0** (always-true guard, Round 14 NEW-14-2 regression) | 2 | 1 | 1 | applied ed482e2 + 425d72e |
-| 16 (silent-failure + architect + codex) | 0 | 4 | 1 | 0 | applied (this commit) |
-| 17 | (pending dispatch) | | | | |
+| 16 (silent-failure + architect + codex) | 0 | 4 | 1 | 0 | applied cfb4b1f |
+| 17 (silent-failure CONVERGED + architect) | 0 | 1 | 2 | 1 | applied (this commit) |
+
+**Round 17 milestone**: silent-failure-hunter CONVERGED **3번째**. architect N17-1 P1 (super.X enforcement) 적용 + N17-3 Mono catch ordering 추가.
 
 **Round 14 milestone**: silent-failure-hunter **CONVERGED** (P0=P1=P2=0). Architect + Codex 잔존 finding 은 spec clarification 위주 (warning text 명시, gauge binding strategy, autoconfig 위치 결정).
 
