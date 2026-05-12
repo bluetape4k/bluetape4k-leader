@@ -387,10 +387,12 @@ interface LeaderElector : AsyncLeaderElector {
             LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         }
         var elected = false
-        // Round 12 architect P1 fix — bridge bypass nested call:
-        // `runIfLeader(slot.lockName, ...)` 로 직접 호출하여 inner slot-bridge counter 중복 증가 차단
-        // (이전: `runIfLeader(slot) { ... }` → nested bridge 호출로 droppedAuditCount 도 증가)
-        val v = runIfLeader(slot.lockName) { elected = true; action() }
+        // Round 13 architect P0 BLOCKER fix — REVERTED Round 12 bypass.
+        // 이유: `runIfLeader(slot.lockName, ...)` bypass 시 backend 의 lockName wrapper 가
+        // `safeNextLeaderId` 로 새 leaderId 생성 → slot.leaderId 사일런트 폐기 → audit 거짓 attribution
+        // (Round 6 C1 silent fabrication 재도입)
+        // 결정: `runIfLeader(slot, ...)` 로 nested dispatch 복원. counter double-count 는 LRU drift 로 허용 (benign vs audit correctness)
+        val v = runIfLeader(slot) { elected = true; action() }
         return if (elected) {
             // bridge default — backend 가 audit stamp 했는지 보장 못 함 → leaderId=null
             // backend override 시 slot.leaderId stamp 보장 후 Elected(v, slot.leaderId) 직접 반환
@@ -449,15 +451,19 @@ class LeaderElectorBridgeLog(private val cacheSize: Int = DEFAULT_CACHE_SIZE) {
             firstTime = warnedResultPairs.put(key, true) == null
         }
         if (firstTime) {
-            // Round 11 codex NEW-11-1 + Round 12 codex NEW-12-1 fix — correct remediation:
-            // backend 는 BOTH `runIfLeader(slot)` AND `runIfLeaderResult(slot)` 둘 다 override 의무 (T72)
+            // Round 11/12/13 codex — execution-model-neutral message
             log.warn {
-                "${implClass.simpleName} used default runIfLeaderResult(LeaderSlot) bridge; " +
-                "Elected.leaderId will be null for '${slot.leaderId}' — backend MUST override BOTH " +
-                "runIfLeader(LeaderSlot) AND runIfLeaderResult(LeaderSlot) to stamp audit (see T72)"
+                "${implClass.simpleName} used default result bridge; " +
+                "Elected.leaderId will be null for '${slot.leaderId}' — backend MUST override the " +
+                "execution-model-specific result variant (runIfLeaderResult / runAsyncIfLeaderResult / " +
+                "runIfLeaderResultSuspend) AND its non-result counterpart (runIfLeader / runAsyncIfLeader) " +
+                "to stamp audit (see T72)"
             }
         }
     }
+
+    // Round 13 silent-failure NEW-13-1: Async/VT/Suspend slot-bridge 의 guard 를 inline 으로 정정
+    // (이전: undefined `warnOnBridgeUseIfApplicable` 호출 → compile fail 또는 silent skip)
 
     private val droppedResultCounter = AtomicLong(0)
     fun droppedResultBridgeCount(): Long = droppedResultCounter.get()
@@ -548,7 +554,10 @@ interface AsyncLeaderGroupElector : LeaderGroupElectionState {
     fun <T> runAsyncIfLeader(lockName: String, executor: Executor, action: () -> CompletableFuture<T>): CompletableFuture<T?>
 
     fun <T> runAsyncIfLeader(slot: LeaderSlot, executor: Executor, action: () -> CompletableFuture<T>): CompletableFuture<T?> {
-        warnOnBridgeUseIfApplicable(slot)
+        // Round 13 silent-failure NEW-13-1 fix — inline guard (이전: undefined helper)
+        if (slot.leaderId.isNotBlank() && this::class != AsyncLeaderGroupElector::class) {
+            LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
+        }
         return runAsyncIfLeader(slot.lockName, executor, action)
     }
 
@@ -557,8 +566,8 @@ interface AsyncLeaderGroupElector : LeaderGroupElectionState {
             LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         }
         val elected = AtomicBoolean(false)                    // H5 — memory-safe across async hop
-        // Round 12 architect P1 fix — bypass nested slot-bridge (lockName 직접 호출)
-        return runAsyncIfLeader(slot.lockName, executor) { elected.set(true); action() }
+        // Round 13 architect P0 fix — REVERTED Round 12 bypass (avoid silent audit substitution)
+        return runAsyncIfLeader(slot, executor) { elected.set(true); action() }
             .thenApply { v ->
                 if (elected.get()) LeaderRunResult.Elected(v, leaderId = null)    // bridge — leaderId=null
                 else LeaderRunResult.Skipped
@@ -570,7 +579,9 @@ interface AsyncLeaderGroupElector : LeaderGroupElectionState {
 interface VirtualThreadLeaderGroupElector : LeaderGroupElectionState {
     fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?>
     fun <T> runAsyncIfLeader(slot: LeaderSlot, action: () -> T): VirtualFuture<T?> {
-        warnOnBridgeUseIfApplicable(slot)
+        if (slot.leaderId.isNotBlank() && this::class != VirtualThreadLeaderGroupElector::class) {
+            LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
+        }
         return runAsyncIfLeader(slot.lockName, action)
     }
     fun <T> runAsyncIfLeaderResult(slot: LeaderSlot, action: () -> T): VirtualFuture<LeaderRunResult<T>> {
@@ -578,8 +589,8 @@ interface VirtualThreadLeaderGroupElector : LeaderGroupElectionState {
             LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         }
         val elected = AtomicBoolean(false)                    // H5 — memory-safe across VT
-        // Round 12 architect P1 fix — bypass nested slot-bridge
-        return runAsyncIfLeader(slot.lockName) { elected.set(true); action() }
+        // Round 13 architect P0 fix — REVERTED Round 12 bypass (avoid silent audit substitution)
+        return runAsyncIfLeader(slot) { elected.set(true); action() }
             .map { v -> if (elected.get()) LeaderRunResult.Elected(v, leaderId = null) else LeaderRunResult.Skipped }
     }
 }
@@ -588,7 +599,9 @@ interface VirtualThreadLeaderGroupElector : LeaderGroupElectionState {
 interface SuspendLeaderGroupElector : LeaderGroupElectionState {
     suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T?
     suspend fun <T> runIfLeader(slot: LeaderSlot, action: suspend () -> T): T? {
-        warnOnBridgeUseIfApplicable(slot)
+        if (slot.leaderId.isNotBlank() && this::class != SuspendLeaderGroupElector::class) {
+            LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
+        }
         return runIfLeader(slot.lockName, action)
     }
 
@@ -598,9 +611,9 @@ interface SuspendLeaderGroupElector : LeaderGroupElectionState {
         }
         var elected = false
         // Manual try-catch — NO runCatching (CLAUDE.md rule); CancellationException rethrow first
-        // Round 12 architect P1 fix — bypass nested slot-bridge
+        // Round 13 architect P0 fix — REVERTED Round 12 bypass (avoid silent audit substitution)
         val v = try {
-            runIfLeader(slot.lockName) { elected = true; action() }
+            runIfLeader(slot) { elected = true; action() }
         } catch (e: CancellationException) {
             throw e                                            // H6 — never swallow CE
         }
@@ -1563,7 +1576,7 @@ Round 3 추가 task (Step 2-R Round 3 결과 반영)
 Round 5 추가 task (real codex CLI 결과 반영)
   T68 [high]  PR1 — 모든 elector interface (sync/suspend/async/VT × single/group = 8) 에 LeaderSlot bridge `default` 메서드 추가, 기존 lockName overload 으로 delegate (Round 5 codex B1 — backend 컴파일 깨짐 방지)
   T69 [med]   LeaderAopMetricsRecorder API 확장 — LeaderAopMetricsContext(leaderId, leaderIdSource) data class + backward-compat default method (Round 5 codex H2)
-  T70 [low]   leader-micrometer/MicrometerNames.kt — TAG_LEADER_ID + TAG_LEADER_ID_SOURCE 상수 추가 + MicrometerLeaderAopMetricsRecorder 가 신규 overload override (Round 5 codex H2) + bridge drop gauge 2종 등록: `leader.aop.bridge.dropped` (← `LeaderElectorBridgeLog.global().droppedAuditCount()`) + `leader.aop.bridge.result-dropped` (← `droppedResultBridgeCount()`). leader-spring-boot 의 LeaderMicrometerAutoConfiguration 또는 LeaderAopAutoConfiguration 에서 등록 (Round 12 codex NEW-12-2)
+  T70 [low]   leader-micrometer/MicrometerNames.kt — TAG_LEADER_ID + TAG_LEADER_ID_SOURCE **public** 상수 추가 (cross-module access 보장, Round 13 codex NEW-13-2 — leader-spring-boot 가 compileOnly dependency 라 internal 불가) + MicrometerLeaderAopMetricsRecorder 가 신규 overload override (Round 5 codex H2) + bridge drop gauge 2종 등록: `leader.aop.bridge.dropped` (← `LeaderElectorBridgeLog.global().droppedAuditCount()`) + `leader.aop.bridge.result-dropped` (← `droppedResultBridgeCount()`). 등록 위치: **`leader-micrometer` 모듈의 public helper** (예: `LeaderBridgeMetrics.register(registry)`) — `LeaderMicrometerAutoConfiguration` (leader-micrometer) 또는 `LeaderMicrometerHealthAutoConfiguration` (leader-spring-boot) 에서 호출. **NOT** `LeaderAopAutoConfiguration` (cross-module internal access 불가). 정확한 AutoConfig 위치는 CLAUDE.md AutoConfig 로드 순서 따름 — `LeaderMicrometerAutoConfiguration` 이 적합 (gauge 등록은 metrics module 책임) (Round 12 codex NEW-12-2 + Round 13 codex NEW-13-2 + architect NEW-13-2)
 
 Round 7 추가 task (real codex CLI 결과 반영)
   T71 [high]  [PR7] LeaderGroupElectionAspect / LeaderElectionAspect — 6개 recorder call site 모두에 context overload 통과: onLockAttempt, onLockAcquired, onLockNotAcquired, onTaskStarted, onTaskFinished, onTaskFailed. resolved audit 있으면 `LeaderAopMetricsContext.Identified(resolved.value, resolved.source)`, 없으면 `LeaderAopMetricsContext.Unknown` (Round 7 codex #3 + Round 8 codex #2 sealed 호환)
@@ -1807,7 +1820,8 @@ User directive: convergence gate continues. Phase 1 × 4 + real codex CLI 재dis
 | 9 (silent-failure + architect + type-design + code-reviewer + codex) | 0 | 7 | 1 | 1 | applied 4af9a79 |
 | 10 (silent-failure + architect + codex) | 1 | 5 | 0 | 2 | applied c9fa36a |
 | 11 (silent-failure + architect + codex) | 0 | 3 | 4 | 2 | applied 3a11baf |
-| 12 (silent-failure + architect) | 0 | 2 | 5 | 1 | applied (this commit) |
-| 13 | (pending dispatch) | | | | |
+| 12 (silent-failure + architect + codex BG) | 0 | 3 | 6 | 1 | applied bd16290 + afae663 |
+| 13 (silent-failure + architect + codex) | **1 P0 (BLOCKER)** | 3 | 2 | 1 | applied (this commit) |
+| 14 | (pending dispatch) | | | | |
 
 총 70 task (+ T68b/T68c/T69b 신규 verification task). 8 PR phased delivery.
