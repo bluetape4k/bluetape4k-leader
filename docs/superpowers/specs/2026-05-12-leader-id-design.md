@@ -392,22 +392,22 @@ interface LeaderElector : AsyncLeaderElector {
 - 이전 spec: bridge default 가 `Elected(v, slot.leaderId)` 반환 — backend 가 audit 안 찍었는데 결과는 찍힌 척 → multi-tenant forensics 거짓 attribution
 - 신규: bridge default 는 `Elected(v, null)` 반환 → "backend 가 audit 보장 못함" 명시. backend 가 override 시에만 `Elected(v, slot.leaderId)` 직접 반환 (실제 stamp 보장)
 
-**H1 + H4 fix — bridge transition window 가시화 + bounded LRU throttle (Round 7 H4)**:
+**H1 + H4 + Round 8 NEW-1 fix — bridge transition window 가시화 + configurable LRU throttle + lifecycle scoped**:
 ```kotlin
 // leader-core/.../identity/LeaderElectorBridgeLog.kt
-internal object LeaderElectorBridgeLog {
+// Round 8 NEW-1: ApplicationContext-scoped — Spring context restart 시 state reset
+class LeaderElectorBridgeLog(private val cacheSize: Int = DefaultCacheSize) {
     private val log = KotlinLogging.logger { }
-    private const val LRU_CAP: Int = 256
 
-    // Round 7 H4 — (class, leaderId) pair LRU throttle 로 multi-tenant 가시성 보장
+    // Round 7 H4 + Round 8 codex #3 — configurable cap
+    // LinkedHashMap accessOrder=true: get() promotes to MRU; put 후 동일 key get() 호출 시 promote
     private val warnedPairs: MutableMap<String, Boolean> = Collections.synchronizedMap(
-        object : LinkedHashMap<String, Boolean>(LRU_CAP, 0.75f, /* accessOrder = */ true) {
+        object : LinkedHashMap<String, Boolean>(cacheSize, 0.75f, /* accessOrder = */ true) {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>?): Boolean =
-                size > LRU_CAP
+                size > cacheSize
         }
     )
 
-    // dropped audit-id count metric — operator 가 누락 규모 인지
     private val droppedCounter = AtomicLong(0)
     fun droppedAuditCount(): Long = droppedCounter.get()
 
@@ -415,18 +415,26 @@ internal object LeaderElectorBridgeLog {
         droppedCounter.incrementAndGet()
         val key = "${implClass.qualifiedName}|${slot.leaderId}"
         synchronized(warnedPairs) {
-            if (warnedPairs.put(key, true) == null) {       // not previously logged
+            val firstTime = warnedPairs.put(key, true) == null
+            warnedPairs[key]  // accessOrder promotion (LRU 정확 동작)
+            if (firstTime) {
                 log.warn {
                     "${implClass.simpleName} has not overridden runIfLeader(LeaderSlot, ...); audit identity '${slot.leaderId}' is dropped during PR2-PR6 transition window"
                 }
             }
         }
     }
+
+    companion object {
+        const val DefaultCacheSize: Int = 256  // configurable: bluetape4k.leader.bridge.warn-cache-size
+    }
 }
 ```
-- (class, leaderId) pair throttle — multi-tenant 환경에서 distinct tenant 별 1회 WARN
-- LRU cap 256 — 무한 메모리 증가 방지
-- `droppedAuditCount()` 카운터 → Micrometer `leader.aop.bridge.dropped` gauge 로 노출 가능
+- (class, leaderId) pair LRU throttle — multi-tenant 환경 distinct tenant 별 1회 WARN
+- **Cap configurable** (Round 8 codex #3): `bluetape4k.leader.bridge.warn-cache-size` property, default 256. 10k+ tenant 환경에서 4096 이상 권장
+- **Lifecycle scoped** (Round 8 NEW-1): static singleton 아닌 ApplicationContext-scoped bean → `@DirtiesContext` 테스트 또는 context restart 시 state reset
+- `droppedAuditCount()` counter — Micrometer `leader.aop.bridge.dropped` gauge 로 노출. **누적 drop 수 == 누적 WARN 수 가 아님** (cache eviction 으로 drop 후 재로깅 가능). cardinality 의미: "bounded recent-pair throttle" — 정확한 distinct-tenant 카운트 아님
+- KDoc 명시: gauge 는 "total drop volume" 의미; distinct tenant count 는 별도 (`bluetape4k.leader.bridge.warn-cache-size` 이내일 때만 정확)
 
 **T68b 신규 task (Round 7 N7-3 / codex Round 7 #4 fix)**: **PR7 Phase I** (PR1 아님 — autoconfig 위치 정정). `LeaderElectorFactory` SPI 에 `targetElectorClass: KClass<out LeaderElector>` (또는 group variant) accessor 추가. `LeaderAopAutoConfiguration` 가 startup 시 모든 등록된 factory 의 `targetElectorClass` 를 reflection 으로 검사하여 `runIfLeader(LeaderSlot, ...)` AND `runIfLeaderResult(LeaderSlot, ...)` 메서드 둘 다 declared (override 됨) 인지 확인. 미override 시 WARN log (factory 별 + targetClass list + which method missing). **Probe 대상은 elector bean 이 아닌 factory.targetElectorClass** — factory pattern 때문에 elector 는 lazy 생성됨
 
@@ -579,6 +587,13 @@ private fun resolveLeaderId(
 
     // Step 3: provider — defensively wrapped (safeNextLeaderId top-level helper, see D2)
     val auto = safeNextLeaderId(idProvider, lockName)
+    // Round 8 NEW-3 final blank guard: 모든 fallback 통과 후에도 blank → LeaderIdResolutionException
+    // Identified.init { leaderId.requireNotBlank } 까지 절대 blank 도달 못 함
+    if (auto.isBlank()) {
+        throw LeaderIdResolutionException(
+            "All fallback levels (literal/SpEL/property/provider) yielded blank leaderId for lockName='$lockName'"
+        )
+    }
     return ResolvedLeaderId(auto, LeaderIdSource.AUTO)
 }
 
@@ -817,21 +832,32 @@ interface LeaderAopMetricsRecorder {
     object NoOp : LeaderAopMetricsRecorder
 }
 
-// leader-core/.../metrics/LeaderRecorderContextDropLog.kt — Round 7 H3 fix
+// leader-core/.../metrics/LeaderRecorderContextDropLog.kt — Round 7 H3 + Round 8 N8-1 fix
+// Round 8 N8-1 P0 fix: sealed LeaderAopMetricsContext 호환 predicate (Unknown 에는 필드 없음)
 internal object LeaderRecorderContextDropLog {
     private val log = KotlinLogging.logger { }
-    private val warnedClasses = ConcurrentHashMap.newKeySet<KClass<*>>()
     private val droppedCounter = AtomicLong(0)
     fun droppedCount(): Long = droppedCounter.get()
-    fun warnOnDrop(recorderClass: KClass<*>, context: LeaderAopMetricsContext) {
-        if (context.leaderId == null && context.leaderIdSource == null) return  // Empty context — no audit info to drop
-        droppedCounter.incrementAndGet()
-        if (warnedClasses.add(recorderClass)) {
-            log.warn {
-                "${recorderClass.simpleName} did not override 4-arg context overload; audit context (leaderId=${context.leaderId}, source=${context.leaderIdSource}) is dropped"
+
+    // Round 8 NEW-1 fix: warnedClasses 를 instance-scoped 로 만들어 Spring context restart 영향 차단
+    // 실제 wiring: LeaderAopAutoConfiguration 에서 ApplicationContext-scoped bean 으로 등록
+    class Throttle {
+        private val warnedClasses = ConcurrentHashMap.newKeySet<KClass<*>>()
+        fun warnOnDrop(recorderClass: KClass<*>, context: LeaderAopMetricsContext) {
+            // sealed type 패턴 매칭 — Unknown 은 early-return
+            val identified = context as? LeaderAopMetricsContext.Identified ?: return
+            droppedCounter.incrementAndGet()
+            if (warnedClasses.add(recorderClass)) {
+                log.warn {
+                    "${recorderClass.simpleName} did not override 4-arg context overload; " +
+                    "audit context (leaderId=${identified.leaderId}, source=${identified.leaderIdSource}) is dropped"
+                }
             }
         }
     }
+
+    // Spring context restart 시 fresh Throttle 생성 — Round 8 NEW-1
+    // ApplicationContext-scoped singleton bean
 }
 
 // MicrometerLeaderAopMetricsRecorder 가 신규 메서드 override 하여 leader.id / leader.id.source tag 기록
@@ -1418,17 +1444,23 @@ Round 5 추가 task (real codex CLI 결과 반영)
   T70 [low]   leader-micrometer/MicrometerNames.kt — TAG_LEADER_ID + TAG_LEADER_ID_SOURCE 상수 추가 + MicrometerLeaderAopMetricsRecorder 가 신규 overload override (Round 5 codex H2)
 
 Round 7 추가 task (real codex CLI 결과 반영)
-  T71 [high]  LeaderGroupElectionAspect / LeaderElectionAspect — 6개 recorder call site 모두에 context overload 통과: onLockAttempt, onLockAcquired, onLockNotAcquired, onTaskStarted, onTaskFinished, onTaskFailed. context = LeaderAopMetricsContext(resolved.value, resolved.source) (Round 7 codex #3)
-  T72 [high]  모든 backend PR2-6: runIfLeader(slot) AND runIfLeaderResult(slot) BOTH override 의무. contract test 가 assertEquals(slot.leaderId, result.leaderId) 검증 (Round 7 codex #2)
-  T73 [med]   T68b/T69b 를 PR7 Phase I 로 이동 + AutoConfig 순서 명시 (Round 7 codex #4)
+  T71 [high]  [PR7] LeaderGroupElectionAspect / LeaderElectionAspect — 6개 recorder call site 모두에 context overload 통과: onLockAttempt, onLockAcquired, onLockNotAcquired, onTaskStarted, onTaskFinished, onTaskFailed. resolved audit 있으면 `LeaderAopMetricsContext.Identified(resolved.value, resolved.source)`, 없으면 `LeaderAopMetricsContext.Unknown` (Round 7 codex #3 + Round 8 codex #2 sealed 호환)
+  T72 [high]  [PR2-6] 모든 backend: runIfLeader(slot) AND runIfLeaderResult(slot) BOTH override 의무. contract test 가 assertEquals(slot.leaderId, result.leaderId) 검증 (Round 7 codex #2)
+  T73 [med]   [PR7] T68b/T69b 를 Phase I 로 이동 + AutoConfig 순서 명시 (Round 7 codex #4)
 
 Round 7.6 추가 task (잔존 P1 적용)
-  T74 [med]   LeaderRecorderContextDropLog — 4-arg default 호출 시 context drop WARN (recorder class 당 1회) + drop counter (Round 7 H3)
-  T75 [med]   LeaderElectorBridgeLog 를 (class, leaderId) pair LRU(256) throttle 으로 변경 + droppedCounter (Round 7 H4)
-  T76 [med]   LeaderAopMetricsContext sealed interface 도입 — Unknown / Identified(leaderId, source) (Round 7 N7-5 / type-design)
+  T74 [med]   [PR1] LeaderRecorderContextDropLog.Throttle — 4-arg default 호출 시 context drop WARN (recorder class 당 1회) + drop counter. ApplicationContext-scoped bean (Round 8 NEW-1 lifecycle fix) (Round 7 H3)
+  T75 [med]   [PR1] LeaderElectorBridgeLog — (class, leaderId) pair LRU throttle (cap configurable via `bluetape4k.leader.bridge.warn-cache-size`, default 256) + droppedCounter. LinkedHashMap accessOrder=true (Round 8 codex #3) (Round 7 H4)
+  T76 [med]   [PR1] LeaderAopMetricsContext sealed interface 도입 — Unknown data object / Identified(leaderId, source) data class. Identified.init { leaderId.requireNotBlank }. Empty companion = Unknown alias (Round 7 N7-5 / type-design)
+
+Round 8 추가 task (Round 8 fix 반영)
+  T77 [high]  [PR1] LeaderRecorderContextDropLog sealed 호환 — `context as? Identified ?: return` 패턴 (Round 8 N8-1 / codex #1 — sealed 도입과 동시 commit 시 미반영)
+  T78 [med]   [PR7] resolveLeaderId final blank guard — fallback chain 4 level 모두 통과 후 결과가 blank 면 LeaderIdResolutionException throw. Identified.init 도달 시 user method 영향 차단 (Round 8 NEW-3)
+  T79 [low]   [PR1] LeaderElectorBridgeLog throttle 도 instance-scoped Throttle class 로 변경 — Spring context restart 시 stale state 차단 (Round 8 NEW-1)
+  T80 [low]   §11 CHANGELOG row 를 짧은 pointer 로 변경 + 별도 `### CHANGELOG draft` 섹션 (Round 8 codex #4 / N8-3)
 ```
 
-총 70 task. Complexity 분포: high 18, medium 29, low 23.
+총 80 task. Complexity 분포: high 20, medium 33, low 27.
 
 ---
 
@@ -1598,6 +1630,36 @@ Round 6 dispatched 5 parallel reviewers:
 - **codex #3 high — aspect 6 recorder call site context propagation**: spec 은 `onLockAcquired(..., ctx)` 만 언급. 다른 5 메서드 (`onLockAttempt/NotAcquired/Started/Finished/Failed`) 도 ctx 통과 의무 명시 → T71 신규
 - **codex #4 medium — probe phase**: T68b 가 PR1 라벨이지만 Spring autoconfig 위치 (PR7 territory). T69b 는 `LeaderMicrometerAutoConfiguration` 이후 실행 필요 → T73 신규, T68b/T69b 둘 다 PR7 Phase I 명시
 
+### Round 8 (2026-05-13) — 3 reviewer dispatch + Round 8 fixes
+
+| Reviewer | Verdict | Critical findings |
+|----------|---------|-------------------|
+| Silent-failure | NEEDS ROUND 9 | **Q2 CRITICAL** (sealed predicate compile fail), **NEW-1** (warnedClasses static survives context restart), NEW-3 (provider whitespace → Identified.init throw → user method) |
+| Architect | NEEDS ROUND 9 | **N8-1 P0** (sealed predicate compile fail — Q2 동일), N8-2 (T74-76 PR labels), N8-3 CHANGELOG cell density, N8-4 @JvmField Java compat, N8-5 redundant Empty |
+| Codex CLI | NEEDS ROUND 9 | **#1 high** (sealed predicate — N8-1 동일), **#2 high** (T71 stale flat constructor), #3 medium (LRU 256 cap claim), #4 low (CHANGELOG density), #5 low (task total stale) |
+
+**Round 8 통합**: 2 P0 (N8-1 == Q2 == codex #1; NEW-1) + 4 P1 (NEW-3, N8-2, codex #2) + 1 P2 (codex #3) + 2 P3 (codex #4/5, N8-3/4/5)
+
+**Round 8 fixes 적용**:
+- **N8-1 / Q2 / codex #1 P0**: `LeaderRecorderContextDropLog` sealed 호환 — `context as? Identified ?: return` 패턴 사용 (T77)
+- **NEW-1 P0**: `LeaderRecorderContextDropLog.Throttle` 와 `LeaderElectorBridgeLog` 둘 다 `ApplicationContext-scoped` class 로 변경 (static singleton 폐기) → context restart 시 state reset (T79)
+- **NEW-3 P1**: `resolveLeaderId` 마지막 fallback (provider) 결과가 blank 일 때 `LeaderIdResolutionException` throw — Identified.init 에 blank 도달 차단 (T78)
+- **N8-2 P1**: T74/T75/T76 에 `[PR1]` 라벨, T71 `[PR7]`, T72 `[PR2-6]`, T73 `[PR7]` 추가
+- **codex #2 P1**: T71 `LeaderAopMetricsContext(resolved.value, resolved.source)` flat constructor 표현을 `LeaderAopMetricsContext.Identified(...)` 로 갱신 (sealed 호환)
+- **codex #3 P2**: `LeaderElectorBridgeLog` cap configurable (`bluetape4k.leader.bridge.warn-cache-size`, default 256). cardinality 의미 KDoc 명시 — "bounded recent-pair throttle"
+- **codex #5 P3**: task 총수 70 → 80 갱신, complexity 분포 갱신
+
+**Round 8 deferred (low — 시간 비용 대비 가치 작음)**:
+- codex #4 / N8-3: CHANGELOG cell 을 별도 sub-section 으로 재구성 (single-cell 도 spec 내부 가독성 충분)
+- N8-4: `@JvmField val Empty` Java compat — `Empty = Unknown` alias 라 Java 호출 시 `Unknown.INSTANCE` 도 가능; 명시 verification 은 PR1 build test 가 catch
+- N8-5: `Empty` vs `Unknown` redundancy — alias 유지 (legacy 호환)
+
+### Round 9 (planned)
+
+5 reviewer 재dispatch — Round 8 fixes 검증. P0=0 AND P1=0 도달까지 iteration.
+
+---
+
 **Round 7.6 추가 적용 (잔존 P1, user directive B)**:
 - **H3**: `LeaderRecorderContextDropLog.warnOnDrop` — 4-arg default 호출 시 recorder class 당 1회 WARN + drop counter. context==Empty 인 경우는 무시 (legacy 3-arg path)
 - **H4**: `LeaderElectorBridgeLog` 를 (class, leaderId) pair LRU(256) throttle 로 변경 + `droppedAuditCount()` counter. multi-tenant 환경 distinct tenant 별 1회 WARN
@@ -1618,7 +1680,8 @@ User directive: convergence gate continues. Phase 1 × 4 + real codex CLI 재dis
 | 4 (simulated codex) | 0 | 1 → 0 | 0 | 1 | applied db0137f |
 | 5 (real codex first run) | 1 | 2 | 2 | 0 | applied 83328f4 |
 | 6 (Phase 1 × 4 + real codex) | 1 | 2 | 4 | 1 | applied 6e72973 |
-| 7 (silent-failure + architect + codex BG) | 3 | 5 | 0 | 1 | applied (this commit) |
-| 8 | (pending dispatch) | | | | |
+| 7 (silent-failure + architect + codex BG) | 3 | 5 | 0 | 1 | applied 7bfd178 + 6969fda + e82b374 |
+| 8 (silent-failure + architect + codex BG) | 2 | 4 | 1 | 2 | applied (this commit) |
+| 9 | (pending dispatch) | | | | |
 
 총 70 task (+ T68b/T68c/T69b 신규 verification task). 8 PR phased delivery.
