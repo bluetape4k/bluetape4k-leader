@@ -357,21 +357,62 @@ fun LeaderElectionInfo.validate(): LeaderElectionInfo = apply {
 - CI 빌드 깨짐 없이 phased delivery 가능
 
 ```kotlin
-// PR1 interface 변경 예시
+// PR1 interface 변경 예시 (Round 6 C1/H1 fix)
 interface LeaderElector : AsyncLeaderElector {
     // 기존 — 변경 없음
     fun <T> runIfLeader(lockName: String, action: () -> T): T?
 
     // NEW PR1 — bridge default → existing lockName overload 으로 delegate
-    fun <T> runIfLeader(slot: LeaderSlot, action: () -> T): T? =
-        runIfLeader(slot.lockName, action)            // ← bridge — backend 가 override 안 해도 동작
+    // Round 6 H1: WARN log 가 backend non-override 즉시 가시화
+    fun <T> runIfLeader(slot: LeaderSlot, action: () -> T): T? {
+        if (slot.leaderId.isNotBlank() && this::class != LeaderElector::class) {
+            LeaderElectorBridgeLog.warnOnBridgeUse(this::class, slot)
+        }
+        return runIfLeader(slot.lockName, action)     // ← bridge — backend 가 override 안 해도 동작
+    }
 
-    // Result variant 도 동일 패턴
+    // Result variant — Round 6 C1 + Codex #1 fix
+    // (1) elected flag pattern 보존 — action 이 null 반환하는 경우와 elected-but-null 구분
+    // (2) leaderId=null 반환 — bridge 는 audit stamp 보장 못 함
     fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
-        val v = runIfLeader(slot, action) ?: return LeaderRunResult.Skipped
-        return LeaderRunResult.Elected(v, slot.leaderId)
+        var elected = false
+        val v = runIfLeader(slot) { elected = true; action() }
+        return if (elected) {
+            // backend 가 override 안 한 경우 (bridge path 통과) leaderId=null
+            // backend override 시 slot.leaderId 가 stamp 되었음을 보장 후 직접 반환
+            LeaderRunResult.Elected(v, leaderId = null)
+        } else {
+            LeaderRunResult.Skipped
+        }
     }
 }
+```
+
+**C1 critical fix 핵심** (Round 6 silent-failure-hunter):
+- 이전 spec: bridge default 가 `Elected(v, slot.leaderId)` 반환 — backend 가 audit 안 찍었는데 결과는 찍힌 척 → multi-tenant forensics 거짓 attribution
+- 신규: bridge default 는 `Elected(v, null)` 반환 → "backend 가 audit 보장 못함" 명시. backend 가 override 시에만 `Elected(v, slot.leaderId)` 직접 반환 (실제 stamp 보장)
+
+**H1 fix — bridge transition window 가시화**:
+```kotlin
+// leader-core/.../identity/LeaderElectorBridgeLog.kt
+internal object LeaderElectorBridgeLog {
+    private val log = KotlinLogging.logger { }
+    private val warnedClasses = ConcurrentHashMap.newKeySet<KClass<*>>()
+    fun warnOnBridgeUse(implClass: KClass<*>, slot: LeaderSlot) {
+        if (warnedClasses.add(implClass)) {       // throttle — class 당 1회
+            log.warn {
+                "${implClass.simpleName} has not overridden runIfLeader(LeaderSlot, ...); audit identity '${slot.leaderId}' is dropped during PR2-PR6 transition window"
+            }
+        }
+    }
+}
+```
+
+**T68b 신규 task**: PR1 `LeaderAopFactoryAutoConfiguration` 가 startup 시 reflection 으로 모든 등록 elector bean 의 `runIfLeader(LeaderSlot, ...)` override 여부 확인. 미override 시 WARN log (전체 list)
+
+**T69b 신규 task (Round 6 H2)**: `LeaderAopAutoConfiguration` 가 startup 시 reflection 으로 모든 등록 `LeaderAopMetricsRecorder` bean 의 4-arg overload (`onLockAcquired/.../context`) override 여부 확인. 미override 시 WARN log + property `bluetape4k.leader.aop.leader-id.metrics-required=true` 설정 시 startup fail. Default property `false` (warn only). 사용자 정의 recorder 의 audit tag 누락 silent-failure 방지
+
+**T68c 신규 task (Round 6 M2 — bridge SOE recursion)**: detekt custom rule 또는 contract test 가 backend `runIfLeader(lockName, action)` override 가 `runIfLeader(LeaderSlot(...), action)` 호출 ↔ `runIfLeader(LeaderSlot, action)` override 가 `runIfLeader(slot.lockName, action)` 호출 의 circular delegate 검출. `AbstractLeaderIdContractTest` 에 small-stack invocation 테스트 추가
 
 // PR2-6 backend override — slot.leaderId 를 LeaderLease 에 stamp
 class LettuceLeaderGroupElector(...) : LeaderGroupElector {
@@ -606,22 +647,43 @@ enum class LeaderIdSource {
 data class LeaderAopMetricsContext(
     val leaderId: String? = null,
     val leaderIdSource: LeaderIdSource? = null,
-)
+) {
+    /**
+     * Pairing invariant — leaderId == null ↔ leaderIdSource == null.
+     * (Round 6 type-design [medium] — opt-in convention; sealed variant follow-up)
+     * Validate before passing to recorder if defensive.
+     */
+    init {
+        require((leaderId == null) == (leaderIdSource == null)) {
+            "LeaderAopMetricsContext pairing violated: leaderId=$leaderId, leaderIdSource=$leaderIdSource"
+        }
+    }
+    companion object {
+        val Empty = LeaderAopMetricsContext()
+    }
+}
 
 // recorder API 확장 — backward-compat default method 로 추가
+// Round 6 Codex #2: onTaskFailed / onLockNotAcquired 도 동일 patterm 필요
 interface LeaderAopMetricsRecorder {
     fun onLockAcquired(name: String, options: LeaderElectionOptions, acquireElapsed: Duration) { /* 기존 */ }
+    fun onLockNotAcquired(name: String, reason: SkipReason, options: LeaderElectionOptions, waitElapsed: Duration) { /* 기존 */ }
+    fun onTaskFinished(name: String, totalElapsed: Duration, success: Boolean) { /* 기존 */ }
+    fun onTaskFailed(name: String, executionTime: Duration, throwable: Throwable) { /* 기존 */ }
 
-    // NEW — default 구현이 기존 메서드 delegate (Codex H2 backward-compat)
-    fun onLockAcquired(
-        name: String,
-        options: LeaderElectionOptions,
-        acquireElapsed: Duration,
-        context: LeaderAopMetricsContext,
-    ) {
-        onLockAcquired(name, options, acquireElapsed)        // 기존 구현체 동작 보존
+    // NEW — backward-compat default 가 기존 3-arg 호출 delegate (모든 success/failure 메서드에 context 확장)
+    fun onLockAcquired(name: String, options: LeaderElectionOptions, acquireElapsed: Duration, context: LeaderAopMetricsContext) {
+        onLockAcquired(name, options, acquireElapsed)
     }
-    // ... onLockNotAcquired / onTaskFinished 도 동일 패턴
+    fun onLockNotAcquired(name: String, reason: SkipReason, options: LeaderElectionOptions, waitElapsed: Duration, context: LeaderAopMetricsContext) {
+        onLockNotAcquired(name, reason, options, waitElapsed)
+    }
+    fun onTaskFinished(name: String, totalElapsed: Duration, success: Boolean, context: LeaderAopMetricsContext) {
+        onTaskFinished(name, totalElapsed, success)
+    }
+    fun onTaskFailed(name: String, executionTime: Duration, throwable: Throwable, context: LeaderAopMetricsContext) {
+        onTaskFailed(name, executionTime, throwable)
+    }
 }
 
 // MicrometerLeaderAopMetricsRecorder 가 신규 메서드 override 하여 leader.id / leader.id.source tag 기록
@@ -831,7 +893,12 @@ abstract class AbstractLeaderIdContractTest {
     @Test fun `default provider yields unique leaderId per call`() { ... }
     @Test fun `LeaderLease auditLeaderId equals LeaderSlot leaderId after acquire`() { ... }   // Round 5 codex M5 fix
 @Test fun `LeaderLease nodeId equals options nodeId after acquire`() { ... }
-@Test fun `LeaderLease deprecated leaderId getter returns nodeId or auditLeaderId`() { ... }   // legacy contract check
+@Test fun `with nodeId set, deprecated leaderId getter returns nodeId not auditLeaderId`() {
+    // assert: lease.leaderId == lease.nodeId, lease.leaderId != lease.auditLeaderId
+}   // Round 6 codex #4 — explicit nodeId-present contract
+@Test fun `with nodeId null, deprecated leaderId getter returns auditLeaderId`() {
+    // assert: lease.leaderId == lease.auditLeaderId
+}   // Round 6 codex #4 — explicit nodeId-absent contract
     @Test fun `nodeId is preserved on LeaderLease alongside leaderId`() { ... }
     @Test fun `concurrent runIfLeader calls each have distinct leaderId`() {
         // MultithreadingTester (workers × rounds)
@@ -1139,7 +1206,7 @@ Phase F2 — ZooKeeper (PR5)
   T28 [med]   tests
 
 Phase G — Exposed JDBC/R2DBC (PR6)
-  T29 [med]   LeaderGroupLockTable.kt — audit_leader_id VARCHAR(256)
+  T29 [med]   LeaderGroupLockTable.kt + LeaderLockTable.kt — 두 테이블 모두 audit_leader_id VARCHAR(256) NULL 컬럼 추가 (Round 6 codex #3)
   T30 [high]  Exposed*Elector.kt (JDBC + R2DBC) — propagate
   T31 [med]   tests + Testcontainers Postgres migration test
 
@@ -1316,25 +1383,48 @@ User correction: 이전 Rounds 의 "Phase 3 Codex" 는 simulated agent 였음. �
 - **M4 [medium]**: Exposed startup probe 가 single-lock table 만 검사. **양쪽 테이블 모두 probe (single + group)**
 - **M5 [medium]**: testFixture `lease.leaderId == slot.leaderId` 가 deprecated getter `nodeId ?: auditLeaderId` 때문에 fail. **`lease.auditLeaderId == slot.leaderId` 로 교체 + `lease.nodeId` / legacy `lease.leaderId` 별도 assertion**
 
-### Round 6 (planned) — full reviewer re-dispatch
+### Round 6 (2026-05-12) — full reviewer re-dispatch per user directive
 
 User directive: "codex review 도 convergence gate iteration, 다른 reviewer 도 재작업".
 
-Round 6 dispatch:
-- Phase 1 multi-perspective × 4 재실행 (architect + silent-failure + type-design + code-reviewer)
-- **Real `codex` CLI 재실행** (delta verification)
-- Phase 2 critic integration
-- Convergence target: 모든 reviewer 통합 P0 = 0 AND P1 = 0
+Round 6 dispatched 5 parallel reviewers:
 
-### Step 2-R Status: **NOT CONVERGED — Round 6 진행 중**
+| Reviewer | Verdict | Findings |
+|----------|---------|----------|
+| Silent-failure | NEEDS ROUND 7 | C1 CRITICAL (bridge fabricates Elected.leaderId), H1/H2 HIGH (silent drop + custom recorder probe), M1/M2 medium |
+| Type-design | NEEDS ROUND 7 | LeaderAopMetricsContext flat-nullables (sealed 권장), bridge invariant asymmetry (template-method 권장) |
+| Code-reviewer (idioms) | CONVERGED | 1 MEDIUM nit (pairing KDoc) |
+| Architect | (output 잘림, log 만 확인) | 분석 진행 결과 미공개 |
+| Real codex CLI | NEEDS ROUND 7 | **1 blocker** (D6 result bridge null-result regression + audit lie), 3 medium (onTaskFailed context, T29 두 table, M5 underspecified), 1 low |
+
+**Round 6 통합 P0**: 1 (bridge result fabrication — Silent-failure C1 + Codex blocker 동일 이슈)
+**Round 6 통합 P1**: 2 (H1 silent drop, H2 custom recorder probe)
+**Round 6 통합 P2**: 4 (Codex onTaskFailed, T29 task, sealed context 권장, SOE recursion)
+**Round 6 통합 P3**: 1 (M5 underspecified)
+
+**Round 6 fixes 적용**:
+- **C1/Codex blocker fix**: D6 bridge result variant 재작성 — `elected` flag pattern 보존 (기존 null-vs-skipped 의미 보존) + `Elected(v, leaderId=null)` 반환 (audit fabrication 차단)
+- **H1**: `LeaderElectorBridgeLog.warnOnBridgeUse` — backend non-override 즉시 가시화. throttled per-class
+- **H2 / Codex #2**: `LeaderAopMetricsContext` pairing invariant `init require`; 4-arg overload 을 `onLockAcquired`/`onLockNotAcquired`/`onTaskFinished`/`onTaskFailed` 4개 모두에 추가; T69b 신규 — startup 시 custom recorder 의 4-arg override 미적용 WARN/fail 옵션
+- **M2 / Codex bridge SOE**: T68c 신규 — circular delegate 검출 detekt/contract test
+- **Codex #3**: T29 task — `LeaderGroupLockTable.kt` + `LeaderLockTable.kt` 두 테이블 모두 명시
+- **Codex #4 / M5**: testFixture assertion 분리 — `nodeId` 설정 시 vs null 시 deprecated getter 동작 명시
+- **type-design 권장 (sealed LeaderAopMetricsContext, template-method bridge)**: O11/O12 follow-up 으로 defer; 본 PR 은 flat data class + init require + WARN log 로 보호
+
+### Round 7 (planned)
+
+Round 6 fixes 검증 — 모든 reviewer 재dispatch 필요 per user directive. Phase 1 × 4 + real codex CLI 병렬. P0=0 AND P1=0 도달까지 iteration.
+
+### Step 2-R Status: **NOT CONVERGED — Round 7 dispatch pending**
 
 | Round | P0 | P1 | P2 | P3 | Status |
 |-------|----|----|----|----|--------|
 | 1 | 2 | 13 | 19 | 16 | applied 7008d57 |
 | 2 | 3 | 11 | 6 | 2 | applied 444f094 |
 | 3 | 2 | 8 | 3 | 1 | applied 92dc382 |
-| 4 (simulated codex) | 0 | 1 → 0 | 0 | 1 | applied prev commit |
-| 5 (real codex) | 1 | 2 | 2 | 0 | applied (this commit) |
-| 6 | (pending dispatch) | | | | |
+| 4 (simulated codex) | 0 | 1 → 0 | 0 | 1 | applied db0137f |
+| 5 (real codex first run) | 1 | 2 | 2 | 0 | applied 83328f4 |
+| 6 (Phase 1 × 4 + real codex) | 1 | 2 | 4 | 1 | applied (this commit) |
+| 7 | (pending dispatch) | | | | |
 
-총 70 task. 8 PR phased delivery (PR1..PR8 depends-on graph).
+총 70 task (+ T68b/T68c/T69b 신규 verification task). 8 PR phased delivery.
