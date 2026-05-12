@@ -1,6 +1,8 @@
 package io.bluetape4k.leader.spring
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.leader.spring.properties.LeaderElectionProperties
+import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -9,6 +11,7 @@ import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.ConfigurationPropertySource
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 import java.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 private inline fun <reified T : Any> Binder.bindAs(name: String): BindResult<T> =
     bind(name, T::class.java)
@@ -68,6 +71,55 @@ class LeaderPropertiesBindingTest {
         props.waitTime shouldBeEqualTo Duration.ofSeconds(10)
         props.leaseTime shouldBeEqualTo Duration.ofSeconds(300)
         props.group.maxLeaders shouldBeEqualTo 8
+    }
+
+    // ── LeaderElectionProperties.toOptions() ──────────────────────────────
+
+    @Test
+    fun `LeaderElectionProperties toOptions - default 값이 LeaderElectionOptions 로 변환`() {
+        val props = LeaderElectionProperties()
+        val opts = props.toOptions()
+
+        opts.waitTime shouldBeEqualTo 5.seconds
+        opts.leaseTime shouldBeEqualTo 60.seconds
+    }
+
+    @Test
+    fun `LeaderElectionProperties toOptions - 커스텀 값이 LeaderElectionOptions 로 변환`() {
+        val props = LeaderElectionProperties(
+            waitTime = Duration.ofSeconds(10),
+            leaseTime = Duration.ofMinutes(2),
+        )
+        val opts = props.toOptions()
+
+        opts.waitTime shouldBeEqualTo 10.seconds
+        opts.leaseTime shouldBeEqualTo 120.seconds
+    }
+
+    // ── LeaderGroupProperties.toOptions() ─────────────────────────────────
+
+    @Test
+    fun `LeaderGroupProperties toOptions - default 값이 LeaderGroupElectionOptions 로 변환`() {
+        val props = LeaderGroupProperties()
+        val opts = props.toOptions()
+
+        opts.maxLeaders shouldBeEqualTo 2
+        opts.waitTime shouldBeEqualTo 5.seconds
+        opts.leaseTime shouldBeEqualTo 60.seconds
+    }
+
+    @Test
+    fun `LeaderGroupProperties toOptions - 커스텀 값이 LeaderGroupElectionOptions 로 변환`() {
+        val props = LeaderGroupProperties(
+            maxLeaders = 5,
+            waitTime = Duration.ofSeconds(3),
+            leaseTime = Duration.ofMinutes(1),
+        )
+        val opts = props.toOptions()
+
+        opts.maxLeaders shouldBeEqualTo 5
+        opts.waitTime shouldBeEqualTo 3.seconds
+        opts.leaseTime shouldBeEqualTo 60.seconds
     }
 
     @EnableConfigurationProperties(LeaderProperties::class)

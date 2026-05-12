@@ -214,4 +214,53 @@ class SpelExpressionEvaluatorTest {
     private class TwoParamService {
         fun process(env: String, zone: String): String = "$env-$zone"
     }
+
+    // ── RootCtx equals / hashCode (배열 필드 포함) ────────────────────────
+
+    @Test
+    fun `RootCtx equals - 동일 내용 두 인스턴스는 equal`() {
+        val m = method("process")
+        val args = arrayOf<Any?>("EU")
+        val target = SampleService()
+        val ctx1 = SpelExpressionEvaluator.RootCtx(m, args, target)
+        val ctx2 = SpelExpressionEvaluator.RootCtx(m, args.copyOf(), target)
+        (ctx1 == ctx2) shouldBeEqualTo true
+    }
+
+    @Test
+    fun `RootCtx equals - 자기 자신은 equal`() {
+        val ctx = SpelExpressionEvaluator.RootCtx(method("process"), arrayOf("EU"), SampleService())
+        (ctx == ctx) shouldBeEqualTo true
+    }
+
+    @Test
+    fun `RootCtx equals - 다른 타입이면 not equal`() {
+        val ctx = SpelExpressionEvaluator.RootCtx(method("process"), arrayOf("EU"), SampleService())
+        (ctx.equals("other")) shouldBeEqualTo false
+    }
+
+    @Test
+    fun `RootCtx equals - args 내용 다르면 not equal`() {
+        val m = method("process")
+        val target = SampleService()
+        val ctx1 = SpelExpressionEvaluator.RootCtx(m, arrayOf("EU"), target)
+        val ctx2 = SpelExpressionEvaluator.RootCtx(m, arrayOf("KR"), target)
+        (ctx1 == ctx2) shouldBeEqualTo false
+    }
+
+    @Test
+    fun `RootCtx hashCode - 동일 내용이면 동일 hashCode`() {
+        val m = method("process")
+        val args = arrayOf<Any?>("EU")
+        val target = SampleService()
+        val ctx1 = SpelExpressionEvaluator.RootCtx(m, args, target)
+        val ctx2 = SpelExpressionEvaluator.RootCtx(m, args.copyOf(), target)
+        ctx1.hashCode() shouldBeEqualTo ctx2.hashCode()
+    }
+
+    @Test
+    fun `RootCtx methodName - method 이름 반환`() {
+        val ctx = SpelExpressionEvaluator.RootCtx(method("process"), arrayOf("EU"), SampleService())
+        ctx.methodName shouldBeEqualTo "process"
+    }
 }
