@@ -988,4 +988,4 @@ Phase 3 독립 리뷰 (Opus, 6개 차원): P1×5, P2×9, P3×4
 | 4 | P2 | Wiring 예시에 `backend.unlock()` `finally` 블록이 comment로만 표현 — 실제 코드 구조 부재 | Rev 6 반영: `try-catch-finally { backend.unlock(...) }` 구조로 재작성 |
 | 5 | P2 | Group elector (`LeaderGroupElector`, `SuspendLeaderGroupElector`) wiring matrix에 없음 | Rev 6 반영: matrix 하단에 "Group elector v1 deferred" footnote 추가 |
 
-Rev 6 commit: (pending)
+Rev 6 commit: `bf8a21b`.
