@@ -1,7 +1,7 @@
 # Issue #50 leader history/audit common contract design
 
 > Issue: #50 | Type: A Full Design, spec-only first | Date: 2026-05-12
-> Rev: 4 (2026-05-13) — Phase 2 critic P1×2 반영
+> Rev: 5 (2026-05-13) — Phase 3 Codex P1×5 반영
 
 ## 배경
 
@@ -329,6 +329,12 @@ class ExposedJdbcLeaderElector(
             // "runIfLeader 절대 throw 않음" 계약의 예외: CE는 structured concurrency
             // 신호이므로 반드시 caller에게 전파한다. lock 미획득(null 반환) 계약과
             // 구별되는 유일한 예외 경우다.
+            //
+            // ⚠️ 구현 주의: CE rethrow는 AUDIT 기록만 생략하며,
+            //    백엔드 lock release(unlock/permit release)는 finally 블록에서
+            //    반드시 실행해야 한다. CE path에서 lock이 leaseTime까지 유지되어
+            //    다른 candidate가 차단되는 상황을 막기 위해.
+            //    실제 구현: try { ... } finally { backend.unlock(token) }
             throw e
         } catch (e: Exception) {
             historyRecorder?.recordFailed(key ?: return null, ..., e)
@@ -340,15 +346,51 @@ class ExposedJdbcLeaderElector(
 
 **`runIfLeader` throw 계약 명세:**
 
-| 상황 | 동작 |
-|------|------|
-| lock 미획득 (contention) | `null` 반환, 절대 throw 없음 |
-| action 예외 (`Exception`) | `null` 반환, 절대 throw 없음 |
-| `CancellationException` | **rethrow** — structured concurrency 신호, 유일한 예외 |
+| 상황 | Elector 종류 | 동작 |
+|------|-------------|------|
+| lock 미획득 (contention) | 모든 종류 | `null` 반환, 절대 throw 없음 |
+| action 일반 예외 (`Exception`) | 모든 종류 | `null` 반환, 절대 throw 없음 |
+| `kotlinx.coroutines.CancellationException` | `SuspendLeaderElector` | **rethrow** — structured concurrency 신호 |
+| `java.util.concurrent.CancellationException` | `AsyncLeaderElector` | **rethrow** — CompletableFuture cancel 신호 |
+| `InterruptedException` | `LeaderElector` / `VirtualThreadLeaderElector` | **rethrow** + interrupt flag 복원 (`Thread.currentThread().interrupt()`) |
 
-CLAUDE.md "runIfLeader 절대 throw하지 않음"은 lock 미획득과 action 예외에 적용된다.
-`CancellationException`은 caller의 coroutine scope 취소 신호이므로 반드시 전파해야 한다.
-이것이 두 계약이 모순 없이 공존하는 방식이다.
+**추가 설명:**
+- CLAUDE.md "runIfLeader 절대 throw하지 않음"은 **lock 미획득과 action 일반 예외**에 적용된다.
+- blocking `LeaderElector`에서 `Thread.interrupt()`로 인한 `InterruptedException`은 CE와 동등한
+  취소 신호다. `null` 반환으로 삼키면 thread pool의 협력적 취소가 깨진다.
+  반드시 rethrow하고 interrupt flag를 복원해야 한다:
+  ```kotlin
+  } catch (e: InterruptedException) {
+      Thread.currentThread().interrupt()
+      throw e
+  }
+  ```
+- `JVM Error`(OOM 등)는 별도 정책(§2-2 참조)에 따라 전파된다.
+
+**4종 elector wiring matrix:**
+
+| Elector | Recorder 타입 | Sink 타입 | CE 클래스 |
+|---------|--------------|----------|-----------|
+| `LeaderElector` (blocking) | `SafeLeaderHistoryRecorder` | `LeaderHistorySink` | `java.util.concurrent.CancellationException` (rare — action lambda throws) + `InterruptedException` (§ below) |
+| `AsyncLeaderElector` (CompletableFuture) | `SafeLeaderHistoryRecorder` | `LeaderHistorySink` | `java.util.concurrent.CancellationException` (from `.cancel(true)`) |
+| `VirtualThreadLeaderElector` | `SafeLeaderHistoryRecorder` | `LeaderHistorySink` | `InterruptedException` (virtual thread interrupt) |
+| `SuspendLeaderElector` (coroutine) | `SuspendSafeLeaderHistoryRecorder` | `SuspendLeaderHistorySink` | `kotlinx.coroutines.CancellationException` |
+
+**CancellationException 클래스 명확화:**
+
+`SafeLeaderHistoryRecorder`의 `catch (e: CancellationException)` import는
+`import kotlinx.coroutines.CancellationException`이다.
+`kotlinx.coroutines.CancellationException`은 `java.util.concurrent.CancellationException`의
+subclass이므로 두 클래스 모두 catch된다.
+
+`AsyncLeaderElector`의 `CompletableFuture.cancel()` 호출은 `j.u.c.CancellationException`을 emit한다.
+blocking recorder가 이를 catch해 rethrow하는 것이 올바른 동작이다.
+
+**AsyncLeaderElector IO 경고:**
+`AsyncLeaderElector`의 콜백(thenApply, whenComplete 등)은 ForkJoinPool common worker에서 실행될 수 있다.
+blocking `LeaderHistorySink.recordAcquired()` (예: JDBC write)를 이 스레드에서 직접 호출하면
+ForkJoinPool을 블록해 성능 문제를 유발한다. `AsyncLeaderElector` 구현은 sink 호출을
+별도 IO executor에 위임하거나 non-blocking sink만 사용해야 한다. 이 제약은 implementation plan에서 다룬다.
 
 **Spring 환경**: `LeaderElectionAutoConfiguration`이 `LeaderHistorySink` bean이 있으면
 `SafeLeaderHistoryRecorder`를 생성해 elector에 주입한다.
@@ -426,6 +468,14 @@ class SafeLeaderHistoryRecorder(
 `CancellationException`은 blocking 버전에서도 **절대 삼키지 않는다** — rethrow.
 `recordFailed`로 CE가 전달되는 경우(프로그래밍 오류)는 audit-isolation 계약에 따라
 IAE를 전파하지 않고 warn log 후 skip한다.
+
+**Error (non-Exception) 전파 정책:**
+`SafeLeaderHistoryRecorder`의 `catch (e: Exception)` 는 `Error`를 포함하지 않는다.
+`OutOfMemoryError`, `StackOverflowError` 등의 `Error`는 **그대로 전파된다**.
+이는 의도적이다: JVM-fatal 상태에서 audit-isolation 계약(선출 결과 보호)보다
+프로세스 생존 신호를 우선하기 때문이다.
+audit 저장 중 `Error` 전파로 `runIfLeader`가 실패하는 것은 **설계상 허용된 예외 경우**이며
+CLAUDE.md "runIfLeader 절대 throw 않음" 계약의 범위 밖이다.
 
 #### 2-3. SuspendSafeLeaderHistoryRecorder (leader-core)
 
@@ -506,6 +556,20 @@ class MicrometerSafeLeaderHistoryRecorder(
 |-----|----|
 | `operation` | `recordAcquired` / `recordCompleted` / `recordFailed` |
 | `sink_type` | sink class simple name |
+
+**`leader.history.acquire.missing` counter** (신규):
+`recordAcquired()`가 `null`을 반환하면(audit insert 실패) `leader.history.acquire.missing` counter를
+increment한다. 이 counter 없이는 SRE가 orphan-ACQUIRED 레코드를 process crash와
+구별할 수 없다.
+
+| tag | 값 |
+|-----|----|
+| `lock_name` | 해당 lockName |
+| `sink_type` | sink class simple name |
+
+`leader.history.acquire.missing` 이후 elector는 null key를 사용하는 `LeaderHistoryKey`
+(id=null, historyId=null, lockName+token)으로 `recordCompleted`/`recordFailed`를 여전히
+시도한다. sink가 `lockName+token`으로 대상을 찾지 못하면 no-op이다 — 이중 write 방지.
 
 이 counter는 `leader-micrometer`의 `MicrometerNames`에 등록한다.
 auto-config는 `MeterRegistry` bean과 `LeaderHistorySink` bean이 모두 있을 때
@@ -860,3 +924,26 @@ Phase 2 Opus critic: P1×2, P2×5, P3×3
 | 7 | P2 | `SuspendSafeLeaderHistoryRecorder` IO dispatcher 책임 | plan 단계에서 다룸 |
 
 Rev 4 commit `dfd062c`.
+
+### Phase 3 Codex (2026-05-13 Rev 4→5)
+
+Phase 3 독립 리뷰 (Opus, 6개 차원): P1×5, P2×9, P3×4
+
+| # | P | 찾은 문제 | 처리 |
+|---|---|-----------|------|
+| 1 | P1 | Wiring 예시에 CE rethrow 후 backend lock release 누락 | Rev 5 반영: 코드 주석 + 구현 지침 추가 |
+| 2 | P1 | AsyncLeaderElector/VirtualThreadLeaderElector wiring 미기술; j.u.c.CE vs kotlinx.CE 혼재 | Rev 5 반영: 4종 elector wiring matrix + CE 클래스 명확화 |
+| 3 | P1 | `SafeLeaderHistoryRecorder` Error(OOM 등) 전파 정책 미정의 | Rev 5 반영: Error 전파는 허용(JVM-fatal), 계약 범위 문서화 |
+| 4 | P1 | `recordAcquired` null 반환 시 audit gap이 process crash와 구별 불가 | Rev 5 반영: `leader.history.acquire.missing` counter 추가; null key로 fallback attempt |
+| 5 | P1 | blocking elector에서 `InterruptedException` → null 반환 시 thread cooperative cancellation 깨짐 | Rev 5 반영: throw 계약 표에 `InterruptedException` rethrow + interrupt flag 복원 추가 |
+| 6 | P2 | `truncateUtf8` 그래핀 클러스터/이모지 경계 미처리 | P2 — 바이트 경계 안전 계약으로 scope 명시; 그래핀 boundary는 out-of-scope |
+| 7 | P2 | metadata 16-key 자르기 iteration order 비결정적 | P2 — "iteration order 기준, 비결정적" 명시로 해결 (plan 단계) |
+| 8 | P2 | `sanitizeForLog` U+2028/U+2029 누락 | P2 — implementation task 추가 (plan 단계) |
+| 9 | P2 | `effectiveStatus` 클럭 skew — 앱/DB 서버 다른 AZ | P2 — 이미 Appendix에 P3 하향 설명 있음; plan 단계에서 "now 파라미터화" task 추가 |
+| 10 | P2 | `AnnotationKind` enum serialization 호환성 | P2 — plan 단계에서 string 저장 방식 검토 task 추가 |
+| 11 | P2 | MySQL DDL `IF NOT EXISTS` 미지원 | P2 — "idempotency는 Flyway 책임" 명시로 해결 (이미 반영) |
+| 12 | P2 | `errorType` anonymous class qualifiedName null | P2 — `java.lang.Class.name` fallback plan task 추가 |
+| 13 | P2 | `MicrometerSafeLeaderHistoryRecorder.sink` private → simpleName 접근 불가 | P2 — plan 단계에서 protected 또는 생성자 파라미터로 변경 |
+| 14 | P2 | group elector CE rethrow 계약 미기술 | P2 — plan 단계 task 추가 (LeaderGroupElector 동일 계약 적용) |
+
+모두(P1) Rev 5에 반영. Commit (pending).
