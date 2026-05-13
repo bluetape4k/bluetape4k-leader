@@ -1,7 +1,7 @@
 # Issue #50 leader history/audit common contract design
 
 > Issue: #50 | Type: A Full Design, spec-only first | Date: 2026-05-12
-> Rev: 8 (2026-05-13) — Phase 3 Codex Round 4 P1×2 + P2×4 + P3×2 반영
+> Rev: 9 (2026-05-13) — Phase 3 Codex Round 5 P1×1 + P2×2 반영
 
 ## 배경
 
@@ -483,19 +483,29 @@ open class SafeLeaderHistoryRecorder(
         }
     }
 
-    private fun sanitize(record: LeaderLockHistoryRecord): LeaderLockHistoryRecord = record.copy(
-        errorMessage = record.errorMessage?.truncateUtf8(LeaderLockHistoryRecord.MAX_ERROR_MESSAGE_BYTES),
-        metadata = record.metadata.entries
-            .take(LeaderLockHistoryRecord.MAX_METADATA_KEYS)
-            .associate { (k, v) ->
-                k.take(64).sanitizeForLog() to v.take(LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH)
-            },
-    )
-
-    /** log injection 방지: \n, \r, ASCII control chars 제거 */
-    private fun String.sanitizeForLog(): String =
-        replace(Regex("\\p{Cntrl}"), "?")
+    // sanitize, sanitizeForLog는 아래 top-level internal fun으로 위임한다.
+    // SuspendSafeLeaderHistoryRecorder가 동일 함수를 참조하므로 두 클래스 private 불가.
 }
+
+// --- Shared internal utilities (leader-core internal) ---
+
+/** Sanitize audit record fields before sink dispatch. */
+internal fun sanitize(record: LeaderLockHistoryRecord): LeaderLockHistoryRecord = record.copy(
+    errorMessage = record.errorMessage?.truncateUtf8(LeaderLockHistoryRecord.MAX_ERROR_MESSAGE_BYTES),
+    metadata = record.metadata.entries
+        .take(LeaderLockHistoryRecord.MAX_METADATA_KEYS)
+        .associate { (k, v) ->
+            k.take(64).sanitizeForLog() to v.take(LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH)
+        },
+)
+
+/**
+ * Log injection 방지: CRLF, ASCII control chars, U+2028, U+2029 → "?".
+ * U+2028 (LINE SEPARATOR) / U+2029 (PARAGRAPH SEPARATOR) 은 많은 log aggregator에서
+ * 줄 바꿈으로 해석되므로 control chars와 동일하게 제거한다.
+ */
+internal fun String.sanitizeForLog(): String =
+    replace(Regex("[\\p{Cntrl}\\u2028\\u2029]"), "?")
 ```
 
 `CancellationException`은 blocking 버전에서도 **절대 삼키지 않는다** — rethrow.
@@ -518,8 +528,9 @@ CLAUDE.md "runIfLeader 절대 throw 않음" 계약의 범위 밖이다.
 
 #### 2-3. SuspendSafeLeaderHistoryRecorder (leader-core)
 
-suspend 버전. `sanitize()`와 `sanitizeForLog()`는 `SafeLeaderHistoryRecorder`와
-동일한 `internal fun`으로 추출해 공유한다 (top-level 또는 shared object).
+suspend 버전. `sanitize()`와 `sanitizeForLog()`는 위 §2-2 코드 블록 직후에 선언된
+**top-level `internal fun`** (파일: `LeaderHistoryRecorderSupport.kt` 또는 동일 파일 하단)을
+참조한다. `SafeLeaderHistoryRecorder`의 `private` 메서드가 아니므로 두 클래스 모두 접근 가능하다.
 
 ```kotlin
 open class SuspendSafeLeaderHistoryRecorder(
@@ -533,8 +544,12 @@ open class SuspendSafeLeaderHistoryRecorder(
         } catch (e: CancellationException) {
             throw e   // 절대 삼키지 않는다
         } catch (e: InterruptedException) {
-            // suspend 함수에서 InterruptedException은 드물지만 (예: suspendCoroutine 내부
-            // blocking sink 호출), interrupt flag 복원 후 rethrow한다.
+            // suspend 함수에서 InterruptedException은 드물지만 (예: suspendCoroutine/runInterruptible
+            // 내부 blocking sink 호출), interrupt flag 복원 후 rethrow한다.
+            // ⚠️ Dispatchers.IO 등 스레드 풀 기반 dispatcher에서 interrupt flag를 복원하면
+            //    해당 스레드가 다른 코루틴을 실행할 때 spurious IE가 발생할 수 있다.
+            //    이 동작은 best-effort이며, sink 구현이 runInterruptible {} 안에서 실행되도록
+            //    설계하면 이 문제를 완화할 수 있다.
             Thread.currentThread().interrupt()
             throw e
         } catch (e: Exception) {
@@ -1055,3 +1070,20 @@ Rev 7 commit: `98ce911`.
 | 8 | P3 | `sanitizeForLog()` U+2028/U+2029 누락 — acceptance criteria 미추적 | Rev 8 반영: acceptance criteria에 pattern 명시 |
 
 Rev 8 commit: `f4d4606`.
+
+### Phase 3 Codex Round 5 (2026-05-13 Rev 8→9)
+
+독립 검증 (6개 차원): P1×1, P2×2
+
+| # | P | 찾은 문제 | 처리 |
+|---|---|-----------|------|
+| 1 | P1 | `sanitize()` / `sanitizeForLog()`가 §2-2 코드 블록에서 `private`으로 선언 — `SuspendSafeLeaderHistoryRecorder`가 참조 시 컴파일 불가. spec 도입부에서 "internal fun 공유"라고 명시했지만 코드 블록이 `private` 상태였음 | Rev 9 반영: §2-2 코드 블록 끝에서 `private fun` 제거 → 클래스 닫음; `sanitize()` / `sanitizeForLog()`를 클래스 밖 top-level `internal fun`으로 재선언 (U+2028/U+2029 regex 포함); §2-3 도입부에 "top-level internal fun 참조" 명시 |
+| 2 | P2 | §2-2 `sanitizeForLog()` 코드 블록에서 regex가 `\\p{Cntrl}`만 사용 — acceptance criteria의 `[\\p{Cntrl}\\u2028\\u2029]`와 불일치 | Rev 9 반영: top-level `internal fun sanitizeForLog()`에서 올바른 regex 사용 |
+| 3 | P2 | `SuspendSafeLeaderHistoryRecorder` IE catch arm에서 `Thread.currentThread().interrupt()` 후 rethrow 시, Dispatchers.IO 스레드 풀 재사용으로 spurious IE 발생 가능 — 정책 미정의 | Rev 9 반영: §2-3 `recordAcquired` IE catch 주석에 "best-effort + runInterruptible 권고" 노트 추가 |
+
+**확인 사항:**
+- try/finally 구조 ✅ (record + recordAcquired가 try 안에 있고 finally는 항상 실행)
+- 6개 메서드 open ✅ (SafeLeaderHistoryRecorder 3 + SuspendSafeLeaderHistoryRecorder 3)
+- 이전 P1 이슈 전부 해결 ✅
+
+Rev 9 commit: (pending)
