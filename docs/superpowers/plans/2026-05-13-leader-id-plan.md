@@ -1778,7 +1778,7 @@ import org.jetbrains.exposed.v1.jdbc.exists
 | **medium** | **37** | PR1: 14 (T6/T7/T8/T17/T48/T49/T51/T57/T65/T69/T74/T75/T76/T82/T83) / PR2: 1 (T21) / PR3: 1 (T24) / PR4: 1 (T26) / PR5: 1 (T28) / PR6: 4 (T29/T31/T52) / PR7: 11 (T33/T36/T37/T54/T55/T59/T61/T68b/T69b/T70-part2/T73/T78/T78b/T84b) / PR8: 5 (T39/T40/T41/T42/T45) / deferred: 1 (T81) — Step 3-R Round 2 codex #5: T83/T70-part2 raised low→medium, T78b/T84b added |
 | **low** | **25** | PR1: 12 (T1/T2/T3/T4/T5/T9/T47/T58/T63/T66/T67(=T53)/T68c(=T83)/T70-part1/T79) / PR6: 1 (T60) / PR7: 2 (T32/T62/T84) / PR8: 4 (T43/T44/T46/T80/T85) — T83/T70-part2 제외 (medium 으로 이동) |
 
-> **합계** (canonical — Step 3-R Round 3 NEW-3-2 reconciled): **23 high + 37 medium + 25 low = 85 logical task** (deferred T81 포함). target band (high 20-25 / medium 30-40 / low 25-30) **충족**. §10.3 PR-level table 도 동일 numbers 에서 derive.
+> **합계** (canonical): **23 high + 37 medium + 25 low = 85 logical task** (deferred T81 포함). target band (high 20-25 / medium 30-40 / low 25-30) **충족**. (§10.3 deprecated — Step 3-R Round 5 P0-R5-1. §10.2 가 유일한 복잡도 authority.)
 
 > **Note**: 일부 task ID 는 다른 task 의 일부로 통합되어 중복 counting 회피:
 > - T8 = T56 (작업 동일, counting 1회)
@@ -1794,9 +1794,7 @@ import org.jetbrains.exposed.v1.jdbc.exists
 
 ### 10.3 PR-level task counts
 
-> **Step 3-R Round 5 P0-R5-1 resolution**: §10.3 summary table was **deprecated** after 4 rounds of alias-dedup arithmetic failures (alias merge = −1 delta, not +1; §10.3 raw totals not derivable from §10.1 task index). **Use §10.2 as the sole canonical complexity authority.** Per-PR task distribution is available directly from §10.1 (task index, "PR" column). No separate summary table is maintained.
-
-PR1 이 가장 무거운 PR — testFixture freeze + 8 interface bridge + Local backend + identity types 집중. PR2-5 는 backend pattern 따라 가벼움. PR7 (AOP) 이 두번째로 무거운 PR.
+> **⚠️ DEPRECATED (Step 3-R Round 5 P0-R5-1)**: §10.3 PR-level summary table was removed after 4 rounds of alias-dedup arithmetic failures. **Use §10.2 as the sole canonical complexity authority.** Per-PR distribution: see §10.1 task index ("PR" column). No summary table is maintained here.
 
 ---
 
