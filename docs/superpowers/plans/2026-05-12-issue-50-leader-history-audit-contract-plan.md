@@ -500,6 +500,7 @@ T21와 동일 정책 (interface 호환만, 본문 wiring v1 deferred)
   - MongoDB는 `deleteMany` LIMIT 미지원 → TTL index가 primary retention 메커니즘; `deleteOlderThan`은 보조 (즉시 정리 용도)
 - KDoc에 TTL index 우선 사용 명시 + **`limit` 파라미터는 MongoDB에서 무시됨 (best-effort hint)** 명시 (Round 3 MEDIUM T25)
 - T37-C에 `deleteOlderThan` 기본 테스트 케이스 추가 (반환값 >= 0 확인)
+- **MongoDB retention loop 단일 반복 특성 주석** (Round 4 P2): `deleteMany`는 LIMIT 없이 전체 삭제 → 첫 iteration에서 loop 종료 (large count 반환). `maxDurationMs`는 loop 반복 간에만 적용. MongoDB primary retention은 TTL index; `deleteOlderThan`은 즉시 정리 보조용.
 
 ### T26: MongoDB index 생성 (lazy background coroutine)
 **complexity: high**
@@ -682,11 +683,13 @@ T21와 동일 정책 (interface 호환만, 본문 wiring v1 deferred)
 내용 (Round 3 H1+H2 수정):
 - `@Component class SuspendLeaderHistoryRetentionJob(private val sink: SuspendLeaderHistorySink)` — R2DBC / MongoDB 전용. `CoroutineScope` 생성자 파라미터 **제거**
 - `@Scheduled @LeaderElection("bluetape4k-leader-history-retention-suspend")` — 잠금 이름을 blocking job(`"...-retention"`)과 **구분** (각 Backend 독립 잠금)
-- 메서드는 **`suspend fun`** 직접 선언 (Round 3 H1: fire-and-forget `scope.launch` 사용 금지 — `@LeaderElection` 잠금이 메서드 반환 즉시 해제되므로):
+- **Mono 브리지 패턴 사용** (Round 4 P0: Spring Framework는 `@Scheduled`에서 `suspend fun` 직접 호출 불가 — spring-projects/spring-framework#32165 closed "not planned"):
   ```kotlin
   @Scheduled(cron = "\${bluetape4k.leader.history.retention.cron:0 0 2 * * ?}")
   @LeaderElection("bluetape4k-leader-history-retention-suspend")
-  suspend fun runRetention() {
+  fun runRetention(): Mono<Void> = mono(Dispatchers.IO) { runRetentionInternal() }.then()
+
+  private suspend fun runRetentionInternal() {
       val cutoff = Instant.now().minus(retentionDays, ChronoUnit.DAYS)
       val deadline = System.currentTimeMillis() + maxDurationMs
       var deleted: Int
@@ -696,6 +699,9 @@ T21와 동일 정책 (interface 호환만, 본문 wiring v1 deferred)
       } while (deleted >= chunkSize && System.currentTimeMillis() < deadline)
   }
   ```
+  - `Mono<Void>` 반환 → `@LeaderElection` 어스펙트가 Mono 종료 시점에 lock 해제 (#91 지원)
+  - lock이 실제 작업 완료까지 유지됨 (fire-and-forget 문제 해소)
+  - `Dispatchers.IO` 사용으로 blocking `deleteOlderThan` 쓰레드 안전
 - auto-config: `@ConditionalOnBean(SuspendLeaderHistorySink::class)` (Round 3 H2: `@ConditionalOnMissingBean(LeaderHistoryRetentionJob::class)` **제거** — 두 job은 서로 다른 물리 스토리지를 정리하므로 독립 실행 가능)
 - JDBC sink(blocking) + R2DBC/Mongo sink(suspend) 동시 존재 시 **양쪽 job 모두 실행** — 각자 독립 스토리지 대상
 
@@ -1121,7 +1127,7 @@ Phase 11 (T47 verify, T48 PR)
 | T35-C | 단위 테스트 — `SafeLeaderHistoryRecorder` CE/IE/Error | high | leader-core | T10 |
 | T35-D | 단위 테스트 — `SuspendSafeLeaderHistoryRecorder` | high | leader-core | T11 |
 | T35-E | 동시성 테스트 — recorder (MultithreadingTester + SuspendedJobTester) | high | leader-core | T10, T11 |
-| T36-A | 단위 테스트 — `MicrometerSafeLeaderHistoryRecorder` (counter 검증) | medium | leader-micrometer | T13, T14 |
+| T36-A | 단위 테스트 — `MicrometerSafeLeaderHistoryRecorder` blocking+suspend (counter 검증) | medium | leader-micrometer | T13, T13-S, T14 |
 | T37-A | 통합 테스트 — JDBC sink (PostgreSQL + MySQL 8.0+ Testcontainers) | high | leader-exposed-jdbc | T19, T20 |
 | T37-B | 통합 테스트 — R2DBC sink | high | leader-exposed-r2dbc | T22, T23 |
 | T37-C | 통합 테스트 — Mongo sink + indexer + TTL gauge | high | leader-mongodb | T25, T26, T27 |
@@ -1143,6 +1149,11 @@ Phase 11 (T47 verify, T48 PR)
 - medium: 27 (+3: T-Retention-S, T46-Spring + 기존 수정)
 - low: 10
 
+> **Plan Rev 5** (2026-05-14): Step 3-R Round 4 P0 + P2 반영
+> - Round 4 P0: T-Retention-S `suspend fun` → Mono 브리지 (`fun runRetention(): Mono<Void> = mono { ... }.then()`) — @Scheduled + suspend 미지원 (spring-projects#32165)
+> - Round 4 P2-1: T36-A DoD 의존 T13-S 추가
+> - Round 4 P2-2: T25 MongoDB deleteOlderThan 단일 반복 특성 주석
+>
 > **Plan Rev 4** (2026-05-14): Step 3-R Round 3 HIGH findings 3건 + MEDIUM 4건 반영
 > - Round 3 H1: T-Retention-S `suspend fun` 직접 실행 (fire-and-forget scope.launch 제거)
 > - Round 3 H2: T-Retention-S `@ConditionalOnMissingBean` 제거 → 독립 실행; 별도 lock name
