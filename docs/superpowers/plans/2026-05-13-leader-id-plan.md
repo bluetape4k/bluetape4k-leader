@@ -1780,6 +1780,8 @@ import org.jetbrains.exposed.v1.jdbc.exists
 
 > **합계** (canonical): **23 high + 37 medium + 25 low = 85 logical task** (deferred T81 포함). target band (high 20-25 / medium 30-40 / low 25-30) **충족**. (§10.3 deprecated — Step 3-R Round 5 P0-R5-1. §10.2 가 유일한 복잡도 authority.)
 
+> **⚠️ §10.2 per-PR cell labels disclaimer** (Step 3-R Round 6 architect P1-R6-1): 위 표의 PR 별 분포 column 의 "숫자(T_/T_/...)" 형태에서 **앞의 숫자**는 post-alias 논리 task 수이고, **괄호 안 listed items**은 별도 dedup 없이 raw 나열이므로 listed items count 와 ±1-2 차이가 날 수 있음 (아래 alias dedup Note 규칙 적용 결과). **§10.1 task index 가 per-task 유일한 primary source** (PR + complexity 열 참고). §10.2 row totals (`23 high / 37 medium / 25 low = 85 logical`) 가 canonical summary — listed distribution cells 은 참고용.
+
 > **Note**: 일부 task ID 는 다른 task 의 일부로 통합되어 중복 counting 회피:
 > - T8 = T56 (작업 동일, counting 1회)
 > - T10/T11/T12/T13 = T68 의 sync/async/VT/suspend split (counting: 4 high in PR1 total, but T68 is single physical task — counted T68 as 1)
@@ -1822,8 +1824,14 @@ Step 3-R 의 P0=0 / P1≤2 도달 후 PR1 implementation 진입.
 | 2 | architect + test-engineer + codex CLI (2026-05-13) | **2** (PR1.5 zombie / droppedCount missing) | 14+ | 2 | 0 | applied 6524f49 |
 | 3 | architect + test-engineer + codex CLI (2026-05-13) | **2** (T68b type hierarchy / PR1.5 zombie 잔여) | 6 | 3 | 2 | applied 2df67c8 |
 | 4 | architect(opus) + test-engineer(sonnet) + codex(gpt-5.5) (2026-05-13) | **1** (§10.3 footer math) | 2 | 3 | 1 | applied aa3d23c |
-| 5 | architect(opus) + codex(gpt-5.5) (2026-05-13) | **1** (§10.3 math direction wrong — merge=−1 not +1) | 1 (PR7 traceability) | 0 | 0 | applied (this commit) |
-| 6 | (dispatch pending) | | | | | |
+| 5 | architect(opus) + codex(gpt-5.5) (2026-05-13) | **1** (§10.3 math direction wrong — merge=−1 not +1) | 1 (PR7 traceability) | 0 | 0 | applied 0a7690f |
+| 6 | architect(opus) + codex(gpt-5.5) (2026-05-13) | 0 | **1** (§10.2 per-PR label vs listed items ±1-2) | 0 | 0 | applied (this commit) |
+| 7 | (dispatch pending) | | | | | |
+
+**Round 6 fixes 적용 (P0=0 + P1=1)**:
+- P0: 없음
+- P1 architect/codex R6: §10.2 per-PR cell labels이 listed items count와 ±1-2 차이 — dedup rules 적용 결과. Arithmetic pass 대신 **disclaimer footnote** 추가 (architect 권장: "not another arithmetic pass"). §10.1 task index 가 per-task primary source, §10.2 totals(23/37/25=85)가 canonical.
+- codex P1 R6 (§10.2 stale ref + §10.3 residual prose): §10.2 line 1781 에서 deprecated §10.3 참조 제거, §10.3 deprecation note 에서 residual prose 제거 (37bdb25 에서 적용).
 
 **Round 5 fixes 적용 (P0 + P1)**:
 - P0 R5-P0-1 (architect+codex 합의): §10.3 PR-level table **deprecated** — alias-merge 방향 오류 (merge=−1, +1 아님), §10.3 raw 총계가 §10.1 task index 에서도 derive 안 됨. 테이블 자체 삭제 → deprecation note 로 대체. **§10.2 가 유일한 canonical 복잡도 authority** — §10.1 task index 의 PR 컬럼이 per-PR distribution 제공.
