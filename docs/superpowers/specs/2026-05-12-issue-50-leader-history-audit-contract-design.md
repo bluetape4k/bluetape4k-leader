@@ -1,7 +1,7 @@
 # Issue #50 leader history/audit common contract design
 
 > Issue: #50 | Type: A Full Design, spec-only first | Date: 2026-05-12
-> Rev: 9 (2026-05-13) — Phase 3 Codex Round 5 P1×1 + P2×2 반영
+> Rev: 10 (2026-05-13) — Phase 3 Codex Round 6 P1=0 수렴 확인; P2×3 + P3×3 polish 반영
 
 ## 배경
 
@@ -184,6 +184,12 @@ data class LeaderLockHistoryRecord private constructor(
 생성한다. 이를 통해 `requireNotBlank` 검증과 `metadata.toMap()` 방어 복사가 항상
 실행된다.
 
+> **`copy()` bypass 정책**: Kotlin `data class`의 `copy()`는 `private constructor`를 우회한다.
+> Kotlin 2.0의 `@ConsistentCopyVisibility` 또는 `-Xconsistent-data-class-copy-visibility`
+> 컴파일러 옵션으로 `copy()` 가시성을 `private`으로 제한할 수 있다.
+> v1에서는 이 옵션을 프로젝트 표준 여부에 따라 implementation plan에서 결정한다.
+> 현재는 `copy()` bypass를 허용된 위험으로 문서화 — factory 이후 레코드는 신뢰 가능한 내부 코드에서만 사용한다.
+
 필드 의미:
 
 - `lockName`: application-visible logical lock name.
@@ -281,7 +287,13 @@ interface LeaderHistorySink {
 }
 
 interface SuspendLeaderHistorySink {
-    /** 구현은 coroutine-safe해야 한다. */
+    /**
+     * 구현은 coroutine-safe해야 한다.
+     *
+     * 내부에서 blocking I/O를 수행하는 구현은 `kotlinx.coroutines.runInterruptible {}` 안에서
+     * 호출해야 한다. 그렇지 않으면 `Dispatchers.IO` 스레드 풀 재사용 시 spurious
+     * `InterruptedException`이 다른 코루틴으로 전파될 수 있다.
+     */
     suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey?
 
     suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long)
@@ -415,6 +427,10 @@ blocking recorder가 이를 catch해 rethrow하는 것이 올바른 동작이다
 blocking `LeaderHistorySink.recordAcquired()` (예: JDBC write)를 이 스레드에서 직접 호출하면
 ForkJoinPool을 블록해 성능 문제를 유발한다. `AsyncLeaderElector` 구현은 sink 호출을
 별도 IO executor에 위임하거나 non-blocking sink만 사용해야 한다. 이 제약은 implementation plan에서 다룬다.
+
+> **AsyncLeaderElector / VirtualThreadLeaderElector wiring 스켈레톤**: v1에서 blocking elector와
+> 동일한 `SafeLeaderHistoryRecorder`를 사용하지만, 구체 wiring 스켈레톤(IO executor 선택 등)은
+> implementation plan task로 다룬다. Group elector footnote와 동일 처리.
 
 **Spring 환경**: `LeaderElectionAutoConfiguration`이 `LeaderHistorySink` bean이 있으면
 `SafeLeaderHistoryRecorder`를 생성해 elector에 주입한다.
@@ -840,6 +856,7 @@ Exposed(30일) vs MongoDB(90일) 기본값 차이: RDBMS row 비용과 MongoDB d
 | 테스트 | 검증 포인트 | 도구 |
 |--------|------------|------|
 | `SafeLeaderHistoryRecorder.recordAcquired` sink 예외 | warn log + null 반환, election 영향 없음 | MockK |
+| `MicrometerSafeLeaderHistoryRecorder.recordAcquired` null 반환 | `leader.history.acquire.missing` counter increment, tag `lock_name` + `sink_type` 확인 | MockK + MeterRegistry |
 | `SafeLeaderHistoryRecorder.recordAcquired` CE rethrow | `assertFailsWith<CancellationException>` | JUnit 5 |
 | `recordFailed` CE 전달 시 skip | warn log만, sink 미호출, IAE 전파 없음 | MockK |
 | `sanitize()` errorMessage truncation | 512B 초과 → 잘림 (멀티바이트 경계 유지) | Kluent |
@@ -1087,3 +1104,27 @@ Rev 8 commit: `f4d4606`.
 - 이전 P1 이슈 전부 해결 ✅
 
 Rev 9 commit: `5d6669d`.
+
+### Phase 3 Codex Round 6 (2026-05-13 Rev 9→10) — **P1=0 수렴 확인**
+
+독립 검증 (6개 차원): P1=0, P2×3, P3×3
+
+**사전 확인 항목 (모두 ✅):**
+- try/finally 구조: record + recordAcquired가 try 안, finally는 항상 실행 ✅
+- 6개 메서드 open ✅ (SafeLeaderHistoryRecorder × 3 + SuspendSafeLeaderHistoryRecorder × 3)
+- sanitize/sanitizeForLog top-level internal fun, 양쪽 recorder에서 참조 ✅
+- 이전 P1 전부 해결 ✅
+
+| # | P | 찾은 문제 | 처리 |
+|---|---|-----------|------|
+| 1 | P2 | AsyncLeaderElector/VirtualThread wiring 스켈레톤 없음 | Rev 10 반영: "wiring 스켈레톤 implementation plan 위임" 노트 추가 (group elector 동일 처리) |
+| 2 | P2 | §7-1 acquire.missing counter 테스트 행 없음 | Rev 10 반영: `MicrometerSafeLeaderHistoryRecorder.recordAcquired` null → counter test row 추가 |
+| 3 | P2 | SuspendLeaderHistorySink KDoc에 runInterruptible 권고 없음 | Rev 10 반영: blocking sink는 `runInterruptible {}` 안에서 호출 권고 KDoc 추가 |
+| 4 | P3 | `LeaderLockHistoryRecord.copy()` bypass — `private constructor` 우회 | Rev 10 반영: `@ConsistentCopyVisibility` 정책 노트 추가; v1 허용 위험 문서화 |
+| 5 | P3 | wiring 예제 `var key` → `val key` (inner scope) | 코드 예시 수준; plan 단계에서 실제 구현 시 반영 — spec 변경 불필요 |
+| 6 | P3 | §7-1 sanitize() immutability test 없음 | `data class copy()` 불변성은 Kotlin 언어 보증 — spec 단위 테스트 불필요 |
+
+**수렴 선언**: 모든 reviewer (Phase 1 × 4 + 6-tier advisor + Phase 2 critic + Phase 3 Rounds 1-6)
+의 통합 finding P0=0, P1=0 도달. Step 2-R 완료.
+
+Rev 10 commit: (pending)
