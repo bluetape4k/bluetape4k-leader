@@ -14,6 +14,7 @@ import io.bluetape4k.leader.exposed.jdbc.lock.validateExposedLockName
 import io.bluetape4k.leader.exposed.tables.HistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -69,6 +70,12 @@ import kotlin.random.Random
 class ExposedJdbcLeaderGroupElector private constructor(
     private val db: Database,
     val options: ExposedJdbcLeaderGroupElectionOptions,
+    /**
+     * Optional history recorder for group elections.
+     * Group elector full wiring is deferred to v2 (#50 follow-up).
+     */
+    @Suppress("unused")
+    private val historyRecorder: SafeLeaderHistoryRecorder? = null,
 ) : LeaderGroupElector {
 
     companion object : KLogging() {
@@ -85,9 +92,10 @@ class ExposedJdbcLeaderGroupElector private constructor(
         operator fun invoke(
             db: Database,
             options: ExposedJdbcLeaderGroupElectionOptions = ExposedJdbcLeaderGroupElectionOptions.Default,
+            historyRecorder: SafeLeaderHistoryRecorder? = null,
         ): ExposedJdbcLeaderGroupElector {
             ExposedJdbcSchemaInitializer.ensureSchema(db)
-            return ExposedJdbcLeaderGroupElector(db, options)
+            return ExposedJdbcLeaderGroupElector(db, options, historyRecorder)
         }
     }
 

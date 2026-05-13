@@ -10,8 +10,9 @@ import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcSuspendLockExtend
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcLock
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcSchemaInitializer
 import io.bluetape4k.leader.exposed.r2dbc.lock.validateExposedR2dbcLockName
-import io.bluetape4k.leader.exposed.tables.HistoryStatus
-import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.history.LeaderHistoryKey
+import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -19,15 +20,7 @@ import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
-import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
-import org.jetbrains.exposed.v1.r2dbc.insert
-import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
-import org.jetbrains.exposed.v1.r2dbc.update
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 
 /**
@@ -42,21 +35,35 @@ import java.time.Instant
  *     delay(100)
  *     processData()
  * }
- * // result == processData() 반환값 (리더 획득 성공) 또는 null (획득 실패)
+ * // result == processData() 반환값 (리더 획득 성공) 또는 null (획득 실패 / action 예외)
+ * ```
+ *
+ * ## 히스토리 기록
+ * ```kotlin
+ * val sink = ExposedSuspendLeaderHistorySink(db)
+ * val recorder = SuspendSafeLeaderHistoryRecorder(sink)
+ * val election = ExposedR2DbcSuspendLeaderElector(db, historyRecorder = recorder)
  * ```
  *
  * ## 취소 안전성
  * `finally` 블록은 항상 `withContext(NonCancellable)`에서 실행되어 락이 보장 해제됩니다.
  *
+ * ## Behavior / Contract
+ * - Lock 미획득(contention) 시 `null` 반환 — 예외 없음.
+ * - Action이 [CancellationException]을 던지면 rethrow.
+ * - Action이 다른 [Exception]을 던지면 `null` 반환 (이력 기록 후 삼킴).
+ * - [historyRecorder]가 null이면 이력 기록 없이 동작.
+ *
  * **private constructor** — [invoke] 팩터리를 통해서만 생성하세요.
- * 첫 호출 시 [ExposedR2dbcSchemaInitializer.ensureSchema]가 실행되어 스키마가 자동으로 생성됩니다.
  *
  * @param db Exposed [R2dbcDatabase] 인스턴스
  * @param options 단일 리더 선출 옵션
+ * @param historyRecorder 선택적 이력 기록기; null이면 이력 기록 안 함
  */
 class ExposedR2DbcSuspendLeaderElector private constructor(
     private val db: R2dbcDatabase,
     val options: ExposedR2dbcLeaderElectionOptions,
+    private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
 ) : SuspendLeaderElector {
 
     companion object : KLoggingChannel() {
@@ -72,9 +79,10 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
         suspend operator fun invoke(
             db: R2dbcDatabase,
             options: ExposedR2dbcLeaderElectionOptions = ExposedR2dbcLeaderElectionOptions.Default,
+            historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
         ): ExposedR2DbcSuspendLeaderElector {
             ExposedR2dbcSchemaInitializer.ensureSchema(db)
-            return ExposedR2DbcSuspendLeaderElector(db, options)
+            return ExposedR2DbcSuspendLeaderElector(db, options, historyRecorder)
         }
     }
 
@@ -82,14 +90,16 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
      * [lockName]에 대해 리더로 승격되면 suspend [action]을 실행하고 결과를 반환합니다.
      *
      * - 리더 획득에 성공하면 [action] 결과를 반환합니다.
-     * - 리더 획득에 실패하면 `null`을 반환합니다 (**예외 없음** — ShedLock 호환 skip-on-contention 계약).
-     * - [action]이 던지는 예외는 그대로 전파되며, 락은 항상 해제됩니다.
-     * - [CancellationException]은 재전파되며 FAILED 이력에 기록되지 않습니다.
+     * - 리더 획득에 실패하면 `null`을 반환합니다 (예외 없음).
+     * - [action]이 [CancellationException]을 던지면 rethrow합니다.
+     * - [action]이 다른 예외를 던지면 `null`을 반환합니다 (이력 기록 후 삼킴).
+     * - 락은 정상/예외 어느 경로에서도 항상 해제됩니다.
      *
      * @param lockName 락 식별자 (영숫자/하이픈/언더스코어/콜론, 1-255자)
      * @param action 리더 획득 성공 시 실행할 suspend 작업
      * @return [action] 결과 또는 `null`
      * @throws IllegalArgumentException [lockName]이 유효하지 않은 경우
+     * @throws CancellationException action이 CancellationException을 던진 경우
      */
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         validateExposedR2dbcLockName(lockName)
@@ -104,11 +114,9 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
 
         log.debug { "리더로 승격하여 작업을 수행합니다. lockName=$lockName" }
 
-        val historyId = recordAcquired(lockName, lock.token)
         val startedAt = Instant.now()
         val acquiredAtNanos = System.nanoTime()
 
-        // T11 PR 6 (Issue #79) — ExtendDelegate / handle / watchdog 단일 reference 공유 (AC-15).
         val delegate = ExposedR2dbcSuspendLockExtendDelegate(lock)
         val identity = LockIdentity(
             lockName = lockName,
@@ -128,30 +136,42 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
             ERROR_CLASSIFIER,
         )
 
-        var actionSucceeded = false
-        var actionFailed = false
+        val record = historyRecorder?.let {
+            LeaderLockHistoryRecord(
+                lockName = lockName,
+                token = lock.token,
+                kind = LockIdentity.AnnotationKind.SINGLE,
+                acquiredAt = startedAt,
+                lockedUntil = startedAt.plusMillis(options.leaderOptions.leaseTime.inWholeMilliseconds),
+                nodeId = options.lockOwner,
+            )
+        }
+        val key = record?.let { historyRecorder?.recordAcquired(it) }
+        val effectiveKey: LeaderHistoryKey? =
+            key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = lock.token) }
 
         try {
-            val result = withContext(AopScopeAccess.createLockHandleElement(handle)) {
-                action()
+            return try {
+                val result = withContext(AopScopeAccess.createLockHandleElement(handle)) {
+                    action()
+                }
+                val finishedAt = Instant.now()
+                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
+                result
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val finishedAt = Instant.now()
+                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
+                log.warn(e) { "리더 작업 실패 (null 반환). lockName=$lockName" }
+                null
             }
-            actionSucceeded = true
-            return result
-        } catch (e: CancellationException) {
-            // CancellationException은 actionFailed 미설정 + 즉시 재전파 (코루틴 취소 계약)
-            throw e
-        } catch (e: Throwable) {
-            actionFailed = true
-            throw e
         } finally {
             // NonCancellable: 코루틴 취소 시에도 watchdog close + 락 해제가 중단되지 않도록 보호
             withContext(NonCancellable) {
                 watchdog.close()
-                when {
-                    actionSucceeded -> recordCompleted(historyId, lock.token, startedAt)
-                    actionFailed -> recordFailed(historyId, lock.token, startedAt)
-                    // CancellationException: 이력 미기록 (취소이므로 FAILED 아님)
-                }
                 try {
                     lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos)
                     log.debug { "리더 권한을 반납했습니다. lockName=$lockName" }
@@ -161,50 +181,6 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
                     log.warn(e) { "락 해제 실패. lockName=$lockName" }
                 }
             }
-        }
-    }
-
-    private suspend fun recordAcquired(lockName: String, token: String): Long? {
-        if (!options.recordHistory) return null
-        return runCatching {
-            suspendTransaction(db) {
-                val now = Instant.now()
-                LeaderLockHistoryTable.insert {
-                    it[LeaderLockHistoryTable.lockName] = lockName
-                    it[LeaderLockHistoryTable.lockOwner] = options.lockOwner
-                    it[LeaderLockHistoryTable.token] = token
-                    it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(options.leaderOptions.leaseTime.inWholeMilliseconds)
-                    it[LeaderLockHistoryTable.status] = HistoryStatus.ACQUIRED.name
-                    it[LeaderLockHistoryTable.startedAt] = now
-                }[LeaderLockHistoryTable.id]
-            }
-        }.getOrElse { e ->
-            log.warn(e) { "이력 ACQUIRED 기록 실패 (best-effort, 무시): lockName=$lockName" }
-            null
-        }
-    }
-
-    private suspend fun recordCompleted(historyId: Long?, token: String, startedAt: Instant) =
-        recordFinished(historyId, token, startedAt, HistoryStatus.COMPLETED)
-
-    private suspend fun recordFailed(historyId: Long?, token: String, startedAt: Instant) =
-        recordFinished(historyId, token, startedAt, HistoryStatus.FAILED)
-
-    private suspend fun recordFinished(historyId: Long?, token: String, startedAt: Instant, status: HistoryStatus) {
-        if (!options.recordHistory || historyId == null) return
-        val finishedAt = Instant.now()
-        runCatching {
-            suspendTransaction(db) {
-                LeaderLockHistoryTable.update(
-                    where = { (LeaderLockHistoryTable.id eq historyId) and (LeaderLockHistoryTable.token eq token) }
-                ) {
-                    it[LeaderLockHistoryTable.status] = status.name
-                    it[LeaderLockHistoryTable.finishedAt] = finishedAt
-                    it[LeaderLockHistoryTable.durationMs] = finishedAt.toEpochMilli() - startedAt.toEpochMilli()
-                }
-            }
-        }.getOrElse { e ->
-            log.warn(e) { "이력 ${status.name} 기록 실패 (best-effort, 무시): historyId=$historyId" }
         }
     }
 }

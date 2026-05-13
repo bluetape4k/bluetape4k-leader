@@ -14,6 +14,7 @@ import io.bluetape4k.leader.exposed.r2dbc.lock.validateExposedR2dbcLockName
 import io.bluetape4k.leader.exposed.tables.HistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -72,6 +73,12 @@ import kotlin.random.Random
 class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     private val db: R2dbcDatabase,
     val options: ExposedR2dbcLeaderGroupElectionOptions,
+    /**
+     * Optional history recorder for group elections.
+     * Group elector full wiring is deferred to v2 (#50 follow-up).
+     */
+    @Suppress("unused")
+    private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
 ) : SuspendLeaderGroupElector {
 
     companion object : KLoggingChannel() {
@@ -87,9 +94,10 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         suspend operator fun invoke(
             db: R2dbcDatabase,
             options: ExposedR2dbcLeaderGroupElectionOptions = ExposedR2dbcLeaderGroupElectionOptions.Default,
+            historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
         ): ExposedR2DbcSuspendLeaderGroupElector {
             ExposedR2dbcSchemaInitializer.ensureSchema(db)
-            return ExposedR2DbcSuspendLeaderGroupElector(db, options)
+            return ExposedR2DbcSuspendLeaderGroupElector(db, options, historyRecorder)
         }
     }
 

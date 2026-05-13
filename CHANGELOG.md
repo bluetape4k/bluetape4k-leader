@@ -9,6 +9,39 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### BREAKING CHANGES
+
+- **`leader-exposed-jdbc`**: `ExposedJdbcLeaderElector.runIfLeader()` now returns `null` instead of
+  rethrowing action exceptions.  `CancellationException` and `InterruptedException` are still rethrown.
+  Callers that relied on exception propagation must migrate (issue #50):
+
+  ```kotlin
+  // Before (throws on action failure):
+  try {
+      leaderElector.runIfLeader("job") { riskyWork() }
+  } catch (e: MyException) { handleError(e) }
+
+  // After (null on action failure — exception is logged):
+  val result = leaderElector.runIfLeader("job") { riskyWork() }
+  // result is null when not elected OR when action threw — check logs
+
+  // To preserve exception propagation, wrap in the action:
+  leaderElector.runIfLeader("job") {
+      try { riskyWork() } catch (e: MyException) { handleError(e); throw e }
+  }
+  ```
+
+- **`leader-exposed-r2dbc`**: Same change for `ExposedR2DbcSuspendLeaderElector.runIfLeader()`.
+  `CancellationException` is still rethrown.
+
+- **`leader-exposed-jdbc`**: `ExposedJdbcLeaderElector` factory now accepts an optional
+  `historyRecorder: SafeLeaderHistoryRecorder? = null` parameter.  The previous `recordHistory`
+  option in `ExposedJdbcLeaderElectionOptions` is superseded by this parameter; passing a recorder
+  enables audit recording.
+
+- **`leader-exposed-r2dbc`**: Same — `ExposedR2DbcSuspendLeaderElector` factory accepts optional
+  `historyRecorder: SuspendSafeLeaderHistoryRecorder? = null`.
+
 ### Added
 
 - **`leader-core`**: ShedLock-호환 ergonomic API + reentrant + 명시적 lease 연장 (issue #79 PR 1 Core)
