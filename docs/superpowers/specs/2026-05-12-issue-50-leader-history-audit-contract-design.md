@@ -1012,4 +1012,4 @@ Rev 6 commit: `bf8a21b`.
 | 4 | P2 | `SuspendSafeLeaderHistoryRecorder.sink` `private` — blocking recorder `protected`와 불일치 | Rev 7 반영: `protected val sink` + `open class` |
 | 5 | P2 | `finally { backend.unlock() }` — unlock 실패 시 원래 CE/IE 숨김 정책 미정의 | Rev 7 반영: `runCatching { backend.unlock() }.onFailure { log.warn }` 패턴으로 명시 |
 
-Rev 7 commit: (pending)
+Rev 7 commit: `98ce911`.
