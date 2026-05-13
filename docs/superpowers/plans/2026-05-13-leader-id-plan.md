@@ -444,7 +444,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
   - `warnedResultPairs` 별도 map (Round 11 N11-4 — slot vs result 상호 eviction 회피)
   - **`lock: ReentrantLock = reentrantLock()` instance member** (Step 3-R Round 3 codex P1 — `@Synchronized` / `synchronized {}` 는 workspace CLAUDE.md VT parity rule 금지. `bluetape4k.utils.reentrantLock()` 사용). 모든 LinkedHashMap mutation/read 은 `lock.withLock { ... }` 으로 보호.
   - `warnOnBridgeUse(implClass, slot)` — `${implClass.qualifiedName}|slot|${slot.leaderId}` key, `[OMC-BRIDGE-SLOT-DROP]` log token. mutation 은 `lock.withLock { ... }` 내부
-  - `warnOnResultBridgeUse(implClass, slot)` — `[OMC-BRIDGE-RESULT-DROP]` log token + backend MUST override BOTH 메시지. 동일 `lock` 공유
+  - `warnOnResultBridgeUse(implClass, slot)` — `[OMC-BRIDGE-RESULT-DROP]` log token + backend MUST override BOTH 메시지. **동일 `lock` 공유, `warnedResultPairs` 의 모든 mutation/read 도 `lock.withLock { ... }` 내부** (Step 3-R Round 4 architect P2-R4-1 — wording 대칭화)
   - `droppedCounter` + `droppedResultCounter` (`AtomicLong`) — lock 밖에서 increment 가능
   - `droppedAuditCount()` / `droppedResultBridgeCount()` accessor
   - companion `globalInstance: @Volatile var` + `setGlobal(instance)` + `global()`. setGlobal swap 시 prev counter log.info
@@ -1234,7 +1234,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
   - `SuspendLeaderElectorFactory.targetElectorClass: KClass<out SuspendLeaderElector>` (coroutine — `create()` 가 suspend 일 경우 JVM bytecode 는 `Continuation` 추가 parameter return type 이 `Object` → reflection 검사 시 `getMethod("create", Continuation::class.java).returnType.kotlin` 명시 필요. 안전책으로 **default impl 강제 override** — `this::class.java.declaredMethods.first { it.name == "create" }.kotlinFunction!!.returnType.classifier as KClass<*>` 형태로 Kotlin reflection 우선 사용)
   - `SuspendLeaderGroupElectorFactory.targetElectorClass: KClass<out SuspendLeaderGroupElector>`
 
-  Default impl 은 fun-interface SAM 호환 유지 위해 제공하되 **suspend factory 는 default impl 의 정확성 보장 안 되므로** strict mode 시 ERROR. `LeaderAopAutoConfiguration` 가 startup 시 모든 등록 factory 의 `targetElectorClass` reflection 검사 — 각 elector type 에 해당하는 `runIfLeader(LeaderSlot, ...)` AND `runIfLeaderResult(LeaderSlot, ...)` declared 여부 확인 (single-leader 와 group elector 는 method signature 다름).
+  Sync/group sync factory 는 fun-interface SAM 호환 유지를 위해 default impl 제공 (옵션). **Suspend factory (SuspendLeaderElectorFactory, SuspendLeaderGroupElectorFactory) 는 default impl 정확성 미보장 (JVM Continuation mangling) → override 강제 — strict mode 시 default impl 사용 = ERROR, 반드시 명시 override 필요.** (Step 3-R Round 4 architect P3-R4-1 — SAM compat vs suspend forced-override 문구 일관화) `LeaderAopAutoConfiguration` 가 startup 시 모든 등록 factory 의 `targetElectorClass` reflection 검사 — 각 elector type 에 해당하는 `runIfLeader(LeaderSlot, ...)` AND `runIfLeaderResult(LeaderSlot, ...)` declared 여부 확인 (single-leader 와 group elector 는 method signature 다름).
 - **Acceptance**:
   - 4 SPI accessor 추가 후 기존 factory 모두 명시 override (suspend factory 는 강제 override — default impl 사용 금지)
   - 단위 테스트 — mock factory 의 미override (sync 한정) 시 WARN log capture
@@ -1337,6 +1337,8 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 | `LeaderAopAutoConfigurationProbeTest.kt` (NEW) | T68b + T69b — factory + recorder probe |
 | `MicrometerLeaderAopMetricsRecorderContextTest.kt` (NEW) | T70-part2 — 6 overload + tag cardinality |
 | `LeaderBridgeMetricsTest.kt` (NEW) | T70-part2 — 2 gauge binding, setGlobal swap |
+| `LeaderGroupElectionAspectBlankGuardTest.kt` (NEW) | T78b — resolveLeaderId final blank guard (4 fallback exhaustion → LeaderIdResolutionException) |
+| `LeaderAopAutoConfigurationMeterRegistryAbsentTest.kt` (NEW) | T84b — MeterRegistry absent: bridge drop + recorder context drop counters 독립 검증 (Step 3-R Round 4 codex P1-R4 — T78b/T84b PR7 test list 등재) |
 
 ### PR7 README / CHANGELOG impact
 
@@ -1426,7 +1428,7 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
   - 8 backend × 1 happy-path test
   - nightly-tests.yml 에 추가
   - bridge WARN counter == 0 (모든 backend 가 BOTH override 검증)
-  - **Deprecated getter per-backend assertion** (Step 3-R Round 3 test-engineer N3-4): 각 backend 의 happy-path test 에서 `lease.leaderId` (deprecated getter T57) 가 `lease.auditLeaderId` 와 동일한 값 반환 확인 (`assertEquals(lease.auditLeaderId, lease.leaderId)` — 8 backend 각각). Deprecated getter 가 shim 역할 유지 (backward compat 검증, 자동 삭제 회귀 방지)
+  - **Deprecated getter per-backend assertion** (Step 3-R Round 3 test-engineer N3-4 + **Round 4 architect P1-R4-1 semantic fix**): 각 backend 의 happy-path test 에서 `lease.leaderId` (deprecated getter T57: `@Deprecated val leaderId get() = nodeId ?: auditLeaderId`) 의 실제 shim semantics 검증. T57 정의에 따라: `assertEquals(lease.nodeId ?: lease.auditLeaderId, lease.leaderId)` — 8 backend 각각. 단순 `assertEquals(lease.auditLeaderId, lease.leaderId)` 는 `nodeId != null` 시 false fail → T57 getter semantics 와 불일치. Test setup 에서 `nodeId` 값을 명시하거나 null 로 고정해야 함 — T40 happy-path 는 `nodeId = null` (audit id only) 로 설정 시 두 assertion 이 동등. 그러나 T16 contract test 가 `nodeId` 를 설정하므로 T40 는 `lease.nodeId ?: lease.auditLeaderId` 형태로 assertion 해야 회귀 방지 완전함.
 
 #### T85 [low] — Bridge double-count Prometheus query rubric in T70 KDoc
 - **PR**: PR8
@@ -1792,10 +1794,13 @@ import org.jetbrains.exposed.v1.jdbc.exists
 | PR7 | 4 | 11 | 2 | 17 |
 | PR8 | 1 | 5 | 4 | 10 |
 | Deferred | 0 | 1 | 0 | 1 |
-| **Total** | **25** | **39** | **19** | **83 unique entries** (alias dedup 후) + **2 deferred = 85 logical ID** |
+| **Total** | **25** | **39** | **19** | **83 raw entries** (각 alias 를 별도 row 로 집계한 PR-level view) |
 | **§10.2 canonical (alias merged)** | **23** | **37** | **25** | **85 logical** |
 
-(Step 3-R Round 3 NEW-3-2 — PR-level rows count entries; §10.2 counts unique logical IDs after alias merge T16=T82 / T67=T53 / T68c=T83 / T8=T56 / T62 in T34 / T78 in T34. Both views consistent with 85 logical total.)
+(Step 3-R Round 4 architect P0-R4 fix — §10.3 raw 83 + **2 alias merges** = 85 logical §10.2:
+- `T68c = T83`: §10.3 에서 T68c(low PR1) + T83(medium PR1) 두 row 집계 → §10.2 에서 1 medium 으로 merge. +1 delta.
+- `T67 = T53`: §10.3 에서 T67(low PR1) + T53(이미 통합) → §10.2 에서 1 low 로 merge. +1 delta.
+- 83 raw + 2 alias-merge delta = **85 logical** ✓. "deferred" 는 이미 83 raw 에 포함되어 있음.)
 
 > PR1 이 압도적으로 무거운 PR (35 task) — testFixture freeze + 8 interface bridge + Local backend + identity types 가 PR1 에 집중. PR2-5 는 backend 별 patterns 따라 가벼움 (2-4 task). PR7 (AOP) 가 두번째로 무거운 PR.
 
@@ -1823,8 +1828,18 @@ Step 3-R 의 P0=0 / P1≤2 도달 후 PR1 implementation 진입.
 |-------|--------------|----|----|----|----|----------------|
 | 1 | architect + test-engineer + codex CLI (2026-05-13) | **3** (B1/B2/codex#1 cycle) | 12 | 7 | 1 | applied 18cb979 + 9e926a3 |
 | 2 | architect + test-engineer + codex CLI (2026-05-13) | **2** (PR1.5 zombie / droppedCount missing) | 14+ | 2 | 0 | applied 6524f49 |
-| 3 | architect + test-engineer + codex CLI (2026-05-13) | **2** (T68b type hierarchy / PR1.5 zombie 잔여) | 6 | 3 | 2 | applied (this commit) |
-| 4 | (dispatch pending) | | | | | |
+| 3 | architect + test-engineer + codex CLI (2026-05-13) | **2** (T68b type hierarchy / PR1.5 zombie 잔여) | 6 | 3 | 2 | applied 2df67c8 |
+| 4 | architect(opus) + test-engineer(sonnet) + codex(gpt-5.5) (2026-05-13) | **1** (§10.3 footer math) | 2 | 3 | 1 | applied (this commit) |
+| 5 | (dispatch pending) | | | | | |
+
+**Round 4 fixes 적용 (P0 + P1 + P2)**:
+- P0 architect/codex R4: §10.3 footer arithmetic 수정 — "83 raw + 2 alias-merge delta = 85 logical". T68c=T83(low+medium→1medium) + T67=T53(low×2→1low) 두 alias merge 가 83→85 delta. "deferred" 는 이미 83 raw 에 포함됨.
+- P1 codex P1-R4-1: T78b + T84b PR7 test list 등재 누락 → PR7 test list 두 row 추가. 두 task 는 `PR: PR7` 선언 그대로이며 위치 (PR7 CHANGELOG impact 뒤) 는 유지.
+- P1 architect P1-R4-1: T40 deprecated getter assertion 수정 — `assertEquals(lease.nodeId ?: lease.auditLeaderId, lease.leaderId)` (T57 getter semantics `nodeId ?: auditLeaderId` 반영).
+- P2 architect P2-R4-1: T75 `warnedResultPairs` lock 명시 대칭화 — `lock.withLock { ... }` 내부 명시.
+- P2/P3 architect P3-R4-1: T68b SAM compat vs suspend forced-override 문구 일관화 — sync = SAM default OK, suspend = 강제 override.
+- codex P0 (PR1.5 14 mentions) — false positive: 전부 "REMOVED" 레이블 / 히스토리 노트 / "NO PR1.5" 명시. Instructional zombie 아님 (architect PASS 검증). 추가 수정 불필요.
+- test-engineer: P0=0, P1=0 → CONVERGED.
 
 **Round 3 fixes 적용 (P0 + P1 + P2)**:
 - P0 NEW-3-1 (architect+codex): PR1.5 zombie 잔여 3 site (§9.1 freeze guide, §9.2 update proc, §12 acceptance DoD) 완전 제거 → `PR1 merge 후` 표현으로 통일
