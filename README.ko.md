@@ -7,6 +7,8 @@
 
 [English](README.md)
 
+![bluetape4k 리더 선출 작업대 일러스트](./docs/assets/leader-election-workbench.png)
+
 Kotlin/JVM 기반 **분산 리더 선출(Distributed Leader Election)** 독립 라이브러리입니다.  
 블로킹, 비동기, 코루틴, 가상 스레드 API를 지원하며 Redis, Exposed, MongoDB, Hazelcast, ZooKeeper 백엔드를 제공합니다.
 Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.

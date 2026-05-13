@@ -7,6 +7,8 @@
 
 [한국어](README.ko.md)
 
+![Bluetape4k leader election workbench](./docs/assets/leader-election-workbench.png)
+
 A standalone Kotlin/JVM library for **distributed leader election**.  
 Provides blocking, async, coroutine, and virtual-thread APIs backed by Redis, Exposed, MongoDB, Hazelcast, and ZooKeeper.
 Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
