@@ -1,5 +1,7 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
+
 /**
  * Semaphore 기반 복수 리더 선출 계약을 정의합니다.
  *
@@ -65,6 +67,42 @@ interface LeaderGroupElector: AsyncLeaderGroupElector {
     fun <T> runIfLeaderResult(lockName: String, action: () -> T): LeaderRunResult<T> {
         var elected = false
         val value = runIfLeader(lockName) { elected = true; action() }
+        return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
+    }
+
+    /**
+     * Runs [action] if a group slot is acquired, stamping [slot.leaderId] as audit identity.
+     *
+     * ## Bridge Default
+     * Delegates to [runIfLeader] (lockName-based) and emits a throttled WARN via
+     * [LeaderElectorBridgeLog] on first use per `(implClass, slot)` pair.
+     * Backend implementations MUST override this method to stamp [slot.leaderId] into
+     * [LeaderLease.auditLeaderId] for audit traceability.
+     *
+     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
+     * @param action the action to run when a slot is acquired.
+     * @return [action] result, or `null` when no slot acquired.
+     */
+    fun <T> runIfLeader(slot: LeaderSlot, action: () -> T): T? {
+        LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
+        return runIfLeader(slot.lockName, action)
+    }
+
+    /**
+     * Returns [LeaderRunResult] for this group slot election.
+     *
+     * ## Bridge Default
+     * Returns `Elected(value, leaderId = null)` — fabrication of [slot.leaderId] is intentionally
+     * blocked. Backend MUST override BOTH slot variants to carry [slot.leaderId] through.
+     *
+     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
+     * @param action the action to run when a slot is acquired.
+     * @return [LeaderRunResult.Elected] (action ran) or [LeaderRunResult.Skipped] (no slot acquired).
+     */
+    fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
+        LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
+        var elected = false
+        val value = runIfLeader(slot.lockName) { elected = true; action() }
         return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
     }
 }

@@ -103,7 +103,36 @@ abstract class AbstractLocalLeaderElector(
      * @param action 락 획득 성공 시 실행할 작업
      * @return [action] 실행 결과, 획득 실패 시 `null`
      */
-    protected fun <T> tryWithLeaderLock(lockName: String, waitTime: Duration, action: () -> T): T? {
+    protected fun <T> tryWithLeaderLock(lockName: String, waitTime: Duration, action: () -> T): T? =
+        tryWithLeaderLock(
+            lockName = lockName,
+            auditLeaderId = options.nodeId,
+            nodeId = options.nodeId,
+            waitTime = waitTime,
+            action = action,
+        )
+
+    /**
+     * [lockName]의 락을 [waitTime] 내에 획득하면 [action]을 실행하고, 실패하면 `null`을 반환합니다.
+     *
+     * Slot-aware overload — stamps [auditLeaderId] (typically `LeaderSlot.leaderId`) into the
+     * [LeaderLease.auditLeaderId] / [LeaderLockHandle.Real.auditLeaderId] for audit traceability,
+     * and the optional [nodeId] into [LeaderLease.nodeId].
+     *
+     * @param lockName 락 이름
+     * @param auditLeaderId stamped as `LeaderLease.auditLeaderId` and `LeaderLockHandle.Real.auditLeaderId`
+     * @param nodeId stamped as `LeaderLease.nodeId`; defaults to `options.nodeId`
+     * @param waitTime 락 획득 최대 대기 시간
+     * @param action 락 획득 성공 시 실행할 작업
+     * @return [action] 실행 결과, 획득 실패 시 `null`
+     */
+    protected fun <T> tryWithLeaderLock(
+        lockName: String,
+        auditLeaderId: String,
+        nodeId: String? = options.nodeId,
+        waitTime: Duration,
+        action: () -> T,
+    ): T? {
         val lock = getLock(lockName)
 
         // Reentrant: same thread holds the lock — wrap in a passthrough handle
@@ -120,7 +149,7 @@ abstract class AbstractLocalLeaderElector(
         }
         val startedAtNanos = System.nanoTime()
         val token = Base58.randomString(8)
-        states.acquireSingle(lockName, options.nodeId, options.leaseTime)
+        states.acquireSingle(lockName, auditLeaderId = auditLeaderId, nodeId = nodeId, leaseTime = options.leaseTime)
 
         val identity = LockIdentity(
             lockName = lockName,
@@ -149,6 +178,7 @@ abstract class AbstractLocalLeaderElector(
             token = token,
             acquiredAtNanos = startedAtNanos,
             extendDelegate = delegate,
+            auditLeaderId = auditLeaderId,
         )
         val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate)
         listeners.notifyElected(lockName)

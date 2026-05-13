@@ -1,8 +1,10 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
+import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * 비동기 리더 선출 실행 계약을 정의합니다.
@@ -46,4 +48,60 @@ interface AsyncLeaderElector: LeaderElectionState {
         executor: Executor = VirtualThreadExecutor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?>
+
+    /**
+     * Runs [action] asynchronously if elected for [slot], stamping [slot.leaderId] as audit identity.
+     *
+     * ## Bridge Default
+     * This default delegates to [runAsyncIfLeader] (lockName-based) and emits a throttled WARN via
+     * [LeaderElectorBridgeLog] on first use per `(implClass, slot)` pair.
+     * Backend implementations MUST override this method to stamp [slot.leaderId] into
+     * [LeaderLease.auditLeaderId] for audit traceability.
+     *
+     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
+     * @param executor the [Executor] for async execution. Defaults to [VirtualThreadExecutor].
+     * @param action the async action to run when elected.
+     * @return [CompletableFuture] resolving to the action result, or `null` when not elected.
+     */
+    fun <T> runAsyncIfLeader(
+        slot: LeaderSlot,
+        executor: Executor = VirtualThreadExecutor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> {
+        LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
+        return runAsyncIfLeader(slot.lockName, executor, action)
+    }
+
+    /**
+     * Returns [LeaderRunResult] for the async slot election.
+     *
+     * ## Bridge Default
+     * Uses an `elected: AtomicBoolean` flag pattern to distinguish elected (action ran) from skipped.
+     * Returns `Elected(value, leaderId = null)` — fabrication of [slot.leaderId] is intentionally
+     * blocked because the bridge cannot verify that the backend actually used this slot's identity.
+     *
+     * Backend implementations MUST override BOTH slot variants
+     * ([runAsyncIfLeader] and [runAsyncIfLeaderResult]) to carry [slot.leaderId] through to
+     * [LeaderRunResult.Elected.leaderId].
+     *
+     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
+     * @param executor the [Executor] for async execution. Defaults to [VirtualThreadExecutor].
+     * @param action the async action to run when elected.
+     * @return [CompletableFuture] resolving to [LeaderRunResult.Elected] (action ran) or
+     *   [LeaderRunResult.Skipped] (not elected).
+     */
+    fun <T> runAsyncIfLeaderResult(
+        slot: LeaderSlot,
+        executor: Executor = VirtualThreadExecutor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<LeaderRunResult<T>> {
+        LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
+        val elected = AtomicBoolean(false)
+        return runAsyncIfLeader(slot.lockName, executor) {
+            elected.set(true)
+            action()
+        }.thenApply { value ->
+            if (elected.get()) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
+        }
+    }
 }

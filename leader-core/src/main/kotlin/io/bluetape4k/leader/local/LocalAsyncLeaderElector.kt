@@ -2,8 +2,11 @@ package io.bluetape4k.leader.local
 
 import io.bluetape4k.leader.AsyncLeaderElector
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 
 /**
@@ -57,4 +60,53 @@ class LocalAsyncLeaderElector(
             { tryWithLeaderLock(lockName, options.waitTime) { action().join() } },
             executor
         )
+
+    /**
+     * Slot-aware override — stamps [LeaderSlot.leaderId] as `LeaderLease.auditLeaderId`
+     * and `LeaderLockHandle.Real.auditLeaderId` for audit traceability.
+     */
+    override fun <T> runAsyncIfLeader(
+        slot: LeaderSlot,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> =
+        CompletableFuture.supplyAsync(
+            {
+                tryWithLeaderLock(
+                    lockName = slot.lockName,
+                    auditLeaderId = slot.leaderId,
+                    nodeId = options.nodeId,
+                    waitTime = options.waitTime,
+                ) { action().join() }
+            },
+            executor
+        )
+
+    /**
+     * Slot-aware override — returns [LeaderRunResult.Elected] with [LeaderSlot.leaderId] stamped
+     * on `LeaderRunResult.Elected.leaderId`, or [LeaderRunResult.Skipped] when not elected.
+     */
+    override fun <T> runAsyncIfLeaderResult(
+        slot: LeaderSlot,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<LeaderRunResult<T>> {
+        val elected = AtomicBoolean(false)
+        return CompletableFuture.supplyAsync(
+            {
+                tryWithLeaderLock(
+                    lockName = slot.lockName,
+                    auditLeaderId = slot.leaderId,
+                    nodeId = options.nodeId,
+                    waitTime = options.waitTime,
+                ) {
+                    elected.set(true)
+                    action().join()
+                }
+            },
+            executor
+        ).thenApply { value ->
+            if (elected.get()) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
+        }
+    }
 }

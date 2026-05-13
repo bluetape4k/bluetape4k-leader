@@ -114,7 +114,33 @@ abstract class AbstractLocalLeaderGroupElector(
      * @param action 슬롯 획득 성공 시 실행할 작업
      * @return [action] 실행 결과, 획득 실패 시 `null`
      */
-    protected fun <T> tryWithPermit(lockName: String, action: () -> T): T? {
+    protected fun <T> tryWithPermit(lockName: String, action: () -> T): T? =
+        tryWithPermit(
+            lockName = lockName,
+            auditLeaderId = options.nodeId,
+            nodeId = options.nodeId,
+            action = action,
+        )
+
+    /**
+     * [lockName]의 슬롯을 획득하면 [action]을 실행하고, 실패하면 `null`을 반환합니다.
+     *
+     * Slot-aware overload — stamps [auditLeaderId] (typically `LeaderSlot.leaderId`) into the
+     * [LeaderLease.auditLeaderId] / [LeaderLockHandle.Real.auditLeaderId] for audit traceability,
+     * and the optional [nodeId] into [LeaderLease.nodeId].
+     *
+     * @param lockName 락 이름
+     * @param auditLeaderId stamped as `LeaderLease.auditLeaderId` and `LeaderLockHandle.Real.auditLeaderId`
+     * @param nodeId stamped as `LeaderLease.nodeId`; defaults to `options.nodeId`
+     * @param action 슬롯 획득 성공 시 실행할 작업
+     * @return [action] 실행 결과, 획득 실패 시 `null`
+     */
+    protected fun <T> tryWithPermit(
+        lockName: String,
+        auditLeaderId: String,
+        nodeId: String? = options.nodeId,
+        action: () -> T,
+    ): T? {
         val semaphore = getSemaphore(lockName)
         val acquired = semaphore.tryAcquire(options.waitTime.inWholeMilliseconds, TimeUnit.MILLISECONDS)
         if (!acquired) {
@@ -123,7 +149,13 @@ abstract class AbstractLocalLeaderGroupElector(
         }
         val startedAtNanos = System.nanoTime()
         val token = Base58.randomString(8)
-        val lease = states.acquireGroup(lockName, options.nodeId, options.leaseTime, maxLeaders)
+        val lease = states.acquireGroup(
+            lockName,
+            auditLeaderId = auditLeaderId,
+            nodeId = nodeId,
+            leaseTime = options.leaseTime,
+            maxLeaders = maxLeaders,
+        )
         val slot = requireNotNull(lease.slot) {
             "Group lease.slot must be non-null for lockName=$lockName, kind=GROUP"
         }
@@ -155,6 +187,7 @@ abstract class AbstractLocalLeaderGroupElector(
             acquiredAtNanos = startedAtNanos,
             slotId = slot.toString(),
             extendDelegate = delegate,
+            auditLeaderId = auditLeaderId,
         )
         val watchdog = LeaderLeaseAutoExtender.start(false, options.leaseTime, delegate)
         listeners.notifyElected(lockName)

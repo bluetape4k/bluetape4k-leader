@@ -3,10 +3,13 @@ package io.bluetape4k.leader.local
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.AsyncLeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requirePositiveNumber
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * [AbstractLocalLeaderGroupElector]을 상속한 로컬(단일 JVM) 복수 리더 비동기 전용 선출 구현체입니다.
@@ -80,4 +83,51 @@ class LocalAsyncLeaderGroupElector private constructor(
             { tryWithPermit(lockName) { action().join() } },
             executor
         )
+
+    /**
+     * Slot-aware override — stamps [LeaderSlot.leaderId] as `LeaderLease.auditLeaderId`
+     * and `LeaderLockHandle.Real.auditLeaderId` for audit traceability.
+     */
+    override fun <T> runAsyncIfLeader(
+        slot: LeaderSlot,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> =
+        CompletableFuture.supplyAsync(
+            {
+                tryWithPermit(
+                    lockName = slot.lockName,
+                    auditLeaderId = slot.leaderId,
+                    nodeId = options.nodeId,
+                ) { action().join() }
+            },
+            executor
+        )
+
+    /**
+     * Slot-aware override — returns [LeaderRunResult.Elected] with [LeaderSlot.leaderId] stamped
+     * on `LeaderRunResult.Elected.leaderId`, or [LeaderRunResult.Skipped] when not elected.
+     */
+    override fun <T> runAsyncIfLeaderResult(
+        slot: LeaderSlot,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<LeaderRunResult<T>> {
+        val elected = AtomicBoolean(false)
+        return CompletableFuture.supplyAsync(
+            {
+                tryWithPermit(
+                    lockName = slot.lockName,
+                    auditLeaderId = slot.leaderId,
+                    nodeId = options.nodeId,
+                ) {
+                    elected.set(true)
+                    action().join()
+                }
+            },
+            executor
+        ).thenApply { value ->
+            if (elected.get()) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
+        }
+    }
 }

@@ -1,5 +1,61 @@
 package io.bluetape4k.leader.micrometer
 
+// ========= Public constants — importable from leader-spring-boot =========
+
+/**
+ * Micrometer tag key for the elected leader's audit identity.
+ *
+ * ## Contract
+ * Tag value is the [io.bluetape4k.leader.LeaderSlot.leaderId] resolved by the aspect.
+ * For `AUTO` source, this is a random Base58 string per call — high cardinality.
+ *
+ * ## Usage
+ * ```kotlin
+ * registry.counter("leader.aop.acquired", TAG_LEADER_ID, leaderId).increment()
+ * ```
+ */
+const val TAG_LEADER_ID: String = "leader.id"
+
+/**
+ * Micrometer tag key for the provenance of the elected leader's identity.
+ *
+ * ## Contract
+ * Tag value is one of: `LITERAL`, `SPEL`, `PROPERTY`, `AUTO`.
+ * Bounded cardinality (4 values) — safe for all Micrometer backends.
+ */
+const val TAG_LEADER_ID_SOURCE: String = "leader.id.source"
+
+/**
+ * Gauge name for the count of bridge-dropped slot elections.
+ *
+ * ## Contract
+ * Incremented by [io.bluetape4k.leader.identity.LeaderElectorBridgeLog] when a backend
+ * falls through to the bridge default instead of overriding the slot variant.
+ */
+const val GAUGE_BRIDGE_DROPPED: String = "leader.aop.bridge.dropped"
+
+/**
+ * Gauge name for the count of bridge-dropped result elections.
+ *
+ * ## Contract
+ * Incremented by [io.bluetape4k.leader.identity.LeaderElectorBridgeLog] when the result
+ * variant bridge default is used instead of a backend override.
+ */
+const val GAUGE_BRIDGE_RESULT_DROPPED: String = "leader.aop.bridge.result-dropped"
+
+/**
+ * Counter name for leader ID resolution failures.
+ *
+ * ## Contract
+ * Single source of truth: delegates to [io.bluetape4k.leader.metrics.LeaderMetricNames.METRIC_LEADER_ID_RESOLUTION_FAILED].
+ * Incremented from the PR7 aspect on every [io.bluetape4k.leader.identity.LeaderIdResolutionException].
+ *
+ * ```kotlin
+ * registry.counter(COUNTER_LEADER_ID_RESOLUTION_FAILED).increment()
+ * ```
+ */
+const val COUNTER_LEADER_ID_RESOLUTION_FAILED: String = "leader.aop.leader_id.resolution_failed"
+
 /**
  * leader-aop Micrometer 메터/태그 이름 상수.
  *

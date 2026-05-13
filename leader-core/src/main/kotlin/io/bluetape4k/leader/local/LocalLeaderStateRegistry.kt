@@ -21,9 +21,14 @@ internal class LocalLeaderStateRegistry {
     private val singleLeases = HashMap<String, LeaseRef>()
     private val groupLeases = HashMap<String, MutableMap<Int, LeaderLease>>()
 
-    fun acquireSingle(lockName: String, nodeId: String, leaseTime: Duration): LeaderLease =
+    fun acquireSingle(
+        lockName: String,
+        auditLeaderId: String,
+        nodeId: String? = null,
+        leaseTime: Duration,
+    ): LeaderLease =
         lock.withLock {
-            val lease = newLease(nodeId, leaseTime)
+            val lease = newLease(auditLeaderId, nodeId, leaseTime)
             val current = singleLeases[lockName]
             if (current == null) {
                 singleLeases[lockName] = LeaseRef(lease)
@@ -61,12 +66,18 @@ internal class LocalLeaderStateRegistry {
         }
     }
 
-    fun acquireGroup(lockName: String, nodeId: String, leaseTime: Duration, maxLeaders: Int): LeaderLease =
+    fun acquireGroup(
+        lockName: String,
+        auditLeaderId: String,
+        nodeId: String? = null,
+        leaseTime: Duration,
+        maxLeaders: Int,
+    ): LeaderLease =
         lock.withLock {
             val leases = groupLeases.getOrPut(lockName) { HashMap() }
             val slot = (0 until maxLeaders).firstOrNull { it !in leases }
                 ?: leases.size
-            val lease = newLease(nodeId, leaseTime, slot)
+            val lease = newLease(auditLeaderId, nodeId, leaseTime, slot)
             leases[slot] = lease
             lease
         }
@@ -108,10 +119,16 @@ internal class LocalLeaderStateRegistry {
         }
     }
 
-    private fun newLease(nodeId: String, leaseTime: Duration, slot: Int? = null): LeaderLease {
+    private fun newLease(
+        auditLeaderId: String,
+        nodeId: String? = null,
+        leaseTime: Duration,
+        slot: Int? = null,
+    ): LeaderLease {
         val electedAt = Instant.now()
         return LeaderLease(
-            leaderId = nodeId,
+            auditLeaderId = auditLeaderId,
+            nodeId = nodeId,
             electedAt = electedAt,
             leaseUntil = electedAt.plusMillis(leaseTime.inWholeMilliseconds),
             slot = slot,

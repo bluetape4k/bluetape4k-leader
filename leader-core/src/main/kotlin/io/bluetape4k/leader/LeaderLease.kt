@@ -1,38 +1,57 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireNotBlank
 import java.io.Serializable
 import java.time.Instant
 
 /**
- * 리더로 선출된 노드 또는 슬롯 점유자의 lease 스냅샷입니다.
+ * Snapshot of the lease held by the elected leader node or slot occupant.
  *
- * ## 계약
- * - [leaderId]는 가능한 경우 노드 식별자이며, backend가 노드 식별자를 별도로 저장하지 않으면
- *   fencing token 또는 backend holder id가 들어갈 수 있습니다.
- * - [electedAt]과 [leaseUntil]은 backend가 제공하는 범위에서 채워지는 best-effort 값입니다.
- * - [slot]은 그룹 리더 선출에서만 사용하며, 단일 리더 선출에서는 `null`입니다.
+ * ## Contract
+ * - [auditLeaderId] is the audit identity stamped at election time. This may be a node identifier,
+ *   a fencing token, or a backend holder id depending on the backend's capabilities.
+ * - [nodeId] is the physical node identity, when the backend tracks it separately.
+ *   If the backend does not support physical node identity, this is `null`.
+ * - [electedAt] and [leaseUntil] are best-effort values filled in by the backend where available.
+ * - [slot] is only used in group leader election; `null` for single-leader election.
+ *
+ * ## Semantic Note — Fencing Token Regression Warning
+ * Prior to this version, [leaderId] carried the fencing token (or backend-issued holder id) directly.
+ * Starting from this version, [auditLeaderId] carries that audit identity and [nodeId] carries the
+ * physical node. Consumers that used [leaderId] for fencing MUST migrate to [auditLeaderId] to
+ * preserve fencing-token semantics. Mixing [nodeId] (physical) and [auditLeaderId] (token) in a
+ * fencing comparison is a split-brain risk.
+ *
+ * @property auditLeaderId the audit identity of the elected leader (fencing token or backend holder id).
+ * @property electedAt the instant at which the leader was elected; `null` if unavailable.
+ * @property leaseUntil the instant until which the lease is valid; `null` if unavailable.
+ * @property slot slot index in group election; `null` for single-leader election.
+ * @property nodeId the physical node identity of the elected leader; `null` if unavailable.
+ * @property leaderId deprecated accessor — returns [nodeId] ?: [auditLeaderId].
  *
  * ```kotlin
  * val lease = LeaderLease(
- *     leaderId = "node-a",
+ *     auditLeaderId = "node-a",
  *     electedAt = Instant.now(),
  * )
  * ```
  */
 data class LeaderLease(
-    val leaderId: String,
+    val auditLeaderId: String,
     val electedAt: Instant? = null,
     val leaseUntil: Instant? = null,
     val slot: Int? = null,
+    val nodeId: String? = null,
 ) : Serializable {
 
-    companion object {
-        private const val serialVersionUID = 1L
+    companion object : KLogging() {
+        private const val serialVersionUID = 2L
     }
 
     init {
-        leaderId.requireNotBlank("leaderId")
+        auditLeaderId.requireNotBlank("auditLeaderId")
+        nodeId?.requireNotBlank("nodeId")
         require(slot == null || slot >= 0) { "slot must be null or non-negative: $slot" }
         if (electedAt != null && leaseUntil != null) {
             require(!leaseUntil.isBefore(electedAt)) {
@@ -40,4 +59,10 @@ data class LeaderLease(
             }
         }
     }
+
+    @Deprecated(
+        message = "Use auditLeaderId for the elected node's audit identity, or nodeId for the physical node identity.",
+        replaceWith = ReplaceWith("nodeId ?: auditLeaderId"),
+    )
+    val leaderId: String get() = nodeId ?: auditLeaderId
 }

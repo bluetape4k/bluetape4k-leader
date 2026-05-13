@@ -89,4 +89,49 @@ class LeaderRunResultTest {
         val b: LeaderRunResult<Int> = LeaderRunResult.Skipped
         (a === b) shouldBeEqualTo true
     }
+
+    // --- T58: Elected.leaderId (@JvmOverloads 호환성) ---
+
+    @Test
+    fun `Elected - 단일 인수 생성 시 leaderId 는 null`() {
+        val r = LeaderRunResult.Elected(42)
+        r.value shouldBeEqualTo 42
+        r.leaderId.shouldBeNull()
+    }
+
+    @Test
+    fun `Elected - leaderId 명시 생성 시 값 보존`() {
+        val r = LeaderRunResult.Elected("done", leaderId = "node-alpha")
+        r.value shouldBeEqualTo "done"
+        r.leaderId shouldBeEqualTo "node-alpha"
+    }
+
+    @Test
+    fun `Elected - leaderId 포함 equals`() {
+        val a = LeaderRunResult.Elected("v", leaderId = "node-a")
+        val b = LeaderRunResult.Elected("v", leaderId = "node-a")
+        a shouldBeEqualTo b
+    }
+
+    @Test
+    fun `Elected - leaderId 다르면 not equals`() {
+        val a = LeaderRunResult.Elected("v", leaderId = "node-a")
+        val b = LeaderRunResult.Elected("v", leaderId = "node-b")
+        (a == b) shouldBeEqualTo false
+    }
+
+    @Test
+    fun `Elected - leaderId null 과 명시 null 은 equals`() {
+        val a = LeaderRunResult.Elected("v")
+        val b = LeaderRunResult.Elected("v", leaderId = null)
+        a shouldBeEqualTo b
+    }
+
+    @Test
+    fun `Elected - copy 로 leaderId 교체 가능`() {
+        val orig = LeaderRunResult.Elected("v", leaderId = "node-a")
+        val updated = orig.copy(leaderId = "node-b")
+        updated.leaderId shouldBeEqualTo "node-b"
+        updated.value shouldBeEqualTo "v"
+    }
 }

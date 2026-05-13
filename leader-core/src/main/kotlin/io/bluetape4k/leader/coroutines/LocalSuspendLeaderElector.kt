@@ -11,6 +11,8 @@ import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.internal.ExtendDelegate
@@ -84,7 +86,56 @@ class LocalSuspendLeaderElector(
      * @param action 리더 획득 성공 시 실행할 suspend 작업
      * @return [action] 실행 결과, 리더 획득 실패 시 `null`
      */
-    override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
+    override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? =
+        tryWithLock(
+            lockName = lockName,
+            auditLeaderId = options.nodeId,
+            nodeId = options.nodeId,
+            action = action,
+        )
+
+    /**
+     * Slot-aware override — stamps [LeaderSlot.leaderId] as `LeaderLease.auditLeaderId`
+     * and `LeaderLockHandle.Real.auditLeaderId` for audit traceability.
+     *
+     * Cancellation: rethrows `CancellationException` directly; no `runCatching` around suspend calls.
+     */
+    override suspend fun <T> runIfLeader(slot: LeaderSlot, action: suspend () -> T): T? =
+        tryWithLock(
+            lockName = slot.lockName,
+            auditLeaderId = slot.leaderId,
+            nodeId = options.nodeId,
+            action = action,
+        )
+
+    /**
+     * Slot-aware override — returns [LeaderRunResult.Elected] with [LeaderSlot.leaderId] stamped
+     * on `LeaderRunResult.Elected.leaderId`, or [LeaderRunResult.Skipped] when not elected.
+     *
+     * Cancellation: rethrows `CancellationException` directly; no `runCatching` around suspend calls.
+     */
+    override suspend fun <T> runIfLeaderResultSuspend(
+        slot: LeaderSlot,
+        action: suspend () -> T,
+    ): LeaderRunResult<T> {
+        var elected = false
+        val value = tryWithLock(
+            lockName = slot.lockName,
+            auditLeaderId = slot.leaderId,
+            nodeId = options.nodeId,
+        ) {
+            elected = true
+            action()
+        }
+        return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
+    }
+
+    private suspend fun <T> tryWithLock(
+        lockName: String,
+        auditLeaderId: String,
+        nodeId: String? = options.nodeId,
+        action: suspend () -> T,
+    ): T? {
         val mutex = getMutex(lockName)
         // withTimeoutOrNull 은 lock 획득 시도에만 적용합니다. action() 실행은 포함하지 않습니다.
         val acquired = withTimeoutOrNull(options.waitTime) {
@@ -97,7 +148,7 @@ class LocalSuspendLeaderElector(
         }
         val startedAtNanos = System.nanoTime()
         val token = Base58.randomString(8)
-        states.acquireSingle(lockName, options.nodeId, options.leaseTime)
+        states.acquireSingle(lockName, auditLeaderId = auditLeaderId, nodeId = nodeId, leaseTime = options.leaseTime)
 
         val identity = LockIdentity(
             lockName = lockName,
@@ -124,6 +175,7 @@ class LocalSuspendLeaderElector(
             token = token,
             acquiredAtNanos = startedAtNanos,
             extendDelegate = delegate,
+            auditLeaderId = auditLeaderId,
         )
         val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate)
         listeners.notifyElected(lockName)
