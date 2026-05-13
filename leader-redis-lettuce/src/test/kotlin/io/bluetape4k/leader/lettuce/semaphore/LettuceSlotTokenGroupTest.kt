@@ -181,7 +181,7 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
     }
 
     @Test
-    fun `MultithreadingTester 100×100 — auditLeaderId concurrent HSET_HDEL 원자성 검증`() {
+    fun `MultithreadingTester 3×100 — auditLeaderId concurrent HSET_HDEL 원자성 검증`() {
         val auditGroup = LettuceSlotTokenGroup(
             connection,
             "audit-concurrent:${Base58.randomString(8)}",
@@ -209,7 +209,7 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
             }
             .run()
 
-        // 100×100 중 최소 일부는 성공해야 함
+        // 3×100 중 최소 일부는 성공해야 함
         (successCount.get() > 0).shouldBeTrue()
         connection.sync().del(auditGroup.slotKey, auditGroup.metaKey)
     }

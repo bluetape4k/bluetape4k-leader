@@ -567,4 +567,4 @@ fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+MIT License — see [LICENSE](LICENSE).

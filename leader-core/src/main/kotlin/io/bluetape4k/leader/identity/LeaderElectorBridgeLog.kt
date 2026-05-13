@@ -86,7 +86,7 @@ class LeaderElectorBridgeLog(val cacheSize: Int = DEFAULT_CACHE_SIZE) {
         if (isNew) {
             log.warn {
                 "[OMC-BRIDGE-SLOT-DROP] ${implClass.qualifiedName} uses bridge default for slot " +
-                    "lockName='${slot.lockName}'. Override runIfLeader(LeaderSlot, action) to stamp " +
+                    "lockName='${slot.lockName.sanitizeForLog()}'. Override runIfLeader(LeaderSlot, action) to stamp " +
                     "slot.leaderId into LeaderLease.auditLeaderId and avoid audit identity loss."
             }
         }
@@ -112,7 +112,7 @@ class LeaderElectorBridgeLog(val cacheSize: Int = DEFAULT_CACHE_SIZE) {
         if (isNew) {
             log.warn {
                 "[OMC-BRIDGE-RESULT-DROP] ${implClass.qualifiedName} uses result bridge default for slot " +
-                    "lockName='${slot.lockName}'. Backend MUST override BOTH slot and result variants " +
+                    "lockName='${slot.lockName.sanitizeForLog()}'. Backend MUST override BOTH slot and result variants " +
                     "(runIfLeader + runIfLeaderResult) to capture leader ID into LeaderRunResult.Elected.leaderId."
             }
         }
@@ -121,6 +121,10 @@ class LeaderElectorBridgeLog(val cacheSize: Int = DEFAULT_CACHE_SIZE) {
     companion object : KLogging() {
         private const val DEFAULT_CACHE_SIZE: Int = 128
         private const val LOAD_FACTOR: Float = 0.75f
+
+        /** Strips ASCII control characters to prevent log-injection via leaderId / lockName. */
+        private fun String.sanitizeForLog(): String =
+            replace(Regex("\\p{Cntrl}"), "?")
 
         @Volatile
         private var globalInstance: LeaderElectorBridgeLog = LeaderElectorBridgeLog()

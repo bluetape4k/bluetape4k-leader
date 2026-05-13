@@ -63,6 +63,7 @@ class RedissonLeaderGroupElector private constructor(
     companion object: KLogging() {
         internal const val REDISSON_GROUP_FACTORY_BEAN_NAME = "redisson-leader-group-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(RedissonBackendErrorClassifier)
+        private const val AUDIT_MAP_TTL_PADDING_MS = 5_000L
 
         @JvmStatic
         operator fun invoke(
@@ -141,9 +142,12 @@ class RedissonLeaderGroupElector private constructor(
         log.debug { "슬롯 획득 성공. lockName=$lockName, permitId=$permitId" }
 
         // 감사 추적용 RMap 기록 (non-atomic, 트레이서빌리티 전용)
+        val auditMap = getAuditMap(lockName)
         if (auditLeaderId != null) {
-            runCatching { getAuditMap(lockName).fastPut(permitId, auditLeaderId) }
-                .onFailure { log.warn(it) { "Failed to write audit map. lockName=$lockName, permitId=$permitId" } }
+            runCatching {
+                auditMap.fastPut(permitId, auditLeaderId)
+                auditMap.expire(leaseTime.inWholeMilliseconds + AUDIT_MAP_TTL_PADDING_MS, TimeUnit.MILLISECONDS)
+            }.onFailure { log.warn(it) { "Failed to write audit map. lockName=$lockName, permitId=$permitId" } }
         }
 
         val delegate = RedissonSemaphoreExtendDelegate(semaphore, permitId)
@@ -176,7 +180,7 @@ class RedissonLeaderGroupElector private constructor(
         } finally {
             watchdog.close()
             if (auditLeaderId != null) {
-                runCatching { getAuditMap(lockName).fastRemove(permitId) }
+                runCatching { auditMap.fastRemove(permitId) }
                     .onFailure { log.warn(it) { "Failed to remove audit map. lockName=$lockName, permitId=$permitId" } }
             }
             releaseOrExtend(semaphore, permitId, startedAtNanos, lockName)

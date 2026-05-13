@@ -19,6 +19,7 @@ import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withContext
@@ -63,6 +64,7 @@ class RedissonSuspendLeaderGroupElector private constructor(
     companion object: KLoggingChannel() {
         internal const val REDISSON_SUSPEND_GROUP_FACTORY_BEAN_NAME = "redisson-suspend-leader-group-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(RedissonBackendErrorClassifier)
+        private const val AUDIT_MAP_TTL_PADDING_MS = 5_000L
 
         operator fun invoke(
             redissonClient: RedissonClient,
@@ -145,9 +147,18 @@ class RedissonSuspendLeaderGroupElector private constructor(
         log.debug { "슬롯 획득 성공. lockName=$lockName, permitId=$permitId" }
 
         // 감사 추적용 RMap 기록 (non-atomic, 트레이서빌리티 전용)
+        val auditMap = getAuditMap(lockName)
         if (auditLeaderId != null) {
-            runCatching { getAuditMap(lockName).fastPut(permitId, auditLeaderId) }
-                .onFailure { log.warn(it) { "Failed to write audit map. lockName=$lockName, permitId=$permitId" } }
+            try {
+                withContext(Dispatchers.IO) {
+                    auditMap.fastPut(permitId, auditLeaderId)
+                    auditMap.expire(leaseTime.inWholeMilliseconds + AUDIT_MAP_TTL_PADDING_MS, TimeUnit.MILLISECONDS)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.warn(e) { "Failed to write audit map. lockName=$lockName, permitId=$permitId" }
+            }
         }
 
         val delegate = RedissonSuspendSemaphoreExtendDelegate(semaphore, permitId)
@@ -183,8 +194,13 @@ class RedissonSuspendLeaderGroupElector private constructor(
             withContext(NonCancellable) {
                 watchdog.close()
                 if (auditLeaderId != null) {
-                    runCatching { getAuditMap(lockName).fastRemove(permitId) }
-                        .onFailure { log.warn(it) { "Failed to remove audit map. lockName=$lockName, permitId=$permitId" } }
+                    try {
+                        withContext(Dispatchers.IO) { auditMap.fastRemove(permitId) }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        log.warn(e) { "Failed to remove audit map. lockName=$lockName, permitId=$permitId" }
+                    }
                 }
                 try {
                     val remainingMs = remainingMinLeaseTime(startedAtNanos, options.minLeaseTime).inWholeMilliseconds
