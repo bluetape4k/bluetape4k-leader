@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
@@ -13,6 +14,7 @@ import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * [LocalLeaderGroupElector] 의 [LeaderSlot]-aware override 계약을 검증합니다.
@@ -94,22 +96,22 @@ class LocalLeaderGroupElectorSlotTest {
         val slot1 = LeaderSlot(lockName, "node-1")
         val slot2 = LeaderSlot(lockName, "node-2")
 
-        var r1: LeaderRunResult<String>? = null
-        var r2: LeaderRunResult<String>? = null
+        val r1 = AtomicReference<LeaderRunResult<String>?>()
+        val r2 = AtomicReference<LeaderRunResult<String>?>()
 
-        val t1 = Thread {
-            r1 = election.runIfLeaderResult(slot1) { "result-1" }
-        }
-        val t2 = Thread {
-            r2 = election.runIfLeaderResult(slot2) { "result-2" }
-        }
-        t1.start(); t2.start()
-        t1.join(); t2.join()
+        MultithreadingTester()
+            .workers(2)
+            .rounds(1)
+            .addAll(
+                { r1.set(election.runIfLeaderResult(slot1) { "result-1" }) },
+                { r2.set(election.runIfLeaderResult(slot2) { "result-2" }) },
+            )
+            .run()
 
-        (r1 is LeaderRunResult.Elected).shouldBeTrue()
-        (r2 is LeaderRunResult.Elected).shouldBeTrue()
-        (r1 as LeaderRunResult.Elected).leaderId shouldBeEqualTo "node-1"
-        (r2 as LeaderRunResult.Elected).leaderId shouldBeEqualTo "node-2"
+        (r1.get() is LeaderRunResult.Elected).shouldBeTrue()
+        (r2.get() is LeaderRunResult.Elected).shouldBeTrue()
+        (r1.get() as LeaderRunResult.Elected).leaderId shouldBeEqualTo "node-1"
+        (r2.get() as LeaderRunResult.Elected).leaderId shouldBeEqualTo "node-2"
     }
 
     // --- lockName 구분 ---
