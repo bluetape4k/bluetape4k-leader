@@ -1,7 +1,7 @@
 # Issue #50 leader history/audit common contract design
 
 > Issue: #50 | Type: A Full Design, spec-only first | Date: 2026-05-12
-> Rev: 7 (2026-05-13) — Phase 3 Codex Round 3 P1×2 + P2×3 반영
+> Rev: 8 (2026-05-13) — Phase 3 Codex Round 4 P1×2 + P2×4 + P3×2 반영
 
 ## 배경
 
@@ -312,44 +312,53 @@ raw `Throwable`을 처리할 필요가 없다.
 받는다. null이면 audit 기록 없이 동작한다.
 
 ```kotlin
-// 예시 (blocking elector) — backend.unlock()은 finally에서 반드시 실행
+// 예시 (blocking elector) — record 생성·recordAcquired·action 전체가 try-finally 안에 있어야
+// CE/IE rethrow 시에도 finally의 backend.unlock()이 반드시 실행된다.
 class ExposedJdbcLeaderElector(
     private val options: ExposedJdbcLeaderElectionOptions,
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,  // optional
 ) : LeaderElector {
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         val token = backend.tryAcquire(lockName, options) ?: return null  // lock 미획득 → null
-        val record = LeaderLockHistoryRecord(lockName = lockName, token = token, ...)
-        val key = historyRecorder?.recordAcquired(record)
-        // recordAcquired null 반환 시 fallback key 구성 — §2-4 null-key 계약.
-        // sink는 (lockName, token)으로 조회해 대상을 찾지 못하면 no-op.
-        val effectiveKey: () -> LeaderHistoryKey? = {
-            key ?: historyRecorder?.let { LeaderHistoryKey(lockName = lockName, token = token) }
-        }
-        return try {
-            val result = action()
-            effectiveKey()?.let { historyRecorder?.recordCompleted(it, ...) }
-            result
-        } catch (e: CancellationException) {
-            // CE는 structured concurrency 신호 — AUDIT 기록 없이 재throw.
-            // "runIfLeader 절대 throw 않음" 계약의 유일한 예외.
-            throw e
-        } catch (e: InterruptedException) {
-            Thread.currentThread().interrupt()
-            throw e
-        } catch (e: Exception) {
-            effectiveKey()?.let { historyRecorder?.recordFailed(it, ..., e) }
-            null   // action 예외는 null 반환으로 흡수
+        var key: LeaderHistoryKey? = null
+        try {
+            val record = LeaderLockHistoryRecord(lockName = lockName, token = token, ...)
+            key = historyRecorder?.recordAcquired(record)
+            // recordAcquired null 반환 시 fallback key — §2-4 null-key 계약.
+            // sink는 (lockName, token)으로 조회해 대상을 찾지 못하면 no-op.
+            val effectiveKey: LeaderHistoryKey? =
+                key ?: historyRecorder?.let { LeaderHistoryKey(lockName = lockName, token = token) }
+            return try {
+                val result = action()
+                effectiveKey?.let { historyRecorder?.recordCompleted(it, ...) }
+                result
+            } catch (e: CancellationException) {
+                // CE는 structured concurrency 신호 — AUDIT 기록 없이 재throw.
+                // "runIfLeader 절대 throw 않음" 계약의 유일한 예외.
+                throw e
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                throw e
+            } catch (e: Exception) {
+                effectiveKey?.let { historyRecorder?.recordFailed(it, ..., e) }
+                null   // action 예외는 null 반환으로 흡수
+            }
         } finally {
             // CE·IE·정상 반환 어느 경로든 lock은 반드시 해제.
-            // CE rethrow 후 lock이 leaseTime까지 유지되면 다른 candidate가 차단된다.
-            // unlock 자체가 실패해도 원래 예외(CE/IE)를 숨기지 않도록 예외를 흡수한다.
-            runCatching { backend.unlock(lockName, token) }
-                .onFailure { log.warn(it) { "unlock failed lockName=$lockName token=$token" } }
+            // unlock 실패가 원래 CE/IE를 숨기지 않도록 try-catch로 흡수한다.
+            // ⚠️ suspend elector는 runCatching 대신 try-catch + CE rethrow 사용 (CLAUDE.md).
+            try {
+                backend.unlock(lockName, token)
+            } catch (e: Exception) {
+                log.warn(e) { "unlock failed lockName=$lockName token=$token" }
+            }
         }
     }
 }
 ```
+
+> **suspend elector의 unlock**: `SuspendLeaderElector` 구현에서 `backend.unlock()`이 suspend이면
+> `runCatching {}` 사용 금지 — CE를 삼킨다. 반드시 `try { ... } catch (e: CancellationException) { throw e } catch (e: Exception) { log.warn }` 사용.
 
 **`runIfLeader` throw 계약 명세:**
 
@@ -493,6 +502,12 @@ open class SafeLeaderHistoryRecorder(
 `recordFailed`로 CE가 전달되는 경우(프로그래밍 오류)는 audit-isolation 계약에 따라
 IAE를 전파하지 않고 warn log 후 skip한다.
 
+**IE-as-error 정책**: `recordFailed(error = someInterruptedException)`는 **caller 책임 오류**이다.
+blocking elector의 wiring 계약에서 IE는 action 실패(FAILED)가 아니라 취소 신호이므로
+`recordFailed`로 전달되어서는 안 된다 (§2-1 throw 계약 표 참조).
+만약 전달되면 `errorType = "java.lang.InterruptedException"`으로 기록된다 — v1에서 guard 없음.
+caller가 IE-as-error 전달을 방지해야 하며, wiring 테스트가 이를 검증한다.
+
 **Error (non-Exception) 전파 정책:**
 `SafeLeaderHistoryRecorder`의 `catch (e: Exception)` 는 `Error`를 포함하지 않는다.
 `OutOfMemoryError`, `StackOverflowError` 등의 `Error`는 **그대로 전파된다**.
@@ -512,7 +527,7 @@ open class SuspendSafeLeaderHistoryRecorder(
 ) {
     companion object : KLogging()
 
-    suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
+    open suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
         return try {
             sink.recordAcquired(sanitize(record))
         } catch (e: CancellationException) {
@@ -528,7 +543,7 @@ open class SuspendSafeLeaderHistoryRecorder(
         }
     }
 
-    suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
+    open suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
         try {
             sink.recordCompleted(key, finishedAt, durationMs)
         } catch (e: CancellationException) {
@@ -541,7 +556,7 @@ open class SuspendSafeLeaderHistoryRecorder(
         }
     }
 
-    suspend fun recordFailed(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, error: Throwable? = null) {
+    open suspend fun recordFailed(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, error: Throwable? = null) {
         if (error is CancellationException) {
             log.warn { "recordFailed called with CE — skip. lockName=${key.lockName.sanitizeForLog()}" }
             return
@@ -610,6 +625,11 @@ increment한다. 이 counter 없이는 SRE가 orphan-ACQUIRED 레코드를 proce
 auto-config는 `MeterRegistry` bean과 `LeaderHistorySink` bean이 모두 있을 때
 `MicrometerSafeLeaderHistoryRecorder`를 생성한다.
 `MeterRegistry` bean이 없으면 `SafeLeaderHistoryRecorder`를 사용한다.
+
+> **v1 scope 명시**: `MicrometerSafeLeaderHistoryRecorder`는 blocking sink(`LeaderHistorySink`) 전용이다.
+> suspend sink(`SuspendLeaderHistorySink`) 대상의 Micrometer 래핑(`MicrometerSuspendSafeLeaderHistoryRecorder`)은
+> v1 범위에 포함하지 않는다. suspend elector 사용 시 `leader.history.sink.failures` /
+> `leader.history.acquire.missing` counter는 발생하지 않는다 — 이는 의도적인 v1 제한이다.
 
 #### 2-5. truncateUtf8 유틸리티 (필수 사전 조건)
 
@@ -816,8 +836,12 @@ Exposed(30일) vs MongoDB(90일) 기본값 차이: RDBMS row 비용과 MongoDB d
 | `LeaderHistoryKey` update 전략 | id != null → 첫 번째 전략 | unit test |
 | `effectiveStatus()` ACQUIRED + 만료 | `lockedUntil < now` → EXPIRED 반환 | unit test |
 | blocking recorder CE rethrow | `catch(Exception)` 앞 `catch(CancellationException) { throw e }` | assertFailsWith |
-| `SafeLeaderHistoryRecorder.recordAcquired` IE rethrow | sink에서 IE 발생 시 `assertFailsWith<InterruptedException>` + `Thread.interrupted()` flag 복원 확인 | JUnit 5 |
-| `SuspendSafeLeaderHistoryRecorder.recordAcquired` IE rethrow | sink에서 IE 발생 시 rethrow + interrupt flag 복원 | JUnit 5 |
+| `SafeLeaderHistoryRecorder.recordAcquired` IE rethrow | sink에서 IE 발생 시 `assertFailsWith<InterruptedException>` + `Thread.currentThread().isInterrupted` == true | JUnit 5 |
+| `SafeLeaderHistoryRecorder.recordCompleted` IE rethrow | 동일 | JUnit 5 |
+| `SafeLeaderHistoryRecorder.recordFailed` IE rethrow | 동일 | JUnit 5 |
+| `SuspendSafeLeaderHistoryRecorder.recordAcquired` IE rethrow | sink에서 IE 발생 시 rethrow + `Thread.currentThread().isInterrupted` 복원 | JUnit 5 |
+| `SuspendSafeLeaderHistoryRecorder.recordCompleted` IE rethrow | 동일 | JUnit 5 |
+| `SuspendSafeLeaderHistoryRecorder.recordFailed` IE rethrow | 동일 | JUnit 5 |
 
 #### 7-2. 동시성 테스트
 
@@ -884,7 +908,8 @@ v1 거부. volume과 query 설계 범위 과다.
 - `recordFailed` sink interface parameter: `errorType: String?`, `errorMessage: String?` (Throwable 아님).
 - `truncateUtf8(maxBytes)` 유틸리티 — `bluetape4k-support` 또는 `leader-core internal`.
 - Lettuce token ≥128 bit: Base58 22자 이상 또는 UUID 업그레이드 (이 PR 포함).
-- Log injection 방지: `sanitizeForLog()` 함수로 CRLF + control chars 제거.
+- Log injection 방지: `sanitizeForLog()` 함수로 CRLF + control chars (`\\p{Cntrl}`) + U+2028 + U+2029 제거.
+  pattern: `[\\p{Cntrl}\\u2028\\u2029]` → `"?"` 대체.
 - Blocking recorder CE rethrow: `catch(CancellationException) { throw e }` 모든 메서드.
 - Wiring 명세: elector constructor optional `SafeLeaderHistoryRecorder?` 파라미터.
 - `effectiveStatus()` helper — `leader-core` top-level extension.
@@ -1013,3 +1038,20 @@ Rev 6 commit: `bf8a21b`.
 | 5 | P2 | `finally { backend.unlock() }` — unlock 실패 시 원래 CE/IE 숨김 정책 미정의 | Rev 7 반영: `runCatching { backend.unlock() }.onFailure { log.warn }` 패턴으로 명시 |
 
 Rev 7 commit: `98ce911`.
+
+### Phase 3 Codex Round 4 (2026-05-13 Rev 7→8)
+
+독립 검증 (6개 차원): P1×2, P2×4, P3×2
+
+| # | P | 찾은 문제 | 처리 |
+|---|---|-----------|------|
+| 1 | P1 | `SuspendSafeLeaderHistoryRecorder` class는 `open`이지만 3개 메서드에 `open` 미적용 — `MicrometerSuspendSafeLeaderHistoryRecorder` 상속 시 컴파일 불가 | Rev 8 반영: `open suspend fun recordAcquired/recordCompleted/recordFailed` |
+| 2 | P1 | Wiring 예제에서 `record` 생성 + `recordAcquired` 호출이 `try-finally` 블록 밖 — IE/CE rethrow 시 `finally`의 `backend.unlock()` 미실행으로 lock leak | Rev 8 반영: `record` + `recordAcquired`를 `try` 블록 안으로 이동; `effectiveKey` 변수도 동일 블록에서 계산 |
+| 3 | P2 | suspend elector finally에서 `runCatching { backend.unlock() }` CE 삼킴 위험 — 노트 부재 | Rev 8 반영: wiring 예제 바로 밑에 "suspend elector는 try-catch + CE rethrow 사용" 노트 추가 |
+| 4 | P2 | `MicrometerSuspendSafeLeaderHistoryRecorder` 미정의로 suspend elector Micrometer counter 미발화 — 정책 미명시 | Rev 8 반영: §2-4에 "v1 scope: suspend sink Micrometer 래핑 out-of-scope" 명시 |
+| 5 | P2 | §7-1 IE rethrow 테스트가 `recordAcquired`만 커버; `recordCompleted`+`recordFailed` ×2 recorder = 4행 누락 | Rev 8 반영: 6행으로 확장 (3메서드 × 2 recorder) |
+| 6 | P2 | `recordFailed` CE-skip에 대칭적인 IE-as-error guard 미정의 | Rev 8 반영: "IE-as-error는 caller 책임 오류" 정책 명시 |
+| 7 | P3 | §7-1 IE test row `Thread.interrupted()` → 파괴적 읽기 | Rev 8 반영: `Thread.currentThread().isInterrupted` (비파괴) |
+| 8 | P3 | `sanitizeForLog()` U+2028/U+2029 누락 — acceptance criteria 미추적 | Rev 8 반영: acceptance criteria에 pattern 명시 |
+
+Rev 8 commit: (pending)
