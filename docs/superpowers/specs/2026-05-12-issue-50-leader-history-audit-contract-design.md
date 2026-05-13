@@ -946,4 +946,4 @@ Phase 3 독립 리뷰 (Opus, 6개 차원): P1×5, P2×9, P3×4
 | 13 | P2 | `MicrometerSafeLeaderHistoryRecorder.sink` private → simpleName 접근 불가 | P2 — plan 단계에서 protected 또는 생성자 파라미터로 변경 |
 | 14 | P2 | group elector CE rethrow 계약 미기술 | P2 — plan 단계 task 추가 (LeaderGroupElector 동일 계약 적용) |
 
-모두(P1) Rev 5에 반영. Commit (pending).
+모두(P1) Rev 5에 반영. Commit `a1e37b7`.
