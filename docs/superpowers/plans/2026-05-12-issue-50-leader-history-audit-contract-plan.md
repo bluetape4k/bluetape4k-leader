@@ -683,7 +683,7 @@ T21와 동일 정책 (interface 호환만, 본문 wiring v1 deferred)
 내용 (Round 3 H1+H2 수정):
 - `@Component class SuspendLeaderHistoryRetentionJob(private val sink: SuspendLeaderHistorySink)` — R2DBC / MongoDB 전용. `CoroutineScope` 생성자 파라미터 **제거**
 - `@Scheduled @LeaderElection("bluetape4k-leader-history-retention-suspend")` — 잠금 이름을 blocking job(`"...-retention"`)과 **구분** (각 Backend 독립 잠금)
-- **Mono 브리지 패턴 사용** (Round 4 P0: Spring Framework는 `@Scheduled`에서 `suspend fun` 직접 호출 불가 — spring-projects/spring-framework#32165 closed "not planned"):
+- **Mono 브리지 패턴 사용** (Round 4 P0 fix: Spring 6.1+ PR #29924에서 `@Scheduled`의 `suspend fun` / `Mono<Void>` 반환 지원 추가됨. Mono 브리지를 사용하면 `@LeaderElection` 어스펙트의 Mono 종료 후 잠금 해제 경로 (#91)가 명시적으로 활성화되어 fire-and-forget 문제를 해소함):
   ```kotlin
   @Scheduled(cron = "\${bluetape4k.leader.history.retention.cron:0 0 2 * * ?}")
   @LeaderElection("bluetape4k-leader-history-retention-suspend")
