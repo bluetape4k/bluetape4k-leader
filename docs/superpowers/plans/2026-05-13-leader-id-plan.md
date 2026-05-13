@@ -1340,6 +1340,17 @@ grep -rEn "LeaderLockHandle\.real\(" --include="*.kt" \
 | `LeaderGroupElectionAspectBlankGuardTest.kt` (NEW) | T78b — resolveLeaderId final blank guard (4 fallback exhaustion → LeaderIdResolutionException) |
 | `LeaderAopAutoConfigurationMeterRegistryAbsentTest.kt` (NEW) | T84b — MeterRegistry absent: bridge drop + recorder context drop counters 독립 검증 (Step 3-R Round 4 codex P1-R4 — T78b/T84b PR7 test list 등재) |
 
+> **PR7 test list traceability note** (Step 3-R Round 5 codex P1-R5-1): 아래 PR7 tasks 는 구현(implementation) task 로 **별도 test file 이 아닌 위 listed test 또는 PR7 DoD 체크로 검증됨**:
+> - T32 (annotation field): T36/T38 통합 테스트로 검증
+> - T33 (LeaderAopProperties): T36/T38 검증
+> - T54 (LeaderElectionInfo init invariant): T65 (backend integration) 검증
+> - T61 (recorder call sites): T70-part2 테스트로 검증 (T61 ⊂ T70-part2)
+> - T62 (KDoc update): docs-only, no test needed
+> - T71 (bridge default methods): T72 contract test 로 검증
+> - T73 (AutoConfig ordering): `AutoConfigurationImportSelectorTest` — PR7 DoD 항목으로 명시
+> - T78 (final blank guard): T34 단위 테스트 + T78b 전용 test 로 검증
+> - T84 (MeterRegistry-absent fallback log): T84b 로 검증 (위 목록 포함)
+
 ### PR7 README / CHANGELOG impact
 
 - `leader-spring-boot/README.{md,ko.md}`: "Audit Identity (AOP)" 섹션 — annotation 예시, `LeaderIdProvider` bean override, `default-leader-id` property
@@ -1783,26 +1794,9 @@ import org.jetbrains.exposed.v1.jdbc.exists
 
 ### 10.3 PR-level task counts
 
-| PR | High | Medium | Low | Total |
-|----|------|--------|-----|-------|
-| PR1 | 11 | 14 | 12 | 37 |
-| PR2 | 3 | 1 | 0 | 4 |
-| PR3 | 2 | 1 | 0 | 3 |
-| PR4 | 1 | 1 | 0 | 2 |
-| PR5 | 1 | 1 | 0 | 2 |
-| PR6 | 2 | 4 | 1 | 7 |
-| PR7 | 4 | 11 | 2 | 17 |
-| PR8 | 1 | 5 | 4 | 10 |
-| Deferred | 0 | 1 | 0 | 1 |
-| **Total** | **25** | **39** | **19** | **83 raw entries** (각 alias 를 별도 row 로 집계한 PR-level view) |
-| **§10.2 canonical (alias merged)** | **23** | **37** | **25** | **85 logical** |
+> **Step 3-R Round 5 P0-R5-1 resolution**: §10.3 summary table was **deprecated** after 4 rounds of alias-dedup arithmetic failures (alias merge = −1 delta, not +1; §10.3 raw totals not derivable from §10.1 task index). **Use §10.2 as the sole canonical complexity authority.** Per-PR task distribution is available directly from §10.1 (task index, "PR" column). No separate summary table is maintained.
 
-(Step 3-R Round 4 architect P0-R4 fix — §10.3 raw 83 + **2 alias merges** = 85 logical §10.2:
-- `T68c = T83`: §10.3 에서 T68c(low PR1) + T83(medium PR1) 두 row 집계 → §10.2 에서 1 medium 으로 merge. +1 delta.
-- `T67 = T53`: §10.3 에서 T67(low PR1) + T53(이미 통합) → §10.2 에서 1 low 로 merge. +1 delta.
-- 83 raw + 2 alias-merge delta = **85 logical** ✓. "deferred" 는 이미 83 raw 에 포함되어 있음.)
-
-> PR1 이 압도적으로 무거운 PR (35 task) — testFixture freeze + 8 interface bridge + Local backend + identity types 가 PR1 에 집중. PR2-5 는 backend 별 patterns 따라 가벼움 (2-4 task). PR7 (AOP) 가 두번째로 무거운 PR.
+PR1 이 가장 무거운 PR — testFixture freeze + 8 interface bridge + Local backend + identity types 집중. PR2-5 는 backend pattern 따라 가벼움. PR7 (AOP) 이 두번째로 무거운 PR.
 
 ---
 
@@ -1829,8 +1823,14 @@ Step 3-R 의 P0=0 / P1≤2 도달 후 PR1 implementation 진입.
 | 1 | architect + test-engineer + codex CLI (2026-05-13) | **3** (B1/B2/codex#1 cycle) | 12 | 7 | 1 | applied 18cb979 + 9e926a3 |
 | 2 | architect + test-engineer + codex CLI (2026-05-13) | **2** (PR1.5 zombie / droppedCount missing) | 14+ | 2 | 0 | applied 6524f49 |
 | 3 | architect + test-engineer + codex CLI (2026-05-13) | **2** (T68b type hierarchy / PR1.5 zombie 잔여) | 6 | 3 | 2 | applied 2df67c8 |
-| 4 | architect(opus) + test-engineer(sonnet) + codex(gpt-5.5) (2026-05-13) | **1** (§10.3 footer math) | 2 | 3 | 1 | applied (this commit) |
-| 5 | (dispatch pending) | | | | | |
+| 4 | architect(opus) + test-engineer(sonnet) + codex(gpt-5.5) (2026-05-13) | **1** (§10.3 footer math) | 2 | 3 | 1 | applied aa3d23c |
+| 5 | architect(opus) + codex(gpt-5.5) (2026-05-13) | **1** (§10.3 math direction wrong — merge=−1 not +1) | 1 (PR7 traceability) | 0 | 0 | applied (this commit) |
+| 6 | (dispatch pending) | | | | | |
+
+**Round 5 fixes 적용 (P0 + P1)**:
+- P0 R5-P0-1 (architect+codex 합의): §10.3 PR-level table **deprecated** — alias-merge 방향 오류 (merge=−1, +1 아님), §10.3 raw 총계가 §10.1 task index 에서도 derive 안 됨. 테이블 자체 삭제 → deprecation note 로 대체. **§10.2 가 유일한 canonical 복잡도 authority** — §10.1 task index 의 PR 컬럼이 per-PR distribution 제공.
+- P1 R5-P1-1 (codex): PR7 test list traceability 노트 추가 — T32/T33/T54/T61/T62/T71/T73/T78/T84 는 구현 task 이므로 직접 test row 없이 listed 테스트 또는 PR7 DoD 로 검증됨. 각 매핑 명시.
+- architect: P1=0 (PR7 traceability "pre-existing, not blocking") → P1 fix 는 codex 만족 위한 명확화.
 
 **Round 4 fixes 적용 (P0 + P1 + P2)**:
 - P0 architect/codex R4: §10.3 footer arithmetic 수정 — "83 raw + 2 alias-merge delta = 85 logical". T68c=T83(low+medium→1medium) + T67=T53(low×2→1low) 두 alias merge 가 83→85 delta. "deferred" 는 이미 83 raw 에 포함됨.
