@@ -195,6 +195,15 @@ data class LeaderLockHistoryRecord private constructor(
   UUID v4 또는 Base58 22자 이상 사용. Lettuce 현재 Base58 8자(≈47 bit)는 이 요건을
   충족하지 못하므로 **즉시 업그레이드가 필요하다** (이 spec PR과 함께 처리).
   포맷은 backend-specific이며 core contract에서 opaque하게 취급한다.
+
+  **레거시 token 호환 정책 (Lettuce 업그레이드 전환 시):**
+  - 신규 acquire부터 128-bit token 사용. 이전 8자 token으로 기록된 기존 ACQUIRED 레코드는
+    그대로 유지하며 별도 마이그레이션하지 않는다.
+  - 기존 레코드의 `recordCompleted`/`recordFailed` 전환은 해당 레코드의 8자 token으로
+    진행한다 — 자연 키 `(lockName, token)` 매칭이 그대로 동작.
+  - 레거시 레코드는 `lockedUntil` 만료 후 EXPIRED 처리되므로 영구 잔존하지 않는다.
+  - 보안 영향: 8자 token(47-bit)은 audit record 위조에 취약하나, 만료 시간 내 단기간만
+    유효하므로 실질 위험이 제한적이다. 업그레이드 후 신규 레코드는 영향 없음.
 - `slotId`: group lock의 slot/permit/member identity (단일 리더는 null).
 - `status`: `ACQUIRED -> COMPLETED | FAILED | EXPIRED` lifecycle.
 - `startedAt`: acquire 성공 후 action 실행 시작 시각.
@@ -316,14 +325,30 @@ class ExposedJdbcLeaderElector(
             historyRecorder?.recordCompleted(key ?: return result, ...)
             result
         } catch (e: CancellationException) {
-            throw e   // CancellationException은 FAILED 기록 없이 재throw
+            // CancellationException은 FAILED 기록 없이 재throw.
+            // "runIfLeader 절대 throw 않음" 계약의 예외: CE는 structured concurrency
+            // 신호이므로 반드시 caller에게 전파한다. lock 미획득(null 반환) 계약과
+            // 구별되는 유일한 예외 경우다.
+            throw e
         } catch (e: Exception) {
             historyRecorder?.recordFailed(key ?: return null, ..., e)
-            null
+            null   // action 예외는 null 반환으로 흡수
         }
     }
 }
 ```
+
+**`runIfLeader` throw 계약 명세:**
+
+| 상황 | 동작 |
+|------|------|
+| lock 미획득 (contention) | `null` 반환, 절대 throw 없음 |
+| action 예외 (`Exception`) | `null` 반환, 절대 throw 없음 |
+| `CancellationException` | **rethrow** — structured concurrency 신호, 유일한 예외 |
+
+CLAUDE.md "runIfLeader 절대 throw하지 않음"은 lock 미획득과 action 예외에 적용된다.
+`CancellationException`은 caller의 coroutine scope 취소 신호이므로 반드시 전파해야 한다.
+이것이 두 계약이 모순 없이 공존하는 방식이다.
 
 **Spring 환경**: `LeaderElectionAutoConfiguration`이 `LeaderHistorySink` bean이 있으면
 `SafeLeaderHistoryRecorder`를 생성해 elector에 주입한다.
@@ -767,8 +792,15 @@ v1 거부. volume과 query 설계 범위 과다.
 - MongoDB TTL gauge live supplier.
 - Exposed/MongoDB retention 기본값 차이 문서화.
 - EXPIRED sweeper v1 out-of-scope 명시.
+- `runIfLeader` throw 계약: lock 미획득/action 예외 → null 반환; CE → rethrow (유일한 예외).
+- Lettuce 레거시 token(8자) 호환 정책: 기존 레코드 그대로 유지, 신규 acquire부터 128-bit.
 - 테스트 계획 포함 (단위/동시성/통합/장애/DDL).
 - Hot-path overhead p99 ≤ 1ms + JMH.
+- English KDoc: `LeaderLockHistoryRecord`, `LeaderHistoryKey`, `LeaderHistorySink`,
+  `SuspendLeaderHistorySink`, `SafeLeaderHistoryRecorder`, `SuspendSafeLeaderHistoryRecorder`,
+  `MicrometerSafeLeaderHistoryRecorder`, `LeaderHistoryStatus`, `effectiveStatus()`, `truncateUtf8()`.
+- README 갱신: `leader-core/README.md`, `leader-exposed-core/README.md`,
+  `leader-mongodb/README.md`, `leader-micrometer/README.md`.
 
 ## Appendix — Review Iteration Log
 
@@ -811,4 +843,20 @@ Phase 1 Round 2 (4 × sonnet) + Phase 3 Codex (Opus)
 | 13 | ops | Schema migration DBA/CI 실행 불가 |
 | 14 | ops | MongoDB index health probe 없음 |
 
-모두 Rev 3에 반영. Commit (pending).
+모두 Rev 3에 반영. Commit (this PR).
+
+### Phase 2 Critic (2026-05-13 Rev 3→4)
+
+Phase 2 Opus critic: P1×2, P2×5, P3×3
+
+| # | P | 찾은 문제 | 처리 |
+|---|---|-----------|------|
+| 1 | P1 | `runIfLeader` "절대 throw 않음" vs CE rethrow 정합성 | Rev 4 반영: 계약 명세 추가 |
+| 2 | P1 | Lettuce 레거시 8자 token 호환 미정의 | Rev 4 반영: 레거시 정책 추가 |
+| 3 | P2 | README/KDoc 요건 누락 | Rev 4 반영: acceptance criteria 추가 |
+| 4 | P2 | Brainstorming depth 부족 | 기존 A/B/C 옵션으로 형식 충족; 추가 옵션은 plan 단계로 |
+| 5 | P2 | `effectiveStatus()` DB 시간 vs 앱 시간 divergence | P3 수준으로 하향; JVM Instant.now()와 DB now()는 동일 서버에서 수ms 이내 |
+| 6 | P2 | suspend wiring 예제 없음 | plan 단계에서 다룸 |
+| 7 | P2 | `SuspendSafeLeaderHistoryRecorder` IO dispatcher 책임 | plan 단계에서 다룸 |
+
+Rev 4 commit (pending).
