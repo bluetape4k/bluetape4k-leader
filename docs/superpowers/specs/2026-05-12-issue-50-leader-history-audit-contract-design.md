@@ -1,7 +1,7 @@
 # Issue #50 leader history/audit common contract design
 
 > Issue: #50 | Type: A Full Design, spec-only first | Date: 2026-05-12
-> Rev: 3 (2026-05-13) — 2-R Round 2 P1×14 반영
+> Rev: 4 (2026-05-13) — Phase 2 critic P1×2 반영
 
 ## 배경
 
@@ -843,7 +843,7 @@ Phase 1 Round 2 (4 × sonnet) + Phase 3 Codex (Opus)
 | 13 | ops | Schema migration DBA/CI 실행 불가 |
 | 14 | ops | MongoDB index health probe 없음 |
 
-모두 Rev 3에 반영. Commit (this PR).
+모두 Rev 3에 반영. Commit `f85f70e`.
 
 ### Phase 2 Critic (2026-05-13 Rev 3→4)
 
@@ -859,4 +859,4 @@ Phase 2 Opus critic: P1×2, P2×5, P3×3
 | 6 | P2 | suspend wiring 예제 없음 | plan 단계에서 다룸 |
 | 7 | P2 | `SuspendSafeLeaderHistoryRecorder` IO dispatcher 책임 | plan 단계에서 다룸 |
 
-Rev 4 commit (pending).
+Rev 4 commit `dfd062c`.
