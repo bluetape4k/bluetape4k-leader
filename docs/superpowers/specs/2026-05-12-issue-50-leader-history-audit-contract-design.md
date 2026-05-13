@@ -1127,4 +1127,4 @@ Rev 9 commit: `5d6669d`.
 **수렴 선언**: 모든 reviewer (Phase 1 × 4 + 6-tier advisor + Phase 2 critic + Phase 3 Rounds 1-6)
 의 통합 finding P0=0, P1=0 도달. Step 2-R 완료.
 
-Rev 10 commit: (pending)
+Rev 10 commit: `2bc9d00`.
