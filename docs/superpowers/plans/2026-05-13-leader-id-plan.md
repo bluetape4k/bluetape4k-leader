@@ -1826,7 +1826,12 @@ Step 3-R 의 P0=0 / P1≤2 도달 후 PR1 implementation 진입.
 | 4 | architect(opus) + test-engineer(sonnet) + codex(gpt-5.5) (2026-05-13) | **1** (§10.3 footer math) | 2 | 3 | 1 | applied aa3d23c |
 | 5 | architect(opus) + codex(gpt-5.5) (2026-05-13) | **1** (§10.3 math direction wrong — merge=−1 not +1) | 1 (PR7 traceability) | 0 | 0 | applied 0a7690f |
 | 6 | architect(opus) + codex(gpt-5.5) (2026-05-13) | 0 | **1** (§10.2 per-PR label vs listed items ±1-2) | 0 | 0 | applied (this commit) |
-| 7 | (dispatch pending) | | | | | |
+| 7 | architect(opus) + codex(gpt-5.5) (2026-05-13) | **0** | **0** | 0 | 0 | Step 3-R CONVERGED — §10.2 disclaimer + §10.3 deprecation all PASS |
+
+**Round 7 verification (CONVERGED)**:
+- architect(opus): P0=0, P1=0. Round 6 fixes 모두 PASS (§10.2 disclaimer footnote ✓, §10.3 residual prose 없음 ✓, §10.2 stale ref 제거 ✓). NOTE: line 1781 "(§10.3 deprecated — Round 5 P0-R5-1)" 은 back-pointer (독자를 §10.3 에서 멀리하는 방향)이므로 non-blocking.
+- codex(gpt-5.5): P0=0, P1=0. (Round 7 codex run 결과 — see codex iteration log)
+- **Step 3-R gate 완료**: 모든 reviewer P0=0 AND P1=0 도달 → PR1 implementation 진입 허용.
 
 **Round 6 fixes 적용 (P0=0 + P1=1)**:
 - P0: 없음
