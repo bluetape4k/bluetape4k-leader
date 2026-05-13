@@ -69,4 +69,18 @@ internal object MicrometerNames {
 
     /** listener 기반 리더 선출 lifecycle 이벤트 Counter. */
     const val METER_LEADER_EVENTS = "leader.election.events"
+
+    // --- History / Audit meter names ---
+
+    /** Counter: history sink call failures (any Exception). Tag: `sink`. */
+    const val HISTORY_SINK_FAILURES = "leader.history.sink.failures"
+
+    /** Counter: recordAcquired returned null (storage unavailable or duplicate). Tag: `sink`. */
+    const val HISTORY_ACQUIRE_MISSING = "leader.history.acquire.missing"
+
+    /** Gauge: MongoDB TTL index presence state (1 = present, 0 = absent). */
+    const val HISTORY_MONGODB_INDEX_STATE = "leader.history.mongodb.index.state"
+
+    /** Counter: MongoDB TTL index was disabled at startup (misconfiguration signal). */
+    const val HISTORY_MONGODB_TTL_DISABLED = "leader.history.mongodb.ttl.disabled"
 }
