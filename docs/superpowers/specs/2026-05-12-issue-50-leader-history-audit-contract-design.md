@@ -1054,4 +1054,4 @@ Rev 7 commit: `98ce911`.
 | 7 | P3 | §7-1 IE test row `Thread.interrupted()` → 파괴적 읽기 | Rev 8 반영: `Thread.currentThread().isInterrupted` (비파괴) |
 | 8 | P3 | `sanitizeForLog()` U+2028/U+2029 누락 — acceptance criteria 미추적 | Rev 8 반영: acceptance criteria에 pattern 명시 |
 
-Rev 8 commit: (pending)
+Rev 8 commit: `f4d4606`.
