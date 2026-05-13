@@ -7,6 +7,8 @@ import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
@@ -18,6 +20,7 @@ import io.bluetape4k.logging.error
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
+import org.redisson.api.RMap
 import org.redisson.api.RPermitExpirableSemaphore
 import org.redisson.api.RedissonClient
 import org.redisson.client.RedisException
@@ -97,10 +100,22 @@ class RedissonLeaderGroupElector private constructor(
     override fun state(lockName: String): LeaderGroupState =
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
-    override fun <T> runIfLeader(
-        lockName: String,
-        action: () -> T,
-    ): T? {
+    override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
+        runImpl(lockName, auditLeaderId = null, action)
+
+    override fun <T> runIfLeader(slot: LeaderSlot, action: () -> T): T? =
+        runImpl(slot.lockName, auditLeaderId = slot.leaderId, action)
+
+    override fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
+        var elected = false
+        val value = runImpl(slot.lockName, auditLeaderId = slot.leaderId) { elected = true; action() }
+        return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
+    }
+
+    private fun getAuditMap(lockName: String): RMap<String, String> =
+        redissonClient.getMap("lg:{$lockName}:audit")
+
+    private fun <T> runImpl(lockName: String, auditLeaderId: String?, action: () -> T): T? {
         lockName.requireNotBlank("lockName")
         val semaphore = getPermitSemaphore(lockName)
         log.debug { "리더 그룹 슬롯 획득 요청. lockName=$lockName, maxLeaders=$maxLeaders" }
@@ -125,6 +140,12 @@ class RedissonLeaderGroupElector private constructor(
         val startedAtNanos = System.nanoTime()
         log.debug { "슬롯 획득 성공. lockName=$lockName, permitId=$permitId" }
 
+        // 감사 추적용 RMap 기록 (non-atomic, 트레이서빌리티 전용)
+        if (auditLeaderId != null) {
+            runCatching { getAuditMap(lockName).fastPutAsync(permitId, auditLeaderId) }
+                .onFailure { log.warn(it) { "Failed to write audit map. lockName=$lockName, permitId=$permitId" } }
+        }
+
         val delegate = RedissonSemaphoreExtendDelegate(semaphore, permitId)
         val identity = LockIdentity(
             lockName = lockName,
@@ -138,6 +159,7 @@ class RedissonLeaderGroupElector private constructor(
             acquiredAtNanos = startedAtNanos,
             slotId = permitId,
             extendDelegate = delegate,
+            auditLeaderId = auditLeaderId,
         )
         // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
         val watchdog = LeaderLeaseAutoExtender.start(false, options.leaseTime, delegate, ERROR_CLASSIFIER)
@@ -153,6 +175,10 @@ class RedissonLeaderGroupElector private constructor(
             }
         } finally {
             watchdog.close()
+            if (auditLeaderId != null) {
+                runCatching { getAuditMap(lockName).fastRemoveAsync(permitId) }
+                    .onFailure { log.warn(it) { "Failed to remove audit map. lockName=$lockName, permitId=$permitId" } }
+            }
             releaseOrExtend(semaphore, permitId, startedAtNanos, lockName)
         }
     }

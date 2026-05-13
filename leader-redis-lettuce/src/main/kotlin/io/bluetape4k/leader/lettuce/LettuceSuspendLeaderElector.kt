@@ -4,6 +4,8 @@ import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
@@ -66,7 +68,19 @@ class LettuceSuspendLeaderElector(
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(LettuceBackendErrorClassifier)
     }
 
-    override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
+    override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? =
+        runImpl(lockName, auditLeaderId = null, action)
+
+    override suspend fun <T> runIfLeader(slot: LeaderSlot, action: suspend () -> T): T? =
+        runImpl(slot.lockName, auditLeaderId = slot.leaderId, action)
+
+    override suspend fun <T> runIfLeaderResultSuspend(slot: LeaderSlot, action: suspend () -> T): LeaderRunResult<T> {
+        var elected = false
+        val value = runImpl(slot.lockName, auditLeaderId = slot.leaderId) { elected = true; action() }
+        return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
+    }
+
+    private suspend fun <T> runImpl(lockName: String, auditLeaderId: String?, action: suspend () -> T): T? {
         lockName.requireNotBlank("lockName")
 
         val lock = LettuceSuspendLock(connection, lockName, options.leaseTime)
@@ -88,6 +102,7 @@ class LettuceSuspendLeaderElector(
             token = token,
             acquiredAtNanos = acquiredAtNanos,
             extendDelegate = delegate,
+            auditLeaderId = auditLeaderId,
         )
         val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
         log.debug { "리더 선출 성공 (suspend): lockName=$lockName" }

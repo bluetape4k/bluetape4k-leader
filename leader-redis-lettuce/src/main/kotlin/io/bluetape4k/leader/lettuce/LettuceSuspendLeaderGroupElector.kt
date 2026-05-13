@@ -5,6 +5,8 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
@@ -87,10 +89,22 @@ class LettuceSuspendLeaderGroupElector(
     override fun state(lockName: String): LeaderGroupState =
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
-    override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
+    override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? =
+        runImpl(lockName, auditLeaderId = null, action)
+
+    override suspend fun <T> runIfLeader(slot: LeaderSlot, action: suspend () -> T): T? =
+        runImpl(slot.lockName, auditLeaderId = slot.leaderId, action)
+
+    override suspend fun <T> runIfLeaderResultSuspend(slot: LeaderSlot, action: suspend () -> T): LeaderRunResult<T> {
+        var elected = false
+        val value = runImpl(slot.lockName, auditLeaderId = slot.leaderId) { elected = true; action() }
+        return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
+    }
+
+    private suspend fun <T> runImpl(lockName: String, auditLeaderId: String?, action: suspend () -> T): T? {
         val slotGroup = getSlotGroup(lockName)
 
-        val token = slotGroup.tryAcquireSuspending(options.waitTime, options.leaseTime)
+        val token = slotGroup.tryAcquireSuspending(options.waitTime, options.leaseTime, auditLeaderId ?: "")
         if (token == null) {
             log.debug { "리더 선출 실패 (슬롯 없음, suspend): lockName=$lockName" }
             return null
@@ -110,6 +124,7 @@ class LettuceSuspendLeaderGroupElector(
             acquiredAtNanos = startedAtNanos,
             slotId = token,
             extendDelegate = delegate,
+            auditLeaderId = auditLeaderId,
         )
         // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
         val watchdog = LeaderLeaseAutoExtender.start(false, options.leaseTime, delegate, ERROR_CLASSIFIER)
