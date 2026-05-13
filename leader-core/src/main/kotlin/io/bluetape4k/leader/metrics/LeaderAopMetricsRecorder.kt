@@ -4,47 +4,98 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import kotlin.time.Duration
 
 /**
- * Leader Aspect 6 콜백 SPI — 호출자가 metrics / tracing / 사용자 정의 hook 으로 구현.
+ * Leader Aspect callback SPI — implemented by callers for metrics / tracing / custom hooks.
  *
- * ## 멀티 빈 주입
- * Aspect 는 등록된 모든 [LeaderAopMetricsRecorder] 빈에 fan-out 호출. Spring `ObjectProvider<List<...>>`
- * 패턴으로 0개 (NoOp) ~ N개 동시 등록 가능.
+ * Provides 6 legacy overloads (no context) and 6 context-bearing overloads (with [LeaderAopMetricsContext]).
+ * Implementations that need leader ID information should override the context variants.
  *
- * ## isolation
- * 각 recorder 는 `runCatching` 으로 격리됨 — 한 recorder 의 throw 가 leader 본문 또는 다른 recorder 에 영향 없음.
+ * ## Multi-bean injection
+ * The aspect fan-outs to all registered [LeaderAopMetricsRecorder] beans via
+ * `ObjectProvider<List<...>>` — 0 (NoOp) to N simultaneous registrations are supported.
  *
- * ## best-effort
- * `onLockNotAcquired(CONTENTION)` 는 코어 SPI 한계로 본문 null vs 미선출 구분 불가 — 정확한 분리는 후속 [#85].
+ * ## Isolation
+ * Each recorder is isolated with `runCatching` — a throw from one recorder does not affect
+ * the leader body or other recorders.
  *
- * ## 호출 순서
+ * ## Best-effort
+ * `onLockNotAcquired(CONTENTION)` cannot distinguish a null body result from a non-elected result
+ * due to core SPI limitations — precise separation is tracked in issue #85.
+ *
+ * ## Call order
  * - elected: `onLockAttempt` → `onLockAcquired` → `onTaskStarted` → `onTaskFinished`
  * - skipped (CONTENTION): `onLockAttempt` → `onLockNotAcquired(CONTENTION)`
  * - failed: `onLockAttempt` → `onLockAcquired` → `onTaskStarted` → `onTaskFailed`
- * - skipped (BACKEND_ERROR, SKIP 모드): `onLockAttempt` → `onLockNotAcquired(BACKEND_ERROR)`
+ * - skipped (BACKEND_ERROR, SKIP mode): `onLockAttempt` → `onLockNotAcquired(BACKEND_ERROR)`
  *
- * ## Micrometer 연동
- * Micrometer Timer/Counter 통합은 후속 [#75]. 본 PR 은 인터페이스만 노출하고 [NoOp] default 만 등록.
+ * ## Micrometer integration
+ * See [io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder] for a full implementation.
  */
 interface LeaderAopMetricsRecorder {
 
-    /** 락 획득 시도 — `pjp.proceed()` 진입 직전 호출. */
+    // =========================================================================
+    // Legacy overloads (no context) — 6 methods
+    // =========================================================================
+
+    /** Lock acquisition attempt — called immediately before `pjp.proceed()`. */
     fun onLockAttempt(name: String, options: LeaderElectionOptions) {}
 
-    /** 락 획득 성공 — 본문 진입 직전 호출. [acquireElapsed] = 시도 ~ 획득 경과 시간. */
+    /** Lock acquired — called before entering the body. [acquireElapsed] = attempt-to-acquired elapsed time. */
     fun onLockAcquired(name: String, options: LeaderElectionOptions, acquireElapsed: Duration) {}
 
-    /** 락 미획득 — [reason] 으로 사유 분류. */
+    /** Lock not acquired — [reason] classifies the cause. */
     fun onLockNotAcquired(name: String, options: LeaderElectionOptions, reason: SkipReason) {}
 
-    /** 본문 실행 시작 — `onLockAcquired` 직후 호출. */
+    /** Task body starting — called immediately after `onLockAcquired`. */
     fun onTaskStarted(name: String) {}
 
-    /** 본문 정상 완료. [executionTime] = 시도 ~ 완료 경과. */
+    /** Task body completed normally. [executionTime] = attempt-to-completion elapsed time. */
     fun onTaskFinished(name: String, executionTime: Duration) {}
 
-    /** 본문 또는 backend 예외. */
+    /** Task body or backend threw an exception. */
     fun onTaskFailed(name: String, executionTime: Duration, throwable: Throwable) {}
 
-    /** No-op 기본 구현 — recorder 빈 미등록 환경에서 fast-path 활성화 위해 사용. */
+    // =========================================================================
+    // Context-bearing overloads — 6 methods
+    // Default implementations drop context via LeaderRecorderContextDropLog and
+    // delegate to the legacy overloads. Override to capture leader ID information.
+    // =========================================================================
+
+    /** Context-bearing variant — default drops [context] and delegates to [onLockAttempt]. */
+    fun onLockAttempt(name: String, options: LeaderElectionOptions, context: LeaderAopMetricsContext) {
+        LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
+        onLockAttempt(name, options)
+    }
+
+    /** Context-bearing variant — default drops [context] and delegates to [onLockAcquired]. */
+    fun onLockAcquired(name: String, options: LeaderElectionOptions, acquireElapsed: Duration, context: LeaderAopMetricsContext) {
+        LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
+        onLockAcquired(name, options, acquireElapsed)
+    }
+
+    /** Context-bearing variant — default drops [context] and delegates to [onLockNotAcquired]. */
+    fun onLockNotAcquired(name: String, options: LeaderElectionOptions, reason: SkipReason, context: LeaderAopMetricsContext) {
+        LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
+        onLockNotAcquired(name, options, reason)
+    }
+
+    /** Context-bearing variant — default drops [context] and delegates to [onTaskStarted]. */
+    fun onTaskStarted(name: String, context: LeaderAopMetricsContext) {
+        LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
+        onTaskStarted(name)
+    }
+
+    /** Context-bearing variant — default drops [context] and delegates to [onTaskFinished]. */
+    fun onTaskFinished(name: String, executionTime: Duration, context: LeaderAopMetricsContext) {
+        LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
+        onTaskFinished(name, executionTime)
+    }
+
+    /** Context-bearing variant — default drops [context] and delegates to [onTaskFailed]. */
+    fun onTaskFailed(name: String, executionTime: Duration, throwable: Throwable, context: LeaderAopMetricsContext) {
+        LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
+        onTaskFailed(name, executionTime, throwable)
+    }
+
+    /** No-op default implementation — used to enable fast-path when no recorder beans are registered. */
     object NoOp : LeaderAopMetricsRecorder
 }

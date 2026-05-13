@@ -11,6 +11,23 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`leader-core`** / **`leader-redis-lettuce`** / **`leader-redis-redisson`**: `LeaderSlot` audit identity propagation (issue #72 PR 2)
+  - `LeaderSlot(lockName, leaderId)` — slot-aware identity carrier; `leaderId` propagates to `LeaderRunResult.Elected.leaderId`
+  - `LeaderElectorBridgeLog` — throttled WARN logger that counts dropped audit and result-bridge calls when
+    `runIfLeaderResult(slot)` / `runIfLeaderResultSuspend(slot)` overrides are missing
+  - `AbstractLeaderElectorLeaderIdContractTest` / `AbstractSuspendLeaderElectorLeaderIdContractTest` — backend-agnostic
+    testFixtures contract for single elector audit identity
+  - `AbstractLeaderGroupElectorLeaderIdContractTest` / `AbstractSuspendLeaderGroupElectorLeaderIdContractTest` — backend-agnostic
+    testFixtures contract for group elector audit identity
+  - **`leader-redis-lettuce`**: `LettuceSlotTokenGroup.metaKey` (`lg:{lockName}:meta` Hash) — HSET on acquire, HDEL on release;
+    `auditLeaderId = ""` skips write; concurrent HSET/HDEL atomicity verified via `MultithreadingTester 100×3`
+  - **`leader-redis-redisson`**: `lg:{lockName}:audit` RMap — synchronous `fastPut`/`fastRemove` on acquire/release
+    (changed from async `fastPutAsync`/`fastRemoveAsync` to guarantee ghost-free cleanup under concurrency)
+  - Contract test classes: `LettuceLeaderElectorLeaderIdContractTest`, `LettuceSuspendLeaderElectorLeaderIdContractTest`,
+    `LettuceLeaderGroupElectorLeaderIdContractTest`, `LettuceSuspendLeaderGroupElectorLeaderIdContractTest`,
+    `RedissonLeaderElectorLeaderIdContractTest`, `RedissonSuspendLeaderElectorLeaderIdContractTest`,
+    `RedissonLeaderGroupElectorLeaderIdContractTest`, `RedissonSuspendLeaderGroupElectorLeaderIdContractTest`
+
 - **`leader-core`**: ShedLock-호환 ergonomic API + reentrant + 명시적 lease 연장 (issue #79 PR 1 Core)
   - `LockAssert` — `assertLocked()` / `assertLocked(lockName)` / `isLocked()` 그리고 suspend 변형
     (`assertLockedSuspend` / `isLockedSuspend`)

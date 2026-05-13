@@ -73,10 +73,12 @@ class LettuceSlotTokenGroup(
         /**
          * ACQUIRE 스크립트.
          *
-         * KEYS[1] = slotKey
+         * KEYS[1] = slotKey  (lg:{lockName})
+         * KEYS[2] = metaKey  (lg:{lockName}:meta)
          * ARGV[1] = maxLeaders
          * ARGV[2] = token (Base58 8자)
          * ARGV[3] = leaseTimeMs
+         * ARGV[4] = auditLeaderId (empty string = not set)
          *
          * 반환: token (성공) 또는 빈 문자열 (실패)
          */
@@ -89,6 +91,10 @@ redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, nowMs)
 if redis.call('ZCARD', KEYS[1]) < tonumber(ARGV[1]) then
   redis.call('ZADD', KEYS[1], nowMs + tonumber(ARGV[3]), ARGV[2])
   redis.call('PEXPIRE', KEYS[1], tonumber(ARGV[3]) + $SLOT_KEY_TTL_MARGIN_MS)
+  if ARGV[4] ~= '' then
+    redis.call('HSET', KEYS[2], ARGV[2], ARGV[4])
+    redis.call('PEXPIRE', KEYS[2], tonumber(ARGV[3]) + $SLOT_KEY_TTL_MARGIN_MS)
+  end
   return ARGV[2]
 end
 return ''
@@ -98,13 +104,14 @@ return ''
         /**
          * RELEASE 스크립트.
          *
-         * KEYS[1] = slotKey
+         * KEYS[1] = slotKey  (lg:{lockName})
+         * KEYS[2] = metaKey  (lg:{lockName}:meta)
          * ARGV[1] = token
          * ARGV[2] = remainingMinLeaseMs
          *
          * remainingMinLeaseMs > 0 → 현재 score 가 nowMs 보다 큰 경우(아직 살아있는 token)에만
          *                            ZADD XX 로 score 갱신 (slot 유지). expired token 부활 방지.
-         * 그 외 → ZREM 으로 즉시 해제
+         * 그 외 → ZREM + HDEL 로 즉시 해제
          */
         private val RELEASE_SCRIPT = RedisScript(
             """
@@ -118,6 +125,7 @@ if tonumber(ARGV[2]) > 0 then
   end
   return 0
 else
+  redis.call('HDEL', KEYS[2], ARGV[1])
   return redis.call('ZREM', KEYS[1], ARGV[1])
 end
 """
@@ -147,7 +155,8 @@ return { active, tonumber(ARGV[1]) - active }
          *
          * 서버 시간 `redis.call('TIME')` 만 사용하여 client clock skew 영향 없이 만료 판정.
          *
-         * KEYS[1] = slotKey
+         * KEYS[1] = slotKey  (lg:{lockName})
+         * KEYS[2] = metaKey  (lg:{lockName}:meta)
          * ARGV[1] = token (Base58 8자)
          * ARGV[2] = leaseTimeMs
          *
@@ -156,6 +165,7 @@ return { active, tonumber(ARGV[1]) - active }
          *  - `0` : 토큰 부재 또는 이미 만료 — extend 실패
          *
          * ZSET key TTL `PEXPIRE k leaseTimeMs + SLOT_KEY_TTL_MARGIN_MS` 도 함께 갱신.
+         * metaKey TTL 도 동시에 갱신 — ghost audit entry 방지.
          */
         private val EXTEND_SCRIPT = RedisScript(
             """
@@ -166,6 +176,7 @@ local cur = redis.call('ZSCORE', KEYS[1], ARGV[1])
 if cur and tonumber(cur) > nowMs then
   redis.call('ZADD', KEYS[1], 'XX', nowMs + tonumber(ARGV[2]), ARGV[1])
   redis.call('PEXPIRE', KEYS[1], tonumber(ARGV[2]) + $SLOT_KEY_TTL_MARGIN_MS)
+  redis.call('PEXPIRE', KEYS[2], tonumber(ARGV[2]) + $SLOT_KEY_TTL_MARGIN_MS)
   return 1
 end
 return 0
@@ -202,6 +213,7 @@ return 0
     }
 
     val slotKey: String = "$KEY_PREFIX$lockName$KEY_SUFFIX"
+    val metaKey: String = "$slotKey:meta"
 
     private val syncCommands: RedisCommands<String, String> = connection.sync()
     private val asyncCommands: RedisAsyncCommands<String, String> = connection.async()
@@ -213,17 +225,19 @@ return 0
     /**
      * 슬롯을 동기 방식으로 획득합니다.
      *
-     * @param waitTime 슬롯 대기 최대 시간
+     * @param waitTime      슬롯 대기 최대 시간
+     * @param leaseTime     슬롯 점유 시간
+     * @param auditLeaderId 감사 식별자 (빈 문자열이면 meta hash 미기록)
      * @return 획득 성공 시 token, 실패 시 `null`
      */
-    fun tryAcquire(waitTime: Duration, leaseTime: Duration): String? {
+    fun tryAcquire(waitTime: Duration, leaseTime: Duration, auditLeaderId: String = ""): String? {
         val token = Base58.randomString(TOKEN_LENGTH)
         val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
         val leaseMs = leaseTime.inWholeMilliseconds.toString()
         while (true) {
             val result = RedisScriptRunner.run<String>(
                 syncCommands, ACQUIRE_SCRIPT, ScriptOutputType.VALUE,
-                arrayOf(slotKey), maxLeaders.toString(), token, leaseMs
+                arrayOf(slotKey, metaKey), maxLeaders.toString(), token, leaseMs, auditLeaderId
             )
             if (!result.isNullOrEmpty()) {
                 log.debug { "슬롯 획득 성공. slotKey=$slotKey, token=$token" }
@@ -252,7 +266,7 @@ return 0
         val leaseMs = leaseTime.inWholeMilliseconds
         val extended = RedisScriptRunner.run<Long>(
             syncCommands, EXTEND_SCRIPT, ScriptOutputType.INTEGER,
-            arrayOf(slotKey), token, leaseMs.toString()
+            arrayOf(slotKey, metaKey), token, leaseMs.toString()
         )
         return if (extended > 0L) {
             ExtendOutcome.Extended(Instant.now().plusMillis(leaseMs))
@@ -282,7 +296,7 @@ return 0
         token.requireNotBlank("token")
         val ret = RedisScriptRunner.run<Long>(
             syncCommands, RELEASE_SCRIPT, ScriptOutputType.INTEGER,
-            arrayOf(slotKey), token, remainingMinLeaseMs.toString()
+            arrayOf(slotKey, metaKey), token, remainingMinLeaseMs.toString()
         )
         log.debug {
             "슬롯 해제. slotKey=$slotKey, token=$token, remainingMinLeaseMs=$remainingMinLeaseMs, ret=$ret"
@@ -327,7 +341,7 @@ return 0
      * - token 은 attempt() 외부에서 1회만 생성합니다. ACQUIRE 스크립트가 ZADD 로 token 을 멤버로
      *   사용하므로 retry 시 동일 token 을 재사용해야 ghost entry 가 발생하지 않습니다.
      */
-    fun tryAcquireAsync(waitTime: Duration, leaseTime: Duration): CompletableFuture<String?> {
+    fun tryAcquireAsync(waitTime: Duration, leaseTime: Duration, auditLeaderId: String = ""): CompletableFuture<String?> {
         val token = Base58.randomString(TOKEN_LENGTH)
         val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
         val leaseMs = leaseTime.inWholeMilliseconds.toString()
@@ -336,7 +350,7 @@ return 0
         fun attempt(): CompletableFuture<String?> {
             return RedisScriptRunner.runAsync<String>(
                 asyncCommands, ACQUIRE_SCRIPT, ScriptOutputType.VALUE,
-                arrayOf(slotKey), maxLeaders.toString(), token, leaseMs
+                arrayOf(slotKey, metaKey), maxLeaders.toString(), token, leaseMs, auditLeaderId
             ).handle { result, error ->
                 if (error != null) {
                     log.warn(error) { "ACQUIRE 스크립트 오류 (async retry). slotKey=$slotKey" }
@@ -373,7 +387,7 @@ return 0
         token.requireNotBlank("token")
         return RedisScriptRunner.runAsync<Long>(
             asyncCommands, RELEASE_SCRIPT, ScriptOutputType.INTEGER,
-            arrayOf(slotKey), token, remainingMinLeaseMs.toString()
+            arrayOf(slotKey, metaKey), token, remainingMinLeaseMs.toString()
         ).thenApply {
             log.debug {
                 "슬롯 해제 (async). slotKey=$slotKey, token=$token, remainingMinLeaseMs=$remainingMinLeaseMs"
@@ -386,14 +400,14 @@ return 0
     // 코루틴 API (suspend)
     // =========================================================================
 
-    suspend fun tryAcquireSuspending(waitTime: Duration, leaseTime: Duration): String? {
+    suspend fun tryAcquireSuspending(waitTime: Duration, leaseTime: Duration, auditLeaderId: String = ""): String? {
         val token = Base58.randomString(TOKEN_LENGTH)
         val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
         val leaseMs = leaseTime.inWholeMilliseconds.toString()
         while (true) {
             val result = RedisScriptRunner.runSuspending<String>(
                 asyncCommands, ACQUIRE_SCRIPT, ScriptOutputType.VALUE,
-                arrayOf(slotKey), maxLeaders.toString(), token, leaseMs
+                arrayOf(slotKey, metaKey), maxLeaders.toString(), token, leaseMs, auditLeaderId
             )
             if (!result.isNullOrEmpty()) {
                 log.debug { "슬롯 획득 성공 (suspend). slotKey=$slotKey, token=$token" }
@@ -419,7 +433,7 @@ return 0
         val leaseMs = leaseTime.inWholeMilliseconds
         val extended = RedisScriptRunner.runSuspending<Long>(
             asyncCommands, EXTEND_SCRIPT, ScriptOutputType.INTEGER,
-            arrayOf(slotKey), token, leaseMs.toString()
+            arrayOf(slotKey, metaKey), token, leaseMs.toString()
         )
         return if (extended > 0L) {
             ExtendOutcome.Extended(Instant.now().plusMillis(leaseMs))
@@ -445,7 +459,7 @@ return 0
         token.requireNotBlank("token")
         val ret = RedisScriptRunner.runSuspending<Long>(
             asyncCommands, RELEASE_SCRIPT, ScriptOutputType.INTEGER,
-            arrayOf(slotKey), token, remainingMinLeaseMs.toString()
+            arrayOf(slotKey, metaKey), token, remainingMinLeaseMs.toString()
         )
         log.debug {
             "슬롯 해제 (suspend). slotKey=$slotKey, token=$token, remainingMinLeaseMs=$remainingMinLeaseMs, ret=$ret"

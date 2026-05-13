@@ -1,8 +1,10 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
+import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Semaphore 기반 복수 리더 비동기 선출 계약을 정의합니다.
@@ -56,4 +58,54 @@ interface AsyncLeaderGroupElector: LeaderGroupElectionState {
         executor: Executor = VirtualThreadExecutor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?>
+
+    /**
+     * Runs [action] asynchronously if a group slot is acquired, stamping [slot.leaderId] as audit identity.
+     *
+     * ## Bridge Default
+     * Delegates to [runAsyncIfLeader] (lockName-based) and emits a throttled WARN via
+     * [LeaderElectorBridgeLog]. Backend implementations MUST override to carry [slot.leaderId]
+     * into the lease/lock audit identity.
+     *
+     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
+     * @param executor the [Executor] for async execution. Defaults to [VirtualThreadExecutor].
+     * @param action the async action to run when a slot is acquired.
+     * @return [CompletableFuture] resolving to the action result, or `null` when no slot acquired.
+     */
+    fun <T> runAsyncIfLeader(
+        slot: LeaderSlot,
+        executor: Executor = VirtualThreadExecutor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> {
+        LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
+        return runAsyncIfLeader(slot.lockName, executor, action)
+    }
+
+    /**
+     * Returns [LeaderRunResult] for the async group slot election.
+     *
+     * ## Bridge Default
+     * Uses an `elected: AtomicBoolean` flag pattern to distinguish elected (action ran) from skipped.
+     * Returns `Elected(value, leaderId = null)` — fabrication of [slot.leaderId] is intentionally
+     * blocked. Backend MUST override BOTH slot variants to carry [slot.leaderId] through.
+     *
+     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
+     * @param executor the [Executor] for async execution. Defaults to [VirtualThreadExecutor].
+     * @param action the async action to run when elected.
+     * @return [CompletableFuture] resolving to [LeaderRunResult.Elected] or [LeaderRunResult.Skipped].
+     */
+    fun <T> runAsyncIfLeaderResult(
+        slot: LeaderSlot,
+        executor: Executor = VirtualThreadExecutor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<LeaderRunResult<T>> {
+        LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
+        val elected = AtomicBoolean(false)
+        return runAsyncIfLeader(slot.lockName, executor) {
+            elected.set(true)
+            action()
+        }.thenApply { value ->
+            if (elected.get()) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
+        }
+    }
 }

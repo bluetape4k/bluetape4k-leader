@@ -3,6 +3,8 @@ package io.bluetape4k.leader.local
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requirePositiveNumber
 import java.util.concurrent.CompletableFuture
@@ -93,4 +95,33 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
             { tryWithPermit(lockName) { action().join() } },
             executor
         )
+
+    /**
+     * Slot-aware override — stamps [LeaderSlot.leaderId] as `LeaderLease.auditLeaderId`
+     * and `LeaderLockHandle.Real.auditLeaderId` for audit traceability.
+     */
+    override fun <T> runIfLeader(slot: LeaderSlot, action: () -> T): T? =
+        tryWithPermit(
+            lockName = slot.lockName,
+            auditLeaderId = slot.leaderId,
+            nodeId = options.nodeId,
+            action = action,
+        )
+
+    /**
+     * Slot-aware override — returns [LeaderRunResult.Elected] with [LeaderSlot.leaderId] stamped
+     * on `LeaderRunResult.Elected.leaderId`, or [LeaderRunResult.Skipped] when not elected.
+     */
+    override fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
+        var elected = false
+        val value = tryWithPermit(
+            lockName = slot.lockName,
+            auditLeaderId = slot.leaderId,
+            nodeId = options.nodeId,
+        ) {
+            elected = true
+            action()
+        }
+        return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
+    }
 }

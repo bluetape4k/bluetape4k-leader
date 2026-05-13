@@ -264,6 +264,26 @@ end
 
 > 기존 `LettuceSemaphore` / `LettuceSuspendSemaphore` (Redis 카운터 + permit 토큰 리스트) 는 소스 트리에 `@Deprecated` 로 남아 있으며, 그룹 elector 와 더 이상 연결되지 않습니다.
 
+## 감사 정체성 (`LeaderSlot`)
+
+`lockName` 대신 `LeaderSlot`을 전달하면 각 선출 라운드마다 사람이 읽을 수 있는 노드 식별자를 전파할 수 있습니다. 식별자는 슬롯이 유지되는 동안 Redis Hash(`lg:{lockName}:meta` — `LettuceSlotTokenGroup.metaKey`)에 저장되고, release 시 원자적으로 삭제됩니다.
+
+```kotlin
+val slot = LeaderSlot("batch-job", leaderId = "node-a")
+
+// 블로킹
+val result: LeaderRunResult<Unit> = elector.runIfLeaderResult(slot) { doWork() }
+if (result is LeaderRunResult.Elected) {
+    println("elected as ${result.leaderId}")   // "node-a"
+}
+
+// 코루틴
+val result2 = suspendElector.runIfLeaderResultSuspend(slot) { doWork() }
+```
+
+`leaderId`는 acquire 시 `HSET lg:{lockName}:meta <token> <leaderId>`로 기록되고,
+release 시 `HDEL`로 삭제됩니다. `leaderId`가 빈 문자열이면 기록을 생략합니다.
+
 ## 의존성 추가
 
 ```kotlin

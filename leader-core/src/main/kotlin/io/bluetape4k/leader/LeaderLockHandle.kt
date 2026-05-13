@@ -42,16 +42,18 @@ sealed class LeaderLockHandle : Serializable {
     fun matchesIdentity(other: LockIdentity): Boolean = identity == other
 
     /**
-     * 실제 backend lock 보유 handle.
+     * Active backend lock handle.
      *
-     * @property identity full lock identity (reentrant peek 비교 단위)
-     * @property token Base58(8) lock 토큰 — backend atomic extend guard
-     * @property acquiredAtNanos `System.nanoTime()` 기준 획득 시각 — minLeaseTime 계산용
-     * @property slotId group lock 의 permit/slot 식별자. single 이면 `null`
-     * @property acquiringThreadId Redisson thread-bound extend 검증용. 비-Redisson 은 `null`.
-     *   **ownership 비교에 사용 금지** (R6-P2) — Redisson cross-thread debug 정보 only.
-     * @property reentryDepth 0 = outermost 실 락, >0 = reentrant passthrough copy
-     * @property extendDelegate watchdog 와 동일 reference 공유 (AC-15)
+     * @property identity full lock identity (unit of reentrant peek comparison)
+     * @property token Base58(8) lock token — backend atomic extend guard
+     * @property acquiredAtNanos `System.nanoTime()` acquisition timestamp — for minLeaseTime calculation
+     * @property slotId group lock permit/slot identifier; `null` for single-leader
+     * @property acquiringThreadId Redisson thread-bound extend validation; `null` for non-Redisson.
+     *   **Do not use for ownership comparison** (R6-P2) — Redisson cross-thread debug info only.
+     * @property reentryDepth 0 = outermost real lock, >0 = reentrant passthrough copy
+     * @property extendDelegate shares same reference as watchdog (AC-15)
+     * @property auditLeaderId Audit identity of the elected leader stamped at acquisition time.
+     *   Excluded from equals/hashCode — traceability only.
      */
     class Real internal constructor(
         override val identity: LockIdentity,
@@ -60,8 +62,9 @@ sealed class LeaderLockHandle : Serializable {
         val slotId: String? = null,
         val acquiringThreadId: Long? = null,
         override val reentryDepth: Int = 0,
-        /** ⚠️ Backend module / aspect 전용 SPI — 애플리케이션 코드에서 직접 접근 금지. */
+        /** ⚠️ Backend module / aspect SPI only — do not access from application code. */
         val extendDelegate: ExtendDelegate,
+        val auditLeaderId: String? = null,
     ) : LeaderLockHandle() {
 
         /**
@@ -88,7 +91,7 @@ sealed class LeaderLockHandle : Serializable {
          */
         internal fun withReentryDepth(n: Int): Real {
             n.requireGe(0, "n")
-            return Real(identity, token, acquiredAtNanos, slotId, acquiringThreadId, n, extendDelegate)
+            return Real(identity, token, acquiredAtNanos, slotId, acquiringThreadId, n, extendDelegate, auditLeaderId)
         }
 
         // equals/hashCode 는 (identity, token, reentryDepth, slotId) 기반.
@@ -111,8 +114,11 @@ sealed class LeaderLockHandle : Serializable {
             return result
         }
 
-        override fun toString(): String =
-            "LeaderLockHandle.Real(identity=$identity, token='$token', reentryDepth=$reentryDepth, slotId=$slotId)"
+        override fun toString(): String = buildString {
+            append("LeaderLockHandle.Real(identity=$identity, token='$token', reentryDepth=$reentryDepth, slotId=$slotId")
+            if (auditLeaderId != null) append(", auditLeaderId='$auditLeaderId'")
+            append(")")
+        }
 
         companion object {
             private const val serialVersionUID = 1L
@@ -163,7 +169,8 @@ sealed class LeaderLockHandle : Serializable {
             acquiringThreadId: Long? = null,
             reentryDepth: Int = 0,
             extendDelegate: ExtendDelegate,
-        ): Real = Real(identity, token, acquiredAtNanos, slotId, acquiringThreadId, reentryDepth, extendDelegate)
+            auditLeaderId: String? = null,  // END positional — default null for backward compat
+        ): Real = Real(identity, token, acquiredAtNanos, slotId, acquiringThreadId, reentryDepth, extendDelegate, auditLeaderId)
 
         /**
          * Backend module / aspect 전용 sentinel factory. `failureMode = FAIL_OPEN_RUN` 시 사용.

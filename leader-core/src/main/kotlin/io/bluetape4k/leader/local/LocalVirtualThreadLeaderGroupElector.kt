@@ -3,9 +3,12 @@ package io.bluetape4k.leader.local
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import io.bluetape4k.concurrent.virtualthread.virtualFuture
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.VirtualThreadLeaderGroupElector
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requirePositiveNumber
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * [AbstractLocalLeaderGroupElector]을 상속한 로컬(단일 JVM) 복수 리더 Virtual Thread 비동기 선출 구현체입니다.
@@ -72,4 +75,48 @@ class LocalVirtualThreadLeaderGroupElector private constructor(
         virtualFuture {
             tryWithPermit(lockName, action)
         }
+
+    /**
+     * Slot-aware override — stamps [LeaderSlot.leaderId] as `LeaderLease.auditLeaderId`
+     * and `LeaderLockHandle.Real.auditLeaderId` for audit traceability.
+     */
+    override fun <T> runAsyncIfLeader(slot: LeaderSlot, action: () -> T): VirtualFuture<T?> =
+        virtualFuture {
+            tryWithPermit(
+                lockName = slot.lockName,
+                auditLeaderId = slot.leaderId,
+                nodeId = options.nodeId,
+                action = action,
+            )
+        }
+
+    /**
+     * Slot-aware override — returns [LeaderRunResult.Elected] with [LeaderSlot.leaderId] stamped
+     * on `LeaderRunResult.Elected.leaderId`, or [LeaderRunResult.Skipped] when not elected.
+     */
+    override fun <T> runAsyncIfLeaderResult(
+        slot: LeaderSlot,
+        action: () -> T,
+    ): VirtualFuture<LeaderRunResult<T>> {
+        val elected = AtomicBoolean(false)
+        val source: VirtualFuture<T?> = virtualFuture {
+            tryWithPermit(
+                lockName = slot.lockName,
+                auditLeaderId = slot.leaderId,
+                nodeId = options.nodeId,
+            ) {
+                elected.set(true)
+                action()
+            }
+        }
+        val mapped: java.util.concurrent.CompletableFuture<LeaderRunResult<T>> =
+            source.toCompletableFuture().thenApply { value ->
+                if (elected.get()) {
+                    LeaderRunResult.Elected(value, leaderId = slot.leaderId) as LeaderRunResult<T>
+                } else {
+                    LeaderRunResult.Skipped as LeaderRunResult<T>
+                }
+            }
+        return VirtualFuture(mapped)
+    }
 }

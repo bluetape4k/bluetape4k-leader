@@ -2,6 +2,8 @@ package io.bluetape4k.leader.coroutines
 
 import io.bluetape4k.leader.LeaderGroupElectionState
 import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 
 /**
  * 코루틴 기반 복수 리더 선출 계약을 정의합니다.
@@ -81,6 +83,50 @@ interface SuspendLeaderGroupElector: LeaderGroupElectionState {
     ): LeaderRunResult<T> {
         var elected = false
         val value = runIfLeader(lockName) { elected = true; action() }
+        return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
+    }
+
+    /**
+     * Runs [action] if a group slot is acquired, stamping [slot.leaderId] as audit identity.
+     *
+     * ## Bridge Default
+     * Delegates to [runIfLeader] (lockName-based) and emits a throttled WARN via
+     * [LeaderElectorBridgeLog]. Backend implementations MUST override to stamp [slot.leaderId]
+     * into [LeaderLease.auditLeaderId] for audit traceability.
+     *
+     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
+     * @param action the suspend action to run when a slot is acquired.
+     * @return [action] result, or `null` when no slot acquired.
+     */
+    suspend fun <T> runIfLeader(slot: LeaderSlot, action: suspend () -> T): T? {
+        LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
+        return runIfLeader(slot.lockName, action)
+    }
+
+    /**
+     * Returns [LeaderRunResult] for this suspend group slot election.
+     *
+     * ## Bridge Default
+     * Returns `Elected(value, leaderId = null)` — fabrication of [slot.leaderId] is intentionally
+     * blocked. Backend MUST override BOTH slot variants to carry [slot.leaderId] through.
+     *
+     * Cancellation: the underlying [runIfLeader] propagates `CancellationException` directly;
+     * no `runCatching` is used around suspend calls.
+     *
+     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
+     * @param action the suspend action to run when a slot is acquired.
+     * @return [LeaderRunResult.Elected] (action ran) or [LeaderRunResult.Skipped] (no slot acquired).
+     */
+    suspend fun <T> runIfLeaderResultSuspend(
+        slot: LeaderSlot,
+        action: suspend () -> T,
+    ): LeaderRunResult<T> {
+        LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
+        var elected = false
+        val value = runIfLeader(slot.lockName) {
+            elected = true
+            action()
+        }
         return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
     }
 }

@@ -264,6 +264,29 @@ The group primitive backing `LettuceLeaderGroupElector` and `LettuceSuspendLeade
 
 > The legacy `LettuceSemaphore` / `LettuceSuspendSemaphore` (Redis counter + permit tokens) remain in the source tree marked `@Deprecated` and are no longer wired into the group electors.
 
+## Audit Identity (`LeaderSlot`)
+
+Pass a `LeaderSlot` instead of a plain `lockName` to propagate a human-readable node identity
+through each election round. The identity is stored in a Redis Hash
+(`lg:{lockName}:meta` — accessible as `LettuceSlotTokenGroup.metaKey`) while the slot is held,
+and removed atomically on release.
+
+```kotlin
+val slot = LeaderSlot("batch-job", leaderId = "node-a")
+
+// blocking
+val result: LeaderRunResult<Unit> = elector.runIfLeaderResult(slot) { doWork() }
+if (result is LeaderRunResult.Elected) {
+    println("elected as ${result.leaderId}")   // "node-a"
+}
+
+// suspend
+val result2 = suspendElector.runIfLeaderResultSuspend(slot) { doWork() }
+```
+
+The `leaderId` is stored as `HSET lg:{lockName}:meta <token> <leaderId>` on acquire and
+removed with `HDEL` on release. An empty `leaderId` skips the write entirely.
+
 ## Dependency
 
 ```kotlin

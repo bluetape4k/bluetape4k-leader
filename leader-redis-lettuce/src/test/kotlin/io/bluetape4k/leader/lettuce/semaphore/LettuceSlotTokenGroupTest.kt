@@ -3,8 +3,10 @@ package io.bluetape4k.leader.lettuce.semaphore
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.lettuce.AbstractLettuceLeaderTest
 import io.bluetape4k.logging.KLogging
 import io.lettuce.core.codec.StringCodec
@@ -13,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.ExecutionException
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -135,5 +138,79 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
         } finally {
             connection.sync().del(shortLeaseGroup.slotKey)
         }
+    }
+
+    // ── Audit identity (T18 — meta hash HSET/HDEL atomicity) ─────────────────
+
+    @Test
+    fun `auditLeaderId acquire 시 meta hash 에 기록된다`() {
+        val auditGroup = LettuceSlotTokenGroup(connection, "audit:${Base58.randomString(8)}", MAX_LEADERS)
+        val token = auditGroup.tryAcquire(1.seconds, 10.seconds, auditLeaderId = "node-1")!!
+        try {
+            val stored = connection.sync().hget(auditGroup.metaKey, token)
+            stored shouldBeEqualTo "node-1"
+        } finally {
+            auditGroup.release(token, remainingMinLeaseMs = 0)
+            connection.sync().del(auditGroup.slotKey, auditGroup.metaKey)
+        }
+    }
+
+    @Test
+    fun `auditLeaderId release 시 meta hash 에서 삭제된다`() {
+        val auditGroup = LettuceSlotTokenGroup(connection, "audit:${Base58.randomString(8)}", MAX_LEADERS)
+        val token = auditGroup.tryAcquire(1.seconds, 10.seconds, auditLeaderId = "node-2")!!
+
+        auditGroup.release(token, remainingMinLeaseMs = 0)
+
+        val stored = connection.sync().hget(auditGroup.metaKey, token)
+        stored.shouldBeNull()
+        connection.sync().del(auditGroup.slotKey, auditGroup.metaKey)
+    }
+
+    @Test
+    fun `auditLeaderId 빈 문자열이면 meta hash 에 기록되지 않는다`() {
+        val auditGroup = LettuceSlotTokenGroup(connection, "audit:${Base58.randomString(8)}", MAX_LEADERS)
+        val token = auditGroup.tryAcquire(1.seconds, 10.seconds, auditLeaderId = "")!!
+        try {
+            val stored = connection.sync().hget(auditGroup.metaKey, token)
+            stored.shouldBeNull()
+        } finally {
+            auditGroup.release(token, remainingMinLeaseMs = 0)
+            connection.sync().del(auditGroup.slotKey, auditGroup.metaKey)
+        }
+    }
+
+    @Test
+    fun `MultithreadingTester 3×100 — auditLeaderId concurrent HSET_HDEL 원자성 검증`() {
+        val auditGroup = LettuceSlotTokenGroup(
+            connection,
+            "audit-concurrent:${Base58.randomString(8)}",
+            MAX_LEADERS,
+        )
+        val successCount = AtomicInteger(0)
+
+        MultithreadingTester()
+            .workers(MAX_LEADERS)
+            .rounds(100)
+            .add {
+                val leaderId = "node-${Thread.currentThread().threadId()}"
+                val token = auditGroup.tryAcquire(2.seconds, 10.seconds, auditLeaderId = leaderId)
+                if (token != null) {
+                    // meta hash에 leaderId 기록 확인
+                    val stored = connection.sync().hget(auditGroup.metaKey, token)
+                    if (stored == leaderId) {
+                        successCount.incrementAndGet()
+                    }
+                    auditGroup.release(token, remainingMinLeaseMs = 0)
+                    // release 후 meta에서 삭제 확인
+                    val afterRelease = connection.sync().hget(auditGroup.metaKey, token)
+                    (afterRelease == null).shouldBeTrue()
+                }
+            }
+            .run()
+
+        // 3×100 중 최소 일부는 성공해야 함
+        (successCount.get() > 0).shouldBeTrue()
+        connection.sync().del(auditGroup.slotKey, auditGroup.metaKey)
     }
 }
