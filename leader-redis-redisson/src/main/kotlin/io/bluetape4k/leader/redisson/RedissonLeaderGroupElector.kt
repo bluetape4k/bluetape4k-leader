@@ -142,7 +142,7 @@ class RedissonLeaderGroupElector private constructor(
 
         // 감사 추적용 RMap 기록 (non-atomic, 트레이서빌리티 전용)
         if (auditLeaderId != null) {
-            runCatching { getAuditMap(lockName).fastPutAsync(permitId, auditLeaderId) }
+            runCatching { getAuditMap(lockName).fastPut(permitId, auditLeaderId) }
                 .onFailure { log.warn(it) { "Failed to write audit map. lockName=$lockName, permitId=$permitId" } }
         }
 
@@ -176,7 +176,7 @@ class RedissonLeaderGroupElector private constructor(
         } finally {
             watchdog.close()
             if (auditLeaderId != null) {
-                runCatching { getAuditMap(lockName).fastRemoveAsync(permitId) }
+                runCatching { getAuditMap(lockName).fastRemove(permitId) }
                     .onFailure { log.warn(it) { "Failed to remove audit map. lockName=$lockName, permitId=$permitId" } }
             }
             releaseOrExtend(semaphore, permitId, startedAtNanos, lockName)

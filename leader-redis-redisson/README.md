@@ -290,6 +290,28 @@ abstract class AbstractRedissonLeaderTest {
 }
 ```
 
+## Audit Identity (`LeaderSlot`)
+
+Pass a `LeaderSlot` instead of a plain `lockName` to propagate a human-readable node identity
+through each election round. The identity is stored in a Redis Hash
+(`lg:{lockName}:audit`) while the slot is held, and removed on release.
+
+```kotlin
+val slot = LeaderSlot("batch-job", leaderId = "node-a")
+
+// blocking
+val result: LeaderRunResult<Unit> = elector.runIfLeaderResult(slot) { doWork() }
+if (result is LeaderRunResult.Elected) {
+    println("elected as ${result.leaderId}")   // "node-a"
+}
+
+// suspend
+val result2 = suspendElector.runIfLeaderResultSuspend(slot) { doWork() }
+```
+
+The `leaderId` is stored as `HSET lg:{lockName}:audit <permitId> <leaderId>` on acquire and
+removed with `HDEL` on release. A `null` or absent `leaderId` skips the write entirely.
+
 ## Dependency
 
 ```kotlin
