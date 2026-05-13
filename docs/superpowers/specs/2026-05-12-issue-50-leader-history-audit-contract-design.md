@@ -1086,4 +1086,4 @@ Rev 8 commit: `f4d4606`.
 - 6개 메서드 open ✅ (SafeLeaderHistoryRecorder 3 + SuspendSafeLeaderHistoryRecorder 3)
 - 이전 P1 이슈 전부 해결 ✅
 
-Rev 9 commit: (pending)
+Rev 9 commit: `5d6669d`.
