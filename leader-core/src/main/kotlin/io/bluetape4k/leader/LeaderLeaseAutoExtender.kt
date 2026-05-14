@@ -64,11 +64,17 @@ object LeaderLeaseAutoExtender : KLogging() {
      * Safe to call multiple times. After shutdown, calls to [start] will throw [RejectedExecutionException]
      * from the scheduler until [restart] is invoked. The tick-body [RejectedExecutionException] catch
      * protects ticks whose delegate submits further work to a separately shut-down executor.
+     *
+     * ## Concurrency note
+     * The scheduler reference is captured once into a local variable before any blocking calls so that
+     * a concurrent [restart] cannot swap in a fresh executor between [shutdown][ScheduledThreadPoolExecutor.shutdown]
+     * and [awaitTermination][ScheduledThreadPoolExecutor.awaitTermination] / [shutdownNow][ScheduledThreadPoolExecutor.shutdownNow].
      */
     fun shutdown() {
-        scheduler.shutdown()
-        if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-            scheduler.shutdownNow()
+        val current = scheduler
+        current.shutdown()
+        if (!current.awaitTermination(5, TimeUnit.SECONDS)) {
+            current.shutdownNow()
         }
     }
 
