@@ -126,7 +126,7 @@ class LeaderElectionAspectCaptureInvariantTest {
         configureJoinPoint(method, target)
 
         // Mock returns Elected by invoking action (single elector — does NOT call CaptureScope)
-        every { election.runIfLeaderResult<Any?>(any(), any()) } answers {
+        every { election.runIfLeaderResult(any(), any<() -> Any?>()) } answers {
             @Suppress("UNCHECKED_CAST")
             LeaderRunResult.Elected((secondArg<() -> Any?>()).invoke())
         }
