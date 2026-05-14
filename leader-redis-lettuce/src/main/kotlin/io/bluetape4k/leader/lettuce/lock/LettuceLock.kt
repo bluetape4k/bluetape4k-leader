@@ -99,7 +99,8 @@ end"""
         waitTime: Duration = Duration.ZERO,
         leaseTime: Duration = defaultLeaseTime,
     ): Boolean {
-        val token = Base58.randomString(8)
+        // Token generation uses SecureRandom for ≥128-bit entropy (see #50 spec §1-3)
+        val token = Base58.randomString(22)
         val leaseMs = leaseTime.inWholeMilliseconds
         val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
 
@@ -121,7 +122,8 @@ end"""
     }
 
     fun lock(leaseTime: Duration = defaultLeaseTime, maxWaitTime: Duration = 5.minutes) {
-        val token = Base58.randomString(length = 8)
+        // Token generation uses SecureRandom for ≥128-bit entropy (see #50 spec §1-3)
+        val token = Base58.randomString(length = 22)
         val leaseMs = leaseTime.inWholeMilliseconds
         val args = SetArgs().nx().px(leaseMs)
         val deadline = System.nanoTime() + maxWaitTime.inWholeNanoseconds
@@ -203,7 +205,8 @@ end"""
         waitTime: Duration = Duration.ZERO,
         leaseTime: Duration = defaultLeaseTime,
     ): CompletableFuture<Boolean> {
-        val token = Base58.randomString(length = 8)
+        // Token generation uses SecureRandom for ≥128-bit entropy (see #50 spec §1-3)
+        val token = Base58.randomString(length = 22)
         val leaseMs = leaseTime.inWholeMilliseconds
         val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
 
@@ -232,7 +235,8 @@ end"""
         leaseTime: Duration = defaultLeaseTime,
         maxWaitTime: Duration = 5.minutes,
     ): CompletableFuture<Unit> {
-        val token = Base58.randomString(length = 8)
+        // Token generation uses SecureRandom for ≥128-bit entropy (see #50 spec §1-3)
+        val token = Base58.randomString(length = 22)
         val leaseMs = leaseTime.inWholeMilliseconds
         val deadline = System.currentTimeMillis() + maxWaitTime.inWholeMilliseconds
 

@@ -6,6 +6,9 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.history.LeaderHistoryKey
+import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceLockExtendDelegate
@@ -15,6 +18,7 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireNotBlank
 import io.lettuce.core.api.StatefulRedisConnection
+import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
@@ -57,6 +61,7 @@ fun StatefulRedisConnection<String, String>.leaderElection(
 class LettuceLeaderElector(
     private val connection: StatefulRedisConnection<String, String>,
     private val options: LeaderElectionOptions = LeaderElectionOptions.Default,
+    private val historyRecorder: SafeLeaderHistoryRecorder? = null,
 ): LeaderElector {
 
     companion object: KLogging() {
@@ -73,6 +78,7 @@ class LettuceLeaderElector(
             log.debug { "리더 선출 실패 (슬롯 없음): lockName=$lockName" }
             return null
         }
+        val startedAt = Instant.now()
         val acquiredAtNanos = System.nanoTime()
         val token = lock.currentToken() ?: error("token missing after tryLock — lockName=$lockName")
         val delegate = LettuceLockExtendDelegate(lock)
@@ -88,9 +94,35 @@ class LettuceLeaderElector(
             extendDelegate = delegate,
         )
         val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
+
+        val record = historyRecorder?.let {
+            LeaderLockHistoryRecord(
+                lockName = lockName,
+                token = token,
+                kind = LockIdentity.AnnotationKind.SINGLE,
+                acquiredAt = startedAt,
+                lockedUntil = startedAt.plusMillis(options.leaseTime.inWholeMilliseconds),
+            )
+        }
+        val key = record?.let { historyRecorder.recordAcquired(it) }
+        val effectiveKey: LeaderHistoryKey? =
+            key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = token) }
+
         log.debug { "리더 선출 성공: lockName=$lockName" }
         try {
-            return AopScopeAccess.withPushedSync(handle) { action() }
+            return try {
+                val result = AopScopeAccess.withPushedSync(handle) { action() }
+                val finishedAt = Instant.now()
+                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
+                result
+            } catch (e: Exception) {
+                val finishedAt = Instant.now()
+                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
+                log.warn(e) { "리더 작업 실패 (null 반환). lockName=$lockName" }
+                null
+            }
         } finally {
             watchdog.close()
             runCatching {

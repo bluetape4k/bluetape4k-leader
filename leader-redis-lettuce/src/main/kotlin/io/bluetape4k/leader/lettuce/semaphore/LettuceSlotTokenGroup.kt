@@ -66,7 +66,8 @@ class LettuceSlotTokenGroup(
         private const val SPIN_DELAY_MS = 50L
         private const val SPIN_DELAY_NANOS = SPIN_DELAY_MS * 1_000_000L
         private const val SLOT_KEY_TTL_MARGIN_MS = 5_000L
-        private const val TOKEN_LENGTH = 8
+        // Token generation uses SecureRandom for ≥128-bit entropy (see #50 spec §1-3)
+        private const val TOKEN_LENGTH = 22
         private const val KEY_PREFIX = "lg:{"
         private const val KEY_SUFFIX = "}"
 
