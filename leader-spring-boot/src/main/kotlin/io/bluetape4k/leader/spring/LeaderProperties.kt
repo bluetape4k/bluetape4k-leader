@@ -16,6 +16,8 @@ import java.time.Duration
  *   leader:
  *     wait-time: 5s
  *     lease-time: 60s
+ *     watchdog-threads: 4          # optional; defaults to availableProcessors().coerceAtLeast(2)
+ *     watchdog-async-extend: true  # optional; defaults to false
  *     group:
  *       max-leaders: 3
  *       wait-time: 5s
@@ -27,6 +29,8 @@ import java.time.Duration
  *
  * @property waitTime 단일 리더 획득 대기 최대 시간. 기본 5초
  * @property leaseTime 단일 리더 보유 최대 시간. 기본 60초
+ * @property watchdogThreads watchdog 스케줄러 스레드 수. null 이면 [LeaderLeaseAutoExtender.DEFAULT_WATCHDOG_THREADS] 사용
+ * @property watchdogAsyncExtend true 이면 watchdog tick 마다 extend 를 virtual thread 로 비동기 디스패치
  * @property group 멀티 리더 그룹 옵션
  * @property mongo MongoDB 백엔드 컬렉션 이름
  */
@@ -34,6 +38,8 @@ import java.time.Duration
 data class LeaderProperties(
     val waitTime: Duration = LeaderElectionProperties.DefaultWaitTime,
     val leaseTime: Duration = LeaderElectionProperties.DefaultLeaseTime,
+    val watchdogThreads: Int? = null,
+    val watchdogAsyncExtend: Boolean = false,
     @field:NestedConfigurationProperty
     val group: LeaderGroupProperties = LeaderGroupProperties(),
     @field:NestedConfigurationProperty

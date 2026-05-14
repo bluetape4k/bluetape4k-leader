@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.contract
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LockAssert
@@ -10,8 +11,12 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.max
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -200,5 +205,29 @@ abstract class AbstractSuspendLockExtenderContractTest {
         val lockName = randomLockName()
         val result = elector.runIfLeader(lockName) { "suspend-contract-ok" }
         result shouldBeEqualTo "suspend-contract-ok"
+    }
+
+    // ── concurrent mutex ─────────────────────────────────────────────────
+
+    @Test
+    fun `runIfLeader enforces mutual exclusion under concurrent coroutine access`() = runSuspendIO {
+        val lockName = randomLockName()
+        val currentHolders = AtomicInteger(0)
+        val maxConcurrent = AtomicInteger(0)
+
+        SuspendedJobTester()
+            .workers(8)
+            .rounds(4)
+            .add {
+                elector.runIfLeader(lockName) {
+                    val n = currentHolders.incrementAndGet()
+                    maxConcurrent.getAndUpdate { max(it, n) }
+                    delay(5.milliseconds)
+                    currentHolders.decrementAndGet()
+                }
+            }
+            .run()
+
+        maxConcurrent.get() shouldBeEqualTo 1
     }
 }

@@ -23,7 +23,10 @@ import java.util.concurrent.atomic.AtomicInteger
  * count regardless of how many times its lifecycle callbacks are invoked. The [lifecycleLock] guards
  * the register/unregister sequences so that concurrent calls cannot produce a spurious zero.
  */
-class LeaderLeaseAutoExtenderLifecycle : InitializingBean, DisposableBean {
+class LeaderLeaseAutoExtenderLifecycle(
+    private val watchdogThreads: Int? = null,
+    private val watchdogAsyncExtend: Boolean = false,
+) : InitializingBean, DisposableBean {
 
     private val registered = AtomicBoolean(false)
 
@@ -41,6 +44,10 @@ class LeaderLeaseAutoExtenderLifecycle : InitializingBean, DisposableBean {
         synchronized(lifecycleLock) {
             if (registered.compareAndSet(false, true)) {
                 activeContextCount.incrementAndGet()
+                LeaderLeaseAutoExtender.configure(
+                    watchdogThreads = watchdogThreads ?: LeaderLeaseAutoExtender.watchdogThreadCount(),
+                    asyncExtend = watchdogAsyncExtend,
+                )
             }
             LeaderLeaseAutoExtender.restart()
         }

@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.contract
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LockAssert
@@ -11,6 +12,8 @@ import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.max
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -199,5 +202,29 @@ abstract class AbstractSyncLockExtenderContractTest {
         val lockName = randomLockName()
         val result = elector.runIfLeader(lockName) { "contract-ok" }
         result shouldBeEqualTo "contract-ok"
+    }
+
+    // ── concurrent mutex ─────────────────────────────────────────────────
+
+    @Test
+    fun `runIfLeader enforces mutual exclusion under concurrent access`() {
+        val lockName = randomLockName()
+        val currentHolders = AtomicInteger(0)
+        val maxConcurrent = AtomicInteger(0)
+
+        MultithreadingTester()
+            .workers(8)
+            .rounds(4)
+            .add {
+                elector.runIfLeader(lockName) {
+                    val n = currentHolders.incrementAndGet()
+                    maxConcurrent.getAndUpdate { max(it, n) }
+                    Thread.sleep(5)
+                    currentHolders.decrementAndGet()
+                }
+            }
+            .run()
+
+        maxConcurrent.get() shouldBeEqualTo 1
     }
 }

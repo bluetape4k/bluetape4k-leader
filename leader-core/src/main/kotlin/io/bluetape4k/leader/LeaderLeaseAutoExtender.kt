@@ -56,8 +56,55 @@ object LeaderLeaseAutoExtender : KLogging() {
 
     private val threadSeq = AtomicInteger()
 
+    /**
+     * Default watchdog scheduler thread-pool size.
+     *
+     * Uses `availableProcessors().coerceAtLeast(2)` so single-CPU environments still get 2 threads.
+     * Override at runtime with [configure].
+     */
+    internal val DEFAULT_WATCHDOG_THREADS: Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(2)
+
+    @Volatile
+    private var configuredThreadCount: Int = DEFAULT_WATCHDOG_THREADS
+
+    @Volatile
+    private var asyncExtendEnabled: Boolean = false
+
     @Volatile
     private var scheduler: ScheduledThreadPoolExecutor = newScheduler()
+
+    /**
+     * Returns the current configured watchdog thread-pool size.
+     */
+    fun watchdogThreadCount(): Int = configuredThreadCount
+
+    /**
+     * Configures the shared watchdog scheduler.
+     *
+     * ## Behavior / Contract
+     * - `watchdogThreads` is applied immediately to any running scheduler via
+     *   [ScheduledThreadPoolExecutor.setCorePoolSize] and also stored for the next [restart].
+     * - `asyncExtend` takes effect immediately for new [start] calls. When `true`, each watchdog tick
+     *   dispatches the backend extend call onto a virtual thread, preventing slow backends from blocking
+     *   the shared scheduler. An `extendInFlight` guard ensures at most one async extend runs per watchdog.
+     *
+     * @param watchdogThreads thread-pool size for the scheduler (>= 1). Defaults to current value.
+     * @param asyncExtend when `true`, extend calls are dispatched on virtual threads.
+     */
+    fun configure(
+        watchdogThreads: Int = configuredThreadCount,
+        asyncExtend: Boolean = asyncExtendEnabled,
+    ) {
+        require(watchdogThreads >= 1) { "watchdogThreads must be >= 1, got $watchdogThreads" }
+        configuredThreadCount = watchdogThreads
+        asyncExtendEnabled = asyncExtend
+        // Apply thread count to the running scheduler immediately.
+        // ScheduledThreadPoolExecutor supports live setCorePoolSize() without disrupting queued tasks.
+        val current = scheduler
+        if (!current.isShutdown && current.corePoolSize != watchdogThreads) {
+            current.corePoolSize = watchdogThreads
+        }
+    }
 
     /**
      * Shuts down the shared watchdog scheduler, waiting up to 5 seconds for in-flight ticks to finish.
@@ -91,7 +138,7 @@ object LeaderLeaseAutoExtender : KLogging() {
     fun isShutdown(): Boolean = scheduler.isShutdown
 
     private fun newScheduler(): ScheduledThreadPoolExecutor =
-        ScheduledThreadPoolExecutor(DEFAULT_WATCHDOG_THREADS) { runnable ->
+        ScheduledThreadPoolExecutor(configuredThreadCount) { runnable ->
             Thread(runnable, "bluetape4k-leader-lease-watchdog-${threadSeq.incrementAndGet()}").apply {
                 isDaemon = true
             }
@@ -134,57 +181,78 @@ object LeaderLeaseAutoExtender : KLogging() {
         val closed = AtomicBoolean(false)
         val cadence = renewalPeriod(leaseTime)
         val futureRef = AtomicReference<ScheduledFuture<*>?>(null)
+        // Capture async mode at start() call time — subsequent configure() calls don't affect running watchdogs.
+        val capturedAsyncExtend = asyncExtendEnabled
+        val extendInFlight: AtomicBoolean? = if (capturedAsyncExtend) AtomicBoolean(false) else null
 
-        val future = try {
-            scheduler.scheduleWithFixedDelay(
-                {
-                    if (closed.get()) {
+        val doTick: () -> Unit = doTick@{
+            if (closed.get()) {
+                futureRef.get()?.cancel(false)
+                return@doTick
+            }
+
+            // R2 mitigation: user 가 explicit extend 를 호출했으면 watchdog skip
+            val deadline = delegate.lastExtendDeadline.get()
+            if (deadline != null && Instant.now().plusMillis(cadence.inWholeMilliseconds).isBefore(deadline)) {
+                return@doTick
+            }
+
+            val outcome = try {
+                delegate.extend(leaseTime)
+            } catch (ex: RejectedExecutionException) {
+                log.warn(ex) { "Watchdog tick rejected — scheduler shut down. delegateId=${delegate.hashCode()}" }
+                futureRef.get()?.cancel(false)
+                return@doTick
+            } catch (ex: Exception) {
+                log.warn(ex) { "leader.lease.auto-extend.failed" }
+                BackendError(ex)
+            }
+
+            when (outcome) {
+                is Extended -> { /* 정상 연장 — 계속 */ }
+                is NotHeld, is WrongThread -> {
+                    log.warn { "leader.lease.auto-extend.stopped reason=$outcome" }
+                    if (closed.compareAndSet(false, true)) {
                         futureRef.get()?.cancel(false)
-                        return@scheduleWithFixedDelay
                     }
-
-                    // R2 mitigation: user 가 explicit extend 를 호출했으면 watchdog skip
-                    val deadline = delegate.lastExtendDeadline.get()
-                    if (deadline != null && Instant.now().plusMillis(cadence.inWholeMilliseconds).isBefore(deadline)) {
-                        return@scheduleWithFixedDelay
-                    }
-
-                    val outcome = try {
-                        delegate.extend(leaseTime)
-                    } catch (ex: RejectedExecutionException) {
-                        log.warn(ex) { "Watchdog tick rejected — scheduler shut down. delegateId=${delegate.hashCode()}" }
-                        futureRef.get()?.cancel(false)
-                        return@scheduleWithFixedDelay
-                    } catch (ex: Exception) {
-                        log.warn(ex) { "leader.lease.auto-extend.failed" }
-                        BackendError(ex)
-                    }
-
-                    when (outcome) {
-                        is Extended -> { /* 정상 연장 — 계속 */ }
-                        is NotHeld, is WrongThread -> {
-                            log.warn { "leader.lease.auto-extend.stopped reason=$outcome" }
+                }
+                is BackendError -> {
+                    val kind = errorClassifier.classify(outcome.cause)
+                        ?: BackendErrorKind.NON_TRANSIENT
+                    when (kind) {
+                        BackendErrorKind.TRANSIENT -> {
+                            log.warn(outcome.cause) { "leader.lease.auto-extend.transient-error — retrying. cause=${outcome.cause.message}" }
+                        }
+                        BackendErrorKind.NON_TRANSIENT, BackendErrorKind.FATAL -> {
+                            log.warn(outcome.cause) { "leader.lease.auto-extend.stopped reason=BACKEND_ERROR kind=$kind cause=${outcome.cause.message}" }
                             if (closed.compareAndSet(false, true)) {
                                 futureRef.get()?.cancel(false)
                             }
                         }
-                        is BackendError -> {
-                            val kind = errorClassifier.classify(outcome.cause)
-                                ?: BackendErrorKind.NON_TRANSIENT
-                            when (kind) {
-                                BackendErrorKind.TRANSIENT -> {
-                                    log.warn(outcome.cause) { "leader.lease.auto-extend.transient-error — retrying. cause=${outcome.cause.message}" }
-                                }
-                                BackendErrorKind.NON_TRANSIENT, BackendErrorKind.FATAL -> {
-                                    log.warn(outcome.cause) { "leader.lease.auto-extend.stopped reason=BACKEND_ERROR kind=$kind cause=${outcome.cause.message}" }
-                                    if (closed.compareAndSet(false, true)) {
-                                        futureRef.get()?.cancel(false)
-                                    }
-                                }
-                            }
-                        }
                     }
-                },
+                }
+            }
+        }
+
+        // When async mode is enabled: dispatch each tick onto a virtual thread so that a slow backend
+        // cannot block the shared scheduler. The extendInFlight guard prevents overlapping extends.
+        val tickRunnable: Runnable = if (capturedAsyncExtend && extendInFlight != null) {
+            Runnable {
+                if (extendInFlight.compareAndSet(false, true)) {
+                    Thread.ofVirtual()
+                        .name("leader-lease-extend-${threadSeq.incrementAndGet()}")
+                        .start {
+                            try { doTick() } finally { extendInFlight.set(false) }
+                        }
+                }
+            }
+        } else {
+            Runnable { doTick() }
+        }
+
+        val future = try {
+            scheduler.scheduleWithFixedDelay(
+                tickRunnable,
                 cadence.inWholeMilliseconds,
                 cadence.inWholeMilliseconds,
                 TimeUnit.MILLISECONDS,
@@ -280,6 +348,5 @@ object LeaderLeaseAutoExtender : KLogging() {
         override fun close() = Unit
     }
 
-    private const val DEFAULT_WATCHDOG_THREADS = 2
     private val MIN_RENEWAL_PERIOD = 25.milliseconds
 }
