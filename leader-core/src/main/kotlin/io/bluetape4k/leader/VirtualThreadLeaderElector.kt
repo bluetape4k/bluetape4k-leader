@@ -2,6 +2,8 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
+import java.util.concurrent.CancellationException
+import java.util.concurrent.CompletionException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -91,13 +93,28 @@ interface VirtualThreadLeaderElector: LeaderElectionState {
             action()
         }
         val mapped: java.util.concurrent.CompletableFuture<LeaderRunResult<T>> =
-            source.toCompletableFuture().thenApply { value ->
-                if (elected.get()) {
-                    LeaderRunResult.Elected(value) as LeaderRunResult<T>
-                } else {
-                    LeaderRunResult.Skipped as LeaderRunResult<T>
+            source.toCompletableFuture().handle { value, failure ->
+                when {
+                    failure != null && elected.get() -> failure.toActionFailedResult()
+                    failure != null -> throw failure.asCompletionException()
+                    elected.get() -> LeaderRunResult.Elected(value) as LeaderRunResult<T>
+                    else -> LeaderRunResult.Skipped as LeaderRunResult<T>
                 }
             }
         return VirtualFuture(mapped)
     }
+
+    private fun Throwable.unwrapCompletionCause(): Throwable =
+        (this as? CompletionException)?.cause ?: this
+
+    private fun Throwable.toActionFailedResult(): LeaderRunResult.ActionFailed {
+        val cause = unwrapCompletionCause()
+        if (cause is CancellationException) {
+            throw cause
+        }
+        return LeaderRunResult.ActionFailed(cause)
+    }
+
+    private fun Throwable.asCompletionException(): CompletionException =
+        this as? CompletionException ?: CompletionException(this)
 }

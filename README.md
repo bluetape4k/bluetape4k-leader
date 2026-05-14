@@ -304,10 +304,17 @@ sequenceDiagram
 when (val r = election.runIfLeaderResult("daily-job") { compute() }) {
     is LeaderRunResult.Elected -> println("elected, result=${r.value}")
     is LeaderRunResult.Skipped -> println("skipped — lock not acquired")
+    is LeaderRunResult.ActionFailed -> println("action failed: ${r.cause.message}")
 }
 ```
 
-`LeaderRunResult` is a sealed interface with two variants: `Elected<T>(value: T?)` and `Skipped`. Available on synchronous `LeaderElector` and `LeaderGroupElector` only (async/suspend equivalents planned for a future release).
+`LeaderRunResult` is a sealed interface with three variants:
+
+- `Elected<T>(value: T?)` — lock/slot acquired and `action` completed. `value` may be `null`.
+- `Skipped` — lock/slot was not acquired and `action` was not executed.
+- `ActionFailed(cause)` — lock/slot was acquired and `action` started, but the action failed.
+
+`runIfLeaderResult` is available for blocking electors, `runIfLeaderResultSuspend` for coroutine electors, and `runAsyncIfLeaderResult` for `CompletableFuture` / virtual-thread electors. `CancellationException` is not wrapped as `ActionFailed`: blocking and suspend APIs rethrow it, while async and virtual-thread APIs complete exceptionally (for `join()`, expect `CompletionException` wrapping the cancellation; `isCancelled()` is not guaranteed). Blocking APIs also rethrow `InterruptedException` after restoring the interrupt flag.
 
 ### Options
 

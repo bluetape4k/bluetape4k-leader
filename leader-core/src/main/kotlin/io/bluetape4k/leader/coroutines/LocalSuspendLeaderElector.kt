@@ -29,6 +29,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Coroutines [Mutex]를 이용한 로컬(단일 JVM) suspend 리더 선출 구현체입니다.
@@ -119,13 +120,22 @@ class LocalSuspendLeaderElector(
         action: suspend () -> T,
     ): LeaderRunResult<T> {
         var elected = false
-        val value = tryWithLock(
-            lockName = slot.lockName,
-            auditLeaderId = slot.leaderId,
-            nodeId = options.nodeId,
-        ) {
-            elected = true
-            action()
+        val value = try {
+            tryWithLock(
+                lockName = slot.lockName,
+                auditLeaderId = slot.leaderId,
+                nodeId = options.nodeId,
+            ) {
+                elected = true
+                action()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (elected) {
+                return LeaderRunResult.ActionFailed(e)
+            }
+            throw e
         }
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }

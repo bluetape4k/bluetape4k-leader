@@ -4,6 +4,8 @@ import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CompletableDeferred
@@ -14,6 +16,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
@@ -21,10 +24,10 @@ import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.random.Random
-import kotlin.time.Duration.Companion.milliseconds
 
 class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
 
@@ -77,6 +80,34 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
     }
+
+    @Test
+    fun `runIfLeaderResultSuspend - action 실패는 ActionFailed 로 분류한다`() = runSuspendIO {
+        val failure = LeaderGroupElectionException("redisson-suspend-group-result-boom")
+
+        val result = election.runIfLeaderResultSuspend(LeaderSlot(randomName(), "redisson-suspend-group-node")) {
+            throw failure
+        }
+
+        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
+        val cause = (result as LeaderRunResult.ActionFailed).cause
+        cause.shouldBeInstanceOf<LeaderGroupElectionException>()
+        cause.message shouldBeEqualTo failure.message
+    }
+
+    @Test
+    fun `runIfLeaderResultSuspend - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() =
+        runSuspendIO {
+            val cancellation = CancellationException("redisson-suspend-group-cancelled")
+
+            val thrown = assertFailsWith<CancellationException> {
+                election.runIfLeaderResultSuspend<Any?>(LeaderSlot(randomName(), "redisson-suspend-group-node")) {
+                    throw cancellation
+                }
+            }
+
+            thrown.message shouldBeEqualTo cancellation.message
+        }
 
     // ── 동시 실행 제한 ────────────────────────────────────────────────────
 

@@ -4,6 +4,8 @@ import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
@@ -16,6 +18,7 @@ import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -78,6 +81,31 @@ class LettuceLeaderGroupElectionTest: AbstractLettuceLeaderTest() {
     fun `리더 선출 성공 시 action 실행`() {
         val result = election.runIfLeader(lockName) { "done" }
         result shouldBeEqualTo "done"
+    }
+
+    @Test
+    fun `runIfLeaderResult - action 실패는 ActionFailed 로 분류한다`() {
+        val failure = LeaderGroupElectionException("group result 오류")
+
+        val result = election.runIfLeaderResult(LeaderSlot(lockName, "lettuce-group-node")) {
+            throw failure
+        }
+
+        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
+        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+    }
+
+    @Test
+    fun `runIfLeaderResult - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() {
+        val cancellation = CancellationException("lettuce-group-cancelled")
+
+        val thrown = assertFailsWith<CancellationException> {
+            election.runIfLeaderResult<Any?>(LeaderSlot(lockName, "lettuce-group-node")) {
+                throw cancellation
+            }
+        }
+
+        thrown shouldBeEqualTo cancellation
     }
 
     @Test

@@ -5,6 +5,8 @@ import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.utils.Runtimex
@@ -19,6 +21,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -115,6 +118,34 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
         leaderElection
             .runAsyncIfLeader(lockName) { CompletableFuture.completedFuture(1) }
             .get(2, TimeUnit.SECONDS) shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `runIfLeaderResult - action 실패는 ActionFailed 로 분류한다`() {
+        val lockName = randomName()
+        val leaderElection = RedissonLeaderElector(redissonClient)
+        val failure = IllegalStateException("redisson-result-boom")
+
+        val result = leaderElection.runIfLeaderResult(LeaderSlot(lockName, "redisson-node")) {
+            throw failure
+        }
+
+        result shouldBeEqualTo LeaderRunResult.ActionFailed(failure)
+    }
+
+    @Test
+    fun `runIfLeaderResult - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() {
+        val lockName = randomName()
+        val leaderElection = RedissonLeaderElector(redissonClient)
+        val cancellation = CancellationException("redisson-cancelled")
+
+        val thrown = assertFailsWith<CancellationException> {
+            leaderElection.runIfLeaderResult<Any?>(LeaderSlot(lockName, "redisson-node")) {
+                throw cancellation
+            }
+        }
+
+        thrown shouldBeEqualTo cancellation
     }
 
     @Test

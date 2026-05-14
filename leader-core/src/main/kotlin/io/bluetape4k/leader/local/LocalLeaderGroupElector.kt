@@ -7,6 +7,7 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requirePositiveNumber
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
@@ -114,13 +115,25 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
      */
     override fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
         var elected = false
-        val value = tryWithPermit(
-            lockName = slot.lockName,
-            auditLeaderId = slot.leaderId,
-            nodeId = options.nodeId,
-        ) {
-            elected = true
-            action()
+        val value = try {
+            tryWithPermit(
+                lockName = slot.lockName,
+                auditLeaderId = slot.leaderId,
+                nodeId = options.nodeId,
+            ) {
+                elected = true
+                action()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw e
+        } catch (e: Exception) {
+            if (elected) {
+                return LeaderRunResult.ActionFailed(e)
+            }
+            throw e
         }
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }

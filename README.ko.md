@@ -304,10 +304,17 @@ sequenceDiagram
 when (val r = election.runIfLeaderResult("daily-job") { compute() }) {
     is LeaderRunResult.Elected -> println("선출됨, 결과=${r.value}")
     is LeaderRunResult.Skipped -> println("미선출 — 락 획득 실패")
+    is LeaderRunResult.ActionFailed -> println("작업 실패: ${r.cause.message}")
 }
 ```
 
-`LeaderRunResult`는 `Elected<T>(value: T?)`와 `Skipped` 두 변형을 가진 sealed interface입니다. 동기 `LeaderElector` 및 `LeaderGroupElector`에서만 제공되며, 비동기/코루틴 동등 메서드는 향후 릴리즈에서 추가될 예정입니다.
+`LeaderRunResult`는 세 변형을 가진 sealed interface입니다.
+
+- `Elected<T>(value: T?)`: 락/슬롯을 획득했고 `action`이 완료됨. `value`는 `null`일 수 있습니다.
+- `Skipped`: 락/슬롯을 획득하지 못했고 `action`은 실행되지 않음.
+- `ActionFailed(cause)`: 락/슬롯을 획득하고 `action`이 시작됐지만 작업 실행 중 실패함.
+
+동기 elector는 `runIfLeaderResult`, 코루틴 elector는 `runIfLeaderResultSuspend`, `CompletableFuture`/가상 스레드 elector는 `runAsyncIfLeaderResult`를 제공합니다. `CancellationException`은 `ActionFailed`로 감싸지 않습니다. 동기/코루틴 API는 재전파하고, async/가상 스레드 API는 예외 완료됩니다(`join()`에서는 cancellation을 감싼 `CompletionException`을 기대하세요. `isCancelled()` 보장은 아닙니다). 동기 API는 `InterruptedException`도 interrupt flag를 복원한 뒤 재전파합니다.
 
 ### 옵션 클래스
 

@@ -1,11 +1,13 @@
 package io.bluetape4k.leader.coroutines
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import kotlinx.coroutines.async
@@ -13,6 +15,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -39,6 +42,28 @@ class SuspendRunIfLeaderResultTest {
 
         (result is LeaderRunResult.Elected).shouldBeTrue()
         (result as LeaderRunResult.Elected<Nothing?>).value.shouldBeNull()
+    }
+
+    @Test
+    fun `SuspendLeaderElector - action 실패는 ActionFailed 로 분류된다`() = runSuspendIO {
+        val election = LocalSuspendLeaderElector()
+        val failure = IllegalStateException("suspend-boom")
+        val result = election.runIfLeaderResultSuspend<Any?>(randomLockName()) { throw failure }
+
+        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
+        (result as LeaderRunResult.ActionFailed).cause shouldBeInstanceOf IllegalStateException::class
+        result.cause.message shouldBeEqualTo failure.message
+    }
+
+    @Test
+    fun `SuspendLeaderElector - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() = runSuspendIO {
+        val election = LocalSuspendLeaderElector()
+
+        assertFailsWith<CancellationException> {
+            election.runIfLeaderResultSuspend<Any?>(randomLockName()) {
+                throw CancellationException("cancelled")
+            }
+        }
     }
 
     @Test
@@ -106,6 +131,29 @@ class SuspendRunIfLeaderResultTest {
         (result is LeaderRunResult.Elected).shouldBeTrue()
         (result as LeaderRunResult.Elected<Nothing?>).value.shouldBeNull()
     }
+
+    @Test
+    fun `SuspendLeaderGroupElector - action 실패는 ActionFailed 로 분류된다`() = runSuspendIO {
+        val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 1))
+        val failure = IllegalArgumentException("group-suspend-boom")
+        val result = election.runIfLeaderResultSuspend<Any?>(randomLockName()) { throw failure }
+
+        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
+        (result as LeaderRunResult.ActionFailed).cause shouldBeInstanceOf IllegalArgumentException::class
+        result.cause.message shouldBeEqualTo failure.message
+    }
+
+    @Test
+    fun `SuspendLeaderGroupElector - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() =
+        runSuspendIO {
+            val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 1))
+
+            assertFailsWith<CancellationException> {
+                election.runIfLeaderResultSuspend<Any?>(randomLockName()) {
+                    throw CancellationException("group-cancelled")
+                }
+            }
+        }
 
     @Test
     fun `SuspendLeaderGroupElector - 슬롯 가득 찰 때 Skipped 를 반환한다`() = runSuspendIO {

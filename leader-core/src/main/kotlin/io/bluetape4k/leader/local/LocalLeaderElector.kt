@@ -4,6 +4,7 @@ import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.locks.ReentrantLock
@@ -94,14 +95,26 @@ class LocalLeaderElector(
      */
     override fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
         var elected = false
-        val value = tryWithLeaderLock(
-            lockName = slot.lockName,
-            auditLeaderId = slot.leaderId,
-            nodeId = options.nodeId,
-            waitTime = options.waitTime,
-        ) {
-            elected = true
-            action()
+        val value = try {
+            tryWithLeaderLock(
+                lockName = slot.lockName,
+                auditLeaderId = slot.leaderId,
+                nodeId = options.nodeId,
+                waitTime = options.waitTime,
+            ) {
+                elected = true
+                action()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw e
+        } catch (e: Exception) {
+            if (elected) {
+                return LeaderRunResult.ActionFailed(e)
+            }
+            throw e
         }
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }

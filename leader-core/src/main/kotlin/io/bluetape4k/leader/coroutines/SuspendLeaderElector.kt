@@ -4,6 +4,7 @@ import io.bluetape4k.leader.LeaderElectionState
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * 코루틴 기반 리더 선출 실행 계약을 정의합니다.
@@ -63,8 +64,11 @@ interface SuspendLeaderElector: LeaderElectionState {
      * when (result) {
      *     is LeaderRunResult.Elected -> println("elected, value=${result.value}")
      *     LeaderRunResult.Skipped   -> println("not elected")
+     *     is LeaderRunResult.ActionFailed -> println("action failed: ${result.cause.message}")
      * }
      * ```
+     *
+     * `CancellationException` is rethrown directly and is not wrapped as [LeaderRunResult.ActionFailed].
      *
      * @param lockName 리더 선출에 사용할 락 이름
      * @param action 리더 획득 성공 시 실행할 suspend 작업
@@ -75,7 +79,19 @@ interface SuspendLeaderElector: LeaderElectionState {
         action: suspend () -> T,
     ): LeaderRunResult<T> {
         var elected = false
-        val value = runIfLeader(lockName) { elected = true; action() }
+        val value = try {
+            runIfLeader(lockName) {
+                elected = true
+                action()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (elected) {
+                return LeaderRunResult.ActionFailed(e)
+            }
+            throw e
+        }
         return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
     }
 
@@ -116,9 +132,18 @@ interface SuspendLeaderElector: LeaderElectionState {
     ): LeaderRunResult<T> {
         LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         var elected = false
-        val value = runIfLeader(slot.lockName) {
-            elected = true
-            action()
+        val value = try {
+            runIfLeader(slot.lockName) {
+                elected = true
+                action()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (elected) {
+                return LeaderRunResult.ActionFailed(e)
+            }
+            throw e
         }
         return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
     }

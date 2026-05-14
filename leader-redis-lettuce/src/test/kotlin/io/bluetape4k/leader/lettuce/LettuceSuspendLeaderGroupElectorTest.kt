@@ -2,7 +2,10 @@ package io.bluetape4k.leader.lettuce
 
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -11,15 +14,18 @@ import kotlinx.coroutines.delay
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeInRange
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.assertFailsWith
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration.Companion.milliseconds
 
 class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
 
@@ -47,6 +53,34 @@ class LettuceSuspendLeaderGroupElectorTest: AbstractLettuceLeaderTest() {
         val result = suspendElection.runIfLeader(lockName) { "suspend-done" }
         result shouldBeEqualTo "suspend-done"
     }
+
+    @Test
+    fun `runIfLeaderResultSuspend - action 실패는 ActionFailed 로 분류한다`() = runSuspendIO {
+        val failure = LeaderGroupElectionException("suspend group result 오류")
+
+        val result = suspendElection.runIfLeaderResultSuspend(LeaderSlot(lockName, "lettuce-suspend-group-node")) {
+            throw failure
+        }
+
+        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
+        val cause = (result as LeaderRunResult.ActionFailed).cause
+        cause.shouldBeInstanceOf<LeaderGroupElectionException>()
+        cause.message shouldBeEqualTo failure.message
+    }
+
+    @Test
+    fun `runIfLeaderResultSuspend - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() =
+        runSuspendIO {
+            val cancellation = CancellationException("lettuce-suspend-group-cancelled")
+
+            val thrown = assertFailsWith<CancellationException> {
+                suspendElection.runIfLeaderResultSuspend<Any?>(LeaderSlot(lockName, "lettuce-suspend-group-node")) {
+                    throw cancellation
+                }
+            }
+
+            thrown.message shouldBeEqualTo cancellation.message
+        }
 
     @Test
     fun `코루틴 복수 리더 동시 실행`() = runSuspendIO {

@@ -4,19 +4,23 @@ import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.delay
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration.Companion.milliseconds
 
 class LettuceSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
 
@@ -57,6 +61,34 @@ class LettuceSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
         val result = suspendElection.runIfLeader(lockName) { "recovered" }
         result shouldBeEqualTo "recovered"
     }
+
+    @Test
+    fun `runIfLeaderResultSuspend - action 실패는 ActionFailed 로 분류한다`() = runSuspendIO {
+        val failure = LeaderElectionException("suspend result 오류")
+
+        val result = suspendElection.runIfLeaderResultSuspend(LeaderSlot(lockName, "lettuce-suspend-node")) {
+            throw failure
+        }
+
+        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
+        val cause = (result as LeaderRunResult.ActionFailed).cause
+        cause.shouldBeInstanceOf<LeaderElectionException>()
+        cause.message shouldBeEqualTo failure.message
+    }
+
+    @Test
+    fun `runIfLeaderResultSuspend - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() =
+        runSuspendIO {
+            val cancellation = CancellationException("lettuce-suspend-cancelled")
+
+            val thrown = assertFailsWith<CancellationException> {
+                suspendElection.runIfLeaderResultSuspend<Any?>(LeaderSlot(lockName, "lettuce-suspend-node")) {
+                    throw cancellation
+                }
+            }
+
+            thrown.message shouldBeEqualTo cancellation.message
+        }
 
     // =========================================================================
     // 확장 함수
