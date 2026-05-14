@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.spring.backend
 
+import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
+import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.lettuce.LettuceLeaderElector
 import io.bluetape4k.leader.lettuce.LettuceLeaderGroupElector
 import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderElector
@@ -7,6 +9,7 @@ import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderGroupElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
 import io.lettuce.core.api.StatefulRedisConnection
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -28,16 +31,18 @@ class LettuceLeaderConfiguration {
     fun lettuceLeaderElector(
         connection: StatefulRedisConnection<String, String>,
         props: LeaderProperties,
+        recorderProvider: ObjectProvider<SafeLeaderHistoryRecorder>,
     ): LettuceLeaderElector =
-        LettuceLeaderElector(connection, PropertiesAdapter.toCommonElection(props))
+        LettuceLeaderElector(connection, PropertiesAdapter.toCommonElection(props), recorderProvider.ifAvailable)
 
     @Bean
     @ConditionalOnMissingBean(name = ["lettuceSuspendLeaderElector"])
     fun lettuceSuspendLeaderElector(
         connection: StatefulRedisConnection<String, String>,
         props: LeaderProperties,
+        recorderProvider: ObjectProvider<SuspendSafeLeaderHistoryRecorder>,
     ): LettuceSuspendLeaderElector =
-        LettuceSuspendLeaderElector(connection, PropertiesAdapter.toCommonElection(props))
+        LettuceSuspendLeaderElector(connection, PropertiesAdapter.toCommonElection(props), recorderProvider.ifAvailable)
 
     @Bean
     @ConditionalOnMissingBean(name = ["lettuceLeaderGroupElector"])
