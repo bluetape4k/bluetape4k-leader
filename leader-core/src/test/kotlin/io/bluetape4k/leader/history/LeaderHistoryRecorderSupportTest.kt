@@ -1,11 +1,13 @@
 package io.bluetape4k.leader.history
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.internal.truncateUtf8
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import java.time.Instant
 
 class LeaderHistoryRecorderSupportTest {
@@ -32,31 +34,31 @@ class LeaderHistoryRecorderSupportTest {
     @Test
     fun `sanitizeForLog replaces newline control character with question mark`() {
         val input = "hello\nworld"
-        assertEquals("hello?world", input.sanitizeForLog())
+        input.sanitizeForLog() shouldBeEqualTo "hello?world"
     }
 
     @Test
     fun `sanitizeForLog replaces tab control character with question mark`() {
         val input = "col1\tcol2"
-        assertEquals("col1?col2", input.sanitizeForLog())
+        input.sanitizeForLog() shouldBeEqualTo "col1?col2"
     }
 
     @Test
     fun `sanitizeForLog replaces Unicode line separator`() {
         val input = "line sep"
-        assertEquals("line?sep", input.sanitizeForLog())
+        input.sanitizeForLog() shouldBeEqualTo "line?sep"
     }
 
     @Test
     fun `sanitizeForLog replaces Unicode paragraph separator`() {
         val input = "para sep"
-        assertEquals("para?sep", input.sanitizeForLog())
+        input.sanitizeForLog() shouldBeEqualTo "para?sep"
     }
 
     @Test
     fun `sanitizeForLog leaves normal ASCII unchanged`() {
         val input = "Hello, World! 123"
-        assertEquals(input, input.sanitizeForLog())
+        input.sanitizeForLog() shouldBeEqualTo input
     }
 
     // ── sanitize record ───────────────────────────────────────────────────
@@ -65,19 +67,16 @@ class LeaderHistoryRecorderSupportTest {
     fun `sanitize truncates errorMessage to MAX_ERROR_MESSAGE_BYTES`() {
         val longMessage = "x".repeat(1000)
         val sanitized = sanitize(record(errorMessage = longMessage))
-        val bytes = sanitized.errorMessage!!.toByteArray(Charsets.UTF_8)
-        assert(bytes.size <= LeaderLockHistoryRecord.MAX_ERROR_MESSAGE_BYTES) {
-            "errorMessage bytes=${bytes.size} exceeds MAX_ERROR_MESSAGE_BYTES"
-        }
+        val errorMessage = requireNotNull(sanitized.errorMessage)
+        val bytes = errorMessage.toByteArray(Charsets.UTF_8)
+        bytes.size shouldBeLessOrEqualTo LeaderLockHistoryRecord.MAX_ERROR_MESSAGE_BYTES
     }
 
     @Test
     fun `sanitize caps metadata to MAX_METADATA_KEYS entries`() {
         val bigMetadata = (1..20).associate { "key$it" to "val$it" }
         val sanitized = sanitize(record(metadata = bigMetadata))
-        assert(sanitized.metadata.size <= LeaderLockHistoryRecord.MAX_METADATA_KEYS) {
-            "metadata size=${sanitized.metadata.size} exceeds MAX_METADATA_KEYS"
-        }
+        sanitized.metadata.size shouldBeLessOrEqualTo LeaderLockHistoryRecord.MAX_METADATA_KEYS
     }
 
     @Test
@@ -85,8 +84,8 @@ class LeaderHistoryRecorderSupportTest {
         val metadata = mapOf("k\ney" to "va\tlue")
         val sanitized = sanitize(record(metadata = metadata))
         val entry = sanitized.metadata.entries.first()
-        assertEquals("k?ey", entry.key)
-        assertEquals("va?lue", entry.value)
+        entry.key shouldBeEqualTo "k?ey"
+        entry.value shouldBeEqualTo "va?lue"
     }
 
     @Test
@@ -94,25 +93,23 @@ class LeaderHistoryRecorderSupportTest {
         val longValue = "v".repeat(1000)
         val metadata = mapOf("k" to longValue)
         val sanitized = sanitize(record(metadata = metadata))
-        val value = sanitized.metadata["k"]!!
-        assert(value.length <= LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH) {
-            "metadata value length=${value.length} exceeds MAX_METADATA_VALUE_LENGTH"
-        }
+        val value = requireNotNull(sanitized.metadata["k"])
+        value.length shouldBeLessOrEqualTo LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH
     }
 
     @Test
     fun `sanitize returns equivalent record when no changes are needed`() {
         val r = record(errorMessage = "simple error", metadata = mapOf("k" to "v"))
         val sanitized = sanitize(r)
-        assertEquals(r.errorMessage, sanitized.errorMessage)
-        assertEquals(r.metadata, sanitized.metadata)
+        sanitized.errorMessage shouldBeEqualTo r.errorMessage
+        sanitized.metadata shouldBeEqualTo r.metadata
     }
 
     @Test
     fun `sanitize handles null errorMessage without throwing`() {
         val r = record(errorMessage = null)
         val sanitized = sanitize(r)
-        assertNull(sanitized.errorMessage)
+        sanitized.errorMessage.shouldBeNull()
     }
 
     // ── truncateUtf8 ──────────────────────────────────────────────────────
@@ -123,7 +120,7 @@ class LeaderHistoryRecorderSupportTest {
         val input = "Hello, 世界"
         val truncated = input.truncateUtf8(8)
         val bytes = truncated.toByteArray(Charsets.UTF_8)
-        assert(bytes.size <= 8) { "truncated bytes=${bytes.size}" }
+        bytes.size shouldBeLessOrEqualTo 8
         // must be decodable without exception
         String(bytes, Charsets.UTF_8)
     }
@@ -131,12 +128,12 @@ class LeaderHistoryRecorderSupportTest {
     @Test
     fun `truncateUtf8 returns original string when within limit`() {
         val input = "abc"
-        assertEquals(input, input.truncateUtf8(100))
+        input.truncateUtf8(100) shouldBeEqualTo input
     }
 
     @Test
     fun `truncateUtf8 rejects negative maxBytes`() {
-        kotlin.test.assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<IllegalArgumentException> {
             "abc".truncateUtf8(-1)
         }
     }

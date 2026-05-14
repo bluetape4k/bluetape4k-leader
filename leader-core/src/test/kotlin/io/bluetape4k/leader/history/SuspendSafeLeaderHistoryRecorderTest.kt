@@ -1,13 +1,13 @@
 package io.bluetape4k.leader.history
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 
 class SuspendSafeLeaderHistoryRecorderTest {
 
@@ -37,7 +37,7 @@ class SuspendSafeLeaderHistoryRecorderTest {
         }
         val recorder = SuspendSafeLeaderHistoryRecorder(sink)
         val result = recorder.recordAcquired(record())
-        assertNotNull(result)
+        result.shouldNotBeNull()
     }
 
     @Test
@@ -64,7 +64,7 @@ class SuspendSafeLeaderHistoryRecorderTest {
         }
         val recorder = SuspendSafeLeaderHistoryRecorder(sink)
         val result = recorder.recordAcquired(record())
-        assertNull(result)
+        result.shouldBeNull()
     }
 
     @Test

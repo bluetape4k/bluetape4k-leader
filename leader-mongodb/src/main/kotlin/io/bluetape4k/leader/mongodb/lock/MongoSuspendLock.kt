@@ -97,7 +97,7 @@ class MongoSuspendLock private constructor(
         }
     }
 
-    internal val token: String = Base58.randomString(8)
+    internal val token: String = Base58.randomString(22)
 
     /**
      * [waitTime] 내에 락 획득을 시도합니다. 성공 시 `true`, 타임아웃 또는 오류 시 `false`를 반환합니다.

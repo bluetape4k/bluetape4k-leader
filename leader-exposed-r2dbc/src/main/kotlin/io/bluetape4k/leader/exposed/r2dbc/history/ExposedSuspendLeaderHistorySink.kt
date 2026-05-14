@@ -29,10 +29,9 @@ import java.time.Instant
  * ## Behavior / Contract
  * - [recordAcquired] inserts a row and returns [LeaderHistoryKey] with the
  *   auto-generated `id`.
- * - [recordCompleted] and [recordFailed] use a three-strategy update:
- *   1. `WHERE id = ?` when [LeaderHistoryKey.id] is non-null.
- *   2. `WHERE historyId = ?` when [LeaderHistoryKey.historyId] is non-null.
- *   3. `WHERE lockName = ? AND token = ?` as a null-key fallback.
+ * - [recordCompleted] and [recordFailed] use a token-guarded update:
+ *   1. `WHERE id = ? AND token = ?` when [LeaderHistoryKey.id] is non-null.
+ *   2. `WHERE lockName = ? AND token = ?` as a null-key fallback.
  * - [deleteOlderThan] uses `deleteWhere` with a row-count [limit].
  * - `runInterruptible {}` is not used — R2DBC is natively non-blocking.
  *
@@ -105,7 +104,7 @@ class ExposedSuspendLeaderHistorySink(
         val keyId = key.id
         val updated = suspendTransaction(database) {
             val where = if (keyId != null) {
-                { LeaderLockHistoryTable.id eq keyId }
+                { (LeaderLockHistoryTable.id eq keyId) and (LeaderLockHistoryTable.token eq key.token) }
             } else {
                 { (LeaderLockHistoryTable.lockName eq key.lockName) and (LeaderLockHistoryTable.token eq key.token) }
             }

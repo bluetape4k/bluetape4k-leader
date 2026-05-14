@@ -1,5 +1,8 @@
 package io.bluetape4k.leader.micrometer.history
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderHistorySink
@@ -10,9 +13,6 @@ import io.bluetape4k.logging.KLogging
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import kotlinx.coroutines.CancellationException
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNull
 import java.time.Instant
 
 class MicrometerSafeLeaderHistoryRecorderTest {
@@ -44,7 +44,7 @@ class MicrometerSafeLeaderHistoryRecorderTest {
         val registry = SimpleMeterRegistry()
         val recorder = MicrometerSafeLeaderHistoryRecorder(NoopLeaderHistorySink, registry)
         recorder.recordAcquired(record())
-        assertEquals(1.0, acquireMissingCount(registry, "NoopLeaderHistorySink"))
+        acquireMissingCount(registry, "NoopLeaderHistorySink") shouldBeEqualTo 1.0
     }
 
     @Test
@@ -57,7 +57,7 @@ class MicrometerSafeLeaderHistoryRecorderTest {
         }
         val recorder = MicrometerSafeLeaderHistoryRecorder(sink, registry)
         recorder.recordAcquired(record())
-        assertEquals(0.0, acquireMissingCount(registry, sink::class.simpleName ?: "unknown"))
+        acquireMissingCount(registry, sink::class.simpleName ?: "unknown") shouldBeEqualTo 0.0
     }
 
     // ── failure counter ───────────────────────────────────────────────────
@@ -73,8 +73,8 @@ class MicrometerSafeLeaderHistoryRecorderTest {
         }
         val recorder = MicrometerSafeLeaderHistoryRecorder(sink, registry)
         val result = recorder.recordAcquired(record())
-        assertNull(result)
-        assertEquals(1.0, failureCount(registry, sink::class.simpleName ?: "unknown"))
+        result.shouldBeNull()
+        failureCount(registry, sink::class.simpleName ?: "unknown") shouldBeEqualTo 1.0
     }
 
     @Test
@@ -88,7 +88,7 @@ class MicrometerSafeLeaderHistoryRecorderTest {
         }
         val recorder = MicrometerSafeLeaderHistoryRecorder(sink, registry)
         recorder.recordCompleted(key, now, 100L)
-        assertEquals(1.0, failureCount(registry, sink::class.simpleName ?: "unknown"))
+        failureCount(registry, sink::class.simpleName ?: "unknown") shouldBeEqualTo 1.0
     }
 
     // ── CancellationException: not counted, rethrown ──────────────────────
@@ -106,6 +106,6 @@ class MicrometerSafeLeaderHistoryRecorderTest {
         assertFailsWith<CancellationException> {
             recorder.recordAcquired(record())
         }
-        assertEquals(0.0, failureCount(registry, sink::class.simpleName ?: "unknown"))
+        failureCount(registry, sink::class.simpleName ?: "unknown") shouldBeEqualTo 0.0
     }
 }

@@ -1,9 +1,15 @@
 package io.bluetape4k.leader.mongodb
 
 import com.mongodb.client.model.Filters
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CompletableDeferred
@@ -11,22 +17,23 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.atomic.AtomicInteger
-import kotlinx.coroutines.runBlocking
-import io.bluetape4k.assertions.assertFailsWith
-import kotlin.time.Duration.Companion.milliseconds
 
 class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
 
     companion object: KLogging()
+
+    @Test
+    fun `MongoSuspendLock token uses 128-bit Base58 length`() = runSuspendIO {
+        val lock = MongoSuspendLock(coroutineLockCollection, randomName())
+
+        lock.token.length shouldBeEqualTo 22
+    }
 
     @Test
     fun `runIfLeader - 리더로 선출되어 suspend action을 실행하고 결과를 반환한다`() = runSuspendIO {
