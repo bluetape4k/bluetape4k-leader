@@ -95,7 +95,7 @@ class ExposedJdbcLeaderElector private constructor(
      * - 리더 획득에 성공하면 [action] 결과를 반환합니다.
      * - 리더 획득에 실패하면 `null`을 반환합니다 (예외 없음 — ShedLock 호환 skip-on-contention 계약).
      * - [action]이 [CancellationException] 또는 [InterruptedException]을 던지면 rethrow합니다.
-     * - [action]이 다른 예외를 던지면 `null`을 반환합니다 (이력 기록 후 삼킴).
+     * - [action]이 다른 예외를 던지면 FAILED 이력 기록 후 `null`을 반환합니다.
      * - 락은 정상/예외 어느 경로에서도 항상 해제됩니다.
      *
      * @param lockName 락 식별자 (영숫자/하이픈/언더스코어/콜론, 1-255자)
