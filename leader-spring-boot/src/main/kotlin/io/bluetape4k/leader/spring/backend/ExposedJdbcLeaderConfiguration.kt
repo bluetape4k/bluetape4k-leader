@@ -49,10 +49,12 @@ class ExposedJdbcLeaderConfiguration {
     fun exposedJdbcLeaderGroupElector(
         db: Database,
         props: LeaderProperties,
+        recorderProvider: ObjectProvider<SafeLeaderHistoryRecorder>,
     ): ExposedJdbcLeaderGroupElector =
         ExposedJdbcLeaderGroupElector(
             db,
             ExposedJdbcLeaderGroupElectionOptions(leaderGroupOptions = PropertiesAdapter.toCommonGroup(props)),
+            recorderProvider.ifAvailable,
         )
 
     @Bean

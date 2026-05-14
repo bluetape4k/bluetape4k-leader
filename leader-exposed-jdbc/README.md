@@ -145,7 +145,6 @@ val options = ExposedJdbcLeaderElectionOptions(
         leaseTime = 1.minutes
     ),
     retryStrategy = RetryStrategy.Jitter(baseDelayMs = 50),
-    recordHistory = true,
     lockOwner = "node-1"
 )
 val election = ExposedJdbcLeaderElector(db, options)
@@ -188,7 +187,13 @@ Each variant validates its parameters at construction:
 
 ## History Recording
 
-When `recordHistory = true` (default: `false`), each election attempt writes to `LeaderLockHistoryTable`:
+Pass a `SafeLeaderHistoryRecorder` to the elector to enable audit history in `LeaderLockHistoryTable`:
+
+```kotlin
+val sink = ExposedLeaderHistorySink(db)
+val recorder = SafeLeaderHistoryRecorder(sink)
+val election = ExposedJdbcLeaderElector(db, options, recorder)
+```
 
 | Status | When |
 |--------|------|

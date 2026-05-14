@@ -9,7 +9,7 @@ import kotlin.time.toKotlinDuration
  * [LeaderProperties] → 백엔드별 Options 변환 어댑터.
  *
  * 각 백엔드(Mongo, Exposed JDBC/R2DBC)는 자체 옵션 클래스를 갖지만, v1.0에서는 공통 속성만 노출하며
- * 백엔드 고유 옵션(`retryDelay`, `retryStrategy`, `recordHistory`, `lockOwner`)은 기본값을 사용합니다.
+ * 백엔드 고유 옵션(`retryDelay`, `retryStrategy`, `lockOwner`)은 기본값을 사용합니다.
  *
  * 백엔드 고유 옵션 노출은 후속 이슈로 분리됩니다.
  */
