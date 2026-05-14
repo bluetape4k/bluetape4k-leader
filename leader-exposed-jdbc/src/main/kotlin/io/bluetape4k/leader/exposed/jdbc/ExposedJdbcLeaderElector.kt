@@ -94,16 +94,14 @@ class ExposedJdbcLeaderElector private constructor(
      *
      * - 리더 획득에 성공하면 [action] 결과를 반환합니다.
      * - 리더 획득에 실패하면 `null`을 반환합니다 (예외 없음 — ShedLock 호환 skip-on-contention 계약).
-     * - [action]이 [CancellationException] 또는 [InterruptedException]을 던지면 rethrow합니다.
-     * - [action]이 다른 예외를 던지면 FAILED 이력 기록 후 `null`을 반환합니다.
+     * - [action]이 예외를 던지면 FAILED 이력 기록 후 예외를 그대로 재던집니다.
      * - 락은 정상/예외 어느 경로에서도 항상 해제됩니다.
      *
      * @param lockName 락 식별자 (영숫자/하이픈/언더스코어/콜론, 1-255자)
      * @param action 리더 획득 성공 시 실행할 작업
-     * @return [action] 결과 또는 `null`
+     * @return [action] 결과 또는 `null` (리더 획득 실패 시)
      * @throws IllegalArgumentException [lockName]이 유효하지 않은 경우
-     * @throws CancellationException action이 CancellationException을 던진 경우
-     * @throws InterruptedException action이 InterruptedException을 던진 경우
+     * @throws Exception [action]이 던진 예외 (FAILED 이력 기록 후 재전파)
      */
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         validateExposedLockName(lockName)
@@ -170,8 +168,7 @@ class ExposedJdbcLeaderElector private constructor(
                 val finishedAt = Instant.now()
                 val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
                 effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
-                log.warn(e) { "액션 실패 — null 반환 (이력 기록됨). lockName=$lockName" }
-                null
+                throw e
             }
         } finally {
             watchdog.close()

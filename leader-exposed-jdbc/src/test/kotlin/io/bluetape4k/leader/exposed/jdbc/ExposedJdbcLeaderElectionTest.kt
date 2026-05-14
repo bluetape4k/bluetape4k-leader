@@ -129,17 +129,17 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
-    fun `runIfLeader - action 예외 발생 시 null을 반환하고 락 행이 삭제된다`(testDB: TestDB) {
+    fun `runIfLeader - action 예외 발생 시 예외가 재전파되고 락 행이 삭제된다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
         val lockName = randomName()
         val election = ExposedJdbcLeaderElector(db)
 
-        // Breaking change: action exceptions are now swallowed and null is returned (issue #50)
-        val result = election.runIfLeader(lockName) {
-            throw LeaderElectionException("테스트 예외")
+        assertFailsWith<LeaderElectionException> {
+            election.runIfLeader(lockName) {
+                throw LeaderElectionException("테스트 예외")
+            }
         }
-        result.shouldBeNull()
 
         val rowCount = transaction(db) {
             LeaderLockTable.selectAll()
@@ -226,7 +226,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
-    fun `runIfLeader - historyRecorder 사용 시 action 실패 후 FAILED 이력이 기록된다`(testDB: TestDB) {
+    fun `runIfLeader - historyRecorder 사용 시 action 실패 후 예외가 재전파되고 FAILED 이력이 기록된다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
         val lockName = randomName()
@@ -240,9 +240,9 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         )
         val election = ExposedJdbcLeaderElector(db, options, recorder)
 
-        // Breaking change: action exceptions are now swallowed (null returned)
-        val result = election.runIfLeader(lockName) { throw LeaderElectionException("fail") }
-        result.shouldBeNull()
+        assertFailsWith<LeaderElectionException> {
+            election.runIfLeader(lockName) { throw LeaderElectionException("fail") }
+        }
 
         val rows = transaction(db) {
             LeaderLockHistoryTable.selectAll()
