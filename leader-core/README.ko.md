@@ -17,22 +17,27 @@ classDiagram
     class AsyncLeaderElector {
         <<interface>>
         +runAsyncIfLeader(lockName, action) CompletableFuture~T?~
+        +runAsyncIfLeaderResult(slot, action) CompletableFuture~LeaderRunResult~
     }
     class LeaderElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
+        +runIfLeaderResult(lockName, action) LeaderRunResult
     }
     class VirtualThreadLeaderElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
+        +runAsyncIfLeaderResult(slot, action) VirtualFuture~LeaderRunResult~
     }
     class SuspendLeaderElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
+        +runIfLeaderResultSuspend(lockName, action) LeaderRunResult
     }
     class AsyncLeaderGroupElector {
         <<interface>>
         +runAsyncIfLeader(lockName, action) CompletableFuture~T?~
+        +runAsyncIfLeaderResult(slot, action) CompletableFuture~LeaderRunResult~
         +state(lockName) LeaderGroupState
         +activeCount(lockName) Int
         +availableSlots(lockName) Int
@@ -40,10 +45,12 @@ classDiagram
     class LeaderGroupElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
+        +runIfLeaderResult(lockName, action) LeaderRunResult
     }
     class SuspendLeaderGroupElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
+        +runIfLeaderResultSuspend(lockName, action) LeaderRunResult
     }
 
     LeaderElector --|> AsyncLeaderElector
@@ -61,6 +68,28 @@ classDiagram
 - `waitTime` 내 획득 실패: **`null`** 반환 (경쟁 상황에서 예외를 던지지 않음)
 - `action` 내부에서 발생한 예외는 호출자에게 전파됩니다
 - `action` 완료 후 (또는 예외 발생 시) 락이 해제됩니다
+
+### `runIfLeaderResult*`: 명시적 실행 결과
+
+`null`이 정상 action 결과일 수 있거나, 경쟁으로 실행되지 않은 경우와 action 실패를 구분해야 하면 result API를 사용하세요.
+
+```kotlin
+when (val result = election.runIfLeaderResult("daily-job") { computeOrNull() }) {
+    is LeaderRunResult.Elected -> use(result.value)       // action 실행됨, value 는 null 가능
+    LeaderRunResult.Skipped -> recordContention()         // action 실행 안 됨
+    is LeaderRunResult.ActionFailed -> report(result.cause)
+}
+```
+
+`LeaderRunResult`는 세 상태를 가집니다.
+
+- `Elected(value, leaderId?)`: 락 또는 슬롯을 획득했고 action이 완료됨.
+- `Skipped`: 락 또는 슬롯을 획득하지 못해 action이 실행되지 않음.
+- `ActionFailed(cause)`: 락 또는 슬롯을 획득하고 action이 시작됐지만 실행 중 실패함.
+
+Result API는 `CancellationException`을 `ActionFailed`로 변환하지 않습니다. 동기/코루틴 API는 재전파하고,
+async/가상 스레드 API는 예외 완료됩니다(`join()`에서는 cancellation을 감싼 `CompletionException`을
+기대하세요. `isCancelled()` 보장은 아닙니다). 동기 API는 `InterruptedException`도 interrupt flag를 복원한 뒤 재전파합니다.
 
 ### 선출 생명주기 listener
 

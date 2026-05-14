@@ -17,22 +17,27 @@ classDiagram
     class AsyncLeaderElector {
         <<interface>>
         +runAsyncIfLeader(lockName, action) CompletableFuture~T?~
+        +runAsyncIfLeaderResult(slot, action) CompletableFuture~LeaderRunResult~
     }
     class LeaderElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
+        +runIfLeaderResult(lockName, action) LeaderRunResult
     }
     class VirtualThreadLeaderElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
+        +runAsyncIfLeaderResult(slot, action) VirtualFuture~LeaderRunResult~
     }
     class SuspendLeaderElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
+        +runIfLeaderResultSuspend(lockName, action) LeaderRunResult
     }
     class AsyncLeaderGroupElector {
         <<interface>>
         +runAsyncIfLeader(lockName, action) CompletableFuture~T?~
+        +runAsyncIfLeaderResult(slot, action) CompletableFuture~LeaderRunResult~
         +state(lockName) LeaderGroupState
         +activeCount(lockName) Int
         +availableSlots(lockName) Int
@@ -40,10 +45,12 @@ classDiagram
     class LeaderGroupElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
+        +runIfLeaderResult(lockName, action) LeaderRunResult
     }
     class SuspendLeaderGroupElector {
         <<interface>>
         +runIfLeader(lockName, action) T?
+        +runIfLeaderResultSuspend(lockName, action) LeaderRunResult
     }
 
     LeaderElector --|> AsyncLeaderElector
@@ -61,6 +68,30 @@ classDiagram
 - If not acquired within `waitTime`: returns **`null`** (never throws on contention)
 - Exceptions from `action` are propagated to the caller
 - Lock is released after `action` completes (or on exception)
+
+### `runIfLeaderResult*`: explicit execution outcome
+
+Use result APIs when `null` is a valid action value or when callers need to distinguish contention from
+action failure:
+
+```kotlin
+when (val result = election.runIfLeaderResult("daily-job") { computeOrNull() }) {
+    is LeaderRunResult.Elected -> use(result.value)       // action ran; value may be null
+    LeaderRunResult.Skipped -> recordContention()         // action did not run
+    is LeaderRunResult.ActionFailed -> report(result.cause)
+}
+```
+
+`LeaderRunResult` has three states:
+
+- `Elected(value, leaderId?)`: lock or slot was acquired and the action completed.
+- `Skipped`: lock or slot was not acquired, so the action was not executed.
+- `ActionFailed(cause)`: lock or slot was acquired and the action started, but it failed.
+
+Result APIs never convert `CancellationException` into `ActionFailed`. Blocking and coroutine APIs rethrow it;
+async and virtual-thread APIs complete exceptionally instead (for `join()`, expect `CompletionException`
+wrapping the cancellation; `isCancelled()` is not guaranteed). Blocking APIs also rethrow
+`InterruptedException` after restoring the interrupt flag.
 
 ### Election lifecycle listeners
 

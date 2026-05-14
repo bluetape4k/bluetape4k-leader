@@ -80,7 +80,22 @@ class LettuceLeaderElector @JvmOverloads constructor(
 
     override fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
         var elected = false
-        val value = runImpl(slot.lockName, auditLeaderId = slot.leaderId) { elected = true; action() }
+        val value = try {
+            runImpl(slot.lockName, auditLeaderId = slot.leaderId) {
+                elected = true
+                action()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw e
+        } catch (e: Exception) {
+            if (elected) {
+                return LeaderRunResult.ActionFailed(e)
+            }
+            throw e
+        }
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
 
@@ -219,4 +234,3 @@ class LettuceLeaderElector @JvmOverloads constructor(
         }
     }
 }
-

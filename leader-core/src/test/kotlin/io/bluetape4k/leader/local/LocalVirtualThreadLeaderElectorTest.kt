@@ -4,12 +4,18 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CancellationException
+import java.util.concurrent.CompletionException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -73,6 +79,31 @@ class LocalVirtualThreadLeaderElectorTest {
             .join()
 
         result shouldBeEqualTo 42
+    }
+
+    @Test
+    fun `runAsyncIfLeaderResult - action 실패는 ActionFailed 로 분류한다`() {
+        val failure = IllegalStateException("virtual-boom")
+
+        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "virtual-node")) {
+            throw failure
+        }.await()
+
+        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
+        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+    }
+
+    @Test
+    fun `runAsyncIfLeaderResult - CancellationException 은 ActionFailed 로 감싸지 않는다`() {
+        val cancellation = CancellationException("virtual-cancelled")
+
+        val thrown = assertFailsWith<CompletionException> {
+            election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "virtual-node")) {
+                throw cancellation
+            }.toCompletableFuture().join()
+        }
+
+        thrown.cause shouldBeInstanceOf CancellationException::class
     }
 
     @Test

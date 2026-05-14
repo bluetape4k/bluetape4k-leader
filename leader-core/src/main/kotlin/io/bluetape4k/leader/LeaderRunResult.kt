@@ -1,6 +1,7 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.logging.KLogging
+import java.io.Serializable
 
 /**
  * Result type of [LeaderElector.runIfLeaderResult] / [LeaderGroupElector.runIfLeaderResult].
@@ -13,8 +14,23 @@ import io.bluetape4k.logging.KLogging
  * ## States
  * - [Elected]: leader election succeeded — action was executed. Even if action returned null, [Elected] is returned.
  * - [Skipped]: leader election failed — action was not executed because the lock was not acquired.
+ * - [ActionFailed]: leader election succeeded, but the action failed while it was running.
+ *
+ * ## Cancellation
+ * Result APIs must not wrap `CancellationException` as [ActionFailed]. Blocking and suspend APIs rethrow it;
+ * async and virtual-thread APIs complete exceptionally instead of returning [ActionFailed].
+ * Blocking APIs also rethrow `InterruptedException` after restoring the interrupt flag.
+ *
+ * ## Usage
+ * ```kotlin
+ * when (val result = election.runIfLeaderResult("daily-job") { runJob() }) {
+ *     is LeaderRunResult.Elected -> process(result.value)
+ *     LeaderRunResult.Skipped -> log.info { "Skipped because another leader is active." }
+ *     is LeaderRunResult.ActionFailed -> log.warn(result.cause) { "Leader action failed." }
+ * }
+ * ```
  */
-sealed interface LeaderRunResult<out T> {
+sealed interface LeaderRunResult<out T>: Serializable {
 
     companion object : KLogging()
 
@@ -44,8 +60,24 @@ sealed interface LeaderRunResult<out T> {
     data class Elected<out T> @JvmOverloads constructor(
         val value: T?,
         val leaderId: String? = null,
-    ) : LeaderRunResult<T>
+    ) : LeaderRunResult<T> {
+        companion object {
+            private const val serialVersionUID: Long = 5711634040242986115L
+        }
+    }
 
     /** Leader election failed — action was not executed because the lock was not acquired. */
     data object Skipped : LeaderRunResult<Nothing>
+
+    /**
+     * Leader election succeeded, but the action failed while it was running.
+     *
+     * [cause] is an application/action failure. Implementations must propagate `CancellationException`
+     * directly and must not wrap it as [ActionFailed].
+     */
+    data class ActionFailed(val cause: Throwable) : LeaderRunResult<Nothing> {
+        companion object {
+            private const val serialVersionUID: Long = -1428070323206111594L
+        }
+    }
 }

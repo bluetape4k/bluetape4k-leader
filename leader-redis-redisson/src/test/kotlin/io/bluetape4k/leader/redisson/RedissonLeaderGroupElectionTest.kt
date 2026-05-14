@@ -6,6 +6,8 @@ import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.assertions.shouldBeEqualTo
@@ -20,6 +22,7 @@ import org.junit.jupiter.api.condition.JRE
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -78,6 +81,30 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
+    }
+
+    @Test
+    fun `runIfLeaderResult - action 실패는 ActionFailed 로 분류한다`() {
+        val failure = LeaderGroupElectionException("redisson-group-result-boom")
+
+        val result = election.runIfLeaderResult(LeaderSlot(randomName(), "redisson-group-node")) {
+            throw failure
+        }
+
+        result shouldBeEqualTo LeaderRunResult.ActionFailed(failure)
+    }
+
+    @Test
+    fun `runIfLeaderResult - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() {
+        val cancellation = CancellationException("redisson-group-cancelled")
+
+        val thrown = assertFailsWith<CancellationException> {
+            election.runIfLeaderResult<Any?>(LeaderSlot(randomName(), "redisson-group-node")) {
+                throw cancellation
+            }
+        }
+
+        thrown shouldBeEqualTo cancellation
     }
 
     @Test

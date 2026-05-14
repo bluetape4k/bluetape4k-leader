@@ -1,6 +1,7 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderGroupElector
 import io.bluetape4k.logging.KLogging
@@ -9,6 +10,7 @@ import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import java.util.concurrent.CancellationException
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderRunResultTest {
@@ -39,6 +41,38 @@ class LeaderRunResultTest {
     }
 
     @Test
+    fun `runIfLeaderResult - action 실패는 ActionFailed 로 분류`() {
+        val failure = IllegalStateException("boom")
+        val result = election.runIfLeaderResult<Any?>(randomLockName()) { throw failure }
+
+        result shouldBeInstanceOf LeaderRunResult.ActionFailed::class
+        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+    }
+
+    @Test
+    fun `runIfLeaderResult - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() {
+        val cancellation = CancellationException("cancelled")
+
+        val thrown = assertFailsWith<CancellationException> {
+            election.runIfLeaderResult<Any?>(randomLockName()) { throw cancellation }
+        }
+
+        thrown shouldBeEqualTo cancellation
+    }
+
+    @Test
+    fun `runIfLeaderResult - InterruptedException 은 interrupt flag 복원 후 재전파한다`() {
+        val interrupted = InterruptedException("interrupted")
+
+        val thrown = assertFailsWith<InterruptedException> {
+            election.runIfLeaderResult<Any?>(randomLockName()) { throw interrupted }
+        }
+
+        thrown shouldBeEqualTo interrupted
+        Thread.interrupted() shouldBeEqualTo true
+    }
+
+    @Test
     fun `runIfLeaderResult - 정수 결과도 Elected 로 반환`() {
         val result = election.runIfLeaderResult(randomLockName()) { 42 }
 
@@ -52,6 +86,7 @@ class LeaderRunResultTest {
         val output = when (result) {
             is LeaderRunResult.Elected -> result.value
             is LeaderRunResult.Skipped -> null
+            is LeaderRunResult.ActionFailed -> result.cause.message
         }
         output shouldBeEqualTo "value"
     }
@@ -72,6 +107,38 @@ class LeaderRunResultTest {
 
         result shouldBeInstanceOf LeaderRunResult.Elected::class
         (result as LeaderRunResult.Elected).value.shouldBeNull()
+    }
+
+    @Test
+    fun `group runIfLeaderResult - action 실패는 ActionFailed 로 분류`() {
+        val failure = IllegalArgumentException("group-boom")
+        val result = groupElection.runIfLeaderResult<Any?>(randomLockName()) { throw failure }
+
+        result shouldBeInstanceOf LeaderRunResult.ActionFailed::class
+        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+    }
+
+    @Test
+    fun `group runIfLeaderResult - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() {
+        val cancellation = CancellationException("group-cancelled")
+
+        val thrown = assertFailsWith<CancellationException> {
+            groupElection.runIfLeaderResult<Any?>(randomLockName()) { throw cancellation }
+        }
+
+        thrown shouldBeEqualTo cancellation
+    }
+
+    @Test
+    fun `group runIfLeaderResult - InterruptedException 은 interrupt flag 복원 후 재전파한다`() {
+        val interrupted = InterruptedException("group-interrupted")
+
+        val thrown = assertFailsWith<InterruptedException> {
+            groupElection.runIfLeaderResult<Any?>(randomLockName()) { throw interrupted }
+        }
+
+        thrown shouldBeEqualTo interrupted
+        Thread.interrupted() shouldBeEqualTo true
     }
 
     // --- data class / object 특성 ---
@@ -133,5 +200,14 @@ class LeaderRunResultTest {
         val updated = orig.copy(leaderId = "node-b")
         updated.leaderId shouldBeEqualTo "node-b"
         updated.value shouldBeEqualTo "v"
+    }
+
+    @Test
+    fun `ActionFailed - cause 로 equals 비교`() {
+        val cause = IllegalStateException("failed")
+        val a = LeaderRunResult.ActionFailed(cause)
+        val b = LeaderRunResult.ActionFailed(cause)
+
+        a shouldBeEqualTo b
     }
 }

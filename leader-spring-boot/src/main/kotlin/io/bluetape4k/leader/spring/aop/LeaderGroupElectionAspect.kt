@@ -171,6 +171,7 @@ class LeaderGroupElectionAspect(
                     }
                     runResult.value
                 }
+                is LeaderRunResult.ActionFailed -> throw BodyThrownMarker(runResult.cause)
             }
         } catch (e: CancellationException) {
             throw e

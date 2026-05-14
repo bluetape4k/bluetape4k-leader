@@ -4,6 +4,7 @@ import io.bluetape4k.leader.LeaderGroupElectionState
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * 코루틴 기반 복수 리더 선출 계약을 정의합니다.
@@ -59,6 +60,8 @@ interface SuspendLeaderGroupElector: LeaderGroupElectionState {
      * ## 동작/계약
      * - 슬롯 획득 성공 → [LeaderRunResult.Elected]`(value)` — `value` 는 action 반환값 (null 가능)
      * - 슬롯 미획득 → [LeaderRunResult.Skipped]
+     * - action 실행 실패 → [LeaderRunResult.ActionFailed]
+     * - `CancellationException` 은 [LeaderRunResult.ActionFailed] 로 감싸지 않고 재전파
      * - `elected: Boolean` flag 패턴으로 정확 분류 (action 이 null 반환해도 [LeaderRunResult.Elected])
      *
      * ## binary-compat (Step 2-R R3-F3)
@@ -70,6 +73,7 @@ interface SuspendLeaderGroupElector: LeaderGroupElectionState {
      * when (result) {
      *     is LeaderRunResult.Elected -> println("elected, value=${result.value}")
      *     LeaderRunResult.Skipped   -> println("slot full — skipped")
+     *     is LeaderRunResult.ActionFailed -> println("action failed: ${result.cause.message}")
      * }
      * ```
      *
@@ -82,7 +86,19 @@ interface SuspendLeaderGroupElector: LeaderGroupElectionState {
         action: suspend () -> T,
     ): LeaderRunResult<T> {
         var elected = false
-        val value = runIfLeader(lockName) { elected = true; action() }
+        val value = try {
+            runIfLeader(lockName) {
+                elected = true
+                action()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (elected) {
+                return LeaderRunResult.ActionFailed(e)
+            }
+            throw e
+        }
         return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
     }
 
@@ -123,9 +139,18 @@ interface SuspendLeaderGroupElector: LeaderGroupElectionState {
     ): LeaderRunResult<T> {
         LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         var elected = false
-        val value = runIfLeader(slot.lockName) {
-            elected = true
-            action()
+        val value = try {
+            runIfLeader(slot.lockName) {
+                elected = true
+                action()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (elected) {
+                return LeaderRunResult.ActionFailed(e)
+            }
+            throw e
         }
         return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
     }

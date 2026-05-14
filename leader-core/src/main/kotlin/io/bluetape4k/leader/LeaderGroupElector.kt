@@ -1,6 +1,7 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
+import java.util.concurrent.CancellationException
 
 /**
  * Semaphore 기반 복수 리더 선출 계약을 정의합니다.
@@ -56,17 +57,33 @@ interface LeaderGroupElector: AsyncLeaderGroupElector {
      * action()이 null을 반환해도 [LeaderRunResult.Elected]로 구분되고,
      * 슬롯 미획득은 [LeaderRunResult.Skipped]로 구분됩니다.
      *
-     * NOTE: 동기 [LeaderGroupElector] 전용입니다.
-     * `SuspendLeaderGroupElector` / `AsyncLeaderGroupElector` 의 동등 메서드는
-     * v1.x 후속 이슈에서 추가 예정입니다.
+     * 동등 result API는 coroutine/async/virtual-thread group elector에도 제공됩니다.
+     * `CancellationException`은 [LeaderRunResult.ActionFailed]로 감싸지 않고 호출자에게 전파됩니다.
+     * `InterruptedException`은 interrupt flag를 복원한 뒤 재전파합니다.
      *
      * @param lockName 리더 그룹 선출에 사용할 락 이름
      * @param action 슬롯 획득 성공 시 실행할 동기 작업
-     * @return [LeaderRunResult.Elected] (action 실행됨) 또는 [LeaderRunResult.Skipped] (슬롯 미획득)
+     * @return [LeaderRunResult.Elected] (action 실행됨), [LeaderRunResult.Skipped] (슬롯 미획득),
+     *   또는 [LeaderRunResult.ActionFailed] (action 실패)
      */
     fun <T> runIfLeaderResult(lockName: String, action: () -> T): LeaderRunResult<T> {
         var elected = false
-        val value = runIfLeader(lockName) { elected = true; action() }
+        val value = try {
+            runIfLeader(lockName) {
+                elected = true
+                action()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw e
+        } catch (e: Exception) {
+            if (elected) {
+                return LeaderRunResult.ActionFailed(e)
+            }
+            throw e
+        }
         return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
     }
 
@@ -97,12 +114,28 @@ interface LeaderGroupElector: AsyncLeaderGroupElector {
      *
      * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
      * @param action the action to run when a slot is acquired.
-     * @return [LeaderRunResult.Elected] (action ran) or [LeaderRunResult.Skipped] (no slot acquired).
+     * @return [LeaderRunResult.Elected] (action ran), [LeaderRunResult.Skipped] (no slot acquired),
+     *   or [LeaderRunResult.ActionFailed] (action failed).
      */
     fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
         LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)
         var elected = false
-        val value = runIfLeader(slot.lockName) { elected = true; action() }
+        val value = try {
+            runIfLeader(slot.lockName) {
+                elected = true
+                action()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw e
+        } catch (e: Exception) {
+            if (elected) {
+                return LeaderRunResult.ActionFailed(e)
+            }
+            throw e
+        }
         return if (elected) LeaderRunResult.Elected(value) else LeaderRunResult.Skipped
     }
 }

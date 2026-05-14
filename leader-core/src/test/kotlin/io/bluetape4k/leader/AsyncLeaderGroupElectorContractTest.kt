@@ -4,12 +4,16 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.local.LocalAsyncLeaderGroupElector
 import io.bluetape4k.leader.local.LocalLeaderGroupElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -67,6 +71,33 @@ class AsyncLeaderGroupElectorContractTest {
             CompletableFuture.completedFuture("복구")
         }.join()
         result shouldBeEqualTo "복구"
+    }
+
+    @Test
+    fun `runAsyncIfLeaderResult - action future 실패는 ActionFailed 로 분류한다`() {
+        val election: AsyncLeaderGroupElector = LocalAsyncLeaderGroupElector(options)
+        val failure = IllegalStateException("async-group-boom")
+
+        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "async-group-node")) {
+            CompletableFuture.failedFuture<Any?>(failure)
+        }.join()
+
+        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
+        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+    }
+
+    @Test
+    fun `runAsyncIfLeaderResult - CancellationException 은 ActionFailed 로 감싸지 않는다`() {
+        val election: AsyncLeaderGroupElector = LocalAsyncLeaderGroupElector(options)
+        val cancellation = CancellationException("async-group-cancelled")
+
+        val thrown = assertFailsWith<CompletionException> {
+            election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "async-group-node")) {
+                CompletableFuture.failedFuture<Any?>(cancellation)
+            }.join()
+        }
+
+        thrown.cause shouldBeInstanceOf CancellationException::class
     }
 
     // ── 상태 조회 (LeaderGroupElectionState 상속) ─────────────────────────
@@ -150,5 +181,18 @@ class AsyncLeaderGroupElectorContractTest {
             CompletableFuture.completedFuture(42)
         }.join()
         result shouldBeEqualTo 42
+    }
+
+    @Test
+    fun `runAsyncIfLeaderResult - LocalLeaderGroupElector default bridge 도 ActionFailed 를 반환한다`() {
+        val election: AsyncLeaderGroupElector = LocalLeaderGroupElector(options)
+        val failure = IllegalArgumentException("group-bridge-boom")
+
+        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "group-bridge-node")) {
+            CompletableFuture.failedFuture<Any?>(failure)
+        }.join()
+
+        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
+        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
     }
 }

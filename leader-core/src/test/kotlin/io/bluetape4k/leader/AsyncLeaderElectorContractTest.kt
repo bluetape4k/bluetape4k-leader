@@ -5,9 +5,11 @@ import io.bluetape4k.leader.local.LocalAsyncLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executors
@@ -72,6 +74,33 @@ class AsyncLeaderElectorContractTest {
     }
 
     @Test
+    fun `runAsyncIfLeaderResult - action future 실패는 ActionFailed 로 분류한다`() {
+        val election: AsyncLeaderElector = LocalAsyncLeaderElector()
+        val failure = IllegalStateException("async-boom")
+
+        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "async-node")) {
+            CompletableFuture.failedFuture<Any?>(failure)
+        }.join()
+
+        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
+        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+    }
+
+    @Test
+    fun `runAsyncIfLeaderResult - CancellationException 은 ActionFailed 로 감싸지 않는다`() {
+        val election: AsyncLeaderElector = LocalAsyncLeaderElector()
+        val cancellation = CancellationException("async-cancelled")
+
+        val thrown = assertFailsWith<CompletionException> {
+            election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "async-node")) {
+                CompletableFuture.failedFuture<Any?>(cancellation)
+            }.join()
+        }
+
+        thrown.cause shouldBeInstanceOf CancellationException::class
+    }
+
+    @Test
     fun `runAsyncIfLeader - 커스텀 executor 를 사용할 수 있다`() {
         val election: AsyncLeaderElector = LocalAsyncLeaderElector()
         val executor = Executors.newSingleThreadExecutor()
@@ -94,6 +123,19 @@ class AsyncLeaderElectorContractTest {
             CompletableFuture.completedFuture(99)
         }.join()
         result shouldBeEqualTo 99
+    }
+
+    @Test
+    fun `runAsyncIfLeaderResult - LocalLeaderElector default bridge 도 ActionFailed 를 반환한다`() {
+        val election: AsyncLeaderElector = LocalLeaderElector()
+        val failure = IllegalArgumentException("bridge-boom")
+
+        val result = election.runAsyncIfLeaderResult(LeaderSlot(randomLockName(), "bridge-node")) {
+            CompletableFuture.failedFuture<Any?>(failure)
+        }.join()
+
+        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
+        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
     }
 
     @Test

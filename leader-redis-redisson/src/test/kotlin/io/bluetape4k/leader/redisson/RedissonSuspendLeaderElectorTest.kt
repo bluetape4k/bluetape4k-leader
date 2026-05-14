@@ -2,21 +2,26 @@ package io.bluetape4k.leader.redisson
 
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
-import kotlin.time.Duration.Companion.milliseconds
 
 class RedissonSuspendLeaderElectorTest: AbstractRedissonLeaderTest() {
 
@@ -101,6 +106,38 @@ class RedissonSuspendLeaderElectorTest: AbstractRedissonLeaderTest() {
             }
         }
     }
+
+    @Test
+    fun `runIfLeaderResultSuspend - action 실패는 ActionFailed 로 분류한다`() = runSuspendIO {
+        val lockName = randomName()
+        val leaderElection = RedissonSuspendLeaderElector(redissonClient)
+        val failure = IllegalStateException("redisson-suspend-result-boom")
+
+        val result = leaderElection.runIfLeaderResultSuspend(LeaderSlot(lockName, "redisson-suspend-node")) {
+            throw failure
+        }
+
+        (result is LeaderRunResult.ActionFailed).shouldBeTrue()
+        val cause = (result as LeaderRunResult.ActionFailed).cause
+        cause.shouldBeInstanceOf<IllegalStateException>()
+        cause.message shouldBeEqualTo failure.message
+    }
+
+    @Test
+    fun `runIfLeaderResultSuspend - CancellationException 은 ActionFailed 로 감싸지 않고 재전파한다`() =
+        runSuspendIO {
+            val lockName = randomName()
+            val leaderElection = RedissonSuspendLeaderElector(redissonClient)
+            val cancellation = CancellationException("redisson-suspend-cancelled")
+
+            val thrown = assertFailsWith<CancellationException> {
+                leaderElection.runIfLeaderResultSuspend<Any?>(LeaderSlot(lockName, "redisson-suspend-node")) {
+                    throw cancellation
+                }
+            }
+
+            thrown.message shouldBeEqualTo cancellation.message
+        }
 
     /**
      * [SuspendedJobTester]를 사용하여 짧은 `waitTime` 환경에서 여러 코루틴이 동시에

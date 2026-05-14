@@ -31,6 +31,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * 코루틴 [Semaphore]를 이용한 로컬(단일 JVM) suspend 복수 리더 선출 구현체입니다.
@@ -200,13 +201,22 @@ class LocalSuspendLeaderGroupElector private constructor(
         action: suspend () -> T,
     ): LeaderRunResult<T> {
         var elected = false
-        val value = tryWithPermit(
-            lockName = slot.lockName,
-            auditLeaderId = slot.leaderId,
-            nodeId = options.nodeId,
-        ) {
-            elected = true
-            action()
+        val value = try {
+            tryWithPermit(
+                lockName = slot.lockName,
+                auditLeaderId = slot.leaderId,
+                nodeId = options.nodeId,
+            ) {
+                elected = true
+                action()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (elected) {
+                return LeaderRunResult.ActionFailed(e)
+            }
+            throw e
         }
         return if (elected) LeaderRunResult.Elected(value, leaderId = slot.leaderId) else LeaderRunResult.Skipped
     }
