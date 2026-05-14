@@ -149,7 +149,7 @@ class ExposedJdbcLeaderElector private constructor(
                 nodeId = options.lockOwner,
             )
         }
-        val key = record?.let { historyRecorder?.recordAcquired(it) }
+        val key = record?.let { historyRecorder.recordAcquired(it) }
         val effectiveKey: LeaderHistoryKey? =
             key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = lock.token) }
 
@@ -228,7 +228,7 @@ class ExposedJdbcLeaderElector private constructor(
                             nodeId = options.lockOwner,
                         )
                     }
-                    val key = record?.let { historyRecorder?.recordAcquired(it) }
+                    val key = record?.let { historyRecorder.recordAcquired(it) }
                     val effectiveKey: LeaderHistoryKey? =
                         key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = lock.token) }
 

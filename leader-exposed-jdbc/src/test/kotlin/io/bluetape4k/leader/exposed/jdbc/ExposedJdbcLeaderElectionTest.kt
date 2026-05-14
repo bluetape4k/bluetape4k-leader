@@ -139,7 +139,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val result = election.runIfLeader(lockName) {
             throw LeaderElectionException("테스트 예외")
         }
-        result shouldBeNull()
+        result.shouldBeNull()
 
         val rowCount = transaction(db) {
             LeaderLockTable.selectAll()
@@ -242,7 +242,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
 
         // Breaking change: action exceptions are now swallowed (null returned)
         val result = election.runIfLeader(lockName) { throw LeaderElectionException("fail") }
-        result shouldBeNull()
+        result.shouldBeNull()
 
         val rows = transaction(db) {
             LeaderLockHistoryTable.selectAll()
@@ -309,7 +309,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
         val result = election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
             throw IllegalStateException("action 동기 예외")
         }.get(5, TimeUnit.SECONDS)
-        result shouldBeNull()
+        result.shouldBeNull()
 
         // 락이 해제되어 다음 호출이 성공해야 함
         val next = election.runIfLeader(lockName) { "복구 성공" }

@@ -11,7 +11,7 @@ import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcSuspendSlotExtend
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcGroupLock
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcSchemaInitializer
 import io.bluetape4k.leader.exposed.r2dbc.lock.validateExposedR2dbcLockName
-import io.bluetape4k.leader.exposed.tables.HistoryStatus
+import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
@@ -287,7 +287,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                     it[LeaderLockHistoryTable.token] = token
                     it[LeaderLockHistoryTable.slot] = slot
                     it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(options.leaderGroupOptions.leaseTime.inWholeMilliseconds)
-                    it[LeaderLockHistoryTable.status] = HistoryStatus.ACQUIRED.name
+                    it[LeaderLockHistoryTable.status] = LeaderHistoryStatus.ACQUIRED.name
                     it[LeaderLockHistoryTable.startedAt] = now
                 }[LeaderLockHistoryTable.id]
             }
@@ -298,17 +298,17 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     }
 
     private suspend fun recordCompleted(historyId: Long?, token: String, startedAt: Instant, slot: Int) =
-        recordFinished(historyId, token, startedAt, slot, HistoryStatus.COMPLETED)
+        recordFinished(historyId, token, startedAt, slot, LeaderHistoryStatus.COMPLETED)
 
     private suspend fun recordFailed(historyId: Long?, token: String, startedAt: Instant, slot: Int) =
-        recordFinished(historyId, token, startedAt, slot, HistoryStatus.FAILED)
+        recordFinished(historyId, token, startedAt, slot, LeaderHistoryStatus.FAILED)
 
     private suspend fun recordFinished(
         historyId: Long?,
         token: String,
         startedAt: Instant,
         slot: Int,
-        status: HistoryStatus,
+        status: LeaderHistoryStatus,
     ) {
         if (!options.recordHistory || historyId == null) return
         val finishedAt = Instant.now()

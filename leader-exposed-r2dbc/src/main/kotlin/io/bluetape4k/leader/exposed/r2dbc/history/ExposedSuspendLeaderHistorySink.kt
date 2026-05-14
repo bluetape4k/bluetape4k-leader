@@ -102,10 +102,12 @@ class ExposedSuspendLeaderHistorySink(
         errorType: String?,
         errorMessage: String?,
     ) {
+        val keyId = key.id
+        val keyHistoryId = key.historyId
         val updated = suspendTransaction(database) {
             when {
-                key.id != null -> LeaderLockHistoryTable.update(
-                    where = { LeaderLockHistoryTable.id eq key.id }
+                keyId != null -> LeaderLockHistoryTable.update(
+                    where = { LeaderLockHistoryTable.id eq keyId }
                 ) { row ->
                     row[LeaderLockHistoryTable.status] = status.name
                     row[LeaderLockHistoryTable.finishedAt] = finishedAt
@@ -114,7 +116,7 @@ class ExposedSuspendLeaderHistorySink(
                     row[LeaderLockHistoryTable.errorMessage] = errorMessage
                 }
 
-                key.historyId != null -> LeaderLockHistoryTable.update(
+                keyHistoryId != null -> LeaderLockHistoryTable.update(
                     where = { LeaderLockHistoryTable.token eq key.token }
                 ) { row ->
                     row[LeaderLockHistoryTable.status] = status.name

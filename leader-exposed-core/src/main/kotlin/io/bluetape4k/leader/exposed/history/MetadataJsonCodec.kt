@@ -20,7 +20,7 @@ package io.bluetape4k.leader.exposed.history
  * // map  == mapOf("env" to "prod", "region" to "us-east-1")
  * ```
  */
-internal object MetadataJsonCodec {
+object MetadataJsonCodec {
 
     /**
      * Encodes [map] to a compact JSON object string.
