@@ -44,10 +44,15 @@ class LeaderLeaseAutoExtenderLifecycle(
         synchronized(lifecycleLock) {
             if (registered.compareAndSet(false, true)) {
                 activeContextCount.incrementAndGet()
-                LeaderLeaseAutoExtender.configure(
-                    watchdogThreads = watchdogThreads ?: LeaderLeaseAutoExtender.watchdogThreadCount(),
-                    asyncExtend = watchdogAsyncExtend,
-                )
+                // Only configure when the user has explicitly set at least one non-default value.
+                // Skipping here when both are defaults avoids overwriting settings that were
+                // established by an earlier Spring context in the same JVM (multi-context safety).
+                if (watchdogThreads != null || watchdogAsyncExtend) {
+                    LeaderLeaseAutoExtender.configure(
+                        watchdogThreads = watchdogThreads ?: LeaderLeaseAutoExtender.watchdogThreadCount(),
+                        asyncExtend = watchdogAsyncExtend,
+                    )
+                }
             }
             LeaderLeaseAutoExtender.restart()
         }
