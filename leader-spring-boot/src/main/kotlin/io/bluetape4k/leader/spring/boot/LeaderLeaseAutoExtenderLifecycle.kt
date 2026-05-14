@@ -25,16 +25,26 @@ class LeaderLeaseAutoExtenderLifecycle : InitializingBean, DisposableBean {
 
     companion object {
         internal val activeContextCount = AtomicInteger(0)
+
+        // Guards the increment-then-restart / decrement-then-shutdown sequences so that
+        // a concurrent destroy() cannot slip in between a decrement reaching zero and the
+        // actual shutdown() call while another afterPropertiesSet() has already incremented
+        // the count back above zero.
+        private val lifecycleLock = Any()
     }
 
     override fun afterPropertiesSet() {
-        activeContextCount.incrementAndGet()
-        LeaderLeaseAutoExtender.restart()
+        synchronized(lifecycleLock) {
+            activeContextCount.incrementAndGet()
+            LeaderLeaseAutoExtender.restart()
+        }
     }
 
     override fun destroy() {
-        if (activeContextCount.decrementAndGet() == 0) {
-            LeaderLeaseAutoExtender.shutdown()
+        synchronized(lifecycleLock) {
+            if (activeContextCount.decrementAndGet() == 0) {
+                LeaderLeaseAutoExtender.shutdown()
+            }
         }
     }
 }
