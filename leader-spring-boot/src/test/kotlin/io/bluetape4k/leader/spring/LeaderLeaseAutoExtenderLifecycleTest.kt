@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring
 
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
@@ -38,13 +39,25 @@ class LeaderLeaseAutoExtenderLifecycleTest {
     }
 
     @Test
-    fun `destroy is idempotent — two afterPropertiesSet then two destroy`() {
+    fun `destroy is idempotent — repeated destroy does not underflow counter`() {
         val lifecycle = LeaderLeaseAutoExtenderLifecycle()
-        lifecycle.afterPropertiesSet()  // count = 1
-        lifecycle.afterPropertiesSet()  // count = 2
+        lifecycle.afterPropertiesSet()  // count = 1 (registered)
 
-        lifecycle.destroy()             // count = 1 → no shutdown
-        LeaderLeaseAutoExtender.isShutdown().shouldBeFalse()
+        lifecycle.destroy()             // count = 0 → shutdown
+        LeaderLeaseAutoExtender.isShutdown().shouldBeTrue()
+
+        // Second destroy must be a no-op; counter must not go negative.
+        lifecycle.destroy()
+        LeaderLeaseAutoExtenderLifecycle.activeContextCount.get() shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `afterPropertiesSet is idempotent — repeated call does not double-increment counter`() {
+        val lifecycle = LeaderLeaseAutoExtenderLifecycle()
+        lifecycle.afterPropertiesSet()  // count = 1 (registered)
+        lifecycle.afterPropertiesSet()  // no-op registration; count stays 1
+
+        LeaderLeaseAutoExtenderLifecycle.activeContextCount.get() shouldBeEqualTo 1
 
         lifecycle.destroy()             // count = 0 → shutdown
         LeaderLeaseAutoExtender.isShutdown().shouldBeTrue()
