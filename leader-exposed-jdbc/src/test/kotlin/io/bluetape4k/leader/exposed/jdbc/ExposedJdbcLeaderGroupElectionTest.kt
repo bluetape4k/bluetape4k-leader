@@ -8,8 +8,10 @@ import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcGroupLock
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
+import io.bluetape4k.leader.exposed.jdbc.history.ExposedLeaderHistorySink
 import io.bluetape4k.leader.exposed.tables.HistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.assertions.shouldBeEqualTo
@@ -243,15 +245,15 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
-    fun `runIfLeader - recordHistory=true 시 ACQUIRED+COMPLETED 이력이 기록된다`(testDB: TestDB) {
+    fun `runIfLeader - historyRecorder 제공 시 ACQUIRED+COMPLETED 이력이 기록된다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
         val lockName = randomName()
         val options = ExposedJdbcLeaderGroupElectionOptions(
             leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3),
-            recordHistory = true,
         )
-        val election = ExposedJdbcLeaderGroupElector(db, options)
+        val recorder = SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db))
+        val election = ExposedJdbcLeaderGroupElector(db, options, recorder)
 
         election.runIfLeader(lockName) { "done" }
 

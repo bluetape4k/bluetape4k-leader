@@ -54,6 +54,34 @@ object LeaderLockHistoryTable : Table(LOCK_HISTORY_TABLE_NAME) {
     /** 리더 action 수행 소요 시간 (밀리초). ACQUIRED 상태에서는 null */
     val durationMs = long("duration_ms").nullable()
 
+    // ── Audit contract columns (Issue #50) ────────────────────────────────
+
+    /** Fully-qualified class name of the thrown exception. null when action succeeded. */
+    val errorType = varchar("error_type", 255).nullable()
+
+    /** Sanitized exception message, truncated to 512 UTF-8 bytes. null when action succeeded. */
+    val errorMessage = varchar("error_message", 512).nullable()
+
+    /**
+     * [io.bluetape4k.leader.LockIdentity.AnnotationKind] name (SINGLE / GROUP).
+     * Stored as VARCHAR to avoid ordinal-dependency (D3).
+     */
+    val kind = varchar("kind", 32).nullable()
+
+    /** Node/instance identifier (hostname, pod name, etc.). */
+    val participantId = varchar("participant_id", 255).nullable()
+
+    /** JSON-serialized metadata map. null when no metadata was supplied. */
+    val metadata = text("metadata").nullable()
+
+    /**
+     * Slot identifier for group elections stored as VARCHAR(255).
+     * Redisson permitId is UUID-shaped — cannot be stored as Int without NFE (H4).
+     * When non-null and parseable as Int, the legacy [slot] column is also populated
+     * for backward compatibility.
+     */
+    val slotId = varchar("slot_id", 255).nullable()
+
     override val primaryKey = PrimaryKey(id)
 
     init {

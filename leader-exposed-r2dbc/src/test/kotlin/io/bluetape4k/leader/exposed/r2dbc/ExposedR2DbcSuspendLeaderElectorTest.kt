@@ -3,8 +3,10 @@ package io.bluetape4k.leader.exposed.r2dbc
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.exposed.r2dbc.history.ExposedSuspendLeaderHistorySink
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import kotlinx.coroutines.async
@@ -249,19 +251,20 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
-    fun `recordHistory=true 이고 action이 예외를 던지면 FAILED 상태로 기록된다`(testDB: TestR2dbcDB) = runSuspendIO {
+    fun `historyRecorder 사용 시 action 예외 발생 후 FAILED 이력이 기록된다`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)
         val lockName = randomName()
+        val sink = ExposedSuspendLeaderHistorySink(db)
+        val recorder = SuspendSafeLeaderHistoryRecorder(sink)
         val options = ExposedR2dbcLeaderElectionOptions(
             leaderOptions = LeaderElectionOptions(
                 waitTime = 2.seconds,
                 leaseTime = 10.seconds,
             ),
-            recordHistory = true,
             lockOwner = "test-worker",
         )
-        val election = ExposedR2DbcSuspendLeaderElector(db, options)
+        val election = ExposedR2DbcSuspendLeaderElector(db, options, recorder)
 
         runCatching { election.runIfLeader(lockName) { throw LeaderElectionException("의도적 실패") } }
 

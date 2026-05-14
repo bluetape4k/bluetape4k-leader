@@ -94,7 +94,8 @@ end"""
         waitTime: Duration = Duration.ZERO,
         leaseTime: Duration = defaultLeaseTime,
     ): Boolean {
-        val token = Base58.randomString(length = 8)
+        // Token generation uses SecureRandom for ≥128-bit entropy (see #50 spec §1-3)
+        val token = Base58.randomString(length = 22)
         val leaseMs = leaseTime.inWholeMilliseconds
         val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
 
@@ -119,7 +120,8 @@ end"""
         leaseTime: Duration = defaultLeaseTime,
         maxWaitTime: Duration = DEFAULT_MAX_WAIT_MINUTES.minutes,
     ) {
-        val token = Base58.randomString(length = 8)
+        // Token generation uses SecureRandom for ≥128-bit entropy (see #50 spec §1-3)
+        val token = Base58.randomString(length = 22)
         val leaseMs = leaseTime.inWholeMilliseconds
         val deadline = System.currentTimeMillis() + maxWaitTime.inWholeMilliseconds
 

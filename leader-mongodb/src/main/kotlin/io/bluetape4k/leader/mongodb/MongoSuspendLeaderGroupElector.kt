@@ -10,6 +10,7 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoSuspendSlotExtendDelegate
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
@@ -58,6 +59,7 @@ class MongoSuspendLeaderGroupElector private constructor(
     private val groupCollection: MongoCollection<Document>,
     private val coroutineGroupCollection: CoroutineMongoCollection<Document>,
     val options: MongoLeaderGroupElectionOptions,
+    @Suppress("unused") private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
 ) : SuspendLeaderGroupElector {
 
     init {
@@ -75,10 +77,11 @@ class MongoSuspendLeaderGroupElector private constructor(
             groupCollection: MongoCollection<Document>,
             coroutineGroupCollection: CoroutineMongoCollection<Document>,
             options: MongoLeaderGroupElectionOptions = MongoLeaderGroupElectionOptions.Default,
+            historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
         ): MongoSuspendLeaderGroupElector {
             // 두 컬렉션은 동일 namespace이므로 coroutine 드라이버에서 한 번만 인덱스 생성하면 충분
             MongoSuspendLock.ensureIndexes(coroutineGroupCollection)
-            return MongoSuspendLeaderGroupElector(groupCollection, coroutineGroupCollection, options)
+            return MongoSuspendLeaderGroupElector(groupCollection, coroutineGroupCollection, options, historyRecorder)
         }
     }
 

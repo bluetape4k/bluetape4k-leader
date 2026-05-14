@@ -6,6 +6,7 @@ dependencies {
     api(project(":leader-core"))
     api(libs.mongodb.driver.sync)
     compileOnly(libs.mongodb.driver.kotlin.coroutine)
+    compileOnly(libs.micrometer.core)
 
     testImplementation(libs.bluetape4k.virtualthread.jdk21)
     testImplementation(libs.bluetape4k.junit5)

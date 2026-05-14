@@ -16,7 +16,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
  * ```
  *
  * `baseOptions.copy(leaderGroupOptions = options)`로 `maxLeaders`/`waitTime`/`leaseTime`만 매 호출
- * 갈아끼우면서 `retryStrategy`/`recordHistory`/`lockOwner`는 보존한다.
+ * 갈아끼우면서 `retryStrategy`/`lockOwner`는 보존한다.
  *
  * @param db Exposed [Database]
  * @param baseOptions Exposed 고유 옵션 기본값

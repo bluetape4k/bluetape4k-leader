@@ -10,7 +10,7 @@ import org.bson.Document
  * [MongoSuspendLeaderElector] 팩토리 — MongoDB 분산 락 기반 suspend 단일 리더 선출.
  *
  * ## 옵션 처리
- * MongoDB 백엔드 고유 옵션 (`retryDelay`, `recordHistory`)은 [baseOptions]로 factory 생성 시 고정되며,
+ * MongoDB 백엔드 고유 옵션 (`retryDelay`)은 [baseOptions]로 factory 생성 시 고정되며,
  * 매 호출마다 `baseOptions.copy(leaderOptions = options)`로 `waitTime`/`leaseTime` 만 교체한다.
  *
  * `MongoSuspendLeaderElector(...)` 호출은 companion `suspend operator fun invoke`로 라우팅되어

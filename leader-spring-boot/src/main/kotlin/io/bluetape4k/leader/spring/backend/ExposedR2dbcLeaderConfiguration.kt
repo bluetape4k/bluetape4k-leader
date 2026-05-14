@@ -4,10 +4,12 @@ import io.bluetape4k.leader.exposed.r2dbc.ExposedR2dbcLeaderElectionOptions
 import io.bluetape4k.leader.exposed.r2dbc.ExposedR2dbcLeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderElector
 import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderGroupElector
+import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -31,10 +33,12 @@ class ExposedR2dbcLeaderConfiguration {
     fun exposedR2dbcSuspendLeaderElector(
         db: R2dbcDatabase,
         props: LeaderProperties,
+        recorderProvider: ObjectProvider<SuspendSafeLeaderHistoryRecorder>,
     ): ExposedR2DbcSuspendLeaderElector = runBlocking {
         ExposedR2DbcSuspendLeaderElector(
             db,
             ExposedR2dbcLeaderElectionOptions(leaderOptions = PropertiesAdapter.toCommonElection(props)),
+            recorderProvider.ifAvailable,
         )
     }
 
@@ -43,10 +47,12 @@ class ExposedR2dbcLeaderConfiguration {
     fun exposedR2dbcSuspendLeaderGroupElector(
         db: R2dbcDatabase,
         props: LeaderProperties,
+        recorderProvider: ObjectProvider<SuspendSafeLeaderHistoryRecorder>,
     ): ExposedR2DbcSuspendLeaderGroupElector = runBlocking {
         ExposedR2DbcSuspendLeaderGroupElector(
             db,
             ExposedR2dbcLeaderGroupElectionOptions(leaderGroupOptions = PropertiesAdapter.toCommonGroup(props)),
+            recorderProvider.ifAvailable,
         )
     }
 }

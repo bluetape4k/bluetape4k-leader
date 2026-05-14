@@ -8,6 +8,9 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.history.LeaderHistoryKey
+import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceLockExtendDelegate
@@ -17,8 +20,10 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireNotBlank
 import io.lettuce.core.api.StatefulRedisConnection
+import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import kotlinx.coroutines.CancellationException
 
 /**
  * [StatefulRedisConnection]에서 [LettuceLeaderElector] 인스턴스를 생성합니다.
@@ -56,9 +61,10 @@ fun StatefulRedisConnection<String, String>.leaderElection(
  * @param connection Lettuce [StatefulRedisConnection] (StringCodec 기반)
  * @param options    리더 선출 옵션 (waitTime, leaseTime)
  */
-class LettuceLeaderElector(
+class LettuceLeaderElector @JvmOverloads constructor(
     private val connection: StatefulRedisConnection<String, String>,
     private val options: LeaderElectionOptions = LeaderElectionOptions.Default,
+    private val historyRecorder: SafeLeaderHistoryRecorder? = null,
 ): LeaderElector {
 
     companion object: KLogging() {
@@ -87,6 +93,7 @@ class LettuceLeaderElector(
             log.debug { "리더 선출 실패 (슬롯 없음): lockName=$lockName" }
             return null
         }
+        val startedAt = Instant.now()
         val acquiredAtNanos = System.nanoTime()
         val token = lock.currentToken() ?: error("token missing after tryLock — lockName=$lockName")
         val delegate = LettuceLockExtendDelegate(lock)
@@ -103,9 +110,36 @@ class LettuceLeaderElector(
             auditLeaderId = auditLeaderId,
         )
         val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
+
+        val record = historyRecorder?.let {
+            LeaderLockHistoryRecord(
+                lockName = lockName,
+                token = token,
+                kind = LockIdentity.AnnotationKind.SINGLE,
+                acquiredAt = startedAt,
+                lockedUntil = startedAt.plusMillis(options.leaseTime.inWholeMilliseconds),
+            )
+        }
+        val key = record?.let { historyRecorder.recordAcquired(it) }
+        val effectiveKey: LeaderHistoryKey? =
+            key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = token) }
+
         log.debug { "리더 선출 성공: lockName=$lockName" }
         try {
-            return AopScopeAccess.withPushedSync(handle) { action() }
+            return try {
+                val result = AopScopeAccess.withPushedSync(handle) { action() }
+                val finishedAt = Instant.now()
+                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
+                result
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val finishedAt = Instant.now()
+                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
+                throw e
+            }
         } finally {
             watchdog.close()
             runCatching {
@@ -134,13 +168,35 @@ class LettuceLeaderElector(
             if (!acquired) {
                 CompletableFuture.completedFuture(null)
             } else {
+                val startedAt = Instant.now()
                 val acquiredAtNanos = System.nanoTime()
+                val token = lock.currentToken() ?: error("token missing after tryLock — lockName=$lockName")
                 val delegate = LettuceLockExtendDelegate(lock)
                 val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
+
+                val record = historyRecorder?.let {
+                    LeaderLockHistoryRecord(
+                        lockName = lockName,
+                        token = token,
+                        kind = LockIdentity.AnnotationKind.SINGLE,
+                        acquiredAt = startedAt,
+                        lockedUntil = startedAt.plusMillis(options.leaseTime.inWholeMilliseconds),
+                    )
+                }
+                val key = record?.let { historyRecorder.recordAcquired(it) }
+                val effectiveKey: LeaderHistoryKey? = key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = token) }
+
                 log.debug { "리더 선출 성공 (async): lockName=$lockName" }
                 try {
-                    action().whenComplete { _, _ ->
+                    action().whenComplete { _, throwable ->
                         watchdog.close()
+                        val finishedAt = Instant.now()
+                        val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                        when {
+                            throwable == null -> effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
+                            throwable is java.util.concurrent.CancellationException -> { /* cancelled — no audit */ }
+                            else -> effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, throwable) }
+                        }
                         runCatching {
                             if (lock.isHeldByCurrentInstance()) {
                                 lock.unlock(options.minLeaseTime, acquiredAtNanos)
@@ -149,6 +205,9 @@ class LettuceLeaderElector(
                     }
                 } catch (e: Throwable) {
                     watchdog.close()
+                    val finishedAt = Instant.now()
+                    val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                    effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
                     runCatching {
                         if (lock.isHeldByCurrentInstance()) {
                             lock.unlock(options.minLeaseTime, acquiredAtNanos)

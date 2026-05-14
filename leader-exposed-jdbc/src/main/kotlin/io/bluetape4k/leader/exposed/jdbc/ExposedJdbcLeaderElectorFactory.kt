@@ -18,7 +18,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
  *
  * ## 옵션 처리
  * AOP 어드바이스가 전달하는 [LeaderElectionOptions]는 `waitTime`/`leaseTime`만 포함한다.
- * Exposed 백엔드 고유 옵션 (`retryStrategy`, `recordHistory`, `lockOwner`)은 [baseOptions]를 통해
+ * Exposed 백엔드 고유 옵션 (`retryStrategy`, `lockOwner`)은 [baseOptions]를 통해
  * factory 생성 시점에 고정되며, 매 호출마다 `baseOptions.copy(leaderOptions = options)`로 갈아끼운다.
  *
  * `ExposedJdbcLeaderElector(...)` 호출은 companion `operator fun invoke`로 라우팅되어

@@ -11,9 +11,10 @@ import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcSuspendSlotExtend
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcGroupLock
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcSchemaInitializer
 import io.bluetape4k.leader.exposed.r2dbc.lock.validateExposedR2dbcLockName
-import io.bluetape4k.leader.exposed.tables.HistoryStatus
+import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -72,6 +73,12 @@ import kotlin.random.Random
 class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     private val db: R2dbcDatabase,
     val options: ExposedR2dbcLeaderGroupElectionOptions,
+    /**
+     * Optional history recorder for group elections.
+     * Group elector full wiring is deferred to v2 (#50 follow-up).
+     */
+    @Suppress("unused")
+    private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
 ) : SuspendLeaderGroupElector {
 
     companion object : KLoggingChannel() {
@@ -87,9 +94,10 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         suspend operator fun invoke(
             db: R2dbcDatabase,
             options: ExposedR2dbcLeaderGroupElectionOptions = ExposedR2dbcLeaderGroupElectionOptions.Default,
+            historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
         ): ExposedR2DbcSuspendLeaderGroupElector {
             ExposedR2dbcSchemaInitializer.ensureSchema(db)
-            return ExposedR2DbcSuspendLeaderGroupElector(db, options)
+            return ExposedR2DbcSuspendLeaderGroupElector(db, options, historyRecorder)
         }
     }
 
@@ -139,7 +147,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
      */
     suspend fun activeCountSuspend(lockName: String): Int {
         validateExposedR2dbcLockName(lockName)
-        return runCatching {
+        return try {
             suspendTransaction(db) {
                 val now = Instant.now()
                 LeaderGroupLockTable
@@ -151,7 +159,9 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                     .count()
                     .toInt()
             }
-        }.getOrElse { e ->
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             log.warn(e) { "activeCount DB 조회 오류 (0 반환): lockName=$lockName" }
             0
         }.also { cachedActiveCount.set(it) }
@@ -270,7 +280,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
 
     private suspend fun recordAcquired(lockName: String, token: String, slot: Int): Long? {
         if (!options.recordHistory) return null
-        return runCatching {
+        return try {
             suspendTransaction(db) {
                 val now = Instant.now()
                 LeaderLockHistoryTable.insert {
@@ -279,32 +289,34 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                     it[LeaderLockHistoryTable.token] = token
                     it[LeaderLockHistoryTable.slot] = slot
                     it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(options.leaderGroupOptions.leaseTime.inWholeMilliseconds)
-                    it[LeaderLockHistoryTable.status] = HistoryStatus.ACQUIRED.name
+                    it[LeaderLockHistoryTable.status] = LeaderHistoryStatus.ACQUIRED.name
                     it[LeaderLockHistoryTable.startedAt] = now
                 }[LeaderLockHistoryTable.id]
             }
-        }.getOrElse { e ->
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             log.warn(e) { "이력 ACQUIRED 기록 실패 (best-effort, 무시): lockName=$lockName, slot=$slot" }
             null
         }
     }
 
     private suspend fun recordCompleted(historyId: Long?, token: String, startedAt: Instant, slot: Int) =
-        recordFinished(historyId, token, startedAt, slot, HistoryStatus.COMPLETED)
+        recordFinished(historyId, token, startedAt, slot, LeaderHistoryStatus.COMPLETED)
 
     private suspend fun recordFailed(historyId: Long?, token: String, startedAt: Instant, slot: Int) =
-        recordFinished(historyId, token, startedAt, slot, HistoryStatus.FAILED)
+        recordFinished(historyId, token, startedAt, slot, LeaderHistoryStatus.FAILED)
 
     private suspend fun recordFinished(
         historyId: Long?,
         token: String,
         startedAt: Instant,
         slot: Int,
-        status: HistoryStatus,
+        status: LeaderHistoryStatus,
     ) {
         if (!options.recordHistory || historyId == null) return
         val finishedAt = Instant.now()
-        runCatching {
+        try {
             suspendTransaction(db) {
                 LeaderLockHistoryTable.update(
                     where = { (LeaderLockHistoryTable.id eq historyId) and (LeaderLockHistoryTable.token eq token) }
@@ -314,7 +326,9 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                     it[LeaderLockHistoryTable.durationMs] = finishedAt.toEpochMilli() - startedAt.toEpochMilli()
                 }
             }
-        }.getOrElse { e ->
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             log.warn(e) { "이력 ${status.name} 기록 실패 (best-effort): historyId=$historyId, slot=$slot" }
         }
     }

@@ -8,6 +8,9 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.history.LeaderHistoryKey
+import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceSuspendLockExtendDelegate
@@ -17,6 +20,7 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireNotBlank
 import io.lettuce.core.api.StatefulRedisConnection
+import java.time.Instant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -61,6 +65,7 @@ fun StatefulRedisConnection<String, String>.suspendLeaderElector(
 class LettuceSuspendLeaderElector(
     private val connection: StatefulRedisConnection<String, String>,
     val options: LeaderElectionOptions = LeaderElectionOptions.Default,
+    private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
 ): SuspendLeaderElector {
 
     companion object: KLogging() {
@@ -89,6 +94,7 @@ class LettuceSuspendLeaderElector(
             log.debug { "리더 선출 실패 (슬롯 없음, suspend): lockName=$lockName" }
             return null
         }
+        val startedAt = Instant.now()
         val acquiredAtNanos = System.nanoTime()
         val token = lock.currentToken() ?: error("token missing after tryLock — lockName=$lockName")
         val delegate = LettuceSuspendLockExtendDelegate(lock)
@@ -105,10 +111,37 @@ class LettuceSuspendLeaderElector(
             auditLeaderId = auditLeaderId,
         )
         val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
+
+        val record = historyRecorder?.let {
+            LeaderLockHistoryRecord(
+                lockName = lockName,
+                token = token,
+                kind = LockIdentity.AnnotationKind.SINGLE,
+                acquiredAt = startedAt,
+                lockedUntil = startedAt.plusMillis(options.leaseTime.inWholeMilliseconds),
+            )
+        }
+        val key = record?.let { historyRecorder.recordAcquired(it) }
+        val effectiveKey: LeaderHistoryKey? =
+            key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = token) }
+
         log.debug { "리더 선출 성공 (suspend): lockName=$lockName" }
         try {
-            return withContext(AopScopeAccess.createLockHandleElement(handle)) {
-                action()
+            return try {
+                val result = withContext(AopScopeAccess.createLockHandleElement(handle)) {
+                    action()
+                }
+                val finishedAt = Instant.now()
+                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
+                result
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val finishedAt = Instant.now()
+                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
+                throw e
             }
         } finally {
             // NonCancellable: 코루틴 취소 시에도 lease 정리가 중단되지 않도록 보호

@@ -2,6 +2,8 @@ package io.bluetape4k.leader.spring.backend
 
 import com.mongodb.client.MongoDatabase
 import com.mongodb.kotlin.client.coroutine.MongoDatabase as CoroutineMongoDatabase
+import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
+import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.mongodb.MongoLeaderElector
 import io.bluetape4k.leader.mongodb.MongoLeaderElectionOptions
 import io.bluetape4k.leader.mongodb.MongoLeaderGroupElector
@@ -12,6 +14,7 @@ import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
 import kotlinx.coroutines.runBlocking
 import org.bson.Document
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -45,9 +48,10 @@ class MongoLeaderConfiguration {
     fun mongoLeaderElector(
         db: MongoDatabase,
         props: LeaderProperties,
+        recorderProvider: ObjectProvider<SafeLeaderHistoryRecorder>,
     ): MongoLeaderElector {
         val collection = db.getCollection(props.mongo.singleCollection, Document::class.java)
-        return MongoLeaderElector(collection, electionOptions(props))
+        return MongoLeaderElector(collection, electionOptions(props), recorderProvider.ifAvailable)
     }
 
     @Bean
@@ -56,9 +60,10 @@ class MongoLeaderConfiguration {
     fun mongoLeaderGroupElector(
         db: MongoDatabase,
         props: LeaderProperties,
+        recorderProvider: ObjectProvider<SafeLeaderHistoryRecorder>,
     ): MongoLeaderGroupElector {
         val collection = db.getCollection(props.mongo.groupCollection, Document::class.java)
-        return MongoLeaderGroupElector(collection, groupOptions(props))
+        return MongoLeaderGroupElector(collection, groupOptions(props), recorderProvider.ifAvailable)
     }
 
     @Bean
@@ -67,9 +72,10 @@ class MongoLeaderConfiguration {
     fun mongoSuspendLeaderElector(
         coroutineDb: CoroutineMongoDatabase,
         props: LeaderProperties,
+        recorderProvider: ObjectProvider<SuspendSafeLeaderHistoryRecorder>,
     ): MongoSuspendLeaderElector = runBlocking {
         val collection = coroutineDb.getCollection<Document>(props.mongo.singleCollection)
-        MongoSuspendLeaderElector(collection, electionOptions(props))
+        MongoSuspendLeaderElector(collection, electionOptions(props), recorderProvider.ifAvailable)
     }
 
     @Bean
@@ -79,9 +85,10 @@ class MongoLeaderConfiguration {
         db: MongoDatabase,
         coroutineDb: CoroutineMongoDatabase,
         props: LeaderProperties,
+        recorderProvider: ObjectProvider<SuspendSafeLeaderHistoryRecorder>,
     ): MongoSuspendLeaderGroupElector = runBlocking {
         val syncCollection = db.getCollection(props.mongo.groupCollection, Document::class.java)
         val coroutineCollection = coroutineDb.getCollection<Document>(props.mongo.groupCollection)
-        MongoSuspendLeaderGroupElector(syncCollection, coroutineCollection, groupOptions(props))
+        MongoSuspendLeaderGroupElector(syncCollection, coroutineCollection, groupOptions(props), recorderProvider.ifAvailable)
     }
 }

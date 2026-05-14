@@ -68,7 +68,6 @@ class MigrationGate(
                 nodeId = options.nodeId,
             ),
             lockOwner = options.nodeId,
-            recordHistory = true,
         ),
     )
 
