@@ -55,7 +55,7 @@ sealed interface LeaderElectionEvent {
      * - [leaseExpiry] is the absolute time at which the lease expires. Currently always `null`;
      *   reserved for future backend implementations that can report expiry at election time.
      */
-    data class Elected(
+    data class Elected @JvmOverloads constructor(
         override val lockName: String,
         val leaderId: String? = null,
         val leaseExpiry: Instant? = null,
