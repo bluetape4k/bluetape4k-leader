@@ -52,7 +52,7 @@ import java.util.concurrent.Executor
  * ## Behavior / Contract
  * - Lock 미획득(contention) 시 `null` 반환 — 예외 없음.
  * - Action이 [CancellationException] 또는 [InterruptedException]을 던지면 rethrow.
- * - Action이 다른 [Exception]을 던지면 `null` 반환 — 예외를 삼키지 않고 기록 후 null 반환.
+ * - Action이 다른 [Exception]을 던지면 FAILED 이력 기록 후 예외를 재전파합니다.
  * - [historyRecorder]가 null이면 이력 기록 없이 동작.
  *
  * **private constructor** — [invoke] 팩터리를 통해서만 생성하세요.

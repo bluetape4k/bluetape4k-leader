@@ -51,7 +51,7 @@ import java.time.Instant
  * ## Behavior / Contract
  * - Lock 미획득(contention) 시 `null` 반환 — 예외 없음.
  * - Action이 [CancellationException]을 던지면 rethrow.
- * - Action이 다른 [Exception]을 던지면 `null` 반환 (이력 기록 후 삼킴).
+ * - Action이 다른 [Exception]을 던지면 FAILED 이력 기록 후 예외를 재전파합니다.
  * - [historyRecorder]가 null이면 이력 기록 없이 동작.
  *
  * **private constructor** — [invoke] 팩터리를 통해서만 생성하세요.
@@ -92,7 +92,7 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
      * - 리더 획득에 성공하면 [action] 결과를 반환합니다.
      * - 리더 획득에 실패하면 `null`을 반환합니다 (예외 없음).
      * - [action]이 [CancellationException]을 던지면 rethrow합니다.
-     * - [action]이 다른 예외를 던지면 `null`을 반환합니다 (이력 기록 후 삼킴).
+     * - [action]이 다른 예외를 던지면 FAILED 이력 기록 후 예외를 재전파합니다.
      * - 락은 정상/예외 어느 경로에서도 항상 해제됩니다.
      *
      * @param lockName 락 식별자 (영숫자/하이픈/언더스코어/콜론, 1-255자)
