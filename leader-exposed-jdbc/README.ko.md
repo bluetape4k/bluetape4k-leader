@@ -145,7 +145,6 @@ val options = ExposedJdbcLeaderElectionOptions(
         leaseTime = 1.minutes
     ),
     retryStrategy = RetryStrategy.Jitter(baseDelayMs = 50),
-    recordHistory = true,
     lockOwner = "node-1"
 )
 val election = ExposedJdbcLeaderElector(db, options)
@@ -188,7 +187,13 @@ sealed class RetryStrategy {
 
 ## 이력 기록
 
-`recordHistory = true`(기본: `false`)로 설정하면 각 선출 시도가 `LeaderLockHistoryTable`에 기록됩니다:
+`SafeLeaderHistoryRecorder`를 elector에 전달하면 각 선출 시도가 `LeaderLockHistoryTable`에 기록됩니다:
+
+```kotlin
+val sink = ExposedLeaderHistorySink(db)
+val recorder = SafeLeaderHistoryRecorder(sink)
+val election = ExposedJdbcLeaderElector(db, options, recorder)
+```
 
 | 상태 | 시점 |
 |------|------|
