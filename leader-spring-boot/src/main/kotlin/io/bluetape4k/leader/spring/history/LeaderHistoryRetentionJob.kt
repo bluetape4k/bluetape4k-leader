@@ -5,7 +5,7 @@ import io.bluetape4k.leader.history.NoopLeaderHistorySink
 import io.bluetape4k.leader.annotation.LeaderElection
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
-import jakarta.annotation.PostConstruct
+import org.springframework.beans.factory.InitializingBean
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
 import java.time.Instant
@@ -44,11 +44,10 @@ class LeaderHistoryRetentionJob(
     private val chunkSize: Int = 1000,
     @Value("\${bluetape4k.leader.history.retention.max-duration-ms:300000}")
     private val maxDurationMs: Long = 300_000L,
-) {
+) : InitializingBean {
     companion object : KLogging()
 
-    @PostConstruct
-    fun warnIfNoop() {
+    override fun afterPropertiesSet() {
         if (sink === NoopLeaderHistorySink) {
             log.warn { "Retention is enabled but sink is Noop — no rows will be deleted." }
         }
