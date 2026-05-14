@@ -9,6 +9,18 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`leader-core`**: `LeaderLeaseAutoExtender` now supports graceful shutdown (#173).
+  - Added `shutdown()`: drains in-flight ticks (up to 5 s via `awaitTermination`) then calls `shutdownNow()`.
+  - Added `restart()`: recreates the scheduler after shutdown; no-op when already running.
+  - `start()` now catches `RejectedExecutionException` at the `scheduleWithFixedDelay` call site and
+    returns a no-op `AutoCloseable` instead of throwing, preserving the `runIfLeader never throws` contract
+    during concurrent application shutdown.
+- **`leader-spring-boot`**: `LeaderLeaseAutoExtenderLifecycle` (`InitializingBean` + `DisposableBean`) wired
+  into `LeaderElectionAutoConfiguration`. Calls `restart()` on context start and `shutdown()` on context close.
+  Safe for multi-context JVM scenarios (`@DirtiesContext`, sequential context restarts).
+
 ### leader-core
 
 - `LeaderElectionEvent.Elected` now carries optional `leaderId: String?` and `leaseExpiry: Instant?`
@@ -283,3 +295,4 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 [Unreleased]: https://github.com/bluetape4k/bluetape4k-leader/compare/v0.1.0-SNAPSHOT...HEAD
 [0.1.0-SNAPSHOT]: https://github.com/bluetape4k/bluetape4k-leader/releases/tag/v0.1.0-SNAPSHOT
+
