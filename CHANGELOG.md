@@ -9,6 +9,15 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### leader-core
+
+- `LeaderElectionEvent.Elected` now carries optional `leaderId: String?` and `leaseExpiry: Instant?`
+  fields (both default to `null`).
+  **Binary incompatibility**: compiled callers that construct `Elected(lockName)` positionally will
+  fail to link against new bytecode. Recompilation is required. Source-compatible.
+- `LocalSuspendLeaderElector` and `LocalSuspendLeaderGroupElector` now populate `leaderId` on the
+  emitted `Elected` event using the `auditLeaderId` stamped on the lock handle.
+
 ### BREAKING CHANGES
 
 - **`leader-exposed-jdbc`**: `ExposedJdbcLeaderElector.runIfLeader()` now returns `null` instead of
