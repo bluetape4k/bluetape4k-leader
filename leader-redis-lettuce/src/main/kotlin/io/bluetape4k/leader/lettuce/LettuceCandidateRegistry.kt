@@ -80,7 +80,7 @@ internal class LettuceCandidateRegistry(
         if (keys.isEmpty()) return emptyList()
         return sync.mget(*keys.toTypedArray())
             .mapNotNull { kv ->
-                val raw = kv.value ?: return@mapNotNull null
+                val raw = if (kv.hasValue()) kv.value else return@mapNotNull null
                 runCatching { LettuceCandidateInfoCodec.decode(raw) }
                     .onFailure { log.warn(it) { "[$lockName] CandidateInfo 디코딩 실패 — 항목 skip: key=${kv.key}" } }
                     .getOrNull()
