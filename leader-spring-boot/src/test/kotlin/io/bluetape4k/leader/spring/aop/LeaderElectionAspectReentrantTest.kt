@@ -96,7 +96,7 @@ class LeaderElectionAspectReentrantTest {
 
         result shouldBeEqualTo SAMPLE_RESULT
         // The elector's runIfLeaderResult must NOT be called (reentrant short-circuit)
-        verify(exactly = 0) { election.runIfLeaderResult<Any?>(any(), any()) }
+        verify(exactly = 0) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
     }
 
     @Test
@@ -106,7 +106,7 @@ class LeaderElectionAspectReentrantTest {
         configureJoinPoint(method, target)
         val aspect = newAspect()
 
-        every { election.runIfLeaderResult<Any?>(any(), any()) } answers {
+        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } answers {
             @Suppress("UNCHECKED_CAST")
             LeaderRunResult.Elected((secondArg<() -> Any?>()).invoke())
         }
@@ -116,7 +116,7 @@ class LeaderElectionAspectReentrantTest {
 
         result shouldBeEqualTo SAMPLE_RESULT
         // Backend is called exactly once
-        verify(exactly = 1) { election.runIfLeaderResult<Any?>(any(), any()) }
+        verify(exactly = 1) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
     }
 
     @Test
@@ -126,7 +126,7 @@ class LeaderElectionAspectReentrantTest {
         configureJoinPoint(method, target)
         val aspect = newAspect()
 
-        every { election.runIfLeaderResult<Any?>(any(), any()) } answers {
+        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } answers {
             @Suppress("UNCHECKED_CAST")
             LeaderRunResult.Elected((secondArg<() -> Any?>()).invoke())
         }
@@ -145,7 +145,7 @@ class LeaderElectionAspectReentrantTest {
 
         result shouldBeEqualTo SAMPLE_RESULT
         // Backend IS called: FailOpen does not count as reentrant Real
-        verify(exactly = 1) { election.runIfLeaderResult<Any?>(any(), any()) }
+        verify(exactly = 1) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
     }
 
     @Test
@@ -155,7 +155,7 @@ class LeaderElectionAspectReentrantTest {
         configureJoinPoint(method, target)
         val aspect = newAspect()
 
-        every { election.runIfLeaderResult<Any?>(any(), any()) } answers {
+        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } answers {
             @Suppress("UNCHECKED_CAST")
             LeaderRunResult.Elected((secondArg<() -> Any?>()).invoke())
         }
@@ -168,6 +168,6 @@ class LeaderElectionAspectReentrantTest {
 
         result shouldBeEqualTo SAMPLE_RESULT
         // Backend IS called: lockName mismatch
-        verify(exactly = 1) { election.runIfLeaderResult<Any?>(any(), any()) }
+        verify(exactly = 1) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
     }
 }

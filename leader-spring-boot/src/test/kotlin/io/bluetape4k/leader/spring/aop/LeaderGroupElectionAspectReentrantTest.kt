@@ -96,7 +96,7 @@ class LeaderGroupElectionAspectReentrantTest {
         }
 
         result shouldBeEqualTo SAMPLE_RESULT
-        verify(exactly = 0) { election.runIfLeaderResult<Any?>(any(), any()) }
+        verify(exactly = 0) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
     }
 
     @Test
@@ -106,7 +106,7 @@ class LeaderGroupElectionAspectReentrantTest {
         configureJoinPoint(method, target)
         val aspect = newAspect()
 
-        every { election.runIfLeaderResult<Any?>(any(), any()) } answers {
+        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } answers {
             @Suppress("UNCHECKED_CAST")
             LeaderRunResult.Elected((secondArg<() -> Any?>()).invoke())
         }
@@ -114,7 +114,7 @@ class LeaderGroupElectionAspectReentrantTest {
         val result = aspect.aroundLeader(pjp)
 
         result shouldBeEqualTo SAMPLE_RESULT
-        verify(exactly = 1) { election.runIfLeaderResult<Any?>(any(), any()) }
+        verify(exactly = 1) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
     }
 
     @Test
@@ -124,7 +124,7 @@ class LeaderGroupElectionAspectReentrantTest {
         configureJoinPoint(method, target)
         val aspect = newAspect()
 
-        every { election.runIfLeaderResult<Any?>(any(), any()) } answers {
+        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } answers {
             @Suppress("UNCHECKED_CAST")
             LeaderRunResult.Elected((secondArg<() -> Any?>()).invoke())
         }
@@ -141,7 +141,7 @@ class LeaderGroupElectionAspectReentrantTest {
         }
 
         result shouldBeEqualTo SAMPLE_RESULT
-        verify(exactly = 1) { election.runIfLeaderResult<Any?>(any(), any()) }
+        verify(exactly = 1) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
     }
 
     @Test
@@ -151,7 +151,7 @@ class LeaderGroupElectionAspectReentrantTest {
         configureJoinPoint(method, target)
         val aspect = newAspect()
 
-        every { election.runIfLeaderResult<Any?>(any(), any()) } answers {
+        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } answers {
             @Suppress("UNCHECKED_CAST")
             LeaderRunResult.Elected((secondArg<() -> Any?>()).invoke())
         }
@@ -167,6 +167,6 @@ class LeaderGroupElectionAspectReentrantTest {
         }
 
         result shouldBeEqualTo SAMPLE_RESULT
-        verify(exactly = 1) { election.runIfLeaderResult<Any?>(any(), any()) }
+        verify(exactly = 1) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
     }
 }
