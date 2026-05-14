@@ -47,10 +47,12 @@ class ExposedR2dbcLeaderConfiguration {
     fun exposedR2dbcSuspendLeaderGroupElector(
         db: R2dbcDatabase,
         props: LeaderProperties,
+        recorderProvider: ObjectProvider<SuspendSafeLeaderHistoryRecorder>,
     ): ExposedR2DbcSuspendLeaderGroupElector = runBlocking {
         ExposedR2DbcSuspendLeaderGroupElector(
             db,
             ExposedR2dbcLeaderGroupElectionOptions(leaderGroupOptions = PropertiesAdapter.toCommonGroup(props)),
+            recorderProvider.ifAvailable,
         )
     }
 }

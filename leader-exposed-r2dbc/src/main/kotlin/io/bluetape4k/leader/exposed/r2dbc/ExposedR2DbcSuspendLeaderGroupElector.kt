@@ -280,7 +280,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
 
     private suspend fun recordAcquired(lockName: String, token: String, slot: Int): Long? {
         if (!options.recordHistory) return null
-        return runCatching {
+        return try {
             suspendTransaction(db) {
                 val now = Instant.now()
                 LeaderLockHistoryTable.insert {
@@ -293,7 +293,9 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                     it[LeaderLockHistoryTable.startedAt] = now
                 }[LeaderLockHistoryTable.id]
             }
-        }.getOrElse { e ->
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             log.warn(e) { "이력 ACQUIRED 기록 실패 (best-effort, 무시): lockName=$lockName, slot=$slot" }
             null
         }
@@ -314,7 +316,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     ) {
         if (!options.recordHistory || historyId == null) return
         val finishedAt = Instant.now()
-        runCatching {
+        try {
             suspendTransaction(db) {
                 LeaderLockHistoryTable.update(
                     where = { (LeaderLockHistoryTable.id eq historyId) and (LeaderLockHistoryTable.token eq token) }
@@ -324,7 +326,9 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                     it[LeaderLockHistoryTable.durationMs] = finishedAt.toEpochMilli() - startedAt.toEpochMilli()
                 }
             }
-        }.getOrElse { e ->
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             log.warn(e) { "이력 ${status.name} 기록 실패 (best-effort): historyId=$historyId, slot=$slot" }
         }
     }

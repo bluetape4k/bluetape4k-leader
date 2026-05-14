@@ -82,7 +82,7 @@ class LeaderHistoryAutoConfiguration {
     @ConditionalOnMissingBean(SafeLeaderHistoryRecorder::class)
     @ConditionalOnBean(LeaderHistorySink::class)
     fun safeLeaderHistoryRecorder(sink: LeaderHistorySink): SafeLeaderHistoryRecorder {
-        warnIfMultipleSinks(sink)
+        logIfNoopSink(sink)
         return SafeLeaderHistoryRecorder(sink)
     }
 
@@ -106,7 +106,7 @@ class LeaderHistoryAutoConfiguration {
         }
     }
 
-    private fun warnIfMultipleSinks(resolved: LeaderHistorySink) {
+    private fun logIfNoopSink(resolved: LeaderHistorySink) {
         if (resolved === NoopLeaderHistorySink) {
             log.info { "LeaderHistorySink is NoopLeaderHistorySink — history events will be discarded." }
         }

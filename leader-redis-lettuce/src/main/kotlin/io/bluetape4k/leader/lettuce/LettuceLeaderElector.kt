@@ -21,6 +21,7 @@ import io.lettuce.core.api.StatefulRedisConnection
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import kotlinx.coroutines.CancellationException
 
 /**
  * [StatefulRedisConnection]에서 [LettuceLeaderElector] 인스턴스를 생성합니다.
@@ -116,6 +117,8 @@ class LettuceLeaderElector @JvmOverloads constructor(
                 val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
                 effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
                 result
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 val finishedAt = Instant.now()
                 val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
