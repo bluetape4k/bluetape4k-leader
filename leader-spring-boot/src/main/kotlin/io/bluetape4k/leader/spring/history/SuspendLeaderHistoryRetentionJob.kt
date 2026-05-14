@@ -17,7 +17,7 @@ import java.time.temporal.ChronoUnit
 /**
  * Coroutine-based retention job for R2DBC and MongoDB backends.
  *
- * Uses a [Mono] bridge so that `@LeaderElection` (Mono return-type path, Issue #91)
+ * Uses a deferred [Mono] bridge so that `@LeaderElection` (Mono return-type path, Issue #91)
  * holds the lock until the coroutine completes, preventing fire-and-forget split-brain.
  *
  * JDBC (blocking) cleanup is handled by [LeaderHistoryRetentionJob].  Both jobs run
@@ -51,8 +51,13 @@ class SuspendLeaderHistoryRetentionJob(
     }
 
     @Scheduled(cron = "\${bluetape4k.leader.history.retention.cron:0 0 2 * * ?}")
+    fun runRetention() {
+        runRetentionGuarded().block()
+    }
+
     @LeaderElection("bluetape4k-leader-history-retention-suspend", autoExtend = true)
-    fun runRetention(): Mono<Void> = mono(Dispatchers.IO) { runRetentionInternal() }.then()
+    fun runRetentionGuarded(): Mono<Void> =
+        mono(Dispatchers.IO) { runRetentionInternal() }.then()
 
     private suspend fun runRetentionInternal() {
         val cutoff = Instant.now().minus(retentionDays, ChronoUnit.DAYS)

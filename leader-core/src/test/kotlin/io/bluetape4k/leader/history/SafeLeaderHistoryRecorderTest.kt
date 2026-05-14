@@ -1,12 +1,13 @@
 package io.bluetape4k.leader.history
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.CancellationException
 import org.junit.jupiter.api.Test
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
 import java.time.Instant
 
 class SafeLeaderHistoryRecorderTest {
@@ -37,7 +38,7 @@ class SafeLeaderHistoryRecorderTest {
         }
         val recorder = SafeLeaderHistoryRecorder(sink)
         val result = recorder.recordAcquired(record())
-        assertNotNull(result)
+        result.shouldNotBeNull()
     }
 
     @Test
@@ -64,7 +65,7 @@ class SafeLeaderHistoryRecorderTest {
         }
         val recorder = SafeLeaderHistoryRecorder(sink)
         val result = recorder.recordAcquired(record())
-        assertNull(result, "sink exception must be swallowed")
+        result.shouldBeNull()
     }
 
     @Test
@@ -102,7 +103,7 @@ class SafeLeaderHistoryRecorderTest {
             override fun recordFailed(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, errorType: String?, errorMessage: String?) = Unit
         }
         val recorder = SafeLeaderHistoryRecorder(sink)
-        kotlin.test.assertFailsWith<CancellationException> {
+        assertFailsWith<CancellationException> {
             recorder.recordAcquired(record())
         }
     }
@@ -125,8 +126,8 @@ class SafeLeaderHistoryRecorderTest {
         val cause = IllegalStateException("bad state")
         recorder.recordFailed(key, now, 50L, cause)
 
-        assertTrue(capturedType?.contains("IllegalStateException") == true, "errorType=$capturedType")
-        assertTrue(capturedMsg == "bad state", "errorMessage=$capturedMsg")
+        capturedType?.contains("IllegalStateException") shouldBeEqualTo true
+        capturedMsg shouldBeEqualTo "bad state"
     }
 
     @Test
@@ -141,6 +142,6 @@ class SafeLeaderHistoryRecorderTest {
         }
         val recorder = SafeLeaderHistoryRecorder(sink)
         recorder.recordFailed(key, now, 50L, null)
-        assertNull(capturedType)
+        capturedType.shouldBeNull()
     }
 }

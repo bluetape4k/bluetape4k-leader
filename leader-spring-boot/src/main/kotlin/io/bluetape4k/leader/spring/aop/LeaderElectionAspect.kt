@@ -94,14 +94,18 @@ class LeaderElectionAspect(
         val target = pjp.target
         val args = pjp.args
 
+        if (method.returnType.name == "reactor.core.publisher.Mono") {
+            return Mono.defer<Any> {
+                val meta = metadataCache.computeIfAbsent(method) { resolveMetadata(it, target) }
+                @Suppress("UNCHECKED_CAST")
+                aroundLeaderMono(pjp, meta) as Mono<Any>
+            }
+        }
+
         val meta = metadataCache.computeIfAbsent(method) { resolveMetadata(it, target) }
 
         if (meta.isSuspend) {
             return aroundLeaderSuspend(pjp, meta)
-        }
-
-        if (meta.isMono) {
-            return aroundLeaderMono(pjp, meta)
         }
 
         val opts = meta.options

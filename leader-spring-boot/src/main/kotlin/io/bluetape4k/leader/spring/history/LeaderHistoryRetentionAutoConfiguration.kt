@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.spring.history
 
-import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.LeaderElectorFactory
+import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
 import io.bluetape4k.leader.history.LeaderHistorySink
 import io.bluetape4k.leader.history.SuspendLeaderHistorySink
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
@@ -26,14 +27,13 @@ import org.springframework.scheduling.annotation.EnableScheduling
  * independent physical storage backends.
  */
 @AutoConfiguration(after = [LeaderAopAutoConfiguration::class])
-@ConditionalOnBean(LeaderElector::class)
 @ConditionalOnProperty(prefix = "bluetape4k.leader.history.retention", name = ["enabled"], matchIfMissing = true)
 @EnableScheduling
 class LeaderHistoryRetentionAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(LeaderHistoryRetentionJob::class)
-    @ConditionalOnBean(LeaderHistorySink::class)
+    @ConditionalOnBean(LeaderElectorFactory::class, LeaderHistorySink::class)
     fun leaderHistoryRetentionJob(
         sink: LeaderHistorySink,
         @Value("\${bluetape4k.leader.history.retention.days:30}") retentionDays: Long,
@@ -44,7 +44,11 @@ class LeaderHistoryRetentionAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(SuspendLeaderHistoryRetentionJob::class)
-    @ConditionalOnBean(SuspendLeaderHistorySink::class)
+    @ConditionalOnBean(
+        LeaderElectorFactory::class,
+        SuspendLeaderElectorFactory::class,
+        SuspendLeaderHistorySink::class,
+    )
     fun suspendLeaderHistoryRetentionJob(
         sink: SuspendLeaderHistorySink,
         @Value("\${bluetape4k.leader.history.retention.days:30}") retentionDays: Long,

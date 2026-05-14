@@ -1,6 +1,11 @@
 package io.bluetape4k.leader.mongodb
 
 import com.mongodb.client.model.Filters
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
@@ -9,12 +14,7 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
-import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -25,6 +25,13 @@ import java.util.concurrent.atomic.AtomicInteger
 class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
 
     companion object: KLogging()
+
+    @Test
+    fun `MongoLock token uses 128-bit Base58 length`() {
+        val lock = MongoLock(lockCollection, randomName())
+
+        lock.token.length shouldBeEqualTo 22
+    }
 
     @Test
     fun `runIfLeader - 리더로 선출되어 action을 실행하고 결과를 반환한다`() {
