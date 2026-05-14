@@ -95,16 +95,14 @@ class LeaderHistoryAutoConfiguration {
     fun suspendSafeLeaderHistoryRecorder(
         provider: ObjectProvider<SuspendLeaderHistorySink>,
     ): SuspendSafeLeaderHistoryRecorder? {
-        var count = 0
-        var singleSink: SuspendLeaderHistorySink? = null
-        provider.forEach { count++; singleSink = it }
+        val sinks = provider.toList()
         return when {
-            count == 0 -> null
-            count > 1 -> {
+            sinks.isEmpty() -> null
+            sinks.size > 1 -> {
                 log.warn { "Multiple SuspendLeaderHistorySink beans found; use @Primary to disambiguate. Suspend history recorder not created." }
                 null
             }
-            else -> SuspendSafeLeaderHistoryRecorder(singleSink!!)
+            else -> SuspendSafeLeaderHistoryRecorder(sinks.single())
         }
     }
 
@@ -129,7 +127,7 @@ class LeaderHistoryAutoConfiguration {
             "io.bluetape4k.leader.micrometer.history.MicrometerSafeLeaderHistoryRecorder",
         ]
     )
-    inner class MicrometerHistoryConfig {
+    class MicrometerHistoryConfig {
 
         @Bean
         @ConditionalOnMissingBean(SafeLeaderHistoryRecorder::class)
@@ -152,24 +150,23 @@ class LeaderHistoryAutoConfiguration {
             provider: ObjectProvider<SuspendLeaderHistorySink>,
             registryProvider: ObjectProvider<io.micrometer.core.instrument.MeterRegistry>,
         ): SuspendSafeLeaderHistoryRecorder? {
-            var count = 0
-            var singleSink: SuspendLeaderHistorySink? = null
-            provider.forEach { count++; singleSink = it }
+            val sinks = provider.toList()
             return when {
-                count == 0 -> null
-                count > 1 -> {
+                sinks.isEmpty() -> null
+                sinks.size > 1 -> {
                     log.warn { "Multiple SuspendLeaderHistorySink beans found; use @Primary to disambiguate. Suspend history recorder not created." }
                     null
                 }
                 else -> {
+                    val sink = sinks.single()
                     val registry = registryProvider.ifAvailable
                     if (registry != null) {
                         io.bluetape4k.leader.micrometer.history.MicrometerSuspendSafeLeaderHistoryRecorder(
-                            singleSink!!,
+                            sink,
                             registry,
                         )
                     } else {
-                        SuspendSafeLeaderHistoryRecorder(singleSink!!)
+                        SuspendSafeLeaderHistoryRecorder(sink)
                     }
                 }
             }

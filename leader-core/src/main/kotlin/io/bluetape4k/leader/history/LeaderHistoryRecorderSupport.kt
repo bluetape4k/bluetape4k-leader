@@ -2,6 +2,8 @@ package io.bluetape4k.leader.history
 
 import io.bluetape4k.leader.internal.truncateUtf8
 
+private val LOG_SANITIZE_REGEX = Regex("[\\p{Cntrl}\\u2028\\u2029]")
+
 /**
  * Replaces control characters and Unicode line/paragraph separators with `?` to
  * prevent log-injection attacks.
@@ -12,7 +14,7 @@ import io.bluetape4k.leader.internal.truncateUtf8
  * the recorder layer.
  */
 internal fun String.sanitizeForLog(): String =
-    replace(Regex("[\\p{Cntrl}\\u2028\\u2029]"), "?")
+    replace(LOG_SANITIZE_REGEX, "?")
 
 /**
  * Returns a copy of [record] with [LeaderLockHistoryRecord.errorMessage] truncated and
@@ -30,11 +32,15 @@ internal fun sanitize(record: LeaderLockHistoryRecord): LeaderLockHistoryRecord 
         ?.sanitizeForLog()
         ?.truncateUtf8(LeaderLockHistoryRecord.MAX_ERROR_MESSAGE_BYTES)
 
-    val sanitizedMetadata = record.metadata.entries
-        .take(LeaderLockHistoryRecord.MAX_METADATA_KEYS)
-        .associate { (k, v) ->
-            k.take(64).sanitizeForLog() to v.take(LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH).sanitizeForLog()
-        }
+    val sanitizedMetadata = if (record.metadata.isEmpty()) {
+        record.metadata
+    } else {
+        record.metadata.entries
+            .take(LeaderLockHistoryRecord.MAX_METADATA_KEYS)
+            .associate { (k, v) ->
+                k.take(64).sanitizeForLog() to v.take(LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH).sanitizeForLog()
+            }
+    }
 
     return if (sanitizedMessage == record.errorMessage && sanitizedMetadata == record.metadata) {
         record

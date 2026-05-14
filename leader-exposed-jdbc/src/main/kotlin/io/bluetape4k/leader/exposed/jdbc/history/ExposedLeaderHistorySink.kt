@@ -104,41 +104,18 @@ class ExposedLeaderHistorySink(
         errorMessage: String?,
     ) {
         val keyId = key.id
-        val keyHistoryId = key.historyId
         val updated = transaction(database) {
-            when {
-                keyId != null -> LeaderLockHistoryTable.update(
-                    where = { LeaderLockHistoryTable.id eq keyId }
-                ) { row ->
-                    row[LeaderLockHistoryTable.status] = status.name
-                    row[LeaderLockHistoryTable.finishedAt] = finishedAt
-                    row[LeaderLockHistoryTable.durationMs] = durationMs
-                    row[LeaderLockHistoryTable.errorType] = errorType
-                    row[LeaderLockHistoryTable.errorMessage] = errorMessage
-                }
-
-                keyHistoryId != null -> LeaderLockHistoryTable.update(
-                    where = { LeaderLockHistoryTable.token eq key.token }
-                ) { row ->
-                    row[LeaderLockHistoryTable.status] = status.name
-                    row[LeaderLockHistoryTable.finishedAt] = finishedAt
-                    row[LeaderLockHistoryTable.durationMs] = durationMs
-                    row[LeaderLockHistoryTable.errorType] = errorType
-                    row[LeaderLockHistoryTable.errorMessage] = errorMessage
-                }
-
-                else -> LeaderLockHistoryTable.update(
-                    where = {
-                        (LeaderLockHistoryTable.lockName eq key.lockName) and
-                            (LeaderLockHistoryTable.token eq key.token)
-                    }
-                ) { row ->
-                    row[LeaderLockHistoryTable.status] = status.name
-                    row[LeaderLockHistoryTable.finishedAt] = finishedAt
-                    row[LeaderLockHistoryTable.durationMs] = durationMs
-                    row[LeaderLockHistoryTable.errorType] = errorType
-                    row[LeaderLockHistoryTable.errorMessage] = errorMessage
-                }
+            val where = if (keyId != null) {
+                { LeaderLockHistoryTable.id eq keyId }
+            } else {
+                { (LeaderLockHistoryTable.lockName eq key.lockName) and (LeaderLockHistoryTable.token eq key.token) }
+            }
+            LeaderLockHistoryTable.update(where = where) { row ->
+                row[LeaderLockHistoryTable.status] = status.name
+                row[LeaderLockHistoryTable.finishedAt] = finishedAt
+                row[LeaderLockHistoryTable.durationMs] = durationMs
+                row[LeaderLockHistoryTable.errorType] = errorType
+                row[LeaderLockHistoryTable.errorMessage] = errorMessage
             }
         }
         if (updated == 0) {

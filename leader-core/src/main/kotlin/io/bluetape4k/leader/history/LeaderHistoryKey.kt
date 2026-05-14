@@ -45,6 +45,10 @@ data class LeaderHistoryKey(
         token.requireNotBlank("token")
     }
 
+    // Redact token to prevent credential leakage via log statements that interpolate this key
+    override fun toString(): String =
+        "LeaderHistoryKey(id=$id, historyId=$historyId, lockName=$lockName, token=***, slotId=$slotId)"
+
     companion object : KLogging() {
         private const val serialVersionUID = 1L
     }

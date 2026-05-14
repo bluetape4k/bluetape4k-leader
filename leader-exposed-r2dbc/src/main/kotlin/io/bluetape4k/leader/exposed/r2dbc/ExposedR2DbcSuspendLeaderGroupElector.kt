@@ -147,7 +147,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
      */
     suspend fun activeCountSuspend(lockName: String): Int {
         validateExposedR2dbcLockName(lockName)
-        return runCatching {
+        return try {
             suspendTransaction(db) {
                 val now = Instant.now()
                 LeaderGroupLockTable
@@ -159,7 +159,9 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                     .count()
                     .toInt()
             }
-        }.getOrElse { e ->
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             log.warn(e) { "activeCount DB 조회 오류 (0 반환): lockName=$lockName" }
             0
         }.also { cachedActiveCount.set(it) }

@@ -51,7 +51,7 @@ class SuspendLeaderHistoryRetentionJob(
     }
 
     @Scheduled(cron = "\${bluetape4k.leader.history.retention.cron:0 0 2 * * ?}")
-    @LeaderElection("bluetape4k-leader-history-retention-suspend")
+    @LeaderElection("bluetape4k-leader-history-retention-suspend", autoExtend = true)
     fun runRetention(): Mono<Void> = mono(Dispatchers.IO) { runRetentionInternal() }.then()
 
     private suspend fun runRetentionInternal() {

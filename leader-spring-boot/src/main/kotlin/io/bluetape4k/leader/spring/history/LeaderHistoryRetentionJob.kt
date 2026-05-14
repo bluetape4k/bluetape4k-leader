@@ -54,7 +54,7 @@ class LeaderHistoryRetentionJob(
     }
 
     @Scheduled(cron = "\${bluetape4k.leader.history.retention.cron:0 0 2 * * ?}")
-    @LeaderElection("bluetape4k-leader-history-retention")
+    @LeaderElection("bluetape4k-leader-history-retention", autoExtend = true)
     fun runRetention() {
         val cutoff = Instant.now().minus(retentionDays, ChronoUnit.DAYS)
         val deadline = System.currentTimeMillis() + maxDurationMs

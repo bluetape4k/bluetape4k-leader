@@ -169,7 +169,8 @@ class ExposedJdbcLeaderElector private constructor(
                 val finishedAt = Instant.now()
                 val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
                 effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
-                throw e
+                log.warn(e) { "액션 실패 — null 반환 (이력 기록됨). lockName=$lockName" }
+                null
             }
         } finally {
             watchdog.close()

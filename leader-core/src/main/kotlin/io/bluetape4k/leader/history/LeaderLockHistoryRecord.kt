@@ -74,6 +74,12 @@ data class LeaderLockHistoryRecord private constructor(
     internal fun withSanitizedContent(errorMessage: String?, metadata: Map<String, String>): LeaderLockHistoryRecord =
         copy(errorMessage = errorMessage, metadata = metadata)
 
+    // Redact token to prevent credential leakage via log statements that interpolate this record
+    override fun toString(): String =
+        "LeaderLockHistoryRecord(lockName=$lockName, token=***, kind=$kind, acquiredAt=$acquiredAt, " +
+        "lockedUntil=$lockedUntil, nodeId=$nodeId, status=$status, slotId=$slotId, " +
+        "durationMs=$durationMs, errorType=$errorType)"
+
     companion object : KLogging() {
         private const val serialVersionUID = 1L
 

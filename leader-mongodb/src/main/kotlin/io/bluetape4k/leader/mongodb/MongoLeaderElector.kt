@@ -153,6 +153,7 @@ class MongoLeaderElector private constructor(
                     log.debug { "리더 승격 실패 (슬롯 없음, 비동기). lockName=$lockName" }
                     CompletableFuture.completedFuture(null)
                 } else {
+                    val startedAt = Instant.now()
                     val acquiredAtNanos = System.nanoTime()
                     val delegate = MongoLockExtendDelegate(lock)
                     val watchdog = LeaderLeaseAutoExtender.start(
@@ -161,17 +162,44 @@ class MongoLeaderElector private constructor(
                         delegate,
                         ERROR_CLASSIFIER,
                     )
+
+                    val record = historyRecorder?.let {
+                        LeaderLockHistoryRecord(
+                            lockName = lockName,
+                            token = lock.token,
+                            kind = LockIdentity.AnnotationKind.SINGLE,
+                            acquiredAt = startedAt,
+                            lockedUntil = startedAt.plusMillis(options.leaderOptions.leaseTime.inWholeMilliseconds),
+                        )
+                    }
+                    val key = record?.let { historyRecorder.recordAcquired(it) }
+                    val effectiveKey: LeaderHistoryKey? =
+                        key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = lock.token) }
+
                     log.debug { "리더로 승격하여 비동기 작업을 수행합니다. lockName=$lockName" }
-                    // async path 는 handle push 미수행 (AOP scope sync/suspend 만 지원 — Lettuce 패턴 정합)
                     val actionFuture = runCatching { action() }
                         .getOrElse { e ->
                             watchdog.close()
+                            val finishedAt = Instant.now()
+                            val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                            effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
                             runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
                                 .onFailure { ex -> log.warn(ex) { "락 해제 실패 (action 오류 경로). lockName=$lockName" } }
                             return@thenComposeAsync CompletableFuture.failedFuture(e)
                         }
-                    actionFuture.whenCompleteAsync({ _, _ ->
+                    actionFuture.whenCompleteAsync({ _, throwable ->
                         watchdog.close()
+                        val finishedAt = Instant.now()
+                        val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                        when {
+                            throwable == null -> effectiveKey?.let {
+                                historyRecorder?.recordCompleted(it, finishedAt, durationMs)
+                            }
+                            throwable is java.util.concurrent.CancellationException -> { /* cancelled — no audit */ }
+                            else -> effectiveKey?.let {
+                                historyRecorder?.recordFailed(it, finishedAt, durationMs, throwable)
+                            }
+                        }
                         runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
                             .onSuccess { log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" } }
                             .onFailure { e -> log.warn(e) { "비동기 락 해제 실패. lockName=$lockName" } }
