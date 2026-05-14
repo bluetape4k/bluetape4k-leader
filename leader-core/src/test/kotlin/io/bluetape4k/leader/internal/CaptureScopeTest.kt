@@ -5,8 +5,6 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldNotBeNull
-import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -86,50 +84,5 @@ class CaptureScopeTest {
         val result = CaptureScope.runWithCapture(handle) { 42 }
 
         result shouldBeEqualTo 42
-    }
-
-    // --- suspend ---
-
-    @Test
-    fun `runWithCaptureSuspend - handle is pollable inside action`() = runTest {
-        val handle = realHandle()
-        var polled: LeaderLockHandle.Real? = null
-
-        CaptureScope.runWithCaptureSuspend(handle) {
-            polled = LeaderLockHandleCapture.poll()
-        }
-
-        polled shouldBeEqualTo handle
-    }
-
-    @Test
-    fun `runWithCaptureSuspend - clears capture after action completes`() = runTest {
-        val handle = realHandle()
-
-        CaptureScope.runWithCaptureSuspend(handle) { /* do nothing */ }
-
-        LeaderLockHandleCapture.poll().shouldBeNull()
-    }
-
-    @Test
-    fun `runWithCaptureSuspend - clears capture even when action throws`() = runTest {
-        val handle = realHandle()
-
-        runCatching {
-            CaptureScope.runWithCaptureSuspend(handle) {
-                error("simulated failure")
-            }
-        }
-
-        LeaderLockHandleCapture.poll().shouldBeNull()
-    }
-
-    @Test
-    fun `runWithCaptureSuspend - returns action result`() = runTest {
-        val handle = realHandle()
-
-        val result = CaptureScope.runWithCaptureSuspend(handle) { "ok" }
-
-        result shouldBeEqualTo "ok"
     }
 }

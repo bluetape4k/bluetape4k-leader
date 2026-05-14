@@ -39,7 +39,7 @@ import kotlin.random.Random
  *
  * - acquire 된 per-slot [MongoSuspendLock] 을 [MongoSuspendSlotExtendDelegate] 로 wrap 하여 watchdog 와 동일 reference 공유 (AC-15).
  * - aspect 의 `LockExtenderSuspend.extendActiveLockSuspend` 는 동일 delegate reference 를 사용합니다.
- * - suspend group: `setCapture(handle)` + `withContext(createLockHandleElement(handle))` 양쪽에 push.
+ * - suspend group: `withContext(createLockHandleElement(handle))` 로 coroutineContext 에 handle 전파.
  *
  * ```kotlin
  * val db = mongoClient.getDatabase("mydb")
@@ -165,14 +165,8 @@ class MongoSuspendLeaderGroupElector private constructor(
         val watchdog = LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
 
         try {
-            // setCapture: ThreadLocal capture 도 함께 push (aspect dual-source: ThreadLocal + coroutineContext)
-            AopScopeAccess.setCapture(handle)
-            try {
-                return withContext(AopScopeAccess.createLockHandleElement(handle)) {
-                    action()
-                }
-            } finally {
-                AopScopeAccess.clearCapture()
+            return withContext(AopScopeAccess.createLockHandleElement(handle)) {
+                action()
             }
         } finally {
             // NonCancellable: 코루틴 취소 시에도 watchdog close + release 가 중단되지 않도록 보호

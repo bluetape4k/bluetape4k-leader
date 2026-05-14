@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit
  * ## ExtendDelegate 통합 (T13 PR 8 / Issue #79)
  *
  * - acquire 된 per-slot lease 에 [ZooKeeperSuspendSlotExtendDelegate] wrap — [LeaderLockHandle.Real] 와 동일 reference 공유 (AC-15).
- * - suspend group: `setCapture(handle)` + `withContext(createLockHandleElement(handle))` 양쪽에 push.
+ * - suspend group: `withContext(createLockHandleElement(handle))` 로 coroutineContext 에 handle 전파.
  *
  * ## R16 enforce
  *
@@ -133,13 +133,8 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
         )
 
         try {
-            AopScopeAccess.setCapture(handle)
-            try {
-                return withContext(AopScopeAccess.createLockHandleElement(handle)) {
-                    action()
-                }
-            } finally {
-                AopScopeAccess.clearCapture()
+            return withContext(AopScopeAccess.createLockHandleElement(handle)) {
+                action()
             }
         } finally {
             // NonCancellable: 코루틴 취소 시에도 watchdog close + release 가 중단되지 않도록 보호

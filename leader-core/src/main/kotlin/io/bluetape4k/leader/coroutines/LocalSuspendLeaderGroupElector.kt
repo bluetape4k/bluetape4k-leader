@@ -15,7 +15,6 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.leader.internal.CaptureScope
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.local.AbstractLocalLeaderGroupElector
 import io.bluetape4k.leader.local.LocalLeaderStateRegistry
@@ -275,9 +274,7 @@ class LocalSuspendLeaderGroupElector private constructor(
         eventSubject.emit(LeaderElectionEvent.Elected(lockName))
         return try {
             withContext(LockHandleElement(handle)) {
-                CaptureScope.runWithCaptureSuspend(handle) {
-                    action()
-                }
+                action()
             }
         } finally {
             withContext(NonCancellable) {

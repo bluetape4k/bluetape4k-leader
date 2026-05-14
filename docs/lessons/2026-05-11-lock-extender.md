@@ -68,7 +68,7 @@ AOP aspect 가 `@LeaderElection` 어노테이션에서 `LockExtender` 를 호출
 - **Sync single**: `AopScopeAccess.withPushedSync(handle) { action() }` — ThreadLocal push/pop
 - **Suspend single**: `withContext(coroutineContext + AopScopeAccess.createLockHandleElement(handle)) { action() }` — CoroutineContext.Element 주입
 - **Sync group**: `withPushedSync + setCapture(handle) + clearCapture()` in finally — group elector 의 capture invariant 위해 추가 ThreadLocal
-- **Suspend group**: `setCapture + createLockHandleElement` + `clearCapture()` in NonCancellable finally
+- **Suspend group**: `createLockHandleElement` only. Do not use ThreadLocal capture in suspend electors; dispatcher hops can split set/clear across carrier threads.
 - 4개 패턴 모두 MongoDB elector 가 reference template — 9개 backend 통일 적용.
 
 ---

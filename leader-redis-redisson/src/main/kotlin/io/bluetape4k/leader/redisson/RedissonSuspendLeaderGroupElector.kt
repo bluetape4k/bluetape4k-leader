@@ -45,7 +45,8 @@ import kotlin.time.Duration
  * ## ExtendDelegate 통합
  *
  * - acquire 후 [RedissonSuspendSemaphoreExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 동일 reference 공유 (AC-15).
- * - `withContext(AopScopeAccess.createLockHandleElement(handle))` + `setCapture` 로 coroutineContext 와 ThreadLocal 양쪽에 handle 전파.
+ * - `withContext(AopScopeAccess.createLockHandleElement(handle))` 로
+ *   coroutineContext 에 handle 전파.
  *
  * ```kotlin
  * val options = LeaderGroupElectionOptions(maxLeaders = 3, minLeaseTime = 1.seconds)
@@ -180,14 +181,8 @@ class RedissonSuspendLeaderGroupElector private constructor(
         val watchdog = LeaderLeaseAutoExtender.start(false, options.leaseTime, delegate, ERROR_CLASSIFIER)
 
         try {
-            // setCapture: ThreadLocal capture 도 함께 push (aspect dual-source: ThreadLocal + coroutineContext)
-            AopScopeAccess.setCapture(handle)
-            try {
-                return withContext(AopScopeAccess.createLockHandleElement(handle)) {
-                    action()
-                }
-            } finally {
-                AopScopeAccess.clearCapture()
+            return withContext(AopScopeAccess.createLockHandleElement(handle)) {
+                action()
             }
         } finally {
             // NonCancellable: 코루틴 취소 시에도 release/extend 가 중단되지 않도록 보호
