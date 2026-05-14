@@ -126,8 +126,7 @@ class LettuceSuspendLeaderElector(
                 val finishedAt = Instant.now()
                 val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
                 effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
-                log.warn(e) { "리더 작업 실패 (null 반환, suspend). lockName=$lockName" }
-                null
+                throw e
             }
         } finally {
             // NonCancellable: 코루틴 취소 시에도 lease 정리가 중단되지 않도록 보호

@@ -41,7 +41,7 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
     fun `단일 acquire 시 token 을 반환한다`() {
         val token = group.tryAcquire(waitTime = 1.seconds, leaseTime = 5.seconds)
         token.shouldNotBeNull()
-        token.length shouldBeEqualTo 8
+        token.length shouldBeEqualTo 22
 
         group.release(token, remainingMinLeaseMs = 0)
     }
