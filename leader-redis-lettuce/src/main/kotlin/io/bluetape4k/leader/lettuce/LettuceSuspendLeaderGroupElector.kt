@@ -48,7 +48,8 @@ fun StatefulRedisConnection<String, String>.suspendLeaderGroupElector(
  *
  * - 내부적으로 [LettuceSlotTokenGroup] (ZSET + Lua, server-side TIME) 사용.
  * - acquire 후 [LettuceSuspendSlotExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 동일 reference 공유 (AC-15).
- * - `withContext(AopScopeAccess.createLockHandleElement(handle))` + `setCapture` 로 coroutineContext 와 ThreadLocal 양쪽에 handle 전파.
+ * - `withContext(AopScopeAccess.createLockHandleElement(handle))` 로
+ *   coroutineContext 에 handle 전파.
  * - 코루틴 취소 시에도 `withContext(NonCancellable)` 안에서 release 가 보장됩니다.
  * - `CancellationException` 은 항상 re-throw 합니다.
  *
@@ -131,14 +132,8 @@ class LettuceSuspendLeaderGroupElector(
         log.debug { "리더 선출 성공 (suspend): lockName=$lockName, token=$token" }
 
         try {
-            // setCapture: ThreadLocal capture 도 함께 push (aspect dual-source: ThreadLocal + coroutineContext)
-            AopScopeAccess.setCapture(handle)
-            try {
-                return withContext(AopScopeAccess.createLockHandleElement(handle)) {
-                    action()
-                }
-            } finally {
-                AopScopeAccess.clearCapture()
+            return withContext(AopScopeAccess.createLockHandleElement(handle)) {
+                action()
             }
         } finally {
             // NonCancellable: 코루틴 취소 시에도 슬롯 반납이 중단되지 않도록 보호

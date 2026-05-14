@@ -30,9 +30,7 @@ import org.jetbrains.exposed.v1.r2dbc.insert
 import org.jetbrains.exposed.v1.r2dbc.selectAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
@@ -240,8 +238,6 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
             var actionFailed = false
 
             try {
-                // setCapture: ThreadLocal capture 도 함께 push (aspect dual-source: ThreadLocal + coroutineContext)
-                AopScopeAccess.setCapture(handle)
                 val result = withContext(AopScopeAccess.createLockHandleElement(handle)) {
                     action()
                 }
@@ -253,9 +249,8 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                 actionFailed = true
                 throw e
             } finally {
-                // NonCancellable: 코루틴 취소 시에도 watchdog close + 캡쳐 clear + 락 해제가 중단되지 않도록 보호
+                // NonCancellable: 코루틴 취소 시에도 watchdog close + 락 해제가 중단되지 않도록 보호
                 withContext(NonCancellable) {
-                    AopScopeAccess.clearCapture()
                     watchdog.close()
                     cachedActiveCount.updateAndGet { it.coerceAtLeast(1) - 1 }
                     when {

@@ -16,7 +16,7 @@ import io.bluetape4k.leader.internal.LockStateHolder
  * |------|------|
  * | [peekSyncMatching] | sync 분기 reentrant peek (동일 lockName 보유 여부 확인) |
  * | [withPushedSync] | sync 분기 handle push/pop — body 실행 전후 LockStateHolder 관리 |
- * | [pollCapture] | elector → aspect handle 전달 수신 (CaptureScope.runWithCapture 후) |
+ * | [pollCapture] | sync group elector → aspect handle 전달 수신 (CaptureScope.runWithCapture 후) |
  * | [createFailOpen] | fail-open sentinel handle 생성 |
  * | [createLockHandleElement] | CoroutineContext 에 주입할 LockHandleElement 생성 |
  */
@@ -51,16 +51,21 @@ object AopScopeAccess {
     /**
      * [LeaderLockHandleCapture] ThreadLocal 에서 handle 을 꺼내고 즉시 clear 합니다.
      *
-     * group elector 의 `CaptureScope.runWithCapture` 가 set 한 값을 aspect 가 수신합니다.
+     * sync group elector 의 `CaptureScope.runWithCapture` 가 set 한 값을 aspect 가 수신합니다.
      * single elector 는 capture 하지 않으므로 `null` 이 정상 — CaptureInvariantException 사용 금지.
+     * suspend group elector 는 ThreadLocal capture 를 사용하지 않고 [createLockHandleElement] 만 사용합니다.
      */
     fun pollCapture(): LeaderLockHandle.Real? = LeaderLockHandleCapture.poll()
 
     /**
-     * Backend module 전용 — group elector 의 acquire 직후 aspect 가 poll 할 handle 을 set 합니다.
+     * Backend module 전용 — sync group elector 의 acquire 직후 aspect 가 poll 할 handle 을 set 합니다.
      *
      * ⚠️ 애플리케이션 코드에서 직접 호출 금지 — `leader-redis-lettuce`, `leader-redis-redisson`,
-     * `leader-mongodb` 등의 group elector 가 동일 thread 에서 `setCapture` → action → [clearCapture] 시퀀스를 보장해야 합니다.
+     * `leader-mongodb` 등의 sync group elector 가 동일 thread 에서
+     * `setCapture` → action → [clearCapture] 시퀀스를 보장해야 합니다.
+     *
+     * suspend group elector 는 dispatcher hop 으로 ThreadLocal set/clear thread 가 달라질 수 있으므로
+     * 호출하지 말고 [createLockHandleElement] 로 coroutine context 에 handle 을 전파해야 합니다.
      *
      * 일반적으로 try/finally 패턴으로 사용:
      *
@@ -80,9 +85,10 @@ object AopScopeAccess {
     }
 
     /**
-     * Backend module 전용 — [setCapture] 로 set 한 ThreadLocal 을 명시적으로 clear 합니다.
+     * Backend module 전용 — [setCapture] 로 set 한 sync group ThreadLocal 을 명시적으로 clear 합니다.
      *
      * `try/finally` finally 블록에서 호출하여 ThreadLocal leak 을 방지합니다.
+     * suspend group elector 에서는 호출하지 않습니다.
      */
     fun clearCapture() {
         LeaderLockHandleCapture.clear()
