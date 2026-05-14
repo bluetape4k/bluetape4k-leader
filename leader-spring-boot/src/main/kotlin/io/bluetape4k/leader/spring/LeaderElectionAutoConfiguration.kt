@@ -7,9 +7,12 @@ import io.bluetape4k.leader.spring.backend.HazelcastLeaderConfiguration
 import io.bluetape4k.leader.spring.backend.LettuceLeaderConfiguration
 import io.bluetape4k.leader.spring.backend.MongoLeaderConfiguration
 import io.bluetape4k.leader.spring.backend.RedissonLeaderConfiguration
+import io.bluetape4k.leader.spring.boot.LeaderLeaseAutoExtenderLifecycle
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 
 /**
@@ -35,4 +38,10 @@ import org.springframework.context.annotation.Import
     ExposedJdbcLeaderConfiguration::class,
     ExposedR2dbcLeaderConfiguration::class,
 )
-class LeaderElectionAutoConfiguration
+class LeaderElectionAutoConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun leaderLeaseAutoExtenderLifecycle(): LeaderLeaseAutoExtenderLifecycle =
+        LeaderLeaseAutoExtenderLifecycle()
+}

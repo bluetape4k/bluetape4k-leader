@@ -12,11 +12,13 @@ import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import java.time.Instant
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -53,13 +55,41 @@ import kotlin.time.Duration.Companion.milliseconds
 object LeaderLeaseAutoExtender : KLogging() {
 
     private val threadSeq = AtomicInteger()
-    private val scheduler = ScheduledThreadPoolExecutor(DEFAULT_WATCHDOG_THREADS) { runnable ->
-        Thread(runnable, "bluetape4k-leader-lease-watchdog-${threadSeq.incrementAndGet()}").apply {
-            isDaemon = true
+
+    @Volatile
+    private var scheduler: ScheduledThreadPoolExecutor = newScheduler()
+
+    /**
+     * Shuts down the shared watchdog scheduler, waiting up to 5 seconds for in-flight ticks to finish.
+     * Safe to call multiple times. After shutdown, calls to [start] will throw [RejectedExecutionException]
+     * from the scheduler until [restart] is invoked. The tick-body [RejectedExecutionException] catch
+     * protects ticks whose delegate submits further work to a separately shut-down executor.
+     */
+    fun shutdown() {
+        scheduler.shutdown()
+        if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+            scheduler.shutdownNow()
         }
-    }.apply {
-        removeOnCancelPolicy = true
     }
+
+    /**
+     * Replaces the scheduler with a fresh instance if the current one has been shut down.
+     * No-op when the scheduler is still running.
+     */
+    fun restart() {
+        if (!scheduler.isShutdown) return
+        scheduler = newScheduler()
+    }
+
+    /** Returns `true` if the shared watchdog scheduler has been shut down. */
+    fun isShutdown(): Boolean = scheduler.isShutdown
+
+    private fun newScheduler(): ScheduledThreadPoolExecutor =
+        ScheduledThreadPoolExecutor(DEFAULT_WATCHDOG_THREADS) { runnable ->
+            Thread(runnable, "bluetape4k-leader-lease-watchdog-${threadSeq.incrementAndGet()}").apply {
+                isDaemon = true
+            }
+        }.apply { removeOnCancelPolicy = true }
 
     /**
      * [enabled]가 true이면 [ExtendDelegate] 를 이용한 lease 연장 watchdog을 시작합니다.
@@ -97,59 +127,67 @@ object LeaderLeaseAutoExtender : KLogging() {
 
         val closed = AtomicBoolean(false)
         val cadence = renewalPeriod(leaseTime)
-        lateinit var future: ScheduledFuture<*>
+        val futureRef = AtomicReference<ScheduledFuture<*>?>(null)
 
-        future = scheduler.scheduleWithFixedDelay(
-            {
-                if (closed.get()) {
-                    future.cancel(false)
-                    return@scheduleWithFixedDelay
-                }
-
-                // R2 mitigation: user 가 explicit extend 를 호출했으면 watchdog skip
-                val deadline = delegate.lastExtendDeadline.get()
-                if (deadline != null && Instant.now().plusMillis(cadence.inWholeMilliseconds).isBefore(deadline)) {
-                    return@scheduleWithFixedDelay
-                }
-
-                val outcome = try {
-                    delegate.extend(leaseTime)
-                } catch (ex: Exception) {
-                    log.warn(ex) { "leader.lease.auto-extend.failed" }
-                    BackendError(ex)
-                }
-
-                when (outcome) {
-                    is Extended -> { /* 정상 연장 — 계속 */ }
-                    is NotHeld, is WrongThread -> {
-                        log.warn { "leader.lease.auto-extend.stopped reason=$outcome" }
-                        if (closed.compareAndSet(false, true)) {
-                            future.cancel(false)
-                        }
+        val future = try {
+            scheduler.scheduleWithFixedDelay(
+                {
+                    if (closed.get()) {
+                        futureRef.get()?.cancel(false)
+                        return@scheduleWithFixedDelay
                     }
-                    is BackendError -> {
-                        val kind = errorClassifier.classify(outcome.cause)
-                            ?: BackendErrorKind.NON_TRANSIENT
-                        when (kind) {
-                            BackendErrorKind.TRANSIENT -> {
-                                // 재시도 가능 — WARN log 후 계속
-                                log.warn(outcome.cause) { "leader.lease.auto-extend.transient-error — retrying. cause=${outcome.cause.message}" }
+
+                    // R2 mitigation: user 가 explicit extend 를 호출했으면 watchdog skip
+                    val deadline = delegate.lastExtendDeadline.get()
+                    if (deadline != null && Instant.now().plusMillis(cadence.inWholeMilliseconds).isBefore(deadline)) {
+                        return@scheduleWithFixedDelay
+                    }
+
+                    val outcome = try {
+                        delegate.extend(leaseTime)
+                    } catch (ex: RejectedExecutionException) {
+                        log.warn(ex) { "Watchdog tick rejected — scheduler shut down. delegateId=${delegate.hashCode()}" }
+                        futureRef.get()?.cancel(false)
+                        return@scheduleWithFixedDelay
+                    } catch (ex: Exception) {
+                        log.warn(ex) { "leader.lease.auto-extend.failed" }
+                        BackendError(ex)
+                    }
+
+                    when (outcome) {
+                        is Extended -> { /* 정상 연장 — 계속 */ }
+                        is NotHeld, is WrongThread -> {
+                            log.warn { "leader.lease.auto-extend.stopped reason=$outcome" }
+                            if (closed.compareAndSet(false, true)) {
+                                futureRef.get()?.cancel(false)
                             }
-                            BackendErrorKind.NON_TRANSIENT, BackendErrorKind.FATAL -> {
-                                // 영구 오류 또는 치명적 오류 — watchdog 중단
-                                log.warn(outcome.cause) { "leader.lease.auto-extend.stopped reason=BACKEND_ERROR kind=$kind cause=${outcome.cause.message}" }
-                                if (closed.compareAndSet(false, true)) {
-                                    future.cancel(false)
+                        }
+                        is BackendError -> {
+                            val kind = errorClassifier.classify(outcome.cause)
+                                ?: BackendErrorKind.NON_TRANSIENT
+                            when (kind) {
+                                BackendErrorKind.TRANSIENT -> {
+                                    log.warn(outcome.cause) { "leader.lease.auto-extend.transient-error — retrying. cause=${outcome.cause.message}" }
+                                }
+                                BackendErrorKind.NON_TRANSIENT, BackendErrorKind.FATAL -> {
+                                    log.warn(outcome.cause) { "leader.lease.auto-extend.stopped reason=BACKEND_ERROR kind=$kind cause=${outcome.cause.message}" }
+                                    if (closed.compareAndSet(false, true)) {
+                                        futureRef.get()?.cancel(false)
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            },
-            cadence.inWholeMilliseconds,
-            cadence.inWholeMilliseconds,
-            TimeUnit.MILLISECONDS,
-        )
+                },
+                cadence.inWholeMilliseconds,
+                cadence.inWholeMilliseconds,
+                TimeUnit.MILLISECONDS,
+            )
+        } catch (ex: RejectedExecutionException) {
+            log.warn(ex) { "Watchdog scheduling rejected — scheduler shut down. Returning no-op." }
+            return NoopCloseable
+        }
+        futureRef.set(future)
 
         return AutoCloseable {
             if (closed.compareAndSet(false, true)) {
@@ -181,28 +219,41 @@ object LeaderLeaseAutoExtender : KLogging() {
 
         val closed = AtomicBoolean(false)
         val period = renewalPeriod(leaseTime)
-        lateinit var future: ScheduledFuture<*>
+        val futureRef = AtomicReference<ScheduledFuture<*>?>(null)
 
-        future = scheduler.scheduleWithFixedDelay(
-            {
-                if (closed.get()) {
-                    future.cancel(false)
-                    return@scheduleWithFixedDelay
-                }
+        val future = try {
+            scheduler.scheduleWithFixedDelay(
+                {
+                    if (closed.get()) {
+                        futureRef.get()?.cancel(false)
+                        return@scheduleWithFixedDelay
+                    }
 
-                val extended = runCatching { extend() }
-                    .onFailure { log.warn(it) { "leader.lease.auto-extend.failed" } }
-                    .getOrDefault(false)
+                    val extendResult = runCatching { extend() }
+                        .onFailure { ex ->
+                            if (ex is RejectedExecutionException) {
+                                log.warn(ex) { "Watchdog tick rejected — scheduler shut down. extenderId=${extend.hashCode()}" }
+                                futureRef.get()?.cancel(false)
+                                return@scheduleWithFixedDelay
+                            }
+                            log.warn(ex) { "leader.lease.auto-extend.failed" }
+                        }
+                    val extended = extendResult.getOrDefault(false)
 
-                if (!extended && closed.compareAndSet(false, true)) {
-                    log.warn { "leader.lease.auto-extend.stopped reason=NOT_OWNER" }
-                    future.cancel(false)
-                }
-            },
-            period.inWholeMilliseconds,
-            period.inWholeMilliseconds,
-            TimeUnit.MILLISECONDS,
-        )
+                    if (!extended && closed.compareAndSet(false, true)) {
+                        log.warn { "leader.lease.auto-extend.stopped reason=NOT_OWNER" }
+                        futureRef.get()?.cancel(false)
+                    }
+                },
+                period.inWholeMilliseconds,
+                period.inWholeMilliseconds,
+                TimeUnit.MILLISECONDS,
+            )
+        } catch (ex: RejectedExecutionException) {
+            log.warn(ex) { "Watchdog scheduling rejected — scheduler shut down. Returning no-op." }
+            return NoopCloseable
+        }
+        futureRef.set(future)
 
         return AutoCloseable {
             if (closed.compareAndSet(false, true)) {
