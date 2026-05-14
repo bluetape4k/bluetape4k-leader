@@ -6,6 +6,9 @@ import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.history.LeaderHistoryKey
+import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoSuspendLockExtendDelegate
@@ -18,6 +21,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import org.bson.Document
+import java.time.Instant
 
 /**
  * MongoDB 분산 락을 이용한 코루틴 기반 단일 리더 선출 구현체입니다.
@@ -47,6 +51,7 @@ import org.bson.Document
 class MongoSuspendLeaderElector private constructor(
     private val collection: MongoCollection<Document>,
     val options: MongoLeaderElectionOptions,
+    private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
 ) : SuspendLeaderElector {
 
     companion object : KLoggingChannel() {
@@ -56,9 +61,10 @@ class MongoSuspendLeaderElector private constructor(
         suspend operator fun invoke(
             collection: MongoCollection<Document>,
             options: MongoLeaderElectionOptions = MongoLeaderElectionOptions.Default,
+            historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
         ): MongoSuspendLeaderElector {
             MongoSuspendLock.ensureIndexes(collection)
-            return MongoSuspendLeaderElector(collection, options)
+            return MongoSuspendLeaderElector(collection, options, historyRecorder)
         }
     }
 
@@ -72,6 +78,7 @@ class MongoSuspendLeaderElector private constructor(
             return null
         }
 
+        val startedAt = Instant.now()
         val acquiredAtNanos = System.nanoTime()
         val delegate = MongoSuspendLockExtendDelegate(lock)
         val identity = LockIdentity(
@@ -81,7 +88,7 @@ class MongoSuspendLeaderElector private constructor(
         )
         val handle = LeaderLockHandle.real(
             identity = identity,
-            token = lockName,
+            token = lock.token,
             acquiredAtNanos = acquiredAtNanos,
             extendDelegate = delegate,
         )
@@ -91,10 +98,38 @@ class MongoSuspendLeaderElector private constructor(
             delegate,
             ERROR_CLASSIFIER,
         )
+
+        val record = historyRecorder?.let {
+            LeaderLockHistoryRecord(
+                lockName = lockName,
+                token = lock.token,
+                kind = LockIdentity.AnnotationKind.SINGLE,
+                acquiredAt = startedAt,
+                lockedUntil = startedAt.plusMillis(options.leaderOptions.leaseTime.inWholeMilliseconds),
+            )
+        }
+        val key = record?.let { historyRecorder.recordAcquired(it) }
+        val effectiveKey: LeaderHistoryKey? =
+            key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = lock.token) }
+
         log.debug { "리더로 승격하여 suspend 작업을 수행합니다. lockName=$lockName" }
         try {
-            return withContext(AopScopeAccess.createLockHandleElement(handle)) {
-                action()
+            return try {
+                val result = withContext(AopScopeAccess.createLockHandleElement(handle)) {
+                    action()
+                }
+                val finishedAt = Instant.now()
+                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
+                result
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val finishedAt = Instant.now()
+                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
+                log.warn(e) { "리더 작업 실패 (null 반환). lockName=$lockName" }
+                null
             }
         } finally {
             // NonCancellable: 코루틴 취소 시에도 watchdog close + 락 해제가 중단되지 않도록 보호

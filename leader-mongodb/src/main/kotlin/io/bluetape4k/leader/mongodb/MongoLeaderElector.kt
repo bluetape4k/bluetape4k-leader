@@ -7,6 +7,9 @@ import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.history.LeaderHistoryKey
+import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoLockExtendDelegate
@@ -16,6 +19,7 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import org.bson.Document
+import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
@@ -47,6 +51,7 @@ import java.util.concurrent.Executor
 class MongoLeaderElector private constructor(
     private val collection: MongoCollection<Document>,
     val options: MongoLeaderElectionOptions,
+    private val historyRecorder: SafeLeaderHistoryRecorder? = null,
 ) : LeaderElector {
 
     companion object : KLogging() {
@@ -57,9 +62,10 @@ class MongoLeaderElector private constructor(
         operator fun invoke(
             collection: MongoCollection<Document>,
             options: MongoLeaderElectionOptions = MongoLeaderElectionOptions.Default,
+            historyRecorder: SafeLeaderHistoryRecorder? = null,
         ): MongoLeaderElector {
             MongoLock.ensureIndexes(collection)
-            return MongoLeaderElector(collection, options)
+            return MongoLeaderElector(collection, options, historyRecorder)
         }
     }
 
@@ -73,6 +79,7 @@ class MongoLeaderElector private constructor(
             return null
         }
 
+        val startedAt = Instant.now()
         val acquiredAtNanos = System.nanoTime()
         val delegate = MongoLockExtendDelegate(lock)
         val identity = LockIdentity(
@@ -82,7 +89,7 @@ class MongoLeaderElector private constructor(
         )
         val handle = LeaderLockHandle.real(
             identity = identity,
-            token = lockName,
+            token = lock.token,
             acquiredAtNanos = acquiredAtNanos,
             extendDelegate = delegate,
         )
@@ -92,9 +99,38 @@ class MongoLeaderElector private constructor(
             delegate,
             ERROR_CLASSIFIER,
         )
+
+        val record = historyRecorder?.let {
+            LeaderLockHistoryRecord(
+                lockName = lockName,
+                token = lock.token,
+                kind = LockIdentity.AnnotationKind.SINGLE,
+                acquiredAt = startedAt,
+                lockedUntil = startedAt.plusMillis(options.leaderOptions.leaseTime.inWholeMilliseconds),
+            )
+        }
+        val key = record?.let { historyRecorder.recordAcquired(it) }
+        val effectiveKey: LeaderHistoryKey? =
+            key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = lock.token) }
+
         log.debug { "리더로 승격하여 작업을 수행합니다. lockName=$lockName" }
         try {
-            return AopScopeAccess.withPushedSync(handle) { action() }
+            return try {
+                val result = AopScopeAccess.withPushedSync(handle) { action() }
+                val finishedAt = Instant.now()
+                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
+                result
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                throw e
+            } catch (e: Exception) {
+                val finishedAt = Instant.now()
+                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
+                log.warn(e) { "리더 작업 실패 (null 반환). lockName=$lockName" }
+                null
+            }
         } finally {
             watchdog.close()
             runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
