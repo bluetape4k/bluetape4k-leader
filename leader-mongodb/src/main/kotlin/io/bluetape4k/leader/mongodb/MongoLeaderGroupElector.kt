@@ -9,7 +9,6 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
-import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoSlotExtendDelegate
@@ -54,7 +53,6 @@ import kotlin.random.Random
 class MongoLeaderGroupElector private constructor(
     private val groupCollection: MongoCollection<Document>,
     val options: MongoLeaderGroupElectionOptions,
-    @Suppress("unused") private val historyRecorder: SafeLeaderHistoryRecorder? = null,
 ) : LeaderGroupElector {
 
     companion object : KLogging() {
@@ -65,10 +63,9 @@ class MongoLeaderGroupElector private constructor(
         operator fun invoke(
             groupCollection: MongoCollection<Document>,
             options: MongoLeaderGroupElectionOptions = MongoLeaderGroupElectionOptions.Default,
-            historyRecorder: SafeLeaderHistoryRecorder? = null,
         ): MongoLeaderGroupElector {
             MongoLock.ensureIndexes(groupCollection)
-            return MongoLeaderGroupElector(groupCollection, options, historyRecorder)
+            return MongoLeaderGroupElector(groupCollection, options)
         }
     }
 

@@ -59,6 +59,7 @@ class MongoLeaderElector private constructor(
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(MongoBackendErrorClassifier)
 
         @JvmStatic
+        @JvmOverloads
         operator fun invoke(
             collection: MongoCollection<Document>,
             options: MongoLeaderElectionOptions = MongoLeaderElectionOptions.Default,

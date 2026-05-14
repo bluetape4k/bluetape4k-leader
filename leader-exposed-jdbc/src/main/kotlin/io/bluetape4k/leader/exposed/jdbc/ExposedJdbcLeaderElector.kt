@@ -78,6 +78,7 @@ class ExposedJdbcLeaderElector private constructor(
          * 첫 호출 시 리더 선출 테이블 스키마를 자동으로 생성합니다 (최초 1회).
          */
         @JvmStatic
+        @JvmOverloads
         operator fun invoke(
             db: Database,
             options: ExposedJdbcLeaderElectionOptions = ExposedJdbcLeaderElectionOptions.Default,

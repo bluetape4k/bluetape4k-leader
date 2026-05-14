@@ -58,7 +58,7 @@ fun StatefulRedisConnection<String, String>.leaderElection(
  * @param connection Lettuce [StatefulRedisConnection] (StringCodec 기반)
  * @param options    리더 선출 옵션 (waitTime, leaseTime)
  */
-class LettuceLeaderElector(
+class LettuceLeaderElector @JvmOverloads constructor(
     private val connection: StatefulRedisConnection<String, String>,
     private val options: LeaderElectionOptions = LeaderElectionOptions.Default,
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,
