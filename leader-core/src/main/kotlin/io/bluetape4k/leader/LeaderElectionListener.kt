@@ -3,6 +3,8 @@ package io.bluetape4k.leader
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.flow.Flow
+import java.io.Serializable
+import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
@@ -44,8 +46,24 @@ sealed interface LeaderElectionEvent {
     /** 이벤트가 발생한 락 이름입니다. */
     val lockName: String
 
-    /** 리더 또는 그룹 슬롯을 획득한 이벤트입니다. */
-    data class Elected(override val lockName: String) : LeaderElectionEvent
+    /**
+     * Leader or group slot acquisition event.
+     *
+     * ## Behavior / Contract
+     * - [leaderId] is the identity of the node that won the election. Populated by local electors
+     *   and backends that carry identity; `null` when identity is unavailable (e.g. decorator path).
+     * - [leaseExpiry] is the absolute time at which the lease expires. Currently always `null`;
+     *   reserved for future backend implementations that can report expiry at election time.
+     */
+    data class Elected(
+        override val lockName: String,
+        val leaderId: String? = null,
+        val leaseExpiry: Instant? = null,
+    ) : LeaderElectionEvent, Serializable {
+        companion object {
+            private const val serialVersionUID = 1L
+        }
+    }
 
     /** 리더십 또는 그룹 슬롯을 반납한 이벤트입니다. */
     data class Revoked(override val lockName: String) : LeaderElectionEvent

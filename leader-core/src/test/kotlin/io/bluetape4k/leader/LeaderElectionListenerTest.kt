@@ -157,7 +157,7 @@ class LeaderElectionListenerTest {
 
         result shouldBeEqualTo "done"
         collected.await() shouldBeEqualTo listOf(
-            LeaderElectionEvent.Elected("suspend-event-job"),
+            LeaderElectionEvent.Elected("suspend-event-job", leaderId = LeaderNodeId.Default),
             LeaderElectionEvent.Revoked("suspend-event-job"),
         )
     }
