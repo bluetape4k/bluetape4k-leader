@@ -5,6 +5,8 @@ import org.springframework.beans.factory.DisposableBean
 import org.springframework.beans.factory.InitializingBean
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * Manages the [LeaderLeaseAutoExtender] lifecycle within a Spring application context.
@@ -23,7 +25,10 @@ import java.util.concurrent.atomic.AtomicInteger
  * count regardless of how many times its lifecycle callbacks are invoked. The [lifecycleLock] guards
  * the register/unregister sequences so that concurrent calls cannot produce a spurious zero.
  */
-class LeaderLeaseAutoExtenderLifecycle : InitializingBean, DisposableBean {
+class LeaderLeaseAutoExtenderLifecycle(
+    private val watchdogThreads: Int? = null,
+    private val watchdogAsyncExtend: Boolean = false,
+) : InitializingBean, DisposableBean {
 
     private val registered = AtomicBoolean(false)
 
@@ -33,21 +38,30 @@ class LeaderLeaseAutoExtenderLifecycle : InitializingBean, DisposableBean {
         // Guards the register-then-restart / unregister-then-shutdown sequences so that
         // a concurrent destroy() cannot slip in between a decrement reaching zero and the
         // actual shutdown() call while another afterPropertiesSet() has already incremented
-        // the count back above zero.
-        private val lifecycleLock = Any()
+        // the count back above zero. ReentrantLock avoids virtual-thread pinning.
+        private val lifecycleLock = ReentrantLock()
     }
 
     override fun afterPropertiesSet() {
-        synchronized(lifecycleLock) {
+        lifecycleLock.withLock {
             if (registered.compareAndSet(false, true)) {
                 activeContextCount.incrementAndGet()
+                // Only configure when the user has explicitly set at least one non-default value.
+                // Skipping here when both are defaults avoids overwriting settings that were
+                // established by an earlier Spring context in the same JVM (multi-context safety).
+                if (watchdogThreads != null || watchdogAsyncExtend) {
+                    LeaderLeaseAutoExtender.configure(
+                        watchdogThreads = watchdogThreads ?: LeaderLeaseAutoExtender.watchdogThreadCount(),
+                        asyncExtend = watchdogAsyncExtend,
+                    )
+                }
             }
             LeaderLeaseAutoExtender.restart()
         }
     }
 
     override fun destroy() {
-        synchronized(lifecycleLock) {
+        lifecycleLock.withLock {
             if (registered.compareAndSet(true, false)) {
                 if (activeContextCount.decrementAndGet() == 0) {
                     LeaderLeaseAutoExtender.shutdown()

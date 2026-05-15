@@ -42,6 +42,9 @@ class LeaderElectionAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun leaderLeaseAutoExtenderLifecycle(): LeaderLeaseAutoExtenderLifecycle =
-        LeaderLeaseAutoExtenderLifecycle()
+    fun leaderLeaseAutoExtenderLifecycle(props: LeaderProperties): LeaderLeaseAutoExtenderLifecycle =
+        LeaderLeaseAutoExtenderLifecycle(
+            watchdogThreads = props.watchdogThreads,
+            watchdogAsyncExtend = props.watchdogAsyncExtend,
+        )
 }
