@@ -32,6 +32,7 @@ examples/
   cache-warmer/           # Hazelcast — per-partition leader cache warming
   tenant-aggregator/      # Exposed R2DBC — coroutine multi-tenant aggregation
   ktor-app/               # Ktor 3.x + Lettuce Redis — leaderScheduled() demo
+  prometheus-dashboard/   # Spring Boot + Prometheus/Grafana leader metrics demo
 buildSrc/
 ```
 
@@ -139,8 +140,8 @@ locations below in sync. Missing any of them silently disables coverage.
 
 Example modules currently wired into both `ci.yml` and `nightly.yml`:
 `batch-scheduler`, `migration-gate`, `webhook-poller`, `cache-warmer`,
-`tenant-aggregator`, `ktor-app`. The library module `leader-ktor` is wired
-identically (Testcontainers Redis).
+`tenant-aggregator`, `ktor-app`, `prometheus-dashboard`. The library module
+`leader-ktor` is wired identically (Testcontainers Redis).
 
 ## Codex Spec / Plan / Code Review Stages
 

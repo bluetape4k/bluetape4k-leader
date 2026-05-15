@@ -83,6 +83,7 @@ Runnable example modules under `examples/` demonstrate production scenarios acro
 | [`examples/cache-warmer`](./examples/cache-warmer) | Hazelcast | Per-partition leader election — exactly one instance warms each partition |
 | [`examples/tenant-aggregator`](./examples/tenant-aggregator) | Exposed R2DBC | Coroutine-native multi-tenant aggregation — independent leader per tenant |
 | [`examples/ktor-app`](./examples/ktor-app) | Ktor 3.x + Lettuce Redis | Ktor application using `LeaderElectionPlugin` and `Application.leaderScheduled()` |
+| [`examples/prometheus-dashboard`](./examples/prometheus-dashboard) | Spring Boot + Lettuce Redis | Prometheus and Grafana dashboard for leader AOP metrics |
 
 Run any example with `./gradlew :examples:<name>:run` (Docker required for Testcontainers-backed demos).
 
