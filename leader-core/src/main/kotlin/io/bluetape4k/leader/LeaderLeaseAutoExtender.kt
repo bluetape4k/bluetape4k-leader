@@ -23,14 +23,14 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * 리더 lease를 백엔드 소유권 조건으로 주기 연장하는 공통 watchdog helper입니다.
+ * Common watchdog helper that periodically extends a leader lease under backend ownership conditions.
  *
- * ## 계약
- * - [extend]는 반드시 현재 owner token/thread/instance 조건을 확인해야 합니다.
- * - [extend]가 `false`를 반환하거나 예외를 던지면 watchdog은 반복을 중단합니다.
- * - 호출자는 action 종료/예외/취소 release path에서 반환된 [AutoCloseable]을 닫아야 합니다.
+ * ## Contract
+ * - [extend] must verify the current owner token/thread/instance condition.
+ * - If [extend] returns `false` or throws an exception, the watchdog stops iterating.
+ * - The caller must close the returned [AutoCloseable] in the action's termination/exception/cancellation release path.
  *
- * ## ExtendDelegate 기반 권장 사용 (R2 watchdog skip)
+ * ## Recommended usage with ExtendDelegate (R2 watchdog skip)
  * ```kotlin
  * val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate)
  * try {
@@ -40,7 +40,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * }
  * ```
  *
- * ## 기존 Boolean 람다 사용 (Deprecated)
+ * ## Legacy Boolean lambda usage (Deprecated)
  * ```kotlin
  * val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime) {
  *     lock.extend(options.leaseTime)
@@ -145,27 +145,28 @@ object LeaderLeaseAutoExtender : KLogging() {
         }.apply { removeOnCancelPolicy = true }
 
     /**
-     * [enabled]가 true이면 [ExtendDelegate] 를 이용한 lease 연장 watchdog을 시작합니다.
+     * Starts a lease-extension watchdog using [ExtendDelegate] when [enabled] is true.
      *
      * ## R2 watchdog skip
-     * tick 마다 `delegate.lastExtendDeadline.get()` 를 읽어,
-     * `now + cadence < lastExtendDeadline` 이면 backend extend 호출을 skip 합니다.
-     * User 가 `LockExtender.extendActiveLock(60s)` 를 호출한 직후 watchdog 이 lease 를
-     * 작은 값으로 silently 축소하는 split-brain 을 차단합니다.
+     * On each tick, reads `delegate.lastExtendDeadline.get()`. If
+     * `now + cadence < lastExtendDeadline`, the backend extend call is skipped.
+     * This prevents a split-brain where the watchdog silently shrinks the lease to a smaller
+     * value immediately after the user calls `LockExtender.extendActiveLock(60s)`.
      *
-     * ## 종료 조건
-     * - [ExtendOutcome.NotHeld] / [ExtendOutcome.WrongThread] → watchdog 중단 (소유권 상실)
-     * - [ExtendOutcome.BackendError] (TRANSIENT) → WARN log + 계속 (재시도)
-     * - [ExtendOutcome.BackendError] (NON_TRANSIENT / FATAL) → WARN log + watchdog 중단
-     * - [AutoCloseable.close] 호출 → 중단
+     * ## Termination conditions
+     * - [ExtendOutcome.NotHeld] / [ExtendOutcome.WrongThread] → watchdog stops (ownership lost)
+     * - [ExtendOutcome.BackendError] (TRANSIENT) → WARN log + continue (retry)
+     * - [ExtendOutcome.BackendError] (NON_TRANSIENT / FATAL) → WARN log + watchdog stops
+     * - [AutoCloseable.close] called → stops
      *
-     * @param enabled `false` 이면 no-op closeable 반환
-     * @param leaseTime backend lease 시간 — cadence = leaseTime / 3 (최소 [MIN_RENEWAL_PERIOD])
+     * @param enabled returns a no-op closeable when `false`
+     * @param leaseTime backend lease duration — cadence = leaseTime / 3 (minimum [MIN_RENEWAL_PERIOD])
      * @param delegate backend extend SPI — [ExtendDelegate.extend] + [ExtendDelegate.lastExtendDeadline]
-     * @param classifier backend-specific [BackendErrorClassifier]. `null` (default) 이면
-     * [CoreBackendErrorClassifier] (JDK / SQL only) 사용 — backend 별 transient 분류 누락 가능.
-     * 각 backend module 은 자신의 classifier ([io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier]
-     * 등) 를 [CompositeBackendErrorClassifier] 로 wrap 하여 전달 권장.
+     * @param classifier backend-specific [BackendErrorClassifier]. When `null` (default),
+     * [CoreBackendErrorClassifier] (JDK / SQL only) is used — may miss transient classifications for
+     * specific backends. Each backend module should wrap its own classifier (e.g.
+     * [io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier]) with
+     * [CompositeBackendErrorClassifier] and pass it here.
      */
     fun start(
         enabled: Boolean,
@@ -191,7 +192,7 @@ object LeaderLeaseAutoExtender : KLogging() {
                 return@doTick
             }
 
-            // R2 mitigation: user 가 explicit extend 를 호출했으면 watchdog skip
+            // R2 mitigation: skip watchdog if the user already called an explicit extend
             val deadline = delegate.lastExtendDeadline.get()
             if (deadline != null && Instant.now().plusMillis(cadence.inWholeMilliseconds).isBefore(deadline)) {
                 return@doTick
@@ -209,7 +210,7 @@ object LeaderLeaseAutoExtender : KLogging() {
             }
 
             when (outcome) {
-                is Extended -> { /* 정상 연장 — 계속 */ }
+                is Extended -> { /* Extended successfully — continue */ }
                 is NotHeld, is WrongThread -> {
                     log.warn { "leader.lease.auto-extend.stopped reason=$outcome" }
                     if (closed.compareAndSet(false, true)) {
@@ -271,11 +272,11 @@ object LeaderLeaseAutoExtender : KLogging() {
     }
 
     /**
-     * [enabled]가 true이면 lease 연장 watchdog을 시작하고, false이면 no-op closeable을 반환합니다.
+     * Starts a lease-extension watchdog when [enabled] is true, or returns a no-op closeable when false.
      *
-     * @deprecated [ExtendDelegate] 를 받는 [start] 사용 권장.
-     * R2 watchdog skip semantics (`lastExtendDeadline` 검사) 가 없음.
-     * T7~T13 에서 각 backend elector 가 [ExtendDelegate] 로 migration 후 이 overload 제거 예정.
+     * @deprecated Prefer [start] that accepts an [ExtendDelegate].
+     * This overload lacks R2 watchdog skip semantics (no `lastExtendDeadline` check).
+     * Scheduled for removal after T7–T13 backend elector migration to [ExtendDelegate].
      */
     @Deprecated(
         message = "Use start(enabled, leaseTime, delegate: ExtendDelegate) for R2 watchdog skip semantics. " +
@@ -337,7 +338,7 @@ object LeaderLeaseAutoExtender : KLogging() {
     }
 
     /**
-     * [leaseTime] 기준 watchdog 반복 주기를 계산합니다.
+     * Computes the watchdog repetition period based on [leaseTime].
      */
     fun renewalPeriod(leaseTime: Duration): Duration {
         val third = leaseTime / 3

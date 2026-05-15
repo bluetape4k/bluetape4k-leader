@@ -16,16 +16,16 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 
 /**
- * bluetape4k-leader Spring Boot 자동 구성 진입점.
+ * Spring Boot auto-configuration entry point for bluetape4k-leader.
  *
- * `LeaderElection` 클래스가 classpath에 존재하는 경우 활성화되며, 각 백엔드별 하위 구성을
- * `@Import`로 가져옵니다. 백엔드 활성화 조건은 각 Configuration 클래스에서 `@ConditionalOnBean` /
- * `@ConditionalOnClass`로 검사됩니다.
+ * Activated when the `LeaderElector` class is present on the classpath. Imports each backend's
+ * sub-configuration via `@Import`. Backend activation conditions are checked with
+ * `@ConditionalOnBean` / `@ConditionalOnClass` in the respective Configuration classes.
  *
- * Local fallback은 별도의 `LocalLeaderConfiguration`이 `@AutoConfiguration(after=...)`로 선언되어
- * 모든 백엔드 평가 후 활성화됩니다.
+ * The local fallback is declared as a separate `LocalLeaderConfiguration` with
+ * `@AutoConfiguration(after=...)` so it activates after all backends have been evaluated.
  *
- * @see LeaderProperties yaml `bluetape4k.leader.*` 속성 바인딩
+ * @see LeaderProperties for yaml `bluetape4k.leader.*` property binding
  */
 @AutoConfiguration
 @ConditionalOnClass(LeaderElector::class)
