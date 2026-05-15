@@ -31,4 +31,5 @@ include(
     "examples:cache-warmer",
     "examples:tenant-aggregator",
     "examples:ktor-app",
+    "examples:prometheus-dashboard",
 )
