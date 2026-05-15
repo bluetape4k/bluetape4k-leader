@@ -213,6 +213,27 @@ println("leaders=${group.leaders.map { it.leaderId }}")
 
 상태 API는 진단과 메트릭을 위한 best-effort 스냅샷입니다. 이 값으로 작업 실행 여부를 직접 판단하지 말고, 항상 `runIfLeader`를 사용해 backend가 원자적으로 락을 획득하게 해야 합니다.
 
+### 테넌트 네임스페이스
+
+SaaS 테넌트마다 같은 논리 작업을 독립된 락으로 실행해야 한다면 backend 설정을 바꾸지 않고 `forTenant()`를 사용할 수 있습니다:
+
+```kotlin
+import io.bluetape4k.leader.forTenant
+
+val tenantElection = election.forTenant("acme")
+tenantElection.runIfLeader("daily-report-job") {
+    generateTenantReport("acme")
+}
+// backend lockName: tenant:acme:daily-report-job
+
+val tenantGroup = groupElection.forTenant("acme")
+tenantGroup.runIfLeader("aggregation") {
+    aggregateTenant("acme")
+}
+```
+
+`forTenant()`는 blocking, coroutine, group, virtual-thread elector에서 사용할 수 있습니다. 네임스페이스 구분자 `:`는 예약되어 있으므로 tenant id, custom prefix, tenant-local lock name에는 `:`를 넣을 수 없습니다. 생성된 backend lock name은 공통 lock name 제한인 255자를 계속 만족해야 합니다.
+
 ### 마이그레이션 노트
 
 - Kotlin API option은 `kotlin.time.Duration`을 사용합니다. `java.time.Duration.ofSeconds(...)` 대신 `5.seconds`, `60.seconds`, `1.minutes`를 사용하세요.
