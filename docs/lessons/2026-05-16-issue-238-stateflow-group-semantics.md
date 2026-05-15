@@ -17,9 +17,9 @@ Group consumers can observe partial revokes without collapsing the whole group t
 ## Verification
 
 - `./gradlew :leader-core:test --tests 'io.bluetape4k.leader.coroutines.LeaderStateFlowExtTest' --no-configuration-cache --console=plain`
-- Result: 12 tests passing, build successful.
-- Added tests for partial revoke, max leader capping, skipped events, and lock-name filtering.
-- Claude advisor review was attempted twice, but the local CLI produced no usable output and was terminated after prolonged silence. Artifact: `.omx/artifacts/claude-issue-238-stateflow-group-semantics-20260516014229.md`.
+- Result: 14 tests passing, build successful.
+- Added tests for partial revoke, max leader capping, invalid max leaders, skipped events, and lock-name filtering.
+- Post-PR Claude feedback removed the group `Skipped` dead-code path, moved `maxLeaders` validation to the public function, split skipped/filtering tests, and documented the empty `leaders` invariant.
 
 ## Future Notes
 
