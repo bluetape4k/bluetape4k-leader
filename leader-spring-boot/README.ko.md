@@ -293,6 +293,49 @@ Java caller 는 `@JvmStatic` overload — `kotlin.time.Duration` 과 `java.time.
 3. `LeaderMicrometerAutoConfiguration`: `MeterRegistry`가 있으면 `MicrometerLeaderAopMetricsRecorder` 등록
 4. `LeaderAopAutoConfiguration`: Aspect, SpEL evaluator, lock-name validator, annotation validator 등록
 5. `LeaderMicrometerHealthAutoConfiguration`: Actuator가 있으면 health indicator 등록
+6. `LeaderElectionObservabilityAutoConfiguration`: lock-name 상태 registry와 fallback event-publisher adapter 등록
+7. `LeaderElectionActuatorAutoConfiguration`: opt-in `/actuator/leaderElection` endpoint 등록
+
+## Leader Election Actuator Endpoint
+
+`leaderElection` endpoint는 기본 비활성입니다. endpoint 활성화와 HTTP 노출을 명시적으로 설정하세요:
+
+```yaml
+bluetape4k:
+  leader:
+    observability:
+      lock-names:
+        - batch-job
+        - migration-gate
+
+management:
+  endpoint:
+    leaderElection:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,leaderElection
+```
+
+```http
+GET /actuator/leaderElection
+```
+
+```json
+{
+  "locks": [
+    {
+      "name": "batch-job",
+      "status": "Occupied",
+      "leaderId": "node-1",
+      "leaseExpiry": "2026-05-16T00:00:00Z"
+    }
+  ]
+}
+```
+
+`lock-names`는 첫 runtime event 전에 JVM-local status registry를 seed합니다. Listener-aware elector는 lifecycle event를 관찰하면서 lock 이름을 추가할 수도 있습니다. Fallback `LeaderElectionEventPublisher`는 publisher-only adapter라 `LeaderElector` 후보가 되지 않으므로 기존 elector 주입 경로가 유지됩니다.
 
 ## 마이그레이션 노트
 

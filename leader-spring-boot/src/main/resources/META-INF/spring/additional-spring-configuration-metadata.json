@@ -9,6 +9,11 @@
       "name": "bluetape4k.leader.aop.spel",
       "type": "io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties$Spel",
       "description": "Leader AOP SpEL 보안 옵션."
+    },
+    {
+      "name": "bluetape4k.leader.observability",
+      "type": "io.bluetape4k.leader.spring.properties.LeaderObservabilityProperties",
+      "description": "Leader election observability options."
     }
   ],
   "properties": [
@@ -52,6 +57,23 @@
       "name": "bluetape4k.leader.aop.spel.allow-method-invocation",
       "type": "java.lang.Boolean",
       "description": "SpEL withMethodResolvers 활성화. CVE-2022-22947 회색지대 차단을 위해 default false.",
+      "defaultValue": false
+    },
+    {
+      "name": "bluetape4k.leader.observability.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable leader election observability support beans.",
+      "defaultValue": true
+    },
+    {
+      "name": "bluetape4k.leader.observability.lock-names",
+      "type": "java.util.Set<java.lang.String>",
+      "description": "Static lock names seeded into the leader election status registry."
+    },
+    {
+      "name": "management.endpoint.leaderElection.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable the custom leaderElection Actuator endpoint.",
       "defaultValue": false
     }
   ]

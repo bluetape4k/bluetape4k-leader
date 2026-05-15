@@ -20,14 +20,35 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
  * }
  * ```
  *
- * @property leaderElection 단일 리더 선출 구현체 (필수)
- * @property leaderGroupElection 멀티 리더 선출 구현체 (선택)
+ * @property leaderElection single-leader elector backend (required)
+ * @property leaderGroupElection group/multi-leader elector backend (optional)
+ * @property managementRouteEnabled whether to install the management status route
+ * @property managementRoutePath path for the management status route
  */
 class LeaderElectionPluginConfig {
 
-    /** 단일 리더 선출 구현체. 플러그인 사용 전 반드시 설정해야 합니다. */
+    companion object {
+        const val DefaultManagementRoutePath: String = "/management/leaderElection"
+    }
+
+    /** Single-leader elector backend. Required before installing the plugin. */
     var leaderElection: SuspendLeaderElector? = null
 
-    /** 멀티 리더(그룹) 선출 구현체. 필요 시 설정합니다. */
+    /** Group/multi-leader elector backend. Optional. */
     var leaderGroupElection: SuspendLeaderGroupElector? = null
+
+    /** Whether to install the Ktor management status route. Defaults to false. */
+    var managementRouteEnabled: Boolean = false
+
+    /** Management route path. Defaults to `/management/leaderElection`. */
+    var managementRoutePath: String = DefaultManagementRoutePath
+
+    internal val managementRegistry: LeaderElectionManagementRegistry = LeaderElectionManagementRegistry()
+
+    /**
+     * Registers static lock names exposed through the management route.
+     */
+    fun managementLockNames(vararg lockNames: String) {
+        lockNames.forEach(managementRegistry::register)
+    }
 }

@@ -98,6 +98,8 @@ leaderScheduled(
 |-----------------------|-------------------------------|----------|------------------------------------------|
 | `leaderElection`      | `SuspendLeaderElector?`       | Yes      | Single-leader elector backend            |
 | `leaderGroupElection` | `SuspendLeaderGroupElector?`  | No       | Group/multi-leader elector (optional)    |
+| `managementRouteEnabled` | `Boolean`                  | No       | Enables `GET /management/leaderElection` |
+| `managementRoutePath` | `String`                      | No       | Management route path                    |
 
 `leaderScheduled` parameters:
 
@@ -107,6 +109,39 @@ leaderScheduled(
 | `period`         | `kotlin.time.Duration`     | —                                    | Must be positive                            |
 | `leaderElection` | `SuspendLeaderElector`     | from installed plugin                | Falls back to plugin config if omitted      |
 | `action`         | `suspend () -> Unit`       | —                                    | Executed only when this node is leader      |
+
+## Management Route
+
+The management route is disabled by default. Enable it explicitly and register static lock names when you want them visible before the first scheduled run:
+
+```kotlin
+fun Application.module() {
+    install(LeaderElectionPlugin) {
+        leaderElection = redissonElector
+        managementRouteEnabled = true
+        managementLockNames("batch-job", "migration-gate")
+    }
+}
+```
+
+```http
+GET /management/leaderElection
+```
+
+```json
+{
+  "locks": [
+    {
+      "name": "batch-job",
+      "status": "Empty",
+      "leaderId": null,
+      "leaseExpiry": null
+    }
+  ]
+}
+```
+
+`leaderScheduled()` records its lock name into the management registry when the plugin is installed. The route emits JSON text directly, so applications do not need to install Ktor content negotiation just for this endpoint.
 
 ## LockAssert / LockExtender inside `leaderScheduled` (Issue #79)
 

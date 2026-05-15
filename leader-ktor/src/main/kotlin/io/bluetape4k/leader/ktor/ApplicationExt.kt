@@ -55,6 +55,7 @@ fun Application.leaderScheduled(
 ): Job {
     lockName.requireNotBlank("lockName")
     period.inWholeMilliseconds.requirePositiveNumber("period")
+    attributes.getOrNull(LeaderElectionConfigKey)?.managementRegistry?.register(lockName)
 
     LeaderScheduledLogger.log.debug {
         "leaderScheduled 등록 — lockName=$lockName, period=$period"
@@ -82,7 +83,7 @@ fun Application.leaderScheduled(
  * ## 동작/계약
  * - 플러그인이 설치되지 않았거나 `leaderElection` 이 설정되지 않은 경우 [IllegalStateException] 을 던집니다.
  */
-private fun Application.resolveLeaderElection(): SuspendLeaderElector {
+internal fun Application.resolveLeaderElection(): SuspendLeaderElector {
     val config = leaderElectionPluginConfig()
     return requireNotNull(config.leaderElection) {
         "LeaderElectionPlugin 의 leaderElection 이 설정되지 않았습니다."
