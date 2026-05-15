@@ -213,6 +213,27 @@ println("leaders=${group.leaders.map { it.leaderId }}")
 
 State APIs return best-effort snapshots for diagnostics and metrics. Do not use a snapshot to decide whether to run work; always use `runIfLeader` so the backend can acquire the lock atomically.
 
+### Tenant namespaces
+
+Use `forTenant()` when the same logical job must be isolated per SaaS tenant without changing backend configuration:
+
+```kotlin
+import io.bluetape4k.leader.forTenant
+
+val tenantElection = election.forTenant("acme")
+tenantElection.runIfLeader("daily-report-job") {
+    generateTenantReport("acme")
+}
+// backend lockName: tenant:acme:daily-report-job
+
+val tenantGroup = groupElection.forTenant("acme")
+tenantGroup.runIfLeader("aggregation") {
+    aggregateTenant("acme")
+}
+```
+
+`forTenant()` is available for blocking, coroutine, group, and virtual-thread electors. The namespace separator `:` is reserved; tenant ids, custom prefixes, and tenant-local lock names must not contain `:`. The generated backend lock name must still satisfy the shared lock-name limit of 255 characters.
+
 ### Migration notes
 
 - Kotlin API options use `kotlin.time.Duration`. Prefer `5.seconds`, `60.seconds`, `1.minutes` over `java.time.Duration.ofSeconds(...)`.
