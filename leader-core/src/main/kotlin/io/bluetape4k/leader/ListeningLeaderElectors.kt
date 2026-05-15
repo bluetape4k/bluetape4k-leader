@@ -8,6 +8,8 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 
+private const val EVENT_BUFFER_CAPACITY = 64
+
 /**
  * Decorates a [LeaderElector] with listener callbacks and hot lifecycle events.
  *
@@ -15,11 +17,15 @@ import java.util.concurrent.atomic.AtomicBoolean
  * - Preserves the election, result, and exception behavior of [delegate].
  * - Calls registered [LeaderElectionListener] callbacks around successful or skipped leader actions.
  * - Exposes the same lifecycle as [events] through a non-suspending [MutableSharedFlow] publisher.
- * - Buffers up to 64 events and drops the oldest buffered event under back-pressure; this is not a guaranteed-delivery stream.
+ * - Emits listener callbacks before the corresponding [events] item.
+ * - Buffers up to [EVENT_BUFFER_CAPACITY] events and drops the oldest buffered event under back-pressure; this is
+ *   not a guaranteed-delivery stream.
  *
  * ```kotlin
  * val election = redisLeaderElector.withListeners()
- * election.events.collect { event -> println(event) }
+ * val job = scope.launch {
+ *     election.events.collect { event -> println(event) }
+ * }
  * ```
  */
 class ListeningLeaderElector(
@@ -28,7 +34,7 @@ class ListeningLeaderElector(
 
     private val listeners = LeaderElectionListenerSupport()
     private val eventSubject = MutableSharedFlow<LeaderElectionEvent>(
-        extraBufferCapacity = 64,
+        extraBufferCapacity = EVENT_BUFFER_CAPACITY,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
@@ -99,7 +105,9 @@ class ListeningLeaderElector(
  * - Preserves group election, slot-count, result, and exception behavior of [delegate].
  * - Calls registered [LeaderElectionListener] callbacks around successful or skipped group-slot actions.
  * - Exposes lifecycle events through a non-suspending [MutableSharedFlow] publisher.
- * - Buffers up to 64 events and drops the oldest buffered event under back-pressure; this is not a guaranteed-delivery stream.
+ * - Emits listener callbacks before the corresponding [events] item.
+ * - Buffers up to [EVENT_BUFFER_CAPACITY] events and drops the oldest buffered event under back-pressure; this is
+ *   not a guaranteed-delivery stream.
  */
 class ListeningLeaderGroupElector(
     private val delegate: LeaderGroupElector,
@@ -107,7 +115,7 @@ class ListeningLeaderGroupElector(
 
     private val listeners = LeaderElectionListenerSupport()
     private val eventSubject = MutableSharedFlow<LeaderElectionEvent>(
-        extraBufferCapacity = 64,
+        extraBufferCapacity = EVENT_BUFFER_CAPACITY,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 

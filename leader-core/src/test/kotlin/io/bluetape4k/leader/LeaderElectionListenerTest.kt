@@ -187,6 +187,27 @@ class LeaderElectionListenerTest {
     }
 
     @Test
+    fun `ListeningLeaderElector - sync action 실패에도 Flow revoke 를 발행한다`() = runSuspendIO {
+        val election = StubLeaderElector(elected = true).withListeners()
+        val collected = async(start = CoroutineStart.UNDISPATCHED) {
+            withTimeout(2_000.milliseconds) {
+                election.events.take(2).toList()
+            }
+        }
+
+        assertFailsWith<IllegalStateException> {
+            election.runIfLeader("decorated-flow-sync-failure-job") {
+                throw IllegalStateException("boom")
+            }
+        }
+
+        collected.await() shouldBeEqualTo listOf(
+            LeaderElectionEvent.Elected("decorated-flow-sync-failure-job"),
+            LeaderElectionEvent.Revoked("decorated-flow-sync-failure-job"),
+        )
+    }
+
+    @Test
     fun `ListeningLeaderGroupElector - delegate 상태와 listener 이벤트를 더한다`() {
         val listener = RecordingListener()
         val election = StubLeaderGroupElector(elected = true).withListeners(listener)
@@ -334,6 +355,27 @@ class LeaderElectionListenerTest {
         collected.await() shouldBeEqualTo listOf(
             LeaderElectionEvent.Elected("decorated-group-async-flow-failure-job"),
             LeaderElectionEvent.Revoked("decorated-group-async-flow-failure-job"),
+        )
+    }
+
+    @Test
+    fun `ListeningLeaderGroupElector - sync action 실패에도 Flow revoke 를 발행한다`() = runSuspendIO {
+        val election = StubLeaderGroupElector(elected = true).withListeners()
+        val collected = async(start = CoroutineStart.UNDISPATCHED) {
+            withTimeout(2_000.milliseconds) {
+                election.events.take(2).toList()
+            }
+        }
+
+        assertFailsWith<IllegalStateException> {
+            election.runIfLeader("decorated-group-flow-sync-failure-job") {
+                throw IllegalStateException("boom")
+            }
+        }
+
+        collected.await() shouldBeEqualTo listOf(
+            LeaderElectionEvent.Elected("decorated-group-flow-sync-failure-job"),
+            LeaderElectionEvent.Revoked("decorated-group-flow-sync-failure-job"),
         )
     }
 

@@ -10,14 +10,14 @@ Use `MutableSharedFlow(extraBufferCapacity = 64, onBufferOverflow = DROP_OLDEST)
 
 ## Outcome
 
-Both blocking listener decorators now implement `LeaderElectionEventPublisher`. Sync and async paths emit `Elected`, `Revoked`, and `Skipped` events, including async action failure revoke events.
+Both blocking listener decorators now implement `LeaderElectionEventPublisher`. Sync and async paths emit `Elected`, `Revoked`, and `Skipped` events, including sync and async action failure revoke events.
 
 ## Verification
 
 - IDE diagnostics: zero errors in touched Kotlin files.
 - `./gradlew :leader-core:test --tests 'io.bluetape4k.leader.LeaderElectionListenerTest' --no-configuration-cache --console=plain`
-- Result: 22 tests passing, build successful.
-- Claude advisor re-review: no unresolved P0/P1 findings.
+- Result: 24 tests passing, build successful.
+- Post-PR Claude feedback added sync action failure coverage, shared buffer capacity constant, and callback-vs-Flow ordering KDoc.
 
 ## Future Notes
 
