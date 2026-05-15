@@ -43,6 +43,12 @@ class LeaderElectionManagementRegistry(
  * - [registry] provides the lock names to inspect.
  * - [leaderElection] is queried with `state(lockName)` at request time.
  * - The JSON is emitted as text so consumers do not need to install a serialization plugin.
+ * - This route is installed on the application's main routing pipeline. Protect it with an
+ *   authentication plugin, network policy, or a dedicated internal port before exposing it outside
+ *   a trusted management boundary.
+ *
+ * Requires [LeaderElectionPlugin] to be installed first when [leaderElection] or [registry] are not
+ * passed explicitly; otherwise the default argument resolution throws [IllegalStateException].
  */
 fun Application.leaderElectionManagementRoute(
     path: String = LeaderElectionPluginConfig.DefaultManagementRoutePath,

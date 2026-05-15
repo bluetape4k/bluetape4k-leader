@@ -128,6 +128,8 @@ fun Application.module() {
 GET /management/leaderElection
 ```
 
+The route is installed on the main Ktor application port and routing pipeline. Protect it with an authentication plugin, network policy, or a dedicated internal port before exposing it outside a trusted management boundary.
+
 ```json
 {
   "locks": [

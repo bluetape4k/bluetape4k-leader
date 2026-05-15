@@ -124,6 +124,8 @@ fun Application.module() {
 GET /management/leaderElection
 ```
 
+이 route는 Ktor 애플리케이션의 main port와 routing pipeline에 설치됩니다. 신뢰된 management boundary 밖으로 노출하기 전에 인증 plugin, network policy, 또는 별도 internal port로 보호하세요.
+
 ```json
 {
   "locks": [
