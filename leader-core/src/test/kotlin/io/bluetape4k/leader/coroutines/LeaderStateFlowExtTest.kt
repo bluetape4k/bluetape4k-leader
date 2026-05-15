@@ -7,6 +7,7 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
+import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderNodeId
 import io.bluetape4k.leader.LeaderState
 import kotlinx.coroutines.CoroutineScope
@@ -50,6 +51,21 @@ class LeaderStateFlowExtTest {
         val scope = CoroutineScope(Dispatchers.IO + Job())
         try {
             val flow = publisher.leaderStateFlow(lockName, scope)
+            block(publisher, flow)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    private suspend fun withGroupStateFlow(
+        lockName: String = "my-lock",
+        maxLeaders: Int = 3,
+        block: suspend (publisher: FakeEventPublisher, flow: StateFlow<LeaderGroupState>) -> Unit,
+    ) {
+        val publisher = FakeEventPublisher()
+        val scope = CoroutineScope(Dispatchers.IO + Job())
+        try {
+            val flow = publisher.leaderGroupStateFlow(lockName, maxLeaders, scope)
             block(publisher, flow)
         } finally {
             scope.cancel()
@@ -182,6 +198,54 @@ class LeaderStateFlowExtTest {
 
             flow.value.isOccupied.shouldBeTrue()
             flow.value.leader?.auditLeaderId shouldBeEqualTo "node-5"
+        }
+    }
+
+    @Test
+    fun `group state flow keeps active count after partial revoke`() = runSuspendIO {
+        withGroupStateFlow(maxLeaders = 3) { publisher, flow ->
+            publisher.emit(LeaderElectionEvent.Elected("my-lock", leaderId = "node-1"))
+            flow.first { it.activeCount == 1 }
+
+            publisher.emit(LeaderElectionEvent.Elected("my-lock", leaderId = "node-2"))
+            flow.first { it.activeCount == 2 }
+
+            publisher.emit(LeaderElectionEvent.Revoked("my-lock"))
+            flow.first { it.activeCount == 1 }
+
+            flow.value.isEmpty.shouldBeFalse()
+            flow.value.availableSlots shouldBeEqualTo 2
+
+            publisher.emit(LeaderElectionEvent.Revoked("my-lock"))
+            flow.first { it.isEmpty }
+
+            flow.value.activeCount shouldBeEqualTo 0
+        }
+    }
+
+    @Test
+    fun `group state flow caps active count at max leaders`() = runSuspendIO {
+        withGroupStateFlow(maxLeaders = 2) { publisher, flow ->
+            publisher.emit(LeaderElectionEvent.Elected("my-lock", leaderId = "node-1"))
+            flow.first { it.activeCount == 1 }
+            publisher.emit(LeaderElectionEvent.Elected("my-lock", leaderId = "node-2"))
+            flow.first { it.activeCount == 2 }
+            publisher.emit(LeaderElectionEvent.Elected("my-lock", leaderId = "node-3"))
+            delay(50)
+
+            flow.value.activeCount shouldBeEqualTo 2
+            flow.value.isFull.shouldBeTrue()
+        }
+    }
+
+    @Test
+    fun `group state flow ignores skipped events and other lock names`() = runSuspendIO {
+        withGroupStateFlow { publisher, flow ->
+            publisher.emit(LeaderElectionEvent.Elected("other-lock", leaderId = "node-X"))
+            publisher.emit(LeaderElectionEvent.Skipped("my-lock"))
+            delay(50)
+
+            flow.value shouldBeEqualTo LeaderGroupState("my-lock", maxLeaders = 3, activeCount = 0)
         }
     }
 }
