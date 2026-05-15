@@ -16,13 +16,13 @@ class LeaderLeaseAutoExtenderLifecycleTest {
     @BeforeEach
     fun resetState() {
         // Reset ref-count and ensure scheduler is running before each test.
-        LeaderLeaseAutoExtenderLifecycle.activeContextCount.set(0)
+        LeaderLeaseAutoExtenderLifecycle.activeContextCount.value = 0
         LeaderLeaseAutoExtender.restart()
     }
 
     @AfterEach
     fun restoreScheduler() {
-        LeaderLeaseAutoExtenderLifecycle.activeContextCount.set(0)
+        LeaderLeaseAutoExtenderLifecycle.activeContextCount.value = 0
         LeaderLeaseAutoExtender.restart()
     }
 
@@ -48,7 +48,7 @@ class LeaderLeaseAutoExtenderLifecycleTest {
 
         // Second destroy must be a no-op; counter must not go negative.
         lifecycle.destroy()
-        LeaderLeaseAutoExtenderLifecycle.activeContextCount.get() shouldBeEqualTo 0
+        LeaderLeaseAutoExtenderLifecycle.activeContextCount.value shouldBeEqualTo 0
     }
 
     @Test
@@ -57,7 +57,7 @@ class LeaderLeaseAutoExtenderLifecycleTest {
         lifecycle.afterPropertiesSet()  // count = 1 (registered)
         lifecycle.afterPropertiesSet()  // no-op registration; count stays 1
 
-        LeaderLeaseAutoExtenderLifecycle.activeContextCount.get() shouldBeEqualTo 1
+        LeaderLeaseAutoExtenderLifecycle.activeContextCount.value shouldBeEqualTo 1
 
         lifecycle.destroy()             // count = 0 → shutdown
         LeaderLeaseAutoExtender.isShutdown().shouldBeTrue()

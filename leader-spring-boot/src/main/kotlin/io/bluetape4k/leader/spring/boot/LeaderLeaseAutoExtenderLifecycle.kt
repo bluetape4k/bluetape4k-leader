@@ -1,10 +1,9 @@
 package io.bluetape4k.leader.spring.boot
 
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
+import kotlinx.atomicfu.atomic
 import org.springframework.beans.factory.DisposableBean
 import org.springframework.beans.factory.InitializingBean
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -30,10 +29,10 @@ class LeaderLeaseAutoExtenderLifecycle(
     private val watchdogAsyncExtend: Boolean = false,
 ) : InitializingBean, DisposableBean {
 
-    private val registered = AtomicBoolean(false)
+    private val registered = atomic(false)
 
     companion object {
-        internal val activeContextCount = AtomicInteger(0)
+        internal val activeContextCount = atomic(0)
 
         // Guards the register-then-restart / unregister-then-shutdown sequences so that
         // a concurrent destroy() cannot slip in between a decrement reaching zero and the
