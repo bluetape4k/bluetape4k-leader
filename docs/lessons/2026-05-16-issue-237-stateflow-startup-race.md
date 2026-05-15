@@ -11,13 +11,15 @@ For the default eager path, create a `MutableStateFlow` and launch upstream coll
 ## Outcome
 
 The eager collector subscribes before `leaderStateFlow()` returns, while public API shape and cancellation behavior stay unchanged.
+This relies on `MutableSharedFlow.collect()` registering its subscription synchronously before the first suspension point.
+Do not apply the same undispatched-start pattern to custom `Flow` implementations unless their subscription registration has the same property.
 
 ## Verification
 
 - Tests now use `MutableSharedFlow(replay = 0)` and no pre-subscription delay.
 - `./gradlew :leader-core:test --tests 'io.bluetape4k.leader.coroutines.LeaderStateFlowExtTest' --no-configuration-cache --console=plain`
-- Result: 9 tests passing, build successful.
-- Claude advisor review: no unresolved P0/P1 findings.
+- Result: 10 tests passing, build successful.
+- Post-PR Claude feedback added non-eager `SharingStarted` coverage, documented the `SharingStarted.Eagerly` singleton check, and captured the `MutableSharedFlow` subscription prerequisite.
 
 ## Future Notes
 
