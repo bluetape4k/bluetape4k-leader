@@ -26,7 +26,7 @@ import java.time.Instant
 class LeaderStateFlowExtTest {
 
     private class FakeEventPublisher : LeaderElectionEventPublisher {
-        private val _events = MutableSharedFlow<LeaderElectionEvent>(replay = 1, extraBufferCapacity = 64)
+        private val _events = MutableSharedFlow<LeaderElectionEvent>(replay = 0, extraBufferCapacity = 64)
         override val events: Flow<LeaderElectionEvent> = _events
         suspend fun emit(event: LeaderElectionEvent) = _events.emit(event)
     }
@@ -34,7 +34,7 @@ class LeaderStateFlowExtTest {
     /**
      * Creates a leaderStateFlow in an independent scope (not a child of the calling scope),
      * runs [block], then cancels the flow scope. Prevents structured concurrency from blocking
-     * the test's withTimeout waiting for the infinite stateIn collection coroutine.
+     * the test's withTimeout waiting for the infinite collection coroutine.
      */
     private suspend fun withStateFlow(
         lockName: String = "my-lock",
@@ -44,7 +44,6 @@ class LeaderStateFlowExtTest {
         val scope = CoroutineScope(Dispatchers.IO + Job())
         try {
             val flow = publisher.leaderStateFlow(lockName, scope)
-            delay(50) // Allow stateIn collection coroutine to subscribe
             block(publisher, flow)
         } finally {
             scope.cancel()

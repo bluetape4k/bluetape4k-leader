@@ -6,12 +6,18 @@ import io.bluetape4k.leader.LeaderNodeId
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.LeaderElectionEventPublisher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 /**
  * Maps this publisher's event stream into a [StateFlow] that tracks the current [LeaderState]
@@ -28,6 +34,9 @@ import kotlinx.coroutines.flow.stateIn
  * - Events for other lock names are filtered out, so a single publisher serving multiple locks
  *   can be safely observed per-lock.
  * - The returned [StateFlow] is hot and shares the upstream according to [started].
+ * - With the default [SharingStarted.Eagerly], the upstream collector starts undispatched before
+ *   this function returns, so hot publishers with no replay do not drop events emitted immediately
+ *   after `leaderStateFlow()` returns.
  *
  * ```kotlin
  * val stateFlow = elector.leaderStateFlow("my-lock", scope)
@@ -45,24 +54,43 @@ fun LeaderElectionEventPublisher.leaderStateFlow(
     scope: CoroutineScope,
     started: SharingStarted = SharingStarted.Eagerly,
 ): StateFlow<LeaderState> =
-    events
-        .filter { it.lockName == lockName }
+    events.toLeaderStates(lockName)
+        .toStateFlow(lockName, scope, started)
+
+private fun Flow<LeaderElectionEvent>.toLeaderStates(lockName: String): Flow<LeaderState> =
+    filter { it.lockName == lockName }
         .filterNot { it is LeaderElectionEvent.Skipped }
-        .map { event ->
-            when (event) {
-                is LeaderElectionEvent.Elected -> LeaderState.occupied(
-                    lockName,
-                    LeaderLease(
-                        auditLeaderId = event.leaderId ?: LeaderNodeId.Default,
-                        leaseUntil = event.leaseExpiry,
-                    )
-                )
-                is LeaderElectionEvent.Revoked -> LeaderState.empty(lockName)
-                is LeaderElectionEvent.Skipped -> LeaderState.empty(lockName)
-            }
+        .map { it.toLeaderState(lockName) }
+
+private fun LeaderElectionEvent.toLeaderState(lockName: String): LeaderState =
+    when (this) {
+        is LeaderElectionEvent.Elected -> LeaderState.occupied(
+            lockName,
+            LeaderLease(
+                auditLeaderId = leaderId ?: LeaderNodeId.Default,
+                leaseUntil = leaseExpiry,
+            )
+        )
+
+        is LeaderElectionEvent.Revoked -> LeaderState.empty(lockName)
+        is LeaderElectionEvent.Skipped -> LeaderState.empty(lockName)
+    }
+
+private fun Flow<LeaderState>.toStateFlow(
+    lockName: String,
+    scope: CoroutineScope,
+    started: SharingStarted,
+): StateFlow<LeaderState> =
+    if (started == SharingStarted.Eagerly) {
+        val state = MutableStateFlow(LeaderState.empty(lockName))
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            collect { state.value = it }
         }
-        .stateIn(
+        state.asStateFlow()
+    } else {
+        stateIn(
             scope = scope,
             started = started,
             initialValue = LeaderState.empty(lockName),
         )
+    }
