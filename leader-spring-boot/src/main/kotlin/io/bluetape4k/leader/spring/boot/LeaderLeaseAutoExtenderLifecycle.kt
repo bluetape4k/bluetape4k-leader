@@ -5,6 +5,8 @@ import org.springframework.beans.factory.DisposableBean
 import org.springframework.beans.factory.InitializingBean
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * Manages the [LeaderLeaseAutoExtender] lifecycle within a Spring application context.
@@ -36,12 +38,12 @@ class LeaderLeaseAutoExtenderLifecycle(
         // Guards the register-then-restart / unregister-then-shutdown sequences so that
         // a concurrent destroy() cannot slip in between a decrement reaching zero and the
         // actual shutdown() call while another afterPropertiesSet() has already incremented
-        // the count back above zero.
-        private val lifecycleLock = Any()
+        // the count back above zero. ReentrantLock avoids virtual-thread pinning.
+        private val lifecycleLock = ReentrantLock()
     }
 
     override fun afterPropertiesSet() {
-        synchronized(lifecycleLock) {
+        lifecycleLock.withLock {
             if (registered.compareAndSet(false, true)) {
                 activeContextCount.incrementAndGet()
                 // Only configure when the user has explicitly set at least one non-default value.
@@ -59,7 +61,7 @@ class LeaderLeaseAutoExtenderLifecycle(
     }
 
     override fun destroy() {
-        synchronized(lifecycleLock) {
+        lifecycleLock.withLock {
             if (registered.compareAndSet(true, false)) {
                 if (activeContextCount.decrementAndGet() == 0) {
                     LeaderLeaseAutoExtender.shutdown()
