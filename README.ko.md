@@ -232,7 +232,9 @@ tenantGroup.runIfLeader("aggregation") {
 }
 ```
 
-`forTenant()`는 blocking, coroutine, group, virtual-thread elector에서 사용할 수 있습니다. 네임스페이스 구분자 `:`는 예약되어 있으므로 tenant id, custom prefix, tenant-local lock name에는 `:`를 넣을 수 없습니다. 생성된 backend lock name은 공통 lock name 제한인 255자를 계속 만족해야 합니다.
+`forTenant()`는 blocking, coroutine, group, virtual-thread elector에서 사용할 수 있습니다. 네임스페이스 구분자 `:`는 예약되어 있으므로 tenant id, custom prefix, tenant-local lock name에는 `:`를 넣을 수 없습니다. 기존 caller-facing lock name이 `batch:daily`처럼 `:`를 포함한다면 tenant scope를 추가하기 전에 이름을 바꾸세요. 생성된 backend lock name은 공통 lock name 제한인 255자를 계속 만족해야 합니다.
+
+Tenant-scoped 상태 스냅샷은 `tenant:acme:daily-report-job` 같은 전체 backend lock name을 반환합니다. 같은 tenant-scoped elector의 `runIfLeader()`에 `state().lockName`을 다시 전달하지 말고, `daily-report-job` 같은 원래 caller-facing lock name을 계속 사용하세요.
 
 ### 마이그레이션 노트
 

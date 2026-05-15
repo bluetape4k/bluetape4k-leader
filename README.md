@@ -232,7 +232,9 @@ tenantGroup.runIfLeader("aggregation") {
 }
 ```
 
-`forTenant()` is available for blocking, coroutine, group, and virtual-thread electors. The namespace separator `:` is reserved; tenant ids, custom prefixes, and tenant-local lock names must not contain `:`. The generated backend lock name must still satisfy the shared lock-name limit of 255 characters.
+`forTenant()` is available for blocking, coroutine, group, and virtual-thread electors. The namespace separator `:` is reserved; tenant ids, custom prefixes, and tenant-local lock names must not contain `:`. Rename existing caller-facing lock names such as `batch:daily` before adding a tenant scope. The generated backend lock name must still satisfy the shared lock-name limit of 255 characters.
+
+Tenant-scoped state snapshots return the full backend lock name, for example `tenant:acme:daily-report-job`. Do not pass `state().lockName` back to `runIfLeader()` on the same tenant-scoped elector; keep using the original caller-facing lock name such as `daily-report-job`.
 
 ### Migration notes
 

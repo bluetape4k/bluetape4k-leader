@@ -79,17 +79,45 @@ class TenantScopedLeaderElectorsTest {
     fun `LeaderGroupElector tenant scope translates group state and run calls`() {
         val delegate = RecordingLeaderGroupElector()
         val election = delegate.forTenant("acme")
+        val executor = Executor { it.run() }
 
         election.activeCount("aggregation") shouldBeEqualTo 1
         election.availableSlots("aggregation") shouldBeEqualTo 2
         election.state("aggregation") shouldBeEqualTo LeaderGroupState("tenant:acme:aggregation", 3, 1)
         election.runIfLeader("aggregation") { "done" } shouldBeEqualTo "done"
+        election.runIfLeaderResult("aggregation") { "result" } shouldBeEqualTo LeaderRunResult.Elected("result")
+        election.runAsyncIfLeader("aggregation", executor) { CompletableFuture.completedFuture("async") }
+            .join() shouldBeEqualTo "async"
 
         delegate.lockNames shouldBeEqualTo listOf(
             "tenant:acme:aggregation",
             "tenant:acme:aggregation",
             "tenant:acme:aggregation",
             "tenant:acme:aggregation",
+            "tenant:acme:aggregation",
+            "tenant:acme:aggregation",
+        )
+    }
+
+    @Test
+    fun `LeaderGroupElector tenant scope translates group slot calls and preserves leaderId`() {
+        val delegate = RecordingLeaderGroupElector()
+        val election = delegate.forTenant("acme")
+        val executor = Executor { it.run() }
+        val slot = LeaderSlot("aggregation", "node-1")
+
+        election.runIfLeader(slot) { "sync" } shouldBeEqualTo "sync"
+        election.runIfLeaderResult(slot) { "result" } shouldBeEqualTo LeaderRunResult.Elected("result", "node-1")
+        election.runAsyncIfLeader(slot, executor) { CompletableFuture.completedFuture("async") }
+            .join() shouldBeEqualTo "async"
+        election.runAsyncIfLeaderResult(slot, executor) { CompletableFuture.completedFuture("async-result") }
+            .join() shouldBeEqualTo LeaderRunResult.Elected("async-result", "node-1")
+
+        delegate.slots shouldBeEqualTo listOf(
+            LeaderSlot("tenant:acme:aggregation", "node-1"),
+            LeaderSlot("tenant:acme:aggregation", "node-1"),
+            LeaderSlot("tenant:acme:aggregation", "node-1"),
+            LeaderSlot("tenant:acme:aggregation", "node-1"),
         )
     }
 
@@ -175,6 +203,7 @@ class TenantScopedLeaderElectorsTest {
 
     private class RecordingLeaderGroupElector : LeaderGroupElector {
         val lockNames = mutableListOf<String>()
+        val slots = mutableListOf<LeaderSlot>()
         override val maxLeaders: Int = 3
 
         override fun activeCount(lockName: String): Int {
@@ -197,6 +226,21 @@ class TenantScopedLeaderElectorsTest {
             return action()
         }
 
+        override fun <T> runIfLeader(slot: LeaderSlot, action: () -> T): T? {
+            slots += slot
+            return action()
+        }
+
+        override fun <T> runIfLeaderResult(lockName: String, action: () -> T): LeaderRunResult<T> {
+            lockNames += lockName
+            return LeaderRunResult.Elected(action())
+        }
+
+        override fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
+            slots += slot
+            return LeaderRunResult.Elected(action(), slot.leaderId)
+        }
+
         override fun <T> runAsyncIfLeader(
             lockName: String,
             executor: Executor,
@@ -204,6 +248,24 @@ class TenantScopedLeaderElectorsTest {
         ): CompletableFuture<T?> {
             lockNames += lockName
             return action().thenApply<T?> { it }
+        }
+
+        override fun <T> runAsyncIfLeader(
+            slot: LeaderSlot,
+            executor: Executor,
+            action: () -> CompletableFuture<T>,
+        ): CompletableFuture<T?> {
+            slots += slot
+            return action().thenApply<T?> { it }
+        }
+
+        override fun <T> runAsyncIfLeaderResult(
+            slot: LeaderSlot,
+            executor: Executor,
+            action: () -> CompletableFuture<T>,
+        ): CompletableFuture<LeaderRunResult<T>> {
+            slots += slot
+            return action().thenApply { LeaderRunResult.Elected(it, slot.leaderId) }
         }
     }
 

@@ -67,12 +67,29 @@ class TenantScopedSuspendLeaderElectorsTest {
         election.availableSlots("aggregation") shouldBeEqualTo 2
         election.state("aggregation") shouldBeEqualTo LeaderGroupState("tenant:acme:aggregation", 3, 1)
         election.runIfLeader("aggregation") { "done" } shouldBeEqualTo "done"
+        election.runIfLeaderResultSuspend("aggregation") { "result" } shouldBeEqualTo LeaderRunResult.Elected("result")
 
         delegate.lockNames shouldBeEqualTo listOf(
             "tenant:acme:aggregation",
             "tenant:acme:aggregation",
             "tenant:acme:aggregation",
             "tenant:acme:aggregation",
+            "tenant:acme:aggregation",
+        )
+    }
+
+    @Test
+    fun `SuspendLeaderGroupElector tenant scope translates group slot calls and preserves leaderId`() = runSuspendIO {
+        val delegate = RecordingSuspendLeaderGroupElector()
+        val election = delegate.forTenant("acme")
+        val slot = LeaderSlot("aggregation", "node-1")
+
+        election.runIfLeader(slot) { "sync" } shouldBeEqualTo "sync"
+        election.runIfLeaderResultSuspend(slot) { "result" } shouldBeEqualTo LeaderRunResult.Elected("result", "node-1")
+
+        delegate.slots shouldBeEqualTo listOf(
+            LeaderSlot("tenant:acme:aggregation", "node-1"),
+            LeaderSlot("tenant:acme:aggregation", "node-1"),
         )
     }
 
@@ -114,6 +131,7 @@ class TenantScopedSuspendLeaderElectorsTest {
 
     private class RecordingSuspendLeaderGroupElector : SuspendLeaderGroupElector {
         val lockNames = mutableListOf<String>()
+        val slots = mutableListOf<LeaderSlot>()
         override val maxLeaders: Int = 3
 
         override fun activeCount(lockName: String): Int {
@@ -134,6 +152,27 @@ class TenantScopedSuspendLeaderElectorsTest {
         override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
             lockNames += lockName
             return action()
+        }
+
+        override suspend fun <T> runIfLeader(slot: LeaderSlot, action: suspend () -> T): T? {
+            slots += slot
+            return action()
+        }
+
+        override suspend fun <T> runIfLeaderResultSuspend(
+            lockName: String,
+            action: suspend () -> T,
+        ): LeaderRunResult<T> {
+            lockNames += lockName
+            return LeaderRunResult.Elected(action())
+        }
+
+        override suspend fun <T> runIfLeaderResultSuspend(
+            slot: LeaderSlot,
+            action: suspend () -> T,
+        ): LeaderRunResult<T> {
+            slots += slot
+            return LeaderRunResult.Elected(action(), slot.leaderId)
         }
     }
 }
