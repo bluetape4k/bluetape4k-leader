@@ -10,12 +10,15 @@ import io.bluetape4k.leader.LeaderElectionEventPublisher
 import io.bluetape4k.leader.LeaderNodeId
 import io.bluetape4k.leader.LeaderState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import org.junit.jupiter.api.Test
@@ -29,6 +32,9 @@ class LeaderStateFlowExtTest {
         private val _events = MutableSharedFlow<LeaderElectionEvent>(replay = 0, extraBufferCapacity = 64)
         override val events: Flow<LeaderElectionEvent> = _events
         suspend fun emit(event: LeaderElectionEvent) = _events.emit(event)
+        suspend fun awaitSubscriber() {
+            _events.subscriptionCount.first { it > 0 }
+        }
     }
 
     /**
@@ -56,6 +62,28 @@ class LeaderStateFlowExtTest {
             flow.value.isEmpty.shouldBeTrue()
             flow.value.isOccupied.shouldBeFalse()
             flow.value.leader.shouldBeNull()
+        }
+    }
+
+    @Test
+    fun `non eager SharingStarted path delegates to stateIn`() = runSuspendIO {
+        val publisher = FakeEventPublisher()
+        val scope = CoroutineScope(Dispatchers.IO + Job())
+        try {
+            val flow = publisher.leaderStateFlow("my-lock", scope, SharingStarted.WhileSubscribed())
+            flow.value.isEmpty.shouldBeTrue()
+
+            val occupied = async(start = CoroutineStart.UNDISPATCHED) {
+                flow.first { it.isOccupied }
+            }
+            publisher.awaitSubscriber()
+            publisher.emit(LeaderElectionEvent.Elected("my-lock", leaderId = "node-while-subscribed"))
+
+            occupied.await()
+            flow.value.isOccupied.shouldBeTrue()
+            flow.value.leader?.auditLeaderId shouldBeEqualTo "node-while-subscribed"
+        } finally {
+            scope.cancel()
         }
     }
 

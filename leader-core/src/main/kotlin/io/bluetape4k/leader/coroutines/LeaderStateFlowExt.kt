@@ -82,6 +82,8 @@ private fun Flow<LeaderState>.toStateFlow(
     started: SharingStarted,
 ): StateFlow<LeaderState> =
     if (started == SharingStarted.Eagerly) {
+        // Identity check is intentional: SharingStarted.Eagerly is a singleton. Custom eager-like strategies
+        // use stateIn(), so only the standard eager path gets the no-drop startup guarantee for hot publishers.
         val state = MutableStateFlow(LeaderState.empty(lockName))
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             collect { state.value = it }
