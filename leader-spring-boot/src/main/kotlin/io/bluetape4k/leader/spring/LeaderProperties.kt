@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring
 
 import io.bluetape4k.leader.spring.properties.LeaderElectionProperties
 import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
+import io.bluetape4k.leader.spring.properties.LeaderObservabilityProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 import java.time.Duration
@@ -18,6 +19,9 @@ import java.time.Duration
  *     lease-time: 60s
  *     watchdog-threads: 4          # optional; defaults to availableProcessors().coerceAtLeast(2)
  *     watchdog-async-extend: true  # optional; defaults to false
+ *     observability:
+ *       lock-names:
+ *         - batch-job
  *     group:
  *       max-leaders: 3
  *       wait-time: 5s
@@ -31,6 +35,7 @@ import java.time.Duration
  * @property leaseTime 단일 리더 보유 최대 시간. 기본 60초
  * @property watchdogThreads watchdog 스케줄러 스레드 수. null 이면 [LeaderLeaseAutoExtender.DEFAULT_WATCHDOG_THREADS] 사용
  * @property watchdogAsyncExtend true 이면 watchdog tick 마다 extend 를 virtual thread 로 비동기 디스패치
+ * @property observability leader status observability and endpoint seed options
  * @property group 멀티 리더 그룹 옵션
  * @property mongo MongoDB 백엔드 컬렉션 이름
  */
@@ -40,6 +45,8 @@ data class LeaderProperties(
     val leaseTime: Duration = LeaderElectionProperties.DefaultLeaseTime,
     val watchdogThreads: Int? = null,
     val watchdogAsyncExtend: Boolean = false,
+    @field:NestedConfigurationProperty
+    val observability: LeaderObservabilityProperties = LeaderObservabilityProperties(),
     @field:NestedConfigurationProperty
     val group: LeaderGroupProperties = LeaderGroupProperties(),
     @field:NestedConfigurationProperty

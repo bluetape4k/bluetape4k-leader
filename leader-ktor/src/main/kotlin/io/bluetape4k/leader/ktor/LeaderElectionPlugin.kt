@@ -41,12 +41,20 @@ val LeaderElectionPlugin = createApplicationPlugin(
     createConfiguration = ::LeaderElectionPluginConfig,
 ) {
     val config = pluginConfig
-    requireNotNull(config.leaderElection) {
+    val leaderElection = requireNotNull(config.leaderElection) {
         "LeaderElectionPlugin 설치 전 leaderElection 을 반드시 설정해야 합니다."
     }
 
     // 외부 (예: leaderScheduled 확장) 에서 설정에 접근할 수 있도록 Application attributes 에 저장한다.
     application.attributes.put(LeaderElectionConfigKey, config)
+
+    if (config.managementRouteEnabled) {
+        application.leaderElectionManagementRoute(
+            path = config.managementRoutePath,
+            leaderElection = leaderElection,
+            registry = config.managementRegistry,
+        )
+    }
 
     on(MonitoringEvent(ApplicationStarted)) { application ->
         LeaderElectionPluginInternals.log.info {

@@ -4,7 +4,7 @@
 
 Implement the Spring Boot and Ktor observability surfaces defined in the spec:
 
-- Spring status registry, event publisher facade, and Actuator endpoint.
+- Spring status registry, fallback publisher adapter, and Actuator endpoint.
 - Ktor opt-in management route.
 - Tests, README updates, lesson, PR.
 
@@ -37,7 +37,7 @@ Implement the Spring Boot and Ktor observability surfaces defined in the spec:
 5. Tests
    - Spring ApplicationContextRunner tests:
      - registry seeded from properties;
-     - fallback publisher facade registered;
+     - fallback publisher adapter registered;
      - endpoint disabled by default;
      - endpoint registered when `management.endpoint.leaderElection.enabled=true`;
      - endpoint response shape for a known lock.

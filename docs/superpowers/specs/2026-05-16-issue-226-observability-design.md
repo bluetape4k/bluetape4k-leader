@@ -32,8 +32,8 @@ It registers:
   - seeded from `bluetape4k.leader.observability.lock-names`;
   - implements `LeaderElectionListener` so listener-aware electors can add names from `onElected`, `onSkipped`, and `onRevoked`.
 - `LeaderElectionEventPublisher` fallback bean
-  - if no publisher bean exists and a `LeaderElector` exists, expose `elector.withListeners(statusRegistry)`;
-  - this is a publisher facade, not a transparent replacement for the original elector bean.
+  - if no publisher bean exists, expose a publisher-only listener adapter;
+  - the adapter emits events observed through `LeaderElectionListenerRegistry` beans and never becomes a `LeaderElector` candidate.
 - `LeaderElectionListenerRegistry` registrar
   - attaches the status registry to all listener-aware leader beans after singleton initialization.
 
@@ -79,7 +79,7 @@ The Ktor response is emitted as JSON text to avoid forcing a new serialization d
 
 ## Acceptance Mapping
 
-- `LeaderElectionEventPublisher` bean auto-registration: supported as a fallback publisher facade.
+- `LeaderElectionEventPublisher` bean auto-registration: supported as a fallback publisher-only listener adapter.
 - `/actuator/leaderElection`: supported when Actuator is present, endpoint is enabled, and web exposure includes it.
 - disabled by default: endpoint property has no `matchIfMissing`.
 - Ktor management route: supported by plugin opt-in flag.
@@ -87,6 +87,6 @@ The Ktor response is emitted as JSON text to avoid forcing a new serialization d
 
 ## Risks
 
-- The fallback publisher facade does not observe calls made through the original non-publisher elector bean.
+- The fallback publisher only observes listener callbacks. It does not observe calls made through non-listener-aware elector beans.
 - Endpoint lock-name completeness depends on static registration or observed listener/Ktor scheduled usage.
 - Spring endpoint ID uses the requested camel-case `leaderElection`; tests must verify Boot accepts it.

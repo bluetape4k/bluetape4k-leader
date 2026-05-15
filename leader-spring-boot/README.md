@@ -293,6 +293,49 @@ For Java callers, `@JvmStatic` overloads accept both `kotlin.time.Duration` and 
 3. `LeaderMicrometerAutoConfiguration` registers `MicrometerLeaderAopMetricsRecorder` when `MeterRegistry` exists.
 4. `LeaderAopAutoConfiguration` registers the Aspect, SpEL evaluator, lock-name validator, and annotation validator.
 5. `LeaderMicrometerHealthAutoConfiguration` registers the Actuator health indicator when Actuator is present.
+6. `LeaderElectionObservabilityAutoConfiguration` registers the lock-name status registry and fallback event-publisher adapter.
+7. `LeaderElectionActuatorAutoConfiguration` registers the opt-in `/actuator/leaderElection` endpoint.
+
+## Leader Election Actuator Endpoint
+
+The `leaderElection` endpoint is disabled by default. Enable the endpoint and expose it over HTTP explicitly:
+
+```yaml
+bluetape4k:
+  leader:
+    observability:
+      lock-names:
+        - batch-job
+        - migration-gate
+
+management:
+  endpoint:
+    leaderElection:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,leaderElection
+```
+
+```http
+GET /actuator/leaderElection
+```
+
+```json
+{
+  "locks": [
+    {
+      "name": "batch-job",
+      "status": "Occupied",
+      "leaderId": "node-1",
+      "leaseExpiry": "2026-05-16T00:00:00Z"
+    }
+  ]
+}
+```
+
+`lock-names` seeds the JVM-local status registry before the first runtime event. Listener-aware electors can also add names as they observe lifecycle events. The fallback `LeaderElectionEventPublisher` is publisher-only and never becomes a `LeaderElector` candidate, so existing elector injection remains stable.
 
 ## Migration Notes
 

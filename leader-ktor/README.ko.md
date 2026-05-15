@@ -94,6 +94,8 @@ leaderScheduled(
 |-----------------------|-------------------------------|------|--------------------------------------------|
 | `leaderElection`      | `SuspendLeaderElector?`       | 예   | 단일 리더 선출 백엔드                      |
 | `leaderGroupElection` | `SuspendLeaderGroupElector?`  | 아니오 | 그룹/멀티 리더 백엔드 (선택)             |
+| `managementRouteEnabled` | `Boolean`                  | 아니오 | `GET /management/leaderElection` 활성화 |
+| `managementRoutePath` | `String`                      | 아니오 | Management route 경로                     |
 
 `leaderScheduled` 파라미터:
 
@@ -103,6 +105,39 @@ leaderScheduled(
 | `period`          | `kotlin.time.Duration`    | —                                | 양수 필수                                  |
 | `leaderElection`  | `SuspendLeaderElector`    | 설치된 플러그인 설정에서 조회    | 미지정 시 플러그인 설정 사용               |
 | `action`          | `suspend () -> Unit`      | —                                | 리더로 선출되었을 때만 실행                |
+
+## Management Route
+
+Management route는 기본 비활성입니다. 첫 scheduled run 전에 보여야 하는 정적 lock 이름이 있으면 함께 등록하세요:
+
+```kotlin
+fun Application.module() {
+    install(LeaderElectionPlugin) {
+        leaderElection = redissonElector
+        managementRouteEnabled = true
+        managementLockNames("batch-job", "migration-gate")
+    }
+}
+```
+
+```http
+GET /management/leaderElection
+```
+
+```json
+{
+  "locks": [
+    {
+      "name": "batch-job",
+      "status": "Empty",
+      "leaderId": null,
+      "leaseExpiry": null
+    }
+  ]
+}
+```
+
+`leaderScheduled()`는 플러그인이 설치되어 있을 때 자신의 lock 이름을 management registry에 기록합니다. 이 route는 JSON text를 직접 응답하므로, 이 endpoint만을 위해 Ktor content negotiation을 추가할 필요는 없습니다.
 
 ## `leaderScheduled` 안의 LockAssert / LockExtender (Issue #79)
 
