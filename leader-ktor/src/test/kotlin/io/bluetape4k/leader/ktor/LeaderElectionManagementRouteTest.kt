@@ -10,8 +10,10 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.install
 import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.seconds
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionManagementRouteTest {
 
     @Test
@@ -47,6 +49,26 @@ class LeaderElectionManagementRouteTest {
             response.status shouldBeEqualTo HttpStatusCode.OK
             response.bodyAsText() shouldBeEqualTo
                 """{"locks":[{"name":"batch-job","status":"Empty","leaderId":null,"leaseExpiry":null}]}"""
+        }
+    }
+
+    @Test
+    fun `management route supports custom path`() = runSuspendIO {
+        testApplication {
+            application {
+                install(LeaderElectionPlugin) {
+                    leaderElection = LocalSuspendLeaderElector()
+                    managementRouteEnabled = true
+                    managementRoutePath = "/internal/leader-status"
+                    managementLockNames("batch-job")
+                }
+            }
+            startApplication()
+
+            val response = client.get("/internal/leader-status")
+
+            response.status shouldBeEqualTo HttpStatusCode.OK
+            response.bodyAsText() shouldContain "\"name\":\"batch-job\""
         }
     }
 

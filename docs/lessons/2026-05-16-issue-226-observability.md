@@ -26,3 +26,4 @@ For Spring, expose a publisher-only listener adapter when no `LeaderElectionEven
 ## Future Notes
 
 Keep lock enumeration explicit or observed. If a future issue needs complete backend lock discovery, add a backend-specific listing contract instead of inferring names from state queries.
+Post-PR feedback confirmed the Spring Actuator path must be covered at the HTTP layer and Ktor management routes need explicit auth-boundary documentation because they share the main application port.

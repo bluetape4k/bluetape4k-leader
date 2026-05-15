@@ -76,6 +76,8 @@ dependencies {
     testImplementation(libs.r2dbc.h2)
 
     testImplementation("org.assertj:assertj-core")
+    testRuntimeOnly("org.springframework.boot:spring-boot-starter-actuator")
+    testRuntimeOnly("org.springframework.boot:spring-boot-starter-web")
 }
 
 tasks.compileJava {

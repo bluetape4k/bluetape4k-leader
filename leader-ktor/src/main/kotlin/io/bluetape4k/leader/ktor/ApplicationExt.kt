@@ -23,6 +23,9 @@ import kotlin.time.Duration
  * - [period] 간격으로 반복되며, [action] 예외는 WARN 로그 후 무시되고 다음 cycle 이 계속 진행됩니다 (poison-job 방지).
  * - [CancellationException] 은 항상 호출자에게 재전파되어 정상 취소됩니다.
  * - [leaderElection] 인자를 생략하면 [LeaderElectionPlugin] 의 설정에서 가져옵니다 — 플러그인 미설치 시 [IllegalStateException].
+ * - Management route registration happens only when [LeaderElectionPlugin] is already installed.
+ *   Install the plugin before calling [leaderScheduled] if `/management/leaderElection` should list
+ *   this lock automatically.
  *
  * ## 입력 검증
  * - [lockName] 은 비어있지 않아야 합니다 (`IllegalArgumentException`).
