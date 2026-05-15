@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
@@ -239,10 +240,32 @@ class LeaderStateFlowExtTest {
     }
 
     @Test
-    fun `group state flow ignores skipped events and other lock names`() = runSuspendIO {
+    fun `group state flow rejects invalid max leaders`() = runSuspendIO {
+        val publisher = FakeEventPublisher()
+        val scope = CoroutineScope(Dispatchers.IO + Job())
+        try {
+            assertFailsWith<IllegalArgumentException> {
+                publisher.leaderGroupStateFlow("my-lock", maxLeaders = 0, scope)
+            }
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun `group state flow ignores skipped events`() = runSuspendIO {
+        withGroupStateFlow { publisher, flow ->
+            publisher.emit(LeaderElectionEvent.Skipped("my-lock"))
+            delay(50)
+
+            flow.value shouldBeEqualTo LeaderGroupState("my-lock", maxLeaders = 3, activeCount = 0)
+        }
+    }
+
+    @Test
+    fun `group state flow ignores other lock names`() = runSuspendIO {
         withGroupStateFlow { publisher, flow ->
             publisher.emit(LeaderElectionEvent.Elected("other-lock", leaderId = "node-X"))
-            publisher.emit(LeaderElectionEvent.Skipped("my-lock"))
             delay(50)
 
             flow.value shouldBeEqualTo LeaderGroupState("my-lock", maxLeaders = 3, activeCount = 0)

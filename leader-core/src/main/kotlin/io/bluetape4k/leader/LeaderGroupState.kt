@@ -20,6 +20,8 @@ import java.io.Serializable
  * @property maxLeaders 허용하는 최대 동시 리더 수
  * @property activeCount 현재 활성(실행 중인) 리더 수
  * @property leaders 현재 리더로 선출된 노드/슬롯 lease 목록. backend에 따라 빈 목록일 수 있습니다.
+ *   Event-stream projections such as `leaderGroupStateFlow()` always keep this empty because revoke events do not
+ *   identify the released slot.
  */
 data class LeaderGroupState(
     val lockName: String,

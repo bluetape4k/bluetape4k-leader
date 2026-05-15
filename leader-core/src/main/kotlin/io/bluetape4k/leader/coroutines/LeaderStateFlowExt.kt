@@ -6,6 +6,7 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderNodeId
 import io.bluetape4k.leader.LeaderState
+import io.bluetape4k.support.requireGe
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.Flow
@@ -94,6 +95,7 @@ fun LeaderElectionEventPublisher.leaderGroupStateFlow(
     scope: CoroutineScope,
     started: SharingStarted = SharingStarted.Eagerly,
 ): StateFlow<LeaderGroupState> {
+    maxLeaders.requireGe(1, "maxLeaders")
     val initialState = LeaderGroupState(lockName, maxLeaders, activeCount = 0)
     return events.toLeaderGroupStates(lockName, maxLeaders)
         .toStateFlow(initialState, scope, started)
@@ -109,7 +111,6 @@ private fun Flow<LeaderElectionEvent>.toLeaderGroupStates(
     maxLeaders: Int,
 ): Flow<LeaderGroupState> =
     filter { it.lockName == lockName }
-        .filterNot { it is LeaderElectionEvent.Skipped }
         .runningFold(0) { activeCount, event ->
             when (event) {
                 is LeaderElectionEvent.Elected -> (activeCount + 1).coerceAtMost(maxLeaders)
