@@ -1,19 +1,38 @@
 package io.bluetape4k.leader
 
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * [LeaderElector]에 [LeaderElectionListener] dispatch를 추가하는 데코레이터입니다.
+ * Decorates a [LeaderElector] with listener callbacks and hot lifecycle events.
  *
- * 모든 backend 구현체에 적용할 수 있으며, [delegate]의 리더 선출/예외 전파 동작은 유지합니다.
+ * ## Behavior / Contract
+ * - Preserves the election, result, and exception behavior of [delegate].
+ * - Calls registered [LeaderElectionListener] callbacks around successful or skipped leader actions.
+ * - Exposes the same lifecycle as [events] through a non-suspending [MutableSharedFlow] publisher.
+ * - Buffers up to 64 events and drops the oldest buffered event under back-pressure; this is not a guaranteed-delivery stream.
+ *
+ * ```kotlin
+ * val election = redisLeaderElector.withListeners()
+ * election.events.collect { event -> println(event) }
+ * ```
  */
 class ListeningLeaderElector(
     private val delegate: LeaderElector,
-) : LeaderElector, LeaderElectionListenerRegistry {
+) : LeaderElector, LeaderElectionListenerRegistry, LeaderElectionEventPublisher {
 
     private val listeners = LeaderElectionListenerSupport()
+    private val eventSubject = MutableSharedFlow<LeaderElectionEvent>(
+        extraBufferCapacity = 64,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    override val events: Flow<LeaderElectionEvent> = eventSubject.asSharedFlow()
 
     override fun addListener(listener: LeaderElectionListener): AutoCloseable =
         listeners.addListener(listener)
@@ -29,14 +48,17 @@ class ListeningLeaderElector(
         val result = delegate.runIfLeader(lockName) {
             elected = true
             listeners.notifyElected(lockName)
+            eventSubject.tryEmit(LeaderElectionEvent.Elected(lockName))
             try {
                 action()
             } finally {
                 listeners.notifyRevoked(lockName)
+                eventSubject.tryEmit(LeaderElectionEvent.Revoked(lockName))
             }
         }
         if (!elected) {
             listeners.notifySkipped(lockName)
+            eventSubject.tryEmit(LeaderElectionEvent.Skipped(lockName))
         }
         return result
     }
@@ -50,28 +72,46 @@ class ListeningLeaderElector(
         return delegate.runAsyncIfLeader(lockName, executor) {
             elected.set(true)
             listeners.notifyElected(lockName)
+            eventSubject.tryEmit(LeaderElectionEvent.Elected(lockName))
             try {
-                action().whenComplete { _, _ -> listeners.notifyRevoked(lockName) }
+                action().whenComplete { _, _ ->
+                    listeners.notifyRevoked(lockName)
+                    eventSubject.tryEmit(LeaderElectionEvent.Revoked(lockName))
+                }
             } catch (e: Throwable) {
                 listeners.notifyRevoked(lockName)
+                eventSubject.tryEmit(LeaderElectionEvent.Revoked(lockName))
                 CompletableFuture.failedFuture(e)
             }
         }.whenComplete { value, failure ->
             if (!elected.get() && failure == null && value == null) {
                 listeners.notifySkipped(lockName)
+                eventSubject.tryEmit(LeaderElectionEvent.Skipped(lockName))
             }
         }
     }
 }
 
 /**
- * [LeaderGroupElector]에 [LeaderElectionListener] dispatch를 추가하는 데코레이터입니다.
+ * Decorates a [LeaderGroupElector] with listener callbacks and hot lifecycle events.
+ *
+ * ## Behavior / Contract
+ * - Preserves group election, slot-count, result, and exception behavior of [delegate].
+ * - Calls registered [LeaderElectionListener] callbacks around successful or skipped group-slot actions.
+ * - Exposes lifecycle events through a non-suspending [MutableSharedFlow] publisher.
+ * - Buffers up to 64 events and drops the oldest buffered event under back-pressure; this is not a guaranteed-delivery stream.
  */
 class ListeningLeaderGroupElector(
     private val delegate: LeaderGroupElector,
-) : LeaderGroupElector, LeaderElectionListenerRegistry {
+) : LeaderGroupElector, LeaderElectionListenerRegistry, LeaderElectionEventPublisher {
 
     private val listeners = LeaderElectionListenerSupport()
+    private val eventSubject = MutableSharedFlow<LeaderElectionEvent>(
+        extraBufferCapacity = 64,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    override val events: Flow<LeaderElectionEvent> = eventSubject.asSharedFlow()
 
     override val maxLeaders: Int get() = delegate.maxLeaders
 
@@ -95,14 +135,17 @@ class ListeningLeaderGroupElector(
         val result = delegate.runIfLeader(lockName) {
             elected = true
             listeners.notifyElected(lockName)
+            eventSubject.tryEmit(LeaderElectionEvent.Elected(lockName))
             try {
                 action()
             } finally {
                 listeners.notifyRevoked(lockName)
+                eventSubject.tryEmit(LeaderElectionEvent.Revoked(lockName))
             }
         }
         if (!elected) {
             listeners.notifySkipped(lockName)
+            eventSubject.tryEmit(LeaderElectionEvent.Skipped(lockName))
         }
         return result
     }
@@ -116,22 +159,28 @@ class ListeningLeaderGroupElector(
         return delegate.runAsyncIfLeader(lockName, executor) {
             elected.set(true)
             listeners.notifyElected(lockName)
+            eventSubject.tryEmit(LeaderElectionEvent.Elected(lockName))
             try {
-                action().whenComplete { _, _ -> listeners.notifyRevoked(lockName) }
+                action().whenComplete { _, _ ->
+                    listeners.notifyRevoked(lockName)
+                    eventSubject.tryEmit(LeaderElectionEvent.Revoked(lockName))
+                }
             } catch (e: Throwable) {
                 listeners.notifyRevoked(lockName)
+                eventSubject.tryEmit(LeaderElectionEvent.Revoked(lockName))
                 CompletableFuture.failedFuture(e)
             }
         }.whenComplete { value, failure ->
             if (!elected.get() && failure == null && value == null) {
                 listeners.notifySkipped(lockName)
+                eventSubject.tryEmit(LeaderElectionEvent.Skipped(lockName))
             }
         }
     }
 }
 
 /**
- * [LeaderElector]를 listener-aware 데코레이터로 감쌉니다.
+ * Wraps this [LeaderElector] with listener callbacks and event publishing.
  */
 fun LeaderElector.withListeners(vararg listeners: LeaderElectionListener): ListeningLeaderElector =
     ListeningLeaderElector(this).apply {
@@ -139,7 +188,7 @@ fun LeaderElector.withListeners(vararg listeners: LeaderElectionListener): Liste
     }
 
 /**
- * [LeaderGroupElector]를 listener-aware 데코레이터로 감쌉니다.
+ * Wraps this [LeaderGroupElector] with listener callbacks and event publishing.
  */
 fun LeaderGroupElector.withListeners(vararg listeners: LeaderElectionListener): ListeningLeaderGroupElector =
     ListeningLeaderGroupElector(this).apply {
