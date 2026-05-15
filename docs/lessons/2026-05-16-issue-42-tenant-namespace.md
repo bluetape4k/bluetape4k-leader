@@ -16,9 +16,9 @@ Use backend-independent decorators that translate caller-facing lock names throu
 
 - Spec/plan Claude advisor found namespace bypass and separator-injection risks; spec/plan updated before implementation.
 - Targeted tests: `TenantScopedLeaderElectorsTest` and `TenantScopedSuspendLeaderElectorsTest`.
-- Result: 12 tests passing, build successful.
+- Result: 14 tests passing, build successful.
 - README/README.ko API names verified against source.
-- Implementation Claude advisor review: no unresolved P0/P1 findings.
+- Post-PR Claude feedback added group slot/result coverage and README/README.ko migration caveats for `:` and backend `state().lockName`.
 
 ## Future Notes
 
