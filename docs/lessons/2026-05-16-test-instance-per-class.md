@@ -2,7 +2,7 @@
 
 **Date**: 2026-05-16
 **Issue**: #268
-**PR**: TBD
+**PR**: #272
 
 ## Root Cause
 
