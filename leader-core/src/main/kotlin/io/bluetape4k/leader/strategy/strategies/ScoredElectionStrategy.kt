@@ -7,11 +7,13 @@ import io.bluetape4k.leader.strategy.ElectionStrategy
 import io.bluetape4k.leader.strategy.Elimination
 
 /**
- * [CandidateScorer] 로 계산한 점수가 가장 높은 후보를 선출하는 전략입니다.
+ * An [ElectionStrategy] that elects the candidate with the highest score computed by [scorer].
  *
- * 동점 시 [CandidateInfo.registeredAt] 오름차순 → [CandidateInfo.nodeId] 사전순으로 결정합니다.
+ * ## Behavior / Contract
+ * - Tie-breaking when scores are equal: ascending [CandidateInfo.registeredAt],
+ *   then lexicographic [CandidateInfo.nodeId].
  *
- * @property scorer 후보 점수 계산에 사용할 [CandidateScorer]
+ * @property scorer the [CandidateScorer] used to rank candidates
  */
 class ScoredElectionStrategy(val scorer: CandidateScorer) : ElectionStrategy {
 
@@ -30,9 +32,9 @@ class ScoredElectionStrategy(val scorer: CandidateScorer) : ElectionStrategy {
             .map { c ->
                 val score = scores.getValue(c)
                 val reason = if (score < winnerScore) {
-                    "점수 미달 (%.2f < %.2f)".format(score, winnerScore)
+                    "score below winner (%.2f < %.2f)".format(score, winnerScore)
                 } else {
-                    "점수 동점 — 등록 시각/nodeId 우선순위 낮음 (score: %.2f)".format(score)
+                    "tied score — ranked lower by registeredAt/nodeId (score: %.2f)".format(score)
                 }
                 Elimination(c, reason)
             }
