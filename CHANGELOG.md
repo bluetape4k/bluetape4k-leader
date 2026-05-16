@@ -145,7 +145,7 @@ JDBC and R2DBC backends. (issue #23)
 - `LeaderAnnotationValidatorBeanPostProcessor` — startup validation; blocks unsafe return types
   (`CompletableFuture`, `Deferred`, etc.) (PR #79)
 - `LockAssert` / `LockExtender` integration in AOP aspect (issue #79)
-- `LeaderElectionHealthIndicator` — Spring Boot Actuator health indicator
+- `LeaderMetricsHealthIndicator` — Spring Boot Actuator health indicator (registered as `leaderMetricsHealthIndicator`)
 - `LeaderLeaseAutoExtenderLifecycle` — context-lifecycle-aware auto-extender integration
 - Backend auto-configurations: Lettuce, Redisson, Exposed JDBC, Exposed R2DBC, MongoDB, Hazelcast
 - `LeaderProperties` — `bluetape4k.leader.*` configuration properties
@@ -229,8 +229,8 @@ The following deprecated APIs were removed before 0.1.0 GA (#264):
 | `ExposedJdbcLock.extend()` | (no production callers — removed) |
 | `MongoLock.extend()` | (no callers — removed) |
 | `MongoSuspendLock.extend()` | (no callers — removed) |
-| `LettuceSemaphore` class (file deleted) | `LettuceLeaderGroupElector` (slot-token TTL model) |
-| `LettuceSuspendSemaphore` class (file deleted) | `LettuceSuspendLeaderGroupElector` |
+| `LettuceSemaphore` class (`@Deprecated`, not removed) | `LettuceLeaderGroupElector` (slot-token TTL model) |
+| `LettuceSuspendSemaphore` class (`@Deprecated`, not removed) | `LettuceSuspendLeaderGroupElector` |
 
 ---
 
