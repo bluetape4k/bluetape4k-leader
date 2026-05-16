@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
+import kotlin.random.Random
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -226,5 +227,60 @@ abstract class AbstractSyncLockExtenderContractTest {
             .run()
 
         maxConcurrent.get() shouldBeEqualTo 1
+    }
+
+    // ── AC-6 concurrent extends stress ───────────────────────────────────
+
+    /**
+     * AC-6: N concurrent workers each acquire their own lock and extend it M times.
+     *
+     * Verifies that concurrent extend calls from multiple leaders are race-free —
+     * all backend extend operations succeed with no torn writes or exceptions.
+     *
+     * Note: LockExtender uses ThreadLocal so extend calls are valid only on the
+     * thread that holds the lock. This test exercises concurrent backend load
+     * from N independent leader threads, each extending their own slot.
+     */
+    @Test
+    fun `AC-6 concurrent extends race-free — N workers each extend their own lock`() {
+        val successCount = AtomicInteger(0)
+        val extendsPerRound = 5
+
+        MultithreadingTester()
+            .workers(8)
+            .rounds(10)
+            .add {
+                val lockName = randomLockName()
+                elector.runIfLeader(lockName) {
+                    repeat(extendsPerRound) { i ->
+                        val outcome = LockExtender.extendActiveLockDetailed((10 + i * 5).seconds)
+                        if (outcome is ExtendOutcome.Extended) successCount.incrementAndGet()
+                    }
+                }
+            }
+            .run()
+
+        // 8 workers × 10 rounds × 5 extends each = 400 successful extends
+        successCount.get() shouldBeEqualTo 8 * 10 * extendsPerRound
+    }
+
+    /**
+     * AC-6b: Single-leader extends with randomized durations — last-write-wins,
+     * no exception thrown, sequential extend calls on the same lock are safe.
+     */
+    @Test
+    fun `AC-6b sequential extends with random durations are all successful`() {
+        val lockName = randomLockName()
+        val successCount = AtomicInteger(0)
+
+        elector.runIfLeader(lockName) {
+            repeat(20) { i ->
+                val duration = (10 + Random.nextInt(50)).seconds
+                val outcome = LockExtender.extendActiveLockDetailed(duration)
+                if (outcome is ExtendOutcome.Extended) successCount.incrementAndGet()
+            }
+        }
+
+        successCount.get() shouldBeEqualTo 20
     }
 }
