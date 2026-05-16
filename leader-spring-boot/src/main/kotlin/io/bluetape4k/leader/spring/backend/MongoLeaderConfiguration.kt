@@ -22,15 +22,16 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * MongoDB 백엔드 자동 구성.
+ * MongoDB backend auto-configuration.
  *
- * - Sync 빈: `com.mongodb.client.MongoDatabase` 빈 필요
- * - Suspend 빈: `com.mongodb.kotlin.client.coroutine.MongoDatabase` 빈 필요
+ * - Sync beans: require a [com.mongodb.client.MongoDatabase] bean.
+ * - Suspend beans: require a [com.mongodb.kotlin.client.coroutine.MongoDatabase] bean.
  *
- * 컬렉션 이름은 `bluetape4k.leader.mongo.{single|group}-collection` 속성으로 지정합니다.
+ * Collection names are configured via `bluetape4k.leader.mongo.{single|group}-collection` properties.
  *
- * Suspend 빈은 startup 시 스키마 인덱스 초기화를 위해 [runBlocking]을 사용합니다.
- * 한 번만 호출되며 startup 이후에는 영향을 주지 않습니다.
+ * Suspend beans use [runBlocking] at startup for TTL-index initialization.
+ * Called once during Spring context startup from a platform thread; the coroutine body
+ * contains no `synchronized` blocks, so there is no virtual-thread carrier-pinning risk.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(com.mongodb.client.MongoCollection::class)

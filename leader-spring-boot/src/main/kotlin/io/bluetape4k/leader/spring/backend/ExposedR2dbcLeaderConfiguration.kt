@@ -17,11 +17,14 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * Exposed(R2DBC) 백엔드 자동 구성.
+ * Exposed (R2DBC) backend auto-configuration.
  *
- * `R2dbcDatabase` 빈이 등록된 경우에만 활성화됩니다.
+ * Activated only when an [R2dbcDatabase] bean is registered.
  *
- * 두 빈 모두 startup 시 스키마 초기화를 위해 [runBlocking]을 사용합니다.
+ * Both beans use [runBlocking] at startup for schema initialization.
+ * [runBlocking] is called once during Spring context startup from a platform thread.
+ * The coroutine body contains no `synchronized` blocks, so there is no virtual-thread
+ * carrier-pinning risk.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(R2dbcDatabase::class)
