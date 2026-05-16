@@ -3,11 +3,13 @@ package io.bluetape4k.leader
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.assertions.shouldBeEqualTo
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionOptionsTest {
 
     companion object: KLogging()

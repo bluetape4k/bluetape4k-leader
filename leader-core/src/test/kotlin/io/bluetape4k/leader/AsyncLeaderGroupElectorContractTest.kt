@@ -11,6 +11,7 @@ import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
@@ -27,6 +28,7 @@ import kotlin.random.Random
  * [LocalAsyncLeaderGroupElector]과 [LocalLeaderGroupElector] 구현체를 통해
  * [AsyncLeaderGroupElector] 계약을 검증합니다.
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AsyncLeaderGroupElectorContractTest {
 
     companion object: KLogging()
