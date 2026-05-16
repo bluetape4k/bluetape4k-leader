@@ -13,10 +13,12 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * [LeaderGroupElectionState] 인터페이스 계약을 검증하는 테스트입니다.
@@ -82,8 +84,10 @@ class LeaderGroupElectionStateTest {
                 }
             }
 
-            while (acquiredCount.get() < 2) {
-                delay(5.milliseconds)
+            withTimeout(5.seconds) {
+                while (acquiredCount.get() < 2) {
+                    delay(5.milliseconds)
+                }
             }
 
             election.activeCount(lockName) shouldBeEqualTo 2
