@@ -5,9 +5,9 @@ import java.time.Duration
 import kotlin.time.toKotlinDuration
 
 /**
- * 복수 리더 그룹 선출 자동 구성 속성입니다.
+ * Auto-configuration properties for multi-leader group election.
  *
- * [LeaderElectionProperties.group]에 중첩되어 사용됩니다.
+ * Nested under [LeaderElectionProperties.group].
  *
  * ```yaml
  * leader:
@@ -17,9 +17,9 @@ import kotlin.time.toKotlinDuration
  *     lease-time: 60s
  * ```
  *
- * @property maxLeaders 허용하는 최대 동시 리더 수. 기본값 2
- * @property waitTime 슬롯 획득 대기 최대 시간. 기본값 5초
- * @property leaseTime 슬롯 보유(임대) 최대 시간. 기본값 60초
+ * @property maxLeaders Maximum number of concurrent leaders allowed. Default 2
+ * @property waitTime Maximum time to wait for a slot acquisition. Default 5 seconds
+ * @property leaseTime Maximum time to hold (lease) a slot. Default 60 seconds
  */
 data class LeaderGroupProperties(
     val maxLeaders: Int = DefaultMaxLeaders,

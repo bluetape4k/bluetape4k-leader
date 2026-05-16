@@ -3,16 +3,16 @@ package io.bluetape4k.leader.internal
 import io.bluetape4k.leader.LeaderLockHandle
 
 /**
- * Sync ([io.bluetape4k.leader.LeaderElector] / [io.bluetape4k.leader.VirtualThreadLeaderElector]) 컨텍스트의
- * lock stack — ThreadLocal Deque.
+ * Lock stack for the sync ([io.bluetape4k.leader.LeaderElector] / [io.bluetape4k.leader.VirtualThreadLeaderElector])
+ * context — a ThreadLocal Deque.
  *
- * Suspend / Mono 컨텍스트는 `LockHandleElement` (CoroutineContext.Element) 사용 — 이 holder 미사용.
+ * Suspend / Mono contexts use `LockHandleElement` (CoroutineContext.Element) and do not use this holder.
  *
- * ## 동작/계약
- * - per-thread `ArrayDeque<LeaderLockHandle>` 으로 nested 호출 추적
- * - Virtual thread 환경: ThreadLocal 은 carrier thread 가 아닌 virtual thread 에 바인딩 (Java 21 standard)
- *   → child 가 새 virtual thread 를 spawn 하면 inheritance 없음 (R3-F8 명시)
- * - aspect 가 try/finally 로 push/pop 보장 — [withPushed] inline helper 사용 권장
+ * ## Behavior / Contract
+ * - Tracks nested calls via a per-thread `ArrayDeque<LeaderLockHandle>`
+ * - In virtual thread environments: ThreadLocal binds to the virtual thread, not the carrier thread (Java 21 standard)
+ *   → no inheritance when a child spawns a new virtual thread (R3-F8 explicit)
+ * - The aspect guarantees push/pop via try/finally — use the [withPushed] inline helper
  */
 internal object LockStateHolder {
 
@@ -30,7 +30,7 @@ internal object LockStateHolder {
     fun peekSyncMatching(lockName: String): LeaderLockHandle? =
         tl.get().firstOrNull { it.lockName == lockName }
 
-    /** stack 이 비어있으면 ThreadLocal 제거 (pool thread 누수 방지). */
+    /** Removes the ThreadLocal when the stack is empty (prevents pool thread leaks). */
     fun cleanup() {
         if (tl.get().isEmpty()) {
             tl.remove()
@@ -38,9 +38,9 @@ internal object LockStateHolder {
     }
 
     /**
-     * push/pop 헬퍼 — 누수 차단.
+     * push/pop helper — prevents leaks.
      *
-     * 사용 예:
+     * ## Usage
      * ```kotlin
      * LockStateHolder.withPushed(handle) { pjp.proceed() }
      * ```

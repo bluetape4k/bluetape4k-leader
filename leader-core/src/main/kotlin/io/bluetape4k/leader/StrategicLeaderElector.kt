@@ -8,32 +8,32 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * 플러그형 선출 전략을 지원하는 리더 선출 인터페이스입니다.
+ * Leader election interface that supports pluggable election strategies.
  *
- * 기존 [LeaderElector] 과 달리 분산 락 경쟁 대신 후보 목록 기반 선출 방식을 사용합니다.
+ * Unlike [LeaderElector], uses a candidate-list-based election approach instead of distributed lock contention.
  *
- * ## 선출 흐름
- * 1. [registerCandidate] 로 후보 등록
- * 2. [listCandidates] 로 현재 후보 목록 조회
- * 3. [ElectionStrategy.elect] 로 winner 결정
- * 4. winner 이면 action 실행, 아니면 null 반환
+ * ## Election Flow
+ * 1. Register a candidate with [registerCandidate].
+ * 2. Query the current candidate list with [listCandidates].
+ * 3. Determine the winner with [ElectionStrategy.elect].
+ * 4. If this node is the winner, execute the action; otherwise return null.
  *
- * ## 분산 일관성 주의
- * 모든 노드가 동일한 후보 목록에 결정론적 전략을 적용하면 동일 winner 를 계산합니다.
- * 단, 후보 등록/조회 시점 차이로 인한 불일치는 백엔드 구현에서 처리해야 합니다.
+ * ## Distributed Consistency Note
+ * When all nodes apply a deterministic strategy to the same candidate list, they compute the same winner.
+ * However, inconsistencies caused by differences in candidate registration/query timing must be handled by the backend implementation.
  *
- * ## 사용 예제
+ * ## Usage Example
  *
  * ```kotlin
  * val election = LocalStrategicLeaderElector("node-1")
  *
- * // 1. 후보 등록 — 분산 환경에서는 heartbeat 주기로 갱신
+ * // 1. Register candidate — renew at heartbeat interval in distributed environments
  * election.registerCandidate("nightly-job", CandidateInfo(election.nodeId))
  *
- * // 2. ScoredElectionStrategy + IdleTimeScorer — 가장 오래 쉰 노드 선출
+ * // 2. ScoredElectionStrategy + IdleTimeScorer — elects the node that has been idle the longest
  * val strategy = ScoredElectionStrategy(IdleTimeScorer)
  *
- * // 3. 선출되면 action 실행, 아니면 null
+ * // 3. Run action if elected, otherwise null
  * val result: Report? = election.runIfLeader("nightly-job", strategy) {
  *     generateNightlyReport()
  * }
@@ -41,37 +41,37 @@ import kotlin.time.Duration.Companion.seconds
  */
 interface StrategicLeaderElector {
 
-    /** 이 인스턴스가 나타내는 노드 식별자 */
+    /** Node identifier represented by this instance. */
     val nodeId: String
 
     /**
-     * 후보 등록 또는 갱신.
+     * Registers or refreshes a candidate.
      *
-     * [ttl] = [Duration.ZERO] 이면 TTL 없음 (Local 구현은 무시).
-     * 분산 백엔드에서는 heartbeat 주기의 2배 이상으로 설정 권장.
+     * [ttl] = [Duration.ZERO] means no TTL (ignored by local implementations).
+     * For distributed backends, setting at least twice the heartbeat interval is recommended.
      */
     fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration = Duration.ZERO)
 
-    /** 후보 등록 해제 */
+    /** Unregisters a candidate. */
     fun unregisterCandidate(lockName: String, nodeId: String)
 
-    /** [lockName] 에 등록된 현재 후보 목록 조회 */
+    /** Returns the current list of candidates registered for [lockName]. */
     fun listCandidates(lockName: String): List<CandidateInfo>
 
     /**
-     * 작업 결과를 후보 정보에 반영합니다.
-     * [result] 에 따라 [CandidateInfo.successCount] 또는 [CandidateInfo.failureCount] 가 증가합니다.
+     * Records an action result back into the candidate info.
+     * Increments [CandidateInfo.successCount] or [CandidateInfo.failureCount] based on [result].
      */
     fun updateResult(lockName: String, nodeId: String, result: CandidateResult)
 
     /**
-     * 전략으로 리더를 선출하고 winner 인 경우에만 [action] 을 실행합니다.
+     * Elects a leader using the strategy and executes [action] only if this node is the winner.
      *
-     * @param lockName 선출 식별자
-     * @param strategy 선출 전략
-     * @param options 선출 옵션 (waitTime, leaseTime)
-     * @param action 리더 획득 성공 시 실행할 작업
-     * @return [action] 실행 결과, 선출 실패 또는 다른 노드가 winner 이면 `null`
+     * @param lockName the election identifier
+     * @param strategy the election strategy
+     * @param options election options (waitTime, leaseTime)
+     * @param action the action to run when elected
+     * @return [action] result, or `null` if election failed or another node is the winner
      */
     fun <T> runIfLeader(
         lockName: String,

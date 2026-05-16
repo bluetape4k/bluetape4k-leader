@@ -6,16 +6,16 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.lettuce.core.api.StatefulRedisConnection
 
 /**
- * [LettuceLeaderGroupElector] 팩토리 — Lettuce Redis 클라이언트 기반 다중 리더 선출.
+ * Factory for [LettuceLeaderGroupElector] — multi-leader election backed by the Lettuce Redis client.
  *
- * ## 사용 예
+ * ## Usage
  * ```kotlin
  * val factory = LettuceLeaderGroupElectionFactory(connection)
  * val election = factory.create(LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = election.runIfLeader("batch-shard") { processChunk() }
  * ```
  *
- * @param connection 공유 Redis connection
+ * @param connection Shared Redis connection
  */
 class LettuceLeaderGroupElectorFactory(
     private val connection: StatefulRedisConnection<String, String>,

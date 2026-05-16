@@ -6,16 +6,16 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
 import org.redisson.api.RedissonClient
 
 /**
- * [RedissonSuspendLeaderElector] 팩토리 — Redisson 분산 락 기반 suspend 단일 리더 선출.
+ * Factory for [RedissonSuspendLeaderElector] — suspend single-leader election backed by a Redisson distributed lock.
  *
- * ## 사용 예
+ * ## Usage
  * ```kotlin
  * val factory = RedissonSuspendLeaderElectorFactory(redissonClient)
  * val elector = factory.create(LeaderElectionOptions(waitTime = 3.seconds, leaseTime = 30.seconds))
  * val result = elector.runIfLeader("daily-job") { processData() }
  * ```
  *
- * @param redissonClient 공유 Redisson 클라이언트. 호출자가 수명 관리.
+ * @param redissonClient Shared Redisson client whose lifecycle is managed by the caller.
  */
 class RedissonSuspendLeaderElectorFactory(
     private val redissonClient: RedissonClient,

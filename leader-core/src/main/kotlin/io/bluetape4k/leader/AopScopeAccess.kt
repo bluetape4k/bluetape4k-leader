@@ -5,38 +5,38 @@ import io.bluetape4k.leader.internal.LeaderLockHandleCapture
 import io.bluetape4k.leader.internal.LockStateHolder
 
 /**
- * AOP aspect (`leader-spring-boot`) 이 `leader-core` 의 `internal` scope 관리 심볼에 접근하기 위한 공개 브리지.
+ * Public bridge for the AOP aspect (`leader-spring-boot`) to access `internal` scope management symbols in `leader-core`.
  *
- * ## 용도 제한
- * - **AOP aspect 전용 API** — 일반 애플리케이션 코드에서 직접 사용 금지.
- * - 일반 코드에서는 [LockAssert] / [LockExtender] 만 사용.
+ * ## Usage Restrictions
+ * - **AOP aspect-only API** — do not use directly in general application code.
+ * - In general code, use only [LockAssert] / [LockExtender].
  *
- * ## 노출 범위
- * | 심볼 | 용도 |
- * |------|------|
- * | [peekSyncMatching] | sync 분기 reentrant peek (동일 lockName 보유 여부 확인) |
- * | [withPushedSync] | sync 분기 handle push/pop — body 실행 전후 LockStateHolder 관리 |
- * | [pollCapture] | sync group elector → aspect handle 전달 수신 (CaptureScope.runWithCapture 후) |
- * | [createFailOpen] | fail-open sentinel handle 생성 |
- * | [createLockHandleElement] | CoroutineContext 에 주입할 LockHandleElement 생성 |
+ * ## Exposed Scope
+ * | Symbol | Purpose |
+ * |--------|---------|
+ * | [peekSyncMatching] | sync branch reentrant peek (checks whether the same lockName is held) |
+ * | [withPushedSync] | sync branch handle push/pop — manages LockStateHolder before and after body execution |
+ * | [pollCapture] | sync group elector → aspect handle delivery receiver (after CaptureScope.runWithCapture) |
+ * | [createFailOpen] | creates a fail-open sentinel handle |
+ * | [createLockHandleElement] | creates a LockHandleElement to inject into CoroutineContext |
  */
 object AopScopeAccess {
 
     /**
-     * 현재 스레드의 lock stack 에서 [lockName] 과 일치하는 handle 을 peek 합니다.
+     * Peeks the handle matching [lockName] from the current thread's lock stack.
      *
-     * aspect 가 sync 분기 진입 전 reentrant 여부를 판정할 때 사용합니다.
+     * Used by the aspect to determine whether the call is reentrant before entering the sync branch.
      */
     fun peekSyncMatching(lockName: String): LeaderLockHandle? =
         LockStateHolder.peekSyncMatching(lockName)
 
     /**
-     * handle 을 sync lock stack 에 push 하고 [block] 실행 후 pop 합니다.
+     * Pushes [handle] onto the sync lock stack, executes [block], then pops it.
      *
-     * try/finally 로 누수 차단. fail-open sentinel 또는 reentrant passthrough handle 을 주입할 때 사용합니다.
+     * Prevents leaks via try/finally. Used when injecting a fail-open sentinel or reentrant passthrough handle.
      *
-     * Note: public 브리지이므로 `inline` 불가 — internal `LockStateHolder.withPushed` inline 직접 위임 대신
-     * push/pop 을 명시적으로 구현.
+     * Note: cannot be `inline` because this is a public bridge — push/pop are implemented explicitly
+     * instead of delegating directly to the internal `LockStateHolder.withPushed` inline function.
      */
     fun <R> withPushedSync(handle: LeaderLockHandle, block: () -> R): R {
         LockStateHolder.push(handle)
@@ -49,81 +49,83 @@ object AopScopeAccess {
     }
 
     /**
-     * [LeaderLockHandleCapture] ThreadLocal 에서 handle 을 꺼내고 즉시 clear 합니다.
+     * Retrieves the handle from the [LeaderLockHandleCapture] ThreadLocal and immediately clears it.
      *
-     * sync group elector 의 `CaptureScope.runWithCapture` 가 set 한 값을 aspect 가 수신합니다.
-     * single elector 는 capture 하지 않으므로 `null` 이 정상 — CaptureInvariantException 사용 금지.
-     * suspend group elector 는 ThreadLocal capture 를 사용하지 않고 [createLockHandleElement] 만 사용합니다.
+     * The aspect receives the value set by `CaptureScope.runWithCapture` in the sync group elector.
+     * Single electors do not capture, so `null` is normal — do not use CaptureInvariantException.
+     * Suspend group electors do not use ThreadLocal capture; they use only [createLockHandleElement].
      */
     fun pollCapture(): LeaderLockHandle.Real? = LeaderLockHandleCapture.poll()
 
     /**
-     * Backend module 전용 — sync group elector 의 acquire 직후 aspect 가 poll 할 handle 을 set 합니다.
+     * Backend module only — sets the handle that the aspect will poll immediately after the sync group elector acquires.
      *
-     * ⚠️ 애플리케이션 코드에서 직접 호출 금지 — `leader-redis-lettuce`, `leader-redis-redisson`,
-     * `leader-mongodb` 등의 sync group elector 가 동일 thread 에서
-     * `setCapture` → action → [clearCapture] 시퀀스를 보장해야 합니다.
+     * ⚠️ Do not call directly from application code — sync group electors such as `leader-redis-lettuce`,
+     * `leader-redis-redisson`, and `leader-mongodb` must guarantee the
+     * `setCapture` → action → [clearCapture] sequence on the same thread.
      *
-     * suspend group elector 는 dispatcher hop 으로 ThreadLocal set/clear thread 가 달라질 수 있으므로
-     * 호출하지 말고 [createLockHandleElement] 로 coroutine context 에 handle 을 전파해야 합니다.
+     * Suspend group electors must not call this because a dispatcher hop may cause the ThreadLocal
+     * set/clear to run on different threads. Instead, propagate the handle to coroutine context
+     * via [createLockHandleElement].
      *
-     * 일반적으로 try/finally 패턴으로 사용:
+     * Typical usage with try/finally:
      *
      * ```kotlin
      * AopScopeAccess.setCapture(handle)
      * try {
-     *     action()  // aspect 가 first statement 로 pollCapture 호출
+     *     action()  // the aspect calls pollCapture as its first statement
      * } finally {
      *     AopScopeAccess.clearCapture()
      * }
      * ```
      *
-     * Single elector 는 capture 가 필요 없으므로 호출하지 않습니다.
+     * Single electors do not need capture, so this is not called for them.
      */
     fun setCapture(handle: LeaderLockHandle.Real) {
         LeaderLockHandleCapture.set(handle)
     }
 
     /**
-     * Backend module 전용 — [setCapture] 로 set 한 sync group ThreadLocal 을 명시적으로 clear 합니다.
+     * Backend module only — explicitly clears the sync group ThreadLocal set by [setCapture].
      *
-     * `try/finally` finally 블록에서 호출하여 ThreadLocal leak 을 방지합니다.
-     * suspend group elector 에서는 호출하지 않습니다.
+     * Call in the `try/finally` finally block to prevent ThreadLocal leaks.
+     * Do not call from suspend group electors.
      */
     fun clearCapture() {
         LeaderLockHandleCapture.clear()
     }
 
     /**
-     * Fail-open sentinel [LeaderLockHandle.FailOpen] 을 생성합니다.
+     * Creates a fail-open sentinel [LeaderLockHandle.FailOpen].
      *
-     * `failureMode = FAIL_OPEN_RUN` 분기에서 body 실행 시 [LockAssert] / [LockExtender] 가
-     * fail-open scope 를 인식할 수 있도록 stack 에 push 합니다.
+     * Pushes it onto the stack so that [LockAssert] / [LockExtender] can recognize
+     * the fail-open scope when the body executes in the `failureMode = FAIL_OPEN_RUN` branch.
      */
     fun createFailOpen(identity: LockIdentity): LeaderLockHandle.FailOpen =
         LeaderLockHandle.failOpen(identity)
 
     /**
-     * [LeaderLockHandle.Real] 의 reentry depth 를 증가시킨 passthrough copy 를 생성합니다.
+     * Creates a passthrough copy of [LeaderLockHandle.Real] with an incremented reentry depth.
      *
-     * 동일 lock 의 reentrant 진입 시 aspect 가 새 depth 를 가진 handle 을 push 합니다.
+     * When the same lock is re-entered, the aspect pushes a handle with the new depth.
      */
     fun incrementReentryDepth(handle: LeaderLockHandle.Real): LeaderLockHandle.Real =
         handle.withReentryDepth(handle.reentryDepth + 1)
 
     /**
-     * aspect 가 coroutine context 에 주입할 [LockHandleElement] 를 생성합니다.
+     * Creates a [LockHandleElement] for the aspect to inject into the coroutine context.
      *
-     * suspend / Mono 분기에서 `withContext(LeaderElectionInfo(...) + createLockHandleElement(handle))` 패턴으로 사용합니다.
+     * Used in the suspend / Mono branch with the pattern
+     * `withContext(LeaderElectionInfo(...) + createLockHandleElement(handle))`.
      */
     fun createLockHandleElement(handle: LeaderLockHandle): LockHandleElement =
         LockHandleElement(handle)
 
     /**
-     * 테스트 또는 aspect 가 synthetic `LeaderLockHandle.Real` 을 생성할 때 사용합니다.
+     * Used by tests or the aspect to create a synthetic `LeaderLockHandle.Real`.
      *
-     * 실제 backend 없이 reentrant 단위 테스트를 작성할 때 `LockStateHolder` 에 push 할 handle 을 만드는 용도입니다.
-     * Production aspect 코드에서는 elector 가 생성한 handle 만 사용합니다.
+     * Creates a handle to push into `LockStateHolder` when writing reentrant unit tests
+     * without a real backend. Production aspect code uses only handles created by electors.
      */
     fun createSyntheticReal(
         lockName: String,
@@ -144,9 +146,9 @@ object AopScopeAccess {
     }
 
     /**
-     * 테스트용 group `LeaderLockHandle.Real` 생성. `slotId` 와 `groupParams` 보유.
+     * Creates a group `LeaderLockHandle.Real` for testing, holding `slotId` and `groupParams`.
      *
-     * `@LeaderGroupElection` aspect 의 reentrant 단위 테스트에서 stack 에 push 할 handle 생성용.
+     * Used to create a handle to push onto the stack in reentrant unit tests for the `@LeaderGroupElection` aspect.
      */
     fun createSyntheticGroupReal(
         lockName: String,
@@ -170,10 +172,10 @@ object AopScopeAccess {
         )
     }
 
-    /** Synthetic single handle default token — production 환경에서 의존 금지. */
+    /** Synthetic single handle default token — do not depend on this in production. */
     private const val SYNTHETIC_SINGLE_TOKEN = "test-token"
 
-    /** Synthetic group handle default token — production 환경에서 의존 금지. */
+    /** Synthetic group handle default token — do not depend on this in production. */
     private const val SYNTHETIC_GROUP_TOKEN = "test-group-token"
 
     /** Synthetic group handle default slotId. */

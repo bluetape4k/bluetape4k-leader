@@ -8,27 +8,27 @@ import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.javatime.timestamp
 
 /**
- * 단일 리더 락 테이블.
+ * Single-leader lock table.
  *
- * - [lockName]이 PK — INSERT 충돌로 중복 획득 자연스럽게 방지
- * - [token]은 fencing token (UUID). 락 해제 시 `WHERE token = ?` 조건으로 zombie unlock 방지
- * - [lockedUntil]은 TTL 만료 시각. `locked_until < NOW()` 조건으로 stale lock 재획득 가능
+ * - [lockName] is the PK — duplicate acquisition is naturally prevented by INSERT conflicts.
+ * - [token] is a fencing token (UUID). The `WHERE token = ?` condition on unlock prevents zombie unlocks.
+ * - [lockedUntil] is the TTL expiry timestamp. The `locked_until < NOW()` condition allows re-acquisition of stale locks.
  */
 object LeaderLockTable : Table(LOCK_TABLE_NAME) {
 
-    /** 락 식별자 (PK). 영숫자, 하이픈, 언더스코어, 콜론 허용 */
+    /** Lock identifier (PK). Allows alphanumerics, hyphens, underscores, and colons. */
     val lockName = varchar("lock_name", LOCK_NAME_LENGTH)
 
-    /** 락 보유자 식별자 (hostname + PID 등). null이면 미사용 슬롯 */
+    /** Lock holder identifier (hostname + PID, etc.). Null means unused slot. */
     val lockOwner = varchar("lock_owner", LOCK_OWNER_LENGTH).nullable()
 
-    /** fencing token — UUID. 동일 락의 구세대 holder가 해제 시도 시 거부 */
+    /** Fencing token — UUID. Rejects unlock attempts from an older holder of the same lock. */
     val token = varchar("token", TOKEN_LENGTH)
 
-    /** 락 획득 시각 (UTC) */
+    /** Timestamp when the lock was acquired (UTC). */
     val lockedAt = timestamp("locked_at")
 
-    /** 락 만료 시각 (UTC). leaseTime 기준. 이 시각 이후 stale로 판정 */
+    /** Lock expiry timestamp (UTC). Based on leaseTime. Considered stale after this time. */
     val lockedUntil = timestamp("locked_until")
 
     override val primaryKey = PrimaryKey(lockName)

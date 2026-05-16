@@ -12,19 +12,19 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 
 /**
- * [ReentrantLock]과 Virtual Thread를 이용한 로컬(단일 JVM) 리더 선출 구현체입니다.
+ * Local (single-JVM) leader election implementation using [ReentrantLock] and Virtual Threads.
  *
- * ## 동작
- * - [VirtualThreadLeaderElector]을 구현하며, `action`은 `() -> T` 람다로 결과를 직접 반환합니다.
- * - [VirtualFuture]를 통해 비동기로 실행되며, Virtual Thread가 락 대기 시 carrier thread를 반납합니다.
- * - [ReentrantLock]을 사용하여 동일 `lockName`에 대해 직렬 실행을 보장합니다.
- * - [ReentrantLock] 특성상 동일 스레드에서 동일 `lockName`으로 중첩 호출(재진입)이 가능합니다.
- * - 분산 환경이 아닌 단일 JVM 프로세스 내 비동기 실행 직렬화에 적합합니다.
+ * ## Behavior
+ * - Implements [VirtualThreadLeaderElector]; `action` is a `() -> T` lambda that returns the result directly.
+ * - Executes asynchronously via [VirtualFuture]; Virtual Threads release the carrier thread while waiting for the lock.
+ * - Uses [ReentrantLock] to guarantee serial execution for the same `lockName`.
+ * - Due to [ReentrantLock] semantics, nested calls (re-entrancy) with the same `lockName` from the same thread are allowed.
+ * - Suitable for serializing async execution within a single JVM process, not a distributed environment.
  *
- * ## [LocalAsyncLeaderElector] 과의 차이
- * - `action`이 `() -> T`로 단순하며, [java.util.concurrent.CompletableFuture] 래핑이 불필요합니다.
- * - 반환이 [VirtualFuture]로 `await()` API가 명시적입니다.
- * - Virtual Thread 기반이므로 I/O 블로킹 작업에 carrier thread를 소모하지 않습니다.
+ * ## Difference from [LocalAsyncLeaderElector]
+ * - `action` is a simpler `() -> T`; [java.util.concurrent.CompletableFuture] wrapping is not needed.
+ * - The return type is [VirtualFuture], making the `await()` API explicit.
+ * - Virtual Thread-based, so carrier threads are not consumed by I/O blocking operations.
  *
  * ```kotlin
  * val election = LocalVirtualThreadLeaderElector()
@@ -37,11 +37,11 @@ class LocalVirtualThreadLeaderElector(
 ): AbstractLocalLeaderElector(options), VirtualThreadLeaderElector {
 
     /**
-     * [lockName]에 대한 [ReentrantLock]을 Virtual Thread에서 획득하고 [action]을 실행합니다.
+     * Acquires the [ReentrantLock] for [lockName] on a Virtual Thread and executes [action].
      *
-     * - Virtual Thread는 [ReentrantLock.lock] 블로킹 시 carrier thread를 반납합니다.
-     * - [action] 예외 발생 시에도 락이 안전하게 해제됩니다.
-     * - 동일 스레드에서 동일 `lockName`으로 중첩 호출(재진입)이 가능합니다.
+     * - Virtual Threads release the carrier thread when blocking on [ReentrantLock.lock].
+     * - The lock is safely released even when [action] throws an exception.
+     * - Nested calls (re-entrancy) with the same `lockName` from the same thread are allowed.
      *
      * ```kotlin
      * val election = LocalVirtualThreadLeaderElector()
@@ -49,9 +49,9 @@ class LocalVirtualThreadLeaderElector(
      * // result == "done"
      * ```
      *
-     * @param lockName 리더 선출에 사용할 락 이름
-     * @param action 리더 획득 성공 시 실행할 작업
-     * @return [action] 실행 결과를 담은 [VirtualFuture]. 리더 획득 실패 시 `null`로 완료됨
+     * @param lockName the lock name used for leader election
+     * @param action the action to run when leader acquisition succeeds
+     * @return [VirtualFuture] resolving to the [action] result, or `null` when leader acquisition fails
      */
     override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?> =
         virtualFuture {

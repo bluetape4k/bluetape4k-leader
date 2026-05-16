@@ -8,31 +8,31 @@ import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.javatime.timestamp
 
 /**
- * 그룹 리더 락 테이블 (세마포어 기반 멀티 리더).
+ * Group leader lock table (semaphore-based multi-leader).
  *
- * - `(lockName, slot)` 복합 PK — 동일 그룹에서 최대 N개의 리더를 허용
- * - [slot]은 0-based 슬롯 번호. MongoDB의 `${lockName}:slot:N` 패턴과 동일한 의미
- * - [token]은 fencing token. 슬롯별로 독립적인 UUID 발급
- * - [lockedUntil]은 슬롯 TTL 만료 시각. `locked_until < NOW()` 조건으로 재획득 가능
+ * - `(lockName, slot)` composite PK — allows up to N simultaneous leaders in the same group.
+ * - [slot] is a 0-based slot number, equivalent to MongoDB's `${lockName}:slot:N` pattern.
+ * - [token] is a fencing token with an independent UUID issued per slot.
+ * - [lockedUntil] is the slot TTL expiry timestamp. Re-acquisition is possible via `locked_until < NOW()`.
  */
 object LeaderGroupLockTable : Table(GROUP_LOCK_TABLE_NAME) {
 
-    /** 그룹 락 식별자. 복합 PK 일부 */
+    /** Group lock identifier. Part of the composite PK. */
     val lockName = varchar("lock_name", LOCK_NAME_LENGTH)
 
-    /** 슬롯 번호 (0-based). maxLeaders 설정 범위 내 값. 복합 PK 일부 */
+    /** Slot number (0-based). Value within the maxLeaders range. Part of the composite PK. */
     val slot = integer("slot")
 
-    /** 락 보유자 식별자. null이면 미사용 슬롯 */
+    /** Lock holder identifier. Null means unused slot. */
     val lockOwner = varchar("lock_owner", LOCK_OWNER_LENGTH).nullable()
 
-    /** fencing token — UUID. 슬롯별 독립 발급 */
+    /** Fencing token — UUID. Issued independently per slot. */
     val token = varchar("token", TOKEN_LENGTH)
 
-    /** 락 획득 시각 (UTC) */
+    /** Timestamp when the lock was acquired (UTC). */
     val lockedAt = timestamp("locked_at")
 
-    /** 락 만료 시각 (UTC). 이 시각 이후 해당 슬롯은 재획득 가능 */
+    /** Lock expiry timestamp (UTC). The slot can be re-acquired after this time. */
     val lockedUntil = timestamp("locked_until")
 
     override val primaryKey = PrimaryKey(lockName, slot)

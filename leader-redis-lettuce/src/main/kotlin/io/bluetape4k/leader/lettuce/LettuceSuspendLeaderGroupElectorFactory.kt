@@ -6,16 +6,16 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 import io.lettuce.core.api.StatefulRedisConnection
 
 /**
- * [LettuceSuspendLeaderGroupElector] 팩토리 — Lettuce Redis 클라이언트 기반 suspend 복수 리더 선출.
+ * Factory for [LettuceSuspendLeaderGroupElector] — suspend multi-leader election backed by the Lettuce Redis client.
  *
- * ## 사용 예
+ * ## Usage
  * ```kotlin
  * val factory = LettuceSuspendLeaderGroupElectorFactory(connection)
  * val elector = factory.create(LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = elector.runIfLeader("batch-shard") { processChunk() }
  * ```
  *
- * @param connection 공유 Redis connection. 호출자가 수명 관리.
+ * @param connection Shared Redis connection whose lifecycle is managed by the caller.
  */
 class LettuceSuspendLeaderGroupElectorFactory(
     private val connection: StatefulRedisConnection<String, String>,

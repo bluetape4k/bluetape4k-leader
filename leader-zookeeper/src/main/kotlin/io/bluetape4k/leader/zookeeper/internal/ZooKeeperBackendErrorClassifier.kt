@@ -5,26 +5,27 @@ import io.bluetape4k.leader.internal.BackendErrorKind
 import org.apache.zookeeper.KeeperException
 
 /**
- * ZooKeeper backend exception 분류 — T13 PR 8 (Issue #79).
+ * ZooKeeper backend exception classifier — T13 PR 8 (Issue #79).
  *
- * ## 동작/계약
+ * ## Behavior / Contract
  * - [KeeperException.ConnectionLossException] → [BackendErrorKind.TRANSIENT]
- *   (네트워크 일시 단절 — 재시도 가능)
+ *   (transient network disconnect — retryable)
  * - [KeeperException.OperationTimeoutException] → [BackendErrorKind.TRANSIENT]
- *   (요청 타임아웃 — 재시도 가능)
+ *   (request timeout — retryable)
  * - [KeeperException.SessionExpiredException] → [BackendErrorKind.NON_TRANSIENT]
- *   (세션 만료 — ephemeral 락 자동 해제, 복구 불가)
+ *   (session expired — ephemeral lock automatically released, unrecoverable)
  * - [KeeperException.SessionMovedException] → [BackendErrorKind.NON_TRANSIENT]
- *   (세션 이동 — 클라이언트가 다른 server 로 연결됨, 락 상태 보장 불가)
- * - 그 외 [KeeperException] → [BackendErrorKind.NON_TRANSIENT] (safe default)
- * - 그 외 → `null` (분류 불가 — chain 다음 classifier 에 위임)
+ *   (session moved — client reconnected to a different server, lock state cannot be guaranteed)
+ * - Other [KeeperException] subtypes → [BackendErrorKind.NON_TRANSIENT] (safe default)
+ * - All others → `null` (unclassifiable — delegated to the next classifier in the chain)
  *
- * ## 사용
- * elector 가 [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier] 에 chain 으로 등록.
+ * ## Usage
+ * Registered as a chain entry in [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier] by the elector.
  *
- * ## 비고 (R16)
- * ZooKeeper 는 세션 기반 — TTL 개념이 없어 [io.bluetape4k.leader.LeaderLeaseAutoExtender] watchdog
- * 가 비활성화되므로 backend 오류 분류는 주로 caller-driven `LockExtender.extendActiveLock` 경로에서만 사용됩니다.
+ * ## Note (R16)
+ * ZooKeeper is session-based — there is no TTL concept, so the [io.bluetape4k.leader.LeaderLeaseAutoExtender]
+ * watchdog is disabled. Backend error classification is therefore used only via the
+ * caller-driven `LockExtender.extendActiveLock` path.
  */
 internal object ZooKeeperBackendErrorClassifier: BackendErrorClassifier {
 

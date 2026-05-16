@@ -18,35 +18,34 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * Redisson [RLock] (suspend variant) 용 [ExtendDelegate] — T8 PR 3 (Issue #79).
+ * [ExtendDelegate] for Redisson [RLock] (suspend variant) — T8 PR 3 (Issue #79).
  *
- * Redisson 의 async API 는 [java.util.concurrent.CompletableFuture] 기반이므로
- * `await()` 으로 suspend bridge.
+ * Redisson's async API is [java.util.concurrent.CompletableFuture]-based,
+ * so it is bridged to suspend via `await()`.
  *
- * ## acquiringThreadId 의 의미
- * Redisson 의 [RLock] 은 락 소유자를 `long` 식별자로 인식한다. sync variant 는 `Thread.currentThread().threadId()`
- * 를 사용하지만, suspend variant 는 코루틴 스레드 호핑으로 인해 thread-id 가 안정적이지 않다.
- * 따라서 [io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector] 는 PID-seeded Snowflake-like ID
- * (`lockId: Long`) 를 발급하여 Redisson 의 thread-id slot 으로 사용한다. 본 delegate 는 그 `lockId`
- * 를 [acquiringThreadId] 로 보관한다. Redisson 의 [RLock.isHeldByThread] 는 long 값의 의미를 검사하지
- * 않고 단순히 owner field 와 비교한다.
+ * ## Meaning of acquiringThreadId
+ * Redisson's [RLock] identifies lock owners by a `long` identifier. The sync variant uses
+ * `Thread.currentThread().threadId()`, but the suspend variant cannot rely on thread id because
+ * coroutines may hop between threads. Therefore [io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector]
+ * issues a PID-seeded Snowflake-like ID (`lockId: Long`) and uses it as Redisson's thread-id slot.
+ * This delegate stores that `lockId` as [acquiringThreadId]. Redisson's [RLock.isHeldByThread]
+ * simply compares the owner field without interpreting the semantic meaning of the long value.
  *
- * ## RLock TTL 갱신 메커니즘
- * Redisson 의 [RLock] 은 [org.redisson.api.RExpirable] 을 직접 구현하지 않으므로
- * `lock.expire(d)` / `lock.expireAsync(d)` 를 호출할 수 없다.
- * 대신 [RedissonClient.getKeys] 의 `expireAsync(name, ms, MILLISECONDS)` 으로 lock 의
- * Redis key TTL 을 직접 갱신한다.
+ * ## RLock TTL renewal mechanism
+ * Redisson's [RLock] does not directly implement [org.redisson.api.RExpirable], so
+ * `lock.expire(d)` / `lock.expireAsync(d)` cannot be called. Instead, the Redis key TTL is
+ * renewed directly via [RedissonClient.getKeys] `expireAsync(name, ms, MILLISECONDS)`.
  *
- * ## 동작/계약
- * - [extendSuspend] : owner-guarded — `lock.isHeldByThread(acquiringThreadId)` 검사 후 `expireAsync(...).await()`.
- *   thread (owner-id) 불일치 시 [ExtendOutcome.WrongThread] (AC-8).
- * - [extend] (sync) : suspend 함수만 노출되므로 `runBlocking` 으로 bridge — production sync path 에서 호출 금지.
- *   watchdog scheduler thread 에서 호출됨.
- * - [isHeld] : `lock.isHeldByThread(acquiringThreadId)` 위임 (sync facade).
+ * ## Behavior / Contract
+ * - [extendSuspend]: owner-guarded — checks `lock.isHeldByThread(acquiringThreadId)` then calls `expireAsync(...).await()`.
+ *   Returns [ExtendOutcome.WrongThread] on owner-id mismatch (AC-8).
+ * - [extend] (sync): bridges to the suspend function via `runBlocking` — must not be called from production sync paths.
+ *   Called from the watchdog scheduler thread.
+ * - [isHeld]: delegates to `lock.isHeldByThread(acquiringThreadId)` (sync facade).
  *
- * @property redissonClient lock key TTL 갱신을 위한 Redisson 클라이언트
+ * @property redissonClient Redisson client used to renew the lock key TTL
  * @property lock Redisson [RLock] instance
- * @property acquiringThreadId 락 획득 시 사용한 owner id (PID-seeded Snowflake-like `Long`).
+ * @property acquiringThreadId owner id used when acquiring the lock (PID-seeded Snowflake-like `Long`)
  */
 internal class RedissonSuspendLockExtendDelegate(
     private val redissonClient: RedissonClient,
@@ -60,10 +59,10 @@ internal class RedissonSuspendLockExtendDelegate(
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
 
     /**
-     * sync entry point — watchdog 의 scheduler thread 에서 호출됨.
+     * Sync entry point — called from the watchdog scheduler thread.
      *
-     * Redisson async 는 Netty 기반이므로 `runBlocking` 은 backpressure 없이 안전.
-     * 그러나 suspend wrapper ([extendSuspend]) 가 우선 사용 권장.
+     * Redisson async is Netty-based, so `runBlocking` is safe without backpressure concerns.
+     * However, the suspend wrapper ([extendSuspend]) is preferred.
      */
     override fun extend(lockAtMostFor: Duration): ExtendOutcome =
         try {

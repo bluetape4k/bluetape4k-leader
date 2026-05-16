@@ -238,8 +238,8 @@ class LeaderGroupElectionAspect(
     }
 
     /**
-     * suspend 메서드 처리 — [LeaderElectionAspect.aroundLeaderSuspend] 와 동일 패턴.
-     * 본문 실행 시 [LeaderElectionInfo] 를 `withContext` 로 주입.
+     * Handles suspend methods using the same pattern as [LeaderElectionAspect.aroundLeaderSuspend].
+     * Injects [LeaderElectionInfo] via `withContext` during body execution.
      */
     private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any? {
         @Suppress("UNCHECKED_CAST")
@@ -390,8 +390,8 @@ class LeaderGroupElectionAspect(
     }
 
     /**
-     * `Mono` 반환 타입 메서드 처리 — `Mono.defer { mono { suspendElector.runIfLeader(...) } }` 패턴.
-     * [LeaderElectionInfo] 를 `withContext` 로 주입.
+     * Handles methods returning `Mono` using the `Mono.defer { mono { suspendElector.runIfLeader(...) } }` pattern.
+     * Injects [LeaderElectionInfo] via `withContext`.
      */
     private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any? {
         val method = (pjp.signature as MethodSignature).method
@@ -637,10 +637,11 @@ class LeaderGroupElectionAspect(
     ) {
 
         /**
-         * 주어진 [branch] 에 맞는 [LockIdentity] 를 생성합니다.
+         * Creates a [LockIdentity] for the given [branch].
          *
-         * group annotation 이므로 `kind = GROUP`, `groupParams = GroupParams(maxLeaders)`.
-         * `factoryBeanName` 은 `equals/hashCode` 제외이므로 sync ↔ suspend nested 호출 시에도 동일 lock 으로 인식 (Step 3-P R3 mitigation).
+         * Because this is a group annotation, `kind = GROUP` and `groupParams = GroupParams(maxLeaders)`.
+         * `factoryBeanName` is excluded from `equals/hashCode`, so nested sync ↔ suspend calls
+         * are recognised as the same lock (Step 3-P R3 mitigation).
          */
         fun resolveLockIdentity(lockName: String, branch: AdviceBranch): LockIdentity {
             val beanName = when (branch) {

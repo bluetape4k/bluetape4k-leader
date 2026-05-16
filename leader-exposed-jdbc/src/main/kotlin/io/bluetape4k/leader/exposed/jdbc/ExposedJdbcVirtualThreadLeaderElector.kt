@@ -5,10 +5,10 @@ import io.bluetape4k.concurrent.virtualthread.virtualFuture
 import io.bluetape4k.leader.VirtualThreadLeaderElector
 
 /**
- * Virtual Thread 기반 Exposed JDBC 리더 선출 구현체.
+ * Virtual Thread-based Exposed JDBC leader election implementation.
  *
- * [ExposedJdbcLeaderElector]을 delegate로 사용하며 [virtualFuture]로 래핑합니다.
- * 스키마 초기화는 delegate에서 보장됩니다.
+ * Uses [ExposedJdbcLeaderElector] as the delegate and wraps results in [virtualFuture].
+ * Schema initialization is guaranteed by the delegate.
  *
  * ```kotlin
  * val election = ExposedJdbcLeaderElector(db)
@@ -17,20 +17,20 @@ import io.bluetape4k.leader.VirtualThreadLeaderElector
  *     .get(5, TimeUnit.SECONDS)
  * ```
  *
- * 편의 함수 [Database.runVirtualIfLeader]도 제공됩니다.
+ * The convenience extension [Database.runVirtualIfLeader] is also available.
  *
- * @property delegate 기반 [ExposedJdbcLeaderElector] 인스턴스
+ * @property delegate underlying [ExposedJdbcLeaderElector] instance
  */
 class ExposedJdbcVirtualThreadLeaderElector(
     private val delegate: ExposedJdbcLeaderElector,
 ) : VirtualThreadLeaderElector {
 
     /**
-     * [lockName]에 대한 리더 선출을 Virtual Thread에서 비동기로 실행합니다.
+     * Runs leader election for [lockName] asynchronously on a Virtual Thread.
      *
-     * @param lockName 락 식별자
-     * @param action 리더 획득 성공 시 실행할 작업
-     * @return [action] 실행 결과를 담은 [VirtualFuture]. 리더 획득 실패 시 `null`로 완료됨
+     * @param lockName lock identifier
+     * @param action the work to execute when the leader lock is acquired
+     * @return [VirtualFuture] holding the [action] result, completing with `null` when the lock cannot be acquired
      */
     override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?> =
         virtualFuture {

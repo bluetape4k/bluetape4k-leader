@@ -12,19 +12,19 @@ import io.bluetape4k.leader.internal.BackendErrorClassifier
 import io.bluetape4k.leader.internal.BackendErrorKind
 
 /**
- * MongoDB backend exception 분류 — T9 PR 4 (Issue #79).
+ * MongoDB backend exception classifier — T9 PR 4 (Issue #79).
  *
- * ## 동작/계약
+ * ## Behavior / Contract
  * - [MongoTimeoutException] / [MongoSocketException] /
  *   [MongoNodeIsRecoveringException] / [MongoNotPrimaryException] → [BackendErrorKind.TRANSIENT]
- *   (재시도 가능 — replica set 페일오버 / 네트워크 일시 단절)
- * - [MongoSecurityException] / [MongoWriteException] / 인증 관련 [MongoCommandException] (code 13/18) →
- *   [BackendErrorKind.NON_TRANSIENT] (영구 오류 — 권한 / write 실패)
- * - 그 외 [MongoException] → [BackendErrorKind.NON_TRANSIENT] (safe default)
- * - 그 외 → `null` (분류 불가 — chain 다음 classifier 에 위임)
+ *   (retryable — replica set failover / transient network disconnect)
+ * - [MongoSecurityException] / [MongoWriteException] / auth-related [MongoCommandException] (code 13/18) →
+ *   [BackendErrorKind.NON_TRANSIENT] (permanent error — permission / write failure)
+ * - Other [MongoException] → [BackendErrorKind.NON_TRANSIENT] (safe default)
+ * - Otherwise → `null` (unclassifiable — delegated to the next classifier in the chain)
  *
- * ## 사용
- * elector 가 [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier] 에 chain 으로 등록.
+ * ## Usage
+ * The elector registers this as a chain entry in [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier].
  *
  * ```kotlin
  * val classifier = CompositeBackendErrorClassifier(

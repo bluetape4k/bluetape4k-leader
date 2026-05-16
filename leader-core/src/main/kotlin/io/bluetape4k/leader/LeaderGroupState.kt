@@ -6,20 +6,20 @@ import io.bluetape4k.support.requireNotBlank
 import java.io.Serializable
 
 /**
- * 리더 그룹의 현재 상태 정보를 담는 불변 데이터 클래스입니다.
+ * Immutable data class holding the current state of a leader group.
  *
- * [LeaderGroupElector] 및 [SuspendLeaderGroupElector] 구현체에서 공통으로 사용합니다.
+ * Shared across [LeaderGroupElector] and [SuspendLeaderGroupElector] implementations.
  *
  * ```kotlin
  * val state = election.state("batch-lock")
- * println("활성 리더: ${state.activeCount}/${state.maxLeaders}")
- * if (state.isFull) println("슬롯이 가득 참")
+ * println("active leaders: ${state.activeCount}/${state.maxLeaders}")
+ * if (state.isFull) println("all slots occupied")
  * ```
  *
- * @property lockName 리더 그룹 식별에 사용하는 락 이름
- * @property maxLeaders 허용하는 최대 동시 리더 수
- * @property activeCount 현재 활성(실행 중인) 리더 수
- * @property leaders 현재 리더로 선출된 노드/슬롯 lease 목록. backend에 따라 빈 목록일 수 있습니다.
+ * @property lockName the lock name used to identify the leader group
+ * @property maxLeaders maximum number of concurrent leaders allowed
+ * @property activeCount number of currently active (running) leaders
+ * @property leaders list of node/slot leases currently elected as leaders. May be empty depending on the backend.
  *   Event-stream projections such as `leaderGroupStateFlow()` always keep this empty because revoke events do not
  *   identify the released slot.
  */
@@ -42,7 +42,7 @@ data class LeaderGroupState(
     }
 
     /**
-     * 새 리더를 수용할 수 있는 남은 슬롯 수.
+     * Number of remaining slots available to accept a new leader.
      *
      * ```kotlin
      * val state = LeaderGroupState(lockName = "job", maxLeaders = 3, activeCount = 1)
@@ -53,7 +53,7 @@ data class LeaderGroupState(
     val availableSlots: Int get() = maxLeaders - activeCount
 
     /**
-     * 최대 리더 수에 도달하여 추가 선출이 불가한지 여부.
+     * Whether the maximum leader count has been reached and no additional election is possible.
      *
      * ```kotlin
      * val state = LeaderGroupState(lockName = "job", maxLeaders = 3, activeCount = 3)
@@ -64,7 +64,7 @@ data class LeaderGroupState(
     val isFull: Boolean get() = activeCount >= maxLeaders
 
     /**
-     * 현재 활성 리더가 없는지 여부.
+     * Whether there are currently no active leaders.
      *
      * ```kotlin
      * val state = LeaderGroupState(lockName = "job", maxLeaders = 3, activeCount = 0)

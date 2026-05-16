@@ -6,25 +6,25 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * Backend lock 의 atomic extend 를 단일 reference 로 제공하는 SPI.
+ * SPI that exposes atomic extend of a backend lock as a single reference.
  *
- * ⚠️ **Backend module (leader-redis-lettuce, leader-redis-redisson, leader-mongodb 등) 전용 SPI**.
- * 애플리케이션 코드에서 직접 구현 X — [LockAssert] / [LockExtender] 만 사용.
+ * ⚠️ **SPI for backend modules only (leader-redis-lettuce, leader-redis-redisson, leader-mongodb, etc.)**.
+ * Application code must not implement this directly — use [LockAssert] / [LockExtender] instead.
  *
- * [LeaderLockHandle.Real.extendDelegate] 와 [LeaderLeaseAutoExtender] (Watchdog) 가 동일 인스턴스를
- * 공유 — race-free 보장 (Step 3-P R2 mitigation).
+ * [LeaderLockHandle.Real.extendDelegate] and [LeaderLeaseAutoExtender] (Watchdog) share the same
+ * instance — race-free guarantee (Step 3-P R2 mitigation).
  *
- * ## 동작/계약
- * - `extend` 는 backend atomic extend 호출 — 동기 backend (Lettuce sync, Redisson, Hazelcast, Exposed JDBC, ZK) 가 구현
- * - `extendSuspend` default 는 sync `extend` 직접 호출 — **blocking backend 는 반드시 override** 하여
- *   `withContext(Dispatchers.IO)` + `coroutineContext.ensureActive()` 사용 (R9 mitigation)
- * - `lastExtendDeadline` 은 user `LockExtender.extendActiveLock(d)` 호출 시점의 expire deadline 추적 (R2 mitigation).
- *   Watchdog tick 이 `now() + watchdogCadence < lastExtendDeadline.get()` 이면 backend extend 호출 skip.
+ * ## Behavior / Contract
+ * - `extend` calls the backend atomic extend — implemented by sync backends (Lettuce sync, Redisson, Hazelcast, Exposed JDBC, ZK).
+ * - `extendSuspend` default calls sync `extend` directly — **blocking backends must override** using
+ *   `withContext(Dispatchers.IO)` + `coroutineContext.ensureActive()` (R9 mitigation).
+ * - `lastExtendDeadline` tracks the expire deadline at the time user calls `LockExtender.extendActiveLock(d)` (R2 mitigation).
+ *   If the Watchdog tick finds `now() + watchdogCadence < lastExtendDeadline.get()`, backend extend is skipped.
  *
  * ## R2 Watchdog skip semantics (Step 3-P)
- * User 가 `extend(60s)` 호출 → `lastExtendDeadline = now + 60s` 갱신.
- * Watchdog cadence = leaseTime/3 (e.g. 10s for 30s lease). Tick 시 `now + 10s < deadline` 이면 skip.
- * → user-extended lease 가 watchdog 에 의해 silently 축소되는 split-brain 차단.
+ * User calls `extend(60s)` → `lastExtendDeadline = now + 60s` is updated.
+ * Watchdog cadence = leaseTime/3 (e.g. 10s for 30s lease). On tick, if `now + 10s < deadline`, skip.
+ * → Prevents user-extended lease from being silently shortened by the watchdog (split-brain guard).
  */
 interface ExtendDelegate {
 
@@ -33,34 +33,34 @@ interface ExtendDelegate {
     /**
      * Suspend extend.
      *
-     * Default 구현은 sync [extend] 를 직접 호출 — **non-blocking / native suspend backend 전용**.
-     * Blocking backend (Lettuce sync, Hazelcast IMap, Exposed JDBC, Redisson 등) 는 반드시 override 하여
-     * `withContext(Dispatchers.IO)` + `coroutineContext.ensureActive()` 사용.
+     * Default implementation calls sync [extend] directly — **for non-blocking / native suspend backends only**.
+     * Blocking backends (Lettuce sync, Hazelcast IMap, Exposed JDBC, Redisson, etc.) must override using
+     * `withContext(Dispatchers.IO)` + `coroutineContext.ensureActive()`.
      *
-     * AC-21: blocking backend 의 [ExtendDelegate.extendSuspend] 가 default 호출 0회 (소스 grep verify).
+     * AC-21: blocking backend [ExtendDelegate.extendSuspend] calls default 0 times (verified by source grep).
      */
     suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = extend(lockAtMostFor)
 
     /**
-     * 현재 토큰이 backend 에 살아있는지 확인.
+     * Returns whether the current token is still alive in the backend.
      */
     fun isHeld(): Boolean
 
     /**
-     * User explicit extend 호출의 deadline 추적 (R2 mitigation).
+     * Tracks the expire deadline of user explicit extend calls (R2 mitigation).
      *
-     * `LockExtender.extendActiveLock(d)` 가 set: `now() + d`.
-     * Watchdog 가 read: `now() + cadence < lastExtendDeadline.get()` 이면 backend 호출 skip.
+     * `LockExtender.extendActiveLock(d)` sets: `now() + d`.
+     * Watchdog reads: if `now() + cadence < lastExtendDeadline.get()`, backend call is skipped.
      *
-     * **구현 규칙**: 반드시 저장된 `AtomicReference<Instant>` 인스턴스를 반환해야 한다.
-     * `get()` 마다 새 객체를 생성하면 `.set()` 호출이 버려져 R2 mitigation 이 무효화된다.
-     * 구현 예:
+     * **Implementation rule**: must return the stored `AtomicReference<Instant>` instance.
+     * Creating a new object on each `get()` discards `.set()` calls and invalidates R2 mitigation.
+     * Example:
      * ```kotlin
      * private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
      * override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
      * ```
      *
-     * 초기값 `Instant.EPOCH` — watchdog 가 항상 진행 (user explicit extend 없음).
+     * Initial value `Instant.EPOCH` — watchdog always proceeds (no user explicit extend).
      */
     val lastExtendDeadline: AtomicReference<Instant>
 }

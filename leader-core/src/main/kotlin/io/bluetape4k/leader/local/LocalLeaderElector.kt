@@ -10,13 +10,13 @@ import java.util.concurrent.Executor
 import java.util.concurrent.locks.ReentrantLock
 
 /**
- * [ReentrantLock]을 이용한 로컬(단일 JVM) 리더 선출 구현체입니다.
+ * Local (single-JVM) leader election implementation using [ReentrantLock].
  *
- * ## 동작
- * - 동일 `lockName`에 대해 스레드 간 상호 배제(mutual exclusion)로 직렬 실행을 보장합니다.
- * - 락을 획득한 스레드가 리더로서 `action`을 실행하며, 다른 스레드는 락이 해제될 때까지 블로킹됩니다.
- * - [ReentrantLock] 특성상 동일 스레드에서 동일 `lockName`으로 중첩 호출(재진입)이 가능합니다.
- * - 분산 환경이 아닌 단일 JVM 프로세스 내 동시 실행 직렬화에 적합합니다.
+ * ## Behavior
+ * - Guarantees serial execution via mutual exclusion between threads for the same `lockName`.
+ * - The thread that acquires the lock runs `action` as leader; other threads block until the lock is released.
+ * - Due to [ReentrantLock] semantics, nested calls (re-entrancy) with the same `lockName` from the same thread are allowed.
+ * - Suitable for serializing concurrent execution within a single JVM process, not a distributed environment.
  *
  * ```kotlin
  * val election = LocalLeaderElector()
@@ -29,10 +29,10 @@ class LocalLeaderElector(
 ): AbstractLocalLeaderElector(options), LeaderElector {
 
     /**
-     * [lockName]에 대한 [ReentrantLock]을 획득하고 [action]을 직렬로 실행합니다.
+     * Acquires the [ReentrantLock] for [lockName] and executes [action] serially.
      *
-     * 다른 스레드가 동일 [lockName]의 락을 보유 중이면 해제될 때까지 블로킹됩니다.
-     * 동일 스레드에서 재진입 시 즉시 락을 획득합니다.
+     * If another thread holds the lock for the same [lockName], this thread blocks until it is released.
+     * Re-entrant calls from the same thread acquire the lock immediately.
      *
      * ```kotlin
      * val election = LocalLeaderElector()
@@ -40,18 +40,18 @@ class LocalLeaderElector(
      * // result == 42
      * ```
      *
-     * @param lockName 리더 선출에 사용할 락 이름
-     * @param action 리더 획득 성공 시 실행할 동기 작업
-     * @return [action] 실행 결과, 리더 획득 실패 시 `null`
+     * @param lockName the lock name used for leader election
+     * @param action the synchronous action to run when leader acquisition succeeds
+     * @return the [action] result, or `null` when leader acquisition fails
      */
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
         tryWithLeaderLock(lockName, options.waitTime, action)
 
     /**
-     * [lockName]에 대한 [ReentrantLock]을 획득하고 [action]을 [executor]에서 비동기로 실행합니다.
+     * Acquires the [ReentrantLock] for [lockName] and executes [action] asynchronously on [executor].
      *
-     * [action]이 반환하는 [CompletableFuture]가 완료될 때까지 락을 보유합니다.
-     * 다른 스레드가 동일 [lockName]의 락을 보유 중이면 [executor] 스레드가 블로킹됩니다.
+     * Holds the lock until the [CompletableFuture] returned by [action] completes.
+     * If another thread holds the lock for the same [lockName], the [executor] thread blocks.
      *
      * ```kotlin
      * val election = LocalLeaderElector()
@@ -61,10 +61,10 @@ class LocalLeaderElector(
      * // result == "async-ok"
      * ```
      *
-     * @param lockName 리더 선출에 사용할 락 이름
-     * @param executor 비동기 실행에 사용할 [Executor]
-     * @param action 리더 획득 성공 시 실행할 비동기 작업
-     * @return [action] 실행 결과를 담은 [CompletableFuture]. 리더 획득 실패 시 `null`로 완료됨
+     * @param lockName the lock name used for leader election
+     * @param executor the [Executor] for async execution
+     * @param action the async action to run when leader acquisition succeeds
+     * @return [CompletableFuture] resolving to the [action] result, or `null` when leader acquisition fails
      */
     override fun <T> runAsyncIfLeader(
         lockName: String,

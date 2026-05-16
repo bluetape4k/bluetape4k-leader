@@ -9,21 +9,21 @@ import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Semaphore 기반 복수 리더 비동기 선출 계약을 정의합니다.
+ * Defines the contract for semaphore-based multi-leader asynchronous election.
  *
- * ## [LeaderGroupElector] 과의 관계
- * - [LeaderGroupElector]은 [AsyncLeaderGroupElector]을 상속하며, 동기 [LeaderGroupElector.runIfLeader]를 추가합니다.
- * - [AsyncLeaderGroupElector]은 비동기 실행([runAsyncIfLeader])만 정의합니다.
+ * ## Relationship with [LeaderGroupElector]
+ * - [LeaderGroupElector] extends [AsyncLeaderGroupElector] and adds the synchronous [LeaderGroupElector.runIfLeader].
+ * - [AsyncLeaderGroupElector] defines only asynchronous execution ([runAsyncIfLeader]).
  *
- * ## [AsyncLeaderElector] 과의 차이
- * - [AsyncLeaderElector]은 `lockName`당 리더를 1개로 제한합니다.
- * - [AsyncLeaderGroupElector]은 [maxLeaders]개까지 동시에 리더를 허용합니다.
+ * ## Difference from [AsyncLeaderElector]
+ * - [AsyncLeaderElector] limits leaders to 1 per `lockName`.
+ * - [AsyncLeaderGroupElector] allows up to [maxLeaders] concurrent leaders.
  *
- * ## 동작/계약
- * - 구현체는 `lockName` 기준으로 최대 [maxLeaders]개의 `action`을 동시에 실행합니다.
- * - 슬롯이 가득 찬 경우, 빈 슬롯이 생길 때까지 [Executor] 스레드가 블로킹됩니다.
- * - `action` 예외 발생 시에도 슬롯이 반드시 반환됩니다.
- * - 상태 조회 메서드([state], [activeCount], [availableSlots])는 [LeaderGroupElectionState]에서 상속합니다.
+ * ## Behavior / Contract
+ * - Implementations run at most [maxLeaders] concurrent `action` invocations per `lockName`.
+ * - When all slots are occupied, the [Executor] thread blocks until a slot becomes available.
+ * - Slots are always released even when `action` throws an exception.
+ * - State query methods ([state], [activeCount], [availableSlots]) are inherited from [LeaderGroupElectionState].
  *
  * ```kotlin
  * val election: AsyncLeaderGroupElector = LocalAsyncLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
@@ -35,25 +35,25 @@ import java.util.concurrent.atomic.AtomicBoolean
 interface AsyncLeaderGroupElector: LeaderGroupElectionState {
 
     /**
-     * 슬롯을 획득하여 리더로 선출되면 비동기 [action]을 실행합니다.
+     * Acquires a slot and, when elected as leader, executes the asynchronous [action].
      *
-     * ## 동작/계약
-     * - 슬롯이 가득 찬 경우 빈 슬롯이 생길 때까지 [executor] 스레드가 블로킹됩니다.
-     * - [action]이 반환하는 [CompletableFuture]가 완료될 때까지 슬롯을 보유합니다.
-     * - [action] 실패(예외 또는 future 실패) 시에도 슬롯은 반드시 반환됩니다.
-     * - 기본 [executor]는 [VirtualThreadExecutor] 싱글턴으로, 블로킹 작업에 적합합니다.
+     * ## Behavior / Contract
+     * - When all slots are occupied, the [executor] thread blocks until a slot becomes available.
+     * - The slot is held until the [CompletableFuture] returned by [action] completes.
+     * - The slot is always released even when [action] fails (exception or future failure).
+     * - The default [executor] is the [VirtualThreadExecutor] singleton, suitable for blocking work.
      *
      * ```kotlin
      * val result = election.runAsyncIfLeader("job-lock") {
      *     CompletableFuture.completedFuture(42)
      * }.join()
-     * // result == 42 (슬롯 획득 성공) 또는 null (획득 실패)
+     * // result == 42 (slot acquired) or null (not acquired)
      * ```
      *
-     * @param lockName 리더 그룹 선출에 사용할 락 이름
-     * @param executor 비동기 실행에 사용할 [Executor]. 기본값은 [VirtualThreadExecutor] 싱글턴
-     * @param action 리더 선출 성공 시 실행할 비동기 작업
-     * @return [action] 실행 결과를 담은 [CompletableFuture]. 슬롯 획득 실패 시 `null`로 완료됨
+     * @param lockName the lock name used for group leader election
+     * @param executor the [Executor] for async execution. Defaults to the [VirtualThreadExecutor] singleton
+     * @param action the async action to run when elected as leader
+     * @return [CompletableFuture] resolving to the [action] result, or `null` when no slot is acquired
      */
     fun <T> runAsyncIfLeader(
         lockName: String,

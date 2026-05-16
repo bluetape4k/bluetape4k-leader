@@ -25,17 +25,18 @@ import java.util.concurrent.Executor
 import kotlin.random.Random
 
 /**
- * MongoDB 슬롯 기반 분산 세마포어를 이용한 복수 리더 그룹 선출 구현체입니다.
+ * Multi-leader group election implementation using a MongoDB slot-based distributed semaphore.
  *
- * `${lockName}:slot:N` 키를 사용하는 [MongoLock] N개로 `maxLeaders` 슬롯을 시뮬레이션합니다.
- * 슬롯 시작 위치를 랜덤화하여 핫스팟을 방지합니다.
+ * Simulates `maxLeaders` slots using N [MongoLock] instances keyed as `${lockName}:slot:N`.
+ * The starting slot is randomized to avoid hotspots.
  *
- * ## ExtendDelegate 통합 (T9 PR 4 / Issue #79)
+ * ## ExtendDelegate Integration (T9 PR 4 / Issue #79)
  *
- * - acquire 된 per-slot [MongoLock] 을 [MongoSlotExtendDelegate] 로 wrap 하여 watchdog 와 동일 reference 공유 (AC-15).
- * - aspect 가 `LockExtender.extendActiveLock` 호출 시 동일 delegate 를 통해 R6 filter (`expireAt > now`) 적용된
- *   extend 실행.
- * - sync group: `withPushedSync(handle)` + `setCapture(handle)` 양쪽에 push.
+ * - Wraps each acquired per-slot [MongoLock] with [MongoSlotExtendDelegate], sharing the same
+ *   reference with the watchdog (AC-15).
+ * - When the aspect calls `LockExtender.extendActiveLock`, the same delegate applies the R6 filter
+ *   (`expireAt > now`) before executing the extend.
+ * - Sync group: pushes to both `withPushedSync(handle)` and `setCapture(handle)`.
  *
  * ```kotlin
  * val election = MongoLeaderGroupElector(
@@ -45,11 +46,11 @@ import kotlin.random.Random
  * val result = election.runIfLeader("batch-job") { processChunk() }
  * ```
  *
- * **주의:** [activeCount] / [availableSlots]는 근사치입니다.
- * TTL 인덱스 만료 주기(최대 60초) 동안 만료된 문서가 잔류할 수 있습니다.
+ * **Note:** [activeCount] / [availableSlots] are approximate values.
+ * Expired documents may linger for up to 60 seconds during a TTL index expiration cycle.
  *
- * @param groupCollection 그룹 락 상태를 저장하는 [MongoCollection] (컬렉션 이름: [MongoLock.GROUP_LOCK_COLLECTION_NAME])
- * @param options 그룹 리더 선출 옵션
+ * @param groupCollection [MongoCollection] storing the group lock state (collection name: [MongoLock.GROUP_LOCK_COLLECTION_NAME])
+ * @param options group leader election options
  */
 class MongoLeaderGroupElector private constructor(
     private val groupCollection: MongoCollection<Document>,
@@ -81,9 +82,10 @@ class MongoLeaderGroupElector private constructor(
     private fun slotKey(lockName: String, slot: Int) = "$lockName:slot:$slot"
 
     /**
-     * 현재 활성 슬롯 수를 반환합니다 (만료되지 않은 문서 기준).
+     * Returns the number of currently active slots (based on non-expired documents).
      *
-     * **주의:** 이 값은 근사치입니다. TTL 만료 주기(최대 60초) 동안 만료 문서가 잔류할 수 있습니다.
+     * **Note:** This value is approximate. Expired documents may linger for up to 60 seconds
+     * during a TTL expiration cycle.
      */
     override fun activeCount(lockName: String): Int {
         val ids = (0 until maxLeaders).map { slotKey(lockName, it) }
@@ -207,7 +209,8 @@ class MongoLeaderGroupElector private constructor(
 }
 
 /**
- * MongoDB 분산 세마포어(슬롯 기반)를 이용하여 최대 [options.maxLeaders]개의 리더로 선출된 경우에만 [action]을 실행합니다.
+ * Runs [action] only when elected as one of at most [options.maxLeaders] leaders
+ * using a MongoDB slot-based distributed semaphore.
  */
 fun <T> MongoCollection<Document>.runIfLeaderGroup(
     lockName: String,
@@ -216,7 +219,8 @@ fun <T> MongoCollection<Document>.runIfLeaderGroup(
 ): T? = MongoLeaderGroupElector(this, options).runIfLeader(lockName, action)
 
 /**
- * MongoDB 분산 세마포어(슬롯 기반)를 이용하여 최대 [options.maxLeaders]개의 리더로 선출된 경우에만 비동기 [action]을 실행합니다.
+ * Runs the async [action] only when elected as one of at most [options.maxLeaders] leaders
+ * using a MongoDB slot-based distributed semaphore.
  */
 fun <T> MongoCollection<Document>.runAsyncIfLeaderGroup(
     lockName: String,

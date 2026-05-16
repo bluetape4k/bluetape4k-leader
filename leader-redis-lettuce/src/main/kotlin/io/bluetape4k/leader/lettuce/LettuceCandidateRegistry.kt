@@ -14,24 +14,24 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Lettuce [StatefulRedisConnection] 기반 후보 레지스트리입니다.
+ * Candidate registry backed by Lettuce [StatefulRedisConnection].
  *
- * ## 저장 구조
+ * ## Storage Structure
  * - Key: `leader:strategy:candidates:{lockName}:{nodeId}`
- * - Value: [LettuceCandidateInfoCodec] 으로 인코딩된 문자열
- * - TTL: `PSETEX` 로 heartbeat 역할 (등록 시 설정)
+ * - Value: String encoded by [LettuceCandidateInfoCodec]
+ * - TTL: set via `PSETEX` to serve as a heartbeat (configured at registration time)
  *
- * ## 분산 일관성 주의
- * [updateResult] 는 read-modify-write 이므로 완전한 원자성을 보장하지 않습니다.
- * winner 노드만 자신의 항목을 갱신하므로 실제 충돌 가능성은 낮습니다.
+ * ## Distributed Consistency Warning
+ * [updateResult] is a read-modify-write operation and does not guarantee full atomicity.
+ * In practice, collision risk is low because only the winner node updates its own entry.
  *
- * @param connection Lettuce StatefulRedisConnection (StringCodec 기반)
+ * @param connection Lettuce StatefulRedisConnection (StringCodec-based)
  */
 internal class LettuceCandidateRegistry(
     private val connection: StatefulRedisConnection<String, String>,
 ) {
     companion object: KLogging() {
-        /** Redis SCAN 페이지 크기 힌트. 상한이 아니라 페이지당 반환 키 개수 가이드입니다. */
+        /** Redis SCAN page size hint. This is a guide for the number of keys returned per page, not a hard upper bound. */
         private const val SCAN_PAGE_SIZE = 1000L
     }
 
@@ -49,10 +49,10 @@ internal class LettuceCandidateRegistry(
     }
 
     /**
-     * 후보를 등록하거나 갱신합니다.
+     * Registers or refreshes a candidate entry.
      *
-     * [ttl] = [Duration.ZERO] 이면 TTL 없이 영구 저장합니다.
-     * 분산 환경에서는 heartbeat 주기의 2배 이상으로 설정 권장.
+     * If [ttl] = [Duration.ZERO], the entry is stored permanently without a TTL.
+     * In distributed environments, it is recommended to set TTL to at least twice the heartbeat interval.
      */
     fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
         validateLockName(lockName)
@@ -62,17 +62,17 @@ internal class LettuceCandidateRegistry(
         else sync.psetex(key, ttl.inWholeMilliseconds, value)
     }
 
-    /** 후보를 등록 해제합니다. 존재하지 않는 nodeId 는 무시됩니다. */
+    /** Unregisters a candidate. A non-existent nodeId is silently ignored. */
     fun unregisterCandidate(lockName: String, nodeId: String) {
         validateLockName(lockName)
         sync.del(candidateKey(lockName, nodeId))
     }
 
     /**
-     * [lockName] 에 등록된 현재 후보 목록을 반환합니다.
+     * Returns the current list of candidates registered under [lockName].
      *
-     * 손상된 단일 항목(잘못된 인코딩, 숫자 파싱 실패 등)은 경고 로그를 남기고 skip 합니다.
-     * 한 항목 때문에 전체 선출 라운드가 중단되지 않도록 보호합니다.
+     * Corrupted individual entries (invalid encoding, numeric parsing failures, etc.) are skipped
+     * with a warning log, so that a single bad entry does not abort the entire election round.
      */
     fun listCandidates(lockName: String): List<CandidateInfo> {
         validateLockName(lockName)
@@ -88,10 +88,10 @@ internal class LettuceCandidateRegistry(
     }
 
     /**
-     * 작업 결과를 후보 정보에 반영합니다.
+     * Applies an action result to the candidate entry.
      *
-     * `SET key value XX KEEPTTL` 로 만료된 키의 좀비 복원을 방지합니다.
-     * 키가 이미 만료된 경우 XX 플래그로 no-op 처리됩니다.
+     * Uses `SET key value XX KEEPTTL` to prevent zombie resurrection of expired keys.
+     * If the key has already expired, the XX flag makes this a no-op.
      */
     fun updateResult(lockName: String, nodeId: String, result: CandidateResult) {
         validateLockName(lockName)

@@ -7,22 +7,22 @@ import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * 코루틴 기반 복수 리더 선출 계약을 정의합니다.
+ * Defines the contract for coroutine-based multi-leader election.
  *
- * ## [SuspendLeaderElector] 과의 차이
- * - [SuspendLeaderElector]은 `lockName`당 리더를 1개로 제한합니다.
- * - [SuspendLeaderGroupElector]은 [maxLeaders]개까지 동시에 리더를 허용합니다.
- * - 내부적으로 `kotlinx.coroutines.sync.Semaphore(maxLeaders)`를 사용합니다.
+ * ## Difference from [SuspendLeaderElector]
+ * - [SuspendLeaderElector] limits leaders to 1 per `lockName`.
+ * - [SuspendLeaderGroupElector] allows up to [maxLeaders] concurrent leaders.
+ * - Internally uses `kotlinx.coroutines.sync.Semaphore(maxLeaders)`.
  *
- * ## [LeaderGroupElectionState] 상속
- * - [maxLeaders], [activeCount], [availableSlots], [state] 상태 조회 메서드를 공유합니다.
+ * ## [LeaderGroupElectionState] inheritance
+ * - Shares state query methods: [maxLeaders], [activeCount], [availableSlots], [state].
  *
- * ## 동작/계약
- * - 구현체는 `lockName` 기준으로 최대 [maxLeaders]개의 `action`을 동시에 실행합니다.
- * - 슬롯이 가득 찬 경우 [waitTime] 내 슬롯을 획득하지 못하면 `null`을 반환합니다 (ShedLock skip 방식).
- * - `action` 예외 발생 시에도 슬롯이 반드시 반환됩니다.
- * - 코루틴 취소 시 슬롯은 반드시 반환되어야 하며, `CancellationException`은 반환 작업 후 재전파해야 합니다.
- * - 상태 조회 메서드([state], [activeCount], [availableSlots])는 근사값을 반환할 수 있습니다.
+ * ## Behavior / Contract
+ * - Implementations run up to [maxLeaders] concurrent `action` invocations per `lockName`.
+ * - If all slots are full and a slot cannot be acquired within [waitTime], returns `null` (ShedLock skip behavior).
+ * - The slot is always released even if `action` throws.
+ * - On coroutine cancellation, the slot must be released and `CancellationException` must be rethrown after release.
+ * - State query methods ([state], [activeCount], [availableSlots]) may return approximate values.
  *
  * ```kotlin
  * val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
@@ -34,39 +34,39 @@ import kotlin.coroutines.cancellation.CancellationException
 interface SuspendLeaderGroupElector: LeaderGroupElectionState {
 
     /**
-     * 슬롯을 획득하여 리더로 선출되면 suspend [action]을 실행합니다.
+     * Acquires a slot and runs suspend [action] when elected as leader.
      *
-     * ## 동작/계약
-     * - 슬롯이 가득 찬 경우 빈 슬롯이 생길 때까지 코루틴이 suspend됩니다.
-     * - [action] 예외 발생 시에도 슬롯은 반드시 반환됩니다.
-     * - [action] 실행 중 [activeCount]가 증가하고, 완료 시 감소합니다.
+     * ## Behavior / Contract
+     * - If all slots are full, the coroutine suspends until a slot becomes available.
+     * - The slot is always released even if [action] throws.
+     * - [activeCount] increases while [action] runs and decreases on completion.
      *
      * ```kotlin
      * val result = election.runIfLeader("job-lock") { computeSuspend() }
-     * // result == computeSuspend() 반환값 (슬롯 획득 성공) 또는 null (획득 실패)
+     * // result == computeSuspend() return value (slot acquired) or null (not acquired)
      * ```
      *
-     * @param lockName 리더 그룹 선출에 사용할 락 이름
-     * @param action 리더 선출 성공 시 실행할 suspend 작업
-     * @return [action] 실행 결과, 슬롯 획득 실패 시 `null`
+     * @param lockName the lock name used for leader group election
+     * @param action the suspend action to run when elected as leader
+     * @return [action] result, or `null` if the slot was not acquired
      */
     suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T?
 
     /**
-     * 리더 선출 결과를 명시적으로 표현하는 결과형 API.
+     * Result-typed API that makes the leader election outcome explicit.
      *
-     * [runIfLeader] 가 `null` 을 반환할 때 (a) 슬롯 미획득 vs (b) action 이 null 반환 모호함을 제거.
+     * Removes ambiguity when [runIfLeader] returns `null`: (a) slot not acquired vs (b) action returned null.
      *
-     * ## 동작/계약
-     * - 슬롯 획득 성공 → [LeaderRunResult.Elected]`(value)` — `value` 는 action 반환값 (null 가능)
-     * - 슬롯 미획득 → [LeaderRunResult.Skipped]
-     * - action 실행 실패 → [LeaderRunResult.ActionFailed]
-     * - `CancellationException` 은 [LeaderRunResult.ActionFailed] 로 감싸지 않고 재전파
-     * - `elected: Boolean` flag 패턴으로 정확 분류 (action 이 null 반환해도 [LeaderRunResult.Elected])
+     * ## Behavior / Contract
+     * - Slot acquired → [LeaderRunResult.Elected]`(value)` — `value` is the action return value (may be null)
+     * - Slot not acquired → [LeaderRunResult.Skipped]
+     * - Action failed → [LeaderRunResult.ActionFailed]
+     * - `CancellationException` is rethrown directly, not wrapped in [LeaderRunResult.ActionFailed]
+     * - Accurate classification via `elected: Boolean` flag (returns [LeaderRunResult.Elected] even if action returns null)
      *
      * ## binary-compat (Step 2-R R3-F3)
-     * Kotlin interface default fun 으로 추가 — `-jvm-default=enable` 빌드 하에서 JVM `default` method 로 컴파일,
-     * 기존 외부 구현체 binary 호환 보존.
+     * Added as Kotlin interface default fun — compiled as JVM `default` method under `-jvm-default=enable`,
+     * preserving binary compatibility for existing external implementations.
      *
      * ```kotlin
      * val result = election.runIfLeaderResultSuspend("batch-job") { processChunkSuspend() }
@@ -77,9 +77,9 @@ interface SuspendLeaderGroupElector: LeaderGroupElectionState {
      * }
      * ```
      *
-     * @param lockName 리더 그룹 선출에 사용할 락 이름
-     * @param action 슬롯 획득 성공 시 실행할 suspend 작업
-     * @return [LeaderRunResult.Elected] (action 실행됨) 또는 [LeaderRunResult.Skipped] (슬롯 미획득)
+     * @param lockName the lock name used for leader group election
+     * @param action the suspend action to run when a slot is acquired
+     * @return [LeaderRunResult.Elected] (action ran) or [LeaderRunResult.Skipped] (slot not acquired)
      */
     suspend fun <T> runIfLeaderResultSuspend(
         lockName: String,

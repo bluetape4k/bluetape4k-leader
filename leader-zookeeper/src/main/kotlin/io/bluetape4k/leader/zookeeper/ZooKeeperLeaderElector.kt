@@ -20,33 +20,35 @@ import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 
 /**
- * Apache Curator [InterProcessMutex] 기반 ZooKeeper 단일 리더 선출 구현체입니다.
+ * ZooKeeper single-leader election implementation based on Apache Curator [InterProcessMutex].
  *
- * ## 동작/계약
- * - [lockName]별 ZooKeeper 경로에 [InterProcessMutex]를 생성하고 [LeaderElectionOptions.waitTime] 동안 획득을 시도합니다.
- * - 획득에 실패하면 [action]을 실행하지 않고 `null`을 반환합니다.
- * - 획득에 성공하면 [action]을 실행하고 `finally`에서 반드시 `release()`를 호출합니다.
- * - Curator recipe 특성상 세션이 끊기면 ZooKeeper ephemeral node가 사라져 락이 자동 해제됩니다.
+ * ## Behavior / Contract
+ * - Creates an [InterProcessMutex] at the ZooKeeper path for each [lockName] and attempts acquisition
+ *   for up to [LeaderElectionOptions.waitTime].
+ * - Returns `null` without executing [action] if acquisition fails.
+ * - Executes [action] on successful acquisition and always calls `release()` in a `finally` block.
+ * - Due to Curator recipe semantics, when the session disconnects the ZooKeeper ephemeral node disappears
+ *   and the lock is released automatically.
  *
- * ## ExtendDelegate 통합 (T13 PR 8 / Issue #79)
+ * ## ExtendDelegate Integration (T13 PR 8 / Issue #79)
  *
- * - acquire 후 [ZooKeeperLockExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] 와 동일 reference 공유 (AC-15).
- * - aspect 가 `LockExtender.extendActiveLock` 호출 시 동일 delegate 를 통해 passthrough extend 반환 — Spec §6 row 12.
+ * - After acquire, creates [ZooKeeperLockExtendDelegate] sharing the same reference as [LeaderLockHandle.Real] (AC-15).
+ * - When the aspect calls `LockExtender.extendActiveLock`, returns a passthrough extend via the same delegate — Spec §6 row 12.
  *
- * ## R16 enforce — ZooKeeper 는 TTL 없음
+ * ## R16 Enforcement — ZooKeeper Has No TTL
  *
- * ZooKeeper 는 세션 기반 락 (ephemeral znode) — TTL 개념이 없습니다.
- * 따라서 [LeaderLeaseAutoExtender.start] 는 **항상 `enabled=false`** 호출 강제 (사용자가 `options.autoExtend=true`
- * 설정해도 무시 + WARN 로그). lease 갱신은 ZK 세션 keepalive 가 담당.
+ * ZooKeeper uses session-based locks (ephemeral znodes) — there is no TTL concept.
+ * Therefore [LeaderLeaseAutoExtender.start] is **always called with `enabled=false`** (ignored even if the user
+ * sets `options.autoExtend=true`, with a WARN log). Lease renewal is handled by ZK session keepalive.
  *
  * ```kotlin
  * val elector = ZooKeeperLeaderElector(curator)
  * val result = elector.runIfLeader("daily-job") { runJob() }
  * ```
  *
- * @param client 시작된 [CuratorFramework] 클라이언트. 수명 관리는 호출자 책임입니다.
- * @param basePath 리더 선출 znodes가 생성될 기준 경로
- * @param options 리더 선출 옵션
+ * @param client A started [CuratorFramework] client. Lifecycle management is the caller's responsibility.
+ * @param basePath Base path under which leader election znodes are created
+ * @param options Leader election options
  */
 class ZooKeeperLeaderElector private constructor(
     private val client: CuratorFramework,
@@ -150,7 +152,7 @@ class ZooKeeperLeaderElector private constructor(
 }
 
 /**
- * ZooKeeper [CuratorFramework]로 리더 선출 작업을 실행합니다.
+ * Runs a leader-elected action using the ZooKeeper [CuratorFramework].
  */
 inline fun <T> CuratorFramework.runIfLeader(
     lockName: String,
@@ -161,7 +163,7 @@ inline fun <T> CuratorFramework.runIfLeader(
     ZooKeeperLeaderElector(this, basePath, options).runIfLeader(lockName) { action() }
 
 /**
- * ZooKeeper [CuratorFramework]로 비동기 리더 선출 작업을 실행합니다.
+ * Runs an async leader-elected action using the ZooKeeper [CuratorFramework].
  */
 fun <T> CuratorFramework.runAsyncIfLeader(
     lockName: String,

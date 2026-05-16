@@ -17,19 +17,19 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Lettuce 백엔드 기반 [StrategicLeaderElector] 구현체입니다.
+ * [StrategicLeaderElector] implementation backed by Lettuce.
  *
- * ## 선출 방식
- * 분산 락 없이 결정론적 전략을 사용합니다.
- * 모든 노드가 동일한 후보 목록에 동일한 전략을 적용하면 동일한 winner 를 계산합니다.
- * winner 인 노드만 action 을 실행합니다.
+ * ## Election approach
+ * Uses a deterministic strategy without distributed locks.
+ * When all nodes apply the same strategy to the same candidate list, they compute the same winner.
+ * Only the winner node executes the action.
  *
- * ## 주의
- * 후보 등록/만료 타이밍 차이로 노드마다 다른 후보 목록을 볼 수 있습니다.
- * 엄격한 상호 배제가 필요한 경우 [LettuceLeaderElector] (락 기반)을 사용하세요.
+ * ## Note
+ * Differences in candidate registration/expiry timing may cause nodes to see different candidate lists.
+ * Use [LettuceLeaderElector] (lock-based) when strict mutual exclusion is required.
  *
- * @param connection Lettuce StatefulRedisConnection (StringCodec 기반)
- * @param nodeId 이 인스턴스의 노드 식별자. 미지정 시 UUID v7 자동 생성.
+ * @param connection Lettuce StatefulRedisConnection (StringCodec-based)
+ * @param nodeId node identifier for this instance; auto-generated as UUID v7 when not specified
  */
 class LettuceStrategicLeaderElector(
     connection: StatefulRedisConnection<String, String>,
@@ -53,14 +53,14 @@ class LettuceStrategicLeaderElector(
         registry.updateResult(lockName, nodeId, result)
 
     /**
-     * 전략으로 리더를 선출하고 winner 인 경우에만 [action] 을 실행합니다.
+     * Elects a leader using the strategy and executes [action] only when this node is the winner.
      *
-     * 분산 락 없이 결정론적 선출을 사용하므로 [options] 의 waitTime/leaseTime 은 적용되지 않습니다.
-     * 후보 등록 시 TTL 을 직접 설정하세요.
+     * Uses deterministic election without distributed locks, so [options] waitTime/leaseTime are not applied.
+     * Set the TTL directly when registering candidates.
      *
-     * [CancellationException] 은 실패로 처리하지 않으며 failureCount 를 증가시키지 않습니다.
+     * [CancellationException] is not treated as a failure and does not increment failureCount.
      *
-     * @return [action] 실행 결과, 후보 없거나 다른 노드가 winner 이면 `null`
+     * @return [action] result, or `null` when there are no candidates or another node is the winner
      */
     override fun <T> runIfLeader(
         lockName: String,

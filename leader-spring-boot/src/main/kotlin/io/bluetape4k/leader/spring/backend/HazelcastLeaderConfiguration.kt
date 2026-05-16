@@ -14,9 +14,9 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * Hazelcast 백엔드 자동 구성.
+ * Hazelcast backend auto-configuration.
  *
- * `HazelcastInstance` 빈이 등록된 경우에만 활성화됩니다.
+ * Activated only when a `HazelcastInstance` bean is registered.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(HazelcastInstance::class)

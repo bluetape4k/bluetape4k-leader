@@ -5,17 +5,17 @@ import io.bluetape4k.support.requirePositiveNumber
 import java.io.Serializable
 
 /**
- * Reentrant dedupe 의 비교 단위.
+ * The comparison unit for reentrant deduplication.
  *
- * `@LeaderElection` / `@LeaderGroupElection` 의 nested 호출 시 동일 lock 보유 여부를 판정하기 위해
- * lock 의 full identity 를 표현합니다.
+ * Represents the full identity of a lock to determine whether the same lock is held
+ * in nested calls of `@LeaderElection` / `@LeaderGroupElection`.
  *
- * ## 동작/계약
- * - `equals` / `hashCode` 는 `(lockName, kind, groupParams)` 기반.
- * - **`factoryBeanName` 은 진단 metadata 로만 사용** — `equals` 에서 제외 (Step 3-P R3 mitigation).
- *   동일 `lockName` 으로 sync ↔ suspend 또는 다른 factory bean 간 nested 호출 시에도 reentrant
- *   pass-through 가 정확히 동작하도록 설계.
- * - `kind == GROUP` 이면 `groupParams != null` 강제, `kind == SINGLE` 이면 `groupParams == null` 강제.
+ * ## Behavior / Contract
+ * - `equals` / `hashCode` are based on `(lockName, kind, groupParams)`.
+ * - **`factoryBeanName` is used only as diagnostic metadata** — excluded from `equals` (Step 3-P R3 mitigation).
+ *   Designed so that reentrant pass-through works correctly even for nested calls between
+ *   sync ↔ suspend or different factory beans with the same `lockName`.
+ * - When `kind == GROUP`, `groupParams != null` is enforced; when `kind == SINGLE`, `groupParams == null` is enforced.
  *
  * ## Example
  * ```kotlin
@@ -35,7 +35,7 @@ import java.io.Serializable
 class LockIdentity(
     val lockName: String,
     val kind: AnnotationKind,
-    /** 진단 metadata 전용 — `equals/hashCode` 에서 제외 (Step 3-P R3). */
+    /** For diagnostic metadata only — excluded from `equals/hashCode` (Step 3-P R3). */
     val factoryBeanName: String,
     val groupParams: GroupParams? = null,
 ) : Serializable {
@@ -49,9 +49,9 @@ class LockIdentity(
     }
 
     /**
-     * Reentrant equality — `factoryBeanName` 제외.
+     * Reentrant equality — excludes `factoryBeanName`.
      *
-     * sync→suspend nested 호출 시 factory bean 이 달라도 동일 lock 으로 인식되어 passthrough.
+     * In sync→suspend nested calls, treats the same lock as identical even when factory beans differ, enabling passthrough.
      */
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -74,10 +74,10 @@ class LockIdentity(
     enum class AnnotationKind { SINGLE, GROUP }
 
     /**
-     * Group lock 의 식별 파라미터.
+     * Identification parameters for a group lock.
      *
-     * 현재 `maxLeaders` 만 보유. 향후 slot strategy / weight 등 추가 시 default 값으로 확장
-     * (binary-compat 보존).
+     * Currently holds only `maxLeaders`. Future additions such as slot strategy or weight
+     * will be added with default values (preserving binary compatibility).
      */
     data class GroupParams(val maxLeaders: Int) : Serializable {
 

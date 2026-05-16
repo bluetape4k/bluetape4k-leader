@@ -7,15 +7,15 @@ import org.redisson.client.RedisException
 import org.redisson.client.RedisTimeoutException
 
 /**
- * Redisson backend exception 분류 — T7 PR 3 (Issue #79).
+ * Redisson backend exception classifier — T7 PR 3 (Issue #79).
  *
- * ## 동작/계약
- * - [RedisTimeoutException] / [RedisConnectionException] → [BackendErrorKind.TRANSIENT] (재시도 가능)
- * - [RedisException] (timeout/connection 이외) → [BackendErrorKind.NON_TRANSIENT] (Lua 실행 오류, ACL 실패 등)
- * - 그 외 → `null` (분류 불가 — chain 다음 classifier 에 위임)
+ * ## Behavior / Contract
+ * - [RedisTimeoutException] / [RedisConnectionException] → [BackendErrorKind.TRANSIENT] (retryable)
+ * - [RedisException] (other than timeout/connection) → [BackendErrorKind.NON_TRANSIENT] (Lua execution error, ACL failure, etc.)
+ * - Other → `null` (unclassified — delegated to the next classifier in the chain)
  *
- * ## 사용
- * elector 가 [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier] 에 chain 으로 등록한다.
+ * ## Usage
+ * Registered as a chain entry in [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier] by the elector.
  *
  * ```kotlin
  * val classifier = CompositeBackendErrorClassifier(RedissonBackendErrorClassifier)

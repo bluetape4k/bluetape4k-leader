@@ -23,30 +23,30 @@ import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2
 import java.util.concurrent.TimeUnit
 
 /**
- * Apache Curator [InterProcessSemaphoreV2] 기반 ZooKeeper suspend 복수 리더 선출 구현체입니다.
+ * ZooKeeper suspend multi-leader election implementation based on Apache Curator [InterProcessSemaphoreV2].
  *
- * ## 동작/계약
- * - 동일 [lockName]에 대해 최대 [maxLeaders]개의 lease만 동시에 허용합니다.
- * - lease 획득에 실패하면 [action]을 실행하지 않고 `null`을 반환합니다.
- * - 취소 중에도 `withContext(NonCancellable)`에서 lease를 반납하고 [CancellationException]은 재전파합니다.
+ * ## Behavior / Contract
+ * - Allows at most [maxLeaders] concurrent leases for the same [lockName].
+ * - Returns `null` without executing [action] if lease acquisition fails.
+ * - Even during cancellation, releases the lease inside `withContext(NonCancellable)` and re-propagates [CancellationException].
  *
- * ## ExtendDelegate 통합 (T13 PR 8 / Issue #79)
+ * ## ExtendDelegate Integration (T13 PR 8 / Issue #79)
  *
- * - acquire 된 per-slot lease 에 [ZooKeeperSuspendSlotExtendDelegate] wrap — [LeaderLockHandle.Real] 와 동일 reference 공유 (AC-15).
- * - suspend group: `withContext(createLockHandleElement(handle))` 로 coroutineContext 에 handle 전파.
+ * - Wraps the acquired per-slot lease with [ZooKeeperSuspendSlotExtendDelegate] — shares the same reference with [LeaderLockHandle.Real] (AC-15).
+ * - suspend group: propagates handle to coroutineContext via `withContext(createLockHandleElement(handle))`.
  *
  * ## R16 enforce
  *
- * [LeaderLeaseAutoExtender.start] 는 항상 `enabled=false` — ZK 는 TTL 없음.
+ * [LeaderLeaseAutoExtender.start] always uses `enabled=false` — ZooKeeper has no TTL.
  *
  * ```kotlin
  * val elector = ZooKeeperSuspendLeaderGroupElector(curator, LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = elector.runIfLeader("batch-job") { processChunk() }
  * ```
  *
- * @param client 시작된 [CuratorFramework] 클라이언트. 수명 관리는 호출자 책임입니다.
- * @param basePath 리더 그룹 znodes가 생성될 기준 경로
- * @param options 리더 그룹 선출 옵션
+ * @param client A started [CuratorFramework] client. Lifecycle management is the caller's responsibility.
+ * @param basePath Base path where leader group znodes will be created
+ * @param options Leader group election options
  */
 class ZooKeeperSuspendLeaderGroupElector private constructor(
     private val client: CuratorFramework,
@@ -164,7 +164,7 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
 }
 
 /**
- * ZooKeeper [CuratorFramework]로 suspend 복수 리더 선출 작업을 실행합니다.
+ * Runs a suspend multi-leader election action using a ZooKeeper [CuratorFramework].
  */
 suspend inline fun <T> CuratorFramework.suspendRunIfLeaderGroup(
     lockName: String,

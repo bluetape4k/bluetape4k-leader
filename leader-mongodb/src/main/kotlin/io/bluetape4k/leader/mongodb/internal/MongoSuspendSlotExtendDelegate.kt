@@ -12,14 +12,14 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * MongoDB suspend group elector 의 per-slot [MongoSuspendLock] (`{lockName}:slot:N`) 용 [ExtendDelegate] —
+ * [ExtendDelegate] for per-slot [MongoSuspendLock] (`{lockName}:slot:N`) in the MongoDB suspend group elector —
  * T9 PR 4 (Issue #79).
  *
- * MongoDB coroutine driver 는 reactive native → suspend.
+ * The MongoDB coroutine driver is reactive native → suspend.
  *
- * ## 동작/계약
- * - [extend] (sync) : `runBlocking` bridge — production sync path 호출 금지
- * - [extendSuspend] : `slotLock.extendDetailed(d)` 직접 호출 (suspend native)
+ * ## Behavior / Contract
+ * - [extend] (sync) : `runBlocking` bridge — do not call from a production sync path
+ * - [extendSuspend] : Calls `slotLock.extendDetailed(d)` directly (suspend native)
  * - [isHeld] : `runBlocking` bridge
  */
 internal class MongoSuspendSlotExtendDelegate(

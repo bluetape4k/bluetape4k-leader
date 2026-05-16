@@ -23,31 +23,31 @@ import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 
 /**
- * Apache Curator [InterProcessSemaphoreV2] 기반 ZooKeeper 복수 리더 선출 구현체입니다.
+ * ZooKeeper multi-leader election implementation based on Apache Curator [InterProcessSemaphoreV2].
  *
- * ## 동작/계약
- * - 동일 [lockName]에 대해 최대 [maxLeaders]개의 lease만 동시에 허용합니다.
- * - lease 획득에 실패하면 [action]을 실행하지 않고 `null`을 반환합니다.
- * - 획득한 [Lease]는 `finally`에서 반드시 `close()`합니다.
+ * ## Behavior / Contract
+ * - Allows at most [maxLeaders] concurrent leases for the same [lockName].
+ * - Returns `null` without executing [action] if lease acquisition fails.
+ * - The acquired [Lease] is always `close()`d in `finally`.
  *
- * ## ExtendDelegate 통합 (T13 PR 8 / Issue #79)
+ * ## ExtendDelegate Integration (T13 PR 8 / Issue #79)
  *
- * - acquire 된 per-slot lease 에 대해 [ZooKeeperSlotExtendDelegate] 생성 — [LeaderLockHandle.Real] 와 동일 reference 공유 (AC-15).
- * - sync group: `withPushedSync(handle)` + `setCapture(handle)` 양쪽에 push.
- * - ZooKeeper group lease 도 TTL 이 없는 ephemeral znode 기반 — passthrough extend.
+ * - Creates a [ZooKeeperSlotExtendDelegate] for the acquired per-slot lease — shares the same reference with [LeaderLockHandle.Real] (AC-15).
+ * - sync group: pushed to both `withPushedSync(handle)` + `setCapture(handle)`.
+ * - ZooKeeper group leases are also ephemeral znode-based with no TTL — passthrough extend.
  *
  * ## R16 enforce
  *
- * [LeaderLeaseAutoExtender.start] 는 항상 `enabled=false` (group 옵션은 autoExtend 자체가 없음).
+ * [LeaderLeaseAutoExtender.start] always uses `enabled=false` (group options have no autoExtend).
  *
  * ```kotlin
  * val elector = ZooKeeperLeaderGroupElector(curator, LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = elector.runIfLeader("batch-job") { processChunk() }
  * ```
  *
- * @param client 시작된 [CuratorFramework] 클라이언트. 수명 관리는 호출자 책임입니다.
- * @param basePath 리더 그룹 znodes가 생성될 기준 경로
- * @param options 리더 그룹 선출 옵션
+ * @param client A started [CuratorFramework] client. Lifecycle management is the caller's responsibility.
+ * @param basePath Base path where leader group znodes will be created
+ * @param options Leader group election options
  */
 class ZooKeeperLeaderGroupElector private constructor(
     private val client: CuratorFramework,
@@ -174,7 +174,7 @@ class ZooKeeperLeaderGroupElector private constructor(
 }
 
 /**
- * ZooKeeper [CuratorFramework]로 복수 리더 선출 작업을 실행합니다.
+ * Runs a multi-leader election action using a ZooKeeper [CuratorFramework].
  */
 inline fun <T> CuratorFramework.runIfLeaderGroup(
     lockName: String,
@@ -185,7 +185,7 @@ inline fun <T> CuratorFramework.runIfLeaderGroup(
     ZooKeeperLeaderGroupElector(this, options, basePath).runIfLeader(lockName) { action() }
 
 /**
- * ZooKeeper [CuratorFramework]로 비동기 복수 리더 선출 작업을 실행합니다.
+ * Runs an async multi-leader election action using a ZooKeeper [CuratorFramework].
  */
 fun <T> CuratorFramework.runAsyncIfLeaderGroup(
     lockName: String,

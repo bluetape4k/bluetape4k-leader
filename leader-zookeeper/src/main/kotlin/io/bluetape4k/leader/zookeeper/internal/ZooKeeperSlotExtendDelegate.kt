@@ -10,24 +10,25 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * ZooKeeper group elector 의 per-slot [org.apache.curator.framework.recipes.locks.Lease] 용 [ExtendDelegate]
- * — T13 PR 8 (Issue #79).
+ * [ExtendDelegate] for the per-slot [org.apache.curator.framework.recipes.locks.Lease] of the
+ * ZooKeeper group elector — T13 PR 8 (Issue #79).
  *
- * ## 동작/계약 (PASSTHROUGH — Spec §6 row 12)
+ * ## Behavior / Contract (PASSTHROUGH — Spec §6 row 12)
  *
- * ZooKeeper [org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2] 의 `Lease` 는
- * TTL 이 없는 ephemeral znode 입니다. `Lease.close()` 또는 세션 종료 시에만 반납됩니다.
+ * A `Lease` from [org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2] is an
+ * ephemeral znode with no TTL. It is only released by `Lease.close()` or session expiry.
  *
- * - [extend] / [extendSuspend] : delegate 가 살아있는 동안 (= handle 이 scope 에 push 된 동안)
- *   [ExtendOutcome.Extended] (observedExpireAt = [Instant.MAX]) 반환. elector 가 finally 에서 [markReleased]
- *   호출 후에는 [ExtendOutcome.NotHeld] 반환 (defensive — handle pop 후 호출되는 race 방어).
- * - [isHeld] : [released] 상태 직접 위임. `true` = 아직 release 전.
+ * - [extend] / [extendSuspend]: while the delegate is alive (i.e., the handle is pushed into scope),
+ *   returns [ExtendOutcome.Extended] (observedExpireAt = [Instant.MAX]). After the elector calls
+ *   [markReleased] in `finally`, returns [ExtendOutcome.NotHeld] (defensive — guards against races
+ *   where extend is called after handle pop).
+ * - [isHeld]: delegates directly to the [released] state. `true` = not yet released.
  *
- * `Lease` 는 liveness query API 가 없어 elector 가 explicit 하게 [markReleased] 로 상태 전이 통지.
+ * `Lease` has no liveness-query API, so the elector explicitly signals state transition via [markReleased].
  *
- * ## R16 enforce
- * Group elector 는 항상 `autoExtend=false` (옵션 부재) — watchdog 비활성화.
- * 이 delegate 의 [extend] 는 user-driven `LockExtender.extendActiveLock` 경로에서만 호출됩니다.
+ * ## R16 Enforcement
+ * Group elector always uses `autoExtend=false` (no option available) — watchdog disabled.
+ * The [extend] method on this delegate is called only via the user-driven `LockExtender.extendActiveLock` path.
  */
 internal class ZooKeeperSlotExtendDelegate(
     private val slotKey: String,
@@ -41,10 +42,10 @@ internal class ZooKeeperSlotExtendDelegate(
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
 
     /**
-     * Elector 가 lease.close() 직전에 호출하여 delegate 를 NotHeld 상태로 전이합니다.
+     * Called by the elector just before `lease.close()` to transition the delegate to the NotHeld state.
      *
-     * race 방어 (handle pop 과 delegate state 동기화):
-     * - lease.close() 이후에도 user 가 보유한 handle reference 로 extend 호출 시 NotHeld 반환.
+     * Race guard (synchronizes handle pop with delegate state):
+     * - Even after `lease.close()`, any extend call via a user-held handle reference returns NotHeld.
      */
     fun markReleased() {
         released.set(true)

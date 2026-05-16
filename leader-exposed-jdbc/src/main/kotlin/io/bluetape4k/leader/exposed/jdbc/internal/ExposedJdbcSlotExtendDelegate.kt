@@ -15,13 +15,13 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * Exposed JDBC group elector 의 per-slot [ExposedJdbcGroupLock] (`(lockName, slot)`) 용 [ExtendDelegate]
+ * [ExtendDelegate] for per-slot [ExposedJdbcGroupLock] (`(lockName, slot)`) in the Exposed JDBC group elector
  * — T10 PR 5 (Issue #79).
  *
- * ## 동작/계약
- * - [extend] : `slotLock.extendDetailed(d)` 위임. R6 guard (`lockedUntil > now`) 적용.
- * - [extendSuspend] : JDBC 는 blocking — `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21).
- * - [isHeld] : `slotLock.isHeldByCurrentInstance()` 위임.
+ * ## Behavior / Contract
+ * - [extend] : Delegates to `slotLock.extendDetailed(d)`. Applies the R6 guard (`lockedUntil > now`).
+ * - [extendSuspend] : JDBC is blocking — wraps with `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21).
+ * - [isHeld] : Delegates to `slotLock.isHeldByCurrentInstance()`.
  */
 internal class ExposedJdbcSlotExtendDelegate(
     private val slotLock: ExposedJdbcGroupLock,

@@ -8,13 +8,13 @@ import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * 리더 선출 실행 생명주기 이벤트를 수신하는 동기 리스너입니다.
+ * Synchronous listener that receives leader election lifecycle events.
  *
- * ## 동작/계약
- * - [onElected]는 해당 호출이 리더 또는 그룹 슬롯을 획득하고 사용자 작업을 실행하기 직전에 호출됩니다.
- * - [onSkipped]는 대기 시간 안에 리더 또는 그룹 슬롯을 획득하지 못해 사용자 작업이 실행되지 않을 때 호출됩니다.
- * - [onRevoked]는 현재 구현에서 외부 lease loss 감지가 아니라, 이 호출이 보유하던 리더십/슬롯을 반납한 뒤 호출됩니다.
- * - 리스너 일반 예외는 리더 작업 결과를 바꾸지 않도록 기록 후 무시됩니다.
+ * ## Behavior / Contract
+ * - [onElected] is called immediately before the user action runs, after this call acquires a leader or group slot.
+ * - [onSkipped] is called when a leader or group slot could not be acquired within the wait time and the user action is skipped.
+ * - [onRevoked] is called after this call releases the leadership or slot it held — not on external lease-loss detection.
+ * - Ordinary listener exceptions are logged and ignored so they do not affect the leader action result.
  *
  * ```kotlin
  * val listener = object : LeaderElectionListener {
@@ -26,24 +26,24 @@ import java.util.concurrent.CopyOnWriteArrayList
  */
 interface LeaderElectionListener {
 
-    /** 리더 또는 그룹 슬롯을 획득했을 때 호출됩니다. */
+    /** Called when a leader or group slot is acquired. */
     fun onElected(lockName: String) = Unit
 
-    /** 리더십 또는 그룹 슬롯을 반납한 뒤 호출됩니다. */
+    /** Called after leadership or a group slot is released. */
     fun onRevoked(lockName: String) = Unit
 
-    /** 리더 또는 그룹 슬롯을 획득하지 못해 사용자 작업을 건너뛰었을 때 호출됩니다. */
+    /** Called when a leader or group slot could not be acquired and the user action was skipped. */
     fun onSkipped(lockName: String) = Unit
 }
 
 /**
- * 리더 선출 생명주기 이벤트입니다.
+ * Leader election lifecycle event.
  *
- * suspend 환경에서는 callback 대신 [LeaderElectionEventPublisher.events]를 collect하면 리더 실행 생명주기를 stream으로
- * 관찰할 수 있습니다.
+ * In suspend contexts, collect [LeaderElectionEventPublisher.events] instead of using callbacks
+ * to observe the leader execution lifecycle as a stream.
  */
 sealed interface LeaderElectionEvent {
-    /** 이벤트가 발생한 락 이름입니다. */
+    /** The lock name for which the event was emitted. */
     val lockName: String
 
     /**
@@ -65,50 +65,51 @@ sealed interface LeaderElectionEvent {
         }
     }
 
-    /** 리더십 또는 그룹 슬롯을 반납한 이벤트입니다. */
+    /** Event emitted when leadership or a group slot is released. */
     data class Revoked(override val lockName: String) : LeaderElectionEvent
 
-    /** 리더 또는 그룹 슬롯을 획득하지 못해 사용자 작업을 건너뛴 이벤트입니다. */
+    /** Event emitted when a leader or group slot could not be acquired and the user action was skipped. */
     data class Skipped(override val lockName: String) : LeaderElectionEvent
 }
 
 /**
- * 리더 선출 생명주기 이벤트 stream을 노출하는 계약입니다.
+ * Contract that exposes a leader election lifecycle event stream.
  */
 interface LeaderElectionEventPublisher {
 
     /**
-     * 리더 선출 이벤트 stream입니다.
+     * Leader election event stream.
      *
-     * 구현체는 내부적으로 hot event source를 사용하며, collector가 활성화된 동안 발생한 이벤트를 전달합니다.
+     * Implementations use a hot event source internally and deliver events that occur while a collector is active.
      */
     val events: Flow<LeaderElectionEvent>
 }
 
 /**
- * [LeaderElectionListener] 등록/해제 계약입니다.
+ * Contract for registering and unregistering [LeaderElectionListener] instances.
  *
- * 구현체는 반환된 [AutoCloseable]을 닫는 방식으로도 같은 리스너를 해제할 수 있습니다.
+ * Implementations also allow unregistering the same listener by closing the returned [AutoCloseable].
  */
 interface LeaderElectionListenerRegistry {
 
     /**
-     * [listener]를 등록하고, 닫으면 등록을 해제하는 handle을 반환합니다.
+     * Registers [listener] and returns a handle that unregisters it when closed.
      */
     fun addListener(listener: LeaderElectionListener): AutoCloseable
 
     /**
-     * [listener] 등록을 해제합니다.
+     * Unregisters [listener].
      *
-     * @return 실제로 등록되어 있던 리스너가 제거되었으면 `true`
+     * @return `true` if the listener was actually registered and has been removed
      */
     fun removeListener(listener: LeaderElectionListener): Boolean
 }
 
 /**
- * [LeaderElectionListenerRegistry]의 thread-safe 기본 구현입니다.
+ * Thread-safe default implementation of [LeaderElectionListenerRegistry].
  *
- * [CopyOnWriteArrayList]를 사용하므로 리스너 호출 중 등록/해제가 발생해도 현재 dispatch는 안정적인 snapshot을 사용합니다.
+ * Uses [CopyOnWriteArrayList] so that registrations or unregistrations during listener dispatch
+ * do not affect the stable snapshot used by the current dispatch.
  */
 open class LeaderElectionListenerSupport : LeaderElectionListenerRegistry {
 
@@ -122,17 +123,17 @@ open class LeaderElectionListenerSupport : LeaderElectionListenerRegistry {
     override fun removeListener(listener: LeaderElectionListener): Boolean =
         listeners.remove(listener)
 
-    /** 등록된 리스너에 선출 이벤트를 발행합니다. */
+    /** Dispatches an elected event to all registered listeners. */
     fun notifyElected(lockName: String) {
         notify(lockName, "onElected") { it.onElected(lockName) }
     }
 
-    /** 등록된 리스너에 반납 이벤트를 발행합니다. */
+    /** Dispatches a revoked event to all registered listeners. */
     fun notifyRevoked(lockName: String) {
         notify(lockName, "onRevoked") { it.onRevoked(lockName) }
     }
 
-    /** 등록된 리스너에 skip 이벤트를 발행합니다. */
+    /** Dispatches a skipped event to all registered listeners. */
     fun notifySkipped(lockName: String) {
         notify(lockName, "onSkipped") { it.onSkipped(lockName) }
     }

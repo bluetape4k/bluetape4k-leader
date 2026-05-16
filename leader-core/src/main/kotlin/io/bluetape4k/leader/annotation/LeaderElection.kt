@@ -31,7 +31,7 @@ package io.bluetape4k.leader.annotation
  * @LeaderElection(name = "'process-' + #region", failureMode = LeaderAspectFailureMode.SKIP)
  * fun process(region: String): Result? = service.process(region)
  *
- * // 다중 백엔드 환경에서 명시적 factory 선택
+ * // Explicit factory selection in a multi-backend environment
  * @LeaderElection(name = "audit", bean = "redissonLeaderElectionFactory")
  * fun audit() { ... }
  *

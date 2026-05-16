@@ -6,16 +6,16 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import org.redisson.api.RedissonClient
 
 /**
- * [RedissonLeaderGroupElector] 팩토리 — Redisson `RSemaphore` 기반 다중 리더 선출.
+ * Factory for [RedissonLeaderGroupElector] — multi-leader election backed by Redisson `RSemaphore`.
  *
- * ## 사용 예
+ * ## Usage
  * ```kotlin
  * val factory = RedissonLeaderGroupElectionFactory(redissonClient)
  * val election = factory.create(LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = election.runIfLeader("batch-shard") { processChunk() }
  * ```
  *
- * @param redissonClient 공유 Redisson 클라이언트
+ * @param redissonClient Shared Redisson client
  */
 class RedissonLeaderGroupElectorFactory(
     private val redissonClient: RedissonClient,

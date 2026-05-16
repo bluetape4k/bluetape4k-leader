@@ -22,10 +22,10 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.LockSupport
 
 /**
- * Lettuce Redis 클라이언트를 이용한 분산 락(Distributed Lock) 구현체입니다.
+ * Distributed lock implementation using the Lettuce Redis client.
  *
- * `SET NX PX` + Lua 스크립트 기반 비재진입(non-reentrant) 분산 뮤텍스입니다.
- * 락 토큰으로 UUID를 사용하여 스레드/코루틴에 독립적으로 동작합니다.
+ * A non-reentrant distributed mutex based on `SET NX PX` + Lua scripts.
+ * Uses a UUID as the lock token, making it thread- and coroutine-independent.
  *
  * ```kotlin
  * val lock = LettuceLock(connection, "my-lock")
@@ -35,9 +35,9 @@ import java.util.concurrent.locks.LockSupport
  * }
  * ```
  *
- * @param connection Lettuce StatefulRedisConnection (StringCodec 기반)
- * @param lockKey Redis에 저장될 락 키
- * @param defaultLeaseTime 락 유지 시간 기본값 (기본 30초)
+ * @param connection Lettuce StatefulRedisConnection (StringCodec-based)
+ * @param lockKey lock key stored in Redis
+ * @param defaultLeaseTime default lock hold time (default: 30 seconds)
  */
 class LettuceLock(
     private val connection: StatefulRedisConnection<String, String>,
@@ -84,10 +84,10 @@ end"""
     }
 
     /**
-     * 현재 lock 토큰을 반환합니다 (acquire 후, unlock 전).
+     * Returns the current lock token (after acquire, before unlock).
      *
-     * Backend module elector 가 [io.bluetape4k.leader.LeaderLockHandle.Real.token] 에 주입할 값으로 사용.
-     * 미보유 시 `null`.
+     * Used as the value injected into [io.bluetape4k.leader.LeaderLockHandle.Real.token] by the backend module elector.
+     * Returns `null` when the lock is not held.
      */
     fun currentToken(): String? = tokenRef.value
 
@@ -162,26 +162,26 @@ end"""
     /**
      * Lua atomic extend — token guard + PEXPIRE.
      *
-     * ## 동작/계약
-     * - token 미보유 ([tokenRef] null) → `false`
-     * - script 결과 `1` → `true` (PEXPIRE 성공)
-     * - script 결과 `0` → `false` (token mismatch / lease 만료)
+     * ## Behavior / Contract
+     * - token not held ([tokenRef] is null) → `false`
+     * - script result `1` → `true` (PEXPIRE succeeded)
+     * - script result `0` → `false` (token mismatch / lease expired)
      *
-     * 자세한 분류 결과가 필요하면 [extendDetailed] 사용.
+     * Use [extendDetailed] when a detailed classification result is needed.
      */
     fun extend(leaseTime: Duration = defaultLeaseTime): Boolean =
         extendDetailed(leaseTime).isExtended
 
     /**
-     * Lua atomic extend — [ExtendOutcome] 반환 (T7 PR 2).
+     * Lua atomic extend — returns [ExtendOutcome] (T7 PR 2).
      *
-     * ## 동작/계약
-     * - token 미보유 → [ExtendOutcome.NotHeld]
-     * - script 결과 `1` → [ExtendOutcome.Extended] (`observedExpireAt = Instant.now() + leaseTime` best-effort)
-     * - script 결과 `0` → [ExtendOutcome.NotHeld] (token mismatch / lease 만료)
+     * ## Behavior / Contract
+     * - token not held → [ExtendOutcome.NotHeld]
+     * - script result `1` → [ExtendOutcome.Extended] (`observedExpireAt = Instant.now() + leaseTime`, best-effort)
+     * - script result `0` → [ExtendOutcome.NotHeld] (token mismatch / lease expired)
      *
-     * **caller (`LettuceLockExtendDelegate`) 가 try/catch 로 backend exception → [ExtendOutcome.BackendError] 변환**.
-     * 이 메서드는 backend exception 을 propagate.
+     * **The caller (`LettuceLockExtendDelegate`) converts backend exceptions to [ExtendOutcome.BackendError] via try/catch**.
+     * This method propagates backend exceptions as-is.
      */
     fun extendDetailed(leaseTime: Duration = defaultLeaseTime): ExtendOutcome {
         val token = tokenRef.value ?: return ExtendOutcome.NotHeld

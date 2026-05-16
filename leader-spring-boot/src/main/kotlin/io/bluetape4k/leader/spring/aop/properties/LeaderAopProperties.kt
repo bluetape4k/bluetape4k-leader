@@ -5,9 +5,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 
 /**
- * Leader AOP 자동 구성 속성. `bluetape4k.leader.aop.*` namespace.
+ * Leader AOP auto-configuration properties. `bluetape4k.leader.aop.*` namespace.
  *
- * ## YAML 예
+ * ## YAML Example
  * ```yaml
  * bluetape4k:
  *   leader:
@@ -19,19 +19,19 @@ import java.time.Duration
  *       default-lease-time: PT1M
  *       lock-name-prefix: "myapp:"   # default "${spring.application.name}:"
  *       metrics:
- *         enabled: true              # default true — Micrometer 통합 활성화
+ *         enabled: true              # default true — enables Micrometer integration
  *       spel:
- *         allow-method-invocation: false  # default false (CVE-2022-22947 회색지대 차단)
+ *         allow-method-invocation: false  # default false (blocks CVE-2022-22947 gray area)
  * ```
  *
- * @property enabled AOP 전체 활성화 (default `true`, `matchIfMissing=true`)
- * @property strict Footgun 검출 정책. `true` = startup fail, `false` = WARN
- * @property failureMode 전역 default failure mode (어노테이션 미지정 시)
- * @property defaultWaitTime 전역 default waitTime (어노테이션 미지정 시)
- * @property defaultLeaseTime 전역 default leaseTime (어노테이션 미지정 시)
- * @property lockNamePrefix [Step 3-P-Sec-2][R-34] SpEL 평가 결과 앞에 자동 prefix. empty string opt-out
- * @property metrics Micrometer metrics 활성화 옵션
- * @property spel SpEL 보안 옵션
+ * @property enabled Enables AOP globally (default `true`, `matchIfMissing=true`)
+ * @property strict Footgun detection policy. `true` = fail at startup, `false` = WARN
+ * @property failureMode Global default failure mode (used when not specified on the annotation)
+ * @property defaultWaitTime Global default waitTime (used when not specified on the annotation)
+ * @property defaultLeaseTime Global default leaseTime (used when not specified on the annotation)
+ * @property lockNamePrefix [Step 3-P-Sec-2][R-34] Prefix automatically prepended to SpEL evaluation results. Use empty string to opt out.
+ * @property metrics Micrometer metrics enable option
+ * @property spel SpEL security options
  */
 @ConfigurationProperties(prefix = LeaderAopProperties.PREFIX)
 data class LeaderAopProperties(
@@ -45,18 +45,18 @@ data class LeaderAopProperties(
     val spel: Spel = Spel(),
 ) {
     /**
-     * Micrometer metrics 활성화 옵션. `bluetape4k.leader.aop.metrics.*` namespace.
+     * Micrometer metrics enable option. `bluetape4k.leader.aop.metrics.*` namespace.
      *
-     * @property enabled Micrometer 통합 활성화 (default `true`)
+     * @property enabled Enables Micrometer integration (default `true`)
      */
     data class Metrics(
         val enabled: Boolean = true,
     )
 
     /**
-     * SpEL 보안 옵션.
+     * SpEL security options.
      *
-     * @property allowMethodInvocation [Step 3-P-Sec-1][R-32] `withMethodResolvers()` 활성화. default `false`
+     * @property allowMethodInvocation [Step 3-P-Sec-1][R-32] Enables `withMethodResolvers()`. default `false`
      */
     data class Spel(
         val allowMethodInvocation: Boolean = false,
@@ -72,7 +72,7 @@ data class LeaderAopProperties(
         @JvmField
         val DEFAULT_LEASE_TIME: Duration = Duration.ofMinutes(1)
 
-        /** Default lock name prefix — Spring property placeholder 로 application name 자동 부착. */
+        /** Default lock name prefix — automatically appends the application name via Spring property placeholder. */
         const val DEFAULT_LOCK_NAME_PREFIX: String = "\${spring.application.name:}:"
     }
 }

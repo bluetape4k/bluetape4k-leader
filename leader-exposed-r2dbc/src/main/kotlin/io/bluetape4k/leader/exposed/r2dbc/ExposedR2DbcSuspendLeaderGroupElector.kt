@@ -36,13 +36,13 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
 /**
- * Exposed R2DBC 기반 코루틴 복수 리더 그룹 선출 구현체.
+ * Coroutine-based multi-leader group election implementation backed by Exposed R2DBC.
  *
- * `(lockName, slot)` 복합 PK 기반 슬롯 순회로 최대
- * [ExposedR2dbcLeaderGroupElectionOptions.maxLeaders]개의 동시 리더를 허용합니다.
- * 슬롯 시작 위치를 랜덤화하여 핫스팟을 방지합니다.
+ * Allows up to [ExposedR2dbcLeaderGroupElectionOptions.maxLeaders] simultaneous leaders
+ * by traversing slots using a `(lockName, slot)` composite PK.
+ * The starting slot is randomized to avoid hotspots.
  *
- * ## 기본 사용
+ * ## Basic usage
  * ```kotlin
  * val election = ExposedR2dbcSuspendLeaderGroupElector(
  *     db,
@@ -54,19 +54,19 @@ import kotlin.random.Random
  *     delay(100)
  *     processChunk()
  * }
- * // 최대 3개 노드 동시 실행, 나머지는 null 반환
+ * // Up to 3 nodes run concurrently; others return null
  * ```
  *
- * ## 상태 조회
- * - [activeCount] / [availableSlots] / [state] — 캐시 기반 근사값. `runIfLeader` 이후 자동 갱신.
- *   다른 JVM 인스턴스의 변경은 반영되지 않음 → 모니터링/로깅 전용으로 사용.
- * - [activeCountSuspend] — DB SELECT 실시간 조회. 멀티 JVM 환경에서 정확한 값이 필요할 때 사용.
- *   호출 비용 있음 (SELECT COUNT(*)); 동시성 판단 기준으로는 사용 금지.
+ * ## State queries
+ * - [activeCount] / [availableSlots] / [state] — cache-based approximate values, auto-refreshed after `runIfLeader`.
+ *   Changes from other JVM instances are not reflected — use for monitoring/logging only.
+ * - [activeCountSuspend] — real-time DB query via SELECT. Use when an accurate count is needed
+ *   in a multi-JVM environment. Has query cost (SELECT COUNT(*)); must not be used as a concurrency decision gate.
  *
- * **private constructor** — [invoke] 팩터리를 사용하세요. 첫 호출 시 스키마가 자동으로 생성됩니다.
+ * **private constructor** — use the [invoke] factory. The schema is automatically created on the first call.
  *
- * @param db Exposed [R2dbcDatabase] 인스턴스
- * @param options 그룹 리더 선출 옵션
+ * @param db Exposed [R2dbcDatabase] instance
+ * @param options group leader election options
  */
 class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     private val db: R2dbcDatabase,
@@ -85,9 +85,9 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedR2dbcBackendErrorClassifier)
 
         /**
-         * [ExposedR2DbcSuspendLeaderGroupElector] 인스턴스를 생성합니다.
+         * Creates an [ExposedR2DbcSuspendLeaderGroupElector] instance.
          *
-         * 첫 호출 시 리더 선출 테이블 스키마를 자동으로 생성합니다 (최초 1회).
+         * Automatically creates the leader election table schema on the first call (once only).
          */
         suspend operator fun invoke(
             db: R2dbcDatabase,
@@ -99,49 +99,49 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         }
     }
 
-    /** 동시 허용 리더 수 ([ExposedR2dbcLeaderGroupElectionOptions.maxLeaders] 위임). */
+    /** Number of simultaneous leaders allowed (delegates to [ExposedR2dbcLeaderGroupElectionOptions.maxLeaders]). */
     override val maxLeaders: Int get() = options.maxLeaders
 
     /**
-     * 마지막으로 관측된 활성 슬롯 수. 초기값 0, `runIfLeader` 이후 갱신.
+     * Last observed active slot count. Starts at 0 and is updated after `runIfLeader`.
      *
-     * [activeCount] / [availableSlots] / [state]는 이 캐시에서 반환됩니다.
-     * DB 직접 조회가 필요한 경우 suspend 버전인 [activeCountSuspend]를 사용하세요.
+     * [activeCount] / [availableSlots] / [state] return values from this cache.
+     * Use the suspend version [activeCountSuspend] when a direct DB query is needed.
      */
     private val cachedActiveCount = AtomicInteger(0)
 
     /**
-     * [lockName]의 현재 활성 슬롯 수(캐시 기반, 근사값).
+     * Current active slot count for [lockName] (cache-based, approximate).
      *
-     * 마지막 [runIfLeader] 호출 이후 외부 변경은 반영되지 않을 수 있습니다.
+     * External changes after the last [runIfLeader] call may not be reflected.
      */
     override fun activeCount(lockName: String): Int = cachedActiveCount.get()
 
-    /** [lockName]에서 즉시 획득 가능한 슬롯 수 (캐시 기반). */
+    /** Number of immediately acquirable slots for [lockName] (cache-based). */
     override fun availableSlots(lockName: String): Int = maxLeaders - activeCount(lockName)
 
-    /** [lockName]에 대한 [LeaderGroupState] 스냅샷을 반환합니다 (캐시 기반). */
+    /** Returns a [LeaderGroupState] snapshot for [lockName] (cache-based). */
     override fun state(lockName: String): LeaderGroupState =
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
     /**
-     * [lockName]의 현재 활성 슬롯 수를 DB에서 실시간으로 조회합니다.
+     * Queries the current active slot count for [lockName] directly from the DB in real time.
      *
-     * [activeCount]와 달리 캐시를 사용하지 않고 DB에서 직접 `SELECT COUNT(*)`를 실행합니다.
-     * 만료된 슬롯(`lockedUntil <= NOW()`)은 카운트에서 제외됩니다.
+     * Unlike [activeCount], this executes `SELECT COUNT(*)` directly against the DB without using the cache.
+     * Expired slots (`lockedUntil <= NOW()`) are excluded from the count.
      *
-     * 조회 후 내부 캐시([activeCount])도 동기화됩니다.
+     * The internal cache ([activeCount]) is also synchronized after the query.
      *
      * ```kotlin
-     * // 멀티 JVM 환경에서 정확한 슬롯 수 확인
+     * // Check the accurate slot count in a multi-JVM environment
      * val realCount = election.activeCountSuspend("batch-job")
      * println("active=$realCount / max=${election.maxLeaders}")
-     * // ⚠️ 조회 직후 다른 인스턴스가 슬롯을 획득/해제할 수 있음 — 동시성 결정 기준으로 사용 금지
+     * // ⚠️ Another instance may acquire/release a slot immediately after — do not use as a concurrency decision gate
      * ```
      *
-     * DB 오류 발생 시 best-effort로 `0`을 반환합니다.
+     * Returns `0` on a best-effort basis when a DB error occurs.
      *
-     * @throws IllegalArgumentException [lockName]이 유효하지 않은 경우
+     * @throws IllegalArgumentException if [lockName] is invalid
      */
     suspend fun activeCountSuspend(lockName: String): Int {
         validateExposedR2dbcLockName(lockName)
@@ -166,26 +166,26 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     }
 
     /**
-     * [lockName] 그룹의 빈 슬롯을 하나 획득하면 suspend [action]을 실행합니다.
+     * Acquires an empty slot in the [lockName] group and runs the suspend [action].
      *
-     * - 모든 슬롯이 사용 중이면 `null`을 반환합니다 (예외 없음).
-     * - [action] 예외는 그대로 전파되며, 슬롯은 항상 반납됩니다.
-     * - [CancellationException]은 재전파되며 FAILED 이력에 기록되지 않습니다.
+     * - Returns `null` without throwing if all slots are in use.
+     * - Exceptions from [action] propagate as-is; the slot is always released.
+     * - [CancellationException] is re-propagated and is not recorded as a FAILED history entry.
      *
-     * ## 슬롯 경합 시 skip
+     * ## Skip on slot contention
      * ```kotlin
      * val result = election.runIfLeader("batch-job") { processChunk() }
      * when (result) {
-     *     null -> log.debug { "슬롯 없음 — 이번 실행은 다른 인스턴스가 처리" }
-     *     else -> log.info { "처리 완료: $result" }
+     *     null -> log.debug { "No slot — this execution handled by another instance" }
+     *     else -> log.info { "Completed: $result" }
      * }
      * ```
      *
-     * ## DB 오류 vs 정상 경합
-     * 슬롯 순회 중 DB 오류가 발생하면 순회를 중단하고 `null`을 반환합니다.
-     * (정상 경합으로 인한 `null`과 동일한 반환값이지만, warn 로그로 구분 가능)
+     * ## DB error vs normal contention
+     * If a DB error occurs during slot traversal, traversal stops and `null` is returned.
+     * (Same return value as normal contention, but distinguishable via warn log.)
      *
-     * @throws IllegalArgumentException [lockName]이 유효하지 않은 경우
+     * @throws IllegalArgumentException if [lockName] is invalid
      */
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         validateExposedR2dbcLockName(lockName)

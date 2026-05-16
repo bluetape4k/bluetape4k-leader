@@ -7,7 +7,7 @@ import io.bluetape4k.support.requireLe
 import java.io.Serializable
 
 /**
- * Exposed JDBC 기반 단일 리더 선출 옵션.
+ * Options for single-leader election backed by Exposed JDBC.
  *
  * ```kotlin
  * val options = ExposedJdbcLeaderElectionOptions(
@@ -21,9 +21,9 @@ import java.io.Serializable
  * val election = ExposedJdbcLeaderElector(db, options)
  * ```
  *
- * @property leaderOptions 단일 리더 선출 옵션 (waitTime, leaseTime)
- * @property retryStrategy 락 획득 재시도 전략. 기본값 [RetryStrategy.Jitter]
- * @property lockOwner 락 보유자 식별자. 컬럼 폭 [ExposedLeaderConstants.LOCK_OWNER_LENGTH]자 이내. `null`이면 미기록
+ * @property leaderOptions Single-leader election options (waitTime, leaseTime)
+ * @property retryStrategy Lock acquisition retry strategy. Defaults to [RetryStrategy.Jitter]
+ * @property lockOwner Lock owner identifier. Must be within [ExposedLeaderConstants.LOCK_OWNER_LENGTH] characters. Not recorded if `null`
  */
 data class ExposedJdbcLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -39,9 +39,9 @@ data class ExposedJdbcLeaderElectionOptions(
 
     companion object {
         /**
-         * 기본 옵션 인스턴스.
+         * Default options instance.
          *
-         * - leaderOptions = [LeaderElectionOptions.Default] (waitTime/leaseTime은 leader-core 기본값)
+         * - leaderOptions = [LeaderElectionOptions.Default] (waitTime/leaseTime use leader-core defaults)
          * - retryStrategy = [RetryStrategy.Jitter] (baseDelayMs = 50ms)
          * - lockOwner = `null`
          */

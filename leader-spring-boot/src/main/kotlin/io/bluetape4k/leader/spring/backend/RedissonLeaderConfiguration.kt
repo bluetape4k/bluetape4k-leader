@@ -14,9 +14,9 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * Redisson(Redis) 백엔드 자동 구성.
+ * Redisson (Redis) backend auto-configuration.
  *
- * `RedissonClient` 빈이 등록된 경우에만 활성화됩니다.
+ * Activated only when a `RedissonClient` bean is registered.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(RedissonClient::class)

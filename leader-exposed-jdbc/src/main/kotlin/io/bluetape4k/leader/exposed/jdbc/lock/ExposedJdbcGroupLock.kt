@@ -27,20 +27,20 @@ import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 
 /**
- * Exposed JDBC 기반 그룹 락 (복합 PK 슬롯 기반).
+ * Group lock backed by Exposed JDBC using a composite-PK slot model.
  *
- * [LeaderGroupLockTable]의 `(lockName, slot)` 복합 PK를 이용하여
- * 최대 N개의 동시 리더를 허용하는 세마포어를 구현합니다.
+ * Implements a semaphore that allows up to N simultaneous leaders by using
+ * the `(lockName, slot)` composite primary key of [LeaderGroupLockTable].
  *
- * ## 동작 방식
- * [ExposedJdbcLock]과 동일한 UPDATE+INSERT+SELECT 패턴을 사용하며,
- * `slot` 번호가 추가된 복합 PK를 사용합니다.
+ * ## Behavior
+ * Uses the same UPDATE+INSERT+SELECT pattern as [ExposedJdbcLock] with
+ * an additional `slot` number in the composite primary key.
  *
- * @param db Exposed [Database] 인스턴스
- * @param lockName 그룹 락 식별자
- * @param slot 슬롯 번호 (0-based)
- * @param retryStrategy 재시도 대기 전략
- * @param lockOwner 락 보유자 식별자 (선택)
+ * @param db Exposed [Database] instance
+ * @param lockName group lock identifier
+ * @param slot slot number (0-based)
+ * @param retryStrategy back-off strategy for retries
+ * @param lockOwner optional lock owner identifier
  */
 internal class ExposedJdbcGroupLock internal constructor(
     private val db: Database,
@@ -55,13 +55,13 @@ internal class ExposedJdbcGroupLock internal constructor(
 
     companion object : KLoggingChannel()
 
-    /** 인스턴스별 고유 fencing token. */
+    /** Per-instance unique fencing token. */
     val token: String = Base58.randomString(8)
 
     /**
-     * [waitTime] 내에 슬롯 락 획득을 시도합니다.
+     * Attempts to acquire the slot lock within [waitTime].
      *
-     * @return 락 획득 성공 시 `true`, 경합 실패(타임아웃) 시 `false`, DB 오류 시 `null`
+     * @return `true` when the lock is acquired, `false` on contention or timeout, `null` on DB error
      */
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean? {
         val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds.coerceAtLeast(0L)
@@ -157,9 +157,9 @@ internal class ExposedJdbcGroupLock internal constructor(
     }
 
     /**
-     * 현재 인스턴스(token)가 유효한 슬롯 락을 보유하고 있는지 확인합니다.
+     * Returns whether the current instance (token) holds a valid slot lock.
      *
-     * 리스 만료 후 타 인스턴스가 재획득한 경우 `false`를 반환합니다.
+     * Returns `false` when the lease has expired and another instance has re-acquired the slot.
      */
     fun isHeldByCurrentInstance(): Boolean = runCatching {
         val lockNameVal = lockName
@@ -183,9 +183,9 @@ internal class ExposedJdbcGroupLock internal constructor(
     }
 
     /**
-     * 현재 인스턴스가 보유한 슬롯 락을 해제합니다.
+     * Releases the slot lock held by the current instance.
      *
-     * 토큰 불일치 시 경고 로그만 남기며 다른 소유자의 슬롯을 삭제하지 않습니다.
+     * Logs a warning on token mismatch and does not delete another owner's slot.
      */
     fun unlock(
         minLeaseTime: Duration = Duration.ZERO,
@@ -227,11 +227,11 @@ internal class ExposedJdbcGroupLock internal constructor(
     }
 
     /**
-     * 슬롯 락의 `lockedUntil` 을 [leaseTime] 만큼 atomic 하게 연장하고 [ExtendOutcome] 을 반환합니다.
+     * Atomically extends the slot lock's `lockedUntil` by [leaseTime] and returns an [ExtendOutcome].
      *
      * ## R6 guard (Issue #79 PR 5)
-     * `WHERE` 절에 `lockedUntil > now()` 를 추가하여 만료된 행을 다른 인스턴스가 재획득한 race 에서
-     * stale token 으로 expired row 를 revival 시키는 split-brain 을 차단합니다.
+     * Adds `lockedUntil > now()` to the `WHERE` clause to prevent a split-brain where a stale token
+     * revives an expired row after another instance has re-acquired it.
      *
      * ## SQL
      * ```sql
@@ -240,12 +240,12 @@ internal class ExposedJdbcGroupLock internal constructor(
      * WHERE lock_name = ? AND slot = ? AND token = ? AND locked_until > ?  -- now
      * ```
      *
-     * ## 반환
+     * ## Return value
      * - `affectedRows == 1` → [ExtendOutcome.Extended] (`observedExpireAt = now + leaseTime`)
-     * - `affectedRows == 0` → [ExtendOutcome.NotHeld] (토큰 불일치 / lease 만료 / takeover)
-     * - DB 예외는 caller (delegate) 가 [ExtendOutcome.BackendError] 로 wrap — 본 함수는 그대로 throw
+     * - `affectedRows == 0` → [ExtendOutcome.NotHeld] (token mismatch / lease expired / takeover)
+     * - DB exceptions propagate as-is; the caller (delegate) wraps them as [ExtendOutcome.BackendError]
      *
-     * Token-based 락이므로 [ExtendOutcome.WrongThread] 는 발생하지 않습니다.
+     * [ExtendOutcome.WrongThread] never occurs because this is a token-based lock.
      */
     fun extendDetailed(leaseTime: Duration): ExtendOutcome {
         val lockNameVal = this@ExposedJdbcGroupLock.lockName

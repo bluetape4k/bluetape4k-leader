@@ -10,63 +10,63 @@ import kotlin.time.Duration
 import kotlin.time.toKotlinDuration
 
 /**
- * 활성 `@LeaderElection` 컨텍스트의 lease 를 명시적으로 연장합니다.
+ * Explicitly extends the lease of the active `@LeaderElection` context.
  *
- * ShedLock 의 `LockExtender.extendActiveLock(Duration)` 에 해당하는 단일 인자 변형 —
- * `lockAtMostFor` 만 사용. `lockAtLeastFor` 는 bluetape4k 의 backend `minLeaseTime`
- * 메커니즘으로 분리되어 별도 API 불필요.
+ * Single-argument variant equivalent to ShedLock's `LockExtender.extendActiveLock(Duration)` —
+ * uses `lockAtMostFor` only. `lockAtLeastFor` is separated into bluetape4k's backend `minLeaseTime`
+ * mechanism and requires no additional API.
  *
- * ## 동작/계약
- * - 활성 컨텍스트 없음 → `false` 반환 + WARN log
- * - fail-open sentinel → `false` 반환 + WARN log
- * - backend extend 실패 → `false` (token mismatch / expired / wrong thread / transient backend error)
- * - **absolute** lease — `lockAtMostFor` 만큼 새 expire time 설정.
+ * ## Behavior / Contract
+ * - No active context → returns `false` + WARN log
+ * - Fail-open sentinel → returns `false` + WARN log
+ * - Backend extend failure → `false` (token mismatch / expired / wrong thread / transient backend error)
+ * - **Absolute** lease — sets a new expiry time `lockAtMostFor` from now.
  *
  * ## Detailed result
- * 운영 가시성이 필요하면 [extendActiveLockDetailed] 사용 — [ExtendOutcome] sealed result 반환.
+ * Use [extendActiveLockDetailed] when operational visibility is needed — returns a sealed [ExtendOutcome].
  *
- * ## Boolean ↔ Detailed 변환 contract
+ * ## Boolean ↔ Detailed conversion contract
  * - `extendActiveLock(d): Boolean` ≡ `extendActiveLockDetailed(d).isExtended`
  * - [ExtendOutcome.Extended] → `true`
  * - [ExtendOutcome.NotHeld] / [ExtendOutcome.WrongThread] → `false` + WARN log
  * - [ExtendOutcome.BackendError] (transient) → `false` + WARN log
  *
- * ## mismatched lockName 처리
- * `extendActiveLock(lockName, d)` 의 `lockName` 이 현재 active handle 과 다르면 → `false` + WARN log.
- * `extendActiveLockDetailed(lockName, d)` 는 [ExtendOutcome.NotHeld] 반환.
- * 오용 탐지를 원하면 [LockAssert.assertLocked]`(lockName)` 먼저 호출 권장.
+ * ## Mismatched lockName handling
+ * If `lockName` in `extendActiveLock(lockName, d)` differs from the active handle → `false` + WARN log.
+ * `extendActiveLockDetailed(lockName, d)` returns [ExtendOutcome.NotHeld].
+ * Call [LockAssert.assertLocked]`(lockName)` first if you want misuse detection.
  *
- * ## Group elector 의미
- * `@LeaderGroupElection` 본문 안에서 호출 시 — **현재 보유한 slot 만** 의 lease 를 연장.
- * `lockName` 인자는 group name. slotId 직접 지정 API 미노출.
+ * ## Group elector semantics
+ * When called inside a `@LeaderGroupElection` body — extends the lease of **the currently held slot only**.
+ * The `lockName` argument is the group name; direct slotId specification is not exposed.
  *
- * ## 동시성 (Watchdog × LockExtender)
- * - 둘 다 atomic backend extend 호출 → race-free, 단 **last-write-wins**.
- * - `extendActiveLock(d)` 호출 시 [io.bluetape4k.leader.internal.ExtendDelegate.lastExtendDeadline] 갱신
- *   → watchdog 가 다음 tick 에서 user deadline 이 크면 skip (R2 mitigation).
- * - 정확한 TTL 보호가 필요하면 watchdog OFF 권장 (= ShedLock 등가 모드).
+ * ## Concurrency (Watchdog × LockExtender)
+ * - Both make atomic backend extend calls → race-free, but **last-write-wins**.
+ * - Calling `extendActiveLock(d)` updates [io.bluetape4k.leader.internal.ExtendDelegate.lastExtendDeadline]
+ *   → watchdog skips on the next tick if the user deadline is later (R2 mitigation).
+ * - Disable watchdog if precise TTL protection is required (= ShedLock equivalent mode).
  *
- * ## ⚠️ Reactor non-suspend operator 미지원 (Step 3-P R5)
- * `.map { LockExtender.extendActiveLock(...) }` 등 미지원 —
- * `.flatMap { mono { LockExtender.extendActiveLockSuspend(...) } }` 사용.
+ * ## ⚠️ Reactor non-suspend operators not supported (Step 3-P R5)
+ * `.map { LockExtender.extendActiveLock(...) }` etc. are not supported —
+ * use `.flatMap { mono { LockExtender.extendActiveLockSuspend(...) } }` instead.
  *
  * ## Example
  * ```kotlin
  * @LeaderElection(name = "long-job", leaseTime = 30.seconds)
  * fun runJob() {
- *     // ... 25초 작업 ...
+ *     // ... 25 seconds of work ...
  *     LockExtender.extendActiveLock(60.seconds)  // TTL = now + 60s
- *     // ... 추가 50초 작업 ...
+ *     // ... additional 50 seconds of work ...
  * }
  * ```
  */
 object LockExtender : KLogging() {
 
     /**
-     * 현재 스레드의 활성 lock scope 의 lease 를 연장합니다.
+     * Extends the lease of the active lock scope on the current thread.
      *
-     * @param lockAtMostFor 새 lease 기간
-     * @return extend 성공이면 `true`, 그 외 `false`
+     * @param lockAtMostFor the new lease duration
+     * @return `true` if the extend succeeded, `false` otherwise
      */
     @JvmStatic
     fun extendActiveLock(lockAtMostFor: Duration): Boolean {
@@ -75,11 +75,11 @@ object LockExtender : KLogging() {
     }
 
     /**
-     * 특정 lock 이름으로 현재 스레드의 활성 lock scope 의 lease 를 연장합니다.
+     * Extends the lease of the active lock scope for the given lock name on the current thread.
      *
-     * @param lockName 연장할 lock 이름
-     * @param lockAtMostFor 새 lease 기간
-     * @return extend 성공이면 `true`, 그 외 `false`
+     * @param lockName the lock name to extend
+     * @param lockAtMostFor the new lease duration
+     * @return `true` if the extend succeeded, `false` otherwise
      */
     @JvmStatic
     fun extendActiveLock(lockName: String, lockAtMostFor: Duration): Boolean {
@@ -88,31 +88,31 @@ object LockExtender : KLogging() {
     }
 
     /**
-     * Java 사용자용 [java.time.Duration] overload.
+     * [java.time.Duration] overload for Java callers.
      *
-     * @param lockAtMostFor 새 lease 기간 ([java.time.Duration])
-     * @return extend 성공이면 `true`, 그 외 `false`
+     * @param lockAtMostFor the new lease duration ([java.time.Duration])
+     * @return `true` if the extend succeeded, `false` otherwise
      */
     @JvmStatic
     fun extendActiveLock(lockAtMostFor: java.time.Duration): Boolean =
         extendActiveLock(lockAtMostFor.toKotlinDuration())
 
     /**
-     * 특정 lock 이름 + Java 사용자용 [java.time.Duration] overload.
+     * Lock name + [java.time.Duration] overload for Java callers.
      *
-     * @param lockName 연장할 lock 이름
-     * @param lockAtMostFor 새 lease 기간 ([java.time.Duration])
-     * @return extend 성공이면 `true`, 그 외 `false`
+     * @param lockName the lock name to extend
+     * @param lockAtMostFor the new lease duration ([java.time.Duration])
+     * @return `true` if the extend succeeded, `false` otherwise
      */
     @JvmStatic
     fun extendActiveLock(lockName: String, lockAtMostFor: java.time.Duration): Boolean =
         extendActiveLock(lockName, lockAtMostFor.toKotlinDuration())
 
     /**
-     * 상세 [ExtendOutcome] 를 반환하는 sync 변형.
+     * Sync variant returning a detailed [ExtendOutcome].
      *
-     * @param lockAtMostFor 새 lease 기간
-     * @return [ExtendOutcome] sealed 결과
+     * @param lockAtMostFor the new lease duration
+     * @return sealed [ExtendOutcome] result
      */
     @JvmStatic
     fun extendActiveLockDetailed(lockAtMostFor: Duration): ExtendOutcome {
@@ -122,11 +122,11 @@ object LockExtender : KLogging() {
     }
 
     /**
-     * 특정 lock 이름으로 상세 [ExtendOutcome] 를 반환하는 sync 변형.
+     * Sync variant returning a detailed [ExtendOutcome] for the given lock name.
      *
-     * @param lockName 연장할 lock 이름
-     * @param lockAtMostFor 새 lease 기간
-     * @return [ExtendOutcome] sealed 결과
+     * @param lockName the lock name to extend
+     * @param lockAtMostFor the new lease duration
+     * @return sealed [ExtendOutcome] result
      */
     @JvmStatic
     fun extendActiveLockDetailed(lockName: String, lockAtMostFor: Duration): ExtendOutcome {
@@ -136,10 +136,10 @@ object LockExtender : KLogging() {
     }
 
     /**
-     * Suspend 변형 — `coroutineContext[LockHandleElement]` 만 검사.
+     * Suspend variant — checks only `coroutineContext[LockHandleElement]`.
      *
-     * @param lockAtMostFor 새 lease 기간
-     * @return extend 성공이면 `true`, 그 외 `false`
+     * @param lockAtMostFor the new lease duration
+     * @return `true` if the extend succeeded, `false` otherwise
      */
     suspend fun extendActiveLockSuspend(lockAtMostFor: Duration): Boolean {
         val outcome = extendActiveLockDetailedSuspend(lockAtMostFor)
@@ -147,11 +147,11 @@ object LockExtender : KLogging() {
     }
 
     /**
-     * 특정 lock 이름으로 Suspend 변형.
+     * Suspend variant for the given lock name.
      *
-     * @param lockName 연장할 lock 이름
-     * @param lockAtMostFor 새 lease 기간
-     * @return extend 성공이면 `true`, 그 외 `false`
+     * @param lockName the lock name to extend
+     * @param lockAtMostFor the new lease duration
+     * @return `true` if the extend succeeded, `false` otherwise
      */
     suspend fun extendActiveLockSuspend(lockName: String, lockAtMostFor: Duration): Boolean {
         val outcome = extendActiveLockDetailedSuspend(lockName, lockAtMostFor)
@@ -159,10 +159,10 @@ object LockExtender : KLogging() {
     }
 
     /**
-     * 상세 [ExtendOutcome] 를 반환하는 suspend 변형.
+     * Suspend variant returning a detailed [ExtendOutcome].
      *
-     * @param lockAtMostFor 새 lease 기간
-     * @return [ExtendOutcome] sealed 결과
+     * @param lockAtMostFor the new lease duration
+     * @return sealed [ExtendOutcome] result
      */
     suspend fun extendActiveLockDetailedSuspend(lockAtMostFor: Duration): ExtendOutcome {
         val handle = coroutineContext[LockHandleElement]?.handle
@@ -171,11 +171,11 @@ object LockExtender : KLogging() {
     }
 
     /**
-     * 특정 lock 이름으로 상세 [ExtendOutcome] 를 반환하는 suspend 변형.
+     * Suspend variant returning a detailed [ExtendOutcome] for the given lock name.
      *
-     * @param lockName 연장할 lock 이름
-     * @param lockAtMostFor 새 lease 기간
-     * @return [ExtendOutcome] sealed 결과
+     * @param lockName the lock name to extend
+     * @param lockAtMostFor the new lease duration
+     * @return sealed [ExtendOutcome] result
      */
     suspend fun extendActiveLockDetailedSuspend(lockName: String, lockAtMostFor: Duration): ExtendOutcome {
         val handle = coroutineContext[LockHandleElement]?.handle
@@ -220,15 +220,17 @@ object LockExtender : KLogging() {
     }
 
     /**
-     * Boolean ↔ Detailed 변환.
+     * Converts a [ExtendOutcome] (Detailed) to a Boolean result.
      *
-     * 모든 false 반환 경로에 WARN 로그 — 운영 가시성 우선. [outsideScope] 와 fail-open sentinel 경로는
-     * 이미 path-specific WARN 로그를 찍은 후 [ExtendOutcome.NotHeld] 를 반환 — double log 허용 (정보 가치 우선).
+     * All false-returning paths emit a WARN log — operational visibility takes priority. The [outsideScope]
+     * and fail-open sentinel paths already emit path-specific WARN logs before returning [ExtendOutcome.NotHeld];
+     * double logging is allowed (information value takes priority).
      *
-     * **모든 [ExtendOutcome.BackendError] 는 Boolean API 에서 `false` 반환** (transient/non-transient 무관).
-     * non-transient 명시적 처리 필요 시 caller 가 [extendActiveLockDetailed]/[extendActiveLockDetailedSuspend]
-     * 사용 후 [io.bluetape4k.leader.internal.BackendErrorClassifier] 로 분류 + throw 결정.
-     * Boolean API 자체는 ShedLock 호환 contract — 항상 boolean 반환, throw 없음.
+     * **All [ExtendOutcome.BackendError] cases return `false` from the Boolean API** (transient or non-transient).
+     * If explicit handling of non-transient errors is needed, the caller should use
+     * [extendActiveLockDetailed]/[extendActiveLockDetailedSuspend] and classify via
+     * [io.bluetape4k.leader.internal.BackendErrorClassifier] to decide whether to throw.
+     * The Boolean API itself follows ShedLock-compatible contract — always returns boolean, never throws.
      */
     private fun processBooleanResult(outcome: ExtendOutcome): Boolean = when (outcome) {
         is ExtendOutcome.Extended -> true

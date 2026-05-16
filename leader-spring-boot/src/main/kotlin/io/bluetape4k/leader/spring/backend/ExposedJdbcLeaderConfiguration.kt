@@ -17,14 +17,14 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * Exposed(JDBC) 백엔드 자동 구성.
+ * Auto-configuration for the Exposed (JDBC) backend.
  *
- * `org.jetbrains.exposed.v1.jdbc.Database` 빈이 등록된 경우에만 활성화됩니다.
+ * Activated only when an `org.jetbrains.exposed.v1.jdbc.Database` bean is registered.
  *
- * 등록 빈:
- * - `exposedJdbcLeaderElector` — sync 단일 리더
- * - `exposedJdbcLeaderGroupElector` — sync 그룹 리더
- * - `exposedJdbcVirtualThreadLeaderElector` — Virtual Thread 변형 (sync 빈을 wrapping)
+ * Registered beans:
+ * - `exposedJdbcLeaderElector` — synchronous single-leader elector
+ * - `exposedJdbcLeaderGroupElector` — synchronous group-leader elector
+ * - `exposedJdbcVirtualThreadLeaderElector` — Virtual Thread variant (wraps the sync bean)
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(Database::class)

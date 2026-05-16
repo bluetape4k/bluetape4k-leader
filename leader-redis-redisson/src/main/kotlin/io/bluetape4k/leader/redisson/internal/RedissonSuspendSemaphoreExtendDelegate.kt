@@ -20,21 +20,21 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * Redisson [RPermitExpirableSemaphore] (suspend group) 용 [ExtendDelegate] — T8 PR 3 (Issue #79).
+ * [ExtendDelegate] for Redisson [RPermitExpirableSemaphore] (suspend group) — T8 PR 3 (Issue #79).
  *
- * Redisson 의 async API ([RPermitExpirableSemaphore.updateLeaseTimeAsync]) 는 [java.util.concurrent.CompletableFuture]
- * 기반이므로 `await()` 으로 suspend bridge.
+ * Redisson's async API ([RPermitExpirableSemaphore.updateLeaseTimeAsync]) is [java.util.concurrent.CompletableFuture]-based,
+ * so it is bridged to suspend via `await()`.
  *
- * ## 동작/계약
- * - [extendSuspend] : `semaphore.updateLeaseTimeAsync(permitId, ms, MILLISECONDS).await()` 위임.
- *   - 성공(true) → [ExtendOutcome.Extended], [active] 그대로 유지(true)
- *   - 실패(false) → [ExtendOutcome.NotHeld], [active] false 로 전이
- *   - exception → backend kind 분류 후 transient 면 active 유지, non-transient/FATAL 이면 false 로 전이
- * - [extend] (sync) : suspend 함수만 노출되므로 `runBlocking` 으로 bridge — watchdog scheduler thread 호출 안전.
- * - [isHeld] : 로컬 [AtomicBoolean] 플래그 직접 조회 (sync, Redisson API 미지원).
+ * ## Behavior / Contract
+ * - [extendSuspend]: delegates to `semaphore.updateLeaseTimeAsync(permitId, ms, MILLISECONDS).await()`.
+ *   - success (`true`) → [ExtendOutcome.Extended]; [active] stays `true`
+ *   - failure (`false`) → [ExtendOutcome.NotHeld]; [active] transitions to `false`
+ *   - exception → classifies backend kind; keeps active on transient, sets false on non-transient/FATAL
+ * - [extend] (sync): bridges to the suspend function via `runBlocking` — safe to call from the watchdog scheduler thread.
+ * - [isHeld]: reads the local [AtomicBoolean] flag directly (sync; Redisson API does not support this query).
  *
  * @property semaphore Redisson [RPermitExpirableSemaphore]
- * @property permitId Redisson 발급 permit identifier
+ * @property permitId permit identifier issued by Redisson
  */
 internal class RedissonSuspendSemaphoreExtendDelegate(
     private val semaphore: RPermitExpirableSemaphore,
@@ -47,14 +47,14 @@ internal class RedissonSuspendSemaphoreExtendDelegate(
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
 
     /**
-     * permit 보유 여부 — acquire 시 true 로 시작. [extendSuspend] 결과에 따라 false 로 전이.
+     * Whether the permit is held — starts as `true` on acquire. Transitions to `false` based on [extendSuspend] results.
      */
     private val active = AtomicBoolean(true)
 
     /**
-     * sync entry point — watchdog scheduler thread 에서 호출됨.
+     * Sync entry point — called from the watchdog scheduler thread.
      *
-     * Redisson async 는 Netty 기반이므로 `runBlocking` 은 backpressure 없이 안전.
+     * Redisson async is Netty-based, so `runBlocking` is safe without backpressure concerns.
      */
     override fun extend(lockAtMostFor: Duration): ExtendOutcome =
         try {
@@ -85,9 +85,9 @@ internal class RedissonSuspendSemaphoreExtendDelegate(
     }
 
     /**
-     * 로컬 [active] 플래그 직접 조회 — Redisson 의 permitId 단위 조회 API 부재에 대한 우회.
+     * Reads the local [active] flag directly — a workaround for Redisson's lack of a per-permitId query API.
      *
-     * Diagnostic 용도만 사용 — 강한 보장 필요 시 [extendSuspend] 결과 사용.
+     * For diagnostic use only — for a strong guarantee, check [extendSuspend] results directly.
      */
     override fun isHeld(): Boolean = active.get()
 

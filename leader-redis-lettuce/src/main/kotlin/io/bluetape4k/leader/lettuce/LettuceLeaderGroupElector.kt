@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 
 /**
- * [StatefulRedisConnection]에서 [LettuceLeaderGroupElector] 인스턴스를 생성합니다.
+ * Creates a [LettuceLeaderGroupElector] instance from a [StatefulRedisConnection].
  *
  * ```kotlin
  * val options = LeaderGroupElectionOptions(maxLeaders = 3)
@@ -33,8 +33,8 @@ import java.util.concurrent.Executor
  * val result = election.runIfLeader("batch-job") { processChunk() }
  * ```
  *
- * @param options    리더 선출 옵션 (기본값: [LeaderGroupElectionOptions.Default])
- * @return [LettuceLeaderGroupElector] 인스턴스
+ * @param options    Leader election options (default: [LeaderGroupElectionOptions.Default])
+ * @return [LettuceLeaderGroupElector] instance
  */
 fun StatefulRedisConnection<String, String>.leaderGroupElection(
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -43,14 +43,14 @@ fun StatefulRedisConnection<String, String>.leaderGroupElection(
 
 
 /**
- * Lettuce Redis 클라이언트 기반의 복수 리더 선출 구현체입니다.
+ * Multi-leader election implementation backed by the Lettuce Redis client.
  *
- * ## 동작/계약 (T7 PR 2)
+ * ## Behavior / Contract (T7 PR 2)
  *
- * - 내부적으로 [LettuceSlotTokenGroup] (ZSET + Lua) 을 사용하여 slot-token 모델로 동작합니다.
- * - acquire 후 [LettuceSlotExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 동일 reference 공유 (AC-15).
- * - aspect 가 `LockExtender.extendActiveLock` 호출 시 동일 delegate 를 통해 server-side TIME Lua 실행 (AC-16).
- * - `LockStateHolder` + `LeaderLockHandleCapture` (via AopScopeAccess) 양쪽에 handle 을 push 하여 aspect 가 reentrant peek + capture poll 모두 가능.
+ * - Internally uses [LettuceSlotTokenGroup] (ZSET + Lua) operating on the slot-token model.
+ * - After acquire, creates a [LettuceSlotExtendDelegate] that is shared by [LeaderLockHandle.Real] and the watchdog under the same reference (AC-15).
+ * - When the aspect calls `LockExtender.extendActiveLock`, the same delegate executes the server-side TIME Lua script (AC-16).
+ * - Pushes the handle into both `LockStateHolder` and `LeaderLockHandleCapture` (via AopScopeAccess) so the aspect can do both reentrant peek and capture poll.
  *
  * ```kotlin
  * val options = LeaderGroupElectionOptions(maxLeaders = 3, minLeaseTime = 1.seconds)
@@ -58,8 +58,8 @@ fun StatefulRedisConnection<String, String>.leaderGroupElection(
  * val result = election.runIfLeader("batch-job") { processChunk() }
  * ```
  *
- * @param connection Lettuce [StatefulRedisConnection] (StringCodec 기반)
- * @param options    리더 선출 옵션 (maxLeaders, waitTime, leaseTime, minLeaseTime)
+ * @param connection Lettuce [StatefulRedisConnection] (StringCodec-based)
+ * @param options    Leader election options (maxLeaders, waitTime, leaseTime, minLeaseTime)
  */
 class LettuceLeaderGroupElector(
     private val connection: StatefulRedisConnection<String, String>,

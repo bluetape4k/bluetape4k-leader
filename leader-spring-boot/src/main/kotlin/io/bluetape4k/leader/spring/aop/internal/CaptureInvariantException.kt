@@ -1,17 +1,17 @@
 package io.bluetape4k.leader.spring.aop.internal
 
 /**
- * AOP aspect 가 elector → aspect 간 handle capture 불변식 위반을 감지할 때 throw.
+ * Thrown by the AOP aspect when it detects a handle-capture invariant violation between the elector and the aspect.
  *
- * ## 불변식
- * sync group elector 의 `CaptureScope.runWithCapture` 는 action 호출 직전
- * `LeaderLockHandleCapture.set(handle)` 을 호출합니다. sync aspect 는 action lambda 의 첫 statement 에서
- * `AopScopeAccess.pollCapture()` 로 handle 을 수신합니다. suspend group elector 는 ThreadLocal capture 를
- * 사용하지 않고 `LockHandleElement` 로 coroutine context 에 handle 을 전파합니다.
+ * ## Invariant
+ * The sync group elector's `CaptureScope.runWithCapture` calls `LeaderLockHandleCapture.set(handle)`
+ * just before invoking the action. The sync aspect receives the handle via `AopScopeAccess.pollCapture()`
+ * as the first statement of the action lambda. The suspend group elector does not use ThreadLocal capture;
+ * instead it propagates the handle into the coroutine context via `LockHandleElement`.
  *
- * **single elector 는 CaptureScope 를 사용하지 않으므로 pollCapture() == null 은 정상** — 이 예외는
- * group elector 전용 capture 실패 시만 throw 합니다.
+ * **Single elector does not use CaptureScope, so `pollCapture() == null` is normal** — this exception is
+ * thrown only on capture failure specific to the group elector.
  *
- * silent fail-open 변환은 절대 금지 (Codex F10 / SF3).
+ * Silent fail-open conversion is strictly forbidden (Codex F10 / SF3).
  */
 internal class CaptureInvariantException(message: String) : IllegalStateException(message)

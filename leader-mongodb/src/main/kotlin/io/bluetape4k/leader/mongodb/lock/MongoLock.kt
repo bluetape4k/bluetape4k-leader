@@ -30,23 +30,23 @@ import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
 /**
- * MongoDB `findOneAndUpdate` upsert + TTL index 기반 토큰 분산 락입니다.
+ * Token-based distributed lock backed by MongoDB `findOneAndUpdate` upsert + TTL index.
  *
- * ## 동작 방식
- * - `findOneAndUpdate(filter=expired, upsert=true)`: 만료된 락 문서를 갱신하거나 새로 삽입하여 원자적으로 획득
- * - E11000 Duplicate Key: 유효한 락이 이미 존재 → `null` 반환 후 재시도
- * - TTL index (`expireAt`, expireAfterSeconds=0): 만료 문서를 MongoDB가 자동으로 정리
+ * ## How it works
+ * - `findOneAndUpdate(filter=expired, upsert=true)`: Atomically acquires the lock by updating an expired lock document or inserting a new one
+ * - E11000 Duplicate Key: A valid lock already exists → returns `null` and retries
+ * - TTL index (`expireAt`, expireAfterSeconds=0): MongoDB automatically removes expired documents
  *
- * ## 설계 주의사항
- * - [leaseTime]은 action의 최대 실행 시간보다 충분히 커야 합니다.
- *   TTL 만료 후 다른 인스턴스가 락을 재획득할 수 있습니다(takeover 위험).
- * - Replica Set 환경에서는 `WriteConcern.MAJORITY` 권장.
- *   `ACKNOWLEDGED`는 네트워크 분할 시 split-brain 위험이 있습니다.
- * - 토큰 기반이므로 스레드에 귀속되지 않으며 Virtual Thread 환경에서 안전합니다.
+ * ## Design considerations
+ * - [leaseTime] must be sufficiently larger than the maximum action execution time.
+ *   After TTL expiry, another instance can re-acquire the lock (takeover risk).
+ * - In a Replica Set environment, `WriteConcern.MAJORITY` is recommended.
+ *   `ACKNOWLEDGED` carries a split-brain risk on network partition.
+ * - Token-based, so not thread-bound and safe in Virtual Thread environments.
  *
- * @param collection 락 상태를 저장하는 [MongoCollection]
- * @param lockKey 락 식별 키
- * @param retryDelay 재시도 대기 기본 시간 (jitter 포함)
+ * @param collection [MongoCollection] used to store lock state
+ * @param lockKey Lock identification key
+ * @param retryDelay Base wait time for retries (including jitter)
  */
 class MongoLock private constructor(
     private val collection: MongoCollection<Document>,
@@ -54,19 +54,19 @@ class MongoLock private constructor(
     private val retryDelay: Duration,
 ) {
     companion object : KLogging() {
-        /** 단일 리더 선출용 컬렉션 이름 */
+        /** Collection name for single-leader election */
         const val LOCK_COLLECTION_NAME = "bluetape4k_leader_locks"
 
-        /** 그룹 리더 선출용 컬렉션 이름 */
+        /** Collection name for group leader election */
         const val GROUP_LOCK_COLLECTION_NAME = "bluetape4k_leader_group_locks"
 
         private val ensuredNamespaces: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
         /**
-         * 컬렉션에 TTL 인덱스 (`expireAt`, expireAfterSeconds=0)를 생성합니다.
+         * Creates a TTL index (`expireAt`, expireAfterSeconds=0) on the collection.
          *
-         * 네임스페이스 당 최초 1회만 실행됩니다. 인덱스 생성 실패 시 네임스페이스를
-         * guard set에서 제거하여 다음 호출 시 재시도할 수 있게 합니다.
+         * Runs only once per namespace. On index creation failure, removes the namespace from
+         * the guard set so the next call can retry.
          */
         fun ensureIndexes(collection: MongoCollection<Document>) {
             val namespace = collection.namespace.fullName
@@ -83,7 +83,7 @@ class MongoLock private constructor(
             }
         }
 
-        /** 테스트에서 특정 네임스페이스의 ensureIndexes 상태를 초기화합니다. */
+        /** Resets the ensureIndexes state for a specific namespace in tests. */
         internal fun resetEnsuredFor(namespace: String) {
             ensuredNamespaces.remove(namespace)
         }
@@ -101,13 +101,13 @@ class MongoLock private constructor(
     internal val token: String = Base58.randomString(22)
 
     /**
-     * [waitTime] 내에 락 획득을 시도합니다. 성공 시 `true`, 타임아웃 또는 오류 시 `false`를 반환합니다.
+     * Attempts to acquire the lock within [waitTime]. Returns `true` on success, `false` on timeout or error.
      *
-     * 이 함수는 절대 예외를 throw하지 않습니다. MongoDB 예외는 모두 `false` 반환으로 처리합니다.
+     * This function never throws. All MongoDB exceptions are handled by returning `false`.
      *
-     * @param waitTime 락 획득 최대 대기 시간
-     * @param leaseTime 락 보유(TTL) 최대 시간
-     * @return 락 획득 성공 시 `true`, 실패 또는 오류 시 `false`
+     * @param waitTime Maximum wait time for lock acquisition
+     * @param leaseTime Maximum lock hold (TTL) duration
+     * @return `true` if the lock was acquired, `false` on failure or error
      */
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
         val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
@@ -172,9 +172,9 @@ class MongoLock private constructor(
     }
 
     /**
-     * 현재 인스턴스(토큰)가 락을 보유하고 있는지 확인합니다.
+     * Checks whether the current instance (token) holds the lock.
      *
-     * 리스 만료 후 타 인스턴스가 재획득한 경우 `false`를 반환합니다.
+     * Returns `false` if the lease has expired and another instance has re-acquired the lock.
      */
     fun isHeldByCurrentInstance(): Boolean =
         collection.find(
@@ -182,9 +182,9 @@ class MongoLock private constructor(
         ).first() != null
 
     /**
-     * 현재 인스턴스가 보유한 락을 해제합니다.
+     * Releases the lock held by the current instance.
      *
-     * 토큰 불일치 (리스 만료로 인한 타 인스턴스 재획득 등) 시 경고 로그만 남깁니다.
+     * Only logs a warning on token mismatch (e.g., when another instance has re-acquired the lock after lease expiry).
      */
     fun unlock(
         minLeaseTime: Duration = Duration.ZERO,
@@ -209,16 +209,16 @@ class MongoLock private constructor(
     }
 
     /**
-     * 락의 expireAt 을 [leaseTime] 만큼 atomic 하게 연장하고 [ExtendOutcome] 을 반환합니다.
+     * Atomically extends the lock's expireAt by [leaseTime] and returns an [ExtendOutcome].
      *
      * ## R6 filter (Issue #79 PR 4)
-     * 필터에 `expireAt > now()` 를 추가하여 만료된 문서를 다른 인스턴스가 재획득한 race 상황에서
-     * stale token 으로 expired-doc 을 revival 시키는 split-brain 을 차단합니다.
+     * Adds `expireAt > now()` to the filter to prevent a stale token from reviving an expired document
+     * in a race where another instance has already re-acquired the lock (split-brain protection).
      *
-     * ## 반환
-     * - matchedCount == 1 → [ExtendOutcome.Extended] ( `observedExpireAt = now + leaseTime` best-effort )
-     * - matchedCount == 0 → [ExtendOutcome.NotHeld] (토큰 불일치 / lease 만료 / takeover 발생)
-     * - backend exception 은 caller (delegate) 가 [ExtendOutcome.BackendError] 로 wrap — 본 함수는 그대로 throw
+     * ## Return values
+     * - matchedCount == 1 → [ExtendOutcome.Extended] (`observedExpireAt = now + leaseTime`, best-effort)
+     * - matchedCount == 0 → [ExtendOutcome.NotHeld] (token mismatch / lease expired / takeover occurred)
+     * - Backend exceptions are wrapped by the caller (delegate) as [ExtendOutcome.BackendError] — this function throws as-is
      */
     fun extendDetailed(leaseTime: Duration): ExtendOutcome {
         val nowMs = System.currentTimeMillis()

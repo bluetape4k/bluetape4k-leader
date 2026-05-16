@@ -16,34 +16,33 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * Redisson [RLock] (sync blocking) 용 [ExtendDelegate] — T8 PR 3 (Issue #79).
+ * [ExtendDelegate] for Redisson [RLock] (sync blocking) — T8 PR 3 (Issue #79).
  *
- * ## 동작/계약
- * - [extend] : owner-guarded 단계 — `lock.isHeldByThread(acquiringThreadId)` 검사 후 `RKeys.expire(d, key)` 실행.
- *   thread 불일치 시 [ExtendOutcome.WrongThread] (AC-8). lock 미보유 시 [ExtendOutcome.NotHeld].
- *   backend exception 은 [ExtendOutcome.BackendError] 로 wrap.
- * - [extendSuspend] : Redisson sync 는 blocking I/O 이므로 `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21).
- * - [isHeld] : `lock.isHeldByThread(acquiringThreadId)` 위임.
- * - [lastExtendDeadline] : `AtomicReference(Instant.EPOCH)` 단일 인스턴스 — R2 watchdog skip 용.
+ * ## Behavior / Contract
+ * - [extend]: owner-guarded — checks `lock.isHeldByThread(acquiringThreadId)` then calls `RKeys.expire(d, key)`.
+ *   Returns [ExtendOutcome.WrongThread] on thread mismatch (AC-8), [ExtendOutcome.NotHeld] when not holding the lock.
+ *   Backend exceptions are wrapped as [ExtendOutcome.BackendError].
+ * - [extendSuspend]: Redisson sync is blocking I/O, so dispatched with `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21).
+ * - [isHeld]: delegates to `lock.isHeldByThread(acquiringThreadId)`.
+ * - [lastExtendDeadline]: single `AtomicReference(Instant.EPOCH)` instance — used for R2 watchdog skip.
  *
- * ## RLock TTL 갱신 메커니즘
- * Redisson 의 [RLock] 은 [org.redisson.api.RExpirable] 을 직접 구현하지 않으므로
- * `lock.expire(d)` 를 호출할 수 없다. 대신 [RedissonClient.getKeys] 의
- * `expire(duration, keyName)` 으로 lock 의 Redis key TTL 을 직접 갱신한다.
- * 이는 Redisson 내장 watchdog 이 사용하는 방식과 동일.
+ * ## RLock TTL renewal mechanism
+ * Redisson's [RLock] does not directly implement [org.redisson.api.RExpirable], so `lock.expire(d)`
+ * cannot be called. Instead, the Redis key TTL is renewed directly via [RedissonClient.getKeys]
+ * `expire(duration, keyName)` — the same mechanism used by Redisson's built-in watchdog.
  *
  * ## Owner-guard race window
- * `isHeldByThread` 검사와 `expire(d)` 호출 사이 race window 가 존재한다. 검사 직후 takeover
- * 가 일어나면 새 owner 의 lease 가 갱신되는 좁은 race. 본 PR 에서는 명시적으로 acceptable race 로
- * 문서화한다 — 완전 atomic 보장이 필요하면 follow-up PR 에서 hand-rolled Lua (`HEXISTS` + `PEXPIRE`)
- * 로 대체.
+ * A race window exists between the `isHeldByThread` check and the `expire(d)` call. If a takeover
+ * occurs immediately after the check, the new owner's lease may be renewed in a narrow race.
+ * This is explicitly documented as an acceptable race in this PR — for full atomicity, replace with
+ * a hand-rolled Lua script (`HEXISTS` + `PEXPIRE`) in a follow-up PR.
  *
- * AC-21: blocking backend [ExtendDelegate.extendSuspend] 가 default 사용 0회 — 본 클래스가 명시적으로 override.
+ * AC-21: blocking backend [ExtendDelegate.extendSuspend] default is never called — this class overrides it explicitly.
  *
- * @property redissonClient lock key TTL 갱신을 위한 Redisson 클라이언트
+ * @property redissonClient Redisson client used to renew the lock key TTL
  * @property lock Redisson [RLock] instance
- * @property acquiringThreadId 락 획득 시 사용한 thread id ([Thread.currentThread.threadId]).
- *           Redisson 은 lock 소유자를 thread id 단위로 식별하므로, sync elector 는 동일 thread 만 extend 가능.
+ * @property acquiringThreadId thread id used when acquiring the lock ([Thread.currentThread.threadId]).
+ *           Redisson identifies lock owners by thread id, so only the same thread can extend in sync mode.
  */
 internal class RedissonLockExtendDelegate(
     private val redissonClient: RedissonClient,
@@ -60,10 +59,10 @@ internal class RedissonLockExtendDelegate(
         doExtend(lockAtMostFor)
 
     /**
-     * Redisson sync API 는 Netty client 기반 blocking facade — `withContext(Dispatchers.IO)` 로 dispatch.
+     * Redisson sync API is a Netty client-based blocking facade — dispatched with `withContext(Dispatchers.IO)`.
      *
-     * **runCatching {} 사용 금지** — suspend 안에서 CancellationException 을 삼킬 수 있음.
-     * 수동 try/catch + `catch(CancellationException) { throw e }` 사용.
+     * **Do not use `runCatching {}`** — it can swallow [CancellationException] inside a suspend function.
+     * Use manual try/catch with `catch(CancellationException) { throw e }`.
      */
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
         coroutineContext.ensureActive()

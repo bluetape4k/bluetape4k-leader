@@ -23,32 +23,32 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
- * Apache Curator [InterProcessMutex] 기반 ZooKeeper suspend 단일 리더 선출 구현체입니다.
+ * ZooKeeper suspend single-leader election implementation based on Apache Curator [InterProcessMutex].
  *
- * ## 동작/계약
- * - blocking [ZooKeeperLeaderElector]와 같은 [InterProcessMutex] recipe를 사용해 동일 [lockName]을 상호 배제합니다.
- * - Curator mutex는 thread owner 제약이 있으므로 acquire/release를 호출별 단일 thread dispatcher에서 수행합니다.
- * - 취소 중에도 `withContext(NonCancellable)`에서 lock을 반납하고 [CancellationException]은 재전파합니다.
- * - [LeaderElectionOptions.leaseTime]은 ZooKeeper TTL로 쓰이지 않으며, 세션 종료/만료가 자동 해제 경계입니다.
+ * ## Behavior / Contract
+ * - Uses the same [InterProcessMutex] recipe as the blocking [ZooKeeperLeaderElector] to mutually exclude the same [lockName].
+ * - Since the Curator mutex has a thread-owner constraint, acquire/release is performed on a per-call single-thread dispatcher.
+ * - Even during cancellation, releases the lock inside `withContext(NonCancellable)` and re-propagates [CancellationException].
+ * - [LeaderElectionOptions.leaseTime] is not used as a ZooKeeper TTL; session termination/expiry is the automatic release boundary.
  *
- * ## ExtendDelegate 통합 (T13 PR 8 / Issue #79)
+ * ## ExtendDelegate Integration (T13 PR 8 / Issue #79)
  *
- * - acquire 후 [ZooKeeperSuspendLockExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] 와 동일 reference 공유 (AC-15).
- * - aspect 의 `LockExtenderSuspend.extendActiveLockSuspend` 는 동일 delegate reference 를 사용합니다.
- * - `withContext(AopScopeAccess.createLockHandleElement(handle))` 로 coroutineContext 에 handle 전파.
+ * - After acquire, creates a [ZooKeeperSuspendLockExtendDelegate] that shares the same reference with [LeaderLockHandle.Real] (AC-15).
+ * - The aspect's `LockExtenderSuspend.extendActiveLockSuspend` uses the same delegate reference.
+ * - Propagates handle to coroutineContext via `withContext(AopScopeAccess.createLockHandleElement(handle))`.
  *
- * ## R16 enforce — ZooKeeper 는 TTL 없음
+ * ## R16 enforce — ZooKeeper has no TTL
  *
- * [LeaderLeaseAutoExtender.start] 는 **항상 `enabled=false`** 강제. 사용자가 `autoExtend=true` 설정 시 WARN 로그.
+ * [LeaderLeaseAutoExtender.start] is **always forced to `enabled=false`**. A WARN log is emitted if the user sets `autoExtend=true`.
  *
  * ```kotlin
  * val elector = ZooKeeperSuspendLeaderElector(curator)
  * val result = elector.runIfLeader("sync-job") { syncData() }
  * ```
  *
- * @param client 시작된 [CuratorFramework] 클라이언트. 수명 관리는 호출자 책임입니다.
- * @param basePath 리더 선출 znodes가 생성될 기준 경로
- * @param options 리더 선출 옵션
+ * @param client A started [CuratorFramework] client. Lifecycle management is the caller's responsibility.
+ * @param basePath Base path where leader election znodes will be created
+ * @param options Leader election options
  */
 class ZooKeeperSuspendLeaderElector private constructor(
     private val client: CuratorFramework,
@@ -157,7 +157,7 @@ class ZooKeeperSuspendLeaderElector private constructor(
 }
 
 /**
- * ZooKeeper [CuratorFramework]로 suspend 리더 선출 작업을 실행합니다.
+ * Runs a suspend leader election action using a ZooKeeper [CuratorFramework].
  */
 suspend inline fun <T> CuratorFramework.suspendRunIfLeader(
     lockName: String,

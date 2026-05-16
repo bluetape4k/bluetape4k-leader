@@ -17,33 +17,33 @@ import java.lang.reflect.Method
 import java.time.Duration
 
 /**
- * Plain SpEL / Template SpEL 평가기 — `@LeaderElection.name` / `@LeaderGroupElection.name` 평가용.
+ * Plain SpEL / Template SpEL evaluator for `@LeaderElection.name` / `@LeaderGroupElection.name`.
  *
- * ## 평가 파이프라인
- * 1. `${...}` placeholder 해석 — Spring [StringValueResolver] (생성자 주입)
- * 2. literal fast-path — 정규식 매칭 시 SpEL 우회 (~100ns)
- * 3. **자동 감지** — `#{...}` 포함 시 template 모드, 그 외 plain SpEL
- *    - Plain: `name = "#region"` — 전체 SpEL 표현식
- *    - Template: `name = "prefix-#{#region}-suffix"` — 리터럴+SpEL 혼합 (`TemplateParserContext`)
- * 4. Caffeine cache 적중 시 ~200ns, miss 시 parser invoke
- * 5. [SimpleEvaluationContext] 평가 — read-only property access 만 default 허용
+ * ## Evaluation Pipeline
+ * 1. `${...}` placeholder resolution — Spring [StringValueResolver] (constructor-injected)
+ * 2. Literal fast-path — bypasses SpEL when the regex matches (~100ns)
+ * 3. **Auto-detection** — template mode when `#{...}` is present, plain SpEL otherwise
+ *    - Plain: `name = "#region"` — entire expression is SpEL
+ *    - Template: `name = "prefix-#{#region}-suffix"` — literal + SpEL mix (`TemplateParserContext`)
+ * 4. Caffeine cache hit ~200ns; parser invoked on miss
+ * 5. [SimpleEvaluationContext] evaluation — only read-only property access allowed by default
  *
- * ## Template 모드 (#82)
- * `#{...}` 패턴 자동 감지 — `TemplateParserContext.DEFAULT_TEMPLATE_PARSER_CONTEXT` 사용.
+ * ## Template Mode (#82)
+ * Auto-detects `#{...}` patterns using `TemplateParserContext.DEFAULT_TEMPLATE_PARSER_CONTEXT`.
  * - ✅ `name = "daily-#{#region}"` → `"daily-KR"` (template)
  * - ✅ `name = "#region"` → `"KR"` (plain SpEL)
  * - ✅ `name = "my-lock"` → `"my-lock"` (literal fast-path)
  *
- * ## [Step 3-P-Sec-1][R-32] 보안 default
- * `withMethodResolvers()` 기본 제거 — `#root.target.shutdown()` 같은 임의 메서드 호출 차단.
- * [allowMethodInvocation] = `true` 시에만 활성화.
+ * ## [Step 3-P-Sec-1][R-32] Security Defaults
+ * `withMethodResolvers()` is removed by default — blocks arbitrary method calls such as `#root.target.shutdown()`.
+ * Enabled only when [allowMethodInvocation] = `true`.
  *
- * ## 캐시
- * Caffeine `maximumSize(1024) + expireAfterAccess(1h)` — DoS 방어.
- * template 표현식은 캐시 키 앞에 `"T:"` 접두사로 구분.
+ * ## Cache
+ * Caffeine `maximumSize(1024) + expireAfterAccess(1h)` — DoS defence.
+ * Template expressions are distinguished in the cache key with a `"T:"` prefix.
  *
- * @param embeddedValueResolver Spring `${...}` placeholder 해석기
- * @param allowMethodInvocation `true` 시 `withMethodResolvers()` + `#root.target` 노출. default `false`
+ * @param embeddedValueResolver Spring `${...}` placeholder resolver
+ * @param allowMethodInvocation When `true`, enables `withMethodResolvers()` and exposes `#root.target`. default `false`
  */
 class SpelExpressionEvaluator(
     private val embeddedValueResolver: StringValueResolver?,
@@ -58,12 +58,12 @@ class SpelExpressionEvaluator(
         .build()
 
     /**
-     * [expression] 을 평가하여 문자열 결과 반환.
+     * Evaluates [expression] and returns the string result.
      *
-     * 평가 순서: `${...}` 해석 → literal fast-path → 자동 감지(template/plain) → SpEL 평가.
+     * Evaluation order: `${...}` resolution → literal fast-path → auto-detection (template/plain) → SpEL evaluation.
      *
-     * @return 평가된 락 이름
-     * @throws IllegalStateException SpEL 결과가 `null` 인 경우
+     * @return The evaluated lock name
+     * @throws IllegalStateException If the SpEL result is `null`
      */
     fun evaluate(expression: String, method: Method, args: Array<Any?>, target: Any): String {
         val resolved = resolveplaceholder(expression)
@@ -86,7 +86,7 @@ class SpelExpressionEvaluator(
     }
 
     /**
-     * [expression] 을 startup 시점에 pre-parse — 잘못된 SpEL 을 메서드 FQN 포함 메시지로 fail-fast.
+     * Pre-parses [expression] at startup — fails fast with a message including the method FQN if the SpEL is invalid.
      */
     fun preParse(expression: String, method: Method) {
         val resolved = resolveplaceholder(expression)
@@ -114,7 +114,7 @@ class SpelExpressionEvaluator(
         }
     }
 
-    /** 현재 캐시 크기. Health endpoint 노출용. */
+    /** Current cache size. Exposed via health endpoint. */
     fun cacheSize(): Long = expressionCache.estimatedSize()
 
     private fun resolveplaceholder(expression: String): String =
@@ -146,8 +146,8 @@ class SpelExpressionEvaluator(
     }
 
     /**
-     * SpEL `#root` 객체 — `#root.method`, `#root.methodName`, `#root.args`,
-     * 그리고 [allowMethodInvocation]=true 일 때만 `#root.target`.
+     * SpEL `#root` object — exposes `#root.method`, `#root.methodName`, `#root.args`,
+     * and `#root.target` only when [allowMethodInvocation]=true.
      */
     @Suppress("unused")
     data class RootCtx(
@@ -172,24 +172,24 @@ class SpelExpressionEvaluator(
     }
 
     /**
-     * Pre-built [MethodBasedEvaluationContext] 같은 헬퍼는 [SimpleEvaluationContext] 와 호환되지 않으므로
-     * 본 evaluator 는 직접 RootCtx 를 사용한다.
+     * Pre-built helpers such as [MethodBasedEvaluationContext] are not compatible with [SimpleEvaluationContext],
+     * so this evaluator uses [RootCtx] directly.
      */
     @Suppress("unused")
     private fun unusedReference(): Pair<Class<*>, Class<*>> =
         MethodBasedEvaluationContext::class.java to StandardEvaluationContext::class.java
 
     companion object: KLogging() {
-        /** 정적 lock name 정규식 — 매칭 시 SpEL 평가 우회. */
+        /** Static lock name pattern — bypasses SpEL evaluation on match. */
         private val LITERAL_PATTERN = Regex("^[A-Za-z0-9_:.\\-]+$")
 
-        /** `#{...}` 패턴 감지 — template 모드 자동 선택용 (#82). */
+        /** `#{...}` pattern detector — automatically selects template mode (#82). */
         private val TEMPLATE_DETECT = Regex("#\\{.+}")
 
-        /** Spring TemplateParserContext — 기본 `#{` / `}` 구분자. */
+        /** Spring TemplateParserContext — default `#{` / `}` delimiters. */
         private val TEMPLATE_PARSER_CTX = org.springframework.expression.ParserContext.TEMPLATE_EXPRESSION
 
-        /** Caffeine cache 상한. */
+        /** Caffeine cache maximum size. */
         const val MAX_CACHE_SIZE: Long = 1024L
     }
 }

@@ -6,20 +6,20 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import org.jetbrains.exposed.v1.jdbc.Database
 
 /**
- * [ExposedJdbcLeaderGroupElector] 팩토리 — Exposed JDBC 기반 다중 리더 선출.
+ * Factory for [ExposedJdbcLeaderGroupElector] — Exposed JDBC-backed multi-leader election.
  *
- * ## 사용 예
+ * ## Example
  * ```kotlin
  * val factory = ExposedJdbcLeaderGroupElectionFactory(db)
  * val election = factory.create(LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = election.runIfLeader("batch-shard") { processChunk() }
  * ```
  *
- * `baseOptions.copy(leaderGroupOptions = options)`로 `maxLeaders`/`waitTime`/`leaseTime`만 매 호출
- * 갈아끼우면서 `retryStrategy`/`lockOwner`는 보존한다.
+ * Each call replaces only `maxLeaders`/`waitTime`/`leaseTime` via
+ * `baseOptions.copy(leaderGroupOptions = options)`, preserving `retryStrategy`/`lockOwner`.
  *
  * @param db Exposed [Database]
- * @param baseOptions Exposed 고유 옵션 기본값
+ * @param baseOptions base Exposed-specific options
  */
 class ExposedJdbcLeaderGroupElectorFactory(
     private val db: Database,

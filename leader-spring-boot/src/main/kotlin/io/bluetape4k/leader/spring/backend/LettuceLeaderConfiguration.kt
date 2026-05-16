@@ -17,9 +17,9 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * Lettuce(Redis) 백엔드 자동 구성.
+ * Lettuce (Redis) backend auto-configuration.
  *
- * `StatefulRedisConnection<String, String>` 빈이 등록된 경우에만 활성화됩니다.
+ * Activated only when a `StatefulRedisConnection<String, String>` bean is registered.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(StatefulRedisConnection::class)

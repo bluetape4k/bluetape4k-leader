@@ -17,13 +17,13 @@ import org.springframework.context.annotation.Role
 /**
  * Micrometer metrics AutoConfiguration.
  *
- * `MeterRegistry` 빈이 존재할 때 [MicrometerLeaderAopMetricsRecorder]를 자동 등록한다.
+ * Automatically registers [MicrometerLeaderAopMetricsRecorder] when a `MeterRegistry` bean is present.
  *
- * ## AutoConfig 순서
+ * ## AutoConfig Order
  * ```
  * LeaderAopFactoryAutoConfiguration (backend factories)
  *   ↓
- * LeaderMicrometerAutoConfiguration  ← 본 클래스
+ * LeaderMicrometerAutoConfiguration  ← this class
  *   ↓
  * LeaderAopAutoConfiguration (Aspect + BPP)
  * ```
@@ -45,10 +45,10 @@ import org.springframework.context.annotation.Role
 class LeaderMicrometerAutoConfiguration {
 
     /**
-     * `MeterRegistry` 빈이 존재하고 사용자가 직접 [LeaderAopMetricsRecorder]를 등록하지 않은 경우에만
-     * [MicrometerLeaderAopMetricsRecorder]를 자동 등록한다.
+     * Automatically registers [MicrometerLeaderAopMetricsRecorder] only when a `MeterRegistry` bean is present
+     * and the user has not registered a [LeaderAopMetricsRecorder] directly.
      *
-     * 사용자 정의 recorder가 우선된다 (`@ConditionalOnMissingBean(LeaderAopMetricsRecorder::class)`).
+     * User-defined recorders take precedence (`@ConditionalOnMissingBean(LeaderAopMetricsRecorder::class)`).
      */
     @Bean
     @ConditionalOnBean(MeterRegistry::class)

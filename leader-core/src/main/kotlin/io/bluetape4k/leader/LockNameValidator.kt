@@ -4,22 +4,22 @@ import io.bluetape4k.support.requireLe
 import io.bluetape4k.support.requireNotBlank
 
 /**
- * lockName의 공통 최소 검증.
+ * Common minimum validation for lockName.
  *
- * 허용 문자: `[a-zA-Z0-9_\-:]` (영숫자, 언더스코어, 하이픈, 콜론)
- * 첫 문자: 영숫자만 허용
- * 최대 길이: 255자
+ * Allowed characters: `[a-zA-Z0-9_\-:]` (alphanumeric, underscore, hyphen, colon)
+ * First character: alphanumeric only
+ * Maximum length: 255 characters
  *
- * **2-tier 설계**: 이 함수는 모든 백엔드에 공통적인 최소 규칙만 검증.
- * 백엔드 고유 규칙(예: MongoDB의 `:slot:` 금지, Lettuce의 glob 메타문자 금지)은
- * 각 백엔드 모듈의 내부 검증 함수가 이 함수 호출 후 추가로 수행.
+ * **2-tier design**: this function validates only the minimum rules common to all backends.
+ * Backend-specific rules (e.g., MongoDB `:slot:` prohibition, Lettuce glob metacharacter prohibition)
+ * are applied by each backend module's internal validation function after calling this function.
  */
 // 첫 문자 1자(영숫자) + 이후 0~254자(영숫자/언더스코어/하이픈/콜론) = 최대 255자
 private val LOCK_NAME_PATTERN = Regex("^[a-zA-Z0-9][a-zA-Z0-9_\\-:]{0,254}$")
 
 /**
- * [lockName]이 공통 최소 규칙을 만족하는지 검증.
- * 규칙 위반 시 [IllegalArgumentException] 발생.
+ * Validates that [lockName] satisfies the common minimum rules.
+ * Throws [IllegalArgumentException] if any rule is violated.
  */
 fun validateLockName(lockName: String) {
     lockName.requireNotBlank("lockName")

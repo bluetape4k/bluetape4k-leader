@@ -12,16 +12,16 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 
 /**
- * 재사용되는 Redis Lua 스크립트를 표현합니다.
+ * Represents a reusable Redis Lua script.
  *
- * 스크립트 원문과 로컬에서 계산된 SHA1 해시를 함께 보관하여, 런타임에 매번 원문을 전송하는 대신
- * `EVALSHA` 로 실행하고 [RedisNoScriptException] 이 발생하면 자동으로 원문 전송(`EVAL`) 으로
- * 재시도할 수 있게 합니다.
+ * Stores both the script source and its locally computed SHA1 hash, enabling execution via
+ * `EVALSHA` instead of sending the full source on every call. When a [RedisNoScriptException]
+ * occurs, it automatically retries by sending the full source (`EVAL`).
  *
- * @property source Lua 스크립트 원문
+ * @property source Lua script source
  */
 class RedisScript(val source: String) {
-    /** `source` 의 SHA1 16진 문자열 (Redis 의 SCRIPT LOAD 결과와 동일) */
+    /** SHA1 hex string of `source` (identical to the result of Redis `SCRIPT LOAD`) */
     val sha1: String = sha1Hex(source)
 
     companion object: KLogging() {
@@ -39,13 +39,13 @@ class RedisScript(val source: String) {
 }
 
 /**
- * 동기/비동기/코루틴 모두에서 재사용 가능한 Lua 스크립트 실행 도우미입니다.
+ * Lua script execution helper usable from sync, async, and coroutine contexts.
  *
- * `EVALSHA` 우선 실행, NOSCRIPT 발생 시 원문 전송으로 자동 fallback.
+ * Tries `EVALSHA` first; automatically falls back to sending the full source on NOSCRIPT.
  */
 object RedisScriptRunner: KLogging() {
 
-    /** 동기: `EVALSHA` 우선, NOSCRIPT 시 원문 전송으로 fallback. */
+    /** Sync: tries `EVALSHA` first; falls back to sending the full source on NOSCRIPT. */
     fun <T> run(
         commands: RedisCommands<String, String>,
         script: RedisScript,
@@ -61,7 +61,7 @@ object RedisScriptRunner: KLogging() {
         }
     }
 
-    /** 비동기: `EVALSHA` 우선, NOSCRIPT 시 원문 전송 fallback 한 [CompletableFuture]. */
+    /** Async: tries `EVALSHA` first; returns a [CompletableFuture] with full-source fallback on NOSCRIPT. */
     fun <T> runAsync(
         commands: RedisAsyncCommands<String, String>,
         script: RedisScript,
@@ -81,7 +81,7 @@ object RedisScriptRunner: KLogging() {
         }
     }
 
-    /** 코루틴: `EVALSHA` 우선, NOSCRIPT 시 원문 전송 fallback. */
+    /** Coroutine: tries `EVALSHA` first; falls back to sending the full source on NOSCRIPT. */
     suspend fun <T> runSuspending(
         commands: RedisAsyncCommands<String, String>,
         script: RedisScript,

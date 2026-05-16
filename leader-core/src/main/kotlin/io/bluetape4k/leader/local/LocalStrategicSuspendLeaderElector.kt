@@ -19,13 +19,14 @@ import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * 인메모리(단일 프로세스) [StrategicSuspendLeaderElector] 구현체입니다.
+ * In-memory (single-process) [StrategicSuspendLeaderElector] implementation.
  *
- * [LocalStrategicLeaderElector] 의 suspend 버전으로, lockName 단위 [Mutex] 로 코루틴 안전성을 보장합니다.
- * action 실행은 뮤텍스 외부에서 수행하여 무관한 lockName 간 간섭을 방지합니다.
- * [CancellationException] 은 작업 실패로 간주하지 않으며, failureCount 를 증가시키지 않고 즉시 재전파합니다.
+ * Suspend variant of [LocalStrategicLeaderElector] — coroutine safety in the election phase is
+ * guaranteed by a per-lockName [Mutex]. Action execution is performed outside the mutex to prevent
+ * interference across unrelated lockNames. [CancellationException] is not treated as a task failure;
+ * it does not increment failureCount and is immediately rethrown.
  *
- * @property nodeId 이 인스턴스가 나타내는 노드 식별자. 미지정 시 UUID v7([Uuid.V7])로 자동 생성됩니다.
+ * @property nodeId node identifier represented by this instance. Auto-generated as UUID v7 ([Uuid.V7]) if not specified.
  */
 class LocalStrategicSuspendLeaderElector(
     override val nodeId: String = Uuid.V7.nextIdAsString(),

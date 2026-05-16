@@ -23,9 +23,9 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Lettuce Redis 클라이언트를 이용한 분산 락의 코루틴 구현체입니다.
+ * Coroutine-based distributed lock implementation using the Lettuce Redis client.
  *
- * `SET NX PX` + Lua 스크립트를 통해 원자적 락 획득/해제를 suspend 함수로 제공합니다.
+ * Provides atomic lock acquisition and release as suspend functions via `SET NX PX` and Lua scripts.
  *
  * ```kotlin
  * val lock = LettuceSuspendLock(connection, "my-lock")
@@ -35,9 +35,9 @@ import kotlin.time.Duration.Companion.seconds
  * }
  * ```
  *
- * @param connection Lettuce StatefulRedisConnection (StringCodec 기반)
- * @param lockKey Redis에 저장될 락 키
- * @param defaultLeaseTime 락 유지 시간 기본값 (기본 30초)
+ * @param connection Lettuce StatefulRedisConnection (StringCodec-based)
+ * @param lockKey The Redis key under which the lock is stored
+ * @param defaultLeaseTime Default lock lease duration (default: 30 seconds)
  */
 class LettuceSuspendLock(
     private val connection: StatefulRedisConnection<String, String>,
@@ -83,10 +83,10 @@ end"""
     }
 
     /**
-     * 현재 lock 토큰을 반환합니다 (acquire 후, unlock 전).
+     * Returns the current lock token (after acquire, before unlock).
      *
-     * Backend module elector 가 [io.bluetape4k.leader.LeaderLockHandle.Real.token] 에 주입할 값으로 사용.
-     * 미보유 시 `null`.
+     * Used by the backend module elector to inject into [io.bluetape4k.leader.LeaderLockHandle.Real.token].
+     * Returns `null` if not currently held.
      */
     fun currentToken(): String? = tokenRef.value
 
@@ -162,20 +162,20 @@ end"""
     /**
      * Lua atomic extend — token guard + PEXPIRE (suspend variant).
      *
-     * 자세한 분류 결과가 필요하면 [extendDetailed] 사용.
+     * Use [extendDetailed] when a detailed classification result is needed.
      */
     suspend fun extend(leaseTime: Duration = defaultLeaseTime): Boolean =
         extendDetailed(leaseTime).isExtended
 
     /**
-     * Lua atomic extend — [ExtendOutcome] 반환 (T7 PR 2, suspend variant).
+     * Lua atomic extend — returns [ExtendOutcome] (T7 PR 2, suspend variant).
      *
-     * ## 동작/계약
-     * - Lettuce `asyncCommands` 는 Netty event-loop 기반 non-blocking 이지만, R9 권고에 따라
-     *   suspend 진입점은 `coroutineContext.ensureActive()` 로 cancellation 을 명시적으로 확인.
-     * - token 미보유 → [ExtendOutcome.NotHeld]
-     * - script 결과 `1` → [ExtendOutcome.Extended] (`observedExpireAt = Instant.now() + leaseTime` best-effort)
-     * - script 결과 `0` → [ExtendOutcome.NotHeld]
+     * ## Behavior / Contract
+     * - Although Lettuce `asyncCommands` is Netty event-loop-based non-blocking, the suspend entry point
+     *   explicitly checks cancellation via `coroutineContext.ensureActive()` per R9 guidelines.
+     * - Token not held → [ExtendOutcome.NotHeld]
+     * - Script result `1` → [ExtendOutcome.Extended] (`observedExpireAt = Instant.now() + leaseTime`, best-effort)
+     * - Script result `0` → [ExtendOutcome.NotHeld]
      */
     suspend fun extendDetailed(leaseTime: Duration = defaultLeaseTime): ExtendOutcome {
         coroutineContext.ensureActive()

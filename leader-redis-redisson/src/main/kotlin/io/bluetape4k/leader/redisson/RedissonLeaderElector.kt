@@ -27,20 +27,20 @@ import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.TimeUnit
 
 /**
- * Redisson 분산 락을 이용하여 여러 프로세스/스레드 중 단 하나만 작업을 수행하도록 리더를 선출합니다.
+ * Elects a single leader among multiple processes/threads using a Redisson distributed lock.
  *
- * ## 동작 (T8 PR 3)
- * - [runIfLeader]: 동기 방식으로 락을 획득한 뒤 [LeaderElector.runIfLeader]를 실행하고, 완료 후 락을 해제합니다.
- * - [runAsyncIfLeader]: `tryLockAsync`로 비동기 락을 획득하고, `CompletableFuture` 완료 시 [RLock.unlockAsync]로 락을 해제합니다.
- * - [LeaderElectionOptions.waitTime] 내 락 획득에 실패하면 `null`을 반환합니다 (ShedLock skip 방식).
- * - 락 대기 중 인터럽트가 발생하면 [org.redisson.client.RedisException]으로 래핑되어 전파됩니다.
+ * ## Behavior (T8 PR 3)
+ * - [runIfLeader]: Acquires the lock synchronously, executes [LeaderElector.runIfLeader], then releases the lock on completion.
+ * - [runAsyncIfLeader]: Acquires the lock asynchronously via `tryLockAsync` and releases it via [RLock.unlockAsync] when the `CompletableFuture` completes.
+ * - Returns `null` if lock acquisition fails within [LeaderElectionOptions.waitTime] (ShedLock skip-on-contention behavior).
+ * - An interrupt during lock wait is wrapped and propagated as [org.redisson.client.RedisException].
  *
- * ## ExtendDelegate 통합
+ * ## ExtendDelegate Integration
  *
- * - acquire 후 [RedissonLockExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 동일 reference 공유 (AC-15).
- * - aspect 가 `LockExtender.extendActiveLock` 호출 시 동일 delegate 를 통해 `RLock.expire(d)` 실행.
- * - autoExtend 여부와 무관하게 항상 명시적 `leaseTime` 으로 acquire — Redisson 내장 watchdog 비활성화.
- *   [LeaderLeaseAutoExtender] 가 단일 watchdog 으로 동작하여 R2 watchdog skip semantics 보장.
+ * - After acquire, creates a [RedissonLockExtendDelegate] shared with [LeaderLockHandle.Real] and the watchdog under the same reference (AC-15).
+ * - When the aspect calls `LockExtender.extendActiveLock`, the same delegate executes `RLock.expire(d)`.
+ * - Always acquires with an explicit `leaseTime` regardless of autoExtend, disabling Redisson's built-in watchdog.
+ *   [LeaderLeaseAutoExtender] acts as the sole watchdog, ensuring R2 watchdog skip semantics.
  *
  * ```kotlin
  * val election = RedissonLeaderElector(redissonClient)
@@ -49,9 +49,9 @@ import java.util.concurrent.TimeUnit
  * }
  * ```
  *
- * @param redissonClient Redisson 클라이언트
- * @param options 리더 선출 옵션 (waitTime, leaseTime)
- * @see RedissonSuspendLeaderElector Coroutine 환경에서 사용할 suspend 버전
+ * @param redissonClient Redisson client
+ * @param options Leader election options (waitTime, leaseTime)
+ * @see RedissonSuspendLeaderElector Suspend variant for coroutine environments
  */
 class RedissonLeaderElector private constructor(
     private val redissonClient: RedissonClient,
@@ -189,9 +189,9 @@ class RedissonLeaderElector private constructor(
     }
 
     /**
-     * 락을 보유한 상태에서 비동기 [action]을 실행하고, 완료(성공/실패) 후 락을 해제합니다.
+     * Executes the asynchronous [action] while holding the lock and releases the lock on completion (success or failure).
      *
-     * Lettuce 패턴 정합 — async path 에서는 handle push 를 수행하지 않습니다 (AOP scope 는 sync/suspend 만 지원).
+     * Aligned with the Lettuce pattern — handle push is not performed on the async path (AOP scope supports sync/suspend only).
      */
     private inline fun <T> executeActionAsync(
         lock: RLock,
@@ -260,7 +260,7 @@ class RedissonLeaderElector private constructor(
 
 
 /**
- * Redisson 분산 락을 이용하여 리더 선출을 통한 작업을 수행합니다.
+ * Performs an action via leader election using a Redisson distributed lock.
  */
 inline fun <T> RedissonClient.runIfLeader(
     jobName: String,
@@ -273,7 +273,7 @@ inline fun <T> RedissonClient.runIfLeader(
 }
 
 /**
- * Redisson 분산 락을 이용하여 리더 선출을 통한 비동기 작업을 수행합니다.
+ * Performs an asynchronous action via leader election using a Redisson distributed lock.
  */
 inline fun <T> RedissonClient.runAsyncIfLeader(
     jobName: String,

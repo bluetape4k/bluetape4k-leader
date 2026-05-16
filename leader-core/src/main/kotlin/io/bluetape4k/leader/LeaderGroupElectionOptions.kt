@@ -8,7 +8,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * 복수 리더 그룹 선출에 사용하는 옵션 데이터 클래스입니다.
+ * Options data class used for multi-leader group election.
  *
  * ```kotlin
  * val options = LeaderGroupElectionOptions(
@@ -21,11 +21,11 @@ import kotlin.time.Duration.Companion.seconds
  * // result == "done"
  * ```
  *
- * @property maxLeaders 허용하는 최대 동시 리더 수. 기본값 2
- * @property waitTime 리더 획득 대기 최대 시간. 기본값 5초
- * @property leaseTime 리더 보유(임대) 최대 시간. 기본값 60초
- * @property nodeId 상태 조회에 노출할 노드 식별자. 기본값은 JVM 프로세스 단위 stable id
- * @property minLeaseTime 작업이 빨리 끝나도 리더 그룹 슬롯을 최소로 보유할 시간. 기본값 0초
+ * @property maxLeaders maximum number of concurrent leaders allowed. Default is 2.
+ * @property waitTime maximum wait time to acquire a leader slot. Default is 5 seconds.
+ * @property leaseTime maximum lease duration for holding a leader slot. Default is 60 seconds.
+ * @property nodeId node identifier exposed in state queries. Default is a stable JVM-process-level id.
+ * @property minLeaseTime minimum time to hold a leader group slot even if the action finishes early. Default is 0 seconds.
  */
 data class LeaderGroupElectionOptions(
     val maxLeaders: Int = DefaultMaxLeaders,
@@ -52,7 +52,7 @@ data class LeaderGroupElectionOptions(
         val DefaultLeaseTime: Duration = 60.seconds
 
         /**
-         * 기본 옵션 인스턴스 (`maxLeaders=2`, `waitTime=5s`, `leaseTime=60s`).
+         * Default options instance (`maxLeaders=2`, `waitTime=5s`, `leaseTime=60s`).
          *
          * ```kotlin
          * val election = LocalLeaderGroupElector(LeaderGroupElectionOptions.Default)

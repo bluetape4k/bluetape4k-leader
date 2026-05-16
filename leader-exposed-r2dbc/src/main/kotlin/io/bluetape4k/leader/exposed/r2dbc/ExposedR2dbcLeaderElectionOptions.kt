@@ -7,7 +7,7 @@ import io.bluetape4k.support.requireLe
 import java.io.Serializable
 
 /**
- * Exposed R2DBC 기반 단일 리더 선출 옵션.
+ * Options for single-leader election backed by Exposed R2DBC.
  *
  * ```kotlin
  * val options = ExposedR2dbcLeaderElectionOptions(
@@ -22,10 +22,10 @@ import java.io.Serializable
  * val election = ExposedR2dbcSuspendLeaderElector(db, options)
  * ```
  *
- * @property leaderOptions 단일 리더 선출 옵션 (waitTime, leaseTime)
- * @property retryStrategy 락 획득 재시도 전략. 기본값 [RetryStrategy.Jitter]
- * @property recordHistory `true`이면 획득/완료/실패 이력을 [io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable]에 기록
- * @property lockOwner 락 보유자 식별자. 컬럼 폭 [ExposedLeaderConstants.LOCK_OWNER_LENGTH]자 이내. `null`이면 미기록
+ * @property leaderOptions Single-leader election options (waitTime, leaseTime)
+ * @property retryStrategy Lock acquisition retry strategy. Defaults to [RetryStrategy.Jitter]
+ * @property recordHistory When `true`, records acquire/complete/fail history in [io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable]
+ * @property lockOwner Lock owner identifier. Must be within [ExposedLeaderConstants.LOCK_OWNER_LENGTH] characters. Not recorded if `null`
  */
 data class ExposedR2dbcLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -42,9 +42,9 @@ data class ExposedR2dbcLeaderElectionOptions(
 
     companion object {
         /**
-         * 기본 옵션 인스턴스.
+         * Default options instance.
          *
-         * - leaderOptions = [LeaderElectionOptions.Default] (waitTime/leaseTime은 leader-core 기본값)
+         * - leaderOptions = [LeaderElectionOptions.Default] (waitTime/leaseTime use leader-core defaults)
          * - retryStrategy = [RetryStrategy.Jitter] (baseDelayMs = 50ms)
          * - recordHistory = `false`
          * - lockOwner = `null`

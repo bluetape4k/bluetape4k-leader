@@ -10,18 +10,18 @@ import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.TimeUnit
 
 /**
- * Redisson [RMapCache][org.redisson.api.RMapCache] 를 이용한 후보 레지스트리입니다.
+ * Candidate registry backed by Redisson [RMapCache][org.redisson.api.RMapCache].
  *
- * ## 저장 구조
+ * ## Storage Structure
  * - Key: `leader:strategy:candidates:{lockName}`
  * - Field: `nodeId`, Value: [CandidateInfo]
- * - 항목별 TTL: [registerCandidate] 호출 시 설정 (heartbeat 역할)
+ * - Per-entry TTL: set on each [registerCandidate] call (serves as a heartbeat)
  *
- * ## 분산 일관성 주의
- * [updateResult] 는 read-modify-write 이므로 완전한 원자성을 보장하지 않습니다.
- * winner 노드만 자신의 항목을 갱신하므로 실제 충돌 가능성은 낮습니다.
+ * ## Distributed Consistency Warning
+ * [updateResult] is a read-modify-write operation and does not guarantee full atomicity.
+ * In practice, collision risk is low because only the winner node updates its own entry.
  *
- * @param redissonClient Redisson 클라이언트
+ * @param redissonClient Redisson client
  */
 internal class RedissonCandidateRegistry(private val redissonClient: RedissonClient) {
 

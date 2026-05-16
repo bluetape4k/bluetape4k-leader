@@ -3,25 +3,25 @@ package io.bluetape4k.leader.spring.aop
 import org.springframework.core.Ordered
 
 /**
- * Leader Aspect 의 advice 순서 상수.
+ * Advice order constants for the Leader Aspect.
  *
- * ## 외부 advice 와의 순서 표
+ * ## Ordering table relative to external advice
  *
- * | Aspect | Order | 의도 |
- * |--------|-------|------|
- * | `LeaderElectionAspect` (본 라이브러리) | `HIGHEST_PRECEDENCE + 100` | 락 획득이 가장 바깥 |
- * | `@Cacheable` | `LOWEST_PRECEDENCE - 1` | 캐시 확인 |
- * | `@CircuitBreaker` (Resilience4j) | `LOWEST_PRECEDENCE - 4` | 장애 차단 |
- * | `@Retry` (Resilience4j) | `LOWEST_PRECEDENCE - 3` | 재시도 |
- * | `@Transactional` | `LOWEST_PRECEDENCE` | 트랜잭션 (가장 안쪽) |
+ * | Aspect | Order | Intent |
+ * |--------|-------|--------|
+ * | `LeaderElectionAspect` (this library) | `HIGHEST_PRECEDENCE + 100` | Lock acquisition is the outermost |
+ * | `@Cacheable` | `LOWEST_PRECEDENCE - 1` | Cache check |
+ * | `@CircuitBreaker` (Resilience4j) | `LOWEST_PRECEDENCE - 4` | Circuit breaking |
+ * | `@Retry` (Resilience4j) | `LOWEST_PRECEDENCE - 3` | Retry |
+ * | `@Transactional` | `LOWEST_PRECEDENCE` | Transaction (innermost) |
  *
- * 결과 순서: 락 획득 → (Cache) → CircuitBreaker → Retry → Transaction → 본문 → tx 커밋 → 락 해제.
- * ShedLock 권장 동등.
+ * Execution order: lock acquire → (Cache) → CircuitBreaker → Retry → Transaction → body → tx commit → lock release.
+ * Equivalent to ShedLock's recommended ordering.
  */
 object LeaderAspectOrder {
     /**
-     * Leader Aspect 의 권장 order. `HIGHEST_PRECEDENCE + 100` — 락 획득이 가장 바깥에 위치하면서도
-     * 사용자가 더 바깥쪽 aspect 를 추가할 여지를 100 단계 남긴다.
+     * Recommended order for the Leader Aspect. `HIGHEST_PRECEDENCE + 100` — places lock acquisition
+     * as the outermost layer while leaving 100 slots for users to add even-outer aspects.
      */
     const val AOP_ORDER: Int = Ordered.HIGHEST_PRECEDENCE + 100
 }

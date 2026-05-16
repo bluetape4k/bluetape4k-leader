@@ -12,9 +12,9 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * [LettuceSlotTokenGroup] suspend variant 용 [ExtendDelegate] — T7 PR 2 / AC-16.
+ * [ExtendDelegate] for the suspend variant of [LettuceSlotTokenGroup] — T7 PR 2 / AC-16.
  *
- * Lettuce async API 는 Netty event-loop 기반 non-blocking → suspend native.
+ * The Lettuce async API is Netty event-loop-based non-blocking → suspend native.
  */
 internal class LettuceSuspendSlotExtendDelegate(
     private val group: LettuceSlotTokenGroup,

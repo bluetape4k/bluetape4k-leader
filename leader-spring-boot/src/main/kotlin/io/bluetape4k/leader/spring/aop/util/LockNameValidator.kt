@@ -5,17 +5,18 @@ import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 
 /**
- * AOP 어노테이션 lock name 검증 + 자동 prefix 적용.
+ * Lock name validation and automatic prefix application for AOP annotations.
  *
- * ## [Step 3-P-Sec-2][R-34] charset 화이트리스트
- * `^[A-Za-z0-9_:.\-]+$` — Redis (< 1KB), MongoDB (index 1024) 모두 안전한 문자만 허용.
- * 위반 시 [IllegalArgumentException] — 락-namespace pollution 방어.
+ * ## [Step 3-P-Sec-2][R-34] Charset whitelist
+ * `^[A-Za-z0-9_:.\-]+$` — only characters safe for both Redis (< 1KB) and MongoDB (index 1024) are allowed.
+ * Violation throws [IllegalArgumentException] — guards against lock-namespace pollution.
  *
- * ## 자동 prefix
- * Aspect 가 SpEL 평가 후 본 validator 호출 직전 [prefix] (default `${spring.application.name}:`)
- * 자동 부착으로 비즈니스 락 namespace 충돌 회피. empty string opt-out 가능.
+ * ## Automatic prefix
+ * The Aspect attaches [prefix] (default `${spring.application.name}:`) automatically just before calling
+ * this validator after SpEL evaluation, preventing business lock namespace collisions.
+ * Pass an empty string to opt out.
  *
- * ## 사용 예
+ * ## Usage example
  * ```kotlin
  * val validator = LockNameValidator(prefix = "myapp:")
  * validator.validate("daily-job")      // OK
@@ -24,8 +25,8 @@ import io.bluetape4k.support.requirePositiveNumber
  * validator.validate("a".repeat(257))  // throws (max 256)
  * ```
  *
- * @property prefix 자동 prefix. empty string 시 opt-out
- * @property maxLength 최대 길이 (prefix 적용 전 기준). default 256
+ * @property prefix Automatic prefix; pass empty string to opt out
+ * @property maxLength Maximum length before prefix is applied. Default 256
  */
 class LockNameValidator(
     val prefix: String = "",
@@ -36,9 +37,9 @@ class LockNameValidator(
     }
 
     /**
-     * [name] 이 charset 화이트리스트 + max length 만족하는지 검증.
+     * Validates that [name] satisfies the charset whitelist and max length constraints.
      *
-     * @throws IllegalArgumentException 위반 시
+     * @throws IllegalArgumentException if any constraint is violated
      */
     fun validate(name: String) {
         name.requireNotBlank("name")
@@ -49,7 +50,7 @@ class LockNameValidator(
     }
 
     /**
-     * [prefix] 가 비어 있지 않으면 [name] 앞에 자동 부착, 아니면 [name] 그대로 반환.
+     * Prepends [prefix] to [name] if [prefix] is non-empty; otherwise returns [name] as-is.
      */
     fun applyPrefix(name: String): String =
         if (prefix.isEmpty()) name else "$prefix$name"

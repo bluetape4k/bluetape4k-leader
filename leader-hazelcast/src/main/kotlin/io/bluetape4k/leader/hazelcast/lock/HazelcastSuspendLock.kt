@@ -17,19 +17,19 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * [IMap] 기반 분산 락의 코루틴 구현체입니다.
+ * Coroutine implementation of an [IMap]-based distributed lock.
  *
- * `putIfAbsent(key, token, ttl)` / `remove(key, token)` 을 `withContext(Dispatchers.IO)` 로 감싸
- * suspend 함수로 제공합니다. 토큰 기반이므로 코루틴 스레드 전환과 무관하게 안전합니다.
+ * Wraps `putIfAbsent(key, token, ttl)` / `remove(key, token)` with `withContext(Dispatchers.IO)`
+ * to expose them as suspend functions. Token-based, so it is safe regardless of coroutine thread switches.
  *
- * **주의:** [leaseTime]은 action의 최대 실행 시간보다 충분히 커야 합니다.
- * TTL이 만료되면 락이 자동 해제되어 다른 노드가 동시에 리더가 될 수 있습니다.
+ * **Warning:** [leaseTime] must be sufficiently larger than the maximum execution time of the action.
+ * If the TTL expires, the lock is automatically released and another node may become leader concurrently.
  *
- * **주의:** [lockMap]에는 near-cache를 절대 활성화하지 마십시오.
- * near-cache의 stale 값이 [isHeldByCurrentInstance] 오판을 유발할 수 있습니다.
+ * **Warning:** Never enable near-cache on [lockMap].
+ * Stale values from near-cache can cause [isHeldByCurrentInstance] to return incorrect results.
  *
- * @param lockMap 락 상태를 저장하는 [IMap]
- * @param lockKey 락 식별 키
+ * @param lockMap [IMap] used to store lock state
+ * @param lockKey Lock identification key
  */
 class HazelcastSuspendLock(
     private val lockMap: IMap<String, String>,
@@ -42,11 +42,11 @@ class HazelcastSuspendLock(
     private val token: String = Base58.randomString(8)
 
     /**
-     * [waitTime] 내에 락 획득을 시도합니다. 성공하면 `true`, 타임아웃이거나 클러스터 오류이면 `false`를 반환합니다.
+     * Attempts to acquire the lock within [waitTime]. Returns `true` on success, `false` on timeout or cluster error.
      *
-     * 블로킹 `putIfAbsent` 를 `Dispatchers.IO` 에서 실행하고, 재시도 대기는 `delay` 로 suspend 합니다.
-     * Hazelcast 클러스터 이벤트로 인한 [HazelcastException]은 `false`로 처리하여
-     * `runIfLeader()` 가 절대 throws하지 않는 계약을 보장합니다.
+     * Executes the blocking `putIfAbsent` on `Dispatchers.IO` and suspends via `delay` during retries.
+     * [HazelcastException] caused by Hazelcast cluster events is treated as `false` to guarantee
+     * that `runIfLeader()` never throws.
      */
     suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
         val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
@@ -76,19 +76,19 @@ class HazelcastSuspendLock(
     }
 
     /**
-     * 현재 인스턴스(토큰)가 락을 보유하고 있는지 확인합니다.
+     * Checks whether the current instance (token) holds the lock.
      *
-     * [IMap]에 저장된 값이 이 인스턴스의 토큰과 일치하는 경우에만 `true`를 반환합니다.
+     * Returns `true` only if the value stored in the [IMap] matches this instance's token.
      */
     suspend fun isHeldByCurrentInstance(): Boolean = withContext(Dispatchers.IO) {
         lockMap[lockKey] == token
     }
 
     /**
-     * 현재 인스턴스가 보유한 락을 해제합니다.
+     * Releases the lock held by the current instance.
      *
-     * 토큰 일치 여부를 검증한 후 원자적으로 제거합니다.
-     * 토큰 불일치(리스 만료로 인한 타 노드 재획득 등)인 경우 경고 로그를 남깁니다.
+     * Verifies token ownership and then removes it atomically.
+     * Logs a warning if the token does not match (e.g., the lease expired and another node re-acquired the lock).
      */
     suspend fun unlock(
         minLeaseTime: Duration = Duration.ZERO,
@@ -113,10 +113,10 @@ class HazelcastSuspendLock(
     }
 
     /**
-     * 락의 TTL 을 [leaseTime] 만큼 atomic 하게 연장하고 [ExtendOutcome] 을 반환합니다 (suspend) — T12 PR 7 (Issue #79).
+     * Atomically extends the lock TTL by [leaseTime] and returns an [ExtendOutcome] (suspend) — T12 PR 7 (Issue #79).
      *
-     * Hazelcast IMap 은 blocking API 이므로 `withContext(Dispatchers.IO)` 로 래핑하여 suspend 화합니다.
-     * 동작/계약은 [HazelcastLock.extendDetailed] 와 동일합니다 (R6 — IMap auto-evict 가 expired-doc revival 차단).
+     * Since Hazelcast IMap is a blocking API, it is wrapped with `withContext(Dispatchers.IO)` to suspend.
+     * Behavior and contract are identical to [HazelcastLock.extendDetailed] (R6 — IMap auto-evict blocks expired-doc revival).
      */
     suspend fun extendDetailed(leaseTime: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
         val leaseMs = leaseTime.inWholeMilliseconds

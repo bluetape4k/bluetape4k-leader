@@ -57,73 +57,73 @@ const val GAUGE_BRIDGE_RESULT_DROPPED: String = "leader.aop.bridge.result-droppe
 const val COUNTER_LEADER_ID_RESOLUTION_FAILED: String = "leader.aop.leader_id.resolution_failed"
 
 /**
- * leader-aop Micrometer 메터/태그 이름 상수.
+ * Micrometer meter and tag name constants for leader-aop.
  *
- * 모든 메터 이름은 `leader.aop.` prefix를 공유한다.
- * Micrometer의 [io.micrometer.core.instrument.config.NamingConvention]이 백엔드별로 자동 변환한다
- * (Prometheus: `leader_aop_attempts_total`, Datadog: `leader.aop.attempts.count` 등).
+ * All meter names share the `leader.aop.` prefix.
+ * Micrometer's [io.micrometer.core.instrument.config.NamingConvention] automatically converts them
+ * per backend (e.g., Prometheus: `leader_aop_attempts_total`, Datadog: `leader.aop.attempts.count`).
  */
 internal object MicrometerNames {
 
     // --- Meter names ---
 
-    /** 락 획득 시도 횟수 Counter. */
+    /** Counter for the number of lock acquisition attempts. */
     const val METER_ATTEMPTS = "leader.aop.attempts"
 
-    /** 락 획득 성공(leader 선출) Counter. */
+    /** Counter for successful lock acquisitions (leader elected). */
     const val METER_ACQUIRED = "leader.aop.acquired"
 
-    /** 락 미획득 Counter. [TAG_REASON] 태그로 사유 구분. */
+    /** Counter for failed lock acquisitions. Reason distinguished by [TAG_REASON] tag. */
     const val METER_NOT_ACQUIRED = "leader.aop.lock.not.acquired"
 
-    /** 정상 완료된 작업의 실행 시간 Timer. */
+    /** Timer for execution duration of successfully completed tasks. */
     const val METER_EXECUTION_DURATION = "leader.aop.execution.duration"
 
-    /** 작업 본문 예외 발생 Counter. [TAG_EXCEPTION] 태그로 예외 유형 구분. */
+    /** Counter for exceptions thrown from the task body. Exception type distinguished by [TAG_EXCEPTION] tag. */
     const val METER_TASK_FAILED = "leader.aop.task.failed"
 
     /**
-     * 현재 실행 중인 leader 작업 수 Gauge.
+     * Gauge for the number of currently running leader tasks.
      *
-     * **JVM-local 값** — 멀티 인스턴스 클러스터에서 Prometheus 집계 시
-     * `sum` 대신 `max by (lock_name) (leader_aop_active)` 사용을 권장한다.
+     * **JVM-local value** — when aggregating in Prometheus across a multi-instance cluster,
+     * prefer `max by (lock_name) (leader_aop_active)` over `sum`.
      */
     const val METER_ACTIVE = "leader.aop.active"
 
     // --- Tag keys ---
 
-    /** SpEL로 결정된 락 이름 태그. */
+    /** Tag for the lock name resolved via SpEL. */
     const val TAG_LOCK_NAME = "lock.name"
 
-    /** 락 미획득 사유 태그 (`CONTENTION` / `BACKEND_ERROR`). */
+    /** Tag for the lock acquisition failure reason (`CONTENTION` / `BACKEND_ERROR`). */
     const val TAG_REASON = "reason"
 
-    /** 작업 실패 예외 유형 태그 (`throwable::class.simpleName`). */
+    /** Tag for the exception type on task failure (`throwable::class.simpleName`). */
     const val TAG_EXCEPTION = "exception"
 
-    /** 리더 선출 lifecycle 이벤트 태그 (`elected` / `revoked` / `skipped`). */
+    /** Tag for leader election lifecycle events (`elected` / `revoked` / `skipped`). */
     const val TAG_EVENT = "event"
 
     // --- Sentinel values ---
 
-    /** 익명 클래스 등 `simpleName == null` 인 경우 [TAG_EXCEPTION] 태그 대체값. */
+    /** Fallback value for the [TAG_EXCEPTION] tag when `simpleName == null` (e.g., anonymous classes). */
     const val UNKNOWN_EXCEPTION = "Unknown"
 
     // --- Decorator meter names ---
 
-    /** 데코레이터 기반 리더 선출 성공 Counter. */
+    /** Counter for successful leader elections via decorator. */
     const val METER_LEADER_ACQUIRED = "shedlock.leader.acquired"
 
-    /** 데코레이터 기반 리더 미획득 Counter. */
+    /** Counter for failed leader acquisitions via decorator. */
     const val METER_LEADER_NOT_ACQUIRED = "shedlock.leader.not_acquired"
 
-    /** 데코레이터 기반 리더 작업 실행 시간 Timer. */
+    /** Timer for leader task execution duration via decorator. */
     const val METER_LEADER_DURATION = "shedlock.leader.duration"
 
-    /** 데코레이터 기반 현재 실행 중인 리더 작업 수 Gauge. */
+    /** Gauge for the number of currently running leader tasks via decorator. */
     const val METER_LEADER_ACTIVE = "shedlock.leader.active"
 
-    /** listener 기반 리더 선출 lifecycle 이벤트 Counter. */
+    /** Counter for listener-based leader election lifecycle events. */
     const val METER_LEADER_EVENTS = "leader.election.events"
 
     // --- History / Audit meter names ---

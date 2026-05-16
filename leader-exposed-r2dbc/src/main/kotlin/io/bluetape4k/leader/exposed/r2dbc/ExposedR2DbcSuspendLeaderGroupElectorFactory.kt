@@ -6,24 +6,25 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 
 /**
- * [ExposedR2DbcSuspendLeaderGroupElector] 팩토리 — Exposed R2DBC 기반 suspend 복수 리더 선출.
+ * Factory for [ExposedR2DbcSuspendLeaderGroupElector] — suspend multi-leader election backed by Exposed R2DBC.
  *
- * ## 옵션 처리
- * Exposed R2DBC 백엔드 고유 옵션 (`retryStrategy`, `recordHistory`)은 [baseOptions]로 factory 생성 시 고정되며,
- * 매 호출마다 `baseOptions.copy(leaderGroupOptions = options)`로 `maxLeaders`/`waitTime`/`leaseTime` 만 교체한다.
+ * ## Option handling
+ * Exposed R2DBC-specific options (`retryStrategy`, `recordHistory`) are fixed at factory construction time
+ * via [baseOptions]; each call replaces only `maxLeaders`/`waitTime`/`leaseTime` via
+ * `baseOptions.copy(leaderGroupOptions = options)`.
  *
- * `ExposedR2DbcSuspendLeaderGroupElector(...)` 호출은 companion `suspend operator fun invoke`로 라우팅되어
- * [ExposedR2dbcSchemaInitializer.ensureSchema]가 함께 실행된다.
+ * Calls to `ExposedR2DbcSuspendLeaderGroupElector(...)` are routed through the companion
+ * `suspend operator fun invoke`, which also runs [ExposedR2dbcSchemaInitializer.ensureSchema].
  *
- * ## 사용 예
+ * ## Usage
  * ```kotlin
  * val factory = ExposedR2DbcSuspendLeaderGroupElectorFactory(r2dbcDatabase)
  * val elector = factory.create(LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = elector.runIfLeader("batch-shard") { processChunk() }
  * ```
  *
- * @param db Exposed [R2dbcDatabase] 인스턴스
- * @param baseOptions Exposed R2DBC 고유 옵션 기본값
+ * @param db Exposed [R2dbcDatabase] instance
+ * @param baseOptions Exposed R2DBC-specific option defaults
  */
 class ExposedR2DbcSuspendLeaderGroupElectorFactory(
     private val db: R2dbcDatabase,

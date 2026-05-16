@@ -14,18 +14,18 @@ import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Backend-agnostic 한 LockAssert/LockExtender × sync [LeaderGroupElector] contract.
+ * Backend-agnostic LockAssert/LockExtender × sync [LeaderGroupElector] contract.
  *
- * 각 backend 의 contract test 가 이 abstract class 를 상속하여 [elector] 를 제공한다.
+ * Each backend's contract test inherits this abstract class and provides its own [elector] instance.
  *
- * ## 검증 계약 (AC-1 / Issue #79)
+ * ## Verified Contracts (AC-1 / Issue #79)
  *
- * 1. `assertLocked()` — [LeaderGroupElector.runIfLeader] 본문 안에서는 pass, 밖에서는 [IllegalStateException]
- * 2. `isLocked()` — 본문 안 `true`, 밖 `false`
- * 3. `extendActiveLock(d)` — 본문 안 `true`, 완료 후 `false`
- * 4. `extendActiveLockDetailed(d)` — [ExtendOutcome.Extended] 반환
+ * 1. `assertLocked()` — passes inside [LeaderGroupElector.runIfLeader] body; throws [IllegalStateException] outside
+ * 2. `isLocked()` — returns `true` inside the body, `false` outside
+ * 3. `extendActiveLock(d)` — returns `true` inside the body, `false` after completion
+ * 4. `extendActiveLockDetailed(d)` — returns [ExtendOutcome.Extended]
  *
- * ## 사용 방법
+ * ## Usage
  *
  * ```kotlin
  * class RedissonGroupLockExtenderContractTest : AbstractGroupLockExtenderContractTest() {
@@ -36,15 +36,15 @@ import kotlin.time.Duration.Companion.seconds
  * }
  * ```
  *
- * ## 범위 한계
+ * ## Scope Limitations
  *
- * - Single elector 계약은 [AbstractSyncLockExtenderContractTest] 가 담당.
- * - suspend group 계약은 [AbstractSuspendGroupLockExtenderContractTest] 가 담당.
+ * - Single elector contracts are covered by [AbstractSyncLockExtenderContractTest].
+ * - Suspend group contracts are covered by [AbstractSuspendGroupLockExtenderContractTest].
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractGroupLockExtenderContractTest {
 
-    /** 각 backend 가 자기 [LeaderGroupElector] 인스턴스를 제공한다. */
+    /** Each backend provides its own [LeaderGroupElector] instance. */
     protected abstract val elector: LeaderGroupElector
 
     private fun randomLockName(): String = "ctr-g-${Base58.randomString(8)}"

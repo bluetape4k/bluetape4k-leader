@@ -11,22 +11,22 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * ZooKeeper [InterProcessMutex] (suspend) 용 [ExtendDelegate] — T13 PR 8 (Issue #79).
+ * [ExtendDelegate] for ZooKeeper [InterProcessMutex] (suspend) — T13 PR 8 (Issue #79).
  *
- * ## 동작/계약 (PASSTHROUGH — Spec §6 row 12)
+ * ## Behavior / Contract (PASSTHROUGH — Spec §6 row 12)
  *
- * ZooKeeper 는 TTL 개념이 없는 **세션 기반 락** 입니다. `extend(d)` 는 lease 연장이 아닌
- * **session-held liveness 확인** 의미입니다 (R3-F11).
+ * ZooKeeper uses **session-based locks** with no TTL concept. `extend(d)` means
+ * **session-held liveness check**, not lease extension (R3-F11).
  *
- * - [extend] / [extendSuspend] : `mutex.isAcquiredInThisProcess()` (Curator 로컬 카운터 — non-blocking)
- *   결과에 따라 [ExtendOutcome.Extended] (observedExpireAt = [Instant.MAX]) 또는 [ExtendOutcome.NotHeld].
- * - [extendSuspend] 는 로컬 카운터 체크이므로 `withContext(IO)` 래핑 불필요 — CancellationException 만 재전파.
- * - [isHeld] : `isAcquiredInThisProcess` 직접 위임.
+ * - [extend] / [extendSuspend]: checks `mutex.isAcquiredInThisProcess()` (Curator local counter — non-blocking)
+ *   and returns [ExtendOutcome.Extended] (observedExpireAt = [Instant.MAX]) or [ExtendOutcome.NotHeld] accordingly.
+ * - [extendSuspend] checks a local counter, so `withContext(IO)` wrapping is unnecessary — only re-propagates CancellationException.
+ * - [isHeld]: delegates directly to `isAcquiredInThisProcess`.
  *
- * Token-based 락 (session-bound) — thread 종속성 없음.
+ * Token-based lock (session-bound) — no thread affinity.
  *
  * ## R16 enforce
- * Elector 가 [io.bluetape4k.leader.LeaderLeaseAutoExtender.start] 호출 시 `enabled=false` 강제.
+ * The elector forces `enabled=false` when calling [io.bluetape4k.leader.LeaderLeaseAutoExtender.start].
  */
 internal class ZooKeeperSuspendLockExtendDelegate(
     private val mutex: InterProcessMutex,

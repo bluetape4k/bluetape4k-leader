@@ -12,17 +12,17 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * [MongoSuspendLock] (suspend native, reactive coroutine driver) 용 [ExtendDelegate] — T9 PR 4 (Issue #79).
+ * [ExtendDelegate] for [MongoSuspendLock] (suspend native, reactive coroutine driver) — T9 PR 4 (Issue #79).
  *
- * ## 동작/계약
- * - MongoDB coroutine driver (`com.mongodb.kotlin.client.coroutine.MongoCollection`) 는 reactive native → suspend
- * - [extend] (sync) : suspend 함수만 노출되므로 `runBlocking` 으로 bridge.
- *   **production sync path 에서 호출 금지** — suspend 진입 후 [extendSuspend] 사용.
- *   AOP aspect 가 suspend wrapper 에서만 호출.
- * - [extendSuspend] : `lock.extendDetailed(d)` 직접 호출 (suspend native — withContext(IO) 불필요)
- * - [isHeld] : suspend 함수 → `runBlocking` bridge (rare path)
+ * ## Behavior / Contract
+ * - The MongoDB coroutine driver (`com.mongodb.kotlin.client.coroutine.MongoCollection`) is reactive native → suspend
+ * - [extend] (sync) : Since only suspend functions are exposed, uses a `runBlocking` bridge.
+ *   **Do not call from a production sync path** — use [extendSuspend] after entering a suspend context.
+ *   The AOP aspect calls this only from the suspend wrapper.
+ * - [extendSuspend] : Calls `lock.extendDetailed(d)` directly (suspend native — withContext(IO) is not needed)
+ * - [isHeld] : Suspend function → `runBlocking` bridge (rare path)
  *
- * Token-based 락이므로 thread 종속성 없음 (MongoDB 는 WrongThread 사용 안 함).
+ * Token-based lock with no thread affinity (MongoDB does not use WrongThread).
  */
 internal class MongoSuspendLockExtendDelegate(
     private val lock: MongoSuspendLock,
@@ -34,10 +34,10 @@ internal class MongoSuspendLockExtendDelegate(
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
 
     /**
-     * sync entry point — watchdog 의 scheduler thread 에서 호출됨.
+     * Sync entry point — called from the watchdog's scheduler thread.
      *
-     * MongoDB coroutine driver 는 reactive 기반이므로 `runBlocking` 은 backpressure 없이 안전.
-     * 그러나 suspend wrapper ([extendSuspend]) 가 우선 사용 권장.
+     * Since the MongoDB coroutine driver is reactive-based, `runBlocking` is safe without backpressure.
+     * However, the suspend wrapper ([extendSuspend]) should be preferred.
      */
     override fun extend(lockAtMostFor: Duration): ExtendOutcome =
         try {

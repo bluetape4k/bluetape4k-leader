@@ -46,19 +46,19 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Role
 
 /**
- * AutoConfig Phase 1 — 6 backend factory `@Bean` 등록 (sync + suspend).
+ * AutoConfig Phase 1 — registers 6 backend factory `@Bean`s (sync + suspend).
  *
- * ## [Codex H3] 분리 사유
- * factory `@Bean` 등록을 [LeaderAopAutoConfiguration] 의 Aspect/BPP 등록과 분리하여
- * `@ConditionalOnBean(LeaderElectionFactory)` self-reference 회피.
+ * ## [Codex H3] Separation Rationale
+ * Factory `@Bean` registration is separated from the Aspect/BPP registration in [LeaderAopAutoConfiguration]
+ * to avoid a `@ConditionalOnBean(LeaderElectionFactory)` self-reference.
  *
- * ## 평가
- * - `@ConditionalOnClass(Aspect)` — aspectjweaver classpath 시에만 활성화
- * - `@ConditionalOnProperty(enabled, matchIfMissing=true)` — `bluetape4k.leader.aop.enabled=false` 로 disable 가능
- * - 각 factory `@Bean` 은 `@ConditionalOnClass/Bean(BackendClient)` 가드로 backend 사용 시에만 등록
+ * ## Evaluation
+ * - `@ConditionalOnClass(Aspect)` — activated only when aspectjweaver is on the classpath
+ * - `@ConditionalOnProperty(enabled, matchIfMissing=true)` — can be disabled via `bluetape4k.leader.aop.enabled=false`
+ * - Each factory `@Bean` is guarded by `@ConditionalOnClass/Bean(BackendClient)` and registered only when the backend is in use
  *
  * ## Local fallback
- * Local factory 는 무조건 등록 (모든 환경에서 단일 JVM fallback). 사용자가 다른 backend 를 명시 안 하면 Local 사용.
+ * The local factory is always registered (single-JVM fallback for all environments). Used when no other backend is specified.
  */
 @AutoConfiguration
 @ConditionalOnClass(Aspect::class)

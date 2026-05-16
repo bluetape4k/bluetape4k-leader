@@ -3,9 +3,9 @@ package io.bluetape4k.leader.coroutines
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 
 /**
- * [LocalSuspendLeaderGroupElector] 팩토리 — `kotlinx.coroutines.sync.Semaphore` 기반 단일 JVM suspend 복수 리더 선출 인스턴스 생성.
+ * Factory for [LocalSuspendLeaderGroupElector] — creates single-JVM suspend multi-leader election instances based on `kotlinx.coroutines.sync.Semaphore`.
  *
- * ## 사용 예
+ * ## Usage
  * ```kotlin
  * val factory = LocalSuspendLeaderGroupElectorFactory()
  * val elector = factory.create(LeaderGroupElectionOptions(maxLeaders = 3))

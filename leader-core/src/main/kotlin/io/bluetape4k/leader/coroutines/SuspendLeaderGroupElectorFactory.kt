@@ -3,25 +3,25 @@ package io.bluetape4k.leader.coroutines
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 
 /**
- * 호출 단위 옵션으로 [SuspendLeaderGroupElector] 인스턴스를 생성하는 팩토리 SPI.
+ * Factory SPI that creates [SuspendLeaderGroupElector] instances with per-call options.
  *
- * ## 사용 예
+ * ## Usage
  * ```kotlin
  * val factory: SuspendLeaderGroupElectorFactory = LocalSuspendLeaderGroupElectorFactory()
  * val elector = factory.create(LeaderGroupElectionOptions(maxLeaders = 3, waitTime = 3.seconds))
  * val result = elector.runIfLeader("batch-shard") { processChunk() }
  * ```
  *
- * @see SuspendLeaderElectorFactory 단일 리더 suspend 팩토리
- * @see io.bluetape4k.leader.LeaderGroupElectorFactory sync 버전 팩토리
+ * @see SuspendLeaderElectorFactory single-leader suspend factory
+ * @see io.bluetape4k.leader.LeaderGroupElectorFactory sync version factory
  */
 fun interface SuspendLeaderGroupElectorFactory {
 
     /**
-     * 주어진 [options]로 새로운 [SuspendLeaderGroupElector] 인스턴스를 생성한다.
+     * Creates a new [SuspendLeaderGroupElector] instance with the given [options].
      *
-     * @param options 새 인스턴스에 적용할 옵션 (maxLeaders, waitTime, leaseTime)
-     * @return 호출 단위 옵션이 적용된 [SuspendLeaderGroupElector] 인스턴스
+     * @param options options to apply to the new instance (maxLeaders, waitTime, leaseTime)
+     * @return a [SuspendLeaderGroupElector] instance configured with the per-call options
      */
     suspend fun create(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector
 }

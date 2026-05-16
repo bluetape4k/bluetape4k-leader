@@ -20,25 +20,25 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
 /**
- * [HazelcastInstance]의 [IMap] 분산 락을 이용하여 리더 선출을 수행합니다.
+ * Performs leader election using the [IMap] distributed lock of [HazelcastInstance].
  *
- * `putIfAbsent` + TTL 방식의 토큰 기반 락이므로 스레드에 귀속되지 않으며
- * Virtual Thread, ThreadPool 환경에서 모두 안전하게 동작합니다.
+ * Uses a `putIfAbsent` + TTL token-based lock, so it is not bound to any thread and
+ * operates safely in both Virtual Thread and ThreadPool environments.
  *
- * ## ExtendDelegate 통합 (T12 PR 7 / Issue #79)
+ * ## ExtendDelegate Integration (T12 PR 7 / Issue #79)
  *
- * - acquire 후 [HazelcastLockExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 동일 reference 공유 (AC-15).
- * - aspect 가 `LockExtender.extendActiveLock` 호출 시 동일 delegate 를 통해 R6 (IMap auto-evict 가 expired entry 차단) 적용된 extend 실행.
- * - autoExtend 옵션은 [LeaderLeaseAutoExtender] 의 watchdog 가 처리 (R2 watchdog skip semantics 보장).
+ * - After acquire, creates a [HazelcastLockExtendDelegate] that shares the same reference with [LeaderLockHandle.Real] + watchdog (AC-15).
+ * - When the aspect calls `LockExtender.extendActiveLock`, the extend is executed through the same delegate with R6 (IMap auto-evict blocks expired entry revival) applied.
+ * - The autoExtend option is handled by the [LeaderLeaseAutoExtender] watchdog (R2 watchdog skip semantics guaranteed).
  *
  * ```kotlin
  * val election = HazelcastLeaderElector(hazelcastInstance)
  * val result = election.runIfLeader("daily-job") { processData() }
- * // result == processData() 반환값 (리더 획득 성공) 또는 null (획득 실패)
+ * // result == processData() return value (leader acquired) or null (not acquired)
  * ```
  *
- * @param hazelcast Hazelcast 클라이언트 인스턴스
- * @param options 리더 선출 옵션 (waitTime, leaseTime)
+ * @param hazelcast Hazelcast client instance
+ * @param options Leader election options (waitTime, leaseTime)
  */
 class HazelcastLeaderElector private constructor(
     private val hazelcast: HazelcastInstance,
@@ -104,9 +104,9 @@ class HazelcastLeaderElector private constructor(
     }
 
     /**
-     * 락 획득과 action 실행을 [executor] 스레드에서 수행합니다.
+     * Performs lock acquisition and action execution on the [executor] thread.
      *
-     * [IMap] 기반 토큰 락은 스레드 귀속이 없으므로 완료 콜백 스레드에서 안전하게 해제합니다.
+     * Since the [IMap]-based token lock is not thread-bound, it is safely released on the completion callback thread.
      */
     override fun <T> runAsyncIfLeader(
         lockName: String,
@@ -155,7 +155,7 @@ class HazelcastLeaderElector private constructor(
 }
 
 /**
- * Hazelcast 분산 락을 이용하여 리더로 선출된 경우에만 [action]을 실행합니다.
+ * Executes [action] only when elected as leader using a Hazelcast distributed lock.
  */
 inline fun <T> HazelcastInstance.runIfLeader(
     jobName: String,
@@ -167,7 +167,7 @@ inline fun <T> HazelcastInstance.runIfLeader(
 }
 
 /**
- * Hazelcast 분산 락을 이용하여 리더로 선출된 경우에만 비동기 [action]을 실행합니다.
+ * Executes async [action] only when elected as leader using a Hazelcast distributed lock.
  */
 inline fun <T> HazelcastInstance.runAsyncIfLeader(
     jobName: String,

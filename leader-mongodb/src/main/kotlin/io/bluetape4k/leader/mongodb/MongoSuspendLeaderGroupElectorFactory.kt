@@ -8,25 +8,27 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 import org.bson.Document
 
 /**
- * [MongoSuspendLeaderGroupElector] 팩토리 — MongoDB 기반 suspend 복수 리더 선출.
+ * Factory for [MongoSuspendLeaderGroupElector] — suspend multi-leader election backed by MongoDB.
  *
- * ## 옵션 처리
- * MongoDB 백엔드 고유 옵션은 [baseOptions]로 factory 생성 시 고정되며,
- * 매 호출마다 `baseOptions.copy(leaderGroupOptions = options)`로 `maxLeaders`/`waitTime`/`leaseTime` 만 교체한다.
+ * ## Option handling
+ * MongoDB-specific options are fixed at factory construction time via [baseOptions];
+ * each call replaces only `maxLeaders`/`waitTime`/`leaseTime` via
+ * `baseOptions.copy(leaderGroupOptions = options)`.
  *
- * `MongoSuspendLeaderGroupElector(...)` 호출은 companion `suspend operator fun invoke`로 라우팅되어
- * [io.bluetape4k.leader.mongodb.lock.MongoSuspendLock.ensureIndexes]가 함께 실행된다.
+ * Calls to `MongoSuspendLeaderGroupElector(...)` are routed through the companion
+ * `suspend operator fun invoke`, which also runs
+ * [io.bluetape4k.leader.mongodb.lock.MongoSuspendLock.ensureIndexes].
  *
- * ## 사용 예
+ * ## Usage
  * ```kotlin
  * val factory = MongoSuspendLeaderGroupElectorFactory(syncCollection, coroutineCollection)
  * val elector = factory.create(LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = elector.runIfLeader("batch-shard") { processChunk() }
  * ```
  *
- * @param groupCollection 락 컬렉션 (sync 드라이버 — activeCount에 사용)
- * @param coroutineGroupCollection 락 컬렉션 (coroutine 드라이버 — tryLock/unlock에 사용)
- * @param baseOptions MongoDB 고유 옵션 기본값
+ * @param groupCollection lock collection (sync driver — used for activeCount)
+ * @param coroutineGroupCollection lock collection (coroutine driver — used for tryLock/unlock)
+ * @param baseOptions MongoDB-specific option defaults
  */
 class MongoSuspendLeaderGroupElectorFactory(
     private val groupCollection: MongoCollection<Document>,

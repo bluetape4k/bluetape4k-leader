@@ -25,15 +25,15 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * [StatefulRedisConnection]에서 [LettuceSuspendLeaderGroupElector] 인스턴스를 생성합니다.
+ * Creates a [LettuceSuspendLeaderGroupElector] instance from a [StatefulRedisConnection].
  *
  * ```kotlin
  * val election = connection.suspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = election.runIfLeader("batch-job") { processChunkSuspend() }
  * ```
  *
- * @param options    리더 선출 옵션 (기본값: [LeaderGroupElectionOptions.Default])
- * @return [LettuceSuspendLeaderGroupElector] 인스턴스
+ * @param options    Leader election options (default: [LeaderGroupElectionOptions.Default])
+ * @return [LettuceSuspendLeaderGroupElector] instance
  */
 fun StatefulRedisConnection<String, String>.suspendLeaderGroupElector(
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -42,16 +42,15 @@ fun StatefulRedisConnection<String, String>.suspendLeaderGroupElector(
 
 
 /**
- * Lettuce Redis 기반의 코루틴 복수 리더 선출 구현체입니다.
+ * Coroutine-based multi-leader election implementation backed by Lettuce Redis.
  *
- * ## 동작/계약 (T7 PR 2)
+ * ## Behavior / Contract (T7 PR 2)
  *
- * - 내부적으로 [LettuceSlotTokenGroup] (ZSET + Lua, server-side TIME) 사용.
- * - acquire 후 [LettuceSuspendSlotExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 동일 reference 공유 (AC-15).
- * - `withContext(AopScopeAccess.createLockHandleElement(handle))` 로
- *   coroutineContext 에 handle 전파.
- * - 코루틴 취소 시에도 `withContext(NonCancellable)` 안에서 release 가 보장됩니다.
- * - `CancellationException` 은 항상 re-throw 합니다.
+ * - Internally uses [LettuceSlotTokenGroup] (ZSET + Lua, server-side TIME).
+ * - After acquire, creates a [LettuceSuspendSlotExtendDelegate] shared with [LeaderLockHandle.Real] and the watchdog under the same reference (AC-15).
+ * - Propagates the handle into the coroutineContext via `withContext(AopScopeAccess.createLockHandleElement(handle))`.
+ * - Release is guaranteed inside `withContext(NonCancellable)` even on coroutine cancellation.
+ * - `CancellationException` is always re-thrown.
  *
  * ```kotlin
  * val options = LeaderGroupElectionOptions(maxLeaders = 3, minLeaseTime = 1.seconds)
@@ -59,8 +58,8 @@ fun StatefulRedisConnection<String, String>.suspendLeaderGroupElector(
  * val result = election.runIfLeader("batch-job") { processChunk() }
  * ```
  *
- * @param connection Lettuce [StatefulRedisConnection] (StringCodec 기반)
- * @param options    리더 선출 옵션 (maxLeaders, waitTime, leaseTime, minLeaseTime)
+ * @param connection Lettuce [StatefulRedisConnection] (StringCodec-based)
+ * @param options    Leader election options (maxLeaders, waitTime, leaseTime, minLeaseTime)
  */
 class LettuceSuspendLeaderGroupElector(
     private val connection: StatefulRedisConnection<String, String>,
