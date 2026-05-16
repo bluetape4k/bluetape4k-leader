@@ -30,7 +30,7 @@ private const val EVENT_BUFFER_CAPACITY = 64
  */
 class ListeningLeaderElector(
     private val delegate: LeaderElector,
-) : LeaderElector, LeaderElectionListenerRegistry, LeaderElectionEventPublisher {
+): LeaderElector, LeaderElectionListenerRegistry, LeaderElectionEventPublisher {
 
     private val listeners = LeaderElectionListenerSupport()
     private val eventSubject = MutableSharedFlow<LeaderElectionEvent>(
@@ -111,7 +111,7 @@ class ListeningLeaderElector(
  */
 class ListeningLeaderGroupElector(
     private val delegate: LeaderGroupElector,
-) : LeaderGroupElector, LeaderElectionListenerRegistry, LeaderElectionEventPublisher {
+): LeaderGroupElector, LeaderElectionListenerRegistry, LeaderElectionEventPublisher {
 
     private val listeners = LeaderElectionListenerSupport()
     private val eventSubject = MutableSharedFlow<LeaderElectionEvent>(
