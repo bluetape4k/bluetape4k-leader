@@ -66,7 +66,7 @@ class LocalLeaderElectionTest {
         occupied.status shouldBeEqualTo LeaderStatus.Occupied
         occupied.isOccupied shouldBeEqualTo true
         val leader = occupied.leader.shouldNotBeNull()
-        leader.leaderId shouldBeEqualTo nodeId
+        leader.auditLeaderId shouldBeEqualTo nodeId
         leader.electedAt.shouldNotBeNull()
         leader.leaseUntil.shouldNotBeNull()
 

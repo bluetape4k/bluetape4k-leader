@@ -15,6 +15,7 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import io.bluetape4k.leader.history.LeaderHistoryStatus
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -33,22 +34,22 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
     fun `이력 레코드 삽입이 성공한다`(testDB: TestDB) {
         withTables(testDB, LeaderLockHistoryTable) {
             val now = Instant.now()
-            HistoryStatus.entries.forEach { s ->
+            LeaderHistoryStatus.entries.forEach { s ->
                 LeaderLockHistoryTable.insert {
                     it[lockName] = "history-lock"
                     it[token] = Base58.randomString(8)
                     it[lockedUntil] = now.plusSeconds(60)
                     it[status] = s.name
                     it[startedAt] = now
-                    it[finishedAt] = if (s != HistoryStatus.ACQUIRED) now.plusSeconds(1) else null
-                    it[durationMs] = if (s != HistoryStatus.ACQUIRED) 1000L else null
+                    it[finishedAt] = if (s != LeaderHistoryStatus.ACQUIRED) now.plusSeconds(1) else null
+                    it[durationMs] = if (s != LeaderHistoryStatus.ACQUIRED) 1000L else null
                 }
             }
 
             val count = LeaderLockHistoryTable.selectAll()
                 .where { LeaderLockHistoryTable.lockName eq "history-lock" }
                 .count()
-            count shouldBeEqualTo HistoryStatus.entries.size.toLong()
+            count shouldBeEqualTo LeaderHistoryStatus.entries.size.toLong()
         }
     }
 
@@ -62,7 +63,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
                 it[lockName] = "auto-inc"
                 it[token] = Base58.randomString(8)
                 it[lockedUntil] = now.plusSeconds(60)
-                it[status] = HistoryStatus.ACQUIRED.name
+                it[status] = LeaderHistoryStatus.ACQUIRED.name
                 it[startedAt] = now
             }[LeaderLockHistoryTable.id]
 
@@ -85,7 +86,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
                     it[lockName] = name
                     it[token] = Base58.randomString(8)
                     it[lockedUntil] = now.plusSeconds(60)
-                    it[status] = HistoryStatus.COMPLETED.name
+                    it[status] = LeaderHistoryStatus.COMPLETED.name
                     it[startedAt] = now.plusSeconds(i.toLong())
                 }
             }
@@ -107,7 +108,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
                 it[lockName] = "nullable-test"
                 it[token] = Base58.randomString(8)
                 it[lockedUntil] = now.plusSeconds(60)
-                it[status] = HistoryStatus.ACQUIRED.name
+                it[status] = LeaderHistoryStatus.ACQUIRED.name
                 it[startedAt] = now
                 // finishedAt, durationMs 미설정 — null 허용
             }[LeaderLockHistoryTable.id]
@@ -137,7 +138,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
                     it[lockName] = "old-lock"
                     it[token] = Base58.randomString(8)
                     it[lockedUntil] = oldTime.plusSeconds(60)
-                    it[status] = HistoryStatus.COMPLETED.name
+                    it[status] = LeaderHistoryStatus.COMPLETED.name
                     it[startedAt] = oldTime
                 }
             }
@@ -146,7 +147,7 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
                 it[lockName] = "recent-lock"
                 it[token] = Base58.randomString(8)
                 it[lockedUntil] = now.plusSeconds(60)
-                it[status] = HistoryStatus.COMPLETED.name
+                it[status] = LeaderHistoryStatus.COMPLETED.name
                 it[startedAt] = now
             }
 

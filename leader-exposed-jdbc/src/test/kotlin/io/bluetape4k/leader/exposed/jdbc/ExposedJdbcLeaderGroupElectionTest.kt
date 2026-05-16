@@ -9,7 +9,7 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcGroupLock
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.jdbc.history.ExposedLeaderHistorySink
-import io.bluetape4k.leader.exposed.tables.HistoryStatus
+import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
 import io.bluetape4k.logging.KLogging
@@ -263,7 +263,7 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
                 .toList()
         }
         rows.size shouldBeEqualTo 1
-        rows[0][LeaderLockHistoryTable.status] shouldBeEqualTo HistoryStatus.COMPLETED.name
+        rows[0][LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.COMPLETED.name
         rows[0][LeaderLockHistoryTable.slot].shouldNotBeNull()
     }
 

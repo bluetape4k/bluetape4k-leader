@@ -38,7 +38,7 @@ import kotlin.time.Duration
  * - RELEASE 는 `remainingMinLeaseMs > 0` 이면 ZADD XX 로 score 를 갱신하여 슬롯을 유지합니다.
  *   minLeaseTime 시맨틱을 backend TTL 에 위임하는 방식입니다 (caller-park 없음).
  * - 슬롯 획득 spin-poll 은 50ms 간격이며, deadline 초과 시 `null` 을 반환합니다.
- *   기존 `LettuceSemaphore` 와 달리 `IllegalStateException` 을 던지지 않습니다.
+ *   슬롯 획득 실패 시 `IllegalStateException` 을 던지지 않고 `null` 을 반환합니다.
  * - token 은 caller stack 이 보유하므로 동일 인스턴스가 여러 슬롯을 동시에 잡아도 안전합니다.
  *
  * ## 사용 예

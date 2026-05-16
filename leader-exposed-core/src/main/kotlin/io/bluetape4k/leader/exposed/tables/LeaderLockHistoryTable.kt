@@ -11,7 +11,7 @@ import org.jetbrains.exposed.v1.javatime.timestamp
 /**
  * 리더 선출 이력 테이블.
  *
- * 상태 라이프사이클: [HistoryStatus.ACQUIRED] → [HistoryStatus.COMPLETED] | [HistoryStatus.FAILED] | [HistoryStatus.EXPIRED]
+ * 상태 라이프사이클: [io.bluetape4k.leader.history.LeaderHistoryStatus.ACQUIRED] → [io.bluetape4k.leader.history.LeaderHistoryStatus.COMPLETED] | [io.bluetape4k.leader.history.LeaderHistoryStatus.FAILED] | [io.bluetape4k.leader.history.LeaderHistoryStatus.EXPIRED]
  *
  * - [token]은 NOT NULL — 락 획득 시점의 fencing token.
  *   EXPIRED 전환 시 `WHERE token = ?` 조건으로 정확한 이력 레코드 매칭.
@@ -42,7 +42,7 @@ object LeaderLockHistoryTable : Table(LOCK_HISTORY_TABLE_NAME) {
     /** 이 획득의 만료 시각 (UTC). EXPIRED 판정 기준 */
     val lockedUntil = timestamp("locked_until")
 
-    /** 이력 상태. [HistoryStatus] enum의 name 값 저장 */
+    /** 이력 상태. [io.bluetape4k.leader.history.LeaderHistoryStatus] enum의 name 값 저장 */
     val status = varchar("status", STATUS_LENGTH)
 
     /** 락 획득(ACQUIRED) 시각 (UTC) */

@@ -229,37 +229,4 @@ class LeaderLeaseAutoExtenderDelegateTest {
         callsAfterError.get() shouldBeEqualTo 0
     }
 
-    // ── Deprecated Boolean 람다 overload 는 여전히 동작한다 ──────────────
-
-    @Test
-    @Suppress("DEPRECATION")
-    fun `deprecated Boolean 람다 overload 는 여전히 동작한다`() = runSuspendIO {
-        val calls = AtomicInteger(0)
-
-        val watchdog = LeaderLeaseAutoExtender.start(true, 90.milliseconds) {
-            calls.incrementAndGet()
-            true
-        }
-
-        delay(200.milliseconds)
-        watchdog.close()
-
-        (calls.get() >= 1).shouldBeTrue()
-    }
-
-    @Test
-    @Suppress("DEPRECATION")
-    fun `deprecated Boolean 람다 disabled 이면 호출 안 됨`() = runSuspendIO {
-        val calls = AtomicInteger(0)
-
-        val watchdog = LeaderLeaseAutoExtender.start(false, 90.milliseconds) {
-            calls.incrementAndGet()
-            true
-        }
-
-        delay(120.milliseconds)
-        watchdog.close()
-
-        calls.get() shouldBeEqualTo 0
-    }
 }
