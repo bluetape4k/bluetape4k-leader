@@ -80,7 +80,7 @@ class ElectionStrategyTest {
         val result = FifoElectionStrategy.elect(candidates)
         result.winner?.nodeId shouldBeEqualTo "a"
         result.eliminations.size shouldBeEqualTo 2
-        result.eliminations.all { it.reason.contains("등록 시각 늦음") }.shouldBeTrue()
+        result.eliminations.all { it.reason.contains("registered later") }.shouldBeTrue()
     }
 
     // ── RandomElectionStrategy ────────────────────────────────────────────────
@@ -106,7 +106,7 @@ class ElectionStrategyTest {
         val result = RandomElectionStrategy(seed = 42L).elect(candidates)
         result.winner.shouldNotBeNull()
         result.eliminations.size shouldBeEqualTo 2
-        result.eliminations.all { it.reason.contains("랜덤 선출 탈락") }.shouldBeTrue()
+        result.eliminations.all { it.reason.contains("not selected by random election") }.shouldBeTrue()
     }
 
     // ── ScoredElectionStrategy (IdleTimeScorer) ───────────────────────────────
@@ -156,7 +156,7 @@ class ElectionStrategyTest {
         val result = ScoredElectionStrategy(SuccessRateScorer).elect(candidates)
         result.winner?.nodeId shouldBeEqualTo "high"
         result.eliminations.size shouldBeEqualTo 1
-        result.eliminations.first().reason.contains("점수 미달").shouldBeTrue()
+        result.eliminations.first().reason.contains("score below winner").shouldBeTrue()
     }
 
     // ── ScoredElectionStrategy (WeightedScorer) ───────────────────────────────
