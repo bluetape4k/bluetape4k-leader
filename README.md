@@ -449,8 +449,22 @@ class ReportService {
     // Fail-open: run the body even when lock is not acquired or backend is unavailable
     @LeaderElection(name = "nightly-cleanup", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
     fun cleanup(): String { /* always runs, lock is best-effort */ }
+
+    @LeaderElection(name = "event-stream", autoExtend = true)
+    fun streamEvents(): Flux<Event> = eventRepository.stream()
+
+    @LeaderElection(name = "bounded-flow", streamBounded = true)
+    fun boundedFlow(): Flow<Event> = eventRepository.findRecent()
 }
 ```
+
+Stream return rules:
+
+- `@LeaderElection` supports `T?`, `suspend T?`, `Mono<T>`, `Flux<T>`, and Kotlin `Flow<T>`.
+- Use `autoExtend = true` for long-running or unbounded streams.
+- Use `streamBounded = true` only when the stream is known to finish within the lease window.
+- Unsafe `Flux` / `Flow` signatures fail fast in the validator and at subscription/collection time.
+- `@LeaderGroupElection` supports `T?`, `suspend T?`, and `Mono<T>`; `Flux` / `Flow` group streams are rejected until group lease extension semantics are defined.
 
 ### `failureMode`
 

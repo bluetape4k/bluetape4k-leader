@@ -27,6 +27,16 @@ annotation class ComposedLeaderElection(
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
+@LeaderElection(name = "", streamBounded = true)
+annotation class ComposedBoundedLeaderStream(
+    @get:AliasFor(annotation = LeaderElection::class, attribute = "name")
+    val name: String = "composed-stream-job",
+    @get:AliasFor(annotation = LeaderElection::class, attribute = "streamBounded")
+    val streamBounded: Boolean = true,
+)
+
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
 @LeaderGroupElection(name = "", maxLeaders = 3)
 annotation class ComposedGroupElection(
     @get:AliasFor(annotation = LeaderGroupElection::class, attribute = "name")
@@ -180,6 +190,46 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         }
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
         assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleFlow(), "sample") }
+    }
+
+    @Test
+    fun `Flux 반환 타입 streamBounded true - 위반 없음`() {
+        class SampleFlux {
+            @LeaderElection(name = "flux-job", streamBounded = true)
+            open fun process(): Flux<String> = Flux.just("ok")
+        }
+        val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+        assertNotFails { bpp.postProcessAfterInitialization(SampleFlux(), "sample") }
+    }
+
+    @Test
+    fun `Flow 반환 타입 autoExtend true - 위반 없음`() {
+        class SampleFlow {
+            @LeaderElection(name = "flow-job", autoExtend = true)
+            open fun process(): Flow<String> = flowOf("ok")
+        }
+        val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+        assertNotFails { bpp.postProcessAfterInitialization(SampleFlow(), "sample") }
+    }
+
+    @Test
+    fun `LeaderGroupElection Flux 반환 타입 strict true - startup fail`() {
+        class SampleFlux {
+            @LeaderGroupElection(name = "group-flux-job", maxLeaders = 3)
+            open fun process(): Flux<String> = Flux.just("ok")
+        }
+        val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleFlux(), "sample") }
+    }
+
+    @Test
+    fun `composed bounded stream - AliasFor streamBounded 통과`() {
+        class SampleComposedStream {
+            @ComposedBoundedLeaderStream(name = "alias-stream-job")
+            open fun process(): Flux<String> = Flux.just("ok")
+        }
+        val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+        assertNotFails { bpp.postProcessAfterInitialization(SampleComposedStream(), "sample") }
     }
 
     // ── #79 R12: Future / CompletableFuture / Deferred 차단 ──

@@ -27,6 +27,7 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireGe
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.reactor.mono
 import kotlinx.coroutines.withContext
@@ -35,6 +36,7 @@ import org.aspectj.lang.annotation.Around
 import org.aspectj.lang.annotation.Aspect
 import org.aspectj.lang.reflect.MethodSignature
 import org.springframework.beans.factory.SmartInitializingSingleton
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.lang.reflect.Method
 import kotlinx.coroutines.CancellationException
@@ -46,28 +48,32 @@ import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.toKotlinDuration
 
 /**
- * `@LeaderGroupElection` 어노테이션 처리 Aspect — sync `T?`, suspend `T?`, `Mono<T>` 지원.
+ * Aspect that applies `@LeaderGroupElection` to sync `T?`, suspend `T?`, and `Mono<T>` methods.
+ * `Flux<T>` and `Flow<T>` return types are rejected until group lease extension semantics are defined.
  *
- * [LeaderElectionAspect] 와 동일 패턴 + `maxLeaders` 분기. backend 예외는
- * [LeaderGroupElectionException] 으로 wrapping.
+ * The implementation mirrors [LeaderElectionAspect] and adds the `maxLeaders` option. Backend
+ * failures are wrapped in [LeaderGroupElectionException].
  *
- * ## suspend 지원 (#90)
- * [LeaderElectionAspect.aroundLeaderSuspend] 와 동일 패턴 — [SuspendLeaderGroupElectorFactory] 사용.
+ * ## Suspend support (#90)
+ * Suspend methods use the same intrinsics pattern as [LeaderElectionAspect.aroundLeaderSuspend] and
+ * acquire through [SuspendLeaderGroupElectorFactory].
  *
- * ## Mono 지원 (#91)
- * 반환 타입이 `reactor.core.publisher.Mono` 인 메서드 → [aroundLeaderMono] 분기.
+ * ## Mono support (#91)
+ * `reactor.core.publisher.Mono` return types use [aroundLeaderMono] and defer group leader
+ * acquisition until subscription.
  *
  * ## LeaderElectionInfo (#92)
- * suspend / Mono 분기 본문 실행 시 [LeaderElectionInfo] 를 `withContext` 로 주입.
+ * Suspend and Mono branches install [LeaderElectionInfo] with `withContext` while the method body is
+ * awaited.
  *
  * ## LockHandleElement / LockStateHolder (T15)
- * - sync 분기: [AopScopeAccess.withPushedSync] 로 `LockStateHolder` 에 handle push.
- * - suspend / Mono 분기: elector 가 `withContext(LockHandleElement(...))` 로 이미 push — aspect 는 [LeaderElectionInfo] 만 추가.
- * - FAIL_OPEN_RUN 분기: [LeaderLockHandle.FailOpen] sentinel 을 push.
+ * - Sync branch: the elector manages the sync lock holder.
+ * - Coroutine / reactive branches: the elector already installs `LockHandleElement`; the aspect adds
+ *   only [LeaderElectionInfo].
+ * - `FAIL_OPEN_RUN` installs a [LeaderLockHandle.FailOpen] sentinel.
  *
  * ## Reentrant pass-through (T15)
- * sync 분기 진입 전 [AopScopeAccess.peekSyncMatching] 으로 동일 lockName 보유 여부 확인.
- * 이미 Real handle 보유 시 backend re-acquire 없이 body 실행. FailOpen sentinel + identity 일치 시 sentinel 유지 (Plan-R1-P1-1).
+ * The sync branch short-circuits when [AopScopeAccess.peekSyncMatching] finds a matching real handle.
  */
 @Aspect
 class LeaderGroupElectionAspect(
@@ -88,6 +94,18 @@ class LeaderGroupElectionAspect(
         val method = (pjp.signature as MethodSignature).method
         val target = pjp.target
         val args = pjp.args
+
+        if (method.returnType.name == FLUX_RETURN_TYPE) {
+            return Flux.defer<Any> {
+                Flux.error(unsupportedStreamException(method, "Flux"))
+            }
+        }
+
+        if (method.returnType.name == FLOW_RETURN_TYPE) {
+            return flow<Any?> {
+                throw unsupportedStreamException(method, "Flow")
+            }
+        }
 
         val meta = metadataCache.computeIfAbsent(method) { resolveMetadata(it, target) }
 
@@ -598,6 +616,12 @@ class LeaderGroupElectionAspect(
             minLeaseTime = minLeaseTime,
         )
 
+    private fun unsupportedStreamException(method: Method, returnShape: String): LeaderGroupElectionException =
+        LeaderGroupElectionException(
+            "@LeaderGroupElection does not support $returnShape streams yet: " +
+                "${method.declaringClass.name}#${method.name}",
+        )
+
     private data class GroupAdviceMetadata(
         val nameExpression: String,
         val literalName: String?,
@@ -635,5 +659,7 @@ class LeaderGroupElectionAspect(
     companion object: KLogging() {
         private val LITERAL_PATTERN = Regex("^[A-Za-z0-9_:.\\-]+$")
         private const val LEASE_WARN_RATIO = 0.8
+        private const val FLUX_RETURN_TYPE = "reactor.core.publisher.Flux"
+        private const val FLOW_RETURN_TYPE = "kotlinx.coroutines.flow.Flow"
     }
 }
