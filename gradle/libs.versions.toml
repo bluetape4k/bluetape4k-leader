@@ -87,9 +87,9 @@ bluetape4k-lettuce = { module = "io.github.bluetape4k:bluetape4k-lettuce" }
 bluetape4k-redisson = { module = "io.github.bluetape4k:bluetape4k-redisson" }
 bluetape4k-virtualthread-jdk21 = { module = "io.github.bluetape4k:bluetape4k-virtualthread-jdk21" }
 
-# bluetape4k-exposed
-bluetape4k-exposed-jdbc-tests = { module = "io.github.bluetape4k.exposed:bluetape4k-exposed-jdbc-tests", version.ref = "bluetape4k" }
-bluetape4k-exposed-r2dbc-tests = { module = "io.github.bluetape4k.exposed:bluetape4k-exposed-r2dbc-tests", version.ref = "bluetape4k" }
+# bluetape4k Exposed test helpers
+exposed-jdbc-tests = { module = "io.github.bluetape4k.exposed:exposed-jdbc-tests", version.ref = "bluetape4k" }
+exposed-r2dbc-tests = { module = "io.github.bluetape4k.exposed:exposed-r2dbc-tests", version.ref = "bluetape4k" }
 
 
 # Kotlin
