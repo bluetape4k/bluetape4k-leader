@@ -11,18 +11,18 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * ZooKeeper suspend group elector 의 per-slot [org.apache.curator.framework.recipes.locks.Lease] 용 [ExtendDelegate]
+ * [ExtendDelegate] for the per-slot [org.apache.curator.framework.recipes.locks.Lease] of the ZooKeeper suspend group elector
  * — T13 PR 8 (Issue #79).
  *
- * ## 동작/계약 (PASSTHROUGH — Spec §6 row 12)
+ * ## Behavior / Contract (PASSTHROUGH — Spec §6 row 12)
  *
- * - [extend] / [extendSuspend] : delegate 가 살아있는 동안 [ExtendOutcome.Extended] (observedExpireAt = [Instant.MAX]) 반환.
- *   elector 가 finally 에서 [markReleased] 호출 후에는 [ExtendOutcome.NotHeld].
- * - [extendSuspend] 는 로컬 atomic 체크 — `withContext(IO)` 불필요.
- * - [isHeld] : [released] 상태 직접 위임.
+ * - [extend] / [extendSuspend]: returns [ExtendOutcome.Extended] (observedExpireAt = [Instant.MAX]) while the delegate is alive.
+ *   Returns [ExtendOutcome.NotHeld] after the elector calls [markReleased] in `finally`.
+ * - [extendSuspend] performs a local atomic check — `withContext(IO)` is not needed.
+ * - [isHeld]: delegates directly to the [released] state.
  *
  * ## R16 enforce
- * Group elector 는 항상 `autoExtend=false` — watchdog 비활성화.
+ * Group elector always uses `autoExtend=false` — watchdog is disabled.
  */
 internal class ZooKeeperSuspendSlotExtendDelegate(
     private val slotKey: String,

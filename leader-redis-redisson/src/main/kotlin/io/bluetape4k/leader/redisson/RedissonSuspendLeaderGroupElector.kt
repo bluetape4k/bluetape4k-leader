@@ -31,22 +31,21 @@ import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 
 /**
- * Redisson 분산 [RPermitExpirableSemaphore]를 이용한 코루틴 복수 리더 선출 구현체입니다.
+ * Coroutine-based multi-leader election implementation using Redisson distributed [RPermitExpirableSemaphore].
  *
- * ## 동작/계약 (T8 PR 3)
+ * ## Behavior / Contract (T8 PR 3)
  *
- * - `lockName` 별로 `lg:{lockName}` Redisson [RPermitExpirableSemaphore] 를 사용합니다.
- * - 슬롯 획득 실패 시 `null` 반환 (ShedLock skip-on-contention).
- * - `options.minLeaseTime > 0` 이면 빠른 action 종료 시 `updateLeaseTimeAsync` 로
- *   slot 의 TTL 을 minLeaseTime 만큼 연장하여 유지합니다 (caller-park 없음).
- * - 코루틴 취소 시에도 `withContext(NonCancellable)` 안에서 release 가 보장됩니다.
- * - `CancellationException` 은 항상 re-throw 합니다.
+ * - Uses a Redisson [RPermitExpirableSemaphore] keyed as `lg:{lockName}` per `lockName`.
+ * - Returns `null` when a slot cannot be acquired (ShedLock skip-on-contention).
+ * - If `options.minLeaseTime > 0` and the action completes quickly, the slot TTL is extended by minLeaseTime
+ *   via `updateLeaseTimeAsync` (no caller-park).
+ * - Release is guaranteed inside `withContext(NonCancellable)` even on coroutine cancellation.
+ * - `CancellationException` is always re-thrown.
  *
- * ## ExtendDelegate 통합
+ * ## ExtendDelegate Integration
  *
- * - acquire 후 [RedissonSuspendSemaphoreExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 동일 reference 공유 (AC-15).
- * - `withContext(AopScopeAccess.createLockHandleElement(handle))` 로
- *   coroutineContext 에 handle 전파.
+ * - After acquire, creates a [RedissonSuspendSemaphoreExtendDelegate] shared with [LeaderLockHandle.Real] and the watchdog under the same reference (AC-15).
+ * - Propagates the handle into the coroutineContext via `withContext(AopScopeAccess.createLockHandleElement(handle))`.
  *
  * ```kotlin
  * val options = LeaderGroupElectionOptions(maxLeaders = 3, minLeaseTime = 1.seconds)
@@ -54,8 +53,8 @@ import kotlin.time.Duration
  * val result = election.runIfLeader("batch-job") { processChunkSuspend() }
  * ```
  *
- * @param redissonClient Redisson 클라이언트
- * @param options 리더 선출 옵션 (maxLeaders, waitTime, leaseTime, minLeaseTime)
+ * @param redissonClient Redisson client
+ * @param options Leader election options (maxLeaders, waitTime, leaseTime, minLeaseTime)
  */
 class RedissonSuspendLeaderGroupElector private constructor(
     private val redissonClient: RedissonClient,
@@ -81,7 +80,7 @@ class RedissonSuspendLeaderGroupElector private constructor(
     private val leaseTime: Duration = options.leaseTime
 
     /**
-     * Codex P1: `trySetPermits(maxLeaders)` 멱등 호출 — 누락 시 acquire 영구 실패.
+     * Codex P1: Idempotent `trySetPermits(maxLeaders)` call — omitting it causes acquire to fail permanently.
      */
     private fun getInitializedPermitSemaphore(lockName: String): RPermitExpirableSemaphore {
         lockName.requireNotBlank("lockName")
@@ -231,7 +230,7 @@ class RedissonSuspendLeaderGroupElector private constructor(
 }
 
 /**
- * Redisson 분산 [RPermitExpirableSemaphore] 를 이용하여 복수 리더 선출을 통한 suspend 작업을 수행합니다.
+ * Performs a suspend action via multi-leader election using a Redisson distributed [RPermitExpirableSemaphore].
  *
  * ```kotlin
  * val client: RedissonClient = ...

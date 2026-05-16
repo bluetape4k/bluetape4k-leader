@@ -7,15 +7,15 @@ import io.lettuce.core.RedisCommandTimeoutException
 import io.lettuce.core.RedisConnectionException
 
 /**
- * Lettuce backend exception 분류 — T7 PR 2.
+ * Lettuce backend exception classifier — T7 PR 2.
  *
- * ## 동작/계약
- * - [RedisCommandTimeoutException] / [RedisConnectionException] → [BackendErrorKind.TRANSIENT] (재시도 가능)
- * - [RedisCommandExecutionException] → [BackendErrorKind.NON_TRANSIENT] (Lua 문법 오류, ACL 실패 등 — 영구 오류)
- * - 그 외 → `null` (분류 불가 — chain 다음 classifier 에 위임)
+ * ## Behavior / Contract
+ * - [RedisCommandTimeoutException] / [RedisConnectionException] → [BackendErrorKind.TRANSIENT] (retryable)
+ * - [RedisCommandExecutionException] → [BackendErrorKind.NON_TRANSIENT] (Lua syntax error, ACL failure, etc. — permanent error)
+ * - Other → `null` (unclassified — delegated to the next classifier in the chain)
  *
- * ## 사용
- * elector 가 [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier] 에 chain 으로 등록.
+ * ## Usage
+ * Registered as a chain entry in [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier] by the elector.
  *
  * ```kotlin
  * val classifier = CompositeBackendErrorClassifier(

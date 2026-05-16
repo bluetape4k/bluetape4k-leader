@@ -15,23 +15,23 @@ import org.springframework.context.annotation.Role
 /**
  * Leader AOP Micrometer HealthIndicator AutoConfiguration.
  *
- * `MicrometerLeaderAopMetricsRecorder` 빈이 등록된 경우 [LeaderMetricsHealthIndicator]를
- * Spring Boot Actuator health endpoint에 자동 등록한다.
+ * Automatically registers [LeaderMetricsHealthIndicator] with the Spring Boot Actuator health endpoint
+ * when a `MicrometerLeaderAopMetricsRecorder` bean is registered.
  *
- * ## AutoConfig 순서
+ * ## AutoConfig Order
  * ```
- * LeaderMicrometerAutoConfiguration  ← MicrometerLeaderAopMetricsRecorder 등록
+ * LeaderMicrometerAutoConfiguration  ← registers MicrometerLeaderAopMetricsRecorder
  *   ↓
- * LeaderMicrometerHealthAutoConfiguration  ← 본 클래스 (LeaderMetricsHealthIndicator 등록)
+ * LeaderMicrometerHealthAutoConfiguration  ← this class (registers LeaderMetricsHealthIndicator)
  * ```
  *
- * ## 비활성화
+ * ## Disabling
  * ```yaml
  * bluetape4k:
  *   leader:
  *     aop:
  *       metrics:
- *         enabled: false   # HealthIndicator도 함께 비활성화
+ *         enabled: false   # also disables the HealthIndicator
  * ```
  */
 @AutoConfiguration(after = [LeaderMicrometerAutoConfiguration::class])
@@ -51,8 +51,8 @@ import org.springframework.context.annotation.Role
 class LeaderMicrometerHealthAutoConfiguration {
 
     /**
-     * `MeterRegistry` 빈이 존재하고 사용자가 직접 [LeaderMetricsHealthIndicator]를
-     * 등록하지 않은 경우에만 자동 등록한다.
+     * Automatically registers [LeaderMetricsHealthIndicator] only when a `MeterRegistry` bean is present
+     * and the user has not registered a [LeaderMetricsHealthIndicator] directly.
      */
     @Bean("leaderMetricsHealthIndicator")
     @ConditionalOnMissingBean(name = ["leaderMetricsHealthIndicator"])

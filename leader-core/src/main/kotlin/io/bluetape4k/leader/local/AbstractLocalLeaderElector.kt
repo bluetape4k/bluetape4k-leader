@@ -38,7 +38,7 @@ abstract class AbstractLocalLeaderElector(
 ) : LeaderElectionListenerRegistry, LeaderElectionState {
 
     companion object {
-        /** [LockIdentity.factoryBeanName] 진단 metadata 용 상수 — Local backend. */
+        /** Constant for [LockIdentity.factoryBeanName] diagnostic metadata — Local backend. */
         internal const val LOCAL_FACTORY_BEAN_NAME = "local-leader-elector"
     }
 

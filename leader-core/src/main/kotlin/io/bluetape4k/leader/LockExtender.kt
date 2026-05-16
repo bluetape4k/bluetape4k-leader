@@ -220,15 +220,17 @@ object LockExtender : KLogging() {
     }
 
     /**
-     * Boolean ↔ Detailed 변환.
+     * Converts a [ExtendOutcome] (Detailed) to a Boolean result.
      *
-     * 모든 false 반환 경로에 WARN 로그 — 운영 가시성 우선. [outsideScope] 와 fail-open sentinel 경로는
-     * 이미 path-specific WARN 로그를 찍은 후 [ExtendOutcome.NotHeld] 를 반환 — double log 허용 (정보 가치 우선).
+     * All false-returning paths emit a WARN log — operational visibility takes priority. The [outsideScope]
+     * and fail-open sentinel paths already emit path-specific WARN logs before returning [ExtendOutcome.NotHeld];
+     * double logging is allowed (information value takes priority).
      *
-     * **모든 [ExtendOutcome.BackendError] 는 Boolean API 에서 `false` 반환** (transient/non-transient 무관).
-     * non-transient 명시적 처리 필요 시 caller 가 [extendActiveLockDetailed]/[extendActiveLockDetailedSuspend]
-     * 사용 후 [io.bluetape4k.leader.internal.BackendErrorClassifier] 로 분류 + throw 결정.
-     * Boolean API 자체는 ShedLock 호환 contract — 항상 boolean 반환, throw 없음.
+     * **All [ExtendOutcome.BackendError] cases return `false` from the Boolean API** (transient or non-transient).
+     * If explicit handling of non-transient errors is needed, the caller should use
+     * [extendActiveLockDetailed]/[extendActiveLockDetailedSuspend] and classify via
+     * [io.bluetape4k.leader.internal.BackendErrorClassifier] to decide whether to throw.
+     * The Boolean API itself follows ShedLock-compatible contract — always returns boolean, never throws.
      */
     private fun processBooleanResult(outcome: ExtendOutcome): Boolean = when (outcome) {
         is ExtendOutcome.Extended -> true

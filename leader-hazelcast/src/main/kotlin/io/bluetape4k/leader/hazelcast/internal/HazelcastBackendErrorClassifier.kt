@@ -8,16 +8,16 @@ import io.bluetape4k.leader.internal.BackendErrorClassifier
 import io.bluetape4k.leader.internal.BackendErrorKind
 
 /**
- * Hazelcast backend exception 분류 — T12 PR 7 (Issue #79).
+ * Hazelcast backend exception classifier — T12 PR 7 (Issue #79).
  *
- * ## 동작/계약
+ * ## Behavior / Contract
  * - [RetryableHazelcastException] / [TargetNotMemberException] / [WrongTargetException] →
- *   [BackendErrorKind.TRANSIENT] (재시도 가능 — 클러스터 이벤트 / 멤버 이탈)
- * - 그 외 [HazelcastException] → [BackendErrorKind.NON_TRANSIENT] (safe default)
- * - 그 외 → `null` (분류 불가 — chain 다음 classifier 에 위임)
+ *   [BackendErrorKind.TRANSIENT] (retryable — cluster event / member departure)
+ * - Other [HazelcastException] → [BackendErrorKind.NON_TRANSIENT] (safe default)
+ * - Other → `null` (unclassifiable — delegated to the next classifier in the chain)
  *
- * ## 사용
- * elector 가 [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier] 에 chain 으로 등록.
+ * ## Usage
+ * Registered as a chain entry in [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier] by the elector.
  */
 internal object HazelcastBackendErrorClassifier : BackendErrorClassifier {
 

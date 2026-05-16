@@ -15,13 +15,13 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * Hazelcast group elector 의 per-slot [HazelcastLock] (`{lockName}:slot:N`) 용 [ExtendDelegate] —
+ * [ExtendDelegate] for the per-slot [HazelcastLock] (`{lockName}:slot:N`) of the Hazelcast group elector —
  * T12 PR 7 (Issue #79).
  *
- * ## 동작/계약
- * - [extend] : `slotLock.extendDetailed(d)` 위임
- * - [extendSuspend] : Hazelcast IMap 은 blocking — `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21)
- * - [isHeld] : `slotLock.isHeldByCurrentInstance()` 위임
+ * ## Behavior / Contract
+ * - [extend]: delegates to `slotLock.extendDetailed(d)`.
+ * - [extendSuspend]: Hazelcast IMap is blocking — uses `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21).
+ * - [isHeld]: delegates to `slotLock.isHeldByCurrentInstance()`.
  */
 internal class HazelcastSlotExtendDelegate(
     private val slotLock: HazelcastLock,

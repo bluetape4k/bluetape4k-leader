@@ -8,7 +8,7 @@ import io.bluetape4k.support.requirePositiveNumber
 import java.io.Serializable
 
 /**
- * Exposed R2DBC 기반 복수 리더 그룹 선출 옵션.
+ * Options for multi-leader group election backed by Exposed R2DBC.
  *
  * ```kotlin
  * val options = ExposedR2dbcLeaderGroupElectionOptions(
@@ -20,10 +20,10 @@ import java.io.Serializable
  * val election = ExposedR2dbcSuspendLeaderGroupElector(db, options)
  * ```
  *
- * @property leaderGroupOptions 그룹 리더 선출 옵션 (maxLeaders, waitTime, leaseTime). `maxLeaders`는 양수여야 함
- * @property retryStrategy 락 획득 재시도 전략. 기본값 [RetryStrategy.Jitter]
- * @property recordHistory `true`이면 획득/완료/실패 이력을 기록
- * @property lockOwner 락 보유자 식별자. 컬럼 폭 [ExposedLeaderConstants.LOCK_OWNER_LENGTH]자 이내. `null`이면 미기록
+ * @property leaderGroupOptions Group leader election options (maxLeaders, waitTime, leaseTime). `maxLeaders` must be positive
+ * @property retryStrategy Lock acquisition retry strategy. Defaults to [RetryStrategy.Jitter]
+ * @property recordHistory When `true`, records acquire/complete/fail history
+ * @property lockOwner Lock owner identifier. Must be within [ExposedLeaderConstants.LOCK_OWNER_LENGTH] characters. Not recorded if `null`
  */
 data class ExposedR2dbcLeaderGroupElectionOptions(
     val leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -32,7 +32,7 @@ data class ExposedR2dbcLeaderGroupElectionOptions(
     val lockOwner: String? = null,
 ) : Serializable {
 
-    /** 허용하는 최대 동시 리더 수 ([LeaderGroupElectionOptions.maxLeaders] 위임). */
+    /** Maximum number of concurrent leaders allowed (delegates to [LeaderGroupElectionOptions.maxLeaders]). */
     val maxLeaders: Int get() = leaderGroupOptions.maxLeaders
 
     init {
@@ -44,7 +44,7 @@ data class ExposedR2dbcLeaderGroupElectionOptions(
 
     companion object {
         /**
-         * 기본 옵션 인스턴스.
+         * Default options instance.
          *
          * - leaderGroupOptions = [LeaderGroupElectionOptions.Default]
          * - retryStrategy = [RetryStrategy.Jitter]

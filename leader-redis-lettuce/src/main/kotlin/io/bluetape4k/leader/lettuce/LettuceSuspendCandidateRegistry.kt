@@ -21,18 +21,18 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Lettuce coroutines API 기반 suspend 후보 레지스트리입니다.
+ * Suspend candidate registry backed by the Lettuce coroutines API.
  *
- * [LettuceCandidateRegistry] 의 suspend 버전으로 [RedisCoroutinesCommands] 를 사용합니다.
- * Lettuce Netty 비동기 I/O 기반이므로 [kotlinx.coroutines.Dispatchers.IO] 전환이 불필요합니다.
+ * This is the suspend variant of [LettuceCandidateRegistry] and uses [RedisCoroutinesCommands].
+ * Because Lettuce uses Netty-based asynchronous I/O, no [kotlinx.coroutines.Dispatchers.IO] switch is required.
  *
- * @param connection Lettuce StatefulRedisConnection (StringCodec 기반)
+ * @param connection Lettuce StatefulRedisConnection (StringCodec-based)
  */
 internal class LettuceSuspendCandidateRegistry(
     connection: StatefulRedisConnection<String, String>,
 ) {
     companion object: KLogging() {
-        /** Redis SCAN 페이지 크기 힌트. 상한이 아니라 페이지당 반환 키 개수 가이드입니다. */
+        /** Redis SCAN page size hint. This is a guide for the number of keys returned per page, not a hard upper bound. */
         private const val SCAN_PAGE_SIZE = 1000L
     }
 
@@ -50,9 +50,9 @@ internal class LettuceSuspendCandidateRegistry(
     }
 
     /**
-     * 후보를 등록하거나 갱신합니다.
+     * Registers or refreshes a candidate entry.
      *
-     * [ttl] = [Duration.ZERO] 이면 TTL 없이 영구 저장합니다.
+     * If [ttl] = [Duration.ZERO], the entry is stored permanently without a TTL.
      */
     suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
         validateLockName(lockName)
@@ -62,16 +62,16 @@ internal class LettuceSuspendCandidateRegistry(
         else cmds.psetex(key, ttl.inWholeMilliseconds, value)
     }
 
-    /** 후보를 등록 해제합니다. 존재하지 않는 nodeId 는 무시됩니다. */
+    /** Unregisters a candidate. A non-existent nodeId is silently ignored. */
     suspend fun unregisterCandidate(lockName: String, nodeId: String) {
         validateLockName(lockName)
         cmds.del(candidateKey(lockName, nodeId))
     }
 
     /**
-     * [lockName] 에 등록된 현재 후보 목록을 반환합니다.
+     * Returns the current list of candidates registered under [lockName].
      *
-     * 손상된 단일 항목(잘못된 인코딩, 숫자 파싱 실패 등)은 경고 로그를 남기고 skip 합니다.
+     * Corrupted individual entries (invalid encoding, numeric parsing failures, etc.) are skipped with a warning log.
      */
     suspend fun listCandidates(lockName: String): List<CandidateInfo> {
         validateLockName(lockName)
@@ -88,9 +88,9 @@ internal class LettuceSuspendCandidateRegistry(
     }
 
     /**
-     * 작업 결과를 후보 정보에 반영합니다.
+     * Applies an action result to the candidate entry.
      *
-     * `SET key value XX KEEPTTL` 로 만료된 키의 좀비 복원을 방지합니다.
+     * Uses `SET key value XX KEEPTTL` to prevent zombie resurrection of expired keys.
      */
     suspend fun updateResult(lockName: String, nodeId: String, result: CandidateResult) {
         validateLockName(lockName)

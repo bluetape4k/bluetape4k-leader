@@ -6,9 +6,9 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.lettuce.core.api.StatefulRedisConnection
 
 /**
- * [LettuceLeaderElector] 팩토리 — Lettuce Redis 클라이언트 기반 단일 리더 선출.
+ * Factory for [LettuceLeaderElector] — single-leader election backed by the Lettuce Redis client.
  *
- * ## 사용 예
+ * ## Usage
  * ```kotlin
  * val connection: StatefulRedisConnection<String, String> = redisClient.connect()
  * val factory = LettuceLeaderElectionFactory(connection)
@@ -16,8 +16,8 @@ import io.lettuce.core.api.StatefulRedisConnection
  * val result = election.runIfLeader("daily-job") { processData() }
  * ```
  *
- * @param connection 공유 Redis connection. 호출자가 수명 관리. factory 가 인스턴스를 새로 만들어도
- *                   동일 connection 을 공유하여 connection pool overhead 를 회피한다.
+ * @param connection Shared Redis connection whose lifecycle is managed by the caller.
+ *                   All factory-created instances share this connection, avoiding connection pool overhead.
  */
 class LettuceLeaderElectorFactory(
     private val connection: StatefulRedisConnection<String, String>,

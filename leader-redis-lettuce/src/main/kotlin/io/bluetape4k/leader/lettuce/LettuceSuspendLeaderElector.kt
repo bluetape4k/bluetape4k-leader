@@ -27,15 +27,15 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 /**
- * [StatefulRedisConnection]에서 [LettuceSuspendLeaderElector] 인스턴스를 생성합니다.
+ * Creates a [LettuceSuspendLeaderElector] instance from a [StatefulRedisConnection].
  *
  * ```kotlin
  * val election = connection.suspendLeaderElector()
  * val result = election.runIfLeader("daily-job") { "done" }
  * ```
  *
- * @param options 리더 선출 옵션 (기본값: [LeaderElectionOptions.Default])
- * @return [LettuceSuspendLeaderElector] 인스턴스
+ * @param options Leader election options (default: [LeaderElectionOptions.Default])
+ * @return [LettuceSuspendLeaderElector] instance
  */
 fun StatefulRedisConnection<String, String>.suspendLeaderElector(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -44,24 +44,24 @@ fun StatefulRedisConnection<String, String>.suspendLeaderElector(
 
 
 /**
- * Lettuce Redis 클라이언트를 이용한 코루틴 기반 리더 선출 구현체입니다.
+ * Coroutine-based leader election implementation using the Lettuce Redis client.
  *
- * [LettuceSuspendLock]을 사용하여 비동기적으로 리더를 선출합니다.
+ * Uses [LettuceSuspendLock] to elect a leader asynchronously.
  *
- * ## 동작/계약 (T7 PR 2)
+ * ## Behavior / Contract (T7 PR 2)
  *
- * - acquire 후 [LettuceSuspendLockExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 공유합니다.
- * - aspect 의 `LockExtenderSuspend.extendActiveLockSuspend` 는 동일 delegate reference 를 사용합니다 (AC-15).
- * - watchdog 은 [LeaderLeaseAutoExtender.start] 새 시그니처를 사용해 R2 watchdog skip semantics 활성화.
- * - `withContext(AopScopeAccess.createLockHandleElement(handle))` 로 coroutineContext 에 handle 전파.
+ * - After acquire, creates a [LettuceSuspendLockExtendDelegate] shared with [LeaderLockHandle.Real] and the watchdog.
+ * - The aspect's `LockExtenderSuspend.extendActiveLockSuspend` uses the same delegate reference (AC-15).
+ * - The watchdog uses the new [LeaderLeaseAutoExtender.start] signature to activate R2 watchdog skip semantics.
+ * - Propagates the handle into the coroutineContext via `withContext(AopScopeAccess.createLockHandleElement(handle))`.
  *
  * ```kotlin
  * val election = LettuceSuspendLeaderElector(connection)
  * val result = election.runIfLeader("daily-job") { "done" }
  * ```
  *
- * @param connection Lettuce [StatefulRedisConnection] (StringCodec 기반)
- * @param options    리더 선출 옵션 (waitTime, leaseTime)
+ * @param connection Lettuce [StatefulRedisConnection] (StringCodec-based)
+ * @param options    Leader election options (waitTime, leaseTime)
  */
 class LettuceSuspendLeaderElector(
     private val connection: StatefulRedisConnection<String, String>,

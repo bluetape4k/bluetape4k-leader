@@ -97,5 +97,5 @@ internal fun Application.resolveLeaderElection(): SuspendLeaderElector {
     }
 }
 
-/** 파일 단위 로거 보관용 internal object. */
+/** Internal object for holding the file-scoped logger. */
 internal object LeaderScheduledLogger: KLogging()

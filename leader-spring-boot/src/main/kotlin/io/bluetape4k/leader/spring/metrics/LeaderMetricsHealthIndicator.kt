@@ -5,12 +5,12 @@ import org.springframework.boot.health.contributor.AbstractHealthIndicator
 import org.springframework.boot.health.contributor.Health
 
 /**
- * Leader AOP metrics 상태를 Spring Boot Actuator health endpoint에 노출하는 HealthIndicator.
+ * A [HealthIndicator] that exposes Leader AOP metrics to the Spring Boot Actuator health endpoint.
  *
- * `MicrometerLeaderAopMetricsRecorder`가 등록된 경우에만 활성화된다.
- * `leader.aop.active` Gauge를 조회하여 현재 실행 중인 leader 작업 수를 detail로 표시한다.
+ * Activated only when a `MicrometerLeaderAopMetricsRecorder` is registered.
+ * Queries the `leader.aop.active` Gauge and reports the number of currently running leader tasks as a detail.
  *
- * ## Actuator 응답 예
+ * ## Actuator Response Example
  * ```json
  * {
  *   "status": "UP",

@@ -11,7 +11,7 @@ import io.bluetape4k.leader.LeaderState
 import kotlinx.coroutines.flow.Flow
 
 /**
- * [SuspendLeaderElector]에 [LeaderElectionListener] dispatch와 hot 이벤트 stream을 추가하는 데코레이터입니다.
+ * A decorator that adds [LeaderElectionListener] dispatch and a hot event stream to [SuspendLeaderElector].
  */
 class ListeningSuspendLeaderElector(
     private val delegate: SuspendLeaderElector,
@@ -53,7 +53,7 @@ class ListeningSuspendLeaderElector(
 }
 
 /**
- * [SuspendLeaderGroupElector]에 [LeaderElectionListener] dispatch와 hot 이벤트 stream을 추가하는 데코레이터입니다.
+ * A decorator that adds [LeaderElectionListener] dispatch and a hot event stream to [SuspendLeaderGroupElector].
  */
 class ListeningSuspendLeaderGroupElector(
     private val delegate: SuspendLeaderGroupElector,
@@ -102,7 +102,7 @@ class ListeningSuspendLeaderGroupElector(
 }
 
 /**
- * [SuspendLeaderElector]를 listener-aware 데코레이터로 감쌉니다.
+ * Wraps [SuspendLeaderElector] in a listener-aware decorator.
  */
 fun SuspendLeaderElector.withListeners(
     vararg listeners: LeaderElectionListener,
@@ -112,7 +112,7 @@ fun SuspendLeaderElector.withListeners(
     }
 
 /**
- * [SuspendLeaderGroupElector]를 listener-aware 데코레이터로 감쌉니다.
+ * Wraps [SuspendLeaderGroupElector] in a listener-aware decorator.
  */
 fun SuspendLeaderGroupElector.withListeners(
     vararg listeners: LeaderElectionListener,

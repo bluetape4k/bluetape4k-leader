@@ -12,13 +12,13 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * Hazelcast suspend group elector 의 per-slot [HazelcastSuspendLock] (`{lockName}:slot:N`) 용 [ExtendDelegate] —
+ * [ExtendDelegate] for the per-slot [HazelcastSuspendLock] (`{lockName}:slot:N`) of the Hazelcast suspend group elector —
  * T12 PR 7 (Issue #79).
  *
- * ## 동작/계약
- * - [extend] (sync) : `runBlocking` bridge — production sync path 호출 금지
- * - [extendSuspend] : `slotLock.extendDetailed(d)` 직접 호출 (lock 이 이미 `withContext(IO)` 처리)
- * - [isHeld] : `runBlocking` bridge
+ * ## Behavior / Contract
+ * - [extend] (sync): `runBlocking` bridge — do not call from a production sync path.
+ * - [extendSuspend]: calls `slotLock.extendDetailed(d)` directly (lock already handles `withContext(IO)`).
+ * - [isHeld]: `runBlocking` bridge.
  */
 internal class HazelcastSuspendSlotExtendDelegate(
     private val slotLock: HazelcastSuspendLock,

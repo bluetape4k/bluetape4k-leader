@@ -6,14 +6,14 @@ import io.bluetape4k.leader.exposed.tables.LeaderLockTable
 import org.jetbrains.exposed.v1.core.Table
 
 /**
- * leader-exposed-core가 관리하는 모든 테이블의 집합.
+ * The set of all tables managed by leader-exposed-core.
  *
- * JDBC/R2DBC 구현 모듈의 초기화 코드에서 아래와 같이 일괄 스키마 생성:
+ * Use the following pattern in JDBC/R2DBC implementation module initializers to create all schemas at once:
  * ```kotlin
  * SchemaUtils.createMissingTablesAndColumns(*ExposedLeaderSchema.allTables)
  * ```
  *
- * [allTables]는 `Array<Table>`이므로 `*` spread 연산자로 vararg에 O(1) 전달 가능.
+ * [allTables] is an `Array<Table>`, so it can be passed to vararg parameters via the `*` spread operator in O(1).
  */
 object ExposedLeaderSchema {
 

@@ -15,17 +15,17 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * [ExposedJdbcLock] (sync, blocking JDBC) 용 [ExtendDelegate] — T10 PR 5 (Issue #79).
+ * [ExtendDelegate] for [ExposedJdbcLock] (sync, blocking JDBC) — T10 PR 5 (Issue #79).
  *
- * ## 동작/계약
- * - [extend] : `lock.extendDetailed(d)` 결과를 그대로 반환. backend exception 은
- *   [ExtendOutcome.BackendError] 로 wrap — 이후 classifier 가 TRANSIENT/NON_TRANSIENT 분류.
- * - [extendSuspend] : JDBC 는 blocking IO 이므로 `withContext(Dispatchers.IO)` + `ensureActive()`
- *   로 wrap (R9 / AC-21).
- * - [isHeld] : `lock.isHeldByCurrentInstance()` 위임 (예외는 false 반환).
- * - [lastExtendDeadline] : `AtomicReference(Instant.EPOCH)` 단일 인스턴스 보관 — R2 watchdog skip 용.
+ * ## Behavior / Contract
+ * - [extend] : Returns the result of `lock.extendDetailed(d)` as-is. Backend exceptions are wrapped in
+ *   [ExtendOutcome.BackendError] — the classifier then categorizes them as TRANSIENT/NON_TRANSIENT.
+ * - [extendSuspend] : Since JDBC is blocking IO, wraps the call with `withContext(Dispatchers.IO)` + `ensureActive()`
+ *   (R9 / AC-21).
+ * - [isHeld] : Delegates to `lock.isHeldByCurrentInstance()` (returns false on exception).
+ * - [lastExtendDeadline] : Stored in a single `AtomicReference(Instant.EPOCH)` instance — used to skip the R2 watchdog.
  *
- * Token-based 락이므로 thread 종속성 없음 (Exposed JDBC 는 [ExtendOutcome.WrongThread] 사용 안 함).
+ * Token-based lock with no thread affinity (Exposed JDBC does not use [ExtendOutcome.WrongThread]).
  */
 internal class ExposedJdbcLockExtendDelegate(
     private val lock: ExposedJdbcLock,
@@ -45,10 +45,10 @@ internal class ExposedJdbcLockExtendDelegate(
         }
 
     /**
-     * JDBC 는 blocking — `withContext(Dispatchers.IO)` 로 dispatch.
+     * JDBC is blocking — dispatched with `withContext(Dispatchers.IO)`.
      *
-     * **runCatching {} 사용 금지** — suspend 안에서 [CancellationException] 을 삼킬 수 있음.
-     * 수동 try/catch + `catch(CancellationException) { throw e }` 사용.
+     * **Do not use runCatching {}** — it can swallow [CancellationException] inside a suspend function.
+     * Use manual try/catch with `catch(CancellationException) { throw e }` instead.
      */
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
         coroutineContext.ensureActive()

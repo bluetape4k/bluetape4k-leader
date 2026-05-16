@@ -3,9 +3,9 @@ package io.bluetape4k.leader.coroutines
 import io.bluetape4k.leader.LeaderElectionOptions
 
 /**
- * [LocalSuspendLeaderElector] 팩토리 — `kotlinx.coroutines.sync.Mutex` 기반 단일 JVM suspend 리더 선출 인스턴스 생성.
+ * Factory for [LocalSuspendLeaderElector] — creates single-JVM suspend leader election instances based on `kotlinx.coroutines.sync.Mutex`.
  *
- * ## 사용 예
+ * ## Usage
  * ```kotlin
  * val factory = LocalSuspendLeaderElectorFactory()
  * val elector = factory.create(LeaderElectionOptions.Default)

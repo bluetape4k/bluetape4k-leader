@@ -25,41 +25,41 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 /**
- * Exposed R2DBC 기반 코루틴 단일 리더 선출 구현체.
+ * Coroutine-based single-leader election implementation backed by Exposed R2DBC.
  *
- * `UPDATE + insertIgnore + SELECT` 패턴으로 DB 행 수준 락을 구현합니다.
+ * Implements row-level database locking using the `UPDATE + insertIgnore + SELECT` pattern.
  *
- * ## 기본 사용
+ * ## Basic usage
  * ```kotlin
  * val election = ExposedR2dbcSuspendLeaderElector(db)
  * val result = election.runIfLeader("daily-job") {
  *     delay(100)
  *     processData()
  * }
- * // result == processData() 반환값 (리더 획득 성공) 또는 null (획득 실패 / action 예외)
+ * // result == processData() return value (leader acquired) or null (acquisition failed / action threw)
  * ```
  *
- * ## 히스토리 기록
+ * ## History recording
  * ```kotlin
  * val sink = ExposedSuspendLeaderHistorySink(db)
  * val recorder = SuspendSafeLeaderHistoryRecorder(sink)
  * val election = ExposedR2DbcSuspendLeaderElector(db, historyRecorder = recorder)
  * ```
  *
- * ## 취소 안전성
- * `finally` 블록은 항상 `withContext(NonCancellable)`에서 실행되어 락이 보장 해제됩니다.
+ * ## Cancellation safety
+ * The `finally` block always runs inside `withContext(NonCancellable)` to guarantee lock release.
  *
  * ## Behavior / Contract
- * - Lock 미획득(contention) 시 `null` 반환 — 예외 없음.
- * - Action이 [CancellationException]을 던지면 rethrow.
- * - Action이 다른 [Exception]을 던지면 FAILED 이력 기록 후 예외를 재전파합니다.
- * - [historyRecorder]가 null이면 이력 기록 없이 동작.
+ * - Returns `null` when the lock cannot be acquired (contention) — no exception is thrown.
+ * - Rethrows [CancellationException] if the action throws it.
+ * - If the action throws any other [Exception], records a FAILED history entry and rethrows the exception.
+ * - If [historyRecorder] is null, operates without recording history.
  *
- * **private constructor** — [invoke] 팩터리를 통해서만 생성하세요.
+ * **private constructor** — create instances only through the [invoke] factory.
  *
- * @param db Exposed [R2dbcDatabase] 인스턴스
- * @param options 단일 리더 선출 옵션
- * @param historyRecorder 선택적 이력 기록기; null이면 이력 기록 안 함
+ * @param db Exposed [R2dbcDatabase] instance
+ * @param options Single-leader election options
+ * @param historyRecorder Optional history recorder; no history is recorded when null
  */
 class ExposedR2DbcSuspendLeaderElector private constructor(
     private val db: R2dbcDatabase,
@@ -73,9 +73,9 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedR2dbcBackendErrorClassifier)
 
         /**
-         * [ExposedR2DbcSuspendLeaderElector] 인스턴스를 생성합니다.
+         * Creates an [ExposedR2DbcSuspendLeaderElector] instance.
          *
-         * 첫 호출 시 리더 선출 테이블 스키마를 자동으로 생성합니다 (최초 1회).
+         * Automatically creates the leader election table schema on the first call (once only).
          */
         suspend operator fun invoke(
             db: R2dbcDatabase,
@@ -88,19 +88,19 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
     }
 
     /**
-     * [lockName]에 대해 리더로 승격되면 suspend [action]을 실행하고 결과를 반환합니다.
+     * Executes the suspend [action] and returns its result when promoted to leader for [lockName].
      *
-     * - 리더 획득에 성공하면 [action] 결과를 반환합니다.
-     * - 리더 획득에 실패하면 `null`을 반환합니다 (예외 없음).
-     * - [action]이 [CancellationException]을 던지면 rethrow합니다.
-     * - [action]이 다른 예외를 던지면 FAILED 이력 기록 후 예외를 재전파합니다.
-     * - 락은 정상/예외 어느 경로에서도 항상 해제됩니다.
+     * - Returns the [action] result on successful leader acquisition.
+     * - Returns `null` when leader acquisition fails (no exception thrown).
+     * - Rethrows [CancellationException] if [action] throws it.
+     * - If [action] throws any other exception, records a FAILED history entry and rethrows the exception.
+     * - The lock is always released regardless of whether execution completes normally or with an exception.
      *
-     * @param lockName 락 식별자 (영숫자/하이픈/언더스코어/콜론, 1-255자)
-     * @param action 리더 획득 성공 시 실행할 suspend 작업
-     * @return [action] 결과 또는 `null`
-     * @throws IllegalArgumentException [lockName]이 유효하지 않은 경우
-     * @throws CancellationException action이 CancellationException을 던진 경우
+     * @param lockName Lock identifier (alphanumeric/hyphen/underscore/colon, 1–255 characters)
+     * @param action Suspend action to execute upon successful leader acquisition
+     * @return [action] result or `null`
+     * @throws IllegalArgumentException if [lockName] is invalid
+     * @throws CancellationException if the action throws CancellationException
      */
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         validateExposedR2dbcLockName(lockName)

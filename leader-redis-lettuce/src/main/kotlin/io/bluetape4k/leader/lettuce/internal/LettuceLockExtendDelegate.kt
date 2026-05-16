@@ -15,15 +15,15 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * [LettuceLock] (sync blocking) 용 [ExtendDelegate] — T7 PR 2.
+ * [ExtendDelegate] for [LettuceLock] (sync blocking) — T7 PR 2.
  *
- * ## 동작/계약
- * - [extend] : `lock.extendDetailed(d)` 결과를 그대로 반환. backend exception 은 [ExtendOutcome.BackendError] 로 wrap
- * - [extendSuspend] : Lettuce sync 는 blocking IO 이므로 `withContext(Dispatchers.IO)` + `ensureActive()` 로 wrap (R9)
- * - [isHeld] : `lock.isHeldByCurrentInstance()` 위임
- * - [lastExtendDeadline] : `AtomicReference(Instant.EPOCH)` 단일 인스턴스 보관 — R2 watchdog skip 용
+ * ## Behavior / Contract
+ * - [extend]: Returns the result of `lock.extendDetailed(d)` as-is. Backend exceptions are wrapped as [ExtendOutcome.BackendError].
+ * - [extendSuspend]: Lettuce sync is blocking I/O, so it is wrapped with `withContext(Dispatchers.IO)` + `ensureActive()` (R9).
+ * - [isHeld]: Delegates to `lock.isHeldByCurrentInstance()`.
+ * - [lastExtendDeadline]: Stored in a single `AtomicReference(Instant.EPOCH)` instance — used for R2 watchdog skip.
  *
- * AC-21: blocking backend 의 [ExtendDelegate.extendSuspend] 가 default 사용 0회 — 본 클래스가 명시적으로 override.
+ * AC-21: The blocking backend's [ExtendDelegate.extendSuspend] default is never used — this class explicitly overrides it.
  */
 internal class LettuceLockExtendDelegate(
     private val lock: LettuceLock,
@@ -43,10 +43,10 @@ internal class LettuceLockExtendDelegate(
         }
 
     /**
-     * Lettuce sync API 는 Netty client 의 blocking facade — `withContext(Dispatchers.IO)` 로 dispatch.
+     * The Lettuce sync API is a blocking facade over the Netty client — dispatched via `withContext(Dispatchers.IO)`.
      *
-     * **runCatching {} 사용 금지** — suspend 안에서 CancellationException 을 삼킬 수 있음.
-     * 수동 try/catch + `catch(CancellationException) { throw e }` 사용.
+     * **Do not use runCatching {}** — it can swallow `CancellationException` inside a suspend function.
+     * Use manual try/catch with `catch(CancellationException) { throw e }` instead.
      */
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
         coroutineContext.ensureActive()

@@ -25,13 +25,13 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 /**
- * [IMap] 슬롯 기반 분산 세마포어를 이용한 코루틴 기반 복수 리더 선출 구현체입니다.
+ * Coroutine-based multi-leader election implementation using [IMap] slot-based distributed semaphore.
  *
- * ## ExtendDelegate 통합 (T12 PR 7 / Issue #79)
+ * ## ExtendDelegate Integration (T12 PR 7 / Issue #79)
  *
- * - acquire 된 per-slot [HazelcastSuspendLock] 을 [HazelcastSuspendSlotExtendDelegate] 로 wrap 하여 watchdog 와 동일 reference 공유 (AC-15).
- * - aspect 의 `LockExtenderSuspend.extendActiveLockSuspend` 는 동일 delegate reference 를 사용합니다.
- * - suspend group: `withContext(createLockHandleElement(handle))` 로 coroutineContext 에 handle 전파.
+ * - Wraps the acquired per-slot [HazelcastSuspendLock] with [HazelcastSuspendSlotExtendDelegate], sharing the same reference with the watchdog (AC-15).
+ * - The aspect's `LockExtenderSuspend.extendActiveLockSuspend` uses the same delegate reference.
+ * - suspend group: propagates handle to coroutineContext via `withContext(createLockHandleElement(handle))`.
  *
  * ```kotlin
  * val election = HazelcastSuspendLeaderGroupElector(hazelcastInstance, LeaderGroupElectionOptions(maxLeaders = 3))
@@ -41,8 +41,8 @@ import kotlinx.coroutines.withContext
  * }
  * ```
  *
- * @param hazelcast Hazelcast 클라이언트 인스턴스
- * @param options 리더 그룹 선출 옵션 (maxLeaders, waitTime, leaseTime)
+ * @param hazelcast Hazelcast client instance
+ * @param options Leader group election options (maxLeaders, waitTime, leaseTime)
  */
 class HazelcastSuspendLeaderGroupElector private constructor(
     private val hazelcast: HazelcastInstance,
@@ -154,7 +154,7 @@ class HazelcastSuspendLeaderGroupElector private constructor(
 }
 
 /**
- * Hazelcast 분산 세마포어(슬롯 기반)를 이용하여 최대 [options.maxLeaders]개의 리더로 선출된 경우에만 suspend [action]을 실행합니다.
+ * Executes suspend [action] only when elected as one of up to [options.maxLeaders] leaders using a Hazelcast distributed semaphore (slot-based).
  */
 suspend inline fun <T> HazelcastInstance.suspendRunIfLeaderGroup(
     lockName: String,

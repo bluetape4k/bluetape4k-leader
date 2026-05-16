@@ -25,7 +25,7 @@ internal object LeaderLockHandleCapture {
         tl.set(handle)
     }
 
-    /** ThreadLocal 에서 값을 꺼내고 즉시 clear. */
+    /** Retrieves the value from the ThreadLocal and immediately clears it. */
     fun poll(): LeaderLockHandle.Real? {
         val handle = tl.get()
         tl.remove()

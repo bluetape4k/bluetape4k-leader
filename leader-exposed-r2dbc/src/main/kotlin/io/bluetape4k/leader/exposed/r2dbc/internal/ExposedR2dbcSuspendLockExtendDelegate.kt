@@ -12,19 +12,19 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * [ExposedR2dbcLock] (suspend native, reactive R2DBC driver) 용 [ExtendDelegate] — T11 PR 6 (Issue #79).
+ * [ExtendDelegate] for [ExposedR2dbcLock] (suspend native, reactive R2DBC driver) — T11 PR 6 (Issue #79).
  *
- * ## 동작/계약
- * - Exposed R2DBC 는 reactive native → `suspendTransaction(db)` 가 suspend
- * - [extend] (sync) : suspend `extendDetailed` 만 노출되므로 `runBlocking` bridge.
- *   주로 watchdog scheduler thread 에서 호출됨 — R2DBC 는 reactive 기반이라 backpressure 없이 안전.
- *   production sync path 에서 직접 호출 금지 — AOP aspect 는 suspend wrapper 우선 사용.
- * - [extendSuspend] : `lock.extendDetailed(d)` 직접 호출 (suspend native — `withContext(IO)` 불필요)
- * - [isHeld] : suspend 함수 → `runBlocking` bridge (rare path)
+ * ## Behavior / Contract
+ * - Exposed R2DBC is reactive native → `suspendTransaction(db)` is a suspend function
+ * - [extend] (sync) : Since only a suspend `extendDetailed` is exposed, uses a `runBlocking` bridge.
+ *   Primarily called from the watchdog scheduler thread — safe without backpressure because R2DBC is reactive.
+ *   Do not call directly from a production sync path — the AOP aspect should prefer the suspend wrapper.
+ * - [extendSuspend] : Calls `lock.extendDetailed(d)` directly (suspend native — `withContext(IO)` is not needed)
+ * - [isHeld] : Suspend function → `runBlocking` bridge (rare path)
  *
- * Token-based 락이므로 thread 종속성 없음 (Exposed R2DBC 는 [ExtendOutcome.WrongThread] 사용 안 함).
+ * Token-based lock with no thread affinity (Exposed R2DBC does not use [ExtendOutcome.WrongThread]).
  *
- * ## CancellationException 처리
+ * ## CancellationException handling
  * All `catch(Exception)` blocks are preceded by `catch(CancellationException) { throw e }` — coroutine cancellation contract guaranteed.
  */
 internal class ExposedR2dbcSuspendLockExtendDelegate(
@@ -37,10 +37,10 @@ internal class ExposedR2dbcSuspendLockExtendDelegate(
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
 
     /**
-     * sync entry point — watchdog scheduler thread 에서 호출됨.
+     * Sync entry point — called from the watchdog scheduler thread.
      *
-     * Exposed R2DBC 는 reactive native 이므로 `runBlocking` 은 backpressure 없이 안전.
-     * AOP aspect 의 suspend wrapper ([extendSuspend]) 우선 사용 권장.
+     * Since Exposed R2DBC is reactive native, `runBlocking` is safe without backpressure.
+     * Prefer using the AOP aspect's suspend wrapper ([extendSuspend]).
      */
     override fun extend(lockAtMostFor: Duration): ExtendOutcome =
         try {

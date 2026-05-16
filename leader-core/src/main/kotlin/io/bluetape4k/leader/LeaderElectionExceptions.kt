@@ -3,7 +3,7 @@ package io.bluetape4k.leader
 /**
  * Base exception for leader election failures.
  *
- * ## 동작/계약
+ * ## Behavior / Contract
  * Thrown when a leader election operation fails due to backend errors,
  * lock acquisition timeouts, or other irrecoverable conditions.
  *
@@ -21,7 +21,7 @@ open class LeaderElectionException: RuntimeException {
 /**
  * Exception for leader group election failures.
  *
- * ## 동작/계약
+ * ## Behavior / Contract
  * Thrown when a leader group election operation fails — e.g., all slots in a group lock
  * are occupied or a group member cannot acquire a permit.
  *

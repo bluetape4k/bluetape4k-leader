@@ -5,9 +5,9 @@ import io.bluetape4k.leader.LeaderGroupElectorFactory
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 
 /**
- * [LocalLeaderGroupElector] 팩토리 — Semaphore 기반 단일 JVM 다중 리더 선출 인스턴스 생성.
+ * Factory for [LocalLeaderGroupElector] — creates single-JVM multi-leader election instances based on Semaphore.
  *
- * ## 사용 예
+ * ## Usage
  * ```kotlin
  * val factory = LocalLeaderGroupElectionFactory()
  * val election = factory.create(LeaderGroupElectionOptions(maxLeaders = 3))

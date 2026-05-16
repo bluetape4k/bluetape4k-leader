@@ -7,22 +7,22 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Virtual Thread 기반 복수 리더 비동기 선출 계약을 정의합니다.
+ * Defines the contract for Virtual Thread-based multi-leader asynchronous election.
  *
- * ## [VirtualThreadLeaderElector] 과의 차이
- * - [VirtualThreadLeaderElector]은 `lockName`당 리더를 1개로 제한합니다.
- * - [VirtualThreadLeaderGroupElector]은 [maxLeaders]개까지 동시에 리더를 허용합니다.
+ * ## Difference from [VirtualThreadLeaderElector]
+ * - [VirtualThreadLeaderElector] limits leaders to 1 per `lockName`.
+ * - [VirtualThreadLeaderGroupElector] allows up to [maxLeaders] concurrent leaders.
  *
- * ## [LeaderGroupElector] 과의 차이
- * - [LeaderGroupElector]의 [LeaderGroupElector.runAsyncIfLeader]는 [java.util.concurrent.CompletableFuture]를 반환합니다.
- * - 이 인터페이스의 [runAsyncIfLeader]는 [VirtualFuture]를 반환하며, `action`이 `() -> T` 람다로 단순합니다.
- * - Virtual Thread 기반이므로 I/O 블로킹 작업에 carrier thread를 소모하지 않습니다.
+ * ## Difference from [LeaderGroupElector]
+ * - [LeaderGroupElector.runAsyncIfLeader] returns [java.util.concurrent.CompletableFuture].
+ * - This interface's [runAsyncIfLeader] returns [VirtualFuture] and `action` is a simpler `() -> T` lambda.
+ * - Virtual Thread-based, so carrier threads are not consumed by I/O blocking operations.
  *
- * ## 동작/계약
- * - 구현체는 `lockName` 기준으로 최대 [maxLeaders]개의 `action`을 동시에 실행합니다.
- * - 슬롯이 가득 찬 경우, 빈 슬롯이 생길 때까지 Virtual Thread가 블로킹됩니다.
- * - `action` 예외 발생 시에도 슬롯이 반드시 반환됩니다.
- * - 상태 조회 메서드([state], [activeCount], [availableSlots])는 [LeaderGroupElectionState]에서 상속합니다.
+ * ## Behavior / Contract
+ * - Implementations run at most [maxLeaders] concurrent `action` invocations per `lockName`.
+ * - When all slots are occupied, the Virtual Thread blocks until a slot becomes available.
+ * - Slots are always released even when `action` throws an exception.
+ * - State query methods ([state], [activeCount], [availableSlots]) are inherited from [LeaderGroupElectionState].
  *
  * ```kotlin
  * val election = LocalVirtualThreadLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
@@ -32,21 +32,21 @@ import java.util.concurrent.atomic.AtomicBoolean
 interface VirtualThreadLeaderGroupElector: LeaderGroupElectionState {
 
     /**
-     * 슬롯을 획득하여 리더로 선출되면 [action]을 Virtual Thread에서 비동기로 실행합니다.
+     * Acquires a slot and, when elected as leader, executes [action] asynchronously on a Virtual Thread.
      *
-     * ## 동작/계약
-     * - 슬롯이 가득 찬 경우 빈 슬롯이 생길 때까지 Virtual Thread가 블로킹됩니다.
-     * - [action] 예외 발생 시에도 슬롯은 반드시 반환됩니다.
-     * - [VirtualFuture.await]로 결과를 동기 대기하거나 [VirtualFuture.toCompletableFuture]로 변환할 수 있습니다.
+     * ## Behavior / Contract
+     * - When all slots are occupied, the Virtual Thread blocks until a slot becomes available.
+     * - Slots are always released even when [action] throws an exception.
+     * - Use [VirtualFuture.await] to wait synchronously or [VirtualFuture.toCompletableFuture] to convert.
      *
      * ```kotlin
      * val result = election.runAsyncIfLeader("job-lock") { computeResult() }.await()
-     * // result == computeResult() 반환값 (슬롯 획득 성공) 또는 null (획득 실패)
+     * // result == computeResult() return value (slot acquired) or null (not acquired)
      * ```
      *
-     * @param lockName 리더 그룹 선출에 사용할 락 이름
-     * @param action 리더 선출 성공 시 실행할 작업. 결과를 직접 반환합니다.
-     * @return [action] 실행 결과를 담은 [VirtualFuture]. 슬롯 획득 실패 시 `null`로 완료됨
+     * @param lockName the lock name used for group leader election
+     * @param action the action to run when elected as leader. Returns the result directly.
+     * @return [VirtualFuture] resolving to the [action] result, or `null` when no slot is acquired
      */
     fun <T> runAsyncIfLeader(
         lockName: String,

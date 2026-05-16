@@ -13,26 +13,26 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * [AbstractLocalLeaderGroupElector]을 상속한 로컬(단일 JVM) 복수 리더 Virtual Thread 비동기 선출 구현체입니다.
+ * Local (single-JVM) multi-leader Virtual Thread async election implementation extending [AbstractLocalLeaderGroupElector].
  *
- * ## 동작
- * - [VirtualFuture] 기반의 [runAsyncIfLeader]를 지원합니다.
- * - 슬롯 관리(Semaphore 풀, 상태 조회)는 [AbstractLocalLeaderGroupElector]에서 처리합니다.
- * - Virtual Thread는 [java.util.concurrent.Semaphore.acquire] 블로킹 시 carrier thread를 반납합니다.
- * - 분산 환경이 아닌 단일 JVM 프로세스 내 동시 실행 제한에 적합합니다.
+ * ## Behavior
+ * - Supports [VirtualFuture]-based [runAsyncIfLeader].
+ * - Slot management (Semaphore pool, state queries) is handled by [AbstractLocalLeaderGroupElector].
+ * - Virtual Threads release the carrier thread when blocking on [java.util.concurrent.Semaphore.acquire].
+ * - Suitable for limiting concurrent execution within a single JVM process, not a distributed environment.
  *
- * ## [LocalAsyncLeaderGroupElector] 과의 차이
- * - `action`이 `() -> T`로 단순하며, [java.util.concurrent.CompletableFuture] 래핑이 불필요합니다.
- * - 반환이 [VirtualFuture]로 `await()` API가 명시적입니다.
+ * ## Difference from [LocalAsyncLeaderGroupElector]
+ * - `action` is a simpler `() -> T`; [java.util.concurrent.CompletableFuture] wrapping is not needed.
+ * - The return type is [VirtualFuture], making the `await()` API explicit.
  *
  * ```kotlin
  * val election = LocalVirtualThreadLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
  *
- * // 최대 3개 Virtual Thread 가 동시에 실행
+ * // Up to 3 Virtual Threads execute concurrently
  * val result = election.runAsyncIfLeader("batch-job") { processChunk() }.await()
  * ```
  *
- * @param options 리더 그룹 선출 옵션. 기본값은 [LeaderGroupElectionOptions.Default]
+ * @param options leader group election options. Defaults to [LeaderGroupElectionOptions.Default]
  */
 class LocalVirtualThreadLeaderGroupElector private constructor(
     options: LeaderGroupElectionOptions,
@@ -41,7 +41,7 @@ class LocalVirtualThreadLeaderGroupElector private constructor(
     companion object: KLogging() {
 
         /**
-         * [LeaderGroupElectionOptions]을 이용해 [LocalVirtualThreadLeaderGroupElector] 인스턴스를 생성합니다.
+         * Creates a [LocalVirtualThreadLeaderGroupElector] instance using [LeaderGroupElectionOptions].
          *
          * ```kotlin
          * val election = LocalVirtualThreadLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
@@ -49,8 +49,8 @@ class LocalVirtualThreadLeaderGroupElector private constructor(
          * // result == "done"
          * ```
          *
-         * @param options 리더 그룹 선출 옵션. 기본값은 [LeaderGroupElectionOptions.Default]
-         * @return [VirtualThreadLeaderGroupElector] 구현체 인스턴스
+         * @param options leader group election options. Defaults to [LeaderGroupElectionOptions.Default]
+         * @return a [VirtualThreadLeaderGroupElector] implementation instance
          */
         operator fun invoke(
             options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -61,7 +61,7 @@ class LocalVirtualThreadLeaderGroupElector private constructor(
     }
 
     /**
-     * [lockName]의 슬롯을 Virtual Thread에서 획득하고 [action]을 실행합니다.
+     * Acquires a slot for [lockName] on a Virtual Thread and executes [action].
      *
      * ```kotlin
      * val election = LocalVirtualThreadLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
@@ -69,9 +69,9 @@ class LocalVirtualThreadLeaderGroupElector private constructor(
      * // result == 42
      * ```
      *
-     * @param lockName 리더 그룹 선출에 사용할 락 이름
-     * @param action 슬롯 획득 성공 시 실행할 작업
-     * @return [action] 실행 결과를 담은 [VirtualFuture]. 슬롯 획득 실패 시 `null`로 완료됨
+     * @param lockName the lock name used for group leader election
+     * @param action the action to run when a slot is acquired
+     * @return [VirtualFuture] resolving to the [action] result, or `null` when no slot is acquired
      */
     override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?> =
         virtualFuture {

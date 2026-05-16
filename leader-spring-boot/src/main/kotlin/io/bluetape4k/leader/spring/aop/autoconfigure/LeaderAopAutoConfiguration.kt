@@ -25,15 +25,15 @@ import org.springframework.context.annotation.Role
 import org.springframework.core.annotation.Order
 
 /**
- * AutoConfig Phase 2 — Aspect / BPP / SpEL / properties 등록.
+ * AutoConfig Phase 2 — registers the Aspect, BPP, SpEL evaluator, and properties.
  *
- * ## [Codex H3] Phase 분리 패턴
- * `@AutoConfiguration(after = LeaderAopFactoryAutoConfiguration::class)` 로 factory 등록 이후 평가.
- * `@ConditionalOnBean(LeaderElectionFactory)` — backend factory 가 하나도 등록 안 됐으면 본 autoconfig 비활성.
+ * ## [Codex H3] Phase Separation Pattern
+ * Evaluated after factory registration via `@AutoConfiguration(after = LeaderAopFactoryAutoConfiguration::class)`.
+ * `@ConditionalOnBean(LeaderElectionFactory)` — this auto-configuration is inactive when no backend factory is registered.
  *
- * ## CTW (Freefair post-compile weaving) 전용
- * `@EnableAspectJAutoProxy` 미사용 — compile-time weaving 이 Spring AOP runtime proxy 를 대체.
- * Aspect 는 `@Bean` 으로 등록만 하면 CTW 가 자동 적용.
+ * ## CTW (Freefair post-compile weaving) only
+ * `@EnableAspectJAutoProxy` is not used — compile-time weaving replaces the Spring AOP runtime proxy.
+ * Aspects are applied automatically by CTW once registered as `@Bean`.
  */
 @AutoConfiguration(after = [LeaderAopFactoryAutoConfiguration::class])
 @ConditionalOnClass(name = ["org.aspectj.lang.annotation.Aspect"])

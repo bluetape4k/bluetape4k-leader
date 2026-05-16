@@ -4,12 +4,12 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 
 /**
- * [LeaderElectionPlugin] 의 설정 클래스입니다.
+ * Configuration class for [LeaderElectionPlugin].
  *
- * ## 동작/계약
- * - [leaderElection] 은 필수 항목으로, `install(LeaderElectionPlugin) { ... }` 블록에서 반드시 설정해야 합니다.
- * - [leaderGroupElection] 은 선택 항목으로, 멀티 리더(그룹 선출)가 필요한 애플리케이션에서만 설정합니다.
- * - 미설정 시 플러그인 설치 시점에 [IllegalArgumentException] 이 발생합니다.
+ * ## Behavior / Contract
+ * - [leaderElection] is required and must be configured inside the `install(LeaderElectionPlugin) { ... }` block.
+ * - [leaderGroupElection] is optional and should only be configured for applications that need multi-leader (group election).
+ * - If not configured, an [IllegalArgumentException] is thrown at plugin installation time.
  *
  * ```kotlin
  * fun Application.module() {

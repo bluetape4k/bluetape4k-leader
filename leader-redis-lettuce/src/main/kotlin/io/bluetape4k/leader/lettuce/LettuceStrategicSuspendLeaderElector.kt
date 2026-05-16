@@ -20,15 +20,15 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Lettuce 백엔드 기반 [StrategicSuspendLeaderElector] 구현체입니다.
+ * [StrategicSuspendLeaderElector] implementation backed by the Lettuce Redis client.
  *
- * [LettuceSuspendCandidateRegistry] 에 위임하여 Lettuce coroutines API 로 Redis 명령을 실행합니다.
- * Lettuce Netty 비동기 I/O 기반이므로 [kotlinx.coroutines.Dispatchers.IO] 전환이 불필요합니다.
+ * Delegates to [LettuceSuspendCandidateRegistry] to execute Redis commands via the Lettuce coroutines API.
+ * Because Lettuce uses Netty-based asynchronous I/O, no [kotlinx.coroutines.Dispatchers.IO] switch is required.
  *
- * [CancellationException] 은 작업 실패가 아니므로 failureCount 를 증가시키지 않고 재전파합니다.
+ * [CancellationException] is not treated as an action failure; it is re-thrown without incrementing failureCount.
  *
- * @param connection Lettuce StatefulRedisConnection (StringCodec 기반)
- * @param nodeId 이 인스턴스의 노드 식별자. 미지정 시 UUID v7 자동 생성.
+ * @param connection Lettuce StatefulRedisConnection (StringCodec-based)
+ * @param nodeId Node identifier for this instance. Auto-generated as UUID v7 if not specified.
  */
 class LettuceStrategicSuspendLeaderElector(
     connection: StatefulRedisConnection<String, String>,
@@ -52,14 +52,14 @@ class LettuceStrategicSuspendLeaderElector(
         registry.updateResult(lockName, nodeId, result)
 
     /**
-     * 전략으로 리더를 선출하고 winner 인 경우에만 [action] 을 실행합니다.
+     * Elects a leader using the given strategy and executes [action] only if this node is the winner.
      *
-     * 분산 락 없이 결정론적 선출을 사용하므로 [options] 의 waitTime/leaseTime 은 적용되지 않습니다.
-     * 후보 등록 시 TTL 을 직접 설정하세요.
+     * Because deterministic election is used without a distributed lock, the waitTime/leaseTime in [options] are not applied.
+     * Set the TTL directly when registering candidates.
      *
-     * [CancellationException] 은 실패로 처리하지 않으며 failureCount 를 증가시키지 않습니다.
+     * [CancellationException] is not treated as a failure and does not increment failureCount.
      *
-     * @return [action] 실행 결과, 후보 없거나 다른 노드가 winner 이면 `null`
+     * @return The result of [action] if this node is elected, or `null` if there are no candidates or another node wins.
      */
     override suspend fun <T> runIfLeader(
         lockName: String,

@@ -259,10 +259,10 @@ class LeaderElectionAspect(
     }
 
     /**
-     * suspend 메서드 처리 — `startCoroutineUninterceptedOrReturn` intrinsics 패턴.
-     * 본문 실행 시 [LeaderElectionInfo] 를 `withContext` 로 CoroutineContext 에 주입.
-     * suspend elector 가 이미 `withContext(LockHandleElement(handle))` 를 push 하므로
-     * aspect 는 [LeaderElectionInfo] 만 추가 — handle context 는 elector 에서 제공.
+     * Handles suspend methods using the `startCoroutineUninterceptedOrReturn` intrinsics pattern.
+     * Injects [LeaderElectionInfo] into the CoroutineContext via `withContext` during body execution.
+     * Because the suspend elector already pushes `withContext(LockHandleElement(handle))`,
+     * the aspect only adds [LeaderElectionInfo] — the handle context is provided by the elector.
      */
     private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
         @Suppress("UNCHECKED_CAST")
@@ -705,11 +705,11 @@ class LeaderElectionAspect(
         }.buffer(Channel.RENDEZVOUS)
 
     /**
-     * `Mono` 반환 타입 메서드 처리 — `Mono.defer { mono { suspendElector.runIfLeader(...) } }` 패턴.
+     * Handles methods returning `Mono` using the `Mono.defer { mono { suspendElector.runIfLeader(...) } }` pattern.
      *
-     * `Mono.defer` 로 subscribe 당 락 1회 보장.
-     * [LeaderElectionInfo] 를 `withContext` 로 주입하여 CoroutineContext 전파.
-     * suspend elector 가 `withContext(LockHandleElement(handle))` 를 이미 push.
+     * `Mono.defer` ensures exactly one lock acquisition per subscription.
+     * Injects [LeaderElectionInfo] via `withContext` for CoroutineContext propagation.
+     * The suspend elector already pushes `withContext(LockHandleElement(handle))`.
      */
     private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
         val method = (pjp.signature as MethodSignature).method

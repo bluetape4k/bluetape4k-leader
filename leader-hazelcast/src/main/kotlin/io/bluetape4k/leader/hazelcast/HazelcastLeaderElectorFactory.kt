@@ -6,9 +6,9 @@ import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.LeaderElectionOptions
 
 /**
- * [HazelcastLeaderElector] 팩토리 — Hazelcast 기반 단일 리더 선출.
+ * Factory for [HazelcastLeaderElector] — Hazelcast-based single leader election.
  *
- * ## 사용 예
+ * ## Usage
  * ```kotlin
  * val hazelcast: HazelcastInstance = ...
  * val factory = HazelcastLeaderElectionFactory(hazelcast)
@@ -16,7 +16,7 @@ import io.bluetape4k.leader.LeaderElectionOptions
  * val result = election.runIfLeader("daily-job") { processData() }
  * ```
  *
- * @param hazelcast 공유 [HazelcastInstance]
+ * @param hazelcast Shared [HazelcastInstance]
  */
 class HazelcastLeaderElectorFactory(
     private val hazelcast: HazelcastInstance,

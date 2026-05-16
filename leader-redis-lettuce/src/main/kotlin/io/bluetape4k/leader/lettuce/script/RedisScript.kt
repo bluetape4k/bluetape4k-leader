@@ -21,7 +21,7 @@ import java.util.concurrent.CompletionException
  * @property source Lua script source
  */
 class RedisScript(val source: String) {
-    /** `source` 의 SHA1 16진 문자열 (Redis 의 SCRIPT LOAD 결과와 동일) */
+    /** SHA1 hex string of `source` (identical to the result of Redis `SCRIPT LOAD`) */
     val sha1: String = sha1Hex(source)
 
     companion object: KLogging() {

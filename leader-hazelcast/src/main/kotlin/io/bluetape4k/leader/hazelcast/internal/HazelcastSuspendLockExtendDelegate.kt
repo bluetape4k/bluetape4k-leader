@@ -12,16 +12,16 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * [HazelcastSuspendLock] 용 [ExtendDelegate] — T12 PR 7 (Issue #79).
+ * [ExtendDelegate] for [HazelcastSuspendLock] — T12 PR 7 (Issue #79).
  *
- * ## 동작/계약
- * - Hazelcast IMap 은 native blocking API — suspend lock 은 `withContext(Dispatchers.IO)` wrapper 만 추가
- * - [extend] (sync) : suspend 함수만 노출되므로 `runBlocking` bridge.
- *   **production sync path 에서 호출 금지** — watchdog scheduler thread 에서만 호출됨.
- * - [extendSuspend] : `lock.extendDetailed(d)` 직접 호출 (lock 이 이미 `withContext(IO)` 처리)
- * - [isHeld] : suspend 함수 → `runBlocking` bridge
+ * ## Behavior / Contract
+ * - Hazelcast IMap is a native blocking API — the suspend lock only adds a `withContext(Dispatchers.IO)` wrapper.
+ * - [extend] (sync): bridges via `runBlocking` since only suspend functions are exposed.
+ *   **Do not call from a production sync path** — only called from the watchdog scheduler thread.
+ * - [extendSuspend]: calls `lock.extendDetailed(d)` directly (lock already handles `withContext(IO)`).
+ * - [isHeld]: suspend function → `runBlocking` bridge.
  *
- * Token-based 락이므로 thread 종속성 없음.
+ * Token-based lock — no thread affinity.
  */
 internal class HazelcastSuspendLockExtendDelegate(
     private val lock: HazelcastSuspendLock,
@@ -33,9 +33,9 @@ internal class HazelcastSuspendLockExtendDelegate(
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
 
     /**
-     * sync entry point — watchdog 의 scheduler thread 에서 호출됨.
+     * Sync entry point — called from the watchdog's scheduler thread.
      *
-     * `runBlocking` bridge — suspend wrapper ([extendSuspend]) 가 우선 사용 권장.
+     * `runBlocking` bridge — prefer the suspend wrapper ([extendSuspend]) when possible.
      */
     override fun extend(lockAtMostFor: Duration): ExtendOutcome =
         try {

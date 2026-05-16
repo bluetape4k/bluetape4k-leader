@@ -32,17 +32,17 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Coroutines [Mutex]를 이용한 로컬(단일 JVM) suspend 리더 선출 구현체입니다.
+ * Local (single-JVM) suspend leader election implementation using coroutines [Mutex].
  *
- * ## 동작
- * - 동일 `lockName`에 대해 코루틴 간 상호 배제(mutual exclusion)로 직렬 실행을 보장합니다.
- * - [Mutex]를 획득한 코루틴이 리더로서 `action`을 실행하며, 다른 코루틴은 해제될 때까지 suspend됩니다.
- * - 분산 환경이 아닌 단일 JVM 프로세스 내 코루틴 동시 실행 직렬화에 적합합니다.
+ * ## Behavior
+ * - Guarantees serial execution via mutual exclusion between coroutines for the same `lockName`.
+ * - The coroutine that acquires the [Mutex] runs `action` as leader; other coroutines suspend until it is released.
+ * - Suitable for serializing concurrent coroutine execution within a single JVM process, not a distributed environment.
  *
- * ## 주의
- * - [Mutex]는 재진입(re-entrancy)을 지원하지 않습니다.
- *   동일 코루틴에서 동일 `lockName`으로 중첩 호출하면 데드락이 발생합니다.
- *   재진입이 필요한 경우 [io.bluetape4k.leader.local.LocalLeaderElector] ([java.util.concurrent.locks.ReentrantLock] 기반)을 사용하세요.
+ * ## Warning
+ * - [Mutex] does not support re-entrancy.
+ *   Nested calls with the same `lockName` from the same coroutine will cause a deadlock.
+ *   If re-entrancy is needed, use [io.bluetape4k.leader.local.LocalLeaderElector] (based on [java.util.concurrent.locks.ReentrantLock]).
  *
  * ```kotlin
  * val election = LocalSuspendLeaderElector()
@@ -73,9 +73,9 @@ class LocalSuspendLeaderElector(
     }
 
     /**
-     * [lockName]에 대한 [Mutex]를 획득하고 [action]을 직렬로 실행합니다.
+     * Acquires the [Mutex] for [lockName] and executes [action] serially.
      *
-     * 다른 코루틴이 동일 [lockName]의 [Mutex]를 보유 중이면 해제될 때까지 suspend됩니다.
+     * If another coroutine holds the [Mutex] for the same [lockName], this coroutine suspends until it is released.
      *
      * ```kotlin
      * val election = LocalSuspendLeaderElector()
@@ -83,9 +83,9 @@ class LocalSuspendLeaderElector(
      * // result == "done"
      * ```
      *
-     * @param lockName 리더 선출에 사용할 락 이름
-     * @param action 리더 획득 성공 시 실행할 suspend 작업
-     * @return [action] 실행 결과, 리더 획득 실패 시 `null`
+     * @param lockName the lock name used for leader election
+     * @param action the suspend action to run when leader acquisition succeeds
+     * @return the [action] result, or `null` when leader acquisition fails
      */
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? =
         tryWithLock(

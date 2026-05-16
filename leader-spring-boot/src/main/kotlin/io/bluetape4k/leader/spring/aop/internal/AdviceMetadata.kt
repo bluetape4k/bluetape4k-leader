@@ -7,23 +7,23 @@ import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
 
 /**
- * `@LeaderElection` 처리 aspect 가 메서드별로 캐싱하는 resolved metadata.
+ * Resolved metadata cached per-method by the `@LeaderElection` processing aspect.
  *
- * ## 필드 설명
- * - [nameExpression]: `@LeaderElection.name` 원본 (SpEL 또는 literal)
- * - [literalName]: literal pattern 에 해당하면 미리 파싱된 값, SpEL 이면 `null`
- * - [options]: resolved [LeaderElectionOptions]
- * - [factoryBeanName]: sync elector factory bean name (진단 metadata + [LockIdentity] 구성용)
- * - [factory]: sync elector factory 인스턴스
- * - [failureMode]: INHERIT 이 이미 resolve 된 effective failure mode
- * - [leaseTimeWarnThresholdNanos]: leaseTime × 0.8 임계값 (ns)
+ * ## Field Description
+ * - [nameExpression]: Raw `@LeaderElection.name` value (SpEL expression or literal)
+ * - [literalName]: Pre-parsed value when the name matches the literal pattern; `null` for SpEL
+ * - [options]: Resolved [LeaderElectionOptions]
+ * - [factoryBeanName]: Sync elector factory bean name (used for diagnostic metadata and [LockIdentity] construction)
+ * - [factory]: Sync elector factory instance
+ * - [failureMode]: Effective failure mode with INHERIT already resolved
+ * - [leaseTimeWarnThresholdNanos]: leaseTime × 0.8 threshold in nanoseconds
  * - [branch]: [AdviceBranch] — SYNC / COROUTINES / REACTIVE
- * - [isSuspend], [isMono], [isFlux], [isFlow]: exact method return-shape markers
- * - [streamBounded]: caller opt-in for finite `Flux` / `Flow` streams without auto-extension
- * - [suspendElectorFactory]: SUSPEND / MONO 분기 factory (`null` for SYNC)
- * - [suspendElectorFactoryBeanName]: SUSPEND / MONO 분기 factory bean name
- * - [annotationKind]: [LockIdentity.AnnotationKind.SINGLE] (LeaderElection 전용)
- * - [groupParams]: `null` (group 아님 — LeaderElection 전용 항상 `null`)
+ * - [isSuspend], [isMono], [isFlux], [isFlow]: Exact method return-shape markers
+ * - [streamBounded]: Caller opt-in for finite `Flux` / `Flow` streams without auto-extension
+ * - [suspendElectorFactory]: Factory for the SUSPEND / MONO branch (`null` for SYNC)
+ * - [suspendElectorFactoryBeanName]: Factory bean name for the SUSPEND / MONO branch
+ * - [annotationKind]: [LockIdentity.AnnotationKind.SINGLE] (exclusive to LeaderElection)
+ * - [groupParams]: `null` (not a group — always `null` for LeaderElection)
  */
 internal data class AdviceMetadata(
     val nameExpression: String,
@@ -45,10 +45,10 @@ internal data class AdviceMetadata(
     val groupParams: LockIdentity.GroupParams? = null,
 ) {
     /**
-     * 주어진 [branch] 에 맞는 [LockIdentity] 를 생성합니다.
+     * Creates a [LockIdentity] for the given [branch].
      *
-     * `factoryBeanName` 은 `equals/hashCode` 제외이므로 sync ↔ suspend nested 호출 시에도
-     * 동일 lock 으로 인식됩니다 (Step 3-P R3 mitigation).
+     * `factoryBeanName` is excluded from `equals/hashCode`, so nested sync ↔ suspend calls
+     * are recognised as the same lock (Step 3-P R3 mitigation).
      */
     fun resolveLockIdentity(lockName: String, branch: AdviceBranch): LockIdentity {
         val beanName = when (branch) {

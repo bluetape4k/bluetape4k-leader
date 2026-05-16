@@ -6,9 +6,9 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import org.jetbrains.exposed.v1.jdbc.Database
 
 /**
- * [ExposedJdbcLeaderElector] 팩토리 — Exposed JDBC 기반 단일 리더 선출.
+ * Factory for [ExposedJdbcLeaderElector] — single-leader election backed by Exposed JDBC.
  *
- * ## 사용 예
+ * ## Usage
  * ```kotlin
  * val db: Database = Database.connect(dataSource)
  * val factory = ExposedJdbcLeaderElectionFactory(db)
@@ -16,16 +16,16 @@ import org.jetbrains.exposed.v1.jdbc.Database
  * val result = election.runIfLeader("daily-job") { processData() }
  * ```
  *
- * ## 옵션 처리
- * AOP 어드바이스가 전달하는 [LeaderElectionOptions]는 `waitTime`/`leaseTime`만 포함한다.
- * Exposed 백엔드 고유 옵션 (`retryStrategy`, `lockOwner`)은 [baseOptions]를 통해
- * factory 생성 시점에 고정되며, 매 호출마다 `baseOptions.copy(leaderOptions = options)`로 갈아끼운다.
+ * ## Option handling
+ * The [LeaderElectionOptions] passed by an AOP advice only contains `waitTime`/`leaseTime`.
+ * Exposed backend-specific options (`retryStrategy`, `lockOwner`) are fixed at factory construction time
+ * via [baseOptions], and are merged on each call as `baseOptions.copy(leaderOptions = options)`.
  *
- * `ExposedJdbcLeaderElector(...)` 호출은 companion `operator fun invoke`로 라우팅되어
- * `ExposedJdbcSchemaInitializer.ensureSchema(db)`가 함께 실행된다.
+ * Calls to `ExposedJdbcLeaderElector(...)` are routed through the companion `operator fun invoke`,
+ * which also runs `ExposedJdbcSchemaInitializer.ensureSchema(db)`.
  *
  * @param db Exposed [Database]
- * @param baseOptions Exposed 고유 옵션 기본값
+ * @param baseOptions Default values for Exposed-specific options
  */
 class ExposedJdbcLeaderElectorFactory(
     private val db: Database,

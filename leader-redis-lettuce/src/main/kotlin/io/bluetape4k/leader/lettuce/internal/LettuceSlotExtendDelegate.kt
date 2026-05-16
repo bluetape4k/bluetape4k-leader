@@ -15,12 +15,12 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * [LettuceSlotTokenGroup] (sync group, server-side TIME Lua) 용 [ExtendDelegate] — T7 PR 2 / AC-16.
+ * [ExtendDelegate] for [LettuceSlotTokenGroup] (sync group, server-side TIME Lua) — T7 PR 2 / AC-16.
  *
- * ## 동작/계약
- * - [extend] : `group.extendSlot(token, d)` 위임. server-side `redis.call('TIME')` 사용 → client clock skew 차단
- * - [extendSuspend] : blocking sync facade — `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21)
- * - [isHeld] : `group.isSlotHeld(token)` 위임 (server-side TIME Lua)
+ * ## Behavior / Contract
+ * - [extend]: Delegates to `group.extendSlot(token, d)`. Uses server-side `redis.call('TIME')` to eliminate client clock skew.
+ * - [extendSuspend]: Blocking sync facade — wrapped with `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21).
+ * - [isHeld]: Delegates to `group.isSlotHeld(token)` (server-side TIME Lua).
  */
 internal class LettuceSlotExtendDelegate(
     private val group: LettuceSlotTokenGroup,

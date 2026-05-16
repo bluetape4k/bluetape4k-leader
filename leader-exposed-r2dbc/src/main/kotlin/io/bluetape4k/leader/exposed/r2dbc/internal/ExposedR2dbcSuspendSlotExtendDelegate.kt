@@ -12,17 +12,17 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * Exposed R2DBC suspend group elector 의 per-slot [ExposedR2dbcGroupLock] (`(lockName, slot)`) 용 [ExtendDelegate]
+ * [ExtendDelegate] for per-slot [ExposedR2dbcGroupLock] (`(lockName, slot)`) in the Exposed R2DBC suspend group elector
  * — T11 PR 6 (Issue #79).
  *
- * Exposed R2DBC 는 reactive native → suspend.
+ * Exposed R2DBC is reactive native → suspend.
  *
- * ## 동작/계약
- * - [extend] (sync) : `runBlocking` bridge — watchdog scheduler thread 호출 안전 (R2DBC reactive)
- * - [extendSuspend] : `slotLock.extendDetailed(d)` 직접 호출 (suspend native)
+ * ## Behavior / Contract
+ * - [extend] (sync) : `runBlocking` bridge — safe to call from the watchdog scheduler thread (R2DBC reactive)
+ * - [extendSuspend] : Calls `slotLock.extendDetailed(d)` directly (suspend native)
  * - [isHeld] : `runBlocking` bridge
  *
- * Token-based 락이므로 thread 종속성 없음.
+ * Token-based lock with no thread affinity.
  */
 internal class ExposedR2dbcSuspendSlotExtendDelegate(
     private val slotLock: ExposedR2dbcGroupLock,

@@ -12,24 +12,24 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
 /**
- * [AbstractLocalLeaderGroupElector]을 상속한 로컬(단일 JVM) 복수 리더 선출 구현체입니다.
+ * Local (single-JVM) multi-leader election implementation extending [AbstractLocalLeaderGroupElector].
  *
- * ## 동작
- * - 동기 [runIfLeader]와 비동기 [runAsyncIfLeader] 모두 지원합니다.
- * - 슬롯 관리(Semaphore 풀, 상태 조회)는 [AbstractLocalLeaderGroupElector]에서 처리합니다.
- * - 분산 환경이 아닌 단일 JVM 프로세스 내 동시 실행 제한에 적합합니다.
+ * ## Behavior
+ * - Supports both synchronous [runIfLeader] and asynchronous [runAsyncIfLeader].
+ * - Slot management (Semaphore pool, state queries) is handled by [AbstractLocalLeaderGroupElector].
+ * - Suitable for limiting concurrent execution within a single JVM process, not a distributed environment.
  *
  * ```kotlin
  * val election = LocalLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
  *
- * // 동기 실행 (최대 3개 스레드 동시)
+ * // Synchronous execution (up to 3 threads concurrently)
  * val result = election.runIfLeader("batch-job") { processChunk() }
  *
- * // 비동기 실행
+ * // Asynchronous execution
  * val future = election.runAsyncIfLeader("batch-job") { CompletableFuture.completedFuture(42) }
  * ```
  *
- * @param options 리더 그룹 선출 옵션. 기본값은 [LeaderGroupElectionOptions.Default]
+ * @param options leader group election options. Defaults to [LeaderGroupElectionOptions.Default]
  */
 class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOptions):
     AbstractLocalLeaderGroupElector(options), LeaderGroupElector {
@@ -37,7 +37,7 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
     companion object: KLogging() {
 
         /**
-         * [LeaderGroupElectionOptions]을 이용해 [LocalLeaderGroupElector] 인스턴스를 생성합니다.
+         * Creates a [LocalLeaderGroupElector] instance using [LeaderGroupElectionOptions].
          *
          * ```kotlin
          * val election = LocalLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
@@ -45,8 +45,8 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
          * // result == "done"
          * ```
          *
-         * @param options 리더 그룹 선출 옵션. 기본값은 [LeaderGroupElectionOptions.Default]
-         * @return [LeaderGroupElector] 구현체 인스턴스
+         * @param options leader group election options. Defaults to [LeaderGroupElectionOptions.Default]
+         * @return a [LeaderGroupElector] implementation instance
          */
         operator fun invoke(options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default): LeaderGroupElector =
             options
@@ -55,7 +55,7 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
     }
 
     /**
-     * [lockName]의 슬롯을 획득하고 [action]을 동기로 실행합니다.
+     * Acquires a slot for [lockName] and executes [action] synchronously.
      *
      * ```kotlin
      * val election = LocalLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
@@ -63,16 +63,16 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
      * // result == "done"
      * ```
      *
-     * @param lockName 리더 그룹 선출에 사용할 락 이름
-     * @param action 슬롯 획득 성공 시 실행할 동기 작업
-     * @return [action] 실행 결과, 슬롯 획득 실패 시 `null`
+     * @param lockName the lock name used for group leader election
+     * @param action the synchronous action to run when a slot is acquired
+     * @return the [action] result, or `null` when no slot is acquired
      */
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         return tryWithPermit(lockName, action)
     }
 
     /**
-     * [lockName]의 슬롯을 [executor]에서 획득하고 비동기 [action]을 실행합니다.
+     * Acquires a slot for [lockName] on [executor] and executes the async [action].
      *
      * ```kotlin
      * val election = LocalLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
@@ -82,10 +82,10 @@ class LocalLeaderGroupElector private constructor(options: LeaderGroupElectionOp
      * // result == 42
      * ```
      *
-     * @param lockName 리더 그룹 선출에 사용할 락 이름
-     * @param executor 비동기 실행에 사용할 [Executor]. 기본값은 [VirtualThreadExecutor]
-     * @param action 슬롯 획득 성공 시 실행할 비동기 작업
-     * @return [action] 실행 결과를 담은 [CompletableFuture]. 슬롯 획득 실패 시 `null`로 완료됨
+     * @param lockName the lock name used for group leader election
+     * @param executor the [Executor] for async execution. Defaults to [VirtualThreadExecutor]
+     * @param action the async action to run when a slot is acquired
+     * @return [CompletableFuture] resolving to the [action] result, or `null` when no slot is acquired
      */
     override fun <T> runAsyncIfLeader(
         lockName: String,

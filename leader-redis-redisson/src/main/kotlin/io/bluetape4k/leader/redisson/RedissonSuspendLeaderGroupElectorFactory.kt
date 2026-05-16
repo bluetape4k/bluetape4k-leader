@@ -6,16 +6,16 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 import org.redisson.api.RedissonClient
 
 /**
- * [RedissonSuspendLeaderGroupElector] 팩토리 — Redisson 분산 Semaphore 기반 suspend 복수 리더 선출.
+ * Factory for [RedissonSuspendLeaderGroupElector] — suspend multi-leader election backed by a Redisson distributed semaphore.
  *
- * ## 사용 예
+ * ## Usage
  * ```kotlin
  * val factory = RedissonSuspendLeaderGroupElectorFactory(redissonClient)
  * val elector = factory.create(LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = elector.runIfLeader("batch-shard") { processChunk() }
  * ```
  *
- * @param redissonClient 공유 Redisson 클라이언트. 호출자가 수명 관리.
+ * @param redissonClient Shared Redisson client whose lifecycle is managed by the caller.
  */
 class RedissonSuspendLeaderGroupElectorFactory(
     private val redissonClient: RedissonClient,

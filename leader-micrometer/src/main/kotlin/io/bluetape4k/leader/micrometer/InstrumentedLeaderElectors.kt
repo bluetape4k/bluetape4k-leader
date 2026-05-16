@@ -16,24 +16,24 @@ import kotlin.time.TimeSource
 import kotlin.time.toJavaDuration
 
 /**
- * [LeaderElector] 호출을 Micrometer 메트릭으로 계측하는 데코레이터입니다.
+ * Decorator that instruments [LeaderElector] calls with Micrometer metrics.
  *
- * ## 동작/계약
- * - [delegate]의 동작과 예외 전파를 변경하지 않습니다.
- * - 동기/비동기 호출에서 실제 [action]이 실행된 경우 `shedlock.leader.acquired`, `shedlock.leader.duration`,
- *   `shedlock.leader.active`를 기록합니다.
- * - 리더를 획득하지 못해 [action]이 실행되지 않은 경우 `shedlock.leader.not_acquired`를 기록합니다.
- * - [lockName]이 지정되면 모든 메트릭의 `lock.name` 태그에 고정값을 사용하고,
- *   `null`이면 호출 시 전달된 lock 이름을 사용합니다.
+ * ## Behavior / Contract
+ * - Does not alter [delegate]'s behavior or exception propagation.
+ * - Records `shedlock.leader.acquired`, `shedlock.leader.duration`, and `shedlock.leader.active`
+ *   when the actual [action] is executed in synchronous or asynchronous calls.
+ * - Records `shedlock.leader.not_acquired` when [action] is not executed because the leader was not acquired.
+ * - If [lockName] is specified, uses the fixed value for the `lock.name` tag on all metrics;
+ *   if `null`, uses the lock name passed at call time.
  *
  * ```kotlin
  * val election = InstrumentedLeaderElector(delegate, registry)
  * val result = election.runIfLeader("nightly-job") { runJob() }
  * ```
  *
- * @param delegate 실제 리더 선출을 수행하는 [LeaderElector]
- * @param registry 메트릭을 등록할 Micrometer [MeterRegistry]
- * @param lockName 메트릭 태그에 사용할 고정 lock 이름. `null`이면 호출별 lock 이름 사용
+ * @param delegate The [LeaderElector] that performs the actual leader election
+ * @param registry Micrometer [MeterRegistry] to register metrics against
+ * @param lockName Fixed lock name for the metric tag. If `null`, uses the per-call lock name
  */
 class InstrumentedLeaderElector(
     private val delegate: LeaderElector,
@@ -82,22 +82,22 @@ class InstrumentedLeaderElector(
 }
 
 /**
- * [LeaderGroupElector] 호출을 Micrometer 메트릭으로 계측하는 데코레이터입니다.
+ * Decorator that instruments [LeaderGroupElector] calls with Micrometer metrics.
  *
- * ## 동작/계약
- * - [delegate]의 슬롯 획득/상태 조회 동작을 그대로 위임합니다.
- * - 동기/비동기 호출에서 슬롯을 획득해 [action]이 실행된 경우 `shedlock.leader.acquired`, `shedlock.leader.duration`,
- *   `shedlock.leader.active`를 기록합니다.
- * - 슬롯을 획득하지 못한 경우 `shedlock.leader.not_acquired`를 기록합니다.
+ * ## Behavior / Contract
+ * - Delegates slot acquisition and state query behavior from [delegate] unchanged.
+ * - Records `shedlock.leader.acquired`, `shedlock.leader.duration`, and `shedlock.leader.active`
+ *   when a slot is acquired and [action] is executed in synchronous or asynchronous calls.
+ * - Records `shedlock.leader.not_acquired` when a slot is not acquired.
  *
  * ```kotlin
  * val election = InstrumentedLeaderGroupElector(delegate, registry)
  * election.runIfLeader("batch-shard") { processShard() }
  * ```
  *
- * @param delegate 실제 복수 리더 선출을 수행하는 [LeaderGroupElector]
- * @param registry 메트릭을 등록할 Micrometer [MeterRegistry]
- * @param lockName 메트릭 태그에 사용할 고정 lock 이름. `null`이면 호출별 lock 이름 사용
+ * @param delegate The [LeaderGroupElector] that performs the actual multi-leader election
+ * @param registry Micrometer [MeterRegistry] to register metrics against
+ * @param lockName Fixed lock name for the metric tag. If `null`, uses the per-call lock name
  */
 class InstrumentedLeaderGroupElector(
     private val delegate: LeaderGroupElector,
@@ -146,22 +146,22 @@ class InstrumentedLeaderGroupElector(
 }
 
 /**
- * [SuspendLeaderElector] 호출을 Micrometer 메트릭으로 계측하는 데코레이터입니다.
+ * Decorator that instruments [SuspendLeaderElector] calls with Micrometer metrics.
  *
- * ## 동작/계약
- * - [delegate]의 suspend 실행, 예외, 취소 전파를 변경하지 않습니다.
- * - 실제 suspend [action]이 실행된 경우 `shedlock.leader.acquired`,
- *   `shedlock.leader.duration`, `shedlock.leader.active`를 기록합니다.
- * - 리더를 획득하지 못해 [action]이 실행되지 않은 경우 `shedlock.leader.not_acquired`를 기록합니다.
+ * ## Behavior / Contract
+ * - Does not alter [delegate]'s suspend execution, exception, or cancellation propagation.
+ * - Records `shedlock.leader.acquired`, `shedlock.leader.duration`, and `shedlock.leader.active`
+ *   when the actual suspend [action] is executed.
+ * - Records `shedlock.leader.not_acquired` when [action] is not executed because the leader was not acquired.
  *
  * ```kotlin
  * val election = InstrumentedSuspendLeaderElector(delegate, registry)
  * val result = election.runIfLeader("sync-job") { syncData() }
  * ```
  *
- * @param delegate 실제 리더 선출을 수행하는 [SuspendLeaderElector]
- * @param registry 메트릭을 등록할 Micrometer [MeterRegistry]
- * @param lockName 메트릭 태그에 사용할 고정 lock 이름. `null`이면 호출별 lock 이름 사용
+ * @param delegate The [SuspendLeaderElector] that performs the actual leader election
+ * @param registry Micrometer [MeterRegistry] to register metrics against
+ * @param lockName Fixed lock name for the metric tag. If `null`, uses the per-call lock name
  */
 class InstrumentedSuspendLeaderElector(
     private val delegate: SuspendLeaderElector,

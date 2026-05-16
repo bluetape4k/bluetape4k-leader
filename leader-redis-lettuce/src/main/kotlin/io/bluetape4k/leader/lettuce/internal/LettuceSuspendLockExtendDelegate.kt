@@ -12,14 +12,14 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * [LettuceSuspendLock] (suspend native) 용 [ExtendDelegate] — T7 PR 2.
+ * [ExtendDelegate] for [LettuceSuspendLock] (suspend native) — T7 PR 2.
  *
- * ## 동작/계약
- * - Lettuce async API 는 Netty event-loop 기반 non-blocking → suspend native
- * - [extend] (sync) : suspend 함수만 노출되므로 `runBlocking` 으로 bridge. **production sync path 에서 호출 금지** —
- *   suspend 진입 후 [extendSuspend] 사용. AOP aspect 가 suspend wrapper 에서만 호출.
- * - [extendSuspend] : `lock.extendDetailed(d)` 직접 호출 (suspend native — withContext(IO) 불필요)
- * - [isHeld] : suspend 함수 → `runBlocking` bridge (rare path)
+ * ## Behavior / Contract
+ * - Lettuce async API is Netty event-loop-based non-blocking → suspend native.
+ * - [extend] (sync): Bridges via `runBlocking` because only suspend functions are exposed. **Must not be called on a production sync path** —
+ *   use [extendSuspend] after entering a suspend context. The AOP aspect calls this only from a suspend wrapper.
+ * - [extendSuspend]: Calls `lock.extendDetailed(d)` directly (suspend native — no `withContext(IO)` needed).
+ * - [isHeld]: Suspend function → bridged via `runBlocking` (rare path).
  */
 internal class LettuceSuspendLockExtendDelegate(
     private val lock: LettuceSuspendLock,
@@ -31,10 +31,10 @@ internal class LettuceSuspendLockExtendDelegate(
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
 
     /**
-     * sync entry point — watchdog 의 scheduler thread 에서 호출됨.
+     * Sync entry point — called from the watchdog's scheduler thread.
      *
-     * Lettuce async API 는 Netty 기반이므로 `runBlocking` 은 backpressure 없이 안전.
-     * 그러나 suspend wrapper ([extendSuspend]) 가 우선 사용 권장.
+     * Because the Lettuce async API is Netty-based, `runBlocking` is safe without backpressure.
+     * However, the suspend wrapper ([extendSuspend]) is preferred.
      */
     override fun extend(lockAtMostFor: Duration): ExtendOutcome =
         try {

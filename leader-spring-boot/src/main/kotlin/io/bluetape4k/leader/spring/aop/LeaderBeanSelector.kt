@@ -13,16 +13,16 @@ import org.springframework.beans.factory.NoUniqueBeanDefinitionException
 import java.lang.reflect.Method
 
 /**
- * AOP advice 가 호출 단위로 사용할 [LeaderElectorFactory] / [LeaderGroupElectorFactory] 빈을 선택한다.
+ * Selects the [LeaderElectorFactory] / [LeaderGroupElectorFactory] bean to use per AOP advice invocation.
  *
- * ## 우선순위 (#78 — 7단계 fallback)
- * 1. 어노테이션 `bean` 명시 (`@LeaderElection(bean = "...")`)
- * 2. 메서드 `@LeaderElectionBackend`
- * 3. 선언 클래스 `@LeaderElectionBackend`
- * 4. 패키지 `@LeaderElectionBackend` (`@file:LeaderElectionBackend(...)`)
- * 5. 단일 factory 빈
- * 6. `@Primary` factory 빈
- * 7. ambiguous → [NoUniqueBeanDefinitionException]
+ * ## Priority (#78 — 7-step fallback)
+ * 1. Explicit annotation `bean` attribute (`@LeaderElection(bean = "...")`)
+ * 2. Method-level `@LeaderElectionBackend`
+ * 3. Declaring class `@LeaderElectionBackend`
+ * 4. Package-level `@LeaderElectionBackend` (`@file:LeaderElectionBackend(...)`)
+ * 5. Single factory bean
+ * 6. `@Primary` factory bean
+ * 7. Ambiguous → [NoUniqueBeanDefinitionException]
  *
  * @param beanFactory Spring [BeanFactory]
  */
@@ -31,31 +31,31 @@ class LeaderBeanSelector(
 ) {
 
     /**
-     * 단일 리더 [LeaderElectorFactory] 빈 선택.
+     * Selects a single-leader [LeaderElectorFactory] bean.
      *
-     * @param explicitBeanName 어노테이션 `bean` 필드. 빈 문자열 시 하위 단계 탐색
-     * @param method 호출 메서드 — `@LeaderElectionBackend` 탐색용
-     * @return 선택된 factory + 빈 이름
-     * @throws NoSuchBeanDefinitionException 명시 빈 미존재
-     * @throws NoUniqueBeanDefinitionException 자동 선택 시 ambiguous
+     * @param explicitBeanName Annotation `bean` field. Falls back to lower-priority steps when blank.
+     * @param method The invoked method — used for `@LeaderElectionBackend` lookup.
+     * @return Selected factory and its bean name.
+     * @throws NoSuchBeanDefinitionException If the explicitly named bean does not exist.
+     * @throws NoUniqueBeanDefinitionException If auto-selection is ambiguous.
      */
     fun selectElectionFactory(explicitBeanName: String, method: Method? = null): Selected<LeaderElectorFactory> =
         select(explicitBeanName, method, LeaderElectorFactory::class.java)
 
     /**
-     * 다중 리더 [LeaderGroupElectorFactory] 빈 선택.
+     * Selects a multi-leader [LeaderGroupElectorFactory] bean.
      */
     fun selectGroupElectionFactory(explicitBeanName: String, method: Method? = null): Selected<LeaderGroupElectorFactory> =
         select(explicitBeanName, method, LeaderGroupElectorFactory::class.java)
 
     /**
-     * suspend 단일 리더 [SuspendLeaderElectorFactory] 빈 선택.
+     * Selects a suspend single-leader [SuspendLeaderElectorFactory] bean.
      */
     fun selectSuspendElectorFactory(explicitBeanName: String, method: Method? = null): Selected<SuspendLeaderElectorFactory> =
         select(explicitBeanName, method, SuspendLeaderElectorFactory::class.java)
 
     /**
-     * suspend 다중 리더 [SuspendLeaderGroupElectorFactory] 빈 선택.
+     * Selects a suspend multi-leader [SuspendLeaderGroupElectorFactory] bean.
      */
     fun selectSuspendGroupElectorFactory(explicitBeanName: String, method: Method? = null): Selected<SuspendLeaderGroupElectorFactory> =
         select(explicitBeanName, method, SuspendLeaderGroupElectorFactory::class.java)
@@ -99,7 +99,7 @@ class LeaderBeanSelector(
     }
 
     /**
-     * 메서드 → 선언 클래스 → 패키지 순으로 [LeaderElectionBackend] 탐색.
+     * Searches for [LeaderElectionBackend] in order: method → declaring class → package.
      */
     private fun resolveFromBackendAnnotation(method: Method): String? {
         // Step 2: 메서드 @LeaderElectionBackend
@@ -121,6 +121,6 @@ class LeaderBeanSelector(
         return null
     }
 
-    /** 선택된 빈 + 빈 이름 (cache key 로 사용). */
+    /** Selected bean and its bean name (used as a cache key). */
     data class Selected<T>(val beanName: String, val bean: T)
 }

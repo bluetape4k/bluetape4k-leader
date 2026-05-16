@@ -15,15 +15,15 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * [HazelcastLock] (sync, blocking IMap) 용 [ExtendDelegate] — T12 PR 7 (Issue #79).
+ * [ExtendDelegate] for [HazelcastLock] (sync, blocking IMap) — T12 PR 7 (Issue #79).
  *
- * ## 동작/계약
- * - [extend] : `lock.extendDetailed(d)` 위임. backend exception 은 [ExtendOutcome.BackendError] 로 wrap
- * - [extendSuspend] : Hazelcast IMap 은 blocking IO — `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21)
- * - [isHeld] : `lock.isHeldByCurrentInstance()` 위임
- * - [lastExtendDeadline] : `AtomicReference(Instant.EPOCH)` 단일 인스턴스 보관 (R2 watchdog skip 용)
+ * ## Behavior / Contract
+ * - [extend]: delegates to `lock.extendDetailed(d)`. Backend exceptions are wrapped as [ExtendOutcome.BackendError].
+ * - [extendSuspend]: Hazelcast IMap is blocking IO — uses `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21).
+ * - [isHeld]: delegates to `lock.isHeldByCurrentInstance()`.
+ * - [lastExtendDeadline]: held in a single `AtomicReference(Instant.EPOCH)` instance (for R2 watchdog skip).
  *
- * Token-based 락이므로 thread 종속성 없음 (Hazelcast 는 WrongThread 사용 안 함).
+ * Token-based lock — no thread affinity (Hazelcast does not use WrongThread).
  */
 internal class HazelcastLockExtendDelegate(
     private val lock: HazelcastLock,
@@ -43,10 +43,10 @@ internal class HazelcastLockExtendDelegate(
         }
 
     /**
-     * Hazelcast IMap 은 blocking — `withContext(Dispatchers.IO)` 로 dispatch.
+     * Hazelcast IMap is blocking — dispatched via `withContext(Dispatchers.IO)`.
      *
-     * **runCatching {} 사용 금지** — suspend 안에서 CancellationException 을 삼킬 수 있음.
-     * 수동 try/catch + `catch(CancellationException) { throw e }` 사용.
+     * **Do not use runCatching {}** — it may swallow CancellationException inside suspend functions.
+     * Use manual try/catch with `catch(CancellationException) { throw e }`.
      */
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
         coroutineContext.ensureActive()

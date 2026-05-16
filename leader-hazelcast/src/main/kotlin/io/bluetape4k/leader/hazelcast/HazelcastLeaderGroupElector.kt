@@ -22,24 +22,24 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
 /**
- * [IMap] 슬롯 기반 분산 세마포어를 이용한 복수 리더 선출 구현체입니다.
+ * Multi-leader election implementation using [IMap] slot-based distributed semaphore.
  *
- * `${lockName}:slot:N` 키를 사용하는 [HazelcastLock] N개로 `maxLeaders` 슬롯을 시뮬레이션합니다.
- * CP Subsystem 없이 동작하며 토큰 기반이므로 스레드에 귀속되지 않습니다.
+ * Simulates `maxLeaders` slots using N [HazelcastLock] instances with keys `${lockName}:slot:N`.
+ * Works without the CP Subsystem and is token-based, so it is not bound to any thread.
  *
- * ## ExtendDelegate 통합 (T12 PR 7 / Issue #79)
+ * ## ExtendDelegate Integration (T12 PR 7 / Issue #79)
  *
- * - acquire 된 per-slot [HazelcastLock] 을 [HazelcastSlotExtendDelegate] 로 wrap 하여 watchdog 와 동일 reference 공유 (AC-15).
- * - aspect 가 `LockExtender.extendActiveLock` 호출 시 동일 delegate 를 통해 R6 (IMap auto-evict) 적용된 extend 실행.
- * - sync group: `withPushedSync(handle)` + `setCapture(handle)` 양쪽에 push.
+ * - Wraps the acquired per-slot [HazelcastLock] with [HazelcastSlotExtendDelegate], sharing the same reference with the watchdog (AC-15).
+ * - When the aspect calls `LockExtender.extendActiveLock`, the extend is executed through the same delegate with R6 (IMap auto-evict) applied.
+ * - sync group: pushed to both `withPushedSync(handle)` + `setCapture(handle)`.
  *
  * ```kotlin
  * val election = HazelcastLeaderGroupElector(hazelcastInstance, LeaderGroupElectionOptions(maxLeaders = 3))
  * val result = election.runIfLeader("batch-job") { processChunk() }
  * ```
  *
- * @param hazelcast Hazelcast 클라이언트 인스턴스
- * @param options 리더 그룹 선출 옵션 (maxLeaders, waitTime, leaseTime)
+ * @param hazelcast Hazelcast client instance
+ * @param options Leader group election options (maxLeaders, waitTime, leaseTime)
  */
 class HazelcastLeaderGroupElector private constructor(
     private val hazelcast: HazelcastInstance,
@@ -193,7 +193,7 @@ class HazelcastLeaderGroupElector private constructor(
 }
 
 /**
- * Hazelcast 분산 세마포어(슬롯 기반)를 이용하여 최대 [options.maxLeaders]개의 리더로 선출된 경우에만 [action]을 실행합니다.
+ * Executes [action] only when elected as one of up to [options.maxLeaders] leaders using a Hazelcast distributed semaphore (slot-based).
  */
 inline fun <T> HazelcastInstance.runIfLeaderGroup(
     lockName: String,
