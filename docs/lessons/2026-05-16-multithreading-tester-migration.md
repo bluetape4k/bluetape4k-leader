@@ -2,7 +2,7 @@
 
 **Date**: 2026-05-16
 **Issue**: #275
-**PR**: TBD
+**PR**: #282
 **Modules affected**: `leader-core`
 
 ## Summary
