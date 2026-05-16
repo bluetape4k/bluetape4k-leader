@@ -8,6 +8,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -18,6 +19,7 @@ import java.util.concurrent.TimeUnit
  * [LocalLeaderGroupElector]과 [LocalAsyncLeaderGroupElector] 구현체를 통해
  * [LeaderGroupElectionState]의 상태 조회 메서드([activeCount], [availableSlots], [state])를 검증합니다.
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderGroupElectionStateTest {
 
     companion object: KLogging()

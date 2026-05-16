@@ -4,10 +4,15 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import java.time.Instant
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderStateTest {
+
+    companion object : KLogging()
 
     @Test
     fun `empty - leader 없이 빈 상태를 생성한다`() {

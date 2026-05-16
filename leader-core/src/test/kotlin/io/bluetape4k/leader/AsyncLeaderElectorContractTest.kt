@@ -4,11 +4,12 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.local.LocalAsyncLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
-import io.bluetape4k.assertions.assertFailsWith
+import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
@@ -20,6 +21,7 @@ import java.util.concurrent.Executors
  * [LocalAsyncLeaderElector]과 [LocalLeaderElector] 구현체를 통해
  * [AsyncLeaderElector.runAsyncIfLeader] 계약을 검증합니다.
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AsyncLeaderElectorContractTest {
 
     companion object: KLogging()
