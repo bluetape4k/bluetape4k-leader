@@ -415,6 +415,91 @@ mono.flatMap { value ->
 }
 ```
 
+## 리더 Identity
+
+선출된 리더는 `leaderId` 문자열을 보유하며, 이 값은 락 레코드에 기록되고 감사(audit) 이벤트,
+Redis 페이로드, 모니터링 대시보드로 전파됩니다.
+
+### `LeaderIdProvider`
+
+```kotlin
+fun interface LeaderIdProvider {
+    fun nextLeaderId(lockName: String): String
+}
+```
+
+**계약**:
+- 절대 예외를 던지지 않는다.
+- 블로킹하지 않는다.
+- Thread-safe이어야 한다.
+- 빈 문자열이 아닌 값을 반환해야 한다.
+
+### 내장 Provider
+
+| Provider | 설명 | 기본값 |
+|----------|------|--------|
+| `RandomLeaderIdProvider(length)` | Base58 랜덤 문자열 (length=12일 때 ~70 bits 엔트로피) | `length = 12` |
+| `HostnamePidLeaderIdProvider(suffixLength)` | `hostname:PID:base58suffix` — 사람이 읽기 쉬운 형식, 멀티테넌트 SaaS에서 PII 위험 | `suffixLength = 8` |
+| `CompositeLeaderIdProvider(prefix, separator, delegate)` | 다른 Provider 출력에 고정 prefix를 붙임. 테넌트 태깅에 유용 | |
+
+> **PII 주의**: `HostnamePidLeaderIdProvider`는 호스트명을 포함하므로 멀티테넌트 환경에서
+> 내부 인프라 정보가 노출될 수 있습니다. 익명성이 필요한 경우 `RandomLeaderIdProvider`를 사용하세요.
+
+### `LeaderIdSource` (출처 태그)
+
+`LeaderIdSource`는 Micrometer 태그로 기록되는 유한 enum입니다:
+
+| 값 | 의미 |
+|----|------|
+| `LITERAL` | `@LeaderElection(leaderId = "...")` 어노테이션에 정적으로 지정된 문자열 |
+| `SPEL` | 어노테이션의 SpEL 표현식으로 해석 |
+| `PROPERTY` | Spring `${...}` 플레이스홀더로 해석 |
+| `AUTO` | 설정된 `LeaderIdProvider` 빈이 자동 생성 |
+
+### `LeaderSlot` — 감사 identity 캐리어
+
+`LeaderSlot`은 락 이름과 선출된 리더의 identity를 연결합니다:
+
+```kotlin
+val slot = LeaderSlot(lockName = "batch-job", leaderId = "node-42:aBcDeFgH")
+val result = leaderElector.runIfLeader(slot) { doWork() }
+```
+
+`leaderId`는:
+- 백엔드 락 레코드(Redis 키 / DB 행)에 기록되어 장애 복구 시 귀책 추적에 사용됩니다.
+- `LeaderElectionEvent.Elected.leaderId`로 전파됩니다.
+- `runIfLeaderResult` 사용 시 `LeaderRunResult.Elected.leaderId`로 접근 가능합니다.
+
+### 커스텀 Provider 설정 예제
+
+```kotlin
+// 기본 랜덤 방식
+val provider = RandomLeaderIdProvider()
+
+// 호스트명 + PID (호스트명이 PII가 아닌 경우에만 사용)
+val provider = HostnamePidLeaderIdProvider(suffixLength = 6)
+
+// 테넌트 prefix 방식: "tenant-acme:aBcDeFgHiJkL"
+val provider = CompositeLeaderIdProvider(
+    prefix = "tenant-acme",
+    separator = ":",
+    delegate = RandomLeaderIdProvider.Default,
+)
+
+val elector = LocalLeaderElector(LeaderElectionOptions(leaderIdProvider = provider))
+```
+
+### Redis 백엔드에서의 감사 Identity
+
+Lettuce 또는 Redisson 백엔드를 사용하면 `leaderId`가 락 토큰과 원자적으로 함께 기록됩니다:
+
+| 백엔드 | 저장 방식 | 키 |
+|--------|----------|-----|
+| `leader-redis-lettuce` | `lg:{lockName}:meta` Hash (HSET/HDEL) | `auditLeaderId` 필드 |
+| `leader-redis-redisson` | `lg:{lockName}:audit` RMap (`fastPut`/`fastRemove`) | 락 토큰 → leaderId |
+
+크래시 발생 시 TTL 만료로 락 토큰과 identity 레코드가 함께 회수됩니다. 별도의 reaper가 필요 없습니다.
+
 ## 의존성 추가
 
 ```kotlin
