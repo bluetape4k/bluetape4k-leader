@@ -14,6 +14,9 @@ apply(plugin = "org.springframework.boot.aot")
 // Library module: publish plain jar, not the fat bootJar.
 tasks.bootJar { enabled = false }
 tasks.jar { enabled = true }
+// processAot needs a main class — library modules have none; disable it.
+// processTestAot is what we need and is wired via aotTestClasses below.
+tasks.named("processAot") { enabled = false }
 
 configurations {
     testImplementation.get().extendsFrom(compileOnly.get(), runtimeOnly.get())
