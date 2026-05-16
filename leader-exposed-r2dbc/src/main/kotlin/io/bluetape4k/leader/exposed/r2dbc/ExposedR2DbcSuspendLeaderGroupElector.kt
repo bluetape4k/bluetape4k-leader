@@ -275,15 +275,17 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
 
     private suspend fun recordAcquired(lockName: String, token: String, slot: Int): Long? {
         if (!options.recordHistory) return null
+        val lockOwner = options.lockOwner
+        val leaseTimeMs = options.leaderGroupOptions.leaseTime.inWholeMilliseconds
         return try {
             suspendTransaction(db) {
                 val now = Instant.now()
                 LeaderLockHistoryTable.insert {
                     it[LeaderLockHistoryTable.lockName] = lockName
-                    it[LeaderLockHistoryTable.lockOwner] = options.lockOwner
+                    it[LeaderLockHistoryTable.lockOwner] = lockOwner
                     it[LeaderLockHistoryTable.token] = token
                     it[LeaderLockHistoryTable.slot] = slot
-                    it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(options.leaderGroupOptions.leaseTime.inWholeMilliseconds)
+                    it[LeaderLockHistoryTable.lockedUntil] = now.plusMillis(leaseTimeMs)
                     it[LeaderLockHistoryTable.status] = LeaderHistoryStatus.ACQUIRED.name
                     it[LeaderLockHistoryTable.startedAt] = now
                 }[LeaderLockHistoryTable.id]
