@@ -19,13 +19,13 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * 인메모리(단일 프로세스) [StrategicLeaderElector] 구현체입니다.
+ * In-memory (single-process) [StrategicLeaderElector] implementation.
  *
- * 단일 프로세스 내 pilot 테스트 및 단위 테스트 용도로 사용합니다.
- * lockName 단위 [ReentrantLock] 으로 선출 단계의 스레드 안전성을 보장합니다.
- * action 실행은 락 외부에서 수행하여 무관한 lockName 간 간섭을 방지합니다.
+ * Intended for pilot testing and unit testing within a single process.
+ * Thread safety in the election phase is guaranteed by a per-lockName [ReentrantLock].
+ * Action execution is performed outside the lock to prevent interference across unrelated lockNames.
  *
- * @property nodeId 이 인스턴스가 나타내는 노드 식별자. 미지정 시 UUID v7([Uuid.V7])로 자동 생성됩니다.
+ * @property nodeId node identifier represented by this instance. Auto-generated as UUID v7 ([Uuid.V7]) if not specified.
  */
 class LocalStrategicLeaderElector(
     override val nodeId: String = Uuid.V7.nextIdAsString(),

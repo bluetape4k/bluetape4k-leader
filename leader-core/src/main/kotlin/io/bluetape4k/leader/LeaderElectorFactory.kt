@@ -1,36 +1,36 @@
 package io.bluetape4k.leader
 
 /**
- * 호출 단위 옵션으로 [LeaderElector] 인스턴스를 생성하는 팩토리 SPI.
+ * Factory SPI that creates [LeaderElector] instances with per-call options.
  *
- * ## 도입 배경
- * 코어 인터페이스 [LeaderElector.runIfLeader]는 `(lockName, action)` 시그니처만 제공하며 옵션을
- * 호출 단위로 받을 수단이 없다. AOP 어드바이스가 어노테이션 옵션마다 백엔드 인스턴스를 새로
- * 생성/캐싱할 수 있도록 본 SPI를 추가한다.
+ * ## Background
+ * The core interface [LeaderElector.runIfLeader] only provides a `(lockName, action)` signature
+ * and has no means to accept per-call options. This SPI is added so that AOP advice can create
+ * and cache backend instances for each set of annotation options.
  *
- * ## 사용 예
+ * ## Usage Example
  * ```kotlin
  * val factory: LeaderElectionFactory = RedissonLeaderElectionFactory(redisson)
  * val election = factory.create(LeaderElectionOptions(waitTime = 3.seconds, leaseTime = 30.seconds))
  * val result = election.runIfLeader("daily-job") { processData() }
  * ```
  *
- * ## 책임 분리
- * - 본 SPI: 호출자가 요청한 옵션으로 새 [LeaderElector] 인스턴스 생성
- * - 캐싱: AOP 레이어 또는 호출자 책임 (`ConcurrentHashMap<FactoryCacheKey, LeaderElector>` 등)
- * - 백엔드 클라이언트(`RedissonClient`, `MongoClient` 등) 수명: 호출자 또는 DI 컨테이너 책임
+ * ## Responsibility Separation
+ * - This SPI: creates a new [LeaderElector] instance with the options requested by the caller.
+ * - Caching: responsibility of the AOP layer or the caller (e.g. `ConcurrentHashMap<FactoryCacheKey, LeaderElector>`).
+ * - Backend client lifetime (`RedissonClient`, `MongoClient`, etc.): responsibility of the caller or DI container.
  *
- * @see LeaderGroupElectorFactory 그룹 리더 선출용 팩토리
+ * @see LeaderGroupElectorFactory factory for group leader election
  */
 fun interface LeaderElectorFactory {
 
     /**
-     * 주어진 [options]로 새로운 [LeaderElector] 인스턴스를 생성한다.
+     * Creates a new [LeaderElector] instance with the given [options].
      *
-     * 동일 [options]에 대해 매번 새 인스턴스를 반환할 수 있으며, 동일성 보장은 호출자 책임이다.
+     * A new instance may be returned for the same [options] on every call; identity guarantees are the caller's responsibility.
      *
-     * @param options 새 인스턴스에 적용할 옵션 (waitTime, leaseTime)
-     * @return 호출 단위 옵션이 적용된 새 [LeaderElector] 인스턴스
+     * @param options the options to apply to the new instance (waitTime, leaseTime)
+     * @return a new [LeaderElector] instance with the per-call options applied
      */
     fun create(options: LeaderElectionOptions): LeaderElector
 }

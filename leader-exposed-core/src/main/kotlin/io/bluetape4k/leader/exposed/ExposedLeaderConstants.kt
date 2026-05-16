@@ -1,29 +1,29 @@
 package io.bluetape4k.leader.exposed
 
 /**
- * leader-exposed-core 모듈의 공유 상수.
- * 테이블 이름 및 컬럼 길이 제약을 중앙 관리.
+ * Shared constants for the leader-exposed-core module.
+ * Centralizes table names and column length constraints.
  */
 object ExposedLeaderConstants {
 
-    /** 단일 리더 락 테이블 이름 */
+    /** Table name for single-leader locks. */
     const val LOCK_TABLE_NAME = "bluetape4k_leader_locks"
 
-    /** 그룹 리더 락 테이블 이름 (세마포어 기반 멀티 리더) */
+    /** Table name for group leader locks (semaphore-based multi-leader). */
     const val GROUP_LOCK_TABLE_NAME = "bluetape4k_leader_group_locks"
 
-    /** 리더 선출 이력 테이블 이름 */
+    /** Table name for leader election history. */
     const val LOCK_HISTORY_TABLE_NAME = "bluetape4k_leader_lock_history"
 
-    /** lockName 컬럼 최대 길이 */
+    /** Maximum length of the lockName column. */
     const val LOCK_NAME_LENGTH = 255
 
-    /** lockOwner 컬럼 최대 길이 */
+    /** Maximum length of the lockOwner column. */
     const val LOCK_OWNER_LENGTH = 255
 
-    /** fencing token (UUID) 컬럼 길이 — UUID 표준 36자 */
+    /** Length of the fencing token (UUID) column — standard UUID is 36 characters. */
     const val TOKEN_LENGTH = 36
 
-    /** 이력 상태 컬럼 최대 길이 */
+    /** Maximum length of the history status column. */
     const val STATUS_LENGTH = 20
 }

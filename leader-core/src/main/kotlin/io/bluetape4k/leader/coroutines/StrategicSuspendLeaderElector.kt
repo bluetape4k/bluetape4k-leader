@@ -9,43 +9,43 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * 코루틴 기반 플러그형 선출 전략을 지원하는 리더 선출 인터페이스입니다.
+ * Coroutine-based leader election interface that supports pluggable election strategies.
  *
- * [io.bluetape4k.leader.StrategicLeaderElector] 의 suspend 버전입니다.
+ * Suspend variant of [io.bluetape4k.leader.StrategicLeaderElector].
  *
- * [action] 실행 중 코루틴 취소 시 `CancellationException` 은 반드시 호출자에게 재전파해야 합니다.
+ * `CancellationException` must be re-propagated to the caller when the coroutine is cancelled while [action] is running.
  */
 interface StrategicSuspendLeaderElector {
 
-    /** 이 인스턴스가 나타내는 노드 식별자 */
+    /** Node identifier represented by this instance. */
     val nodeId: String
 
     /**
-     * 후보 등록 또는 갱신.
+     * Registers or refreshes a candidate.
      *
-     * [ttl] = [Duration.ZERO] 이면 TTL 없음 (Local 구현은 무시).
+     * [ttl] = [Duration.ZERO] means no TTL (ignored by local implementations).
      */
     suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration = Duration.ZERO)
 
-    /** 후보 등록 해제 */
+    /** Unregisters a candidate. */
     suspend fun unregisterCandidate(lockName: String, nodeId: String)
 
-    /** [lockName] 에 등록된 현재 후보 목록 조회 */
+    /** Returns the current list of candidates registered for [lockName]. */
     suspend fun listCandidates(lockName: String): List<CandidateInfo>
 
     /**
-     * 작업 결과를 후보 정보에 반영합니다.
+     * Records an action result back into the candidate info.
      */
     suspend fun updateResult(lockName: String, nodeId: String, result: CandidateResult)
 
     /**
-     * 전략으로 리더를 선출하고 winner 인 경우에만 suspend [action] 을 실행합니다.
+     * Elects a leader using the strategy and executes the suspend [action] only if this node is the winner.
      *
-     * @param lockName 선출 식별자
-     * @param strategy 선출 전략
-     * @param options 선출 옵션
-     * @param action 리더 획득 성공 시 실행할 suspend 작업
-     * @return [action] 실행 결과, 선출 실패 또는 다른 노드가 winner 이면 `null`
+     * @param lockName the election identifier
+     * @param strategy the election strategy
+     * @param options election options
+     * @param action the suspend action to run when elected
+     * @return [action] result, or `null` if election failed or another node is the winner
      */
     suspend fun <T> runIfLeader(
         lockName: String,

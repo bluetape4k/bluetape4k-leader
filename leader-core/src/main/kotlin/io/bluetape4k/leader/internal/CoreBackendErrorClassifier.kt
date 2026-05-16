@@ -7,17 +7,17 @@ import java.sql.SQLRecoverableException
 import java.sql.SQLTransientException
 
 /**
- * JDK / 공통 exception 분류 — backend module 의존성 없음.
+ * JDK / common exception classifier — no backend module dependencies.
  *
- * ## 동작/계약
- * 각 backend module 의 [CompositeBackendErrorClassifier] 가 backend-specific classifier 시도 후
- * `null` 반환 시 이 core classifier 에 위임.
+ * ## Behavior / Contract
+ * Each backend module's [CompositeBackendErrorClassifier] delegates to this core classifier
+ * when its backend-specific classifier returns `null`.
  *
  * - [OutOfMemoryError], [StackOverflowError], [LinkageError] → [BackendErrorKind.FATAL]
  * - [SQLTransientException], [SQLRecoverableException] → [BackendErrorKind.TRANSIENT]
  * - [SQLNonTransientException] → [BackendErrorKind.NON_TRANSIENT]
  * - [SocketTimeoutException], [ConnectException] → [BackendErrorKind.TRANSIENT]
- * - 그 외 → `null` (분류 불가)
+ * - Other → `null` (unclassifiable)
  *
  * ## Example
  * ```kotlin

@@ -15,21 +15,25 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 
 /**
- * 주기적으로 리더 전용 작업을 실행하는 Ktor 확장 함수입니다.
+ * Ktor extension function that runs a leader-only action on a recurring schedule.
  *
- * ## 동작/계약
- * - [Application] 의 코루틴 스코프에서 [launch] 로 백그라운드 잡을 시작합니다 — `ApplicationStopped` 시 자동 취소됩니다.
- * - 각 cycle 마다 [SuspendLeaderElector.runIfLeader] 를 호출해 [lockName] 으로 단일 인스턴스만 [action] 을 실행합니다.
- * - [period] 간격으로 반복되며, [action] 예외는 WARN 로그 후 무시되고 다음 cycle 이 계속 진행됩니다 (poison-job 방지).
- * - [CancellationException] 은 항상 호출자에게 재전파되어 정상 취소됩니다.
- * - [leaderElection] 인자를 생략하면 [LeaderElectionPlugin] 의 설정에서 가져옵니다 — 플러그인 미설치 시 [IllegalStateException].
+ * ## Behavior / Contract
+ * - Starts a background job via [launch] in the [Application]'s coroutine scope — automatically
+ *   cancelled on `ApplicationStopped`.
+ * - Each cycle calls [SuspendLeaderElector.runIfLeader] with [lockName] so only a single instance
+ *   executes [action].
+ * - Repeats at [period] intervals. Exceptions from [action] are logged at WARN and suppressed so
+ *   the next cycle continues (poison-job prevention).
+ * - [CancellationException] is always re-propagated to the caller for normal cancellation.
+ * - If [leaderElection] is omitted, it is resolved from the [LeaderElectionPlugin] configuration —
+ *   throws [IllegalStateException] if the plugin is not installed.
  * - Management route registration happens only when [LeaderElectionPlugin] is already installed.
  *   Install the plugin before calling [leaderScheduled] if `/management/leaderElection` should list
  *   this lock automatically.
  *
- * ## 입력 검증
- * - [lockName] 은 비어있지 않아야 합니다 (`IllegalArgumentException`).
- * - [period] 는 양수여야 합니다 (`IllegalArgumentException`).
+ * ## Input Validation
+ * - [lockName] must not be blank (`IllegalArgumentException`).
+ * - [period] must be positive (`IllegalArgumentException`).
  *
  * ```kotlin
  * fun Application.module() {
@@ -42,13 +46,13 @@ import kotlin.time.Duration
  * }
  * ```
  *
- * @param lockName 리더 선출에 사용할 락 이름 (blank 금지)
- * @param period 다음 실행까지 대기할 간격 (양수)
- * @param leaderElection 사용할 [SuspendLeaderElector] — 미지정 시 플러그인 설정에서 조회
- * @param action 리더로 선출되었을 때 실행할 suspend 작업
- * @return 백그라운드 [Job] — 수동 취소 가능
- * @throws IllegalArgumentException [lockName] blank 또는 [period] 가 양수가 아닐 때
- * @throws IllegalStateException 인자 [leaderElection] 미지정 + 플러그인 미설치 시
+ * @param lockName Lock name used for leader election (must not be blank)
+ * @param period Interval to wait between executions (must be positive)
+ * @param leaderElection The [SuspendLeaderElector] to use — resolved from plugin config if not specified
+ * @param action The suspend action to execute when elected as leader
+ * @return Background [Job] — can be cancelled manually
+ * @throws IllegalArgumentException if [lockName] is blank or [period] is not positive
+ * @throws IllegalStateException if [leaderElection] is not specified and the plugin is not installed
  */
 fun Application.leaderScheduled(
     lockName: String,
@@ -81,10 +85,10 @@ fun Application.leaderScheduled(
 }
 
 /**
- * [LeaderElectionPlugin] 의 설정에서 [SuspendLeaderElector] 를 조회합니다.
+ * Resolves the [SuspendLeaderElector] from the [LeaderElectionPlugin] configuration.
  *
- * ## 동작/계약
- * - 플러그인이 설치되지 않았거나 `leaderElection` 이 설정되지 않은 경우 [IllegalStateException] 을 던집니다.
+ * ## Behavior / Contract
+ * - Throws [IllegalStateException] if the plugin is not installed or `leaderElection` is not configured.
  */
 internal fun Application.resolveLeaderElection(): SuspendLeaderElector {
     val config = leaderElectionPluginConfig()

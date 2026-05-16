@@ -33,25 +33,25 @@ import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * MongoDB `findOneAndUpdate` upsert + TTL index 기반 코루틴 토큰 분산 락입니다.
+ * Coroutine token-based distributed lock using MongoDB `findOneAndUpdate` upsert + TTL index.
  *
- * [MongoLock]과 동일한 락 전략을 사용하되, `suspend` 함수로 제공합니다.
- * 블로킹 `Thread.sleep` 대신 `delay()`를 사용하여 코루틴 스레드를 점유하지 않습니다.
+ * Uses the same lock strategy as [MongoLock], but exposed as `suspend` functions.
+ * Uses `delay()` instead of blocking `Thread.sleep` so the coroutine thread is not held.
  *
- * ## 취소 안전성
- * `unlock()`은 코루틴 취소에 취약합니다.
- * **반드시 `withContext(NonCancellable)` 블록 안에서 호출해야 합니다.**
- * 취소된 컨텍스트에서 직접 호출하면 CancellationException으로 즉시 중단됩니다.
- * Election 구현체 (예: [MongoSuspendLeaderElector])가 이 보장을 담당합니다.
+ * ## Cancellation safety
+ * `unlock()` is vulnerable to coroutine cancellation.
+ * **It must always be called inside a `withContext(NonCancellable)` block.**
+ * Calling it directly from a cancelled context causes an immediate CancellationException.
+ * Election implementations (e.g. [MongoSuspendLeaderElector]) are responsible for this guarantee.
  *
- * ## 설계 주의사항
- * - [leaseTime]은 action의 최대 실행 시간보다 충분히 커야 합니다.
- * - Replica Set 환경에서는 `WriteConcern.MAJORITY` 권장.
- * - 토큰 기반이므로 코루틴 스레드 전환과 무관하게 안전합니다.
+ * ## Design notes
+ * - [leaseTime] must be sufficiently larger than the maximum action execution time.
+ * - `WriteConcern.MAJORITY` is recommended in a Replica Set environment.
+ * - Token-based, so safe regardless of coroutine thread switches.
  *
- * @param collection 락 상태를 저장하는 코루틴 [MongoCollection]
- * @param lockKey 락 식별 키
- * @param retryDelay 재시도 대기 기본 시간 (jitter 포함)
+ * @param collection coroutine [MongoCollection] storing the lock state
+ * @param lockKey lock identification key
+ * @param retryDelay base retry wait time (includes jitter)
  */
 class MongoSuspendLock private constructor(
     private val collection: MongoCollection<Document>,
@@ -62,10 +62,10 @@ class MongoSuspendLock private constructor(
         private val ensuredNamespaces: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
         /**
-         * 컬렉션에 TTL 인덱스 (`expireAt`, expireAfterSeconds=0)를 생성합니다.
+         * Creates a TTL index (`expireAt`, expireAfterSeconds=0) on the collection.
          *
-         * 네임스페이스 당 최초 1회만 실행됩니다. 생성 실패 시 네임스페이스를
-         * guard set에서 제거하여 다음 호출 시 재시도할 수 있게 합니다.
+         * Runs only once per namespace. On failure, removes the namespace from the guard set
+         * so that the next call can retry.
          */
         suspend fun ensureIndexes(collection: MongoCollection<Document>) {
             val namespace = collection.namespace.fullName
@@ -82,7 +82,7 @@ class MongoSuspendLock private constructor(
             }
         }
 
-        /** 테스트에서 특정 네임스페이스의 ensureIndexes 상태를 초기화합니다. */
+        /** Resets the ensureIndexes state for a specific namespace in tests. */
         internal fun resetEnsuredFor(namespace: String) {
             ensuredNamespaces.remove(namespace)
         }
@@ -100,14 +100,15 @@ class MongoSuspendLock private constructor(
     internal val token: String = Base58.randomString(22)
 
     /**
-     * [waitTime] 내에 락 획득을 시도합니다. 성공 시 `true`, 타임아웃 또는 오류 시 `false`를 반환합니다.
+     * Attempts to acquire the lock within [waitTime]. Returns `true` on success,
+     * `false` on timeout or error.
      *
-     * 이 함수는 절대 예외를 throw하지 않습니다 (단, `CancellationException`은 전파됩니다).
-     * 코루틴 취소 시 `ensureActive()`에서 `CancellationException`이 발생하여 루프를 탈출합니다.
+     * This function never throws exceptions (except `CancellationException`, which is propagated).
+     * On coroutine cancellation, `ensureActive()` raises `CancellationException` to break the loop.
      *
-     * @param waitTime 락 획득 최대 대기 시간
-     * @param leaseTime 락 보유(TTL) 최대 시간
-     * @return 락 획득 성공 시 `true`, 실패 또는 오류 시 `false`
+     * @param waitTime maximum wait time for lock acquisition
+     * @param leaseTime maximum lock hold (TTL) duration
+     * @return `true` on successful lock acquisition, `false` on failure or error
      */
     suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
         val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
@@ -174,7 +175,7 @@ class MongoSuspendLock private constructor(
     }
 
     /**
-     * 현재 인스턴스(토큰)가 락을 보유하고 있는지 확인합니다.
+     * Checks whether the current instance (token) holds the lock.
      */
     suspend fun isHeldByCurrentInstance(): Boolean =
         collection.countDocuments(
@@ -182,12 +183,12 @@ class MongoSuspendLock private constructor(
         ) > 0
 
     /**
-     * 현재 인스턴스가 보유한 락을 해제합니다.
+     * Releases the lock held by the current instance.
      *
-     * **반드시 `withContext(NonCancellable)` 블록 안에서 호출해야 합니다.**
-     * 취소된 컨텍스트에서 직접 호출하면 CancellationException이 즉시 발생합니다.
+     * **Must always be called inside a `withContext(NonCancellable)` block.**
+     * Calling it directly from a cancelled context causes an immediate CancellationException.
      *
-     * 토큰 불일치 시 경고 로그만 남깁니다.
+     * Logs a warning on token mismatch without throwing.
      */
     suspend fun unlock(
         minLeaseTime: Duration = Duration.ZERO,
@@ -212,18 +213,19 @@ class MongoSuspendLock private constructor(
     }
 
     /**
-     * 락의 expireAt 을 [leaseTime] 만큼 atomic 하게 연장하고 [ExtendOutcome] 을 반환합니다.
+     * Atomically extends the lock's `expireAt` by [leaseTime] and returns an [ExtendOutcome].
      *
      * ## R6 filter (Issue #79 PR 4)
-     * 필터에 `expireAt > now()` 를 추가하여 만료된 문서를 다른 인스턴스가 재획득한 race 상황에서
-     * stale token 으로 expired-doc 을 revival 시키는 split-brain 을 차단합니다.
+     * Adds `expireAt > now()` to the filter to block split-brain scenarios where a stale token
+     * could revive an expired document that another instance has already re-acquired.
      *
-     * ## 반환
-     * - matchedCount == 1 → [ExtendOutcome.Extended] ( `observedExpireAt = now + leaseTime` best-effort )
-     * - matchedCount == 0 → [ExtendOutcome.NotHeld] (토큰 불일치 / lease 만료 / takeover 발생)
-     * - backend exception 은 caller (delegate) 가 [ExtendOutcome.BackendError] 로 wrap — 본 함수는 그대로 throw
+     * ## Return values
+     * - matchedCount == 1 → [ExtendOutcome.Extended] (`observedExpireAt = now + leaseTime`, best-effort)
+     * - matchedCount == 0 → [ExtendOutcome.NotHeld] (token mismatch / lease expired / takeover occurred)
+     * - Backend exceptions are wrapped as [ExtendOutcome.BackendError] by the caller (delegate) —
+     *   this function rethrows them as-is.
      *
-     * Coroutine driver 는 reactive native 이므로 `withContext(Dispatchers.IO)` 불필요.
+     * The coroutine driver is reactive-native, so `withContext(Dispatchers.IO)` is not needed.
      */
     suspend fun extendDetailed(leaseTime: Duration): ExtendOutcome {
         val nowMs = System.currentTimeMillis()

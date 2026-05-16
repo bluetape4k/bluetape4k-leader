@@ -4,11 +4,11 @@ import io.bluetape4k.leader.strategy.CandidateInfo
 import java.time.Instant
 
 /**
- * [CandidateInfo] 를 Redis String 값으로 인코딩/디코딩하는 내부 코덱입니다.
+ * Internal codec that encodes/decodes [CandidateInfo] to/from a Redis String value.
  *
- * 포맷: `nodeId|registeredAtMs|lastStartMs|lastCompletionMs|successCount|failureCount|metadata`
- * - Instant?: epochMilli 문자열, 없으면 빈 문자열
- * - metadata: `key=value` 쌍을 `,` 로 구분. 키/값/nodeId 에 `|`, `,`, `=`, `%` 포함 시 percent-encode
+ * Format: `nodeId|registeredAtMs|lastStartMs|lastCompletionMs|successCount|failureCount|metadata`
+ * - Instant?: epochMilli string; empty string when absent
+ * - metadata: `key=value` pairs separated by `,`. Keys, values, and nodeId are percent-encoded when they contain `|`, `,`, `=`, or `%`
  */
 internal object LettuceCandidateInfoCodec {
 
@@ -47,8 +47,8 @@ internal object LettuceCandidateInfoCodec {
     private fun String.esc() = replace("%", "%25").replace("|", "%7C").replace(",", "%2C").replace("=", "%3D")
 
     /**
-     * 단일 패스 percent-decoder. 체이닝 [String.replace] 는 nested 토큰
-     * (예: 인코딩된 `%7C` = `%257C`) 에서 잘못된 결과를 낳으므로 직접 스캔합니다.
+     * Single-pass percent-decoder. Chained [String.replace] produces incorrect results for nested tokens
+     * (e.g., encoded `%7C` = `%257C`), so the string is scanned directly.
      */
     private fun String.unesc(): String {
         if (isEmpty() || !contains('%')) return this

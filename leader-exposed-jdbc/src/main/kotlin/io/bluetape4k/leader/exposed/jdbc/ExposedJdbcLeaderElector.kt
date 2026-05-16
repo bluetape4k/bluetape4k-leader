@@ -25,42 +25,42 @@ import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 
 /**
- * Exposed JDBC 기반 단일 리더 선출 구현체.
+ * Single leader election implementation backed by Exposed JDBC.
  *
- * `UPDATE + INSERT + SELECT` 패턴으로 DB 행 수준 락을 구현합니다.
- * 지원 DB는 모듈 README의 호환성 매트릭스를 참조하세요.
+ * Implements row-level locking via the `UPDATE + INSERT + SELECT` pattern.
+ * See the module README compatibility matrix for supported databases.
  *
- * ### 기본 사용
+ * ### Basic usage
  * ```kotlin
  * val election = ExposedJdbcLeaderElector(db)
  * val result = election.runIfLeader("daily-job") { processData() }
- * // result == processData() 반환값 (리더 획득 성공) 또는 null (획득 실패 / action 예외)
+ * // result == processData() return value (lock acquired) or null (lock not acquired / action threw)
  * ```
  *
- * ### 히스토리 기록
+ * ### History recording
  * ```kotlin
  * val sink = ExposedLeaderHistorySink(db)
  * val recorder = SafeLeaderHistoryRecorder(sink)
  * val election = ExposedJdbcLeaderElector(db, historyRecorder = recorder)
  * ```
  *
- * ### 경합 시 skip
+ * ### Skip on contention
  * ```kotlin
  * val report = election.runIfLeader("nightly-report") { generateReport() }
- *     ?: run { logger.info("리더가 아니므로 작업 건너뜀"); return }
+ *     ?: run { logger.info("Not the leader — skipping"); return }
  * ```
  *
  * ## Behavior / Contract
- * - Lock 미획득(contention) 시 `null` 반환 — 예외 없음.
- * - Action이 [CancellationException] 또는 [InterruptedException]을 던지면 rethrow.
- * - Action이 다른 [Exception]을 던지면 FAILED 이력 기록 후 예외를 재전파합니다.
- * - [historyRecorder]가 null이면 이력 기록 없이 동작.
+ * - Returns `null` when the lock cannot be acquired (contention) — never throws.
+ * - Rethrows [CancellationException] or [InterruptedException] thrown by action.
+ * - Records FAILED history and rethrows any other [Exception] thrown by action.
+ * - When [historyRecorder] is null, operates without recording history.
  *
- * **private constructor** — [invoke] 팩터리를 통해서만 생성하세요.
+ * **private constructor** — create instances only through the [invoke] factory.
  *
- * @param db Exposed [Database] 인스턴스
- * @param options 단일 리더 선출 옵션
- * @param historyRecorder 선택적 이력 기록기; null이면 이력 기록 안 함
+ * @param db Exposed [Database] instance
+ * @param options single leader election options
+ * @param historyRecorder optional history recorder; no history is recorded when null
  */
 class ExposedJdbcLeaderElector private constructor(
     private val db: Database,
@@ -74,9 +74,9 @@ class ExposedJdbcLeaderElector private constructor(
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedJdbcBackendErrorClassifier)
 
         /**
-         * [ExposedJdbcLeaderElector] 인스턴스를 생성합니다.
+         * Creates an [ExposedJdbcLeaderElector] instance.
          *
-         * 첫 호출 시 리더 선출 테이블 스키마를 자동으로 생성합니다 (최초 1회).
+         * On the first call, automatically creates the leader election table schema (once per database URL).
          */
         @JvmStatic
         @JvmOverloads
@@ -91,18 +91,18 @@ class ExposedJdbcLeaderElector private constructor(
     }
 
     /**
-     * [lockName]에 대해 리더로 승격되면 [action]을 실행하고 결과를 반환합니다.
+     * Executes [action] and returns its result when this node is elected leader for [lockName].
      *
-     * - 리더 획득에 성공하면 [action] 결과를 반환합니다.
-     * - 리더 획득에 실패하면 `null`을 반환합니다 (예외 없음 — ShedLock 호환 skip-on-contention 계약).
-     * - [action]이 예외를 던지면 FAILED 이력 기록 후 예외를 그대로 재던집니다.
-     * - 락은 정상/예외 어느 경로에서도 항상 해제됩니다.
+     * - Returns the [action] result when the lock is acquired successfully.
+     * - Returns `null` when the lock cannot be acquired (no exception — ShedLock-compatible skip-on-contention contract).
+     * - Records FAILED history and rethrows any exception thrown by [action].
+     * - The lock is always released regardless of whether the action succeeds or throws.
      *
-     * @param lockName 락 식별자 (영숫자/하이픈/언더스코어/콜론, 1-255자)
-     * @param action 리더 획득 성공 시 실행할 작업
-     * @return [action] 결과 또는 `null` (리더 획득 실패 시)
-     * @throws IllegalArgumentException [lockName]이 유효하지 않은 경우
-     * @throws Exception [action]이 던진 예외 (FAILED 이력 기록 후 재전파)
+     * @param lockName lock identifier (alphanumeric/hyphen/underscore/colon, 1–255 characters)
+     * @param action the work to execute when the leader lock is acquired
+     * @return [action] result, or `null` when the lock cannot be acquired
+     * @throws IllegalArgumentException when [lockName] is invalid
+     * @throws Exception exception thrown by [action] (recorded as FAILED and rethrown)
      */
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         validateExposedLockName(lockName)
@@ -183,12 +183,12 @@ class ExposedJdbcLeaderElector private constructor(
     }
 
     /**
-     * [lockName]에 대해 리더로 승격되면 비동기로 [action]을 실행합니다.
+     * Executes [action] asynchronously when this node is elected leader for [lockName].
      *
-     * @param lockName 락 식별자
-     * @param executor 비동기 실행자
-     * @param action 리더 획득 성공 시 실행할 비동기 작업
-     * @return 작업 결과를 담은 [CompletableFuture] (리더 획득 실패 / action 예외 시 `null`로 완료)
+     * @param lockName lock identifier
+     * @param executor async executor
+     * @param action the async work to execute when the leader lock is acquired
+     * @return [CompletableFuture] holding the action result, or completing with `null` on lock failure or action exception
      */
     override fun <T> runAsyncIfLeader(
         lockName: String,

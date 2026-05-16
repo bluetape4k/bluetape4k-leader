@@ -5,7 +5,7 @@ import java.time.Duration
 import kotlin.time.toKotlinDuration
 
 /**
- * 리더 선출 자동 구성 속성입니다.
+ * Auto-configuration properties for leader election.
  *
  * ```yaml
  * leader:
@@ -17,9 +17,9 @@ import kotlin.time.toKotlinDuration
  *     lease-time: 60s
  * ```
  *
- * @property waitTime 리더 획득 대기 최대 시간. 기본값 5초
- * @property leaseTime 리더 보유(임대) 최대 시간. 기본값 60초
- * @property group 복수 리더 그룹 선출 속성
+ * @property waitTime Maximum time to wait for leader acquisition. Default 5 seconds
+ * @property leaseTime Maximum time to hold (lease) the leader role. Default 60 seconds
+ * @property group Properties for multi-leader group election
  */
 data class LeaderElectionProperties(
     val waitTime: Duration = DefaultWaitTime,

@@ -28,18 +28,21 @@ import java.util.Date
 import kotlin.random.Random
 
 /**
- * MongoDB 슬롯 기반 분산 세마포어를 이용한 코루틴 기반 복수 리더 그룹 선출 구현체입니다.
+ * Coroutine-based multi-leader group election implementation using a MongoDB slot-based distributed semaphore.
  *
- * ## 이중 컬렉션 설계
- * [LeaderGroupState] 인터페이스의 `activeCount`, `availableSlots`, `state`는 non-suspend 계약입니다.
- * 코루틴 드라이버의 `countDocuments`는 suspend 함수이므로 state 조회에 사용할 수 없습니다.
- * 따라서 state 조회는 동기 [groupCollection]으로, 락 획득/해제는 코루틴 [coroutineGroupCollection]으로 처리합니다.
+ * ## Dual-collection design
+ * The `activeCount`, `availableSlots`, and `state` methods of the [LeaderGroupState] interface are non-suspend contracts.
+ * Because the coroutine driver's `countDocuments` is a suspend function, it cannot be used for state queries.
+ * Therefore, state queries use the synchronous [groupCollection], while lock acquire/release uses
+ * the coroutine [coroutineGroupCollection].
  *
- * ## ExtendDelegate 통합 (T9 PR 4 / Issue #79)
+ * ## ExtendDelegate Integration (T9 PR 4 / Issue #79)
  *
- * - acquire 된 per-slot [MongoSuspendLock] 을 [MongoSuspendSlotExtendDelegate] 로 wrap 하여 watchdog 와 동일 reference 공유 (AC-15).
- * - aspect 의 `LockExtenderSuspend.extendActiveLockSuspend` 는 동일 delegate reference 를 사용합니다.
- * - suspend group: `withContext(createLockHandleElement(handle))` 로 coroutineContext 에 handle 전파.
+ * - Wraps each acquired per-slot [MongoSuspendLock] with [MongoSuspendSlotExtendDelegate], sharing the same
+ *   reference with the watchdog (AC-15).
+ * - The aspect's `LockExtenderSuspend.extendActiveLockSuspend` uses the same delegate reference.
+ * - Propagates the handle into the coroutine context via
+ *   `withContext(createLockHandleElement(handle))`.
  *
  * ```kotlin
  * val db = mongoClient.getDatabase("mydb")
@@ -51,9 +54,9 @@ import kotlin.random.Random
  * val result = election.runIfLeader("batch-job") { processChunk() }
  * ```
  *
- * @param groupCollection state 조회용 동기 [MongoCollection]
- * @param coroutineGroupCollection 락 획득/해제용 코루틴 [CoroutineMongoCollection]
- * @param options 그룹 리더 선출 옵션
+ * @param groupCollection synchronous [MongoCollection] for state queries
+ * @param coroutineGroupCollection coroutine [CoroutineMongoCollection] for lock acquire/release
+ * @param options group leader election options
  */
 class MongoSuspendLeaderGroupElector private constructor(
     private val groupCollection: MongoCollection<Document>,
@@ -90,9 +93,11 @@ class MongoSuspendLeaderGroupElector private constructor(
     private fun slotKey(lockName: String, slot: Int) = "$lockName:slot:$slot"
 
     /**
-     * 현재 활성 슬롯 수를 반환합니다 (만료되지 않은 문서 기준, 동기 드라이버 사용).
+     * Returns the number of currently active slots using the synchronous driver
+     * (based on non-expired documents).
      *
-     * **주의:** 이 값은 근사치입니다. TTL 만료 주기(최대 60초) 동안 만료 문서가 잔류할 수 있습니다.
+     * **Note:** This value is approximate. Expired documents may linger for up to 60 seconds
+     * during a TTL expiration cycle.
      */
     override fun activeCount(lockName: String): Int {
         val ids = (0 until maxLeaders).map { slotKey(lockName, it) }
@@ -186,10 +191,12 @@ class MongoSuspendLeaderGroupElector private constructor(
 }
 
 /**
- * MongoDB 분산 세마포어(슬롯 기반)를 이용하여 최대 [options.maxLeaders]개의 리더로 선출된 경우에만 suspend [action]을 실행합니다.
+ * Runs the suspend [action] only when elected as one of at most [options.maxLeaders] leaders
+ * using a MongoDB slot-based distributed semaphore.
  *
- * 수신자는 state 조회용 동기 컬렉션이고, 락 획득/해제용 [coroutineGroupCollection]을 함께 전달해야 합니다.
- * 이는 [MongoSuspendLeaderGroupElector]의 이중 컬렉션 설계 때문입니다.
+ * The receiver is the synchronous collection for state queries; [coroutineGroupCollection] must also be
+ * provided for lock acquire/release. This is required by the dual-collection design of
+ * [MongoSuspendLeaderGroupElector].
  */
 suspend fun <T> MongoCollection<Document>.suspendRunIfLeaderGroup(
     coroutineGroupCollection: CoroutineMongoCollection<Document>,

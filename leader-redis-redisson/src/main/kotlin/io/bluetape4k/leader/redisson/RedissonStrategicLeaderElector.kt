@@ -17,19 +17,19 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Redisson 백엔드 기반 [StrategicLeaderElector] 구현체입니다.
+ * [StrategicLeaderElector] implementation backed by Redisson.
  *
- * ## 선출 방식
- * 분산 락 없이 결정론적 전략을 사용합니다.
- * 모든 노드가 동일한 후보 목록에 동일한 전략을 적용하면 동일한 winner를 계산합니다.
- * winner 인 노드만 action 을 실행합니다.
+ * ## Election approach
+ * Uses a deterministic strategy without distributed locks.
+ * When all nodes apply the same strategy to the same candidate list, they compute the same winner.
+ * Only the winner node executes the action.
  *
- * ## 주의
- * 후보 등록/만료 타이밍 차이로 노드마다 다른 후보 목록을 볼 수 있습니다.
- * 엄격한 상호 배제가 필요한 경우 [RedissonLeaderElector] (락 기반)을 사용하세요.
+ * ## Note
+ * Differences in candidate registration/expiry timing may cause nodes to see different candidate lists.
+ * Use [RedissonLeaderElector] (lock-based) when strict mutual exclusion is required.
  *
- * @param redissonClient Redisson 클라이언트
- * @param nodeId 이 인스턴스의 노드 식별자. 미지정 시 UUID v7 자동 생성.
+ * @param redissonClient Redisson client
+ * @param nodeId node identifier for this instance; auto-generated as UUID v7 when not specified
  */
 class RedissonStrategicLeaderElector(
     redissonClient: RedissonClient,

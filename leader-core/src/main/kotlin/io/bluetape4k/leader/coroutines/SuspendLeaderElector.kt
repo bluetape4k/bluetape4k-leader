@@ -7,14 +7,14 @@ import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * 코루틴 기반 리더 선출 실행 계약을 정의합니다.
+ * Defines the contract for coroutine-based leader election execution.
  *
- * ## 동작/계약
- * - 구현체는 동일 [lockName]에 대해 리더 획득 성공 호출만 [action]을 실행합니다.
- * - [action]은 suspend 함수이며 호출 컨텍스트/디스패처는 구현체 정책을 따릅니다.
- * - 리더 획득 실패 시 `null`을 반환합니다 (ShedLock skip 방식).
- * - [action] 실행 중 코루틴 취소 시 락/슬롯은 반드시 반환되어야 하며,
- *   `CancellationException`은 반환 작업 후 호출자에게 재전파해야 합니다.
+ * ## Behavior / Contract
+ * - Implementations execute [action] only for the call that successfully acquires leadership for [lockName].
+ * - [action] is a suspend function; the call context and dispatcher follow the implementation policy.
+ * - Returns `null` when leadership is not acquired (ShedLock skip style).
+ * - If the coroutine is cancelled while [action] is running, the lock/slot must be released,
+ *   and `CancellationException` must be re-propagated to the caller after the release.
  *
  * ```kotlin
  * val result = election.runIfLeader("sync-job") { "ok" }
@@ -24,21 +24,21 @@ import kotlin.coroutines.cancellation.CancellationException
 interface SuspendLeaderElector: LeaderElectionState {
 
     /**
-     * 리더 획득 성공 시 suspend [action]을 실행합니다.
+     * Executes the suspend [action] when leadership is successfully acquired.
      *
-     * ## 동작/계약
-     * - [lockName] 기준 리더 획득 성공 시 [action]을 1회 실행합니다.
-     * - [action] 예외는 호출자에게 전파됩니다.
-     * - [lockName] 검증 규칙은 구현체 정책을 따릅니다.
+     * ## Behavior / Contract
+     * - [action] is executed exactly once when leadership for [lockName] is acquired.
+     * - Exceptions from [action] are propagated to the caller.
+     * - [lockName] validation rules follow the implementation policy.
      *
      * ```kotlin
      * val value = election.runIfLeader("job-lock") { 7 }
-     * // value == 7 (리더 획득 성공) 또는 null (획득 실패)
+     * // value == 7 (leader acquired) or null (not acquired)
      * ```
      *
-     * @param lockName 리더 선출에 사용할 락 이름
-     * @param action 리더 획득 성공 시 실행할 suspend 작업
-     * @return [action] 실행 결과, 리더 획득 실패 시 `null`
+     * @param lockName the lock name used for leader election
+     * @param action the suspend action to run when elected
+     * @return [action] result, or `null` if leadership was not acquired
      */
     suspend fun <T> runIfLeader(
         lockName: String,
@@ -46,18 +46,18 @@ interface SuspendLeaderElector: LeaderElectionState {
     ): T?
 
     /**
-     * 리더 선출 결과를 명시적으로 표현하는 결과형 API.
+     * Result-type API that explicitly represents the leader election outcome.
      *
-     * [runIfLeader] 가 `null` 을 반환할 때 (a) 리더 미선출 vs (b) action 이 null 반환 모호함을 제거.
+     * Removes the ambiguity when [runIfLeader] returns `null`: (a) not elected vs (b) action returned null.
      *
-     * ## 동작/계약
-     * - 리더 선출 성공 → [LeaderRunResult.Elected]`(value)` — `value` 는 action 반환값 (null 가능)
-     * - 리더 미선출 → [LeaderRunResult.Skipped]
-     * - `elected: Boolean` flag 패턴으로 정확 분류 (action 이 null 반환해도 [LeaderRunResult.Elected])
+     * ## Behavior / Contract
+     * - Leadership acquired → [LeaderRunResult.Elected]`(value)` — `value` is the action return value (may be null)
+     * - Not elected → [LeaderRunResult.Skipped]
+     * - `elected: Boolean` flag pattern for precise classification (even if action returns null, result is [LeaderRunResult.Elected])
      *
      * ## binary-compat (Step 2-R R3-F3)
-     * Kotlin interface default fun 으로 추가 — `-jvm-default=enable` 빌드 하에서 JVM `default` method 로 컴파일,
-     * 기존 외부 구현체 binary 호환 보존.
+     * Added as a Kotlin interface default fun — compiled as a JVM `default` method under `-jvm-default=enable`,
+     * preserving binary compatibility with existing external implementations.
      *
      * ```kotlin
      * val result = election.runIfLeaderResultSuspend("job-lock") { computeResult() }
@@ -70,9 +70,9 @@ interface SuspendLeaderElector: LeaderElectionState {
      *
      * `CancellationException` is rethrown directly and is not wrapped as [LeaderRunResult.ActionFailed].
      *
-     * @param lockName 리더 선출에 사용할 락 이름
-     * @param action 리더 획득 성공 시 실행할 suspend 작업
-     * @return [LeaderRunResult.Elected] (action 실행됨) 또는 [LeaderRunResult.Skipped] (리더 미선출)
+     * @param lockName the lock name used for leader election
+     * @param action the suspend action to run when elected
+     * @return [LeaderRunResult.Elected] (action ran) or [LeaderRunResult.Skipped] (not elected)
      */
     suspend fun <T> runIfLeaderResultSuspend(
         lockName: String,

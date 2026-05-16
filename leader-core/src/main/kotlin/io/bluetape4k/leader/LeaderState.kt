@@ -4,13 +4,13 @@ import io.bluetape4k.support.requireNotBlank
 import java.io.Serializable
 
 /**
- * 단일 리더 선출의 현재 상태 스냅샷입니다.
+ * Current state snapshot for a single leader election.
  *
- * ## 계약
- * - 이 값은 조회 시점의 best-effort 스냅샷입니다.
- * - lock 획득 가능 여부 판단에는 [state] 대신 각 elector의 원자적 acquire 경로를 사용해야 합니다.
- * - [status]가 [LeaderStatus.Empty]이면 [leader]는 `null`입니다.
- * - [status]가 [LeaderStatus.Occupied]이면 [leader]는 `null`이 아닙니다.
+ * ## Contract
+ * - This value is a best-effort snapshot at the time of query.
+ * - To determine whether a lock can be acquired, use each elector's atomic acquire path rather than [state].
+ * - When [status] is [LeaderStatus.Empty], [leader] is `null`.
+ * - When [status] is [LeaderStatus.Occupied], [leader] is not `null`.
  *
  * ```kotlin
  * val state = election.state("batch-lock")
@@ -29,13 +29,13 @@ data class LeaderState(
         private const val serialVersionUID = 1L
 
         /**
-         * 리더가 없는 상태 스냅샷을 생성합니다.
+         * Creates a state snapshot with no leader.
          */
         fun empty(lockName: String): LeaderState =
             LeaderState(lockName, LeaderStatus.Empty)
 
         /**
-         * 리더가 점유 중인 상태 스냅샷을 생성합니다.
+         * Creates a state snapshot with an active leader.
          */
         fun occupied(lockName: String, leader: LeaderLease): LeaderState =
             LeaderState(lockName, LeaderStatus.Occupied, leader)
@@ -49,9 +49,9 @@ data class LeaderState(
         }
     }
 
-    /** 현재 리더가 없는지 여부입니다. */
+    /** Whether there is currently no leader. */
     val isEmpty: Boolean get() = status == LeaderStatus.Empty
 
-    /** 현재 리더가 선출되어 있는지 여부입니다. */
+    /** Whether a leader is currently elected. */
     val isOccupied: Boolean get() = status == LeaderStatus.Occupied
 }

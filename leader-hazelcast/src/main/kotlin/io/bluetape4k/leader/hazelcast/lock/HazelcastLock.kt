@@ -13,19 +13,20 @@ import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 
 /**
- * [IMap] 기반 분산 락 구현체입니다.
+ * Distributed lock implementation backed by [IMap].
  *
- * `putIfAbsent(key, token, ttl)` 으로 원자적 획득, `remove(key, token)` 으로 토큰 일치 시에만 해제합니다.
- * 스레드 ID 에 의존하지 않으므로 Virtual Thread, ThreadPool 등 어느 실행 모델에서도 안전합니다.
+ * Uses `putIfAbsent(key, token, ttl)` for atomic acquisition and `remove(key, token)` for
+ * token-guarded release. Does not depend on thread ID, so it is safe under any execution model
+ * including Virtual Threads and thread pools.
  *
- * **주의:** [leaseTime]은 action의 최대 실행 시간보다 충분히 커야 합니다.
- * TTL이 만료되면 락이 자동 해제되어 다른 노드가 동시에 리더가 될 수 있습니다.
+ * **Warning:** [leaseTime] must be sufficiently longer than the maximum execution time of the action.
+ * If the TTL expires, the lock is released automatically and another node may become leader concurrently.
  *
- * **주의:** [lockMap]에는 near-cache를 절대 활성화하지 마십시오.
- * near-cache의 stale 값이 [isHeldByCurrentInstance] 오판을 유발할 수 있습니다.
+ * **Warning:** Never enable near-cache on [lockMap].
+ * Stale values from near-cache can cause [isHeldByCurrentInstance] to return incorrect results.
  *
- * @param lockMap 락 상태를 저장하는 [IMap]
- * @param lockKey 락 식별 키
+ * @param lockMap The [IMap] used to store lock state
+ * @param lockKey Key that identifies this lock
  */
 class HazelcastLock(
     private val lockMap: IMap<String, String>,
@@ -38,11 +39,12 @@ class HazelcastLock(
     private val token: String = Base58.randomString(8)
 
     /**
-     * [waitTime] 내에 락 획득을 시도합니다. 성공하면 `true`, 타임아웃이거나 클러스터 오류이면 `false`를 반환합니다.
+     * Attempts to acquire the lock within [waitTime]. Returns `true` on success,
+     * or `false` on timeout or cluster error.
      *
-     * Hazelcast 클러스터 이벤트(파티션 마이그레이션, 멤버 이탈 등)로 인한 [HazelcastException]은
-     * 예외를 전파하지 않고 `false`로 처리합니다. 이로써 `runIfLeader()` 가 절대 throws하지 않는
-     * 계약을 보장합니다.
+     * [HazelcastException] caused by cluster events (partition migration, member departure, etc.)
+     * is handled as `false` rather than being propagated, preserving the contract that
+     * `runIfLeader()` never throws.
      */
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
         val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
@@ -70,17 +72,17 @@ class HazelcastLock(
     }
 
     /**
-     * 현재 인스턴스(토큰)가 락을 보유하고 있는지 확인합니다.
+     * Checks whether the current instance (token) holds the lock.
      *
-     * [IMap]에 저장된 값이 이 인스턴스의 토큰과 일치하는 경우에만 `true`를 반환합니다.
+     * Returns `true` only when the value stored in [IMap] matches this instance's token.
      */
     fun isHeldByCurrentInstance(): Boolean = lockMap[lockKey] == token
 
     /**
-     * 현재 인스턴스가 보유한 락을 해제합니다.
+     * Releases the lock held by the current instance.
      *
-     * 토큰 일치 여부를 검증한 후 원자적으로 제거합니다.
-     * 토큰 불일치(리스 만료로 인한 타 노드 재획득 등)인 경우 경고 로그를 남깁니다.
+     * Validates token ownership before atomically removing the entry.
+     * Logs a warning on token mismatch (e.g., the lease expired and another node re-acquired the lock).
      */
     fun unlock(
         minLeaseTime: Duration = Duration.ZERO,
@@ -105,29 +107,34 @@ class HazelcastLock(
     }
 
     /**
-     * 락의 TTL 을 [leaseTime] 만큼 token-guarded 로 연장하고 [ExtendOutcome] 을 반환합니다 — T12 PR 7 (Issue #79).
+     * Extends the lock's TTL by [leaseTime] in a token-guarded manner and returns an [ExtendOutcome]
+     * — T12 PR 7 (Issue #79).
      *
-     * ## 동작/계약
-     * - 1단계: [IMap.replace] (CAS) 로 entry value 가 우리 토큰과 일치하는지 atomic 검증
-     * - 2단계: 토큰 일치 시 [IMap.setTtl] 로 TTL 갱신
-     * - 토큰 불일치 / 미보유 → [ExtendOutcome.NotHeld]
-     * - 갱신 성공 → [ExtendOutcome.Extended] (`observedExpireAt = now + leaseTime` — best-effort)
+     * ## Behavior / Contract
+     * - Step 1: atomically validates that the entry value matches our token using [IMap.replace] (CAS).
+     * - Step 2: on token match, updates the TTL with [IMap.setTtl].
+     * - Token mismatch or not held → [ExtendOutcome.NotHeld]
+     * - Successful renewal → [ExtendOutcome.Extended] (`observedExpireAt = now + leaseTime` — best-effort)
      * - [HazelcastException] → [ExtendOutcome.BackendError]
      *
-     * ## R6 — expired-entry revival 차단
-     * Hazelcast IMap 은 TTL 만료 시 자동 evict 하므로 만료된 entry 는 [IMap.replace] 가 `false` 반환 → NotHeld.
+     * ## R6 — Expired-Entry Revival Prevention
+     * Hazelcast IMap automatically evicts entries on TTL expiry, so [IMap.replace] returns `false`
+     * for expired entries → NotHeld.
      *
-     * ## 설계 참고 — EntryProcessor 대신 replace+setTtl 사용 이유
-     * Hazelcast client-server 모드에서 사용자 정의 `EntryProcessor` 는 server JVM 에 클래스 배포가 필요합니다
-     * ([UserCodeDeployment] 또는 server 측 사전 배포). bluetape4k-testcontainers 의 Hazelcast 서버는
-     * vanilla 이미지이므로 클래스를 찾을 수 없어 `HazelcastSerializationException(ClassNotFoundException)` 발생.
-     * 대신 built-in atomic primitive ([IMap.replace] CAS + [IMap.setTtl]) 조합으로 동일한 token-guard 의미 보장.
+     * ## Design Note — Why replace+setTtl Instead of EntryProcessor
+     * In Hazelcast client-server mode, a custom `EntryProcessor` requires class deployment to the
+     * server JVM ([UserCodeDeployment] or pre-deployment on the server side). The Hazelcast server in
+     * bluetape4k-testcontainers uses a vanilla image, so the class cannot be found and a
+     * `HazelcastSerializationException(ClassNotFoundException)` is thrown.
+     * Instead, the same token-guard semantics are achieved using built-in atomic primitives
+     * ([IMap.replace] CAS + [IMap.setTtl]).
      *
-     * ## Race window (acceptable)
-     * `replace` 와 `setTtl` 사이 sub-millisecond 시간 동안 entry 가 TTL 만료될 수 있습니다.
-     * 이 경우 `setTtl` 이 `false` 반환 → NotHeld 로 처리.
-     * 다른 인스턴스가 takeover 한 시점에 우리 `setTtl` 이 도착하면 그 인스턴스의 TTL 을 갱신하는
-     * theoretical race 가 존재하지만, `replace` 가 token 검증을 통과한 직후의 매우 좁은 윈도우입니다.
+     * ## Race Window (Acceptable)
+     * An entry may expire during the sub-millisecond window between `replace` and `setTtl`.
+     * In that case `setTtl` returns `false` → treated as NotHeld.
+     * A theoretical race exists where our `setTtl` arrives after another instance takes over and
+     * refreshes that instance's TTL, but this window is extremely narrow — immediately after `replace`
+     * passes token validation.
      */
     fun extendDetailed(leaseTime: Duration): ExtendOutcome {
         val leaseMs = leaseTime.inWholeMilliseconds

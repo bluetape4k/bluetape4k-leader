@@ -25,7 +25,7 @@ import kotlin.time.Duration
  * Token-based 락이므로 thread 종속성 없음 (Exposed R2DBC 는 [ExtendOutcome.WrongThread] 사용 안 함).
  *
  * ## CancellationException 처리
- * 모든 `catch(Exception)` 앞에 `catch(CancellationException) { throw e }` 우선 처리 — 코루틴 취소 계약 보장.
+ * All `catch(Exception)` blocks are preceded by `catch(CancellationException) { throw e }` — coroutine cancellation contract guaranteed.
  */
 internal class ExposedR2dbcSuspendLockExtendDelegate(
     private val lock: ExposedR2dbcLock,

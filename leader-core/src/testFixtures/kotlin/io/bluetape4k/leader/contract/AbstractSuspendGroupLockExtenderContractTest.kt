@@ -15,18 +15,18 @@ import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Backend-agnostic 한 LockAssert/LockExtender × suspend [SuspendLeaderGroupElector] contract.
+ * Backend-agnostic LockAssert/LockExtender × suspend [SuspendLeaderGroupElector] contract.
  *
- * 각 backend 의 contract test 가 이 abstract class 를 상속하여 [elector] 를 제공한다.
+ * Each backend's contract test inherits this abstract class and provides its own [elector] instance.
  *
- * ## 검증 계약 (AC-1 / Issue #79)
+ * ## Verified Contracts (AC-1 / Issue #79)
  *
- * 1. `assertLockedSuspend()` — [SuspendLeaderGroupElector.runIfLeader] 본문 안에서는 pass, 밖에서는 [IllegalStateException]
- * 2. `isLockedSuspend()` — 본문 안 `true`, 밖 `false`
- * 3. `extendActiveLockSuspend(d)` — 본문 안 `true`, 완료 후 `false`
- * 4. `extendActiveLockDetailedSuspend(d)` — [ExtendOutcome.Extended] 반환
+ * 1. `assertLockedSuspend()` — passes inside [SuspendLeaderGroupElector.runIfLeader] body; throws [IllegalStateException] outside
+ * 2. `isLockedSuspend()` — returns `true` inside the body, `false` outside
+ * 3. `extendActiveLockSuspend(d)` — returns `true` inside the body, `false` after completion
+ * 4. `extendActiveLockDetailedSuspend(d)` — returns [ExtendOutcome.Extended]
  *
- * ## 사용 방법
+ * ## Usage
  *
  * ```kotlin
  * class RedissonSuspendGroupLockExtenderContractTest : AbstractSuspendGroupLockExtenderContractTest() {
@@ -37,15 +37,15 @@ import kotlin.time.Duration.Companion.seconds
  * }
  * ```
  *
- * ## 범위 한계
+ * ## Scope Limitations
  *
- * - sync group 계약은 [AbstractGroupLockExtenderContractTest] 가 담당.
- * - Single suspend 계약은 [AbstractSuspendLockExtenderContractTest] 가 담당.
+ * - Sync group contracts are covered by [AbstractGroupLockExtenderContractTest].
+ * - Single suspend contracts are covered by [AbstractSuspendLockExtenderContractTest].
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractSuspendGroupLockExtenderContractTest {
 
-    /** 각 backend 가 자기 [SuspendLeaderGroupElector] 인스턴스를 제공한다. */
+    /** Each backend provides its own [SuspendLeaderGroupElector] instance. */
     protected abstract val elector: SuspendLeaderGroupElector
 
     private fun randomLockName(): String = "ctr-sg-${Base58.randomString(8)}"

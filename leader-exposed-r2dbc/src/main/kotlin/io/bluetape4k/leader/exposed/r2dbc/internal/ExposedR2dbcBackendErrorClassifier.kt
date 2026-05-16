@@ -10,27 +10,27 @@ import io.r2dbc.spi.R2dbcTransientException
 import io.r2dbc.spi.R2dbcTransientResourceException
 
 /**
- * Exposed R2DBC backend exception 분류 — T11 PR 6 (Issue #79).
+ * Exposed R2DBC backend exception classifier — T11 PR 6 (Issue #79).
  *
- * ## 동작/계약
+ * ## Behavior / Contract
  * - [R2dbcTimeoutException] / [R2dbcTransientException] / [R2dbcTransientResourceException]
- *   → [BackendErrorKind.TRANSIENT] (재시도 가능 — query timeout / 일시적 connection 단절)
- * - [R2dbcRollbackException] → [BackendErrorKind.NON_TRANSIENT] (rollback 후 재시도 무의미)
- * - [R2dbcNonTransientException] → [BackendErrorKind.NON_TRANSIENT] (영구 오류 — constraint violation 등)
- * - 그 외 [R2dbcException] → [BackendErrorKind.NON_TRANSIENT] (보수적 기본값)
- * - 그 외 → `null` (분류 불가 — chain 다음 classifier 에 위임)
+ *   → [BackendErrorKind.TRANSIENT] (retryable — query timeout / transient connection loss)
+ * - [R2dbcRollbackException] → [BackendErrorKind.NON_TRANSIENT] (retry after rollback is meaningless)
+ * - [R2dbcNonTransientException] → [BackendErrorKind.NON_TRANSIENT] (permanent error — constraint violation, etc.)
+ * - Other [R2dbcException] → [BackendErrorKind.NON_TRANSIENT] (conservative default)
+ * - Other → `null` (unclassifiable — delegated to the next classifier in the chain)
  *
- * ## 사용
- * elector 가 [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier] 에 chain 으로 등록.
+ * ## Usage
+ * Registered as a chain entry in [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier] by the elector.
  *
  * ```kotlin
  * val classifier = CompositeBackendErrorClassifier(ExposedR2dbcBackendErrorClassifier)
  * ```
  *
- * ## 주의 사항
- * R2DBC SPI 는 JDBC 의 [java.sql.SQLException] 계층과 별도입니다.
- * 분류 우선순위는 좁은 타입(transient family / rollback / non-transient) 우선,
- * 일반 [R2dbcException] 은 마지막에 검사합니다.
+ * ## Notes
+ * The R2DBC SPI hierarchy is separate from JDBC's [java.sql.SQLException] hierarchy.
+ * Classification priority: narrow types first (transient family / rollback / non-transient),
+ * with the general [R2dbcException] checked last.
  */
 internal object ExposedR2dbcBackendErrorClassifier: BackendErrorClassifier {
 

@@ -26,23 +26,23 @@ import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 
 /**
- * Exposed JDBC UPDATE+INSERT+SELECT 패턴 기반 토큰 분산 락.
+ * Token-based distributed lock backed by the Exposed JDBC UPDATE+INSERT+SELECT pattern.
  *
- * ## 동작 방식
- * 단일 트랜잭션 내에서:
- * 1. **UPDATE**: `lockedUntil < NOW()` 조건으로 만료 락 갱신 시도
- * 2. **INSERT**: UPDATE 미성공 시 신규 행 삽입 시도 (PK 충돌만 흡수 → retry; 그 외 DB 오류는 재전파)
- * 3. **SELECT**: 현재 인스턴스 token 소유 여부 확인
+ * ## Behavior
+ * Within a single transaction:
+ * 1. **UPDATE**: attempts to refresh an expired lock where `lockedUntil < NOW()`
+ * 2. **INSERT**: when UPDATE affects 0 rows, attempts to insert a new row (absorbs PK conflicts → retry; other DB errors propagate)
+ * 3. **SELECT**: verifies that the current instance owns the token and the lease is still valid
  *
- * ## 주의사항
- * - `Thread.sleep()`은 반드시 `transaction {}` **바깥**에서 호출 (HikariCP 풀 고갈 방지)
- * - [token]은 인스턴스 생성 시 1회 발급 — unlock 시 zombie 방지
- * - [tryLock]은 절대 예외를 throw하지 않음; DB 오류 → `false` 반환 + warn 로그
+ * ## Notes
+ * - `Thread.sleep()` must be called **outside** `transaction {}` to avoid HikariCP pool exhaustion
+ * - [token] is issued once at instance creation — used to prevent zombie unlock
+ * - [tryLock] never throws; DB errors → returns `false` + warn log
  *
- * @param db Exposed [Database] 인스턴스
- * @param lockName 락 식별자 (PK)
- * @param retryStrategy 재시도 대기 전략
- * @param lockOwner 락 보유자 식별자 (선택)
+ * @param db Exposed [Database] instance
+ * @param lockName lock identifier (primary key)
+ * @param retryStrategy back-off strategy for retries
+ * @param lockOwner optional lock owner identifier
  */
 internal class ExposedJdbcLock internal constructor(
     private val db: Database,
@@ -52,15 +52,15 @@ internal class ExposedJdbcLock internal constructor(
 ) {
     companion object: KLoggingChannel()
 
-    /** 인스턴스별 고유 fencing token. unlock 시 zombie 방지에 사용됩니다. */
+    /** Per-instance unique fencing token. Used to prevent zombie unlock. */
     val token: String = Base58.randomString(8)
 
     /**
-     * [waitTime] 내에 락 획득을 시도합니다.
+     * Attempts to acquire the lock within [waitTime].
      *
-     * @param waitTime 락 획득 최대 대기 시간
-     * @param leaseTime 락 보유(TTL) 최대 시간
-     * @return 락 획득 성공 시 `true`, 타임아웃 또는 오류 시 `false`
+     * @param waitTime maximum time to wait for the lock
+     * @param leaseTime maximum lock hold (TTL) time
+     * @return `true` when the lock is acquired, `false` on timeout or error
      */
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
         val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds.coerceAtLeast(0L)
@@ -153,9 +153,9 @@ internal class ExposedJdbcLock internal constructor(
     }
 
     /**
-     * 현재 인스턴스(token)가 유효한 락을 보유하고 있는지 확인합니다.
+     * Returns whether the current instance (token) holds a valid lock.
      *
-     * 리스 만료 후 타 인스턴스가 재획득한 경우 `false`를 반환합니다.
+     * Returns `false` when the lease has expired and another instance has re-acquired the lock.
      */
     fun isHeldByCurrentInstance(): Boolean = runCatching {
         transaction(db) {
@@ -175,9 +175,9 @@ internal class ExposedJdbcLock internal constructor(
     }
 
     /**
-     * 현재 인스턴스가 보유한 락을 해제합니다.
+     * Releases the lock held by the current instance.
      *
-     * 토큰 불일치(리스 만료로 인한 타 인스턴스 재획득 등) 시 경고 로그만 남깁니다.
+     * Logs a warning on token mismatch (e.g., lease expired and re-acquired by another instance).
      */
     fun unlock(
         minLeaseTime: Duration = Duration.ZERO,
@@ -212,11 +212,11 @@ internal class ExposedJdbcLock internal constructor(
     }
 
     /**
-     * 락의 `lockedUntil` 을 [leaseTime] 만큼 atomic 하게 연장하고 [ExtendOutcome] 을 반환합니다.
+     * Atomically extends the lock's `lockedUntil` by [leaseTime] and returns an [ExtendOutcome].
      *
      * ## R6 guard (Issue #79 PR 5)
-     * `WHERE` 절에 `lockedUntil > now()` 를 추가하여 만료된 행을 다른 인스턴스가 재획득한 race 에서
-     * stale token 으로 expired row 를 revival 시키는 split-brain 을 차단합니다.
+     * Adds `lockedUntil > now()` to the `WHERE` clause to prevent a split-brain where a stale token
+     * revives an expired row after another instance has re-acquired it.
      *
      * ## SQL
      * ```sql
@@ -225,12 +225,12 @@ internal class ExposedJdbcLock internal constructor(
      * WHERE lock_name = ? AND token = ? AND locked_until > ?  -- now
      * ```
      *
-     * ## 반환
+     * ## Return value
      * - `affectedRows == 1` → [ExtendOutcome.Extended] (`observedExpireAt = now + leaseTime`)
-     * - `affectedRows == 0` → [ExtendOutcome.NotHeld] (토큰 불일치 / lease 만료 / takeover)
-     * - DB 예외는 caller (delegate) 가 [ExtendOutcome.BackendError] 로 wrap — 본 함수는 그대로 throw
+     * - `affectedRows == 0` → [ExtendOutcome.NotHeld] (token mismatch / lease expired / takeover)
+     * - DB exceptions propagate as-is; the caller (delegate) wraps them as [ExtendOutcome.BackendError]
      *
-     * Token-based 락이므로 [ExtendOutcome.WrongThread] 는 발생하지 않습니다 (Virtual Thread 안전).
+     * [ExtendOutcome.WrongThread] never occurs because this is a token-based lock (Virtual Thread safe).
      */
     fun extendDetailed(leaseTime: Duration): ExtendOutcome {
         val lockNameVal = this@ExposedJdbcLock.lockName

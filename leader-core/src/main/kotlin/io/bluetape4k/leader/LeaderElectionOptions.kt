@@ -8,7 +8,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * 리더 선출에 사용하는 옵션 데이터 클래스입니다.
+ * Options data class used for leader election.
  *
  * ```kotlin
  * val options = LeaderElectionOptions(
@@ -20,11 +20,11 @@ import kotlin.time.Duration.Companion.seconds
  * // result == "done"
  * ```
  *
- * @property waitTime 리더 획득 대기 최대 시간. 기본값 5초
- * @property leaseTime 리더 보유(임대) 최대 시간. 기본값 60초
- * @property nodeId 상태 조회에 노출할 노드 식별자. 기본값은 JVM 프로세스 단위 stable id
- * @property minLeaseTime 작업이 빨리 끝나도 리더 lease를 최소로 보유할 시간. 기본값 0초
- * @property autoExtend 작업 실행 중 lease를 주기적으로 연장할지 여부. 기본값 false
+ * @property waitTime maximum wait time to acquire the leader lock. Default is 5 seconds.
+ * @property leaseTime maximum lease duration for holding leadership. Default is 60 seconds.
+ * @property nodeId node identifier exposed in state queries. Default is a stable JVM-process-level id.
+ * @property minLeaseTime minimum time to hold the leader lease even if the action finishes early. Default is 0 seconds.
+ * @property autoExtend whether to periodically extend the lease while the action is running. Default is false.
  */
 data class LeaderElectionOptions(
     val waitTime: Duration = DefaultWaitTime,
@@ -48,7 +48,7 @@ data class LeaderElectionOptions(
         val DefaultLeaseTime: Duration = 60.seconds
 
         /**
-         * 기본 옵션 인스턴스 (`waitTime=5s`, `leaseTime=60s`).
+         * Default options instance (`waitTime=5s`, `leaseTime=60s`).
          *
          * ```kotlin
          * val election = LocalLeaderElector(LeaderElectionOptions.Default)

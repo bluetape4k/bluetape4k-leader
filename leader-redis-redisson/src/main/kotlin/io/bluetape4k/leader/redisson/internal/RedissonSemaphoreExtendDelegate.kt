@@ -18,28 +18,28 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * Redisson [RPermitExpirableSemaphore] (sync group) 용 [ExtendDelegate] — T8 PR 3 (Issue #79).
+ * [ExtendDelegate] for Redisson [RPermitExpirableSemaphore] (sync group) — T8 PR 3 (Issue #79).
  *
- * ## 동작/계약
- * - [extend] : `semaphore.updateLeaseTime(permitId, ms, MILLISECONDS)` 위임.
- *   - `true` → [ExtendOutcome.Extended], 내부 [active] 플래그 그대로 유지(true)
- *   - `false` → [ExtendOutcome.NotHeld], [active] 플래그 false 로 전이
- *   - exception → backend kind 분류 후 transient 면 active 유지, non-transient/FATAL 이면 false 로 전이
- * - [extendSuspend] : Redisson sync facade — `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21).
- * - [isHeld] : 로컬 [AtomicBoolean] 플래그 직접 조회. Redisson `RPermitExpirableSemaphore` 는 permitId
- *   보유 여부를 비파괴적으로 조회하는 API 미제공 — `updateLeaseTime(1ms)` 같은 probe 는 lease 를
- *   파괴적으로 단축하므로 사용 금지. 대신 [extend] 결과를 단일 진실원으로 추적.
+ * ## Behavior / Contract
+ * - [extend]: delegates to `semaphore.updateLeaseTime(permitId, ms, MILLISECONDS)`.
+ *   - `true` → [ExtendOutcome.Extended]; the internal [active] flag stays `true`
+ *   - `false` → [ExtendOutcome.NotHeld]; transitions [active] flag to `false`
+ *   - exception → classifies backend kind; keeps active on transient, sets false on non-transient/FATAL
+ * - [extendSuspend]: Redisson sync facade — dispatched with `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21).
+ * - [isHeld]: reads the local [AtomicBoolean] flag directly. Redisson `RPermitExpirableSemaphore`
+ *   provides no non-destructive API to query permitId ownership — a probe like `updateLeaseTime(1ms)`
+ *   would destructively shorten the lease and must not be used. [extend] results are the single source of truth.
  *
- * ## acceptable race window
- * `extend` 가 마지막으로 `Extended` 를 반환한 후, backend 측에서 lease 만료 / takeover 가 발생하기까지
- * 본 delegate 의 [isHeld] 는 잠시 `true` 를 반환할 수 있다. 다음 [extend] 호출 시점에 false 로 정정된다.
- * Diagnostic 용도만 사용 — 락 보유 여부의 강한 보장이 필요하면 [extend] 결과를 직접 사용.
+ * ## Acceptable race window
+ * Between the last `Extended` result from [extend] and the next backend lease expiry / takeover,
+ * [isHeld] may momentarily return `true`. It is corrected to `false` on the next [extend] call.
+ * Use for diagnostic purposes only — for a strong guarantee, check [extend] results directly.
  *
- * AC-16: server-side TIME (Redisson 내부 Lua) — client clock skew 차단.
+ * AC-16: server-side TIME (Redisson internal Lua) — blocks client clock skew.
  * AC-21: blocking backend [ExtendDelegate.extendSuspend] override.
  *
  * @property semaphore Redisson [RPermitExpirableSemaphore]
- * @property permitId Redisson 발급 permit identifier
+ * @property permitId permit identifier issued by Redisson
  */
 internal class RedissonSemaphoreExtendDelegate(
     private val semaphore: RPermitExpirableSemaphore,
@@ -52,7 +52,7 @@ internal class RedissonSemaphoreExtendDelegate(
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
 
     /**
-     * permit 보유 여부 — acquire 시 true 로 시작. [extend] 결과에 따라 false 로 전이.
+     * Whether the permit is held — starts as `true` on acquire. Transitions to `false` based on [extend] results.
      */
     private val active = AtomicBoolean(true)
 
@@ -93,10 +93,11 @@ internal class RedissonSemaphoreExtendDelegate(
     }
 
     /**
-     * 로컬 [active] 플래그 직접 조회 — Redisson 의 permitId 단위 조회 API 부재에 대한 우회.
+     * Reads the local [active] flag directly — a workaround for Redisson's lack of a non-destructive
+     * per-permitId query API.
      *
-     * **race window** : backend 측 만료/takeover 발생 ~ 다음 [extend] 호출 사이에 stale `true` 반환 가능.
-     * Diagnostic 용도만 사용. 강한 보장 필요 시 [extend] 결과로 직접 확인.
+     * **Race window**: may return a stale `true` between a backend expiry/takeover and the next [extend] call.
+     * For diagnostic use only. For a strong guarantee, check [extend] results directly.
      */
     override fun isHeld(): Boolean = active.get()
 }

@@ -57,11 +57,11 @@ const val GAUGE_BRIDGE_RESULT_DROPPED: String = "leader.aop.bridge.result-droppe
 const val COUNTER_LEADER_ID_RESOLUTION_FAILED: String = "leader.aop.leader_id.resolution_failed"
 
 /**
- * leader-aop Micrometer 메터/태그 이름 상수.
+ * Micrometer meter and tag name constants for leader-aop.
  *
- * 모든 메터 이름은 `leader.aop.` prefix를 공유한다.
- * Micrometer의 [io.micrometer.core.instrument.config.NamingConvention]이 백엔드별로 자동 변환한다
- * (Prometheus: `leader_aop_attempts_total`, Datadog: `leader.aop.attempts.count` 등).
+ * All meter names share the `leader.aop.` prefix.
+ * Micrometer's [io.micrometer.core.instrument.config.NamingConvention] automatically converts them
+ * per backend (e.g., Prometheus: `leader_aop_attempts_total`, Datadog: `leader.aop.attempts.count`).
  */
 internal object MicrometerNames {
 

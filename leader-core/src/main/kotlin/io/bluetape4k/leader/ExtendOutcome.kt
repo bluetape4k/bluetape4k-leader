@@ -3,23 +3,23 @@ package io.bluetape4k.leader
 import java.time.Instant
 
 /**
- * [LeaderLockHandle.Real.extend] / [LeaderLockHandle.Real.extendSuspend] 의 상세 결과.
+ * Detailed result of [LeaderLockHandle.Real.extend] / [LeaderLockHandle.Real.extendSuspend].
  *
- * `Boolean` API ([LockExtender.extendActiveLock]) 는 `is Extended` 변환과 동치이며, 운영 가시성이
- * 필요한 경우 [LockExtender.extendActiveLockDetailed] 를 사용해 분류된 결과를 받습니다.
+ * The `Boolean` API ([LockExtender.extendActiveLock]) is equivalent to an `is Extended` conversion.
+ * Use [LockExtender.extendActiveLockDetailed] when you need a classified result for operational visibility.
  *
- * ## 분류
- * - [Extended] — backend extend 성공. `observedExpireAt` 은 best-effort 값 (backend 별 정확도 상이)
- * - [NotHeld] — token mismatch / lease 만료 / takeover 발생 — 더 이상 lock 미보유
- * - [WrongThread] — Redisson 의 thread-bound 락에서 acquire 와 다른 thread 에서 호출
- * - [BackendError] — transient (재시도 가능) 또는 non-transient backend 오류. `cause` 는 [Exception] 만 허용 (FATAL [Error] 차단)
+ * ## Classification
+ * - [Extended] — backend extend succeeded. `observedExpireAt` is a best-effort value (accuracy varies by backend).
+ * - [NotHeld] — token mismatch / lease expired / takeover occurred — lock is no longer held.
+ * - [WrongThread] — called from a thread different from the acquiring thread on a Redisson thread-bound lock.
+ * - [BackendError] — transient (retryable) or non-transient backend error. `cause` must be an [Exception] (FATAL [Error] is blocked).
  *
- * ## Boolean 변환 정책
- * `LockExtender.extendActiveLock(d)` 가 반환하는 `Boolean` 은:
+ * ## Boolean conversion policy
+ * The `Boolean` returned by `LockExtender.extendActiveLock(d)`:
  * - [Extended] → `true`
  * - [NotHeld], [WrongThread] → `false` (WARN log + metric)
  * - [BackendError] (transient) → `false` (WARN log + metric)
- * - [BackendError] (non-transient) → throw (caller 책임)
+ * - [BackendError] (non-transient) → throws (caller's responsibility)
  *
  * ## Example
  * ```kotlin
@@ -34,33 +34,33 @@ import java.time.Instant
 sealed interface ExtendOutcome {
 
     /**
-     * extend 성공.
+     * Extend succeeded.
      *
-     * @property observedExpireAt **best-effort** new expire time. backend 별 정확도:
-     * - Lettuce / Hazelcast / Local: server-side 시각 사용 → 정확
-     * - Redisson: Redisson 내부 atomic — client clock 사용 가능 → ±50ms
-     * - MongoDB: server-side `$$NOW` aggregation — 정확
-     * - Exposed JDBC/R2DBC: DB server 시각 (`now()` SQL) — 정확
-     * - ZooKeeper: TTL 개념 없음 — `Instant.MAX` (session-held liveness passthrough)
+     * @property observedExpireAt **best-effort** new expiry time. Accuracy by backend:
+     * - Lettuce / Hazelcast / Local: uses server-side time → accurate
+     * - Redisson: Redisson internal atomic — may use client clock → ±50ms
+     * - MongoDB: server-side `$$NOW` aggregation → accurate
+     * - Exposed JDBC/R2DBC: DB server time (`now()` SQL) → accurate
+     * - ZooKeeper: no TTL concept — `Instant.MAX` (session-held liveness passthrough)
      *
-     * caller 는 정확한 deadline 으로 사용 X — observability/logging 용.
+     * Do not use as a precise deadline — intended for observability/logging only.
      */
     data class Extended(val observedExpireAt: Instant) : ExtendOutcome
 
-    /** token mismatch / lease 만료 / takeover — 더 이상 lock 미보유. */
+    /** Token mismatch / lease expired / takeover — lock is no longer held. */
     data object NotHeld : ExtendOutcome
 
-    /** Redisson 의 thread-bound 락에서 acquire 와 다른 thread 에서 호출. */
+    /** Called from a thread different from the acquiring thread on a Redisson thread-bound lock. */
     data object WrongThread : ExtendOutcome
 
     /**
-     * Backend 오류. transient (재시도 가능) / non-transient 분류는 `BackendErrorClassifier` 사용.
+     * Backend error. Use `BackendErrorClassifier` to classify as transient (retryable) or non-transient.
      *
-     * `cause` 는 [Exception] 만 허용 — FATAL [Error] ([OutOfMemoryError], [StackOverflowError],
-     * [LinkageError] 등) 은 wrap 금지 (propagate).
+     * `cause` must be an [Exception] — wrapping FATAL [Error] ([OutOfMemoryError], [StackOverflowError],
+     * [LinkageError], etc.) is forbidden; propagate them directly.
      */
     data class BackendError(val cause: Exception) : ExtendOutcome
 
-    /** Boolean API 변환용 short-cut. */
+    /** Shortcut for Boolean API conversion. */
     val isExtended: Boolean get() = this is Extended
 }

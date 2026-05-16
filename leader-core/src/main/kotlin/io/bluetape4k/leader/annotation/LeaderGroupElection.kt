@@ -1,14 +1,15 @@
 package io.bluetape4k.leader.annotation
 
 /**
- * 메서드를 분산 환경에서 다중 리더 (semaphore-based) 진입으로 보호하는 어노테이션.
+ * Annotation that protects a method with multi-leader (semaphore-based) entry in a distributed environment.
  *
- * ## 동작
- * - 메서드 호출 시 [name] 으로 [maxLeaders] 개 슬롯 중 하나의 획득 시도. 성공 시 본문 실행, 실패 시 [failureMode] 에 따라 분기.
- * - 본 PR은 sync `T?` 반환만 지원. suspend / `Mono<T>` / `Flow<T>` 는 후속 [#80].
- * - [maxLeaders] ≤ 1 시 startup fail (단일 리더는 [LeaderElection] 사용).
+ * ## Behavior
+ * - On method call, attempts to acquire one of [maxLeaders] slots using [name]. If successful, runs the body;
+ *   otherwise branches according to [failureMode].
+ * - Supports sync `T?` return only. suspend / `Mono<T>` / `Flow<T>` are planned for follow-up [#80].
+ * - Startup fails if [maxLeaders] ≤ 1 (use [LeaderElection] for single-leader).
  *
- * ## 사용 예
+ * ## Usage Example
  * ```kotlin
  * @LeaderGroupElection(name = "batch-shard", maxLeaders = 3, leaseTime = "PT5M")
  * fun batch() { ... }
@@ -17,15 +18,15 @@ package io.bluetape4k.leader.annotation
  * fun processRegion(region: String) { ... }
  * ```
  *
- * @property name 락 이름 (필수). plain SpEL + `${...}` Spring property placeholder
- * @property maxLeaders 동시 리더 수 (≥2 필수). ≤1 시 startup fail
- * @property waitTime 슬롯 획득 대기 시간 — 빈 문자열 시 property 또는 코어 default 폴백
- * @property leaseTime 슬롯 보유 시간 — 빈 문자열 시 property 또는 코어 default 폴백
- * @property minLeaseTime 최소 슬롯 보유 시간. `PT0S`이면 빠른 종료 시 즉시 해제
- * @property bean 사용할 [io.bluetape4k.leader.LeaderGroupElectorFactory] 빈 이름 (literal only)
- * @property failureMode 백엔드 예외 처리 정책. default `RETHROW`
+ * @property name lock name (required). Plain SpEL + `${...}` Spring property placeholder.
+ * @property maxLeaders number of concurrent leaders (≥2 required). Startup fails if ≤1.
+ * @property waitTime slot acquisition wait time — falls back to property or core default if blank.
+ * @property leaseTime slot hold duration — falls back to property or core default if blank.
+ * @property minLeaseTime minimum slot hold time. `PT0S` means immediate release on early completion.
+ * @property bean [io.bluetape4k.leader.LeaderGroupElectorFactory] bean name to use (literal only).
+ * @property failureMode backend exception handling policy. Default is `RETHROW`.
  *
- * @see LeaderElection 단일 리더 변형
+ * @see LeaderElection single-leader variant
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Retention(AnnotationRetention.RUNTIME)

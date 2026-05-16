@@ -27,15 +27,15 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 
 /**
- * [StatefulRedisConnection]에서 [LettuceLeaderElector] 인스턴스를 생성합니다.
+ * Creates a [LettuceLeaderElector] instance from this [StatefulRedisConnection].
  *
  * ```kotlin
  * val election = connection.leaderElection()
  * val result = election.runIfLeader("daily-job") { "done" }
  * ```
  *
- * @param options 리더 선출 옵션 (기본값: [LeaderElectionOptions.Default])
- * @return [LettuceLeaderElector] 인스턴스
+ * @param options leader election options (default: [LeaderElectionOptions.Default])
+ * @return [LettuceLeaderElector] instance
  */
 fun StatefulRedisConnection<String, String>.leaderElection(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -43,24 +43,25 @@ fun StatefulRedisConnection<String, String>.leaderElection(
 
 
 /**
- * Lettuce Redis 클라이언트를 이용한 리더 선출 구현체입니다.
+ * Leader election implementation using the Lettuce Redis client.
  *
- * [LettuceLock]을 사용하여 분산 환경에서 단일 리더를 선출합니다.
- * 동기([runIfLeader])와 비동기([runAsyncIfLeader]) 방식을 모두 지원합니다.
+ * Uses [LettuceLock] to elect a single leader in a distributed environment.
+ * Supports both synchronous ([runIfLeader]) and asynchronous ([runAsyncIfLeader]) execution.
  *
- * ## 동작/계약 (T7 PR 2)
+ * ## Behavior / Contract (T7 PR 2)
  *
- * - acquire 후 [LettuceLockExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 공유합니다.
- * - aspect 가 `LockAssert` / `LockExtender` 로 lease 연장 시 동일 delegate reference 를 사용합니다 (AC-15).
- * - watchdog 의 [LeaderLeaseAutoExtender.start] 도 동일 delegate 를 받아 R2 watchdog skip semantics 를 활성화합니다.
+ * - After acquire, creates [LettuceLockExtendDelegate] and shares the same reference
+ *   with [LeaderLockHandle.Real] and the watchdog.
+ * - When the aspect extends the lease via `LockAssert` / `LockExtender`, it uses the same delegate reference (AC-15).
+ * - [LeaderLeaseAutoExtender.start] also receives the same delegate to activate R2 watchdog skip semantics.
  *
  * ```kotlin
  * val election = LettuceLeaderElector(connection)
  * val result = election.runIfLeader("daily-job") { "done" }
  * ```
  *
- * @param connection Lettuce [StatefulRedisConnection] (StringCodec 기반)
- * @param options    리더 선출 옵션 (waitTime, leaseTime)
+ * @param connection Lettuce [StatefulRedisConnection] (StringCodec-based)
+ * @param options    leader election options (waitTime, leaseTime)
  */
 class LettuceLeaderElector @JvmOverloads constructor(
     private val connection: StatefulRedisConnection<String, String>,

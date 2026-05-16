@@ -6,23 +6,23 @@ import io.bluetape4k.leader.spring.LeaderProperties
 import kotlin.time.toKotlinDuration
 
 /**
- * [LeaderProperties] → 백엔드별 Options 변환 어댑터.
+ * Adapter that converts [LeaderProperties] to backend-specific Options.
  *
- * 각 백엔드(Mongo, Exposed JDBC/R2DBC)는 자체 옵션 클래스를 갖지만, v1.0에서는 공통 속성만 노출하며
- * 백엔드 고유 옵션(`retryDelay`, `retryStrategy`, `lockOwner`)은 기본값을 사용합니다.
+ * Each backend (Mongo, Exposed JDBC/R2DBC) has its own options class, but v1.0 exposes only common properties;
+ * backend-specific options (`retryDelay`, `retryStrategy`, `lockOwner`) use their defaults.
  *
- * 백엔드 고유 옵션 노출은 후속 이슈로 분리됩니다.
+ * Exposing backend-specific options is deferred to a follow-up issue.
  */
 internal object PropertiesAdapter {
 
-    /** 공통 [LeaderElectionOptions] 변환. */
+    /** Converts to common [LeaderElectionOptions]. */
     fun toCommonElection(props: LeaderProperties): LeaderElectionOptions =
         LeaderElectionOptions(
             waitTime = props.waitTime.toKotlinDuration(),
             leaseTime = props.leaseTime.toKotlinDuration(),
         )
 
-    /** 공통 [LeaderGroupElectionOptions] 변환. */
+    /** Converts to common [LeaderGroupElectionOptions]. */
     fun toCommonGroup(props: LeaderProperties): LeaderGroupElectionOptions =
         LeaderGroupElectionOptions(
             maxLeaders = props.group.maxLeaders,

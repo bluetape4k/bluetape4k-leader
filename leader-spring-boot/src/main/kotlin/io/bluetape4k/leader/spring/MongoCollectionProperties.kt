@@ -1,13 +1,13 @@
 package io.bluetape4k.leader.spring
 
 /**
- * MongoDB 백엔드용 컬렉션 이름 속성.
+ * Collection name properties for the MongoDB backend.
  *
- * Single/Group election이 사용할 컬렉션 이름을 분리합니다. 사용자 앱에 `MongoDatabase` 빈만 존재해도
- * 이 속성으로 컬렉션을 안전하게 선택할 수 있습니다.
+ * Separates the collection names used by single and group elections. Even when only a `MongoDatabase`
+ * bean is present in the application, the correct collection can be selected safely through these properties.
  *
- * @property singleCollection 단일 리더 선출 컬렉션. 기본 `leader_election`
- * @property groupCollection 멀티 리더 그룹 컬렉션. 기본 `leader_group_election`
+ * @property singleCollection Collection for single-leader election. Default `leader_election`
+ * @property groupCollection Collection for multi-leader group election. Default `leader_group_election`
  */
 data class MongoCollectionProperties(
     val singleCollection: String = "leader_election",

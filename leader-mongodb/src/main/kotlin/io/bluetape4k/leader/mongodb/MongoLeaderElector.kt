@@ -25,29 +25,29 @@ import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 
 /**
- * MongoDB 분산 락을 이용한 단일 리더 선출 구현체입니다.
+ * Leader election implementation for a single leader using MongoDB distributed locks.
  *
- * `findOneAndUpdate` upsert + TTL index 방식의 토큰 기반 락이므로
- * 스레드에 귀속되지 않으며 Virtual Thread 환경에서 안전합니다.
+ * Token-based lock using `findOneAndUpdate` upsert + TTL index —
+ * not bound to any thread, safe in Virtual Thread environments.
  *
- * ## ExtendDelegate 통합 (T9 PR 4 / Issue #79)
+ * ## ExtendDelegate Integration (T9 PR 4 / Issue #79)
  *
- * - acquire 후 [MongoLockExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 동일 reference 공유 (AC-15).
- * - aspect 가 `LockExtender.extendActiveLock` 호출 시 동일 delegate 를 통해 R6 filter (`expireAt > now`) 적용된
- *   extend 실행.
- * - autoExtend 옵션은 [LeaderLeaseAutoExtender] 의 watchdog 가 처리 (R2 watchdog skip semantics 보장).
+ * - After acquire, creates a [MongoLockExtendDelegate] shared by [LeaderLockHandle.Real] and the watchdog (AC-15).
+ * - When the aspect calls `LockExtender.extendActiveLock`, the same delegate applies the R6 filter
+ *   (`expireAt > now`) before executing the extend.
+ * - The autoExtend option is handled by the [LeaderLeaseAutoExtender] watchdog (R2 watchdog skip semantics guaranteed).
  *
  * ```kotlin
  * val election = MongoLeaderElector(database.getCollection("bluetape4k_leader_locks"))
  * val result = election.runIfLeader("daily-job") { processData() }
- * // result == processData() 반환값 (리더 획득 성공) 또는 null (획득 실패)
+ * // result == return value of processData() (leader acquired) or null (not elected)
  * ```
  *
- * **WriteConcern:** Replica Set 환경에서는 컬렉션에 `MAJORITY`를 설정하세요.
- * `ACKNOWLEDGED`는 네트워크 분할 시 split-brain 위험이 있습니다.
+ * **WriteConcern:** In a Replica Set environment, configure the collection with `MAJORITY`.
+ * `ACKNOWLEDGED` carries a split-brain risk during network partitions.
  *
- * @param collection 락 상태를 저장하는 [MongoCollection] (컬렉션 이름: [MongoLock.LOCK_COLLECTION_NAME])
- * @param options 리더 선출 옵션
+ * @param collection [MongoCollection] storing the lock state (collection name: [MongoLock.LOCK_COLLECTION_NAME])
+ * @param options leader election options
  */
 class MongoLeaderElector private constructor(
     private val collection: MongoCollection<Document>,
@@ -212,7 +212,7 @@ class MongoLeaderElector private constructor(
 }
 
 /**
- * MongoDB 분산 락을 이용하여 리더로 선출된 경우에만 [action]을 실행합니다.
+ * Runs [action] only when elected as leader using a MongoDB distributed lock.
  */
 fun <T> MongoCollection<Document>.runIfLeader(
     lockName: String,
@@ -221,7 +221,7 @@ fun <T> MongoCollection<Document>.runIfLeader(
 ): T? = MongoLeaderElector(this, options).runIfLeader(lockName, action)
 
 /**
- * MongoDB 분산 락을 이용하여 리더로 선출된 경우에만 비동기 [action]을 실행합니다.
+ * Runs the async [action] only when elected as leader using a MongoDB distributed lock.
  */
 fun <T> MongoCollection<Document>.runAsyncIfLeader(
     lockName: String,

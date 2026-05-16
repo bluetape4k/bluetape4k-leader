@@ -6,16 +6,16 @@ import java.io.Serializable
 import kotlin.time.Duration
 
 /**
- * 활성 lock 의 handle. AOP aspect 가 push 하고 `LockAssert` / `LockExtender` 가 read.
+ * Handle for an active lock. Pushed by the AOP aspect and read by `LockAssert` / `LockExtender`.
  *
  * ## Variants
- * - [Real] — 실제 backend 보유. `extend()` / `extendSuspend()` 호출 가능
- * - [FailOpen] — fail-open sentinel. 외부 정의에서 extend 항상 [ExtendOutcome.NotHeld] 반환
+ * - [Real] — holds a real backend lock; `extend()` / `extendSuspend()` can be called.
+ * - [FailOpen] — fail-open sentinel; extend always returns [ExtendOutcome.NotHeld] per external definition.
  *
- * ## 동작/계약
- * - **소스 API 레벨에서** 외부 생성 차단 — `internal constructor`. AOP aspect 또는 elector 만 생성.
- *   ⚠️ `internal` 은 reflection / security boundary 아님 — 신뢰된 caller 한정 source API 차단 의미.
- * - sealed class 의 `when` 분기는 exhaustive — `else` branch 없음.
+ * ## Behavior / Contract
+ * - External construction is blocked **at source API level** via `internal constructor`. Only AOP aspects or electors create instances.
+ *   ⚠️ `internal` is not a reflection/security boundary — it means source API restriction to trusted callers only.
+ * - `when` branches on the sealed class are exhaustive — no `else` branch.
  *
  * ## Example
  * ```kotlin
@@ -34,10 +34,10 @@ sealed class LeaderLockHandle : Serializable {
     val isReentrant: Boolean get() = reentryDepth > 0
 
     /**
-     * 다른 [LockIdentity] 와 같은 lock 인지 비교 (reentrant peek 용).
+     * Compares whether another [LockIdentity] refers to the same lock (for reentrant peek).
      *
-     * [LockIdentity.equals] 가 `factoryBeanName` 을 제외하므로 sync/suspend factory 가 달라도
-     * 동일 lock 이면 reentrant pass-through (R3 mitigation).
+     * Because [LockIdentity.equals] excludes `factoryBeanName`, the same lock with different
+     * sync/suspend factories still passes reentrant pass-through (R3 mitigation).
      */
     fun matchesIdentity(other: LockIdentity): Boolean = identity == other
 
@@ -68,26 +68,26 @@ sealed class LeaderLockHandle : Serializable {
     ) : LeaderLockHandle() {
 
         /**
-         * Backend atomic extend 호출.
+         * Invokes backend atomic extend.
          *
-         * Reentrant passthrough copy 일 때도 outer 의 [extendDelegate] 를 그대로 들고 있으므로
-         * **inner 에서 호출 시 outer/backend lease 가 갱신** (R5-F3 / SF11).
+         * Even for a reentrant passthrough copy, the outer [extendDelegate] is retained as-is,
+         * so **calling from an inner scope renews the outer/backend lease** (R5-F3 / SF11).
          */
         fun extend(lockAtMostFor: Duration): ExtendOutcome = extendDelegate.extend(lockAtMostFor)
 
-        /** Suspend variant — backend 가 suspend native 면 non-blocking, 아니면 `withContext(IO)` override. */
+        /** Suspend variant — non-blocking if the backend is suspend-native, otherwise overridden with `withContext(IO)`. */
         suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
             extendDelegate.extendSuspend(lockAtMostFor)
 
         /**
-         * 현재 token 이 backend 에 살아있는지 확인. lease 만료 후 takeover 발생 시 `false`.
+         * Checks whether the current token is still alive in the backend. Returns `false` if a takeover occurs after lease expiry.
          */
         fun isStillHeld(): Boolean = extendDelegate.isHeld()
 
         /**
-         * Reentrant passthrough copy 생성.
+         * Creates a reentrant passthrough copy.
          *
-         * **inner extend 는 outer 의 [extendDelegate] 그대로 호출 → outer/backend lease 갱신** (R5-F3 / SF11).
+         * **Inner extend calls the outer [extendDelegate] as-is → outer/backend lease is renewed** (R5-F3 / SF11).
          */
         internal fun withReentryDepth(n: Int): Real {
             n.requireGe(0, "n")
@@ -126,10 +126,10 @@ sealed class LeaderLockHandle : Serializable {
     }
 
     /**
-     * Fail-open sentinel — `failureMode = FAIL_OPEN_RUN` 시 backend 미보유 상태에서 body 실행.
+     * Fail-open sentinel — runs the body without holding a backend lock when `failureMode = FAIL_OPEN_RUN`.
      *
-     * `LockAssert.assertLocked()` 는 throw — fail-open scope 안에서는 lock 미보유.
-     * `LockExtender.extendActiveLock(d)` 는 `false` 반환 + WARN log.
+     * `LockAssert.assertLocked()` throws — no lock is held inside a fail-open scope.
+     * `LockExtender.extendActiveLock(d)` returns `false` and emits a WARN log.
      */
     class FailOpen internal constructor(
         override val identity: LockIdentity,
@@ -155,11 +155,11 @@ sealed class LeaderLockHandle : Serializable {
         private const val serialVersionUID = 1L
 
         /**
-         * Backend module 전용 factory. AOP aspect / elector 가 호출.
+         * Factory for backend modules only. Called by AOP aspects / electors.
          *
-         * ⚠️ 애플리케이션 코드에서 직접 호출 금지 — 외부 사용자는 `LockAssert` / `LockExtender` 만 사용.
-         * 본 factory 는 `leader-redis-lettuce`, `leader-redis-redisson`, `leader-mongodb`, `leader-exposed-jdbc`,
-         * `leader-exposed-r2dbc`, `leader-hazelcast`, `leader-zookeeper` 등 backend module 에서 사용.
+         * ⚠️ Do not call directly from application code — external callers should use `LockAssert` / `LockExtender` only.
+         * This factory is used by backend modules such as `leader-redis-lettuce`, `leader-redis-redisson`,
+         * `leader-mongodb`, `leader-exposed-jdbc`, `leader-exposed-r2dbc`, `leader-hazelcast`, `leader-zookeeper`.
          */
         fun real(
             identity: LockIdentity,
@@ -173,9 +173,9 @@ sealed class LeaderLockHandle : Serializable {
         ): Real = Real(identity, token, acquiredAtNanos, slotId, acquiringThreadId, reentryDepth, extendDelegate, auditLeaderId)
 
         /**
-         * Backend module / aspect 전용 sentinel factory. `failureMode = FAIL_OPEN_RUN` 시 사용.
+         * Sentinel factory for backend modules / aspects only. Used when `failureMode = FAIL_OPEN_RUN`.
          *
-         * ⚠️ 애플리케이션 코드에서 직접 호출 금지.
+         * ⚠️ Do not call directly from application code.
          */
         fun failOpen(identity: LockIdentity): FailOpen = FailOpen(identity)
     }

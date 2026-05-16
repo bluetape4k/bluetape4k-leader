@@ -29,25 +29,25 @@ import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 
 /**
- * Exposed R2DBC UPDATE+insertIgnore+SELECT 패턴 기반 suspend 토큰 분산 락.
+ * Suspend token-based distributed lock using the Exposed R2DBC UPDATE+insertIgnore+SELECT pattern.
  *
- * ## 동작 방식
- * 단일 트랜잭션 내에서:
- * 1. **UPDATE**: `lockedUntil < NOW()` 조건으로 만료 락 갱신 시도
- * 2. **insertIgnore**: UPDATE 미성공 시 `INSERT ... ON CONFLICT DO NOTHING`(PostgreSQL),
- *    `INSERT IGNORE`(MySQL/H2-MySQL) 으로 안전하게 신규 행 삽입 시도
- * 3. **SELECT**: 현재 인스턴스 token 소유 여부 확인
+ * ## Behavior
+ * Within a single transaction:
+ * 1. **UPDATE**: attempts to renew an expired lock with the condition `lockedUntil < NOW()`
+ * 2. **insertIgnore**: if UPDATE fails, safely inserts a new row using
+ *    `INSERT ... ON CONFLICT DO NOTHING` (PostgreSQL) or `INSERT IGNORE` (MySQL/H2-MySQL)
+ * 3. **SELECT**: verifies whether the current instance owns the token
  *
- * ## 주의사항
- * - `delay()`는 반드시 `suspendTransaction {}` **바깥**에서 호출 (R2DBC 커넥션 풀 점유 방지)
- * - [token]은 인스턴스 생성 시 1회 발급 — unlock 시 zombie 방지
- * - H2 in-memory 사용 시 `MODE=MySQL`을 R2DBC URL에 설정해야 `insertIgnore`가 지원됩니다
- *   (예: `r2dbc:h2:mem:///test;MODE=MySQL;DB_CLOSE_DELAY=-1`)
+ * ## Notes
+ * - `delay()` must be called **outside** `suspendTransaction {}` to avoid holding R2DBC connection pool connections.
+ * - [token] is issued once at instance creation — prevents zombie unlocks.
+ * - When using H2 in-memory, set `MODE=MySQL` in the R2DBC URL to enable `insertIgnore`
+ *   (e.g. `r2dbc:h2:mem:///test;MODE=MySQL;DB_CLOSE_DELAY=-1`).
  *
- * @param db Exposed [R2dbcDatabase] 인스턴스
- * @param lockName 락 식별자 (PK)
- * @param retryStrategy 재시도 대기 전략
- * @param lockOwner 락 보유자 식별자 (선택)
+ * @param db Exposed [R2dbcDatabase] instance
+ * @param lockName lock identifier (PK)
+ * @param retryStrategy retry wait strategy
+ * @param lockOwner lock holder identifier (optional)
  */
 internal class ExposedR2dbcLock internal constructor(
     private val db: R2dbcDatabase,
@@ -57,15 +57,15 @@ internal class ExposedR2dbcLock internal constructor(
 ) {
     companion object: KLoggingChannel()
 
-    /** 인스턴스별 고유 fencing token. unlock 시 zombie 방지에 사용됩니다. */
+    /** Unique fencing token per instance. Used to prevent zombie unlocks. */
     val token: String = Base58.randomString(length = 8)
 
     /**
-     * [waitTime] 내에 락 획득을 시도합니다.
+     * Attempts to acquire the lock within [waitTime].
      *
-     * @param waitTime 락 획득 최대 대기 시간
-     * @param leaseTime 락 보유(TTL) 최대 시간
-     * @return 락 획득 성공 시 `true`, 타임아웃 또는 오류 시 `false`
+     * @param waitTime maximum wait time for lock acquisition
+     * @param leaseTime maximum lock hold (TTL) duration
+     * @return `true` on successful lock acquisition, `false` on timeout or error
      */
     suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
         val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds.coerceAtLeast(0L)
@@ -160,9 +160,9 @@ internal class ExposedR2dbcLock internal constructor(
     }
 
     /**
-     * 현재 인스턴스(token)가 유효한 락을 보유하고 있는지 확인합니다.
+     * Checks whether the current instance (token) holds a valid lock.
      *
-     * 리스 만료 후 타 인스턴스가 재획득한 경우 `false`를 반환합니다.
+     * Returns `false` if the lease has expired and another instance has re-acquired it.
      */
     suspend fun isHeldByCurrentInstance(): Boolean = runCatching {
         suspendTransaction(db) {
@@ -182,9 +182,10 @@ internal class ExposedR2dbcLock internal constructor(
     }
 
     /**
-     * 현재 인스턴스가 보유한 락을 해제합니다.
+     * Releases the lock held by the current instance.
      *
-     * 토큰 불일치(리스 만료로 인한 타 인스턴스 재획득 등) 시 경고 로그만 남깁니다.
+     * Logs a warning on token mismatch (e.g. lease expired and re-acquired by another instance)
+     * without throwing.
      */
     suspend fun unlock(
         minLeaseTime: Duration = Duration.ZERO,
@@ -219,11 +220,11 @@ internal class ExposedR2dbcLock internal constructor(
     }
 
     /**
-     * 락의 `lockedUntil` 을 [leaseTime] 만큼 atomic 하게 연장하고 [ExtendOutcome] 을 반환합니다.
+     * Atomically extends the lock's `lockedUntil` by [leaseTime] and returns an [ExtendOutcome].
      *
      * ## R6 guard (Issue #79 PR 6)
-     * `WHERE` 절에 `lockedUntil > now()` 를 추가하여 만료된 행을 다른 인스턴스가 재획득한 race 에서
-     * stale token 으로 expired row 를 revival 시키는 split-brain 을 차단합니다.
+     * Adds `lockedUntil > now()` to the `WHERE` clause to block split-brain scenarios where a stale token
+     * could revive an expired row that another instance has already re-acquired.
      *
      * ## SQL
      * ```sql
@@ -232,12 +233,13 @@ internal class ExposedR2dbcLock internal constructor(
      * WHERE lock_name = ? AND token = ? AND locked_until > ?  -- now
      * ```
      *
-     * ## 반환
+     * ## Return values
      * - `affectedRows == 1` → [ExtendOutcome.Extended] (`observedExpireAt = now + leaseTime`)
-     * - `affectedRows == 0` → [ExtendOutcome.NotHeld] (토큰 불일치 / lease 만료 / takeover)
-     * - R2DBC 예외는 caller (delegate) 가 [ExtendOutcome.BackendError] 로 wrap — 본 함수는 그대로 throw
+     * - `affectedRows == 0` → [ExtendOutcome.NotHeld] (token mismatch / lease expired / takeover)
+     * - R2DBC exceptions are wrapped as [ExtendOutcome.BackendError] by the caller (delegate) —
+     *   this function rethrows them as-is.
      *
-     * Token-based 락이므로 [ExtendOutcome.WrongThread] 는 발생하지 않습니다.
+     * Token-based lock — [ExtendOutcome.WrongThread] never occurs.
      */
     suspend fun extendDetailed(leaseTime: Duration): ExtendOutcome {
         val lockNameVal = this@ExposedR2dbcLock.lockName

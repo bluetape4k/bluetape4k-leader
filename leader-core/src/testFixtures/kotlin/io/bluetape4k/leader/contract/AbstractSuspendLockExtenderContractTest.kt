@@ -21,20 +21,20 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Backend-agnostic 한 LockAssert/LockExtender × suspend [SuspendLeaderElector] contract.
+ * Backend-agnostic LockAssert/LockExtender × suspend [SuspendLeaderElector] contract.
  *
- * 각 backend 의 contract test 가 이 abstract class 를 상속하여 [elector] 를 제공한다.
+ * Each backend's contract test inherits this abstract class and provides its own [elector] instance.
  *
- * ## 검증 계약 (AC-1 / Issue #79)
+ * ## Verified Contracts (AC-1 / Issue #79)
  *
- * 1. `assertLockedSuspend()` — [SuspendLeaderElector.runIfLeader] 본문 안에서는 pass, 밖에서는 [IllegalStateException]
- * 2. `assertLockedSuspend(lockName)` — 이름 일치 시 pass, 불일치 시 [IllegalStateException]
- * 3. `isLockedSuspend()` — 본문 안 `true`, 밖 `false`
- * 4. `extendActiveLockSuspend(d)` — 본문 안 `true`, 완료 후 `false`
- * 5. `extendActiveLockDetailedSuspend(d)` — [ExtendOutcome.Extended] 반환
- * 6. `extendActiveLockSuspend(lockName, d)` — 이름 일치 `true`, 불일치 `false`
+ * 1. `assertLockedSuspend()` — passes inside [SuspendLeaderElector.runIfLeader] body; throws [IllegalStateException] outside
+ * 2. `assertLockedSuspend(lockName)` — passes when name matches; throws [IllegalStateException] when mismatched
+ * 3. `isLockedSuspend()` — returns `true` inside the body, `false` outside
+ * 4. `extendActiveLockSuspend(d)` — returns `true` inside the body, `false` after completion
+ * 5. `extendActiveLockDetailedSuspend(d)` — returns [ExtendOutcome.Extended]
+ * 6. `extendActiveLockSuspend(lockName, d)` — returns `true` when name matches, `false` when mismatched
  *
- * ## 사용 방법
+ * ## Usage
  *
  * ```kotlin
  * class RedissonSuspendLockExtenderContractTest : AbstractSuspendLockExtenderContractTest() {
@@ -45,16 +45,16 @@ import kotlin.time.Duration.Companion.seconds
  * }
  * ```
  *
- * ## 범위 한계
+ * ## Scope Limitations
  *
- * - sync 계약은 [AbstractSyncLockExtenderContractTest] 가 담당.
- * - Group elector ([io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector]) 계약은 별도 base 로 위임.
- *   (T5 기준 group elector 는 handle push 를 구현하지 않으므로 별도 tracking.)
+ * - Sync contracts are covered by [AbstractSyncLockExtenderContractTest].
+ * - Group elector ([io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector]) contracts are delegated to a separate base.
+ *   (As of T5, group elector does not implement handle push and is tracked separately.)
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractSuspendLockExtenderContractTest {
 
-    /** 각 backend 가 자기 [SuspendLeaderElector] 인스턴스를 제공한다. */
+    /** Each backend provides its own [SuspendLeaderElector] instance. */
     protected abstract val elector: SuspendLeaderElector
 
     private fun randomLockName(): String = "ctr-su-${Base58.randomString(8)}"

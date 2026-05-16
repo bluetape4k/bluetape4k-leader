@@ -10,23 +10,23 @@ import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
 
 /**
- * 6 백엔드 ([LeaderElector]) `runIfLeader` unlock 계약 회귀 베이스.
+ * Regression base for `runIfLeader` unlock contracts across all [LeaderElector] backends.
  *
- * ## 검증 계약 (CRITICAL — R-19, C-4)
+ * ## Verified Contracts (CRITICAL — R-19, C-4)
  *
- * 모든 [LeaderElector] 구현체는 다음 두 가지를 보장해야 한다:
+ * All [LeaderElector] implementations must guarantee the following:
  *
- * 1. **본문 정상 종료 → 락 해제** — `runIfLeader` 본문이 정상적으로 값 또는 `null`을 반환한 후,
- *    동일 클라이언트가 즉시 동일 lockName 으로 재획득할 수 있어야 한다. lease 만료를 기다려서는
- *    안 된다.
- * 2. **본문 throw → 락 해제** — `runIfLeader` 본문이 예외를 throw 한 경우에도 try-finally 로
- *    unlock 이 보장되어야 한다. 예외 전파 후 동일 클라이언트가 즉시 재획득 가능해야 한다.
+ * 1. **Normal body return → lock released** — after `runIfLeader` body returns a value or `null` normally,
+ *    the same client must be able to re-acquire the same lockName immediately, without waiting for lease expiry.
+ * 2. **Body throws → lock released** — even when the `runIfLeader` body throws an exception,
+ *    unlock must be guaranteed via try-finally. The same client must be able to re-acquire immediately after
+ *    the exception propagates.
  *
- * ## 사용 방법
+ * ## Usage
  *
- * 6 백엔드 (`Local`, `Lettuce`, `Redisson`, `Mongo` sync, `Hazelcast`, `ExposedJdbc`) 각각이
- * 본 클래스를 상속하여 [newElection]을 override 한다. testcontainers 가 필요한 백엔드는
- * `@Tag("integration")` + `XxxServer.Launcher.xxx` 표준 사용.
+ * Each of the 6 backends (`Local`, `Lettuce`, `Redisson`, `Mongo` sync, `Hazelcast`, `ExposedJdbc`)
+ * inherits this class and overrides [newElection]. Backends requiring testcontainers use
+ * `@Tag("integration")` + `XxxServer.Launcher.xxx` standard pattern.
  *
  * ```kotlin
  * @Tag("integration")
@@ -38,10 +38,10 @@ import io.bluetape4k.assertions.assertFailsWith
  * }
  * ```
  *
- * ## 범위 한계
+ * ## Scope Limitations
  *
- * 본 베이스는 백엔드 unlock 계약만 검증한다. AOP `LeaderAspectFailureMode { RETHROW, SKIP }` 매트릭스
- * 검증은 Phase 5 `T5.12` (`*UnlockContractTest` Aspect 통합) 으로 위임된다.
+ * This base verifies only backend unlock contracts. AOP `LeaderAspectFailureMode { RETHROW, SKIP }` matrix
+ * verification is delegated to Phase 5 `T5.12` (`*UnlockContractTest` Aspect integration).
  */
 abstract class AbstractLeaderUnlockContractTest {
 
@@ -51,31 +51,31 @@ abstract class AbstractLeaderUnlockContractTest {
     }
 
     /**
-     * 검증 대상 [LeaderElector] 인스턴스 생성.
+     * Creates a [LeaderElector] instance under test.
      *
-     * 호출마다 새 인스턴스를 반환해도 무방하지만, 동일 백엔드 (락 namespace) 를 가리켜야 한다.
-     * 그렇지 않으면 두 인스턴스 간 락 격리가 잘못된 통과를 유발한다 (예: Local 의 정적 락 맵).
+     * May return a new instance on each call, but it must point to the same backend (lock namespace).
+     * Otherwise, lock isolation between two instances causes false positives (e.g., Local's static lock map).
      */
     protected abstract fun newElection(): LeaderElector
 
     private fun randomLockName(): String = "unlock-${Base58.randomString(8)}"
 
     @Test
-    fun `body normal return - 락이 즉시 해제되어 재획득 가능해야 한다`() {
+    fun `body normal return - lock must be released immediately and re-acquirable`() {
         val election = newElection()
         val lockName = randomLockName()
 
         val first = election.runIfLeader(lockName) { SAMPLE_RESULT }
         first shouldBeEqualTo SAMPLE_RESULT
 
-        // 즉시 재획득 — lease 만료 대기 없이
+        // re-acquire immediately — no waiting for lease expiry
         val second = election.runIfLeader(lockName) { SAMPLE_RESULT }
         second.shouldNotBeNull()
         second shouldBeEqualTo SAMPLE_RESULT
     }
 
     @Test
-    fun `body throws - 예외 전파 후에도 락이 해제되어 재획득 가능해야 한다`() {
+    fun `body throws - lock must be released and re-acquirable even after exception propagation`() {
         val election = newElection()
         val lockName = randomLockName()
 
@@ -85,14 +85,14 @@ abstract class AbstractLeaderUnlockContractTest {
             }
         }
 
-        // 즉시 재획득 — try-finally unlock 보장
+        // re-acquire immediately — try-finally unlock guaranteed
         val second = election.runIfLeader(lockName) { SAMPLE_RESULT }
         second.shouldNotBeNull()
         second shouldBeEqualTo SAMPLE_RESULT
     }
 
     @Test
-    fun `body returns null - null 반환도 락 해제 후 재획득 가능해야 한다`() {
+    fun `body returns null - lock must be released and re-acquirable after null return`() {
         val election = newElection()
         val lockName = randomLockName()
 

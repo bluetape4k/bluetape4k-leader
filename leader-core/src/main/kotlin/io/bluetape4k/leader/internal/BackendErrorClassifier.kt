@@ -1,15 +1,15 @@
 package io.bluetape4k.leader.internal
 
 /**
- * Backend exception 분류 SPI.
+ * SPI for classifying backend exceptions.
  *
- * **`leader-core` 는 backend exception class 직접 참조 금지** (R5-F4 의존성 역전).
- * 각 backend module 이 자기 backend 용 classifier 구현 + elector 가 합성하여 사용.
+ * **`leader-core` must not directly reference backend exception classes** (R5-F4 dependency inversion).
+ * Each backend module implements a classifier for its own backend and the elector composes them.
  *
- * ## 동작/계약
- * - `classify` 는 `null` 반환 시 "분류 불가" 를 의미 — chain 의 다음 classifier 에 위임.
- * - [CompositeBackendErrorClassifier] 가 backend-specific 과 [CoreBackendErrorClassifier] 를 chain.
- * - 최종 fallback 은 [BackendErrorKind.NON_TRANSIENT] (safe default).
+ * ## Behavior / Contract
+ * - Returning `null` from `classify` means "unclassifiable" — delegates to the next classifier in the chain.
+ * - [CompositeBackendErrorClassifier] chains backend-specific classifiers with [CoreBackendErrorClassifier].
+ * - The final fallback is [BackendErrorKind.NON_TRANSIENT] (safe default).
  *
  * ## Example
  * ```kotlin
@@ -19,7 +19,7 @@ package io.bluetape4k.leader.internal
  *         is io.lettuce.core.RedisCommandTimeoutException -> BackendErrorKind.TRANSIENT
  *         is io.lettuce.core.RedisConnectionException -> BackendErrorKind.TRANSIENT
  *         is io.lettuce.core.RedisCommandExecutionException -> BackendErrorKind.NON_TRANSIENT
- *         else -> null  // 분류 불가 — chain next
+ *         else -> null  // unclassifiable — chain next
  *     }
  * }
  * ```
@@ -27,34 +27,34 @@ package io.bluetape4k.leader.internal
 fun interface BackendErrorClassifier {
 
     /**
-     * [cause] 를 분류합니다.
+     * Classifies [cause].
      *
-     * @return 분류 결과. `null` = 이 classifier 가 분류 불가 — chain 다음 classifier 에 위임
+     * @return classification result; `null` means this classifier cannot classify — delegates to the next in chain
      */
     fun classify(cause: Throwable): BackendErrorKind?
 }
 
 /**
- * Backend error 분류 결과.
+ * Classification result for backend errors.
  *
- * ## 분류 정책
- * - [TRANSIENT] — 재시도 가능. watchdog/caller 가 WARN log + metric 후 계속.
- * - [NON_TRANSIENT] — 영구 오류. caller 가 명시적으로 처리 (throw 또는 stop).
- * - [FATAL] — JVM 치명적 오류 ([OutOfMemoryError], [StackOverflowError], [LinkageError]).
- *   wrap 또는 catch 금지 — JVM 종료 경로에 맡김.
+ * ## Classification Policy
+ * - [TRANSIENT] — retryable; watchdog/caller logs WARN + metric and continues.
+ * - [NON_TRANSIENT] — permanent error; caller handles explicitly (throw or stop).
+ * - [FATAL] — fatal JVM error ([OutOfMemoryError], [StackOverflowError], [LinkageError]).
+ *   Must not be wrapped or caught — leave to the JVM termination path.
  */
 enum class BackendErrorKind {
-    /** 재시도 가능 — WARN log + metric 후 계속. */
+    /** Retryable — log WARN + metric and continue. */
     TRANSIENT,
 
-    /** 영구 오류 — throw 또는 중단. caller 가 결정. */
+    /** Permanent error — throw or stop; caller decides. */
     NON_TRANSIENT,
 
     /**
-     * JVM 치명적 오류 ([OutOfMemoryError], [StackOverflowError], [LinkageError]).
+     * Fatal JVM error ([OutOfMemoryError], [StackOverflowError], [LinkageError]).
      *
-     * [io.bluetape4k.leader.ExtendOutcome.BackendError] 는 [Exception] 만 허용하므로
-     * FATAL [Error] 는 wrap 금지 — propagate.
+     * [io.bluetape4k.leader.ExtendOutcome.BackendError] accepts only [Exception],
+     * so FATAL [Error] must not be wrapped — propagate directly.
      */
     FATAL,
 }

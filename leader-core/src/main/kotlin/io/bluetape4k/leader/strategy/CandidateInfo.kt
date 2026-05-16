@@ -7,17 +7,18 @@ import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 
 /**
- * 리더 선출 후보 노드의 메타데이터를 담는 데이터 클래스입니다.
+ * Data class holding metadata for a leader election candidate node.
  *
- * [idleDuration] 은 마지막 완료 이후 경과 시간을 나타내며, 실행 이력이 없으면 [registeredAt] 부터 계산합니다.
+ * [idleDuration] represents the time elapsed since the last completion.
+ * If there is no execution history, it is calculated from [registeredAt].
  *
- * @property nodeId 노드 식별자. 노드 인스턴스 생성 시 UUID v7으로 할당하고 재사용해야 합니다.
- * @property registeredAt 후보 등록 시각
- * @property lastStartTime 마지막 작업 시작 시각
- * @property lastCompletionTime 마지막 작업 완료 시각
- * @property successCount 누적 성공 횟수
- * @property failureCount 누적 실패 횟수
- * @property metadata 확장 메타데이터
+ * @property nodeId node identifier. Should be assigned as UUID v7 at node instance creation and reused.
+ * @property registeredAt time when the candidate was registered
+ * @property lastStartTime time of the last action start
+ * @property lastCompletionTime time of the last action completion
+ * @property successCount cumulative success count
+ * @property failureCount cumulative failure count
+ * @property metadata extensible metadata
  */
 data class CandidateInfo(
     val nodeId: String,
@@ -30,23 +31,23 @@ data class CandidateInfo(
 ) : Serializable {
 
     /**
-     * 마지막 완료 이후 경과 시간.
-     * 완료 이력이 없으면 [registeredAt] 부터 계산합니다 (미실행 노드 = 등록 이후 전체 경과 시간).
+     * Time elapsed since the last completion.
+     * If there is no completion history, calculated from [registeredAt] (unrun node = total time since registration).
      */
     val idleDuration: Duration
         get() = lastCompletionTime?.let { (Instant.now().toEpochMilli() - it.toEpochMilli()).milliseconds }
             ?: (Instant.now().toEpochMilli() - registeredAt.toEpochMilli()).milliseconds
 
-    /** 성공률 (0.0 ~ 1.0). 이력 없으면 0.0. */
+    /** Success rate (0.0 to 1.0). Returns 0.0 if there is no history. */
     val successRate: Double
         get() = if (successCount + failureCount == 0L) 0.0
                 else successCount.toDouble() / (successCount + failureCount)
 
-    /** 총 실행 횟수 */
+    /** Total execution count. */
     val totalCount: Long get() = successCount + failureCount
 
     /**
-     * 작업 결과를 반영한 새 [CandidateInfo] 를 반환합니다.
+     * Returns a new [CandidateInfo] with the action result applied.
      */
     fun withResult(result: CandidateResult, completionTime: Instant = Instant.now()): CandidateInfo =
         when (result) {

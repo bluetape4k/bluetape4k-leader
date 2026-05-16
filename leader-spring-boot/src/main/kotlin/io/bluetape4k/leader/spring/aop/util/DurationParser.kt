@@ -5,16 +5,16 @@ import io.bluetape4k.support.requireNotBlank
 import java.time.Duration
 
 /**
- * 어노테이션 `waitTime` / `leaseTime` 문자열 파싱 헬퍼.
+ * Helper for parsing annotation `waitTime` / `leaseTime` strings.
  *
- * ShedLock `StringToDurationConverter.java:54-97` 패턴 차용 — 두 형식 모두 지원:
+ * Borrowed from ShedLock `StringToDurationConverter.java:54-97` pattern — supports both formats:
  * - **ISO-8601**: `"PT10S"`, `"PT1H"`, `"PT500MS"` → [Duration.parse]
- * - **simple**: `"10s"`, `"5m"`, `"1h"`, `"500ms"` → 정규식 + 단위 매핑
+ * - **simple**: `"10s"`, `"5m"`, `"1h"`, `"500ms"` → regex + unit mapping
  *
- * 기본 [parse]는 음수/0을 거부합니다. `minLeaseTime`처럼 0을 허용하는 값은
- * [parseNonNegativeOrDefault]를 사용합니다.
+ * The default [parse] rejects negative or zero values. For values that allow zero such as `minLeaseTime`,
+ * use [parseNonNegativeOrDefault].
  *
- * ## 사용 예
+ * ## Usage example
  * ```kotlin
  * DurationParser.parse("10s")     // PT10S
  * DurationParser.parse("PT1H")    // PT1H
@@ -27,9 +27,9 @@ object DurationParser {
     private val SIMPLE_PATTERN = Regex("^(\\d+)\\s*(ms|s|m|h|d)$", RegexOption.IGNORE_CASE)
 
     /**
-     * [text] 를 [Duration] 으로 파싱. ISO-8601 (`PT10S`) 또는 simple (`10s`) 형식.
+     * Parses [text] into a [Duration]. Accepts ISO-8601 (`PT10S`) or simple (`10s`) format.
      *
-     * @throws IllegalArgumentException [text] 가 빈 문자열이거나 형식 불일치 또는 음수/0
+     * @throws IllegalArgumentException if [text] is blank, does not match a supported format, or is negative/zero
      */
     fun parse(text: String): Duration {
         text.requireNotBlank("text")
@@ -60,13 +60,13 @@ object DurationParser {
     }
 
     /**
-     * [text] 가 빈 문자열이면 [default] 를 반환, 그 외에는 [parse] 결과 반환.
+     * Returns [default] if [text] is blank; otherwise returns the result of [parse].
      */
     fun parseOrDefault(text: String, default: Duration): Duration =
         if (text.isBlank()) default else parse(text)
 
     /**
-     * [text] 가 빈 문자열이면 [default] 를 반환, 그 외에는 0 이상 [Duration] 으로 파싱합니다.
+     * Returns [default] if [text] is blank; otherwise parses [text] as a non-negative [Duration].
      */
     fun parseNonNegativeOrDefault(text: String, default: Duration): Duration {
         if (text.isBlank()) return default

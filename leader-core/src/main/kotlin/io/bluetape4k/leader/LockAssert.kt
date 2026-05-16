@@ -6,25 +6,25 @@ import io.bluetape4k.logging.KLogging
 import kotlin.coroutines.coroutineContext
 
 /**
- * 현재 컨텍스트가 활성 `@LeaderElection` / `@LeaderGroupElection` 본문 안에서 실행 중인지 단언합니다.
+ * Asserts that the current context is executing inside an active `@LeaderElection` / `@LeaderGroupElection` body.
  *
- * ShedLock 의 `LockAssert.assertLocked()` 와 동일한 사용감을 제공합니다.
+ * Provides the same usage experience as ShedLock's `LockAssert.assertLocked()`.
  *
- * ## 동작/계약
- * - 활성 lock state 없음 → [IllegalStateException]
- * - fail-open sentinel scope (`failureMode = FAIL_OPEN_RUN` 이고 backend 실패) → [IllegalStateException]
- *   (fail-open 본문은 락이 없는 상태이므로)
- * - reentrant 진입 시에도 outer 가 sentinel 이 아니면 통과
- * - sealed [LeaderLockHandle] 의 `is FailOpen` 분기는 컴파일러 exhaustive check 강제
+ * ## Behavior / Contract
+ * - No active lock state → [IllegalStateException]
+ * - Fail-open sentinel scope (`failureMode = FAIL_OPEN_RUN` with backend failure) → [IllegalStateException]
+ *   (the fail-open body runs without a lock)
+ * - Reentrant entry passes through as long as the outer scope is not a sentinel
+ * - `is FailOpen` branch on the sealed [LeaderLockHandle] is compiler-enforced exhaustive check
  *
- * ## Cross-context 동작 (suspend → sync API 호출)
- * **suspend 컨텍스트에서는 [assertLockedSuspend] 호출**. sync [assertLocked] 를 suspend 안에서 호출 시
- * carrier thread 의 ThreadLocal 만 검사 → 잘못된 handle 노출 위험 (R7).
+ * ## Cross-context behavior (suspend → sync API call)
+ * **Call [assertLockedSuspend] in suspend contexts**. Calling sync [assertLocked] inside suspend only checks
+ * the carrier thread's ThreadLocal → risk of exposing an unrelated handle (R7).
  *
- * ## ⚠️ Reactor non-suspend operator 미지원 (Step 3-P R5)
- * `.map { LockAssert.assertLocked() }`, `.filter { ... }` 등 non-suspend Reactor operator 안에서는
- * ThreadLocal / `CoroutineContext` 둘 다 없음 → throw.
- * **`.flatMap { mono { LockAssert.assertLockedSuspend() } }` 사용 권장**.
+ * ## ⚠️ Reactor non-suspend operators not supported (Step 3-P R5)
+ * Inside non-suspend Reactor operators such as `.map { LockAssert.assertLocked() }` or `.filter { ... }`,
+ * neither ThreadLocal nor `CoroutineContext` is present → throws.
+ * **Use `.flatMap { mono { LockAssert.assertLockedSuspend() } }` instead**.
  *
  * ## Example
  * ```kotlin
@@ -42,9 +42,9 @@ import kotlin.coroutines.coroutineContext
 object LockAssert : KLogging() {
 
     /**
-     * 현재 스레드에 활성 lock scope 가 있고 fail-open 이 아닌지 단언합니다.
+     * Asserts that the current thread has an active lock scope and it is not fail-open.
      *
-     * @throws IllegalStateException 활성 scope 없음 또는 fail-open sentinel 인 경우
+     * @throws IllegalStateException if there is no active scope or if the scope is a fail-open sentinel
      */
     @JvmStatic
     fun assertLocked() {
@@ -56,10 +56,10 @@ object LockAssert : KLogging() {
     }
 
     /**
-     * 특정 lock 이름으로 활성 lock scope 가 있고 fail-open 이 아닌지 단언합니다.
+     * Asserts that there is an active lock scope for the given lock name and it is not fail-open.
      *
-     * @param lockName 확인할 lock 이름
-     * @throws IllegalStateException 해당 이름의 활성 scope 없음 또는 fail-open sentinel 인 경우
+     * @param lockName the lock name to check
+     * @throws IllegalStateException if there is no active scope for that name or if the scope is a fail-open sentinel
      */
     @JvmStatic
     fun assertLocked(lockName: String) {
@@ -71,9 +71,9 @@ object LockAssert : KLogging() {
     }
 
     /**
-     * throw 없이 현재 스레드에 실제 lock 보유 여부를 반환합니다.
+     * Returns whether the current thread holds a real lock, without throwing.
      *
-     * @return 활성 [LeaderLockHandle.Real] scope 있으면 `true`, 없거나 fail-open 이면 `false`
+     * @return `true` if there is an active [LeaderLockHandle.Real] scope, `false` if absent or fail-open
      */
     @JvmStatic
     fun isLocked(): Boolean {
@@ -82,10 +82,10 @@ object LockAssert : KLogging() {
     }
 
     /**
-     * throw 없이 특정 lock 이름으로 실제 lock 보유 여부를 반환합니다.
+     * Returns whether a real lock is held for the given lock name, without throwing.
      *
-     * @param lockName 확인할 lock 이름
-     * @return 해당 이름의 활성 [LeaderLockHandle.Real] scope 있으면 `true`, 없거나 fail-open 이면 `false`
+     * @param lockName the lock name to check
+     * @return `true` if there is an active [LeaderLockHandle.Real] scope for that name, `false` if absent or fail-open
      */
     @JvmStatic
     fun isLocked(lockName: String): Boolean {
@@ -94,12 +94,12 @@ object LockAssert : KLogging() {
     }
 
     /**
-     * Suspend 변형 — `coroutineContext[LockHandleElement]` 만 검사.
+     * Suspend variant — checks only `coroutineContext[LockHandleElement]`.
      *
-     * **ThreadLocal fallback 제거 (R7 / Codex F13)** — sync ThreadLocal 누수 차단.
-     * sync `assertLocked()` 를 suspend 에서 호출 시 carrier thread 의 무관한 lock 노출 위험.
+     * **ThreadLocal fallback removed (R7 / Codex F13)** — prevents sync ThreadLocal leakage.
+     * Calling sync `assertLocked()` inside suspend only checks the carrier thread's unrelated lock handle.
      *
-     * @throws IllegalStateException 활성 scope 없음 또는 fail-open sentinel 인 경우
+     * @throws IllegalStateException if there is no active scope or if the scope is a fail-open sentinel
      */
     suspend fun assertLockedSuspend() {
         val handle = coroutineContext[LockHandleElement]?.handle
@@ -110,10 +110,10 @@ object LockAssert : KLogging() {
     }
 
     /**
-     * Suspend 변형 — 특정 lock 이름으로 `coroutineContext[LockHandleElement]` 검사.
+     * Suspend variant — checks `coroutineContext[LockHandleElement]` for the given lock name.
      *
-     * @param lockName 확인할 lock 이름
-     * @throws IllegalStateException 활성 scope 없음, lock 이름 불일치, 또는 fail-open sentinel 인 경우
+     * @param lockName the lock name to check
+     * @throws IllegalStateException if there is no active scope, the lock name does not match, or the scope is a fail-open sentinel
      */
     suspend fun assertLockedSuspend(lockName: String) {
         val handle = coroutineContext[LockHandleElement]?.handle
@@ -127,9 +127,9 @@ object LockAssert : KLogging() {
     }
 
     /**
-     * throw 없이 현재 coroutine context 에서 실제 lock 보유 여부를 반환합니다.
+     * Returns whether a real lock is held in the current coroutine context, without throwing.
      *
-     * @return 활성 [LeaderLockHandle.Real] 이 coroutineContext 에 있으면 `true`, 없거나 fail-open 이면 `false`
+     * @return `true` if an active [LeaderLockHandle.Real] is present in the coroutineContext, `false` if absent or fail-open
      */
     suspend fun isLockedSuspend(): Boolean {
         val handle = coroutineContext[LockHandleElement]?.handle ?: return false
@@ -137,10 +137,10 @@ object LockAssert : KLogging() {
     }
 
     /**
-     * throw 없이 특정 lock 이름으로 coroutine context 에서 실제 lock 보유 여부를 반환합니다.
+     * Returns whether a real lock is held for the given lock name in the coroutine context, without throwing.
      *
-     * @param lockName 확인할 lock 이름
-     * @return 해당 이름의 활성 [LeaderLockHandle.Real] 이 coroutineContext 에 있으면 `true`, 없거나 fail-open 이면 `false`
+     * @param lockName the lock name to check
+     * @return `true` if an active [LeaderLockHandle.Real] for that name is present in the coroutineContext, `false` if absent or fail-open
      */
     suspend fun isLockedSuspend(lockName: String): Boolean {
         val handle = coroutineContext[LockHandleElement]?.handle ?: return false

@@ -25,16 +25,17 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 /**
- * MongoDB 분산 락을 이용한 코루틴 기반 단일 리더 선출 구현체입니다.
+ * Coroutine-based single leader election implementation using MongoDB distributed locks.
  *
- * 토큰 기반 락 (`findOneAndUpdate` + TTL)으로 코루틴 스레드 전환과 무관하게 안전합니다.
+ * Token-based lock (`findOneAndUpdate` + TTL) — safe regardless of coroutine thread switches.
  *
- * ## ExtendDelegate 통합 (T9 PR 4 / Issue #79)
+ * ## ExtendDelegate Integration (T9 PR 4 / Issue #79)
  *
- * - acquire 후 [MongoSuspendLockExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 동일 reference 공유 (AC-15).
- * - aspect 의 `LockExtenderSuspend.extendActiveLockSuspend` 는 동일 delegate reference 를 사용합니다.
- * - `withContext(AopScopeAccess.createLockHandleElement(handle))` 로 coroutineContext 에 handle 전파.
- * - autoExtend 옵션은 [LeaderLeaseAutoExtender] 의 watchdog 가 처리 — 별도 `launch` watchdog 제거.
+ * - After acquire, creates a [MongoSuspendLockExtendDelegate] shared by [LeaderLockHandle.Real] and the watchdog (AC-15).
+ * - The aspect's `LockExtenderSuspend.extendActiveLockSuspend` uses the same delegate reference.
+ * - Propagates the handle into the coroutine context via
+ *   `withContext(AopScopeAccess.createLockHandleElement(handle))`.
+ * - The autoExtend option is handled by the [LeaderLeaseAutoExtender] watchdog — no separate `launch` watchdog.
  *
  * ```kotlin
  * val election = MongoSuspendLeaderElector(coroutineDatabase.getCollection("bluetape4k_leader_locks"))
@@ -44,10 +45,11 @@ import java.util.concurrent.TimeUnit
  * }
  * ```
  *
- * **취소 안전성:** 코루틴 취소 시에도 `withContext(NonCancellable)`로 watchdog close + 락 해제를 보장합니다.
+ * **Cancellation safety:** Even on coroutine cancellation, `withContext(NonCancellable)` guarantees
+ * watchdog close and lock release.
  *
- * @param collection 락 상태를 저장하는 코루틴 [MongoCollection]
- * @param options 리더 선출 옵션
+ * @param collection coroutine [MongoCollection] storing the lock state
+ * @param options leader election options
  */
 class MongoSuspendLeaderElector private constructor(
     private val collection: MongoCollection<Document>,
@@ -149,7 +151,7 @@ class MongoSuspendLeaderElector private constructor(
 }
 
 /**
- * MongoDB 분산 락을 이용하여 리더로 선출된 경우에만 suspend [action]을 실행합니다.
+ * Runs the suspend [action] only when elected as leader using a MongoDB distributed lock.
  */
 suspend fun <T> MongoCollection<Document>.suspendRunIfLeader(
     lockName: String,

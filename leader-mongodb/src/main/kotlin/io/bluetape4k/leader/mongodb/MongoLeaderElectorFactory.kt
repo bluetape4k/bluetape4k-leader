@@ -7,9 +7,9 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import org.bson.Document
 
 /**
- * [MongoLeaderElector] 팩토리 — MongoDB sync 클라이언트 기반 단일 리더 선출.
+ * Factory for [MongoLeaderElector] — single leader election backed by the MongoDB sync client.
  *
- * ## 사용 예
+ * ## Usage
  * ```kotlin
  * val collection: MongoCollection<Document> = database.getCollection("leader_lock")
  * val factory = MongoLeaderElectionFactory(collection)
@@ -17,16 +17,16 @@ import org.bson.Document
  * val result = election.runIfLeader("daily-job") { processData() }
  * ```
  *
- * ## 옵션 처리
- * AOP 어드바이스가 전달하는 [LeaderElectionOptions]는 `waitTime`/`leaseTime` 만 포함한다.
- * MongoDB 백엔드 고유 옵션 (`retryDelay`)은 [baseOptions]를 통해 factory 생성 시점에 고정되며,
- * 매 호출마다 `baseOptions.copy(leaderOptions = options)`로 [LeaderElectionOptions]만 교체한다.
+ * ## Option handling
+ * The [LeaderElectionOptions] passed by an AOP advice only carries `waitTime`/`leaseTime`.
+ * MongoDB-specific options (e.g. `retryDelay`) are fixed at factory construction time via [baseOptions];
+ * each call replaces only [LeaderElectionOptions] via `baseOptions.copy(leaderOptions = options)`.
  *
- * `MongoLeaderElector(...)` 호출은 companion `operator fun invoke`로 라우팅되어
- * [MongoLock.ensureIndexes]가 함께 실행된다.
+ * Calls to `MongoLeaderElector(...)` are routed through the companion `operator fun invoke`,
+ * which also runs [MongoLock.ensureIndexes].
  *
- * @param collection 락 컬렉션
- * @param baseOptions MongoDB 고유 옵션 기본값. AOP 호출마다 `waitTime`/`leaseTime` 만 갈아끼운다
+ * @param collection lock collection
+ * @param baseOptions MongoDB-specific option defaults. Only `waitTime`/`leaseTime` are replaced on each AOP call.
  */
 class MongoLeaderElectorFactory(
     private val collection: MongoCollection<Document>,

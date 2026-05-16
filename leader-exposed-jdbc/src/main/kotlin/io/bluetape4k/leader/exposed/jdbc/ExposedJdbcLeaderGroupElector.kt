@@ -35,13 +35,13 @@ import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
 /**
- * Exposed JDBC 기반 복수 리더 그룹 선출 구현체.
+ * Multi-leader group election implementation backed by Exposed JDBC.
  *
- * `(lockName, slot)` 복합 PK 기반 슬롯 순회로 최대
- * [ExposedJdbcLeaderGroupElectionOptions.maxLeaders]개의 동시 리더를 허용합니다.
- * 슬롯 시작 위치를 랜덤화하여 핫스팟을 방지합니다.
+ * Iterates over slots using the `(lockName, slot)` composite primary key to allow up to
+ * [ExposedJdbcLeaderGroupElectionOptions.maxLeaders] simultaneous leaders.
+ * The starting slot position is randomized to prevent hotspots.
  *
- * ### 기본 사용
+ * ### Basic usage
  * ```kotlin
  * val election = ExposedJdbcLeaderGroupElector(
  *     db,
@@ -50,20 +50,20 @@ import kotlin.random.Random
  *     ),
  * )
  * val result = election.runIfLeader("batch-job") { processChunk() }
- * // 최대 3개 노드 동시 실행, 나머지는 null 반환
+ * // up to 3 nodes run concurrently; remaining nodes return null
  * ```
  *
- * ### 그룹 상태 조회
+ * ### Group state query
  * ```kotlin
  * val state = election.state("batch-job")
  * println("active=${state.activeCount} / max=${state.maxLeaders}")
  * println("available=${election.availableSlots("batch-job")}")
  * ```
  *
- * **private constructor** — [invoke] 팩터리를 사용하세요. 첫 호출 시 스키마가 자동으로 생성됩니다.
+ * **private constructor** — use the [invoke] factory. Schema is automatically created on the first call.
  *
- * @param db Exposed [Database] 인스턴스
- * @param options 그룹 리더 선출 옵션
+ * @param db Exposed [Database] instance
+ * @param options group leader election options
  */
 class ExposedJdbcLeaderGroupElector private constructor(
     private val db: Database,
@@ -77,9 +77,9 @@ class ExposedJdbcLeaderGroupElector private constructor(
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedJdbcBackendErrorClassifier)
 
         /**
-         * [ExposedJdbcLeaderGroupElector] 인스턴스를 생성합니다.
+         * Creates an [ExposedJdbcLeaderGroupElector] instance.
          *
-         * 첫 호출 시 리더 선출 테이블 스키마를 자동으로 생성합니다 (최초 1회).
+         * On the first call, automatically creates the leader election table schema (once per database URL).
          */
         @JvmStatic
         @JvmOverloads
@@ -93,19 +93,20 @@ class ExposedJdbcLeaderGroupElector private constructor(
         }
     }
 
-    /** 동시 허용 리더 수 ([ExposedJdbcLeaderGroupElectionOptions.maxLeaders] 위임). */
+    /** Maximum number of simultaneous leaders (delegates to [ExposedJdbcLeaderGroupElectionOptions.maxLeaders]). */
     override val maxLeaders: Int get() = options.maxLeaders
 
     /**
-     * [lockName]의 현재 활성 슬롯 수(만료되지 않은 lease 보유 행)를 DB에서 실시간으로 반환합니다.
+     * Returns the current number of active slots (rows with a non-expired lease) for [lockName] from the DB.
      *
-     * 만료된 슬롯(`lockedUntil <= NOW()`)은 카운트에서 제외됩니다.
-     * 호출 비용: `SELECT COUNT(*)` — 자주 호출 시 캐시 layer 구성 권장.
+     * Expired slots (`lockedUntil <= NOW()`) are excluded from the count.
+     * Call cost: `SELECT COUNT(*)` — consider adding a cache layer for frequent calls.
      *
-     * ⚠️ 반환값은 호출 시점 스냅샷입니다. 조회 직후 다른 인스턴스가 슬롯을 획득/해제할 수 있으므로
-     * 동시성 결정 기준으로 사용하지 마세요 (모니터링/로깅 전용).
+     * ⚠️ The returned value is a point-in-time snapshot. Another instance may acquire or release
+     * a slot immediately after the query, so do not use this for concurrency decisions
+     * (monitoring/logging only).
      *
-     * DB 오류 발생 시 best-effort로 `0`을 반환합니다 (예외 전파 없음).
+     * Returns `0` on DB error (best-effort; no exception propagation).
      */
     override fun activeCount(lockName: String): Int = runCatching {
         transaction(db) {
@@ -124,36 +125,36 @@ class ExposedJdbcLeaderGroupElector private constructor(
         0
     }
 
-    /** [lockName]에서 즉시 획득 가능한 슬롯 수. */
+    /** Number of slots immediately available for [lockName]. */
     override fun availableSlots(lockName: String): Int = maxLeaders - activeCount(lockName)
 
-    /** [lockName]에 대한 [LeaderGroupState] 스냅샷을 반환합니다. */
+    /** Returns a [LeaderGroupState] snapshot for [lockName]. */
     override fun state(lockName: String): LeaderGroupState =
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
     /**
-     * [lockName] 그룹의 빈 슬롯을 하나 획득하면 [action]을 실행합니다.
+     * Executes [action] when an empty slot in the [lockName] group is acquired.
      *
-     * - 모든 슬롯이 사용 중이면 `null`을 반환합니다 (예외 없음).
-     * - [action] 예외는 그대로 전파되며, 슬롯은 항상 반납됩니다.
-     * - [CancellationException]은 재전파되며 FAILED 이력에 기록되지 않습니다.
+     * - Returns `null` when all slots are occupied (no exception).
+     * - Exceptions from [action] propagate as-is; the slot is always released.
+     * - [CancellationException] is rethrown and not recorded as FAILED.
      *
-     * ## 슬롯 경합 시 skip
+     * ## Skip on slot contention
      * ```kotlin
      * val result = election.runIfLeader("batch-job") { processChunk() }
      * when (result) {
-     *     null -> log.debug { "슬롯 없음 — 이번 실행은 다른 인스턴스가 처리" }
-     *     else -> log.info { "처리 완료: $result" }
+     *     null -> log.debug { "No slot — another instance handles this run" }
+     *     else -> log.info { "Processing complete: $result" }
      * }
      * ```
      *
-     * ## 슬롯 내부 tryLock tri-state
-     * 슬롯 순회 시 각 슬롯의 tryLock 결과:
-     * - `true` — 슬롯 획득 성공, [action] 실행
-     * - `false` — 해당 슬롯 경합 실패, 다음 슬롯으로 순회 계속
-     * - `null` — DB 오류, 순회 중단 후 `null` 반환 (warn 로그로 구분 가능)
+     * ## Slot tryLock tri-state
+     * For each slot iterated:
+     * - `true` — slot acquired; [action] is executed
+     * - `false` — slot contested; iteration continues to the next slot
+     * - `null` — DB error; iteration aborted and `null` is returned (distinguishable by warn log)
      *
-     * @throws IllegalArgumentException [lockName]이 유효하지 않은 경우
+     * @throws IllegalArgumentException when [lockName] is invalid
      */
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         validateExposedLockName(lockName)
@@ -252,10 +253,10 @@ class ExposedJdbcLeaderGroupElector private constructor(
     }
 
     /**
-     * [lockName] 그룹의 슬롯을 비동기로 획득하여 [action]을 실행합니다.
+     * Acquires a slot in the [lockName] group asynchronously and executes [action].
      *
-     * 슬롯 획득 실패 시 `null`로 완료된 [CompletableFuture]를 반환합니다.
-     * action이 동기적으로 던지는 예외는 [CompletableFuture.failedFuture]로 래핑됩니다.
+     * Returns a [CompletableFuture] completing with `null` when no slot can be acquired.
+     * Synchronous exceptions from action are wrapped as [CompletableFuture.failedFuture].
      *
      * ```kotlin
      * val future = election.runAsyncIfLeader("batch", VirtualThreadExecutor) {

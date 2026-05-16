@@ -7,20 +7,20 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
 /**
- * 이 [Database]에 대한 단일 리더 선출을 실행합니다.
+ * Runs a single leader election on this [Database].
  *
- * `ExposedJdbcLeaderElector(this, options).runIfLeader(lockName, action)`의 편의 함수입니다.
- * [ExposedJdbcLeaderElector.invoke]를 통해 ensureSchema가 보장됩니다.
+ * Convenience wrapper for `ExposedJdbcLeaderElector(this, options).runIfLeader(lockName, action)`.
+ * Schema creation is guaranteed via [ExposedJdbcLeaderElector.invoke].
  *
  * ```kotlin
  * val report = db.runIfLeader("daily-report") { generateReport() }
- *     ?: return // 리더가 아니면 건너뜀
+ *     ?: return // not the leader — skip
  * ```
  *
- * @param lockName 리더 선출에 사용할 락 이름
- * @param options 선출 옵션. 기본값 [ExposedJdbcLeaderElectionOptions.Default]
- * @param action 리더 획득 성공 시 실행할 작업
- * @return [action] 실행 결과, 리더 획득 실패 시 `null`
+ * @param lockName lock name used for leader election
+ * @param options election options; defaults to [ExposedJdbcLeaderElectionOptions.Default]
+ * @param action the work to execute when the leader lock is acquired
+ * @return [action] result, or `null` when the leader lock cannot be acquired
  */
 fun <T> Database.runIfLeader(
     lockName: String,
@@ -29,7 +29,7 @@ fun <T> Database.runIfLeader(
 ): T? = ExposedJdbcLeaderElector(this, options).runIfLeader(lockName, action)
 
 /**
- * 이 [Database]에 대한 단일 리더 선출을 비동기로 실행합니다.
+ * Runs a single leader election on this [Database] asynchronously.
  *
  * ```kotlin
  * val future: CompletableFuture<Report?> = db.runAsyncIfLeader("nightly-sync") {
@@ -37,11 +37,11 @@ fun <T> Database.runIfLeader(
  * }
  * ```
  *
- * @param lockName 리더 선출에 사용할 락 이름
- * @param executor 비동기 실행 [Executor]. 기본값 [VirtualThreadExecutor]
- * @param options 선출 옵션. 기본값 [ExposedJdbcLeaderElectionOptions.Default]
- * @param action 리더 획득 성공 시 실행할 비동기 작업
- * @return 실행 결과를 담은 [CompletableFuture]. 리더 획득 실패 시 `null`로 완료됨
+ * @param lockName lock name used for leader election
+ * @param executor async [Executor]; defaults to [VirtualThreadExecutor]
+ * @param options election options; defaults to [ExposedJdbcLeaderElectionOptions.Default]
+ * @param action the async work to execute when the leader lock is acquired
+ * @return [CompletableFuture] holding the result, completing with `null` when the leader lock cannot be acquired
  */
 fun <T> Database.runAsyncIfLeader(
     lockName: String,
@@ -51,17 +51,17 @@ fun <T> Database.runAsyncIfLeader(
 ): CompletableFuture<T?> = ExposedJdbcLeaderElector(this, options).runAsyncIfLeader(lockName, executor, action)
 
 /**
- * 이 [Database]에 대한 단일 리더 선출을 Virtual Thread에서 비동기로 실행합니다.
+ * Runs a single leader election on this [Database] asynchronously on a Virtual Thread.
  *
  * ```kotlin
  * val result: String? = db.runVirtualIfLeader("vt-job") { computeHeavy() }
  *     .get(5, TimeUnit.SECONDS)
  * ```
  *
- * @param lockName 리더 선출에 사용할 락 이름
- * @param options 선출 옵션. 기본값 [ExposedJdbcLeaderElectionOptions.Default]
- * @param action 리더 획득 성공 시 실행할 작업
- * @return 실행 결과를 담은 [VirtualFuture]. 리더 획득 실패 시 `null`로 완료됨
+ * @param lockName lock name used for leader election
+ * @param options election options; defaults to [ExposedJdbcLeaderElectionOptions.Default]
+ * @param action the work to execute when the leader lock is acquired
+ * @return [VirtualFuture] holding the result, completing with `null` when the leader lock cannot be acquired
  */
 fun <T> Database.runVirtualIfLeader(
     lockName: String,
@@ -73,20 +73,20 @@ fun <T> Database.runVirtualIfLeader(
 }
 
 /**
- * 이 [Database]에 대한 그룹 리더 선출을 실행합니다.
+ * Runs a group leader election on this [Database].
  *
  * ```kotlin
  * val opts = ExposedJdbcLeaderGroupElectionOptions(
  *     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 4),
  * )
  * val result = db.runIfLeaderGroup("worker-pool", opts) { processChunk() }
- * // 최대 4개 노드 동시 실행, 슬롯 만석 시 null
+ * // up to 4 nodes run concurrently; returns null when all slots are occupied
  * ```
  *
- * @param lockName 리더 그룹 선출에 사용할 락 이름
- * @param options 그룹 선출 옵션. 기본값 [ExposedJdbcLeaderGroupElectionOptions.Default]
- * @param action 리더 획득 성공 시 실행할 작업
- * @return [action] 실행 결과, 슬롯 획득 실패 시 `null`
+ * @param lockName lock name used for group leader election
+ * @param options group election options; defaults to [ExposedJdbcLeaderGroupElectionOptions.Default]
+ * @param action the work to execute when a group slot is acquired
+ * @return [action] result, or `null` when no slot can be acquired
  */
 fun <T> Database.runIfLeaderGroup(
     lockName: String,
@@ -95,7 +95,7 @@ fun <T> Database.runIfLeaderGroup(
 ): T? = ExposedJdbcLeaderGroupElector(this, options).runIfLeader(lockName, action)
 
 /**
- * 이 [Database]에 대한 그룹 리더 선출을 비동기로 실행합니다.
+ * Runs a group leader election on this [Database] asynchronously.
  *
  * ```kotlin
  * val future = db.runAsyncIfLeaderGroup(
@@ -108,11 +108,11 @@ fun <T> Database.runIfLeaderGroup(
  * }
  * ```
  *
- * @param lockName 리더 그룹 선출에 사용할 락 이름
- * @param executor 비동기 실행 [Executor]. 기본값 [VirtualThreadExecutor]
- * @param options 그룹 선출 옵션. 기본값 [ExposedJdbcLeaderGroupElectionOptions.Default]
- * @param action 리더 획득 성공 시 실행할 비동기 작업
- * @return 실행 결과를 담은 [CompletableFuture]. 슬롯 획득 실패 시 `null`로 완료됨
+ * @param lockName lock name used for group leader election
+ * @param executor async [Executor]; defaults to [VirtualThreadExecutor]
+ * @param options group election options; defaults to [ExposedJdbcLeaderGroupElectionOptions.Default]
+ * @param action the async work to execute when a group slot is acquired
+ * @return [CompletableFuture] holding the result, completing with `null` when no slot can be acquired
  */
 fun <T> Database.runAsyncIfLeaderGroup(
     lockName: String,

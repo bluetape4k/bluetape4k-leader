@@ -1,21 +1,21 @@
 package io.bluetape4k.leader.metrics
 
 /**
- * `LeaderAopMetricsRecorder.onLockNotAcquired` 호출 시 전달하는 미선출 사유.
+ * Reason passed to `LeaderAopMetricsRecorder.onLockNotAcquired` when a leader is not elected.
  *
- * [#85] `LeaderRunResult` sealed SPI 도입으로 `CONTENTION` 은 이제 정확 — `runIfLeaderResult`
- * 내부 `elected` 플래그로 본문 `null` 반환과 미선출을 명확히 구분.
+ * [#85] With the introduction of the `LeaderRunResult` sealed SPI, `CONTENTION` is now accurate —
+ * the `elected` flag inside `runIfLeaderResult` clearly distinguishes a body `null` return from not being elected.
  */
 enum class SkipReason {
-    /** waitTime 내 락 획득 실패. */
+    /** Lock not acquired within waitTime. */
     CONTENTION,
 
-    /** 백엔드 예외 발생 후 SKIP 모드로 흡수. */
+    /** Backend exception occurred and absorbed in SKIP mode. */
     BACKEND_ERROR,
 
     /**
-     * 락 미획득(경쟁) 또는 백엔드 예외 발생 후 `FAIL_OPEN_RUN` 모드로 락 없이 본문 실행.
-     * `onLockNotAcquired` 이벤트 발행 후 본문이 정상 실행되면 `onTaskFinished` 가 이어서 발행된다.
+     * Lock not acquired (contention) or backend exception occurred, then body runs without a lock in `FAIL_OPEN_RUN` mode.
+     * After the `onLockNotAcquired` event is published, `onTaskFinished` is published if the body completes normally.
      */
     FAIL_OPEN_FORCED,
 }

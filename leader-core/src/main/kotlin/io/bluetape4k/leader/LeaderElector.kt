@@ -4,52 +4,52 @@ import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import java.util.concurrent.CancellationException
 
 /**
- * 동기 방식 리더 선출 실행 계약을 정의합니다.
+ * Defines the contract for synchronous leader election execution.
  *
- * ## 동작/계약
- * - 동일 [lockName]에 대해 구현체가 리더 획득에 성공한 호출만 [action]을 실행합니다.
- * - 리더 획득/해제 전략과 실패 처리(예외/재시도)는 구현체 정책을 따릅니다.
- * - [action] 실행 시점의 스레드와 컨텍스트는 구현체에 따라 달라질 수 있습니다.
+ * ## Behavior / Contract
+ * - Only the call that successfully acquires leadership for the given [lockName] executes [action].
+ * - Leader acquisition/release strategy and failure handling (exceptions/retries) follow the implementation policy.
+ * - The thread and context at the time [action] runs may vary by implementation.
  *
  * ```kotlin
  * val leaderElection = DefaultLeaderElector()
  * val result = leaderElection.runIfLeader("daily-job") {
  *     "done"
  * }
- * // result == "done" (리더 획득 성공 경로)
+ * // result == "done" (leader acquired path)
  */
 interface LeaderElector: AsyncLeaderElector {
 
     /**
-     * 리더로 선출된 경우에만 동기 [action]을 실행합니다.
+     * Executes the synchronous [action] only when elected as leader.
      *
-     * ## 동작/계약
-     * - [lockName]에 대한 리더 획득 성공 시 [action]을 1회 실행합니다.
-     * - [action]에서 발생한 예외는 호출자에게 전파됩니다.
-     * - [lockName] 유효성(blank 허용 여부)은 구현체의 입력 검증 규칙을 따릅니다.
-     * - [waitTime] 내 리더 획득 실패 시 `null`을 반환합니다 (ShedLock 방식).
+     * ## Behavior / Contract
+     * - [action] is executed exactly once when leadership for [lockName] is successfully acquired.
+     * - Exceptions thrown from [action] are propagated to the caller.
+     * - [lockName] validation rules (e.g. blank allowed) follow the implementation policy.
+     * - Returns `null` if leadership is not acquired within [waitTime] (ShedLock skip-on-contention behavior).
      *
      * ```kotlin
      * val value = leaderElection.runIfLeader("job-lock") { 42 }
-     * // value == 42 (리더 획득 성공) 또는 null (획득 실패)
+     * // value == 42 (leader acquired) or null (not acquired)
      * ```
      *
-     * @param lockName 리더 선출에 사용할 락 이름
-     * @param action 리더 획득 성공 시 실행할 동기 작업
-     * @return [action] 실행 결과, 리더 획득 실패 시 `null`
+     * @param lockName the lock name used for leader election
+     * @param action the synchronous action to run when elected
+     * @return the [action] result, or `null` if leadership was not acquired
      */
     fun <T> runIfLeader(lockName: String, action: () -> T): T?
 
     /**
-     * 리더 선출 결과를 [LeaderRunResult]로 반환합니다.
+     * Returns the leader election result as a [LeaderRunResult].
      *
-     * `runIfLeader`의 `null` 반환 모호성을 해결합니다:
-     * action()이 null을 반환해도 [LeaderRunResult.Elected]로 구분되고,
-     * lock 미획득은 [LeaderRunResult.Skipped]로 구분됩니다.
+     * Resolves the ambiguity of `runIfLeader` returning `null`:
+     * even if action() returns null, the result is [LeaderRunResult.Elected];
+     * a lock-not-acquired outcome is represented as [LeaderRunResult.Skipped].
      *
-     * 동등 result API는 coroutine/async/virtual-thread elector에도 제공됩니다.
-     * `CancellationException`은 [LeaderRunResult.ActionFailed]로 감싸지 않고 호출자에게 전파됩니다.
-     * `InterruptedException`은 interrupt flag를 복원한 뒤 재전파합니다.
+     * An equivalent result API is provided for coroutine/async/virtual-thread electors.
+     * `CancellationException` is propagated directly to the caller without wrapping in [LeaderRunResult.ActionFailed].
+     * `InterruptedException` restores the interrupt flag before rethrowing.
      *
      * ```kotlin
      * when (val r = election.runIfLeaderResult("job-lock") { compute() }) {
@@ -59,10 +59,10 @@ interface LeaderElector: AsyncLeaderElector {
      * }
      * ```
      *
-     * @param lockName 리더 선출에 사용할 락 이름
-     * @param action 리더 획득 성공 시 실행할 동기 작업
-     * @return [LeaderRunResult.Elected] (action 실행됨), [LeaderRunResult.Skipped] (lock 미획득),
-     *   또는 [LeaderRunResult.ActionFailed] (action 실패)
+     * @param lockName the lock name used for leader election
+     * @param action the synchronous action to run when elected
+     * @return [LeaderRunResult.Elected] (action ran), [LeaderRunResult.Skipped] (lock not acquired),
+     *   or [LeaderRunResult.ActionFailed] (action failed)
      */
     fun <T> runIfLeaderResult(lockName: String, action: () -> T): LeaderRunResult<T> {
         var elected = false

@@ -4,27 +4,27 @@ import org.springframework.aop.support.AopUtils
 import java.lang.reflect.Method
 
 /**
- * Aspect advice 에서 어노테이션 lookup 을 위한 helper.
+ * Helper for annotation lookup in Aspect advice.
  *
- * ## [R-24] proxy → target class fallback
- * ShedLock `SpringLockConfigurationExtractor.java:212-229` 패턴 차용.
+ * ## [R-24] Proxy → target class fallback
+ * Borrowed from ShedLock `SpringLockConfigurationExtractor.java:212-229` pattern.
  *
- * 인터페이스 메서드에만 어노테이션이 부착되고 구현체는 별도일 때, 프록시 메서드 (인터페이스 메서드) 를
- * 직접 lookup 하면 어노테이션이 누락된다. 본 헬퍼는:
- * 1. `method.findMergedAnnotationOrNull<A>()` 로 1차 시도
- * 2. 미발견 시 `AopUtils.getTargetClass(target).getMethod(name, params)` 로 target class 메서드 재탐색
+ * When an annotation is placed only on an interface method and the implementation is separate,
+ * looking up the proxy method (interface method) directly will miss the annotation. This helper:
+ * 1. First attempts `method.findMergedAnnotationOrNull<A>()`
+ * 2. If not found, retries via `AopUtils.getTargetClass(target).getMethod(name, params)` on the target class method
  */
 object AnnotationLookup {
 
     /**
-     * [method] 또는 [target] 의 target class 메서드에서 [A] 어노테이션을 찾는다.
+     * Finds annotation [A] on [method] or on the corresponding target class method of [target].
      *
-     * Kotlin idiom — reified 변형. 사용:
+     * Kotlin idiom — reified variant. Usage:
      * ```kotlin
      * val ann = AnnotationLookup.findAnnotationWithTargetFallback<LeaderElection>(method, target)
      * ```
      *
-     * @return 어노테이션 인스턴스 또는 미발견 시 `null`
+     * @return the annotation instance, or `null` if not found
      */
     inline fun <reified A : Annotation> findAnnotationWithTargetFallback(
         method: Method,

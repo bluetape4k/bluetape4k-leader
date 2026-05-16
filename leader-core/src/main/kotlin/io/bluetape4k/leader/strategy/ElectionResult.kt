@@ -1,11 +1,11 @@
 package io.bluetape4k.leader.strategy
 
 /**
- * 선출 결과입니다.
+ * Represents the result of an election.
  *
- * @property winner 선출된 리더. 후보가 없으면 `null`.
- * @property eliminations 탈락 후보 목록과 각 탈락 사유.
- * @property scores 후보별 점수 (nodeId → score). 점수 기반 전략에서만 채워집니다.
+ * @property winner the elected leader. `null` if there are no candidates.
+ * @property eliminations list of eliminated candidates and each elimination reason.
+ * @property scores per-candidate scores (nodeId → score). Populated only by score-based strategies.
  */
 data class ElectionResult(
     val winner: CandidateInfo?,
@@ -13,7 +13,7 @@ data class ElectionResult(
     val scores: Map<String, Double> = emptyMap(),
 ) {
     companion object {
-        /** 후보 없음 — winner도 탈락자도 없는 빈 결과. */
+        /** No candidates — empty result with no winner and no eliminations. */
         val EMPTY = ElectionResult(winner = null, eliminations = emptyList())
     }
 }

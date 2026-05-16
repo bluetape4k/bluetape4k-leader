@@ -17,27 +17,27 @@ import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 
 /**
- * `@LeaderElection` / `@LeaderGroupElection` 부착 메서드 footgun 검출 BeanPostProcessor.
+ * BeanPostProcessor that detects footguns on methods annotated with `@LeaderElection` / `@LeaderGroupElection`.
  *
- * ## 검출 항목
- * - `final` / `private` 메서드 (proxy 적용 불가)
+ * ## Detected issues
+ * - `final` / `private` methods (proxy cannot be applied)
  * - `@LeaderGroupElection.maxLeaders` ≤ 1
- * - unsafe stream 반환 (`Flux` / `Flow`) — single leader requires `autoExtend` or `streamBounded`
- * - SpEL pre-parse 실패
- * - 같은 클래스에 어노테이션 부착 메서드 2+ (best-effort self-invocation WARN)
+ * - Unsafe stream return types (`Flux` / `Flow`) — single leader requires `autoExtend` or `streamBounded`
+ * - SpEL pre-parse failure
+ * - 2+ annotated methods on the same class (best-effort self-invocation WARN)
  *
- * ## 메타 어노테이션 지원 (#84)
- * `@AliasFor`로 구성된 composed 어노테이션도 검출한다.
- * 예: `@DailyJob` → `@LeaderElection(name = "daily-job")` 합성 어노테이션.
- * [AnnotatedElementUtils.hasAnnotation] / [AnnotatedElementUtils.findMergedAnnotation] 사용.
+ * ## Meta-annotation support (#84)
+ * Also detects composed annotations built with `@AliasFor`.
+ * Example: `@DailyJob` → `@LeaderElection(name = "daily-job")` composed annotation.
+ * Uses [AnnotatedElementUtils.hasAnnotation] / [AnnotatedElementUtils.findMergedAnnotation].
  *
- * ## strict 모드
- * - `true`: 위반 발견 시 startup fail (`maxLeaders ≤ 1` / SpEL 실패는 strict 무관 항상 fail)
- * - `false` (default): WARN 로그만
+ * ## Strict mode
+ * - `true`: startup fails on any violation (`maxLeaders ≤ 1` / SpEL failure always fails regardless of strict)
+ * - `false` (default): WARN log only
  *
- * ## 자체 throw 방어 [Step 3-P-Rel]
- * BPP 내부 reflection / SpEL 호출 자체가 throw 하면 (예: ClassNotFoundException) startup 차단 회피 위해
- * `runCatching` 으로 격리. strict 모드에서도 BPP 내부 오류는 WARN.
+ * ## Self-throw defense [Step 3-P-Rel]
+ * If reflection / SpEL calls inside the BPP itself throw (e.g. ClassNotFoundException), they are isolated
+ * with `runCatching` to avoid blocking startup. Even in strict mode, internal BPP errors are WARN only.
  */
 class LeaderAnnotationValidatorBeanPostProcessor(
     private val strict: Boolean,
@@ -142,13 +142,14 @@ class LeaderAnnotationValidatorBeanPostProcessor(
     }
 
     /**
-     * Future / CompletableFuture / ListenableFuture / Deferred 반환 타입 검출 (R12).
+     * Detects Future / CompletableFuture / ListenableFuture / Deferred return types (R12).
      *
-     * - `java.util.concurrent.Future` 와 sub-type (CompletableFuture 포함)
-     * - `com.google.common.util.concurrent.ListenableFuture` (Guava optional — classNotFound 시 silent skip)
+     * - `java.util.concurrent.Future` and its sub-types (including CompletableFuture)
+     * - `com.google.common.util.concurrent.ListenableFuture` (Guava optional — silently skipped if class not found)
      * - `kotlinx.coroutines.Deferred`
      *
-     * aspect 가 sync 분기로 처리 시 action 종료 시점에 lock release → future 완료 전 release 발생.
+     * When the aspect processes these in the sync branch, lock release occurs at action completion,
+     * which happens before the future completes — causing a split-brain risk.
      */
     private fun isUnsupportedFutureReturn(returnType: Class<*>): Boolean {
         // java.util.concurrent.Future 와 그 sub-types (CompletableFuture 등)

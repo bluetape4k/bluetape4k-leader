@@ -28,11 +28,11 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Redisson 분산 락을 이용하여 리더 선출을 통한 suspend 작업을 실행합니다.
+ * Executes a suspend action via leader election using a Redisson distributed lock.
  *
- * 락 획득에 성공하면 [action]을 실행하고, 완료 후 락을 해제합니다.
- * [LeaderElectionOptions.waitTime] 내 락 획득에 실패하면 `null`을 반환합니다 (ShedLock skip 방식).
- * 락 대기 중 인터럽트가 발생하면 [org.redisson.client.RedisException]으로 래핑되어 전파됩니다.
+ * When the lock is acquired, [action] is executed and the lock is released after completion.
+ * Returns `null` when the lock cannot be acquired within [LeaderElectionOptions.waitTime] (ShedLock skip semantics).
+ * An interrupt while waiting for the lock is propagated wrapped as [org.redisson.client.RedisException].
  *
  * ```kotlin
  * val result = redissonClient.suspendRunIfLeader("my-job") {
@@ -41,10 +41,10 @@ import java.util.concurrent.atomic.AtomicLong
  * }
  * ```
  *
- * @param jobName 작업 이름 (분산 락 키로 사용)
- * @param options 리더 선출 옵션 (waitTime, leaseTime)
- * @param action 리더로 선출되었을 때 실행할 suspend 작업
- * @return [action] 실행 결과
+ * @param jobName job name (used as the distributed lock key)
+ * @param options leader election options (waitTime, leaseTime)
+ * @param action the suspend action to execute when elected leader
+ * @return [action] result
  * @see RedissonSuspendLeaderElector
  */
 suspend inline fun <T> RedissonClient.suspendRunIfLeader(
@@ -60,23 +60,23 @@ suspend inline fun <T> RedissonClient.suspendRunIfLeader(
 
 
 /**
- * Redisson 분산 락을 이용하여 여러 프로세스/스레드 중 단 하나만 작업을 수행하도록 리더를 선출합니다.
- * Coroutine 환경에서 사용할 수 있는 suspend 버전입니다.
+ * Elects a leader among multiple processes/threads using a Redisson distributed lock,
+ * ensuring only one executes the action. This is the suspend variant for use in coroutine contexts.
  *
- * ## 동작/계약 (T8 PR 3)
+ * ## Behavior / Contract (T8 PR 3)
  *
- * - acquire 후 [RedissonSuspendLockExtendDelegate] 를 생성하여 [LeaderLockHandle.Real] + watchdog 와 동일 reference 공유 (AC-15).
- * - aspect 의 `LockExtenderSuspend.extendActiveLockSuspend` 는 동일 delegate reference 를 사용합니다.
- * - `withContext(AopScopeAccess.createLockHandleElement(handle))` 로 coroutineContext 에 handle 전파.
- * - autoExtend 여부와 무관하게 항상 명시적 `leaseTime` 으로 acquire — Redisson 내장 watchdog 비활성화.
+ * - After acquire, creates [RedissonSuspendLockExtendDelegate] and shares the same reference
+ *   with [LeaderLockHandle.Real] and the watchdog (AC-15).
+ * - The aspect's `LockExtenderSuspend.extendActiveLockSuspend` uses the same delegate reference.
+ * - Propagates the handle to `coroutineContext` via `withContext(AopScopeAccess.createLockHandleElement(handle))`.
+ * - Always acquires with an explicit `leaseTime` regardless of `autoExtend` — disables Redisson's built-in watchdog.
  *
- * ## threadId 대신 PID-seeded Snowflake ID를 사용하는 이유
- * Redisson의 [RLock]은 락 소유자를 스레드 ID로 식별합니다.
- * 그러나 Coroutine은 여러 스레드를 오가며 실행되므로, 락 획득 시점의 스레드와
- * 락 해제 시점의 스레드가 달라질 수 있습니다.
- * 이를 해결하기 위해 `timestamp | pid%(2^10) | seq` 형태의 ID를 생성하여
- * 같은 머신의 다른 프로세스, 같은 프로세스의 다른 코루틴 사이에서 충돌 없이
- * 락 소유자를 식별합니다. (Redis 왕복 없음)
+ * ## Why PID-seeded Snowflake ID instead of threadId
+ * Redisson's [RLock] identifies lock owners by thread ID. However, coroutines may run on different
+ * threads, so the thread acquiring the lock may differ from the thread releasing it. To solve this,
+ * an ID of the form `timestamp | pid%(2^10) | seq` is generated, providing collision-free lock owner
+ * identification across different processes on the same machine and different coroutines in the same
+ * process — with no Redis round-trip.
  *
  * ```kotlin
  * val election = RedissonSuspendLeaderElector(redissonClient)
@@ -86,9 +86,9 @@ suspend inline fun <T> RedissonClient.suspendRunIfLeader(
  * }
  * ```
  *
- * @param redissonClient Redisson 클라이언트
- * @param options 리더 선출 옵션 (waitTime, leaseTime)
- * @see RedissonLeaderElector 동기/비동기(CompletableFuture) 버전
+ * @param redissonClient Redisson client
+ * @param options leader election options (waitTime, leaseTime)
+ * @see RedissonLeaderElector sync/async (CompletableFuture) variant
  */
 class RedissonSuspendLeaderElector private constructor(
     private val redissonClient: RedissonClient,
@@ -123,16 +123,16 @@ class RedissonSuspendLeaderElector private constructor(
     private val leaseTimeMills = options.leaseTime.inWholeMilliseconds
 
     /**
-     * Redisson Lock을 이용하여, 리더로 선출되면 [action]을 수행하고, 그렇지 않다면 수행하지 않습니다.
+     * Executes [action] when elected leader using a Redisson lock; does nothing otherwise.
      *
-     * Coroutine 환경에서 스레드 전환으로 인한 락 소유자 불일치를 방지하기 위해,
-     * `Thread.currentThread().threadId()` 대신 PID-seeded Snowflake-like ID
-     * (`timestamp | pid%(2^10) | seq`)를 락 식별자로 사용합니다.
+     * Uses a PID-seeded Snowflake-like ID (`timestamp | pid%(2^10) | seq`) as the lock identifier
+     * instead of `Thread.currentThread().threadId()` to prevent lock owner mismatch caused by
+     * thread switching in coroutine contexts.
      *
-     * @param lockName 락 이름 — 락 획득에 성공하면 리더로 승격됩니다.
-     * @param action 리더로 승격되었을 때 수행할 suspend 코드 블록
-     * @return [action] 실행 결과, 리더 획득 실패 시 `null`
-     * @throws org.redisson.client.RedisException 락 대기 중 인터럽트가 발생한 경우
+     * @param lockName lock name — acquiring this lock promotes the node to leader
+     * @param action the suspend code block to execute when promoted to leader
+     * @return [action] result, or `null` when the leader lock cannot be acquired
+     * @throws org.redisson.client.RedisException when an interrupt occurs while waiting for the lock
      */
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? =
         runImpl(lockName, auditLeaderId = null, action)
