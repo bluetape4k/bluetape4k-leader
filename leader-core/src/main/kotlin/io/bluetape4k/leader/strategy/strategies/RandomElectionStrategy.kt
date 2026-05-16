@@ -7,18 +7,19 @@ import io.bluetape4k.leader.strategy.Elimination
 import kotlin.random.Random
 
 /**
- * 후보 중 무작위로 리더를 선출하는 전략입니다.
+ * An [ElectionStrategy] that elects a candidate at random.
  *
- * [seed] 를 지정하면 동일 후보 목록에 대해 결정론적 결과를 보장합니다.
+ * ## Behavior / Contract
+ * - When [seed] is provided, results are deterministic for the same candidate list.
+ * - Candidates are sorted by [CandidateInfo.nodeId] before random selection to remove
+ *   input-order dependency.
  *
- * **분산 환경 주의**: [seed] 가 `null` 이면 각 노드가 서로 다른 winner 를 계산할 수 있습니다 (split-brain 위험).
- * 분산 환경에서는 모든 노드가 동일한 [seed] 를 사용해야 합니다. seed 는 공유 백엔드(Redis 등)에서 epoch 단위로
- * 생성하여 배포하는 것을 권장합니다.
- * `seed=null` 은 단일 프로세스 테스트 또는 결과 분포가 중요하지 않은 경우에만 사용하세요.
+ * **Distributed-environment warning**: a `null` [seed] means each node may compute a different
+ * winner (split-brain risk). In distributed deployments, all nodes must share the same [seed].
+ * Generate the seed from a shared backend (e.g., Redis) on a per-epoch basis.
+ * Use `seed=null` only for single-process tests or when outcome distribution is not critical.
  *
- * 무작위 선출 전 후보 목록을 [CandidateInfo.nodeId] 사전순으로 정렬하여 입력 순서 의존성을 제거합니다.
- *
- * @property seed 난수 seed. `null` 이면 시스템 랜덤 사용 (비결정론적 — 분산 환경 비권장).
+ * @property seed random seed. `null` uses system random (non-deterministic — not recommended in distributed environments).
  */
 class RandomElectionStrategy(val seed: Long? = null) : ElectionStrategy {
 
@@ -29,7 +30,7 @@ class RandomElectionStrategy(val seed: Long? = null) : ElectionStrategy {
         val winner = sorted[random.nextInt(sorted.size)]
         val eliminations = candidates
             .filter { it.nodeId != winner.nodeId }
-            .map { c -> Elimination(c, "랜덤 선출 탈락 (winner: ${winner.nodeId})") }
+            .map { c -> Elimination(c, "not selected by random election (winner: ${winner.nodeId})") }
         return ElectionResult(winner, eliminations)
     }
 }

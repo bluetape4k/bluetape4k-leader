@@ -4,16 +4,20 @@ import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateScorer
 
 /**
- * 가장 최근에 성공 완료한 노드에 높은 점수를 부여하는 [CandidateScorer] 입니다.
+ * A [CandidateScorer] that assigns a higher score to the node that most recently completed
+ * a successful execution.
  *
- * 점수 계산:
- * - 마지막 실행이 성공: 후보 풀 내 최신 완료 시각 기준으로 0.0 ~ 100.0 정규화
- * - 마지막 실행이 실패 또는 이력 없음: 0.0
+ * ## Scoring rules
+ * - Last execution succeeded: score normalized 0.0–100.0 against the latest successful completion
+ *   time in the candidate pool.
+ * - Last execution failed, or no execution history: 0.0.
  *
- * 직전 작업이 성공한 노드를 재선출하여 연속 성공 가능성을 높입니다.
+ * Favors re-electing the node that succeeded last time, increasing the likelihood of consecutive
+ * successes (sticky-leader pattern).
  *
+ * ## Example
  * ```kotlin
- * // sticky leader: 성공한 노드 우선 + 일부 부하 분산
+ * // Sticky leader: prefer the last successful node, with partial load balancing
  * val scorer = WeightedScorer(
  *     RecentSuccessScorer to 0.7,
  *     IdleTimeScorer to 0.3,

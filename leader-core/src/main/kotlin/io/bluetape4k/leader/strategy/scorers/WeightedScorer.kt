@@ -5,8 +5,14 @@ import io.bluetape4k.leader.strategy.CandidateScorer
 import io.bluetape4k.support.requireNotEmpty
 
 /**
- * 복수의 [CandidateScorer] 에 가중치를 적용해 합산하는 복합 scorer 입니다.
+ * A composite [CandidateScorer] that combines multiple scorers by applying individual weights
+ * and summing the results.
  *
+ * ## Behavior / Contract
+ * - Weights do not need to sum to 1.0; each scorer's result is scaled by its weight and summed.
+ * - All weights must be positive (enforced at construction).
+ *
+ * ## Example
  * ```kotlin
  * val scorer = WeightedScorer(
  *     IdleTimeScorer to 0.6,
@@ -14,7 +20,7 @@ import io.bluetape4k.support.requireNotEmpty
  * )
  * ```
  *
- * @property scorers (scorer, weight) 쌍 목록. weight 합계가 1.0일 필요는 없음.
+ * @property scorers list of (scorer, weight) pairs
  */
 class WeightedScorer(
     val scorers: List<Pair<CandidateScorer, Double>>,

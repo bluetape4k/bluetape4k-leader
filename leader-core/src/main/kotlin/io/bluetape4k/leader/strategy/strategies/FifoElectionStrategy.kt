@@ -6,9 +6,11 @@ import io.bluetape4k.leader.strategy.ElectionStrategy
 import io.bluetape4k.leader.strategy.Elimination
 
 /**
- * 가장 먼저 등록된 후보를 리더로 선출하는 FIFO 전략입니다.
+ * An [ElectionStrategy] that elects the earliest-registered candidate as leader (FIFO order).
  *
- * 동점(registeredAt 동일) 시 [CandidateInfo.nodeId] 사전순으로 결정합니다.
+ * ## Behavior / Contract
+ * - When two candidates share the same [CandidateInfo.registeredAt], the one with the
+ *   lexicographically earlier [CandidateInfo.nodeId] wins.
  */
 object FifoElectionStrategy : ElectionStrategy {
 
@@ -21,9 +23,9 @@ object FifoElectionStrategy : ElectionStrategy {
             .filter { it.nodeId != winner.nodeId }
             .map { c ->
                 val reason = if (c.registeredAt > winner.registeredAt) {
-                    "등록 시각 늦음 (${c.registeredAt} > ${winner.registeredAt})"
+                    "registered later (${c.registeredAt} > ${winner.registeredAt})"
                 } else {
-                    "nodeId 사전순 뒤 (${c.nodeId} > ${winner.nodeId})"
+                    "nodeId lexicographically after winner (${c.nodeId} > ${winner.nodeId})"
                 }
                 Elimination(c, reason)
             }

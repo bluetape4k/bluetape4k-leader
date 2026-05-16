@@ -1,19 +1,31 @@
 package io.bluetape4k.leader.strategy
 
 /**
- * 후보 노드에 대해 선출 우선순위 점수를 계산하는 인터페이스입니다.
+ * Computes an election-priority score for a candidate node.
  *
- * 점수가 높을수록 리더로 선출될 가능성이 높습니다.
- * [ScoredElectionStrategy] 에서 사용됩니다.
+ * A higher score increases the likelihood that the candidate is elected leader.
+ * Used by [ScoredElectionStrategy].
+ *
+ * ## Behavior / Contract
+ * - Implementations must be pure: the same inputs must always produce the same output.
+ * - Scores from different scorers combined in a [io.bluetape4k.leader.strategy.scorers.WeightedScorer]
+ *   should use a compatible scale (e.g., 0.0–100.0).
+ *
+ * ## Example
+ * ```kotlin
+ * val scorer = CandidateScorer { candidate, _ ->
+ *     candidate.successRate * 100.0
+ * }
+ * ```
  */
 fun interface CandidateScorer {
 
     /**
-     * 후보 [candidate] 의 점수를 계산합니다.
+     * Computes the score for [candidate] relative to [all] candidates in the current election.
      *
-     * @param candidate 점수를 계산할 후보
-     * @param all 현재 선출에 참여 중인 전체 후보 목록 (상대 비교에 활용 가능)
-     * @return 점수 (높을수록 우선)
+     * @param candidate the candidate to score
+     * @param all all candidates participating in this election (available for relative comparison)
+     * @return priority score — higher means more likely to be elected
      */
     fun score(candidate: CandidateInfo, all: List<CandidateInfo>): Double
 }
