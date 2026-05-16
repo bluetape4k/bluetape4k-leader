@@ -65,6 +65,15 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`leader-spring-boot`**: `@LeaderElection` AOP now supports `Flux<T>` and Kotlin `Flow<T>` stream
+  return types (issue #74).
+  - Added `@LeaderElection(streamBounded = true)` as an explicit opt-in for streams known to complete
+    within the configured lease window.
+  - Long-running streams should use `autoExtend = true`; unsafe stream signatures fail fast in the
+    validator and again at subscription/collection time.
+  - `@LeaderGroupElection` still rejects `Flux` / `Flow` return types until group lease extension
+    semantics are defined.
+
 - **`leader-core`** / **`leader-redis-lettuce`** / **`leader-redis-redisson`**: `LeaderSlot` audit identity propagation (issue #72 PR 2)
   - `LeaderSlot(lockName, leaderId)` — slot-aware identity carrier; `leaderId` propagates to `LeaderRunResult.Elected.leaderId`
   - `LeaderElectorBridgeLog` — throttled WARN logger that counts dropped audit and result-bridge calls when
@@ -245,7 +254,6 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - watchdog / lease auto-extend for long-running leader AOP work (issue #73)
 - `minLeaseTime` backend TTL delegation and `lockAtLeastFor` semantics (issue #77)
 - `LockExtender` / `LockAssert` style explicit lease extension API (issue #79)
-- Flux/Flow AOP return type support after lease renewal semantics are settled (issue #74)
 - Election state API, audit contract, multitenancy, and Prometheus runnable example (issues #68, #50, #42, #145)
 
 ---
@@ -295,4 +303,3 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 [Unreleased]: https://github.com/bluetape4k/bluetape4k-leader/compare/v0.1.0-SNAPSHOT...HEAD
 [0.1.0-SNAPSHOT]: https://github.com/bluetape4k/bluetape4k-leader/releases/tag/v0.1.0-SNAPSHOT
-

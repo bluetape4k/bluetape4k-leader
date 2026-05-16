@@ -451,8 +451,22 @@ class ReportService {
     // Fail-open: 락을 획득하지 못해도 본문 실행
     @LeaderElection(name = "nightly-cleanup", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
     fun cleanup(): String { /* 항상 실행, 분산 락은 베스트에포트 */ }
+
+    @LeaderElection(name = "event-stream", autoExtend = true)
+    fun streamEvents(): Flux<Event> = eventRepository.stream()
+
+    @LeaderElection(name = "bounded-flow", streamBounded = true)
+    fun boundedFlow(): Flow<Event> = eventRepository.findRecent()
 }
 ```
+
+Stream 반환 규칙:
+
+- `@LeaderElection`은 `T?`, `suspend T?`, `Mono<T>`, `Flux<T>`, Kotlin `Flow<T>`를 지원합니다.
+- 길거나 무한에 가까운 stream에는 `autoExtend = true`를 사용하세요.
+- lease window 안에 끝나는 것이 확실한 stream에만 `streamBounded = true`를 사용하세요.
+- 안전하지 않은 `Flux` / `Flow` 시그니처는 validator와 subscription/collection 시점에 빠르게 실패합니다.
+- `@LeaderGroupElection`은 `T?`, `suspend T?`, `Mono<T>`를 지원하며, group lease extension 의미가 정의되기 전까지 `Flux` / `Flow` group stream은 거부됩니다.
 
 ### `failureMode`
 

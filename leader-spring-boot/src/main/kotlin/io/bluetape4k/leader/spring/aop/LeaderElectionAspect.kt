@@ -27,14 +27,21 @@ import io.bluetape4k.leader.spring.aop.util.LockNameValidator
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.reactor.awaitSingleOrNull
+import kotlinx.coroutines.reactor.flux
 import kotlinx.coroutines.reactor.mono
+import kotlinx.coroutines.reactive.asFlow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.buffer
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.withContext
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.Around
 import org.aspectj.lang.annotation.Aspect
 import org.aspectj.lang.reflect.MethodSignature
 import org.springframework.beans.factory.SmartInitializingSingleton
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.lang.reflect.Method
 import kotlinx.coroutines.CancellationException
@@ -46,33 +53,44 @@ import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.toKotlinDuration
 
 /**
- * `@LeaderElection` 어노테이션 처리 Aspect — sync `T?`, suspend `T?`, `Mono<T>` 지원.
+ * Aspect that applies `@LeaderElection` to sync `T?`, suspend `T?`, `Mono<T>`,
+ * `Flux<T>`, and Kotlin `Flow<T>` methods.
  *
  * ## CTW (Freefair post-compile weaving)
- * `@EnableAspectJAutoProxy` 미사용. autoconfig 가 `@Bean` 으로 등록.
+ * The auto-configuration registers this aspect as a bean without requiring
+ * `@EnableAspectJAutoProxy`.
  *
- * ## suspend 지원 (#90)
- * 마지막 파라미터가 [Continuation] 인 메서드 → [aroundLeaderSuspend] 분기.
- * `startCoroutineUninterceptedOrReturn` + `suspendCoroutineUninterceptedOrReturn` intrinsics 패턴.
+ * ## Suspend support (#90)
+ * Methods whose last parameter is [Continuation] use [aroundLeaderSuspend].
+ * The implementation follows the `startCoroutineUninterceptedOrReturn` and
+ * `suspendCoroutineUninterceptedOrReturn` intrinsics pattern.
  *
- * ## Mono 지원 (#91)
- * 반환 타입이 `reactor.core.publisher.Mono` 인 메서드 → [aroundLeaderMono] 분기.
- * `Mono.defer { mono { suspendElector.runIfLeader(...) } }` 패턴 — subscribe 당 락 1회.
+ * ## Mono support (#91)
+ * `reactor.core.publisher.Mono` return types use [aroundLeaderMono] and defer
+ * leader acquisition until subscription.
+ *
+ * ## Stream support (#74)
+ * `Flux<T>` and `Flow<T>` return types hold the leader lock for the stream
+ * lifecycle. They require `autoExtend=true` or `streamBounded=true`, and unsafe
+ * stream configurations are rejected again at subscription or collection time
+ * even when startup validation is disabled.
  *
  * ## LeaderElectionInfo (#92)
- * suspend / Mono 분기 본문 실행 시 [LeaderElectionInfo] 를 `withContext` 로 주입.
- * 사용자는 `coroutineContext[LeaderElectionInfo]` 로 선출 정보 접근 가능.
+ * Suspend, Mono, Flux, and Flow branches install [LeaderElectionInfo] with
+ * `withContext` while the method body is collected or awaited.
  *
  * ## LockHandleElement / LockStateHolder (T14)
- * - sync 분기: [AopScopeAccess.withPushedSync] 로 `LockStateHolder` 에 handle push — [io.bluetape4k.leader.LockAssert] / [io.bluetape4k.leader.LockExtender] 동작.
- * - suspend / Mono 분기: elector 가 `withContext(LockHandleElement(...))` 로 이미 push — aspect 는 [LeaderElectionInfo] 만 추가.
- * - FAIL_OPEN_RUN 분기: [LeaderLockHandle.FailOpen] sentinel 을 push 하여 body 가 fail-open scope 인식.
+ * - Sync branch: the elector manages `LockStateHolder`, so [io.bluetape4k.leader.LockAssert]
+ *   and [io.bluetape4k.leader.LockExtender] see the active lock.
+ * - Coroutine / reactive branches: the elector already installs `LockHandleElement`; the aspect
+ *   adds only [LeaderElectionInfo].
+ * - `FAIL_OPEN_RUN` installs a [LeaderLockHandle.FailOpen] sentinel so the body can detect the
+ *   fail-open scope.
  *
  * ## Reentrant pass-through (T14)
- * sync 분기 진입 전 [AopScopeAccess.peekSyncMatching] 으로 동일 lockName 보유 여부 확인.
- * 이미 보유 중이면 backend re-acquire 없이 body 직접 실행 (backend acquire counter = 1).
- * suspend 분기는 elector 에서 `LockHandleElement` 가 coroutine context 에 있으므로
- * 재진입 시 elector 가 직접 pass-through (Mutex 비재진입이므로 aspect-level 단락 불필요).
+ * The sync branch short-circuits when [AopScopeAccess.peekSyncMatching] finds a matching real
+ * handle. Coroutine branches delegate reentrant handling to the elector because the lock handle
+ * lives in the coroutine context.
  */
 @Aspect
 class LeaderElectionAspect(
@@ -94,7 +112,19 @@ class LeaderElectionAspect(
         val target = pjp.target
         val args = pjp.args
 
-        if (method.returnType.name == "reactor.core.publisher.Mono") {
+        if (method.returnType.name == FLUX_RETURN_TYPE) {
+            return Flux.defer<Any> {
+                val meta = metadataCache.computeIfAbsent(method) { resolveMetadata(it, target) }
+                @Suppress("UNCHECKED_CAST")
+                aroundLeaderFlux(pjp, meta) as Flux<Any>
+            }
+        }
+
+        if (method.returnType.name == FLOW_RETURN_TYPE) {
+            return aroundLeaderFlow(pjp, method, target)
+        }
+
+        if (method.returnType.name == MONO_RETURN_TYPE) {
             return Mono.defer<Any> {
                 val meta = metadataCache.computeIfAbsent(method) { resolveMetadata(it, target) }
                 @Suppress("UNCHECKED_CAST")
@@ -383,6 +413,298 @@ class LeaderElectionAspect(
     }
 
     /**
+     * Handles methods returning `Flux`.
+     *
+     * The returned [Flux] is cold. Each subscription resolves the lock name,
+     * acquires the leader lock, collects the user [Flux], and releases the lock
+     * only after complete/error/cancel.
+     */
+    private fun aroundLeaderFlux(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
+        val method = (pjp.signature as MethodSignature).method
+
+        return Flux.defer {
+            if (!meta.isStreamAllowed()) {
+                return@defer Flux.error(streamConfigurationException(method, meta, "Flux"))
+            }
+
+            flux<Any> {
+                val start = System.nanoTime()
+                var lockName: String? = null
+                var resolvedIdentity: LockIdentity? = null
+
+                fun resolveIdentity(name: String): LockIdentity =
+                    resolvedIdentity ?: meta.resolveLockIdentity(name, AdviceBranch.REACTIVE)
+                        .also { resolvedIdentity = it }
+
+                try {
+                    val resolvedName = resolveLockName(meta, method, pjp.args, pjp.target)
+                    lockName = resolvedName
+                    val cacheKey = FactoryCacheKey(meta.suspendElectorFactoryBeanName, meta.options)
+                    val factory = checkNotNull(meta.suspendElectorFactory) {
+                        "suspendElectorFactory must be non-null in REACTIVE branch (Flux)"
+                    }
+                    val elector = suspendElectorCache[cacheKey]
+                        ?: factory.create(meta.options).also { suspendElectorCache.putIfAbsent(cacheKey, it) }
+
+                    fanOut { it.onLockAttempt(resolvedName, meta.options) }
+
+                    val result = elector.runIfLeaderResultSuspend(resolvedName) {
+                        fanOut {
+                            it.onLockAcquired(resolvedName, meta.options, (System.nanoTime() - start).nanoseconds)
+                            it.onTaskStarted(resolvedName)
+                        }
+                        withContext(LeaderElectionInfo(lockName = resolvedName, wasElected = true)) {
+                            try {
+                                @Suppress("UNCHECKED_CAST")
+                                val upstream = pjp.proceed() as Flux<Any>
+                                upstream.asFlow().collect { send(it) }
+                                val elapsed = System.nanoTime() - start
+                                fanOut { it.onTaskFinished(resolvedName, elapsed.nanoseconds) }
+                                if (elapsed > meta.leaseTimeWarnThresholdNanos) {
+                                    log.warn { "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}" }
+                                }
+                                log.debug { "leader.aop.elected lockName=$resolvedName elapsedNs=$elapsed" }
+                            } catch (ce: CancellationException) {
+                                fanOut { it.onTaskFailed(resolvedName, (System.nanoTime() - start).nanoseconds, ce) }
+                                throw ce
+                            } catch (bodyEx: Throwable) {
+                                fanOut { it.onTaskFailed(resolvedName, (System.nanoTime() - start).nanoseconds, bodyEx) }
+                                throw BodyThrownMarker(bodyEx)
+                            }
+                        }
+                    }
+
+                    when (result) {
+                        is LeaderRunResult.Elected -> Unit
+                        is LeaderRunResult.Skipped -> {
+                            if (meta.failureMode == LeaderAspectFailureMode.FAIL_OPEN_RUN) {
+                                val failOpenHandle = AopScopeAccess.createFailOpen(resolveIdentity(resolvedName))
+                                fanOut {
+                                    it.onLockNotAcquired(resolvedName, meta.options, SkipReason.FAIL_OPEN_FORCED)
+                                    it.onTaskStarted(resolvedName)
+                                }
+                                log.debug { "leader.aop.fail-open lockName=$resolvedName reason=CONTENTION" }
+                                try {
+                                    withContext(
+                                        LeaderElectionInfo(lockName = resolvedName, wasElected = false) +
+                                            AopScopeAccess.createLockHandleElement(failOpenHandle)
+                                    ) {
+                                        @Suppress("UNCHECKED_CAST")
+                                        val upstream = pjp.proceed() as Flux<Any>
+                                        upstream.asFlow().collect { send(it) }
+                                    }
+                                    fanOut { it.onTaskFinished(resolvedName, (System.nanoTime() - start).nanoseconds) }
+                                } catch (ce: CancellationException) {
+                                    fanOut { it.onTaskFailed(resolvedName, (System.nanoTime() - start).nanoseconds, ce) }
+                                    throw ce
+                                } catch (bodyEx: Throwable) {
+                                    fanOut { it.onTaskFailed(resolvedName, (System.nanoTime() - start).nanoseconds, bodyEx) }
+                                    throw BodyThrownMarker(bodyEx)
+                                }
+                            } else {
+                                fanOut { it.onLockNotAcquired(resolvedName, meta.options, SkipReason.CONTENTION) }
+                                log.debug { "leader.aop.skipped lockName=$resolvedName reason=CONTENTION" }
+                            }
+                        }
+                        is LeaderRunResult.ActionFailed -> throw result.cause
+                    }
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (bm: BodyThrownMarker) {
+                    throw bm.cause
+                } catch (backendEx: Exception) {
+                    val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
+                    val wrapped = LeaderElectionException("leader backend error for lock '$effectiveName'", backendEx)
+                    when (meta.failureMode) {
+                        LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
+                        LeaderAspectFailureMode.RETHROW -> {
+                            fanOut { it.onLockNotAcquired(effectiveName, meta.options, SkipReason.BACKEND_ERROR) }
+                            fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
+                            throw wrapped
+                        }
+                        LeaderAspectFailureMode.SKIP -> {
+                            fanOut { it.onLockNotAcquired(effectiveName, meta.options, SkipReason.BACKEND_ERROR) }
+                            fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
+                            log.warn(backendEx) { "leader.aop.skipped lockName=$effectiveName reason=BACKEND_ERROR" }
+                        }
+                        LeaderAspectFailureMode.FAIL_OPEN_RUN -> {
+                            val failOpenHandle = AopScopeAccess.createFailOpen(
+                                meta.resolveLockIdentity(effectiveName, AdviceBranch.REACTIVE)
+                            )
+                            fanOut { it.onLockNotAcquired(effectiveName, meta.options, SkipReason.FAIL_OPEN_FORCED) }
+                            log.warn(backendEx) { "leader.aop.fail-open lockName=$effectiveName reason=BACKEND_ERROR" }
+                            fanOut { it.onTaskStarted(effectiveName) }
+                            try {
+                                withContext(
+                                    LeaderElectionInfo(lockName = effectiveName, wasElected = false) +
+                                        AopScopeAccess.createLockHandleElement(failOpenHandle)
+                                ) {
+                                    @Suppress("UNCHECKED_CAST")
+                                    val upstream = pjp.proceed() as Flux<Any>
+                                    upstream.asFlow().collect { send(it) }
+                                }
+                                fanOut { it.onTaskFinished(effectiveName, (System.nanoTime() - start).nanoseconds) }
+                            } catch (ce: CancellationException) {
+                                fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, ce) }
+                                throw ce
+                            } catch (bodyEx: Throwable) {
+                                fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, bodyEx) }
+                                throw bodyEx
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Handles methods returning Kotlin `Flow`.
+     *
+     * Uses [channelFlow] instead of `flow { withContext { emit(...) } }` so the
+     * leader context can be installed while values are sent without violating
+     * Kotlin Flow context-preservation rules.
+     */
+    private fun aroundLeaderFlow(
+        pjp: ProceedingJoinPoint,
+        method: Method,
+        target: Any,
+    ): Flow<Any?> =
+        channelFlow {
+            val meta = metadataCache.computeIfAbsent(method) { resolveMetadata(it, target) }
+            if (!meta.isStreamAllowed()) {
+                throw streamConfigurationException(method, meta, "Flow")
+            }
+
+            val start = System.nanoTime()
+            var lockName: String? = null
+            var resolvedIdentity: LockIdentity? = null
+
+            fun resolveIdentity(name: String): LockIdentity =
+                resolvedIdentity ?: meta.resolveLockIdentity(name, AdviceBranch.COROUTINES)
+                    .also { resolvedIdentity = it }
+
+            try {
+                val resolvedName = resolveLockName(meta, method, pjp.args, pjp.target)
+                lockName = resolvedName
+                val cacheKey = FactoryCacheKey(meta.suspendElectorFactoryBeanName, meta.options)
+                val factory = checkNotNull(meta.suspendElectorFactory) {
+                    "suspendElectorFactory must be non-null in COROUTINES branch (Flow)"
+                }
+                val elector = suspendElectorCache[cacheKey]
+                    ?: factory.create(meta.options).also { suspendElectorCache.putIfAbsent(cacheKey, it) }
+
+                fanOut { it.onLockAttempt(resolvedName, meta.options) }
+
+                val result = elector.runIfLeaderResultSuspend(resolvedName) {
+                    fanOut {
+                        it.onLockAcquired(resolvedName, meta.options, (System.nanoTime() - start).nanoseconds)
+                        it.onTaskStarted(resolvedName)
+                    }
+                    withContext(LeaderElectionInfo(lockName = resolvedName, wasElected = true)) {
+                        try {
+                            @Suppress("UNCHECKED_CAST")
+                            val upstream = pjp.proceed() as Flow<Any?>
+                            upstream.collect { send(it) }
+                            val elapsed = System.nanoTime() - start
+                            fanOut { it.onTaskFinished(resolvedName, elapsed.nanoseconds) }
+                            if (elapsed > meta.leaseTimeWarnThresholdNanos) {
+                                log.warn { "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}" }
+                            }
+                            log.debug { "leader.aop.elected lockName=$resolvedName elapsedNs=$elapsed" }
+                        } catch (ce: CancellationException) {
+                            fanOut { it.onTaskFailed(resolvedName, (System.nanoTime() - start).nanoseconds, ce) }
+                            throw ce
+                        } catch (bodyEx: Throwable) {
+                            fanOut { it.onTaskFailed(resolvedName, (System.nanoTime() - start).nanoseconds, bodyEx) }
+                            throw BodyThrownMarker(bodyEx)
+                        }
+                    }
+                }
+
+                when (result) {
+                    is LeaderRunResult.Elected -> Unit
+                    is LeaderRunResult.Skipped -> {
+                        if (meta.failureMode == LeaderAspectFailureMode.FAIL_OPEN_RUN) {
+                            val failOpenHandle = AopScopeAccess.createFailOpen(resolveIdentity(resolvedName))
+                            fanOut {
+                                it.onLockNotAcquired(resolvedName, meta.options, SkipReason.FAIL_OPEN_FORCED)
+                                it.onTaskStarted(resolvedName)
+                            }
+                            log.debug { "leader.aop.fail-open lockName=$resolvedName reason=CONTENTION" }
+                            try {
+                                withContext(
+                                    LeaderElectionInfo(lockName = resolvedName, wasElected = false) +
+                                        AopScopeAccess.createLockHandleElement(failOpenHandle)
+                                ) {
+                                    @Suppress("UNCHECKED_CAST")
+                                    val upstream = pjp.proceed() as Flow<Any?>
+                                    upstream.collect { send(it) }
+                                }
+                                fanOut { it.onTaskFinished(resolvedName, (System.nanoTime() - start).nanoseconds) }
+                            } catch (ce: CancellationException) {
+                                fanOut { it.onTaskFailed(resolvedName, (System.nanoTime() - start).nanoseconds, ce) }
+                                throw ce
+                            } catch (bodyEx: Throwable) {
+                                fanOut { it.onTaskFailed(resolvedName, (System.nanoTime() - start).nanoseconds, bodyEx) }
+                                throw BodyThrownMarker(bodyEx)
+                            }
+                        } else {
+                            fanOut { it.onLockNotAcquired(resolvedName, meta.options, SkipReason.CONTENTION) }
+                            log.debug { "leader.aop.skipped lockName=$resolvedName reason=CONTENTION" }
+                        }
+                    }
+                    is LeaderRunResult.ActionFailed -> throw result.cause
+                }
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (bm: BodyThrownMarker) {
+                throw bm.cause
+            } catch (backendEx: Exception) {
+                val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
+                val wrapped = LeaderElectionException("leader backend error for lock '$effectiveName'", backendEx)
+                when (meta.failureMode) {
+                    LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
+                    LeaderAspectFailureMode.RETHROW -> {
+                        fanOut { it.onLockNotAcquired(effectiveName, meta.options, SkipReason.BACKEND_ERROR) }
+                        fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
+                        throw wrapped
+                    }
+                    LeaderAspectFailureMode.SKIP -> {
+                        fanOut { it.onLockNotAcquired(effectiveName, meta.options, SkipReason.BACKEND_ERROR) }
+                        fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
+                        log.warn(backendEx) { "leader.aop.skipped lockName=$effectiveName reason=BACKEND_ERROR" }
+                    }
+                    LeaderAspectFailureMode.FAIL_OPEN_RUN -> {
+                        val failOpenHandle = AopScopeAccess.createFailOpen(
+                            meta.resolveLockIdentity(effectiveName, AdviceBranch.COROUTINES)
+                        )
+                        fanOut { it.onLockNotAcquired(effectiveName, meta.options, SkipReason.FAIL_OPEN_FORCED) }
+                        log.warn(backendEx) { "leader.aop.fail-open lockName=$effectiveName reason=BACKEND_ERROR" }
+                        fanOut { it.onTaskStarted(effectiveName) }
+                        try {
+                            withContext(
+                                LeaderElectionInfo(lockName = effectiveName, wasElected = false) +
+                                    AopScopeAccess.createLockHandleElement(failOpenHandle)
+                            ) {
+                                @Suppress("UNCHECKED_CAST")
+                                val upstream = pjp.proceed() as Flow<Any?>
+                                upstream.collect { send(it) }
+                            }
+                            fanOut { it.onTaskFinished(effectiveName, (System.nanoTime() - start).nanoseconds) }
+                        } catch (ce: CancellationException) {
+                            fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, ce) }
+                            throw ce
+                        } catch (bodyEx: Throwable) {
+                            fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, bodyEx) }
+                            throw bodyEx
+                        }
+                    }
+                }
+            }
+        }.buffer(Channel.RENDEZVOUS)
+
+    /**
      * `Mono` 반환 타입 메서드 처리 — `Mono.defer { mono { suspendElector.runIfLeader(...) } }` 패턴.
      *
      * `Mono.defer` 로 subscribe 당 락 1회 보장.
@@ -565,15 +887,18 @@ class LeaderElectionAspect(
             ann.failureMode
         }
 
+        val returnTypeName = method.returnType.name
         val isSuspend = method.parameterTypes.lastOrNull() == Continuation::class.java
-        val isMono = !isSuspend && method.returnType.name == "reactor.core.publisher.Mono"
+        val isMono = !isSuspend && returnTypeName == MONO_RETURN_TYPE
+        val isFlux = !isSuspend && returnTypeName == FLUX_RETURN_TYPE
+        val isFlow = !isSuspend && returnTypeName == FLOW_RETURN_TYPE
         val branch = when {
-            isSuspend -> AdviceBranch.COROUTINES
-            isMono -> AdviceBranch.REACTIVE
+            isSuspend || isFlow -> AdviceBranch.COROUTINES
+            isMono || isFlux -> AdviceBranch.REACTIVE
             else -> AdviceBranch.SYNC
         }
 
-        val (suspendElectorFactory, suspendElectorFactoryBeanName) = if (isSuspend || isMono) {
+        val (suspendElectorFactory, suspendElectorFactoryBeanName) = if (isSuspend || isMono || isFlux || isFlow) {
             val suspendSelected = beanSelector.selectSuspendElectorFactory(ann.bean, method)
             suspendSelected.bean to suspendSelected.beanName
         } else {
@@ -589,12 +914,30 @@ class LeaderElectionAspect(
             failureMode = effectiveFailureMode,
             leaseTimeWarnThresholdNanos = (leaseTime.inWholeNanoseconds * LEASE_WARN_RATIO).toLong(),
             branch = branch,
+            isSuspend = isSuspend,
+            isMono = isMono,
+            isFlux = isFlux,
+            isFlow = isFlow,
+            streamBounded = ann.streamBounded,
             suspendElectorFactory = suspendElectorFactory,
             suspendElectorFactoryBeanName = suspendElectorFactoryBeanName,
             annotationKind = LockIdentity.AnnotationKind.SINGLE,
             groupParams = null,
         )
     }
+
+    private fun AdviceMetadata.isStreamAllowed(): Boolean =
+        !(isFlux || isFlow) || options.autoExtend || streamBounded
+
+    private fun streamConfigurationException(
+        method: Method,
+        meta: AdviceMetadata,
+        returnShape: String,
+    ): LeaderElectionException =
+        LeaderElectionException(
+            "@LeaderElection $returnShape stream requires autoExtend=true or streamBounded=true: " +
+                "${method.declaringClass.name}#${method.name} name='${meta.nameExpression}'",
+        )
 
     private inline fun fanOut(crossinline action: (LeaderAopMetricsRecorder) -> Unit) {
         if (!hasRecorders) return
@@ -607,5 +950,8 @@ class LeaderElectionAspect(
     companion object : KLogging() {
         private val LITERAL_PATTERN = Regex("^[A-Za-z0-9_:.\\-]+$")
         private const val LEASE_WARN_RATIO = 0.8
+        private const val MONO_RETURN_TYPE = "reactor.core.publisher.Mono"
+        private const val FLUX_RETURN_TYPE = "reactor.core.publisher.Flux"
+        private const val FLOW_RETURN_TYPE = "kotlinx.coroutines.flow.Flow"
     }
 }

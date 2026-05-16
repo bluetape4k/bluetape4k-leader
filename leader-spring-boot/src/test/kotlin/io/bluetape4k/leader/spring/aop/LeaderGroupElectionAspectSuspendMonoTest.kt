@@ -18,6 +18,9 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.assertFailsWith
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.test.runTest
 import org.aspectj.lang.ProceedingJoinPoint
@@ -25,6 +28,7 @@ import org.aspectj.lang.reflect.MethodSignature
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
@@ -75,6 +79,19 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
         @LeaderGroupElection(name = "g-mono-fail-open", maxLeaders = 3, failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
         override fun runMonoFailOpen(): Mono<String> = Mono.just(SAMPLE_RESULT)
+    }
+
+    private interface StreamGroupService {
+        fun runFlux(): Flux<String>
+        fun runFlow(): Flow<String>
+    }
+
+    private class StreamGroupServiceImpl : StreamGroupService {
+        @LeaderGroupElection(name = "g-flux-job", maxLeaders = 3)
+        override fun runFlux(): Flux<String> = Flux.just(SAMPLE_RESULT)
+
+        @LeaderGroupElection(name = "g-flow-job", maxLeaders = 3)
+        override fun runFlow(): Flow<String> = flowOf(SAMPLE_RESULT)
     }
 
     // ── Fake 구현체 ─────────────────────────────────────────────────────────
@@ -137,6 +154,14 @@ class LeaderGroupElectionAspectSuspendMonoTest {
 
     private fun configureMonoJoinPoint(methodName: String, target: Any) {
         val method = MonoGroupService::class.java.getDeclaredMethod(methodName)
+        every { signature.method } returns method
+        every { pjp.signature } returns signature
+        every { pjp.target } returns target
+        every { pjp.args } returns emptyArray()
+    }
+
+    private fun configureStreamJoinPoint(methodName: String, target: Any) {
+        val method = StreamGroupService::class.java.getDeclaredMethod(methodName)
         every { signature.method } returns method
         every { pjp.signature } returns signature
         every { pjp.target } returns target
@@ -317,5 +342,25 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         val raw = aspect.aroundLeader(pjp)
 
         raw.shouldBeInstanceOf<Mono<*>>()
+    }
+
+    @Test
+    fun `group flux 미지원 - error stream 반환하고 본문 미실행`() {
+        configureStreamJoinPoint("runFlux", StreamGroupServiceImpl())
+
+        val aspect = newAspect(fakeGroupFactory(ElectedGroupElector()))
+        val flux = aspect.aroundLeader(pjp) as Flux<*>
+
+        assertFailsWith<LeaderGroupElectionException> { flux.collectList().block() }
+    }
+
+    @Test
+    fun `group flow 미지원 - collection 시 예외 반환하고 본문 미실행`() = runTest {
+        configureStreamJoinPoint("runFlow", StreamGroupServiceImpl())
+
+        val aspect = newAspect(fakeGroupFactory(ElectedGroupElector()))
+        val flow = aspect.aroundLeader(pjp) as Flow<*>
+
+        assertFailsWith<LeaderGroupElectionException> { flow.toList() }
     }
 }

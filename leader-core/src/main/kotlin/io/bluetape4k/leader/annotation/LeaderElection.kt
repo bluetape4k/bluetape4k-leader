@@ -1,25 +1,28 @@
 package io.bluetape4k.leader.annotation
 
 /**
- * 메서드를 분산 환경에서 단일 리더 선출 진입으로 보호하는 어노테이션.
+ * Protects a method with single-leader election in a distributed environment.
  *
- * ## 동작
- * - 메서드 호출 시 [name] 으로 락 획득 시도. 성공 시 본문 실행, 실패 시 [failureMode] 에 따라 분기.
- * - 본 PR은 sync `T?` 반환만 지원. suspend / `Mono<T>` / `Flow<T>` 는 후속 [#80].
+ * ## Contract
+ * - The aspect resolves [name], attempts to acquire the leader lock, then runs the method body only
+ *   when this node is elected unless [failureMode] says otherwise.
+ * - Supported return shapes are `T?`, `suspend T?`, `Mono<T>`, `Flux<T>`, and Kotlin `Flow<T>`.
+ * - `Flux<T>` and `Flow<T>` stream returns require either [autoExtend] or [streamBounded].
+ * - `@LeaderGroupElection` does not support `Flux<T>` or `Flow<T>` yet.
  *
- * ## SpEL 평가
- * [name] 은 plain SpEL — 리터럴 prefix 는 따옴표 필수:
- * - ✅ `name = "daily-job"` (정적)
- * - ✅ `name = "'process-' + #region"`
- * - ✅ `name = "#user.tenantId"`
- * - ✅ `name = "\${spring.application.name}-warmup"` (Spring property placeholder 후 plain SpEL)
- * - ❌ `name = "process-#region"` — `process-` 가 식별자로 해석되어 startup pre-parse 실패
+ * ## SpEL evaluation
+ * [name] is plain SpEL. Literal prefixes must be quoted:
+ * - `name = "daily-job"` for a static lock name.
+ * - `name = "'process-' + #region"` for a prefixed dynamic name.
+ * - `name = "#user.tenantId"` for a property lookup.
+ * - `name = "\${spring.application.name}-warmup"` after Spring property placeholder resolution.
+ * - `name = "process-#region"` is invalid because `process-` is parsed as an identifier.
  *
- * ## 보안
- * - default 로 SpEL 메서드 호출 차단 (`#user.delete()` 같은 부작용 표현식).
- *   property `bluetape4k.leader.aop.spel.allow-method-invocation=true` 로 명시적 opt-in 가능.
+ * ## Security
+ * SpEL method invocation is disabled by default to avoid side-effect expressions such as
+ * `#user.delete()`. Set `bluetape4k.leader.aop.spel.allow-method-invocation=true` to opt in.
  *
- * ## 사용 예
+ * ## Usage
  * ```kotlin
  * @Scheduled(cron = "0 0 2 * * *")
  * @LeaderElection(name = "daily-settlement", leaseTime = "PT1H")
@@ -31,22 +34,31 @@ package io.bluetape4k.leader.annotation
  * // 다중 백엔드 환경에서 명시적 factory 선택
  * @LeaderElection(name = "audit", bean = "redissonLeaderElectionFactory")
  * fun audit() { ... }
+ *
+ * @LeaderElection(name = "event-stream", autoExtend = true)
+ * fun streamEvents(): Flux<Event> = repository.stream()
+ *
+ * @LeaderElection(name = "bounded-flow", streamBounded = true)
+ * fun boundedFlow(): Flow<Event> = repository.findRecent()
  * ```
  *
- * ## 미선출 시 매핑
- * - `T?` 반환 메서드: `null`
- * - `Unit` 메서드: 본문 미실행
+ * ## Not-elected mapping
+ * - `T?`: returns `null`.
+ * - `Unit`: skips the method body.
+ * - `Mono<T>`: completes empty.
+ * - `Flux<T>` / `Flow<T>`: emits no elements.
  *
- * @property name 락 이름 (필수). plain SpEL + `${...}` Spring property placeholder
- * @property waitTime 리더 획득 대기 시간 — 빈 문자열 시 property 또는 코어 default 폴백
- * @property leaseTime 리더 보유 시간 — 빈 문자열 시 property 또는 코어 default 폴백
- * @property minLeaseTime 최소 리더 보유 시간. `PT0S`이면 빠른 종료 시 즉시 해제
- * @property autoExtend 작업 실행 중 단일 리더 lease를 backend watchdog으로 주기 연장할지 여부
- * @property bean 사용할 [io.bluetape4k.leader.LeaderElectorFactory] 빈 이름 (literal only). 빈 문자열 시 default factory
- * @property failureMode 백엔드 예외 처리 정책. default `RETHROW`
+ * @property name Required lock name. Plain SpEL plus `${...}` Spring property placeholders.
+ * @property waitTime Maximum leader acquisition wait time. Empty means property or core default.
+ * @property leaseTime Leader lease duration. Empty means property or core default.
+ * @property minLeaseTime Minimum lease retention. `PT0S` releases immediately after fast completion.
+ * @property autoExtend Whether to periodically renew the single-leader lease while the action runs.
+ * @property streamBounded Opt-in marker that a `Flux` / `Flow` stream completes within the lease window.
+ * @property bean [io.bluetape4k.leader.LeaderElectorFactory] bean name to use. Empty means default factory.
+ * @property failureMode Backend error handling policy. Defaults to `RETHROW` after property resolution.
  *
- * @see LeaderGroupElection 다중 리더 (semaphore-based) 변형
- * @see LeaderAspectFailureMode failure mode enum
+ * @see LeaderGroupElection Semaphore-based multi-leader variant.
+ * @see LeaderAspectFailureMode Failure mode enum.
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Retention(AnnotationRetention.RUNTIME)
@@ -57,6 +69,7 @@ annotation class LeaderElection(
     val leaseTime: String = "",
     val minLeaseTime: String = "PT0S",
     val autoExtend: Boolean = false,
+    val streamBounded: Boolean = false,
     val bean: String = "",
     val failureMode: LeaderAspectFailureMode = LeaderAspectFailureMode.INHERIT,
 )

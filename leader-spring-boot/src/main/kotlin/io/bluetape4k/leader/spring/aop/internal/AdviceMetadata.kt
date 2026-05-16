@@ -17,7 +17,9 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
  * - [factory]: sync elector factory 인스턴스
  * - [failureMode]: INHERIT 이 이미 resolve 된 effective failure mode
  * - [leaseTimeWarnThresholdNanos]: leaseTime × 0.8 임계값 (ns)
- * - [branch]: [AdviceBranch] — SYNC / SUSPEND / MONO
+ * - [branch]: [AdviceBranch] — SYNC / COROUTINES / REACTIVE
+ * - [isSuspend], [isMono], [isFlux], [isFlow]: exact method return-shape markers
+ * - [streamBounded]: caller opt-in for finite `Flux` / `Flow` streams without auto-extension
  * - [suspendElectorFactory]: SUSPEND / MONO 분기 factory (`null` for SYNC)
  * - [suspendElectorFactoryBeanName]: SUSPEND / MONO 분기 factory bean name
  * - [annotationKind]: [LockIdentity.AnnotationKind.SINGLE] (LeaderElection 전용)
@@ -32,14 +34,16 @@ internal data class AdviceMetadata(
     val failureMode: LeaderAspectFailureMode,
     val leaseTimeWarnThresholdNanos: Long,
     val branch: AdviceBranch,
+    val isSuspend: Boolean,
+    val isMono: Boolean,
+    val isFlux: Boolean,
+    val isFlow: Boolean,
+    val streamBounded: Boolean,
     val suspendElectorFactory: SuspendLeaderElectorFactory?,
     val suspendElectorFactoryBeanName: String,
     val annotationKind: LockIdentity.AnnotationKind = LockIdentity.AnnotationKind.SINGLE,
     val groupParams: LockIdentity.GroupParams? = null,
 ) {
-    val isSuspend: Boolean get() = branch == AdviceBranch.COROUTINES
-    val isMono: Boolean get() = branch == AdviceBranch.REACTIVE
-
     /**
      * 주어진 [branch] 에 맞는 [LockIdentity] 를 생성합니다.
      *
