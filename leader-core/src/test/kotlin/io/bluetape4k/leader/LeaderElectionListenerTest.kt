@@ -17,9 +17,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
-import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.milliseconds
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -427,7 +427,11 @@ class LeaderElectionListenerTest {
         election.maxLeaders shouldBeEqualTo 2
         election.activeCount("decorated-suspend-group-job") shouldBeEqualTo 1
         election.availableSlots("decorated-suspend-group-job") shouldBeEqualTo 1
-        election.state("decorated-suspend-group-job") shouldBeEqualTo LeaderGroupState("decorated-suspend-group-job", 2, 1)
+        election.state("decorated-suspend-group-job") shouldBeEqualTo LeaderGroupState(
+            "decorated-suspend-group-job",
+            2,
+            1
+        )
         listener.events shouldBeEqualTo listOf(
             "elected:decorated-suspend-group-job",
             "revoked:decorated-suspend-group-job",
@@ -457,7 +461,7 @@ class LeaderElectionListenerTest {
         )
     }
 
-    private class RecordingListener : LeaderElectionListener {
+    private class RecordingListener: LeaderElectionListener {
         val events = CopyOnWriteArrayList<String>()
 
         override fun onElected(lockName: String) {
@@ -475,7 +479,7 @@ class LeaderElectionListenerTest {
 
     private class StubLeaderElector(
         private val elected: Boolean,
-    ) : LeaderElector {
+    ): LeaderElector {
 
         override fun state(lockName: String): LeaderState =
             LeaderState.empty(lockName)
@@ -499,7 +503,7 @@ class LeaderElectionListenerTest {
 
     private class StubLeaderGroupElector(
         private val elected: Boolean,
-    ) : LeaderGroupElector {
+    ): LeaderGroupElector {
 
         override val maxLeaders: Int = 2
 
@@ -529,7 +533,7 @@ class LeaderElectionListenerTest {
 
     private class StubSuspendLeaderGroupElector(
         private val elected: Boolean,
-    ) : SuspendLeaderGroupElector {
+    ): SuspendLeaderGroupElector {
 
         override val maxLeaders: Int = 2
 
