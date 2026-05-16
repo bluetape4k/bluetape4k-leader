@@ -486,19 +486,27 @@ val provider = CompositeLeaderIdProvider(
     delegate = RandomLeaderIdProvider.Default,
 )
 
-val elector = LocalLeaderElector(LeaderElectionOptions(leaderIdProvider = provider))
+// LeaderSlot으로 provider와 lock name을 결합
+val slot = LeaderSlot.of("daily-job", provider)
+
+// runIfLeader에 slot 전달
+val elector = LocalLeaderElector()
+val result = elector.runIfLeader(slot) { doWork() }
 ```
 
-### Redis 백엔드에서의 감사 Identity
+### Redis 그룹 백엔드에서의 감사 Identity
 
-Lettuce 또는 Redisson 백엔드를 사용하면 `leaderId`가 락 토큰과 원자적으로 함께 기록됩니다:
+Lettuce 또는 Redisson **그룹** 백엔드를 사용하면 슬롯 토큰과 함께 `leaderId`가 저장됩니다:
 
 | 백엔드 | 저장 방식 | 키 |
 |--------|----------|-----|
-| `leader-redis-lettuce` | `lg:{lockName}:meta` Hash (HSET/HDEL) | `auditLeaderId` 필드 |
-| `leader-redis-redisson` | `lg:{lockName}:audit` RMap (`fastPut`/`fastRemove`) | 락 토큰 → leaderId |
+| `leader-redis-lettuce` (그룹) | `lg:{lockName}:meta` Hash | 슬롯 토큰별 `auditLeaderId` 필드 |
+| `leader-redis-redisson` (그룹) | `lg:{lockName}:audit` RMap | 슬롯 토큰 → leaderId |
 
-크래시 발생 시 TTL 만료로 락 토큰과 identity 레코드가 함께 회수됩니다. 별도의 reaper가 필요 없습니다.
+크래시 발생 시 TTL 만료로 슬롯 토큰과 identity 레코드가 함께 회수됩니다. 별도의 reaper가 필요 없습니다.
+
+> **단일 리더 백엔드**(`LettuceLeaderElector`, `RedissonLeaderElector`)는 `auditLeaderId`를
+> 메모리 내 `LeaderLockHandle`에만 저장하며 Redis에는 기록하지 않습니다.
 
 ## 의존성 추가
 

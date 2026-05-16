@@ -486,21 +486,29 @@ val provider = CompositeLeaderIdProvider(
     delegate = RandomLeaderIdProvider.Default,
 )
 
-val elector = LocalLeaderElector(LeaderElectionOptions(leaderIdProvider = provider))
+// Couple the provider with a lock name using LeaderSlot
+val slot = LeaderSlot.of("daily-job", provider)
+
+// Then pass the slot to runIfLeader
+val elector = LocalLeaderElector()
+val result = elector.runIfLeader(slot) { doWork() }
 ```
 
-### Audit identity in Redis backends
+### Audit identity in Redis group backends
 
-When using the Lettuce or Redisson backends, the `leaderId` is written atomically alongside the
-lock token:
+When using the Lettuce or Redisson **group** backends, the `leaderId` is persisted alongside the
+slot token for crash-recovery attribution:
 
 | Backend | Storage | Key |
 |---------|---------|-----|
-| `leader-redis-lettuce` | `lg:{lockName}:meta` Hash (HSET/HDEL) | `auditLeaderId` field |
-| `leader-redis-redisson` | `lg:{lockName}:audit` RMap (`fastPut`/`fastRemove`) | lock token → leaderId |
+| `leader-redis-lettuce` (group) | `lg:{lockName}:meta` Hash | `auditLeaderId` field per slot token |
+| `leader-redis-redisson` (group) | `lg:{lockName}:audit` RMap | slot token → leaderId |
 
-On crash, the TTL expiry reclaims both the lock token and the identity record. No external
-reaper is required.
+On crash, TTL expiry reclaims both the slot token and the identity record. No external reaper is
+required.
+
+> **Single-leader backends** (`LettuceLeaderElector`, `RedissonLeaderElector`) store the
+> `auditLeaderId` in-memory on the `LeaderLockHandle`; it is not persisted to Redis.
 
 ## Dependency
 
