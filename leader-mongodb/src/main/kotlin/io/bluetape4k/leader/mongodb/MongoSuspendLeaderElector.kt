@@ -22,6 +22,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import org.bson.Document
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 
 /**
  * MongoDB 분산 락을 이용한 코루틴 기반 단일 리더 선출 구현체입니다.
@@ -119,14 +120,14 @@ class MongoSuspendLeaderElector private constructor(
                     action()
                 }
                 val finishedAt = Instant.now()
-                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                 effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
                 result
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 val finishedAt = Instant.now()
-                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                 effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
                 throw e
             }

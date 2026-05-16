@@ -22,6 +22,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 
 /**
  * Exposed R2DBC 기반 코루틴 단일 리더 선출 구현체.
@@ -156,14 +157,14 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
                     action()
                 }
                 val finishedAt = Instant.now()
-                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                 effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
                 result
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 val finishedAt = Instant.now()
-                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                 effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
                 throw e
             }

@@ -23,6 +23,7 @@ import io.lettuce.core.api.StatefulRedisConnection
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -144,14 +145,14 @@ class LettuceLeaderElector @JvmOverloads constructor(
             return try {
                 val result = AopScopeAccess.withPushedSync(handle) { action() }
                 val finishedAt = Instant.now()
-                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                 effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
                 result
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 val finishedAt = Instant.now()
-                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                 effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
                 throw e
             }
@@ -206,7 +207,7 @@ class LettuceLeaderElector @JvmOverloads constructor(
                     action().whenComplete { _, throwable ->
                         watchdog.close()
                         val finishedAt = Instant.now()
-                        val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                        val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                         when {
                             throwable == null -> effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
                             throwable is java.util.concurrent.CancellationException -> { /* cancelled — no audit */ }
@@ -221,7 +222,7 @@ class LettuceLeaderElector @JvmOverloads constructor(
                 } catch (e: Throwable) {
                     watchdog.close()
                     val finishedAt = Instant.now()
-                    val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                    val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                     effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
                     runCatching {
                         if (lock.isHeldByCurrentInstance()) {

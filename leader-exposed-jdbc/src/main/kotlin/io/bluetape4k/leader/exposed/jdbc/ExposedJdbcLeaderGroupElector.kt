@@ -31,6 +31,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
 /**
@@ -235,7 +236,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
             } finally {
                 watchdog.close()
                 val finishedAt = Instant.now()
-                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                 when {
                     actionSucceeded -> effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
                     capturedError != null -> effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, capturedError) }
@@ -327,7 +328,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                     .getOrElse { e ->
                         watchdog.close()
                         val finishedAt = Instant.now()
-                        val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                        val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                         effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
                         runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
                             .onFailure { ex -> log.warn(ex) { "슬롯 해제 실패 (action 오류 경로). slot=$slot" } }
@@ -337,7 +338,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                 actionFuture.whenCompleteAsync({ _, throwable ->
                     watchdog.close()
                     val finishedAt = Instant.now()
-                    val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                    val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                     when {
                         throwable == null -> effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
                         // 취소(코루틴/CompletableFuture)는 FAILED로 기록하지 않음

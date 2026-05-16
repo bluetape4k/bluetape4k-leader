@@ -22,6 +22,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
 
 /**
  * Exposed JDBC 기반 단일 리더 선출 구현체.
@@ -156,7 +157,7 @@ class ExposedJdbcLeaderElector private constructor(
             return try {
                 val result = AopScopeAccess.withPushedSync(handle) { action() }
                 val finishedAt = Instant.now()
-                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                 effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
                 result
             } catch (e: CancellationException) {
@@ -166,7 +167,7 @@ class ExposedJdbcLeaderElector private constructor(
                 throw e
             } catch (e: Exception) {
                 val finishedAt = Instant.now()
-                val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                 effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
                 throw e
             }
@@ -234,7 +235,7 @@ class ExposedJdbcLeaderElector private constructor(
                         .getOrElse { e ->
                             watchdog.close()
                             val finishedAt = Instant.now()
-                            val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                            val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                             effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
                             runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
                                 .onFailure { ex -> log.warn(ex) { "락 해제 실패 (action 오류 경로). lockName=$lockName" } }
@@ -244,7 +245,7 @@ class ExposedJdbcLeaderElector private constructor(
                     actionFuture.whenCompleteAsync({ _, throwable ->
                         watchdog.close()
                         val finishedAt = Instant.now()
-                        val durationMs = (System.nanoTime() - acquiredAtNanos) / 1_000_000L
+                        val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                         when {
                             throwable == null -> effectiveKey?.let {
                                 historyRecorder?.recordCompleted(it, finishedAt, durationMs)
