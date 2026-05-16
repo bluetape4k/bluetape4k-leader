@@ -1,16 +1,22 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.local.LocalAsyncLeaderGroupElector
 import io.bluetape4k.leader.local.LocalLeaderGroupElector
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * [LeaderGroupElectionState] 인터페이스 계약을 검증하는 테스트입니다.
@@ -58,30 +64,35 @@ class LeaderGroupElectionStateTest {
     }
 
     @Test
-    fun `state - 슬롯 점유 중 activeCount 가 증가한다 (sync 구현체)`() {
+    fun `state - 슬롯 점유 중 activeCount 가 증가한다 (sync 구현체)`() = runSuspendIO {
         val election = LocalLeaderGroupElector(options)
         val lockName = randomLockName()
-        val startLatch = CountDownLatch(2)
+        val acquiredCount = AtomicInteger(0)
+        // CountDownLatch is intentional here: the action lambda is blocking (not suspend),
+        // so a latch is the correct signal to hold the lock inside the action body.
         val holdLatch = CountDownLatch(1)
-        val executor = Executors.newFixedThreadPool(2)
 
-        repeat(2) {
-            executor.submit {
-                election.runIfLeader(lockName) {
-                    startLatch.countDown()
-                    holdLatch.await()
+        coroutineScope {
+            val jobs = List(2) {
+                async(Dispatchers.IO) {
+                    election.runIfLeader(lockName) {
+                        acquiredCount.incrementAndGet()
+                        holdLatch.await()
+                    }
                 }
             }
+
+            while (acquiredCount.get() < 2) {
+                delay(5.milliseconds)
+            }
+
+            election.activeCount(lockName) shouldBeEqualTo 2
+            election.availableSlots(lockName) shouldBeEqualTo maxLeaders - 2
+            election.state(lockName).isEmpty.shouldBeFalse()
+
+            holdLatch.countDown()
+            jobs.awaitAll()
         }
-        startLatch.await(2, TimeUnit.SECONDS)
-
-        election.activeCount(lockName) shouldBeEqualTo 2
-        election.availableSlots(lockName) shouldBeEqualTo maxLeaders - 2
-        election.state(lockName).isEmpty.shouldBeFalse()
-
-        holdLatch.countDown()
-        executor.shutdown()
-        executor.awaitTermination(3, TimeUnit.SECONDS)
     }
 
     // ── LocalAsyncLeaderGroupElector 을 통한 LeaderGroupElectionState 계약 검증 ──
