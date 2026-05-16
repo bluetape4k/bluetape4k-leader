@@ -122,7 +122,7 @@ When adding a new module under `examples/`, no publishing change is required —
 the path-prefix filter handles it. Library modules (`leader-*`) must be
 registered in `leader-bom/build.gradle.kts` constraints.
 
-## CI / Nightly Workflow Update Checklist
+## CI / Scheduled Workflow Update Checklist
 
 When adding (or renaming) a module — library or example — keep the four
 locations below in sync. Missing any of them silently disables coverage.
@@ -132,16 +132,17 @@ locations below in sync. Missing any of them silently disables coverage.
    - `paths-filter` filter outputs (changes job)
    - per-module test job (`test-<module>`)
    - aggregator `needs:` lists (build/test summary)
-3. `.github/workflows/nightly.yml`
-   - per-module test job
-   - aggregator `needs:` lists
+3. Scheduled workflow:
+   - publishable `leader-*` modules: `.github/workflows/nightly.yml`
+   - `examples/*` modules: `.github/workflows/examples.yml`
+   - add the per-module/matrix test entry and aggregator `needs:` when needed
 4. `leader-bom/build.gradle.kts` — only for publishable `leader-*` modules
    (NOT for `examples/*`).
 
-Example modules currently wired into both `ci.yml` and `nightly.yml`:
+Example modules currently wired into `ci.yml` and `examples.yml`:
 `batch-scheduler`, `migration-gate`, `webhook-poller`, `cache-warmer`,
 `tenant-aggregator`, `ktor-app`, `prometheus-dashboard`. The library module
-`leader-ktor` is wired identically (Testcontainers Redis).
+`leader-ktor` remains in `ci.yml` and `nightly.yml` (Testcontainers Redis).
 
 ## Codex Spec / Plan / Code Review Stages
 

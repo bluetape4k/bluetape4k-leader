@@ -31,15 +31,15 @@
    - assert a scheduled tick increments leader AOP counters;
    - `src/test/resources/junit-platform.properties`;
    - `src/test/resources/logback-test.xml`.
-7. Wire CI/Nightly:
+7. Wire CI/Examples workflows:
    - 7a. `ci.yml` changes outputs.
    - 7b. `ci.yml` paths-filter block, including `examples/prometheus-dashboard/**`,
      `leader-spring-boot/**`, `leader-micrometer/**`, `leader-redis-lettuce/**`,
      and `leader-core/**`.
    - 7c. `ci.yml` `test-examples-prometheus-dashboard` job.
    - 7d. `ci.yml` build/test status aggregator `needs` entries.
-   - 7e. `nightly.yml` `test-examples-prometheus-dashboard` job.
-   - 7f. `nightly.yml` status aggregator `needs` entries.
+   - 7e. `examples.yml` `examples-prometheus-dashboard` matrix entry.
+   - 7f. keep examples out of `nightly.yml`.
 8. Update root README links.
 9. Verify:
    - application AOT processing;
@@ -57,7 +57,7 @@
 ./gradlew projects
 ./gradlew :examples:prometheus-dashboard:processAot :examples:prometheus-dashboard:processTestAot :examples:prometheus-dashboard:test --no-configuration-cache --console=plain
 ./gradlew :examples:prometheus-dashboard:build -x test --no-configuration-cache --console=plain
-actionlint .github/workflows/ci.yml .github/workflows/nightly.yml
+actionlint .github/workflows/ci.yml .github/workflows/nightly.yml .github/workflows/examples.yml
 ```
 
 ## Step 2-R/3-R Advisor Notes
@@ -73,7 +73,7 @@ Accepted P0/P1 edits:
   constructor;
 - Compose hardening and image/build choice;
 - stronger scrape test contract;
-- explicit CI/Nightly edit locations;
+- explicit CI/Examples workflow edit locations;
 - README pair and test resource requirements.
 
 Latest integrated gate result: P0 = 0, P1 = 0.
