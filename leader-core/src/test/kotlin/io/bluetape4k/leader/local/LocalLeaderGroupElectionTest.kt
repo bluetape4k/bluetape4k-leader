@@ -182,7 +182,7 @@ class LocalLeaderGroupElectionTest {
         activeState.activeCount shouldBeEqualTo 2
         activeState.availableSlots shouldBeEqualTo maxLeaders - 2
         activeState.leaders.size shouldBeEqualTo 2
-        activeState.leaders.map { it.leaderId }.all { it == options.nodeId }.shouldBeTrue()
+        activeState.leaders.map { it.auditLeaderId }.all { it == options.nodeId }.shouldBeTrue()
         activeState.leaders.mapNotNull { it.slot }.toSet().size shouldBeEqualTo 2
         activeState.isEmpty.shouldBeFalse()
         activeState.isFull.shouldBeFalse()

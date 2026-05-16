@@ -16,19 +16,16 @@ import java.time.Instant
  * - [electedAt] and [leaseUntil] are best-effort values filled in by the backend where available.
  * - [slot] is only used in group leader election; `null` for single-leader election.
  *
- * ## Semantic Note — Fencing Token Regression Warning
- * Prior to this version, [leaderId] carried the fencing token (or backend-issued holder id) directly.
- * Starting from this version, [auditLeaderId] carries that audit identity and [nodeId] carries the
- * physical node. Consumers that used [leaderId] for fencing MUST migrate to [auditLeaderId] to
- * preserve fencing-token semantics. Mixing [nodeId] (physical) and [auditLeaderId] (token) in a
- * fencing comparison is a split-brain risk.
+ * ## Semantic Note — Fencing Token
+ * Use [auditLeaderId] for the fencing token (or backend-issued holder id).
+ * Use [nodeId] for the physical node identity when the backend tracks it separately.
+ * Mixing [nodeId] (physical) and [auditLeaderId] (token) in a fencing comparison is a split-brain risk.
  *
  * @property auditLeaderId the audit identity of the elected leader (fencing token or backend holder id).
  * @property electedAt the instant at which the leader was elected; `null` if unavailable.
  * @property leaseUntil the instant until which the lease is valid; `null` if unavailable.
  * @property slot slot index in group election; `null` for single-leader election.
  * @property nodeId the physical node identity of the elected leader; `null` if unavailable.
- * @property leaderId deprecated accessor — returns [nodeId] ?: [auditLeaderId].
  *
  * ```kotlin
  * val lease = LeaderLease(
@@ -60,9 +57,4 @@ data class LeaderLease(
         }
     }
 
-    @Deprecated(
-        message = "Use auditLeaderId for the elected node's audit identity, or nodeId for the physical node identity.",
-        replaceWith = ReplaceWith("nodeId ?: auditLeaderId"),
-    )
-    val leaderId: String get() = nodeId ?: auditLeaderId
 }

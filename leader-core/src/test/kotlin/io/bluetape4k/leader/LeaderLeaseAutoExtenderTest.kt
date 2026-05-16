@@ -4,12 +4,17 @@ import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.ExtendOutcome.Extended
+import io.bluetape4k.leader.internal.ExtendDelegate
 import kotlinx.coroutines.delay
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import java.time.Instant
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -22,15 +27,19 @@ class LeaderLeaseAutoExtenderTest {
         LeaderLeaseAutoExtender.restart()
     }
 
+    private fun countingDelegate(calls: AtomicInteger): ExtendDelegate = object : ExtendDelegate {
+        override val lastExtendDeadline: AtomicReference<Instant> = AtomicReference(Instant.EPOCH)
+        override fun extend(lockAtMostFor: Duration): ExtendOutcome {
+            calls.incrementAndGet()
+            return Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+        }
+        override fun isHeld(): Boolean = true
+    }
+
     @Test
     fun `disabled watchdog does not call extender`() = runSuspendIO {
         val calls = AtomicInteger(0)
-
-        @Suppress("DEPRECATION")
-        val watchdog = LeaderLeaseAutoExtender.start(false, 100.milliseconds) {
-            calls.incrementAndGet()
-            true
-        }
+        val watchdog = LeaderLeaseAutoExtender.start(false, 100.milliseconds, countingDelegate(calls))
 
         delay(120.milliseconds)
         watchdog.close()
@@ -41,12 +50,7 @@ class LeaderLeaseAutoExtenderTest {
     @Test
     fun `watchdog stops after close`() = runSuspendIO {
         val calls = AtomicInteger(0)
-
-        @Suppress("DEPRECATION")
-        val watchdog = LeaderLeaseAutoExtender.start(true, 90.milliseconds) {
-            calls.incrementAndGet()
-            true
-        }
+        val watchdog = LeaderLeaseAutoExtender.start(true, 90.milliseconds, countingDelegate(calls))
 
         delay(120.milliseconds)
         watchdog.close()
@@ -61,9 +65,8 @@ class LeaderLeaseAutoExtenderTest {
         val scheduler = scheduler()
         val before = scheduler.queue.size
 
-        @Suppress("DEPRECATION")
         val watchdogs = (1..20).map {
-            LeaderLeaseAutoExtender.start(true, 30.seconds) { true }
+            LeaderLeaseAutoExtender.start(true, 30.seconds, countingDelegate(AtomicInteger()))
         }
         watchdogs.forEach { it.close() }
 
@@ -91,11 +94,7 @@ class LeaderLeaseAutoExtenderTest {
         LeaderLeaseAutoExtender.restart()
 
         val calls = AtomicInteger(0)
-        @Suppress("DEPRECATION")
-        val watchdog = LeaderLeaseAutoExtender.start(true, 90.milliseconds) {
-            calls.incrementAndGet()
-            true
-        }
+        val watchdog = LeaderLeaseAutoExtender.start(true, 90.milliseconds, countingDelegate(calls))
         delay(200.milliseconds)
         watchdog.close()
 
@@ -107,8 +106,7 @@ class LeaderLeaseAutoExtenderTest {
         LeaderLeaseAutoExtender.shutdown()
 
         val result = runCatching {
-            @Suppress("DEPRECATION")
-            LeaderLeaseAutoExtender.start(true, 90.milliseconds) { true }
+            LeaderLeaseAutoExtender.start(true, 90.milliseconds, countingDelegate(AtomicInteger()))
         }
 
         result.isSuccess.shouldBeTrue()

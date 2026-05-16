@@ -9,7 +9,7 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.exposed.jdbc.history.ExposedLeaderHistorySink
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcLock
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
-import io.bluetape4k.leader.exposed.tables.HistoryStatus
+import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
@@ -190,7 +190,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             LeaderLockHistoryTable.selectAll()
                 .where {
                     (LeaderLockHistoryTable.lockName eq lockName) and
-                            (LeaderLockHistoryTable.status eq HistoryStatus.FAILED.name)
+                            (LeaderLockHistoryTable.status eq LeaderHistoryStatus.FAILED.name)
                 }
                 .count()
         }
@@ -221,7 +221,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                 .toList()
         }
         rows.size shouldBeEqualTo 1
-        rows[0][LeaderLockHistoryTable.status] shouldBeEqualTo HistoryStatus.COMPLETED.name
+        rows[0][LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.COMPLETED.name
     }
 
     @ParameterizedTest
@@ -250,7 +250,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                 .toList()
         }
         rows.size shouldBeEqualTo 1
-        rows[0][LeaderLockHistoryTable.status] shouldBeEqualTo HistoryStatus.FAILED.name
+        rows[0][LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED.name
     }
 
     @ParameterizedTest
@@ -348,7 +348,7 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
             LeaderLockHistoryTable.selectAll()
                 .where {
                     (LeaderLockHistoryTable.lockName eq lockName) and
-                            (LeaderLockHistoryTable.status eq HistoryStatus.FAILED.name)
+                            (LeaderLockHistoryTable.status eq LeaderHistoryStatus.FAILED.name)
                 }
                 .count()
         }

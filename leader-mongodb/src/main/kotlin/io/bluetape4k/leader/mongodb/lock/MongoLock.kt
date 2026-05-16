@@ -209,17 +209,6 @@ class MongoLock private constructor(
     }
 
     /**
-     * 락의 expireAt 을 [leaseTime] 만큼 연장합니다.
-     *
-     * @deprecated [extendDetailed] 사용 권장 — R6 filter 적용 + [ExtendOutcome] 반환.
-     */
-    @Deprecated(
-        message = "Use extendDetailed(leaseTime) for R6 filter (expireAt > now) and ExtendOutcome result.",
-        replaceWith = ReplaceWith("extendDetailed(leaseTime).isExtended"),
-    )
-    fun extend(leaseTime: Duration): Boolean = extendDetailed(leaseTime).isExtended
-
-    /**
      * 락의 expireAt 을 [leaseTime] 만큼 atomic 하게 연장하고 [ExtendOutcome] 을 반환합니다.
      *
      * ## R6 filter (Issue #79 PR 4)

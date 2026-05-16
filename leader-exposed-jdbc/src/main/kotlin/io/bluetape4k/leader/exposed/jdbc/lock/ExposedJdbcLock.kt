@@ -212,17 +212,6 @@ internal class ExposedJdbcLock internal constructor(
     }
 
     /**
-     * 락의 `lockedUntil` 을 [leaseTime] 만큼 연장합니다.
-     *
-     * @deprecated [extendDetailed] 사용 권장 — R6 guard 적용 + [ExtendOutcome] 반환.
-     */
-    @Deprecated(
-        message = "Use extendDetailed(leaseTime) for R6 guard (lockedUntil > now) and ExtendOutcome result.",
-        replaceWith = ReplaceWith("extendDetailed(leaseTime).isExtended"),
-    )
-    fun extend(leaseTime: Duration): Boolean = extendDetailed(leaseTime).isExtended
-
-    /**
      * 락의 `lockedUntil` 을 [leaseTime] 만큼 atomic 하게 연장하고 [ExtendOutcome] 을 반환합니다.
      *
      * ## R6 guard (Issue #79 PR 5)
