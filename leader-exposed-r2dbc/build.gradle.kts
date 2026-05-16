@@ -26,7 +26,7 @@ dependencies {
     // Test
     testImplementation(libs.bluetape4k.junit5)
     testImplementation(libs.bluetape4k.testcontainers)
-    testImplementation(libs.bluetape4k.exposed.r2dbc.tests)
+    testImplementation(libs.exposed.r2dbc.tests)
     testImplementation(libs.kotlinx.coroutines.test)
 
     // R2DBC drivers (테스트 런타임)

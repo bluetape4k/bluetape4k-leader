@@ -95,7 +95,7 @@ api(libs.exposed.java.time)
 compileOnly(libs.exposed.dao)
 
 // 테스트 전용
-testImplementation(libs.bluetape4k.exposed.jdbc.tests) // TestDB, withTables
+testImplementation(libs.exposed.jdbc.tests) // TestDB, withTables
 testImplementation(libs.exposed.jdbc)
 testImplementation(libs.hikaricp)
 ```

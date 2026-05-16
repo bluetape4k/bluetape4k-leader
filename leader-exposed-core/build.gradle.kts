@@ -13,7 +13,7 @@ dependencies {
     // Test — Multi-DB (H2, PostgreSQL, MySQL)
     testImplementation(libs.bluetape4k.junit5)
     testImplementation(libs.bluetape4k.virtualthread.jdk21)
-    testImplementation(libs.bluetape4k.exposed.jdbc.tests)
+    testImplementation(libs.exposed.jdbc.tests)
 
     testImplementation(libs.exposed.jdbc)
     testImplementation(libs.hikaricp)
