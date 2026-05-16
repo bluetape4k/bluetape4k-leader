@@ -35,16 +35,16 @@ existing Redis instance.
 ## Outcome
 
 The new `examples/prometheus-dashboard` module is registered in Gradle, root
-README files, CI, Nightly, and AGENTS guidance. Local verification confirmed
-Spring AOT generation, Spring test AOT generation, Prometheus scrape metrics,
-workflow syntax, and Gradle project registration.
+README files, CI, the Examples workflow, and AGENTS guidance. Local verification
+confirmed Spring AOT generation, Spring test AOT generation, Prometheus scrape
+metrics, workflow syntax, and Gradle project registration.
 
 ## Verification
 
 - `./gradlew :examples:prometheus-dashboard:processAot :examples:prometheus-dashboard:processTestAot :examples:prometheus-dashboard:test --no-configuration-cache --console=plain`
 - `./gradlew :examples:prometheus-dashboard:build -x test --no-configuration-cache --console=plain`
 - `./gradlew projects --no-configuration-cache --console=plain`
-- `actionlint .github/workflows/ci.yml .github/workflows/nightly.yml`
+- `actionlint .github/workflows/ci.yml .github/workflows/nightly.yml .github/workflows/examples.yml`
 - `git diff --check`
 
 ## Future Guidance

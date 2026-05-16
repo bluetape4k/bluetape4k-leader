@@ -20,7 +20,8 @@ real monitoring stack.
 - Provide Docker Compose with app, Prometheus, and Grafana.
 - Add a focused scrape test that verifies leader metrics are present.
 - Apply Spring Boot AOT processing to the example app and Spring test context.
-- Wire the new example into settings, CI, Nightly, and root README links.
+- Wire the new example into settings, CI, the Examples workflow, and root
+  README links.
 
 ## Non-Goals
 
@@ -121,7 +122,7 @@ The test contract:
 The example applies Spring Boot's `org.springframework.boot.aot` plugin directly.
 According to Spring Boot's Gradle plugin documentation, the direct AOT plugin is
 the right path when an application wants to run AOT processing on the JVM rather
-than configuring native image generation. CI and Nightly run:
+than configuring native image generation. CI and the Examples workflow run:
 
 - `:examples:prometheus-dashboard:processAot`;
 - `:examples:prometheus-dashboard:processTestAot`;
@@ -139,7 +140,7 @@ where Testcontainers Redis is available.
 - `./gradlew :examples:prometheus-dashboard:bootRun` starts the app locally.
 - `docker compose up` under the example starts Redis, app, Prometheus, Grafana.
 - `/actuator/prometheus` includes leader AOP metrics.
-- CI and Nightly know the new example module.
+- CI and the Examples workflow know the new example module.
 - README and README.ko link to the new example.
 - Closes #230 and #145.
 
@@ -180,7 +181,7 @@ Claude advisor artifact:
 | P0 | Exact Spring Boot plugin and Freefair aspect configuration missing | revised after verification | Spring Boot plugin kept; external `aspect(project(":leader-spring-boot"))` rejected because it breaks the Spring-managed aspect constructor |
 | P0 | Compose security defaults unspecified | accepted | Spec/plan require pinned images, loopback binds, no Redis host port, `.env.example`, scoped actuator endpoints, healthchecks |
 | P0 | Test could pass only on pre-registered zero meters | accepted | Test must wait for a scheduled tick and assert counter presence/value |
-| P0 | CI/Nightly insertion points underspecified | accepted | Plan enumerates CI and Nightly edits |
+| P0 | CI/Examples insertion points underspecified | accepted | Plan enumerates CI and Examples workflow edits |
 | P1 | Test and README contracts underspecified | accepted | Spec/plan include Spring Boot test shape, test resources, README pairs, hand-authored dashboard |
 
 Latest integrated gate result: P0 = 0, P1 = 0.

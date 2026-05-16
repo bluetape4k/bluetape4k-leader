@@ -1,0 +1,122 @@
+name: Examples
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  statuses: read
+  packages: read
+
+on:
+  schedule:
+    - cron: '0 19 * * 0'  # Weekly examples run, UTC 19:00 (KST 04:00) Sunday
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '21'
+  JAVA_DISTRIBUTION: 'temurin'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  validate-wrapper:
+    name: Validate Gradle Wrapper
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: gradle/actions/wrapper-validation@v6
+
+  build:
+    name: Build (compile only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: validate-wrapper
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: wrapper
+      - name: Build (compile only)
+        run: ./gradlew build -x test -x koverVerify --parallel
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+  test-examples:
+    name: Test / ${{ matrix.example }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - example: examples-migration-gate
+            gradle_tasks: :examples:migration-gate:test
+          - example: examples-webhook-poller
+            gradle_tasks: :examples:webhook-poller:test
+          - example: examples-cache-warmer
+            gradle_tasks: :examples:cache-warmer:test
+          - example: examples-tenant-aggregator
+            gradle_tasks: :examples:tenant-aggregator:test
+          - example: examples-batch-scheduler
+            gradle_tasks: :examples:batch-scheduler:test
+          - example: examples-ktor-app
+            gradle_tasks: :examples:ktor-app:test
+          - example: examples-prometheus-dashboard
+            gradle_tasks: :examples:prometheus-dashboard:processAot :examples:prometheus-dashboard:processTestAot :examples:prometheus-dashboard:test
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: wrapper
+          cache-read-only: true
+      - name: Test ${{ matrix.example }}
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew ${{ matrix.gradle_tasks }} --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+          DOCKER_HOST: "unix:///var/run/docker.sock"
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-${{ matrix.example }}
+          path: '**/build/test-results/test/*.xml'
+          retention-days: 14
+
+  examples-status:
+    name: Examples Status
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - build
+      - test-examples
+    if: always()
+    steps:
+      - name: Check all jobs
+        env:
+          RESULTS: ${{ join(needs.*.result, ',') }}
+        run: |
+          echo "Examples results: $RESULTS"
+          if echo "$RESULTS" | grep -qE "failure|cancelled"; then
+            echo "Examples failed"
+            exit 1
+          fi
+          echo "Examples passed"
