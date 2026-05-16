@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
+import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -229,5 +230,63 @@ abstract class AbstractSuspendLockExtenderContractTest {
             .run()
 
         maxConcurrent.get() shouldBeEqualTo 1
+    }
+
+    // ── AC-6 concurrent extends stress ───────────────────────────────────
+
+    /**
+     * AC-6: N concurrent coroutine workers each acquire their own lock and extend it M times.
+     *
+     * Verifies that concurrent suspend extend calls from multiple leaders are race-free —
+     * all backend extend operations succeed with no torn writes or exceptions.
+     *
+     * Note: LockExtender suspend variants use CoroutineContext (LockHandleElement) so
+     * extend calls are valid only within the coroutine that holds the lock.
+     * This test exercises concurrent backend load from N independent leader coroutines,
+     * each extending their own slot.
+     */
+    @Test
+    fun `AC-6 concurrent suspend extends race-free — N workers each extend their own lock`() = runSuspendIO {
+        val successCount = AtomicInteger(0)
+        val extendsPerRound = 5
+
+        val rounds = 10
+        SuspendedJobTester()
+            .workers(8)
+            .rounds(rounds)
+            .add {
+                val lockName = randomLockName()
+                elector.runIfLeader(lockName) {
+                    repeat(extendsPerRound) { i ->
+                        val outcome = LockExtender.extendActiveLockDetailedSuspend((10 + i * 5).seconds)
+                        if (outcome is ExtendOutcome.Extended) successCount.incrementAndGet()
+                    }
+                }
+            }
+            .run()
+
+        // SuspendedJobTester: rounds = total invocations (workers = concurrency level)
+        // 10 rounds × 5 extends each = 50 successful extends
+        successCount.get() shouldBeEqualTo rounds * extendsPerRound
+    }
+
+    /**
+     * AC-6b: Single-leader suspend extends with randomized durations — last-write-wins,
+     * no exception thrown, sequential extend calls on the same lock are safe.
+     */
+    @Test
+    fun `AC-6b sequential suspend extends with random durations are all successful`() = runSuspendIO {
+        val lockName = randomLockName()
+        val successCount = AtomicInteger(0)
+
+        elector.runIfLeader(lockName) {
+            repeat(20) { i ->
+                val duration = (10 + Random.nextInt(50)).seconds
+                val outcome = LockExtender.extendActiveLockDetailedSuspend(duration)
+                if (outcome is ExtendOutcome.Extended) successCount.incrementAndGet()
+            }
+        }
+
+        successCount.get() shouldBeEqualTo 20
     }
 }
