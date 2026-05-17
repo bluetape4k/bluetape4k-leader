@@ -9,7 +9,7 @@ dependencyManagement {
 }
 
 dependencies {
-    api(project(":leader-core"))
+    api(project(":bluetape4k-leader-core"))
 
     api(libs.bluetape4k.coroutines)
     implementation(libs.kotlinx.coroutines.core)
@@ -25,7 +25,7 @@ dependencies {
     testImplementation(libs.ktor.server.cio)
     testImplementation(libs.ktor.server.test.host)
 
-    testImplementation(project(":leader-redis-redisson"))
+    testImplementation(project(":bluetape4k-leader-redis-redisson"))
     testImplementation(libs.redisson)
     testImplementation(libs.bluetape4k.redisson)
 

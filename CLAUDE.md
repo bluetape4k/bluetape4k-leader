@@ -7,7 +7,7 @@
 ## Repository Layout
 
 ```
-leader-bom/              # BOM
+bluetape4k-leader-bom/   # BOM
 leader-core/             # Interfaces + local in-process implementations
 leader-redis-lettuce/    # Lettuce Redis backend
 leader-redis-redisson/   # Redisson Redis backend
@@ -26,11 +26,11 @@ buildSrc/                # Versions, plugins, dependency catalog
 ```bash
 ./gradlew clean build
 ./gradlew build -x test
-./gradlew :leader-core:build
-./gradlew :leader-redis-lettuce:test
-./gradlew :leader-redis-redisson:test
+./gradlew :bluetape4k-leader-core:build
+./gradlew :bluetape4k-leader-redis-lettuce:test
+./gradlew :bluetape4k-leader-redis-redisson:test
 ./gradlew test --tests "io.bluetape4k.leader.redisson.RedissonLeaderElectionTest"
-./gradlew :leader-spring-boot:test
+./gradlew :bluetape4k-leader-spring-boot:test
 ./gradlew detekt
 ./gradlew publishBluetape4kLeaderPublicationToBluetape4kLeaderRepository           # SNAPSHOT
 ./gradlew publishBluetape4kLeaderPublicationToBluetape4kLeaderRepository -PsnapshotVersion=  # RELEASE
@@ -68,7 +68,7 @@ LeaderGroupElectionOptions(maxLeaders = 3, waitTime = 5.seconds, leaseTime = 60.
 
 ### Group elector — Redis backends (slot-token TTL model)
 
-`leader-redis-lettuce` / `leader-redis-redisson` 의 group elector 는 모두 **slot-token TTL 모델** 로 동작.
+`bluetape4k-leader-redis-lettuce` / `bluetape4k-leader-redis-redisson` 의 group elector 는 모두 **slot-token TTL 모델** 로 동작.
 
 | 항목 | Lettuce (`LettuceSlotTokenGroup`) | Redisson (`RPermitExpirableSemaphore`) |
 |---|---|---|
@@ -86,9 +86,9 @@ LeaderGroupElectionOptions(maxLeaders = 3, waitTime = 5.seconds, leaseTime = 60.
 - `lg:{lockName}` key prefix 는 의도적으로 분리 — 구버전 (`LettuceSemaphore`, `RSemaphore`) 키와 충돌 회피, 롤링 배포 호환.
 - Lettuce 측 구버전 `LettuceSemaphore` / `LettuceSuspendSemaphore` 는 `@Deprecated` (소스에 잔존, 새 elector 와 미연결).
 
-## AOP Annotation Guide (`leader-spring-boot`)
+## AOP Annotation Guide (`bluetape4k-leader-spring-boot`)
 
-`@LeaderElection` / `@LeaderGroupElection` — `leader-core` 선언, AspectJ CTW (Freefair post-compile weaving) 적용.
+`@LeaderElection` / `@LeaderGroupElection` — `bluetape4k-leader-core` 선언, AspectJ CTW (Freefair post-compile weaving) 적용.
 
 ### 핵심 규칙
 

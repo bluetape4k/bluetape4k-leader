@@ -93,21 +93,21 @@ Run any example with `./gradlew :examples:<name>:run` (Docker required for Testc
 
 ```kotlin
 // Redis (Redisson or Lettuce)
-implementation("io.github.bluetape4k.leader:leader-redis-redisson:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.1.0-SNAPSHOT")
 // or
-implementation("io.github.bluetape4k.leader:leader-redis-lettuce:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:0.1.0-SNAPSHOT")
 
 // JDBC (H2 / PostgreSQL / MySQL via Exposed)
-implementation("io.github.bluetape4k.leader:leader-exposed-jdbc:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-jdbc:0.1.0-SNAPSHOT")
 
 // R2DBC coroutine-native (H2 / PostgreSQL / MySQL via Exposed)
-implementation("io.github.bluetape4k.leader:leader-exposed-r2dbc:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc:0.1.0-SNAPSHOT")
 
 // ZooKeeper / Apache Curator
-implementation("io.github.bluetape4k.leader:leader-zookeeper:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-zookeeper:0.1.0-SNAPSHOT")
 
 // Ktor 3.x integration (LeaderElectionPlugin + leaderScheduled())
-implementation("io.github.bluetape4k.leader:leader-ktor:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor:0.1.0-SNAPSHOT")
 ```
 
 ### Exposed JDBC (H2 / PostgreSQL / MySQL)
@@ -496,8 +496,8 @@ When using Spring Boot AOP (`@LeaderElection`), add `leader-micrometer` to expos
 ### Dependency
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:leader-spring-boot:0.1.0-SNAPSHOT")
-implementation("io.github.bluetape4k.leader:leader-micrometer:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.1.0-SNAPSHOT")
 ```
 
 `MicrometerLeaderAopMetricsRecorder` is auto-registered when a `MeterRegistry` bean is present. Disable with:

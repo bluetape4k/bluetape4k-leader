@@ -10,18 +10,18 @@ javaPlatform {
 
 dependencies {
     constraints {
-        api(project(":leader-core"))
-        api(project(":leader-redis-lettuce"))
-        api(project(":leader-redis-redisson"))
-        api(project(":leader-exposed-core"))
-        api(project(":leader-exposed-jdbc"))
-        api(project(":leader-exposed-r2dbc"))
-        api(project(":leader-mongodb"))
-        api(project(":leader-hazelcast"))
-        api(project(":leader-zookeeper"))
-        api(project(":leader-spring-boot"))
-        api(project(":leader-ktor"))
-        api(project(":leader-micrometer"))
+        api(project(":bluetape4k-leader-core"))
+        api(project(":bluetape4k-leader-redis-lettuce"))
+        api(project(":bluetape4k-leader-redis-redisson"))
+        api(project(":bluetape4k-leader-exposed-core"))
+        api(project(":bluetape4k-leader-exposed-jdbc"))
+        api(project(":bluetape4k-leader-exposed-r2dbc"))
+        api(project(":bluetape4k-leader-mongodb"))
+        api(project(":bluetape4k-leader-hazelcast"))
+        api(project(":bluetape4k-leader-zookeeper"))
+        api(project(":bluetape4k-leader-spring-boot"))
+        api(project(":bluetape4k-leader-ktor"))
+        api(project(":bluetape4k-leader-micrometer"))
     }
 }
 

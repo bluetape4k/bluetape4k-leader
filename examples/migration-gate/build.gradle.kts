@@ -7,7 +7,7 @@ application {
 }
 
 dependencies {
-    implementation(project(":leader-exposed-jdbc"))
+    implementation(project(":bluetape4k-leader-exposed-jdbc"))
 
     implementation(libs.exposed.core)
     implementation(libs.exposed.jdbc)

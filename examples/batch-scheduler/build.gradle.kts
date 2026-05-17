@@ -7,7 +7,7 @@ application {
 }
 
 dependencies {
-    implementation(project(":leader-redis-lettuce"))
+    implementation(project(":bluetape4k-leader-redis-lettuce"))
 
     implementation(libs.bluetape4k.lettuce)
     implementation(libs.lettuce.core)

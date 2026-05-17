@@ -514,5 +514,5 @@ required.
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:leader-core:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-core:0.1.0-SNAPSHOT")
 ```

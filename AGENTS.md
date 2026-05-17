@@ -3,7 +3,7 @@
 Distributed leader election library with blocking, async, coroutine, and
 virtual-thread APIs. Backends include Redis/Lettuce, Redis/Redisson, Exposed,
 MongoDB, Hazelcast, and ZooKeeper. Ktor 3.x integration is provided by
-`leader-ktor`.
+`bluetape4k-leader-ktor`.
 
 - Group: `io.github.bluetape4k.leader`
 - Publishing: Maven Central through NMCP (`examples/*` are excluded — see
@@ -12,7 +12,7 @@ MongoDB, Hazelcast, and ZooKeeper. Ktor 3.x integration is provided by
 ## Layout
 
 ```text
-leader-bom/
+bluetape4k-leader-bom/
 leader-core/
 leader-redis-lettuce/
 leader-redis-redisson/
@@ -41,11 +41,11 @@ buildSrc/
 ```bash
 ./gradlew clean build
 ./gradlew build -x test
-./gradlew :leader-core:build
-./gradlew :leader-redis-lettuce:test
-./gradlew :leader-redis-redisson:test
+./gradlew :bluetape4k-leader-core:build
+./gradlew :bluetape4k-leader-redis-lettuce:test
+./gradlew :bluetape4k-leader-redis-redisson:test
 ./gradlew test --tests "io.bluetape4k.leader.redisson.RedissonLeaderElectionTest"
-./gradlew :leader-spring-boot:test
+./gradlew :bluetape4k-leader-spring-boot:test
 ./gradlew detekt
 ./gradlew publishBluetape4kLeaderPublicationToBluetape4kLeaderRepository
 ./gradlew publishBluetape4kLeaderPublicationToBluetape4kLeaderRepository -PsnapshotVersion=
@@ -115,12 +115,12 @@ subprojects
     .filter { !it.path.startsWith(":examples:") }
 // signing
 subprojects
-    .filter { it.name != "leader-bom" && !it.path.startsWith(":examples:") }
+    .filter { it.name != "bluetape4k-leader-bom" && !it.path.startsWith(":examples:") }
 ```
 
 When adding a new module under `examples/`, no publishing change is required —
 the path-prefix filter handles it. Library modules (`leader-*`) must be
-registered in `leader-bom/build.gradle.kts` constraints.
+registered in `bluetape4k-leader-bom/build.gradle.kts` constraints.
 
 ## CI / Scheduled Workflow Update Checklist
 
@@ -136,13 +136,13 @@ locations below in sync. Missing any of them silently disables coverage.
    - publishable `leader-*` modules: `.github/workflows/nightly.yml`
    - `examples/*` modules: `.github/workflows/examples.yml`
    - add the per-module/matrix test entry and aggregator `needs:` when needed
-4. `leader-bom/build.gradle.kts` — only for publishable `leader-*` modules
+4. `bluetape4k-leader-bom/build.gradle.kts` — only for publishable `leader-*` modules
    (NOT for `examples/*`).
 
 Example modules currently wired into `ci.yml` and `examples.yml`:
 `batch-scheduler`, `migration-gate`, `webhook-poller`, `cache-warmer`,
 `tenant-aggregator`, `ktor-app`, `prometheus-dashboard`. The library module
-`leader-ktor` remains in `ci.yml` and `nightly.yml` (Testcontainers Redis).
+`bluetape4k-leader-ktor` remains in `ci.yml` and `nightly.yml` (Testcontainers Redis).
 
 ## Codex Spec / Plan / Code Review Stages
 

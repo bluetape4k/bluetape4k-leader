@@ -168,8 +168,8 @@ Gradle (Kotlin DSL):
 
 ```kotlin
 dependencies {
-    implementation("io.github.bluetape4k.leader:leader-ktor:$bluetape4kLeaderVersion")
-    implementation("io.github.bluetape4k.leader:leader-redis-redisson:$bluetape4kLeaderVersion") // 또는 다른 백엔드
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor:$bluetape4kLeaderVersion")
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:$bluetape4kLeaderVersion") // 또는 다른 백엔드
     implementation("io.ktor:ktor-server-core:3.4.3")
 }
 ```

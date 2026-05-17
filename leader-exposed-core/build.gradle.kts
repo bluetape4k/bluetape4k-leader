@@ -3,7 +3,7 @@ configurations {
 }
 
 dependencies {
-    api(project(":leader-core"))
+    api(project(":bluetape4k-leader-core"))
 
     // Exposed core (스키마 정의 — JDBC/R2DBC 드라이버 없음)
     api(libs.exposed.core)

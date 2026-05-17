@@ -27,9 +27,9 @@ dependencyManagement {
 }
 
 dependencies {
-    implementation(project(":leader-spring-boot"))
-    implementation(project(":leader-micrometer"))
-    implementation(project(":leader-redis-lettuce"))
+    implementation(project(":bluetape4k-leader-spring-boot"))
+    implementation(project(":bluetape4k-leader-micrometer"))
+    implementation(project(":bluetape4k-leader-redis-lettuce"))
 
     implementation(libs.bluetape4k.logging)
     implementation(libs.bluetape4k.testcontainers)

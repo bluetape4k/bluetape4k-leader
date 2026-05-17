@@ -234,7 +234,7 @@ MongoSuspendLeaderGroupElector(
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:leader-mongodb:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-mongodb:0.1.0-SNAPSHOT")
 
 // MongoDB drivers must be on the classpath
 implementation("org.mongodb:mongodb-driver-sync:5.x.x")

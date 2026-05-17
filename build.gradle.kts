@@ -90,7 +90,7 @@ subprojects {
 }
 
 subprojects {
-    if (name == "leader-bom") {
+    if (name == "bluetape4k-leader-bom") {
         return@subprojects
     }
 
@@ -348,6 +348,6 @@ dependencies {
 
 dependencies {
     subprojects
-        .filter { it.name != "leader-bom" && !it.path.startsWith(":examples:") }
+        .filter { it.name != "bluetape4k-leader-bom" && !it.path.startsWith(":examples:") }
         .forEach { sub -> kover(project(sub.path)) }
 }
