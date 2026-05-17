@@ -41,7 +41,7 @@ graph TD
 ## Dependency
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:leader-micrometer:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.1.0-SNAPSHOT")
 
 // Choose the registry in the application.
 implementation("io.micrometer:micrometer-registry-prometheus")
@@ -50,7 +50,7 @@ implementation("io.micrometer:micrometer-registry-prometheus")
 For Spring Boot AOP metrics:
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:leader-spring-boot:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.1.0-SNAPSHOT")
 implementation("org.springframework.boot:spring-boot-starter-actuator")
 ```
 

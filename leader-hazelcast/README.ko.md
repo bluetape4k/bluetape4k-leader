@@ -250,7 +250,7 @@ sequenceDiagram
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:leader-hazelcast:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-hazelcast:0.1.0-SNAPSHOT")
 
 // Hazelcast 클라이언트가 클래스패스에 있어야 합니다
 implementation("com.hazelcast:hazelcast:5.x.x")

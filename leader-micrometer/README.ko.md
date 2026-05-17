@@ -41,7 +41,7 @@ graph TD
 ## 의존성
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:leader-micrometer:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.1.0-SNAPSHOT")
 
 // 애플리케이션에서 사용할 registry를 선택합니다.
 implementation("io.micrometer:micrometer-registry-prometheus")
@@ -50,7 +50,7 @@ implementation("io.micrometer:micrometer-registry-prometheus")
 Spring Boot AOP 메트릭을 사용할 때:
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:leader-spring-boot:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.1.0-SNAPSHOT")
 implementation("org.springframework.boot:spring-boot-starter-actuator")
 ```
 

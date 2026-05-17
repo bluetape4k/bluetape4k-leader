@@ -46,13 +46,13 @@ graph TD
 ## 의존성
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:leader-spring-boot:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.1.0-SNAPSHOT")
 
 // backend 모듈을 하나 이상 추가합니다.
-implementation("io.github.bluetape4k.leader:leader-redis-redisson:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.1.0-SNAPSHOT")
 
 // 선택: Micrometer/Actuator 연동.
-implementation("io.github.bluetape4k.leader:leader-micrometer:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.1.0-SNAPSHOT")
 implementation("org.springframework.boot:spring-boot-starter-actuator")
 ```
 
