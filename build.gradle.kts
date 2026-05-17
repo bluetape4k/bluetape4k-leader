@@ -63,7 +63,7 @@ allprojects {
 }
 
 subprojects {
-    if (path.startsWith(":examples:")) {
+    if (path == ":examples" || path.startsWith(":examples:")) {
         return@subprojects
     }
     apply(plugin = "com.gradleup.nmcp")
@@ -94,7 +94,7 @@ subprojects {
         return@subprojects
     }
 
-    val isExample = path.startsWith(":examples:")
+    val isExample = path == ":examples" || path.startsWith(":examples:")
 
     apply {
         plugin<JavaLibraryPlugin>()
@@ -236,7 +236,6 @@ subprojects {
 
     dependencyManagement {
         setApplyMavenExclusions(false)
-        generatedPomCustomization { setEnabled(false) }
         imports {
             mavenBom(rootLibs.bluetape4k.bom.get().toString())
             mavenBom(rootLibs.kotlinx.coroutines.bom.get().toString())
@@ -343,12 +342,12 @@ extensions.configure<NmcpAggregationExtension>("nmcpAggregation") {
 
 dependencies {
     subprojects
-        .filter { !it.path.startsWith(":examples:") }
+        .filter { it.path != ":examples" && !it.path.startsWith(":examples:") }
         .forEach { add("nmcpAggregation", project(it.path)) }
 }
 
 dependencies {
     subprojects
-        .filter { it.name != "bluetape4k-leader-bom" && !it.path.startsWith(":examples:") }
+        .filter { it.name != "bluetape4k-leader-bom" && it.path != ":examples" && !it.path.startsWith(":examples:") }
         .forEach { sub -> kover(project(sub.path)) }
 }
