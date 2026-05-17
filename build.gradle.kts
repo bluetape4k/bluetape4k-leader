@@ -236,6 +236,7 @@ subprojects {
 
     dependencyManagement {
         setApplyMavenExclusions(false)
+        generatedPomCustomization { setEnabled(false) }
         imports {
             mavenBom(rootLibs.bluetape4k.bom.get().toString())
             mavenBom(rootLibs.kotlinx.coroutines.bom.get().toString())
