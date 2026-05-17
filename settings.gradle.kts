@@ -12,7 +12,7 @@ pluginManagement {
 rootProject.name = "bluetape4k-leader"
 
 include(
-    "leader-bom",
+    "bluetape4k-leader-bom",
     "leader-core",
     "leader-redis-lettuce",
     "leader-redis-redisson",

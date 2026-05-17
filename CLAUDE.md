@@ -7,7 +7,7 @@
 ## Repository Layout
 
 ```
-leader-bom/              # BOM
+bluetape4k-leader-bom/   # BOM
 leader-core/             # Interfaces + local in-process implementations
 leader-redis-lettuce/    # Lettuce Redis backend
 leader-redis-redisson/   # Redisson Redis backend

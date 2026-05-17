@@ -12,7 +12,7 @@ MongoDB, Hazelcast, and ZooKeeper. Ktor 3.x integration is provided by
 ## Layout
 
 ```text
-leader-bom/
+bluetape4k-leader-bom/
 leader-core/
 leader-redis-lettuce/
 leader-redis-redisson/
@@ -115,12 +115,12 @@ subprojects
     .filter { !it.path.startsWith(":examples:") }
 // signing
 subprojects
-    .filter { it.name != "leader-bom" && !it.path.startsWith(":examples:") }
+    .filter { it.name != "bluetape4k-leader-bom" && !it.path.startsWith(":examples:") }
 ```
 
 When adding a new module under `examples/`, no publishing change is required —
 the path-prefix filter handles it. Library modules (`leader-*`) must be
-registered in `leader-bom/build.gradle.kts` constraints.
+registered in `bluetape4k-leader-bom/build.gradle.kts` constraints.
 
 ## CI / Scheduled Workflow Update Checklist
 
@@ -136,7 +136,7 @@ locations below in sync. Missing any of them silently disables coverage.
    - publishable `leader-*` modules: `.github/workflows/nightly.yml`
    - `examples/*` modules: `.github/workflows/examples.yml`
    - add the per-module/matrix test entry and aggregator `needs:` when needed
-4. `leader-bom/build.gradle.kts` — only for publishable `leader-*` modules
+4. `bluetape4k-leader-bom/build.gradle.kts` — only for publishable `leader-*` modules
    (NOT for `examples/*`).
 
 Example modules currently wired into `ci.yml` and `examples.yml`:
