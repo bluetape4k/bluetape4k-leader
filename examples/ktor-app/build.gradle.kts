@@ -19,8 +19,8 @@ dependencyManagement {
 }
 
 dependencies {
-    implementation(project(":leader-ktor"))
-    implementation(project(":leader-redis-lettuce"))
+    implementation(project(":bluetape4k-leader-ktor"))
+    implementation(project(":bluetape4k-leader-redis-lettuce"))
 
     implementation(libs.bluetape4k.coroutines)
     implementation(libs.bluetape4k.logging)

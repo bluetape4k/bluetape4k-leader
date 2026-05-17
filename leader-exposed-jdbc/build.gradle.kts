@@ -3,8 +3,8 @@ configurations {
 }
 
 dependencies {
-    api(project(":leader-core"))
-    api(project(":leader-exposed-core"))
+    api(project(":bluetape4k-leader-core"))
+    api(project(":bluetape4k-leader-exposed-core"))
 
     // Exposed JDBC
     api(libs.exposed.core)
@@ -34,5 +34,5 @@ dependencies {
     testImplementation(libs.testcontainers.mysql)
 
     // T10 PR 5 — Abstract*ContractTest 사용 (Issue #79)
-    testImplementation(testFixtures(project(":leader-core")))
+    testImplementation(testFixtures(project(":bluetape4k-leader-core")))
 }

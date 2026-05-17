@@ -63,15 +63,15 @@ dependencyManagement {
 }
 
 dependencies {
-    api(project(":leader-core"))
+    api(project(":bluetape4k-leader-core"))
 
-    compileOnly(project(":leader-redis-lettuce"))
-    compileOnly(project(":leader-redis-redisson"))
-    compileOnly(project(":leader-exposed-jdbc"))
-    compileOnly(project(":leader-exposed-r2dbc"))
-    compileOnly(project(":leader-mongodb"))
-    compileOnly(project(":leader-hazelcast"))
-    compileOnly(project(":leader-micrometer"))
+    compileOnly(project(":bluetape4k-leader-redis-lettuce"))
+    compileOnly(project(":bluetape4k-leader-redis-redisson"))
+    compileOnly(project(":bluetape4k-leader-exposed-jdbc"))
+    compileOnly(project(":bluetape4k-leader-exposed-r2dbc"))
+    compileOnly(project(":bluetape4k-leader-mongodb"))
+    compileOnly(project(":bluetape4k-leader-hazelcast"))
+    compileOnly(project(":bluetape4k-leader-micrometer"))
 
     compileOnly(libs.lettuce.core)
     compileOnly(libs.redisson)

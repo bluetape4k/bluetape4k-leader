@@ -3,7 +3,7 @@ configurations {
 }
 
 dependencies {
-    api(project(":leader-core"))
+    api(project(":bluetape4k-leader-core"))
     api(libs.bluetape4k.lettuce)
     api(libs.lettuce.core)
 
@@ -19,5 +19,5 @@ dependencies {
     testImplementation(libs.testcontainers.junit.jupiter)
 
     // T7 PR 2 — Abstract*ContractTest 사용
-    testImplementation(testFixtures(project(":leader-core")))
+    testImplementation(testFixtures(project(":bluetape4k-leader-core")))
 }

@@ -11,7 +11,7 @@ configurations {
 }
 
 dependencies {
-    implementation(project(":leader-exposed-r2dbc"))
+    implementation(project(":bluetape4k-leader-exposed-r2dbc"))
 
     implementation(libs.exposed.core)
     implementation(libs.exposed.r2dbc)

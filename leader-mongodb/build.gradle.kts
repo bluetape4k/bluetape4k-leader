@@ -3,7 +3,7 @@ configurations {
 }
 
 dependencies {
-    api(project(":leader-core"))
+    api(project(":bluetape4k-leader-core"))
     api(libs.mongodb.driver.sync)
     compileOnly(libs.mongodb.driver.kotlin.coroutine)
     compileOnly(libs.micrometer.core)
@@ -19,5 +19,5 @@ dependencies {
     testImplementation(libs.testcontainers.mongodb)
 
     // T9 PR 4 — Abstract*ContractTest 사용
-    testImplementation(testFixtures(project(":leader-core")))
+    testImplementation(testFixtures(project(":bluetape4k-leader-core")))
 }

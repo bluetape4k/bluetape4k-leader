@@ -3,8 +3,8 @@ configurations {
 }
 
 dependencies {
-    api(project(":leader-core"))
-    api(project(":leader-exposed-core"))
+    api(project(":bluetape4k-leader-core"))
+    api(project(":bluetape4k-leader-exposed-core"))
 
     // Exposed R2DBC
     api(libs.exposed.core)
@@ -43,5 +43,5 @@ dependencies {
     testImplementation(libs.mysql.connector.j)
 
     // T11 PR 6 — Abstract*ContractTest 사용 (Issue #79)
-    testImplementation(testFixtures(project(":leader-core")))
+    testImplementation(testFixtures(project(":bluetape4k-leader-core")))
 }

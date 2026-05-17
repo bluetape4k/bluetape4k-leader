@@ -3,7 +3,7 @@ configurations {
 }
 
 dependencies {
-    api(project(":leader-core"))
+    api(project(":bluetape4k-leader-core"))
     api(libs.bluetape4k.redisson)
     api(libs.redisson)
 
@@ -18,5 +18,5 @@ dependencies {
     testImplementation(libs.testcontainers.junit.jupiter)
 
     // T8 PR 3 — Abstract*ContractTest 사용
-    testImplementation(testFixtures(project(":leader-core")))
+    testImplementation(testFixtures(project(":bluetape4k-leader-core")))
 }

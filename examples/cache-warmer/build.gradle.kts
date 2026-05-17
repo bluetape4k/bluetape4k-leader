@@ -7,7 +7,7 @@ application {
 }
 
 dependencies {
-    implementation(project(":leader-hazelcast"))
+    implementation(project(":bluetape4k-leader-hazelcast"))
 
     implementation(libs.hazelcast)
     implementation(libs.bluetape4k.testcontainers)

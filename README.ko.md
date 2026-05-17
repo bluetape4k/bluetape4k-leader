@@ -93,21 +93,21 @@ graph TD
 
 ```kotlin
 // Redis (Redisson 또는 Lettuce)
-implementation("io.github.bluetape4k.leader:leader-redis-redisson:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.1.0-SNAPSHOT")
 // 또는
-implementation("io.github.bluetape4k.leader:leader-redis-lettuce:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:0.1.0-SNAPSHOT")
 
 // JDBC (H2 / PostgreSQL / MySQL, Exposed 기반)
-implementation("io.github.bluetape4k.leader:leader-exposed-jdbc:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-jdbc:0.1.0-SNAPSHOT")
 
 // R2DBC 코루틴 네이티브 (H2 / PostgreSQL / MySQL, Exposed 기반)
-implementation("io.github.bluetape4k.leader:leader-exposed-r2dbc:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc:0.1.0-SNAPSHOT")
 
 // ZooKeeper / Apache Curator
-implementation("io.github.bluetape4k.leader:leader-zookeeper:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-zookeeper:0.1.0-SNAPSHOT")
 
 // Ktor 3.x 통합 (LeaderElectionPlugin + leaderScheduled())
-implementation("io.github.bluetape4k.leader:leader-ktor:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor:0.1.0-SNAPSHOT")
 ```
 
 ### Exposed JDBC 방식 (H2 / PostgreSQL / MySQL)
@@ -498,8 +498,8 @@ Spring Boot AOP(`@LeaderElection`)를 사용할 때 `leader-micrometer`를 추�
 ### 의존성 추가
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:leader-spring-boot:0.1.0-SNAPSHOT")
-implementation("io.github.bluetape4k.leader:leader-micrometer:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.1.0-SNAPSHOT")
 ```
 
 `MeterRegistry` 빈이 존재하면 `MicrometerLeaderAopMetricsRecorder`가 자동 등록됩니다. 비활성화:

@@ -3,7 +3,7 @@ configurations {
 }
 
 dependencies {
-    api(project(":leader-core"))
+    api(project(":bluetape4k-leader-core"))
     api(libs.micrometer.core)
 
     testImplementation(libs.bluetape4k.virtualthread.jdk21)

@@ -3,7 +3,7 @@
 Distributed leader election library with blocking, async, coroutine, and
 virtual-thread APIs. Backends include Redis/Lettuce, Redis/Redisson, Exposed,
 MongoDB, Hazelcast, and ZooKeeper. Ktor 3.x integration is provided by
-`leader-ktor`.
+`bluetape4k-leader-ktor`.
 
 - Group: `io.github.bluetape4k.leader`
 - Publishing: Maven Central through NMCP (`examples/*` are excluded — see
@@ -41,11 +41,11 @@ buildSrc/
 ```bash
 ./gradlew clean build
 ./gradlew build -x test
-./gradlew :leader-core:build
-./gradlew :leader-redis-lettuce:test
-./gradlew :leader-redis-redisson:test
+./gradlew :bluetape4k-leader-core:build
+./gradlew :bluetape4k-leader-redis-lettuce:test
+./gradlew :bluetape4k-leader-redis-redisson:test
 ./gradlew test --tests "io.bluetape4k.leader.redisson.RedissonLeaderElectionTest"
-./gradlew :leader-spring-boot:test
+./gradlew :bluetape4k-leader-spring-boot:test
 ./gradlew detekt
 ./gradlew publishBluetape4kLeaderPublicationToBluetape4kLeaderRepository
 ./gradlew publishBluetape4kLeaderPublicationToBluetape4kLeaderRepository -PsnapshotVersion=
@@ -142,7 +142,7 @@ locations below in sync. Missing any of them silently disables coverage.
 Example modules currently wired into `ci.yml` and `examples.yml`:
 `batch-scheduler`, `migration-gate`, `webhook-poller`, `cache-warmer`,
 `tenant-aggregator`, `ktor-app`, `prometheus-dashboard`. The library module
-`leader-ktor` remains in `ci.yml` and `nightly.yml` (Testcontainers Redis).
+`bluetape4k-leader-ktor` remains in `ci.yml` and `nightly.yml` (Testcontainers Redis).
 
 ## Codex Spec / Plan / Code Review Stages
 
