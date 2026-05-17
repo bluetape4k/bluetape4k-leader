@@ -133,7 +133,7 @@ locations below in sync. Missing any of them silently disables coverage.
    - per-module test job (`test-<module>`)
    - aggregator `needs:` lists (build/test summary)
 3. Scheduled workflow:
-   - publishable `leader-*` modules: `.github/workflows/nightly.yml`
+   - publishable `leader-*` modules: `.github/workflows/nightly-tests.yml`
    - `examples/*` modules: `.github/workflows/examples.yml`
    - add the per-module/matrix test entry and aggregator `needs:` when needed
 4. `bluetape4k-leader-bom/build.gradle.kts` — only for publishable `leader-*` modules
@@ -142,7 +142,7 @@ locations below in sync. Missing any of them silently disables coverage.
 Example modules currently wired into `ci.yml` and `examples.yml`:
 `batch-scheduler`, `migration-gate`, `webhook-poller`, `cache-warmer`,
 `tenant-aggregator`, `ktor-app`, `prometheus-dashboard`. The library module
-`bluetape4k-leader-ktor` remains in `ci.yml` and `nightly.yml` (Testcontainers Redis).
+`bluetape4k-leader-ktor` remains in `ci.yml` and `nightly-tests.yml` (Testcontainers Redis).
 
 ## Codex Spec / Plan / Code Review Stages
 
