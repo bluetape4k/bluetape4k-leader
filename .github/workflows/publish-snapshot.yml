@@ -41,7 +41,7 @@ jobs:
           cache-read-only: true
       - name: Publish SNAPSHOT
         run: |
-          ./gradlew publishAggregationToCentralSnapshots \
+          ./gradlew publishAggregationToCentralSnapshots -PsnapshotVersion=-SNAPSHOT \
             --no-daemon --no-configuration-cache --no-build-cache
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
