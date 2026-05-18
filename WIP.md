@@ -1,6 +1,6 @@
 # WIP - bluetape4k-leader
 
-Snapshot: 2026-05-13 KST
+Snapshot: 2026-05-18 KST
 Scope: open GitHub issues assigned to `debop`, created on or after 2026-01-01.
 
 ## Recently Completed
@@ -32,6 +32,9 @@ The #79 backend implementation lane is no longer the active path. The next work 
 
 | Priority | Issue | Difficulty | Notes |
 |---|---|---:|---|
+| P1 | [#304](https://github.com/bluetape4k/bluetape4k-leader/issues/304) ExposedJdbc lock/elector swallows CancellationException | M | All 6 `runCatching{}` sites in ExposedJdbc lock and elector must rethrow `CancellationException`; fix before expanding leader-exposed-jdbc. |
+| P1 | [#305](https://github.com/bluetape4k/bluetape4k-leader/issues/305) ExposedJdbcLock.tryLock() NTP deadline bug | S | Replace `System.currentTimeMillis()` deadline with `System.nanoTime()` for monotonic clock guarantee. |
+| P1 | [#306](https://github.com/bluetape4k/bluetape4k-leader/issues/306) ExposedJdbcGroupLock.tryLock() same NTP deadline bug | S | Same `currentTimeMillis()` → `nanoTime()` fix as #305; fix both in one PR. |
 | P1 | [#173](https://github.com/bluetape4k/bluetape4k-leader/issues/173) watchdog graceful shutdown | M | Production reliability gap from #79 review; add lifecycle shutdown and scheduler failure handling. |
 | P1 | [#174](https://github.com/bluetape4k/bluetape4k-leader/issues/174) watchdog thread pool sizing / HOL blocking | M | Prevent tick starvation for many concurrent leases. |
 | P1 | [#74](https://github.com/bluetape4k/bluetape4k-leader/issues/74) Flux/Flow AOP support | L | Depends on settled lease extension semantics and backend coverage. |
@@ -49,6 +52,15 @@ The #79 backend implementation lane is no longer the active path. The next work 
 ## Dependency Map
 
 ```text
+#304 runCatching{} CancellationException suppression in ExposedJdbc lock/elector (P1)
+  -> fix before expanding leader-exposed-jdbc
+  -> related: #271 runBlocking bridges removal
+
+#305 ExposedJdbcLock.tryLock() currentTimeMillis() → nanoTime() (P1)
+#306 ExposedJdbcGroupLock.tryLock() same deadline bug (P1)
+  -> fix #305 and #306 together in one PR
+  -> monotonic clock required for reliable lock timeout in cloud environments
+
 #73 watchdog / auto-extend (closed by PR #153)
 #151 Redis group minLeaseTime slot-token TTL (closed by PR #170)
   -> #79 explicit lease extension API (closed through PR #178-#197)
