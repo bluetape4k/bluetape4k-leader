@@ -18,7 +18,7 @@ The module depends only on `leader-core` and Micrometer core. Export format is c
 
 ## Architecture
 
-![Architecture 1](../docs/images/readme-diagrams/leader-micrometer-diagram-01.svg)
+![Architecture 1](../docs/images/readme-diagrams/leader-micrometer-diagram-01.png)
 
 ## Dependency
 

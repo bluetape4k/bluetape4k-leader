@@ -6,7 +6,7 @@ Distributed batch scheduler example using Lettuce-Redis backend. Demonstrates sa
 
 ## Architecture
 
-![Architecture 1](../../docs/images/readme-diagrams/examples-batch-scheduler-diagram-01.svg)
+![Architecture 1](../../docs/images/readme-diagrams/examples-batch-scheduler-diagram-01.png)
 
 ## Core Features
 

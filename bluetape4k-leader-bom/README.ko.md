@@ -7,7 +7,7 @@
 
 ## Architecture
 
-![Architecture 1](../docs/images/readme-diagrams/bluetape4k-leader-bom-ko-diagram-01.svg)
+![Architecture 1](../docs/images/readme-diagrams/bluetape4k-leader-bom-ko-diagram-01.png)
 
 BOM은 Gradle `java-platform` 으로 `<dependencyManagement>` constraint 만 게시한다.
 

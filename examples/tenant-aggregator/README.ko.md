@@ -6,7 +6,7 @@ Exposed R2DBC 리더 선출 기반 멀티테넌트 집계기. N개 인스턴스 
 
 ## Architecture
 
-![Architecture 1](../../docs/images/readme-diagrams/examples-tenant-aggregator-ko-diagram-01.svg)
+![Architecture 1](../../docs/images/readme-diagrams/examples-tenant-aggregator-ko-diagram-01.png)
 
 ## Core Features
 

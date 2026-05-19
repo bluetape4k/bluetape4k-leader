@@ -18,7 +18,7 @@
 
 ## 아키텍처
 
-![Architecture 1](../docs/images/readme-diagrams/leader-mongodb-ko-diagram-01.svg)
+![Architecture 1](../docs/images/readme-diagrams/leader-mongodb-ko-diagram-01.png)
 
 ## 구현 클래스
 

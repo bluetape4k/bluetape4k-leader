@@ -6,7 +6,7 @@ Exposed-JDBC 백엔드 기반 분산 스키마 마이그레이션 게이트. K8s
 
 ## Architecture
 
-![Architecture 1](../../docs/images/readme-diagrams/examples-migration-gate-ko-diagram-01.svg)
+![Architecture 1](../../docs/images/readme-diagrams/examples-migration-gate-ko-diagram-01.png)
 
 ## Core Features
 

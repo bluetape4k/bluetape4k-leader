@@ -18,7 +18,7 @@ Schema is created automatically on first use via `SchemaUtils.createMissingTable
 
 ## Architecture
 
-![Architecture 1](../docs/images/readme-diagrams/leader-exposed-jdbc-diagram-01.svg)
+![Architecture 1](../docs/images/readme-diagrams/leader-exposed-jdbc-diagram-01.png)
 
 ## Implementations
 

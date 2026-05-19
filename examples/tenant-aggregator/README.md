@@ -6,7 +6,7 @@ Multi-tenant aggregator backed by Exposed R2DBC leader election. Each tenant is 
 
 ## Architecture
 
-![Architecture 1](../../docs/images/readme-diagrams/examples-tenant-aggregator-diagram-01.svg)
+![Architecture 1](../../docs/images/readme-diagrams/examples-tenant-aggregator-diagram-01.png)
 
 ## Core Features
 

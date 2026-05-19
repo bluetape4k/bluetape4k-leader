@@ -22,7 +22,7 @@ Hazelcast 기반 분산 리더 선출 — 블로킹, 비동기, Virtual Thread, 
 
 ## 아키텍처
 
-![Architecture 1](../docs/images/readme-diagrams/leader-hazelcast-ko-diagram-01.svg)
+![Architecture 1](../docs/images/readme-diagrams/leader-hazelcast-ko-diagram-01.png)
 
 ## 구현체
 
@@ -150,11 +150,11 @@ val groupElection = groupFactory.create(LeaderGroupElectionOptions(maxLeaders = 
 
 ### 락 획득/해제 시퀀스
 
-![Component Component/Component Component 2](../docs/images/readme-diagrams/leader-hazelcast-ko-diagram-02.svg)
+![Component Component/Component Component 2](../docs/images/readme-diagrams/leader-hazelcast-ko-diagram-02.png)
 
 ### 그룹 선출 슬롯 시퀀스 (maxLeaders = N)
 
-![Component Component Component Component (maxLeaders = N) 3](../docs/images/readme-diagrams/leader-hazelcast-ko-diagram-03.svg)
+![Component Component Component Component (maxLeaders = N) 3](../docs/images/readme-diagrams/leader-hazelcast-ko-diagram-03.png)
 
 그룹 선출은 N개의 슬롯 키(`lockName:slot:0` … `lockName:slot:N-1`)로 세마포어를 시뮬레이션합니다. 각 호출자는 슬롯을 순서대로 시도하고, 처음 획득한 슬롯을 사용합니다.
 

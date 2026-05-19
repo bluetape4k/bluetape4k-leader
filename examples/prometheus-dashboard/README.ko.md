@@ -7,7 +7,7 @@ Spring Boot 4 애플리케이션이 bluetape4k leader election 메트릭을
 
 ## 아키텍처
 
-![Architecture 1](../../docs/images/readme-diagrams/examples-prometheus-dashboard-ko-diagram-01.svg)
+![Architecture 1](../../docs/images/readme-diagrams/examples-prometheus-dashboard-ko-diagram-01.png)
 
 ## 핵심 기능
 

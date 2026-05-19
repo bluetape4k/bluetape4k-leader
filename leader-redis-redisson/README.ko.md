@@ -18,7 +18,7 @@
 
 ## 아키텍처
 
-![Architecture 1](../docs/images/readme-diagrams/leader-redis-redisson-ko-diagram-01.svg)
+![Architecture 1](../docs/images/readme-diagrams/leader-redis-redisson-ko-diagram-01.png)
 
 ## 그룹 락 흐름
 
@@ -26,11 +26,11 @@
 
 ### 시나리오 1 — 정상 acquire/release 와 crash recovery
 
-![Component 1 — Component acquire/release Component crash recovery 2](../docs/images/readme-diagrams/leader-redis-redisson-ko-diagram-02.svg)
+![Component 1 — Component acquire/release Component crash recovery 2](../docs/images/readme-diagrams/leader-redis-redisson-ko-diagram-02.png)
 
 ### 시나리오 2 — `updateLeaseTime` 을 통한 `minLeaseTime`
 
-![Component 2 — updateLeaseTime Component Component minLeaseTime 3](../docs/images/readme-diagrams/leader-redis-redisson-ko-diagram-03.svg)
+![Component 2 — updateLeaseTime Component Component minLeaseTime 3](../docs/images/readme-diagrams/leader-redis-redisson-ko-diagram-03.png)
 
 ## 구현체 목록
 

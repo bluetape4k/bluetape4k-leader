@@ -12,7 +12,7 @@
 
 ## 아키텍처
 
-![Architecture 1](../docs/images/readme-diagrams/leader-core-ko-diagram-01.svg)
+![Architecture 1](../docs/images/readme-diagrams/leader-core-ko-diagram-01.png)
 
 ## API 계약
 
@@ -109,11 +109,11 @@ LeaderGroupElectionOptions(
 
 ### 단일 리더: 락 획득/해제
 
-![Component Component: Component Component/Component 2](../docs/images/readme-diagrams/leader-core-ko-diagram-02.svg)
+![Component Component: Component Component/Component 2](../docs/images/readme-diagrams/leader-core-ko-diagram-02.png)
 
 ### 복수 리더 그룹: 슬롯 기반 세마포어 (maxLeaders = N)
 
-![Component Component Component: Component Component Component (maxLeaders = N) 3](../docs/images/readme-diagrams/leader-core-ko-diagram-03.svg)
+![Component Component Component: Component Component Component (maxLeaders = N) 3](../docs/images/readme-diagrams/leader-core-ko-diagram-03.png)
 
 ## 로컬 구현체 목록
 

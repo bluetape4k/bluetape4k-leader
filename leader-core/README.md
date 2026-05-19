@@ -12,7 +12,7 @@ Core interfaces and local in-process implementations for `bluetape4k-leader`.
 
 ## Architecture
 
-![Architecture 1](../docs/images/readme-diagrams/leader-core-diagram-01.svg)
+![Architecture 1](../docs/images/readme-diagrams/leader-core-diagram-01.png)
 
 ## API Contract
 
@@ -111,11 +111,11 @@ LeaderGroupElectionOptions(
 
 ### Single-leader: lock acquire/release
 
-![Single-leader: lock acquire/release 2](../docs/images/readme-diagrams/leader-core-diagram-02.svg)
+![Single-leader: lock acquire/release 2](../docs/images/readme-diagrams/leader-core-diagram-02.png)
 
 ### Multi-leader group: slot-based semaphore (maxLeaders = N)
 
-![Multi-leader group: slot-based semaphore (maxLeaders = N) 3](../docs/images/readme-diagrams/leader-core-diagram-03.svg)
+![Multi-leader group: slot-based semaphore (maxLeaders = N) 3](../docs/images/readme-diagrams/leader-core-diagram-03.png)
 
 ## Local Implementations
 

@@ -20,7 +20,7 @@ Lock strategy: `IMap.putIfAbsent(key, token, leaseTimeMs, MILLISECONDS)` for ato
 
 ## Architecture
 
-![Architecture 1](../docs/images/readme-diagrams/leader-hazelcast-diagram-01.svg)
+![Architecture 1](../docs/images/readme-diagrams/leader-hazelcast-diagram-01.png)
 
 ## Implementations
 
@@ -148,11 +148,11 @@ Check:   IMap.get(lockKey) == token
 
 ### Lock acquire/release sequence
 
-![Lock acquire/release sequence 2](../docs/images/readme-diagrams/leader-hazelcast-diagram-02.svg)
+![Lock acquire/release sequence 2](../docs/images/readme-diagrams/leader-hazelcast-diagram-02.png)
 
 ### Group election slot sequence (maxLeaders = N)
 
-![Group election slot sequence (maxLeaders = N) 3](../docs/images/readme-diagrams/leader-hazelcast-diagram-03.svg)
+![Group election slot sequence (maxLeaders = N) 3](../docs/images/readme-diagrams/leader-hazelcast-diagram-03.png)
 
 Group election simulates a semaphore with N slot keys (`lockName:slot:0` … `lockName:slot:N-1`). Each caller tries slots in sequence; first acquired slot wins.
 

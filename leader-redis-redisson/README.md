@@ -18,7 +18,7 @@ The coroutine single-leader implementation uses a PID-seeded mini-Snowflake ID g
 
 ## Architecture
 
-![Architecture 1](../docs/images/readme-diagrams/leader-redis-redisson-diagram-01.svg)
+![Architecture 1](../docs/images/readme-diagrams/leader-redis-redisson-diagram-01.png)
 
 ## Group Lock Flow
 
@@ -26,11 +26,11 @@ The `RPermitExpirableSemaphore`-backed group elector behaves equivalently to the
 
 ### Scenario 1 — Normal acquire/release plus crash recovery
 
-![Scenario 1 — Normal acquire/release plus crash recovery 2](../docs/images/readme-diagrams/leader-redis-redisson-diagram-02.svg)
+![Scenario 1 — Normal acquire/release plus crash recovery 2](../docs/images/readme-diagrams/leader-redis-redisson-diagram-02.png)
 
 ### Scenario 2 — `minLeaseTime` via `updateLeaseTime`
 
-![Scenario 2 — minLeaseTime via updateLeaseTime 3](../docs/images/readme-diagrams/leader-redis-redisson-diagram-03.svg)
+![Scenario 2 — minLeaseTime via updateLeaseTime 3](../docs/images/readme-diagrams/leader-redis-redisson-diagram-03.png)
 
 ## Implementations
 

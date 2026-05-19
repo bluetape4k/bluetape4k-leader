@@ -6,7 +6,7 @@ Distributed webhook event poller using MongoDB leader election. Demonstrates saf
 
 ## Architecture
 
-![Architecture 1](../../docs/images/readme-diagrams/examples-webhook-poller-diagram-01.svg)
+![Architecture 1](../../docs/images/readme-diagrams/examples-webhook-poller-diagram-01.png)
 
 ## Core Features
 

@@ -18,7 +18,7 @@ Group strategy (slot-token TTL model): a single ZSET key `lg:{lockName}` whose m
 
 ## Architecture
 
-![Architecture 1](../docs/images/readme-diagrams/leader-redis-lettuce-diagram-01.svg)
+![Architecture 1](../docs/images/readme-diagrams/leader-redis-lettuce-diagram-01.png)
 
 ## Group Lock Flow
 
@@ -26,11 +26,11 @@ The slot-token TTL model is best understood through two scenarios: a normal acqu
 
 ### Scenario 1 — Normal acquire/release plus crash recovery
 
-![Scenario 1 — Normal acquire/release plus crash recovery 2](../docs/images/readme-diagrams/leader-redis-lettuce-diagram-02.svg)
+![Scenario 1 — Normal acquire/release plus crash recovery 2](../docs/images/readme-diagrams/leader-redis-lettuce-diagram-02.png)
 
 ### Scenario 2 — `minLeaseTime` delegated to backend TTL
 
-![Scenario 2 — minLeaseTime delegated to backend TTL 3](../docs/images/readme-diagrams/leader-redis-lettuce-diagram-03.svg)
+![Scenario 2 — minLeaseTime delegated to backend TTL 3](../docs/images/readme-diagrams/leader-redis-lettuce-diagram-03.png)
 
 ## Implementations
 

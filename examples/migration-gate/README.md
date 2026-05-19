@@ -6,7 +6,7 @@ Distributed schema migration gate using Exposed JDBC backend. Demonstrates safe 
 
 ## Architecture
 
-![Architecture 1](../../docs/images/readme-diagrams/examples-migration-gate-diagram-01.svg)
+![Architecture 1](../../docs/images/readme-diagrams/examples-migration-gate-diagram-01.png)
 
 ## Core Features
 
