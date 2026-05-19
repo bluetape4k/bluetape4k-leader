@@ -18,36 +18,7 @@
 
 ## 아키텍처
 
-```mermaid
-classDiagram
-    class LeaderElector { <<interface>> }
-    class AsyncLeaderElector { <<interface>> }
-    class LeaderGroupElector { <<interface>> }
-    class SuspendLeaderElector { <<interface>> }
-    class SuspendLeaderGroupElector { <<interface>> }
-
-    class MongoLock {
-        +tryLock(waitTime, leaseTime) Boolean
-        +unlock()
-        +isHeldByCurrentInstance() Boolean
-    }
-    class MongoSuspendLock {
-        +tryLock(waitTime, leaseTime) Boolean
-        +unlock()
-        +isHeldByCurrentInstance() Boolean
-    }
-
-    MongoLeaderElector ..|> LeaderElector
-    MongoLeaderElector ..|> AsyncLeaderElector
-    MongoLeaderGroupElector ..|> LeaderGroupElector
-    MongoSuspendLeaderElector ..|> SuspendLeaderElector
-    MongoSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
-
-    MongoLeaderElector --> MongoLock
-    MongoLeaderGroupElector --> MongoLock
-    MongoSuspendLeaderElector --> MongoSuspendLock
-    MongoSuspendLeaderGroupElector --> MongoSuspendLock
-```
+![Architecture diagram](../docs/images/readme-diagrams/leader-mongodb-class-01.png)
 
 ## 구현 클래스
 

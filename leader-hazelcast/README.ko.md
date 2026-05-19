@@ -22,34 +22,7 @@ Hazelcast 기반 분산 리더 선출 — 블로킹, 비동기, Virtual Thread, 
 
 ## 아키텍처
 
-```mermaid
-classDiagram
-    class LeaderElector { <<interface>> }
-    class LeaderGroupElector { <<interface>> }
-    class SuspendLeaderElector { <<interface>> }
-    class SuspendLeaderGroupElector { <<interface>> }
-
-    class HazelcastLock {
-        +tryLock(waitTime, leaseTime) Boolean
-        +isHeldByCurrentInstance() Boolean
-        +unlock()
-    }
-    class HazelcastSuspendLock {
-        +tryLock(waitTime, leaseTime) Boolean
-        +isHeldByCurrentInstance() Boolean
-        +unlock()
-    }
-
-    HazelcastLeaderElector ..|> LeaderElector
-    HazelcastLeaderGroupElector ..|> LeaderGroupElector
-    HazelcastSuspendLeaderElector ..|> SuspendLeaderElector
-    HazelcastSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
-
-    HazelcastLeaderElector --> HazelcastLock
-    HazelcastLeaderGroupElector --> HazelcastLock
-    HazelcastSuspendLeaderElector --> HazelcastSuspendLock
-    HazelcastSuspendLeaderGroupElector --> HazelcastSuspendLock
-```
+![Architecture diagram](../docs/images/readme-diagrams/leader-hazelcast-class-01.png)
 
 ## 구현체
 
@@ -177,68 +150,11 @@ val groupElection = groupFactory.create(LeaderGroupElectionOptions(maxLeaders = 
 
 ### 락 획득/해제 시퀀스
 
-```mermaid
-sequenceDiagram
-    participant Caller
-    participant HazelcastLock
-    participant IMap
-
-    Caller->>HazelcastLock: tryLock(waitTime, leaseTime)
-    loop deadline 까지 반복
-        HazelcastLock->>IMap: putIfAbsent(lockKey, token, leaseTimeMs)
-        alt 키 없음 (null 반환)
-            IMap-->>HazelcastLock: null
-            HazelcastLock-->>Caller: true (획득 성공)
-        else 키 존재
-            IMap-->>HazelcastLock: 기존 토큰
-            HazelcastLock->>HazelcastLock: sleep min(50ms, remaining)
-        end
-    end
-    HazelcastLock-->>Caller: false (timeout)
-
-    Note over Caller,IMap: action() 실행 중 (TTL 카운트다운)
-
-    Caller->>HazelcastLock: isHeldByCurrentInstance()
-    HazelcastLock->>IMap: get(lockKey)
-    IMap-->>HazelcastLock: 저장된 토큰
-    HazelcastLock-->>Caller: 저장된 토큰 == token
-
-    Caller->>HazelcastLock: unlock()
-    HazelcastLock->>IMap: remove(lockKey, token)
-    alt 토큰 일치
-        IMap-->>HazelcastLock: true
-        Note over HazelcastLock: 락 해제 완료
-    else 토큰 불일치 (TTL 만료, 다른 노드가 재획득)
-        IMap-->>HazelcastLock: false
-        Note over HazelcastLock: 경고 — 스플릿 브레인 가능성
-    end
-```
+![/ diagram](../docs/images/readme-diagrams/leader-hazelcast-sequence-02.png)
 
 ### 그룹 선출 슬롯 시퀀스 (maxLeaders = N)
 
-```mermaid
-sequenceDiagram
-    participant Caller
-    participant GroupElection
-    participant IMap
-
-    Caller->>GroupElection: runIfLeader(lockName)
-    loop slot = 0..N-1
-        GroupElection->>IMap: putIfAbsent(lockName:slot:i, token, leaseTimeMs)
-        alt 슬롯 획득 성공
-            IMap-->>GroupElection: null
-            Note over GroupElection: acquiredLock = slot i
-            GroupElection->>Caller: action()
-            Caller-->>GroupElection: result
-            GroupElection->>IMap: remove(lockName:slot:i, token)
-            GroupElection-->>Caller: result
-        else 슬롯 사용 중
-            IMap-->>GroupElection: 기존 토큰
-            Note over GroupElection: 다음 슬롯 시도
-        end
-    end
-    Note over GroupElection: 모든 슬롯 사용 중 → null 반환
-```
+![(maxLeaders = N) diagram](../docs/images/readme-diagrams/leader-hazelcast-sequence-03.png)
 
 그룹 선출은 N개의 슬롯 키(`lockName:slot:0` … `lockName:slot:N-1`)로 세마포어를 시뮬레이션합니다. 각 호출자는 슬롯을 순서대로 시도하고, 처음 획득한 슬롯을 사용합니다.
 

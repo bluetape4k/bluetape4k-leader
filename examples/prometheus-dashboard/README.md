@@ -7,23 +7,7 @@ through `/actuator/prometheus` and visualizes them in Prometheus and Grafana.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    Scheduler["@Scheduled trigger"]
-    Job["@LeaderElection job"]
-    App["Spring Boot app<br/>leader-spring-boot"]
-    Redis["Redis<br/>leader lock"]
-    Actuator["/actuator/prometheus"]
-    Prometheus["Prometheus"]
-    Grafana["Grafana dashboard"]
-
-    Scheduler --> Job
-    Job --> App
-    App <--> Redis
-    App --> Actuator
-    Prometheus --> Actuator
-    Grafana --> Prometheus
-```
+![Architecture diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-architecture-01.png)
 
 ## Core Features
 

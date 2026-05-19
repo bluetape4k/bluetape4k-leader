@@ -18,25 +18,7 @@ bluetape4k leader election을 위한 Micrometer 계측 모듈입니다.
 
 ## 아키텍처
 
-```mermaid
-graph TD
-    Aop["@LeaderElection<br/>@LeaderGroupElection"]
-    Recorder["MicrometerLeaderAopMetricsRecorder"]
-    Direct["직접 elector 호출"]
-    Decorators["Instrumented*Elector decorators"]
-    Listener["LeaderElectionListener callbacks"]
-    ListenerMetrics["MicrometerLeaderElectionListener"]
-    Registry["MeterRegistry"]
-    Backend["Prometheus / Datadog / OTLP"]
-
-    Aop --> Recorder
-    Direct --> Decorators
-    Listener --> ListenerMetrics
-    Recorder --> Registry
-    Decorators --> Registry
-    ListenerMetrics --> Registry
-    Registry --> Backend
-```
+![Architecture diagram](../docs/images/readme-diagrams/leader-micrometer-architecture-01.png)
 
 ## 의존성
 

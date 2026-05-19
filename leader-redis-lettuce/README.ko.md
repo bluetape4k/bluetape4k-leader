@@ -18,45 +18,7 @@
 
 ## 아키텍처
 
-```mermaid
-classDiagram
-    class LeaderElector {
-        <<interface>>
-    }
-    class LeaderGroupElector {
-        <<interface>>
-    }
-    class SuspendLeaderElector {
-        <<interface>>
-    }
-    class SuspendLeaderGroupElector {
-        <<interface>>
-    }
-
-    class LettuceLock {
-        +tryLock(key, value, ttl) Boolean
-        +unlock(key, value)
-    }
-    class LettuceSlotTokenGroup {
-        +tryAcquire(waitTime, leaseTime) String?
-        +release(token, remainingMinLeaseMs)
-        +activeCount() Int
-    }
-    class LettuceSuspendLock {
-        +tryLock(key, value, ttl) Boolean
-        +unlock(key, value)
-    }
-
-    LettuceLeaderElector ..|> LeaderElector
-    LettuceLeaderGroupElector ..|> LeaderGroupElector
-    LettuceSuspendLeaderElector ..|> SuspendLeaderElector
-    LettuceSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
-
-    LettuceLeaderElector --> LettuceLock
-    LettuceLeaderGroupElector --> LettuceSlotTokenGroup
-    LettuceSuspendLeaderElector --> LettuceSuspendLock
-    LettuceSuspendLeaderGroupElector --> LettuceSlotTokenGroup
-```
+![Architecture diagram](../docs/images/readme-diagrams/leader-redis-lettuce-class-01.png)
 
 ## 그룹 락 흐름
 
@@ -64,65 +26,11 @@ slot-token TTL 모델은 두 시나리오로 가장 잘 이해할 수 있습니�
 
 ### 시나리오 1 — 정상 acquire/release 와 crash recovery
 
-```mermaid
-sequenceDiagram
-    participant ClientA
-    participant ClientB
-    participant Redis as "Redis (lg:{lockName} ZSET)"
-
-    Note over ClientA,Redis: 정상 흐름 — slot-token TTL
-    ClientA->>Redis: EVALSHA ACQUIRE (maxLeaders=2, token=A1, leaseMs=10s)
-    Redis->>Redis: TIME -> nowMs<br/>ZREMRANGEBYSCORE 0 nowMs<br/>ZCARD < maxLeaders<br/>ZADD score=(nowMs+10s) member=A1<br/>PEXPIRE key (15s)
-    Redis-->>ClientA: token A1
-    ClientA->>ClientA: action() 실행
-
-    Note over ClientB,Redis: ClientA 작업 중
-    ClientB->>Redis: EVALSHA ACQUIRE (token=B1)
-    Redis-->>ClientB: token B1 (slot 2)
-
-    ClientA->>Redis: EVALSHA RELEASE (A1, remainingMinLeaseMs=0)
-    Redis->>Redis: ZREM lg:{lockName} A1
-    Redis-->>ClientA: 1
-
-    Note over ClientA,Redis: ClientA crash 시뮬레이션 (release 호출 안 됨)
-    ClientA->>Redis: EVALSHA ACQUIRE (token=A2, leaseMs=2s)
-    Redis-->>ClientA: token A2
-    ClientA->>ClientA: release 전 crash
-
-    Note over ClientB,Redis: 2초 후 leaseTime 만료
-    ClientB->>Redis: EVALSHA ACQUIRE (token=B3)
-    Redis->>Redis: ZREMRANGEBYSCORE -> A2 자동 정리<br/>ZADD B3
-    Redis-->>ClientB: token B3 (자동 회수)
-```
+![1 — acquire / release crash recovery diagram](../docs/images/readme-diagrams/leader-redis-lettuce-sequence-02.png)
 
 ### 시나리오 2 — `minLeaseTime` 의 backend TTL 위임
 
-```mermaid
-sequenceDiagram
-    participant ClientA
-    participant ClientB
-    participant Redis as "Redis (lg:{lockName} ZSET)"
-
-    Note over ClientA,Redis: minLeaseTime=300ms, action 빨리 종료 (50ms)
-
-    ClientA->>Redis: ACQUIRE token=A1
-    Redis-->>ClientA: token A1
-    ClientA->>ClientA: action() 50ms 실행
-    ClientA->>Redis: RELEASE (A1, remainingMinLeaseMs=250)
-    Redis->>Redis: TIME -> nowMs<br/>ZADD XX score=(nowMs+250) A1
-    Redis-->>ClientA: 1
-    Note over ClientA: caller 즉시 반환 (park 없음)
-
-    Note over ClientB,Redis: 250ms 이내
-    ClientB->>Redis: ACQUIRE (waitTime=100ms)
-    Redis->>Redis: ZREMRANGEBYSCORE -> A1 미만료<br/>ZCARD == maxLeaders
-    Redis-->>ClientB: '' (실패)
-
-    Note over ClientB,Redis: 250ms 후
-    ClientB->>Redis: ACQUIRE
-    Redis->>Redis: ZREMRANGEBYSCORE -> A1 만료 정리
-    Redis-->>ClientB: token B1 (성공)
-```
+![2 — `minLeaseTime` backend TTL diagram](../docs/images/readme-diagrams/leader-redis-lettuce-sequence-03.png)
 
 ## 구현체 목록
 

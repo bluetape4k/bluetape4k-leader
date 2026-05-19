@@ -8,40 +8,7 @@ individual versions.
 
 ## Architecture
 
-```mermaid
-graph TB
-    Consumer[Consumer Project]
-    BOM[bluetape4k-leader-bom<br/>java-platform]
-
-    subgraph "Core"
-      Core[leader-core]
-    end
-
-    subgraph "Backends"
-      RL[leader-redis-lettuce]
-      RR[leader-redis-redisson]
-      ExC[leader-exposed-core]
-      ExJ[leader-exposed-jdbc]
-      ExR[leader-exposed-r2dbc]
-      Mongo[leader-mongodb]
-      Hzl[leader-hazelcast]
-      Zk[leader-zookeeper]
-    end
-
-    subgraph "Spring / Metrics / Ktor"
-      SB[leader-spring-boot]
-      Mm[leader-micrometer]
-      Ktor[leader-ktor]
-    end
-
-    Consumer -->|platform import| BOM
-    BOM -.->|version constraints| Core
-    BOM -.->|version constraints| RL
-    BOM -.->|version constraints| Mongo
-    BOM -.->|version constraints| SB
-    BOM -.->|version constraints| Mm
-    BOM -.->|version constraints| Ktor
-```
+![Architecture diagram](../docs/images/readme-diagrams/bluetape4k-leader-bom-architecture-01.png)
 
 The BOM is a Gradle `java-platform` that publishes only `<dependencyManagement>` constraints — no runtime classes.
 
