@@ -18,7 +18,7 @@ H2, PostgreSQL, MySQL 8 호환.
 
 ## 아키텍처
 
-![Architecture diagram](../docs/images/readme-diagrams/leader-exposed-jdbc-class-01.png)
+![leader exposed jdbc Class Structure diagram](../docs/images/readme-diagrams/leader-exposed-jdbc-class-01.png)
 
 ## 구현체 목록
 

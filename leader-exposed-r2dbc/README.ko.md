@@ -14,7 +14,7 @@
 
 ## 아키텍처
 
-![Architecture diagram](../docs/images/readme-diagrams/leader-exposed-r2dbc-class-01.png)
+![leader exposed r2dbc Class Structure diagram](../docs/images/readme-diagrams/leader-exposed-r2dbc-class-01.png)
 
 ## 구현체
 

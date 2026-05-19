@@ -6,7 +6,7 @@ MongoDB 리더 선출을 이용한 분산 webhook event 폴러. N 개 pod 환경
 
 ## Architecture
 
-![Architecture diagram](../../docs/images/readme-diagrams/examples-webhook-poller-sequence-01.png)
+![webhook poller Sequence Flow diagram](../../docs/images/readme-diagrams/examples-webhook-poller-sequence-01.png)
 
 ## Core Features
 

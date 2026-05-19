@@ -18,7 +18,7 @@ bluetape4k leader election을 위한 Micrometer 계측 모듈입니다.
 
 ## 아키텍처
 
-![Architecture diagram](../docs/images/readme-diagrams/leader-micrometer-architecture-01.png)
+![leader micrometer Architecture diagram](../docs/images/readme-diagrams/leader-micrometer-architecture-01.png)
 
 ## 의존성
 

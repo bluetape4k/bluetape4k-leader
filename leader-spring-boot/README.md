@@ -19,7 +19,7 @@ The AOP layer is built for AspectJ compile-time weaving via Freefair post-compil
 
 ## Architecture
 
-![Architecture diagram](../docs/images/readme-diagrams/leader-spring-boot-architecture-01.png)
+![leader spring boot Architecture diagram](../docs/images/readme-diagrams/leader-spring-boot-architecture-01.png)
 
 ## Dependency
 
@@ -218,7 +218,7 @@ fun process(): Mono<String> =
 
 ### Sequence: reentrant `@LeaderElection`
 
-![Sequence: reentrant `@LeaderElection` diagram](../docs/images/readme-diagrams/leader-spring-boot-sequence-02.png)
+![Sequence: reentrant @LeaderElection diagram](../docs/images/readme-diagrams/leader-spring-boot-sequence-02.png)
 
 ### Watchdog × LockExtender
 

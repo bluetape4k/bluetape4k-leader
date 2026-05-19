@@ -6,7 +6,7 @@ Ktor 3.x REST API 서버 + 리더 선출로 보호되는 주기 백그라운드 
 
 ## Architecture
 
-![Architecture diagram](../../docs/images/readme-diagrams/examples-ktor-app-sequence-01.png)
+![ktor app Sequence Flow diagram](../../docs/images/readme-diagrams/examples-ktor-app-sequence-01.png)
 
 ## 핵심 기능
 

@@ -7,7 +7,7 @@ through `/actuator/prometheus` and visualizes them in Prometheus and Grafana.
 
 ## Architecture
 
-![Architecture diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-architecture-01.png)
+![prometheus dashboard Architecture diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-architecture-01.png)
 
 ## Core Features
 

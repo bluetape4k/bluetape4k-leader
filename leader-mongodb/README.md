@@ -18,7 +18,7 @@ Lock strategy:
 
 ## Architecture
 
-![Architecture diagram](../docs/images/readme-diagrams/leader-mongodb-class-01.png)
+![leader mongodb Class Structure diagram](../docs/images/readme-diagrams/leader-mongodb-class-01.png)
 
 ## Implementations
 

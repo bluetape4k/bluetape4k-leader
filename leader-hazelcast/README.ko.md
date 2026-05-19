@@ -22,7 +22,7 @@ Hazelcast 기반 분산 리더 선출 — 블로킹, 비동기, Virtual Thread, 
 
 ## 아키텍처
 
-![Architecture diagram](../docs/images/readme-diagrams/leader-hazelcast-class-01.png)
+![leader hazelcast Class Structure diagram](../docs/images/readme-diagrams/leader-hazelcast-class-01.png)
 
 ## 구현체
 

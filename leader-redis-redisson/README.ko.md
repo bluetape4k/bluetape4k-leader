@@ -18,7 +18,7 @@
 
 ## 아키텍처
 
-![Architecture diagram](../docs/images/readme-diagrams/leader-redis-redisson-class-01.png)
+![leader redis redisson Class Structure diagram](../docs/images/readme-diagrams/leader-redis-redisson-class-01.png)
 
 ## 그룹 락 흐름
 
@@ -26,11 +26,11 @@
 
 ### 시나리오 1 — 정상 acquire/release 와 crash recovery
 
-![1 — acquire / release crash recovery diagram](../docs/images/readme-diagrams/leader-redis-redisson-sequence-02.png)
+![1 — acquire/release crash recovery diagram](../docs/images/readme-diagrams/leader-redis-redisson-sequence-02.png)
 
 ### 시나리오 2 — `updateLeaseTime` 을 통한 `minLeaseTime`
 
-![2 — `updateLeaseTime` `minLeaseTime` diagram](../docs/images/readme-diagrams/leader-redis-redisson-sequence-03.png)
+![2 — updateLeaseTime minLeaseTime diagram](../docs/images/readme-diagrams/leader-redis-redisson-sequence-03.png)
 
 ## 구현체 목록
 

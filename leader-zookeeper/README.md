@@ -19,7 +19,7 @@ ZooKeeper session expiry removes ephemeral recipe nodes, so locks are released w
 
 ## Architecture
 
-![Architecture diagram](../docs/images/readme-diagrams/leader-zookeeper-class-01.png)
+![leader zookeeper Class Structure diagram](../docs/images/readme-diagrams/leader-zookeeper-class-01.png)
 
 ## Implementations
 

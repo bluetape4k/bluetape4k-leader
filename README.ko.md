@@ -26,7 +26,7 @@ Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
 
 ## 아키텍처
 
-![Architecture diagram](docs/images/readme-diagrams/bluetape4k-leader-architecture-01.png)
+![leader Architecture diagram](docs/images/readme-diagrams/bluetape4k-leader-architecture-01.png)
 
 ## 모듈 목록
 
@@ -229,7 +229,7 @@ val result = election.runIfLeader("job") { "done" }
 
 여러 노드가 동시에 `runIfLeader`를 호출하면 하나만 락을 획득하고 action을 실행하며, 나머지는 `null`을 반환합니다.
 
-![`runIfLeader` diagram](docs/images/readme-diagrams/bluetape4k-leader-sequence-02.png)
+![runIfLeader diagram](docs/images/readme-diagrams/bluetape4k-leader-sequence-02.png)
 
 ### 복수 리더 그룹: 슬롯 기반 세마포어
 

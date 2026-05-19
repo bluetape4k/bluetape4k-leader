@@ -8,7 +8,7 @@ individual versions.
 
 ## Architecture
 
-![Architecture diagram](../docs/images/readme-diagrams/bluetape4k-leader-bom-architecture-01.png)
+![leader bom Architecture diagram](../docs/images/readme-diagrams/bluetape4k-leader-bom-architecture-01.png)
 
 The BOM is a Gradle `java-platform` that publishes only `<dependencyManagement>` constraints — no runtime classes.
 

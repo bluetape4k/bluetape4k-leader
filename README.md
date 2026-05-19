@@ -26,7 +26,7 @@ Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
 
 ## Architecture
 
-![Architecture diagram](docs/images/readme-diagrams/bluetape4k-leader-architecture-01.png)
+![leader Architecture diagram](docs/images/readme-diagrams/bluetape4k-leader-architecture-01.png)
 
 ## Modules
 
@@ -229,7 +229,7 @@ val result = election.runIfLeader("job") { "done" }
 
 Multiple nodes call `runIfLeader` concurrently — only one acquires the lock and runs the action; the rest return `null`.
 
-![How `runIfLeader` Works diagram](docs/images/readme-diagrams/bluetape4k-leader-sequence-02.png)
+![How runIfLeader Works diagram](docs/images/readme-diagrams/bluetape4k-leader-sequence-02.png)
 
 ### Multi-leader group: slot-based semaphore
 

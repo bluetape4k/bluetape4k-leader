@@ -19,7 +19,7 @@ AOP 계층은 Freefair post-compile weaving을 통한 AspectJ compile-time weavi
 
 ## 아키텍처
 
-![Architecture diagram](../docs/images/readme-diagrams/leader-spring-boot-architecture-01.png)
+![leader spring boot Architecture diagram](../docs/images/readme-diagrams/leader-spring-boot-architecture-01.png)
 
 ## 의존성
 
@@ -218,7 +218,7 @@ fun process(): Mono<String> =
 
 ### 시퀀스 — reentrant `@LeaderElection`
 
-![— reentrant `@LeaderElection` diagram](../docs/images/readme-diagrams/leader-spring-boot-sequence-02.png)
+![— reentrant @LeaderElection diagram](../docs/images/readme-diagrams/leader-spring-boot-sequence-02.png)
 
 ### Watchdog × LockExtender
 

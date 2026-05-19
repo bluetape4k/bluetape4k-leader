@@ -15,7 +15,7 @@ A group election shares slots inside a single lockName, so the caller cannot
 guarantee a slot ↔ partition mapping. Per-partition lockNames express the
 contract directly: **"for partition P, exactly one instance warms"**.
 
-![Architecture diagram](../../docs/images/readme-diagrams/examples-cache-warmer-sequence-01.png)
+![cache warmer Sequence Flow diagram](../../docs/images/readme-diagrams/examples-cache-warmer-sequence-01.png)
 
 ## Core Features
 
