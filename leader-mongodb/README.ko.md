@@ -18,7 +18,7 @@
 
 ## 아키텍처
 
-![Architecture diagram](../docs/images/readme-diagrams/leader-mongodb-class-01.png)
+![leader mongodb Class Structure diagram](../docs/images/readme-diagrams/leader-mongodb-class-01.png)
 
 ## 구현 클래스
 

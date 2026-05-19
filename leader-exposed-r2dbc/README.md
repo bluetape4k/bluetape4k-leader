@@ -14,7 +14,7 @@ Lock strategy: `UPDATE WHERE lockedUntil < NOW()` + `INSERT IGNORE` in a single 
 
 ## Architecture
 
-![Architecture diagram](../docs/images/readme-diagrams/leader-exposed-r2dbc-class-01.png)
+![leader exposed r2dbc Class Structure diagram](../docs/images/readme-diagrams/leader-exposed-r2dbc-class-01.png)
 
 ## Implementations
 

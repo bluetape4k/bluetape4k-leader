@@ -16,7 +16,7 @@ Spring `@Scheduled` 스타일의 주기적 리더 전용 작업 헬퍼를 제공
 3. **`Application.leaderScheduled(...)`** — 주기적으로 리더 전용 suspend 작업을 실행합니다.
    `Application` 코루틴 스코프에서 `launch` 하여 `ApplicationStopped` 시 자동 취소됩니다.
 
-![Architecture diagram](../docs/images/readme-diagrams/leader-ktor-sequence-01.png)
+![leader ktor Sequence Flow diagram](../docs/images/readme-diagrams/leader-ktor-sequence-01.png)
 
 ## Core Features
 

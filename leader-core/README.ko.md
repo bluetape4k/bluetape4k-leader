@@ -12,7 +12,7 @@
 
 ## 아키텍처
 
-![Architecture diagram](../docs/images/readme-diagrams/leader-core-class-01.png)
+![leader core Class Structure diagram](../docs/images/readme-diagrams/leader-core-class-01.png)
 
 ## API 계약
 

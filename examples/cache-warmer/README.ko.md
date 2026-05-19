@@ -13,7 +13,7 @@ leader-election** 으로 여러 인스턴스가 동시에 워머를 실행해도
 maxLeaders 슬롯을 공유하므로 호출자가 슬롯 ↔ 파티션 매핑을 강제할 수 없기 때문입니다.
 파티션별 lockName 은 "파티션 P 에 대해서는 정확히 1 인스턴스만 워밍" 계약을 직접 표현합니다.
 
-![Architecture diagram](../../docs/images/readme-diagrams/examples-cache-warmer-sequence-01.png)
+![cache warmer Sequence Flow diagram](../../docs/images/readme-diagrams/examples-cache-warmer-sequence-01.png)
 
 ## 핵심 기능
 

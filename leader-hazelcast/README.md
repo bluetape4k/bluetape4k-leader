@@ -20,7 +20,7 @@ Lock strategy: `IMap.putIfAbsent(key, token, leaseTimeMs, MILLISECONDS)` for ato
 
 ## Architecture
 
-![Architecture diagram](../docs/images/readme-diagrams/leader-hazelcast-class-01.png)
+![leader hazelcast Class Structure diagram](../docs/images/readme-diagrams/leader-hazelcast-class-01.png)
 
 ## Implementations
 
@@ -148,7 +148,7 @@ Check:   IMap.get(lockKey) == token
 
 ### Lock acquire/release sequence
 
-![Lock acquire / release sequence diagram](../docs/images/readme-diagrams/leader-hazelcast-sequence-02.png)
+![Lock acquire/release sequence diagram](../docs/images/readme-diagrams/leader-hazelcast-sequence-02.png)
 
 ### Group election slot sequence (maxLeaders = N)
 

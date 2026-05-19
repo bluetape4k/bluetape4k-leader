@@ -6,7 +6,7 @@ Ktor 3.x REST API server with a leader-election-protected periodic background jo
 
 ## Architecture
 
-![Architecture diagram](../../docs/images/readme-diagrams/examples-ktor-app-sequence-01.png)
+![ktor app Sequence Flow diagram](../../docs/images/readme-diagrams/examples-ktor-app-sequence-01.png)
 
 ## Core Features
 

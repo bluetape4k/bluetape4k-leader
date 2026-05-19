@@ -19,7 +19,7 @@ within the application coroutine scope.
    a fixed period, launched in the `Application` coroutine scope so it cancels
    automatically on `ApplicationStopped`.
 
-![Architecture diagram](../docs/images/readme-diagrams/leader-ktor-sequence-01.png)
+![leader ktor Sequence Flow diagram](../docs/images/readme-diagrams/leader-ktor-sequence-01.png)
 
 ## Core Features
 
