@@ -18,45 +18,7 @@ Group strategy (slot-token TTL model): a single ZSET key `lg:{lockName}` whose m
 
 ## Architecture
 
-```mermaid
-classDiagram
-    class LeaderElector {
-        <<interface>>
-    }
-    class LeaderGroupElector {
-        <<interface>>
-    }
-    class SuspendLeaderElector {
-        <<interface>>
-    }
-    class SuspendLeaderGroupElector {
-        <<interface>>
-    }
-
-    class LettuceLock {
-        +tryLock(key, value, ttl) Boolean
-        +unlock(key, value)
-    }
-    class LettuceSlotTokenGroup {
-        +tryAcquire(waitTime, leaseTime) String?
-        +release(token, remainingMinLeaseMs)
-        +activeCount() Int
-    }
-    class LettuceSuspendLock {
-        +tryLock(key, value, ttl) Boolean
-        +unlock(key, value)
-    }
-
-    LettuceLeaderElector ..|> LeaderElector
-    LettuceLeaderGroupElector ..|> LeaderGroupElector
-    LettuceSuspendLeaderElector ..|> SuspendLeaderElector
-    LettuceSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
-
-    LettuceLeaderElector --> LettuceLock
-    LettuceLeaderGroupElector --> LettuceSlotTokenGroup
-    LettuceSuspendLeaderElector --> LettuceSuspendLock
-    LettuceSuspendLeaderGroupElector --> LettuceSlotTokenGroup
-```
+![Architecture 1](../docs/images/readme-diagrams/leader-redis-lettuce-diagram-01.svg)
 
 ## Group Lock Flow
 

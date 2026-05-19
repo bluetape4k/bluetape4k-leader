@@ -20,34 +20,7 @@ Lock strategy: `IMap.putIfAbsent(key, token, leaseTimeMs, MILLISECONDS)` for ato
 
 ## Architecture
 
-```mermaid
-classDiagram
-    class LeaderElector { <<interface>> }
-    class LeaderGroupElector { <<interface>> }
-    class SuspendLeaderElector { <<interface>> }
-    class SuspendLeaderGroupElector { <<interface>> }
-
-    class HazelcastLock {
-        +tryLock(waitTime, leaseTime) Boolean
-        +isHeldByCurrentInstance() Boolean
-        +unlock()
-    }
-    class HazelcastSuspendLock {
-        +tryLock(waitTime, leaseTime) Boolean
-        +isHeldByCurrentInstance() Boolean
-        +unlock()
-    }
-
-    HazelcastLeaderElector ..|> LeaderElector
-    HazelcastLeaderGroupElector ..|> LeaderGroupElector
-    HazelcastSuspendLeaderElector ..|> SuspendLeaderElector
-    HazelcastSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
-
-    HazelcastLeaderElector --> HazelcastLock
-    HazelcastLeaderGroupElector --> HazelcastLock
-    HazelcastSuspendLeaderElector --> HazelcastSuspendLock
-    HazelcastSuspendLeaderGroupElector --> HazelcastSuspendLock
-```
+![Architecture 1](../docs/images/readme-diagrams/leader-hazelcast-diagram-01.svg)
 
 ## Implementations
 

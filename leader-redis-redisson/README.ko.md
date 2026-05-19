@@ -18,47 +18,7 @@
 
 ## 아키텍처
 
-```mermaid
-classDiagram
-    class LeaderElector {
-        <<interface>>
-    }
-    class LeaderGroupElector {
-        <<interface>>
-    }
-    class SuspendLeaderElector {
-        <<interface>>
-    }
-    class SuspendLeaderGroupElector {
-        <<interface>>
-    }
-
-    class RedissonLeaderElector {
-        -redissonClient RedissonClient
-        -options LeaderElectionOptions
-        +runIfLeader(lockName, action) T?
-    }
-    class RedissonLeaderGroupElector {
-        -redissonClient RedissonClient
-        -options LeaderGroupElectionOptions
-        +runIfLeader(lockName, action) T?
-    }
-    class RedissonSuspendLeaderElector {
-        -redissonClient RedissonClient
-        -options LeaderElectionOptions
-        +runIfLeader(lockName, action) T?
-    }
-    class RedissonSuspendLeaderGroupElector {
-        -redissonClient RedissonClient
-        -options LeaderGroupElectionOptions
-        +runIfLeader(lockName, action) T?
-    }
-
-    RedissonLeaderElector ..|> LeaderElector
-    RedissonLeaderGroupElector ..|> LeaderGroupElector
-    RedissonSuspendLeaderElector ..|> SuspendLeaderElector
-    RedissonSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
-```
+![아키텍처 1](../docs/images/readme-diagrams/leader-redis-redisson-ko-diagram-01.svg)
 
 ## 그룹 락 흐름
 

@@ -18,45 +18,7 @@
 
 ## 아키텍처
 
-```mermaid
-classDiagram
-    class LeaderElector {
-        <<interface>>
-    }
-    class LeaderGroupElector {
-        <<interface>>
-    }
-    class SuspendLeaderElector {
-        <<interface>>
-    }
-    class SuspendLeaderGroupElector {
-        <<interface>>
-    }
-
-    class LettuceLock {
-        +tryLock(key, value, ttl) Boolean
-        +unlock(key, value)
-    }
-    class LettuceSlotTokenGroup {
-        +tryAcquire(waitTime, leaseTime) String?
-        +release(token, remainingMinLeaseMs)
-        +activeCount() Int
-    }
-    class LettuceSuspendLock {
-        +tryLock(key, value, ttl) Boolean
-        +unlock(key, value)
-    }
-
-    LettuceLeaderElector ..|> LeaderElector
-    LettuceLeaderGroupElector ..|> LeaderGroupElector
-    LettuceSuspendLeaderElector ..|> SuspendLeaderElector
-    LettuceSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
-
-    LettuceLeaderElector --> LettuceLock
-    LettuceLeaderGroupElector --> LettuceSlotTokenGroup
-    LettuceSuspendLeaderElector --> LettuceSuspendLock
-    LettuceSuspendLeaderGroupElector --> LettuceSlotTokenGroup
-```
+![아키텍처 1](../docs/images/readme-diagrams/leader-redis-lettuce-ko-diagram-01.svg)
 
 ## 그룹 락 흐름
 

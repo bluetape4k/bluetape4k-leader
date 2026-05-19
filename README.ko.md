@@ -26,33 +26,7 @@ Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
 
 ## 아키텍처
 
-```mermaid
-graph TD
-    Core["leader-core\n(인터페이스 + 로컬 구현)"]
-    Lettuce["leader-redis-lettuce\n(Lettuce Redis)"]
-    Redisson["leader-redis-redisson\n(Redisson Redis)"]
-    Hazelcast["leader-hazelcast\n(Hazelcast)"]
-    ExposedCore["leader-exposed-core\n(안정)"]
-    ExposedJdbc["leader-exposed-jdbc\n(안정)"]
-    ExposedR2dbc["leader-exposed-r2dbc\n(안정)"]
-    Mongo["leader-mongodb\n(MongoDB)"]
-    SB["leader-spring-boot\n(Boot 4, CTW)"]
-    Metrics["leader-micrometer\n(Micrometer 메트릭)"]
-    Ktor["leader-ktor\n(Ktor 3.x)"]
-    ZK["leader-zookeeper\n(ZooKeeper)"]
-
-    Lettuce --> Core
-    Redisson --> Core
-    Hazelcast --> Core
-    ExposedCore --> Core
-    ExposedJdbc --> ExposedCore
-    ExposedR2dbc --> ExposedCore
-    Mongo --> Core
-    SB --> Core
-    Metrics --> Core
-    Ktor --> Core
-    ZK --> Core
-```
+![아키텍처 1](docs/images/readme-diagrams/root-readme-ko-diagram-01.svg)
 
 ## 모듈 목록
 

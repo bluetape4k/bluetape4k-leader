@@ -12,52 +12,7 @@
 
 ## 아키텍처
 
-```mermaid
-classDiagram
-    class AsyncLeaderElector {
-        <<interface>>
-        +runAsyncIfLeader(lockName, action) CompletableFuture~T?~
-        +runAsyncIfLeaderResult(slot, action) CompletableFuture~LeaderRunResult~
-    }
-    class LeaderElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-        +runIfLeaderResult(lockName, action) LeaderRunResult
-    }
-    class VirtualThreadLeaderElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-        +runAsyncIfLeaderResult(slot, action) VirtualFuture~LeaderRunResult~
-    }
-    class SuspendLeaderElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-        +runIfLeaderResultSuspend(lockName, action) LeaderRunResult
-    }
-    class AsyncLeaderGroupElector {
-        <<interface>>
-        +runAsyncIfLeader(lockName, action) CompletableFuture~T?~
-        +runAsyncIfLeaderResult(slot, action) CompletableFuture~LeaderRunResult~
-        +state(lockName) LeaderGroupState
-        +activeCount(lockName) Int
-        +availableSlots(lockName) Int
-    }
-    class LeaderGroupElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-        +runIfLeaderResult(lockName, action) LeaderRunResult
-    }
-    class SuspendLeaderGroupElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-        +runIfLeaderResultSuspend(lockName, action) LeaderRunResult
-    }
-
-    LeaderElector --|> AsyncLeaderElector
-    VirtualThreadLeaderElector --|> AsyncLeaderElector
-    LeaderGroupElector --|> AsyncLeaderGroupElector
-    SuspendLeaderGroupElector --|> AsyncLeaderGroupElector
-```
+![아키텍처 1](../docs/images/readme-diagrams/leader-core-ko-diagram-01.svg)
 
 ## API 계약
 

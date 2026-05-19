@@ -22,34 +22,7 @@ Hazelcast 기반 분산 리더 선출 — 블로킹, 비동기, Virtual Thread, 
 
 ## 아키텍처
 
-```mermaid
-classDiagram
-    class LeaderElector { <<interface>> }
-    class LeaderGroupElector { <<interface>> }
-    class SuspendLeaderElector { <<interface>> }
-    class SuspendLeaderGroupElector { <<interface>> }
-
-    class HazelcastLock {
-        +tryLock(waitTime, leaseTime) Boolean
-        +isHeldByCurrentInstance() Boolean
-        +unlock()
-    }
-    class HazelcastSuspendLock {
-        +tryLock(waitTime, leaseTime) Boolean
-        +isHeldByCurrentInstance() Boolean
-        +unlock()
-    }
-
-    HazelcastLeaderElector ..|> LeaderElector
-    HazelcastLeaderGroupElector ..|> LeaderGroupElector
-    HazelcastSuspendLeaderElector ..|> SuspendLeaderElector
-    HazelcastSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
-
-    HazelcastLeaderElector --> HazelcastLock
-    HazelcastLeaderGroupElector --> HazelcastLock
-    HazelcastSuspendLeaderElector --> HazelcastSuspendLock
-    HazelcastSuspendLeaderGroupElector --> HazelcastSuspendLock
-```
+![아키텍처 1](../docs/images/readme-diagrams/leader-hazelcast-ko-diagram-01.svg)
 
 ## 구현체
 

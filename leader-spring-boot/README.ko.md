@@ -19,29 +19,7 @@ AOP 계층은 Freefair post-compile weaving을 통한 AspectJ compile-time weavi
 
 ## 아키텍처
 
-```mermaid
-graph TD
-    Props["LeaderProperties<br/>bluetape4k.leader.*"]
-    AopProps["LeaderAopProperties<br/>bluetape4k.leader.aop.*"]
-    FactoryAuto["LeaderAopFactoryAutoConfiguration"]
-    MetricsAuto["LeaderMicrometerAutoConfiguration"]
-    AspectAuto["LeaderAopAutoConfiguration"]
-    Selector["LeaderBeanSelector"]
-    SpEL["SpelExpressionEvaluator"]
-    Aspect["LeaderElectionAspect<br/>LeaderGroupElectionAspect"]
-    Backends["LeaderElectorFactory<br/>LeaderGroupElectorFactory<br/>Suspend factories"]
-
-    Props --> FactoryAuto
-    AopProps --> AspectAuto
-    FactoryAuto --> Backends
-    FactoryAuto --> MetricsAuto
-    MetricsAuto --> AspectAuto
-    AspectAuto --> Selector
-    AspectAuto --> SpEL
-    Selector --> Aspect
-    SpEL --> Aspect
-    Backends --> Aspect
-```
+![아키텍처 1](../docs/images/readme-diagrams/leader-spring-boot-ko-diagram-01.svg)
 
 ## 의존성
 

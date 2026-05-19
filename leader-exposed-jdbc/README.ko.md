@@ -18,43 +18,7 @@ H2, PostgreSQL, MySQL 8 호환.
 
 ## 아키텍처
 
-```mermaid
-classDiagram
-    class LeaderElector {
-        <<interface>>
-    }
-    class AsyncLeaderElector {
-        <<interface>>
-    }
-    class LeaderGroupElector {
-        <<interface>>
-    }
-    class VirtualThreadLeaderElector {
-        <<interface>>
-    }
-
-    class ExposedJdbcLock {
-        +tryLock(waitTime, leaseTime) Boolean
-        +unlock()
-        +isHeldByCurrentInstance() Boolean
-        +token: String
-    }
-    class ExposedJdbcGroupLock {
-        +tryLock(waitTime, leaseTime) Boolean
-        +unlock()
-        +slot: Int
-        +token: String
-    }
-
-    ExposedJdbcLeaderElector ..|> LeaderElector
-    ExposedJdbcLeaderElector ..|> AsyncLeaderElector
-    ExposedJdbcLeaderGroupElector ..|> LeaderGroupElector
-    ExposedJdbcVirtualThreadLeaderElector ..|> VirtualThreadLeaderElector
-
-    ExposedJdbcLeaderElector --> ExposedJdbcLock
-    ExposedJdbcLeaderGroupElector --> ExposedJdbcGroupLock
-    ExposedJdbcVirtualThreadLeaderElector --> ExposedJdbcLeaderElector
-```
+![아키텍처 1](../docs/images/readme-diagrams/leader-exposed-jdbc-ko-diagram-01.svg)
 
 ## 구현체 목록
 

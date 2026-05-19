@@ -14,42 +14,7 @@
 
 ## 아키텍처
 
-```mermaid
-classDiagram
-    class SuspendLeaderElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-    }
-    class SuspendLeaderGroupElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-        +state(lockName) LeaderGroupState
-        +activeCountSuspend(lockName) Int
-    }
-
-    class ExposedR2dbcLock {
-        +tryLock(waitTime, leaseTime) Boolean
-        +unlock()
-        +isHeldByCurrentInstance() Boolean
-    }
-    class ExposedR2dbcGroupLock {
-        +tryLock(waitTime, leaseTime) Boolean
-        +unlock()
-        +isHeldByCurrentInstance() Boolean
-    }
-    class ExposedR2dbcSchemaInitializer {
-        +ensureSchema(db)
-        +resetFor(db)
-    }
-
-    ExposedR2dbcSuspendLeaderElector ..|> SuspendLeaderElector
-    ExposedR2dbcSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
-
-    ExposedR2dbcSuspendLeaderElector --> ExposedR2dbcLock
-    ExposedR2dbcSuspendLeaderGroupElector --> ExposedR2dbcGroupLock
-    ExposedR2dbcSuspendLeaderElector --> ExposedR2dbcSchemaInitializer
-    ExposedR2dbcSuspendLeaderGroupElector --> ExposedR2dbcSchemaInitializer
-```
+![아키텍처 1](../docs/images/readme-diagrams/leader-exposed-r2dbc-ko-diagram-01.svg)
 
 ## 구현체
 

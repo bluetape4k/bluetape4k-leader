@@ -19,29 +19,7 @@ The AOP layer is built for AspectJ compile-time weaving via Freefair post-compil
 
 ## Architecture
 
-```mermaid
-graph TD
-    Props["LeaderProperties<br/>bluetape4k.leader.*"]
-    AopProps["LeaderAopProperties<br/>bluetape4k.leader.aop.*"]
-    FactoryAuto["LeaderAopFactoryAutoConfiguration"]
-    MetricsAuto["LeaderMicrometerAutoConfiguration"]
-    AspectAuto["LeaderAopAutoConfiguration"]
-    Selector["LeaderBeanSelector"]
-    SpEL["SpelExpressionEvaluator"]
-    Aspect["LeaderElectionAspect<br/>LeaderGroupElectionAspect"]
-    Backends["LeaderElectorFactory<br/>LeaderGroupElectorFactory<br/>Suspend factories"]
-
-    Props --> FactoryAuto
-    AopProps --> AspectAuto
-    FactoryAuto --> Backends
-    FactoryAuto --> MetricsAuto
-    MetricsAuto --> AspectAuto
-    AspectAuto --> Selector
-    AspectAuto --> SpEL
-    Selector --> Aspect
-    SpEL --> Aspect
-    Backends --> Aspect
-```
+![Architecture 1](../docs/images/readme-diagrams/leader-spring-boot-diagram-01.svg)
 
 ## Dependency
 

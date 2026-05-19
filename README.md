@@ -26,33 +26,7 @@ Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
 
 ## Architecture
 
-```mermaid
-graph TD
-    Core["leader-core\n(Interfaces + Local impls)"]
-    Lettuce["leader-redis-lettuce\n(Lettuce Redis)"]
-    Redisson["leader-redis-redisson\n(Redisson Redis)"]
-    Hazelcast["leader-hazelcast\n(Hazelcast)"]
-    ExposedCore["leader-exposed-core\n(Stable)"]
-    ExposedJdbc["leader-exposed-jdbc\n(Stable)"]
-    ExposedR2dbc["leader-exposed-r2dbc\n(Stable)"]
-    Mongo["leader-mongodb\n(MongoDB)"]
-    SB["leader-spring-boot\n(Boot 4, CTW)"]
-    Metrics["leader-micrometer\n(Micrometer metrics)"]
-    Ktor["leader-ktor\n(Ktor 3.x)"]
-    ZK["leader-zookeeper\n(ZooKeeper)"]
-
-    Lettuce --> Core
-    Redisson --> Core
-    Hazelcast --> Core
-    ExposedCore --> Core
-    ExposedJdbc --> ExposedCore
-    ExposedR2dbc --> ExposedCore
-    Mongo --> Core
-    SB --> Core
-    Metrics --> Core
-    Ktor --> Core
-    ZK --> Core
-```
+![Architecture 1](docs/images/readme-diagrams/root-readme-en-diagram-01.svg)
 
 ## Modules
 
