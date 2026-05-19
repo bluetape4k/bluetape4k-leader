@@ -6,31 +6,7 @@ Ktor 3.x REST API 서버 + 리더 선출로 보호되는 주기 백그라운드 
 
 ## Architecture
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant N1 as Ktor Node-1
-    participant N2 as Ktor Node-2
-    participant Plugin as LeaderElectionPlugin
-    participant Aggregator as StatsAggregator
-    participant Redis
-
-    Note over N1,N2: 동일 코드 + 동일 lockName
-    N1->>Plugin: install + leaderScheduled("hourly-stats-aggregation", 1h)
-    N2->>Plugin: install + leaderScheduled("hourly-stats-aggregation", 1h)
-    par Cycle 1
-        N1->>Redis: SET hourly-stats-aggregation NX EX 60s
-    and
-        N2->>Redis: SET hourly-stats-aggregation NX EX 60s
-    end
-    Redis-->>N1: OK (leader)
-    Redis-->>N2: nil (skip)
-    N1->>Aggregator: aggregate()
-    Client->>N1: GET /stats
-    N1-->>Client: {runCount, lastRunAt}
-    Client->>N2: GET /health
-    N2-->>Client: {status: UP}
-```
+![Architecture 1](../../docs/images/readme-diagrams/examples-ktor-app-ko-diagram-01.svg)
 
 ## 핵심 기능
 

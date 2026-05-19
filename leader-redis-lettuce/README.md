@@ -18,45 +18,7 @@ Group strategy (slot-token TTL model): a single ZSET key `lg:{lockName}` whose m
 
 ## Architecture
 
-```mermaid
-classDiagram
-    class LeaderElector {
-        <<interface>>
-    }
-    class LeaderGroupElector {
-        <<interface>>
-    }
-    class SuspendLeaderElector {
-        <<interface>>
-    }
-    class SuspendLeaderGroupElector {
-        <<interface>>
-    }
-
-    class LettuceLock {
-        +tryLock(key, value, ttl) Boolean
-        +unlock(key, value)
-    }
-    class LettuceSlotTokenGroup {
-        +tryAcquire(waitTime, leaseTime) String?
-        +release(token, remainingMinLeaseMs)
-        +activeCount() Int
-    }
-    class LettuceSuspendLock {
-        +tryLock(key, value, ttl) Boolean
-        +unlock(key, value)
-    }
-
-    LettuceLeaderElector ..|> LeaderElector
-    LettuceLeaderGroupElector ..|> LeaderGroupElector
-    LettuceSuspendLeaderElector ..|> SuspendLeaderElector
-    LettuceSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
-
-    LettuceLeaderElector --> LettuceLock
-    LettuceLeaderGroupElector --> LettuceSlotTokenGroup
-    LettuceSuspendLeaderElector --> LettuceSuspendLock
-    LettuceSuspendLeaderGroupElector --> LettuceSlotTokenGroup
-```
+![Architecture 1](../docs/images/readme-diagrams/leader-redis-lettuce-diagram-01.svg)
 
 ## Group Lock Flow
 
@@ -64,65 +26,11 @@ The slot-token TTL model is best understood through two scenarios: a normal acqu
 
 ### Scenario 1 — Normal acquire/release plus crash recovery
 
-```mermaid
-sequenceDiagram
-    participant ClientA
-    participant ClientB
-    participant Redis as "Redis (lg:{lockName} ZSET)"
-
-    Note over ClientA,Redis: Normal flow — slot-token TTL
-    ClientA->>Redis: EVALSHA ACQUIRE (maxLeaders=2, token=A1, leaseMs=10s)
-    Redis->>Redis: TIME -> nowMs<br/>ZREMRANGEBYSCORE 0 nowMs<br/>ZCARD < maxLeaders<br/>ZADD score=(nowMs+10s) member=A1<br/>PEXPIRE key (15s)
-    Redis-->>ClientA: token A1
-    ClientA->>ClientA: action() running
-
-    Note over ClientB,Redis: ClientA still working
-    ClientB->>Redis: EVALSHA ACQUIRE (token=B1)
-    Redis-->>ClientB: token B1 (slot 2)
-
-    ClientA->>Redis: EVALSHA RELEASE (A1, remainingMinLeaseMs=0)
-    Redis->>Redis: ZREM lg:{lockName} A1
-    Redis-->>ClientA: 1
-
-    Note over ClientA,Redis: ClientA crash simulation (release never called)
-    ClientA->>Redis: EVALSHA ACQUIRE (token=A2, leaseMs=2s)
-    Redis-->>ClientA: token A2
-    ClientA->>ClientA: crash before release
-
-    Note over ClientB,Redis: 2s later — leaseTime expired
-    ClientB->>Redis: EVALSHA ACQUIRE (token=B3)
-    Redis->>Redis: ZREMRANGEBYSCORE -> A2 evicted<br/>ZADD B3
-    Redis-->>ClientB: token B3 (auto-recovered)
-```
+![Scenario 1 — Normal acquire/release plus crash recovery 2](../docs/images/readme-diagrams/leader-redis-lettuce-diagram-02.svg)
 
 ### Scenario 2 — `minLeaseTime` delegated to backend TTL
 
-```mermaid
-sequenceDiagram
-    participant ClientA
-    participant ClientB
-    participant Redis as "Redis (lg:{lockName} ZSET)"
-
-    Note over ClientA,Redis: minLeaseTime=300ms, action finishes fast (50ms)
-
-    ClientA->>Redis: ACQUIRE token=A1
-    Redis-->>ClientA: token A1
-    ClientA->>ClientA: action() runs 50ms
-    ClientA->>Redis: RELEASE (A1, remainingMinLeaseMs=250)
-    Redis->>Redis: TIME -> nowMs<br/>ZADD XX score=(nowMs+250) A1
-    Redis-->>ClientA: 1
-    Note over ClientA: caller returns immediately (no parking)
-
-    Note over ClientB,Redis: within 250ms window
-    ClientB->>Redis: ACQUIRE (waitTime=100ms)
-    Redis->>Redis: ZREMRANGEBYSCORE -> A1 not yet expired<br/>ZCARD == maxLeaders
-    Redis-->>ClientB: '' (failed)
-
-    Note over ClientB,Redis: after 250ms
-    ClientB->>Redis: ACQUIRE
-    Redis->>Redis: ZREMRANGEBYSCORE -> A1 evicted
-    Redis-->>ClientB: token B1 (success)
-```
+![Scenario 2 — minLeaseTime delegated to backend TTL 3](../docs/images/readme-diagrams/leader-redis-lettuce-diagram-03.svg)
 
 ## Implementations
 

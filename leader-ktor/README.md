@@ -19,24 +19,7 @@ within the application coroutine scope.
    a fixed period, launched in the `Application` coroutine scope so it cancels
    automatically on `ApplicationStopped`.
 
-```mermaid
-sequenceDiagram
-    participant App as Application (Ktor)
-    participant Plugin as LeaderElectionPlugin
-    participant Helper as leaderScheduled
-    participant Elector as SuspendLeaderElector
-
-    App->>Plugin: install(LeaderElectionPlugin) { leaderElection = ... }
-    Plugin-->>App: store config in attributes
-    App->>Helper: leaderScheduled("job", 1.minutes) { ... }
-    Helper-->>App: launch background Job
-    Note over Helper,Elector: every cycle
-    Helper->>Elector: runIfLeader("job") { action() }
-    Elector-->>Helper: result or null (skip)
-    Helper->>Helper: delay(period)
-    App->>Plugin: ApplicationStopped
-    Plugin-->>App: cancel application scope
-```
+![Architecture 1](../docs/images/readme-diagrams/leader-ktor-diagram-01.svg)
 
 ## Core Features
 

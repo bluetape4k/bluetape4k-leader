@@ -16,24 +16,7 @@ Spring `@Scheduled` 스타일의 주기적 리더 전용 작업 헬퍼를 제공
 3. **`Application.leaderScheduled(...)`** — 주기적으로 리더 전용 suspend 작업을 실행합니다.
    `Application` 코루틴 스코프에서 `launch` 하여 `ApplicationStopped` 시 자동 취소됩니다.
 
-```mermaid
-sequenceDiagram
-    participant App as Application (Ktor)
-    participant Plugin as LeaderElectionPlugin
-    participant Helper as leaderScheduled
-    participant Elector as SuspendLeaderElector
-
-    App->>Plugin: install(LeaderElectionPlugin) { leaderElection = ... }
-    Plugin-->>App: attributes 에 설정 저장
-    App->>Helper: leaderScheduled("job", 1.minutes) { ... }
-    Helper-->>App: 백그라운드 Job launch
-    Note over Helper,Elector: 매 cycle 마다
-    Helper->>Elector: runIfLeader("job") { action() }
-    Elector-->>Helper: 결과 또는 null (skip)
-    Helper->>Helper: delay(period)
-    App->>Plugin: ApplicationStopped
-    Plugin-->>App: application scope 취소
-```
+![Architecture 1](../docs/images/readme-diagrams/leader-ktor-ko-diagram-01.svg)
 
 ## Core Features
 

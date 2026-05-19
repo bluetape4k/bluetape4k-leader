@@ -19,28 +19,7 @@ ZooKeeper session expiry removes ephemeral recipe nodes, so locks are released w
 
 ## Architecture
 
-```mermaid
-classDiagram
-    class LeaderElector { <<interface>> }
-    class LeaderGroupElector { <<interface>> }
-    class SuspendLeaderElector { <<interface>> }
-    class SuspendLeaderGroupElector { <<interface>> }
-
-    class ZooKeeperLeaderElector
-    class ZooKeeperLeaderGroupElector
-    class ZooKeeperSuspendLeaderElector
-    class ZooKeeperSuspendLeaderGroupElector
-
-    ZooKeeperLeaderElector ..|> LeaderElector
-    ZooKeeperLeaderGroupElector ..|> LeaderGroupElector
-    ZooKeeperSuspendLeaderElector ..|> SuspendLeaderElector
-    ZooKeeperSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
-
-    ZooKeeperLeaderElector --> InterProcessMutex
-    ZooKeeperSuspendLeaderElector --> InterProcessMutex
-    ZooKeeperLeaderGroupElector --> InterProcessSemaphoreV2
-    ZooKeeperSuspendLeaderGroupElector --> InterProcessSemaphoreV2
-```
+![Architecture 1](../docs/images/readme-diagrams/leader-zookeeper-diagram-01.svg)
 
 ## Implementations
 

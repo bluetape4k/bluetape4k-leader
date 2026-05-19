@@ -19,29 +19,7 @@ The AOP layer is built for AspectJ compile-time weaving via Freefair post-compil
 
 ## Architecture
 
-```mermaid
-graph TD
-    Props["LeaderProperties<br/>bluetape4k.leader.*"]
-    AopProps["LeaderAopProperties<br/>bluetape4k.leader.aop.*"]
-    FactoryAuto["LeaderAopFactoryAutoConfiguration"]
-    MetricsAuto["LeaderMicrometerAutoConfiguration"]
-    AspectAuto["LeaderAopAutoConfiguration"]
-    Selector["LeaderBeanSelector"]
-    SpEL["SpelExpressionEvaluator"]
-    Aspect["LeaderElectionAspect<br/>LeaderGroupElectionAspect"]
-    Backends["LeaderElectorFactory<br/>LeaderGroupElectorFactory<br/>Suspend factories"]
-
-    Props --> FactoryAuto
-    AopProps --> AspectAuto
-    FactoryAuto --> Backends
-    FactoryAuto --> MetricsAuto
-    MetricsAuto --> AspectAuto
-    AspectAuto --> Selector
-    AspectAuto --> SpEL
-    Selector --> Aspect
-    SpEL --> Aspect
-    Backends --> Aspect
-```
+![Architecture 1](../docs/images/readme-diagrams/leader-spring-boot-diagram-01.svg)
 
 ## Dependency
 
@@ -240,36 +218,7 @@ fun process(): Mono<String> =
 
 ### Sequence: reentrant `@LeaderElection`
 
-```mermaid
-sequenceDiagram
-    actor Caller
-    participant Aspect as LeaderElectionAspect
-    participant Stack as LockStateHolder
-    participant Elector as LeaderElector
-    participant Backend as Redis / Mongo / ...
-
-    Caller->>Aspect: @LeaderElection("daily-report") outerMethod()
-    Aspect->>Stack: peekSyncMatching("daily-report")
-    Stack-->>Aspect: null (first entry)
-    Aspect->>Elector: runIfLeaderResult("daily-report") { ... }
-    Elector->>Backend: SET / EXPIRE (acquire)
-    Backend-->>Elector: ok (token=abc)
-    Elector->>Stack: push(LeaderLockHandle.Real(token=abc))
-    Elector->>Caller: body()
-    Note over Caller: outerMethod() calls innerMethod()
-    Caller->>Aspect: @LeaderElection("daily-report") innerMethod()
-    Aspect->>Stack: peekSyncMatching("daily-report")
-    Stack-->>Aspect: Real(token=abc) — reentrant
-    Aspect->>Aspect: incrementReentryDepth(handle)
-    Aspect->>Stack: push(Real(token=abc, depth=1))
-    Aspect->>Caller: pjp.proceed() — backend untouched
-    Note over Caller: LockExtender.extendActiveLock(60s) reuses outer delegate
-    Caller-->>Aspect: returns from innerMethod()
-    Aspect->>Stack: pop()
-    Caller-->>Elector: returns from outerMethod()
-    Elector->>Backend: DEL / release
-    Elector->>Stack: pop()
-```
+![Sequence: reentrant @LeaderElection 2](../docs/images/readme-diagrams/leader-spring-boot-diagram-02.svg)
 
 ### Watchdog × LockExtender
 

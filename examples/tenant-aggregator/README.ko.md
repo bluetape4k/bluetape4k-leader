@@ -6,40 +6,7 @@ Exposed R2DBC 리더 선출 기반 멀티테넌트 집계기. N개 인스턴스 
 
 ## Architecture
 
-```mermaid
-sequenceDiagram
-    participant N1 as node-1
-    participant N2 as node-2
-    participant N3 as node-3
-    participant LockA as lock(tenant-A)
-    participant LockB as lock(tenant-B)
-    participant LockC as lock(tenant-C)
-
-    par tenant-A
-        N1->>LockA: runIfLeader
-        N2->>LockA: runIfLeader
-        N3->>LockA: runIfLeader
-        LockA-->>N1: granted -> aggregate(tenant-A)
-        LockA-->>N2: null
-        LockA-->>N3: null
-    and tenant-B
-        N1->>LockB: runIfLeader
-        N2->>LockB: runIfLeader
-        N3->>LockB: runIfLeader
-        LockB-->>N2: granted -> aggregate(tenant-B)
-        LockB-->>N1: null
-        LockB-->>N3: null
-    and tenant-C
-        N1->>LockC: runIfLeader
-        N2->>LockC: runIfLeader
-        N3->>LockC: runIfLeader
-        LockC-->>N3: granted -> aggregate(tenant-C)
-        LockC-->>N1: null
-        LockC-->>N2: null
-    end
-
-    Note over N1,N3: delay(pollInterval) 후 각 테넌트마다 재선출
-```
+![Architecture 1](../../docs/images/readme-diagrams/examples-tenant-aggregator-ko-diagram-01.svg)
 
 ## Core Features
 

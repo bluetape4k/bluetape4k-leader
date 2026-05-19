@@ -26,33 +26,7 @@ Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
 
 ## Architecture
 
-```mermaid
-graph TD
-    Core["leader-core\n(Interfaces + Local impls)"]
-    Lettuce["leader-redis-lettuce\n(Lettuce Redis)"]
-    Redisson["leader-redis-redisson\n(Redisson Redis)"]
-    Hazelcast["leader-hazelcast\n(Hazelcast)"]
-    ExposedCore["leader-exposed-core\n(Stable)"]
-    ExposedJdbc["leader-exposed-jdbc\n(Stable)"]
-    ExposedR2dbc["leader-exposed-r2dbc\n(Stable)"]
-    Mongo["leader-mongodb\n(MongoDB)"]
-    SB["leader-spring-boot\n(Boot 4, CTW)"]
-    Metrics["leader-micrometer\n(Micrometer metrics)"]
-    Ktor["leader-ktor\n(Ktor 3.x)"]
-    ZK["leader-zookeeper\n(ZooKeeper)"]
-
-    Lettuce --> Core
-    Redisson --> Core
-    Hazelcast --> Core
-    ExposedCore --> Core
-    ExposedJdbc --> ExposedCore
-    ExposedR2dbc --> ExposedCore
-    Mongo --> Core
-    SB --> Core
-    Metrics --> Core
-    Ktor --> Core
-    ZK --> Core
-```
+![Architecture 1](docs/images/readme-diagrams/root-readme-en-diagram-01.svg)
 
 ## Modules
 
@@ -255,53 +229,11 @@ val result = election.runIfLeader("job") { "done" }
 
 Multiple nodes call `runIfLeader` concurrently — only one acquires the lock and runs the action; the rest return `null`.
 
-```mermaid
-sequenceDiagram
-    participant NodeA
-    participant NodeB
-    participant LockStore
-
-    par NodeA attempts
-        NodeA->>LockStore: tryLock("job", waitTime, leaseTime)
-    and NodeB attempts
-        NodeB->>LockStore: tryLock("job", waitTime, leaseTime)
-    end
-
-    LockStore-->>NodeA: acquired (true)
-    LockStore-->>NodeB: not acquired → wait/retry until timeout
-
-    NodeA->>NodeA: action()
-    NodeA->>LockStore: unlock("job")
-    NodeA-->>NodeA: return action() result
-
-    LockStore-->>NodeB: timeout (false)
-    NodeB-->>NodeB: return null
-```
+![How runIfLeader Works 2](docs/images/readme-diagrams/root-readme-en-diagram-02.svg)
 
 ### Multi-leader group: slot-based semaphore
 
-```mermaid
-sequenceDiagram
-    participant Caller
-    participant GroupElection
-    participant LockStore
-
-    Caller->>GroupElection: runIfLeader(lockName, action)
-    loop slot = 0..maxLeaders-1
-        GroupElection->>LockStore: tryLock(lockName:slot:i, ...)
-        alt slot acquired
-            LockStore-->>GroupElection: true
-            GroupElection->>Caller: action()
-            Caller-->>GroupElection: result
-            GroupElection->>LockStore: unlock(lockName:slot:i)
-            GroupElection-->>Caller: result
-        else slot busy
-            LockStore-->>GroupElection: false
-            Note over GroupElection: try next slot
-        end
-    end
-    Note over GroupElection: all slots busy → return null
-```
+![Multi-leader group: slot-based semaphore 3](docs/images/readme-diagrams/root-readme-en-diagram-03.svg)
 
 ## API Overview
 

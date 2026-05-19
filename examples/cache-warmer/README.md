@@ -15,30 +15,7 @@ A group election shares slots inside a single lockName, so the caller cannot
 guarantee a slot ↔ partition mapping. Per-partition lockNames express the
 contract directly: **"for partition P, exactly one instance warms"**.
 
-```mermaid
-sequenceDiagram
-    participant Cron
-    participant N1 as Node-1
-    participant N2 as Node-2
-    participant Hzl as Hazelcast (IMap lock)
-    Cron->>N1: tick — warmAll()
-    Cron->>N2: tick — warmAll()
-    par partition=region-asia
-        N1->>Hzl: tryLock("warmer:product-region-asia")
-        N2->>Hzl: tryLock("warmer:product-region-asia")
-    end
-    Hzl-->>N1: acquired
-    Hzl-->>N2: skipped (null)
-    N1->>N1: warmFunction("region-asia")
-    par partition=region-eu
-        N1->>Hzl: tryLock("warmer:product-region-eu")
-        N2->>Hzl: tryLock("warmer:product-region-eu")
-    end
-    Hzl-->>N2: acquired
-    Hzl-->>N1: skipped (null)
-    N2->>N2: warmFunction("region-eu")
-    Note over N1,N2: warmed/skipped/failed split per node — no double-warm
-```
+![Architecture 1](../../docs/images/readme-diagrams/examples-cache-warmer-diagram-01.svg)
 
 ## Core Features
 

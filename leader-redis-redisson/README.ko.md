@@ -18,47 +18,7 @@
 
 ## 아키텍처
 
-```mermaid
-classDiagram
-    class LeaderElector {
-        <<interface>>
-    }
-    class LeaderGroupElector {
-        <<interface>>
-    }
-    class SuspendLeaderElector {
-        <<interface>>
-    }
-    class SuspendLeaderGroupElector {
-        <<interface>>
-    }
-
-    class RedissonLeaderElector {
-        -redissonClient RedissonClient
-        -options LeaderElectionOptions
-        +runIfLeader(lockName, action) T?
-    }
-    class RedissonLeaderGroupElector {
-        -redissonClient RedissonClient
-        -options LeaderGroupElectionOptions
-        +runIfLeader(lockName, action) T?
-    }
-    class RedissonSuspendLeaderElector {
-        -redissonClient RedissonClient
-        -options LeaderElectionOptions
-        +runIfLeader(lockName, action) T?
-    }
-    class RedissonSuspendLeaderGroupElector {
-        -redissonClient RedissonClient
-        -options LeaderGroupElectionOptions
-        +runIfLeader(lockName, action) T?
-    }
-
-    RedissonLeaderElector ..|> LeaderElector
-    RedissonLeaderGroupElector ..|> LeaderGroupElector
-    RedissonSuspendLeaderElector ..|> SuspendLeaderElector
-    RedissonSuspendLeaderGroupElector ..|> SuspendLeaderGroupElector
-```
+![Architecture 1](../docs/images/readme-diagrams/leader-redis-redisson-ko-diagram-01.svg)
 
 ## 그룹 락 흐름
 
@@ -66,62 +26,11 @@ classDiagram
 
 ### 시나리오 1 — 정상 acquire/release 와 crash recovery
 
-```mermaid
-sequenceDiagram
-    participant ClientA
-    participant ClientB
-    participant Redis as "Redis (RPermitExpirableSemaphore)"
-
-    Note over ClientA,Redis: 첫 사용 — trySetPermits 멱등 초기화
-    ClientA->>Redis: getPermitExpirableSemaphore(lg:{lockName})
-    ClientA->>Redis: trySetPermits(maxLeaders=2)
-    Redis-->>ClientA: ok
-
-    ClientA->>Redis: tryAcquire(waitMs, leaseMs)
-    Redis-->>ClientA: permitId A1
-    ClientA->>ClientA: action()
-
-    ClientB->>Redis: tryAcquire(...)
-    Redis-->>ClientB: permitId B1
-
-    ClientA->>Redis: release(A1)
-    Redis-->>ClientA: ok
-
-    Note over ClientA,Redis: ClientA crash 시뮬레이션
-    ClientA->>Redis: tryAcquire (lease=2s)
-    Redis-->>ClientA: permitId A2
-    ClientA->>ClientA: crash
-
-    Note over ClientB,Redis: 2초 후 lease 만료
-    ClientB->>Redis: tryAcquire
-    Redis-->>ClientB: permitId B3 (자동 회수)
-```
+![Component 1 — Component acquire/release Component crash recovery 2](../docs/images/readme-diagrams/leader-redis-redisson-ko-diagram-02.svg)
 
 ### 시나리오 2 — `updateLeaseTime` 을 통한 `minLeaseTime`
 
-```mermaid
-sequenceDiagram
-    participant ClientA
-    participant ClientB
-    participant Redis
-
-    Note over ClientA: minLeaseTime=300ms, action 50ms
-
-    ClientA->>Redis: tryAcquire
-    Redis-->>ClientA: permitId A1
-    ClientA->>ClientA: action() 50ms
-
-    ClientA->>Redis: updateLeaseTime(A1, remaining=250ms)
-    Redis-->>ClientA: true
-    Note over ClientA: caller 즉시 반환
-
-    ClientB->>Redis: tryAcquire (waitMs=100)
-    Redis-->>ClientB: null (250ms 안에 만료 X)
-
-    Note over ClientB: 250ms 후
-    ClientB->>Redis: tryAcquire
-    Redis-->>ClientB: permitId B1 (성공)
-```
+![Component 2 — updateLeaseTime Component Component minLeaseTime 3](../docs/images/readme-diagrams/leader-redis-redisson-ko-diagram-03.svg)
 
 ## 구현체 목록
 

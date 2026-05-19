@@ -6,39 +6,7 @@ Exposed-JDBC 백엔드 기반 분산 스키마 마이그레이션 게이트. K8s
 
 ## Architecture
 
-```mermaid
-sequenceDiagram
-    participant P1 as pod-1 (신버전)
-    participant P2 as pod-2 (신버전)
-    participant P3 as pod-3 (신버전)
-    participant DB
-
-    P1->>DB: isApplied("v3")? (precheck)
-    P2->>DB: isApplied("v3")? (precheck)
-    P3->>DB: isApplied("v3")? (precheck)
-    Note over P1,P3: 모두 false
-
-    par 락 경쟁
-        P1->>DB: lock "schema-v3" 획득 시도
-        P2->>DB: lock "schema-v3" 대기
-        P3->>DB: lock "schema-v3" 대기
-    end
-
-    DB-->>P1: 락 획득
-    P1->>DB: isApplied("v3")? (in-lock recheck)
-    DB-->>P1: false
-    P1->>DB: 마이그레이션 + 마커 insert
-    P1->>DB: 락 해제
-
-    DB-->>P2: 락 획득 (P1 이후)
-    P2->>DB: isApplied("v3")? (in-lock recheck)
-    DB-->>P2: true → AlreadyApplied
-    P2->>DB: 락 해제
-
-    DB-->>P3: 락 획득 (P2 이후)
-    P3->>DB: isApplied("v3")? (in-lock recheck)
-    DB-->>P3: true → AlreadyApplied
-```
+![Architecture 1](../../docs/images/readme-diagrams/examples-migration-gate-ko-diagram-01.svg)
 
 ## Core Features
 

@@ -26,33 +26,7 @@ Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
 
 ## 아키텍처
 
-```mermaid
-graph TD
-    Core["leader-core\n(인터페이스 + 로컬 구현)"]
-    Lettuce["leader-redis-lettuce\n(Lettuce Redis)"]
-    Redisson["leader-redis-redisson\n(Redisson Redis)"]
-    Hazelcast["leader-hazelcast\n(Hazelcast)"]
-    ExposedCore["leader-exposed-core\n(안정)"]
-    ExposedJdbc["leader-exposed-jdbc\n(안정)"]
-    ExposedR2dbc["leader-exposed-r2dbc\n(안정)"]
-    Mongo["leader-mongodb\n(MongoDB)"]
-    SB["leader-spring-boot\n(Boot 4, CTW)"]
-    Metrics["leader-micrometer\n(Micrometer 메트릭)"]
-    Ktor["leader-ktor\n(Ktor 3.x)"]
-    ZK["leader-zookeeper\n(ZooKeeper)"]
-
-    Lettuce --> Core
-    Redisson --> Core
-    Hazelcast --> Core
-    ExposedCore --> Core
-    ExposedJdbc --> ExposedCore
-    ExposedR2dbc --> ExposedCore
-    Mongo --> Core
-    SB --> Core
-    Metrics --> Core
-    Ktor --> Core
-    ZK --> Core
-```
+![Architecture 1](docs/images/readme-diagrams/root-readme-ko-diagram-01.svg)
 
 ## 모듈 목록
 
@@ -255,53 +229,11 @@ val result = election.runIfLeader("job") { "done" }
 
 여러 노드가 동시에 `runIfLeader`를 호출하면 하나만 락을 획득하고 action을 실행하며, 나머지는 `null`을 반환합니다.
 
-```mermaid
-sequenceDiagram
-    participant NodeA
-    participant NodeB
-    participant LockStore
-
-    par NodeA 시도
-        NodeA->>LockStore: tryLock("job", waitTime, leaseTime)
-    and NodeB 시도
-        NodeB->>LockStore: tryLock("job", waitTime, leaseTime)
-    end
-
-    LockStore-->>NodeA: 획득 성공 (true)
-    LockStore-->>NodeB: 획득 실패 → waitTime까지 재시도
-
-    NodeA->>NodeA: action()
-    NodeA->>LockStore: unlock("job")
-    NodeA-->>NodeA: action() 결과 반환
-
-    LockStore-->>NodeB: 타임아웃 (false)
-    NodeB-->>NodeB: null 반환
-```
+![runIfLeader Component Component 2](docs/images/readme-diagrams/root-readme-ko-diagram-02.svg)
 
 ### 복수 리더 그룹: 슬롯 기반 세마포어
 
-```mermaid
-sequenceDiagram
-    participant Caller
-    participant GroupElection
-    participant LockStore
-
-    Caller->>GroupElection: runIfLeader(lockName, action)
-    loop slot = 0..maxLeaders-1
-        GroupElection->>LockStore: tryLock(lockName:slot:i, ...)
-        alt 슬롯 획득 성공
-            LockStore-->>GroupElection: true
-            GroupElection->>Caller: action()
-            Caller-->>GroupElection: result
-            GroupElection->>LockStore: unlock(lockName:slot:i)
-            GroupElection-->>Caller: result
-        else 슬롯 사용 중
-            LockStore-->>GroupElection: false
-            Note over GroupElection: 다음 슬롯 시도
-        end
-    end
-    Note over GroupElection: 모든 슬롯 사용 중 → null 반환
-```
+![Component Component Component: Component Component Component 3](docs/images/readme-diagrams/root-readme-ko-diagram-03.svg)
 
 ## API 개요
 

@@ -6,39 +6,7 @@ Distributed schema migration gate using Exposed JDBC backend. Demonstrates safe 
 
 ## Architecture
 
-```mermaid
-sequenceDiagram
-    participant P1 as pod-1 (new version)
-    participant P2 as pod-2 (new version)
-    participant P3 as pod-3 (new version)
-    participant DB
-
-    P1->>DB: isApplied("v3")? (precheck)
-    P2->>DB: isApplied("v3")? (precheck)
-    P3->>DB: isApplied("v3")? (precheck)
-    Note over P1,P3: all return false
-
-    par lock contention
-        P1->>DB: acquire lock "schema-v3"
-        P2->>DB: acquire lock "schema-v3" (wait)
-        P3->>DB: acquire lock "schema-v3" (wait)
-    end
-
-    DB-->>P1: lock acquired
-    P1->>DB: isApplied("v3")? (in-lock recheck)
-    DB-->>P1: false
-    P1->>DB: run migration + insert marker
-    P1->>DB: release lock
-
-    DB-->>P2: lock acquired (after P1)
-    P2->>DB: isApplied("v3")? (in-lock recheck)
-    DB-->>P2: true → AlreadyApplied
-    P2->>DB: release lock
-
-    DB-->>P3: lock acquired (after P2)
-    P3->>DB: isApplied("v3")? (in-lock recheck)
-    DB-->>P3: true → AlreadyApplied
-```
+![Architecture 1](../../docs/images/readme-diagrams/examples-migration-gate-diagram-01.svg)
 
 ## Core Features
 

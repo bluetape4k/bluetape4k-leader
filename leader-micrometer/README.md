@@ -18,25 +18,7 @@ The module depends only on `leader-core` and Micrometer core. Export format is c
 
 ## Architecture
 
-```mermaid
-graph TD
-    Aop["@LeaderElection<br/>@LeaderGroupElection"]
-    Recorder["MicrometerLeaderAopMetricsRecorder"]
-    Direct["Direct elector calls"]
-    Decorators["Instrumented*Elector decorators"]
-    Listener["LeaderElectionListener callbacks"]
-    ListenerMetrics["MicrometerLeaderElectionListener"]
-    Registry["MeterRegistry"]
-    Backend["Prometheus / Datadog / OTLP"]
-
-    Aop --> Recorder
-    Direct --> Decorators
-    Listener --> ListenerMetrics
-    Recorder --> Registry
-    Decorators --> Registry
-    ListenerMetrics --> Registry
-    Registry --> Backend
-```
+![Architecture 1](../docs/images/readme-diagrams/leader-micrometer-diagram-01.svg)
 
 ## Dependency
 

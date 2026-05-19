@@ -18,43 +18,7 @@ Schema is created automatically on first use via `SchemaUtils.createMissingTable
 
 ## Architecture
 
-```mermaid
-classDiagram
-    class LeaderElector {
-        <<interface>>
-    }
-    class AsyncLeaderElector {
-        <<interface>>
-    }
-    class LeaderGroupElector {
-        <<interface>>
-    }
-    class VirtualThreadLeaderElector {
-        <<interface>>
-    }
-
-    class ExposedJdbcLock {
-        +tryLock(waitTime, leaseTime) Boolean
-        +unlock()
-        +isHeldByCurrentInstance() Boolean
-        +token: String
-    }
-    class ExposedJdbcGroupLock {
-        +tryLock(waitTime, leaseTime) Boolean
-        +unlock()
-        +slot: Int
-        +token: String
-    }
-
-    ExposedJdbcLeaderElector ..|> LeaderElector
-    ExposedJdbcLeaderElector ..|> AsyncLeaderElector
-    ExposedJdbcLeaderGroupElector ..|> LeaderGroupElector
-    ExposedJdbcVirtualThreadLeaderElector ..|> VirtualThreadLeaderElector
-
-    ExposedJdbcLeaderElector --> ExposedJdbcLock
-    ExposedJdbcLeaderGroupElector --> ExposedJdbcGroupLock
-    ExposedJdbcVirtualThreadLeaderElector --> ExposedJdbcLeaderElector
-```
+![Architecture 1](../docs/images/readme-diagrams/leader-exposed-jdbc-diagram-01.svg)
 
 ## Implementations
 

@@ -13,30 +13,7 @@ leader-election** 으로 여러 인스턴스가 동시에 워머를 실행해도
 maxLeaders 슬롯을 공유하므로 호출자가 슬롯 ↔ 파티션 매핑을 강제할 수 없기 때문입니다.
 파티션별 lockName 은 "파티션 P 에 대해서는 정확히 1 인스턴스만 워밍" 계약을 직접 표현합니다.
 
-```mermaid
-sequenceDiagram
-    participant Cron
-    participant N1 as Node-1
-    participant N2 as Node-2
-    participant Hzl as Hazelcast (IMap lock)
-    Cron->>N1: tick — warmAll()
-    Cron->>N2: tick — warmAll()
-    par partition=region-asia
-        N1->>Hzl: tryLock("warmer:product-region-asia")
-        N2->>Hzl: tryLock("warmer:product-region-asia")
-    end
-    Hzl-->>N1: 획득 성공
-    Hzl-->>N2: skip (null)
-    N1->>N1: warmFunction("region-asia")
-    par partition=region-eu
-        N1->>Hzl: tryLock("warmer:product-region-eu")
-        N2->>Hzl: tryLock("warmer:product-region-eu")
-    end
-    Hzl-->>N2: 획득 성공
-    Hzl-->>N1: skip (null)
-    N2->>N2: warmFunction("region-eu")
-    Note over N1,N2: warmed/skipped/failed 가 노드별로 분리됨 — 중복 워밍 없음
-```
+![Architecture 1](../../docs/images/readme-diagrams/examples-cache-warmer-ko-diagram-01.svg)
 
 ## 핵심 기능
 
