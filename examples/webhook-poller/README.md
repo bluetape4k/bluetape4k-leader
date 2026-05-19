@@ -6,38 +6,7 @@ Distributed webhook event poller using MongoDB leader election. Demonstrates saf
 
 ## Architecture
 
-```mermaid
-sequenceDiagram
-    participant P1 as poller-1 (leader)
-    participant P2 as poller-2
-    participant P3 as poller-3
-    participant Lock as Mongo lockCollection
-    participant Events as Mongo eventCollection
-
-    P1->>Lock: runIfLeader("webhook-poller")
-    P2->>Lock: runIfLeader("webhook-poller")
-    P3->>Lock: runIfLeader("webhook-poller")
-    Lock-->>P1: granted
-    Lock-->>P2: null (skip)
-    Lock-->>P3: null (skip)
-
-    loop batchSize
-        P1->>Events: findOneAndUpdate (atomic claim)<br/>filter: attempts < maxAttempts AND<br/>(PENDING OR (CLAIMED AND expired))<br/>update: CLAIMED, claimedBy, attempts++
-        Events-->>P1: claimed event
-        P1->>P1: handler(event)
-        alt success
-            P1->>Events: status = DONE
-        else handler throws
-            alt attempts >= maxAttempts
-                P1->>Events: status = FAILED, lastError
-            else
-                P1->>Events: status = PENDING, lastError (re-claimable)
-            end
-        end
-    end
-
-    Note over P1: delay(pollInterval), then re-elect
-```
+![Architecture diagram](../../docs/images/readme-diagrams/examples-webhook-poller-sequence-01.png)
 
 ## Core Features
 

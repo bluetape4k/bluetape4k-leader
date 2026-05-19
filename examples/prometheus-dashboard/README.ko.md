@@ -7,23 +7,7 @@ Spring Boot 4 애플리케이션이 bluetape4k leader election 메트릭을
 
 ## 아키텍처
 
-```mermaid
-flowchart LR
-    Scheduler["@Scheduled trigger"]
-    Job["@LeaderElection job"]
-    App["Spring Boot app<br/>leader-spring-boot"]
-    Redis["Redis<br/>leader lock"]
-    Actuator["/actuator/prometheus"]
-    Prometheus["Prometheus"]
-    Grafana["Grafana dashboard"]
-
-    Scheduler --> Job
-    Job --> App
-    App <--> Redis
-    App --> Actuator
-    Prometheus --> Actuator
-    Grafana --> Prometheus
-```
+![Architecture diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-architecture-01.png)
 
 ## 핵심 기능
 

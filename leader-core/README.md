@@ -12,52 +12,7 @@ Core interfaces and local in-process implementations for `bluetape4k-leader`.
 
 ## Architecture
 
-```mermaid
-classDiagram
-    class AsyncLeaderElector {
-        <<interface>>
-        +runAsyncIfLeader(lockName, action) CompletableFuture~T?~
-        +runAsyncIfLeaderResult(slot, action) CompletableFuture~LeaderRunResult~
-    }
-    class LeaderElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-        +runIfLeaderResult(lockName, action) LeaderRunResult
-    }
-    class VirtualThreadLeaderElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-        +runAsyncIfLeaderResult(slot, action) VirtualFuture~LeaderRunResult~
-    }
-    class SuspendLeaderElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-        +runIfLeaderResultSuspend(lockName, action) LeaderRunResult
-    }
-    class AsyncLeaderGroupElector {
-        <<interface>>
-        +runAsyncIfLeader(lockName, action) CompletableFuture~T?~
-        +runAsyncIfLeaderResult(slot, action) CompletableFuture~LeaderRunResult~
-        +state(lockName) LeaderGroupState
-        +activeCount(lockName) Int
-        +availableSlots(lockName) Int
-    }
-    class LeaderGroupElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-        +runIfLeaderResult(lockName, action) LeaderRunResult
-    }
-    class SuspendLeaderGroupElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-        +runIfLeaderResultSuspend(lockName, action) LeaderRunResult
-    }
-
-    LeaderElector --|> AsyncLeaderElector
-    VirtualThreadLeaderElector --|> AsyncLeaderElector
-    LeaderGroupElector --|> AsyncLeaderGroupElector
-    SuspendLeaderGroupElector --|> AsyncLeaderGroupElector
-```
+![Architecture diagram](../docs/images/readme-diagrams/leader-core-class-01.png)
 
 ## API Contract
 
@@ -156,52 +111,11 @@ LeaderGroupElectionOptions(
 
 ### Single-leader: lock acquire/release
 
-```mermaid
-sequenceDiagram
-    participant Caller
-    participant LeaderElector
-    participant LockStore
-
-    Caller->>LeaderElector: runIfLeader(lockName, action)
-    LeaderElector->>LockStore: tryLock(lockName, waitTime, leaseTime)
-
-    alt lock acquired
-        LockStore-->>LeaderElector: true
-        LeaderElector->>Caller: action()
-        Caller-->>LeaderElector: result
-        LeaderElector->>LockStore: unlock(lockName)
-        LeaderElector-->>Caller: result (T)
-    else not acquired within waitTime
-        LockStore-->>LeaderElector: false
-        LeaderElector-->>Caller: null
-    end
-```
+![Single-leader: lock acquire / release diagram](../docs/images/readme-diagrams/leader-core-sequence-02.png)
 
 ### Multi-leader group: slot-based semaphore (maxLeaders = N)
 
-```mermaid
-sequenceDiagram
-    participant Caller
-    participant GroupElection
-    participant LockStore
-
-    Caller->>GroupElection: runIfLeader(lockName, action)
-    loop slot = 0..N-1
-        GroupElection->>LockStore: tryLock(lockName:slot:i, ...)
-        alt slot acquired
-            LockStore-->>GroupElection: true
-            Note over GroupElection: acquired slot i
-            GroupElection->>Caller: action()
-            Caller-->>GroupElection: result
-            GroupElection->>LockStore: unlock(lockName:slot:i)
-            GroupElection-->>Caller: result (T)
-        else slot busy
-            LockStore-->>GroupElection: false
-            Note over GroupElection: try next slot
-        end
-    end
-    Note over GroupElection: all slots busy → return null
-```
+![Multi-leader group: slot-based semaphore (maxLeaders = N) diagram](../docs/images/readme-diagrams/leader-core-sequence-03.png)
 
 ## Local Implementations
 

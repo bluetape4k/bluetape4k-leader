@@ -12,52 +12,7 @@
 
 ## 아키텍처
 
-```mermaid
-classDiagram
-    class AsyncLeaderElector {
-        <<interface>>
-        +runAsyncIfLeader(lockName, action) CompletableFuture~T?~
-        +runAsyncIfLeaderResult(slot, action) CompletableFuture~LeaderRunResult~
-    }
-    class LeaderElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-        +runIfLeaderResult(lockName, action) LeaderRunResult
-    }
-    class VirtualThreadLeaderElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-        +runAsyncIfLeaderResult(slot, action) VirtualFuture~LeaderRunResult~
-    }
-    class SuspendLeaderElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-        +runIfLeaderResultSuspend(lockName, action) LeaderRunResult
-    }
-    class AsyncLeaderGroupElector {
-        <<interface>>
-        +runAsyncIfLeader(lockName, action) CompletableFuture~T?~
-        +runAsyncIfLeaderResult(slot, action) CompletableFuture~LeaderRunResult~
-        +state(lockName) LeaderGroupState
-        +activeCount(lockName) Int
-        +availableSlots(lockName) Int
-    }
-    class LeaderGroupElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-        +runIfLeaderResult(lockName, action) LeaderRunResult
-    }
-    class SuspendLeaderGroupElector {
-        <<interface>>
-        +runIfLeader(lockName, action) T?
-        +runIfLeaderResultSuspend(lockName, action) LeaderRunResult
-    }
-
-    LeaderElector --|> AsyncLeaderElector
-    VirtualThreadLeaderElector --|> AsyncLeaderElector
-    LeaderGroupElector --|> AsyncLeaderGroupElector
-    SuspendLeaderGroupElector --|> AsyncLeaderGroupElector
-```
+![Architecture diagram](../docs/images/readme-diagrams/leader-core-class-01.png)
 
 ## API 계약
 
@@ -154,52 +109,11 @@ LeaderGroupElectionOptions(
 
 ### 단일 리더: 락 획득/해제
 
-```mermaid
-sequenceDiagram
-    participant Caller
-    participant LeaderElector
-    participant LockStore
-
-    Caller->>LeaderElector: runIfLeader(lockName, action)
-    LeaderElector->>LockStore: tryLock(lockName, waitTime, leaseTime)
-
-    alt 락 획득 성공
-        LockStore-->>LeaderElector: true
-        LeaderElector->>Caller: action()
-        Caller-->>LeaderElector: result
-        LeaderElector->>LockStore: unlock(lockName)
-        LeaderElector-->>Caller: result (T)
-    else waitTime 내 획득 실패
-        LockStore-->>LeaderElector: false
-        LeaderElector-->>Caller: null
-    end
-```
+![: / diagram](../docs/images/readme-diagrams/leader-core-sequence-02.png)
 
 ### 복수 리더 그룹: 슬롯 기반 세마포어 (maxLeaders = N)
 
-```mermaid
-sequenceDiagram
-    participant Caller
-    participant GroupElection
-    participant LockStore
-
-    Caller->>GroupElection: runIfLeader(lockName, action)
-    loop slot = 0..N-1
-        GroupElection->>LockStore: tryLock(lockName:slot:i, ...)
-        alt 슬롯 획득 성공
-            LockStore-->>GroupElection: true
-            Note over GroupElection: 슬롯 i 확보
-            GroupElection->>Caller: action()
-            Caller-->>GroupElection: result
-            GroupElection->>LockStore: unlock(lockName:slot:i)
-            GroupElection-->>Caller: result (T)
-        else 슬롯 사용 중
-            LockStore-->>GroupElection: false
-            Note over GroupElection: 다음 슬롯 시도
-        end
-    end
-    Note over GroupElection: 모든 슬롯 사용 중 → null 반환
-```
+![: (maxLeaders = N) diagram](../docs/images/readme-diagrams/leader-core-sequence-03.png)
 
 ## 로컬 구현체 목록
 

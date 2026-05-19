@@ -6,38 +6,7 @@ MongoDB 리더 선출을 이용한 분산 webhook event 폴러. N 개 pod 환경
 
 ## Architecture
 
-```mermaid
-sequenceDiagram
-    participant P1 as poller-1 (leader)
-    participant P2 as poller-2
-    participant P3 as poller-3
-    participant Lock as Mongo lockCollection
-    participant Events as Mongo eventCollection
-
-    P1->>Lock: runIfLeader("webhook-poller")
-    P2->>Lock: runIfLeader("webhook-poller")
-    P3->>Lock: runIfLeader("webhook-poller")
-    Lock-->>P1: granted
-    Lock-->>P2: null (skip)
-    Lock-->>P3: null (skip)
-
-    loop batchSize 만큼
-        P1->>Events: findOneAndUpdate (atomic claim)<br/>filter: PENDING OR (CLAIMED AND 만료)<br/>update: CLAIMED, claimedBy, attempts++
-        Events-->>P1: 점유한 event
-        P1->>P1: handler(event)
-        alt 성공
-            P1->>Events: status = DONE
-        else handler 예외
-            alt attempts >= maxAttempts
-                P1->>Events: status = FAILED, lastError
-            else
-                P1->>Events: status = PENDING, lastError (재점유 가능)
-            end
-        end
-    end
-
-    Note over P1: delay(pollInterval) 후 재선출
-```
+![Architecture diagram](../../docs/images/readme-diagrams/examples-webhook-poller-sequence-01.png)
 
 ## Core Features
 
