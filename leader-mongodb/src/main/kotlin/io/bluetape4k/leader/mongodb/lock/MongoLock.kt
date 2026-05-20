@@ -13,6 +13,7 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Updates
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.mongodb.internal.MonotonicDeadline
@@ -22,13 +23,15 @@ import io.bluetape4k.logging.error
 import io.bluetape4k.logging.warn
 import org.bson.Document
 import java.time.Instant
+import java.util.*
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
+import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import java.util.*
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
-import kotlin.random.Random
 
 /**
  * Token-based distributed lock backed by MongoDB `findOneAndUpdate` upsert + TTL index.
@@ -101,10 +104,17 @@ class MongoLock private constructor(
 
     internal val token: String = Base58.randomString(22)
 
+    private enum class AcquireResult {
+        ACQUIRED,
+        CONTENDED,
+        FAILED,
+    }
+
     /**
      * Attempts to acquire the lock within [waitTime]. Returns `true` on success, `false` on timeout or error.
      *
-     * This function never throws. All MongoDB exceptions are handled by returning `false`.
+     * This is a blocking API: retry waits use [Thread.sleep]. Use [tryLockAsync] from CompletableFuture paths so
+     * retry waits do not occupy executor threads.
      *
      * @param waitTime Maximum wait time for lock acquisition
      * @param leaseTime Maximum lock hold (TTL) duration
@@ -114,50 +124,13 @@ class MongoLock private constructor(
         val deadline = MonotonicDeadline.fromNow(waitTime)
 
         do {
-            val result: Document? = try {
-                collection.findOneAndUpdate(
-                    Filters.and(
-                        Filters.eq("_id", lockKey),
-                        Filters.lt("expireAt", Date())
-                    ),
-                    Updates.combine(
-                        Updates.set("token", token),
-                        Updates.set("expireAt", Date(System.currentTimeMillis() + leaseTime.inWholeMilliseconds))
-                    ),
-                    FindOneAndUpdateOptions().upsert(true).returnDocument(ReturnDocument.AFTER)
-                )
-            } catch (e: MongoCommandException) {
-                when (e.errorCode) {
-                    11000 -> null  // Duplicate Key — 유효한 락이 이미 존재, 재시도
-                    13, 18 -> {
-                        log.error(e) { "MongoDB 인증 오류 (code=${e.errorCode}) 발생: lockKey=$lockKey" }
-                        return false
-                    }
-                    else -> {
-                        log.warn(e) { "MongoDB 커맨드 오류 (code=${e.errorCode}) 발생: lockKey=$lockKey" }
-                        return false
-                    }
+            when (tryAcquireOnce(leaseTime)) {
+                AcquireResult.ACQUIRED -> {
+                    log.debug { "락 획득 성공: lockKey=$lockKey" }
+                    return true
                 }
-            } catch (e: MongoWriteException) {
-                if (e.code == 11000) null  // Duplicate Key — 재시도
-                else {
-                    log.warn(e) { "MongoDB 쓰기 오류 (code=${e.code}) 발생: lockKey=$lockKey" }
-                    return false
-                }
-            } catch (e: MongoTimeoutException) {
-                log.warn(e) { "MongoDB 타임아웃 발생: lockKey=$lockKey" }
-                return false
-            } catch (e: MongoSecurityException) {
-                log.error(e) { "MongoDB 보안 오류 발생: lockKey=$lockKey" }
-                return false
-            } catch (e: MongoException) {
-                log.warn(e) { "MongoDB 오류 발생: lockKey=$lockKey" }
-                return false
-            }
-
-            if (result?.getString("token") == token) {
-                log.debug { "락 획득 성공: lockKey=$lockKey" }
-                return true
+                AcquireResult.CONTENDED -> Unit
+                AcquireResult.FAILED -> return false
             }
 
             if (deadline.hasTimeRemaining()) {
@@ -172,6 +145,97 @@ class MongoLock private constructor(
 
         log.debug { "락 획득 실패 (타임아웃): lockKey=$lockKey" }
         return false
+    }
+
+    /**
+     * Attempts to acquire the lock without occupying [executor] threads for retry waits.
+     *
+     * The MongoDB sync driver still performs each individual database operation on [executor], which defaults to
+     * [VirtualThreadExecutor]. Retry delays are scheduled with [CompletableFuture.delayedExecutor] instead of
+     * sleeping inside the executor thread.
+     */
+    fun tryLockAsync(
+        waitTime: Duration,
+        leaseTime: Duration,
+        executor: Executor = VirtualThreadExecutor,
+    ): CompletableFuture<Boolean> {
+        val deadline = MonotonicDeadline.fromNow(waitTime)
+
+        fun attempt(): CompletableFuture<Boolean> {
+            return CompletableFuture.supplyAsync({ tryAcquireOnce(leaseTime) }, executor)
+                .thenCompose { result ->
+                    when (result) {
+                        AcquireResult.ACQUIRED -> {
+                            log.debug { "락 획득 성공 (async): lockKey=$lockKey" }
+                            CompletableFuture.completedFuture(true)
+                        }
+                        AcquireResult.FAILED -> CompletableFuture.completedFuture(false)
+                        AcquireResult.CONTENDED -> {
+                            if (!deadline.hasTimeRemaining()) {
+                                log.debug { "락 획득 실패 (타임아웃, async): lockKey=$lockKey" }
+                                CompletableFuture.completedFuture(false)
+                            } else {
+                                val jitter = Random.nextLong(1, retryDelay.inWholeMilliseconds.coerceAtLeast(2))
+                                val delayMillis = deadline.remainingMillisForDelay(jitter)
+                                val delayed = CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS)
+                                CompletableFuture.runAsync({}, delayed).thenCompose { attempt() }
+                            }
+                        }
+                    }
+                }
+        }
+
+        return attempt()
+    }
+
+    private fun tryAcquireOnce(leaseTime: Duration): AcquireResult {
+        val result: Document? = try {
+            collection.findOneAndUpdate(
+                Filters.and(
+                    Filters.eq("_id", lockKey),
+                    Filters.lt("expireAt", Date())
+                ),
+                Updates.combine(
+                    Updates.set("token", token),
+                    Updates.set("expireAt", Date(System.currentTimeMillis() + leaseTime.inWholeMilliseconds))
+                ),
+                FindOneAndUpdateOptions().upsert(true).returnDocument(ReturnDocument.AFTER)
+            )
+        } catch (e: MongoCommandException) {
+            return when (e.errorCode) {
+                11000 -> AcquireResult.CONTENDED  // Duplicate Key — 유효한 락이 이미 존재, 재시도
+                13, 18 -> {
+                    log.error(e) { "MongoDB 인증 오류 (code=${e.errorCode}) 발생: lockKey=$lockKey" }
+                    AcquireResult.FAILED
+                }
+                else -> {
+                    log.warn(e) { "MongoDB 커맨드 오류 (code=${e.errorCode}) 발생: lockKey=$lockKey" }
+                    AcquireResult.FAILED
+                }
+            }
+        } catch (e: MongoWriteException) {
+            return if (e.code == 11000) {
+                AcquireResult.CONTENDED  // Duplicate Key — 재시도
+            } else {
+                log.warn(e) { "MongoDB 쓰기 오류 (code=${e.code}) 발생: lockKey=$lockKey" }
+                AcquireResult.FAILED
+            }
+        } catch (e: MongoTimeoutException) {
+            log.warn(e) { "MongoDB 타임아웃 발생: lockKey=$lockKey" }
+            return AcquireResult.FAILED
+        } catch (e: MongoSecurityException) {
+            log.error(e) { "MongoDB 보안 오류 발생: lockKey=$lockKey" }
+            return AcquireResult.FAILED
+        } catch (e: MongoException) {
+            log.warn(e) { "MongoDB 오류 발생: lockKey=$lockKey" }
+            return AcquireResult.FAILED
+        }
+
+        return if (result?.getString("token") == token) {
+            AcquireResult.ACQUIRED
+        } else {
+            AcquireResult.CONTENDED
+        }
     }
 
     /**

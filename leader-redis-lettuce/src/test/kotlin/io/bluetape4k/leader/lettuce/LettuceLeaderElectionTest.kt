@@ -6,6 +6,7 @@ import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.lettuce.lock.LettuceLock
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
@@ -19,6 +20,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
@@ -173,6 +176,33 @@ class LettuceLeaderElectionTest: AbstractLettuceLeaderTest() {
         }.get()
         r1 shouldBeEqualTo 1
         r2 shouldBeEqualTo 2
+    }
+
+    @Test
+    fun `비동기 리더 선출 - 경합 retry 대기는 executor thread 를 점유하지 않는다`() {
+        val holderLock = LettuceLock(connection, lockName)
+        holderLock.tryLock(waitTime = 100.milliseconds, leaseTime = 2.seconds).shouldBeTrue()
+        val executor = Executors.newSingleThreadExecutor()
+        val contender = LettuceLeaderElector(
+            connection,
+            LeaderElectionOptions(
+                waitTime = 700.milliseconds,
+                leaseTime = 2.seconds,
+            )
+        )
+
+        try {
+            val result = contender.runAsyncIfLeader(lockName, executor) {
+                CompletableFuture.completedFuture("unexpected")
+            }
+            val marker = CompletableFuture.supplyAsync({ "executor-free" }, executor)
+
+            marker.get(300, TimeUnit.MILLISECONDS) shouldBeEqualTo "executor-free"
+            result.get(2, TimeUnit.SECONDS).shouldBeNull()
+        } finally {
+            holderLock.unlock()
+            executor.shutdownNow()
+        }
     }
 
     // =========================================================================

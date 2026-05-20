@@ -15,12 +15,14 @@ import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import java.util.concurrent.CompletionException
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 
 class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
 
@@ -253,6 +255,37 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
         }.get(5, TimeUnit.SECONDS)
 
         result shouldBeEqualTo "async 성공"
+    }
+
+    @Test
+    fun `runAsyncIfLeader - 경합 retry 대기는 executor thread 를 점유하지 않는다`() {
+        val lockName = randomName()
+        val holderLock = MongoLock(lockCollection, lockName)
+        holderLock.tryLock(100.milliseconds, 2.seconds).shouldBeTrue()
+        val executor = Executors.newSingleThreadExecutor()
+        val election = MongoLeaderElector(
+            lockCollection,
+            MongoLeaderElectionOptions(
+                leaderOptions = LeaderElectionOptions(
+                    waitTime = 700.milliseconds,
+                    leaseTime = 2.seconds,
+                ),
+                retryDelay = 100.milliseconds,
+            )
+        )
+
+        try {
+            val contender = election.runAsyncIfLeader(lockName, executor) {
+                CompletableFuture.completedFuture("unexpected")
+            }
+            val marker = CompletableFuture.supplyAsync({ "executor-free" }, executor)
+
+            marker.get(300, TimeUnit.MILLISECONDS) shouldBeEqualTo "executor-free"
+            contender.get(2, TimeUnit.SECONDS).shouldBeNull()
+        } finally {
+            holderLock.unlock()
+            executor.shutdownNow()
+        }
     }
 
     @Test

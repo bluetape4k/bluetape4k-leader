@@ -23,6 +23,7 @@ import java.util.Date
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import kotlin.random.Random
+import kotlin.time.Duration
 
 /**
  * Multi-leader group election implementation using a MongoDB slot-based distributed semaphore.
@@ -170,15 +171,7 @@ class MongoLeaderGroupElector private constructor(
         val perSlotWait = options.leaderGroupOptions.waitTime / maxLeaders
         val start = Random.nextInt(maxLeaders)
 
-        return CompletableFuture.supplyAsync({
-            (0 until maxLeaders)
-                .asSequence()
-                .map { i ->
-                    val slot = (start + i) % maxLeaders
-                    MongoLock(groupCollection, slotKey(lockName, slot), options.retryDelay) to slot
-                }
-                .firstOrNull { (lock, _) -> lock.tryLock(perSlotWait, leaseTime) }
-        }, executor).thenComposeAsync({ acquired ->
+        return acquireSlotAsync(lockName, start, perSlotWait, leaseTime).thenComposeAsync({ acquired ->
             if (acquired == null) {
                 log.debug { "리더 그룹 슬롯 획득 실패 (비동기). lockName=$lockName" }
                 CompletableFuture.completedFuture(null)
@@ -205,6 +198,32 @@ class MongoLeaderGroupElector private constructor(
                 }, executor)
             }
         }, executor)
+    }
+
+    private fun acquireSlotAsync(
+        lockName: String,
+        start: Int,
+        perSlotWait: Duration,
+        leaseTime: Duration,
+    ): CompletableFuture<Pair<MongoLock, Int>?> {
+        fun attempt(offset: Int): CompletableFuture<Pair<MongoLock, Int>?> {
+            if (offset >= maxLeaders) {
+                return CompletableFuture.completedFuture(null)
+            }
+
+            val slot = (start + offset) % maxLeaders
+            val lock = MongoLock(groupCollection, slotKey(lockName, slot), options.retryDelay)
+            return lock.tryLockAsync(perSlotWait, leaseTime)
+                .thenCompose { acquired ->
+                    if (acquired) {
+                        CompletableFuture.completedFuture(lock to slot)
+                    } else {
+                        attempt(offset + 1)
+                    }
+                }
+        }
+
+        return attempt(0)
     }
 }
 
