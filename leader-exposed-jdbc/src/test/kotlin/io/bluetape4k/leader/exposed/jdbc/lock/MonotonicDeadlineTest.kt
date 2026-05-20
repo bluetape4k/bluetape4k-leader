@@ -54,4 +54,19 @@ class MonotonicDeadlineTest {
         deadline.remainingMillisForSleep() shouldBeEqualTo 0L
         deadline.hasTimeRemaining().shouldBeFalse()
     }
+
+    @Test
+    fun `fromNow - huge wait time saturates deadline instead of overflowing`() {
+        var tickerNanos = Long.MAX_VALUE - 10L
+        val deadline = MonotonicDeadline.fromNow(100.milliseconds) { tickerNanos }
+
+        deadline.remainingNanos() shouldBeEqualTo 10L
+        deadline.remainingMillisForSleep() shouldBeEqualTo 1L
+        deadline.hasTimeRemaining().shouldBeTrue()
+
+        tickerNanos += 10L
+
+        deadline.remainingNanos() shouldBeEqualTo 0L
+        deadline.hasTimeRemaining().shouldBeFalse()
+    }
 }
