@@ -15,6 +15,7 @@ import com.mongodb.kotlin.client.coroutine.MongoCollection
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.remainingMinLeaseTime
+import io.bluetape4k.leader.mongodb.internal.MonotonicDeadline
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
@@ -111,7 +112,7 @@ class MongoSuspendLock private constructor(
      * @return `true` on successful lock acquisition, `false` on failure or error
      */
     suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
-        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
+        val deadline = MonotonicDeadline.fromNow(waitTime)
 
         do {
             currentCoroutineContext().ensureActive()
@@ -162,13 +163,15 @@ class MongoSuspendLock private constructor(
                 return true
             }
 
-            val remaining = deadline - System.currentTimeMillis()
-            if (remaining > 0L) {
+            if (deadline.hasTimeRemaining()) {
                 // AWS full jitter: delay ∈ [1ms, retryDelay) — 동일 retry 윈도우에 인스턴스가 몰리는 것을 방지
                 val jitter = Random.nextLong(1, retryDelay.inWholeMilliseconds.coerceAtLeast(2))
-                delay(minOf(jitter, remaining).milliseconds)
+                val delayMillis = deadline.remainingMillisForDelay(jitter)
+                if (delayMillis > 0L) {
+                    delay(delayMillis.milliseconds)
+                }
             }
-        } while (System.currentTimeMillis() < deadline)
+        } while (deadline.hasTimeRemaining())
 
         log.debug { "락 획득 실패 (타임아웃, suspend): lockKey=$lockKey" }
         return false
