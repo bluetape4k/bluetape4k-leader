@@ -15,6 +15,7 @@ import com.mongodb.client.model.Updates
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.remainingMinLeaseTime
+import io.bluetape4k.leader.mongodb.internal.MonotonicDeadline
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
@@ -110,7 +111,7 @@ class MongoLock private constructor(
      * @return `true` if the lock was acquired, `false` on failure or error
      */
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
-        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
+        val deadline = MonotonicDeadline.fromNow(waitTime)
 
         do {
             val result: Document? = try {
@@ -159,13 +160,15 @@ class MongoLock private constructor(
                 return true
             }
 
-            val remaining = deadline - System.currentTimeMillis()
-            if (remaining > 0L) {
+            if (deadline.hasTimeRemaining()) {
                 // AWS full jitter: sleep ∈ [1ms, retryDelay) — 동일 retry 윈도우에 인스턴스가 몰리는 것을 방지
                 val jitter = Random.nextLong(1, retryDelay.inWholeMilliseconds.coerceAtLeast(2))
-                Thread.sleep(minOf(jitter, remaining))
+                val delayMillis = deadline.remainingMillisForDelay(jitter)
+                if (delayMillis > 0L) {
+                    Thread.sleep(delayMillis)
+                }
             }
-        } while (System.currentTimeMillis() < deadline)
+        } while (deadline.hasTimeRemaining())
 
         log.debug { "락 획득 실패 (타임아웃): lockKey=$lockKey" }
         return false
