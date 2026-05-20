@@ -64,7 +64,7 @@ internal class ExposedJdbcGroupLock internal constructor(
      * @return `true` when the lock is acquired, `false` on contention or timeout, `null` on DB error
      */
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean? {
-        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds.coerceAtLeast(0L)
+        val deadline = MonotonicDeadline.fromNow(waitTime)
         var attempt = 0
 
         do {
@@ -82,7 +82,7 @@ internal class ExposedJdbcGroupLock internal constructor(
                 return true
             }
 
-            val remaining = deadline - System.currentTimeMillis()
+            val remaining = deadline.remainingMillisForSleep()
             if (remaining > 0L) {
                 try {
                     Thread.sleep(retryStrategy.delayMs(attempt++, remaining))
@@ -92,7 +92,7 @@ internal class ExposedJdbcGroupLock internal constructor(
                     return false
                 }
             }
-        } while (System.currentTimeMillis() < deadline)
+        } while (deadline.hasTimeRemaining())
 
         log.debug { "그룹 슬롯 락 획득 실패 (타임아웃): lockName=$lockName, slot=$slot" }
         return false
@@ -161,26 +161,29 @@ internal class ExposedJdbcGroupLock internal constructor(
      *
      * Returns `false` when the lease has expired and another instance has re-acquired the slot.
      */
-    fun isHeldByCurrentInstance(): Boolean = runCatching {
-        val lockNameVal = lockName
-        val slotVal = slot
-        val tokenVal = token
-        transaction(db) {
-            val now = Instant.now()
-            !LeaderGroupLockTable
-                .selectAll()
-                .where {
-                    (LeaderGroupLockTable.lockName eq lockNameVal) and
-                        (LeaderGroupLockTable.slot eq slotVal) and
-                        (LeaderGroupLockTable.token eq tokenVal) and
-                        (LeaderGroupLockTable.lockedUntil greater now)
-                }
-                .empty()
+    fun isHeldByCurrentInstance(): Boolean =
+        try {
+            val lockNameVal = lockName
+            val slotVal = slot
+            val tokenVal = token
+            transaction(db) {
+                val now = Instant.now()
+                !LeaderGroupLockTable
+                    .selectAll()
+                    .where {
+                        (LeaderGroupLockTable.lockName eq lockNameVal) and
+                            (LeaderGroupLockTable.slot eq slotVal) and
+                            (LeaderGroupLockTable.token eq tokenVal) and
+                            (LeaderGroupLockTable.lockedUntil greater now)
+                    }
+                    .empty()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log.warn(e) { "isHeldByCurrentInstance DB 오류 (false 반환): lockName=$lockName, slot=$slot" }
+            false
         }
-    }.getOrElse { e ->
-        log.warn(e) { "isHeldByCurrentInstance DB 오류 (false 반환): lockName=$lockName, slot=$slot" }
-        false
-    }
 
     /**
      * Releases the slot lock held by the current instance.
@@ -196,7 +199,7 @@ internal class ExposedJdbcGroupLock internal constructor(
         val tokenVal = this@ExposedJdbcGroupLock.token
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
 
-        runCatching {
+        try {
             val matched = transaction(db) {
                 if (remaining > Duration.ZERO) {
                     LeaderGroupLockTable.update(
@@ -221,7 +224,9 @@ internal class ExposedJdbcGroupLock internal constructor(
             } else {
                 log.debug { "그룹 슬롯 해제 성공: lockName=$lockName, slot=$slot" }
             }
-        }.onFailure { e ->
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             log.warn(e) { "그룹 슬롯 해제 중 DB 오류: lockName=$lockName, slot=$slot" }
         }
     }

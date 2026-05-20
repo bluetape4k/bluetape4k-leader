@@ -63,7 +63,7 @@ internal class ExposedJdbcLock internal constructor(
      * @return `true` when the lock is acquired, `false` on timeout or error
      */
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
-        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds.coerceAtLeast(0L)
+        val deadline = MonotonicDeadline.fromNow(waitTime)
         var attempt = 0
 
         do {
@@ -81,7 +81,7 @@ internal class ExposedJdbcLock internal constructor(
                 return true
             }
 
-            val remaining = deadline - System.currentTimeMillis()
+            val remaining = deadline.remainingMillisForSleep()
             if (remaining > 0L) {
                 // sleep은 transaction 바깥에서만 호출 (HikariCP 풀 고갈 방지)
                 // InterruptedException 발생 시 interrupt flag 복원 후 false 반환 (never-throws 계약)
@@ -93,7 +93,7 @@ internal class ExposedJdbcLock internal constructor(
                     return false
                 }
             }
-        } while (System.currentTimeMillis() < deadline)
+        } while (deadline.hasTimeRemaining())
 
         log.debug { "락 획득 실패 (타임아웃): lockName=$lockName" }
         return false
@@ -157,22 +157,25 @@ internal class ExposedJdbcLock internal constructor(
      *
      * Returns `false` when the lease has expired and another instance has re-acquired the lock.
      */
-    fun isHeldByCurrentInstance(): Boolean = runCatching {
-        transaction(db) {
-            val now = Instant.now()
-            !LeaderLockTable
-                .selectAll()
-                .where {
-                    (LeaderLockTable.lockName eq lockName) and
-                            (LeaderLockTable.token eq token) and
-                            (LeaderLockTable.lockedUntil greater now)
-                }
-                .empty()
+    fun isHeldByCurrentInstance(): Boolean =
+        try {
+            transaction(db) {
+                val now = Instant.now()
+                !LeaderLockTable
+                    .selectAll()
+                    .where {
+                        (LeaderLockTable.lockName eq lockName) and
+                                (LeaderLockTable.token eq token) and
+                                (LeaderLockTable.lockedUntil greater now)
+                    }
+                    .empty()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log.warn(e) { "isHeldByCurrentInstance DB 오류 (false 반환): lockName=$lockName" }
+            false
         }
-    }.getOrElse { e ->
-        log.warn(e) { "isHeldByCurrentInstance DB 오류 (false 반환): lockName=$lockName" }
-        false
-    }
 
     /**
      * Releases the lock held by the current instance.
@@ -187,7 +190,7 @@ internal class ExposedJdbcLock internal constructor(
         val tokenVal = this@ExposedJdbcLock.token
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
 
-        runCatching {
+        try {
             val matched = transaction(db) {
                 if (remaining > Duration.ZERO) {
                     LeaderLockTable.update(
@@ -206,7 +209,9 @@ internal class ExposedJdbcLock internal constructor(
             } else {
                 log.debug { "락 해제 성공: lockName=$lockName, token=${token.take(8)}" }
             }
-        }.onFailure { e ->
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             log.warn(e) { "락 해제 중 DB 오류: lockName=$lockName" }
         }
     }

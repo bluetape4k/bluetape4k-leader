@@ -108,22 +108,25 @@ class ExposedJdbcLeaderGroupElector private constructor(
      *
      * Returns `0` on DB error (best-effort; no exception propagation).
      */
-    override fun activeCount(lockName: String): Int = runCatching {
-        transaction(db) {
-            val now = Instant.now()
-            LeaderGroupLockTable
-                .selectAll()
-                .where {
-                    (LeaderGroupLockTable.lockName eq lockName) and
-                        (LeaderGroupLockTable.lockedUntil greater now)
-                }
-                .count()
-                .toInt()
+    override fun activeCount(lockName: String): Int =
+        try {
+            transaction(db) {
+                val now = Instant.now()
+                LeaderGroupLockTable
+                    .selectAll()
+                    .where {
+                        (LeaderGroupLockTable.lockName eq lockName) and
+                            (LeaderGroupLockTable.lockedUntil greater now)
+                    }
+                    .count()
+                    .toInt()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log.warn(e) { "activeCount DB 오류 (0 반환): lockName=$lockName" }
+            0
         }
-    }.getOrElse { e ->
-        log.warn(e) { "activeCount DB 오류 (0 반환): lockName=$lockName" }
-        0
-    }
 
     /** Number of slots immediately available for [lockName]. */
     override fun availableSlots(lockName: String): Int = maxLeaders - activeCount(lockName)
@@ -242,9 +245,14 @@ class ExposedJdbcLeaderGroupElector private constructor(
                     actionSucceeded -> effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
                     capturedError != null -> effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, capturedError) }
                 }
-                runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
-                    .onSuccess { log.debug { "그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
-                    .onFailure { e -> log.warn(e) { "그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" } }
+                try {
+                    lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
+                    log.debug { "그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    log.warn(e) { "그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
+                }
             }
         }
 
@@ -331,8 +339,13 @@ class ExposedJdbcLeaderGroupElector private constructor(
                         val finishedAt = Instant.now()
                         val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                         effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
-                        runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
-                            .onFailure { ex -> log.warn(ex) { "슬롯 해제 실패 (action 오류 경로). slot=$slot" } }
+                        try {
+                            lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
+                        } catch (ex: CancellationException) {
+                            throw ex
+                        } catch (ex: Exception) {
+                            log.warn(ex) { "슬롯 해제 실패 (action 오류 경로). slot=$slot" }
+                        }
                         return@thenComposeAsync CompletableFuture.failedFuture(e)
                     }
 
@@ -347,9 +360,14 @@ class ExposedJdbcLeaderGroupElector private constructor(
                         throwable is CancellationException -> { /* skip */ }
                         else -> effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, throwable) }
                     }
-                    runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
-                        .onSuccess { log.debug { "비동기 그룹 슬롯 반납. lockName=$lockName, slot=$slot" } }
-                        .onFailure { e -> log.warn(e) { "비동기 슬롯 해제 실패. lockName=$lockName, slot=$slot" } }
+                    try {
+                        lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
+                        log.debug { "비동기 그룹 슬롯 반납. lockName=$lockName, slot=$slot" }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        log.warn(e) { "비동기 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
+                    }
                 }, executor)
             }
         }, executor)
