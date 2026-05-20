@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1754" height="1084" viewBox="0 0 1754 1084" role="img" aria-label="leader redis lettuce Class Structure">
+<svg xmlns="http://www.w3.org/2000/svg" width="1754" height="1133" viewBox="0 0 1754 1133" role="img" aria-label="leader redis lettuce Class Structure">
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
   <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
@@ -20,97 +20,101 @@
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
   </style>
 </defs>
-<rect class="canvas" width="1754" height="1084"/>
-<rect class="frame" x="32" y="28" width="1690" height="1028" rx="28"/>
+<rect class="canvas" width="1754" height="1133"/>
+<rect class="frame" x="32" y="28" width="1690" height="1077" rx="28"/>
 <text class="title" x="66" y="82">leader redis lettuce Class Structure</text>
 <text class="subtitle" x="70" y="118">UML classes from the original Mermaid source</text>
-<path class="line" d="M1492 760 C1492 558 1492 558 1492 356"/>
-<path class="line" d="M1082 760 C1082 693 467 693 467 626"/>
-<path class="line" d="M672 760 C672 558 1492 558 1492 356"/>
-<path class="line" d="M262 760 C262 546 1082 546 1082 332"/>
-<path class="implLine" d="M1492 760 C1492 669 1287 669 1287 578"/>
-<path class="implLine" d="M1082 760 C1082 669 877 669 877 578"/>
-<path class="implLine" d="M672 760 C672 522 672 522 672 284"/>
-<path class="implLine" d="M262 760 C262 522 262 522 262 284"/>
+<path class="line" d="M1492 777 C1492 570 1492 570 1492 363"/>
+<path class="line" d="M1082 777 C1082 710 467 710 467 643"/>
+<path class="line" d="M672 777 C672 570 1492 570 1492 363"/>
+<path class="line" d="M262 777 C262 559.5 1082 559.5 1082 342"/>
+<path class="implLine" d="M1492 777 C1492 697 1287 697 1287 617"/>
+<path class="implLine" d="M1082 777 C1082 689 877 689 877 601"/>
+<path class="implLine" d="M672 777 C672 538.5 672 538.5 672 300"/>
+<path class="implLine" d="M262 777 C262 538.5 262 538.5 262 300"/>
 <g transform="translate(92,180)">
-  <rect class="card" x="0" y="0" width="340" height="96" rx="5" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <rect class="card" x="0" y="0" width="340" height="112" rx="5" fill="#E8F3FF" stroke="#5B8DEF"/>
   <line class="compartment" x1="0" y1="78" x2="340" y2="78" stroke="#5B8DEF"/>
   <text class="small" x="170" y="26" text-anchor="middle">«interface»</text>
-  <text class="label" x="170" y="57" text-anchor="middle">LeaderElector</text>
+  <text class="label" x="170" y="61" text-anchor="middle">LeaderElector</text>
 
 </g>
 <g transform="translate(502,180)">
-  <rect class="card" x="0" y="0" width="340" height="96" rx="5" fill="#EAF7EF" stroke="#58A978"/>
+  <rect class="card" x="0" y="0" width="340" height="112" rx="5" fill="#EAF7EF" stroke="#58A978"/>
   <line class="compartment" x1="0" y1="78" x2="340" y2="78" stroke="#58A978"/>
   <text class="small" x="170" y="26" text-anchor="middle">«interface»</text>
-  <text class="label" x="170" y="57" text-anchor="middle">LeaderGroupElector</text>
+  <text class="label" x="170" y="61" text-anchor="middle">LeaderGroupElector</text>
 
 </g>
 <g transform="translate(912,180)">
-  <rect class="card" x="0" y="0" width="340" height="144" rx="5" fill="#FFF3D9" stroke="#D6A441"/>
+  <rect class="card" x="0" y="0" width="340" height="154" rx="5" fill="#FFF3D9" stroke="#D6A441"/>
   <line class="compartment" x1="0" y1="78" x2="340" y2="78" stroke="#D6A441"/>
   <text class="small" x="170" y="26" text-anchor="middle"></text>
-  <text class="label" x="170" y="57" text-anchor="middle">LettuceLock</text>
+  <text class="label" x="170" y="61" text-anchor="middle">LettuceLock</text>
   <text class="mono" x="18" y="108">+tryLock(key, value, ttl) Boolean</text>
-<text class="mono" x="18" y="132">+unlock(key, value)</text>
+<text class="mono" x="18" y="129">+unlock(key, value)</text>
 </g>
 <g transform="translate(1322,180)">
-  <rect class="card" x="0" y="0" width="340" height="168" rx="5" fill="#FDECEF" stroke="#DC6B82"/>
+  <rect class="card" x="0" y="0" width="340" height="175" rx="5" fill="#FDECEF" stroke="#DC6B82"/>
   <line class="compartment" x1="0" y1="78" x2="340" y2="78" stroke="#DC6B82"/>
   <text class="small" x="170" y="26" text-anchor="middle"></text>
-  <text class="label" x="170" y="57" text-anchor="middle">LettuceSlotTokenGroup</text>
+  <text class="label" x="170" y="61" text-anchor="middle">LettuceSlotTokenGroup</text>
   <text class="mono" x="18" y="108">+tryAcquire(waitTime, leaseTime) String?</text>
-<text class="mono" x="18" y="132">+release(token, remainingMinLeaseMs)</text>
-<text class="mono" x="18" y="156">+activeCount() Int</text>
+<text class="mono" x="18" y="129">+release(token, remainingMinLeaseMs)</text>
+<text class="mono" x="18" y="150">+activeCount() Int</text>
 </g>
-<g transform="translate(297,474)">
-  <rect class="card" x="0" y="0" width="340" height="144" rx="5" fill="#E9F7F6" stroke="#45A7A1"/>
+<g transform="translate(297,481)">
+  <rect class="card" x="0" y="0" width="340" height="154" rx="5" fill="#E9F7F6" stroke="#45A7A1"/>
   <line class="compartment" x1="0" y1="78" x2="340" y2="78" stroke="#45A7A1"/>
   <text class="small" x="170" y="26" text-anchor="middle"></text>
-  <text class="label" x="170" y="57" text-anchor="middle">LettuceSuspendLock</text>
+  <text class="label" x="170" y="61" text-anchor="middle">LettuceSuspendLock</text>
   <text class="mono" x="18" y="108">+tryLock(key, value, ttl) Boolean</text>
-<text class="mono" x="18" y="132">+unlock(key, value)</text>
+<text class="mono" x="18" y="129">+unlock(key, value)</text>
 </g>
-<g transform="translate(707,474)">
-  <rect class="card" x="0" y="0" width="340" height="96" rx="5" fill="#F1ECFF" stroke="#8A72D6"/>
+<g transform="translate(707,481)">
+  <rect class="card" x="0" y="0" width="340" height="112" rx="5" fill="#F1ECFF" stroke="#8A72D6"/>
   <line class="compartment" x1="0" y1="78" x2="340" y2="78" stroke="#8A72D6"/>
   <text class="small" x="170" y="26" text-anchor="middle">«interface»</text>
-  <text class="label" x="170" y="57" text-anchor="middle">SuspendLeaderElector</text>
+  <text class="label" x="170" y="61" text-anchor="middle">SuspendLeaderElector</text>
 
 </g>
-<g transform="translate(1117,474)">
-  <rect class="card" x="0" y="0" width="340" height="96" rx="5" fill="#F7F1E7" stroke="#B88A44"/>
-  <line class="compartment" x1="0" y1="78" x2="340" y2="78" stroke="#B88A44"/>
+<g transform="translate(1117,481)">
+  <rect class="card" x="0" y="0" width="340" height="128" rx="5" fill="#F7F1E7" stroke="#B88A44"/>
+  <line class="compartment" x1="0" y1="94" x2="340" y2="94" stroke="#B88A44"/>
   <text class="small" x="170" y="26" text-anchor="middle">«interface»</text>
-  <text class="label" x="170" y="57" text-anchor="middle">SuspendLeaderGroupElector</text>
+  <text class="label" x="170" y="56.5" text-anchor="middle">Suspend Leader Group</text>
+<text class="label" x="170" y="81.5" text-anchor="middle">Elector</text>
 
 </g>
-<g transform="translate(92,768)">
-  <rect class="card" x="0" y="0" width="340" height="96" rx="5" fill="#EEF6D9" stroke="#8BA84D"/>
+<g transform="translate(92,785)">
+  <rect class="card" x="0" y="0" width="340" height="112" rx="5" fill="#EEF6D9" stroke="#8BA84D"/>
   <line class="compartment" x1="0" y1="78" x2="340" y2="78" stroke="#8BA84D"/>
   <text class="small" x="170" y="26" text-anchor="middle"></text>
-  <text class="label" x="170" y="57" text-anchor="middle">LettuceLeaderElector</text>
+  <text class="label" x="170" y="61" text-anchor="middle">LettuceLeaderElector</text>
 
 </g>
-<g transform="translate(502,768)">
-  <rect class="card" x="0" y="0" width="340" height="96" rx="5" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <line class="compartment" x1="0" y1="78" x2="340" y2="78" stroke="#5B8DEF"/>
+<g transform="translate(502,785)">
+  <rect class="card" x="0" y="0" width="340" height="128" rx="5" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <line class="compartment" x1="0" y1="94" x2="340" y2="94" stroke="#5B8DEF"/>
   <text class="small" x="170" y="26" text-anchor="middle"></text>
-  <text class="label" x="170" y="57" text-anchor="middle">LettuceLeaderGroupElector</text>
+  <text class="label" x="170" y="56.5" text-anchor="middle">Lettuce Leader Group</text>
+<text class="label" x="170" y="81.5" text-anchor="middle">Elector</text>
 
 </g>
-<g transform="translate(912,768)">
-  <rect class="card" x="0" y="0" width="340" height="96" rx="5" fill="#EAF7EF" stroke="#58A978"/>
-  <line class="compartment" x1="0" y1="78" x2="340" y2="78" stroke="#58A978"/>
+<g transform="translate(912,785)">
+  <rect class="card" x="0" y="0" width="340" height="128" rx="5" fill="#EAF7EF" stroke="#58A978"/>
+  <line class="compartment" x1="0" y1="94" x2="340" y2="94" stroke="#58A978"/>
   <text class="small" x="170" y="26" text-anchor="middle"></text>
-  <text class="label" x="170" y="57" text-anchor="middle">LettuceSuspendLeaderElector</text>
+  <text class="label" x="170" y="56.5" text-anchor="middle">Lettuce Suspend Leader</text>
+<text class="label" x="170" y="81.5" text-anchor="middle">Elector</text>
 
 </g>
-<g transform="translate(1322,768)">
-  <rect class="card" x="0" y="0" width="340" height="96" rx="5" fill="#FFF3D9" stroke="#D6A441"/>
-  <line class="compartment" x1="0" y1="78" x2="340" y2="78" stroke="#D6A441"/>
+<g transform="translate(1322,785)">
+  <rect class="card" x="0" y="0" width="340" height="128" rx="5" fill="#FFF3D9" stroke="#D6A441"/>
+  <line class="compartment" x1="0" y1="94" x2="340" y2="94" stroke="#D6A441"/>
   <text class="small" x="170" y="26" text-anchor="middle"></text>
-  <text class="label" x="170" y="57" text-anchor="middle">LettuceSuspendLeaderGroupElector</text>
+  <text class="label" x="170" y="56.5" text-anchor="middle">Lettuce Suspend Leader</text>
+<text class="label" x="170" y="81.5" text-anchor="middle">Group Elector</text>
 
 </g>
 </svg>
