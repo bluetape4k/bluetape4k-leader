@@ -34,8 +34,15 @@ internal class MonotonicDeadline private constructor(
             waitTime: Duration,
             ticker: () -> Long = System::nanoTime,
         ): MonotonicDeadline {
+            val now = ticker()
             val timeoutNanos = waitTime.inWholeNanoseconds.coerceAtLeast(0L)
-            return MonotonicDeadline(ticker() + timeoutNanos, ticker)
+            val deadlineNanos =
+                if (Long.MAX_VALUE - timeoutNanos < now) {
+                    Long.MAX_VALUE
+                } else {
+                    now + timeoutNanos
+                }
+            return MonotonicDeadline(deadlineNanos, ticker)
         }
     }
 }
