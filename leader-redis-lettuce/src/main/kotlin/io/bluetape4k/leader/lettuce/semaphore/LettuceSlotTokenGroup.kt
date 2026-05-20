@@ -2,6 +2,7 @@ package io.bluetape4k.leader.lettuce.semaphore
 
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.ExtendOutcome
+import io.bluetape4k.leader.lettuce.internal.MonotonicDeadline
 import io.bluetape4k.leader.lettuce.script.RedisScript
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.logging.KLogging
@@ -233,7 +234,7 @@ return 0
      */
     fun tryAcquire(waitTime: Duration, leaseTime: Duration, auditLeaderId: String = ""): String? {
         val token = Base58.randomString(TOKEN_LENGTH)
-        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
+        val deadline = MonotonicDeadline.fromNow(waitTime)
         val leaseMs = leaseTime.inWholeMilliseconds.toString()
         while (true) {
             val result = RedisScriptRunner.run<String>(
@@ -244,11 +245,12 @@ return 0
                 log.debug { "슬롯 획득 성공. slotKey=$slotKey, token=$token" }
                 return result
             }
-            if (System.currentTimeMillis() >= deadline) {
+            val delayNanos = deadline.remainingNanosForPark(SPIN_DELAY_NANOS)
+            if (delayNanos <= 0L) {
                 log.debug { "슬롯 획득 타임아웃. slotKey=$slotKey, waitTime=$waitTime" }
                 return null
             }
-            LockSupport.parkNanos(SPIN_DELAY_NANOS)
+            LockSupport.parkNanos(delayNanos)
         }
     }
 
@@ -344,7 +346,7 @@ return 0
      */
     fun tryAcquireAsync(waitTime: Duration, leaseTime: Duration, auditLeaderId: String = ""): CompletableFuture<String?> {
         val token = Base58.randomString(TOKEN_LENGTH)
-        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
+        val deadline = MonotonicDeadline.fromNow(waitTime)
         val leaseMs = leaseTime.inWholeMilliseconds.toString()
         val lastError = AtomicReference<Throwable?>(null)
 
@@ -364,8 +366,9 @@ return 0
             }.thenCompose { result ->
                 when {
                     !result.isNullOrEmpty() -> CompletableFuture.completedFuture<String?>(result)
-                    System.currentTimeMillis() < deadline -> {
-                        val delayed = CompletableFuture.delayedExecutor(SPIN_DELAY_MS, TimeUnit.MILLISECONDS)
+                    deadline.hasTimeRemaining() -> {
+                        val delayMillis = deadline.remainingMillisForDelay(SPIN_DELAY_MS)
+                        val delayed = CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS)
                         CompletableFuture.runAsync({}, delayed).thenCompose { attempt() }
                     }
                     else -> {
@@ -403,7 +406,7 @@ return 0
 
     suspend fun tryAcquireSuspending(waitTime: Duration, leaseTime: Duration, auditLeaderId: String = ""): String? {
         val token = Base58.randomString(TOKEN_LENGTH)
-        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
+        val deadline = MonotonicDeadline.fromNow(waitTime)
         val leaseMs = leaseTime.inWholeMilliseconds.toString()
         while (true) {
             val result = RedisScriptRunner.runSuspending<String>(
@@ -414,11 +417,12 @@ return 0
                 log.debug { "슬롯 획득 성공 (suspend). slotKey=$slotKey, token=$token" }
                 return result
             }
-            if (System.currentTimeMillis() >= deadline) {
+            val delayMillis = deadline.remainingMillisForDelay(SPIN_DELAY_MS)
+            if (delayMillis <= 0L) {
                 log.debug { "슬롯 획득 타임아웃 (suspend). slotKey=$slotKey, waitTime=$waitTime" }
                 return null
             }
-            delay(SPIN_DELAY_MS)
+            delay(delayMillis)
         }
     }
 

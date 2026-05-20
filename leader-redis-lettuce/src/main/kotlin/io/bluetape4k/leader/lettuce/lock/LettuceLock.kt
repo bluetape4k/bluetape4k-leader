@@ -3,6 +3,7 @@ package io.bluetape4k.leader.lettuce.lock
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.remainingMinLeaseTime
+import io.bluetape4k.leader.lettuce.internal.MonotonicDeadline
 import io.bluetape4k.leader.lettuce.script.RedisScript
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.logging.KLogging
@@ -102,7 +103,7 @@ end"""
         // Token generation uses SecureRandom for ≥128-bit entropy (see #50 spec §1-3)
         val token = Base58.randomString(22)
         val leaseMs = leaseTime.inWholeMilliseconds
-        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
+        val deadline = MonotonicDeadline.fromNow(waitTime)
 
         do {
             val args = SetArgs().nx().px(leaseMs)
@@ -112,10 +113,11 @@ end"""
                 log.debug { "Lock 획득 성공: lockKey=$lockKey" }
                 return true
             }
-            if (System.currentTimeMillis() < deadline) {
-                LockSupport.parkNanos(RETRY_DELAY_NANOS)
+            val delayNanos = deadline.remainingNanosForPark(RETRY_DELAY_NANOS)
+            if (delayNanos > 0L) {
+                LockSupport.parkNanos(delayNanos)
             }
-        } while (System.currentTimeMillis() < deadline)
+        } while (deadline.hasTimeRemaining())
 
         log.debug { "Lock 획득 실패 (timeout): lockKey=$lockKey" }
         return false
@@ -126,7 +128,7 @@ end"""
         val token = Base58.randomString(length = 22)
         val leaseMs = leaseTime.inWholeMilliseconds
         val args = SetArgs().nx().px(leaseMs)
-        val deadline = System.nanoTime() + maxWaitTime.inWholeNanoseconds
+        val deadline = MonotonicDeadline.fromNow(maxWaitTime)
 
         while (true) {
             val result = syncCommands.set(lockKey, token, args)
@@ -135,10 +137,10 @@ end"""
                 log.debug { "Lock 획득 성공: lockKey=$lockKey" }
                 return
             }
-            check(System.nanoTime() <= deadline) {
+            check(deadline.hasTimeRemaining()) {
                 "Lock 획득 시간 초과: lockKey=$lockKey, maxWaitTime=$maxWaitTime"
             }
-            LockSupport.parkNanos(RETRY_DELAY_NANOS)
+            LockSupport.parkNanos(deadline.remainingNanosForPark(RETRY_DELAY_NANOS))
         }
     }
 
@@ -208,7 +210,7 @@ end"""
         // Token generation uses SecureRandom for ≥128-bit entropy (see #50 spec §1-3)
         val token = Base58.randomString(length = 22)
         val leaseMs = leaseTime.inWholeMilliseconds
-        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
+        val deadline = MonotonicDeadline.fromNow(waitTime)
 
         fun attempt(): CompletableFuture<Boolean> {
             val args = SetArgs().nx().px(leaseMs)
@@ -218,8 +220,9 @@ end"""
                         tokenRef.value = token
                         log.debug { "Lock 획득 성공 (async): lockKey=$lockKey" }
                         CompletableFuture.completedFuture(true)
-                    } else if (System.currentTimeMillis() < deadline) {
-                        val delayed = CompletableFuture.delayedExecutor(RETRY_DELAY_MS, TimeUnit.MILLISECONDS)
+                    } else if (deadline.hasTimeRemaining()) {
+                        val delayMillis = deadline.remainingMillisForDelay(RETRY_DELAY_MS)
+                        val delayed = CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS)
                         CompletableFuture.runAsync({}, delayed).thenCompose { attempt() }
                     } else {
                         log.debug { "Lock 획득 실패 (timeout, async): lockKey=$lockKey" }
@@ -238,7 +241,7 @@ end"""
         // Token generation uses SecureRandom for ≥128-bit entropy (see #50 spec §1-3)
         val token = Base58.randomString(length = 22)
         val leaseMs = leaseTime.inWholeMilliseconds
-        val deadline = System.currentTimeMillis() + maxWaitTime.inWholeMilliseconds
+        val deadline = MonotonicDeadline.fromNow(maxWaitTime)
 
         fun attempt(): CompletableFuture<Unit> {
             val args = SetArgs().nx().px(leaseMs)
@@ -248,8 +251,9 @@ end"""
                         tokenRef.value = token
                         log.debug { "Lock 획득 성공 (async): lockKey=$lockKey" }
                         CompletableFuture.completedFuture(Unit)
-                    } else if (System.currentTimeMillis() < deadline) {
-                        val delayed = CompletableFuture.delayedExecutor(RETRY_DELAY_MS, TimeUnit.MILLISECONDS)
+                    } else if (deadline.hasTimeRemaining()) {
+                        val delayMillis = deadline.remainingMillisForDelay(RETRY_DELAY_MS)
+                        val delayed = CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS)
                         CompletableFuture.runAsync({}, delayed).thenCompose { attempt() }
                     } else {
                         CompletableFuture.failedFuture(

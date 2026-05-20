@@ -3,6 +3,7 @@ package io.bluetape4k.leader.lettuce.lock
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.remainingMinLeaseTime
+import io.bluetape4k.leader.lettuce.internal.MonotonicDeadline
 import io.bluetape4k.leader.lettuce.script.RedisScript
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -97,7 +98,7 @@ end"""
         // Token generation uses SecureRandom for ≥128-bit entropy (see #50 spec §1-3)
         val token = Base58.randomString(length = 22)
         val leaseMs = leaseTime.inWholeMilliseconds
-        val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
+        val deadline = MonotonicDeadline.fromNow(waitTime)
 
         do {
             val args = SetArgs().nx().px(leaseMs)
@@ -107,10 +108,11 @@ end"""
                 log.debug { "Lock 획득 성공 (suspend): lockKey=$lockKey" }
                 return true
             }
-            if (System.currentTimeMillis() < deadline) {
-                delay(RETRY_DELAY_MS.milliseconds)
+            val delayMillis = deadline.remainingMillisForDelay(RETRY_DELAY_MS)
+            if (delayMillis > 0L) {
+                delay(delayMillis.milliseconds)
             }
-        } while (System.currentTimeMillis() < deadline)
+        } while (deadline.hasTimeRemaining())
 
         log.debug { "Lock 획득 실패 (timeout, suspend): lockKey=$lockKey" }
         return false
@@ -123,7 +125,7 @@ end"""
         // Token generation uses SecureRandom for ≥128-bit entropy (see #50 spec §1-3)
         val token = Base58.randomString(length = 22)
         val leaseMs = leaseTime.inWholeMilliseconds
-        val deadline = System.currentTimeMillis() + maxWaitTime.inWholeMilliseconds
+        val deadline = MonotonicDeadline.fromNow(maxWaitTime)
 
         while (true) {
             val args = SetArgs().nx().px(leaseMs)
@@ -133,10 +135,10 @@ end"""
                 log.debug { "Lock 획득 성공 (suspend): lockKey=$lockKey" }
                 return
             }
-            check(System.currentTimeMillis() < deadline) {
+            check(deadline.hasTimeRemaining()) {
                 "Lock 획득 시간 초과 (suspend): lockKey=$lockKey, maxWaitTime=$maxWaitTime"
             }
-            delay(RETRY_DELAY_MS.milliseconds)
+            delay(deadline.remainingMillisForDelay(RETRY_DELAY_MS).milliseconds)
         }
     }
 
