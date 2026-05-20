@@ -24,6 +24,16 @@ Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
 - **Self-contained Redis test infrastructure** — Testcontainers, no external test-util dependencies
 - **ShedLock-compatible skip semantics** — action is simply skipped if the lock cannot be acquired
 
+<!-- README_VISUAL_OVERVIEW:START -->
+## Overview Diagram
+
+![Bluetape4k Leader overview diagram](docs/images/readme-diagrams/root-readme-overview-01.png)
+
+## Module Composition Chart
+
+![Bluetape4k Leader module composition chart](docs/images/readme-charts/root-readme-module-chart-01.png)
+<!-- README_VISUAL_OVERVIEW:END -->
+
 ## Architecture
 
 ![leader Architecture diagram](docs/images/readme-diagrams/bluetape4k-leader-architecture-01.png)
