@@ -175,14 +175,9 @@ class LettuceLeaderElector @JvmOverloads constructor(
         lockName.requireNotBlank("lockName")
 
         val lock = LettuceLock(connection, lockName, options.leaseTime)
-        return CompletableFuture.supplyAsync({
-            val acquired = lock.tryLock(options.waitTime, options.leaseTime)
+        return lock.tryLockAsync(options.waitTime, options.leaseTime).thenComposeAsync({ acquired ->
             if (!acquired) {
                 log.debug { "리더 선출 실패 (슬롯 없음, async): lockName=$lockName" }
-            }
-            acquired
-        }, executor).thenCompose { acquired ->
-            if (!acquired) {
                 CompletableFuture.completedFuture(null)
             } else {
                 val startedAt = Instant.now()
@@ -204,35 +199,52 @@ class LettuceLeaderElector @JvmOverloads constructor(
                 val effectiveKey: LeaderHistoryKey? = key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = token) }
 
                 log.debug { "리더 선출 성공 (async): lockName=$lockName" }
-                try {
-                    action().whenComplete { _, throwable ->
-                        watchdog.close()
-                        val finishedAt = Instant.now()
-                        val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
-                        when {
-                            throwable == null -> effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
-                            throwable is java.util.concurrent.CancellationException -> { /* cancelled — no audit */ }
-                            else -> effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, throwable) }
-                        }
-                        runCatching {
-                            if (lock.isHeldByCurrentInstance()) {
-                                lock.unlock(options.minLeaseTime, acquiredAtNanos)
-                            }
-                        }.onFailure { log.warn(it) { "Fail to release lock. lockName=$lockName" } }
-                    }
+                val actionFuture: CompletableFuture<T> = try {
+                    action()
                 } catch (e: Throwable) {
-                    watchdog.close()
-                    val finishedAt = Instant.now()
-                    val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
-                    effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
-                    runCatching {
-                        if (lock.isHeldByCurrentInstance()) {
-                            lock.unlock(options.minLeaseTime, acquiredAtNanos)
-                        }
-                    }.onFailure { log.warn(it) { "Fail to release lock. lockName=$lockName" } }
-                    CompletableFuture.failedFuture(e)
+                    return@thenComposeAsync releaseAndPropagate<T>(
+                        lock, lockName, watchdog, acquiredAtNanos, effectiveKey, e, null
+                    )
+                }
+
+                actionFuture.handle<Pair<T?, Throwable?>> { value, error ->
+                    Pair(value, error)
+                }.thenCompose { (value, error) ->
+                    releaseAndPropagate(lock, lockName, watchdog, acquiredAtNanos, effectiveKey, error, value)
                 }
             }
+        }, executor)
+    }
+
+    private fun <T> releaseAndPropagate(
+        lock: LettuceLock,
+        lockName: String,
+        watchdog: AutoCloseable,
+        acquiredAtNanos: Long,
+        historyKey: LeaderHistoryKey?,
+        error: Throwable?,
+        value: T?,
+    ): CompletableFuture<T?> {
+        watchdog.close()
+        val finishedAt = Instant.now()
+        val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
+        when {
+            error == null -> historyKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
+            error is java.util.concurrent.CancellationException -> { /* cancelled — no audit */ }
+            else -> historyKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, error) }
         }
+
+        return lock.unlockAsync(options.minLeaseTime, acquiredAtNanos)
+            .exceptionally { releaseError ->
+                log.warn(releaseError) { "Fail to release lock. lockName=$lockName" }
+                Unit
+            }
+            .thenCompose {
+                if (error != null) {
+                    CompletableFuture.failedFuture(error)
+                } else {
+                    CompletableFuture.completedFuture<T?>(value)
+                }
+            }
     }
 }

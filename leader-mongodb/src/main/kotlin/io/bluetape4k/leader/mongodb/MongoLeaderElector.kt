@@ -148,8 +148,8 @@ class MongoLeaderElector private constructor(
         validateMongoLockName(lockName)
         val lock = MongoLock(collection, lockName, options.retryDelay)
 
-        return CompletableFuture
-            .supplyAsync({ lock.tryLock(options.leaderOptions.waitTime, options.leaderOptions.leaseTime) }, executor)
+        return lock
+            .tryLockAsync(options.leaderOptions.waitTime, options.leaderOptions.leaseTime)
             .thenComposeAsync({ acquired ->
                 if (!acquired) {
                     log.debug { "리더 승격 실패 (슬롯 없음, 비동기). lockName=$lockName" }
