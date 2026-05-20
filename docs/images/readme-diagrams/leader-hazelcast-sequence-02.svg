@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="1590" viewBox="0 0 1040 1590" role="img" aria-label="Lock acquire/release sequence">
+<svg xmlns="http://www.w3.org/2000/svg" width="1078" height="2366" viewBox="0 0 1078 2366" role="img" aria-label="Lock acquire/release sequence">
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
   <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
@@ -20,63 +20,72 @@
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
   </style>
 </defs>
-<rect class="canvas" width="1040" height="1590"/>
-<rect class="frame" x="32" y="28" width="976" height="1534" rx="28"/>
+<rect class="canvas" width="1078" height="2366"/>
+<rect class="frame" x="32" y="28" width="1014" height="2310" rx="28"/>
 <text class="title" x="66" y="82">Lock acquire/release sequence</text>
 <text class="subtitle" x="70" y="118">Sequence messages from the original Mermaid source</text>
-<rect class="card" x="35" y="166" width="210" height="72" rx="20" fill="#E8F3FF" stroke="#5B8DEF"/>
+<rect class="card" x="25" y="166" width="230" height="72" rx="20" fill="#E8F3FF" stroke="#5B8DEF"/>
 <text class="smallLabel" x="140" y="209" text-anchor="middle">Caller</text>
-<line x1="140" y1="252" x2="140" y2="1530" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="415" y="166" width="210" height="72" rx="20" fill="#EAF7EF" stroke="#58A978"/>
-<text class="smallLabel" x="520" y="209" text-anchor="middle">HazelcastLock</text>
-<line x1="520" y1="252" x2="520" y2="1530" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="795" y="166" width="210" height="72" rx="20" fill="#FFF3D9" stroke="#D6A441"/>
-<text class="smallLabel" x="900" y="209" text-anchor="middle">IMap</text>
-<line x1="900" y1="252" x2="900" y2="1530" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect x="158" y="270" width="344" height="39" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="174" y="297" text-anchor="start">1. tryLock(waitTime, leaseTime)</text>
-<path class="line" d="M140 310 L520 310"/>
-<rect x="538" y="352" width="344" height="39" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="554" y="379" text-anchor="start">2. putIfAbsent(lockKey, token, leaseTimeMs)</text>
-<path class="line" d="M520 392 L900 392"/>
-<rect x="538" y="434" width="344" height="39" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="554" y="461" text-anchor="start">3. null</text>
-<path class="dashed" d="M900 474 L520 474"/>
-<rect x="158" y="516" width="344" height="39" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="174" y="543" text-anchor="start">4. true (acquired)</text>
-<path class="dashed" d="M520 556 L140 556"/>
-<rect x="538" y="598" width="344" height="39" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="554" y="625" text-anchor="start">5. existingToken</text>
-<path class="dashed" d="M900 638 L520 638"/>
-<rect x="538" y="680" width="190" height="62" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="554" y="707" text-anchor="start">6. sleep min(50ms,</text>
-<text class="strong" x="554" y="730" text-anchor="start">remaining)</text>
-<path class="line" d="M520 720 C576 720 576 750 520 750"/>
-<rect x="158" y="762" width="344" height="39" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="174" y="789" text-anchor="start">7. false (timeout)</text>
-<path class="dashed" d="M520 802 L140 802"/>
-<rect x="158" y="844" width="344" height="39" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="174" y="871" text-anchor="start">8. isHeldByCurrentInstance()</text>
-<path class="line" d="M140 884 L520 884"/>
-<rect x="538" y="926" width="344" height="39" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="554" y="953" text-anchor="start">9. get(lockKey)</text>
-<path class="line" d="M520 966 L900 966"/>
-<rect x="538" y="1008" width="344" height="39" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="554" y="1035" text-anchor="start">10. storedToken</text>
-<path class="dashed" d="M900 1048 L520 1048"/>
-<rect x="158" y="1090" width="344" height="39" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="174" y="1117" text-anchor="start">11. storedToken == token</text>
-<path class="dashed" d="M520 1130 L140 1130"/>
-<rect x="158" y="1172" width="344" height="39" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="174" y="1199" text-anchor="start">12. unlock()</text>
-<path class="line" d="M140 1212 L520 1212"/>
-<rect x="538" y="1254" width="344" height="39" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="554" y="1281" text-anchor="start">13. remove(lockKey, token)</text>
-<path class="line" d="M520 1294 L900 1294"/>
-<rect x="538" y="1336" width="344" height="39" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="554" y="1363" text-anchor="start">14. true</text>
-<path class="dashed" d="M900 1376 L520 1376"/>
-<rect x="538" y="1418" width="344" height="39" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="554" y="1445" text-anchor="start">15. false</text>
-<path class="dashed" d="M900 1458 L520 1458"/>
+<line class="lifeline" x1="140" y1="252" x2="140" y2="2306" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="424" y="166" width="230" height="72" rx="20" fill="#EAF7EF" stroke="#58A978"/>
+<text class="smallLabel" x="539" y="209" text-anchor="middle">HazelcastLock</text>
+<line class="lifeline" x1="539" y1="252" x2="539" y2="2306" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="823" y="166" width="230" height="72" rx="20" fill="#FFF3D9" stroke="#D6A441"/>
+<text class="smallLabel" x="938" y="209" text-anchor="middle">IMap</text>
+<line class="lifeline" x1="938" y1="252" x2="938" y2="2306" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect x="196.5" y="286" width="286" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="214.5" y="313" text-anchor="start">1. tryLock(waitTime, leaseTime)</text>
+<path class="line" d="M140 344 L539 344"/>
+<rect x="70" y="396" width="938" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="92" y="423" text-anchor="start">LOOP: until deadline</text>
+<rect x="547" y="464" width="383" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="565" y="491" text-anchor="start">3. putIfAbsent(lockKey, token, leaseTimeMs)</text>
+<path class="line" d="M539 522 L938 522"/>
+<rect x="70" y="574" width="938" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="92" y="601" text-anchor="start">ALT: key absent (null returned)</text>
+<rect x="633.5" y="642" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="651.5" y="669" text-anchor="start">5. null</text>
+<path class="dashed" d="M938 700 L539 700"/>
+<rect x="234.5" y="752" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="252.5" y="779" text-anchor="start">6. true (acquired)</text>
+<path class="dashed" d="M539 810 L140 810"/>
+<rect x="70" y="862" width="938" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="92" y="889" text-anchor="start">ELSE: key exists</text>
+<rect x="633.5" y="930" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="651.5" y="957" text-anchor="start">8. existingToken</text>
+<path class="dashed" d="M938 988 L539 988"/>
+<rect x="452" y="1040" width="270" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="470" y="1067" text-anchor="start">9. sleep min(50ms, remaining)</text>
+<path class="line" d="M539 1098 C603 1098 603 1132 539 1132"/>
+<rect x="234.5" y="1170" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="252.5" y="1197" text-anchor="start">10. false (timeout)</text>
+<path class="dashed" d="M539 1228 L140 1228"/>
+<rect x="204.5" y="1280" width="270" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="222.5" y="1307" text-anchor="start">11. isHeldByCurrentInstance()</text>
+<path class="line" d="M140 1338 L539 1338"/>
+<rect x="633.5" y="1390" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="651.5" y="1417" text-anchor="start">12. get(lockKey)</text>
+<path class="line" d="M539 1448 L938 1448"/>
+<rect x="633.5" y="1500" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="651.5" y="1527" text-anchor="start">13. storedToken</text>
+<path class="dashed" d="M938 1558 L539 1558"/>
+<rect x="224.5" y="1610" width="230" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="242.5" y="1637" text-anchor="start">14. storedToken == token</text>
+<path class="dashed" d="M539 1668 L140 1668"/>
+<rect x="234.5" y="1720" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="252.5" y="1747" text-anchor="start">15. unlock()</text>
+<path class="line" d="M140 1778 L539 1778"/>
+<rect x="615.5" y="1830" width="246" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="633.5" y="1857" text-anchor="start">16. remove(lockKey, token)</text>
+<path class="line" d="M539 1888 L938 1888"/>
+<rect x="70" y="1940" width="938" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="92" y="1967" text-anchor="start">ALT: token matches</text>
+<rect x="633.5" y="2008" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="651.5" y="2035" text-anchor="start">18. true</text>
+<path class="dashed" d="M938 2066 L539 2066"/>
+<rect x="70" y="2118" width="938" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="92" y="2145" text-anchor="start">ELSE: token mismatch (TTL expired, another holder)</text>
+<rect x="633.5" y="2186" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="651.5" y="2213" text-anchor="start">20. false</text>
+<path class="dashed" d="M938 2244 L539 2244"/>
 </svg>

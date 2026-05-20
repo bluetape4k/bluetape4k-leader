@@ -24,16 +24,16 @@
 <rect class="frame" x="32" y="28" width="980" height="636" rx="28"/>
 <text class="title" x="66" y="82">leader spring boot Architecture</text>
 <text class="subtitle" x="70" y="118">Architecture nodes and edges from the original Mermaid source</text>
-<path class="line" d="M856 552 C856 552 522 552 522 552"/>
-<path class="line" d="M188 552 C188 552 522 552 522 552"/>
-<path class="line" d="M856 386 C856 469 522 469 522 552"/>
-<path class="line" d="M522 386 C522 469 188 469 188 552"/>
-<path class="line" d="M522 386 C522 386 856 386 856 386"/>
-<path class="line" d="M188 386 C188 386 522 386 522 386"/>
-<path class="line" d="M856 220 C856 303 188 303 188 386"/>
-<path class="line" d="M856 220 C856 386 856 386 856 552"/>
-<path class="line" d="M522 220 C522 303 522 303 522 386"/>
-<path class="line" d="M188 220 C188 220 856 220 856 220"/>
+<path class="line" d="M706 552 C706 552 672 552 672 552"/>
+<path class="line" d="M338 552 C338 552 372 552 372 552"/>
+<path class="line" d="M706 386 C706 469 672 469 672 552"/>
+<path class="line" d="M372 386 C372 469 338 469 338 552"/>
+<path class="line" d="M672 386 C672 386 706 386 706 386"/>
+<path class="line" d="M338 386 C338 386 372 386 372 386"/>
+<path class="line" d="M706 220 C706 303 338 303 338 386"/>
+<path class="line" d="M856 280 C856 386 856 386 856 492"/>
+<path class="line" d="M522 280 C522 303 522 303 522 326"/>
+<path class="line" d="M338 220 C338 220 706 220 706 220"/>
 <g transform="translate(48,170)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
   <text class="smallLabel" x="140" y="33" text-anchor="middle">LeaderProperties</text>
@@ -41,18 +41,19 @@
 </g>
 <g transform="translate(382,170)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="smallLabel" x="140" y="33" text-anchor="middle">LeaderAopProperties</text>
-<text class="smallLabel" x="140" y="59" text-anchor="middle">bluetape4k.leader.aop.*</text>
+  <text class="smallLabel" x="140" y="21" text-anchor="middle">LeaderAopProperties</text>
+<text class="smallLabel" x="140" y="47" text-anchor="middle">bluetape4k.leader.ao</text>
+<text class="smallLabel" x="140" y="73" text-anchor="middle">p.*</text>
 </g>
 <g transform="translate(716,170)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="smallLabel" x="140" y="33" text-anchor="middle">Leader Aop Factory Auto</text>
-<text class="smallLabel" x="140" y="59" text-anchor="middle">Configuration</text>
+  <text class="smallLabel" x="140" y="33" text-anchor="middle">Leader Aop Factory</text>
+<text class="smallLabel" x="140" y="59" text-anchor="middle">Auto Configuration</text>
 </g>
 <g transform="translate(48,336)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
-  <text class="smallLabel" x="140" y="33" text-anchor="middle">Leader Micrometer Auto</text>
-<text class="smallLabel" x="140" y="59" text-anchor="middle">Configuration</text>
+  <text class="smallLabel" x="140" y="33" text-anchor="middle">Leader Micrometer</text>
+<text class="smallLabel" x="140" y="59" text-anchor="middle">Auto Configuration</text>
 </g>
 <g transform="translate(382,336)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
@@ -65,13 +66,14 @@
 </g>
 <g transform="translate(48,502)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#F7F1E7" stroke="#B88A44"/>
-  <text class="smallLabel" x="140" y="45" text-anchor="middle">SpelExpressionEvaluator</text>
+  <text class="smallLabel" x="140" y="33" text-anchor="middle">Spel Expression</text>
+<text class="smallLabel" x="140" y="59" text-anchor="middle">Evaluator</text>
 </g>
 <g transform="translate(382,502)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#EEF6D9" stroke="#8BA84D"/>
   <text class="smallLabel" x="140" y="21" text-anchor="middle">LeaderElectionAspect</text>
-<text class="smallLabel" x="140" y="47" text-anchor="middle">Leader Group Election</text>
-<text class="smallLabel" x="140" y="73" text-anchor="middle">Aspect</text>
+<text class="smallLabel" x="140" y="47" text-anchor="middle">Leader Group</text>
+<text class="smallLabel" x="140" y="73" text-anchor="middle">Election Aspect</text>
 </g>
 <g transform="translate(716,502)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
