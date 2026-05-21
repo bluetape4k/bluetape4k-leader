@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="650" viewBox="0 0 1400 650" role="img" aria-label="leader-k8s architecture">
+<defs>
+  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
+  <marker id="arrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <style>
+    .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
+    .title{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
+    .label{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
+    .smallLabel{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .small{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#536273}
+    .strong{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:14px;font-weight:400;fill:#102033}
+    .card{stroke-width:2.1;filter:url(#shadow)}
+    .line{stroke:#758297;stroke-width:2.3;fill:none;marker-end:url(#arrow)}
+    .note{fill:#ffffff;stroke:#d8e0ea;stroke-width:1.5;filter:url(#shadow)}
+  </style>
+</defs>
+<rect class="canvas" width="1400" height="650"/>
+<rect class="frame" x="32" y="28" width="1336" height="594" rx="28"/>
+<text class="title" x="66" y="82">leader-k8s Architecture</text>
+<text class="subtitle" x="70" y="118">Blocking and suspend electors share the Kubernetes Lease API as the single coordination point</text>
+
+<rect class="card" x="70" y="235" width="250" height="96" rx="16" fill="#E8F3FF" stroke="#5B8DEF"/>
+<text class="label" x="195" y="276" text-anchor="middle">Application</text>
+<text class="small" x="195" y="304" text-anchor="middle">worker process or Pod</text>
+
+<rect class="card" x="410" y="165" width="290" height="96" rx="16" fill="#EAF7EF" stroke="#58A978"/>
+<text class="smallLabel" x="555" y="202" text-anchor="middle">KubernetesLease</text>
+<text class="smallLabel" x="555" y="229" text-anchor="middle">LeaderElector</text>
+
+<rect class="card" x="410" y="315" width="290" height="96" rx="16" fill="#FFF3D9" stroke="#D6A441"/>
+<text class="smallLabel" x="555" y="352" text-anchor="middle">KubernetesLease</text>
+<text class="smallLabel" x="555" y="379" text-anchor="middle">SuspendLeaderElector</text>
+
+<rect class="card" x="790" y="235" width="250" height="96" rx="16" fill="#FDECEF" stroke="#DC6B82"/>
+<text class="label" x="915" y="276" text-anchor="middle">Kubernetes</text>
+<text class="smallLabel" x="915" y="304" text-anchor="middle">Lease API</text>
+
+<rect class="card" x="1120" y="235" width="210" height="96" rx="16" fill="#E9F7F6" stroke="#45A7A1"/>
+<text class="smallLabel" x="1225" y="268" text-anchor="middle">coordination.k8s.io</text>
+<text class="smallLabel" x="1225" y="294" text-anchor="middle">v1 Lease</text>
+
+<path class="line" d="M320 260 L410 215"/>
+<path class="line" d="M320 306 L410 365"/>
+<path class="line" d="M700 213 L790 260"/>
+<path class="line" d="M700 363 L790 306"/>
+<path class="line" d="M1040 283 L1120 283"/>
+
+<rect class="note" x="222" y="470" width="956" height="82" rx="18"/>
+<text class="strong" x="700" y="503" text-anchor="middle">Lease ownership uses a per-acquisition fencing token in spec.holderIdentity</text>
+<text class="small" x="700" y="530" text-anchor="middle">Audit leader id, node id, and managed-by metadata are stored as bluetape4k annotations</text>
+</svg>

@@ -84,6 +84,7 @@ jobs:
       leader-redis: ${{ steps.filter.outputs.leader-redis }}
       leader-exposed: ${{ steps.filter.outputs.leader-exposed }}
       leader-mongodb: ${{ steps.filter.outputs.leader-mongodb }}
+      leader-k8s: ${{ steps.filter.outputs.leader-k8s }}
       leader-hazelcast: ${{ steps.filter.outputs.leader-hazelcast }}
       leader-zookeeper: ${{ steps.filter.outputs.leader-zookeeper }}
       leader-spring-boot: ${{ steps.filter.outputs.leader-spring-boot }}
@@ -116,6 +117,9 @@ jobs:
               - 'leader-exposed-r2dbc/**'
             leader-mongodb:
               - 'leader-mongodb/**'
+            leader-k8s:
+              - 'leader-k8s/**'
+              - 'leader-core/**'
             leader-hazelcast:
               - 'leader-hazelcast/**'
             leader-zookeeper:
@@ -176,6 +180,7 @@ jobs:
               - 'leader-exposed-jdbc/**'
               - 'leader-exposed-r2dbc/**'
               - 'leader-mongodb/**'
+              - 'leader-k8s/**'
               - 'leader-hazelcast/**'
               - 'leader-zookeeper/**'
 
@@ -1171,6 +1176,40 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 7
 
+  # ── leader-k8s 테스트 (unit only; K3s runs in Nightly full) ─────────────
+  test-leader-k8s:
+    name: Test / leader-k8s
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs['leader-k8s'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: wrapper
+          cache-read-only: true
+      - name: Test leader-k8s
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :bluetape4k-leader-k8s:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-leader-k8s
+          path: '**/build/test-results/test/*.xml'
+          retention-days: 7
+
   # ── leader-hazelcast 테스트 (Testcontainers: Hazelcast) ──────────────────
   test-hazelcast:
     name: Test / leader-hazelcast
@@ -1306,6 +1345,7 @@ jobs:
       - test-spring-boot
       - test-leader-ktor
       - test-mongodb
+      - test-leader-k8s
       - test-hazelcast
       - test-zookeeper
       - test-examples-batch-scheduler
@@ -1364,6 +1404,7 @@ jobs:
       - test-spring-boot
       - test-leader-ktor
       - test-mongodb
+      - test-leader-k8s
       - test-hazelcast
       - test-zookeeper
       - test-examples-batch-scheduler
