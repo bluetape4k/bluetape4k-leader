@@ -267,6 +267,39 @@ val election = LocalLeaderElector()
 val result = election.runIfLeader("job") { "done" }
 ```
 
+### Ktor management route
+
+`leader-ktor`는 plugin option을 켰을 때 JVM-local management route를 노출할 수 있습니다:
+
+```kotlin
+fun Application.module() {
+    install(LeaderElectionPlugin) {
+        leaderElection = redissonElector
+        managementRouteEnabled = true
+        managementLockNames("batch-job", "migration-gate")
+    }
+}
+```
+
+```http
+GET /management/leaderElection
+```
+
+이 route는 기본적으로 비활성화되어 있으며 Ktor 애플리케이션의 main routing pipeline에 설치됩니다. 신뢰된 management boundary 밖으로 노출하기 전에 authentication plugin, network policy, 또는 내부 전용 port로 보호하세요.
+
+```json
+{
+  "locks": [
+    {
+      "name": "batch-job",
+      "status": "Empty",
+      "leaderId": null,
+      "leaseExpiry": null
+    }
+  ]
+}
+```
+
 ## `runIfLeader` 동작 원리
 
 여러 노드가 동시에 `runIfLeader`를 호출하면 하나만 락을 획득하고 action을 실행하며, 나머지는 `null`을 반환합니다.
@@ -462,6 +495,47 @@ bluetape4k:
     aop:
       failure-mode: FAIL_OPEN_RUN   # RETHROW | SKIP | FAIL_OPEN_RUN
 ```
+
+### Leader Election Actuator 엔드포인트
+
+`leader-spring-boot`는 JVM-local lock status 진단용 `leaderElection` Actuator endpoint를 opt-in 방식으로 등록합니다:
+
+```yaml
+bluetape4k:
+  leader:
+    observability:
+      lock-names:
+        - batch-job
+        - migration-gate
+
+management:
+  endpoint:
+    leaderElection:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,leaderElection
+```
+
+```http
+GET /actuator/leaderElection
+```
+
+```json
+{
+  "locks": [
+    {
+      "name": "batch-job",
+      "status": "Occupied",
+      "leaderId": "node-1",
+      "leaseExpiry": "2026-05-16T00:00:00Z"
+    }
+  ]
+}
+```
+
+`bluetape4k.leader.observability.lock-names`는 첫 runtime event가 관측되기 전에 JVM-local status registry를 seed합니다. Listener-aware elector는 lifecycle event를 관측하면서 이름을 추가할 수도 있습니다. fallback `LeaderElectionEventPublisher`는 publisher 전용이며 `LeaderElector` candidate가 되지 않으므로 기존 elector injection은 안정적으로 유지됩니다.
 
 ---
 

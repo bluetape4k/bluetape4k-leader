@@ -266,6 +266,39 @@ val election = LocalLeaderElector()
 val result = election.runIfLeader("job") { "done" }
 ```
 
+### Ktor management route
+
+`leader-ktor` can expose a JVM-local management route when the plugin option is enabled:
+
+```kotlin
+fun Application.module() {
+    install(LeaderElectionPlugin) {
+        leaderElection = redissonElector
+        managementRouteEnabled = true
+        managementLockNames("batch-job", "migration-gate")
+    }
+}
+```
+
+```http
+GET /management/leaderElection
+```
+
+The route is disabled by default and runs on the main Ktor routing pipeline. Protect it with an authentication plugin, network policy, or an internal-only port before exposing it outside a trusted management boundary.
+
+```json
+{
+  "locks": [
+    {
+      "name": "batch-job",
+      "status": "Empty",
+      "leaderId": null,
+      "leaseExpiry": null
+    }
+  ]
+}
+```
+
 ## How `runIfLeader` Works
 
 Multiple nodes call `runIfLeader` concurrently — only one acquires the lock and runs the action; the rest return `null`.
@@ -459,6 +492,47 @@ bluetape4k:
     aop:
       failure-mode: FAIL_OPEN_RUN   # RETHROW | SKIP | FAIL_OPEN_RUN
 ```
+
+### Leader Election Actuator endpoint
+
+`leader-spring-boot` registers an opt-in `leaderElection` Actuator endpoint for JVM-local lock status diagnostics:
+
+```yaml
+bluetape4k:
+  leader:
+    observability:
+      lock-names:
+        - batch-job
+        - migration-gate
+
+management:
+  endpoint:
+    leaderElection:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,leaderElection
+```
+
+```http
+GET /actuator/leaderElection
+```
+
+```json
+{
+  "locks": [
+    {
+      "name": "batch-job",
+      "status": "Occupied",
+      "leaderId": "node-1",
+      "leaseExpiry": "2026-05-16T00:00:00Z"
+    }
+  ]
+}
+```
+
+`bluetape4k.leader.observability.lock-names` seeds the JVM-local status registry before the first runtime event. Listener-aware electors can also add names as they observe lifecycle events. The fallback `LeaderElectionEventPublisher` is publisher-only and never becomes a `LeaderElector` candidate, so existing elector injection remains stable.
 
 ---
 
