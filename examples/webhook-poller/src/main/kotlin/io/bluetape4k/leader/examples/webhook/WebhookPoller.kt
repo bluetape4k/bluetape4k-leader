@@ -21,6 +21,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.bson.Document
@@ -178,7 +179,8 @@ class WebhookPoller(
     }
 
     private suspend fun runLoop() {
-        while (currentCoroutineContext()[Job]?.isActive != false) {
+        while (true) {
+            currentCoroutineContext().ensureActive()
             try {
                 elector.runIfLeader(options.lockName) {
                     log.debug { "[${options.nodeId}] 리더 선출 — batch 처리 시작" }

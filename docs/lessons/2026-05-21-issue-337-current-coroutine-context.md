@@ -30,3 +30,10 @@ For suspend loops in bluetape4k code, prefer `currentCoroutineContext()` when
 reading context elements or calling `ensureActive()`. Keep raw
 `kotlin.coroutines.coroutineContext` usage for narrow cases where the source
 module already needs the low-level property.
+
+## Follow-up
+
+Claude CLI review after PR #338 recommended making cancellation checks explicit
+with `currentCoroutineContext().ensureActive()` at the loop top. For polling
+loops, prefer that form over a passive `Job.isActive` loop condition when no
+cleanup is required before exit.
