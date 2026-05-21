@@ -249,6 +249,45 @@ println(group.leaders.map { it.leaderId })
 
 State inspection is a best-effort snapshot for diagnostics and metrics. It is not a lock acquisition primitive.
 
+## Tenant Namespacing
+
+Use `TenantLockNamespace` and `forTenant()` when the same logical job must run
+independently per tenant without changing backend configuration. The wrapper
+derives the backend lock name as `prefix:tenantId:lockName`; the default prefix
+is `tenant`.
+
+```kotlin
+import io.bluetape4k.leader.TenantLockNamespace
+import io.bluetape4k.leader.forTenant
+
+val election = LocalLeaderElector()
+val tenantElection = election.forTenant("tenant-a")
+
+tenantElection.runIfLeader("daily-report-job") {
+    generateTenantReport("tenant-a")
+}
+// backend lockName: tenant:tenant-a:daily-report-job
+
+val namespace = TenantLockNamespace(tenantId = "tenant-a", prefix = "app")
+val tenantGroup = LocalLeaderGroupElector().forTenant(namespace)
+
+tenantGroup.runIfLeader("aggregation") {
+    aggregateTenant("tenant-a")
+}
+// backend lockName: app:tenant-a:aggregation
+```
+
+`forTenant()` is available for blocking, coroutine, group, and virtual-thread
+electors. The namespace separator `:` is reserved, so `TenantLockNamespace`
+rejects `:` in the prefix, tenant id, and tenant-local lock name. Rename
+caller-facing lock names such as `batch:daily` before wrapping an elector with
+tenant scope.
+
+The final generated backend lock name is still validated with the shared
+255-character lock-name limit. The tenant-local lock-name budget is therefore
+`255 - prefix.length - tenantId.length - 2` because the generated name includes
+two separators.
+
 ## Lock Assert & Extend
 
 `LockAssert` and `LockExtender` provide ShedLock-equivalent ergonomic APIs for asserting lock ownership and extending lease durations from within an active `@LeaderElection` / `@LeaderGroupElection` body.
