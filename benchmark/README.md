@@ -29,6 +29,27 @@ differences remain visible.
 
 ![Leader benchmark remote latency](../docs/images/readme-charts/leader-benchmark-remote-latency-chart-01.svg)
 
+Issue #329 also records a history-recorder before/after comparison from the
+same benchmark harness.
+
+![Leader history recorder self-improve throughput](../docs/images/readme-charts/leader-history-self-improve-throughput-chart-01.svg)
+
+## Latest Self-Improve Result
+
+Issue #329 optimized the history-recorder sanitization fast path without
+changing the benchmark harness. The same throughput command improved the local
+history rows:
+
+| Benchmark | Baseline (ops/s) | After (ops/s) | Delta |
+|---|---:|---:|---:|
+| `HistoryRecorder.blockingInMemoryAcquireComplete` | 5,601,881.043 | 20,018,125.709 | +257.35% |
+| `HistoryRecorder.blockingNoopAcquireComplete` | 7,642,848.188 | 62,740,146.724 | +720.90% |
+| `HistoryRecorder.suspendInMemoryAcquireComplete` | 4,843,511.108 | 11,441,889.888 | +136.23% |
+| `HistoryRecorder.suspendNoopAcquireComplete` | 5,257,310.052 | 23,153,305.712 | +340.40% |
+
+Details:
+[`docs/benchmarks/2026-05-21-issue-329-leader-history-recorder-self-improve.md`](../docs/benchmarks/2026-05-21-issue-329-leader-history-recorder-self-improve.md).
+
 ## Cross-Backend Results
 
 Higher is better for throughput. Lower is better for average time.
@@ -58,6 +79,9 @@ Higher is better for throughput. Lower is better for average time.
 | zookeeper | 721.758 ± 938.116 | 1,250.279 ± 947.488 | Testcontainers-backed remote backend |
 
 ## Local Core Rows
+
+These rows remain the original 2026-05-21 cross-backend baseline. Use the
+latest self-improve section above for issue #329 after numbers.
 
 | Benchmark | Throughput (ops/s) | Average time (us/op) |
 |---|---:|---:|
