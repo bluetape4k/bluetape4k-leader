@@ -141,7 +141,8 @@ locations below in sync. Missing any of them silently disables coverage.
 
 Example modules currently wired into `ci.yml` and `examples.yml`:
 `batch-scheduler`, `migration-gate`, `webhook-poller`, `cache-warmer`,
-`tenant-aggregator`, `ktor-app`, `prometheus-dashboard`. The library module
+`tenant-aggregator`, `ktor-app`, `prometheus-dashboard`, `k8s-lease`,
+`k8s-operator`, `rate-limiter`. The library module
 `bluetape4k-leader-ktor` remains in `ci.yml` and `nightly-tests.yml` (Testcontainers Redis).
 
 ## Codex Spec / Plan / Code Review Stages

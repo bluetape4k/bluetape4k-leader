@@ -98,6 +98,7 @@ jobs:
       examples-ktor-app: ${{ steps.filter.outputs.examples-ktor-app }}
       examples-prometheus-dashboard: ${{ steps.filter.outputs.examples-prometheus-dashboard }}
       examples-k8s-lease: ${{ steps.filter.outputs.examples-k8s-lease }}
+      examples-k8s-operator: ${{ steps.filter.outputs.examples-k8s-operator }}
       examples-rate-limiter: ${{ steps.filter.outputs.examples-rate-limiter }}
       benchmark: ${{ steps.filter.outputs.benchmark }}
     steps:
@@ -165,6 +166,11 @@ jobs:
               - 'leader-core/**'
             examples-k8s-lease:
               - 'examples/k8s-lease/**'
+              - 'leader-core/**'
+            examples-k8s-operator:
+              - 'examples/k8s-operator/**'
+              - 'leader-k8s/**'
+              - 'leader-spring-boot/**'
               - 'leader-core/**'
             examples-rate-limiter:
               - 'examples/rate-limiter/**'
@@ -927,6 +933,40 @@ jobs:
           path: '**/build/test-results/test/*.xml'
           retention-days: 7
 
+  # ── examples-k8s-operator (compile/test lane; k8sTest runs in Examples workflow) ─
+  test-examples-k8s-operator:
+    name: Test / examples-k8s-operator
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs['examples-k8s-operator'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: wrapper
+          cache-read-only: true
+      - name: Test examples-k8s-operator
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :examples:k8s-operator:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-examples-k8s-operator
+          path: '**/build/test-results/test/*.xml'
+          retention-days: 7
+
   # ── examples-rate-limiter (Testcontainers Redis + Bucket4j) ────────────────
   test-examples-rate-limiter:
     name: Test / examples-rate-limiter
@@ -1350,6 +1390,7 @@ jobs:
       - test-zookeeper
       - test-examples-batch-scheduler
       - test-examples-k8s-lease
+      - test-examples-k8s-operator
       - test-examples-rate-limiter
       - test-examples-migration-gate
       - test-examples-webhook-poller
@@ -1409,6 +1450,7 @@ jobs:
       - test-zookeeper
       - test-examples-batch-scheduler
       - test-examples-k8s-lease
+      - test-examples-k8s-operator
       - test-examples-rate-limiter
       - test-examples-migration-gate
       - test-examples-webhook-poller

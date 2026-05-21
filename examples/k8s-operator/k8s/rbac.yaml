@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bluetape4k-k8s-operator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: bluetape4k-k8s-operator
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: bluetape4k-k8s-operator
+subjects:
+  - kind: ServiceAccount
+    name: bluetape4k-k8s-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: bluetape4k-k8s-operator

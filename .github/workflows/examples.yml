@@ -70,6 +70,8 @@ jobs:
             gradle_tasks: :examples:batch-scheduler:test
           - example: examples-k8s-lease
             gradle_tasks: :examples:k8s-lease:k8sTest
+          - example: examples-k8s-operator
+            gradle_tasks: :examples:k8s-operator:k8sTest
           - example: examples-rate-limiter
             gradle_tasks: :examples:rate-limiter:test
           - example: examples-ktor-app

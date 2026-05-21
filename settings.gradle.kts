@@ -50,5 +50,6 @@ include(
     "examples:ktor-app",
     "examples:prometheus-dashboard",
     "examples:k8s-lease",
+    "examples:k8s-operator",
     "examples:rate-limiter",
 )
