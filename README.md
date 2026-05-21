@@ -34,6 +34,25 @@ Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
 ![Bluetape4k Leader module composition chart](docs/images/readme-charts/root-readme-module-chart-01.png)
 <!-- README_VISUAL_OVERVIEW:END -->
 
+## Benchmarks
+
+The non-published [`benchmark`](./benchmark) module publishes comparable
+`kotlinx-benchmark` suites for leader election backends. The JVM runner is JMH;
+results are intended for same-machine before/after comparison, not release-grade
+performance claims.
+
+![Leader benchmark remote throughput](docs/images/readme-charts/leader-benchmark-remote-throughput-chart-01.svg)
+
+| Comparison | Primary signal |
+|---|---|
+| Blocking remote backends | Hazelcast, Redisson, and Lettuce are the current throughput leaders in the 2026-05-21 baseline. |
+| Suspend remote backends | Lettuce, Redisson, and Hazelcast are tightly grouped; MongoDB suspend latency is noisy and needs repeat runs before tuning. |
+| Local and H2 rows | Kept out of the remote chart because they measure in-process or local SQL/R2DBC overhead, not distributed backend cost. |
+
+Full tables, latency chart, run command, and caveats are in the
+[`benchmark` README](./benchmark/README.md) and the
+[`2026-05-21 baseline report`](./docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md).
+
 ## Architecture
 
 ![leader Architecture diagram](docs/images/readme-diagrams/bluetape4k-leader-architecture-01.png)

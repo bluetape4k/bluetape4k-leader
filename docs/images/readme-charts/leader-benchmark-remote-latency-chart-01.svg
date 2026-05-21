@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="640" viewBox="0 0 1400 640" role="img" aria-labelledby="title desc">
+  <title id="title">Leader election remote backend latency</title>
+  <desc id="desc">Blocking and suspend runIfLeader average time in microseconds per operation. Lower values are better.</desc>
+  <defs>
+    <style>
+      .canvas{fill:#f6f9fc}.frame{fill:#fff;stroke:#d7e2ec;stroke-width:2}.title{font:700 34px Arial,sans-serif;fill:#22344a}.subtitle{font:16px Arial,sans-serif;fill:#536476}.label{font:18px Arial,sans-serif;fill:#22344a}.small{font:14px Arial,sans-serif;fill:#536476}.tick{font:13px Arial,sans-serif;fill:#6d7d90}.axis{stroke:#b9c8d6;stroke-width:1}.blocking{fill:#d25b45}.suspend{fill:#8d6fd1}.note{font:13px Arial,sans-serif;fill:#6d7d90}
+    </style>
+  </defs>
+  <rect class="canvas" width="1400" height="640"/>
+  <rect class="frame" x="36" y="28" width="1328" height="584" rx="20"/>
+  <text class="title" x="72" y="78">Remote backend average time</text>
+  <text class="subtitle" x="72" y="106">runIfLeader latency, us/op. Lower is better. Suspend MongoDB is noisy in this short run.</text>
+  <rect x="960" y="64" width="18" height="18" rx="3" class="blocking"/><text class="small" x="986" y="78">Blocking API</text>
+  <rect x="1090" y="64" width="18" height="18" rx="3" class="suspend"/><text class="small" x="1116" y="78">Suspend API</text>
+  <line class="axis" x1="328" y1="498" x2="1128" y2="498"/>
+  <line class="axis" x1="328" y1="140" x2="328" y2="498"/>
+  <line class="axis" x1="557" y1="140" x2="557" y2="504"/><text class="tick" x="542" y="526">1000</text>
+  <line class="axis" x1="785" y1="140" x2="785" y2="504"/><text class="tick" x="770" y="526">2000</text>
+  <line class="axis" x1="1014" y1="140" x2="1014" y2="504"/><text class="tick" x="999" y="526">3000</text>
+  <text class="tick" x="318" y="526">0 us/op</text>
+
+  <text class="label" x="100" y="165">Lettuce Redis</text>
+  <rect x="328" y="143" width="161" height="24" rx="5" class="blocking"/><text class="small" x="500" y="161">704</text>
+  <rect x="328" y="173" width="148" height="24" rx="5" class="suspend"/><text class="small" x="487" y="191">649</text>
+
+  <text class="label" x="100" y="238">Redisson Redis</text>
+  <rect x="328" y="216" width="164" height="24" rx="5" class="blocking"/><text class="small" x="503" y="234">716</text>
+  <rect x="328" y="246" width="163" height="24" rx="5" class="suspend"/><text class="small" x="502" y="264">714</text>
+
+  <text class="label" x="100" y="311">Hazelcast</text>
+  <rect x="328" y="289" width="159" height="24" rx="5" class="blocking"/><text class="small" x="498" y="307">694</text>
+  <rect x="328" y="319" width="160" height="24" rx="5" class="suspend"/><text class="small" x="499" y="337">701</text>
+
+  <text class="label" x="100" y="384">MongoDB</text>
+  <rect x="328" y="362" width="253" height="24" rx="5" class="blocking"/><text class="small" x="592" y="380">1,106</text>
+  <rect x="328" y="392" width="762" height="24" rx="5" class="suspend"/><text class="small" x="1101" y="410">3,335</text>
+
+  <text class="label" x="100" y="457">ZooKeeper</text>
+  <rect x="328" y="435" width="286" height="24" rx="5" class="blocking"/><text class="small" x="625" y="453">1,252</text>
+  <rect x="328" y="465" width="286" height="24" rx="5" class="suspend"/><text class="small" x="625" y="483">1,250</text>
+
+  <text class="note" x="72" y="580">Source: docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md. Forks=1, threads=1, 3 measurement iterations.</text>
+</svg>
