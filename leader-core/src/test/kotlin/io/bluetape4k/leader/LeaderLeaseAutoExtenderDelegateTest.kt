@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.internal.ExtendDelegate
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -42,6 +43,29 @@ class LeaderLeaseAutoExtenderDelegateTest {
         }
 
         override fun isHeld(): Boolean = held
+    }
+
+    /** 호출 횟수와 결과를 제어할 수 있는 테스트용 [SuspendExtendDelegate]. */
+    private class TestSuspendDelegate(
+        private val held: Boolean = true,
+    ) : SuspendExtendDelegate {
+        val suspendExtendCalls = AtomicInteger(0)
+        val syncExtendCalls = AtomicInteger(0)
+        private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
+        override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
+
+        override fun extend(lockAtMostFor: Duration): ExtendOutcome {
+            syncExtendCalls.incrementAndGet()
+            return ExtendOutcome.BackendError(UnsupportedOperationException("sync extend must not be used"))
+        }
+
+        override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome {
+            suspendExtendCalls.incrementAndGet()
+            return if (held) ExtendOutcome.Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+            else ExtendOutcome.NotHeld
+        }
+
+        override suspend fun isHeldSuspend(): Boolean = held
     }
 
     // ── 기본 동작 ──────────────────────────────────────────────────────────
@@ -93,6 +117,46 @@ class LeaderLeaseAutoExtenderDelegateTest {
         // NotHeld 반환 후 watchdog 이 스스로 종료 — 호출 횟수는 1 이상이되 계속 늘지 않음
         val calls = delegate.extendCalls.get()
         (calls >= 1).shouldBeTrue()
+    }
+
+    @Test
+    fun `enabled suspend watchdog calls extendSuspend without sync bridge`() = runSuspendIO {
+        val delegate = TestSuspendDelegate(held = true)
+        val watchdog = LeaderLeaseAutoExtender.start(true, 90.milliseconds, delegate)
+
+        delay(250.milliseconds)
+        watchdog.close()
+
+        (delegate.suspendExtendCalls.get() >= 1).shouldBeTrue()
+        delegate.syncExtendCalls.get() shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `suspend watchdog R2 skip does not call backend when user deadline is later`() = runSuspendIO {
+        val delegate = TestSuspendDelegate(held = true)
+        delegate.lastExtendDeadline.set(Instant.now().plusSeconds(60))
+
+        val watchdog = LeaderLeaseAutoExtender.start(true, 90.milliseconds, delegate)
+
+        delay(150.milliseconds)
+        watchdog.close()
+
+        delegate.suspendExtendCalls.get() shouldBeEqualTo 0
+        delegate.syncExtendCalls.get() shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `suspend watchdog stops after close`() = runSuspendIO {
+        val delegate = TestSuspendDelegate()
+        val watchdog = LeaderLeaseAutoExtender.start(true, 90.milliseconds, delegate)
+
+        delay(120.milliseconds)
+        watchdog.close()
+        val callsAfterClose = delegate.suspendExtendCalls.get()
+        delay(120.milliseconds)
+
+        delegate.suspendExtendCalls.get() shouldBeEqualTo callsAfterClose
+        delegate.syncExtendCalls.get() shouldBeEqualTo 0
     }
 
     // ── R2 watchdog skip ──────────────────────────────────────────────────

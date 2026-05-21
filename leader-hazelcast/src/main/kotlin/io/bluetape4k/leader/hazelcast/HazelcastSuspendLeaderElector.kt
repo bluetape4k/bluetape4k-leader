@@ -12,6 +12,7 @@ import io.bluetape4k.leader.hazelcast.internal.HazelcastBackendErrorClassifier
 import io.bluetape4k.leader.hazelcast.internal.HazelcastSuspendLockExtendDelegate
 import io.bluetape4k.leader.hazelcast.lock.HazelcastSuspendLock
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -79,7 +80,7 @@ class HazelcastSuspendLeaderElector private constructor(
         }
 
         val acquiredAtNanos = System.nanoTime()
-        val delegate = HazelcastSuspendLockExtendDelegate(lock)
+        val delegate: SuspendExtendDelegate = HazelcastSuspendLockExtendDelegate(lock)
         val identity = LockIdentity(
             lockName = lockName,
             kind = LockIdentity.AnnotationKind.SINGLE,

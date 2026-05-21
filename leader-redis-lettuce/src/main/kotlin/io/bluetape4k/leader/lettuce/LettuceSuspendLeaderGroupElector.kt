@@ -10,6 +10,7 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceSuspendSlotExtendDelegate
 import io.bluetape4k.leader.lettuce.semaphore.LettuceSlotTokenGroup
@@ -123,7 +124,7 @@ class LettuceSuspendLeaderGroupElector(
         }
         // Codex P2: acquire 성공 후 startedAtNanos 캡처
         val startedAtNanos = System.nanoTime()
-        val delegate = LettuceSuspendSlotExtendDelegate(slotGroup, token)
+        val delegate: SuspendExtendDelegate = LettuceSuspendSlotExtendDelegate(slotGroup, token)
         val identity = LockIdentity(
             lockName = lockName,
             kind = LockIdentity.AnnotationKind.GROUP,

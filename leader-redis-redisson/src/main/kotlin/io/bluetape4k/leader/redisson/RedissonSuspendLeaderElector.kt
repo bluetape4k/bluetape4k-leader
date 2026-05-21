@@ -9,6 +9,7 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonSuspendLockExtendDelegate
 import io.bluetape4k.leader.remainingMinLeaseTime
@@ -178,7 +179,7 @@ class RedissonSuspendLeaderElector private constructor(
                 return null
             }
             val acquiredAtNanos = System.nanoTime()
-            val delegate = RedissonSuspendLockExtendDelegate(redissonClient, lock, lockId)
+            val delegate: SuspendExtendDelegate = RedissonSuspendLockExtendDelegate(redissonClient, lock, lockId)
             val identity = LockIdentity(
                 lockName = lockName,
                 kind = LockIdentity.AnnotationKind.SINGLE,

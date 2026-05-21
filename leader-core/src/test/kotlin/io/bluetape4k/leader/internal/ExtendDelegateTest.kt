@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.internal
 
 import io.bluetape4k.leader.ExtendOutcome
+import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
@@ -25,6 +26,14 @@ class ExtendDelegateTest {
         override fun extend(lockAtMostFor: Duration): ExtendOutcome =
             if (held) ExtendOutcome.Extended(Instant.now()) else ExtendOutcome.NotHeld
         override fun isHeld(): Boolean = held
+    }
+
+    private class ConcreteSuspendDelegate(private val held: Boolean = true) : SuspendExtendDelegate {
+        private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
+        override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
+        override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
+            if (held) ExtendOutcome.Extended(Instant.now()) else ExtendOutcome.NotHeld
+        override suspend fun isHeldSuspend(): Boolean = held
     }
 
     @Test
@@ -65,5 +74,26 @@ class ExtendDelegateTest {
     @Test
     fun `isHeld reflects backend state`() {
         ConcreteDelegate(held = true).isHeld().shouldBeTrue()
+    }
+
+    @Test
+    fun `SuspendExtendDelegate sync extend is unsupported backend error`() {
+        val outcome = ConcreteSuspendDelegate().extend(30.seconds)
+
+        outcome.shouldBeInstanceOf<ExtendOutcome.BackendError>()
+        outcome.cause.shouldBeInstanceOf<UnsupportedOperationException>()
+    }
+
+    @Test
+    fun `SuspendExtendDelegate sync isHeld returns false`() {
+        ConcreteSuspendDelegate(held = true).isHeld() shouldBe false
+    }
+
+    @Test
+    fun `SuspendExtendDelegate suspend methods use native suspend implementation`() = runTest {
+        val delegate = ConcreteSuspendDelegate(held = true)
+
+        delegate.extendSuspend(30.seconds).shouldBeInstanceOf<ExtendOutcome.Extended>()
+        delegate.isHeldSuspend() shouldBe true
     }
 }

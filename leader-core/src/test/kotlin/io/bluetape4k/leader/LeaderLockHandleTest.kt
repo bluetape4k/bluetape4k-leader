@@ -1,6 +1,7 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.leader.internal.ExtendDelegate
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
@@ -28,6 +29,14 @@ class LeaderLockHandleTest {
         override fun extend(lockAtMostFor: Duration): ExtendOutcome =
             if (held) ExtendOutcome.Extended(Instant.now()) else ExtendOutcome.NotHeld
         override fun isHeld(): Boolean = held
+    }
+
+    private fun fakeSuspendDelegate(held: Boolean = true): SuspendExtendDelegate = object : SuspendExtendDelegate {
+        private val deadline = AtomicReference(Instant.EPOCH)
+        override val lastExtendDeadline: AtomicReference<Instant> get() = deadline
+        override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
+            if (held) ExtendOutcome.Extended(Instant.now()) else ExtendOutcome.NotHeld
+        override suspend fun isHeldSuspend(): Boolean = held
     }
 
     private fun realHandle(
@@ -106,6 +115,18 @@ class LeaderLockHandleTest {
     @Test
     fun `isStillHeld returns false when delegate is not held`() {
         realHandle(held = false).isStillHeld().shouldBeFalse()
+    }
+
+    @Test
+    fun `isStillHeldSuspend uses SuspendExtendDelegate native path`() = runTest {
+        val handle = LeaderLockHandle.real(
+            identity = identity(),
+            token = "tok-suspend",
+            acquiredAtNanos = System.nanoTime(),
+            extendDelegate = fakeSuspendDelegate(held = true),
+        )
+
+        handle.isStillHeldSuspend().shouldBeTrue()
     }
 
     // --- withReentryDepth — shared extendDelegate (R5-F3 / SF11) ---

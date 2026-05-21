@@ -14,6 +14,7 @@ import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -118,7 +119,7 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
         val startedAt = Instant.now()
         val acquiredAtNanos = System.nanoTime()
 
-        val delegate = ExposedR2dbcSuspendLockExtendDelegate(lock)
+        val delegate: SuspendExtendDelegate = ExposedR2dbcSuspendLockExtendDelegate(lock)
         val identity = LockIdentity(
             lockName = lockName,
             kind = LockIdentity.AnnotationKind.SINGLE,

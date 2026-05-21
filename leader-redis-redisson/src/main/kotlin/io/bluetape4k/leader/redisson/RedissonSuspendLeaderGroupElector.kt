@@ -10,6 +10,7 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonSuspendSemaphoreExtendDelegate
 import io.bluetape4k.leader.remainingMinLeaseTime
@@ -164,7 +165,7 @@ class RedissonSuspendLeaderGroupElector private constructor(
             try {
                 withContext(Dispatchers.IO) {
                     auditMap.fastPut(permitId, auditLeaderId)
-                    auditMap.expire(leaseTime.inWholeMilliseconds + AUDIT_MAP_TTL_PADDING_MS, TimeUnit.MILLISECONDS)
+                    auditMap.expire(java.time.Duration.ofMillis(leaseTime.inWholeMilliseconds + AUDIT_MAP_TTL_PADDING_MS))
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -173,7 +174,7 @@ class RedissonSuspendLeaderGroupElector private constructor(
             }
         }
 
-        val delegate = RedissonSuspendSemaphoreExtendDelegate(semaphore, permitId)
+        val delegate: SuspendExtendDelegate = RedissonSuspendSemaphoreExtendDelegate(semaphore, permitId)
         val identity = LockIdentity(
             lockName = lockName,
             kind = LockIdentity.AnnotationKind.GROUP,

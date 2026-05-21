@@ -9,8 +9,9 @@ import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
-import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
+import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.mongodb.internal.MongoBackendErrorClassifier
 import io.bluetape4k.leader.mongodb.internal.MongoSuspendSlotExtendDelegate
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
@@ -152,7 +153,7 @@ class MongoSuspendLeaderGroupElector private constructor(
         val slotKeyValue = acquiredSlotKey
         val acquiredAtNanos = System.nanoTime()
 
-        val delegate = MongoSuspendSlotExtendDelegate(lock)
+        val delegate: SuspendExtendDelegate = MongoSuspendSlotExtendDelegate(lock)
         val identity = LockIdentity(
             lockName = lockName,
             kind = LockIdentity.AnnotationKind.GROUP,

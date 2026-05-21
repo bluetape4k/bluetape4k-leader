@@ -12,6 +12,7 @@ import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceSuspendLockExtendDelegate
 import io.bluetape4k.leader.lettuce.lock.LettuceSuspendLock
@@ -110,7 +111,7 @@ class LettuceSuspendLeaderElector(
         val startedAt = Instant.now()
         val acquiredAtNanos = System.nanoTime()
         val token = lock.currentToken() ?: error("token missing after tryLock — lockName=$lockName")
-        val delegate = LettuceSuspendLockExtendDelegate(lock)
+        val delegate: SuspendExtendDelegate = LettuceSuspendLockExtendDelegate(lock)
         val identity = LockIdentity(
             lockName = lockName,
             kind = LockIdentity.AnnotationKind.SINGLE,
