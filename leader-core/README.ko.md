@@ -247,6 +247,44 @@ println(group.leaders.map { it.leaderId })
 
 상태 조회는 진단과 메트릭을 위한 best-effort 스냅샷입니다. 락 획득을 대체하는 API가 아닙니다.
 
+## 테넌트 네임스페이스
+
+같은 논리 작업을 테넌트별 독립 락으로 실행해야 한다면 backend 설정을 바꾸지
+않고 `TenantLockNamespace`와 `forTenant()`를 사용할 수 있습니다. wrapper는
+backend lock name을 `prefix:tenantId:lockName` 형식으로 만들며, 기본 prefix는
+`tenant`입니다.
+
+```kotlin
+import io.bluetape4k.leader.TenantLockNamespace
+import io.bluetape4k.leader.forTenant
+
+val election = LocalLeaderElector()
+val tenantElection = election.forTenant("tenant-a")
+
+tenantElection.runIfLeader("daily-report-job") {
+    generateTenantReport("tenant-a")
+}
+// backend lockName: tenant:tenant-a:daily-report-job
+
+val namespace = TenantLockNamespace(tenantId = "tenant-a", prefix = "app")
+val tenantGroup = LocalLeaderGroupElector().forTenant(namespace)
+
+tenantGroup.runIfLeader("aggregation") {
+    aggregateTenant("tenant-a")
+}
+// backend lockName: app:tenant-a:aggregation
+```
+
+`forTenant()`는 blocking, coroutine, group, virtual-thread elector에서 사용할 수
+있습니다. 네임스페이스 구분자 `:`는 예약되어 있으므로
+`TenantLockNamespace`는 prefix, tenant id, tenant-local lock name 안의 `:`를
+거부합니다. 기존 caller-facing lock name이 `batch:daily`처럼 `:`를 포함한다면
+tenant scope로 감싸기 전에 이름을 바꾸세요.
+
+최종 생성된 backend lock name은 공통 255자 lock-name 제한으로 다시 검증됩니다.
+따라서 tenant-local lock name의 길이 예산은 `255 - prefix.length -
+tenantId.length - 2`입니다. 생성된 이름에 구분자 2개가 포함되기 때문입니다.
+
 ## Lock Assert & Extend
 
 `LockAssert` 와 `LockExtender` 는 ShedLock 과 동일한 사용감으로 lock 보유 여부를 단언하고
