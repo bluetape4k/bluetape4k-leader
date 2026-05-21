@@ -4,6 +4,13 @@ This is a local developer-machine baseline for issue #326. Use it to compare
 future changes on the same machine and JVM. Do not treat it as a release-grade
 throughput claim.
 
+Update: issue #327 moved these benchmark scenarios from `leader-core/src/jmh`
+into the central non-published `benchmark/` module and switched the Gradle
+frontend to `kotlinx-benchmark` with JMH as the JVM backend. Keep the numbers
+below as the PR #330 historical baseline; use
+`docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md` for current
+comparisons.
+
 ## Caveats
 
 - The coroutine benchmark uses `runBlocking {}` because JMH cannot invoke
