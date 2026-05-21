@@ -2,14 +2,13 @@ package io.bluetape4k.leader.redisson.internal
 
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.internal.BackendErrorKind
-import io.bluetape4k.leader.internal.ExtendDelegate
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.future.await
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.redisson.api.RPermitExpirableSemaphore
 import java.time.Instant
@@ -20,7 +19,7 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * [ExtendDelegate] for Redisson [RPermitExpirableSemaphore] (suspend group) — T8 PR 3 (Issue #79).
+ * [SuspendExtendDelegate] for Redisson [RPermitExpirableSemaphore] (suspend group) — T8 PR 3 (Issue #79).
  *
  * Redisson's async API ([RPermitExpirableSemaphore.updateLeaseTimeAsync]) is [java.util.concurrent.CompletableFuture]-based,
  * so it is bridged to suspend via `await()`.
@@ -30,8 +29,7 @@ import kotlin.time.Duration
  *   - success (`true`) → [ExtendOutcome.Extended]; [active] stays `true`
  *   - failure (`false`) → [ExtendOutcome.NotHeld]; [active] transitions to `false`
  *   - exception → classifies backend kind; keeps active on transient, sets false on non-transient/FATAL
- * - [extend] (sync): bridges to the suspend function via `runBlocking` — safe to call from the watchdog scheduler thread.
- * - [isHeld]: reads the local [AtomicBoolean] flag directly (sync; Redisson API does not support this query).
+ * - [isHeldSuspend]: reads the local [AtomicBoolean] flag directly (Redisson API does not support this query).
  *
  * @property semaphore Redisson [RPermitExpirableSemaphore]
  * @property permitId permit identifier issued by Redisson
@@ -39,7 +37,7 @@ import kotlin.time.Duration
 internal class RedissonSuspendSemaphoreExtendDelegate(
     private val semaphore: RPermitExpirableSemaphore,
     private val permitId: String,
-): ExtendDelegate {
+): SuspendExtendDelegate {
 
     companion object: KLoggingChannel()
 
@@ -50,24 +48,6 @@ internal class RedissonSuspendSemaphoreExtendDelegate(
      * Whether the permit is held — starts as `true` on acquire. Transitions to `false` based on [extendSuspend] results.
      */
     private val active = AtomicBoolean(true)
-
-    /**
-     * Sync entry point — called from the watchdog scheduler thread.
-     *
-     * Redisson async is Netty-based, so `runBlocking` is safe without backpressure concerns.
-     */
-    override fun extend(lockAtMostFor: Duration): ExtendOutcome =
-        try {
-            runBlocking { doExtendSuspend(lockAtMostFor) }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            log.warn(e) {
-                "RedissonSuspend group extend failed. semaphore=${semaphore.name}, permitId=$permitId"
-            }
-            updateActiveOnError(e)
-            ExtendOutcome.BackendError(e)
-        }
 
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
         coroutineContext.ensureActive()
@@ -89,7 +69,7 @@ internal class RedissonSuspendSemaphoreExtendDelegate(
      *
      * For diagnostic use only — for a strong guarantee, check [extendSuspend] results directly.
      */
-    override fun isHeld(): Boolean = active.get()
+    override suspend fun isHeldSuspend(): Boolean = active.get()
 
     private suspend fun doExtendSuspend(lockAtMostFor: Duration): ExtendOutcome {
         val ms = lockAtMostFor.inWholeMilliseconds

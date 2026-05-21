@@ -16,6 +16,7 @@ import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -217,7 +218,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
             val acquiredAtNanos = System.nanoTime()
 
             // T11 PR 6 (Issue #79) — per-slot ExtendDelegate / handle / watchdog 단일 reference 공유 (AC-15).
-            val delegate = ExposedR2dbcSuspendSlotExtendDelegate(lock)
+            val delegate: SuspendExtendDelegate = ExposedR2dbcSuspendSlotExtendDelegate(lock)
             val identity = LockIdentity(
                 lockName = lockName,
                 kind = LockIdentity.AnnotationKind.GROUP,

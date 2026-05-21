@@ -1,15 +1,18 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.LockStateHolder
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -46,9 +49,34 @@ class LockExtenderTest {
         override fun isHeld(): Boolean = heldValue
     }
 
+    private class FakeSuspendDelegate(
+        private val outcome: ExtendOutcome = ExtendOutcome.Extended(Instant.now()),
+        private val heldValue: Boolean = true,
+    ) : SuspendExtendDelegate {
+        private val _deadline = AtomicReference(Instant.EPOCH)
+        override val lastExtendDeadline: AtomicReference<Instant> get() = _deadline
+
+        val syncExtendCalls = AtomicInteger(0)
+        val suspendExtendCalls = AtomicInteger(0)
+        var suspendExtendCalledWith: Duration? = null
+
+        override fun extend(lockAtMostFor: Duration): ExtendOutcome {
+            syncExtendCalls.incrementAndGet()
+            return ExtendOutcome.BackendError(UnsupportedOperationException("sync extend must not be used"))
+        }
+
+        override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome {
+            suspendExtendCalls.incrementAndGet()
+            suspendExtendCalledWith = lockAtMostFor
+            return outcome
+        }
+
+        override suspend fun isHeldSuspend(): Boolean = heldValue
+    }
+
     private fun realHandle(
         name: String = "test-lock",
-        delegate: FakeDelegate = FakeDelegate(),
+        delegate: ExtendDelegate = FakeDelegate(),
     ): LeaderLockHandle.Real =
         LeaderLockHandle.real(
             identity = identity(name),
@@ -278,6 +306,44 @@ class LockExtenderTest {
             val outcome = LockExtender.extendActiveLockDetailedSuspend(30.seconds)
             assert(outcome is ExtendOutcome.Extended) { "Expected Extended, got $outcome" }
         }
+    }
+
+    @Test
+    fun `extendActiveLockDetailedSuspend uses SuspendExtendDelegate without sync bridge`() = runTest {
+        val delegate = FakeSuspendDelegate(ExtendOutcome.Extended(Instant.now().plusSeconds(30)))
+        withContext(LockHandleElement(realHandle(delegate = delegate))) {
+            val outcome = LockExtender.extendActiveLockDetailedSuspend(30.seconds)
+            assert(outcome is ExtendOutcome.Extended) { "Expected Extended, got $outcome" }
+        }
+
+        delegate.suspendExtendCalls.get() shouldBeEqualTo 1
+        delegate.suspendExtendCalledWith shouldBeEqualTo 30.seconds
+        delegate.syncExtendCalls.get() shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `extendActiveLockDetailedSuspend does not update deadline when SuspendExtendDelegate returns NotHeld`() = runTest {
+        val delegate = FakeSuspendDelegate(ExtendOutcome.NotHeld)
+        withContext(LockHandleElement(realHandle(delegate = delegate))) {
+            val outcome = LockExtender.extendActiveLockDetailedSuspend(30.seconds)
+            assert(outcome is ExtendOutcome.NotHeld) { "Expected NotHeld, got $outcome" }
+        }
+
+        delegate.lastExtendDeadline.get() shouldBeEqualTo Instant.EPOCH
+        delegate.suspendExtendCalls.get() shouldBeEqualTo 1
+        delegate.syncExtendCalls.get() shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `sync extendActiveLockDetailed with SuspendExtendDelegate returns BackendError misuse path`() {
+        val delegate = FakeSuspendDelegate(ExtendOutcome.Extended(Instant.now().plusSeconds(30)))
+        LockStateHolder.withPushed(realHandle(delegate = delegate)) {
+            val outcome = LockExtender.extendActiveLockDetailed(30.seconds)
+            assert(outcome is ExtendOutcome.BackendError) { "Expected BackendError, got $outcome" }
+        }
+
+        delegate.syncExtendCalls.get() shouldBeEqualTo 1
+        delegate.suspendExtendCalls.get() shouldBeEqualTo 0
     }
 
     @Test

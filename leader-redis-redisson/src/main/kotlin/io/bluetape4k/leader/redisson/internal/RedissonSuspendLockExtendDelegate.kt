@@ -1,14 +1,13 @@
 package io.bluetape4k.leader.redisson.internal
 
 import io.bluetape4k.leader.ExtendOutcome
-import io.bluetape4k.leader.internal.ExtendDelegate
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.future.await
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.redisson.api.RLock
 import org.redisson.api.RedissonClient
@@ -18,7 +17,7 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * [ExtendDelegate] for Redisson [RLock] (suspend variant) — T8 PR 3 (Issue #79).
+ * [SuspendExtendDelegate] for Redisson [RLock] (suspend variant) — T8 PR 3 (Issue #79).
  *
  * Redisson's async API is [java.util.concurrent.CompletableFuture]-based,
  * so it is bridged to suspend via `await()`.
@@ -39,9 +38,7 @@ import kotlin.time.Duration
  * ## Behavior / Contract
  * - [extendSuspend]: owner-guarded — checks `lock.isHeldByThread(acquiringThreadId)` then calls `expireAsync(...).await()`.
  *   Returns [ExtendOutcome.WrongThread] on owner-id mismatch (AC-8).
- * - [extend] (sync): bridges to the suspend function via `runBlocking` — must not be called from production sync paths.
- *   Called from the watchdog scheduler thread.
- * - [isHeld]: delegates to `lock.isHeldByThread(acquiringThreadId)` (sync facade).
+ * - [isHeldSuspend]: delegates to `lock.isHeldByThread(acquiringThreadId)` through the suspend contract.
  *
  * @property redissonClient Redisson client used to renew the lock key TTL
  * @property lock Redisson [RLock] instance
@@ -51,28 +48,12 @@ internal class RedissonSuspendLockExtendDelegate(
     private val redissonClient: RedissonClient,
     private val lock: RLock,
     private val acquiringThreadId: Long,
-): ExtendDelegate {
+): SuspendExtendDelegate {
 
     companion object: KLoggingChannel()
 
     private val _lastExtendDeadline = AtomicReference(Instant.EPOCH)
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
-
-    /**
-     * Sync entry point — called from the watchdog scheduler thread.
-     *
-     * Redisson async is Netty-based, so `runBlocking` is safe without backpressure concerns.
-     * However, the suspend wrapper ([extendSuspend]) is preferred.
-     */
-    override fun extend(lockAtMostFor: Duration): ExtendOutcome =
-        try {
-            runBlocking { doExtendSuspend(lockAtMostFor) }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            log.warn(e) { "RedissonSuspend extend failed. lockName=${lock.name}, ownerId=$acquiringThreadId" }
-            ExtendOutcome.BackendError(e)
-        }
 
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
         coroutineContext.ensureActive()
@@ -86,9 +67,11 @@ internal class RedissonSuspendLockExtendDelegate(
         }
     }
 
-    override fun isHeld(): Boolean =
+    override suspend fun isHeldSuspend(): Boolean =
         try {
             lock.isHeldByThread(acquiringThreadId)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             log.warn(e) { "RedissonSuspend isHeld failed. lockName=${lock.name}, ownerId=$acquiringThreadId" }
             false

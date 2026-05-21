@@ -1,6 +1,7 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.leader.internal.ExtendDelegate
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.support.requireGe
 import java.io.Serializable
 import kotlin.time.Duration
@@ -83,6 +84,12 @@ sealed class LeaderLockHandle : Serializable {
          * Checks whether the current token is still alive in the backend. Returns `false` if a takeover occurs after lease expiry.
          */
         fun isStillHeld(): Boolean = extendDelegate.isHeld()
+
+        /**
+         * Suspend ownership check. Uses the coroutine-native path when the backend delegate supports it.
+         */
+        suspend fun isStillHeldSuspend(): Boolean =
+            if (extendDelegate is SuspendExtendDelegate) extendDelegate.isHeldSuspend() else extendDelegate.isHeld()
 
         /**
          * Creates a reentrant passthrough copy.

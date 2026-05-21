@@ -9,8 +9,15 @@ import io.bluetape4k.leader.internal.BackendErrorKind
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.CoreBackendErrorClassifier
 import io.bluetape4k.leader.internal.ExtendDelegate
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledFuture
@@ -272,6 +279,107 @@ object LeaderLeaseAutoExtender : KLogging() {
     }
 
     /**
+     * Starts a lease-extension watchdog for a coroutine-native [SuspendExtendDelegate].
+     *
+     * The existing scheduler owns cadence so [configure] thread-count behavior still applies.
+     * Each due tick is dispatched into a private coroutine scope and calls [SuspendExtendDelegate.extendSuspend]
+     * directly. This overload must not use `runBlocking`.
+     * `asyncExtend` does not apply because the backend call already runs outside the scheduler thread.
+     *
+     * `close()` stops future scheduling immediately. If a suspend extend is already in flight, it is allowed
+     * to finish the atomic backend operation; the private scope is cancelled after that tick completes.
+     */
+    fun start(
+        enabled: Boolean,
+        leaseTime: Duration,
+        delegate: SuspendExtendDelegate,
+        classifier: BackendErrorClassifier? = null,
+    ): AutoCloseable {
+        val errorClassifier: BackendErrorClassifier = classifier ?: CoreBackendErrorClassifier
+        if (!enabled) {
+            return NoopCloseable
+        }
+
+        val closed = AtomicBoolean(false)
+        val cadence = renewalPeriod(leaseTime)
+        val futureRef = AtomicReference<ScheduledFuture<*>?>(null)
+        val extendInFlight = AtomicBoolean(false)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+        fun cancelScopeIfIdle() {
+            if (closed.get() && !extendInFlight.get()) {
+                scope.cancel()
+            }
+        }
+
+        suspend fun doSuspendTick() {
+            if (closed.get()) {
+                futureRef.get()?.cancel(false)
+                return
+            }
+
+            val deadline = delegate.lastExtendDeadline.get()
+            if (deadline != null && Instant.now().plusMillis(cadence.inWholeMilliseconds).isBefore(deadline)) {
+                return
+            }
+
+            val outcome = try {
+                delegate.extendSuspend(leaseTime)
+            } catch (ex: RejectedExecutionException) {
+                log.warn(ex) { "Suspend watchdog tick rejected — scheduler shut down. delegateId=${delegate.hashCode()}" }
+                futureRef.get()?.cancel(false)
+                return
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                log.warn(ex) { "leader.lease.auto-extend.suspend.failed" }
+                BackendError(ex)
+            }
+
+            handleOutcome(outcome, errorClassifier, closed, futureRef)
+        }
+
+        val tickRunnable = Runnable {
+            if (closed.get()) {
+                futureRef.get()?.cancel(false)
+                cancelScopeIfIdle()
+                return@Runnable
+            }
+            if (extendInFlight.compareAndSet(false, true)) {
+                scope.launch {
+                    try {
+                        doSuspendTick()
+                    } finally {
+                        extendInFlight.set(false)
+                        cancelScopeIfIdle()
+                    }
+                }
+            }
+        }
+
+        val future = try {
+            scheduler.scheduleWithFixedDelay(
+                tickRunnable,
+                cadence.inWholeMilliseconds,
+                cadence.inWholeMilliseconds,
+                TimeUnit.MILLISECONDS,
+            )
+        } catch (ex: RejectedExecutionException) {
+            log.warn(ex) { "Suspend watchdog scheduling rejected — scheduler shut down. Returning no-op." }
+            scope.cancel()
+            return NoopCloseable
+        }
+        futureRef.set(future)
+
+        return AutoCloseable {
+            if (closed.compareAndSet(false, true)) {
+                future.cancel(false)
+                cancelScopeIfIdle()
+            }
+        }
+    }
+
+    /**
      * Computes the watchdog repetition period based on [leaseTime].
      */
     fun renewalPeriod(leaseTime: Duration): Duration {
@@ -284,4 +392,36 @@ object LeaderLeaseAutoExtender : KLogging() {
     }
 
     private val MIN_RENEWAL_PERIOD = 25.milliseconds
+
+    private fun handleOutcome(
+        outcome: ExtendOutcome,
+        errorClassifier: BackendErrorClassifier,
+        closed: AtomicBoolean,
+        futureRef: AtomicReference<ScheduledFuture<*>?>,
+    ) {
+        when (outcome) {
+            is Extended -> { /* Extended successfully — continue */ }
+            is NotHeld, is WrongThread -> {
+                log.warn { "leader.lease.auto-extend.stopped reason=$outcome" }
+                if (closed.compareAndSet(false, true)) {
+                    futureRef.get()?.cancel(false)
+                }
+            }
+            is BackendError -> {
+                val kind = errorClassifier.classify(outcome.cause)
+                    ?: BackendErrorKind.NON_TRANSIENT
+                when (kind) {
+                    BackendErrorKind.TRANSIENT -> {
+                        log.warn(outcome.cause) { "leader.lease.auto-extend.transient-error — retrying. cause=${outcome.cause.message}" }
+                    }
+                    BackendErrorKind.NON_TRANSIENT, BackendErrorKind.FATAL -> {
+                        log.warn(outcome.cause) { "leader.lease.auto-extend.stopped reason=BACKEND_ERROR kind=$kind cause=${outcome.cause.message}" }
+                        if (closed.compareAndSet(false, true)) {
+                            futureRef.get()?.cancel(false)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

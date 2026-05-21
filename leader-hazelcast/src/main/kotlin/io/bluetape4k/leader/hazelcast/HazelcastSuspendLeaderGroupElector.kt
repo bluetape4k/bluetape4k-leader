@@ -13,6 +13,7 @@ import io.bluetape4k.leader.hazelcast.internal.HazelcastBackendErrorClassifier
 import io.bluetape4k.leader.hazelcast.internal.HazelcastSuspendSlotExtendDelegate
 import io.bluetape4k.leader.hazelcast.lock.HazelcastSuspendLock
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -113,7 +114,7 @@ class HazelcastSuspendLeaderGroupElector private constructor(
         val acquiredAtNanos = System.nanoTime()
         log.debug { "리더 그룹 슬롯을 획득하여 suspend 작업을 수행합니다. lockName=$lockName, slot=$slot" }
 
-        val delegate = HazelcastSuspendSlotExtendDelegate(lock)
+        val delegate: SuspendExtendDelegate = HazelcastSuspendSlotExtendDelegate(lock)
         val identity = LockIdentity(
             lockName = lockName,
             kind = LockIdentity.AnnotationKind.GROUP,
