@@ -24,10 +24,6 @@ Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
 - **자립형 Redis 테스트 인프라** — Testcontainers 직접 사용, 외부 테스트 유틸 의존 없음
 - **ShedLock 호환 skip 동작** — 락 획득 실패 시 작업을 조용히 건너뜀
 
-## 아키텍처
-
-![leader Architecture diagram](docs/images/readme-diagrams/bluetape4k-leader-architecture-01.png)
-
 <!-- README_VISUAL_OVERVIEW:START -->
 ## Overview Diagram
 
@@ -37,6 +33,10 @@ Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
 
 ![Bluetape4k Leader module composition chart](docs/images/readme-charts/root-readme-module-chart-01.png)
 <!-- README_VISUAL_OVERVIEW:END -->
+
+## 아키텍처
+
+![leader Architecture diagram](docs/images/readme-diagrams/bluetape4k-leader-architecture-01.png)
 
 ## 모듈 목록
 
@@ -243,7 +243,7 @@ val result = election.runIfLeader("job") { "done" }
 
 ### 복수 리더 그룹: 슬롯 기반 세마포어
 
-![: diagram](docs/images/readme-diagrams/bluetape4k-leader-sequence-03.png)
+![Multi-leader group: slot-based semaphore diagram](docs/images/readme-diagrams/bluetape4k-leader-sequence-03.png)
 
 ## API 개요
 
