@@ -47,4 +47,6 @@ include(
     "examples:tenant-aggregator",
     "examples:ktor-app",
     "examples:prometheus-dashboard",
+    "examples:k8s-lease",
+    "examples:rate-limiter",
 )
