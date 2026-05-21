@@ -68,6 +68,10 @@ jobs:
             gradle_tasks: :examples:tenant-aggregator:test
           - example: examples-batch-scheduler
             gradle_tasks: :examples:batch-scheduler:test
+          - example: examples-k8s-lease
+            gradle_tasks: :examples:k8s-lease:k8sTest
+          - example: examples-rate-limiter
+            gradle_tasks: :examples:rate-limiter:test
           - example: examples-ktor-app
             gradle_tasks: :examples:ktor-app:test
           - example: examples-prometheus-dashboard
@@ -98,7 +102,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: test-results-${{ matrix.example }}
-          path: '**/build/test-results/test/*.xml'
+          path: '**/build/test-results/**/*.xml'
           retention-days: 14
 
   examples-status:
