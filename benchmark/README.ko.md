@@ -29,6 +29,27 @@ benchmark source set은 `benchmark/src/benchmark/kotlin` 아래에 있습니다.
 
 ![Leader benchmark remote latency](../docs/images/readme-charts/leader-benchmark-remote-latency-chart-01.svg)
 
+Issue #329는 같은 benchmark harness로 history recorder 전/후 비교도
+기록합니다.
+
+![Leader history recorder self-improve throughput](../docs/images/readme-charts/leader-history-self-improve-throughput-chart-01.svg)
+
+## Latest Self-Improve Result
+
+Issue #329는 benchmark harness를 바꾸지 않고 history recorder sanitizer의
+safe fast path를 최적화했습니다. 같은 throughput command에서 local history
+행은 다음처럼 개선되었습니다.
+
+| Benchmark | Baseline (ops/s) | After (ops/s) | Delta |
+|---|---:|---:|---:|
+| `HistoryRecorder.blockingInMemoryAcquireComplete` | 5,601,881.043 | 20,018,125.709 | +257.35% |
+| `HistoryRecorder.blockingNoopAcquireComplete` | 7,642,848.188 | 62,740,146.724 | +720.90% |
+| `HistoryRecorder.suspendInMemoryAcquireComplete` | 4,843,511.108 | 11,441,889.888 | +136.23% |
+| `HistoryRecorder.suspendNoopAcquireComplete` | 5,257,310.052 | 23,153,305.712 | +340.40% |
+
+상세:
+[`docs/benchmarks/2026-05-21-issue-329-leader-history-recorder-self-improve.md`](../docs/benchmarks/2026-05-21-issue-329-leader-history-recorder-self-improve.md).
+
 ## Cross-Backend Results
 
 Throughput은 높을수록 좋고, average time은 낮을수록 좋습니다.
@@ -58,6 +79,9 @@ Throughput은 높을수록 좋고, average time은 낮을수록 좋습니다.
 | zookeeper | 721.758 ± 938.116 | 1,250.279 ± 947.488 | Testcontainers 기반 원격 backend |
 
 ## Local Core Rows
+
+이 행들은 기존 2026-05-21 cross-backend 기준선입니다. Issue #329 이후 수치는
+위 self-improve 섹션을 기준으로 보세요.
 
 | Benchmark | Throughput (ops/s) | Average time (us/op) |
 |---|---:|---:|

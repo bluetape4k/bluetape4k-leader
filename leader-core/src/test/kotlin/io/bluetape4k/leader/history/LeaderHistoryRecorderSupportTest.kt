@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.history
 
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
@@ -44,6 +45,12 @@ class LeaderHistoryRecorderSupportTest {
     }
 
     @Test
+    fun `sanitizeForLog replaces C1 control character with question mark`() {
+        val input = "left\u0085right"
+        input.sanitizeForLog() shouldBeEqualTo "left?right"
+    }
+
+    @Test
     fun `sanitizeForLog replaces Unicode line separator`() {
         val input = "line sep"
         input.sanitizeForLog() shouldBeEqualTo "line?sep"
@@ -59,6 +66,7 @@ class LeaderHistoryRecorderSupportTest {
     fun `sanitizeForLog leaves normal ASCII unchanged`() {
         val input = "Hello, World! 123"
         input.sanitizeForLog() shouldBeEqualTo input
+        (input.sanitizeForLog() === input) shouldBe true
     }
 
     // ── sanitize record ───────────────────────────────────────────────────
@@ -101,6 +109,7 @@ class LeaderHistoryRecorderSupportTest {
     fun `sanitize returns equivalent record when no changes are needed`() {
         val r = record(errorMessage = "simple error", metadata = mapOf("k" to "v"))
         val sanitized = sanitize(r)
+        (sanitized === r) shouldBe true
         sanitized.errorMessage shouldBeEqualTo r.errorMessage
         sanitized.metadata shouldBeEqualTo r.metadata
     }

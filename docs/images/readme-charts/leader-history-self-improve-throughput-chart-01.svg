@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="640" viewBox="0 0 1400 640" role="img" aria-labelledby="title desc">
+  <title id="title">Leader history recorder self-improve throughput</title>
+  <desc id="desc">Issue 329 before and after throughput for history recorder benchmark rows in operations per second. Higher values are better.</desc>
+  <defs>
+    <style>
+      .canvas{fill:#f6f9fc}.frame{fill:#fff;stroke:#d7e2ec;stroke-width:2}.title{font:700 34px Arial,sans-serif;fill:#22344a}.subtitle{font:16px Arial,sans-serif;fill:#536476}.label{font:18px Arial,sans-serif;fill:#22344a}.small{font:14px Arial,sans-serif;fill:#536476}.tick{font:13px Arial,sans-serif;fill:#6d7d90}.axis{stroke:#b9c8d6;stroke-width:1}.baseline{fill:#8aa1b6}.after{fill:#2f80ed}.note{font:13px Arial,sans-serif;fill:#6d7d90}
+    </style>
+  </defs>
+  <rect class="canvas" width="1400" height="640"/>
+  <rect class="frame" x="36" y="28" width="1328" height="584" rx="20"/>
+  <text class="title" x="72" y="78">History recorder self-improve throughput</text>
+  <text class="subtitle" x="72" y="106">Issue #329 same-machine before/after, ops/s. Higher is better.</text>
+  <rect x="960" y="64" width="18" height="18" rx="3" class="baseline"/><text class="small" x="986" y="78">Baseline</text>
+  <rect x="1090" y="64" width="18" height="18" rx="3" class="after"/><text class="small" x="1116" y="78">After</text>
+  <line class="axis" x1="380" y1="510" x2="1180" y2="510"/>
+  <line class="axis" x1="380" y1="145" x2="380" y2="510"/>
+  <line class="axis" x1="539" y1="145" x2="539" y2="516"/><text class="tick" x="524" y="538">12M</text>
+  <line class="axis" x1="699" y1="145" x2="699" y2="516"/><text class="tick" x="684" y="538">24M</text>
+  <line class="axis" x1="858" y1="145" x2="858" y2="516"/><text class="tick" x="843" y="538">36M</text>
+  <line class="axis" x1="1018" y1="145" x2="1018" y2="516"/><text class="tick" x="1003" y="538">48M</text>
+  <line class="axis" x1="1177" y1="145" x2="1177" y2="516"/><text class="tick" x="1162" y="538">60M</text>
+  <text class="tick" x="365" y="538">0</text>
+
+  <text class="label" x="90" y="168">Blocking in-memory</text>
+  <rect x="380" y="146" width="46" height="24" rx="5" class="baseline"/><text class="small" x="438" y="164">5.60M</text>
+  <rect x="380" y="176" width="166" height="24" rx="5" class="after"/><text class="small" x="558" y="194">20.02M</text>
+
+  <text class="label" x="90" y="251">Blocking no-op</text>
+  <rect x="380" y="229" width="63" height="24" rx="5" class="baseline"/><text class="small" x="455" y="247">7.64M</text>
+  <rect x="380" y="259" width="520" height="24" rx="5" class="after"/><text class="small" x="912" y="277">62.74M</text>
+
+  <text class="label" x="90" y="334">Suspend in-memory</text>
+  <rect x="380" y="312" width="40" height="24" rx="5" class="baseline"/><text class="small" x="432" y="330">4.84M</text>
+  <rect x="380" y="342" width="95" height="24" rx="5" class="after"/><text class="small" x="487" y="360">11.44M</text>
+
+  <text class="label" x="90" y="417">Suspend no-op</text>
+  <rect x="380" y="395" width="44" height="24" rx="5" class="baseline"/><text class="small" x="436" y="413">5.26M</text>
+  <rect x="380" y="425" width="192" height="24" rx="5" class="after"/><text class="small" x="584" y="443">23.15M</text>
+
+  <text class="note" x="72" y="580">Source: docs/benchmarks/2026-05-21-issue-329-leader-history-recorder-self-improve.md. Forks=1, threads=1, 3 measurement iterations.</text>
+</svg>
