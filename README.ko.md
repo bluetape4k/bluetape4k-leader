@@ -34,6 +34,26 @@ Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
 ![Bluetape4k Leader module composition chart](docs/images/readme-charts/root-readme-module-chart-01.png)
 <!-- README_VISUAL_OVERVIEW:END -->
 
+## 벤치마크
+
+non-published [`benchmark`](./benchmark) 모듈은 leader election backend를
+같은 기준으로 비교하는 `kotlinx-benchmark` suite를 제공합니다. JVM runner는
+JMH이며, 결과는 같은 장비에서 전/후 비교를 하기 위한 기준선입니다. 릴리스급
+성능 보증으로 해석하면 안 됩니다.
+
+![Leader benchmark remote throughput](docs/images/readme-charts/leader-benchmark-remote-throughput-chart-01.svg)
+
+| 비교 | 핵심 신호 |
+|---|---|
+| Blocking 원격 backend | 2026-05-21 기준선에서 Hazelcast, Redisson, Lettuce가 현재 throughput 상위권입니다. |
+| Suspend 원격 backend | Lettuce, Redisson, Hazelcast가 비슷한 범위에 있고, MongoDB suspend latency는 노이즈가 커서 tuning 전 반복 측정이 필요합니다. |
+| Local 및 H2 행 | in-process 또는 local SQL/R2DBC overhead를 측정하므로 분산 backend 비용 차트를 왜곡하지 않도록 원격 차트에서 제외했습니다. |
+
+전체 표, latency chart, 실행 명령, 주의사항은
+[`benchmark` README](./benchmark/README.ko.md)와
+[`2026-05-21 기준선 보고서`](./docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md)에
+있습니다.
+
 ## 아키텍처
 
 ![leader Architecture diagram](docs/images/readme-diagrams/bluetape4k-leader-architecture-01.png)
