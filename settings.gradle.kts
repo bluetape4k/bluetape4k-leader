@@ -22,6 +22,7 @@ include(
     "bluetape4k-leader-mongodb",
     "bluetape4k-leader-hazelcast",
     "bluetape4k-leader-zookeeper",
+    "bluetape4k-leader-k8s",
     "bluetape4k-leader-spring-boot",
     "bluetape4k-leader-ktor",
     "bluetape4k-leader-micrometer",
@@ -36,6 +37,7 @@ project(":bluetape4k-leader-exposed-r2dbc").projectDir = file("leader-exposed-r2
 project(":bluetape4k-leader-mongodb").projectDir = file("leader-mongodb")
 project(":bluetape4k-leader-hazelcast").projectDir = file("leader-hazelcast")
 project(":bluetape4k-leader-zookeeper").projectDir = file("leader-zookeeper")
+project(":bluetape4k-leader-k8s").projectDir = file("leader-k8s")
 project(":bluetape4k-leader-spring-boot").projectDir = file("leader-spring-boot")
 project(":bluetape4k-leader-ktor").projectDir = file("leader-ktor")
 project(":bluetape4k-leader-micrometer").projectDir = file("leader-micrometer")
