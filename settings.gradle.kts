@@ -25,6 +25,7 @@ include(
     "bluetape4k-leader-spring-boot",
     "bluetape4k-leader-ktor",
     "bluetape4k-leader-micrometer",
+    "benchmark",
 )
 project(":bluetape4k-leader-core").projectDir = file("leader-core")
 project(":bluetape4k-leader-redis-lettuce").projectDir = file("leader-redis-lettuce")

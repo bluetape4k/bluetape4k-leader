@@ -30,6 +30,9 @@ Testcontainers benchmarks remain separate follow-up work.
 
 ## Future Guidance
 
+- Issue #327 superseded the direct `me.champeau.jmh` Gradle plugin setup. New
+  leader benchmarks should use the central `benchmark/` module with
+  `kotlinx-benchmark` and JMH as the JVM backend.
 - Do not use `waitTime = 0.seconds` for coroutine elector benchmarks; it can
   measure the `withTimeoutOrNull(0)` skip path instead of the elected path.
 - Document `runBlocking` and virtual-thread scheduling caveats next to every

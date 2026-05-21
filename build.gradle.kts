@@ -16,6 +16,7 @@ plugins {
     alias(libs.plugins.kotlin.noarg) apply false
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.kotlinx.atomicfu)
+    alias(libs.plugins.kotlinx.benchmark) apply false
 
     alias(libs.plugins.detekt)
     alias(libs.plugins.dependency.management)
@@ -44,6 +45,9 @@ val projectGroup: String by project
 val baseVersion: String by project
 val snapshotVersion: String by project
 
+fun Project.isNonPublishedProject(): Boolean =
+    path == ":examples" || path.startsWith(":examples:") || path == ":benchmark"
+
 allprojects {
     group = projectGroup
     version = baseVersion + snapshotVersion
@@ -63,7 +67,7 @@ allprojects {
 }
 
 subprojects {
-    if (path == ":examples" || path.startsWith(":examples:")) {
+    if (isNonPublishedProject()) {
         return@subprojects
     }
     apply(plugin = "com.gradleup.nmcp")
@@ -94,14 +98,14 @@ subprojects {
         return@subprojects
     }
 
-    val isExample = path == ":examples" || path.startsWith(":examples:")
+    val isNonPublished = isNonPublishedProject()
 
     apply {
         plugin<JavaLibraryPlugin>()
         plugin("org.jetbrains.kotlin.jvm")
         plugin("org.jetbrains.kotlinx.atomicfu")
         plugin("org.jetbrains.kotlinx.kover")
-        if (!isExample) {
+        if (!isNonPublished) {
             plugin("maven-publish")
             plugin("signing")
         }
@@ -275,7 +279,7 @@ subprojects {
         testImplementation(rootLibs.mockk)
     }
 
-    if (isExample) {
+    if (isNonPublished) {
         return@subprojects
     }
 
@@ -342,12 +346,12 @@ extensions.configure<NmcpAggregationExtension>("nmcpAggregation") {
 
 dependencies {
     subprojects
-        .filter { it.path != ":examples" && !it.path.startsWith(":examples:") }
+        .filter { !it.isNonPublishedProject() }
         .forEach { add("nmcpAggregation", project(it.path)) }
 }
 
 dependencies {
     subprojects
-        .filter { it.name != "bluetape4k-leader-bom" && it.path != ":examples" && !it.path.startsWith(":examples:") }
+        .filter { it.name != "bluetape4k-leader-bom" && !it.isNonPublishedProject() }
         .forEach { sub -> kover(project(sub.path)) }
 }
