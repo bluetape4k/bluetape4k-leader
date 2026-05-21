@@ -1,4 +1,5 @@
 repositories {
+    gradlePluginPortal()
     mavenCentral()
     google()
 }
@@ -8,7 +9,18 @@ plugins {
 }
 
 dependencies {
+    implementation("me.champeau.jmh:me.champeau.jmh.gradle.plugin:0.7.3")
+
     testImplementation(kotlin("test"))
+}
+
+gradlePlugin {
+    plugins {
+        create("jmhConventions") {
+            id = "bluetape4k.jmh-conventions"
+            implementationClass = "JmhConventionPlugin"
+        }
+    }
 }
 
 tasks.test {

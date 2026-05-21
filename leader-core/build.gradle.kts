@@ -1,5 +1,6 @@
 plugins {
     `java-test-fixtures`
+    id("bluetape4k.jmh-conventions")
 }
 
 configurations {
@@ -24,4 +25,8 @@ dependencies {
     testFixturesApi(libs.junit.jupiter)
     testFixturesApi(libs.kotlinx.coroutines.core)
     testFixturesApi(libs.kotlinx.coroutines.test)
+
+    add("jmhImplementation", libs.bluetape4k.virtualthread.jdk21)
+    add("jmhImplementation", libs.kotlinx.coroutines.core)
+    add("jmhRuntimeOnly", libs.logback)
 }
