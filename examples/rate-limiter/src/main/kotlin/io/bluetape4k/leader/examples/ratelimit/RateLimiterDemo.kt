@@ -168,7 +168,7 @@ object RateLimiterDemo: KLogging() {
             .addLimit { limit ->
                 limit
                     .capacity(quotaPerSecond.toLong())
-                    .refillGreedy(quotaPerSecond.toLong(), Duration.ofSeconds(1))
+                    .refillIntervally(quotaPerSecond.toLong(), Duration.ofSeconds(1))
             }
             .build()
 
