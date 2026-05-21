@@ -19,6 +19,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -177,7 +178,7 @@ class WebhookPoller(
     }
 
     private suspend fun runLoop() {
-        while (kotlin.coroutines.coroutineContext[Job]?.isActive != false) {
+        while (currentCoroutineContext()[Job]?.isActive != false) {
             try {
                 elector.runIfLeader(options.lockName) {
                     log.debug { "[${options.nodeId}] 리더 선출 — batch 처리 시작" }
@@ -187,7 +188,6 @@ class WebhookPoller(
                 throw e
             } catch (e: Exception) {
                 log.warn(e) { "[${options.nodeId}] 리더 동작 중 예외 — 다음 사이클 재시도" }
-                null
             }
 
             // 리더/비리더 모두 동일 사이클 휴지 — leader-lock 자체의 waitTime 은 elector 옵션에서 관리
