@@ -4,8 +4,8 @@
 
 Preview Consul backend for `bluetape4k-leader`.
 
-This module provides the preview single-leader blocking and `CompletableFuture`
-elector backed by Consul sessions and KV `acquire`/`release`. Coroutine, group,
+This module provides preview single-leader blocking, `CompletableFuture`, and
+coroutine electors backed by Consul sessions and KV `acquire`/`release`. Group,
 Spring Boot, and event-publisher surfaces remain deferred.
 
 ## Behavior / Contract
@@ -30,6 +30,19 @@ val elector = ConsulLeaderElector(
 )
 
 val result = elector.runIfLeader("daily-report") {
+    "executed"
+}
+```
+
+```kotlin
+val suspendElector = ConsulSuspendLeaderElector(
+    endpoint = ConsulEndpoint("http://localhost:8500"),
+    options = ConsulLeaderElectionOptions(
+        leaderOptions = LeaderElectionOptions(leaseTime = 10.seconds),
+    ),
+)
+
+val suspendResult = suspendElector.runIfLeader("daily-report") {
     "executed"
 }
 ```

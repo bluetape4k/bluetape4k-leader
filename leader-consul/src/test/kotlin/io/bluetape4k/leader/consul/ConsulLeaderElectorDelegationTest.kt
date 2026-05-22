@@ -71,6 +71,22 @@ class ConsulLeaderElectorDelegationTest {
     }
 
     @Test
+    fun `state returns empty when Consul owner payload is missing`() {
+        val client = FakeConsulLockClient(
+            entry = ConsulKvEntry(
+                key = "bluetape4k/leader/single/lock-a",
+                value = null,
+                sessionId = ConsulSessionId("session-a"),
+                lockIndex = 1L,
+                modifyIndex = 2L,
+            ),
+        )
+        val elector = ConsulLeaderElector.create(client)
+
+        elector.state("lock-a").isEmpty shouldBeEqualTo true
+    }
+
+    @Test
     fun `interrupted min lease wait still releases and destroys session`() {
         val client = FakeConsulLockClient()
         val elector = ConsulLeaderElector.create(

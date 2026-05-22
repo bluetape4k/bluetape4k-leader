@@ -70,7 +70,7 @@ Full tables, latency chart, run command, and caveats are in the
 | `leader-exposed-r2dbc` | Stable | Exposed R2DBC backend (coroutine-native, H2/PostgreSQL/MySQL) |
 | `leader-mongodb` | Stable | MongoDB backend (`findOneAndUpdate` + TTL index) |
 | `leader-etcd` | Preview | etcd v3 backend (jetcd Lock service + leases, single/group leader) |
-| `leader-consul` | Preview | Consul Session + KV backend (single-leader blocking/async runtime) |
+| `leader-consul` | Preview | Consul Session + KV backend (single-leader blocking/async/coroutine runtime) |
 | `leader-k8s` | Preview | Kubernetes Lease backend (`coordination.k8s.io/v1`) |
 | `leader-micrometer` | Stable | Micrometer metrics integration (`MicrometerLeaderAopMetricsRecorder`) |
 | `leader-spring-boot` | Stable | Spring Boot 4 auto-configuration + AOP (AspectJ CTW, Freefair post-compile weaving) |
@@ -699,7 +699,7 @@ fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
 | JDBC/SQL | Yes (Exposed JDBC) | Yes |
 | MongoDB | Yes | Yes |
 | etcd | Yes | No |
-| Consul | Preview single-leader | No |
+| Consul | Preview single-leader blocking/async/coroutine | No |
 | Hazelcast | Yes | Yes |
 | ZooKeeper | Yes | No |
 
