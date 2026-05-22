@@ -29,6 +29,7 @@ mongo-driver = "5.7.0"  # https://mvnrepository.com/artifact/org.mongodb/mongodb
 hazelcast = "5.7.0"  # https://mvnrepository.com/artifact/com.hazelcast/hazelcast
 curator = "5.9.0"  # https://mvnrepository.com/artifact/org.apache.curator/curator-recipes
 jetcd = "0.8.6"  # https://mvnrepository.com/artifact/io.etcd/jetcd-core
+aws2 = "2.44.9"  # https://mvnrepository.com/artifact/software.amazon.awssdk/bom
 
 micrometer = "1.16.5"  # https://mvnrepository.com/artifact/io.micrometer/micrometer-bom
 
@@ -158,6 +159,10 @@ curator-recipes = { module = "org.apache.curator:curator-recipes", version.ref =
 
 # etcd
 jetcd-core = { module = "io.etcd:jetcd-core", version.ref = "jetcd" }
+
+# AWS SDK v2
+aws2-bom = { module = "software.amazon.awssdk:bom", version.ref = "aws2" }
+aws2-dynamodb = { module = "software.amazon.awssdk:dynamodb" }
 
 # Micrometer
 micrometer-bom = { module = "io.micrometer:micrometer-bom", version.ref = "micrometer" }

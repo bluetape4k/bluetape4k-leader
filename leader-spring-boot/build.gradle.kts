@@ -73,6 +73,7 @@ dependencies {
     compileOnly(project(":bluetape4k-leader-hazelcast"))
     compileOnly(project(":bluetape4k-leader-etcd"))
     compileOnly(project(":bluetape4k-leader-consul"))
+    compileOnly(project(":bluetape4k-leader-dynamodb"))
     compileOnly(project(":bluetape4k-leader-micrometer"))
 
     compileOnly(libs.lettuce.core)
@@ -80,6 +81,7 @@ dependencies {
     compileOnly(libs.mongodb.driver.sync)
     compileOnly(libs.mongodb.driver.kotlin.coroutine)
     compileOnly(libs.hazelcast)
+    compileOnly(libs.aws2.dynamodb)
 
     api(libs.spring.boot.autoconfigure)
     api(libs.spring.aop)
@@ -109,6 +111,7 @@ dependencies {
     testImplementation(libs.springmockk)
     testImplementation(libs.bluetape4k.virtualthread.jdk21)
     testImplementation(project(":bluetape4k-leader-consul"))
+    testImplementation(project(":bluetape4k-leader-dynamodb"))
     testImplementation(libs.bluetape4k.testcontainers)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)

@@ -10,7 +10,7 @@
 ![Bluetape4k leader election workbench](./docs/assets/leader-election-workbench.png)
 
 A standalone Kotlin/JVM library for **distributed leader election**.  
-Provides blocking, async, coroutine, and virtual-thread APIs backed by Redis, Exposed, MongoDB, etcd, Kubernetes, Hazelcast, and ZooKeeper.
+Provides blocking, async, coroutine, and virtual-thread APIs backed by Redis, Exposed, MongoDB, DynamoDB, etcd, Kubernetes, Hazelcast, and ZooKeeper.
 Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
 
 ---
@@ -69,6 +69,7 @@ Full tables, latency chart, run command, and caveats are in the
 | `leader-exposed-jdbc` | Stable | Exposed JDBC backend (H2, PostgreSQL, MySQL) |
 | `leader-exposed-r2dbc` | Stable | Exposed R2DBC backend (coroutine-native, H2/PostgreSQL/MySQL) |
 | `leader-mongodb` | Stable | MongoDB backend (`findOneAndUpdate` + TTL index) |
+| `leader-dynamodb` | Preview | AWS DynamoDB backend (conditional writes + logical TTL) |
 | `leader-etcd` | Preview | etcd v3 backend (jetcd Lock service + leases, single/group leader) |
 | `leader-consul` | Preview | Consul Session + KV backend (single/group leader, Spring Boot auto-config) |
 | `leader-k8s` | Preview | Kubernetes Lease backend (`coordination.k8s.io/v1`) |
@@ -120,6 +121,9 @@ implementation("io.github.bluetape4k.leader:bluetape4k-leader-etcd:0.1.0-SNAPSHO
 
 // Consul Session + KV
 implementation("io.github.bluetape4k.leader:bluetape4k-leader-consul:0.1.0-SNAPSHOT")
+
+// AWS DynamoDB
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-dynamodb:0.1.0-SNAPSHOT")
 
 // Ktor 3.x integration (LeaderElectionPlugin + leaderScheduled())
 implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor:0.1.0-SNAPSHOT")
@@ -700,6 +704,7 @@ fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
 | MongoDB | Yes | Yes |
 | etcd | Yes | No |
 | Consul | Preview single/group blocking/async/coroutine + Spring Boot | No |
+| DynamoDB | Preview single/group blocking/async/coroutine + virtual thread + Spring Boot | No |
 | Hazelcast | Yes | Yes |
 | ZooKeeper | Yes | No |
 

@@ -24,6 +24,7 @@ include(
     "bluetape4k-leader-zookeeper",
     "bluetape4k-leader-etcd",
     "bluetape4k-leader-consul",
+    "bluetape4k-leader-dynamodb",
     "bluetape4k-leader-k8s",
     "bluetape4k-leader-spring-boot",
     "bluetape4k-leader-ktor",
@@ -41,6 +42,7 @@ project(":bluetape4k-leader-hazelcast").projectDir = file("leader-hazelcast")
 project(":bluetape4k-leader-zookeeper").projectDir = file("leader-zookeeper")
 project(":bluetape4k-leader-etcd").projectDir = file("leader-etcd")
 project(":bluetape4k-leader-consul").projectDir = file("leader-consul")
+project(":bluetape4k-leader-dynamodb").projectDir = file("leader-dynamodb")
 project(":bluetape4k-leader-k8s").projectDir = file("leader-k8s")
 project(":bluetape4k-leader-spring-boot").projectDir = file("leader-spring-boot")
 project(":bluetape4k-leader-ktor").projectDir = file("leader-ktor")

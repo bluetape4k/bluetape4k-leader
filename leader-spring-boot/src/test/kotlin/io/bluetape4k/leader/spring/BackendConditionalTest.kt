@@ -20,6 +20,8 @@ import io.bluetape4k.leader.consul.ConsulEndpoint
 import io.bluetape4k.leader.consul.ConsulLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.dynamodb.DynamoDbLeaderElector
+import io.bluetape4k.leader.dynamodb.DynamoDbVirtualThreadLeaderElector
 import io.bluetape4k.leader.lettuce.LettuceLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.leader.redisson.RedissonLeaderElector
@@ -42,6 +44,8 @@ import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BackendConditionalTest {
@@ -213,6 +217,29 @@ class BackendConditionalTest {
             }
     }
 
+    // ─────────────── DynamoDB ───────────────
+
+    @Test
+    fun `DynamoDbClient 빈 등록 시 DynamoDB 6 빈 활성 + Local 비활성`() {
+        contextRunner
+            .withUserConfiguration(DynamoDbClientConfig::class.java)
+            .withPropertyValues(
+                "bluetape4k.leader.dynamodb.table-name=leader_test",
+                "bluetape4k.leader.dynamodb.key-prefix=apps-orders",
+                "bluetape4k.leader.dynamodb.clock-skew-tolerance=100ms",
+            )
+            .run { ctx ->
+                ctx.getBean("dynamoDbLeaderElector") shouldBeInstanceOf DynamoDbLeaderElector::class
+                ctx.containsBean("dynamoDbLeaderGroupElector") shouldBeEqualTo true
+                ctx.getBean("dynamoDbVirtualThreadLeaderElector") shouldBeInstanceOf
+                    DynamoDbVirtualThreadLeaderElector::class
+                ctx.containsBean("dynamoDbVirtualThreadLeaderGroupElector") shouldBeEqualTo true
+                ctx.containsBean("dynamoDbSuspendLeaderElector") shouldBeEqualTo true
+                ctx.containsBean("dynamoDbSuspendLeaderGroupElector") shouldBeEqualTo true
+                ctx.containsBean("localLeaderElector") shouldBeEqualTo false
+            }
+    }
+
     // ─────────────── 다중 백엔드 ───────────────
 
     @Test
@@ -309,5 +336,14 @@ class BackendConditionalTest {
     class ConsulEndpointConfig {
         @Bean
         fun consulEndpoint(): ConsulEndpoint = ConsulEndpoint("http://localhost:8500")
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class DynamoDbClientConfig {
+        @Bean
+        fun dynamoDbClient(): DynamoDbClient = mockk(relaxed = true)
+
+        @Bean
+        fun dynamoDbAsyncClient(): DynamoDbAsyncClient = mockk(relaxed = true)
     }
 }

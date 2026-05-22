@@ -247,6 +247,7 @@ subprojects {
             mavenBom(rootLibs.junit.bom.get().toString())
             mavenBom(rootLibs.micrometer.bom.get().toString())
             mavenBom(rootLibs.testcontainers.bom.get().toString())
+            mavenBom(rootLibs.aws2.bom.get().toString())
         }
     }
 

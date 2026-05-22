@@ -35,6 +35,9 @@ import java.time.Duration
  *     consul:
  *       key-prefix: apps/orders/leader
  *       session-name-prefix: orders-leader
+ *     dynamodb:
+ *       table-name: bluetape4k_leader_locks
+ *       key-prefix: leader
  * ```
  *
  * @property waitTime maximum wait time to acquire a single leader lease. Default 5 seconds.
@@ -46,6 +49,7 @@ import java.time.Duration
  * @property mongo MongoDB backend collection names.
  * @property etcd etcd backend key-prefix options.
  * @property consul Consul backend KV/session options.
+ * @property dynamodb DynamoDB backend table, key-prefix, TTL, retry, and clock-skew options.
  */
 @ConfigurationProperties(prefix = "bluetape4k.leader")
 data class LeaderProperties(
@@ -63,4 +67,6 @@ data class LeaderProperties(
     val etcd: EtcdLeaderProperties = EtcdLeaderProperties(),
     @field:NestedConfigurationProperty
     val consul: ConsulLeaderProperties = ConsulLeaderProperties(),
+    @field:NestedConfigurationProperty
+    val dynamodb: DynamoDbLeaderProperties = DynamoDbLeaderProperties(),
 )
