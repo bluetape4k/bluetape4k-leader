@@ -3,9 +3,11 @@ package io.bluetape4k.leader.exposed.r2dbc
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcLock
 import io.bluetape4k.leader.exposed.r2dbc.history.ExposedSuspendLeaderHistorySink
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.exposed.tables.LeaderLockTable
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -59,6 +61,36 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
 
         result shouldBeEqualTo "done"
     }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `ExposedR2dbcLock - useDbTime true면 DB 서버 시간 경로로 락을 획득한다`(testDB: TestR2dbcDB) =
+        runSuspendIO {
+            val db = setupDb(testDB)
+            cleanTables(db)
+            val lockName = randomName()
+            val lock = ExposedR2dbcLock(
+                db = db,
+                lockName = lockName,
+                retryStrategy = RetryStrategy.Jitter(),
+                useDbTime = true,
+            )
+
+            try {
+                lock.tryLock(1.seconds, 5.seconds) shouldBeEqualTo true
+                lock.isHeldByCurrentInstance() shouldBeEqualTo true
+
+                val rowCount = suspendTransaction(db) {
+                    LeaderLockTable
+                        .selectAll()
+                        .where { LeaderLockTable.lockName eq lockName }
+                        .count()
+                }
+                rowCount shouldBeEqualTo 1L
+            } finally {
+                lock.unlock()
+            }
+        }
 
     @ParameterizedTest
     @MethodSource("enableDialects")

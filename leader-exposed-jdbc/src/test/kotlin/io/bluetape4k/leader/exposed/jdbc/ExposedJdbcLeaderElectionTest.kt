@@ -53,6 +53,36 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
+    fun `ExposedJdbcLock - useDbTime true면 DB 서버 시간 경로로 락을 획득한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val lock = ExposedJdbcLock(
+            db = db,
+            lockName = lockName,
+            retryStrategy = RetryStrategy.Jitter(),
+            useDbTime = true,
+        )
+
+        try {
+            lock.tryLock(1.seconds, 5.seconds) shouldBeEqualTo true
+            lock.isHeldByCurrentInstance() shouldBeEqualTo true
+
+            val lockedUntil = transaction(db) {
+                LeaderLockTable
+                    .selectAll()
+                    .where { LeaderLockTable.lockName eq lockName }
+                    .singleOrNull()
+                    ?.get(LeaderLockTable.lockedUntil)
+            }
+            lockedUntil.shouldNotBeNull()
+        } finally {
+            lock.unlock()
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
     fun `runIfLeader - blank lockName은 IllegalArgumentException을 발생시킨다`(testDB: TestDB) {
         val db = connectDb(testDB)
         val election = ExposedJdbcLeaderElector(db)

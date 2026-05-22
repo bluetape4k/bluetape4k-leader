@@ -15,15 +15,21 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
+import java.sql.Timestamp
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
 
 /**
  * Token-based distributed lock backed by the Exposed JDBC UPDATE+INSERT+SELECT pattern.
@@ -43,12 +49,14 @@ import java.time.Instant
  * @param lockName lock identifier (primary key)
  * @param retryStrategy back-off strategy for retries
  * @param lockOwner optional lock owner identifier
+ * @param useDbTime when true, lease comparisons and expiry timestamps use the database server clock
  */
 internal class ExposedJdbcLock internal constructor(
     private val db: Database,
     val lockName: String,
     private val retryStrategy: RetryStrategy,
     private val lockOwner: String? = null,
+    private val useDbTime: Boolean = false,
 ) {
     companion object: KLoggingChannel()
 
@@ -105,7 +113,7 @@ internal class ExposedJdbcLock internal constructor(
         val tokenVal = this@ExposedJdbcLock.token
 
         return transaction(db) {
-            val now = Instant.now()
+            val now = currentTime()
             val lockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
 
             // Step 1: 만료된 락 갱신 시도
@@ -160,7 +168,7 @@ internal class ExposedJdbcLock internal constructor(
     fun isHeldByCurrentInstance(): Boolean =
         try {
             transaction(db) {
-                val now = Instant.now()
+                val now = currentTime()
                 !LeaderLockTable
                     .selectAll()
                     .where {
@@ -193,10 +201,11 @@ internal class ExposedJdbcLock internal constructor(
         try {
             val matched = transaction(db) {
                 if (remaining > Duration.ZERO) {
+                    val now = currentTime()
                     LeaderLockTable.update(
                         where = { (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal) }
                     ) {
-                        it[LeaderLockTable.lockedUntil] = Instant.now().plusMillis(remaining.inWholeMilliseconds)
+                        it[LeaderLockTable.lockedUntil] = now.plusMillis(remaining.inWholeMilliseconds)
                     }
                 } else {
                     LeaderLockTable.deleteWhere {
@@ -242,7 +251,7 @@ internal class ExposedJdbcLock internal constructor(
         val tokenVal = this@ExposedJdbcLock.token
 
         return transaction(db) {
-            val now = Instant.now()
+            val now = currentTime()
             val newLockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
             val updated = LeaderLockTable.update(
                 where = {
@@ -261,4 +270,25 @@ internal class ExposedJdbcLock internal constructor(
             }
         }
     }
+
+    private fun JdbcTransaction.currentTime(): Instant =
+        if (useDbTime) dbCurrentTimestamp() else Instant.now()
 }
+
+private fun JdbcTransaction.dbCurrentTimestamp(): Instant =
+    exec("SELECT CURRENT_TIMESTAMP") { resultSet ->
+        if (!resultSet.next()) {
+            error("SELECT CURRENT_TIMESTAMP returned no rows")
+        }
+        resultSet.getObject(1).toInstant()
+    } ?: error("SELECT CURRENT_TIMESTAMP returned no result set")
+
+private fun Any?.toInstant(): Instant =
+    when (this) {
+        is Instant -> this
+        is Timestamp -> toInstant()
+        is OffsetDateTime -> toInstant()
+        is ZonedDateTime -> toInstant()
+        is LocalDateTime -> toInstant(ZoneOffset.UTC)
+        else -> error("Unsupported CURRENT_TIMESTAMP value: ${this?.javaClass?.name ?: "null"}")
+    }

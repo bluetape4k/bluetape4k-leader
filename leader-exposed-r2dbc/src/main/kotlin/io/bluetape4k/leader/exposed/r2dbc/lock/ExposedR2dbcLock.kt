@@ -13,11 +13,13 @@ import kotlinx.coroutines.currentCoroutineContext
 import org.jetbrains.exposed.v1.exceptions.UnsupportedByDialectException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.firstOrNull
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
+import org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction
 import org.jetbrains.exposed.v1.r2dbc.deleteWhere
 import org.jetbrains.exposed.v1.r2dbc.insertIgnore
 import org.jetbrains.exposed.v1.r2dbc.selectAll
@@ -27,6 +29,10 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
 
 /**
  * Suspend token-based distributed lock using the Exposed R2DBC UPDATE+insertIgnore+SELECT pattern.
@@ -48,12 +54,14 @@ import java.time.Instant
  * @param lockName lock identifier (PK)
  * @param retryStrategy retry wait strategy
  * @param lockOwner lock holder identifier (optional)
+ * @param useDbTime when true, lease comparisons and expiry timestamps use the database server clock
  */
 internal class ExposedR2dbcLock internal constructor(
     private val db: R2dbcDatabase,
     val lockName: String,
     private val retryStrategy: RetryStrategy,
     private val lockOwner: String? = null,
+    private val useDbTime: Boolean = false,
 ) {
     companion object: KLoggingChannel()
 
@@ -105,7 +113,7 @@ internal class ExposedR2dbcLock internal constructor(
         val tokenVal = this@ExposedR2dbcLock.token
 
         return suspendTransaction(db) {
-            val now = Instant.now()
+            val now = currentTime()
             val lockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
 
             // Step 1: 만료된 락 갱신 시도
@@ -166,7 +174,7 @@ internal class ExposedR2dbcLock internal constructor(
      */
     suspend fun isHeldByCurrentInstance(): Boolean = runCatching {
         suspendTransaction(db) {
-            val now = Instant.now()
+            val now = currentTime()
             !LeaderLockTable
                 .selectAll()
                 .where {
@@ -198,10 +206,11 @@ internal class ExposedR2dbcLock internal constructor(
         runCatching {
             val matched = suspendTransaction(db) {
                 if (remaining > Duration.ZERO) {
+                    val now = currentTime()
                     LeaderLockTable.update(
                         where = { (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal) }
                     ) {
-                        it[LeaderLockTable.lockedUntil] = Instant.now().plusMillis(remaining.inWholeMilliseconds)
+                        it[LeaderLockTable.lockedUntil] = now.plusMillis(remaining.inWholeMilliseconds)
                     }
                 } else {
                     LeaderLockTable.deleteWhere {
@@ -246,7 +255,7 @@ internal class ExposedR2dbcLock internal constructor(
         val tokenVal = this@ExposedR2dbcLock.token
 
         return suspendTransaction(db) {
-            val now = Instant.now()
+            val now = currentTime()
             val newLockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
             val updated = LeaderLockTable.update(
                 where = {
@@ -265,4 +274,21 @@ internal class ExposedR2dbcLock internal constructor(
             }
         }
     }
+
+    private suspend fun R2dbcTransaction.currentTime(): Instant =
+        if (useDbTime) dbCurrentTimestamp() else Instant.now()
 }
+
+private suspend fun R2dbcTransaction.dbCurrentTimestamp(): Instant =
+    exec("SELECT CURRENT_TIMESTAMP") { row -> row.get(0).toInstant() }
+        ?.firstOrNull()
+        ?: error("SELECT CURRENT_TIMESTAMP returned no rows")
+
+private fun Any?.toInstant(): Instant =
+    when (this) {
+        is Instant -> this
+        is OffsetDateTime -> toInstant()
+        is ZonedDateTime -> toInstant()
+        is LocalDateTime -> toInstant(ZoneOffset.UTC)
+        else -> error("Unsupported CURRENT_TIMESTAMP value: ${this?.javaClass?.name ?: "null"}")
+    }
