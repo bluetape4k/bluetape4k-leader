@@ -123,9 +123,9 @@ class KubernetesLeaseSuspendLeaderElector @JvmOverloads constructor(
                 try {
                     lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos)
                     log.debug { "Kubernetes Lease released (suspend). lockName=$lockName" }
-                } catch (e: CancellationException) {
-                    throw e
                 } catch (e: Exception) {
+                    // Inside NonCancellable, CancellationException from the backend is a backend error,
+                    // not coroutine cancellation. Log and swallow to complete cleanup.
                     log.warn(e) { "Failed to release Kubernetes Lease (suspend). lockName=$lockName" }
                 }
             }
