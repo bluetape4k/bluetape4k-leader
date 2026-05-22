@@ -70,6 +70,7 @@ Full tables, latency chart, run command, and caveats are in the
 | `leader-exposed-r2dbc` | Stable | Exposed R2DBC backend (coroutine-native, H2/PostgreSQL/MySQL) |
 | `leader-mongodb` | Stable | MongoDB backend (`findOneAndUpdate` + TTL index) |
 | `leader-etcd` | Preview | etcd v3 backend (jetcd Lock service + leases, single/group leader) |
+| `leader-consul` | Preview | Consul Session + KV backend contract (single-leader runtime slice in progress) |
 | `leader-k8s` | Preview | Kubernetes Lease backend (`coordination.k8s.io/v1`) |
 | `leader-micrometer` | Stable | Micrometer metrics integration (`MicrometerLeaderAopMetricsRecorder`) |
 | `leader-spring-boot` | Stable | Spring Boot 4 auto-configuration + AOP (AspectJ CTW, Freefair post-compile weaving) |
@@ -116,6 +117,9 @@ implementation("io.github.bluetape4k.leader:bluetape4k-leader-zookeeper:0.1.0-SN
 
 // etcd v3 / jetcd
 implementation("io.github.bluetape4k.leader:bluetape4k-leader-etcd:0.1.0-SNAPSHOT")
+
+// Consul Session + KV
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-consul:0.1.0-SNAPSHOT")
 
 // Ktor 3.x integration (LeaderElectionPlugin + leaderScheduled())
 implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor:0.1.0-SNAPSHOT")
@@ -621,6 +625,7 @@ fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
 | JDBC/SQL | Yes (Exposed JDBC) | Yes |
 | MongoDB | Yes | Yes |
 | etcd | Yes | No |
+| Consul | Preview | No |
 | Hazelcast | Yes | Yes |
 | ZooKeeper | Yes | No |
 
