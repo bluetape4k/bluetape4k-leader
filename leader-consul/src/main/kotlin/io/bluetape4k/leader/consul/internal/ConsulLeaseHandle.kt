@@ -13,6 +13,7 @@ internal class ConsulLeaseHandle(
     val nodeId: String,
     val electedAt: Instant,
     val leaseUntil: Instant,
+    val slotId: String? = null,
     val acquiredAtNanos: Long = System.nanoTime(),
 ) {
     private val released = AtomicBoolean(false)
@@ -25,6 +26,7 @@ internal class ConsulLeaseHandle(
         require(ownerToken.isNotBlank()) { "ownerToken must not be blank." }
         require(auditLeaderId.isNotBlank()) { "auditLeaderId must not be blank." }
         require(nodeId.isNotBlank()) { "nodeId must not be blank." }
+        require(slotId == null || slotId.isNotBlank()) { "slotId must be null or not blank." }
         require(!leaseUntil.isBefore(electedAt)) {
             "leaseUntil must not be before electedAt. electedAt=$electedAt, leaseUntil=$leaseUntil"
         }

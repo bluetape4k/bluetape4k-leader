@@ -16,6 +16,8 @@ import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import com.mongodb.kotlin.client.coroutine.MongoDatabase as CoroutineMongoDatabase
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderGroupElector
+import io.bluetape4k.leader.consul.ConsulEndpoint
+import io.bluetape4k.leader.consul.ConsulLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.lettuce.LettuceLeaderElector
@@ -190,6 +192,27 @@ class BackendConditionalTest {
             }
     }
 
+    // ─────────────── Consul ───────────────
+
+    @Test
+    fun `ConsulEndpoint 빈 등록 시 Consul 4 빈 활성 + Local 비활성`() {
+        contextRunner
+            .withUserConfiguration(ConsulEndpointConfig::class.java)
+            .withPropertyValues(
+                "bluetape4k.leader.lease-time=10s",
+                "bluetape4k.leader.group.lease-time=10s",
+                "bluetape4k.leader.consul.key-prefix=apps/orders/leader",
+                "bluetape4k.leader.consul.session-name-prefix=orders-leader",
+            )
+            .run { ctx ->
+                ctx.getBean("consulLeaderElector") shouldBeInstanceOf ConsulLeaderElector::class
+                ctx.containsBean("consulSuspendLeaderElector") shouldBeEqualTo true
+                ctx.containsBean("consulLeaderGroupElector") shouldBeEqualTo true
+                ctx.containsBean("consulSuspendLeaderGroupElector") shouldBeEqualTo true
+                ctx.containsBean("localLeaderElector") shouldBeEqualTo false
+            }
+    }
+
     // ─────────────── 다중 백엔드 ───────────────
 
     @Test
@@ -280,5 +303,11 @@ class BackendConditionalTest {
     class EtcdClientConfig {
         @Bean
         fun etcdClient(): Client = mockk(relaxed = true)
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class ConsulEndpointConfig {
+        @Bean
+        fun consulEndpoint(): ConsulEndpoint = ConsulEndpoint("http://localhost:8500")
     }
 }

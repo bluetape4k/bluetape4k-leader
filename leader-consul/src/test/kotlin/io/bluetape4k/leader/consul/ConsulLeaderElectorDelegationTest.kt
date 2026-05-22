@@ -1,7 +1,9 @@
 package io.bluetape4k.leader.consul
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -16,7 +18,9 @@ import io.bluetape4k.leader.consul.internal.ConsulSessionId
 import io.bluetape4k.leader.consul.internal.ConsulSessionRenewal
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -174,6 +178,46 @@ class ConsulLeaderElectorDelegationTest {
         client.destroyCalls shouldBeEqualTo 1
     }
 
+    @Test
+    fun `runAsyncIfLeaderResult rethrows cancellation instead of ActionFailed`() {
+        val client = FakeConsulLockClient()
+        val elector = ConsulLeaderElector.create(client)
+
+        val failure = assertFailsWith<CompletionException> {
+            elector.runAsyncIfLeaderResult(LeaderSlot("lock-a", "audit-a")) {
+                CompletableFuture.failedFuture<String>(CancellationException("cancelled"))
+            }.join()
+        }
+
+        failure.cause.shouldBeInstanceOf<CancellationException>()
+        client.releaseCalls shouldBeEqualTo 1
+        client.destroyCalls shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `group runAsyncIfLeaderResult rethrows cancellation instead of ActionFailed`() {
+        val client = FakeConsulLockClient()
+        val elector = ConsulLeaderGroupElector.create(
+            client,
+            ConsulLeaderGroupElectionOptions(
+                leaderGroupOptions = io.bluetape4k.leader.LeaderGroupElectionOptions(
+                    waitTime = Duration.ZERO,
+                    leaseTime = 10.seconds,
+                ),
+            ),
+        )
+
+        val failure = assertFailsWith<CompletionException> {
+            elector.runAsyncIfLeaderResult(LeaderSlot("lock-a", "audit-a")) {
+                CompletableFuture.failedFuture<String>(CancellationException("cancelled"))
+            }.join()
+        }
+
+        failure.cause.shouldBeInstanceOf<CancellationException>()
+        client.releaseCalls shouldBeEqualTo 1
+        client.destroyCalls shouldBeEqualTo 1
+    }
+
     private class FakeConsulLockClient(
         private val acquireResult: Boolean = true,
         private val destroyFails: Boolean = false,
@@ -195,6 +239,9 @@ class ConsulLeaderElectorDelegationTest {
 
         override fun singleLockKey(lockName: String): String =
             "bluetape4k/leader/single/$lockName"
+
+        override fun groupLockKey(lockName: String, slot: Int): String =
+            "bluetape4k/leader/group/$lockName/slot-$slot"
 
         override fun createSession(
             name: String,

@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.spring
 
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.spring.backend.ConsulLeaderConfiguration
 import io.bluetape4k.leader.spring.backend.EtcdLeaderConfiguration
 import io.bluetape4k.leader.spring.backend.ExposedJdbcLeaderConfiguration
 import io.bluetape4k.leader.spring.backend.ExposedR2dbcLeaderConfiguration
@@ -37,6 +38,7 @@ import org.springframework.context.annotation.Import
     MongoLeaderConfiguration::class,
     HazelcastLeaderConfiguration::class,
     EtcdLeaderConfiguration::class,
+    ConsulLeaderConfiguration::class,
     ExposedJdbcLeaderConfiguration::class,
     ExposedR2dbcLeaderConfiguration::class,
 )

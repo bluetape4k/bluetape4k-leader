@@ -34,6 +34,9 @@ class LeaderPropertiesBindingTest {
                 "bluetape4k.leader.mongo.single-collection" to "single_election",
                 "bluetape4k.leader.mongo.group-collection" to "group_election",
                 "bluetape4k.leader.etcd.key-prefix" to "/apps/orders/leader",
+                "bluetape4k.leader.consul.key-prefix" to "apps/orders/leader",
+                "bluetape4k.leader.consul.session-name-prefix" to "orders-leader",
+                "bluetape4k.leader.consul.lock-delay" to "2s",
             ),
         )
         val props = Binder(source).bindAs<LeaderProperties>("bluetape4k.leader").get()
@@ -46,6 +49,9 @@ class LeaderPropertiesBindingTest {
         props.mongo.singleCollection shouldBeEqualTo "single_election"
         props.mongo.groupCollection shouldBeEqualTo "group_election"
         props.etcd.keyPrefix shouldBeEqualTo "/apps/orders/leader"
+        props.consul.keyPrefix shouldBeEqualTo "apps/orders/leader"
+        props.consul.sessionNamePrefix shouldBeEqualTo "orders-leader"
+        props.consul.lockDelay shouldBeEqualTo Duration.ofSeconds(2)
     }
 
     @Test
@@ -59,6 +65,9 @@ class LeaderPropertiesBindingTest {
         props.mongo.singleCollection shouldBeEqualTo "leader_election"
         props.mongo.groupCollection shouldBeEqualTo "leader_group_election"
         props.etcd.keyPrefix shouldBeEqualTo "/bluetape4k/leader"
+        props.consul.keyPrefix shouldBeEqualTo "bluetape4k/leader"
+        props.consul.sessionNamePrefix shouldBeEqualTo "bluetape4k-leader"
+        props.consul.lockDelay shouldBeEqualTo Duration.ZERO
     }
 
     @Test
