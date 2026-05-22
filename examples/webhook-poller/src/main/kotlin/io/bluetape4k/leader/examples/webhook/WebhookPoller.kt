@@ -30,58 +30,59 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * 분산 webhook 이벤트 polling 워커.
+ * Distributed webhook event polling worker.
  *
- * ## 동작/계약
+ * ## Behavior / Contract
  *
- * - 다중 인스턴스 환경에서 단 1개만 polling 하도록 [SuspendLeaderElector] 로 보호.
- * - 리더는 [WebhookPollerOptions.batchSize] 만큼 atomic claim 후 [handler] 실행.
- * - 비리더는 짧게 sleep 후 재시도 — 리더 사망 시 자동 인계.
+ * - Uses [SuspendLeaderElector] so only one instance polls in a multi-instance deployment.
+ * - The elected leader atomically claims up to [WebhookPollerOptions.batchSize] events and then runs [handler].
+ * - Non-leaders sleep briefly and retry, allowing automatic handoff when the current leader dies.
  *
- * ### Claim 모델
+ * ### Claim Model
  *
- * 1. `findOneAndUpdate` 로 PENDING 또는 만료된 CLAIMED event 를 atomic 점유.
+ * 1. Atomically claims a PENDING or expired CLAIMED event with `findOneAndUpdate`.
  *    - filter: `{ attempts: { $lt: maxAttempts } }` AND
  *      (`{ status: PENDING }` OR `{ status: CLAIMED, claimExpiresAt: { $lt: now } }`)
  *    - update: `status=CLAIMED, claimedBy=nodeId, claimExpiresAt=now+claimDuration, $inc attempts: 1`
- * 2. **attempts 증가는 claim 시점 1회만**. handler 성공/실패 시 추가 증가 없음.
- * 3. claim 자체가 시도(attempt) 로 정의됨.
- * 4. `attempts >= maxAttempts` 인 expired CLAIMED 는 reclaim 안 됨 (P2-3) — 별도 sweeper 가 정리 필요.
+ * 2. **Attempts are incremented exactly once at claim time**. Handler success or failure does not increment again.
+ * 3. The claim itself is the attempt.
+ * 4. Expired CLAIMED events with `attempts >= maxAttempts` are not reclaimed (P2-3);
+ *    a separate sweeper should clean them up.
  *
- * ### 실패 전이 (Failure Transition)
+ * ### Failure Transition
  *
- * handler 가 throw 하면, **본 인스턴스가 여전히 claim owner 인 경우에만** 상태 전이:
- * - `attempts >= maxAttempts` → `status=FAILED`, `lastError=ex.message` (DLQ 대체)
- * - 그렇지 않으면 → `status=PENDING`, `claimedBy=null`, `claimExpiresAt=null`,
- *   `lastError=ex.message` (다음 사이클에 즉시 재점유 가능)
+ * If [handler] throws, the state changes **only if this instance still owns the claim**:
+ * - `attempts >= maxAttempts` -> `status=FAILED`, `lastError=ex.message`, acting as the DLQ terminal state.
+ * - Otherwise -> `status=PENDING`, `claimedBy=null`, `claimExpiresAt=null`, `lastError=ex.message`,
+ *   allowing the next cycle to reclaim it immediately.
  *
- * lease 만료로 다른 인스턴스가 reclaim 한 후 본 인스턴스가 늦게 깨어나면 (P2-2) update 는 무시되며
- * `claim ownership lost` 로그 기록.
+ * If this instance wakes up late after another instance reclaimed the event due to claim expiration (P2-2),
+ * the update is ignored and a `claim ownership lost` log is emitted.
  *
  * ### Graceful Stop
  *
- * [stopGracefully] 는 polling job 을 cancel 하고 timeout 안에 join.
- * 이미 점유 중인 event 가 있으면 cancel 시점에 `CLAIMED` 상태로 남으며,
- * `claimExpiresAt` 만료 후 다른 인스턴스가 reclaim 하여 처리한다 (at-least-once 보장).
+ * [stopGracefully] cancels the polling job and joins it within the timeout.
+ * Events already claimed at cancellation time remain `CLAIMED`; after `claimExpiresAt` expires,
+ * another instance may reclaim and process them, preserving at-least-once delivery.
  *
- * ### 인덱스
+ * ### Indexes
  *
- * 첫 [start] 호출 시 `(status, claimExpiresAt)` 복합 인덱스를 생성하여 claim 쿼리 성능 보장.
+ * The first [start] call creates a `(status, claimExpiresAt)` compound index for claim-query performance.
  *
  * ```kotlin
  * val elector = MongoSuspendLeaderElector(lockCollection)
  * val poller = WebhookPoller(elector, eventCollection, options) { event ->
- *     httpClient.post(targetUrl, event.payload)   // 외부로 webhook 전달
+ *     httpClient.post(targetUrl, event.payload)   // Deliver the webhook externally.
  * }
  * val job = poller.start(applicationScope)
  * // ... shutdown ...
  * poller.stopGracefully()
  * ```
  *
- * @param elector 외부에서 주입된 [SuspendLeaderElector] (테스트 편의 + 백엔드 교체 가능)
- * @param eventCollection [WebhookEvent] document 가 저장된 collection (lock collection 과 분리)
- * @param options 폴링 동작 설정
- * @param handler event 처리 콜백. 예외는 격리되어 다음 event 처리는 계속.
+ * @param elector externally supplied [SuspendLeaderElector], making tests and backend replacement simple.
+ * @param eventCollection collection that stores [WebhookEvent] documents; separate from the lock collection.
+ * @param options polling behavior settings.
+ * @param handler event-processing callback. Exceptions are isolated so the next event can continue.
  */
 class WebhookPoller(
     private val elector: SuspendLeaderElector,
@@ -102,9 +103,9 @@ class WebhookPoller(
     }
 
     /**
-     * [start] / [stopGracefully] 의 동시 호출을 직렬화하기 위한 락.
+     * Serializes concurrent [start] and [stopGracefully] calls.
      *
-     * 가상 스레드 환경에서도 안전하도록 `synchronized` 가 아닌 [ReentrantLock] 을 사용한다.
+     * Uses [ReentrantLock] instead of `synchronized` so it remains safe in virtual-thread environments.
      */
     private val lifecycleLock = ReentrantLock()
 
@@ -115,10 +116,10 @@ class WebhookPoller(
     private var indexEnsured: Boolean = false
 
     /**
-     * 폴링 루프를 시작하고 [Job] 을 반환한다.
+     * Starts the polling loop and returns its [Job].
      *
-     * - 동일 인스턴스에서 두 번 호출 금지 (이미 실행 중이면 [IllegalStateException]).
-     * - [scope] 가 cancel 되면 자동 종료.
+     * - Calling this twice on the same instance is not allowed; an active poller throws [IllegalStateException].
+     * - Cancelling [scope] stops the loop automatically.
      */
     fun start(scope: CoroutineScope): Job = lifecycleLock.withLock {
         check(pollerJob == null || pollerJob?.isActive != true) {
@@ -140,7 +141,7 @@ class WebhookPoller(
     }
 
     /**
-     * 폴링 루프를 정상 종료한다. [timeout] 안에 종료되지 않으면 강제 cancel 후 반환.
+     * Gracefully stops the polling loop. If it does not stop within [timeout], returns after forced cancellation.
      */
     suspend fun stopGracefully(timeout: Duration = 30.seconds) {
         val job = lifecycleLock.withLock { pollerJob } ?: return
@@ -172,8 +173,8 @@ class WebhookPoller(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            // 인덱스 생성 실패는 fatal 이 아님 — 성능 저하는 있을 수 있음
-            log.warn(e) { "[${options.nodeId}] webhook event 인덱스 생성 실패 — collection scan 으로 동작" }
+            // Index creation is not fatal; the poller can continue with slower collection scans.
+            log.warn(e) { "[${options.nodeId}] failed to create webhook event index; falling back to collection scans" }
             indexEnsured = true
         }
     }
@@ -183,23 +184,23 @@ class WebhookPoller(
             currentCoroutineContext().ensureActive()
             try {
                 elector.runIfLeader(options.lockName) {
-                    log.debug { "[${options.nodeId}] 리더 선출 — batch 처리 시작" }
+                    log.debug { "[${options.nodeId}] elected as leader; starting batch processing" }
                     processBatch()
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                log.warn(e) { "[${options.nodeId}] 리더 동작 중 예외 — 다음 사이클 재시도" }
+                log.warn(e) { "[${options.nodeId}] leader cycle failed; retrying on next cycle" }
             }
 
-            // 리더/비리더 모두 동일 사이클 휴지 — leader-lock 자체의 waitTime 은 elector 옵션에서 관리
+            // Leaders and non-leaders use the same cycle pause; lock waitTime is owned by the elector options.
             delay(options.pollInterval)
         }
     }
 
     /**
-     * 단일 batch 처리. 최대 [WebhookPollerOptions.batchSize] 개 event 를 claim & process.
-     * @return 처리된 event 수
+     * Processes one batch by claiming and handling up to [WebhookPollerOptions.batchSize] events.
+     * @return number of processed events.
      */
     private suspend fun processBatch(): Int {
         var processed = 0
@@ -212,15 +213,15 @@ class WebhookPoller(
     }
 
     /**
-     * Atomic claim — `findOneAndUpdate` 로 PENDING 또는 만료된 CLAIMED event 를 점유.
-     * @return 점유 성공 시 [WebhookEvent], 처리 가능한 event 가 없으면 null
+     * Atomically claims a PENDING or expired CLAIMED event with `findOneAndUpdate`.
+     * @return the claimed [WebhookEvent], or null when no event is available.
      */
     private suspend fun claimNext(): WebhookEvent? {
         val now = Instant.now()
         val claimExpiresAt = now.plusMillis(options.claimDuration.inWholeMilliseconds)
 
-        // P2-3: attempts >= maxAttempts 인 expired CLAIMED event 는 reclaim 안 함
-        // (orphan CLAIMED 가 maxAttempts 직전에 동결될 수 있으나 별도 sweeper 가 정리 — README 참조)
+        // P2-3: do not reclaim expired CLAIMED events when attempts >= maxAttempts.
+        // An orphaned CLAIMED event may freeze just before maxAttempts; a separate sweeper should clean it up.
         val filter = Filters.and(
             Filters.lt(FIELD_ATTEMPTS, options.maxAttempts),
             Filters.or(
@@ -246,7 +247,7 @@ class WebhookPoller(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            log.warn(e) { "[${options.nodeId}] claimNext 실패 — 다음 사이클 재시도" }
+            log.warn(e) { "[${options.nodeId}] claimNext failed; retrying on next cycle" }
             return null
         }
 
@@ -254,7 +255,7 @@ class WebhookPoller(
     }
 
     /**
-     * 단일 event 처리. handler 예외는 격리되어 다음 event 진행에 영향 없음.
+     * Handles one event. Handler exceptions are isolated so the next event can continue.
      */
     private suspend fun handleSingle(event: WebhookEvent) {
         try {
@@ -263,14 +264,14 @@ class WebhookPoller(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            log.warn(e) { "[${options.nodeId}] handler 실패 eventId=${event.eventId} attempts=${event.attempts}" }
+            log.warn(e) { "[${options.nodeId}] handler failed eventId=${event.eventId} attempts=${event.attempts}" }
             markFailureOrRequeue(event, e)
         }
     }
 
     private suspend fun markDone(event: WebhookEvent) {
         try {
-            // P2-2: claim 소유권 검증 — stale owner 의 update 가 새 owner 의 CLAIMED 를 덮어쓰지 않도록
+            // P2-2: verify claim ownership so a stale owner cannot overwrite the new owner's CLAIMED state.
             val result = eventCollection.updateOne(
                 ownedClaimFilter(event),
                 Updates.combine(
@@ -288,18 +289,18 @@ class WebhookPoller(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            log.warn(e) { "[${options.nodeId}] markDone 실패 eventId=${event.eventId}" }
+            log.warn(e) { "[${options.nodeId}] markDone failed eventId=${event.eventId}" }
         }
     }
 
     private suspend fun markFailureOrRequeue(event: WebhookEvent, ex: Exception) {
-        // attempts 는 claim 시점에 이미 +1 되어 event 에 반영되어 있음
+        // attempts was already incremented at claim time and reflected in the event.
         val errorMessage = ex.message ?: ex::class.qualifiedName ?: "unknown"
         try {
-            // P2-2: claim 소유권 검증 — stale owner 가 새 owner 의 CLAIMED 를 덮어쓰지 않도록
+            // P2-2: verify claim ownership so a stale owner cannot overwrite the new owner's CLAIMED state.
             val ownership = ownedClaimFilter(event)
             val result = if (event.attempts >= options.maxAttempts) {
-                // DLQ 대체 — FAILED 로 종결
+                // DLQ substitute: terminal FAILED state.
                 eventCollection.updateOne(
                     ownership,
                     Updates.combine(
@@ -308,7 +309,7 @@ class WebhookPoller(
                     ),
                 )
             } else {
-                // 재시도 가능 — PENDING 으로 되돌림
+                // Retryable: return to PENDING.
                 eventCollection.updateOne(
                     ownership,
                     Updates.combine(
@@ -321,28 +322,33 @@ class WebhookPoller(
             }
             if (result.matchedCount == 0L) {
                 log.warn {
-                    "[${options.nodeId}] markFailureOrRequeue — claim ownership lost eventId=${event.eventId} (skip update)"
+                    "[${options.nodeId}] markFailureOrRequeue — claim ownership lost " +
+                        "eventId=${event.eventId} (skip update)"
                 }
             } else if (event.attempts >= options.maxAttempts) {
-                log.info { "[${options.nodeId}] eventId=${event.eventId} FAILED (maxAttempts=${options.maxAttempts} 도달)" }
+                log.info {
+                    "[${options.nodeId}] eventId=${event.eventId} FAILED " +
+                        "(maxAttempts=${options.maxAttempts} reached)"
+                }
             } else {
                 log.debug {
-                    "[${options.nodeId}] eventId=${event.eventId} PENDING 으로 복귀 (attempts=${event.attempts}/${options.maxAttempts})"
+                    "[${options.nodeId}] eventId=${event.eventId} returned to PENDING " +
+                        "(attempts=${event.attempts}/${options.maxAttempts})"
                 }
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            log.warn(e) { "[${options.nodeId}] markFailureOrRequeue 실패 eventId=${event.eventId}" }
+            log.warn(e) { "[${options.nodeId}] markFailureOrRequeue failed eventId=${event.eventId}" }
         }
     }
 
     /**
-     * P2-2: claim 소유권 검증 filter.
+     * P2-2: filter that verifies claim ownership.
      *
-     * 본 인스턴스가 claim 시점에 기록한 `(eventId, status=CLAIMED, claimedBy=nodeId, claimExpiresAt)` 4-튜플이
-     * 그대로 유지되어 있는 document 만 매칭. 다른 인스턴스가 reclaim 한 경우 `claimExpiresAt` 또는 `claimedBy` 가
-     * 달라져 매칭 실패 → matchedCount=0.
+     * Matches only documents where the `(eventId, status=CLAIMED, claimedBy=nodeId, claimExpiresAt)` tuple
+     * written by this instance at claim time is still intact. If another instance reclaimed the event,
+     * `claimExpiresAt` or `claimedBy` changes and the match fails with `matchedCount=0`.
      */
     private fun ownedClaimFilter(event: WebhookEvent): org.bson.conversions.Bson = Filters.and(
         Filters.eq(FIELD_EVENT_ID, event.eventId),
@@ -354,7 +360,7 @@ class WebhookPoller(
     )
 }
 
-/** Mongo [Document] → [WebhookEvent] 변환. */
+/** Converts a Mongo [Document] to [WebhookEvent]. */
 internal fun Document.toWebhookEvent(): WebhookEvent {
     val statusStr = getString(WebhookPoller.FIELD_STATUS) ?: WebhookEventStatus.PENDING.name
     val claimExpiresAtDate: java.util.Date? = get(WebhookPoller.FIELD_CLAIM_EXPIRES_AT) as? java.util.Date
@@ -371,7 +377,7 @@ internal fun Document.toWebhookEvent(): WebhookEvent {
     )
 }
 
-/** [WebhookEvent] → Mongo [Document] 변환 (insert 시 사용). */
+/** Converts [WebhookEvent] to a Mongo [Document] for inserts. */
 internal fun WebhookEvent.toDocument(): Document = Document().apply {
     put(WebhookPoller.FIELD_EVENT_ID, eventId)
     put(WebhookPoller.FIELD_PAYLOAD, payload)

@@ -15,10 +15,11 @@ import kotlinx.coroutines.runBlocking
 import org.bson.Document
 
 /**
- * 3 인스턴스 동시 polling 데모.
+ * Demo that runs three poller instances concurrently.
  *
- * - 동일 MongoDB collection 을 공유하며 단 1개 인스턴스만 처리하는 시나리오 시뮬레이션.
- * - 가짜 이벤트 10건을 미리 insert 후 polling 결과를 검증.
+ * - Simulates a scenario where multiple instances share the same MongoDB collection and only one
+ *   instance processes each event.
+ * - Inserts 10 fake events and verifies the polling result.
  */
 object WebhookPollerDemo: KLogging() {
 
@@ -32,25 +33,25 @@ object WebhookPollerDemo: KLogging() {
     @JvmStatic
     fun main(args: Array<String>) = runBlocking {
         val mongoUrl = System.getenv("MONGO_URL") ?: "mongodb://localhost:27017"
-        log.info { "[demo] Mongo 연결: $mongoUrl (override via MONGO_URL env var)" }
+        log.info { "[demo] Mongo connection: $mongoUrl (override via MONGO_URL env var)" }
         val client = MongoClient.create(mongoUrl)
         try {
             val db = client.getDatabase(DEMO_DB_NAME)
             val eventCollection = db.getCollection<Document>(DEMO_EVENT_COLLECTION)
             val lockCollection = db.getCollection<Document>(DEMO_LOCK_COLLECTION)
 
-            // 데모 재실행 시 unique 인덱스 충돌 방지 — 이전 데이터 정리
+            // Clear previous data so rerunning the demo does not hit unique-index conflicts.
             eventCollection.deleteMany(Document())
             lockCollection.deleteMany(Document())
 
-            // 가짜 이벤트 insert
+            // Insert fake events.
             val pendingEvents = (1..DEMO_EVENT_COUNT).map { idx ->
                 WebhookEvent(eventId = "evt-$idx-${UUID.randomUUID()}", payload = "payload-$idx")
             }
             eventCollection.insertMany(pendingEvents.map { it.toDocument() })
-            log.info { "[demo] $DEMO_EVENT_COUNT 개 이벤트 insert 완료" }
+            log.info { "[demo] inserted $DEMO_EVENT_COUNT events" }
 
-            // 인스턴스마다 처리 카운터 (eventId 별로 정확히 1번 처리되는지 검증)
+            // Track which instance processed each event to verify exactly-once handling per eventId.
             val processedBy = ConcurrentHashMap<String, String>()
             val totalProcessed = AtomicInteger(0)
 
@@ -73,16 +74,19 @@ object WebhookPollerDemo: KLogging() {
                         val first = processedBy.putIfAbsent(event.eventId, nodeId)
                         if (first == null) {
                             totalProcessed.incrementAndGet()
-                            log.info { "[$nodeId] 처리 eventId=${event.eventId}" }
+                            log.info { "[$nodeId] processed eventId=${event.eventId}" }
                         } else {
-                            log.info { "[$nodeId] 중복 처리 감지! eventId=${event.eventId} (이미 $first 가 처리)" }
+                            log.info {
+                                "[$nodeId] duplicate processing detected. eventId=${event.eventId} " +
+                                    "(already processed by $first)"
+                            }
                         }
                         delay(50.milliseconds)
                     }
                     poller.start(this) to poller
                 }
 
-                // 처리 대기 — 모든 이벤트 DONE 될 때까지
+                // Wait until every event is DONE.
                 val deadline = System.currentTimeMillis() + 30_000
                 while (totalProcessed.get() < DEMO_EVENT_COUNT && System.currentTimeMillis() < deadline) {
                     delay(200.milliseconds)
@@ -94,10 +98,10 @@ object WebhookPollerDemo: KLogging() {
             val totalDone = eventCollection.countDocuments(
                 Document(WebhookPoller.FIELD_STATUS, WebhookEventStatus.DONE.name),
             )
-            log.info { "[demo] === 결과 ===" }
-            log.info { "[demo] DONE=$totalDone (기대값 $DEMO_EVENT_COUNT)" }
-            log.info { "[demo] 처리한 인스턴스 분포=${processedBy.values.groupingBy { it }.eachCount()}" }
-            log.info { "[demo] 중복 처리 없음? ${processedBy.size == DEMO_EVENT_COUNT}" }
+            log.info { "[demo] === Result ===" }
+            log.info { "[demo] DONE=$totalDone (expected $DEMO_EVENT_COUNT)" }
+            log.info { "[demo] processed-by distribution=${processedBy.values.groupingBy { it }.eachCount()}" }
+            log.info { "[demo] no duplicate processing? ${processedBy.size == DEMO_EVENT_COUNT}" }
         } finally {
             client.close()
         }
