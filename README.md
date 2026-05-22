@@ -10,7 +10,7 @@
 ![Bluetape4k leader election workbench](./docs/assets/leader-election-workbench.png)
 
 A standalone Kotlin/JVM library for **distributed leader election**.  
-Provides blocking, async, coroutine, and virtual-thread APIs backed by Redis, Exposed, MongoDB, Hazelcast, and ZooKeeper.
+Provides blocking, async, coroutine, and virtual-thread APIs backed by Redis, Exposed, MongoDB, etcd, Kubernetes, Hazelcast, and ZooKeeper.
 Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
 
 ---
@@ -69,6 +69,8 @@ Full tables, latency chart, run command, and caveats are in the
 | `leader-exposed-jdbc` | Stable | Exposed JDBC backend (H2, PostgreSQL, MySQL) |
 | `leader-exposed-r2dbc` | Stable | Exposed R2DBC backend (coroutine-native, H2/PostgreSQL/MySQL) |
 | `leader-mongodb` | Stable | MongoDB backend (`findOneAndUpdate` + TTL index) |
+| `leader-etcd` | Preview | etcd v3 backend (jetcd Lock service + leases, single leader) |
+| `leader-k8s` | Preview | Kubernetes Lease backend (`coordination.k8s.io/v1`) |
 | `leader-micrometer` | Stable | Micrometer metrics integration (`MicrometerLeaderAopMetricsRecorder`) |
 | `leader-spring-boot` | Stable | Spring Boot 4 auto-configuration + AOP (AspectJ CTW, Freefair post-compile weaving) |
 | `leader-zookeeper` | Stable | ZooKeeper/Curator backend (`InterProcessMutex` / `InterProcessSemaphoreV2`) |
@@ -111,6 +113,9 @@ implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc:0.1.
 
 // ZooKeeper / Apache Curator
 implementation("io.github.bluetape4k.leader:bluetape4k-leader-zookeeper:0.1.0-SNAPSHOT")
+
+// etcd v3 / jetcd
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-etcd:0.1.0-SNAPSHOT")
 
 // Ktor 3.x integration (LeaderElectionPlugin + leaderScheduled())
 implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor:0.1.0-SNAPSHOT")
@@ -450,6 +455,53 @@ bluetape4k:
     aop:
       failure-mode: FAIL_OPEN_RUN   # RETHROW | SKIP | FAIL_OPEN_RUN
 ```
+
+---
+
+## Management Endpoints
+
+Spring Boot applications can expose a best-effort leader status endpoint through Actuator. Enable
+leader observability beans and the endpoint explicitly:
+
+```yaml
+bluetape4k:
+  leader:
+    observability:
+      enabled: true
+      lock-names:
+        - batch-job
+        - migration-gate
+
+management:
+  endpoint:
+    leaderElection:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: leaderElection
+```
+
+The HTTP path is `GET /actuator/leaderElection`. Lock names come from the JVM-local
+`LeaderElectionStatusRegistry`: configure static names with
+`bluetape4k.leader.observability.lock-names`, or let Spring AOP observations register names as
+leader-election methods run. The endpoint does not enumerate backend locks.
+
+Ktor applications can expose the same status shape with `leaderElectionManagementRoute()`:
+
+```kotlin
+install(LeaderElectionPlugin) {
+    leaderElection = redissonElector
+    managementRouteEnabled = true
+    managementLockNames("batch-job", "migration-gate")
+}
+
+leaderElectionManagementRoute()
+```
+
+The Ktor route defaults to `GET /management/leaderElection` and is installed on the application's
+main routing pipeline. Protect it with authentication, network policy, or a dedicated internal port
+before exposing it outside a trusted management boundary.
 
 ---
 

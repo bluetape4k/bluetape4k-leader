@@ -1,0 +1,128 @@
+# bluetape4k-leader-etcd
+
+[한국어](./README.ko.md) | English
+
+etcd v3 backend for `bluetape4k-leader`. It uses the jetcd Lock service with
+etcd leases, so services that already operate an etcd cluster can elect exactly
+one active worker without adding Redis, MongoDB, ZooKeeper, or Kubernetes Lease.
+
+## Core Features
+
+- Blocking and async `LeaderElector` implementation
+- Coroutine-native `SuspendLeaderElector` implementation
+- Virtual-thread adapter over the blocking elector
+- jetcd Lock ownership keys stored as backend tokens for owner-conditional release
+- Lease keepalive through the existing `LockExtender` and watchdog contract
+- Caller-owned jetcd `Client`; endpoints, TLS, authentication, and lifecycle stay outside the elector
+- EtcdServer-backed integration tests using `bluetape4k-testcontainers`
+
+Group election, state watch APIs, and Spring Boot auto-configuration are planned
+for later issue slices.
+
+## Usage
+
+```kotlin
+import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.etcd.EtcdLeaderElectionOptions
+import io.bluetape4k.leader.etcd.EtcdLeaderElector
+import io.etcd.jetcd.Client
+import kotlin.time.Duration.Companion.seconds
+
+val client = Client.builder()
+    .endpoints("http://localhost:2379")
+    .build()
+
+val elector = EtcdLeaderElector(
+    client = client,
+    options = EtcdLeaderElectionOptions(
+        keyPrefix = "/apps/orders/leader",
+        leaderOptions = LeaderElectionOptions(
+            nodeId = "worker-0",
+            waitTime = 2.seconds,
+            leaseTime = 30.seconds,
+            autoExtend = true,
+        ),
+    ),
+)
+
+elector.runIfLeader("daily-report") {
+    generateReport()
+}
+```
+
+Coroutine usage:
+
+```kotlin
+import io.bluetape4k.leader.etcd.EtcdSuspendLeaderElector
+
+val suspendElector = EtcdSuspendLeaderElector(client)
+
+suspendElector.runIfLeader("nightly-sync") {
+    syncData()
+}
+```
+
+Virtual-thread usage:
+
+```kotlin
+import io.bluetape4k.leader.etcd.EtcdLeaderElector
+import io.bluetape4k.leader.etcd.EtcdVirtualThreadLeaderElector
+
+val virtualElector = EtcdVirtualThreadLeaderElector(EtcdLeaderElector(client))
+
+val future = virtualElector.runAsyncIfLeader("webhook-poller") {
+    pollWebhooks()
+}
+```
+
+Client extension:
+
+```kotlin
+import io.bluetape4k.leader.etcd.runIfLeader
+
+client.runIfLeader("cache-warmer") {
+    warmCache()
+}
+```
+
+## Configuration
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `keyPrefix` | `String` | `/bluetape4k/leader` | Absolute etcd key prefix for lock keys |
+| `retryDelay` | `Duration` | `50.milliseconds` | Reserved for retrying APIs that do not use jetcd queued locks directly |
+| `leaderOptions.waitTime` | `Duration` | `5.seconds` | Maximum time budget for lease grant plus lock acquisition |
+| `leaderOptions.leaseTime` | `Duration` | `60.seconds` | etcd lease TTL |
+| `leaderOptions.nodeId` | `String` | process-level default | Audit node id shared with core contracts |
+| `leaderOptions.minLeaseTime` | `Duration` | `0.seconds` | Minimum leadership hold time after quick actions |
+| `leaderOptions.autoExtend` | `Boolean` | `false` | Keeps the active etcd lease alive while the action runs |
+
+`lockName` is percent-encoded into an etcd path segment. The raw name may
+contain Unicode, slash, or colon characters; the encoded key remains under
+`keyPrefix`.
+
+## Dependency
+
+Gradle (Kotlin DSL):
+
+```kotlin
+dependencies {
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-etcd:$bluetape4kLeaderVersion")
+}
+```
+
+The module exposes jetcd Core as an API dependency because constructors accept
+`io.etcd.jetcd.Client`.
+
+## Testing
+
+```bash
+./gradlew :bluetape4k-leader-etcd:test
+```
+
+Integration tests start a real etcd container through
+`EtcdServer.Launcher.etcd`; Docker is required.
+
+## License
+
+MIT License

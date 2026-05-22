@@ -13,7 +13,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * ## Behavior / Contract
  * - [leaderOptions] controls wait time, lease duration, node identity, minimum lease time, and auto-extension.
  * - [keyPrefix] is the absolute etcd key prefix used for leader lock keys.
- * - [retryDelay] bounds local retry sleeps for contention and transient backend errors.
+ * - [retryDelay] is reserved for retrying APIs that do not use jetcd's queued Lock service directly.
  * - Authentication, TLS, endpoints, and client lifecycle are caller-owned through the supplied jetcd `Client`.
  *
  * ```kotlin

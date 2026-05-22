@@ -4,13 +4,14 @@
 
 Issue #227 is an epic for a full etcd v3 leader election backend. This branch
 started the implementation with durable design artifacts, module registration,
-and the first internal jetcd boundary types.
+the first internal jetcd boundary types, and public single-leader electors.
 
 ## Decision
 
 Keep the first PR narrow: add the `leader-etcd` module, version the project
-against the active `bluetape4k-projects` `1.8.1-SNAPSHOT`, and prove the
-low-level lease/lock boundary before adding public electors.
+against the active `bluetape4k-projects` `1.8.1-SNAPSHOT`, prove the low-level
+lease/lock boundary, then add the first public single-leader electors while
+deferring group election, watch APIs, and Spring Boot auto-configuration.
 
 Use `bluetape4k-testcontainers` `EtcdServer.Launcher.etcd` for real integration
 tests. Mock-based jetcd tests are useful for boundary delegation, but they do
@@ -21,9 +22,18 @@ not prove server endpoint wiring, lease keepalive, or etcd lock queueing.
 - Added `leader-etcd` to settings and the leader BOM.
 - Added etcd option models, key/path encoding, lease timing/handle helpers,
   backend error classification, and the `JetcdEtcdLockClient` boundary.
+- Added blocking, coroutine, and virtual-thread single-leader electors backed
+  by jetcd Lock leases.
+- Added active-lock extension support through the existing `LockExtender`
+  contract.
+- Made lock acquisition timeout cleanup cancel pending jetcd lock futures before
+  lease revoke so timed-out contenders do not remain queued behind the holder.
+- Added module README pairs and wired `leader-etcd` into CI and Nightly module
+  coverage.
 - Added unit tests for helper contracts.
 - Added real EtcdServer-backed integration tests matching the mock lock-client
-  coverage plus contention/release behavior.
+  coverage plus contention/release, cancellation cleanup, client extension, and
+  active-lock extension behavior.
 
 ## Verification
 
@@ -32,8 +42,8 @@ not prove server endpoint wiring, lease keepalive, or etcd lock queueing.
 - `./gradlew :bluetape4k-leader-etcd:test --no-daemon --console=plain`
 - `git diff --check`
 
-Latest test run executed 38 `leader-etcd` tests: 31 pure unit tests, 3 mocked
-jetcd boundary tests, and 4 real EtcdServer integration tests.
+Latest test run executed 46 `leader-etcd` tests: 31 pure unit tests, 3 mocked
+jetcd boundary tests, and 12 real EtcdServer integration tests.
 
 ## Future Guard
 
