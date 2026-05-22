@@ -84,7 +84,7 @@ LeaderGroupElectionOptions(maxLeaders = 3, waitTime = 5.seconds, leaseTime = 60.
 - `minLeaseTime` 은 backend TTL 에 위임 — caller-park 없음. `runIfLeader` 는 `action` 종료 직후 즉시 반환.
 - 외부 reaper / cleanup 작업 불필요 — 두 backend 모두 만료 슬롯 자동 회수.
 - `lg:{lockName}` key prefix 는 의도적으로 분리 — 구버전 (`LettuceSemaphore`, `RSemaphore`) 키와 충돌 회피, 롤링 배포 호환.
-- Lettuce 측 구버전 `LettuceSemaphore` / `LettuceSuspendSemaphore` 는 `@Deprecated` (소스에 잔존, 새 elector 와 미연결).
+- The legacy Lettuce `LettuceSemaphore` / `LettuceSuspendSemaphore` primitives were removed before 0.1.0 GA; only the slot-token group elector remains.
 
 ## AOP Annotation Guide (`bluetape4k-leader-spring-boot`)
 

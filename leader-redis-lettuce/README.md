@@ -14,7 +14,7 @@ Single-leader strategy: Redis `SET key value NX PX ttl` (atomic compare-and-set)
 
 Group strategy (slot-token TTL model): a single ZSET key `lg:{lockName}` whose members are per-slot tokens (`Base58.randomString(8)`) and whose `score = expiryAtMs`. ACQUIRE/RELEASE/STATUS Lua scripts use Redis server-side `TIME` so client clock skew is irrelevant, and ACQUIRE auto-evicts expired members via `ZREMRANGEBYSCORE`. Crash recovery is automatic (no external reaper required) — if a holder dies without releasing, the slot is reclaimed on the next acquire after `leaseTime`.
 
-> The legacy `LettuceSemaphore` / `LettuceSuspendSemaphore` primitives are `@Deprecated` in favor of `LettuceSlotTokenGroup`. The new `lg:{lockName}` key prefix avoids collisions with any pre-existing keys during rolling deployment.
+> The legacy `LettuceSemaphore` / `LettuceSuspendSemaphore` primitives were removed before 0.1.0 GA in favor of `LettuceSlotTokenGroup`. The `lg:{lockName}` key prefix remains separate from the old semaphore keys to avoid collisions during rolling deployment from prerelease builds.
 
 ## Architecture
 
@@ -168,9 +168,7 @@ The group primitive backing `LettuceLeaderGroupElector` and `LettuceSuspendLeade
 - ACQUIRE first runs `ZREMRANGEBYSCORE 0 nowMs` to evict expired members — crash recovery is automatic, no external reaper required.
 - RELEASE with `remainingMinLeaseMs > 0` does `ZADD XX` to extend the slot's score (delegating `minLeaseTime` to backend TTL); otherwise it removes the member.
 - Failed acquire returns `null` (waitTime exhausted) — no `IllegalStateException`.
-- The `lg:{lockName}` prefix is intentionally distinct from the legacy `LettuceSemaphore` keys to avoid collisions during rolling upgrades.
-
-> The legacy `LettuceSemaphore` / `LettuceSuspendSemaphore` (Redis counter + permit tokens) remain in the source tree marked `@Deprecated` and are no longer wired into the group electors.
+- The `lg:{lockName}` prefix is intentionally distinct from keys written by the removed legacy `LettuceSemaphore` implementation to avoid collisions during rolling upgrades from prerelease builds.
 
 ## Audit Identity (`LeaderSlot`)
 
