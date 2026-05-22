@@ -13,12 +13,13 @@ active worker group 을 선출할 수 있습니다.
 - Coroutine-native `SuspendLeaderElector` 구현
 - Blocking elector 위의 virtual-thread adapter
 - slot 별 jetcd Lock key 를 사용하는 blocking / coroutine `LeaderGroupElector` 구현
+- ownership key 생성/삭제 이벤트를 전달하는 watch 기반 `LeaderElectionEventPublisher`
 - jetcd Lock ownership key 를 backend token 으로 보관해 owner-conditional release 수행
 - 기존 `LockExtender` 와 watchdog 계약을 통한 lease keepalive
 - jetcd `Client` 는 caller-owned; endpoint, TLS, 인증, lifecycle 은 elector 밖에서 관리
 - `bluetape4k-testcontainers` 의 EtcdServer 기반 통합 테스트
 
-State watch API, Spring Boot auto-configuration 은 이후 issue slice 에서 구현합니다.
+Spring Boot auto-configuration 은 이후 issue slice 에서 구현합니다.
 
 ## Usage
 
@@ -106,6 +107,22 @@ groupElector.runIfLeader("partition-worker") {
 }
 ```
 
+Watch 기반 event stream:
+
+```kotlin
+import io.bluetape4k.leader.etcd.EtcdLeaderElectionEventPublisher
+import kotlinx.coroutines.flow.collect
+
+val publisher = EtcdLeaderElectionEventPublisher(
+    client = client,
+    keyPrefix = "/apps/orders/leader",
+)
+
+publisher.events.collect { event ->
+    recordLeaderEvent(event)
+}
+```
+
 ## Configuration
 
 | 옵션 | 타입 | 기본값 | 설명 |
@@ -130,6 +147,13 @@ Group election 은 slot 마다 하나의 etcd Lock key 를 사용합니다:
 `{keyPrefix}/group/{encodedLockName}/slot-{n}`. Slot 획득은 random slot 에서
 시작해 남은 slot 을 순회하며, 한 contended slot 이 전체 group 획득 예산을 모두
 소비하지 않도록 slot 별 대기 시간을 제한합니다.
+
+`EtcdLeaderElectionEventPublisher` 는 설정된 `keyPrefix` 를 watch 하며 Lock
+ownership key 의 `PUT` 은 `Elected`, `DELETE` 는 `Revoked` 로 발행합니다.
+현재 owner 를 재검증하므로 queued jetcd Lock contender 를 active leader 로
+잘못 보고하지 않습니다. `Skipped` 는 etcd 상태 변화가 아니라 local 획득
+결과이므로 발행하지 않습니다. publisher 를 닫아도 watch 만 닫히며 caller-owned
+jetcd `Client` 는 열린 상태로 남습니다.
 
 ## Dependency
 

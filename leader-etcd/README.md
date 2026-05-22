@@ -14,13 +14,14 @@ MongoDB, ZooKeeper, or Kubernetes Lease.
 - Virtual-thread adapter over the blocking elector
 - Blocking and coroutine `LeaderGroupElector` implementations using per-slot
   jetcd Lock keys
+- Watch-backed `LeaderElectionEventPublisher` for ownership key create/delete
+  events
 - jetcd Lock ownership keys stored as backend tokens for owner-conditional release
 - Lease keepalive through the existing `LockExtender` and watchdog contract
 - Caller-owned jetcd `Client`; endpoints, TLS, authentication, and lifecycle stay outside the elector
 - EtcdServer-backed integration tests using `bluetape4k-testcontainers`
 
-State watch APIs and Spring Boot auto-configuration are planned for later issue
-slices.
+Spring Boot auto-configuration is planned for a later issue slice.
 
 ## Usage
 
@@ -108,6 +109,22 @@ groupElector.runIfLeader("partition-worker") {
 }
 ```
 
+Watch-backed event stream:
+
+```kotlin
+import io.bluetape4k.leader.etcd.EtcdLeaderElectionEventPublisher
+import kotlinx.coroutines.flow.collect
+
+val publisher = EtcdLeaderElectionEventPublisher(
+    client = client,
+    keyPrefix = "/apps/orders/leader",
+)
+
+publisher.events.collect { event ->
+    recordLeaderEvent(event)
+}
+```
+
 ## Configuration
 
 | Option | Type | Default | Description |
@@ -132,6 +149,13 @@ Group election uses one etcd Lock key per slot:
 `{keyPrefix}/group/{encodedLockName}/slot-{n}`. Slot acquisition starts at a
 random slot and traverses the remaining slots with a bounded per-slot wait so a
 single contended slot cannot consume the full group acquisition budget.
+
+`EtcdLeaderElectionEventPublisher` watches the configured `keyPrefix` and emits
+`Elected` for Lock ownership key `PUT` events and `Revoked` for `DELETE` events.
+It revalidates the current owner so queued jetcd Lock contenders are not reported
+as active leaders. It does not emit `Skipped`, because skipped attempts are
+local acquisition outcomes rather than etcd state changes. Closing the publisher
+closes only the watch; the caller-owned jetcd `Client` remains open.
 
 ## Dependency
 
