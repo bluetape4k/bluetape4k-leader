@@ -69,7 +69,7 @@ Full tables, latency chart, run command, and caveats are in the
 | `leader-exposed-jdbc` | Stable | Exposed JDBC backend (H2, PostgreSQL, MySQL) |
 | `leader-exposed-r2dbc` | Stable | Exposed R2DBC backend (coroutine-native, H2/PostgreSQL/MySQL) |
 | `leader-mongodb` | Stable | MongoDB backend (`findOneAndUpdate` + TTL index) |
-| `leader-etcd` | Preview | etcd v3 backend (jetcd Lock service + leases, single leader) |
+| `leader-etcd` | Preview | etcd v3 backend (jetcd Lock service + leases, single/group leader) |
 | `leader-k8s` | Preview | Kubernetes Lease backend (`coordination.k8s.io/v1`) |
 | `leader-micrometer` | Stable | Micrometer metrics integration (`MicrometerLeaderAopMetricsRecorder`) |
 | `leader-spring-boot` | Stable | Spring Boot 4 auto-configuration + AOP (AspectJ CTW, Freefair post-compile weaving) |
@@ -620,6 +620,7 @@ fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
 | Spring integration | Yes (Boot 4 + AspectJ CTW) | Yes (core feature) |
 | JDBC/SQL | Yes (Exposed JDBC) | Yes |
 | MongoDB | Yes | Yes |
+| etcd | Yes | No |
 | Hazelcast | Yes | Yes |
 | ZooKeeper | Yes | No |
 

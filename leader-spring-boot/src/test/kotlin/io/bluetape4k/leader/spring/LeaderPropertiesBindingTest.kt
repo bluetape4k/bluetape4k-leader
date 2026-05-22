@@ -33,6 +33,7 @@ class LeaderPropertiesBindingTest {
                 "bluetape4k.leader.group.lease-time" to "45s",
                 "bluetape4k.leader.mongo.single-collection" to "single_election",
                 "bluetape4k.leader.mongo.group-collection" to "group_election",
+                "bluetape4k.leader.etcd.key-prefix" to "/apps/orders/leader",
             ),
         )
         val props = Binder(source).bindAs<LeaderProperties>("bluetape4k.leader").get()
@@ -44,6 +45,7 @@ class LeaderPropertiesBindingTest {
         props.group.leaseTime shouldBeEqualTo Duration.ofSeconds(45)
         props.mongo.singleCollection shouldBeEqualTo "single_election"
         props.mongo.groupCollection shouldBeEqualTo "group_election"
+        props.etcd.keyPrefix shouldBeEqualTo "/apps/orders/leader"
     }
 
     @Test
@@ -56,6 +58,7 @@ class LeaderPropertiesBindingTest {
         props.group.maxLeaders shouldBeEqualTo 2
         props.mongo.singleCollection shouldBeEqualTo "leader_election"
         props.mongo.groupCollection shouldBeEqualTo "leader_group_election"
+        props.etcd.keyPrefix shouldBeEqualTo "/bluetape4k/leader"
     }
 
     @Test

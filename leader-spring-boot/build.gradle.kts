@@ -71,6 +71,7 @@ dependencies {
     compileOnly(project(":bluetape4k-leader-exposed-r2dbc"))
     compileOnly(project(":bluetape4k-leader-mongodb"))
     compileOnly(project(":bluetape4k-leader-hazelcast"))
+    compileOnly(project(":bluetape4k-leader-etcd"))
     compileOnly(project(":bluetape4k-leader-micrometer"))
 
     compileOnly(libs.lettuce.core)

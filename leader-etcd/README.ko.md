@@ -18,8 +18,7 @@ active worker group 을 선출할 수 있습니다.
 - 기존 `LockExtender` 와 watchdog 계약을 통한 lease keepalive
 - jetcd `Client` 는 caller-owned; endpoint, TLS, 인증, lifecycle 은 elector 밖에서 관리
 - `bluetape4k-testcontainers` 의 EtcdServer 기반 통합 테스트
-
-Spring Boot auto-configuration 은 이후 issue slice 에서 구현합니다.
+- `leader-spring-boot` 가 caller-owned jetcd `Client` bean 을 발견했을 때 Spring Boot auto-configuration 지원
 
 ## Usage
 
@@ -167,6 +166,24 @@ dependencies {
 
 생성자가 `io.etcd.jetcd.Client` 를 받으므로 jetcd Core 는 API dependency 로
 노출됩니다.
+
+## Spring Boot
+
+`leader-etcd` 와 `leader-spring-boot` 를 함께 추가한 뒤 jetcd `Client` bean 을
+등록하세요. Spring auto-configuration 은 해당 caller-owned client 로 blocking,
+coroutine, group elector 를 생성하며 endpoint, TLS, 인증, lifecycle 관리는
+라이브러리 밖에 둡니다.
+
+```yaml
+bluetape4k:
+  leader:
+    etcd:
+      key-prefix: /apps/orders/leader
+```
+
+`EtcdLeaderElectionEventPublisher` 는 생성 즉시 live watch 를 시작하므로 자동
+생성하지 않습니다. Backend ownership event 가 필요한 애플리케이션에서 명시적으로
+생성하고 닫으세요.
 
 ## Testing
 
