@@ -30,8 +30,8 @@ References:
 - Support blocking and coroutine single-leader election first.
 - Preserve the core contract: normal contention returns `null`, not an
   exception.
-- Use Consul KV session acquire/release with caller-owned Consul client
-  lifecycle.
+- Use Consul KV session acquire/release through a bluetape4k-owned HTTP
+  boundary, with caller-owned endpoint/config lifecycle.
 - Add Testcontainers integration coverage through
   `ConsulServer.Launcher.consul`.
 - Keep group election, Spring Boot auto-configuration, and event publishing as
@@ -48,32 +48,33 @@ References:
 
 ## Dependency Decision
 
-Use `com.orbitz.consul:consul-client` only for the initial implementation
-slice if its current API still exposes Session and KV acquire/release cleanly.
+Use an internal Java 21 `HttpClient` boundary for Consul's HTTP API instead of
+publishing a third-party Consul client type.
 
 Rationale:
 
-- HashiCorp lists both `consul-client` and `consul-api` as Java HTTP API client
-  libraries, but neither is official.
-- `consul-client` has a newer Maven Central release (`1.5.3`, 2021) than
-  `com.ecwid.consul:consul-api` (`1.4.5`, 2020).
-- A direct HTTP implementation would avoid stale client transitive dependencies
-  but would add more local HTTP/JSON surface area and testing burden.
+- HashiCorp lists `consul-client` and `consul-api` as community Java HTTP API
+  client libraries, but neither is official.
+- `com.orbitz.consul:consul-client` latest is `1.5.3` and dates from 2021,
+  making its stale transitive dependency surface unsuitable for a new public
+  Maven Central artifact.
+- A bluetape4k-owned HTTP boundary keeps the public API stable if a maintained
+  client becomes available later.
+- The first implementation only needs a narrow subset of Consul HTTP endpoints:
+  session create, session renew, session destroy, KV acquire, KV release, and
+  KV read.
 
-If `consul-client` API friction is high during spike, fall back to a tiny
-internal HTTP boundary over Java 21 `HttpClient` and `kotlinx.serialization` or
-manual JSON DTOs. Keep that boundary internal so the public constructor can be
-adapted without breaking users.
+The Consul HTTP boundary remains internal. Public constructors accept
+bluetape4k-owned endpoint/config types so no stale external type becomes part
+of the compatibility contract.
 
 ## Public API Shape
 
 ```kotlin
-val consul = Consul.builder()
-    .withUrl("http://localhost:8500")
-    .build()
+val endpoint = ConsulEndpoint("http://localhost:8500")
 
 val election = ConsulLeaderElector(
-    consul = consul,
+    endpoint = endpoint,
     options = ConsulLeaderElectionOptions(
         keyPrefix = "bluetape4k/leader",
         leaderOptions = LeaderElectionOptions(
@@ -90,8 +91,15 @@ val result = election.runIfLeader("daily-report") {
 }
 ```
 
-`ConsulSuspendLeaderElector` mirrors the blocking API and wraps blocking client
-calls in `Dispatchers.IO` if the selected client has no coroutine API.
+`ConsulEndpoint` is a bluetape4k-owned DTO for base URL, optional datacenter,
+optional ACL token supplier, and request timeout. `ConsulLeaderElector` owns the
+internal `HttpClient` boundary by default, while tests may inject an internal
+`ConsulLockClient`.
+
+`ConsulSuspendLeaderElector` mirrors the blocking API and wraps HTTP calls in
+`Dispatchers.IO`. It must rethrow `CancellationException` before broad backend
+exception mapping, then release/destroy the active session in a
+`NonCancellable` cleanup block.
 
 ## Options
 
@@ -107,10 +115,15 @@ calls in `Dispatchers.IO` if the selected client has no coroutine API.
 
 Validation:
 
-- `leaseTime` must be at least 10 seconds for Consul Session TTL.
+- `leaseTime` must be at least 10 seconds and at most 86,400 seconds for Consul
+  Session TTL.
 - `waitTime` can be shorter than `leaseTime`; contention polling should stop at
   the caller budget.
 - `keyPrefix` must be non-blank and must not start with `/`.
+- `lockDelay = Duration.ZERO` must be documented in KDoc and README behavior
+  sections as an overlap-risk tradeoff: a TTL-expired holder may still be
+  running while a new holder acquires the key. Actions should be idempotent or
+  use an external fencing token when duplicate execution is unsafe.
 
 ## Lock Flow
 
@@ -124,9 +137,9 @@ Acquire:
    node id, audit id, and created-at timestamp.
 4. If acquire succeeds, run the action and release in `finally`.
 5. If acquire fails because another session owns the key, destroy the session
-   and return `null`.
-6. On backend errors, classify and follow existing backend exception/result
-   conventions.
+   best-effort, log cleanup failure, and return `null`.
+6. On backend errors, classify HTTP/network failures as backend exceptions while
+   preserving normal contention as `null`.
 
 Release:
 
@@ -137,7 +150,10 @@ Release:
 
 Auto-extend:
 
-- Implement `LockExtender` by renewing the active session.
+- Implement `LockExtender` by renewing the active session before expiry.
+- Renewal cadence is `min(leaseTime / 3, leaseTime - 2.seconds)` with a minimum
+  one-second delay after validation. This keeps renewals safely before the
+  Consul 10-second TTL floor while avoiding last-moment renewal.
 - `extendDetailed()` returns the new expiry estimate as
   `Instant.now() + leaseTime`; document that Consul TTL expiry is server-side
   and may be delayed.
@@ -161,12 +177,17 @@ Unit tests:
 
 Integration tests with `ConsulServer.Launcher.consul`:
 
+- first verify that `io.bluetape4k.testcontainers.infra.ConsulServer` exists in
+  the resolved `bluetape4k-testcontainers` fixture; if it is missing, stop this
+  repo slice and add the fixture upstream first;
 - leader executes and releases for reacquire;
 - contention returns `null`;
 - expired session lets another node acquire;
 - action failure releases the key/session for a later attempt;
 - auto-extend keeps a long action held;
-- caller-owned client is not closed by the elector.
+- suspend action cancellation rethrows `CancellationException` and releases the
+  session in `NonCancellable` cleanup;
+- caller-owned endpoint/config is not mutated by the elector.
 
 ## Follow-Up Slices
 
