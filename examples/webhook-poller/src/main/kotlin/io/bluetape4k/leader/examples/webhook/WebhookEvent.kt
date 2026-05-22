@@ -3,30 +3,32 @@ package io.bluetape4k.leader.examples.webhook
 import java.time.Instant
 
 /**
- * Webhook event 의 처리 상태.
+ * Processing state for a webhook event.
  */
 enum class WebhookEventStatus {
-    PENDING,    // 대기 중 — 처리 안 됨
-    CLAIMED,    // 폴러 인스턴스가 점유 (atomic findOneAndUpdate)
-    DONE,       // 정상 처리 완료
-    FAILED,     // maxAttempts 도달 — DLQ 대체
+    PENDING,    // Waiting to be processed.
+    CLAIMED,    // Claimed by a poller instance through atomic findOneAndUpdate.
+    DONE,       // Processed successfully.
+    FAILED,     // maxAttempts reached; acts as the DLQ terminal state.
 }
 
 /**
- * Webhook event 도메인 모델.
+ * Domain model for a webhook event.
  *
- * Mongo collection 의 한 document 를 표현.
+ * Represents one document in the Mongo collection.
  *
- * ## 필드
+ * ## Fields
  *
- * - [eventId]: 외부 webhook 의 고유 ID (idempotency key)
- * - [payload]: 외부에서 받은 raw payload (JSON 문자열 등)
- * - [status]: 처리 상태 [WebhookEventStatus]
- * - [claimedBy]: 점유한 polling 인스턴스의 nodeId (CLAIMED 상태에서만 의미 있음)
- * - [claimExpiresAt]: 점유 만료 시각. 만료 후 다른 인스턴스 reclaim 가능 (lease 만료)
- * - [attempts]: handler 실행 횟수 — maxAttempts 도달 시 FAILED
- * - [lastError]: 직전 handler 예외 메시지
- * - [createdAt]: event 발생 시각
+ * - [eventId]: unique external webhook ID used as the idempotency key.
+ * - [payload]: raw external payload, such as a JSON string.
+ * - [status]: processing state represented by [WebhookEventStatus].
+ * - [claimedBy]: node ID of the poller instance that owns the claim; meaningful only while
+ *   [status] is [WebhookEventStatus.CLAIMED].
+ * - [claimExpiresAt]: claim expiration time. Another instance may reclaim the event after this lease expires.
+ * - [attempts]: number of handler attempts. The event becomes [WebhookEventStatus.FAILED] when
+ *   this reaches `maxAttempts`.
+ * - [lastError]: previous handler exception message.
+ * - [createdAt]: event creation time.
  */
 data class WebhookEvent(
     val eventId: String,
