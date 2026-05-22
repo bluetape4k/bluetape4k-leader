@@ -4,21 +4,21 @@
 
 `bluetape4k-leader` 의 etcd v3 백엔드입니다. jetcd Lock service 와 etcd
 lease 를 사용하므로 이미 etcd cluster 를 운영하는 서비스는 Redis, MongoDB,
-ZooKeeper, Kubernetes Lease 를 추가하지 않고 단일 active worker 를 선출할 수
-있습니다.
+ZooKeeper, Kubernetes Lease 를 추가하지 않고 단일 active worker 또는 제한된
+active worker group 을 선출할 수 있습니다.
 
 ## Core Features
 
 - Blocking / async `LeaderElector` 구현
 - Coroutine-native `SuspendLeaderElector` 구현
 - Blocking elector 위의 virtual-thread adapter
+- slot 별 jetcd Lock key 를 사용하는 blocking / coroutine `LeaderGroupElector` 구현
 - jetcd Lock ownership key 를 backend token 으로 보관해 owner-conditional release 수행
 - 기존 `LockExtender` 와 watchdog 계약을 통한 lease keepalive
 - jetcd `Client` 는 caller-owned; endpoint, TLS, 인증, lifecycle 은 elector 밖에서 관리
 - `bluetape4k-testcontainers` 의 EtcdServer 기반 통합 테스트
 
-Group election, state watch API, Spring Boot auto-configuration 은 이후 issue
-slice 에서 구현합니다.
+State watch API, Spring Boot auto-configuration 은 이후 issue slice 에서 구현합니다.
 
 ## Usage
 
@@ -86,6 +86,26 @@ client.runIfLeader("cache-warmer") {
 }
 ```
 
+Group 사용:
+
+```kotlin
+import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.etcd.EtcdLeaderGroupElectionOptions
+import io.bluetape4k.leader.etcd.EtcdLeaderGroupElector
+
+val groupElector = EtcdLeaderGroupElector(
+    client = client,
+    options = EtcdLeaderGroupElectionOptions(
+        keyPrefix = "/apps/orders/leader",
+        leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3),
+    ),
+)
+
+groupElector.runIfLeader("partition-worker") {
+    processPartition()
+}
+```
+
 ## Configuration
 
 | 옵션 | 타입 | 기본값 | 설명 |
@@ -97,10 +117,19 @@ client.runIfLeader("cache-warmer") {
 | `leaderOptions.nodeId` | `String` | process-level default | core 계약과 공유하는 audit node id |
 | `leaderOptions.minLeaseTime` | `Duration` | `0.seconds` | 빠른 action 뒤 최소 leadership 유지 시간 |
 | `leaderOptions.autoExtend` | `Boolean` | `false` | action 실행 중 active etcd lease 자동 keepalive |
+| `leaderGroupOptions.maxLeaders` | `Int` | `2` | 동시 group leader 최대 수 |
+| `leaderGroupOptions.waitTime` | `Duration` | `5.seconds` | group slot 획득 전체 최대 대기 시간 |
+| `leaderGroupOptions.leaseTime` | `Duration` | `60.seconds` | group slot 용 etcd lease TTL |
+| `leaderGroupOptions.minLeaseTime` | `Duration` | `0.seconds` | 빠른 action 뒤 최소 group-slot 유지 시간 |
 
 `lockName` 은 etcd path segment 로 percent-encoding 됩니다. 원본 이름에는
 Unicode, slash, colon 이 들어갈 수 있으며 encoded key 는 항상 `keyPrefix` 아래에
 남습니다.
+
+Group election 은 slot 마다 하나의 etcd Lock key 를 사용합니다:
+`{keyPrefix}/group/{encodedLockName}/slot-{n}`. Slot 획득은 random slot 에서
+시작해 남은 slot 을 순회하며, 한 contended slot 이 전체 group 획득 예산을 모두
+소비하지 않도록 slot 별 대기 시간을 제한합니다.
 
 ## Dependency
 

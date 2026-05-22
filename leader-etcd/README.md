@@ -3,21 +3,24 @@
 [한국어](./README.ko.md) | English
 
 etcd v3 backend for `bluetape4k-leader`. It uses the jetcd Lock service with
-etcd leases, so services that already operate an etcd cluster can elect exactly
-one active worker without adding Redis, MongoDB, ZooKeeper, or Kubernetes Lease.
+etcd leases, so services that already operate an etcd cluster can elect one
+active worker or a bounded group of active workers without adding Redis,
+MongoDB, ZooKeeper, or Kubernetes Lease.
 
 ## Core Features
 
 - Blocking and async `LeaderElector` implementation
 - Coroutine-native `SuspendLeaderElector` implementation
 - Virtual-thread adapter over the blocking elector
+- Blocking and coroutine `LeaderGroupElector` implementations using per-slot
+  jetcd Lock keys
 - jetcd Lock ownership keys stored as backend tokens for owner-conditional release
 - Lease keepalive through the existing `LockExtender` and watchdog contract
 - Caller-owned jetcd `Client`; endpoints, TLS, authentication, and lifecycle stay outside the elector
 - EtcdServer-backed integration tests using `bluetape4k-testcontainers`
 
-Group election, state watch APIs, and Spring Boot auto-configuration are planned
-for later issue slices.
+State watch APIs and Spring Boot auto-configuration are planned for later issue
+slices.
 
 ## Usage
 
@@ -85,6 +88,26 @@ client.runIfLeader("cache-warmer") {
 }
 ```
 
+Group usage:
+
+```kotlin
+import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.etcd.EtcdLeaderGroupElectionOptions
+import io.bluetape4k.leader.etcd.EtcdLeaderGroupElector
+
+val groupElector = EtcdLeaderGroupElector(
+    client = client,
+    options = EtcdLeaderGroupElectionOptions(
+        keyPrefix = "/apps/orders/leader",
+        leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3),
+    ),
+)
+
+groupElector.runIfLeader("partition-worker") {
+    processPartition()
+}
+```
+
 ## Configuration
 
 | Option | Type | Default | Description |
@@ -96,10 +119,19 @@ client.runIfLeader("cache-warmer") {
 | `leaderOptions.nodeId` | `String` | process-level default | Audit node id shared with core contracts |
 | `leaderOptions.minLeaseTime` | `Duration` | `0.seconds` | Minimum leadership hold time after quick actions |
 | `leaderOptions.autoExtend` | `Boolean` | `false` | Keeps the active etcd lease alive while the action runs |
+| `leaderGroupOptions.maxLeaders` | `Int` | `2` | Maximum number of concurrent group leaders |
+| `leaderGroupOptions.waitTime` | `Duration` | `5.seconds` | Maximum time budget for group slot acquisition |
+| `leaderGroupOptions.leaseTime` | `Duration` | `60.seconds` | etcd lease TTL for group slots |
+| `leaderGroupOptions.minLeaseTime` | `Duration` | `0.seconds` | Minimum group-slot hold time after quick actions |
 
 `lockName` is percent-encoded into an etcd path segment. The raw name may
 contain Unicode, slash, or colon characters; the encoded key remains under
 `keyPrefix`.
+
+Group election uses one etcd Lock key per slot:
+`{keyPrefix}/group/{encodedLockName}/slot-{n}`. Slot acquisition starts at a
+random slot and traverses the remaining slots with a bounded per-slot wait so a
+single contended slot cannot consume the full group acquisition budget.
 
 ## Dependency
 
