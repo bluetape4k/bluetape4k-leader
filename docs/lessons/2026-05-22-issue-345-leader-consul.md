@@ -30,3 +30,25 @@ before PR creation.
 The parent release branch now uses `bluetape4k-bom` 1.9.0. Verify the resolved
 artifact, not only `libs.versions.toml`; the prior check confirmed
 `bluetape4k-testcontainers:1.9.0` and its ConsulServer fixture are available.
+
+## L6. Renew waiting Consul sessions when waitTime can exceed TTL
+
+Consul `acquire` returns `false` while another session owns the key, but the
+waiting candidate's own session still expires on its TTL. If `waitTime` is
+longer than the session TTL and the candidate does not renew while polling,
+Consul eventually returns `invalid session` instead of a clean takeover. Renewal
+must cover both active holders and waiting candidates.
+
+## L7. Cleanup must survive interrupted minLeaseTime waits
+
+`minLeaseTime` enforcement sleeps before releasing the backend lock. If that
+sleep is interrupted, restore the interrupt flag but continue backend
+`release`/`destroy`; otherwise the lock survives until Consul TTL expiry and can
+mask the action result with an interruption failure.
+
+## L8. Passive ownership checks must not extend Consul sessions
+
+`ExtendDelegate.isHeld()` is a read/check operation. For Consul, implement it by
+reading the KV entry and comparing the session id, not by calling
+`session/renew`; otherwise assertions or health probes can lengthen the lease
+outside explicit `extend` or watchdog control.

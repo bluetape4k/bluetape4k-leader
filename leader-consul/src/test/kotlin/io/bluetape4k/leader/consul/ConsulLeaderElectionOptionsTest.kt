@@ -49,6 +49,9 @@ class ConsulLeaderElectionOptionsTest {
             ConsulLeaderElectionOptions(keyPrefix = " ")
         }
         assertFailsWith<IllegalArgumentException> {
+            ConsulLeaderElectionOptions(keyPrefix = "apps/orders?dc=other")
+        }
+        assertFailsWith<IllegalArgumentException> {
             ConsulLeaderElectionOptions(sessionNamePrefix = " ")
         }
     }

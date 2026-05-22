@@ -23,6 +23,9 @@ internal class ConsulLeaderPaths(
             require(keyPrefix.isNotBlank()) { "keyPrefix must not be blank." }
             require(!keyPrefix.startsWith('/')) { "keyPrefix must not start with '/'. keyPrefix=$keyPrefix" }
             require(keyPrefix.trim('/').isNotEmpty()) { "keyPrefix must include a path segment. keyPrefix=$keyPrefix" }
+            require(keyPrefix.all { it.isLetterOrDigit() || it == '_' || it == '-' || it == '.' || it == '/' || it == ':' }) {
+                "keyPrefix contains invalid characters. Allowed: [a-zA-Z0-9_\\-./:], got: $keyPrefix"
+            }
         }
 
         private fun normalizePrefix(keyPrefix: String): String {
