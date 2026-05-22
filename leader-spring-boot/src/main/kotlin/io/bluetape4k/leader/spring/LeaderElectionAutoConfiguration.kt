@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring
 
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.spring.backend.ConsulLeaderConfiguration
+import io.bluetape4k.leader.spring.backend.DynamoDbLeaderConfiguration
 import io.bluetape4k.leader.spring.backend.EtcdLeaderConfiguration
 import io.bluetape4k.leader.spring.backend.ExposedJdbcLeaderConfiguration
 import io.bluetape4k.leader.spring.backend.ExposedR2dbcLeaderConfiguration
@@ -39,6 +40,7 @@ import org.springframework.context.annotation.Import
     HazelcastLeaderConfiguration::class,
     EtcdLeaderConfiguration::class,
     ConsulLeaderConfiguration::class,
+    DynamoDbLeaderConfiguration::class,
     ExposedJdbcLeaderConfiguration::class,
     ExposedR2dbcLeaderConfiguration::class,
 )

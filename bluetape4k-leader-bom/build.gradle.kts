@@ -21,6 +21,7 @@ dependencies {
         api(project(":bluetape4k-leader-zookeeper"))
         api(project(":bluetape4k-leader-etcd"))
         api(project(":bluetape4k-leader-consul"))
+        api(project(":bluetape4k-leader-dynamodb"))
         api(project(":bluetape4k-leader-k8s"))
         api(project(":bluetape4k-leader-spring-boot"))
         api(project(":bluetape4k-leader-ktor"))

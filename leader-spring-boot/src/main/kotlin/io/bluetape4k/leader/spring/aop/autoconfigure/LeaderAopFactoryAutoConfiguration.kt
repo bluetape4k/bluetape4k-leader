@@ -15,6 +15,10 @@ import io.bluetape4k.leader.consul.ConsulLeaderGroupElectionOptions
 import io.bluetape4k.leader.consul.ConsulLeaderGroupElectorFactory
 import io.bluetape4k.leader.consul.ConsulSuspendLeaderElectorFactory
 import io.bluetape4k.leader.consul.ConsulSuspendLeaderGroupElectorFactory
+import io.bluetape4k.leader.dynamodb.DynamoDbLeaderElectorFactory
+import io.bluetape4k.leader.dynamodb.DynamoDbLeaderGroupElectorFactory
+import io.bluetape4k.leader.dynamodb.DynamoDbSuspendLeaderElectorFactory
+import io.bluetape4k.leader.dynamodb.DynamoDbSuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.etcd.EtcdLeaderElectionOptions
 import io.bluetape4k.leader.etcd.EtcdLeaderElectorFactory
 import io.bluetape4k.leader.etcd.EtcdLeaderGroupElectionOptions
@@ -43,6 +47,7 @@ import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElectorFactory
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
+import io.bluetape4k.leader.spring.backend.DynamoDbLeaderConfiguration
 import io.etcd.jetcd.Client
 import io.lettuce.core.api.StatefulRedisConnection
 import org.aspectj.lang.annotation.Aspect
@@ -61,6 +66,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Role
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import kotlin.time.toKotlinDuration
 
 /**
@@ -304,6 +311,58 @@ class LeaderAopFactoryAutoConfiguration {
                 sessionNamePrefix = props.consul.sessionNamePrefix,
                 lockDelay = props.consul.lockDelay.toKotlinDuration(),
             )
+    }
+
+    // ── DynamoDB ────────────────────────────────────────────────
+
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(DynamoDbClient::class, DynamoDbLeaderElectorFactory::class)
+    class DynamoDbFactoryConfig {
+
+        @Bean(name = ["dynamoDbLeaderElectionFactory"])
+        @ConditionalOnBean(DynamoDbClient::class)
+        @ConditionalOnMissingBean(name = ["dynamoDbLeaderElectionFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun dynamoDbLeaderElectionFactory(
+            client: DynamoDbClient,
+            props: LeaderProperties,
+        ): LeaderElectorFactory =
+            DynamoDbLeaderElectorFactory(client, DynamoDbLeaderConfiguration.electionOptions(props))
+
+        @Bean(name = ["dynamoDbLeaderGroupElectionFactory"])
+        @ConditionalOnBean(DynamoDbClient::class)
+        @ConditionalOnMissingBean(name = ["dynamoDbLeaderGroupElectionFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun dynamoDbLeaderGroupElectionFactory(
+            client: DynamoDbClient,
+            props: LeaderProperties,
+        ): LeaderGroupElectorFactory =
+            DynamoDbLeaderGroupElectorFactory(client, DynamoDbLeaderConfiguration.groupOptions(props))
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(DynamoDbAsyncClient::class, DynamoDbSuspendLeaderElectorFactory::class)
+    class DynamoDbSuspendFactoryConfig {
+
+        @Bean(name = ["dynamoDbSuspendLeaderElectorFactory"])
+        @ConditionalOnBean(DynamoDbAsyncClient::class)
+        @ConditionalOnMissingBean(name = ["dynamoDbSuspendLeaderElectorFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun dynamoDbSuspendLeaderElectorFactory(
+            client: DynamoDbAsyncClient,
+            props: LeaderProperties,
+        ): SuspendLeaderElectorFactory =
+            DynamoDbSuspendLeaderElectorFactory(client, DynamoDbLeaderConfiguration.electionOptions(props))
+
+        @Bean(name = ["dynamoDbSuspendLeaderGroupElectorFactory"])
+        @ConditionalOnBean(DynamoDbAsyncClient::class)
+        @ConditionalOnMissingBean(name = ["dynamoDbSuspendLeaderGroupElectorFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun dynamoDbSuspendLeaderGroupElectorFactory(
+            client: DynamoDbAsyncClient,
+            props: LeaderProperties,
+        ): SuspendLeaderGroupElectorFactory =
+            DynamoDbSuspendLeaderGroupElectorFactory(client, DynamoDbLeaderConfiguration.groupOptions(props))
     }
 
     // ── MongoDB sync ─────────────────────────────────────────────
