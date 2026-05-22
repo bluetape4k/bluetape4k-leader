@@ -14,7 +14,7 @@
 
 그룹 전략 (slot-token TTL 모델): 단일 ZSET 키 `lg:{lockName}` 의 member 는 슬롯별 token (`Base58.randomString(8)`) 이고 score 는 `expiryAtMs` 입니다. ACQUIRE / RELEASE / STATUS Lua 스크립트는 모두 `redis.call('TIME')` 으로 Redis 서버 시간을 읽어 사용하므로 클라이언트 clock skew 영향이 없으며, ACQUIRE 시점에 `ZREMRANGEBYSCORE` 로 만료된 entry 를 자동 회수합니다. 클라이언트 crash 시 (release 미호출) 다음 acquire 시 자동 정리되므로 외부 reaper 가 필요 없습니다.
 
-> 기존 `LettuceSemaphore` / `LettuceSuspendSemaphore` 는 `LettuceSlotTokenGroup` 으로 대체되며 `@Deprecated` 처리되었습니다. 새 `lg:{lockName}` 키 prefix 는 롤링 배포 시 구버전 키와의 충돌을 피하기 위해 의도적으로 분리되었습니다.
+> 기존 `LettuceSemaphore` / `LettuceSuspendSemaphore` 는 0.1.0 GA 전에 제거되었고 `LettuceSlotTokenGroup` 으로 대체되었습니다. 새 `lg:{lockName}` 키 prefix 는 prerelease 빌드에서 롤링 배포할 때 구버전 키와의 충돌을 피하기 위해 의도적으로 분리되었습니다.
 
 ## 아키텍처
 
@@ -168,9 +168,7 @@ end
 - ACQUIRE 시점에 `ZREMRANGEBYSCORE 0 nowMs` 로 만료된 entry 를 자동 회수 — 외부 reaper 불필요, crash recovery 자동.
 - RELEASE 시 `remainingMinLeaseMs > 0` 이면 `ZADD XX` 로 score 를 갱신하여 슬롯을 유지 (`minLeaseTime` 을 backend TTL 에 위임). 그렇지 않으면 member 를 제거.
 - 슬롯 미획득 시 `null` 반환 (waitTime 초과) — `IllegalStateException` 미발생.
-- `lg:{lockName}` prefix 는 구버전 `LettuceSemaphore` 키와의 충돌을 방지하기 위해 의도적으로 분리되었습니다.
-
-> 기존 `LettuceSemaphore` / `LettuceSuspendSemaphore` (Redis 카운터 + permit 토큰 리스트) 는 소스 트리에 `@Deprecated` 로 남아 있으며, 그룹 elector 와 더 이상 연결되지 않습니다.
+- `lg:{lockName}` prefix 는 제거된 구버전 `LettuceSemaphore` 구현이 기록하던 키와의 충돌을 방지하기 위해 의도적으로 분리되었습니다.
 
 ## 감사 정체성 (`LeaderSlot`)
 

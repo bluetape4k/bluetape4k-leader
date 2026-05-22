@@ -229,8 +229,8 @@ The following deprecated APIs were removed before 0.1.0 GA (#264):
 | `ExposedJdbcLock.extend()` | (no production callers — removed) |
 | `MongoLock.extend()` | (no callers — removed) |
 | `MongoSuspendLock.extend()` | (no callers — removed) |
-| `LettuceSemaphore` class (`@Deprecated`, not removed) | `LettuceLeaderGroupElector` (slot-token TTL model) |
-| `LettuceSuspendSemaphore` class (`@Deprecated`, not removed) | `LettuceSuspendLeaderGroupElector` |
+| `LettuceSemaphore` class | `LettuceLeaderGroupElector` (slot-token TTL model) |
+| `LettuceSuspendSemaphore` class | `LettuceSuspendLeaderGroupElector` |
 
 ---
 
