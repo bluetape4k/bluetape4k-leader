@@ -128,14 +128,14 @@ class ConsulLeaderElector private constructor(
         val key = lockClient.singleLockKey(lockName)
         val entry = lockClient.read(key).get(10, TimeUnit.SECONDS) ?: return LeaderState.empty(lockName)
         val sessionId = entry.sessionId ?: return LeaderState.empty(lockName)
-        val lease = entry.value
-            ?.let { ConsulOwnerPayload.fromJson(it)?.toLeaderLease() }
-            ?: LeaderLease(
-                auditLeaderId = sessionId.value,
-                nodeId = null,
-                electedAt = null,
-                leaseUntil = null,
-            )
+        val lease = entry.value?.let { ConsulOwnerPayload.fromJson(it)?.toLeaderLease() }
+        if (lease == null) {
+            log.warn {
+                "Consul leader state ignored because owner payload is missing or invalid. " +
+                    "lockName=$lockName, sessionId=${sessionId.value}"
+            }
+            return LeaderState.empty(lockName)
+        }
         return LeaderState.occupied(lockName, lease)
     }
 

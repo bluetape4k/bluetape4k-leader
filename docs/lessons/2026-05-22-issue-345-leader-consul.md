@@ -52,3 +52,19 @@ mask the action result with an interruption failure.
 reading the KV entry and comparing the session id, not by calling
 `session/renew`; otherwise assertions or health probes can lengthen the lease
 outside explicit `extend` or watchdog control.
+
+## L9. Suspend Consul cleanup must be NonCancellable and session-scoped
+
+Coroutine cancellation can arrive while the elected body is suspended. The
+suspend elector must rethrow the caller's `CancellationException`, but first run
+watchdog close, KV release, and session destroy in a `NonCancellable` section.
+Cleanup must stay scoped to the acquired Consul session id so it cannot release
+a replacement owner.
+
+## L10. Suspend Consul extension must use SuspendExtendDelegate
+
+Do not bridge suspend lock extension through `runBlocking`. The suspend elector
+must create a `SuspendExtendDelegate` and pass the same reference to both
+`LeaderLockHandle.Real` and `LeaderLeaseAutoExtender.start(...)`, so
+`LockExtender.extendActiveLockSuspend(...)` and the watchdog call
+`extendSuspend()` directly.
