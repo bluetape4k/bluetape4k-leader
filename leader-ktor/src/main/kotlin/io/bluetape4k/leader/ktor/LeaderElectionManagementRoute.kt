@@ -11,6 +11,18 @@ import java.util.concurrent.ConcurrentSkipListSet
 
 /**
  * JVM-local registry of lock names exposed through the Ktor management route.
+ *
+ * ## Behavior / Contract
+ * - Thread-safe: backed by [ConcurrentSkipListSet]; safe to call [register] concurrently.
+ * - [snapshot] returns a stable sorted copy for deterministic JSON responses.
+ * - The registry is JVM-local. It does not discover lock names from the backend.
+ * - Seed static lock names at startup, or register lock names on the fly as application code starts
+ *   scheduled leader-only work.
+ *
+ * ```kotlin
+ * val registry = LeaderElectionManagementRegistry(listOf("batch-job", "nightly-sync"))
+ * registry.register("on-demand-lock")
+ * ```
  */
 class LeaderElectionManagementRegistry(
     initialLockNames: Iterable<String> = emptyList(),
