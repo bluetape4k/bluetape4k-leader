@@ -4,7 +4,7 @@ import io.bluetape4k.leader.validateLockName
 import io.etcd.jetcd.ByteSequence
 import java.util.concurrent.atomic.AtomicBoolean
 
-private val TOKEN_HEX_DIGITS = "0123456789abcdef".toCharArray()
+private val TOKEN_HEX_DIGITS = CharArray(16) { it.toString(16).single() }
 
 /**
  * Internal owner handle for an etcd lease-bound lock acquisition.
