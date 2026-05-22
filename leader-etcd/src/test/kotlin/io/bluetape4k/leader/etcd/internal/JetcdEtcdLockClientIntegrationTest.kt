@@ -14,6 +14,38 @@ import java.util.concurrent.TimeoutException
 class JetcdEtcdLockClientIntegrationTest: AbstractEtcdLeaderTest() {
 
     @Test
+    fun `lock keys are built with encoded path segments and usable by real etcd`() {
+        newClient().use { client ->
+            val keyPrefix = "/bluetape4k/leader/test/${randomName()}"
+            val lockClient = JetcdEtcdLockClient(client, keyPrefix = keyPrefix)
+            val singleLockKey = lockClient.singleLockKey("batch:daily")
+            val groupSlotLockKey = lockClient.groupSlotLockKey("batch_job", 2)
+            val singleLeaseId = lockClient.grantLease(10L).get(10, TimeUnit.SECONDS)
+            val groupLeaseId = lockClient.grantLease(10L).get(10, TimeUnit.SECONDS)
+            var singleOwnershipKey = ByteSequence.EMPTY
+            var groupOwnershipKey = ByteSequence.EMPTY
+
+            try {
+                singleLockKey.toString(StandardCharsets.UTF_8) shouldBeEqualTo
+                    "$keyPrefix/single/batch%3Adaily"
+                groupSlotLockKey.toString(StandardCharsets.UTF_8) shouldBeEqualTo
+                    "$keyPrefix/group/batch_job/slot-2"
+
+                singleOwnershipKey = lockClient.lock(singleLockKey, singleLeaseId).get(10, TimeUnit.SECONDS)
+                groupOwnershipKey = lockClient.lock(groupSlotLockKey, groupLeaseId).get(10, TimeUnit.SECONDS)
+
+                singleOwnershipKey.shouldStartWith(singleLockKey)
+                groupOwnershipKey.shouldStartWith(groupSlotLockKey)
+            } finally {
+                lockClient.unlockIfPresent(groupOwnershipKey)
+                lockClient.unlockIfPresent(singleOwnershipKey)
+                lockClient.revokeIfPresent(groupLeaseId)
+                lockClient.revokeIfPresent(singleLeaseId)
+            }
+        }
+    }
+
+    @Test
     fun `lock client grants keeps alive unlocks and revokes a real etcd lease`() {
         newClient().use { client ->
             val lockClient = JetcdEtcdLockClient(client, keyPrefix = "/bluetape4k/leader/test/${randomName()}")
@@ -23,9 +55,7 @@ class JetcdEtcdLockClientIntegrationTest: AbstractEtcdLeaderTest() {
 
             try {
                 ownershipKey.isEmpty.shouldBeFalse()
-                ownershipKey.toString(StandardCharsets.UTF_8)
-                    .startsWith(lockKey.toString(StandardCharsets.UTF_8))
-                    .shouldBeTrue()
+                ownershipKey.shouldStartWith(lockKey)
 
                 val keepAlive = lockClient.keepAliveOnce(leaseId).get(10, TimeUnit.SECONDS)
                 keepAlive.getID() shouldBeEqualTo leaseId
@@ -33,6 +63,21 @@ class JetcdEtcdLockClientIntegrationTest: AbstractEtcdLeaderTest() {
                 lockClient.unlockIfPresent(ownershipKey)
                 lockClient.revokeIfPresent(leaseId)
             }
+        }
+    }
+
+    @Test
+    fun `invalid arguments are rejected before real etcd calls`() {
+        newClient().use { client ->
+            val lockClient = JetcdEtcdLockClient(client, keyPrefix = "/bluetape4k/leader/test/${randomName()}")
+            val key = ByteSequence.from("key", StandardCharsets.UTF_8)
+
+            assertFailsWith<IllegalArgumentException> { lockClient.grantLease(0L) }
+            assertFailsWith<IllegalArgumentException> { lockClient.lock(ByteSequence.EMPTY, 1L) }
+            assertFailsWith<IllegalArgumentException> { lockClient.lock(key, 0L) }
+            assertFailsWith<IllegalArgumentException> { lockClient.unlock(ByteSequence.EMPTY) }
+            assertFailsWith<IllegalArgumentException> { lockClient.revokeLease(0L) }
+            assertFailsWith<IllegalArgumentException> { lockClient.keepAliveOnce(0L) }
         }
     }
 
@@ -63,6 +108,12 @@ class JetcdEtcdLockClientIntegrationTest: AbstractEtcdLeaderTest() {
                 lockClient.revokeIfPresent(firstLeaseId)
             }
         }
+    }
+
+    private fun ByteSequence.shouldStartWith(lockKey: ByteSequence) {
+        toString(StandardCharsets.UTF_8)
+            .startsWith(lockKey.toString(StandardCharsets.UTF_8))
+            .shouldBeTrue()
     }
 
     private fun JetcdEtcdLockClient.unlockIfPresent(ownershipKey: ByteSequence) {
