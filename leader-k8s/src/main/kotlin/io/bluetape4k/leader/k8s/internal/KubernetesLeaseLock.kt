@@ -200,11 +200,9 @@ internal class KubernetesLeaseLock(
         annotations[KubernetesLeaseAnnotations.AuditLeaderId] = auditLeaderId
         annotations[KubernetesLeaseAnnotations.ManagedBy] = KubernetesLeaseAnnotations.ManagedByValue
         annotations[KubernetesLeaseAnnotations.NodeId] = nodeId
-        val metadataBuilder = ObjectMetaBuilder(metadata ?: ObjectMeta())
-        annotations.forEach { (key, value) ->
-            metadataBuilder.addToAnnotations(key, value)
-        }
-        val updatedMetadata = metadataBuilder.build()
+        val updatedMetadata = ObjectMetaBuilder(metadata ?: ObjectMeta())
+            .withAnnotations<String, String>(annotations)
+            .build()
         return LeaseBuilder(this)
             .withMetadata(updatedMetadata)
             .build()
