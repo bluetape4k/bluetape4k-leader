@@ -8,6 +8,12 @@ import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElectorFactory
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
+import io.bluetape4k.leader.etcd.EtcdLeaderElectionOptions
+import io.bluetape4k.leader.etcd.EtcdLeaderElectorFactory
+import io.bluetape4k.leader.etcd.EtcdLeaderGroupElectionOptions
+import io.bluetape4k.leader.etcd.EtcdLeaderGroupElectorFactory
+import io.bluetape4k.leader.etcd.EtcdSuspendLeaderElectorFactory
+import io.bluetape4k.leader.etcd.EtcdSuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElectorFactory
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElectorFactory
 import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderElectorFactory
@@ -28,6 +34,8 @@ import io.bluetape4k.leader.redisson.RedissonLeaderElectorFactory
 import io.bluetape4k.leader.redisson.RedissonLeaderGroupElectorFactory
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElectorFactory
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderGroupElectorFactory
+import io.bluetape4k.leader.spring.LeaderProperties
+import io.etcd.jetcd.Client
 import io.lettuce.core.api.StatefulRedisConnection
 import org.aspectj.lang.annotation.Aspect
 import org.bson.Document
@@ -41,12 +49,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Role
 
 /**
- * AutoConfig Phase 1 — registers 6 backend factory `@Bean`s (sync + suspend).
+ * AutoConfig Phase 1 — registers backend factory `@Bean`s (sync + suspend).
  *
  * ## [Codex H3] Separation Rationale
  * Factory `@Bean` registration is separated from the Aspect/BPP registration in [LeaderAopAutoConfiguration]
@@ -63,6 +72,7 @@ import org.springframework.context.annotation.Role
 @AutoConfiguration
 @ConditionalOnClass(Aspect::class)
 @ConditionalOnProperty(prefix = "bluetape4k.leader.aop", name = ["enabled"], havingValue = "true", matchIfMissing = true)
+@EnableConfigurationProperties(LeaderProperties::class)
 class LeaderAopFactoryAutoConfiguration {
 
     // ── Local (always-on fallback) ───────────────────────────────
@@ -163,6 +173,65 @@ class LeaderAopFactoryAutoConfiguration {
         @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
         fun redissonSuspendLeaderGroupElectorFactory(client: RedissonClient): SuspendLeaderGroupElectorFactory =
             RedissonSuspendLeaderGroupElectorFactory(client)
+    }
+
+    // ── etcd ────────────────────────────────────────────────────
+
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(Client::class, EtcdLeaderElectorFactory::class)
+    class EtcdFactoryConfig {
+
+        @Bean(name = ["etcdLeaderElectionFactory"])
+        @ConditionalOnBean(Client::class)
+        @ConditionalOnMissingBean(name = ["etcdLeaderElectionFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun etcdLeaderElectionFactory(
+            client: Client,
+            props: LeaderProperties,
+        ): LeaderElectorFactory =
+            EtcdLeaderElectorFactory(
+                client,
+                EtcdLeaderElectionOptions(keyPrefix = props.etcd.keyPrefix),
+            )
+
+        @Bean(name = ["etcdLeaderGroupElectionFactory"])
+        @ConditionalOnBean(Client::class)
+        @ConditionalOnMissingBean(name = ["etcdLeaderGroupElectionFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun etcdLeaderGroupElectionFactory(
+            client: Client,
+            props: LeaderProperties,
+        ): LeaderGroupElectorFactory =
+            EtcdLeaderGroupElectorFactory(
+                client,
+                EtcdLeaderGroupElectionOptions(keyPrefix = props.etcd.keyPrefix),
+            )
+
+        @Bean(name = ["etcdSuspendLeaderElectorFactory"])
+        @ConditionalOnBean(Client::class)
+        @ConditionalOnMissingBean(name = ["etcdSuspendLeaderElectorFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun etcdSuspendLeaderElectorFactory(
+            client: Client,
+            props: LeaderProperties,
+        ): SuspendLeaderElectorFactory =
+            EtcdSuspendLeaderElectorFactory(
+                client,
+                EtcdLeaderElectionOptions(keyPrefix = props.etcd.keyPrefix),
+            )
+
+        @Bean(name = ["etcdSuspendLeaderGroupElectorFactory"])
+        @ConditionalOnBean(Client::class)
+        @ConditionalOnMissingBean(name = ["etcdSuspendLeaderGroupElectorFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun etcdSuspendLeaderGroupElectorFactory(
+            client: Client,
+            props: LeaderProperties,
+        ): SuspendLeaderGroupElectorFactory =
+            EtcdSuspendLeaderGroupElectorFactory(
+                client,
+                EtcdLeaderGroupElectionOptions(keyPrefix = props.etcd.keyPrefix),
+            )
     }
 
     // ── MongoDB sync ─────────────────────────────────────────────

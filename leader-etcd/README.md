@@ -20,8 +20,7 @@ MongoDB, ZooKeeper, or Kubernetes Lease.
 - Lease keepalive through the existing `LockExtender` and watchdog contract
 - Caller-owned jetcd `Client`; endpoints, TLS, authentication, and lifecycle stay outside the elector
 - EtcdServer-backed integration tests using `bluetape4k-testcontainers`
-
-Spring Boot auto-configuration is planned for a later issue slice.
+- Spring Boot auto-configuration when `leader-spring-boot` sees a caller-owned jetcd `Client` bean
 
 ## Usage
 
@@ -169,6 +168,24 @@ dependencies {
 
 The module exposes jetcd Core as an API dependency because constructors accept
 `io.etcd.jetcd.Client`.
+
+## Spring Boot
+
+Add both `leader-etcd` and `leader-spring-boot`, then register a jetcd `Client`
+bean. Spring auto-configuration creates the blocking, coroutine, and group
+electors from that caller-owned client and leaves endpoints, TLS, authentication,
+and lifecycle management outside the library.
+
+```yaml
+bluetape4k:
+  leader:
+    etcd:
+      key-prefix: /apps/orders/leader
+```
+
+`EtcdLeaderElectionEventPublisher` is not auto-created because constructing it
+starts a live watch. Create and close the publisher explicitly when the
+application needs backend ownership events.
 
 ## Testing
 

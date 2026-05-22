@@ -5,15 +5,15 @@
 Issue #227 is an epic for a full etcd v3 leader election backend. This branch
 started the implementation with durable design artifacts, module registration,
 the first internal jetcd boundary types, public single-leader electors, public
-group electors, and a watch-backed event publisher.
+group electors, a watch-backed event publisher, and Spring Boot factory wiring.
 
 ## Decision
 
 Keep the first PR narrow: add the `leader-etcd` module, version the project
 against the active `bluetape4k-projects` `1.8.1-SNAPSHOT`, prove the low-level
 lease/lock boundary, then add the first public single-leader electors while
-adding group election and watch-backed event publishing as bounded follow-up
-slices while deferring Spring Boot auto-configuration.
+adding group election, watch-backed event publishing, and Spring Boot
+auto-configuration as bounded follow-up slices.
 
 Use `bluetape4k-testcontainers` `EtcdServer.Launcher.etcd` for real integration
 tests. Mock-based jetcd tests are useful for boundary delegation, but they do
@@ -30,6 +30,10 @@ not prove server endpoint wiring, lease keepalive, or etcd lock queueing.
   slot.
 - Added `EtcdLeaderElectionEventPublisher`, which watches the configured prefix
   and maps etcd ownership key `PUT`/`DELETE` events to `Elected`/`Revoked`.
+- Added etcd Spring Boot auto-configuration for blocking, coroutine, and group
+  electors when a caller-owned jetcd `Client` bean is present.
+- Added etcd AOP factory beans so `@LeaderElection` and `@LeaderGroupElection`
+  can resolve etcd-backed factories from Spring.
 - Added active-lock extension support through the existing `LockExtender`
   contract.
 - Made lock acquisition timeout cleanup cancel pending jetcd lock futures before
@@ -46,7 +50,10 @@ not prove server endpoint wiring, lease keepalive, or etcd lock queueing.
 
 - `./gradlew :bluetape4k-leader-etcd:dependencyInsight --dependency io.github.bluetape4k:bluetape4k-testcontainers --configuration testRuntimeClasspath --refresh-dependencies --no-daemon --console=plain`
 - `./gradlew :bluetape4k-leader-etcd:compileTestKotlin --no-daemon --console=plain`
+- `./gradlew :bluetape4k-leader-etcd:test --tests 'io.bluetape4k.leader.etcd.EtcdLeaderElectorFactoryTest' --no-build-cache --no-daemon --console=plain`
 - `./gradlew :bluetape4k-leader-etcd:test --no-daemon --console=plain`
+- `./gradlew :bluetape4k-leader-etcd:compileKotlin :bluetape4k-leader-etcd:compileTestKotlin :bluetape4k-leader-spring-boot:compileKotlin :bluetape4k-leader-spring-boot:compileTestKotlin --no-daemon --console=plain`
+- `./gradlew :bluetape4k-leader-spring-boot:test --tests 'io.bluetape4k.leader.spring.BackendConditionalTest' --tests 'io.bluetape4k.leader.spring.LeaderPropertiesBindingTest' --tests 'io.bluetape4k.leader.spring.aop.autoconfigure.EtcdAopFactoryAutoConfigurationTest' --no-build-cache --no-daemon --console=plain`
 - `git diff --check`
 
 Latest full test run executed 59 `leader-etcd` tests: 31 pure unit tests, 3
@@ -73,3 +80,8 @@ remain covered by listener/decorator APIs.
 jetcd Lock creates keys for queued contenders too. Watch publishers must
 revalidate the current lowest-`createRevision` owner before emitting `Elected`,
 or contention can produce false-positive election events.
+
+Spring auto-configuration intentionally does not create
+`EtcdLeaderElectionEventPublisher`; it opens a live watch during construction.
+Applications that need backend event streams should own publisher lifecycle
+explicitly.

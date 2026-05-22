@@ -5,6 +5,7 @@ import com.hazelcast.core.Hazelcast
 import com.hazelcast.core.HazelcastInstance
 import com.mongodb.client.MongoDatabase
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.etcd.EtcdLeaderElector
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElector
 import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderElector
 import io.bluetape4k.leader.mongodb.MongoLeaderElector
@@ -21,11 +22,13 @@ import io.bluetape4k.leader.lettuce.LettuceLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.leader.redisson.RedissonLeaderElector
 import io.bluetape4k.leader.spring.backend.LocalLeaderConfiguration
+import io.etcd.jetcd.Client
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldHaveSize
+import io.mockk.mockk
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.redisson.Redisson
@@ -171,6 +174,22 @@ class BackendConditionalTest {
             }
     }
 
+    // ─────────────── etcd ───────────────
+
+    @Test
+    fun `jetcd Client 빈 등록 시 etcd 4 빈 활성 + Local 비활성`() {
+        contextRunner
+            .withUserConfiguration(EtcdClientConfig::class.java)
+            .withPropertyValues("bluetape4k.leader.etcd.key-prefix=/apps/orders/leader")
+            .run { ctx ->
+                ctx.getBean("etcdLeaderElector") shouldBeInstanceOf EtcdLeaderElector::class
+                ctx.containsBean("etcdSuspendLeaderElector") shouldBeEqualTo true
+                ctx.containsBean("etcdLeaderGroupElector") shouldBeEqualTo true
+                ctx.containsBean("etcdSuspendLeaderGroupElector") shouldBeEqualTo true
+                ctx.containsBean("localLeaderElector") shouldBeEqualTo false
+            }
+    }
+
     // ─────────────── 다중 백엔드 ───────────────
 
     @Test
@@ -255,5 +274,11 @@ class BackendConditionalTest {
         @Bean
         fun coroutineMongoDatabase(): CoroutineMongoDatabase =
             MongoDBServer.Launcher.getCoroutineClient().getDatabase(sharedDbName)
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class EtcdClientConfig {
+        @Bean
+        fun etcdClient(): Client = mockk(relaxed = true)
     }
 }
