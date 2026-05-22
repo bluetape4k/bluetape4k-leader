@@ -9,6 +9,7 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.fabric8.kubernetes.api.model.ObjectMeta
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder
 import io.fabric8.kubernetes.api.model.coordination.v1.Lease
 import io.fabric8.kubernetes.api.model.coordination.v1.LeaseBuilder
 import io.fabric8.kubernetes.api.model.coordination.v1.LeaseSpecBuilder
@@ -195,13 +196,18 @@ internal class KubernetesLeaseLock(
     }
 
     private fun Lease.withBluetape4kAnnotations(): Lease {
-        val meta = metadata ?: ObjectMeta().also { metadata = it }
-        val annotations = LinkedHashMap(meta.annotations.orEmpty())
+        val annotations = LinkedHashMap<String, String>(metadata?.annotations.orEmpty())
         annotations[KubernetesLeaseAnnotations.AuditLeaderId] = auditLeaderId
         annotations[KubernetesLeaseAnnotations.ManagedBy] = KubernetesLeaseAnnotations.ManagedByValue
         annotations[KubernetesLeaseAnnotations.NodeId] = nodeId
-        meta.annotations = annotations
-        return this
+        val metadataBuilder = ObjectMetaBuilder(metadata ?: ObjectMeta())
+        annotations.forEach { (key, value) ->
+            metadataBuilder.addToAnnotations(key, value)
+        }
+        val updatedMetadata = metadataBuilder.build()
+        return LeaseBuilder(this)
+            .withMetadata(updatedMetadata)
+            .build()
     }
 
     private fun canAcquire(lease: Lease): Boolean {
