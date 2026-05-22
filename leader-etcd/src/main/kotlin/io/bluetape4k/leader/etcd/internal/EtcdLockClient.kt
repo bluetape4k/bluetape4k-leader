@@ -3,6 +3,9 @@ package io.bluetape4k.leader.etcd.internal
 import io.etcd.jetcd.ByteSequence
 import io.etcd.jetcd.Client
 import io.etcd.jetcd.lease.LeaseKeepAliveResponse
+import io.etcd.jetcd.options.GetOption
+import io.etcd.jetcd.options.GetOption.SortOrder
+import io.etcd.jetcd.options.GetOption.SortTarget
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CompletableFuture
 
@@ -24,6 +27,8 @@ internal interface EtcdLockClient {
     fun revokeLease(leaseId: Long): CompletableFuture<Unit>
 
     fun keepAliveOnce(leaseId: Long): CompletableFuture<LeaseKeepAliveResponse>
+
+    fun ownershipKeys(lockKey: ByteSequence): CompletableFuture<List<ByteSequence>>
 }
 
 /**
@@ -68,6 +73,18 @@ internal class JetcdEtcdLockClient(
     override fun keepAliveOnce(leaseId: Long): CompletableFuture<LeaseKeepAliveResponse> {
         require(leaseId > 0L) { "leaseId must be positive. leaseId=$leaseId" }
         return client.leaseClient.keepAliveOnce(leaseId)
+    }
+
+    override fun ownershipKeys(lockKey: ByteSequence): CompletableFuture<List<ByteSequence>> {
+        require(!lockKey.isEmpty) { "lockKey must not be empty." }
+        val option = GetOption.builder()
+            .isPrefix(true)
+            .withSortField(SortTarget.CREATE)
+            .withSortOrder(SortOrder.ASCEND)
+            .withLimit(1)
+            .build()
+        return client.kvClient.get(lockKey, option)
+            .thenApply { response -> response.kvs.map { it.key } }
     }
 
     private fun byteSequence(path: String): ByteSequence =
