@@ -72,6 +72,7 @@ dependencies {
     compileOnly(project(":bluetape4k-leader-mongodb"))
     compileOnly(project(":bluetape4k-leader-hazelcast"))
     compileOnly(project(":bluetape4k-leader-etcd"))
+    compileOnly(project(":bluetape4k-leader-consul"))
     compileOnly(project(":bluetape4k-leader-micrometer"))
 
     compileOnly(libs.lettuce.core)
@@ -107,6 +108,7 @@ dependencies {
     testImplementation(libs.spring.test)
     testImplementation(libs.springmockk)
     testImplementation(libs.bluetape4k.virtualthread.jdk21)
+    testImplementation(project(":bluetape4k-leader-consul"))
     testImplementation(libs.bluetape4k.testcontainers)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)

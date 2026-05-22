@@ -32,6 +32,9 @@ import java.time.Duration
  *       group-collection: leader_group_election
  *     etcd:
  *       key-prefix: /apps/orders/leader
+ *     consul:
+ *       key-prefix: apps/orders/leader
+ *       session-name-prefix: orders-leader
  * ```
  *
  * @property waitTime maximum wait time to acquire a single leader lease. Default 5 seconds.
@@ -42,6 +45,7 @@ import java.time.Duration
  * @property group multi-leader group options.
  * @property mongo MongoDB backend collection names.
  * @property etcd etcd backend key-prefix options.
+ * @property consul Consul backend KV/session options.
  */
 @ConfigurationProperties(prefix = "bluetape4k.leader")
 data class LeaderProperties(
@@ -57,4 +61,6 @@ data class LeaderProperties(
     val mongo: MongoCollectionProperties = MongoCollectionProperties(),
     @field:NestedConfigurationProperty
     val etcd: EtcdLeaderProperties = EtcdLeaderProperties(),
+    @field:NestedConfigurationProperty
+    val consul: ConsulLeaderProperties = ConsulLeaderProperties(),
 )

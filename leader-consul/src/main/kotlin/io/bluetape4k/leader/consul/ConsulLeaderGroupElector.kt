@@ -3,24 +3,22 @@ package io.bluetape4k.leader.consul
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
 import io.bluetape4k.leader.AopScopeAccess
-import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectionException
+import io.bluetape4k.leader.LeaderGroupElector
+import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
-import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.consul.internal.ConsulLeaseHandle
 import io.bluetape4k.leader.consul.internal.ConsulLockClient
 import io.bluetape4k.leader.consul.internal.ConsulLockExtendDelegate
 import io.bluetape4k.leader.consul.internal.ConsulOwnerPayload
-import io.bluetape4k.leader.consul.internal.ConsulBackendErrorClassifier
 import io.bluetape4k.leader.consul.internal.ConsulSessionId
 import io.bluetape4k.leader.consul.internal.ConsulSessionTtl
 import io.bluetape4k.leader.consul.internal.JavaHttpConsulLockClient
-import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -30,44 +28,60 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
+import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Blocking and async single-leader election backed by Consul Sessions and KV acquire/release.
+ * Blocking and async Consul multi-leader election backed by fixed KV slot keys and Consul Sessions.
  *
  * ## Behavior / Contract
- * - Normal contention returns `null`; action exceptions are propagated.
+ * - At most [maxLeaders] actions run concurrently per `lockName`.
+ * - Normal full-group contention returns `null`; action exceptions are propagated or reported by result APIs.
+ * - Slots are stable KV keys: `keyPrefix/group/{encodedLockName}/slot-{index}`.
+ * - Consul Session TTL is derived from [ConsulLeaderGroupElectionOptions.leaderGroupOptions].
+ * - A crashed process releases its slot when Consul expires the session; until then, another contender skips or waits.
+ * - State snapshots are best-effort: a slot with invalid owner payload is treated as unknown and is not counted.
  * - The supplied [endpoint] is caller-owned configuration. This elector owns only its internal HTTP boundary.
- * - Consul ACL token and datacenter are read from [ConsulEndpoint].
- * - Release/destroy cleanup is best-effort and owner/session scoped.
  */
-class ConsulLeaderElector private constructor(
+class ConsulLeaderGroupElector private constructor(
     private val lockClient: ConsulLockClient,
-    val options: ConsulLeaderElectionOptions,
-) : LeaderElector {
+    val options: ConsulLeaderGroupElectionOptions,
+) : LeaderGroupElector {
 
     constructor(
         endpoint: ConsulEndpoint,
-        options: ConsulLeaderElectionOptions = ConsulLeaderElectionOptions.Default,
+        options: ConsulLeaderGroupElectionOptions = ConsulLeaderGroupElectionOptions.Default,
     ) : this(JavaHttpConsulLockClient(endpoint, options.keyPrefix), options)
 
     companion object : KLogging() {
-        internal const val CONSUL_FACTORY_BEAN_NAME = "consul-leader-elector"
-        internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ConsulBackendErrorClassifier)
+        internal const val CONSUL_GROUP_FACTORY_BEAN_NAME = "consul-leader-group-elector"
 
         internal fun create(
             lockClient: ConsulLockClient,
-            options: ConsulLeaderElectionOptions = ConsulLeaderElectionOptions.Default,
-        ): ConsulLeaderElector =
-            ConsulLeaderElector(lockClient, options)
+            options: ConsulLeaderGroupElectionOptions = ConsulLeaderGroupElectionOptions.Default,
+        ): ConsulLeaderGroupElector =
+            ConsulLeaderGroupElector(lockClient, options)
+    }
+
+    override val maxLeaders: Int = options.maxLeaders
+
+    override fun activeCount(lockName: String): Int =
+        currentLeaders(lockName).size
+
+    override fun availableSlots(lockName: String): Int =
+        maxLeaders - activeCount(lockName)
+
+    override fun state(lockName: String): LeaderGroupState {
+        val leaders = currentLeaders(lockName)
+        return LeaderGroupState(lockName, maxLeaders, leaders.size, leaders)
     }
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
-        runWithLock(lockName, null, action)
+        runWithSlot(lockName, auditLeaderId = null, action)
 
     override fun <T> runIfLeader(slot: LeaderSlot, action: () -> T): T? =
-        runWithLock(slot.lockName, slot.leaderId, action)
+        runWithSlot(slot.lockName, auditLeaderId = slot.leaderId, action)
 
     override fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
         var elected = false
@@ -95,14 +109,14 @@ class ConsulLeaderElector private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> =
-        runAsyncWithLock(lockName, null, executor, action)
+        runAsyncWithSlot(lockName, auditLeaderId = null, executor, action)
 
     override fun <T> runAsyncIfLeader(
         slot: LeaderSlot,
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> =
-        runAsyncWithLock(slot.lockName, slot.leaderId, executor, action)
+        runAsyncWithSlot(slot.lockName, auditLeaderId = slot.leaderId, executor, action)
 
     override fun <T> runAsyncIfLeaderResult(
         slot: LeaderSlot,
@@ -125,51 +139,46 @@ class ConsulLeaderElector private constructor(
         }
     }
 
-    override fun state(lockName: String): LeaderState {
-        val key = lockClient.singleLockKey(lockName)
-        val entry = lockClient.read(key).get(10, TimeUnit.SECONDS) ?: return LeaderState.empty(lockName)
-        val sessionId = entry.sessionId ?: return LeaderState.empty(lockName)
-        val lease = entry.value?.let { ConsulOwnerPayload.fromJson(it)?.toLeaderLease() }
-        if (lease == null) {
-            log.warn {
-                "Consul leader state ignored because owner payload is missing or invalid. " +
-                    "lockName=$lockName, sessionId=${sessionId.value}"
-            }
-            return LeaderState.empty(lockName)
-        }
-        return LeaderState.occupied(lockName, lease)
-    }
-
-    private fun <T> runWithLock(lockName: String, auditLeaderId: String?, action: () -> T): T? {
+    private fun <T> runWithSlot(lockName: String, auditLeaderId: String?, action: () -> T): T? {
         val handle = acquire(lockName, auditLeaderId) ?: return null
         val delegate = ConsulLockExtendDelegate(lockClient, handle)
         val lockHandle = LeaderLockHandle.real(
             identity = LockIdentity(
                 lockName = lockName,
-                kind = LockIdentity.AnnotationKind.SINGLE,
-                factoryBeanName = CONSUL_FACTORY_BEAN_NAME,
+                kind = LockIdentity.AnnotationKind.GROUP,
+                factoryBeanName = CONSUL_GROUP_FACTORY_BEAN_NAME,
+                groupParams = LockIdentity.GroupParams(maxLeaders),
             ),
             token = handle.ownerToken,
             acquiredAtNanos = handle.acquiredAtNanos,
+            slotId = handle.slotId,
             extendDelegate = delegate,
             auditLeaderId = handle.auditLeaderId,
         )
         val watchdog = LeaderLeaseAutoExtender.start(
-            options.leaderOptions.autoExtend,
-            options.leaderOptions.leaseTime,
-            delegate,
-            ERROR_CLASSIFIER,
+            // Group auto-extension is disabled; explicit LockExtender renews the Consul session.
+            enabled = false,
+            leaseTime = options.leaderGroupOptions.leaseTime,
+            delegate = delegate,
+            classifier = ConsulLeaderElector.ERROR_CLASSIFIER,
         )
 
-        try {
-            return AopScopeAccess.withPushedSync(lockHandle) { action() }
+        return try {
+            AopScopeAccess.withPushedSync(lockHandle) {
+                AopScopeAccess.setCapture(lockHandle)
+                try {
+                    action()
+                } finally {
+                    AopScopeAccess.clearCapture()
+                }
+            }
         } finally {
             watchdog.close()
             release(handle)
         }
     }
 
-    private fun <T> runAsyncWithLock(
+    private fun <T> runAsyncWithSlot(
         lockName: String,
         auditLeaderId: String?,
         executor: Executor,
@@ -191,10 +200,11 @@ class ConsulLeaderElector private constructor(
     ): CompletableFuture<T?> {
         val delegate = ConsulLockExtendDelegate(lockClient, handle)
         val watchdog = LeaderLeaseAutoExtender.start(
-            options.leaderOptions.autoExtend,
-            options.leaderOptions.leaseTime,
-            delegate,
-            ERROR_CLASSIFIER,
+            // Group auto-extension is disabled; explicit LockExtender renews the Consul session.
+            enabled = false,
+            leaseTime = options.leaderGroupOptions.leaseTime,
+            delegate = delegate,
+            classifier = ConsulLeaderElector.ERROR_CLASSIFIER,
         )
         val actionFuture = try {
             action()
@@ -216,72 +226,76 @@ class ConsulLeaderElector private constructor(
     }
 
     private fun acquire(lockName: String, auditLeaderId: String?): ConsulLeaseHandle? {
-        val key = lockClient.singleLockKey(lockName)
         val electedAt = Instant.now()
-        val leaseUntil = electedAt.plusMillis(options.leaderOptions.leaseTime.inWholeMilliseconds)
+        val leaseUntil = electedAt.plusMillis(options.leaderGroupOptions.leaseTime.inWholeMilliseconds)
         val ownerToken = Base58.randomString(12)
         val payload = ConsulOwnerPayload(
             ownerToken = ownerToken,
-            auditLeaderId = auditLeaderId ?: options.leaderOptions.nodeId,
-            nodeId = options.leaderOptions.nodeId,
+            auditLeaderId = auditLeaderId ?: options.leaderGroupOptions.nodeId,
+            nodeId = options.leaderGroupOptions.nodeId,
             electedAt = electedAt,
             leaseUntil = leaseUntil,
         )
         val sessionId = try {
             lockClient.createSession(
-                name = "${options.sessionNamePrefix}-${options.leaderOptions.nodeId}",
-                ttl = options.leaderOptions.leaseTime,
+                name = "${options.sessionNamePrefix}-${options.leaderGroupOptions.nodeId}",
+                ttl = options.leaderGroupOptions.leaseTime,
                 lockDelay = options.lockDelay,
             ).get(10, TimeUnit.SECONDS)
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
             return null
         } catch (e: Exception) {
-            throw LeaderElectionException("Failed to create Consul session. lockName=$lockName", e)
+            throw LeaderElectionException("Failed to create Consul group session. lockName=$lockName", e)
         }
 
-        val acquired = try {
-            acquireWithinWaitTime(key, sessionId, payload.toJson())
+        return try {
+            acquireWithinWaitTime(lockName, sessionId, payload)?.let { (slot, key) ->
+                ConsulLeaseHandle(
+                    lockName = lockName,
+                    key = key,
+                    sessionId = sessionId,
+                    ownerToken = ownerToken,
+                    auditLeaderId = payload.auditLeaderId,
+                    nodeId = payload.nodeId,
+                    electedAt = electedAt,
+                    leaseUntil = leaseUntil,
+                    slotId = slot.toString(),
+                )
+            } ?: run {
+                destroySession(sessionId)
+                log.debug { "Consul leader group slot acquisition skipped by contention. lockName=$lockName" }
+                null
+            }
         } catch (e: Exception) {
             destroySession(sessionId)
-            throw LeaderElectionException("Failed to acquire Consul leader lock. lockName=$lockName", e)
+            throw LeaderElectionException("Failed to acquire Consul group slot. lockName=$lockName", e)
         }
-
-        if (!acquired) {
-            destroySession(sessionId)
-            log.debug { "Consul leader lock acquisition skipped by contention. lockName=$lockName" }
-            return null
-        }
-
-        return ConsulLeaseHandle(
-            lockName = lockName,
-            key = key,
-            sessionId = sessionId,
-            ownerToken = ownerToken,
-            auditLeaderId = payload.auditLeaderId,
-            nodeId = payload.nodeId,
-            electedAt = electedAt,
-            leaseUntil = leaseUntil,
-        )
     }
 
     private fun acquireWithinWaitTime(
-        key: String,
+        lockName: String,
         sessionId: ConsulSessionId,
-        ownerPayload: String,
-    ): Boolean {
-        val timeoutNanos = options.leaderOptions.waitTime.inWholeNanoseconds
+        ownerPayload: ConsulOwnerPayload,
+    ): Pair<Int, String>? {
+        val timeoutNanos = options.leaderGroupOptions.waitTime.inWholeNanoseconds
         val deadline = System.nanoTime() + timeoutNanos
-        val renewDelayNanos = ConsulSessionTtl.renewDelay(options.leaderOptions.leaseTime).inWholeNanoseconds
+        val startSlot = ThreadLocalRandom.current().nextInt(maxLeaders)
+        val renewDelayNanos = ConsulSessionTtl.renewDelay(options.leaderGroupOptions.leaseTime).inWholeNanoseconds
         var lastRenewNanos = System.nanoTime()
+        val payloadJson = ownerPayload.toJson()
 
         do {
             try {
-                if (lockClient.acquire(key, sessionId, ownerPayload).get(10, TimeUnit.SECONDS)) {
-                    return true
+                for (attempt in 0 until maxLeaders) {
+                    val slot = (startSlot + attempt) % maxLeaders
+                    val key = lockClient.groupLockKey(lockName, slot)
+                    if (lockClient.acquire(key, sessionId, payloadJson).get(10, TimeUnit.SECONDS)) {
+                        return slot to key
+                    }
                 }
                 if (timeoutNanos == 0L || System.nanoTime() >= deadline) {
-                    return false
+                    return null
                 }
                 val now = System.nanoTime()
                 if (now - lastRenewNanos >= renewDelayNanos) {
@@ -291,7 +305,7 @@ class ConsulLeaderElector private constructor(
                 Thread.sleep(minOf(50.milliseconds.inWholeMilliseconds, remainingMillis(deadline)).coerceAtLeast(1))
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()
-                return false
+                return null
             }
         } while (true)
     }
@@ -301,7 +315,7 @@ class ConsulLeaderElector private constructor(
             return
         }
 
-        val remaining = remainingMinLeaseTime(handle.acquiredAtNanos, options.leaderOptions.minLeaseTime)
+        val remaining = remainingMinLeaseTime(handle.acquiredAtNanos, options.leaderGroupOptions.minLeaseTime)
         if (remaining.isPositive()) {
             try {
                 Thread.sleep(remaining.inWholeMilliseconds)
@@ -311,13 +325,37 @@ class ConsulLeaderElector private constructor(
         }
 
         runCatching { lockClient.release(handle.key, handle.sessionId).get(10, TimeUnit.SECONDS) }
-            .onFailure { e -> log.warn(e) { "Failed to release Consul leader lock. lockName=${handle.lockName}" } }
+            .onFailure { e -> log.warn(e) { "Failed to release Consul group slot. lockName=${handle.lockName}" } }
         destroySession(handle.sessionId)
     }
 
+    private fun currentLeaders(lockName: String): List<LeaderLease> =
+        (0 until maxLeaders).mapNotNull { slot ->
+            runCatching {
+                val entry = lockClient.read(lockClient.groupLockKey(lockName, slot)).get(10, TimeUnit.SECONDS) ?: return@runCatching null
+                if (entry.sessionId == null) {
+                    return@runCatching null
+                }
+                val lease = entry.value?.let { ConsulOwnerPayload.fromJson(it)?.toLeaderLease(slot) }
+                if (lease == null) {
+                    log.warn {
+                        "Consul group state ignored because owner payload is missing or invalid. " +
+                            "lockName=$lockName, slot=$slot, sessionId=${entry.sessionId.value}"
+                    }
+                }
+                lease
+            }.getOrElse { e ->
+                if (e is InterruptedException) {
+                    Thread.currentThread().interrupt()
+                }
+                log.warn(e) { "Consul group state query failed. lockName=$lockName, slot=$slot" }
+                null
+            }
+        }
+
     private fun destroySession(sessionId: ConsulSessionId) {
         runCatching { lockClient.destroySession(sessionId).get(10, TimeUnit.SECONDS) }
-            .onFailure { e -> log.warn(e) { "Failed to destroy Consul session. sessionId=${sessionId.value}" } }
+            .onFailure { e -> log.warn(e) { "Failed to destroy Consul group session. sessionId=${sessionId.value}" } }
     }
 }
 
@@ -328,21 +366,21 @@ private fun remainingMillis(deadlineNanos: Long): Long =
     ((deadlineNanos - System.nanoTime()).coerceAtLeast(0L) / 1_000_000L).coerceAtLeast(1L)
 
 /**
- * Runs [action] only when this Consul endpoint acquires the leader lock.
+ * Runs [action] only when this Consul endpoint acquires a group leader slot.
  */
-fun <T> ConsulEndpoint.runIfLeader(
+fun <T> ConsulEndpoint.runIfLeaderGroup(
     lockName: String,
-    options: ConsulLeaderElectionOptions = ConsulLeaderElectionOptions.Default,
+    options: ConsulLeaderGroupElectionOptions = ConsulLeaderGroupElectionOptions.Default,
     action: () -> T,
-): T? = ConsulLeaderElector(this, options).runIfLeader(lockName, action)
+): T? = ConsulLeaderGroupElector(this, options).runIfLeader(lockName, action)
 
 /**
- * Runs [action] asynchronously only when this Consul endpoint acquires the leader lock.
+ * Runs [action] asynchronously only when this Consul endpoint acquires a group leader slot.
  */
-fun <T> ConsulEndpoint.runAsyncIfLeader(
+fun <T> ConsulEndpoint.runAsyncIfLeaderGroup(
     lockName: String,
     executor: Executor = VirtualThreadExecutor,
-    options: ConsulLeaderElectionOptions = ConsulLeaderElectionOptions.Default,
+    options: ConsulLeaderGroupElectionOptions = ConsulLeaderGroupElectionOptions.Default,
     action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> =
-    ConsulLeaderElector(this, options).runAsyncIfLeader(lockName, executor, action)
+    ConsulLeaderGroupElector(this, options).runAsyncIfLeader(lockName, executor, action)

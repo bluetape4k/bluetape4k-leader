@@ -68,3 +68,19 @@ must create a `SuspendExtendDelegate` and pass the same reference to both
 `LeaderLockHandle.Real` and `LeaderLeaseAutoExtender.start(...)`, so
 `LockExtender.extendActiveLockSuspend(...)` and the watchdog call
 `extendSuspend()` directly.
+
+## L11. Model Consul groups as fixed KV slots, not ephemeral queue locks
+
+Consul has KV acquire/release semantics, not a native distributed semaphore.
+Use stable `group/{lockName}/slot-{index}` keys and one Consul session per
+elected action. This makes state snapshots predictable, lets session TTL handle
+crash recovery, and lets `LockAssert` / `LockExtender` reuse the same
+session-scoped delegate as single-leader election.
+
+## L12. Keep Consul watch publishing explicit
+
+Core listener/event decorators work with Consul electors, but a backend-native
+Consul blocking-query watch publisher should not be silently auto-created.
+Watch lifecycle, retry/backoff, ACL scope, and datacenter policy are operational
+choices for the application; document the exclusion unless a later issue defines
+that runtime contract.

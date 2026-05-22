@@ -16,6 +16,12 @@ internal class ConsulLeaderPaths(
         return "$keyPrefix/single/${ConsulKeyEncoder.encodeSegment(lockName)}"
     }
 
+    fun group(lockName: String, slot: Int): String {
+        validateLockName(lockName)
+        require(slot >= 0) { "slot must be non-negative. slot=$slot" }
+        return "$keyPrefix/group/${ConsulKeyEncoder.encodeSegment(lockName)}/slot-$slot"
+    }
+
     companion object {
         const val DefaultPrefix: String = "bluetape4k/leader"
 

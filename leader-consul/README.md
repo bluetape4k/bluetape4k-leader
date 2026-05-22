@@ -4,20 +4,26 @@
 
 Preview Consul backend for `bluetape4k-leader`.
 
-This module provides preview single-leader blocking, `CompletableFuture`, and
-coroutine electors backed by Consul sessions and KV `acquire`/`release`. Group,
-Spring Boot, and event-publisher surfaces remain deferred.
+This module provides preview single-leader and multi-leader group electors backed
+by Consul sessions and KV `acquire`/`release`. Blocking, `CompletableFuture`,
+coroutine, and Spring Boot auto-configuration surfaces are available.
 
 ## Behavior / Contract
 
 - Public APIs use bluetape4k-owned DTOs such as `ConsulEndpoint`; no stale
   third-party Consul client type is exposed.
 - Consul Session TTL must be between 10 seconds and 86,400 seconds.
+- Single-leader keys use `keyPrefix/single/{encodedLockName}`.
+- Group keys use fixed slots: `keyPrefix/group/{encodedLockName}/slot-{index}`.
 - `lockDelay` defaults to zero for predictable scheduler-style reacquire.
 - A zero lock delay can overlap an old holder still running after TTL expiry;
   actions should be idempotent or use an external fencing token when duplicate
   execution is unsafe.
 - Consul endpoint, ACL token, datacenter, and agent lifecycle are caller-owned.
+- Core event decorators such as `withListeners()` work with Consul electors.
+  A backend-native Consul blocking-query watch publisher is intentionally not
+  created by auto-configuration because Consul watch lifetime, backoff, and ACL
+  scope are application-owned operational choices.
 
 ## Usage
 
@@ -45,6 +51,41 @@ val suspendElector = ConsulSuspendLeaderElector(
 val suspendResult = suspendElector.runIfLeader("daily-report") {
     "executed"
 }
+```
+
+```kotlin
+val groupElector = ConsulLeaderGroupElector(
+    endpoint = ConsulEndpoint("http://localhost:8500"),
+    options = ConsulLeaderGroupElectionOptions(
+        leaderGroupOptions = LeaderGroupElectionOptions(
+            maxLeaders = 3,
+            leaseTime = 10.seconds,
+        ),
+    ),
+)
+
+val groupResult = groupElector.runIfLeader("partition-workers") {
+    "executed"
+}
+```
+
+## Spring Boot
+
+Register a caller-owned `ConsulEndpoint` bean. Auto-configuration then creates
+`ConsulLeaderElector`, `ConsulSuspendLeaderElector`, `ConsulLeaderGroupElector`,
+and `ConsulSuspendLeaderGroupElector` beans.
+
+```yaml
+bluetape4k:
+  leader:
+    lease-time: 10s
+    group:
+      max-leaders: 3
+      lease-time: 10s
+    consul:
+      key-prefix: apps/orders/leader
+      session-name-prefix: orders-leader
+      lock-delay: 0s
 ```
 
 ## Dependency

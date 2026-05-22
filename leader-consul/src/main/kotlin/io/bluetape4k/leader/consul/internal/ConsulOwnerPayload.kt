@@ -26,11 +26,12 @@ internal data class ConsulOwnerPayload(
             append('}')
         }
 
-    fun toLeaderLease(): LeaderLease =
+    fun toLeaderLease(slot: Int? = null): LeaderLease =
         LeaderLease(
             auditLeaderId = auditLeaderId,
             electedAt = electedAt,
             leaseUntil = leaseUntil,
+            slot = slot,
             nodeId = nodeId,
         )
 

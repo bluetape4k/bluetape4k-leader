@@ -11,6 +11,8 @@ internal interface ConsulLockClient {
 
     fun singleLockKey(lockName: String): String
 
+    fun groupLockKey(lockName: String, slot: Int): String
+
     fun createSession(
         name: String,
         ttl: Duration,

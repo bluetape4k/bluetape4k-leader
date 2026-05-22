@@ -27,6 +27,9 @@ internal class JavaHttpConsulLockClient(
     override fun singleLockKey(lockName: String): String =
         paths.single(lockName)
 
+    override fun groupLockKey(lockName: String, slot: Int): String =
+        paths.group(lockName, slot)
+
     override fun createSession(
         name: String,
         ttl: Duration,

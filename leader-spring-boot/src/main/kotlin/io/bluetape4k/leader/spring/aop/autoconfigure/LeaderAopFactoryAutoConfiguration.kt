@@ -8,6 +8,13 @@ import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElectorFactory
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
+import io.bluetape4k.leader.consul.ConsulEndpoint
+import io.bluetape4k.leader.consul.ConsulLeaderElectionOptions
+import io.bluetape4k.leader.consul.ConsulLeaderElectorFactory
+import io.bluetape4k.leader.consul.ConsulLeaderGroupElectionOptions
+import io.bluetape4k.leader.consul.ConsulLeaderGroupElectorFactory
+import io.bluetape4k.leader.consul.ConsulSuspendLeaderElectorFactory
+import io.bluetape4k.leader.consul.ConsulSuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.etcd.EtcdLeaderElectionOptions
 import io.bluetape4k.leader.etcd.EtcdLeaderElectorFactory
 import io.bluetape4k.leader.etcd.EtcdLeaderGroupElectionOptions
@@ -35,6 +42,7 @@ import io.bluetape4k.leader.redisson.RedissonLeaderGroupElectorFactory
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElectorFactory
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.spring.LeaderProperties
+import io.bluetape4k.leader.spring.adapter.PropertiesAdapter
 import io.etcd.jetcd.Client
 import io.lettuce.core.api.StatefulRedisConnection
 import org.aspectj.lang.annotation.Aspect
@@ -53,6 +61,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Role
+import kotlin.time.toKotlinDuration
 
 /**
  * AutoConfig Phase 1 — registers backend factory `@Bean`s (sync + suspend).
@@ -231,6 +240,69 @@ class LeaderAopFactoryAutoConfiguration {
             EtcdSuspendLeaderGroupElectorFactory(
                 client,
                 EtcdLeaderGroupElectionOptions(keyPrefix = props.etcd.keyPrefix),
+            )
+    }
+
+    // ── Consul ──────────────────────────────────────────────────
+
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(ConsulEndpoint::class, ConsulLeaderElectorFactory::class)
+    class ConsulFactoryConfig {
+
+        @Bean(name = ["consulLeaderElectionFactory"])
+        @ConditionalOnBean(ConsulEndpoint::class)
+        @ConditionalOnMissingBean(name = ["consulLeaderElectionFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun consulLeaderElectionFactory(
+            endpoint: ConsulEndpoint,
+            props: LeaderProperties,
+        ): LeaderElectorFactory =
+            ConsulLeaderElectorFactory(endpoint, consulElectionOptions(props))
+
+        @Bean(name = ["consulLeaderGroupElectionFactory"])
+        @ConditionalOnBean(ConsulEndpoint::class)
+        @ConditionalOnMissingBean(name = ["consulLeaderGroupElectionFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun consulLeaderGroupElectionFactory(
+            endpoint: ConsulEndpoint,
+            props: LeaderProperties,
+        ): LeaderGroupElectorFactory =
+            ConsulLeaderGroupElectorFactory(endpoint, consulGroupOptions(props))
+
+        @Bean(name = ["consulSuspendLeaderElectorFactory"])
+        @ConditionalOnBean(ConsulEndpoint::class)
+        @ConditionalOnMissingBean(name = ["consulSuspendLeaderElectorFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun consulSuspendLeaderElectorFactory(
+            endpoint: ConsulEndpoint,
+            props: LeaderProperties,
+        ): SuspendLeaderElectorFactory =
+            ConsulSuspendLeaderElectorFactory(endpoint, consulElectionOptions(props))
+
+        @Bean(name = ["consulSuspendLeaderGroupElectorFactory"])
+        @ConditionalOnBean(ConsulEndpoint::class)
+        @ConditionalOnMissingBean(name = ["consulSuspendLeaderGroupElectorFactory"])
+        @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+        fun consulSuspendLeaderGroupElectorFactory(
+            endpoint: ConsulEndpoint,
+            props: LeaderProperties,
+        ): SuspendLeaderGroupElectorFactory =
+            ConsulSuspendLeaderGroupElectorFactory(endpoint, consulGroupOptions(props))
+
+        private fun consulElectionOptions(props: LeaderProperties): ConsulLeaderElectionOptions =
+            ConsulLeaderElectionOptions(
+                leaderOptions = PropertiesAdapter.toCommonElection(props),
+                keyPrefix = props.consul.keyPrefix,
+                sessionNamePrefix = props.consul.sessionNamePrefix,
+                lockDelay = props.consul.lockDelay.toKotlinDuration(),
+            )
+
+        private fun consulGroupOptions(props: LeaderProperties): ConsulLeaderGroupElectionOptions =
+            ConsulLeaderGroupElectionOptions(
+                leaderGroupOptions = PropertiesAdapter.toCommonGroup(props),
+                keyPrefix = props.consul.keyPrefix,
+                sessionNamePrefix = props.consul.sessionNamePrefix,
+                lockDelay = props.consul.lockDelay.toKotlinDuration(),
             )
     }
 

@@ -230,6 +230,9 @@ class ConsulSuspendLeaderElectorDelegationTest {
         override fun singleLockKey(lockName: String): String =
             "bluetape4k/leader/single/$lockName"
 
+        override fun groupLockKey(lockName: String, slot: Int): String =
+            "bluetape4k/leader/group/$lockName/slot-$slot"
+
         override fun createSession(
             name: String,
             ttl: Duration,
