@@ -31,6 +31,8 @@ internal interface ConsulLockClient {
     fun destroySession(sessionId: ConsulSessionId): CompletableFuture<Unit>
 
     fun renewSession(sessionId: ConsulSessionId): CompletableFuture<ConsulSessionRenewal>
+
+    fun read(key: String): CompletableFuture<ConsulKvEntry?>
 }
 
 @JvmInline
@@ -43,4 +45,12 @@ internal value class ConsulSessionId(val value: String) {
 internal data class ConsulSessionRenewal(
     val sessionId: ConsulSessionId,
     val renewedAt: Instant,
+)
+
+internal data class ConsulKvEntry(
+    val key: String,
+    val value: String?,
+    val sessionId: ConsulSessionId?,
+    val lockIndex: Long,
+    val modifyIndex: Long,
 )

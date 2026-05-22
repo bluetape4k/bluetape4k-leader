@@ -4,10 +4,9 @@
 
 Preview Consul backend for `bluetape4k-leader`.
 
-This module starts with the public endpoint/options contract and the internal
-Consul Session + KV HTTP boundary. The first runtime slice targets single-leader
-blocking and coroutine electors backed by Consul sessions and KV
-`acquire`/`release`.
+This module provides the preview single-leader blocking and `CompletableFuture`
+elector backed by Consul sessions and KV `acquire`/`release`. Coroutine, group,
+Spring Boot, and event-publisher surfaces remain deferred.
 
 ## Behavior / Contract
 
@@ -19,6 +18,21 @@ blocking and coroutine electors backed by Consul sessions and KV
   actions should be idempotent or use an external fencing token when duplicate
   execution is unsafe.
 - Consul endpoint, ACL token, datacenter, and agent lifecycle are caller-owned.
+
+## Usage
+
+```kotlin
+val elector = ConsulLeaderElector(
+    endpoint = ConsulEndpoint("http://localhost:8500"),
+    options = ConsulLeaderElectionOptions(
+        leaderOptions = LeaderElectionOptions(leaseTime = 10.seconds),
+    ),
+)
+
+val result = elector.runIfLeader("daily-report") {
+    "executed"
+}
+```
 
 ## Dependency
 
