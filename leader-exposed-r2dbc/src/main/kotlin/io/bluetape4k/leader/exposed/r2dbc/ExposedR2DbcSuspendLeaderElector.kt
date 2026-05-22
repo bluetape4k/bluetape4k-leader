@@ -106,7 +106,13 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         validateExposedR2dbcLockName(lockName)
 
-        val lock = ExposedR2dbcLock(db, lockName, options.retryStrategy, options.lockOwner)
+        val lock = ExposedR2dbcLock(
+            db = db,
+            lockName = lockName,
+            retryStrategy = options.retryStrategy,
+            lockOwner = options.lockOwner,
+            useDbTime = options.leaderOptions.useDbTime,
+        )
         log.debug { "리더 승격을 요청합니다. lockName=$lockName" }
 
         if (!lock.tryLock(options.leaderOptions.waitTime, options.leaderOptions.leaseTime)) {

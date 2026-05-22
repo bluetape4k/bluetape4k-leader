@@ -21,6 +21,7 @@ class LeaderElectionOptionsTest {
         options.leaseTime shouldBeEqualTo LeaderElectionOptions.DefaultLeaseTime
         options.minLeaseTime shouldBeEqualTo Duration.ZERO
         options.autoExtend shouldBeEqualTo false
+        options.useDbTime shouldBeEqualTo false
     }
 
     @Test
@@ -30,11 +31,13 @@ class LeaderElectionOptionsTest {
             leaseTime = 120.seconds,
             minLeaseTime = 5.seconds,
             autoExtend = true,
+            useDbTime = true,
         )
         options.waitTime shouldBeEqualTo 10.seconds
         options.leaseTime shouldBeEqualTo 120.seconds
         options.minLeaseTime shouldBeEqualTo 5.seconds
         options.autoExtend shouldBeEqualTo true
+        options.useDbTime shouldBeEqualTo true
     }
 
     @Test

@@ -107,7 +107,13 @@ class ExposedJdbcLeaderElector private constructor(
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         validateExposedLockName(lockName)
 
-        val lock = ExposedJdbcLock(db, lockName, options.retryStrategy, options.lockOwner)
+        val lock = ExposedJdbcLock(
+            db = db,
+            lockName = lockName,
+            retryStrategy = options.retryStrategy,
+            lockOwner = options.lockOwner,
+            useDbTime = options.leaderOptions.useDbTime,
+        )
         log.debug { "리더 승격을 요청합니다. lockName=$lockName" }
 
         if (!lock.tryLock(options.leaderOptions.waitTime, options.leaderOptions.leaseTime)) {
@@ -197,7 +203,13 @@ class ExposedJdbcLeaderElector private constructor(
     ): CompletableFuture<T?> {
         validateExposedLockName(lockName)
 
-        val lock = ExposedJdbcLock(db, lockName, options.retryStrategy, options.lockOwner)
+        val lock = ExposedJdbcLock(
+            db = db,
+            lockName = lockName,
+            retryStrategy = options.retryStrategy,
+            lockOwner = options.lockOwner,
+            useDbTime = options.leaderOptions.useDbTime,
+        )
 
         return CompletableFuture
             .supplyAsync({ lock.tryLock(options.leaderOptions.waitTime, options.leaderOptions.leaseTime) }, executor)

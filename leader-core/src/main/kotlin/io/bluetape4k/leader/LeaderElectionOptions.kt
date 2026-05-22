@@ -25,6 +25,8 @@ import kotlin.time.Duration.Companion.seconds
  * @property nodeId node identifier exposed in state queries. Default is a stable JVM-process-level id.
  * @property minLeaseTime minimum time to hold the leader lease even if the action finishes early. Default is 0 seconds.
  * @property autoExtend whether to periodically extend the lease while the action is running. Default is false.
+ * @property useDbTime whether DB-backed implementations should use the database server clock for lease expiry.
+ * Implementations without a database backend ignore this option. Default is false.
  */
 data class LeaderElectionOptions(
     val waitTime: Duration = DefaultWaitTime,
@@ -32,6 +34,7 @@ data class LeaderElectionOptions(
     val nodeId: String = LeaderNodeId.Default,
     val minLeaseTime: Duration = Duration.ZERO,
     val autoExtend: Boolean = false,
+    val useDbTime: Boolean = false,
 ): Serializable {
     init {
         waitTime.requireGe(Duration.ZERO, "waitTime")
