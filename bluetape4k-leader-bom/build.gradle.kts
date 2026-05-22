@@ -19,6 +19,7 @@ dependencies {
         api(project(":bluetape4k-leader-mongodb"))
         api(project(":bluetape4k-leader-hazelcast"))
         api(project(":bluetape4k-leader-zookeeper"))
+        api(project(":bluetape4k-leader-etcd"))
         api(project(":bluetape4k-leader-k8s"))
         api(project(":bluetape4k-leader-spring-boot"))
         api(project(":bluetape4k-leader-ktor"))

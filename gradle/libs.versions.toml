@@ -28,6 +28,7 @@ mongo-driver = "5.7.0"  # https://mvnrepository.com/artifact/org.mongodb/mongodb
 
 hazelcast = "5.7.0"  # https://mvnrepository.com/artifact/com.hazelcast/hazelcast
 curator = "5.9.0"  # https://mvnrepository.com/artifact/org.apache.curator/curator-recipes
+jetcd = "0.8.6"  # https://mvnrepository.com/artifact/io.etcd/jetcd-core
 
 micrometer = "1.16.5"  # https://mvnrepository.com/artifact/io.micrometer/micrometer-bom
 
@@ -109,6 +110,7 @@ kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5" }
 # Kotlinx Coroutines
 kotlinx-coroutines-bom = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-bom", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core" }
+kotlinx-coroutines-jdk8 = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-jdk8" }
 kotlinx-coroutines-reactive = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-reactive" }
 kotlinx-coroutines-reactor = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-reactor" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test" }
@@ -153,6 +155,9 @@ hazelcast = { module = "com.hazelcast:hazelcast", version.ref = "hazelcast" }
 
 # Apache Curator / ZooKeeper
 curator-recipes = { module = "org.apache.curator:curator-recipes", version.ref = "curator" }
+
+# etcd
+jetcd-core = { module = "io.etcd:jetcd-core", version.ref = "jetcd" }
 
 # Micrometer
 micrometer-bom = { module = "io.micrometer:micrometer-bom", version.ref = "micrometer" }
