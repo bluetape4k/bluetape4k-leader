@@ -27,6 +27,8 @@
    - Scope: add singleton Testcontainers wrapper for etcd, endpoint helpers, and
      minimal launch smoke test.
    - Follow the existing `ConsulServer` / `RedisServer` launcher pattern.
+   - Tracking issue: `bluetape4k-projects` #596.
+   - Prerequisite PR: `bluetape4k-projects` #597.
 2. Implement and publish the fixture before merging `leader-etcd`.
    - Verify `./gradlew :bluetape4k-testcontainers:test` or the affected
      testcontainers module command.
