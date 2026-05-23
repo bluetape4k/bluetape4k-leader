@@ -16,6 +16,11 @@ on:
         required: false
         default: false
         type: boolean
+      catalogRef:
+        description: 'bluetape4k-dependencies catalog ref to use during release'
+        required: false
+        default: ''
+        type: string
 
 concurrency:
   group: publish-release
@@ -25,6 +30,7 @@ env:
   JAVA_VERSION: '21'
   JAVA_DISTRIBUTION: 'temurin'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  BLUETAPE4K_DEPENDENCIES_CATALOG_REF: ${{ github.event.inputs.catalogRef || vars.BLUETAPE4K_DEPENDENCIES_CATALOG_REF || 'develop' }}
 
 jobs:
   resolve-version:
