@@ -225,7 +225,7 @@ removed with `HDEL` on release. A `null` or absent `leaderId` skips the write en
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.2.0")
 
 // Redisson must be on the classpath
 implementation("org.redisson:redisson:3.x.x")

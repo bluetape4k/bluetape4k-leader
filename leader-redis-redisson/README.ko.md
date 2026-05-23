@@ -217,7 +217,7 @@ release 시 `HDEL`로 삭제됩니다. `null` 또는 생략된 `leaderId`는 기
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.2.0")
 
 // Redisson이 클래스패스에 있어야 합니다
 implementation("org.redisson:redisson:3.x.x")
