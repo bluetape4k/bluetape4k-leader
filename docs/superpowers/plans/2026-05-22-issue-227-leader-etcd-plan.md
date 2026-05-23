@@ -16,7 +16,7 @@
 - Follow `$bluetape4k-patterns` for Kotlin validation, coroutine cancellation,
   README locale updates, test resources, and final diagnostics/build checks.
 - External research is stored in shared wiki research and indexed by qmd:
-  `~/work/bluetape4k/wiki/research/2026-05-22-issue-227-etcd-official-docs-pullmd.md`.
+  `~/work/bluetape4k/bluetape4k-wiki/research/2026-05-22-issue-227-etcd-official-docs-pullmd.md`.
 - Preferred test fixture is `EtcdServer.Launcher` in `bluetape4k-testcontainers`.
   `bluetape4k-projects` currently does not expose that fixture, so it is a
   prerequisite lane before merging `leader-etcd`.
