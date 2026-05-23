@@ -10,6 +10,15 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 
 /**
  * Virtual-thread adapter for [DynamoDbLeaderGroupElector].
+ *
+ * ## Behavior / Contract
+ * Runs blocking DynamoDB group-leadership work in virtual threads and returns [VirtualFuture] handles.
+ * The delegate keeps the same null-on-skip contract: results are `null` when no group slot is acquired.
+ *
+ * ```kotlin
+ * val elector = DynamoDbVirtualThreadLeaderGroupElector(DynamoDbLeaderGroupElector(dynamoDb))
+ * val future = elector.runAsyncIfLeader("partition-worker") { processPartition() }
+ * ```
  */
 class DynamoDbVirtualThreadLeaderGroupElector(
     private val delegate: DynamoDbLeaderGroupElector,
@@ -42,9 +51,23 @@ class DynamoDbVirtualThreadLeaderGroupElector(
     ): VirtualFuture<LeaderRunResult<T>> =
         virtualFuture {
             delegate.runIfLeaderResult(slot, action)
-        }
+    }
 }
 
+/**
+ * Runs a blocking action in a virtual thread while this DynamoDB client owns one group slot.
+ *
+ * ## Behavior / Contract
+ * Returns a [VirtualFuture] that completes with the action result when a group slot is acquired.
+ * The future completes with `null` when all slots are occupied or acquisition times out according to
+ * [options].
+ *
+ * ```kotlin
+ * val future = dynamoDb.runVirtualIfLeaderGroup("partition-worker") {
+ *     processPartition()
+ * }
+ * ```
+ */
 fun <T> DynamoDbClient.runVirtualIfLeaderGroup(
     lockName: String,
     options: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,
