@@ -55,8 +55,8 @@ fixture.
 - qmd first-pass retrieval found the prior etcd research note and the existing
   backend design style from `leader-k8s`.
 - PullMD service research is saved under:
-  - `~/work/bluetape4k/wiki/research/2026-05-22-issue-227-leader-etcd-pullmd.md`
-  - `~/work/bluetape4k/wiki/research/2026-05-22-issue-227-etcd-official-docs-pullmd.md`
+  - `~/work/bluetape4k/bluetape4k-wiki/research/2026-05-22-issue-227-leader-etcd-pullmd.md`
+  - `~/work/bluetape4k/bluetape4k-wiki/research/2026-05-22-issue-227-etcd-official-docs-pullmd.md`
 - qmd verification:
   `qmd search "jetcd LeaseGrant Lock service" -c bluetape4k-wiki --files --all`
   returns the official-docs PullMD artifact.
@@ -448,6 +448,6 @@ Convergence: `P0 = 0`, `P1 = 0`.
 | Feature worktree used | Done | `.worktrees/feat-issue-227-leader-etcd-design` on `feat/issue-227-leader-etcd-design`. |
 | Target repository confirmed | Done | `bluetape4k-leader`, GitHub issue #227. |
 | qmd queried before filesystem search | Done | `bluetape4k-wiki` and `bluetape4k-docs` queried. |
-| PullMD research stored in shared wiki path | Done | `~/work/bluetape4k/wiki/research/`. |
+| PullMD research stored in shared wiki path | Done | `~/work/bluetape4k/bluetape4k-wiki/research/`. |
 | Official docs / source evidence checked | Done | etcd v3.6 docs, jetcd README, Maven metadata, jetcd source jar. |
 | User intent clear | Done | Continue existing #227 work. |
