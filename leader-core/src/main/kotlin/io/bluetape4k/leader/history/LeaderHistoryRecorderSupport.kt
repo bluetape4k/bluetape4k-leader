@@ -1,6 +1,6 @@
 package io.bluetape4k.leader.history
 
-import io.bluetape4k.leader.internal.truncateUtf8
+import io.bluetape4k.support.truncateUtf8
 
 private const val MAX_METADATA_KEY_LENGTH = 64
 
