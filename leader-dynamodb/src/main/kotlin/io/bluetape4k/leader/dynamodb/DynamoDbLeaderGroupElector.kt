@@ -178,12 +178,39 @@ class DynamoDbLeaderGroupElector(
     }
 }
 
+/**
+ * Runs a blocking action while this DynamoDB client owns one leader-group slot.
+ *
+ * ## Behavior / Contract
+ * Returns the action result when a group slot is acquired. Returns `null` when all slots are occupied
+ * or acquisition times out according to [options].
+ *
+ * ```kotlin
+ * val result = dynamoDb.runIfLeaderGroup("partition-worker") {
+ *     processPartition()
+ * }
+ * ```
+ */
 fun <T> DynamoDbClient.runIfLeaderGroup(
     lockName: String,
     options: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,
     action: () -> T,
 ): T? = DynamoDbLeaderGroupElector(this, options).runIfLeader(lockName, action)
 
+/**
+ * Runs an asynchronous action while this DynamoDB client owns one leader-group slot.
+ *
+ * ## Behavior / Contract
+ * Returns a [CompletableFuture] that completes with the action result when a group slot is acquired.
+ * The future completes with `null` when all slots are occupied or acquisition times out according to
+ * [options].
+ *
+ * ```kotlin
+ * val future = dynamoDb.runAsyncIfLeaderGroup("partition-worker") {
+ *     CompletableFuture.supplyAsync { processPartition() }
+ * }
+ * ```
+ */
 fun <T> DynamoDbClient.runAsyncIfLeaderGroup(
     lockName: String,
     executor: Executor = VirtualThreadExecutor,

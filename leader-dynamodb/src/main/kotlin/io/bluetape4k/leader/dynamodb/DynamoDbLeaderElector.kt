@@ -157,12 +157,39 @@ class DynamoDbLeaderElector(
     }
 }
 
+/**
+ * Runs a blocking action only while this DynamoDB client holds leadership.
+ *
+ * ## Behavior / Contract
+ * Returns the action result when leadership is acquired. Returns `null` when another node holds the lock
+ * or acquisition times out according to [options].
+ *
+ * ```kotlin
+ * val result = dynamoDb.runIfLeader("nightly-job") {
+ *     rebuildIndex()
+ * }
+ * ```
+ */
 fun <T> DynamoDbClient.runIfLeader(
     lockName: String,
     options: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
     action: () -> T,
 ): T? = DynamoDbLeaderElector(this, options).runIfLeader(lockName, action)
 
+/**
+ * Runs an asynchronous action only while this DynamoDB client holds leadership.
+ *
+ * ## Behavior / Contract
+ * Returns a [CompletableFuture] that completes with the action result when leadership is acquired.
+ * The future completes with `null` when another node holds the lock or acquisition times out according
+ * to [options].
+ *
+ * ```kotlin
+ * val future = dynamoDb.runAsyncIfLeader("nightly-job") {
+ *     CompletableFuture.supplyAsync { rebuildIndex() }
+ * }
+ * ```
+ */
 fun <T> DynamoDbClient.runAsyncIfLeader(
     lockName: String,
     executor: Executor = VirtualThreadExecutor,
