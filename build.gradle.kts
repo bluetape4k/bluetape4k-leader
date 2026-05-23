@@ -31,6 +31,16 @@ plugins {
 }
 
 val rootLibs = libs
+val rootBt4k = bt4k
+
+val bt4kCatalog = extensions.getByType<org.gradle.api.artifacts.VersionCatalogsExtension>().named("bt4k")
+fun bt4kVersion(alias: String): String {
+    val version = bt4kCatalog.findVersion(alias).get()
+    return version.requiredVersion
+        .ifBlank { version.preferredVersion }
+        .ifBlank { version.strictVersion }
+}
+
 
 val centralPublishing = resolveCentralPublishingConfig()
 val centralUser: String = centralPublishing.username
@@ -248,6 +258,15 @@ subprojects {
             mavenBom(rootLibs.micrometer.bom.get().toString())
             mavenBom(rootLibs.testcontainers.bom.get().toString())
             mavenBom(rootLibs.aws2.bom.get().toString())
+        }
+    
+        dependencies {
+            dependency("com.hazelcast:hazelcast:${bt4kVersion("hazelcast")}")
+            dependency("com.mysql:mysql-connector-j:${bt4kVersion("mysql-connector-j")}")
+            dependency("org.postgresql:postgresql:${bt4kVersion("postgresql")}")
+            dependency("io.r2dbc:r2dbc-h2:${bt4kVersion("r2dbc-h2")}")
+            dependency("org.redisson:redisson:${bt4kVersion("redisson")}")
+            dependency("org.slf4j:slf4j-api:${bt4kVersion("slf4j")}")
         }
     }
 

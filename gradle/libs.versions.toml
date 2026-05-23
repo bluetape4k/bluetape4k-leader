@@ -19,14 +19,12 @@ caffeine = "3.2.4"  # https://mvnrepository.com/artifact/com.github.ben-manes.ca
 aspectjweaver = "1.9.25.1"  # https://mvnrepository.com/artifact/org.aspectj/aspectjweaver
 
 lettuce = "6.8.2.RELEASE"  # https://mvnrepository.com/artifact/io.lettuce/lettuce-core
-redisson = "4.4.0"  # https://mvnrepository.com/artifact/org.redisson/redisson
 bucket4j = "8.18.0"  # https://mvnrepository.com/artifact/com.bucket4j/bucket4j_jdk17-core
 
 exposed = "1.3.0"  # https://mvnrepository.com/artifact/org.jetbrains.exposed/exposed-core
 
 mongo-driver = "5.7.0"  # https://mvnrepository.com/artifact/org.mongodb/mongodb-driver-sync
 
-hazelcast = "5.7.0"  # https://mvnrepository.com/artifact/com.hazelcast/hazelcast
 curator = "5.9.0"  # https://mvnrepository.com/artifact/org.apache.curator/curator-recipes
 jetcd = "0.8.6"  # https://mvnrepository.com/artifact/io.etcd/jetcd-core
 aws2 = "2.44.9"  # https://mvnrepository.com/artifact/software.amazon.awssdk/bom
@@ -46,12 +44,9 @@ testcontainers = "2.0.5"  # https://mvnrepository.com/artifact/org.testcontainer
 fabric8-kubernetes-client = "7.6.1"  # https://mvnrepository.com/artifact/io.fabric8/kubernetes-client
 
 hikaricp = "7.0.2"                  # https://mvnrepository.com/artifact/com.zaxxer/HikariCP
-postgresql = "42.7.11"              # https://mvnrepository.com/artifact/org.postgresql/postgresql
 r2dbc-postgresql = "1.1.1.RELEASE"  # https://mvnrepository.com/artifact/org.postgresql/r2dbc-postgresql
-r2dbc-h2 = "1.1.0.RELEASE"          # https://mvnrepository.com/artifact/io.r2dbc/r2dbc-h2/versions
 r2dbc-mysql = "1.4.2"               # https://mvnrepository.com/artifact/io.asyncer/r2dbc-mysql
 h2-v2 = "2.4.240"               # https://mvnrepository.com/artifact/com.h2database/h2
-mysql-connector-j = "9.7.0"      # https://mvnrepository.com/artifact/com.mysql/mysql-connector-j
 
 # Plugin versions
 detekt = "1.23.8"  # https://mvnrepository.com/artifact/io.gitlab.arturbosch.detekt/detekt-gradle-plugin
@@ -123,7 +118,7 @@ kotlinx-benchmark-runtime-jvm = { module = "org.jetbrains.kotlinx:kotlinx-benchm
 jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
 
 # Logging
-slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+slf4j-api = { module = "org.slf4j:slf4j-api" }  # version from bt4k catalog
 jcl-over-slf4j = { module = "org.slf4j:jcl-over-slf4j", version.ref = "slf4j" }
 jul-to-slf4j = { module = "org.slf4j:jul-to-slf4j", version.ref = "slf4j" }
 log4j-over-slf4j = { module = "org.slf4j:log4j-over-slf4j", version.ref = "slf4j" }
@@ -137,7 +132,7 @@ bucket4j-jdk17-core = { module = "com.bucket4j:bucket4j_jdk17-core", version.ref
 bucket4j-jdk17-lettuce = { module = "com.bucket4j:bucket4j_jdk17-lettuce", version.ref = "bucket4j" }
 
 # Redis — Redisson
-redisson = { module = "org.redisson:redisson", version.ref = "redisson" }
+redisson = { module = "org.redisson:redisson" }  # version from bt4k catalog
 
 # Exposed
 exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
@@ -152,7 +147,7 @@ mongodb-driver-sync = { module = "org.mongodb:mongodb-driver-sync", version.ref 
 mongodb-driver-kotlin-coroutine = { module = "org.mongodb:mongodb-driver-kotlin-coroutine", version.ref = "mongo-driver" }
 
 # Hazelcast
-hazelcast = { module = "com.hazelcast:hazelcast", version.ref = "hazelcast" }
+hazelcast = { module = "com.hazelcast:hazelcast" }  # version from bt4k catalog
 
 # Apache Curator / ZooKeeper
 curator-recipes = { module = "org.apache.curator:curator-recipes", version.ref = "curator" }
@@ -190,13 +185,13 @@ caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "c
 
 # JDBC / Connection Pool
 hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikaricp" }
-postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+postgresql = { module = "org.postgresql:postgresql" }  # version from bt4k catalog
 h2-v2 = { module = "com.h2database:h2", version.ref = "h2-v2" }
-mysql-connector-j = { module = "com.mysql:mysql-connector-j", version.ref = "mysql-connector-j" }
+mysql-connector-j = { module = "com.mysql:mysql-connector-j" }  # version from bt4k catalog
 
 # R2DBC
 r2dbc-postgresql = { module = "org.postgresql:r2dbc-postgresql", version.ref = "r2dbc-postgresql" }
-r2dbc-h2 = { module = "io.r2dbc:r2dbc-h2", version.ref = "r2dbc-h2" }
+r2dbc-h2 = { module = "io.r2dbc:r2dbc-h2" }  # version from bt4k catalog
 r2dbc-mysql = { module = "io.asyncer:r2dbc-mysql", version.ref = "r2dbc-mysql" }
 
 # Test

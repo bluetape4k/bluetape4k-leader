@@ -9,6 +9,20 @@ pluginManagement {
     }
 }
 
+val bluetape4kDependenciesVersion = providers.gradleProperty("bluetape4kDependenciesVersion").get()
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        maven("https://central.sonatype.com/repository/maven-snapshots/")
+    }
+    versionCatalogs {
+        create("bt4k") {
+            from("io.github.bluetape4k:bluetape4k-version-catalog:$bluetape4kDependenciesVersion")
+        }
+    }
+}
+
 rootProject.name = "bluetape4k-leader"
 
 include(
