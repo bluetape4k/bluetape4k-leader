@@ -1,6 +1,6 @@
 package io.bluetape4k.leader.history
 
-import io.bluetape4k.leader.internal.truncateUtf8
+import io.bluetape4k.support.truncateUtf8
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
