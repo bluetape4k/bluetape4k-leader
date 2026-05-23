@@ -103,30 +103,30 @@ Run any example with `./gradlew :examples:<name>:run` (Docker required for Testc
 
 ```kotlin
 // Redis (Redisson or Lettuce)
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.2.0")
 // or
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:0.2.0")
 
 // JDBC (H2 / PostgreSQL / MySQL via Exposed)
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-jdbc:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-jdbc:0.2.0")
 
 // R2DBC coroutine-native (H2 / PostgreSQL / MySQL via Exposed)
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc:0.2.0")
 
 // ZooKeeper / Apache Curator
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-zookeeper:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-zookeeper:0.2.0")
 
 // etcd v3 / jetcd
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-etcd:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-etcd:0.2.0")
 
 // Consul Session + KV
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-consul:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-consul:0.2.0")
 
 // AWS DynamoDB
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-dynamodb:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-dynamodb:0.2.0")
 
 // Ktor 3.x integration (LeaderElectionPlugin + leaderScheduled())
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor:0.2.0")
 ```
 
 ### Exposed JDBC (H2 / PostgreSQL / MySQL)
@@ -594,8 +594,8 @@ When using Spring Boot AOP (`@LeaderElection`), add `leader-micrometer` to expos
 ### Dependency
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.1.0-SNAPSHOT")
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.2.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.2.0")
 ```
 
 `MicrometerLeaderAopMetricsRecorder` is auto-registered when a `MeterRegistry` bean is present. Disable with:

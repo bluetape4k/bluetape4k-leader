@@ -24,13 +24,13 @@ AOP 계층은 Freefair post-compile weaving을 통한 AspectJ compile-time weavi
 ## 의존성
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.2.0")
 
 // backend 모듈을 하나 이상 추가합니다.
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.2.0")
 
 // 선택: Micrometer/Actuator 연동.
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.2.0")
 implementation("org.springframework.boot:spring-boot-starter-actuator")
 ```
 

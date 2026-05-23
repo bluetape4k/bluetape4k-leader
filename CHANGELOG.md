@@ -11,6 +11,40 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.2.0] — 2026-05-23
+
+### Added
+
+- `leader-k8s` Kubernetes Lease backend with K3s integration coverage. (#335)
+- `leader-etcd` etcd v3 backend with blocking, async, and suspend election paths. (#227)
+- `leader-consul` Consul KV/session backend with blocking and suspend leader election. (#345)
+- `leader-dynamodb` AWS DynamoDB backend for conditional-write based leader election. (#228)
+- Per-lock `StateFlow<LeaderState>` support for coroutine-native state observation. (#222)
+- DB server-time based lock acquisition support for Exposed JDBC/R2DBC backends. (#39)
+- Runnable adoption examples for Kubernetes operator leadership and leader-coordinated rate limiting. (#231, #229)
+- K3s Lease integration example coverage. (#248)
+
+### Changed
+
+- Replaced internal `runBlocking` bridge delegates with a pure-suspend `ExtendDelegate` contract. (#271)
+- Updated `bluetape4k-exposed` test helper references to `1.9.0`.
+- Updated public README dependency snippets to the `0.2.0` release coordinate.
+
+### Fixed
+
+- Reworked Exposed JDBC cancellation handling to rethrow `CancellationException` instead of swallowing it through `runCatching`. (#304)
+- Replaced wall-clock wait deadlines with monotonic timeout budgets in Exposed JDBC, MongoDB, and Lettuce acquisition loops. (#305, #306, #308, #309)
+- Fixed Kubernetes Lease annotation conversion to avoid mutating the original Lease instance in-place. (#347)
+- Added missing Kubernetes Lease suspend elector K3s scenarios. (#349)
+- Synchronized Korean README content with observability and Ktor management route documentation. (#287)
+- Expanded Ktor management registry KDoc and translated WebhookPoller public documentation/comments to English. (#288, #348)
+
+### Removed
+
+- Removed all APIs deprecated before the 0.1.0 GA line. (#269)
+
+---
+
 ## [0.1.0] — 2026-05-16
 
 First public release of `bluetape4k-leader`. All APIs are stable unless noted as experimental.
@@ -234,5 +268,6 @@ The following deprecated APIs were removed before 0.1.0 GA (#264):
 
 ---
 
-[Unreleased]: https://github.com/bluetape4k/bluetape4k-leader/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/bluetape4k/bluetape4k-leader/releases/tag/v0.1.0
+[Unreleased]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.2.0...HEAD
+[0.2.0]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.1.0...0.2.0
+[0.1.0]: https://github.com/bluetape4k/bluetape4k-leader/releases/tag/0.1.0

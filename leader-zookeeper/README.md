@@ -39,7 +39,7 @@ ZooKeeper session expiry removes ephemeral recipe nodes, so locks are released w
 ### Gradle
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-zookeeper:0.1.0-SNAPSHOT")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-zookeeper:0.2.0")
 ```
 
 ### Setup
