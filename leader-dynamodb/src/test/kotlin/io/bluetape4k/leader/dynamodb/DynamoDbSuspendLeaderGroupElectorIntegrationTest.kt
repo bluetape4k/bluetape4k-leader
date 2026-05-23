@@ -10,6 +10,8 @@ import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -68,6 +70,27 @@ class DynamoDbSuspendLeaderGroupElectorIntegrationTest : AbstractDynamoDbLeaderT
 
         release.complete(Unit)
         setOf(holderA.await(), holderB.await()) shouldBeEqualTo setOf("holder-a", "holder-b")
+    }
+
+    @Test
+    fun `cancellation releases group slot for next suspend attempt`() = runSuspendIO {
+        val elector = newElector(
+            groupOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 100.milliseconds, leaseTime = 5.seconds),
+        )
+        val lockName = randomName()
+
+        val started = CompletableDeferred<Unit>()
+        val holder = async {
+            elector.runIfLeader(lockName) {
+                started.complete(Unit)
+                delay(10.seconds)
+            }
+        }
+        started.await()
+        holder.cancelAndJoin()
+
+        elector.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+        elector.availableSlots(lockName) shouldBeEqualTo 1
     }
 
     @Test

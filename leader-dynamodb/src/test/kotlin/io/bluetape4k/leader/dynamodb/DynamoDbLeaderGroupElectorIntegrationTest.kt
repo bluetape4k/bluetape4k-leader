@@ -1,67 +1,52 @@
 package io.bluetape4k.leader.dynamodb
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import org.junit.jupiter.api.Test
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.max
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class DynamoDbLeaderGroupElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
 
     @Test
-    fun `runIfLeader allows max leaders and skips next contender`() {
-        val keyPrefix = keyPrefix()
-        val holder = newElector(
-            keyPrefix = keyPrefix,
+    fun `runIfLeader never exceeds max leaders under contention`() {
+        val elector = newElector(
             groupOptions = LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 1.seconds, leaseTime = 5.seconds),
         )
-        val contender = newElector(
-            keyPrefix = keyPrefix,
-            groupOptions = LeaderGroupElectionOptions(maxLeaders = 2, waitTime = 150.milliseconds, leaseTime = 5.seconds),
-        )
         val lockName = randomName()
-        val started = CountDownLatch(2)
-        val release = CountDownLatch(1)
-        val executor = Executors.newFixedThreadPool(2)
+        val active = AtomicInteger(0)
+        val peak = AtomicInteger(0)
+        val elected = AtomicInteger(0)
 
-        try {
-            val first = executor.submit<String?> {
-                holder.runIfLeader(lockName) {
+        MultithreadingTester()
+            .workers(8)
+            .rounds(2)
+            .add {
+                elector.runIfLeader(lockName) {
                     LockAssert.assertLocked(lockName)
-                    started.countDown()
-                    release.await(5, TimeUnit.SECONDS)
-                    "first"
+                    val current = active.incrementAndGet()
+                    peak.updateAndGet { max(it, current) }
+                    Thread.sleep(25)
+                    elected.incrementAndGet()
+                    active.decrementAndGet()
                 }
             }
-            val second = executor.submit<String?> {
-                holder.runIfLeader(lockName) {
-                    LockAssert.assertLocked(lockName)
-                    started.countDown()
-                    release.await(5, TimeUnit.SECONDS)
-                    "second"
-                }
-            }
+            .run()
 
-            started.await(5, TimeUnit.SECONDS).shouldBeTrue()
-            holder.activeCount(lockName) shouldBeEqualTo 2
-            holder.availableSlots(lockName) shouldBeEqualTo 0
-            contender.runIfLeader(lockName) { "third" }.shouldBeNull()
-
-            release.countDown()
-            setOf(first.get(5, TimeUnit.SECONDS), second.get(5, TimeUnit.SECONDS)) shouldBeEqualTo setOf("first", "second")
-        } finally {
-            release.countDown()
-            executor.shutdownNow()
-        }
+        peak.get() shouldBeLessOrEqualTo 2
+        elected.get() shouldBeGreaterOrEqualTo 2
+        elector.activeCount(lockName) shouldBeEqualTo 0
+        elector.availableSlots(lockName) shouldBeEqualTo 2
     }
 
     @Test
