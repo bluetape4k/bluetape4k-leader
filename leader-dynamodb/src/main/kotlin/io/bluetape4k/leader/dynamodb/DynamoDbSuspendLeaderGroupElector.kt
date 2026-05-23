@@ -136,10 +136,12 @@ class DynamoDbSuspendLeaderGroupElector(
                         log.warn(e) { "DynamoDB suspend group watchdog close failed. lockName=$lockName, slot=$slot" }
                     }
                 withContext(NonCancellable) {
-                    runCatching {
+                    try {
                         lockClient.releaseAsync(lock, options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
                             .awaitWithoutCancellingFuture { }
-                    }.onFailure { e ->
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
                         log.warn(e) { "DynamoDB suspend group slot release failed. lockName=$lockName, slot=$slot" }
                     }
                 }

@@ -119,10 +119,14 @@ class DynamoDbSuspendLeaderElector(
             runCatching { watchdog.close() }
                 .onFailure { e -> log.warn(e) { "DynamoDB suspend leader watchdog close failed. lockName=$lockName" } }
             withContext(NonCancellable) {
-                runCatching {
+                try {
                     lockClient.releaseAsync(lock, options.leaderOptions.minLeaseTime, acquiredAtNanos)
                         .awaitWithoutCancellingFuture { }
-                }.onFailure { e -> log.warn(e) { "DynamoDB suspend leader release failed. lockName=$lockName" } }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    log.warn(e) { "DynamoDB suspend leader release failed. lockName=$lockName" }
+                }
             }
         }
     }
