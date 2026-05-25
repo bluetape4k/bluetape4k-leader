@@ -11,6 +11,35 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.2.2] — 2026-05-25
+
+### Added
+
+- Expanded DynamoDB leader election edge-case coverage. (#366, PR #368)
+- Added preview backend state snapshot contract coverage for Consul, DynamoDB, and etcd. (#374, PR #381)
+- Added KDoc for DynamoDB leader factory classes and extension functions. (#365, PR #369)
+
+### Changed
+
+- Updated public README dependency snippets to the `0.2.2` release coordinate. (#375)
+- Made the preview backend release gate explicit for Consul, DynamoDB Local, etcd, and Kubernetes Lease; K3s runtime coverage remains in Nightly full. (#376, PR #382)
+- Shared the DynamoDB Local test launcher through `bluetape4k-testcontainers` to remove duplicated container wiring. (#367, PR #370)
+
+### Fixed
+
+- Bound Consul blocking wait and acquire cleanup paths to the configured request timeout budget. (#372, PR #379)
+- Bound etcd cleanup waits to configured timeout budgets. (#373, PR #380)
+
+---
+
+## [0.2.1] — 2026-05-23
+
+### Changed
+
+- Updated the release line to use the `bluetape4k-exposed` `1.9.1` release.
+
+---
+
 ## [0.2.0] — 2026-05-23
 
 ### Added
@@ -268,6 +297,8 @@ The following deprecated APIs were removed before 0.1.0 GA (#264):
 
 ---
 
-[Unreleased]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.2.0...HEAD
+[Unreleased]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.2.2...HEAD
+[0.2.2]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.2.1...0.2.2
+[0.2.1]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.2.0...0.2.1
 [0.2.0]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/bluetape4k/bluetape4k-leader/releases/tag/0.1.0

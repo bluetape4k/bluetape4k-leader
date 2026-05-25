@@ -205,7 +205,7 @@ MongoSuspendLeaderGroupElector(
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-mongodb:0.2.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-mongodb:0.2.2")
 
 // MongoDB 드라이버를 클래스패스에 추가해야 합니다
 implementation("org.mongodb:mongodb-driver-sync:5.x.x")

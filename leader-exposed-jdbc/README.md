@@ -179,7 +179,7 @@ History is best-effort — recording failures do not affect lock semantics.
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-jdbc:0.2.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-jdbc:0.2.2")
 
 // Exposed + JDBC driver must be on the classpath
 implementation("org.jetbrains.exposed:exposed-jdbc:1.2.0")

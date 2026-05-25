@@ -23,7 +23,7 @@ The module depends only on `leader-core` and Micrometer core. Export format is c
 ## Dependency
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.2.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.2.2")
 
 // Choose the registry in the application.
 implementation("io.micrometer:micrometer-registry-prometheus")
@@ -32,7 +32,7 @@ implementation("io.micrometer:micrometer-registry-prometheus")
 For Spring Boot AOP metrics:
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.2.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.2.2")
 implementation("org.springframework.boot:spring-boot-starter-actuator")
 ```
 
