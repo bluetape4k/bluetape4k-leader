@@ -19,6 +19,7 @@ import io.bluetape4k.leader.consul.internal.ConsulOwnerPayload
 import io.bluetape4k.leader.consul.internal.ConsulSessionId
 import io.bluetape4k.leader.consul.internal.ConsulSessionTtl
 import io.bluetape4k.leader.consul.internal.JavaHttpConsulLockClient
+import io.bluetape4k.leader.consul.internal.getWithinRequestTimeout
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
@@ -29,7 +30,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -241,7 +241,7 @@ class ConsulLeaderGroupElector private constructor(
                 name = "${options.sessionNamePrefix}-${options.leaderGroupOptions.nodeId}",
                 ttl = options.leaderGroupOptions.leaseTime,
                 lockDelay = options.lockDelay,
-            ).get(10, TimeUnit.SECONDS)
+            ).getWithinRequestTimeout(lockClient)
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
             return null
@@ -290,7 +290,7 @@ class ConsulLeaderGroupElector private constructor(
                 for (attempt in 0 until maxLeaders) {
                     val slot = (startSlot + attempt) % maxLeaders
                     val key = lockClient.groupLockKey(lockName, slot)
-                    if (lockClient.acquire(key, sessionId, payloadJson).get(10, TimeUnit.SECONDS)) {
+                    if (lockClient.acquire(key, sessionId, payloadJson).getWithinRequestTimeout(lockClient)) {
                         return slot to key
                     }
                 }
@@ -299,7 +299,7 @@ class ConsulLeaderGroupElector private constructor(
                 }
                 val now = System.nanoTime()
                 if (now - lastRenewNanos >= renewDelayNanos) {
-                    lockClient.renewSession(sessionId).get(10, TimeUnit.SECONDS)
+                    lockClient.renewSession(sessionId).getWithinRequestTimeout(lockClient)
                     lastRenewNanos = now
                 }
                 Thread.sleep(minOf(50.milliseconds.inWholeMilliseconds, remainingMillis(deadline)).coerceAtLeast(1))
@@ -324,7 +324,7 @@ class ConsulLeaderGroupElector private constructor(
             }
         }
 
-        runCatching { lockClient.release(handle.key, handle.sessionId).get(10, TimeUnit.SECONDS) }
+        runCatching { lockClient.release(handle.key, handle.sessionId).getWithinRequestTimeout(lockClient) }
             .onFailure { e -> log.warn(e) { "Failed to release Consul group slot. lockName=${handle.lockName}" } }
         destroySession(handle.sessionId)
     }
@@ -332,7 +332,8 @@ class ConsulLeaderGroupElector private constructor(
     private fun currentLeaders(lockName: String): List<LeaderLease> =
         (0 until maxLeaders).mapNotNull { slot ->
             runCatching {
-                val entry = lockClient.read(lockClient.groupLockKey(lockName, slot)).get(10, TimeUnit.SECONDS) ?: return@runCatching null
+                val entry = lockClient.read(lockClient.groupLockKey(lockName, slot)).getWithinRequestTimeout(lockClient)
+                    ?: return@runCatching null
                 if (entry.sessionId == null) {
                     return@runCatching null
                 }
@@ -354,7 +355,7 @@ class ConsulLeaderGroupElector private constructor(
         }
 
     private fun destroySession(sessionId: ConsulSessionId) {
-        runCatching { lockClient.destroySession(sessionId).get(10, TimeUnit.SECONDS) }
+        runCatching { lockClient.destroySession(sessionId).getWithinRequestTimeout(lockClient) }
             .onFailure { e -> log.warn(e) { "Failed to destroy Consul group session. sessionId=${sessionId.value}" } }
     }
 }

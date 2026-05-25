@@ -8,6 +8,7 @@ import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
@@ -25,6 +26,7 @@ import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -137,6 +139,39 @@ class ConsulSuspendLeaderElectorDelegationTest {
     }
 
     @Test
+    fun `state reads with client request timeout`() {
+        val future = RecordingFuture<ConsulKvEntry?>(null)
+        val client = FakeConsulLockClient(
+            requestTimeout = 123.milliseconds,
+            readFuture = future,
+        )
+        val elector = ConsulSuspendLeaderElector.create(client)
+
+        elector.state("lock-a").isEmpty shouldBeEqualTo true
+
+        future.requestedTimeoutNanos shouldBeEqualTo 123.milliseconds.inWholeNanoseconds
+    }
+
+    @Test
+    fun `group state reads with client request timeout`() {
+        val future = RecordingFuture<ConsulKvEntry?>(null)
+        val client = FakeConsulLockClient(
+            requestTimeout = 77.milliseconds,
+            readFuture = future,
+        )
+        val elector = ConsulSuspendLeaderGroupElector.create(
+            client,
+            ConsulLeaderGroupElectionOptions(
+                leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, leaseTime = 10.seconds),
+            ),
+        )
+
+        elector.state("lock-a").activeCount shouldBeEqualTo 0
+
+        future.requestedTimeoutNanos shouldBeEqualTo 77.milliseconds.inWholeNanoseconds
+    }
+
+    @Test
     fun `extendActiveLockDetailedSuspend returns BackendError when Consul renew fails`() = runSuspendIO {
         val client = FakeConsulLockClient(renewFails = true)
         val elector = ConsulSuspendLeaderElector.create(client)
@@ -214,6 +249,8 @@ class ConsulSuspendLeaderElectorDelegationTest {
         private val acquireResult: Boolean = true,
         private val renewFails: Boolean = false,
         private val entry: ConsulKvEntry? = null,
+        override val requestTimeout: Duration = 5.seconds,
+        private val readFuture: CompletableFuture<ConsulKvEntry?>? = null,
     ) : ConsulLockClient {
 
         var createdSessions: Int = 0
@@ -270,6 +307,18 @@ class ConsulSuspendLeaderElectorDelegationTest {
         }
 
         override fun read(key: String): CompletableFuture<ConsulKvEntry?> =
-            CompletableFuture.completedFuture(entry)
+            readFuture ?: CompletableFuture.completedFuture(entry)
+    }
+
+    private class RecordingFuture<T>(
+        private val value: T,
+    ) : CompletableFuture<T>() {
+        var requestedTimeoutNanos: Long? = null
+            private set
+
+        override fun get(timeout: Long, unit: TimeUnit): T {
+            requestedTimeoutNanos = unit.toNanos(timeout)
+            return value
+        }
     }
 }

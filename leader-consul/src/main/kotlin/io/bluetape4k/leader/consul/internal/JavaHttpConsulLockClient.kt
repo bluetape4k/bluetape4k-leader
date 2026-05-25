@@ -22,6 +22,8 @@ internal class JavaHttpConsulLockClient(
         .build(),
 ) : ConsulLockClient {
 
+    override val requestTimeout: Duration = endpoint.requestTimeout
+
     private val paths = ConsulLeaderPaths(keyPrefix)
 
     override fun singleLockKey(lockName: String): String =
