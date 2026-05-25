@@ -681,7 +681,7 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 14
 
-  # ── leader-dynamodb (Testcontainers: DynamoDB Local) ───────────────────────
+  # ── 0.2.2 preview gate: DynamoDB Local runtime tests ──────────────────────
   test-leader-dynamodb:
     name: Test / leader-dynamodb (DynamoDB Local)
     if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
@@ -729,7 +729,7 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 14
 
-  # ── leader-etcd (Testcontainers: etcd) ────────────────────────────────────
+  # ── 0.2.2 preview gate: etcd Testcontainers runtime tests ────────────────
   test-leader-etcd:
     name: Test / leader-etcd (Testcontainers)
     if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
@@ -777,7 +777,7 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 14
 
-  # ── leader-consul (unit only until runtime slice lands) ───────────────────
+  # ── 0.2.2 preview gate: Consul Testcontainers runtime tests ──────────────
   test-leader-consul:
     name: Test / leader-consul
     runs-on: ubuntu-latest
@@ -801,7 +801,9 @@ jobs:
             [ $attempt -lt 3 ] && sleep 10 || exit 1
           done
         env:
-          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+          DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
         run: ./gradlew :bluetape4k-leader-consul:koverXmlReport --no-daemon
@@ -821,7 +823,7 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 14
 
-  # ── leader-k8s (K3s) ──────────────────────────────────────────────────────
+  # ── 0.2.2 preview gate: Kubernetes Lease K3s runtime tests, full only ────
   test-leader-k8s:
     name: Test / leader-k8s (K3s)
     if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
@@ -1127,6 +1129,7 @@ jobs:
       - test-leader-dynamodb
       - test-leader-etcd
       - test-leader-consul
+      - test-leader-k8s
       - test-hazelcast
       - test-zookeeper
       - test-micrometer
@@ -1178,6 +1181,7 @@ jobs:
       - test-leader-dynamodb
       - test-leader-etcd
       - test-leader-consul
+      - test-leader-k8s
       - test-hazelcast
       - test-zookeeper
       - test-micrometer
