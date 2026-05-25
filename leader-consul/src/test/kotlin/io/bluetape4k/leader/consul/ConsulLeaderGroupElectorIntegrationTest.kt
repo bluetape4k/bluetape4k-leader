@@ -84,6 +84,69 @@ class ConsulLeaderGroupElectorIntegrationTest {
     }
 
     @Test
+    fun `group state snapshot reports empty occupied slot and does not release holder`() {
+        val keyPrefix = keyPrefix()
+        val holder = newElector(
+            keyPrefix = keyPrefix,
+            groupOptions = LeaderGroupElectionOptions(
+                maxLeaders = 1,
+                waitTime = 2.seconds,
+                leaseTime = 10.seconds,
+                nodeId = "consul-group-state-node-a",
+            ),
+        )
+        val contender = newElector(
+            keyPrefix = keyPrefix,
+            groupOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 200.milliseconds, leaseTime = 10.seconds),
+        )
+        val slot = LeaderSlot(lockName = randomName(), leaderId = "consul-group-state-audit-node-a")
+        val empty = holder.state(slot.lockName)
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val executor = Executors.newSingleThreadExecutor()
+
+        empty.lockName shouldBeEqualTo slot.lockName
+        empty.maxLeaders shouldBeEqualTo 1
+        empty.activeCount shouldBeEqualTo 0
+        empty.availableSlots shouldBeEqualTo 1
+        empty.leaders shouldBeEqualTo emptyList()
+
+        try {
+            val holderFuture = executor.submit<String?> {
+                holder.runIfLeader(slot) {
+                    val state = holder.state(slot.lockName)
+                    val lease = state.leaders.single()
+
+                    state.lockName shouldBeEqualTo slot.lockName
+                    state.maxLeaders shouldBeEqualTo 1
+                    state.activeCount shouldBeEqualTo 1
+                    state.availableSlots shouldBeEqualTo 0
+                    lease.auditLeaderId shouldBeEqualTo "consul-group-state-audit-node-a"
+                    lease.nodeId shouldBeEqualTo "consul-group-state-node-a"
+                    lease.slot shouldBeEqualTo 0
+                    lease.leaseUntil.shouldNotBeNull()
+                    started.countDown()
+                    release.await(10, TimeUnit.SECONDS)
+                    "holder"
+                }
+            }
+
+            started.await(10, TimeUnit.SECONDS) shouldBeEqualTo true
+            contender.runIfLeader(slot.lockName) { "contender" }.shouldBeNull()
+            holder.state(slot.lockName).activeCount shouldBeEqualTo 1
+
+            release.countDown()
+            holderFuture.get(10, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+        } finally {
+            release.countDown()
+            executor.shutdownNow()
+        }
+
+        holder.state(slot.lockName).activeCount shouldBeEqualTo 0
+        contender.runIfLeader(slot.lockName) { "takeover" } shouldBeEqualTo "takeover"
+    }
+
+    @Test
     fun `slot leader id is written as group audit identity`() {
         val elector = newElector(
             groupOptions = LeaderGroupElectionOptions(
