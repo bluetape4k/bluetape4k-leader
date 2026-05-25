@@ -13,6 +13,8 @@ import io.bluetape4k.leader.etcd.internal.EtcdLeaseTime
 import io.bluetape4k.leader.etcd.internal.EtcdLockClient
 import io.bluetape4k.leader.etcd.internal.EtcdLockExtendDelegate
 import io.bluetape4k.leader.etcd.internal.JetcdEtcdLockClient
+import io.bluetape4k.leader.etcd.internal.etcdCleanupTimeout
+import io.bluetape4k.leader.etcd.internal.getWithinEtcdCleanupTimeout
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
@@ -35,6 +37,8 @@ class EtcdLeaderElector private constructor(
     private val lockClient: EtcdLockClient,
     val options: EtcdLeaderElectionOptions,
 ) : LeaderElector {
+
+    private val cleanupTimeout = etcdCleanupTimeout(options.leaderOptions.waitTime, options.retryDelay)
 
     companion object: KLogging() {
         internal const val ETCD_FACTORY_BEAN_NAME = "etcd-leader-elector"
@@ -168,7 +172,7 @@ class EtcdLeaderElector private constructor(
     }
 
     private fun unlock(ownershipKey: ByteSequence) {
-        runCatching { lockClient.unlock(ownershipKey).get(10, TimeUnit.SECONDS) }
+        runCatching { lockClient.unlock(ownershipKey).getWithinEtcdCleanupTimeout(cleanupTimeout) }
             .onFailure { e ->
                 if (EtcdBackendErrorClassifier.isExpectedCleanup(e)) {
                     log.debug { "etcd unlock skipped because key is already gone." }
@@ -179,7 +183,7 @@ class EtcdLeaderElector private constructor(
     }
 
     private fun revokeLease(leaseId: Long) {
-        runCatching { lockClient.revokeLease(leaseId).get(10, TimeUnit.SECONDS) }
+        runCatching { lockClient.revokeLease(leaseId).getWithinEtcdCleanupTimeout(cleanupTimeout) }
             .onFailure { e ->
                 if (EtcdBackendErrorClassifier.isExpectedCleanup(e)) {
                     log.debug { "etcd lease revoke skipped because lease is already gone. leaseId=$leaseId" }
