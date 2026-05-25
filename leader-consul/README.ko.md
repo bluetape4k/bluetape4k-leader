@@ -87,6 +87,42 @@ bluetape4k:
       lock-delay: 0s
 ```
 
+## Configuration
+
+### `ConsulEndpoint`
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `baseUrl` | `URI` | — | Consul HTTP API base URL, 예: `http://localhost:8500` |
+| `datacenter` | `String?` | `null` | 선택적 target datacenter |
+| `aclToken` | `String?` | `null` | 모든 요청에 전송되는 선택적 ACL token |
+| `requestTimeout` | `Duration` | `5.seconds` | 요청당 HTTP 타임아웃. lock acquire, 상태 읽기, session 갱신, lock 해제, session 삭제 등 모든 blocking wait 을 제어합니다. |
+
+### `ConsulLeaderElectionOptions`
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `leaderOptions.waitTime` | `Duration` | `5.seconds` | lock 획득 최대 시간 예산 |
+| `leaderOptions.leaseTime` | `Duration` | `60.seconds` | Consul Session TTL. `[10.seconds, 86_400.seconds]` 범위 필수. |
+| `leaderOptions.nodeId` | `String` | 프로세스 기본값 | core 계약과 공유되는 감사 노드 ID |
+| `leaderOptions.minLeaseTime` | `Duration` | `0.seconds` | 빠른 action 이후 최소 리더십 유지 시간 |
+| `leaderOptions.autoExtend` | `Boolean` | `false` | action 실행 중 Consul session 자동 갱신 여부 |
+| `keyPrefix` | `String` | `bluetape4k/leader` | Consul KV key prefix |
+| `sessionNamePrefix` | `String` | `bluetape4k-leader` | 생성되는 Consul session 이름 prefix |
+| `lockDelay` | `Duration` | `0.seconds` | Consul session lock delay. 0이면 TTL 만료 후 즉시 재획득 가능. 중복 실행이 안전하지 않은 경우 idempotent action 또는 외부 fencing token 을 사용하세요. |
+
+### `ConsulLeaderGroupElectionOptions`
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `leaderGroupOptions.maxLeaders` | `Int` | `2` | 동시 group leader 최대 수 |
+| `leaderGroupOptions.waitTime` | `Duration` | `5.seconds` | group slot 획득 최대 시간 예산 |
+| `leaderGroupOptions.leaseTime` | `Duration` | `60.seconds` | group slot 용 Consul Session TTL. `[10.seconds, 86_400.seconds]` 범위 필수. |
+| `leaderGroupOptions.minLeaseTime` | `Duration` | `0.seconds` | 빠른 action 이후 최소 group-slot 유지 시간 |
+| `keyPrefix` | `String` | `bluetape4k/leader` | group lock key 용 Consul KV key prefix |
+| `sessionNamePrefix` | `String` | `bluetape4k-leader` | 생성되는 Consul session 이름 prefix |
+| `lockDelay` | `Duration` | `0.seconds` | `ConsulLeaderElectionOptions.lockDelay` 참조 |
+
 ## Dependency
 
 ```kotlin
