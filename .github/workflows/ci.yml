@@ -1232,7 +1232,7 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 7
 
-  # ── leader-dynamodb 테스트 (Testcontainers: DynamoDB Local) ────────────────
+  # ── 0.2.2 preview gate: DynamoDB Local runtime tests ──────────────────────
   test-leader-dynamodb:
     name: Test / leader-dynamodb
     runs-on: ubuntu-latest
@@ -1279,7 +1279,7 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 7
 
-  # ── leader-etcd 테스트 (Testcontainers: etcd) ───────────────────────────
+  # ── 0.2.2 preview gate: etcd Testcontainers runtime tests ────────────────
   test-leader-etcd:
     name: Test / leader-etcd
     runs-on: ubuntu-latest
@@ -1326,7 +1326,7 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 7
 
-  # ── leader-consul 테스트 (unit only; ConsulServer runtime slice follows) ──
+  # ── 0.2.2 preview gate: Consul Testcontainers runtime tests ──────────────
   test-leader-consul:
     name: Test / leader-consul
     runs-on: ubuntu-latest
@@ -1351,7 +1351,9 @@ jobs:
             [ $attempt -lt 3 ] && sleep 10 || exit 1
           done
         env:
-          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+          DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
         run: ./gradlew :bluetape4k-leader-consul:koverXmlReport --no-daemon
@@ -1371,7 +1373,7 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 7
 
-  # ── leader-k8s 테스트 (unit only; K3s runs in Nightly full) ─────────────
+  # ── 0.2.2 preview gate: unit slice only; K3s runtime runs in Nightly full ─
   test-leader-k8s:
     name: Test / leader-k8s
     runs-on: ubuntu-latest
