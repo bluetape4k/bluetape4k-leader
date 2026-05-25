@@ -3,6 +3,7 @@ package io.bluetape4k.leader.etcd
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeEqualTo
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
@@ -70,6 +71,74 @@ class EtcdLeaderGroupElectorIntegrationTest: AbstractEtcdLeaderTest() {
                 release.countDown()
                 executor.shutdownNow()
             }
+        }
+    }
+
+    @Test
+    fun `group state snapshot reports empty occupied backend token and does not release holder`() {
+        newClient().use { client ->
+            val keyPrefix = "/bluetape4k/leader/test/${randomName()}"
+            val holder = EtcdLeaderGroupElector(
+                client,
+                EtcdLeaderGroupElectionOptions(
+                    leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 2.seconds, leaseTime = 10.seconds),
+                    keyPrefix = keyPrefix,
+                ),
+            )
+            val contender = EtcdLeaderGroupElector(
+                client,
+                EtcdLeaderGroupElectionOptions(
+                    leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 250.milliseconds, leaseTime = 10.seconds),
+                    keyPrefix = keyPrefix,
+                ),
+            )
+            val slot = LeaderSlot(randomName(), "etcd-group-state-audit-node-a")
+            val empty = holder.state(slot.lockName)
+            val started = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            val executor = Executors.newSingleThreadExecutor()
+
+            empty.lockName shouldBeEqualTo slot.lockName
+            empty.maxLeaders shouldBeEqualTo 1
+            empty.activeCount shouldBeEqualTo 0
+            empty.availableSlots shouldBeEqualTo 1
+            empty.leaders shouldBeEqualTo emptyList()
+
+            try {
+                val holderFuture = executor.submit<String?> {
+                    holder.runIfLeader(slot) {
+                        val state = holder.state(slot.lockName)
+                        val lease = state.leaders.single()
+
+                        state.lockName shouldBeEqualTo slot.lockName
+                        state.maxLeaders shouldBeEqualTo 1
+                        state.activeCount shouldBeEqualTo 1
+                        state.availableSlots shouldBeEqualTo 0
+                        lease.auditLeaderId.isNotBlank() shouldBeEqualTo true
+                        lease.auditLeaderId shouldNotBeEqualTo "etcd-group-state-audit-node-a"
+                        // etcd group state exposes backend ownership metadata, not the caller's audit identity.
+                        lease.nodeId shouldBeEqualTo null
+                        lease.slot shouldBeEqualTo 0
+                        lease.leaseUntil shouldBeEqualTo null
+                        started.countDown()
+                        release.await(10, TimeUnit.SECONDS)
+                        "holder"
+                    }
+                }
+
+                started.await(10, TimeUnit.SECONDS) shouldBeEqualTo true
+                contender.runIfLeader(slot.lockName) { "contender" }.shouldBeNull()
+                holder.state(slot.lockName).activeCount shouldBeEqualTo 1
+
+                release.countDown()
+                holderFuture.get(10, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+            } finally {
+                release.countDown()
+                executor.shutdownNow()
+            }
+
+            holder.state(slot.lockName).activeCount shouldBeEqualTo 0
+            contender.runIfLeader(slot.lockName) { "takeover" } shouldBeEqualTo "takeover"
         }
     }
 

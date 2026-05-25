@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
@@ -11,6 +12,9 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.time.Duration.Companion.milliseconds
@@ -62,6 +66,69 @@ class DynamoDbLeaderGroupElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
 
         elector.state(lockName).activeCount shouldBeEqualTo 0
         elector.runIfLeader(lockName) { "second" } shouldBeEqualTo "second"
+    }
+
+    @Test
+    fun `group state snapshot reports empty occupied slot and does not release holder`() {
+        val keyPrefix = keyPrefix()
+        val holder = newElector(
+            keyPrefix = keyPrefix,
+            groupOptions = LeaderGroupElectionOptions(
+                maxLeaders = 1,
+                waitTime = 1.seconds,
+                leaseTime = 10.seconds,
+                nodeId = "dynamodb-group-state-node-a",
+            ),
+        )
+        val contender = newElector(
+            keyPrefix = keyPrefix,
+            groupOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 150.milliseconds, leaseTime = 10.seconds),
+        )
+        val slot = LeaderSlot(lockName = randomName(), leaderId = "dynamodb-group-state-audit-node-a")
+        val empty = holder.state(slot.lockName)
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val executor = Executors.newSingleThreadExecutor()
+
+        empty.lockName shouldBeEqualTo slot.lockName
+        empty.maxLeaders shouldBeEqualTo 1
+        empty.activeCount shouldBeEqualTo 0
+        empty.availableSlots shouldBeEqualTo 1
+        empty.leaders shouldBeEqualTo emptyList()
+
+        try {
+            val holderFuture = executor.submit<String?> {
+                holder.runIfLeader(slot) {
+                    val state = holder.state(slot.lockName)
+                    val lease = state.leaders.single()
+
+                    state.lockName shouldBeEqualTo slot.lockName
+                    state.maxLeaders shouldBeEqualTo 1
+                    state.activeCount shouldBeEqualTo 1
+                    state.availableSlots shouldBeEqualTo 0
+                    lease.auditLeaderId shouldBeEqualTo "dynamodb-group-state-audit-node-a"
+                    lease.nodeId shouldBeEqualTo "dynamodb-group-state-node-a"
+                    lease.slot shouldBeEqualTo 0
+                    lease.leaseUntil.shouldNotBeNull()
+                    started.countDown()
+                    release.await(10, TimeUnit.SECONDS)
+                    "holder"
+                }
+            }
+
+            started.await(10, TimeUnit.SECONDS) shouldBeEqualTo true
+            contender.runIfLeader(slot.lockName) { "contender" }.shouldBeNull()
+            holder.state(slot.lockName).activeCount shouldBeEqualTo 1
+
+            release.countDown()
+            holderFuture.get(10, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+        } finally {
+            release.countDown()
+            executor.shutdownNow()
+        }
+
+        holder.state(slot.lockName).activeCount shouldBeEqualTo 0
+        contender.runIfLeader(slot.lockName) { "takeover" } shouldBeEqualTo "takeover"
     }
 
     @Test

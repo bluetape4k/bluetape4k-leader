@@ -35,6 +35,26 @@ class EtcdLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
     }
 
     @Test
+    fun `state snapshot remains empty because etcd single lock metadata is not exposed`() {
+        newClient().use { client ->
+            val options = EtcdLeaderElectionOptions(
+                leaderOptions = LeaderElectionOptions(waitTime = 2.seconds, leaseTime = 10.seconds),
+                keyPrefix = "/bluetape4k/leader/test/${randomName()}",
+            )
+            val elector = EtcdLeaderElector(client, options)
+            val lockName = randomName()
+
+            elector.state(lockName).isEmpty shouldBeEqualTo true
+
+            elector.runIfLeader(lockName) {
+                LockAssert.assertLocked(lockName)
+                elector.state(lockName).isEmpty shouldBeEqualTo true
+                "holder"
+            } shouldBeEqualTo "holder"
+        }
+    }
+
+    @Test
     fun `runIfLeader returns null on contention`() {
         newClient().use { client ->
             val keyPrefix = "/bluetape4k/leader/test/${randomName()}"

@@ -80,6 +80,59 @@ class ConsulLeaderElectorIntegrationTest {
     }
 
     @Test
+    fun `state snapshot reports empty occupied and does not release holder`() {
+        val keyPrefix = keyPrefix()
+        val holder = newElector(
+            keyPrefix = keyPrefix,
+            leaderOptions = LeaderElectionOptions(waitTime = 2.seconds, leaseTime = 10.seconds, nodeId = "consul-state-node-a"),
+        )
+        val contender = newElector(
+            keyPrefix = keyPrefix,
+            leaderOptions = LeaderElectionOptions(waitTime = 200.milliseconds, leaseTime = 10.seconds),
+        )
+        val slot = LeaderSlot(lockName = randomName(), leaderId = "consul-state-audit-node-a")
+        val empty = holder.state(slot.lockName)
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val executor = Executors.newSingleThreadExecutor()
+
+        empty.lockName shouldBeEqualTo slot.lockName
+        empty.isEmpty shouldBeEqualTo true
+        empty.leader shouldBeEqualTo null
+
+        try {
+            val holderFuture = executor.submit<String?> {
+                holder.runIfLeader(slot) {
+                    val state = holder.state(slot.lockName)
+
+                    state.lockName shouldBeEqualTo slot.lockName
+                    state.isOccupied shouldBeEqualTo true
+                    state.leader.shouldNotBeNull()
+                    state.leader?.auditLeaderId shouldBeEqualTo "consul-state-audit-node-a"
+                    state.leader?.nodeId shouldBeEqualTo "consul-state-node-a"
+                    state.leader?.leaseUntil.shouldNotBeNull()
+                    started.countDown()
+                    release.await(10, TimeUnit.SECONDS)
+                    "holder"
+                }
+            }
+
+            started.await(10, TimeUnit.SECONDS) shouldBeEqualTo true
+            contender.runIfLeader(slot.lockName) { "contender" }.shouldBeNull()
+            holder.state(slot.lockName).isOccupied shouldBeEqualTo true
+
+            release.countDown()
+            holderFuture.get(10, TimeUnit.SECONDS) shouldBeEqualTo "holder"
+        } finally {
+            release.countDown()
+            executor.shutdownNow()
+        }
+
+        holder.state(slot.lockName).isEmpty shouldBeEqualTo true
+        contender.runIfLeader(slot.lockName) { "takeover" } shouldBeEqualTo "takeover"
+    }
+
+    @Test
     fun `slot leader id is written as audit identity`() {
         val elector = newElector(
             leaderOptions = LeaderElectionOptions(
