@@ -29,8 +29,6 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@v6
-        with:
-          ref: develop
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
