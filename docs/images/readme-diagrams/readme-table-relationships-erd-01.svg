@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="860" viewBox="0 0 1400 860" role="img" aria-labelledby="title desc">
+  <title id="title">README table relationship ERD</title>
+  <desc id="desc">ERD-style summary of how module catalog rows relate to backend capabilities, integration surfaces, and runnable examples.</desc>
+  <defs>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#203040" flood-opacity="0.09"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5F7184"/>
+    </marker>
+    <style>
+      .canvas{fill:#F6F9FC}
+      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
+      .entity{filter:url(#shadow);stroke-width:2}
+      .title{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:40px;fill:#22344A;font-weight:400}
+      .subtitle{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:17px;fill:#536476;font-weight:400}
+      .entityTitle{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:24px;fill:#22344A;font-weight:400}
+      .label{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:14px;fill:#34465B;font-weight:400}
+      .small{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;fill:#627184;font-weight:400}
+      .rel{fill:none;stroke:#5F7184;stroke-width:2.2;marker-end:url(#arrow)}
+      .relLabel{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;fill:#405266;font-weight:400}
+      .chip{fill:#FFFFFF;opacity:0.82;stroke:#D7E2EC}
+    </style>
+  </defs>
+
+  <rect class="canvas" width="1400" height="860"/>
+  <rect class="frame" x="36" y="28" width="1328" height="804" rx="24"/>
+
+  <text class="title" x="72" y="82">README table relationship ERD</text>
+  <text class="subtitle" x="76" y="114">The README tables stay authoritative; this view summarizes the relationship shape.</text>
+
+  <g transform="translate(76,160)">
+    <rect class="entity" x="0" y="0" width="330" height="220" rx="14" fill="#E8F3FF" stroke="#75A9E8"/>
+    <text class="entityTitle" x="165" y="36" text-anchor="middle">Module Catalog</text>
+    <rect class="chip" x="24" y="56" width="282" height="28" rx="7"/>
+    <text class="label" x="165" y="75" text-anchor="middle" dominant-baseline="middle">leader-core</text>
+    <rect class="chip" x="24" y="94" width="282" height="28" rx="7"/>
+    <text class="label" x="165" y="113" text-anchor="middle" dominant-baseline="middle">leader-redis, leader-exposed</text>
+    <rect class="chip" x="24" y="132" width="282" height="28" rx="7"/>
+    <text class="label" x="165" y="151" text-anchor="middle" dominant-baseline="middle">leader-mongodb, hazelcast, zookeeper</text>
+    <rect class="chip" x="24" y="170" width="282" height="28" rx="7"/>
+    <text class="label" x="165" y="189" text-anchor="middle" dominant-baseline="middle">leader-dynamodb, etcd, consul, k8s</text>
+  </g>
+
+  <g transform="translate(526,142)">
+    <rect class="entity" x="0" y="0" width="348" height="270" rx="14" fill="#FFF3D9" stroke="#D9AA4D"/>
+    <text class="entityTitle" x="174" y="36" text-anchor="middle">Backend Capability</text>
+    <rect class="chip" x="26" y="56" width="296" height="28" rx="7"/>
+    <text class="label" x="174" y="75" text-anchor="middle" dominant-baseline="middle">Redis: Lettuce, Redisson</text>
+    <rect class="chip" x="26" y="94" width="296" height="28" rx="7"/>
+    <text class="label" x="174" y="113" text-anchor="middle" dominant-baseline="middle">SQL: Exposed JDBC, R2DBC</text>
+    <rect class="chip" x="26" y="132" width="296" height="28" rx="7"/>
+    <text class="label" x="174" y="151" text-anchor="middle" dominant-baseline="middle">MongoDB, Hazelcast, ZooKeeper</text>
+    <rect class="chip" x="26" y="170" width="296" height="28" rx="7"/>
+    <text class="label" x="174" y="189" text-anchor="middle" dominant-baseline="middle">DynamoDB, etcd, Consul, K8s Lease</text>
+    <text class="small" x="174" y="232" text-anchor="middle">single leader: 1 winner</text>
+    <text class="small" x="174" y="250" text-anchor="middle">group leader: N slots</text>
+  </g>
+
+  <g transform="translate(526,486)">
+    <rect class="entity" x="0" y="0" width="348" height="190" rx="14" fill="#FDECEF" stroke="#DB7890"/>
+    <text class="entityTitle" x="174" y="36" text-anchor="middle">Integration Surface</text>
+    <rect class="chip" x="26" y="58" width="296" height="28" rx="7"/>
+    <text class="label" x="174" y="77" text-anchor="middle" dominant-baseline="middle">Ktor: plugin + leaderScheduled</text>
+    <rect class="chip" x="26" y="96" width="296" height="28" rx="7"/>
+    <text class="label" x="174" y="115" text-anchor="middle" dominant-baseline="middle">Spring Boot: AOP + Actuator</text>
+    <rect class="chip" x="26" y="134" width="296" height="28" rx="7"/>
+    <text class="label" x="174" y="153" text-anchor="middle" dominant-baseline="middle">Micrometer: AOP metrics</text>
+  </g>
+
+  <g transform="translate(994,132)">
+    <rect class="entity" x="0" y="0" width="330" height="584" rx="14" fill="#E9F7F6" stroke="#55B5AF"/>
+    <text class="entityTitle" x="165" y="36" text-anchor="middle">Runnable Example</text>
+    <rect class="chip" x="24" y="56" width="282" height="28" rx="7"/>
+    <text class="label" x="165" y="75" text-anchor="middle" dominant-baseline="middle">Redis: batch, ktor, prometheus, rate</text>
+    <rect class="chip" x="24" y="94" width="282" height="28" rx="7"/>
+    <text class="label" x="165" y="113" text-anchor="middle" dominant-baseline="middle">SQL: migration, tenant aggregation</text>
+    <rect class="chip" x="24" y="132" width="282" height="28" rx="7"/>
+    <text class="label" x="165" y="151" text-anchor="middle" dominant-baseline="middle">MongoDB: webhook polling</text>
+    <rect class="chip" x="24" y="170" width="282" height="28" rx="7"/>
+    <text class="label" x="165" y="189" text-anchor="middle" dominant-baseline="middle">Hazelcast: cache warming</text>
+    <rect class="chip" x="24" y="208" width="282" height="28" rx="7"/>
+    <text class="label" x="165" y="227" text-anchor="middle" dominant-baseline="middle">Kubernetes: lease, operator</text>
+    <rect class="chip" x="24" y="266" width="282" height="28" rx="7"/>
+    <text class="label" x="165" y="285" text-anchor="middle" dominant-baseline="middle">batch-scheduler</text>
+    <rect class="chip" x="24" y="304" width="282" height="28" rx="7"/>
+    <text class="label" x="165" y="323" text-anchor="middle" dominant-baseline="middle">migration-gate</text>
+    <rect class="chip" x="24" y="342" width="282" height="28" rx="7"/>
+    <text class="label" x="165" y="361" text-anchor="middle" dominant-baseline="middle">webhook-poller, cache-warmer</text>
+    <rect class="chip" x="24" y="380" width="282" height="28" rx="7"/>
+    <text class="label" x="165" y="399" text-anchor="middle" dominant-baseline="middle">tenant-aggregator, ktor-app</text>
+    <rect class="chip" x="24" y="418" width="282" height="28" rx="7"/>
+    <text class="label" x="165" y="437" text-anchor="middle" dominant-baseline="middle">prometheus-dashboard</text>
+    <rect class="chip" x="24" y="456" width="282" height="28" rx="7"/>
+    <text class="label" x="165" y="475" text-anchor="middle" dominant-baseline="middle">k8s-lease, k8s-operator</text>
+    <rect class="chip" x="24" y="494" width="282" height="28" rx="7"/>
+    <text class="label" x="165" y="513" text-anchor="middle" dominant-baseline="middle">rate-limiter</text>
+  </g>
+
+  <path class="rel" d="M 406 245 C 456 245 476 230 526 230"/>
+  <text class="relLabel" x="466" y="218" text-anchor="middle">1 module implements 0..N</text>
+  <path class="rel" d="M 874 265 C 930 265 942 308 994 308"/>
+  <text class="relLabel" x="934" y="252" text-anchor="middle">capability powers examples</text>
+  <path class="rel" d="M 406 310 C 454 392 476 560 526 580"/>
+  <text class="relLabel" x="458" y="488" text-anchor="middle">module publishes</text>
+  <path class="rel" d="M 874 580 C 932 580 942 518 994 500"/>
+  <text class="relLabel" x="934" y="560" text-anchor="middle">integration composes with</text>
+
+  <text class="small" x="700" y="792" text-anchor="middle">Cardinality is table-level: one catalog row can expose zero or more capabilities, and one example can compose backend plus integration rows.</text>
+</svg>

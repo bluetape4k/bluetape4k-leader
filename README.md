@@ -82,6 +82,10 @@ Full tables, latency chart, run command, and caveats are in the
 
 Runnable example modules under `examples/` demonstrate production scenarios across every supported backend. Examples are **not** publishing artifacts (`path.startsWith(":examples:")` is excluded from publish/sign/NMCP); copy them into your own service to start.
 
+The ERD-style view below summarizes how module catalog rows, backend capabilities, integration surfaces, and runnable examples relate. The table remains the authoritative reference for exact backend and scenario wording.
+
+![README table relationship ERD](docs/images/readme-diagrams/readme-table-relationships-erd-01.png)
+
 | Example | Backend | Scenario |
 |---------|---------|----------|
 | [`examples/batch-scheduler`](./examples/batch-scheduler) | Lettuce Redis | Periodic batch job (e.g. nightly settlement) — single execution across N instances |
