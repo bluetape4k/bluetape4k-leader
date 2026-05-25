@@ -170,7 +170,7 @@ unlock은 token이 일치하는 경우에만 행을 삭제 — zombie unlock 방
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc:0.2.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc:0.2.2")
 
 // R2DBC 드라이버 — 하나를 선택:
 runtimeOnly("io.r2dbc:r2dbc-h2:1.x")
