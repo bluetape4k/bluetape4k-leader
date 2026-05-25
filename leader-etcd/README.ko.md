@@ -127,8 +127,8 @@ publisher.events.collect { event ->
 | 옵션 | 타입 | 기본값 | 설명 |
 | --- | --- | --- | --- |
 | `keyPrefix` | `String` | `/bluetape4k/leader` | lock key 를 저장할 absolute etcd key prefix |
-| `retryDelay` | `Duration` | `50.milliseconds` | jetcd queued lock 을 직접 쓰지 않는 retry API 용 예약 옵션 |
-| `leaderOptions.waitTime` | `Duration` | `5.seconds` | lease grant 와 lock 획득 전체 최대 대기 시간 |
+| `retryDelay` | `Duration` | `50.milliseconds` | cleanup wait floor: unlock 과 lease revoke 는 `max(waitTime, retryDelay)` 만큼 대기. jetcd queued lock 외 retry API 용 예약 옵션이기도 함. |
+| `leaderOptions.waitTime` | `Duration` | `5.seconds` | lease grant, lock 획득, cleanup (unlock/lease revoke 는 `max(waitTime, retryDelay)` 대기) 전체 최대 시간 예산 |
 | `leaderOptions.leaseTime` | `Duration` | `60.seconds` | etcd lease TTL |
 | `leaderOptions.nodeId` | `String` | process-level default | core 계약과 공유하는 audit node id |
 | `leaderOptions.minLeaseTime` | `Duration` | `0.seconds` | 빠른 action 뒤 최소 leadership 유지 시간 |

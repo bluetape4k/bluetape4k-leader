@@ -88,6 +88,42 @@ bluetape4k:
       lock-delay: 0s
 ```
 
+## Configuration
+
+### `ConsulEndpoint`
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `baseUrl` | `URI` | — | Consul HTTP API base URL, e.g. `http://localhost:8500` |
+| `datacenter` | `String?` | `null` | Optional target datacenter |
+| `aclToken` | `String?` | `null` | Optional ACL token sent with every request |
+| `requestTimeout` | `Duration` | `5.seconds` | Per-request HTTP timeout. Governs all blocking waits: lock acquire, state read, session renew, lock release, and session destroy. |
+
+### `ConsulLeaderElectionOptions`
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `leaderOptions.waitTime` | `Duration` | `5.seconds` | Maximum time budget for lock acquisition |
+| `leaderOptions.leaseTime` | `Duration` | `60.seconds` | Consul Session TTL. Must be in `[10.seconds, 86_400.seconds]`. |
+| `leaderOptions.nodeId` | `String` | process-level default | Audit node ID shared with core contracts |
+| `leaderOptions.minLeaseTime` | `Duration` | `0.seconds` | Minimum leadership hold time after quick actions |
+| `leaderOptions.autoExtend` | `Boolean` | `false` | Renews the Consul session while the action runs |
+| `keyPrefix` | `String` | `bluetape4k/leader` | Consul KV key prefix |
+| `sessionNamePrefix` | `String` | `bluetape4k-leader` | Prefix for created Consul session names |
+| `lockDelay` | `Duration` | `0.seconds` | Consul session lock delay. Zero allows immediate reacquire after TTL expiry; use idempotent actions or external fencing tokens when duplicate execution is unsafe. |
+
+### `ConsulLeaderGroupElectionOptions`
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `leaderGroupOptions.maxLeaders` | `Int` | `2` | Maximum number of concurrent group leaders |
+| `leaderGroupOptions.waitTime` | `Duration` | `5.seconds` | Maximum time budget for group slot acquisition |
+| `leaderGroupOptions.leaseTime` | `Duration` | `60.seconds` | Consul Session TTL for group slots. Must be in `[10.seconds, 86_400.seconds]`. |
+| `leaderGroupOptions.minLeaseTime` | `Duration` | `0.seconds` | Minimum group-slot hold time after quick actions |
+| `keyPrefix` | `String` | `bluetape4k/leader` | Consul KV key prefix for group lock keys |
+| `sessionNamePrefix` | `String` | `bluetape4k-leader` | Prefix for created Consul session names |
+| `lockDelay` | `Duration` | `0.seconds` | See `ConsulLeaderElectionOptions.lockDelay`. |
+
 ## Dependency
 
 ```kotlin

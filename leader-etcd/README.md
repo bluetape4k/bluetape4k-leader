@@ -129,8 +129,8 @@ publisher.events.collect { event ->
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
 | `keyPrefix` | `String` | `/bluetape4k/leader` | Absolute etcd key prefix for lock keys |
-| `retryDelay` | `Duration` | `50.milliseconds` | Reserved for retrying APIs that do not use jetcd queued locks directly |
-| `leaderOptions.waitTime` | `Duration` | `5.seconds` | Maximum time budget for lease grant plus lock acquisition |
+| `retryDelay` | `Duration` | `50.milliseconds` | Cleanup wait floor: unlock and lease revoke block for `max(waitTime, retryDelay)`. Also reserved for retrying APIs outside jetcd queued locks. |
+| `leaderOptions.waitTime` | `Duration` | `5.seconds` | Maximum time budget for lease grant, lock acquisition, and cleanup (unlock and lease revoke block for `max(waitTime, retryDelay)`) |
 | `leaderOptions.leaseTime` | `Duration` | `60.seconds` | etcd lease TTL |
 | `leaderOptions.nodeId` | `String` | process-level default | Audit node id shared with core contracts |
 | `leaderOptions.minLeaseTime` | `Duration` | `0.seconds` | Minimum leadership hold time after quick actions |
