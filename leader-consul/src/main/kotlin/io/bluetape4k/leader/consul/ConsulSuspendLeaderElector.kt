@@ -16,6 +16,7 @@ import io.bluetape4k.leader.consul.internal.ConsulSessionId
 import io.bluetape4k.leader.consul.internal.ConsulSessionTtl
 import io.bluetape4k.leader.consul.internal.ConsulSuspendLockExtendDelegate
 import io.bluetape4k.leader.consul.internal.JavaHttpConsulLockClient
+import io.bluetape4k.leader.consul.internal.getWithinRequestTimeout
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.remainingMinLeaseTime
@@ -30,7 +31,6 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withContext
 import java.time.Instant
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -105,7 +105,7 @@ class ConsulSuspendLeaderElector private constructor(
      */
     override fun state(lockName: String): LeaderState {
         val key = lockClient.singleLockKey(lockName)
-        val entry = lockClient.read(key).get(10, TimeUnit.SECONDS) ?: return LeaderState.empty(lockName)
+        val entry = lockClient.read(key).getWithinRequestTimeout(lockClient) ?: return LeaderState.empty(lockName)
         val sessionId = entry.sessionId ?: return LeaderState.empty(lockName)
         val lease = entry.value?.let { ConsulOwnerPayload.fromJson(it)?.toLeaderLease() }
         if (lease == null) {

@@ -2,12 +2,15 @@ package io.bluetape4k.leader.consul.internal
 
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 
 /**
  * Narrow internal boundary over Consul Session and KV HTTP APIs.
  */
 internal interface ConsulLockClient {
+
+    val requestTimeout: Duration
 
     fun singleLockKey(lockName: String): String
 
@@ -36,6 +39,9 @@ internal interface ConsulLockClient {
 
     fun read(key: String): CompletableFuture<ConsulKvEntry?>
 }
+
+internal fun <T> CompletableFuture<T>.getWithinRequestTimeout(lockClient: ConsulLockClient): T =
+    get(lockClient.requestTimeout.inWholeNanoseconds.coerceAtLeast(1L), TimeUnit.NANOSECONDS)
 
 @JvmInline
 internal value class ConsulSessionId(val value: String) {

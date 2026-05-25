@@ -5,7 +5,6 @@ import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import java.time.Instant
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
@@ -24,7 +23,7 @@ internal class ConsulLockExtendDelegate(
         }
 
         return runCatching {
-            lockClient.renewSession(handle.sessionId).get(10, TimeUnit.SECONDS)
+            lockClient.renewSession(handle.sessionId).getWithinRequestTimeout(lockClient)
             val deadline = Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds)
             _lastExtendDeadline.set(deadline)
             ExtendOutcome.Extended(deadline)
@@ -35,7 +34,7 @@ internal class ConsulLockExtendDelegate(
 
     override fun isHeld(): Boolean =
         !handle.isReleased && runCatching {
-            lockClient.read(handle.key).get(10, TimeUnit.SECONDS)?.sessionId == handle.sessionId
+            lockClient.read(handle.key).getWithinRequestTimeout(lockClient)?.sessionId == handle.sessionId
         }.getOrElse { e ->
             log.warn(e) { "Failed to verify Consul leader session ownership. lockName=${handle.lockName}" }
             false

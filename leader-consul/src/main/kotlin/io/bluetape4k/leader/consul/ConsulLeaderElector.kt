@@ -20,6 +20,7 @@ import io.bluetape4k.leader.consul.internal.ConsulBackendErrorClassifier
 import io.bluetape4k.leader.consul.internal.ConsulSessionId
 import io.bluetape4k.leader.consul.internal.ConsulSessionTtl
 import io.bluetape4k.leader.consul.internal.JavaHttpConsulLockClient
+import io.bluetape4k.leader.consul.internal.getWithinRequestTimeout
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.KLogging
@@ -30,7 +31,6 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -127,7 +127,7 @@ class ConsulLeaderElector private constructor(
 
     override fun state(lockName: String): LeaderState {
         val key = lockClient.singleLockKey(lockName)
-        val entry = lockClient.read(key).get(10, TimeUnit.SECONDS) ?: return LeaderState.empty(lockName)
+        val entry = lockClient.read(key).getWithinRequestTimeout(lockClient) ?: return LeaderState.empty(lockName)
         val sessionId = entry.sessionId ?: return LeaderState.empty(lockName)
         val lease = entry.value?.let { ConsulOwnerPayload.fromJson(it)?.toLeaderLease() }
         if (lease == null) {
@@ -232,7 +232,7 @@ class ConsulLeaderElector private constructor(
                 name = "${options.sessionNamePrefix}-${options.leaderOptions.nodeId}",
                 ttl = options.leaderOptions.leaseTime,
                 lockDelay = options.lockDelay,
-            ).get(10, TimeUnit.SECONDS)
+            ).getWithinRequestTimeout(lockClient)
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
             return null
@@ -277,7 +277,7 @@ class ConsulLeaderElector private constructor(
 
         do {
             try {
-                if (lockClient.acquire(key, sessionId, ownerPayload).get(10, TimeUnit.SECONDS)) {
+                if (lockClient.acquire(key, sessionId, ownerPayload).getWithinRequestTimeout(lockClient)) {
                     return true
                 }
                 if (timeoutNanos == 0L || System.nanoTime() >= deadline) {
@@ -285,7 +285,7 @@ class ConsulLeaderElector private constructor(
                 }
                 val now = System.nanoTime()
                 if (now - lastRenewNanos >= renewDelayNanos) {
-                    lockClient.renewSession(sessionId).get(10, TimeUnit.SECONDS)
+                    lockClient.renewSession(sessionId).getWithinRequestTimeout(lockClient)
                     lastRenewNanos = now
                 }
                 Thread.sleep(minOf(50.milliseconds.inWholeMilliseconds, remainingMillis(deadline)).coerceAtLeast(1))
@@ -310,13 +310,13 @@ class ConsulLeaderElector private constructor(
             }
         }
 
-        runCatching { lockClient.release(handle.key, handle.sessionId).get(10, TimeUnit.SECONDS) }
+        runCatching { lockClient.release(handle.key, handle.sessionId).getWithinRequestTimeout(lockClient) }
             .onFailure { e -> log.warn(e) { "Failed to release Consul leader lock. lockName=${handle.lockName}" } }
         destroySession(handle.sessionId)
     }
 
     private fun destroySession(sessionId: ConsulSessionId) {
-        runCatching { lockClient.destroySession(sessionId).get(10, TimeUnit.SECONDS) }
+        runCatching { lockClient.destroySession(sessionId).getWithinRequestTimeout(lockClient) }
             .onFailure { e -> log.warn(e) { "Failed to destroy Consul session. sessionId=${sessionId.value}" } }
     }
 }

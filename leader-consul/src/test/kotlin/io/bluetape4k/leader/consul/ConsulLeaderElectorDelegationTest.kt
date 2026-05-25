@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.leader.LeaderElectionException
+import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
@@ -21,6 +22,7 @@ import java.time.Instant
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -88,6 +90,20 @@ class ConsulLeaderElectorDelegationTest {
         val elector = ConsulLeaderElector.create(client)
 
         elector.state("lock-a").isEmpty shouldBeEqualTo true
+    }
+
+    @Test
+    fun `state reads with client request timeout`() {
+        val future = RecordingFuture<ConsulKvEntry?>(null)
+        val client = FakeConsulLockClient(
+            requestTimeout = 123.milliseconds,
+            readFuture = future,
+        )
+        val elector = ConsulLeaderElector.create(client)
+
+        elector.state("lock-a").isEmpty shouldBeEqualTo true
+
+        future.requestedTimeoutNanos shouldBeEqualTo 123.milliseconds.inWholeNanoseconds
     }
 
     @Test
@@ -218,10 +234,31 @@ class ConsulLeaderElectorDelegationTest {
         client.destroyCalls shouldBeEqualTo 1
     }
 
+    @Test
+    fun `group state reads with client request timeout`() {
+        val future = RecordingFuture<ConsulKvEntry?>(null)
+        val client = FakeConsulLockClient(
+            requestTimeout = 77.milliseconds,
+            readFuture = future,
+        )
+        val elector = ConsulLeaderGroupElector.create(
+            client,
+            ConsulLeaderGroupElectionOptions(
+                leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, leaseTime = 10.seconds),
+            ),
+        )
+
+        elector.state("lock-a").activeCount shouldBeEqualTo 0
+
+        future.requestedTimeoutNanos shouldBeEqualTo 77.milliseconds.inWholeNanoseconds
+    }
+
     private class FakeConsulLockClient(
         private val acquireResult: Boolean = true,
         private val destroyFails: Boolean = false,
         private val entry: ConsulKvEntry? = null,
+        override val requestTimeout: Duration = 5.seconds,
+        private val readFuture: CompletableFuture<ConsulKvEntry?>? = null,
     ) : ConsulLockClient {
 
         var createdSessions: Int = 0
@@ -281,7 +318,19 @@ class ConsulLeaderElectorDelegationTest {
 
         override fun read(key: String): CompletableFuture<ConsulKvEntry?> {
             readCalls++
-            return CompletableFuture.completedFuture(entry)
+            return readFuture ?: CompletableFuture.completedFuture(entry)
+        }
+    }
+
+    private class RecordingFuture<T>(
+        private val value: T,
+    ) : CompletableFuture<T>() {
+        var requestedTimeoutNanos: Long? = null
+            private set
+
+        override fun get(timeout: Long, unit: TimeUnit): T {
+            requestedTimeoutNanos = unit.toNanos(timeout)
+            return value
         }
     }
 }

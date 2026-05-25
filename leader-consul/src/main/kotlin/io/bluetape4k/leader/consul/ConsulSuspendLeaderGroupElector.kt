@@ -17,6 +17,7 @@ import io.bluetape4k.leader.consul.internal.ConsulSessionId
 import io.bluetape4k.leader.consul.internal.ConsulSessionTtl
 import io.bluetape4k.leader.consul.internal.ConsulSuspendLockExtendDelegate
 import io.bluetape4k.leader.consul.internal.JavaHttpConsulLockClient
+import io.bluetape4k.leader.consul.internal.getWithinRequestTimeout
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.remainingMinLeaseTime
@@ -32,7 +33,6 @@ import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -277,7 +277,8 @@ class ConsulSuspendLeaderGroupElector private constructor(
     private fun currentLeaders(lockName: String): List<LeaderLease> =
         (0 until maxLeaders).mapNotNull { slot ->
             runCatching {
-                val entry = lockClient.read(lockClient.groupLockKey(lockName, slot)).get(10, TimeUnit.SECONDS) ?: return@runCatching null
+                val entry = lockClient.read(lockClient.groupLockKey(lockName, slot)).getWithinRequestTimeout(lockClient)
+                    ?: return@runCatching null
                 if (entry.sessionId == null) {
                     return@runCatching null
                 }
