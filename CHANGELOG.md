@@ -13,6 +13,12 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Updated the `bluetape4k-exposed` test helper reference from `1.9.2-SNAPSHOT`
   to the published `1.9.2` release.
+- Aligned the AWS SDK BOM with the central `bluetape4k-dependencies` catalog.
+
+### Fixed
+
+- Applied central catalog-managed Netty 4.1, Protobuf, Fabric8, and Vert.x 4
+  dependency overrides for Dependabot security alerts. (#389)
 
 ---
 

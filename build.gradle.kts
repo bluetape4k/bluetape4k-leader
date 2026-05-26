@@ -257,15 +257,36 @@ subprojects {
             mavenBom(rootLibs.micrometer.bom.get().toString())
             mavenBom(rootLibs.testcontainers.bom.get().toString())
             mavenBom(rootLibs.aws2.bom.get().toString())
+            mavenBom("io.netty:netty-bom:${bt4kVersion("netty")}")
+            mavenBom("com.google.protobuf:protobuf-bom:${bt4kVersion("protobuf")}")
+            mavenBom("io.vertx:vertx-dependencies:${bt4kVersion("vertx")}")
         }
     
         dependencies {
             dependency("com.hazelcast:hazelcast:${bt4kVersion("hazelcast")}")
+            dependency("com.google.protobuf:protobuf-java:${bt4kVersion("protobuf")}")
+            dependency("io.netty:netty-codec-http:${bt4kVersion("netty")}")
+            dependency("io.netty:netty-codec-http2:${bt4kVersion("netty")}")
+            dependency("io.vertx:vertx-core:${bt4kVersion("vertx")}")
             dependency("com.mysql:mysql-connector-j:${bt4kVersion("mysql-connector-j")}")
             dependency("org.postgresql:postgresql:${bt4kVersion("postgresql")}")
             dependency("io.r2dbc:r2dbc-h2:${bt4kVersion("r2dbc-h2")}")
             dependency("org.redisson:redisson:${bt4kVersion("redisson")}")
             dependency("org.slf4j:slf4j-api:${bt4kVersion("slf4j")}")
+        }
+    }
+
+    if (path in setOf(":bluetape4k-leader-k8s", ":examples:k8s-lease", ":examples:k8s-operator")) {
+        dependencyManagement {
+            imports {
+                mavenBom("io.netty:netty-bom:${bt4kVersion("netty4")}")
+                mavenBom("io.vertx:vertx-dependencies:${bt4kVersion("vertx4")}")
+            }
+            dependencies {
+                dependency("io.netty:netty-codec-http:${bt4kVersion("netty4")}")
+                dependency("io.netty:netty-codec-http2:${bt4kVersion("netty4")}")
+                dependency("io.vertx:vertx-core:${bt4kVersion("vertx4")}")
+            }
         }
     }
 
