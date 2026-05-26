@@ -27,7 +27,7 @@ mongo-driver = "5.7.0"  # https://mvnrepository.com/artifact/org.mongodb/mongodb
 
 curator = "5.9.0"  # https://mvnrepository.com/artifact/org.apache.curator/curator-recipes
 jetcd = "0.8.6"  # https://mvnrepository.com/artifact/io.etcd/jetcd-core
-aws2 = "2.44.9"  # https://mvnrepository.com/artifact/software.amazon.awssdk/bom
+aws2 = "2.44.12"  # https://mvnrepository.com/artifact/software.amazon.awssdk/bom
 
 micrometer = "1.16.5"  # https://mvnrepository.com/artifact/io.micrometer/micrometer-bom
 
@@ -41,7 +41,7 @@ mockk = "1.14.9"  # https://mvnrepository.com/artifact/io.mockk/mockk
 springmockk = "5.0.1"  # https://mvnrepository.com/artifact/com.ninja-squad/springmockk
 awaitility = "4.3.0"  # https://mvnrepository.com/artifact/org.awaitility/awaitility-kotlin
 testcontainers = "2.0.5"  # https://mvnrepository.com/artifact/org.testcontainers/testcontainers-bom
-fabric8-kubernetes-client = "7.6.1"  # https://mvnrepository.com/artifact/io.fabric8/kubernetes-client
+fabric8-kubernetes-client = "7.7.0"  # https://mvnrepository.com/artifact/io.fabric8/kubernetes-client
 
 hikaricp = "7.0.2"                  # https://mvnrepository.com/artifact/com.zaxxer/HikariCP
 r2dbc-postgresql = "1.1.1.RELEASE"  # https://mvnrepository.com/artifact/org.postgresql/r2dbc-postgresql
