@@ -1,9 +1,19 @@
 plugins {
     application
+    alias(bt4k.plugins.exposed.plugin)
 }
 
 application {
     mainClass.set("io.bluetape4k.leader.examples.migration.MigrationGateDemo")
+}
+
+exposed {
+    migrations {
+        tablesPackage = "io.bluetape4k.leader.examples.migration"
+        databaseUrl = "jdbc:h2:mem:leader-migration-gate-migrations;DB_CLOSE_DELAY=-1;MODE=PostgreSQL"
+        databaseUser = "sa"
+        databasePassword = ""
+    }
 }
 
 dependencies {
