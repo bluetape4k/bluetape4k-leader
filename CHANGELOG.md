@@ -9,6 +9,11 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Updated the `bluetape4k-exposed` test helper reference from `1.9.2-SNAPSHOT`
+  to the published `1.9.2` release.
+
 ---
 
 ## [0.2.2] — 2026-05-25
