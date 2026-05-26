@@ -21,6 +21,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   dependency overrides for Dependabot security alerts. (#389)
 - Forced Gradle plugin classpath MySQL and Protobuf dependencies onto the
   central catalog lines to clear plugin-classpath Dependabot alerts. (#389)
+- Removed the unused root `apply false` Exposed plugin declaration so GitHub
+  dependency submission no longer reports its stale plugin POM transitives. (#389)
+- Removed the unused Exposed migration plugin from `examples/migration-gate`;
+  the example uses runtime Exposed APIs directly and does not need plugin tasks. (#389)
 
 ---
 
