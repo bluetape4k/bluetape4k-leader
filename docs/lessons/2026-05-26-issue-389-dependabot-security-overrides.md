@@ -28,6 +28,10 @@ aligned to the central catalog.
   Vert.x `4.5.27`, while Redisson resolves Netty `4.2.13.Final`.
 - `buildEnvironment` confirmed the Gradle plugin classpath upgrades
   `mysql-connector-j` to `9.7.0` and `protobuf-java` to `4.34.1`.
+- Removing the unused root Exposed plugin `apply false` declaration removed
+  the stale plugin POM dependency surface from the root buildscript classpath.
+- Removing the unused Exposed plugin from `examples/migration-gate` removed
+  the last plugin POM source from dependency submission.
 
 ## Future Notes
 
@@ -37,3 +41,8 @@ catalog in downstream repos.
 Check `buildEnvironment` after Dependabot alerts on `settings.gradle.kts`;
 plugin classpath dependencies are outside normal subproject dependency
 management.
+Do not keep plugin aliases in the root `plugins` block with `apply false`
+unless the root build actually needs the plugin on its classpath.
+Do not apply the Exposed migration plugin to examples unless plugin tasks are
+part of the demonstrated workflow; runtime Exposed migration examples do not
+need it.
