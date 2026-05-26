@@ -26,9 +26,14 @@ aligned to the central catalog.
 - `./gradlew build -x test -x k8sTest` passed.
 - Dependency insight confirmed K8s/Fabric8 resolves Netty `4.1.133.Final` and
   Vert.x `4.5.27`, while Redisson resolves Netty `4.2.13.Final`.
+- `buildEnvironment` confirmed the Gradle plugin classpath upgrades
+  `mysql-connector-j` to `9.7.0` and `protobuf-java` to `4.34.1`.
 
 ## Future Notes
 
 Do not add repo-local security pins for common external libraries. Add the
 missing alias to `bluetape4k-dependencies`, then consume it through the `bt4k`
 catalog in downstream repos.
+Check `buildEnvironment` after Dependabot alerts on `settings.gradle.kts`;
+plugin classpath dependencies are outside normal subproject dependency
+management.

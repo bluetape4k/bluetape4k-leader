@@ -40,6 +40,16 @@ fun bt4kVersion(alias: String): String {
         .ifBlank { version.strictVersion }
 }
 
+buildscript.configurations.getByName("classpath").resolutionStrategy.eachDependency {
+    if (requested.group == "com.mysql" && requested.name == "mysql-connector-j") {
+        useVersion(bt4kVersion("mysql-connector-j"))
+        because("Keep Gradle plugin classpath MySQL driver on the centrally governed catalog line")
+    }
+    if (requested.group == "com.google.protobuf" && requested.name == "protobuf-java") {
+        useVersion(bt4kVersion("protobuf"))
+        because("Keep Gradle plugin classpath protobuf on the centrally governed security line")
+    }
+}
 
 val centralPublishing = resolveCentralPublishingConfig()
 val centralUser: String = centralPublishing.username
