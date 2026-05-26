@@ -19,6 +19,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Applied central catalog-managed Netty 4.1, Protobuf, Fabric8, and Vert.x 4
   dependency overrides for Dependabot security alerts. (#389)
+- Forced Gradle plugin classpath MySQL and Protobuf dependencies onto the
+  central catalog lines to clear plugin-classpath Dependabot alerts. (#389)
 
 ---
 
