@@ -28,6 +28,7 @@ plugins {
     alias(libs.plugins.nmcp) apply false
 
     alias(libs.plugins.kover)
+    alias(bt4k.plugins.exposed.plugin) apply false
 }
 
 val rootLibs = libs
