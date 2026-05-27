@@ -621,6 +621,7 @@ bluetape4k:
 |-----------|------|------|
 | `leader.aop.attempts` | Counter | `lock.name`별 락 획득 시도 횟수 |
 | `leader.aop.acquired` | Counter | 리더 선출 성공 횟수 |
+| `leader.aop.acquire.duration` | Timer | 락 획득 시도부터 성공까지 걸린 시간 |
 | `leader.aop.lock.not.acquired` | Counter | 실행 건너뜀 횟수; `reason` 태그로 사유 구분 (`CONTENTION` / `BACKEND_ERROR`) |
 | `leader.aop.execution.duration` | Timer | 리더 작업 실행 시간 |
 | `leader.aop.task.failed` | Counter | 작업 본문 예외 발생 횟수; `exception` 태그로 예외 클래스명 구분 |

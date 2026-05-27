@@ -53,8 +53,13 @@ class MicrometerLeaderAopMetricsRecorderTest {
         val count = registry.get(MicrometerNames.METER_ACQUIRED)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .counter().count()
+        val timer = registry.get(MicrometerNames.METER_ACQUIRE_DURATION)
+            .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
+            .timer()
 
         count shouldBeEqualTo 1.0
+        timer.count() shouldBeEqualTo 1L
+        timer.totalTime(java.util.concurrent.TimeUnit.MILLISECONDS) shouldBeGreaterOrEqualTo 10.0
     }
 
     @Test
@@ -166,12 +171,16 @@ class MicrometerLeaderAopMetricsRecorderTest {
         val timerCount = registry.get(MicrometerNames.METER_EXECUTION_DURATION)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .timer().count()
+        val acquireTimerCount = registry.get(MicrometerNames.METER_ACQUIRE_DURATION)
+            .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
+            .timer().count()
         val gaugeValue = registry.find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .gauge()?.value()
 
         attemptsCount shouldBeEqualTo 0.0
         acquiredCount shouldBeEqualTo 0.0
+        acquireTimerCount shouldBeEqualTo 0L
         timerCount shouldBeEqualTo 0L
         gaugeValue shouldBeEqualTo 0.0
     }
@@ -190,7 +199,7 @@ class MicrometerLeaderAopMetricsRecorderTest {
     }
 
     @Test
-    fun `concurrent onTaskStarted and onTaskFinished - active gauge thread safe`() {
+    fun `concurrent onTaskStarted and onTaskFinished - active gauge thread safe`(): Unit {
         runBlocking(Dispatchers.Default) {
             coroutineScope {
                 repeat(1000) {
@@ -217,6 +226,9 @@ class MicrometerLeaderAopMetricsRecorderTest {
         registry.find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .gauge().shouldNotBeNull()
+        registry.find(MicrometerNames.METER_ACQUIRE_DURATION)
+            .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
+            .timer().shouldNotBeNull()
 
         recorder.deregisterMetricsFor(lockName)
 
@@ -224,5 +236,8 @@ class MicrometerLeaderAopMetricsRecorderTest {
         registry.find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .gauge().shouldBeNull()
+        registry.find(MicrometerNames.METER_ACQUIRE_DURATION)
+            .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
+            .timer().shouldBeNull()
     }
 }

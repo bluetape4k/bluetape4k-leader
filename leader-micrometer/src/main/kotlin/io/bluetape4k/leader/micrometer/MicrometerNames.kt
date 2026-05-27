@@ -73,6 +73,9 @@ internal object MicrometerNames {
     /** Counter for successful lock acquisitions (leader elected). */
     const val METER_ACQUIRED = "leader.aop.acquired"
 
+    /** Timer for lock acquisition duration from attempt to acquired. */
+    const val METER_ACQUIRE_DURATION = "leader.aop.acquire.duration"
+
     /** Counter for failed lock acquisitions. Reason distinguished by [TAG_REASON] tag. */
     const val METER_NOT_ACQUIRED = "leader.aop.lock.not.acquired"
 

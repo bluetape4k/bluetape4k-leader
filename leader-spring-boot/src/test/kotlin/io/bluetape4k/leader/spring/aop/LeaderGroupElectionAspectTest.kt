@@ -1,10 +1,12 @@
 package io.bluetape4k.leader.spring.aop
 
+import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderGroupElectionException
-import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupElectionOptions
-import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupElectorFactory
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.leader.annotation.LeaderGroupElection
 import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder
@@ -362,6 +364,37 @@ class LeaderGroupElectionAspectTest {
         verify(exactly = 1) { recorder.onLockNotAcquired("fail-open-group-job", any(), SkipReason.FAIL_OPEN_FORCED) }
         verify(exactly = 1) { recorder.onTaskStarted("fail-open-group-job") }
         verify(exactly = 1) { recorder.onTaskFinished("fail-open-group-job", any()) }
+    }
+
+    @Test
+    fun `group FAIL_OPEN_RUN - matching fail-open sentinel reenters without backend acquisition`() {
+        class SampleFailOpen {
+            @LeaderGroupElection(name = "fail-open-group-job", maxLeaders = 2, failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
+            fun run(): String? = SAMPLE_RESULT
+        }
+
+        val target = SampleFailOpen()
+        val method = SampleFailOpen::class.java.getDeclaredMethod("run")
+        configureJoinPoint(method, target, emptyArray())
+        every { pjp.proceed() } returns SAMPLE_RESULT
+
+        val aspect = newAspect(listOf(recorder))
+        val identity = LockIdentity(
+            lockName = "fail-open-group-job",
+            kind = LockIdentity.AnnotationKind.GROUP,
+            factoryBeanName = "testGroupFactory",
+            groupParams = LockIdentity.GroupParams(maxLeaders = 2),
+        )
+        val failOpenHandle = AopScopeAccess.createFailOpen(identity)
+
+        val result = AopScopeAccess.withPushedSync(failOpenHandle) {
+            aspect.aroundLeader(pjp)
+        }
+
+        result shouldBeEqualTo SAMPLE_RESULT
+        verify(exactly = 0) { factoryMock.create(any()) }
+        verify(exactly = 0) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
+        verify(exactly = 0) { recorder.onLockAttempt(any(), any()) }
     }
 
     @Test
