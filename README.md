@@ -7,6 +7,8 @@
 
 [한국어](README.ko.md)
 
+Current stable version: `0.2.2`
+
 ![Bluetape4k leader election workbench](./docs/assets/leader-election-workbench.png)
 
 A standalone Kotlin/JVM library for **distributed leader election**.  
@@ -104,6 +106,17 @@ Run any example with `./gradlew :examples:<name>:run` (Docker required for Testc
 ## Quick Start
 
 ### Gradle
+
+Import the BOM to manage every `bluetape4k-leader-*` module with one version:
+
+```kotlin
+val leaderVersion = "0.2.2"
+
+implementation(platform("io.github.bluetape4k.leader:bluetape4k-leader-bom:$leaderVersion"))
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson")
+```
+
+When not using the BOM, specify `0.2.2` on each module dependency:
 
 ```kotlin
 // Redis (Redisson or Lettuce)
