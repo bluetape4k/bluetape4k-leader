@@ -73,7 +73,8 @@ import kotlin.time.toKotlinDuration
  * - `FAIL_OPEN_RUN` installs a [LeaderLockHandle.FailOpen] sentinel.
  *
  * ## Reentrant pass-through (T15)
- * The sync branch short-circuits when [AopScopeAccess.peekSyncMatching] finds a matching real handle.
+ * The sync branch short-circuits when [AopScopeAccess.peekSyncMatching] finds a matching real or
+ * fail-open handle.
  */
 @Aspect
 class LeaderGroupElectionAspect(
@@ -132,15 +133,21 @@ class LeaderGroupElectionAspect(
             lockName = resolvedName
 
             // ── Reentrant short-circuit (T15 + Tier 7 P1-1): full LockIdentity 매칭 시에만 short-circuit ──
-            //   동일 lockName + 다른 annotation kind (SINGLE) 또는 다른 maxLeaders 는 별개 lock — 새 acquire.
-            //   FailOpen sentinel reentrant 는 follow-up.
             val identity = resolveIdentity(resolvedName, AdviceBranch.SYNC)
             val existing = AopScopeAccess.peekSyncMatching(resolvedName)
-            if (existing is LeaderLockHandle.Real && existing.matchesIdentity(identity)) {
-                log.debug { "leader.aop.group.reentrant lockName=$resolvedName depth=${existing.reentryDepth + 1}" }
-                val reentrantHandle = AopScopeAccess.incrementReentryDepth(existing)
-                return AopScopeAccess.withPushedSync(reentrantHandle) {
-                    executeBody(pjp, resolvedName, start)
+            when {
+                existing is LeaderLockHandle.Real && existing.matchesIdentity(identity) -> {
+                    log.debug { "leader.aop.group.reentrant lockName=$resolvedName depth=${existing.reentryDepth + 1}" }
+                    val reentrantHandle = AopScopeAccess.incrementReentryDepth(existing)
+                    return AopScopeAccess.withPushedSync(reentrantHandle) {
+                        executeBody(pjp, resolvedName, start)
+                    }
+                }
+                existing is LeaderLockHandle.FailOpen && existing.matchesIdentity(identity) -> {
+                    log.debug { "leader.aop.group.fail-open.reentrant lockName=$resolvedName" }
+                    return AopScopeAccess.withPushedSync(existing) {
+                        executeBody(pjp, resolvedName, start)
+                    }
                 }
             }
 

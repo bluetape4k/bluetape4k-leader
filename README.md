@@ -618,6 +618,7 @@ bluetape4k:
 |------------|------|-------------|
 | `leader.aop.attempts` | Counter | Lock acquisition attempts per `lock.name` |
 | `leader.aop.acquired` | Counter | Successful leader elections |
+| `leader.aop.acquire.duration` | Timer | Time from lock attempt to successful acquisition |
 | `leader.aop.lock.not.acquired` | Counter | Skipped executions; tagged with `reason` (`CONTENTION` / `BACKEND_ERROR`) |
 | `leader.aop.execution.duration` | Timer | Elapsed time of the leader action |
 | `leader.aop.task.failed` | Counter | Action body exceptions; tagged with `exception` class name |

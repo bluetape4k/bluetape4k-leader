@@ -9,6 +9,8 @@ import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.history.LeaderHistoryKey
+import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
@@ -25,8 +27,11 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.bson.Document
+import java.time.Instant
 import java.util.Date
+import java.util.concurrent.TimeUnit
 import kotlin.random.Random
+import kotlin.time.Duration
 
 /**
  * Coroutine-based multi-leader group election implementation using a MongoDB slot-based distributed semaphore.
@@ -63,7 +68,7 @@ class MongoSuspendLeaderGroupElector private constructor(
     private val groupCollection: MongoCollection<Document>,
     private val coroutineGroupCollection: CoroutineMongoCollection<Document>,
     val options: MongoLeaderGroupElectionOptions,
-    @Suppress("unused") private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
+    private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
 ) : SuspendLeaderGroupElector {
 
     init {
@@ -150,8 +155,9 @@ class MongoSuspendLeaderGroupElector private constructor(
         log.debug { "리더 그룹 슬롯을 획득하여 suspend 작업을 수행합니다. lockName=$lockName, slot=$acquiredSlot" }
         val lock = acquiredLock
         val slot = acquiredSlot
-        val slotKeyValue = acquiredSlotKey
+        val startedAt = Instant.now()
         val acquiredAtNanos = System.nanoTime()
+        val historyKey = recordAcquired(lockName, lock.token, slot, startedAt, leaseTime)
 
         val delegate: SuspendExtendDelegate = MongoSuspendSlotExtendDelegate(lock)
         val identity = LockIdentity(
@@ -162,22 +168,37 @@ class MongoSuspendLeaderGroupElector private constructor(
         )
         val handle = LeaderLockHandle.real(
             identity = identity,
-            token = slotKeyValue,
+            token = lock.token,
             acquiredAtNanos = acquiredAtNanos,
             slotId = slot.toString(),
             extendDelegate = delegate,
         )
         // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
         val watchdog = LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
+        var actionSucceeded = false
+        var capturedError: Throwable? = null
 
         try {
-            return withContext(AopScopeAccess.createLockHandleElement(handle)) {
+            val result = withContext(AopScopeAccess.createLockHandleElement(handle)) {
                 action()
             }
+            actionSucceeded = true
+            return result
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            capturedError = e
+            throw e
         } finally {
             // NonCancellable: 코루틴 취소 시에도 watchdog close + release 가 중단되지 않도록 보호
             withContext(NonCancellable) {
                 watchdog.close()
+                val finishedAt = Instant.now()
+                val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
+                when {
+                    actionSucceeded -> recordCompleted(historyKey, finishedAt, durationMs)
+                    capturedError != null -> recordFailed(historyKey, finishedAt, durationMs, capturedError)
+                }
                 try {
                     lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
                     log.debug { "리더 그룹 슬롯을 반납했습니다 (suspend). lockName=$lockName, slot=$slot" }
@@ -189,6 +210,33 @@ class MongoSuspendLeaderGroupElector private constructor(
             }
         }
     }
+
+    private suspend fun recordAcquired(
+        lockName: String,
+        token: String,
+        slot: Int,
+        acquiredAt: Instant,
+        leaseTime: Duration,
+    ): LeaderHistoryKey? {
+        val record = historyRecorder?.let {
+            LeaderLockHistoryRecord(
+                lockName = lockName,
+                token = token,
+                kind = LockIdentity.AnnotationKind.GROUP,
+                acquiredAt = acquiredAt,
+                lockedUntil = acquiredAt.plusMillis(leaseTime.inWholeMilliseconds),
+                slotId = slot.toString(),
+            )
+        }
+        return record?.let { historyRecorder.recordAcquired(it) }
+            ?: record?.let { LeaderHistoryKey(lockName = lockName, token = token, slotId = slot.toString()) }
+    }
+
+    private suspend fun recordCompleted(historyKey: LeaderHistoryKey?, finishedAt: Instant, durationMs: Long) =
+        historyKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
+
+    private suspend fun recordFailed(historyKey: LeaderHistoryKey?, finishedAt: Instant, durationMs: Long, error: Throwable?) =
+        historyKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, error) }
 }
 
 /**

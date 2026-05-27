@@ -4,6 +4,9 @@ import com.mongodb.client.model.Filters
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.history.LeaderHistoryKey
+import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CompletableDeferred
@@ -15,7 +18,14 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.mockk.clearMocks
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.mockk
+import io.mockk.slot
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -24,15 +34,22 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlinx.coroutines.runBlocking
 import io.bluetape4k.assertions.assertFailsWith
-import kotlin.time.Duration.Companion.milliseconds
 
 class MongoSuspendLeaderGroupElectorTest: AbstractMongoLeaderTest() {
 
     companion object: KLogging()
 
+    private val historyRecorder: SuspendSafeLeaderHistoryRecorder = mockk(relaxed = true)
+
+    @BeforeEach
+    fun setUp() {
+        clearMocks(historyRecorder)
+    }
+
     private suspend fun makeElection(
         maxLeaders: Int = 3,
         waitTime: Duration = 10.seconds,
+        historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
     ): MongoSuspendLeaderGroupElector =
         MongoSuspendLeaderGroupElector(
             groupCollection = groupLockCollection,
@@ -43,7 +60,8 @@ class MongoSuspendLeaderGroupElectorTest: AbstractMongoLeaderTest() {
                     waitTime = waitTime,
                     leaseTime = 60.seconds,
                 )
-            )
+            ),
+            historyRecorder = historyRecorder,
         )
 
     @Test
@@ -54,6 +72,40 @@ class MongoSuspendLeaderGroupElectorTest: AbstractMongoLeaderTest() {
         val result = election.runIfLeader(lockName) { "success" }
 
         result shouldBeEqualTo "success"
+    }
+
+    @Test
+    fun `runIfLeader - history recorder receives acquired and completed events`() = runSuspendIO {
+        val lockName = randomName()
+        val recordSlot = slot<LeaderLockHistoryRecord>()
+        val historyKey = LeaderHistoryKey(lockName = lockName, token = "history-token", slotId = "0")
+        coEvery { historyRecorder.recordAcquired(capture(recordSlot)) } returns historyKey
+        val election = makeElection(historyRecorder = historyRecorder)
+
+        val result = election.runIfLeader(lockName) { "recorded" }
+
+        result shouldBeEqualTo "recorded"
+        recordSlot.captured.lockName shouldBeEqualTo lockName
+        recordSlot.captured.slotId.shouldNotBeNull()
+        coVerify(exactly = 1) { historyRecorder.recordCompleted(historyKey, any(), any()) }
+        coVerify(exactly = 0) { historyRecorder.recordFailed(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `runIfLeader - action failure records failed event`() = runSuspendIO {
+        val lockName = randomName()
+        val historyKey = LeaderHistoryKey(lockName = lockName, token = "history-token", slotId = "0")
+        coEvery { historyRecorder.recordAcquired(any()) } returns historyKey
+        val election = makeElection(historyRecorder = historyRecorder)
+        val failure = IllegalStateException("boom")
+
+        val ex = assertFailsWith<IllegalStateException> {
+            election.runIfLeader(lockName) { throw failure }
+        }
+
+        ex.message shouldBeEqualTo failure.message
+        coVerify(exactly = 0) { historyRecorder.recordCompleted(any(), any(), any()) }
+        coVerify(exactly = 1) { historyRecorder.recordFailed(historyKey, any(), any(), any()) }
     }
 
     @Test

@@ -29,6 +29,7 @@ private typealias FailedKey = Pair<String, String>
  * |--------------------------------------------|--------|----------------------|
  * | `leader.aop.attempts`                      | Counter | onLockAttempt         |
  * | `leader.aop.acquired`                      | Counter | onLockAcquired        |
+ * | `leader.aop.acquire.duration`              | Timer   | onLockAcquired        |
  * | `leader.aop.lock.not.acquired`             | Counter | onLockNotAcquired     |
  * | `leader.aop.execution.duration`            | Timer   | onTaskFinished        |
  * | `leader.aop.task.failed`                   | Counter | onTaskFailed          |
@@ -68,6 +69,7 @@ class MicrometerLeaderAopMetricsRecorder(
 
     private val attemptCounters = ConcurrentHashMap<String, Counter>()
     private val acquiredCounters = ConcurrentHashMap<String, Counter>()
+    private val acquireTimers = ConcurrentHashMap<String, Timer>()
     private val notAcquiredCounters = ConcurrentHashMap<NotAcquiredKey, Counter>()
     private val executionTimers = ConcurrentHashMap<String, Timer>()
     private val failedCounters = ConcurrentHashMap<FailedKey, Counter>()
@@ -78,8 +80,8 @@ class MicrometerLeaderAopMetricsRecorder(
     }
 
     override fun onLockAcquired(name: String, options: LeaderElectionOptions, acquireElapsed: Duration) {
-        // acquireElapsed → v2 후보 (leader.aop.acquire.duration)
         acquiredCounter(name).increment()
+        acquireTimer(name).record(acquireElapsed.toJavaDuration())
     }
 
     override fun onLockNotAcquired(name: String, options: LeaderElectionOptions, reason: SkipReason) {
@@ -120,6 +122,7 @@ class MicrometerLeaderAopMetricsRecorder(
      * **Pre-registered meters**:
      * - `leader.aop.attempts` Counter
      * - `leader.aop.acquired` Counter
+     * - `leader.aop.acquire.duration` Timer
      * - `leader.aop.execution.duration` Timer
      * - `leader.aop.active` Gauge
      *
@@ -137,6 +140,7 @@ class MicrometerLeaderAopMetricsRecorder(
             // attemptCounter 헬퍼를 통하지 않고 직접 computeIfAbsent — 카디널리티 WARN 회피 의도.
             attemptCounters.computeIfAbsent(name) { buildAttemptCounter(it) }
             acquiredCounters.computeIfAbsent(name) { buildAcquiredCounter(it) }
+            acquireTimers.computeIfAbsent(name) { buildAcquireTimer(it) }
             executionTimers.computeIfAbsent(name) { buildExecutionTimer(it) }
             activeGauges.computeIfAbsent(name) { buildActiveGauge(it) }
             // notAcquiredCounters / failedCounters : reason/exception 카디널리티 미지 → lazy 유지.
@@ -149,7 +153,7 @@ class MicrometerLeaderAopMetricsRecorder(
      * Cleans up lock names created by dynamic SpEL (e.g., `'tenant-' + #tenantId`) or retired jobs
      * to prevent `MeterRegistry` memory leaks and cardinality explosion in the time-series backend.
      *
-     * **Removed**: all 6 meter types (Counter/Timer/Gauge) registered under the given `lockName`,
+     * **Removed**: all meter types (Counter/Timer/Gauge) registered under the given `lockName`,
      * including all `reason` variants of `notAcquired` and all `exception` variants of `failed`.
      *
      * If a callback fires again for the same lock name after removal, meters are automatically
@@ -159,6 +163,7 @@ class MicrometerLeaderAopMetricsRecorder(
         lockNames.forEach { name ->
             attemptCounters.remove(name)?.let { registry.remove(it) }
             acquiredCounters.remove(name)?.let { registry.remove(it) }
+            acquireTimers.remove(name)?.let { registry.remove(it) }
             executionTimers.remove(name)?.let { registry.remove(it) }
             activeGauges.remove(name)?.also {
                 registry.find(MicrometerNames.METER_ACTIVE)
@@ -184,6 +189,9 @@ class MicrometerLeaderAopMetricsRecorder(
 
     private fun acquiredCounter(name: String): Counter =
         acquiredCounters.computeIfAbsent(name) { buildAcquiredCounter(it) }
+
+    private fun acquireTimer(name: String): Timer =
+        acquireTimers.computeIfAbsent(name) { buildAcquireTimer(it) }
 
     private fun notAcquiredCounter(name: String, reason: SkipReason): Counter =
         notAcquiredCounters.computeIfAbsent(name to reason) { (n, r) ->
@@ -214,6 +222,11 @@ class MicrometerLeaderAopMetricsRecorder(
 
     private fun buildAcquiredCounter(name: String): Counter =
         Counter.builder(MicrometerNames.METER_ACQUIRED)
+            .tag(MicrometerNames.TAG_LOCK_NAME, name)
+            .register(registry)
+
+    private fun buildAcquireTimer(name: String): Timer =
+        Timer.builder(MicrometerNames.METER_ACQUIRE_DURATION)
             .tag(MicrometerNames.TAG_LOCK_NAME, name)
             .register(registry)
 

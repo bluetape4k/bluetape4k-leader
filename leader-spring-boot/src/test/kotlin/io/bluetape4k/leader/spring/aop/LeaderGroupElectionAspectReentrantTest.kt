@@ -118,16 +118,11 @@ class LeaderGroupElectionAspectReentrantTest {
     }
 
     @Test
-    fun `group reentrant - FailOpen sentinel 은 Real 아님 → backend acquire 정상 호출`() {
+    fun `group reentrant - 동일 lockName FailOpen sentinel 보유 중이면 backend acquire 미호출`() {
         val target = GroupServiceImpl()
         val method = GroupService::class.java.getDeclaredMethod("run")
         configureJoinPoint(method, target)
         val aspect = newAspect()
-
-        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } answers {
-            @Suppress("UNCHECKED_CAST")
-            LeaderRunResult.Elected((secondArg<() -> Any?>()).invoke())
-        }
 
         val identity = LockIdentity(
             lockName = LOCK_NAME,
@@ -141,7 +136,8 @@ class LeaderGroupElectionAspectReentrantTest {
         }
 
         result shouldBeEqualTo SAMPLE_RESULT
-        verify(exactly = 1) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
+        verify(exactly = 0) { factoryMock.create(any()) }
+        verify(exactly = 0) { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) }
     }
 
     @Test
