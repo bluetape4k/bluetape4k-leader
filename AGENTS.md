@@ -160,3 +160,15 @@ delegate each phase to Codex with retry-3 to absorb transient failures:
 
 Trivial documentation-only or single-file fixes can skip Spec/Plan but should
 still run the Code Review pass before merging.
+
+## Cross-Repo Lesson Guards
+
+- Before issue, PR, workflow, release, or module-registration work, query GNO
+  for this repo in both `bluetape4k-github` and `bluetape4k-docs`.
+- For leader modules and examples, keep `settings.gradle.kts`, README locale
+  sets, repo-local module lists, CI path filters/jobs, Nightly or examples
+  workflow coverage, aggregator `needs`, coverage artifacts, and BOM constraints
+  synchronized.
+- For distributed-lock or leader-election changes, verify sync, async, suspend,
+  and virtual-thread paths for delegate/watchdog parity. Run Redis and other
+  Testcontainers-backed checks sequentially.
