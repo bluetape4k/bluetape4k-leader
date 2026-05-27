@@ -11,6 +11,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Opened the `0.3.0` development line after publishing `0.2.2`.
 - Updated the `bluetape4k-exposed` test helper reference from `1.9.2-SNAPSHOT`
   to the published `1.9.2` release.
 - Aligned the AWS SDK BOM with the central `bluetape4k-dependencies` catalog.
