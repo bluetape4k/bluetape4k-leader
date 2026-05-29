@@ -19,6 +19,14 @@ Redis leader election 은 단 1개 노드만 workload 를 스케줄링하게 한
 테스트는 3초 window 동안 초당 10회 quota 를 사용하며, 전체 외부 API 호출 수가
 `30` 이하인지 검증한다.
 
+## 아키텍처 다이어그램
+
+![rate limiter Architecture diagram](../../docs/images/readme-diagrams/examples-rate-limiter-architecture-01.png)
+
+## 시퀀스 다이어그램
+
+![rate limiter Sequence Flow diagram](../../docs/images/readme-diagrams/examples-rate-limiter-sequence-01.png)
+
 ## 실행
 
 ```bash

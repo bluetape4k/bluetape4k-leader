@@ -4,7 +4,18 @@
 
 Exposed R2DBC 리더 선출 기반 멀티테넌트 집계기. N개 인스턴스 환경에서 **테넌트별 독립 lockName** 으로 각 테넌트는 정확히 1 인스턴스만 polling 한다. long-running coroutine 워커, graceful stop, 테넌트별 예외 격리를 시연.
 
-## Architecture
+## 시나리오
+
+각 애플리케이션 인스턴스는 테넌트마다 하나의 coroutine loop를 시작합니다. 각 loop는
+집계 함수를 호출하기 전에 테넌트별 lock 이름(`"${lockNamePrefix}-${tenantId}"`)을
+사용하므로 tenant A와 tenant B의 리더가 서로 다를 수 있지만, 각 테넌트에는 항상
+정확히 1개의 active aggregator만 존재합니다.
+
+## 아키텍처 다이어그램
+
+![tenant aggregator Architecture diagram](../../docs/images/readme-diagrams/examples-tenant-aggregator-architecture-01.png)
+
+## 시퀀스 다이어그램
 
 ![tenant aggregator Sequence Flow diagram](../../docs/images/readme-diagrams/examples-tenant-aggregator-sequence-01.png)
 

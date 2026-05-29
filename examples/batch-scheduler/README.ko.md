@@ -4,7 +4,18 @@
 
 Lettuce-Redis 백엔드를 사용한 분산 배치 스케줄러 예제. 야간 정산 등 주기 배치 Job 을 다중 인스턴스 환경에서 단 1개만 실행되도록 보장.
 
-## Architecture
+## 시나리오
+
+3개 애플리케이션 인스턴스가 야간 정산 같은 주기 배치 Job 트리거를 동시에 받습니다.
+각 인스턴스는 같은 `nightly-settlement` lock 이름으로 `BatchScheduler.run(...)`을
+호출합니다. Lettuce Redis elector가 1개 인스턴스만 Job을 실행하게 하고, 나머지는
+예외 없이 `null`을 반환하며 skip합니다.
+
+## 아키텍처 다이어그램
+
+![batch scheduler Architecture diagram](../../docs/images/readme-diagrams/examples-batch-scheduler-architecture-01.png)
+
+## 시퀀스 다이어그램
 
 ![batch scheduler Sequence Flow diagram](../../docs/images/readme-diagrams/examples-batch-scheduler-sequence-01.png)
 

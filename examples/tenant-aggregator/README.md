@@ -4,7 +4,18 @@
 
 Multi-tenant aggregator backed by Exposed R2DBC leader election. Each tenant is polled by exactly one instance across N pods using independent per-tenant lock names. Demonstrates long-running coroutine workers with graceful stop and per-tenant exception isolation.
 
-## Architecture
+## Scenario
+
+Each application instance starts one coroutine loop per tenant. Every loop uses
+the tenant-specific lock name (`"${lockNamePrefix}-${tenantId}"`) before calling
+the aggregation function, so tenant A and tenant B can have different leaders
+while each tenant still has exactly one active aggregator.
+
+## Architecture Diagram
+
+![tenant aggregator Architecture diagram](../../docs/images/readme-diagrams/examples-tenant-aggregator-architecture-01.png)
+
+## Sequence Diagram
 
 ![tenant aggregator Sequence Flow diagram](../../docs/images/readme-diagrams/examples-tenant-aggregator-sequence-01.png)
 

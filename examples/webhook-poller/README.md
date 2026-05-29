@@ -4,7 +4,18 @@
 
 Distributed webhook event poller using MongoDB leader election. Demonstrates safe single-leader claim of webhook events across N pods, with at-least-once delivery, retry, and a `FAILED` terminal state as DLQ substitute.
 
-## Architecture
+## Scenario
+
+Several poller instances run the same polling loop, but only the elected leader
+claims MongoDB events. The leader atomically claims each event with
+`findOneAndUpdate`, runs the handler, marks success as `DONE`, and requeues or
+marks `FAILED` when the handler throws.
+
+## Architecture Diagram
+
+![webhook poller Architecture diagram](../../docs/images/readme-diagrams/examples-webhook-poller-architecture-01.png)
+
+## Sequence Diagram
 
 ![webhook poller Sequence Flow diagram](../../docs/images/readme-diagrams/examples-webhook-poller-sequence-01.png)
 
@@ -31,8 +42,6 @@ val poller = WebhookPoller(
         batchSize = 10,
         maxAttempts = 5,
         claimDuration = 30.seconds,    // must exceed worst-case handler runtime
-        leaseTime = 60.seconds,         // leader-lock TTL
-        waitTime = 1.seconds,
     ),
 ) { event ->
     httpClient.post(event.payload)     // forward webhook
@@ -61,8 +70,6 @@ Inserts 10 fake events into a fresh collection, then runs 3 pollers concurrently
 | `batchSize` | `10` | Max events claimed per cycle |
 | `maxAttempts` | `5` | Retry cap — on exceeding, event → `FAILED` |
 | `claimDuration` | `30.seconds` | Lease for an in-flight claim — must exceed handler runtime |
-| `leaseTime` | `60.seconds` | Leader-lock TTL |
-| `waitTime` | `1.seconds` | Leader-lock acquisition timeout |
 
 ## Failure Semantics
 

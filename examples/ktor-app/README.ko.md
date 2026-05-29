@@ -4,7 +4,18 @@
 
 Ktor 3.x REST API 서버 + 리더 선출로 보호되는 주기 백그라운드 작업 예제. 동일 Kotlin/Ktor 서비스를 다중 인스턴스로 배포하면서, 시간별 통계 집계 작업은 클러스터 전체에서 단 1개 인스턴스만 실행하는 일반적인 패턴을 시연한다.
 
-## Architecture
+## 시나리오
+
+여러 Ktor replica가 같은 `/stats`, `/health` 라우트를 노출합니다. 백그라운드
+`leaderScheduled` 작업은 공유 Redis lock `hourly-stats-aggregation`을 사용하므로
+cycle마다 1개 replica만 `StatsAggregator.aggregate()`를 호출하고, 나머지 replica는
+HTTP 트래픽을 계속 처리합니다.
+
+## 아키텍처 다이어그램
+
+![ktor app Architecture diagram](../../docs/images/readme-diagrams/examples-ktor-app-architecture-01.png)
+
+## 시퀀스 다이어그램
 
 ![ktor app Sequence Flow diagram](../../docs/images/readme-diagrams/examples-ktor-app-sequence-01.png)
 

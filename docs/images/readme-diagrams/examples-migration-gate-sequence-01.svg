@@ -25,16 +25,16 @@
 <rect class="frame" x="32" y="28" width="1690" height="2348" rx="28"/>
 <text class="title" x="66" y="82">migration gate Sequence Flow</text>
 <text class="subtitle" x="70" y="118">Sequence messages from the original Mermaid source</text>
-<rect class="card" x="80" y="166" width="290" height="72" rx="105" fill="#E8F3FF" stroke="#5B8DEF"/>
+<rect class="card" x="80" y="166" width="290" height="72" rx="12" fill="#E8F3FF" stroke="#5B8DEF"/>
 <text class="smallLabel" x="225" y="209" text-anchor="middle">pod-1 (new version)</text>
 <line class="lifeline" x1="225" y1="252" x2="225" y2="2344" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="514.7" y="166" width="290" height="72" rx="105" fill="#EAF7EF" stroke="#58A978"/>
+<rect class="card" x="514.7" y="166" width="290" height="72" rx="12" fill="#EAF7EF" stroke="#58A978"/>
 <text class="smallLabel" x="659.7" y="209" text-anchor="middle">pod-2 (new version)</text>
 <line class="lifeline" x1="659.7" y1="252" x2="659.7" y2="2344" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="949.3" y="166" width="290" height="72" rx="105" fill="#FFF3D9" stroke="#D6A441"/>
+<rect class="card" x="949.3" y="166" width="290" height="72" rx="12" fill="#FFF3D9" stroke="#D6A441"/>
 <text class="smallLabel" x="1094.3" y="209" text-anchor="middle">pod-3 (new version)</text>
 <line class="lifeline" x1="1094.3" y1="252" x2="1094.3" y2="2344" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="1384" y="166" width="290" height="72" rx="105" fill="#FDECEF" stroke="#DC6B82"/>
+<rect class="card" x="1384" y="166" width="290" height="72" rx="12" fill="#FDECEF" stroke="#DC6B82"/>
 <text class="smallLabel" x="1529" y="209" text-anchor="middle">DB</text>
 <line class="lifeline" x1="1529" y1="252" x2="1529" y2="2344" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
 <rect x="746" y="286" width="262" height="40" rx="97" fill="#ffffff" opacity="0.97"/>

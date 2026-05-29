@@ -23,20 +23,20 @@
 <text class="title" x="66" y="82">leader-k8s Acquire and Release</text>
 <text class="subtitle" x="70" y="118">Owner-conditional Lease writes keep execution single-leader and release-safe</text>
 
-<rect class="card" x="80" y="165" width="220" height="70" rx="16" fill="#E8F3FF" stroke="#5B8DEF"/>
+<rect class="card" x="80" y="165" width="220" height="70" rx="12" fill="#E8F3FF" stroke="#5B8DEF"/>
 <text class="label" x="190" y="208" text-anchor="middle">Worker</text>
 <line class="lifeline" x1="190" y1="252" x2="190" y2="860"/>
 
-<rect class="card" x="450" y="165" width="260" height="70" rx="16" fill="#EAF7EF" stroke="#58A978"/>
+<rect class="card" x="450" y="165" width="260" height="70" rx="12" fill="#EAF7EF" stroke="#58A978"/>
 <text class="smallLabel" x="580" y="194" text-anchor="middle">KubernetesLease</text>
 <text class="smallLabel" x="580" y="218" text-anchor="middle">LeaderElector</text>
 <line class="lifeline" x1="580" y1="252" x2="580" y2="860"/>
 
-<rect class="card" x="825" y="165" width="250" height="70" rx="16" fill="#FFF3D9" stroke="#D6A441"/>
+<rect class="card" x="825" y="165" width="250" height="70" rx="12" fill="#FFF3D9" stroke="#D6A441"/>
 <text class="label" x="950" y="208" text-anchor="middle">Kubernetes API</text>
 <line class="lifeline" x1="950" y1="252" x2="950" y2="860"/>
 
-<rect class="card" x="1200" y="165" width="220" height="70" rx="16" fill="#FDECEF" stroke="#DC6B82"/>
+<rect class="card" x="1200" y="165" width="220" height="70" rx="12" fill="#FDECEF" stroke="#DC6B82"/>
 <text class="label" x="1310" y="208" text-anchor="middle">Lease object</text>
 <line class="lifeline" x1="1310" y1="252" x2="1310" y2="860"/>
 

@@ -252,8 +252,7 @@ function validateTextAlignment(nodes) {
   const failures = [];
   for (const node of nodes) {
     if (!/\bcard\b/.test(node.kind) || node.compartmented || node.texts.length === 0) continue;
-    const labelTexts = node.texts.filter((text) => /(smallLabel|label|entityTitle|gtitle)/.test(text.className));
-    const measuredTexts = labelTexts.length ? labelTexts : node.texts;
+    const measuredTexts = node.texts;
     const top = Math.min(...measuredTexts.map((text) => text.y - textHeight(text) * 0.72));
     const bottom = Math.max(...measuredTexts.map((text) => text.y + textHeight(text) * 0.28));
     const blockCenter = (top + bottom) / 2;
@@ -312,6 +311,27 @@ function validateSequenceSpacing(svg, slug) {
     const gap = Number.parseFloat(match[2]) - (Number.parseFloat(match[1]) + 40);
     if (gap < 0 || gap > 10) {
       failures.push(`sequence label-to-arrow gap ${gap.toFixed(1)}px`);
+    }
+  }
+  return failures;
+}
+
+function validateSequenceHeaderShape(svg, slug) {
+  if (!/sequence/.test(slug)) return [];
+  const failures = [];
+  const participantHeaders = [...svg.matchAll(/<rect\b([^>]*class="[^"]*\bcard\b[^"]*"[^>]*)\/?>/g)]
+    .map((match) => ({
+      x: numericAttr(match[1], "x"),
+      y: numericAttr(match[1], "y"),
+      width: numericAttr(match[1], "width"),
+      height: numericAttr(match[1], "height"),
+      rx: numericAttr(match[1], "rx"),
+    }))
+    .filter((rect) => rect.y >= 150 && rect.y <= 180 && rect.height >= 60);
+  for (const rect of participantHeaders) {
+    const maxRx = Math.min(14, rect.height * 0.2);
+    if (rect.rx > maxRx) {
+      failures.push(`sequence participant header rx too large: x=${rect.x.toFixed(1)} rx=${rect.rx.toFixed(1)} max=${maxRx.toFixed(1)}`);
     }
   }
   return failures;
@@ -467,6 +487,7 @@ function processSvg(svgPath, fontState) {
   failures.push(...validateNodeOverlaps(nodes));
   failures.push(...validateTextAlignment(nodes));
   failures.push(...validateSequenceSpacing(svg, slug));
+  failures.push(...validateSequenceHeaderShape(svg, slug));
   failures.push(...validateChipTextAlignment(svg));
 
   const dot = buildDot(slug, title, nodes, edges);

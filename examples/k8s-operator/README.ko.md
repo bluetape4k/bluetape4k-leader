@@ -7,6 +7,21 @@
 `coordination.k8s.io/v1` Lease를 보유한 pod 하나만 mock custom resource
 reconcile loop를 실행합니다.
 
+## 시나리오
+
+3개 replica가 같은 Spring Boot operator controller를 실행합니다. 모든 replica는
+scheduled tick을 유지하지만, `KubernetesLeaseLeaderElector.runIfLeader`가
+`cronjob-reconciler` Lease를 가진 pod 하나만 reconcile workload를 호출하게 합니다.
+리더가 Lease 갱신을 멈추면 이후 tick에서 다른 pod가 인계할 수 있습니다.
+
+## 아키텍처 다이어그램
+
+![k8s operator Architecture diagram](../../docs/images/readme-diagrams/examples-k8s-operator-architecture-01.png)
+
+## 시퀀스 다이어그램
+
+![k8s operator Sequence Flow diagram](../../docs/images/readme-diagrams/examples-k8s-operator-sequence-01.png)
+
 ## 보여주는 것
 
 - `leader-k8s`를 operator election backend로 사용하는 방법

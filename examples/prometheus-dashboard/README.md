@@ -5,7 +5,14 @@
 Runnable Spring Boot 4 example that exposes bluetape4k leader election metrics
 through `/actuator/prometheus` and visualizes them in Prometheus and Grafana.
 
-## Architecture
+## Scenario
+
+The Spring Boot app schedules a proxied `@LeaderElection` job named
+`dashboard-job`. The job records leader AOP metrics through Micrometer, exposes
+them from `/actuator/prometheus`, and the compose stack lets Prometheus scrape
+the app while Grafana renders the pre-provisioned dashboard.
+
+## Architecture Diagram
 
 ![prometheus dashboard Architecture diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-architecture-01.png)
 

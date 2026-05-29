@@ -7,6 +7,21 @@ operators. Three pods can run the same Spring Boot application, but only the pod
 that owns the Kubernetes `coordination.k8s.io/v1` Lease runs the mock custom
 resource reconcile loop.
 
+## Scenario
+
+Three replicas run the same Spring Boot operator controller. Every replica keeps
+its scheduled tick, but `KubernetesLeaseLeaderElector.runIfLeader` lets only the
+pod that owns the `cronjob-reconciler` Lease call the reconcile workload. When
+the leader stops renewing the Lease, another pod can take over on a later tick.
+
+## Architecture Diagram
+
+![k8s operator Architecture diagram](../../docs/images/readme-diagrams/examples-k8s-operator-architecture-01.png)
+
+## Sequence Diagram
+
+![k8s operator Sequence Flow diagram](../../docs/images/readme-diagrams/examples-k8s-operator-sequence-01.png)
+
 ## What It Shows
 
 - `leader-k8s` as the election backend for an operator-style controller.

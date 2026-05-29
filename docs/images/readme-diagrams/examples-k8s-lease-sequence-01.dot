@@ -1,0 +1,24 @@
+digraph "examples-k8s-lease-sequence-01" {
+  graph [layout=neato, rankdir=TB, splines=ortho, overlap=false, outputorder=edgesfirst, nodesep=0.55, ranksep=0.75, bgcolor="transparent", label="K8s Lease Sequence Flow", labelloc=t];
+  node [shape=box, style="rounded,filled", fontname="Architects Daughter", fontsize=18, margin="0.16,0.10"];
+  edge [color="#758297", penwidth=1.8, arrowsize=0.8, fontname="Comic Mono", fontsize=10];
+  n0 [label="Holder A", fillcolor="#ffffff", color="#5B8DEF", width=2.92, height=1.00, pos="215.00,498.00!"];
+  n1 [label="Example", fillcolor="#ffffff", color="#58A978", width=2.92, height=1.00, pos="492.50,498.00!"];
+  n2 [label="Kubernetes API", fillcolor="#ffffff", color="#D6A441", width=2.92, height=1.00, pos="770.00,498.00!"];
+  n3 [label="Lease", fillcolor="#ffffff", color="#DC6B82", width=2.92, height=1.00, pos="1047.50,498.00!"];
+  n4 [label="Holder B", fillcolor="#ffffff", color="#45A7A1", width=2.92, height=1.00, pos="1325.00,498.00!"];
+  n0 -> n1 [];
+  n1 -> n2 [];
+  n2 -> n1 [style=dashed];
+  n1 -> n2 [];
+  n2 -> n3 [];
+  n4 -> n1 [];
+  n1 -> n2 [];
+  n2 -> n1 [style=dashed];
+  n1 -> n4 [style=dashed];
+  n0 -> n1 [];
+  n1 -> n2 [];
+  n4 -> n1 [];
+  n1 -> n2 [];
+  n1 -> n4 [style=dashed];
+}

@@ -6,6 +6,21 @@ This example demonstrates leader election with the Kubernetes
 `coordination.k8s.io/v1` Lease API against a real K3s API server started by
 `K3sServer.Launcher.k3s`.
 
+## Scenario
+
+Two holder identities compete for the same Kubernetes Lease. The first holder
+creates or renews the Lease, a competing holder receives `CONFLICT` while the
+Lease is still valid, and the current holder can release it so another holder
+can acquire the same Lease later.
+
+## Architecture Diagram
+
+![k8s lease Architecture diagram](../../docs/images/readme-diagrams/examples-k8s-lease-architecture-01.png)
+
+## Sequence Diagram
+
+![k8s lease Sequence Flow diagram](../../docs/images/readme-diagrams/examples-k8s-lease-sequence-01.png)
+
 ## What It Shows
 
 - Acquire a Lease when no holder exists.

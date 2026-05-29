@@ -25,13 +25,13 @@
 <rect class="frame" x="32" y="28" width="1404" height="1990" rx="28"/>
 <text class="title" x="66" y="82">Scenario 1 — Normal acquire/release plus cra.</text>
 <text class="subtitle" x="70" y="118">Sequence messages from the original Mermaid source</text>
-<rect class="card" x="80" y="166" width="300" height="72" rx="110" fill="#E8F3FF" stroke="#5B8DEF"/>
+<rect class="card" x="80" y="166" width="300" height="72" rx="12" fill="#E8F3FF" stroke="#5B8DEF"/>
 <text class="smallLabel" x="230" y="209" text-anchor="middle">ClientA</text>
 <line class="lifeline" x1="230" y1="252" x2="230" y2="1986" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="584" y="166" width="300" height="72" rx="110" fill="#EAF7EF" stroke="#58A978"/>
+<rect class="card" x="584" y="166" width="300" height="72" rx="12" fill="#EAF7EF" stroke="#58A978"/>
 <text class="smallLabel" x="734" y="209" text-anchor="middle">ClientB</text>
 <line class="lifeline" x1="734" y1="252" x2="734" y2="1986" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="1088" y="166" width="300" height="72" rx="110" fill="#FFF3D9" stroke="#D6A441"/>
+<rect class="card" x="1088" y="166" width="300" height="72" rx="12" fill="#FFF3D9" stroke="#D6A441"/>
 <text class="smallLabel" x="1238" y="198.5" text-anchor="middle">Redis (RPermit</text>
 <text class="smallLabel" x="1238" y="219.5" text-anchor="middle">Expirable</text>
 <line class="lifeline" x1="1238" y1="252" x2="1238" y2="1986" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>

@@ -4,7 +4,19 @@
 
 Distributed batch scheduler example using Lettuce-Redis backend. Demonstrates safe single execution of a periodic batch job (e.g. nightly settlement) across multiple deployed instances.
 
-## Architecture
+## Scenario
+
+Three application instances receive the same periodic trigger for a batch job
+such as nightly settlement. Each instance calls `BatchScheduler.run(...)` with
+the shared `nightly-settlement` lock name. The Lettuce Redis elector allows one
+instance to execute the job while the others return `null` and skip without
+throwing.
+
+## Architecture Diagram
+
+![batch scheduler Architecture diagram](../../docs/images/readme-diagrams/examples-batch-scheduler-architecture-01.png)
+
+## Sequence Diagram
 
 ![batch scheduler Sequence Flow diagram](../../docs/images/readme-diagrams/examples-batch-scheduler-sequence-01.png)
 
