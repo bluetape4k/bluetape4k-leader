@@ -223,6 +223,16 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
     }
 
     @Test
+    fun `LeaderGroupElection Flow 반환 타입 strict true - startup fail`() {
+        class SampleFlow {
+            @LeaderGroupElection(name = "group-flow-job", maxLeaders = 3)
+            open fun process(): Flow<String> = flowOf("ok")
+        }
+        val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleFlow(), "sample") }
+    }
+
+    @Test
     fun `composed bounded stream - AliasFor streamBounded 통과`() {
         class SampleComposedStream {
             @ComposedBoundedLeaderStream(name = "alias-stream-job")

@@ -494,7 +494,8 @@ Stream 반환 규칙:
 - 길거나 무한에 가까운 stream에는 `autoExtend = true`를 사용하세요.
 - lease window 안에 끝나는 것이 확실한 stream에만 `streamBounded = true`를 사용하세요.
 - 안전하지 않은 `Flux` / `Flow` 시그니처는 validator와 subscription/collection 시점에 빠르게 실패합니다.
-- `@LeaderGroupElection`은 `T?`, `suspend T?`, `Mono<T>`를 지원하며, group lease extension 의미가 정의되기 전까지 `Flux` / `Flow` group stream은 거부됩니다.
+- `@LeaderGroupElection`은 `T?`, `suspend T?`, `Mono<T>`를 지원합니다.
+- `@LeaderGroupElection` `Flux<T>` / `Flow<T>` stream은 0.3.0 범위 밖입니다. slot별 group lease extension 의미가 정의되지 않았으므로 startup validation과 subscription/collection 시점에 다시 거부됩니다.
 
 ### `failureMode`
 
