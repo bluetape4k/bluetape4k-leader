@@ -491,7 +491,8 @@ Stream return rules:
 - Use `autoExtend = true` for long-running or unbounded streams.
 - Use `streamBounded = true` only when the stream is known to finish within the lease window.
 - Unsafe `Flux` / `Flow` signatures fail fast in the validator and at subscription/collection time.
-- `@LeaderGroupElection` supports `T?`, `suspend T?`, and `Mono<T>`; `Flux` / `Flow` group streams are rejected until group lease extension semantics are defined.
+- `@LeaderGroupElection` supports `T?`, `suspend T?`, and `Mono<T>`.
+- `@LeaderGroupElection` `Flux<T>` / `Flow<T>` streams are out of scope for 0.3.0. They are rejected in startup validation and again at subscription/collection time because group lease extension is not defined per slot.
 
 ### `failureMode`
 

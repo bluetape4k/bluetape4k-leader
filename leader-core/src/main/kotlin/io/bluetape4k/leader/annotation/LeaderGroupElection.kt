@@ -6,7 +6,11 @@ package io.bluetape4k.leader.annotation
  * ## Behavior
  * - On method call, attempts to acquire one of [maxLeaders] slots using [name]. If successful, runs the body;
  *   otherwise branches according to [failureMode].
- * - Supports sync `T?` return only. suspend / `Mono<T>` / `Flow<T>` are planned for follow-up [#80].
+ * - Supports sync `T?`, `suspend T?`, and Reactor `Mono<T>` return types.
+ * - Reactor `Flux<T>` and Kotlin `Flow<T>` return types are intentionally unsupported in 0.3.0.
+ *   Group stream execution would require per-slot lease extension semantics across subscription,
+ *   cancellation, completion, and error paths. Unsafe stream signatures fail validation and are
+ *   also rejected by the runtime aspect at subscription or collection time.
  * - Startup fails if [maxLeaders] ≤ 1 (use [LeaderElection] for single-leader).
  *
  * ## Usage Example

@@ -14,6 +14,7 @@ import io.bluetape4k.logging.KLogging
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
@@ -352,6 +353,7 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         val flux = aspect.aroundLeader(pjp) as Flux<*>
 
         assertFailsWith<LeaderGroupElectionException> { flux.collectList().block() }
+        verify(exactly = 0) { pjp.proceed() }
     }
 
     @Test
@@ -362,5 +364,6 @@ class LeaderGroupElectionAspectSuspendMonoTest {
         val flow = aspect.aroundLeader(pjp) as Flow<*>
 
         assertFailsWith<LeaderGroupElectionException> { flow.toList() }
+        verify(exactly = 0) { pjp.proceed() }
     }
 }
