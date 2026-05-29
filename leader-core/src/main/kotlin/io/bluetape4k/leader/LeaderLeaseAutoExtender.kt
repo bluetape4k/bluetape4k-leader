@@ -191,7 +191,7 @@ object LeaderLeaseAutoExtender : KLogging() {
         val futureRef = AtomicReference<ScheduledFuture<*>?>(null)
         // Capture async mode at start() call time — subsequent configure() calls don't affect running watchdogs.
         val capturedAsyncExtend = asyncExtendEnabled
-        val extendInFlight: AtomicBoolean? = if (capturedAsyncExtend) AtomicBoolean(false) else null
+        val extendInFlight = AtomicBoolean(false)
 
         val doTick: () -> Unit = doTick@{
             if (closed.get()) {
@@ -244,7 +244,7 @@ object LeaderLeaseAutoExtender : KLogging() {
 
         // When async mode is enabled: dispatch each tick onto a virtual thread so that a slow backend
         // cannot block the shared scheduler. The extendInFlight guard prevents overlapping extends.
-        val tickRunnable: Runnable = if (capturedAsyncExtend && extendInFlight != null) {
+        val tickRunnable: Runnable = if (capturedAsyncExtend) {
             Runnable {
                 if (extendInFlight.compareAndSet(false, true)) {
                     Thread.ofVirtual()
@@ -255,7 +255,15 @@ object LeaderLeaseAutoExtender : KLogging() {
                 }
             }
         } else {
-            Runnable { doTick() }
+            Runnable {
+                if (extendInFlight.compareAndSet(false, true)) {
+                    try {
+                        doTick()
+                    } finally {
+                        extendInFlight.set(false)
+                    }
+                }
+            }
         }
 
         val future = try {
@@ -274,6 +282,7 @@ object LeaderLeaseAutoExtender : KLogging() {
         return AutoCloseable {
             if (closed.compareAndSet(false, true)) {
                 future.cancel(false)
+                waitForInFlightExtend(extendInFlight)
             }
         }
     }
@@ -374,6 +383,7 @@ object LeaderLeaseAutoExtender : KLogging() {
         return AutoCloseable {
             if (closed.compareAndSet(false, true)) {
                 future.cancel(false)
+                waitForInFlightExtend(extendInFlight)
                 cancelScopeIfIdle()
             }
         }
@@ -392,6 +402,23 @@ object LeaderLeaseAutoExtender : KLogging() {
     }
 
     private val MIN_RENEWAL_PERIOD = 25.milliseconds
+    private const val CLOSE_WAIT_TIMEOUT_MILLIS = 5_000L
+    private const val CLOSE_WAIT_POLL_MILLIS = 5L
+
+    private fun waitForInFlightExtend(extendInFlight: AtomicBoolean) {
+        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(CLOSE_WAIT_TIMEOUT_MILLIS)
+        while (extendInFlight.get() && System.nanoTime() < deadline) {
+            try {
+                Thread.sleep(CLOSE_WAIT_POLL_MILLIS)
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                return
+            }
+        }
+        if (extendInFlight.get()) {
+            log.warn { "leader.lease.auto-extend.close timed out while waiting for in-flight extend" }
+        }
+    }
 
     private fun handleOutcome(
         outcome: ExtendOutcome,

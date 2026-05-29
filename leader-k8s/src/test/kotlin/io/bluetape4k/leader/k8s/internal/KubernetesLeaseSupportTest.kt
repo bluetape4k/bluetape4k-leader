@@ -21,6 +21,18 @@ class KubernetesLeaseSupportTest {
     }
 
     @Test
+    fun `group slot lease name must leave room for suffix`() {
+        KubernetesLeaseNames.groupSlotLeaseName("daily-job", slot = 1, maxLeaders = 3) shouldBeEqualTo "daily-job-slot-1"
+
+        assertFailsWith<IllegalArgumentException> {
+            KubernetesLeaseNames.groupSlotLeaseName("x".repeat(60), slot = 1, maxLeaders = 3)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            KubernetesLeaseNames.groupSlotLeaseName("daily-job", slot = 3, maxLeaders = 3)
+        }
+    }
+
+    @Test
     fun `duration converts to ceiling seconds`() {
         1.milliseconds.toLeaseDurationSeconds("leaseTime") shouldBeEqualTo 1
         999.milliseconds.toLeaseDurationSeconds("leaseTime") shouldBeEqualTo 1

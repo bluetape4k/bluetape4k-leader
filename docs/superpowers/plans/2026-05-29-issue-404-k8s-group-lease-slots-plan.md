@@ -75,4 +75,3 @@ Base: `origin/develop` at `a8f0942f`
 | 7 Docs/release | README, lesson, PR evidence | 0 | 0 | 0 | 0 | English/Korean docs and lesson included. |
 
 Step 3-R status: PASS. P0 = 0, P1 = 0.
-
