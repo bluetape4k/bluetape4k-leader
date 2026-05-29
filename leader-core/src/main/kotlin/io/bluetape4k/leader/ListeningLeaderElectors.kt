@@ -53,8 +53,9 @@ class ListeningLeaderElector(
         var elected = false
         val result = delegate.runIfLeader(lockName) {
             elected = true
-            listeners.notifyElected(lockName)
-            eventSubject.tryEmit(LeaderElectionEvent.Elected(lockName))
+            val leader = delegate.state(lockName).leader
+            listeners.notifyElected(lockName, leader)
+            eventSubject.tryEmit(LeaderElectionEvent.Elected.fromLease(lockName, leader))
             try {
                 action()
             } finally {
@@ -77,8 +78,9 @@ class ListeningLeaderElector(
         val elected = AtomicBoolean(false)
         return delegate.runAsyncIfLeader(lockName, executor) {
             elected.set(true)
-            listeners.notifyElected(lockName)
-            eventSubject.tryEmit(LeaderElectionEvent.Elected(lockName))
+            val leader = delegate.state(lockName).leader
+            listeners.notifyElected(lockName, leader)
+            eventSubject.tryEmit(LeaderElectionEvent.Elected.fromLease(lockName, leader))
             try {
                 action().whenComplete { _, _ ->
                     listeners.notifyRevoked(lockName)
@@ -142,8 +144,8 @@ class ListeningLeaderGroupElector(
         var elected = false
         val result = delegate.runIfLeader(lockName) {
             elected = true
-            listeners.notifyElected(lockName)
-            eventSubject.tryEmit(LeaderElectionEvent.Elected(lockName))
+            listeners.notifyElected(lockName, null)
+            eventSubject.tryEmit(LeaderElectionEvent.Elected.fromLease(lockName, null))
             try {
                 action()
             } finally {
@@ -166,8 +168,8 @@ class ListeningLeaderGroupElector(
         val elected = AtomicBoolean(false)
         return delegate.runAsyncIfLeader(lockName, executor) {
             elected.set(true)
-            listeners.notifyElected(lockName)
-            eventSubject.tryEmit(LeaderElectionEvent.Elected(lockName))
+            listeners.notifyElected(lockName, null)
+            eventSubject.tryEmit(LeaderElectionEvent.Elected.fromLease(lockName, null))
             try {
                 action().whenComplete { _, _ ->
                     listeners.notifyRevoked(lockName)

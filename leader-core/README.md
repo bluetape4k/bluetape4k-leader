@@ -53,16 +53,20 @@ wrapping the cancellation; `isCancelled()` is not guaranteed). Blocking APIs als
 `LeaderElectionListenerRegistry` implementations support `addListener` and `removeListener` for lifecycle callbacks:
 
 - `onElected(lockName)` before the guarded action starts
+- `onElected(lockName, leader)` for implementations that need best-effort owner and lease expiry metadata
 - `onRevoked(lockName)` after the held lock or slot is released by the current call
 - `onSkipped(lockName)` when the action is not run because leadership was not acquired
 
 For suspend electors, `LeaderElectionEventPublisher.events` exposes the same lifecycle as a hot `Flow<LeaderElectionEvent>`.
+`LeaderElectionEvent.Elected` carries the same optional `LeaderLease` snapshot. `leader.leaseUntil` and
+`leaseExpiry` are `null` when a backend cannot report a precise expiry; treat them as observability metadata,
+not as an ownership decision.
 
 ```kotlin
 val election = LocalLeaderElector()
 val handle = election.addListener(object : LeaderElectionListener {
-    override fun onElected(lockName: String) {
-        println("elected: $lockName")
+    override fun onElected(lockName: String, leader: LeaderLease?) {
+        println("elected: $lockName until ${leader?.leaseUntil ?: "unknown"}")
     }
 })
 

@@ -2,6 +2,7 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
@@ -39,6 +40,23 @@ class LeaderElectionListenerTest {
         handle.close()
         election.runIfLeader("listener-job") { "done-again" }
         listener.events shouldBeEqualTo listOf("elected:listener-job", "revoked:listener-job")
+    }
+
+    @Test
+    fun `LocalLeaderElector - 선출 callback 에 lease expiry metadata 를 전달한다`() {
+        val election = LocalLeaderElector(
+            LeaderElectionOptions(nodeId = "node-a", leaseTime = 500.milliseconds)
+        )
+        val listener = RecordingLeaseListener()
+        election.addListener(listener)
+
+        val result = election.runIfLeader("listener-metadata-job") { "done" }
+
+        result shouldBeEqualTo "done"
+        val lease = listener.electedLeases.single().shouldNotBeNull()
+        lease.auditLeaderId shouldBeEqualTo "node-a"
+        lease.nodeId shouldBeEqualTo "node-a"
+        lease.leaseUntil.shouldNotBeNull()
     }
 
     @Test
@@ -241,6 +259,25 @@ class LeaderElectionListenerTest {
     }
 
     @Test
+    fun `ListeningLeaderGroupElector - aggregate state lease 를 현재 slot metadata 로 발행하지 않는다`() = runSuspendIO {
+        val preexisting = LeaderLease("other-node", leaseUntil = java.time.Instant.now().plusSeconds(60), slot = 0)
+        val election = StubLeaderGroupElector(elected = true, leaders = listOf(preexisting)).withListeners()
+        val collected = async(start = CoroutineStart.UNDISPATCHED) {
+            withTimeout(2_000.milliseconds) {
+                election.events.take(2).toList()
+            }
+        }
+
+        val result = election.runIfLeader("decorated-group-aggregate-job") { "done" }
+
+        result shouldBeEqualTo "done"
+        val event = collected.await()[0] as LeaderElectionEvent.Elected
+        event.leader shouldBeEqualTo null
+        event.leaderId shouldBeEqualTo null
+        event.leaseExpiry shouldBeEqualTo null
+    }
+
+    @Test
     fun `ListeningLeaderGroupElector - delegate skip 을 listener 이벤트로 발행한다`() {
         val listener = RecordingListener()
         val election = StubLeaderGroupElector(elected = false).withListeners(listener)
@@ -394,10 +431,13 @@ class LeaderElectionListenerTest {
         }
 
         result shouldBeEqualTo "done"
-        collected.await() shouldBeEqualTo listOf(
-            LeaderElectionEvent.Elected("suspend-event-job", leaderId = LeaderNodeId.Default),
-            LeaderElectionEvent.Revoked("suspend-event-job"),
-        )
+        val events = collected.await()
+        val elected = events[0] as LeaderElectionEvent.Elected
+        elected.lockName shouldBeEqualTo "suspend-event-job"
+        elected.leaderId shouldBeEqualTo LeaderNodeId.Default
+        elected.leader.shouldNotBeNull()
+        elected.leaseExpiry.shouldNotBeNull()
+        events[1] shouldBeEqualTo LeaderElectionEvent.Revoked("suspend-event-job")
     }
 
     @Test
@@ -477,6 +517,14 @@ class LeaderElectionListenerTest {
         }
     }
 
+    private class RecordingLeaseListener: LeaderElectionListener {
+        val electedLeases = CopyOnWriteArrayList<LeaderLease?>()
+
+        override fun onElected(lockName: String, leader: LeaderLease?) {
+            electedLeases += leader
+        }
+    }
+
     private class StubLeaderElector(
         private val elected: Boolean,
     ): LeaderElector {
@@ -503,6 +551,7 @@ class LeaderElectionListenerTest {
 
     private class StubLeaderGroupElector(
         private val elected: Boolean,
+        private val leaders: List<LeaderLease> = emptyList(),
     ): LeaderGroupElector {
 
         override val maxLeaders: Int = 2
@@ -512,7 +561,7 @@ class LeaderElectionListenerTest {
         override fun availableSlots(lockName: String): Int = 1
 
         override fun state(lockName: String): LeaderGroupState =
-            LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
+            LeaderGroupState(lockName, maxLeaders, activeCount(lockName), leaders)
 
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
             if (elected) action() else null

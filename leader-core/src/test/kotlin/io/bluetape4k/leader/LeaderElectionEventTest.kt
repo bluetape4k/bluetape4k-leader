@@ -2,6 +2,7 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.io.ByteArrayInputStream
@@ -20,6 +21,7 @@ class LeaderElectionEventTest {
         event.lockName shouldBeEqualTo "my-lock"
         event.leaderId.shouldBeNull()
         event.leaseExpiry.shouldBeNull()
+        event.leader.shouldBeNull()
     }
 
     @Test
@@ -29,6 +31,7 @@ class LeaderElectionEventTest {
         event.lockName shouldBeEqualTo "my-lock"
         event.leaderId shouldBeEqualTo "node-1"
         event.leaseExpiry.shouldBeNull()
+        event.leader.shouldBeNull()
     }
 
     @Test
@@ -39,6 +42,26 @@ class LeaderElectionEventTest {
         event.lockName shouldBeEqualTo "my-lock"
         event.leaderId shouldBeEqualTo "node-1"
         event.leaseExpiry shouldBeEqualTo expiry
+        event.leader.shouldBeNull()
+    }
+
+    @Test
+    fun `Elected - fromLease copies lease metadata`() {
+        val electedAt = Instant.parse("2025-06-01T00:00:00Z")
+        val expiry = electedAt.plusSeconds(30)
+        val lease = LeaderLease(
+            auditLeaderId = "node-1",
+            electedAt = electedAt,
+            leaseUntil = expiry,
+            nodeId = "host-a",
+        )
+
+        val event = LeaderElectionEvent.Elected.fromLease("my-lock", lease)
+
+        event.lockName shouldBeEqualTo "my-lock"
+        event.leaderId shouldBeEqualTo "node-1"
+        event.leaseExpiry shouldBeEqualTo expiry
+        event.leader.shouldNotBeNull() shouldBeEqualTo lease
     }
 
     @Test
@@ -58,6 +81,7 @@ class LeaderElectionEventTest {
         deserialized.lockName shouldBeEqualTo "my-lock"
         deserialized.leaderId shouldBeEqualTo "node-1"
         deserialized.leaseExpiry shouldBeEqualTo expiry
+        deserialized.leader.shouldBeNull()
     }
 
     @Test
@@ -75,15 +99,17 @@ class LeaderElectionEventTest {
         deserialized shouldBeEqualTo original
         deserialized.leaderId.shouldBeNull()
         deserialized.leaseExpiry.shouldBeNull()
+        deserialized.leader.shouldBeNull()
     }
 
     @Test
-    fun `Elected - data class equality considers leaderId and leaseExpiry`() {
+    fun `Elected - data class equality considers lease metadata`() {
         val expiry = Instant.parse("2025-06-01T00:00:00Z")
+        val lease = LeaderLease("node-1", leaseUntil = expiry)
 
-        val a = LeaderElectionEvent.Elected("lock", leaderId = "node-1", leaseExpiry = expiry)
-        val b = LeaderElectionEvent.Elected("lock", leaderId = "node-1", leaseExpiry = expiry)
-        val c = LeaderElectionEvent.Elected("lock", leaderId = "node-2", leaseExpiry = expiry)
+        val a = LeaderElectionEvent.Elected.fromLease("lock", lease)
+        val b = LeaderElectionEvent.Elected.fromLease("lock", lease)
+        val c = LeaderElectionEvent.Elected("lock", leaderId = "node-1", leaseExpiry = expiry)
         val d = LeaderElectionEvent.Elected("lock")
 
         a shouldBeEqualTo b

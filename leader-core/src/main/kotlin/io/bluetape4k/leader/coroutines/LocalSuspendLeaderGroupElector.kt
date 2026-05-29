@@ -280,8 +280,8 @@ class LocalSuspendLeaderGroupElector private constructor(
             auditLeaderId = auditLeaderId,
         )
         val watchdog = LeaderLeaseAutoExtender.start(false, options.leaseTime, delegate)
-        listeners.notifyElected(lockName)
-        eventSubject.emit(LeaderElectionEvent.Elected(lockName, leaderId = auditLeaderId))
+        listeners.notifyElected(lockName, lease)
+        eventSubject.emit(LeaderElectionEvent.Elected.fromLease(lockName, lease))
         return try {
             withContext(LockHandleElement(handle)) {
                 action()
