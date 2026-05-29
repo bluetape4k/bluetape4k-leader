@@ -5,11 +5,14 @@ plugins {
 
 sourceSets {
     create("benchmark")
+    create("kubernetesBenchmark")
 }
 
 kotlin {
     target {
         compilations.getByName("benchmark")
+            .associateWith(compilations.getByName("main"))
+        compilations.getByName("kubernetesBenchmark")
             .associateWith(compilations.getByName("main"))
     }
 }
@@ -24,6 +27,42 @@ configurations {
     }
     named("benchmarkRuntimeOnly") {
         extendsFrom(configurations.getByName("runtimeOnly"))
+    }
+    named("kubernetesBenchmarkImplementation") {
+        extendsFrom(configurations.getByName("implementation"))
+    }
+    named("kubernetesBenchmarkRuntimeOnly") {
+        extendsFrom(configurations.getByName("runtimeOnly"))
+    }
+}
+
+afterEvaluate {
+    // Root dependency management keeps Vert.x 5 for etcd; the K8s benchmark needs Fabric8's Vert.x 4 runtime.
+    configurations.named("kubernetesBenchmarkRuntimeClasspath") {
+        resolutionStrategy.eachDependency {
+            when (requested.group) {
+                "io.netty" -> useVersion("4.1.133.Final")
+                "io.vertx" -> useVersion("4.5.27")
+            }
+        }
+        resolutionStrategy.force(
+            "io.netty:netty-all:4.1.133.Final",
+            "io.netty:netty-buffer:4.1.133.Final",
+            "io.netty:netty-codec:4.1.133.Final",
+            "io.netty:netty-codec-dns:4.1.133.Final",
+            "io.netty:netty-codec-http:4.1.133.Final",
+            "io.netty:netty-codec-http2:4.1.133.Final",
+            "io.netty:netty-codec-socks:4.1.133.Final",
+            "io.netty:netty-common:4.1.133.Final",
+            "io.netty:netty-handler:4.1.133.Final",
+            "io.netty:netty-handler-proxy:4.1.133.Final",
+            "io.netty:netty-resolver:4.1.133.Final",
+            "io.netty:netty-resolver-dns:4.1.133.Final",
+            "io.netty:netty-transport:4.1.133.Final",
+            "io.vertx:vertx-core:4.5.27",
+            "io.vertx:vertx-web-client:4.5.27",
+            "io.vertx:vertx-web-common:4.5.27",
+        )
     }
 }
 
@@ -55,6 +94,10 @@ benchmark {
             this as kotlinx.benchmark.gradle.JvmBenchmarkTarget
             jmhVersion = libs.versions.jmh.get()
         }
+        register("kubernetesBenchmark") {
+            this as kotlinx.benchmark.gradle.JvmBenchmarkTarget
+            jmhVersion = libs.versions.jmh.get()
+        }
     }
 }
 
@@ -71,6 +114,9 @@ dependencies {
     add("benchmarkImplementation", project(":bluetape4k-leader-mongodb"))
     add("benchmarkImplementation", project(":bluetape4k-leader-hazelcast"))
     add("benchmarkImplementation", project(":bluetape4k-leader-zookeeper"))
+    add("benchmarkImplementation", project(":bluetape4k-leader-consul"))
+    add("benchmarkImplementation", project(":bluetape4k-leader-etcd"))
+    add("benchmarkImplementation", project(":bluetape4k-leader-dynamodb"))
 
     add("benchmarkImplementation", libs.bluetape4k.testcontainers)
     add("benchmarkImplementation", libs.bluetape4k.virtualthread.jdk21)
@@ -85,4 +131,19 @@ dependencies {
     add("benchmarkRuntimeOnly", libs.jcl.over.slf4j)
     add("benchmarkRuntimeOnly", libs.jul.to.slf4j)
     add("benchmarkRuntimeOnly", libs.log4j.over.slf4j)
+
+    add("kubernetesBenchmarkImplementation", libs.kotlinx.benchmark.runtime)
+    add("kubernetesBenchmarkImplementation", libs.kotlinx.benchmark.runtime.jvm)
+    add("kubernetesBenchmarkImplementation", libs.jmh.core)
+
+    add("kubernetesBenchmarkImplementation", project(":bluetape4k-leader-core"))
+    add("kubernetesBenchmarkImplementation", project(":bluetape4k-leader-k8s"))
+
+    add("kubernetesBenchmarkImplementation", libs.bluetape4k.testcontainers)
+    add("kubernetesBenchmarkImplementation", libs.kotlinx.coroutines.core)
+
+    add("kubernetesBenchmarkRuntimeOnly", libs.logback)
+    add("kubernetesBenchmarkRuntimeOnly", libs.jcl.over.slf4j)
+    add("kubernetesBenchmarkRuntimeOnly", libs.jul.to.slf4j)
+    add("kubernetesBenchmarkRuntimeOnly", libs.log4j.over.slf4j)
 }

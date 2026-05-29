@@ -3,8 +3,16 @@ package io.bluetape4k.leader.benchmark
 import com.hazelcast.client.HazelcastClient
 import com.hazelcast.client.config.ClientConfig
 import com.hazelcast.core.HazelcastInstance
+import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.consul.ConsulEndpoint
+import io.bluetape4k.leader.consul.ConsulLeaderElectionOptions
+import io.bluetape4k.leader.consul.ConsulLeaderElector
+import io.bluetape4k.leader.dynamodb.DynamoDbLeaderElectionOptions
+import io.bluetape4k.leader.dynamodb.DynamoDbLeaderElector
+import io.bluetape4k.leader.etcd.EtcdLeaderElectionOptions
+import io.bluetape4k.leader.etcd.EtcdLeaderElector
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElectionOptions
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElector
 import io.bluetape4k.leader.hazelcast.HazelcastLeaderElector
@@ -16,10 +24,14 @@ import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.leader.redisson.RedissonLeaderElector
 import io.bluetape4k.leader.zookeeper.ZooKeeperLeaderElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.testcontainers.aws.DynamoDbLocalServer
+import io.bluetape4k.testcontainers.infra.ConsulServer
+import io.bluetape4k.testcontainers.infra.EtcdServer
 import io.bluetape4k.testcontainers.infra.ZooKeeperServer
 import io.bluetape4k.testcontainers.storage.HazelcastServer
 import io.bluetape4k.testcontainers.storage.MongoDBServer
 import io.bluetape4k.testcontainers.storage.RedisServer
+import io.etcd.jetcd.Client
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.codec.StringCodec
@@ -35,13 +47,36 @@ import org.openjdk.jmh.infra.Blackhole
 import org.redisson.Redisson
 import org.redisson.api.RedissonClient
 import org.redisson.config.Config
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient
+import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition
+import software.amazon.awssdk.services.dynamodb.model.BillingMode
+import software.amazon.awssdk.services.dynamodb.model.CreateTableRequest
+import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement
+import software.amazon.awssdk.services.dynamodb.model.KeyType
+import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType
+import software.amazon.awssdk.services.dynamodb.model.TimeToLiveSpecification
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
 @State(Scope.Benchmark)
 open class BackendLeaderElectorBenchmark {
 
-    @Param("local", "lettuce", "redisson", "exposed-jdbc-h2", "mongo", "hazelcast", "zookeeper")
+    @Param(
+        "local",
+        "lettuce",
+        "redisson",
+        "exposed-jdbc-h2",
+        "mongo",
+        "hazelcast",
+        "zookeeper",
+        "consul",
+        "etcd",
+        "dynamodb",
+    )
     lateinit var backend: String
 
     private val leaderOptions = LeaderElectionOptions(waitTime = 1.seconds, leaseTime = 60.seconds)
@@ -53,6 +88,8 @@ open class BackendLeaderElectorBenchmark {
     private var redissonClient: RedissonClient? = null
     private var hazelcastClient: HazelcastInstance? = null
     private var curator: CuratorFramework? = null
+    private var etcdClient: Client? = null
+    private var dynamoDbClient: DynamoDbClient? = null
 
     @Setup
     fun setup() {
@@ -65,6 +102,9 @@ open class BackendLeaderElectorBenchmark {
             "mongo" -> createMongoElector()
             "hazelcast" -> createHazelcastElector()
             "zookeeper" -> createZooKeeperElector()
+            "consul" -> createConsulElector()
+            "etcd" -> createEtcdElector()
+            "dynamodb" -> createDynamoDbElector()
             else -> error("Unsupported backend: $backend")
         }
         require(elector.runIfLeader("$lockName-smoke") { true } == true) {
@@ -79,6 +119,8 @@ open class BackendLeaderElectorBenchmark {
         closeResource("redissonClient") { redissonClient?.shutdown() }
         closeResource("hazelcastClient") { hazelcastClient?.shutdown() }
         closeResource("curator") { curator?.close() }
+        closeResource("etcdClient") { etcdClient?.close() }
+        closeResource("dynamoDbClient") { dynamoDbClient?.close() }
     }
 
     @Benchmark
@@ -148,6 +190,90 @@ open class BackendLeaderElectorBenchmark {
         }
         curator = client
         return ZooKeeperLeaderElector(client, options = leaderOptions)
+    }
+
+    private fun createConsulElector(): LeaderElector {
+        val consul = ConsulServer.Launcher.consul
+        return ConsulLeaderElector(
+            ConsulEndpoint(consul.url),
+            ConsulLeaderElectionOptions(
+                keyPrefix = "bluetape4k/leader/benchmark/${Base58.randomString(8)}",
+                leaderOptions = leaderOptions,
+            ),
+        )
+    }
+
+    private fun createEtcdElector(): LeaderElector {
+        val etcd = EtcdServer.Launcher.etcd
+        val client = Client.builder()
+            .endpoints(etcd.endpoint)
+            .connectTimeout(Duration.ofSeconds(10))
+            .build()
+        etcdClient = client
+        return EtcdLeaderElector(
+            client,
+            EtcdLeaderElectionOptions(
+                keyPrefix = "/bluetape4k/leader/benchmark/${Base58.randomString(8)}",
+                leaderOptions = leaderOptions,
+            ),
+        )
+    }
+
+    private fun createDynamoDbElector(): LeaderElector {
+        val dynamoDb = DynamoDbLocalServer.Launcher.dynamoDb
+        val client = DynamoDbClient.builder()
+            .endpointOverride(dynamoDb.awsEndpoint)
+            .credentialsProvider(
+                StaticCredentialsProvider.create(
+                    AwsBasicCredentials.create(dynamoDb.awsAccessKey, dynamoDb.awsSecretKey),
+                ),
+            )
+            .region(Region.of(dynamoDb.regionName))
+            .build()
+        val tableName = "leader_benchmark_${Base58.randomString(12)}"
+        createDynamoDbTable(client, tableName)
+        dynamoDbClient = client
+        return DynamoDbLeaderElector(
+            client,
+            DynamoDbLeaderElectionOptions(
+                tableName = tableName,
+                keyPrefix = "benchmark-${Base58.randomString(8)}",
+                leaderOptions = leaderOptions,
+            ),
+        )
+    }
+
+    private fun createDynamoDbTable(client: DynamoDbClient, tableName: String) {
+        client.createTable(
+            CreateTableRequest.builder()
+                .tableName(tableName)
+                .billingMode(BillingMode.PAY_PER_REQUEST)
+                .attributeDefinitions(
+                    AttributeDefinition.builder()
+                        .attributeName("lockName")
+                        .attributeType(ScalarAttributeType.S)
+                        .build(),
+                )
+                .keySchema(
+                    KeySchemaElement.builder()
+                        .attributeName("lockName")
+                        .keyType(KeyType.HASH)
+                        .build(),
+                )
+                .build(),
+        )
+        client.waiter().waitUntilTableExists { it.tableName(tableName) }
+        runCatching {
+            client.updateTimeToLive {
+                it.tableName(tableName)
+                    .timeToLiveSpecification(
+                        TimeToLiveSpecification.builder()
+                            .attributeName("ttl")
+                            .enabled(true)
+                            .build(),
+                    )
+            }
+        }
     }
 
     private inline fun closeResource(resource: String, block: () -> Unit) {

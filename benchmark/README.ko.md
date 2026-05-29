@@ -13,12 +13,23 @@ benchmark source set은 `benchmark/src/benchmark/kotlin` 아래에 있습니다.
 
 ```bash
 ./gradlew :benchmark:benchmarkBenchmark :benchmark:benchmarkAverageTimeBenchmark --no-configuration-cache --rerun-tasks
+./gradlew :benchmark:kubernetesBenchmarkBenchmark :benchmark:kubernetesBenchmarkAverageTimeBenchmark --no-configuration-cache --rerun-tasks
 ```
 
 2026-05-21 기준선은 fork 1, thread 1, warmup 2회, 1초 measurement 3회로
 측정했습니다. 전체 환경과 주의사항은
 [`docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md`](../docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md)에
 기록되어 있습니다.
+
+Issue #418은 2026-05-29 같은 장비에서 측정한 preview backend 행을
+추가합니다. Kubernetes는 Fabric8 client가 Vert.x 4 / Netty 4.1 runtime을
+필요로 하고, 기본 preview target은 etcd를 위해 Vert.x 5를 유지해야 하므로
+별도 benchmark target으로 실행합니다. 원본 JSON은 다음 경로에 보존했습니다.
+
+- [`docs/benchmarks/2026-05-29-issue-418-preview-backend-throughput.json`](../docs/benchmarks/2026-05-29-issue-418-preview-backend-throughput.json)
+- [`docs/benchmarks/2026-05-29-issue-418-preview-backend-average-time.json`](../docs/benchmarks/2026-05-29-issue-418-preview-backend-average-time.json)
+- [`docs/benchmarks/2026-05-29-issue-418-kubernetes-throughput.json`](../docs/benchmarks/2026-05-29-issue-418-kubernetes-throughput.json)
+- [`docs/benchmarks/2026-05-29-issue-418-kubernetes-average-time.json`](../docs/benchmarks/2026-05-29-issue-418-kubernetes-average-time.json)
 
 ## Charts
 
@@ -58,25 +69,42 @@ Throughput은 높을수록 좋고, average time은 낮을수록 좋습니다.
 
 | Backend | Throughput (ops/s) | Average time (us/op) | Notes |
 |---|---:|---:|---|
-| local | 2,204,166.553 ± 387,424.052 | 0.445 ± 0.052 | In-process 기준선 |
-| exposed-jdbc-h2 | 20,138.374 ± 59,295.930 | 49.943 ± 162.508 | Local H2 SQL layer 기준선 |
-| hazelcast | 1,457.277 ± 213.303 | 693.926 ± 61.127 | Testcontainers 기반 원격 backend |
-| redisson | 1,354.629 ± 2,657.106 | 715.517 ± 217.899 | Testcontainers 기반 Redis backend |
-| lettuce | 1,054.204 ± 11,495.384 | 703.769 ± 153.427 | Testcontainers 기반 Redis backend |
-| mongo | 934.619 ± 691.550 | 1,105.806 ± 87.387 | Testcontainers 기반 원격 backend |
-| zookeeper | 760.439 ± 1,079.874 | 1,252.265 ± 1,393.136 | Testcontainers 기반 원격 backend |
+| local | 2,229,094.156 ± 340,606.937 | 0.448 ± 0.066 | In-process 기준선 |
+| exposed-jdbc-h2 | 20,270.340 ± 76,948.054 | 51.486 ± 184.900 | Local H2 SQL layer 기준선 |
+| lettuce | 1,456.452 ± 1,105.248 | 695.602 ± 134.945 | Testcontainers 기반 Redis backend |
+| redisson | 1,415.589 ± 158.353 | 714.410 ± 98.256 | Testcontainers 기반 Redis backend |
+| hazelcast | 1,415.206 ± 591.033 | 789.086 ± 2,476.835 | Testcontainers 기반 원격 backend |
+| mongo | 933.785 ± 111.170 | 1,066.984 ± 362.207 | Testcontainers 기반 원격 backend |
+| zookeeper | 841.759 ± 502.488 | 1,238.603 ± 1,081.258 | Testcontainers 기반 원격 backend |
+| dynamodb | 641.149 ± 2,605.461 | 1,385.980 ± 2,020.305 | Preview 행; DynamoDB Local |
+| consul | 615.061 ± 300.998 | 1,768.272 ± 1,190.899 | Preview 행; Consul container |
+| etcd | 493.380 ± 165.546 | 2,380.611 ± 1,676.741 | Preview 행; etcd container |
 
 ### Suspend API
 
 | Backend | Throughput (ops/s) | Average time (us/op) | Notes |
 |---|---:|---:|---|
-| local | 793,107.864 ± 193,258.001 | 1.250 ± 0.374 | Coroutine bridge 기준선 |
-| exposed-r2dbc-h2 | 6,393.060 ± 18,208.172 | 162.539 ± 440.562 | Local H2 R2DBC layer 기준선 |
-| lettuce | 1,458.073 ± 240.569 | 648.530 ± 311.462 | Testcontainers 기반 Redis backend |
-| redisson | 1,395.999 ± 248.707 | 713.728 ± 121.088 | Testcontainers 기반 Redis backend |
-| hazelcast | 1,393.962 ± 693.802 | 701.224 ± 136.723 | Testcontainers 기반 원격 backend |
-| mongo | 829.311 ± 666.735 | 3,334.853 ± 61,304.680 | 노이즈가 큰 행; tuning 전 재측정 필요 |
-| zookeeper | 721.758 ± 938.116 | 1,250.279 ± 947.488 | Testcontainers 기반 원격 backend |
+| local | 925,514.252 ± 406,872.759 | 1.105 ± 0.263 | Coroutine bridge 기준선 |
+| exposed-r2dbc-h2 | 6,315.028 ± 16,768.905 | 169.439 ± 427.033 | Local H2 R2DBC layer 기준선 |
+| lettuce | 1,463.431 ± 676.132 | 693.089 ± 169.233 | Testcontainers 기반 Redis backend |
+| redisson | 1,395.657 ± 368.895 | 712.892 ± 104.524 | Testcontainers 기반 Redis backend |
+| hazelcast | 1,360.655 ± 405.288 | 741.366 ± 398.588 | Testcontainers 기반 원격 backend |
+| zookeeper | 758.629 ± 913.401 | 1,457.399 ± 746.002 | Testcontainers 기반 원격 backend |
+| consul | 587.939 ± 212.750 | 1,619.926 ± 1,327.587 | Preview 행; Consul container |
+| dynamodb | 561.315 ± 1,195.590 | 2,031.045 ± 3,072.218 | Preview 행; DynamoDB Local |
+| mongo | 559.779 ± 5,979.628 | 1,358.661 ± 1,636.852 | 노이즈가 큰 행; tuning 전 재측정 필요 |
+| etcd | 459.969 ± 381.881 | 2,576.520 ± 8,028.306 | Preview 행; etcd container |
+
+## Kubernetes Results
+
+Kubernetes는 K3s Testcontainers wrapper를 사용하며, Fabric8 runtime이 기본
+preview backend classpath를 downgrade하지 않도록 `kubernetesBenchmark`
+source set에서 별도로 실행합니다.
+
+| Benchmark | Throughput (ops/s) | Average time (us/op) | Notes |
+|---|---:|---:|---|
+| `Kubernetes.blockingRunIfLeader` | 171.525 ± 160.477 | 5,835.436 ± 8,251.639 | K3s 기반 Lease lock |
+| `Kubernetes.suspendRunIfLeader` | 164.687 ± 57.773 | 6,075.660 ± 4,944.763 | K3s 기반 Lease lock |
 
 ## Local Core Rows
 
@@ -106,13 +134,15 @@ Throughput은 높을수록 좋고, average time은 낮을수록 좋습니다.
   분리해서 보여줍니다.
 - benchmark setup은 측정 전 smoke `runIfLeader` check를 수행하므로,
   infrastructure 연결 실패가 잘못된 빠른 경로로 측정되지 않습니다.
-- 특히 suspend MongoDB처럼 노이즈가 큰 행은 최적화 판단 전에 반복 측정하세요.
+- 특히 DynamoDB, etcd, Kubernetes, suspend MongoDB처럼 노이즈가 큰 행은
+  최적화 판단 전에 반복 측정하세요.
 
 ## Benchmark Classes
 
 | Class | Scenario |
 |---|---|
-| `BackendLeaderElectorBenchmark` | Blocking `runIfLeader`: local, Redis, Exposed JDBC H2, MongoDB, Hazelcast, ZooKeeper |
-| `SuspendBackendLeaderElectorBenchmark` | Suspend `runIfLeader`: local, Redis, Exposed R2DBC H2, MongoDB, Hazelcast, ZooKeeper |
+| `BackendLeaderElectorBenchmark` | Blocking `runIfLeader`: local, Redis, Exposed JDBC H2, MongoDB, Hazelcast, ZooKeeper, Consul, etcd, DynamoDB |
+| `SuspendBackendLeaderElectorBenchmark` | Suspend `runIfLeader`: local, Redis, Exposed R2DBC H2, MongoDB, Hazelcast, ZooKeeper, Consul, etcd, DynamoDB |
+| `KubernetesBackendLeaderElectorBenchmark` | 별도 Vert.x 4 runtime에서 K3s 기반 Kubernetes Lease lock의 blocking/suspend `runIfLeader` 측정 |
 | `LocalLeaderElectorBenchmark` | Local blocking, async, completable-future, suspend, virtual-thread elector overhead |
 | `HistoryRecorderBenchmark` | No-op 및 in-memory leader history recorder overhead |
