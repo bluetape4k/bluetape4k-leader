@@ -1,17 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1876" height="2540" viewBox="0 0 1876 2540" role="img" aria-label="tenant aggregator Sequence Flow">
+<svg xmlns="http://www.w3.org/2000/svg" width="1986" height="2540" viewBox="0 0 1986 2540" role="img" aria-label="tenant aggregator Sequence Flow">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: examples-tenant-aggregator-sequence-01.dot, examples-tenant-aggregator-sequence-01.plain, examples-tenant-aggregator-sequence-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
   <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
   <marker id="inherit" markerWidth="14" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M 0 1 L 12 6 L 0 11 Z" fill="#ffffff" stroke="#758297" stroke-width="1.8"/></marker>
   <style>
     .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
-    .title{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
-    .subtitle{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
-    .label{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
-    .smallLabel{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
-    .mono{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
-    .small{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
-    .strong{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
+    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
+    .label{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
+    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
+    .small{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
+    .strong{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
     .card{stroke-width:2.1;filter:url(#shadow)}.compartment{stroke-width:1.5;fill:none}
     .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
     .plainLine{stroke:#758297;stroke-width:2.1;fill:none}
@@ -20,86 +21,86 @@
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
   </style>
 </defs>
-<rect class="canvas" width="1876" height="2540"/>
-<rect class="frame" x="32" y="28" width="1812" height="2484" rx="28"/>
+<rect class="canvas" width="1986" height="2540"/>
+<rect class="frame" x="32" y="28" width="1922" height="2484" rx="28"/>
 <text class="title" x="66" y="82">tenant aggregator Sequence Flow</text>
 <text class="subtitle" x="70" y="118">Sequence messages from the original Mermaid source</text>
-<rect class="card" x="25" y="166" width="230" height="72" rx="20" fill="#E8F3FF" stroke="#5B8DEF"/>
-<text class="smallLabel" x="140" y="209" text-anchor="middle">node-1</text>
-<line class="lifeline" x1="140" y1="252" x2="140" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="344.2" y="166" width="230" height="72" rx="20" fill="#EAF7EF" stroke="#58A978"/>
-<text class="smallLabel" x="459.2" y="209" text-anchor="middle">node-2</text>
-<line class="lifeline" x1="459.2" y1="252" x2="459.2" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="663.4" y="166" width="230" height="72" rx="20" fill="#FFF3D9" stroke="#D6A441"/>
-<text class="smallLabel" x="778.4" y="209" text-anchor="middle">node-3</text>
-<line class="lifeline" x1="778.4" y1="252" x2="778.4" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="982.5999999999999" y="166" width="230" height="72" rx="20" fill="#FDECEF" stroke="#DC6B82"/>
-<text class="smallLabel" x="1097.6" y="209" text-anchor="middle">lock(tenant-A)</text>
-<line class="lifeline" x1="1097.6" y1="252" x2="1097.6" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="1301.8" y="166" width="230" height="72" rx="20" fill="#E9F7F6" stroke="#45A7A1"/>
-<text class="smallLabel" x="1416.8" y="209" text-anchor="middle">lock(tenant-B)</text>
-<line class="lifeline" x1="1416.8" y1="252" x2="1416.8" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="1621" y="166" width="230" height="72" rx="20" fill="#F1ECFF" stroke="#8A72D6"/>
-<text class="smallLabel" x="1736" y="209" text-anchor="middle">lock(tenant-C)</text>
-<line class="lifeline" x1="1736" y1="252" x2="1736" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect x="70" y="286" width="1736" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="92" y="313" text-anchor="start">PAR: tenant-A</text>
-<rect x="513.8" y="354" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="531.8" y="381" text-anchor="start">2. runIfLeader</text>
-<path class="line" d="M140 412 L1097.6 412"/>
-<rect x="673.4" y="464" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="691.4" y="491" text-anchor="start">3. runIfLeader</text>
-<path class="line" d="M459.2 522 L1097.6 522"/>
-<rect x="833" y="574" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="851" y="601" text-anchor="start">4. runIfLeader</text>
-<path class="line" d="M778.4 632 L1097.6 632"/>
-<rect x="467.79999999999995" y="684" width="302" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="485.79999999999995" y="711" text-anchor="start">5. granted -&gt; aggregate(tenant-A)</text>
-<path class="dashed" d="M1097.6 742 L140 742"/>
-<rect x="673.4" y="794" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="691.4" y="821" text-anchor="start">6. null</text>
-<path class="dashed" d="M1097.6 852 L459.2 852"/>
-<rect x="833" y="904" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="851" y="931" text-anchor="start">7. null</text>
-<path class="dashed" d="M1097.6 962 L778.4 962"/>
-<rect x="70" y="1014" width="1736" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="92" y="1041" text-anchor="start">AND: tenant-B</text>
-<rect x="673.4" y="1082" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="691.4" y="1109" text-anchor="start">9. runIfLeader</text>
-<path class="line" d="M140 1140 L1416.8 1140"/>
-<rect x="833" y="1192" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="851" y="1219" text-anchor="start">10. runIfLeader</text>
-<path class="line" d="M459.2 1250 L1416.8 1250"/>
-<rect x="992.5999999999999" y="1302" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1010.5999999999999" y="1329" text-anchor="start">11. runIfLeader</text>
-<path class="line" d="M778.4 1360 L1416.8 1360"/>
-<rect x="782.5" y="1412" width="311" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="800.5" y="1439" text-anchor="start">12. granted -&gt; aggregate(tenant-B)</text>
-<path class="dashed" d="M1416.8 1470 L459.2 1470"/>
-<rect x="673.4" y="1522" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="691.4" y="1549" text-anchor="start">13. null</text>
-<path class="dashed" d="M1416.8 1580 L140 1580"/>
-<rect x="992.5999999999999" y="1632" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1010.5999999999999" y="1659" text-anchor="start">14. null</text>
-<path class="dashed" d="M1416.8 1690 L778.4 1690"/>
-<rect x="70" y="1742" width="1736" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="92" y="1769" text-anchor="start">AND: tenant-C</text>
-<rect x="833" y="1810" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="851" y="1837" text-anchor="start">16. runIfLeader</text>
-<path class="line" d="M140 1868 L1736 1868"/>
-<rect x="992.5999999999999" y="1920" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1010.5999999999999" y="1947" text-anchor="start">17. runIfLeader</text>
-<path class="line" d="M459.2 1978 L1736 1978"/>
-<rect x="1152.2" y="2030" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1170.2" y="2057" text-anchor="start">18. runIfLeader</text>
-<path class="line" d="M778.4 2088 L1736 2088"/>
-<rect x="1101.7" y="2140" width="311" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1119.7" y="2167" text-anchor="start">19. granted -&gt; aggregate(tenant-C)</text>
-<path class="dashed" d="M1736 2198 L778.4 2198"/>
-<rect x="833" y="2250" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="851" y="2277" text-anchor="start">20. null</text>
-<path class="dashed" d="M1736 2308 L140 2308"/>
-<rect x="992.5999999999999" y="2360" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1010.5999999999999" y="2387" text-anchor="start">21. null</text>
-<path class="dashed" d="M1736 2418 L459.2 2418"/>
+<rect class="card" x="80" y="166" width="230" height="72" rx="75" fill="#E8F3FF" stroke="#5B8DEF"/>
+<text class="smallLabel" x="195" y="209" text-anchor="middle">node-1</text>
+<line class="lifeline" x1="195" y1="252" x2="195" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="399.2" y="166" width="230" height="72" rx="75" fill="#EAF7EF" stroke="#58A978"/>
+<text class="smallLabel" x="514.2" y="209" text-anchor="middle">node-2</text>
+<line class="lifeline" x1="514.2" y1="252" x2="514.2" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="718.4" y="166" width="230" height="72" rx="75" fill="#FFF3D9" stroke="#D6A441"/>
+<text class="smallLabel" x="833.4" y="209" text-anchor="middle">node-3</text>
+<line class="lifeline" x1="833.4" y1="252" x2="833.4" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="1037.6" y="166" width="230" height="72" rx="75" fill="#FDECEF" stroke="#DC6B82"/>
+<text class="smallLabel" x="1152.6" y="209" text-anchor="middle">lock(tenant-A)</text>
+<line class="lifeline" x1="1152.6" y1="252" x2="1152.6" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="1356.8" y="166" width="230" height="72" rx="75" fill="#E9F7F6" stroke="#45A7A1"/>
+<text class="smallLabel" x="1471.8" y="209" text-anchor="middle">lock(tenant-B)</text>
+<line class="lifeline" x1="1471.8" y1="252" x2="1471.8" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="1676" y="166" width="230" height="72" rx="75" fill="#F1ECFF" stroke="#8A72D6"/>
+<text class="smallLabel" x="1791" y="209" text-anchor="middle">lock(tenant-C)</text>
+<line class="lifeline" x1="1791" y1="252" x2="1791" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect x="125" y="286" width="1736" height="40" rx="71" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="147" y="313" text-anchor="start">PAR: tenant-A</text>
+<rect x="568.8" y="354" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="586.8" y="381" text-anchor="start">2. runIfLeader</text>
+<path class="line" d="M195 400 L1152.6 400"/>
+<rect x="728.4" y="464" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="746.4" y="491" text-anchor="start">3. runIfLeader</text>
+<path class="line" d="M514.2 510 L1152.6 510"/>
+<rect x="888" y="574" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="906" y="601" text-anchor="start">4. runIfLeader</text>
+<path class="line" d="M833.4 620 L1152.6 620"/>
+<rect x="522.8" y="684" width="302" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="540.8" y="711" text-anchor="start">5. granted -&gt; aggregate(tenant-A)</text>
+<path class="dashed" d="M1152.6 730 L195 730"/>
+<rect x="728.4" y="794" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="746.4" y="821" text-anchor="start">6. null</text>
+<path class="dashed" d="M1152.6 840 L514.2 840"/>
+<rect x="888" y="904" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="906" y="931" text-anchor="start">7. null</text>
+<path class="dashed" d="M1152.6 950 L833.4 950"/>
+<rect x="125" y="1014" width="1736" height="40" rx="71" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="147" y="1041" text-anchor="start">AND: tenant-B</text>
+<rect x="728.4" y="1082" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="746.4" y="1109" text-anchor="start">9. runIfLeader</text>
+<path class="line" d="M195 1128 L1471.8 1128"/>
+<rect x="888" y="1192" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="906" y="1219" text-anchor="start">10. runIfLeader</text>
+<path class="line" d="M514.2 1238 L1471.8 1238"/>
+<rect x="1047.6" y="1302" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="1065.6" y="1329" text-anchor="start">11. runIfLeader</text>
+<path class="line" d="M833.4 1348 L1471.8 1348"/>
+<rect x="837.5" y="1412" width="311" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="855.5" y="1439" text-anchor="start">12. granted -&gt; aggregate(tenant-B)</text>
+<path class="dashed" d="M1471.8 1458 L514.2 1458"/>
+<rect x="728.4" y="1522" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="746.4" y="1549" text-anchor="start">13. null</text>
+<path class="dashed" d="M1471.8 1568 L195 1568"/>
+<rect x="1047.6" y="1632" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="1065.6" y="1659" text-anchor="start">14. null</text>
+<path class="dashed" d="M1471.8 1678 L833.4 1678"/>
+<rect x="125" y="1742" width="1736" height="40" rx="71" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="147" y="1769" text-anchor="start">AND: tenant-C</text>
+<rect x="888" y="1810" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="906" y="1837" text-anchor="start">16. runIfLeader</text>
+<path class="line" d="M195 1856 L1791 1856"/>
+<rect x="1047.6" y="1920" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="1065.6" y="1947" text-anchor="start">17. runIfLeader</text>
+<path class="line" d="M514.2 1966 L1791 1966"/>
+<rect x="1207.2" y="2030" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="1225.2" y="2057" text-anchor="start">18. runIfLeader</text>
+<path class="line" d="M833.4 2076 L1791 2076"/>
+<rect x="1156.7" y="2140" width="311" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="1174.7" y="2167" text-anchor="start">19. granted -&gt; aggregate(tenant-C)</text>
+<path class="dashed" d="M1791 2186 L833.4 2186"/>
+<rect x="888" y="2250" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="906" y="2277" text-anchor="start">20. null</text>
+<path class="dashed" d="M1791 2296 L195 2296"/>
+<rect x="1047.6" y="2360" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="1065.6" y="2387" text-anchor="start">21. null</text>
+<path class="dashed" d="M1791 2406 L514.2 2406"/>
 </svg>

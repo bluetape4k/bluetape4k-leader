@@ -1,17 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1584" height="2404" viewBox="0 0 1584 2404" role="img" aria-label="migration gate Sequence Flow">
+<svg xmlns="http://www.w3.org/2000/svg" width="1754" height="2404" viewBox="0 0 1754 2404" role="img" aria-label="migration gate Sequence Flow">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: examples-migration-gate-sequence-01.dot, examples-migration-gate-sequence-01.plain, examples-migration-gate-sequence-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
   <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
   <marker id="inherit" markerWidth="14" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M 0 1 L 12 6 L 0 11 Z" fill="#ffffff" stroke="#758297" stroke-width="1.8"/></marker>
   <style>
     .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
-    .title{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
-    .subtitle{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
-    .label{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
-    .smallLabel{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
-    .mono{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
-    .small{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
-    .strong{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
+    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
+    .label{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
+    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
+    .small{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
+    .strong{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
     .card{stroke-width:2.1;filter:url(#shadow)}.compartment{stroke-width:1.5;fill:none}
     .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
     .plainLine{stroke:#758297;stroke-width:2.1;fill:none}
@@ -20,76 +21,76 @@
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
   </style>
 </defs>
-<rect class="canvas" width="1584" height="2404"/>
-<rect class="frame" x="32" y="28" width="1520" height="2348" rx="28"/>
+<rect class="canvas" width="1754" height="2404"/>
+<rect class="frame" x="32" y="28" width="1690" height="2348" rx="28"/>
 <text class="title" x="66" y="82">migration gate Sequence Flow</text>
 <text class="subtitle" x="70" y="118">Sequence messages from the original Mermaid source</text>
-<rect class="card" x="-5" y="166" width="290" height="72" rx="20" fill="#E8F3FF" stroke="#5B8DEF"/>
-<text class="smallLabel" x="140" y="209" text-anchor="middle">pod-1 (new version)</text>
-<line class="lifeline" x1="140" y1="252" x2="140" y2="2344" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="429.66666666666674" y="166" width="290" height="72" rx="20" fill="#EAF7EF" stroke="#58A978"/>
-<text class="smallLabel" x="574.6666666666667" y="209" text-anchor="middle">pod-2 (new version)</text>
-<line class="lifeline" x1="574.6666666666667" y1="252" x2="574.6666666666667" y2="2344" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="864.3333333333334" y="166" width="290" height="72" rx="20" fill="#FFF3D9" stroke="#D6A441"/>
-<text class="smallLabel" x="1009.3333333333334" y="209" text-anchor="middle">pod-3 (new version)</text>
-<line class="lifeline" x1="1009.3333333333334" y1="252" x2="1009.3333333333334" y2="2344" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="1299" y="166" width="290" height="72" rx="20" fill="#FDECEF" stroke="#DC6B82"/>
-<text class="smallLabel" x="1444" y="209" text-anchor="middle">DB</text>
-<line class="lifeline" x1="1444" y1="252" x2="1444" y2="2344" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect x="661" y="286" width="262" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="679" y="313" text-anchor="start">1. isApplied(v3)? (precheck)</text>
-<path class="line" d="M140 344 L1444 344"/>
-<rect x="878.3333333333334" y="396" width="262" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="896.3333333333334" y="423" text-anchor="start">2. isApplied(v3)? (precheck)</text>
-<path class="line" d="M574.6666666666667 454 L1444 454"/>
-<rect x="1095.6666666666667" y="506" width="262" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1113.6666666666667" y="533" text-anchor="start">3. isApplied(v3)? (precheck)</text>
-<path class="line" d="M1009.3333333333334 564 L1444 564"/>
-<rect x="70" y="616" width="1444" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="92" y="643" text-anchor="start">PAR: lock contention</text>
-<rect x="673" y="684" width="238" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="691" y="711" text-anchor="start">5. acquire lock schema-v3</text>
-<path class="line" d="M140 742 L1444 742"/>
-<rect x="862.3333333333334" y="794" width="294" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="880.3333333333334" y="821" text-anchor="start">6. acquire lock schema-v3 (wait)</text>
-<path class="line" d="M574.6666666666667 852 L1444 852"/>
-<rect x="1079.6666666666667" y="904" width="294" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1097.6666666666667" y="931" text-anchor="start">7. acquire lock schema-v3 (wait)</text>
-<path class="line" d="M1009.3333333333334 962 L1444 962"/>
-<rect x="687" y="1014" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="705" y="1041" text-anchor="start">8. lock acquired</text>
-<path class="dashed" d="M1444 1072 L140 1072"/>
-<rect x="632.5" y="1124" width="319" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="650.5" y="1151" text-anchor="start">9. isApplied(v3)? (in-lock recheck)</text>
-<path class="line" d="M140 1182 L1444 1182"/>
-<rect x="687" y="1234" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="705" y="1261" text-anchor="start">10. false</text>
-<path class="dashed" d="M1444 1292 L140 1292"/>
-<rect x="641" y="1344" width="302" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="659" y="1371" text-anchor="start">11. run migration + insert marker</text>
-<path class="line" d="M140 1402 L1444 1402"/>
-<rect x="687" y="1454" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="705" y="1481" text-anchor="start">12. release lock</text>
-<path class="line" d="M140 1512 L1444 1512"/>
-<rect x="878.3333333333334" y="1564" width="262" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="896.3333333333334" y="1591" text-anchor="start">13. lock acquired (after P1)</text>
-<path class="dashed" d="M1444 1622 L574.6666666666667 1622"/>
-<rect x="845.8333333333334" y="1674" width="327" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="863.8333333333334" y="1701" text-anchor="start">14. isApplied(v3)? (in-lock recheck)</text>
-<path class="line" d="M574.6666666666667 1732 L1444 1732"/>
-<rect x="890.3333333333334" y="1784" width="238" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="908.3333333333334" y="1811" text-anchor="start">15. true → AlreadyApplied</text>
-<path class="dashed" d="M1444 1842 L574.6666666666667 1842"/>
-<rect x="904.3333333333334" y="1894" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="922.3333333333334" y="1921" text-anchor="start">16. release lock</text>
-<path class="line" d="M574.6666666666667 1952 L1444 1952"/>
-<rect x="1095.6666666666667" y="2004" width="262" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1113.6666666666667" y="2031" text-anchor="start">17. lock acquired (after P2)</text>
-<path class="dashed" d="M1444 2062 L1009.3333333333334 2062"/>
-<rect x="1063.1666666666667" y="2114" width="327" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1081.1666666666667" y="2141" text-anchor="start">18. isApplied(v3)? (in-lock recheck)</text>
-<path class="line" d="M1009.3333333333334 2172 L1444 2172"/>
-<rect x="1107.6666666666667" y="2224" width="238" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1125.6666666666667" y="2251" text-anchor="start">19. true → AlreadyApplied</text>
-<path class="dashed" d="M1444 2282 L1009.3333333333334 2282"/>
+<rect class="card" x="80" y="166" width="290" height="72" rx="105" fill="#E8F3FF" stroke="#5B8DEF"/>
+<text class="smallLabel" x="225" y="209" text-anchor="middle">pod-1 (new version)</text>
+<line class="lifeline" x1="225" y1="252" x2="225" y2="2344" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="514.7" y="166" width="290" height="72" rx="105" fill="#EAF7EF" stroke="#58A978"/>
+<text class="smallLabel" x="659.7" y="209" text-anchor="middle">pod-2 (new version)</text>
+<line class="lifeline" x1="659.7" y1="252" x2="659.7" y2="2344" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="949.3" y="166" width="290" height="72" rx="105" fill="#FFF3D9" stroke="#D6A441"/>
+<text class="smallLabel" x="1094.3" y="209" text-anchor="middle">pod-3 (new version)</text>
+<line class="lifeline" x1="1094.3" y1="252" x2="1094.3" y2="2344" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="1384" y="166" width="290" height="72" rx="105" fill="#FDECEF" stroke="#DC6B82"/>
+<text class="smallLabel" x="1529" y="209" text-anchor="middle">DB</text>
+<line class="lifeline" x1="1529" y1="252" x2="1529" y2="2344" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect x="746" y="286" width="262" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="764" y="313" text-anchor="start">1. isApplied(v3)? (precheck)</text>
+<path class="line" d="M225 332 L1529 332"/>
+<rect x="963.3" y="396" width="262" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="981.3" y="423" text-anchor="start">2. isApplied(v3)? (precheck)</text>
+<path class="line" d="M659.7 442 L1529 442"/>
+<rect x="1180.7" y="506" width="262" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="1198.7" y="533" text-anchor="start">3. isApplied(v3)? (precheck)</text>
+<path class="line" d="M1094.3 552 L1529 552"/>
+<rect x="155" y="616" width="1444" height="40" rx="101" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="177" y="643" text-anchor="start">PAR: lock contention</text>
+<rect x="758" y="684" width="238" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="776" y="711" text-anchor="start">5. acquire lock schema-v3</text>
+<path class="line" d="M225 730 L1529 730"/>
+<rect x="947.3" y="794" width="294" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="965.3" y="821" text-anchor="start">6. acquire lock schema-v3 (wait)</text>
+<path class="line" d="M659.7 840 L1529 840"/>
+<rect x="1164.7" y="904" width="294" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="1182.7" y="931" text-anchor="start">7. acquire lock schema-v3 (wait)</text>
+<path class="line" d="M1094.3 950 L1529 950"/>
+<rect x="772" y="1014" width="210" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="790" y="1041" text-anchor="start">8. lock acquired</text>
+<path class="dashed" d="M1529 1060 L225 1060"/>
+<rect x="717.5" y="1124" width="319" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="735.5" y="1151" text-anchor="start">9. isApplied(v3)? (in-lock recheck)</text>
+<path class="line" d="M225 1170 L1529 1170"/>
+<rect x="772" y="1234" width="210" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="790" y="1261" text-anchor="start">10. false</text>
+<path class="dashed" d="M1529 1280 L225 1280"/>
+<rect x="726" y="1344" width="302" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="744" y="1371" text-anchor="start">11. run migration + insert marker</text>
+<path class="line" d="M225 1390 L1529 1390"/>
+<rect x="772" y="1454" width="210" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="790" y="1481" text-anchor="start">12. release lock</text>
+<path class="line" d="M225 1500 L1529 1500"/>
+<rect x="963.3" y="1564" width="262" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="981.3" y="1591" text-anchor="start">13. lock acquired (after P1)</text>
+<path class="dashed" d="M1529 1610 L659.7 1610"/>
+<rect x="930.8" y="1674" width="327" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="948.8" y="1701" text-anchor="start">14. isApplied(v3)? (in-lock recheck)</text>
+<path class="line" d="M659.7 1720 L1529 1720"/>
+<rect x="975.3" y="1784" width="238" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="993.3" y="1811" text-anchor="start">15. true → AlreadyApplied</text>
+<path class="dashed" d="M1529 1830 L659.7 1830"/>
+<rect x="989.3" y="1894" width="210" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="1007.3" y="1921" text-anchor="start">16. release lock</text>
+<path class="line" d="M659.7 1940 L1529 1940"/>
+<rect x="1180.7" y="2004" width="262" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="1198.7" y="2031" text-anchor="start">17. lock acquired (after P2)</text>
+<path class="dashed" d="M1529 2050 L1094.3 2050"/>
+<rect x="1148.2" y="2114" width="327" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="1166.2" y="2141" text-anchor="start">18. isApplied(v3)? (in-lock recheck)</text>
+<path class="line" d="M1094.3 2160 L1529 2160"/>
+<rect x="1192.7" y="2224" width="238" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="1210.7" y="2251" text-anchor="start">19. true → AlreadyApplied</text>
+<path class="dashed" d="M1529 2270 L1094.3 2270"/>
 </svg>

@@ -1,0 +1,52 @@
+graph 1 30.699 5.5658
+node n0 12.711 4.4456 4.31 1.56 LeaderElector rounded,filled box #5B8DEF #ffffff
+node n1 10.951 1.0011 4.31 1.56 ZooKeeperLeaderElector rounded,filled box #58A978 #ffffff
+node n2 7.4328 4.4456 4.31 1.56 InterProcessMutex rounded,filled box #D6A441 #ffffff
+node n3 2.155 0.89 4.31 1.78 "Zoo Keeper Suspend" rounded,filled box #DC6B82 #ffffff
+node n4 2.155 4.4456 4.31 1.56 SuspendLeaderElector rounded,filled box #45A7A1 #ffffff
+node n5 23.266 4.4456 4.31 1.56 LeaderGroupElector rounded,filled box #8A72D6 #ffffff
+node n6 19.748 0.89 4.31 1.78 "Zoo Keeper Leader" rounded,filled box #B88A44 #ffffff
+node n7 17.988 4.3344 4.31 1.78 "Inter Process" rounded,filled box #8BA84D #ffffff
+node n8 28.544 0.89 4.31 1.78 "Zoo Keeper Suspend" rounded,filled box #5B8DEF #ffffff
+node n9 28.544 4.3344 4.31 1.78 "Suspend Leader Group" rounded,filled box #58A978 #ffffff
+node r1p1 28.544 2.6122 0.03 0.03 "" invis point black lightgrey
+node r1p2 17.988 2.6122 0.03 0.03 "" invis point black lightgrey
+node r2p1 19.748 2.6122 0.03 0.03 "" invis point black lightgrey
+node r2p2 17.988 2.6122 0.03 0.03 "" invis point black lightgrey
+node r3p1 2.155 2.7233 0.03 0.03 "" invis point black lightgrey
+node r3p2 7.4328 2.7233 0.03 0.03 "" invis point black lightgrey
+node r4p1 10.951 2.7233 0.03 0.03 "" invis point black lightgrey
+node r4p2 7.4328 2.7233 0.03 0.03 "" invis point black lightgrey
+node r5p1 28.544 2.6122 0.03 0.03 "" invis point black lightgrey
+node r5p2 28.544 2.6122 0.03 0.03 "" invis point black lightgrey
+node r6p1 2.155 2.7233 0.03 0.03 "" invis point black lightgrey
+node r6p2 2.155 2.7233 0.03 0.03 "" invis point black lightgrey
+node r7p1 19.748 2.7233 0.03 0.03 "" invis point black lightgrey
+node r7p2 23.266 2.7233 0.03 0.03 "" invis point black lightgrey
+node r8p1 10.951 2.7233 0.03 0.03 "" invis point black lightgrey
+node r8p2 12.711 2.7233 0.03 0.03 "" invis point black lightgrey
+edge n1 r4p1 4 10.951 1.7866 10.951 2.1841 10.951 2.6032 10.951 2.7017 solid #758297
+edge n1 r8p1 4 10.951 1.7866 10.951 2.1841 10.951 2.6032 10.951 2.7017 dashed #758297
+edge n3 r3p1 4 2.155 1.7852 2.155 2.1924 2.155 2.6053 2.155 2.7021 solid #758297
+edge n3 r6p1 4 2.155 1.7852 2.155 2.1924 2.155 2.6053 2.155 2.7021 dashed #758297
+edge n6 r2p1 4 19.748 1.7864 19.748 2.1526 19.748 2.5102 19.748 2.5939 solid #758297
+edge n6 r7p1 4 19.748 1.7852 19.748 2.1924 19.748 2.6053 19.748 2.7021 dashed #758297
+edge n8 r1p1 4 28.544 1.7864 28.544 2.1526 28.544 2.5102 28.544 2.5939 solid #758297
+edge n8 r5p1 4 28.544 1.7864 28.544 2.1526 28.544 2.5102 28.544 2.5939 dashed #758297
+edge r1p1 r1p2 4 28.527 2.6122 28.066 2.6122 18.455 2.6122 18.005 2.6122 solid #758297
+edge r1p2 n7 4 17.988 2.6316 17.988 2.7056 17.988 2.9823 17.988 3.2917 solid #758297
+edge r2p1 r2p2 4 19.728 2.6122 19.549 2.6122 18.199 2.6122 18.01 2.6122 solid #758297
+edge r2p2 n7 4 17.988 2.6316 17.988 2.7056 17.988 2.9823 17.988 3.2917 solid #758297
+edge r3p1 r3p2 4 2.1741 2.7233 2.5061 2.7233 7.0559 2.7233 7.4109 2.7233 solid #758297
+edge r3p2 n2 4 7.4328 2.7427 7.4328 2.8255 7.4328 3.1621 7.4328 3.5144 solid #758297
+edge r4p1 r4p2 4 10.935 2.7233 10.693 2.7233 7.7308 2.7233 7.4535 2.7233 solid #758297
+edge r4p2 n2 4 7.4328 2.7427 7.4328 2.8255 7.4328 3.1621 7.4328 3.5144 solid #758297
+edge r5p1 r5p2 4 28.544 2.6122 28.544 2.6122 28.544 2.6122 28.544 2.6122 dashed #758297
+edge r5p2 n9 4 28.544 2.6316 28.544 2.7056 28.544 2.9823 28.544 3.2917 dashed #758297
+edge r6p1 r6p2 4 2.155 2.7233 2.155 2.7233 2.155 2.7233 2.155 2.7233 dashed #758297
+edge r6p2 n4 4 2.155 2.7427 2.155 2.8255 2.155 3.1621 2.155 3.5144 dashed #758297
+edge r7p1 r7p2 4 19.764 2.7233 20.006 2.7233 22.968 2.7233 23.245 2.7233 dashed #758297
+edge r7p2 n5 4 23.266 2.7427 23.266 2.8255 23.266 3.1621 23.266 3.5144 dashed #758297
+edge r8p1 r8p2 4 10.971 2.7233 11.15 2.7233 12.5 2.7233 12.689 2.7233 dashed #758297
+edge r8p2 n0 4 12.711 2.7427 12.711 2.8255 12.711 3.1621 12.711 3.5144 dashed #758297
+stop

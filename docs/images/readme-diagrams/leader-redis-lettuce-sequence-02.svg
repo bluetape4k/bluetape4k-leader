@@ -1,17 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1288" height="2128" viewBox="0 0 1288 2128" role="img" aria-label="Scenario 1 — Normal acquire/release plus crash recovery">
+<svg xmlns="http://www.w3.org/2000/svg" width="1468" height="2128" viewBox="0 0 1468 2128" role="img" aria-label="Scenario 1 — Normal acquire/release plus crash recovery">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: leader-redis-lettuce-sequence-02.dot, leader-redis-lettuce-sequence-02.plain, leader-redis-lettuce-sequence-02-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
   <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
   <marker id="inherit" markerWidth="14" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M 0 1 L 12 6 L 0 11 Z" fill="#ffffff" stroke="#758297" stroke-width="1.8"/></marker>
   <style>
     .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
-    .title{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
-    .subtitle{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
-    .label{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
-    .smallLabel{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
-    .mono{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
-    .small{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
-    .strong{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
+    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
+    .label{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
+    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
+    .small{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
+    .strong{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
     .card{stroke-width:2.1;filter:url(#shadow)}.compartment{stroke-width:1.5;fill:none}
     .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
     .plainLine{stroke:#758297;stroke-width:2.1;fill:none}
@@ -20,64 +21,64 @@
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
   </style>
 </defs>
-<rect class="canvas" width="1288" height="2128"/>
-<rect class="frame" x="32" y="28" width="1224" height="2072" rx="28"/>
+<rect class="canvas" width="1468" height="2128"/>
+<rect class="frame" x="32" y="28" width="1404" height="2072" rx="28"/>
 <text class="title" x="66" y="82">Scenario 1 — Normal acquire/release plus cra.</text>
 <text class="subtitle" x="70" y="118">Sequence messages from the original Mermaid source</text>
-<rect class="card" x="-10" y="166" width="300" height="72" rx="20" fill="#E8F3FF" stroke="#5B8DEF"/>
-<text class="smallLabel" x="140" y="209" text-anchor="middle">ClientA</text>
-<line class="lifeline" x1="140" y1="252" x2="140" y2="2068" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="494" y="166" width="300" height="72" rx="20" fill="#EAF7EF" stroke="#58A978"/>
-<text class="smallLabel" x="644" y="209" text-anchor="middle">ClientB</text>
-<line class="lifeline" x1="644" y1="252" x2="644" y2="2068" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="998" y="166" width="300" height="72" rx="20" fill="#FFF3D9" stroke="#D6A441"/>
-<text class="smallLabel" x="1148" y="198.5" text-anchor="middle">Redis</text>
-<text class="smallLabel" x="1148" y="219.5" text-anchor="middle">(lg:{lockName}</text>
-<line class="lifeline" x1="1148" y1="252" x2="1148" y2="2068" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect x="400" y="286" width="488" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="418" y="313" text-anchor="start">1. EVALSHA ACQUIRE (maxLeaders=2, token=A1, leaseMs=10s)</text>
-<path class="line" d="M140 344 L1148 344"/>
-<rect x="668" y="396" width="560" height="62" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="686" y="423" text-anchor="start">2. TIME -&gt; nowMs ZREMRANGEBYSCORE 0 nowMs ZCARD &lt; maxLeaders ZADD</text>
-<text class="strong" x="686" y="445" text-anchor="start">score=(nowMs+10s) member=A1 PEXPIRE key (15s)</text>
-<path class="line" d="M1148 476 C1212 476 1212 510 1148 510"/>
-<rect x="539" y="548" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="557" y="575" text-anchor="start">3. token A1</text>
-<path class="dashed" d="M1148 606 L140 606"/>
-<rect x="83" y="658" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="101" y="685" text-anchor="start">4. action() running</text>
-<path class="line" d="M140 716 C204 716 204 750 140 750"/>
-<rect x="761" y="788" width="270" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="779" y="815" text-anchor="start">5. EVALSHA ACQUIRE (token=B1)</text>
-<path class="line" d="M644 846 L1148 846"/>
-<rect x="791" y="898" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="809" y="925" text-anchor="start">6. token B1 (slot 2)</text>
-<path class="dashed" d="M1148 956 L644 956"/>
-<rect x="440.5" y="1008" width="407" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="458.5" y="1035" text-anchor="start">7. EVALSHA RELEASE (A1, remainingMinLeaseMs=0)</text>
-<path class="line" d="M140 1066 L1148 1066"/>
-<rect x="998" y="1118" width="230" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1016" y="1145" text-anchor="start">8. ZREM lg:{lockName} A1</text>
-<path class="line" d="M1148 1176 C1212 1176 1212 1210 1148 1210"/>
-<rect x="539" y="1248" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="557" y="1275" text-anchor="start">9. 1</text>
-<path class="dashed" d="M1148 1306 L140 1306"/>
-<rect x="456.5" y="1358" width="375" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="474.5" y="1385" text-anchor="start">10. EVALSHA ACQUIRE (token=A2, leaseMs=2s)</text>
-<path class="line" d="M140 1416 L1148 1416"/>
-<rect x="539" y="1468" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="557" y="1495" text-anchor="start">11. token A2</text>
-<path class="dashed" d="M1148 1526 L140 1526"/>
-<rect x="73" y="1578" width="230" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="91" y="1605" text-anchor="start">12. crash before release</text>
-<path class="line" d="M140 1636 C204 1636 204 1670 140 1670"/>
-<rect x="757" y="1708" width="278" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="775" y="1735" text-anchor="start">13. EVALSHA ACQUIRE (token=B3)</text>
-<path class="line" d="M644 1766 L1148 1766"/>
-<rect x="853" y="1818" width="375" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="871" y="1845" text-anchor="start">14. ZREMRANGEBYSCORE -&gt; A2 evicted ZADD B3</text>
-<path class="line" d="M1148 1876 C1212 1876 1212 1910 1148 1910"/>
-<rect x="761" y="1948" width="270" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="779" y="1975" text-anchor="start">15. token B3 (auto-recovered)</text>
-<path class="dashed" d="M1148 2006 L644 2006"/>
+<rect class="card" x="80" y="166" width="300" height="72" rx="110" fill="#E8F3FF" stroke="#5B8DEF"/>
+<text class="smallLabel" x="230" y="209" text-anchor="middle">ClientA</text>
+<line class="lifeline" x1="230" y1="252" x2="230" y2="2068" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="584" y="166" width="300" height="72" rx="110" fill="#EAF7EF" stroke="#58A978"/>
+<text class="smallLabel" x="734" y="209" text-anchor="middle">ClientB</text>
+<line class="lifeline" x1="734" y1="252" x2="734" y2="2068" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="1088" y="166" width="300" height="72" rx="110" fill="#FFF3D9" stroke="#D6A441"/>
+<text class="smallLabel" x="1238" y="198.5" text-anchor="middle">Redis</text>
+<text class="smallLabel" x="1238" y="219.5" text-anchor="middle">(lg:{lockName}</text>
+<line class="lifeline" x1="1238" y1="252" x2="1238" y2="2068" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect x="490" y="286" width="488" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="508" y="313" text-anchor="start">1. EVALSHA ACQUIRE (maxLeaders=2, token=A1, leaseMs=10s)</text>
+<path class="line" d="M230 332 L1238 332"/>
+<rect x="758" y="396" width="560" height="62" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="776" y="423" text-anchor="start">2. TIME -&gt; nowMs ZREMRANGEBYSCORE 0 nowMs ZCARD &lt; maxLeaders ZADD</text>
+<text class="strong" x="776" y="445" text-anchor="start">score=(nowMs+10s) member=A1 PEXPIRE key (15s)</text>
+<path class="line" d="M1238 476 C1302 476 1302 510 1238 510"/>
+<rect x="629" y="548" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="647" y="575" text-anchor="start">3. token A1</text>
+<path class="dashed" d="M1238 594 L230 594"/>
+<rect x="173" y="658" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="191" y="685" text-anchor="start">4. action() running</text>
+<path class="line" d="M230 704 C294 704 294 738 230 738"/>
+<rect x="851" y="788" width="270" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="869" y="815" text-anchor="start">5. EVALSHA ACQUIRE (token=B1)</text>
+<path class="line" d="M734 834 L1238 834"/>
+<rect x="881" y="898" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="899" y="925" text-anchor="start">6. token B1 (slot 2)</text>
+<path class="dashed" d="M1238 944 L734 944"/>
+<rect x="530.5" y="1008" width="407" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="548.5" y="1035" text-anchor="start">7. EVALSHA RELEASE (A1, remainingMinLeaseMs=0)</text>
+<path class="line" d="M230 1054 L1238 1054"/>
+<rect x="1088" y="1118" width="230" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="1106" y="1145" text-anchor="start">8. ZREM lg:{lockName} A1</text>
+<path class="line" d="M1238 1164 C1302 1164 1302 1198 1238 1198"/>
+<rect x="629" y="1248" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="647" y="1275" text-anchor="start">9. 1</text>
+<path class="dashed" d="M1238 1294 L230 1294"/>
+<rect x="546.5" y="1358" width="375" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="564.5" y="1385" text-anchor="start">10. EVALSHA ACQUIRE (token=A2, leaseMs=2s)</text>
+<path class="line" d="M230 1404 L1238 1404"/>
+<rect x="629" y="1468" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="647" y="1495" text-anchor="start">11. token A2</text>
+<path class="dashed" d="M1238 1514 L230 1514"/>
+<rect x="163" y="1578" width="230" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="181" y="1605" text-anchor="start">12. crash before release</text>
+<path class="line" d="M230 1624 C294 1624 294 1658 230 1658"/>
+<rect x="847" y="1708" width="278" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="865" y="1735" text-anchor="start">13. EVALSHA ACQUIRE (token=B3)</text>
+<path class="line" d="M734 1754 L1238 1754"/>
+<rect x="943" y="1818" width="375" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="961" y="1845" text-anchor="start">14. ZREMRANGEBYSCORE -&gt; A2 evicted ZADD B3</text>
+<path class="line" d="M1238 1864 C1302 1864 1302 1898 1238 1898"/>
+<rect x="851" y="1948" width="270" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="869" y="1975" text-anchor="start">15. token B3 (auto-recovered)</text>
+<path class="dashed" d="M1238 1994 L734 1994"/>
 </svg>

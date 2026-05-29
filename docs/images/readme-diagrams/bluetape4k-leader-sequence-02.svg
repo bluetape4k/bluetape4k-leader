@@ -1,17 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1078" height="1542" viewBox="0 0 1078 1542" role="img" aria-label="How runIfLeader Works">
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="1500" viewBox="0 0 1160 1500" role="img" aria-label="How runIfLeader Works">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: bluetape4k-leader-sequence-02.dot, bluetape4k-leader-sequence-02.plain, bluetape4k-leader-sequence-02-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
   <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
   <marker id="inherit" markerWidth="14" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M 0 1 L 12 6 L 0 11 Z" fill="#ffffff" stroke="#758297" stroke-width="1.8"/></marker>
   <style>
     .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
-    .title{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
-    .subtitle{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
-    .label{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
-    .smallLabel{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
-    .mono{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
-    .small{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
-    .strong{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
+    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
+    .label{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
+    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
+    .small{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
+    .strong{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
     .card{stroke-width:2.1;filter:url(#shadow)}.compartment{stroke-width:1.5;fill:none}
     .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
     .plainLine{stroke:#758297;stroke-width:2.1;fill:none}
@@ -20,48 +21,48 @@
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
   </style>
 </defs>
-<rect class="canvas" width="1078" height="1542"/>
-<rect class="frame" x="32" y="28" width="1014" height="1486" rx="28"/>
+<rect class="canvas" width="1160" height="1500"/>
+<rect class="frame" x="32" y="28" width="1096" height="1444" rx="28"/>
 <text class="title" x="66" y="82">How runIfLeader Works</text>
 <text class="subtitle" x="70" y="118">Sequence messages from the original Mermaid source</text>
-<rect class="card" x="25" y="166" width="230" height="72" rx="20" fill="#E8F3FF" stroke="#5B8DEF"/>
-<text class="smallLabel" x="140" y="209" text-anchor="middle">NodeA</text>
-<line class="lifeline" x1="140" y1="252" x2="140" y2="1482" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="424" y="166" width="230" height="72" rx="20" fill="#EAF7EF" stroke="#58A978"/>
-<text class="smallLabel" x="539" y="209" text-anchor="middle">NodeB</text>
-<line class="lifeline" x1="539" y1="252" x2="539" y2="1482" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="823" y="166" width="230" height="72" rx="20" fill="#FFF3D9" stroke="#D6A441"/>
-<text class="smallLabel" x="938" y="209" text-anchor="middle">LockStore</text>
-<line class="lifeline" x1="938" y1="252" x2="938" y2="1482" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect x="70" y="286" width="938" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="92" y="313" text-anchor="start">PAR: NodeA attempts</text>
-<rect x="375.5" y="354" width="327" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="393.5" y="381" text-anchor="start">2. tryLock(job, waitTime, leaseTime)</text>
-<path class="line" d="M140 412 L938 412"/>
-<rect x="70" y="464" width="938" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="92" y="491" text-anchor="start">AND: NodeB attempts</text>
-<rect x="575" y="532" width="327" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="593" y="559" text-anchor="start">4. tryLock(job, waitTime, leaseTime)</text>
-<path class="line" d="M539 590 L938 590"/>
-<rect x="434" y="642" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="452" y="669" text-anchor="start">5. acquired (true)</text>
-<path class="dashed" d="M938 700 L140 700"/>
-<rect x="551" y="752" width="375" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="569" y="779" text-anchor="start">6. not acquired → wait/retry until timeout</text>
-<path class="dashed" d="M938 810 L539 810"/>
-<rect x="83" y="862" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="101" y="889" text-anchor="start">7. action()</text>
-<path class="line" d="M140 920 C204 920 204 954 140 954"/>
-<rect x="434" y="992" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="452" y="1019" text-anchor="start">8. unlock(job)</text>
-<path class="line" d="M140 1050 L938 1050"/>
-<rect x="69" y="1102" width="238" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="87" y="1129" text-anchor="start">9. return action() result</text>
-<path class="dashed" d="M140 1160 C204 1160 204 1194 140 1194"/>
-<rect x="633.5" y="1232" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="651.5" y="1259" text-anchor="start">10. timeout (false)</text>
-<path class="dashed" d="M938 1290 L539 1290"/>
-<rect x="482" y="1342" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="500" y="1369" text-anchor="start">11. return null</text>
-<path class="dashed" d="M539 1400 C603 1400 603 1434 539 1434"/>
+<rect class="card" x="80" y="166" width="230" height="72" rx="20" fill="#E8F3FF" stroke="#5B8DEF"/>
+<text class="smallLabel" x="195" y="209" text-anchor="middle">NodeA</text>
+<line class="lifeline" x1="195" y1="252" x2="195" y2="1415" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="465" y="166" width="230" height="72" rx="20" fill="#EAF7EF" stroke="#58A978"/>
+<text class="smallLabel" x="580" y="209" text-anchor="middle">NodeB</text>
+<line class="lifeline" x1="580" y1="252" x2="580" y2="1415" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="850" y="166" width="230" height="72" rx="20" fill="#FFF3D9" stroke="#D6A441"/>
+<text class="smallLabel" x="965" y="209" text-anchor="middle">LockStore</text>
+<line class="lifeline" x1="965" y1="252" x2="965" y2="1415" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect x="80" y="286" width="1000" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="102" y="313" text-anchor="start">PAR: NodeA attempts</text>
+<rect x="411.5" y="342" width="337" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="429.5" y="369" text-anchor="start">2. tryLock(job, waitTime, leaseTime)</text>
+<path class="line" d="M195 388 L965 388"/>
+<rect x="80" y="434" width="1000" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="102" y="461" text-anchor="start">AND: NodeB attempts</text>
+<rect x="607" y="490" width="337" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="625" y="517" text-anchor="start">4. tryLock(job, waitTime, leaseTime)</text>
+<path class="line" d="M580 536 L965 536"/>
+<rect x="475" y="584" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="493" y="611" text-anchor="start">5. acquired (true)</text>
+<path class="dashed" d="M965 630 L195 630"/>
+<rect x="588" y="694" width="377" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="606" y="721" text-anchor="start">6. not acquired → wait/retry until timeout</text>
+<path class="dashed" d="M965 740 L580 740"/>
+<rect x="140" y="804" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="158" y="831" text-anchor="start">7. action()</text>
+<path class="line" d="M195 850 C259 850 259 884 195 884"/>
+<rect x="475" y="934" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="493" y="961" text-anchor="start">8. unlock(job)</text>
+<path class="line" d="M195 980 L965 980"/>
+<rect x="126" y="1036" width="238" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="144" y="1063" text-anchor="start">9. return action() result</text>
+<path class="dashed" d="M195 1082 C259 1082 259 1116 195 1116"/>
+<rect x="670" y="1176" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="688" y="1203" text-anchor="start">10. timeout (false)</text>
+<path class="dashed" d="M965 1222 L580 1222"/>
+<rect x="521" y="1286" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="539" y="1313" text-anchor="start">11. return null</text>
+<path class="dashed" d="M580 1332 C644 1332 644 1366 580 1366"/>
 </svg>

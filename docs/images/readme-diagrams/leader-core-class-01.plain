@@ -1,0 +1,29 @@
+graph 1 21.803 8.3403
+node n0 5.2072 6.2 4.72 3.6 AsyncLeaderGroupElector rounded,filled box #5B8DEF #ffffff
+node n1 10.902 6.6375 4.72 2.72 AsyncLeaderElector rounded,filled box #58A978 #ffffff
+node n2 16.596 6.7833 4.72 2.43 SuspendLeaderElector rounded,filled box #D6A441 #ffffff
+node n3 2.36 1.325 4.72 2.65 "Suspend Leader Group" rounded,filled box #DC6B82 #ffffff
+node n4 8.0544 1.4361 4.72 2.43 LeaderElector rounded,filled box #45A7A1 #ffffff
+node n5 13.749 1.4361 4.72 2.43 LeaderGroupElector rounded,filled box #8A72D6 #ffffff
+node n6 19.443 1.325 4.72 2.65 "Virtual Thread Leader" rounded,filled box #B88A44 #ffffff
+node r1p1 2.36 3.5264 0.03 0.03 "" invis point black lightgrey
+node r1p2 5.2072 3.5264 0.03 0.03 "" invis point black lightgrey
+node r2p1 13.749 3.6375 0.03 0.03 "" invis point black lightgrey
+node r2p2 5.2072 3.6375 0.03 0.03 "" invis point black lightgrey
+node r3p1 19.443 3.7486 0.03 0.03 "" invis point black lightgrey
+node r3p2 10.902 3.7486 0.03 0.03 "" invis point black lightgrey
+node r4p1 8.0544 3.8597 0.03 0.03 "" invis point black lightgrey
+node r4p2 10.902 3.8597 0.03 0.03 "" invis point black lightgrey
+edge n3 r1p1 4 2.36 2.6563 2.36 3.062 2.36 3.4239 2.36 3.508 solid #758297
+edge n4 r4p1 4 8.0544 2.655 8.0544 3.1925 8.0544 3.7282 8.0544 3.8389 solid #758297
+edge n5 r2p1 4 13.749 2.6527 13.749 3.0982 13.749 3.5181 13.749 3.6161 solid #758297
+edge n6 r3p1 4 19.443 2.6538 19.443 3.1566 19.443 3.6322 19.443 3.7302 solid #758297
+edge r1p1 r1p2 4 2.3782 3.5278 2.6093 3.5278 4.9699 3.5278 5.1907 3.5278 solid #758297
+edge r1p2 n0 7 5.2237 3.5278 5.2796 3.5278 5.4583 3.5278 5.4583 3.5278 5.4583 3.5278 5.4583 4.2464 5.4583 4.2464 solid #758297
+edge r2p1 r2p2 13 13.749 3.659 13.749 3.755 13.749 4.1389 13.749 4.1389 13.749 4.1389 10.651 4.1389 10.651 4.1389 10.651 4.1389 10.651 3.6389 10.651 3.6389 10.651 3.6389 5.5832 3.6389 5.2269 3.6389 solid #758297
+edge r2p2 n0 4 5.2072 3.6539 5.2072 3.6539 5.2072 4.2444 5.2072 4.2444 solid #758297
+edge r3p1 r3p2 13 19.422 3.75 19.033 3.75 13.498 3.75 13.498 3.75 13.498 3.75 13.498 3.6389 13.498 3.6389 13.498 3.6389 10.902 3.6389 10.902 3.6389 10.902 3.6389 10.902 3.6956 10.902 3.7275 solid #758297
+edge r3p2 n1 7 10.918 3.75 10.974 3.75 11.153 3.75 11.153 3.75 11.153 3.75 11.153 5.1251 11.153 5.1251 solid #758297
+edge r4p1 r4p2 4 8.0726 3.8611 8.3037 3.8611 10.664 3.8611 10.885 3.8611 solid #758297
+edge r4p2 n1 4 10.902 3.8775 10.902 3.8775 10.902 5.1236 10.902 5.1236 solid #758297
+stop

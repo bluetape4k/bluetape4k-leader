@@ -1,0 +1,29 @@
+digraph "bluetape4k-leader-sequence-02" {
+  graph [layout=neato, rankdir=TB, splines=ortho, overlap=false, outputorder=edgesfirst, nodesep=0.55, ranksep=0.75, bgcolor="transparent", label="How runIfLeader Works", labelloc=t];
+  node [shape=box, style="rounded,filled", fontname="Architects Daughter", fontsize=18, margin="0.16,0.10"];
+  edge [color="#758297", penwidth=1.8, arrowsize=0.8, fontname="Comic Mono", fontsize=10];
+  n0 [label="NodeA", fillcolor="#ffffff", color="#5B8DEF", width=3.19, height=1.00, pos="195.00,498.00!"];
+  n1 [label="NodeB", fillcolor="#ffffff", color="#58A978", width=3.19, height=1.00, pos="580.00,498.00!"];
+  n2 [label="LockStore", fillcolor="#ffffff", color="#D6A441", width=3.19, height=1.00, pos="965.00,498.00!"];
+  n0 -> n2 [];
+  n1 -> n2 [];
+  n2 -> n0 [style=dashed];
+  n2 -> n1 [style=dashed];
+  r5p1 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="259.00,-150.00!"];
+  r5p2 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="259.00,-184.00!"];
+  n0 -> r5p1 [arrowhead=none];
+  r5p1 -> r5p2 [arrowhead=none];
+  r5p2 -> n0 [];
+  n0 -> n2 [];
+  r7p1 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="259.00,-382.00!"];
+  r7p2 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="259.00,-416.00!"];
+  n0 -> r7p1 [style=dashed, arrowhead=none];
+  r7p1 -> r7p2 [style=dashed, arrowhead=none];
+  r7p2 -> n0 [style=dashed];
+  n2 -> n1 [style=dashed];
+  r9p1 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="644.00,-632.00!"];
+  r9p2 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="644.00,-666.00!"];
+  n1 -> r9p1 [style=dashed, arrowhead=none];
+  r9p1 -> r9p2 [style=dashed, arrowhead=none];
+  r9p2 -> n1 [style=dashed];
+}

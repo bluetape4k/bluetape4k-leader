@@ -1,0 +1,53 @@
+graph 1 32.358 10.024
+node n0 7.8456 5.3478 4.58 1.78 "Lettuce Leader Group" rounded,filled box #5B8DEF #ffffff
+node n1 13.401 5.4589 4.58 1.56 LettuceLeaderElector rounded,filled box #58A978 #ffffff
+node n2 30.068 5.3478 4.58 1.78 "Lettuce Suspend Leader" rounded,filled box #D6A441 #ffffff
+node n3 2.29 5.1672 4.58 2.14 LettuceSuspendLock rounded,filled box #DC6B82 #ffffff
+node n4 2.29 8.9033 4.58 1.56 LeaderGroupElector rounded,filled box #45A7A1 #ffffff
+node n5 24.512 5.0214 4.58 2.43 LettuceSlotTokenGroup rounded,filled box #8A72D6 #ffffff
+node n6 30.068 8.9033 4.58 1.56 LeaderElector rounded,filled box #B88A44 #ffffff
+node n7 16.179 1.07 4.58 2.14 LettuceLock rounded,filled box #8BA84D #ffffff
+node n8 20.808 8.9033 4.58 1.56 SuspendLeaderElector rounded,filled box #5B8DEF #ffffff
+node n9 18.957 5.3478 4.58 1.78 "Lettuce Suspend Leader" rounded,filled box #58A978 #ffffff
+node n10 11.55 8.7922 4.58 1.78 "Suspend Leader Group" rounded,filled box #D6A441 #ffffff
+node r1p1 21.734 5.3478 0.03 0.03 "" invis point black lightgrey
+node r1p2 21.734 5.0214 0.03 0.03 "" invis point black lightgrey
+node r2p1 16.179 5.3478 0.03 0.03 "" invis point black lightgrey
+node r2p2 16.179 5.1672 0.03 0.03 "" invis point black lightgrey
+node r3p1 16.179 5.3478 0.03 0.03 "" invis point black lightgrey
+node r3p2 16.179 5.0214 0.03 0.03 "" invis point black lightgrey
+node r4p1 13.401 3.4103 0.03 0.03 "" invis point black lightgrey
+node r4p2 16.179 3.4103 0.03 0.03 "" invis point black lightgrey
+node r5p1 18.957 7.07 0.03 0.03 "" invis point black lightgrey
+node r5p2 11.55 7.07 0.03 0.03 "" invis point black lightgrey
+node r6p1 30.068 7.1811 0.03 0.03 "" invis point black lightgrey
+node r6p2 20.808 7.1811 0.03 0.03 "" invis point black lightgrey
+node r7p1 7.8456 7.1811 0.03 0.03 "" invis point black lightgrey
+node r7p2 2.29 7.1811 0.03 0.03 "" invis point black lightgrey
+node r8p1 13.401 7.1811 0.03 0.03 "" invis point black lightgrey
+node r8p2 30.068 7.1811 0.03 0.03 "" invis point black lightgrey
+edge n0 r3p1 4 10.139 5.3478 12.5 5.3478 15.874 5.3478 16.159 5.3478 solid #758297
+edge n0 r7p1 4 7.8456 6.243 7.8456 6.6502 7.8456 7.063 7.8456 7.1599 dashed #758297
+edge n1 r4p1 4 13.401 4.6727 13.401 4.1491 13.401 3.5377 13.401 3.4277 solid #758297
+edge n1 r8p1 4 13.401 6.2444 13.401 6.6418 13.401 7.0609 13.401 7.1595 dashed #758297
+edge n2 r2p1 4 27.774 5.3478 23.922 5.3478 16.535 5.3478 16.191 5.3478 solid #758297
+edge n2 r6p1 4 30.068 6.243 30.068 6.6502 30.068 7.063 30.068 7.1599 dashed #758297
+edge n9 r1p1 4 21.251 5.3478 21.484 5.3478 21.658 5.3478 21.714 5.3478 solid #758297
+edge n9 r5p1 4 18.957 6.2442 18.957 6.6104 18.957 6.968 18.957 7.0517 dashed #758297
+edge r1p1 r1p2 4 21.734 5.3264 21.734 5.2674 21.734 5.1029 21.734 5.0433 solid #758297
+edge r1p2 n5 4 21.752 5.0214 21.795 5.0214 21.912 5.0214 22.074 5.0214 solid #758297
+edge r2p1 r2p2 4 16.179 5.3311 16.179 5.2976 16.179 5.2222 16.179 5.1865 solid #758297
+edge r2p2 n3 4 16.163 5.1672 15.784 5.1672 8.6099 5.1672 4.7313 5.1672 solid #758297
+edge r3p1 r3p2 4 16.179 5.3264 16.179 5.2674 16.179 5.1029 16.179 5.0433 solid #758297
+edge r3p2 n5 4 16.197 5.0214 16.47 5.0214 19.717 5.0214 22.071 5.0214 solid #758297
+edge r4p1 r4p2 4 13.419 3.4103 13.642 3.4103 15.91 3.4103 16.157 3.4103 solid #758297
+edge r4p2 n7 4 16.179 3.39 16.179 3.2855 16.179 2.7919 16.179 2.2867 solid #758297
+edge r5p1 r5p2 4 18.935 7.07 18.515 7.07 11.978 7.07 11.57 7.07 dashed #758297
+edge r5p2 n10 4 11.55 7.0893 11.55 7.1634 11.55 7.44 11.55 7.7495 dashed #758297
+edge r6p1 r6p2 4 30.047 7.1811 29.581 7.1811 21.281 7.1811 20.827 7.1811 dashed #758297
+edge r6p2 n8 4 20.808 7.2005 20.808 7.2833 20.808 7.6199 20.808 7.9722 dashed #758297
+edge r7p1 r7p2 4 7.8254 7.1811 7.4746 7.1811 2.6477 7.1811 2.3087 7.1811 dashed #758297
+edge r7p2 n4 4 2.29 7.2005 2.29 7.2833 2.29 7.6199 2.29 7.9722 dashed #758297
+edge r8p1 r8p2 4 13.42 7.1811 14.032 7.1811 29.386 7.1811 30.046 7.1811 dashed #758297
+edge r8p2 n6 4 30.068 7.2005 30.068 7.2833 30.068 7.6199 30.068 7.9722 dashed #758297
+stop

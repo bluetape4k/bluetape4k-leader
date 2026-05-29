@@ -1,0 +1,15 @@
+digraph "leader-k8s-architecture-01" {
+  graph [layout=neato, rankdir=LR, splines=ortho, overlap=false, outputorder=edgesfirst, nodesep=0.55, ranksep=0.75, bgcolor="transparent", label="leader-k8s Architecture", labelloc=t];
+  node [shape=box, style="rounded,filled", fontname="Architects Daughter", fontsize=18, margin="0.16,0.10"];
+  edge [color="#758297", penwidth=1.8, arrowsize=0.8, fontname="Comic Mono", fontsize=10];
+  n0 [label="Application", fillcolor="#ffffff", color="#5B8DEF", width=3.47, height=1.33, pos="195.00,417.00!"];
+  n1 [label="KubernetesLease", fillcolor="#ffffff", color="#58A978", width=4.03, height=1.33, pos="555.00,487.00!"];
+  n2 [label="KubernetesLease", fillcolor="#ffffff", color="#D6A441", width=4.03, height=1.33, pos="555.00,337.00!"];
+  n3 [label="Kubernetes", fillcolor="#ffffff", color="#DC6B82", width=3.47, height=1.33, pos="915.00,417.00!"];
+  n4 [label="coordination.k8s.io", fillcolor="#ffffff", color="#45A7A1", width=2.92, height=1.33, pos="1225.00,417.00!"];
+  n0 -> n1 [];
+  n0 -> n2 [];
+  n1 -> n3 [];
+  n2 -> n3 [];
+  n3 -> n4 [];
+}

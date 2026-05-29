@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" role="img" aria-labelledby="title desc">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: root-readme-overview-01.dot, root-readme-overview-01.plain, root-readme-overview-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
   <title id="title">Bluetape4k Leader module map</title>
   <desc id="desc">Current repository module map covering core APIs, backend modules, preview backends, Ktor, Metrics, Spring, examples, and BOM.</desc>
   <defs>
@@ -9,11 +10,11 @@
       .canvas{fill:#F6F9FC}
       .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
       .group{filter:url(#shadow);stroke-width:2}
-      .title{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:42px;fill:#22344A;font-weight:400}
-      .subtitle{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:17px;fill:#536476;font-weight:400}
-      .gtitle{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:24px;fill:#22344A;font-weight:400}
-      .label{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:14px;fill:#34465B;font-weight:400}
-      .small{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;fill:#627184;font-weight:400}
+      .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:42px;fill:#22344A;font-weight:400}
+      .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:17px;fill:#536476;font-weight:400}
+      .gtitle{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:24px;fill:#22344A;font-weight:400}
+      .label{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:14px;fill:#34465B;font-weight:400}
+      .small{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;fill:#627184;font-weight:400}
       .chip{fill:#FFFFFF;opacity:0.78;stroke:#D7E2EC}
     </style>
   </defs>

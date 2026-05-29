@@ -1,17 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1378" height="692" viewBox="0 0 1378 692" role="img" aria-label="leader Architecture">
+<svg xmlns="http://www.w3.org/2000/svg" width="1378" height="780" viewBox="0 0 1378 780" role="img" aria-label="leader Architecture">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: bluetape4k-leader-architecture-01.dot, bluetape4k-leader-architecture-01.plain, bluetape4k-leader-architecture-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
   <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
   <marker id="inherit" markerWidth="14" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M 0 1 L 12 6 L 0 11 Z" fill="#ffffff" stroke="#758297" stroke-width="1.8"/></marker>
   <style>
     .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
-    .title{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
-    .subtitle{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
-    .label{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
-    .smallLabel{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
-    .mono{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
-    .small{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
-    .strong{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
+    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
+    .label{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
+    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
+    .small{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
+    .strong{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
     .card{stroke-width:2.1;filter:url(#shadow)}.compartment{stroke-width:1.5;fill:none}
     .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
     .plainLine{stroke:#758297;stroke-width:2.1;fill:none}
@@ -20,78 +21,78 @@
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
   </style>
 </defs>
-<rect class="canvas" width="1378" height="692"/>
-<rect class="frame" x="32" y="28" width="1314" height="636" rx="28"/>
+<rect class="canvas" width="1378" height="780"/>
+<rect class="frame" x="32" y="28" width="1314" height="724" rx="28"/>
 <text class="title" x="66" y="82">leader Architecture</text>
 <text class="subtitle" x="70" y="118">Architecture nodes and edges from the original Mermaid source</text>
-<path class="line" d="M1040 552 C1040 386 338 386 338 220"/>
-<path class="line" d="M706 552 C706 386 338 386 338 220"/>
-<path class="line" d="M372 552 C372 386 338 386 338 220"/>
-<path class="line" d="M188 492 C188 386 188 386 188 280"/>
-<path class="line" d="M1040 386 C1040 303 338 303 338 220"/>
-<path class="line" d="M706 386 C706 386 338 386 338 386"/>
-<path class="line" d="M372 386 C372 386 338 386 338 386"/>
-<path class="line" d="M188 326 C188 303 188 303 188 280"/>
-<path class="line" d="M1040 220 C1040 220 338 220 338 220"/>
-<path class="line" d="M706 220 C706 220 338 220 338 220"/>
-<path class="line" d="M372 220 C372 220 338 220 338 220"/>
-<g transform="translate(48,170)">
+<path class="line" d="M382 210 L350 210 L350 370 L328 370"/>
+<path class="line" d="M716 210 L350 210 L350 370 L328 370"/>
+<path class="line" d="M1050 210 L350 210 L350 370 L328 370"/>
+<path class="line" d="M382 370 L328 370"/>
+<path class="line" d="M716 370 L690 370 L690 455 L350 455 L350 370 L328 370"/>
+<path class="line" d="M1050 370 L1020 370 L1020 455 L350 455 L350 370 L328 370"/>
+<path class="line" d="M188 500 L188 420"/>
+<path class="line" d="M382 550 L350 550 L350 370 L328 370"/>
+<path class="line" d="M716 550 L350 550 L350 370 L328 370"/>
+<path class="line" d="M1050 530 L350 530 L350 370 L328 370"/>
+<path class="line" d="M1050 675 L350 675 L350 370 L328 370"/>
+<g transform="translate(48,320)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
   <text class="smallLabel" x="140" y="21" text-anchor="middle">leader-core</text>
 <text class="smallLabel" x="140" y="47" text-anchor="middle">(Interfaces + Local</text>
 <text class="smallLabel" x="140" y="73" text-anchor="middle">impls)</text>
 </g>
-<g transform="translate(382,170)">
+<g transform="translate(382,160)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#EAF7EF" stroke="#58A978"/>
   <text class="smallLabel" x="140" y="33" text-anchor="middle">leader-redis-lettuce</text>
 <text class="smallLabel" x="140" y="59" text-anchor="middle">(Lettuce Redis)</text>
 </g>
-<g transform="translate(716,170)">
+<g transform="translate(716,160)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
   <text class="smallLabel" x="140" y="33" text-anchor="middle">leader-redis-redisso</text>
 <text class="smallLabel" x="140" y="59" text-anchor="middle">n (Redisson Redis)</text>
 </g>
-<g transform="translate(1050,170)">
+<g transform="translate(1050,160)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
   <text class="smallLabel" x="140" y="33" text-anchor="middle">leader-hazelcast</text>
 <text class="smallLabel" x="140" y="59" text-anchor="middle">(Hazelcast)</text>
 </g>
-<g transform="translate(48,336)">
+<g transform="translate(382,320)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
   <text class="smallLabel" x="140" y="33" text-anchor="middle">leader-exposed-core</text>
 <text class="smallLabel" x="140" y="59" text-anchor="middle">(Stable)</text>
 </g>
-<g transform="translate(382,336)">
+<g transform="translate(716,320)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
   <text class="smallLabel" x="140" y="33" text-anchor="middle">leader-exposed-jdbc</text>
 <text class="smallLabel" x="140" y="59" text-anchor="middle">(Stable)</text>
 </g>
-<g transform="translate(716,336)">
+<g transform="translate(1050,320)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#F7F1E7" stroke="#B88A44"/>
   <text class="smallLabel" x="140" y="33" text-anchor="middle">leader-exposed-r2dbc</text>
 <text class="smallLabel" x="140" y="59" text-anchor="middle">(Stable)</text>
 </g>
-<g transform="translate(1050,336)">
+<g transform="translate(1050,480)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#EEF6D9" stroke="#8BA84D"/>
   <text class="smallLabel" x="140" y="33" text-anchor="middle">leader-mongodb</text>
 <text class="smallLabel" x="140" y="59" text-anchor="middle">(MongoDB)</text>
 </g>
-<g transform="translate(48,502)">
+<g transform="translate(48,500)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
   <text class="smallLabel" x="140" y="33" text-anchor="middle">leader-spring-boot</text>
 <text class="smallLabel" x="140" y="59" text-anchor="middle">(Boot 4, CTW)</text>
 </g>
-<g transform="translate(382,502)">
+<g transform="translate(382,500)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#EAF7EF" stroke="#58A978"/>
   <text class="smallLabel" x="140" y="33" text-anchor="middle">leader-micrometer</text>
 <text class="smallLabel" x="140" y="59" text-anchor="middle">(Micrometer metrics)</text>
 </g>
-<g transform="translate(716,502)">
+<g transform="translate(716,500)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
   <text class="smallLabel" x="140" y="33" text-anchor="middle">leader-ktor (Ktor</text>
 <text class="smallLabel" x="140" y="59" text-anchor="middle">3.x)</text>
 </g>
-<g transform="translate(1050,502)">
+<g transform="translate(1050,625)">
   <rect class="card" x="0" y="0" width="280" height="100" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
   <text class="smallLabel" x="140" y="33" text-anchor="middle">leader-zookeeper</text>
 <text class="smallLabel" x="140" y="59" text-anchor="middle">(ZooKeeper)</text>

@@ -1,17 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1288" height="1756" viewBox="0 0 1288 1756" role="img" aria-label="Scenario 2 — minLeaseTime delegated to backend TTL">
+<svg xmlns="http://www.w3.org/2000/svg" width="1468" height="1756" viewBox="0 0 1468 1756" role="img" aria-label="Scenario 2 — minLeaseTime delegated to backend TTL">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: leader-redis-lettuce-sequence-03.dot, leader-redis-lettuce-sequence-03.plain, leader-redis-lettuce-sequence-03-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
   <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
   <marker id="inherit" markerWidth="14" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M 0 1 L 12 6 L 0 11 Z" fill="#ffffff" stroke="#758297" stroke-width="1.8"/></marker>
   <style>
     .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
-    .title{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
-    .subtitle{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
-    .label{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
-    .smallLabel{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
-    .mono{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
-    .small{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
-    .strong{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
+    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
+    .label{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
+    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
+    .small{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
+    .strong{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
     .card{stroke-width:2.1;filter:url(#shadow)}.compartment{stroke-width:1.5;fill:none}
     .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
     .plainLine{stroke:#758297;stroke-width:2.1;fill:none}
@@ -20,54 +21,54 @@
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
   </style>
 </defs>
-<rect class="canvas" width="1288" height="1756"/>
-<rect class="frame" x="32" y="28" width="1224" height="1700" rx="28"/>
+<rect class="canvas" width="1468" height="1756"/>
+<rect class="frame" x="32" y="28" width="1404" height="1700" rx="28"/>
 <text class="title" x="66" y="82">Scenario 2 — minLeaseTime delegated to backe.</text>
 <text class="subtitle" x="70" y="118">Sequence messages from the original Mermaid source</text>
-<rect class="card" x="-10" y="166" width="300" height="72" rx="20" fill="#E8F3FF" stroke="#5B8DEF"/>
-<text class="smallLabel" x="140" y="209" text-anchor="middle">ClientA</text>
-<line class="lifeline" x1="140" y1="252" x2="140" y2="1696" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="494" y="166" width="300" height="72" rx="20" fill="#EAF7EF" stroke="#58A978"/>
-<text class="smallLabel" x="644" y="209" text-anchor="middle">ClientB</text>
-<line class="lifeline" x1="644" y1="252" x2="644" y2="1696" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="998" y="166" width="300" height="72" rx="20" fill="#FFF3D9" stroke="#D6A441"/>
-<text class="smallLabel" x="1148" y="198.5" text-anchor="middle">Redis</text>
-<text class="smallLabel" x="1148" y="219.5" text-anchor="middle">(lg:{lockName}</text>
-<line class="lifeline" x1="1148" y1="252" x2="1148" y2="1696" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect x="539" y="286" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="557" y="313" text-anchor="start">1. ACQUIRE token=A1</text>
-<path class="line" d="M140 344 L1148 344"/>
-<rect x="539" y="396" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="557" y="423" text-anchor="start">2. token A1</text>
-<path class="dashed" d="M1148 454 L140 454"/>
-<rect x="83" y="506" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="101" y="533" text-anchor="start">3. action() runs 50ms</text>
-<path class="line" d="M140 564 C204 564 204 598 140 598"/>
-<rect x="464.5" y="636" width="359" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="482.5" y="663" text-anchor="start">4. RELEASE (A1, remainingMinLeaseMs=250)</text>
-<path class="line" d="M140 694 L1148 694"/>
-<rect x="829" y="746" width="399" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="847" y="773" text-anchor="start">5. TIME -&gt; nowMs ZADD XX score=(nowMs+250) A1</text>
-<path class="line" d="M1148 804 C1212 804 1212 838 1148 838"/>
-<rect x="539" y="876" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="557" y="903" text-anchor="start">6. 1</text>
-<path class="dashed" d="M1148 934 L140 934"/>
-<rect x="769" y="986" width="254" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="787" y="1013" text-anchor="start">7. ACQUIRE (waitTime=100ms)</text>
-<path class="line" d="M644 1044 L1148 1044"/>
-<rect x="700" y="1096" width="528" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="718" y="1123" text-anchor="start">8. ZREMRANGEBYSCORE -&gt; A1 not yet expired ZCARD == maxLeaders</text>
-<path class="line" d="M1148 1154 C1212 1154 1212 1188 1148 1188"/>
-<rect x="791" y="1226" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="809" y="1253" text-anchor="start">9. (failed)</text>
-<path class="dashed" d="M1148 1284 L644 1284"/>
-<rect x="791" y="1336" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="809" y="1363" text-anchor="start">10. ACQUIRE</text>
-<path class="line" d="M644 1394 L1148 1394"/>
-<rect x="917" y="1446" width="311" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="935" y="1473" text-anchor="start">11. ZREMRANGEBYSCORE -&gt; A1 evicted</text>
-<path class="line" d="M1148 1504 C1212 1504 1212 1538 1148 1538"/>
-<rect x="789" y="1576" width="214" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="807" y="1603" text-anchor="start">12. token B1 (success)</text>
-<path class="dashed" d="M1148 1634 L644 1634"/>
+<rect class="card" x="80" y="166" width="300" height="72" rx="110" fill="#E8F3FF" stroke="#5B8DEF"/>
+<text class="smallLabel" x="230" y="209" text-anchor="middle">ClientA</text>
+<line class="lifeline" x1="230" y1="252" x2="230" y2="1696" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="584" y="166" width="300" height="72" rx="110" fill="#EAF7EF" stroke="#58A978"/>
+<text class="smallLabel" x="734" y="209" text-anchor="middle">ClientB</text>
+<line class="lifeline" x1="734" y1="252" x2="734" y2="1696" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="1088" y="166" width="300" height="72" rx="110" fill="#FFF3D9" stroke="#D6A441"/>
+<text class="smallLabel" x="1238" y="198.5" text-anchor="middle">Redis</text>
+<text class="smallLabel" x="1238" y="219.5" text-anchor="middle">(lg:{lockName}</text>
+<line class="lifeline" x1="1238" y1="252" x2="1238" y2="1696" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect x="629" y="286" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="647" y="313" text-anchor="start">1. ACQUIRE token=A1</text>
+<path class="line" d="M230 332 L1238 332"/>
+<rect x="629" y="396" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="647" y="423" text-anchor="start">2. token A1</text>
+<path class="dashed" d="M1238 442 L230 442"/>
+<rect x="173" y="506" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="191" y="533" text-anchor="start">3. action() runs 50ms</text>
+<path class="line" d="M230 552 C294 552 294 586 230 586"/>
+<rect x="554.5" y="636" width="359" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="572.5" y="663" text-anchor="start">4. RELEASE (A1, remainingMinLeaseMs=250)</text>
+<path class="line" d="M230 682 L1238 682"/>
+<rect x="919" y="746" width="399" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="937" y="773" text-anchor="start">5. TIME -&gt; nowMs ZADD XX score=(nowMs+250) A1</text>
+<path class="line" d="M1238 792 C1302 792 1302 826 1238 826"/>
+<rect x="629" y="876" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="647" y="903" text-anchor="start">6. 1</text>
+<path class="dashed" d="M1238 922 L230 922"/>
+<rect x="859" y="986" width="254" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="877" y="1013" text-anchor="start">7. ACQUIRE (waitTime=100ms)</text>
+<path class="line" d="M734 1032 L1238 1032"/>
+<rect x="790" y="1096" width="528" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="808" y="1123" text-anchor="start">8. ZREMRANGEBYSCORE -&gt; A1 not yet expired ZCARD == maxLeaders</text>
+<path class="line" d="M1238 1142 C1302 1142 1302 1176 1238 1176"/>
+<rect x="881" y="1226" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="899" y="1253" text-anchor="start">9. (failed)</text>
+<path class="dashed" d="M1238 1272 L734 1272"/>
+<rect x="881" y="1336" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="899" y="1363" text-anchor="start">10. ACQUIRE</text>
+<path class="line" d="M734 1382 L1238 1382"/>
+<rect x="1007" y="1446" width="311" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="1025" y="1473" text-anchor="start">11. ZREMRANGEBYSCORE -&gt; A1 evicted</text>
+<path class="line" d="M1238 1492 C1302 1492 1302 1526 1238 1526"/>
+<rect x="879" y="1576" width="214" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="897" y="1603" text-anchor="start">12. token B1 (success)</text>
+<path class="dashed" d="M1238 1622 L734 1622"/>
 </svg>
