@@ -92,8 +92,10 @@ Release and auto-extension are per acquired slot:
 
 - release calls `KubernetesLeaseLock.unlock(minLeaseTime, acquiredAtNanos)`;
 - release is owner-conditional and does not affect other slots;
-- auto-extension uses one `KubernetesLeaseLockExtendDelegate` bound to the acquired slot lock;
-- watchdog is disabled by default unless group options enable it, matching core option behavior;
+- lock-handle extension uses one `KubernetesLeaseLockExtendDelegate` bound to the acquired slot lock;
+- automatic watchdog extension is not introduced for group electors in this PR because core
+  `LeaderGroupElectionOptions` has no `autoExtend` contract. This PR fixes the existing watchdog close race for
+  single-election paths, but keeps group auto-extension as a separate contract decision;
 - suspend cleanup runs in `NonCancellable + Dispatchers.IO`.
 
 ## State Mapping
@@ -151,4 +153,3 @@ Tests and operational cleanup may delete all derived slot Lease names. README gu
 | 7 Docs/release | README, lesson, CI evidence | 0 | 0 | 0 | 0 | Existing leader-k8s CI/Nightly lanes should cover changed module. |
 
 Step 2-R status: PASS. P0 = 0, P1 = 0.
-

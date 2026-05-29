@@ -4,8 +4,8 @@
 
 Kubernetes Lease backend for `bluetape4k-leader`. It uses the native
 `coordination.k8s.io/v1` Lease API, so applications running in Kubernetes can
-elect exactly one active worker without adding Redis, MongoDB, ZooKeeper, or a
-custom CRD.
+elect exactly one active worker, or a bounded group of workers, without adding
+Redis, MongoDB, ZooKeeper, or a custom CRD.
 
 ## Architecture
 
@@ -25,13 +25,25 @@ kept in annotations:
 This prevents two electors in the same JVM or Pod from treating the same
 `nodeId` as ownership authority.
 
+Group leader election uses one Lease per slot:
+
+```text
+<lockName>-slot-<slotIndex>
+```
+
+Each slot keeps the same fencing-token and owner-conditional update semantics as
+single-Lease election. Group state is observability metadata only; correctness
+stays on Kubernetes Lease ownership checks.
+
 ## Core Features
 
 - Blocking and async `LeaderElector` implementation
 - Coroutine-native `SuspendLeaderElector` implementation
+- Blocking and async `LeaderGroupElector` implementation using Lease-per-slot
+- Coroutine-native `SuspendLeaderGroupElector` implementation
 - Owner-conditional release and extension using Kubernetes `resourceVersion`
 - Expired Lease takeover based on `renewTime + leaseDurationSeconds`
-- `LeaderState` snapshots mapped from Lease metadata and annotations
+- `LeaderState` and `LeaderGroupState` snapshots mapped from Lease metadata and annotations
 - `minLeaseTime` support for short actions that must keep leadership briefly
 - K3s-backed integration tests under `k8sTest`
 
@@ -83,6 +95,31 @@ val future = elector.runAsyncIfLeader("webhook-poller") {
 }
 ```
 
+Group usage:
+
+```kotlin
+import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.k8s.KubernetesLeaseGroupOptions
+import io.bluetape4k.leader.k8s.KubernetesLeaseLeaderGroupElector
+
+val groupElector = KubernetesLeaseLeaderGroupElector(
+    client = client,
+    options = KubernetesLeaseGroupOptions(
+        namespace = "operators",
+        leaderGroupOptions = LeaderGroupElectionOptions(
+            maxLeaders = 4,
+            nodeId = "worker-0",
+            waitTime = 2.seconds,
+            leaseTime = 30.seconds,
+        ),
+    ),
+)
+
+groupElector.runIfLeader("partition-worker") {
+    processPartition()
+}
+```
+
 ## Configuration
 
 | Option | Type | Default | Description |
@@ -94,14 +131,21 @@ val future = elector.runAsyncIfLeader("webhook-poller") {
 | `leaderOptions.nodeId` | `String` | process-level default | Audit node id annotation |
 | `leaderOptions.minLeaseTime` | `Duration` | `0.seconds` | Minimum leadership hold time after quick actions |
 | `leaderOptions.autoExtend` | `Boolean` | `false` | Extends the active Lease while the action runs |
+| `leaderGroupOptions.maxLeaders` | `Int` | `2` | Maximum active Lease slots for group election |
+| `leaderGroupOptions.waitTime` | `Duration` | `5.seconds` | Maximum time to acquire any group slot |
+| `leaderGroupOptions.leaseTime` | `Duration` | `60.seconds` | Lease duration for each group slot |
+| `leaderGroupOptions.nodeId` | `String` | process-level default | Audit node id annotation for group slots |
+| `leaderGroupOptions.minLeaseTime` | `Duration` | `0.seconds` | Minimum slot hold time after quick group actions |
 
 `lockName` must be a Kubernetes DNS-1123 label and must fit the Lease name limit
-(63 characters).
+(63 characters). For group election, the derived `<lockName>-slot-<slotIndex>`
+names must also fit this limit.
 
 ## RBAC
 
 The service account running the application needs Lease access in the selected
-namespace:
+namespace. Production electors do not delete Leases during normal release, but
+`delete` is useful for test and operator cleanup tooling:
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1

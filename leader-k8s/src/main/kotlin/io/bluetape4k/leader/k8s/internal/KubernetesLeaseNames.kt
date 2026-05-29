@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.k8s.internal
 
 import io.bluetape4k.support.requireNotBlank
+import io.bluetape4k.support.requireInRange
 
 internal object KubernetesLeaseNames {
     private val Dns1123Label = Regex("[a-z0-9]([-a-z0-9]*[a-z0-9])?")
@@ -13,5 +14,12 @@ internal object KubernetesLeaseNames {
         require(Dns1123Label.matches(lockName)) {
             "lockName must be a DNS-1123 label for Kubernetes Lease name. lockName=$lockName"
         }
+    }
+
+    fun groupSlotLeaseName(lockName: String, slot: Int, maxLeaders: Int): String {
+        slot.requireInRange(0, maxLeaders - 1, "slot")
+        val leaseName = "$lockName-slot-$slot"
+        validateLeaseName(leaseName)
+        return leaseName
     }
 }
