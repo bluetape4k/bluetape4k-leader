@@ -25,6 +25,8 @@ import io.bluetape4k.leader.redisson.RedissonLeaderElector
 import io.bluetape4k.leader.zookeeper.ZooKeeperLeaderElector
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.aws.DynamoDbLocalServer
+import io.bluetape4k.testcontainers.database.MySQL8Server
+import io.bluetape4k.testcontainers.database.PostgreSQLServer
 import io.bluetape4k.testcontainers.infra.ConsulServer
 import io.bluetape4k.testcontainers.infra.EtcdServer
 import io.bluetape4k.testcontainers.infra.ZooKeeperServer
@@ -70,6 +72,8 @@ open class BackendLeaderElectorBenchmark {
         "lettuce",
         "redisson",
         "exposed-jdbc-h2",
+        "exposed-jdbc-postgresql",
+        "exposed-jdbc-mysql",
         "mongo",
         "hazelcast",
         "zookeeper",
@@ -99,6 +103,8 @@ open class BackendLeaderElectorBenchmark {
             "lettuce" -> createLettuceElector()
             "redisson" -> createRedissonElector()
             "exposed-jdbc-h2" -> createExposedJdbcH2Elector()
+            "exposed-jdbc-postgresql" -> createExposedJdbcPostgreSqlElector()
+            "exposed-jdbc-mysql" -> createExposedJdbcMySqlElector()
             "mongo" -> createMongoElector()
             "hazelcast" -> createHazelcastElector()
             "zookeeper" -> createZooKeeperElector()
@@ -156,6 +162,39 @@ open class BackendLeaderElectorBenchmark {
             url = "jdbc:h2:mem:leader_benchmark_blocking;MODE=MySQL;DB_CLOSE_DELAY=-1",
             driver = "org.h2.Driver",
         )
+        return ExposedJdbcLeaderElector(
+            db,
+            ExposedJdbcLeaderElectionOptions(leaderOptions = leaderOptions),
+        )
+    }
+
+    private fun createExposedJdbcPostgreSqlElector(): LeaderElector {
+        val postgres = PostgreSQLServer.Launcher.postgres
+        return createExposedJdbcElector(
+            url = "jdbc:postgresql://${postgres.host}:${postgres.getMappedPort(5432)}/${postgres.databaseName}",
+            driver = "org.postgresql.Driver",
+            user = postgres.username ?: "",
+            password = postgres.password ?: "",
+        )
+    }
+
+    private fun createExposedJdbcMySqlElector(): LeaderElector {
+        val mysql = MySQL8Server.Launcher.mysql
+        return createExposedJdbcElector(
+            url = "jdbc:mysql://${mysql.host}:${mysql.getMappedPort(3306)}/${mysql.databaseName}",
+            driver = "com.mysql.cj.jdbc.Driver",
+            user = mysql.username ?: "",
+            password = mysql.password ?: "",
+        )
+    }
+
+    private fun createExposedJdbcElector(
+        url: String,
+        driver: String,
+        user: String,
+        password: String,
+    ): LeaderElector {
+        val db = Database.connect(url = url, driver = driver, user = user, password = password)
         return ExposedJdbcLeaderElector(
             db,
             ExposedJdbcLeaderElectionOptions(leaderOptions = leaderOptions),

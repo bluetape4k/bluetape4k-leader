@@ -43,17 +43,17 @@ The non-published [`benchmark`](./benchmark) module publishes comparable
 results are intended for same-machine before/after comparison, not release-grade
 performance claims.
 
-![Leader benchmark remote throughput](docs/images/readme-charts/leader-benchmark-remote-throughput-chart-01.svg)
+![Leader benchmark distributed throughput](docs/images/readme-charts/leader-benchmark-distributed-throughput-chart-01.png)
 
 | Comparison | Primary signal |
 |---|---|
-| Blocking remote backends | Hazelcast, Redisson, and Lettuce are the current throughput leaders in the 2026-05-21 baseline. |
-| Suspend remote backends | Lettuce, Redisson, and Hazelcast are tightly grouped; MongoDB suspend latency is noisy and needs repeat runs before tuning. |
-| Local and H2 rows | Kept out of the remote chart because they measure in-process or local SQL/R2DBC overhead, not distributed backend cost. |
+| Blocking distributed backends | Hazelcast, Lettuce, and Redisson are tightly grouped at the top in the 2026-05-29 run. |
+| Suspend distributed backends | Lettuce, Redisson, and Hazelcast remain the leading group; RDB rows are much slower in this single-container run. |
+| Local and H2 rows | Kept out of the distributed backend chart because they measure in-process or local SQL/R2DBC overhead, not distributed backend cost. |
 
 Full tables, latency chart, run command, and caveats are in the
 [`benchmark` README](./benchmark/README.md) and the
-[`2026-05-21 baseline report`](./docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md).
+[`2026-05-29 raw benchmark JSON`](./docs/benchmarks/2026-05-29-issue-405-rdb-backend-throughput.json).
 
 ## Architecture
 
