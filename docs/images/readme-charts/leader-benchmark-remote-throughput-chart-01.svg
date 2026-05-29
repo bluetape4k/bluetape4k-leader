@@ -1,44 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="640" viewBox="0 0 1400 640" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820" role="img" aria-labelledby="title desc">
   <title id="title">Leader election remote backend throughput</title>
   <desc id="desc">Blocking and suspend runIfLeader throughput in operations per second. Higher values are better.</desc>
-  <defs>
-    <style>
-      .canvas{fill:#f6f9fc}.frame{fill:#fff;stroke:#d7e2ec;stroke-width:2}.title{font:700 34px Arial,sans-serif;fill:#22344a}.subtitle{font:16px Arial,sans-serif;fill:#536476}.label{font:18px Arial,sans-serif;fill:#22344a}.small{font:14px Arial,sans-serif;fill:#536476}.tick{font:13px Arial,sans-serif;fill:#6d7d90}.axis{stroke:#b9c8d6;stroke-width:1}.blocking{fill:#2f80ed}.suspend{fill:#21a67a}.note{font:13px Arial,sans-serif;fill:#6d7d90}
-    </style>
-  </defs>
-  <rect class="canvas" width="1400" height="640"/>
-  <rect class="frame" x="36" y="28" width="1328" height="584" rx="20"/>
-  <text class="title" x="72" y="78">Remote backend throughput</text>
-  <text class="subtitle" x="72" y="106">runIfLeader hot-path throughput, ops/s. Higher is better. Local and H2 rows are excluded from this scale.</text>
-  <rect x="960" y="64" width="18" height="18" rx="3" class="blocking"/><text class="small" x="986" y="78">Blocking API</text>
+  <defs><style>.canvas{fill:#f6f9fc}.frame{fill:#fff;stroke:#d7e2ec;stroke-width:2}.title{font:700 34px Arial,sans-serif;fill:#22344a}.subtitle{font:16px Arial,sans-serif;fill:#536476}.label{font:18px Arial,sans-serif;fill:#22344a}.small{font:14px Arial,sans-serif;fill:#536476}.tick{font:13px Arial,sans-serif;fill:#6d7d90}.axis{stroke:#b9c8d6;stroke-width:1}.grid{stroke:#edf3f8;stroke-width:1}.blocking{fill:#2f80ed}.suspend{fill:#21a67a}.latencyBlocking{fill:#d25b45}.latencySuspend{fill:#8d6fd1}.note{font:13px Arial,sans-serif;fill:#6d7d90}</style></defs>
+  <rect class="canvas" width="1400" height="820"/>
+  <rect class="frame" x="36" y="28" width="1328" height="764" rx="20"/>
+  <text class="title" x="72" y="78">remote backend throughput</text>
+  <text class="subtitle" x="72" y="108">runIfLeader hot-path throughput, ops/s. Higher is better. Local and H2 rows are excluded from this scale.</text>
+  <rect x="958" y="64" width="18" height="18" rx="3" class="blocking"/><text class="small" x="986" y="78">Blocking API</text>
   <rect x="1090" y="64" width="18" height="18" rx="3" class="suspend"/><text class="small" x="1116" y="78">Suspend API</text>
-  <line class="axis" x1="328" y1="498" x2="1128" y2="498"/>
-  <line class="axis" x1="328" y1="140" x2="328" y2="498"/>
-  <line class="axis" x1="528" y1="140" x2="528" y2="504"/><text class="tick" x="516" y="526">400</text>
-  <line class="axis" x1="728" y1="140" x2="728" y2="504"/><text class="tick" x="716" y="526">800</text>
-  <line class="axis" x1="928" y1="140" x2="928" y2="504"/><text class="tick" x="912" y="526">1200</text>
-  <line class="axis" x1="1128" y1="140" x2="1128" y2="504"/><text class="tick" x="1112" y="526">1600</text>
-  <text class="tick" x="318" y="526">0 ops/s</text>
-
-  <text class="label" x="100" y="165">Lettuce Redis</text>
-  <rect x="328" y="143" width="527" height="24" rx="5" class="blocking"/><text class="small" x="866" y="161">1,054</text>
-  <rect x="328" y="173" width="729" height="24" rx="5" class="suspend"/><text class="small" x="1068" y="191">1,458</text>
-
-  <text class="label" x="100" y="238">Redisson Redis</text>
-  <rect x="328" y="216" width="677" height="24" rx="5" class="blocking"/><text class="small" x="1016" y="234">1,355</text>
-  <rect x="328" y="246" width="698" height="24" rx="5" class="suspend"/><text class="small" x="1037" y="264">1,396</text>
-
-  <text class="label" x="100" y="311">Hazelcast</text>
-  <rect x="328" y="289" width="729" height="24" rx="5" class="blocking"/><text class="small" x="1068" y="307">1,457</text>
-  <rect x="328" y="319" width="697" height="24" rx="5" class="suspend"/><text class="small" x="1036" y="337">1,394</text>
-
-  <text class="label" x="100" y="384">MongoDB</text>
-  <rect x="328" y="362" width="467" height="24" rx="5" class="blocking"/><text class="small" x="806" y="380">935</text>
-  <rect x="328" y="392" width="415" height="24" rx="5" class="suspend"/><text class="small" x="754" y="410">829</text>
-
-  <text class="label" x="100" y="457">ZooKeeper</text>
-  <rect x="328" y="435" width="380" height="24" rx="5" class="blocking"/><text class="small" x="719" y="453">760</text>
-  <rect x="328" y="465" width="361" height="24" rx="5" class="suspend"/><text class="small" x="700" y="483">722</text>
-
-  <text class="note" x="72" y="580">Source: docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md. Forks=1, threads=1, 3 measurement iterations.</text>
+  <line class="axis" x1="318" y1="740" x2="1192" y2="740"/>
+  <line class="axis" x1="318" y1="132" x2="318" y2="740"/>
+  <line class="grid" x1="536.5" y1="132" x2="536.5" y2="746"/><text class="tick" x="520.5" y="768">400</text>
+  <line class="grid" x1="755.0" y1="132" x2="755.0" y2="746"/><text class="tick" x="739" y="768">800</text>
+  <line class="grid" x1="973.5" y1="132" x2="973.5" y2="746"/><text class="tick" x="957.5" y="768">1,200</text>
+  <line class="grid" x1="1192.0" y1="132" x2="1192.0" y2="746"/><text class="tick" x="1176" y="768">1,600</text>
+  <text class="tick" x="308" y="768" text-anchor="end">0 ops/s</text>
+  <text class="label" x="90" y="178">Lettuce Redis</text>
+  <rect x="318" y="154" width="795.6" height="22" rx="5" class="blocking"/><text class="small" x="1123.6" y="170">1,456.5</text>
+  <rect x="318" y="184" width="799.4" height="22" rx="5" class="suspend"/><text class="small" x="1127.4" y="200">1,463.4</text>
+  <text class="label" x="90" y="250">Redisson Redis</text>
+  <rect x="318" y="226" width="773.3" height="22" rx="5" class="blocking"/><text class="small" x="1101.3" y="242">1,415.6</text>
+  <rect x="318" y="256" width="762.4" height="22" rx="5" class="suspend"/><text class="small" x="1090.4" y="272">1,395.7</text>
+  <text class="label" x="90" y="322">Hazelcast</text>
+  <rect x="318" y="298" width="773.1" height="22" rx="5" class="blocking"/><text class="small" x="1101.1" y="314">1,415.2</text>
+  <rect x="318" y="328" width="743.3" height="22" rx="5" class="suspend"/><text class="small" x="1071.3" y="344">1,360.7</text>
+  <text class="label" x="90" y="394">MongoDB</text>
+  <rect x="318" y="370" width="510.1" height="22" rx="5" class="blocking"/><text class="small" x="838.1" y="386">933.8</text>
+  <rect x="318" y="400" width="305.8" height="22" rx="5" class="suspend"/><text class="small" x="633.8" y="416">559.8</text>
+  <text class="label" x="90" y="466">ZooKeeper</text>
+  <rect x="318" y="442" width="459.8" height="22" rx="5" class="blocking"/><text class="small" x="787.8" y="458">841.8</text>
+  <rect x="318" y="472" width="414.4" height="22" rx="5" class="suspend"/><text class="small" x="742.4" y="488">758.6</text>
+  <text class="label" x="90" y="538">DynamoDB Local</text>
+  <rect x="318" y="514" width="350.2" height="22" rx="5" class="blocking"/><text class="small" x="678.2" y="530">641.1</text>
+  <rect x="318" y="544" width="306.6" height="22" rx="5" class="suspend"/><text class="small" x="634.6" y="560">561.3</text>
+  <text class="label" x="90" y="610">Consul</text>
+  <rect x="318" y="586" width="336.0" height="22" rx="5" class="blocking"/><text class="small" x="664.0" y="602">615.1</text>
+  <rect x="318" y="616" width="321.2" height="22" rx="5" class="suspend"/><text class="small" x="649.2" y="632">587.9</text>
+  <text class="label" x="90" y="682">etcd</text>
+  <rect x="318" y="658" width="269.5" height="22" rx="5" class="blocking"/><text class="small" x="597.5" y="674">493.4</text>
+  <rect x="318" y="688" width="251.3" height="22" rx="5" class="suspend"/><text class="small" x="579.3" y="704">460</text>
+  <text class="note" x="72" y="776">Source: docs/benchmarks/2026-05-29-issue-418-preview-backend-*.json. Forks=1, threads=1, 3 measurement iterations.</text>
 </svg>

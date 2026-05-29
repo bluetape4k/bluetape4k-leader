@@ -34,16 +34,17 @@ Issue #418은 2026-05-29 같은 장비에서 측정한 preview backend 행을
 ## Charts
 
 원격 backend 차트는 분산 backend 간 차이가 보이도록 local 및 H2 행을
-제외했습니다.
+제외했습니다. Kubernetes는 별도 runtime classpath에서 실행하므로 해당 표
+옆에 별도 차트를 둡니다.
 
-![Leader benchmark remote throughput](../docs/images/readme-charts/leader-benchmark-remote-throughput-chart-01.svg)
+![Leader benchmark remote throughput](../docs/images/readme-charts/leader-benchmark-remote-throughput-chart-01.png)
 
-![Leader benchmark remote latency](../docs/images/readme-charts/leader-benchmark-remote-latency-chart-01.svg)
+![Leader benchmark remote latency](../docs/images/readme-charts/leader-benchmark-remote-latency-chart-01.png)
 
 Issue #329는 같은 benchmark harness로 history recorder 전/후 비교도
 기록합니다.
 
-![Leader history recorder self-improve throughput](../docs/images/readme-charts/leader-history-self-improve-throughput-chart-01.svg)
+![Leader history recorder self-improve throughput](../docs/images/readme-charts/leader-history-self-improve-throughput-chart-01.png)
 
 ## Latest Self-Improve Result
 
@@ -105,6 +106,10 @@ source set에서 별도로 실행합니다.
 |---|---:|---:|---|
 | `Kubernetes.blockingRunIfLeader` | 171.525 ± 160.477 | 5,835.436 ± 8,251.639 | K3s 기반 Lease lock |
 | `Kubernetes.suspendRunIfLeader` | 164.687 ± 57.773 | 6,075.660 ± 4,944.763 | K3s 기반 Lease lock |
+
+![Kubernetes benchmark throughput](../docs/images/readme-charts/leader-benchmark-kubernetes-throughput-chart-01.png)
+
+![Kubernetes benchmark latency](../docs/images/readme-charts/leader-benchmark-kubernetes-latency-chart-01.png)
 
 ## Local Core Rows
 

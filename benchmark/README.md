@@ -34,16 +34,17 @@ Raw JSON is stored under:
 ## Charts
 
 Remote backend charts exclude the local and H2 rows so the distributed backend
-differences remain visible.
+differences remain visible. Kubernetes has separate charts beside its table
+because it runs on a separate runtime classpath.
 
-![Leader benchmark remote throughput](../docs/images/readme-charts/leader-benchmark-remote-throughput-chart-01.svg)
+![Leader benchmark remote throughput](../docs/images/readme-charts/leader-benchmark-remote-throughput-chart-01.png)
 
-![Leader benchmark remote latency](../docs/images/readme-charts/leader-benchmark-remote-latency-chart-01.svg)
+![Leader benchmark remote latency](../docs/images/readme-charts/leader-benchmark-remote-latency-chart-01.png)
 
 Issue #329 also records a history-recorder before/after comparison from the
 same benchmark harness.
 
-![Leader history recorder self-improve throughput](../docs/images/readme-charts/leader-history-self-improve-throughput-chart-01.svg)
+![Leader history recorder self-improve throughput](../docs/images/readme-charts/leader-history-self-improve-throughput-chart-01.png)
 
 ## Latest Self-Improve Result
 
@@ -105,6 +106,10 @@ default preview backend classpath.
 |---|---:|---:|---|
 | `Kubernetes.blockingRunIfLeader` | 171.525 ± 160.477 | 5,835.436 ± 8,251.639 | K3s-backed Lease lock |
 | `Kubernetes.suspendRunIfLeader` | 164.687 ± 57.773 | 6,075.660 ± 4,944.763 | K3s-backed Lease lock |
+
+![Kubernetes benchmark throughput](../docs/images/readme-charts/leader-benchmark-kubernetes-throughput-chart-01.png)
+
+![Kubernetes benchmark latency](../docs/images/readme-charts/leader-benchmark-kubernetes-latency-chart-01.png)
 
 ## Local Core Rows
 

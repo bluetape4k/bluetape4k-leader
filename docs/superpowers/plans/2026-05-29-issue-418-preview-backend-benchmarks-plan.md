@@ -21,10 +21,11 @@ design-grade verification path.
 8. Run default and K8s timing benchmark tasks serially when local Docker/K3s
    resources allow it.
 9. Copy or reference fresh JSON output under `docs/benchmarks/`.
-10. Update `benchmark/README.md` and `benchmark/README.ko.md` with measured rows,
-   caveats, and raw result path.
-11. Add a lesson for future benchmark agents.
-12. Run local 7-Tier code review, commit, push, create PR, watch CI, and merge
+10. Generate README chart SVG/PNG assets from the same fresh JSON.
+11. Update `benchmark/README.md` and `benchmark/README.ko.md` with measured
+   rows, charts, caveats, and raw result path.
+12. Add a lesson for future benchmark agents.
+13. Run local 7-Tier code review, commit, push, create PR, watch CI, and merge
     after CI success per thread instruction.
 
 ## Validation Commands
@@ -35,6 +36,7 @@ design-grade verification path.
 ./gradlew :benchmark:benchmarkBenchmark :benchmark:benchmarkAverageTimeBenchmark --no-configuration-cache --rerun-tasks --no-daemon
 ./gradlew :benchmark:kubernetesBenchmarkBenchmark :benchmark:kubernetesBenchmarkAverageTimeBenchmark --no-configuration-cache --rerun-tasks --no-daemon
 git diff --check
+xmllint --noout docs/images/readme-charts/leader-benchmark-*.svg
 ```
 
 The timing benchmark commands are intentionally serial because they start
