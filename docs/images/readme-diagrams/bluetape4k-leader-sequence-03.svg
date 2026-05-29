@@ -1,17 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1078" height="1440" viewBox="0 0 1078 1440" role="img" aria-label="Multi-leader group: slot-based semaphore">
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="1400" viewBox="0 0 1160 1400" role="img" aria-label="Multi-leader group: slot-based semaphore">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: bluetape4k-leader-sequence-03.dot, bluetape4k-leader-sequence-03.plain, bluetape4k-leader-sequence-03-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
   <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
   <marker id="inherit" markerWidth="14" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M 0 1 L 12 6 L 0 11 Z" fill="#ffffff" stroke="#758297" stroke-width="1.8"/></marker>
   <style>
     .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
-    .title{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
-    .subtitle{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
-    .label{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
-    .smallLabel{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
-    .mono{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
-    .small{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
-    .strong{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
+    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
+    .label{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
+    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
+    .small{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
+    .strong{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
     .card{stroke-width:2.1;filter:url(#shadow)}.compartment{stroke-width:1.5;fill:none}
     .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
     .plainLine{stroke:#758297;stroke-width:2.1;fill:none}
@@ -20,47 +21,47 @@
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
   </style>
 </defs>
-<rect class="canvas" width="1078" height="1440"/>
-<rect class="frame" x="32" y="28" width="1014" height="1384" rx="28"/>
+<rect class="canvas" width="1160" height="1400"/>
+<rect class="frame" x="32" y="28" width="1096" height="1344" rx="28"/>
 <text class="title" x="66" y="82">Multi-leader group: slot-based semap.</text>
 <text class="subtitle" x="70" y="118">Sequence messages from the original Mermaid source</text>
-<rect class="card" x="25" y="166" width="230" height="72" rx="20" fill="#E8F3FF" stroke="#5B8DEF"/>
-<text class="smallLabel" x="140" y="209" text-anchor="middle">Caller</text>
-<line class="lifeline" x1="140" y1="252" x2="140" y2="1380" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="424" y="166" width="230" height="72" rx="20" fill="#EAF7EF" stroke="#58A978"/>
-<text class="smallLabel" x="539" y="209" text-anchor="middle">GroupElection</text>
-<line class="lifeline" x1="539" y1="252" x2="539" y2="1380" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="823" y="166" width="230" height="72" rx="20" fill="#FFF3D9" stroke="#D6A441"/>
-<text class="smallLabel" x="938" y="209" text-anchor="middle">LockStore</text>
-<line class="lifeline" x1="938" y1="252" x2="938" y2="1380" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect x="192.5" y="286" width="294" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="210.5" y="313" text-anchor="start">1. runIfLeader(lockName, action)</text>
-<path class="line" d="M140 344 L539 344"/>
-<rect x="70" y="396" width="938" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="92" y="423" text-anchor="start">LOOP: slot = 0..maxLeaders-1</text>
-<rect x="591.5" y="464" width="294" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="609.5" y="491" text-anchor="start">3. tryLock(lockName:slot:i, ...)</text>
-<path class="line" d="M539 522 L938 522"/>
-<rect x="70" y="574" width="938" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="92" y="601" text-anchor="start">ALT: slot acquired</text>
-<rect x="633.5" y="642" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="651.5" y="669" text-anchor="start">5. true</text>
-<path class="dashed" d="M938 700 L539 700"/>
-<rect x="234.5" y="752" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="252.5" y="779" text-anchor="start">6. action()</text>
-<path class="line" d="M539 810 L140 810"/>
-<rect x="234.5" y="862" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="252.5" y="889" text-anchor="start">7. result</text>
-<path class="dashed" d="M140 920 L539 920"/>
-<rect x="615.5" y="972" width="246" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="633.5" y="999" text-anchor="start">8. unlock(lockName:slot:i)</text>
-<path class="line" d="M539 1030 L938 1030"/>
-<rect x="234.5" y="1082" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="252.5" y="1109" text-anchor="start">9. result</text>
-<path class="dashed" d="M539 1140 L140 1140"/>
-<rect x="70" y="1192" width="938" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="92" y="1219" text-anchor="start">ELSE: slot busy</text>
-<rect x="633.5" y="1260" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="651.5" y="1287" text-anchor="start">11. false</text>
-<path class="dashed" d="M938 1318 L539 1318"/>
+<rect class="card" x="80" y="166" width="230" height="72" rx="20" fill="#E8F3FF" stroke="#5B8DEF"/>
+<text class="smallLabel" x="195" y="209" text-anchor="middle">Caller</text>
+<line class="lifeline" x1="195" y1="252" x2="195" y2="1320" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="465" y="166" width="230" height="72" rx="20" fill="#EAF7EF" stroke="#58A978"/>
+<text class="smallLabel" x="580" y="209" text-anchor="middle">GroupElection</text>
+<line class="lifeline" x1="580" y1="252" x2="580" y2="1320" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="850" y="166" width="230" height="72" rx="20" fill="#FFF3D9" stroke="#D6A441"/>
+<text class="smallLabel" x="965" y="209" text-anchor="middle">LockStore</text>
+<line class="lifeline" x1="965" y1="252" x2="965" y2="1320" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect x="240.5" y="286" width="294" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="258.5" y="313" text-anchor="start">1. runIfLeader(lockName, action)</text>
+<path class="line" d="M195 332 L580 332"/>
+<rect x="80" y="376" width="1000" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="102" y="403" text-anchor="start">LOOP: slot = 0..maxLeaders-1</text>
+<rect x="625.5" y="432" width="294" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="643.5" y="459" text-anchor="start">3. tryLock(lockName:slot:i, ...)</text>
+<path class="line" d="M580 478 L965 478"/>
+<rect x="80" y="524" width="1000" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="102" y="551" text-anchor="start">ALT: slot acquired</text>
+<rect x="667.5" y="580" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="685.5" y="607" text-anchor="start">5. true</text>
+<path class="dashed" d="M965 626 L580 626"/>
+<rect x="282.5" y="690" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="300.5" y="717" text-anchor="start">6. action()</text>
+<path class="line" d="M580 736 L195 736"/>
+<rect x="282.5" y="800" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="300.5" y="827" text-anchor="start">7. result</text>
+<path class="dashed" d="M195 846 L580 846"/>
+<rect x="649.5" y="910" width="246" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="667.5" y="937" text-anchor="start">8. unlock(lockName:slot:i)</text>
+<path class="line" d="M580 956 L965 956"/>
+<rect x="282.5" y="1020" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="300.5" y="1047" text-anchor="start">9. result</text>
+<path class="dashed" d="M580 1066 L195 1066"/>
+<rect x="80" y="1130" width="1000" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="102" y="1157" text-anchor="start">ELSE: slot busy</text>
+<rect x="667.5" y="1186" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="685.5" y="1213" text-anchor="start">11. false</text>
+<path class="dashed" d="M965 1232 L580 1232"/>
 </svg>

@@ -1,17 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1960" height="2058" viewBox="0 0 1960 2058" role="img" aria-label="webhook poller Sequence Flow">
+<svg xmlns="http://www.w3.org/2000/svg" width="2140" height="2058" viewBox="0 0 2140 2058" role="img" aria-label="webhook poller Sequence Flow">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: examples-webhook-poller-sequence-01.dot, examples-webhook-poller-sequence-01.plain, examples-webhook-poller-sequence-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
   <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
   <marker id="inherit" markerWidth="14" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M 0 1 L 12 6 L 0 11 Z" fill="#ffffff" stroke="#758297" stroke-width="1.8"/></marker>
   <style>
     .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
-    .title{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
-    .subtitle{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
-    .label{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
-    .smallLabel{font-family:"Architects Daughter","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
-    .mono{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
-    .small{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
-    .strong{font-family:"Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
+    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
+    .label{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
+    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
+    .small{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
+    .strong{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
     .card{stroke-width:2.1;filter:url(#shadow)}.compartment{stroke-width:1.5;fill:none}
     .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
     .plainLine{stroke:#758297;stroke-width:2.1;fill:none}
@@ -20,72 +21,72 @@
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
   </style>
 </defs>
-<rect class="canvas" width="1960" height="2058"/>
-<rect class="frame" x="32" y="28" width="1896" height="2002" rx="28"/>
+<rect class="canvas" width="2140" height="2058"/>
+<rect class="frame" x="32" y="28" width="2076" height="2002" rx="28"/>
 <text class="title" x="66" y="82">webhook poller Sequence Flow</text>
 <text class="subtitle" x="70" y="118">Sequence messages from the original Mermaid source</text>
-<rect class="card" x="-10" y="166" width="300" height="72" rx="20" fill="#E8F3FF" stroke="#5B8DEF"/>
-<text class="smallLabel" x="140" y="209" text-anchor="middle">poller-1 (leader)</text>
-<line class="lifeline" x1="140" y1="252" x2="140" y2="1998" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="410" y="166" width="300" height="72" rx="20" fill="#EAF7EF" stroke="#58A978"/>
-<text class="smallLabel" x="560" y="209" text-anchor="middle">poller-2</text>
-<line class="lifeline" x1="560" y1="252" x2="560" y2="1998" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="830" y="166" width="300" height="72" rx="20" fill="#FFF3D9" stroke="#D6A441"/>
-<text class="smallLabel" x="980" y="209" text-anchor="middle">poller-3</text>
-<line class="lifeline" x1="980" y1="252" x2="980" y2="1998" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="1250" y="166" width="300" height="72" rx="20" fill="#FDECEF" stroke="#DC6B82"/>
-<text class="smallLabel" x="1400" y="198.5" text-anchor="middle">Mongo</text>
-<text class="smallLabel" x="1400" y="219.5" text-anchor="middle">lockCollection</text>
-<line class="lifeline" x1="1400" y1="252" x2="1400" y2="1998" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="1670" y="166" width="300" height="72" rx="20" fill="#E9F7F6" stroke="#45A7A1"/>
-<text class="smallLabel" x="1820" y="198.5" text-anchor="middle">Mongo</text>
-<text class="smallLabel" x="1820" y="219.5" text-anchor="middle">eventCollection</text>
-<line class="lifeline" x1="1820" y1="252" x2="1820" y2="1998" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect x="631" y="286" width="278" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="649" y="313" text-anchor="start">1. runIfLeader(webhook-poller)</text>
-<path class="line" d="M140 344 L1400 344"/>
-<rect x="841" y="396" width="278" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="859" y="423" text-anchor="start">2. runIfLeader(webhook-poller)</text>
-<path class="line" d="M560 454 L1400 454"/>
-<rect x="1051" y="506" width="278" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1069" y="533" text-anchor="start">3. runIfLeader(webhook-poller)</text>
-<path class="line" d="M980 564 L1400 564"/>
-<rect x="665" y="616" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="683" y="643" text-anchor="start">4. granted</text>
-<path class="dashed" d="M1400 674 L140 674"/>
-<rect x="875" y="726" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="893" y="753" text-anchor="start">5. null (skip)</text>
-<path class="dashed" d="M1400 784 L560 784"/>
-<rect x="1085" y="836" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1103" y="863" text-anchor="start">6. null (skip)</text>
-<path class="dashed" d="M1400 894 L980 894"/>
-<rect x="70" y="946" width="1820" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="92" y="973" text-anchor="start">LOOP: batchSize</text>
-<rect x="647.5" y="1014" width="665" height="62" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="665.5" y="1041" text-anchor="start">8. findOneAndUpdate (atomic claim) filter: attempts &lt; maxAttempts AND (PENDING</text>
-<text class="strong" x="665.5" y="1063" text-anchor="start">OR (CLAIMED AND expired)) update: CLAIMED, claimedBy, attempts++</text>
-<path class="line" d="M140 1094 L1820 1094"/>
-<rect x="875" y="1146" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="893" y="1173" text-anchor="start">9. claimed event</text>
-<path class="dashed" d="M1820 1204 L140 1204"/>
-<rect x="83" y="1256" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="101" y="1283" text-anchor="start">10. handler(event)</text>
-<path class="line" d="M140 1314 C204 1314 204 1348 140 1348"/>
-<rect x="70" y="1386" width="1820" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="92" y="1413" text-anchor="start">ALT: success</text>
-<rect x="875" y="1454" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="893" y="1481" text-anchor="start">12. status = DONE</text>
-<path class="line" d="M140 1512 L1820 1512"/>
-<rect x="70" y="1564" width="1820" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="92" y="1591" text-anchor="start">ELSE: handler throws</text>
-<rect x="70" y="1632" width="1820" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="92" y="1659" text-anchor="start">ALT: attempts &gt;= maxAttempts</text>
-<rect x="841" y="1700" width="278" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="859" y="1727" text-anchor="start">15. status = FAILED, lastError</text>
-<path class="line" d="M140 1758 L1820 1758"/>
-<rect x="70" y="1810" width="1820" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="92" y="1837" text-anchor="start">ELSE: otherwise</text>
-<rect x="776.5" y="1878" width="407" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="794.5" y="1905" text-anchor="start">17. status = PENDING, lastError (re-claimable)</text>
-<path class="line" d="M140 1936 L1820 1936"/>
+<rect class="card" x="80" y="166" width="300" height="72" rx="110" fill="#E8F3FF" stroke="#5B8DEF"/>
+<text class="smallLabel" x="230" y="209" text-anchor="middle">poller-1 (leader)</text>
+<line class="lifeline" x1="230" y1="252" x2="230" y2="1998" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="500" y="166" width="300" height="72" rx="110" fill="#EAF7EF" stroke="#58A978"/>
+<text class="smallLabel" x="650" y="209" text-anchor="middle">poller-2</text>
+<line class="lifeline" x1="650" y1="252" x2="650" y2="1998" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="920" y="166" width="300" height="72" rx="110" fill="#FFF3D9" stroke="#D6A441"/>
+<text class="smallLabel" x="1070" y="209" text-anchor="middle">poller-3</text>
+<line class="lifeline" x1="1070" y1="252" x2="1070" y2="1998" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="1340" y="166" width="300" height="72" rx="110" fill="#FDECEF" stroke="#DC6B82"/>
+<text class="smallLabel" x="1490" y="198.5" text-anchor="middle">Mongo</text>
+<text class="smallLabel" x="1490" y="219.5" text-anchor="middle">lockCollection</text>
+<line class="lifeline" x1="1490" y1="252" x2="1490" y2="1998" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect class="card" x="1760" y="166" width="300" height="72" rx="110" fill="#E9F7F6" stroke="#45A7A1"/>
+<text class="smallLabel" x="1910" y="198.5" text-anchor="middle">Mongo</text>
+<text class="smallLabel" x="1910" y="219.5" text-anchor="middle">eventCollection</text>
+<line class="lifeline" x1="1910" y1="252" x2="1910" y2="1998" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<rect x="721" y="286" width="278" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="739" y="313" text-anchor="start">1. runIfLeader(webhook-poller)</text>
+<path class="line" d="M230 332 L1490 332"/>
+<rect x="931" y="396" width="278" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="949" y="423" text-anchor="start">2. runIfLeader(webhook-poller)</text>
+<path class="line" d="M650 442 L1490 442"/>
+<rect x="1141" y="506" width="278" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="1159" y="533" text-anchor="start">3. runIfLeader(webhook-poller)</text>
+<path class="line" d="M1070 552 L1490 552"/>
+<rect x="755" y="616" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="773" y="643" text-anchor="start">4. granted</text>
+<path class="dashed" d="M1490 662 L230 662"/>
+<rect x="965" y="726" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="983" y="753" text-anchor="start">5. null (skip)</text>
+<path class="dashed" d="M1490 772 L650 772"/>
+<rect x="1175" y="836" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="1193" y="863" text-anchor="start">6. null (skip)</text>
+<path class="dashed" d="M1490 882 L1070 882"/>
+<rect x="160" y="946" width="1820" height="40" rx="106" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="182" y="973" text-anchor="start">LOOP: batchSize</text>
+<rect x="737.5" y="1014" width="665" height="62" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="755.5" y="1041" text-anchor="start">8. findOneAndUpdate (atomic claim) filter: attempts &lt; maxAttempts AND (PENDING</text>
+<text class="strong" x="755.5" y="1063" text-anchor="start">OR (CLAIMED AND expired)) update: CLAIMED, claimedBy, attempts++</text>
+<path class="line" d="M230 1094 L1910 1094"/>
+<rect x="965" y="1146" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="983" y="1173" text-anchor="start">9. claimed event</text>
+<path class="dashed" d="M1910 1192 L230 1192"/>
+<rect x="173" y="1256" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="191" y="1283" text-anchor="start">10. handler(event)</text>
+<path class="line" d="M230 1302 C294 1302 294 1336 230 1336"/>
+<rect x="160" y="1386" width="1820" height="40" rx="106" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="182" y="1413" text-anchor="start">ALT: success</text>
+<rect x="965" y="1454" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="983" y="1481" text-anchor="start">12. status = DONE</text>
+<path class="line" d="M230 1500 L1910 1500"/>
+<rect x="160" y="1564" width="1820" height="40" rx="106" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="182" y="1591" text-anchor="start">ELSE: handler throws</text>
+<rect x="160" y="1632" width="1820" height="40" rx="106" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="182" y="1659" text-anchor="start">ALT: attempts &gt;= maxAttempts</text>
+<rect x="931" y="1700" width="278" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="949" y="1727" text-anchor="start">15. status = FAILED, lastError</text>
+<path class="line" d="M230 1746 L1910 1746"/>
+<rect x="160" y="1810" width="1820" height="40" rx="106" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="182" y="1837" text-anchor="start">ELSE: otherwise</text>
+<rect x="866.5" y="1878" width="407" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="884.5" y="1905" text-anchor="start">17. status = PENDING, lastError (re-claimable)</text>
+<path class="line" d="M230 1924 L1910 1924"/>
 </svg>

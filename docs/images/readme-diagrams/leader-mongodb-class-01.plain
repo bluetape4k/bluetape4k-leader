@@ -1,0 +1,58 @@
+graph 1 32.358 6.2172
+node n0 2.29 1.6525 4.58 1.56 MongoLeaderElector rounded,filled box #5B8DEF #ffffff
+node n1 18.957 1.5414 4.58 1.78 "Mongo Suspend Leader" rounded,filled box #58A978 #ffffff
+node n2 2.29 5.0969 4.58 1.56 LeaderElector rounded,filled box #D6A441 #ffffff
+node n3 13.401 1.215 4.58 2.43 MongoSuspendLock rounded,filled box #DC6B82 #ffffff
+node n4 30.068 1.215 4.58 2.43 MongoLock rounded,filled box #45A7A1 #ffffff
+node n5 9.2344 5.0969 4.58 1.56 AsyncLeaderElector rounded,filled box #8A72D6 #ffffff
+node n6 23.123 5.0969 4.58 1.56 SuspendLeaderElector rounded,filled box #B88A44 #ffffff
+node n7 7.8456 1.6525 4.58 1.56 MongoLeaderGroupElector rounded,filled box #8BA84D #ffffff
+node n8 24.512 1.5414 4.58 1.78 "Mongo Suspend Leader" rounded,filled box #5B8DEF #ffffff
+node n9 16.179 5.0969 4.58 1.56 LeaderGroupElector rounded,filled box #58A978 #ffffff
+node n10 30.068 4.9858 4.58 1.78 "Suspend Leader Group" rounded,filled box #D6A441 #ffffff
+node r1p1 18.957 1.5414 0.03 0.03 "" invis point black lightgrey
+node r1p2 18.957 1.215 0.03 0.03 "" invis point black lightgrey
+node r2p1 16.179 1.5414 0.03 0.03 "" invis point black lightgrey
+node r2p2 16.179 1.215 0.03 0.03 "" invis point black lightgrey
+node r3p1 18.957 1.6525 0.03 0.03 "" invis point black lightgrey
+node r3p2 18.957 1.215 0.03 0.03 "" invis point black lightgrey
+node r4p1 16.179 1.6525 0.03 0.03 "" invis point black lightgrey
+node r4p2 16.179 1.215 0.03 0.03 "" invis point black lightgrey
+node r5p1 24.512 3.2636 0.03 0.03 "" invis point black lightgrey
+node r5p2 30.068 3.2636 0.03 0.03 "" invis point black lightgrey
+node r6p1 18.957 3.3747 0.03 0.03 "" invis point black lightgrey
+node r6p2 23.123 3.3747 0.03 0.03 "" invis point black lightgrey
+node r7p1 7.8456 3.3747 0.03 0.03 "" invis point black lightgrey
+node r7p2 16.179 3.3747 0.03 0.03 "" invis point black lightgrey
+node r8p1 2.29 3.3747 0.03 0.03 "" invis point black lightgrey
+node r8p2 9.2344 3.3747 0.03 0.03 "" invis point black lightgrey
+node r9p1 2.29 3.3747 0.03 0.03 "" invis point black lightgrey
+node r9p2 2.29 3.3747 0.03 0.03 "" invis point black lightgrey
+edge n0 r4p1 4 4.5835 1.6525 8.4358 1.6525 15.822 1.6525 16.166 1.6525 solid #758297
+edge n0 r8p1 4 2.29 2.438 2.29 2.8355 2.29 3.2545 2.29 3.3531 dashed #758297
+edge n0 r9p1 4 2.29 2.438 2.29 2.8355 2.29 3.2545 2.29 3.3531 dashed #758297
+edge n1 r2p1 4 16.663 1.5414 16.429 1.5414 16.256 1.5414 16.199 1.5414 solid #758297
+edge n1 r6p1 4 18.957 2.4366 18.957 2.8438 18.957 3.2566 18.957 3.3535 dashed #758297
+edge n7 r3p1 4 10.141 1.6525 13.28 1.6525 18.568 1.6525 18.936 1.6525 solid #758297
+edge n7 r7p1 4 7.8456 2.438 7.8456 2.8355 7.8456 3.2545 7.8456 3.3531 dashed #758297
+edge n8 r1p1 4 22.216 1.5414 20.783 1.5414 19.172 1.5414 18.976 1.5414 solid #758297
+edge n8 r5p1 4 24.512 2.4378 24.512 2.804 24.512 3.1616 24.512 3.2453 dashed #758297
+edge r1p1 r1p2 4 18.957 1.52 18.957 1.461 18.957 1.2965 18.957 1.2369 solid #758297
+edge r1p2 n3 4 18.937 1.215 18.746 1.215 17.238 1.215 15.844 1.215 solid #758297
+edge r2p1 r2p2 4 16.179 1.52 16.179 1.461 16.179 1.2965 16.179 1.2369 solid #758297
+edge r2p2 n3 4 16.161 1.215 16.119 1.215 16.002 1.215 15.839 1.215 solid #758297
+edge r3p1 r3p2 4 18.957 1.6337 18.957 1.5617 18.957 1.3042 18.957 1.2332 solid #758297
+edge r3p2 n4 4 18.975 1.215 19.317 1.215 24.47 1.215 27.63 1.215 solid #758297
+edge r4p1 r4p2 4 16.179 1.6337 16.179 1.5617 16.179 1.3042 16.179 1.2332 solid #758297
+edge r4p2 n4 4 16.195 1.215 16.574 1.215 23.748 1.215 27.626 1.215 solid #758297
+edge r5p1 r5p2 4 24.532 3.2636 24.883 3.2636 29.71 3.2636 30.049 3.2636 dashed #758297
+edge r5p2 n10 4 30.068 3.283 30.068 3.357 30.068 3.6336 30.068 3.9431 dashed #758297
+edge r6p1 r6p2 4 18.975 3.3747 19.263 3.3747 22.799 3.3747 23.103 3.3747 dashed #758297
+edge r6p2 n6 4 23.123 3.3941 23.123 3.4769 23.123 3.8135 23.123 4.1658 dashed #758297
+edge r7p1 r7p2 4 7.8639 3.3747 8.2833 3.3747 15.753 3.3747 16.162 3.3747 dashed #758297
+edge r7p2 n9 4 16.179 3.3941 16.179 3.4769 16.179 3.8135 16.179 4.1658 dashed #758297
+edge r8p1 r8p2 4 2.3099 3.3747 2.7045 3.3747 8.8331 3.3747 9.2157 3.3747 dashed #758297
+edge r8p2 n5 4 9.2344 3.3941 9.2344 3.4769 9.2344 3.8135 9.2344 4.1658 dashed #758297
+edge r9p1 r9p2 4 2.29 3.3747 2.29 3.3747 2.29 3.3747 2.29 3.3747 dashed #758297
+edge r9p2 n2 4 2.29 3.3941 2.29 3.4769 2.29 3.8135 2.29 4.1658 dashed #758297
+stop

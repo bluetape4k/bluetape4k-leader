@@ -1,0 +1,14 @@
+graph 1 21.803 6.5217
+node n0 2.36 5.4014 4.72 1.56 SuspendLeaderElector rounded,filled box #5B8DEF #ffffff
+node n1 8.0544 5.4014 4.72 1.56 LeaderElector rounded,filled box #58A978 #ffffff
+node n2 13.749 5.4014 4.72 1.56 LeaderGroupElector rounded,filled box #D6A441 #ffffff
+node n3 19.443 5.2903 4.72 1.78 "Suspend Leader Group" rounded,filled box #DC6B82 #ffffff
+node n4 2.36 1.325 4.72 2.65 "Redisson Suspend Leader" rounded,filled box #45A7A1 #ffffff
+node n5 8.0544 1.4361 4.72 2.43 RedissonLeaderElector rounded,filled box #8A72D6 #ffffff
+node n6 13.749 1.325 4.72 2.65 "Redisson Leader Group" rounded,filled box #B88A44 #ffffff
+node n7 19.443 1.325 4.72 2.65 "Redisson Suspend Leader" rounded,filled box #8BA84D #ffffff
+edge n4 n0 4 2.36 2.6541 2.36 2.6541 2.36 4.4662 2.36 4.4662 dashed #758297
+edge n5 n1 4 8.0544 2.6528 8.0544 2.6528 8.0544 4.4695 8.0544 4.4695 dashed #758297
+edge n6 n2 4 13.749 2.6541 13.749 2.6541 13.749 4.4662 13.749 4.4662 dashed #758297
+edge n7 n3 4 19.443 2.6564 19.443 2.6564 19.443 4.2503 19.443 4.2503 dashed #758297
+stop

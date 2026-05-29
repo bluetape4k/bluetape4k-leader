@@ -1,0 +1,8 @@
+graph 1 17.336 9.3831
+node n0 2.085 8.235 4.17 1.61 BOM rounded,filled box #69B888 #ffffff
+node n1 7.2378 8.0406 5.19 2 "Core APIs" rounded,filled box #75A9E8 #ffffff
+node n2 13.821 7.0128 7.03 4.06 "Backend Modules" rounded,filled box #D9AA4D #ffffff
+node n3 4.9183 5.5128 9.83 2.14 "Preview Backends" rounded,filled box #A982DA #ffffff
+node n4 3.8767 2.9017 7.75 2.14 "Ktor, Metrics, Spring" rounded,filled box #DB7890 #ffffff
+node n5 12.779 1.985 9.11 3.97 Examples rounded,filled box #55B5AF #ffffff
+stop

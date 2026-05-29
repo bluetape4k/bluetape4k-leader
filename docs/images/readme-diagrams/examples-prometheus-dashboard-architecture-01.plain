@@ -1,0 +1,39 @@
+graph 1 17.807 4.0358
+node n0 1.945 3.0006 3.89 1.39 "@Scheduled trigger" rounded,filled box #5B8DEF #ffffff
+node n1 6.5839 3.0006 3.89 1.39 "@LeaderElection job" rounded,filled box #58A978 #ffffff
+node n2 11.223 3.0006 3.89 1.39 "Spring Boot app" rounded,filled box #D6A441 #ffffff
+node n3 15.862 3.0006 3.89 1.39 "Redis leader lock" rounded,filled box #DC6B82 #ffffff
+node n4 4.2644 0.695 3.89 1.39 "/actuator/prometheus" rounded,filled box #45A7A1 #ffffff
+node n5 8.9033 0.695 3.89 1.39 Prometheus rounded,filled box #8A72D6 #ffffff
+node n6 13.542 0.695 3.89 1.39 "Grafana dashboard" rounded,filled box #B88A44 #ffffff
+node r1p1 11.459 0.695 0.03 0.03 "" invis point black lightgrey
+node r1p2 10.987 0.695 0.03 0.03 "" invis point black lightgrey
+node r2p1 6.82 0.695 0.03 0.03 "" invis point black lightgrey
+node r2p2 6.3478 0.695 0.03 0.03 "" invis point black lightgrey
+node r3p1 9.1394 1.8478 0.03 0.03 "" invis point black lightgrey
+node r3p2 6.3478 1.8478 0.03 0.03 "" invis point black lightgrey
+node r4p1 13.306 3.0006 0.03 0.03 "" invis point black lightgrey
+node r4p2 13.778 3.0006 0.03 0.03 "" invis point black lightgrey
+node r5p1 8.6672 3.0006 0.03 0.03 "" invis point black lightgrey
+node r5p2 9.1394 3.0006 0.03 0.03 "" invis point black lightgrey
+node r6p1 4.0283 3.0006 0.03 0.03 "" invis point black lightgrey
+node r6p2 4.5006 3.0006 0.03 0.03 "" invis point black lightgrey
+edge n0 r6p1 4 3.8916 3 3.9453 3 3.9853 3 4.0077 3 solid #758297
+edge n1 r5p1 4 8.5305 3 8.5842 3 8.6242 3 8.6466 3 solid #758297
+edge n2 r3p1 7 9.2761 2.6389 9.1903 2.6389 9.1394 2.6389 9.1394 2.6389 9.1394 2.6389 9.1394 1.9892 9.1394 1.8673 solid #758297
+edge n2 r4p1 4 13.169 3 13.223 3 13.263 3 13.285 3 solid #758297
+edge n5 r2p1 4 6.9567 0.69444 6.903 0.69444 6.8631 0.69444 6.8406 0.69444 solid #758297
+edge n6 r1p1 4 11.596 0.69444 11.542 0.69444 11.502 0.69444 11.48 0.69444 solid #758297
+edge r1p1 r1p2 4 11.439 0.69444 11.361 0.69444 11.083 0.69444 11.006 0.69444 solid #758297
+edge r1p2 n5 4 10.969 0.69444 10.969 0.69444 10.957 0.69444 10.957 0.69444 solid #758297
+edge r2p1 r2p2 4 6.7997 0.69444 6.722 0.69444 6.4441 0.69444 6.3675 0.69444 solid #758297
+edge r2p2 n4 4 6.3298 0.69444 6.3298 0.69444 6.3182 0.69444 6.3182 0.69444 solid #758297
+edge r3p1 r3p2 4 9.1216 1.8472 8.895 1.8472 6.5805 1.8472 6.364 1.8472 solid #758297
+edge r3p2 n4 7 6.3478 1.8282 6.3478 1.7062 6.3478 1.0556 6.3478 1.0556 6.3478 1.0556 6.3341 1.0556 6.3341 1.0556 solid #758297
+edge r4p1 r4p2 4 13.326 3 13.404 3 13.682 3 13.759 3 solid #758297
+edge r4p2 n3 4 13.796 3 13.796 3 13.808 3 13.808 3 solid #758297
+edge r5p1 r5p2 4 8.6875 3 8.7652 3 9.0431 3 9.1198 3 solid #758297
+edge r5p2 n2 4 9.1575 3 9.1575 3 9.169 3 9.169 3 solid #758297
+edge r6p1 r6p2 4 4.0486 3 4.1263 3 4.4042 3 4.4809 3 solid #758297
+edge r6p2 n1 4 4.5186 3 4.5186 3 4.5301 3 4.5301 3 solid #758297
+stop

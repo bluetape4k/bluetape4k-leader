@@ -1,0 +1,12 @@
+graph 1 17.501 3.7536
+node n0 1.735 1.7761 3.47 1.33 Application rounded,filled box #5B8DEF #ffffff
+node n1 6.735 2.7483 4.03 1.33 KubernetesLease rounded,filled box #58A978 #ffffff
+node n2 6.735 0.665 4.03 1.33 KubernetesLease rounded,filled box #D6A441 #ffffff
+node n3 11.735 1.7761 3.47 1.33 Kubernetes rounded,filled box #DC6B82 #ffffff
+node n4 16.041 1.7761 2.92 1.33 "coordination.k8s.io" rounded,filled box #45A7A1 #ffffff
+edge n0 n1 4 3.4767 2.2639 3.4767 2.2639 4.5676 2.2639 4.5676 2.2639 solid #758297
+edge n0 n2 4 3.4767 1.2222 3.4767 1.2222 4.5676 1.2222 4.5676 1.2222 solid #758297
+edge n1 n3 4 8.7543 2.2639 8.7543 2.2639 9.8445 2.2639 9.8445 2.2639 solid #758297
+edge n2 n3 4 8.7543 1.2222 8.7543 1.2222 9.8445 1.2222 9.8445 1.2222 solid #758297
+edge n3 n4 4 13.474 1.7778 13.474 1.7778 14.429 1.7778 14.429 1.7778 solid #758297
+stop

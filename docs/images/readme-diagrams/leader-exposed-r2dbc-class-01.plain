@@ -1,0 +1,39 @@
+graph 1 22.36 10.966
+node n0 8.2633 5.6386 4.86 1.78 "Exposed R2dbc Suspend" rounded,filled box #5B8DEF #ffffff
+node n1 2.43 5.3122 4.86 2.43 ExposedR2dbcLock rounded,filled box #58A978 #ffffff
+node n2 14.097 5.3469 4.86 2.36 "Exposed R2dbc Schema" rounded,filled box #D6A441 #ffffff
+node n3 19.93 9.7011 4.86 1.85 SuspendLeaderElector rounded,filled box #DC6B82 #ffffff
+node n4 19.93 5.6386 4.86 1.78 "Exposed R2dbc Suspend" rounded,filled box #45A7A1 #ffffff
+node n5 11.18 1.215 4.86 2.43 ExposedR2dbcGroupLock rounded,filled box #8A72D6 #ffffff
+node n6 2.43 9.4094 4.86 2.43 SuspendLeaderGroupElector rounded,filled box #B88A44 #ffffff
+node r1p1 17.013 5.6386 0.03 0.03 "" invis point black lightgrey
+node r1p2 17.013 5.3469 0.03 0.03 "" invis point black lightgrey
+node r2p1 11.18 5.6386 0.03 0.03 "" invis point black lightgrey
+node r2p2 11.18 5.3469 0.03 0.03 "" invis point black lightgrey
+node r3p1 19.93 3.59 0.03 0.03 "" invis point black lightgrey
+node r3p2 11.18 3.59 0.03 0.03 "" invis point black lightgrey
+node r4p1 5.3467 5.6386 0.03 0.03 "" invis point black lightgrey
+node r4p2 5.3467 5.3122 0.03 0.03 "" invis point black lightgrey
+node r5p1 19.93 7.3608 0.03 0.03 "" invis point black lightgrey
+node r5p2 2.43 7.3608 0.03 0.03 "" invis point black lightgrey
+node r6p1 8.2633 7.6525 0.03 0.03 "" invis point black lightgrey
+node r6p2 19.93 7.6525 0.03 0.03 "" invis point black lightgrey
+edge n0 r2p1 4 10.698 5.6389 10.932 5.6389 11.104 5.6389 11.16 5.6389 solid #758297
+edge n0 r4p1 4 5.8283 5.6389 5.5945 5.6389 5.4227 5.6389 5.3665 5.6389 solid #758297
+edge n0 r6p1 4 8.2633 6.5337 8.2633 7.0127 8.2633 7.5259 8.2633 7.6325 dashed #758297
+edge n4 r1p1 4 17.495 5.6389 17.261 5.6389 17.089 5.6389 17.033 5.6389 solid #758297
+edge n4 r3p1 4 19.93 4.746 19.93 4.2543 19.93 3.7215 19.93 3.6108 solid #758297
+edge n4 r5p1 4 19.93 6.535 19.93 6.9012 19.93 7.2588 19.93 7.3425 dashed #758297
+edge r1p1 r1p2 4 17.013 5.6195 17.013 5.5668 17.013 5.4198 17.013 5.3665 solid #758297
+edge r1p2 n2 4 16.995 5.3472 16.995 5.3472 16.676 5.3472 16.676 5.3472 solid #758297
+edge r2p1 r2p2 4 11.18 5.6195 11.18 5.5668 11.18 5.4198 11.18 5.3665 solid #758297
+edge r2p2 n2 4 11.199 5.3472 11.199 5.3472 11.517 5.3472 11.517 5.3472 solid #758297
+edge r3p1 r3p2 4 19.911 3.5833 19.47 3.5833 11.627 3.5833 11.198 3.5833 solid #758297
+edge r3p2 n5 4 11.18 3.5695 11.18 3.5695 11.18 2.5856 11.18 2.5856 solid #758297
+edge r4p1 r4p2 4 5.3467 5.6172 5.3467 5.5582 5.3467 5.3937 5.3467 5.3341 solid #758297
+edge r4p2 n1 4 5.328 5.3056 5.328 5.3056 5.0097 5.3056 5.0097 5.3056 solid #758297
+edge r5p1 r5p2 4 19.91 7.3611 19.266 7.3611 3.081 7.3611 2.449 7.3611 dashed #758297
+edge r5p2 n6 4 2.43 7.3785 2.43 7.3785 2.43 8.0432 2.43 8.0432 dashed #758297
+edge r6p1 r6p2 4 8.2823 7.6528 8.7916 7.6528 19.414 7.6528 19.912 7.6528 dashed #758297
+edge r6p2 n3 4 19.93 7.6702 19.93 7.6702 19.93 8.6231 19.93 8.6231 dashed #758297
+stop
