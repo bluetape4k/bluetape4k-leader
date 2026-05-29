@@ -180,13 +180,18 @@ roleRef:
 ./gradlew :bluetape4k-leader-k8s:test
 ```
 
-K3s 기반 통합 테스트는 별도 태스크로 실행합니다.
+K3s 기반 통합 테스트는 별도 태스크로 실행합니다. 이 태스크는 단일 Lease 와
+Lease-per-slot 그룹 선출의 획득, 경합, release, 재획득, 만료 takeover,
+취소/오류 cleanup 경로를 함께 검증합니다.
 
 ```bash
 ./gradlew :bluetape4k-leader-k8s:k8sTest
 ```
 
 K3s 테스트에는 privileged container 를 지원하는 Docker daemon 이 필요합니다.
+Pull request CI 는 K3s 를 제외한 단위 테스트 slice 를 실행하고, weekly/manual
+Nightly full workflow 가 `:bluetape4k-leader-k8s:test :bluetape4k-leader-k8s:k8sTest`
+를 실행합니다.
 
 ## Dependency
 

@@ -823,9 +823,9 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 14
 
-  # ── 0.2.2 preview gate: Kubernetes Lease K3s runtime tests, full only ────
+  # ── 0.3.0 preview gate: Kubernetes Lease K3s runtime tests, including group slots; full only ──
   test-leader-k8s:
-    name: Test / leader-k8s (K3s)
+    name: Test / leader-k8s (K3s + group slots)
     if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
 
     runs-on: ubuntu-latest
@@ -841,7 +841,7 @@ jobs:
         with:
           gradle-version: wrapper
           cache-read-only: true
-      - name: Test leader-k8s
+      - name: Test leader-k8s unit and K3s group slots
         run: |
           for attempt in 1 2 3; do
             ./gradlew :bluetape4k-leader-k8s:test :bluetape4k-leader-k8s:k8sTest --no-daemon && break

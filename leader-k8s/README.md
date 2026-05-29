@@ -181,13 +181,17 @@ Unit tests exclude K3s:
 ./gradlew :bluetape4k-leader-k8s:test
 ```
 
-Run K3s-backed integration tests separately:
+Run K3s-backed integration tests separately. This task includes single-Lease and
+Lease-per-slot group election coverage for acquire, contention, release,
+reacquire, expiry takeover, and cancellation/error cleanup paths:
 
 ```bash
 ./gradlew :bluetape4k-leader-k8s:k8sTest
 ```
 
-K3s tests require a Docker daemon with privileged container support.
+K3s tests require a Docker daemon with privileged container support. Pull request
+CI runs the non-K3s unit slice; the weekly/manual Nightly full workflow runs
+`:bluetape4k-leader-k8s:test :bluetape4k-leader-k8s:k8sTest`.
 
 ## Dependency
 
