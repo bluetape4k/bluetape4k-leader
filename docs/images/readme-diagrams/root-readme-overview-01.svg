@@ -28,35 +28,35 @@
     <rect class="group" x="0" y="0" width="300" height="116" rx="14" fill="#EAF7EF" stroke="#69B888"/>
     <text class="gtitle" x="150" y="36" text-anchor="middle">BOM</text>
     <rect class="chip" x="22" y="55" width="256" height="28" rx="7"/>
-    <text class="label" x="150" y="74" text-anchor="middle" dominant-baseline="middle">leader-bom</text>
+    <text class="label" x="150" y="69" text-anchor="middle" dominant-baseline="middle">leader-bom</text>
   </g>
 
   <g transform="translate(410,145)">
     <rect class="group" x="0" y="0" width="374" height="144" rx="14" fill="#E8F3FF" stroke="#75A9E8"/>
     <text class="gtitle" x="187" y="36" text-anchor="middle">Core APIs</text>
     <rect class="chip" x="24" y="55" width="326" height="28" rx="7"/>
-    <text class="label" x="187" y="74" text-anchor="middle" dominant-baseline="middle">leader-core</text>
+    <text class="label" x="187" y="69" text-anchor="middle" dominant-baseline="middle">leader-core</text>
     <rect class="chip" x="24" y="91" width="326" height="28" rx="7"/>
-    <text class="label" x="187" y="110" text-anchor="middle" dominant-baseline="middle">leader-exposed-core</text>
+    <text class="label" x="187" y="105" text-anchor="middle" dominant-baseline="middle">leader-exposed-core</text>
   </g>
 
   <g transform="translate(818,145)">
     <rect class="group" x="0" y="0" width="506" height="292" rx="14" fill="#FFF3D9" stroke="#D9AA4D"/>
     <text class="gtitle" x="253" y="36" text-anchor="middle">Backend Modules</text>
     <rect class="chip" x="28" y="55" width="210" height="28" rx="7"/>
-    <text class="label" x="133" y="74" text-anchor="middle" dominant-baseline="middle">leader-redis-lettuce</text>
+    <text class="label" x="133" y="69" text-anchor="middle" dominant-baseline="middle">leader-redis-lettuce</text>
     <rect class="chip" x="268" y="55" width="210" height="28" rx="7"/>
-    <text class="label" x="373" y="74" text-anchor="middle" dominant-baseline="middle">leader-redis-redisson</text>
+    <text class="label" x="373" y="69" text-anchor="middle" dominant-baseline="middle">leader-redis-redisson</text>
     <rect class="chip" x="28" y="93" width="210" height="28" rx="7"/>
-    <text class="label" x="133" y="112" text-anchor="middle" dominant-baseline="middle">leader-exposed-jdbc</text>
+    <text class="label" x="133" y="107" text-anchor="middle" dominant-baseline="middle">leader-exposed-jdbc</text>
     <rect class="chip" x="268" y="93" width="210" height="28" rx="7"/>
-    <text class="label" x="373" y="112" text-anchor="middle" dominant-baseline="middle">leader-exposed-r2dbc</text>
+    <text class="label" x="373" y="107" text-anchor="middle" dominant-baseline="middle">leader-exposed-r2dbc</text>
     <rect class="chip" x="28" y="131" width="210" height="28" rx="7"/>
-    <text class="label" x="133" y="150" text-anchor="middle" dominant-baseline="middle">leader-mongodb</text>
+    <text class="label" x="133" y="145" text-anchor="middle" dominant-baseline="middle">leader-mongodb</text>
     <rect class="chip" x="268" y="131" width="210" height="28" rx="7"/>
-    <text class="label" x="373" y="150" text-anchor="middle" dominant-baseline="middle">leader-hazelcast</text>
+    <text class="label" x="373" y="145" text-anchor="middle" dominant-baseline="middle">leader-hazelcast</text>
     <rect class="chip" x="148" y="169" width="210" height="28" rx="7"/>
-    <text class="label" x="253" y="188" text-anchor="middle" dominant-baseline="middle">leader-zookeeper</text>
+    <text class="label" x="253" y="183" text-anchor="middle" dominant-baseline="middle">leader-zookeeper</text>
     <text class="small" x="253" y="235" text-anchor="middle">Redis, Exposed, MongoDB,</text>
     <text class="small" x="253" y="254" text-anchor="middle">Hazelcast, and ZooKeeper backends.</text>
   </g>
@@ -65,24 +65,24 @@
     <rect class="group" x="0" y="0" width="708" height="154" rx="14" fill="#F6EBFF" stroke="#A982DA"/>
     <text class="gtitle" x="354" y="36" text-anchor="middle">Preview Backends</text>
     <rect class="chip" x="30" y="55" width="300" height="28" rx="7"/>
-    <text class="label" x="180" y="74" text-anchor="middle" dominant-baseline="middle">leader-dynamodb</text>
+    <text class="label" x="180" y="69" text-anchor="middle" dominant-baseline="middle">leader-dynamodb</text>
     <rect class="chip" x="378" y="55" width="300" height="28" rx="7"/>
-    <text class="label" x="528" y="74" text-anchor="middle" dominant-baseline="middle">leader-etcd</text>
+    <text class="label" x="528" y="69" text-anchor="middle" dominant-baseline="middle">leader-etcd</text>
     <rect class="chip" x="30" y="93" width="300" height="28" rx="7"/>
-    <text class="label" x="180" y="112" text-anchor="middle" dominant-baseline="middle">leader-consul</text>
+    <text class="label" x="180" y="107" text-anchor="middle" dominant-baseline="middle">leader-consul</text>
     <rect class="chip" x="378" y="93" width="300" height="28" rx="7"/>
-    <text class="label" x="528" y="112" text-anchor="middle" dominant-baseline="middle">leader-k8s</text>
+    <text class="label" x="528" y="107" text-anchor="middle" dominant-baseline="middle">leader-k8s</text>
   </g>
 
   <g transform="translate(76,510)">
     <rect class="group" x="0" y="0" width="558" height="154" rx="14" fill="#FDECEF" stroke="#DB7890"/>
     <text class="gtitle" x="279" y="36" text-anchor="middle">Ktor, Metrics, Spring</text>
     <rect class="chip" x="28" y="62" width="154" height="28" rx="7"/>
-    <text class="label" x="105" y="81" text-anchor="middle" dominant-baseline="middle">leader-ktor</text>
+    <text class="label" x="105" y="76" text-anchor="middle" dominant-baseline="middle">leader-ktor</text>
     <rect class="chip" x="202" y="62" width="154" height="28" rx="7"/>
-    <text class="label" x="279" y="81" text-anchor="middle" dominant-baseline="middle">leader-micrometer</text>
+    <text class="label" x="279" y="76" text-anchor="middle" dominant-baseline="middle">leader-micrometer</text>
     <rect class="chip" x="376" y="62" width="154" height="28" rx="7"/>
-    <text class="label" x="453" y="81" text-anchor="middle" dominant-baseline="middle">leader-spring-boot</text>
+    <text class="label" x="453" y="76" text-anchor="middle" dominant-baseline="middle">leader-spring-boot</text>
     <text class="small" x="279" y="124" text-anchor="middle">Ktor scheduling, metrics, and Spring Boot 4 auto-configuration.</text>
   </g>
 
@@ -90,25 +90,25 @@
     <rect class="group" x="0" y="0" width="656" height="286" rx="14" fill="#E9F7F6" stroke="#55B5AF"/>
     <text class="gtitle" x="328" y="36" text-anchor="middle">Examples</text>
     <rect class="chip" x="30" y="55" width="280" height="28" rx="7"/>
-    <text class="label" x="170" y="74" text-anchor="middle" dominant-baseline="middle">batch-scheduler</text>
+    <text class="label" x="170" y="69" text-anchor="middle" dominant-baseline="middle">batch-scheduler</text>
     <rect class="chip" x="346" y="55" width="280" height="28" rx="7"/>
-    <text class="label" x="486" y="74" text-anchor="middle" dominant-baseline="middle">cache-warmer</text>
+    <text class="label" x="486" y="69" text-anchor="middle" dominant-baseline="middle">cache-warmer</text>
     <rect class="chip" x="30" y="93" width="280" height="28" rx="7"/>
-    <text class="label" x="170" y="112" text-anchor="middle" dominant-baseline="middle">ktor-app</text>
+    <text class="label" x="170" y="107" text-anchor="middle" dominant-baseline="middle">ktor-app</text>
     <rect class="chip" x="346" y="93" width="280" height="28" rx="7"/>
-    <text class="label" x="486" y="112" text-anchor="middle" dominant-baseline="middle">migration-gate</text>
+    <text class="label" x="486" y="107" text-anchor="middle" dominant-baseline="middle">migration-gate</text>
     <rect class="chip" x="30" y="131" width="280" height="28" rx="7"/>
-    <text class="label" x="170" y="150" text-anchor="middle" dominant-baseline="middle">prometheus-dashboard</text>
+    <text class="label" x="170" y="145" text-anchor="middle" dominant-baseline="middle">prometheus-dashboard</text>
     <rect class="chip" x="346" y="131" width="280" height="28" rx="7"/>
-    <text class="label" x="486" y="150" text-anchor="middle" dominant-baseline="middle">webhook-poller</text>
+    <text class="label" x="486" y="145" text-anchor="middle" dominant-baseline="middle">webhook-poller</text>
     <rect class="chip" x="30" y="169" width="280" height="28" rx="7"/>
-    <text class="label" x="170" y="188" text-anchor="middle" dominant-baseline="middle">tenant-aggregator</text>
+    <text class="label" x="170" y="183" text-anchor="middle" dominant-baseline="middle">tenant-aggregator</text>
     <rect class="chip" x="346" y="169" width="280" height="28" rx="7"/>
-    <text class="label" x="486" y="188" text-anchor="middle" dominant-baseline="middle">k8s-lease</text>
+    <text class="label" x="486" y="183" text-anchor="middle" dominant-baseline="middle">k8s-lease</text>
     <rect class="chip" x="30" y="207" width="280" height="28" rx="7"/>
-    <text class="label" x="170" y="226" text-anchor="middle" dominant-baseline="middle">k8s-operator</text>
+    <text class="label" x="170" y="221" text-anchor="middle" dominant-baseline="middle">k8s-operator</text>
     <rect class="chip" x="346" y="207" width="280" height="28" rx="7"/>
-    <text class="label" x="486" y="226" text-anchor="middle" dominant-baseline="middle">rate-limiter</text>
+    <text class="label" x="486" y="221" text-anchor="middle" dominant-baseline="middle">rate-limiter</text>
   </g>
 
   <text class="small" x="700" y="842" text-anchor="middle">Image labels enumerate the current modules and examples.</text>
