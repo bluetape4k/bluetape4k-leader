@@ -32,12 +32,12 @@
 <!-- n3&#45;&gt;r5p1 -->
 <g id="edge13" class="edge">
 <title>n3&#45;&gt;r5p1</title>
-<path fill="none" stroke="#758297" stroke-width="1.8" d="M800.05,-46.08C816.42,-46.08 829.15,-46.08 833.36,-46.08"/>
+<path fill="none" stroke="#758297" stroke-width="1.8" d="M820.07,-46.08C831.63,-46.08 840.25,-46.08 843.46,-46.08"/>
 </g>
 <!-- n3&#45;&gt;r6p1 -->
 <g id="edge16" class="edge">
 <title>n3&#45;&gt;r6p1</title>
-<path fill="none" stroke="#758297" stroke-width="1.8" d="M800.05,-46.08C816.42,-46.08 829.15,-46.08 833.36,-46.08"/>
+<path fill="none" stroke="#758297" stroke-width="1.8" d="M820.07,-46.08C831.63,-46.08 840.25,-46.08 843.46,-46.08"/>
 </g>
 <!-- r1p1&#45;&gt;r1p2 -->
 <g id="edge2" class="edge">
@@ -80,30 +80,30 @@
 <!-- r4p2&#45;&gt;n3 -->
 <g id="edge12" class="edge">
 <title>r4p2&#45;&gt;n3</title>
-<path fill="none" stroke="#758297" stroke-width="1.8" d="M536.14,-46.08C539.24,-46.08 547.68,-46.08 559.06,-46.08"/>
-<polygon fill="#758297" stroke="#758297" stroke-width="1.8" points="559.04,-48.88 567.04,-46.08 559.04,-43.28 559.04,-48.88"/>
+<path fill="none" stroke="#758297" stroke-width="1.8" d="M536.22,-46.08C539.37,-46.08 547.65,-46.08 558.88,-46.08"/>
+<polygon fill="#758297" stroke="#758297" stroke-width="1.8" points="558.73,-48.88 566.73,-46.08 558.73,-43.28 558.73,-48.88"/>
 </g>
 <!-- r5p1&#45;&gt;r5p2 -->
 <g id="edge14" class="edge">
 <title>r5p1&#45;&gt;r5p2</title>
-<path fill="none" stroke="#758297" stroke-width="1.8" d="M834.84,-47.64C834.84,-64.27 834.84,-208.92 834.84,-224.69"/>
+<path fill="none" stroke="#758297" stroke-width="1.8" d="M844.84,-47.64C844.84,-64.27 844.84,-208.92 844.84,-224.69"/>
 </g>
 <!-- r5p2&#45;&gt;n4 -->
 <g id="edge15" class="edge">
 <title>r5p2&#45;&gt;n4</title>
-<path fill="none" stroke="#758297" stroke-width="1.8" d="M836.14,-226.08C839.24,-226.08 847.68,-226.08 859.06,-226.08"/>
-<polygon fill="#758297" stroke="#758297" stroke-width="1.8" points="859.04,-228.88 867.04,-226.08 859.04,-223.28 859.04,-228.88"/>
+<path fill="none" stroke="#758297" stroke-width="1.8" d="M846.41,-226.08C848.62,-226.08 853.05,-226.08 859.01,-226.08"/>
+<polygon fill="#758297" stroke="#758297" stroke-width="1.8" points="858.82,-228.88 866.82,-226.08 858.82,-223.28 858.82,-228.88"/>
 </g>
 <!-- r6p1&#45;&gt;r6p2 -->
 <g id="edge17" class="edge">
 <title>r6p1&#45;&gt;r6p2</title>
-<path fill="none" stroke="#758297" stroke-width="1.8" d="M834.84,-46.08C834.84,-46.08 834.84,-46.08 834.84,-46.08"/>
+<path fill="none" stroke="#758297" stroke-width="1.8" d="M844.84,-46.08C844.84,-46.08 844.84,-46.08 844.84,-46.08"/>
 </g>
 <!-- r6p2&#45;&gt;n5 -->
 <g id="edge18" class="edge">
 <title>r6p2&#45;&gt;n5</title>
-<path fill="none" stroke="#758297" stroke-width="1.8" d="M836.14,-46.08C839.24,-46.08 847.68,-46.08 859.06,-46.08"/>
-<polygon fill="#758297" stroke="#758297" stroke-width="1.8" points="859.04,-48.88 867.04,-46.08 859.04,-43.28 859.04,-48.88"/>
+<path fill="none" stroke="#758297" stroke-width="1.8" d="M846.41,-46.08C848.62,-46.08 853.05,-46.08 859.01,-46.08"/>
+<polygon fill="#758297" stroke="#758297" stroke-width="1.8" points="858.82,-48.88 866.82,-46.08 858.82,-43.28 858.82,-48.88"/>
 </g>
 <!-- n0 -->
 <g id="node1" class="node">
@@ -126,8 +126,8 @@
 <!-- n3 -->
 <g id="node4" class="node">
 <title>n3</title>
-<path fill="#ffffff" stroke="#dc6b82" d="M787.68,-92.16C787.68,-92.16 582,-92.16 582,-92.16 576,-92.16 570,-86.16 570,-80.16 570,-80.16 570,-12 570,-12 570,-6 576,0 582,0 582,0 787.68,0 787.68,0 793.68,0 799.68,-6 799.68,-12 799.68,-12 799.68,-80.16 799.68,-80.16 799.68,-86.16 793.68,-92.16 787.68,-92.16"/>
-<text xml:space="preserve" text-anchor="middle" x="684.84" y="-41.73" font-family="Architects Daughter" font-size="18.00">LeaderElectionPlugin</text>
+<path fill="#ffffff" stroke="#dc6b82" d="M807.76,-92.16C807.76,-92.16 581.92,-92.16 581.92,-92.16 575.92,-92.16 569.92,-86.16 569.92,-80.16 569.92,-80.16 569.92,-12 569.92,-12 569.92,-6 575.92,0 581.92,0 581.92,0 807.76,0 807.76,0 813.76,0 819.76,-6 819.76,-12 819.76,-12 819.76,-80.16 819.76,-80.16 819.76,-86.16 813.76,-92.16 807.76,-92.16"/>
+<text xml:space="preserve" text-anchor="middle" x="694.84" y="-41.73" font-family="Architects Daughter" font-size="18.00">LeaderElectionPlugin</text>
 </g>
 <!-- n4 -->
 <g id="node5" class="node">

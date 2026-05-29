@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="600" viewBox="0 0 1320 600" role="img" aria-label="Migration Gate Architecture">
+<svg xmlns="http://www.w3.org/2000/svg" width="1340" height="600" viewBox="0 0 1340 600" role="img" aria-label="Migration Gate Architecture">
   <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: examples-migration-gate-architecture-01.dot, examples-migration-gate-architecture-01.plain, examples-migration-gate-architecture-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
@@ -16,16 +16,16 @@
     .lifeline{stroke:#b7c2d1;stroke-width:2;stroke-dasharray:10 10}
   </style>
 </defs>
-<rect class="canvas" width="1320" height="600"/>
-<rect class="frame" x="32" y="28" width="1256" height="544" rx="28"/>
+<rect class="canvas" width="1340" height="600"/>
+<rect class="frame" x="32" y="28" width="1276" height="544" rx="28"/>
 <text class="title" x="66" y="82">Migration Gate Architecture</text>
 <text class="subtitle" x="70" y="118">Rolling deploy pods check migration markers before and after the Exposed JDBC leader lock</text>
 <path class="line" d="M300 216 L345 216 L345 296 L390 296"/>
 <path class="line" d="M300 386 L345 386 L345 296 L390 296"/>
 <path class="line" d="M620 296 L660 296 L660 296 L700 296"/>
-<path class="line" d="M930 296 L970 296 L970 216 L1010 216"/>
-<path class="line" d="M620 296 L815 296 L815 386 L1010 386"/>
-<path class="line" d="M930 296 L970 296 L970 386 L1010 386"/>
+<path class="line" d="M1010 296 L1035 296 L1035 216 L1060 216"/>
+<path class="line" d="M505 342 L505 386 L1060 386"/>
+<path class="line" d="M1010 296 L1035 296 L1035 386 L1060 386"/>
 <g id="podA" transform="translate(70,170)">
   <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
   <text class="smallLabel" x="115" y="28" text-anchor="middle">Deploy pod-A</text>
@@ -45,18 +45,18 @@
   <text class="mono" x="115" y="70" text-anchor="middle">in-lock recheck</text>
 </g>
 <g id="elector" transform="translate(700,250)">
-  <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
-  <text class="smallLabel" x="115" y="28" text-anchor="middle">ExposedJdbcLeaderElector</text>
-  <text class="mono" x="115" y="53" text-anchor="middle">lockOwner=nodeId</text>
-  <text class="mono" x="115" y="70" text-anchor="middle">no auto-extend</text>
+  <rect class="card" x="0" y="0" width="310" height="92" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
+  <text class="smallLabel" x="155" y="28" text-anchor="middle">ExposedJdbcLeaderElector</text>
+  <text class="mono" x="155" y="53" text-anchor="middle">lockOwner=nodeId</text>
+  <text class="mono" x="155" y="70" text-anchor="middle">no auto-extend</text>
 </g>
-<g id="lockTable" transform="translate(1010,170)">
+<g id="lockTable" transform="translate(1060,170)">
   <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
   <text class="smallLabel" x="115" y="28" text-anchor="middle">Leader lock table</text>
   <text class="mono" x="115" y="53" text-anchor="middle">leaseTime</text>
   <text class="mono" x="115" y="70" text-anchor="middle">single owner</text>
 </g>
-<g id="marker" transform="translate(1010,340)">
+<g id="marker" transform="translate(1060,340)">
   <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
   <text class="smallLabel" x="115" y="28" text-anchor="middle">Schema marker</text>
   <text class="mono" x="115" y="53" text-anchor="middle">isApplied</text>

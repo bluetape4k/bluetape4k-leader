@@ -1,0 +1,40 @@
+graph 1 15.557 6.9792
+node n0 2.155 5.5417 4.31 1.5 DynamoDbClient rounded,filled box #5B8DEF #ffffff
+node n1 2.155 2.0694 4.31 1.5 "Spring Boot" rounded,filled box #58A978 #ffffff
+node n2 7.6411 5.8889 4.72 1.5 DynamoDbLeaderElector rounded,filled box #D6A441 #ffffff
+node n3 7.6411 3.3194 4.72 1.5 DynamoDbLeaderGroupElector rounded,filled box #DC6B82 #ffffff
+node n4 7.6411 0.75 4.72 1.5 "Virtual / Suspend" rounded,filled box #45A7A1 #ffffff
+node n5 13.197 4.6389 4.72 1.5 "DynamoDB lock table" rounded,filled box #8A72D6 #ffffff
+node n6 13.197 0.95833 4.72 1.5 "Lock row" rounded,filled box #B88A44 #ffffff
+node r1p1 4.7939 5.5417 0.03 0.03 "" invis point black lightgrey
+node r1p2 4.7939 5.8889 0.03 0.03 "" invis point black lightgrey
+node r2p1 4.7939 5.5417 0.03 0.03 "" invis point black lightgrey
+node r2p2 4.7939 3.3194 0.03 0.03 "" invis point black lightgrey
+node r3p1 4.7939 2.0694 0.03 0.03 "" invis point black lightgrey
+node r3p2 4.7939 0.75 0.03 0.03 "" invis point black lightgrey
+node r4p1 10.419 5.8889 0.03 0.03 "" invis point black lightgrey
+node r4p2 10.419 4.6389 0.03 0.03 "" invis point black lightgrey
+node r5p1 10.419 3.3194 0.03 0.03 "" invis point black lightgrey
+node r5p2 10.419 4.6389 0.03 0.03 "" invis point black lightgrey
+node r6p1 10.419 0.75 0.03 0.03 "" invis point black lightgrey
+node r6p2 10.419 0.95833 0.03 0.03 "" invis point black lightgrey
+edge n0 r1p1 4 4.316 5.5417 4.5463 5.5417 4.7178 5.5417 4.7741 5.5417 solid #758297
+edge n0 r2p1 4 4.316 5.5417 4.5463 5.5417 4.7178 5.5417 4.7741 5.5417 solid #758297
+edge n1 r3p1 4 4.316 2.0694 4.5463 2.0694 4.7178 2.0694 4.7741 2.0694 solid #758297
+edge n2 r4p1 4 10.003 5.8889 10.206 5.8889 10.354 5.8889 10.402 5.8889 solid #758297
+edge n3 r5p1 4 10.003 3.3194 10.206 3.3194 10.354 3.3194 10.402 3.3194 solid #758297
+edge n4 r6p1 4 10.003 0.75 10.206 0.75 10.354 0.75 10.402 0.75 solid #758297
+edge n5 n6 4 13.197 3.8852 13.197 3.2972 13.197 2.4786 13.197 1.8566 solid #758297
+edge r1p1 r1p2 4 4.7939 5.5603 4.7939 5.6201 4.7939 5.8062 4.7939 5.8684 solid #758297
+edge r1p2 n2 4 4.8121 5.8889 4.8546 5.8889 4.9694 5.8889 5.1296 5.8889 solid #758297
+edge r2p1 r2p2 4 4.7939 5.5225 4.7939 5.3171 4.7939 3.5314 4.7939 3.3366 solid #758297
+edge r2p2 n3 4 4.8121 3.3194 4.8546 3.3194 4.9694 3.3194 5.1296 3.3194 solid #758297
+edge r3p1 r3p2 4 4.7939 2.0508 4.7939 1.9029 4.7939 0.92221 4.7939 0.76987 solid #758297
+edge r3p2 n4 4 4.8121 0.75 4.8546 0.75 4.9694 0.75 5.1296 0.75 solid #758297
+edge r4p1 r4p2 4 10.419 5.8672 10.419 5.7142 10.419 4.7994 10.419 4.6574 solid #758297
+edge r4p2 n5 4 10.437 4.6389 10.473 4.6389 10.561 4.6389 10.686 4.6389 solid #758297
+edge r5p1 r5p2 4 10.419 3.3381 10.419 3.4859 10.419 4.4667 10.419 4.619 solid #758297
+edge r5p2 n5 4 10.437 4.6389 10.473 4.6389 10.561 4.6389 10.686 4.6389 solid #758297
+edge r6p1 r6p2 4 10.419 0.76923 10.419 0.80952 10.419 0.90228 10.419 0.94093 solid #758297
+edge r6p2 n6 4 10.437 0.95833 10.473 0.95833 10.561 0.95833 10.686 0.95833 solid #758297
+stop

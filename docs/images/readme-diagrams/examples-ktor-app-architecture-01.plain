@@ -2,7 +2,7 @@ graph 1 15.273 4.1203
 node n0 1.595 1.89 3.19 1.28 "HTTP client" rounded,filled box #5B8DEF #ffffff
 node n1 5.345 1.89 3.19 1.28 "Ktor CIO app" rounded,filled box #58A978 #ffffff
 node n2 9.5117 3.14 3.19 1.28 "Stats routes" rounded,filled box #D6A441 #ffffff
-node n3 9.5117 0.64 3.19 1.28 LeaderElectionPlugin rounded,filled box #DC6B82 #ffffff
+node n3 9.6506 0.64 3.47 1.28 LeaderElectionPlugin rounded,filled box #DC6B82 #ffffff
 node n4 13.678 3.14 3.19 1.28 StatsAggregator rounded,filled box #45A7A1 #ffffff
 node n5 13.678 0.64 3.19 1.28 "Redis lock" rounded,filled box #8A72D6 #ffffff
 node r1p1 3.47 1.89 0.03 0.03 "" invis point black lightgrey
@@ -13,16 +13,16 @@ node r3p1 11.595 3.14 0.03 0.03 "" invis point black lightgrey
 node r3p2 11.595 3.14 0.03 0.03 "" invis point black lightgrey
 node r4p1 7.4283 1.89 0.03 0.03 "" invis point black lightgrey
 node r4p2 7.4283 0.64 0.03 0.03 "" invis point black lightgrey
-node r5p1 11.595 0.64 0.03 0.03 "" invis point black lightgrey
-node r5p2 11.595 3.14 0.03 0.03 "" invis point black lightgrey
-node r6p1 11.595 0.64 0.03 0.03 "" invis point black lightgrey
-node r6p2 11.595 0.64 0.03 0.03 "" invis point black lightgrey
+node r5p1 11.734 0.64 0.03 0.03 "" invis point black lightgrey
+node r5p2 11.734 3.14 0.03 0.03 "" invis point black lightgrey
+node r6p1 11.734 0.64 0.03 0.03 "" invis point black lightgrey
+node r6p2 11.734 0.64 0.03 0.03 "" invis point black lightgrey
 edge n0 r1p1 4 3.1933 1.89 3.3184 1.89 3.4115 1.89 3.4502 1.89 solid #758297
 edge n1 r2p1 4 6.9451 1.89 7.1724 1.89 7.3494 1.89 7.4077 1.89 solid #758297
 edge n1 r4p1 4 6.9451 1.89 7.1724 1.89 7.3494 1.89 7.4077 1.89 solid #758297
 edge n2 r3p1 4 11.112 3.14 11.339 3.14 11.516 3.14 11.574 3.14 solid #758297
-edge n3 r5p1 4 11.112 0.64 11.339 0.64 11.516 0.64 11.574 0.64 solid #758297
-edge n3 r6p1 4 11.112 0.64 11.339 0.64 11.516 0.64 11.574 0.64 solid #758297
+edge n3 r5p1 4 11.39 0.64 11.55 0.64 11.67 0.64 11.715 0.64 solid #758297
+edge n3 r6p1 4 11.39 0.64 11.55 0.64 11.67 0.64 11.715 0.64 solid #758297
 edge r1p1 r1p2 4 3.47 1.89 3.47 1.89 3.47 1.89 3.47 1.89 solid #758297
 edge r1p2 n1 4 3.4911 1.89 3.5126 1.89 3.55 1.89 3.5996 1.89 solid #758297
 edge r2p1 r2p2 4 7.4283 1.9117 7.4283 2.0647 7.4283 2.9795 7.4283 3.1215 solid #758297
@@ -30,9 +30,9 @@ edge r2p2 n2 4 7.4463 3.14 7.4894 3.14 7.6066 3.14 7.7647 3.14 solid #758297
 edge r3p1 r3p2 4 11.595 3.14 11.595 3.14 11.595 3.14 11.595 3.14 solid #758297
 edge r3p2 n4 4 11.613 3.14 11.656 3.14 11.773 3.14 11.931 3.14 solid #758297
 edge r4p1 r4p2 4 7.4283 1.8683 7.4283 1.7153 7.4283 0.80052 7.4283 0.65852 solid #758297
-edge r4p2 n3 4 7.4463 0.64 7.4894 0.64 7.6066 0.64 7.7647 0.64 solid #758297
-edge r5p1 r5p2 4 11.595 0.66161 11.595 0.8926 11.595 2.9016 11.595 3.1206 solid #758297
-edge r5p2 n4 4 11.613 3.14 11.656 3.14 11.773 3.14 11.931 3.14 solid #758297
-edge r6p1 r6p2 4 11.595 0.64 11.595 0.64 11.595 0.64 11.595 0.64 solid #758297
-edge r6p2 n5 4 11.613 0.64 11.656 0.64 11.773 0.64 11.931 0.64 solid #758297
+edge r4p2 n3 4 7.4475 0.64 7.4912 0.64 7.6062 0.64 7.7622 0.64 solid #758297
+edge r5p1 r5p2 4 11.734 0.66161 11.734 0.8926 11.734 2.9016 11.734 3.1206 solid #758297
+edge r5p2 n4 4 11.756 3.14 11.786 3.14 11.848 3.14 11.931 3.14 solid #758297
+edge r6p1 r6p2 4 11.734 0.64 11.734 0.64 11.734 0.64 11.734 0.64 solid #758297
+edge r6p2 n5 4 11.756 0.64 11.786 0.64 11.848 0.64 11.931 0.64 solid #758297
 stop

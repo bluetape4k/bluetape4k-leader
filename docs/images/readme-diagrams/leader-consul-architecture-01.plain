@@ -1,0 +1,28 @@
+graph 1 15.557 7.5347
+node n0 2.155 6.0972 4.31 1.5 ConsulEndpoint rounded,filled box #5B8DEF #ffffff
+node n1 2.155 2.625 4.31 1.5 "Spring Boot" rounded,filled box #58A978 #ffffff
+node n2 7.6411 6.4444 4.72 1.5 ConsulLeaderElector rounded,filled box #D6A441 #ffffff
+node n3 7.6411 3.5972 4.72 1.5 ConsulLeaderGroupElector rounded,filled box #DC6B82 #ffffff
+node n4 13.197 6.4444 4.72 1.5 "Consul Session" rounded,filled box #45A7A1 #ffffff
+node n5 13.197 3.5972 4.72 1.5 "Consul KV" rounded,filled box #8A72D6 #ffffff
+node n6 7.6411 0.75 4.72 1.5 "Core listeners" rounded,filled box #B88A44 #ffffff
+node r1p1 4.7939 6.0972 0.03 0.03 "" invis point black lightgrey
+node r1p2 4.7939 6.4444 0.03 0.03 "" invis point black lightgrey
+node r2p1 4.7939 6.0972 0.03 0.03 "" invis point black lightgrey
+node r2p2 4.7939 3.5972 0.03 0.03 "" invis point black lightgrey
+node r3p1 4.7939 2.625 0.03 0.03 "" invis point black lightgrey
+node r3p2 4.7939 0.75 0.03 0.03 "" invis point black lightgrey
+edge n0 r1p1 4 4.316 6.0972 4.5463 6.0972 4.7178 6.0972 4.7741 6.0972 solid #758297
+edge n0 r2p1 4 4.316 6.0972 4.5463 6.0972 4.7178 6.0972 4.7741 6.0972 solid #758297
+edge n1 r3p1 4 4.316 2.625 4.5463 2.625 4.7178 2.625 4.7741 2.625 solid #758297
+edge n2 n4 4 10.005 6.4444 10.229 6.4444 10.457 6.4444 10.683 6.4444 solid #758297
+edge n3 n5 4 10.005 3.5972 10.229 3.5972 10.457 3.5972 10.683 3.5972 solid #758297
+edge n4 n5 4 13.197 5.6889 13.197 5.3222 13.197 4.8791 13.197 4.4953 solid #758297
+edge n6 n3 4 7.6411 1.5055 7.6411 1.8722 7.6411 2.3153 7.6411 2.6992 solid #758297
+edge r1p1 r1p2 4 4.7939 6.1159 4.7939 6.1756 4.7939 6.3617 4.7939 6.424 solid #758297
+edge r1p2 n2 4 4.8121 6.4444 4.8546 6.4444 4.9694 6.4444 5.1296 6.4444 solid #758297
+edge r2p1 r2p2 4 4.7939 6.0756 4.7939 5.8446 4.7939 3.8356 4.7939 3.6166 solid #758297
+edge r2p2 n3 4 4.8121 3.5972 4.8546 3.5972 4.9694 3.5972 5.1296 3.5972 solid #758297
+edge r3p1 r3p2 4 4.7939 2.6039 4.7939 2.4108 4.7939 0.95036 4.7939 0.76856 solid #758297
+edge r3p2 n6 4 4.8121 0.75 4.8546 0.75 4.9694 0.75 5.1296 0.75 solid #758297
+stop

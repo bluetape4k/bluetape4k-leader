@@ -5,7 +5,7 @@ digraph "examples-ktor-app-architecture-01" {
   n0 [label="HTTP client", fillcolor="#ffffff", color="#5B8DEF", width=3.19, height=1.28, pos="185.00,434.00!"];
   n1 [label="Ktor CIO app", fillcolor="#ffffff", color="#58A978", width=3.19, height=1.28, pos="455.00,434.00!"];
   n2 [label="Stats routes", fillcolor="#ffffff", color="#D6A441", width=3.19, height=1.28, pos="755.00,524.00!"];
-  n3 [label="LeaderElectionPlugin", fillcolor="#ffffff", color="#DC6B82", width=3.19, height=1.28, pos="755.00,344.00!"];
+  n3 [label="LeaderElectionPlugin", fillcolor="#ffffff", color="#DC6B82", width=3.47, height=1.28, pos="765.00,344.00!"];
   n4 [label="StatsAggregator", fillcolor="#ffffff", color="#45A7A1", width=3.19, height=1.28, pos="1055.00,524.00!"];
   n5 [label="Redis lock", fillcolor="#ffffff", color="#8A72D6", width=3.19, height=1.28, pos="1055.00,344.00!"];
   r1p1 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="320.00,434.00!"];
@@ -28,13 +28,13 @@ digraph "examples-ktor-app-architecture-01" {
   n1 -> r4p1 [arrowhead=none];
   r4p1 -> r4p2 [arrowhead=none];
   r4p2 -> n3 [];
-  r5p1 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="905.00,344.00!"];
-  r5p2 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="905.00,524.00!"];
+  r5p1 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="915.00,344.00!"];
+  r5p2 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="915.00,524.00!"];
   n3 -> r5p1 [arrowhead=none];
   r5p1 -> r5p2 [arrowhead=none];
   r5p2 -> n4 [];
-  r6p1 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="905.00,344.00!"];
-  r6p2 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="905.00,344.00!"];
+  r6p1 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="915.00,344.00!"];
+  r6p2 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="915.00,344.00!"];
   n3 -> r6p1 [arrowhead=none];
   r6p1 -> r6p2 [arrowhead=none];
   r6p2 -> n5 [];

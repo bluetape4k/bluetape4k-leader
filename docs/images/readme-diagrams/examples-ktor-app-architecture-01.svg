@@ -24,8 +24,8 @@
 <path class="line" d="M570 266 L605 266 L605 176 L640 176"/>
 <path class="line" d="M870 176 L905 176 L905 176 L940 176"/>
 <path class="line" d="M570 266 L605 266 L605 356 L640 356"/>
-<path class="line" d="M870 356 L905 356 L905 176 L940 176"/>
-<path class="line" d="M870 356 L905 356 L905 356 L940 356"/>
+<path class="line" d="M890 356 L915 356 L915 176 L940 176"/>
+<path class="line" d="M890 356 L915 356 L915 356 L940 356"/>
 <g id="client" transform="translate(70,220)">
   <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
   <text class="smallLabel" x="115" y="28" text-anchor="middle">HTTP client</text>
@@ -45,10 +45,10 @@
   <text class="mono" x="115" y="70" text-anchor="middle">health</text>
 </g>
 <g id="plugin" transform="translate(640,310)">
-  <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
-  <text class="smallLabel" x="115" y="28" text-anchor="middle">LeaderElectionPlugin</text>
-  <text class="mono" x="115" y="53" text-anchor="middle">SuspendLeaderElector</text>
-  <text class="mono" x="115" y="70" text-anchor="middle">leaderScheduled</text>
+  <rect class="card" x="0" y="0" width="250" height="92" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
+  <text class="smallLabel" x="125" y="28" text-anchor="middle">LeaderElectionPlugin</text>
+  <text class="mono" x="125" y="53" text-anchor="middle">SuspendLeaderElector</text>
+  <text class="mono" x="125" y="70" text-anchor="middle">leaderScheduled</text>
 </g>
 <g id="aggregator" transform="translate(940,130)">
   <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>

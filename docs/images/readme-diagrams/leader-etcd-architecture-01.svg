@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="760" viewBox="0 0 1320 760" role="img" aria-label="leader etcd Architecture">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: leader-etcd-architecture-01.dot, leader-etcd-architecture-01.plain, leader-etcd-architecture-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
+<defs>
+  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
+  <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <style>
+    .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
+    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
+    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
+    .card{stroke-width:2.1;filter:url(#shadow)}
+    .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
+  </style>
+</defs>
+<rect class="canvas" width="1320" height="760"/>
+<rect class="frame" x="32" y="28" width="1256" height="704" rx="28"/>
+<text class="title" x="66" y="82">leader etcd Architecture</text>
+<text class="subtitle" x="70" y="118">jetcd electors use caller-owned clients, etcd leases, Lock service keys, and optional watch events</text>
+<path class="line" d="M370 219 L400 219 L400 199 L430 199"/>
+<path class="line" d="M370 439 L400 439 L400 384 L430 384"/>
+<path class="line" d="M370 439 L400 439 L400 569 L430 569"/>
+<path class="line" d="M770 199 L970 199"/>
+<path class="line" d="M770 384 L790 384 L790 369 L810 369"/>
+<path class="line" d="M600 330 L600 253"/>
+<path class="line" d="M1130 253 L1130 515"/>
+<path class="line" d="M810 369 L805 369 L805 199 L970 199"/>
+<g id="app" transform="translate(70,165)">
+  <rect class="card" x="0" y="0" width="300" height="108" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="smallLabel" x="150" y="39" text-anchor="middle">Application workers</text>
+  <text class="smallLabel" x="150" y="66" text-anchor="middle">runIfLeader / group</text>
+</g>
+<g id="spring" transform="translate(70,385)">
+  <rect class="card" x="0" y="0" width="300" height="108" rx="14" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="smallLabel" x="150" y="39" text-anchor="middle">Spring Boot</text>
+  <text class="smallLabel" x="150" y="66" text-anchor="middle">caller-owned Client bean</text>
+</g>
+<g id="single" transform="translate(430,145)">
+  <rect class="card" x="0" y="0" width="340" height="108" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="smallLabel" x="170" y="39" text-anchor="middle">EtcdLeaderElector</text>
+  <text class="smallLabel" x="170" y="66" text-anchor="middle">blocking / async / suspend</text>
+</g>
+<g id="group" transform="translate(430,330)">
+  <rect class="card" x="0" y="0" width="340" height="108" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
+  <text class="smallLabel" x="170" y="39" text-anchor="middle">EtcdLeaderGroupElector</text>
+  <text class="smallLabel" x="170" y="66" text-anchor="middle">slot keys</text>
+</g>
+<g id="watcher" transform="translate(430,515)">
+  <rect class="card" x="0" y="0" width="340" height="108" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="smallLabel" x="170" y="39" text-anchor="middle">Event Publisher</text>
+  <text class="smallLabel" x="170" y="66" text-anchor="middle">watch key create/delete</text>
+</g>
+<g id="client" transform="translate(810,315)">
+  <rect class="card" x="0" y="0" width="300" height="108" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="smallLabel" x="150" y="39" text-anchor="middle">jetcd Client</text>
+  <text class="smallLabel" x="150" y="66" text-anchor="middle">lifecycle outside elector</text>
+</g>
+<g id="lock" transform="translate(970,145)">
+  <rect class="card" x="0" y="0" width="300" height="108" rx="14" fill="#F7F1E7" stroke="#B88A44"/>
+  <text class="smallLabel" x="150" y="39" text-anchor="middle">etcd Lock service</text>
+  <text class="smallLabel" x="150" y="66" text-anchor="middle">ownership key + token</text>
+</g>
+<g id="lease" transform="translate(970,515)">
+  <rect class="card" x="0" y="0" width="300" height="108" rx="14" fill="#EEF6D9" stroke="#8BA84D"/>
+  <text class="smallLabel" x="150" y="39" text-anchor="middle">etcd Lease</text>
+  <text class="smallLabel" x="150" y="66" text-anchor="middle">TTL + keepalive</text>
+</g>
+</svg>

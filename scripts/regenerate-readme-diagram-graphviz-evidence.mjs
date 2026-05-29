@@ -20,6 +20,20 @@ const fontDirs = [
 const args = new Set(process.argv.slice(2));
 const checkOnly = args.has("--check");
 const targetArg = process.argv.slice(2).find((arg) => !arg.startsWith("--"));
+const strictRouteGateSlugs = new Set([
+  "examples-batch-scheduler-architecture-01",
+  "examples-k8s-operator-architecture-01",
+  "examples-ktor-app-architecture-01",
+  "examples-migration-gate-architecture-01",
+  "examples-rate-limiter-architecture-01",
+  "examples-tenant-aggregator-architecture-01",
+  "examples-webhook-poller-architecture-01",
+  "leader-consul-architecture-01",
+  "leader-dynamodb-architecture-01",
+  "leader-etcd-architecture-01",
+  "leader-micrometer-architecture-01",
+  "leader-spring-boot-architecture-01",
+]);
 
 const colors = [
   "#5B8DEF",
@@ -155,6 +169,7 @@ function extractTextElements(fragment, tx = 0, ty = 0) {
   while ((match = textRegex.exec(fragment))) {
     texts.push({
       className: attr(match[1], "class"),
+      anchor: attr(match[1], "text-anchor") || "start",
       x: numericAttr(match[1], "x") + tx,
       y: numericAttr(match[1], "y") + ty,
       text: decodeText(match[2]),
@@ -248,6 +263,62 @@ function textHeight(text) {
   return 14;
 }
 
+function textFontSize(text) {
+  if (/title/.test(text.className)) return 43;
+  if (/smallLabel/.test(text.className)) return 21;
+  if (/(entityTitle|gtitle|label)/.test(text.className)) return 24;
+  if (/strong/.test(text.className)) return 13;
+  if (/(mono|small)/.test(text.className)) return 12;
+  return 14;
+}
+
+function textFontPath(text, fontState) {
+  return /title|smallLabel|entityTitle|gtitle|label/.test(text.className)
+    ? fontState.architectsFont
+    : fontState.comicFont;
+}
+
+function measureTextWidth(text, fontState) {
+  const fontPath = textFontPath(text, fontState);
+  if (!fontPath) return 0;
+  const output = sh("magick", [
+    "-font",
+    fontPath,
+    "-pointsize",
+    String(textFontSize(text)),
+    `label:${text.text}`,
+    "-format",
+    "%w",
+    "info:",
+  ]).trim();
+  const width = Number.parseFloat(output);
+  return Number.isFinite(width) ? width : 0;
+}
+
+function validateTextOverflow(nodes, fontState) {
+  const failures = [];
+  if (fontState.failures.length > 0) return failures;
+  for (const node of nodes) {
+    if (!/\bcard\b/.test(node.kind) || node.compartmented || node.texts.length === 0) continue;
+    const padding = 14;
+    for (const text of node.texts) {
+      const width = measureTextWidth(text, fontState);
+      if (width === 0) continue;
+      const left = text.anchor === "middle" ? text.x - width / 2 : text.x;
+      const right = text.anchor === "middle" ? text.x + width / 2 : text.x + width;
+      const minX = node.x + padding;
+      const maxX = node.x + node.width - padding;
+      if (left < minX || right > maxX) {
+        failures.push(
+          `${node.id} "${node.label}" text "${text.text}" overflows card width ${node.width.toFixed(1)}px: ` +
+            `text=${width.toFixed(1)}px allowed=${(maxX - minX).toFixed(1)}px`,
+        );
+      }
+    }
+  }
+  return failures;
+}
+
 function validateTextAlignment(nodes) {
   const failures = [];
   for (const node of nodes) {
@@ -282,6 +353,101 @@ function validateNodeOverlaps(nodes) {
     }
   }
   return failures;
+}
+
+function rangesOverlap(a1, a2, b1, b2) {
+  return Math.min(a2, b2) - Math.max(a1, b1) > 0;
+}
+
+function validateRouteClearance(nodes, edges) {
+  const failures = [];
+  const minClearance = 8;
+  for (const edge of edges) {
+    for (let index = 0; index < edge.points.length - 1; index += 1) {
+      const a = edge.points[index];
+      const b = edge.points[index + 1];
+      const horizontal = Math.abs(a.y - b.y) < 0.5;
+      const vertical = Math.abs(a.x - b.x) < 0.5;
+      if (!horizontal && !vertical) continue;
+      const x1 = Math.min(a.x, b.x);
+      const x2 = Math.max(a.x, b.x);
+      const y1 = Math.min(a.y, b.y);
+      const y2 = Math.max(a.y, b.y);
+      for (const node of nodes) {
+        if (!/\bcard\b/.test(node.kind) || node.id === edge.from || node.id === edge.to) continue;
+        const left = node.x;
+        const right = node.x + node.width;
+        const top = node.y;
+        const bottom = node.y + node.height;
+        if (horizontal && rangesOverlap(x1, x2, left, right)) {
+          const gap = a.y < top ? top - a.y : a.y > bottom ? a.y - bottom : 0;
+          if (gap < minClearance) {
+            failures.push(
+              `${edge.from}->${edge.to} segment near "${node.label}" has ${gap.toFixed(1)}px vertical clearance`,
+            );
+          }
+        }
+        if (vertical && rangesOverlap(y1, y2, top, bottom)) {
+          const gap = a.x < left ? left - a.x : a.x > right ? a.x - right : 0;
+          if (gap < minClearance) {
+            failures.push(
+              `${edge.from}->${edge.to} segment near "${node.label}" has ${gap.toFixed(1)}px horizontal clearance`,
+            );
+          }
+        }
+      }
+    }
+  }
+  return failures;
+}
+
+function boundaryAttachmentSide(point, node) {
+  const tolerance = 1.5;
+  const left = node.x;
+  const right = node.x + node.width;
+  const top = node.y;
+  const bottom = node.y + node.height;
+  const withinY = point.y >= top - tolerance && point.y <= bottom + tolerance;
+  const withinX = point.x >= left - tolerance && point.x <= right + tolerance;
+  if (Math.abs(point.x - left) <= tolerance && withinY) return "left";
+  if (Math.abs(point.x - right) <= tolerance && withinY) return "right";
+  if (Math.abs(point.y - top) <= tolerance && withinX) return "top";
+  if (Math.abs(point.y - bottom) <= tolerance && withinX) return "bottom";
+  return "";
+}
+
+function validateRouteEndpointOrthogonality(nodes, edges) {
+  const failures = [];
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  for (const edge of edges) {
+    if (edge.points.length < 2) continue;
+    const from = byId.get(edge.from);
+    const to = byId.get(edge.to);
+    if (!from || !to) continue;
+
+    const start = edge.points[0];
+    const afterStart = edge.points[1];
+    const startSide = boundaryAttachmentSide(start, from);
+    const startHorizontal = Math.abs(start.y - afterStart.y) < 0.5;
+    const startVertical = Math.abs(start.x - afterStart.x) < 0.5;
+    if (!startSide || (["left", "right"].includes(startSide) ? !startHorizontal : !startVertical)) {
+      failures.push(`${edge.from}->${edge.to} starts without 90-degree boundary attachment at "${from.label}"`);
+    }
+
+    const end = edge.points[edge.points.length - 1];
+    const beforeEnd = edge.points[edge.points.length - 2];
+    const endSide = boundaryAttachmentSide(end, to);
+    const endHorizontal = Math.abs(end.y - beforeEnd.y) < 0.5;
+    const endVertical = Math.abs(end.x - beforeEnd.x) < 0.5;
+    if (!endSide || (["left", "right"].includes(endSide) ? !endHorizontal : !endVertical)) {
+      failures.push(`${edge.from}->${edge.to} ends without 90-degree boundary attachment at "${to.label}"`);
+    }
+  }
+  return failures;
+}
+
+function usesStrictRouteGate(slug) {
+  return strictRouteGateSlugs.has(slug);
 }
 
 function validateSequenceSpacing(svg, slug) {
@@ -486,6 +652,11 @@ function processSvg(svgPath, fontState) {
   if (hasFinalConnectorCandidates && edges.length === 0 && nodes.length > 1) failures.push("no final connector routes detected");
   failures.push(...validateNodeOverlaps(nodes));
   failures.push(...validateTextAlignment(nodes));
+  failures.push(...validateTextOverflow(nodes, fontState));
+  if (usesStrictRouteGate(slug)) {
+    failures.push(...validateRouteClearance(nodes, edges));
+    failures.push(...validateRouteEndpointOrthogonality(nodes, edges));
+  }
   failures.push(...validateSequenceSpacing(svg, slug));
   failures.push(...validateSequenceHeaderShape(svg, slug));
   failures.push(...validateChipTextAlignment(svg));

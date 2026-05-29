@@ -20,9 +20,9 @@
 <rect class="frame" x="32" y="28" width="1276" height="574" rx="28"/>
 <text class="title" x="66" y="82">Webhook Poller Architecture</text>
 <text class="subtitle" x="70" y="118">One elected poller claims MongoDB events atomically and processes each claim at least once</text>
-<path class="line" d="M300 196 L340 196 L340 281 L380 281"/>
-<path class="line" d="M300 366 L340 366 L340 281 L380 281"/>
-<path class="line" d="M610 281 L650 281 L650 196 L690 196"/>
+<path class="line" d="M300 196 L330 196 L330 281 L360 281"/>
+<path class="line" d="M300 366 L330 366 L330 281 L360 281"/>
+<path class="line" d="M630 281 L660 281 L660 196 L690 196"/>
 <path class="line" d="M805 242 L805 281 L805 281 L805 320"/>
 <path class="line" d="M920 196 L960 196 L960 281 L1000 281"/>
 <path class="line" d="M920 366 L960 366 L960 281 L1000 281"/>
@@ -38,11 +38,11 @@
   <text class="mono" x="115" y="53" text-anchor="middle">runLoop</text>
   <text class="mono" x="115" y="70" text-anchor="middle">standby</text>
 </g>
-<g id="elector" transform="translate(380,235)">
-  <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="smallLabel" x="115" y="28" text-anchor="middle">SuspendLeaderElector</text>
-  <text class="mono" x="115" y="53" text-anchor="middle">lockName</text>
-  <text class="mono" x="115" y="70" text-anchor="middle">handoff on death</text>
+<g id="elector" transform="translate(360,235)">
+  <rect class="card" x="0" y="0" width="270" height="92" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="smallLabel" x="135" y="28" text-anchor="middle">SuspendLeaderElector</text>
+  <text class="mono" x="135" y="53" text-anchor="middle">lockName</text>
+  <text class="mono" x="135" y="70" text-anchor="middle">handoff on death</text>
 </g>
 <g id="claim" transform="translate(690,150)">
   <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#FDECEF" stroke="#DC6B82"/>

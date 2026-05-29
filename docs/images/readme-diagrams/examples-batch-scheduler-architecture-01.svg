@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="560" viewBox="0 0 1260 560" role="img" aria-label="Batch Scheduler Architecture">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="560" viewBox="0 0 1280 560" role="img" aria-label="Batch Scheduler Architecture">
   <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: examples-batch-scheduler-architecture-01.dot, examples-batch-scheduler-architecture-01.plain, examples-batch-scheduler-architecture-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
@@ -16,48 +16,48 @@
     .lifeline{stroke:#b7c2d1;stroke-width:2;stroke-dasharray:10 10}
   </style>
 </defs>
-<rect class="canvas" width="1260" height="560"/>
-<rect class="frame" x="32" y="28" width="1196" height="504" rx="28"/>
+<rect class="canvas" width="1280" height="560"/>
+<rect class="frame" x="32" y="28" width="1216" height="504" rx="28"/>
 <text class="title" x="66" y="82">Batch Scheduler Architecture</text>
 <text class="subtitle" x="70" y="118">Three scheduler instances share one Redis leader lock before running the batch job</text>
-<path class="line" d="M300 216 L320 216 L320 176 L340 176"/>
-<path class="line" d="M300 216 L320 216 L320 296 L340 296"/>
-<path class="line" d="M300 216 L320 216 L320 416 L340 416"/>
-<path class="line" d="M570 176 L605 176 L605 296 L640 296"/>
-<path class="line" d="M570 296 L605 296 L605 296 L640 296"/>
-<path class="line" d="M570 416 L605 416 L605 296 L640 296"/>
-<path class="line" d="M870 296 L900 296 L900 296 L930 296"/>
+<path class="line" d="M300 216 L315 216 L315 176 L330 176"/>
+<path class="line" d="M300 216 L315 216 L315 296 L330 296"/>
+<path class="line" d="M300 216 L315 216 L315 416 L330 416"/>
+<path class="line" d="M610 176 L640 176 L640 296 L670 296"/>
+<path class="line" d="M610 296 L640 296 L640 296 L670 296"/>
+<path class="line" d="M610 416 L640 416 L640 296 L670 296"/>
+<path class="line" d="M950 296 L970 296 L970 296 L990 296"/>
 <g id="trigger" transform="translate(70,170)">
   <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
   <text class="smallLabel" x="115" y="28" text-anchor="middle">Cron trigger</text>
   <text class="mono" x="115" y="53" text-anchor="middle">same schedule</text>
   <text class="mono" x="115" y="70" text-anchor="middle">all nodes</text>
 </g>
-<g id="node1" transform="translate(340,130)">
-  <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="smallLabel" x="115" y="28" text-anchor="middle">BatchScheduler node-1</text>
-  <text class="mono" x="115" y="53" text-anchor="middle">runIfLeader</text>
-  <text class="mono" x="115" y="70" text-anchor="middle">may execute</text>
+<g id="node1" transform="translate(330,130)">
+  <rect class="card" x="0" y="0" width="280" height="92" rx="14" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="smallLabel" x="140" y="28" text-anchor="middle">BatchScheduler node-1</text>
+  <text class="mono" x="140" y="53" text-anchor="middle">runIfLeader</text>
+  <text class="mono" x="140" y="70" text-anchor="middle">may execute</text>
 </g>
-<g id="node2" transform="translate(340,250)">
-  <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="smallLabel" x="115" y="28" text-anchor="middle">BatchScheduler node-2</text>
-  <text class="mono" x="115" y="53" text-anchor="middle">runIfLeader</text>
-  <text class="mono" x="115" y="70" text-anchor="middle">skip on miss</text>
+<g id="node2" transform="translate(330,250)">
+  <rect class="card" x="0" y="0" width="280" height="92" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="smallLabel" x="140" y="28" text-anchor="middle">BatchScheduler node-2</text>
+  <text class="mono" x="140" y="53" text-anchor="middle">runIfLeader</text>
+  <text class="mono" x="140" y="70" text-anchor="middle">skip on miss</text>
 </g>
-<g id="node3" transform="translate(340,370)">
-  <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
-  <text class="smallLabel" x="115" y="28" text-anchor="middle">BatchScheduler node-3</text>
-  <text class="mono" x="115" y="53" text-anchor="middle">runIfLeader</text>
-  <text class="mono" x="115" y="70" text-anchor="middle">skip on miss</text>
+<g id="node3" transform="translate(330,370)">
+  <rect class="card" x="0" y="0" width="280" height="92" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
+  <text class="smallLabel" x="140" y="28" text-anchor="middle">BatchScheduler node-3</text>
+  <text class="mono" x="140" y="53" text-anchor="middle">runIfLeader</text>
+  <text class="mono" x="140" y="70" text-anchor="middle">skip on miss</text>
 </g>
-<g id="elector" transform="translate(640,250)">
-  <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="smallLabel" x="115" y="28" text-anchor="middle">LettuceLeaderElector</text>
-  <text class="mono" x="115" y="53" text-anchor="middle">waitTime + leaseTime</text>
-  <text class="mono" x="115" y="70" text-anchor="middle">single lock owner</text>
+<g id="elector" transform="translate(670,250)">
+  <rect class="card" x="0" y="0" width="280" height="92" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="smallLabel" x="140" y="28" text-anchor="middle">LettuceLeaderElector</text>
+  <text class="mono" x="140" y="53" text-anchor="middle">waitTime + leaseTime</text>
+  <text class="mono" x="140" y="70" text-anchor="middle">single lock owner</text>
 </g>
-<g id="redis" transform="translate(930,250)">
+<g id="redis" transform="translate(990,250)">
   <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
   <text class="smallLabel" x="115" y="28" text-anchor="middle">Redis lock</text>
   <text class="mono" x="115" y="53" text-anchor="middle">nightly-settlement</text>
