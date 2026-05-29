@@ -46,7 +46,7 @@ onto the default preview backend classpath that needs Vert.x 5 for etcd.
 - No production API changes.
 - No new benchmark framework or raw JMH-only setup.
 - No README result-table update without fresh benchmark JSON from this branch.
-- No chart regeneration unless fresh measured rows are available.
+- No chart publication without fresh measured rows and matching raw JSON.
 
 ## Acceptance Criteria
 
@@ -56,7 +56,7 @@ onto the default preview backend classpath that needs Vert.x 5 for etcd.
 - Implemented rows are included in `kotlinx-benchmark` parameter sets.
 - Setup smoke checks fail fast when infrastructure is unavailable.
 - README and localized README record command, environment caveat, raw result
-  location, and interpretation after measurement.
+  location, chart assets, and interpretation after measurement.
 - CI keeps compiling benchmark sources without running timing benchmarks.
 
 ## Step 2-R Local 7-Tier Review

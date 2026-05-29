@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-labelledby="title desc">
+  <title id="title">Kubernetes benchmark throughput</title>
+  <desc id="desc">K3s-backed Kubernetes Lease benchmark throughput. Higher values are better.</desc>
+  <defs><style>.canvas{fill:#f6f9fc}.frame{fill:#fff;stroke:#d7e2ec;stroke-width:2}.title{font:700 32px Arial,sans-serif;fill:#22344a}.subtitle{font:16px Arial,sans-serif;fill:#536476}.label{font:18px Arial,sans-serif;fill:#22344a}.small{font:14px Arial,sans-serif;fill:#536476}.tick{font:13px Arial,sans-serif;fill:#6d7d90}.axis{stroke:#b9c8d6;stroke-width:1}.grid{stroke:#edf3f8;stroke-width:1}.blocking{fill:#2f80ed}.latencyBlocking{fill:#d25b45}.note{font:13px Arial,sans-serif;fill:#6d7d90}</style></defs>
+  <rect class="canvas" width="1200" height="420"/>
+  <rect class="frame" x="32" y="28" width="1136" height="364" rx="20"/>
+  <text class="title" x="68" y="78">Kubernetes benchmark throughput</text>
+  <text class="subtitle" x="68" y="108">Separate kubernetesBenchmark source set, ops/s. Higher is better.</text>
+  <line class="axis" x1="250" y1="304" x2="1010" y2="304"/>
+  <line class="axis" x1="250" y1="128" x2="250" y2="304"/>
+  <line class="grid" x1="440.0" y1="128" x2="440.0" y2="310"/><text class="tick" x="424" y="332">50</text>
+  <line class="grid" x1="630.0" y1="128" x2="630.0" y2="310"/><text class="tick" x="614" y="332">100</text>
+  <line class="grid" x1="820.0" y1="128" x2="820.0" y2="310"/><text class="tick" x="804" y="332">150</text>
+  <line class="grid" x1="1010.0" y1="128" x2="1010.0" y2="310"/><text class="tick" x="994" y="332">200</text>
+  <text class="tick" x="240" y="332" text-anchor="end">0 ops/s</text>
+  <text class="label" x="78" y="172">K8s blocking</text>
+  <rect x="250" y="150" width="651.8" height="28" rx="6" class="blocking"/><text class="small" x="911.8" y="170">171.5</text>
+  <text class="label" x="78" y="244">K8s suspend</text>
+  <rect x="250" y="222" width="625.8" height="28" rx="6" class="blocking"/><text class="small" x="885.8" y="242">164.7</text>
+  <text class="note" x="68" y="376">Source: docs/benchmarks/2026-05-29-issue-418-kubernetes-*.json. Separate Fabric8 Vert.x 4 runtime.</text>
+</svg>

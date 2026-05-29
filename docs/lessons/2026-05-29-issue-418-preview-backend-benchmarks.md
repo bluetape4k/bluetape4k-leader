@@ -26,11 +26,15 @@ before timing.
 - `./gradlew :benchmark:benchmarkBenchmark :benchmark:benchmarkAverageTimeBenchmark --no-configuration-cache --rerun-tasks --no-daemon` passed on 2026-05-29.
 - `./gradlew :benchmark:kubernetesBenchmarkBenchmark :benchmark:kubernetesBenchmarkAverageTimeBenchmark --no-configuration-cache --rerun-tasks --no-daemon` passed on 2026-05-29.
 - Raw JSON was preserved under `docs/benchmarks/2026-05-29-issue-418-*.json`.
+- README chart SVG/PNG assets were generated under
+  `docs/images/readme-charts/leader-benchmark-*.{svg,png}` and validated with
+  `xmllint --noout`.
 
 ## Future Guard
 
 For benchmark README result tables, add or change measured rows only after a
-fresh same-branch JSON result exists. Kubernetes benchmark rows are useful but
-require Docker/K3s-capable local execution, should be treated as heavier than
-the other preview rows, and should remain isolated unless Fabric8 and etcd can
-share one Vert.x line.
+fresh same-branch JSON result exists. Publish matching README charts in the same
+change so table and chart evidence do not drift. Kubernetes benchmark rows are
+useful but require Docker/K3s-capable local execution, should be treated as
+heavier than the other preview rows, and should remain isolated unless Fabric8
+and etcd can share one Vert.x line.
