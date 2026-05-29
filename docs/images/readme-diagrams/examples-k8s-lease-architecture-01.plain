@@ -1,0 +1,27 @@
+graph 1 8.3322 8.0092
+node n0 1.805 7.0289 3.61 1.28 "Holder A" rounded,filled box #5B8DEF #ffffff
+node n1 6.5272 7.0289 3.61 1.28 "Holder B" rounded,filled box #58A978 #ffffff
+node n2 4.1661 4.8067 5.28 1.28 K8sLeaseLeaderElectionExample rounded,filled box #D6A441 #ffffff
+node n3 4.1661 2.7233 5.28 1.28 "Fabric8 KubernetesClient" rounded,filled box #DC6B82 #ffffff
+node n4 4.1661 0.64 5.28 1.28 "Kubernetes Lease" rounded,filled box #45A7A1 #ffffff
+node r1p1 2.5689 7.0289 0.03 0.03 "" invis point black lightgrey
+node r1p2 2.5689 4.8067 0.03 0.03 "" invis point black lightgrey
+node r2p1 5.7633 7.0289 0.03 0.03 "" invis point black lightgrey
+node r2p2 5.7633 4.8067 0.03 0.03 "" invis point black lightgrey
+node r3p1 4.1661 3.765 0.03 0.03 "" invis point black lightgrey
+node r3p2 4.1661 3.765 0.03 0.03 "" invis point black lightgrey
+node r4p1 4.1661 1.6817 0.03 0.03 "" invis point black lightgrey
+node r4p2 4.1661 1.6817 0.03 0.03 "" invis point black lightgrey
+edge n0 r1p1 4 2.5667 7.0289 2.5674 7.0289 2.568 7.0289 2.5683 7.0289 solid #758297
+edge n1 r2p1 4 5.7655 7.0289 5.7648 7.0289 5.7643 7.0289 5.7639 7.0289 solid #758297
+edge n2 r3p1 4 4.1661 4.1648 4.1661 3.9906 4.1661 3.8355 4.1661 3.7835 solid #758297
+edge n3 r4p1 4 4.1661 2.0814 4.1661 1.9073 4.1661 1.7522 4.1661 1.7002 solid #758297
+edge r1p1 r1p2 4 2.5689 7.0097 2.5689 6.8044 2.5689 5.0186 2.5689 4.8239 solid #758297
+edge r1p2 n0 4 2.5623 4.8259 2.5193 4.9509 2.2749 5.6619 2.0752 6.2428 solid #758297
+edge r2p1 r2p2 4 5.7633 7.0097 5.7633 6.8044 5.7633 5.0186 5.7633 4.8239 solid #758297
+edge r2p2 n1 4 5.7699 4.8259 5.8129 4.9509 6.0573 5.6619 6.257 6.2428 solid #758297
+edge r3p1 r3p2 4 4.1661 3.765 4.1661 3.765 4.1661 3.765 4.1661 3.765 solid #758297
+edge r3p2 n3 4 4.1661 3.7432 4.1661 3.7051 4.1661 3.6199 4.1661 3.5142 solid #758297
+edge r4p1 r4p2 4 4.1661 1.6817 4.1661 1.6817 4.1661 1.6817 4.1661 1.6817 solid #758297
+edge r4p2 n4 4 4.1661 1.6599 4.1661 1.6217 4.1661 1.5365 4.1661 1.4309 solid #758297
+stop

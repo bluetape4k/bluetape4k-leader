@@ -4,7 +4,18 @@
 
 Ktor 3.x REST API server with a leader-election-protected periodic background job. Demonstrates the typical pattern of running the same Kotlin/Ktor service across multiple replicas while ensuring a single periodic stats-aggregation job runs cluster-wide.
 
-## Architecture
+## Scenario
+
+Several Ktor replicas expose the same `/stats` and `/health` routes. A
+background `leaderScheduled` job uses the shared Redis lock
+`hourly-stats-aggregation`, so only one replica calls `StatsAggregator.aggregate()`
+per cycle while the other replicas keep serving HTTP traffic.
+
+## Architecture Diagram
+
+![ktor app Architecture diagram](../../docs/images/readme-diagrams/examples-ktor-app-architecture-01.png)
+
+## Sequence Diagram
 
 ![ktor app Sequence Flow diagram](../../docs/images/readme-diagrams/examples-ktor-app-sequence-01.png)
 

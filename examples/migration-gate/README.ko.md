@@ -4,7 +4,18 @@
 
 Exposed-JDBC 백엔드 기반 분산 스키마 마이그레이션 게이트. K8s 롤링 배포 중 N개 pod 가 동시 기동될 때 마이그레이션을 단 1개만 실행하도록 보장.
 
-## Architecture
+## 시나리오
+
+Kubernetes rolling deploy 중 여러 pod가 같은 schema migration 미적용 상태로
+기동될 수 있습니다. `MigrationGate.runMigration(...)`은 lock 획득 전 marker를
+확인하고, Exposed JDBC leader lock 내부에서 다시 확인한 뒤 migration을 한 번만
+실행합니다. 비리더 pod는 이후 marker를 다시 확인하고 serving 진입 여부를 결정합니다.
+
+## 아키텍처 다이어그램
+
+![migration gate Architecture diagram](../../docs/images/readme-diagrams/examples-migration-gate-architecture-01.png)
+
+## 시퀀스 다이어그램
 
 ![migration gate Sequence Flow diagram](../../docs/images/readme-diagrams/examples-migration-gate-sequence-01.png)
 

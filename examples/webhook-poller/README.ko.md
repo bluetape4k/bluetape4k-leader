@@ -4,7 +4,18 @@
 
 MongoDB 리더 선출을 이용한 분산 webhook event 폴러. N 개 pod 환경에서 단일 리더만 webhook event 를 점유·처리하며, at-least-once 전달, 재시도, `FAILED` 종결 상태(DLQ 대체)를 제공한다.
 
-## Architecture
+## 시나리오
+
+여러 poller 인스턴스가 같은 polling loop를 실행하지만, 선출된 리더만 MongoDB event를
+claim합니다. 리더는 `findOneAndUpdate`로 event를 원자적으로 점유하고 handler를
+실행한 뒤, 성공 시 `DONE`으로 표시하고 handler 예외 시 재시도 가능 상태로 돌리거나
+`FAILED`로 종결합니다.
+
+## 아키텍처 다이어그램
+
+![webhook poller Architecture diagram](../../docs/images/readme-diagrams/examples-webhook-poller-architecture-01.png)
+
+## 시퀀스 다이어그램
 
 ![webhook poller Sequence Flow diagram](../../docs/images/readme-diagrams/examples-webhook-poller-sequence-01.png)
 
@@ -31,8 +42,6 @@ val poller = WebhookPoller(
         batchSize = 10,
         maxAttempts = 5,
         claimDuration = 30.seconds,    // handler 최악 실행 시간보다 길게
-        leaseTime = 60.seconds,         // leader-lock TTL
-        waitTime = 1.seconds,
     ),
 ) { event ->
     httpClient.post(event.payload)     // webhook 전달
@@ -61,8 +70,6 @@ MONGO_URL=mongodb://localhost:27017 ./gradlew :examples:webhook-poller:run
 | `batchSize` | `10` | 한 사이클당 최대 claim 수 |
 | `maxAttempts` | `5` | 시도 상한 — 도달 시 `FAILED` |
 | `claimDuration` | `30.seconds` | claim lease — handler 최악 실행 시간 + 여유 |
-| `leaseTime` | `60.seconds` | leader-lock TTL |
-| `waitTime` | `1.seconds` | leader-lock 획득 대기 시간 |
 
 ## Failure Semantics
 

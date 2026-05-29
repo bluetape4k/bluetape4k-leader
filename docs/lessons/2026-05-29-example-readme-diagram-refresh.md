@@ -1,0 +1,33 @@
+# Example README Diagram Refresh
+
+## Context
+
+The `examples/*` README files needed source-derived scenarios and architecture
+diagrams. Several examples already had sequence diagrams, while Kubernetes
+Lease, Kubernetes Operator, and Rate Limiter needed sequence diagrams as well.
+
+## Decision
+
+Use source code as the workflow authority, but use existing repo diagrams of the
+same type as the visual baseline before introducing new shapes. Sequence
+participant headers must be rectangular boxes with a small corner radius, not
+pill or ellipse badges. The Graphviz evidence generator now checks this rule.
+
+## Outcome
+
+All example README locale pairs now include scenario text and PNG diagram embeds.
+New architecture diagrams were added for examples that lacked them, and missing
+sequence diagrams were added where the workflow needed one.
+
+## Verification
+
+- `node scripts/regenerate-readme-diagram-graphviz-evidence.mjs --check`
+- README image link check: `readmes=20 missing=0 svgEmbeds=0`
+- `git diff --check`
+- Visual contact sheet: `.omx/artifacts/examples-readme-diagrams-contact-sheet.png`
+
+## Future Guidance
+
+Before drawing a new README diagram, inspect existing assets of the same diagram
+type and preserve the stable shape language unless a source-driven reason
+requires a documented divergence.

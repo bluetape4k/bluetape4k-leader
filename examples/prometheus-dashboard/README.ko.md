@@ -5,7 +5,14 @@
 Spring Boot 4 애플리케이션이 bluetape4k leader election 메트릭을
 `/actuator/prometheus`로 노출하고, Prometheus와 Grafana에서 시각화하는 실행 가능한 예제입니다.
 
-## 아키텍처
+## 시나리오
+
+Spring Boot 앱은 `dashboard-job` 이름의 proxied `@LeaderElection` 작업을
+스케줄링합니다. 작업은 Micrometer를 통해 leader AOP 메트릭을 기록하고
+`/actuator/prometheus`에서 노출합니다. compose stack에서는 Prometheus가 앱을
+scrape하고 Grafana가 사전 provision된 dashboard를 렌더링합니다.
+
+## 아키텍처 다이어그램
 
 ![prometheus dashboard Architecture diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-architecture-01.png)
 

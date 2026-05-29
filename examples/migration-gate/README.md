@@ -4,7 +4,18 @@
 
 Distributed schema migration gate using Exposed JDBC backend. Demonstrates safe single-execution of DB migrations across N pods during Kubernetes rolling deploy.
 
-## Architecture
+## Scenario
+
+During a Kubernetes rolling deploy, multiple pods may start with the same schema
+migration pending. `MigrationGate.runMigration(...)` checks the marker before
+locking, rechecks inside the Exposed JDBC leader lock, runs the migration once,
+and lets non-leaders confirm the marker afterward before serving.
+
+## Architecture Diagram
+
+![migration gate Architecture diagram](../../docs/images/readme-diagrams/examples-migration-gate-architecture-01.png)
+
+## Sequence Diagram
 
 ![migration gate Sequence Flow diagram](../../docs/images/readme-diagrams/examples-migration-gate-sequence-01.png)
 

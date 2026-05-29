@@ -20,6 +20,14 @@ then consumed by all nodes through one Redis-backed Bucket4j quota:
 The test uses a 10 calls/second quota over a 3 second window and asserts that
 total external API calls stay at or below `30`.
 
+## Architecture Diagram
+
+![rate limiter Architecture diagram](../../docs/images/readme-diagrams/examples-rate-limiter-architecture-01.png)
+
+## Sequence Diagram
+
+![rate limiter Sequence Flow diagram](../../docs/images/readme-diagrams/examples-rate-limiter-sequence-01.png)
+
 ## Run
 
 ```bash

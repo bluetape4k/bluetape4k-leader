@@ -25,22 +25,22 @@
 <rect class="frame" x="32" y="28" width="1922" height="2484" rx="28"/>
 <text class="title" x="66" y="82">tenant aggregator Sequence Flow</text>
 <text class="subtitle" x="70" y="118">Sequence messages from the original Mermaid source</text>
-<rect class="card" x="80" y="166" width="230" height="72" rx="75" fill="#E8F3FF" stroke="#5B8DEF"/>
+<rect class="card" x="80" y="166" width="230" height="72" rx="12" fill="#E8F3FF" stroke="#5B8DEF"/>
 <text class="smallLabel" x="195" y="209" text-anchor="middle">node-1</text>
 <line class="lifeline" x1="195" y1="252" x2="195" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="399.2" y="166" width="230" height="72" rx="75" fill="#EAF7EF" stroke="#58A978"/>
+<rect class="card" x="399.2" y="166" width="230" height="72" rx="12" fill="#EAF7EF" stroke="#58A978"/>
 <text class="smallLabel" x="514.2" y="209" text-anchor="middle">node-2</text>
 <line class="lifeline" x1="514.2" y1="252" x2="514.2" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="718.4" y="166" width="230" height="72" rx="75" fill="#FFF3D9" stroke="#D6A441"/>
+<rect class="card" x="718.4" y="166" width="230" height="72" rx="12" fill="#FFF3D9" stroke="#D6A441"/>
 <text class="smallLabel" x="833.4" y="209" text-anchor="middle">node-3</text>
 <line class="lifeline" x1="833.4" y1="252" x2="833.4" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="1037.6" y="166" width="230" height="72" rx="75" fill="#FDECEF" stroke="#DC6B82"/>
+<rect class="card" x="1037.6" y="166" width="230" height="72" rx="12" fill="#FDECEF" stroke="#DC6B82"/>
 <text class="smallLabel" x="1152.6" y="209" text-anchor="middle">lock(tenant-A)</text>
 <line class="lifeline" x1="1152.6" y1="252" x2="1152.6" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="1356.8" y="166" width="230" height="72" rx="75" fill="#E9F7F6" stroke="#45A7A1"/>
+<rect class="card" x="1356.8" y="166" width="230" height="72" rx="12" fill="#E9F7F6" stroke="#45A7A1"/>
 <text class="smallLabel" x="1471.8" y="209" text-anchor="middle">lock(tenant-B)</text>
 <line class="lifeline" x1="1471.8" y1="252" x2="1471.8" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="1676" y="166" width="230" height="72" rx="75" fill="#F1ECFF" stroke="#8A72D6"/>
+<rect class="card" x="1676" y="166" width="230" height="72" rx="12" fill="#F1ECFF" stroke="#8A72D6"/>
 <text class="smallLabel" x="1791" y="209" text-anchor="middle">lock(tenant-C)</text>
 <line class="lifeline" x1="1791" y1="252" x2="1791" y2="2480" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
 <rect x="125" y="286" width="1736" height="40" rx="71" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>

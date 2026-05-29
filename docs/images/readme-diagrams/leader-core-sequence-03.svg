@@ -25,13 +25,13 @@
 <rect class="frame" x="32" y="28" width="1124" height="1384" rx="28"/>
 <text class="title" x="66" y="82">Multi-leader group: slot-based semap.</text>
 <text class="subtitle" x="70" y="118">Sequence messages from the original Mermaid source</text>
-<rect class="card" x="80" y="166" width="230" height="72" rx="75" fill="#E8F3FF" stroke="#5B8DEF"/>
+<rect class="card" x="80" y="166" width="230" height="72" rx="12" fill="#E8F3FF" stroke="#5B8DEF"/>
 <text class="smallLabel" x="195" y="209" text-anchor="middle">Caller</text>
 <line class="lifeline" x1="195" y1="252" x2="195" y2="1380" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="479" y="166" width="230" height="72" rx="75" fill="#EAF7EF" stroke="#58A978"/>
+<rect class="card" x="479" y="166" width="230" height="72" rx="12" fill="#EAF7EF" stroke="#58A978"/>
 <text class="smallLabel" x="594" y="209" text-anchor="middle">GroupElection</text>
 <line class="lifeline" x1="594" y1="252" x2="594" y2="1380" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="878" y="166" width="230" height="72" rx="75" fill="#FFF3D9" stroke="#D6A441"/>
+<rect class="card" x="878" y="166" width="230" height="72" rx="12" fill="#FFF3D9" stroke="#D6A441"/>
 <text class="smallLabel" x="993" y="209" text-anchor="middle">LockStore</text>
 <line class="lifeline" x1="993" y1="252" x2="993" y2="1380" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
 <rect x="247.5" y="286" width="294" height="40" rx="67" fill="#ffffff" opacity="0.97"/>

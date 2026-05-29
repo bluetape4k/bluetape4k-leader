@@ -1,0 +1,33 @@
+graph 1 16.107 4.1203
+node n0 1.595 3.14 3.19 1.28 "App instance A" rounded,filled box #5B8DEF #ffffff
+node n1 1.595 0.64 3.19 1.28 "App instance B" rounded,filled box #58A978 #ffffff
+node n2 5.9006 1.89 3.19 1.28 TenantAggregator rounded,filled box #D6A441 #ffffff
+node n3 10.345 1.89 3.19 1.28 "Tenant locks" rounded,filled box #DC6B82 #ffffff
+node n4 14.512 3.14 3.19 1.28 "Exposed R2DBC elector" rounded,filled box #45A7A1 #ffffff
+node n5 14.512 0.64 3.19 1.28 "Tenant metrics service" rounded,filled box #8A72D6 #ffffff
+node r1p1 3.7478 3.14 0.03 0.03 "" invis point black lightgrey
+node r1p2 3.7478 1.89 0.03 0.03 "" invis point black lightgrey
+node r2p1 3.7478 0.64 0.03 0.03 "" invis point black lightgrey
+node r2p2 3.7478 1.89 0.03 0.03 "" invis point black lightgrey
+node r3p1 8.1228 1.89 0.03 0.03 "" invis point black lightgrey
+node r3p2 8.1228 1.89 0.03 0.03 "" invis point black lightgrey
+node r4p1 12.428 1.89 0.03 0.03 "" invis point black lightgrey
+node r4p2 12.428 3.14 0.03 0.03 "" invis point black lightgrey
+node r5p1 12.428 1.89 0.03 0.03 "" invis point black lightgrey
+node r5p2 12.428 0.64 0.03 0.03 "" invis point black lightgrey
+edge n0 r1p1 4 3.1934 3.14 3.456 3.14 3.6638 3.14 3.7275 3.14 solid #758297
+edge n1 r2p1 4 3.1934 0.64 3.456 0.64 3.6638 0.64 3.7275 0.64 solid #758297
+edge n2 r3p1 4 7.4979 1.89 7.796 1.89 8.0359 1.89 8.1036 1.89 solid #758297
+edge n3 r4p1 4 11.945 1.89 12.172 1.89 12.349 1.89 12.408 1.89 solid #758297
+edge n3 r5p1 4 11.945 1.89 12.172 1.89 12.349 1.89 12.408 1.89 solid #758297
+edge r1p1 r1p2 4 3.7478 3.1183 3.7478 2.9653 3.7478 2.0505 3.7478 1.9085 solid #758297
+edge r1p2 n2 4 3.7664 1.89 3.816 1.89 3.9608 1.89 4.1532 1.89 solid #758297
+edge r2p1 r2p2 4 3.7478 0.6617 3.7478 0.81472 3.7478 1.7295 3.7478 1.8715 solid #758297
+edge r2p2 n2 4 3.7664 1.89 3.816 1.89 3.9608 1.89 4.1532 1.89 solid #758297
+edge r3p1 r3p2 4 8.1228 1.89 8.1228 1.89 8.1228 1.89 8.1228 1.89 solid #758297
+edge r3p2 n3 4 8.142 1.89 8.1978 1.89 8.3707 1.89 8.5966 1.89 solid #758297
+edge r4p1 r4p2 4 12.428 1.9117 12.428 2.0647 12.428 2.9795 12.428 3.1215 solid #758297
+edge r4p2 n4 4 12.446 3.14 12.489 3.14 12.607 3.14 12.765 3.14 solid #758297
+edge r5p1 r5p2 4 12.428 1.8683 12.428 1.7153 12.428 0.80052 12.428 0.65852 solid #758297
+edge r5p2 n5 4 12.446 0.64 12.489 0.64 12.607 0.64 12.765 0.64 solid #758297
+stop

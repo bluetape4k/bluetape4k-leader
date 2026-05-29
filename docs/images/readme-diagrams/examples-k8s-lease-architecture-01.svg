@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="760" viewBox="0 0 980 760" role="img" aria-label="K8s Lease Architecture">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: examples-k8s-lease-architecture-01.dot, examples-k8s-lease-architecture-01.plain, examples-k8s-lease-architecture-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
+<defs>
+  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
+  <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <style>
+    .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
+    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
+    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
+    .strong{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
+    .card{stroke-width:2.1;filter:url(#shadow)}
+    .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
+    .dashed{stroke:#758297;stroke-width:2.1;stroke-dasharray:7 6;fill:none;marker-end:url(#openArrow)}
+    .lifeline{stroke:#b7c2d1;stroke-width:2;stroke-dasharray:10 10}
+  </style>
+</defs>
+<rect class="canvas" width="980" height="760"/>
+<rect class="frame" x="32" y="28" width="916" height="704" rx="28"/>
+<text class="title" x="66" y="82">K8s Lease Architecture</text>
+<text class="subtitle" x="70" y="118">Fabric8 client creates, renews, conflicts, and releases coordination.k8s.io Lease resources</text>
+<path class="line" d="M450 196 L375 196 L375 356 L300 356"/>
+<path class="line" d="M530 196 L605 196 L605 356 L680 356"/>
+<path class="line" d="M490 402 L490 431 L490 431 L490 460"/>
+<path class="line" d="M490 552 L490 581 L490 581 L490 610"/>
+<g id="callerA" transform="translate(190,150)">
+  <rect class="card" x="0" y="0" width="260" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="smallLabel" x="130" y="28" text-anchor="middle">Holder A</text>
+  <text class="mono" x="130" y="53" text-anchor="middle">tryAcquire</text>
+  <text class="mono" x="130" y="70" text-anchor="middle">release</text>
+</g>
+<g id="callerB" transform="translate(530,150)">
+  <rect class="card" x="0" y="0" width="260" height="92" rx="14" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="smallLabel" x="130" y="28" text-anchor="middle">Holder B</text>
+  <text class="mono" x="130" y="53" text-anchor="middle">tryAcquire</text>
+  <text class="mono" x="130" y="70" text-anchor="middle">conflict while valid</text>
+</g>
+<g id="example" transform="translate(300,310)">
+  <rect class="card" x="0" y="0" width="380" height="92" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="smallLabel" x="190" y="28" text-anchor="middle">K8sLeaseLeaderElectionExample</text>
+  <text class="mono" x="190" y="53" text-anchor="middle">leaseDuration</text>
+  <text class="mono" x="190" y="70" text-anchor="middle">clock-aware validity</text>
+</g>
+<g id="fabric8" transform="translate(300,460)">
+  <rect class="card" x="0" y="0" width="380" height="92" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
+  <text class="smallLabel" x="190" y="28" text-anchor="middle">Fabric8 KubernetesClient</text>
+  <text class="mono" x="190" y="53" text-anchor="middle">get/create/update/delete</text>
+  <text class="mono" x="190" y="70" text-anchor="middle">typed Lease API</text>
+</g>
+<g id="lease" transform="translate(300,610)">
+  <rect class="card" x="0" y="0" width="380" height="92" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="smallLabel" x="190" y="28" text-anchor="middle">Kubernetes Lease</text>
+  <text class="mono" x="190" y="53" text-anchor="middle">holderIdentity</text>
+  <text class="mono" x="190" y="70" text-anchor="middle">renewTime + duration</text>
+</g>
+</svg>

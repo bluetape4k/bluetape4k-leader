@@ -1,0 +1,27 @@
+graph 1 15.273 3.7036
+node n0 1.595 2.7233 3.19 1.28 "Warmer node-A" rounded,filled box #5B8DEF #ffffff
+node n1 1.595 0.64 3.19 1.28 "Warmer node-B" rounded,filled box #58A978 #ffffff
+node n2 5.6228 1.6817 3.19 1.28 "Elector factory" rounded,filled box #D6A441 #ffffff
+node n3 9.6506 1.6817 3.19 1.28 "Partition locks" rounded,filled box #DC6B82 #ffffff
+node n4 13.678 1.6817 3.19 1.28 "Cache partitions" rounded,filled box #45A7A1 #ffffff
+node r1p1 3.6089 2.7233 0.03 0.03 "" invis point black lightgrey
+node r1p2 3.6089 1.6817 0.03 0.03 "" invis point black lightgrey
+node r2p1 3.6089 0.64 0.03 0.03 "" invis point black lightgrey
+node r2p2 3.6089 1.6817 0.03 0.03 "" invis point black lightgrey
+node r3p1 7.6367 1.6817 0.03 0.03 "" invis point black lightgrey
+node r3p2 7.6367 1.6817 0.03 0.03 "" invis point black lightgrey
+node r4p1 11.664 1.6817 0.03 0.03 "" invis point black lightgrey
+node r4p2 11.664 1.6817 0.03 0.03 "" invis point black lightgrey
+edge n0 r1p1 4 3.1965 2.7233 3.393 2.7233 3.5424 2.7233 3.5916 2.7233 solid #758297
+edge n1 r2p1 4 3.1965 0.64 3.393 0.64 3.5424 0.64 3.5916 0.64 solid #758297
+edge n2 r3p1 4 7.2243 1.6817 7.4208 1.6817 7.5702 1.6817 7.6193 1.6817 solid #758297
+edge n3 r4p1 4 11.252 1.6817 11.449 1.6817 11.598 1.6817 11.647 1.6817 solid #758297
+edge r1p1 r1p2 4 3.6089 2.7016 3.6089 2.566 3.6089 1.8385 3.6089 1.7033 solid #758297
+edge r1p2 n2 4 3.6263 1.6817 3.6624 1.6817 3.7526 1.6817 3.8757 1.6817 solid #758297
+edge r2p1 r2p2 4 3.6089 0.66176 3.6089 0.79732 3.6089 1.5248 3.6089 1.66 solid #758297
+edge r2p2 n2 4 3.6263 1.6817 3.6624 1.6817 3.7526 1.6817 3.8757 1.6817 solid #758297
+edge r3p1 r3p2 4 7.6367 1.6817 7.6367 1.6817 7.6367 1.6817 7.6367 1.6817 solid #758297
+edge r3p2 n3 4 7.6541 1.6817 7.6902 1.6817 7.7804 1.6817 7.9035 1.6817 solid #758297
+edge r4p1 r4p2 4 11.664 1.6817 11.664 1.6817 11.664 1.6817 11.664 1.6817 solid #758297
+edge r4p2 n4 4 11.682 1.6817 11.718 1.6817 11.808 1.6817 11.931 1.6817 solid #758297
+stop

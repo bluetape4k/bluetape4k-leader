@@ -7,13 +7,24 @@ Demonstrates **per-partition independent leader election** so that exactly one
 instance warms each partition, even when several instances run the warmer
 concurrently.
 
-## Architecture
+## Scenario
 
 `CachePartitionWarmer` builds one independent lock per partition
 (`"${lockNamePrefix}-${partitionId}"`) instead of using `LeaderGroupElector`.
 A group election shares slots inside a single lockName, so the caller cannot
 guarantee a slot ↔ partition mapping. Per-partition lockNames express the
 contract directly: **"for partition P, exactly one instance warms"**.
+
+Multiple warmer instances can call `warmAll()` at the same time. Each partition
+elects its own leader, so different nodes may warm different partitions while a
+failure in one partition is recorded in `WarmResult.failed` and does not stop
+the rest.
+
+## Architecture Diagram
+
+![cache warmer Architecture diagram](../../docs/images/readme-diagrams/examples-cache-warmer-architecture-01.png)
+
+## Sequence Diagram
 
 ![cache warmer Sequence Flow diagram](../../docs/images/readme-diagrams/examples-cache-warmer-sequence-01.png)
 
