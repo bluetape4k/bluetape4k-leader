@@ -317,6 +317,23 @@ function validateSequenceSpacing(svg, slug) {
   return failures;
 }
 
+function validateChipTextAlignment(svg) {
+  const failures = [];
+  const chipRegex =
+    /<rect\b([^>]*class="[^"]*\bchip\b[^"]*"[^>]*)\/?>\n\s*<text\b([^>]*class="[^"]*\blabel\b[^"]*"[^>]*)>/g;
+  for (const match of svg.matchAll(chipRegex)) {
+    const rectY = numericAttr(match[1], "y");
+    const rectHeight = numericAttr(match[1], "height");
+    const textY = numericAttr(match[2], "y");
+    const expectedY = rectY + rectHeight / 2;
+    const drift = Math.abs(textY - expectedY);
+    if (drift > 1) {
+      failures.push(`chip label vertical drift ${drift.toFixed(1)}px at y=${rectY.toFixed(1)}`);
+    }
+  }
+  return failures;
+}
+
 function pathPoints(d) {
   const numbers = [...d.matchAll(/[-+]?\d*\.?\d+(?:e[-+]?\d+)?/gi)].map((match) => Number.parseFloat(match[0]));
   const points = [];
@@ -450,6 +467,7 @@ function processSvg(svgPath, fontState) {
   failures.push(...validateNodeOverlaps(nodes));
   failures.push(...validateTextAlignment(nodes));
   failures.push(...validateSequenceSpacing(svg, slug));
+  failures.push(...validateChipTextAlignment(svg));
 
   const dot = buildDot(slug, title, nodes, edges);
   const dotPath = join(diagramDir, `${slug}.dot`);

@@ -34,26 +34,26 @@
     <rect class="entity" x="0" y="0" width="330" height="220" rx="14" fill="#E8F3FF" stroke="#75A9E8"/>
     <text class="entityTitle" x="165" y="36" text-anchor="middle">Module Catalog</text>
     <rect class="chip" x="24" y="56" width="282" height="28" rx="7"/>
-    <text class="label" x="165" y="75" text-anchor="middle" dominant-baseline="middle">leader-core</text>
+    <text class="label" x="165" y="70" text-anchor="middle" dominant-baseline="middle">leader-core</text>
     <rect class="chip" x="24" y="94" width="282" height="28" rx="7"/>
-    <text class="label" x="165" y="113" text-anchor="middle" dominant-baseline="middle">leader-redis, leader-exposed</text>
+    <text class="label" x="165" y="108" text-anchor="middle" dominant-baseline="middle">leader-redis, leader-exposed</text>
     <rect class="chip" x="24" y="132" width="282" height="28" rx="7"/>
-    <text class="label" x="165" y="151" text-anchor="middle" dominant-baseline="middle">leader-mongodb, hazelcast, zookeeper</text>
+    <text class="label" x="165" y="146" text-anchor="middle" dominant-baseline="middle">leader-mongodb, hazelcast, zookeeper</text>
     <rect class="chip" x="24" y="170" width="282" height="28" rx="7"/>
-    <text class="label" x="165" y="189" text-anchor="middle" dominant-baseline="middle">leader-dynamodb, etcd, consul, k8s</text>
+    <text class="label" x="165" y="184" text-anchor="middle" dominant-baseline="middle">leader-dynamodb, etcd, consul, k8s</text>
   </g>
 
   <g transform="translate(526,142)">
     <rect class="entity" x="0" y="0" width="348" height="270" rx="14" fill="#FFF3D9" stroke="#D9AA4D"/>
     <text class="entityTitle" x="174" y="36" text-anchor="middle">Backend Capability</text>
     <rect class="chip" x="26" y="56" width="296" height="28" rx="7"/>
-    <text class="label" x="174" y="75" text-anchor="middle" dominant-baseline="middle">Redis: Lettuce, Redisson</text>
+    <text class="label" x="174" y="70" text-anchor="middle" dominant-baseline="middle">Redis: Lettuce, Redisson</text>
     <rect class="chip" x="26" y="94" width="296" height="28" rx="7"/>
-    <text class="label" x="174" y="113" text-anchor="middle" dominant-baseline="middle">SQL: Exposed JDBC, R2DBC</text>
+    <text class="label" x="174" y="108" text-anchor="middle" dominant-baseline="middle">SQL: Exposed JDBC, R2DBC</text>
     <rect class="chip" x="26" y="132" width="296" height="28" rx="7"/>
-    <text class="label" x="174" y="151" text-anchor="middle" dominant-baseline="middle">MongoDB, Hazelcast, ZooKeeper</text>
+    <text class="label" x="174" y="146" text-anchor="middle" dominant-baseline="middle">MongoDB, Hazelcast, ZooKeeper</text>
     <rect class="chip" x="26" y="170" width="296" height="28" rx="7"/>
-    <text class="label" x="174" y="189" text-anchor="middle" dominant-baseline="middle">DynamoDB, etcd, Consul, K8s Lease</text>
+    <text class="label" x="174" y="184" text-anchor="middle" dominant-baseline="middle">DynamoDB, etcd, Consul, K8s Lease</text>
     <text class="small" x="174" y="232" text-anchor="middle">single leader: 1 winner</text>
     <text class="small" x="174" y="250" text-anchor="middle">group leader: N slots</text>
   </g>
@@ -62,40 +62,40 @@
     <rect class="entity" x="0" y="0" width="348" height="190" rx="14" fill="#FDECEF" stroke="#DB7890"/>
     <text class="entityTitle" x="174" y="36" text-anchor="middle">Integration Surface</text>
     <rect class="chip" x="26" y="58" width="296" height="28" rx="7"/>
-    <text class="label" x="174" y="77" text-anchor="middle" dominant-baseline="middle">Ktor: plugin + leaderScheduled</text>
+    <text class="label" x="174" y="72" text-anchor="middle" dominant-baseline="middle">Ktor: plugin + leaderScheduled</text>
     <rect class="chip" x="26" y="96" width="296" height="28" rx="7"/>
-    <text class="label" x="174" y="115" text-anchor="middle" dominant-baseline="middle">Spring Boot: AOP + Actuator</text>
+    <text class="label" x="174" y="110" text-anchor="middle" dominant-baseline="middle">Spring Boot: AOP + Actuator</text>
     <rect class="chip" x="26" y="134" width="296" height="28" rx="7"/>
-    <text class="label" x="174" y="153" text-anchor="middle" dominant-baseline="middle">Micrometer: AOP metrics</text>
+    <text class="label" x="174" y="148" text-anchor="middle" dominant-baseline="middle">Micrometer: AOP metrics</text>
   </g>
 
   <g transform="translate(994,132)">
     <rect class="entity" x="0" y="0" width="330" height="584" rx="14" fill="#E9F7F6" stroke="#55B5AF"/>
     <text class="entityTitle" x="165" y="36" text-anchor="middle">Runnable Example</text>
     <rect class="chip" x="24" y="56" width="282" height="28" rx="7"/>
-    <text class="label" x="165" y="75" text-anchor="middle" dominant-baseline="middle">Redis: batch, ktor, prometheus, rate</text>
+    <text class="label" x="165" y="70" text-anchor="middle" dominant-baseline="middle">Redis: batch, ktor, prometheus, rate</text>
     <rect class="chip" x="24" y="94" width="282" height="28" rx="7"/>
-    <text class="label" x="165" y="113" text-anchor="middle" dominant-baseline="middle">SQL: migration, tenant aggregation</text>
+    <text class="label" x="165" y="108" text-anchor="middle" dominant-baseline="middle">SQL: migration, tenant aggregation</text>
     <rect class="chip" x="24" y="132" width="282" height="28" rx="7"/>
-    <text class="label" x="165" y="151" text-anchor="middle" dominant-baseline="middle">MongoDB: webhook polling</text>
+    <text class="label" x="165" y="146" text-anchor="middle" dominant-baseline="middle">MongoDB: webhook polling</text>
     <rect class="chip" x="24" y="170" width="282" height="28" rx="7"/>
-    <text class="label" x="165" y="189" text-anchor="middle" dominant-baseline="middle">Hazelcast: cache warming</text>
+    <text class="label" x="165" y="184" text-anchor="middle" dominant-baseline="middle">Hazelcast: cache warming</text>
     <rect class="chip" x="24" y="208" width="282" height="28" rx="7"/>
-    <text class="label" x="165" y="227" text-anchor="middle" dominant-baseline="middle">Kubernetes: lease, operator</text>
+    <text class="label" x="165" y="222" text-anchor="middle" dominant-baseline="middle">Kubernetes: lease, operator</text>
     <rect class="chip" x="24" y="266" width="282" height="28" rx="7"/>
-    <text class="label" x="165" y="285" text-anchor="middle" dominant-baseline="middle">batch-scheduler</text>
+    <text class="label" x="165" y="280" text-anchor="middle" dominant-baseline="middle">batch-scheduler</text>
     <rect class="chip" x="24" y="304" width="282" height="28" rx="7"/>
-    <text class="label" x="165" y="323" text-anchor="middle" dominant-baseline="middle">migration-gate</text>
+    <text class="label" x="165" y="318" text-anchor="middle" dominant-baseline="middle">migration-gate</text>
     <rect class="chip" x="24" y="342" width="282" height="28" rx="7"/>
-    <text class="label" x="165" y="361" text-anchor="middle" dominant-baseline="middle">webhook-poller, cache-warmer</text>
+    <text class="label" x="165" y="356" text-anchor="middle" dominant-baseline="middle">webhook-poller, cache-warmer</text>
     <rect class="chip" x="24" y="380" width="282" height="28" rx="7"/>
-    <text class="label" x="165" y="399" text-anchor="middle" dominant-baseline="middle">tenant-aggregator, ktor-app</text>
+    <text class="label" x="165" y="394" text-anchor="middle" dominant-baseline="middle">tenant-aggregator, ktor-app</text>
     <rect class="chip" x="24" y="418" width="282" height="28" rx="7"/>
-    <text class="label" x="165" y="437" text-anchor="middle" dominant-baseline="middle">prometheus-dashboard</text>
+    <text class="label" x="165" y="432" text-anchor="middle" dominant-baseline="middle">prometheus-dashboard</text>
     <rect class="chip" x="24" y="456" width="282" height="28" rx="7"/>
-    <text class="label" x="165" y="475" text-anchor="middle" dominant-baseline="middle">k8s-lease, k8s-operator</text>
+    <text class="label" x="165" y="470" text-anchor="middle" dominant-baseline="middle">k8s-lease, k8s-operator</text>
     <rect class="chip" x="24" y="494" width="282" height="28" rx="7"/>
-    <text class="label" x="165" y="513" text-anchor="middle" dominant-baseline="middle">rate-limiter</text>
+    <text class="label" x="165" y="508" text-anchor="middle" dominant-baseline="middle">rate-limiter</text>
   </g>
 
   <path class="rel" d="M 406 245 C 456 245 476 230 526 230"/>
