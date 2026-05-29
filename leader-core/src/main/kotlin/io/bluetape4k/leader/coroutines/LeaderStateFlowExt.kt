@@ -28,9 +28,8 @@ import kotlinx.coroutines.launch
  * ## Behavior / Contract
  * - Initial value is [LeaderState.empty] for [lockName].
  * - [LeaderElectionEvent.Elected] transitions to [LeaderState.occupied]:
- *   `auditLeaderId` is taken from [LeaderElectionEvent.Elected.leaderId] when available,
- *   falling back to [LeaderNodeId.Default]; `leaseUntil` is taken from
- *   [LeaderElectionEvent.Elected.leaseExpiry].
+ *   [LeaderElectionEvent.Elected.leader] is used when present. Older events without a lease snapshot
+ *   use [LeaderElectionEvent.Elected.leaderId] and [LeaderElectionEvent.Elected.leaseExpiry].
  * - [LeaderElectionEvent.Revoked] transitions back to [LeaderState.empty].
  * - [LeaderElectionEvent.Skipped] produces no state transition.
  * - This is a single-leader projection. For group electors with `maxLeaders > 1`, use
@@ -126,10 +125,10 @@ private fun LeaderElectionEvent.toLeaderState(lockName: String): LeaderState =
     when (this) {
         is LeaderElectionEvent.Elected -> LeaderState.occupied(
             lockName,
-            LeaderLease(
+            leader ?: LeaderLease(
                 auditLeaderId = leaderId ?: LeaderNodeId.Default,
                 leaseUntil = leaseExpiry,
-            )
+            ),
         )
 
         is LeaderElectionEvent.Revoked -> LeaderState.empty(lockName)

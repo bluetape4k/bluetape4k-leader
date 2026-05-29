@@ -35,8 +35,9 @@ class ListeningSuspendLeaderElector(
         var elected = false
         val result = delegate.runIfLeader(lockName) {
             elected = true
-            listeners.notifyElected(lockName)
-            eventSubject.emit(LeaderElectionEvent.Elected(lockName))
+            val leader = delegate.state(lockName).leader
+            listeners.notifyElected(lockName, leader)
+            eventSubject.emit(LeaderElectionEvent.Elected.fromLease(lockName, leader))
             try {
                 action()
             } finally {
@@ -84,8 +85,8 @@ class ListeningSuspendLeaderGroupElector(
         var elected = false
         val result = delegate.runIfLeader(lockName) {
             elected = true
-            listeners.notifyElected(lockName)
-            eventSubject.emit(LeaderElectionEvent.Elected(lockName))
+            listeners.notifyElected(lockName, null)
+            eventSubject.emit(LeaderElectionEvent.Elected.fromLease(lockName, null))
             try {
                 action()
             } finally {

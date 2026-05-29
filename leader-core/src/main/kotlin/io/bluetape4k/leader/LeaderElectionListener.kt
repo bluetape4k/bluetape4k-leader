@@ -12,6 +12,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  *
  * ## Behavior / Contract
  * - [onElected] is called immediately before the user action runs, after this call acquires a leader or group slot.
+ *   Implementations that need owner or expiry metadata should override [onElected] with [LeaderLease].
  * - [onSkipped] is called when a leader or group slot could not be acquired within the wait time and the user action is skipped.
  * - [onRevoked] is called after this call releases the leadership or slot it held — not on external lease-loss detection.
  * - Ordinary listener exceptions are logged and ignored so they do not affect the leader action result.
@@ -28,6 +29,17 @@ interface LeaderElectionListener {
 
     /** Called when a leader or group slot is acquired. */
     fun onElected(lockName: String) = Unit
+
+    /**
+     * Called when a leader or group slot is acquired, with a best-effort lease snapshot.
+     *
+     * Backends that cannot report precise expiry pass `null` or a [LeaderLease] whose
+     * [LeaderLease.leaseUntil] is `null`. This callback is for observability only; callers must still use the
+     * backend's atomic acquire path to decide ownership.
+     */
+    fun onElected(lockName: String, leader: LeaderLease?) {
+        onElected(lockName)
+    }
 
     /** Called after leadership or a group slot is released. */
     fun onRevoked(lockName: String) = Unit
@@ -50,18 +62,30 @@ sealed interface LeaderElectionEvent {
      * Leader or group slot acquisition event.
      *
      * ## Behavior / Contract
-     * - [leaderId] is the identity of the node that won the election. Populated by local electors
-     *   and backends that carry identity; `null` when identity is unavailable (e.g. decorator path).
-     * - [leaseExpiry] is the absolute time at which the lease expires. Currently always `null`;
-     *   reserved for future backend implementations that can report expiry at election time.
+     * - [leader] is the full lease snapshot when the backend can report it at election time.
+     * - [leaderId] is the elected audit identity. When [leader] is present, this should match
+     *   [LeaderLease.auditLeaderId].
+     * - [leaseExpiry] is the absolute time at which the lease expires. When [leader] is present, this should
+     *   match [LeaderLease.leaseUntil].
+     * - `null` leader or expiry means the backend could not report precise metadata for this event.
      */
     data class Elected @JvmOverloads constructor(
         override val lockName: String,
         val leaderId: String? = null,
         val leaseExpiry: Instant? = null,
+        val leader: LeaderLease? = null,
     ) : LeaderElectionEvent, Serializable {
         companion object {
-            private const val serialVersionUID = 1L
+            private const val serialVersionUID = 2L
+
+            /** Creates an elected event from a best-effort [LeaderLease] snapshot. */
+            fun fromLease(lockName: String, leader: LeaderLease?): Elected =
+                Elected(
+                    lockName = lockName,
+                    leaderId = leader?.auditLeaderId,
+                    leaseExpiry = leader?.leaseUntil,
+                    leader = leader,
+                )
         }
     }
 
@@ -124,8 +148,8 @@ open class LeaderElectionListenerSupport : LeaderElectionListenerRegistry {
         listeners.remove(listener)
 
     /** Dispatches an elected event to all registered listeners. */
-    fun notifyElected(lockName: String) {
-        notify(lockName, "onElected") { it.onElected(lockName) }
+    fun notifyElected(lockName: String, leader: LeaderLease? = null) {
+        notify(lockName, "onElected") { it.onElected(lockName, leader) }
     }
 
     /** Dispatches a revoked event to all registered listeners. */

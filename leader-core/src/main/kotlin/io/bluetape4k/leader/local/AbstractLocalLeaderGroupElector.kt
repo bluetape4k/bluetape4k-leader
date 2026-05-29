@@ -190,7 +190,7 @@ abstract class AbstractLocalLeaderGroupElector(
             auditLeaderId = auditLeaderId,
         )
         val watchdog = LeaderLeaseAutoExtender.start(false, options.leaseTime, delegate)
-        listeners.notifyElected(lockName)
+        listeners.notifyElected(lockName, lease)
         return try {
             LockStateHolder.withPushed(handle) {
                 CaptureScope.runWithCapture(handle) {

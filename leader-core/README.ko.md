@@ -51,16 +51,20 @@ async/가상 스레드 API는 예외 완료됩니다(`join()`에서는 cancellat
 `LeaderElectionListenerRegistry` 구현체는 `addListener`, `removeListener`로 생명주기 callback을 등록할 수 있습니다.
 
 - `onElected(lockName)`: 보호된 작업이 시작되기 직전
+- `onElected(lockName, leader)`: best-effort 소유자와 lease 만료 metadata가 필요한 구현체용 callback
 - `onRevoked(lockName)`: 현재 호출이 보유하던 락 또는 슬롯을 반납한 직후
 - `onSkipped(lockName)`: 리더십을 획득하지 못해 작업을 실행하지 않을 때
 
 suspend elector는 같은 생명주기를 `LeaderElectionEventPublisher.events`의 hot `Flow<LeaderElectionEvent>` stream으로도 제공합니다.
+`LeaderElectionEvent.Elected`도 같은 선택적 `LeaderLease` snapshot을 포함합니다. Backend가 정확한 만료 시각을
+보고할 수 없으면 `leader.leaseUntil`과 `leaseExpiry`는 `null`입니다. 이 값은 관측 metadata이며, 소유권 판단은
+항상 backend의 원자적 acquire path를 사용하세요.
 
 ```kotlin
 val election = LocalLeaderElector()
 val handle = election.addListener(object : LeaderElectionListener {
-    override fun onElected(lockName: String) {
-        println("elected: $lockName")
+    override fun onElected(lockName: String, leader: LeaderLease?) {
+        println("elected: $lockName until ${leader?.leaseUntil ?: "unknown"}")
     }
 })
 

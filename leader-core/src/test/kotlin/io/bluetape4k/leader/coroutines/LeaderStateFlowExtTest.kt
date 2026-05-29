@@ -9,6 +9,7 @@ import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
 import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderNodeId
 import io.bluetape4k.leader.LeaderState
 import kotlinx.coroutines.CoroutineScope
@@ -135,6 +136,24 @@ class LeaderStateFlowExtTest {
 
             flow.value.isOccupied.shouldBeTrue()
             flow.value.leader?.leaseUntil shouldBeEqualTo expiry
+        }
+    }
+
+    @Test
+    fun `Elected with leader lease uses full lease snapshot`() = runSuspendIO {
+        val electedAt = Instant.now()
+        val lease = LeaderLease(
+            auditLeaderId = "token-2",
+            electedAt = electedAt,
+            leaseUntil = electedAt.plusSeconds(60),
+            nodeId = "node-2",
+        )
+
+        withStateFlow { publisher, flow ->
+            publisher.emit(LeaderElectionEvent.Elected.fromLease("my-lock", lease))
+            flow.first { it.isOccupied }
+
+            flow.value.leader shouldBeEqualTo lease
         }
     }
 

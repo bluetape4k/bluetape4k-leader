@@ -158,7 +158,7 @@ class LocalSuspendLeaderElector(
         }
         val startedAtNanos = System.nanoTime()
         val token = Base58.randomString(8)
-        states.acquireSingle(lockName, auditLeaderId = auditLeaderId, nodeId = nodeId, leaseTime = options.leaseTime)
+        val lease = states.acquireSingle(lockName, auditLeaderId = auditLeaderId, nodeId = nodeId, leaseTime = options.leaseTime)
 
         val identity = LockIdentity(
             lockName = lockName,
@@ -188,8 +188,8 @@ class LocalSuspendLeaderElector(
             auditLeaderId = auditLeaderId,
         )
         val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate)
-        listeners.notifyElected(lockName)
-        eventSubject.emit(LeaderElectionEvent.Elected(lockName, leaderId = auditLeaderId))
+        listeners.notifyElected(lockName, lease)
+        eventSubject.emit(LeaderElectionEvent.Elected.fromLease(lockName, lease))
         return try {
             withContext(LockHandleElement(handle)) {
                 action()

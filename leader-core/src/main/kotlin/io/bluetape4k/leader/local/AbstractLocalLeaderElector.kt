@@ -149,7 +149,7 @@ abstract class AbstractLocalLeaderElector(
         }
         val startedAtNanos = System.nanoTime()
         val token = Base58.randomString(8)
-        states.acquireSingle(lockName, auditLeaderId = auditLeaderId, nodeId = nodeId, leaseTime = options.leaseTime)
+        val lease = states.acquireSingle(lockName, auditLeaderId = auditLeaderId, nodeId = nodeId, leaseTime = options.leaseTime)
 
         val identity = LockIdentity(
             lockName = lockName,
@@ -181,7 +181,7 @@ abstract class AbstractLocalLeaderElector(
             auditLeaderId = auditLeaderId,
         )
         val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate)
-        listeners.notifyElected(lockName)
+        listeners.notifyElected(lockName, lease)
         return try {
             LockStateHolder.withPushed(handle) { action() }
         } finally {
