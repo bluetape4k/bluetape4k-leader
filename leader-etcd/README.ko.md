@@ -7,6 +7,10 @@ lease 를 사용하므로 이미 etcd cluster 를 운영하는 서비스는 Redi
 ZooKeeper, Kubernetes Lease 를 추가하지 않고 단일 active worker 또는 제한된
 active worker group 을 선출할 수 있습니다.
 
+## Architecture
+
+![leader-etcd architecture diagram](../docs/images/readme-diagrams/leader-etcd-architecture-01.png)
+
 ## Core Features
 
 - Blocking / async `LeaderElector` 구현

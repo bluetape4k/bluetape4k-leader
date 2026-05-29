@@ -23,8 +23,8 @@
 <path class="line" d="M300 216 L340 216 L340 306 L380 306"/>
 <path class="line" d="M300 396 L340 396 L340 306 L380 306"/>
 <path class="line" d="M610 306 L655 306 L655 306 L700 306"/>
-<path class="line" d="M930 306 L965 306 L965 216 L1000 216"/>
-<path class="line" d="M930 306 L965 306 L965 396 L1000 396"/>
+<path class="line" d="M930 306 L960 306 L960 216 L990 216"/>
+<path class="line" d="M930 306 L960 306 L960 396 L990 396"/>
 <g id="appA" transform="translate(70,170)">
   <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
   <text class="smallLabel" x="115" y="28" text-anchor="middle">App instance A</text>
@@ -49,16 +49,16 @@
   <text class="mono" x="115" y="53" text-anchor="middle">prefix-tenant-A</text>
   <text class="mono" x="115" y="70" text-anchor="middle">prefix-tenant-B</text>
 </g>
-<g id="r2dbc" transform="translate(1000,170)">
-  <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="smallLabel" x="115" y="28" text-anchor="middle">Exposed R2DBC elector</text>
-  <text class="mono" x="115" y="53" text-anchor="middle">created once per tenant</text>
-  <text class="mono" x="115" y="70" text-anchor="middle">reused per cycle</text>
+<g id="r2dbc" transform="translate(990,170)">
+  <rect class="card" x="0" y="0" width="270" height="92" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="smallLabel" x="135" y="28" text-anchor="middle">Exposed R2DBC elector</text>
+  <text class="mono" x="135" y="53" text-anchor="middle">created once per tenant</text>
+  <text class="mono" x="135" y="70" text-anchor="middle">reused per cycle</text>
 </g>
-<g id="metrics" transform="translate(1000,350)">
-  <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="smallLabel" x="115" y="28" text-anchor="middle">Tenant metrics service</text>
-  <text class="mono" x="115" y="53" text-anchor="middle">aggregateFunction</text>
-  <text class="mono" x="115" y="70" text-anchor="middle">exception isolation</text>
+<g id="metrics" transform="translate(990,350)">
+  <rect class="card" x="0" y="0" width="270" height="92" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="smallLabel" x="135" y="28" text-anchor="middle">Tenant metrics service</text>
+  <text class="mono" x="135" y="53" text-anchor="middle">aggregateFunction</text>
+  <text class="mono" x="135" y="70" text-anchor="middle">exception isolation</text>
 </g>
 </svg>

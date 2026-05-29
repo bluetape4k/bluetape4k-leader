@@ -1,39 +1,37 @@
-graph 1 15.69 5.7869
+graph 1 17.912 5.7869
 node n0 1.595 4.8067 3.19 1.28 "Operator pod-1" rounded,filled box #5B8DEF #ffffff
 node n1 1.595 2.7233 3.19 1.28 "Operator pod-2" rounded,filled box #58A978 #ffffff
 node n2 1.595 0.64 3.19 1.28 "Operator pod-3" rounded,filled box #D6A441 #ffffff
-node n3 5.7617 2.7233 3.19 1.28 OperatorController rounded,filled box #DC6B82 #ffffff
-node n4 10.067 2.7233 4.0283 1.28 KubernetesLeaseLeaderElector rounded,filled box #45A7A1 #ffffff
-node n5 14.095 4.1122 3.19 1.28 "Kubernetes Lease" rounded,filled box #8A72D6 #ffffff
-node n6 14.095 1.3344 3.19 1.28 "Demo workload" rounded,filled box #B88A44 #ffffff
-node r1p1 3.6783 4.8067 0.03 0.03 "" invis point black lightgrey
-node r1p2 3.6783 2.7233 0.03 0.03 "" invis point black lightgrey
-node r2p1 3.6783 2.7233 0.03 0.03 "" invis point black lightgrey
-node r2p2 3.6783 2.7233 0.03 0.03 "" invis point black lightgrey
-node r3p1 3.6783 0.64 0.03 0.03 "" invis point black lightgrey
-node r3p2 3.6783 2.7233 0.03 0.03 "" invis point black lightgrey
-node r4p1 7.9144 2.7233 0.03 0.03 "" invis point black lightgrey
-node r4p2 7.9144 2.7233 0.03 0.03 "" invis point black lightgrey
-node r5p1 12.081 2.7233 0.03 0.03 "" invis point black lightgrey
-node r5p2 12.081 4.1122 0.03 0.03 "" invis point black lightgrey
-node r6p1 9.9283 2.7233 0.03 0.03 "" invis point black lightgrey
-node r6p2 9.9283 1.3344 0.03 0.03 "" invis point black lightgrey
-edge n0 r1p1 4 3.1951 4.8067 3.4224 4.8067 3.5994 4.8067 3.6577 4.8067 solid #758297
-edge n1 r2p1 4 3.1951 2.7233 3.4224 2.7233 3.5994 2.7233 3.6577 2.7233 solid #758297
-edge n2 r3p1 4 3.1951 0.64 3.4224 0.64 3.5994 0.64 3.6577 0.64 solid #758297
-edge n3 r4p1 4 7.3601 2.7233 7.6226 2.7233 7.8305 2.7233 7.8942 2.7233 solid #758297
-edge n3 r6p1 4 7.3607 2.7233 8.4531 2.7233 9.7336 2.7233 9.9082 2.7233 solid #758297
-edge n4 r5p1 4 12.08 2.7233 12.08 2.7233 12.081 2.7233 12.081 2.7233 solid #758297
-edge r1p1 r1p2 4 3.6783 4.7887 3.6783 4.5978 3.6783 2.9496 3.6783 2.7443 solid #758297
-edge r1p2 n3 4 3.6963 2.7233 3.7394 2.7233 3.8566 2.7233 4.0147 2.7233 solid #758297
-edge r2p1 r2p2 4 3.6783 2.7233 3.6783 2.7233 3.6783 2.7233 3.6783 2.7233 solid #758297
-edge r2p2 n3 4 3.6963 2.7233 3.7394 2.7233 3.8566 2.7233 4.0147 2.7233 solid #758297
-edge r3p1 r3p2 4 3.6783 0.65801 3.6783 0.84891 3.6783 2.4971 3.6783 2.7024 solid #758297
-edge r3p2 n3 4 3.6963 2.7233 3.7394 2.7233 3.8566 2.7233 4.0147 2.7233 solid #758297
-edge r4p1 r4p2 4 7.9144 2.7233 7.9144 2.7233 7.9144 2.7233 7.9144 2.7233 solid #758297
-edge r4p2 n4 4 7.9331 2.7233 7.9344 2.7233 7.9358 2.7233 7.9373 2.7233 solid #758297
-edge r5p1 r5p2 4 12.081 2.743 12.081 2.8986 12.081 3.9309 12.081 4.0913 solid #758297
-edge r5p2 n5 4 12.099 4.1122 12.135 4.1122 12.225 4.1122 12.348 4.1122 solid #758297
-edge r6p1 r6p2 4 9.9283 2.7037 9.9283 2.5481 9.9283 1.5157 9.9283 1.3554 solid #758297
-edge r6p2 n6 4 9.9469 1.3344 10.108 1.3344 11.285 1.3344 12.345 1.3344 solid #758297
+node n3 5.8311 2.7233 3.61 1.28 OperatorController rounded,filled box #DC6B82 #ffffff
+node n4 11.317 2.7233 5.14 1.28 KubernetesLeaseLeaderElector rounded,filled box #45A7A1 #ffffff
+node n5 16.317 4.1122 3.19 1.28 "Kubernetes Lease" rounded,filled box #8A72D6 #ffffff
+node n6 16.317 1.3344 3.19 1.28 "Demo workload" rounded,filled box #B88A44 #ffffff
+node r1p1 3.6089 4.8067 0.03 0.03 "" invis point black lightgrey
+node r1p2 3.6089 2.7233 0.03 0.03 "" invis point black lightgrey
+node r2p1 3.6089 2.7233 0.03 0.03 "" invis point black lightgrey
+node r2p2 3.6089 2.7233 0.03 0.03 "" invis point black lightgrey
+node r3p1 3.6089 0.64 0.03 0.03 "" invis point black lightgrey
+node r3p2 3.6089 2.7233 0.03 0.03 "" invis point black lightgrey
+node r4p1 8.1922 2.7233 0.03 0.03 "" invis point black lightgrey
+node r4p2 8.1922 2.7233 0.03 0.03 "" invis point black lightgrey
+node r5p1 14.303 2.7233 0.03 0.03 "" invis point black lightgrey
+node r5p2 14.303 4.1122 0.03 0.03 "" invis point black lightgrey
+node r6p1 5.8311 1.3344 0.03 0.03 "" invis point black lightgrey
+edge n0 r1p1 4 3.1965 4.8067 3.393 4.8067 3.5424 4.8067 3.5916 4.8067 solid #758297
+edge n1 r2p1 4 3.1965 2.7233 3.393 2.7233 3.5424 2.7233 3.5916 2.7233 solid #758297
+edge n2 r3p1 4 3.1965 0.64 3.393 0.64 3.5424 0.64 3.5916 0.64 solid #758297
+edge n3 r4p1 4 7.6386 2.7233 7.9037 2.7233 8.1094 2.7233 8.1723 2.7233 solid #758297
+edge n3 r6p1 4 5.8311 2.0777 5.8311 1.766 5.8311 1.4411 5.8311 1.3559 solid #758297
+edge n4 r5p1 4 13.888 2.7233 14.092 2.7233 14.239 2.7233 14.287 2.7233 solid #758297
+edge r1p1 r1p2 4 3.6089 4.7887 3.6089 4.5978 3.6089 2.9496 3.6089 2.7443 solid #758297
+edge r1p2 n3 4 3.6281 2.7233 3.6655 2.7233 3.7553 2.7233 3.8783 2.7233 solid #758297
+edge r2p1 r2p2 4 3.6089 2.7233 3.6089 2.7233 3.6089 2.7233 3.6089 2.7233 solid #758297
+edge r2p2 n3 4 3.6281 2.7233 3.6655 2.7233 3.7553 2.7233 3.8783 2.7233 solid #758297
+edge r3p1 r3p2 4 3.6089 0.65801 3.6089 0.84891 3.6089 2.4971 3.6089 2.7024 solid #758297
+edge r3p2 n3 4 3.6281 2.7233 3.6655 2.7233 3.7553 2.7233 3.8783 2.7233 solid #758297
+edge r4p1 r4p2 4 8.1922 2.7233 8.1922 2.7233 8.1922 2.7233 8.1922 2.7233 solid #758297
+edge r4p2 n4 4 8.2122 2.7233 8.2624 2.7233 8.4044 2.7233 8.6018 2.7233 solid #758297
+edge r5p1 r5p2 4 14.303 2.743 14.303 2.8986 14.303 3.9309 14.303 4.0913 solid #758297
+edge r5p2 n5 4 14.321 4.1122 14.357 4.1122 14.447 4.1122 14.57 4.1122 solid #758297
+edge r6p1 n6 4 5.8481 1.3344 6.1926 1.3344 11.683 1.3344 14.571 1.3344 solid #758297
 stop

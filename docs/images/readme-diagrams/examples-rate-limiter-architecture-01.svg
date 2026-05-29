@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1340" height="620" viewBox="0 0 1340 620" role="img" aria-label="Rate Limiter Architecture">
+<svg xmlns="http://www.w3.org/2000/svg" width="1390" height="620" viewBox="0 0 1390 620" role="img" aria-label="Rate Limiter Architecture">
   <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: examples-rate-limiter-architecture-01.dot, examples-rate-limiter-architecture-01.plain, examples-rate-limiter-architecture-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
@@ -16,16 +16,16 @@
     .lifeline{stroke:#b7c2d1;stroke-width:2;stroke-dasharray:10 10}
   </style>
 </defs>
-<rect class="canvas" width="1340" height="620"/>
-<rect class="frame" x="32" y="28" width="1276" height="564" rx="28"/>
+<rect class="canvas" width="1390" height="620"/>
+<rect class="frame" x="32" y="28" width="1326" height="564" rx="28"/>
 <text class="title" x="66" y="82">Rate Limiter Architecture</text>
 <text class="subtitle" x="70" y="118">Leader election schedules work once; all workers share one Redis-backed Bucket4j quota</text>
-<path class="line" d="M300 186 L340 186 L340 266 L380 266"/>
-<path class="line" d="M300 346 L340 346 L340 266 L380 266"/>
-<path class="line" d="M300 506 L340 506 L340 266 L380 266"/>
-<path class="line" d="M610 266 L650 266 L650 266 L690 266"/>
-<path class="line" d="M610 266 L650 266 L650 446 L690 446"/>
-<path class="line" d="M920 446 L965 446 L965 356 L1010 356"/>
+<path class="line" d="M300 186 L330 186 L330 266 L360 266"/>
+<path class="line" d="M300 346 L330 346 L330 266 L360 266"/>
+<path class="line" d="M300 506 L330 506 L330 266 L360 266"/>
+<path class="line" d="M660 266 L695 266 L695 266 L730 266"/>
+<path class="line" d="M660 266 L680 266 L680 446 L700 446"/>
+<path class="line" d="M1040 446 L1065 446 L1065 356 L1090 356"/>
 <g id="node1" transform="translate(70,140)">
   <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
   <text class="smallLabel" x="115" y="28" text-anchor="middle">Node-1</text>
@@ -44,25 +44,25 @@
   <text class="mono" x="115" y="53" text-anchor="middle">dispatch + worker</text>
   <text class="mono" x="115" y="70" text-anchor="middle">candidate</text>
 </g>
-<g id="scheduler" transform="translate(380,220)">
-  <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
-  <text class="smallLabel" x="115" y="28" text-anchor="middle">LeaderDispatchScheduler</text>
-  <text class="mono" x="115" y="53" text-anchor="middle">schedule work once</text>
-  <text class="mono" x="115" y="70" text-anchor="middle">REJECTED losers</text>
+<g id="scheduler" transform="translate(360,220)">
+  <rect class="card" x="0" y="0" width="300" height="92" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
+  <text class="smallLabel" x="150" y="28" text-anchor="middle">LeaderDispatchScheduler</text>
+  <text class="mono" x="150" y="53" text-anchor="middle">schedule work once</text>
+  <text class="mono" x="150" y="70" text-anchor="middle">REJECTED losers</text>
 </g>
-<g id="lock" transform="translate(690,220)">
+<g id="lock" transform="translate(730,220)">
   <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
   <text class="smallLabel" x="115" y="28" text-anchor="middle">Redis leader lock</text>
   <text class="mono" x="115" y="53" text-anchor="middle">rate-limiter:*</text>
   <text class="mono" x="115" y="70" text-anchor="middle">single scheduler</text>
 </g>
-<g id="limiter" transform="translate(690,400)">
-  <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="smallLabel" x="115" y="28" text-anchor="middle">DistributedSuspendRateLimiter</text>
-  <text class="mono" x="115" y="53" text-anchor="middle">Bucket4j quota</text>
-  <text class="mono" x="115" y="70" text-anchor="middle">10 calls/sec</text>
+<g id="limiter" transform="translate(700,400)">
+  <rect class="card" x="0" y="0" width="340" height="92" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="smallLabel" x="170" y="28" text-anchor="middle">DistributedSuspendRateLimiter</text>
+  <text class="mono" x="170" y="53" text-anchor="middle">Bucket4j quota</text>
+  <text class="mono" x="170" y="70" text-anchor="middle">10 calls/sec</text>
 </g>
-<g id="api" transform="translate(1010,310)">
+<g id="api" transform="translate(1090,310)">
   <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#F7F1E7" stroke="#B88A44"/>
   <text class="smallLabel" x="115" y="28" text-anchor="middle">ExternalApiProbe</text>
   <text class="mono" x="115" y="53" text-anchor="middle">called only after token</text>

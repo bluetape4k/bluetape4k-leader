@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="760" viewBox="0 0 1320 760" role="img" aria-label="leader consul Architecture">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: leader-consul-architecture-01.dot, leader-consul-architecture-01.plain, leader-consul-architecture-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
+<defs>
+  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
+  <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <style>
+    .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
+    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
+    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
+    .card{stroke-width:2.1;filter:url(#shadow)}
+    .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
+  </style>
+</defs>
+<rect class="canvas" width="1320" height="760"/>
+<rect class="frame" x="32" y="28" width="1256" height="704" rx="28"/>
+<text class="title" x="66" y="82">leader consul Architecture</text>
+<text class="subtitle" x="70" y="118">Consul sessions and KV acquire/release provide single and slot-based group leadership</text>
+<path class="line" d="M380 234 L415 234 L415 209 L450 209"/>
+<path class="line" d="M380 234 L415 234 L415 414 L450 414"/>
+<path class="line" d="M380 484 L415 484 L415 619 L450 619"/>
+<path class="line" d="M790 209 L850 209"/>
+<path class="line" d="M790 414 L850 414"/>
+<path class="line" d="M1020 263 L1020 360"/>
+<path class="line" d="M620 565 L620 468"/>
+<g id="endpoint" transform="translate(70,180)">
+  <rect class="card" x="0" y="0" width="310" height="108" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="smallLabel" x="155" y="39" text-anchor="middle">ConsulEndpoint</text>
+  <text class="smallLabel" x="155" y="66" text-anchor="middle">URL / DC / ACL token</text>
+</g>
+<g id="spring" transform="translate(70,430)">
+  <rect class="card" x="0" y="0" width="310" height="108" rx="14" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="smallLabel" x="155" y="39" text-anchor="middle">Spring Boot</text>
+  <text class="smallLabel" x="155" y="66" text-anchor="middle">endpoint bean</text>
+</g>
+<g id="single" transform="translate(450,155)">
+  <rect class="card" x="0" y="0" width="340" height="108" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="smallLabel" x="170" y="39" text-anchor="middle">ConsulLeaderElector</text>
+  <text class="smallLabel" x="170" y="66" text-anchor="middle">single key</text>
+</g>
+<g id="group" transform="translate(450,360)">
+  <rect class="card" x="0" y="0" width="340" height="108" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
+  <text class="smallLabel" x="170" y="39" text-anchor="middle">ConsulLeaderGroupElector</text>
+  <text class="smallLabel" x="170" y="66" text-anchor="middle">slot keys</text>
+</g>
+<g id="session" transform="translate(850,155)">
+  <rect class="card" x="0" y="0" width="340" height="108" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="smallLabel" x="170" y="39" text-anchor="middle">Consul Session</text>
+  <text class="smallLabel" x="170" y="66" text-anchor="middle">TTL renew + lockDelay</text>
+</g>
+<g id="kv" transform="translate(850,360)">
+  <rect class="card" x="0" y="0" width="340" height="108" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="smallLabel" x="170" y="39" text-anchor="middle">Consul KV</text>
+  <text class="smallLabel" x="170" y="66" text-anchor="middle">acquire / release</text>
+</g>
+<g id="listeners" transform="translate(450,565)">
+  <rect class="card" x="0" y="0" width="340" height="108" rx="14" fill="#F7F1E7" stroke="#B88A44"/>
+  <text class="smallLabel" x="170" y="39" text-anchor="middle">Core listeners</text>
+  <text class="smallLabel" x="170" y="66" text-anchor="middle">withListeners() decorators</text>
+</g>
+</svg>

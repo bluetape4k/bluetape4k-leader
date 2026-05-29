@@ -1,45 +1,35 @@
-graph 1 13.168 6.3414
-node n0 1.945 5.3061 3.89 1.39 "@LeaderElection" rounded,filled box #5B8DEF #ffffff
-node n1 6.5839 5.3061 3.89 1.39 "Micrometer Leader" rounded,filled box #58A978 #ffffff
-node n2 11.223 5.3061 3.89 1.39 "Direct elector calls" rounded,filled box #D6A441 #ffffff
-node n3 1.945 3.0006 3.89 1.39 "Instrumented*Elector" rounded,filled box #DC6B82 #ffffff
-node n4 6.5839 3.0006 3.89 1.39 "Leader Election" rounded,filled box #45A7A1 #ffffff
-node n5 11.223 3.0006 3.89 1.39 "Micrometer Leader" rounded,filled box #8A72D6 #ffffff
-node n6 4.2644 0.695 3.89 1.39 MeterRegistry rounded,filled box #B88A44 #ffffff
-node n7 8.9033 0.695 3.89 1.39 "Prometheus / Datadog" rounded,filled box #8BA84D #ffffff
-node r1p1 6.3478 0.695 0.03 0.03 "" invis point black lightgrey
-node r1p2 6.82 0.695 0.03 0.03 "" invis point black lightgrey
-node r2p1 9.1394 1.8478 0.03 0.03 "" invis point black lightgrey
-node r2p2 6.3478 1.8478 0.03 0.03 "" invis point black lightgrey
-node r3p1 4.0283 1.8478 0.03 0.03 "" invis point black lightgrey
-node r3p2 2.1811 1.8478 0.03 0.03 "" invis point black lightgrey
-node r4p1 6.5839 3.0006 0.03 0.03 "" invis point black lightgrey
-node r4p2 4.2644 3.0006 0.03 0.03 "" invis point black lightgrey
-node r5p1 8.6672 3.0006 0.03 0.03 "" invis point black lightgrey
-node r5p2 9.1394 3.0006 0.03 0.03 "" invis point black lightgrey
-node r6p1 9.1394 4.1533 0.03 0.03 "" invis point black lightgrey
-node r6p2 4.0283 4.1533 0.03 0.03 "" invis point black lightgrey
-node r7p1 4.0283 5.3061 0.03 0.03 "" invis point black lightgrey
-node r7p2 4.5006 5.3061 0.03 0.03 "" invis point black lightgrey
-edge n0 r7p1 4 3.8916 5.3061 3.9453 5.3061 3.9853 5.3061 4.0077 5.3061 solid #758297
-edge n1 r4p1 4 6.5839 4.6081 6.5839 3.9878 6.5839 3.1584 6.5839 3.0204 solid #758297
-edge n2 r6p1 4 9.9569 4.6056 9.5751 4.3944 9.2356 4.2065 9.1567 4.1629 solid #758297
-edge n3 r3p1 4 3.2109 2.3001 3.5926 2.0889 3.9322 1.901 4.0111 1.8573 solid #758297
-edge n4 r5p1 4 8.5305 3.0006 8.5842 3.0006 8.6242 3.0006 8.6466 3.0006 solid #758297
-edge n5 r2p1 4 9.9569 2.3001 9.5751 2.0889 9.2356 1.901 9.1567 1.8573 solid #758297
-edge n6 r1p1 4 6.2111 0.695 6.2647 0.695 6.3047 0.695 6.3272 0.695 solid #758297
-edge r1p1 r1p2 4 6.3681 0.695 6.4457 0.695 6.7237 0.695 6.8003 0.695 solid #758297
-edge r1p2 n7 4 6.838 0.695 6.8394 0.695 6.8408 0.695 6.8423 0.695 solid #758297
-edge r2p1 r2p2 4 9.1216 1.8478 8.895 1.8478 6.5805 1.8478 6.364 1.8478 solid #758297
-edge r2p2 n6 4 6.3298 1.8378 6.2585 1.7984 5.9844 1.6467 5.658 1.4661 solid #758297
-edge r3p1 r3p2 4 4.0076 1.8478 3.8173 1.8478 2.3785 1.8478 2.1994 1.8478 solid #758297
-edge r3p2 n6 4 2.1991 1.8378 2.2704 1.7984 2.5445 1.6467 2.8709 1.4661 solid #758297
-edge r4p1 r4p2 4 6.5638 3.0006 6.3495 3.0006 4.4856 3.0006 4.2824 3.0006 solid #758297
-edge r4p2 n6 4 4.2644 2.9806 4.2644 2.8532 4.2644 2.1393 4.2644 1.5428 solid #758297
-edge r5p1 r5p2 4 8.6875 3.0006 8.7652 3.0006 9.0431 3.0006 9.1198 3.0006 solid #758297
-edge r5p2 n5 4 9.1575 3.0006 9.1588 3.0006 9.1602 3.0006 9.1617 3.0006 solid #758297
-edge r6p1 r6p2 4 9.1209 4.1533 8.7995 4.1533 4.3933 4.1533 4.0496 4.1533 solid #758297
-edge r6p2 n3 4 4.0103 4.1434 3.9391 4.104 3.6649 3.9522 3.3385 3.7716 solid #758297
-edge r7p1 r7p2 4 4.0486 5.3061 4.1263 5.3061 4.4042 5.3061 4.4809 5.3061 solid #758297
-edge r7p2 n1 4 4.5186 5.3061 4.5199 5.3061 4.5213 5.3061 4.5228 5.3061 solid #758297
+graph 1 15.416 8.2292
+node n0 2.085 6.9306 4.17 1.5 "@LeaderElection" rounded,filled box #5B8DEF #ffffff
+node n1 7.5017 7.1389 4.44 1.5 "Micrometer Leader" rounded,filled box #58A978 #ffffff
+node n2 13.196 6.6528 4.17 1.5 "Direct elector calls" rounded,filled box #D6A441 #ffffff
+node n3 12.363 4.5 4.44 1.5 "Instrumented*Elector" rounded,filled box #DC6B82 #ffffff
+node n4 2.085 2.9028 4.17 1.5 "Leader Election" rounded,filled box #45A7A1 #ffffff
+node n5 7.5017 2.9028 4.44 1.5 "Micrometer Leader" rounded,filled box #8A72D6 #ffffff
+node n6 7.5017 0.75 4.44 1.5 MeterRegistry rounded,filled box #B88A44 #ffffff
+node n7 13.196 0.88889 4.44 1.5 "Prometheus / Datadog" rounded,filled box #8BA84D #ffffff
+node r2p1 13.196 5.5556 0.03 0.03 "" invis point black lightgrey
+node r2p2 12.363 5.5556 0.03 0.03 "" invis point black lightgrey
+node r3p1 7.5017 5.6667 0.03 0.03 "" invis point black lightgrey
+node r3p2 4.4461 5.6667 0.03 0.03 "" invis point black lightgrey
+node r3p3 4.4461 0.75 0.03 0.03 "" invis point black lightgrey
+node r4p1 12.363 1.8472 0.03 0.03 "" invis point black lightgrey
+node r4p2 8.6128 1.8472 0.03 0.03 "" invis point black lightgrey
+node r7p1 10.349 0.75 0.03 0.03 "" invis point black lightgrey
+node r7p2 10.349 0.88889 0.03 0.03 "" invis point black lightgrey
+edge n0 n1 4 4.1754 7.0417 4.1754 7.0417 5.1265 7.0417 5.1265 7.0417 solid #758297
+edge n1 r3p1 4 7.5017 6.3855 7.5017 6.0742 7.5017 5.7671 7.5017 5.6868 solid #758297
+edge n2 r2p1 4 13.196 5.8967 13.196 5.7482 13.196 5.6235 13.196 5.5761 solid #758297
+edge n3 r4p1 4 12.363 3.7434 12.363 3.0205 12.363 2.019 12.363 1.8669 solid #758297
+edge n4 n5 4 4.1754 2.9028 4.1754 2.9028 5.1265 2.9028 5.1265 2.9028 solid #758297
+edge n5 n6 4 6.9397 2.1498 6.9397 2.1498 6.9397 1.6551 6.9397 1.6551 solid #758297
+edge n6 r7p1 4 9.7276 0.75 10.033 0.75 10.265 0.75 10.33 0.75 solid #758297
+edge r2p1 r2p2 4 13.176 5.5556 13.059 5.5556 12.486 5.5556 12.38 5.5556 solid #758297
+edge r2p2 n3 4 12.363 5.5372 12.363 5.5372 12.363 5.4045 12.363 5.4045 solid #758297
+edge r3p1 r3p2 4 7.4822 5.6667 7.2341 5.6667 4.7008 5.6667 4.4639 5.6667 solid #758297
+edge r3p2 r3p3 4 4.4461 5.6447 4.4461 5.3039 4.4461 1.0983 4.4461 0.77026 solid #758297
+edge r3p3 n6 4 4.4656 0.75 4.4656 0.75 5.1284 0.75 5.1284 0.75 solid #758297
+edge r4p1 r4p2 4 12.343 1.8472 12.059 1.8472 8.8763 1.8472 8.6281 1.8472 solid #758297
+edge r4p2 n6 4 8.6128 1.8282 8.6128 1.8282 8.6128 1.6515 8.6128 1.6515 solid #758297
+edge r7p1 r7p2 4 10.349 0.7717 10.349 0.79856 10.349 0.84388 10.349 0.86958 solid #758297
+edge r7p2 n7 4 10.367 0.88889 10.367 0.88889 10.822 0.88889 10.822 0.88889 solid #758297
 stop

@@ -8,6 +8,10 @@ This module provides preview single-leader and multi-leader group electors backe
 by Consul sessions and KV `acquire`/`release`. Blocking, `CompletableFuture`,
 coroutine, and Spring Boot auto-configuration surfaces are available.
 
+## Architecture
+
+![leader-consul architecture diagram](../docs/images/readme-diagrams/leader-consul-architecture-01.png)
+
 ## Behavior / Contract
 
 - Public APIs use bluetape4k-owned DTOs such as `ConsulEndpoint`; no stale

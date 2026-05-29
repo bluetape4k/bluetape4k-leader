@@ -8,6 +8,10 @@
 복수 리더 group elector 를 제공합니다. Blocking, `CompletableFuture`, coroutine,
 Spring Boot auto-configuration surface 를 사용할 수 있습니다.
 
+## Architecture
+
+![leader-consul architecture diagram](../docs/images/readme-diagrams/leader-consul-architecture-01.png)
+
 ## Behavior / Contract
 
 - Public API 는 `ConsulEndpoint` 같은 bluetape4k 소유 DTO 를 사용하며, 오래된

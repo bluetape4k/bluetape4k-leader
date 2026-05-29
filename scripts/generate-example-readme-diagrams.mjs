@@ -23,15 +23,15 @@ const architectureDiagrams = [
     slug: "examples-batch-scheduler-architecture-01",
     title: "Batch Scheduler Architecture",
     subtitle: "Three scheduler instances share one Redis leader lock before running the batch job",
-    width: 1260,
+    width: 1280,
     height: 560,
     nodes: [
       ["trigger", "Cron trigger", ["same schedule", "all nodes"], 70, 170],
-      ["node1", "BatchScheduler node-1", ["runIfLeader", "may execute"], 340, 130],
-      ["node2", "BatchScheduler node-2", ["runIfLeader", "skip on miss"], 340, 250],
-      ["node3", "BatchScheduler node-3", ["runIfLeader", "skip on miss"], 340, 370],
-      ["elector", "LettuceLeaderElector", ["waitTime + leaseTime", "single lock owner"], 640, 250],
-      ["redis", "Redis lock", ["nightly-settlement", "SET NX EX"], 930, 250],
+      ["node1", "BatchScheduler node-1", ["runIfLeader", "may execute"], 330, 130, 280],
+      ["node2", "BatchScheduler node-2", ["runIfLeader", "skip on miss"], 330, 250, 280],
+      ["node3", "BatchScheduler node-3", ["runIfLeader", "skip on miss"], 330, 370, 280],
+      ["elector", "LettuceLeaderElector", ["waitTime + leaseTime", "single lock owner"], 670, 250, 280],
+      ["redis", "Redis lock", ["nightly-settlement", "SET NX EX"], 990, 250],
     ],
     edges: [
       ["trigger", "node1"],
@@ -87,16 +87,16 @@ const architectureDiagrams = [
     slug: "examples-k8s-operator-architecture-01",
     title: "K8s Operator Architecture",
     subtitle: "Three Spring Boot operator pods share one Kubernetes Lease before reconciling workload",
-    width: 1320,
+    width: 1430,
     height: 600,
     nodes: [
       ["pod1", "Operator pod-1", ["@Scheduled tick", "candidate"], 70, 130],
       ["pod2", "Operator pod-2", ["@Scheduled tick", "standby"], 70, 280],
       ["pod3", "Operator pod-3", ["@Scheduled tick", "standby"], 70, 430],
-      ["controller", "OperatorController", ["runIfLeader", "cronjob-reconciler"], 370, 280],
-      ["elector", "KubernetesLeaseLeaderElector", ["autoExtend", "retryDelay"], 680, 280],
-      ["lease", "Kubernetes Lease", ["coordination.k8s.io", "RBAC protected"], 970, 180],
-      ["workload", "Demo workload", ["reconcile", "revision counter"], 970, 380],
+      ["controller", "OperatorController", ["runIfLeader", "cronjob-reconciler"], 360, 280, 260],
+      ["elector", "KubernetesLeaseLeaderElector", ["autoExtend", "retryDelay"], 700, 280, 370],
+      ["lease", "Kubernetes Lease", ["coordination.k8s.io", "RBAC protected"], 1130, 180],
+      ["workload", "Demo workload", ["reconcile", "revision counter"], 1130, 380],
     ],
     edges: [
       ["pod1", "controller"],
@@ -104,7 +104,7 @@ const architectureDiagrams = [
       ["pod3", "controller"],
       ["controller", "elector"],
       ["elector", "lease"],
-      ["controller", "workload"],
+      ["controller", "workload", "M490 372 L490 426 L1130 426"],
     ],
   },
   {
@@ -117,7 +117,7 @@ const architectureDiagrams = [
       ["client", "HTTP client", ["GET /stats", "GET /health"], 70, 220],
       ["ktor", "Ktor CIO app", ["ContentNegotiation", "routing"], 340, 220],
       ["routes", "Stats routes", ["currentState", "health"], 640, 130],
-      ["plugin", "LeaderElectionPlugin", ["SuspendLeaderElector", "leaderScheduled"], 640, 310],
+      ["plugin", "LeaderElectionPlugin", ["SuspendLeaderElector", "leaderScheduled"], 640, 310, 250],
       ["aggregator", "StatsAggregator", ["runCount", "lastRunAt"], 940, 130],
       ["redis", "Redis lock", ["hourly-stats-aggregation", "minLeaseTime"], 940, 310],
     ],
@@ -134,22 +134,22 @@ const architectureDiagrams = [
     slug: "examples-migration-gate-architecture-01",
     title: "Migration Gate Architecture",
     subtitle: "Rolling deploy pods check migration markers before and after the Exposed JDBC leader lock",
-    width: 1320,
+    width: 1340,
     height: 600,
     nodes: [
       ["podA", "Deploy pod-A", ["startup migration", "candidate"], 70, 170],
       ["podB", "Deploy pod-B", ["startup migration", "candidate"], 70, 340],
       ["gate", "MigrationGate", ["precheck", "in-lock recheck"], 390, 250],
-      ["elector", "ExposedJdbcLeaderElector", ["lockOwner=nodeId", "no auto-extend"], 700, 250],
-      ["lockTable", "Leader lock table", ["leaseTime", "single owner"], 1010, 170],
-      ["marker", "Schema marker", ["isApplied", "idempotent migration"], 1010, 340],
+      ["elector", "ExposedJdbcLeaderElector", ["lockOwner=nodeId", "no auto-extend"], 700, 250, 310],
+      ["lockTable", "Leader lock table", ["leaseTime", "single owner"], 1060, 170],
+      ["marker", "Schema marker", ["isApplied", "idempotent migration"], 1060, 340],
     ],
     edges: [
       ["podA", "gate"],
       ["podB", "gate"],
       ["gate", "elector"],
       ["elector", "lockTable"],
-      ["gate", "marker"],
+      ["gate", "marker", "M505 342 L505 386 L1060 386"],
       ["elector", "marker"],
     ],
   },
@@ -157,16 +157,16 @@ const architectureDiagrams = [
     slug: "examples-rate-limiter-architecture-01",
     title: "Rate Limiter Architecture",
     subtitle: "Leader election schedules work once; all workers share one Redis-backed Bucket4j quota",
-    width: 1340,
+    width: 1390,
     height: 620,
     nodes: [
       ["node1", "Node-1", ["dispatch + worker", "candidate"], 70, 140],
       ["node2", "Node-2", ["dispatch + worker", "candidate"], 70, 300],
       ["node3", "Node-3", ["dispatch + worker", "candidate"], 70, 460],
-      ["scheduler", "LeaderDispatchScheduler", ["schedule work once", "REJECTED losers"], 380, 220],
-      ["lock", "Redis leader lock", ["rate-limiter:*", "single scheduler"], 690, 220],
-      ["limiter", "DistributedSuspendRateLimiter", ["Bucket4j quota", "10 calls/sec"], 690, 400],
-      ["api", "ExternalApiProbe", ["called only after token", "global ceiling"], 1010, 310],
+      ["scheduler", "LeaderDispatchScheduler", ["schedule work once", "REJECTED losers"], 360, 220, 300],
+      ["lock", "Redis leader lock", ["rate-limiter:*", "single scheduler"], 730, 220],
+      ["limiter", "DistributedSuspendRateLimiter", ["Bucket4j quota", "10 calls/sec"], 700, 400, 340],
+      ["api", "ExternalApiProbe", ["called only after token", "global ceiling"], 1090, 310],
     ],
     edges: [
       ["node1", "scheduler"],
@@ -188,8 +188,8 @@ const architectureDiagrams = [
       ["appB", "App instance B", ["start(scope)", "standby loops"], 70, 350],
       ["aggregator", "TenantAggregator", ["supervisorScope", "stopGracefully"], 380, 260],
       ["locks", "Tenant locks", ["prefix-tenant-A", "prefix-tenant-B"], 700, 260],
-      ["r2dbc", "Exposed R2DBC elector", ["created once per tenant", "reused per cycle"], 1000, 170],
-      ["metrics", "Tenant metrics service", ["aggregateFunction", "exception isolation"], 1000, 350],
+      ["r2dbc", "Exposed R2DBC elector", ["created once per tenant", "reused per cycle"], 990, 170, 270],
+      ["metrics", "Tenant metrics service", ["aggregateFunction", "exception isolation"], 990, 350, 270],
     ],
     edges: [
       ["appA", "aggregator"],
@@ -208,7 +208,7 @@ const architectureDiagrams = [
     nodes: [
       ["pollerA", "Poller node-A", ["runLoop", "candidate"], 70, 150],
       ["pollerB", "Poller node-B", ["runLoop", "standby"], 70, 320],
-      ["elector", "SuspendLeaderElector", ["lockName", "handoff on death"], 380, 235],
+      ["elector", "SuspendLeaderElector", ["lockName", "handoff on death"], 360, 235, 270],
       ["claim", "claimNext", ["findOneAndUpdate", "attempts +1"], 690, 150],
       ["handler", "handler(event)", ["markDone", "requeue or FAILED"], 690, 320],
       ["mongo", "Mongo events", ["PENDING/CLAIMED/DONE", "claimExpiresAt index"], 1000, 235],
@@ -353,7 +353,9 @@ function edgePath(from, to) {
 function architectureSvg(diagram) {
   const cards = diagram.nodes.map(card);
   const byId = new Map(cards.map((item) => [item.id, item]));
-  const routes = diagram.edges.map(([from, to]) => edgePath(byId.get(from), byId.get(to)));
+  const routes = diagram.edges.map(([from, to, route]) =>
+    route ? `<path class="line" d="${route}"/>` : edgePath(byId.get(from), byId.get(to)),
+  );
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${diagram.width}" height="${diagram.height}" viewBox="0 0 ${diagram.width} ${diagram.height}" role="img" aria-label="${xml(diagram.title)}">
 ${defs()}
 <rect class="canvas" width="${diagram.width}" height="${diagram.height}"/>

@@ -4,6 +4,10 @@
 
 conditional write와 logical TTL 기반의 프리뷰 DynamoDB 리더 선출 백엔드입니다.
 
+## Architecture
+
+![leader-dynamodb architecture diagram](../docs/images/readme-diagrams/leader-dynamodb-architecture-01.png)
+
 ## 동작 계약
 
 - 테이블 생성과 수명 관리는 애플리케이션 책임입니다.

@@ -1,0 +1,38 @@
+graph 1 16.67 6.9792
+node n0 2.085 5.6111 4.17 1.5 "Application workers" rounded,filled box #5B8DEF #ffffff
+node n1 2.085 2.5556 4.17 1.5 "Spring Boot" rounded,filled box #58A978 #ffffff
+node n2 7.3628 5.8889 4.72 1.5 EtcdLeaderElector rounded,filled box #D6A441 #ffffff
+node n3 7.3628 3.3194 4.72 1.5 EtcdLeaderGroupElector rounded,filled box #DC6B82 #ffffff
+node n4 7.3628 0.75 4.72 1.5 "Event Publisher" rounded,filled box #45A7A1 #ffffff
+node n5 12.363 3.5278 4.17 1.5 "jetcd Client" rounded,filled box #8A72D6 #ffffff
+node n6 14.585 5.8889 4.17 1.5 "etcd Lock service" rounded,filled box #B88A44 #ffffff
+node n7 14.585 0.75 4.17 1.5 "etcd Lease" rounded,filled box #8BA84D #ffffff
+node r1p1 4.585 5.6111 0.03 0.03 "" invis point black lightgrey
+node r1p2 4.585 5.8889 0.03 0.03 "" invis point black lightgrey
+node r2p1 4.585 2.5556 0.03 0.03 "" invis point black lightgrey
+node r2p2 4.585 3.3194 0.03 0.03 "" invis point black lightgrey
+node r3p1 4.585 2.5556 0.03 0.03 "" invis point black lightgrey
+node r3p2 4.585 0.75 0.03 0.03 "" invis point black lightgrey
+node r5p1 10.002 3.3194 0.03 0.03 "" invis point black lightgrey
+node r5p2 10.002 3.5278 0.03 0.03 "" invis point black lightgrey
+node r8p1 10.21 3.5278 0.03 0.03 "" invis point black lightgrey
+node r8p2 10.21 5.8889 0.03 0.03 "" invis point black lightgrey
+edge n0 r1p1 4 4.1722 5.6111 4.3726 5.6111 4.5199 5.6111 4.568 5.6111 solid #758297
+edge n1 r2p1 4 4.1722 2.5556 4.3726 2.5556 4.5199 2.5556 4.568 2.5556 solid #758297
+edge n1 r3p1 4 4.1722 2.5556 4.3726 2.5556 4.5199 2.5556 4.568 2.5556 solid #758297
+edge n2 n6 4 9.7276 5.8889 10.57 5.8889 11.515 5.8889 12.346 5.8889 solid #758297
+edge n3 n2 4 7.3628 4.0695 7.3628 4.3559 7.3628 4.6854 7.3628 4.9847 solid #758297
+edge n3 r5p1 4 9.7292 3.3194 9.855 3.3194 9.9454 3.3194 9.9827 3.3194 solid #758297
+edge n5 r8p1 4 10.272 3.5278 10.255 3.5278 10.241 3.5278 10.23 3.5278 solid #758297
+edge n6 n7 4 14.585 5.1361 14.585 4.2107 14.585 2.6415 14.585 1.6523 solid #758297
+edge r1p1 r1p2 4 4.585 5.6329 4.585 5.6861 4.585 5.8218 4.585 5.8709 solid #758297
+edge r1p2 n2 4 4.6027 5.8889 4.6387 5.8889 4.7275 5.8889 4.8523 5.8889 solid #758297
+edge r2p1 r2p2 4 4.585 2.5744 4.585 2.6792 4.585 3.1883 4.585 3.2984 solid #758297
+edge r2p2 n3 4 4.6027 3.3194 4.6387 3.3194 4.7275 3.3194 4.8523 3.3194 solid #758297
+edge r3p1 r3p2 4 4.585 2.5353 4.585 2.3493 4.585 0.94294 4.585 0.76787 solid #758297
+edge r3p2 n4 4 4.6027 0.75 4.6387 0.75 4.7275 0.75 4.8523 0.75 solid #758297
+edge r5p1 r5p2 4 10.002 3.3387 10.002 3.379 10.002 3.4717 10.002 3.5104 solid #758297
+edge r5p2 n5 4 10.022 3.5278 10.043 3.5278 10.079 3.5278 10.128 3.5278 solid #758297
+edge r8p1 r8p2 4 10.21 3.5482 10.21 3.7663 10.21 5.6637 10.21 5.8706 solid #758297
+edge r8p2 n6 4 10.23 5.8889 10.378 5.8889 11.357 5.8889 12.349 5.8889 solid #758297
+stop

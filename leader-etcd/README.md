@@ -7,6 +7,10 @@ etcd leases, so services that already operate an etcd cluster can elect one
 active worker or a bounded group of active workers without adding Redis,
 MongoDB, ZooKeeper, or Kubernetes Lease.
 
+## Architecture
+
+![leader-etcd architecture diagram](../docs/images/readme-diagrams/leader-etcd-architecture-01.png)
+
 ## Core Features
 
 - Blocking and async `LeaderElector` implementation
