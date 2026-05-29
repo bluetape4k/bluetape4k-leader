@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1040" viewBox="0 0 1500 1040" role="img" aria-labelledby="title desc">
+  <title id="title">Distributed backend throughput</title>
+  <desc id="desc">Blocking and suspend runIfLeader throughput for distributed backends. Higher values are better.</desc>
+  <defs><style>.canvas{fill:#f7fafc}.frame{fill:#fff;stroke:#d8e3ec;stroke-width:2}.title{font:700 34px 'Architects Daughter','Comic Mono','Comic Sans MS',cursive;fill:#213143}.subtitle{font:15px 'Comic Mono','SFMono-Regular',monospace;fill:#526474}.label{font:700 17px 'Architects Daughter','Comic Mono','Comic Sans MS',cursive;fill:#263848}.value{font:14px 'Comic Mono','SFMono-Regular',monospace;fill:#263848}.tick{font:13px 'Comic Mono','SFMono-Regular',monospace;fill:#6b7d8d}.axis{stroke:#aebdca;stroke-width:1.5}.grid{stroke:#edf3f8;stroke-width:1}.blocking{fill:#2374ab}.suspend{fill:#2f9d75}.note{font:13px 'Comic Mono','SFMono-Regular',monospace;fill:#6b7d8d}.legend{font:14px 'Comic Mono','SFMono-Regular',monospace;fill:#263848}</style></defs>
+  <rect class="canvas" width="1500" height="1040"/>
+  <rect class="frame" x="34" y="28" width="1432" height="988" rx="8"/>
+  <text class="title" x="72" y="78">Distributed backend throughput</text>
+  <text class="subtitle" x="72" y="108">runIfLeader hot-path throughput, ops/s. Higher is better. Local and H2 rows are excluded from this scale.</text>
+  <rect x="1040" y="64" width="18" height="18" rx="3" class="blocking"/><text class="legend" x="1068" y="78">Blocking API</text>
+  <rect x="1190" y="64" width="18" height="18" rx="3" class="suspend"/><text class="legend" x="1218" y="78">Suspend API</text>
+  <line class="axis" x1="340" y1="866" x2="1320" y2="866"/>
+  <line class="axis" x1="340" y1="148" x2="340" y2="866"/>
+  <line class="grid" x1="585.0" y1="148" x2="585.0" y2="866"/><text class="tick" x="585" y="898" text-anchor="middle">400</text>
+  <line class="grid" x1="830.0" y1="148" x2="830.0" y2="866"/><text class="tick" x="830" y="898" text-anchor="middle">800</text>
+  <line class="grid" x1="1075.0" y1="148" x2="1075.0" y2="866"/><text class="tick" x="1075" y="898" text-anchor="middle">1,200</text>
+  <line class="grid" x1="1320.0" y1="148" x2="1320.0" y2="866"/><text class="tick" x="1320" y="898" text-anchor="middle">1,600</text>
+  <text class="tick" x="332" y="898" text-anchor="end">0 ops/s</text>
+  <text class="label" x="86" y="187">Lettuce Redis</text>
+  <rect x="340" y="160" width="891.0" height="20" rx="4" class="blocking"/><text class="value" x="1241.0" y="175">1,454.7</text>
+  <rect x="340" y="188" width="859.1" height="20" rx="4" class="suspend"/><text class="value" x="1209.1" y="203">1,402.6</text>
+  <text class="label" x="86" y="259">Redisson Redis</text>
+  <rect x="340" y="232" width="867.2" height="20" rx="4" class="blocking"/><text class="value" x="1217.2" y="247">1,415.8</text>
+  <rect x="340" y="260" width="849.3" height="20" rx="4" class="suspend"/><text class="value" x="1199.3" y="275">1,386.7</text>
+  <text class="label" x="86" y="331">Hazelcast</text>
+  <rect x="340" y="304" width="894.8" height="20" rx="4" class="blocking"/><text class="value" x="1244.8" y="319">1,460.9</text>
+  <rect x="340" y="332" width="812.1" height="20" rx="4" class="suspend"/><text class="value" x="1162.1" y="347">1,325.9</text>
+  <text class="label" x="86" y="403">MongoDB</text>
+  <rect x="340" y="376" width="516.8" height="20" rx="4" class="blocking"/><text class="value" x="866.8" y="391">843.7</text>
+  <rect x="340" y="404" width="489.0" height="20" rx="4" class="suspend"/><text class="value" x="839.0" y="419">798.4</text>
+  <text class="label" x="86" y="475">ZooKeeper</text>
+  <rect x="340" y="448" width="492.7" height="20" rx="4" class="blocking"/><text class="value" x="842.7" y="463">804.3</text>
+  <rect x="340" y="476" width="410.7" height="20" rx="4" class="suspend"/><text class="value" x="760.7" y="491">670.6</text>
+  <text class="label" x="86" y="547">Consul</text>
+  <rect x="340" y="520" width="363.6" height="20" rx="4" class="blocking"/><text class="value" x="713.6" y="535">593.6</text>
+  <rect x="340" y="548" width="344.9" height="20" rx="4" class="suspend"/><text class="value" x="694.9" y="563">563.2</text>
+  <text class="label" x="86" y="619">etcd</text>
+  <rect x="340" y="592" width="271.9" height="20" rx="4" class="blocking"/><text class="value" x="621.9" y="607">443.8</text>
+  <rect x="340" y="620" width="286.3" height="20" rx="4" class="suspend"/><text class="value" x="636.3" y="635">467.5</text>
+  <text class="label" x="86" y="691">DynamoDB Local</text>
+  <rect x="340" y="664" width="442.3" height="20" rx="4" class="blocking"/><text class="value" x="792.3" y="679">722.2</text>
+  <rect x="340" y="692" width="312.5" height="20" rx="4" class="suspend"/><text class="value" x="662.5" y="707">510.2</text>
+  <text class="label" x="86" y="763">PostgreSQL (Exposed)</text>
+  <rect x="340" y="736" width="49.2" height="20" rx="4" class="blocking"/><text class="value" x="399.2" y="751">80.3</text>
+  <rect x="340" y="764" width="32.8" height="20" rx="4" class="suspend"/><text class="value" x="382.8" y="779">53.6</text>
+  <text class="label" x="86" y="835">MySQL (Exposed)</text>
+  <rect x="340" y="808" width="42.6" height="20" rx="4" class="blocking"/><text class="value" x="392.6" y="823">69.5</text>
+  <rect x="340" y="836" width="39.9" height="20" rx="4" class="suspend"/><text class="value" x="389.9" y="851">65.2</text>
+  <text class="note" x="72" y="944">Source: docs/benchmarks/2026-05-29-issue-405-rdb-backend-throughput.json. Forks=1, threads=1, warmups=2, measurement iterations=3.</text>
+  <text class="note" x="72" y="966">Local and H2 shape rows are intentionally excluded from distributed backend charts.</text>
+</svg>

@@ -43,17 +43,17 @@ non-published [`benchmark`](./benchmark) 모듈은 leader election backend를
 JMH이며, 결과는 같은 장비에서 전/후 비교를 하기 위한 기준선입니다. 릴리스급
 성능 보증으로 해석하면 안 됩니다.
 
-![Leader benchmark remote throughput](docs/images/readme-charts/leader-benchmark-remote-throughput-chart-01.svg)
+![Leader benchmark distributed throughput](docs/images/readme-charts/leader-benchmark-distributed-throughput-chart-01.png)
 
 | 비교 | 핵심 신호 |
 |---|---|
-| Blocking 원격 backend | 2026-05-21 기준선에서 Hazelcast, Redisson, Lettuce가 현재 throughput 상위권입니다. |
-| Suspend 원격 backend | Lettuce, Redisson, Hazelcast가 비슷한 범위에 있고, MongoDB suspend latency는 노이즈가 커서 tuning 전 반복 측정이 필요합니다. |
-| Local 및 H2 행 | in-process 또는 local SQL/R2DBC overhead를 측정하므로 분산 backend 비용 차트를 왜곡하지 않도록 원격 차트에서 제외했습니다. |
+| Blocking 분산 환경 backend | 2026-05-29 실행에서는 Hazelcast, Lettuce, Redisson이 상위권에서 비슷합니다. |
+| Suspend 분산 환경 backend | Lettuce, Redisson, Hazelcast가 선두 그룹이고, RDB 행은 이 단일 컨테이너 실행에서 훨씬 느렸습니다. |
+| Local 및 H2 행 | in-process 또는 local SQL/R2DBC overhead를 측정하므로 분산 backend 비용 차트를 왜곡하지 않도록 분산 환경 차트에서 제외했습니다. |
 
 전체 표, latency chart, 실행 명령, 주의사항은
 [`benchmark` README](./benchmark/README.ko.md)와
-[`2026-05-21 기준선 보고서`](./docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md)에
+[`2026-05-29 원본 benchmark JSON`](./docs/benchmarks/2026-05-29-issue-405-rdb-backend-throughput.json)에
 있습니다.
 
 ## 아키텍처

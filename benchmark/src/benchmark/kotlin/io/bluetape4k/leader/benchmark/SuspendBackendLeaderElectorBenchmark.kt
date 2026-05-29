@@ -25,6 +25,8 @@ import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector
 import io.bluetape4k.leader.zookeeper.ZooKeeperSuspendLeaderElector
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.aws.DynamoDbLocalServer
+import io.bluetape4k.testcontainers.database.MySQL8Server
+import io.bluetape4k.testcontainers.database.PostgreSQLServer
 import io.bluetape4k.testcontainers.infra.ConsulServer
 import io.bluetape4k.testcontainers.infra.EtcdServer
 import io.bluetape4k.testcontainers.infra.ZooKeeperServer
@@ -73,6 +75,8 @@ open class SuspendBackendLeaderElectorBenchmark {
         "lettuce",
         "redisson",
         "exposed-r2dbc-h2",
+        "exposed-r2dbc-postgresql",
+        "exposed-r2dbc-mysql",
         "mongo",
         "hazelcast",
         "zookeeper",
@@ -103,6 +107,8 @@ open class SuspendBackendLeaderElectorBenchmark {
             "lettuce" -> createLettuceElector()
             "redisson" -> createRedissonElector()
             "exposed-r2dbc-h2" -> createExposedR2dbcH2Elector()
+            "exposed-r2dbc-postgresql" -> createExposedR2dbcPostgreSqlElector()
+            "exposed-r2dbc-mysql" -> createExposedR2dbcMySqlElector()
             "mongo" -> createMongoElector()
             "hazelcast" -> createHazelcastElector()
             "zookeeper" -> createZooKeeperElector()
@@ -162,6 +168,36 @@ open class SuspendBackendLeaderElectorBenchmark {
             user = "",
             password = "",
         )
+        return ExposedR2DbcSuspendLeaderElector(
+            db,
+            ExposedR2dbcLeaderElectionOptions(leaderOptions = leaderOptions),
+        )
+    }
+
+    private suspend fun createExposedR2dbcPostgreSqlElector(): SuspendLeaderElector {
+        val postgres = PostgreSQLServer.Launcher.postgres
+        return createExposedR2dbcElector(
+            url = "r2dbc:postgresql://${postgres.host}:${postgres.getMappedPort(5432)}/${postgres.databaseName}",
+            user = postgres.username ?: "",
+            password = postgres.password ?: "",
+        )
+    }
+
+    private suspend fun createExposedR2dbcMySqlElector(): SuspendLeaderElector {
+        val mysql = MySQL8Server.Launcher.mysql
+        return createExposedR2dbcElector(
+            url = "r2dbc:mysql://${mysql.host}:${mysql.getMappedPort(3306)}/${mysql.databaseName}",
+            user = mysql.username ?: "",
+            password = mysql.password ?: "",
+        )
+    }
+
+    private suspend fun createExposedR2dbcElector(
+        url: String,
+        user: String,
+        password: String,
+    ): SuspendLeaderElector {
+        val db = R2dbcDatabase.connect(url = url, user = user, password = password)
         return ExposedR2DbcSuspendLeaderElector(
             db,
             ExposedR2dbcLeaderElectionOptions(leaderOptions = leaderOptions),
