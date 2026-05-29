@@ -21,7 +21,7 @@ tasks.test {
 }
 
 val k8sTest by tasks.registering(Test::class) {
-    description = "Runs K3s-backed Kubernetes Lease integration tests."
+    description = "Runs K3s-backed Kubernetes Lease integration tests, including group slot coverage."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     testClassesDirs = sourceSets.test.get().output.classesDirs
     classpath = sourceSets.test.get().runtimeClasspath
