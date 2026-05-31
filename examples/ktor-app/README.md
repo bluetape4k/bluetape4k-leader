@@ -22,7 +22,7 @@ per cycle while the other replicas keep serving HTTP traffic.
 ## Core Features
 
 - Ktor 3.x CIO server with `ContentNegotiation` + Jackson JSON
-- Shared `bluetape4k-ktor-core` health/readiness routes
+- Shared `bluetape4k-ktor-core` installer for health/readiness routes
 - `LeaderElectionPlugin` install — Lettuce-backed `SuspendLeaderElector`
 - `Application.leaderScheduled(...)` — leader-only periodic job, auto-cancelled on `ApplicationStopped`
 - `GET /stats` exposes the in-memory `StatsAggregator` snapshot
@@ -60,8 +60,15 @@ fun Application.module(
         aggregator.aggregate()
     }
 
+    installBluetape4kKtorCore(
+        Bluetape4kKtorCoreConfig(
+            installContentNegotiation = false,
+            installStatusPages = false,
+            healthPath = "/health",
+        )
+    )
+
     routing {
-        bluetape4kHealthRoutes(healthPath = "/health")
         statsRoutes(aggregator)
     }
 }
@@ -139,6 +146,8 @@ dependencies {
     implementation("io.ktor:ktor-server-cio")
     implementation("io.ktor:ktor-server-content-negotiation")
     implementation("io.ktor:ktor-serialization-jackson")
+
+    testImplementation("io.github.bluetape4k:bluetape4k-ktor-testing")
 }
 
 dependencyManagement {

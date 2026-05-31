@@ -11,7 +11,7 @@ import io.ktor.server.routing.get
  * ## 동작/계약
  *
  * - `GET /stats` — [StatsAggregator.currentState] 결과를 JSON 으로 반환 (200 OK).
- * - 범용 health/readiness endpoint 는 bluetape4k Ktor core 의 `bluetape4kHealthRoutes` 로 등록한다.
+ * - 범용 health/readiness endpoint 는 bluetape4k Ktor core installer 로 등록한다.
  * - JSON 직렬화는 [ContentNegotiation] + Jackson 으로 처리되므로, 본 모듈에서는 [respond] 만 호출한다.
  *
  * ```kotlin
