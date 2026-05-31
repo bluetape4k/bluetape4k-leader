@@ -11,8 +11,12 @@ import io.bluetape4k.leader.local.LocalLeaderElector
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -57,6 +61,80 @@ class LeaderElectionListenerTest {
         lease.auditLeaderId shouldBeEqualTo "node-a"
         lease.nodeId shouldBeEqualTo "node-a"
         lease.leaseUntil.shouldNotBeNull()
+    }
+
+    @Test
+    fun `LeaderElectionEventPublisher - onEvent callback 은 close 후 해제된다`() = runTest {
+        val publisher = FakeEventPublisher()
+        val observed = CopyOnWriteArrayList<LeaderElectionEvent>()
+
+        val handle = publisher.onEvent(this) { event ->
+            observed += event
+        }
+        runCurrent()
+
+        publisher.emit(LeaderElectionEvent.Elected("callback-job"))
+        runCurrent()
+        observed shouldBeEqualTo listOf(LeaderElectionEvent.Elected("callback-job"))
+
+        handle.close()
+        runCurrent()
+
+        publisher.emit(LeaderElectionEvent.Revoked("callback-job"))
+        runCurrent()
+        observed shouldBeEqualTo listOf(LeaderElectionEvent.Elected("callback-job"))
+    }
+
+    @Test
+    fun `LeaderElectionEventPublisher - typed callbacks filter events`() = runTest {
+        val publisher = FakeEventPublisher()
+        val elected = CopyOnWriteArrayList<String>()
+        val revoked = CopyOnWriteArrayList<String>()
+        val skipped = CopyOnWriteArrayList<String>()
+
+        val handles = listOf(
+            publisher.onElected(this) { event -> elected += event.lockName },
+            publisher.onRevoked(this) { event -> revoked += event.lockName },
+            publisher.onSkipped(this) { event -> skipped += event.lockName },
+        )
+        runCurrent()
+
+        publisher.emit(LeaderElectionEvent.Elected("elected-job"))
+        publisher.emit(LeaderElectionEvent.Revoked("revoked-job"))
+        publisher.emit(LeaderElectionEvent.Skipped("skipped-job"))
+        runCurrent()
+
+        elected shouldBeEqualTo listOf("elected-job")
+        revoked shouldBeEqualTo listOf("revoked-job")
+        skipped shouldBeEqualTo listOf("skipped-job")
+
+        handles.forEach(AutoCloseable::close)
+    }
+
+    @Test
+    fun `LeaderElectionEventPublisher - callback 예외는 collector 를 중단하지 않는다`() = runTest {
+        val publisher = FakeEventPublisher()
+        val observed = CopyOnWriteArrayList<String>()
+        var calls = 0
+
+        val handle = publisher.onEvent(this) { event ->
+            calls += 1
+            if (calls == 1) {
+                error("intentional callback failure")
+            }
+            observed += event.lockName
+        }
+        runCurrent()
+
+        publisher.emit(LeaderElectionEvent.Elected("failing-callback-job"))
+        runCurrent()
+        publisher.emit(LeaderElectionEvent.Skipped("continued-callback-job"))
+        runCurrent()
+
+        calls shouldBeEqualTo 2
+        observed shouldBeEqualTo listOf("continued-callback-job")
+
+        handle.close()
     }
 
     @Test
@@ -522,6 +600,16 @@ class LeaderElectionListenerTest {
 
         override fun onElected(lockName: String, leader: LeaderLease?) {
             electedLeases += leader
+        }
+    }
+
+    private class FakeEventPublisher: LeaderElectionEventPublisher {
+        private val eventSubject = MutableSharedFlow<LeaderElectionEvent>(extraBufferCapacity = 16)
+
+        override val events: Flow<LeaderElectionEvent> = eventSubject
+
+        suspend fun emit(event: LeaderElectionEvent) {
+            eventSubject.emit(event)
         }
     }
 

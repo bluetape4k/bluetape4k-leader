@@ -2,10 +2,15 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import java.io.Serializable
 import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.function.Consumer
 
 /**
  * Synchronous listener that receives leader election lifecycle events.
@@ -54,7 +59,7 @@ interface LeaderElectionListener {
  * In suspend contexts, collect [LeaderElectionEventPublisher.events] instead of using callbacks
  * to observe the leader execution lifecycle as a stream.
  */
-sealed interface LeaderElectionEvent {
+sealed interface LeaderElectionEvent : Serializable {
     /** The lock name for which the event was emitted. */
     val lockName: String
 
@@ -90,14 +95,35 @@ sealed interface LeaderElectionEvent {
     }
 
     /** Event emitted when leadership or a group slot is released. */
-    data class Revoked(override val lockName: String) : LeaderElectionEvent
+    data class Revoked(override val lockName: String) : LeaderElectionEvent {
+        companion object {
+            private const val serialVersionUID = 1L
+        }
+    }
 
     /** Event emitted when a leader or group slot could not be acquired and the user action was skipped. */
-    data class Skipped(override val lockName: String) : LeaderElectionEvent
+    data class Skipped(override val lockName: String) : LeaderElectionEvent {
+        companion object {
+            private const val serialVersionUID = 1L
+        }
+    }
 }
 
 /**
  * Contract that exposes a leader election lifecycle event stream.
+ *
+ * ## Behavior / Contract
+ * - [events] remains the coroutine-native hot stream.
+ * - Callback registration helpers collect [events] in a caller-owned [CoroutineScope].
+ * - Closing the returned [AutoCloseable] cancels only that callback collection job.
+ * - Callback exceptions are logged and ignored so observability hooks do not affect leader execution.
+ *
+ * ```kotlin
+ * val handle = publisher.onElected(applicationScope) { event ->
+ *     println("elected ${event.lockName}")
+ * }
+ * handle.close()
+ * ```
  */
 interface LeaderElectionEventPublisher {
 
@@ -107,7 +133,71 @@ interface LeaderElectionEventPublisher {
      * Implementations use a hot event source internally and deliver events that occur while a collector is active.
      */
     val events: Flow<LeaderElectionEvent>
+
+    /**
+     * Registers [listener] for every leader election event.
+     *
+     * The caller owns [scope]. Close the returned handle to stop collecting this publisher for [listener].
+     */
+    fun onEvent(
+        scope: CoroutineScope,
+        listener: Consumer<LeaderElectionEvent>,
+    ): AutoCloseable =
+        subscribeToEvents(scope, "onEvent", LeaderElectionEvent::class.java, listener)
+
+    /**
+     * Registers [listener] for [LeaderElectionEvent.Elected] events.
+     */
+    fun onElected(
+        scope: CoroutineScope,
+        listener: Consumer<LeaderElectionEvent.Elected>,
+    ): AutoCloseable =
+        subscribeToEvents(scope, "onElected", LeaderElectionEvent.Elected::class.java, listener)
+
+    /**
+     * Registers [listener] for [LeaderElectionEvent.Revoked] events.
+     */
+    fun onRevoked(
+        scope: CoroutineScope,
+        listener: Consumer<LeaderElectionEvent.Revoked>,
+    ): AutoCloseable =
+        subscribeToEvents(scope, "onRevoked", LeaderElectionEvent.Revoked::class.java, listener)
+
+    /**
+     * Registers [listener] for [LeaderElectionEvent.Skipped] events.
+     */
+    fun onSkipped(
+        scope: CoroutineScope,
+        listener: Consumer<LeaderElectionEvent.Skipped>,
+    ): AutoCloseable =
+        subscribeToEvents(scope, "onSkipped", LeaderElectionEvent.Skipped::class.java, listener)
 }
+
+private fun <T : LeaderElectionEvent> LeaderElectionEventPublisher.subscribeToEvents(
+    scope: CoroutineScope,
+    callbackName: String,
+    eventType: Class<T>,
+    listener: Consumer<T>,
+): AutoCloseable {
+    val job = events
+        .onEach { event ->
+            if (eventType.isInstance(event)) {
+                val typedEvent = eventType.cast(event)
+                runCatching { listener.accept(typedEvent) }
+                    .onFailure { e ->
+                        LeaderElectionEventPublisherCallbackLogger.log.warn(e) {
+                            "LeaderElectionEventPublisher $callbackName callback failed and was ignored. " +
+                                "lockName=${event.lockName}"
+                        }
+                    }
+            }
+        }
+        .launchIn(scope)
+
+    return AutoCloseable { job.cancel() }
+}
+
+private object LeaderElectionEventPublisherCallbackLogger : KLogging()
 
 /**
  * Contract for registering and unregistering [LeaderElectionListener] instances.

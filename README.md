@@ -558,6 +558,12 @@ GET /actuator/leaderElection
 }
 ```
 
+`LeaderElectionEventPublisher` is the framework-neutral observability surface. Kotlin users can collect the hot
+`events` `Flow`; framework adapters and Java users can register callback consumers with `onEvent`, `onElected`,
+`onRevoked`, or `onSkipped` and close the returned handle during shutdown. Spring Boot Actuator, Ktor management
+routes, Micrometer, logging, tracing, and custom dashboards should adapt from this core event stream instead of
+introducing framework-specific event contracts.
+
 `bluetape4k.leader.observability.lock-names` seeds the JVM-local status registry before the first runtime event. Listener-aware electors can also add names as they observe lifecycle events. The fallback `LeaderElectionEventPublisher` is publisher-only and never becomes a `LeaderElector` candidate, so existing elector injection remains stable.
 
 ---

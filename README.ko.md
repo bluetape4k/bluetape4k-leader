@@ -560,6 +560,12 @@ GET /actuator/leaderElection
 }
 ```
 
+`LeaderElectionEventPublisher`가 framework-neutral observability 표면입니다. Kotlin 사용자는 hot `events`
+`Flow`를 collect할 수 있고, framework adapter와 Java 사용자는 `onEvent`, `onElected`, `onRevoked`,
+`onSkipped` callback consumer를 등록한 뒤 shutdown 시 반환 handle을 닫을 수 있습니다. Spring Boot
+Actuator, Ktor management route, Micrometer, logging, tracing, custom dashboard는 framework별 event
+contract를 새로 만들지 말고 이 core event stream을 adapter로 사용해야 합니다.
+
 `bluetape4k.leader.observability.lock-names`는 첫 runtime event가 관측되기 전에 JVM-local status registry를 seed합니다. Listener-aware elector는 lifecycle event를 관측하면서 이름을 추가할 수도 있습니다. fallback `LeaderElectionEventPublisher`는 publisher 전용이며 `LeaderElector` candidate가 되지 않으므로 기존 elector injection은 안정적으로 유지됩니다.
 
 ---
