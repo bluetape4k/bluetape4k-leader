@@ -42,6 +42,7 @@ examples/
   k8s-lease/              # Kubernetes Lease — low-level acquire/release demo
   k8s-operator/           # Kubernetes Lease + Spring Boot — operator loop demo
   rate-limiter/           # Lettuce Redis + Bucket4j — leader-dispatched probes
+  strategic-election/     # Local strategic election — weighted scoring demo
 buildSrc/
 ```
 

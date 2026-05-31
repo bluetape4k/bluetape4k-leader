@@ -74,6 +74,8 @@ jobs:
             gradle_tasks: :examples:k8s-operator:k8sTest
           - example: examples-rate-limiter
             gradle_tasks: :examples:rate-limiter:test
+          - example: examples-strategic-election
+            gradle_tasks: :examples:strategic-election:test
           - example: examples-ktor-app
             gradle_tasks: :examples:ktor-app:test
           - example: examples-prometheus-dashboard
