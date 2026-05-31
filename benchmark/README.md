@@ -32,6 +32,15 @@ etcd. Raw JSON is stored under:
 - [`docs/benchmarks/2026-05-29-issue-418-kubernetes-throughput.json`](../docs/benchmarks/2026-05-29-issue-418-kubernetes-throughput.json)
 - [`docs/benchmarks/2026-05-29-issue-418-kubernetes-average-time.json`](../docs/benchmarks/2026-05-29-issue-418-kubernetes-average-time.json)
 
+Issue #422 adds focused Redis lease-extension rows from a same-machine run on
+2026-06-01. These rows compare Lettuce and Redisson normal execution against
+the shared `autoExtend` lease extender. Redisson native watchdog mode is not
+represented because the current Redisson electors always pass an explicit
+`leaseTime`. Raw JSON is stored under:
+
+- [`docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-throughput.json`](../docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-throughput.json)
+- [`docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-average-time.json`](../docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-average-time.json)
+
 ## Charts
 
 Distributed backend charts exclude the local and H2 rows so infrastructure
@@ -66,6 +75,46 @@ Details:
 ## Cross-Backend Results
 
 Higher is better for throughput. Lower is better for average time.
+
+## Redis Lease Extension Results
+
+Higher is better for throughput. Lower is better for average time.
+
+The plain `runIfLeader` rows use a 60 second lease and a fast action to compare
+normal execution against the overhead of enabling `autoExtend`. The
+`runIfLeaderWithRenewalWindow` rows use a 90 ms lease and a 45 ms action dwell
+so the auto-extension path has a renewal window; compare those rows only within
+the same method because the dwell time dominates.
+
+`redisson-auto-extend` uses bluetape4k's shared `LeaderLeaseAutoExtender`, not
+Redisson native watchdog renewal. The measured differences are within broad JMH
+error bounds, so these numbers do not justify a production optimization.
+
+### Blocking Redis API
+
+| Scenario | Mode | Throughput (ops/s) | Average time (us/op) | Notes |
+|---|---|---:|---:|---|
+| `runIfLeader` | lettuce-normal | 1,454.484 ± 812.222 | 696.879 ± 261.682 | 60s lease, fast action |
+| `runIfLeader` | lettuce-auto-extend | 1,432.206 ± 673.228 | 674.570 ± 76.338 | Shared auto extender enabled |
+| `runIfLeader` | redisson-normal | 1,392.344 ± 156.055 | 721.043 ± 46.545 | 60s lease, fast action |
+| `runIfLeader` | redisson-auto-extend | 1,379.041 ± 380.447 | 739.360 ± 42.259 | Shared auto extender, not native watchdog |
+| `runIfLeaderWithRenewalWindow` | lettuce-normal | 18.858 ± 2.142 | 52,787.594 ± 13,078.335 | 90ms lease, 45ms action dwell |
+| `runIfLeaderWithRenewalWindow` | lettuce-auto-extend | 19.191 ± 3.072 | 52,012.788 ± 14,742.520 | Renewal-window comparison row |
+| `runIfLeaderWithRenewalWindow` | redisson-normal | 18.540 ± 4.514 | 52,495.646 ± 13,993.629 | 90ms lease, 45ms action dwell |
+| `runIfLeaderWithRenewalWindow` | redisson-auto-extend | 19.150 ± 6.465 | 51,782.799 ± 5,184.910 | Shared auto extender, not native watchdog |
+
+### Suspend Redis API
+
+| Scenario | Mode | Throughput (ops/s) | Average time (us/op) | Notes |
+|---|---|---:|---:|---|
+| `runIfLeader` | lettuce-normal | 1,442.249 ± 772.451 | 668.478 ± 280.073 | 60s lease, fast action |
+| `runIfLeader` | lettuce-auto-extend | 1,413.118 ± 434.324 | 693.538 ± 206.127 | Shared auto extender enabled |
+| `runIfLeader` | redisson-normal | 1,382.143 ± 173.134 | 718.507 ± 233.162 | 60s lease, fast action |
+| `runIfLeader` | redisson-auto-extend | 1,363.848 ± 134.125 | 728.479 ± 177.469 | Shared auto extender, not native watchdog |
+| `runIfLeaderWithRenewalWindow` | lettuce-normal | 18.757 ± 6.519 | 53,820.084 ± 30,715.585 | 90ms lease, 45ms action dwell |
+| `runIfLeaderWithRenewalWindow` | lettuce-auto-extend | 18.876 ± 0.844 | 52,182.685 ± 17,376.505 | Renewal-window comparison row |
+| `runIfLeaderWithRenewalWindow` | redisson-normal | 18.603 ± 7.860 | 53,558.941 ± 19,665.787 | 90ms lease, 45ms action dwell |
+| `runIfLeaderWithRenewalWindow` | redisson-auto-extend | 19.214 ± 8.932 | 51,883.433 ± 6,959.355 | Shared auto extender, not native watchdog |
 
 ### Blocking API
 
@@ -154,6 +203,8 @@ latest self-improve section above for issue #329 after numbers.
 |---|---|
 | `BackendLeaderElectorBenchmark` | Blocking `runIfLeader` across local, Redis, Exposed JDBC H2/PostgreSQL/MySQL, MongoDB, Hazelcast, ZooKeeper, Consul, etcd, and DynamoDB |
 | `SuspendBackendLeaderElectorBenchmark` | Suspend `runIfLeader` across local, Redis, Exposed R2DBC H2/PostgreSQL/MySQL, MongoDB, Hazelcast, ZooKeeper, Consul, etcd, and DynamoDB |
+| `RedisLeaseExtensionBenchmark` | Blocking Lettuce and Redisson normal vs shared `autoExtend` lease-extension rows |
+| `SuspendRedisLeaseExtensionBenchmark` | Suspend Lettuce and Redisson normal vs shared `autoExtend` lease-extension rows |
 | `KubernetesBackendLeaderElectorBenchmark` | Blocking and suspend `runIfLeader` against K3s-backed Kubernetes Lease locks on a separate Vert.x 4 runtime |
 | `LocalLeaderElectorBenchmark` | Local blocking, async, completable-future, suspend, and virtual-thread elector overhead |
 | `HistoryRecorderBenchmark` | No-op and in-memory leader history recorder overhead |
