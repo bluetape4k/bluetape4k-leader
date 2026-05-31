@@ -104,6 +104,7 @@ include(
     "examples:ktor-app",
     "examples:prometheus-dashboard",
     "examples:etcd-reconciler",
+    "examples:consul-maintenance",
     "examples:k8s-lease",
     "examples:k8s-operator",
     "examples:rate-limiter",
