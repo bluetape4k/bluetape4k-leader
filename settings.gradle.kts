@@ -103,6 +103,7 @@ include(
     "examples:tenant-aggregator",
     "examples:ktor-app",
     "examples:prometheus-dashboard",
+    "examples:etcd-reconciler",
     "examples:k8s-lease",
     "examples:k8s-operator",
     "examples:rate-limiter",

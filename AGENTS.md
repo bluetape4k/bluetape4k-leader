@@ -33,6 +33,7 @@ examples/
   tenant-aggregator/      # Exposed R2DBC — coroutine multi-tenant aggregation
   ktor-app/               # Ktor 3.x + Lettuce Redis — leaderScheduled() demo
   prometheus-dashboard/   # Spring Boot + Prometheus/Grafana leader metrics demo
+  etcd-reconciler/        # etcd — one control-plane node runs reconcile loop
 buildSrc/
 ```
 
@@ -142,7 +143,7 @@ locations below in sync. Missing any of them silently disables coverage.
 Example modules currently wired into `ci.yml` and `examples.yml`:
 `batch-scheduler`, `migration-gate`, `webhook-poller`, `cache-warmer`,
 `tenant-aggregator`, `ktor-app`, `prometheus-dashboard`, `k8s-lease`,
-`k8s-operator`, `rate-limiter`. The library module
+`etcd-reconciler`, `k8s-operator`, `rate-limiter`. The library module
 `bluetape4k-leader-ktor` remains in `ci.yml` and `nightly-tests.yml` (Testcontainers Redis).
 
 ## Codex Spec / Plan / Code Review Stages
