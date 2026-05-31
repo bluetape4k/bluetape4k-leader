@@ -9,6 +9,11 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Added a runnable virtual-thread leader runner example for high-concurrency
+  leader-only maintenance work. (#426)
+
 ### Changed
 
 - Opened the `0.3.0` development line after publishing `0.2.2`.
