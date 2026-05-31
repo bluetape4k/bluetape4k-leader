@@ -103,6 +103,38 @@ class LeaderElectionEventTest {
     }
 
     @Test
+    fun `Revoked - serialization round-trip preserves lock name`() {
+        val original = LeaderElectionEvent.Revoked("lock-x")
+
+        val bytes = ByteArrayOutputStream().use { baos ->
+            ObjectOutputStream(baos).use { oos -> oos.writeObject(original) }
+            baos.toByteArray()
+        }
+        val deserialized = ByteArrayInputStream(bytes).use { bais ->
+            ObjectInputStream(bais).use { ois -> ois.readObject() as LeaderElectionEvent.Revoked }
+        }
+
+        deserialized shouldBeEqualTo original
+        deserialized.lockName shouldBeEqualTo "lock-x"
+    }
+
+    @Test
+    fun `Skipped - serialization round-trip preserves lock name`() {
+        val original = LeaderElectionEvent.Skipped("lock-x")
+
+        val bytes = ByteArrayOutputStream().use { baos ->
+            ObjectOutputStream(baos).use { oos -> oos.writeObject(original) }
+            baos.toByteArray()
+        }
+        val deserialized = ByteArrayInputStream(bytes).use { bais ->
+            ObjectInputStream(bais).use { ois -> ois.readObject() as LeaderElectionEvent.Skipped }
+        }
+
+        deserialized shouldBeEqualTo original
+        deserialized.lockName shouldBeEqualTo "lock-x"
+    }
+
+    @Test
     fun `Elected - data class equality considers lease metadata`() {
         val expiry = Instant.parse("2025-06-01T00:00:00Z")
         val lease = LeaderLease("node-1", leaseUntil = expiry)

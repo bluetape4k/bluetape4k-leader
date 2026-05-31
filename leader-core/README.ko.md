@@ -55,10 +55,13 @@ async/가상 스레드 API는 예외 완료됩니다(`join()`에서는 cancellat
 - `onRevoked(lockName)`: 현재 호출이 보유하던 락 또는 슬롯을 반납한 직후
 - `onSkipped(lockName)`: 리더십을 획득하지 못해 작업을 실행하지 않을 때
 
-suspend elector는 같은 생명주기를 `LeaderElectionEventPublisher.events`의 hot `Flow<LeaderElectionEvent>` stream으로도 제공합니다.
+`LeaderElectionEventPublisher.events`는 같은 생명주기를 hot `Flow<LeaderElectionEvent>` stream으로 제공합니다.
 `LeaderElectionEvent.Elected`도 같은 선택적 `LeaderLease` snapshot을 포함합니다. Backend가 정확한 만료 시각을
 보고할 수 없으면 `leader.leaseUntil`과 `leaseExpiry`는 `null`입니다. 이 값은 관측 metadata이며, 소유권 판단은
 항상 backend의 원자적 acquire path를 사용하세요.
+
+Framework 통합이나 Java-friendly adapter에서는 publisher에 callback을 직접 등록할 수 있습니다. 호출자가
+`CoroutineScope`를 소유하며, 반환된 handle을 닫으면 해당 callback collection만 취소됩니다.
 
 ```kotlin
 val election = LocalLeaderElector()
@@ -78,13 +81,12 @@ try {
 ```kotlin
 val election = LocalSuspendLeaderElector()
 
-launch {
-    election.events.collect { event ->
-        println(event)
-    }
+val handle = election.onElected(applicationScope) { event ->
+    println("elected: ${event.lockName} by ${event.leaderId ?: "unknown"}")
 }
 
 election.runIfLeader("nightly-sync") { syncToRemote() }
+handle.close()
 ```
 
 ### 옵션 클래스

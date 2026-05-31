@@ -57,10 +57,13 @@ wrapping the cancellation; `isCancelled()` is not guaranteed). Blocking APIs als
 - `onRevoked(lockName)` after the held lock or slot is released by the current call
 - `onSkipped(lockName)` when the action is not run because leadership was not acquired
 
-For suspend electors, `LeaderElectionEventPublisher.events` exposes the same lifecycle as a hot `Flow<LeaderElectionEvent>`.
+`LeaderElectionEventPublisher.events` exposes the same lifecycle as a hot `Flow<LeaderElectionEvent>`.
 `LeaderElectionEvent.Elected` carries the same optional `LeaderLease` snapshot. `leader.leaseUntil` and
 `leaseExpiry` are `null` when a backend cannot report a precise expiry; treat them as observability metadata,
 not as an ownership decision.
+
+For framework integrations and Java-friendly adapters, register callbacks directly on the publisher. The caller
+owns the `CoroutineScope`; closing the returned handle cancels only that callback collection.
 
 ```kotlin
 val election = LocalLeaderElector()
@@ -80,13 +83,12 @@ try {
 ```kotlin
 val election = LocalSuspendLeaderElector()
 
-launch {
-    election.events.collect { event ->
-        println(event)
-    }
+val handle = election.onElected(applicationScope) { event ->
+    println("elected: ${event.lockName} by ${event.leaderId ?: "unknown"}")
 }
 
 election.runIfLeader("nightly-sync") { syncToRemote() }
+handle.close()
 ```
 
 ### Options
