@@ -2,8 +2,8 @@
 
 Distributed leader election library with blocking, async, coroutine, and
 virtual-thread APIs. Backends include Redis/Lettuce, Redis/Redisson, Exposed,
-MongoDB, Hazelcast, and ZooKeeper. Ktor 3.x integration is provided by
-`bluetape4k-leader-ktor`.
+MongoDB, DynamoDB, etcd, Consul, Kubernetes, Hazelcast, and ZooKeeper. Ktor 3.x
+integration is provided by `bluetape4k-leader-ktor`.
 
 - Group: `io.github.bluetape4k.leader`
 - Publishing: Maven Central through NMCP (`examples/*` are excluded — see
@@ -22,6 +22,10 @@ leader-exposed-r2dbc/
 leader-mongodb/
 leader-hazelcast/
 leader-zookeeper/
+leader-etcd/
+leader-consul/
+leader-dynamodb/
+leader-k8s/
 leader-micrometer/
 leader-spring-boot/
 leader-ktor/
@@ -34,9 +38,10 @@ examples/
   ktor-app/               # Ktor 3.x + Lettuce Redis — leaderScheduled() demo
   prometheus-dashboard/   # Spring Boot + Prometheus/Grafana leader metrics demo
   etcd-reconciler/        # etcd — one control-plane node runs reconcile loop
-  k8s-lease/              # Kubernetes Lease — low-level lease workflow
-  k8s-operator/           # Kubernetes Lease + Spring Boot — operator reconcile loop
-  rate-limiter/           # Lettuce Redis + Bucket4j — leader dispatch + shared quota
+  consul-maintenance/     # Consul — one service instance runs maintenance/drain
+  k8s-lease/              # Kubernetes Lease — low-level acquire/release demo
+  k8s-operator/           # Kubernetes Lease + Spring Boot — operator loop demo
+  rate-limiter/           # Lettuce Redis + Bucket4j — leader-dispatched probes
   strategic-election/     # Local strategic election — weighted scoring demo
 buildSrc/
 ```
@@ -147,8 +152,9 @@ locations below in sync. Missing any of them silently disables coverage.
 Example modules currently wired into `ci.yml` and `examples.yml`:
 `batch-scheduler`, `migration-gate`, `webhook-poller`, `cache-warmer`,
 `tenant-aggregator`, `ktor-app`, `prometheus-dashboard`, `k8s-lease`,
-`etcd-reconciler`, `k8s-operator`, `rate-limiter`. The library module
-`bluetape4k-leader-ktor` remains in `ci.yml` and `nightly-tests.yml` (Testcontainers Redis).
+`etcd-reconciler`, `consul-maintenance`, `k8s-operator`, `rate-limiter`. The
+library module `bluetape4k-leader-ktor` remains in `ci.yml` and
+`nightly-tests.yml` (Testcontainers Redis).
 
 ## Codex Spec / Plan / Code Review Stages
 
