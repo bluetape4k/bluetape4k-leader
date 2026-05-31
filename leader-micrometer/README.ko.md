@@ -23,7 +23,7 @@ bluetape4k leader election을 위한 Micrometer 계측 모듈입니다.
 ## 의존성
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.2.2")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.3.0")
 
 // 애플리케이션에서 사용할 registry를 선택합니다.
 implementation("io.micrometer:micrometer-registry-prometheus")
@@ -32,7 +32,7 @@ implementation("io.micrometer:micrometer-registry-prometheus")
 Spring Boot AOP 메트릭을 사용할 때:
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.2.2")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.3.0")
 implementation("org.springframework.boot:spring-boot-starter-actuator")
 ```
 

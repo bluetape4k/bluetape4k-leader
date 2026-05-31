@@ -170,7 +170,7 @@ Tables are defined in `leader-exposed-core` and created via `ExposedR2dbcSchemaI
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc:0.2.2")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc:0.3.0")
 
 // R2DBC driver — choose one:
 runtimeOnly("io.r2dbc:r2dbc-h2:1.x")

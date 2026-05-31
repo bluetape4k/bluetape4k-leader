@@ -1,29 +1,41 @@
 # WIP - bluetape4k-leader
 
-Snapshot: 2026-05-26 KST
+Snapshot: 2026-06-01 KST
 Scope: open GitHub issues assigned to `debop`.
-Open count: 1 issue.
+Open count: 8 issues.
 
 ## Current Direction
 
-The `0.2.2` patch line has one remaining assigned security/dependency cleanup
-issue. Exposed Gradle plugin adoption is complete.
+The `0.3.0` release scope is merged. Remaining assigned issues are parked in
+Backlog and should be scheduled into a later minor release instead of blocking
+the current release.
 
 ## Active Queue
 
 | Priority | Issue | Milestone | Notes |
 |---|---|---|---|
-| P1 | [#389](https://github.com/bluetape4k/bluetape4k-leader/issues/389) address Dependabot security alerts on default branch | 0.2.2 | 5 high and 5 moderate alerts at issue creation; verify current Dependabot state before editing. |
+| P1 | [#413](https://github.com/bluetape4k/bluetape4k-leader/issues/413) preview backend stable-promotion checklist | Backlog | Epic for Consul, DynamoDB, etcd, and Kubernetes promotion criteria. |
+| P2 | [#416](https://github.com/bluetape4k/bluetape4k-leader/issues/416) reconcile Spring AOP return-type notes | Backlog | Documentation cleanup; do not block 0.3.0. |
+| P2 | [#423](https://github.com/bluetape4k/bluetape4k-leader/issues/423) DynamoDB scheduled export example | Backlog | Example lane for a future minor release. |
+| P2 | [#424](https://github.com/bluetape4k/bluetape4k-leader/issues/424) ZooKeeper legacy scheduler example | Backlog | Example lane for a future minor release. |
+| P2 | [#427](https://github.com/bluetape4k/bluetape4k-leader/issues/427) watchdog overhead benchmark | Backlog | Performance lane under epic #428. |
+| P3 | [#414](https://github.com/bluetape4k/bluetape4k-leader/issues/414) noisy MongoDB suspend benchmark tuning | Backlog | Performance follow-up; verify fresh benchmark variance first. |
+| P3 | [#428](https://github.com/bluetape4k/bluetape4k-leader/issues/428) performance benchmark epic | Backlog | Umbrella issue. |
+| P3 | [#429](https://github.com/bluetape4k/bluetape4k-leader/issues/429) examples epic | Backlog | Umbrella issue. |
 
 ## Open PRs
 
-None.
+None after the 0.3.0 merge batch.
 
 ## Recently Completed
 
-- [#390](https://github.com/bluetape4k/bluetape4k-leader/issues/390) / [PR #391](https://github.com/bluetape4k/bluetape4k-leader/pull/391) adopted the JetBrains Exposed Gradle plugin through `catalog/2026-05-26-00`.
+- [#417](https://github.com/bluetape4k/bluetape4k-leader/issues/417) / [PR #454](https://github.com/bluetape4k/bluetape4k-leader/pull/454) surfaced preview backend release gates in Nightly summaries.
+- [#426](https://github.com/bluetape4k/bluetape4k-leader/issues/426) / [PR #455](https://github.com/bluetape4k/bluetape4k-leader/pull/455) added the virtual-thread runner example.
+- [#425](https://github.com/bluetape4k/bluetape4k-leader/issues/425) / [PR #456](https://github.com/bluetape4k/bluetape4k-leader/pull/456) added the Redisson watchdog example.
+- [#415](https://github.com/bluetape4k/bluetape4k-leader/issues/415) normalized the misspelled performance label.
 
 ## Refresh Notes
 
-- Verified with `gh` on 2026-05-26 KST.
-- Keep `bluetape4k-*` issue and resolving PR milestones aligned.
+- Verified with `gh` on 2026-06-01 KST.
+- Keep `bluetape4k-*` issue and resolving PR milestones aligned. Prefer minor
+  release grouping for non-bugfix work.

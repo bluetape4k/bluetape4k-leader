@@ -24,13 +24,13 @@ The AOP layer is built for AspectJ compile-time weaving via Freefair post-compil
 ## Dependency
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.2.2")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.3.0")
 
 // Add at least one backend module.
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.2.2")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.3.0")
 
 // Optional metrics.
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.2.2")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.3.0")
 implementation("org.springframework.boot:spring-boot-starter-actuator")
 ```
 
