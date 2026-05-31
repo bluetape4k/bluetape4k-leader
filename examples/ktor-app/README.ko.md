@@ -6,7 +6,7 @@ Ktor 3.x REST API 서버 + 리더 선출로 보호되는 주기 백그라운드 
 
 ## 시나리오
 
-여러 Ktor replica가 같은 `/stats`, `/health` 라우트를 노출합니다. 백그라운드
+여러 Ktor replica가 같은 `/stats`, `/health`, `/readyz` 라우트를 노출합니다. 백그라운드
 `leaderScheduled` 작업은 공유 Redis lock `hourly-stats-aggregation`을 사용하므로
 cycle마다 1개 replica만 `StatsAggregator.aggregate()`를 호출하고, 나머지 replica는
 HTTP 트래픽을 계속 처리합니다.
@@ -22,10 +22,11 @@ HTTP 트래픽을 계속 처리합니다.
 ## 핵심 기능
 
 - Ktor 3.x CIO 서버 + `ContentNegotiation` + Jackson JSON 직렬화
+- shared `bluetape4k-ktor-core` health/readiness route 사용
 - `LeaderElectionPlugin` install — Lettuce 백엔드 `SuspendLeaderElector` 주입
 - `Application.leaderScheduled(...)` — 리더 전용 주기 작업, `ApplicationStopped` 시 자동 취소
 - `GET /stats` — `StatsAggregator` 의 in-memory 상태 노출
-- `GET /health` — 단순 liveness probe
+- `GET /health` — liveness probe, `GET /readyz` — readiness probe
 - 다중 인스턴스 환경에서 집계 작업의 단일 실행 보장 (Redis lock)
 - poison-pill 방지 — 한 cycle 의 예외는 로깅만 하고 다음 cycle 계속 진행
 
@@ -60,6 +61,7 @@ fun Application.module(
     }
 
     routing {
+        bluetape4kHealthRoutes(healthPath = "/health")
         statsRoutes(aggregator)
     }
 }
@@ -86,7 +88,10 @@ REDIS_URL=redis://localhost:6379 ./gradlew :examples:ktor-app:run
 
 ```bash
 curl http://localhost:8080/health
-# {"status":"UP"}
+# {"status":"UP","details":{}}
+
+curl http://localhost:8080/readyz
+# {"status":"UP","details":{}}
 
 curl http://localhost:8080/stats
 # {"runCount":1,"lastRunAt":"2026-05-10T..."}
@@ -127,6 +132,7 @@ dependencies {
     implementation(project(":leader-ktor"))
     implementation(project(":leader-redis-lettuce"))
 
+    implementation("io.github.bluetape4k:bluetape4k-ktor-core")
     implementation("io.lettuce:lettuce-core")
 
     implementation("io.ktor:ktor-server-core")
@@ -136,7 +142,10 @@ dependencies {
 }
 
 dependencyManagement {
-    imports { mavenBom("io.ktor:ktor-bom:3.4.3") }
+    imports {
+        mavenBom("io.github.bluetape4k:bluetape4k-bom:1.10.0")
+        mavenBom("io.ktor:ktor-bom:3.5.0")
+    }
 }
 ```
 

@@ -6,6 +6,9 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.ktor.core.HealthResponse
+import io.bluetape4k.ktor.testing.decodeJsonBody
+import io.bluetape4k.ktor.testing.shouldHaveStatus
 import io.bluetape4k.leader.ktor.LeaderElectionPlugin
 import io.bluetape4k.leader.ktor.leaderScheduled
 import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderElector
@@ -56,7 +59,7 @@ class KtorAppTest: AbstractKtorAppTest() {
             startApplication()
 
             val response = client.get("/stats") { accept(ContentType.Application.Json) }
-            response.status shouldBeEqualTo HttpStatusCode.OK
+            response shouldHaveStatus HttpStatusCode.OK
 
             val body = response.bodyAsText()
             log.debug { "GET /stats body=$body" }
@@ -82,10 +85,30 @@ class KtorAppTest: AbstractKtorAppTest() {
             startApplication()
 
             val response = client.get("/health") { accept(ContentType.Application.Json) }
-            response.status shouldBeEqualTo HttpStatusCode.OK
+            response shouldHaveStatus HttpStatusCode.OK
 
-            val node = objectMapper.readTree(response.bodyAsText())
-            node.get("status").asText() shouldBeEqualTo "UP"
+            val health = response.decodeJsonBody<HealthResponse>()
+            health.status shouldBeEqualTo HealthResponse.UP
+        }
+    }
+
+    @Test
+    fun `GET readyz - shared readiness route returns UP`() = runSuspendIO {
+        testApplication {
+            application {
+                module(
+                    connection = newConnection(),
+                    aggregationLockName = randomLockName(),
+                    aggregationPeriod = 1.seconds,
+                )
+            }
+            startApplication()
+
+            val response = client.get("/readyz") { accept(ContentType.Application.Json) }
+            response shouldHaveStatus HttpStatusCode.OK
+
+            val readiness = response.decodeJsonBody<HealthResponse>()
+            readiness.status shouldBeEqualTo HealthResponse.UP
         }
     }
 
@@ -114,7 +137,7 @@ class KtorAppTest: AbstractKtorAppTest() {
 
             // REST endpoint 로도 동일 상태 노출 확인
             val response = client.get("/stats") { accept(ContentType.Application.Json) }
-            response.status shouldBeEqualTo HttpStatusCode.OK
+            response shouldHaveStatus HttpStatusCode.OK
             val body = response.bodyAsText()
             val node = objectMapper.readTree(body)
             val runCountNode = requireNotNull(node.get("runCount")) {

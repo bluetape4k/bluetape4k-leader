@@ -89,6 +89,8 @@ bluetape4k-testcontainers = { module = "io.github.bluetape4k:bluetape4k-testcont
 bluetape4k-lettuce = { module = "io.github.bluetape4k:bluetape4k-lettuce" }
 bluetape4k-redisson = { module = "io.github.bluetape4k:bluetape4k-redisson" }
 bluetape4k-bucket4j = { module = "io.github.bluetape4k:bluetape4k-bucket4j" }
+bluetape4k-ktor-core = { module = "io.github.bluetape4k:bluetape4k-ktor-core" }
+bluetape4k-ktor-testing = { module = "io.github.bluetape4k:bluetape4k-ktor-testing" }
 bluetape4k-virtualthread-jdk21 = { module = "io.github.bluetape4k:bluetape4k-virtualthread-jdk21" }
 
 # bluetape4k Exposed test helpers
