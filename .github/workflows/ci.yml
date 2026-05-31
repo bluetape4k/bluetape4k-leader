@@ -106,6 +106,7 @@ jobs:
       examples-k8s-lease: ${{ steps.filter.outputs.examples-k8s-lease }}
       examples-k8s-operator: ${{ steps.filter.outputs.examples-k8s-operator }}
       examples-rate-limiter: ${{ steps.filter.outputs.examples-rate-limiter }}
+      examples-strategic-election: ${{ steps.filter.outputs.examples-strategic-election }}
       benchmark: ${{ steps.filter.outputs.benchmark }}
     steps:
       - uses: actions/checkout@v6
@@ -195,6 +196,9 @@ jobs:
             examples-rate-limiter:
               - 'examples/rate-limiter/**'
               - 'leader-redis-lettuce/**'
+              - 'leader-core/**'
+            examples-strategic-election:
+              - 'examples/strategic-election/**'
               - 'leader-core/**'
             benchmark:
               - 'benchmark/**'
@@ -1062,6 +1066,40 @@ jobs:
           path: '**/build/test-results/test/*.xml'
           retention-days: 7
 
+  # ── examples-strategic-election (backend-neutral strategic scoring) ────────
+  test-examples-strategic-election:
+    name: Test / examples-strategic-election
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs['examples-strategic-election'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: wrapper
+          cache-read-only: true
+      - name: Test examples-strategic-election
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew :examples:strategic-election:test --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-examples-strategic-election
+          path: '**/build/test-results/test/*.xml'
+          retention-days: 7
+
   # ── examples-ktor-app (Testcontainers Redis + Ktor 3.x) ─────────────────────
   test-examples-ktor-app:
     name: Test / examples-ktor-app
@@ -1596,6 +1634,7 @@ jobs:
       - test-examples-k8s-lease
       - test-examples-k8s-operator
       - test-examples-rate-limiter
+      - test-examples-strategic-election
       - test-examples-migration-gate
       - test-examples-webhook-poller
       - test-examples-cache-warmer
@@ -1660,6 +1699,7 @@ jobs:
       - test-examples-k8s-lease
       - test-examples-k8s-operator
       - test-examples-rate-limiter
+      - test-examples-strategic-election
       - test-examples-migration-gate
       - test-examples-webhook-poller
       - test-examples-cache-warmer

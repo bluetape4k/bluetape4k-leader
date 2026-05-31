@@ -107,4 +107,5 @@ include(
     "examples:k8s-lease",
     "examples:k8s-operator",
     "examples:rate-limiter",
+    "examples:strategic-election",
 )

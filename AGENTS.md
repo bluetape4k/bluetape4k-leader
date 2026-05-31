@@ -34,6 +34,10 @@ examples/
   ktor-app/               # Ktor 3.x + Lettuce Redis — leaderScheduled() demo
   prometheus-dashboard/   # Spring Boot + Prometheus/Grafana leader metrics demo
   etcd-reconciler/        # etcd — one control-plane node runs reconcile loop
+  k8s-lease/              # Kubernetes Lease — low-level lease workflow
+  k8s-operator/           # Kubernetes Lease + Spring Boot — operator reconcile loop
+  rate-limiter/           # Lettuce Redis + Bucket4j — leader dispatch + shared quota
+  strategic-election/     # Local strategic election — weighted scoring demo
 buildSrc/
 ```
 
