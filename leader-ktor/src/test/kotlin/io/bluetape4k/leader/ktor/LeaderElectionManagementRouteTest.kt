@@ -3,6 +3,7 @@ package io.bluetape4k.leader.ktor
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.ktor.testing.shouldHaveStatus
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
@@ -28,7 +29,7 @@ class LeaderElectionManagementRouteTest {
 
             val response = client.get("/management/leaderElection")
 
-            response.status shouldBeEqualTo HttpStatusCode.NotFound
+            response shouldHaveStatus HttpStatusCode.NotFound
         }
     }
 
@@ -46,7 +47,7 @@ class LeaderElectionManagementRouteTest {
 
             val response = client.get("/management/leaderElection")
 
-            response.status shouldBeEqualTo HttpStatusCode.OK
+            response shouldHaveStatus HttpStatusCode.OK
             response.bodyAsText() shouldBeEqualTo
                 """{"locks":[{"name":"batch-job","status":"Empty","leaderId":null,"leaseExpiry":null}]}"""
         }
@@ -67,7 +68,7 @@ class LeaderElectionManagementRouteTest {
 
             val response = client.get("/internal/leader-status")
 
-            response.status shouldBeEqualTo HttpStatusCode.OK
+            response shouldHaveStatus HttpStatusCode.OK
             response.bodyAsText() shouldContain "\"name\":\"batch-job\""
         }
     }
@@ -89,7 +90,7 @@ class LeaderElectionManagementRouteTest {
 
             val response = client.get("/management/leaderElection")
 
-            response.status shouldBeEqualTo HttpStatusCode.OK
+            response shouldHaveStatus HttpStatusCode.OK
             response.bodyAsText() shouldContain "\"name\":\"scheduled-job\""
         }
     }

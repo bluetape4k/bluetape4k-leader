@@ -22,7 +22,7 @@ HTTP 트래픽을 계속 처리합니다.
 ## 핵심 기능
 
 - Ktor 3.x CIO 서버 + `ContentNegotiation` + Jackson JSON 직렬화
-- shared `bluetape4k-ktor-core` health/readiness route 사용
+- shared `bluetape4k-ktor-core` installer 로 health/readiness route 등록
 - `LeaderElectionPlugin` install — Lettuce 백엔드 `SuspendLeaderElector` 주입
 - `Application.leaderScheduled(...)` — 리더 전용 주기 작업, `ApplicationStopped` 시 자동 취소
 - `GET /stats` — `StatsAggregator` 의 in-memory 상태 노출
@@ -60,8 +60,15 @@ fun Application.module(
         aggregator.aggregate()
     }
 
+    installBluetape4kKtorCore(
+        Bluetape4kKtorCoreConfig(
+            installContentNegotiation = false,
+            installStatusPages = false,
+            healthPath = "/health",
+        )
+    )
+
     routing {
-        bluetape4kHealthRoutes(healthPath = "/health")
         statsRoutes(aggregator)
     }
 }
@@ -139,6 +146,8 @@ dependencies {
     implementation("io.ktor:ktor-server-cio")
     implementation("io.ktor:ktor-server-content-negotiation")
     implementation("io.ktor:ktor-serialization-jackson")
+
+    testImplementation("io.github.bluetape4k:bluetape4k-ktor-testing")
 }
 
 dependencyManagement {

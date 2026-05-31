@@ -2,7 +2,8 @@ package io.bluetape4k.leader.examples.ktor
 
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import io.bluetape4k.ktor.core.bluetape4kHealthRoutes
+import io.bluetape4k.ktor.core.Bluetape4kKtorCoreConfig
+import io.bluetape4k.ktor.core.installBluetape4kKtorCore
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.ktor.LeaderElectionPlugin
@@ -85,7 +86,8 @@ object KtorAppMain: KLogging() {
  *
  * ## 동작/계약
  *
- * - [ContentNegotiation] + Jackson 으로 JSON 직렬화 활성화.
+ * - [ContentNegotiation] + Jackson 으로 `/stats` JSON 직렬화 활성화.
+ * - [installBluetape4kKtorCore] 로 `/health`, `/readyz` 공통 health/readiness route 등록.
  * - [LeaderElectionPlugin] 설치 — [SuspendLeaderElector] 인스턴스 주입.
  * - [Application.leaderScheduled] 로 시간별 통계 집계 백그라운드 잡을 등록 — `ApplicationStopped` 시 자동 취소.
  * - `/stats`, `/health`, `/readyz` 라우트를 등록한다.
@@ -114,6 +116,13 @@ fun Application.module(
             disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
         }
     }
+    installBluetape4kKtorCore(
+        Bluetape4kKtorCoreConfig(
+            installContentNegotiation = false,
+            installStatusPages = false,
+            healthPath = "/health",
+        )
+    )
 
     val electorOptions = LeaderElectionOptions(
         // 비리더 인스턴스가 즉시 skip 하도록 짧은 wait 사용 (테스트의 짧은 period 와 호환)
@@ -133,7 +142,6 @@ fun Application.module(
     }
 
     routing {
-        bluetape4kHealthRoutes(healthPath = "/health")
         statsRoutes(aggregator)
     }
 }
