@@ -2,6 +2,7 @@ package io.bluetape4k.leader.examples.ktor
 
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import io.bluetape4k.ktor.core.bluetape4kHealthRoutes
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.ktor.LeaderElectionPlugin
@@ -87,7 +88,7 @@ object KtorAppMain: KLogging() {
  * - [ContentNegotiation] + Jackson 으로 JSON 직렬화 활성화.
  * - [LeaderElectionPlugin] 설치 — [SuspendLeaderElector] 인스턴스 주입.
  * - [Application.leaderScheduled] 로 시간별 통계 집계 백그라운드 잡을 등록 — `ApplicationStopped` 시 자동 취소.
- * - `/stats`, `/health` 라우트를 등록한다.
+ * - `/stats`, `/health`, `/readyz` 라우트를 등록한다.
  *
  * ## 리더 선출 옵션 — leaseTime / minLeaseTime
  *
@@ -132,6 +133,7 @@ fun Application.module(
     }
 
     routing {
+        bluetape4kHealthRoutes(healthPath = "/health")
         statsRoutes(aggregator)
     }
 }

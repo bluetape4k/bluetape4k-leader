@@ -6,12 +6,12 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 
 /**
- * [StatsAggregator] 의 현재 상태와 헬스 체크를 노출하는 REST 라우트 모음.
+ * [StatsAggregator] 의 현재 상태를 노출하는 REST 라우트.
  *
  * ## 동작/계약
  *
  * - `GET /stats` — [StatsAggregator.currentState] 결과를 JSON 으로 반환 (200 OK).
- * - `GET /health` — 단순 liveness probe. 항상 `{"status":"UP"}` (200 OK) 반환.
+ * - 범용 health/readiness endpoint 는 bluetape4k Ktor core 의 `bluetape4kHealthRoutes` 로 등록한다.
  * - JSON 직렬화는 [ContentNegotiation] + Jackson 으로 처리되므로, 본 모듈에서는 [respond] 만 호출한다.
  *
  * ```kotlin
@@ -26,9 +26,5 @@ import io.ktor.server.routing.get
 fun Route.statsRoutes(aggregator: StatsAggregator) {
     get("/stats") {
         call.respond(HttpStatusCode.OK, aggregator.currentState())
-    }
-
-    get("/health") {
-        call.respond(HttpStatusCode.OK, mapOf("status" to "UP"))
     }
 }

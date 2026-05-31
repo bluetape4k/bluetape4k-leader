@@ -25,6 +25,7 @@ dependencies {
     implementation(libs.bluetape4k.coroutines)
     implementation(libs.bluetape4k.logging)
     implementation(libs.bluetape4k.lettuce)
+    implementation(libs.bluetape4k.ktor.core)
     implementation(libs.lettuce.core)
 
     implementation(libs.kotlinx.coroutines.core)
@@ -46,6 +47,7 @@ dependencies {
     implementation(libs.testcontainers)
 
     testImplementation(libs.bluetape4k.junit5)
+    testImplementation(libs.bluetape4k.ktor.testing)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.ktor.server.test.host)

@@ -6,7 +6,7 @@ Ktor 3.x REST API server with a leader-election-protected periodic background jo
 
 ## Scenario
 
-Several Ktor replicas expose the same `/stats` and `/health` routes. A
+Several Ktor replicas expose the same `/stats`, `/health`, and `/readyz` routes. A
 background `leaderScheduled` job uses the shared Redis lock
 `hourly-stats-aggregation`, so only one replica calls `StatsAggregator.aggregate()`
 per cycle while the other replicas keep serving HTTP traffic.
@@ -22,10 +22,11 @@ per cycle while the other replicas keep serving HTTP traffic.
 ## Core Features
 
 - Ktor 3.x CIO server with `ContentNegotiation` + Jackson JSON
+- Shared `bluetape4k-ktor-core` health/readiness routes
 - `LeaderElectionPlugin` install — Lettuce-backed `SuspendLeaderElector`
 - `Application.leaderScheduled(...)` — leader-only periodic job, auto-cancelled on `ApplicationStopped`
 - `GET /stats` exposes the in-memory `StatsAggregator` snapshot
-- `GET /health` simple liveness probe
+- `GET /health` liveness probe and `GET /readyz` readiness probe
 - Single-execution guarantee for the aggregation job across N replicas (Redis lock)
 - Poison-pill protection — exception in one cycle is logged, next cycle keeps running
 
@@ -60,6 +61,7 @@ fun Application.module(
     }
 
     routing {
+        bluetape4kHealthRoutes(healthPath = "/health")
         statsRoutes(aggregator)
     }
 }
@@ -86,7 +88,10 @@ In a second terminal:
 
 ```bash
 curl http://localhost:8080/health
-# {"status":"UP"}
+# {"status":"UP","details":{}}
+
+curl http://localhost:8080/readyz
+# {"status":"UP","details":{}}
 
 curl http://localhost:8080/stats
 # {"runCount":1,"lastRunAt":"2026-05-10T..."}
@@ -127,6 +132,7 @@ dependencies {
     implementation(project(":leader-ktor"))
     implementation(project(":leader-redis-lettuce"))
 
+    implementation("io.github.bluetape4k:bluetape4k-ktor-core")
     implementation("io.lettuce:lettuce-core")
 
     implementation("io.ktor:ktor-server-core")
@@ -136,7 +142,10 @@ dependencies {
 }
 
 dependencyManagement {
-    imports { mavenBom("io.ktor:ktor-bom:3.4.3") }
+    imports {
+        mavenBom("io.github.bluetape4k:bluetape4k-bom:1.10.0")
+        mavenBom("io.ktor:ktor-bom:3.5.0")
+    }
 }
 ```
 
