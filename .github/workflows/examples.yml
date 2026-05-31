@@ -78,6 +78,8 @@ jobs:
             gradle_tasks: :examples:strategic-election:test
           - example: examples-virtual-thread-runner
             gradle_tasks: :examples:virtual-thread-runner:test
+          - example: examples-redisson-watchdog
+            gradle_tasks: :examples:redisson-watchdog:test
           - example: examples-ktor-app
             gradle_tasks: :examples:ktor-app:test
           - example: examples-prometheus-dashboard

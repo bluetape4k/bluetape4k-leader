@@ -110,4 +110,5 @@ include(
     "examples:rate-limiter",
     "examples:strategic-election",
     "examples:virtual-thread-runner",
+    "examples:redisson-watchdog",
 )

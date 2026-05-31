@@ -13,6 +13,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Added a runnable virtual-thread leader runner example for high-concurrency
   leader-only maintenance work. (#426)
+- Added a runnable Redisson watchdog example for long-running leader-only jobs
+  protected by bluetape4k lease auto-extension. (#425)
 
 ### Changed
 

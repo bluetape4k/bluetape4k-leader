@@ -105,6 +105,7 @@ The ERD-style view below summarizes how module catalog rows, backend capabilitie
 | [`examples/rate-limiter`](./examples/rate-limiter) | Lettuce Redis + Bucket4j | Leader-dispatched external API probes with shared rate limiting |
 | [`examples/strategic-election`](./examples/strategic-election) | Local strategic election | Weighted health, capacity, success-rate, and idle-time scoring for a maintenance node |
 | [`examples/virtual-thread-runner`](./examples/virtual-thread-runner) | Local virtual-thread election | High-concurrency leader-only maintenance runner using Java virtual threads |
+| [`examples/redisson-watchdog`](./examples/redisson-watchdog) | Redisson Redis | Long-running leader-only job protected by bluetape4k lease auto-extension |
 
 Run any example with `./gradlew :examples:<name>:run` (Docker required for Testcontainers-backed demos).
 
@@ -237,7 +238,7 @@ val election = RedissonLeaderElector(client, options)
 
 `minLeaseTime` is the `lockAtLeastFor` equivalent. Local electors wait before releasing; supported distributed backends delegate the remaining minimum lease to storage TTL so callers can return immediately.
 
-`autoExtend` is opt-in for single-leader elections. Local, Lettuce, MongoDB, and Redisson keep the lease alive while the action is running; Redisson delegates to its native watchdog. `@LeaderGroupElection` does not support auto-extension yet. Redisson rejects `autoExtend=true` with `minLeaseTime > 0` because watchdog release semantics would be ambiguous.
+`autoExtend` is opt-in for single-leader elections. Local, Lettuce, MongoDB, and Redisson keep the lease alive while the action is running; Redisson uses the shared bluetape4k `LeaderLeaseAutoExtender` path because the elector acquires locks with an explicit `leaseTime`. `@LeaderGroupElection` does not support auto-extension yet.
 
 ### State snapshots
 
