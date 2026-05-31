@@ -359,7 +359,7 @@ Final focused rerun result after canonical Flow example correction: P0 = 0, P1 =
 ├──────────────────────────────────────────────┼────────┼────────────────────────────────────────────────────────────┤
 │ Worktree created from current develop        │ Done   │ `origin/develop@8ab6e30a`.                                │
 ├──────────────────────────────────────────────┼────────┼────────────────────────────────────────────────────────────┤
-│ qmd / prior docs searched                    │ Done   │ Used `zsh -ic qmdq ...`; found AOP and lock extender docs. │
+│ GNO / prior docs searched                    │ Done   │ Used `zsh -ic gnoq ...`; found AOP and lock extender docs. │
 ├──────────────────────────────────────────────┼────────┼────────────────────────────────────────────────────────────┤
 │ Current source inspected                     │ Done   │ AOP aspects, validator, annotations, suspend electors.     │
 ├──────────────────────────────────────────────┼────────┼────────────────────────────────────────────────────────────┤

@@ -146,7 +146,7 @@ where Testcontainers Redis is available.
 
 ## Research Notes
 
-- qmd helper was unavailable in this shell, so repo `rg` over docs/lessons and
+- GNO helper was unavailable in this shell, so repo `rg` over docs/lessons and
   README files was used instead.
 - Spring Boot official docs confirm `/actuator/prometheus` is the Prometheus
   scrape endpoint and show a `scrape_configs` entry with

@@ -45,7 +45,7 @@ releasable.
 - GitHub #335 requires a publishable `leader-k8s` module using
   `coordination.k8s.io/v1` Lease, plus K3s tests, README/RBAC docs, BOM, CI, and
   nightly wiring.
-- `qmd query "leader-k8s Kubernetes Lease leader election bluetape4k #335 #231 #248"
+- `gno query "leader-k8s Kubernetes Lease leader election bluetape4k #335 #231 #248"
   -c bluetape4k-docs --no-rerank` found #248 spec/plan/lesson and confirmed the
   earlier K3s Lease example is the relevant predecessor.
 - `/Users/debop/.local/share/chezmoi/private_dot_codex/memories/MEMORY.md`

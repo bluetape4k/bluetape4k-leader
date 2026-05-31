@@ -17,7 +17,7 @@ This branch is stacked on #224 because blocking `ListeningLeaderElector` and `Li
 - Ktor official docs confirm `routing { get { call.respond(...) } }` and `testApplication` as the route/test surface.
 - Current repo has no global lock-name registry. `LeaderElectionState.state(lockName)` can query a known name, but cannot enumerate names.
 - Current repo has listener/event decorators, but creating a separate wrapper bean cannot intercept calls made through an already-injected original `LeaderElector`.
-- `qmdq` was unavailable in this shell, so memory lookup fell back to `rg` over repo docs and source.
+- `gnoq` was unavailable in this shell, so memory lookup fell back to `rg` over repo docs and source.
 
 ## Design
 
