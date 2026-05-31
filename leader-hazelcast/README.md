@@ -164,7 +164,7 @@ Lock map names:
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-hazelcast:0.2.2")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-hazelcast:0.3.0")
 
 // Hazelcast must be on the classpath
 implementation("com.hazelcast:hazelcast:5.x.x")

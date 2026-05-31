@@ -9,8 +9,19 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+---
+
+## [0.3.0] — 2026-06-01
+
 ### Added
 
+- Added Kubernetes Lease per-slot group election support with Nightly-backed
+  coverage for the safe slot contract.
+- Added framework-neutral leader event callback handles for callers that need
+  lifecycle events without binding to Spring or Ktor.
+- Added runnable adoption examples for etcd reconcilers, Consul maintenance
+  windows, strategic election, virtual-thread leader jobs, and Redisson-backed
+  long-running leader jobs.
 - Added a runnable virtual-thread leader runner example for high-concurrency
   leader-only maintenance work. (#426)
 - Added a runnable Redisson watchdog example for long-running leader-only jobs
@@ -19,9 +30,17 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - Opened the `0.3.0` development line after publishing `0.2.2`.
+- Updated public README dependency snippets to the `0.3.0` release coordinate.
+- Refreshed README architecture, benchmark, and example workflow diagrams with
+  reproducible rendering evidence.
+- Aligned the Ktor example and Ktor-facing consumer guidance with shared
+  bluetape4k Ktor health modules.
+- Made preview backend release gate evidence explicit in the Nightly summary
+  documentation and workflow surface. (#417)
 - Updated the `bluetape4k-exposed` test helper reference from `1.9.2-SNAPSHOT`
   to the published `1.9.2` release.
 - Aligned the AWS SDK BOM with the central `bluetape4k-dependencies` catalog.
+- Consumed the `bluetape4k-projects` `1.10.0` BOM line.
 
 ### Fixed
 
@@ -33,6 +52,14 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   dependency submission no longer reports its stale plugin POM transitives. (#389)
 - Removed the unused Exposed migration plugin from `examples/migration-gate`;
   the example uses runtime Exposed APIs directly and does not need plugin tasks. (#389)
+- Kept Spring group stream support explicitly rejected until per-slot group lease
+  extension semantics are defined.
+
+### Performance
+
+- Added Redis lease-extension benchmark evidence for Lettuce and Redisson.
+- Added SQL backend and preview backend benchmark evidence to make release
+  recommendations measurement-backed.
 
 ---
 
@@ -322,7 +349,8 @@ The following deprecated APIs were removed before 0.1.0 GA (#264):
 
 ---
 
-[Unreleased]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.2.2...HEAD
+[Unreleased]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.3.0...HEAD
+[0.3.0]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.2.2...0.3.0
 [0.2.2]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.2.1...0.2.2
 [0.2.1]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.2.0...0.2.1
 [0.2.0]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.1.0...0.2.0

@@ -179,7 +179,7 @@ val election = ExposedJdbcLeaderElector(db, options, recorder)
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-jdbc:0.2.2")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-jdbc:0.3.0")
 
 // Exposed + JDBC 드라이버가 클래스패스에 있어야 합니다
 implementation("org.jetbrains.exposed:exposed-jdbc:1.2.0")

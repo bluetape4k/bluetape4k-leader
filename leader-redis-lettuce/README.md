@@ -197,7 +197,7 @@ removed with `HDEL` on release. An empty `leaderId` skips the write entirely.
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:0.2.2")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:0.3.0")
 
 // Lettuce must be on the classpath
 implementation("io.lettuce:lettuce-core:6.x.x")
