@@ -76,6 +76,8 @@ jobs:
             gradle_tasks: :examples:rate-limiter:test
           - example: examples-strategic-election
             gradle_tasks: :examples:strategic-election:test
+          - example: examples-virtual-thread-runner
+            gradle_tasks: :examples:virtual-thread-runner:test
           - example: examples-ktor-app
             gradle_tasks: :examples:ktor-app:test
           - example: examples-prometheus-dashboard

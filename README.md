@@ -104,6 +104,7 @@ The ERD-style view below summarizes how module catalog rows, backend capabilitie
 | [`examples/k8s-operator`](./examples/k8s-operator) | Kubernetes Lease + Spring Boot | 3-replica operator pattern where one pod runs the reconcile loop |
 | [`examples/rate-limiter`](./examples/rate-limiter) | Lettuce Redis + Bucket4j | Leader-dispatched external API probes with shared rate limiting |
 | [`examples/strategic-election`](./examples/strategic-election) | Local strategic election | Weighted health, capacity, success-rate, and idle-time scoring for a maintenance node |
+| [`examples/virtual-thread-runner`](./examples/virtual-thread-runner) | Local virtual-thread election | High-concurrency leader-only maintenance runner using Java virtual threads |
 
 Run any example with `./gradlew :examples:<name>:run` (Docker required for Testcontainers-backed demos).
 

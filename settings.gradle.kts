@@ -109,4 +109,5 @@ include(
     "examples:k8s-operator",
     "examples:rate-limiter",
     "examples:strategic-election",
+    "examples:virtual-thread-runner",
 )
