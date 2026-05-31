@@ -1159,6 +1159,44 @@ jobs:
           path: coverage-artifacts/
           retention-days: 30
 
+  preview-backend-release-summary:
+    name: Preview Backend Release Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - test-leader-dynamodb
+      - test-leader-etcd
+      - test-leader-consul
+      - test-leader-k8s
+    if: always()
+    steps:
+      - name: Summarize preview backend gates
+        env:
+          DYNAMODB_RESULT: ${{ needs.test-leader-dynamodb.result }}
+          ETCD_RESULT: ${{ needs.test-leader-etcd.result }}
+          CONSUL_RESULT: ${{ needs.test-leader-consul.result }}
+          K8S_RESULT: ${{ needs.test-leader-k8s.result }}
+        run: |
+          {
+            echo "## Preview backend release gates"
+            echo
+            echo "| Backend | Evidence job | Runtime scope | Result | Release preflight interpretation |"
+            echo "|---|---|---|---|---|"
+            echo "| Consul | Test / leader-consul | Testcontainers Consul | ${CONSUL_RESULT} | Must be success for release. |"
+            echo "| DynamoDB | Test / leader-dynamodb (DynamoDB Local) | DynamoDB Local via Testcontainers, full Nightly only | ${DYNAMODB_RESULT} | Must be success for release; skipped means run full Nightly. |"
+            echo "| etcd | Test / leader-etcd (Testcontainers) | etcd via Testcontainers, full Nightly only | ${ETCD_RESULT} | Must be success for release; skipped means run full Nightly. |"
+            echo "| Kubernetes Lease | Test / leader-k8s (K3s + group slots) | unit + K3s runtime group-slot coverage, full Nightly only | ${K8S_RESULT} | Must be success for release; skipped means run full Nightly. |"
+            echo
+            echo "Release preflight should read this summary from the latest full Nightly run before tagging."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          results="${CONSUL_RESULT},${DYNAMODB_RESULT},${ETCD_RESULT},${K8S_RESULT}"
+          echo "Preview backend release gate results: $results"
+          if echo "$results" | grep -qE "failure|cancelled"; then
+            echo "One or more preview backend release gates failed."
+            exit 1
+          fi
+
   nightly-status:
     name: Nightly Status
     runs-on: ubuntu-latest
@@ -1188,6 +1226,7 @@ jobs:
       - test-spring-boot
       - test-leader-ktor
       - coverage-report
+      - preview-backend-release-summary
     if: always()
     steps:
       - name: Check all jobs
