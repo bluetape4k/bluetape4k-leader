@@ -2,17 +2,18 @@
 
 Snapshot: 2026-06-01 KST
 Scope: open GitHub issues assigned to `debop`.
-Open count: 8 issues plus the release-train dependency alignment change in
-progress.
+Open count: 8 issues. The release-train dependency alignment is prepared for
+the `0.3.1` patch release.
 
 ## Current Direction
 
-The `0.3.0` release scope is merged. Remaining assigned issues are parked in
-Backlog and should be scheduled into a later minor release instead of blocking
-the current release.
+The `0.3.1` patch release carries only the release-train dependency alignment
+for the Exposed-backed modules. Remaining assigned issues are parked in Backlog
+and should be scheduled into a later minor release instead of blocking this
+patch release.
 
-The current `0.4.0` development line now carries the `bluetape4k-exposed`
-`1.10.0` alignment. The publishable Exposed leader modules should keep
+The release line now carries the `bluetape4k-exposed` `1.10.0` alignment. The
+publishable Exposed leader modules should keep
 `bluetape4k-exposed-bom` on `implementation(platform(...))` so the BOM does not
 leak as an API platform dependency.
 
@@ -21,7 +22,7 @@ leak as an API platform dependency.
 | Priority | Issue | Milestone | Notes |
 |---|---|---|---|
 | P1 | [#413](https://github.com/bluetape4k/bluetape4k-leader/issues/413) preview backend stable-promotion checklist | Backlog | Epic for Consul, DynamoDB, etcd, and Kubernetes promotion criteria. |
-| P2 | [#416](https://github.com/bluetape4k/bluetape4k-leader/issues/416) reconcile Spring AOP return-type notes | Backlog | Documentation cleanup; do not block 0.3.0. |
+| P2 | [#416](https://github.com/bluetape4k/bluetape4k-leader/issues/416) reconcile Spring AOP return-type notes | Backlog | Documentation cleanup; do not block 0.3.x patch releases. |
 | P2 | [#423](https://github.com/bluetape4k/bluetape4k-leader/issues/423) DynamoDB scheduled export example | Backlog | Example lane for a future minor release. |
 | P2 | [#424](https://github.com/bluetape4k/bluetape4k-leader/issues/424) ZooKeeper legacy scheduler example | Backlog | Example lane for a future minor release. |
 | P2 | [#427](https://github.com/bluetape4k/bluetape4k-leader/issues/427) watchdog overhead benchmark | Backlog | Performance lane under epic #428. |
@@ -31,7 +32,7 @@ leak as an API platform dependency.
 
 ## Open PRs
 
-None after the 0.3.0 merge batch.
+Release prep for `0.3.1` is in progress.
 
 ## Recently Completed
 

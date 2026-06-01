@@ -9,6 +9,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+---
+
+## [0.3.1] — 2026-06-01
+
 ### Changed
 
 - Updated the `bluetape4k-exposed` test helper line to `1.10.0` and imported
@@ -357,7 +361,8 @@ The following deprecated APIs were removed before 0.1.0 GA (#264):
 
 ---
 
-[Unreleased]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.3.0...HEAD
+[Unreleased]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.3.1...HEAD
+[0.3.1]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.3.0...0.3.1
 [0.3.0]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.2.2...0.3.0
 [0.2.2]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.2.1...0.2.2
 [0.2.1]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.2.0...0.2.1
