@@ -2,18 +2,17 @@
 
 Snapshot: 2026-06-01 KST
 Scope: open GitHub issues assigned to `debop`.
-Open count: 8 issues. The release-train dependency alignment is prepared for
-the `0.3.1` patch release.
+Open count: 8 issues. The release-train dependency alignment shipped in the
+`0.3.1` patch release.
 
 ## Current Direction
 
-The `0.3.1` patch release carries only the release-train dependency alignment
+The `0.3.1` patch release carried only the release-train dependency alignment
 for the Exposed-backed modules. Remaining assigned issues are parked in Backlog
-and should be scheduled into a later minor release instead of blocking this
-patch release.
+and should be scheduled into a later minor release.
 
-The release line now carries the `bluetape4k-exposed` `1.10.0` alignment. The
-publishable Exposed leader modules should keep
+The current `0.4.0` development line carries the `bluetape4k-exposed` `1.10.0`
+alignment. The publishable Exposed leader modules should keep
 `bluetape4k-exposed-bom` on `implementation(platform(...))` so the BOM does not
 leak as an API platform dependency.
 
@@ -32,7 +31,7 @@ leak as an API platform dependency.
 
 ## Open PRs
 
-Release prep for `0.3.1` is in progress.
+None after the `0.3.1` patch release.
 
 ## Recently Completed
 
