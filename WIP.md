@@ -2,13 +2,19 @@
 
 Snapshot: 2026-06-01 KST
 Scope: open GitHub issues assigned to `debop`.
-Open count: 8 issues.
+Open count: 8 issues plus the release-train dependency alignment change in
+progress.
 
 ## Current Direction
 
 The `0.3.0` release scope is merged. Remaining assigned issues are parked in
 Backlog and should be scheduled into a later minor release instead of blocking
 the current release.
+
+The current `0.4.0` development line now carries the `bluetape4k-exposed`
+`1.10.0` alignment. The publishable Exposed leader modules should keep
+`bluetape4k-exposed-bom` on `implementation(platform(...))` so the BOM does not
+leak as an API platform dependency.
 
 ## Active Queue
 
