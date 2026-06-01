@@ -3,7 +3,7 @@
 
 [versions]
 bluetape4k = "1.10.0"  # https://central.sonatype.com/artifact/io.github.bluetape4k/bluetape4k-bom
-bluetape4k-exposed = "1.9.2"  # https://mvnrepository.com/artifact/io.github.bluetape4k.exposed/bluetape4k-exposed-bom
+bluetape4k-exposed = "1.10.0"  # https://mvnrepository.com/artifact/io.github.bluetape4k.exposed/bluetape4k-exposed-bom
 
 kotlin = "2.3.21"  # https://mvnrepository.com/artifact/org.jetbrains.kotlin/kotlin-bom
 kotlinx-coroutines = "1.11.0"  # https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-coroutines-bom
@@ -94,6 +94,7 @@ bluetape4k-ktor-testing = { module = "io.github.bluetape4k:bluetape4k-ktor-testi
 bluetape4k-virtualthread-jdk21 = { module = "io.github.bluetape4k:bluetape4k-virtualthread-jdk21" }
 
 # bluetape4k Exposed test helpers
+bluetape4k-exposed-bom = { module = "io.github.bluetape4k.exposed:bluetape4k-exposed-bom", version.ref = "bluetape4k-exposed" }
 exposed-jdbc-tests = { module = "io.github.bluetape4k.exposed:bluetape4k-exposed-jdbc-tests", version.ref = "bluetape4k-exposed" }
 exposed-r2dbc-tests = { module = "io.github.bluetape4k.exposed:bluetape4k-exposed-r2dbc-tests", version.ref = "bluetape4k-exposed" }
 

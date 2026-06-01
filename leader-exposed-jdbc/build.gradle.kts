@@ -6,6 +6,8 @@ dependencies {
     api(project(":bluetape4k-leader-core"))
     api(project(":bluetape4k-leader-exposed-core"))
 
+    implementation(platform(libs.bluetape4k.exposed.bom))
+
     // Exposed JDBC
     api(libs.exposed.core)
     api(libs.exposed.jdbc)

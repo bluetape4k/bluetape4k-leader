@@ -9,6 +9,12 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Updated the `bluetape4k-exposed` test helper line to `1.10.0` and imported
+  the `bluetape4k-exposed-bom` as an implementation-scoped platform in the
+  publishable Exposed leader modules.
+
 ---
 
 ## [0.3.0] — 2026-06-01
