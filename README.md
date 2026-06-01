@@ -8,7 +8,7 @@
 
 [한국어](README.ko.md)
 
-Current stable version: `0.3.0`
+Current stable version: `0.3.1`
 
 ![Bluetape4k leader election workbench](./docs/assets/leader-election-workbench.png)
 
@@ -116,40 +116,40 @@ Run any example with `./gradlew :examples:<name>:run` (Docker required for Testc
 Import the BOM to manage every `bluetape4k-leader-*` module with one version:
 
 ```kotlin
-val leaderVersion = "0.3.0"
+val leaderVersion = "0.3.1"
 
 implementation(platform("io.github.bluetape4k.leader:bluetape4k-leader-bom:$leaderVersion"))
 implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson")
 ```
 
-When not using the BOM, specify `0.3.0` on each module dependency:
+When not using the BOM, specify `0.3.1` on each module dependency:
 
 ```kotlin
 // Redis (Redisson or Lettuce)
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.3.1")
 // or
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:0.3.1")
 
 // JDBC (H2 / PostgreSQL / MySQL via Exposed)
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-jdbc:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-jdbc:0.3.1")
 
 // R2DBC coroutine-native (H2 / PostgreSQL / MySQL via Exposed)
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc:0.3.1")
 
 // ZooKeeper / Apache Curator
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-zookeeper:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-zookeeper:0.3.1")
 
 // etcd v3 / jetcd
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-etcd:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-etcd:0.3.1")
 
 // Consul Session + KV
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-consul:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-consul:0.3.1")
 
 // AWS DynamoDB
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-dynamodb:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-dynamodb:0.3.1")
 
 // Ktor 3.x integration (LeaderElectionPlugin + leaderScheduled())
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor:0.3.1")
 ```
 
 ### Exposed JDBC (H2 / PostgreSQL / MySQL)
@@ -498,7 +498,7 @@ Stream return rules:
 - Use `streamBounded = true` only when the stream is known to finish within the lease window.
 - Unsafe `Flux` / `Flow` signatures fail fast in the validator and at subscription/collection time.
 - `@LeaderGroupElection` supports `T?`, `suspend T?`, and `Mono<T>`.
-- `@LeaderGroupElection` `Flux<T>` / `Flow<T>` streams are out of scope for 0.3.0. They are rejected in startup validation and again at subscription/collection time because group lease extension is not defined per slot.
+- `@LeaderGroupElection` `Flux<T>` / `Flow<T>` streams are out of scope for 0.3.1. They are rejected in startup validation and again at subscription/collection time because group lease extension is not defined per slot.
 
 ### `failureMode`
 
@@ -624,8 +624,8 @@ When using Spring Boot AOP (`@LeaderElection`), add `leader-micrometer` to expos
 ### Dependency
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.3.0")
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.3.1")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.3.1")
 ```
 
 `MicrometerLeaderAopMetricsRecorder` is auto-registered when a `MeterRegistry` bean is present. Disable with:
