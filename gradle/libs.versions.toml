@@ -27,7 +27,7 @@ mongo-driver = "5.7.0"  # https://mvnrepository.com/artifact/org.mongodb/mongodb
 
 curator = "5.9.0"  # https://mvnrepository.com/artifact/org.apache.curator/curator-recipes
 jetcd = "0.8.6"  # https://mvnrepository.com/artifact/io.etcd/jetcd-core
-aws2 = "2.44.12"  # https://mvnrepository.com/artifact/software.amazon.awssdk/bom
+aws2 = "2.46.0"  # https://mvnrepository.com/artifact/software.amazon.awssdk/bom
 
 micrometer = "1.16.5"  # https://mvnrepository.com/artifact/io.micrometer/micrometer-bom
 
