@@ -11,8 +11,9 @@ The `0.3.1` patch release carried only the release-train dependency alignment
 for the Exposed-backed modules. Remaining assigned issues are parked in Backlog
 and should be scheduled into a later minor release.
 
-The current `0.4.0` development line carries the `bluetape4k-exposed` `1.10.0`
-alignment. The publishable Exposed leader modules should keep
+The current `0.4.0` development line carries the `bluetape4k-bom`
+`1.11.0-SNAPSHOT` and `bluetape4k-exposed` `1.11.0-SNAPSHOT` alignment. The
+publishable Exposed leader modules should keep
 `bluetape4k-exposed-bom` on `implementation(platform(...))` so the BOM does not
 leak as an API platform dependency.
 
