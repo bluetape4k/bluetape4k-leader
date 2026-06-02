@@ -1,6 +1,6 @@
 # examples-migration-gate
 
-[한국어](./README.ko.md) | English
+[한국어](README.ko.md) | English
 
 Distributed schema migration gate using Exposed JDBC backend. Demonstrates safe single-execution of DB migrations across N pods during Kubernetes rolling deploy.
 

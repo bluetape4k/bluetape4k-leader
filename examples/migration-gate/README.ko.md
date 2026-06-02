@@ -1,6 +1,6 @@
 # examples-migration-gate
 
-한국어 | [English](./README.md)
+[English](README.md) | 한국어
 
 Exposed-JDBC 백엔드 기반 분산 스키마 마이그레이션 게이트. K8s 롤링 배포 중 N개 pod 가 동시 기동될 때 마이그레이션을 단 1개만 실행하도록 보장.
 

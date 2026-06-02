@@ -1,0 +1,33 @@
+graph 1 17.497 4.2592
+node n0 1.595 3.2789 3.19 1.28 "Service instance A" rounded,filled box #5B8DEF #ffffff
+node n1 1.595 0.64 3.19 1.28 "Service instance B" rounded,filled box #58A978 #ffffff
+node n2 6.4561 1.89 4.86 1.28 ServiceMaintenanceCoordinator rounded,filled box #D6A441 #ffffff
+node n3 11.317 1.89 3.75 1.28 ConsulLeaderElector rounded,filled box #DC6B82 #ffffff
+node n4 15.692 3.2789 3.61 1.28 "Consul agent" rounded,filled box #45A7A1 #ffffff
+node n5 15.692 0.64 3.61 1.28 "Maintenance steps" rounded,filled box #8A72D6 #ffffff
+node r1p1 3.6089 3.2789 0.03 0.03 "" invis point black lightgrey
+node r1p2 3.6089 1.89 0.03 0.03 "" invis point black lightgrey
+node r2p1 3.6089 0.64 0.03 0.03 "" invis point black lightgrey
+node r2p2 3.6089 1.89 0.03 0.03 "" invis point black lightgrey
+node r3p1 9.1644 1.89 0.03 0.03 "" invis point black lightgrey
+node r3p2 9.1644 1.89 0.03 0.03 "" invis point black lightgrey
+node r4p1 13.539 1.89 0.03 0.03 "" invis point black lightgrey
+node r4p2 13.539 3.2789 0.03 0.03 "" invis point black lightgrey
+node r5p1 11.387 1.89 0.03 0.03 "" invis point black lightgrey
+node r5p2 11.387 0.64 0.03 0.03 "" invis point black lightgrey
+edge n0 r1p1 4 3.1965 3.2789 3.393 3.2789 3.5424 3.2789 3.5916 3.2789 solid #758297
+edge n1 r2p1 4 3.1965 0.64 3.393 0.64 3.5424 0.64 3.5916 0.64 solid #758297
+edge n2 r3p1 4 8.8899 1.89 9.0168 1.89 9.1078 1.89 9.1453 1.89 solid #758297
+edge n2 r5p1 4 8.8925 1.89 10.047 1.89 11.211 1.89 11.369 1.89 solid #758297
+edge n3 r4p1 4 13.197 1.89 13.358 1.89 13.476 1.89 13.521 1.89 solid #758297
+edge r1p1 r1p2 4 3.6089 3.2593 3.6089 3.1036 3.6089 2.0713 3.6089 1.9109 solid #758297
+edge r1p2 n2 4 3.6271 1.89 3.6632 1.89 3.7516 1.89 3.8757 1.89 solid #758297
+edge r2p1 r2p2 4 3.6089 0.6617 3.6089 0.81472 3.6089 1.7295 3.6089 1.8715 solid #758297
+edge r2p2 n2 4 3.6271 1.89 3.6632 1.89 3.7516 1.89 3.8757 1.89 solid #758297
+edge r3p1 r3p2 4 9.1644 1.89 9.1644 1.89 9.1644 1.89 9.1644 1.89 solid #758297
+edge r3p2 n3 4 9.1831 1.89 9.2035 1.89 9.2401 1.89 9.2896 1.89 solid #758297
+edge r4p1 r4p2 4 13.539 1.9096 13.539 2.0653 13.539 3.0976 13.539 3.258 solid #758297
+edge r4p2 n4 4 13.558 3.2789 13.588 3.2789 13.651 3.2789 13.738 3.2789 solid #758297
+edge r5p1 r5p2 4 11.387 1.8683 11.387 1.7153 11.387 0.80052 11.387 0.65852 solid #758297
+edge r5p2 n5 4 11.406 0.64 11.565 0.64 12.681 0.64 13.734 0.64 solid #758297
+stop

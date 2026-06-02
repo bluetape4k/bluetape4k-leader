@@ -1,6 +1,6 @@
 # examples-batch-scheduler
 
-한국어 | [English](./README.md)
+[English](README.md) | 한국어
 
 Lettuce-Redis 백엔드를 사용한 분산 배치 스케줄러 예제. 야간 정산 등 주기 배치 Job 을 다중 인스턴스 환경에서 단 1개만 실행되도록 보장.
 

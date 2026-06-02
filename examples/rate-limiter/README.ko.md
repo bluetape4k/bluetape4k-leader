@@ -1,6 +1,6 @@
 # examples-rate-limiter
 
-[English](README.md)
+[English](README.md) | 한국어
 
 이 예제는 Redis leader election 과 distributed Bucket4j rate limiter 를 함께
 사용한다.

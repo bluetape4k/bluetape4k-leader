@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1390" height="620" viewBox="0 0 1390 620" role="img" aria-label="Strategic Election Architecture">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: examples-strategic-election-architecture-01.dot, examples-strategic-election-architecture-01.plain, examples-strategic-election-architecture-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
+<defs>
+  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
+  <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <style>
+    .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
+    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
+    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
+    .strong{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
+    .card{stroke-width:2.1;filter:url(#shadow)}
+    .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
+    .dashed{stroke:#758297;stroke-width:2.1;stroke-dasharray:7 6;fill:none;marker-end:url(#openArrow)}
+    .lifeline{stroke:#b7c2d1;stroke-width:2;stroke-dasharray:10 10}
+  </style>
+</defs>
+<rect class="canvas" width="1390" height="620"/>
+<rect class="frame" x="32" y="28" width="1326" height="564" rx="28"/>
+<text class="title" x="66" y="82">Strategic Election Architecture</text>
+<text class="subtitle" x="70" y="118">Candidates are scored first; the highest-ranked eligible node receives the local leadership slot</text>
+<path class="line" d="M300 176 L345 176 L345 346 L390 346"/>
+<path class="line" d="M300 346 L345 346 L345 346 L390 346"/>
+<path class="line" d="M300 516 L345 516 L345 346 L390 346"/>
+<path class="line" d="M690 346 L715 346 L715 266 L740 266"/>
+<path class="line" d="M1030 266 L1040 266 L1040 266 L1050 266"/>
+<path class="line" d="M1220 312 L1220 356 L1220 356 L1220 400"/>
+<g id="nodeA" transform="translate(70,130)">
+  <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="smallLabel" x="115" y="28" text-anchor="middle">Service node A</text>
+  <text class="mono" x="115" y="53" text-anchor="middle">readiness</text>
+  <text class="mono" x="115" y="70" text-anchor="middle">success rate</text>
+</g>
+<g id="nodeB" transform="translate(70,300)">
+  <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="smallLabel" x="115" y="28" text-anchor="middle">Service node B</text>
+  <text class="mono" x="115" y="53" text-anchor="middle">idle time</text>
+  <text class="mono" x="115" y="70" text-anchor="middle">load</text>
+</g>
+<g id="nodeC" transform="translate(70,470)">
+  <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="smallLabel" x="115" y="28" text-anchor="middle">Service node C</text>
+  <text class="mono" x="115" y="53" text-anchor="middle">candidate</text>
+  <text class="mono" x="115" y="70" text-anchor="middle">weighted score</text>
+</g>
+<g id="scorer" transform="translate(390,300)">
+  <rect class="card" x="0" y="0" width="300" height="92" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
+  <text class="smallLabel" x="150" y="28" text-anchor="middle">WeightedScorer</text>
+  <text class="mono" x="150" y="53" text-anchor="middle">CandidateScorer</text>
+  <text class="mono" x="150" y="70" text-anchor="middle">normalized weights</text>
+</g>
+<g id="strategy" transform="translate(740,220)">
+  <rect class="card" x="0" y="0" width="290" height="92" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="smallLabel" x="145" y="28" text-anchor="middle">ScoredElectionStrategy</text>
+  <text class="mono" x="145" y="53" text-anchor="middle">rank candidates</text>
+  <text class="mono" x="145" y="70" text-anchor="middle">choose winner</text>
+</g>
+<g id="elector" transform="translate(1050,220)">
+  <rect class="card" x="0" y="0" width="340" height="92" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="smallLabel" x="170" y="28" text-anchor="middle">LocalStrategicLeaderElector</text>
+  <text class="mono" x="170" y="53" text-anchor="middle">single winner</text>
+  <text class="mono" x="170" y="70" text-anchor="middle">losers skip</text>
+</g>
+<g id="work" transform="translate(1050,400)">
+  <rect class="card" x="0" y="0" width="340" height="92" rx="14" fill="#F7F1E7" stroke="#B88A44"/>
+  <text class="smallLabel" x="170" y="28" text-anchor="middle">Leader-only work</text>
+  <text class="mono" x="170" y="53" text-anchor="middle">execute on winner</text>
+  <text class="mono" x="170" y="70" text-anchor="middle">observe score</text>
+</g>
+</svg>

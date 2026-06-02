@@ -1,6 +1,6 @@
 # examples-batch-scheduler
 
-[한국어](./README.ko.md) | English
+[한국어](README.ko.md) | English
 
 Distributed batch scheduler example using Lettuce-Redis backend. Demonstrates safe single execution of a periodic batch job (e.g. nightly settlement) across multiple deployed instances.
 

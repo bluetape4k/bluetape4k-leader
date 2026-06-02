@@ -1,6 +1,6 @@
 # examples-prometheus-dashboard
 
-[한국어](./README.ko.md) | English
+[한국어](README.ko.md) | English
 
 Runnable Spring Boot 4 example that exposes bluetape4k leader election metrics
 through `/actuator/prometheus` and visualizes them in Prometheus and Grafana.
@@ -15,6 +15,10 @@ the app while Grafana renders the pre-provisioned dashboard.
 ## Architecture Diagram
 
 ![prometheus dashboard Architecture diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-architecture-01.png)
+
+## Sequence Diagram
+
+![prometheus dashboard Sequence Flow diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-sequence-01.png)
 
 ## Core Features
 

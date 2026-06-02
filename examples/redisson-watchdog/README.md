@@ -1,34 +1,39 @@
 # Redisson Watchdog Example
 
-[한국어](README.ko.md)
+[한국어](README.ko.md) | English
 
-This example demonstrates a Redisson-backed long-running leader job protected
-by bluetape4k lease auto-extension. One node holds the leader lock beyond the
-initial lease time, a contending node skips while the job is still running, and
-the contender can acquire the lock after the leader releases it.
+Redisson-backed long-running leader job protected by bluetape4k lease auto-extension.
 
 ## Scenario
 
-Use this pattern for Redis-backed jobs that can run longer than their initial
-lease budget:
+Two nodes compete for the same Redis-backed lock. The elected node runs a job that can outlive the initial lease time,
+so `LeaderElectionOptions(autoExtend = true)` keeps renewing the lock while the body is active. The contending node
+skips while the lock is held and can acquire it after the leader releases.
 
-- configure `LeaderElectionOptions(autoExtend = true)`;
-- keep `waitTime` short so non-leaders skip quickly;
-- size `leaseTime` for normal renewal cadence, not for the maximum job runtime;
-- keep the leader action bounded by your service shutdown or job timeout.
+## Architecture Diagram
 
-The current Redisson elector acquires locks with an explicit lease time and
-uses bluetape4k `LeaderLeaseAutoExtender` for renewals. It does not rely on
-Redisson's implicit lock-watchdog acquisition mode, so `autoExtend=true` and
-`minLeaseTime > 0` remain valid when the application explicitly needs both.
+![Redisson Watchdog Architecture diagram](../../docs/images/readme-diagrams/examples-redisson-watchdog-architecture-01.png)
+
+## Sequence Diagram
+
+![Redisson Watchdog Sequence Flow diagram](../../docs/images/readme-diagrams/examples-redisson-watchdog-sequence-01.png)
+
+## What It Shows
+
+- Configure `LeaderElectionOptions(autoExtend = true)` for a Redisson-backed leader job.
+- Keep `waitTime` short so non-leaders skip quickly.
+- Size `leaseTime` for the renewal cadence, not for maximum job runtime.
+- Release the Redisson lock when the leader body exits.
+- Bound the leader body with shutdown or timeout policy.
 
 ## Run
+
+The example uses the Redis Testcontainers launcher unless an external Redis URL is provided by the module code path.
+Docker is required for the default run.
 
 ```bash
 ./gradlew :examples:redisson-watchdog:run
 ```
-
-Docker is required because the demo starts Redis with Testcontainers.
 
 ## Test
 
@@ -36,16 +41,20 @@ Docker is required because the demo starts Redis with Testcontainers.
 ./gradlew :examples:redisson-watchdog:test
 ```
 
-The key test starts one leader job with `leaseTime = 250.milliseconds`, waits
-longer than that initial lease, verifies a contender still skips, then verifies
-the contender can acquire leadership after release.
+## Design
 
-## Key APIs
+```kotlin
+val options = LeaderElectionOptions(
+    waitTime = 200.milliseconds,
+    leaseTime = 2.seconds,
+    autoExtend = true,
+)
 
-- `RedissonLeaderElector`
-- `LeaderElectionOptions(autoExtend = true)`
-- `LeaderLeaseAutoExtender`
+val runner = RedissonWatchdogJobRunner("node-a", redissonClient, "nightly-export", options)
 
-Prefer the suspend Redisson elector for coroutine-native services. Use this
-blocking example for synchronous workers, scheduler callbacks, and migration
-code that already runs on blocking threads.
+val report = runner.runJob {
+    exportService.rollup()
+}
+```
+
+Use this pattern when the job has a bounded but variable duration and losing contenders should skip instead of waiting.

@@ -1,6 +1,6 @@
 # examples-webhook-poller
 
-[한국어](./README.ko.md) | English
+[한국어](README.ko.md) | English
 
 Distributed webhook event poller using MongoDB leader election. Demonstrates safe single-leader claim of webhook events across N pods, with at-least-once delivery, retry, and a `FAILED` terminal state as DLQ substitute.
 

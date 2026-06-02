@@ -1,6 +1,6 @@
 # Kubernetes Operator Leader Election 예제
 
-[English](README.md) | [한국어](README.ko.md)
+[English](README.md) | 한국어
 
 이 예제는 Kubernetes operator에서 자주 쓰는 single-active-controller 패턴을
 보여줍니다. 같은 Spring Boot 애플리케이션을 3개 pod로 실행해도 Kubernetes

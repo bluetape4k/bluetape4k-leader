@@ -1,6 +1,6 @@
 # examples-webhook-poller
 
-한국어 | [English](./README.md)
+[English](README.md) | 한국어
 
 MongoDB 리더 선출을 이용한 분산 webhook event 폴러. N 개 pod 환경에서 단일 리더만 webhook event 를 점유·처리하며, at-least-once 전달, 재시도, `FAILED` 종결 상태(DLQ 대체)를 제공한다.
 

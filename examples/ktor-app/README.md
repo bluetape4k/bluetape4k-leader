@@ -1,6 +1,6 @@
 # examples-ktor-app
 
-[한국어](./README.ko.md) | English
+[한국어](README.ko.md) | English
 
 Ktor 3.x REST API server with a leader-election-protected periodic background job. Demonstrates the typical pattern of running the same Kotlin/Ktor service across multiple replicas while ensuring a single periodic stats-aggregation job runs cluster-wide.
 

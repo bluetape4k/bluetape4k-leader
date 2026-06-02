@@ -2,14 +2,22 @@
 
 [한국어](README.ko.md) | English
 
-Runnable Consul example where one service instance owns a maintenance or drain
-operation through `ConsulLeaderElector`.
+Runnable Consul example where one service instance owns a maintenance or drain operation through
+`ConsulLeaderElector`.
 
 ## Scenario
 
-Multiple service instances share one Consul lock. The elected instance performs
-the maintenance steps, competing instances skip the cycle, and another instance
-can acquire the same lock after the current leader releases it.
+Multiple service instances share one Consul Session + KV lock. The elected instance runs the maintenance steps,
+contending instances skip the cycle without throwing, and another instance can acquire the same lock after the
+current leader releases it.
+
+## Architecture Diagram
+
+![Consul Maintenance Architecture diagram](../../docs/images/readme-diagrams/examples-consul-maintenance-architecture-01.png)
+
+## Sequence Diagram
+
+![Consul Maintenance Sequence Flow diagram](../../docs/images/readme-diagrams/examples-consul-maintenance-sequence-01.png)
 
 ## What It Shows
 
@@ -21,8 +29,7 @@ can acquire the same lock after the current leader releases it.
 
 ## Run
 
-The example starts a real Consul container through
-`ConsulServer.Launcher.consul`, so Docker is required.
+The example starts a real Consul container through `ConsulServer.Launcher.consul`, so Docker is required.
 
 ```bash
 ./gradlew :examples:consul-maintenance:run
@@ -34,9 +41,8 @@ The example starts a real Consul container through
 ./gradlew :examples:consul-maintenance:test
 ```
 
-The test starts two coordinators against the same lock, verifies that only one
-node performs maintenance while the first lease is active, then verifies that
-the second node can reacquire the lock after release.
+The test starts two coordinators against the same lock, verifies that only one node performs maintenance while the
+first lease is active, then verifies that the second node can reacquire the lock after release.
 
 ## Design
 
@@ -55,6 +61,5 @@ coordinator.performMaintenance {
 }
 ```
 
-Production applications should create `ConsulEndpoint` from their own Consul
-HTTP API endpoint, datacenter, ACL token, timeout, and network policy. Consul
-agent lifecycle remains caller-owned.
+Production applications should create `ConsulEndpoint` from the Consul HTTP API endpoint, datacenter, ACL token,
+timeout, and network policy. Consul agent lifecycle remains caller-owned.

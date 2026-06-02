@@ -1,6 +1,6 @@
 # K3s Lease 리더 선출 예제
 
-[English](README.md) | [한국어](README.ko.md)
+[English](README.md) | 한국어
 
 이 예제는 `K3sServer.Launcher.k3s`로 실제 K3s API 서버를 시작한 뒤
 Kubernetes `coordination.k8s.io/v1` Lease API로 리더 선출 흐름을 검증합니다.

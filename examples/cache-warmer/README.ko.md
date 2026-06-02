@@ -1,6 +1,6 @@
 # examples-cache-warmer
 
-한국어 | [English](./README.md)
+[English](README.md) | 한국어
 
 Hazelcast 를 leader-election 백엔드로 사용하는 파티션별 캐시 워머 예제. **파티션별 독립
 leader-election** 으로 여러 인스턴스가 동시에 워머를 실행해도 각 파티션은 정확히

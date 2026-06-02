@@ -1,6 +1,6 @@
 # examples-cache-warmer
 
-[한국어](./README.ko.md) | English
+[한국어](README.ko.md) | English
 
 Per-partition cache warmer using Hazelcast as the leader-election backend.
 Demonstrates **per-partition independent leader election** so that exactly one
