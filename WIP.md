@@ -1,9 +1,9 @@
 # WIP - bluetape4k-leader
 
-Snapshot: 2026-06-01 KST
+Snapshot: 2026-06-02 KST
 Scope: open GitHub issues assigned to `debop`.
-Open count: 8 issues. The release-train dependency alignment shipped in the
-`0.3.1` patch release.
+Open count: 9 issues.
+The release-train dependency alignment shipped in the `0.3.1` patch release.
 
 ## Current Direction
 
@@ -43,6 +43,6 @@ None after the `0.3.1` patch release.
 
 ## Refresh Notes
 
-- Verified with `gh` on 2026-06-01 KST.
+- Verified with `gh` on 2026-06-02 KST.
 - Keep `bluetape4k-*` issue and resolving PR milestones aligned. Prefer minor
   release grouping for non-bugfix work.
