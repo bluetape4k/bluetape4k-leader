@@ -1,6 +1,6 @@
 # examples-tenant-aggregator
 
-한국어 | [English](./README.md)
+[English](README.md) | 한국어
 
 Exposed R2DBC 리더 선출 기반 멀티테넌트 집계기. N개 인스턴스 환경에서 **테넌트별 독립 lockName** 으로 각 테넌트는 정확히 1 인스턴스만 polling 한다. long-running coroutine 워커, graceful stop, 테넌트별 예외 격리를 시연.
 

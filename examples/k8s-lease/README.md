@@ -1,6 +1,6 @@
 # K3s Lease Leader Election Example
 
-[English](README.md) | [한국어](README.ko.md)
+[한국어](README.ko.md) | English
 
 This example demonstrates leader election with the Kubernetes
 `coordination.k8s.io/v1` Lease API against a real K3s API server started by

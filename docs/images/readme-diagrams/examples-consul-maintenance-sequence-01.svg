@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="1416" viewBox="0 0 1540 1416" role="img" aria-label="Consul Maintenance Sequence Flow">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: examples-consul-maintenance-sequence-01.dot, examples-consul-maintenance-sequence-01.plain, examples-consul-maintenance-sequence-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
+<defs>
+  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
+  <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <style>
+    .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
+    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
+    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
+    .strong{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
+    .card{stroke-width:2.1;filter:url(#shadow)}
+    .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
+    .dashed{stroke:#758297;stroke-width:2.1;stroke-dasharray:7 6;fill:none;marker-end:url(#openArrow)}
+    .lifeline{stroke:#b7c2d1;stroke-width:2;stroke-dasharray:10 10}
+  </style>
+</defs>
+<rect class="canvas" width="1540" height="1416"/>
+<rect class="frame" x="32" y="28" width="1476" height="1360" rx="28"/>
+<text class="title" x="66" y="82">Consul Maintenance Sequence Flow</text>
+<text class="subtitle" x="70" y="118">Consul Session and KV ownership decide which service instance performs drain work</text>
+<rect class="card" x="110" y="166" width="210" height="72" rx="12" fill="#E8F3FF" stroke="#5B8DEF"/>
+<text class="smallLabel" x="215" y="209" text-anchor="middle">Node A</text>
+<line class="lifeline" x1="215" y1="252" x2="215" y2="1356"/>
+<rect class="card" x="387.5" y="166" width="210" height="72" rx="12" fill="#EAF7EF" stroke="#58A978"/>
+<text class="smallLabel" x="492.5" y="209" text-anchor="middle">Coordinator</text>
+<line class="lifeline" x1="492.5" y1="252" x2="492.5" y2="1356"/>
+<rect class="card" x="665" y="166" width="210" height="72" rx="12" fill="#FFF3D9" stroke="#D6A441"/>
+<text class="smallLabel" x="770" y="209" text-anchor="middle">Consul</text>
+<line class="lifeline" x1="770" y1="252" x2="770" y2="1356"/>
+<rect class="card" x="942.5" y="166" width="210" height="72" rx="12" fill="#FDECEF" stroke="#DC6B82"/>
+<text class="smallLabel" x="1047.5" y="209" text-anchor="middle">KV lock</text>
+<line class="lifeline" x1="1047.5" y1="252" x2="1047.5" y2="1356"/>
+<rect class="card" x="1220" y="166" width="210" height="72" rx="12" fill="#E9F7F6" stroke="#45A7A1"/>
+<text class="smallLabel" x="1325" y="209" text-anchor="middle">Node B</text>
+<line class="lifeline" x1="1325" y1="252" x2="1325" y2="1356"/>
+<rect x="208.8" y="264" width="250" height="40" rx="20" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="226.8" y="291" text-anchor="start">1. performMaintenance()</text>
+<path class="line" d="M215.0 310 L492.5 310"/>
+<rect x="486.3" y="368" width="250" height="40" rx="20" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="504.3" y="395" text-anchor="start">2. create Session</text>
+<path class="line" d="M492.5 414 L770.0 414"/>
+<rect x="625.0" y="472" width="250" height="40" rx="20" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="643.0" y="499" text-anchor="start">3. acquire KV lock</text>
+<path class="line" d="M492.5 518 L1047.5 518"/>
+<rect x="625.0" y="576" width="250" height="40" rx="20" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="643.0" y="603" text-anchor="start">4. ACQUIRED</text>
+<path class="dashed" d="M1047.5 622 L492.5 622"/>
+<rect x="763.8" y="680" width="250" height="40" rx="20" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="781.8" y="707" text-anchor="start">5. performMaintenance()</text>
+<path class="line" d="M1325.0 726 L492.5 726"/>
+<rect x="763.8" y="784" width="250" height="40" rx="20" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="781.8" y="811" text-anchor="start">6. null / skip</text>
+<path class="dashed" d="M492.5 830 L1325.0 830"/>
+<rect x="208.8" y="888" width="250" height="40" rx="20" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="226.8" y="915" text-anchor="start">7. run drain steps</text>
+<path class="dashed" d="M492.5 934 L215.0 934"/>
+<rect x="625.0" y="992" width="250" height="40" rx="20" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="643.0" y="1019" text-anchor="start">8. release KV lock</text>
+<path class="line" d="M492.5 1038 L1047.5 1038"/>
+<rect x="763.8" y="1096" width="250" height="40" rx="20" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="781.8" y="1123" text-anchor="start">9. reacquire later</text>
+<path class="line" d="M1325.0 1142 L492.5 1142"/>
+</svg>

@@ -1,6 +1,6 @@
 # examples-rate-limiter
 
-[한국어](README.ko.md)
+[한국어](README.ko.md) | English
 
 This example combines Redis leader election with a distributed Bucket4j rate
 limiter.

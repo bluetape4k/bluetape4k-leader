@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="610" viewBox="0 0 1360 610" role="img" aria-label="Virtual Thread Runner Architecture">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: examples-virtual-thread-runner-architecture-01.dot, examples-virtual-thread-runner-architecture-01.plain, examples-virtual-thread-runner-architecture-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
+<defs>
+  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
+  <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <style>
+    .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
+    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
+    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
+    .strong{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
+    .card{stroke-width:2.1;filter:url(#shadow)}
+    .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
+    .dashed{stroke:#758297;stroke-width:2.1;stroke-dasharray:7 6;fill:none;marker-end:url(#openArrow)}
+    .lifeline{stroke:#b7c2d1;stroke-width:2;stroke-dasharray:10 10}
+  </style>
+</defs>
+<rect class="canvas" width="1360" height="610"/>
+<rect class="frame" x="32" y="28" width="1296" height="554" rx="28"/>
+<text class="title" x="66" y="82">Virtual Thread Runner Architecture</text>
+<text class="subtitle" x="70" y="118">A local virtual-thread elector runs blocking leader work without pinning platform threads</text>
+<path class="line" d="M300 196 L345 196 L345 296 L390 296"/>
+<path class="line" d="M300 386 L345 386 L345 296 L390 296"/>
+<path class="line" d="M710 296 L735 296 L735 296 L760 296"/>
+<path class="line" d="M710 296 L895 296 L895 196 L1080 196"/>
+<path class="line" d="M1210 242 L1210 291 L1210 291 L1210 340"/>
+<path class="line" d="M1080 386 L1055 386 L1055 296 L1030 296"/>
+<g id="nodeA" transform="translate(70,150)">
+  <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="smallLabel" x="115" y="28" text-anchor="middle">Service node A</text>
+  <text class="mono" x="115" y="53" text-anchor="middle">try run</text>
+  <text class="mono" x="115" y="70" text-anchor="middle">candidate</text>
+</g>
+<g id="nodeB" transform="translate(70,340)">
+  <rect class="card" x="0" y="0" width="230" height="92" rx="14" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="smallLabel" x="115" y="28" text-anchor="middle">Service node B</text>
+  <text class="mono" x="115" y="53" text-anchor="middle">try run</text>
+  <text class="mono" x="115" y="70" text-anchor="middle">skip on miss</text>
+</g>
+<g id="elector" transform="translate(390,250)">
+  <rect class="card" x="0" y="0" width="320" height="92" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="smallLabel" x="160" y="28" text-anchor="middle">VirtualThreadLeaderElector</text>
+  <text class="mono" x="160" y="53" text-anchor="middle">runIfLeader</text>
+  <text class="mono" x="160" y="70" text-anchor="middle">lease options</text>
+</g>
+<g id="local" transform="translate(760,250)">
+  <rect class="card" x="0" y="0" width="270" height="92" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
+  <text class="smallLabel" x="135" y="28" text-anchor="middle">Local leader backend</text>
+  <text class="mono" x="135" y="53" text-anchor="middle">in-JVM lock</text>
+  <text class="mono" x="135" y="70" text-anchor="middle">single owner</text>
+</g>
+<g id="thread" transform="translate(1080,150)">
+  <rect class="card" x="0" y="0" width="260" height="92" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="smallLabel" x="130" y="28" text-anchor="middle">Virtual thread</text>
+  <text class="mono" x="130" y="53" text-anchor="middle">blocking body</text>
+  <text class="mono" x="130" y="70" text-anchor="middle">bounded lifetime</text>
+</g>
+<g id="task" transform="translate(1080,340)">
+  <rect class="card" x="0" y="0" width="260" height="92" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="smallLabel" x="130" y="28" text-anchor="middle">Maintenance task</text>
+  <text class="mono" x="130" y="53" text-anchor="middle">execute once</text>
+  <text class="mono" x="130" y="70" text-anchor="middle">release lock</text>
+</g>
+</svg>

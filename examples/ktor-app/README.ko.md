@@ -1,6 +1,6 @@
 # examples-ktor-app
 
-한국어 | [English](./README.md)
+[English](README.md) | 한국어
 
 Ktor 3.x REST API 서버 + 리더 선출로 보호되는 주기 백그라운드 작업 예제. 동일 Kotlin/Ktor 서비스를 다중 인스턴스로 배포하면서, 시간별 통계 집계 작업은 클러스터 전체에서 단 1개 인스턴스만 실행하는 일반적인 패턴을 시연한다.
 
