@@ -12,6 +12,8 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - Opened the `0.4.0` development line after publishing `0.3.1`.
+- Aligned local bluetape4k BOM refs to `bluetape4k-bom:1.11.0-SNAPSHOT`
+  and `bluetape4k-exposed-bom:1.11.0-SNAPSHOT`.
 
 ---
 
