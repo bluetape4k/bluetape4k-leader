@@ -252,10 +252,10 @@ jobs:
 
       - name: Build (compile only)
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew build -x test -x koverVerify --parallel --refresh-dependencies --no-configuration-cache && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
@@ -282,10 +282,10 @@ jobs:
 
       - name: Test leader-core
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-core:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
@@ -330,10 +330,10 @@ jobs:
           cache-read-only: true
       - name: Test leader-micrometer
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-micrometer:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
@@ -378,10 +378,10 @@ jobs:
 
       - name: Test leader-redis-lettuce
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-redis-lettuce:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -431,10 +431,10 @@ jobs:
 
       - name: Test leader-redis-redisson
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-redis-redisson:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -484,10 +484,10 @@ jobs:
 
       - name: Test leader-exposed-jdbc (H2)
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-exposed-jdbc:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
@@ -536,10 +536,10 @@ jobs:
 
       - name: Test leader-exposed-jdbc (PostgreSQL)
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-exposed-jdbc:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -590,10 +590,10 @@ jobs:
 
       - name: Test leader-exposed-jdbc (MySQL 8)
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-exposed-jdbc:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -642,10 +642,10 @@ jobs:
           cache-read-only: true
       - name: Test leader-exposed-r2dbc (H2)
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-exposed-r2dbc:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
@@ -688,10 +688,10 @@ jobs:
           cache-read-only: true
       - name: Test leader-exposed-r2dbc (PostgreSQL)
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-exposed-r2dbc:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -736,10 +736,10 @@ jobs:
           cache-read-only: true
       - name: Test leader-exposed-r2dbc (MySQL 8)
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-exposed-r2dbc:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -784,10 +784,10 @@ jobs:
           cache-read-only: true
       - name: Test examples-migration-gate
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :examples:migration-gate:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -820,10 +820,10 @@ jobs:
           cache-read-only: true
       - name: Test examples-webhook-poller
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :examples:webhook-poller:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -856,10 +856,10 @@ jobs:
           cache-read-only: true
       - name: Test examples-cache-warmer
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :examples:cache-warmer:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -892,10 +892,10 @@ jobs:
           cache-read-only: true
       - name: Test examples-tenant-aggregator
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :examples:tenant-aggregator:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -928,10 +928,10 @@ jobs:
           cache-read-only: true
       - name: Test examples-batch-scheduler
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :examples:batch-scheduler:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -964,10 +964,10 @@ jobs:
           cache-read-only: true
       - name: Test examples-etcd-reconciler
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :examples:etcd-reconciler:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -1000,10 +1000,10 @@ jobs:
           cache-read-only: true
       - name: Test examples-consul-maintenance
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :examples:consul-maintenance:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -1036,10 +1036,10 @@ jobs:
           cache-read-only: true
       - name: Test examples-k8s-lease
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :examples:k8s-lease:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -1070,10 +1070,10 @@ jobs:
           cache-read-only: true
       - name: Test examples-k8s-operator
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :examples:k8s-operator:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -1104,10 +1104,10 @@ jobs:
           cache-read-only: true
       - name: Test examples-rate-limiter
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :examples:rate-limiter:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -1140,10 +1140,10 @@ jobs:
           cache-read-only: true
       - name: Test examples-strategic-election
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :examples:strategic-election:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
@@ -1174,10 +1174,10 @@ jobs:
           cache-read-only: true
       - name: Test examples-virtual-thread-runner
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :examples:virtual-thread-runner:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
@@ -1208,10 +1208,10 @@ jobs:
           cache-read-only: true
       - name: Test examples-redisson-watchdog
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :examples:redisson-watchdog:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -1244,10 +1244,10 @@ jobs:
           cache-read-only: true
       - name: Test examples-ktor-app
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :examples:ktor-app:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -1280,10 +1280,10 @@ jobs:
           cache-read-only: true
       - name: Test examples-prometheus-dashboard
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :examples:prometheus-dashboard:processAot :examples:prometheus-dashboard:processTestAot :examples:prometheus-dashboard:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -1316,10 +1316,10 @@ jobs:
           cache-read-only: true
       - name: Test leader-spring-boot
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-spring-boot:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false'
@@ -1363,10 +1363,10 @@ jobs:
           cache-read-only: true
       - name: Test leader-ktor
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-ktor:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false'
@@ -1410,10 +1410,10 @@ jobs:
           cache-read-only: true
       - name: Test leader-mongodb
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-mongodb:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -1457,10 +1457,10 @@ jobs:
           cache-read-only: true
       - name: Test leader-dynamodb
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-dynamodb:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -1504,10 +1504,10 @@ jobs:
           cache-read-only: true
       - name: Test leader-etcd
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-etcd:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -1551,10 +1551,10 @@ jobs:
           cache-read-only: true
       - name: Test leader-consul
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-consul:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -1598,10 +1598,10 @@ jobs:
           cache-read-only: true
       - name: Test leader-k8s
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-k8s:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
@@ -1632,10 +1632,10 @@ jobs:
           cache-read-only: true
       - name: Test leader-hazelcast
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-hazelcast:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
@@ -1679,10 +1679,10 @@ jobs:
           cache-read-only: true
       - name: Test leader-zookeeper
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             ./gradlew :bluetape4k-leader-zookeeper:test --refresh-dependencies --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
-            [ $attempt -lt 3 ] && sleep 10 || exit 1
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
