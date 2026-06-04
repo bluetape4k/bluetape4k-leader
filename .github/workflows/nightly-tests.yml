@@ -52,11 +52,21 @@ jobs:
           gradle-version: wrapper
           cache-disabled: true
       - name: Build (compile only)
-        run: ./gradlew --refresh-dependencies build -x test -x koverVerify --parallel --no-configuration-cache
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew --refresh-dependencies build -x test -x koverVerify --parallel --no-configuration-cache && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
       - name: Detekt static analysis
-        run: ./gradlew --refresh-dependencies detekt --parallel --no-configuration-cache
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew --refresh-dependencies detekt --parallel --no-configuration-cache && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 3 ] && sleep 10 || exit 1
+          done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
       - name: Upload detekt report
