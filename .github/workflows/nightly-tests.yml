@@ -50,6 +50,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
       - name: Build (compile only)
         run: ./gradlew --refresh-dependencies build -x test -x koverVerify --parallel
         env:
@@ -81,6 +82,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-core
         run: |
@@ -127,6 +129,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-redis-lettuce
         run: |
@@ -175,6 +178,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-redis-redisson
         run: |
@@ -221,6 +225,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-core (H2)
         run: |
@@ -268,6 +273,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-core (PostgreSQL)
         run: |
@@ -317,6 +323,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-core (MySQL 8)
         run: |
@@ -364,6 +371,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-jdbc (H2)
         run: |
@@ -411,6 +419,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-jdbc (PostgreSQL)
         run: |
@@ -460,6 +469,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-jdbc (MySQL 8)
         run: |
@@ -507,6 +517,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-r2dbc (H2)
         run: |
@@ -553,6 +564,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-r2dbc (PostgreSQL)
         run: |
@@ -601,6 +613,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-r2dbc (MySQL 8)
         run: |
@@ -650,6 +663,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-mongodb
         run: |
@@ -698,6 +712,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-dynamodb
         run: |
@@ -746,6 +761,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-etcd
         run: |
@@ -792,6 +808,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-consul
         run: |
@@ -840,6 +857,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-k8s unit and K3s group slots
         run: |
@@ -888,6 +906,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-hazelcast
         run: |
@@ -936,6 +955,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-zookeeper
         run: |
@@ -982,6 +1002,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-micrometer
         run: |
@@ -1028,6 +1049,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-spring-boot
         run: |
@@ -1076,6 +1098,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
+          cache-disabled: true
           cache-read-only: true
       - name: Test leader-ktor
         run: |
