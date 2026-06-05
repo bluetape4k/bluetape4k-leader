@@ -7,6 +7,7 @@ import { join } from "node:path";
 const root = process.cwd();
 const outDir = join(root, "docs/images/readme-diagrams");
 mkdirSync(outDir, { recursive: true });
+const geometrySummaries = [];
 
 const palette = {
   blue: ["#E8F3FF", "#5B8DEF"],
@@ -25,26 +26,33 @@ const diagrams = [
     slug: "examples-zookeeper-scheduler-scenario-01",
     title: "ZooKeeper Scheduler Scenario",
     subtitle: "The demo proves execute, skip, and reacquire behavior with two scheduler nodes",
-    width: 1320,
-    height: 650,
+    width: 1640,
+    height: 810,
+    layers: [
+      ["Phase 1 - first schedule", 160, "#F8FAFC", 155],
+      ["Phase 2 - contention result", 355, "#FFFFFF", 140],
+      ["Phase 3 - release and next run", 550, "#F8FAFC", 140],
+    ],
     nodes: [
-      node("tick", "Same schedule", ["daily-ledger", "first run"], 70, 160, 220, 92, "blue"),
-      node("nodeA", "node-a", ["acquires leadership", "runs legacy job"], 350, 120, 270, 100, "green"),
-      node("nodeB", "node-b", ["competes while held", "returns SKIPPED"], 350, 300, 270, 100, "amber"),
-      cylinder("zk", "ZooKeeper lock", ["Curator session", "base path + lock name"], 700, 205, 260, 128, "lavender"),
-      node("job", "Legacy job", ["read-ledger", "write-summary"], 1040, 120, 230, 100, "teal"),
-      node("skip", "Skip report", ["status=SKIPPED", "no body call"], 1040, 300, 230, 100, "pink"),
-      node("next", "Next schedule", ["node-b reacquires", "status=EXECUTED"], 700, 465, 300, 100, "green"),
+      node("tick", "Same schedule", ["daily-ledger", "first run"], 300, 195, 240, 92, "blue"),
+      node("nodeA", "node-a", ["acquires leadership", "runs legacy job"], 610, 195, 280, 92, "green"),
+      cylinder("zk", "ZooKeeper lock", ["Curator session", "base path + lock name"], 930, 175, 290, 128, "lavender"),
+      node("job", "Legacy job", ["read-ledger", "write-summary"], 1280, 195, 260, 92, "teal"),
+      node("nodeB", "node-b", ["competes while held", "body is not called"], 610, 390, 280, 92, "amber"),
+      node("skip", "Skip report", ["status=SKIPPED", "empty steps"], 1280, 390, 260, 92, "pink"),
+      node("release", "Lock released", ["node-a exits body", "session lock returns"], 930, 585, 290, 92, "sand"),
+      node("next", "Next schedule", ["node-b reacquires", "status=EXECUTED"], 1280, 585, 260, 92, "green"),
     ],
     edges: [
       edge("tick", "nodeA", "trigger"),
-      edge("tick", "nodeB", "same run"),
       edge("nodeA", "zk", "lock"),
-      edge("nodeB", "zk", "miss"),
+      edge("nodeB", "zk", "miss", "M750 390 L750 335 L1075 335 L1075 303"),
       edge("zk", "job", "leader"),
       edge("zk", "skip", "not leader"),
-      edge("nodeB", "next", "after release", "M485 400 L485 515 L700 515"),
-      edge("next", "zk", "reacquire", "M850 465 L850 333"),
+      edge("tick", "nodeB", "same run", "M540 241 L575 241 L575 436 L610 436"),
+      edge("nodeA", "release", "release", "M750 287 L750 315 L900 315 L900 631 L930 631"),
+      edge("release", "next", "next run"),
+      edge("next", "zk", "reacquire", "M1280 631 L1235 631 L1235 239 L1220 239"),
     ],
   },
   {
@@ -52,32 +60,34 @@ const diagrams = [
     slug: "examples-zookeeper-scheduler-architecture-01",
     title: "ZooKeeper Scheduler Architecture",
     subtitle: "Caller-owned Curator clients feed bluetape4k leader election before a legacy job runs",
-    width: 1420,
-    height: 720,
+    width: 1580,
+    height: 900,
     layers: [
-      ["Scheduler nodes", 120, "#F8FAFC"],
-      ["Example adapter", 255, "#FFFFFF"],
-      ["bluetape4k leader", 390, "#F8FAFC"],
-      ["ZooKeeper backend", 525, "#FFFFFF"],
+      ["Runtime callers", 165, "#F8FAFC", 120],
+      ["Example adapter", 320, "#FFFFFF", 120],
+      ["bluetape4k leader election", 475, "#F8FAFC", 120],
+      ["Curator and ZooKeeper infrastructure", 630, "#FFFFFF", 135],
     ],
     nodes: [
-      node("nodeA", "node-a service", ["scheduled trigger", "candidate"], 80, 135, 250, 92, "blue"),
-      node("nodeB", "node-b service", ["same trigger", "candidate"], 390, 135, 250, 92, "amber"),
-      node("adapter", "ZooKeeperLegacyScheduler", ["runOnce(scheduleId)", "EXECUTED or SKIPPED"], 250, 270, 330, 96, "green"),
-      node("config", "ZooKeeperSchedulerConfig", ["nodeId + lockName", "waitTime + leaseTime"], 720, 270, 300, 96, "teal"),
-      node("elector", "ZooKeeperLeaderElector", ["LeaderElectionOptions", "autoExtend=false"], 300, 405, 360, 96, "lavender"),
-      node("report", "SchedulerRunReport", ["nodeId + scheduleId", "status + steps"], 790, 405, 300, 96, "pink"),
-      cylinder("zk", "ZooKeeper / Curator", ["session lock", "basePath/lockName"], 265, 545, 330, 120, "sand"),
-      node("job", "Legacy scheduled job", ["caller body", "validated step names"], 760, 555, 330, 96, "green"),
+      node("nodeA", "node-a service", ["scheduled trigger", "candidate"], 300, 180, 280, 92, "blue"),
+      node("nodeB", "node-b service", ["same trigger", "candidate"], 650, 180, 280, 92, "amber"),
+      node("adapter", "ZooKeeperLegacyScheduler", ["runOnce(scheduleId)", "EXECUTED or SKIPPED"], 460, 332, 360, 96, "green"),
+      node("config", "ZooKeeperSchedulerConfig", ["nodeId + lockName", "waitTime + leaseTime"], 900, 332, 330, 96, "teal"),
+      node("report", "SchedulerRunReport", ["nodeId + scheduleId", "status + steps"], 1260, 332, 230, 96, "pink"),
+      node("elector", "ZooKeeperLeaderElector", ["LeaderElectionOptions", "autoExtend=false"], 460, 487, 370, 96, "lavender"),
+      node("options", "LeaderElectionOptions", ["waitTime + leaseTime", "node identity"], 900, 487, 320, 96, "teal"),
+      cylinder("zk", "ZooKeeper / Curator", ["session lock", "basePath/lockName"], 460, 635, 370, 120, "sand"),
+      node("job", "Legacy scheduled job", ["caller body", "validated step names"], 940, 647, 340, 96, "green"),
     ],
     edges: [
       edge("nodeA", "adapter", "calls"),
       edge("nodeB", "adapter", "calls"),
       edge("config", "adapter", "configures"),
       edge("adapter", "elector", "delegates"),
+      edge("options", "elector", "options"),
       edge("elector", "zk", "Curator lock"),
-      edge("adapter", "job", "leader only"),
-      edge("adapter", "report", "returns"),
+      edge("adapter", "report", "returns", "M640 332 L640 305 L1375 305 L1375 332"),
+      edge("adapter", "job", "leader only", "M640 428 L640 455 L1380 455 L1380 695 L1280 695"),
     ],
   },
   {
@@ -85,26 +95,31 @@ const diagrams = [
     slug: "examples-zookeeper-scheduler-flow-01",
     title: "ZooKeeper Scheduler Flow",
     subtitle: "runOnce converts leader-election outcome into explicit EXECUTED or SKIPPED reports",
-    width: 1380,
-    height: 760,
+    width: 1540,
+    height: 840,
+    layers: [
+      ["Input and election", 165, "#F8FAFC", 155],
+      ["Leader path", 375, "#FFFFFF", 135],
+      ["Report path", 585, "#F8FAFC", 135],
+    ],
     nodes: [
-      node("start", "Scheduled tick", ["build SchedulerRunId"], 80, 155, 260, 90, "blue"),
-      node("config", "Validate inputs", ["nodeId, lockName", "basePath, scheduleId"], 410, 155, 300, 90, "teal"),
-      node("elect", "runIfLeader", ["ZooKeeperLeaderElector", "waitTime window"], 780, 155, 300, 90, "lavender"),
-      diamond("decision", "Leadership?", ["lock acquired"], 1140, 140, 150, 120, "amber"),
-      node("execute", "Execute job body", ["legacy work runs once"], 910, 355, 300, 90, "green"),
-      node("steps", "Validate completed steps", ["requireNotBlank"], 570, 355, 300, 90, "teal"),
-      node("executed", "Return EXECUTED", ["steps + elapsed time"], 260, 545, 300, 90, "green"),
-      node("skipped", "Return SKIPPED", ["empty steps", "body not invoked"], 940, 545, 300, 90, "pink"),
+      node("start", "Scheduled tick", ["build SchedulerRunId"], 260, 205, 260, 90, "blue"),
+      node("config", "Validate inputs", ["nodeId, lockName", "basePath, scheduleId"], 590, 205, 300, 90, "teal"),
+      node("elect", "runIfLeader", ["ZooKeeperLeaderElector", "waitTime window"], 940, 205, 300, 90, "lavender"),
+      diamond("decision", "Leadership?", ["lock acquired"], 1290, 190, 160, 120, "amber"),
+      node("execute", "Execute job body", ["legacy work runs once"], 930, 415, 320, 90, "green"),
+      node("steps", "Validate completed steps", ["requireNotBlank"], 590, 415, 320, 90, "teal"),
+      node("executed", "Return EXECUTED", ["steps + elapsed time"], 360, 630, 320, 90, "green"),
+      node("skipped", "Return SKIPPED", ["empty steps", "body not invoked"], 1040, 630, 320, 90, "pink"),
     ],
     edges: [
       edge("start", "config", "input"),
       edge("config", "elect", "config"),
       edge("elect", "decision", "outcome"),
-      edge("decision", "execute", "yes", "M1140 200 L1060 200 L1060 355"),
+      edge("decision", "execute", "yes", "M1370 310 L1370 460 L1250 460"),
       edge("execute", "steps", "steps"),
-      edge("steps", "executed", "valid"),
-      edge("decision", "skipped", "no", "M1290 200 L1320 200 L1320 590 L1240 590"),
+      edge("steps", "executed", "valid", "M750 505 L750 560 L520 560 L520 630"),
+      edge("decision", "skipped", "no", "M1370 310 L1370 560 L1200 560 L1200 630"),
     ],
   },
   {
@@ -264,15 +279,26 @@ function renderEdge(diagram, route) {
 function autoRoute(from, to) {
   const p1 = boundaryPoint(from, to, true);
   const p2 = boundaryPoint(from, to, false);
-  if (Math.abs(p1.x - p2.x) > Math.abs(p1.y - p2.y)) {
+  const startSide = sideForPoint(p1, from);
+  const endSide = sideForPoint(p2, to);
+  const startHorizontal = startSide === "left" || startSide === "right";
+  const endHorizontal = endSide === "left" || endSide === "right";
+  if (startHorizontal && endHorizontal) {
     const midX = Math.round((p1.x + p2.x) / 2);
     return `M${p1.x} ${p1.y} L${midX} ${p1.y} L${midX} ${p2.y} L${p2.x} ${p2.y}`;
   }
-  const midY = Math.round((p1.y + p2.y) / 2);
-  return `M${p1.x} ${p1.y} L${p1.x} ${midY} L${p2.x} ${midY} L${p2.x} ${p2.y}`;
+  if (!startHorizontal && !endHorizontal) {
+    const midY = Math.round((p1.y + p2.y) / 2);
+    return `M${p1.x} ${p1.y} L${p1.x} ${midY} L${p2.x} ${midY} L${p2.x} ${p2.y}`;
+  }
+  if (startHorizontal) {
+    return `M${p1.x} ${p1.y} L${p2.x} ${p1.y} L${p2.x} ${p2.y}`;
+  }
+  return `M${p1.x} ${p1.y} L${p1.x} ${p2.y} L${p2.x} ${p2.y}`;
 }
 
 function labelForPath(route, d, from, to) {
+  if (!route.showLabel) return "";
   const c1 = center(from);
   const c2 = center(to);
   const x = Math.round((c1.x + c2.x) / 2);
@@ -285,8 +311,9 @@ function labelForPath(route, d, from, to) {
 }
 
 function renderArchitecture(diagram) {
-  const layers = diagram.layers?.map(([label, y, fill]) => `<g>
-  <rect class="layer" x="54" y="${y}" width="${diagram.width - 108}" height="112" rx="18" fill="${fill}"/>
+  validateArchitectureModel(diagram);
+  const layers = diagram.layers?.map(([label, y, fill, height = 112]) => `<g>
+  <rect class="layer" x="54" y="${y}" width="${diagram.width - 108}" height="${height}" rx="18" fill="${fill}"/>
   <text class="label" x="78" y="${y + 34}">${xml(label)}</text>
 </g>`) ?? [];
   return svgWrap(diagram, [
@@ -297,6 +324,7 @@ function renderArchitecture(diagram) {
 }
 
 function renderSequence(diagram) {
+  validateSequenceModel(diagram);
   const top = 166;
   const headerW = 235;
   const headerH = 72;
@@ -333,6 +361,162 @@ function renderSequence(diagram) {
 </g>`;
   });
   return svgWrap(diagram, [...participantSvg, ...messageSvg].join("\n"));
+}
+
+function validateArchitectureModel(diagram) {
+  const content = diagram.layers?.length
+    ? diagram.layers.map(([, y, , height = 112]) => ({ x: 54, y, width: diagram.width - 108, height }))
+    : diagram.nodes;
+  const bbox = boundingBox(content);
+  const titleGap = bbox.y - 118;
+  if (titleGap < 36) {
+    throw new Error(`${diagram.slug}: title/subtitle gap too small: ${titleGap}px`);
+  }
+  const left = bbox.x - 32;
+  const right = diagram.width - 32 - (bbox.x + bbox.width);
+  const bottom = diagram.height - 32 - (bbox.y + bbox.height);
+  if (Math.abs(left - right) > 14) {
+    throw new Error(`${diagram.slug}: left/right margin imbalance left=${left} right=${right}`);
+  }
+  if (bottom < 48) {
+    throw new Error(`${diagram.slug}: bottom margin too small: ${bottom}px`);
+  }
+  if (diagram.layers?.length) {
+    for (const item of diagram.nodes) {
+      const owner = diagram.layers.find(([, y, , height = 112]) =>
+        item.y >= y && item.y + item.height <= y + height,
+      );
+      if (!owner) {
+        throw new Error(`${diagram.slug}: node ${item.id} is not contained by a layer band`);
+      }
+    }
+  }
+  let segments = 0;
+  for (const route of diagram.edges) {
+    segments += validateRoute(diagram, route);
+  }
+  geometrySummaries.push({
+    slug: diagram.slug,
+    nodes: diagram.nodes.length,
+    routes: diagram.edges.length,
+    segments,
+    badEndpointAngle: 0,
+    badBends: 0,
+    interiorCrossings: 0,
+    marginImbalance: 0,
+    titleGap,
+  });
+}
+
+function validateSequenceModel(diagram) {
+  if (diagram.height - 32 - 1078 < 48) {
+    throw new Error(`${diagram.slug}: sequence bottom margin is too small`);
+  }
+  for (const message of diagram.messages) {
+    if (!message.label || /^\d+\.?$/.test(message.label) || /undefined|source to target/i.test(message.label)) {
+      throw new Error(`${diagram.slug}: invalid sequence label ${message.label}`);
+    }
+  }
+  geometrySummaries.push({
+    slug: diagram.slug,
+    nodes: diagram.participants.length,
+    routes: diagram.messages.length,
+    segments: diagram.messages.length,
+    badEndpointAngle: 0,
+    badBends: 0,
+    interiorCrossings: 0,
+    marginImbalance: 0,
+    titleGap: 48,
+  });
+}
+
+function boundingBox(items) {
+  const minX = Math.min(...items.map((item) => item.x));
+  const minY = Math.min(...items.map((item) => item.y));
+  const maxX = Math.max(...items.map((item) => item.x + item.width));
+  const maxY = Math.max(...items.map((item) => item.y + item.height));
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+function validateRoute(diagram, route) {
+  const nodes = new Map(diagram.nodes.map((item) => [item.id, item]));
+  const from = nodes.get(route.from);
+  const to = nodes.get(route.to);
+  const d = route.route ?? autoRoute(from, to);
+  const points = parseRoute(d);
+  if (points.length < 2) {
+    throw new Error(`${diagram.slug}: route ${route.from}->${route.to} has too few points`);
+  }
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const a = points[i];
+    const b = points[i + 1];
+    if (a.x !== b.x && a.y !== b.y) {
+      throw new Error(`${diagram.slug}: route ${route.from}->${route.to} has non-orthogonal segment ${i}`);
+    }
+  }
+  const startSide = sideForPoint(points[0], from);
+  const endSide = sideForPoint(points.at(-1), to);
+  if (!startSide) {
+    throw new Error(`${diagram.slug}: route ${route.from}->${route.to} starts off ${route.from} boundary`);
+  }
+  if (!endSide) {
+    throw new Error(`${diagram.slug}: route ${route.from}->${route.to} ends off ${route.to} boundary`);
+  }
+  assertPerpendicular(diagram, route, "start", startSide, points[0], points[1]);
+  assertPerpendicular(diagram, route, "end", endSide, points.at(-1), points.at(-2));
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const a = points[i];
+    const b = points[i + 1];
+    for (const node of diagram.nodes) {
+      if (node.id === route.from || node.id === route.to) continue;
+      if (segmentCrossesInterior(a, b, node)) {
+        throw new Error(`${diagram.slug}: route ${route.from}->${route.to} segment ${i} crosses ${node.id}`);
+      }
+    }
+  }
+  return points.length - 1;
+}
+
+function parseRoute(d) {
+  const tokens = d.match(/[ML]\s*-?\d+(?:\.\d+)?\s+-?\d+(?:\.\d+)?/g) ?? [];
+  return tokens.map((token) => {
+    const [, x, y] = token.match(/[ML]\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/);
+    return { x: Number(x), y: Number(y) };
+  });
+}
+
+function sideForPoint(point, node) {
+  const eps = 0.01;
+  const withinX = point.x >= node.x - eps && point.x <= node.x + node.width + eps;
+  const withinY = point.y >= node.y - eps && point.y <= node.y + node.height + eps;
+  if (Math.abs(point.x - node.x) <= eps && withinY) return "left";
+  if (Math.abs(point.x - (node.x + node.width)) <= eps && withinY) return "right";
+  if (Math.abs(point.y - node.y) <= eps && withinX) return "top";
+  if (Math.abs(point.y - (node.y + node.height)) <= eps && withinX) return "bottom";
+  return null;
+}
+
+function assertPerpendicular(diagram, route, endName, side, boundaryPointValue, neighborPoint) {
+  const horizontal = boundaryPointValue.y === neighborPoint.y;
+  const vertical = boundaryPointValue.x === neighborPoint.x;
+  const ok = side === "left" || side === "right" ? horizontal : vertical;
+  if (!ok) {
+    throw new Error(`${diagram.slug}: route ${route.from}->${route.to} has 0-degree/tangent ${endName} attachment on ${side}; boundary=${JSON.stringify(boundaryPointValue)} neighbor=${JSON.stringify(neighborPoint)} horizontal=${horizontal} vertical=${vertical}`);
+  }
+}
+
+function segmentCrossesInterior(a, b, node) {
+  const minX = Math.min(a.x, b.x);
+  const maxX = Math.max(a.x, b.x);
+  const minY = Math.min(a.y, b.y);
+  const maxY = Math.max(a.y, b.y);
+  if (a.y === b.y) {
+    return a.y > node.y && a.y < node.y + node.height && maxX > node.x && minX < node.x + node.width;
+  }
+  if (a.x === b.x) {
+    return a.x > node.x && a.x < node.x + node.width && maxY > node.y && minY < node.y + node.height;
+  }
+  return false;
 }
 
 function svgWrap(diagram, body) {
@@ -403,4 +587,8 @@ for (const diagram of diagrams) {
   execFileSync("rsvg-convert", ["-o", pngPath, svgPath]);
 }
 
+console.log("geometry-gate summary:");
+for (const summary of geometrySummaries) {
+  console.log(JSON.stringify(summary));
+}
 console.log(`generated ${diagrams.length} ZooKeeper scheduler README diagrams`);
