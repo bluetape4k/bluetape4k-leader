@@ -42,6 +42,13 @@ lease extender와 비교합니다. 현재 Redisson elector는 항상 명시적 `
 - [`docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-throughput.json`](../docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-throughput.json)
 - [`docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-average-time.json`](../docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-average-time.json)
 
+Issue #427는 2026-06-05 같은 장비에서 측정한 Local 및 MongoDB `autoExtend`
+전용 행을 추가합니다. 이 행들은 Redis benchmark의 quick/renewal-window
+구성을 재사용하지만, Redis 자체는 #422 선행 근거로 유지합니다. 원본 JSON과
+판단 기록은
+[`docs/benchmarks/2026-06-05-issue-427-autoextend-backends.md`](../docs/benchmarks/2026-06-05-issue-427-autoextend-backends.md)에
+보존했습니다.
+
 Issue #414는 2026-06-05 같은 장비에서 노이즈가 컸던 suspend MongoDB
 `runIfLeader` 행을 Lettuce, Redisson, Hazelcast와 함께 반복 측정했습니다.
 기존과 같은 fork 1, thread 1, warmup 2회, measurement 3회 구성을 유지했고,
@@ -125,6 +132,45 @@ JMH error bound 안에 있으므로, 이 수치만으로 production 최적화를
 | `runIfLeaderWithRenewalWindow` | lettuce-auto-extend | 18.876 ± 0.844 | 52,182.685 ± 17,376.505 | Renewal-window 비교 행 |
 | `runIfLeaderWithRenewalWindow` | redisson-normal | 18.603 ± 7.860 | 53,558.941 ± 19,665.787 | 90ms lease, 45ms action dwell |
 | `runIfLeaderWithRenewalWindow` | redisson-auto-extend | 19.214 ± 8.932 | 51,883.433 ± 6,959.355 | Shared auto extender, native watchdog 아님 |
+
+## Local and MongoDB Auto-Extension Results
+
+Throughput은 높을수록 좋고, average time은 낮을수록 좋습니다.
+
+Issue #427는 #422 Redis 행으로 이미 덮인 부분을 제외하고, README가 지원한다고
+문서화한 단일 리더 `autoExtend` backend 중 Local과 MongoDB를 측정합니다.
+Group election auto-extension은 아직 지원하지 않으며, 문서화되지 않은 backend
+조합은 이번 benchmark 범위 밖에 둡니다.
+
+`runIfLeader` 행은 60초 lease와 빠른 action을 사용합니다.
+`runIfLeaderWithRenewalWindow` 행은 90ms lease와 45ms action dwell을
+사용하므로 같은 method 안에서만 비교하세요.
+
+### Blocking Local and MongoDB API
+
+| Scenario | Mode | Throughput (ops/s) | Average time (us/op) | Notes |
+|---|---|---:|---:|---|
+| `runIfLeader` | local-normal | 2,395,400.193 ± 501,076.856 | 0.426 ± 0.219 | 60s lease, 빠른 action |
+| `runIfLeader` | local-auto-extend | 805,517.783 ± 1,278,895.802 | 1.237 ± 2.269 | Shared watchdog start/close overhead 확인 |
+| `runIfLeader` | mongo-normal | 971.090 ± 544.247 | 5,774.991 ± 28,639.740 | MongoDB Testcontainer |
+| `runIfLeader` | mongo-auto-extend | 692.798 ± 749.379 | 2,569.192 ± 33,179.484 | Tuning 근거로 삼기에는 error bound가 큼 |
+| `runIfLeaderWithRenewalWindow` | local-normal | 21.511 ± 0.547 | 46,273.157 ± 1,105.062 | 90ms lease, 45ms action dwell |
+| `runIfLeaderWithRenewalWindow` | local-auto-extend | 21.577 ± 3.122 | 46,154.705 ± 2,389.850 | Dwell 시간이 지배적 |
+| `runIfLeaderWithRenewalWindow` | mongo-normal | 16.198 ± 2.870 | 57,592.652 ± 14,277.831 | 90ms lease, 45ms action dwell |
+| `runIfLeaderWithRenewalWindow` | mongo-auto-extend | 16.552 ± 15.388 | 55,941.229 ± 16,045.389 | Error bound가 normal 행과 겹침 |
+
+### Suspend Local and MongoDB API
+
+| Scenario | Mode | Throughput (ops/s) | Average time (us/op) | Notes |
+|---|---|---:|---:|---|
+| `runIfLeader` | local-normal | 868,702.969 ± 143,615.007 | 1.168 ± 0.429 | Coroutine local 기준선 |
+| `runIfLeader` | local-auto-extend | 388,941.209 ± 188,261.017 | 2.549 ± 1.169 | Shared watchdog start/close overhead 확인 |
+| `runIfLeader` | mongo-normal | 171.671 ± 496.698 | 6,693.307 ± 15,305.281 | 노이즈가 큰 MongoDB suspend 행 |
+| `runIfLeader` | mongo-auto-extend | 240.190 ± 2,241.840 | 5,954.376 ± 37,242.530 | Tuning 근거로 삼기에는 error bound가 큼 |
+| `runIfLeaderWithRenewalWindow` | local-normal | 21.496 ± 0.945 | 46,579.372 ± 1,339.338 | 90ms lease, 45ms action dwell |
+| `runIfLeaderWithRenewalWindow` | local-auto-extend | 21.502 ± 2.185 | 46,742.978 ± 4,988.328 | Dwell 시간이 지배적 |
+| `runIfLeaderWithRenewalWindow` | mongo-normal | 17.352 ± 8.027 | 61,080.897 ± 22,853.647 | 90ms lease, 45ms action dwell |
+| `runIfLeaderWithRenewalWindow` | mongo-auto-extend | 17.678 ± 5.739 | 55,882.592 ± 11,014.145 | Error bound가 normal 행과 겹침 |
 
 ### Blocking API
 
@@ -218,6 +264,8 @@ source set에서 별도로 실행합니다.
 | `SuspendBackendLeaderElectorBenchmark` | Suspend `runIfLeader`: local, Redis, Exposed R2DBC H2/PostgreSQL/MySQL, MongoDB, Hazelcast, ZooKeeper, Consul, etcd, DynamoDB |
 | `RedisLeaseExtensionBenchmark` | Blocking Lettuce/Redisson 일반 실행과 shared `autoExtend` lease-extension 행 |
 | `SuspendRedisLeaseExtensionBenchmark` | Suspend Lettuce/Redisson 일반 실행과 shared `autoExtend` lease-extension 행 |
+| `AutoExtendBackendLeaderElectorBenchmark` | Blocking Local/MongoDB 일반 실행과 shared `autoExtend` lease-extension 행 |
+| `SuspendAutoExtendBackendLeaderElectorBenchmark` | Suspend Local/MongoDB 일반 실행과 shared `autoExtend` lease-extension 행 |
 | `KubernetesBackendLeaderElectorBenchmark` | 별도 Vert.x 4 runtime에서 K3s 기반 Kubernetes Lease lock의 blocking/suspend `runIfLeader` 측정 |
 | `LocalLeaderElectorBenchmark` | Local blocking, async, completable-future, suspend, virtual-thread elector overhead |
 | `HistoryRecorderBenchmark` | No-op 및 in-memory leader history recorder overhead |

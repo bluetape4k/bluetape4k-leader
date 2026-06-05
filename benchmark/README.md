@@ -41,6 +41,12 @@ represented because the current Redisson electors always pass an explicit
 - [`docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-throughput.json`](../docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-throughput.json)
 - [`docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-average-time.json`](../docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-average-time.json)
 
+Issue #427 adds focused Local and MongoDB `autoExtend` rows from a same-machine
+run on 2026-06-05. These rows reuse the Redis quick and renewal-window shape,
+but keep Redis itself as #422 prior evidence. Raw JSON and the decision record
+are stored under
+[`docs/benchmarks/2026-06-05-issue-427-autoextend-backends.md`](../docs/benchmarks/2026-06-05-issue-427-autoextend-backends.md).
+
 Issue #414 repeated the noisy suspend MongoDB `runIfLeader` row on 2026-06-05
 against Lettuce, Redisson, and Hazelcast. The repeated same-machine run kept the
 existing one-fork, one-thread, two-warmup, three-measurement shape and confirmed
@@ -122,6 +128,45 @@ error bounds, so these numbers do not justify a production optimization.
 | `runIfLeaderWithRenewalWindow` | lettuce-auto-extend | 18.876 ± 0.844 | 52,182.685 ± 17,376.505 | Renewal-window comparison row |
 | `runIfLeaderWithRenewalWindow` | redisson-normal | 18.603 ± 7.860 | 53,558.941 ± 19,665.787 | 90ms lease, 45ms action dwell |
 | `runIfLeaderWithRenewalWindow` | redisson-auto-extend | 19.214 ± 8.932 | 51,883.433 ± 6,959.355 | Shared auto extender, not native watchdog |
+
+## Local and MongoDB Auto-Extension Results
+
+Higher is better for throughput. Lower is better for average time.
+
+Issue #427 covers README-supported single-leader `autoExtend` backends that were
+not already covered by the Redis rows in #422. Group election auto-extension is
+not supported yet, and undocumented backend combinations stay outside this
+benchmark scope.
+
+The `runIfLeader` rows use a 60 second lease and a fast action. The
+`runIfLeaderWithRenewalWindow` rows use a 90 ms lease and a 45 ms action dwell,
+so compare those rows only within the same method.
+
+### Blocking Local and MongoDB API
+
+| Scenario | Mode | Throughput (ops/s) | Average time (us/op) | Notes |
+|---|---|---:|---:|---|
+| `runIfLeader` | local-normal | 2,395,400.193 ± 501,076.856 | 0.426 ± 0.219 | 60s lease, fast action |
+| `runIfLeader` | local-auto-extend | 805,517.783 ± 1,278,895.802 | 1.237 ± 2.269 | Shared watchdog start/close overhead visible |
+| `runIfLeader` | mongo-normal | 971.090 ± 544.247 | 5,774.991 ± 28,639.740 | MongoDB Testcontainer |
+| `runIfLeader` | mongo-auto-extend | 692.798 ± 749.379 | 2,569.192 ± 33,179.484 | Error bound too wide for tuning |
+| `runIfLeaderWithRenewalWindow` | local-normal | 21.511 ± 0.547 | 46,273.157 ± 1,105.062 | 90ms lease, 45ms action dwell |
+| `runIfLeaderWithRenewalWindow` | local-auto-extend | 21.577 ± 3.122 | 46,154.705 ± 2,389.850 | Dwell dominates |
+| `runIfLeaderWithRenewalWindow` | mongo-normal | 16.198 ± 2.870 | 57,592.652 ± 14,277.831 | 90ms lease, 45ms action dwell |
+| `runIfLeaderWithRenewalWindow` | mongo-auto-extend | 16.552 ± 15.388 | 55,941.229 ± 16,045.389 | Error bound overlaps normal row |
+
+### Suspend Local and MongoDB API
+
+| Scenario | Mode | Throughput (ops/s) | Average time (us/op) | Notes |
+|---|---|---:|---:|---|
+| `runIfLeader` | local-normal | 868,702.969 ± 143,615.007 | 1.168 ± 0.429 | Coroutine local baseline |
+| `runIfLeader` | local-auto-extend | 388,941.209 ± 188,261.017 | 2.549 ± 1.169 | Shared watchdog start/close overhead visible |
+| `runIfLeader` | mongo-normal | 171.671 ± 496.698 | 6,693.307 ± 15,305.281 | Noisy MongoDB suspend row |
+| `runIfLeader` | mongo-auto-extend | 240.190 ± 2,241.840 | 5,954.376 ± 37,242.530 | Error bound too wide for tuning |
+| `runIfLeaderWithRenewalWindow` | local-normal | 21.496 ± 0.945 | 46,579.372 ± 1,339.338 | 90ms lease, 45ms action dwell |
+| `runIfLeaderWithRenewalWindow` | local-auto-extend | 21.502 ± 2.185 | 46,742.978 ± 4,988.328 | Dwell dominates |
+| `runIfLeaderWithRenewalWindow` | mongo-normal | 17.352 ± 8.027 | 61,080.897 ± 22,853.647 | 90ms lease, 45ms action dwell |
+| `runIfLeaderWithRenewalWindow` | mongo-auto-extend | 17.678 ± 5.739 | 55,882.592 ± 11,014.145 | Error bound overlaps normal row |
 
 ### Blocking API
 
@@ -213,6 +258,8 @@ latest self-improve section above for issue #329 after numbers.
 | `SuspendBackendLeaderElectorBenchmark` | Suspend `runIfLeader` across local, Redis, Exposed R2DBC H2/PostgreSQL/MySQL, MongoDB, Hazelcast, ZooKeeper, Consul, etcd, and DynamoDB |
 | `RedisLeaseExtensionBenchmark` | Blocking Lettuce and Redisson normal vs shared `autoExtend` lease-extension rows |
 | `SuspendRedisLeaseExtensionBenchmark` | Suspend Lettuce and Redisson normal vs shared `autoExtend` lease-extension rows |
+| `AutoExtendBackendLeaderElectorBenchmark` | Blocking Local and MongoDB normal vs shared `autoExtend` lease-extension rows |
+| `SuspendAutoExtendBackendLeaderElectorBenchmark` | Suspend Local and MongoDB normal vs shared `autoExtend` lease-extension rows |
 | `KubernetesBackendLeaderElectorBenchmark` | Blocking and suspend `runIfLeader` against K3s-backed Kubernetes Lease locks on a separate Vert.x 4 runtime |
 | `LocalLeaderElectorBenchmark` | Local blocking, async, completable-future, suspend, and virtual-thread elector overhead |
 | `HistoryRecorderBenchmark` | No-op and in-memory leader history recorder overhead |
