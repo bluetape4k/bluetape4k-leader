@@ -7,8 +7,8 @@ digraph "leader-redis-redisson-sequence-03" {
   n2 [label="Redis", fillcolor="#ffffff", color="#D6A441", width=3.19, height=1.00, pos="993.00,498.00!"];
   n0 -> n2 [];
   n2 -> n0 [style=dashed];
-  r3p1 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="259.00,148.00!"];
-  r3p2 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="259.00,114.00!"];
+  r3p1 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="259.00,220.00!"];
+  r3p2 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="259.00,186.00!"];
   n0 -> r3p1 [arrowhead=none];
   r3p1 -> r3p2 [arrowhead=none];
   r3p2 -> n0 [];

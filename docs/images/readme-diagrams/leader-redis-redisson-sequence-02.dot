@@ -10,8 +10,8 @@ digraph "leader-redis-redisson-sequence-02" {
   n2 -> n0 [style=dashed];
   n0 -> n2 [];
   n2 -> n0 [style=dashed];
-  r6p1 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="294.00,-182.00!"];
-  r6p2 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="294.00,-216.00!"];
+  r6p1 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="294.00,-2.00!"];
+  r6p2 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="294.00,-36.00!"];
   n0 -> r6p1 [arrowhead=none];
   r6p1 -> r6p2 [arrowhead=none];
   r6p2 -> n0 [];
@@ -21,8 +21,8 @@ digraph "leader-redis-redisson-sequence-02" {
   n2 -> n0 [style=dashed];
   n0 -> n2 [];
   n2 -> n0 [style=dashed];
-  r13p1 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="294.00,-972.00!"];
-  r13p2 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="294.00,-1006.00!"];
+  r13p1 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="294.00,-554.00!"];
+  r13p2 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="294.00,-588.00!"];
   n0 -> r13p1 [arrowhead=none];
   r13p1 -> r13p2 [arrowhead=none];
   r13p2 -> n0 [];
