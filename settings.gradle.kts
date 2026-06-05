@@ -105,6 +105,7 @@ include(
     "examples:prometheus-dashboard",
     "examples:etcd-reconciler",
     "examples:consul-maintenance",
+    "examples:dynamodb-export",
     "examples:k8s-lease",
     "examples:k8s-operator",
     "examples:rate-limiter",

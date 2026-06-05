@@ -104,6 +104,7 @@ jobs:
       examples-prometheus-dashboard: ${{ steps.filter.outputs.examples-prometheus-dashboard }}
       examples-etcd-reconciler: ${{ steps.filter.outputs.examples-etcd-reconciler }}
       examples-consul-maintenance: ${{ steps.filter.outputs.examples-consul-maintenance }}
+      examples-dynamodb-export: ${{ steps.filter.outputs.examples-dynamodb-export }}
       examples-k8s-lease: ${{ steps.filter.outputs.examples-k8s-lease }}
       examples-k8s-operator: ${{ steps.filter.outputs.examples-k8s-operator }}
       examples-rate-limiter: ${{ steps.filter.outputs.examples-rate-limiter }}
@@ -191,6 +192,10 @@ jobs:
             examples-consul-maintenance:
               - 'examples/consul-maintenance/**'
               - 'leader-consul/**'
+              - 'leader-core/**'
+            examples-dynamodb-export:
+              - 'examples/dynamodb-export/**'
+              - 'leader-dynamodb/**'
               - 'leader-core/**'
             examples-k8s-lease:
               - 'examples/k8s-lease/**'
@@ -1017,6 +1022,42 @@ jobs:
           path: '**/build/test-results/test/*.xml'
           retention-days: 7
 
+  # ── examples-dynamodb-export (Testcontainers DynamoDB Local) ───────────────
+  test-examples-dynamodb-export:
+    name: Test / examples-dynamodb-export
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs['examples-dynamodb-export'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: wrapper
+          cache-read-only: true
+      - name: Test examples-dynamodb-export
+        run: |
+          for attempt in 1 2 3 4 5; do
+            ./gradlew :examples:dynamodb-export:test --refresh-dependencies --no-configuration-cache --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
+          done
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+          DOCKER_HOST: "unix:///var/run/docker.sock"
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-examples-dynamodb-export
+          path: '**/build/test-results/test/*.xml'
+          retention-days: 7
+
   # ── examples-k8s-lease (compile/test lane; k8sTest runs in Examples workflow) ─
   test-examples-k8s-lease:
     name: Test / examples-k8s-lease
@@ -1757,6 +1798,7 @@ jobs:
       - test-examples-batch-scheduler
       - test-examples-etcd-reconciler
       - test-examples-consul-maintenance
+      - test-examples-dynamodb-export
       - test-examples-k8s-lease
       - test-examples-k8s-operator
       - test-examples-rate-limiter
@@ -1825,6 +1867,7 @@ jobs:
       - test-examples-batch-scheduler
       - test-examples-etcd-reconciler
       - test-examples-consul-maintenance
+      - test-examples-dynamodb-export
       - test-examples-k8s-lease
       - test-examples-k8s-operator
       - test-examples-rate-limiter

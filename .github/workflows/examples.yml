@@ -88,6 +88,8 @@ jobs:
             gradle_tasks: :examples:etcd-reconciler:test
           - example: examples-consul-maintenance
             gradle_tasks: :examples:consul-maintenance:test
+          - example: examples-dynamodb-export
+            gradle_tasks: :examples:dynamodb-export:test
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
