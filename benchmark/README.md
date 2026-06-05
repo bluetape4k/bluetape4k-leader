@@ -41,6 +41,13 @@ represented because the current Redisson electors always pass an explicit
 - [`docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-throughput.json`](../docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-throughput.json)
 - [`docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-average-time.json`](../docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-average-time.json)
 
+Issue #414 repeated the noisy suspend MongoDB `runIfLeader` row on 2026-06-05
+against Lettuce, Redisson, and Hazelcast. The repeated same-machine run kept the
+existing one-fork, one-thread, two-warmup, three-measurement shape and confirmed
+that MongoDB stayed slower but too noisy for a narrow tuning target. Raw JSON
+and the decision record are stored under
+[`docs/benchmarks/2026-06-05-issue-414-mongodb-suspend-repeat.md`](../docs/benchmarks/2026-06-05-issue-414-mongodb-suspend-repeat.md).
+
 ## Charts
 
 Distributed backend charts exclude the local and H2 rows so infrastructure
@@ -195,7 +202,8 @@ latest self-improve section above for issue #329 after numbers.
 - Benchmark setup performs a smoke `runIfLeader` check before measurement, so a
   failed infrastructure connection does not become a false fast-path row.
 - Repeat noisy rows, especially DynamoDB, etcd, Kubernetes, and suspend MongoDB,
-  before optimizing against them.
+  before optimizing against them. Issue #414 confirmed suspend MongoDB remains
+  a noisy row rather than a stable optimization target in short-window runs.
 
 ## Benchmark Classes
 

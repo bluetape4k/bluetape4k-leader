@@ -42,6 +42,14 @@ lease extender와 비교합니다. 현재 Redisson elector는 항상 명시적 `
 - [`docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-throughput.json`](../docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-throughput.json)
 - [`docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-average-time.json`](../docs/benchmarks/2026-06-01-issue-422-redis-lease-extension-average-time.json)
 
+Issue #414는 2026-06-05 같은 장비에서 노이즈가 컸던 suspend MongoDB
+`runIfLeader` 행을 Lettuce, Redisson, Hazelcast와 함께 반복 측정했습니다.
+기존과 같은 fork 1, thread 1, warmup 2회, measurement 3회 구성을 유지했고,
+MongoDB가 더 느리지만 짧은 측정 창에서는 좁은 tuning target으로 삼기에는
+여전히 노이즈가 크다는 점을 확인했습니다. 원본 JSON과 판단 기록은
+[`docs/benchmarks/2026-06-05-issue-414-mongodb-suspend-repeat.md`](../docs/benchmarks/2026-06-05-issue-414-mongodb-suspend-repeat.md)에
+보존했습니다.
+
 ## Charts
 
 분산 환경 backend 차트는 infrastructure backend 간 차이가 보이도록 local
@@ -198,7 +206,9 @@ source set에서 별도로 실행합니다.
 - benchmark setup은 측정 전 smoke `runIfLeader` check를 수행하므로,
   infrastructure 연결 실패가 잘못된 빠른 경로로 측정되지 않습니다.
 - 특히 DynamoDB, etcd, Kubernetes, suspend MongoDB처럼 노이즈가 큰 행은
-  최적화 판단 전에 반복 측정하세요.
+  최적화 판단 전에 반복 측정하세요. Issue #414는 짧은 측정 창에서 suspend
+  MongoDB가 안정적인 최적화 target이 아니라 여전히 노이즈가 큰 행임을
+  확인했습니다.
 
 ## Benchmark Classes
 
