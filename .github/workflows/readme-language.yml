@@ -1,0 +1,38 @@
+name: README Language
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'README*.md'
+      - '**/README*.md'
+      - 'scripts/check-readme-language-switches.mjs'
+      - '.github/workflows/readme-language.yml'
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'README*.md'
+      - '**/README*.md'
+      - 'scripts/check-readme-language-switches.mjs'
+      - '.github/workflows/readme-language.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  readme-language-switches:
+    name: README language switches
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Check README language switches
+        run: node scripts/check-readme-language-switches.mjs
