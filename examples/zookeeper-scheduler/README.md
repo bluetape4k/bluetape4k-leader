@@ -12,16 +12,21 @@ This example shows how to guard a legacy scheduled job with the stable `leader-z
 - bluetape4k Testcontainers launcher for local ZooKeeper.
 - Skip-on-contention behavior through `runIfLeader`.
 
-## Architecture
+## Example Scenario
 
-```mermaid
-flowchart LR
-    A[node-a scheduler] --> E[ZooKeeperLeaderElector]
-    B[node-b scheduler] --> E
-    E --> Z[(ZooKeeper / Curator)]
-    E -->|leader| J[legacy scheduled job]
-    E -->|not leader| S[skip report]
-```
+![ZooKeeper scheduler scenario diagram](../../docs/images/readme-diagrams/examples-zookeeper-scheduler-scenario-01.png)
+
+## Architecture Diagram
+
+![ZooKeeper scheduler architecture diagram](../../docs/images/readme-diagrams/examples-zookeeper-scheduler-architecture-01.png)
+
+## Flow Diagram
+
+![ZooKeeper scheduler flow diagram](../../docs/images/readme-diagrams/examples-zookeeper-scheduler-flow-01.png)
+
+## Sequence Diagram
+
+![ZooKeeper scheduler sequence diagram](../../docs/images/readme-diagrams/examples-zookeeper-scheduler-sequence-01.png)
 
 ## Run
 

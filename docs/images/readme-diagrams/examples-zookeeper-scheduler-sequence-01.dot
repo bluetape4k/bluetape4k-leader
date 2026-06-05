@@ -1,0 +1,26 @@
+digraph "examples-zookeeper-scheduler-sequence-01" {
+  graph [rankdir=LR, bgcolor="transparent", margin=0.1, nodesep=0.65, ranksep=0.9];
+  node [shape=box, style="rounded,filled", fillcolor="#f8fafc", color="#94a3b8", fontname="Comic Mono"];
+  edge [color="#758297", fontname="Comic Mono", fontsize=10];
+  "Demo";
+  "node-a scheduler";
+  "ZooKeeperLeaderElector";
+  "ZooKeeper / Curator";
+  "Legacy job";
+  "node-b scheduler";
+  "Demo" -> "node-a scheduler" [label="submit first run"];
+  "node-a scheduler" -> "ZooKeeperLeaderElector" [label="runIfLeader(lockName)"];
+  "ZooKeeperLeaderElector" -> "ZooKeeper / Curator" [label="acquire session lock"];
+  "ZooKeeper / Curator" -> "ZooKeeperLeaderElector" [label="ACQUIRED"];
+  "ZooKeeperLeaderElector" -> "Legacy job" [label="execute job body"];
+  "Demo" -> "node-b scheduler" [label="same run while held"];
+  "node-b scheduler" -> "ZooKeeperLeaderElector" [label="runIfLeader(lockName)"];
+  "ZooKeeperLeaderElector" -> "ZooKeeper / Curator" [label="try same lock"];
+  "ZooKeeper / Curator" -> "ZooKeeperLeaderElector" [label="not leader"];
+  "ZooKeeperLeaderElector" -> "node-b scheduler" [label="SKIPPED report"];
+  "node-a scheduler" -> "ZooKeeper / Curator" [label="release on exit"];
+  "node-b scheduler" -> "ZooKeeperLeaderElector" [label="next run"];
+  "ZooKeeperLeaderElector" -> "ZooKeeper / Curator" [label="acquire released lock"];
+  "ZooKeeper / Curator" -> "ZooKeeperLeaderElector" [label="ACQUIRED"];
+  "ZooKeeperLeaderElector" -> "Legacy job" [label="execute next job"];
+}

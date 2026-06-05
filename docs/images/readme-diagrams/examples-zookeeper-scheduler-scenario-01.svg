@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="650" viewBox="0 0 1320 650" role="img" aria-label="ZooKeeper Scheduler Scenario">
+  <metadata id="graphviz-evidence">Generated with Graphviz evidence: examples-zookeeper-scheduler-scenario-01.dot, examples-zookeeper-scheduler-scenario-01.plain, examples-zookeeper-scheduler-scenario-01-graphviz.svg, and examples-zookeeper-scheduler-scenario-01-graphviz.png.</metadata>
+<defs>
+  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
+    <feDropShadow dx="0" dy="7" stdDeviation="8" flood-color="#1f2937" flood-opacity="0.10"/>
+  </filter>
+  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#758297"/>
+  </marker>
+  <style>
+    .canvas{fill:#f7f9fc}
+    .frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
+    .layer{stroke:#dbe4ef;stroke-width:1.2}
+    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS",cursive;font-size:42px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono","Comic Sans MS",monospace;font-size:15px;font-weight:400;fill:#536273}
+    .label{font-family:"Architects Daughter","Comic Mono","Comic Sans MS",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .detail{font-family:"Comic Mono","Comic Sans MS",monospace;font-size:12px;font-weight:400;fill:#334155}
+    .strong{font-family:"Comic Mono","Comic Sans MS",monospace;font-size:13px;font-weight:400;fill:#102033}
+    .card{stroke-width:2;filter:url(#shadow)}
+    .line{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#arrow);stroke-linecap:round;stroke-linejoin:round}
+    .dashed{stroke:#758297;stroke-width:2.2;stroke-dasharray:7 6;fill:none;marker-end:url(#arrow);stroke-linecap:round;stroke-linejoin:round}
+    .lifeline{stroke:#b7c2d1;stroke-width:2;stroke-dasharray:10 10}
+    .pill{fill:#ffffff;stroke:#dbe4ef;stroke-width:1.1;opacity:.98}
+  </style>
+</defs>
+<rect class="canvas" width="1320" height="650"/>
+<rect class="frame" x="32" y="28" width="1256" height="594" rx="28"/>
+<text class="title" x="66" y="82">ZooKeeper Scheduler Scenario</text>
+<text class="subtitle" x="70" y="118">The demo proves execute, skip, and reacquire behavior with two scheduler nodes</text>
+<path class="line" d="M290 206 L320 206 L320 170 L350 170"/><g>
+  <rect class="pill" x="296.5" y="156" width="73" height="26" rx="13"/>
+  <text class="strong" x="333" y="169" text-anchor="middle" dominant-baseline="middle">trigger</text>
+</g>
+<path class="line" d="M290 206 L290 278 L350 278 L350 350"/><g>
+  <rect class="pill" x="293" y="246" width="80" height="26" rx="13"/>
+  <text class="strong" x="333" y="259" text-anchor="middle" dominant-baseline="middle">same run</text>
+</g>
+<path class="line" d="M620 170 L620 220 L700 220 L700 269"/><g>
+  <rect class="pill" x="624" y="188" width="68" height="26" rx="13"/>
+  <text class="strong" x="658" y="201" text-anchor="middle" dominant-baseline="middle">lock</text>
+</g>
+<path class="line" d="M620 350 L620 310 L700 310 L700 269"/><g>
+  <rect class="pill" x="624" y="278" width="68" height="26" rx="13"/>
+  <text class="strong" x="658" y="291" text-anchor="middle" dominant-baseline="middle">miss</text>
+</g>
+<path class="line" d="M960 269 L960 220 L1040 220 L1040 170"/><g>
+  <rect class="pill" x="959" y="188" width="68" height="26" rx="13"/>
+  <text class="strong" x="993" y="201" text-anchor="middle" dominant-baseline="middle">leader</text>
+</g>
+<path class="line" d="M960 269 L960 310 L1040 310 L1040 350"/><g>
+  <rect class="pill" x="946" y="278" width="94" height="26" rx="13"/>
+  <text class="strong" x="993" y="291" text-anchor="middle" dominant-baseline="middle">not leader</text>
+</g>
+<path class="line" d="M485 400 L485 515 L700 515"/><g>
+  <rect class="pill" x="610.5" y="401" width="115" height="26" rx="13"/>
+  <text class="strong" x="668" y="414" text-anchor="middle" dominant-baseline="middle">after release</text>
+</g>
+<path class="line" d="M850 465 L850 333"/><g>
+  <rect class="pill" x="796.5" y="360" width="87" height="26" rx="13"/>
+  <text class="strong" x="840" y="373" text-anchor="middle" dominant-baseline="middle">reacquire</text>
+</g>
+<g id="tick">
+  <rect class="card" x="70" y="160" width="220" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
+<text class="label" x="180" y="191" text-anchor="middle" dominant-baseline="middle">Same schedule</text>
+<text class="detail" x="180" y="210" text-anchor="middle" dominant-baseline="middle">daily-ledger</text>
+<text class="detail" x="180" y="229" text-anchor="middle" dominant-baseline="middle">first run</text>
+</g>
+<g id="nodeA">
+  <rect class="card" x="350" y="120" width="270" height="100" rx="14" fill="#EAF7EF" stroke="#58A978"/>
+<text class="label" x="485" y="155" text-anchor="middle" dominant-baseline="middle">node-a</text>
+<text class="detail" x="485" y="174" text-anchor="middle" dominant-baseline="middle">acquires leadership</text>
+<text class="detail" x="485" y="193" text-anchor="middle" dominant-baseline="middle">runs legacy job</text>
+</g>
+<g id="nodeB">
+  <rect class="card" x="350" y="300" width="270" height="100" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
+<text class="label" x="485" y="335" text-anchor="middle" dominant-baseline="middle">node-b</text>
+<text class="detail" x="485" y="354" text-anchor="middle" dominant-baseline="middle">competes while held</text>
+<text class="detail" x="485" y="373" text-anchor="middle" dominant-baseline="middle">returns SKIPPED</text>
+</g>
+<g id="zk">
+  <path class="card" d="M700 229 C700 213 960 213 960 229 L960 309 C960 325 700 325 700 309 Z" fill="#F1ECFF" stroke="#8A72D6"/>
+  <ellipse cx="830" cy="229" rx="130" ry="16" fill="#F1ECFF" stroke="#8A72D6" stroke-width="2"/>
+<text class="label" x="830" y="254" text-anchor="middle" dominant-baseline="middle">ZooKeeper lock</text>
+<text class="detail" x="830" y="273" text-anchor="middle" dominant-baseline="middle">Curator session</text>
+<text class="detail" x="830" y="292" text-anchor="middle" dominant-baseline="middle">base path + lock name</text>
+</g>
+<g id="job">
+  <rect class="card" x="1040" y="120" width="230" height="100" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+<text class="label" x="1155" y="155" text-anchor="middle" dominant-baseline="middle">Legacy job</text>
+<text class="detail" x="1155" y="174" text-anchor="middle" dominant-baseline="middle">read-ledger</text>
+<text class="detail" x="1155" y="193" text-anchor="middle" dominant-baseline="middle">write-summary</text>
+</g>
+<g id="skip">
+  <rect class="card" x="1040" y="300" width="230" height="100" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
+<text class="label" x="1155" y="335" text-anchor="middle" dominant-baseline="middle">Skip report</text>
+<text class="detail" x="1155" y="354" text-anchor="middle" dominant-baseline="middle">status=SKIPPED</text>
+<text class="detail" x="1155" y="373" text-anchor="middle" dominant-baseline="middle">no body call</text>
+</g>
+<g id="next">
+  <rect class="card" x="700" y="465" width="300" height="100" rx="14" fill="#EAF7EF" stroke="#58A978"/>
+<text class="label" x="850" y="500" text-anchor="middle" dominant-baseline="middle">Next schedule</text>
+<text class="detail" x="850" y="519" text-anchor="middle" dominant-baseline="middle">node-b reacquires</text>
+<text class="detail" x="850" y="538" text-anchor="middle" dominant-baseline="middle">status=EXECUTED</text>
+</g>
+</svg>

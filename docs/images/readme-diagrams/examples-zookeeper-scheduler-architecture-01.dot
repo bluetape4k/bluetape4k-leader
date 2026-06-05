@@ -1,0 +1,20 @@
+digraph "examples-zookeeper-scheduler-architecture-01" {
+  graph [rankdir=LR, bgcolor="transparent", margin=0.1, nodesep=0.65, ranksep=0.9];
+  node [shape=box, style="rounded,filled", fillcolor="#f8fafc", color="#94a3b8", fontname="Comic Mono"];
+  edge [color="#758297", fontname="Comic Mono", fontsize=10];
+  "node-a service";
+  "node-b service";
+  "ZooKeeperLegacyScheduler";
+  "ZooKeeperSchedulerConfig";
+  "ZooKeeperLeaderElector";
+  "SchedulerRunReport";
+  "ZooKeeper / Curator";
+  "Legacy scheduled job";
+  "node-a service" -> "ZooKeeperLegacyScheduler" [label="calls"];
+  "node-b service" -> "ZooKeeperLegacyScheduler" [label="calls"];
+  "ZooKeeperSchedulerConfig" -> "ZooKeeperLegacyScheduler" [label="configures"];
+  "ZooKeeperLegacyScheduler" -> "ZooKeeperLeaderElector" [label="delegates"];
+  "ZooKeeperLeaderElector" -> "ZooKeeper / Curator" [label="Curator lock"];
+  "ZooKeeperLegacyScheduler" -> "Legacy scheduled job" [label="leader only"];
+  "ZooKeeperLegacyScheduler" -> "SchedulerRunReport" [label="returns"];
+}

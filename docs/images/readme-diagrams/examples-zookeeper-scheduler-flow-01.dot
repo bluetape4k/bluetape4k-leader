@@ -1,0 +1,20 @@
+digraph "examples-zookeeper-scheduler-flow-01" {
+  graph [rankdir=LR, bgcolor="transparent", margin=0.1, nodesep=0.65, ranksep=0.9];
+  node [shape=box, style="rounded,filled", fillcolor="#f8fafc", color="#94a3b8", fontname="Comic Mono"];
+  edge [color="#758297", fontname="Comic Mono", fontsize=10];
+  "Scheduled tick";
+  "Validate inputs";
+  "runIfLeader";
+  "Leadership?";
+  "Execute job body";
+  "Validate completed steps";
+  "Return EXECUTED";
+  "Return SKIPPED";
+  "Scheduled tick" -> "Validate inputs" [label="input"];
+  "Validate inputs" -> "runIfLeader" [label="config"];
+  "runIfLeader" -> "Leadership?" [label="outcome"];
+  "Leadership?" -> "Execute job body" [label="yes"];
+  "Execute job body" -> "Validate completed steps" [label="steps"];
+  "Validate completed steps" -> "Return EXECUTED" [label="valid"];
+  "Leadership?" -> "Return SKIPPED" [label="no"];
+}
