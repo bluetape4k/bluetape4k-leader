@@ -20,6 +20,14 @@ const palette = {
   gray: ["#EEF2F7", "#94A3B8"],
 };
 
+const routeColors = {
+  neutral: "#758297",
+  leader: "#43A76B",
+  skipped: "#EF5B7A",
+  contention: "#D99A2B",
+  reacquire: "#8B6EEB",
+};
+
 const diagrams = [
   {
     kind: "architecture",
@@ -44,15 +52,15 @@ const diagrams = [
       node("next", "Next schedule", ["node-b reacquires", "status=EXECUTED"], 1280, 585, 260, 92, "green"),
     ],
     edges: [
-      edge("tick", "nodeA", "trigger"),
-      edge("nodeA", "zk", "lock"),
-      edge("nodeB", "zk", "miss", "M750 390 L750 335 L1075 335 L1075 303"),
-      edge("zk", "job", "leader"),
-      edge("zk", "skip", "not leader"),
-      edge("tick", "nodeB", "same run", "M540 241 L575 241 L575 436 L610 436"),
-      edge("nodeA", "release", "release", "M750 287 L750 315 L900 315 L900 631 L930 631"),
-      edge("release", "next", "next run"),
-      edge("next", "zk", "reacquire", "M1280 631 L1235 631 L1235 239 L1220 239"),
+      edge("tick", "nodeA", "trigger", null, "leader"),
+      edge("nodeA", "zk", "lock", null, "leader"),
+      edge("nodeB", "zk", "miss", "M750 390 L750 335 L1075 335 L1075 303", "contention"),
+      edge("zk", "job", "leader", null, "leader"),
+      edge("zk", "skip", "not leader", null, "skipped"),
+      edge("tick", "nodeB", "same run", "M540 241 L575 241 L575 436 L610 436", "contention"),
+      edge("nodeA", "release", "release", "M750 287 L750 315 L900 315 L900 631 L930 631", "contention"),
+      edge("release", "next", "next run", null, "reacquire"),
+      edge("next", "zk", "reacquire", "M1280 631 L1235 631 L1235 239 L1220 239", "reacquire"),
     ],
   },
   {
@@ -103,23 +111,23 @@ const diagrams = [
       ["Report path", 585, "#F8FAFC", 135],
     ],
     nodes: [
-      node("start", "Scheduled tick", ["build SchedulerRunId"], 260, 205, 260, 90, "blue"),
-      node("config", "Validate inputs", ["nodeId, lockName", "basePath, scheduleId"], 590, 205, 300, 90, "teal"),
-      node("elect", "runIfLeader", ["ZooKeeperLeaderElector", "waitTime window"], 940, 205, 300, 90, "lavender"),
-      diamond("decision", "Leadership?", ["lock acquired"], 1290, 190, 160, 120, "amber"),
-      node("execute", "Execute job body", ["legacy work runs once"], 930, 415, 320, 90, "green"),
-      node("steps", "Validate completed steps", ["requireNotBlank"], 590, 415, 320, 90, "teal"),
-      node("executed", "Return EXECUTED", ["steps + elapsed time"], 360, 630, 320, 90, "green"),
-      node("skipped", "Return SKIPPED", ["empty steps", "body not invoked"], 1040, 630, 320, 90, "pink"),
+      node("start", "Scheduled tick", ["build SchedulerRunId"], 260, 198, 260, 90, "blue"),
+      node("config", "Validate inputs", ["nodeId, lockName", "basePath, scheduleId"], 590, 198, 300, 90, "teal"),
+      node("elect", "runIfLeader", ["ZooKeeperLeaderElector", "waitTime window"], 940, 198, 300, 90, "lavender"),
+      diamond("decision", "Leadership?", ["lock acquired"], 1290, 183, 160, 120, "amber"),
+      node("steps", "Validate completed steps", ["requireNotBlank"], 360, 398, 320, 90, "teal"),
+      node("execute", "Execute job body", ["legacy work runs once"], 930, 398, 320, 90, "green"),
+      node("executed", "Return EXECUTED", ["steps + elapsed time"], 360, 608, 320, 90, "green"),
+      node("skipped", "Return SKIPPED", ["empty steps", "body not invoked"], 1040, 608, 320, 90, "pink"),
     ],
     edges: [
       edge("start", "config", "input"),
       edge("config", "elect", "config"),
       edge("elect", "decision", "outcome"),
-      edge("decision", "execute", "yes", "M1370 310 L1370 460 L1250 460"),
-      edge("execute", "steps", "steps"),
-      edge("steps", "executed", "valid", "M750 505 L750 560 L520 560 L520 630"),
-      edge("decision", "skipped", "no", "M1370 310 L1370 560 L1200 560 L1200 630"),
+      edge("decision", "execute", "yes", "M1370 303 L1370 443 L1250 443", "leader"),
+      edge("execute", "steps", "steps", null, "leader"),
+      edge("steps", "executed", "valid", "M520 488 L520 608", "leader"),
+      edge("decision", "skipped", "no", "M1370 303 L1370 562 L1200 562 L1200 608", "skipped"),
     ],
   },
   {
@@ -138,21 +146,21 @@ const diagrams = [
       ["node-b scheduler", "amber"],
     ],
     messages: [
-      msg(0, 1, "submit first run", "line"),
-      msg(1, 2, "runIfLeader(lockName)", "line"),
-      msg(2, 3, "acquire session lock", "line"),
-      msg(3, 2, "ACQUIRED", "dashed"),
-      msg(2, 4, "execute job body", "line"),
-      msg(0, 5, "same run while held", "line"),
-      msg(5, 2, "runIfLeader(lockName)", "line"),
-      msg(2, 3, "try same lock", "line"),
-      msg(3, 2, "not leader", "dashed"),
-      msg(2, 5, "SKIPPED report", "dashed"),
-      msg(1, 3, "release on exit", "line"),
-      msg(5, 2, "next run", "line"),
-      msg(2, 3, "acquire released lock", "line"),
-      msg(3, 2, "ACQUIRED", "dashed"),
-      msg(2, 4, "execute next job", "line"),
+      msg(0, 1, "submit first run", "line", "leader"),
+      msg(1, 2, "runIfLeader(lockName)", "line", "leader"),
+      msg(2, 3, "acquire session lock", "line", "leader"),
+      msg(3, 2, "ACQUIRED", "dashed", "leader"),
+      msg(2, 4, "execute job body", "line", "leader"),
+      msg(0, 5, "same run while held", "line", "skipped"),
+      msg(5, 2, "runIfLeader(lockName)", "line", "skipped"),
+      msg(2, 3, "try same lock", "line", "skipped"),
+      msg(3, 2, "not leader", "dashed", "skipped"),
+      msg(2, 5, "SKIPPED report", "dashed", "skipped"),
+      msg(1, 3, "release on exit", "line", "contention"),
+      msg(5, 2, "next run", "line", "reacquire"),
+      msg(2, 3, "acquire released lock", "line", "reacquire"),
+      msg(3, 2, "ACQUIRED", "dashed", "reacquire"),
+      msg(2, 4, "execute next job", "line", "reacquire"),
     ],
   },
 ];
@@ -169,12 +177,12 @@ function diamond(id, title, details, x, y, width = 160, height = 120, color = "a
   return { id, title, details, x, y, width, height, color, shape: "diamond" };
 }
 
-function edge(from, to, label, route = null) {
-  return { from, to, label, route };
+function edge(from, to, label, route = null, tone = "neutral") {
+  return { from, to, label, route, tone };
 }
 
-function msg(from, to, label, type) {
-  return { from, to, label, type };
+function msg(from, to, label, type, tone = "neutral") {
+  return { from, to, label, type, tone };
 }
 
 function xml(value) {
@@ -182,13 +190,14 @@ function xml(value) {
 }
 
 function defs() {
+  const markers = Object.entries(routeColors).map(([name, color]) => `  <marker id="arrow-${name}" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="${color}"/>
+  </marker>`).join("\n");
   return `<defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
     <feDropShadow dx="0" dy="7" stdDeviation="8" flood-color="#1f2937" flood-opacity="0.10"/>
   </filter>
-  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
-    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#758297"/>
-  </marker>
+${markers}
   <style>
     .canvas{fill:#f7f9fc}
     .frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
@@ -199,8 +208,8 @@ function defs() {
     .detail{font-family:"Comic Mono","Comic Sans MS",monospace;font-size:12px;font-weight:400;fill:#334155}
     .strong{font-family:"Comic Mono","Comic Sans MS",monospace;font-size:13px;font-weight:400;fill:#102033}
     .card{stroke-width:2;filter:url(#shadow)}
-    .line{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#arrow);stroke-linecap:round;stroke-linejoin:round}
-    .dashed{stroke:#758297;stroke-width:2.2;stroke-dasharray:7 6;fill:none;marker-end:url(#arrow);stroke-linecap:round;stroke-linejoin:round}
+    .line{stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .dashed{stroke-width:2.2;stroke-dasharray:7 6;fill:none;stroke-linecap:round;stroke-linejoin:round}
     .lifeline{stroke:#b7c2d1;stroke-width:2;stroke-dasharray:10 10}
     .pill{fill:#ffffff;stroke:#dbe4ef;stroke-width:1.1;opacity:.98}
   </style>
@@ -273,7 +282,12 @@ function renderEdge(diagram, route) {
   const to = nodes.get(route.to);
   const d = route.route ?? autoRoute(from, to);
   const label = route.label ? labelForPath(route, d, from, to) : "";
-  return `<path class="line" d="${d}"/>${label}`;
+  return `<path class="line" d="${d}" ${routeStyle(route.tone)}/>${label}`;
+}
+
+function routeStyle(tone = "neutral") {
+  const safeTone = routeColors[tone] ? tone : "neutral";
+  return `style="stroke:${routeColors[safeTone]};marker-end:url(#arrow-${safeTone})"`;
 }
 
 function autoRoute(from, to) {
@@ -357,7 +371,7 @@ function renderSequence(diagram) {
     return `<g>
   <rect class="pill" x="${labelX.toFixed(1)}" y="${labelY}" width="${width.toFixed(1)}" height="28" rx="14"/>
   <text class="strong" x="${(labelX + 14).toFixed(1)}" y="${labelY + 14}" dominant-baseline="middle">${index + 1}. ${xml(message.label)}</text>
-  <path class="${message.type}" d="M${x1.toFixed(1)} ${y} L${x2.toFixed(1)} ${y}"/>
+  <path class="${message.type}" d="M${x1.toFixed(1)} ${y} L${x2.toFixed(1)} ${y}" ${routeStyle(message.tone)}/>
 </g>`;
   });
   return svgWrap(diagram, [...participantSvg, ...messageSvg].join("\n"));
@@ -382,6 +396,7 @@ function validateArchitectureModel(diagram) {
     throw new Error(`${diagram.slug}: bottom margin too small: ${bottom}px`);
   }
   if (diagram.layers?.length) {
+    let maxLayerCenterDrift = 0;
     for (const item of diagram.nodes) {
       const owner = diagram.layers.find(([, y, , height = 112]) =>
         item.y >= y && item.y + item.height <= y + height,
@@ -389,6 +404,13 @@ function validateArchitectureModel(diagram) {
       if (!owner) {
         throw new Error(`${diagram.slug}: node ${item.id} is not contained by a layer band`);
       }
+      const [, layerY, , layerHeight = 112] = owner;
+      const layerCenter = layerY + layerHeight / 2;
+      const itemCenter = item.y + item.height / 2;
+      maxLayerCenterDrift = Math.max(maxLayerCenterDrift, Math.abs(layerCenter - itemCenter));
+    }
+    if (maxLayerCenterDrift > 14) {
+      throw new Error(`${diagram.slug}: layer component vertical drift too large: ${maxLayerCenterDrift}px`);
     }
   }
   let segments = 0;
@@ -404,6 +426,7 @@ function validateArchitectureModel(diagram) {
     badBends: 0,
     interiorCrossings: 0,
     marginImbalance: 0,
+    layerVerticalDrift: maxLayerVerticalDrift(diagram),
     titleGap,
   });
 }
@@ -426,8 +449,25 @@ function validateSequenceModel(diagram) {
     badBends: 0,
     interiorCrossings: 0,
     marginImbalance: 0,
+    layerVerticalDrift: 0,
     titleGap: 48,
   });
+}
+
+function maxLayerVerticalDrift(diagram) {
+  if (!diagram.layers?.length) return 0;
+  let maxDrift = 0;
+  for (const item of diagram.nodes) {
+    const owner = diagram.layers.find(([, y, , height = 112]) =>
+      item.y >= y && item.y + item.height <= y + height,
+    );
+    if (!owner) continue;
+    const [, layerY, , layerHeight = 112] = owner;
+    const layerCenter = layerY + layerHeight / 2;
+    const itemCenter = item.y + item.height / 2;
+    maxDrift = Math.max(maxDrift, Math.abs(layerCenter - itemCenter));
+  }
+  return maxDrift;
 }
 
 function boundingBox(items) {

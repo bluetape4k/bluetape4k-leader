@@ -4,8 +4,20 @@
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
     <feDropShadow dx="0" dy="7" stdDeviation="8" flood-color="#1f2937" flood-opacity="0.10"/>
   </filter>
-  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+  <marker id="arrow-neutral" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
     <path d="M 1 1 L 7 4 L 1 7 Z" fill="#758297"/>
+  </marker>
+  <marker id="arrow-leader" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#43A76B"/>
+  </marker>
+  <marker id="arrow-skipped" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#EF5B7A"/>
+  </marker>
+  <marker id="arrow-contention" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#D99A2B"/>
+  </marker>
+  <marker id="arrow-reacquire" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#8B6EEB"/>
   </marker>
   <style>
     .canvas{fill:#f7f9fc}
@@ -17,8 +29,8 @@
     .detail{font-family:"Comic Mono","Comic Sans MS",monospace;font-size:12px;font-weight:400;fill:#334155}
     .strong{font-family:"Comic Mono","Comic Sans MS",monospace;font-size:13px;font-weight:400;fill:#102033}
     .card{stroke-width:2;filter:url(#shadow)}
-    .line{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#arrow);stroke-linecap:round;stroke-linejoin:round}
-    .dashed{stroke:#758297;stroke-width:2.2;stroke-dasharray:7 6;fill:none;marker-end:url(#arrow);stroke-linecap:round;stroke-linejoin:round}
+    .line{stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .dashed{stroke-width:2.2;stroke-dasharray:7 6;fill:none;stroke-linecap:round;stroke-linejoin:round}
     .lifeline{stroke:#b7c2d1;stroke-width:2;stroke-dasharray:10 10}
     .pill{fill:#ffffff;stroke:#dbe4ef;stroke-width:1.1;opacity:.98}
   </style>
@@ -43,14 +55,14 @@
   <rect class="layer" x="54" y="630" width="1472" height="135" rx="18" fill="#FFFFFF"/>
   <text class="label" x="78" y="664">Curator and ZooKeeper infrastructure</text>
 </g>
-<path class="line" d="M580 226 L520 226 L520 380 L460 380"/>
-<path class="line" d="M790 272 L790 302 L640 302 L640 332"/>
-<path class="line" d="M900 380 L860 380 L860 380 L820 380"/>
-<path class="line" d="M640 428 L640 458 L645 458 L645 487"/>
-<path class="line" d="M900 535 L865 535 L865 535 L830 535"/>
-<path class="line" d="M645 583 L645 609 L645 609 L645 635"/>
-<path class="line" d="M640 332 L640 305 L1375 305 L1375 332"/>
-<path class="line" d="M640 428 L640 455 L1380 455 L1380 695 L1280 695"/>
+<path class="line" d="M580 226 L520 226 L520 380 L460 380" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M790 272 L790 302 L640 302 L640 332" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M900 380 L860 380 L860 380 L820 380" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M640 428 L640 458 L645 458 L645 487" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M900 535 L865 535 L865 535 L830 535" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M645 583 L645 609 L645 609 L645 635" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M640 332 L640 305 L1375 305 L1375 332" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M640 428 L640 455 L1380 455 L1380 695 L1280 695" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
 <g id="nodeA">
   <rect class="card" x="300" y="180" width="280" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
 <text class="label" x="440" y="211" text-anchor="middle" dominant-baseline="middle">node-a service</text>
