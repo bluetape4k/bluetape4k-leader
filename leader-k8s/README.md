@@ -1,6 +1,6 @@
 # bluetape4k-leader-k8s
 
-[한국어](./README.ko.md) | English
+English | [한국어](./README.ko.md)
 
 Kubernetes Lease backend for `bluetape4k-leader`. It uses the native
 `coordination.k8s.io/v1` Lease API, so applications running in Kubernetes can

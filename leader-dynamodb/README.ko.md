@@ -1,6 +1,6 @@
 # bluetape4k-leader-dynamodb
 
-[English](README.md)
+[English](README.md) | 한국어
 
 conditional write와 logical TTL 기반의 프리뷰 DynamoDB 리더 선출 백엔드입니다.
 

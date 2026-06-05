@@ -1,6 +1,6 @@
 # Virtual Thread Runner Example
 
-[한국어](README.ko.md) | English
+English | [한국어](README.ko.md)
 
 High-concurrency leader-only runner using Java virtual threads.
 

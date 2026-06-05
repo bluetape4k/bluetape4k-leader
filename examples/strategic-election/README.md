@@ -1,6 +1,6 @@
 # Strategic Election Example
 
-[한국어](README.ko.md) | English
+English | [한국어](README.ko.md)
 
 Backend-neutral strategic leader-election example. It chooses the best service node before running the leader-only body.
 

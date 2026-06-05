@@ -1,5 +1,7 @@
 # leader-exposed-core
 
+English | [한국어](README.ko.md)
+
 Shared DB schema and table definitions for RDBMS-based distributed leader election backends.
 
 This module is a dependency for `leader-exposed-jdbc` and `leader-exposed-r2dbc`.

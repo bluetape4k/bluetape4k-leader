@@ -1,6 +1,6 @@
 # leader-zookeeper
 
-[English](README.md)
+[English](README.md) | 한국어
 
 ZooKeeper/Apache Curator 기반 리더 선출 모듈입니다. 블로킹, 비동기, 코루틴 API를 제공합니다.
 

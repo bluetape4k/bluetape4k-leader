@@ -19,12 +19,26 @@
     .dashed{stroke:#758297;stroke-width:2.1;stroke-dasharray:7 6;fill:none;marker-end:url(#openArrow)}
     .inheritLine{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#inherit)}
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
+
+    .layerBand{fill-opacity:0.45;stroke-width:1.4;stroke-dasharray:9 7}
+    .layerLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:19px;font-weight:400;fill:#536273}
   </style>
 </defs>
 <rect class="canvas" width="1754" height="952"/>
 <rect class="frame" x="32" y="28" width="1690" height="896" rx="28"/>
 <text class="title" x="66" y="82">leader core Class Structure</text>
 <text class="subtitle" x="70" y="118">UML classes from the original Mermaid source</text>
+<g id="layer-bands" aria-label="Layer bands">
+  <g data-layer="Public Contracts">
+    <rect class="layerBand" x="40" y="156" width="1674" height="299" rx="18" fill="#EEF6FF" stroke="#9BC4F8"/>
+    <text class="layerLabel" x="58" y="183">Public Contracts</text>
+  </g>
+  <g data-layer="Execution Results">
+    <rect class="layerBand" x="40" y="541" width="1674" height="231" rx="18" fill="#EEF8F1" stroke="#A5D6B7"/>
+    <text class="layerLabel" x="58" y="568">Execution Results</text>
+  </g>
+</g>
+
 <path class="inheritLine" d="M262 565 L262 502 L467 502 L467 439"/>
 <path class="inheritLine" d="M1082 565 L1082 494 L467 494 L467 439"/>
 <path class="inheritLine" d="M1492 565 L1492 486 L877 486 L877 376"/>

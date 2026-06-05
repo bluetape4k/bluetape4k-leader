@@ -1,6 +1,6 @@
 # bluetape4k-leader benchmark
 
-[한국어](./README.ko.md) | English
+English | [한국어](./README.ko.md)
 
 This non-published module contains comparable `kotlinx-benchmark` suites for
 the leader election backends. The JVM runner is JMH, and the benchmark source

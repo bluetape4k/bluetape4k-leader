@@ -1,6 +1,6 @@
 # leader-micrometer
 
-[한국어](README.ko.md)
+English | [한국어](README.ko.md)
 
 Micrometer instrumentation for bluetape4k leader election.
 

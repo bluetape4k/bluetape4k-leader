@@ -1,6 +1,6 @@
 # leader-exposed-jdbc
 
-[한국어](README.ko.md)
+English | [한국어](README.ko.md)
 
 JDBC-backed leader election using [Exposed](https://github.com/JetBrains/Exposed) — blocking and async APIs.
 

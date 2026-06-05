@@ -1,6 +1,6 @@
 # leader-exposed-jdbc
 
-[English](README.md)
+[English](README.md) | 한국어
 
 [Exposed](https://github.com/JetBrains/Exposed) JDBC 기반 분산 리더 선출 구현체입니다. 블로킹과 비동기(CompletableFuture) API를 제공합니다.
 

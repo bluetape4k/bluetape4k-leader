@@ -1,6 +1,6 @@
 # leader-redis-redisson
 
-[English](README.md)
+[English](README.md) | 한국어
 
 [Redisson](https://redisson.org/) 기반 Redis 분산 리더 선출 구현체입니다. 블로킹과 코루틴 API를 제공합니다.
 

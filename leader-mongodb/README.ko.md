@@ -1,6 +1,6 @@
 # leader-mongodb
 
-[English](README.md)
+[English](README.md) | 한국어
 
 `findOneAndUpdate` + TTL 인덱스 기반 MongoDB 분산 리더 선출 — 블로킹, 비동기, 코루틴 API 제공.
 

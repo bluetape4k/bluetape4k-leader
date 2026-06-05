@@ -1,6 +1,6 @@
 # examples-tenant-aggregator
 
-[한국어](README.ko.md) | English
+English | [한국어](README.ko.md)
 
 Multi-tenant aggregator backed by Exposed R2DBC leader election. Each tenant is polled by exactly one instance across N pods using independent per-tenant lock names. Demonstrates long-running coroutine workers with graceful stop and per-tenant exception isolation.
 

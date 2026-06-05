@@ -1,6 +1,6 @@
 # bluetape4k-leader-etcd
 
-[한국어](./README.ko.md) | English
+English | [한국어](./README.ko.md)
 
 etcd v3 backend for `bluetape4k-leader`. It uses the jetcd Lock service with
 etcd leases, so services that already operate an etcd cluster can elect one

@@ -19,12 +19,26 @@
     .dashed{stroke:#758297;stroke-width:2.1;stroke-dasharray:7 6;fill:none;marker-end:url(#openArrow)}
     .inheritLine{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#inherit)}
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
+
+    .layerBand{fill-opacity:0.45;stroke-width:1.4;stroke-dasharray:9 7}
+    .layerLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:19px;font-weight:400;fill:#536273}
   </style>
 </defs>
 <rect class="canvas" width="2470" height="713"/>
 <rect class="frame" x="32" y="28" width="2406" height="657" rx="28"/>
 <text class="title" x="66" y="82">leader mongodb Class Structure</text>
 <text class="subtitle" x="70" y="118">UML classes from the original Mermaid source</text>
+<g id="layer-bands" aria-label="Layer bands">
+  <g data-layer="Public Electors">
+    <rect class="layerBand" x="40" y="156" width="2390" height="168" rx="18" fill="#EEF6FF" stroke="#9BC4F8"/>
+    <text class="layerLabel" x="58" y="183">Public Electors</text>
+  </g>
+  <g data-layer="Mongo Lock Documents">
+    <rect class="layerBand" x="40" y="404" width="2390" height="215" rx="18" fill="#EEF8F1" stroke="#A5D6B7"/>
+    <text class="layerLabel" x="58" y="431">Mongo Lock Documents</text>
+  </g>
+</g>
+
 <path class="line" d="M1670 492 L1435 492 L1435 515.5 L1200 515.5"/>
 <path class="line" d="M1270 492 L1235 492 L1235 515.5 L1200 515.5"/>
 <path class="line" d="M800 484 L1435 484 L1435 515.5 L2070 515.5"/>

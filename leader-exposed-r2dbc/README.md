@@ -1,6 +1,6 @@
 # leader-exposed-r2dbc
 
-[한국어](README.ko.md)
+English | [한국어](README.ko.md)
 
 Coroutine-native leader election backed by a relational database — using [Exposed R2DBC](https://github.com/JetBrains/Exposed) for non-blocking reactive SQL.
 

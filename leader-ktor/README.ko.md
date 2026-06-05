@@ -1,6 +1,6 @@
 # bluetape4k-leader-ktor
 
-한국어 | [English](./README.md)
+[English](./README.md) | 한국어
 
 `bluetape4k-leader` 의 Ktor 3.x 통합 모듈입니다. Ktor 애플리케이션 플러그인 DSL 과
 Spring `@Scheduled` 스타일의 주기적 리더 전용 작업 헬퍼를 제공합니다.

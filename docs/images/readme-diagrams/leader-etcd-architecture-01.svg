@@ -11,12 +11,26 @@
     .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
     .card{stroke-width:2.1;filter:url(#shadow)}
     .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
+
+    .layerBand{fill-opacity:0.45;stroke-width:1.4;stroke-dasharray:9 7}
+    .layerLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:19px;font-weight:400;fill:#536273}
   </style>
 </defs>
 <rect class="canvas" width="1320" height="760"/>
 <rect class="frame" x="32" y="28" width="1256" height="704" rx="28"/>
 <text class="title" x="66" y="82">leader etcd Architecture</text>
 <text class="subtitle" x="70" y="118">jetcd electors use caller-owned clients, etcd leases, Lock service keys, and optional watch events</text>
+<g id="layer-bands" aria-label="Layer bands">
+  <g data-layer="Caller And Spring Beans">
+    <rect class="layerBand" x="40" y="136" width="1240" height="153" rx="18" fill="#EEF6FF" stroke="#9BC4F8"/>
+    <text class="layerLabel" x="58" y="163">Caller And Spring Beans</text>
+  </g>
+  <g data-layer="Etcd Electors">
+    <rect class="layerBand" x="40" y="297" width="1240" height="342" rx="18" fill="#EEF8F1" stroke="#A5D6B7"/>
+    <text class="layerLabel" x="58" y="324">Etcd Electors</text>
+  </g>
+</g>
+
 <path class="line" d="M370 219 L400 219 L400 199 L430 199"/>
 <path class="line" d="M370 439 L400 439 L400 384 L430 384"/>
 <path class="line" d="M370 439 L400 439 L400 569 L430 569"/>

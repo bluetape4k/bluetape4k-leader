@@ -1,6 +1,6 @@
 # bluetape4k-leader-k8s
 
-한국어 | [English](./README.md)
+[English](./README.md) | 한국어
 
 `bluetape4k-leader` 의 Kubernetes Lease 백엔드입니다. Kubernetes 기본
 `coordination.k8s.io/v1` Lease API 를 사용하므로 Redis, MongoDB, ZooKeeper,

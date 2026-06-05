@@ -6,7 +6,7 @@
 [![JVM](https://img.shields.io/badge/JVM-21-ED8B00?logo=openjdk)](https://openjdk.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[한국어](README.ko.md)
+English | [한국어](README.ko.md)
 
 Current stable version: `0.3.1`
 

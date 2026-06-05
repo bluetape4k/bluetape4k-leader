@@ -1,6 +1,6 @@
 # leader-spring-boot
 
-[English](README.md)
+[English](README.md) | 한국어
 
 bluetape4k 리더 선출을 위한 Spring Boot 4 자동 구성과 AspectJ CTW 기반 어노테이션 지원 모듈입니다.
 

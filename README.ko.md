@@ -5,7 +5,7 @@
 [![JVM](https://img.shields.io/badge/JVM-21-ED8B00?logo=openjdk)](https://openjdk.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[English](README.md)
+[English](README.md) | 한국어
 
 현재 안정 버전: `0.3.1`
 

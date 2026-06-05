@@ -1,6 +1,6 @@
 # bluetape4k-leader-bom
 
-[한국어](./README.ko.md) | English
+English | [한국어](./README.ko.md)
 
 Maven BOM (Bill of Materials) for the **bluetape4k-leader** ecosystem. Manages versions of all
 `io.github.bluetape4k.leader:*` modules so consumers can declare dependencies without specifying

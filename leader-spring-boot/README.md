@@ -1,6 +1,6 @@
 # leader-spring-boot
 
-[한국어](README.ko.md)
+English | [한국어](README.ko.md)
 
 Spring Boot 4 auto-configuration and AspectJ CTW support for bluetape4k leader election.
 

@@ -1,6 +1,6 @@
 # leader-redis-lettuce
 
-[한국어](README.ko.md)
+English | [한국어](README.ko.md)
 
 Redis-backed leader election using [Lettuce](https://lettuce.io/) — blocking and coroutine APIs.
 
