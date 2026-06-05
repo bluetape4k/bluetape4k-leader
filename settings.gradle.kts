@@ -106,6 +106,7 @@ include(
     "examples:etcd-reconciler",
     "examples:consul-maintenance",
     "examples:dynamodb-export",
+    "examples:zookeeper-scheduler",
     "examples:k8s-lease",
     "examples:k8s-operator",
     "examples:rate-limiter",

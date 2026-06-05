@@ -40,6 +40,7 @@ examples/
   etcd-reconciler/        # etcd — one control-plane node runs reconcile loop
   consul-maintenance/     # Consul — one service instance runs maintenance/drain
   dynamodb-export/        # DynamoDB Local — one node writes scheduled exports
+  zookeeper-scheduler/    # ZooKeeper — one node runs a legacy scheduled job
   k8s-lease/              # Kubernetes Lease — low-level acquire/release demo
   k8s-operator/           # Kubernetes Lease + Spring Boot — operator loop demo
   rate-limiter/           # Lettuce Redis + Bucket4j — leader-dispatched probes
@@ -157,8 +158,8 @@ locations below in sync. Missing any of them silently disables coverage.
 Example modules currently wired into `ci.yml` and `examples.yml`:
 `batch-scheduler`, `migration-gate`, `webhook-poller`, `cache-warmer`,
 `tenant-aggregator`, `ktor-app`, `prometheus-dashboard`, `k8s-lease`,
-`etcd-reconciler`, `consul-maintenance`, `dynamodb-export`, `k8s-operator`,
-`rate-limiter`. The library module `bluetape4k-leader-ktor` remains in `ci.yml` and
+`etcd-reconciler`, `consul-maintenance`, `dynamodb-export`,
+`zookeeper-scheduler`, `k8s-operator`, `rate-limiter`. The library module `bluetape4k-leader-ktor` remains in `ci.yml` and
 `nightly-tests.yml` (Testcontainers Redis).
 
 ## Codex Spec / Plan / Code Review Stages
