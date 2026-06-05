@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="650" viewBox="0 0 1320 650" role="img" aria-label="ZooKeeper Scheduler Scenario">
+<svg xmlns="http://www.w3.org/2000/svg" width="1640" height="810" viewBox="0 0 1640 810" role="img" aria-label="ZooKeeper Scheduler Scenario">
   <metadata id="graphviz-evidence">Generated with Graphviz evidence: examples-zookeeper-scheduler-scenario-01.dot, examples-zookeeper-scheduler-scenario-01.plain, examples-zookeeper-scheduler-scenario-01-graphviz.svg, and examples-zookeeper-scheduler-scenario-01-graphviz.png.</metadata>
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
@@ -23,83 +23,78 @@
     .pill{fill:#ffffff;stroke:#dbe4ef;stroke-width:1.1;opacity:.98}
   </style>
 </defs>
-<rect class="canvas" width="1320" height="650"/>
-<rect class="frame" x="32" y="28" width="1256" height="594" rx="28"/>
+<rect class="canvas" width="1640" height="810"/>
+<rect class="frame" x="32" y="28" width="1576" height="754" rx="28"/>
 <text class="title" x="66" y="82">ZooKeeper Scheduler Scenario</text>
 <text class="subtitle" x="70" y="118">The demo proves execute, skip, and reacquire behavior with two scheduler nodes</text>
-<path class="line" d="M290 206 L320 206 L320 170 L350 170"/><g>
-  <rect class="pill" x="296.5" y="156" width="73" height="26" rx="13"/>
-  <text class="strong" x="333" y="169" text-anchor="middle" dominant-baseline="middle">trigger</text>
+<g>
+  <rect class="layer" x="54" y="160" width="1532" height="155" rx="18" fill="#F8FAFC"/>
+  <text class="label" x="78" y="194">Phase 1 - first schedule</text>
 </g>
-<path class="line" d="M290 206 L290 278 L350 278 L350 350"/><g>
-  <rect class="pill" x="293" y="246" width="80" height="26" rx="13"/>
-  <text class="strong" x="333" y="259" text-anchor="middle" dominant-baseline="middle">same run</text>
+<g>
+  <rect class="layer" x="54" y="355" width="1532" height="140" rx="18" fill="#FFFFFF"/>
+  <text class="label" x="78" y="389">Phase 2 - contention result</text>
 </g>
-<path class="line" d="M620 170 L620 220 L700 220 L700 269"/><g>
-  <rect class="pill" x="624" y="188" width="68" height="26" rx="13"/>
-  <text class="strong" x="658" y="201" text-anchor="middle" dominant-baseline="middle">lock</text>
+<g>
+  <rect class="layer" x="54" y="550" width="1532" height="140" rx="18" fill="#F8FAFC"/>
+  <text class="label" x="78" y="584">Phase 3 - release and next run</text>
 </g>
-<path class="line" d="M620 350 L620 310 L700 310 L700 269"/><g>
-  <rect class="pill" x="624" y="278" width="68" height="26" rx="13"/>
-  <text class="strong" x="658" y="291" text-anchor="middle" dominant-baseline="middle">miss</text>
-</g>
-<path class="line" d="M960 269 L960 220 L1040 220 L1040 170"/><g>
-  <rect class="pill" x="959" y="188" width="68" height="26" rx="13"/>
-  <text class="strong" x="993" y="201" text-anchor="middle" dominant-baseline="middle">leader</text>
-</g>
-<path class="line" d="M960 269 L960 310 L1040 310 L1040 350"/><g>
-  <rect class="pill" x="946" y="278" width="94" height="26" rx="13"/>
-  <text class="strong" x="993" y="291" text-anchor="middle" dominant-baseline="middle">not leader</text>
-</g>
-<path class="line" d="M485 400 L485 515 L700 515"/><g>
-  <rect class="pill" x="610.5" y="401" width="115" height="26" rx="13"/>
-  <text class="strong" x="668" y="414" text-anchor="middle" dominant-baseline="middle">after release</text>
-</g>
-<path class="line" d="M850 465 L850 333"/><g>
-  <rect class="pill" x="796.5" y="360" width="87" height="26" rx="13"/>
-  <text class="strong" x="840" y="373" text-anchor="middle" dominant-baseline="middle">reacquire</text>
-</g>
+<path class="line" d="M540 241 L575 241 L575 241 L610 241"/>
+<path class="line" d="M890 241 L910 241 L910 239 L930 239"/>
+<path class="line" d="M750 390 L750 335 L1075 335 L1075 303"/>
+<path class="line" d="M1220 239 L1250 239 L1250 241 L1280 241"/>
+<path class="line" d="M1220 239 L1250 239 L1250 436 L1280 436"/>
+<path class="line" d="M540 241 L575 241 L575 436 L610 436"/>
+<path class="line" d="M750 287 L750 315 L900 315 L900 631 L930 631"/>
+<path class="line" d="M1220 631 L1250 631 L1250 631 L1280 631"/>
+<path class="line" d="M1280 631 L1235 631 L1235 239 L1220 239"/>
 <g id="tick">
-  <rect class="card" x="70" y="160" width="220" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
-<text class="label" x="180" y="191" text-anchor="middle" dominant-baseline="middle">Same schedule</text>
-<text class="detail" x="180" y="210" text-anchor="middle" dominant-baseline="middle">daily-ledger</text>
-<text class="detail" x="180" y="229" text-anchor="middle" dominant-baseline="middle">first run</text>
+  <rect class="card" x="300" y="195" width="240" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
+<text class="label" x="420" y="226" text-anchor="middle" dominant-baseline="middle">Same schedule</text>
+<text class="detail" x="420" y="245" text-anchor="middle" dominant-baseline="middle">daily-ledger</text>
+<text class="detail" x="420" y="264" text-anchor="middle" dominant-baseline="middle">first run</text>
 </g>
 <g id="nodeA">
-  <rect class="card" x="350" y="120" width="270" height="100" rx="14" fill="#EAF7EF" stroke="#58A978"/>
-<text class="label" x="485" y="155" text-anchor="middle" dominant-baseline="middle">node-a</text>
-<text class="detail" x="485" y="174" text-anchor="middle" dominant-baseline="middle">acquires leadership</text>
-<text class="detail" x="485" y="193" text-anchor="middle" dominant-baseline="middle">runs legacy job</text>
-</g>
-<g id="nodeB">
-  <rect class="card" x="350" y="300" width="270" height="100" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
-<text class="label" x="485" y="335" text-anchor="middle" dominant-baseline="middle">node-b</text>
-<text class="detail" x="485" y="354" text-anchor="middle" dominant-baseline="middle">competes while held</text>
-<text class="detail" x="485" y="373" text-anchor="middle" dominant-baseline="middle">returns SKIPPED</text>
+  <rect class="card" x="610" y="195" width="280" height="92" rx="14" fill="#EAF7EF" stroke="#58A978"/>
+<text class="label" x="750" y="226" text-anchor="middle" dominant-baseline="middle">node-a</text>
+<text class="detail" x="750" y="245" text-anchor="middle" dominant-baseline="middle">acquires leadership</text>
+<text class="detail" x="750" y="264" text-anchor="middle" dominant-baseline="middle">runs legacy job</text>
 </g>
 <g id="zk">
-  <path class="card" d="M700 229 C700 213 960 213 960 229 L960 309 C960 325 700 325 700 309 Z" fill="#F1ECFF" stroke="#8A72D6"/>
-  <ellipse cx="830" cy="229" rx="130" ry="16" fill="#F1ECFF" stroke="#8A72D6" stroke-width="2"/>
-<text class="label" x="830" y="254" text-anchor="middle" dominant-baseline="middle">ZooKeeper lock</text>
-<text class="detail" x="830" y="273" text-anchor="middle" dominant-baseline="middle">Curator session</text>
-<text class="detail" x="830" y="292" text-anchor="middle" dominant-baseline="middle">base path + lock name</text>
+  <path class="card" d="M930 199 C930 183 1220 183 1220 199 L1220 279 C1220 295 930 295 930 279 Z" fill="#F1ECFF" stroke="#8A72D6"/>
+  <ellipse cx="1075" cy="199" rx="145" ry="16" fill="#F1ECFF" stroke="#8A72D6" stroke-width="2"/>
+<text class="label" x="1075" y="224" text-anchor="middle" dominant-baseline="middle">ZooKeeper lock</text>
+<text class="detail" x="1075" y="243" text-anchor="middle" dominant-baseline="middle">Curator session</text>
+<text class="detail" x="1075" y="262" text-anchor="middle" dominant-baseline="middle">base path + lock name</text>
 </g>
 <g id="job">
-  <rect class="card" x="1040" y="120" width="230" height="100" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
-<text class="label" x="1155" y="155" text-anchor="middle" dominant-baseline="middle">Legacy job</text>
-<text class="detail" x="1155" y="174" text-anchor="middle" dominant-baseline="middle">read-ledger</text>
-<text class="detail" x="1155" y="193" text-anchor="middle" dominant-baseline="middle">write-summary</text>
+  <rect class="card" x="1280" y="195" width="260" height="92" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+<text class="label" x="1410" y="226" text-anchor="middle" dominant-baseline="middle">Legacy job</text>
+<text class="detail" x="1410" y="245" text-anchor="middle" dominant-baseline="middle">read-ledger</text>
+<text class="detail" x="1410" y="264" text-anchor="middle" dominant-baseline="middle">write-summary</text>
+</g>
+<g id="nodeB">
+  <rect class="card" x="610" y="390" width="280" height="92" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
+<text class="label" x="750" y="421" text-anchor="middle" dominant-baseline="middle">node-b</text>
+<text class="detail" x="750" y="440" text-anchor="middle" dominant-baseline="middle">competes while held</text>
+<text class="detail" x="750" y="459" text-anchor="middle" dominant-baseline="middle">body is not called</text>
 </g>
 <g id="skip">
-  <rect class="card" x="1040" y="300" width="230" height="100" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
-<text class="label" x="1155" y="335" text-anchor="middle" dominant-baseline="middle">Skip report</text>
-<text class="detail" x="1155" y="354" text-anchor="middle" dominant-baseline="middle">status=SKIPPED</text>
-<text class="detail" x="1155" y="373" text-anchor="middle" dominant-baseline="middle">no body call</text>
+  <rect class="card" x="1280" y="390" width="260" height="92" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
+<text class="label" x="1410" y="421" text-anchor="middle" dominant-baseline="middle">Skip report</text>
+<text class="detail" x="1410" y="440" text-anchor="middle" dominant-baseline="middle">status=SKIPPED</text>
+<text class="detail" x="1410" y="459" text-anchor="middle" dominant-baseline="middle">empty steps</text>
+</g>
+<g id="release">
+  <rect class="card" x="930" y="585" width="290" height="92" rx="14" fill="#F7F1E7" stroke="#B88A44"/>
+<text class="label" x="1075" y="616" text-anchor="middle" dominant-baseline="middle">Lock released</text>
+<text class="detail" x="1075" y="635" text-anchor="middle" dominant-baseline="middle">node-a exits body</text>
+<text class="detail" x="1075" y="654" text-anchor="middle" dominant-baseline="middle">session lock returns</text>
 </g>
 <g id="next">
-  <rect class="card" x="700" y="465" width="300" height="100" rx="14" fill="#EAF7EF" stroke="#58A978"/>
-<text class="label" x="850" y="500" text-anchor="middle" dominant-baseline="middle">Next schedule</text>
-<text class="detail" x="850" y="519" text-anchor="middle" dominant-baseline="middle">node-b reacquires</text>
-<text class="detail" x="850" y="538" text-anchor="middle" dominant-baseline="middle">status=EXECUTED</text>
+  <rect class="card" x="1280" y="585" width="260" height="92" rx="14" fill="#EAF7EF" stroke="#58A978"/>
+<text class="label" x="1410" y="616" text-anchor="middle" dominant-baseline="middle">Next schedule</text>
+<text class="detail" x="1410" y="635" text-anchor="middle" dominant-baseline="middle">node-b reacquires</text>
+<text class="detail" x="1410" y="654" text-anchor="middle" dominant-baseline="middle">status=EXECUTED</text>
 </g>
 </svg>

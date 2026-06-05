@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1420" height="720" viewBox="0 0 1420 720" role="img" aria-label="ZooKeeper Scheduler Architecture">
+<svg xmlns="http://www.w3.org/2000/svg" width="1580" height="900" viewBox="0 0 1580 900" role="img" aria-label="ZooKeeper Scheduler Architecture">
   <metadata id="graphviz-evidence">Generated with Graphviz evidence: examples-zookeeper-scheduler-architecture-01.dot, examples-zookeeper-scheduler-architecture-01.plain, examples-zookeeper-scheduler-architecture-01-graphviz.svg, and examples-zookeeper-scheduler-architecture-01-graphviz.png.</metadata>
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
@@ -23,101 +23,87 @@
     .pill{fill:#ffffff;stroke:#dbe4ef;stroke-width:1.1;opacity:.98}
   </style>
 </defs>
-<rect class="canvas" width="1420" height="720"/>
-<rect class="frame" x="32" y="28" width="1356" height="664" rx="28"/>
+<rect class="canvas" width="1580" height="900"/>
+<rect class="frame" x="32" y="28" width="1516" height="844" rx="28"/>
 <text class="title" x="66" y="82">ZooKeeper Scheduler Architecture</text>
 <text class="subtitle" x="70" y="118">Caller-owned Curator clients feed bluetape4k leader election before a legacy job runs</text>
 <g>
-  <rect class="layer" x="54" y="120" width="1312" height="112" rx="18" fill="#F8FAFC"/>
-  <text class="label" x="78" y="154">Scheduler nodes</text>
+  <rect class="layer" x="54" y="165" width="1472" height="120" rx="18" fill="#F8FAFC"/>
+  <text class="label" x="78" y="199">Runtime callers</text>
 </g>
 <g>
-  <rect class="layer" x="54" y="255" width="1312" height="112" rx="18" fill="#FFFFFF"/>
-  <text class="label" x="78" y="289">Example adapter</text>
+  <rect class="layer" x="54" y="320" width="1472" height="120" rx="18" fill="#FFFFFF"/>
+  <text class="label" x="78" y="354">Example adapter</text>
 </g>
 <g>
-  <rect class="layer" x="54" y="390" width="1312" height="112" rx="18" fill="#F8FAFC"/>
-  <text class="label" x="78" y="424">bluetape4k leader</text>
+  <rect class="layer" x="54" y="475" width="1472" height="120" rx="18" fill="#F8FAFC"/>
+  <text class="label" x="78" y="509">bluetape4k leader election</text>
 </g>
 <g>
-  <rect class="layer" x="54" y="525" width="1312" height="112" rx="18" fill="#FFFFFF"/>
-  <text class="label" x="78" y="559">ZooKeeper backend</text>
+  <rect class="layer" x="54" y="630" width="1472" height="135" rx="18" fill="#FFFFFF"/>
+  <text class="label" x="78" y="664">Curator and ZooKeeper infrastructure</text>
 </g>
-<path class="line" d="M330 181 L330 250 L250 250 L250 318"/><g>
-  <rect class="pill" x="276" y="218" width="68" height="26" rx="13"/>
-  <text class="strong" x="310" y="231" text-anchor="middle" dominant-baseline="middle">calls</text>
-</g>
-<path class="line" d="M515 227 L465 227 L465 270 L415 270"/><g>
-  <rect class="pill" x="431" y="218" width="68" height="26" rx="13"/>
-  <text class="strong" x="465" y="231" text-anchor="middle" dominant-baseline="middle">calls</text>
-</g>
-<path class="line" d="M720 318 L650 318 L650 318 L580 318"/><g>
-  <rect class="pill" x="596" y="286" width="94" height="26" rx="13"/>
-  <text class="strong" x="643" y="299" text-anchor="middle" dominant-baseline="middle">configures</text>
-</g>
-<path class="line" d="M415 366 L448 366 L448 405 L480 405"/><g>
-  <rect class="pill" x="404.5" y="354" width="87" height="26" rx="13"/>
-  <text class="strong" x="448" y="367" text-anchor="middle" dominant-baseline="middle">delegates</text>
-</g>
-<path class="line" d="M480 501 L455 501 L455 545 L430 545"/><g>
-  <rect class="pill" x="401" y="497" width="108" height="26" rx="13"/>
-  <text class="strong" x="455" y="510" text-anchor="middle" dominant-baseline="middle">Curator lock</text>
-</g>
-<path class="line" d="M580 318 L580 461 L760 461 L760 603"/><g>
-  <rect class="pill" x="619.5" y="429" width="101" height="26" rx="13"/>
-  <text class="strong" x="670" y="442" text-anchor="middle" dominant-baseline="middle">leader only</text>
-</g>
-<path class="line" d="M580 318 L685 318 L685 453 L790 453"/><g>
-  <rect class="pill" x="641.5" y="354" width="73" height="26" rx="13"/>
-  <text class="strong" x="678" y="367" text-anchor="middle" dominant-baseline="middle">returns</text>
-</g>
+<path class="line" d="M580 226 L520 226 L520 380 L460 380"/>
+<path class="line" d="M790 272 L790 302 L640 302 L640 332"/>
+<path class="line" d="M900 380 L860 380 L860 380 L820 380"/>
+<path class="line" d="M640 428 L640 458 L645 458 L645 487"/>
+<path class="line" d="M900 535 L865 535 L865 535 L830 535"/>
+<path class="line" d="M645 583 L645 609 L645 609 L645 635"/>
+<path class="line" d="M640 332 L640 305 L1375 305 L1375 332"/>
+<path class="line" d="M640 428 L640 455 L1380 455 L1380 695 L1280 695"/>
 <g id="nodeA">
-  <rect class="card" x="80" y="135" width="250" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
-<text class="label" x="205" y="166" text-anchor="middle" dominant-baseline="middle">node-a service</text>
-<text class="detail" x="205" y="185" text-anchor="middle" dominant-baseline="middle">scheduled trigger</text>
-<text class="detail" x="205" y="204" text-anchor="middle" dominant-baseline="middle">candidate</text>
+  <rect class="card" x="300" y="180" width="280" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
+<text class="label" x="440" y="211" text-anchor="middle" dominant-baseline="middle">node-a service</text>
+<text class="detail" x="440" y="230" text-anchor="middle" dominant-baseline="middle">scheduled trigger</text>
+<text class="detail" x="440" y="249" text-anchor="middle" dominant-baseline="middle">candidate</text>
 </g>
 <g id="nodeB">
-  <rect class="card" x="390" y="135" width="250" height="92" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
-<text class="label" x="515" y="166" text-anchor="middle" dominant-baseline="middle">node-b service</text>
-<text class="detail" x="515" y="185" text-anchor="middle" dominant-baseline="middle">same trigger</text>
-<text class="detail" x="515" y="204" text-anchor="middle" dominant-baseline="middle">candidate</text>
+  <rect class="card" x="650" y="180" width="280" height="92" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
+<text class="label" x="790" y="211" text-anchor="middle" dominant-baseline="middle">node-b service</text>
+<text class="detail" x="790" y="230" text-anchor="middle" dominant-baseline="middle">same trigger</text>
+<text class="detail" x="790" y="249" text-anchor="middle" dominant-baseline="middle">candidate</text>
 </g>
 <g id="adapter">
-  <rect class="card" x="250" y="270" width="330" height="96" rx="14" fill="#EAF7EF" stroke="#58A978"/>
-<text class="label" x="415" y="303" text-anchor="middle" dominant-baseline="middle">ZooKeeperLegacyScheduler</text>
-<text class="detail" x="415" y="322" text-anchor="middle" dominant-baseline="middle">runOnce(scheduleId)</text>
-<text class="detail" x="415" y="341" text-anchor="middle" dominant-baseline="middle">EXECUTED or SKIPPED</text>
+  <rect class="card" x="460" y="332" width="360" height="96" rx="14" fill="#EAF7EF" stroke="#58A978"/>
+<text class="label" x="640" y="365" text-anchor="middle" dominant-baseline="middle">ZooKeeperLegacyScheduler</text>
+<text class="detail" x="640" y="384" text-anchor="middle" dominant-baseline="middle">runOnce(scheduleId)</text>
+<text class="detail" x="640" y="403" text-anchor="middle" dominant-baseline="middle">EXECUTED or SKIPPED</text>
 </g>
 <g id="config">
-  <rect class="card" x="720" y="270" width="300" height="96" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
-<text class="label" x="870" y="303" text-anchor="middle" dominant-baseline="middle">ZooKeeperSchedulerConfig</text>
-<text class="detail" x="870" y="322" text-anchor="middle" dominant-baseline="middle">nodeId + lockName</text>
-<text class="detail" x="870" y="341" text-anchor="middle" dominant-baseline="middle">waitTime + leaseTime</text>
-</g>
-<g id="elector">
-  <rect class="card" x="300" y="405" width="360" height="96" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
-<text class="label" x="480" y="438" text-anchor="middle" dominant-baseline="middle">ZooKeeperLeaderElector</text>
-<text class="detail" x="480" y="457" text-anchor="middle" dominant-baseline="middle">LeaderElectionOptions</text>
-<text class="detail" x="480" y="476" text-anchor="middle" dominant-baseline="middle">autoExtend=false</text>
+  <rect class="card" x="900" y="332" width="330" height="96" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+<text class="label" x="1065" y="365" text-anchor="middle" dominant-baseline="middle">ZooKeeperSchedulerConfig</text>
+<text class="detail" x="1065" y="384" text-anchor="middle" dominant-baseline="middle">nodeId + lockName</text>
+<text class="detail" x="1065" y="403" text-anchor="middle" dominant-baseline="middle">waitTime + leaseTime</text>
 </g>
 <g id="report">
-  <rect class="card" x="790" y="405" width="300" height="96" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
-<text class="label" x="940" y="438" text-anchor="middle" dominant-baseline="middle">SchedulerRunReport</text>
-<text class="detail" x="940" y="457" text-anchor="middle" dominant-baseline="middle">nodeId + scheduleId</text>
-<text class="detail" x="940" y="476" text-anchor="middle" dominant-baseline="middle">status + steps</text>
+  <rect class="card" x="1260" y="332" width="230" height="96" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
+<text class="label" x="1375" y="365" text-anchor="middle" dominant-baseline="middle">SchedulerRunReport</text>
+<text class="detail" x="1375" y="384" text-anchor="middle" dominant-baseline="middle">nodeId + scheduleId</text>
+<text class="detail" x="1375" y="403" text-anchor="middle" dominant-baseline="middle">status + steps</text>
+</g>
+<g id="elector">
+  <rect class="card" x="460" y="487" width="370" height="96" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
+<text class="label" x="645" y="520" text-anchor="middle" dominant-baseline="middle">ZooKeeperLeaderElector</text>
+<text class="detail" x="645" y="539" text-anchor="middle" dominant-baseline="middle">LeaderElectionOptions</text>
+<text class="detail" x="645" y="558" text-anchor="middle" dominant-baseline="middle">autoExtend=false</text>
+</g>
+<g id="options">
+  <rect class="card" x="900" y="487" width="320" height="96" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+<text class="label" x="1060" y="520" text-anchor="middle" dominant-baseline="middle">LeaderElectionOptions</text>
+<text class="detail" x="1060" y="539" text-anchor="middle" dominant-baseline="middle">waitTime + leaseTime</text>
+<text class="detail" x="1060" y="558" text-anchor="middle" dominant-baseline="middle">node identity</text>
 </g>
 <g id="zk">
-  <path class="card" d="M265 569 C265 553 595 553 595 569 L595 641 C595 657 265 657 265 641 Z" fill="#F7F1E7" stroke="#B88A44"/>
-  <ellipse cx="430" cy="569" rx="165" ry="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="2"/>
-<text class="label" x="430" y="590" text-anchor="middle" dominant-baseline="middle">ZooKeeper / Curator</text>
-<text class="detail" x="430" y="609" text-anchor="middle" dominant-baseline="middle">session lock</text>
-<text class="detail" x="430" y="628" text-anchor="middle" dominant-baseline="middle">basePath/lockName</text>
+  <path class="card" d="M460 659 C460 643 830 643 830 659 L830 731 C830 747 460 747 460 731 Z" fill="#F7F1E7" stroke="#B88A44"/>
+  <ellipse cx="645" cy="659" rx="185" ry="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="2"/>
+<text class="label" x="645" y="680" text-anchor="middle" dominant-baseline="middle">ZooKeeper / Curator</text>
+<text class="detail" x="645" y="699" text-anchor="middle" dominant-baseline="middle">session lock</text>
+<text class="detail" x="645" y="718" text-anchor="middle" dominant-baseline="middle">basePath/lockName</text>
 </g>
 <g id="job">
-  <rect class="card" x="760" y="555" width="330" height="96" rx="14" fill="#EAF7EF" stroke="#58A978"/>
-<text class="label" x="925" y="588" text-anchor="middle" dominant-baseline="middle">Legacy scheduled job</text>
-<text class="detail" x="925" y="607" text-anchor="middle" dominant-baseline="middle">caller body</text>
-<text class="detail" x="925" y="626" text-anchor="middle" dominant-baseline="middle">validated step names</text>
+  <rect class="card" x="940" y="647" width="340" height="96" rx="14" fill="#EAF7EF" stroke="#58A978"/>
+<text class="label" x="1110" y="680" text-anchor="middle" dominant-baseline="middle">Legacy scheduled job</text>
+<text class="detail" x="1110" y="699" text-anchor="middle" dominant-baseline="middle">caller body</text>
+<text class="detail" x="1110" y="718" text-anchor="middle" dominant-baseline="middle">validated step names</text>
 </g>
 </svg>

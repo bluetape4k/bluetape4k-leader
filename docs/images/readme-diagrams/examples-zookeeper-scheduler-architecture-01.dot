@@ -6,15 +6,17 @@ digraph "examples-zookeeper-scheduler-architecture-01" {
   "node-b service";
   "ZooKeeperLegacyScheduler";
   "ZooKeeperSchedulerConfig";
-  "ZooKeeperLeaderElector";
   "SchedulerRunReport";
+  "ZooKeeperLeaderElector";
+  "LeaderElectionOptions";
   "ZooKeeper / Curator";
   "Legacy scheduled job";
   "node-a service" -> "ZooKeeperLegacyScheduler" [label="calls"];
   "node-b service" -> "ZooKeeperLegacyScheduler" [label="calls"];
   "ZooKeeperSchedulerConfig" -> "ZooKeeperLegacyScheduler" [label="configures"];
   "ZooKeeperLegacyScheduler" -> "ZooKeeperLeaderElector" [label="delegates"];
+  "LeaderElectionOptions" -> "ZooKeeperLeaderElector" [label="options"];
   "ZooKeeperLeaderElector" -> "ZooKeeper / Curator" [label="Curator lock"];
-  "ZooKeeperLegacyScheduler" -> "Legacy scheduled job" [label="leader only"];
   "ZooKeeperLegacyScheduler" -> "SchedulerRunReport" [label="returns"];
+  "ZooKeeperLegacyScheduler" -> "Legacy scheduled job" [label="leader only"];
 }
