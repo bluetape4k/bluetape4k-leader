@@ -101,6 +101,7 @@ The ERD-style view below summarizes how module catalog rows, backend capabilitie
 | [`examples/etcd-reconciler`](./examples/etcd-reconciler) | etcd v3 | Control-plane reconciler where one node applies desired state |
 | [`examples/consul-maintenance`](./examples/consul-maintenance) | Consul | Service maintenance/drain workflow where one instance performs the action |
 | [`examples/dynamodb-export`](./examples/dynamodb-export) | DynamoDB Local / AWS DynamoDB | Scheduled export or billing job where only the leader writes export records |
+| [`examples/zookeeper-scheduler`](./examples/zookeeper-scheduler) | ZooKeeper / Curator | Legacy scheduled job where only one node executes and contenders skip |
 | [`examples/k8s-lease`](./examples/k8s-lease) | Kubernetes Lease | Low-level Lease acquire/release/reacquire workflow against K3s |
 | [`examples/k8s-operator`](./examples/k8s-operator) | Kubernetes Lease + Spring Boot | 3-replica operator pattern where one pod runs the reconcile loop |
 | [`examples/rate-limiter`](./examples/rate-limiter) | Lettuce Redis + Bucket4j | Leader-dispatched external API probes with shared rate limiting |

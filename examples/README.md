@@ -14,6 +14,7 @@ coordinating control-plane loops, or exposing leader metrics.
 | [cache-warmer](cache-warmer/README.md) | Hazelcast | Warm each cache partition once while multiple nodes compete. | Partitioned cache preloading with safe duplicate suppression. | `./gradlew :examples:cache-warmer:run` |
 | [consul-maintenance](consul-maintenance/README.md) | Consul Session + KV | Let one service instance perform maintenance or drain work. | Service drain, endpoint rotation, or maintenance windows. | `./gradlew :examples:consul-maintenance:run` |
 | [dynamodb-export](dynamodb-export/README.md) | DynamoDB Local / AWS DynamoDB | Let one node write scheduled export records while others skip. | Billing exports, scheduled reports, or AWS-only services. | `./gradlew :examples:dynamodb-export:run` |
+| [zookeeper-scheduler](zookeeper-scheduler/README.md) | ZooKeeper / Curator | Let one node run a legacy scheduled job while contenders skip. | Existing ZooKeeper estates and Curator-based services. | `./gradlew :examples:zookeeper-scheduler:run` |
 | [etcd-reconciler](etcd-reconciler/README.md) | etcd v3 | Let one control-plane node apply desired resources. | Reconciler loops and infrastructure controllers. | `./gradlew :examples:etcd-reconciler:run` |
 | [k8s-lease](k8s-lease/README.md) | Kubernetes Lease | Exercise acquire, conflict, release, and reacquire behavior. | Low-level Lease API validation against K3s. | `./gradlew :examples:k8s-lease:k8sTest` |
 | [k8s-operator](k8s-operator/README.md) | Kubernetes Lease + Spring Boot | Run one operator reconcile loop across several pods. | Kubernetes operators and controller loops. | `./gradlew :examples:k8s-operator:run` |
@@ -33,6 +34,7 @@ coordinating control-plane loops, or exposing leader metrics.
 - Use Redis / Lettuce or Redis / Redisson when a low-latency lock store is already part of the service stack.
 - Use Exposed JDBC or R2DBC when leadership should live with application data and deployment migrations.
 - Use DynamoDB when AWS-managed storage is already the coordination boundary and local verification can run on DynamoDB Local.
+- Use ZooKeeper when an existing Curator/ZooKeeper estate already coordinates legacy scheduled jobs.
 - Use Kubernetes Lease, etcd, or Consul when the leadership problem is tied to control-plane or service-discovery infrastructure.
 - Use local strategic or virtual-thread examples to study API shape without starting external infrastructure.
 - Use `prometheus-dashboard` when you need to inspect metrics emitted by Spring AOP leader-election annotations.
@@ -46,6 +48,7 @@ available unless the README documents a separate external endpoint option.
 ```bash
 ./gradlew :examples:batch-scheduler:run
 ./gradlew :examples:consul-maintenance:test
+./gradlew :examples:zookeeper-scheduler:run
 ./gradlew :examples:prometheus-dashboard:bootRun
 ```
 
