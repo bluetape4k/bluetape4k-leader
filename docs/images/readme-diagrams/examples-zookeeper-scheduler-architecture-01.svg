@@ -55,14 +55,14 @@
   <rect class="layer" x="54" y="630" width="1472" height="135" rx="18" fill="#FFFFFF"/>
   <text class="label" x="78" y="664">Curator and ZooKeeper infrastructure</text>
 </g>
-<path class="line" d="M580 226 L520 226 L520 380 L460 380" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
-<path class="line" d="M790 272 L790 302 L640 302 L640 332" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
-<path class="line" d="M900 380 L860 380 L860 380 L820 380" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
-<path class="line" d="M640 428 L640 458 L645 458 L645 487" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
-<path class="line" d="M900 535 L865 535 L865 535 L830 535" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
-<path class="line" d="M645 583 L645 609 L645 609 L645 635" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
-<path class="line" d="M640 332 L640 305 L1375 305 L1375 332" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
-<path class="line" d="M640 428 L640 455 L1380 455 L1380 695 L1280 695" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M580 226 L520 226 L520 380 L460 380" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M790 272 L790 302 L640 302 L640 332" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M880 380 L850 380 L850 380 L820 380" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M640 428 L640 458 L645 458 L645 487" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M880 535 L855 535 L855 535 L830 535" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M645 583 L645 609 L645 609 L645 635" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M640 332 L640 305 L1375 305 L1375 332" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M640 428 L640 455 L1380 455 L1380 695 L1280 695" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
 <g id="nodeA">
   <rect class="card" x="300" y="180" width="280" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
 <text class="label" x="440" y="211" text-anchor="middle" dominant-baseline="middle">node-a service</text>
@@ -82,16 +82,16 @@
 <text class="detail" x="640" y="403" text-anchor="middle" dominant-baseline="middle">EXECUTED or SKIPPED</text>
 </g>
 <g id="config">
-  <rect class="card" x="900" y="332" width="330" height="96" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
-<text class="label" x="1065" y="365" text-anchor="middle" dominant-baseline="middle">ZooKeeperSchedulerConfig</text>
-<text class="detail" x="1065" y="384" text-anchor="middle" dominant-baseline="middle">nodeId + lockName</text>
-<text class="detail" x="1065" y="403" text-anchor="middle" dominant-baseline="middle">waitTime + leaseTime</text>
+  <rect class="card" x="880" y="332" width="360" height="96" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+<text class="label" x="1060" y="365" text-anchor="middle" dominant-baseline="middle">ZooKeeperSchedulerConfig</text>
+<text class="detail" x="1060" y="384" text-anchor="middle" dominant-baseline="middle">nodeId + lockName</text>
+<text class="detail" x="1060" y="403" text-anchor="middle" dominant-baseline="middle">waitTime + leaseTime</text>
 </g>
 <g id="report">
-  <rect class="card" x="1260" y="332" width="230" height="96" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
-<text class="label" x="1375" y="365" text-anchor="middle" dominant-baseline="middle">SchedulerRunReport</text>
-<text class="detail" x="1375" y="384" text-anchor="middle" dominant-baseline="middle">nodeId + scheduleId</text>
-<text class="detail" x="1375" y="403" text-anchor="middle" dominant-baseline="middle">status + steps</text>
+  <rect class="card" x="1260" y="332" width="280" height="96" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
+<text class="label" x="1400" y="365" text-anchor="middle" dominant-baseline="middle">SchedulerRunReport</text>
+<text class="detail" x="1400" y="384" text-anchor="middle" dominant-baseline="middle">nodeId + scheduleId</text>
+<text class="detail" x="1400" y="403" text-anchor="middle" dominant-baseline="middle">status + steps</text>
 </g>
 <g id="elector">
   <rect class="card" x="460" y="487" width="370" height="96" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
@@ -100,10 +100,10 @@
 <text class="detail" x="645" y="558" text-anchor="middle" dominant-baseline="middle">autoExtend=false</text>
 </g>
 <g id="options">
-  <rect class="card" x="900" y="487" width="320" height="96" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
-<text class="label" x="1060" y="520" text-anchor="middle" dominant-baseline="middle">LeaderElectionOptions</text>
-<text class="detail" x="1060" y="539" text-anchor="middle" dominant-baseline="middle">waitTime + leaseTime</text>
-<text class="detail" x="1060" y="558" text-anchor="middle" dominant-baseline="middle">node identity</text>
+  <rect class="card" x="880" y="487" width="340" height="96" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+<text class="label" x="1050" y="520" text-anchor="middle" dominant-baseline="middle">LeaderElectionOptions</text>
+<text class="detail" x="1050" y="539" text-anchor="middle" dominant-baseline="middle">waitTime + leaseTime</text>
+<text class="detail" x="1050" y="558" text-anchor="middle" dominant-baseline="middle">node identity</text>
 </g>
 <g id="zk">
   <path class="card" d="M460 659 C460 643 830 643 830 659 L830 731 C830 747 460 747 460 731 Z" fill="#F7F1E7" stroke="#B88A44"/>

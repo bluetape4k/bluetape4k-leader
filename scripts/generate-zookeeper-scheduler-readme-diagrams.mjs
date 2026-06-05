@@ -80,10 +80,10 @@ const diagrams = [
       node("nodeA", "node-a service", ["scheduled trigger", "candidate"], 300, 180, 280, 92, "blue"),
       node("nodeB", "node-b service", ["same trigger", "candidate"], 650, 180, 280, 92, "amber"),
       node("adapter", "ZooKeeperLegacyScheduler", ["runOnce(scheduleId)", "EXECUTED or SKIPPED"], 460, 332, 360, 96, "green"),
-      node("config", "ZooKeeperSchedulerConfig", ["nodeId + lockName", "waitTime + leaseTime"], 900, 332, 330, 96, "teal"),
-      node("report", "SchedulerRunReport", ["nodeId + scheduleId", "status + steps"], 1260, 332, 230, 96, "pink"),
+      node("config", "ZooKeeperSchedulerConfig", ["nodeId + lockName", "waitTime + leaseTime"], 880, 332, 360, 96, "teal"),
+      node("report", "SchedulerRunReport", ["nodeId + scheduleId", "status + steps"], 1260, 332, 280, 96, "pink"),
       node("elector", "ZooKeeperLeaderElector", ["LeaderElectionOptions", "autoExtend=false"], 460, 487, 370, 96, "lavender"),
-      node("options", "LeaderElectionOptions", ["waitTime + leaseTime", "node identity"], 900, 487, 320, 96, "teal"),
+      node("options", "LeaderElectionOptions", ["waitTime + leaseTime", "node identity"], 880, 487, 340, 96, "teal"),
       cylinder("zk", "ZooKeeper / Curator", ["session lock", "basePath/lockName"], 460, 635, 370, 120, "sand"),
       node("job", "Legacy scheduled job", ["caller body", "validated step names"], 940, 647, 340, 96, "green"),
     ],
@@ -95,7 +95,7 @@ const diagrams = [
       edge("options", "elector", "options"),
       edge("elector", "zk", "Curator lock"),
       edge("adapter", "report", "returns", "M640 332 L640 305 L1375 305 L1375 332"),
-      edge("adapter", "job", "leader only", "M640 428 L640 455 L1380 455 L1380 695 L1280 695"),
+      edge("adapter", "job", "leader only", "M640 428 L640 455 L1380 455 L1380 695 L1280 695", "leader"),
     ],
   },
   {
@@ -135,7 +135,7 @@ const diagrams = [
     slug: "examples-zookeeper-scheduler-sequence-01",
     title: "ZooKeeper Scheduler Sequence",
     subtitle: "node-a holds the ZooKeeper lock, node-b skips, then node-b reacquires for the next run",
-    width: 1780,
+    width: 2300,
     height: 1180,
     participants: [
       ["Demo", "blue"],
@@ -287,7 +287,7 @@ function renderEdge(diagram, route) {
 
 function routeStyle(tone = "neutral") {
   const safeTone = routeColors[tone] ? tone : "neutral";
-  return `style="stroke:${routeColors[safeTone]};marker-end:url(#arrow-${safeTone})"`;
+  return `data-route-tone="${safeTone}" style="stroke:${routeColors[safeTone]};marker-end:url(#arrow-${safeTone})"`;
 }
 
 function autoRoute(from, to) {
@@ -340,7 +340,7 @@ function renderArchitecture(diagram) {
 function renderSequence(diagram) {
   validateSequenceModel(diagram);
   const top = 166;
-  const headerW = 235;
+  const headerW = 340;
   const headerH = 72;
   const left = 78;
   const right = diagram.width - 78;

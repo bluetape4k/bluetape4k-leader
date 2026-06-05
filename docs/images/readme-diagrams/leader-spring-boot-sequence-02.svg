@@ -20,6 +20,13 @@
     .inheritLine{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#inherit)}
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
   </style>
+  <!-- semantic lock-state route markers -->
+  <marker id="semanticArrow-neutral" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#758297" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-leader" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#43A76B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-skipped" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#EF5B7A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-contention" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#D99A2B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-reacquire" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#8B6EEB" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <!-- /semantic lock-state route markers -->
 </defs>
 <rect class="canvas" width="2140" height="2466"/>
 <rect class="frame" x="32" y="28" width="2076" height="2410" rx="28"/>
@@ -42,60 +49,60 @@
 <text class="smallLabel" x="1910" y="209" text-anchor="middle">Redis / Mongo / ...</text>
 <line class="lifeline" x1="1910" y1="252" x2="1910" y2="2406" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
 <rect x="236.5" y="286" width="407" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="254.5" y="313" text-anchor="start">1. @LeaderElection(daily-report) outerMethod()</text>
-<path class="line" d="M230 332 L650 332"/>
+<text class="strong" x="254.5" y="313" text-anchor="start" style="fill:#758297">1. @LeaderElection(daily-report) outerMethod()</text>
+<path class="line" d="M230 332 L650 332" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#semanticArrow-neutral)"/>
 <rect x="709" y="396" width="302" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="727" y="423" text-anchor="start">2. peekSyncMatching(daily-report)</text>
-<path class="line" d="M650 442 L1070 442"/>
+<text class="strong" x="727" y="423" text-anchor="start" style="fill:#758297">2. peekSyncMatching(daily-report)</text>
+<path class="line" d="M650 442 L1070 442" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#semanticArrow-neutral)"/>
 <rect x="755" y="506" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="773" y="533" text-anchor="start">3. null (first entry)</text>
-<path class="dashed" d="M1070 552 L650 552"/>
+<text class="strong" x="773" y="533" text-anchor="start" style="fill:#758297">3. null (first entry)</text>
+<path class="dashed" d="M1070 552 L650 552" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#semanticArrow-neutral)"/>
 <rect x="882.5" y="616" width="375" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="900.5" y="643" text-anchor="start">4. runIfLeaderResult(daily-report) { ... }</text>
-<path class="line" d="M650 662 L1490 662"/>
+<text class="strong" x="900.5" y="643" text-anchor="start" style="fill:#43A76B">4. runIfLeaderResult(daily-report) { ... }</text>
+<path class="line" d="M650 662 L1490 662" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="1581" y="726" width="238" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1599" y="753" text-anchor="start">5. SET / EXPIRE (acquire)</text>
-<path class="line" d="M1490 772 L1910 772"/>
+<text class="strong" x="1599" y="753" text-anchor="start" style="fill:#43A76B">5. SET / EXPIRE (acquire)</text>
+<path class="line" d="M1490 772 L1910 772" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="1595" y="836" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1613" y="863" text-anchor="start">6. ok (token=abc)</text>
-<path class="dashed" d="M1910 882 L1490 882"/>
+<text class="strong" x="1613" y="863" text-anchor="start" style="fill:#43A76B">6. ok (token=abc)</text>
+<path class="dashed" d="M1910 882 L1490 882" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="1096.5" y="946" width="367" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1114.5" y="973" text-anchor="start">7. push(LeaderLockHandle.Real(token=abc))</text>
-<path class="line" d="M1490 992 L1070 992"/>
+<text class="strong" x="1114.5" y="973" text-anchor="start" style="fill:#43A76B">7. push(LeaderLockHandle.Real(token=abc))</text>
+<path class="line" d="M1490 992 L1070 992" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="755" y="1056" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="773" y="1083" text-anchor="start">8. body()</text>
-<path class="line" d="M1490 1102 L230 1102"/>
+<text class="strong" x="773" y="1083" text-anchor="start" style="fill:#43A76B">8. body()</text>
+<path class="line" d="M1490 1102 L230 1102" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="236.5" y="1166" width="407" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="254.5" y="1193" text-anchor="start">9. @LeaderElection(daily-report) innerMethod()</text>
-<path class="line" d="M230 1212 L650 1212"/>
+<text class="strong" x="254.5" y="1193" text-anchor="start" style="fill:#43A76B">9. @LeaderElection(daily-report) innerMethod()</text>
+<path class="line" d="M230 1212 L650 1212" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="704.5" y="1276" width="311" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="722.5" y="1303" text-anchor="start">10. peekSyncMatching(daily-report)</text>
-<path class="line" d="M650 1322 L1070 1322"/>
+<text class="strong" x="722.5" y="1303" text-anchor="start" style="fill:#43A76B">10. peekSyncMatching(daily-report)</text>
+<path class="line" d="M650 1322 L1070 1322" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="717" y="1386" width="286" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="735" y="1413" text-anchor="start">11. Real(token=abc) — reentrant</text>
-<path class="dashed" d="M1070 1432 L650 1432"/>
+<text class="strong" x="735" y="1413" text-anchor="start" style="fill:#43A76B">11. Real(token=abc) — reentrant</text>
+<path class="dashed" d="M1070 1432 L650 1432" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="547" y="1496" width="302" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="565" y="1523" text-anchor="start">12. incrementReentryDepth(handle)</text>
-<path class="line" d="M650 1542 C714 1542 714 1576 650 1576"/>
+<text class="strong" x="565" y="1523" text-anchor="start" style="fill:#43A76B">12. incrementReentryDepth(handle)</text>
+<path class="line" d="M650 1542 C714 1542 714 1576 650 1576" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="704.5" y="1626" width="311" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="722.5" y="1653" text-anchor="start">13. push(Real(token=abc, depth=1))</text>
-<path class="line" d="M650 1672 L1070 1672"/>
+<text class="strong" x="722.5" y="1653" text-anchor="start" style="fill:#43A76B">13. push(Real(token=abc, depth=1))</text>
+<path class="line" d="M650 1672 L1070 1672" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="272.5" y="1736" width="335" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="290.5" y="1763" text-anchor="start">14. pjp.proceed() — backend untouched</text>
-<path class="line" d="M650 1782 L230 1782"/>
+<text class="strong" x="290.5" y="1763" text-anchor="start" style="fill:#43A76B">14. pjp.proceed() — backend untouched</text>
+<path class="line" d="M650 1782 L230 1782" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="301" y="1846" width="278" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="319" y="1873" text-anchor="start">15. returns from innerMethod()</text>
-<path class="dashed" d="M230 1892 L650 1892"/>
+<text class="strong" x="319" y="1873" text-anchor="start" style="fill:#43A76B">15. returns from innerMethod()</text>
+<path class="dashed" d="M230 1892 L650 1892" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="755" y="1956" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="773" y="1983" text-anchor="start">16. pop()</text>
-<path class="line" d="M650 2002 L1070 2002"/>
+<text class="strong" x="773" y="1983" text-anchor="start" style="fill:#D99A2B">16. pop()</text>
+<path class="line" d="M650 2002 L1070 2002" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="721" y="2066" width="278" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="739" y="2093" text-anchor="start">17. returns from outerMethod()</text>
-<path class="dashed" d="M230 2112 L1490 2112"/>
+<text class="strong" x="739" y="2093" text-anchor="start" style="fill:#43A76B">17. returns from outerMethod()</text>
+<path class="dashed" d="M230 2112 L1490 2112" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="1595" y="2176" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1613" y="2203" text-anchor="start">18. DEL / release</text>
-<path class="line" d="M1490 2222 L1910 2222"/>
+<text class="strong" x="1613" y="2203" text-anchor="start" style="fill:#D99A2B">18. DEL / release</text>
+<path class="line" d="M1490 2222 L1910 2222" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="1175" y="2286" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1193" y="2313" text-anchor="start">19. pop()</text>
-<path class="line" d="M1490 2332 L1070 2332"/>
+<text class="strong" x="1193" y="2313" text-anchor="start" style="fill:#D99A2B">19. pop()</text>
+<path class="line" d="M1490 2332 L1070 2332" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 </svg>

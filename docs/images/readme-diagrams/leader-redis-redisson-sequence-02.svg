@@ -20,6 +20,13 @@
     .inheritLine{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#inherit)}
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
   </style>
+  <!-- semantic lock-state route markers -->
+  <marker id="semanticArrow-neutral" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#758297" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-leader" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#43A76B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-skipped" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#EF5B7A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-contention" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#D99A2B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-reacquire" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#8B6EEB" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <!-- /semantic lock-state route markers -->
 </defs>
 <rect class="canvas" width="1468" height="2046"/>
 <rect class="frame" x="32" y="28" width="1404" height="1990" rx="28"/>
@@ -36,48 +43,48 @@
 <text class="smallLabel" x="1238" y="219.5" text-anchor="middle">Expirable</text>
 <line class="lifeline" x1="1238" y1="252" x2="1238" y2="1986" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
 <rect x="534.5" y="286" width="399" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="552.5" y="313" text-anchor="start">1. getPermitExpirableSemaphore(lg:{lockName})</text>
-<path class="line" d="M230 332 L1238 332"/>
+<text class="strong" x="552.5" y="313" text-anchor="start" style="fill:#758297">1. getPermitExpirableSemaphore(lg:{lockName})</text>
+<path class="line" d="M230 332 L1238 332" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#semanticArrow-neutral)"/>
 <rect x="595" y="396" width="278" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="613" y="423" text-anchor="start">2. trySetPermits(maxLeaders=2)</text>
-<path class="line" d="M230 442 L1238 442"/>
+<text class="strong" x="613" y="423" text-anchor="start" style="fill:#758297">2. trySetPermits(maxLeaders=2)</text>
+<path class="line" d="M230 442 L1238 442" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#semanticArrow-neutral)"/>
 <rect x="629" y="506" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="647" y="533" text-anchor="start">3. ok</text>
-<path class="dashed" d="M1238 552 L230 552"/>
+<text class="strong" x="647" y="533" text-anchor="start" style="fill:#758297">3. ok</text>
+<path class="dashed" d="M1238 552 L230 552" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#semanticArrow-neutral)"/>
 <rect x="595" y="616" width="278" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="613" y="643" text-anchor="start">4. tryAcquire(waitMs, leaseMs)</text>
-<path class="line" d="M230 662 L1238 662"/>
+<text class="strong" x="613" y="643" text-anchor="start" style="fill:#43A76B">4. tryAcquire(waitMs, leaseMs)</text>
+<path class="line" d="M230 662 L1238 662" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="629" y="726" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="647" y="753" text-anchor="start">5. permitId A1</text>
-<path class="dashed" d="M1238 772 L230 772"/>
+<text class="strong" x="647" y="753" text-anchor="start" style="fill:#43A76B">5. permitId A1</text>
+<path class="dashed" d="M1238 772 L230 772" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="173" y="836" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="191" y="863" text-anchor="start">6. action()</text>
-<path class="line" d="M230 882 C294 882 294 916 230 916"/>
+<text class="strong" x="191" y="863" text-anchor="start" style="fill:#43A76B">6. action()</text>
+<path class="line" d="M230 882 C294 882 294 916 230 916" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="881" y="966" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="899" y="993" text-anchor="start">7. tryAcquire(...)</text>
-<path class="line" d="M734 1012 L1238 1012"/>
+<text class="strong" x="899" y="993" text-anchor="start" style="fill:#43A76B">7. tryAcquire(...)</text>
+<path class="line" d="M734 1012 L1238 1012" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="881" y="1076" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="899" y="1103" text-anchor="start">8. permitId B1</text>
-<path class="dashed" d="M1238 1122 L734 1122"/>
+<text class="strong" x="899" y="1103" text-anchor="start" style="fill:#43A76B">8. permitId B1</text>
+<path class="dashed" d="M1238 1122 L734 1122" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="629" y="1186" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="647" y="1213" text-anchor="start">9. release(A1)</text>
-<path class="line" d="M230 1232 L1238 1232"/>
+<text class="strong" x="647" y="1213" text-anchor="start" style="fill:#D99A2B">9. release(A1)</text>
+<path class="line" d="M230 1232 L1238 1232" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="629" y="1296" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="647" y="1323" text-anchor="start">10. ok</text>
-<path class="dashed" d="M1238 1342 L230 1342"/>
+<text class="strong" x="647" y="1323" text-anchor="start" style="fill:#D99A2B">10. ok</text>
+<path class="dashed" d="M1238 1342 L230 1342" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="615" y="1406" width="238" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="633" y="1433" text-anchor="start">11. tryAcquire (lease=2s)</text>
-<path class="line" d="M230 1452 L1238 1452"/>
+<text class="strong" x="633" y="1433" text-anchor="start" style="fill:#8B6EEB">11. tryAcquire (lease=2s)</text>
+<path class="line" d="M230 1452 L1238 1452" data-route-tone="reacquire" style="stroke:#8B6EEB;marker-end:url(#semanticArrow-reacquire)"/>
 <rect x="629" y="1516" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="647" y="1543" text-anchor="start">12. permitId A2</text>
-<path class="dashed" d="M1238 1562 L230 1562"/>
+<text class="strong" x="647" y="1543" text-anchor="start" style="fill:#8B6EEB">12. permitId A2</text>
+<path class="dashed" d="M1238 1562 L230 1562" data-route-tone="reacquire" style="stroke:#8B6EEB;marker-end:url(#semanticArrow-reacquire)"/>
 <rect x="173" y="1626" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="191" y="1653" text-anchor="start">13. crash</text>
-<path class="line" d="M230 1672 C294 1672 294 1706 230 1706"/>
+<text class="strong" x="191" y="1653" text-anchor="start" style="fill:#D99A2B">13. crash</text>
+<path class="line" d="M230 1672 C294 1672 294 1706 230 1706" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="881" y="1756" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="899" y="1783" text-anchor="start">14. tryAcquire</text>
-<path class="line" d="M734 1802 L1238 1802"/>
+<text class="strong" x="899" y="1783" text-anchor="start" style="fill:#8B6EEB">14. tryAcquire</text>
+<path class="line" d="M734 1802 L1238 1802" data-route-tone="reacquire" style="stroke:#8B6EEB;marker-end:url(#semanticArrow-reacquire)"/>
 <rect x="839" y="1866" width="294" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="857" y="1893" text-anchor="start">15. permitId B3 (auto-recovered)</text>
-<path class="dashed" d="M1238 1912 L734 1912"/>
+<text class="strong" x="857" y="1893" text-anchor="start" style="fill:#8B6EEB">15. permitId B3 (auto-recovered)</text>
+<path class="dashed" d="M1238 1912 L734 1912" data-route-tone="reacquire" style="stroke:#8B6EEB;marker-end:url(#semanticArrow-reacquire)"/>
 </svg>

@@ -51,15 +51,15 @@
   <rect class="layer" x="54" y="550" width="1532" height="140" rx="18" fill="#F8FAFC"/>
   <text class="label" x="78" y="584">Phase 3 - release and next run</text>
 </g>
-<path class="line" d="M540 241 L575 241 L575 241 L610 241" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
-<path class="line" d="M890 241 L910 241 L910 239 L930 239" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
-<path class="line" d="M750 390 L750 335 L1075 335 L1075 303" style="stroke:#D99A2B;marker-end:url(#arrow-contention)"/>
-<path class="line" d="M1220 239 L1250 239 L1250 241 L1280 241" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
-<path class="line" d="M1220 239 L1250 239 L1250 436 L1280 436" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
-<path class="line" d="M540 241 L575 241 L575 436 L610 436" style="stroke:#D99A2B;marker-end:url(#arrow-contention)"/>
-<path class="line" d="M750 287 L750 315 L900 315 L900 631 L930 631" style="stroke:#D99A2B;marker-end:url(#arrow-contention)"/>
-<path class="line" d="M1220 631 L1250 631 L1250 631 L1280 631" style="stroke:#8B6EEB;marker-end:url(#arrow-reacquire)"/>
-<path class="line" d="M1280 631 L1235 631 L1235 239 L1220 239" style="stroke:#8B6EEB;marker-end:url(#arrow-reacquire)"/>
+<path class="line" d="M540 241 L575 241 L575 241 L610 241" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+<path class="line" d="M890 241 L910 241 L910 239 L930 239" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+<path class="line" d="M750 390 L750 335 L1075 335 L1075 303" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#arrow-contention)"/>
+<path class="line" d="M1220 239 L1250 239 L1250 241 L1280 241" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+<path class="line" d="M1220 239 L1250 239 L1250 436 L1280 436" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
+<path class="line" d="M540 241 L575 241 L575 436 L610 436" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#arrow-contention)"/>
+<path class="line" d="M750 287 L750 315 L900 315 L900 631 L930 631" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#arrow-contention)"/>
+<path class="line" d="M1220 631 L1250 631 L1250 631 L1280 631" data-route-tone="reacquire" style="stroke:#8B6EEB;marker-end:url(#arrow-reacquire)"/>
+<path class="line" d="M1280 631 L1235 631 L1235 239 L1220 239" data-route-tone="reacquire" style="stroke:#8B6EEB;marker-end:url(#arrow-reacquire)"/>
 <g id="tick">
   <rect class="card" x="300" y="195" width="240" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
 <text class="label" x="420" y="226" text-anchor="middle" dominant-baseline="middle">Same schedule</text>

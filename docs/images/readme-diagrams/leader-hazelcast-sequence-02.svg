@@ -20,6 +20,13 @@
     .inheritLine{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#inherit)}
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
   </style>
+  <!-- semantic lock-state route markers -->
+  <marker id="semanticArrow-neutral" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#758297" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-leader" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#43A76B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-skipped" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#EF5B7A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-contention" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#D99A2B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-reacquire" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#8B6EEB" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <!-- /semantic lock-state route markers -->
 </defs>
 <rect class="canvas" width="1188" height="2366"/>
 <rect class="frame" x="32" y="28" width="1124" height="2310" rx="28"/>
@@ -35,58 +42,58 @@
 <text class="smallLabel" x="993" y="209" text-anchor="middle">IMap</text>
 <line class="lifeline" x1="993" y1="252" x2="993" y2="2306" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
 <rect x="251.5" y="286" width="286" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="269.5" y="313" text-anchor="start">1. tryLock(waitTime, leaseTime)</text>
-<path class="line" d="M195 332 L594 332"/>
+<text class="strong" x="269.5" y="313" text-anchor="start" style="fill:#43A76B">1. tryLock(waitTime, leaseTime)</text>
+<path class="line" d="M195 332 L594 332" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="125" y="396" width="938" height="40" rx="71" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
 <text class="strong" x="147" y="423" text-anchor="start">LOOP: until deadline</text>
 <rect x="602" y="464" width="383" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="620" y="491" text-anchor="start">3. putIfAbsent(lockKey, token, leaseTimeMs)</text>
-<path class="line" d="M594 510 L993 510"/>
+<text class="strong" x="620" y="491" text-anchor="start" style="fill:#43A76B">3. putIfAbsent(lockKey, token, leaseTimeMs)</text>
+<path class="line" d="M594 510 L993 510" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="125" y="574" width="938" height="40" rx="71" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
 <text class="strong" x="147" y="601" text-anchor="start">ALT: key absent (null returned)</text>
 <rect x="688.5" y="642" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="706.5" y="669" text-anchor="start">5. null</text>
-<path class="dashed" d="M993 688 L594 688"/>
+<text class="strong" x="706.5" y="669" text-anchor="start" style="fill:#43A76B">5. null</text>
+<path class="dashed" d="M993 688 L594 688" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="289.5" y="752" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="307.5" y="779" text-anchor="start">6. true (acquired)</text>
-<path class="dashed" d="M594 798 L195 798"/>
+<text class="strong" x="307.5" y="779" text-anchor="start" style="fill:#43A76B">6. true (acquired)</text>
+<path class="dashed" d="M594 798 L195 798" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="125" y="862" width="938" height="40" rx="71" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
 <text class="strong" x="147" y="889" text-anchor="start">ELSE: key exists</text>
 <rect x="688.5" y="930" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="706.5" y="957" text-anchor="start">8. existingToken</text>
-<path class="dashed" d="M993 976 L594 976"/>
+<text class="strong" x="706.5" y="957" text-anchor="start" style="fill:#EF5B7A">8. existingToken</text>
+<path class="dashed" d="M993 976 L594 976" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#semanticArrow-skipped)"/>
 <rect x="507" y="1040" width="270" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="525" y="1067" text-anchor="start">9. sleep min(50ms, remaining)</text>
-<path class="line" d="M594 1086 C658 1086 658 1120 594 1120"/>
+<text class="strong" x="525" y="1067" text-anchor="start" style="fill:#EF5B7A">9. sleep min(50ms, remaining)</text>
+<path class="line" d="M594 1086 C658 1086 658 1120 594 1120" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#semanticArrow-skipped)"/>
 <rect x="289.5" y="1170" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="307.5" y="1197" text-anchor="start">10. false (timeout)</text>
-<path class="dashed" d="M594 1216 L195 1216"/>
+<text class="strong" x="307.5" y="1197" text-anchor="start" style="fill:#EF5B7A">10. false (timeout)</text>
+<path class="dashed" d="M594 1216 L195 1216" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#semanticArrow-skipped)"/>
 <rect x="259.5" y="1280" width="270" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="277.5" y="1307" text-anchor="start">11. isHeldByCurrentInstance()</text>
-<path class="line" d="M195 1326 L594 1326"/>
+<text class="strong" x="277.5" y="1307" text-anchor="start" style="fill:#D99A2B">11. isHeldByCurrentInstance()</text>
+<path class="line" d="M195 1326 L594 1326" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="688.5" y="1390" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="706.5" y="1417" text-anchor="start">12. get(lockKey)</text>
-<path class="line" d="M594 1436 L993 1436"/>
+<text class="strong" x="706.5" y="1417" text-anchor="start" style="fill:#D99A2B">12. get(lockKey)</text>
+<path class="line" d="M594 1436 L993 1436" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="688.5" y="1500" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="706.5" y="1527" text-anchor="start">13. storedToken</text>
-<path class="dashed" d="M993 1546 L594 1546"/>
+<text class="strong" x="706.5" y="1527" text-anchor="start" style="fill:#D99A2B">13. storedToken</text>
+<path class="dashed" d="M993 1546 L594 1546" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="279.5" y="1610" width="230" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="297.5" y="1637" text-anchor="start">14. storedToken == token</text>
-<path class="dashed" d="M594 1656 L195 1656"/>
+<text class="strong" x="297.5" y="1637" text-anchor="start" style="fill:#D99A2B">14. storedToken == token</text>
+<path class="dashed" d="M594 1656 L195 1656" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="289.5" y="1720" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="307.5" y="1747" text-anchor="start">15. unlock()</text>
-<path class="line" d="M195 1766 L594 1766"/>
+<text class="strong" x="307.5" y="1747" text-anchor="start" style="fill:#D99A2B">15. unlock()</text>
+<path class="line" d="M195 1766 L594 1766" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="670.5" y="1830" width="246" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="688.5" y="1857" text-anchor="start">16. remove(lockKey, token)</text>
-<path class="line" d="M594 1876 L993 1876"/>
+<text class="strong" x="688.5" y="1857" text-anchor="start" style="fill:#D99A2B">16. remove(lockKey, token)</text>
+<path class="line" d="M594 1876 L993 1876" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="125" y="1940" width="938" height="40" rx="71" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
 <text class="strong" x="147" y="1967" text-anchor="start">ALT: token matches</text>
 <rect x="688.5" y="2008" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="706.5" y="2035" text-anchor="start">18. true</text>
-<path class="dashed" d="M993 2054 L594 2054"/>
+<text class="strong" x="706.5" y="2035" text-anchor="start" style="fill:#D99A2B">18. true</text>
+<path class="dashed" d="M993 2054 L594 2054" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="125" y="2118" width="938" height="40" rx="71" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
 <text class="strong" x="147" y="2145" text-anchor="start">ELSE: token mismatch (TTL expired, another holder)</text>
 <rect x="688.5" y="2186" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="706.5" y="2213" text-anchor="start">20. false</text>
-<path class="dashed" d="M993 2232 L594 2232"/>
+<text class="strong" x="706.5" y="2213" text-anchor="start" style="fill:#EF5B7A">20. false</text>
+<path class="dashed" d="M993 2232 L594 2232" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#semanticArrow-skipped)"/>
 </svg>
