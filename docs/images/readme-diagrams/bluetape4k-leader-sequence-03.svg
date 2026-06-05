@@ -20,6 +20,13 @@
     .inheritLine{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#inherit)}
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
   </style>
+  <!-- semantic lock-state route markers -->
+  <marker id="semanticArrow-neutral" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#758297" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-leader" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#43A76B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-skipped" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#EF5B7A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-contention" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#D99A2B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-reacquire" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#8B6EEB" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <!-- /semantic lock-state route markers -->
 </defs>
 <rect class="canvas" width="1160" height="1400"/>
 <rect class="frame" x="32" y="28" width="1096" height="1344" rx="28"/>
@@ -35,33 +42,33 @@
 <text class="smallLabel" x="965" y="209" text-anchor="middle">LockStore</text>
 <line class="lifeline" x1="965" y1="252" x2="965" y2="1320" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
 <rect x="240.5" y="286" width="294" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="258.5" y="313" text-anchor="start">1. runIfLeader(lockName, action)</text>
-<path class="line" d="M195 332 L580 332"/>
+<text class="strong" x="258.5" y="313" text-anchor="start" style="fill:#758297">1. runIfLeader(lockName, action)</text>
+<path class="line" d="M195 332 L580 332" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#semanticArrow-neutral)"/>
 <rect x="80" y="376" width="1000" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
 <text class="strong" x="102" y="403" text-anchor="start">LOOP: slot = 0..maxLeaders-1</text>
 <rect x="625.5" y="432" width="294" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="643.5" y="459" text-anchor="start">3. tryLock(lockName:slot:i, ...)</text>
-<path class="line" d="M580 478 L965 478"/>
+<text class="strong" x="643.5" y="459" text-anchor="start" style="fill:#43A76B">3. tryLock(lockName:slot:i, ...)</text>
+<path class="line" d="M580 478 L965 478" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="80" y="524" width="1000" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
 <text class="strong" x="102" y="551" text-anchor="start">ALT: slot acquired</text>
 <rect x="667.5" y="580" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="685.5" y="607" text-anchor="start">5. true</text>
-<path class="dashed" d="M965 626 L580 626"/>
+<text class="strong" x="685.5" y="607" text-anchor="start" style="fill:#43A76B">5. true</text>
+<path class="dashed" d="M965 626 L580 626" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="282.5" y="690" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="300.5" y="717" text-anchor="start">6. action()</text>
-<path class="line" d="M580 736 L195 736"/>
+<text class="strong" x="300.5" y="717" text-anchor="start" style="fill:#43A76B">6. action()</text>
+<path class="line" d="M580 736 L195 736" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="282.5" y="800" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="300.5" y="827" text-anchor="start">7. result</text>
-<path class="dashed" d="M195 846 L580 846"/>
+<text class="strong" x="300.5" y="827" text-anchor="start" style="fill:#43A76B">7. result</text>
+<path class="dashed" d="M195 846 L580 846" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="649.5" y="910" width="246" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="667.5" y="937" text-anchor="start">8. unlock(lockName:slot:i)</text>
-<path class="line" d="M580 956 L965 956"/>
+<text class="strong" x="667.5" y="937" text-anchor="start" style="fill:#D99A2B">8. unlock(lockName:slot:i)</text>
+<path class="line" d="M580 956 L965 956" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="282.5" y="1020" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="300.5" y="1047" text-anchor="start">9. result</text>
-<path class="dashed" d="M580 1066 L195 1066"/>
+<text class="strong" x="300.5" y="1047" text-anchor="start" style="fill:#43A76B">9. result</text>
+<path class="dashed" d="M580 1066 L195 1066" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="80" y="1130" width="1000" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
 <text class="strong" x="102" y="1157" text-anchor="start">ELSE: slot busy</text>
 <rect x="667.5" y="1186" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="685.5" y="1213" text-anchor="start">11. false</text>
-<path class="dashed" d="M965 1232 L580 1232"/>
+<text class="strong" x="685.5" y="1213" text-anchor="start" style="fill:#EF5B7A">11. false</text>
+<path class="dashed" d="M965 1232 L580 1232" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#semanticArrow-skipped)"/>
 </svg>

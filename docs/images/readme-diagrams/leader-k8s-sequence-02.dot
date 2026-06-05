@@ -12,6 +12,7 @@ digraph "leader-k8s-sequence-02" {
   n1 -> n2 [];
   n2 -> n3 [];
   n1 -> n0 [];
+  n1 -> n0 [];
   n1 -> n2 [];
   n2 -> n3 [];
 }

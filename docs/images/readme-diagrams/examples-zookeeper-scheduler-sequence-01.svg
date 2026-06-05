@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1780" height="1180" viewBox="0 0 1780 1180" role="img" aria-label="ZooKeeper Scheduler Sequence">
+<svg xmlns="http://www.w3.org/2000/svg" width="2300" height="1180" viewBox="0 0 2300 1180" role="img" aria-label="ZooKeeper Scheduler Sequence">
   <metadata id="graphviz-evidence">Generated with Graphviz evidence: examples-zookeeper-scheduler-sequence-01.dot, examples-zookeeper-scheduler-sequence-01.plain, examples-zookeeper-scheduler-sequence-01-graphviz.svg, and examples-zookeeper-scheduler-sequence-01-graphviz.png.</metadata>
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
@@ -35,113 +35,113 @@
     .pill{fill:#ffffff;stroke:#dbe4ef;stroke-width:1.1;opacity:.98}
   </style>
 </defs>
-<rect class="canvas" width="1780" height="1180"/>
-<rect class="frame" x="32" y="28" width="1716" height="1124" rx="28"/>
+<rect class="canvas" width="2300" height="1180"/>
+<rect class="frame" x="32" y="28" width="2236" height="1124" rx="28"/>
 <text class="title" x="66" y="82">ZooKeeper Scheduler Sequence</text>
 <text class="subtitle" x="70" y="118">node-a holds the ZooKeeper lock, node-b skips, then node-b reacquires for the next run</text>
 <g>
-  <rect class="card" x="78" y="166" width="235" height="72" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="label" x="195.5" y="206" text-anchor="middle" dominant-baseline="middle">Demo</text>
-  <line class="lifeline" x1="195.5" y1="256" x2="195.5" y2="1110"/>
+  <rect class="card" x="78" y="166" width="340" height="72" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="label" x="248" y="206" text-anchor="middle" dominant-baseline="middle">Demo</text>
+  <line class="lifeline" x1="248" y1="256" x2="248" y2="1110"/>
 </g>
 <g>
-  <rect class="card" x="355.8" y="166" width="235" height="72" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="label" x="473.3" y="206" text-anchor="middle" dominant-baseline="middle">node-a scheduler</text>
-  <line class="lifeline" x1="473.3" y1="256" x2="473.3" y2="1110"/>
+  <rect class="card" x="438.79999999999995" y="166" width="340" height="72" rx="10" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="label" x="608.8" y="206" text-anchor="middle" dominant-baseline="middle">node-a scheduler</text>
+  <line class="lifeline" x1="608.8" y1="256" x2="608.8" y2="1110"/>
 </g>
 <g>
-  <rect class="card" x="633.6" y="166" width="235" height="72" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="label" x="751.1" y="206" text-anchor="middle" dominant-baseline="middle">ZooKeeperLeaderElector</text>
-  <line class="lifeline" x1="751.1" y1="256" x2="751.1" y2="1110"/>
+  <rect class="card" x="799.6" y="166" width="340" height="72" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="label" x="969.6" y="206" text-anchor="middle" dominant-baseline="middle">ZooKeeperLeaderElector</text>
+  <line class="lifeline" x1="969.6" y1="256" x2="969.6" y2="1110"/>
 </g>
 <g>
-  <rect class="card" x="911.4000000000001" y="166" width="235" height="72" rx="10" fill="#F7F1E7" stroke="#B88A44"/>
-  <text class="label" x="1028.9" y="206" text-anchor="middle" dominant-baseline="middle">ZooKeeper / Curator</text>
-  <line class="lifeline" x1="1028.9" y1="256" x2="1028.9" y2="1110"/>
+  <rect class="card" x="1160.4" y="166" width="340" height="72" rx="10" fill="#F7F1E7" stroke="#B88A44"/>
+  <text class="label" x="1330.4" y="206" text-anchor="middle" dominant-baseline="middle">ZooKeeper / Curator</text>
+  <line class="lifeline" x1="1330.4" y1="256" x2="1330.4" y2="1110"/>
 </g>
 <g>
-  <rect class="card" x="1189.2" y="166" width="235" height="72" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="label" x="1306.7" y="206" text-anchor="middle" dominant-baseline="middle">Legacy job</text>
-  <line class="lifeline" x1="1306.7" y1="256" x2="1306.7" y2="1110"/>
+  <rect class="card" x="1521.2" y="166" width="340" height="72" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="label" x="1691.2" y="206" text-anchor="middle" dominant-baseline="middle">Legacy job</text>
+  <line class="lifeline" x1="1691.2" y1="256" x2="1691.2" y2="1110"/>
 </g>
 <g>
-  <rect class="card" x="1467" y="166" width="235" height="72" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="label" x="1584.5" y="206" text-anchor="middle" dominant-baseline="middle">node-b scheduler</text>
-  <line class="lifeline" x1="1584.5" y1="256" x2="1584.5" y2="1110"/>
+  <rect class="card" x="1882" y="166" width="340" height="72" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="label" x="2052" y="206" text-anchor="middle" dominant-baseline="middle">node-b scheduler</text>
+  <line class="lifeline" x1="2052" y1="256" x2="2052" y2="1110"/>
 </g>
 <g>
-  <rect class="pill" x="231.9" y="286" width="205.0" height="28" rx="14"/>
-  <text class="strong" x="245.9" y="300" dominant-baseline="middle">1. submit first run</text>
-  <path class="line" d="M195.5 325 L473.3 325" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+  <rect class="pill" x="325.9" y="286" width="205.0" height="28" rx="14"/>
+  <text class="strong" x="339.9" y="300" dominant-baseline="middle">1. submit first run</text>
+  <path class="line" d="M248.0 325 L608.8 325" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
 </g>
 <g>
-  <rect class="pill" x="508.6" y="336" width="207.2" height="28" rx="14"/>
-  <text class="strong" x="522.6" y="350" dominant-baseline="middle">2. runIfLeader(lockName)</text>
-  <path class="line" d="M473.3 375 L751.1 375" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+  <rect class="pill" x="685.6" y="336" width="207.2" height="28" rx="14"/>
+  <text class="strong" x="699.6" y="350" dominant-baseline="middle">2. runIfLeader(lockName)</text>
+  <path class="line" d="M608.8 375 L969.6 375" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
 </g>
 <g>
-  <rect class="pill" x="787.5" y="386" width="205.0" height="28" rx="14"/>
-  <text class="strong" x="801.5" y="400" dominant-baseline="middle">3. acquire session lock</text>
-  <path class="line" d="M751.1 425 L1028.9 425" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+  <rect class="pill" x="1047.5" y="386" width="205.0" height="28" rx="14"/>
+  <text class="strong" x="1061.5" y="400" dominant-baseline="middle">3. acquire session lock</text>
+  <path class="line" d="M969.6 425 L1330.4 425" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
 </g>
 <g>
-  <rect class="pill" x="787.5" y="436" width="205.0" height="28" rx="14"/>
-  <text class="strong" x="801.5" y="450" dominant-baseline="middle">4. ACQUIRED</text>
-  <path class="dashed" d="M1028.9 475 L751.1 475" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+  <rect class="pill" x="1047.5" y="436" width="205.0" height="28" rx="14"/>
+  <text class="strong" x="1061.5" y="450" dominant-baseline="middle">4. ACQUIRED</text>
+  <path class="dashed" d="M1330.4 475 L969.6 475" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
 </g>
 <g>
-  <rect class="pill" x="926.4" y="486" width="205.0" height="28" rx="14"/>
-  <text class="strong" x="940.4" y="500" dominant-baseline="middle">5. execute job body</text>
-  <path class="line" d="M751.1 525 L1306.7 525" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+  <rect class="pill" x="1227.9" y="486" width="205.0" height="28" rx="14"/>
+  <text class="strong" x="1241.9" y="500" dominant-baseline="middle">5. execute job body</text>
+  <path class="line" d="M969.6 525 L1691.2 525" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
 </g>
 <g>
-  <rect class="pill" x="787.5" y="536" width="205.0" height="28" rx="14"/>
-  <text class="strong" x="801.5" y="550" dominant-baseline="middle">6. same run while held</text>
-  <path class="line" d="M195.5 575 L1584.5 575" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
+  <rect class="pill" x="1047.5" y="536" width="205.0" height="28" rx="14"/>
+  <text class="strong" x="1061.5" y="550" dominant-baseline="middle">6. same run while held</text>
+  <path class="line" d="M248.0 575 L2052.0 575" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
 </g>
 <g>
-  <rect class="pill" x="1064.2" y="586" width="207.2" height="28" rx="14"/>
-  <text class="strong" x="1078.2" y="600" dominant-baseline="middle">7. runIfLeader(lockName)</text>
-  <path class="line" d="M1584.5 625 L751.1 625" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
+  <rect class="pill" x="1407.2" y="586" width="207.2" height="28" rx="14"/>
+  <text class="strong" x="1421.2" y="600" dominant-baseline="middle">7. runIfLeader(lockName)</text>
+  <path class="line" d="M2052.0 625 L969.6 625" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
 </g>
 <g>
-  <rect class="pill" x="787.5" y="636" width="205.0" height="28" rx="14"/>
-  <text class="strong" x="801.5" y="650" dominant-baseline="middle">8. try same lock</text>
-  <path class="line" d="M751.1 675 L1028.9 675" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
+  <rect class="pill" x="1047.5" y="636" width="205.0" height="28" rx="14"/>
+  <text class="strong" x="1061.5" y="650" dominant-baseline="middle">8. try same lock</text>
+  <path class="line" d="M969.6 675 L1330.4 675" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
 </g>
 <g>
-  <rect class="pill" x="787.5" y="686" width="205.0" height="28" rx="14"/>
-  <text class="strong" x="801.5" y="700" dominant-baseline="middle">9. not leader</text>
-  <path class="dashed" d="M1028.9 725 L751.1 725" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
+  <rect class="pill" x="1047.5" y="686" width="205.0" height="28" rx="14"/>
+  <text class="strong" x="1061.5" y="700" dominant-baseline="middle">9. not leader</text>
+  <path class="dashed" d="M1330.4 725 L969.6 725" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
 </g>
 <g>
-  <rect class="pill" x="1065.3" y="736" width="205.0" height="28" rx="14"/>
-  <text class="strong" x="1079.3" y="750" dominant-baseline="middle">10. SKIPPED report</text>
-  <path class="dashed" d="M751.1 775 L1584.5 775" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
+  <rect class="pill" x="1408.3" y="736" width="205.0" height="28" rx="14"/>
+  <text class="strong" x="1422.3" y="750" dominant-baseline="middle">10. SKIPPED report</text>
+  <path class="dashed" d="M969.6 775 L2052.0 775" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
 </g>
 <g>
-  <rect class="pill" x="648.6" y="786" width="205.0" height="28" rx="14"/>
-  <text class="strong" x="662.6" y="800" dominant-baseline="middle">11. release on exit</text>
-  <path class="line" d="M473.3 825 L1028.9 825" style="stroke:#D99A2B;marker-end:url(#arrow-contention)"/>
+  <rect class="pill" x="867.1" y="786" width="205.0" height="28" rx="14"/>
+  <text class="strong" x="881.1" y="800" dominant-baseline="middle">11. release on exit</text>
+  <path class="line" d="M608.8 825 L1330.4 825" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#arrow-contention)"/>
 </g>
 <g>
-  <rect class="pill" x="1065.3" y="836" width="205.0" height="28" rx="14"/>
-  <text class="strong" x="1079.3" y="850" dominant-baseline="middle">12. next run</text>
-  <path class="line" d="M1584.5 875 L751.1 875" style="stroke:#8B6EEB;marker-end:url(#arrow-reacquire)"/>
+  <rect class="pill" x="1408.3" y="836" width="205.0" height="28" rx="14"/>
+  <text class="strong" x="1422.3" y="850" dominant-baseline="middle">12. next run</text>
+  <path class="line" d="M2052.0 875 L969.6 875" data-route-tone="reacquire" style="stroke:#8B6EEB;marker-end:url(#arrow-reacquire)"/>
 </g>
 <g>
-  <rect class="pill" x="786.4" y="886" width="207.2" height="28" rx="14"/>
-  <text class="strong" x="800.4" y="900" dominant-baseline="middle">13. acquire released lock</text>
-  <path class="line" d="M751.1 925 L1028.9 925" style="stroke:#8B6EEB;marker-end:url(#arrow-reacquire)"/>
+  <rect class="pill" x="1046.4" y="886" width="207.2" height="28" rx="14"/>
+  <text class="strong" x="1060.4" y="900" dominant-baseline="middle">13. acquire released lock</text>
+  <path class="line" d="M969.6 925 L1330.4 925" data-route-tone="reacquire" style="stroke:#8B6EEB;marker-end:url(#arrow-reacquire)"/>
 </g>
 <g>
-  <rect class="pill" x="787.5" y="936" width="205.0" height="28" rx="14"/>
-  <text class="strong" x="801.5" y="950" dominant-baseline="middle">14. ACQUIRED</text>
-  <path class="dashed" d="M1028.9 975 L751.1 975" style="stroke:#8B6EEB;marker-end:url(#arrow-reacquire)"/>
+  <rect class="pill" x="1047.5" y="936" width="205.0" height="28" rx="14"/>
+  <text class="strong" x="1061.5" y="950" dominant-baseline="middle">14. ACQUIRED</text>
+  <path class="dashed" d="M1330.4 975 L969.6 975" data-route-tone="reacquire" style="stroke:#8B6EEB;marker-end:url(#arrow-reacquire)"/>
 </g>
 <g>
-  <rect class="pill" x="926.4" y="986" width="205.0" height="28" rx="14"/>
-  <text class="strong" x="940.4" y="1000" dominant-baseline="middle">15. execute next job</text>
-  <path class="line" d="M751.1 1025 L1306.7 1025" style="stroke:#8B6EEB;marker-end:url(#arrow-reacquire)"/>
+  <rect class="pill" x="1227.9" y="986" width="205.0" height="28" rx="14"/>
+  <text class="strong" x="1241.9" y="1000" dominant-baseline="middle">15. execute next job</text>
+  <path class="line" d="M969.6 1025 L1691.2 1025" data-route-tone="reacquire" style="stroke:#8B6EEB;marker-end:url(#arrow-reacquire)"/>
 </g>
 </svg>

@@ -20,6 +20,13 @@
     .inheritLine{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#inherit)}
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
   </style>
+  <!-- semantic lock-state route markers -->
+  <marker id="semanticArrow-neutral" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#758297" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-leader" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#43A76B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-skipped" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#EF5B7A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-contention" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#D99A2B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-reacquire" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#8B6EEB" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <!-- /semantic lock-state route markers -->
 </defs>
 <rect class="canvas" width="1468" height="1756"/>
 <rect class="frame" x="32" y="28" width="1404" height="1700" rx="28"/>
@@ -36,39 +43,39 @@
 <text class="smallLabel" x="1238" y="219.5" text-anchor="middle">(lg:{lockName}</text>
 <line class="lifeline" x1="1238" y1="252" x2="1238" y2="1696" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
 <rect x="629" y="286" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="647" y="313" text-anchor="start">1. ACQUIRE token=A1</text>
-<path class="line" d="M230 332 L1238 332"/>
+<text class="strong" x="647" y="313" text-anchor="start" style="fill:#43A76B">1. ACQUIRE token=A1</text>
+<path class="line" d="M230 332 L1238 332" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="629" y="396" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="647" y="423" text-anchor="start">2. token A1</text>
-<path class="dashed" d="M1238 442 L230 442"/>
+<text class="strong" x="647" y="423" text-anchor="start" style="fill:#43A76B">2. token A1</text>
+<path class="dashed" d="M1238 442 L230 442" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="173" y="506" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="191" y="533" text-anchor="start">3. action() runs 50ms</text>
-<path class="line" d="M230 552 C294 552 294 586 230 586"/>
+<text class="strong" x="191" y="533" text-anchor="start" style="fill:#43A76B">3. action() runs 50ms</text>
+<path class="line" d="M230 552 C294 552 294 586 230 586" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="554.5" y="636" width="359" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="572.5" y="663" text-anchor="start">4. RELEASE (A1, remainingMinLeaseMs=250)</text>
-<path class="line" d="M230 682 L1238 682"/>
+<text class="strong" x="572.5" y="663" text-anchor="start" style="fill:#D99A2B">4. RELEASE (A1, remainingMinLeaseMs=250)</text>
+<path class="line" d="M230 682 L1238 682" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="919" y="746" width="399" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="937" y="773" text-anchor="start">5. TIME -&gt; nowMs ZADD XX score=(nowMs+250) A1</text>
-<path class="line" d="M1238 792 C1302 792 1302 826 1238 826"/>
+<text class="strong" x="937" y="773" text-anchor="start" style="fill:#D99A2B">5. TIME -&gt; nowMs ZADD XX score=(nowMs+250) A1</text>
+<path class="line" d="M1238 792 C1302 792 1302 826 1238 826" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="629" y="876" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="647" y="903" text-anchor="start">6. 1</text>
-<path class="dashed" d="M1238 922 L230 922"/>
+<text class="strong" x="647" y="903" text-anchor="start" style="fill:#D99A2B">6. 1</text>
+<path class="dashed" d="M1238 922 L230 922" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="859" y="986" width="254" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="877" y="1013" text-anchor="start">7. ACQUIRE (waitTime=100ms)</text>
-<path class="line" d="M734 1032 L1238 1032"/>
+<text class="strong" x="877" y="1013" text-anchor="start" style="fill:#EF5B7A">7. ACQUIRE (waitTime=100ms)</text>
+<path class="line" d="M734 1032 L1238 1032" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#semanticArrow-skipped)"/>
 <rect x="790" y="1096" width="528" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="808" y="1123" text-anchor="start">8. ZREMRANGEBYSCORE -&gt; A1 not yet expired ZCARD == maxLeaders</text>
-<path class="line" d="M1238 1142 C1302 1142 1302 1176 1238 1176"/>
+<text class="strong" x="808" y="1123" text-anchor="start" style="fill:#EF5B7A">8. ZREMRANGEBYSCORE -&gt; A1 not yet expired ZCARD == maxLeaders</text>
+<path class="line" d="M1238 1142 C1302 1142 1302 1176 1238 1176" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#semanticArrow-skipped)"/>
 <rect x="881" y="1226" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="899" y="1253" text-anchor="start">9. (failed)</text>
-<path class="dashed" d="M1238 1272 L734 1272"/>
+<text class="strong" x="899" y="1253" text-anchor="start" style="fill:#EF5B7A">9. (failed)</text>
+<path class="dashed" d="M1238 1272 L734 1272" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#semanticArrow-skipped)"/>
 <rect x="881" y="1336" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="899" y="1363" text-anchor="start">10. ACQUIRE</text>
-<path class="line" d="M734 1382 L1238 1382"/>
+<text class="strong" x="899" y="1363" text-anchor="start" style="fill:#8B6EEB">10. ACQUIRE</text>
+<path class="line" d="M734 1382 L1238 1382" data-route-tone="reacquire" style="stroke:#8B6EEB;marker-end:url(#semanticArrow-reacquire)"/>
 <rect x="1007" y="1446" width="311" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1025" y="1473" text-anchor="start">11. ZREMRANGEBYSCORE -&gt; A1 evicted</text>
-<path class="line" d="M1238 1492 C1302 1492 1302 1526 1238 1526"/>
+<text class="strong" x="1025" y="1473" text-anchor="start" style="fill:#8B6EEB">11. ZREMRANGEBYSCORE -&gt; A1 evicted</text>
+<path class="line" d="M1238 1492 C1302 1492 1302 1526 1238 1526" data-route-tone="reacquire" style="stroke:#8B6EEB;marker-end:url(#semanticArrow-reacquire)"/>
 <rect x="879" y="1576" width="214" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="897" y="1603" text-anchor="start">12. token B1 (success)</text>
-<path class="dashed" d="M1238 1622 L734 1622"/>
+<text class="strong" x="897" y="1603" text-anchor="start" style="fill:#8B6EEB">12. token B1 (success)</text>
+<path class="dashed" d="M1238 1622 L734 1622" data-route-tone="reacquire" style="stroke:#8B6EEB;marker-end:url(#semanticArrow-reacquire)"/>
 </svg>

@@ -20,6 +20,13 @@
     .inheritLine{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#inherit)}
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
   </style>
+  <!-- semantic lock-state route markers -->
+  <marker id="semanticArrow-neutral" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#758297" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-leader" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#43A76B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-skipped" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#EF5B7A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-contention" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#D99A2B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="semanticArrow-reacquire" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#8B6EEB" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <!-- /semantic lock-state route markers -->
 </defs>
 <rect class="canvas" width="1160" height="1500"/>
 <rect class="frame" x="32" y="28" width="1096" height="1444" rx="28"/>
@@ -37,32 +44,32 @@
 <rect x="80" y="286" width="1000" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
 <text class="strong" x="102" y="313" text-anchor="start">PAR: NodeA attempts</text>
 <rect x="411.5" y="342" width="337" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="429.5" y="369" text-anchor="start">2. tryLock(job, waitTime, leaseTime)</text>
-<path class="line" d="M195 388 L965 388"/>
+<text class="strong" x="429.5" y="369" text-anchor="start" style="fill:#43A76B">2. tryLock(job, waitTime, leaseTime)</text>
+<path class="line" d="M195 388 L965 388" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="80" y="434" width="1000" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
 <text class="strong" x="102" y="461" text-anchor="start">AND: NodeB attempts</text>
 <rect x="607" y="490" width="337" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="625" y="517" text-anchor="start">4. tryLock(job, waitTime, leaseTime)</text>
-<path class="line" d="M580 536 L965 536"/>
+<text class="strong" x="625" y="517" text-anchor="start" style="fill:#EF5B7A">4. tryLock(job, waitTime, leaseTime)</text>
+<path class="line" d="M580 536 L965 536" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#semanticArrow-skipped)"/>
 <rect x="475" y="584" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="493" y="611" text-anchor="start">5. acquired (true)</text>
-<path class="dashed" d="M965 630 L195 630"/>
+<text class="strong" x="493" y="611" text-anchor="start" style="fill:#43A76B">5. acquired (true)</text>
+<path class="dashed" d="M965 630 L195 630" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="588" y="694" width="377" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="606" y="721" text-anchor="start">6. not acquired → wait/retry until timeout</text>
-<path class="dashed" d="M965 740 L580 740"/>
+<text class="strong" x="606" y="721" text-anchor="start" style="fill:#EF5B7A">6. not acquired → wait/retry until timeout</text>
+<path class="dashed" d="M965 740 L580 740" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#semanticArrow-skipped)"/>
 <rect x="140" y="804" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="158" y="831" text-anchor="start">7. action()</text>
-<path class="line" d="M195 850 C259 850 259 884 195 884"/>
+<text class="strong" x="158" y="831" text-anchor="start" style="fill:#43A76B">7. action()</text>
+<path class="line" d="M195 850 C259 850 259 884 195 884" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="475" y="934" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="493" y="961" text-anchor="start">8. unlock(job)</text>
-<path class="line" d="M195 980 L965 980"/>
+<text class="strong" x="493" y="961" text-anchor="start" style="fill:#D99A2B">8. unlock(job)</text>
+<path class="line" d="M195 980 L965 980" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
 <rect x="126" y="1036" width="238" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="144" y="1063" text-anchor="start">9. return action() result</text>
-<path class="dashed" d="M195 1082 C259 1082 259 1116 195 1116"/>
+<text class="strong" x="144" y="1063" text-anchor="start" style="fill:#43A76B">9. return action() result</text>
+<path class="dashed" d="M195 1082 C259 1082 259 1116 195 1116" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
 <rect x="670" y="1176" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="688" y="1203" text-anchor="start">10. timeout (false)</text>
-<path class="dashed" d="M965 1222 L580 1222"/>
+<text class="strong" x="688" y="1203" text-anchor="start" style="fill:#EF5B7A">10. timeout (false)</text>
+<path class="dashed" d="M965 1222 L580 1222" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#semanticArrow-skipped)"/>
 <rect x="521" y="1286" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="539" y="1313" text-anchor="start">11. return null</text>
-<path class="dashed" d="M580 1332 C644 1332 644 1366 580 1366"/>
+<text class="strong" x="539" y="1313" text-anchor="start" style="fill:#EF5B7A">11. return null</text>
+<path class="dashed" d="M580 1332 C644 1332 644 1366 580 1366" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#semanticArrow-skipped)"/>
 </svg>

@@ -34,6 +34,32 @@ const strictRouteGateSlugs = new Set([
   "leader-micrometer-architecture-01",
   "leader-spring-boot-architecture-01",
 ]);
+const semanticRouteColorSlugs = new Set([
+  "bluetape4k-leader-sequence-02",
+  "bluetape4k-leader-sequence-03",
+  "leader-core-sequence-02",
+  "leader-core-sequence-03",
+  "leader-redis-lettuce-sequence-02",
+  "leader-redis-lettuce-sequence-03",
+  "leader-redis-redisson-sequence-02",
+  "leader-redis-redisson-sequence-03",
+  "leader-hazelcast-sequence-02",
+  "leader-hazelcast-sequence-03",
+  "leader-k8s-sequence-02",
+  "leader-spring-boot-sequence-02",
+  "examples-zookeeper-scheduler-architecture-01",
+  "examples-zookeeper-scheduler-flow-01",
+  "examples-zookeeper-scheduler-scenario-01",
+  "examples-zookeeper-scheduler-sequence-01",
+]);
+
+const semanticRouteColors = {
+  neutral: "#758297",
+  leader: "#43A76B",
+  skipped: "#EF5B7A",
+  contention: "#D99A2B",
+  reacquire: "#8B6EEB",
+};
 
 const colors = [
   "#5B8DEF",
@@ -520,6 +546,35 @@ function validateChipTextAlignment(svg) {
   return failures;
 }
 
+function validateSemanticRouteColors(svg, slug) {
+  if (!semanticRouteColorSlugs.has(slug)) return { failures: [], semanticRoutes: 0 };
+  const failures = [];
+  const routeTags = [...svg.matchAll(/<path\b([^>]*\sdata-route-tone="[^"]+"[^>]*)\/?>/g)].map((match) => match[1]);
+  if (routeTags.length === 0) {
+    return { failures: [`${slug}: no data-route-tone paths found for semantic route-color gate`], semanticRoutes: 0 };
+  }
+  for (const tag of routeTags) {
+    const tone = attr(tag, "data-route-tone");
+    const color = semanticRouteColors[tone];
+    if (!color) {
+      failures.push(`${slug}: unknown data-route-tone ${tone}`);
+      continue;
+    }
+    const style = attr(tag, "style");
+    if (!style.includes(`stroke:${color}`)) {
+      failures.push(`${slug}: ${tone} route missing stroke ${color}`);
+    }
+    const markerOk = style.includes(`marker-end:url(#semanticArrow-${tone})`) || style.includes(`marker-end:url(#arrow-${tone})`);
+    if (!markerOk) {
+      failures.push(`${slug}: ${tone} route arrowhead does not match semantic color marker`);
+    }
+  }
+  if (new Set(routeTags.map((tag) => attr(tag, "data-route-tone"))).size < 2) {
+    failures.push(`${slug}: semantic route-color gate found fewer than two tone families`);
+  }
+  return { failures, semanticRoutes: routeTags.length };
+}
+
 function pathPoints(d) {
   const numbers = [...d.matchAll(/[-+]?\d*\.?\d+(?:e[-+]?\d+)?/gi)].map((match) => Number.parseFloat(match[0]));
   const points = [];
@@ -542,7 +597,7 @@ function parseEdges(svg, nodes) {
   while ((pathMatch = pathRegex.exec(svg))) {
     const tag = pathMatch[1];
     const className = attr(tag, "class");
-    if (!/(^|\s)(line|dashed|inheritLine|implLine|rel)(\s|$)/.test(className)) continue;
+    if (!/(^|\s)(line|dashed|dash|inheritLine|implLine|rel)(\s|$)/.test(className)) continue;
     const d = attr(tag, "d");
     const points = pathPoints(d);
     if (points.length < 2) continue;
@@ -660,6 +715,8 @@ function processSvg(svgPath, fontState) {
   failures.push(...validateSequenceSpacing(svg, slug));
   failures.push(...validateSequenceHeaderShape(svg, slug));
   failures.push(...validateChipTextAlignment(svg));
+  const semanticRouteSummary = validateSemanticRouteColors(svg, slug);
+  failures.push(...semanticRouteSummary.failures);
 
   const dot = buildDot(slug, title, nodes, edges);
   const dotPath = join(diagramDir, `${slug}.dot`);
@@ -690,6 +747,7 @@ function processSvg(svgPath, fontState) {
     routes: edges.length,
     plainNodes: plainNodeCount,
     plainRoutes: plainEdgeCount,
+    semanticRoutes: semanticRouteSummary.semanticRoutes,
     failures,
   };
   return summary;
@@ -709,10 +767,10 @@ const report = [
   `- Comic Mono: ${fontState.comicFont || "not found"}`,
   `- FONTCONFIG_FILE: ${fontState.fontConfig || "not configured"}`,
   "",
-  "| Diagram | Nodes | Routes | Plain nodes | Plain routes | Status |",
-  "|---|---:|---:|---:|---:|---|",
+  "| Diagram | Nodes | Routes | Plain nodes | Plain routes | Semantic routes | Status |",
+  "|---|---:|---:|---:|---:|---:|---|",
   ...summaries.map((summary) =>
-    `| ${summary.diagram} | ${summary.nodes} | ${summary.routes} | ${summary.plainNodes} | ${summary.plainRoutes} | ${
+    `| ${summary.diagram} | ${summary.nodes} | ${summary.routes} | ${summary.plainNodes} | ${summary.plainRoutes} | ${summary.semanticRoutes} | ${
       summary.failures.length ? summary.failures.join("; ") : "ok"
     } |`,
   ),
