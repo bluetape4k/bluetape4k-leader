@@ -1,6 +1,6 @@
 # examples-dynamodb-export
 
-[한국어](README.ko.md) | English
+English | [한국어](README.ko.md)
 
 DynamoDB-backed scheduled export example. Demonstrates how AWS-only services can use
 `leader-dynamodb` so only one application replica writes an export record for a shared schedule.

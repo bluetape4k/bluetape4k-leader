@@ -1,6 +1,6 @@
 # leader-core
 
-[한국어](README.ko.md)
+English | [한국어](README.ko.md)
 
 Core interfaces and local in-process implementations for `bluetape4k-leader`.
 

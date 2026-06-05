@@ -1,6 +1,6 @@
 # bluetape4k-leader-etcd
 
-한국어 | [English](./README.md)
+[English](./README.md) | 한국어
 
 `bluetape4k-leader` 의 etcd v3 백엔드입니다. jetcd Lock service 와 etcd
 lease 를 사용하므로 이미 etcd cluster 를 운영하는 서비스는 Redis, MongoDB,

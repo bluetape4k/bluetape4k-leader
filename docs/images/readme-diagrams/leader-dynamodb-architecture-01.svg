@@ -11,12 +11,30 @@
     .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
     .card{stroke-width:2.1;filter:url(#shadow)}
     .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
+
+    .layerBand{fill-opacity:0.45;stroke-width:1.4;stroke-dasharray:9 7}
+    .layerLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:19px;font-weight:400;fill:#536273}
   </style>
 </defs>
 <rect class="canvas" width="1320" height="760"/>
 <rect class="frame" x="32" y="28" width="1256" height="704" rx="28"/>
 <text class="title" x="66" y="82">leader dynamodb Architecture</text>
 <text class="subtitle" x="70" y="118">Conditional writes guard ownership while logical leaseExpiry, not TTL deletion, decides correctness</text>
+<g id="layer-bands" aria-label="Layer bands">
+  <g data-layer="AWS Client Ownership">
+    <rect class="layerBand" x="40" y="136" width="370" height="503" rx="18" fill="#EEF6FF" stroke="#9BC4F8"/>
+    <text class="layerLabel" x="58" y="163">AWS Client Ownership</text>
+  </g>
+  <g data-layer="Leader Electors And Adapters">
+    <rect class="layerBand" x="420" y="136" width="400" height="503" rx="18" fill="#EEF8F1" stroke="#A5D6B7"/>
+    <text class="layerLabel" x="438" y="163">Leader Electors And Adapters</text>
+  </g>
+  <g data-layer="DynamoDB Lock State">
+    <rect class="layerBand" x="830" y="136" width="450" height="503" rx="18" fill="#FFF7E8" stroke="#E3BE70"/>
+    <text class="layerLabel" x="848" y="163">DynamoDB Lock State</text>
+  </g>
+</g>
+
 <path class="line" d="M380 224 L415 224 L415 199 L450 199"/>
 <path class="line" d="M380 224 L415 224 L415 384 L450 384"/>
 <path class="line" d="M380 474 L415 474 L415 569 L450 569"/>

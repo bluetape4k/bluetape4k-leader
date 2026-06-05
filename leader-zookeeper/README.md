@@ -1,6 +1,6 @@
 # leader-zookeeper
 
-[한국어](README.ko.md)
+English | [한국어](README.ko.md)
 
 ZooKeeper/Apache Curator-backed leader election for blocking, async, and coroutine APIs.
 

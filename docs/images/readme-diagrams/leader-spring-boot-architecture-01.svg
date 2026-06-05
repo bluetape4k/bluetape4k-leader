@@ -11,12 +11,30 @@
     .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
     .card{stroke-width:2.1;filter:url(#shadow)}
     .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
+
+    .layerBand{fill-opacity:0.45;stroke-width:1.4;stroke-dasharray:9 7}
+    .layerLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:19px;font-weight:400;fill:#536273}
   </style>
 </defs>
 <rect class="canvas" width="1360" height="800"/>
 <rect class="frame" x="32" y="28" width="1296" height="744" rx="28"/>
 <text class="title" x="66" y="82">leader spring boot Architecture</text>
 <text class="subtitle" x="70" y="118">Properties and auto-configuration select backend factories before woven leader aspects execute</text>
+<g id="layer-bands" aria-label="Layer bands">
+  <g data-layer="Configuration Properties">
+    <rect class="layerBand" x="40" y="136" width="1280" height="158" rx="18" fill="#EEF6FF" stroke="#9BC4F8"/>
+    <text class="layerLabel" x="58" y="163">Configuration Properties</text>
+  </g>
+  <g data-layer="Auto Configuration">
+    <rect class="layerBand" x="40" y="306" width="1280" height="148" rx="18" fill="#EEF8F1" stroke="#A5D6B7"/>
+    <text class="layerLabel" x="58" y="333">Auto Configuration</text>
+  </g>
+  <g data-layer="Runtime AOP Execution">
+    <rect class="layerBand" x="40" y="496" width="1280" height="238" rx="18" fill="#FFF7E8" stroke="#E3BE70"/>
+    <text class="layerLabel" x="58" y="523">Runtime AOP Execution</text>
+  </g>
+</g>
+
 <path class="line" d="M370 214 L430 214"/>
 <path class="line" d="M750 214 L790 214 L790 219 L830 219"/>
 <path class="line" d="M370 384 L430 384"/>

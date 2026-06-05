@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="760" viewBox="0 0 1260 760" role="img" aria-label="leader micrometer Architecture">
+<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="788" viewBox="0 0 1260 788" role="img" aria-label="leader micrometer Architecture">
   <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: leader-micrometer-architecture-01.dot, leader-micrometer-architecture-01.plain, leader-micrometer-architecture-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
@@ -11,12 +11,30 @@
     .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
     .card{stroke-width:2.1;filter:url(#shadow)}
     .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
+
+    .layerBand{fill-opacity:0.45;stroke-width:1.4;stroke-dasharray:9 7}
+    .layerLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:19px;font-weight:400;fill:#536273}
   </style>
 </defs>
-<rect class="canvas" width="1260" height="760"/>
-<rect class="frame" x="32" y="28" width="1196" height="704" rx="28"/>
+<rect class="canvas" width="1260" height="788"/>
+<rect class="frame" x="32" y="28" width="1196" height="732" rx="28"/>
 <text class="title" x="66" y="82">leader micrometer Architecture</text>
 <text class="subtitle" x="70" y="118">AOP, direct elector, and listener paths converge on a Micrometer MeterRegistry</text>
+<g id="layer-bands" aria-label="Layer bands">
+  <g data-layer="Instrumentation Inputs">
+    <rect class="layerBand" x="40" y="136" width="1180" height="173" rx="18" fill="#EEF6FF" stroke="#9BC4F8"/>
+    <text class="layerLabel" x="58" y="163">Instrumentation Inputs</text>
+  </g>
+  <g data-layer="Metrics Adapters">
+    <rect class="layerBand" x="40" y="317" width="1180" height="262" rx="18" fill="#EEF8F1" stroke="#A5D6B7"/>
+    <text class="layerLabel" x="58" y="344">Metrics Adapters</text>
+  </g>
+  <g data-layer="Meter Export">
+    <rect class="layerBand" x="40" y="587" width="1180" height="147" rx="18" fill="#FFF7E8" stroke="#E3BE70"/>
+    <text class="layerLabel" x="58" y="614">Meter Export</text>
+  </g>
+</g>
+
 <path class="line" d="M370 219 L450 219"/>
 <path class="line" d="M1020 293 L1020 318 L960 318 L960 340"/>
 <path class="line" d="M610 258 L610 310 L390 310 L390 664 L450 664"/>

@@ -1,6 +1,6 @@
 # leader-core
 
-[English](README.md)
+[English](README.md) | 한국어
 
 `bluetape4k-leader`의 핵심 인터페이스와 로컬 인메모리 구현체를 제공합니다.
 

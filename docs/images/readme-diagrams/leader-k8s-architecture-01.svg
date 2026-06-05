@@ -14,12 +14,29 @@
     .card{stroke-width:2.1;filter:url(#shadow)}
     .line{stroke:#758297;stroke-width:2.3;fill:none;marker-end:url(#arrow)}
     .note{fill:#ffffff;stroke:#d8e0ea;stroke-width:1.5;filter:url(#shadow)}
+
+    .layerBand{fill-opacity:0.45;stroke-width:1.4;stroke-dasharray:9 7}
+    .layerLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:19px;font-weight:400;fill:#536273}
   </style>
 </defs>
 <rect class="canvas" width="1400" height="650"/>
 <rect class="frame" x="32" y="28" width="1336" height="594" rx="28"/>
 <text class="title" x="66" y="82">leader-k8s Architecture</text>
 <text class="subtitle" x="70" y="118">Blocking and suspend electors share the Kubernetes Lease API as the single coordination point</text>
+<g id="layer-bands" aria-label="Layer bands">
+  <g data-layer="Application Holders">
+    <rect class="layerBand" x="40" y="141" width="310" height="286" rx="18" fill="#EEF6FF" stroke="#9BC4F8"/>
+    <text class="layerLabel" x="58" y="168">Application Holders</text>
+  </g>
+  <g data-layer="Fabric8 Electors">
+    <rect class="layerBand" x="370" y="141" width="370" height="286" rx="18" fill="#EEF8F1" stroke="#A5D6B7"/>
+    <text class="layerLabel" x="388" y="168">Fabric8 Electors</text>
+  </g>
+  <g data-layer="Kubernetes Lease State">
+    <rect class="layerBand" x="760" y="141" width="600" height="286" rx="18" fill="#FFF7E8" stroke="#E3BE70"/>
+    <text class="layerLabel" x="778" y="168">Kubernetes Lease State</text>
+  </g>
+</g>
 
 <rect class="card" x="70" y="235" width="250" height="96" rx="16" fill="#E8F3FF" stroke="#5B8DEF"/>
 <text class="label" x="195" y="276" text-anchor="middle">Application</text>

@@ -1,6 +1,6 @@
 # bluetape4k-leader-dynamodb
 
-[한국어](README.ko.md)
+English | [한국어](README.ko.md)
 
 Preview DynamoDB-backed leader election using conditional writes and logical TTL.
 

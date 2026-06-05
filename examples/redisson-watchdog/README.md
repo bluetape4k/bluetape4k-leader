@@ -1,6 +1,6 @@
 # Redisson Watchdog Example
 
-[한국어](README.ko.md) | English
+English | [한국어](README.ko.md)
 
 Redisson-backed long-running leader job protected by bluetape4k lease auto-extension.
 

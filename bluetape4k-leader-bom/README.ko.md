@@ -1,6 +1,6 @@
 # bluetape4k-leader-bom
 
-한국어 | [English](./README.md)
+[English](./README.md) | 한국어
 
 **bluetape4k-leader** 생태계용 Maven BOM (Bill of Materials). 모든 `io.github.bluetape4k.leader:*`
 모듈의 버전을 중앙 관리한다.

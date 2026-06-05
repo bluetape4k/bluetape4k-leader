@@ -1,6 +1,6 @@
 # leader-hazelcast
 
-[English](README.md)
+[English](README.md) | 한국어
 
 Hazelcast 기반 분산 리더 선출 — 블로킹, 비동기, Virtual Thread, 코루틴 API 제공.
 

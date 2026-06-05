@@ -1,6 +1,6 @@
 # leader-hazelcast
 
-[한국어](README.ko.md)
+English | [한국어](README.ko.md)
 
 Hazelcast-backed leader election — blocking, async, virtual-thread, and coroutine APIs.
 

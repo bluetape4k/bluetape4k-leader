@@ -1,6 +1,6 @@
 # Consul Maintenance Example
 
-[한국어](README.ko.md) | English
+English | [한국어](README.ko.md)
 
 Runnable Consul example where one service instance owns a maintenance or drain operation through
 `ConsulLeaderElector`.

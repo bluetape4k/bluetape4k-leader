@@ -1,6 +1,6 @@
 # leader-mongodb
 
-[한국어](README.ko.md)
+English | [한국어](README.ko.md)
 
 MongoDB-backed leader election using `findOneAndUpdate` + TTL index — blocking, async, and coroutine APIs.
 

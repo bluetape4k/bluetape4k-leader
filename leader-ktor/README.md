@@ -1,6 +1,6 @@
 # bluetape4k-leader-ktor
 
-[한국어](./README.ko.md) | English
+English | [한국어](./README.ko.md)
 
 Ktor 3.x integration module for `bluetape4k-leader`. Provides a Ktor application plugin
 DSL and a Spring-`@Scheduled`-style helper that runs leader-only tasks on a fixed period

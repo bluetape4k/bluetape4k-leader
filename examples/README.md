@@ -1,6 +1,6 @@
 # bluetape4k leader examples
 
-[한국어](README.ko.md) | English
+English | [한국어](README.ko.md)
 
 This directory contains runnable examples for the bluetape4k leader-election backends and integration modules.
 Each example focuses on one operational scenario: running one job across many replicas, gating rollout work,

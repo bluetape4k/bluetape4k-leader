@@ -1,6 +1,6 @@
 # bluetape4k-leader-consul
 
-한국어 | [English](./README.md)
+[English](./README.md) | 한국어
 
 `bluetape4k-leader` 의 프리뷰 Consul 백엔드입니다.
 

@@ -19,12 +19,38 @@
     .dashed{stroke:#758297;stroke-width:2.1;stroke-dasharray:7 6;fill:none;marker-end:url(#openArrow)}
     .inheritLine{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#inherit)}
     .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
+
+    .layerBand{fill-opacity:0.45;stroke-width:1.4;stroke-dasharray:9 7}
+    .layerLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:19px;font-weight:400;fill:#536273}
   </style>
 </defs>
 <rect class="canvas" width="998" height="1640"/>
 <rect class="frame" x="32" y="28" width="934" height="1584" rx="28"/>
 <text class="title" x="66" y="82">leader exposed jdbc Class Structu.</text>
 <text class="subtitle" x="70" y="118">UML classes from the original Mermaid source</text>
+<g id="layer-bands" aria-label="Layer bands">
+  <g data-layer="Core Schema">
+    <rect class="layerBand" x="40" y="156" width="918" height="236" rx="18" fill="#EEF6FF" stroke="#9BC4F8"/>
+    <text class="layerLabel" x="58" y="183">Core Schema</text>
+  </g>
+  <g data-layer="JDBC Electors">
+    <rect class="layerBand" x="40" y="478" width="918" height="236" rx="18" fill="#EEF8F1" stroke="#A5D6B7"/>
+    <text class="layerLabel" x="58" y="505">JDBC Electors</text>
+  </g>
+  <g data-layer="Repository Support">
+    <rect class="layerBand" x="40" y="800" width="918" height="152" rx="18" fill="#FFF7E8" stroke="#E3BE70"/>
+    <text class="layerLabel" x="58" y="827">Repository Support</text>
+  </g>
+  <g data-layer="Leader Lock Electors">
+    <rect class="layerBand" x="40" y="1038" width="918" height="168" rx="18" fill="#FDF0F4" stroke="#E7A1B0"/>
+    <text class="layerLabel" x="58" y="1065">Leader Lock Electors</text>
+  </g>
+  <g data-layer="Virtual Thread Bridge">
+    <rect class="layerBand" x="40" y="1292" width="918" height="168" rx="18" fill="#EFF8F7" stroke="#91D1CD"/>
+    <text class="layerLabel" x="58" y="1319">Virtual Thread Bridge</text>
+  </g>
+</g>
+
 <path class="line" d="M499 1316 L499 1532 L274 1532 L274 1174"/>
 <path class="line" d="M724 1062 L724 1015 L986 1015 L986 455 L724 455 L724 376"/>
 <path class="line" d="M274 1062 L274 1007 L22 1007 L22 769 L274 769 L274 698"/>

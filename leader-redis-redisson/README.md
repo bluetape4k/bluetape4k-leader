@@ -1,6 +1,6 @@
 # leader-redis-redisson
 
-[한국어](README.ko.md)
+English | [한국어](README.ko.md)
 
 Redis-backed leader election using [Redisson](https://redisson.org/) — blocking and coroutine APIs.
 

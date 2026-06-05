@@ -1,6 +1,6 @@
 # leader-exposed-r2dbc
 
-[English](README.md)
+[English](README.md) | 한국어
 
 [Exposed R2DBC](https://github.com/JetBrains/Exposed)를 사용한 관계형 데이터베이스 기반 코루틴-네이티브 리더 선출 라이브러리.
 

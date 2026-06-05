@@ -1,6 +1,6 @@
 # etcd Reconciler Example
 
-[한국어](README.ko.md) | English
+English | [한국어](README.ko.md)
 
 Runnable etcd v3 example where one control-plane node owns a reconcile loop through `EtcdLeaderElector`.
 

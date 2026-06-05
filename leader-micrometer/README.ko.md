@@ -1,6 +1,6 @@
 # leader-micrometer
 
-[English](README.md)
+[English](README.md) | 한국어
 
 bluetape4k leader election을 위한 Micrometer 계측 모듈입니다.
 

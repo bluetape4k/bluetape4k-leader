@@ -1,5 +1,7 @@
 # leader-exposed-core
 
+[English](README.md) | 한국어
+
 RDBMS 기반 분산 리더 선출 백엔드를 위한 공통 DB 스키마 및 테이블 정의 모듈.
 
 `leader-exposed-jdbc`와 `leader-exposed-r2dbc` 모듈의 공통 의존성입니다.
