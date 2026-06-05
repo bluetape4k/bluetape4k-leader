@@ -91,8 +91,12 @@ through Freefair post-compile weaving.
 - Do not add `@EnableAspectJAutoProxy`; CTW handles weaving.
 - Kotlin methods do not need to be `open`.
 - Private methods are not intercepted; startup validation warns or fails.
-- `suspend`, `Mono`, `Flux`, and `Flow` return types are unsupported for v1.x
-  sync-only annotation AOP.
+- `@LeaderElection` supports `T?`, `suspend T?`, `Mono<T>`, `Flux<T>`,
+  and Kotlin `Flow<T>`. Use `autoExtend = true` for long-running streams or
+  `streamBounded = true` only when the stream finishes inside the lease window.
+- `@LeaderGroupElection` supports `T?`, `suspend T?`, and `Mono<T>`.
+  `Flux<T>` and Kotlin `Flow<T>` group streams are rejected because per-slot
+  stream lease extension is not defined.
 - SpEL names must be valid expressions. Use `"'prefix-' + #param"`, not
   `"prefix-#param"`.
 - Strict validation throws for final/private/suspend footguns. Invalid SpEL with
