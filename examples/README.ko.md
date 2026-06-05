@@ -13,6 +13,7 @@ leader metric을 노출하는 운영 시나리오 하나에 집중합니다.
 | [batch-scheduler](batch-scheduler/README.ko.md) | Redis / Lettuce | 여러 애플리케이션 replica 중 하나만 주기 배치 job을 실행합니다. | Cron, Quartz, Spring scheduled job을 한 번만 실행해야 할 때 | `./gradlew :examples:batch-scheduler:run` |
 | [cache-warmer](cache-warmer/README.ko.md) | Hazelcast | 여러 노드가 경쟁해 cache partition별 warming을 한 번만 수행합니다. | Partitioned cache preload에서 중복 실행을 막고 싶을 때 | `./gradlew :examples:cache-warmer:run` |
 | [consul-maintenance](consul-maintenance/README.ko.md) | Consul Session + KV | 한 service instance만 maintenance 또는 drain 작업을 수행합니다. | Service drain, endpoint rotation, maintenance window | `./gradlew :examples:consul-maintenance:run` |
+| [dynamodb-export](dynamodb-export/README.ko.md) | DynamoDB Local / AWS DynamoDB | 한 노드만 scheduled export record를 쓰고 나머지는 skip합니다. | Billing export, scheduled report, AWS-only service | `./gradlew :examples:dynamodb-export:run` |
 | [etcd-reconciler](etcd-reconciler/README.ko.md) | etcd v3 | 한 control-plane node만 desired resource를 적용합니다. | Reconciler loop, infrastructure controller | `./gradlew :examples:etcd-reconciler:run` |
 | [k8s-lease](k8s-lease/README.ko.md) | Kubernetes Lease | Lease acquire, conflict, release, reacquire 동작을 검증합니다. | K3s 기반 low-level Lease API 검증 | `./gradlew :examples:k8s-lease:k8sTest` |
 | [k8s-operator](k8s-operator/README.ko.md) | Kubernetes Lease + Spring Boot | 여러 pod 중 하나만 operator reconcile loop를 실행합니다. | Kubernetes operator, controller loop | `./gradlew :examples:k8s-operator:run` |
@@ -31,6 +32,7 @@ leader metric을 노출하는 운영 시나리오 하나에 집중합니다.
 - 운영 환경과 비슷한 예제를 보려면 이미 사용 중인 backend/storage부터 확인하세요.
 - Service stack에 Redis가 있다면 Redis / Lettuce 또는 Redis / Redisson 예제를 먼저 고려합니다.
 - Leadership 상태를 애플리케이션 데이터와 함께 두고 싶다면 Exposed JDBC 또는 R2DBC 예제가 적합합니다.
+- AWS-managed storage가 coordination boundary이고 로컬 검증은 DynamoDB Local로 충분하다면 DynamoDB 예제가 적합합니다.
 - Control-plane이나 service-discovery 인프라와 가까운 문제라면 Kubernetes Lease, etcd, Consul 예제를 확인하세요.
 - 외부 인프라 없이 API 모양을 보고 싶다면 local strategic 또는 virtual-thread 예제가 가볍습니다.
 - Spring AOP leader-election annotation이 어떤 metric을 내보내는지 보려면 `prometheus-dashboard`를 사용하세요.
