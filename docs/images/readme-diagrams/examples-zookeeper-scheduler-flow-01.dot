@@ -6,8 +6,8 @@ digraph "examples-zookeeper-scheduler-flow-01" {
   "Validate inputs";
   "runIfLeader";
   "Leadership?";
-  "Execute job body";
   "Validate completed steps";
+  "Execute job body";
   "Return EXECUTED";
   "Return SKIPPED";
   "Scheduled tick" -> "Validate inputs" [label="input"];

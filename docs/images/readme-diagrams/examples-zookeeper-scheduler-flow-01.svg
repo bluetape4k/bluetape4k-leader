@@ -4,8 +4,20 @@
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
     <feDropShadow dx="0" dy="7" stdDeviation="8" flood-color="#1f2937" flood-opacity="0.10"/>
   </filter>
-  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+  <marker id="arrow-neutral" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
     <path d="M 1 1 L 7 4 L 1 7 Z" fill="#758297"/>
+  </marker>
+  <marker id="arrow-leader" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#43A76B"/>
+  </marker>
+  <marker id="arrow-skipped" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#EF5B7A"/>
+  </marker>
+  <marker id="arrow-contention" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#D99A2B"/>
+  </marker>
+  <marker id="arrow-reacquire" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#8B6EEB"/>
   </marker>
   <style>
     .canvas{fill:#f7f9fc}
@@ -17,8 +29,8 @@
     .detail{font-family:"Comic Mono","Comic Sans MS",monospace;font-size:12px;font-weight:400;fill:#334155}
     .strong{font-family:"Comic Mono","Comic Sans MS",monospace;font-size:13px;font-weight:400;fill:#102033}
     .card{stroke-width:2;filter:url(#shadow)}
-    .line{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#arrow);stroke-linecap:round;stroke-linejoin:round}
-    .dashed{stroke:#758297;stroke-width:2.2;stroke-dasharray:7 6;fill:none;marker-end:url(#arrow);stroke-linecap:round;stroke-linejoin:round}
+    .line{stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .dashed{stroke-width:2.2;stroke-dasharray:7 6;fill:none;stroke-linecap:round;stroke-linejoin:round}
     .lifeline{stroke:#b7c2d1;stroke-width:2;stroke-dasharray:10 10}
     .pill{fill:#ffffff;stroke:#dbe4ef;stroke-width:1.1;opacity:.98}
   </style>
@@ -39,54 +51,54 @@
   <rect class="layer" x="54" y="585" width="1432" height="135" rx="18" fill="#F8FAFC"/>
   <text class="label" x="78" y="619">Report path</text>
 </g>
-<path class="line" d="M520 250 L555 250 L555 250 L590 250"/>
-<path class="line" d="M890 250 L915 250 L915 250 L940 250"/>
-<path class="line" d="M1240 250 L1265 250 L1265 250 L1290 250"/>
-<path class="line" d="M1370 310 L1370 460 L1250 460"/>
-<path class="line" d="M930 460 L920 460 L920 460 L910 460"/>
-<path class="line" d="M750 505 L750 560 L520 560 L520 630"/>
-<path class="line" d="M1370 310 L1370 560 L1200 560 L1200 630"/>
+<path class="line" d="M520 243 L555 243 L555 243 L590 243" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M890 243 L915 243 L915 243 L940 243" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M1240 243 L1265 243 L1265 243 L1290 243" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M1370 303 L1370 443 L1250 443" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+<path class="line" d="M930 443 L805 443 L805 443 L680 443" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+<path class="line" d="M520 488 L520 608" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+<path class="line" d="M1370 303 L1370 562 L1200 562 L1200 608" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
 <g id="start">
-  <rect class="card" x="260" y="205" width="260" height="90" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
-<text class="label" x="390" y="244.5" text-anchor="middle" dominant-baseline="middle">Scheduled tick</text>
-<text class="detail" x="390" y="263.5" text-anchor="middle" dominant-baseline="middle">build SchedulerRunId</text>
+  <rect class="card" x="260" y="198" width="260" height="90" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
+<text class="label" x="390" y="237.5" text-anchor="middle" dominant-baseline="middle">Scheduled tick</text>
+<text class="detail" x="390" y="256.5" text-anchor="middle" dominant-baseline="middle">build SchedulerRunId</text>
 </g>
 <g id="config">
-  <rect class="card" x="590" y="205" width="300" height="90" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
-<text class="label" x="740" y="235" text-anchor="middle" dominant-baseline="middle">Validate inputs</text>
-<text class="detail" x="740" y="254" text-anchor="middle" dominant-baseline="middle">nodeId, lockName</text>
-<text class="detail" x="740" y="273" text-anchor="middle" dominant-baseline="middle">basePath, scheduleId</text>
+  <rect class="card" x="590" y="198" width="300" height="90" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+<text class="label" x="740" y="228" text-anchor="middle" dominant-baseline="middle">Validate inputs</text>
+<text class="detail" x="740" y="247" text-anchor="middle" dominant-baseline="middle">nodeId, lockName</text>
+<text class="detail" x="740" y="266" text-anchor="middle" dominant-baseline="middle">basePath, scheduleId</text>
 </g>
 <g id="elect">
-  <rect class="card" x="940" y="205" width="300" height="90" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
-<text class="label" x="1090" y="235" text-anchor="middle" dominant-baseline="middle">runIfLeader</text>
-<text class="detail" x="1090" y="254" text-anchor="middle" dominant-baseline="middle">ZooKeeperLeaderElector</text>
-<text class="detail" x="1090" y="273" text-anchor="middle" dominant-baseline="middle">waitTime window</text>
+  <rect class="card" x="940" y="198" width="300" height="90" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
+<text class="label" x="1090" y="228" text-anchor="middle" dominant-baseline="middle">runIfLeader</text>
+<text class="detail" x="1090" y="247" text-anchor="middle" dominant-baseline="middle">ZooKeeperLeaderElector</text>
+<text class="detail" x="1090" y="266" text-anchor="middle" dominant-baseline="middle">waitTime window</text>
 </g>
 <g id="decision">
-  <path class="card" d="M1370 190 L1450 250 L1370 310 L1290 250 Z" fill="#FFF3D9" stroke="#D6A441"/>
-<text class="label" x="1370" y="244.5" text-anchor="middle" dominant-baseline="middle">Leadership?</text>
-<text class="detail" x="1370" y="263.5" text-anchor="middle" dominant-baseline="middle">lock acquired</text>
-</g>
-<g id="execute">
-  <rect class="card" x="930" y="415" width="320" height="90" rx="14" fill="#EAF7EF" stroke="#58A978"/>
-<text class="label" x="1090" y="454.5" text-anchor="middle" dominant-baseline="middle">Execute job body</text>
-<text class="detail" x="1090" y="473.5" text-anchor="middle" dominant-baseline="middle">legacy work runs once</text>
+  <path class="card" d="M1370 183 L1450 243 L1370 303 L1290 243 Z" fill="#FFF3D9" stroke="#D6A441"/>
+<text class="label" x="1370" y="237.5" text-anchor="middle" dominant-baseline="middle">Leadership?</text>
+<text class="detail" x="1370" y="256.5" text-anchor="middle" dominant-baseline="middle">lock acquired</text>
 </g>
 <g id="steps">
-  <rect class="card" x="590" y="415" width="320" height="90" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
-<text class="label" x="750" y="454.5" text-anchor="middle" dominant-baseline="middle">Validate completed steps</text>
-<text class="detail" x="750" y="473.5" text-anchor="middle" dominant-baseline="middle">requireNotBlank</text>
+  <rect class="card" x="360" y="398" width="320" height="90" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+<text class="label" x="520" y="437.5" text-anchor="middle" dominant-baseline="middle">Validate completed steps</text>
+<text class="detail" x="520" y="456.5" text-anchor="middle" dominant-baseline="middle">requireNotBlank</text>
+</g>
+<g id="execute">
+  <rect class="card" x="930" y="398" width="320" height="90" rx="14" fill="#EAF7EF" stroke="#58A978"/>
+<text class="label" x="1090" y="437.5" text-anchor="middle" dominant-baseline="middle">Execute job body</text>
+<text class="detail" x="1090" y="456.5" text-anchor="middle" dominant-baseline="middle">legacy work runs once</text>
 </g>
 <g id="executed">
-  <rect class="card" x="360" y="630" width="320" height="90" rx="14" fill="#EAF7EF" stroke="#58A978"/>
-<text class="label" x="520" y="669.5" text-anchor="middle" dominant-baseline="middle">Return EXECUTED</text>
-<text class="detail" x="520" y="688.5" text-anchor="middle" dominant-baseline="middle">steps + elapsed time</text>
+  <rect class="card" x="360" y="608" width="320" height="90" rx="14" fill="#EAF7EF" stroke="#58A978"/>
+<text class="label" x="520" y="647.5" text-anchor="middle" dominant-baseline="middle">Return EXECUTED</text>
+<text class="detail" x="520" y="666.5" text-anchor="middle" dominant-baseline="middle">steps + elapsed time</text>
 </g>
 <g id="skipped">
-  <rect class="card" x="1040" y="630" width="320" height="90" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
-<text class="label" x="1200" y="660" text-anchor="middle" dominant-baseline="middle">Return SKIPPED</text>
-<text class="detail" x="1200" y="679" text-anchor="middle" dominant-baseline="middle">empty steps</text>
-<text class="detail" x="1200" y="698" text-anchor="middle" dominant-baseline="middle">body not invoked</text>
+  <rect class="card" x="1040" y="608" width="320" height="90" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
+<text class="label" x="1200" y="638" text-anchor="middle" dominant-baseline="middle">Return SKIPPED</text>
+<text class="detail" x="1200" y="657" text-anchor="middle" dominant-baseline="middle">empty steps</text>
+<text class="detail" x="1200" y="676" text-anchor="middle" dominant-baseline="middle">body not invoked</text>
 </g>
 </svg>
