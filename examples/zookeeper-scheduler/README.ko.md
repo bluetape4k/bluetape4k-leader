@@ -12,16 +12,21 @@
 - 로컬 ZooKeeper는 bluetape4k Testcontainers launcher로 시작합니다.
 - `runIfLeader`의 skip-on-contention 동작을 확인합니다.
 
-## 구조
+## 예제 시나리오
 
-```mermaid
-flowchart LR
-    A[node-a scheduler] --> E[ZooKeeperLeaderElector]
-    B[node-b scheduler] --> E
-    E --> Z[(ZooKeeper / Curator)]
-    E -->|leader| J[legacy scheduled job]
-    E -->|not leader| S[skip report]
-```
+![ZooKeeper scheduler scenario diagram](../../docs/images/readme-diagrams/examples-zookeeper-scheduler-scenario-01.png)
+
+## 아키텍처 다이어그램
+
+![ZooKeeper scheduler architecture diagram](../../docs/images/readme-diagrams/examples-zookeeper-scheduler-architecture-01.png)
+
+## 플로우 다이어그램
+
+![ZooKeeper scheduler flow diagram](../../docs/images/readme-diagrams/examples-zookeeper-scheduler-flow-01.png)
+
+## 시퀀스 다이어그램
+
+![ZooKeeper scheduler sequence diagram](../../docs/images/readme-diagrams/examples-zookeeper-scheduler-sequence-01.png)
 
 ## 실행
 

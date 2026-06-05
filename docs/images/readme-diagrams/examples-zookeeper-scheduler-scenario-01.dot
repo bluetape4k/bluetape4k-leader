@@ -1,0 +1,20 @@
+digraph "examples-zookeeper-scheduler-scenario-01" {
+  graph [rankdir=LR, bgcolor="transparent", margin=0.1, nodesep=0.65, ranksep=0.9];
+  node [shape=box, style="rounded,filled", fillcolor="#f8fafc", color="#94a3b8", fontname="Comic Mono"];
+  edge [color="#758297", fontname="Comic Mono", fontsize=10];
+  "Same schedule";
+  "node-a";
+  "node-b";
+  "ZooKeeper lock";
+  "Legacy job";
+  "Skip report";
+  "Next schedule";
+  "Same schedule" -> "node-a" [label="trigger"];
+  "Same schedule" -> "node-b" [label="same run"];
+  "node-a" -> "ZooKeeper lock" [label="lock"];
+  "node-b" -> "ZooKeeper lock" [label="miss"];
+  "ZooKeeper lock" -> "Legacy job" [label="leader"];
+  "ZooKeeper lock" -> "Skip report" [label="not leader"];
+  "node-b" -> "Next schedule" [label="after release"];
+  "Next schedule" -> "ZooKeeper lock" [label="reacquire"];
+}

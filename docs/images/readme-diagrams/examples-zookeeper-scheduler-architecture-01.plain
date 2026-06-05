@@ -1,0 +1,17 @@
+graph 1 15.316 2.8056
+node "node-a service" 1.3611 2.5556 1.6806 0.5 "node-a service" rounded,filled box #94a3b8 #f8fafc
+node "node-b service" 1.3611 1.4028 1.6806 0.5 "node-b service" rounded,filled box #94a3b8 #f8fafc
+node ZooKeeperLegacyScheduler 5.7292 1.4028 2.7222 0.5 ZooKeeperLegacyScheduler rounded,filled box #94a3b8 #f8fafc
+node ZooKeeperSchedulerConfig 1.3611 0.25 2.7222 0.5 ZooKeeperSchedulerConfig rounded,filled box #94a3b8 #f8fafc
+node ZooKeeperLeaderElector 10.066 2.5556 2.5139 0.5 ZooKeeperLeaderElector rounded,filled box #94a3b8 #f8fafc
+node SchedulerRunReport 10.066 1.4028 2.0972 0.5 SchedulerRunReport rounded,filled box #94a3b8 #f8fafc
+node "ZooKeeper / Curator" 14.215 2.5556 2.2014 0.5 "ZooKeeper / Curator" rounded,filled box #94a3b8 #f8fafc
+node "Legacy scheduled job" 10.066 0.25 2.3056 0.5 "Legacy scheduled job" rounded,filled box #94a3b8 #f8fafc
+edge "node-a service" ZooKeeperLegacyScheduler 4 2.2067 2.3347 2.886 2.1542 3.8525 1.8975 4.5991 1.6992 calls 3.5451 2.1315 solid #758297
+edge "node-b service" ZooKeeperLegacyScheduler 4 2.2067 1.4028 2.7707 1.4028 3.5326 1.4028 4.2023 1.4028 calls 3.5451 1.4861 solid #758297
+edge ZooKeeperLegacyScheduler ZooKeeperLeaderElector 4 6.6994 1.6586 7.3621 1.8359 8.2466 2.0725 8.9407 2.2582 delegates 7.9497 2.1658 solid #758297
+edge ZooKeeperLegacyScheduler SchedulerRunReport 4 7.0946 1.4028 7.6585 1.4028 8.308 1.4028 8.8544 1.4028 returns 7.9497 1.4861 solid #758297
+edge ZooKeeperLegacyScheduler "Legacy scheduled job" 4 6.6994 1.1469 7.3621 0.96964 8.2466 0.73302 8.9407 0.54733 "leader only" 7.9497 0.97874 solid #758297
+edge ZooKeeperSchedulerConfig ZooKeeperLegacyScheduler 4 2.3382 0.50584 3.0072 0.68351 3.9004 0.92075 4.6002 1.1066 configures 3.5451 0.97874 solid #758297
+edge ZooKeeperLeaderElector "ZooKeeper / Curator" 4 11.328 2.5556 11.843 2.5556 12.439 2.5556 12.954 2.5556 "Curator lock" 12.219 2.6389 solid #758297
+stop
