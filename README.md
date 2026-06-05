@@ -1,12 +1,12 @@
 # bluetape4k-leader
 
+English | [한국어](README.ko.md)
+
 [![MvnRepository](https://badges.mvnrepository.com/badge/io.github.bluetape4k.leader/bluetape4k-leader-bom/badge.svg?label=MvnRepository)](https://mvnrepository.com/artifact/io.github.bluetape4k.leader/bluetape4k-leader-bom)
 [![CI](https://github.com/bluetape4k/bluetape4k-leader/actions/workflows/ci.yml/badge.svg)](https://github.com/bluetape4k/bluetape4k-leader/actions/workflows/ci.yml)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.3-7F52FF?logo=kotlin)](https://kotlinlang.org)
 [![JVM](https://img.shields.io/badge/JVM-21-ED8B00?logo=openjdk)](https://openjdk.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-English | [한국어](README.ko.md)
 
 Current stable version: `0.3.1`
 
