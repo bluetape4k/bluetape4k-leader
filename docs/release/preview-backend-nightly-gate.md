@@ -1,6 +1,8 @@
 # Preview Backend Nightly Release Gate
 
 This note defines the release preflight evidence for preview leader backends.
+It does not by itself promote a backend to Stable. Backend promotion criteria
+live in `docs/release/preview-backend-stable-promotion.md`.
 
 ## Required Summary
 
