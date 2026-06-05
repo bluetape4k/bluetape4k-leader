@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="1400" viewBox="0 0 1160 1400" role="img" aria-label="Multi-leader group: slot-based semaphore">
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="1090" viewBox="0 0 1160 1090" role="img" aria-label="Multi-leader group: slot-based semaphore">
   <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: bluetape4k-leader-sequence-03.dot, bluetape4k-leader-sequence-03.plain, bluetape4k-leader-sequence-03-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
 <defs>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
@@ -28,47 +28,47 @@
   <marker id="semanticArrow-reacquire" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#8B6EEB" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
   <!-- /semantic lock-state route markers -->
 </defs>
-<rect class="canvas" width="1160" height="1400"/>
-<rect class="frame" x="32" y="28" width="1096" height="1344" rx="28"/>
+<rect class="canvas" width="1160" height="1090"/>
+<rect class="frame" x="32" y="28" width="1096" height="1034" rx="28"/>
 <text class="title" x="66" y="82">Multi-leader group: slot-based semap.</text>
 <text class="subtitle" x="70" y="118">Sequence messages from the original Mermaid source</text>
 <rect class="card" x="80" y="166" width="230" height="72" rx="12" fill="#E8F3FF" stroke="#5B8DEF"/>
 <text class="smallLabel" x="195" y="209" text-anchor="middle">Caller</text>
-<line class="lifeline" x1="195" y1="252" x2="195" y2="1320" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<line class="lifeline" x1="195" y1="252" x2="195" y2="1030" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
 <rect class="card" x="465" y="166" width="230" height="72" rx="12" fill="#EAF7EF" stroke="#58A978"/>
 <text class="smallLabel" x="580" y="209" text-anchor="middle">GroupElection</text>
-<line class="lifeline" x1="580" y1="252" x2="580" y2="1320" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<line class="lifeline" x1="580" y1="252" x2="580" y2="1030" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
 <rect class="card" x="850" y="166" width="230" height="72" rx="12" fill="#FFF3D9" stroke="#D6A441"/>
 <text class="smallLabel" x="965" y="209" text-anchor="middle">LockStore</text>
-<line class="lifeline" x1="965" y1="252" x2="965" y2="1320" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
+<line class="lifeline" x1="965" y1="252" x2="965" y2="1030" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
 <rect x="240.5" y="286" width="294" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
 <text class="strong" x="258.5" y="313" text-anchor="start" style="fill:#758297">1. runIfLeader(lockName, action)</text>
 <path class="line" d="M195 332 L580 332" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#semanticArrow-neutral)"/>
-<rect x="80" y="376" width="1000" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="102" y="403" text-anchor="start">LOOP: slot = 0..maxLeaders-1</text>
-<rect x="625.5" y="432" width="294" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="643.5" y="459" text-anchor="start" style="fill:#43A76B">3. tryLock(lockName:slot:i, ...)</text>
-<path class="line" d="M580 478 L965 478" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="80" y="524" width="1000" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="102" y="551" text-anchor="start">ALT: slot acquired</text>
-<rect x="667.5" y="580" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="685.5" y="607" text-anchor="start" style="fill:#43A76B">5. true</text>
-<path class="dashed" d="M965 626 L580 626" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="282.5" y="690" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="300.5" y="717" text-anchor="start" style="fill:#43A76B">6. action()</text>
-<path class="line" d="M580 736 L195 736" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="282.5" y="800" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="300.5" y="827" text-anchor="start" style="fill:#43A76B">7. result</text>
-<path class="dashed" d="M195 846 L580 846" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="649.5" y="910" width="246" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="667.5" y="937" text-anchor="start" style="fill:#D99A2B">8. unlock(lockName:slot:i)</text>
-<path class="line" d="M580 956 L965 956" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
-<rect x="282.5" y="1020" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="300.5" y="1047" text-anchor="start" style="fill:#43A76B">9. result</text>
-<path class="dashed" d="M580 1066 L195 1066" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="80" y="1130" width="1000" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="102" y="1157" text-anchor="start">ELSE: slot busy</text>
-<rect x="667.5" y="1186" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="685.5" y="1213" text-anchor="start" style="fill:#EF5B7A">11. false</text>
-<path class="dashed" d="M965 1232 L580 1232" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#semanticArrow-skipped)"/>
+<rect x="80" y="360" width="1000" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="102" y="387" text-anchor="start">LOOP: slot = 0..maxLeaders-1</text>
+<rect x="625.5" y="416" width="294" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="643.5" y="443" text-anchor="start" style="fill:#43A76B">3. tryLock(lockName:slot:i, ...)</text>
+<path class="line" d="M580 462 L965 462" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
+<rect x="80" y="490" width="1000" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="102" y="517" text-anchor="start">ALT: slot acquired</text>
+<rect x="667.5" y="546" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="685.5" y="573" text-anchor="start" style="fill:#43A76B">5. true</text>
+<path class="dashed" d="M965 592 L580 592" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
+<rect x="282.5" y="620" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="300.5" y="647" text-anchor="start" style="fill:#43A76B">6. action()</text>
+<path class="line" d="M580 666 L195 666" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
+<rect x="282.5" y="694" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="300.5" y="721" text-anchor="start" style="fill:#43A76B">7. result</text>
+<path class="dashed" d="M195 740 L580 740" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
+<rect x="649.5" y="768" width="246" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="667.5" y="795" text-anchor="start" style="fill:#D99A2B">8. unlock(lockName:slot:i)</text>
+<path class="line" d="M580 814 L965 814" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
+<rect x="282.5" y="842" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="300.5" y="869" text-anchor="start" style="fill:#43A76B">9. result</text>
+<path class="dashed" d="M580 888 L195 888" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
+<rect x="80" y="916" width="1000" height="40" rx="16" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
+<text class="strong" x="102" y="943" text-anchor="start">ELSE: slot busy</text>
+<rect x="667.5" y="972" width="210" height="40" rx="12" fill="#ffffff" opacity="0.97"/>
+<text class="strong" x="685.5" y="999" text-anchor="start" style="fill:#EF5B7A">11. false</text>
+<path class="dashed" d="M965 1018 L580 1018" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#semanticArrow-skipped)"/>
 </svg>

@@ -18,8 +18,8 @@ digraph "leader-spring-boot-sequence-02" {
   n0 -> n1 [];
   n1 -> n2 [];
   n2 -> n1 [style=dashed];
-  r12p1 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="714.00,-842.00!"];
-  r12p2 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="714.00,-876.00!"];
+  r12p1 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="714.00,-446.00!"];
+  r12p2 [label="", shape=point, width=0.03, height=0.03, fixedsize=true, style=invis, pos="714.00,-480.00!"];
   n1 -> r12p1 [arrowhead=none];
   r12p1 -> r12p2 [arrowhead=none];
   r12p2 -> n1 [];
