@@ -18,6 +18,25 @@ tasks.jar { enabled = true }
 // processTestAot is what we need and is wired via aotTestClasses below.
 tasks.named("processAot") { enabled = false }
 
+kover {
+    currentProject {
+        sources {
+            includedSourceSets.add("main")
+        }
+    }
+    reports {
+        filters {
+            excludes {
+                classes(
+                    "*__TestContext*_BeanDefinitions",
+                    "*__BeanDefinitions",
+                    "*AjcClosure*",
+                )
+            }
+        }
+    }
+}
+
 configurations {
     testImplementation.get().extendsFrom(compileOnly.get(), runtimeOnly.get())
 }

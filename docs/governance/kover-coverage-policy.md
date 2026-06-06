@@ -10,7 +10,7 @@ modules:
 | `leader-core` | 80% | Core public API and contract logic. |
 | `leader-micrometer` | 80% | Metrics export behavior is unit/integration-testable. |
 | `leader-zookeeper` | 80% | Backend contract has stable Testcontainers coverage. |
-| `leader-spring-boot` | 60% | Spring Boot auto-configuration plus AspectJ CTW integration. |
+| `leader-spring-boot` | 80% | Production Spring Boot auto-configuration plus AspectJ CTW integration; generated Spring AOT/TestContext classes are excluded from reporting. |
 
 ## Policy
 
@@ -26,6 +26,10 @@ report-only until each has a measured baseline and a realistic threshold.
 - Add backend-specific thresholds only after stable module coverage is measured.
 - Prefer 80% for pure contract modules and 60-70% for integration-heavy
   backends.
+- Measure `leader-spring-boot` against the `main` source set only. Exclude
+  generated Spring AOT/TestContext bean definitions and AspectJ synthetic
+  closure classes from Kover reports because they are generated instrumentation
+  artifacts, not testable production behavior.
 
 ## CI/Nightly Contract
 
