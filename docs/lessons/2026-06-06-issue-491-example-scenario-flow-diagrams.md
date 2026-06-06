@@ -22,6 +22,9 @@ Issue #491 required the example README set to be easier to scan by adding or nor
   configuration.
 - PR CI Gradle invocations no longer pass `--refresh-dependencies`; Nightly
   keeps explicit refreshes for SNAPSHOT freshness checks.
+- `examples-ktor-app` keeps the required `bluetape4k-ktor-testing`
+  dependency, but CI now warms that test SNAPSHOT dependency before the
+  Testcontainers job so internal PR runners can save and reuse the Gradle cache.
 
 ## Verification
 
@@ -34,6 +37,9 @@ Issue #491 required the example README set to be easier to scan by adding or nor
 - `./gradlew help --no-daemon`
 - `actionlint .github/workflows/ci.yml`
 - `rg -n -- '--refresh-dependencies' .github/workflows/ci.yml` -> no matches
+- `gh run view 27048770109 --job 79840140153 --log-failed` confirmed the
+  remaining failure was `bluetape4k-ktor-testing` metadata 403, not a test
+  assertion failure.
 - Visual QA via `.omx/artifacts/issue-491-example-scenario-flow-contact-sheet.png` plus individual Scenario/DynamoDB PNG inspections.
 - PR CI rerun after the cache TTL change.
 
@@ -45,3 +51,6 @@ Issue #491 required the example README set to be easier to scan by adding or nor
   Use `--refresh-dependencies` only for explicit SNAPSHOT freshness checks after
   publishing, because zero-second SNAPSHOT metadata refresh amplifies transient
   Central snapshots 403 failures across matrix jobs.
+- For required external test SNAPSHOT artifacts, add a bounded warm-up job that
+  resolves/compiles the relevant test classpath and writes Gradle cache for
+  same-repository PRs before the heavier Testcontainers job runs.

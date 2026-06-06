@@ -15,6 +15,7 @@
 - Updated English and Korean example README files with PNG-only diagram embeds.
 - Relaxed the Gradle changing-module cache TTL from zero seconds to one day.
 - Removed forced dependency refresh from PR CI Gradle invocations while leaving Nightly refresh checks intact.
+- Added a same-repository PR cache warm-up job for the required `examples-ktor-app` test SNAPSHOT dependency.
 
 ## DoD Evidence
 
@@ -29,6 +30,7 @@
 | XML validity | SVG assets parse as XML. | `find docs/images/readme-diagrams -maxdepth 1 -name '*.svg' -print0 \| xargs -0 xmllint --noout` completed with exit code 0. | PASS |
 | Visual QA | Rendered PNGs are inspected at readable README scale. | Contact sheet: `.omx/artifacts/issue-491-example-scenario-flow-contact-sheet.png`; individual PNG inspection: `examples-batch-scheduler-scenario-01.png`, `examples-k8s-lease-scenario-01.png`, DynamoDB Architecture/Flow/Sequence from the earlier pass. | PASS |
 | PR CI snapshot stability | Regular PR CI does not force SNAPSHOT metadata refresh on every Gradle invocation. | `rg -n -- '--refresh-dependencies' .github/workflows/ci.yml` returned no matches; `build.gradle.kts` uses `cacheChangingModulesFor(1, TimeUnit.DAYS)`. | PASS |
+| Ktor test dependency warm-up | Required `bluetape4k-ktor-testing` SNAPSHOT dependency is warmed before the Ktor Testcontainers job. | `.github/workflows/ci.yml` adds `snapshot-warmup` with `:examples:ktor-app:compileTestKotlin`; `test-examples-ktor-app` depends on `snapshot-warmup`; local `./gradlew :examples:ktor-app:compileTestKotlin --no-configuration-cache --no-daemon` completed successfully. | PASS |
 | Workflow lint | CI workflow syntax is valid after removing forced refresh flags. | `actionlint .github/workflows/ci.yml` completed with exit code 0. | PASS |
 | Gradle configuration | Root Gradle configuration still evaluates after changing the changing-module TTL. | `./gradlew help --no-daemon` completed successfully. | PASS |
 | Diff hygiene | No whitespace or patch marker problems. | `git diff --check` completed with exit code 0. | PASS |
