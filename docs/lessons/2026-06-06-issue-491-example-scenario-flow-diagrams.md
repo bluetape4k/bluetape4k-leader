@@ -20,11 +20,13 @@ Issue #491 required the example README set to be easier to scan by adding or nor
   Gradle changing-module cache TTL was relaxed from zero seconds to one day so
   regular PR CI does not revalidate bluetape4k SNAPSHOT metadata on every
   configuration.
-- PR CI Gradle invocations no longer pass `--refresh-dependencies`; Nightly
-  keeps explicit refreshes for SNAPSHOT freshness checks.
-- `examples-ktor-app` keeps the required `bluetape4k-ktor-testing`
-  dependency, but CI now warms that test SNAPSHOT dependency before the
-  Testcontainers job so internal PR runners can save and reuse the Gradle cache.
+- PR CI, Examples, and Nightly Gradle invocations no longer pass
+  `--refresh-dependencies`; scheduled workflows also keep Gradle dependency
+  cache enabled so the one-day changing-module TTL can be effective.
+- `leader-ktor` and `examples-ktor-app` keep the required
+  `bluetape4k-ktor-testing` dependency, but CI, Examples, and full Nightly now
+  warm the relevant Ktor test SNAPSHOT classpaths before the heavier
+  Testcontainers jobs so internal runners can save and reuse the Gradle cache.
 
 ## Verification
 
@@ -35,8 +37,11 @@ Issue #491 required the example README set to be easier to scan by adding or nor
 - `rg -n -F '.svg)' examples -g 'README*.md'` -> no matches
 - `git diff --check`
 - `./gradlew help --no-daemon`
-- `actionlint .github/workflows/ci.yml`
-- `rg -n -- '--refresh-dependencies' .github/workflows/ci.yml` -> no matches
+- `actionlint .github/workflows/ci.yml .github/workflows/examples.yml .github/workflows/nightly-tests.yml`
+- `rg -n -- '--refresh-dependencies' .github/workflows/ci.yml .github/workflows/examples.yml .github/workflows/nightly-tests.yml` -> no matches
+- `rg -n 'cache-disabled: true' .github/workflows/nightly-tests.yml` -> no matches
+- `./gradlew :bluetape4k-leader-ktor:compileTestKotlin --no-configuration-cache --no-daemon`
+- `./gradlew :examples:ktor-app:compileTestKotlin --no-configuration-cache --no-daemon`
 - `gh run view 27048770109 --job 79840140153 --log-failed` confirmed the
   remaining failure was `bluetape4k-ktor-testing` metadata 403, not a test
   assertion failure.
@@ -47,10 +52,11 @@ Issue #491 required the example README set to be easier to scan by adding or nor
 
 - Do not hand-edit generated README diagrams. Change the generator, rerender only the affected targets, then run the global evidence check.
 - If a write-mode evidence run touches unrelated existing assets, restore that churn before PR creation and rerun `--check`.
-- Keep ordinary PR CI on the Gradle default-style changing-module cache TTL.
-  Use `--refresh-dependencies` only for explicit SNAPSHOT freshness checks after
-  publishing, because zero-second SNAPSHOT metadata refresh amplifies transient
-  Central snapshots 403 failures across matrix jobs.
+- Keep ordinary PR CI, Examples, and Nightly on the Gradle default-style
+  changing-module cache TTL. Use `--refresh-dependencies` only for explicit
+  post-publish freshness workflows, because zero-second SNAPSHOT metadata
+  refresh amplifies transient Central snapshots 403 failures across matrix jobs.
 - For required external test SNAPSHOT artifacts, add a bounded warm-up job that
   resolves/compiles the relevant test classpath and writes Gradle cache for
-  same-repository PRs before the heavier Testcontainers job runs.
+  same-repository PRs or scheduled workflow jobs before the heavier
+  Testcontainers job runs.

@@ -50,11 +50,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
       - name: Build (compile only)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies build -x test -x koverVerify --parallel --no-configuration-cache && break
+            ./gradlew build -x test -x koverVerify --parallel --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -63,7 +62,7 @@ jobs:
       - name: Detekt static analysis
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies detekt --parallel --no-configuration-cache && break
+            ./gradlew detekt --parallel --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -76,6 +75,31 @@ jobs:
           name: detekt-report
           path: 'build/reports/detekt/*.xml'
           retention-days: 14
+
+  snapshot-warmup:
+    name: Warm SNAPSHOT dependency cache
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '19 19 * * 0') || (github.event_name == 'workflow_dispatch' && inputs.scope == 'full') }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: wrapper
+      - name: Warm leader-ktor test SNAPSHOT dependencies
+        run: |
+          for attempt in 1 2 3 4 5; do
+            ./gradlew :bluetape4k-leader-ktor:compileTestKotlin --no-daemon --no-configuration-cache && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
+          done
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
 
   # ── leader-core (Docker 불필요) ─────────────────────────────────────────────
   test-core:
@@ -92,12 +116,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-core
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-core:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-core:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -105,7 +128,7 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-core:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-core:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -139,12 +162,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-redis-lettuce
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-redis-lettuce:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-redis-lettuce:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -154,7 +176,7 @@ jobs:
           DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-redis-lettuce:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-redis-lettuce:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -188,12 +210,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-redis-redisson
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-redis-redisson:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-redis-redisson:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -203,7 +224,7 @@ jobs:
           DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-redis-redisson:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-redis-redisson:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -235,12 +256,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-core (H2)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-core:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-exposed-core:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -249,7 +269,7 @@ jobs:
           LEADER_TEST_DB: "H2"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-core:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-exposed-core:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -283,12 +303,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-core (PostgreSQL)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-core:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-exposed-core:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -299,7 +318,7 @@ jobs:
           LEADER_TEST_DB: "POSTGRESQL"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-core:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-exposed-core:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -333,12 +352,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-core (MySQL 8)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-core:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-exposed-core:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -349,7 +367,7 @@ jobs:
           LEADER_TEST_DB: "MYSQL_V8"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-core:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-exposed-core:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -381,12 +399,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-jdbc (H2)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-jdbc:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-exposed-jdbc:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -395,7 +412,7 @@ jobs:
           LEADER_TEST_DB: "H2"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -429,12 +446,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-jdbc (PostgreSQL)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-jdbc:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-exposed-jdbc:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -445,7 +461,7 @@ jobs:
           LEADER_TEST_DB: "POSTGRESQL"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -479,12 +495,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-jdbc (MySQL 8)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-jdbc:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-exposed-jdbc:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -495,7 +510,7 @@ jobs:
           LEADER_TEST_DB: "MYSQL_V8"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-exposed-jdbc:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -527,12 +542,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-r2dbc (H2)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-r2dbc:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-exposed-r2dbc:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -541,7 +555,7 @@ jobs:
           LEADER_TEST_DB: "H2"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -574,12 +588,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-r2dbc (PostgreSQL)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-r2dbc:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-exposed-r2dbc:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -590,7 +603,7 @@ jobs:
           LEADER_TEST_DB: "POSTGRESQL"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -623,12 +636,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-exposed-r2dbc (MySQL 8)
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-r2dbc:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-exposed-r2dbc:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -639,7 +651,7 @@ jobs:
           LEADER_TEST_DB: "MYSQL_V8"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-exposed-r2dbc:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -673,12 +685,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-mongodb
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-mongodb:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-mongodb:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -688,7 +699,7 @@ jobs:
           DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-mongodb:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-mongodb:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -722,12 +733,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-dynamodb
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-dynamodb:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-dynamodb:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -737,7 +747,7 @@ jobs:
           DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-dynamodb:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-dynamodb:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -771,12 +781,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-etcd
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-etcd:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-etcd:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -786,7 +795,7 @@ jobs:
           DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-etcd:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-etcd:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -818,12 +827,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-consul
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-consul:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-consul:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -833,7 +841,7 @@ jobs:
           DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-consul:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-consul:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -867,12 +875,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-k8s unit and K3s group slots
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-k8s:test :bluetape4k-leader-k8s:k8sTest --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-k8s:test :bluetape4k-leader-k8s:k8sTest --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -882,7 +889,7 @@ jobs:
           DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-k8s:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-k8s:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -916,12 +923,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-hazelcast
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-hazelcast:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-hazelcast:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -931,7 +937,7 @@ jobs:
           DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-hazelcast:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-hazelcast:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -965,12 +971,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-zookeeper
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-zookeeper:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-zookeeper:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -980,7 +985,7 @@ jobs:
           DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-zookeeper:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-zookeeper:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -1012,12 +1017,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-micrometer
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-micrometer:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-micrometer:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -1025,7 +1029,7 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-micrometer:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-micrometer:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -1059,12 +1063,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-spring-boot
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-spring-boot:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-spring-boot:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -1074,7 +1077,7 @@ jobs:
           DOCKER_HOST: 'unix:///var/run/docker.sock'
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-spring-boot:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-spring-boot:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -1098,7 +1101,7 @@ jobs:
 
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: build
+    needs: [build, snapshot-warmup]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
@@ -1108,12 +1111,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-          cache-disabled: true
           cache-read-only: true
       - name: Test leader-ktor
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew --refresh-dependencies :bluetape4k-leader-ktor:test --no-daemon --no-configuration-cache && break
+            ./gradlew :bluetape4k-leader-ktor:test --no-daemon --no-configuration-cache && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -1123,7 +1125,7 @@ jobs:
           DOCKER_HOST: 'unix:///var/run/docker.sock'
       - name: Generate Kover XML report
         if: always()
-        run: ./gradlew --refresh-dependencies :bluetape4k-leader-ktor:koverXmlReport --no-daemon --no-configuration-cache
+        run: ./gradlew :bluetape4k-leader-ktor:koverXmlReport --no-daemon --no-configuration-cache
         continue-on-error: true
       - name: Upload test results
         if: always()
@@ -1236,6 +1238,7 @@ jobs:
     timeout-minutes: 10
     needs:
       - build
+      - snapshot-warmup
       - test-core
       - test-redis-lettuce
       - test-redis-redisson

@@ -276,7 +276,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['examples-ktor-app'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-ktor'] == 'true' || needs.changes.outputs['examples-ktor-app'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v6
 
@@ -290,10 +290,10 @@ jobs:
           gradle-version: wrapper
           cache-read-only: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
 
-      - name: Warm examples-ktor-app test SNAPSHOT dependencies
+      - name: Warm Ktor test SNAPSHOT dependencies
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :examples:ktor-app:compileTestKotlin --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-ktor:compileTestKotlin :examples:ktor-app:compileTestKotlin --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
@@ -1461,7 +1461,7 @@ jobs:
     name: Test / leader-ktor
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, changes]
+    needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['leader-ktor'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v6
@@ -1954,6 +1954,7 @@ jobs:
       - test-examples-ktor-app
       - test-examples-prometheus-dashboard
       - compile-benchmark
+      - snapshot-warmup
       - coverage-report
     if: always()
     steps:
