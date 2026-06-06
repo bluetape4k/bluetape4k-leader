@@ -14,9 +14,17 @@ its scheduled tick, but `KubernetesLeaseLeaderElector.runIfLeader` lets only the
 pod that owns the `cronjob-reconciler` Lease call the reconcile workload. When
 the leader stops renewing the Lease, another pod can take over on a later tick.
 
+## Example Scenario
+
+![K8s Operator scenario diagram](../../docs/images/readme-diagrams/examples-k8s-operator-scenario-01.png)
+
 ## Architecture Diagram
 
 ![k8s operator Architecture diagram](../../docs/images/readme-diagrams/examples-k8s-operator-architecture-01.png)
+
+## Flow Diagram
+
+![K8s operator flow diagram](../../docs/images/readme-diagrams/examples-k8s-operator-flow-01.png)
 
 ## Sequence Diagram
 

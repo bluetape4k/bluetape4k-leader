@@ -1,0 +1,36 @@
+graph 1 17.5 7.5925
+node n0 2.085 6.6122 4.17 1.28 "Application start" rounded,filled box #5B8DEF #ffffff
+node n1 7.085 6.6122 4.17 1.28 "leaderScheduled tick" rounded,filled box #8A72D6 #ffffff
+node n2 12.085 6.6122 4.17 1.28 "Lock outcome?" rounded,filled box #D6A441 #ffffff
+node n3 6.1822 3.6956 4.58 1.28 "Aggregate stats" rounded,filled box #58A978 #ffffff
+node n4 15.21 3.6956 4.58 1.28 "Other replicas" rounded,filled box #DC6B82 #ffffff
+node n5 6.1822 0.64 4.58 1.28 "Expose /stats" rounded,filled box #45A7A1 #ffffff
+node n6 15.21 0.64 4.58 1.28 "Next period" rounded,filled box #B88A44 #ffffff
+node r1p1 4.585 6.6122 0.03 0.03 "" invis point black lightgrey
+node r1p2 4.585 6.6122 0.03 0.03 "" invis point black lightgrey
+node r2p1 9.585 6.6122 0.03 0.03 "" invis point black lightgrey
+node r2p2 9.585 6.6122 0.03 0.03 "" invis point black lightgrey
+node r3p1 12.085 5.2372 0.03 0.03 "" invis point black lightgrey
+node r3p2 6.1822 5.2372 0.03 0.03 "" invis point black lightgrey
+node r4p1 15.21 6.6122 0.03 0.03 "" invis point black lightgrey
+node r4p2 15.21 5.0011 0.03 0.03 "" invis point black lightgrey
+node r7p1 10.488 0.64 0.03 0.03 "" invis point black lightgrey
+node r7p2 10.488 0.028889 0.03 0.03 "" invis point black lightgrey
+edge n0 r1p1 4 4.1722 6.6122 4.3726 6.6122 4.5199 6.6122 4.568 6.6122 solid #758297
+edge n1 r2p1 4 9.1722 6.6122 9.3726 6.6122 9.5199 6.6122 9.568 6.6122 solid #758297
+edge n2 r3p1 4 12.085 5.969 12.085 5.6615 12.085 5.3421 12.085 5.2583 solid #758297
+edge n2 r4p1 4 14.174 6.6122 14.674 6.6122 15.092 6.6122 15.189 6.6122 solid #758297
+edge n3 n5 4 6.1822 3.0513 6.1822 2.578 6.1822 1.9323 6.1822 1.4282 solid #758297
+edge n4 n6 4 15.21 3.0513 15.21 2.578 15.21 1.9323 15.21 1.4282 solid #758297
+edge n5 r7p1 4 8.4737 0.64 9.4135 0.64 10.318 0.64 10.467 0.64 solid #758297
+edge r1p1 r1p2 4 4.585 6.6122 4.585 6.6122 4.585 6.6122 4.585 6.6122 solid #758297
+edge r1p2 n1 4 4.6066 6.6122 4.6448 6.6122 4.7314 6.6122 4.8504 6.6122 solid #758297
+edge r2p1 r2p2 4 9.585 6.6122 9.585 6.6122 9.585 6.6122 9.585 6.6122 solid #758297
+edge r2p2 n2 4 9.6066 6.6122 9.6448 6.6122 9.7314 6.6122 9.8504 6.6122 solid #758297
+edge r3p1 r3p2 4 12.064 5.2372 11.691 5.2372 6.5623 5.2372 6.2021 5.2372 solid #758297
+edge r3p2 n3 4 6.1822 5.2154 6.1822 5.1307 6.1822 4.8118 6.1822 4.4878 solid #758297
+edge r4p1 r4p2 4 15.21 6.5941 15.21 6.4296 15.21 5.1941 15.21 5.0212 solid #758297
+edge r4p2 n4 4 15.21 4.9827 15.21 4.9213 15.21 4.7151 15.21 4.4851 solid #758297
+edge r7p1 r7p2 4 10.488 0.61967 10.488 0.52688 10.488 0.14416 10.488 0.049925 solid #758297
+edge r7p2 n6 4 10.509 0.031613 10.668 0.052256 11.709 0.18695 12.771 0.32437 solid #758297
+stop

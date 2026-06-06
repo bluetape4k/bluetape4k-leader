@@ -10,9 +10,17 @@ Two nodes compete for the same Redis-backed lock. The elected node runs a job th
 so `LeaderElectionOptions(autoExtend = true)` keeps renewing the lock while the body is active. The contending node
 skips while the lock is held and can acquire it after the leader releases.
 
+## Example Scenario
+
+![Redisson watchdog scenario diagram](../../docs/images/readme-diagrams/examples-redisson-watchdog-scenario-01.png)
+
 ## Architecture Diagram
 
 ![Redisson Watchdog Architecture diagram](../../docs/images/readme-diagrams/examples-redisson-watchdog-architecture-01.png)
+
+## Flow Diagram
+
+![Redisson watchdog flow diagram](../../docs/images/readme-diagrams/examples-redisson-watchdog-flow-01.png)
 
 ## Sequence Diagram
 

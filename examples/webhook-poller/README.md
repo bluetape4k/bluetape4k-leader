@@ -11,9 +11,17 @@ claims MongoDB events. The leader atomically claims each event with
 `findOneAndUpdate`, runs the handler, marks success as `DONE`, and requeues or
 marks `FAILED` when the handler throws.
 
+## Example Scenario
+
+![Webhook poller scenario diagram](../../docs/images/readme-diagrams/examples-webhook-poller-scenario-01.png)
+
 ## Architecture Diagram
 
 ![webhook poller Architecture diagram](../../docs/images/readme-diagrams/examples-webhook-poller-architecture-01.png)
+
+## Flow Diagram
+
+![Webhook poller flow diagram](../../docs/images/readme-diagrams/examples-webhook-poller-flow-01.png)
 
 ## Sequence Diagram
 

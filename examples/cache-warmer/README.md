@@ -20,9 +20,17 @@ elects its own leader, so different nodes may warm different partitions while a
 failure in one partition is recorded in `WarmResult.failed` and does not stop
 the rest.
 
+## Example Scenario
+
+![Cache warmer scenario diagram](../../docs/images/readme-diagrams/examples-cache-warmer-scenario-01.png)
+
 ## Architecture Diagram
 
 ![cache warmer Architecture diagram](../../docs/images/readme-diagrams/examples-cache-warmer-architecture-01.png)
+
+## Flow Diagram
+
+![Cache warmer flow diagram](../../docs/images/readme-diagrams/examples-cache-warmer-flow-01.png)
 
 ## Sequence Diagram
 

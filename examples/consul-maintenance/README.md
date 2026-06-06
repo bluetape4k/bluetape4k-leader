@@ -11,9 +11,17 @@ Multiple service instances share one Consul Session + KV lock. The elected insta
 contending instances skip the cycle without throwing, and another instance can acquire the same lock after the
 current leader releases it.
 
+## Example Scenario
+
+![Consul maintenance scenario diagram](../../docs/images/readme-diagrams/examples-consul-maintenance-scenario-01.png)
+
 ## Architecture Diagram
 
 ![Consul Maintenance Architecture diagram](../../docs/images/readme-diagrams/examples-consul-maintenance-architecture-01.png)
+
+## Flow Diagram
+
+![Consul maintenance flow diagram](../../docs/images/readme-diagrams/examples-consul-maintenance-flow-01.png)
 
 ## Sequence Diagram
 

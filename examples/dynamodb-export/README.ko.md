@@ -11,6 +11,22 @@ DynamoDB 기반 scheduled export 예제입니다. AWS-only service에서 `leader
 `billing-export` leader lock을 사용합니다. 선출된 노드만 export를 생성하고 export table에
 한 row를 기록합니다. 경쟁 노드는 예외 없이 `SKIPPED`를 반환합니다.
 
+## 예제 시나리오
+
+![DynamoDB export scenario diagram](../../docs/images/readme-diagrams/examples-dynamodb-export-scenario-01.png)
+
+## 아키텍처 다이어그램
+
+![DynamoDB export architecture diagram](../../docs/images/readme-diagrams/examples-dynamodb-export-architecture-01.png)
+
+## 플로우 다이어그램
+
+![DynamoDB export flow diagram](../../docs/images/readme-diagrams/examples-dynamodb-export-flow-01.png)
+
+## 시퀀스 다이어그램
+
+![DynamoDB export sequence diagram](../../docs/images/readme-diagrams/examples-dynamodb-export-sequence-01.png)
+
 ## Core Features
 
 - N replica 환경에서 scheduled export 단일 실행 보장

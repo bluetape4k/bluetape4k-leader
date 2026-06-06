@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1580" height="820" viewBox="0 0 1580 820" role="img" aria-label="DynamoDB Export Flow">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: examples-dynamodb-export-flow-01.dot, examples-dynamodb-export-flow-01.plain, examples-dynamodb-export-flow-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
+<defs>
+  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
+    <feDropShadow dx="0" dy="7" stdDeviation="8" flood-color="#1f2937" flood-opacity="0.10"/>
+  </filter>
+  <marker id="arrow-neutral" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#758297"/>
+  </marker>
+  <marker id="arrow-leader" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#43A76B"/>
+  </marker>
+  <marker id="arrow-skipped" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#EF5B7A"/>
+  </marker>
+  <marker id="arrow-contention" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#D99A2B"/>
+  </marker>
+  <marker id="arrow-reacquire" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#8B6EEB"/>
+  </marker>
+  <style>
+    .canvas{fill:#f7f9fc}
+    .frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
+    .layer{stroke:#dbe4ef;stroke-width:1.2}
+    .title{font-family:"Architects Daughter","Comic Mono",cursive;font-size:42px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono",monospace;font-size:15px;font-weight:400;fill:#536273}
+    .label{font-family:"Architects Daughter","Comic Mono",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .detail{font-family:"Comic Mono",monospace;font-size:12px;font-weight:400;fill:#334155}
+    .legendText{font-family:"Comic Mono",monospace;font-size:11px;font-weight:400;fill:#475569}
+    .strong{font-family:"Comic Mono",monospace;font-size:13px;font-weight:400;fill:#102033}
+    .card{stroke-width:2;filter:url(#shadow)}
+    .line{stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .dashed{stroke-width:2.2;stroke-dasharray:7 6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .lifeline{stroke:#b7c2d1;stroke-width:2;stroke-dasharray:10 10}
+  </style>
+</defs>
+<rect class="canvas" width="1580" height="820"/>
+<rect class="frame" x="32" y="28" width="1516" height="764" rx="28"/>
+<text class="title" x="66" y="82">DynamoDB Export Flow</text>
+<text class="subtitle" x="70" y="118">The elected node writes one export record while contenders skip</text>
+<g aria-label="semantic route legend">
+  <line x1="960" y1="116" x2="988" y2="116" stroke="#43A76B" stroke-width="3" stroke-linecap="round"/>
+  <text class="legendText" x="996" y="120">leader/success</text>
+  <line x1="1098" y1="116" x2="1126" y2="116" stroke="#EF5B7A" stroke-width="3" stroke-linecap="round"/>
+  <text class="legendText" x="1134" y="120">skip/failure</text>
+  <line x1="1236" y1="116" x2="1264" y2="116" stroke="#D99A2B" stroke-width="3" stroke-linecap="round"/>
+  <text class="legendText" x="1272" y="120">contention/release</text>
+  <line x1="1374" y1="116" x2="1402" y2="116" stroke="#8B6EEB" stroke-width="3" stroke-linecap="round"/>
+  <text class="legendText" x="1410" y="120">retry/next</text>
+</g>
+<g>
+  <rect class="layer" x="54" y="160" width="1472" height="150" rx="18" fill="#F8FAFC"/>
+  <text class="label" x="78" y="194">Input and election</text>
+</g>
+<g>
+  <rect class="layer" x="54" y="370" width="1472" height="150" rx="18" fill="#FFFFFF"/>
+  <text class="label" x="78" y="404">Outcome branches</text>
+</g>
+<g>
+  <rect class="layer" x="54" y="590" width="1472" height="150" rx="18" fill="#F8FAFC"/>
+  <text class="label" x="78" y="624">Result and next cycle</text>
+</g>
+<path class="line" d="M410 236 L440 236 L440 236 L470 236" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M770 236 L800 236 L800 236 L830 236" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M980 282 L980 335 L555 335 L555 400" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+<path class="line" d="M1130 236 L1205 236 L1205 352 L1205 400" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
+<path class="line" d="M555 492 L555 620" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+<path class="line" d="M1205 492 L1205 620" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
+<path class="line" d="M720 666 L865 666 L865 710 L1040 710" data-route-tone="reacquire" style="stroke:#8B6EEB;marker-end:url(#arrow-reacquire)"/>
+<g id="trigger">
+  <rect class="card" x="110" y="190" width="300" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
+<text class="label" x="260" y="221" text-anchor="middle" dominant-baseline="middle">Billing trigger</text>
+<text class="detail" x="260" y="240" text-anchor="middle" dominant-baseline="middle">batchId</text>
+<text class="detail" x="260" y="259" text-anchor="middle" dominant-baseline="middle">two nodes</text>
+</g>
+<g id="election">
+  <rect class="card" x="470" y="190" width="300" height="92" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
+<text class="label" x="620" y="221" text-anchor="middle" dominant-baseline="middle">DynamoDB lock</text>
+<text class="detail" x="620" y="240" text-anchor="middle" dominant-baseline="middle">conditional write</text>
+<text class="detail" x="620" y="259" text-anchor="middle" dominant-baseline="middle">logical lease</text>
+</g>
+<g id="branch">
+  <rect class="card" x="830" y="190" width="300" height="92" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
+<text class="label" x="980" y="221" text-anchor="middle" dominant-baseline="middle">Leadership?</text>
+<text class="detail" x="980" y="240" text-anchor="middle" dominant-baseline="middle">exportId</text>
+<text class="detail" x="980" y="259" text-anchor="middle" dominant-baseline="middle">or null</text>
+</g>
+<g id="leader">
+  <rect class="card" x="390" y="400" width="330" height="92" rx="14" fill="#EAF7EF" stroke="#58A978"/>
+<text class="label" x="555" y="431" text-anchor="middle" dominant-baseline="middle">Run export job</text>
+<text class="detail" x="555" y="450" text-anchor="middle" dominant-baseline="middle">summary required</text>
+<text class="detail" x="555" y="469" text-anchor="middle" dominant-baseline="middle">leader only</text>
+</g>
+<g id="skip">
+  <rect class="card" x="1040" y="400" width="330" height="92" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
+<text class="label" x="1205" y="431" text-anchor="middle" dominant-baseline="middle">Skip contender</text>
+<text class="detail" x="1205" y="450" text-anchor="middle" dominant-baseline="middle">SKIPPED</text>
+<text class="detail" x="1205" y="469" text-anchor="middle" dominant-baseline="middle">no export row</text>
+</g>
+<g id="result">
+  <rect class="card" x="390" y="620" width="330" height="92" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+<text class="label" x="555" y="651" text-anchor="middle" dominant-baseline="middle">Put export row</text>
+<text class="detail" x="555" y="670" text-anchor="middle" dominant-baseline="middle">exportId</text>
+<text class="detail" x="555" y="689" text-anchor="middle" dominant-baseline="middle">nodeId + batchId</text>
+</g>
+<g id="next">
+  <rect class="card" x="1040" y="620" width="330" height="92" rx="14" fill="#F7F1E7" stroke="#B88A44"/>
+<text class="label" x="1205" y="651" text-anchor="middle" dominant-baseline="middle">Next batch</text>
+<text class="detail" x="1205" y="670" text-anchor="middle" dominant-baseline="middle">new exportId</text>
+<text class="detail" x="1205" y="689" text-anchor="middle" dominant-baseline="middle">same lock</text>
+</g>
+</svg>

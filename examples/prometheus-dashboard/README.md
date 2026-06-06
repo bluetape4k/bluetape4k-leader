@@ -12,9 +12,17 @@ The Spring Boot app schedules a proxied `@LeaderElection` job named
 them from `/actuator/prometheus`, and the compose stack lets Prometheus scrape
 the app while Grafana renders the pre-provisioned dashboard.
 
+## Example Scenario
+
+![Prometheus dashboard scenario diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-scenario-01.png)
+
 ## Architecture Diagram
 
 ![prometheus dashboard Architecture diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-architecture-01.png)
+
+## Flow Diagram
+
+![Prometheus dashboard flow diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-flow-01.png)
 
 ## Sequence Diagram
 

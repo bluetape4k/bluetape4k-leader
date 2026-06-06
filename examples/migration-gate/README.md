@@ -11,9 +11,17 @@ migration pending. `MigrationGate.runMigration(...)` checks the marker before
 locking, rechecks inside the Exposed JDBC leader lock, runs the migration once,
 and lets non-leaders confirm the marker afterward before serving.
 
+## Example Scenario
+
+![Migration gate scenario diagram](../../docs/images/readme-diagrams/examples-migration-gate-scenario-01.png)
+
 ## Architecture Diagram
 
 ![migration gate Architecture diagram](../../docs/images/readme-diagrams/examples-migration-gate-architecture-01.png)
+
+## Flow Diagram
+
+![Migration gate flow diagram](../../docs/images/readme-diagrams/examples-migration-gate-flow-01.png)
 
 ## Sequence Diagram
 

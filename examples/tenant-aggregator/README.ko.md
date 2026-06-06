@@ -11,9 +11,17 @@ Exposed R2DBC 리더 선출 기반 멀티테넌트 집계기. N개 인스턴스 
 사용하므로 tenant A와 tenant B의 리더가 서로 다를 수 있지만, 각 테넌트에는 항상
 정확히 1개의 active aggregator만 존재합니다.
 
+## 예제 시나리오
+
+![Tenant aggregator scenario diagram](../../docs/images/readme-diagrams/examples-tenant-aggregator-scenario-01.png)
+
 ## 아키텍처 다이어그램
 
 ![tenant aggregator Architecture diagram](../../docs/images/readme-diagrams/examples-tenant-aggregator-architecture-01.png)
+
+## 플로우 다이어그램
+
+![Tenant aggregator flow diagram](../../docs/images/readme-diagrams/examples-tenant-aggregator-flow-01.png)
 
 ## 시퀀스 다이어그램
 

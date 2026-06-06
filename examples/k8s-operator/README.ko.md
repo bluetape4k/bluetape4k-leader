@@ -14,9 +14,17 @@ scheduled tick을 유지하지만, `KubernetesLeaseLeaderElector.runIfLeader`가
 `cronjob-reconciler` Lease를 가진 pod 하나만 reconcile workload를 호출하게 합니다.
 리더가 Lease 갱신을 멈추면 이후 tick에서 다른 pod가 인계할 수 있습니다.
 
+## 예제 시나리오
+
+![K8s Operator scenario diagram](../../docs/images/readme-diagrams/examples-k8s-operator-scenario-01.png)
+
 ## 아키텍처 다이어그램
 
 ![k8s operator Architecture diagram](../../docs/images/readme-diagrams/examples-k8s-operator-architecture-01.png)
+
+## 플로우 다이어그램
+
+![K8s operator flow diagram](../../docs/images/readme-diagrams/examples-k8s-operator-flow-01.png)
 
 ## 시퀀스 다이어그램
 

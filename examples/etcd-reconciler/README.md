@@ -10,9 +10,17 @@ Several control-plane nodes receive the same reconcile trigger. Each node tries 
 only the elected node applies the desired resource list. Other nodes skip the cycle, and leadership can move after the
 lease is released.
 
+## Example Scenario
+
+![Etcd reconciler scenario diagram](../../docs/images/readme-diagrams/examples-etcd-reconciler-scenario-01.png)
+
 ## Architecture Diagram
 
 ![etcd Reconciler Architecture diagram](../../docs/images/readme-diagrams/examples-etcd-reconciler-architecture-01.png)
+
+## Flow Diagram
+
+![Etcd reconciler flow diagram](../../docs/images/readme-diagrams/examples-etcd-reconciler-flow-01.png)
 
 ## Sequence Diagram
 

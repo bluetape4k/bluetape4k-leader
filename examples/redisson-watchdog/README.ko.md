@@ -10,9 +10,17 @@ bluetape4k lease auto-extension으로 장시간 leader job을 보호하는 Redis
 `LeaderElectionOptions(autoExtend = true)`가 method body 실행 중 lock을 계속 갱신합니다. 경쟁 node는 lock이 유지되는
 동안 skip하고, leader가 release한 뒤 lock을 획득할 수 있습니다.
 
+## 예제 시나리오
+
+![Redisson watchdog scenario diagram](../../docs/images/readme-diagrams/examples-redisson-watchdog-scenario-01.png)
+
 ## 아키텍처 다이어그램
 
 ![Redisson Watchdog Architecture diagram](../../docs/images/readme-diagrams/examples-redisson-watchdog-architecture-01.png)
+
+## 플로우 다이어그램
+
+![Redisson watchdog flow diagram](../../docs/images/readme-diagrams/examples-redisson-watchdog-flow-01.png)
 
 ## 시퀀스 다이어그램
 

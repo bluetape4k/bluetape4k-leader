@@ -11,9 +11,17 @@ background `leaderScheduled` job uses the shared Redis lock
 `hourly-stats-aggregation`, so only one replica calls `StatsAggregator.aggregate()`
 per cycle while the other replicas keep serving HTTP traffic.
 
+## Example Scenario
+
+![Ktor App scenario diagram](../../docs/images/readme-diagrams/examples-ktor-app-scenario-01.png)
+
 ## Architecture Diagram
 
 ![ktor app Architecture diagram](../../docs/images/readme-diagrams/examples-ktor-app-architecture-01.png)
+
+## Flow Diagram
+
+![Ktor app flow diagram](../../docs/images/readme-diagrams/examples-ktor-app-flow-01.png)
 
 ## Sequence Diagram
 

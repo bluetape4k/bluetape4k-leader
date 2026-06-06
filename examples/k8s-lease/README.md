@@ -13,9 +13,17 @@ creates or renews the Lease, a competing holder receives `CONFLICT` while the
 Lease is still valid, and the current holder can release it so another holder
 can acquire the same Lease later.
 
+## Example Scenario
+
+![K8s Lease scenario diagram](../../docs/images/readme-diagrams/examples-k8s-lease-scenario-01.png)
+
 ## Architecture Diagram
 
 ![k8s lease Architecture diagram](../../docs/images/readme-diagrams/examples-k8s-lease-architecture-01.png)
+
+## Flow Diagram
+
+![K8s lease flow diagram](../../docs/images/readme-diagrams/examples-k8s-lease-flow-01.png)
 
 ## Sequence Diagram
 

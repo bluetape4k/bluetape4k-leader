@@ -1,0 +1,20 @@
+digraph "examples-dynamodb-export-sequence-01" {
+  graph [layout=neato, rankdir=TB, splines=ortho, overlap=false, outputorder=edgesfirst, nodesep=0.55, ranksep=0.75, bgcolor="transparent", label="DynamoDB Export Sequence", labelloc=t];
+  node [shape=box, style="rounded,filled", fontname="Architects Daughter", fontsize=18, margin="0.16,0.10"];
+  edge [color="#758297", penwidth=1.8, arrowsize=0.8, fontname="Comic Mono", fontsize=10];
+  n0 [label="Node A", fillcolor="#ffffff", color="#5B8DEF", width=3.89, height=1.00, pos="224.00,498.00!"];
+  n1 [label="Runner", fillcolor="#ffffff", color="#58A978", width=3.89, height=1.00, pos="572.00,498.00!"];
+  n2 [label="DynamoDB lock", fillcolor="#ffffff", color="#8A72D6", width=3.89, height=1.00, pos="920.00,498.00!"];
+  n3 [label="Export table", fillcolor="#ffffff", color="#45A7A1", width=3.89, height=1.00, pos="1268.00,498.00!"];
+  n4 [label="Node B", fillcolor="#ffffff", color="#D6A441", width=3.89, height=1.00, pos="1616.00,498.00!"];
+  n0 -> n1 [];
+  n1 -> n2 [];
+  n2 -> n1 [style=dashed];
+  n1 -> n3 [];
+  n3 -> n1 [style=dashed];
+  n4 -> n1 [];
+  n1 -> n2 [];
+  n2 -> n1 [style=dashed];
+  n1 -> n4 [style=dashed];
+  n1 -> n2 [];
+}

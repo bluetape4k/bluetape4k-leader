@@ -10,9 +10,17 @@
 선출된 node만 desired resource list를 적용합니다. 다른 node는 해당 cycle을 skip하고, lease가 release되면 leadership이
 다른 node로 이동할 수 있습니다.
 
+## 예제 시나리오
+
+![Etcd reconciler scenario diagram](../../docs/images/readme-diagrams/examples-etcd-reconciler-scenario-01.png)
+
 ## 아키텍처 다이어그램
 
 ![etcd Reconciler Architecture diagram](../../docs/images/readme-diagrams/examples-etcd-reconciler-architecture-01.png)
+
+## 플로우 다이어그램
+
+![Etcd reconciler flow diagram](../../docs/images/readme-diagrams/examples-etcd-reconciler-flow-01.png)
 
 ## 시퀀스 다이어그램
 
