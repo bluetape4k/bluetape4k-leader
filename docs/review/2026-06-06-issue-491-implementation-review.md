@@ -14,8 +14,9 @@
 - Preserved existing ZooKeeper Scheduler diagram sections and assets.
 - Updated English and Korean example README files with PNG-only diagram embeds.
 - Relaxed the Gradle changing-module cache TTL from zero seconds to one day.
-- Removed forced dependency refresh from PR CI Gradle invocations while leaving Nightly refresh checks intact.
-- Added a same-repository PR cache warm-up job for the required `examples-ktor-app` test SNAPSHOT dependency.
+- Removed forced dependency refresh from PR CI, Examples, and Nightly Gradle invocations.
+- Re-enabled Nightly Gradle dependency cache by removing `cache-disabled: true`.
+- Added cache warm-up jobs for the required Ktor test SNAPSHOT dependencies across PR CI, Examples, and full Nightly.
 
 ## DoD Evidence
 
@@ -29,13 +30,14 @@
 | README embeds | Changed README files embed PNG only and all image links resolve. | README image-link check reported `readmes=36 pngEmbeds=136 svgEmbeds=0 missing=0`; `rg -n -F '.svg)' examples -g 'README*.md'` returned no matches. | PASS |
 | XML validity | SVG assets parse as XML. | `find docs/images/readme-diagrams -maxdepth 1 -name '*.svg' -print0 \| xargs -0 xmllint --noout` completed with exit code 0. | PASS |
 | Visual QA | Rendered PNGs are inspected at readable README scale. | Contact sheet: `.omx/artifacts/issue-491-example-scenario-flow-contact-sheet.png`; individual PNG inspection: `examples-batch-scheduler-scenario-01.png`, `examples-k8s-lease-scenario-01.png`, DynamoDB Architecture/Flow/Sequence from the earlier pass. | PASS |
-| PR CI snapshot stability | Regular PR CI does not force SNAPSHOT metadata refresh on every Gradle invocation. | `rg -n -- '--refresh-dependencies' .github/workflows/ci.yml` returned no matches; `build.gradle.kts` uses `cacheChangingModulesFor(1, TimeUnit.DAYS)`. | PASS |
-| Ktor test dependency warm-up | Required `bluetape4k-ktor-testing` SNAPSHOT dependency is warmed before the Ktor Testcontainers job. | `.github/workflows/ci.yml` adds `snapshot-warmup` with `:examples:ktor-app:compileTestKotlin`; `test-examples-ktor-app` depends on `snapshot-warmup`; local `./gradlew :examples:ktor-app:compileTestKotlin --no-configuration-cache --no-daemon` completed successfully. | PASS |
-| Workflow lint | CI workflow syntax is valid after removing forced refresh flags. | `actionlint .github/workflows/ci.yml` completed with exit code 0. | PASS |
+| CI snapshot stability | PR CI, Examples, and Nightly do not force SNAPSHOT metadata refresh on every Gradle invocation. | `rg -n -- '--refresh-dependencies' .github/workflows/ci.yml .github/workflows/examples.yml .github/workflows/nightly-tests.yml` returned no matches; `build.gradle.kts` uses `cacheChangingModulesFor(1, TimeUnit.DAYS)`. | PASS |
+| Nightly cache policy | Nightly does not disable Gradle dependency cache, so changing-module TTL and warm-up can be effective. | `rg -n 'cache-disabled: true' .github/workflows/nightly-tests.yml` returned no matches. | PASS |
+| Ktor test dependency warm-up | Required `bluetape4k-ktor-testing` SNAPSHOT dependency is warmed before the Ktor Testcontainers jobs. | `.github/workflows/ci.yml` warms `:bluetape4k-leader-ktor:compileTestKotlin` and `:examples:ktor-app:compileTestKotlin`; `.github/workflows/examples.yml` warms `:examples:ktor-app:compileTestKotlin`; `.github/workflows/nightly-tests.yml` warms `:bluetape4k-leader-ktor:compileTestKotlin`; both local compile warm-up commands completed successfully. | PASS |
+| Workflow lint | Workflow syntax is valid after removing forced refresh flags and adding warm-up jobs. | `actionlint .github/workflows/ci.yml .github/workflows/examples.yml .github/workflows/nightly-tests.yml` completed with exit code 0. | PASS |
 | Gradle configuration | Root Gradle configuration still evaluates after changing the changing-module TTL. | `./gradlew help --no-daemon` completed successfully. | PASS |
 | Diff hygiene | No whitespace or patch marker problems. | `git diff --check` completed with exit code 0. | PASS |
 
 ## Residual Risk
 
-- Full Gradle tests were not rerun locally; GitHub PR CI is the validation gate for the workflow and example matrix.
+- Full Gradle tests and scheduled GitHub workflows were not rerun locally; GitHub PR CI is the immediate validation gate for the workflow and example matrix.
 - Scenario diagrams use a shared scenario layout generated from each example's flow model; future example-specific scenario differences should be added through `scripts/generate-example-flow-diagrams.mjs` rather than hand-editing rendered SVG/PNG files.
