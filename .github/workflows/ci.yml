@@ -270,6 +270,36 @@ jobs:
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
 
+  # ── 3-A. SNAPSHOT dependency cache warm-up ──────────────────────────────
+  snapshot-warmup:
+    name: Warm SNAPSHOT dependency cache
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs['examples-ktor-app'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: wrapper
+          cache-read-only: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+
+      - name: Warm examples-ktor-app test SNAPSHOT dependencies
+        run: |
+          for attempt in 1 2 3 4 5; do
+            ./gradlew :examples:ktor-app:compileTestKotlin --no-configuration-cache --no-daemon && break
+            echo "Attempt $attempt failed"
+            [ $attempt -lt 5 ] && sleep 30 || exit 1
+          done
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+
   # ── 4. leader-core 테스트 (Docker 불필요) ────────────────────────────────
   test-core:
     name: Test / leader-core
@@ -1312,7 +1342,7 @@ jobs:
     name: Test / examples-ktor-app
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, changes]
+    needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['examples-ktor-app'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v6
