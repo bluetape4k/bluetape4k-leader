@@ -17,9 +17,17 @@ maxLeaders 슬롯을 공유하므로 호출자가 슬롯 ↔ 파티션 매핑을
 따라서 서로 다른 노드가 서로 다른 파티션을 워밍할 수 있고, 한 파티션 실패는
 `WarmResult.failed`에 기록된 뒤 나머지 파티션 처리는 계속됩니다.
 
+## 예제 시나리오
+
+![Cache warmer scenario diagram](../../docs/images/readme-diagrams/examples-cache-warmer-scenario-01.png)
+
 ## 아키텍처 다이어그램
 
 ![cache warmer Architecture diagram](../../docs/images/readme-diagrams/examples-cache-warmer-architecture-01.png)
+
+## 플로우 다이어그램
+
+![Cache warmer flow diagram](../../docs/images/readme-diagrams/examples-cache-warmer-flow-01.png)
 
 ## 시퀀스 다이어그램
 

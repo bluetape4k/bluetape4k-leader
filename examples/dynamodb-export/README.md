@@ -11,6 +11,22 @@ Two service instances receive the same billing export trigger. Each instance use
 `billing-export` leader lock. The elected node generates the export and writes one row to the export
 table. Contending nodes return `SKIPPED` without throwing.
 
+## Example Scenario
+
+![DynamoDB export scenario diagram](../../docs/images/readme-diagrams/examples-dynamodb-export-scenario-01.png)
+
+## Architecture Diagram
+
+![DynamoDB export architecture diagram](../../docs/images/readme-diagrams/examples-dynamodb-export-architecture-01.png)
+
+## Flow Diagram
+
+![DynamoDB export flow diagram](../../docs/images/readme-diagrams/examples-dynamodb-export-flow-01.png)
+
+## Sequence Diagram
+
+![DynamoDB export sequence diagram](../../docs/images/readme-diagrams/examples-dynamodb-export-sequence-01.png)
+
 ## Core Features
 
 - Single scheduled export execution across N replicas

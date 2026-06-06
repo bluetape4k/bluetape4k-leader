@@ -11,9 +11,17 @@ Ktor 3.x REST API 서버 + 리더 선출로 보호되는 주기 백그라운드 
 cycle마다 1개 replica만 `StatsAggregator.aggregate()`를 호출하고, 나머지 replica는
 HTTP 트래픽을 계속 처리합니다.
 
+## 예제 시나리오
+
+![Ktor App scenario diagram](../../docs/images/readme-diagrams/examples-ktor-app-scenario-01.png)
+
 ## 아키텍처 다이어그램
 
 ![ktor app Architecture diagram](../../docs/images/readme-diagrams/examples-ktor-app-architecture-01.png)
+
+## 플로우 다이어그램
+
+![Ktor app flow diagram](../../docs/images/readme-diagrams/examples-ktor-app-flow-01.png)
 
 ## 시퀀스 다이어그램
 

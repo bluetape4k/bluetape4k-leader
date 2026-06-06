@@ -9,9 +9,17 @@
 여러 service instance가 하나의 Consul Session + KV lock을 공유합니다. 선출된 instance만 maintenance 단계를 실행하고,
 경쟁 instance는 예외 없이 해당 cycle을 skip합니다. 현재 leader가 lease를 해제하면 다른 instance가 같은 lock을 다시 획득할 수 있습니다.
 
+## 예제 시나리오
+
+![Consul maintenance scenario diagram](../../docs/images/readme-diagrams/examples-consul-maintenance-scenario-01.png)
+
 ## 아키텍처 다이어그램
 
 ![Consul Maintenance Architecture diagram](../../docs/images/readme-diagrams/examples-consul-maintenance-architecture-01.png)
+
+## 플로우 다이어그램
+
+![Consul maintenance flow diagram](../../docs/images/readme-diagrams/examples-consul-maintenance-flow-01.png)
 
 ## 시퀀스 다이어그램
 

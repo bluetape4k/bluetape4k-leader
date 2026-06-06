@@ -10,9 +10,17 @@ Several service nodes race for one local leader lock. One node executes bounded 
 thread while the rest skip without throwing. The example keeps the body blocking-friendly without tying up platform
 threads.
 
+## Example Scenario
+
+![Virtual thread runner scenario diagram](../../docs/images/readme-diagrams/examples-virtual-thread-runner-scenario-01.png)
+
 ## Architecture Diagram
 
 ![Virtual Thread Runner Architecture diagram](../../docs/images/readme-diagrams/examples-virtual-thread-runner-architecture-01.png)
+
+## Flow Diagram
+
+![Virtual thread runner flow diagram](../../docs/images/readme-diagrams/examples-virtual-thread-runner-flow-01.png)
 
 ## Sequence Diagram
 

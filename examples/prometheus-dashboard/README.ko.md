@@ -12,9 +12,17 @@ Spring Boot 앱은 `dashboard-job` 이름의 proxied `@LeaderElection` 작업을
 `/actuator/prometheus`에서 노출합니다. compose stack에서는 Prometheus가 앱을
 scrape하고 Grafana가 사전 provision된 dashboard를 렌더링합니다.
 
+## 예제 시나리오
+
+![Prometheus dashboard scenario diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-scenario-01.png)
+
 ## 아키텍처 다이어그램
 
 ![prometheus dashboard Architecture diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-architecture-01.png)
+
+## 플로우 다이어그램
+
+![Prometheus dashboard flow diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-flow-01.png)
 
 ## 시퀀스 다이어그램
 

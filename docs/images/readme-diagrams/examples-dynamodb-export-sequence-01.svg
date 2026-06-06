@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1840" height="990" viewBox="0 0 1840 990" role="img" aria-label="DynamoDB Export Sequence">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: examples-dynamodb-export-sequence-01.dot, examples-dynamodb-export-sequence-01.plain, examples-dynamodb-export-sequence-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
+<defs>
+  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
+    <feDropShadow dx="0" dy="7" stdDeviation="8" flood-color="#1f2937" flood-opacity="0.10"/>
+  </filter>
+  <marker id="arrow-neutral" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#758297"/>
+  </marker>
+  <marker id="arrow-leader" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#43A76B"/>
+  </marker>
+  <marker id="arrow-skipped" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#EF5B7A"/>
+  </marker>
+  <marker id="arrow-contention" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#D99A2B"/>
+  </marker>
+  <marker id="arrow-reacquire" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#8B6EEB"/>
+  </marker>
+  <style>
+    .canvas{fill:#f7f9fc}
+    .frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
+    .layer{stroke:#dbe4ef;stroke-width:1.2}
+    .title{font-family:"Architects Daughter","Comic Mono",cursive;font-size:42px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono",monospace;font-size:15px;font-weight:400;fill:#536273}
+    .label{font-family:"Architects Daughter","Comic Mono",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .detail{font-family:"Comic Mono",monospace;font-size:12px;font-weight:400;fill:#334155}
+    .legendText{font-family:"Comic Mono",monospace;font-size:11px;font-weight:400;fill:#475569}
+    .strong{font-family:"Comic Mono",monospace;font-size:13px;font-weight:400;fill:#102033}
+    .card{stroke-width:2;filter:url(#shadow)}
+    .line{stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .dashed{stroke-width:2.2;stroke-dasharray:7 6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .lifeline{stroke:#b7c2d1;stroke-width:2;stroke-dasharray:10 10}
+  </style>
+</defs>
+<rect class="canvas" width="1840" height="990"/>
+<rect class="frame" x="32" y="28" width="1776" height="934" rx="28"/>
+<text class="title" x="66" y="82">DynamoDB Export Sequence</text>
+<text class="subtitle" x="70" y="118">Node A writes one export row; Node B receives SKIPPED while the logical lease is held</text>
+<g aria-label="semantic route legend">
+  <line x1="1220" y1="116" x2="1248" y2="116" stroke="#43A76B" stroke-width="3" stroke-linecap="round"/>
+  <text class="legendText" x="1256" y="120">leader/success</text>
+  <line x1="1358" y1="116" x2="1386" y2="116" stroke="#EF5B7A" stroke-width="3" stroke-linecap="round"/>
+  <text class="legendText" x="1394" y="120">skip/failure</text>
+  <line x1="1496" y1="116" x2="1524" y2="116" stroke="#D99A2B" stroke-width="3" stroke-linecap="round"/>
+  <text class="legendText" x="1532" y="120">contention/release</text>
+  <line x1="1634" y1="116" x2="1662" y2="116" stroke="#8B6EEB" stroke-width="3" stroke-linecap="round"/>
+  <text class="legendText" x="1670" y="120">retry/next</text>
+</g>
+<g>
+  <rect class="card" x="84" y="166" width="280" height="72" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="label" x="224" y="206" text-anchor="middle" dominant-baseline="middle">Node A</text>
+  <line class="lifeline" x1="224" y1="256" x2="224" y2="920"/>
+</g>
+<g>
+  <rect class="card" x="432" y="166" width="280" height="72" rx="10" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="label" x="572" y="206" text-anchor="middle" dominant-baseline="middle">Runner</text>
+  <line class="lifeline" x1="572" y1="256" x2="572" y2="920"/>
+</g>
+<g>
+  <rect class="card" x="780" y="166" width="280" height="72" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="label" x="920" y="206" text-anchor="middle" dominant-baseline="middle">DynamoDB lock</text>
+  <line class="lifeline" x1="920" y1="256" x2="920" y2="920"/>
+</g>
+<g>
+  <rect class="card" x="1128" y="166" width="280" height="72" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="label" x="1268" y="206" text-anchor="middle" dominant-baseline="middle">Export table</text>
+  <line class="lifeline" x1="1268" y1="256" x2="1268" y2="920"/>
+</g>
+<g>
+  <rect class="card" x="1476" y="166" width="280" height="72" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="label" x="1616" y="206" text-anchor="middle" dominant-baseline="middle">Node B</text>
+  <line class="lifeline" x1="1616" y1="256" x2="1616" y2="920"/>
+</g>
+<g>
+  <rect x="290.5" y="286" width="215.0" height="28" rx="14" fill="#ffffff" opacity="0.97"/>
+  <text class="strong" x="304.5" y="300" dominant-baseline="middle">1. runOnce(billing batch)</text>
+  <path class="line" d="M224.0 325 L572.0 325" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+</g>
+<g>
+  <rect x="638.5" y="344" width="215.0" height="28" rx="14" fill="#ffffff" opacity="0.97"/>
+  <text class="strong" x="652.5" y="358" dominant-baseline="middle">2. conditional acquire</text>
+  <path class="line" d="M572.0 383 L920.0 383" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+</g>
+<g>
+  <rect x="638.5" y="402" width="215.0" height="28" rx="14" fill="#ffffff" opacity="0.97"/>
+  <text class="strong" x="652.5" y="416" dominant-baseline="middle">3. ACQUIRED</text>
+  <path class="dashed" d="M920.0 441 L572.0 441" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+</g>
+<g>
+  <rect x="812.5" y="460" width="215.0" height="28" rx="14" fill="#ffffff" opacity="0.97"/>
+  <text class="strong" x="826.5" y="474" dominant-baseline="middle">4. put export record</text>
+  <path class="line" d="M572.0 499 L1268.0 499" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+</g>
+<g>
+  <rect x="812.5" y="518" width="215.0" height="28" rx="14" fill="#ffffff" opacity="0.97"/>
+  <text class="strong" x="826.5" y="532" dominant-baseline="middle">5. exportId</text>
+  <path class="dashed" d="M1268.0 557 L572.0 557" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+</g>
+<g>
+  <rect x="986.5" y="576" width="215.0" height="28" rx="14" fill="#ffffff" opacity="0.97"/>
+  <text class="strong" x="1000.5" y="590" dominant-baseline="middle">6. runOnce(same batch)</text>
+  <path class="line" d="M1616.0 615 L572.0 615" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
+</g>
+<g>
+  <rect x="638.5" y="634" width="215.0" height="28" rx="14" fill="#ffffff" opacity="0.97"/>
+  <text class="strong" x="652.5" y="648" dominant-baseline="middle">7. try same lock</text>
+  <path class="line" d="M572.0 673 L920.0 673" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
+</g>
+<g>
+  <rect x="638.5" y="692" width="215.0" height="28" rx="14" fill="#ffffff" opacity="0.97"/>
+  <text class="strong" x="652.5" y="706" dominant-baseline="middle">8. lease still held</text>
+  <path class="dashed" d="M920.0 731 L572.0 731" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
+</g>
+<g>
+  <rect x="986.5" y="750" width="215.0" height="28" rx="14" fill="#ffffff" opacity="0.97"/>
+  <text class="strong" x="1000.5" y="764" dominant-baseline="middle">9. SKIPPED report</text>
+  <path class="dashed" d="M572.0 789 L1616.0 789" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
+</g>
+<g>
+  <rect x="638.5" y="808" width="215.0" height="28" rx="14" fill="#ffffff" opacity="0.97"/>
+  <text class="strong" x="652.5" y="822" dominant-baseline="middle">10. release on exit</text>
+  <path class="line" d="M572.0 847 L920.0 847" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#arrow-contention)"/>
+</g>
+</svg>

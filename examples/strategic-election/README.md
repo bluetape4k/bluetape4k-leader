@@ -9,9 +9,17 @@ Backend-neutral strategic leader-election example. It chooses the best service n
 Three service nodes compete to run a maintenance task. The winner is selected by weighted scoring across readiness,
 historical success rate, and idle time. Non-winner nodes skip the action without throwing.
 
+## Example Scenario
+
+![Strategic election scenario diagram](../../docs/images/readme-diagrams/examples-strategic-election-scenario-01.png)
+
 ## Architecture Diagram
 
 ![Strategic Election Architecture diagram](../../docs/images/readme-diagrams/examples-strategic-election-architecture-01.png)
+
+## Flow Diagram
+
+![Strategic election flow diagram](../../docs/images/readme-diagrams/examples-strategic-election-flow-01.png)
 
 ## Sequence Diagram
 

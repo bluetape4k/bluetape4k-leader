@@ -12,9 +12,17 @@ the shared `nightly-settlement` lock name. The Lettuce Redis elector allows one
 instance to execute the job while the others return `null` and skip without
 throwing.
 
+## Example Scenario
+
+![Batch scheduler scenario diagram](../../docs/images/readme-diagrams/examples-batch-scheduler-scenario-01.png)
+
 ## Architecture Diagram
 
 ![batch scheduler Architecture diagram](../../docs/images/readme-diagrams/examples-batch-scheduler-architecture-01.png)
+
+## Flow Diagram
+
+![Batch scheduler flow diagram](../../docs/images/readme-diagrams/examples-batch-scheduler-flow-01.png)
 
 ## Sequence Diagram
 

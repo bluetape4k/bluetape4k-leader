@@ -11,9 +11,17 @@ the tenant-specific lock name (`"${lockNamePrefix}-${tenantId}"`) before calling
 the aggregation function, so tenant A and tenant B can have different leaders
 while each tenant still has exactly one active aggregator.
 
+## Example Scenario
+
+![Tenant aggregator scenario diagram](../../docs/images/readme-diagrams/examples-tenant-aggregator-scenario-01.png)
+
 ## Architecture Diagram
 
 ![tenant aggregator Architecture diagram](../../docs/images/readme-diagrams/examples-tenant-aggregator-architecture-01.png)
+
+## Flow Diagram
+
+![Tenant aggregator flow diagram](../../docs/images/readme-diagrams/examples-tenant-aggregator-flow-01.png)
 
 ## Sequence Diagram
 

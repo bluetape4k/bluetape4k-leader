@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1660" height="820" viewBox="0 0 1660 820" role="img" aria-label="DynamoDB Export Architecture">
+  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: examples-dynamodb-export-architecture-01.dot, examples-dynamodb-export-architecture-01.plain, examples-dynamodb-export-architecture-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
+<defs>
+  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
+    <feDropShadow dx="0" dy="7" stdDeviation="8" flood-color="#1f2937" flood-opacity="0.10"/>
+  </filter>
+  <marker id="arrow-neutral" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#758297"/>
+  </marker>
+  <marker id="arrow-leader" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#43A76B"/>
+  </marker>
+  <marker id="arrow-skipped" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#EF5B7A"/>
+  </marker>
+  <marker id="arrow-contention" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#D99A2B"/>
+  </marker>
+  <marker id="arrow-reacquire" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#8B6EEB"/>
+  </marker>
+  <style>
+    .canvas{fill:#f7f9fc}
+    .frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
+    .layer{stroke:#dbe4ef;stroke-width:1.2}
+    .title{font-family:"Architects Daughter","Comic Mono",cursive;font-size:42px;font-weight:400;fill:#102033}
+    .subtitle{font-family:"Comic Mono",monospace;font-size:15px;font-weight:400;fill:#536273}
+    .label{font-family:"Architects Daughter","Comic Mono",cursive;font-size:21px;font-weight:400;fill:#102033}
+    .detail{font-family:"Comic Mono",monospace;font-size:12px;font-weight:400;fill:#334155}
+    .legendText{font-family:"Comic Mono",monospace;font-size:11px;font-weight:400;fill:#475569}
+    .strong{font-family:"Comic Mono",monospace;font-size:13px;font-weight:400;fill:#102033}
+    .card{stroke-width:2;filter:url(#shadow)}
+    .line{stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .dashed{stroke-width:2.2;stroke-dasharray:7 6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .lifeline{stroke:#b7c2d1;stroke-width:2;stroke-dasharray:10 10}
+  </style>
+</defs>
+<rect class="canvas" width="1660" height="820"/>
+<rect class="frame" x="32" y="28" width="1596" height="764" rx="28"/>
+<text class="title" x="66" y="82">DynamoDB Export Architecture</text>
+<text class="subtitle" x="70" y="118">Two nodes share a DynamoDB leader lock while the elected node writes one export record</text>
+<g aria-label="semantic route legend">
+  <line x1="1040" y1="116" x2="1068" y2="116" stroke="#43A76B" stroke-width="3" stroke-linecap="round"/>
+  <text class="legendText" x="1076" y="120">leader/success</text>
+  <line x1="1178" y1="116" x2="1206" y2="116" stroke="#EF5B7A" stroke-width="3" stroke-linecap="round"/>
+  <text class="legendText" x="1214" y="120">skip/failure</text>
+  <line x1="1316" y1="116" x2="1344" y2="116" stroke="#D99A2B" stroke-width="3" stroke-linecap="round"/>
+  <text class="legendText" x="1352" y="120">contention/release</text>
+  <line x1="1454" y1="116" x2="1482" y2="116" stroke="#8B6EEB" stroke-width="3" stroke-linecap="round"/>
+  <text class="legendText" x="1490" y="120">retry/next</text>
+</g>
+<g>
+  <rect class="layer" x="54" y="160" width="1552" height="142" rx="18" fill="#F8FAFC"/>
+  <text class="label" x="78" y="194">Runtime nodes</text>
+</g>
+<g>
+  <rect class="layer" x="54" y="350" width="1552" height="132" rx="18" fill="#FFFFFF"/>
+  <text class="label" x="78" y="384">Example runner</text>
+</g>
+<g>
+  <rect class="layer" x="54" y="540" width="1552" height="150" rx="18" fill="#F8FAFC"/>
+  <text class="label" x="78" y="574">DynamoDB tables</text>
+</g>
+<path class="line" d="M400 277 L400 325 L650 325 L650 370" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M800 277 L800 330 L680 330 L680 370" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#arrow-contention)"/>
+<path class="line" d="M845 440 L960 440" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
+<path class="line" d="M1125 462 L1125 515 L560 515 L560 570" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+<path class="line" d="M650 462 L650 510 L1020 510 L1020 570" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+<path class="line" d="M650 462 L650 525 L1430 525 L1430 570" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
+<path class="line" d="M1190 616 L1235 616 L1235 616 L1280 616" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
+<g id="nodeA">
+  <rect class="card" x="250" y="185" width="300" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
+<text class="label" x="400" y="216" text-anchor="middle" dominant-baseline="middle">Service node A</text>
+<text class="detail" x="400" y="235" text-anchor="middle" dominant-baseline="middle">billing trigger</text>
+<text class="detail" x="400" y="254" text-anchor="middle" dominant-baseline="middle">candidate</text>
+</g>
+<g id="nodeB">
+  <rect class="card" x="650" y="185" width="300" height="92" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
+<text class="label" x="800" y="216" text-anchor="middle" dominant-baseline="middle">Service node B</text>
+<text class="detail" x="800" y="235" text-anchor="middle" dominant-baseline="middle">same batchId</text>
+<text class="detail" x="800" y="254" text-anchor="middle" dominant-baseline="middle">contender</text>
+</g>
+<g id="runner">
+  <rect class="card" x="455" y="370" width="390" height="92" rx="14" fill="#EAF7EF" stroke="#58A978"/>
+<text class="label" x="650" y="401" text-anchor="middle" dominant-baseline="middle">Export runner</text>
+<text class="detail" x="650" y="420" text-anchor="middle" dominant-baseline="middle">runOnce(batchId)</text>
+<text class="detail" x="650" y="439" text-anchor="middle" dominant-baseline="middle">EXPORTED or SKIPPED</text>
+</g>
+<g id="elector">
+  <rect class="card" x="960" y="370" width="330" height="92" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
+<text class="label" x="1125" y="401" text-anchor="middle" dominant-baseline="middle">DynamoDB elector</text>
+<text class="detail" x="1125" y="420" text-anchor="middle" dominant-baseline="middle">conditional lock</text>
+<text class="detail" x="1125" y="439" text-anchor="middle" dominant-baseline="middle">logical lease</text>
+</g>
+<g id="lockTable">
+  <rect class="card" x="390" y="570" width="340" height="92" rx="14" fill="#F7F1E7" stroke="#B88A44"/>
+<text class="label" x="560" y="601" text-anchor="middle" dominant-baseline="middle">Leader lock table</text>
+<text class="detail" x="560" y="620" text-anchor="middle" dominant-baseline="middle">lockName</text>
+<text class="detail" x="560" y="639" text-anchor="middle" dominant-baseline="middle">leaseExpiry + ttl</text>
+</g>
+<g id="exportTable">
+  <rect class="card" x="850" y="570" width="340" height="92" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
+<text class="label" x="1020" y="601" text-anchor="middle" dominant-baseline="middle">Export table</text>
+<text class="detail" x="1020" y="620" text-anchor="middle" dominant-baseline="middle">exportId</text>
+<text class="detail" x="1020" y="639" text-anchor="middle" dominant-baseline="middle">batchId + nodeId</text>
+</g>
+<g id="report">
+  <rect class="card" x="1280" y="570" width="300" height="92" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
+<text class="label" x="1430" y="601" text-anchor="middle" dominant-baseline="middle">Export report</text>
+<text class="detail" x="1430" y="620" text-anchor="middle" dominant-baseline="middle">status</text>
+<text class="detail" x="1430" y="639" text-anchor="middle" dominant-baseline="middle">exportId or null</text>
+</g>
+</svg>
