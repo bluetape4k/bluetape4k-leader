@@ -63,13 +63,14 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: wrapper
-      - name: Warm examples-ktor-app test SNAPSHOT dependencies
+      - name: Warm example test SNAPSHOT dependencies
         run: |
-          for attempt in 1 2 3 4 5; do
-            ./gradlew :examples:ktor-app:compileTestKotlin --no-configuration-cache --no-daemon && break
-            echo "Attempt $attempt failed"
-            [ $attempt -lt 5 ] && sleep 30 || exit 1
-          done
+          .github/scripts/retry-snapshot-warmup.sh \
+            :examples:ktor-app:compileTestKotlin \
+            :examples:migration-gate:compileTestKotlin \
+            :examples:tenant-aggregator:compileTestKotlin \
+            --no-configuration-cache \
+            --no-daemon
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
 

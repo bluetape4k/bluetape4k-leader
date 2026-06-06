@@ -276,7 +276,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['leader-ktor'] == 'true' || needs.changes.outputs['examples-ktor-app'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-ktor'] == 'true' || needs.changes.outputs['leader-exposed'] == 'true' || needs.changes.outputs['examples-ktor-app'] == 'true' || needs.changes.outputs['examples-migration-gate'] == 'true' || needs.changes.outputs['examples-tenant-aggregator'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v6
 
@@ -290,13 +290,18 @@ jobs:
           gradle-version: wrapper
           cache-read-only: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
 
-      - name: Warm Ktor test SNAPSHOT dependencies
+      - name: Warm test SNAPSHOT dependencies
         run: |
-          for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-ktor:compileTestKotlin :examples:ktor-app:compileTestKotlin --no-configuration-cache --no-daemon && break
-            echo "Attempt $attempt failed"
-            [ $attempt -lt 5 ] && sleep 30 || exit 1
-          done
+          .github/scripts/retry-snapshot-warmup.sh \
+            :bluetape4k-leader-ktor:compileTestKotlin \
+            :bluetape4k-leader-exposed-core:compileTestKotlin \
+            :bluetape4k-leader-exposed-jdbc:compileTestKotlin \
+            :bluetape4k-leader-exposed-r2dbc:compileTestKotlin \
+            :examples:ktor-app:compileTestKotlin \
+            :examples:migration-gate:compileTestKotlin \
+            :examples:tenant-aggregator:compileTestKotlin \
+            --no-configuration-cache \
+            --no-daemon
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
 
@@ -507,7 +512,7 @@ jobs:
     name: Test / leader-exposed-jdbc (H2)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, changes]
+    needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v6
@@ -559,7 +564,7 @@ jobs:
     name: Test / leader-exposed-jdbc (PostgreSQL)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, changes]
+    needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v6
@@ -613,7 +618,7 @@ jobs:
     name: Test / leader-exposed-jdbc (MySQL 8)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, changes]
+    needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v6
@@ -668,7 +673,7 @@ jobs:
     name: Test / leader-exposed-r2dbc (H2)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, changes]
+    needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v6
@@ -714,7 +719,7 @@ jobs:
     name: Test / leader-exposed-r2dbc (PostgreSQL)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, changes]
+    needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v6
@@ -762,7 +767,7 @@ jobs:
     name: Test / leader-exposed-r2dbc (MySQL 8)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, changes]
+    needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v6
@@ -810,7 +815,7 @@ jobs:
     name: Test / examples-migration-gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, changes]
+    needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['examples-migration-gate'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v6
@@ -918,7 +923,7 @@ jobs:
     name: Test / examples-tenant-aggregator
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, changes]
+    needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['examples-tenant-aggregator'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v6
