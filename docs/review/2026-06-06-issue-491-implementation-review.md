@@ -13,6 +13,8 @@
 - Completed the DynamoDB export example diagram set with Architecture, Scenario, Flow, and Sequence diagrams.
 - Preserved existing ZooKeeper Scheduler diagram sections and assets.
 - Updated English and Korean example README files with PNG-only diagram embeds.
+- Relaxed the Gradle changing-module cache TTL from zero seconds to one day.
+- Removed forced dependency refresh from PR CI Gradle invocations while leaving Nightly refresh checks intact.
 
 ## DoD Evidence
 
@@ -26,9 +28,12 @@
 | README embeds | Changed README files embed PNG only and all image links resolve. | README image-link check reported `readmes=36 pngEmbeds=136 svgEmbeds=0 missing=0`; `rg -n -F '.svg)' examples -g 'README*.md'` returned no matches. | PASS |
 | XML validity | SVG assets parse as XML. | `find docs/images/readme-diagrams -maxdepth 1 -name '*.svg' -print0 \| xargs -0 xmllint --noout` completed with exit code 0. | PASS |
 | Visual QA | Rendered PNGs are inspected at readable README scale. | Contact sheet: `.omx/artifacts/issue-491-example-scenario-flow-contact-sheet.png`; individual PNG inspection: `examples-batch-scheduler-scenario-01.png`, `examples-k8s-lease-scenario-01.png`, DynamoDB Architecture/Flow/Sequence from the earlier pass. | PASS |
+| PR CI snapshot stability | Regular PR CI does not force SNAPSHOT metadata refresh on every Gradle invocation. | `rg -n -- '--refresh-dependencies' .github/workflows/ci.yml` returned no matches; `build.gradle.kts` uses `cacheChangingModulesFor(1, TimeUnit.DAYS)`. | PASS |
+| Workflow lint | CI workflow syntax is valid after removing forced refresh flags. | `actionlint .github/workflows/ci.yml` completed with exit code 0. | PASS |
+| Gradle configuration | Root Gradle configuration still evaluates after changing the changing-module TTL. | `./gradlew help --no-daemon` completed successfully. | PASS |
 | Diff hygiene | No whitespace or patch marker problems. | `git diff --check` completed with exit code 0. | PASS |
 
 ## Residual Risk
 
-- Gradle tests were not run because the change is documentation and generated diagram assets only.
+- Full Gradle tests were not rerun locally; GitHub PR CI is the validation gate for the workflow and example matrix.
 - Scenario diagrams use a shared scenario layout generated from each example's flow model; future example-specific scenario differences should be added through `scripts/generate-example-flow-diagrams.mjs` rather than hand-editing rendered SVG/PNG files.
