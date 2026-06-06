@@ -49,4 +49,14 @@ class LeaderHistoryRetentionAutoConfigurationTest {
                 ctx.getBeanNamesForType(LeaderHistoryRetentionJob::class.java).size shouldBeEqualTo 0
             }
     }
+
+    @Test
+    fun `blocking retention job bean is created with matching elector and sink`() {
+        aopRunner
+            .withBean(LeaderHistorySink::class.java, { NoopLeaderHistorySink })
+            .run { ctx ->
+                ctx.getBeanNamesForType(LeaderHistoryRetentionJob::class.java).size shouldBeEqualTo 1
+                ctx.getBeanNamesForType(SuspendLeaderHistoryRetentionJob::class.java).size shouldBeEqualTo 0
+            }
+    }
 }

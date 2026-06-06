@@ -4,10 +4,16 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderState
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.getBean
@@ -88,6 +94,25 @@ class LeaderElectionObservabilityAutoConfigurationTest {
                 response.locks[0].leaderId shouldBeEqualTo "node-1"
                 response.locks[0].leaseExpiry shouldBeEqualTo TestLeaderElector.LeaseUntil
             }
+    }
+
+    @Test
+    fun `observed event publisher emits events and registers observed lock names`() = runTest {
+        val registry = LeaderElectionStatusRegistry()
+        val publisher = LeaderElectionObservedEventPublisher(registry)
+        val events = async { publisher.events.take(3).toList() }
+        runCurrent()
+
+        publisher.onElected("job-a")
+        publisher.onSkipped("job-b")
+        publisher.onRevoked("job-a")
+
+        events.await() shouldBeEqualTo listOf(
+            LeaderElectionEvent.Elected("job-a"),
+            LeaderElectionEvent.Skipped("job-b"),
+            LeaderElectionEvent.Revoked("job-a"),
+        )
+        registry.snapshot() shouldBeEqualTo listOf("job-a", "job-b")
     }
 
     @Configuration(proxyBeanMethods = false)
