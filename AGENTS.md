@@ -1,5 +1,10 @@
 # AGENTS.md - bluetape4k-leader
 
+This repository inherits the workspace guidance from `../AGENTS.md`.
+Read and follow the workspace root guide first. This file only adds
+repo-specific layout, commands, domain rules, and local exceptions.
+
+
 Distributed leader election library with blocking, async, coroutine, and
 virtual-thread APIs. Backends include Redis/Lettuce, Redis/Redisson, Exposed,
 MongoDB, DynamoDB, etcd, Consul, Kubernetes, Hazelcast, and ZooKeeper. Ktor 3.x
@@ -178,14 +183,15 @@ delegate each phase to Codex with retry-3 to absorb transient failures:
 Trivial documentation-only or single-file fixes can skip Spec/Plan but should
 still run the Code Review pass before merging.
 
-## Cross-Repo Lesson Guards
+## Repo-Specific Guards
 
-- Before issue, PR, workflow, release, or module-registration work, query GNO
-  for this repo in both `bluetape4k-github` and `bluetape4k-docs`.
-- For leader modules and examples, keep `settings.gradle.kts`, README locale
-  sets, repo-local module lists, CI path filters/jobs, Nightly or examples
-  workflow coverage, aggregator `needs`, coverage artifacts, and BOM constraints
-  synchronized.
 - For distributed-lock or leader-election changes, verify sync, async, suspend,
-  and virtual-thread paths for delegate/watchdog parity. Run Redis and other
-  Testcontainers-backed checks sequentially.
+  and virtual-thread paths for delegate/watchdog parity.
+- For exception tests, use `io.bluetape4k.assertions.assertFailsWith`; do not
+  introduce JUnit `assertThrows`, `kotlin.test.assertFailsWith`, or
+  `invoking { } shouldThrow` in new tests.
+- Example module builds are covered by `.github/workflows/examples.yml`. Keep
+  examples out of Nightly unless their backend coverage becomes part of
+  Nightly's explicit contract.
+- When `.github/workflows/nightly-tests.yml` is changed, explicitly dispatch
+  Nightly before DoD and record the run URL/result.
