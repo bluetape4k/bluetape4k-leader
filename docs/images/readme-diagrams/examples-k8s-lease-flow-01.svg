@@ -1,113 +1,105 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1580" height="820" viewBox="0 0 1580 820" role="img" aria-label="K8s Lease Flow">
-  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: examples-k8s-lease-flow-01.dot, examples-k8s-lease-flow-01.plain, examples-k8s-lease-flow-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
-<defs>
-  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
-    <feDropShadow dx="0" dy="7" stdDeviation="8" flood-color="#1f2937" flood-opacity="0.10"/>
-  </filter>
-  <marker id="arrow-neutral" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
-    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#758297"/>
-  </marker>
-  <marker id="arrow-leader" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
-    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#43A76B"/>
-  </marker>
-  <marker id="arrow-skipped" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
-    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#EF5B7A"/>
-  </marker>
-  <marker id="arrow-contention" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
-    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#D99A2B"/>
-  </marker>
-  <marker id="arrow-reacquire" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
-    <path d="M 1 1 L 7 4 L 1 7 Z" fill="#8B6EEB"/>
-  </marker>
-  <style>
-    .canvas{fill:#f7f9fc}
-    .frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
-    .layer{stroke:#dbe4ef;stroke-width:1.2}
-    .title{font-family:"Architects Daughter","Comic Mono",cursive;font-size:42px;font-weight:400;fill:#102033}
-    .subtitle{font-family:"Comic Mono",monospace;font-size:15px;font-weight:400;fill:#536273}
-    .label{font-family:"Architects Daughter","Comic Mono",cursive;font-size:21px;font-weight:400;fill:#102033}
-    .detail{font-family:"Comic Mono",monospace;font-size:12px;font-weight:400;fill:#334155}
-    .legendText{font-family:"Comic Mono",monospace;font-size:11px;font-weight:400;fill:#475569}
-    .strong{font-family:"Comic Mono",monospace;font-size:13px;font-weight:400;fill:#102033}
-    .card{stroke-width:2;filter:url(#shadow)}
-    .line{stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
-    .dashed{stroke-width:2.2;stroke-dasharray:7 6;fill:none;stroke-linecap:round;stroke-linejoin:round}
-    .lifeline{stroke:#b7c2d1;stroke-width:2;stroke-dasharray:10 10}
-  </style>
-</defs>
-<rect class="canvas" width="1580" height="820"/>
-<rect class="frame" x="32" y="28" width="1516" height="764" rx="28"/>
-<text class="title" x="66" y="82">K8s Lease Flow</text>
-<text class="subtitle" x="70" y="118">Lease create, conflict, release, and reacquire are explicit outcomes</text>
-<g aria-label="semantic route legend">
-  <line x1="960" y1="116" x2="988" y2="116" stroke="#43A76B" stroke-width="3" stroke-linecap="round"/>
-  <text class="legendText" x="996" y="120">leader/success</text>
-  <line x1="1098" y1="116" x2="1126" y2="116" stroke="#EF5B7A" stroke-width="3" stroke-linecap="round"/>
-  <text class="legendText" x="1134" y="120">skip/failure</text>
-  <line x1="1236" y1="116" x2="1264" y2="116" stroke="#D99A2B" stroke-width="3" stroke-linecap="round"/>
-  <text class="legendText" x="1272" y="120">contention/release</text>
-  <line x1="1374" y1="116" x2="1402" y2="116" stroke="#8B6EEB" stroke-width="3" stroke-linecap="round"/>
-  <text class="legendText" x="1410" y="120">retry/next</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1776" height="1052" viewBox="0 0 1776 1052" role="img" aria-labelledby="title desc" data-intent="Answer the K8s Lease README reader's operational-flow question: what happens after the lease attempt, where does K8sLeaseExample validate or prepare the request, how does KubernetesLeaseLeaderElector interact with Lease resource, what is the success path for holder operation, and what terminal result appears when the node is not leader?" data-evidence="examples/k8s-lease README scenario/usage sections; examples/k8s-lease/src/main workflow code; examples/k8s-lease/src/test behavior checks when present" data-source-read="examples/k8s-lease/README.md; examples/k8s-lease/README.ko.md; examples/k8s-lease/src/main; examples/k8s-lease/src/test">
+  <title id="title">K8s Lease Leader Decision Flow</title>
+  <desc id="desc">Flow diagram for the K8s Lease example showing validation, leadership decision, leader-only work, skip terminal state, release, and recovery path.</desc>
+  <defs>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
+    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
+    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
+    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
+    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
+    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
+    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
+    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
+    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
+    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
+    <style>
+      .canvas{fill:#F7FAFC}
+      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
+      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
+      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
+      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
+      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
+      .card{filter:url(#shadow);stroke-width:2}
+      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
+      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
+      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
+      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
+      .seq{fill:none;stroke-width:3;stroke-linecap:round}
+      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
+      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
+      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
+      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
+    </style>
+  </defs>
+  <rect class="canvas" width="1776" height="1052"/>
+  <rect class="frame" x="32" y="28" width="1712" height="996" rx="28"/>
+  <text class="title" x="66" y="82">K8s Lease Leader Decision Flow</text>
+  <text class="subtitle" x="70" y="116">The example validates inputs, attempts leadership, runs holder operation only on success, and returns a visible skip otherwise.</text>
+<g>
+  <rect class="band" x="128" y="228" width="1500" height="205" rx="18"/>
+  <text class="bandTitle" x="154" y="262">Input and ownership attempt</text>
 </g>
 <g>
-  <rect class="layer" x="54" y="160" width="1472" height="150" rx="18" fill="#F8FAFC"/>
-  <text class="label" x="78" y="194">Input and election</text>
+  <rect class="band" x="128" y="468" width="1500" height="190" rx="18"/>
+  <text class="bandTitle" x="154" y="502">Branch-specific work</text>
 </g>
 <g>
-  <rect class="layer" x="54" y="370" width="1472" height="150" rx="18" fill="#FFFFFF"/>
-  <text class="label" x="78" y="404">Outcome branches</text>
+  <rect class="band" x="128" y="738" width="1500" height="190" rx="18"/>
+  <text class="bandTitle" x="154" y="772">Terminal result</text>
 </g>
-<g>
-  <rect class="layer" x="54" y="590" width="1472" height="150" rx="18" fill="#F8FAFC"/>
-  <text class="label" x="78" y="624">Result and next cycle</text>
+<path class="route" data-from="start" data-to="validate" data-route-tone="call" d="M468 339 L533 339" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
+<path class="route" data-from="validate" data-to="attempt" data-route-tone="dependency" d="M848 339 L913 339" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+<path class="route" data-from="attempt" data-to="decision" data-route-tone="contention" d="M1243 339 L1303 339" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
+<path class="route" data-from="decision" data-to="execute" data-route-tone="success" d="M1443 380 L1443 438 L1113 438 L1113 538" stroke="#3E9868" marker-end="url(#arrow-success)"/>
+<path class="route" data-from="execute" data-to="release" data-route-tone="release" d="M943 582 L891 582 L891 582 L838 582" stroke="#755BC6" marker-end="url(#arrow-release)"/>
+<path class="route" data-from="release" data-to="executed" data-route-tone="success" d="M668 626 L668 708 L698 708 L698 844 L673 844" stroke="#3E9868" marker-end="url(#arrow-success)"/>
+<path class="route" data-from="decision" data-to="skipped" data-route-tone="skip" d="M1583 339 L1648 339 L1648 844 L1403 844" stroke="#C94D68" marker-end="url(#arrow-skip)"/>
+<g id="node-start">
+  <rect class="card" x="188" y="298" width="280" height="82" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="cardTitle" x="328" y="321" text-anchor="middle" dominant-baseline="middle">Lease Attempt</text>
+  <text class="detail" x="328" y="340" text-anchor="middle" dominant-baseline="middle">build request</text>
+  <text class="detail" x="328" y="359" text-anchor="middle" dominant-baseline="middle">same lock name</text>
 </g>
-<path class="line" d="M410 236 L440 236 L440 236 L470 236" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
-<path class="line" d="M770 236 L800 236 L800 236 L830 236" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#arrow-neutral)"/>
-<path class="line" d="M980 282 L980 335 L555 335 L555 400" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
-<path class="line" d="M1130 236 L1205 236 L1205 352 L1205 400" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
-<path class="line" d="M555 492 L555 620" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#arrow-leader)"/>
-<path class="line" d="M1205 492 L1205 620" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#arrow-skipped)"/>
-<path class="line" d="M720 666 L865 666 L865 710 L1040 710" data-route-tone="reacquire" style="stroke:#8B6EEB;marker-end:url(#arrow-reacquire)"/>
-<g id="trigger">
-  <rect class="card" x="110" y="190" width="300" height="92" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
-<text class="label" x="260" y="221" text-anchor="middle" dominant-baseline="middle">tryAcquire()</text>
-<text class="detail" x="260" y="240" text-anchor="middle" dominant-baseline="middle">leaseName</text>
-<text class="detail" x="260" y="259" text-anchor="middle" dominant-baseline="middle">holderIdentity</text>
+<g id="node-validate">
+  <rect class="card" x="533" y="298" width="315" height="82" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="cardTitle" x="690.5" y="321" text-anchor="middle" dominant-baseline="middle">Validate Example Inputs</text>
+  <text class="detail" x="690.5" y="340" text-anchor="middle" dominant-baseline="middle">node id / lock name</text>
+  <text class="detail" x="690.5" y="359" text-anchor="middle" dominant-baseline="middle">backend options</text>
 </g>
-<g id="election">
-  <rect class="card" x="470" y="190" width="300" height="92" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
-<text class="label" x="620" y="221" text-anchor="middle" dominant-baseline="middle">Read Lease</text>
-<text class="detail" x="620" y="240" text-anchor="middle" dominant-baseline="middle">get/create/update</text>
-<text class="detail" x="620" y="259" text-anchor="middle" dominant-baseline="middle">duration check</text>
+<g id="node-attempt">
+  <rect class="card" x="913" y="298" width="330" height="82" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="cardTitle" x="1078" y="321" text-anchor="middle" dominant-baseline="middle">KubernetesLeaseLeaderElector</text>
+  <text class="detail" x="1078" y="340" text-anchor="middle" dominant-baseline="middle">attempt ownership</text>
+  <text class="detail" x="1078" y="359" text-anchor="middle" dominant-baseline="middle">bounded wait</text>
 </g>
-<g id="branch">
-  <rect class="card" x="830" y="190" width="300" height="92" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
-<text class="label" x="980" y="221" text-anchor="middle" dominant-baseline="middle">Can acquire?</text>
-<text class="detail" x="980" y="240" text-anchor="middle" dominant-baseline="middle">absent, expired</text>
-<text class="detail" x="980" y="259" text-anchor="middle" dominant-baseline="middle">or same holder</text>
+<g id="node-decision">
+  <rect class="card" x="1303" y="298" width="280" height="82" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="cardTitle" x="1443" y="321" text-anchor="middle" dominant-baseline="middle">Leadership Result</text>
+  <text class="detail" x="1443" y="340" text-anchor="middle" dominant-baseline="middle">acquired?</text>
+  <text class="detail" x="1443" y="359" text-anchor="middle" dominant-baseline="middle">skip when false</text>
 </g>
-<g id="leader">
-  <rect class="card" x="390" y="400" width="330" height="92" rx="14" fill="#EAF7EF" stroke="#58A978"/>
-<text class="label" x="555" y="431" text-anchor="middle" dominant-baseline="middle">Create or renew</text>
-<text class="detail" x="555" y="450" text-anchor="middle" dominant-baseline="middle">holderIdentity</text>
-<text class="detail" x="555" y="469" text-anchor="middle" dominant-baseline="middle">renewTime</text>
+<g id="node-release">
+  <rect class="card" x="498" y="538" width="340" height="88" rx="10" fill="#EEF1FF" stroke="#6477D8"/>
+  <text class="cardTitle" x="668" y="564" text-anchor="middle" dominant-baseline="middle">Release Or Extend</text>
+  <text class="detail" x="668" y="583" text-anchor="middle" dominant-baseline="middle">finally path</text>
+  <text class="detail" x="668" y="602" text-anchor="middle" dominant-baseline="middle">renewTime takeover</text>
 </g>
-<g id="skip">
-  <rect class="card" x="1040" y="400" width="330" height="92" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
-<text class="label" x="1205" y="431" text-anchor="middle" dominant-baseline="middle">Return CONFLICT</text>
-<text class="detail" x="1205" y="450" text-anchor="middle" dominant-baseline="middle">valid holder</text>
-<text class="detail" x="1205" y="469" text-anchor="middle" dominant-baseline="middle">different node</text>
+<g id="node-execute">
+  <rect class="card" x="943" y="538" width="340" height="88" rx="10" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="cardTitle" x="1113" y="564" text-anchor="middle" dominant-baseline="middle">Holder Operation</text>
+  <text class="detail" x="1113" y="583" text-anchor="middle" dominant-baseline="middle">leader branch</text>
+  <text class="detail" x="1113" y="602" text-anchor="middle" dominant-baseline="middle">body runs once</text>
 </g>
-<g id="result">
-  <rect class="card" x="390" y="620" width="330" height="92" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
-<text class="label" x="555" y="651" text-anchor="middle" dominant-baseline="middle">Release if owner</text>
-<text class="detail" x="555" y="670" text-anchor="middle" dominant-baseline="middle">clear holder</text>
-<text class="detail" x="555" y="689" text-anchor="middle" dominant-baseline="middle">update Lease</text>
+<g id="node-executed">
+  <rect class="card" x="353" y="803" width="320" height="82" rx="10" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="cardTitle" x="513" y="826" text-anchor="middle" dominant-baseline="middle">Return Executed</text>
+  <text class="detail" x="513" y="845" text-anchor="middle" dominant-baseline="middle">result payload</text>
+  <text class="detail" x="513" y="864" text-anchor="middle" dominant-baseline="middle">observable success</text>
 </g>
-<g id="next">
-  <rect class="card" x="1040" y="620" width="330" height="92" rx="14" fill="#F7F1E7" stroke="#B88A44"/>
-<text class="label" x="1205" y="651" text-anchor="middle" dominant-baseline="middle">Reacquire</text>
-<text class="detail" x="1205" y="670" text-anchor="middle" dominant-baseline="middle">new holder</text>
-<text class="detail" x="1205" y="689" text-anchor="middle" dominant-baseline="middle">transition count</text>
+<g id="node-skipped">
+  <rect class="card" x="1063" y="803" width="340" height="82" rx="10" fill="#FDECEF" stroke="#DC6B82"/>
+  <text class="cardTitle" x="1233" y="826" text-anchor="middle" dominant-baseline="middle">Return Skipped</text>
+  <text class="detail" x="1233" y="845" text-anchor="middle" dominant-baseline="middle">null or skipped status</text>
+  <text class="detail" x="1233" y="864" text-anchor="middle" dominant-baseline="middle">no duplicate work</text>
 </g>
 </svg>

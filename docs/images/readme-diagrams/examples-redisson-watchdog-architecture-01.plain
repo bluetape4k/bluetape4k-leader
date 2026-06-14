@@ -1,44 +1,18 @@
-graph 1 17.914 5.7869
-node n0 1.595 4.8067 3.19 1.28 "Worker node A" rounded,filled box #5B8DEF #ffffff
-node n1 1.595 2.4456 3.19 1.28 "Worker node B" rounded,filled box #58A978 #ffffff
-node n2 6.5256 3.6261 4.17 1.28 "Watchdog job runner" rounded,filled box #D6A441 #ffffff
-node n3 11.387 3.6261 4.17 1.28 RedissonLeaderElector rounded,filled box #DC6B82 #ffffff
-node n4 16.039 4.8067 3.75 1.28 "Redis lock storage" rounded,filled box #45A7A1 #ffffff
-node n5 16.039 2.4456 3.75 1.28 "Lease extender" rounded,filled box #8A72D6 #ffffff
-node n6 11.387 0.64 4.17 1.28 "Long-running work" rounded,filled box #B88A44 #ffffff
-node r1p1 3.8172 4.8067 0.03 0.03 "" invis point black lightgrey
-node r1p2 3.8172 3.6261 0.03 0.03 "" invis point black lightgrey
-node r2p1 3.8172 2.4456 0.03 0.03 "" invis point black lightgrey
-node r2p2 3.8172 3.6261 0.03 0.03 "" invis point black lightgrey
-node r3p1 8.9561 3.6261 0.03 0.03 "" invis point black lightgrey
-node r3p2 8.9561 3.6261 0.03 0.03 "" invis point black lightgrey
-node r4p1 13.817 3.6261 0.03 0.03 "" invis point black lightgrey
-node r4p2 13.817 4.8067 0.03 0.03 "" invis point black lightgrey
-node r5p1 13.817 3.6261 0.03 0.03 "" invis point black lightgrey
-node r5p2 13.817 2.4456 0.03 0.03 "" invis point black lightgrey
-node r6p1 8.9561 3.6261 0.03 0.03 "" invis point black lightgrey
-node r6p2 8.9561 0.64 0.03 0.03 "" invis point black lightgrey
-node r7p1 16.039 3.6261 0.03 0.03 "" invis point black lightgrey
-node r7p2 16.039 3.6261 0.03 0.03 "" invis point black lightgrey
-edge n0 r1p1 4 3.1923 4.8067 3.4904 4.8067 3.7303 4.8067 3.7981 4.8067 solid #758297
-edge n1 r2p1 4 3.1923 2.4456 3.4904 2.4456 3.7303 2.4456 3.7981 2.4456 solid #758297
-edge n2 r3p1 4 8.613 3.6261 8.775 3.6261 8.8933 3.6261 8.9373 3.6261 solid #758297
-edge n2 r6p1 4 8.613 3.6261 8.775 3.6261 8.8933 3.6261 8.9373 3.6261 solid #758297
-edge n3 r4p1 4 13.474 3.6261 13.636 3.6261 13.754 3.6261 13.798 3.6261 solid #758297
-edge n3 r5p1 4 13.474 3.6261 13.636 3.6261 13.754 3.6261 13.798 3.6261 solid #758297
-edge n5 r7p1 4 16.039 3.0911 16.039 3.3193 16.039 3.5365 16.039 3.6044 solid #758297
-edge r1p1 r1p2 4 3.8172 4.7862 3.8172 4.6429 3.8172 3.7923 3.8172 3.6472 solid #758297
-edge r1p2 n2 4 3.8345 3.6261 3.8876 3.6261 4.0589 3.6261 4.2911 3.6261 solid #758297
-edge r2p1 r2p2 4 3.8172 2.466 3.8172 2.6093 3.8172 3.4599 3.8172 3.6051 solid #758297
-edge r2p2 n2 4 3.8345 3.6261 3.8876 3.6261 4.0589 3.6261 4.2911 3.6261 solid #758297
-edge r3p1 r3p2 4 8.9561 3.6261 8.9561 3.6261 8.9561 3.6261 8.9561 3.6261 solid #758297
-edge r3p2 n3 4 8.9771 3.6261 9.007 3.6261 9.0673 3.6261 9.1501 3.6261 solid #758297
-edge r4p1 r4p2 4 13.817 3.6466 13.817 3.7899 13.817 4.6405 13.817 4.7856 solid #758297
-edge r4p2 n4 4 13.836 4.8067 13.866 4.8067 13.93 4.8067 14.017 4.8067 solid #758297
-edge r5p1 r5p2 4 13.817 3.6056 13.817 3.4623 13.817 2.6117 13.817 2.4666 solid #758297
-edge r5p2 n5 4 13.836 2.4456 13.866 2.4456 13.93 2.4456 14.017 2.4456 solid #758297
-edge r6p1 r6p2 4 8.9561 3.607 8.9561 3.3646 8.9561 0.88892 8.9561 0.65735 solid #758297
-edge r6p2 n6 4 8.9771 0.64 9.007 0.64 9.0673 0.64 9.1501 0.64 solid #758297
-edge r7p1 r7p2 4 16.039 3.6261 16.039 3.6261 16.039 3.6261 16.039 3.6261 solid #758297
-edge r7p2 n4 4 16.039 3.6466 16.039 3.6987 16.039 3.8446 16.039 4.016 solid #758297
+graph 1 19.094 1.7778
+node trigger 0.94444 0.81944 1.8889 0.5 "Long Job Trigger" rounded,filled box #94A3B8 #F8FAFC
+node nodeA 4.0417 1.4028 1.8889 0.5 "Candidate Node A" rounded,filled box #94A3B8 #F8FAFC
+node nodeB 4.0417 0.25 1.8889 0.5 "Candidate Node B" rounded,filled box #94A3B8 #F8FAFC
+node coordinator 7.191 0.81944 1.9931 0.5 WatchdogJobRunner rounded,filled box #94A3B8 #F8FAFC
+node backend 14.677 1.5278 1.5764 0.5 "RLock storage" rounded,filled box #94A3B8 #F8FAFC
+node elector 11.038 1.5278 2.4097 0.5 RedissonLeaderElector rounded,filled box #94A3B8 #F8FAFC
+node recovery 17.993 1.5278 2.2014 0.5 "Auto-Extension Stop" rounded,filled box #94A3B8 #F8FAFC
+node work 11.038 0.375 1.9931 0.5 "Long-Running Body" rounded,filled box #94A3B8 #F8FAFC
+edge trigger nodeA 7 0.94097 1.0702 0.94097 1.2283 0.94097 1.4028 0.94097 1.4028 0.94097 1.4028 2.9304 1.4028 2.9304 1.4028 call 2.4931 1.4167 solid #758297
+edge trigger nodeB 7 0.94097 0.56802 0.94097 0.41547 0.94097 0.25 0.94097 0.25 0.94097 0.25 2.9304 0.25 2.9304 0.25 call 2.4931 0.45833 solid #758297
+edge nodeA coordinator 7 4.9908 1.2153 5.9181 1.2153 7.191 1.2153 7.191 1.2153 7.191 1.2153 7.191 1.201 7.191 1.201 call 5.5903 1.4167 solid #758297
+edge nodeB coordinator 7 4.9908 0.3125 5.9181 0.3125 7.191 0.3125 7.191 0.3125 7.191 0.3125 7.191 0.40606 7.191 0.40606 call 5.5903 0.45833 solid #758297
+edge coordinator elector 7 8.1916 0.9213 8.9779 0.9213 9.941 0.9213 9.941 0.9213 9.941 0.9213 9.941 1.1142 9.941 1.1142 dependency 9.0104 1.4722 solid #758297
+edge coordinator work 7 8.1917 0.77315 9.3317 0.77315 11.038 0.77315 11.038 0.77315 11.038 0.77315 11.038 0.75877 11.038 0.75877 success 9.0104 0.45833 solid #758297
+edge backend recovery 4 15.471 1.5278 15.471 1.5278 16.726 1.5278 16.726 1.5278 release 16.179 1.6111 solid #758297
+edge elector backend 4 12.25 1.5278 12.25 1.5278 13.723 1.5278 13.723 1.5278 contention 13.066 1.6111 solid #758297
 stop

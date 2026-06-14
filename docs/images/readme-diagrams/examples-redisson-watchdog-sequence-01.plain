@@ -1,16 +1,18 @@
-graph 1 18.337 1.6736
-node n0 1.46 0.5 2.92 1 "Node A" rounded,filled box #5B8DEF #ffffff
-node n1 5.3142 0.5 2.92 1 Runner rounded,filled box #58A978 #ffffff
-node n2 9.1683 0.5 2.92 1 Redisson rounded,filled box #D6A441 #ffffff
-node n3 13.022 0.5 2.92 1 "Redis lock" rounded,filled box #DC6B82 #ffffff
-node n4 16.877 0.5 2.92 1 "Node B" rounded,filled box #45A7A1 #ffffff
-edge n0 n1 4 2.9226 0.33333 2.9226 0.33333 3.7036 0.33333 3.7036 0.33333 solid #758297
-edge n1 n0 4 3.8516 0.66667 3.8516 0.66667 3.0705 0.66667 3.0705 0.66667 dashed #758297
-edge n1 n2 4 6.7768 0.80556 6.7768 0.80556 7.5578 0.80556 7.5578 0.80556 solid #758297
-edge n1 n2 4 6.7768 0.59722 6.7768 0.59722 7.5578 0.59722 7.5578 0.59722 solid #758297
-edge n1 n2 4 6.7768 0.40278 6.7768 0.40278 7.5578 0.40278 7.5578 0.40278 solid #758297
-edge n1 n4 10 5.8008 1.004 5.8008 1.1795 5.8008 1.3333 5.8008 1.3333 5.8008 1.3333 17.363 1.3333 17.363 1.3333 17.363 1.3333 17.363 1.1529 17.363 1.1529 dashed #758297
-edge n2 n1 4 7.7057 0.19444 7.7057 0.19444 6.9247 0.19444 6.9247 0.19444 dashed #758297
-edge n2 n3 4 10.631 0.5 10.631 0.5 11.412 0.5 11.412 0.5 solid #758297
-edge n4 n1 10 16.39 1.0053 16.39 1.0983 16.39 1.1667 16.39 1.1667 16.39 1.1667 4.8275 1.1667 4.8275 1.1667 4.8275 1.1667 4.8275 1.1505 4.8275 1.1505 solid #758297
+graph 1 18.326 6.875
+node trigger 0.94444 0.55556 1.8889 0.5 "Long Job Trigger" rounded,filled box #94A3B8 #F8FAFC
+node coord 5.4062 1.8333 1.9931 0.5 WatchdogJobRunner rounded,filled box #94A3B8 #F8FAFC
+node elector 11.295 3.4444 2.4097 0.5 RedissonLeaderElector rounded,filled box #94A3B8 #F8FAFC
+node backend 17.33 5.3056 1.5764 0.5 "RLock storage" rounded,filled box #94A3B8 #F8FAFC
+node work 17.33 2.5278 1.9931 0.5 "Long-Running Body" rounded,filled box #94A3B8 #F8FAFC
+node peer 17.33 0.56944 1.4722 0.5 "Skipped Peer" rounded,filled box #94A3B8 #F8FAFC
+edge trigger coord 7 0.9375 0.808 0.9375 1.1804 0.9375 1.8333 0.9375 1.8333 0.9375 1.8333 4.2851 1.8333 4.2851 1.8333 "start long job trigger" 3.1493 1.2917 solid #4F83BF
+edge coord elector 7 5.4097 2.0886 5.4097 2.5429 5.4097 3.4444 5.4097 3.4444 5.4097 3.4444 9.9681 3.4444 9.9681 3.4444 "runIfLeader with source options" 8.2465 2.9861 solid #4F83BF
+edge elector backend 7 12.501 3.623 14.136 3.623 16.854 3.623 16.854 3.623 16.854 3.623 16.854 4.9318 16.854 4.9318 "attempt backend ownership" 14.417 6.7917 solid #B9851B
+edge elector backend 7 12.506 3.5516 14.227 3.5516 17.174 3.5516 17.174 3.5516 17.174 3.5516 17.174 4.9323 17.174 4.9323 "release or renew for auto-extension stop" 14.417 5.8611 solid #755BC6
+edge elector work 7 12.504 3.2659 14.012 3.2659 16.396 3.2659 16.396 3.2659 16.396 3.2659 16.396 2.9 16.396 2.9 "execute long-running body" 14.417 3.0694 solid #3E9868
+edge elector peer 7 11.299 3.1909 11.299 2.5015 11.299 0.64352 11.299 0.64352 11.299 0.64352 16.472 0.64352 16.472 0.64352 "return skipped result" 14.417 1.2083 solid #C94D68
+edge backend elector 7 17.493 5.0517 17.493 4.5502 17.493 3.4802 17.493 3.4802 17.493 3.4802 12.623 3.4802 12.623 3.4802 "owner token accepted" 14.417 4.9306 solid #3E9868
+edge backend elector 7 17.799 5.0497 17.799 4.532 17.799 3.4087 17.799 3.4087 17.799 3.4087 12.621 3.4087 12.621 3.4087 "lock already owned" 14.417 4 solid #C94D68
+edge work elector 7 16.465 2.7839 16.465 3.0211 16.465 3.3373 16.465 3.3373 16.465 3.3373 12.619 3.3373 12.619 3.3373 "return leader result" 14.417 2.1389 solid #3E9868
+edge peer trigger 4 16.589 0.48148 16.589 0.48148 2.0134 0.48148 2.0134 0.48148 "cycle completes without duplicate work" 8.2465 0.083333 solid #C94D68
 stop

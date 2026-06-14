@@ -1,28 +1,26 @@
-graph 1 15.557 7.5347
-node n0 2.155 6.0972 4.31 1.5 ConsulEndpoint rounded,filled box #5B8DEF #ffffff
-node n1 2.155 2.625 4.31 1.5 "Spring Boot" rounded,filled box #58A978 #ffffff
-node n2 7.6411 6.4444 4.72 1.5 ConsulLeaderElector rounded,filled box #D6A441 #ffffff
-node n3 7.6411 3.5972 4.72 1.5 ConsulLeaderGroupElector rounded,filled box #DC6B82 #ffffff
-node n4 13.197 6.4444 4.72 1.5 "Consul Session" rounded,filled box #45A7A1 #ffffff
-node n5 13.197 3.5972 4.72 1.5 "Consul KV" rounded,filled box #8A72D6 #ffffff
-node n6 7.6411 0.75 4.72 1.5 "Core listeners" rounded,filled box #B88A44 #ffffff
-node r1p1 4.7939 6.0972 0.03 0.03 "" invis point black lightgrey
-node r1p2 4.7939 6.4444 0.03 0.03 "" invis point black lightgrey
-node r2p1 4.7939 6.0972 0.03 0.03 "" invis point black lightgrey
-node r2p2 4.7939 3.5972 0.03 0.03 "" invis point black lightgrey
-node r3p1 4.7939 2.625 0.03 0.03 "" invis point black lightgrey
-node r3p2 4.7939 0.75 0.03 0.03 "" invis point black lightgrey
-edge n0 r1p1 4 4.316 6.0972 4.5463 6.0972 4.7178 6.0972 4.7741 6.0972 solid #758297
-edge n0 r2p1 4 4.316 6.0972 4.5463 6.0972 4.7178 6.0972 4.7741 6.0972 solid #758297
-edge n1 r3p1 4 4.316 2.625 4.5463 2.625 4.7178 2.625 4.7741 2.625 solid #758297
-edge n2 n4 4 10.005 6.4444 10.229 6.4444 10.457 6.4444 10.683 6.4444 solid #758297
-edge n3 n5 4 10.005 3.5972 10.229 3.5972 10.457 3.5972 10.683 3.5972 solid #758297
-edge n4 n5 4 13.197 5.6889 13.197 5.3222 13.197 4.8791 13.197 4.4953 solid #758297
-edge n6 n3 4 7.6411 1.5055 7.6411 1.8722 7.6411 2.3153 7.6411 2.6992 solid #758297
-edge r1p1 r1p2 4 4.7939 6.1159 4.7939 6.1756 4.7939 6.3617 4.7939 6.424 solid #758297
-edge r1p2 n2 4 4.8121 6.4444 4.8546 6.4444 4.9694 6.4444 5.1296 6.4444 solid #758297
-edge r2p1 r2p2 4 4.7939 6.0756 4.7939 5.8446 4.7939 3.8356 4.7939 3.6166 solid #758297
-edge r2p2 n3 4 4.8121 3.5972 4.8546 3.5972 4.9694 3.5972 5.1296 3.5972 solid #758297
-edge r3p1 r3p2 4 4.7939 2.6039 4.7939 2.4108 4.7939 0.95036 4.7939 0.76856 solid #758297
-edge r3p2 n6 4 4.8121 0.75 4.8546 0.75 4.9694 0.75 5.1296 0.75 solid #758297
+graph 1 20.354 4.7222
+node caller 1.0486 3.3194 2.0972 0.5 "Application Caller" rounded,filled box #94A3B8 #F8FAFC
+node endpoint 8.6597 0.25 1.6806 0.5 ConsulEndpoint rounded,filled box #94A3B8 #F8FAFC
+node options 1.0486 4.4722 1.6806 0.5 "Consul Options" rounded,filled box #94A3B8 #F8FAFC
+node single 4.5625 3.9028 2.5139 0.5 "Single Leader Electors" rounded,filled box #94A3B8 #F8FAFC
+node group 4.5625 2.75 2.4097 0.5 "Group Leader Electors" rounded,filled box #94A3B8 #F8FAFC
+node client 12.663 2.3333 1.8889 0.5 ConsulLockClient rounded,filled box #94A3B8 #F8FAFC
+node lease 8.6597 2.875 2.8264 0.5 "Lease Handle And Extender" rounded,filled box #94A3B8 #F8FAFC
+node session 16.302 4.1806 1.6806 0.5 "Consul Session" rounded,filled box #94A3B8 #F8FAFC
+node singleKey 19.566 3.6389 1.5764 0.5 "Single KV Key" rounded,filled box #94A3B8 #F8FAFC
+node groupKeys 16.302 1.5556 2.0972 0.5 "Group Slot KV Keys" rounded,filled box #94A3B8 #F8FAFC
+node agentApi 16.302 0.40278 1.7847 0.5 "Consul HTTP API" rounded,filled box #94A3B8 #F8FAFC
+edge caller single 7 1.9931 3.5702 1.9931 3.7283 1.9931 3.9028 1.9931 3.9028 1.9931 3.9028 3.1404 3.9028 3.1404 3.9028 call 2.7014 3.9167 solid #758297
+edge caller group 7 1.0486 3.068 1.0486 2.9155 1.0486 2.75 1.0486 2.75 1.0486 2.75 3.1933 2.75 3.1933 2.75 call 2.7014 2.9583 solid #758297
+edge endpoint client 7 8.6597 0.50329 8.6597 1.0285 8.6597 2.1875 8.6597 2.1875 8.6597 2.1875 11.555 2.1875 11.555 2.1875 dependency 10.896 0.33333 solid #758297
+edge single client 7 5.823 3.7708 8.0282 3.7708 12.354 3.7708 12.354 3.7708 12.354 3.7708 12.354 2.7436 12.354 2.7436 call 8.6597 4.5139 solid #758297
+edge single lease 7 5.8252 3.7118 7.0291 3.7118 8.6597 3.7118 8.6597 3.7118 8.6597 3.7118 8.6597 3.2905 8.6597 3.2905 success 6.533 3.8889 solid #758297
+edge group client 7 4.5625 2.494 4.5625 2.389 4.5625 2.2917 4.5625 2.2917 4.5625 2.2917 11.554 2.2917 11.554 2.2917 call 8.6597 1.8889 solid #758297
+edge group lease 4 5.7696 2.8125 5.7696 2.8125 7.0811 2.8125 7.0811 2.8125 success 6.533 2.9444 solid #758297
+edge client session 7 12.979 2.5891 12.979 3.0657 12.979 4.0417 12.979 4.0417 12.979 4.0417 15.295 4.0417 15.295 4.0417 dependency 14.431 4.25 solid #758297
+edge client singleKey 7 13.612 2.4167 15.503 2.4167 19.562 2.4167 19.562 2.4167 19.562 2.4167 19.562 3.2257 19.562 3.2257 contention 16.302 3.1944 solid #758297
+edge client groupKeys 7 13.612 2.25 14.387 2.25 15.354 2.25 15.354 2.25 15.354 2.25 15.354 1.9701 15.354 1.9701 contention 14.431 1.6389 solid #758297
+edge client agentApi 7 12.66 2.0779 12.66 1.5906 12.66 0.57639 12.66 0.57639 12.66 0.57639 15.246 0.57639 15.246 0.57639 dependency 14.431 0.48611 solid #758297
+edge lease client 7 9.7847 2.6186 9.7847 2.5047 9.7847 2.3958 9.7847 2.3958 9.7847 2.3958 11.553 2.3958 11.553 2.3958 retry 10.896 2.9583 solid #758297
+edge session singleKey 7 16.299 3.9257 16.299 3.8713 16.299 3.8299 16.299 3.8299 16.299 3.8299 18.611 3.8299 18.611 3.8299 release 18.064 4.25 solid #758297
 stop

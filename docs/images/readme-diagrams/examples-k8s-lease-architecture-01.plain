@@ -1,27 +1,18 @@
-graph 1 8.3322 8.0092
-node n0 1.805 7.0289 3.61 1.28 "Holder A" rounded,filled box #5B8DEF #ffffff
-node n1 6.5272 7.0289 3.61 1.28 "Holder B" rounded,filled box #58A978 #ffffff
-node n2 4.1661 4.8067 5.28 1.28 K8sLeaseLeaderElectionExample rounded,filled box #D6A441 #ffffff
-node n3 4.1661 2.7233 5.28 1.28 "Fabric8 KubernetesClient" rounded,filled box #DC6B82 #ffffff
-node n4 4.1661 0.64 5.28 1.28 "Kubernetes Lease" rounded,filled box #45A7A1 #ffffff
-node r1p1 2.5689 7.0289 0.03 0.03 "" invis point black lightgrey
-node r1p2 2.5689 4.8067 0.03 0.03 "" invis point black lightgrey
-node r2p1 5.7633 7.0289 0.03 0.03 "" invis point black lightgrey
-node r2p2 5.7633 4.8067 0.03 0.03 "" invis point black lightgrey
-node r3p1 4.1661 3.765 0.03 0.03 "" invis point black lightgrey
-node r3p2 4.1661 3.765 0.03 0.03 "" invis point black lightgrey
-node r4p1 4.1661 1.6817 0.03 0.03 "" invis point black lightgrey
-node r4p2 4.1661 1.6817 0.03 0.03 "" invis point black lightgrey
-edge n0 r1p1 4 2.5667 7.0289 2.5674 7.0289 2.568 7.0289 2.5683 7.0289 solid #758297
-edge n1 r2p1 4 5.7655 7.0289 5.7648 7.0289 5.7643 7.0289 5.7639 7.0289 solid #758297
-edge n2 r3p1 4 4.1661 4.1648 4.1661 3.9906 4.1661 3.8355 4.1661 3.7835 solid #758297
-edge n3 r4p1 4 4.1661 2.0814 4.1661 1.9073 4.1661 1.7522 4.1661 1.7002 solid #758297
-edge r1p1 r1p2 4 2.5689 7.0097 2.5689 6.8044 2.5689 5.0186 2.5689 4.8239 solid #758297
-edge r1p2 n0 4 2.5623 4.8259 2.5193 4.9509 2.2749 5.6619 2.0752 6.2428 solid #758297
-edge r2p1 r2p2 4 5.7633 7.0097 5.7633 6.8044 5.7633 5.0186 5.7633 4.8239 solid #758297
-edge r2p2 n1 4 5.7699 4.8259 5.8129 4.9509 6.0573 5.6619 6.257 6.2428 solid #758297
-edge r3p1 r3p2 4 4.1661 3.765 4.1661 3.765 4.1661 3.765 4.1661 3.765 solid #758297
-edge r3p2 n3 4 4.1661 3.7432 4.1661 3.7051 4.1661 3.6199 4.1661 3.5142 solid #758297
-edge r4p1 r4p2 4 4.1661 1.6817 4.1661 1.6817 4.1661 1.6817 4.1661 1.6817 solid #758297
-edge r4p2 n4 4 4.1661 1.6599 4.1661 1.6217 4.1661 1.5365 4.1661 1.4309 solid #758297
+graph 1 19.302 1.7778
+node trigger 0.78819 0.81944 1.5764 0.5 "Lease Attempt" rounded,filled box #94A3B8 #F8FAFC
+node nodeA 3.7292 1.4028 1.8889 0.5 "Candidate Node A" rounded,filled box #94A3B8 #F8FAFC
+node nodeB 3.7292 0.25 1.8889 0.5 "Candidate Node B" rounded,filled box #94A3B8 #F8FAFC
+node coordinator 6.7743 0.81944 1.7847 0.5 K8sLeaseExample rounded,filled box #94A3B8 #F8FAFC
+node backend 14.938 1.5278 1.6806 0.5 "Lease resource" rounded,filled box #94A3B8 #F8FAFC
+node elector 10.882 1.5278 3.1389 0.5 KubernetesLeaseLeaderElector rounded,filled box #94A3B8 #F8FAFC
+node recovery 18.253 1.5278 2.0972 0.5 "RenewTime Takeover" rounded,filled box #94A3B8 #F8FAFC
+node work 10.882 0.375 1.8889 0.5 "Holder Operation" rounded,filled box #94A3B8 #F8FAFC
+edge trigger nodeA 7 0.78819 1.0702 0.78819 1.2283 0.78819 1.4028 0.78819 1.4028 0.78819 1.4028 2.6185 1.4028 2.6185 1.4028 call 2.1806 1.4167 solid #758297
+edge trigger nodeB 7 0.78819 0.56802 0.78819 0.41547 0.78819 0.25 0.78819 0.25 0.78819 0.25 2.6185 0.25 2.6185 0.25 call 2.1806 0.45833 solid #758297
+edge nodeA coordinator 7 4.6801 1.2153 5.5736 1.2153 6.7743 1.2153 6.7743 1.2153 6.7743 1.2153 6.7743 1.201 6.7743 1.201 call 5.2778 1.4167 solid #758297
+edge nodeB coordinator 7 4.6768 0.375 5.4732 0.375 6.4826 0.375 6.4826 0.375 6.4826 0.375 6.4826 0.40615 6.4826 0.40615 call 5.2778 0.45833 solid #758297
+edge coordinator elector 7 7.6713 0.84722 8.5059 0.84722 9.6215 0.84722 9.6215 0.84722 9.6215 0.84722 9.6215 1.1145 9.6215 1.1145 dependency 8.4896 1.4722 solid #758297
+edge coordinator work 7 7.066 0.56802 7.066 0.41547 7.066 0.25 7.066 0.25 7.066 0.25 9.7739 0.25 9.7739 0.25 success 8.4896 0.45833 solid #758297
+edge backend recovery 4 15.783 1.5278 15.783 1.5278 17.042 1.5278 17.042 1.5278 release 16.491 1.6111 solid #758297
+edge elector backend 4 12.456 1.5278 12.456 1.5278 13.936 1.5278 13.936 1.5278 contention 13.274 1.6111 solid #758297
 stop

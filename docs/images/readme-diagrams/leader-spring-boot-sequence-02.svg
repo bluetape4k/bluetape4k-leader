@@ -1,108 +1,163 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="2140" height="1770" viewBox="0 0 2140 1770" role="img" aria-label="Sequence: reentrant @LeaderElection">
-  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: leader-spring-boot-sequence-02.dot, leader-spring-boot-sequence-02.plain, leader-spring-boot-sequence-02-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
-<defs>
-  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
-  <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="inherit" markerWidth="14" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M 0 1 L 12 6 L 0 11 Z" fill="#ffffff" stroke="#758297" stroke-width="1.8"/></marker>
-  <style>
-    .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
-    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
-    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
-    .label{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
-    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
-    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
-    .small{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
-    .strong{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
-    .card{stroke-width:2.1;filter:url(#shadow)}.compartment{stroke-width:1.5;fill:none}
-    .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
-    .plainLine{stroke:#758297;stroke-width:2.1;fill:none}
-    .dashed{stroke:#758297;stroke-width:2.1;stroke-dasharray:7 6;fill:none;marker-end:url(#openArrow)}
-    .inheritLine{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#inherit)}
-    .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
-  </style>
-  <!-- semantic lock-state route markers -->
-  <marker id="semanticArrow-neutral" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#758297" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="semanticArrow-leader" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#43A76B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="semanticArrow-skipped" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#EF5B7A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="semanticArrow-contention" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#D99A2B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="semanticArrow-reacquire" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#8B6EEB" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <!-- /semantic lock-state route markers -->
-</defs>
-<rect class="canvas" width="2140" height="1770"/>
-<rect class="frame" x="32" y="28" width="2076" height="1714" rx="28"/>
-<text class="title" x="66" y="82">Sequence: reentrant @LeaderElection</text>
-<text class="subtitle" x="70" y="118">Sequence messages from the original Mermaid source</text>
-<rect class="card" x="80" y="166" width="300" height="72" rx="12" fill="#E8F3FF" stroke="#5B8DEF"/>
-<text class="smallLabel" x="230" y="209" text-anchor="middle">Caller</text>
-<line class="lifeline" x1="230" y1="252" x2="230" y2="1710" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="500" y="166" width="300" height="72" rx="12" fill="#EAF7EF" stroke="#58A978"/>
-<text class="smallLabel" x="650" y="198.5" text-anchor="middle">Leader Election</text>
-<text class="smallLabel" x="650" y="219.5" text-anchor="middle">Aspect</text>
-<line class="lifeline" x1="650" y1="252" x2="650" y2="1710" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="920" y="166" width="300" height="72" rx="12" fill="#FFF3D9" stroke="#D6A441"/>
-<text class="smallLabel" x="1070" y="209" text-anchor="middle">LockStateHolder</text>
-<line class="lifeline" x1="1070" y1="252" x2="1070" y2="1710" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="1340" y="166" width="300" height="72" rx="12" fill="#FDECEF" stroke="#DC6B82"/>
-<text class="smallLabel" x="1490" y="209" text-anchor="middle">LeaderElector</text>
-<line class="lifeline" x1="1490" y1="252" x2="1490" y2="1710" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="1760" y="166" width="300" height="72" rx="12" fill="#E9F7F6" stroke="#45A7A1"/>
-<text class="smallLabel" x="1910" y="209" text-anchor="middle">Redis / Mongo / ...</text>
-<line class="lifeline" x1="1910" y1="252" x2="1910" y2="1710" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect x="236.5" y="286" width="407" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="254.5" y="313" text-anchor="start" style="fill:#758297">1. @LeaderElection(daily-report) outerMethod()</text>
-<path class="line" d="M230 332 L650 332" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#semanticArrow-neutral)"/>
-<rect x="709" y="360" width="302" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="727" y="387" text-anchor="start" style="fill:#758297">2. peekSyncMatching(daily-report)</text>
-<path class="line" d="M650 406 L1070 406" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#semanticArrow-neutral)"/>
-<rect x="755" y="434" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="773" y="461" text-anchor="start" style="fill:#758297">3. null (first entry)</text>
-<path class="dashed" d="M1070 480 L650 480" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#semanticArrow-neutral)"/>
-<rect x="882.5" y="508" width="375" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="900.5" y="535" text-anchor="start" style="fill:#43A76B">4. runIfLeaderResult(daily-report) { ... }</text>
-<path class="line" d="M650 554 L1490 554" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="1581" y="582" width="238" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1599" y="609" text-anchor="start" style="fill:#43A76B">5. SET / EXPIRE (acquire)</text>
-<path class="line" d="M1490 628 L1910 628" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="1595" y="656" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1613" y="683" text-anchor="start" style="fill:#43A76B">6. ok (token=abc)</text>
-<path class="dashed" d="M1910 702 L1490 702" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="1096.5" y="730" width="367" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1114.5" y="757" text-anchor="start" style="fill:#43A76B">7. push(LeaderLockHandle.Real(token=abc))</text>
-<path class="line" d="M1490 776 L1070 776" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="755" y="804" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="773" y="831" text-anchor="start" style="fill:#43A76B">8. body()</text>
-<path class="line" d="M1490 850 L230 850" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="236.5" y="878" width="407" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="254.5" y="905" text-anchor="start" style="fill:#43A76B">9. @LeaderElection(daily-report) innerMethod()</text>
-<path class="line" d="M230 924 L650 924" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="704.5" y="952" width="311" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="722.5" y="979" text-anchor="start" style="fill:#43A76B">10. peekSyncMatching(daily-report)</text>
-<path class="line" d="M650 998 L1070 998" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="717" y="1026" width="286" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="735" y="1053" text-anchor="start" style="fill:#43A76B">11. Real(token=abc) — reentrant</text>
-<path class="dashed" d="M1070 1072 L650 1072" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="547" y="1100" width="302" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="565" y="1127" text-anchor="start" style="fill:#43A76B">12. incrementReentryDepth(handle)</text>
-<path class="line" d="M650 1146 C714 1146 714 1180 650 1180" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="704.5" y="1208" width="311" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="722.5" y="1235" text-anchor="start" style="fill:#43A76B">13. push(Real(token=abc, depth=1))</text>
-<path class="line" d="M650 1254 L1070 1254" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="272.5" y="1282" width="335" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="290.5" y="1309" text-anchor="start" style="fill:#43A76B">14. pjp.proceed() — backend untouched</text>
-<path class="line" d="M650 1328 L230 1328" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="301" y="1356" width="278" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="319" y="1383" text-anchor="start" style="fill:#43A76B">15. returns from innerMethod()</text>
-<path class="dashed" d="M230 1402 L650 1402" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="755" y="1430" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="773" y="1457" text-anchor="start" style="fill:#D99A2B">16. pop()</text>
-<path class="line" d="M650 1476 L1070 1476" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
-<rect x="721" y="1504" width="278" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="739" y="1531" text-anchor="start" style="fill:#43A76B">17. returns from outerMethod()</text>
-<path class="dashed" d="M230 1550 L1490 1550" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="1595" y="1578" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1613" y="1605" text-anchor="start" style="fill:#D99A2B">18. DEL / release</text>
-<path class="line" d="M1490 1624 L1910 1624" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
-<rect x="1175" y="1652" width="210" height="40" rx="102" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1193" y="1679" text-anchor="start" style="fill:#D99A2B">19. pop()</text>
-<path class="line" d="M1490 1698 L1070 1698" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="2250" height="1660" viewBox="0 0 2250 1660" role="img" aria-labelledby="title desc" data-intent="Answer the Spring Boot reader's AOP runtime question: how does an annotated method enter leader election, why do nested leader calls avoid reacquiring the same backend lock, and how does the scope close after the protected work returns?" data-evidence="leader-spring-boot README reentrant section, LeaderElectionAspect, LockAssert, LockExtender" data-source-read="leader-spring-boot/README.md; leader-spring-boot/README.ko.md; leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspect.kt; leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/LockAssert.kt">
+  <title id="title">Spring Boot Reentrant Leader Election Sequence</title>
+  <desc id="desc">Spring Boot reentrant leader election sequence diagram.</desc>
+  <defs>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
+    <marker id="seqArrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
+    <marker id="seqArrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
+    <marker id="seqArrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
+    <marker id="seqArrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
+    <marker id="seqArrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
+    <marker id="seqArrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
+    <marker id="seqArrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
+    <marker id="seqArrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
+    <marker id="seqArrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
+    <style>
+      .canvas{fill:#F7FAFC}
+      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
+      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
+      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
+      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
+      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
+      .card{filter:url(#shadow);stroke-width:2}
+      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
+      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
+      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
+      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
+      .seq{fill:none;stroke-width:3;stroke-linecap:round}
+      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
+      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
+      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
+      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
+    </style>
+  </defs>
+  <rect class="canvas" width="2250" height="1660"/>
+  <rect class="frame" x="32" y="28" width="2186" height="1604" rx="28"/>
+  <text class="title" x="66" y="82">Spring Boot Reentrant Leader Election Sequence</text>
+  <text class="subtitle" x="70" y="116">AOP opens a leader scope, nested calls reuse the scope, and LockAssert sees only real ownership.</text>
+<g id="participant-caller">
+  <rect class="card" x="128" y="228" width="260" height="76" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="cardTitle" x="258" y="273" text-anchor="middle">Caller</text>
+  <line class="lifeline" x1="258" y1="304" x2="258" y2="1536"/>
+</g>
+<g id="participant-aspect">
+  <rect class="card" x="474.79999999999995" y="228" width="260" height="76" rx="10" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="cardTitle" x="604.8" y="273" text-anchor="middle">LeaderElectionAspect</text>
+  <line class="lifeline" x1="604.8" y1="304" x2="604.8" y2="1536"/>
+</g>
+<g id="participant-scope">
+  <rect class="card" x="821.6" y="228" width="260" height="76" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="cardTitle" x="951.6" y="273" text-anchor="middle">Leader scope</text>
+  <line class="lifeline" x1="951.6" y1="304" x2="951.6" y2="1536"/>
+</g>
+<g id="participant-elector">
+  <rect class="card" x="1168.4" y="228" width="260" height="76" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="cardTitle" x="1298.4" y="273" text-anchor="middle">Backend elector</text>
+  <line class="lifeline" x1="1298.4" y1="304" x2="1298.4" y2="1536"/>
+</g>
+<g id="participant-method">
+  <rect class="card" x="1515.2" y="228" width="260" height="76" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="cardTitle" x="1645.2" y="273" text-anchor="middle">Annotated method</text>
+  <line class="lifeline" x1="1645.2" y1="304" x2="1645.2" y2="1536"/>
+</g>
+<g id="participant-assert">
+  <rect class="card" x="1862" y="228" width="260" height="76" rx="10" fill="#EEF6D9" stroke="#8BA84D"/>
+  <text class="cardTitle" x="1992" y="273" text-anchor="middle">LockAssert</text>
+  <line class="lifeline" x1="1992" y1="304" x2="1992" y2="1536"/>
+</g>
+<g id="m1">
+  <rect class="pill" x="300.2" y="329" width="262.4" height="42" rx="7"/>
+  <circle cx="319.2" cy="350" r="12" fill="#4F83BF"/>
+  <text class="detail" x="319.2" y="351" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">1</text>
+  <text class="detail" x="449.4" y="342" text-anchor="middle" dominant-baseline="middle">invoke @LeaderElection</text>
+  <text class="detail" x="449.4" y="357" text-anchor="middle" dominant-baseline="middle">method</text>
+  <path class="seq" d="M258 388 L604.8 388" stroke="#4F83BF" marker-end="url(#seqArrow-call)"/>
+</g>
+<g id="m2">
+  <rect class="pill" x="636.2" y="425" width="284" height="28" rx="7"/>
+  <circle cx="655.2" cy="439" r="12" fill="#2E8F89"/>
+  <text class="detail" x="655.2" y="440" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">2</text>
+  <text class="detail" x="796.2" y="440" text-anchor="middle" dominant-baseline="middle">check active leader scope</text>
+  <path class="seq" d="M604.8 470 L951.6 470" stroke="#2E8F89" marker-end="url(#seqArrow-dependency)"/>
+</g>
+<g>
+  <rect class="branchBox" x="128" y="517" width="1994" height="46" rx="15"/>
+  <rect class="pill" x="341.4" y="511" width="180" height="30" rx="8"/>
+  <text class="detail" x="431.4" y="527" text-anchor="middle" dominant-baseline="middle">alt outer call</text>
+</g>
+<g id="m4">
+  <rect class="pill" x="777.2" y="589" width="348.8" height="28" rx="7"/>
+  <circle cx="796.2" cy="603" r="12" fill="#B9851B"/>
+  <text class="detail" x="796.2" y="604" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">4</text>
+  <text class="detail" x="969.6" y="604" text-anchor="middle" dominant-baseline="middle">runIfLeader via configured elector</text>
+  <path class="seq" d="M604.8 634 L1298.4 634" stroke="#B9851B" marker-end="url(#seqArrow-contention)"/>
+</g>
+<g id="m5">
+  <rect class="pill" x="834.8000000000001" y="671" width="233.6" height="28" rx="7"/>
+  <circle cx="853.8000000000001" cy="685" r="12" fill="#3E9868"/>
+  <text class="detail" x="853.8000000000001" y="686" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">5</text>
+  <text class="detail" x="969.6" y="686" text-anchor="middle" dominant-baseline="middle">ownership acquired</text>
+  <path class="seqReturn" d="M1298.4 716 L604.8 716" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
+</g>
+<g id="m6">
+  <rect class="pill" x="647" y="753" width="262.4" height="28" rx="7"/>
+  <circle cx="666" cy="767" r="12" fill="#3E9868"/>
+  <text class="detail" x="666" y="768" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">6</text>
+  <text class="detail" x="796.2" y="768" text-anchor="middle" dominant-baseline="middle">open Real leader scope</text>
+  <path class="seq" d="M604.8 798 L951.6 798" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
+</g>
+<g id="m7">
+  <rect class="pill" x="975.8" y="835" width="298.4" height="28" rx="7"/>
+  <circle cx="994.8" cy="849" r="12" fill="#4F83BF"/>
+  <text class="detail" x="994.8" y="850" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">7</text>
+  <text class="detail" x="1143" y="850" text-anchor="middle" dominant-baseline="middle">proceed with annotated body</text>
+  <path class="seq" d="M604.8 880 L1645.2 880" stroke="#4F83BF" marker-end="url(#seqArrow-call)"/>
+</g>
+<g id="m8">
+  <rect class="pill" x="1676.6" y="917" width="284" height="28" rx="7"/>
+  <circle cx="1695.6" cy="931" r="12" fill="#718A35"/>
+  <text class="detail" x="1695.6" y="932" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">8</text>
+  <text class="detail" x="1836.6" y="932" text-anchor="middle" dominant-baseline="middle">assertLocked inside scope</text>
+  <path class="seq" d="M1645.2 962 L1992 962" stroke="#718A35" marker-end="url(#seqArrow-metric)"/>
+</g>
+<g id="m9">
+  <rect class="pill" x="1001" y="999" width="248" height="28" rx="7"/>
+  <circle cx="1020" cy="1013" r="12" fill="#3E9868"/>
+  <text class="detail" x="1020" y="1014" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">9</text>
+  <text class="detail" x="1143" y="1014" text-anchor="middle" dominant-baseline="middle">return method result</text>
+  <path class="seqReturn" d="M1645.2 1044 L604.8 1044" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
+</g>
+<g id="m10">
+  <rect class="pill" x="625.4000000000001" y="1081" width="305.6" height="28" rx="7"/>
+  <circle cx="644.4000000000001" cy="1095" r="12" fill="#755BC6"/>
+  <text class="detail" x="644.4000000000001" y="1096" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">10</text>
+  <text class="detail" x="796.2" y="1096" text-anchor="middle" dominant-baseline="middle">close scope and release lock</text>
+  <path class="seq" d="M604.8 1126 L951.6 1126" stroke="#755BC6" marker-end="url(#seqArrow-release)"/>
+</g>
+<g>
+  <rect class="branchBox" x="128" y="1173" width="1994" height="46" rx="15"/>
+  <rect class="pill" x="341.4" y="1167" width="180" height="30" rx="8"/>
+  <text class="detail" x="431.4" y="1183" text-anchor="middle" dominant-baseline="middle">else nested call</text>
+</g>
+<g id="m12">
+  <rect class="pill" x="636.2" y="1245" width="284" height="28" rx="7"/>
+  <circle cx="655.2" cy="1259" r="12" fill="#3E9868"/>
+  <text class="detail" x="655.2" y="1260" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">12</text>
+  <text class="detail" x="796.2" y="1260" text-anchor="middle" dominant-baseline="middle">reuse existing Real scope</text>
+  <path class="seqReturn" d="M951.6 1290 L604.8 1290" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
+</g>
+<g id="m13">
+  <rect class="pill" x="954.2" y="1327" width="341.6" height="28" rx="7"/>
+  <circle cx="973.2" cy="1341" r="12" fill="#4F83BF"/>
+  <text class="detail" x="973.2" y="1342" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">13</text>
+  <text class="detail" x="1143" y="1342" text-anchor="middle" dominant-baseline="middle">proceed without backend reacquire</text>
+  <path class="seq" d="M604.8 1372 L1645.2 1372" stroke="#4F83BF" marker-end="url(#seqArrow-call)"/>
+</g>
+<g id="m14">
+  <rect class="pill" x="307.4" y="1409" width="248" height="28" rx="7"/>
+  <circle cx="326.4" cy="1423" r="12" fill="#3E9868"/>
+  <text class="detail" x="326.4" y="1424" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">14</text>
+  <text class="detail" x="449.4" y="1424" text-anchor="middle" dominant-baseline="middle">return method result</text>
+  <path class="seqReturn" d="M604.8 1454 L258 1454" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
+</g>
 </svg>

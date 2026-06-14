@@ -1,12 +1,28 @@
-graph 1 17.501 3.7536
-node n0 1.735 1.7761 3.47 1.33 Application rounded,filled box #5B8DEF #ffffff
-node n1 6.735 2.7483 4.03 1.33 KubernetesLease rounded,filled box #58A978 #ffffff
-node n2 6.735 0.665 4.03 1.33 KubernetesLease rounded,filled box #D6A441 #ffffff
-node n3 11.735 1.7761 3.47 1.33 Kubernetes rounded,filled box #DC6B82 #ffffff
-node n4 16.041 1.7761 2.92 1.33 "coordination.k8s.io" rounded,filled box #45A7A1 #ffffff
-edge n0 n1 4 3.4767 2.2639 3.4767 2.2639 4.5676 2.2639 4.5676 2.2639 solid #758297
-edge n0 n2 4 3.4767 1.2222 3.4767 1.2222 4.5676 1.2222 4.5676 1.2222 solid #758297
-edge n1 n3 4 8.7543 2.2639 8.7543 2.2639 9.8445 2.2639 9.8445 2.2639 solid #758297
-edge n2 n3 4 8.7543 1.2222 8.7543 1.2222 9.8445 1.2222 9.8445 1.2222 solid #758297
-edge n3 n4 4 13.474 1.7778 13.474 1.7778 14.429 1.7778 14.429 1.7778 solid #758297
+graph 1 22.031 5.75
+node caller 1.0486 4.4722 2.0972 0.5 "Application Caller" rounded,filled box #94A3B8 #F8FAFC
+node fabric8 8.6597 1.4028 3.0347 0.5 "Caller-Owned Fabric8 Client" rounded,filled box #94A3B8 #F8FAFC
+node options 8.6597 0.25 2.7222 0.5 "Kubernetes Lease Options" rounded,filled box #94A3B8 #F8FAFC
+node rbac 17.031 0.65278 2.0972 0.5 "Namespace And RBAC" rounded,filled box #94A3B8 #F8FAFC
+node single 4.5104 5.0556 2.4097 0.5 "Single Lease Electors" rounded,filled box #94A3B8 #F8FAFC
+node group 4.5104 3.9028 2.3056 0.5 "Group Lease Electors" rounded,filled box #94A3B8 #F8FAFC
+node lock 12.924 2.9583 2.2014 0.5 KubernetesLeaseLock rounded,filled box #94A3B8 #F8FAFC
+node handle 8.6597 4.0278 2.8264 0.5 "Lease Handle And Extender" rounded,filled box #94A3B8 #F8FAFC
+node singleLease 12.924 1.8056 2.2014 0.5 "Single Lease Object" rounded,filled box #94A3B8 #F8FAFC
+node slotLeases 12.924 0.65278 1.9931 0.5 "Group Slot Leases" rounded,filled box #94A3B8 #F8FAFC
+node version 17.031 1.8056 2.7222 0.5 "ResourceVersion Conflict" rounded,filled box #94A3B8 #F8FAFC
+node metadata 21.035 1.0972 1.9931 0.5 "Audit Annotations" rounded,filled box #94A3B8 #F8FAFC
+edge caller single 7 1.0451 4.723 1.0451 4.8811 1.0451 5.0556 1.0451 5.0556 1.0451 5.0556 3.1434 5.0556 3.1434 5.0556 call 2.7014 5.0694 solid #758297
+edge caller group 7 1.0451 4.2208 1.0451 4.0683 1.0451 3.9028 1.0451 3.9028 1.0451 3.9028 3.1918 3.9028 3.1918 3.9028 call 2.7014 4.1111 solid #758297
+edge fabric8 lock 7 10.128 1.6589 10.128 2.1198 10.128 3.0417 10.128 3.0417 10.128 3.0417 11.659 3.0417 11.659 3.0417 dependency 11 1.4861 solid #758297
+edge options lock 10 10.023 0.45139 10.539 0.45139 11.003 0.45139 11.003 0.45139 11.003 0.45139 11.003 2.875 11.003 2.875 11.003 2.875 11.658 2.875 11.658 2.875 dependency 11 0.33333 solid #758297
+edge rbac metadata 7 17.031 0.90913 17.031 0.97504 17.031 1.0278 17.031 1.0278 17.031 1.0278 19.875 1.0278 19.875 1.0278 dependency 19.215 0.73611 solid #758297
+edge single lock 7 5.7195 5.1389 8.1667 5.1389 13.476 5.1389 13.476 5.1389 13.476 5.1389 13.476 3.3726 13.476 3.3726 call 8.6597 5.6667 solid #758297
+edge single handle 7 5.7207 4.9722 6.9444 4.9722 8.6562 4.9722 8.6562 4.9722 8.6562 4.9722 8.6562 4.4408 8.6562 4.4408 success 6.4288 5.0417 solid #758297
+edge group lock 7 5.6671 3.7153 7.8542 3.7153 12.378 3.7153 12.378 3.7153 12.378 3.7153 12.378 3.3745 12.378 3.3745 call 8.6597 3.0417 solid #758297
+edge group handle 4 5.6662 3.9653 5.6662 3.9653 7.0806 3.9653 7.0806 3.9653 success 6.4288 4.0972 solid #758297
+edge lock version 7 14.03 2.9583 15.246 2.9583 17.031 2.9583 17.031 2.9583 17.031 2.9583 17.031 2.2213 17.031 2.2213 contention 14.847 2.9028 solid #758297
+edge handle lock 7 10.078 4.0278 11.318 4.0278 12.92 4.0278 12.92 4.0278 12.92 4.0278 12.92 3.3717 12.92 3.3717 retry 11 4.0972 solid #758297
+edge singleLease version 4 14.03 1.8056 14.03 1.8056 15.506 1.8056 15.506 1.8056 success 14.847 1.8889 solid #758297
+edge slotLeases version 7 13.925 0.65278 14.763 0.65278 15.823 0.65278 15.823 0.65278 15.823 0.65278 15.823 1.3898 15.823 1.3898 success 14.847 0.73611 solid #758297
+edge version metadata 7 18.24 1.5538 18.24 1.4068 18.24 1.25 18.24 1.25 18.24 1.25 19.874 1.25 19.874 1.25 release 19.215 1.75 solid #758297
 stop

@@ -1,37 +1,18 @@
-graph 1 17.912 5.7869
-node n0 1.595 4.8067 3.19 1.28 "Operator pod-1" rounded,filled box #5B8DEF #ffffff
-node n1 1.595 2.7233 3.19 1.28 "Operator pod-2" rounded,filled box #58A978 #ffffff
-node n2 1.595 0.64 3.19 1.28 "Operator pod-3" rounded,filled box #D6A441 #ffffff
-node n3 5.8311 2.7233 3.61 1.28 OperatorController rounded,filled box #DC6B82 #ffffff
-node n4 11.317 2.7233 5.14 1.28 KubernetesLeaseLeaderElector rounded,filled box #45A7A1 #ffffff
-node n5 16.317 4.1122 3.19 1.28 "Kubernetes Lease" rounded,filled box #8A72D6 #ffffff
-node n6 16.317 1.3344 3.19 1.28 "Demo workload" rounded,filled box #B88A44 #ffffff
-node r1p1 3.6089 4.8067 0.03 0.03 "" invis point black lightgrey
-node r1p2 3.6089 2.7233 0.03 0.03 "" invis point black lightgrey
-node r2p1 3.6089 2.7233 0.03 0.03 "" invis point black lightgrey
-node r2p2 3.6089 2.7233 0.03 0.03 "" invis point black lightgrey
-node r3p1 3.6089 0.64 0.03 0.03 "" invis point black lightgrey
-node r3p2 3.6089 2.7233 0.03 0.03 "" invis point black lightgrey
-node r4p1 8.1922 2.7233 0.03 0.03 "" invis point black lightgrey
-node r4p2 8.1922 2.7233 0.03 0.03 "" invis point black lightgrey
-node r5p1 14.303 2.7233 0.03 0.03 "" invis point black lightgrey
-node r5p2 14.303 4.1122 0.03 0.03 "" invis point black lightgrey
-node r6p1 5.8311 1.3344 0.03 0.03 "" invis point black lightgrey
-edge n0 r1p1 4 3.1965 4.8067 3.393 4.8067 3.5424 4.8067 3.5916 4.8067 solid #758297
-edge n1 r2p1 4 3.1965 2.7233 3.393 2.7233 3.5424 2.7233 3.5916 2.7233 solid #758297
-edge n2 r3p1 4 3.1965 0.64 3.393 0.64 3.5424 0.64 3.5916 0.64 solid #758297
-edge n3 r4p1 4 7.6386 2.7233 7.9037 2.7233 8.1094 2.7233 8.1723 2.7233 solid #758297
-edge n3 r6p1 4 5.8311 2.0777 5.8311 1.766 5.8311 1.4411 5.8311 1.3559 solid #758297
-edge n4 r5p1 4 13.888 2.7233 14.092 2.7233 14.239 2.7233 14.287 2.7233 solid #758297
-edge r1p1 r1p2 4 3.6089 4.7887 3.6089 4.5978 3.6089 2.9496 3.6089 2.7443 solid #758297
-edge r1p2 n3 4 3.6281 2.7233 3.6655 2.7233 3.7553 2.7233 3.8783 2.7233 solid #758297
-edge r2p1 r2p2 4 3.6089 2.7233 3.6089 2.7233 3.6089 2.7233 3.6089 2.7233 solid #758297
-edge r2p2 n3 4 3.6281 2.7233 3.6655 2.7233 3.7553 2.7233 3.8783 2.7233 solid #758297
-edge r3p1 r3p2 4 3.6089 0.65801 3.6089 0.84891 3.6089 2.4971 3.6089 2.7024 solid #758297
-edge r3p2 n3 4 3.6281 2.7233 3.6655 2.7233 3.7553 2.7233 3.8783 2.7233 solid #758297
-edge r4p1 r4p2 4 8.1922 2.7233 8.1922 2.7233 8.1922 2.7233 8.1922 2.7233 solid #758297
-edge r4p2 n4 4 8.2122 2.7233 8.2624 2.7233 8.4044 2.7233 8.6018 2.7233 solid #758297
-edge r5p1 r5p2 4 14.303 2.743 14.303 2.8986 14.303 3.9309 14.303 4.0913 solid #758297
-edge r5p2 n5 4 14.321 4.1122 14.357 4.1122 14.447 4.1122 14.57 4.1122 solid #758297
-edge r6p1 n6 4 5.8481 1.3344 6.1926 1.3344 11.683 1.3344 14.571 1.3344 solid #758297
+graph 1 20.135 1.7778
+node trigger 0.99653 0.81944 1.9931 0.5 "Operator Schedule" rounded,filled box #94A3B8 #F8FAFC
+node nodeA 4.1458 1.4028 1.8889 0.5 "Candidate Node A" rounded,filled box #94A3B8 #F8FAFC
+node nodeB 4.1458 0.25 1.8889 0.5 "Candidate Node B" rounded,filled box #94A3B8 #F8FAFC
+node coordinator 7.3472 0.81944 2.0972 0.5 OperatorController rounded,filled box #94A3B8 #F8FAFC
+node backend 15.458 1.5278 2.0972 0.5 "coordination Lease" rounded,filled box #94A3B8 #F8FAFC
+node elector 11.403 1.5278 2.7222 0.5 "Kubernetes Lease Elector" rounded,filled box #94A3B8 #F8FAFC
+node recovery 19.035 1.5278 2.2014 0.5 "RBAC Scoped Handoff" rounded,filled box #94A3B8 #F8FAFC
+node work 11.403 0.375 2.0972 0.5 "Reconcile Workload" rounded,filled box #94A3B8 #F8FAFC
+edge trigger nodeA 7 1.9985 0.94444 2.7599 0.94444 3.6771 0.94444 3.6771 0.94444 3.6771 0.94444 3.6771 0.9869 3.6771 0.9869 call 2.5972 1.4167 solid #758297
+edge trigger nodeB 7 1.9984 0.81944 2.9216 0.81944 4.1493 0.81944 4.1493 0.81944 4.1493 0.81944 4.1493 0.66133 4.1493 0.66133 call 2.5972 0.45833 solid #758297
+edge nodeA coordinator 7 5.0967 1.2153 6.0393 1.2153 7.3438 1.2153 7.3438 1.2153 7.3438 1.2153 7.3438 1.201 7.3438 1.201 call 5.6944 1.4167 solid #758297
+edge nodeB coordinator 7 4.6215 0.50338 4.6215 0.60319 4.6215 0.69444 4.6215 0.69444 4.6215 0.69444 6.1335 0.69444 6.1335 0.69444 call 5.6944 0.45833 solid #758297
+edge coordinator elector 7 8.4021 0.9213 9.2114 0.9213 10.191 0.9213 10.191 0.9213 10.191 0.9213 10.191 1.1142 10.191 1.1142 dependency 9.2188 1.4722 solid #758297
+edge coordinator work 7 8.4013 0.77315 9.6019 0.77315 11.399 0.77315 11.399 0.77315 11.399 0.77315 11.399 0.75877 11.399 0.75877 success 9.2188 0.45833 solid #758297
+edge backend recovery 4 16.512 1.5278 16.512 1.5278 17.773 1.5278 17.773 1.5278 release 17.22 1.6111 solid #758297
+edge elector backend 4 12.77 1.5278 12.77 1.5278 14.245 1.5278 14.245 1.5278 contention 13.587 1.6111 solid #758297
 stop

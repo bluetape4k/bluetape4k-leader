@@ -1,29 +1,39 @@
-graph 1 21.803 8.3403
-node n0 5.2072 6.2 4.72 3.6 AsyncLeaderGroupElector rounded,filled box #5B8DEF #ffffff
-node n1 10.902 6.6375 4.72 2.72 AsyncLeaderElector rounded,filled box #58A978 #ffffff
-node n2 16.596 6.7833 4.72 2.43 SuspendLeaderElector rounded,filled box #D6A441 #ffffff
-node n3 2.36 1.325 4.72 2.65 "Suspend Leader Group" rounded,filled box #DC6B82 #ffffff
-node n4 8.0544 1.4361 4.72 2.43 LeaderElector rounded,filled box #45A7A1 #ffffff
-node n5 13.749 1.4361 4.72 2.43 LeaderGroupElector rounded,filled box #8A72D6 #ffffff
-node n6 19.443 1.325 4.72 2.65 "Virtual Thread Leader" rounded,filled box #B88A44 #ffffff
-node r1p1 2.36 3.5264 0.03 0.03 "" invis point black lightgrey
-node r1p2 5.2072 3.5264 0.03 0.03 "" invis point black lightgrey
-node r2p1 13.749 3.6375 0.03 0.03 "" invis point black lightgrey
-node r2p2 5.2072 3.6375 0.03 0.03 "" invis point black lightgrey
-node r3p1 19.443 3.7486 0.03 0.03 "" invis point black lightgrey
-node r3p2 10.902 3.7486 0.03 0.03 "" invis point black lightgrey
-node r4p1 8.0544 3.8597 0.03 0.03 "" invis point black lightgrey
-node r4p2 10.902 3.8597 0.03 0.03 "" invis point black lightgrey
-edge n3 r1p1 4 2.36 2.6563 2.36 3.062 2.36 3.4239 2.36 3.508 solid #758297
-edge n4 r4p1 4 8.0544 2.655 8.0544 3.1925 8.0544 3.7282 8.0544 3.8389 solid #758297
-edge n5 r2p1 4 13.749 2.6527 13.749 3.0982 13.749 3.5181 13.749 3.6161 solid #758297
-edge n6 r3p1 4 19.443 2.6538 19.443 3.1566 19.443 3.6322 19.443 3.7302 solid #758297
-edge r1p1 r1p2 4 2.3782 3.5278 2.6093 3.5278 4.9699 3.5278 5.1907 3.5278 solid #758297
-edge r1p2 n0 7 5.2237 3.5278 5.2796 3.5278 5.4583 3.5278 5.4583 3.5278 5.4583 3.5278 5.4583 4.2464 5.4583 4.2464 solid #758297
-edge r2p1 r2p2 13 13.749 3.659 13.749 3.755 13.749 4.1389 13.749 4.1389 13.749 4.1389 10.651 4.1389 10.651 4.1389 10.651 4.1389 10.651 3.6389 10.651 3.6389 10.651 3.6389 5.5832 3.6389 5.2269 3.6389 solid #758297
-edge r2p2 n0 4 5.2072 3.6539 5.2072 3.6539 5.2072 4.2444 5.2072 4.2444 solid #758297
-edge r3p1 r3p2 13 19.422 3.75 19.033 3.75 13.498 3.75 13.498 3.75 13.498 3.75 13.498 3.6389 13.498 3.6389 13.498 3.6389 10.902 3.6389 10.902 3.6389 10.902 3.6389 10.902 3.6956 10.902 3.7275 solid #758297
-edge r3p2 n1 7 10.918 3.75 10.974 3.75 11.153 3.75 11.153 3.75 11.153 3.75 11.153 5.1251 11.153 5.1251 solid #758297
-edge r4p1 r4p2 4 8.0726 3.8611 8.3037 3.8611 10.664 3.8611 10.885 3.8611 solid #758297
-edge r4p2 n1 4 10.902 3.8775 10.902 3.8775 10.902 5.1236 10.902 5.1236 solid #758297
+graph 1 81.524 5.5833
+node singleState 12.569 5.3333 10.118 0.5 "<<state query>>\\nLeaderElectionState\\n+ state(lockName): LeaderState\\nbest-effort snapshot only" rounded,filled box #94A3B8 #F8FAFC
+node groupState 71.014 5.3333 17.514 0.5 "<<group state query>>\\nLeaderGroupElectionState\\n+ maxLeaders: Int\\n+ activeCount(lockName): Int\\n+ availableSlots(lockName): \
+Int\\n+ state(lockName): LeaderGroupState" rounded,filled box #94A3B8 #F8FAFC
+node asyncElector 23.806 3.75 13.347 0.5 "<<async contract>>\\nAsyncLeaderElector\\n+ runAsyncIfLeader(lockName)\\n+ runAsyncIfLeader(slot)\\n+ runAsyncIfLeaderResult(slot)" rounded,filled box #94A3B8 #F8FAFC
+node virtualElector 8.8194 3.75 15.118 0.5 "<<virtual-thread contract>>\\nVirtualThreadLeaderElector\\n+ runAsyncIfLeader(lockName)\\n+ runAsyncIfLeader(slot)\\n+ runAsyncIfLeaderResult(\
+slot)" rounded,filled box #94A3B8 #F8FAFC
+node asyncGroup 64.694 3.75 14.493 0.5 "<<async group contract>>\\nAsyncLeaderGroupElector\\n+ runAsyncIfLeader(lockName)\\n+ runAsyncIfLeader(slot)\\n+ runAsyncIfLeaderResult(\
+slot)" rounded,filled box #94A3B8 #F8FAFC
+node leaderElector 33.931 1.8333 12.41 0.5 "<<blocking contract>>\\nLeaderElector\\n+ runIfLeader(lockName): T?\\n+ runIfLeaderResult(lockName)\\n+ runIfLeader(slot)" rounded,filled box #94A3B8 #F8FAFC
+node suspendElector 17.75 2.7917 15.118 0.5 "<<coroutine contract>>\\nSuspendLeaderElector\\n+ suspend runIfLeader(lockName)\\n+ runIfLeaderResultSuspend(slot)\\n+ state(lockName): \
+LeaderState" rounded,filled box #94A3B8 #F8FAFC
+node groupElector 56.472 1.8333 13.556 0.5 "<<blocking group contract>>\\nLeaderGroupElector\\n+ runIfLeader(lockName): T?\\n+ runIfLeaderResult(lockName)\\n+ runIfLeader(slot)" rounded,filled box #94A3B8 #F8FAFC
+node suspendGroup 72.194 2.7917 18.66 0.5 "<<coroutine group contract>>\\nSuspend Group Elector\\nSuspendLeaderGroupElector\\n+ suspend runIfLeader(lockName)\\n+ runIfLeaderResultSuspend(\
+slot)\\n+ activeCount / availableSlots" rounded,filled box #94A3B8 #F8FAFC
+node slot 40.722 0.25 11.576 0.5 "<<identity carrier>>\\nLeaderSlot\\n+ lockName: String\\n+ leaderId: String\\nslot overload stamps audit identity" rounded,filled box #94A3B8 #F8FAFC
+node result 51.903 3.75 9.5972 0.5 "<<sealed result>>\\nLeaderRunResult\\nElected(value, leaderId)\\nSkipped\\nActionFailed(cause)" rounded,filled box #94A3B8 #F8FAFC
+node events 38.792 3.75 15.118 0.5 "<<listener support>>\\nLeaderElection Events\\nLeaderElectionEventPublisher.events\\nLeaderElectionListenerRegistry\\nLeaderElectionListenerSupport" rounded,filled box #94A3B8 #F8FAFC
+node localSingle 22.681 0.25 21.368 0.5 "<<implementations>>\\nLocal Single-JVM Family\\nLocalLeaderElector -> LeaderElector\\nLocalAsync -> AsyncLeaderElector\\nLocalVirtualThread \
+-> VirtualThreadLeaderElector\\nLocalSuspend -> SuspendLeaderElector" rounded,filled box #94A3B8 #F8FAFC
+node localGroup 60.931 0.25 21.993 0.5 "<<implementations>>\\nLocal Group Family\\nLocalLeaderGroup -> LeaderGroupElector\\nLocalAsyncGroup -> AsyncLeaderGroupElector\\nLocalSuspendGroup \
+-> SuspendLeaderGroupElector\\nStrategic local variants wrap policy" rounded,filled box #94A3B8 #F8FAFC
+edge asyncElector singleState 4 17.38 4.0044 17.38 4.0044 17.38 4.9474 17.38 4.9474 inherit 20.311 4.5417 solid #4F83BF
+edge virtualElector singleState 4 11.944 4.0044 11.944 4.0044 11.944 4.9474 11.944 4.9474 inherit 9.0747 4.5417 solid #4F83BF
+edge asyncGroup groupState 4 67.099 4.0044 67.099 4.0044 67.099 4.9474 67.099 4.9474 inherit 68.839 4.5417 solid #4F83BF
+edge leaderElector asyncElector 4 29.102 2.0879 29.102 2.0879 29.102 3.3623 29.102 3.3623 inherit 30.366 2.7917 solid #4F83BF
+edge leaderElector result 7 40.14 1.9167 44.064 1.9167 48.399 1.9167 48.399 1.9167 48.399 1.9167 48.399 3.363 48.399 3.363 "result API" 39.365 2.7917 solid #3E9868
+edge suspendElector singleState 4 16.755 3.0447 16.755 3.0447 16.755 4.9455 16.755 4.9455 inherit 0.25521 3.75 solid #4F83BF
+edge groupElector asyncGroup 4 60.156 2.0879 60.156 2.0879 60.156 3.3623 60.156 3.3623 inherit 60.033 2.7917 solid #4F83BF
+edge groupElector result 4 53.198 2.0879 53.198 2.0879 53.198 3.3623 53.198 3.3623 "slot result" 53.554 2.7917 solid #3E9868
+edge suspendGroup groupState 4 75.856 3.0447 75.856 3.0447 75.856 4.9455 75.856 4.9455 inherit 73.7 3.75 solid #4F83BF
+edge slot leaderElector 4 37.535 0.50439 37.535 0.50439 37.535 1.4474 37.535 1.4474 "slot overloads" 37.108 1.0417 solid #755BC6
+edge slot groupElector 7 46.431 0.50445 46.431 0.93241 46.431 1.75 46.431 1.75 46.431 1.75 49.559 1.75 49.559 1.75 "audit id" 51.972 1.0417 solid #755BC6
+edge events singleState 10 31.228 3.75 30.992 3.75 30.856 3.75 30.856 3.75 30.856 3.75 30.856 5.3333 30.856 5.3333 30.856 5.3333 17.765 5.3333 17.765 5.3333 "state events" 39.229 4.5417 solid #2E8F89
+edge localSingle leaderElector 4 30.545 0.50439 30.545 0.50439 30.545 1.4474 30.545 1.4474 implements 27.17 1.0417 solid #B9851B
+edge localSingle suspendElector 4 18.653 0.503 18.653 0.503 18.653 2.4038 18.653 2.4038 coroutines 21.406 1.0417 solid #B9851B
+edge localGroup groupElector 4 56.592 0.50439 56.592 0.50439 56.592 1.4474 56.592 1.4474 implements 59.059 1.0417 solid #B9851B
+edge localGroup suspendGroup 4 67.589 0.503 67.589 0.503 67.589 2.4038 67.589 2.4038 coroutines 65.753 1.0417 solid #B9851B
 stop

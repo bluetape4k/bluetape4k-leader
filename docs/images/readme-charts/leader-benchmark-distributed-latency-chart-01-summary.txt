@@ -1,0 +1,1 @@
+docs/images/readme-charts/leader-benchmark-distributed-latency-chart-01: chart=PASS rows=10 bars=20 unit="log10 us/op" direction="lower-is-better" marginImbalance=0 margins=L/R/T/B:96/96/96/96 source=benchmark/README.md:65; benchmark/README.ko.md:68 catalog=chart-baseline

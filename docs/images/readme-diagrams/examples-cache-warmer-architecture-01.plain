@@ -1,27 +1,18 @@
-graph 1 15.273 3.7036
-node n0 1.595 2.7233 3.19 1.28 "Warmer node-A" rounded,filled box #5B8DEF #ffffff
-node n1 1.595 0.64 3.19 1.28 "Warmer node-B" rounded,filled box #58A978 #ffffff
-node n2 5.6228 1.6817 3.19 1.28 "Elector factory" rounded,filled box #D6A441 #ffffff
-node n3 9.6506 1.6817 3.19 1.28 "Partition locks" rounded,filled box #DC6B82 #ffffff
-node n4 13.678 1.6817 3.19 1.28 "Cache partitions" rounded,filled box #45A7A1 #ffffff
-node r1p1 3.6089 2.7233 0.03 0.03 "" invis point black lightgrey
-node r1p2 3.6089 1.6817 0.03 0.03 "" invis point black lightgrey
-node r2p1 3.6089 0.64 0.03 0.03 "" invis point black lightgrey
-node r2p2 3.6089 1.6817 0.03 0.03 "" invis point black lightgrey
-node r3p1 7.6367 1.6817 0.03 0.03 "" invis point black lightgrey
-node r3p2 7.6367 1.6817 0.03 0.03 "" invis point black lightgrey
-node r4p1 11.664 1.6817 0.03 0.03 "" invis point black lightgrey
-node r4p2 11.664 1.6817 0.03 0.03 "" invis point black lightgrey
-edge n0 r1p1 4 3.1965 2.7233 3.393 2.7233 3.5424 2.7233 3.5916 2.7233 solid #758297
-edge n1 r2p1 4 3.1965 0.64 3.393 0.64 3.5424 0.64 3.5916 0.64 solid #758297
-edge n2 r3p1 4 7.2243 1.6817 7.4208 1.6817 7.5702 1.6817 7.6193 1.6817 solid #758297
-edge n3 r4p1 4 11.252 1.6817 11.449 1.6817 11.598 1.6817 11.647 1.6817 solid #758297
-edge r1p1 r1p2 4 3.6089 2.7016 3.6089 2.566 3.6089 1.8385 3.6089 1.7033 solid #758297
-edge r1p2 n2 4 3.6263 1.6817 3.6624 1.6817 3.7526 1.6817 3.8757 1.6817 solid #758297
-edge r2p1 r2p2 4 3.6089 0.66176 3.6089 0.79732 3.6089 1.5248 3.6089 1.66 solid #758297
-edge r2p2 n2 4 3.6263 1.6817 3.6624 1.6817 3.7526 1.6817 3.8757 1.6817 solid #758297
-edge r3p1 r3p2 4 7.6367 1.6817 7.6367 1.6817 7.6367 1.6817 7.6367 1.6817 solid #758297
-edge r3p2 n3 4 7.6541 1.6817 7.6902 1.6817 7.7804 1.6817 7.9035 1.6817 solid #758297
-edge r4p1 r4p2 4 11.664 1.6817 11.664 1.6817 11.664 1.6817 11.664 1.6817 solid #758297
-edge r4p2 n4 4 11.682 1.6817 11.718 1.6817 11.808 1.6817 11.931 1.6817 solid #758297
+graph 1 19.51 1.7778
+node trigger 0.94444 0.81944 1.8889 0.5 "Cache Warm Cycle" rounded,filled box #94A3B8 #F8FAFC
+node nodeA 4.0417 1.4028 1.8889 0.5 "Candidate Node A" rounded,filled box #94A3B8 #F8FAFC
+node nodeB 4.0417 0.25 1.8889 0.5 "Candidate Node B" rounded,filled box #94A3B8 #F8FAFC
+node coordinator 6.8785 0.81944 1.3681 0.5 CacheWarmer rounded,filled box #94A3B8 #F8FAFC
+node backend 14.26 1.5278 1.7847 0.5 "partition locks" rounded,filled box #94A3B8 #F8FAFC
+node elector 10.465 1.5278 2.5139 0.5 "Leader elector factory" rounded,filled box #94A3B8 #F8FAFC
+node recovery 18.045 1.5278 2.9306 0.5 "Failed Partition Isolation" rounded,filled box #94A3B8 #F8FAFC
+node work 10.465 0.375 2.3056 0.5 "Warm Cache Partition" rounded,filled box #94A3B8 #F8FAFC
+edge trigger nodeA 7 0.94097 1.0702 0.94097 1.2283 0.94097 1.4028 0.94097 1.4028 0.94097 1.4028 2.9304 1.4028 2.9304 1.4028 call 2.4931 1.4167 solid #758297
+edge trigger nodeB 7 1.8937 0.81944 2.8031 0.81944 4.0382 0.81944 4.0382 0.81944 4.0382 0.81944 4.0382 0.66133 4.0382 0.66133 call 2.4931 0.45833 solid #758297
+edge nodeA coordinator 7 4.9918 1.2153 5.8139 1.2153 6.8715 1.2153 6.8715 1.2153 6.8715 1.2153 6.8715 1.201 6.8715 1.201 call 5.5903 1.4167 solid #758297
+edge nodeB coordinator 7 4.9905 0.375 5.736 0.375 6.6493 0.375 6.6493 0.375 6.6493 0.375 6.6493 0.40615 6.6493 0.40615 call 5.5903 0.45833 solid #758297
+edge coordinator elector 7 7.5674 0.84722 8.2709 0.84722 9.2604 0.84722 9.2604 0.84722 9.2604 0.84722 9.2604 1.1145 9.2604 1.1145 dependency 8.3854 1.4722 solid #758297
+edge coordinator work 7 7.1076 0.56802 7.1076 0.41547 7.1076 0.25 7.1076 0.25 7.1076 0.25 9.1499 0.25 9.1499 0.25 success 8.3854 0.45833 solid #758297
+edge backend recovery 4 15.157 1.5278 15.157 1.5278 16.414 1.5278 16.414 1.5278 release 15.866 1.6111 solid #758297
+edge elector backend 4 11.729 1.5278 11.729 1.5278 13.202 1.5278 13.202 1.5278 contention 12.545 1.6111 solid #758297
 stop

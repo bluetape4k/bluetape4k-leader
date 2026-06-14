@@ -1,62 +1,34 @@
-graph 1 13.419 19.135
-node n0 3.515 18.015 5.28 1.56 AsyncLeaderElector rounded,filled box #5B8DEF #ffffff
-node n1 9.765 17.432 5.28 2.72 ExposedJdbcGroupLock rounded,filled box #58A978 #ffffff
-node n2 3.515 12.959 5.28 2.72 ExposedJdbcLock rounded,filled box #D6A441 #ffffff
-node n3 9.765 13.543 5.28 1.56 LeaderElector rounded,filled box #DC6B82 #ffffff
-node n4 3.515 9.0706 5.28 1.56 LeaderGroupElector rounded,filled box #45A7A1 #ffffff
-node n5 9.765 9.0706 5.28 1.56 VirtualThreadLeaderElector rounded,filled box #8A72D6 #ffffff
-node n6 3.515 5.765 5.28 1.56 ExposedJdbcLeaderElector rounded,filled box #B88A44 #ffffff
-node n7 9.765 5.6539 5.28 1.78 "Exposed Jdbc Leader Group" rounded,filled box #8BA84D #ffffff
-node n8 6.64 2.1261 5.28 1.78 "Exposed Jdbc Virtual Thread" rounded,filled box #5B8DEF #ffffff
-node r1p1 6.64 0.015 0.03 0.03 "" invis point black lightgrey
-node r1p2 3.515 0.015 0.03 0.03 "" invis point black lightgrey
-node r2p1 9.765 7.1956 0.03 0.03 "" invis point black lightgrey
-node r2p2 13.404 7.1956 0.03 0.03 "" invis point black lightgrey
-node r2p3 13.404 14.973 0.03 0.03 "" invis point black lightgrey
-node r2p4 9.765 14.973 0.03 0.03 "" invis point black lightgrey
-node r3p1 3.515 7.3067 0.03 0.03 "" invis point black lightgrey
-node r3p2 0.015 7.3067 0.03 0.03 "" invis point black lightgrey
-node r3p3 0.015 10.612 0.03 0.03 "" invis point black lightgrey
-node r3p4 3.515 10.612 0.03 0.03 "" invis point black lightgrey
-node r4p1 6.64 7.4178 0.03 0.03 "" invis point black lightgrey
-node r4p2 9.765 7.4178 0.03 0.03 "" invis point black lightgrey
-node r5p1 9.765 7.5289 0.03 0.03 "" invis point black lightgrey
-node r5p2 3.515 7.5289 0.03 0.03 "" invis point black lightgrey
-node r6p1 3.515 7.64 0.03 0.03 "" invis point black lightgrey
-node r6p2 0.43167 7.64 0.03 0.03 "" invis point black lightgrey
-node r6p3 0.43167 15.418 0.03 0.03 "" invis point black lightgrey
-node r6p4 3.515 15.418 0.03 0.03 "" invis point black lightgrey
-node r7p1 3.515 4.2233 0.03 0.03 "" invis point black lightgrey
-node r7p2 0.57056 4.2233 0.03 0.03 "" invis point black lightgrey
-node r7p3 0.57056 11.057 0.03 0.03 "" invis point black lightgrey
-node r7p4 9.765 11.057 0.03 0.03 "" invis point black lightgrey
-edge n6 r3p1 4 3.515 6.5494 3.515 6.8767 3.515 7.2007 3.515 7.2854 solid #758297
-edge n6 r6p1 7 2.1875 6.5488 2.1875 7.0623 2.1875 7.6389 2.1875 7.6389 2.1875 7.6389 3.3349 7.6389 3.4962 7.6389 dashed #758297
-edge n6 r7p1 4 3.515 4.9806 3.515 4.6533 3.515 4.3293 3.515 4.2446 dashed #758297
-edge n7 r2p1 4 9.765 6.5507 9.765 6.8368 9.765 7.0992 9.765 7.1742 solid #758297
-edge n7 r5p1 7 8.4375 6.5469 8.4375 7.0296 8.4375 7.5278 8.4375 7.5278 8.4375 7.5278 9.5849 7.5278 9.7462 7.5278 dashed #758297
-edge n8 r1p1 4 6.64 1.2308 6.64 0.70937 6.64 0.13451 6.64 0.031305 solid #758297
-edge n8 r4p1 4 6.64 3.0178 6.64 4.4552 6.64 7.1497 6.64 7.3992 dashed #758297
-edge r1p1 r1p2 4 6.62 0.013889 6.3664 0.013889 3.7755 0.013889 3.5332 0.013889 solid #758297
-edge r1p2 n6 7 3.4962 0.013889 3.3349 0.013889 2.1875 0.013889 2.1875 0.013889 2.1875 0.013889 2.1875 4.8344 2.1875 4.8344 solid #758297
-edge r2p1 r2p2 4 9.7846 7.1944 10.058 7.1944 13.098 7.1944 13.383 7.1944 solid #758297
-edge r2p2 r2p3 4 13.404 7.2127 13.404 7.6025 13.404 14.52 13.404 14.952 solid #758297
-edge r2p3 r2p4 4 13.384 14.972 13.111 14.972 10.071 14.972 9.7863 14.972 solid #758297
-edge r2p4 n1 4 9.765 14.995 9.765 14.995 9.765 15.916 9.765 15.916 solid #758297
-edge r3p1 r3p2 4 3.4994 7.3056 3.2587 7.3056 0.31144 7.3056 0.035664 7.3056 solid #758297
-edge r3p2 r3p3 4 0.015 7.3278 0.015 7.5961 0.015 10.337 0.015 10.593 solid #758297
-edge r3p3 r3p4 4 0.030604 10.611 0.27126 10.611 3.2186 10.611 3.4943 10.611 solid #758297
-edge r3p4 n2 4 3.515 10.633 3.515 10.633 3.515 11.448 3.515 11.448 solid #758297
-edge r4p1 r4p2 4 6.66 7.4167 6.9136 7.4167 9.5045 7.4167 9.7468 7.4167 dashed #758297
-edge r4p2 n5 7 9.7838 7.4167 9.9451 7.4167 11.093 7.4167 11.093 7.4167 11.093 7.4167 11.093 8.1383 11.093 8.1383 dashed #758297
-edge r5p1 r5p2 13 9.75 7.5417 9.5065 7.5417 6.39 7.5417 6.39 7.5417 6.39 7.5417 6.39 7.4167 6.39 7.4167 6.39 7.4167 3.515 7.4167 3.515 7.4167 3.515 7.4167 3.515 7.4746 3.515 7.5073 dashed #758297
-edge r5p2 n4 7 3.5338 7.5278 3.6951 7.5278 4.8425 7.5278 4.8425 7.5278 4.8425 7.5278 4.8425 8.1367 4.8425 8.1367 dashed #758297
-edge r6p1 r6p2 4 3.4953 7.6389 3.245 7.6389 0.68869 7.6389 0.44958 7.6389 dashed #758297
-edge r6p2 r6p3 4 0.43167 7.6571 0.43167 8.047 0.43167 14.965 0.43167 15.397 dashed #758297
-edge r6p3 r6p4 4 0.45136 15.417 0.70164 15.417 3.258 15.417 3.4971 15.417 dashed #758297
-edge r6p4 n0 4 3.515 15.434 3.515 15.434 3.515 17.081 3.515 17.081 dashed #758297
-edge r7p1 r7p2 4 3.4962 4.2222 3.2572 4.2222 0.816 4.2222 0.58766 4.2222 dashed #758297
-edge r7p2 r7p3 4 0.57056 4.2429 0.57056 4.6312 0.57056 10.662 0.57056 11.038 dashed #758297
-edge r7p3 r7p4 4 0.5908 11.056 1.0535 11.056 9.2954 11.056 9.7458 11.056 dashed #758297
-edge r7p4 n3 4 9.765 11.078 9.765 11.078 9.765 12.608 9.765 12.608 dashed #758297
+graph 1 80.406 5.25
+node leaderContract 20.882 3.4167 9.3889 0.5 "<<core interface>>\\nLeaderElector\\n+ runIfLeader(lockName)\\n+ runAsyncIfLeader(lockName)" rounded,filled box #94A3B8 #F8FAFC
+node virtualContract 70.674 1.8333 10.847 0.5 "<<core interface>>\\nVirtualThreadLeaderElector\\n+ runAsyncIfLeader(lockName)\\nVirtualFuture<T?> result" rounded,filled box #94A3B8 #F8FAFC
+node groupContract 75.035 3.4167 10.743 0.5 "<<core interface>>\\nLeaderGroupElector\\n+ maxLeaders: Int\\n+ runIfLeader(lockName)\\n+ state(lockName)" rounded,filled box #94A3B8 #F8FAFC
+node jdbcElector 27.59 1.8333 16.264 0.5 "<<JDBC implementation>>\\nExposedJdbcLeaderElector\\nimplements LeaderElector\\ncreates ExposedJdbcLock\\nstarts lease auto-extender\\nrecords \
+optional history" rounded,filled box #94A3B8 #F8FAFC
+node virtualElector 49.132 0.25 16.993 0.5 "<<adapter implementation>>\\nExposedJdbc VirtualThread\\nExposedJdbcVirtualThreadLeaderElector\\ndelegate: ExposedJdbcLeaderElector\\nwraps \
+delegate in virtualFuture" rounded,filled box #94A3B8 #F8FAFC
+node jdbcGroupElector 54.965 1.8333 19.076 0.5 "<<JDBC group implementation>>\\nExposedJdbcLeaderGroupElector\\nimplements LeaderGroupElector\\nrandomized slot iteration\\ncreates \
+ExposedJdbcGroupLock\\nstate uses LeaderGroupLockTable" rounded,filled box #94A3B8 #F8FAFC
+node jdbcLock 7.7153 3.4167 15.431 0.5 "<<single lock delegate>>\\nExposedJdbcLock\\ntoken: Base58 fencing token\\nUPDATE expired row\\nINSERT new row on missing lock\\nSELECT \
+token ownership" rounded,filled box #94A3B8 #F8FAFC
+node jdbcGroupLock 49.549 3.4167 15.535 0.5 "<<slot lock delegate>>\\nExposedJdbcGroupLock\\n(lockName, slot) composite owner\\nUPDATE expired slot\\nINSERT slot row\\nSELECT \
+token + slot ownership" rounded,filled box #94A3B8 #F8FAFC
+node schemaInit 33.674 3.4167 14.701 0.5 "<<schema bootstrap>>\\nExposedJdbcSchemaInitializer\\nensureSchema(db)\\nSchemaUtils.createMissingTablesAndColumns\\nruns once per \
+Database URL" rounded,filled box #94A3B8 #F8FAFC
+node historySink 63.493 3.4167 10.847 0.5 "<<audit sink>>\\nExposedLeaderHistorySink\\nrecord ACQUIRED\\nrecord COMPLETED / FAILED\\ncleanup old rows" rounded,filled box #94A3B8 #F8FAFC
+node lockTable 25.16 5 9.4931 0.5 "<<Exposed table>>\\nLeaderLockTable\\nPK lockName\\nlockOwner\\ntoken\\nlockedAt / lockedUntil" rounded,filled box #94A3B8 #F8FAFC
+node historyTable 63.493 5 11.472 0.5 "<<Exposed table>>\\nLeaderLockHistoryTable\\nid PK\\nlockName + token\\nstatus lifecycle\\nslotId for group audit" rounded,filled box #94A3B8 #F8FAFC
+node groupTable 39.799 5 10.743 0.5 "<<Exposed table>>\\nLeaderGroupLockTable\\nPK(lockName, slot)\\nlockOwner\\ntoken\\nlockedAt / lockedUntil" rounded,filled box #94A3B8 #F8FAFC
+edge jdbcElector leaderContract 4 22.517 2.0877 22.517 2.0877 22.517 3.0308 22.517 3.0308 inherit 21.137 2.625 solid #4F83BF
+edge jdbcElector jdbcLock 10 19.455 1.8333 17.36 1.8333 15.683 1.8333 15.683 1.8333 15.683 1.8333 15.683 3.3333 15.683 3.3333 15.683 3.3333 15.568 3.3333 15.568 3.3333 creates 13.887 2.625 solid #B9851B
+edge jdbcElector historySink 10 31.023 2.0888 31.023 2.3768 31.023 2.8056 31.023 2.8056 31.023 2.8056 59.678 2.8056 59.678 2.8056 59.678 2.8056 59.678 3.0289 59.678 3.0289 "optional history" 50.049 2.625 solid #2E8F89
+edge virtualElector virtualContract 7 57.634 0.25 63.658 0.25 70.674 0.25 70.674 0.25 70.674 0.25 70.674 1.4468 70.674 1.4468 inherit 70.929 1.0417 solid #4F83BF
+edge virtualElector jdbcElector 7 40.83 0.50439 40.83 0.95196 40.83 1.8333 40.83 1.8333 40.83 1.8333 35.857 1.8333 35.857 1.8333 dependency 48.719 1.0417 solid #758297
+edge jdbcGroupElector groupContract 10 62.895 2.089 62.895 2.2564 62.895 2.4444 62.895 2.4444 62.895 2.4444 72.88 2.4444 72.88 2.4444 72.88 2.4444 72.88 3.0291 72.88 3.0291 inherit 75.29 2.625 solid #4F83BF
+edge jdbcGroupElector jdbcGroupLock 4 51.372 2.0877 51.372 2.0877 51.372 3.0308 51.372 3.0308 "per slot" 52.979 2.625 solid #B9851B
+edge jdbcGroupElector historySink 4 61.286 2.0877 61.286 2.0877 61.286 3.0308 61.286 3.0308 "group audit" 57.63 2.625 solid #2E8F89
+edge jdbcLock lockTable 10 15.433 3.5 15.749 3.5 15.935 3.5 15.935 3.5 15.935 3.5 15.935 5 15.935 5 15.935 5 20.28 5 20.28 5 "UPDATE INSERT SELECT" 18.347 4.2083 solid #758297
+edge jdbcGroupLock groupTable 4 43.476 3.6711 43.476 3.6711 43.476 4.6141 43.476 4.6141 "slot rows" 42.613 4.2083 solid #758297
+edge schemaInit lockTable 4 28.115 3.6711 28.115 3.6711 28.115 4.6141 28.115 4.6141 creates 29.582 4.2083 solid #758297
+edge schemaInit groupTable 4 37.726 3.6711 37.726 3.6711 37.726 4.6141 37.726 4.6141 creates 37.568 4.2083 solid #758297
+edge historySink historyTable 4 63.493 3.6711 63.493 3.6711 63.493 4.6141 63.493 4.6141 writes 63.712 4.2083 solid #758297
 stop

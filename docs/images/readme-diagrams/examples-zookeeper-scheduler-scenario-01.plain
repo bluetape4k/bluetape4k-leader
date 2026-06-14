@@ -1,19 +1,19 @@
-graph 1 16.608 2.4035
-node "Same schedule" 0.78819 0.69444 1.5764 0.5 "Same schedule" rounded,filled box #94a3b8 #f8fafc
-node "node-a" 3.5 1.4861 0.84722 0.5 "node-a" rounded,filled box #94a3b8 #f8fafc
-node "ZooKeeper lock" 12.753 1.4861 1.6806 0.5 "ZooKeeper lock" rounded,filled box #94a3b8 #f8fafc
-node "Legacy job" 15.924 2.0694 1.2639 0.5 "Legacy job" rounded,filled box #94a3b8 #f8fafc
-node "node-b" 4.8056 0.25 0.84722 0.5 "node-b" rounded,filled box #94a3b8 #f8fafc
-node "Skip report" 15.924 0.91667 1.3681 0.5 "Skip report" rounded,filled box #94a3b8 #f8fafc
-node "Lock released" 6.4757 1.4861 1.5764 0.5 "Lock released" rounded,filled box #94a3b8 #f8fafc
-node "Next schedule" 9.5521 1.4861 1.5764 0.5 "Next schedule" rounded,filled box #94a3b8 #f8fafc
-edge "Same schedule" "node-a" 4 1.582 0.92449 2.0092 1.0505 2.5291 1.2038 2.9176 1.3184 trigger 2.3264 1.3134 solid #758297
-edge "Same schedule" "node-b" 4 1.5808 0.6077 2.3554 0.5214 3.5258 0.39102 4.2189 0.3138 "same run" 2.3264 0.63938 solid #758297
-edge "node-a" "ZooKeeper lock" 16 3.9291 1.6536 4.0712 1.707 4.2321 1.7631 4.3819 1.8056 4.9515 1.9669 5.0985 2.0105 5.6875 2.0694 7.7451 2.2753 8.2863 2.3093 10.34 2.0694 10.846 2.0104 10.96 1.9256 11.455 1.8056 11.553 1.7818 11.655 1.7568 11.757 1.7317 lock 8.0139 2.3201 solid #758297
-edge "node-a" "Lock released" 4 3.93 1.4861 4.3431 1.4861 4.9906 1.4861 5.5273 1.4861 release 4.8056 1.5694 solid #758297
-edge "ZooKeeper lock" "Legacy job" 4 13.597 1.6401 14.072 1.7284 14.665 1.8385 15.132 1.925 leader 14.417 1.9305 solid #758297
-edge "ZooKeeper lock" "Skip report" 7 13.522 1.2307 13.695 1.1799 13.878 1.1316 14.052 1.0972 14.384 1.0316 14.754 0.98942 15.076 0.96255 "not leader" 14.417 1.1806 solid #758297
-edge "node-b" "ZooKeeper lock" 7 5.2304 0.28364 6.1505 0.36244 8.4442 0.57829 10.34 0.91667 10.812 1.0008 11.329 1.12 11.762 1.2277 miss 8.0139 0.69038 solid #758297
-edge "Lock released" "Next schedule" 4 7.2707 1.4861 7.6759 1.4861 8.1738 1.4861 8.5997 1.4861 "next run" 8.0139 1.5694 solid #758297
-edge "Next schedule" "ZooKeeper lock" 4 10.346 1.4861 10.77 1.4861 11.298 1.4861 11.75 1.4861 reacquire 11.127 1.5694 solid #758297
+graph 1 11.628 2.8056
+node tick 0.84028 1.4028 1.6806 0.5 "Scheduler Tick" rounded,filled box #94A3B8 #F8FAFC
+node nodeA 3.5729 2.5556 1.3681 0.5 "Candidate A" rounded,filled box #94A3B8 #F8FAFC
+node nodeB 3.5729 1.4028 1.3681 0.5 "Candidate B" rounded,filled box #94A3B8 #F8FAFC
+node nodeC 3.5729 0.25 1.3681 0.5 "Candidate C" rounded,filled box #94A3B8 #F8FAFC
+node backend 6.8993 1.4028 1.9931 0.5 "Curator lock path" rounded,filled box #94A3B8 #F8FAFC
+node recovery 10.476 2.5556 2.3056 0.5 "Session Lock Release" rounded,filled box #94A3B8 #F8FAFC
+node skipped 10.476 1.4028 1.2639 0.5 "Peers Skip" rounded,filled box #94A3B8 #F8FAFC
+node leader 10.476 0.25 1.7847 0.5 "One Leader Runs" rounded,filled box #94A3B8 #F8FAFC
+edge tick nodeA 7 0.83681 1.6586 0.83681 1.9982 0.83681 2.5556 0.83681 2.5556 0.83681 2.5556 2.7226 2.5556 2.7226 2.5556 call 2.2847 2.5 solid #758297
+edge tick nodeB 4 1.6862 1.4028 1.6862 1.4028 2.7222 1.4028 2.7222 1.4028 call 2.2847 1.4861 solid #758297
+edge tick nodeC 7 0.83681 1.1469 0.83681 0.80732 0.83681 0.25 0.83681 0.25 0.83681 0.25 2.7226 0.25 2.7226 0.25 call 2.2847 0.47222 solid #758297
+edge nodeA backend 7 4.2607 2.5556 5.233 2.5556 6.8924 2.5556 6.8924 2.5556 6.8924 2.5556 6.8924 1.8185 6.8924 1.8185 contention 5.0799 2.5 solid #758297
+edge nodeB backend 4 4.2621 1.4028 4.2621 1.4028 5.7418 1.4028 5.7418 1.4028 contention 5.0799 1.4861 solid #758297
+edge nodeC backend 7 4.2607 0.25 5.233 0.25 6.8924 0.25 6.8924 0.25 6.8924 0.25 6.8924 0.98703 6.8924 0.98703 contention 5.0799 0.47222 solid #758297
+edge backend recovery 7 7.8993 1.5278 8.6133 1.5278 9.4479 1.5278 9.4479 1.5278 9.4479 1.5278 9.4479 2.1416 9.4479 2.1416 release 8.6094 2.6389 solid #758297
+edge backend skipped 4 7.9003 1.4028 7.9003 1.4028 9.681 1.4028 9.681 1.4028 skip 8.6094 1.4861 solid #758297
+edge backend leader 7 7.9028 1.2778 8.7105 1.2778 9.7118 1.2778 9.7118 1.2778 9.7118 1.2778 9.7118 0.66397 9.7118 0.66397 success 8.6094 0.33333 solid #758297
 stop

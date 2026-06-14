@@ -1,23 +1,18 @@
-graph 1 14.333 9.9558
-node Demo 0.375 0.52689 0.75 0.5 Demo rounded,filled box #94a3b8 #f8fafc
-node "node-a scheduler" 3.7778 5.4991 1.8889 0.5 "node-a scheduler" rounded,filled box #94a3b8 #f8fafc
-node ZooKeeperLeaderElector 8.4271 5.4991 2.5139 0.5 ZooKeeperLeaderElector rounded,filled box #94a3b8 #f8fafc
-node "ZooKeeper / Curator" 13.233 8.1658 2.2014 0.5 "ZooKeeper / Curator" rounded,filled box #94a3b8 #f8fafc
-node "Legacy job" 13.233 4.1658 1.2639 0.5 "Legacy job" rounded,filled box #94a3b8 #f8fafc
-node "node-b scheduler" 13.233 1.4991 1.8889 0.5 "node-b scheduler" rounded,filled box #94a3b8 #f8fafc
-edge Demo "node-a scheduler" 4 0.5609 0.7803 1.1127 1.5933 2.841 4.1394 3.5026 5.1142 "submit first run" 1.7917 3.394 solid #758297
-edge Demo "node-b scheduler" 7 0.75366 0.46367 2.1817 0.22981 7.5182 -0.5162 11.674 0.61022 12.07 0.71765 12.47 0.95249 12.764 1.1538 "same run while held" 5.9462 0.10707 solid #758297
-edge "node-a scheduler" ZooKeeperLeaderElector 4 4.7269 5.4991 5.3819 5.4991 6.2687 5.4991 7.0084 5.4991 "runIfLeader(lockName)" 5.9462 5.5824 solid #758297
-edge "node-a scheduler" "ZooKeeper / Curator" 10 4.0398 5.7506 4.8362 6.5377 7.4343 8.9499 10.142 9.7769 10.793 9.9757 11.048 10.044 11.674 9.7769 12.254 9.5294 12.721 8.9451 12.984 8.5525 "release on exit" 8.4271 9.6743 solid #758297
-edge ZooKeeperLeaderElector "ZooKeeper / Curator" 10 8.4659 5.7542 8.55 6.4585 8.8927 8.4311 10.142 9.2352 10.715 9.6035 11.024 9.4381 11.674 9.2352 12.12 9.0957 12.552 8.7765 12.845 8.523 "acquire session lock" 10.908 9.537 solid #758297
-edge ZooKeeperLeaderElector "ZooKeeper / Curator" 7 8.5023 5.7534 8.6586 6.3386 9.1332 7.7737 10.142 8.3463 10.806 8.7227 11.684 8.6239 12.333 8.4624 "try same lock" 10.908 8.6894 solid #758297
-edge ZooKeeperLeaderElector "ZooKeeper / Curator" 7 8.5878 5.7547 8.8453 6.1787 9.4204 7.0238 10.142 7.4574 10.693 7.7884 11.385 7.9648 11.973 8.0587 "acquire released lock" 10.908 8.0865 solid #758297
-edge ZooKeeperLeaderElector "Legacy job" 7 8.8151 5.2463 9.1485 5.0338 9.6574 4.7402 10.142 4.5824 10.899 4.3364 11.806 4.2355 12.439 4.1943 "execute job body" 10.908 4.6658 solid #758297
-edge ZooKeeperLeaderElector "Legacy job" 7 8.6202 5.2465 8.8974 4.8802 9.4692 4.2171 10.142 3.9574 10.885 3.6709 11.803 3.7877 12.442 3.9358 "execute next job" 10.908 4.0408 solid #758297
-edge ZooKeeperLeaderElector "node-b scheduler" 7 8.4784 5.2431 8.5913 4.5718 8.9942 2.7548 10.142 1.9158 10.707 1.5032 11.49 1.4018 12.124 1.4021 "SKIPPED report" 10.908 1.9991 solid #758297
-edge "ZooKeeper / Curator" ZooKeeperLeaderElector 10 12.819 7.9113 12.512 7.7195 12.073 7.4553 11.674 7.2491 11.012 6.9073 10.8 6.9189 10.142 6.5686 9.7256 6.3464 9.274 6.0602 8.9408 5.8398 ACQUIRED 10.908 7.3324 solid #758297
-edge "ZooKeeper / Curator" ZooKeeperLeaderElector 7 13.073 7.9136 12.833 7.5204 12.316 6.7645 11.674 6.3602 11.125 6.0152 10.441 5.8074 9.8436 5.6827 "not leader" 10.908 6.4436 solid #758297
-edge "ZooKeeper / Curator" ZooKeeperLeaderElector 7 13.163 7.913 13.025 7.3524 12.607 6.0119 11.674 5.4713 11.048 5.1087 10.232 5.1183 9.5771 5.2172 ACQUIRED 10.908 5.5547 solid #758297
-edge "node-b scheduler" ZooKeeperLeaderElector 7 12.757 1.2423 12.112 0.92249 10.934 0.48092 10.142 1.0269 8.7742 1.9702 8.5054 4.1702 8.4532 5.0868 "runIfLeader(lockName)" 10.908 1.1102 solid #758297
-edge "node-b scheduler" ZooKeeperLeaderElector 7 12.718 1.7551 12.081 2.094 10.965 2.734 10.142 3.4574 9.5615 3.9684 9.0118 4.6858 8.7015 5.12 "next run" 10.908 3.5408 solid #758297
+graph 1 19.191 6.875
+node trigger 0.84028 0.55556 1.6806 0.5 "Scheduler Tick" rounded,filled box #94A3B8 #F8FAFC
+node coord 5.4167 1.8333 2.7222 0.5 ZooKeeperLegacyScheduler rounded,filled box #94A3B8 #F8FAFC
+node elector 11.722 3.4444 2.5139 0.5 ZooKeeperLeaderElector rounded,filled box #94A3B8 #F8FAFC
+node backend 18.038 5.3056 1.9931 0.5 "Curator lock path" rounded,filled box #94A3B8 #F8FAFC
+node work 18.038 2.5278 2.3056 0.5 "Legacy Scheduled Job" rounded,filled box #94A3B8 #F8FAFC
+node peer 18.038 0.56944 1.4722 0.5 "Skipped Peer" rounded,filled box #94A3B8 #F8FAFC
+edge trigger coord 7 0.84375 0.808 0.84375 1.1804 0.84375 1.8333 0.84375 1.8333 0.84375 1.8333 3.9326 1.8333 3.9326 1.8333 "start scheduler tick" 2.8681 1.2917 solid #4F83BF
+edge coord elector 7 6.7817 1.8333 8.5203 1.8333 11.302 1.8333 11.302 1.8333 11.302 1.8333 11.302 3.0709 11.302 3.0709 "runIfLeader with source options" 8.6215 2.9861 solid #4F83BF
+edge elector backend 7 12.984 3.623 14.668 3.623 17.441 3.623 17.441 3.623 17.441 3.623 17.441 4.9318 17.441 4.9318 "attempt backend ownership" 14.932 6.7917 solid #B9851B
+edge elector backend 7 12.983 3.5516 14.775 3.5516 17.844 3.5516 17.844 3.5516 17.844 3.5516 17.844 4.9323 17.844 4.9323 "release or renew for session lock release" 14.932 5.8611 solid #755BC6
+edge elector work 7 12.986 3.2659 14.53 3.2659 16.941 3.2659 16.941 3.2659 16.941 3.2659 16.941 2.9 16.941 2.9 "execute legacy scheduled job" 14.932 3.0694 solid #3E9868
+edge elector peer 7 12.135 3.1909 12.135 2.5015 12.135 0.64352 12.135 0.64352 12.135 0.64352 17.178 0.64352 17.178 0.64352 "return skipped result" 14.932 1.2083 solid #C94D68
+edge backend elector 7 18.233 5.0517 18.233 4.5502 18.233 3.4802 18.233 3.4802 18.233 3.4802 13.103 3.4802 13.103 3.4802 "owner token accepted" 14.932 4.9306 solid #3E9868
+edge backend elector 7 18.635 5.0497 18.635 4.532 18.635 3.4087 18.635 3.4087 18.635 3.4087 13.1 3.4087 13.1 3.4087 "lock already owned" 14.932 4 solid #C94D68
+edge work elector 7 16.983 2.7839 16.983 3.0211 16.983 3.3373 16.983 3.3373 16.983 3.3373 13.1 3.3373 13.1 3.3373 "return leader result" 14.932 2.1389 solid #3E9868
+edge peer trigger 4 17.299 0.48148 17.299 0.48148 1.804 0.48148 1.804 0.48148 "cycle completes without duplicate work" 8.6215 0.083333 solid #C94D68
 stop

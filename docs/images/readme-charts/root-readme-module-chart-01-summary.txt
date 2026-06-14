@@ -1,0 +1,1 @@
+docs/images/readme-charts/root-readme-module-chart-01: chart=PASS rows=5 bars=5 unit="modules" direction="count" marginImbalance=0 margins=L/R/T/B:96/96/96/96 source=README.md:37; README.ko.md:36; settings.gradle.kts catalog=chart-baseline

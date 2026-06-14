@@ -1,128 +1,314 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="2470" height="713" viewBox="0 0 2470 713" role="img" aria-label="leader hazelcast Class Structure">
-  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: leader-hazelcast-class-01.dot, leader-hazelcast-class-01.plain, leader-hazelcast-class-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
-<defs>
-  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
-  <marker id="openArrow" markerWidth="10" markerHeight="8" refX="8.5" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 8.5 4 L 1 7" fill="none" stroke="#758297" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="inherit" markerWidth="11" markerHeight="10" refX="9.5" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 1 L 9.5 5 L 0.5 9 Z" fill="#ffffff" stroke="#758297" stroke-width="1.7"/></marker>
-  <style>
-    .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
-    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
-    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
-    .label{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
-    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
-    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
-    .small{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
-    .strong{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
-    .card{stroke-width:2.1;filter:url(#shadow)}.compartment{stroke-width:1.5;fill:none}
-    .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
-    .plainLine{stroke:#758297;stroke-width:2.1;fill:none}
-    .dashed{stroke:#758297;stroke-width:2.1;stroke-dasharray:7 6;fill:none;marker-end:url(#openArrow)}
-    .inheritLine{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#inherit)}
-    .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
+<svg xmlns="http://www.w3.org/2000/svg" width="1966" height="1978" viewBox="0 0 1966 1978" role="img" aria-labelledby="title desc" data-intent="Help Hazelcast users understand that this module does not use CP Subsystem locks: public blocking, async, virtual-thread-safe, and coroutine electors delegate to token-owned Hazelcast IMap entries; group election simulates maxLeaders with slot keys; extension delegates and watchdog renewal share the same lock reference; and near-cache or too-short leaseTime can break ownership assumptions." data-evidence="kind=class; best-practice=class-diagram-style-v3; rejected-patterns=relationship-heavy-grid,card-penetrating-connector,inheritance-arrow-not-on-parent,undifferentiated-class-route-overlap" data-source-read="leader-hazelcast/README.md; leader-hazelcast/src/main/kotlin/io/bluetape4k/leader/hazelcast/HazelcastLeaderElector.kt; HazelcastLeaderGroupElector.kt; HazelcastSuspendLeaderElector.kt; HazelcastSuspendLeaderGroupElector.kt; HazelcastLeaderElectorFactory.kt; HazelcastLeaderGroupElectorFactory.kt; lock/HazelcastLock.kt; lock/HazelcastSuspendLock.kt; internal/HazelcastLockExtendDelegate.kt; HazelcastSlotExtendDelegate.kt; HazelcastSuspendLockExtendDelegate.kt; HazelcastSuspendSlotExtendDelegate.kt; HazelcastBackendErrorClassifier.kt">
+  <title id="title">Hazelcast Leader Class Diagram</title>
+  <desc id="desc">Source-backed UML class diagram for the Hazelcast leader module.</desc>
+  <defs>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
+    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
+    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
+    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
+    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
+    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
+    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
+    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
+    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
+    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
+    <style>
+      .canvas{fill:#F7FAFC}
+      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
+      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
+      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
+      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
+      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
+      .card{filter:url(#shadow);stroke-width:2}
+      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
+      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
+      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
+      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
+      .seq{fill:none;stroke-width:3;stroke-linecap:round}
+      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
+      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
+      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
+      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
+    </style>
+  </defs>
+  <rect class="canvas" width="1966" height="1978"/>
+  <rect class="frame" x="32" y="28" width="1902" height="1922" rx="28"/>
+  <text class="title" x="66" y="82">Hazelcast Leader Class Diagram</text>
+  <text class="subtitle" x="70" y="116">Public electors map core contracts to token-based IMap locks, slot keys, extension delegates, and TTL ownership checks.</text>
+<defs><marker id="uml-inherit-hazelcastLeader-leaderContract" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#FFFFFF" stroke="#4F83BF" stroke-width="0.7"/></marker></defs>
+<path class="route" data-from="hazelcastLeader" data-to="leaderContract" data-route-kind="inherit" d="M323 488 L323 376" stroke="#4F83BF" marker-end="url(#uml-inherit-hazelcastLeader-leaderContract)"/>
 
-    .layerBand{fill-opacity:0.45;stroke-width:1.4;stroke-dasharray:9 7}
-    .layerLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:19px;font-weight:400;fill:#536273}
-  </style>
-</defs>
-<rect class="canvas" width="2470" height="713"/>
-<rect class="frame" x="32" y="28" width="2406" height="657" rx="28"/>
-<text class="title" x="66" y="82">leader hazelcast Class Structure</text>
-<text class="subtitle" x="70" y="118">UML classes from the original Mermaid source</text>
-<g id="layer-bands" aria-label="Layer bands">
-  <g data-layer="Public Electors">
-    <rect class="layerBand" x="40" y="156" width="2390" height="168" rx="18" fill="#EEF6FF" stroke="#9BC4F8"/>
-    <text class="layerLabel" x="58" y="183">Public Electors</text>
-  </g>
-  <g data-layer="Hazelcast Lock Primitives">
-    <rect class="layerBand" x="40" y="404" width="2390" height="215" rx="18" fill="#EEF8F1" stroke="#A5D6B7"/>
-    <text class="layerLabel" x="58" y="431">Hazelcast Lock Primitives</text>
-  </g>
+<defs><marker id="uml-inherit-hazelcastSuspend-suspendContract" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#FFFFFF" stroke="#4F83BF" stroke-width="0.7"/></marker></defs>
+<path class="route" data-from="hazelcastSuspend" data-to="suspendContract" data-route-kind="inherit" d="M753 488 L753 376" stroke="#4F83BF" marker-end="url(#uml-inherit-hazelcastSuspend-suspendContract)"/>
+
+<defs><marker id="uml-inherit-hazelcastGroup-groupContract" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#FFFFFF" stroke="#4F83BF" stroke-width="0.7"/></marker></defs>
+<path class="route" data-from="hazelcastGroup" data-to="groupContract" data-route-kind="inherit" d="M1243 488 L1243 376" stroke="#4F83BF" marker-end="url(#uml-inherit-hazelcastGroup-groupContract)"/>
+
+<defs><marker id="uml-inherit-hazelcastSuspendGroup-suspendGroupContract" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#FFFFFF" stroke="#4F83BF" stroke-width="0.7"/></marker></defs>
+<path class="route" data-from="hazelcastSuspendGroup" data-to="suspendGroupContract" data-route-kind="inherit" d="M1658 488 L1658 376" stroke="#4F83BF" marker-end="url(#uml-inherit-hazelcastSuspendGroup-suspendGroupContract)"/>
+
+
+<path class="route" data-from="factories" data-to="hazelcastLeader" data-route-kind="dependency" d="M703 803 L106 803 L106 588 L128 588" stroke="#758297" stroke-dasharray="8 7" marker-end="url(#arrow-neutral)"/>
+<g>
+  <rect class="pill" x="339.2" y="789" width="131.60000000000002" height="28" rx="14"/>
+  <text class="small" x="405" y="804" text-anchor="middle" dominant-baseline="middle" fill="#758297">factory create</text>
 </g>
 
-<path class="line" d="M2070 492 L2035 492 L2035 515.5 L2000 515.5"/>
-<path class="line" d="M1600 492 L1635 492 L1635 515.5 L1670 515.5"/>
-<path class="line" d="M870 492 L835 492 L835 515.5 L800 515.5"/>
-<path class="line" d="M400 484 L435 484 L435 515.5 L470 515.5"/>
-<path class="implLine" d="M2235 428 L2235 368 L1568.3 368 L1568.3 308"/>
-<path class="implLine" d="M1435 428 L1435 360 L2235 360 L2235 292"/>
-<path class="implLine" d="M1035 428 L1035 360 L901.7 360 L901.7 292"/>
-<path class="implLine" d="M235 428 L235 360 L235 360 L235 292"/>
-<g transform="translate(70,428)">
-  <rect class="card" x="0" y="0" width="330" height="112" rx="5" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <line class="compartment" x1="0" y1="78" x2="330" y2="78" stroke="#5B8DEF"/>
-  <text class="small" x="165" y="26" text-anchor="middle"></text>
-  <text class="label" x="165" y="61" text-anchor="middle">HazelcastLeaderElector</text>
+<path class="route" data-from="factories" data-to="hazelcastGroup" data-route-kind="dependency" d="M1243 718 L1243 658" stroke="#758297" stroke-dasharray="8 7" marker-end="url(#arrow-neutral)"/>
+<g>
+  <rect class="pill" x="1184.6" y="674" width="116.80000000000001" height="28" rx="14"/>
+  <text class="small" x="1243" y="689" text-anchor="middle" dominant-baseline="middle" fill="#758297">group create</text>
+</g>
 
+<path class="route" data-from="factories" data-to="hazelcastSuspend" data-route-kind="dependency" d="M848 718 L848 658" stroke="#758297" stroke-dasharray="8 7" marker-end="url(#arrow-neutral)"/>
+<g>
+  <rect class="pill" x="797" y="674" width="102" height="28" rx="14"/>
+  <text class="small" x="848" y="689" text-anchor="middle" dominant-baseline="middle" fill="#758297">extensions</text>
 </g>
-<g transform="translate(1270,428)">
-  <rect class="card" x="0" y="0" width="330" height="128" rx="5" fill="#EAF7EF" stroke="#58A978"/>
-  <line class="compartment" x1="0" y1="94" x2="330" y2="94" stroke="#58A978"/>
-  <text class="small" x="165" y="26" text-anchor="middle"></text>
-  <text class="label" x="165" y="56.5" text-anchor="middle">Hazelcast Suspend</text>
-<text class="label" x="165" y="81.5" text-anchor="middle">Leader Elector</text>
 
+<path class="route" data-from="factories" data-to="hazelcastSuspendGroup" data-route-kind="dependency" d="M1198 718 L1198 698 L1658 698 L1658 678" stroke="#758297" stroke-dasharray="8 7" marker-end="url(#arrow-neutral)"/>
+<g>
+  <rect class="pill" x="1373.3" y="684" width="109.4" height="28" rx="14"/>
+  <text class="small" x="1428" y="699" text-anchor="middle" dominant-baseline="middle" fill="#758297">suspend ext</text>
 </g>
-<g transform="translate(70,180)">
-  <rect class="card" x="0" y="0" width="330" height="112" rx="5" fill="#FFF3D9" stroke="#D6A441"/>
-  <line class="compartment" x1="0" y1="78" x2="330" y2="78" stroke="#D6A441"/>
-  <text class="small" x="165" y="26" text-anchor="middle">«interface»</text>
-  <text class="label" x="165" y="61" text-anchor="middle">LeaderElector</text>
 
+<path class="route" data-from="hazelcastLeader" data-to="singleDelegates" data-route-kind="local" d="M323 658 L323 818" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
+<g>
+  <rect class="pill" x="253.5" y="724" width="139" height="28" rx="14"/>
+  <text class="small" x="323" y="739" text-anchor="middle" dominant-baseline="middle" fill="#B9851B">handle delegate</text>
 </g>
-<g transform="translate(470,428)">
-  <rect class="card" x="0" y="0" width="330" height="175" rx="5" fill="#FDECEF" stroke="#DC6B82"/>
-  <line class="compartment" x1="0" y1="78" x2="330" y2="78" stroke="#DC6B82"/>
-  <text class="small" x="165" y="26" text-anchor="middle"></text>
-  <text class="label" x="165" y="61" text-anchor="middle">HazelcastLock</text>
-  <text class="mono" x="18" y="108">+tryLock(waitTime, leaseTime) Boolean</text>
-<text class="mono" x="18" y="129">+isHeldByCurrentInstance() Boolean</text>
-<text class="mono" x="18" y="150">+unlock()</text>
-</g>
-<g transform="translate(1670,428)">
-  <rect class="card" x="0" y="0" width="330" height="175" rx="5" fill="#E9F7F6" stroke="#45A7A1"/>
-  <line class="compartment" x1="0" y1="78" x2="330" y2="78" stroke="#45A7A1"/>
-  <text class="small" x="165" y="26" text-anchor="middle"></text>
-  <text class="label" x="165" y="61" text-anchor="middle">HazelcastSuspendLock</text>
-  <text class="mono" x="18" y="108">+tryLock(waitTime, leaseTime) Boolean</text>
-<text class="mono" x="18" y="129">+isHeldByCurrentInstance() Boolean</text>
-<text class="mono" x="18" y="150">+unlock()</text>
-</g>
-<g transform="translate(2070,180)">
-  <rect class="card" x="0" y="0" width="330" height="112" rx="5" fill="#F1ECFF" stroke="#8A72D6"/>
-  <line class="compartment" x1="0" y1="78" x2="330" y2="78" stroke="#8A72D6"/>
-  <text class="small" x="165" y="26" text-anchor="middle">«interface»</text>
-  <text class="label" x="165" y="61" text-anchor="middle">SuspendLeaderElector</text>
 
+<path class="route" data-from="hazelcastSuspend" data-to="singleDelegates" data-route-kind="local" d="M753 658 L753 698 L618 698 L618 818" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
+<g>
+  <rect class="pill" x="612.8" y="684" width="146.4" height="28" rx="14"/>
+  <text class="small" x="686" y="699" text-anchor="middle" dominant-baseline="middle" fill="#B9851B">suspend delegate</text>
 </g>
-<g transform="translate(870,428)">
-  <rect class="card" x="0" y="0" width="330" height="128" rx="5" fill="#F7F1E7" stroke="#B88A44"/>
-  <line class="compartment" x1="0" y1="94" x2="330" y2="94" stroke="#B88A44"/>
-  <text class="small" x="165" y="26" text-anchor="middle"></text>
-  <text class="label" x="165" y="56.5" text-anchor="middle">Hazelcast Leader Group</text>
-<text class="label" x="165" y="81.5" text-anchor="middle">Elector</text>
 
+<path class="route" data-from="hazelcastGroup" data-to="slotDelegates" data-route-kind="slot" d="M1243 658 L1243 698 L1333 698 L1333 818" stroke="#755BC6" marker-end="url(#arrow-release)"/>
+<g>
+  <rect class="pill" x="1270.9" y="744" width="124.2" height="28" rx="14"/>
+  <text class="small" x="1333" y="759" text-anchor="middle" dominant-baseline="middle" fill="#755BC6">slot delegate</text>
 </g>
-<g transform="translate(2070,428)">
-  <rect class="card" x="0" y="0" width="330" height="128" rx="5" fill="#EEF6D9" stroke="#8BA84D"/>
-  <line class="compartment" x1="0" y1="94" x2="330" y2="94" stroke="#8BA84D"/>
-  <text class="small" x="165" y="26" text-anchor="middle"></text>
-  <text class="label" x="165" y="56.5" text-anchor="middle">Hazelcast Suspend</text>
-<text class="label" x="165" y="81.5" text-anchor="middle">Leader Group Elector</text>
 
+<path class="route" data-from="hazelcastSuspendGroup" data-to="slotDelegates" data-route-kind="slot" d="M1658 678 L1658 818" stroke="#755BC6" marker-end="url(#arrow-release)"/>
+<g>
+  <rect class="pill" x="1599.6" y="734" width="116.80000000000001" height="28" rx="14"/>
+  <text class="small" x="1658" y="749" text-anchor="middle" dominant-baseline="middle" fill="#755BC6">suspend slot</text>
 </g>
-<g transform="translate(736.7,180)">
-  <rect class="card" x="0" y="0" width="330" height="112" rx="5" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <line class="compartment" x1="0" y1="78" x2="330" y2="78" stroke="#5B8DEF"/>
-  <text class="small" x="165" y="26" text-anchor="middle">«interface»</text>
-  <text class="label" x="165" y="61" text-anchor="middle">LeaderGroupElector</text>
 
+<path class="route" data-from="singleDelegates" data-to="hazelcastLock" data-route-kind="local" d="M388 988 L388 1088" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
+<g>
+  <rect class="pill" x="333.3" y="1024" width="109.4" height="28" rx="14"/>
+  <text class="small" x="388" y="1039" text-anchor="middle" dominant-baseline="middle" fill="#B9851B">sync extend</text>
 </g>
-<g transform="translate(1403.3,180)">
-  <rect class="card" x="0" y="0" width="330" height="128" rx="5" fill="#EAF7EF" stroke="#58A978"/>
-  <line class="compartment" x1="0" y1="94" x2="330" y2="94" stroke="#58A978"/>
-  <text class="small" x="165" y="26" text-anchor="middle">«interface»</text>
-  <text class="label" x="165" y="56.5" text-anchor="middle">Suspend Leader Group</text>
-<text class="label" x="165" y="81.5" text-anchor="middle">Elector</text>
 
+<path class="route" data-from="singleDelegates" data-to="hazelcastSuspendLock" data-route-kind="local" d="M698 908 L958 908 L958 1058 L1508 1058 L1508 1088" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
+<g>
+  <rect class="pill" x="1167.2" y="1044" width="131.60000000000002" height="28" rx="14"/>
+  <text class="small" x="1233" y="1059" text-anchor="middle" dominant-baseline="middle" fill="#B9851B">suspend extend</text>
+</g>
+
+<path class="route" data-from="slotDelegates" data-to="hazelcastLock" data-route-kind="slot" d="M1258 908 L988 908 L988 1058 L448 1058 L448 1088" stroke="#755BC6" marker-end="url(#arrow-release)"/>
+<g>
+  <rect class="pill" x="670" y="1044" width="96" height="28" rx="14"/>
+  <text class="small" x="718" y="1059" text-anchor="middle" dominant-baseline="middle" fill="#755BC6">slot lock</text>
+</g>
+
+<path class="route" data-from="slotDelegates" data-to="hazelcastSuspendLock" data-route-kind="slot" d="M1508 988 L1508 1088" stroke="#755BC6" marker-end="url(#arrow-release)"/>
+<g>
+  <rect class="pill" x="1431.1" y="1024" width="153.8" height="28" rx="14"/>
+  <text class="small" x="1508" y="1039" text-anchor="middle" dominant-baseline="middle" fill="#755BC6">suspend slot lock</text>
+</g>
+
+<path class="route" data-from="hazelcastLock" data-to="hazelcastMap" data-route-kind="uses" d="M448 1278 L448 1308 L908 1308 L908 1338" stroke="#758297" stroke-dasharray="8 7" marker-end="url(#arrow-neutral)"/>
+<g>
+  <rect class="pill" x="608.5" y="1294" width="139" height="28" rx="14"/>
+  <text class="small" x="678" y="1309" text-anchor="middle" dominant-baseline="middle" fill="#758297">putIfAbsent TTL</text>
+</g>
+
+<path class="route" data-from="hazelcastSuspendLock" data-to="hazelcastMap" data-route-kind="uses" d="M1508 1278 L1508 1308 L1108 1308 L1108 1338" stroke="#758297" stroke-dasharray="8 7" marker-end="url(#arrow-neutral)"/>
+<g>
+  <rect class="pill" x="1242.2" y="1294" width="131.60000000000002" height="28" rx="14"/>
+  <text class="small" x="1308" y="1309" text-anchor="middle" dominant-baseline="middle" fill="#758297">Dispatchers.IO</text>
+</g>
+
+<path class="route" data-from="hazelcastClassifier" data-to="singleDelegates" data-route-kind="event" d="M978 1088 L978 1028 L448 1028 L448 988" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+
+
+<path class="route" data-from="hazelcastClassifier" data-to="slotDelegates" data-route-kind="event" d="M978 1088 L978 1028 L1508 1028 L1508 988" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+
+<g id="class-leaderContract">
+  <rect x="148" y="228" width="330" height="148" rx="8" fill="#E8F3FF" stroke="#5B8DEF" stroke-width="2.2" filter="url(#shadow)"/>
+  <line x1="148" y1="294" x2="478" y2="294" stroke="#5B8DEF" stroke-width="1.8"/>
+  <text class="small" x="313" y="252" text-anchor="middle" dominant-baseline="middle">&lt;&lt;core interface&gt;&gt;</text>
+  <text class="cardTitle" x="313" y="278" text-anchor="middle" dominant-baseline="middle">LeaderElector</text>
+  <text class="detail" x="166" y="312" dominant-baseline="middle">+ runIfLeader(lockName): T?</text>
+  <text class="detail" x="166" y="333" dominant-baseline="middle">+ runAsyncIfLeader(lockName)</text>
+  <text class="detail" x="166" y="354" dominant-baseline="middle">+ state(lockName): LeaderState</text>
+</g>
+<g id="class-suspendContract">
+  <rect x="568" y="228" width="360" height="148" rx="8" fill="#F1ECFF" stroke="#8A72D6" stroke-width="2.2" filter="url(#shadow)"/>
+  <line x1="568" y1="294" x2="928" y2="294" stroke="#8A72D6" stroke-width="1.8"/>
+  <text class="small" x="748" y="252" text-anchor="middle" dominant-baseline="middle">&lt;&lt;core suspend interface&gt;&gt;</text>
+  <text class="cardTitle" x="748" y="278" text-anchor="middle" dominant-baseline="middle">SuspendLeaderElector</text>
+  <text class="detail" x="586" y="312" dominant-baseline="middle">+ suspend runIfLeader(lockName)</text>
+  <text class="detail" x="586" y="333" dominant-baseline="middle">+ runIfLeaderResultSuspend(slot)</text>
+  <text class="detail" x="586" y="354" dominant-baseline="middle">coroutine context handle</text>
+</g>
+<g id="class-groupContract">
+  <rect x="1068" y="228" width="350" height="148" rx="8" fill="#E9F7F6" stroke="#45A7A1" stroke-width="2.2" filter="url(#shadow)"/>
+  <line x1="1068" y1="294" x2="1418" y2="294" stroke="#45A7A1" stroke-width="1.8"/>
+  <text class="small" x="1243" y="252" text-anchor="middle" dominant-baseline="middle">&lt;&lt;core group interface&gt;&gt;</text>
+  <text class="cardTitle" x="1243" y="278" text-anchor="middle" dominant-baseline="middle">LeaderGroupElector</text>
+  <text class="detail" x="1086" y="312" dominant-baseline="middle">+ maxLeaders: Int</text>
+  <text class="detail" x="1086" y="333" dominant-baseline="middle">+ runIfLeader(lockName): T?</text>
+  <text class="detail" x="1086" y="354" dominant-baseline="middle">+ activeCount / availableSlots</text>
+</g>
+<g id="class-suspendGroupContract">
+  <rect x="1488" y="228" width="350" height="148" rx="8" fill="#F1ECFF" stroke="#8A72D6" stroke-width="2.2" filter="url(#shadow)"/>
+  <line x1="1488" y1="294" x2="1838" y2="294" stroke="#8A72D6" stroke-width="1.8"/>
+  <text class="small" x="1663" y="252" text-anchor="middle" dominant-baseline="middle">&lt;&lt;core suspend group&gt;&gt;</text>
+  <text class="cardTitle" x="1663" y="278" text-anchor="middle" dominant-baseline="middle">SuspendLeaderGroupElector</text>
+  <text class="detail" x="1506" y="312" dominant-baseline="middle">+ maxLeaders: Int</text>
+  <text class="detail" x="1506" y="333" dominant-baseline="middle">+ suspend runIfLeader(lockName)</text>
+  <text class="detail" x="1506" y="354" dominant-baseline="middle">+ state(lockName): LeaderGroupState</text>
+</g>
+<g id="class-hazelcastLeader">
+  <rect x="128" y="488" width="390" height="170" rx="8" fill="#EAF7EF" stroke="#58A978" stroke-width="2.2" filter="url(#shadow)"/>
+  <line x1="128" y1="554" x2="518" y2="554" stroke="#58A978" stroke-width="1.8"/>
+  <text class="small" x="323" y="512" text-anchor="middle" dominant-baseline="middle">&lt;&lt;blocking + async implementation&gt;&gt;</text>
+  <text class="cardTitle" x="323" y="538" text-anchor="middle" dominant-baseline="middle">HazelcastLeaderElector</text>
+  <text class="detail" x="146" y="572" dominant-baseline="middle">uses bluetape4k:leader:locks</text>
+  <text class="detail" x="146" y="593" dominant-baseline="middle">creates HazelcastLock</text>
+  <text class="detail" x="146" y="614" dominant-baseline="middle">autoExtend watchdog optional</text>
+  <text class="detail" x="146" y="635" dominant-baseline="middle">async release is thread-unbound</text>
+</g>
+<g id="class-hazelcastSuspend">
+  <rect x="558" y="488" width="390" height="170" rx="8" fill="#F1ECFF" stroke="#8A72D6" stroke-width="2.2" filter="url(#shadow)"/>
+  <line x1="558" y1="554" x2="948" y2="554" stroke="#8A72D6" stroke-width="1.8"/>
+  <text class="small" x="753" y="512" text-anchor="middle" dominant-baseline="middle">&lt;&lt;coroutine implementation&gt;&gt;</text>
+  <text class="cardTitle" x="753" y="538" text-anchor="middle" dominant-baseline="middle">HazelcastSuspendLeaderElector</text>
+  <text class="detail" x="576" y="572" dominant-baseline="middle">uses same single lock map</text>
+  <text class="detail" x="576" y="593" dominant-baseline="middle">creates HazelcastSuspendLock</text>
+  <text class="detail" x="576" y="614" dominant-baseline="middle">withContext(handle element)</text>
+  <text class="detail" x="576" y="635" dominant-baseline="middle">NonCancellable release</text>
+</g>
+<g id="class-hazelcastGroup">
+  <rect x="1048" y="488" width="390" height="170" rx="8" fill="#E9F7F6" stroke="#45A7A1" stroke-width="2.2" filter="url(#shadow)"/>
+  <line x1="1048" y1="554" x2="1438" y2="554" stroke="#45A7A1" stroke-width="1.8"/>
+  <text class="small" x="1243" y="512" text-anchor="middle" dominant-baseline="middle">&lt;&lt;slot group implementation&gt;&gt;</text>
+  <text class="cardTitle" x="1243" y="538" text-anchor="middle" dominant-baseline="middle">HazelcastLeaderGroupElector</text>
+  <text class="detail" x="1066" y="572" dominant-baseline="middle">uses group lock map</text>
+  <text class="detail" x="1066" y="593" dominant-baseline="middle">iterates lockName:slot:N</text>
+  <text class="detail" x="1066" y="614" dominant-baseline="middle">activeCount reads slot keys</text>
+  <text class="detail" x="1066" y="635" dominant-baseline="middle">group watchdog disabled</text>
+</g>
+<g id="class-hazelcastSuspendGroup">
+  <rect x="1478" y="488" width="360" height="190" rx="8" fill="#E9F7F6" stroke="#45A7A1" stroke-width="2.2" filter="url(#shadow)"/>
+  <line x1="1478" y1="554" x2="1838" y2="554" stroke="#45A7A1" stroke-width="1.8"/>
+  <text class="small" x="1658" y="512" text-anchor="middle" dominant-baseline="middle">&lt;&lt;coroutine slot group&gt;&gt;</text>
+  <text class="cardTitle" x="1658" y="538" text-anchor="middle" dominant-baseline="middle">HazelcastSuspend Group</text>
+  <text class="detail" x="1496" y="572" dominant-baseline="middle">HazelcastSuspendLeaderGroupElector</text>
+  <text class="detail" x="1496" y="593" dominant-baseline="middle">ensureActive while trying slots</text>
+  <text class="detail" x="1496" y="614" dominant-baseline="middle">creates suspend slot lock</text>
+  <text class="detail" x="1496" y="635" dominant-baseline="middle">NonCancellable slot release</text>
+</g>
+<g id="class-factories">
+  <rect x="703" y="718" width="550" height="170" rx="8" fill="#E8F3FF" stroke="#5B8DEF" stroke-width="2.2" filter="url(#shadow)"/>
+  <line x1="703" y1="784" x2="1253" y2="784" stroke="#5B8DEF" stroke-width="1.8"/>
+  <text class="small" x="978" y="742" text-anchor="middle" dominant-baseline="middle">&lt;&lt;factory + extensions&gt;&gt;</text>
+  <text class="cardTitle" x="978" y="768" text-anchor="middle" dominant-baseline="middle">Factory Entrypoints</text>
+  <text class="detail" x="721" y="802" dominant-baseline="middle">HazelcastLeaderElectorFactory</text>
+  <text class="detail" x="721" y="823" dominant-baseline="middle">HazelcastLeaderGroupElectorFactory</text>
+  <text class="detail" x="721" y="844" dominant-baseline="middle">HazelcastInstance.runIfLeader*</text>
+  <text class="detail" x="721" y="865" dominant-baseline="middle">HazelcastInstance.suspendRunIfLeader*</text>
+</g>
+<g id="class-singleDelegates">
+  <rect x="198" y="818" width="500" height="170" rx="8" fill="#EEF1FF" stroke="#6477D8" stroke-width="2.2" filter="url(#shadow)"/>
+  <line x1="198" y1="884" x2="698" y2="884" stroke="#6477D8" stroke-width="1.8"/>
+  <text class="small" x="448" y="842" text-anchor="middle" dominant-baseline="middle">&lt;&lt;renewal delegates&gt;&gt;</text>
+  <text class="cardTitle" x="448" y="868" text-anchor="middle" dominant-baseline="middle">Single Extend Delegates</text>
+  <text class="detail" x="216" y="902" dominant-baseline="middle">HazelcastLockExtendDelegate</text>
+  <text class="detail" x="216" y="923" dominant-baseline="middle">HazelcastSuspendLockExtendDelegate</text>
+  <text class="detail" x="216" y="944" dominant-baseline="middle">share lock with LeaderLockHandle</text>
+  <text class="detail" x="216" y="965" dominant-baseline="middle">classify backend errors</text>
+</g>
+<g id="class-slotDelegates">
+  <rect x="1258" y="818" width="500" height="170" rx="8" fill="#EEF1FF" stroke="#6477D8" stroke-width="2.2" filter="url(#shadow)"/>
+  <line x1="1258" y1="884" x2="1758" y2="884" stroke="#6477D8" stroke-width="1.8"/>
+  <text class="small" x="1508" y="842" text-anchor="middle" dominant-baseline="middle">&lt;&lt;group renewal delegates&gt;&gt;</text>
+  <text class="cardTitle" x="1508" y="868" text-anchor="middle" dominant-baseline="middle">Slot Extend Delegates</text>
+  <text class="detail" x="1276" y="902" dominant-baseline="middle">HazelcastSlotExtendDelegate</text>
+  <text class="detail" x="1276" y="923" dominant-baseline="middle">HazelcastSuspendSlotExtendDelegate</text>
+  <text class="detail" x="1276" y="944" dominant-baseline="middle">extend lockName:slot:N</text>
+  <text class="detail" x="1276" y="965" dominant-baseline="middle">manual LockExtender path</text>
+</g>
+<g id="class-hazelcastLock">
+  <rect x="198" y="1088" width="500" height="190" rx="8" fill="#FFF3D9" stroke="#D6A441" stroke-width="2.2" filter="url(#shadow)"/>
+  <line x1="198" y1="1154" x2="698" y2="1154" stroke="#D6A441" stroke-width="1.8"/>
+  <text class="small" x="448" y="1112" text-anchor="middle" dominant-baseline="middle">&lt;&lt;IMap token lock&gt;&gt;</text>
+  <text class="cardTitle" x="448" y="1138" text-anchor="middle" dominant-baseline="middle">HazelcastLock</text>
+  <text class="detail" x="216" y="1172" dominant-baseline="middle">token: Base58 fencing value</text>
+  <text class="detail" x="216" y="1193" dominant-baseline="middle">putIfAbsent(key, token, TTL)</text>
+  <text class="detail" x="216" y="1214" dominant-baseline="middle">remove(key, token)</text>
+  <text class="detail" x="216" y="1235" dominant-baseline="middle">replace + setTtl renewal</text>
+</g>
+<g id="class-hazelcastSuspendLock">
+  <rect x="1258" y="1088" width="500" height="190" rx="8" fill="#FFF3D9" stroke="#D6A441" stroke-width="2.2" filter="url(#shadow)"/>
+  <line x1="1258" y1="1154" x2="1758" y2="1154" stroke="#D6A441" stroke-width="1.8"/>
+  <text class="small" x="1508" y="1112" text-anchor="middle" dominant-baseline="middle">&lt;&lt;suspend IMap token lock&gt;&gt;</text>
+  <text class="cardTitle" x="1508" y="1138" text-anchor="middle" dominant-baseline="middle">HazelcastSuspendLock</text>
+  <text class="detail" x="1276" y="1172" dominant-baseline="middle">blocking IMap wrapped in Dispatchers.IO</text>
+  <text class="detail" x="1276" y="1193" dominant-baseline="middle">delay retry loop</text>
+  <text class="detail" x="1276" y="1214" dominant-baseline="middle">token check before unlock</text>
+  <text class="detail" x="1276" y="1235" dominant-baseline="middle">same extendDetailed contract</text>
+</g>
+<g id="class-hazelcastMap">
+  <rect x="703" y="1338" width="550" height="190" rx="8" fill="#F2F5F9" stroke="#9AA8B8" stroke-width="2.2" filter="url(#shadow)"/>
+  <line x1="703" y1="1404" x2="1253" y2="1404" stroke="#9AA8B8" stroke-width="1.8"/>
+  <text class="small" x="978" y="1362" text-anchor="middle" dominant-baseline="middle">&lt;&lt;runtime primitive&gt;&gt;</text>
+  <text class="cardTitle" x="978" y="1388" text-anchor="middle" dominant-baseline="middle">Hazelcast IMap Store</text>
+  <text class="detail" x="721" y="1422" dominant-baseline="middle">single map: bluetape4k:leader:locks</text>
+  <text class="detail" x="721" y="1443" dominant-baseline="middle">group map: bluetape4k:leader:group:locks</text>
+  <text class="detail" x="721" y="1464" dominant-baseline="middle">no CP Subsystem required</text>
+  <text class="detail" x="721" y="1485" dominant-baseline="middle">near-cache must stay disabled</text>
+</g>
+<g id="class-hazelcastClassifier">
+  <rect x="753" y="1088" width="450" height="170" rx="8" fill="#F2F5F9" stroke="#9AA8B8" stroke-width="2.2" filter="url(#shadow)"/>
+  <line x1="753" y1="1154" x2="1203" y2="1154" stroke="#9AA8B8" stroke-width="1.8"/>
+  <text class="small" x="978" y="1112" text-anchor="middle" dominant-baseline="middle">&lt;&lt;watchdog error policy&gt;&gt;</text>
+  <text class="cardTitle" x="978" y="1138" text-anchor="middle" dominant-baseline="middle">HazelcastBackendErrorClassifier</text>
+  <text class="detail" x="771" y="1172" dominant-baseline="middle">Retryable / TargetNotMember -&gt; transient</text>
+  <text class="detail" x="771" y="1193" dominant-baseline="middle">WrongTarget -&gt; transient</text>
+  <text class="detail" x="771" y="1214" dominant-baseline="middle">HazelcastException -&gt; non-transient</text>
+  <text class="detail" x="771" y="1235" dominant-baseline="middle">feeds CompositeBackendErrorClassifier</text>
+</g>
+<g>
+  <rect class="band" x="1332" y="1586" width="506" height="268" rx="16"/>
+  <text class="bandTitle" x="1356" y="1616">Relationship Legend</text>
+<g>
+  <line x1="1358" y1="1650" x2="1428" y2="1650" stroke="#4F83BF" stroke-width="2.6" stroke-linecap="round"/>
+  <text class="small" x="1444" y="1651" dominant-baseline="middle">core interface implementation</text>
+</g>
+<g>
+  <line x1="1358" y1="1680" x2="1428" y2="1680" stroke="#758297" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="8 7"/>
+  <text class="small" x="1444" y="1681" dominant-baseline="middle">factory or extension creates elector</text>
+</g>
+<g>
+  <line x1="1358" y1="1710" x2="1428" y2="1710" stroke="#B9851B" stroke-width="2.6" stroke-linecap="round"/>
+  <text class="small" x="1444" y="1711" dominant-baseline="middle">single-leader lock and delegate path</text>
+</g>
+<g>
+  <line x1="1358" y1="1740" x2="1428" y2="1740" stroke="#755BC6" stroke-width="2.6" stroke-linecap="round"/>
+  <text class="small" x="1444" y="1741" dominant-baseline="middle">group slot-key semaphore path</text>
+</g>
+<g>
+  <line x1="1358" y1="1770" x2="1428" y2="1770" stroke="#758297" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="8 7"/>
+  <text class="small" x="1444" y="1771" dominant-baseline="middle">Hazelcast IMap operation dependency</text>
+</g>
+<g>
+  <line x1="1358" y1="1800" x2="1428" y2="1800" stroke="#2E8F89" stroke-width="2.6" stroke-linecap="round"/>
+  <text class="small" x="1444" y="1801" dominant-baseline="middle">watchdog backend error policy</text>
+</g>
 </g>
 </svg>

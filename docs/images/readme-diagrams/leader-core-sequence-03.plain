@@ -1,13 +1,17 @@
-graph 1 14.273 1.3403
-node n0 1.595 0.5 3.19 1 Caller rounded,filled box #5B8DEF #ffffff
-node n1 7.1367 0.5 3.19 1 GroupElection rounded,filled box #58A978 #ffffff
-node n2 12.678 0.5 3.19 1 LockStore rounded,filled box #D6A441 #ffffff
-edge n0 n1 4 3.1942 0.80556 3.1942 0.80556 5.3864 0.80556 5.3864 0.80556 solid #758297
-edge n0 n1 4 3.1942 0.59722 3.1942 0.59722 5.3864 0.59722 5.3864 0.59722 dashed #758297
-edge n1 n0 4 5.5375 0.40278 5.5375 0.40278 3.3453 0.40278 3.3453 0.40278 solid #758297
-edge n1 n0 4 5.5375 0.19444 5.5375 0.19444 3.3453 0.19444 3.3453 0.19444 dashed #758297
-edge n1 n2 4 8.7358 0.59722 8.7358 0.59722 10.928 0.59722 10.928 0.59722 solid #758297
-edge n1 n2 4 8.7358 0.40278 8.7358 0.40278 10.928 0.40278 10.928 0.40278 solid #758297
-edge n2 n1 4 11.079 0.19444 11.079 0.19444 8.8869 0.19444 8.8869 0.19444 dashed #758297
-edge n2 n1 4 11.079 0.80556 11.079 0.80556 8.8869 0.80556 8.8869 0.80556 dashed #758297
+graph 1 11.708 5.8333
+node caller 0.42361 2.7917 0.84722 0.5 Caller rounded,filled box #94A3B8 #F8FAFC
+node group 5.7292 2.7917 2.0972 0.5 "Core group elector" rounded,filled box #94A3B8 #F8FAFC
+node slots 10.868 5.5833 1.6806 0.5 "Slot namespace" rounded,filled box #94A3B8 #F8FAFC
+node backend 10.868 3.2639 1.6806 0.5 "Slot primitive" rounded,filled box #94A3B8 #F8FAFC
+node body 10.868 0.47222 1.2639 0.5 "Group body" rounded,filled box #94A3B8 #F8FAFC
+edge caller group 4 0.85329 2.6667 0.85329 2.6667 4.5567 2.6667 4.5567 2.6667 "runIfLeader(groupName, maxLeaders, body)" 2.7639 3.8056 solid #4F83BF
+edge group caller 4 4.6746 2.7917 4.6746 2.7917 0.96915 2.7917 0.96915 2.7917 "return group result and slot" 2.7639 2.875 solid #3E9868
+edge group caller 4 4.6746 2.9167 4.6746 2.9167 0.96915 2.9167 0.96915 2.9167 "return skipped group result" 2.7639 1.9444 solid #C94D68
+edge group slots 7 5.7222 3.0443 5.7222 3.7315 5.7222 5.5833 5.7222 5.5833 5.7222 5.5833 9.9058 5.5833 9.9058 5.5833 "build slot keys 0..maxLeaders-1" 8.4028 5.6667 solid #2E8F89
+edge group backend 7 6.7831 2.744 8.0915 2.744 10.153 2.744 10.153 2.744 10.153 2.744 10.153 2.8918 10.153 2.8918 "tryAcquire first free slot token" 8.4028 4.7361 solid #B9851B
+edge group backend 7 6.7817 2.8115 8.1019 2.8115 10.194 2.8115 10.194 2.8115 10.194 2.8115 10.194 2.893 10.194 2.893 "release owned slot token" 8.4028 3.8056 solid #755BC6
+edge group body 7 6.7794 2.6091 8.2254 2.6091 10.653 2.6091 10.653 2.6091 10.653 2.6091 10.653 0.84399 10.653 0.84399 "execute body for owned slot" 8.4028 1.0139 solid #4F83BF
+edge backend group 7 10.069 3.0076 10.069 2.9715 10.069 2.9464 10.069 2.9464 10.069 2.9464 6.8981 2.9464 6.8981 2.9464 "slot token accepted" 8.4028 2.875 solid #3E9868
+edge backend group 7 10.111 3.0093 10.111 2.9377 10.111 2.879 10.111 2.879 10.111 2.879 6.9026 2.879 6.9026 2.879 "no slot accepted before waitTime" 8.4028 1.9444 solid #C94D68
+edge body group 7 11.083 0.72509 11.083 1.3041 11.083 2.6766 11.083 2.6766 11.083 2.6766 6.8988 2.6766 6.8988 2.6766 "slot result" 8.4028 0.083333 solid #3E9868
 stop

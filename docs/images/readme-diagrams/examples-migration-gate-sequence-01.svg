@@ -1,96 +1,151 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1754" height="2404" viewBox="0 0 1754 2404" role="img" aria-label="migration gate Sequence Flow">
-  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: examples-migration-gate-sequence-01.dot, examples-migration-gate-sequence-01.plain, examples-migration-gate-sequence-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
-<defs>
-  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
-  <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="inherit" markerWidth="14" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M 0 1 L 12 6 L 0 11 Z" fill="#ffffff" stroke="#758297" stroke-width="1.8"/></marker>
-  <style>
-    .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
-    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
-    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
-    .label{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
-    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
-    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
-    .small{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
-    .strong{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
-    .card{stroke-width:2.1;filter:url(#shadow)}.compartment{stroke-width:1.5;fill:none}
-    .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
-    .plainLine{stroke:#758297;stroke-width:2.1;fill:none}
-    .dashed{stroke:#758297;stroke-width:2.1;stroke-dasharray:7 6;fill:none;marker-end:url(#openArrow)}
-    .inheritLine{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#inherit)}
-    .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
-  </style>
-</defs>
-<rect class="canvas" width="1754" height="2404"/>
-<rect class="frame" x="32" y="28" width="1690" height="2348" rx="28"/>
-<text class="title" x="66" y="82">migration gate Sequence Flow</text>
-<text class="subtitle" x="70" y="118">Sequence messages from the original Mermaid source</text>
-<rect class="card" x="80" y="166" width="290" height="72" rx="12" fill="#E8F3FF" stroke="#5B8DEF"/>
-<text class="smallLabel" x="225" y="209" text-anchor="middle">pod-1 (new version)</text>
-<line class="lifeline" x1="225" y1="252" x2="225" y2="2344" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="514.7" y="166" width="290" height="72" rx="12" fill="#EAF7EF" stroke="#58A978"/>
-<text class="smallLabel" x="659.7" y="209" text-anchor="middle">pod-2 (new version)</text>
-<line class="lifeline" x1="659.7" y1="252" x2="659.7" y2="2344" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="949.3" y="166" width="290" height="72" rx="12" fill="#FFF3D9" stroke="#D6A441"/>
-<text class="smallLabel" x="1094.3" y="209" text-anchor="middle">pod-3 (new version)</text>
-<line class="lifeline" x1="1094.3" y1="252" x2="1094.3" y2="2344" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="1384" y="166" width="290" height="72" rx="12" fill="#FDECEF" stroke="#DC6B82"/>
-<text class="smallLabel" x="1529" y="209" text-anchor="middle">DB</text>
-<line class="lifeline" x1="1529" y1="252" x2="1529" y2="2344" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect x="746" y="286" width="262" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="764" y="313" text-anchor="start">1. isApplied(v3)? (precheck)</text>
-<path class="line" d="M225 332 L1529 332"/>
-<rect x="963.3" y="396" width="262" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="981.3" y="423" text-anchor="start">2. isApplied(v3)? (precheck)</text>
-<path class="line" d="M659.7 442 L1529 442"/>
-<rect x="1180.7" y="506" width="262" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1198.7" y="533" text-anchor="start">3. isApplied(v3)? (precheck)</text>
-<path class="line" d="M1094.3 552 L1529 552"/>
-<rect x="155" y="616" width="1444" height="40" rx="101" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="177" y="643" text-anchor="start">PAR: lock contention</text>
-<rect x="758" y="684" width="238" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="776" y="711" text-anchor="start">5. acquire lock schema-v3</text>
-<path class="line" d="M225 730 L1529 730"/>
-<rect x="947.3" y="794" width="294" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="965.3" y="821" text-anchor="start">6. acquire lock schema-v3 (wait)</text>
-<path class="line" d="M659.7 840 L1529 840"/>
-<rect x="1164.7" y="904" width="294" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1182.7" y="931" text-anchor="start">7. acquire lock schema-v3 (wait)</text>
-<path class="line" d="M1094.3 950 L1529 950"/>
-<rect x="772" y="1014" width="210" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="790" y="1041" text-anchor="start">8. lock acquired</text>
-<path class="dashed" d="M1529 1060 L225 1060"/>
-<rect x="717.5" y="1124" width="319" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="735.5" y="1151" text-anchor="start">9. isApplied(v3)? (in-lock recheck)</text>
-<path class="line" d="M225 1170 L1529 1170"/>
-<rect x="772" y="1234" width="210" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="790" y="1261" text-anchor="start">10. false</text>
-<path class="dashed" d="M1529 1280 L225 1280"/>
-<rect x="726" y="1344" width="302" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="744" y="1371" text-anchor="start">11. run migration + insert marker</text>
-<path class="line" d="M225 1390 L1529 1390"/>
-<rect x="772" y="1454" width="210" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="790" y="1481" text-anchor="start">12. release lock</text>
-<path class="line" d="M225 1500 L1529 1500"/>
-<rect x="963.3" y="1564" width="262" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="981.3" y="1591" text-anchor="start">13. lock acquired (after P1)</text>
-<path class="dashed" d="M1529 1610 L659.7 1610"/>
-<rect x="930.8" y="1674" width="327" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="948.8" y="1701" text-anchor="start">14. isApplied(v3)? (in-lock recheck)</text>
-<path class="line" d="M659.7 1720 L1529 1720"/>
-<rect x="975.3" y="1784" width="238" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="993.3" y="1811" text-anchor="start">15. true → AlreadyApplied</text>
-<path class="dashed" d="M1529 1830 L659.7 1830"/>
-<rect x="989.3" y="1894" width="210" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1007.3" y="1921" text-anchor="start">16. release lock</text>
-<path class="line" d="M659.7 1940 L1529 1940"/>
-<rect x="1180.7" y="2004" width="262" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1198.7" y="2031" text-anchor="start">17. lock acquired (after P2)</text>
-<path class="dashed" d="M1529 2050 L1094.3 2050"/>
-<rect x="1148.2" y="2114" width="327" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1166.2" y="2141" text-anchor="start">18. isApplied(v3)? (in-lock recheck)</text>
-<path class="line" d="M1094.3 2160 L1529 2160"/>
-<rect x="1192.7" y="2224" width="238" height="40" rx="97" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="1210.7" y="2251" text-anchor="start">19. true → AlreadyApplied</text>
-<path class="dashed" d="M1529 2270 L1094.3 2270"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1840" height="1496" viewBox="0 0 1840 1496" role="img" aria-labelledby="title desc" data-intent="Answer the Migration Gate README reader's runtime-order question: which call starts from the deploy startup, how MigrationGate delegates to Exposed JDBC Elector, what leader lock table returns during acquire or contention, which messages are leader-only for run migration, which messages return a skipped result, and when schema marker recheck becomes visible?" data-evidence="examples/migration-gate README scenario/usage sections; examples/migration-gate/src/main example workflow; examples/migration-gate/src/test behavior checks when present" data-source-read="examples/migration-gate/README.md; examples/migration-gate/README.ko.md; examples/migration-gate/src/main; examples/migration-gate/src/test">
+  <title id="title">Migration Gate Runtime Sequence</title>
+  <desc id="desc">Sequence diagram for the Migration Gate example showing trigger, coordinator, elector, backend ownership attempt, leader work, release, and skipped peer response.</desc>
+  <defs>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
+    <marker id="seqArrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
+    <marker id="seqArrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
+    <marker id="seqArrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
+    <marker id="seqArrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
+    <marker id="seqArrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
+    <marker id="seqArrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
+    <marker id="seqArrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
+    <marker id="seqArrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
+    <marker id="seqArrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
+    <style>
+      .canvas{fill:#F7FAFC}
+      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
+      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
+      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
+      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
+      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
+      .card{filter:url(#shadow);stroke-width:2}
+      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
+      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
+      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
+      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
+      .seq{fill:none;stroke-width:3;stroke-linecap:round}
+      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
+      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
+      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
+      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
+    </style>
+  </defs>
+  <rect class="canvas" width="1840" height="1496"/>
+  <rect class="frame" x="32" y="28" width="1776" height="1440" rx="28"/>
+  <text class="title" x="66" y="82">Migration Gate Runtime Sequence</text>
+  <text class="subtitle" x="70" y="116">MigrationGate delegates to Exposed JDBC Elector; the elected branch runs run migration and the losing branch returns skipped.</text>
+<g id="participant-trigger">
+  <rect class="card" x="128" y="228" width="214" height="76" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="cardTitle" x="235" y="273" text-anchor="middle">Deploy Startup</text>
+  <line class="lifeline" x1="235" y1="304" x2="235" y2="1372"/>
+</g>
+<g id="participant-coord">
+  <rect class="card" x="402" y="228" width="214" height="76" rx="10" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="cardTitle" x="509" y="273" text-anchor="middle">MigrationGate</text>
+  <line class="lifeline" x1="509" y1="304" x2="509" y2="1372"/>
+</g>
+<g id="participant-elector">
+  <rect class="card" x="676" y="228" width="214" height="76" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="cardTitle" x="783" y="260" text-anchor="middle">Exposed JDBC</text>
+  <text class="cardTitle" x="783" y="283" text-anchor="middle">Elector</text>
+  <line class="lifeline" x1="783" y1="304" x2="783" y2="1372"/>
+</g>
+<g id="participant-backend">
+  <rect class="card" x="950" y="228" width="214" height="76" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="cardTitle" x="1057" y="273" text-anchor="middle">leader lock table</text>
+  <line class="lifeline" x1="1057" y1="304" x2="1057" y2="1372"/>
+</g>
+<g id="participant-work">
+  <rect class="card" x="1224" y="228" width="214" height="76" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="cardTitle" x="1331" y="273" text-anchor="middle">Run Migration</text>
+  <line class="lifeline" x1="1331" y1="304" x2="1331" y2="1372"/>
+</g>
+<g id="participant-peer">
+  <rect class="card" x="1498" y="228" width="214" height="76" rx="10" fill="#FDECEF" stroke="#DC6B82"/>
+  <text class="cardTitle" x="1605" y="273" text-anchor="middle">Skipped Peer</text>
+  <line class="lifeline" x1="1605" y1="304" x2="1605" y2="1372"/>
+</g>
+<g id="m1">
+  <rect class="pill" x="249" y="343" width="246" height="28" rx="7"/>
+  <circle cx="268" cy="357" r="12" fill="#4F83BF"/>
+  <text class="detail" x="268" y="358" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">1</text>
+  <text class="detail" x="390" y="358" text-anchor="middle" dominant-baseline="middle">start deploy startup</text>
+  <path class="seq" d="M235 388 L509 388" stroke="#4F83BF" marker-end="url(#seqArrow-call)"/>
+</g>
+<g id="m2">
+  <rect class="pill" x="523" y="411" width="246" height="42" rx="7"/>
+  <circle cx="542" cy="432" r="12" fill="#4F83BF"/>
+  <text class="detail" x="542" y="433" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">2</text>
+  <text class="detail" x="664" y="424" text-anchor="middle" dominant-baseline="middle">runIfLeader with source</text>
+  <text class="detail" x="664" y="439" text-anchor="middle" dominant-baseline="middle">options</text>
+  <path class="seq" d="M509 470 L783 470" stroke="#4F83BF" marker-end="url(#seqArrow-call)"/>
+</g>
+<g id="m3">
+  <rect class="pill" x="797" y="507" width="246" height="28" rx="7"/>
+  <circle cx="816" cy="521" r="12" fill="#B9851B"/>
+  <text class="detail" x="816" y="522" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">3</text>
+  <text class="detail" x="938" y="522" text-anchor="middle" dominant-baseline="middle">attempt backend ownership</text>
+  <path class="seq" d="M783 552 L1057 552" stroke="#B9851B" marker-end="url(#seqArrow-contention)"/>
+</g>
+<g>
+  <rect class="branchBox" x="128" y="599" width="1584" height="46" rx="15"/>
+  <rect class="pill" x="267.5" y="593" width="209" height="30" rx="8"/>
+  <text class="detail" x="372" y="609" text-anchor="middle" dominant-baseline="middle">alt ownership acquired</text>
+</g>
+<g id="m5">
+  <rect class="pill" x="797" y="671" width="246" height="28" rx="7"/>
+  <circle cx="816" cy="685" r="12" fill="#3E9868"/>
+  <text class="detail" x="816" y="686" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">5</text>
+  <text class="detail" x="938" y="686" text-anchor="middle" dominant-baseline="middle">owner token accepted</text>
+  <path class="seqReturn" d="M1057 716 L783 716" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
+</g>
+<g id="m6">
+  <rect class="pill" x="929.4" y="753" width="255.20000000000002" height="28" rx="7"/>
+  <circle cx="948.4" cy="767" r="12" fill="#3E9868"/>
+  <text class="detail" x="948.4" y="768" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">6</text>
+  <text class="detail" x="1075" y="768" text-anchor="middle" dominant-baseline="middle">execute run migration</text>
+  <path class="seq" d="M783 798 L1331 798" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
+</g>
+<g id="m7">
+  <rect class="pill" x="933" y="835" width="248" height="28" rx="7"/>
+  <circle cx="952" cy="849" r="12" fill="#3E9868"/>
+  <text class="detail" x="952" y="850" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">7</text>
+  <text class="detail" x="1075" y="850" text-anchor="middle" dominant-baseline="middle">return leader result</text>
+  <path class="seqReturn" d="M1331 880 L783 880" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
+</g>
+<g id="m8">
+  <rect class="pill" x="797" y="903" width="246" height="42" rx="7"/>
+  <circle cx="816" cy="924" r="12" fill="#755BC6"/>
+  <text class="detail" x="816" y="925" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">8</text>
+  <text class="detail" x="938" y="916" text-anchor="middle" dominant-baseline="middle">release or renew for</text>
+  <text class="detail" x="938" y="931" text-anchor="middle" dominant-baseline="middle">schema marker recheck</text>
+  <path class="seq" d="M783 962 L1057 962" stroke="#755BC6" marker-end="url(#seqArrow-release)"/>
+</g>
+<g>
+  <rect class="branchBox" x="128" y="1009" width="1584" height="46" rx="15"/>
+  <rect class="pill" x="256" y="1003" width="232" height="30" rx="8"/>
+  <text class="detail" x="372" y="1019" text-anchor="middle" dominant-baseline="middle">else ownership unavailable</text>
+</g>
+<g id="m10">
+  <rect class="pill" x="803.2" y="1081" width="233.6" height="28" rx="7"/>
+  <circle cx="822.2" cy="1095" r="12" fill="#C94D68"/>
+  <text class="detail" x="822.2" y="1096" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">10</text>
+  <text class="detail" x="938" y="1096" text-anchor="middle" dominant-baseline="middle">lock already owned</text>
+  <path class="seqReturn" d="M1057 1126 L783 1126" stroke="#C94D68" marker-end="url(#seqArrow-skip)"/>
+</g>
+<g id="m11">
+  <rect class="pill" x="1066.4" y="1163" width="255.20000000000002" height="28" rx="7"/>
+  <circle cx="1085.4" cy="1177" r="12" fill="#C94D68"/>
+  <text class="detail" x="1085.4" y="1178" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">11</text>
+  <text class="detail" x="1212" y="1178" text-anchor="middle" dominant-baseline="middle">return skipped result</text>
+  <path class="seq" d="M783 1208 L1605 1208" stroke="#C94D68" marker-end="url(#seqArrow-skip)"/>
+</g>
+<g id="m12">
+  <rect class="pill" x="731.2" y="1245" width="377.6" height="28" rx="7"/>
+  <circle cx="750.2" cy="1259" r="12" fill="#C94D68"/>
+  <text class="detail" x="750.2" y="1260" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">12</text>
+  <text class="detail" x="938" y="1260" text-anchor="middle" dominant-baseline="middle">cycle completes without duplicate work</text>
+  <path class="seqReturn" d="M1605 1290 L235 1290" stroke="#C94D68" marker-end="url(#seqArrow-skip)"/>
+</g>
 </svg>

@@ -1,20 +1,20 @@
 digraph "examples-zookeeper-scheduler-flow-01" {
-  graph [rankdir=LR, bgcolor="transparent", margin=0.1, nodesep=0.65, ranksep=0.9];
-  node [shape=box, style="rounded,filled", fillcolor="#f8fafc", color="#94a3b8", fontname="Comic Mono"];
+  graph [rankdir=LR, bgcolor="transparent", splines=ortho, nodesep=0.65, ranksep=0.9];
+  node [shape=box, style="rounded,filled", fillcolor="#F8FAFC", color="#94A3B8", fontname="Comic Mono"];
   edge [color="#758297", fontname="Comic Mono", fontsize=10];
-  "Scheduled tick";
-  "Validate inputs";
-  "runIfLeader";
-  "Leadership?";
-  "Validate completed steps";
-  "Execute job body";
-  "Return EXECUTED";
-  "Return SKIPPED";
-  "Scheduled tick" -> "Validate inputs" [label="input"];
-  "Validate inputs" -> "runIfLeader" [label="config"];
-  "runIfLeader" -> "Leadership?" [label="outcome"];
-  "Leadership?" -> "Execute job body" [label="yes"];
-  "Execute job body" -> "Validate completed steps" [label="steps"];
-  "Validate completed steps" -> "Return EXECUTED" [label="valid"];
-  "Leadership?" -> "Return SKIPPED" [label="no"];
+  "start" [label="Scheduler Tick"];
+  "validate" [label="Validate Example Inputs"];
+  "attempt" [label="ZooKeeperLeaderElector"];
+  "decision" [label="Leadership Result"];
+  "release" [label="Release Or Extend"];
+  "execute" [label="Legacy Scheduled Job"];
+  "executed" [label="Return Executed"];
+  "skipped" [label="Return Skipped"];
+  "start" -> "validate" [label="call"];
+  "validate" -> "attempt" [label="dependency"];
+  "attempt" -> "decision" [label="contention"];
+  "decision" -> "execute" [label="success"];
+  "execute" -> "release" [label="release"];
+  "release" -> "executed" [label="success"];
+  "decision" -> "skipped" [label="skip"];
 }
