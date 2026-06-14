@@ -1,0 +1,41 @@
+import { branch, msg } from "./lib/sequence-renderer.mjs";
+
+export const backendSequences = [
+  {
+    slug: "leader-ktor-sequence-01",
+    title: "Ktor Leader Scheduler And Management Route Sequence",
+    subtitle: "The plugin stores a suspend elector, scheduled jobs register lock names, and the route reads live state as JSON text.",
+    desc: "Sequence for leader-ktor showing plugin installation, Application attribute storage, scheduled leader-only work, management registry updates, and GET /management/leaderElection response assembly from SuspendLeaderElector state.",
+    intent: "Answer a Ktor integration reader's question: after installing LeaderElectionPlugin, how does leaderScheduled use the stored SuspendLeaderElector for each cycle, how does the management registry learn lock names, and what exact calls does the management route make before returning JSON status?",
+    evidence: "leader-ktor README architecture/management route sections; LeaderElectionPlugin; LeaderElectionPluginConfig; Application.leaderScheduled; LeaderElectionManagementRoute",
+    sourceRead: "leader-ktor/README.md; leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderElectionPlugin.kt; leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderElectionPluginConfig.kt; leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/ApplicationExt.kt; leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderElectionManagementRoute.kt",
+    width: 1780,
+    participants: [
+      { id: "app", label: "Ktor Application Module", color: "blue" },
+      { id: "plugin", label: "Leader Election Plugin", color: "green" },
+      { id: "job", label: "Scheduled Job", color: "teal" },
+      { id: "elector", label: "Suspend Leader Elector", color: "amber" },
+      { id: "registry", label: "Management Registry", color: "purple" },
+      { id: "route", label: "Management Route", color: "olive" },
+    ],
+    events: [
+      msg(0, 1, "install plugin with required leaderElection", "call"),
+      msg(1, 1, "validate config and store in Application attributes", "dependency"),
+      msg(1, 5, "install GET management route when enabled", "call"),
+      msg(0, 2, "leaderScheduled(lockName, period, action)", "call"),
+      msg(2, 4, "register lockName for management visibility", "metric"),
+      msg(2, 3, "runIfLeader(lockName) each active cycle", "contention"),
+      branch("alt elected for cycle"),
+      msg(3, 2, "execute suspend action with lock handle context", "success", true),
+      msg(2, 2, "delay(period), then continue next cycle", "retry"),
+      branch("else action throws"),
+      msg(2, 2, "log WARN and keep next cycle alive", "retry"),
+      branch("management request"),
+      msg(0, 5, "GET /management/leaderElection", "call"),
+      msg(5, 4, "snapshot known lock names", "dependency"),
+      msg(5, 3, "state(lockName) for each registered lock", "call"),
+      msg(3, 5, "LeaderState status, audit id, lease expiry", "success", true),
+      msg(5, 0, "respondText JSON without content negotiation", "success", true),
+    ],
+  },
+];

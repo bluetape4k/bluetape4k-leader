@@ -1,19 +1,22 @@
-graph 1 22.837 12.632
-node n0 2.085 11.459 4.17 1 "Application (Ktor)" rounded,filled box #5B8DEF #ffffff
-node n1 8.3072 11.459 4.17 1 "Leader Election" rounded,filled box #58A978 #ffffff
-node n2 14.529 11.459 4.17 1 leaderScheduled rounded,filled box #D6A441 #ffffff
-node n3 20.752 11.459 4.17 1 "Suspend Leader" rounded,filled box #DC6B82 #ffffff
-node r7p1 15.418 0.48722 0.03 0.03 "" invis point black lightgrey
-node r7p2 15.418 0.015 0.03 0.03 "" invis point black lightgrey
-edge n0 n1 4 4.1742 11.153 4.1742 11.153 6.0693 11.153 6.0693 11.153 solid #758297
-edge n0 n1 4 4.1742 11.361 4.1742 11.361 6.0693 11.361 6.0693 11.361 solid #758297
-edge n0 n2 10 1.39 11.964 1.39 12.057 1.39 12.125 1.39 12.125 1.39 12.125 13.834 12.125 13.834 12.125 13.834 12.125 13.834 12.109 13.834 12.109 solid #758297
-edge n1 n0 4 6.218 11.764 6.218 11.764 4.3229 11.764 4.3229 11.764 dashed #758297
-edge n1 n0 4 6.218 11.556 6.218 11.556 4.3229 11.556 4.3229 11.556 dashed #758297
-edge n2 n0 10 15.224 11.963 15.224 12.138 15.224 12.292 15.224 12.292 15.224 12.292 2.78 12.292 2.78 12.292 2.78 12.292 2.78 12.112 2.78 12.112 dashed #758297
-edge n2 n3 4 16.619 11.292 16.619 11.292 18.514 11.292 18.514 11.292 solid #758297
-edge n2 r7p1 4 15.418 10.956 15.418 8.8625 15.418 0.93742 15.418 0.50558 solid #758297
-edge n3 n2 4 18.662 11.625 18.662 11.625 16.767 11.625 16.767 11.625 dashed #758297
-edge r7p1 r7p2 4 15.418 0.46693 15.418 0.38926 15.418 0.11132 15.418 0.03469 solid #758297
-edge r7p2 n2 7 15.438 0.013889 15.544 0.013889 16.024 0.013889 16.024 0.013889 16.024 0.013889 16.024 10.804 16.024 10.804 solid #758297
+graph 1 35.441 4.5556
+node app 1.309 2.6528 2.6181 0.5 "Ktor Application Module" rounded,filled box #94A3B8 #F8FAFC
+node plugin 8.2743 1.1111 2.5139 0.5 "Leader Election Plugin" rounded,filled box #94A3B8 #F8FAFC
+node job 28.399 3.0972 1.5764 0.5 "Scheduled Job" rounded,filled box #94A3B8 #F8FAFC
+node elector 22.01 3.0694 2.5139 0.5 "Suspend Leader Elector" rounded,filled box #94A3B8 #F8FAFC
+node registry 34.34 1.9722 2.2014 0.5 "Management Registry" rounded,filled box #94A3B8 #F8FAFC
+node route 15.28 1.9167 1.8889 0.5 "Management Route" rounded,filled box #94A3B8 #F8FAFC
+edge app plugin 7 2.6232 2.4623 4.6417 2.4623 8.2743 2.4623 8.2743 2.4623 8.2743 2.4623 8.2743 1.4835 8.2743 1.4835 "install plugin with required leaderElection" 4.6441 1.7222 solid #4F83BF
+edge app job 7 2.6211 2.6409 8.007 2.6409 28.135 2.6409 28.135 2.6409 28.135 2.6409 28.135 2.7241 28.135 2.7241 "leaderScheduled(lockName, period, action)" 15.28 4.4722 solid #4F83BF
+edge app route 7 2.6192 2.5218 5.9935 2.5218 14.719 2.5218 14.719 2.5218 14.719 2.5218 14.719 2.2916 14.719 2.2916 "GET /management/leaderElection" 8.2743 3.25 solid #4F83BF
+edge plugin plugin 16 7.0111 1.1111 6.0232 1.1111 4.816 1.1111 4.816 1.1111 4.816 1.1111 4.816 1.5139 4.816 1.5139 4.816 1.5139 11.927 1.5139 11.927 1.5139 11.927 1.5139 11.927 1.1944 11.927 1.1944 11.927 1.1944 9.6547 1.1944 9.6547 1.1944 "validate config and store in Application attributes" 35.441 0 solid #2E8F89
+edge plugin route 7 9.5379 1.0278 11.554 1.0278 15.274 1.0278 15.274 1.0278 15.274 1.0278 15.274 1.5461 15.274 1.5461 "install GET management route when enabled" 11.832 1.5972 solid #4F83BF
+edge job job 16 27.605 2.9417 26.962 2.9417 26.163 2.9417 26.163 2.9417 26.163 2.9417 26.163 2.7599 26.163 2.7599 26.163 2.7599 30.538 2.7599 30.538 2.7599 30.538 2.7599 30.538 3.0139 30.538 3.0139 30.538 3.0139 29.308 3.0139 29.308 3.0139 "delay(period), then continue next cycle" 35.441 0 solid #4F63C7
+edge job job 16 27.605 3.0361 26.523 3.0361 24.719 3.0361 24.719 3.0361 24.719 3.0361 24.719 2.7004 24.719 2.7004 24.719 2.7004 31.885 2.7004 31.885 2.7004 31.885 2.7004 31.885 3.1806 31.885 3.1806 31.885 3.1806 29.309 3.1806 29.309 3.1806 "log WARN and keep next cycle alive" 35.441 0 solid #4F63C7
+edge job elector 4 27.609 3.225 27.609 3.225 23.39 3.225 23.39 3.225 "runIfLeader(lockName) each active cycle" 25.439 2.8472 solid #B9851B
+edge job registry 7 28.663 2.8416 28.663 2.5226 28.663 2.0185 28.663 2.0185 28.663 2.0185 33.121 2.0185 33.121 2.0185 "register lockName for management visibility" 31.214 2.7083 solid #718A35
+edge elector job 4 23.273 3.1306 23.273 3.1306 27.49 3.1306 27.49 3.1306 "execute suspend action with lock handle context" 25.439 3.7778 solid #3E9868
+edge elector route 7 20.749 3.1806 18.848 3.1806 15.469 3.1806 15.469 3.1806 15.469 3.1806 15.469 2.2907 15.469 2.2907 "LeaderState status, audit id, lease expiry" 18.764 2.625 solid #3E9868
+edge route app 7 15.094 2.1717 15.094 2.3592 15.094 2.5813 15.094 2.5813 15.094 2.5813 2.7428 2.5813 2.7428 2.5813 "respondText JSON without content negotiation" 8.2743 0.083333 solid #3E9868
+edge route elector 7 15.844 2.1719 15.844 2.5039 15.844 3.0417 15.844 3.0417 15.844 3.0417 20.629 3.0417 20.629 3.0417 "state(lockName) for each registered lock" 18.764 3.5556 solid #4F83BF
+edge route registry 4 16.225 1.8704 16.225 1.8704 33.119 1.8704 33.119 1.8704 "snapshot known lock names" 25.439 1.5 solid #2E8F89
 stop

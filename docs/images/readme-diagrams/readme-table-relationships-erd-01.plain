@@ -1,26 +1,13 @@
-graph 1 17.33 8.4503
-node n0 2.29 6.1939 4.58 3.06 "Module Catalog" rounded,filled box #75A9E8 #ffffff
-node n1 8.665 6.0967 4.83 3.75 "Backend Capability" rounded,filled box #D9AA4D #ffffff
-node n2 8.665 1.8744 4.83 2.64 "Integration Surface" rounded,filled box #DB7890 #ffffff
-node n3 15.04 4.055 4.58 8.11 "Runnable Example" rounded,filled box #55B5AF #ffffff
-node r1p1 5.2761 6.5411 0.03 0.03 "" invis point black lightgrey
-node r1p2 5.5539 6.7494 0.03 0.03 "" invis point black lightgrey
-node r2p1 11.859 6.2633 0.03 0.03 "" invis point black lightgrey
-node r2p2 12.026 5.6661 0.03 0.03 "" invis point black lightgrey
-node r3p1 5.2483 4.4994 0.03 0.03 "" invis point black lightgrey
-node r3p2 5.5539 2.1661 0.03 0.03 "" invis point black lightgrey
-node r4p1 11.887 1.8883 0.03 0.03 "" invis point black lightgrey
-node r4p2 12.026 2.7494 0.03 0.03 "" invis point black lightgrey
-edge n0 r1p1 4 4.5835 6.5417 4.9218 6.5417 5.1823 6.5417 5.2554 6.5417 solid #758297
-edge n0 r3p1 7 4.5836 5.5972 4.9692 5.5972 5.2472 5.5972 5.2472 5.5972 5.2472 5.5972 5.2472 4.6643 5.2472 4.5185 solid #758297
-edge n1 r2p1 4 11.086 6.2639 11.469 6.2639 11.765 6.2639 11.841 6.2639 solid #758297
-edge n2 r4p1 4 11.087 1.8889 11.482 1.8889 11.789 1.8889 11.868 1.8889 solid #758297
-edge r1p1 r1p2 7 5.2761 6.5604 5.2761 6.6121 5.2761 6.75 5.2761 6.75 5.2761 6.75 5.4666 6.75 5.5321 6.75 solid #758297
-edge r1p2 n1 4 5.5738 6.75 5.5738 6.75 6.0955 6.75 6.0955 6.75 solid #758297
-edge r2p1 r2p2 7 11.873 6.2486 11.873 6.1567 11.873 5.6667 11.873 5.6667 11.873 5.6667 11.967 5.6667 12.007 5.6667 solid #758297
-edge r2p2 n3 4 12.045 5.6667 12.045 5.6667 12.597 5.6667 12.597 5.6667 solid #758297
-edge r3p1 r3p2 7 5.2483 4.4793 5.2483 4.2513 5.2483 2.1667 5.2483 2.1667 5.2483 2.1667 5.4659 2.1667 5.5338 2.1667 solid #758297
-edge r3p2 n2 4 5.5738 2.1667 5.5738 2.1667 6.0955 2.1667 6.0955 2.1667 solid #758297
-edge r4p1 r4p2 7 11.909 1.8889 11.948 1.8889 12.026 1.8889 12.026 1.8889 12.026 1.8889 12.026 2.5957 12.026 2.7282 solid #758297
-edge r4p2 n3 4 12.045 2.75 12.045 2.75 12.597 2.75 12.597 2.75 solid #758297
+graph 1 14.267 2.9306
+node modules 0.73611 0.76389 1.4722 0.5 "Module table" rounded,filled box #94A3B8 #F8FAFC
+node backends 4.4792 1.6111 2.7222 0.5 "Backend capability table" rounded,filled box #94A3B8 #F8FAFC
+node examples 9.3299 2.6806 1.5764 0.5 "Example table" rounded,filled box #94A3B8 #F8FAFC
+node benchmarks 7.191 0.25 1.7847 0.5 "Benchmark table" rounded,filled box #94A3B8 #F8FAFC
+node assets 12.906 1.6111 2.7222 0.5 "Diagram and chart assets" rounded,filled box #94A3B8 #F8FAFC
+edge modules backends 7 0.73958 1.0181 0.73958 1.2676 0.73958 1.6111 0.73958 1.6111 0.73958 1.6111 2.9533 1.6111 2.9533 1.6111 dependency 2.2951 1.4583 solid #758297
+edge modules benchmarks 7 0.73958 0.50694 0.73958 0.37847 0.73958 0.25 0.73958 0.25 0.73958 0.25 6.134 0.25 6.134 0.25 metric 2.2951 0.40278 solid #758297
+edge backends examples 7 5.845 1.6611 7.1991 1.6611 9.0729 1.6611 9.0729 1.6611 9.0729 1.6611 9.0729 2.2686 9.0729 2.2686 call 7.191 2.75 solid #758297
+edge backends assets 4 5.8472 1.5611 5.8472 1.5611 11.38 1.5611 11.38 1.5611 dependency 9.3299 1.6944 solid #758297
+edge examples assets 7 9.5868 2.4244 9.5868 2.1524 9.5868 1.7611 9.5868 1.7611 9.5868 1.7611 11.382 1.7611 11.382 1.7611 success 10.832 2.75 solid #758297
+edge benchmarks assets 7 7.184 0.50685 7.184 0.86236 7.184 1.4611 7.184 1.4611 7.184 1.4611 11.379 1.4611 11.379 1.4611 metric 9.3299 0.22222 solid #758297
 stop

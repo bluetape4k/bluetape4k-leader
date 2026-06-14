@@ -1,58 +1,56 @@
-graph 1 32.358 6.2172
-node n0 2.29 1.6525 4.58 1.56 MongoLeaderElector rounded,filled box #5B8DEF #ffffff
-node n1 18.957 1.5414 4.58 1.78 "Mongo Suspend Leader" rounded,filled box #58A978 #ffffff
-node n2 2.29 5.0969 4.58 1.56 LeaderElector rounded,filled box #D6A441 #ffffff
-node n3 13.401 1.215 4.58 2.43 MongoSuspendLock rounded,filled box #DC6B82 #ffffff
-node n4 30.068 1.215 4.58 2.43 MongoLock rounded,filled box #45A7A1 #ffffff
-node n5 9.2344 5.0969 4.58 1.56 AsyncLeaderElector rounded,filled box #8A72D6 #ffffff
-node n6 23.123 5.0969 4.58 1.56 SuspendLeaderElector rounded,filled box #B88A44 #ffffff
-node n7 7.8456 1.6525 4.58 1.56 MongoLeaderGroupElector rounded,filled box #8BA84D #ffffff
-node n8 24.512 1.5414 4.58 1.78 "Mongo Suspend Leader" rounded,filled box #5B8DEF #ffffff
-node n9 16.179 5.0969 4.58 1.56 LeaderGroupElector rounded,filled box #58A978 #ffffff
-node n10 30.068 4.9858 4.58 1.78 "Suspend Leader Group" rounded,filled box #D6A441 #ffffff
-node r1p1 18.957 1.5414 0.03 0.03 "" invis point black lightgrey
-node r1p2 18.957 1.215 0.03 0.03 "" invis point black lightgrey
-node r2p1 16.179 1.5414 0.03 0.03 "" invis point black lightgrey
-node r2p2 16.179 1.215 0.03 0.03 "" invis point black lightgrey
-node r3p1 18.957 1.6525 0.03 0.03 "" invis point black lightgrey
-node r3p2 18.957 1.215 0.03 0.03 "" invis point black lightgrey
-node r4p1 16.179 1.6525 0.03 0.03 "" invis point black lightgrey
-node r4p2 16.179 1.215 0.03 0.03 "" invis point black lightgrey
-node r5p1 24.512 3.2636 0.03 0.03 "" invis point black lightgrey
-node r5p2 30.068 3.2636 0.03 0.03 "" invis point black lightgrey
-node r6p1 18.957 3.3747 0.03 0.03 "" invis point black lightgrey
-node r6p2 23.123 3.3747 0.03 0.03 "" invis point black lightgrey
-node r7p1 7.8456 3.3747 0.03 0.03 "" invis point black lightgrey
-node r7p2 16.179 3.3747 0.03 0.03 "" invis point black lightgrey
-node r8p1 2.29 3.3747 0.03 0.03 "" invis point black lightgrey
-node r8p2 9.2344 3.3747 0.03 0.03 "" invis point black lightgrey
-node r9p1 2.29 3.3747 0.03 0.03 "" invis point black lightgrey
-node r9p2 2.29 3.3747 0.03 0.03 "" invis point black lightgrey
-edge n0 r4p1 4 4.5835 1.6525 8.4358 1.6525 15.822 1.6525 16.166 1.6525 solid #758297
-edge n0 r8p1 4 2.29 2.438 2.29 2.8355 2.29 3.2545 2.29 3.3531 dashed #758297
-edge n0 r9p1 4 2.29 2.438 2.29 2.8355 2.29 3.2545 2.29 3.3531 dashed #758297
-edge n1 r2p1 4 16.663 1.5414 16.429 1.5414 16.256 1.5414 16.199 1.5414 solid #758297
-edge n1 r6p1 4 18.957 2.4366 18.957 2.8438 18.957 3.2566 18.957 3.3535 dashed #758297
-edge n7 r3p1 4 10.141 1.6525 13.28 1.6525 18.568 1.6525 18.936 1.6525 solid #758297
-edge n7 r7p1 4 7.8456 2.438 7.8456 2.8355 7.8456 3.2545 7.8456 3.3531 dashed #758297
-edge n8 r1p1 4 22.216 1.5414 20.783 1.5414 19.172 1.5414 18.976 1.5414 solid #758297
-edge n8 r5p1 4 24.512 2.4378 24.512 2.804 24.512 3.1616 24.512 3.2453 dashed #758297
-edge r1p1 r1p2 4 18.957 1.52 18.957 1.461 18.957 1.2965 18.957 1.2369 solid #758297
-edge r1p2 n3 4 18.937 1.215 18.746 1.215 17.238 1.215 15.844 1.215 solid #758297
-edge r2p1 r2p2 4 16.179 1.52 16.179 1.461 16.179 1.2965 16.179 1.2369 solid #758297
-edge r2p2 n3 4 16.161 1.215 16.119 1.215 16.002 1.215 15.839 1.215 solid #758297
-edge r3p1 r3p2 4 18.957 1.6337 18.957 1.5617 18.957 1.3042 18.957 1.2332 solid #758297
-edge r3p2 n4 4 18.975 1.215 19.317 1.215 24.47 1.215 27.63 1.215 solid #758297
-edge r4p1 r4p2 4 16.179 1.6337 16.179 1.5617 16.179 1.3042 16.179 1.2332 solid #758297
-edge r4p2 n4 4 16.195 1.215 16.574 1.215 23.748 1.215 27.626 1.215 solid #758297
-edge r5p1 r5p2 4 24.532 3.2636 24.883 3.2636 29.71 3.2636 30.049 3.2636 dashed #758297
-edge r5p2 n10 4 30.068 3.283 30.068 3.357 30.068 3.6336 30.068 3.9431 dashed #758297
-edge r6p1 r6p2 4 18.975 3.3747 19.263 3.3747 22.799 3.3747 23.103 3.3747 dashed #758297
-edge r6p2 n6 4 23.123 3.3941 23.123 3.4769 23.123 3.8135 23.123 4.1658 dashed #758297
-edge r7p1 r7p2 4 7.8639 3.3747 8.2833 3.3747 15.753 3.3747 16.162 3.3747 dashed #758297
-edge r7p2 n9 4 16.179 3.3941 16.179 3.4769 16.179 3.8135 16.179 4.1658 dashed #758297
-edge r8p1 r8p2 4 2.3099 3.3747 2.7045 3.3747 8.8331 3.3747 9.2157 3.3747 dashed #758297
-edge r8p2 n5 4 9.2344 3.3941 9.2344 3.4769 9.2344 3.8135 9.2344 4.1658 dashed #758297
-edge r9p1 r9p2 4 2.29 3.3747 2.29 3.3747 2.29 3.3747 2.29 3.3747 dashed #758297
-edge r9p2 n2 4 2.29 3.3941 2.29 3.4769 2.29 3.8135 2.29 4.1658 dashed #758297
+graph 1 114.57 7.1667
+node leaderContract 22.233 3.4167 13.139 0.5 "<<core interface>>\\nLeaderElector\\n+ runIfLeader(lockName): T?\\n+ runAsyncIfLeader(lockName)\\n+ state(lockName): LeaderState" rounded,filled box #94A3B8 #F8FAFC
+node suspendContract 7.4549 3.4167 14.91 0.5 "<<core suspend interface>>\\nSuspendLeaderElector\\n+ suspend runIfLeader(lockName)\\n+ runIfLeaderResultSuspend(slot)\\ncoroutine \
+context handle" rounded,filled box #94A3B8 #F8FAFC
+node groupContract 91.122 3.4167 13.139 0.5 "<<core group interface>>\\nLeaderGroupElector\\n+ maxLeaders: Int\\n+ runIfLeader(lockName): T?\\n+ activeCount / availableSlots" rounded,filled box #94A3B8 #F8FAFC
+node suspendGroupContract 107.27 3.4167 14.597 0.5 "<<core suspend group>>\\nSuspendLeaderGroupElector\\n+ maxLeaders: Int\\n+ suspend runIfLeader(lockName)\\n+ state(lockName): LeaderGroupState" rounded,filled box #94A3B8 #F8FAFC
+node mongoLeader 38.413 1.8333 17.201 0.5 "<<blocking + async implementation>>\\nMongoLeaderElector\\nsync MongoCollection<Document>\\ncreates MongoLock\\nautoExtend watchdog \
+optional\\nhistory recorder optional" rounded,filled box #94A3B8 #F8FAFC
+node mongoSuspend 20.149 1.8333 17.826 0.5 "<<coroutine implementation>>\\nMongoSuspendLeaderElector\\nCoroutineMongoCollection<Document>\\ncreates MongoSuspendLock\\nwithContext(\
+handle element)\\nNonCancellable unlock" rounded,filled box #94A3B8 #F8FAFC
+node mongoGroup 77.913 1.8333 16.264 0.5 "<<slot group implementation>>\\nMongoLeaderGroupElector\\nsync group collection\\nrandomized slot iteration\\nslotKey lockName:slot:\
+N\\ngroup watchdog disabled" rounded,filled box #94A3B8 #F8FAFC
+node mongoSuspendGroup 97.247 1.8333 17.722 0.5 "<<coroutine slot group>>\\nMongoSuspend Group\\nMongoSuspendLeaderGroupElector\\nsync collection for state queries\\ncoroutine collection \
+for locks\\nsame namespace required" rounded,filled box #94A3B8 #F8FAFC
+node factories 48.677 0.25 20.118 0.5 "<<factory + module options>>\\nFactory And Options\\nMongoLeaderElectorFactory\\nMongoLeaderGroupElectorFactory\\nMongoLeaderElectionOptions.retryDelay\\nMongoLeaderGroupElectionOptions.maxLeaders" rounded,filled box #94A3B8 #F8FAFC
+node singleDelegates 38.413 3.4167 17.722 0.5 "<<renewal delegates>>\\nSingle Extend Delegates\\nMongoLockExtendDelegate\\nMongoSuspendLockExtendDelegate\\nshare lock with LeaderLockHandle\\nclassify \
+Mongo backend errors" rounded,filled box #94A3B8 #F8FAFC
+node slotDelegates 75.51 3.4167 16.576 0.5 "<<group renewal delegates>>\\nSlot Extend Delegates\\nMongoSlotExtendDelegate\\nMongoSuspendSlotExtendDelegate\\nextend lockName:\
+slot:N\\nmanual LockExtender path" rounded,filled box #94A3B8 #F8FAFC
+node mongoLock 75.51 5.3333 15.535 0.5 "<<findOneAndUpdate lock>>\\nMongoLock\\ntoken: Base58 fencing value\\nexpired filter + upsert AFTER\\nE11000 means contended\\ndelete \
+or minLease update" rounded,filled box #94A3B8 #F8FAFC
+node mongoSuspendLock 58.649 5.3333 16.681 0.5 "<<coroutine Mongo lock>>\\nMongoSuspendLock\\ncoroutine driver retry loop\\nensureActive while acquiring\\ntoken check before unlock\\nsame \
+extendDetailed contract" rounded,filled box #94A3B8 #F8FAFC
+node mongoCollections 75.51 6.9167 17.306 0.5 "<<TTL document store>>\\nMongo Lock Collections\\nbluetape4k_leader_locks\\nbluetape4k_leader_group_locks\\nfields: _id, token, \
+expireAt\\nTTL index expireAfterSeconds=0" rounded,filled box #94A3B8 #F8FAFC
+node history 57.247 3.4167 18.451 0.5 "<<optional audit store>>\\nMongo History Sink\\nMongoLeaderHistorySink\\ncollection bluetape4k_leader_history\\nrecords ACQUIRED/\
+COMPLETED/FAILED\\nindexer adds TTL retention index" rounded,filled box #94A3B8 #F8FAFC
+node classifier 58.399 1.8333 21.264 0.5 "<<watchdog error policy>>\\nMongoBackendErrorClassifier\\ntimeout / socket -> transient\\nnot primary / recovering -> transient\\nauth / \
+write concern -> non-transient\\nfeeds CompositeBackendErrorClassifier" rounded,filled box #94A3B8 #F8FAFC
+node dualCollections 92.872 4.375 22.097 0.5 "<<namespace invariant>>\\nSuspend Group Dual Collections\\nsync MongoCollection: activeCount/state\\nCoroutineMongoCollection: acquire/\
+release\\ncollection namespace must match\\nTTL monitor can lag up to 60 seconds" rounded,filled box #94A3B8 #F8FAFC
+edge mongoLeader leaderContract 10 29.806 1.9167 29.541 1.9167 29.389 1.9167 29.389 1.9167 29.389 1.9167 29.389 3.5 29.389 3.5 29.389 3.5 28.935 3.5 28.935 3.5 inherit 22.488 2.625 solid #4F83BF
+edge mongoLeader singleDelegates 4 38.413 2.0877 38.413 2.0877 38.413 3.0308 38.413 3.0308 "handle delegate" 38.96 2.625 solid #B9851B
+edge mongoLeader history 10 47.018 1.8333 47.386 1.8333 47.603 1.8333 47.603 1.8333 47.603 1.8333 47.603 3.5417 47.603 3.5417 47.603 3.5417 47.885 3.5417 47.885 3.5417 event 48.359 2.625 solid #2E8F89
+edge mongoSuspend suspendContract 4 13.073 2.0877 13.073 2.0877 13.073 3.0308 13.073 3.0308 inherit 7.7101 2.625 solid #4F83BF
+edge mongoSuspend singleDelegates 7 28.932 2.0878 28.932 2.5157 28.932 3.3333 28.932 3.3333 28.932 3.3333 29.415 3.3333 29.415 3.3333 "suspend delegate" 20.788 2.625 solid #B9851B
+edge mongoGroup groupContract 4 85.299 2.0877 85.299 2.0877 85.299 3.0308 85.299 3.0308 inherit 91.377 2.625 solid #4F83BF
+edge mongoGroup slotDelegates 4 76.79 2.0877 76.79 2.0877 76.79 3.0308 76.79 3.0308 "slot delegate" 77.193 2.625 solid #755BC6
+edge mongoGroup history 13 73.286 2.0882 73.286 2.3196 73.286 2.625 73.286 2.625 73.286 2.625 66.731 2.625 66.731 2.625 66.731 2.625 66.731 3.4167 66.731 3.4167 66.731 3.4167 66.609 3.4167 66.609 3.4167 event 72.609 2.625 solid #2E8F89
+edge mongoSuspendGroup suspendGroupContract 4 103.04 2.0877 103.04 2.0877 103.04 3.0308 103.04 3.0308 inherit 107.53 2.625 solid #4F83BF
+edge mongoSuspendGroup slotDelegates 10 93.038 2.0889 93.038 2.4012 93.038 2.8889 93.038 2.8889 93.038 2.8889 80.294 2.8889 80.294 2.8889 80.294 2.8889 80.294 3.033 80.294 3.033 "suspend slot" 95.24 2.625 solid #755BC6
+edge mongoSuspendGroup dualCollections 4 98.833 2.0863 98.833 2.0863 98.833 3.9871 98.833 3.9871 dependency 99.194 2.625 solid #758297
+edge factories mongoLeader 4 42.816 0.50439 42.816 0.50439 42.816 1.4474 42.816 1.4474 dependency 48.264 1.0417 solid #758297
+edge factories mongoSuspend 10 38.613 0.25 33.866 0.25 29.226 0.25 29.226 0.25 29.226 0.25 29.226 1.75 29.226 1.75 29.226 1.75 29.2 1.75 29.2 1.75 dependency 38.361 1.0417 solid #758297
+edge factories mongoGroup 10 58.742 0.33333 64.022 0.33333 69.406 0.33333 69.406 0.33333 69.406 0.33333 69.406 1.8333 69.406 1.8333 69.406 1.8333 69.645 1.8333 69.645 1.8333 dependency 68.792 1.0417 solid #758297
+edge factories mongoSuspendGroup 10 58.74 0.16667 70.158 0.16667 87.215 0.16667 87.215 0.16667 87.215 0.16667 87.215 1.8333 87.215 1.8333 87.215 1.8333 88.249 1.8333 88.249 1.8333 dependency 89.514 1.0417 solid #758297
+edge singleDelegates mongoLock 13 47.144 3.1632 47.144 2.847 47.144 2.3472 47.144 2.3472 47.144 2.3472 67.106 2.3472 67.106 2.3472 67.106 2.3472 67.106 5.25 67.106 5.25 67.106 5.25 67.605 5.25 67.605 5.25 "sync extend" 61.342 4.375 solid #B9851B
+edge singleDelegates mongoSuspendLock 10 47.278 3.2917 47.382 3.2917 47.439 3.2917 47.439 3.2917 47.439 3.2917 47.439 5.3333 47.439 5.3333 47.439 5.3333 50.172 5.3333 50.172 5.3333 local 48.707 4.375 solid #B9851B
+edge slotDelegates mongoLock 4 74.783 3.6712 74.783 3.6712 74.783 4.9456 74.783 4.9456 slot 75.656 4.375 solid #755BC6
+edge slotDelegates mongoSuspendLock 7 67.483 3.67 67.483 4.2081 67.483 5.4167 67.483 5.4167 67.483 5.4167 67.127 5.4167 67.127 5.4167 "suspend slot" 68.628 4.375 solid #755BC6
+edge mongoLock mongoCollections 4 75.51 5.5877 75.51 5.5877 75.51 6.5308 75.51 6.5308 findOneAndUpdate 76.094 6.125 solid #758297
+edge mongoSuspendLock mongoCollections 4 66.924 5.5877 66.924 5.5877 66.924 6.5308 66.924 6.5308 "coroutine driver" 66.677 6.125 solid #758297
+edge classifier singleDelegates 7 47.894 2.0877 47.894 2.5353 47.894 3.4167 47.894 3.4167 47.894 3.4167 47.411 3.4167 47.411 3.4167 event 53.47 2.625 solid #2E8F89
+edge classifier slotDelegates 4 68.127 2.0877 68.127 2.0877 68.127 3.0308 68.127 3.0308 event 67.137 2.625 solid #2E8F89
+edge dualCollections mongoCollections 4 83.72 4.628 83.72 4.628 83.72 6.5288 83.72 6.5288 uses 88.976 5.3333 solid #758297
 stop

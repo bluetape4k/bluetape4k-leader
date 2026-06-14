@@ -1,17 +1,17 @@
-graph 1 20.358 1.6528
-node "Scheduled tick" 0.84028 0.69444 1.6806 0.5 "Scheduled tick" rounded,filled box #94a3b8 #f8fafc
-node "Validate inputs" 3.8542 0.69444 1.7847 0.5 "Validate inputs" rounded,filled box #94a3b8 #f8fafc
-node runIfLeader 6.7847 0.69444 1.3681 0.5 runIfLeader rounded,filled box #94a3b8 #f8fafc
-node "Leadership?" 9.5799 0.69444 1.3681 0.5 "Leadership?" rounded,filled box #94a3b8 #f8fafc
-node "Validate completed steps" 15.931 1.4028 2.7222 0.5 "Validate completed steps" rounded,filled box #94a3b8 #f8fafc
-node "Execute job body" 12.344 1.4028 1.8889 0.5 "Execute job body" rounded,filled box #94a3b8 #f8fafc
-node "Return EXECUTED" 19.465 1.4028 1.7847 0.5 "Return EXECUTED" rounded,filled box #94a3b8 #f8fafc
-node "Return SKIPPED" 12.344 0.25 1.6806 0.5 "Return SKIPPED" rounded,filled box #94a3b8 #f8fafc
-edge "Scheduled tick" "Validate inputs" 4 1.686 0.69444 2.0302 0.69444 2.4332 0.69444 2.797 0.69444 input 2.3212 0.77778 solid #758297
-edge "Validate inputs" runIfLeader 4 4.7508 0.69444 5.1288 0.69444 5.568 0.69444 5.94 0.69444 config 5.4236 0.77778 solid #758297
-edge runIfLeader "Leadership?" 4 7.4756 0.69444 7.8556 0.69444 8.3328 0.69444 8.7353 0.69444 outcome 8.1823 0.77778 solid #758297
-edge "Leadership?" "Execute job body" 4 10.27 0.86954 10.562 0.94522 10.912 1.0357 11.239 1.1205 yes 10.832 1.1107 solid #758297
-edge "Leadership?" "Return SKIPPED" 7 10.199 0.43878 10.366 0.37938 10.548 0.32408 10.722 0.29167 10.921 0.25455 11.137 0.23512 11.343 0.22633 no 10.832 0.375 solid #758297
-edge "Validate completed steps" "Return EXECUTED" 4 17.295 1.4028 17.665 1.4028 18.06 1.4028 18.41 1.4028 valid 17.932 1.4861 solid #758297
-edge "Execute job body" "Validate completed steps" 4 13.293 1.4028 13.635 1.4028 14.031 1.4028 14.411 1.4028 steps 13.929 1.4861 solid #758297
+graph 1 23.67 1.6528
+node start 0.84028 0.69444 1.6806 0.5 "Scheduler Tick" rounded,filled box #94A3B8 #F8FAFC
+node validate 4.1979 0.69444 2.6181 0.5 "Validate Example Inputs" rounded,filled box #94A3B8 #F8FAFC
+node attempt 8.4097 0.69444 2.5139 0.5 ZooKeeperLeaderElector rounded,filled box #94A3B8 #F8FAFC
+node decision 12.309 0.69444 1.9931 0.5 "Leadership Result" rounded,filled box #94A3B8 #F8FAFC
+node release 19.462 1.4028 1.9931 0.5 "Release Or Extend" rounded,filled box #94A3B8 #F8FAFC
+node execute 15.885 1.4028 2.3056 0.5 "Legacy Scheduled Job" rounded,filled box #94A3B8 #F8FAFC
+node executed 22.778 1.4028 1.7847 0.5 "Return Executed" rounded,filled box #94A3B8 #F8FAFC
+node skipped 15.885 0.25 1.6806 0.5 "Return Skipped" rounded,filled box #94A3B8 #F8FAFC
+edge start validate 4 1.6832 0.69444 1.6832 0.69444 2.7237 0.69444 2.7237 0.69444 call 2.2847 0.77778 solid #758297
+edge validate attempt 4 5.5132 0.69444 5.5132 0.69444 6.9876 0.69444 6.9876 0.69444 dependency 6.3299 0.77778 solid #758297
+edge attempt decision 4 9.6703 0.69444 9.6703 0.69444 11.146 0.69444 11.146 0.69444 contention 10.49 0.77778 solid #758297
+edge decision execute 7 13.312 0.7963 14.038 0.7963 14.892 0.7963 14.892 0.7963 14.892 0.7963 14.892 0.98918 14.892 0.98918 success 14.019 1.3472 solid #758297
+edge decision skipped 7 13.308 0.64815 14.364 0.64815 15.878 0.64815 15.878 0.64815 15.878 0.64815 15.878 0.63377 15.878 0.63377 skip 14.019 0.33333 solid #758297
+edge release executed 4 20.461 1.4028 20.461 1.4028 21.722 1.4028 21.722 1.4028 success 21.172 1.4861 solid #758297
+edge execute release 4 17.042 1.4028 17.042 1.4028 18.3 1.4028 18.3 1.4028 release 17.752 1.4861 solid #758297
 stop

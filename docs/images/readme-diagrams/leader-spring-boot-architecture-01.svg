@@ -1,94 +1,141 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="800" viewBox="0 0 1360 800" role="img" aria-label="leader spring boot Architecture">
-  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: leader-spring-boot-architecture-01.dot, leader-spring-boot-architecture-01.plain, leader-spring-boot-architecture-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
-<defs>
-  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
-  <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <style>
-    .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
-    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
-    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
-    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
-    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
-    .card{stroke-width:2.1;filter:url(#shadow)}
-    .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
-
-    .layerBand{fill-opacity:0.45;stroke-width:1.4;stroke-dasharray:9 7}
-    .layerLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:19px;font-weight:400;fill:#536273}
-  </style>
-</defs>
-<rect class="canvas" width="1360" height="800"/>
-<rect class="frame" x="32" y="28" width="1296" height="744" rx="28"/>
-<text class="title" x="66" y="82">leader spring boot Architecture</text>
-<text class="subtitle" x="70" y="118">Properties and auto-configuration select backend factories before woven leader aspects execute</text>
-<g id="layer-bands" aria-label="Layer bands">
-  <g data-layer="Configuration Properties">
-    <rect class="layerBand" x="40" y="136" width="1280" height="158" rx="18" fill="#EEF6FF" stroke="#9BC4F8"/>
-    <text class="layerLabel" x="58" y="163">Configuration Properties</text>
-  </g>
-  <g data-layer="Auto Configuration">
-    <rect class="layerBand" x="40" y="306" width="1280" height="148" rx="18" fill="#EEF8F1" stroke="#A5D6B7"/>
-    <text class="layerLabel" x="58" y="333">Auto Configuration</text>
-  </g>
-  <g data-layer="Runtime AOP Execution">
-    <rect class="layerBand" x="40" y="496" width="1280" height="238" rx="18" fill="#FFF7E8" stroke="#E3BE70"/>
-    <text class="layerLabel" x="58" y="523">Runtime AOP Execution</text>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="1837" height="1072" viewBox="0 0 1837 1072" role="img" aria-labelledby="title desc" data-intent="Answer a Spring Boot reader's question: which auto-configuration phases run, what properties and classpath or bean conditions activate each phase, how backend factory beans become selectable by annotations, where Micrometer and health metrics attach, and how JVM-local leader status reaches the optional Actuator endpoint?" data-evidence="leader-spring-boot README overview/configuration/backend factories/auto-configuration order/actuator sections; AutoConfiguration.imports; LeaderElectionAutoConfiguration; LeaderAopFactoryAutoConfiguration; LeaderMicrometerAutoConfiguration; LeaderAopAutoConfiguration; LeaderElectionObservabilityAutoConfiguration; LeaderElectionActuatorAutoConfiguration; LeaderElectionStatusEndpoint" data-source-read="leader-spring-boot/README.md; leader-spring-boot/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports; leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/LeaderElectionAutoConfiguration.kt; leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/LeaderProperties.kt; leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/autoconfigure/LeaderAopFactoryAutoConfiguration.kt; leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/autoconfigure/LeaderAopAutoConfiguration.kt; leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/metrics/LeaderMicrometerAutoConfiguration.kt; leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/observability/LeaderElectionObservabilityAutoConfiguration.kt; leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/observability/LeaderElectionActuatorAutoConfiguration.kt">
+  <title id="title">Spring Boot Leader Auto-Configuration Architecture</title>
+  <desc id="desc">Architecture diagram for the Spring Boot module showing AutoConfiguration import order, LeaderProperties binding, backend client conditions, factory registration, Micrometer recorder registration, AspectJ compile-time woven aspects, SpEL and validation helpers, listener/status observability, and the opt-in Actuator endpoint.</desc>
+  <defs>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
+    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
+    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
+    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
+    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
+    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
+    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
+    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
+    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
+    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
+    <style>
+      .canvas{fill:#F7FAFC}
+      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
+      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
+      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
+      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
+      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
+      .card{filter:url(#shadow);stroke-width:2}
+      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
+      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
+      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
+      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
+      .seq{fill:none;stroke-width:3;stroke-linecap:round}
+      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
+      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
+      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
+      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
+    </style>
+  </defs>
+  <rect class="canvas" width="1837" height="1072"/>
+  <rect class="frame" x="32" y="28" width="1773" height="1016" rx="28"/>
+  <text class="title" x="66" y="82">Spring Boot Leader Auto-Configuration Architecture</text>
+  <text class="subtitle" x="70" y="116">Boot properties and classpath gates register backend factories, metrics, aspects, and opt-in observability endpoints.</text>
+<g>
+  <rect class="band" x="157" y="228" width="1552" height="180" rx="18"/>
+  <text class="bandTitle" x="183" y="262">Boot inputs and conditional gates</text>
 </g>
-
-<path class="line" d="M370 214 L430 214"/>
-<path class="line" d="M750 214 L790 214 L790 219 L830 219"/>
-<path class="line" d="M370 384 L430 384"/>
-<path class="line" d="M370 574 L400 574 L400 384 L430 384"/>
-<path class="line" d="M750 384 L830 384"/>
-<path class="line" d="M590 438 L590 600"/>
-<path class="line" d="M980 438 L980 560 L1010 560 L1010 600"/>
-<path class="line" d="M750 654 L790 654 L790 659 L830 659"/>
-<path class="line" d="M1010 278 L1010 300 L1230 300 L1230 659 L1190 659"/>
-<path class="line" d="M430 214 L400 214 L400 574 L370 574"/>
-<g id="leaderProps" transform="translate(70,160)">
-  <rect class="card" x="0" y="0" width="300" height="108" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="smallLabel" x="150" y="39" text-anchor="middle">LeaderProperties</text>
-  <text class="smallLabel" x="150" y="66" text-anchor="middle">bluetape4k.leader.*</text>
+<g>
+  <rect class="band" x="157" y="443" width="1552" height="225" rx="18"/>
+  <text class="bandTitle" x="183" y="477">Auto-configuration phases</text>
 </g>
-<g id="factoryAuto" transform="translate(430,160)">
-  <rect class="card" x="0" y="0" width="320" height="108" rx="14" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="smallLabel" x="160" y="39" text-anchor="middle">Leader Aop Factory</text>
-  <text class="smallLabel" x="160" y="66" text-anchor="middle">Auto Configuration</text>
+<g>
+  <rect class="band" x="157" y="743" width="1552" height="205" rx="18"/>
+  <text class="bandTitle" x="183" y="777">Runtime annotation and observability beans</text>
 </g>
-<g id="electorFactory" transform="translate(830,160)">
-  <rect class="card" x="0" y="0" width="360" height="118" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="smallLabel" x="180" y="31" text-anchor="middle">LeaderElectorFactory</text>
-  <text class="smallLabel" x="180" y="58" text-anchor="middle">Leader Group Elector</text>
-  <text class="smallLabel" x="180" y="83" text-anchor="middle">Factory Suspend</text>
+<path class="route" data-from="imports" data-to="coreAuto" data-route-tone="dependency" d="M358 366 L358 413 L133 413 L133 566 L178 566" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+<path class="route" data-from="props" data-to="coreAuto" data-route-tone="dependency" d="M728 366 L728 413 L128 413 L128 586 L178 586" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+<path class="route" data-from="backendBeans" data-to="factoryAuto" data-route-tone="dependency" d="M1098 366 L1098 423 L668 423 L668 518" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+<path class="route" data-from="optionalBeans" data-to="micrometerAuto" data-route-tone="dependency" d="M1468 366 L1468 423 L1008 423 L1008 518" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+<path class="route" data-from="coreAuto" data-to="factoryAuto" data-route-tone="dependency" d="M478 566 L513 566" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+<path class="route" data-from="factoryAuto" data-to="micrometerAuto" data-route-tone="dependency" d="M823 566 L858 566" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+<path class="route" data-from="micrometerAuto" data-to="aopAuto" data-route-tone="dependency" d="M1158 566 L1193 566" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+<path class="route" data-from="aopAuto" data-to="observeAuto" data-route-tone="dependency" d="M1493 566 L1498 566" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+<path class="route" data-from="factoryAuto" data-to="factories" data-route-tone="success" d="M668 614 L668 708 L133 708 L133 849 L203 849" stroke="#3E9868" marker-end="url(#arrow-success)"/>
+<path class="route" data-from="aopAuto" data-to="aspect" data-route-tone="success" d="M1343 614 L1343 708 L973 708 L973 849 L928 849" stroke="#3E9868" marker-end="url(#arrow-success)"/>
+<path class="route" data-from="factories" data-to="aspect" data-route-tone="call" d="M533 849 L588 849" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
+<path class="route" data-from="micrometerAuto" data-to="metrics" data-route-tone="metric" d="M1008 614 L1008 803" stroke="#718A35" marker-end="url(#arrow-metric)"/>
+<path class="route" data-from="observeAuto" data-to="endpoint" data-route-tone="success" d="M1618 614 L1618 803" stroke="#3E9868" marker-end="url(#arrow-success)"/>
+<g id="node-imports">
+  <rect class="card" x="193" y="278" width="330" height="88" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="cardTitle" x="358" y="304" text-anchor="middle" dominant-baseline="middle">AutoConfiguration Imports</text>
+  <text class="detail" x="358" y="323" text-anchor="middle" dominant-baseline="middle">history -&gt; core -&gt; factories</text>
+  <text class="detail" x="358" y="342" text-anchor="middle" dominant-baseline="middle">metrics -&gt; AOP -&gt; observe</text>
 </g>
-<g id="aopProps" transform="translate(70,330)">
-  <rect class="card" x="0" y="0" width="300" height="108" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
-  <text class="smallLabel" x="150" y="39" text-anchor="middle">LeaderAopProperties</text>
-  <text class="smallLabel" x="150" y="66" text-anchor="middle">bluetape4k.leader.aop.*</text>
+<g id="node-props">
+  <rect class="card" x="563" y="278" width="330" height="88" rx="10" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="cardTitle" x="728" y="304" text-anchor="middle" dominant-baseline="middle">LeaderProperties Binding</text>
+  <text class="detail" x="728" y="323" text-anchor="middle" dominant-baseline="middle">bluetape4k.leader.*</text>
+  <text class="detail" x="728" y="342" text-anchor="middle" dominant-baseline="middle">wait/lease/group/backend</text>
 </g>
-<g id="aopAuto" transform="translate(430,330)">
-  <rect class="card" x="0" y="0" width="320" height="108" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="smallLabel" x="160" y="39" text-anchor="middle">Leader Aop Auto</text>
-  <text class="smallLabel" x="160" y="66" text-anchor="middle">Configuration</text>
+<g id="node-backendBeans">
+  <rect class="card" x="933" y="278" width="330" height="88" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="cardTitle" x="1098" y="304" text-anchor="middle" dominant-baseline="middle">Backend Client Beans</text>
+  <text class="detail" x="1098" y="323" text-anchor="middle" dominant-baseline="middle">Redis, Mongo, etcd</text>
+  <text class="detail" x="1098" y="342" text-anchor="middle" dominant-baseline="middle">Consul, DynamoDB, Exposed</text>
 </g>
-<g id="selector" transform="translate(830,330)">
-  <rect class="card" x="0" y="0" width="300" height="108" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="smallLabel" x="150" y="54" text-anchor="middle">LeaderBeanSelector</text>
+<g id="node-optionalBeans">
+  <rect class="card" x="1303" y="278" width="330" height="88" rx="10" fill="#EEF6D9" stroke="#8BA84D"/>
+  <text class="cardTitle" x="1468" y="304" text-anchor="middle" dominant-baseline="middle">Optional Platform Beans</text>
+  <text class="detail" x="1468" y="323" text-anchor="middle" dominant-baseline="middle">MeterRegistry</text>
+  <text class="detail" x="1468" y="342" text-anchor="middle" dominant-baseline="middle">Actuator endpoint classes</text>
 </g>
-<g id="micrometer" transform="translate(70,520)">
-  <rect class="card" x="0" y="0" width="300" height="108" rx="14" fill="#F7F1E7" stroke="#B88A44"/>
-  <text class="smallLabel" x="150" y="39" text-anchor="middle">Leader Micrometer</text>
-  <text class="smallLabel" x="150" y="66" text-anchor="middle">Auto Configuration</text>
+<g id="node-coreAuto">
+  <rect class="card" x="178" y="518" width="300" height="96" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="cardTitle" x="328" y="548" text-anchor="middle" dominant-baseline="middle">Core Auto-Config</text>
+  <text class="detail" x="328" y="567" text-anchor="middle" dominant-baseline="middle">LeaderElectionAutoConfiguration</text>
+  <text class="detail" x="328" y="586" text-anchor="middle" dominant-baseline="middle">binds properties</text>
 </g>
-<g id="spel" transform="translate(430,600)">
-  <rect class="card" x="0" y="0" width="320" height="108" rx="14" fill="#EEF6D9" stroke="#8BA84D"/>
-  <text class="smallLabel" x="160" y="39" text-anchor="middle">Spel Expression</text>
-  <text class="smallLabel" x="160" y="66" text-anchor="middle">Evaluator</text>
+<g id="node-factoryAuto">
+  <rect class="card" x="513" y="518" width="310" height="96" rx="10" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="cardTitle" x="668" y="548" text-anchor="middle" dominant-baseline="middle">AOP Factory Auto-Config</text>
+  <text class="detail" x="668" y="567" text-anchor="middle" dominant-baseline="middle">classpath + bean gates</text>
+  <text class="detail" x="668" y="586" text-anchor="middle" dominant-baseline="middle">backend factory beans</text>
 </g>
-<g id="aspects" transform="translate(830,600)">
-  <rect class="card" x="0" y="0" width="360" height="118" rx="14" fill="#F2F5F9" stroke="#7B8798"/>
-  <text class="smallLabel" x="180" y="31" text-anchor="middle">LeaderElectionAspect</text>
-  <text class="smallLabel" x="180" y="58" text-anchor="middle">Leader Group</text>
-  <text class="smallLabel" x="180" y="83" text-anchor="middle">Election Aspect</text>
+<g id="node-micrometerAuto">
+  <rect class="card" x="858" y="518" width="300" height="96" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="cardTitle" x="1008" y="548" text-anchor="middle" dominant-baseline="middle">Micrometer Auto-Config</text>
+  <text class="detail" x="1008" y="567" text-anchor="middle" dominant-baseline="middle">MeterRegistry present</text>
+  <text class="detail" x="1008" y="586" text-anchor="middle" dominant-baseline="middle">AOP metrics recorder</text>
+</g>
+<g id="node-aopAuto">
+  <rect class="card" x="1193" y="518" width="300" height="96" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="cardTitle" x="1343" y="548" text-anchor="middle" dominant-baseline="middle">AOP Runtime Auto-Config</text>
+  <text class="detail" x="1343" y="567" text-anchor="middle" dominant-baseline="middle">Aspect + SpEL</text>
+  <text class="detail" x="1343" y="586" text-anchor="middle" dominant-baseline="middle">validator + bean selector</text>
+</g>
+<g id="node-observeAuto">
+  <rect class="card" x="1498" y="518" width="195" height="96" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="cardTitle" x="1595.5" y="548" text-anchor="middle" dominant-baseline="middle">Observe Config</text>
+  <text class="detail" x="1595.5" y="567" text-anchor="middle" dominant-baseline="middle">status registry</text>
+  <text class="detail" x="1595.5" y="586" text-anchor="middle" dominant-baseline="middle">opt-in endpoint</text>
+</g>
+<g id="node-factories">
+  <rect class="card" x="203" y="803" width="330" height="92" rx="10" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="cardTitle" x="368" y="831" text-anchor="middle" dominant-baseline="middle">Selectable Factory Beans</text>
+  <text class="detail" x="368" y="850" text-anchor="middle" dominant-baseline="middle">local fallback</text>
+  <text class="detail" x="368" y="869" text-anchor="middle" dominant-baseline="middle">bean name selects backend</text>
+</g>
+<g id="node-aspect">
+  <rect class="card" x="588" y="803" width="340" height="92" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="cardTitle" x="758" y="831" text-anchor="middle" dominant-baseline="middle">CTW Leader Aspects</text>
+  <text class="detail" x="758" y="850" text-anchor="middle" dominant-baseline="middle">@LeaderElection / group</text>
+  <text class="detail" x="758" y="869" text-anchor="middle" dominant-baseline="middle">sync, suspend, Mono</text>
+</g>
+<g id="node-metrics">
+  <rect class="card" x="983" y="803" width="330" height="92" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="cardTitle" x="1148" y="831" text-anchor="middle" dominant-baseline="middle">Metrics And Health Beans</text>
+  <text class="detail" x="1148" y="850" text-anchor="middle" dominant-baseline="middle">LeaderAopMetricsRecorder</text>
+  <text class="detail" x="1148" y="869" text-anchor="middle" dominant-baseline="middle">leader.aop.active health</text>
+</g>
+<g id="node-endpoint">
+  <rect class="card" x="1363" y="803" width="330" height="92" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="cardTitle" x="1528" y="831" text-anchor="middle" dominant-baseline="middle">Status Registry Endpoint</text>
+  <text class="detail" x="1528" y="850" text-anchor="middle" dominant-baseline="middle">known lock names</text>
+  <text class="detail" x="1528" y="869" text-anchor="middle" dominant-baseline="middle">GET /actuator/leaderElection</text>
 </g>
 </svg>

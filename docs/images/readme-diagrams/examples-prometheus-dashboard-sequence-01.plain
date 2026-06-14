@@ -1,16 +1,18 @@
-graph 1 18.337 1.3403
-node n0 1.46 0.5 2.92 1 Scheduler rounded,filled box #5B8DEF #ffffff
-node n1 4.5433 0.5 2.92 1 "Job bean" rounded,filled box #58A978 #ffffff
-node n2 7.6267 0.5 2.92 1 "Redis lock" rounded,filled box #D6A441 #ffffff
-node n3 10.71 0.5 2.92 1 Micrometer rounded,filled box #DC6B82 #ffffff
-node n4 13.793 0.5 2.92 1 Prometheus rounded,filled box #45A7A1 #ffffff
-node n5 16.877 0.5 2.92 1 Grafana rounded,filled box #8A72D6 #ffffff
-edge n0 n1 4 2.9249 0.5 2.9249 0.5 2.9403 0.5 2.9403 0.5 solid #758297
-edge n1 n2 4 6.0082 0.66667 6.0082 0.66667 6.0236 0.66667 6.0236 0.66667 solid #758297
-edge n1 n3 10 5.2733 -0.0044937 5.2733 -0.075562 5.2733 -0.125 5.2733 -0.125 5.2733 -0.125 10.71 -0.125 10.71 -0.125 10.71 -0.125 10.71 -0.11295 10.71 -0.11295 solid #758297
-edge n1 n4 10 4.5433 -0.0044219 4.5433 -0.14009 4.5433 -0.25 4.5433 -0.25 4.5433 -0.25 14.28 -0.25 14.28 -0.25 14.28 -0.25 14.28 -0.15337 14.28 -0.15337 dashed #758297
-edge n2 n1 4 6.1618 0.33333 6.1618 0.33333 6.1464 0.33333 6.1464 0.33333 dashed #758297
-edge n4 n1 10 13.307 -0.0039212 13.307 -0.19843 13.307 -0.375 13.307 -0.375 13.307 -0.375 3.8133 -0.375 3.8133 -0.375 3.8133 -0.375 3.8133 -0.15287 3.8133 -0.15287 solid #758297
-edge n4 n5 4 15.258 0.33333 15.258 0.33333 15.274 0.33333 15.274 0.33333 dashed #758297
-edge n5 n4 4 15.412 0.66667 15.412 0.66667 15.396 0.66667 15.396 0.66667 solid #758297
+graph 1 19.618 6.875
+node trigger 1.1528 0.55556 2.3056 0.5 "Scheduled Metric Job" rounded,filled box #94A3B8 #F8FAFC
+node coord 6.0104 1.8333 1.7847 0.5 "Leader job bean" rounded,filled box #94A3B8 #F8FAFC
+node elector 11.899 3.4444 2.6181 0.5 "Spring AOP leader proxy" rounded,filled box #94A3B8 #F8FAFC
+node backend 18.257 5.3056 1.6806 0.5 "Redis lock key" rounded,filled box #94A3B8 #F8FAFC
+node work 18.257 2.5278 2.7222 0.5 "Record Micrometer Meters" rounded,filled box #94A3B8 #F8FAFC
+node peer 18.257 0.56944 1.4722 0.5 "Skipped Peer" rounded,filled box #94A3B8 #F8FAFC
+edge trigger coord 7 2.3093 0.68403 3.7451 0.68403 6.0069 0.68403 6.0069 0.68403 6.0069 0.68403 6.0069 1.46 6.0069 1.46 "start scheduled metric job" 3.7118 1.2917 solid #4F83BF
+edge coord elector 7 6.0069 2.0886 6.0069 2.5429 6.0069 3.4444 6.0069 3.4444 6.0069 3.4444 10.466 3.4444 10.466 3.4444 "runIfLeader with source options" 8.7465 2.9861 solid #4F83BF
+edge elector backend 7 13.214 3.623 14.941 3.623 17.757 3.623 17.757 3.623 17.757 3.623 17.757 4.9318 17.757 4.9318 "attempt backend ownership" 15.052 6.7917 solid #B9851B
+edge elector backend 7 13.212 3.5516 15.03 3.5516 18.09 3.5516 18.09 3.5516 18.09 3.5516 18.09 4.9323 18.09 4.9323 "release or renew for Prometheus scrape" 15.052 5.8611 solid #755BC6
+edge elector work 7 13.209 3.2659 14.739 3.2659 17.062 3.2659 17.062 3.2659 17.062 3.2659 17.062 2.9 17.062 2.9 "execute record Micrometer meters" 15.052 3.0694 solid #3E9868
+edge elector peer 7 11.896 3.1887 11.896 2.4834 11.896 0.5625 11.896 0.5625 11.896 0.5625 17.397 0.5625 17.397 0.5625 "return skipped result" 15.052 1.2083 solid #C94D68
+edge backend elector 7 18.424 5.0517 18.424 4.5502 18.424 3.4802 18.424 3.4802 18.424 3.4802 13.33 3.4802 13.33 3.4802 "owner token accepted" 15.052 4.9306 solid #3E9868
+edge backend elector 7 18.757 5.0497 18.757 4.532 18.757 3.4087 18.757 3.4087 18.757 3.4087 13.332 3.4087 13.332 3.4087 "lock already owned" 15.052 4 solid #C94D68
+edge work elector 7 17.243 2.7839 17.243 3.0211 17.243 3.3373 17.243 3.3373 17.243 3.3373 13.332 3.3373 13.332 3.3373 "return leader result" 15.052 2.1389 solid #3E9868
+edge peer trigger 4 17.517 0.44097 17.517 0.44097 2.4286 0.44097 2.4286 0.44097 "cycle completes without duplicate work" 8.7465 0.083333 solid #C94D68
 stop

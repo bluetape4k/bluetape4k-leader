@@ -1,40 +1,28 @@
-graph 1 15.557 6.9792
-node n0 2.155 5.5417 4.31 1.5 DynamoDbClient rounded,filled box #5B8DEF #ffffff
-node n1 2.155 2.0694 4.31 1.5 "Spring Boot" rounded,filled box #58A978 #ffffff
-node n2 7.6411 5.8889 4.72 1.5 DynamoDbLeaderElector rounded,filled box #D6A441 #ffffff
-node n3 7.6411 3.3194 4.72 1.5 DynamoDbLeaderGroupElector rounded,filled box #DC6B82 #ffffff
-node n4 7.6411 0.75 4.72 1.5 "Virtual / Suspend" rounded,filled box #45A7A1 #ffffff
-node n5 13.197 4.6389 4.72 1.5 "DynamoDB lock table" rounded,filled box #8A72D6 #ffffff
-node n6 13.197 0.95833 4.72 1.5 "Lock row" rounded,filled box #B88A44 #ffffff
-node r1p1 4.7939 5.5417 0.03 0.03 "" invis point black lightgrey
-node r1p2 4.7939 5.8889 0.03 0.03 "" invis point black lightgrey
-node r2p1 4.7939 5.5417 0.03 0.03 "" invis point black lightgrey
-node r2p2 4.7939 3.3194 0.03 0.03 "" invis point black lightgrey
-node r3p1 4.7939 2.0694 0.03 0.03 "" invis point black lightgrey
-node r3p2 4.7939 0.75 0.03 0.03 "" invis point black lightgrey
-node r4p1 10.419 5.8889 0.03 0.03 "" invis point black lightgrey
-node r4p2 10.419 4.6389 0.03 0.03 "" invis point black lightgrey
-node r5p1 10.419 3.3194 0.03 0.03 "" invis point black lightgrey
-node r5p2 10.419 4.6389 0.03 0.03 "" invis point black lightgrey
-node r6p1 10.419 0.75 0.03 0.03 "" invis point black lightgrey
-node r6p2 10.419 0.95833 0.03 0.03 "" invis point black lightgrey
-edge n0 r1p1 4 4.316 5.5417 4.5463 5.5417 4.7178 5.5417 4.7741 5.5417 solid #758297
-edge n0 r2p1 4 4.316 5.5417 4.5463 5.5417 4.7178 5.5417 4.7741 5.5417 solid #758297
-edge n1 r3p1 4 4.316 2.0694 4.5463 2.0694 4.7178 2.0694 4.7741 2.0694 solid #758297
-edge n2 r4p1 4 10.003 5.8889 10.206 5.8889 10.354 5.8889 10.402 5.8889 solid #758297
-edge n3 r5p1 4 10.003 3.3194 10.206 3.3194 10.354 3.3194 10.402 3.3194 solid #758297
-edge n4 r6p1 4 10.003 0.75 10.206 0.75 10.354 0.75 10.402 0.75 solid #758297
-edge n5 n6 4 13.197 3.8852 13.197 3.2972 13.197 2.4786 13.197 1.8566 solid #758297
-edge r1p1 r1p2 4 4.7939 5.5603 4.7939 5.6201 4.7939 5.8062 4.7939 5.8684 solid #758297
-edge r1p2 n2 4 4.8121 5.8889 4.8546 5.8889 4.9694 5.8889 5.1296 5.8889 solid #758297
-edge r2p1 r2p2 4 4.7939 5.5225 4.7939 5.3171 4.7939 3.5314 4.7939 3.3366 solid #758297
-edge r2p2 n3 4 4.8121 3.3194 4.8546 3.3194 4.9694 3.3194 5.1296 3.3194 solid #758297
-edge r3p1 r3p2 4 4.7939 2.0508 4.7939 1.9029 4.7939 0.92221 4.7939 0.76987 solid #758297
-edge r3p2 n4 4 4.8121 0.75 4.8546 0.75 4.9694 0.75 5.1296 0.75 solid #758297
-edge r4p1 r4p2 4 10.419 5.8672 10.419 5.7142 10.419 4.7994 10.419 4.6574 solid #758297
-edge r4p2 n5 4 10.437 4.6389 10.473 4.6389 10.561 4.6389 10.686 4.6389 solid #758297
-edge r5p1 r5p2 4 10.419 3.3381 10.419 3.4859 10.419 4.4667 10.419 4.619 solid #758297
-edge r5p2 n5 4 10.437 4.6389 10.473 4.6389 10.561 4.6389 10.686 4.6389 solid #758297
-edge r6p1 r6p2 4 10.419 0.76923 10.419 0.80952 10.419 0.90228 10.419 0.94093 solid #758297
-edge r6p2 n6 4 10.437 0.95833 10.473 0.95833 10.561 0.95833 10.686 0.95833 solid #758297
+graph 1 22.135 5.75
+node caller 1.0486 4.4722 2.0972 0.5 "Application Caller" rounded,filled box #94A3B8 #F8FAFC
+node clients 8.6597 1.4028 1.7847 0.5 "AWS SDK Clients" rounded,filled box #94A3B8 #F8FAFC
+node options 8.6597 0.25 1.8889 0.5 "DynamoDB Options" rounded,filled box #94A3B8 #F8FAFC
+node tableOwner 16.823 0.65278 2.7222 0.5 "Caller-Provisioned Table" rounded,filled box #94A3B8 #F8FAFC
+node single 4.5625 5.0556 2.5139 0.5 "Single Leader Electors" rounded,filled box #94A3B8 #F8FAFC
+node group 4.5625 3.9028 2.2014 0.5 "Group Slot Electors" rounded,filled box #94A3B8 #F8FAFC
+node client 12.767 2.9583 2.0972 0.5 DynamoDbLockClient rounded,filled box #94A3B8 #F8FAFC
+node extender 8.6597 4.0278 2.8264 0.5 "Lease Handle And Extender" rounded,filled box #94A3B8 #F8FAFC
+node singleKey 12.767 1.8056 1.7847 0.5 "Single Lock Row" rounded,filled box #94A3B8 #F8FAFC
+node groupRows 12.767 0.65278 1.7847 0.5 "Group Slot Rows" rounded,filled box #94A3B8 #F8FAFC
+node logicalLease 16.823 1.8056 2.3056 0.5 "Logical Lease Fields" rounded,filled box #94A3B8 #F8FAFC
+node ttlCleanup 20.983 1.0972 2.3056 0.5 "DynamoDB TTL Cleanup" rounded,filled box #94A3B8 #F8FAFC
+edge caller single 7 2.1008 4.5 2.721 4.5 3.3854 4.5 3.3854 4.5 3.3854 4.5 3.3854 4.6439 3.3854 4.6439 call 2.7014 5.0694 solid #758297
+edge caller group 7 1.0521 4.2208 1.0521 4.0683 1.0521 3.9028 1.0521 3.9028 1.0521 3.9028 3.2967 3.9028 3.2967 3.9028 call 2.7014 4.1111 solid #758297
+edge clients client 7 9.5564 1.6042 10.477 1.6042 11.774 1.6042 11.774 1.6042 11.774 1.6042 11.774 2.5437 11.774 2.5437 dependency 10.896 1.4861 solid #758297
+edge options client 7 9.611 0.45139 10.54 0.45139 11.816 0.45139 11.816 0.45139 11.816 0.45139 11.816 2.5442 11.816 2.5442 dependency 10.896 0.33333 solid #758297
+edge tableOwner ttlCleanup 7 18.08 0.90913 18.08 0.97504 18.08 1.0278 18.08 1.0278 18.08 1.0278 19.667 1.0278 19.667 1.0278 dependency 19.007 0.73611 solid #758297
+edge single client 7 5.7188 4.8012 5.7188 4.2259 5.7188 2.875 5.7188 2.875 5.7188 2.875 11.552 2.875 11.552 2.875 call 8.6597 5.6667 solid #758297
+edge single extender 7 5.7604 4.8015 5.7604 4.4971 5.7604 4.0278 5.7604 4.0278 5.7604 4.0278 7.0799 4.0278 7.0799 4.0278 success 6.533 5.0417 solid #758297
+edge group client 7 5.6681 3.7153 7.9058 3.7153 12.76 3.7153 12.76 3.7153 12.76 3.7153 12.76 3.3745 12.76 3.3745 call 8.6597 3.0417 solid #758297
+edge group extender 4 5.6659 3.9028 5.6659 3.9028 7.0818 3.9028 7.0818 3.9028 success 6.533 4.0972 solid #758297
+edge client logicalLease 7 13.705 2.7043 13.705 2.3999 13.705 1.9306 13.705 1.9306 13.705 1.9306 15.506 1.9306 15.506 1.9306 dependency 14.639 2.9028 solid #758297
+edge extender client 7 9.8438 3.7738 9.8438 3.4817 9.8438 3.0417 9.8438 3.0417 9.8438 3.0417 11.552 3.0417 11.552 3.0417 retry 10.896 4.0972 solid #758297
+edge singleKey logicalLease 4 13.662 1.8056 13.662 1.8056 15.504 1.8056 15.504 1.8056 success 14.639 1.8889 solid #758297
+edge groupRows logicalLease 10 13.665 0.65278 13.724 0.65278 13.76 0.65278 13.76 0.65278 13.76 0.65278 13.76 1.6806 13.76 1.6806 13.76 1.6806 15.505 1.6806 15.505 1.6806 success 14.639 0.73611 solid #758297
+edge logicalLease ttlCleanup 7 16.816 1.5538 16.816 1.4068 16.816 1.25 16.816 1.25 16.816 1.25 19.668 1.25 19.668 1.25 release 19.007 1.75 solid #758297
 stop

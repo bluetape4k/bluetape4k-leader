@@ -1,16 +1,18 @@
-graph 1 18.337 1.6736
-node n0 1.46 0.5 2.92 1 "Node A" rounded,filled box #5B8DEF #ffffff
-node n1 5.3142 0.5 2.92 1 Reconciler rounded,filled box #58A978 #ffffff
-node n2 9.1683 0.5 2.92 1 Etcd rounded,filled box #D6A441 #ffffff
-node n3 13.022 0.5 2.92 1 Resources rounded,filled box #DC6B82 #ffffff
-node n4 16.877 0.5 2.92 1 "Node B" rounded,filled box #45A7A1 #ffffff
-edge n0 n1 4 2.9226 0.5 2.9226 0.5 3.7036 0.5 3.7036 0.5 solid #758297
-edge n1 n2 4 6.7768 0.66667 6.7768 0.66667 7.5578 0.66667 7.5578 0.66667 solid #758297
-edge n1 n2 4 6.7768 0.5 6.7768 0.5 7.5578 0.5 7.5578 0.5 solid #758297
-edge n1 n2 4 6.7768 0.33333 6.7768 0.33333 7.5578 0.33333 7.5578 0.33333 solid #758297
-edge n1 n3 10 5.8008 1.0053 5.8008 1.0983 5.8008 1.1667 5.8008 1.1667 5.8008 1.1667 13.022 1.1667 13.022 1.1667 13.022 1.1667 13.022 1.1505 13.022 1.1505 solid #758297
-edge n2 n1 4 7.7057 0.16667 7.7057 0.16667 6.9247 0.16667 6.9247 0.16667 dashed #758297
-edge n2 n1 4 7.7057 0.83333 7.7057 0.83333 6.9247 0.83333 6.9247 0.83333 dashed #758297
-edge n3 n1 10 13.022 -0.0044219 13.022 -0.14009 13.022 -0.25 13.022 -0.25 13.022 -0.25 5.3142 -0.25 5.3142 -0.25 5.3142 -0.25 5.3142 -0.15337 5.3142 -0.15337 dashed #758297
-edge n4 n1 10 16.877 1.004 16.877 1.1795 16.877 1.3333 16.877 1.3333 16.877 1.3333 4.8275 1.3333 4.8275 1.3333 4.8275 1.3333 4.8275 1.1529 4.8275 1.1529 solid #758297
+graph 1 17.837 6.875
+node trigger 0.84028 0.55556 1.6806 0.5 "Reconcile Tick" rounded,filled box #94A3B8 #F8FAFC
+node coord 5.0521 1.8333 1.9931 0.5 ClusterReconciler rounded,filled box #94A3B8 #F8FAFC
+node elector 10.733 3.4444 1.9931 0.5 EtcdLeaderElector rounded,filled box #94A3B8 #F8FAFC
+node backend 16.736 5.3056 1.6806 0.5 "etcd lease key" rounded,filled box #94A3B8 #F8FAFC
+node work 16.736 2.5278 2.2014 0.5 "Apply Desired State" rounded,filled box #94A3B8 #F8FAFC
+node peer 16.736 0.56944 1.4722 0.5 "Skipped Peer" rounded,filled box #94A3B8 #F8FAFC
+edge trigger coord 7 0.83681 0.808 0.83681 1.1804 0.83681 1.8333 0.83681 1.8333 0.83681 1.8333 3.9349 1.8333 3.9349 1.8333 "start reconcile tick" 2.8681 1.2917 solid #4F83BF
+edge coord elector 7 6.0529 1.8333 7.6026 1.8333 10.406 1.8333 10.406 1.8333 10.406 1.8333 10.406 3.0709 10.406 3.0709 "runIfLeader with source options" 7.8924 2.9861 solid #4F83BF
+edge elector backend 7 11.734 3.623 13.318 3.623 16.226 3.623 16.226 3.623 16.226 3.623 16.226 4.9318 16.226 4.9318 "attempt backend ownership" 13.682 6.7917 solid #B9851B
+edge elector backend 7 11.73 3.5516 13.398 3.5516 16.573 3.5516 16.573 3.5516 16.573 3.5516 16.573 4.9323 16.573 4.9323 "release or renew for lease revoke handoff" 13.682 5.8611 solid #755BC6
+edge elector work 7 11.731 3.2659 13.188 3.2659 15.726 3.2659 15.726 3.2659 15.726 3.2659 15.726 2.9 15.726 2.9 "execute apply desired state" 13.682 3.0694 solid #3E9868
+edge elector peer 7 11.059 3.1909 11.059 2.5015 11.059 0.64352 11.059 0.64352 11.059 0.64352 15.876 0.64352 15.876 0.64352 "return skipped result" 13.682 1.2083 solid #C94D68
+edge backend elector 7 16.906 5.0517 16.906 4.5502 16.906 3.4802 16.906 3.4802 16.906 3.4802 11.85 3.4802 11.85 3.4802 "owner token accepted" 13.682 4.9306 solid #3E9868
+edge backend elector 7 17.24 5.0497 17.24 4.532 17.24 3.4087 17.24 3.4087 17.24 3.4087 11.853 3.4087 11.853 3.4087 "lock already owned" 13.682 4 solid #C94D68
+edge work elector 7 15.809 2.7839 15.809 3.0211 15.809 3.3373 15.809 3.3373 15.809 3.3373 11.854 3.3373 11.854 3.3373 "return leader result" 13.682 2.1389 solid #3E9868
+edge peer trigger 4 15.996 0.48148 15.996 0.48148 1.8025 0.48148 1.8025 0.48148 "cycle completes without duplicate work" 7.8924 0.083333 solid #C94D68
 stop

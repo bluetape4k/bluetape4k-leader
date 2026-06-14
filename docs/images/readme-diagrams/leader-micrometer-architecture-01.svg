@@ -1,83 +1,141 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="788" viewBox="0 0 1260 788" role="img" aria-label="leader micrometer Architecture">
-  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: leader-micrometer-architecture-01.dot, leader-micrometer-architecture-01.plain, leader-micrometer-architecture-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
-<defs>
-  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
-  <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <style>
-    .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
-    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
-    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
-    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
-    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
-    .card{stroke-width:2.1;filter:url(#shadow)}
-    .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
-
-    .layerBand{fill-opacity:0.45;stroke-width:1.4;stroke-dasharray:9 7}
-    .layerLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:19px;font-weight:400;fill:#536273}
-  </style>
-</defs>
-<rect class="canvas" width="1260" height="788"/>
-<rect class="frame" x="32" y="28" width="1196" height="732" rx="28"/>
-<text class="title" x="66" y="82">leader micrometer Architecture</text>
-<text class="subtitle" x="70" y="118">AOP, direct elector, and listener paths converge on a Micrometer MeterRegistry</text>
-<g id="layer-bands" aria-label="Layer bands">
-  <g data-layer="Instrumentation Inputs">
-    <rect class="layerBand" x="40" y="136" width="1180" height="173" rx="18" fill="#EEF6FF" stroke="#9BC4F8"/>
-    <text class="layerLabel" x="58" y="163">Instrumentation Inputs</text>
-  </g>
-  <g data-layer="Metrics Adapters">
-    <rect class="layerBand" x="40" y="317" width="1180" height="262" rx="18" fill="#EEF8F1" stroke="#A5D6B7"/>
-    <text class="layerLabel" x="58" y="344">Metrics Adapters</text>
-  </g>
-  <g data-layer="Meter Export">
-    <rect class="layerBand" x="40" y="587" width="1180" height="147" rx="18" fill="#FFF7E8" stroke="#E3BE70"/>
-    <text class="layerLabel" x="58" y="614">Meter Export</text>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="1792" height="1137" viewBox="0 0 1792 1137" role="img" aria-labelledby="title desc" data-intent="Answer an observability reader's question: which leader election execution paths emit Micrometer metrics, which recorder or decorator owns each path, what meter families are registered, where tag cardinality is controlled, and how the application-selected MeterRegistry exports to Prometheus, Datadog, OTLP, or composite registries?" data-evidence="leader-micrometer README overview/meter catalog/export/cardinality sections; InstrumentedLeaderElectors; MicrometerLeaderAopMetricsRecorder; MicrometerLeaderElectionListener; MicrometerNames; MicrometerSafeLeaderHistoryRecorder; MicrometerSuspendSafeLeaderHistoryRecorder; CounterAwareSinkDecorator" data-source-read="leader-micrometer/README.md; leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/InstrumentedLeaderElectors.kt; leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/MicrometerLeaderAopMetricsRecorder.kt; leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/MicrometerLeaderElectionListener.kt; leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/MicrometerNames.kt; leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/history/MicrometerSafeLeaderHistoryRecorder.kt; leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/history/MicrometerSuspendSafeLeaderHistoryRecorder.kt; leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/history/internal/CounterAwareSinkDecorator.kt">
+  <title id="title">Leader Metrics Instrumentation Architecture</title>
+  <desc id="desc">Architecture diagram for the Micrometer module showing Spring AOP callback metrics, direct elector decorators, listener lifecycle counters, history sink counters, MeterRegistry ownership, meter families, cardinality guidance, and Prometheus or other export backends.</desc>
+  <defs>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
+    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
+    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
+    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
+    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
+    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
+    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
+    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
+    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
+    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
+    <style>
+      .canvas{fill:#F7FAFC}
+      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
+      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
+      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
+      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
+      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
+      .card{filter:url(#shadow);stroke-width:2}
+      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
+      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
+      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
+      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
+      .seq{fill:none;stroke-width:3;stroke-linecap:round}
+      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
+      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
+      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
+      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
+    </style>
+  </defs>
+  <rect class="canvas" width="1792" height="1137"/>
+  <rect class="frame" x="32" y="28" width="1728" height="1081" rx="28"/>
+  <text class="title" x="66" y="82">Leader Metrics Instrumentation Architecture</text>
+  <text class="subtitle" x="70" y="116">AOP callbacks, direct elector decorators, listener events, and history sinks register bounded Micrometer meters.</text>
+<g>
+  <rect class="band" x="152" y="228" width="1512" height="180" rx="18"/>
+  <text class="bandTitle" x="178" y="262">Leader execution and callback sources</text>
 </g>
-
-<path class="line" d="M370 219 L450 219"/>
-<path class="line" d="M1020 293 L1020 318 L960 318 L960 340"/>
-<path class="line" d="M610 258 L610 310 L390 310 L390 664 L450 664"/>
-<path class="line" d="M960 448 L960 585 L690 585 L690 610"/>
-<path class="line" d="M370 509 L450 509"/>
-<path class="line" d="M610 563 L610 610"/>
-<path class="line" d="M770 664 L815 664 L815 654 L860 654"/>
-<g id="annotations" transform="translate(70,165)">
-  <rect class="card" x="0" y="0" width="300" height="108" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="smallLabel" x="150" y="39" text-anchor="middle">@LeaderElection</text>
-  <text class="smallLabel" x="150" y="66" text-anchor="middle">@LeaderGroupElection</text>
+<g>
+  <rect class="band" x="152" y="443" width="1512" height="215" rx="18"/>
+  <text class="bandTitle" x="178" y="477">Micrometer adapters inside leader-micrometer</text>
 </g>
-<g id="recorder" transform="translate(450,150)">
-  <rect class="card" x="0" y="0" width="320" height="108" rx="14" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="smallLabel" x="160" y="39" text-anchor="middle">Micrometer Leader</text>
-  <text class="smallLabel" x="160" y="66" text-anchor="middle">Aop Metrics Recorder</text>
+<g>
+  <rect class="band" x="152" y="733" width="1512" height="200" rx="18"/>
+  <text class="bandTitle" x="178" y="767">Registry-owned meter families and export</text>
 </g>
-<g id="direct" transform="translate(870,185)">
-  <rect class="card" x="0" y="0" width="300" height="108" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="smallLabel" x="150" y="54" text-anchor="middle">Direct elector calls</text>
+<path class="route" data-from="aopSource" data-to="aopRecorder" data-route-tone="call" d="M348 366 L348 413 L128 413 L128 556 L193 556" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
+<path class="route" data-from="directSource" data-to="decorators" data-route-tone="call" d="M713 366 L713 413 L968 413 L968 556 L948 556" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
+<path class="route" data-from="listenerSource" data-to="listener" data-route-tone="call" d="M1078 366 L1078 508" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
+<path class="route" data-from="historySource" data-to="history" data-route-tone="call" d="M1443 366 L1443 508" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
+<path class="route" data-from="aopRecorder" data-to="registry" data-route-tone="dependency" d="M368 604 L368 688 L128 688 L128 844 L198 844" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+<path class="route" data-from="decorators" data-to="registry" data-route-tone="dependency" d="M773 604 L773 688 L128 688 L128 844 L198 844" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+<path class="route" data-from="listener" data-to="registry" data-route-tone="dependency" d="M1158 604 L1158 688 L128 688 L128 844 L198 844" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+<path class="route" data-from="history" data-to="registry" data-route-tone="dependency" d="M1493 604 L1493 688 L128 688 L128 844 L198 844" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+<path class="route" data-from="registry" data-to="aopMeters" data-route-tone="metric" d="M538 844 L578 844" stroke="#718A35" marker-end="url(#arrow-metric)"/>
+<path class="route" data-from="aopMeters" data-to="directMeters" data-route-tone="metric" d="M908 844 L943 844" stroke="#718A35" marker-end="url(#arrow-metric)"/>
+<path class="route" data-from="directMeters" data-to="eventHistoryMeters" data-route-tone="metric" d="M1253 844 L1288 844" stroke="#718A35" marker-end="url(#arrow-metric)"/>
+<path class="route" data-from="aopMeters" data-to="export" data-route-tone="success" d="M743 890 L743 933" stroke="#3E9868" marker-end="url(#arrow-success)"/>
+<path class="route" data-from="eventHistoryMeters" data-to="export" data-route-tone="success" d="M1448 890 L1448 918 L908 918 L908 933" stroke="#3E9868" marker-end="url(#arrow-success)"/>
+<g id="node-aopSource">
+  <rect class="card" x="188" y="278" width="320" height="88" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="cardTitle" x="348" y="304" text-anchor="middle" dominant-baseline="middle">Spring AOP Callbacks</text>
+  <text class="detail" x="348" y="323" text-anchor="middle" dominant-baseline="middle">LeaderElection aspect</text>
+  <text class="detail" x="348" y="342" text-anchor="middle" dominant-baseline="middle">attempt/acquired/skip/body</text>
 </g>
-<g id="decorators" transform="translate(800,340)">
-  <rect class="card" x="0" y="0" width="320" height="108" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
-  <text class="smallLabel" x="160" y="39" text-anchor="middle">Instrumented*Elector</text>
-  <text class="smallLabel" x="160" y="66" text-anchor="middle">decorators</text>
+<g id="node-directSource">
+  <rect class="card" x="553" y="278" width="320" height="88" rx="10" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="cardTitle" x="713" y="304" text-anchor="middle" dominant-baseline="middle">Direct Elector Calls</text>
+  <text class="detail" x="713" y="323" text-anchor="middle" dominant-baseline="middle">LeaderElector decorators</text>
+  <text class="detail" x="713" y="342" text-anchor="middle" dominant-baseline="middle">single/group/suspend</text>
 </g>
-<g id="callbacks" transform="translate(70,455)">
-  <rect class="card" x="0" y="0" width="300" height="108" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="smallLabel" x="150" y="39" text-anchor="middle">Leader Election</text>
-  <text class="smallLabel" x="150" y="66" text-anchor="middle">Listener callbacks</text>
+<g id="node-listenerSource">
+  <rect class="card" x="918" y="278" width="320" height="88" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="cardTitle" x="1078" y="304" text-anchor="middle" dominant-baseline="middle">Listener Registry</text>
+  <text class="detail" x="1078" y="323" text-anchor="middle" dominant-baseline="middle">Elected, Revoked</text>
+  <text class="detail" x="1078" y="342" text-anchor="middle" dominant-baseline="middle">Skipped callbacks</text>
 </g>
-<g id="listener" transform="translate(450,455)">
-  <rect class="card" x="0" y="0" width="320" height="108" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="smallLabel" x="160" y="39" text-anchor="middle">Micrometer Leader</text>
-  <text class="smallLabel" x="160" y="66" text-anchor="middle">Election Listener</text>
+<g id="node-historySource">
+  <rect class="card" x="1283" y="278" width="320" height="88" rx="10" fill="#EEF6D9" stroke="#8BA84D"/>
+  <text class="cardTitle" x="1443" y="304" text-anchor="middle" dominant-baseline="middle">History Recorder</text>
+  <text class="detail" x="1443" y="323" text-anchor="middle" dominant-baseline="middle">safe history sink</text>
+  <text class="detail" x="1443" y="342" text-anchor="middle" dominant-baseline="middle">sync + suspend</text>
 </g>
-<g id="registry" transform="translate(450,610)">
-  <rect class="card" x="0" y="0" width="320" height="108" rx="14" fill="#F7F1E7" stroke="#B88A44"/>
-  <text class="smallLabel" x="160" y="54" text-anchor="middle">MeterRegistry</text>
+<g id="node-aopRecorder">
+  <rect class="card" x="193" y="508" width="350" height="96" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="cardTitle" x="368" y="538" text-anchor="middle" dominant-baseline="middle">AOP Metrics Recorder</text>
+  <text class="detail" x="368" y="557" text-anchor="middle" dominant-baseline="middle">leader.aop.* meters</text>
+  <text class="detail" x="368" y="576" text-anchor="middle" dominant-baseline="middle">reason + exception tags</text>
 </g>
-<g id="exporters" transform="translate(860,600)">
-  <rect class="card" x="0" y="0" width="320" height="108" rx="14" fill="#EEF6D9" stroke="#8BA84D"/>
-  <text class="smallLabel" x="160" y="39" text-anchor="middle">Prometheus / Datadog</text>
-  <text class="smallLabel" x="160" y="66" text-anchor="middle">/ OTLP</text>
+<g id="node-decorators">
+  <rect class="card" x="598" y="508" width="350" height="96" rx="10" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="cardTitle" x="773" y="538" text-anchor="middle" dominant-baseline="middle">Instrumented Decorators</text>
+  <text class="detail" x="773" y="557" text-anchor="middle" dominant-baseline="middle">shedlock.leader.* meters</text>
+  <text class="detail" x="773" y="576" text-anchor="middle" dominant-baseline="middle">duration + active gauge</text>
+</g>
+<g id="node-listener">
+  <rect class="card" x="1003" y="508" width="310" height="96" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="cardTitle" x="1158" y="538" text-anchor="middle" dominant-baseline="middle">Micrometer Listener</text>
+  <text class="detail" x="1158" y="557" text-anchor="middle" dominant-baseline="middle">leader.election.events</text>
+  <text class="detail" x="1158" y="576" text-anchor="middle" dominant-baseline="middle">event tag values</text>
+</g>
+<g id="node-history">
+  <rect class="card" x="1363" y="508" width="260" height="96" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="cardTitle" x="1493" y="538" text-anchor="middle" dominant-baseline="middle">Counter-Aware History Sink</text>
+  <text class="detail" x="1493" y="557" text-anchor="middle" dominant-baseline="middle">sink failures</text>
+  <text class="detail" x="1493" y="576" text-anchor="middle" dominant-baseline="middle">acquire missing</text>
+</g>
+<g id="node-registry">
+  <rect class="card" x="198" y="798" width="340" height="92" rx="10" fill="#EEF1FF" stroke="#6477D8"/>
+  <text class="cardTitle" x="368" y="826" text-anchor="middle" dominant-baseline="middle">Application MeterRegistry</text>
+  <text class="detail" x="368" y="845" text-anchor="middle" dominant-baseline="middle">Prometheus, Datadog, OTLP</text>
+  <text class="detail" x="368" y="864" text-anchor="middle" dominant-baseline="middle">composite registry allowed</text>
+</g>
+<g id="node-aopMeters">
+  <rect class="card" x="578" y="798" width="330" height="92" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="cardTitle" x="743" y="826" text-anchor="middle" dominant-baseline="middle">AOP Meter Family</text>
+  <text class="detail" x="743" y="845" text-anchor="middle" dominant-baseline="middle">attempt/acquired/not acquired</text>
+  <text class="detail" x="743" y="864" text-anchor="middle" dominant-baseline="middle">execution, failed, active</text>
+</g>
+<g id="node-directMeters">
+  <rect class="card" x="943" y="798" width="310" height="92" rx="10" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="cardTitle" x="1098" y="826" text-anchor="middle" dominant-baseline="middle">Direct Meter Family</text>
+  <text class="detail" x="1098" y="845" text-anchor="middle" dominant-baseline="middle">acquired/not_acquired</text>
+  <text class="detail" x="1098" y="864" text-anchor="middle" dominant-baseline="middle">duration, active</text>
+</g>
+<g id="node-eventHistoryMeters">
+  <rect class="card" x="1288" y="798" width="320" height="92" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="cardTitle" x="1448" y="826" text-anchor="middle" dominant-baseline="middle">Event And History Meters</text>
+  <text class="detail" x="1448" y="845" text-anchor="middle" dominant-baseline="middle">leader.election.events</text>
+  <text class="detail" x="1448" y="864" text-anchor="middle" dominant-baseline="middle">leader.history.*</text>
+</g>
+<g id="node-export">
+  <rect class="card" x="718" y="933" width="380" height="80" rx="10" fill="#F2F5F9" stroke="#9AA8B8"/>
+  <text class="cardTitle" x="908" y="955" text-anchor="middle" dominant-baseline="middle">Export Backend</text>
+  <text class="detail" x="908" y="974" text-anchor="middle" dominant-baseline="middle">Prometheus scrape</text>
+  <text class="detail" x="908" y="993" text-anchor="middle" dominant-baseline="middle">backend naming convention</text>
 </g>
 </svg>

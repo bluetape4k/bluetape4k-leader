@@ -1,52 +1,48 @@
-graph 1 32.358 6.2172
-node n0 2.29 1.6525 4.58 1.56 HazelcastLeaderElector rounded,filled box #5B8DEF #ffffff
-node n1 18.957 1.5414 4.58 1.78 "Hazelcast Suspend" rounded,filled box #58A978 #ffffff
-node n2 2.29 5.0969 4.58 1.56 LeaderElector rounded,filled box #D6A441 #ffffff
-node n3 7.8456 1.215 4.58 2.43 HazelcastLock rounded,filled box #DC6B82 #ffffff
-node n4 24.512 1.215 4.58 2.43 HazelcastSuspendLock rounded,filled box #45A7A1 #ffffff
-node n5 30.068 5.0969 4.58 1.56 SuspendLeaderElector rounded,filled box #8A72D6 #ffffff
-node n6 13.401 1.5414 4.58 1.78 "Hazelcast Leader Group" rounded,filled box #B88A44 #ffffff
-node n7 30.068 1.5414 4.58 1.78 "Hazelcast Suspend" rounded,filled box #8BA84D #ffffff
-node n8 11.55 5.0969 4.58 1.56 LeaderGroupElector rounded,filled box #5B8DEF #ffffff
-node n9 20.808 4.9858 4.58 1.78 "Suspend Leader Group" rounded,filled box #58A978 #ffffff
-node r1p1 27.29 1.5414 0.03 0.03 "" invis point black lightgrey
-node r1p2 27.29 1.215 0.03 0.03 "" invis point black lightgrey
-node r2p1 21.734 1.5414 0.03 0.03 "" invis point black lightgrey
-node r2p2 21.734 1.215 0.03 0.03 "" invis point black lightgrey
-node r3p1 10.623 1.5414 0.03 0.03 "" invis point black lightgrey
-node r3p2 10.623 1.215 0.03 0.03 "" invis point black lightgrey
-node r4p1 5.0678 1.6525 0.03 0.03 "" invis point black lightgrey
-node r4p2 5.0678 1.215 0.03 0.03 "" invis point black lightgrey
-node r5p1 30.068 3.2636 0.03 0.03 "" invis point black lightgrey
-node r5p2 20.808 3.2636 0.03 0.03 "" invis point black lightgrey
-node r6p1 18.957 3.3747 0.03 0.03 "" invis point black lightgrey
-node r6p2 30.068 3.3747 0.03 0.03 "" invis point black lightgrey
-node r7p1 13.401 3.3747 0.03 0.03 "" invis point black lightgrey
-node r7p2 11.55 3.3747 0.03 0.03 "" invis point black lightgrey
-node r8p1 2.29 3.3747 0.03 0.03 "" invis point black lightgrey
-node r8p2 2.29 3.3747 0.03 0.03 "" invis point black lightgrey
-edge n0 r4p1 4 4.5839 1.6525 4.8178 1.6525 4.9911 1.6525 5.0478 1.6525 solid #758297
-edge n0 r8p1 4 2.29 2.438 2.29 2.8355 2.29 3.2545 2.29 3.3531 dashed #758297
-edge n1 r2p1 4 21.251 1.5414 21.484 1.5414 21.658 1.5414 21.714 1.5414 solid #758297
-edge n1 r6p1 4 18.957 2.4366 18.957 2.8438 18.957 3.2566 18.957 3.3535 dashed #758297
-edge n6 r3p1 4 11.107 1.5414 10.873 1.5414 10.7 1.5414 10.643 1.5414 solid #758297
-edge n6 r7p1 4 13.401 2.4366 13.401 2.8438 13.401 3.2566 13.401 3.3535 dashed #758297
-edge n7 r1p1 4 27.774 1.5414 27.54 1.5414 27.367 1.5414 27.31 1.5414 solid #758297
-edge n7 r5p1 4 30.068 2.4378 30.068 2.804 30.068 3.1616 30.068 3.2453 dashed #758297
-edge r1p1 r1p2 4 27.29 1.52 27.29 1.461 27.29 1.2965 27.29 1.2369 solid #758297
-edge r1p2 n4 4 27.272 1.215 27.23 1.215 27.113 1.215 26.95 1.215 solid #758297
-edge r2p1 r2p2 4 21.734 1.52 21.734 1.461 21.734 1.2965 21.734 1.2369 solid #758297
-edge r2p2 n4 4 21.752 1.215 21.795 1.215 21.912 1.215 22.074 1.215 solid #758297
-edge r3p1 r3p2 4 10.623 1.52 10.623 1.461 10.623 1.2965 10.623 1.2369 solid #758297
-edge r3p2 n3 4 10.606 1.215 10.563 1.215 10.446 1.215 10.283 1.215 solid #758297
-edge r4p1 r4p2 4 5.0678 1.6337 5.0678 1.5617 5.0678 1.3042 5.0678 1.2332 solid #758297
-edge r4p2 n3 4 5.0855 1.215 5.1281 1.215 5.2448 1.215 5.4076 1.215 solid #758297
-edge r5p1 r5p2 4 30.047 3.2636 29.581 3.2636 21.281 3.2636 20.827 3.2636 dashed #758297
-edge r5p2 n9 4 20.808 3.283 20.808 3.357 20.808 3.6336 20.808 3.9431 dashed #758297
-edge r6p1 r6p2 4 18.975 3.3747 19.46 3.3747 29.577 3.3747 30.051 3.3747 dashed #758297
-edge r6p2 n5 4 30.068 3.3941 30.068 3.4769 30.068 3.8135 30.068 4.1658 dashed #758297
-edge r7p1 r7p2 4 13.38 3.3747 13.19 3.3747 11.748 3.3747 11.568 3.3747 dashed #758297
-edge r7p2 n8 4 11.55 3.3941 11.55 3.4769 11.55 3.8135 11.55 4.1658 dashed #758297
-edge r8p1 r8p2 4 2.29 3.3747 2.29 3.3747 2.29 3.3747 2.29 3.3747 dashed #758297
-edge r8p2 n2 4 2.29 3.3941 2.29 3.4769 2.29 3.8135 2.29 4.1658 dashed #758297
+graph 1 95.715 6.8333
+node leaderContract 22.233 3.4167 13.139 0.5 "<<core interface>>\\nLeaderElector\\n+ runIfLeader(lockName): T?\\n+ runAsyncIfLeader(lockName)\\n+ state(lockName): LeaderState" rounded,filled box #94A3B8 #F8FAFC
+node suspendContract 7.4549 3.4167 14.91 0.5 "<<core suspend interface>>\\nSuspendLeaderElector\\n+ suspend runIfLeader(lockName)\\n+ runIfLeaderResultSuspend(slot)\\ncoroutine \
+context handle" rounded,filled box #94A3B8 #F8FAFC
+node groupContract 54.816 3.4167 13.139 0.5 "<<core group interface>>\\nLeaderGroupElector\\n+ maxLeaders: Int\\n+ runIfLeader(lockName): T?\\n+ activeCount / availableSlots" rounded,filled box #94A3B8 #F8FAFC
+node suspendGroupContract 87.594 3.4167 14.597 0.5 "<<core suspend group>>\\nSuspendLeaderGroupElector\\n+ maxLeaders: Int\\n+ suspend runIfLeader(lockName)\\n+ state(lockName): LeaderGroupState" rounded,filled box #94A3B8 #F8FAFC
+node hazelcastLeader 27.941 1.8333 18.451 0.5 "<<blocking + async implementation>>\\nHazelcastLeaderElector\\nuses bluetape4k:leader:locks\\ncreates HazelcastLock\\nautoExtend \
+watchdog optional\\nasync release is thread-unbound" rounded,filled box #94A3B8 #F8FAFC
+node hazelcastSuspend 9.0521 1.8333 17.826 0.5 "<<coroutine implementation>>\\nHazelcastSuspendLeaderElector\\nuses same single lock map\\ncreates HazelcastSuspendLock\\nwithContext(\
+handle element)\\nNonCancellable release" rounded,filled box #94A3B8 #F8FAFC
+node hazelcastGroup 68.33 1.8333 16.785 0.5 "<<slot group implementation>>\\nHazelcastLeaderGroupElector\\nuses group lock map\\niterates lockName:slot:N\\nactiveCount reads \
+slot keys\\ngroup watchdog disabled" rounded,filled box #94A3B8 #F8FAFC
+node hazelcastSuspendGroup 86.594 1.8333 18.243 0.5 "<<coroutine slot group>>\\nHazelcastSuspend Group\\nHazelcastSuspendLeaderGroupElector\\nensureActive while trying slots\\ncreates \
+suspend slot lock\\nNonCancellable slot release" rounded,filled box #94A3B8 #F8FAFC
+node factories 37.816 0.25 19.285 0.5 "<<factory + extensions>>\\nFactory Entrypoints\\nHazelcastLeaderElectorFactory\\nHazelcastLeaderGroupElectorFactory\\nHazelcastInstance.runIfLeader*\\nHazelcastInstance.suspendRunIfLeader*" rounded,filled box #94A3B8 #F8FAFC
+node singleDelegates 38.524 3.4167 17.931 0.5 "<<renewal delegates>>\\nSingle Extend Delegates\\nHazelcastLockExtendDelegate\\nHazelcastSuspendLockExtendDelegate\\nshare lock \
+with LeaderLockHandle\\nclassify backend errors" rounded,filled box #94A3B8 #F8FAFC
+node slotDelegates 70.844 3.4167 17.41 0.5 "<<group renewal delegates>>\\nSlot Extend Delegates\\nHazelcastSlotExtendDelegate\\nHazelcastSuspendSlotExtendDelegate\\nextend \
+lockName:slot:N\\nmanual LockExtender path" rounded,filled box #94A3B8 #F8FAFC
+node hazelcastLock 46.677 5 14.701 0.5 "<<IMap token lock>>\\nHazelcastLock\\ntoken: Base58 fencing value\\nputIfAbsent(key, token, TTL)\\nremove(key, token)\\nreplace + \
+setTtl renewal" rounded,filled box #94A3B8 #F8FAFC
+node hazelcastSuspendLock 63.483 5 17.41 0.5 "<<suspend IMap token lock>>\\nHazelcastSuspendLock\\nblocking IMap wrapped in Dispatchers.IO\\ndelay retry loop\\ntoken check before \
+unlock\\nsame extendDetailed contract" rounded,filled box #94A3B8 #F8FAFC
+node hazelcastMap 55.08 6.5833 18.868 0.5 "<<runtime primitive>>\\nHazelcast IMap Store\\nsingle map: bluetape4k:leader:locks\\ngroup map: bluetape4k:leader:group:locks\\nno \
+CP Subsystem required\\nnear-cache must stay disabled" rounded,filled box #94A3B8 #F8FAFC
+node hazelcastClassifier 48.552 1.8333 21.264 0.5 "<<watchdog error policy>>\\nHazelcastBackendErrorClassifier\\nRetryable / TargetNotMember -> transient\\nWrongTarget -> transient\\nHazelcastException \
+-> non-transient\\nfeeds CompositeBackendErrorClassifier" rounded,filled box #94A3B8 #F8FAFC
+edge hazelcastLeader leaderContract 4 23.759 2.0877 23.759 2.0877 23.759 3.0308 23.759 3.0308 inherit 22.488 2.625 solid #4F83BF
+edge hazelcastLeader singleDelegates 4 34.631 2.0877 34.631 2.0877 34.631 3.0308 34.631 3.0308 "handle delegate" 33.988 2.625 solid #B9851B
+edge hazelcastSuspend suspendContract 4 7.5243 2.0877 7.5243 2.0877 7.5243 3.0308 7.5243 3.0308 inherit 7.7101 2.625 solid #4F83BF
+edge hazelcastSuspend singleDelegates 10 16.814 2.089 16.814 2.2564 16.814 2.4444 16.814 2.4444 16.814 2.4444 32.095 2.4444 32.095 2.4444 32.095 2.4444 32.095 3.0291 32.095 3.0291 "suspend delegate" 31.052 2.625 solid #B9851B
+edge hazelcastGroup groupContract 4 60.661 2.0877 60.661 2.0877 60.661 3.0308 60.661 3.0308 inherit 55.071 2.625 solid #4F83BF
+edge hazelcastGroup slotDelegates 4 69.431 2.0877 69.431 2.0877 69.431 3.0308 69.431 3.0308 "slot delegate" 69.387 2.625 solid #755BC6
+edge hazelcastSuspendGroup suspendGroupContract 4 87.594 2.0877 87.594 2.0877 87.594 3.0308 87.594 3.0308 inherit 87.849 2.625 solid #4F83BF
+edge hazelcastSuspendGroup slotDelegates 4 78.51 2.0877 78.51 2.0877 78.51 3.0308 78.51 3.0308 "suspend slot" 72.281 2.625 solid #755BC6
+edge factories hazelcastLeader 4 32.67 0.50439 32.67 0.50439 32.67 1.4474 32.67 1.4474 "factory create" 37.41 1.0417 solid #758297
+edge factories hazelcastSuspend 10 28.167 0.25 23.269 0.25 18.34 0.25 18.34 0.25 18.34 0.25 18.34 1.8333 18.34 1.8333 18.34 1.8333 18.103 1.8333 18.103 1.8333 extensions 27.042 1.0417 solid #758297
+edge factories hazelcastGroup 10 47.464 0.33333 53.276 0.33333 59.561 0.33333 59.561 0.33333 59.561 0.33333 59.561 1.8333 59.561 1.8333 59.561 1.8333 59.8 1.8333 59.8 1.8333 "group create" 58.448 1.0417 solid #758297
+edge factories hazelcastSuspendGroup 10 47.463 0.16667 59.093 0.16667 77.097 0.16667 77.097 0.16667 77.097 0.16667 77.097 1.8333 77.097 1.8333 77.097 1.8333 77.337 1.8333 77.337 1.8333 "suspend ext" 78.023 1.0417 solid #758297
+edge singleDelegates hazelcastLock 4 42.047 3.6711 42.047 3.6711 42.047 4.6141 42.047 4.6141 "sync extend" 46.273 4.2083 solid #B9851B
+edge singleDelegates hazelcastSuspendLock 10 44.769 3.6723 44.769 3.8398 44.769 4.0278 44.769 4.0278 44.769 4.0278 58.082 4.0278 58.082 4.0278 58.082 4.0278 58.082 4.6124 58.082 4.6124 "suspend extend" 58.979 4.2083 solid #B9851B
+edge slotDelegates hazelcastLock 10 65.488 3.6721 65.488 3.9602 65.488 4.3889 65.488 4.3889 65.488 4.3889 51.137 4.3889 51.137 4.3889 51.137 4.3889 51.137 4.6122 51.137 4.6122 "slot lock" 54.158 4.2083 solid #755BC6
+edge slotDelegates hazelcastSuspendLock 4 68.838 3.6711 68.838 3.6711 68.838 4.6141 68.838 4.6141 "suspend slot lock" 67.783 4.2083 solid #755BC6
+edge hazelcastLock hazelcastMap 4 49.837 5.2544 49.837 5.2544 49.837 6.1974 49.837 6.1974 "putIfAbsent TTL" 54.668 5.7917 solid #758297
+edge hazelcastSuspendLock hazelcastMap 4 59.646 5.2544 59.646 5.2544 59.646 6.1974 59.646 6.1974 "Dispatchers.IO" 60.271 5.7917 solid #758297
+edge hazelcastClassifier singleDelegates 4 42.705 2.0877 42.705 2.0877 42.705 3.0308 42.705 3.0308 event 42.915 2.625 solid #2E8F89
+edge hazelcastClassifier slotDelegates 13 53.715 2.0888 53.715 2.3768 53.715 2.8056 53.715 2.8056 53.715 2.8056 61.762 2.8056 61.762 2.8056 61.762 2.8056 61.762 3.4167 61.762 3.4167 61.762 3.4167 62.003 3.4167 62.003 3.4167 event 51.484 2.625 solid #2E8F89
 stop

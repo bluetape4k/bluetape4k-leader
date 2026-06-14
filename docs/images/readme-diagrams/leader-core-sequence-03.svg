@@ -1,74 +1,145 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1188" height="1126" viewBox="0 0 1188 1126" role="img" aria-label="Multi-leader group: slot-based semaphore (maxLeaders = N)">
-  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: leader-core-sequence-03.dot, leader-core-sequence-03.plain, leader-core-sequence-03-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
-<defs>
-  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
-  <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="inherit" markerWidth="14" markerHeight="12" refX="12" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M 0 1 L 12 6 L 0 11 Z" fill="#ffffff" stroke="#758297" stroke-width="1.8"/></marker>
-  <style>
-    .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
-    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
-    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
-    .label{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:25px;font-weight:400;fill:#102033}
-    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
-    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
-    .small{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#536273}
-    .strong{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:13px;font-weight:400;fill:#102033}
-    .card{stroke-width:2.1;filter:url(#shadow)}.compartment{stroke-width:1.5;fill:none}
-    .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
-    .plainLine{stroke:#758297;stroke-width:2.1;fill:none}
-    .dashed{stroke:#758297;stroke-width:2.1;stroke-dasharray:7 6;fill:none;marker-end:url(#openArrow)}
-    .inheritLine{stroke:#758297;stroke-width:2.2;fill:none;marker-end:url(#inherit)}
-    .implLine{stroke:#758297;stroke-width:2.2;stroke-dasharray:8 7;fill:none;marker-end:url(#inherit)}
-  </style>
-  <!-- semantic lock-state route markers -->
-  <marker id="semanticArrow-neutral" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#758297" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="semanticArrow-leader" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#43A76B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="semanticArrow-skipped" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#EF5B7A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="semanticArrow-contention" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#D99A2B" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="semanticArrow-reacquire" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 7 4 L 1 7" fill="none" stroke="#8B6EEB" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <!-- /semantic lock-state route markers -->
-</defs>
-<rect class="canvas" width="1188" height="1126"/>
-<rect class="frame" x="32" y="28" width="1124" height="1070" rx="28"/>
-<text class="title" x="66" y="82">Multi-leader group: slot-based semap.</text>
-<text class="subtitle" x="70" y="118">Sequence messages from the original Mermaid source</text>
-<rect class="card" x="80" y="166" width="230" height="72" rx="12" fill="#E8F3FF" stroke="#5B8DEF"/>
-<text class="smallLabel" x="195" y="209" text-anchor="middle">Caller</text>
-<line class="lifeline" x1="195" y1="252" x2="195" y2="1066" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="479" y="166" width="230" height="72" rx="12" fill="#EAF7EF" stroke="#58A978"/>
-<text class="smallLabel" x="594" y="209" text-anchor="middle">GroupElection</text>
-<line class="lifeline" x1="594" y1="252" x2="594" y2="1066" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect class="card" x="878" y="166" width="230" height="72" rx="12" fill="#FFF3D9" stroke="#D6A441"/>
-<text class="smallLabel" x="993" y="209" text-anchor="middle">LockStore</text>
-<line class="lifeline" x1="993" y1="252" x2="993" y2="1066" stroke="#b7c2d1" stroke-width="2" stroke-dasharray="10 10"/>
-<rect x="247.5" y="286" width="294" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="265.5" y="313" text-anchor="start" style="fill:#758297">1. runIfLeader(lockName, action)</text>
-<path class="line" d="M195 332 L594 332" data-route-tone="neutral" style="stroke:#758297;marker-end:url(#semanticArrow-neutral)"/>
-<rect x="125" y="360" width="938" height="40" rx="71" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="147" y="387" text-anchor="start">LOOP: slot = 0..N-1</text>
-<rect x="646.5" y="428" width="294" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="664.5" y="455" text-anchor="start" style="fill:#43A76B">3. tryLock(lockName:slot:i, ...)</text>
-<path class="line" d="M594 474 L993 474" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="125" y="502" width="938" height="40" rx="71" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="147" y="529" text-anchor="start">ALT: slot acquired</text>
-<rect x="688.5" y="570" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="706.5" y="597" text-anchor="start" style="fill:#43A76B">5. true</text>
-<path class="dashed" d="M993 616 L594 616" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="289.5" y="644" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="307.5" y="671" text-anchor="start" style="fill:#43A76B">6. action()</text>
-<path class="line" d="M594 690 L195 690" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="289.5" y="718" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="307.5" y="745" text-anchor="start" style="fill:#43A76B">7. result</text>
-<path class="dashed" d="M195 764 L594 764" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="670.5" y="792" width="246" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="688.5" y="819" text-anchor="start" style="fill:#D99A2B">8. unlock(lockName:slot:i)</text>
-<path class="line" d="M594 838 L993 838" data-route-tone="contention" style="stroke:#D99A2B;marker-end:url(#semanticArrow-contention)"/>
-<rect x="289.5" y="866" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="307.5" y="893" text-anchor="start" style="fill:#43A76B">9. result (T)</text>
-<path class="dashed" d="M594 912 L195 912" data-route-tone="leader" style="stroke:#43A76B;marker-end:url(#semanticArrow-leader)"/>
-<rect x="125" y="940" width="938" height="40" rx="71" fill="#F7F1E7" stroke="#B88A44" stroke-width="1.6" opacity="0.96"/>
-<text class="strong" x="147" y="967" text-anchor="start">ELSE: slot busy</text>
-<rect x="688.5" y="1008" width="210" height="40" rx="67" fill="#ffffff" opacity="0.97"/>
-<text class="strong" x="706.5" y="1035" text-anchor="start" style="fill:#EF5B7A">11. false</text>
-<path class="dashed" d="M993 1054 L594 1054" data-route-tone="skipped" style="stroke:#EF5B7A;marker-end:url(#semanticArrow-skipped)"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1910" height="1496" viewBox="0 0 1910 1496" role="img" aria-labelledby="title desc" data-intent="Answer the Core reader's group-election question: how bounded slot ownership differs from a single lock, where maxLeaders is enforced, and which backend operation releases the chosen slot after work completes." data-evidence="leader-core README sequence sections, LeaderElector contracts, SuspendLeaderElector contracts" data-source-read="leader-core/README.md; leader-core/README.ko.md; leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderElector.kt; leader-core/src/main/kotlin/io/bluetape4k/leader/coroutines/SuspendLeaderElector.kt">
+  <title id="title">Core Group Slot Acquire Release Sequence</title>
+  <desc id="desc">Core Group Slot Acquire Release Sequence sequence diagram.</desc>
+  <defs>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
+    <marker id="seqArrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
+    <marker id="seqArrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
+    <marker id="seqArrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
+    <marker id="seqArrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
+    <marker id="seqArrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
+    <marker id="seqArrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
+    <marker id="seqArrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
+    <marker id="seqArrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
+    <marker id="seqArrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
+    <style>
+      .canvas{fill:#F7FAFC}
+      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
+      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
+      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
+      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
+      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
+      .card{filter:url(#shadow);stroke-width:2}
+      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
+      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
+      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
+      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
+      .seq{fill:none;stroke-width:3;stroke-linecap:round}
+      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
+      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
+      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
+      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
+    </style>
+  </defs>
+  <rect class="canvas" width="1910" height="1496"/>
+  <rect class="frame" x="32" y="28" width="1846" height="1440" rx="28"/>
+  <text class="title" x="66" y="82">Core Group Slot Acquire Release Sequence</text>
+  <text class="subtitle" x="70" y="116">A bounded slot namespace turns maxLeaders into semaphore-style leader election.</text>
+<g id="participant-caller">
+  <rect class="card" x="128" y="228" width="260" height="76" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="cardTitle" x="258" y="273" text-anchor="middle">Caller</text>
+  <line class="lifeline" x1="258" y1="304" x2="258" y2="1372"/>
+</g>
+<g id="participant-group">
+  <rect class="card" x="476.5" y="228" width="260" height="76" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="cardTitle" x="606.5" y="273" text-anchor="middle">Core group elector</text>
+  <line class="lifeline" x1="606.5" y1="304" x2="606.5" y2="1372"/>
+</g>
+<g id="participant-slots">
+  <rect class="card" x="825" y="228" width="260" height="76" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="cardTitle" x="955" y="273" text-anchor="middle">Slot namespace</text>
+  <line class="lifeline" x1="955" y1="304" x2="955" y2="1372"/>
+</g>
+<g id="participant-backend">
+  <rect class="card" x="1173.5" y="228" width="260" height="76" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="cardTitle" x="1303.5" y="273" text-anchor="middle">Slot primitive</text>
+  <line class="lifeline" x1="1303.5" y1="304" x2="1303.5" y2="1372"/>
+</g>
+<g id="participant-body">
+  <rect class="card" x="1522" y="228" width="260" height="76" rx="10" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="cardTitle" x="1652" y="273" text-anchor="middle">Group body</text>
+  <line class="lifeline" x1="1652" y1="304" x2="1652" y2="1372"/>
+</g>
+<g id="m1">
+  <rect class="pill" x="301.05" y="329" width="262.4" height="42" rx="7"/>
+  <circle cx="320.05" cy="350" r="12" fill="#4F83BF"/>
+  <text class="detail" x="320.05" y="351" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">1</text>
+  <text class="detail" x="450.25" y="342" text-anchor="middle" dominant-baseline="middle">runIfLeader(groupName,</text>
+  <text class="detail" x="450.25" y="357" text-anchor="middle" dominant-baseline="middle">maxLeaders, body)</text>
+  <path class="seq" d="M258 388 L606.5 388" stroke="#4F83BF" marker-end="url(#seqArrow-call)"/>
+</g>
+<g id="m2">
+  <rect class="pill" x="665.75" y="411" width="230" height="42" rx="7"/>
+  <circle cx="684.75" cy="432" r="12" fill="#2E8F89"/>
+  <text class="detail" x="684.75" y="433" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">2</text>
+  <text class="detail" x="798.75" y="424" text-anchor="middle" dominant-baseline="middle">build slot keys</text>
+  <text class="detail" x="798.75" y="439" text-anchor="middle" dominant-baseline="middle">0..maxLeaders-1</text>
+  <path class="seq" d="M606.5 470 L955 470" stroke="#2E8F89" marker-end="url(#seqArrow-dependency)"/>
+</g>
+<g id="m3">
+  <rect class="pill" x="787.8" y="507" width="334.4" height="28" rx="7"/>
+  <circle cx="806.8" cy="521" r="12" fill="#B9851B"/>
+  <text class="detail" x="806.8" y="522" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">3</text>
+  <text class="detail" x="973" y="522" text-anchor="middle" dominant-baseline="middle">tryAcquire first free slot token</text>
+  <path class="seq" d="M606.5 552 L1303.5 552" stroke="#B9851B" marker-end="url(#seqArrow-contention)"/>
+</g>
+<g>
+  <rect class="branchBox" x="128" y="599" width="1654" height="46" rx="15"/>
+  <rect class="pill" x="342.25" y="593" width="180" height="30" rx="8"/>
+  <text class="detail" x="432.25" y="609" text-anchor="middle" dominant-baseline="middle">alt slot acquired</text>
+</g>
+<g id="m5">
+  <rect class="pill" x="834.6" y="671" width="240.8" height="28" rx="7"/>
+  <circle cx="853.6" cy="685" r="12" fill="#3E9868"/>
+  <text class="detail" x="853.6" y="686" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">5</text>
+  <text class="detail" x="973" y="686" text-anchor="middle" dominant-baseline="middle">slot token accepted</text>
+  <path class="seqReturn" d="M1303.5 716 L606.5 716" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
+</g>
+<g id="m6">
+  <rect class="pill" x="980.05" y="753" width="298.4" height="28" rx="7"/>
+  <circle cx="999.05" cy="767" r="12" fill="#4F83BF"/>
+  <text class="detail" x="999.05" y="768" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">6</text>
+  <text class="detail" x="1147.25" y="768" text-anchor="middle" dominant-baseline="middle">execute body for owned slot</text>
+  <path class="seq" d="M606.5 798 L1652 798" stroke="#4F83BF" marker-end="url(#seqArrow-call)"/>
+</g>
+<g id="m7">
+  <rect class="pill" x="1014.25" y="835" width="230" height="28" rx="7"/>
+  <circle cx="1033.25" cy="849" r="12" fill="#3E9868"/>
+  <text class="detail" x="1033.25" y="850" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">7</text>
+  <text class="detail" x="1147.25" y="850" text-anchor="middle" dominant-baseline="middle">slot result</text>
+  <path class="seqReturn" d="M1652 880 L606.5 880" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
+</g>
+<g id="m8">
+  <rect class="pill" x="816.6" y="917" width="276.8" height="28" rx="7"/>
+  <circle cx="835.6" cy="931" r="12" fill="#755BC6"/>
+  <text class="detail" x="835.6" y="932" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">8</text>
+  <text class="detail" x="973" y="932" text-anchor="middle" dominant-baseline="middle">release owned slot token</text>
+  <path class="seq" d="M606.5 962 L1303.5 962" stroke="#755BC6" marker-end="url(#seqArrow-release)"/>
+</g>
+<g id="m9">
+  <rect class="pill" x="279.45" y="999" width="305.6" height="28" rx="7"/>
+  <circle cx="298.45" cy="1013" r="12" fill="#3E9868"/>
+  <text class="detail" x="298.45" y="1014" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">9</text>
+  <text class="detail" x="450.25" y="1014" text-anchor="middle" dominant-baseline="middle">return group result and slot</text>
+  <path class="seqReturn" d="M606.5 1044 L258 1044" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
+</g>
+<g>
+  <rect class="branchBox" x="128" y="1091" width="1654" height="46" rx="15"/>
+  <rect class="pill" x="339" y="1085" width="186.5" height="30" rx="8"/>
+  <text class="detail" x="432.25" y="1101" text-anchor="middle" dominant-baseline="middle">else all slots busy</text>
+</g>
+<g id="m11">
+  <rect class="pill" x="787.8" y="1163" width="334.4" height="28" rx="7"/>
+  <circle cx="806.8" cy="1177" r="12" fill="#C94D68"/>
+  <text class="detail" x="806.8" y="1178" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">11</text>
+  <text class="detail" x="973" y="1178" text-anchor="middle" dominant-baseline="middle">no slot accepted before waitTime</text>
+  <path class="seqReturn" d="M1303.5 1208 L606.5 1208" stroke="#C94D68" marker-end="url(#seqArrow-skip)"/>
+</g>
+<g id="m12">
+  <rect class="pill" x="283.05" y="1245" width="298.4" height="28" rx="7"/>
+  <circle cx="302.05" cy="1259" r="12" fill="#C94D68"/>
+  <text class="detail" x="302.05" y="1260" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">12</text>
+  <text class="detail" x="450.25" y="1260" text-anchor="middle" dominant-baseline="middle">return skipped group result</text>
+  <path class="seqReturn" d="M606.5 1290 L258 1290" stroke="#C94D68" marker-end="url(#seqArrow-skip)"/>
+</g>
 </svg>

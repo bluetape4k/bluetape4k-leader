@@ -1,19 +1,18 @@
-graph 1 15.316 3.4306
-node "node-a service" 1.3611 3.1806 1.6806 0.5 "node-a service" rounded,filled box #94a3b8 #f8fafc
-node "node-b service" 1.3611 2.0278 1.6806 0.5 "node-b service" rounded,filled box #94a3b8 #f8fafc
-node ZooKeeperLegacyScheduler 5.7292 2.0278 2.7222 0.5 ZooKeeperLegacyScheduler rounded,filled box #94a3b8 #f8fafc
-node ZooKeeperSchedulerConfig 1.3611 0.875 2.7222 0.5 ZooKeeperSchedulerConfig rounded,filled box #94a3b8 #f8fafc
-node SchedulerRunReport 10.066 2.0278 2.0972 0.5 SchedulerRunReport rounded,filled box #94a3b8 #f8fafc
-node ZooKeeperLeaderElector 10.066 0.55556 2.5139 0.5 ZooKeeperLeaderElector rounded,filled box #94a3b8 #f8fafc
-node LeaderElectionOptions 5.7292 0.25 2.4097 0.5 LeaderElectionOptions rounded,filled box #94a3b8 #f8fafc
-node "ZooKeeper / Curator" 14.215 0.55556 2.2014 0.5 "ZooKeeper / Curator" rounded,filled box #94a3b8 #f8fafc
-node "Legacy scheduled job" 10.066 3.1806 2.3056 0.5 "Legacy scheduled job" rounded,filled box #94a3b8 #f8fafc
-edge "node-a service" ZooKeeperLegacyScheduler 4 2.2067 2.9597 2.886 2.7792 3.8525 2.5225 4.5991 2.3242 calls 3.5451 2.7565 solid #758297
-edge "node-b service" ZooKeeperLegacyScheduler 4 2.2067 2.0278 2.7707 2.0278 3.5326 2.0278 4.2023 2.0278 calls 3.5451 2.1111 solid #758297
-edge ZooKeeperLegacyScheduler SchedulerRunReport 4 7.0946 2.0278 7.6585 2.0278 8.308 2.0278 8.8544 2.0278 returns 7.9497 2.1111 solid #758297
-edge ZooKeeperLegacyScheduler ZooKeeperLeaderElector 4 6.4936 1.7713 7.2344 1.5183 8.3673 1.1312 9.1551 0.86203 delegates 7.9497 1.4631 solid #758297
-edge ZooKeeperLegacyScheduler "Legacy scheduled job" 4 6.6994 2.2836 7.3621 2.4609 8.2466 2.6975 8.9407 2.8832 "leader only" 7.9497 2.7908 solid #758297
-edge ZooKeeperSchedulerConfig ZooKeeperLegacyScheduler 4 2.3382 1.1308 3.0072 1.3085 3.9004 1.5458 4.6002 1.7316 configures 3.5451 1.6037 solid #758297
-edge ZooKeeperLeaderElector "ZooKeeper / Curator" 4 11.328 0.55556 11.843 0.55556 12.439 0.55556 12.954 0.55556 "Curator lock" 12.219 0.63889 solid #758297
-edge LeaderElectionOptions ZooKeeperLeaderElector 7 6.9397 0.18352 7.3837 0.17297 7.8911 0.17762 8.3507 0.22222 8.4799 0.23476 8.6138 0.25253 8.7473 0.27342 options 7.9497 0.30556 solid #758297
+graph 1 20.24 1.7778
+node trigger 0.84028 0.81944 1.6806 0.5 "Scheduler Tick" rounded,filled box #94A3B8 #F8FAFC
+node nodeA 3.8333 1.4028 1.8889 0.5 "Candidate Node A" rounded,filled box #94A3B8 #F8FAFC
+node nodeB 3.8333 0.25 1.8889 0.5 "Candidate Node B" rounded,filled box #94A3B8 #F8FAFC
+node coordinator 7.3472 0.81944 2.7222 0.5 ZooKeeperLegacyScheduler rounded,filled box #94A3B8 #F8FAFC
+node backend 15.51 1.5278 1.9931 0.5 "Curator lock path" rounded,filled box #94A3B8 #F8FAFC
+node elector 11.611 1.5278 2.5139 0.5 ZooKeeperLeaderElector rounded,filled box #94A3B8 #F8FAFC
+node recovery 19.087 1.5278 2.3056 0.5 "Session Lock Release" rounded,filled box #94A3B8 #F8FAFC
+node work 11.611 0.375 2.3056 0.5 "Legacy Scheduled Job" rounded,filled box #94A3B8 #F8FAFC
+edge trigger nodeA 7 0.83681 1.0702 0.83681 1.2283 0.83681 1.4028 0.83681 1.4028 0.83681 1.4028 2.7253 1.4028 2.7253 1.4028 call 2.2847 1.4167 solid #758297
+edge trigger nodeB 7 0.83681 0.56802 0.83681 0.41547 0.83681 0.25 0.83681 0.25 0.83681 0.25 2.7253 0.25 2.7253 0.25 call 2.2847 0.45833 solid #758297
+edge nodeA coordinator 7 3.5174 1.1469 3.5174 1.0239 3.5174 0.90278 3.5174 0.90278 3.5174 0.90278 5.8209 0.90278 5.8209 0.90278 call 5.3819 1.4167 solid #758297
+edge nodeB coordinator 7 4.1424 0.50445 4.1424 0.62206 4.1424 0.73611 4.1424 0.73611 4.1424 0.73611 5.8235 0.73611 5.8235 0.73611 call 5.3819 0.45833 solid #758297
+edge coordinator elector 7 8.7112 0.9213 9.527 0.9213 10.406 0.9213 10.406 0.9213 10.406 0.9213 10.406 1.1142 10.406 1.1142 dependency 9.5312 1.4722 solid #758297
+edge coordinator work 7 8.7151 0.77315 9.9632 0.77315 11.615 0.77315 11.615 0.77315 11.615 0.77315 11.615 0.75877 11.615 0.75877 success 9.5312 0.45833 solid #758297
+edge backend recovery 4 16.511 1.5278 16.511 1.5278 17.768 1.5278 17.768 1.5278 release 17.22 1.6111 solid #758297
+edge elector backend 4 12.872 1.5278 12.872 1.5278 14.347 1.5278 14.347 1.5278 contention 13.691 1.6111 solid #758297
 stop

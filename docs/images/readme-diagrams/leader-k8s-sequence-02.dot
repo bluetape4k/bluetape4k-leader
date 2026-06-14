@@ -1,18 +1,20 @@
 digraph "leader-k8s-sequence-02" {
-  graph [layout=neato, rankdir=TB, splines=ortho, overlap=false, outputorder=edgesfirst, nodesep=0.55, ranksep=0.75, bgcolor="transparent", label="leader-k8s Acquire and Release", labelloc=t];
-  node [shape=box, style="rounded,filled", fontname="Architects Daughter", fontsize=18, margin="0.16,0.10"];
-  edge [color="#758297", penwidth=1.8, arrowsize=0.8, fontname="Comic Mono", fontsize=10];
-  n0 [label="Worker", fillcolor="#ffffff", color="#5B8DEF", width=3.06, height=0.97, pos="190.00,500.00!"];
-  n1 [label="KubernetesLease", fillcolor="#ffffff", color="#58A978", width=3.61, height=0.97, pos="580.00,500.00!"];
-  n2 [label="Kubernetes API", fillcolor="#ffffff", color="#D6A441", width=3.47, height=0.97, pos="950.00,500.00!"];
-  n3 [label="Lease object", fillcolor="#ffffff", color="#DC6B82", width=3.06, height=0.97, pos="1310.00,500.00!"];
-  n0 -> n1 [];
-  n1 -> n2 [];
-  n2 -> n3 [];
-  n1 -> n2 [];
-  n2 -> n3 [];
-  n1 -> n0 [];
-  n1 -> n0 [];
-  n1 -> n2 [];
-  n2 -> n3 [];
+  graph [rankdir=LR, bgcolor="transparent", splines=ortho, nodesep=0.7, ranksep=0.9];
+  node [shape=box, style="rounded,filled", fillcolor="#F8FAFC", color="#94A3B8", fontname="Comic Mono"];
+  edge [fontname="Comic Mono", fontsize=10, arrowsize=0.7];
+  "caller" [label="Caller"];
+  "elector" [label="Kubernetes elector"];
+  "backend" [label="Kubernetes Lease"];
+  "body" [label="Leader body"];
+  "cleanup" [label="Recovery path"];
+  "caller" -> "elector" [label="runIfLeader(lockName, options, body)", color="#4F83BF"];
+  "elector" -> "backend" [label="create or replace Lease with holderIdentity", color="#B9851B"];
+  "backend" -> "elector" [label="token accepted", color="#3E9868"];
+  "elector" -> "body" [label="execute protected leader body", color="#4F83BF"];
+  "body" -> "elector" [label="body result", color="#3E9868"];
+  "elector" -> "backend" [label="clear holder identity when token still matches", color="#755BC6"];
+  "elector" -> "caller" [label="return body result", color="#3E9868"];
+  "backend" -> "elector" [label="existing owner token blocks acquire", color="#C94D68"];
+  "elector" -> "cleanup" [label="leaseDurationSeconds expires stale holder", color="#2E8F89"];
+  "elector" -> "caller" [label="return skipped result", color="#C94D68"];
 }

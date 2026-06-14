@@ -1,80 +1,129 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="760" viewBox="0 0 1320 760" role="img" aria-label="leader consul Architecture">
-  <metadata id="graphviz-evidence">Regenerated with Graphviz evidence: leader-consul-architecture-01.dot, leader-consul-architecture-01.plain, leader-consul-architecture-01-graphviz.svg via scripts/regenerate-readme-diagram-graphviz-evidence.mjs.</metadata>
-<defs>
-  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#1f2937" flood-opacity="0.10"/></filter>
-  <marker id="openArrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 10 5 L 1 9" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <style>
-    .canvas{fill:#f7f9fc}.frame{fill:#fff;stroke:#d8e0ea;stroke-width:1.5}
-    .title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:43px;font-weight:400;fill:#102033}
-    .subtitle{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:15px;font-weight:400;fill:#536273}
-    .smallLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:21px;font-weight:400;fill:#102033}
-    .mono{font-family:"Comic Mono","Comic Sans MS","Comic Sans","Comic Neue",Arial,sans-serif;font-size:12px;font-weight:400;fill:#102033}
-    .card{stroke-width:2.1;filter:url(#shadow)}
-    .line{stroke:#758297;stroke-width:2.1;fill:none;marker-end:url(#openArrow)}
-
-    .layerBand{fill-opacity:0.45;stroke-width:1.4;stroke-dasharray:9 7}
-    .layerLabel{font-family:"Architects Daughter","Comic Mono","Comic Sans MS","Comic Sans",cursive;font-size:19px;font-weight:400;fill:#536273}
-  </style>
-</defs>
-<rect class="canvas" width="1320" height="760"/>
-<rect class="frame" x="32" y="28" width="1256" height="704" rx="28"/>
-<text class="title" x="66" y="82">leader consul Architecture</text>
-<text class="subtitle" x="70" y="118">Consul sessions and KV acquire/release provide single and slot-based group leadership</text>
-<g id="layer-bands" aria-label="Layer bands">
-  <g data-layer="Caller Configuration">
-    <rect class="layerBand" x="40" y="136" width="1240" height="168" rx="18" fill="#EEF6FF" stroke="#9BC4F8"/>
-    <text class="layerLabel" x="58" y="163">Caller Configuration</text>
-  </g>
-  <g data-layer="Leader Electors">
-    <rect class="layerBand" x="40" y="336" width="1240" height="218" rx="18" fill="#EEF8F1" stroke="#A5D6B7"/>
-    <text class="layerLabel" x="58" y="363">Leader Electors</text>
-  </g>
-  <g data-layer="Consul Runtime State">
-    <rect class="layerBand" x="40" y="562" width="1240" height="127" rx="18" fill="#FFF7E8" stroke="#E3BE70"/>
-    <text class="layerLabel" x="58" y="589">Consul Runtime State</text>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="1706" height="1032" viewBox="0 0 1706 1032" role="img" aria-labelledby="title desc" data-intent="Answer a Consul backend reader's question: how do bluetape4k single-leader and group electors turn core runIfLeader calls into Consul Session creation, KV acquire and release operations, TTL renewal, stable single and group key namespaces, and caller-owned endpoint or agent lifecycle boundaries?" data-evidence="leader-consul README behavior/contract; ConsulLeaderElector; ConsulLeaderGroupElector; ConsulSuspendLeaderElector; ConsulSuspendLeaderGroupElector; JavaHttpConsulLockClient; ConsulLeaderPaths; ConsulSessionTtl" data-source-read="leader-consul/README.md; leader-consul/src/main/kotlin/io/bluetape4k/leader/consul/ConsulLeaderElector.kt; leader-consul/src/main/kotlin/io/bluetape4k/leader/consul/ConsulLeaderGroupElector.kt; leader-consul/src/main/kotlin/io/bluetape4k/leader/consul/ConsulSuspendLeaderElector.kt; leader-consul/src/main/kotlin/io/bluetape4k/leader/consul/ConsulSuspendLeaderGroupElector.kt; leader-consul/src/main/kotlin/io/bluetape4k/leader/consul/internal/JavaHttpConsulLockClient.kt; leader-consul/src/main/kotlin/io/bluetape4k/leader/consul/internal/ConsulLeaderPaths.kt; leader-consul/src/main/kotlin/io/bluetape4k/leader/consul/internal/ConsulSessionTtl.kt">
+  <title id="title">Consul Leader Session Architecture</title>
+  <desc id="desc">Architecture diagram for the Consul leader module showing caller-owned endpoint configuration, single and group electors, the internal HTTP lock client, Consul sessions, single lock keys, fixed group slot keys, and cleanup semantics.</desc>
+  <defs>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
+    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
+    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
+    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
+    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
+    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
+    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
+    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
+    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
+    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
+    <style>
+      .canvas{fill:#F7FAFC}
+      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
+      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
+      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
+      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
+      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
+      .card{filter:url(#shadow);stroke-width:2}
+      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
+      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
+      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
+      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
+      .seq{fill:none;stroke-width:3;stroke-linecap:round}
+      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
+      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
+      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
+      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
+    </style>
+  </defs>
+  <rect class="canvas" width="1706" height="1032"/>
+  <rect class="frame" x="32" y="28" width="1642" height="976" rx="28"/>
+  <text class="title" x="66" y="82">Consul Leader Session Architecture</text>
+  <text class="subtitle" x="70" y="116">Leader electors create Consul sessions, acquire KV ownership, renew sessions when configured, and release or expire ownership by TTL.</text>
+<g>
+  <rect class="band" x="152" y="228" width="1412" height="180" rx="18"/>
+  <text class="bandTitle" x="178" y="262">Caller-owned public boundary</text>
 </g>
-
-<path class="line" d="M380 234 L415 234 L415 209 L450 209"/>
-<path class="line" d="M380 234 L415 234 L415 414 L450 414"/>
-<path class="line" d="M380 484 L415 484 L415 619 L450 619"/>
-<path class="line" d="M790 209 L850 209"/>
-<path class="line" d="M790 414 L850 414"/>
-<path class="line" d="M1020 263 L1020 360"/>
-<path class="line" d="M620 565 L620 468"/>
-<g id="endpoint" transform="translate(70,180)">
-  <rect class="card" x="0" y="0" width="310" height="108" rx="14" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="smallLabel" x="155" y="39" text-anchor="middle">ConsulEndpoint</text>
-  <text class="smallLabel" x="155" y="66" text-anchor="middle">URL / DC / ACL token</text>
+<g>
+  <rect class="band" x="152" y="443" width="1412" height="205" rx="18"/>
+  <text class="bandTitle" x="178" y="477">Elector lifecycle and HTTP boundary</text>
 </g>
-<g id="spring" transform="translate(70,430)">
-  <rect class="card" x="0" y="0" width="310" height="108" rx="14" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="smallLabel" x="155" y="39" text-anchor="middle">Spring Boot</text>
-  <text class="smallLabel" x="155" y="66" text-anchor="middle">endpoint bean</text>
+<g>
+  <rect class="band" x="152" y="703" width="1412" height="185" rx="18"/>
+  <text class="bandTitle" x="178" y="737">Consul Session and KV ownership state</text>
 </g>
-<g id="single" transform="translate(450,155)">
-  <rect class="card" x="0" y="0" width="340" height="108" rx="14" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="smallLabel" x="170" y="39" text-anchor="middle">ConsulLeaderElector</text>
-  <text class="smallLabel" x="170" y="66" text-anchor="middle">single key</text>
+<path class="route" data-from="caller" data-to="single" data-route-tone="call" d="M353 366 L353 413 L128 413 L128 554 L213 554" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
+<path class="route" data-from="caller" data-to="group" data-route-tone="call" d="M353 366 L353 413 L803 413 L803 508" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
+<path class="route" data-from="endpoint" data-to="client" data-route-tone="dependency" d="M723 366 L723 418 L1248 418 L1248 508" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+<path class="route" data-from="single" data-to="client" data-route-tone="call" d="M543 554 L598 554 L598 623 L1048 623 L1048 554 L1068 554" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
+<path class="route" data-from="group" data-to="client" data-route-tone="call" d="M983 554 L1068 554" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
+<path class="route" data-from="single" data-to="lease" data-route-tone="success" d="M378 600 L378 682 L688 682" stroke="#3E9868" marker-end="url(#arrow-success)"/>
+<path class="route" data-from="group" data-to="lease" data-route-tone="success" d="M803 600 L803 638" stroke="#3E9868" marker-end="url(#arrow-success)"/>
+<path class="route" data-from="lease" data-to="client" data-route-tone="retry" d="M1028 682 L1448 682 L1448 554 L1428 554" stroke="#4F63C7" marker-end="url(#arrow-retry)"/>
+<path class="route" data-from="client" data-to="session" data-route-tone="dependency" d="M1428 554 L1578 554 L1578 908 L363 908 L363 851" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+<path class="route" data-from="client" data-to="singleKey" data-route-tone="contention" d="M1248 600 L1248 738 L743 738 L743 763" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
+<path class="route" data-from="client" data-to="groupKeys" data-route-tone="contention" d="M1248 600 L1248 738 L1138 738 L1138 763" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
+<path class="route" data-from="client" data-to="agentApi" data-route-tone="dependency" d="M1248 600 L1248 738 L1453 738 L1453 763" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
+<path class="route" data-from="session" data-to="singleKey" data-route-tone="release" d="M528 807 L578 807" stroke="#755BC6" marker-end="url(#arrow-release)"/>
+<g id="node-caller">
+  <rect class="card" x="188" y="278" width="330" height="88" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="cardTitle" x="353" y="304" text-anchor="middle" dominant-baseline="middle">Application Caller</text>
+  <text class="detail" x="353" y="323" text-anchor="middle" dominant-baseline="middle">runIfLeader / group</text>
+  <text class="detail" x="353" y="342" text-anchor="middle" dominant-baseline="middle">blocking, async, suspend</text>
 </g>
-<g id="group" transform="translate(450,360)">
-  <rect class="card" x="0" y="0" width="340" height="108" rx="14" fill="#FDECEF" stroke="#DC6B82"/>
-  <text class="smallLabel" x="170" y="39" text-anchor="middle">ConsulLeaderGroupElector</text>
-  <text class="smallLabel" x="170" y="66" text-anchor="middle">slot keys</text>
+<g id="node-endpoint">
+  <rect class="card" x="558" y="278" width="330" height="88" rx="10" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="cardTitle" x="723" y="304" text-anchor="middle" dominant-baseline="middle">ConsulEndpoint</text>
+  <text class="detail" x="723" y="323" text-anchor="middle" dominant-baseline="middle">baseUrl, datacenter</text>
+  <text class="detail" x="723" y="342" text-anchor="middle" dominant-baseline="middle">ACL token, requestTimeout</text>
 </g>
-<g id="session" transform="translate(850,155)">
-  <rect class="card" x="0" y="0" width="340" height="108" rx="14" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="smallLabel" x="170" y="39" text-anchor="middle">Consul Session</text>
-  <text class="smallLabel" x="170" y="66" text-anchor="middle">TTL renew + lockDelay</text>
+<g id="node-options">
+  <rect class="card" x="928" y="278" width="330" height="88" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="cardTitle" x="1093" y="304" text-anchor="middle" dominant-baseline="middle">Consul Options</text>
+  <text class="detail" x="1093" y="323" text-anchor="middle" dominant-baseline="middle">TTL 10s..86400s</text>
+  <text class="detail" x="1093" y="342" text-anchor="middle" dominant-baseline="middle">keyPrefix, lockDelay=0</text>
 </g>
-<g id="kv" transform="translate(850,360)">
-  <rect class="card" x="0" y="0" width="340" height="108" rx="14" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="smallLabel" x="170" y="39" text-anchor="middle">Consul KV</text>
-  <text class="smallLabel" x="170" y="66" text-anchor="middle">acquire / release</text>
+<g id="node-single">
+  <rect class="card" x="213" y="508" width="330" height="92" rx="10" fill="#EAF7EF" stroke="#58A978"/>
+  <text class="cardTitle" x="378" y="536" text-anchor="middle" dominant-baseline="middle">Single Leader Electors</text>
+  <text class="detail" x="378" y="555" text-anchor="middle" dominant-baseline="middle">ConsulLeaderElector</text>
+  <text class="detail" x="378" y="574" text-anchor="middle" dominant-baseline="middle">ConsulSuspendLeaderElector</text>
 </g>
-<g id="listeners" transform="translate(450,565)">
-  <rect class="card" x="0" y="0" width="340" height="108" rx="14" fill="#F7F1E7" stroke="#B88A44"/>
-  <text class="smallLabel" x="170" y="39" text-anchor="middle">Core listeners</text>
-  <text class="smallLabel" x="170" y="66" text-anchor="middle">withListeners() decorators</text>
+<g id="node-group">
+  <rect class="card" x="623" y="508" width="360" height="92" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="cardTitle" x="803" y="536" text-anchor="middle" dominant-baseline="middle">Group Leader Electors</text>
+  <text class="detail" x="803" y="555" text-anchor="middle" dominant-baseline="middle">fixed slot scan</text>
+  <text class="detail" x="803" y="574" text-anchor="middle" dominant-baseline="middle">maxLeaders KV slots</text>
+</g>
+<g id="node-client">
+  <rect class="card" x="1068" y="508" width="360" height="92" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
+  <text class="cardTitle" x="1248" y="536" text-anchor="middle" dominant-baseline="middle">ConsulLockClient</text>
+  <text class="detail" x="1248" y="555" text-anchor="middle" dominant-baseline="middle">Java HTTP boundary</text>
+  <text class="detail" x="1248" y="574" text-anchor="middle" dominant-baseline="middle">session + KV API calls</text>
+</g>
+<g id="node-lease">
+  <rect class="card" x="688" y="638" width="340" height="88" rx="10" fill="#EEF1FF" stroke="#6477D8"/>
+  <text class="cardTitle" x="858" y="664" text-anchor="middle" dominant-baseline="middle">Lease Handle And Extender</text>
+  <text class="detail" x="858" y="683" text-anchor="middle" dominant-baseline="middle">ownerToken payload</text>
+  <text class="detail" x="858" y="702" text-anchor="middle" dominant-baseline="middle">renewSession extend</text>
+</g>
+<g id="node-session">
+  <rect class="card" x="198" y="763" width="330" height="88" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
+  <text class="cardTitle" x="363" y="789" text-anchor="middle" dominant-baseline="middle">Consul Session</text>
+  <text class="detail" x="363" y="808" text-anchor="middle" dominant-baseline="middle">Behavior=release</text>
+  <text class="detail" x="363" y="827" text-anchor="middle" dominant-baseline="middle">TTL owns crash recovery</text>
+</g>
+<g id="node-singleKey">
+  <rect class="card" x="578" y="763" width="330" height="88" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
+  <text class="cardTitle" x="743" y="789" text-anchor="middle" dominant-baseline="middle">Single KV Key</text>
+  <text class="detail" x="743" y="808" text-anchor="middle" dominant-baseline="middle">keyPrefix/single/{lock}</text>
+  <text class="detail" x="743" y="827" text-anchor="middle" dominant-baseline="middle">KV acquire / release</text>
+</g>
+<g id="node-groupKeys">
+  <rect class="card" x="958" y="763" width="360" height="88" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
+  <text class="cardTitle" x="1138" y="789" text-anchor="middle" dominant-baseline="middle">Group Slot KV Keys</text>
+  <text class="detail" x="1138" y="808" text-anchor="middle" dominant-baseline="middle">keyPrefix/group/{lock}/slot-i</text>
+  <text class="detail" x="1138" y="827" text-anchor="middle" dominant-baseline="middle">full group returns skip</text>
+</g>
+<g id="node-agentApi">
+  <rect class="card" x="1338" y="763" width="210" height="88" rx="10" fill="#F2F5F9" stroke="#9AA8B8"/>
+  <text class="cardTitle" x="1443" y="789" text-anchor="middle" dominant-baseline="middle">Consul HTTP API</text>
+  <text class="detail" x="1443" y="808" text-anchor="middle" dominant-baseline="middle">/v1/session/*</text>
+  <text class="detail" x="1443" y="827" text-anchor="middle" dominant-baseline="middle">/v1/kv/*</text>
 </g>
 </svg>

@@ -1,50 +1,19 @@
-graph 1 15.281 9.1203
-node n0 2.085 8.14 4.17 1.28 "Maintenance tick" rounded,filled box #5B8DEF #ffffff
-node n1 7.6406 8.14 4.17 1.28 "Node A elected" rounded,filled box #58A978 #ffffff
-node n2 13.196 8.14 4.17 1.28 "Node B contender" rounded,filled box #DC6B82 #ffffff
-node n3 7.6406 5.8622 4.17 1.28 "Consul election" rounded,filled box #8A72D6 #ffffff
-node n4 4.3767 3.4178 4.58 1.28 "Run drain steps" rounded,filled box #58A978 #ffffff
-node n5 11.321 3.4178 4.58 1.28 "Standby node" rounded,filled box #DC6B82 #ffffff
-node n6 4.3767 0.64 4.58 1.28 "Return PERFORMED" rounded,filled box #45A7A1 #ffffff
-node n7 11.321 0.64 4.58 1.28 "Later window" rounded,filled box #B88A44 #ffffff
-node r1p1 4.8628 8.14 0.03 0.03 "" invis point black lightgrey
-node r1p2 4.8628 8.14 0.03 0.03 "" invis point black lightgrey
-node r2p1 7.6406 7.0011 0.03 0.03 "" invis point black lightgrey
-node r2p2 7.6406 7.0011 0.03 0.03 "" invis point black lightgrey
-node r3p1 13.196 7.0011 0.03 0.03 "" invis point black lightgrey
-node r3p2 8.6128 7.0011 0.03 0.03 "" invis point black lightgrey
-node r4p1 7.6406 4.6539 0.03 0.03 "" invis point black lightgrey
-node r4p2 4.3767 4.6539 0.03 0.03 "" invis point black lightgrey
-node r5p1 7.6406 4.6539 0.03 0.03 "" invis point black lightgrey
-node r5p2 11.321 4.6539 0.03 0.03 "" invis point black lightgrey
-node r6p1 4.3767 2.0289 0.03 0.03 "" invis point black lightgrey
-node r6p2 4.3767 2.0289 0.03 0.03 "" invis point black lightgrey
-node r7p1 11.321 2.0289 0.03 0.03 "" invis point black lightgrey
-node r7p2 11.321 2.0289 0.03 0.03 "" invis point black lightgrey
-node r8p1 7.8489 0.64 0.03 0.03 "" invis point black lightgrey
-node r8p2 7.8489 0.028889 0.03 0.03 "" invis point black lightgrey
-edge n0 r1p1 4 4.1761 8.14 4.5091 8.14 4.769 8.14 4.8421 8.14 solid #758297
-edge n1 r2p1 4 7.6406 7.4973 7.6406 7.2834 7.6406 7.0835 7.6406 7.0211 solid #758297
-edge n2 r3p1 4 13.196 7.4973 13.196 7.2834 13.196 7.0835 13.196 7.0211 solid #758297
-edge n3 r4p1 4 7.6406 5.2156 7.6406 4.9732 7.6406 4.74 7.6406 4.673 solid #758297
-edge n3 r5p1 4 7.6406 5.2156 7.6406 4.9732 7.6406 4.74 7.6406 4.673 solid #758297
-edge n4 r6p1 4 4.3767 2.7721 4.3767 2.4604 4.3767 2.1356 4.3767 2.0504 solid #758297
-edge n5 r7p1 4 11.321 2.7721 11.321 2.4604 11.321 2.1356 11.321 2.0504 solid #758297
-edge n6 r8p1 4 6.6734 0.64 7.2484 0.64 7.7316 0.64 7.8304 0.64 solid #758297
-edge r1p1 r1p2 4 4.8628 8.14 4.8628 8.14 4.8628 8.14 4.8628 8.14 solid #758297
-edge r1p2 n1 4 4.8805 8.14 4.9389 8.14 5.1364 8.14 5.4009 8.14 solid #758297
-edge r2p1 r2p2 4 7.6406 7.0011 7.6406 7.0011 7.6406 7.0011 7.6406 7.0011 solid #758297
-edge r2p2 n3 4 7.6406 6.9813 7.6406 6.9339 7.6406 6.8058 7.6406 6.6525 solid #758297
-edge r3p1 r3p2 4 13.176 7.0011 12.858 7.0011 8.9375 7.0011 8.6317 7.0011 solid #758297
-edge r3p2 n3 4 8.599 6.985 8.5585 6.9375 8.4331 6.7906 8.2857 6.618 solid #758297
-edge r4p1 r4p2 4 7.6197 4.6539 7.3548 4.6539 4.6487 4.6539 4.3956 4.6539 solid #758297
-edge r4p2 n4 4 4.3767 4.6324 4.3767 4.5741 4.3767 4.404 4.3767 4.2088 solid #758297
-edge r5p1 r5p2 4 7.6604 4.6539 7.9365 4.6539 11.012 4.6539 11.3 4.6539 solid #758297
-edge r5p2 n5 4 11.321 4.6324 11.321 4.5741 11.321 4.404 11.321 4.2088 solid #758297
-edge r6p1 r6p2 4 4.3767 2.0289 4.3767 2.0289 4.3767 2.0289 4.3767 2.0289 solid #758297
-edge r6p2 n6 4 4.3767 2.0093 4.3767 1.9397 4.3767 1.6951 4.3767 1.4314 solid #758297
-edge r7p1 r7p2 4 11.321 2.0289 11.321 2.0289 11.321 2.0289 11.321 2.0289 solid #758297
-edge r7p2 n7 4 11.321 2.0093 11.321 1.9397 11.321 1.6951 11.321 1.4314 solid #758297
-edge r8p1 r8p2 4 7.8489 0.61967 7.8489 0.52688 7.8489 0.14416 7.8489 0.049925 solid #758297
-edge r8p2 n7 4 7.8644 0.031613 7.9486 0.046434 8.3668 0.12004 8.885 0.21124 solid #758297
+graph 1 12.149 2.8056
+node tick 0.94444 1.4028 1.8889 0.5 "Maintenance Tick" rounded,filled box #94A3B8 #F8FAFC
+node nodeA 3.7812 2.5556 1.3681 0.5 "Candidate A" rounded,filled box #94A3B8 #F8FAFC
+node nodeB 3.7812 1.4028 1.3681 0.5 "Candidate B" rounded,filled box #94A3B8 #F8FAFC
+node nodeC 3.7812 0.25 1.3681 0.5 "Candidate C" rounded,filled box #94A3B8 #F8FAFC
+node backend 7.316 1.4028 2.4097 0.5 "Consul Session and KV" rounded,filled box #94A3B8 #F8FAFC
+node recovery 11.049 2.5556 2.2014 0.5 "Session TTL Release" rounded,filled box #94A3B8 #F8FAFC
+node skipped 11.049 1.4028 1.2639 0.5 "Peers Skip" rounded,filled box #94A3B8 #F8FAFC
+node leader 11.049 0.25 1.7847 0.5 "One Leader Runs" rounded,filled box #94A3B8 #F8FAFC
+edge tick nodeA 7 0.94097 1.6586 0.94097 1.9982 0.94097 2.5556 0.94097 2.5556 0.94097 2.5556 2.9338 2.5556 2.9338 2.5556 call 2.4931 2.5 solid #758297
+edge tick nodeB 4 1.893 1.4028 1.893 1.4028 2.9339 1.4028 2.9339 1.4028 call 2.4931 1.4861 solid #758297
+edge tick nodeC 7 0.94097 1.1469 0.94097 0.80732 0.94097 0.25 0.94097 0.25 0.94097 0.25 2.9338 0.25 2.9338 0.25 call 2.4931 0.47222 solid #758297
+edge nodeA backend 7 4.4712 2.5556 5.4998 2.5556 7.316 2.5556 7.316 2.5556 7.316 2.5556 7.316 1.8185 7.316 1.8185 contention 5.2882 2.5 solid #758297
+edge nodeB backend 4 4.4712 1.4028 4.4712 1.4028 5.9453 1.4028 5.9453 1.4028 contention 5.2882 1.4861 solid #758297
+edge nodeC backend 7 4.4712 0.25 5.4998 0.25 7.316 0.25 7.316 0.25 7.316 0.25 7.316 0.98703 7.316 0.98703 contention 5.2882 0.47222 solid #758297
+edge backend recovery 7 8.524 1.5278 9.257 1.5278 10.052 1.5278 10.052 1.5278 10.052 1.5278 10.052 2.1416 10.052 2.1416 release 9.2344 2.6389 solid #758297
+edge backend skipped 4 8.5227 1.4028 8.5227 1.4028 10.251 1.4028 10.251 1.4028 skip 9.2344 1.4861 solid #758297
+edge backend leader 7 8.5249 1.2778 9.3478 1.2778 10.288 1.2778 10.288 1.2778 10.288 1.2778 10.288 0.66397 10.288 0.66397 success 9.2344 0.33333 solid #758297
 stop
