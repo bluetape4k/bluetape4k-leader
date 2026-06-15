@@ -8,17 +8,18 @@ bluetape4k leader election을 위한 Micrometer 계측 모듈입니다.
 
 ## 개요
 
-`leader-micrometer`는 두 가지 계측 경로를 제공합니다.
+`leader-micrometer`는 네 가지 계측 경로를 제공합니다.
 
 - `leader-spring-boot`의 어노테이션 AOP를 위한 `MicrometerLeaderAopMetricsRecorder`
 - elector를 직접 호출할 때 사용하는 `InstrumentedLeaderElector`, `InstrumentedLeaderGroupElector`, `InstrumentedSuspendLeaderElector` 데코레이터
 - `LeaderElectionListenerRegistry` 생명주기 callback을 counter로 기록하는 `MicrometerLeaderElectionListener`
+- history sink 상태 counter를 위한 `MicrometerSafeLeaderHistoryRecorder`, `MicrometerSuspendSafeLeaderHistoryRecorder`
 
 이 모듈은 `leader-core`와 Micrometer core에만 의존합니다. Prometheus, Datadog, OTLP 같은 export 형식은 애플리케이션이 선택한 Micrometer registry가 결정합니다.
 
 ## 아키텍처
 
-![leader micrometer Architecture diagram](../docs/images/readme-diagrams/leader-micrometer-architecture-01.png)
+![leader-micrometer instrumentation architecture diagram](../docs/images/readme-diagrams/leader-micrometer-architecture-01.png)
 
 ## 의존성
 
@@ -133,6 +134,13 @@ election.runIfLeader("daily-report") {
 | Meter | 타입 | 태그 | 설명 |
 |-------|------|------|------|
 | `leader.election.events` | Counter | `lock.name`, `event` | 생명주기 callback: `elected`, `revoked`, `skipped` |
+
+### History Sink Meter
+
+| Meter | 타입 | 태그 | 설명 |
+|-------|------|------|------|
+| `leader.history.sink.failures` | Counter | `sink` | cancellation/interruption 경로를 제외한 history sink 호출 실패 |
+| `leader.history.acquire.missing` | Counter | `sink` | 사용할 수 없거나 중복된 acquire record 때문에 `recordAcquired`가 `null`을 반환 |
 
 Micrometer naming convention이 export backend에 맞춰 이름을 바꿉니다. Prometheus에서는 `leader_aop_attempts_total`, `leader_aop_execution_duration_seconds`, `shedlock_leader_acquired_total` 같은 이름으로 노출됩니다.
 

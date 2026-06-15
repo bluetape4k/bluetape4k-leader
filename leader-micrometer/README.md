@@ -8,17 +8,18 @@ Micrometer instrumentation for bluetape4k leader election.
 
 ## Overview
 
-`leader-micrometer` provides two instrumentation paths:
+`leader-micrometer` provides four instrumentation paths:
 
 - `MicrometerLeaderAopMetricsRecorder` for Spring AOP annotations from `leader-spring-boot`
 - `InstrumentedLeaderElector`, `InstrumentedLeaderGroupElector`, and `InstrumentedSuspendLeaderElector` decorators for direct elector calls
 - `MicrometerLeaderElectionListener` for lifecycle callback counters from `LeaderElectionListenerRegistry`
+- `MicrometerSafeLeaderHistoryRecorder` and `MicrometerSuspendSafeLeaderHistoryRecorder` for history sink health counters
 
 The module depends only on `leader-core` and Micrometer core. Export format is chosen by the application's Micrometer registry, such as Prometheus, Datadog, OTLP, or a composite registry.
 
 ## Architecture
 
-![leader micrometer Architecture diagram](../docs/images/readme-diagrams/leader-micrometer-architecture-01.png)
+![leader-micrometer instrumentation architecture diagram](../docs/images/readme-diagrams/leader-micrometer-architecture-01.png)
 
 ## Dependency
 
@@ -133,6 +134,13 @@ election.runIfLeader("daily-report") {
 | Meter | Type | Tags | Description |
 |-------|------|------|-------------|
 | `leader.election.events` | Counter | `lock.name`, `event` | Lifecycle callbacks: `elected`, `revoked`, `skipped` |
+
+### History Sink Meters
+
+| Meter | Type | Tags | Description |
+|-------|------|------|-------------|
+| `leader.history.sink.failures` | Counter | `sink` | History sink call failures, excluding cancellation and interruption paths |
+| `leader.history.acquire.missing` | Counter | `sink` | `recordAcquired` returned `null` for unavailable or duplicate acquisition records |
 
 Micrometer naming conventions convert names for the export backend. Prometheus exposes examples such as `leader_aop_attempts_total`, `leader_aop_execution_duration_seconds`, and `shedlock_leader_acquired_total`.
 
