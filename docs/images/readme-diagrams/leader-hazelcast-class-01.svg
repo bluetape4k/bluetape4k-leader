@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1966" height="1978" viewBox="0 0 1966 1978" role="img" aria-labelledby="title desc" data-intent="Help Hazelcast users understand that this module does not use CP Subsystem locks: public blocking, async, virtual-thread-safe, and coroutine electors delegate to token-owned Hazelcast IMap entries; group election simulates maxLeaders with slot keys; extension delegates and watchdog renewal share the same lock reference; and near-cache or too-short leaseTime can break ownership assumptions." data-evidence="kind=class; best-practice=class-diagram-style-v3; rejected-patterns=relationship-heavy-grid,card-penetrating-connector,inheritance-arrow-not-on-parent,undifferentiated-class-route-overlap" data-source-read="leader-hazelcast/README.md; leader-hazelcast/src/main/kotlin/io/bluetape4k/leader/hazelcast/HazelcastLeaderElector.kt; HazelcastLeaderGroupElector.kt; HazelcastSuspendLeaderElector.kt; HazelcastSuspendLeaderGroupElector.kt; HazelcastLeaderElectorFactory.kt; HazelcastLeaderGroupElectorFactory.kt; lock/HazelcastLock.kt; lock/HazelcastSuspendLock.kt; internal/HazelcastLockExtendDelegate.kt; HazelcastSlotExtendDelegate.kt; HazelcastSuspendLockExtendDelegate.kt; HazelcastSuspendSlotExtendDelegate.kt; HazelcastBackendErrorClassifier.kt">
+<svg xmlns="http://www.w3.org/2000/svg" width="1966" height="1978" viewBox="0 0 1966 1978" role="img" aria-labelledby="title desc">
   <title id="title">Hazelcast Leader Class Diagram</title>
   <desc id="desc">Source-backed UML class diagram for the Hazelcast leader module.</desc>
   <defs>
@@ -11,7 +11,7 @@
     <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
     <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
     <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
-    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
+    <marker id="arrow-neutral" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#758297" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
     <style>
       .canvas{fill:#F7FAFC}
       .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
@@ -35,16 +35,16 @@
   <rect class="frame" x="32" y="28" width="1902" height="1922" rx="28"/>
   <text class="title" x="66" y="82">Hazelcast Leader Class Diagram</text>
   <text class="subtitle" x="70" y="116">Public electors map core contracts to token-based IMap locks, slot keys, extension delegates, and TTL ownership checks.</text>
-<defs><marker id="uml-inherit-hazelcastLeader-leaderContract" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#FFFFFF" stroke="#4F83BF" stroke-width="0.7"/></marker></defs>
+<defs><marker id="uml-inherit-hazelcastLeader-leaderContract" viewBox="0 0 18 16" markerWidth="16" markerHeight="14" refX="16" refY="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 1 L 16 8 L 1 15 Z" fill="#FFFFFF" stroke="#4F83BF" stroke-width="1.7"/></marker></defs>
 <path class="route" data-from="hazelcastLeader" data-to="leaderContract" data-route-kind="inherit" d="M323 488 L323 376" stroke="#4F83BF" marker-end="url(#uml-inherit-hazelcastLeader-leaderContract)"/>
 
-<defs><marker id="uml-inherit-hazelcastSuspend-suspendContract" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#FFFFFF" stroke="#4F83BF" stroke-width="0.7"/></marker></defs>
+<defs><marker id="uml-inherit-hazelcastSuspend-suspendContract" viewBox="0 0 18 16" markerWidth="16" markerHeight="14" refX="16" refY="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 1 L 16 8 L 1 15 Z" fill="#FFFFFF" stroke="#4F83BF" stroke-width="1.7"/></marker></defs>
 <path class="route" data-from="hazelcastSuspend" data-to="suspendContract" data-route-kind="inherit" d="M753 488 L753 376" stroke="#4F83BF" marker-end="url(#uml-inherit-hazelcastSuspend-suspendContract)"/>
 
-<defs><marker id="uml-inherit-hazelcastGroup-groupContract" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#FFFFFF" stroke="#4F83BF" stroke-width="0.7"/></marker></defs>
+<defs><marker id="uml-inherit-hazelcastGroup-groupContract" viewBox="0 0 18 16" markerWidth="16" markerHeight="14" refX="16" refY="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 1 L 16 8 L 1 15 Z" fill="#FFFFFF" stroke="#4F83BF" stroke-width="1.7"/></marker></defs>
 <path class="route" data-from="hazelcastGroup" data-to="groupContract" data-route-kind="inherit" d="M1243 488 L1243 376" stroke="#4F83BF" marker-end="url(#uml-inherit-hazelcastGroup-groupContract)"/>
 
-<defs><marker id="uml-inherit-hazelcastSuspendGroup-suspendGroupContract" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#FFFFFF" stroke="#4F83BF" stroke-width="0.7"/></marker></defs>
+<defs><marker id="uml-inherit-hazelcastSuspendGroup-suspendGroupContract" viewBox="0 0 18 16" markerWidth="16" markerHeight="14" refX="16" refY="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 1 L 16 8 L 1 15 Z" fill="#FFFFFF" stroke="#4F83BF" stroke-width="1.7"/></marker></defs>
 <path class="route" data-from="hazelcastSuspendGroup" data-to="suspendGroupContract" data-route-kind="inherit" d="M1658 488 L1658 376" stroke="#4F83BF" marker-end="url(#uml-inherit-hazelcastSuspendGroup-suspendGroupContract)"/>
 
 
