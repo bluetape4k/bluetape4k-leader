@@ -2,17 +2,17 @@
 <title id="title">Cache Warmer Flow</title>
 <desc id="desc">warmAll processes partitions one by one, records warmed/skipped/failed outcomes, and rethrows cancellation.</desc>
 <defs>
-  <marker id="arrow-blue" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#3F73D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="arrow-green" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#2D8F64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="arrow-orange" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#C96B2C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="arrow-red" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#B94A5A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="arrow-purple" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#755BC6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-blue" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#3F73D8"/></marker>
+  <marker id="arrow-green" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#2D8F64"/></marker>
+  <marker id="arrow-orange" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#C96B2C"/></marker>
+  <marker id="arrow-red" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#B94A5A"/></marker>
+  <marker id="arrow-purple" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#755BC6"/></marker>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#B9C7D6" flood-opacity="0.24"/></filter>
   <style>
     .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:2.2;filter:url(#shadow)}
     .title{font-family:"Architects Daughter";font-size:40px;fill:#21334A}.subtitle,.label,.footer{font-family:"Comic Mono";fill:#4B6075}.subtitle{font-size:15px}.label{font-size:14px}.footer{font-size:13px}
     .step{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1.8;filter:url(#shadow)}.start{fill:#FEF7E6;stroke:#E4BD67}.decision{fill:#EAF2FF;stroke:#8EB2F0}.success{fill:#EEF7F2;stroke:#8BC6A3}.skip{fill:#FFF1EA;stroke:#E8A47D}.fail{fill:#FDECEF;stroke:#DC8A98}.done{fill:#F4EEFF;stroke:#B7A3EC}
-    .stepTitle{font-family:"Architects Daughter";font-size:22px;fill:#21334A}.stepText{font-family:"Comic Mono";font-size:13px;fill:#4B6075}.route{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:7 6}
+    .stepTitle{font-family:"Architects Daughter";font-size:22px;fill:#21334A}.stepText{font-family:"Comic Mono";font-size:13px;fill:#4B6075}.route{fill:none;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:7 6}
   </style>
 </defs>
 <rect class="canvas" width="1280" height="760"/>
@@ -28,43 +28,43 @@
 <text class="stepTitle" x="410" y="234">2. Pick partition</text>
 <text class="stepText" x="410" y="262">sequential forEach</text>
 
-<rect class="step decision" x="680" y="176" width="242" height="112" rx="18"/>
-<text class="stepTitle" x="714" y="214">3. Elect leader</text>
-<text class="stepText" x="714" y="242">lock = prefix-partition</text>
-<text class="stepText" x="714" y="264">runIfLeader(lock)</text>
+<rect class="step decision" x="650" y="176" width="230" height="112" rx="18"/>
+<text class="stepTitle" x="684" y="214">3. Elect leader</text>
+<text class="stepText" x="684" y="242">lock = prefix-partition</text>
+<text class="stepText" x="684" y="264">runIfLeader(lock)</text>
 
-<rect class="step success" x="982" y="150" width="220" height="88" rx="18"/>
-<text class="stepTitle" x="1016" y="186">4a. Acquired</text>
-<text class="stepText" x="1016" y="214">warmFunction(partition)</text>
-<text class="stepText" x="1016" y="232">then continue</text>
-<rect class="step skip" x="982" y="284" width="220" height="88" rx="18"/>
-<text class="stepTitle" x="1016" y="320">4b. Not leader</text>
-<text class="stepText" x="1016" y="348">record skipped</text>
-<text class="stepText" x="1016" y="366">then continue</text>
-<rect class="step fail" x="982" y="418" width="220" height="88" rx="18"/>
-<text class="stepTitle" x="1016" y="454">4c. Exception</text>
-<text class="stepText" x="1016" y="482">record failed message</text>
-<text class="stepText" x="1016" y="500">then continue</text>
+<rect class="step success" x="1000" y="150" width="202" height="88" rx="18"/>
+<text class="stepTitle" x="1030" y="186">4a. Acquired</text>
+<text class="stepText" x="1030" y="214">warmFunction(partition)</text>
+<text class="stepText" x="1030" y="232">then continue</text>
+<rect class="step skip" x="1000" y="284" width="202" height="88" rx="18"/>
+<text class="stepTitle" x="1030" y="320">4b. Not leader</text>
+<text class="stepText" x="1030" y="348">record skipped</text>
+<text class="stepText" x="1030" y="366">then continue</text>
+<rect class="step fail" x="1000" y="418" width="202" height="88" rx="18"/>
+<text class="stepTitle" x="1030" y="454">4c. Exception</text>
+<text class="stepText" x="1030" y="482">record failed message</text>
+<text class="stepText" x="1030" y="500">then continue</text>
 
-<rect class="step fail" x="680" y="438" width="242" height="88" rx="18"/>
-<text class="stepTitle" x="714" y="474">Cancellation</text>
-<text class="stepText" x="714" y="502">rethrow immediately</text>
+<rect class="step fail" x="650" y="438" width="230" height="88" rx="18"/>
+<text class="stepTitle" x="684" y="474">Cancellation</text>
+<text class="stepText" x="684" y="502">rethrow immediately</text>
 
 <rect class="step done" x="376" y="566" width="230" height="88" rx="18"/>
 <text class="stepTitle" x="410" y="602">5. Next partition</text>
 <text class="stepText" x="410" y="630">continue loop</text>
-<rect class="step done" x="680" y="566" width="242" height="88" rx="18"/>
-<text class="stepTitle" x="714" y="602">6. Return result</text>
-<text class="stepText" x="714" y="630">warmed/skipped/failed</text>
+<rect class="step done" x="650" y="566" width="230" height="88" rx="18"/>
+<text class="stepTitle" x="684" y="602">6. Return result</text>
+<text class="stepText" x="684" y="630">warmed/skipped/failed</text>
 
 <path class="route" d="M 302 242 L 376 242" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
-<path class="route" d="M 606 242 L 680 242" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
-<path class="route" d="M 922 212 L 950 212 L 950 194 L 982 194" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
-<path class="route" d="M 922 252 L 950 252 L 950 328 L 982 328" stroke="#C96B2C" marker-end="url(#arrow-orange)"/>
-<path class="route" d="M 922 274 L 966 274 L 966 462 L 982 462" stroke="#B94A5A" marker-end="url(#arrow-red)"/>
-<path class="route dash" d="M 801 288 L 801 438" stroke="#B94A5A" marker-end="url(#arrow-red)"/>
+<path class="route" d="M 606 242 L 650 242" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
+<path class="route" d="M 880 206 L 944 206 L 944 194 L 1000 194" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
+<path class="route" d="M 880 252 L 952 252 L 952 328 L 1000 328" stroke="#C96B2C" marker-end="url(#arrow-orange)"/>
+<path class="route" d="M 840 288 L 840 398 L 968 398 L 968 462 L 1000 462" stroke="#B94A5A" marker-end="url(#arrow-red)"/>
+<path class="route dash" d="M 765 288 L 765 438" stroke="#B94A5A" marker-end="url(#arrow-red)"/>
 <path class="route dash" d="M 376 610 C 254 610 190 442 190 286" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
-<path class="route" d="M 606 610 L 680 610" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
+<path class="route" d="M 606 610 L 650 610" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
 
 <text class="label" x="214" y="590">more partitions</text>
 <text class="footer" x="640" y="710" text-anchor="middle">bluetape4k-leader/examples/cache-warmer</text>
