@@ -1,1 +1,0 @@
-docs/images/readme-charts/leader-benchmark-kubernetes-throughput-chart-01: chart=PASS rows=2 bars=2 unit="ops/s" direction="higher-is-better" marginImbalance=0 margins=L/R/T/B:96/96/96/96 source=benchmark/README.md:216; benchmark/README.ko.md:220 catalog=chart-baseline

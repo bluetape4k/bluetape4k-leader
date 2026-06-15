@@ -1,1 +1,0 @@
-docs/images/readme-charts/leader-history-self-improve-throughput-chart-01: chart=PASS rows=4 bars=8 unit="million ops/s" direction="higher-is-better" marginImbalance=0 margins=L/R/T/B:96/96/96/96 source=benchmark/README.md:70; benchmark/README.ko.md:73 catalog=chart-baseline

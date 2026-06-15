@@ -2,12 +2,12 @@
 
 | # | Asset | Kind | README embeds | Catalog | Evidence |
 |---:|---|---|---:|---|---|
-| 1 | `docs/images/readme-charts/leader-benchmark-distributed-latency-chart-01.png` | chart | 2 | chart-baseline | chart-summary |
-| 2 | `docs/images/readme-charts/leader-benchmark-distributed-throughput-chart-01.png` | chart | 4 | chart-baseline | chart-summary |
-| 3 | `docs/images/readme-charts/leader-benchmark-kubernetes-latency-chart-01.png` | chart | 2 | chart-baseline | chart-summary |
-| 4 | `docs/images/readme-charts/leader-benchmark-kubernetes-throughput-chart-01.png` | chart | 2 | chart-baseline | chart-summary |
-| 5 | `docs/images/readme-charts/leader-history-self-improve-throughput-chart-01.png` | chart | 2 | chart-baseline | chart-summary |
-| 6 | `docs/images/readme-charts/root-readme-module-chart-01.png` | chart | 2 | chart-baseline | chart-summary |
+| 1 | `docs/images/readme-charts/leader-benchmark-distributed-latency-chart-01.png` | chart | 2 | chart-baseline | svg+png |
+| 2 | `docs/images/readme-charts/leader-benchmark-distributed-throughput-chart-01.png` | chart | 4 | chart-baseline | svg+png |
+| 3 | `docs/images/readme-charts/leader-benchmark-kubernetes-latency-chart-01.png` | chart | 2 | chart-baseline | svg+png |
+| 4 | `docs/images/readme-charts/leader-benchmark-kubernetes-throughput-chart-01.png` | chart | 2 | chart-baseline | svg+png |
+| 5 | `docs/images/readme-charts/leader-history-self-improve-throughput-chart-01.png` | chart | 2 | chart-baseline | svg+png |
+| 6 | `docs/images/readme-charts/root-readme-module-chart-01.png` | chart | 2 | chart-baseline | svg+png |
 | 7 | `docs/images/readme-diagrams/bluetape4k-leader-architecture-01.png` | architecture | 2 | module-overview-projects | graphviz |
 | 8 | `docs/images/readme-diagrams/bluetape4k-leader-bom-architecture-01.png` | architecture | 2 | architecture-layered-exposed-mvc-virtualthread | graphviz |
 | 9 | `docs/images/readme-diagrams/bluetape4k-leader-sequence-02.png` | sequence | 2 | sequence-workflow-sample | graphviz |
