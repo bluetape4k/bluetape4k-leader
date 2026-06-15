@@ -101,6 +101,10 @@ class SettlementJobs {
 }
 ```
 
+### 시퀀스 — AOP가 트리거하는 `runIfLeader`
+
+![Sequence: AOP-triggered runIfLeader diagram](../docs/images/readme-diagrams/leader-spring-boot-sequence-01.png)
+
 지원 반환 형태:
 
 | 형태 | 동작 |

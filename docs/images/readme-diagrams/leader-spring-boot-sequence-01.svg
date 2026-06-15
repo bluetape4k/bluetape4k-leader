@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="940" viewBox="0 0 1240 940" role="img" aria-labelledby="title desc">
+  <title id="title">leader-spring-boot AOP runIfLeader sequence</title>
+  <desc id="desc">Sequence diagram showing how a woven Spring Boot method annotated with LeaderElection enters LeaderElectionAspect, resolves the lock and backend, invokes runIfLeaderResult, and either runs, skips, or applies failure mode behavior.</desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-20%" width="120%" height="150%">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#0f172a" flood-opacity="0.14"/>
+    </filter>
+    <marker id="arrow-blue" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto">
+      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#2563eb" stroke-width="2" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto">
+      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto">
+      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#059669" stroke-width="2" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto">
+      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#ea580c" stroke-width="2" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto">
+      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#dc2626" stroke-width="2" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      .canvas { fill: #f8fafc; }
+      .title { font-family: "Architects Daughter", "Comic Mono", "Comic Sans MS", cursive; font-size: 33px; fill: #0f172a; font-weight: 700; }
+      .subtitle { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 15px; fill: #475569; }
+      .participant { filter: url(#shadow); }
+      .participant rect { rx: 13; stroke-width: 1.8; }
+      .participant-title { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 13px; fill: #0f172a; font-weight: 700; }
+      .participant-sub { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 10.5px; fill: #475569; }
+      .lifeline { stroke: #cbd5e1; stroke-width: 1.4; stroke-dasharray: 7 7; }
+      .activation { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.2; rx: 4; }
+      .msg-blue { stroke: #2563eb; stroke-width: 2.1; fill: none; marker-end: url(#arrow-blue); }
+      .msg-purple { stroke: #7c3aed; stroke-width: 2.1; fill: none; marker-end: url(#arrow-purple); }
+      .msg-green { stroke: #059669; stroke-width: 2.1; fill: none; marker-end: url(#arrow-green); }
+      .msg-orange { stroke: #ea580c; stroke-width: 2.1; fill: none; marker-end: url(#arrow-orange); }
+      .msg-red { stroke: #dc2626; stroke-width: 2.1; fill: none; marker-end: url(#arrow-red); }
+      .return { stroke: #64748b; stroke-width: 1.8; stroke-dasharray: 7 5; fill: none; marker-end: url(#arrow-blue); opacity: 0.78; }
+      .frame { fill: rgba(255,255,255,0.64); stroke-width: 1.7; rx: 14; }
+      .frame-green { stroke: #059669; }
+      .frame-orange { stroke: #ea580c; }
+      .frame-red { stroke: #dc2626; }
+      .frame-title { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 12px; font-weight: 700; }
+      .label { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 11.5px; font-weight: 700; }
+      .label-bg { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 0.8; rx: 6; }
+      .note { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 11px; fill: #475569; }
+      .footer { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 11px; fill: #475569; }
+    </style>
+  </defs>
+
+  <rect class="canvas" width="1240" height="940"/>
+  <text class="title" x="620" y="68" text-anchor="middle">Spring Boot AOP runIfLeader Sequence</text>
+  <text class="subtitle" x="620" y="96" text-anchor="middle">AspectJ CTW weaves the annotation guard into method execution; the Aspect triggers the backend elector before the body runs.</text>
+
+  <g class="participant" transform="translate(52 128)">
+    <rect width="130" height="64" fill="#dbeafe" stroke="#2563eb"/>
+    <text class="participant-title" x="65" y="26" text-anchor="middle">Trigger</text>
+    <text class="participant-sub" x="65" y="46" text-anchor="middle">scheduler / caller</text>
+  </g>
+  <g class="participant" transform="translate(222 128)">
+    <rect width="138" height="64" fill="#fef3c7" stroke="#d97706"/>
+    <text class="participant-title" x="69" y="26" text-anchor="middle">Woven method</text>
+    <text class="participant-sub" x="69" y="46" text-anchor="middle">@LeaderElection</text>
+  </g>
+  <g class="participant" transform="translate(404 128)">
+    <rect width="150" height="64" fill="#ecfdf5" stroke="#059669"/>
+    <text class="participant-title" x="75" y="26" text-anchor="middle">LeaderElectionAspect</text>
+    <text class="participant-sub" x="75" y="46" text-anchor="middle">@Around advice</text>
+  </g>
+  <g class="participant" transform="translate(604 128)">
+    <rect width="144" height="64" fill="#eef2ff" stroke="#4f46e5"/>
+    <text class="participant-title" x="72" y="26" text-anchor="middle">SpEL + Selector</text>
+    <text class="participant-sub" x="72" y="46" text-anchor="middle">name + backend</text>
+  </g>
+  <g class="participant" transform="translate(790 128)">
+    <rect width="142" height="64" fill="#f3e8ff" stroke="#7c3aed"/>
+    <text class="participant-title" x="71" y="26" text-anchor="middle">LeaderElector</text>
+    <text class="participant-sub" x="71" y="46" text-anchor="middle">backend factory</text>
+  </g>
+  <g class="participant" transform="translate(974 128)">
+    <rect width="150" height="64" fill="#fce7f3" stroke="#db2777"/>
+    <text class="participant-title" x="75" y="26" text-anchor="middle">Method body</text>
+    <text class="participant-sub" x="75" y="46" text-anchor="middle">critical work</text>
+  </g>
+
+  <line class="lifeline" x1="117" y1="192" x2="117" y2="846"/>
+  <line class="lifeline" x1="291" y1="192" x2="291" y2="846"/>
+  <line class="lifeline" x1="479" y1="192" x2="479" y2="846"/>
+  <line class="lifeline" x1="676" y1="192" x2="676" y2="846"/>
+  <line class="lifeline" x1="861" y1="192" x2="861" y2="846"/>
+  <line class="lifeline" x1="1049" y1="192" x2="1049" y2="846"/>
+
+  <rect class="activation" x="472" y="236" width="14" height="540"/>
+  <rect class="activation" x="854" y="450" width="14" height="174"/>
+  <rect class="activation" x="1042" y="548" width="14" height="82"/>
+
+  <path class="msg-blue" d="M 117 238 L 291 238"/>
+  <rect class="label-bg" x="144" y="211" width="120" height="22"/>
+  <text class="label" x="204" y="227" text-anchor="middle" fill="#1d4ed8">1 method call</text>
+
+  <path class="msg-orange" d="M 291 278 L 479 278"/>
+  <rect class="label-bg" x="310" y="251" width="150" height="22"/>
+  <text class="label" x="385" y="267" text-anchor="middle" fill="#9a3412">2 woven join point</text>
+
+  <path class="msg-green" d="M 479 326 L 676 326"/>
+  <rect class="label-bg" x="514" y="299" width="126" height="22"/>
+  <text class="label" x="577" y="315" text-anchor="middle" fill="#047857">3 resolve name</text>
+
+  <path class="msg-green" d="M 676 366 L 479 366"/>
+  <rect class="label-bg" x="504" y="372" width="146" height="22"/>
+  <text class="label" x="577" y="388" text-anchor="middle" fill="#047857">metadata + factory</text>
+
+  <path class="msg-purple" d="M 479 412 C 588 392, 748 392, 861 412"/>
+  <rect class="label-bg" x="600" y="396" width="142" height="22"/>
+  <text class="label" x="671" y="412" text-anchor="middle" fill="#6d28d9">4 create/cache</text>
+
+  <rect class="frame frame-green" x="78" y="438" width="1084" height="226"/>
+  <text class="frame-title" x="96" y="462" fill="#047857">alt elected by backend</text>
+
+  <path class="msg-purple" d="M 479 492 L 861 492"/>
+  <rect class="label-bg" x="583" y="465" width="174" height="22"/>
+  <text class="label" x="670" y="481" text-anchor="middle" fill="#6d28d9">5 runIfLeaderResult</text>
+
+  <path class="msg-green" d="M 861 548 L 1049 548"/>
+  <rect class="label-bg" x="884" y="520" width="142" height="22"/>
+  <text class="label" x="955" y="536" text-anchor="middle" fill="#047857">6 proceed body</text>
+
+  <path class="return" d="M 1049 628 L 861 628"/>
+  <rect class="label-bg" x="888" y="636" width="134" height="22"/>
+  <text class="label" x="955" y="652" text-anchor="middle" fill="#334155">body result</text>
+
+  <path class="return" d="M 861 654 L 479 654"/>
+  <rect class="label-bg" x="584" y="626" width="172" height="22"/>
+  <text class="label" x="670" y="642" text-anchor="middle" fill="#334155">Elected(value)</text>
+
+  <rect class="frame frame-orange" x="78" y="686" width="1084" height="92"/>
+  <text class="frame-title" x="96" y="710" fill="#9a3412">else not elected</text>
+  <path class="msg-orange" d="M 861 738 L 479 738"/>
+  <rect class="label-bg" x="554" y="711" width="232" height="22"/>
+  <text class="label" x="670" y="727" text-anchor="middle" fill="#9a3412">Skipped -> null / no-op</text>
+
+  <rect class="frame frame-red" x="78" y="796" width="1084" height="74"/>
+  <text class="frame-title" x="96" y="820" fill="#b91c1c">else backend error</text>
+  <path class="msg-red" d="M 479 844 C 600 824, 742 824, 861 844"/>
+  <rect class="label-bg" x="516" y="825" width="310" height="22"/>
+  <text class="label" x="671" y="841" text-anchor="middle" fill="#b91c1c">RETHROW / SKIP / FAIL_OPEN_RUN</text>
+
+  <g transform="translate(96 882)">
+    <rect x="0" y="0" width="1048" height="40" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+    <text class="footer" x="524" y="16" text-anchor="middle">github.com/bluetape4k/bluetape4k-leader / leader-spring-boot</text>
+    <text class="footer" x="524" y="31" text-anchor="middle">AspectJ CTW supplies the join point; LeaderElectionAspect resolves lock metadata and calls the selected elector before executing the body.</text>
+  </g>
+</svg>

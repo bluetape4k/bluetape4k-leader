@@ -101,6 +101,10 @@ class SettlementJobs {
 }
 ```
 
+### Sequence: AOP-triggered `runIfLeader`
+
+![Sequence: AOP-triggered runIfLeader diagram](../docs/images/readme-diagrams/leader-spring-boot-sequence-01.png)
+
 Supported return shapes:
 
 | Shape | Behavior |
