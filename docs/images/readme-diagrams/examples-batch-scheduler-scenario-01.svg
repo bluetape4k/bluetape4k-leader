@@ -2,15 +2,15 @@
 <title id="title">Batch Scheduler Single Execution Scenario</title>
 <desc id="desc">Three scheduled application instances share one Redis-backed nightly-settlement lock; one executes the job and the others skip.</desc>
 <defs>
-  <marker id="arrow-blue" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#3F73D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="arrow-green" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#2D8F64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="arrow-orange" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#C96B2C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-blue" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#3F73D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-green" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#2D8F64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-orange" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#C96B2C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#B9C7D6" flood-opacity="0.24"/></filter>
   <style>
     .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:2.2;filter:url(#shadow)}
     .title{font-family:"Architects Daughter";font-size:40px;fill:#21334A}.subtitle,.small,.label,.footer{font-family:"Comic Mono";fill:#4B6075}.subtitle{font-size:15px}.small{font-size:13px}.label{font-size:14px}.footer{font-size:13px}
     .card{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1.8;filter:url(#shadow)}.trigger{fill:#FEF7E6;stroke:#E4BD67}.redis{fill:#EEF7F2;stroke:#8BC6A3}.leader{fill:#EAF2FF;stroke:#8EB2F0}.skip{fill:#FFF1EA;stroke:#E8A47D}.job{fill:#EEF8F8;stroke:#86C9C5}.note{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1.4}
-    .cardTitle{font-family:"Architects Daughter";font-size:24px;fill:#21334A}.cardText{font-family:"Comic Mono";font-size:13px;fill:#4B6075}.route{fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:7 6}
+    .cardTitle{font-family:"Architects Daughter";font-size:24px;fill:#21334A}.cardText{font-family:"Comic Mono";font-size:13px;fill:#4B6075}.route{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:7 6}
   </style>
 </defs>
 <rect class="canvas" width="1280" height="760"/>

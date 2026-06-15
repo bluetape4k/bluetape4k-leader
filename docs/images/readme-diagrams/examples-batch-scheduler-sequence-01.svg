@@ -1,55 +1,134 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="900" viewBox="0 0 1360 900" role="img" aria-labelledby="title desc" data-source-read="examples/batch-scheduler/README.md; examples/batch-scheduler/src/main/kotlin/io/bluetape4k/leader/examples/batch/BatchScheduler.kt; examples/batch-scheduler/src/main/kotlin/io/bluetape4k/leader/examples/batch/BatchSchedulerDemo.kt; examples/batch-scheduler/src/test/kotlin/io/bluetape4k/leader/examples/batch/BatchSchedulerTest.kt">
-<title id="title">Batch Scheduler Sequence</title>
-<desc id="desc">Three nodes call BatchScheduler.run with one Redis lock; only the elected leader runs the job.</desc>
-<defs>
-  <marker id="seq-blue" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#3F73D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="seq-green" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#2D8F64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="seq-orange" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#C96B2C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="seq-purple" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#755BC6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#B9C7D6" flood-opacity="0.24"/></filter>
-  <style>
-    .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:2.2;filter:url(#shadow)}
-    .title{font-family:"Architects Daughter";font-size:40px;fill:#21334A}.subtitle,.msg,.small,.footer{font-family:"Comic Mono";fill:#4B6075}.subtitle{font-size:15px}.msg{font-size:13px}.small{font-size:12px}.footer{font-size:13px}
-    .participant{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1.8;filter:url(#shadow)}.ptext{font-family:"Architects Daughter";font-size:21px;fill:#21334A}.life{stroke:#BFD1E2;stroke-width:1.3;stroke-dasharray:8 8}.route{fill:none;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:7 6}.alt{fill:#FFF8EA;stroke:#E3BE69;stroke-width:1.6}.else{stroke:#E3BE69;stroke-width:1.4;stroke-dasharray:8 6}.pill{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1}.blueMsg{fill:#2F5FB8}.greenMsg{fill:#1E7550}.orangeMsg{fill:#A95720}.purpleMsg{fill:#5D49A8}
-  </style>
-</defs>
-<rect class="canvas" width="1360" height="900"/>
-<rect class="frame" x="34" y="28" width="1292" height="844" rx="30"/>
-<text class="title" x="72" y="84">Batch Scheduler Sequence</text>
-<text class="subtitle" x="76" y="116">All nodes call run() with the same lock; Redis grants one token and contenders finish as null skips.</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900" role="img" aria-labelledby="title desc" data-source-read="examples/batch-scheduler/README.md; examples/batch-scheduler/src/main/kotlin/io/bluetape4k/leader/examples/batch/BatchScheduler.kt; examples/batch-scheduler/src/main/kotlin/io/bluetape4k/leader/examples/batch/BatchSchedulerDemo.kt; examples/batch-scheduler/src/test/kotlin/io/bluetape4k/leader/examples/batch/BatchSchedulerTest.kt">
+  <title id="title">Batch Scheduler Sequence</title>
+  <desc id="desc">Three nodes call BatchScheduler.run with one Redis lock. Redis grants one owner token, contenders return null skips, and the owner releases if it still owns the lock.</desc>
+  <defs>
+    <marker id="arrow-blue" markerWidth="5.5" markerHeight="5.5" refX="4.95" refY="2.75" orient="auto" markerUnits="strokeWidth"><path d="M 0.55 0.55 L 4.95 2.75 L 0.55 4.95 Z" fill="#4f77c9"/></marker>
+    <marker id="arrow-green" markerWidth="5.5" markerHeight="5.5" refX="4.95" refY="2.75" orient="auto" markerUnits="strokeWidth"><path d="M 0.55 0.55 L 4.95 2.75 L 0.55 4.95 Z" fill="#329a74"/></marker>
+    <marker id="arrow-amber" markerWidth="5.5" markerHeight="5.5" refX="4.95" refY="2.75" orient="auto" markerUnits="strokeWidth"><path d="M 0.55 0.55 L 4.95 2.75 L 0.55 4.95 Z" fill="#cf8428"/></marker>
+    <marker id="arrow-purple" markerWidth="5.5" markerHeight="5.5" refX="4.95" refY="2.75" orient="auto" markerUnits="strokeWidth"><path d="M 0.55 0.55 L 4.95 2.75 L 0.55 4.95 Z" fill="#7a61c8"/></marker>
+    <style>
+      .canvas { fill: #f6f9fc; }
+      .frame { fill: #ffffff; stroke: #c4d5e8; stroke-width: 3; }
+      .title, .participant-text { font-family: "Architects Daughter"; fill: #263a57; }
+      .title { font-size: 44px; }
+      .subtitle, .label, .footer { font-family: "Comic Mono"; fill: #526276; }
+      .subtitle { font-size: 17px; }
+      .label { font-size: 13px; }
+      .footer { font-size: 14px; }
+      .participant { stroke-width: 2.4; rx: 12; }
+      .lifeline { stroke: #9aacc2; stroke-width: 2; stroke-dasharray: 8 10; }
+      .activation { fill: #f3eeff; stroke: #8a65d8; stroke-width: 2; rx: 7; }
+      .call { fill: none; stroke: #4f77c9; stroke-width: 3.2; stroke-linecap: round; marker-end: url(#arrow-blue); }
+      .success { fill: none; stroke: #329a74; stroke-width: 3.2; stroke-linecap: round; marker-end: url(#arrow-green); }
+      .skip { fill: none; stroke: #cf8428; stroke-width: 3.2; stroke-linecap: round; marker-end: url(#arrow-amber); }
+      .release { fill: none; stroke: #7a61c8; stroke-width: 3.2; stroke-linecap: round; marker-end: url(#arrow-purple); }
+      .return { fill: none; stroke: #329a74; stroke-width: 2.8; stroke-linecap: round; stroke-dasharray: 9 8; marker-end: url(#arrow-green); }
+      .skip-return { fill: none; stroke: #cf8428; stroke-width: 2.8; stroke-linecap: round; stroke-dasharray: 9 8; marker-end: url(#arrow-amber); }
+      .release-return { fill: none; stroke: #7a61c8; stroke-width: 2.8; stroke-linecap: round; stroke-dasharray: 9 8; marker-end: url(#arrow-purple); }
+      .pill { fill: #ffffff; stroke: #cbd9e7; stroke-width: 1.5; rx: 10; }
+      .num { font-family: "Comic Mono"; font-size: 12px; fill: #ffffff; }
+      .alt { fill: none; stroke: #cf8428; stroke-width: 2; stroke-dasharray: 9 8; rx: 18; }
+      .alt-label { fill: #fff7e8; stroke: #cf8428; stroke-width: 1.5; rx: 8; }
+      .divider { stroke: #cf8428; stroke-width: 1.7; stroke-dasharray: 9 8; }
+    </style>
+  </defs>
 
-<rect class="participant" x="80" y="154" width="170" height="54" rx="14"/><text class="ptext" x="116" y="188">Trigger</text>
-<rect class="participant" x="300" y="154" width="170" height="54" rx="14"/><text class="ptext" x="346" y="188">node-1</text>
-<rect class="participant" x="520" y="154" width="170" height="54" rx="14"/><text class="ptext" x="566" y="188">node-2</text>
-<rect class="participant" x="740" y="154" width="170" height="54" rx="14"/><text class="ptext" x="786" y="188">node-3</text>
-<rect class="participant" x="960" y="154" width="170" height="54" rx="14"/><text class="ptext" x="1002" y="188">Redis</text>
-<rect class="participant" x="1160" y="154" width="150" height="54" rx="14"/><text class="ptext" x="1198" y="188">Job</text>
+  <rect class="canvas" width="1500" height="900"/>
+  <rect class="frame" x="42" y="34" width="1416" height="820" rx="30"/>
+  <text class="title" x="86" y="92">Batch Scheduler Sequence</text>
+  <text class="subtitle" x="90" y="126">All replicas receive the same trigger; Redis grants one token and contenders finish as null skips.</text>
 
-<line class="life" x1="165" y1="208" x2="165" y2="812"/>
-<line class="life" x1="385" y1="208" x2="385" y2="812"/>
-<line class="life" x1="605" y1="208" x2="605" y2="812"/>
-<line class="life" x1="825" y1="208" x2="825" y2="812"/>
-<line class="life" x1="1045" y1="208" x2="1045" y2="812"/>
-<line class="life" x1="1235" y1="208" x2="1235" y2="812"/>
+  <g id="participants">
+    <rect class="participant" x="96" y="176" width="160" height="70" fill="#eaf2ff" stroke="#6d9df0"/>
+    <text class="participant-text" x="176" y="218" text-anchor="middle" font-size="24">Trigger</text>
+    <rect class="participant" x="332" y="176" width="160" height="70" fill="#eaf2ff" stroke="#6d9df0"/>
+    <text class="participant-text" x="412" y="218" text-anchor="middle" font-size="24">node-1</text>
+    <rect class="participant" x="568" y="176" width="160" height="70" fill="#fff0e8" stroke="#e49a72"/>
+    <text class="participant-text" x="648" y="218" text-anchor="middle" font-size="24">node-2</text>
+    <rect class="participant" x="804" y="176" width="160" height="70" fill="#fff0e8" stroke="#e49a72"/>
+    <text class="participant-text" x="884" y="218" text-anchor="middle" font-size="24">node-3</text>
+    <rect class="participant" x="1052" y="176" width="170" height="70" fill="#edf9f4" stroke="#63b891"/>
+    <text class="participant-text" x="1137" y="218" text-anchor="middle" font-size="24">Redis</text>
+    <rect class="participant" x="1290" y="176" width="130" height="70" fill="#f1eaff" stroke="#9b7aec"/>
+    <text class="participant-text" x="1355" y="218" text-anchor="middle" font-size="24">Job</text>
+  </g>
 
-<path class="route" d="M 165 250 L 385 250" stroke="#3F73D8" marker-end="url(#seq-blue)"/><rect class="pill" x="222" y="228" width="108" height="22" rx="8"/><text class="msg blueMsg" x="232" y="244">1 trigger run()</text>
-<path class="route" d="M 165 298 L 605 298" stroke="#3F73D8" marker-end="url(#seq-blue)"/><rect class="pill" x="342" y="276" width="108" height="22" rx="8"/><text class="msg blueMsg" x="352" y="292">2 trigger run()</text>
-<path class="route" d="M 165 346 L 825 346" stroke="#3F73D8" marker-end="url(#seq-blue)"/><rect class="pill" x="472" y="324" width="108" height="22" rx="8"/><text class="msg blueMsg" x="482" y="340">3 trigger run()</text>
+  <line class="lifeline" x1="176" y1="246" x2="176" y2="736"/>
+  <line class="lifeline" x1="412" y1="246" x2="412" y2="736"/>
+  <line class="lifeline" x1="648" y1="246" x2="648" y2="736"/>
+  <line class="lifeline" x1="884" y1="246" x2="884" y2="736"/>
+  <line class="lifeline" x1="1137" y1="246" x2="1137" y2="736"/>
+  <line class="lifeline" x1="1355" y1="246" x2="1355" y2="736"/>
+  <rect class="activation" x="404" y="318" width="16" height="500"/>
+  <rect class="activation" x="640" y="456" width="16" height="126"/>
+  <rect class="activation" x="876" y="506" width="16" height="94"/>
+  <rect class="activation" x="1129" y="386" width="16" height="440"/>
+  <rect class="activation" x="1347" y="692" width="16" height="58"/>
 
-<path class="route" d="M 385 404 L 1045 404" stroke="#3F73D8" marker-end="url(#seq-blue)"/><rect class="pill" x="646" y="382" width="160" height="22" rx="8"/><text class="msg blueMsg" x="656" y="398">4 SET lock NX PX</text>
-<path class="route dash" d="M 1045 442 L 385 442" stroke="#2D8F64" marker-end="url(#seq-green)"/><rect class="pill" x="672" y="420" width="114" height="22" rx="8"/><text class="msg greenMsg" x="682" y="436">5 token granted</text>
-<path class="route" d="M 385 500 L 1235 500" stroke="#2D8F64" marker-end="url(#seq-green)"/><rect class="pill" x="760" y="478" width="116" height="22" rx="8"/><text class="msg greenMsg" x="770" y="494">6 execute job</text>
-<path class="route dash" d="M 1235 542 L 385 542" stroke="#2D8F64" marker-end="url(#seq-green)"/><rect class="pill" x="786" y="520" width="104" height="22" rx="8"/><text class="msg greenMsg" x="796" y="536">7 job result</text>
+  <path class="call" d="M176 318 L412 318"/>
+  <rect class="pill" x="228" y="286" width="150" height="28"/>
+  <circle cx="244" cy="300" r="13" fill="#4f77c9"/><text class="num" x="244" y="304" text-anchor="middle">1</text>
+  <text class="label" x="316" y="305" text-anchor="middle">trigger run()</text>
 
-<rect class="alt" x="288" y="578" width="786" height="142" rx="16"/>
-<text class="small" x="310" y="604">alt: contenders race while lock is held</text>
-<line class="else" x1="288" y1="650" x2="1074" y2="650"/>
-<path class="route" d="M 605 626 L 1045 626" stroke="#C96B2C" marker-end="url(#seq-orange)"/><rect class="pill" x="760" y="604" width="116" height="22" rx="8"/><text class="msg orangeMsg" x="770" y="620">8 try lock</text>
-<path class="route dash" d="M 1045 674 L 605 674" stroke="#C96B2C" marker-end="url(#seq-orange)"/><rect class="pill" x="756" y="652" width="130" height="22" rx="8"/><text class="msg orangeMsg" x="766" y="668">9 null skip</text>
-<path class="route" d="M 825 700 L 1045 700" stroke="#C96B2C" marker-end="url(#seq-orange)"/><rect class="pill" x="880" y="678" width="116" height="22" rx="8"/><text class="msg orangeMsg" x="890" y="694">10 try lock</text>
+  <path class="call" d="M176 366 L648 366"/>
+  <rect class="pill" x="346" y="334" width="150" height="28"/>
+  <circle cx="362" cy="348" r="13" fill="#4f77c9"/><text class="num" x="362" y="352" text-anchor="middle">2</text>
+  <text class="label" x="434" y="353" text-anchor="middle">trigger run()</text>
 
-<path class="route" d="M 385 760 L 1045 760" stroke="#755BC6" marker-end="url(#seq-purple)"/><rect class="pill" x="648" y="738" width="176" height="22" rx="8"/><text class="msg purpleMsg" x="658" y="754">11 release if owner</text>
-<path class="route dash" d="M 1045 800 L 385 800" stroke="#755BC6" marker-end="url(#seq-purple)"/><rect class="pill" x="676" y="778" width="112" height="22" rx="8"/><text class="msg purpleMsg" x="686" y="794">12 finished</text>
+  <path class="call" d="M176 414 L884 414"/>
+  <rect class="pill" x="536" y="382" width="150" height="28"/>
+  <circle cx="552" cy="396" r="13" fill="#4f77c9"/><text class="num" x="552" y="400" text-anchor="middle">3</text>
+  <text class="label" x="624" y="401" text-anchor="middle">trigger run()</text>
 
-<text class="footer" x="680" y="850" text-anchor="middle">bluetape4k-leader/examples/batch-scheduler</text>
+  <path class="call" d="M412 470 L1137 470"/>
+  <rect class="pill" x="686" y="438" width="190" height="28"/>
+  <circle cx="702" cy="452" r="13" fill="#4f77c9"/><text class="num" x="702" y="456" text-anchor="middle">4</text>
+  <text class="label" x="790" y="457" text-anchor="middle">SET lock NX PX</text>
+
+  <path class="return" d="M1137 522 L412 522"/>
+  <rect class="pill" x="700" y="490" width="162" height="28"/>
+  <circle cx="716" cy="504" r="13" fill="#329a74"/><text class="num" x="716" y="508" text-anchor="middle">5</text>
+  <text class="label" x="790" y="509" text-anchor="middle">token granted</text>
+
+  <rect class="alt" x="578" y="548" width="590" height="132"/>
+  <rect class="alt-label" x="602" y="532" width="246" height="28"/>
+  <text class="label" x="725" y="551" text-anchor="middle">contenders while lock held</text>
+  <line class="divider" x1="578" y1="614" x2="1168" y2="614"/>
+
+  <path class="skip" d="M648 586 L1137 586"/>
+  <rect class="pill" x="824" y="564" width="122" height="28"/>
+  <circle cx="840" cy="578" r="13" fill="#cf8428"/><text class="num" x="840" y="582" text-anchor="middle">6</text>
+  <text class="label" x="898" y="583" text-anchor="middle">try lock</text>
+
+  <path class="skip-return" d="M1137 636 L648 636"/>
+  <rect class="pill" x="812" y="614" width="142" height="28"/>
+  <circle cx="828" cy="628" r="13" fill="#cf8428"/><text class="num" x="828" y="632" text-anchor="middle">7</text>
+  <text class="label" x="898" y="633" text-anchor="middle">null skip</text>
+
+  <path class="skip" d="M884 668 L1137 668"/>
+  <rect class="pill" x="946" y="646" width="122" height="28"/>
+  <circle cx="962" cy="660" r="13" fill="#cf8428"/><text class="num" x="962" y="664" text-anchor="middle">8</text>
+  <text class="label" x="1020" y="665" text-anchor="middle">try lock</text>
+
+  <path class="success" d="M412 700 L1355 700"/>
+  <rect class="pill" x="794" y="668" width="156" height="28"/>
+  <circle cx="810" cy="682" r="13" fill="#329a74"/><text class="num" x="810" y="686" text-anchor="middle">9</text>
+  <text class="label" x="884" y="687" text-anchor="middle">execute job</text>
+
+  <path class="return" d="M1355 736 L412 736"/>
+  <rect class="pill" x="800" y="704" width="142" height="28"/>
+  <circle cx="816" cy="718" r="13" fill="#329a74"/><text class="num" x="816" y="722" text-anchor="middle">10</text>
+  <text class="label" x="884" y="723" text-anchor="middle">job result</text>
+
+  <path class="release" d="M412 780 L1137 780"/>
+  <rect class="pill" x="684" y="748" width="194" height="28"/>
+  <circle cx="700" cy="762" r="13" fill="#7a61c8"/><text class="num" x="700" y="766" text-anchor="middle">11</text>
+  <text class="label" x="790" y="767" text-anchor="middle">release if owner</text>
+
+  <path class="release-return" d="M1137 818 L412 818"/>
+  <rect class="pill" x="718" y="786" width="134" height="28"/>
+  <circle cx="734" cy="800" r="13" fill="#7a61c8"/><text class="num" x="734" y="804" text-anchor="middle">12</text>
+  <text class="label" x="798" y="805" text-anchor="middle">finished</text>
+
+  <text class="footer" x="750" y="842" text-anchor="middle">nodeId is for logs only; the backend owner token decides release ownership. github.com/bluetape4k/bluetape4k-leader</text>
 </svg>
