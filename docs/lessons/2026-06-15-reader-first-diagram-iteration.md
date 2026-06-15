@@ -89,6 +89,12 @@ skip, and failure branches crossed the cancellation and result cards. A single
 loop/back edge plus branch-local text explains the same source contract with
 less visual noise.
 
+When converting curved routes to orthogonal routes, do not let multiple branch
+lines share the same vertical or horizontal lane. Parallel branches need their
+own corridor and enough standoff from card edges; otherwise the rendered PNG
+still reads as an overlap even if the SVG path technically stays outside the
+card interior.
+
 ## Verification
 
 - SVG XML parsing passed for changed assets.

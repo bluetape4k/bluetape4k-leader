@@ -54,8 +54,8 @@
 <path class="route dash" d="M 997 258 C 997 314 996 350 996 390" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
 <path class="route" d="M 410 433 L 488 433" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
 <path class="route" d="M 792 433 L 870 433" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
-<path class="route" d="M 640 482 L 608 596" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
-<path class="route" d="M 792 456 C 844 510 910 552 980 596" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
+<path class="route" d="M 608 482 L 608 596" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
+<path class="route" d="M 640 482 L 640 540 L 991 540 L 991 596" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
 <path class="route dash" d="M 740 620 L 860 620" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
 
 <text class="label" x="416" y="416">owns</text>

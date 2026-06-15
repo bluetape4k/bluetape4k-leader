@@ -35,14 +35,14 @@
 <rect class="card redis" x="480" y="574" width="320" height="58" rx="14"/><text class="cardTitle" x="548" y="603">Redis via Lettuce</text><text class="cardText" x="548" y="622">StatefulRedisConnection</text>
 
 <path class="route" d="M 366 229 L 440 229" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
-<path class="route" d="M 586 264 C 530 304 404 332 318 376" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
-<path class="route dash" d="M 966 262 C 850 318 770 340 708 376" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
+<path class="route" d="M 586 264 L 586 304 L 290 304 L 290 376" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
+<path class="route dash" d="M 966 262 L 966 304 L 655 304 L 655 376" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
 <path class="route" d="M 430 424 L 500 424" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
 <path class="route" d="M 810 424 L 870 424" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
 <path class="route" d="M 655 472 L 655 574" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
-<path class="route dash" d="M 500 456 C 450 504 356 506 292 472" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
+<path class="route dash" d="M 500 456 L 466 456 L 466 504 L 290 504 L 290 472" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
 
 <text class="label" x="444" y="408">delegates</text>
-<text class="label" x="676" y="522">SET NX + TTL</text>
+<text class="label" x="672" y="520">SET NX + TTL</text>
 <text class="footer" x="640" y="710" text-anchor="middle">bluetape4k-leader/examples/batch-scheduler</text>
 </svg>
