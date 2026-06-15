@@ -59,9 +59,9 @@
 
 <path class="route" d="M 302 242 L 376 242" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
 <path class="route" d="M 606 242 L 680 242" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
-<path class="route" d="M 922 212 C 946 194 958 194 982 194" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
-<path class="route" d="M 922 252 C 946 304 958 328 982 328" stroke="#C96B2C" marker-end="url(#arrow-orange)"/>
-<path class="route" d="M 922 274 C 950 392 960 462 982 462" stroke="#B94A5A" marker-end="url(#arrow-red)"/>
+<path class="route" d="M 922 212 L 950 212 L 950 194 L 982 194" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
+<path class="route" d="M 922 252 L 950 252 L 950 328 L 982 328" stroke="#C96B2C" marker-end="url(#arrow-orange)"/>
+<path class="route" d="M 922 274 L 966 274 L 966 462 L 982 462" stroke="#B94A5A" marker-end="url(#arrow-red)"/>
 <path class="route dash" d="M 801 288 L 801 438" stroke="#B94A5A" marker-end="url(#arrow-red)"/>
 <path class="route dash" d="M 376 610 C 254 610 190 442 190 286" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
 <path class="route" d="M 606 610 L 680 610" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
