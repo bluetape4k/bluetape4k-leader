@@ -23,22 +23,22 @@
       .redis { fill: #fff8ec; stroke: #b48748; stroke-width: 2; }
       .note { fill: #ffffff; stroke: #c6d2d5; stroke-width: 2; }
       .sep { stroke: #d6dee2; stroke-width: 1.5; }
-      .realize { fill: none; stroke: #35464d; stroke-width: 1.25; stroke-dasharray: 6 5; marker-end: url(#hollow); }
-      .useSingle { fill: none; stroke: #3f7d9c; stroke-width: 2.4; marker-end: url(#arrowSingle); }
-      .useGroup { fill: none; stroke: #6e8f4f; stroke-width: 2.4; marker-end: url(#arrowGroup); }
-      .redisLine { fill: none; stroke: #a2743d; stroke-width: 2.4; marker-end: url(#arrowRedis); }
+      .realize { fill: none; stroke: #35464d; stroke-width: 1.25; marker-end: url(#hollow); }
+      .useSingle { fill: none; stroke: #3f7d9c; stroke-width: 1.8; stroke-dasharray: 6 5; marker-end: url(#arrowSingle); }
+      .useGroup { fill: none; stroke: #6e8f4f; stroke-width: 1.8; stroke-dasharray: 6 5; marker-end: url(#arrowGroup); }
+      .redisLine { fill: none; stroke: #a2743d; stroke-width: 1.8; stroke-dasharray: 6 5; marker-end: url(#arrowRedis); }
     </style>
-    <marker id="arrowSingle" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto">
-      <path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3f7d9c"/>
+    <marker id="arrowSingle" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#3f7d9c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
     </marker>
-    <marker id="arrowGroup" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto">
-      <path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#6e8f4f"/>
+    <marker id="arrowGroup" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#6e8f4f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
     </marker>
-    <marker id="arrowRedis" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto">
-      <path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#a2743d"/>
+    <marker id="arrowRedis" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#a2743d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
     </marker>
-    <marker id="hollow" markerWidth="9" markerHeight="8" refX="8.4" refY="4" orient="auto">
-      <path d="M 1 1 L 8.4 4 L 1 7 Z" fill="#fbfcf8" stroke="#35464d" stroke-width="1.1"/>
+    <marker id="hollow" viewBox="0 0 18 16" markerWidth="16" markerHeight="14" refX="16" refY="8" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 16 8 L 1 15 Z" fill="#fbfcf8" stroke="#35464d" stroke-width="1.7"/>
     </marker>
     <filter id="softShadow" x="-5%" y="-5%" width="110%" height="110%">
       <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#22333b" flood-opacity="0.12"/>
