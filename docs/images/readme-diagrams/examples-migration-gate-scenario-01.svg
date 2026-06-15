@@ -54,9 +54,10 @@
   <text class="card-sub" x="716" y="540" text-anchor="middle">precheck / post-skip confirms</text>
   <text class="card-sub" x="716" y="564" text-anchor="middle">Outcome.AlreadyApplied</text>
 
-  <rect class="card" x="1040" y="520" width="320" height="112" fill="#f8fbff" stroke="#cbd9e7"/>
-  <text class="card-title" x="1200" y="562" text-anchor="middle">safe to serve</text>
-  <text class="card-sub" x="1200" y="590" text-anchor="middle">all pods see applied schema</text>
+  <rect class="card" x="1040" y="466" width="320" height="126" fill="#f8fbff" stroke="#cbd9e7"/>
+  <text class="card-title" x="1200" y="512" text-anchor="middle">safe to serve</text>
+  <text class="card-sub" x="1200" y="540" text-anchor="middle">all pods see applied schema</text>
+  <text class="card-sub" x="1200" y="564" text-anchor="middle">no duplicate DDL</text>
 
   <path class="route" d="M360 335 C440 312 460 260 536 260" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
   <rect class="pill" x="408" y="274" width="98" height="26"/>
@@ -71,7 +72,7 @@
   <path class="route dash" d="M360 543 C432 548 462 552 536 552" stroke="#cf8428" marker-end="url(#arrow-amber)"/>
   <rect class="pill" x="406" y="566" width="92" height="26"/>
   <text class="route-label" x="452" y="584" text-anchor="middle">confirm</text>
-  <path class="route" d="M896 552 L1040 574" stroke="#329a74" marker-end="url(#arrow-green)"/>
+  <path class="route" d="M896 529 L1040 529" stroke="#329a74" marker-end="url(#arrow-green)"/>
 
   <rect class="card" x="180" y="684" width="1140" height="58" fill="#f8fbff" stroke="#d2deeb"/>
   <text class="card-sub" x="750" y="720" text-anchor="middle">Expected demo result: exactly 1 Migrated, and the remaining pods return AlreadyApplied after the marker appears.</text>

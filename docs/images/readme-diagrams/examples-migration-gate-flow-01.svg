@@ -66,13 +66,13 @@
   <text class="node-title" x="297" y="674" text-anchor="middle">Failed</text>
   <text class="node-sub" x="297" y="696" text-anchor="middle">in-lock check or migration threw</text>
 
-  <path class="decision" d="M1088 474 L1252 552 L1088 630 L924 552 Z" fill="#fff4de" stroke="#d59c3f"/>
-  <text class="node-title" x="1088" y="544" text-anchor="middle">post-skip</text>
-  <text class="node-sub" x="1088" y="568" text-anchor="middle">marker now exists?</text>
+  <path class="decision" d="M1228 442 L1390 520 L1228 598 L1066 520 Z" fill="#fff4de" stroke="#d59c3f"/>
+  <text class="node-title" x="1228" y="512" text-anchor="middle">post-skip</text>
+  <text class="node-sub" x="1228" y="536" text-anchor="middle">marker now exists?</text>
 
-  <rect class="node" x="1172" y="768" width="242" height="72" fill="#fff5ec" stroke="#e49a72"/>
-  <text class="node-title" x="1293" y="800" text-anchor="middle">Skipped</text>
-  <text class="node-sub" x="1293" y="822" text-anchor="middle">no lock + no marker</text>
+  <rect class="node" x="1110" y="768" width="242" height="72" fill="#fff5ec" stroke="#e49a72"/>
+  <text class="node-title" x="1231" y="800" text-anchor="middle">Skipped</text>
+  <text class="node-sub" x="1231" y="822" text-anchor="middle">no lock + no marker</text>
 
   <path class="route" d="M750 238 L750 276" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
   <path class="route" d="M922 358 L1060 358" stroke="#329a74" marker-end="url(#arrow-green)"/>
@@ -94,15 +94,15 @@
   <path class="route" d="M750 760 L750 820" stroke="#329a74" marker-end="url(#arrow-green)"/>
   <rect class="pill" x="770" y="774" width="62" height="26"/>
   <text class="label" x="801" y="792" text-anchor="middle">false</text>
-  <path class="route dash" d="M928 520 L978 520 L978 552 L924 552" stroke="#cf8428" marker-end="url(#arrow-amber)"/>
-  <rect class="pill" x="940" y="490" width="104" height="26"/>
-  <text class="label" x="992" y="508" text-anchor="middle">not leader</text>
-  <path class="route" d="M1252 552 L1336 552 L1336 642 L1203 642" stroke="#329a74" marker-end="url(#arrow-green)"/>
-  <rect class="pill" x="1308" y="586" width="58" height="26"/>
-  <text class="label" x="1337" y="604" text-anchor="middle">true</text>
-  <path class="route" d="M1088 630 L1088 804 L1172 804" stroke="#cf8428" marker-end="url(#arrow-amber)"/>
-  <rect class="pill" x="1108" y="714" width="62" height="26"/>
-  <text class="label" x="1139" y="732" text-anchor="middle">false</text>
+  <path class="route dash" d="M928 520 L1066 520" stroke="#cf8428" marker-end="url(#arrow-amber)"/>
+  <rect class="pill" x="960" y="486" width="104" height="26"/>
+  <text class="label" x="1012" y="504" text-anchor="middle">not leader</text>
+  <path class="route" d="M1228 598 L1228 642" stroke="#329a74" marker-end="url(#arrow-green)"/>
+  <rect class="pill" x="1250" y="608" width="58" height="26"/>
+  <text class="label" x="1279" y="626" text-anchor="middle">true</text>
+  <path class="route" d="M1390 520 L1400 520 L1400 804 L1352 804" stroke="#cf8428" marker-end="url(#arrow-amber)"/>
+  <rect class="pill" x="1304" y="730" width="62" height="26"/>
+  <text class="label" x="1335" y="748" text-anchor="middle">false</text>
 
   <text class="footer" x="750" y="928" text-anchor="middle">Cancellation is rethrown; ordinary exceptions become Failed so startup can stop instead of serving with unknown schema state.</text>
 </svg>

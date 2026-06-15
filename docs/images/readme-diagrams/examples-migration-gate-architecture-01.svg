@@ -33,30 +33,30 @@
 
   <rect class="layer" x="92" y="164" width="1316" height="158" fill="#eef5ff" stroke="#d2e1f3"/>
   <text class="layer-label" x="124" y="198">Rolling deploy callers</text>
-  <rect class="card" x="138" y="220" width="250" height="76" fill="#eaf2ff" stroke="#6d9df0"/>
-  <text class="card-title" x="263" y="254" text-anchor="middle">new pod set</text>
-  <text class="card-sub" x="263" y="276" text-anchor="middle">pod-1 / pod-2 / pod-3</text>
-  <rect class="card" x="520" y="220" width="300" height="76" fill="#fff4de" stroke="#d59c3f"/>
-  <text class="card-title" x="670" y="254" text-anchor="middle">MigrationGateOptions</text>
-  <text class="card-sub" x="670" y="276" text-anchor="middle">nodeId, lockName, waitTime, leaseTime</text>
-  <rect class="card" x="982" y="220" width="314" height="76" fill="#f0ecff" stroke="#9b7aec"/>
-  <text class="card-title" x="1139" y="254" text-anchor="middle">outcome handling</text>
-  <text class="card-sub" x="1139" y="276" text-anchor="middle">Migrated / AlreadyApplied / Skipped / Failed</text>
+  <rect class="card" x="134" y="220" width="268" height="76" fill="#eaf2ff" stroke="#6d9df0"/>
+  <text class="card-title" x="268" y="254" text-anchor="middle">new pod set</text>
+  <text class="card-sub" x="268" y="276" text-anchor="middle">pod-1 / pod-2 / pod-3</text>
+  <rect class="card" x="508" y="220" width="348" height="76" fill="#fff4de" stroke="#d59c3f"/>
+  <text class="card-title" x="682" y="254" text-anchor="middle">MigrationGateOptions</text>
+  <text class="card-sub" x="682" y="276" text-anchor="middle">nodeId, lockName, waitTime, leaseTime</text>
+  <rect class="card" x="948" y="220" width="404" height="76" fill="#f0ecff" stroke="#9b7aec"/>
+  <text class="card-title" x="1150" y="254" text-anchor="middle">outcome handling</text>
+  <text class="card-sub" x="1150" y="276" text-anchor="middle">Migrated / AlreadyApplied / Skipped / Failed</text>
 
   <rect class="layer" x="92" y="360" width="1316" height="208" fill="#fffaf1" stroke="#e6c57c"/>
   <text class="layer-label" x="124" y="394">Example module boundary</text>
-  <rect class="card" x="158" y="432" width="332" height="98" fill="#eaf2ff" stroke="#6d9df0"/>
-  <text class="card-title" x="324" y="466" text-anchor="middle">MigrationGate</text>
-  <text class="card-sub" x="324" y="490" text-anchor="middle">runMigration(migrationId)</text>
-  <text class="card-sub" x="324" y="512" text-anchor="middle">precheck / in-lock / post-skip</text>
-  <rect class="card" x="602" y="432" width="318" height="98" fill="#f0ecff" stroke="#9b7aec"/>
-  <text class="card-title" x="761" y="466" text-anchor="middle">ExposedJdbcLeaderElector</text>
-  <text class="card-sub" x="761" y="490" text-anchor="middle">runIfLeader(lockName)</text>
-  <text class="card-sub" x="761" y="512" text-anchor="middle">releases on success or failure</text>
-  <rect class="card" x="1032" y="432" width="290" height="98" fill="#edf9f4" stroke="#63b891"/>
-  <text class="card-title" x="1177" y="466" text-anchor="middle">migration lambda</text>
-  <text class="card-sub" x="1177" y="490" text-anchor="middle">idempotent DDL</text>
-  <text class="card-sub" x="1177" y="512" text-anchor="middle">marker insert in same tx</text>
+  <rect class="card" x="132" y="432" width="360" height="98" fill="#eaf2ff" stroke="#6d9df0"/>
+  <text class="card-title" x="312" y="466" text-anchor="middle">MigrationGate</text>
+  <text class="card-sub" x="312" y="490" text-anchor="middle">runMigration(migrationId)</text>
+  <text class="card-sub" x="312" y="512" text-anchor="middle">precheck / in-lock / post-skip</text>
+  <rect class="card" x="570" y="432" width="420" height="98" fill="#f0ecff" stroke="#9b7aec"/>
+  <text class="card-title" x="780" y="466" text-anchor="middle">ExposedJdbcLeaderElector</text>
+  <text class="card-sub" x="780" y="490" text-anchor="middle">runIfLeader(lockName)</text>
+  <text class="card-sub" x="780" y="512" text-anchor="middle">releases on success or failure</text>
+  <rect class="card" x="1064" y="432" width="300" height="98" fill="#edf9f4" stroke="#63b891"/>
+  <text class="card-title" x="1214" y="466" text-anchor="middle">migration lambda</text>
+  <text class="card-sub" x="1214" y="490" text-anchor="middle">idempotent DDL</text>
+  <text class="card-sub" x="1214" y="512" text-anchor="middle">marker insert in same tx</text>
 
   <rect class="layer" x="92" y="624" width="1316" height="150" fill="#effaf4" stroke="#9dcfaf"/>
   <text class="layer-label" x="124" y="658">Shared database state</text>
@@ -67,20 +67,20 @@
   <text class="card-title" x="975" y="720" text-anchor="middle">MigrationMarkerTable</text>
   <text class="card-sub" x="975" y="740" text-anchor="middle">migrationId proves schema applied</text>
 
-  <path class="route" d="M388 258 L520 258" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
-  <path class="route" d="M820 258 L982 258" stroke="#7a61c8" marker-end="url(#arrow-purple)"/>
-  <path class="route" d="M324 296 L324 432" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
-  <path class="route" d="M490 480 L602 480" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
-  <rect class="pill" x="512" y="452" width="78" height="24"/>
-  <text class="route-label" x="551" y="469" text-anchor="middle">delegates</text>
-  <path class="route" d="M920 480 L1032 480" stroke="#329a74" marker-end="url(#arrow-green)"/>
-  <path class="route" d="M761 530 L761 612 L392 612 L392 684" stroke="#7a61c8" marker-end="url(#arrow-purple)"/>
+  <path class="route" d="M402 258 L508 258" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
+  <path class="route" d="M856 258 L948 258" stroke="#7a61c8" marker-end="url(#arrow-purple)"/>
+  <path class="route" d="M268 296 L268 400 L312 400 L312 432" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
+  <path class="route" d="M492 480 L570 480" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
+  <rect class="pill" x="498" y="452" width="64" height="24"/>
+  <text class="route-label" x="530" y="469" text-anchor="middle">delegates</text>
+  <path class="route" d="M990 480 L1064 480" stroke="#329a74" marker-end="url(#arrow-green)"/>
+  <path class="route" d="M780 530 L780 612 L392 612 L392 684" stroke="#7a61c8" marker-end="url(#arrow-purple)"/>
   <rect class="pill" x="454" y="624" width="126" height="24"/>
   <text class="route-label" x="517" y="641" text-anchor="middle">lock row TTL</text>
-  <path class="route dash" d="M1177 530 L1177 642 L975 642 L975 684" stroke="#329a74" marker-end="url(#arrow-green)"/>
-  <rect class="pill" x="1040" y="614" width="112" height="24"/>
-  <text class="route-label" x="1096" y="631" text-anchor="middle">write marker</text>
-  <path class="route dash" d="M324 530 L324 574 L975 574 L975 684" stroke="#cf8428" marker-end="url(#arrow-amber)"/>
+  <path class="route dash" d="M1214 530 L1214 642 L975 642 L975 684" stroke="#329a74" marker-end="url(#arrow-green)"/>
+  <rect class="pill" x="1058" y="614" width="112" height="24"/>
+  <text class="route-label" x="1114" y="631" text-anchor="middle">write marker</text>
+  <path class="route dash" d="M312 530 L312 574 L975 574 L975 684" stroke="#cf8428" marker-end="url(#arrow-amber)"/>
   <rect class="pill" x="596" y="540" width="156" height="24"/>
   <text class="route-label" x="674" y="557" text-anchor="middle">read marker 3 times</text>
 
