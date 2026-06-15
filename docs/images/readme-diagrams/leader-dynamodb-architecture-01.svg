@@ -1,136 +1,155 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1712" height="1037" viewBox="0 0 1712 1037" role="img" aria-labelledby="title desc" data-intent="Answer a DynamoDB backend reader's question: how do blocking, coroutine, and virtual-thread leader electors use caller-owned AWS SDK clients and a caller-provisioned table to acquire single locks or fixed group slots with conditional writes, renew owner-checked logical leases, release or retain rows for minLeaseTime, and avoid relying on DynamoDB TTL deletion for correctness?" data-evidence="leader-dynamodb README behavior/table sections; DynamoDbLeaderElector; DynamoDbLeaderGroupElector; DynamoDbSuspendLeaderElector; DynamoDbSuspendLeaderGroupElector; DynamoDbVirtualThreadLeaderElector; DynamoDbVirtualThreadLeaderGroupElector; DynamoDbLockClient; DynamoDbKeys; DynamoDbLeaderElectionOptions" data-source-read="leader-dynamodb/README.md; leader-dynamodb/src/main/kotlin/io/bluetape4k/leader/dynamodb/DynamoDbLeaderElector.kt; leader-dynamodb/src/main/kotlin/io/bluetape4k/leader/dynamodb/DynamoDbLeaderGroupElector.kt; leader-dynamodb/src/main/kotlin/io/bluetape4k/leader/dynamodb/DynamoDbSuspendLeaderElector.kt; leader-dynamodb/src/main/kotlin/io/bluetape4k/leader/dynamodb/DynamoDbSuspendLeaderGroupElector.kt; leader-dynamodb/src/main/kotlin/io/bluetape4k/leader/dynamodb/DynamoDbVirtualThreadLeaderElector.kt; leader-dynamodb/src/main/kotlin/io/bluetape4k/leader/dynamodb/internal/DynamoDbLockClient.kt; leader-dynamodb/src/main/kotlin/io/bluetape4k/leader/dynamodb/internal/DynamoDbKeys.kt">
-  <title id="title">DynamoDB Leader Lease Architecture</title>
-  <desc id="desc">Architecture diagram for the DynamoDB leader module showing caller-owned AWS clients and tables, single and group electors, conditional PutItem acquisition, owner-checked release and extension, logical lease expiry, and TTL cleanup metadata.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="820" viewBox="0 0 1280 820" role="img" aria-labelledby="title desc">
+  <title id="title">leader-dynamodb runtime architecture</title>
+  <desc id="desc">Architecture diagram for the DynamoDB leader backend showing application APIs, electors, lock client operations, caller-owned DynamoDB table rows, and the distinction between leaseExpiry correctness and ttl cleanup.</desc>
   <defs>
-    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
-    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
-    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
-    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
-    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
-    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
-    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
-    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
-    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
-    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
+    <marker id="arrow-blue" viewBox="0 0 12 12" markerWidth="9" markerHeight="9" refX="10" refY="6" orient="auto">
+      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#2563eb" stroke-width="2" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 12 12" markerWidth="9" markerHeight="9" refX="10" refY="6" orient="auto">
+      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#059669" stroke-width="2" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 12 12" markerWidth="9" markerHeight="9" refX="10" refY="6" orient="auto">
+      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#ea580c" stroke-width="2" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 12 12" markerWidth="9" markerHeight="9" refX="10" refY="6" orient="auto">
+      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linejoin="round"/>
+    </marker>
     <style>
-      .canvas{fill:#F7FAFC}
-      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
-      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
-      .card{filter:url(#shadow);stroke-width:2}
-      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
-      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
-      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
-      .seq{fill:none;stroke-width:3;stroke-linecap:round}
-      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
-      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
-      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
-      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
+      .canvas { fill: #f8fafc; }
+      .frame { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.8; rx: 24; }
+      .title { font-family: "Architects Daughter", "Comic Mono", "Comic Sans MS", cursive; font-size: 36px; fill: #0f172a; font-weight: 700; }
+      .subtitle { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 15px; fill: #475569; }
+      .section-title { font-family: "Architects Daughter", "Comic Mono", cursive; font-size: 22px; fill: #0f172a; font-weight: 700; }
+      .card-title { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 15px; fill: #0f172a; font-weight: 700; }
+      .card-sub { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 12px; fill: #475569; }
+      .tiny { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 11px; fill: #475569; }
+      .label { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 12px; font-weight: 700; }
+      .footer { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 11px; fill: #64748b; }
+      .zone { fill: #f1f5f9; stroke: #cbd5e1; stroke-width: 1.5; rx: 20; }
+      .zone-blue { fill: #eff6ff; stroke: #93c5fd; }
+      .zone-green { fill: #ecfdf5; stroke: #86efac; }
+      .zone-orange { fill: #fff7ed; stroke: #fdba74; }
+      .zone-purple { fill: #faf5ff; stroke: #c4b5fd; }
+      .card { stroke-width: 1.6; rx: 12; }
+      .card-blue { fill: #dbeafe; stroke: #2563eb; }
+      .card-green { fill: #dcfce7; stroke: #16a34a; }
+      .card-orange { fill: #ffedd5; stroke: #ea580c; }
+      .card-purple { fill: #ede9fe; stroke: #7c3aed; }
+      .card-slate { fill: #f8fafc; stroke: #94a3b8; }
+      .blue { fill: none; stroke: #2563eb; stroke-width: 2.2; marker-end: url(#arrow-blue); }
+      .green { fill: none; stroke: #059669; stroke-width: 2.2; marker-end: url(#arrow-green); }
+      .orange { fill: none; stroke: #ea580c; stroke-width: 2.2; marker-end: url(#arrow-orange); }
+      .purple { fill: none; stroke: #7c3aed; stroke-width: 2.2; marker-end: url(#arrow-purple); }
+      .dashed { stroke-dasharray: 7 6; }
+      .table-line { stroke: #cbd5e1; stroke-width: 1.1; }
+      .schema-head { fill: #312e81; }
+      .schema-body { fill: #f5f3ff; stroke: #a78bfa; stroke-width: 1.5; rx: 12; }
+      .schema-title { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 14px; fill: #ffffff; font-weight: 700; }
+      .schema-text { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 12px; fill: #312e81; }
     </style>
   </defs>
-  <rect class="canvas" width="1712" height="1037"/>
-  <rect class="frame" x="32" y="28" width="1648" height="981" rx="28"/>
-  <text class="title" x="66" y="82">DynamoDB Leader Lease Architecture</text>
-  <text class="subtitle" x="70" y="116">Conditional writes create logical leases; leaseExpiry controls correctness while DynamoDB ttl only cleans old rows.</text>
-<g>
-  <rect class="band" x="152" y="228" width="1432" height="180" rx="18"/>
-  <text class="bandTitle" x="178" y="262">Caller-owned AWS boundary</text>
-</g>
-<g>
-  <rect class="band" x="152" y="443" width="1432" height="215" rx="18"/>
-  <text class="bandTitle" x="178" y="477">Elector surfaces and lock client</text>
-</g>
-<g>
-  <rect class="band" x="152" y="718" width="1432" height="195" rx="18"/>
-  <text class="bandTitle" x="178" y="752">DynamoDB lock row and lease semantics</text>
-</g>
-<path class="route" data-from="caller" data-to="single" data-route-tone="call" d="M353 366 L353 413 L128 413 L128 555 L193 555" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="caller" data-to="group" data-route-tone="call" d="M353 366 L353 413 L788 413 L788 508" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="clients" data-to="client" data-route-tone="dependency" d="M723 366 L723 423 L1218 423 L1218 508" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="options" data-to="client" data-route-tone="dependency" d="M1093 366 L1093 508" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="tableOwner" data-to="ttlCleanup" data-route-tone="dependency" d="M1428 366 L1428 783" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="single" data-to="client" data-route-tone="call" d="M553 555 L583 555 L583 623 L1013 623 L1013 555 L1033 555" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="group" data-to="client" data-route-tone="call" d="M968 555 L1033 555" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="single" data-to="extender" data-route-tone="success" d="M373 602 L373 692 L683 692" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="group" data-to="extender" data-route-tone="success" d="M788 602 L788 648" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="extender" data-to="client" data-route-tone="retry" d="M1033 692 L1428 692 L1428 555 L1403 555" stroke="#4F63C7" marker-end="url(#arrow-retry)"/>
-<path class="route" data-from="client" data-to="logicalLease" data-route-tone="dependency" d="M1218 602 L1218 783" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="logicalLease" data-to="ttlCleanup" data-route-tone="release" d="M1318 828 L1358 828" stroke="#755BC6" marker-end="url(#arrow-release)"/>
-<path class="route" data-from="singleKey" data-to="logicalLease" data-route-tone="success" d="M363 873 L363 913 L1153 913 L1153 873" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="groupRows" data-to="logicalLease" data-route-tone="success" d="M938 828 L988 828" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<g id="node-caller">
-  <rect class="card" x="188" y="278" width="330" height="88" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="353" y="304" text-anchor="middle" dominant-baseline="middle">Application Caller</text>
-  <text class="detail" x="353" y="323" text-anchor="middle" dominant-baseline="middle">runIfLeader / group</text>
-  <text class="detail" x="353" y="342" text-anchor="middle" dominant-baseline="middle">blocking, async, suspend</text>
-</g>
-<g id="node-clients">
-  <rect class="card" x="558" y="278" width="330" height="88" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="723" y="304" text-anchor="middle" dominant-baseline="middle">AWS SDK Clients</text>
-  <text class="detail" x="723" y="323" text-anchor="middle" dominant-baseline="middle">DynamoDbClient</text>
-  <text class="detail" x="723" y="342" text-anchor="middle" dominant-baseline="middle">DynamoDbAsyncClient</text>
-</g>
-<g id="node-options">
-  <rect class="card" x="928" y="278" width="330" height="88" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="1093" y="304" text-anchor="middle" dominant-baseline="middle">DynamoDB Options</text>
-  <text class="detail" x="1093" y="323" text-anchor="middle" dominant-baseline="middle">tableName, keyPrefix</text>
-  <text class="detail" x="1093" y="342" text-anchor="middle" dominant-baseline="middle">retryDelay, clockSkew</text>
-</g>
-<g id="node-tableOwner">
-  <rect class="card" x="1298" y="278" width="260" height="88" rx="10" fill="#EEF6D9" stroke="#8BA84D"/>
-  <text class="cardTitle" x="1428" y="304" text-anchor="middle" dominant-baseline="middle">Caller-Provisioned Table</text>
-  <text class="detail" x="1428" y="323" text-anchor="middle" dominant-baseline="middle">partition key lockName</text>
-  <text class="detail" x="1428" y="342" text-anchor="middle" dominant-baseline="middle">TTL enabled on ttl</text>
-</g>
-<g id="node-single">
-  <rect class="card" x="193" y="508" width="360" height="94" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="373" y="537" text-anchor="middle" dominant-baseline="middle">Single Leader Electors</text>
-  <text class="detail" x="373" y="556" text-anchor="middle" dominant-baseline="middle">blocking + CompletableFuture</text>
-  <text class="detail" x="373" y="575" text-anchor="middle" dominant-baseline="middle">coroutine + virtual-thread</text>
-</g>
-<g id="node-group">
-  <rect class="card" x="608" y="508" width="360" height="94" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="788" y="537" text-anchor="middle" dominant-baseline="middle">Group Slot Electors</text>
-  <text class="detail" x="788" y="556" text-anchor="middle" dominant-baseline="middle">random start slot scan</text>
-  <text class="detail" x="788" y="575" text-anchor="middle" dominant-baseline="middle">maxLeaders fixed rows</text>
-</g>
-<g id="node-client">
-  <rect class="card" x="1033" y="508" width="370" height="94" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="cardTitle" x="1218" y="537" text-anchor="middle" dominant-baseline="middle">DynamoDbLockClient</text>
-  <text class="detail" x="1218" y="556" text-anchor="middle" dominant-baseline="middle">PutItem conditional acquire</text>
-  <text class="detail" x="1218" y="575" text-anchor="middle" dominant-baseline="middle">Get/Update/Delete/Scan</text>
-</g>
-<g id="node-extender">
-  <rect class="card" x="683" y="648" width="350" height="88" rx="10" fill="#EEF1FF" stroke="#6477D8"/>
-  <text class="cardTitle" x="858" y="674" text-anchor="middle" dominant-baseline="middle">Lease Handle And Extender</text>
-  <text class="detail" x="858" y="693" text-anchor="middle" dominant-baseline="middle">ownerId token</text>
-  <text class="detail" x="858" y="712" text-anchor="middle" dominant-baseline="middle">autoExtend only single</text>
-</g>
-<g id="node-singleKey">
-  <rect class="card" x="198" y="783" width="330" height="90" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="363" y="810" text-anchor="middle" dominant-baseline="middle">Single Lock Row</text>
-  <text class="detail" x="363" y="829" text-anchor="middle" dominant-baseline="middle">leader/single/{lockName}</text>
-  <text class="detail" x="363" y="848" text-anchor="middle" dominant-baseline="middle">ownerId + auditLeaderId</text>
-</g>
-<g id="node-groupRows">
-  <rect class="card" x="578" y="783" width="360" height="90" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="758" y="810" text-anchor="middle" dominant-baseline="middle">Group Slot Rows</text>
-  <text class="detail" x="758" y="829" text-anchor="middle" dominant-baseline="middle">leader/group/{lock}#slot-i</text>
-  <text class="detail" x="758" y="848" text-anchor="middle" dominant-baseline="middle">full group returns skip</text>
-</g>
-<g id="node-logicalLease">
-  <rect class="card" x="988" y="783" width="330" height="90" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="1153" y="810" text-anchor="middle" dominant-baseline="middle">Logical Lease Fields</text>
-  <text class="detail" x="1153" y="829" text-anchor="middle" dominant-baseline="middle">leaseExpiry epoch millis</text>
-  <text class="detail" x="1153" y="848" text-anchor="middle" dominant-baseline="middle">owner check on release</text>
-</g>
-<g id="node-ttlCleanup">
-  <rect class="card" x="1358" y="783" width="210" height="90" rx="10" fill="#F2F5F9" stroke="#9AA8B8"/>
-  <text class="cardTitle" x="1463" y="810" text-anchor="middle" dominant-baseline="middle">DynamoDB TTL Cleanup</text>
-  <text class="detail" x="1463" y="829" text-anchor="middle" dominant-baseline="middle">ttl epoch seconds</text>
-  <text class="detail" x="1463" y="848" text-anchor="middle" dominant-baseline="middle">cleanup metadata only</text>
-</g>
+
+  <rect class="canvas" width="1280" height="820"/>
+  <rect class="frame" x="32" y="30" width="1216" height="754"/>
+
+  <text class="title" x="640" y="78" text-anchor="middle">DynamoDB Leader Backend Architecture</text>
+  <text class="subtitle" x="640" y="107" text-anchor="middle">Conditional writes guard ownership; logical leaseExpiry decides correctness while ttl only schedules cleanup.</text>
+
+  <rect class="zone zone-blue" x="72" y="148" width="300" height="448"/>
+  <text class="section-title" x="96" y="184">Application-facing APIs</text>
+
+  <rect class="card card-blue" x="98" y="212" width="248" height="72"/>
+  <text class="card-title" x="222" y="239" text-anchor="middle">Blocking / Async</text>
+  <text class="card-sub" x="222" y="262" text-anchor="middle">DynamoDbLeaderElector</text>
+
+  <rect class="card card-blue" x="98" y="304" width="248" height="72"/>
+  <text class="card-title" x="222" y="331" text-anchor="middle">Coroutine</text>
+  <text class="card-sub" x="222" y="354" text-anchor="middle">DynamoDbSuspendLeaderElector</text>
+
+  <rect class="card card-blue" x="98" y="396" width="248" height="72"/>
+  <text class="card-title" x="222" y="423" text-anchor="middle">Virtual Thread</text>
+  <text class="card-sub" x="222" y="446" text-anchor="middle">adapter over blocking elector</text>
+
+  <rect class="card card-blue" x="98" y="488" width="248" height="74"/>
+  <text class="card-title" x="222" y="515" text-anchor="middle">Group Election</text>
+  <text class="card-sub" x="222" y="538" text-anchor="middle">random slot probe, maxLeaders</text>
+
+  <rect class="zone zone-green" x="430" y="148" width="360" height="448"/>
+  <text class="section-title" x="454" y="184">leader-dynamodb module</text>
+
+  <rect class="card card-green" x="462" y="216" width="296" height="86"/>
+  <text class="card-title" x="610" y="244" text-anchor="middle">Election contract</text>
+  <text class="card-sub" x="610" y="268" text-anchor="middle">runIfLeader returns result or null</text>
+  <text class="card-sub" x="610" y="288" text-anchor="middle">AWS/client failures propagate</text>
+
+  <rect class="card card-green" x="462" y="336" width="296" height="104"/>
+  <text class="card-title" x="610" y="364" text-anchor="middle">DynamoDbLockClient</text>
+  <text class="card-sub" x="610" y="388" text-anchor="middle">PutItem / UpdateItem / DeleteItem</text>
+  <text class="card-sub" x="610" y="408" text-anchor="middle">Consistent GetItem for state</text>
+  <text class="card-sub" x="610" y="428" text-anchor="middle">Scan only for group diagnostics</text>
+
+  <rect class="card card-green" x="462" y="474" width="296" height="82"/>
+  <text class="card-title" x="610" y="502" text-anchor="middle">LeaderLockHandle</text>
+  <text class="card-sub" x="610" y="526" text-anchor="middle">explicit LockExtender delegate</text>
+  <text class="card-sub" x="610" y="546" text-anchor="middle">autoExtend for single leader</text>
+
+  <rect class="zone zone-orange" x="852" y="148" width="356" height="448"/>
+  <text class="section-title" x="876" y="184">Caller-owned DynamoDB table</text>
+
+  <rect class="schema-body" x="884" y="220" width="292" height="208"/>
+  <rect class="schema-head" x="884" y="220" width="292" height="38" rx="12"/>
+  <text class="schema-title" x="1030" y="245" text-anchor="middle">bluetape4k_leader_locks</text>
+  <line class="table-line" x1="884" y1="258" x2="1176" y2="258"/>
+  <text class="schema-text" x="906" y="286">PK lockName (S)</text>
+  <text class="schema-text" x="906" y="314">ownerId (S)</text>
+  <text class="schema-text" x="906" y="342">auditLeaderId (S)</text>
+  <text class="schema-text" x="906" y="370">nodeId (S)</text>
+  <text class="schema-text" x="906" y="398">leaseExpiry (N, millis)</text>
+  <text class="schema-text" x="906" y="420">ttl (N, epoch seconds)</text>
+
+  <rect class="card card-orange" x="884" y="462" width="292" height="100"/>
+  <text class="card-title" x="1030" y="490" text-anchor="middle">Key shapes</text>
+  <text class="card-sub" x="1030" y="516" text-anchor="middle">leader/single/{lockName}</text>
+  <text class="card-sub" x="1030" y="538" text-anchor="middle">leader/group/{lockName}#slot-N</text>
+
+  <path class="blue" d="M 346 248 L 462 248"/>
+  <path class="blue" d="M 346 340 L 462 256"/>
+  <path class="blue" d="M 346 432 L 462 274"/>
+  <path class="blue" d="M 346 526 L 462 526"/>
+  <text class="label" x="390" y="223" fill="#1d4ed8">API calls</text>
+
+  <path class="green" d="M 758 388 L 884 388"/>
+  <text class="label" x="806" y="363" fill="#047857">conditional writes</text>
+
+  <path class="orange dashed" d="M 758 526 C 808 526 810 512 884 512"/>
+  <text class="label" x="799" y="548" fill="#c2410c">lease context</text>
+
+  <rect class="zone zone-purple" x="72" y="628" width="1136" height="112"/>
+  <text class="section-title" x="96" y="666">Correctness boundary</text>
+
+  <rect class="card card-purple" x="322" y="650" width="258" height="64"/>
+  <text class="card-title" x="451" y="675" text-anchor="middle">Acquire</text>
+  <text class="card-sub" x="451" y="697" text-anchor="middle">row missing OR leaseExpiry &lt; safeNow</text>
+
+  <rect class="card card-purple" x="612" y="650" width="246" height="64"/>
+  <text class="card-title" x="735" y="675" text-anchor="middle">Release / retain</text>
+  <text class="card-sub" x="735" y="697" text-anchor="middle">ownerId guard, minLeaseTime aware</text>
+
+  <rect class="card card-slate" x="890" y="650" width="276" height="64"/>
+  <text class="card-title" x="1028" y="675" text-anchor="middle">TTL cleanup</text>
+  <text class="card-sub" x="1028" y="697" text-anchor="middle">ttl = leaseExpiry + padding, not lock truth</text>
+
+  <path class="purple" d="M 580 682 L 612 682"/>
+  <path class="purple" d="M 858 682 L 890 682"/>
+
+  <g transform="translate(94 746)">
+    <line x1="0" y1="8" x2="34" y2="8" stroke="#2563eb" stroke-width="2.2" marker-end="url(#arrow-blue)"/>
+    <text class="tiny" x="44" y="12">API dependency</text>
+    <line x1="182" y1="8" x2="216" y2="8" stroke="#059669" stroke-width="2.2" marker-end="url(#arrow-green)"/>
+    <text class="tiny" x="226" y="12">DynamoDB operation</text>
+    <line x1="428" y1="8" x2="462" y2="8" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 6" marker-end="url(#arrow-orange)"/>
+    <text class="tiny" x="472" y="12">lease handle context</text>
+  </g>
+
+  <text class="footer" x="1188" y="760" text-anchor="end">github.com/bluetape4k/bluetape4k-leader</text>
 </svg>

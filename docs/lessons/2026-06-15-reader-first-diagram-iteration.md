@@ -23,12 +23,28 @@ Treat every module as a small reader-question pass:
 `leader-ktor` now uses a component architecture view, `leader-spring-boot`
 replaces stale architecture and reentrant sequence visuals, and `leader-consul`
 adds a source-backed acquire/release sequence next to its architecture diagram.
+`leader-dynamodb` adds a second sequence diagram because the key reader problem
+is not component ownership alone: DynamoDB TTL cleanup is eventual, while
+correctness is decided by `leaseExpiry` and owner-guarded conditional writes.
+
+## DynamoDB Follow-up
+
+For backend modules where correctness and cleanup use different fields or
+primitives, pair the component architecture with a lifecycle or sequence view.
+Architecture can show the caller-owned table and lock-client dependency, but a
+sequence diagram is better for conditional acquire, auto-extend, release,
+min-lease retention, and contention skip behavior.
+
+During visual review, treat explanatory note boxes as collision candidates, not
+just arrows. A note can still obscure a lifeline or clip long field lists even
+when the arrows look clean. Move notes into empty participant corridors and
+split long field lists before rendering the final PNG.
 
 ## Verification
 
 - SVG XML parsing passed for changed assets.
 - PNGs were rendered with CairoSVG and inspected individually.
-- Forbidden Graphviz/work-metadata scans passed.
+- Forbidden legacy-layout/work-metadata scans passed.
 - README image links were verified for changed module README files.
 - `git diff --check` passed.
 
