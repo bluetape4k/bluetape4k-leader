@@ -1,105 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1776" height="1052" viewBox="0 0 1776 1052" role="img" aria-labelledby="title desc" data-intent="Answer the Batch Scheduler README reader's operational-flow question: what happens after the scheduled batch tick, where does BatchScheduler validate or prepare the request, how does Lettuce Elector interact with Redis lock key, what is the success path for settlement job, and what terminal result appears when the node is not leader?" data-evidence="examples/batch-scheduler README scenario/usage sections; examples/batch-scheduler/src/main workflow code; examples/batch-scheduler/src/test behavior checks when present" data-source-read="examples/batch-scheduler/README.md; examples/batch-scheduler/README.ko.md; examples/batch-scheduler/src/main; examples/batch-scheduler/src/test">
-  <title id="title">Batch Scheduler Leader Decision Flow</title>
-  <desc id="desc">Flow diagram for the Batch Scheduler example showing validation, leadership decision, leader-only work, skip terminal state, release, and recovery path.</desc>
-  <defs>
-    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
-    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
-    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
-    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
-    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
-    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
-    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
-    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
-    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
-    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
-    <style>
-      .canvas{fill:#F7FAFC}
-      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
-      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
-      .card{filter:url(#shadow);stroke-width:2}
-      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
-      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
-      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
-      .seq{fill:none;stroke-width:3;stroke-linecap:round}
-      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
-      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
-      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
-      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
-    </style>
-  </defs>
-  <rect class="canvas" width="1776" height="1052"/>
-  <rect class="frame" x="32" y="28" width="1712" height="996" rx="28"/>
-  <text class="title" x="66" y="82">Batch Scheduler Leader Decision Flow</text>
-  <text class="subtitle" x="70" y="116">The example validates inputs, attempts leadership, runs settlement job only on success, and returns a visible skip otherwise.</text>
-<g>
-  <rect class="band" x="128" y="228" width="1500" height="205" rx="18"/>
-  <text class="bandTitle" x="154" y="262">Input and ownership attempt</text>
-</g>
-<g>
-  <rect class="band" x="128" y="468" width="1500" height="190" rx="18"/>
-  <text class="bandTitle" x="154" y="502">Branch-specific work</text>
-</g>
-<g>
-  <rect class="band" x="128" y="738" width="1500" height="190" rx="18"/>
-  <text class="bandTitle" x="154" y="772">Terminal result</text>
-</g>
-<path class="route" data-from="start" data-to="validate" data-route-tone="call" d="M468 339 L533 339" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="validate" data-to="attempt" data-route-tone="dependency" d="M848 339 L913 339" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="attempt" data-to="decision" data-route-tone="contention" d="M1243 339 L1303 339" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
-<path class="route" data-from="decision" data-to="execute" data-route-tone="success" d="M1443 380 L1443 438 L1113 438 L1113 538" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="execute" data-to="release" data-route-tone="release" d="M943 582 L891 582 L891 582 L838 582" stroke="#755BC6" marker-end="url(#arrow-release)"/>
-<path class="route" data-from="release" data-to="executed" data-route-tone="success" d="M668 626 L668 708 L698 708 L698 844 L673 844" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="decision" data-to="skipped" data-route-tone="skip" d="M1583 339 L1648 339 L1648 844 L1403 844" stroke="#C94D68" marker-end="url(#arrow-skip)"/>
-<g id="node-start">
-  <rect class="card" x="188" y="298" width="280" height="82" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="328" y="321" text-anchor="middle" dominant-baseline="middle">Scheduled Batch Tick</text>
-  <text class="detail" x="328" y="340" text-anchor="middle" dominant-baseline="middle">build request</text>
-  <text class="detail" x="328" y="359" text-anchor="middle" dominant-baseline="middle">same lock name</text>
-</g>
-<g id="node-validate">
-  <rect class="card" x="533" y="298" width="315" height="82" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="690.5" y="321" text-anchor="middle" dominant-baseline="middle">Validate Example Inputs</text>
-  <text class="detail" x="690.5" y="340" text-anchor="middle" dominant-baseline="middle">node id / lock name</text>
-  <text class="detail" x="690.5" y="359" text-anchor="middle" dominant-baseline="middle">backend options</text>
-</g>
-<g id="node-attempt">
-  <rect class="card" x="913" y="298" width="330" height="82" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="cardTitle" x="1078" y="321" text-anchor="middle" dominant-baseline="middle">Lettuce Elector</text>
-  <text class="detail" x="1078" y="340" text-anchor="middle" dominant-baseline="middle">attempt ownership</text>
-  <text class="detail" x="1078" y="359" text-anchor="middle" dominant-baseline="middle">bounded wait</text>
-</g>
-<g id="node-decision">
-  <rect class="card" x="1303" y="298" width="280" height="82" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="1443" y="321" text-anchor="middle" dominant-baseline="middle">Leadership Result</text>
-  <text class="detail" x="1443" y="340" text-anchor="middle" dominant-baseline="middle">acquired?</text>
-  <text class="detail" x="1443" y="359" text-anchor="middle" dominant-baseline="middle">skip when false</text>
-</g>
-<g id="node-release">
-  <rect class="card" x="498" y="538" width="340" height="88" rx="10" fill="#EEF1FF" stroke="#6477D8"/>
-  <text class="cardTitle" x="668" y="564" text-anchor="middle" dominant-baseline="middle">Release Or Extend</text>
-  <text class="detail" x="668" y="583" text-anchor="middle" dominant-baseline="middle">finally path</text>
-  <text class="detail" x="668" y="602" text-anchor="middle" dominant-baseline="middle">lease TTL recovery</text>
-</g>
-<g id="node-execute">
-  <rect class="card" x="943" y="538" width="340" height="88" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="1113" y="564" text-anchor="middle" dominant-baseline="middle">Settlement Job</text>
-  <text class="detail" x="1113" y="583" text-anchor="middle" dominant-baseline="middle">leader branch</text>
-  <text class="detail" x="1113" y="602" text-anchor="middle" dominant-baseline="middle">body runs once</text>
-</g>
-<g id="node-executed">
-  <rect class="card" x="353" y="803" width="320" height="82" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="513" y="826" text-anchor="middle" dominant-baseline="middle">Return Executed</text>
-  <text class="detail" x="513" y="845" text-anchor="middle" dominant-baseline="middle">result payload</text>
-  <text class="detail" x="513" y="864" text-anchor="middle" dominant-baseline="middle">observable success</text>
-</g>
-<g id="node-skipped">
-  <rect class="card" x="1063" y="803" width="340" height="82" rx="10" fill="#FDECEF" stroke="#DC6B82"/>
-  <text class="cardTitle" x="1233" y="826" text-anchor="middle" dominant-baseline="middle">Return Skipped</text>
-  <text class="detail" x="1233" y="845" text-anchor="middle" dominant-baseline="middle">null or skipped status</text>
-  <text class="detail" x="1233" y="864" text-anchor="middle" dominant-baseline="middle">no duplicate work</text>
-</g>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-labelledby="title desc" data-source-read="examples/batch-scheduler/README.md; examples/batch-scheduler/src/main/kotlin/io/bluetape4k/leader/examples/batch/BatchScheduler.kt; examples/batch-scheduler/src/test/kotlin/io/bluetape4k/leader/examples/batch/BatchSchedulerTest.kt">
+<title id="title">Batch Scheduler Acquire Skip Release Flow</title>
+<desc id="desc">Flow of a scheduled batch trigger through lock acquisition, leader execution, contention skip, release, and TTL recovery.</desc>
+<defs>
+  <marker id="arrow-blue" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#3F73D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-green" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#2D8F64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-orange" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#C96B2C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-purple" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#755BC6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#B9C7D6" flood-opacity="0.24"/></filter>
+  <style>
+    .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:2.2;filter:url(#shadow)}
+    .title{font-family:"Architects Daughter";font-size:40px;fill:#21334A}.subtitle,.small,.label,.footer{font-family:"Comic Mono";fill:#4B6075}.subtitle{font-size:15px}.small{font-size:13px}.label{font-size:14px}.footer{font-size:13px}
+    .step{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1.8;filter:url(#shadow)}.start{fill:#FEF7E6;stroke:#E4BD67}.decision{fill:#EAF2FF;stroke:#8EB2F0}.success{fill:#EEF7F2;stroke:#8BC6A3}.skip{fill:#FFF1EA;stroke:#E8A47D}.recover{fill:#F4EEFF;stroke:#B7A3EC}
+    .stepTitle{font-family:"Architects Daughter";font-size:22px;fill:#21334A}.stepText{font-family:"Comic Mono";font-size:13px;fill:#4B6075}.route{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:7 6}
+  </style>
+</defs>
+<rect class="canvas" width="1280" height="760"/>
+<rect class="frame" x="34" y="28" width="1212" height="704" rx="30"/>
+<text class="title" x="72" y="84">Batch Scheduler Flow</text>
+<text class="subtitle" x="76" y="116">The example treats lock contention as a normal null result and still releases the lock after success or exception.</text>
+
+<rect class="step start" x="86" y="200" width="210" height="86" rx="18"/><text class="stepTitle" x="120" y="235">1. Trigger</text><text class="stepText" x="120" y="262">periodic batch tick</text>
+<rect class="step" x="360" y="200" width="220" height="86" rx="18"/><text class="stepTitle" x="394" y="235">2. run(job)</text><text class="stepText" x="394" y="262">shared lockName</text>
+<rect class="step decision" x="650" y="190" width="236" height="106" rx="18"/><text class="stepTitle" x="684" y="228">3. Try Redis lock</text><text class="stepText" x="684" y="256">waitTime bounded</text><text class="stepText" x="684" y="278">leaseTime TTL</text>
+<rect class="step success" x="974" y="130" width="220" height="92" rx="18"/><text class="stepTitle" x="1008" y="166">4a. Leader</text><text class="stepText" x="1008" y="194">execute job once</text>
+<rect class="step skip" x="974" y="294" width="220" height="92" rx="18"/><text class="stepTitle" x="1008" y="330">4b. Contender</text><text class="stepText" x="1008" y="358">return null skip</text>
+<rect class="step success" x="650" y="470" width="236" height="92" rx="18"/><text class="stepTitle" x="684" y="506">5. Release</text><text class="stepText" x="684" y="534">success or exception</text>
+<rect class="step recover" x="360" y="470" width="220" height="92" rx="18"/><text class="stepTitle" x="394" y="506">Crash path</text><text class="stepText" x="394" y="534">TTL expires lock</text>
+<rect class="step" x="86" y="470" width="210" height="92" rx="18"/><text class="stepTitle" x="120" y="506">Next tick</text><text class="stepText" x="120" y="534">new election allowed</text>
+
+<path class="route" d="M 296 243 L 360 243" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
+<path class="route" d="M 580 243 L 650 243" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
+<path class="route" d="M 886 236 C 924 210 934 176 974 176" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
+<path class="route" d="M 886 258 C 928 274 936 340 974 340" stroke="#C96B2C" marker-end="url(#arrow-orange)"/>
+<path class="route" d="M 1084 222 C 1210 268 1210 516 886 516" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
+<path class="route dash" d="M 650 516 L 580 516" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
+<path class="route dash" d="M 360 516 L 296 516" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
+<path class="route dash" d="M 191 470 C 140 400 140 334 191 286" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
+
+<text class="label" x="916" y="190">acquired</text>
+<text class="label" x="916" y="318">not acquired</text>
+<text class="label" x="590" y="454">TTL fallback</text>
+<text class="footer" x="640" y="710" text-anchor="middle">bluetape4k-leader/examples/batch-scheduler</text>
 </svg>

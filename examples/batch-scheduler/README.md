@@ -18,7 +18,7 @@ throwing.
 
 ## Architecture Diagram
 
-![batch scheduler Architecture diagram](../../docs/images/readme-diagrams/examples-batch-scheduler-architecture-01.png)
+![Batch scheduler architecture diagram](../../docs/images/readme-diagrams/examples-batch-scheduler-architecture-01.png)
 
 ## Flow Diagram
 
@@ -26,7 +26,7 @@ throwing.
 
 ## Sequence Diagram
 
-![batch scheduler Sequence Flow diagram](../../docs/images/readme-diagrams/examples-batch-scheduler-sequence-01.png)
+![Batch scheduler sequence diagram](../../docs/images/readme-diagrams/examples-batch-scheduler-sequence-01.png)
 
 ## Core Features
 

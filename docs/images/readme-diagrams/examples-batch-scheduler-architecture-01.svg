@@ -1,106 +1,48 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1756" height="1212" viewBox="0 0 1756 1212" role="img" aria-labelledby="title desc" data-intent="Answer the Batch Scheduler README reader's architecture question: which runtime component receives the scheduled batch tick, which coordinator owns the example workflow, which bluetape4k leader elector decides ownership, which backend state stores the lock or lease, and which work is allowed to run only while leadership is held?" data-evidence="examples/batch-scheduler README overview/scenario/usage sections; example source under examples/batch-scheduler/src/main; tests under examples/batch-scheduler/src/test when present" data-source-read="examples/batch-scheduler/README.md; examples/batch-scheduler/README.ko.md; examples/batch-scheduler/src/main; examples/batch-scheduler/src/test">
-  <title id="title">Batch Scheduler Architecture</title>
-  <desc id="desc">Architecture diagram for the Batch Scheduler example showing the runtime trigger, coordinator, leader elector, backend ownership state, leader-only work, and recovery/observability boundary.</desc>
-  <defs>
-    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
-    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
-    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
-    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
-    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
-    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
-    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
-    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
-    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
-    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
-    <style>
-      .canvas{fill:#F7FAFC}
-      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
-      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
-      .card{filter:url(#shadow);stroke-width:2}
-      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
-      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
-      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
-      .seq{fill:none;stroke-width:3;stroke-linecap:round}
-      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
-      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
-      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
-      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
-    </style>
-  </defs>
-  <rect class="canvas" width="1756" height="1212"/>
-  <rect class="frame" x="32" y="28" width="1692" height="1156" rx="28"/>
-  <text class="title" x="66" y="82">Batch Scheduler Architecture</text>
-  <text class="subtitle" x="70" y="116">BatchScheduler gates settlement job through Lettuce Elector and a source-backed backend ownership boundary.</text>
-<g>
-  <rect class="band" x="128" y="228" width="1500" height="310" rx="18"/>
-  <text class="bandTitle" x="154" y="262">Runtime entrypoints</text>
-</g>
-<g>
-  <rect class="band" x="128" y="598" width="1500" height="220" rx="18"/>
-  <text class="bandTitle" x="154" y="632">Leader election boundary</text>
-</g>
-<g>
-  <rect class="band" x="128" y="878" width="1500" height="210" rx="18"/>
-  <text class="bandTitle" x="154" y="912">Leader-only work and recovery</text>
-</g>
-<path class="route" data-from="trigger" data-to="nodeA" data-route-tone="call" d="M488 359 L521 359 L521 339 L553 339" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="trigger" data-to="nodeB" data-route-tone="call" d="M488 359 L521 359 L521 444 L553 444" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="nodeA" data-to="coordinator" data-route-tone="call" d="M853 339 L906 339 L906 396 L958 396" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="nodeB" data-to="coordinator" data-route-tone="call" d="M853 444 L906 444 L906 396 L958 396" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="coordinator" data-to="elector" data-route-tone="dependency" d="M1128 442 L1128 568 L1138 568 L1138 683" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="elector" data-to="backend" data-route-tone="contention" d="M958 729 L823 729" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
-<path class="route" data-from="coordinator" data-to="work" data-route-tone="success" d="M1298 414 L1398 414 L1398 1001 L1318 1001" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="backend" data-to="recovery" data-route-tone="release" d="M823 729 L878 729 L878 1001 L823 1001" stroke="#755BC6" marker-end="url(#arrow-release)"/>
-<g id="node-trigger">
-  <rect class="card" x="188" y="318" width="300" height="82" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="338" y="341" text-anchor="middle" dominant-baseline="middle">Scheduled Batch Tick</text>
-  <text class="detail" x="338" y="360" text-anchor="middle" dominant-baseline="middle">same logical cycle</text>
-  <text class="detail" x="338" y="379" text-anchor="middle" dominant-baseline="middle">all candidates see it</text>
-</g>
-<g id="node-nodeA">
-  <rect class="card" x="553" y="298" width="300" height="82" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="703" y="321" text-anchor="middle" dominant-baseline="middle">Candidate Node A</text>
-  <text class="detail" x="703" y="340" text-anchor="middle" dominant-baseline="middle">attempts leadership</text>
-  <text class="detail" x="703" y="359" text-anchor="middle" dominant-baseline="middle">may execute</text>
-</g>
-<g id="node-nodeB">
-  <rect class="card" x="553" y="403" width="300" height="82" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="703" y="426" text-anchor="middle" dominant-baseline="middle">Candidate Node B</text>
-  <text class="detail" x="703" y="445" text-anchor="middle" dominant-baseline="middle">same workflow</text>
-  <text class="detail" x="703" y="464" text-anchor="middle" dominant-baseline="middle">skips on miss</text>
-</g>
-<g id="node-coordinator">
-  <rect class="card" x="958" y="350" width="340" height="92" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="1128" y="378" text-anchor="middle" dominant-baseline="middle">BatchScheduler</text>
-  <text class="detail" x="1128" y="397" text-anchor="middle" dominant-baseline="middle">example facade</text>
-  <text class="detail" x="1128" y="416" text-anchor="middle" dominant-baseline="middle">wraps runIfLeader</text>
-</g>
-<g id="node-backend">
-  <rect class="card" x="463" y="683" width="360" height="92" rx="10" fill="#EEF1FF" stroke="#6477D8"/>
-  <text class="cardTitle" x="643" y="711" text-anchor="middle" dominant-baseline="middle">Redis lock key</text>
-  <text class="detail" x="643" y="730" text-anchor="middle" dominant-baseline="middle">acquire or conflict</text>
-  <text class="detail" x="643" y="749" text-anchor="middle" dominant-baseline="middle">release or expire</text>
-</g>
-<g id="node-elector">
-  <rect class="card" x="958" y="683" width="360" height="92" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="cardTitle" x="1138" y="711" text-anchor="middle" dominant-baseline="middle">Lettuce Elector</text>
-  <text class="detail" x="1138" y="730" text-anchor="middle" dominant-baseline="middle">wait + lease options</text>
-  <text class="detail" x="1138" y="749" text-anchor="middle" dominant-baseline="middle">owner token semantics</text>
-</g>
-<g id="node-recovery">
-  <rect class="card" x="463" y="958" width="360" height="86" rx="10" fill="#F2F5F9" stroke="#9AA8B8"/>
-  <text class="cardTitle" x="643" y="983" text-anchor="middle" dominant-baseline="middle">Lease TTL Recovery</text>
-  <text class="detail" x="643" y="1002" text-anchor="middle" dominant-baseline="middle">crash or release path</text>
-  <text class="detail" x="643" y="1021" text-anchor="middle" dominant-baseline="middle">next cycle can proceed</text>
-</g>
-<g id="node-work">
-  <rect class="card" x="958" y="958" width="360" height="86" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="1138" y="983" text-anchor="middle" dominant-baseline="middle">Settlement Job</text>
-  <text class="detail" x="1138" y="1002" text-anchor="middle" dominant-baseline="middle">leader-only body</text>
-  <text class="detail" x="1138" y="1021" text-anchor="middle" dominant-baseline="middle">single execution</text>
-</g>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-labelledby="title desc" data-source-read="examples/batch-scheduler/README.md; examples/batch-scheduler/src/main/kotlin/io/bluetape4k/leader/examples/batch/BatchScheduler.kt; examples/batch-scheduler/build.gradle.kts">
+<title id="title">Batch Scheduler Architecture</title>
+<desc id="desc">Runtime architecture for the Lettuce Redis batch scheduler example.</desc>
+<defs>
+  <marker id="arrow-blue" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#3F73D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-green" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#2D8F64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-purple" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#755BC6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#B9C7D6" flood-opacity="0.24"/></filter>
+  <style>
+    .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:2.2;filter:url(#shadow)}.band{fill:#F1F6FB;stroke:#D6E2EC;stroke-width:1.6}.band2{fill:#F8F3EA;stroke:#E7C98E;stroke-width:1.5}.band3{fill:#EFF8F4;stroke:#9FCEB1;stroke-width:1.5}
+    .title{font-family:"Architects Daughter";font-size:40px;fill:#21334A}.subtitle,.small,.label,.footer{font-family:"Comic Mono";fill:#4B6075}.subtitle{font-size:15px}.small{font-size:13px}.label{font-size:14px}.footer{font-size:13px}
+    .card{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1.8;filter:url(#shadow)}.core{fill:#EAF2FF;stroke:#8EB2F0}.redis{fill:#EEF7F2;stroke:#8BC6A3}.job{fill:#EEF8F8;stroke:#86C9C5}.config{fill:#FFF7E8;stroke:#E1B866}
+    .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#21334A}.cardText{font-family:"Comic Mono";font-size:13px;fill:#4B6075}.route{fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:7 6}
+  </style>
+</defs>
+<rect class="canvas" width="1280" height="760"/>
+<rect class="frame" x="34" y="28" width="1212" height="704" rx="30"/>
+<text class="title" x="72" y="84">Batch Scheduler Architecture</text>
+<text class="subtitle" x="76" y="116">A thin example wrapper delegates leadership to LettuceLeaderElector and keeps business work outside the lock adapter.</text>
+
+<rect class="band" x="84" y="154" width="1112" height="132" rx="20"/>
+<text class="label" x="112" y="184">Trigger and replica layer</text>
+<rect class="card" x="130" y="194" width="236" height="70" rx="14"/><text class="cardTitle" x="160" y="226">Scheduled trigger</text><text class="cardText" x="160" y="248">cron / @Scheduled / Quartz</text>
+<rect class="card" x="440" y="194" width="292" height="70" rx="14"/><text class="cardTitle" x="470" y="226">3 application replicas</text><text class="cardText" x="470" y="248">same lockName</text>
+<rect class="card config" x="796" y="196" width="340" height="66" rx="14"/><text class="cardTitle" x="824" y="224">Configuration</text><text class="cardText" x="824" y="246">lockName, waitTime, leaseTime, nodeId</text>
+
+<rect class="band2" x="84" y="324" width="1112" height="168" rx="20"/>
+<text class="label" x="112" y="354">Example module boundary</text>
+<rect class="card core" x="150" y="376" width="280" height="96" rx="16"/><text class="cardTitle" x="184" y="410">BatchScheduler</text><text class="cardText" x="184" y="436">run(job): T?</text>
+<rect class="card core" x="500" y="376" width="310" height="96" rx="16"/><text class="cardTitle" x="532" y="410">LettuceLeaderElector</text><text class="cardText" x="532" y="436">runIfLeader(lockName)</text>
+<rect class="card job" x="870" y="376" width="284" height="96" rx="16"/><text class="cardTitle" x="904" y="410">Batch job</text><text class="cardText" x="904" y="436">settlementService</text><text class="cardText" x="904" y="456">processYesterday()</text>
+
+<rect class="band3" x="84" y="530" width="1112" height="112" rx="20"/>
+<text class="label" x="112" y="560">Infrastructure backend</text>
+<rect class="card redis" x="480" y="574" width="320" height="58" rx="14"/><text class="cardTitle" x="548" y="603">Redis via Lettuce</text><text class="cardText" x="548" y="622">StatefulRedisConnection</text>
+
+<path class="route" d="M 366 229 L 440 229" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
+<path class="route" d="M 586 264 C 530 304 404 332 318 376" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
+<path class="route dash" d="M 966 262 C 850 318 770 340 708 376" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
+<path class="route" d="M 430 424 L 500 424" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
+<path class="route" d="M 810 424 L 870 424" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
+<path class="route" d="M 655 472 L 655 574" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
+<path class="route dash" d="M 500 456 C 450 504 356 506 292 472" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
+
+<text class="label" x="444" y="408">delegates</text>
+<text class="label" x="676" y="522">SET NX + TTL</text>
+<text class="footer" x="640" y="710" text-anchor="middle">bluetape4k-leader/examples/batch-scheduler</text>
 </svg>

@@ -12,10 +12,10 @@
 | 8 | `docs/images/readme-diagrams/bluetape4k-leader-bom-architecture-01.png` | architecture | 2 | architecture-layered-exposed-mvc-virtualthread | graphviz |
 | 9 | `docs/images/readme-diagrams/bluetape4k-leader-sequence-02.png` | sequence | 2 | sequence-workflow-sample | graphviz |
 | 10 | `docs/images/readme-diagrams/bluetape4k-leader-sequence-03.png` | sequence | 2 | sequence-workflow-sample | graphviz |
-| 11 | `docs/images/readme-diagrams/examples-batch-scheduler-architecture-01.png` | architecture | 2 | architecture-layered-exposed-mvc-virtualthread | graphviz |
-| 12 | `docs/images/readme-diagrams/examples-batch-scheduler-flow-01.png` | data-flow | 2 | flow-retry-workflow | graphviz |
-| 13 | `docs/images/readme-diagrams/examples-batch-scheduler-scenario-01.png` | data-flow | 2 | flow-retry-workflow | graphviz |
-| 14 | `docs/images/readme-diagrams/examples-batch-scheduler-sequence-01.png` | sequence | 2 | sequence-workflow-sample | graphviz |
+| 11 | `docs/images/readme-diagrams/examples-batch-scheduler-architecture-01.png` | architecture | 2 | architecture-layered-exposed-mvc-virtualthread | svg+png |
+| 12 | `docs/images/readme-diagrams/examples-batch-scheduler-flow-01.png` | data-flow | 2 | flow-retry-workflow | svg+png |
+| 13 | `docs/images/readme-diagrams/examples-batch-scheduler-scenario-01.png` | data-flow | 2 | flow-retry-workflow | svg+png |
+| 14 | `docs/images/readme-diagrams/examples-batch-scheduler-sequence-01.png` | sequence | 2 | sequence-workflow-sample | svg+png |
 | 15 | `docs/images/readme-diagrams/examples-cache-warmer-architecture-01.png` | architecture | 2 | architecture-layered-exposed-mvc-virtualthread | graphviz |
 | 16 | `docs/images/readme-diagrams/examples-cache-warmer-flow-01.png` | data-flow | 2 | flow-retry-workflow | graphviz |
 | 17 | `docs/images/readme-diagrams/examples-cache-warmer-scenario-01.png` | data-flow | 2 | flow-retry-workflow | graphviz |
