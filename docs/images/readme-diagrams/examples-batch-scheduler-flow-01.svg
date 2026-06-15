@@ -2,16 +2,16 @@
 <title id="title">Batch Scheduler Acquire Skip Release Flow</title>
 <desc id="desc">Flow of a scheduled batch trigger through lock acquisition, leader execution, contention skip, release, and TTL recovery.</desc>
 <defs>
-  <marker id="arrow-blue" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#3F73D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="arrow-green" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#2D8F64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="arrow-orange" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#C96B2C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="arrow-purple" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#755BC6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-blue" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#3F73D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-green" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#2D8F64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-orange" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#C96B2C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-purple" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#755BC6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#B9C7D6" flood-opacity="0.24"/></filter>
   <style>
     .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:2.2;filter:url(#shadow)}
     .title{font-family:"Architects Daughter";font-size:40px;fill:#21334A}.subtitle,.small,.label,.footer{font-family:"Comic Mono";fill:#4B6075}.subtitle{font-size:15px}.small{font-size:13px}.label{font-size:14px}.footer{font-size:13px}
     .step{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1.8;filter:url(#shadow)}.start{fill:#FEF7E6;stroke:#E4BD67}.decision{fill:#EAF2FF;stroke:#8EB2F0}.success{fill:#EEF7F2;stroke:#8BC6A3}.skip{fill:#FFF1EA;stroke:#E8A47D}.recover{fill:#F4EEFF;stroke:#B7A3EC}
-    .stepTitle{font-family:"Architects Daughter";font-size:22px;fill:#21334A}.stepText{font-family:"Comic Mono";font-size:13px;fill:#4B6075}.route{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:7 6}
+    .stepTitle{font-family:"Architects Daughter";font-size:22px;fill:#21334A}.stepText{font-family:"Comic Mono";font-size:13px;fill:#4B6075}.route{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:7 6}
   </style>
 </defs>
 <rect class="canvas" width="1280" height="760"/>
@@ -30,15 +30,15 @@
 
 <path class="route" d="M 296 243 L 360 243" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
 <path class="route" d="M 580 243 L 650 243" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
-<path class="route" d="M 886 236 C 924 210 934 176 974 176" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
-<path class="route" d="M 886 258 C 928 274 936 340 974 340" stroke="#C96B2C" marker-end="url(#arrow-orange)"/>
-<path class="route" d="M 1084 222 C 1210 268 1210 516 886 516" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
+<path class="route" d="M 886 228 L 930 228 L 930 176 L 974 176" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
+<path class="route" d="M 886 258 L 930 258 L 930 340 L 974 340" stroke="#C96B2C" marker-end="url(#arrow-orange)"/>
+<path class="route" d="M 1084 222 L 1084 252 L 1226 252 L 1226 516 L 886 516" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
 <path class="route dash" d="M 650 516 L 580 516" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
 <path class="route dash" d="M 360 516 L 296 516" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
 <path class="route dash" d="M 191 470 C 140 400 140 334 191 286" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
 
-<text class="label" x="916" y="190">acquired</text>
-<text class="label" x="916" y="318">not acquired</text>
+<text class="label" x="910" y="168">acquired</text>
+<text class="label" x="900" y="316">not acquired</text>
 <text class="label" x="590" y="454">TTL fallback</text>
 <text class="footer" x="640" y="710" text-anchor="middle">bluetape4k-leader/examples/batch-scheduler</text>
 </svg>
