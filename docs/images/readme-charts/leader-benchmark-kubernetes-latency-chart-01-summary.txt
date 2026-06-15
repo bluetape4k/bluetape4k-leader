@@ -1,1 +1,0 @@
-docs/images/readme-charts/leader-benchmark-kubernetes-latency-chart-01: chart=PASS rows=2 bars=2 unit="us/op" direction="lower-is-better" marginImbalance=0 margins=L/R/T/B:96/96/96/96 source=benchmark/README.md:218; benchmark/README.ko.md:222 catalog=chart-baseline
