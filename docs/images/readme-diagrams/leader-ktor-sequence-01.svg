@@ -1,191 +1,159 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1780" height="1906" viewBox="0 0 1780 1906" role="img" aria-labelledby="title desc" data-intent="Answer a Ktor integration reader's question: after installing LeaderElectionPlugin, how does leaderScheduled use the stored SuspendLeaderElector for each cycle, how does the management registry learn lock names, and what exact calls does the management route make before returning JSON status?" data-evidence="leader-ktor README architecture/management route sections; LeaderElectionPlugin; LeaderElectionPluginConfig; Application.leaderScheduled; LeaderElectionManagementRoute" data-source-read="leader-ktor/README.md; leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderElectionPlugin.kt; leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderElectionPluginConfig.kt; leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/ApplicationExt.kt; leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderElectionManagementRoute.kt">
-  <title id="title">Ktor Leader Scheduler And Management Route Sequence</title>
-  <desc id="desc">Sequence for leader-ktor showing plugin installation, Application attribute storage, scheduled leader-only work, management registry updates, and GET /management/leaderElection response assembly from SuspendLeaderElector state.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="920" viewBox="0 0 1240 920" role="img" aria-labelledby="title desc">
+  <title id="title">leader-ktor sequence flow</title>
+  <desc id="desc">Sequence diagram for installing LeaderElectionPlugin, resolving the configured SuspendLeaderElector, running leaderScheduled cycles, isolating failures, and optionally serving the management route.</desc>
   <defs>
-    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
-    <marker id="seqArrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
-    <marker id="seqArrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
-    <marker id="seqArrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
-    <marker id="seqArrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
-    <marker id="seqArrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
-    <marker id="seqArrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
-    <marker id="seqArrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
-    <marker id="seqArrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
-    <marker id="seqArrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
-    <style>
-      .canvas{fill:#F7FAFC}
-      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
-      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
-      .card{filter:url(#shadow);stroke-width:2}
-      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
-      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
-      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
-      .seq{fill:none;stroke-width:3;stroke-linecap:round}
-      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
-      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
-      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
-      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
-    </style>
+    <filter id="shadow" x="-12%" y="-18%" width="124%" height="144%">
+      <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#64748b" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrowBlue" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#059669" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrowAmber" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#b45309" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrowPurple" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#7c3aed" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrowRose" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#be123c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
   </defs>
-  <rect class="canvas" width="1780" height="1906"/>
-  <rect class="frame" x="32" y="28" width="1716" height="1850" rx="28"/>
-  <text class="title" x="66" y="82">Ktor Leader Scheduler And Management Route Sequence</text>
-  <text class="subtitle" x="70" y="116">The plugin stores a suspend elector, scheduled jobs register lock names, and the route reads live state as JSON text.</text>
-<g id="participant-app">
-  <rect class="card" x="128" y="228" width="210" height="76" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="233" y="260" text-anchor="middle">Ktor Application</text>
-  <text class="cardTitle" x="233" y="283" text-anchor="middle">Module</text>
-  <line class="lifeline" x1="233" y1="304" x2="233" y2="1782"/>
-</g>
-<g id="participant-plugin">
-  <rect class="card" x="390.8" y="228" width="210" height="76" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="495.8" y="260" text-anchor="middle">Leader Election</text>
-  <text class="cardTitle" x="495.8" y="283" text-anchor="middle">Plugin</text>
-  <line class="lifeline" x1="495.8" y1="304" x2="495.8" y2="1782"/>
-</g>
-<g id="participant-job">
-  <rect class="card" x="653.6" y="228" width="210" height="76" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="758.6" y="273" text-anchor="middle">Scheduled Job</text>
-  <line class="lifeline" x1="758.6" y1="304" x2="758.6" y2="1782"/>
-</g>
-<g id="participant-elector">
-  <rect class="card" x="916.4000000000001" y="228" width="210" height="76" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="cardTitle" x="1021.4000000000001" y="260" text-anchor="middle">Suspend Leader</text>
-  <text class="cardTitle" x="1021.4000000000001" y="283" text-anchor="middle">Elector</text>
-  <line class="lifeline" x1="1021.4000000000001" y1="304" x2="1021.4000000000001" y2="1782"/>
-</g>
-<g id="participant-registry">
-  <rect class="card" x="1179.2" y="228" width="210" height="76" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="1284.2" y="260" text-anchor="middle">Management</text>
-  <text class="cardTitle" x="1284.2" y="283" text-anchor="middle">Registry</text>
-  <line class="lifeline" x1="1284.2" y1="304" x2="1284.2" y2="1782"/>
-</g>
-<g id="participant-route">
-  <rect class="card" x="1442" y="228" width="210" height="76" rx="10" fill="#EEF6D9" stroke="#8BA84D"/>
-  <text class="cardTitle" x="1547" y="273" text-anchor="middle">Management Route</text>
-  <line class="lifeline" x1="1547" y1="304" x2="1547" y2="1782"/>
-</g>
-<g id="m1">
-  <rect class="pill" x="244.39999999999998" y="329" width="240" height="42" rx="7"/>
-  <circle cx="263.4" cy="350" r="12" fill="#4F83BF"/>
-  <text class="detail" x="263.4" y="351" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">1</text>
-  <text class="detail" x="382.4" y="342" text-anchor="middle" dominant-baseline="middle">install plugin with</text>
-  <text class="detail" x="382.4" y="357" text-anchor="middle" dominant-baseline="middle">required leaderElection</text>
-  <path class="seq" d="M233 388 L495.8 388" stroke="#4F83BF" marker-end="url(#seqArrow-call)"/>
-</g>
-<g id="m2">
-  <rect class="pill" x="375.8" y="411" width="240" height="42" rx="7"/>
-  <circle cx="394.8" cy="432" r="12" fill="#2E8F89"/>
-  <text class="detail" x="394.8" y="433" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">2</text>
-  <text class="detail" x="513.8" y="424" text-anchor="middle" dominant-baseline="middle">validate config and store</text>
-  <text class="detail" x="513.8" y="439" text-anchor="middle" dominant-baseline="middle">in Application attributes</text>
-  <path class="seq" d="M495.8 470 L495.8 470" stroke="#2E8F89" marker-end="url(#seqArrow-dependency)"/>
-</g>
-<g id="m3">
-  <rect class="pill" x="821.8" y="507" width="399.2" height="28" rx="7"/>
-  <circle cx="840.8" cy="521" r="12" fill="#4F83BF"/>
-  <text class="detail" x="840.8" y="522" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">3</text>
-  <text class="detail" x="1039.4" y="522" text-anchor="middle" dominant-baseline="middle">install GET management route when enabled</text>
-  <path class="seq" d="M495.8 552 L1547 552" stroke="#4F83BF" marker-end="url(#seqArrow-call)"/>
-</g>
-<g id="m4">
-  <rect class="pill" x="296.20000000000005" y="589" width="399.2" height="28" rx="7"/>
-  <circle cx="315.20000000000005" cy="603" r="12" fill="#4F83BF"/>
-  <text class="detail" x="315.20000000000005" y="604" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">4</text>
-  <text class="detail" x="513.8" y="604" text-anchor="middle" dominant-baseline="middle">leaderScheduled(lockName, period, action)</text>
-  <path class="seq" d="M233 634 L758.6 634" stroke="#4F83BF" marker-end="url(#seqArrow-call)"/>
-</g>
-<g id="m5">
-  <rect class="pill" x="814.6000000000001" y="671" width="413.6" height="28" rx="7"/>
-  <circle cx="833.6000000000001" cy="685" r="12" fill="#718A35"/>
-  <text class="detail" x="833.6000000000001" y="686" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">5</text>
-  <text class="detail" x="1039.4" y="686" text-anchor="middle" dominant-baseline="middle">register lockName for management visibility</text>
-  <path class="seq" d="M758.6 716 L1284.2 716" stroke="#718A35" marker-end="url(#seqArrow-metric)"/>
-</g>
-<g id="m6">
-  <rect class="pill" x="770" y="739" width="240" height="42" rx="7"/>
-  <circle cx="789" cy="760" r="12" fill="#B9851B"/>
-  <text class="detail" x="789" y="761" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">6</text>
-  <text class="detail" x="908" y="752" text-anchor="middle" dominant-baseline="middle">runIfLeader(lockName) each</text>
-  <text class="detail" x="908" y="767" text-anchor="middle" dominant-baseline="middle">active cycle</text>
-  <path class="seq" d="M758.6 798 L1021.4000000000001 798" stroke="#B9851B" marker-end="url(#seqArrow-contention)"/>
-</g>
-<g>
-  <rect class="branchBox" x="128" y="845" width="1524" height="46" rx="15"/>
-  <rect class="pill" x="263.65" y="839" width="201.5" height="30" rx="8"/>
-  <text class="detail" x="364.4" y="855" text-anchor="middle" dominant-baseline="middle">alt elected for cycle</text>
-</g>
-<g id="m8">
-  <rect class="pill" x="770" y="903" width="240" height="42" rx="7"/>
-  <circle cx="789" cy="924" r="12" fill="#3E9868"/>
-  <text class="detail" x="789" y="925" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">8</text>
-  <text class="detail" x="908" y="916" text-anchor="middle" dominant-baseline="middle">execute suspend action</text>
-  <text class="detail" x="908" y="931" text-anchor="middle" dominant-baseline="middle">with lock handle context</text>
-  <path class="seqReturn" d="M1021.4000000000001 962 L758.6 962" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
-</g>
-<g id="m9">
-  <rect class="pill" x="638.6" y="985" width="240" height="42" rx="7"/>
-  <circle cx="657.6" cy="1006" r="12" fill="#4F63C7"/>
-  <text class="detail" x="657.6" y="1007" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">9</text>
-  <text class="detail" x="776.6" y="998" text-anchor="middle" dominant-baseline="middle">delay(period), then</text>
-  <text class="detail" x="776.6" y="1013" text-anchor="middle" dominant-baseline="middle">continue next cycle</text>
-  <path class="seq" d="M758.6 1044 L758.6 1044" stroke="#4F63C7" marker-end="url(#seqArrow-retry)"/>
-</g>
-<g>
-  <rect class="branchBox" x="128" y="1091" width="1524" height="46" rx="15"/>
-  <rect class="pill" x="274.4" y="1085" width="180" height="30" rx="8"/>
-  <text class="detail" x="364.4" y="1101" text-anchor="middle" dominant-baseline="middle">else action throws</text>
-</g>
-<g id="m11">
-  <rect class="pill" x="638.6" y="1149" width="240" height="42" rx="7"/>
-  <circle cx="657.6" cy="1170" r="12" fill="#4F63C7"/>
-  <text class="detail" x="657.6" y="1171" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">11</text>
-  <text class="detail" x="776.6" y="1162" text-anchor="middle" dominant-baseline="middle">log WARN and keep next</text>
-  <text class="detail" x="776.6" y="1177" text-anchor="middle" dominant-baseline="middle">cycle alive</text>
-  <path class="seq" d="M758.6 1208 L758.6 1208" stroke="#4F63C7" marker-end="url(#seqArrow-retry)"/>
-</g>
-<g>
-  <rect class="branchBox" x="128" y="1255" width="1524" height="46" rx="15"/>
-  <rect class="pill" x="274.4" y="1249" width="180" height="30" rx="8"/>
-  <text class="detail" x="364.4" y="1265" text-anchor="middle" dominant-baseline="middle">management request</text>
-</g>
-<g id="m13">
-  <rect class="pill" x="730" y="1327" width="320" height="28" rx="7"/>
-  <circle cx="749" cy="1341" r="12" fill="#4F83BF"/>
-  <text class="detail" x="749" y="1342" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">13</text>
-  <text class="detail" x="908" y="1342" text-anchor="middle" dominant-baseline="middle">GET /management/leaderElection</text>
-  <path class="seq" d="M233 1372 L1547 1372" stroke="#4F83BF" marker-end="url(#seqArrow-call)"/>
-</g>
-<g id="m14">
-  <rect class="pill" x="1295.6" y="1409" width="240" height="28" rx="7"/>
-  <circle cx="1314.6" cy="1423" r="12" fill="#2E8F89"/>
-  <text class="detail" x="1314.6" y="1424" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">14</text>
-  <text class="detail" x="1433.6" y="1424" text-anchor="middle" dominant-baseline="middle">snapshot known lock names</text>
-  <path class="seq" d="M1547 1454 L1284.2 1454" stroke="#2E8F89" marker-end="url(#seqArrow-dependency)"/>
-</g>
-<g id="m15">
-  <rect class="pill" x="1088.2" y="1491" width="392" height="28" rx="7"/>
-  <circle cx="1107.2" cy="1505" r="12" fill="#4F83BF"/>
-  <text class="detail" x="1107.2" y="1506" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">15</text>
-  <text class="detail" x="1302.2" y="1506" text-anchor="middle" dominant-baseline="middle">state(lockName) for each registered lock</text>
-  <path class="seq" d="M1547 1536 L1021.4000000000001 1536" stroke="#4F83BF" marker-end="url(#seqArrow-call)"/>
-</g>
-<g id="m16">
-  <rect class="pill" x="1081" y="1573" width="406.40000000000003" height="28" rx="7"/>
-  <circle cx="1100" cy="1587" r="12" fill="#3E9868"/>
-  <text class="detail" x="1100" y="1588" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">16</text>
-  <text class="detail" x="1302.2" y="1588" text-anchor="middle" dominant-baseline="middle">LeaderState status, audit id, lease expiry</text>
-  <path class="seqReturn" d="M1021.4000000000001 1618 L1547 1618" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
-</g>
-<g id="m17">
-  <rect class="pill" x="679.6" y="1655" width="420.8" height="28" rx="7"/>
-  <circle cx="698.6" cy="1669" r="12" fill="#3E9868"/>
-  <text class="detail" x="698.6" y="1670" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">17</text>
-  <text class="detail" x="908" y="1670" text-anchor="middle" dominant-baseline="middle">respondText JSON without content negotiation</text>
-  <path class="seqReturn" d="M1547 1700 L233 1700" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
-</g>
+  <style>
+    text { font-family: "Comic Mono", monospace; fill: #263244; letter-spacing: 0; }
+    .title { font-family: "Architects Daughter", cursive; font-size: 34px; fill: #172033; }
+    .subtitle { font-size: 13px; fill: #64748b; }
+    .participant-title { font-family: "Architects Daughter", cursive; font-size: 15px; fill: #172033; }
+    .participant-sub { font-size: 10px; fill: #64748b; }
+    .label { font-size: 11px; font-weight: 700; }
+    .note { font-size: 11px; fill: #475569; }
+    .frame-title { font-family: "Architects Daughter", cursive; font-size: 14px; fill: #334155; }
+    .footer { font-size: 11px; fill: #64748b; }
+    .frame { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; filter: url(#shadow); }
+    .participant { fill: #f8fafc; stroke: #dbe4f0; stroke-width: 1.2; }
+    .lifeline { stroke: #cbd5e1; stroke-width: 1.3; stroke-dasharray: 7 7; }
+    .activation { fill: #eff6ff; stroke: #93c5fd; stroke-width: 1.1; }
+    .alt { fill: rgba(219,234,254,0.18); stroke: #60a5fa; stroke-width: 1.7; stroke-dasharray: 8 6; }
+    .else { stroke: #94a3b8; stroke-width: 1.4; stroke-dasharray: 6 6; }
+    .failure { fill: rgba(255,228,230,0.2); stroke: #fb7185; stroke-width: 1.7; stroke-dasharray: 8 6; }
+    .opt { fill: rgba(236,253,245,0.22); stroke: #34d399; stroke-width: 1.7; stroke-dasharray: 8 6; }
+    .line { fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .blue { stroke: #2563eb; marker-end: url(#arrowBlue); }
+    .green { stroke: #059669; marker-end: url(#arrowGreen); }
+    .amber { stroke: #b45309; marker-end: url(#arrowAmber); }
+    .purple { stroke: #7c3aed; marker-end: url(#arrowPurple); }
+    .rose { stroke: #be123c; marker-end: url(#arrowRose); }
+    .return { fill: none; stroke: #64748b; stroke-width: 1.4; stroke-dasharray: 7 5; marker-end: url(#arrowBlue); }
+    .label-bg { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 0.8; rx: 6; }
+  </style>
+
+  <rect width="1240" height="920" fill="#f6f8fb"/>
+  <rect class="frame" x="34" y="30" width="1172" height="842" rx="18"/>
+  <text class="title" x="620" y="74" text-anchor="middle">leader-ktor Sequence Flow</text>
+  <text class="subtitle" x="620" y="102" text-anchor="middle">Ktor plugin config is stored in Application.attributes; leaderScheduled launches a cancellable loop that calls runIfLeader.</text>
+
+  <g id="participants">
+    <g transform="translate(50 136)">
+      <rect class="participant" width="130" height="58" rx="8"/>
+      <text class="participant-title" x="65" y="24" text-anchor="middle">Application</text>
+      <text class="participant-sub" x="65" y="43" text-anchor="middle">module + scope</text>
+    </g>
+    <g transform="translate(216 136)">
+      <rect class="participant" width="132" height="58" rx="8"/>
+      <text class="participant-title" x="66" y="24" text-anchor="middle">Plugin</text>
+      <text class="participant-sub" x="66" y="43" text-anchor="middle">LeaderElection</text>
+    </g>
+    <g transform="translate(384 136)">
+      <rect class="participant" width="132" height="58" rx="8"/>
+      <text class="participant-title" x="66" y="24" text-anchor="middle">Attributes</text>
+      <text class="participant-sub" x="66" y="43" text-anchor="middle">config key</text>
+    </g>
+    <g transform="translate(552 136)">
+      <rect class="participant" width="132" height="58" rx="8"/>
+      <text class="participant-title" x="66" y="24" text-anchor="middle">Job</text>
+      <text class="participant-sub" x="66" y="43" text-anchor="middle">leaderScheduled</text>
+    </g>
+    <g transform="translate(720 136)">
+      <rect class="participant" width="132" height="58" rx="8"/>
+      <text class="participant-title" x="66" y="24" text-anchor="middle">Elector</text>
+      <text class="participant-sub" x="66" y="43" text-anchor="middle">runIfLeader</text>
+    </g>
+    <g transform="translate(888 136)">
+      <rect class="participant" width="132" height="58" rx="8"/>
+      <text class="participant-title" x="66" y="24" text-anchor="middle">Action</text>
+      <text class="participant-sub" x="66" y="43" text-anchor="middle">suspend block</text>
+    </g>
+    <g transform="translate(1054 136)">
+      <rect class="participant" width="132" height="58" rx="8"/>
+      <text class="participant-title" x="66" y="24" text-anchor="middle">Mgmt route</text>
+      <text class="participant-sub" x="66" y="43" text-anchor="middle">optional JSON</text>
+    </g>
+  </g>
+
+  <line class="lifeline" x1="115" y1="194" x2="115" y2="752"/>
+  <line class="lifeline" x1="282" y1="194" x2="282" y2="752"/>
+  <line class="lifeline" x1="450" y1="194" x2="450" y2="752"/>
+  <line class="lifeline" x1="618" y1="194" x2="618" y2="752"/>
+  <line class="lifeline" x1="786" y1="194" x2="786" y2="752"/>
+  <line class="lifeline" x1="954" y1="194" x2="954" y2="752"/>
+  <line class="lifeline" x1="1120" y1="194" x2="1120" y2="752"/>
+
+  <rect class="opt" x="68" y="216" width="1074" height="152" rx="10"/>
+  <text class="frame-title" x="84" y="239">install plugin</text>
+  <path class="line blue" d="M 115 262 L 282 262"/>
+  <rect class="label-bg" x="142" y="241" width="114" height="20"/>
+  <text class="label" x="199" y="255" text-anchor="middle" fill="#1d4ed8">1 install(config)</text>
+  <rect class="activation" x="274" y="254" width="16" height="82" rx="4"/>
+  <path class="line green" d="M 282 300 L 450 300"/>
+  <rect class="label-bg" x="312" y="279" width="112" height="20"/>
+  <text class="label" x="368" y="293" text-anchor="middle" fill="#047857">2 put config</text>
+  <path class="line amber" d="M 282 336 L 1120 336"/>
+  <rect class="label-bg" x="566" y="315" width="270" height="20"/>
+  <text class="label" x="701" y="329" text-anchor="middle" fill="#92400e">3 optional management route install</text>
+
+  <rect class="alt" x="68" y="392" width="1074" height="308" rx="10"/>
+  <text class="frame-title" x="84" y="415">leaderScheduled loop while Application scope is active</text>
+  <path class="line purple" d="M 115 448 L 618 448"/>
+  <rect class="label-bg" x="258" y="427" width="218" height="20"/>
+  <text class="label" x="367" y="441" text-anchor="middle" fill="#6d28d9">4 leaderScheduled(lock, period)</text>
+  <rect class="activation" x="610" y="440" width="16" height="224" rx="4"/>
+  <path class="line green" d="M 618 486 L 450 486"/>
+  <rect class="label-bg" x="478" y="465" width="112" height="20"/>
+  <text class="label" x="534" y="479" text-anchor="middle" fill="#047857">5 resolve/register</text>
+  <path class="line blue" d="M 618 530 L 786 530"/>
+  <rect class="label-bg" x="650" y="509" width="104" height="20"/>
+  <text class="label" x="702" y="523" text-anchor="middle" fill="#1d4ed8">6 runIfLeader</text>
+  <rect class="activation" x="778" y="522" width="16" height="82" rx="4"/>
+
+  <rect class="opt" x="724" y="552" width="260" height="80" rx="8"/>
+  <text class="frame-title" x="738" y="575">when elected</text>
+  <path class="line green" d="M 786 596 L 954 596"/>
+  <rect class="label-bg" x="824" y="575" width="92" height="20"/>
+  <text class="label" x="870" y="589" text-anchor="middle" fill="#047857">7 action()</text>
+  <rect class="activation" x="946" y="588" width="16" height="36" rx="4"/>
+
+  <line class="else" x1="84" y1="642" x2="1126" y2="642"/>
+  <text class="frame-title" x="84" y="665">else skipped or after action</text>
+  <path class="return" d="M 786 676 L 618 676"/>
+  <rect class="label-bg" x="642" y="655" width="120" height="20"/>
+  <text class="label" x="702" y="669" text-anchor="middle" fill="#475569">8 delay(period)</text>
+
+  <rect class="failure" x="724" y="712" width="418" height="76" rx="10"/>
+  <text class="frame-title" x="738" y="735">failure isolation</text>
+  <path class="line rose" d="M 954 758 L 618 758"/>
+  <rect class="label-bg" x="704" y="737" width="166" height="20"/>
+  <text class="label" x="787" y="751" text-anchor="middle" fill="#9f1239">Exception -> warn, continue</text>
+
+  <path class="line amber" d="M 115 812 L 618 812"/>
+  <rect class="label-bg" x="264" y="791" width="204" height="20"/>
+  <text class="label" x="366" y="805" text-anchor="middle" fill="#92400e">ApplicationStopped cancels job</text>
+  <text class="note" x="86" y="842">CancellationException is rethrown; ordinary action failures are logged and the next cycle still runs.</text>
+
+  <g transform="translate(118 858)">
+    <rect fill="#f8fafc" stroke="#dbe4f0" width="1004" height="42" rx="12"/>
+    <text class="footer" x="502" y="17" text-anchor="middle">github.com/bluetape4k/bluetape4k-leader / leader-ktor</text>
+    <text class="footer" x="502" y="32" text-anchor="middle">The plugin stores configuration; leaderScheduled owns the recurring leader-only job and management registry entry.</text>
+  </g>
 </svg>

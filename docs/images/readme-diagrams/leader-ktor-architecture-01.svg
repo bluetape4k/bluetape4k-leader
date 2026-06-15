@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="780" viewBox="0 0 1240 780" role="img" aria-labelledby="title desc">
+  <title id="title">leader-ktor architecture</title>
+  <desc id="desc">Architecture diagram for the Ktor LeaderElectionPlugin, Application attributes config storage, leaderScheduled coroutine job, suspend elector backend, and optional management route.</desc>
+  <defs>
+    <filter id="shadow" x="-12%" y="-18%" width="124%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0f172a" flood-opacity="0.16"/>
+    </filter>
+    <marker id="arrow-blue" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto">
+      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#2563eb" stroke-width="2" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto">
+      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#059669" stroke-width="2" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto">
+      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#ea580c" stroke-width="2" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      .canvas { fill: #f8fafc; }
+      .title { font-family: "Architects Daughter", "Comic Mono", "Comic Sans MS", cursive; font-size: 34px; fill: #0f172a; font-weight: 700; }
+      .subtitle { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 15px; fill: #475569; }
+      .band-title { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 14px; fill: #334155; font-weight: 700; letter-spacing: 0; }
+      .card-title { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 16px; fill: #0f172a; font-weight: 700; }
+      .card-sub { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 12px; fill: #475569; }
+      .small { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 11px; fill: #475569; }
+      .footer { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 11px; fill: #475569; }
+      .label { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 12px; font-weight: 700; }
+      .band { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.4; rx: 18; }
+      .card { stroke-width: 1.8; rx: 14; filter: url(#shadow); }
+      .app { fill: #e0f2fe; stroke: #0284c7; }
+      .plugin { fill: #ecfdf5; stroke: #059669; }
+      .job { fill: #fef3c7; stroke: #d97706; }
+      .backend { fill: #f3e8ff; stroke: #7c3aed; }
+      .mgmt { fill: #fce7f3; stroke: #db2777; }
+      .data { fill: #eef2ff; stroke: #4f46e5; }
+      .primary { fill: none; stroke: #2563eb; stroke-width: 2.4; marker-end: url(#arrow-blue); }
+      .control { fill: none; stroke: #ea580c; stroke-width: 2.1; marker-end: url(#arrow-orange); }
+      .state { fill: none; stroke: #059669; stroke-width: 2.1; marker-end: url(#arrow-green); }
+      .async { fill: none; stroke: #64748b; stroke-width: 1.8; stroke-dasharray: 7 5; }
+      .label-bg { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 0.8; }
+    </style>
+  </defs>
+
+  <rect class="canvas" width="1240" height="780"/>
+  <text class="title" x="620" y="70" text-anchor="middle">leader-ktor Architecture</text>
+  <text class="subtitle" x="620" y="98" text-anchor="middle">Ktor stores leader election configuration in Application.attributes; scheduled jobs execute only inside suspend leader scope.</text>
+
+  <rect class="band" x="70" y="132" width="1100" height="520"/>
+  <text class="band-title" x="96" y="162">Ktor application process</text>
+
+  <rect class="card app" x="108" y="198" width="196" height="108"/>
+  <text class="card-title" x="206" y="226" text-anchor="middle">Application.module</text>
+  <text class="card-sub" x="206" y="250" text-anchor="middle">install(plugin)</text>
+  <text class="card-sub" x="206" y="270" text-anchor="middle">leaderScheduled(...)</text>
+  <text class="small" x="206" y="292" text-anchor="middle">application coroutine scope</text>
+
+  <rect class="card plugin" x="384" y="178" width="220" height="128"/>
+  <text class="card-title" x="494" y="206" text-anchor="middle">LeaderElectionPlugin</text>
+  <text class="card-sub" x="494" y="230" text-anchor="middle">createApplicationPlugin</text>
+  <text class="card-sub" x="494" y="250" text-anchor="middle">requires leaderElection</text>
+  <text class="small" x="494" y="274" text-anchor="middle">adds optional management route</text>
+
+  <rect class="card data" x="694" y="178" width="218" height="128"/>
+  <text class="card-title" x="803" y="206" text-anchor="middle">Application.attributes</text>
+  <text class="card-sub" x="803" y="230" text-anchor="middle">LeaderElectionConfigKey</text>
+  <text class="card-sub" x="803" y="250" text-anchor="middle">LeaderElectionPluginConfig</text>
+  <text class="small" x="803" y="274" text-anchor="middle">shared by extension functions</text>
+
+  <rect class="card job" x="200" y="398" width="238" height="138"/>
+  <text class="card-title" x="319" y="426" text-anchor="middle">leaderScheduled Job</text>
+  <text class="card-sub" x="319" y="450" text-anchor="middle">validates lockName / period</text>
+  <text class="card-sub" x="319" y="470" text-anchor="middle">launches recurring loop</text>
+  <text class="small" x="319" y="494" text-anchor="middle">continues after action failure</text>
+  <text class="small" x="319" y="514" text-anchor="middle">cancels on ApplicationStopped</text>
+
+  <rect class="card backend" x="520" y="404" width="238" height="126"/>
+  <text class="card-title" x="639" y="432" text-anchor="middle">SuspendLeaderElector</text>
+  <text class="card-sub" x="639" y="456" text-anchor="middle">runIfLeader(lockName)</text>
+  <text class="card-sub" x="639" y="476" text-anchor="middle">captures LockHandleElement</text>
+  <text class="small" x="639" y="500" text-anchor="middle">Redis, MongoDB, etcd, K8s...</text>
+
+  <rect class="card mgmt" x="840" y="394" width="230" height="150"/>
+  <text class="card-title" x="955" y="422" text-anchor="middle">Management Route</text>
+  <text class="card-sub" x="955" y="446" text-anchor="middle">GET /management/leaderElection</text>
+  <text class="card-sub" x="955" y="466" text-anchor="middle">registry snapshot</text>
+  <text class="small" x="955" y="490" text-anchor="middle">calls state(lockName)</text>
+  <text class="small" x="955" y="510" text-anchor="middle">responds JSON text</text>
+
+  <path class="control" d="M 304 232 C 336 218, 348 218, 384 220"/>
+  <rect class="label-bg" x="318" y="199" width="76" height="22" rx="6"/>
+  <text class="label" x="356" y="215" text-anchor="middle" fill="#9a3412">install</text>
+
+  <path class="state" d="M 604 238 L 694 238"/>
+  <rect class="label-bg" x="623" y="214" width="52" height="22" rx="6"/>
+  <text class="label" x="649" y="230" text-anchor="middle" fill="#047857">put</text>
+
+  <path class="state" d="M 732 306 C 646 350, 424 338, 356 398"/>
+  <rect class="label-bg" x="524" y="326" width="118" height="22" rx="6"/>
+  <text class="label" x="583" y="342" text-anchor="middle" fill="#047857">resolve config</text>
+
+  <path class="primary" d="M 438 467 L 520 467"/>
+  <rect class="label-bg" x="448" y="442" width="62" height="22" rx="6"/>
+  <text class="label" x="479" y="458" text-anchor="middle" fill="#1d4ed8">elect</text>
+
+  <path class="control" d="M 638 404 C 638 356, 842 344, 908 394"/>
+  <rect class="label-bg" x="710" y="348" width="118" height="22" rx="6"/>
+  <text class="label" x="769" y="364" text-anchor="middle" fill="#9a3412">query status</text>
+
+  <path class="state" d="M 912 306 C 968 330, 980 356, 968 394"/>
+  <rect class="label-bg" x="928" y="328" width="112" height="22" rx="6"/>
+  <text class="label" x="984" y="344" text-anchor="middle" fill="#047857">share registry</text>
+
+  <path class="async" d="M 200 536 C 156 576, 140 610, 140 640"/>
+  <text class="small" x="166" y="586" text-anchor="middle">ApplicationStopped</text>
+
+  <g transform="translate(100 676)">
+    <rect x="0" y="0" width="1040" height="52" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+    <line x1="34" y1="16" x2="84" y2="16" class="primary"/>
+    <text class="small" x="96" y="20">leader-only work</text>
+    <line x1="234" y1="16" x2="284" y2="16" class="control"/>
+    <text class="small" x="296" y="20">Ktor lifecycle / route wiring</text>
+    <line x1="510" y1="16" x2="560" y2="16" class="state"/>
+    <text class="small" x="572" y="20">config and registry state</text>
+    <line x1="790" y1="16" x2="840" y2="16" class="async"/>
+    <text class="small" x="852" y="20">scope cancellation</text>
+    <text class="footer" x="520" y="42" text-anchor="middle">github.com/bluetape4k/bluetape4k-leader / leader-ktor</text>
+  </g>
+</svg>
