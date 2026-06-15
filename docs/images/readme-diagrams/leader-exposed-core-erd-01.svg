@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="880" viewBox="0 0 1240 880" role="img" aria-labelledby="title desc">
+  <title id="title">leader-exposed-core Table ERD</title>
+  <desc id="desc">ERD for leader-exposed-core tables: single leader locks, group leader slots, and best-effort lock history rows.</desc>
+  <defs>
+    <filter id="shadow" x="-12%" y="-14%" width="124%" height="136%">
+      <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#64748b" flood-opacity="0.13"/>
+    </filter>
+    <marker id="arrowAudit" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M 1 1 L 8 4 L 1 7 Z" fill="#7c3aed"/>
+    </marker>
+    <marker id="arrowSchema" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M 1 1 L 8 4 L 1 7 Z" fill="#16a34a"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: "Comic Mono", monospace; fill: #263244; }
+    .title { font-family: "Architects Daughter", cursive; font-size: 34px; fill: #172033; }
+    .subtitle { font-size: 13px; fill: #64748b; }
+    .table-title { font-family: "Architects Daughter", cursive; font-size: 18px; fill: #172033; }
+    .table-name { font-size: 11px; fill: #64748b; }
+    .row { font-size: 12px; fill: #334155; }
+    .note { font-size: 11px; fill: #64748b; }
+    .badge { font-size: 10px; fill: #ffffff; }
+    .footer { font-size: 11px; fill: #64748b; }
+    .frame { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.4; filter: url(#shadow); }
+    .schema { fill: #f0fdf4; stroke: #86efac; stroke-width: 1.3; }
+    .single { fill: #eff6ff; stroke: #93c5fd; stroke-width: 1.4; }
+    .group { fill: #fff7ed; stroke: #fdba74; stroke-width: 1.4; }
+    .history { fill: #faf5ff; stroke: #c4b5fd; stroke-width: 1.4; }
+    .header { fill-opacity: 0.48; }
+    .line { stroke: rgba(100,116,139,0.32); stroke-width: 1; }
+    .schema-line { stroke: #16a34a; stroke-width: 1.4; fill: none; marker-end: url(#arrowSchema); }
+    .audit-line { stroke: #7c3aed; stroke-width: 1.45; fill: none; stroke-dasharray: 6 5; marker-end: url(#arrowAudit); }
+    .label-bg { fill: #ffffff; stroke: #e2e8f0; stroke-width: 1; }
+  </style>
+
+  <rect width="1240" height="880" fill="#f6f8fb"/>
+  <rect class="frame" x="34" y="30" width="1172" height="810" rx="18"/>
+  <text class="title" x="620" y="76" text-anchor="middle">leader-exposed-core Table ERD</text>
+  <text class="subtitle" x="620" y="102" text-anchor="middle">Shared Exposed schema for RDBMS leader locks, group slots, and best-effort audit history.</text>
+
+  <g id="SchemaRegistry" transform="translate(390 136)">
+    <rect class="schema" width="460" height="76" rx="10"/>
+    <text class="table-title" x="230" y="28" text-anchor="middle">ExposedLeaderSchema.allTables</text>
+    <text class="note" x="230" y="50" text-anchor="middle">LeaderLockTable + LeaderGroupLockTable + LeaderLockHistoryTable</text>
+  </g>
+
+  <g id="LeaderLockTable" transform="translate(86 252)">
+    <rect class="single" width="330" height="298" rx="10"/>
+    <rect class="single header" width="330" height="60" rx="10"/>
+    <text class="table-title" x="165" y="27" text-anchor="middle">LeaderLockTable</text>
+    <text class="table-name" x="165" y="48" text-anchor="middle">bluetape4k_leader_locks</text>
+    <line class="line" x1="0" y1="60" x2="330" y2="60"/>
+    <rect x="18" y="78" width="34" height="18" rx="9" fill="#2563eb"/>
+    <text class="badge" x="35" y="91" text-anchor="middle">PK</text>
+    <text class="row" x="62" y="91">lock_name VARCHAR(255)</text>
+    <text class="row" x="22" y="124">lock_owner VARCHAR(255) nullable</text>
+    <text class="row" x="22" y="157">token VARCHAR(36) fencing token</text>
+    <text class="row" x="22" y="190">locked_at TIMESTAMP</text>
+    <text class="row" x="22" y="223">locked_until TIMESTAMP TTL</text>
+    <line class="line" x1="0" y1="244" x2="330" y2="244"/>
+    <text class="note" x="22" y="268">Single-leader mutex row.</text>
+    <text class="note" x="22" y="286">Expired when locked_until &lt; NOW().</text>
+  </g>
+
+  <g id="LeaderGroupLockTable" transform="translate(824 252)">
+    <rect class="group" width="330" height="298" rx="10"/>
+    <rect class="group header" width="330" height="60" rx="10"/>
+    <text class="table-title" x="165" y="27" text-anchor="middle">LeaderGroupLockTable</text>
+    <text class="table-name" x="165" y="48" text-anchor="middle">bluetape4k_leader_group_locks</text>
+    <line class="line" x1="0" y1="60" x2="330" y2="60"/>
+    <rect x="18" y="78" width="34" height="18" rx="9" fill="#ea580c"/>
+    <text class="badge" x="35" y="91" text-anchor="middle">PK</text>
+    <text class="row" x="62" y="91">lock_name VARCHAR(255)</text>
+    <rect x="18" y="112" width="34" height="18" rx="9" fill="#ea580c"/>
+    <text class="badge" x="35" y="125" text-anchor="middle">PK</text>
+    <text class="row" x="62" y="125">slot INTEGER</text>
+    <text class="row" x="22" y="157">lock_owner VARCHAR(255) nullable</text>
+    <text class="row" x="22" y="190">token VARCHAR(36) per-slot token</text>
+    <text class="row" x="22" y="223">locked_at / locked_until TIMESTAMP</text>
+    <line class="line" x1="0" y1="244" x2="330" y2="244"/>
+    <text class="note" x="22" y="268">Semaphore-style group slots.</text>
+    <text class="note" x="22" y="286">Each slot has independent TTL.</text>
+  </g>
+
+  <g id="LeaderLockHistoryTable" transform="translate(310 580)">
+    <rect class="history" width="620" height="206" rx="10"/>
+    <rect class="history header" width="620" height="58" rx="10"/>
+    <text class="table-title" x="310" y="26" text-anchor="middle">LeaderLockHistoryTable</text>
+    <text class="table-name" x="310" y="47" text-anchor="middle">bluetape4k_leader_lock_history</text>
+    <line class="line" x1="0" y1="58" x2="620" y2="58"/>
+    <line class="line" x1="310" y1="68" x2="310" y2="176"/>
+    <rect x="18" y="72" width="34" height="18" rx="9" fill="#7c3aed"/>
+    <text class="badge" x="35" y="85" text-anchor="middle">PK</text>
+    <text class="row" x="62" y="85">id BIGINT auto-increment</text>
+    <text class="row" x="22" y="111">lock_name, lock_owner</text>
+    <text class="row" x="22" y="137">token fencing snapshot</text>
+    <text class="row" x="22" y="163">locked_until, status</text>
+    <text class="row" x="332" y="85">slot INTEGER nullable</text>
+    <text class="row" x="332" y="111">slot_id VARCHAR(255) nullable</text>
+    <text class="row" x="332" y="137">started_at, finished_at, duration_ms</text>
+    <text class="row" x="332" y="163">kind, participant_id, metadata JSON</text>
+    <text class="note" x="310" y="190" text-anchor="middle">Indexes: lock_name+started_at, token; failures keep error_type/error_message.</text>
+  </g>
+
+  <path class="schema-line" d="M 480 212 L 480 232 L 251 232 L 251 252"/>
+  <path class="schema-line" d="M 620 212 L 620 560 L 620 580"/>
+  <path class="schema-line" d="M 760 212 L 760 232 L 989 232 L 989 252"/>
+
+  <path class="audit-line" d="M 416 432 C 470 432 478 548 454 580"/>
+  <rect class="label-bg" x="432" y="480" width="150" height="26" rx="13"/>
+  <text class="note" x="507" y="497" text-anchor="middle">audit copy, no FK</text>
+  <text class="note" x="448" y="430">1</text>
+  <text class="note" x="444" y="570">0..*</text>
+
+  <path class="audit-line" d="M 824 432 C 770 432 762 548 786 580"/>
+  <rect class="label-bg" x="658" y="480" width="150" height="26" rx="13"/>
+  <text class="note" x="733" y="497" text-anchor="middle">slot audit, no FK</text>
+  <text class="note" x="800" y="430">1</text>
+  <text class="note" x="786" y="570">0..*</text>
+
+  <g transform="translate(82 800)">
+    <rect fill="#f8fafc" stroke="#dbe4f0" width="1076" height="42" rx="12"/>
+    <text class="footer" x="538" y="26" text-anchor="middle">github.com/bluetape4k/bluetape4k-leader / leader-exposed-core - history rows mirror lock identity for audit, not enforced foreign keys.</text>
+  </g>
+</svg>

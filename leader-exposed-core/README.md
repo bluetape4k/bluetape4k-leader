@@ -7,6 +7,10 @@ Shared DB schema and table definitions for RDBMS-based distributed leader electi
 This module is a dependency for `leader-exposed-jdbc` and `leader-exposed-r2dbc`.
 It contains no JDBC/R2DBC drivers — only Exposed table definitions and constants.
 
+## Architecture
+
+![leader exposed core ERD diagram](../docs/images/readme-diagrams/leader-exposed-core-erd-01.png)
+
 ## Tables
 
 | Table | Object | Purpose |
@@ -56,6 +60,12 @@ Primary key: `id` (auto-increment BIGINT)
 | `started_at` | TIMESTAMP | Lock acquisition timestamp (indexed) |
 | `finished_at` | TIMESTAMP | Nullable; null for ACQUIRED status |
 | `duration_ms` | BIGINT | Nullable; null for ACQUIRED status |
+| `error_type` | VARCHAR(255) | Nullable; exception class name |
+| `error_message` | VARCHAR(512) | Nullable; sanitized error message |
+| `kind` | VARCHAR(32) | Nullable; `SINGLE` or `GROUP` |
+| `participant_id` | VARCHAR(255) | Nullable; node or instance identifier |
+| `metadata` | TEXT | Nullable; JSON metadata |
+| `slot_id` | VARCHAR(255) | Nullable; string slot identifier for non-integer backends |
 
 Indexes: `idx_history_lock_started (lock_name, started_at)`, `idx_history_token (token)`
 
