@@ -16,10 +16,10 @@
 | 12 | `docs/images/readme-diagrams/examples-batch-scheduler-flow-01.png` | data-flow | 2 | flow-retry-workflow | svg+png |
 | 13 | `docs/images/readme-diagrams/examples-batch-scheduler-scenario-01.png` | data-flow | 2 | flow-retry-workflow | svg+png |
 | 14 | `docs/images/readme-diagrams/examples-batch-scheduler-sequence-01.png` | sequence | 2 | sequence-workflow-sample | svg+png |
-| 15 | `docs/images/readme-diagrams/examples-cache-warmer-architecture-01.png` | architecture | 2 | architecture-layered-exposed-mvc-virtualthread | graphviz |
-| 16 | `docs/images/readme-diagrams/examples-cache-warmer-flow-01.png` | data-flow | 2 | flow-retry-workflow | graphviz |
-| 17 | `docs/images/readme-diagrams/examples-cache-warmer-scenario-01.png` | data-flow | 2 | flow-retry-workflow | graphviz |
-| 18 | `docs/images/readme-diagrams/examples-cache-warmer-sequence-01.png` | sequence | 2 | sequence-workflow-sample | graphviz |
+| 15 | `docs/images/readme-diagrams/examples-cache-warmer-architecture-01.png` | architecture | 2 | architecture-layered-exposed-mvc-virtualthread | svg+png |
+| 16 | `docs/images/readme-diagrams/examples-cache-warmer-flow-01.png` | data-flow | 2 | flow-retry-workflow | svg+png |
+| 17 | `docs/images/readme-diagrams/examples-cache-warmer-scenario-01.png` | data-flow | 2 | flow-retry-workflow | svg+png |
+| 18 | `docs/images/readme-diagrams/examples-cache-warmer-sequence-01.png` | sequence | 2 | sequence-workflow-sample | svg+png |
 | 19 | `docs/images/readme-diagrams/examples-consul-maintenance-architecture-01.png` | architecture | 2 | architecture-layered-exposed-mvc-virtualthread | graphviz |
 | 20 | `docs/images/readme-diagrams/examples-consul-maintenance-flow-01.png` | data-flow | 2 | flow-retry-workflow | graphviz |
 | 21 | `docs/images/readme-diagrams/examples-consul-maintenance-scenario-01.png` | data-flow | 2 | flow-retry-workflow | graphviz |

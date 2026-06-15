@@ -23,7 +23,7 @@ maxLeaders 슬롯을 공유하므로 호출자가 슬롯 ↔ 파티션 매핑을
 
 ## 아키텍처 다이어그램
 
-![cache warmer Architecture diagram](../../docs/images/readme-diagrams/examples-cache-warmer-architecture-01.png)
+![Cache warmer architecture diagram](../../docs/images/readme-diagrams/examples-cache-warmer-architecture-01.png)
 
 ## 플로우 다이어그램
 
@@ -31,7 +31,7 @@ maxLeaders 슬롯을 공유하므로 호출자가 슬롯 ↔ 파티션 매핑을
 
 ## 시퀀스 다이어그램
 
-![cache warmer Sequence Flow diagram](../../docs/images/readme-diagrams/examples-cache-warmer-sequence-01.png)
+![Cache warmer sequence diagram](../../docs/images/readme-diagrams/examples-cache-warmer-sequence-01.png)
 
 ## 핵심 기능
 
