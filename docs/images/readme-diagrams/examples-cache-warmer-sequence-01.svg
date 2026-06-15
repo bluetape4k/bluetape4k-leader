@@ -1,56 +1,125 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="900" viewBox="0 0 1360 900" role="img" aria-labelledby="title desc" data-source-read="examples/cache-warmer/README.md; examples/cache-warmer/src/main/kotlin/io/bluetape4k/leader/examples/warmer/CachePartitionWarmer.kt; examples/cache-warmer/src/main/kotlin/io/bluetape4k/leader/examples/warmer/WarmResult.kt; examples/cache-warmer/src/test/kotlin/io/bluetape4k/leader/examples/warmer/CachePartitionWarmerTest.kt">
-<title id="title">Cache Warmer Sequence</title>
-<desc id="desc">Sequence for one partition inside warmAll: create backend elector, run if leader, classify warmed/skipped/failed, and rethrow cancellation.</desc>
-<defs>
-  <marker id="seq-blue" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#3F73D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="seq-green" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#2D8F64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="seq-orange" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#C96B2C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="seq-red" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#B94A5A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="seq-purple" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#755BC6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#B9C7D6" flood-opacity="0.24"/></filter>
-  <style>
-    .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:2.2;filter:url(#shadow)}
-    .title{font-family:"Architects Daughter";font-size:40px;fill:#21334A}.subtitle,.msg,.small,.footer{font-family:"Comic Mono";fill:#4B6075}.subtitle{font-size:15px}.msg{font-size:13px}.small{font-size:12px}.footer{font-size:13px}
-    .participant{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1.8;filter:url(#shadow)}.ptext{font-family:"Architects Daughter";font-size:21px;fill:#21334A}.life{stroke:#BFD1E2;stroke-width:1.3;stroke-dasharray:8 8}.route{fill:none;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:7 6}.loop{fill:#EAF2FF;fill-opacity:.22;stroke:#8EB2F0;stroke-width:1.6}.alt{fill:#FFF8EA;fill-opacity:.62;stroke:#E3BE69;stroke-width:1.6}.else{stroke:#E3BE69;stroke-width:1.4;stroke-dasharray:8 6}.pill{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1}.blueMsg{fill:#2F5FB8}.greenMsg{fill:#1E7550}.orangeMsg{fill:#A95720}.redMsg{fill:#9A3948}.purpleMsg{fill:#5D49A8}
-  </style>
-</defs>
-<rect class="canvas" width="1360" height="900"/>
-<rect class="frame" x="34" y="28" width="1292" height="844" rx="30"/>
-<text class="title" x="72" y="84">Cache Warmer Sequence</text>
-<text class="subtitle" x="76" y="116">One partition iteration creates a backend elector, runs only on leadership, and classifies the local result.</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900" role="img" aria-labelledby="title desc" data-source-read="examples/cache-warmer/README.md; examples/cache-warmer/src/main/kotlin/io/bluetape4k/leader/examples/warmer/CachePartitionWarmer.kt; examples/cache-warmer/src/main/kotlin/io/bluetape4k/leader/examples/warmer/WarmResult.kt; examples/cache-warmer/src/test/kotlin/io/bluetape4k/leader/examples/warmer/CachePartitionWarmerTest.kt">
+  <title id="title">Cache Warmer Sequence</title>
+  <desc id="desc">Sequence for one partition inside warmAll: create backend elector, run only on leadership, classify warmed, skipped, failed, and rethrow cancellation.</desc>
+  <defs>
+    <marker id="arrow-blue" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#4f77c9"/></marker>
+    <marker id="arrow-green" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#329a74"/></marker>
+    <marker id="arrow-amber" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#cf8428"/></marker>
+    <marker id="arrow-pink" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#bd4e64"/></marker>
+    <marker id="arrow-purple" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#7a61c8"/></marker>
+    <style>
+      .canvas { fill: #f6f9fc; }
+      .frame { fill: #ffffff; stroke: #c4d5e8; stroke-width: 3; }
+      .title, .participant-text { font-family: "Architects Daughter"; fill: #263a57; }
+      .title { font-size: 44px; }
+      .subtitle, .label, .footer { font-family: "Comic Mono"; fill: #526276; }
+      .subtitle { font-size: 17px; }
+      .label { font-size: 13px; }
+      .footer { font-size: 14px; }
+      .participant { stroke-width: 2.4; rx: 12; }
+      .lifeline { stroke: #9aacc2; stroke-width: 2; stroke-dasharray: 8 10; }
+      .activation { fill: #f3eeff; stroke: #8a65d8; stroke-width: 2; rx: 7; }
+      .call { fill: none; stroke: #4f77c9; stroke-width: 2.8; stroke-linecap: round; marker-end: url(#arrow-blue); }
+      .success { fill: none; stroke: #329a74; stroke-width: 2.8; stroke-linecap: round; marker-end: url(#arrow-green); }
+      .skip { fill: none; stroke: #cf8428; stroke-width: 2.8; stroke-linecap: round; marker-end: url(#arrow-amber); }
+      .failure { fill: none; stroke: #bd4e64; stroke-width: 2.8; stroke-linecap: round; marker-end: url(#arrow-pink); }
+      .return { fill: none; stroke: #329a74; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 9 8; marker-end: url(#arrow-green); }
+      .skip-return { fill: none; stroke: #cf8428; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 9 8; marker-end: url(#arrow-amber); }
+      .cancel-return { fill: none; stroke: #7a61c8; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 9 8; marker-end: url(#arrow-purple); }
+      .pill { fill: #ffffff; stroke: #cbd9e7; stroke-width: 1.5; rx: 10; }
+      .num { font-family: "Comic Mono"; font-size: 12px; fill: #ffffff; }
+      .alt { fill: none; stroke: #cf8428; stroke-width: 2; stroke-dasharray: 9 8; rx: 18; }
+      .alt-label { fill: #fff7e8; stroke: #cf8428; stroke-width: 1.5; rx: 8; }
+      .divider { stroke: #cf8428; stroke-width: 1.7; stroke-dasharray: 9 8; }
+    </style>
+  </defs>
 
-<rect class="participant" x="72" y="154" width="150" height="54" rx="14"/><text class="ptext" x="114" y="188">Caller</text>
-<rect class="participant" x="286" y="154" width="190" height="54" rx="14"/><text class="ptext" x="316" y="188">Warmer</text>
-<rect class="participant" x="548" y="154" width="190" height="54" rx="14"/><text class="ptext" x="574" y="188">electorFactory</text>
-<rect class="participant" x="802" y="154" width="190" height="54" rx="14"/><text class="ptext" x="830" y="188">LeaderElector</text>
-<rect class="participant" x="1046" y="154" width="150" height="54" rx="14"/><text class="ptext" x="1088" y="188">Cache</text>
-<rect class="participant" x="1210" y="154" width="110" height="54" rx="14"/><text class="ptext" x="1232" y="188">Result</text>
+  <rect class="canvas" width="1500" height="900"/>
+  <rect class="frame" x="42" y="34" width="1416" height="820" rx="30"/>
+  <text class="title" x="86" y="92">Cache Warmer Sequence</text>
+  <text class="subtitle" x="90" y="126">One partition iteration creates a backend elector, runs only on leadership, and classifies the local result.</text>
 
-<line class="life" x1="147" y1="208" x2="147" y2="812"/>
-<line class="life" x1="381" y1="208" x2="381" y2="812"/>
-<line class="life" x1="643" y1="208" x2="643" y2="812"/>
-<line class="life" x1="897" y1="208" x2="897" y2="812"/>
-<line class="life" x1="1121" y1="208" x2="1121" y2="812"/>
-<line class="life" x1="1265" y1="208" x2="1265" y2="812"/>
+  <g id="participants">
+    <rect class="participant" x="106" y="176" width="160" height="70" fill="#eaf2ff" stroke="#6d9df0"/>
+    <text class="participant-text" x="186" y="218" text-anchor="middle" font-size="24">Caller</text>
+    <rect class="participant" x="340" y="176" width="190" height="70" fill="#f1eaff" stroke="#9b7aec"/>
+    <text class="participant-text" x="435" y="218" text-anchor="middle" font-size="24">Warmer</text>
+    <rect class="participant" x="610" y="176" width="230" height="70" fill="#fff4de" stroke="#d59c3f"/>
+    <text class="participant-text" x="725" y="218" text-anchor="middle" font-size="24">electorFactory</text>
+    <rect class="participant" x="914" y="176" width="230" height="70" fill="#f1eaff" stroke="#9b7aec"/>
+    <text class="participant-text" x="1029" y="218" text-anchor="middle" font-size="24">LeaderElector</text>
+    <rect class="participant" x="1200" y="176" width="150" height="70" fill="#edf9f4" stroke="#63b891"/>
+    <text class="participant-text" x="1275" y="218" text-anchor="middle" font-size="24">Cache</text>
+    <rect class="participant" x="1364" y="176" width="80" height="70" fill="#fff0f5" stroke="#de7f9e"/>
+    <text class="participant-text" x="1404" y="218" text-anchor="middle" font-size="22">Result</text>
+  </g>
 
-<path class="route" d="M 147 250 L 381 250" stroke="#3F73D8" marker-end="url(#seq-blue)"/><rect class="pill" x="226" y="228" width="104" height="22" rx="8"/><text class="msg blueMsg" x="236" y="244">1 warmAll()</text>
-<rect class="loop" x="254" y="286" width="1018" height="446" rx="16"/>
-<text class="small" x="278" y="312">loop: for each partitionId</text>
-<path class="route" d="M 381 344 L 643 344" stroke="#3F73D8" marker-end="url(#seq-blue)"/><rect class="pill" x="438" y="322" width="150" height="22" rx="8"/><text class="msg blueMsg" x="448" y="338">2 create elector</text>
-<path class="route dash" d="M 643 382 L 381 382" stroke="#3F73D8" marker-end="url(#seq-blue)"/><rect class="pill" x="430" y="360" width="150" height="22" rx="8"/><text class="msg blueMsg" x="440" y="376">3 elector ready</text>
-<path class="route" d="M 381 430 L 897 430" stroke="#3F73D8" marker-end="url(#seq-blue)"/><rect class="pill" x="550" y="408" width="176" height="22" rx="8"/><text class="msg blueMsg" x="560" y="424">4 runIfLeader(lock)</text>
+  <line class="lifeline" x1="186" y1="246" x2="186" y2="736"/>
+  <line class="lifeline" x1="435" y1="246" x2="435" y2="736"/>
+  <line class="lifeline" x1="725" y1="246" x2="725" y2="736"/>
+  <line class="lifeline" x1="1029" y1="246" x2="1029" y2="736"/>
+  <line class="lifeline" x1="1275" y1="246" x2="1275" y2="736"/>
+  <line class="lifeline" x1="1404" y1="246" x2="1404" y2="736"/>
+  <rect class="activation" x="427" y="314" width="16" height="360"/>
+  <rect class="activation" x="717" y="362" width="16" height="80"/>
+  <rect class="activation" x="1021" y="440" width="16" height="170"/>
+  <rect class="activation" x="1267" y="512" width="16" height="64"/>
 
-<rect class="alt" x="330" y="466" width="884" height="222" rx="16"/>
-<text class="small" x="354" y="492">alt: partition election result</text>
-<line class="else" x1="330" y1="546" x2="1214" y2="546"/>
-<line class="else" x1="330" y1="614" x2="1214" y2="614"/>
-<path class="route" d="M 897 522 L 1121 522" stroke="#2D8F64" marker-end="url(#seq-green)"/><rect class="pill" x="952" y="500" width="126" height="22" rx="8"/><text class="msg greenMsg" x="962" y="516">5 warmFunction</text>
-<path class="route" d="M 381 574 L 1265 574" stroke="#C96B2C" marker-end="url(#seq-orange)"/><rect class="pill" x="704" y="552" width="138" height="22" rx="8"/><text class="msg orangeMsg" x="714" y="568">6 record skipped</text>
-<path class="route" d="M 1121 642 L 381 642" stroke="#B94A5A" marker-end="url(#seq-red)"/><rect class="pill" x="690" y="620" width="128" height="22" rx="8"/><text class="msg redMsg" x="700" y="636">7 throw error</text>
-<path class="route" d="M 381 670 L 1265 670" stroke="#B94A5A" marker-end="url(#seq-red)"/><rect class="pill" x="706" y="648" width="130" height="22" rx="8"/><text class="msg redMsg" x="716" y="664">8 record failed</text>
+  <path class="call" d="M186 318 L435 318"/>
+  <rect class="pill" x="250" y="286" width="136" height="28"/>
+  <circle cx="266" cy="300" r="13" fill="#4f77c9"/><text class="num" x="266" y="304" text-anchor="middle">1</text>
+  <text class="label" x="328" y="305" text-anchor="middle">warmAll()</text>
 
-<path class="route dash" d="M 897 726 L 147 726" stroke="#755BC6" marker-end="url(#seq-purple)"/><rect class="pill" x="458" y="704" width="192" height="22" rx="8"/><text class="msg purpleMsg" x="468" y="720">9 cancellation rethrow</text>
-<path class="route" d="M 381 778 L 1265 778" stroke="#755BC6" marker-end="url(#seq-purple)"/><rect class="pill" x="730" y="756" width="142" height="22" rx="8"/><text class="msg purpleMsg" x="740" y="772">10 return result</text>
+  <path class="call" d="M435 388 L725 388"/>
+  <rect class="pill" x="506" y="356" width="180" height="28"/>
+  <circle cx="522" cy="370" r="13" fill="#4f77c9"/><text class="num" x="522" y="374" text-anchor="middle">2</text>
+  <text class="label" x="604" y="375" text-anchor="middle">create elector</text>
 
-<text class="footer" x="680" y="850" text-anchor="middle">bluetape4k-leader/examples/cache-warmer</text>
+  <path class="return" d="M725 438 L435 438"/>
+  <rect class="pill" x="510" y="406" width="168" height="28"/>
+  <circle cx="526" cy="420" r="13" fill="#329a74"/><text class="num" x="526" y="424" text-anchor="middle">3</text>
+  <text class="label" x="602" y="425" text-anchor="middle">elector ready</text>
+
+  <path class="call" d="M435 490 L1029 490"/>
+  <rect class="pill" x="650" y="458" width="214" height="28"/>
+  <circle cx="666" cy="472" r="13" fill="#4f77c9"/><text class="num" x="666" y="476" text-anchor="middle">4</text>
+  <text class="label" x="762" y="477" text-anchor="middle">runIfLeader(lock)</text>
+
+  <rect class="alt" x="374" y="514" width="1040" height="186"/>
+  <rect class="alt-label" x="398" y="498" width="230" height="28"/>
+  <text class="label" x="513" y="517" text-anchor="middle">partition election result</text>
+  <line class="divider" x1="374" y1="588" x2="1414" y2="588"/>
+  <line class="divider" x1="374" y1="642" x2="1414" y2="642"/>
+
+  <path class="success" d="M1029 554 L1275 554"/>
+  <rect class="pill" x="1086" y="522" width="166" height="28"/>
+  <circle cx="1102" cy="536" r="13" fill="#329a74"/><text class="num" x="1102" y="540" text-anchor="middle">5</text>
+  <text class="label" x="1182" y="541" text-anchor="middle">warmFunction</text>
+
+  <path class="skip-return" d="M1029 614 L1404 614"/>
+  <rect class="pill" x="1132" y="592" width="166" height="28"/>
+  <circle cx="1148" cy="606" r="13" fill="#cf8428"/><text class="num" x="1148" y="610" text-anchor="middle">6</text>
+  <text class="label" x="1226" y="611" text-anchor="middle">record skipped</text>
+
+  <path class="failure" d="M1275 670 L435 670"/>
+  <rect class="pill" x="770" y="648" width="142" height="28"/>
+  <circle cx="786" cy="662" r="13" fill="#bd4e64"/><text class="num" x="786" y="666" text-anchor="middle">7</text>
+  <text class="label" x="852" y="667" text-anchor="middle">throw error</text>
+
+  <path class="failure" d="M435 724 L1404 724"/>
+  <rect class="pill" x="836" y="692" width="152" height="28"/>
+  <circle cx="852" cy="706" r="13" fill="#bd4e64"/><text class="num" x="852" y="710" text-anchor="middle">8</text>
+  <text class="label" x="924" y="711" text-anchor="middle">record failed</text>
+
+  <path class="cancel-return" d="M1029 760 L186 760"/>
+  <rect class="pill" x="532" y="728" width="230" height="28"/>
+  <circle cx="548" cy="742" r="13" fill="#7a61c8"/><text class="num" x="548" y="746" text-anchor="middle">9</text>
+  <text class="label" x="656" y="747" text-anchor="middle">cancellation rethrow</text>
+
+  <path class="call" d="M435 804 L1404 804" stroke="#7a61c8" marker-end="url(#arrow-purple)"/>
+  <rect class="pill" x="836" y="772" width="174" height="28"/>
+  <circle cx="852" cy="786" r="13" fill="#7a61c8"/><text class="num" x="852" y="790" text-anchor="middle">10</text>
+  <text class="label" x="936" y="791" text-anchor="middle">return result</text>
+
+  <text class="footer" x="750" y="832" text-anchor="middle">Each partition has its own lock name, so local results are classified as warmed, skipped, failed, or cancelled. github.com/bluetape4k/bluetape4k-leader</text>
 </svg>

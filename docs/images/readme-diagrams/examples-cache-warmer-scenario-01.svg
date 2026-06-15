@@ -2,15 +2,15 @@
 <title id="title">Cache Warmer Per Partition Scenario</title>
 <desc id="desc">Three warmer instances attempt three independent partition locks; every partition elects exactly one warmer.</desc>
 <defs>
-  <marker id="arrow-blue" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#3F73D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="arrow-green" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#2D8F64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="arrow-purple" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#755BC6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-blue" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#3F73D8"/></marker>
+  <marker id="arrow-green" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#2D8F64"/></marker>
+  <marker id="arrow-purple" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#755BC6"/></marker>
   <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#B9C7D6" flood-opacity="0.24"/></filter>
   <style>
     .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:2.2;filter:url(#shadow)}
     .title{font-family:"Architects Daughter";font-size:40px;fill:#21334A}.subtitle,.small,.label,.footer{font-family:"Comic Mono";fill:#4B6075}.subtitle{font-size:15px}.small{font-size:12.5px}.label{font-size:14px}.footer{font-size:13px}
     .card{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1.8;filter:url(#shadow)}.group{fill:#EAF2FF;stroke:#8EB2F0}.node{fill:#FFFFFF;stroke:#B8CCF4}.lock{fill:#EEF7F2;stroke:#8BC6A3}.cache{fill:#EEF8F8;stroke:#86C9C5}.result{fill:#FFF7E8;stroke:#E1B866}.warn{fill:#FFF1EA;stroke:#E8A47D}
-    .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#21334A}.cardText{font-family:"Comic Mono";font-size:13px;fill:#4B6075}.route{fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:7 6}
+    .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#21334A}.cardText{font-family:"Comic Mono";font-size:13px;fill:#4B6075}.route{fill:none;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:7 6}
   </style>
 </defs>
 <rect class="canvas" width="1280" height="760"/>
