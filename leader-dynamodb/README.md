@@ -8,6 +8,10 @@ Preview DynamoDB-backed leader election using conditional writes and logical TTL
 
 ![leader-dynamodb architecture diagram](../docs/images/readme-diagrams/leader-dynamodb-architecture-01.png)
 
+## Conditional Lease Flow
+
+![leader-dynamodb conditional lease sequence](../docs/images/readme-diagrams/leader-dynamodb-sequence-02.png)
+
 ## Behavior
 
 - Table lifecycle is caller-owned.
