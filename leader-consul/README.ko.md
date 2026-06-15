@@ -12,6 +12,10 @@ Spring Boot auto-configuration surface 를 사용할 수 있습니다.
 
 ![leader-consul architecture diagram](../docs/images/readme-diagrams/leader-consul-architecture-01.png)
 
+## Acquire / Release Sequence
+
+![Consul acquire release sequence diagram](../docs/images/readme-diagrams/leader-consul-sequence-02.png)
+
 ## Behavior / Contract
 
 - Public API 는 `ConsulEndpoint` 같은 bluetape4k 소유 DTO 를 사용하며, 오래된

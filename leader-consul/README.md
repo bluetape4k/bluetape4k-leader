@@ -12,6 +12,10 @@ coroutine, and Spring Boot auto-configuration surfaces are available.
 
 ![leader-consul architecture diagram](../docs/images/readme-diagrams/leader-consul-architecture-01.png)
 
+## Acquire / Release Sequence
+
+![Consul acquire release sequence diagram](../docs/images/readme-diagrams/leader-consul-sequence-02.png)
+
 ## Behavior / Contract
 
 - Public APIs use bluetape4k-owned DTOs such as `ConsulEndpoint`; no stale
