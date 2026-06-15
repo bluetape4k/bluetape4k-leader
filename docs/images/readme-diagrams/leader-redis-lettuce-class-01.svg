@@ -1,337 +1,165 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="2006" height="2288" viewBox="0 0 2006 2288" role="img" aria-labelledby="title desc" data-intent="Help Redis Lettuce users understand how the blocking, async, and coroutine electors split between single-key token locks and the group ZSET slot-token primitive, why group election does not use the removed semaphore classes, how RedisScriptRunner and server-side TIME Lua scripts provide atomic release/status/extend behavior, where audit leader IDs are stored, and how watchdog extension delegates classify Lettuce backend failures." data-evidence="kind=class; best-practice=class-diagram-style-v3; rejected-patterns=relationship-heavy-grid,card-penetrating-connector,inheritance-arrow-not-on-parent,undifferentiated-class-route-overlap" data-source-read="leader-redis-lettuce/README.md; leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceLeaderElector.kt; LettuceLeaderGroupElector.kt; LettuceSuspendLeaderElector.kt; LettuceSuspendLeaderGroupElector.kt; LettuceLeaderElectorFactory.kt; LettuceLeaderGroupElectorFactory.kt; LettuceSuspendLeaderElectorFactory.kt; LettuceSuspendLeaderGroupElectorFactory.kt; lock/LettuceLock.kt; lock/LettuceSuspendLock.kt; semaphore/LettuceSlotTokenGroup.kt; script/RedisScript.kt; internal/LettuceLockExtendDelegate.kt; LettuceSlotExtendDelegate.kt; LettuceSuspendLockExtendDelegate.kt; LettuceSuspendSlotExtendDelegate.kt; LettuceBackendErrorClassifier.kt">
-  <title id="title">Redis Lettuce Leader Class Diagram</title>
-  <desc id="desc">Source-backed UML class diagram for the Redis Lettuce leader module.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1180" viewBox="0 0 1700 1180" role="img" aria-labelledby="title desc">
+  <title id="title">leader-redis-lettuce contract map</title>
+  <desc id="desc">UML-style class and primitive map for Lettuce single-leader and group-leader electors.</desc>
   <defs>
-    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
-    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
-    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
-    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
-    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
-    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
-    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
-    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
-    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
-    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
     <style>
-      .canvas{fill:#F7FAFC}
-      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
-      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
-      .card{filter:url(#shadow);stroke-width:2}
-      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
-      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
-      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
-      .seq{fill:none;stroke-width:3;stroke-linecap:round}
-      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
-      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
-      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
-      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
+      .title { font-family: "Architects Daughter"; font-size: 42px; fill: #263238; }
+      .subtitle, .member, .small, .footer { font-family: "Comic Mono"; fill: #36464f; }
+      .subtitle { font-size: 18px; }
+      .panel-title, .lane-title, .class-title { font-family: "Architects Daughter"; fill: #1f3138; }
+      .panel-title { font-size: 25px; }
+      .lane-title { font-size: 19px; }
+      .class-title { font-size: 21px; }
+      .member { font-size: 14px; }
+      .small { font-size: 13px; }
+      .footer { font-size: 14px; fill: #60727d; }
+      .frame { fill: #fbfcf8; stroke: #41545d; stroke-width: 3; }
+      .panelSingle { fill: #eef6f8; stroke: #b2cbd2; stroke-width: 2; }
+      .panelGroup { fill: #f4f7ef; stroke: #bfd0ae; stroke-width: 2; }
+      .lane { fill: #ffffff; stroke: #d1dee2; stroke-width: 1.6; }
+      .api { fill: #ffffff; stroke: #4f6c77; stroke-width: 2; }
+      .impl { fill: #ffffff; stroke: #5e7d65; stroke-width: 2; }
+      .primitive { fill: #fffdf7; stroke: #8a7447; stroke-width: 2; }
+      .redis { fill: #fff8ec; stroke: #b48748; stroke-width: 2; }
+      .note { fill: #ffffff; stroke: #c6d2d5; stroke-width: 2; }
+      .sep { stroke: #d6dee2; stroke-width: 1.5; }
+      .realize { fill: none; stroke: #35464d; stroke-width: 1.25; stroke-dasharray: 6 5; marker-end: url(#hollow); }
+      .useSingle { fill: none; stroke: #3f7d9c; stroke-width: 2.4; marker-end: url(#arrowSingle); }
+      .useGroup { fill: none; stroke: #6e8f4f; stroke-width: 2.4; marker-end: url(#arrowGroup); }
+      .redisLine { fill: none; stroke: #a2743d; stroke-width: 2.4; marker-end: url(#arrowRedis); }
     </style>
+    <marker id="arrowSingle" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto">
+      <path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3f7d9c"/>
+    </marker>
+    <marker id="arrowGroup" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto">
+      <path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#6e8f4f"/>
+    </marker>
+    <marker id="arrowRedis" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto">
+      <path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#a2743d"/>
+    </marker>
+    <marker id="hollow" markerWidth="9" markerHeight="8" refX="8.4" refY="4" orient="auto">
+      <path d="M 1 1 L 8.4 4 L 1 7 Z" fill="#fbfcf8" stroke="#35464d" stroke-width="1.1"/>
+    </marker>
+    <filter id="softShadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#22333b" flood-opacity="0.12"/>
+    </filter>
   </defs>
-  <rect class="canvas" width="2006" height="2288"/>
-  <rect class="frame" x="32" y="28" width="1942" height="2232" rx="28"/>
-  <text class="title" x="66" y="82">Redis Lettuce Leader Class Diagram</text>
-  <text class="subtitle" x="70" y="116">Public electors map core contracts to Redis SET NX PX locks, ZSET slot-token groups, Lua scripts, and Lettuce error policy.</text>
-<defs><marker id="uml-inherit-lettuceLeader-leaderContract" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#FFFFFF" stroke="#4F83BF" stroke-width="0.7"/></marker></defs>
-<path class="route" data-from="lettuceLeader" data-to="leaderContract" data-route-kind="inherit" d="M328 488 L328 376" stroke="#4F83BF" marker-end="url(#uml-inherit-lettuceLeader-leaderContract)"/>
 
-<defs><marker id="uml-inherit-lettuceSuspend-suspendContract" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#FFFFFF" stroke="#4F83BF" stroke-width="0.7"/></marker></defs>
-<path class="route" data-from="lettuceSuspend" data-to="suspendContract" data-route-kind="inherit" d="M773 488 L773 376" stroke="#4F83BF" marker-end="url(#uml-inherit-lettuceSuspend-suspendContract)"/>
+  <rect x="24" y="24" width="1652" height="1132" rx="20" class="frame"/>
+  <text x="850" y="78" text-anchor="middle" class="title">Lettuce Redis Leader Contract Map</text>
+  <text x="850" y="108" text-anchor="middle" class="subtitle">Each elector family is stacked from leader-core API to Lettuce implementation, local primitive, and Redis contract.</text>
 
-<defs><marker id="uml-inherit-lettuceGroup-groupContract" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#FFFFFF" stroke="#4F83BF" stroke-width="0.7"/></marker></defs>
-<path class="route" data-from="lettuceGroup" data-to="groupContract" data-route-kind="inherit" d="M1258 488 L1258 376" stroke="#4F83BF" marker-end="url(#uml-inherit-lettuceGroup-groupContract)"/>
+  <rect x="72" y="150" width="758" height="832" rx="16" class="panelSingle"/>
+  <text x="102" y="190" class="panel-title">Single leader family</text>
+  <text x="102" y="216" class="small">One holder per lockName, token-guarded key ownership, optional autoExtend watchdog.</text>
 
-<defs><marker id="uml-inherit-lettuceSuspendGroup-suspendGroupContract" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#FFFFFF" stroke="#4F83BF" stroke-width="0.7"/></marker></defs>
-<path class="route" data-from="lettuceSuspendGroup" data-to="suspendGroupContract" data-route-kind="inherit" d="M1683 488 L1683 376" stroke="#4F83BF" marker-end="url(#uml-inherit-lettuceSuspendGroup-suspendGroupContract)"/>
+  <rect x="108" y="250" width="310" height="678" rx="12" class="lane"/>
+  <text x="263" y="282" text-anchor="middle" class="lane-title">Blocking path</text>
+  <rect x="484" y="250" width="310" height="678" rx="12" class="lane"/>
+  <text x="639" y="282" text-anchor="middle" class="lane-title">Coroutine path</text>
 
+  <rect x="132" y="314" width="262" height="110" rx="7" class="api" filter="url(#softShadow)"/>
+  <text x="263" y="346" text-anchor="middle" class="class-title">LeaderElector</text>
+  <line x1="132" y1="366" x2="394" y2="366" class="sep"/>
+  <text x="154" y="393" class="member">+ runIfLeader()</text>
 
-<path class="route" data-from="factories" data-to="lettuceLeader" data-route-kind="dependency" d="M718 808 L108 808 L108 578 L128 578" stroke="#758297" stroke-dasharray="8 7" marker-end="url(#arrow-neutral)"/>
+  <rect x="508" y="314" width="262" height="110" rx="7" class="api" filter="url(#softShadow)"/>
+  <text x="639" y="346" text-anchor="middle" class="class-title">SuspendLeader</text>
+  <text x="639" y="370" text-anchor="middle" class="class-title">Elector</text>
+  <line x1="508" y1="388" x2="770" y2="388" class="sep"/>
+  <text x="530" y="414" class="member">+ suspend runIfLeader()</text>
 
+  <rect x="132" y="494" width="262" height="126" rx="7" class="impl" filter="url(#softShadow)"/>
+  <text x="263" y="526" text-anchor="middle" class="class-title">LettuceLeader</text>
+  <text x="263" y="550" text-anchor="middle" class="class-title">Elector</text>
+  <line x1="132" y1="568" x2="394" y2="568" class="sep"/>
+  <text x="154" y="594" class="member">+ LeaderLockHandle.Real</text>
 
-<path class="route" data-from="factories" data-to="lettuceSuspend" data-route-kind="dependency" d="M868 718 L868 668" stroke="#758297" stroke-dasharray="8 7" marker-end="url(#arrow-neutral)"/>
+  <rect x="508" y="494" width="262" height="126" rx="7" class="impl" filter="url(#softShadow)"/>
+  <text x="639" y="526" text-anchor="middle" class="class-title">LettuceSuspend</text>
+  <text x="639" y="550" text-anchor="middle" class="class-title">LeaderElector</text>
+  <line x1="508" y1="568" x2="770" y2="568" class="sep"/>
+  <text x="530" y="594" class="member">+ coroutine handle element</text>
 
+  <rect x="132" y="694" width="262" height="118" rx="7" class="primitive" filter="url(#softShadow)"/>
+  <text x="263" y="728" text-anchor="middle" class="class-title">LettuceLock</text>
+  <line x1="132" y1="748" x2="394" y2="748" class="sep"/>
+  <text x="154" y="776" class="member">SET NX PX token</text>
+  <text x="154" y="798" class="member">UNLOCK / EXTEND Lua</text>
 
-<path class="route" data-from="factories" data-to="lettuceGroup" data-route-kind="dependency" d="M1258 718 L1258 668" stroke="#758297" stroke-dasharray="8 7" marker-end="url(#arrow-neutral)"/>
+  <rect x="508" y="694" width="262" height="118" rx="7" class="primitive" filter="url(#softShadow)"/>
+  <text x="639" y="728" text-anchor="middle" class="class-title">LettuceSuspendLock</text>
+  <line x1="508" y1="748" x2="770" y2="748" class="sep"/>
+  <text x="530" y="776" class="member">async SET NX PX</text>
+  <text x="530" y="798" class="member">awaited Lua scripts</text>
 
+  <rect x="194" y="852" width="512" height="86" rx="8" class="redis" filter="url(#softShadow)"/>
+  <text x="450" y="884" text-anchor="middle" class="class-title">Redis Single Lock Key</text>
+  <line x1="194" y1="902" x2="706" y2="902" class="sep"/>
+  <text x="218" y="928" class="member">key = lockName, value = token, TTL = leaseTime</text>
 
-<path class="route" data-from="factories" data-to="lettuceSuspendGroup" data-route-kind="dependency" d="M1318 808 L1908 808 L1908 588 L1878 588" stroke="#758297" stroke-dasharray="8 7" marker-end="url(#arrow-neutral)"/>
+  <rect x="870" y="150" width="758" height="832" rx="16" class="panelGroup"/>
+  <text x="900" y="190" class="panel-title">Group leader family</text>
+  <text x="900" y="216" class="small">Up to maxLeaders holders share one Redis ZSET slot-token group per lockName.</text>
 
+  <rect x="906" y="250" width="310" height="678" rx="12" class="lane"/>
+  <text x="1061" y="282" text-anchor="middle" class="lane-title">Blocking path</text>
+  <rect x="1282" y="250" width="310" height="678" rx="12" class="lane"/>
+  <text x="1437" y="282" text-anchor="middle" class="lane-title">Coroutine path</text>
 
-<path class="route" data-from="lettuceLeader" data-to="singleDelegates" data-route-kind="local" d="M328 668 L328 858" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
-<g>
-  <rect class="pill" x="258.5" y="749" width="139" height="28" rx="14"/>
-  <text class="small" x="328" y="764" text-anchor="middle" dominant-baseline="middle" fill="#B9851B">handle delegate</text>
-</g>
+  <rect x="930" y="314" width="262" height="124" rx="7" class="api" filter="url(#softShadow)"/>
+  <text x="1061" y="346" text-anchor="middle" class="class-title">LeaderGroup</text>
+  <text x="1061" y="370" text-anchor="middle" class="class-title">Elector</text>
+  <line x1="930" y1="390" x2="1192" y2="390" class="sep"/>
+  <text x="952" y="416" class="member">+ maxLeaders</text>
 
-<path class="route" data-from="lettuceSuspend" data-to="singleDelegates" data-route-kind="local" d="M773 668 L773 693 L538 693 L538 858" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
-<g>
-  <rect class="pill" x="582.8" y="679" width="146.4" height="28" rx="14"/>
-  <text class="small" x="656" y="694" text-anchor="middle" dominant-baseline="middle" fill="#B9851B">suspend delegate</text>
-</g>
+  <rect x="1306" y="314" width="262" height="124" rx="7" class="api" filter="url(#softShadow)"/>
+  <text x="1437" y="346" text-anchor="middle" class="class-title">SuspendGroup</text>
+  <text x="1437" y="370" text-anchor="middle" class="class-title">Elector</text>
+  <line x1="1306" y1="390" x2="1568" y2="390" class="sep"/>
+  <text x="1328" y="416" class="member">+ suspend action</text>
 
-<path class="route" data-from="lettuceGroup" data-to="slotDelegates" data-route-kind="slot" d="M1258 668 L1258 708 L1498 708 L1498 858" stroke="#755BC6" marker-end="url(#arrow-release)"/>
-<g>
-  <rect class="pill" x="1315.9" y="694" width="124.2" height="28" rx="14"/>
-  <text class="small" x="1378" y="709" text-anchor="middle" dominant-baseline="middle" fill="#755BC6">slot delegate</text>
-</g>
+  <rect x="930" y="494" width="262" height="134" rx="7" class="impl" filter="url(#softShadow)"/>
+  <text x="1061" y="526" text-anchor="middle" class="class-title">LettuceLeader</text>
+  <text x="1061" y="550" text-anchor="middle" class="class-title">GroupElector</text>
+  <line x1="930" y1="568" x2="1192" y2="568" class="sep"/>
+  <text x="952" y="594" class="member">+ slotGroups cache</text>
+  <text x="952" y="616" class="member">+ remainingMinLease</text>
 
-<path class="route" data-from="lettuceSuspendGroup" data-to="slotDelegates" data-route-kind="slot" d="M1683 688 L1683 858" stroke="#755BC6" marker-end="url(#arrow-release)"/>
-<g>
-  <rect class="pill" x="1624.6" y="759" width="116.80000000000001" height="28" rx="14"/>
-  <text class="small" x="1683" y="774" text-anchor="middle" dominant-baseline="middle" fill="#755BC6">suspend slot</text>
-</g>
+  <rect x="1306" y="494" width="262" height="134" rx="7" class="impl" filter="url(#softShadow)"/>
+  <text x="1437" y="526" text-anchor="middle" class="class-title">LettuceSuspend</text>
+  <text x="1437" y="550" text-anchor="middle" class="class-title">GroupElector</text>
+  <line x1="1306" y1="568" x2="1568" y2="568" class="sep"/>
+  <text x="1328" y="594" class="member">+ NonCancellable release</text>
+  <text x="1328" y="616" class="member">+ suspend slot acquire</text>
 
-<path class="route" data-from="singleDelegates" data-to="lettuceLock" data-route-kind="local" d="M418 1028 L418 1098" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
-<g>
-  <rect class="pill" x="363.3" y="1049" width="109.4" height="28" rx="14"/>
-  <text class="small" x="418" y="1064" text-anchor="middle" dominant-baseline="middle" fill="#B9851B">sync extend</text>
-</g>
+  <rect x="1008" y="704" width="482" height="118" rx="7" class="primitive" filter="url(#softShadow)"/>
+  <text x="1249" y="738" text-anchor="middle" class="class-title">LettuceSlotTokenGroup</text>
+  <line x1="1008" y1="758" x2="1490" y2="758" class="sep"/>
+  <text x="1032" y="786" class="member">ZSET member token, score = expiryAtMs</text>
+  <text x="1032" y="808" class="member">ACQUIRE evicts expired slots before ZCARD</text>
 
-<path class="route" data-from="singleDelegates" data-to="lettuceSuspendLock" data-route-kind="local" d="M698 958 L708 958 L708 1073 L1628 1073 L1628 1098" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
+  <rect x="992" y="852" width="514" height="86" rx="8" class="redis" filter="url(#softShadow)"/>
+  <text x="1249" y="884" text-anchor="middle" class="class-title">Redis Group Keys</text>
+  <line x1="992" y1="902" x2="1506" y2="902" class="sep"/>
+  <text x="1016" y="928" class="member">lg:{lockName} ZSET + lg:{lockName}:meta hash, server TIME Lua</text>
 
+  <path d="M 263 494 L 263 424" class="realize"/>
+  <path d="M 639 494 L 639 424" class="realize"/>
+  <path d="M 1061 494 L 1061 438" class="realize"/>
+  <path d="M 1437 494 L 1437 438" class="realize"/>
 
-<path class="route" data-from="slotDelegates" data-to="slotGroup" data-route-kind="slot" d="M1598 1028 L1598 1073 L1168 1073 L1168 1088" stroke="#755BC6" marker-end="url(#arrow-release)"/>
+  <path d="M 263 620 L 263 694" class="useSingle"/>
+  <path d="M 639 620 L 639 694" class="useSingle"/>
+  <path d="M 263 812 L 263 852" class="redisLine"/>
+  <path d="M 639 812 L 639 852" class="redisLine"/>
 
+  <path d="M 1061 628 L 1061 704" class="useGroup"/>
+  <path d="M 1437 628 L 1437 704" class="useGroup"/>
+  <path d="M 1249 822 L 1249 852" class="redisLine"/>
 
-<path class="route" data-from="lettuceGroup" data-to="slotGroup" data-route-kind="slot" d="M1258 488 L1258 448 L1918 448 L1918 1073 L1188 1073 L1188 1088" stroke="#755BC6" marker-end="url(#arrow-release)"/>
-
-
-<path class="route" data-from="lettuceSuspendGroup" data-to="slotGroup" data-route-kind="slot" d="M1878 588 L1918 588 L1918 1073 L1248 1073 L1248 1088" stroke="#755BC6" marker-end="url(#arrow-release)"/>
-
-
-<path class="route" data-from="lettuceLock" data-to="scriptRunner" data-route-kind="uses" d="M408 1288 L408 1338 L918 1338 L918 1388" stroke="#758297" stroke-dasharray="8 7" marker-end="url(#arrow-neutral)"/>
-<g>
-  <rect class="pill" x="593.5" y="1324" width="139" height="28" rx="14"/>
-  <text class="small" x="663" y="1339" text-anchor="middle" dominant-baseline="middle" fill="#758297">unlock / extend</text>
-</g>
-
-<path class="route" data-from="lettuceSuspendLock" data-to="scriptRunner" data-route-kind="uses" d="M1628 1288 L1628 1338 L1118 1338 L1118 1388" stroke="#758297" stroke-dasharray="8 7" marker-end="url(#arrow-neutral)"/>
-<g>
-  <rect class="pill" x="1318.3" y="1324" width="109.4" height="28" rx="14"/>
-  <text class="small" x="1373" y="1339" text-anchor="middle" dominant-baseline="middle" fill="#758297">suspend Lua</text>
-</g>
-
-<path class="route" data-from="slotGroup" data-to="scriptRunner" data-route-kind="uses" d="M1018 1308 L1018 1388" stroke="#758297" stroke-dasharray="8 7" marker-end="url(#arrow-neutral)"/>
-<g>
-  <rect class="pill" x="922.6" y="1334" width="190.8" height="28" rx="14"/>
-  <text class="small" x="1018" y="1349" text-anchor="middle" dominant-baseline="middle" fill="#758297">acquire release status</text>
-</g>
-
-<path class="route" data-from="scriptRunner" data-to="redisKeys" data-route-kind="uses" d="M1018 1568 L1018 1638" stroke="#758297" stroke-dasharray="8 7" marker-end="url(#arrow-neutral)"/>
-<g>
-  <rect class="pill" x="952.2" y="1589" width="131.60000000000002" height="28" rx="14"/>
-  <text class="small" x="1018" y="1604" text-anchor="middle" dominant-baseline="middle" fill="#758297">EVALSHA / EVAL</text>
-</g>
-
-<path class="route" data-from="lettuceLock" data-to="redisKeys" data-route-kind="dependency" d="M658 1193 L700 1193 L700 1738 L733 1738" stroke="#758297" stroke-dasharray="8 7" marker-end="url(#arrow-neutral)"/>
-
-
-<path class="route" data-from="slotGroup" data-to="redisKeys" data-route-kind="slot" d="M1118 1308 L1118 1358 L1328 1358 L1328 1738 L1303 1738" stroke="#755BC6" marker-end="url(#arrow-release)"/>
-<g>
-  <rect class="pill" x="1254.8" y="1534" width="146.4" height="28" rx="14"/>
-  <text class="small" x="1328" y="1549" text-anchor="middle" dominant-baseline="middle" fill="#755BC6">ZSET + meta hash</text>
-</g>
-
-<path class="route" data-from="classifier" data-to="singleDelegates" data-route-kind="event" d="M758 943 L698 943" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-
-
-<path class="route" data-from="classifier" data-to="slotDelegates" data-route-kind="event" d="M1278 943 L1338 943" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-
-<g id="class-leaderContract">
-  <rect x="148" y="228" width="340" height="148" rx="8" fill="#E8F3FF" stroke="#5B8DEF" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="148" y1="294" x2="488" y2="294" stroke="#5B8DEF" stroke-width="1.8"/>
-  <text class="small" x="318" y="252" text-anchor="middle" dominant-baseline="middle">&lt;&lt;core interface&gt;&gt;</text>
-  <text class="cardTitle" x="318" y="278" text-anchor="middle" dominant-baseline="middle">LeaderElector</text>
-  <text class="detail" x="166" y="312" dominant-baseline="middle">+ runIfLeader(lockName): T?</text>
-  <text class="detail" x="166" y="333" dominant-baseline="middle">+ runAsyncIfLeader(lockName)</text>
-  <text class="detail" x="166" y="354" dominant-baseline="middle">+ state(lockName): LeaderState</text>
-</g>
-<g id="class-suspendContract">
-  <rect x="588" y="228" width="370" height="148" rx="8" fill="#F1ECFF" stroke="#8A72D6" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="588" y1="294" x2="958" y2="294" stroke="#8A72D6" stroke-width="1.8"/>
-  <text class="small" x="773" y="252" text-anchor="middle" dominant-baseline="middle">&lt;&lt;core suspend interface&gt;&gt;</text>
-  <text class="cardTitle" x="773" y="278" text-anchor="middle" dominant-baseline="middle">SuspendLeaderElector</text>
-  <text class="detail" x="606" y="312" dominant-baseline="middle">+ suspend runIfLeader(lockName)</text>
-  <text class="detail" x="606" y="333" dominant-baseline="middle">+ runIfLeaderResultSuspend(slot)</text>
-  <text class="detail" x="606" y="354" dominant-baseline="middle">coroutine context handle</text>
-</g>
-<g id="class-groupContract">
-  <rect x="1078" y="228" width="360" height="148" rx="8" fill="#E9F7F6" stroke="#45A7A1" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="1078" y1="294" x2="1438" y2="294" stroke="#45A7A1" stroke-width="1.8"/>
-  <text class="small" x="1258" y="252" text-anchor="middle" dominant-baseline="middle">&lt;&lt;core group interface&gt;&gt;</text>
-  <text class="cardTitle" x="1258" y="278" text-anchor="middle" dominant-baseline="middle">LeaderGroupElector</text>
-  <text class="detail" x="1096" y="312" dominant-baseline="middle">+ maxLeaders: Int</text>
-  <text class="detail" x="1096" y="333" dominant-baseline="middle">+ runIfLeader(lockName): T?</text>
-  <text class="detail" x="1096" y="354" dominant-baseline="middle">+ activeCount / availableSlots</text>
-</g>
-<g id="class-suspendGroupContract">
-  <rect x="1498" y="228" width="370" height="148" rx="8" fill="#F1ECFF" stroke="#8A72D6" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="1498" y1="294" x2="1868" y2="294" stroke="#8A72D6" stroke-width="1.8"/>
-  <text class="small" x="1683" y="252" text-anchor="middle" dominant-baseline="middle">&lt;&lt;core suspend group&gt;&gt;</text>
-  <text class="cardTitle" x="1683" y="278" text-anchor="middle" dominant-baseline="middle">SuspendLeaderGroupElector</text>
-  <text class="detail" x="1516" y="312" dominant-baseline="middle">+ maxLeaders: Int</text>
-  <text class="detail" x="1516" y="333" dominant-baseline="middle">+ suspend runIfLeader(lockName)</text>
-  <text class="detail" x="1516" y="354" dominant-baseline="middle">+ state(lockName): LeaderGroupState</text>
-</g>
-<g id="class-lettuceLeader">
-  <rect x="128" y="488" width="400" height="180" rx="8" fill="#EAF7EF" stroke="#58A978" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="128" y1="554" x2="528" y2="554" stroke="#58A978" stroke-width="1.8"/>
-  <text class="small" x="328" y="512" text-anchor="middle" dominant-baseline="middle">&lt;&lt;blocking + async implementation&gt;&gt;</text>
-  <text class="cardTitle" x="328" y="538" text-anchor="middle" dominant-baseline="middle">LettuceLeaderElector</text>
-  <text class="detail" x="146" y="572" dominant-baseline="middle">StatefulRedisConnection&lt;String,String&gt;</text>
-  <text class="detail" x="146" y="593" dominant-baseline="middle">creates LettuceLock</text>
-  <text class="detail" x="146" y="614" dominant-baseline="middle">autoExtend watchdog optional</text>
-  <text class="detail" x="146" y="635" dominant-baseline="middle">optional history recorder</text>
-</g>
-<g id="class-lettuceSuspend">
-  <rect x="568" y="488" width="410" height="180" rx="8" fill="#F1ECFF" stroke="#8A72D6" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="568" y1="554" x2="978" y2="554" stroke="#8A72D6" stroke-width="1.8"/>
-  <text class="small" x="773" y="512" text-anchor="middle" dominant-baseline="middle">&lt;&lt;coroutine implementation&gt;&gt;</text>
-  <text class="cardTitle" x="773" y="538" text-anchor="middle" dominant-baseline="middle">LettuceSuspendLeaderElector</text>
-  <text class="detail" x="586" y="572" dominant-baseline="middle">uses Lettuce async commands</text>
-  <text class="detail" x="586" y="593" dominant-baseline="middle">creates LettuceSuspendLock</text>
-  <text class="detail" x="586" y="614" dominant-baseline="middle">withContext(handle element)</text>
-  <text class="detail" x="586" y="635" dominant-baseline="middle">NonCancellable unlock</text>
-</g>
-<g id="class-lettuceGroup">
-  <rect x="1058" y="488" width="400" height="180" rx="8" fill="#E9F7F6" stroke="#45A7A1" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="1058" y1="554" x2="1458" y2="554" stroke="#45A7A1" stroke-width="1.8"/>
-  <text class="small" x="1258" y="512" text-anchor="middle" dominant-baseline="middle">&lt;&lt;slot-token group implementation&gt;&gt;</text>
-  <text class="cardTitle" x="1258" y="538" text-anchor="middle" dominant-baseline="middle">LettuceLeaderGroupElector</text>
-  <text class="detail" x="1076" y="572" dominant-baseline="middle">reuses slotGroups map</text>
-  <text class="detail" x="1076" y="593" dominant-baseline="middle">creates LettuceSlotTokenGroup</text>
-  <text class="detail" x="1076" y="614" dominant-baseline="middle">token becomes slotId</text>
-  <text class="detail" x="1076" y="635" dominant-baseline="middle">group watchdog disabled</text>
-</g>
-<g id="class-lettuceSuspendGroup">
-  <rect x="1488" y="488" width="390" height="200" rx="8" fill="#E9F7F6" stroke="#45A7A1" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="1488" y1="554" x2="1878" y2="554" stroke="#45A7A1" stroke-width="1.8"/>
-  <text class="small" x="1683" y="512" text-anchor="middle" dominant-baseline="middle">&lt;&lt;coroutine slot group&gt;&gt;</text>
-  <text class="cardTitle" x="1683" y="538" text-anchor="middle" dominant-baseline="middle">LettuceSuspend Group</text>
-  <text class="detail" x="1506" y="572" dominant-baseline="middle">LettuceSuspendLeaderGroupElector</text>
-  <text class="detail" x="1506" y="593" dominant-baseline="middle">uses same SlotTokenGroup primitive</text>
-  <text class="detail" x="1506" y="614" dominant-baseline="middle">tryAcquireSuspending</text>
-  <text class="detail" x="1506" y="635" dominant-baseline="middle">NonCancellable slot release</text>
-</g>
-<g id="class-factories">
-  <rect x="718" y="718" width="600" height="180" rx="8" fill="#E8F3FF" stroke="#5B8DEF" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="718" y1="784" x2="1318" y2="784" stroke="#5B8DEF" stroke-width="1.8"/>
-  <text class="small" x="1018" y="742" text-anchor="middle" dominant-baseline="middle">&lt;&lt;factory + extensions&gt;&gt;</text>
-  <text class="cardTitle" x="1018" y="768" text-anchor="middle" dominant-baseline="middle">Factory Entrypoints</text>
-  <text class="detail" x="736" y="802" dominant-baseline="middle">LettuceLeaderElectorFactory</text>
-  <text class="detail" x="736" y="823" dominant-baseline="middle">LettuceLeaderGroupElectorFactory</text>
-  <text class="detail" x="736" y="844" dominant-baseline="middle">LettuceSuspendLeaderElectorFactory</text>
-  <text class="detail" x="736" y="865" dominant-baseline="middle">StatefulRedisConnection extensions</text>
-</g>
-<g id="class-singleDelegates">
-  <rect x="178" y="858" width="520" height="170" rx="8" fill="#EEF1FF" stroke="#6477D8" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="178" y1="924" x2="698" y2="924" stroke="#6477D8" stroke-width="1.8"/>
-  <text class="small" x="438" y="882" text-anchor="middle" dominant-baseline="middle">&lt;&lt;renewal delegates&gt;&gt;</text>
-  <text class="cardTitle" x="438" y="908" text-anchor="middle" dominant-baseline="middle">Single Extend Delegates</text>
-  <text class="detail" x="196" y="942" dominant-baseline="middle">LettuceLockExtendDelegate</text>
-  <text class="detail" x="196" y="963" dominant-baseline="middle">LettuceSuspendLockExtendDelegate</text>
-  <text class="detail" x="196" y="984" dominant-baseline="middle">share lock with LeaderLockHandle</text>
-  <text class="detail" x="196" y="1005" dominant-baseline="middle">R2 watchdog skip deadline</text>
-</g>
-<g id="class-slotDelegates">
-  <rect x="1338" y="858" width="520" height="170" rx="8" fill="#EEF1FF" stroke="#6477D8" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="1338" y1="924" x2="1858" y2="924" stroke="#6477D8" stroke-width="1.8"/>
-  <text class="small" x="1598" y="882" text-anchor="middle" dominant-baseline="middle">&lt;&lt;group renewal delegates&gt;&gt;</text>
-  <text class="cardTitle" x="1598" y="908" text-anchor="middle" dominant-baseline="middle">Slot Extend Delegates</text>
-  <text class="detail" x="1356" y="942" dominant-baseline="middle">LettuceSlotExtendDelegate</text>
-  <text class="detail" x="1356" y="963" dominant-baseline="middle">LettuceSuspendSlotExtendDelegate</text>
-  <text class="detail" x="1356" y="984" dominant-baseline="middle">extend slot token via server TIME</text>
-  <text class="detail" x="1356" y="1005" dominant-baseline="middle">manual LockExtender path</text>
-</g>
-<g id="class-lettuceLock">
-  <rect x="158" y="1098" width="500" height="190" rx="8" fill="#FFF3D9" stroke="#D6A441" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="158" y1="1164" x2="658" y2="1164" stroke="#D6A441" stroke-width="1.8"/>
-  <text class="small" x="408" y="1122" text-anchor="middle" dominant-baseline="middle">&lt;&lt;Redis SET NX PX lock&gt;&gt;</text>
-  <text class="cardTitle" x="408" y="1148" text-anchor="middle" dominant-baseline="middle">LettuceLock</text>
-  <text class="detail" x="176" y="1182" dominant-baseline="middle">token: Base58 fencing value</text>
-  <text class="detail" x="176" y="1203" dominant-baseline="middle">SET key token NX PX lease</text>
-  <text class="detail" x="176" y="1224" dominant-baseline="middle">Lua token unlock / PEXPIRE</text>
-  <text class="detail" x="176" y="1245" dominant-baseline="middle">async retry uses same token</text>
-</g>
-<g id="class-slotGroup">
-  <rect x="733" y="1088" width="570" height="220" rx="8" fill="#FFF3D9" stroke="#D6A441" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="733" y1="1154" x2="1303" y2="1154" stroke="#D6A441" stroke-width="1.8"/>
-  <text class="small" x="1018" y="1112" text-anchor="middle" dominant-baseline="middle">&lt;&lt;ZSET slot-token primitive&gt;&gt;</text>
-  <text class="cardTitle" x="1018" y="1138" text-anchor="middle" dominant-baseline="middle">LettuceSlotTokenGroup</text>
-  <text class="detail" x="751" y="1172" dominant-baseline="middle">slotKey: lg:{lockName}</text>
-  <text class="detail" x="751" y="1193" dominant-baseline="middle">member token, score expiryAtMs</text>
-  <text class="detail" x="751" y="1214" dominant-baseline="middle">metaKey stores LeaderSlot leaderId</text>
-  <text class="detail" x="751" y="1235" dominant-baseline="middle">no legacy semaphore dependency</text>
-</g>
-<g id="class-lettuceSuspendLock">
-  <rect x="1378" y="1098" width="500" height="190" rx="8" fill="#FFF3D9" stroke="#D6A441" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="1378" y1="1164" x2="1878" y2="1164" stroke="#D6A441" stroke-width="1.8"/>
-  <text class="small" x="1628" y="1122" text-anchor="middle" dominant-baseline="middle">&lt;&lt;coroutine Redis lock&gt;&gt;</text>
-  <text class="cardTitle" x="1628" y="1148" text-anchor="middle" dominant-baseline="middle">LettuceSuspendLock</text>
-  <text class="detail" x="1396" y="1182" dominant-baseline="middle">asyncCommands.set NX PX</text>
-  <text class="detail" x="1396" y="1203" dominant-baseline="middle">delay retry + ensureActive</text>
-  <text class="detail" x="1396" y="1224" dominant-baseline="middle">Lua token unlock / PEXPIRE</text>
-  <text class="detail" x="1396" y="1245" dominant-baseline="middle">suspend native extendDetailed</text>
-</g>
-<g id="class-scriptRunner">
-  <rect x="733" y="1388" width="570" height="180" rx="8" fill="#F1ECFF" stroke="#8A72D6" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="733" y1="1454" x2="1303" y2="1454" stroke="#8A72D6" stroke-width="1.8"/>
-  <text class="small" x="1018" y="1412" text-anchor="middle" dominant-baseline="middle">&lt;&lt;Lua execution helper&gt;&gt;</text>
-  <text class="cardTitle" x="1018" y="1438" text-anchor="middle" dominant-baseline="middle">RedisScriptRunner</text>
-  <text class="detail" x="751" y="1472" dominant-baseline="middle">RedisScript.sha1</text>
-  <text class="detail" x="751" y="1493" dominant-baseline="middle">EVALSHA first</text>
-  <text class="detail" x="751" y="1514" dominant-baseline="middle">NOSCRIPT falls back to EVAL</text>
-  <text class="detail" x="751" y="1535" dominant-baseline="middle">sync / async / suspend entrypoints</text>
-</g>
-<g id="class-redisKeys">
-  <rect x="733" y="1638" width="570" height="200" rx="8" fill="#F2F5F9" stroke="#9AA8B8" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="733" y1="1704" x2="1303" y2="1704" stroke="#9AA8B8" stroke-width="1.8"/>
-  <text class="small" x="1018" y="1662" text-anchor="middle" dominant-baseline="middle">&lt;&lt;Redis storage contract&gt;&gt;</text>
-  <text class="cardTitle" x="1018" y="1688" text-anchor="middle" dominant-baseline="middle">Redis Runtime Keys</text>
-  <text class="detail" x="751" y="1722" dominant-baseline="middle">single lock key: SET NX PX</text>
-  <text class="detail" x="751" y="1743" dominant-baseline="middle">group ZSET: lg:{lockName}</text>
-  <text class="detail" x="751" y="1764" dominant-baseline="middle">group hash: lg:{lockName}:meta</text>
-  <text class="detail" x="751" y="1785" dominant-baseline="middle">ACQUIRE evicts expired scores</text>
-</g>
-<g id="class-classifier">
-  <rect x="758" y="903" width="520" height="155" rx="8" fill="#F2F5F9" stroke="#9AA8B8" stroke-width="2.2" filter="url(#shadow)"/>
-  <line x1="758" y1="969" x2="1278" y2="969" stroke="#9AA8B8" stroke-width="1.8"/>
-  <text class="small" x="1018" y="927" text-anchor="middle" dominant-baseline="middle">&lt;&lt;watchdog error policy&gt;&gt;</text>
-  <text class="cardTitle" x="1018" y="953" text-anchor="middle" dominant-baseline="middle">LettuceBackendErrorClassifier</text>
-  <text class="detail" x="776" y="987" dominant-baseline="middle">RedisCommandTimeout -&gt; transient</text>
-  <text class="detail" x="776" y="1008" dominant-baseline="middle">RedisConnection -&gt; transient</text>
-  <text class="detail" x="776" y="1029" dominant-baseline="middle">RedisCommandExecution -&gt; non-transient</text>
-  <text class="detail" x="776" y="1050" dominant-baseline="middle">other errors delegated</text>
-</g>
-<g>
-  <rect class="band" x="1372" y="1896" width="506" height="268" rx="16"/>
-  <text class="bandTitle" x="1396" y="1926">Relationship Legend</text>
-<g>
-  <line x1="1398" y1="1960" x2="1468" y2="1960" stroke="#4F83BF" stroke-width="2.6" stroke-linecap="round"/>
-  <text class="small" x="1484" y="1961" dominant-baseline="middle">core interface implementation</text>
-</g>
-<g>
-  <line x1="1398" y1="1990" x2="1468" y2="1990" stroke="#758297" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="8 7"/>
-  <text class="small" x="1484" y="1991" dominant-baseline="middle">factory, Redis key, or direct command path</text>
-</g>
-<g>
-  <line x1="1398" y1="2020" x2="1468" y2="2020" stroke="#B9851B" stroke-width="2.6" stroke-linecap="round"/>
-  <text class="small" x="1484" y="2021" dominant-baseline="middle">single-leader token lock path</text>
-</g>
-<g>
-  <line x1="1398" y1="2050" x2="1468" y2="2050" stroke="#755BC6" stroke-width="2.6" stroke-linecap="round"/>
-  <text class="small" x="1484" y="2051" dominant-baseline="middle">group ZSET slot-token path</text>
-</g>
-<g>
-  <line x1="1398" y1="2080" x2="1468" y2="2080" stroke="#758297" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="8 7"/>
-  <text class="small" x="1484" y="2081" dominant-baseline="middle">Redis Lua script execution dependency</text>
-</g>
-<g>
-  <line x1="1398" y1="2110" x2="1468" y2="2110" stroke="#2E8F89" stroke-width="2.6" stroke-linecap="round"/>
-  <text class="small" x="1484" y="2111" dominant-baseline="middle">watchdog backend error-policy path</text>
-</g>
-</g>
+  <rect x="92" y="1010" width="1516" height="78" rx="14" class="note"/>
+  <text x="120" y="1040" class="panel-title">Reader contract</text>
+  <text x="120" y="1068" class="small">Single electors use token-guarded SET/PEXPIRE/UNLOCK. Group electors use one ZSET per lockName, meta hash audit IDs, and server-side TIME Lua.</text>
+  <text x="850" y="1126" text-anchor="middle" class="footer">github.com/bluetape4k/bluetape4k-leader - leader-redis-lettuce README</text>
 </svg>

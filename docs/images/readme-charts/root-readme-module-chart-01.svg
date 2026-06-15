@@ -1,52 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="650" viewBox="0 0 1360 650" role="img" aria-labelledby="title desc" data-intent="Answer the root README reader's scope question: how large is each major repository family and why do backend adapters and examples dominate the repository surface compared with the small core API?" data-evidence="settings.gradle.kts module registration; README module family table" data-source-read="README.md; README.ko.md; settings.gradle.kts">
+<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="680" viewBox="0 0 1260 680" role="img" aria-labelledby="title desc" data-source-read="README.md; README.ko.md; settings.gradle.kts" data-intent="Show the root README reader that bluetape4k-leader is a small core contract surrounded by many backend adapters and examples, so module count reflects teaching and integration surface rather than core complexity.">
 <title id="title">Leader Repository Module Composition</title>
-<desc id="desc">Module families counted from settings.gradle.kts; examples are intentionally large teaching surface.</desc>
+<desc id="desc">Source-derived module family counts from settings.gradle.kts and root README module table.</desc>
 <defs>
+  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#B9C7D6" flood-opacity="0.22"/></filter>
   <style>
-    .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-    .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-    .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-    .axis{stroke:#D7E2EC;stroke-width:1.5}
-    .label{font-family:"Architects Daughter";font-size:22px;fill:#22344A;font-weight:400}
-    .value{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-    .legend{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-    .note{font-family:"Comic Mono";font-size:13px;fill:#536476;font-weight:400}
+    .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:2.2;filter:url(#shadow)}
+    .title{font-family:"Architects Daughter";font-size:40px;fill:#22344A}.subtitle,.axis,.value,.note{font-family:"Comic Mono";fill:#4B6075}.subtitle{font-size:15px}.axis{font-size:13px}.value{font-size:13px}.note{font-size:13px}
+    .rowLabel{font-family:"Architects Daughter";font-size:24px;fill:#22344A}.panel{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1.6}.track{fill:#EEF4F9;stroke:#D6E2EC;stroke-width:1.2}.legend{font-family:"Comic Mono";font-size:12px;fill:#4B6075}
   </style>
 </defs>
-<rect class="canvas" width="1360" height="650"/>
-<rect class="frame" x="32" y="28" width="1296" height="594" rx="28"/>
-<text class="title" x="66" y="82">Leader Repository Module Composition</text>
-<text class="subtitle" x="70" y="116">Module families counted from settings.gradle.kts; examples are intentionally large teaching surface.</text>
-<g>
-  <text class="label" x="120" y="208" dominant-baseline="middle">Core API</text>
-  <rect x="410" y="190" width="720" height="36" rx="9" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.4"/>
-  <rect x="410" y="190" width="42.35" height="36" rx="9" fill="#5B8DEF" opacity="0.84"/>
-  <text class="value" x="470.3529411764706" y="208" dominant-baseline="middle">1 module</text>
-</g>
-<g>
-  <text class="label" x="120" y="286" dominant-baseline="middle">Backend adapters</text>
-  <rect x="410" y="268" width="720" height="36" rx="9" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.4"/>
-  <rect x="410" y="268" width="465.88" height="36" rx="9" fill="#D66B3D" opacity="0.84"/>
-  <text class="value" x="893.8823529411766" y="286" dominant-baseline="middle">11 modules</text>
-</g>
-<g>
-  <text class="label" x="120" y="364" dominant-baseline="middle">Framework/metrics</text>
-  <rect x="410" y="346" width="720" height="36" rx="9" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.4"/>
-  <rect x="410" y="346" width="127.06" height="36" rx="9" fill="#45A7A1" opacity="0.84"/>
-  <text class="value" x="555.0588235294117" y="364" dominant-baseline="middle">3 modules</text>
-</g>
-<g>
-  <text class="label" x="120" y="442" dominant-baseline="middle">Examples</text>
-  <rect x="410" y="424" width="720" height="36" rx="9" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.4"/>
-  <rect x="410" y="424" width="720.00" height="36" rx="9" fill="#C94D68" opacity="0.84"/>
-  <text class="value" x="1148" y="442" dominant-baseline="middle">17 modules</text>
-</g>
-<g>
-  <text class="label" x="120" y="520" dominant-baseline="middle">Benchmark/BOM</text>
-  <rect x="410" y="502" width="720" height="36" rx="9" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.4"/>
-  <rect x="410" y="502" width="84.71" height="36" rx="9" fill="#8BA84D" opacity="0.84"/>
-  <text class="value" x="512.7058823529412" y="520" dominant-baseline="middle">2 modules</text>
-</g>
-<rect x="94" y="550" width="1172" height="44" rx="12" fill="#FFFFFF" stroke="#D7E2EC" stroke-width="1.4"/>
-<text class="note" x="680" y="577" text-anchor="middle">Total counted module/example surfaces: 34. Source: README.md and settings.gradle.kts.</text>
+<rect class="canvas" width="1260" height="680"/>
+<rect class="frame" x="34" y="28" width="1192" height="624" rx="30"/>
+<text class="title" x="72" y="84">Leader Repository Module Composition</text>
+<text class="subtitle" x="76" y="116">Counts come from settings.gradle.kts; examples dominate because the README teaches production scenarios.</text>
+
+<rect class="panel" x="90" y="155" width="1080" height="392" rx="18"/>
+<line x1="430" y1="196" x2="430" y2="500" stroke="#D6E2EC" stroke-width="1"/>
+<line x1="621" y1="196" x2="621" y2="500" stroke="#E3EBF2" stroke-width="1"/>
+<line x1="812" y1="196" x2="812" y2="500" stroke="#E3EBF2" stroke-width="1"/>
+<line x1="1004" y1="196" x2="1004" y2="500" stroke="#E3EBF2" stroke-width="1"/>
+<text class="axis" x="430" y="522" text-anchor="middle">0</text>
+<text class="axis" x="621" y="522" text-anchor="middle">5</text>
+<text class="axis" x="812" y="522" text-anchor="middle">10</text>
+<text class="axis" x="1004" y="522" text-anchor="middle">15</text>
+
+<text class="rowLabel" x="130" y="218">Core API</text>
+<rect class="track" x="430" y="194" width="650" height="30" rx="9"/><rect x="430" y="194" width="38" height="30" rx="9" fill="#45A870" opacity="0.86"/><text class="value" x="488" y="214">1 module</text>
+<text class="rowLabel" x="130" y="282">Backend adapters</text>
+<rect class="track" x="430" y="258" width="650" height="30" rx="9"/><rect x="430" y="258" width="421" height="30" rx="9" fill="#D69B2D" opacity="0.86"/><text class="value" x="872" y="278">11 modules</text>
+<text class="rowLabel" x="130" y="346">Framework / metrics</text>
+<rect class="track" x="430" y="322" width="650" height="30" rx="9"/><rect x="430" y="322" width="115" height="30" rx="9" fill="#8F75D6" opacity="0.86"/><text class="value" x="565" y="342">3 modules</text>
+<text class="rowLabel" x="130" y="410">Runnable examples</text>
+<rect class="track" x="430" y="386" width="650" height="30" rx="9"/><rect x="430" y="386" width="650" height="30" rx="9" fill="#5B8DEF" opacity="0.86"/><text class="value" x="1100" y="406">17 examples</text>
+<text class="rowLabel" x="130" y="474">Support surface</text>
+<rect class="track" x="430" y="450" width="650" height="30" rx="9"/><rect x="430" y="450" width="76" height="30" rx="9" fill="#45A7A1" opacity="0.86"/><text class="value" x="526" y="470">BOM + benchmark</text>
+
+<rect x="90" y="574" width="1080" height="42" rx="14" fill="#FFFFFF" stroke="#D6E2EC" stroke-width="1.4"/>
+<text class="note" x="630" y="600" text-anchor="middle">Unit: registered module/example surfaces. Direction: count, not performance or importance.</text>
 </svg>

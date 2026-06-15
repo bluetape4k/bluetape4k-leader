@@ -1,126 +1,107 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1668" height="1027" viewBox="0 0 1668 1027" role="img" aria-labelledby="title desc" data-intent="Answer a first-time README reader's question: what problem does this repository solve, which module families exist, and how do core contracts, backend adapters, framework integration, and examples relate at runtime?" data-evidence="README feature sections, settings module registration, SuspendLeaderElector contract, SuspendLeaderGroupElector contract" data-source-read="README.md; settings.gradle.kts; leader-core/src/main/kotlin/io/bluetape4k/leader/coroutines/SuspendLeaderElector.kt; leader-core/src/main/kotlin/io/bluetape4k/leader/coroutines/SuspendLeaderGroupElector.kt">
-  <title id="title">Leader Election Repository Overview</title>
-  <desc id="desc">Repository overview for bluetape4k-leader showing the reader how the root README maps core APIs to backend adapters, framework integration, metrics, BOM, benchmarks, and examples.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" role="img" aria-labelledby="title desc">
+  <title id="title">Bluetape4k Leader Repository Overview</title>
+  <desc id="desc">Repository overview: core contracts, backend adapters, integrations, benchmark, and runnable examples.</desc>
   <defs>
-    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
-    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
-    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
-    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
-    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
-    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
-    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
-    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
-    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
-    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
+    <marker id="arrow-blue" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#5278c9"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3d8f7b"/>
+    </marker>
     <style>
-      .canvas{fill:#F7FAFC}
-      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
-      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
-      .card{filter:url(#shadow);stroke-width:2}
-      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
-      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
-      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
-      .seq{fill:none;stroke-width:3;stroke-linecap:round}
-      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
-      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
-      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
-      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
+      .canvas { fill: #f7fafc; }
+      .frame { fill: #ffffff; stroke: #8aa4c8; stroke-width: 3; }
+      .title { font-family: "Architects Daughter"; font-size: 42px; fill: #2f4564; }
+      .subtitle, .footer, .detail { font-family: "Comic Mono"; fill: #536477; }
+      .subtitle { font-size: 17px; }
+      .footer { font-size: 14px; }
+      .band-title { font-family: "Architects Daughter"; font-size: 23px; fill: #334766; }
+      .band-note { font-family: "Comic Mono"; font-size: 13px; fill: #5f6f82; }
+      .chip { stroke-width: 2; rx: 16; }
+      .chip-label { font-family: "Architects Daughter"; font-size: 18px; fill: #2f3f55; }
+      .chip-detail { font-family: "Comic Mono"; font-size: 12px; fill: #596879; }
+      .route { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .route-label { font-family: "Comic Mono"; font-size: 13px; fill: #476082; }
+      .legend { font-family: "Comic Mono"; font-size: 13px; fill: #596879; }
     </style>
   </defs>
-  <rect class="canvas" width="1668" height="1027"/>
-  <rect class="frame" x="32" y="28" width="1604" height="971" rx="28"/>
-  <text class="title" x="66" y="82">Leader Election Repository Overview</text>
-  <text class="subtitle" x="70" y="116">Core contracts, backend adapters, integration modules, and runnable examples form one teaching path.</text>
-<g>
-  <rect class="band" x="128" y="228" width="1412" height="170" rx="18"/>
-  <text class="bandTitle" x="154" y="262">Reader entry</text>
-</g>
-<g>
-  <rect class="band" x="128" y="443" width="1412" height="230" rx="18"/>
-  <text class="bandTitle" x="154" y="477">Runtime API and adapters</text>
-</g>
-<g>
-  <rect class="band" x="128" y="723" width="1412" height="180" rx="18"/>
-  <text class="bandTitle" x="154" y="757">Integrations and learning surface</text>
-</g>
-<path class="route" data-from="readme" data-to="core" data-route-tone="call" d="M454 327 L554 327" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="core" data-to="consumer" data-route-tone="call" d="M824 327 L924 327" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="consumer" data-to="contracts" data-route-tone="call" d="M1059 366 L1059 418 L1016 418 L1016 518" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="bom" data-to="redis" data-route-tone="dependency" d="M1374 366 L1374 418 L1372 418 L1372 518" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="contracts" data-to="redis" data-route-tone="dependency" d="M1164 561 L1244 561" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="contracts" data-to="distributed" data-route-tone="dependency" d="M869 561 L854 561" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="contracts" data-to="database" data-route-tone="dependency" d="M1016 604 L1016 693 L306 693 L306 604" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="contracts" data-to="framework" data-route-tone="call" d="M1016 604 L1016 698 L614 698 L614 793" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="framework" data-to="metrics" data-route-tone="metric" d="M624 832 L704 832" stroke="#718A35" marker-end="url(#arrow-metric)"/>
-<path class="route" data-from="metrics" data-to="examples" data-route-tone="metric" d="M1004 832 L1084 832" stroke="#718A35" marker-end="url(#arrow-metric)"/>
-<g id="node-readme">
-  <rect class="card" x="184" y="288" width="270" height="78" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="319" y="309" text-anchor="middle" dominant-baseline="middle">Root README</text>
-  <text class="detail" x="319" y="328" text-anchor="middle" dominant-baseline="middle">problem, module families</text>
-  <text class="detail" x="319" y="347" text-anchor="middle" dominant-baseline="middle">usage path</text>
-</g>
-<g id="node-core">
-  <rect class="card" x="554" y="288" width="270" height="78" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="689" y="309" text-anchor="middle" dominant-baseline="middle">Core API</text>
-  <text class="detail" x="689" y="328" text-anchor="middle" dominant-baseline="middle">runIfLeader</text>
-  <text class="detail" x="689" y="347" text-anchor="middle" dominant-baseline="middle">group slot election</text>
-</g>
-<g id="node-consumer">
-  <rect class="card" x="924" y="288" width="270" height="78" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="1059" y="309" text-anchor="middle" dominant-baseline="middle">Application code</text>
-  <text class="detail" x="1059" y="328" text-anchor="middle" dominant-baseline="middle">scheduled work</text>
-  <text class="detail" x="1059" y="347" text-anchor="middle" dominant-baseline="middle">single execution</text>
-</g>
-<g id="node-bom">
-  <rect class="card" x="1269" y="288" width="210" height="78" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="1374" y="309" text-anchor="middle" dominant-baseline="middle">BOM</text>
-  <text class="detail" x="1374" y="328" text-anchor="middle" dominant-baseline="middle">aligned versions</text>
-  <text class="detail" x="1374" y="347" text-anchor="middle" dominant-baseline="middle">consumer constraints</text>
-</g>
-<g id="node-database">
-  <rect class="card" x="184" y="518" width="245" height="86" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="306.5" y="543" text-anchor="middle" dominant-baseline="middle">Database adapters</text>
-  <text class="detail" x="306.5" y="562" text-anchor="middle" dominant-baseline="middle">MongoDB</text>
-  <text class="detail" x="306.5" y="581" text-anchor="middle" dominant-baseline="middle">Exposed JDBC/R2DBC</text>
-</g>
-<g id="node-distributed">
-  <rect class="card" x="554" y="518" width="300" height="86" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="cardTitle" x="704" y="543" text-anchor="middle" dominant-baseline="middle">Distributed stores</text>
-  <text class="detail" x="704" y="562" text-anchor="middle" dominant-baseline="middle">Consul, etcd, K8s</text>
-  <text class="detail" x="704" y="581" text-anchor="middle" dominant-baseline="middle">DynamoDB, ZooKeeper</text>
-</g>
-<g id="node-contracts">
-  <rect class="card" x="869" y="518" width="295" height="86" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="1016.5" y="543" text-anchor="middle" dominant-baseline="middle">Elector contracts</text>
-  <text class="detail" x="1016.5" y="562" text-anchor="middle" dominant-baseline="middle">blocking, async</text>
-  <text class="detail" x="1016.5" y="581" text-anchor="middle" dominant-baseline="middle">suspend, virtual thread</text>
-</g>
-<g id="node-redis">
-  <rect class="card" x="1244" y="518" width="255" height="86" rx="10" fill="#FDECEF" stroke="#DC6B82"/>
-  <text class="cardTitle" x="1371.5" y="543" text-anchor="middle" dominant-baseline="middle">Redis adapters</text>
-  <text class="detail" x="1371.5" y="562" text-anchor="middle" dominant-baseline="middle">Lettuce locks</text>
-  <text class="detail" x="1371.5" y="581" text-anchor="middle" dominant-baseline="middle">Redisson locks</text>
-</g>
-<g id="node-framework">
-  <rect class="card" x="324" y="793" width="300" height="78" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="474" y="814" text-anchor="middle" dominant-baseline="middle">Framework integration</text>
-  <text class="detail" x="474" y="833" text-anchor="middle" dominant-baseline="middle">Spring Boot AOP</text>
-  <text class="detail" x="474" y="852" text-anchor="middle" dominant-baseline="middle">Ktor route</text>
-</g>
-<g id="node-metrics">
-  <rect class="card" x="704" y="793" width="300" height="78" rx="10" fill="#EEF6D9" stroke="#8BA84D"/>
-  <text class="cardTitle" x="854" y="814" text-anchor="middle" dominant-baseline="middle">Observability</text>
-  <text class="detail" x="854" y="833" text-anchor="middle" dominant-baseline="middle">Micrometer events</text>
-  <text class="detail" x="854" y="852" text-anchor="middle" dominant-baseline="middle">Prometheus examples</text>
-</g>
-<g id="node-examples">
-  <rect class="card" x="1084" y="793" width="300" height="78" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="1234" y="814" text-anchor="middle" dominant-baseline="middle">Runnable examples</text>
-  <text class="detail" x="1234" y="833" text-anchor="middle" dominant-baseline="middle">17 scenarios</text>
-  <text class="detail" x="1234" y="852" text-anchor="middle" dominant-baseline="middle">scenario/flow/sequence</text>
-</g>
+
+  <rect class="canvas" width="1400" height="900"/>
+  <rect class="frame" x="44" y="36" width="1312" height="828" rx="28"/>
+
+  <text class="title" x="700" y="92" text-anchor="middle">Bluetape4k Leader Repository Overview</text>
+  <text class="subtitle" x="700" y="124" text-anchor="middle">One adoption path: application code calls core contracts, then chooses a distributed backend, integration, and example pattern.</text>
+
+  <rect x="92" y="162" width="1216" height="128" rx="20" fill="#eaf2ff" stroke="#bed0ee" stroke-width="2"/>
+  <text class="band-title" x="126" y="204">Core contracts</text>
+  <text class="band-note" x="126" y="260">Primary APIs that application code calls before choosing a backend.</text>
+  <g>
+    <rect class="chip" x="360" y="186" width="145" height="58" fill="#ffffff" stroke="#9fb9df"/>
+    <text class="chip-label" x="432.5" y="213" text-anchor="middle">Blocking</text>
+    <text class="chip-detail" x="432.5" y="234" text-anchor="middle">LeaderElector</text>
+    <rect class="chip" x="532" y="186" width="145" height="58" fill="#ffffff" stroke="#9fb9df"/>
+    <text class="chip-label" x="604.5" y="213" text-anchor="middle">Async</text>
+    <text class="chip-detail" x="604.5" y="234" text-anchor="middle">CompletableFuture</text>
+    <rect class="chip" x="704" y="186" width="145" height="58" fill="#ffffff" stroke="#9fb9df"/>
+    <text class="chip-label" x="776.5" y="213" text-anchor="middle">Suspend</text>
+    <text class="chip-detail" x="776.5" y="234" text-anchor="middle">coroutines</text>
+    <rect class="chip" x="876" y="186" width="145" height="58" fill="#ffffff" stroke="#9fb9df"/>
+    <text class="chip-label" x="948.5" y="213" text-anchor="middle">Virtual thread</text>
+    <text class="chip-detail" x="948.5" y="234" text-anchor="middle">JVM 21</text>
+    <rect class="chip" x="1048" y="186" width="145" height="58" fill="#ffffff" stroke="#9fb9df"/>
+    <text class="chip-label" x="1120.5" y="213" text-anchor="middle">Group slots</text>
+    <text class="chip-detail" x="1120.5" y="234" text-anchor="middle">N leaders</text>
+  </g>
+
+  <rect x="92" y="332" width="1216" height="188" rx="20" fill="#edf8f3" stroke="#abd6c6" stroke-width="2"/>
+  <text class="band-title" x="126" y="374">Distributed backend families</text>
+  <text class="band-note" x="126" y="399">Backend modules translate the same core contract to different ownership primitives.</text>
+  <g>
+    <rect class="chip" x="270" y="420" width="168" height="64" fill="#ffffff" stroke="#8dc7b5"/>
+    <text class="chip-label" x="354" y="448" text-anchor="middle">Redis</text>
+    <text class="chip-detail" x="354" y="470" text-anchor="middle">Lettuce, Redisson</text>
+    <rect class="chip" x="466" y="420" width="168" height="64" fill="#ffffff" stroke="#8dc7b5"/>
+    <text class="chip-label" x="550" y="448" text-anchor="middle">SQL/R2DBC</text>
+    <text class="chip-detail" x="550" y="470" text-anchor="middle">Exposed backends</text>
+    <rect class="chip" x="662" y="420" width="168" height="64" fill="#ffffff" stroke="#8dc7b5"/>
+    <text class="chip-label" x="746" y="448" text-anchor="middle">Document/Cloud</text>
+    <text class="chip-detail" x="746" y="470" text-anchor="middle">MongoDB, DynamoDB</text>
+    <rect class="chip" x="858" y="420" width="168" height="64" fill="#ffffff" stroke="#8dc7b5"/>
+    <text class="chip-label" x="942" y="448" text-anchor="middle">Coordination</text>
+    <text class="chip-detail" x="942" y="470" text-anchor="middle">etcd, Consul, K8s</text>
+    <rect class="chip" x="1054" y="420" width="168" height="64" fill="#ffffff" stroke="#8dc7b5"/>
+    <text class="chip-label" x="1138" y="448" text-anchor="middle">Cluster recipes</text>
+    <text class="chip-detail" x="1138" y="470" text-anchor="middle">Hazelcast, ZooKeeper</text>
+  </g>
+
+  <rect x="92" y="562" width="588" height="156" rx="20" fill="#fff7e8" stroke="#e7c988" stroke-width="2"/>
+  <text class="band-title" x="126" y="604">Application integrations</text>
+  <text class="band-note" x="126" y="629">Framework modules add service-level entry points.</text>
+  <rect class="chip" x="162" y="660" width="142" height="44" fill="#ffffff" stroke="#d9b76e"/>
+  <text class="chip-label" x="233" y="687" text-anchor="middle">Spring Boot</text>
+  <rect class="chip" x="326" y="660" width="142" height="44" fill="#ffffff" stroke="#d9b76e"/>
+  <text class="chip-label" x="397" y="687" text-anchor="middle">Ktor 3.x</text>
+  <rect class="chip" x="490" y="660" width="142" height="44" fill="#ffffff" stroke="#d9b76e"/>
+  <text class="chip-label" x="561" y="687" text-anchor="middle">Micrometer</text>
+
+  <rect x="720" y="562" width="588" height="156" rx="20" fill="#f6efff" stroke="#c9b3ee" stroke-width="2"/>
+  <text class="band-title" x="754" y="604">Examples and measurement</text>
+  <text class="band-note" x="754" y="629">Examples and benchmarks show scenario and backend behavior.</text>
+  <rect class="chip" x="790" y="660" width="166" height="44" fill="#ffffff" stroke="#b99de0"/>
+  <text class="chip-label" x="873" y="687" text-anchor="middle">17 examples</text>
+  <rect class="chip" x="982" y="660" width="142" height="44" fill="#ffffff" stroke="#b99de0"/>
+  <text class="chip-label" x="1053" y="687" text-anchor="middle">Benchmark</text>
+  <rect class="chip" x="1150" y="660" width="118" height="44" fill="#ffffff" stroke="#b99de0"/>
+  <text class="chip-label" x="1209" y="687" text-anchor="middle">BOM</text>
+
+  <path class="route" d="M700 290 L700 332" stroke="#5278c9" marker-end="url(#arrow-blue)"/>
+  <text class="route-label" x="720" y="318">choose backend</text>
+  <path class="route" d="M386 562 L386 520" stroke="#3d8f7b" marker-end="url(#arrow-green)"/>
+  <text class="route-label" x="406" y="546">wire core</text>
+  <path class="route" d="M1014 562 L1014 520" stroke="#3d8f7b" marker-end="url(#arrow-green)"/>
+  <text class="route-label" x="1034" y="546">prove scenarios</text>
+
+  <rect x="110" y="762" width="1180" height="54" rx="18" fill="#f8fbff" stroke="#d4deeb" stroke-width="2"/>
+  <text class="footer" x="700" y="786" text-anchor="middle">Start with leader-core contracts, pick one backend adapter, then add Spring/Ktor/Micrometer or copy a runnable example.</text>
+  <text class="footer" x="700" y="808" text-anchor="middle">github.com/bluetape4k/bluetape4k-leader</text>
 </svg>

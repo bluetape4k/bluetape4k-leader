@@ -1,1 +1,1 @@
-docs/images/readme-charts/root-readme-module-chart-01: chart=PASS rows=5 bars=5 unit="modules" direction="count" marginImbalance=0 margins=L/R/T/B:96/96/96/96 source=README.md:37; README.ko.md:36; settings.gradle.kts catalog=chart-baseline
+docs/images/readme-charts/root-readme-module-chart-01: chart=PASS rows=5 bars=5 unit="registered surfaces" direction="count" source=README.md;README.ko.md;settings.gradle.kts catalog=chart-id-generator-comparison sourceIntent="show small core versus broad backend/example teaching surface"

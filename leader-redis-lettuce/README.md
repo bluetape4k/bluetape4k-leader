@@ -18,7 +18,7 @@ Group strategy (slot-token TTL model): a single ZSET key `lg:{lockName}` whose m
 
 ## Architecture
 
-![leader redis lettuce Class Structure diagram](../docs/images/readme-diagrams/leader-redis-lettuce-class-01.png)
+![Lettuce Redis leader contract map](../docs/images/readme-diagrams/leader-redis-lettuce-class-01.png)
 
 ## Group Lock Flow
 
@@ -26,11 +26,11 @@ The slot-token TTL model is best understood through two scenarios: a normal acqu
 
 ### Scenario 1 — Normal acquire/release plus crash recovery
 
-![Scenario 1 — Normal acquire/release plus crash recovery diagram](../docs/images/readme-diagrams/leader-redis-lettuce-sequence-02.png)
+![Lettuce slot-token acquire release and crash recovery flow](../docs/images/readme-diagrams/leader-redis-lettuce-sequence-02.png)
 
 ### Scenario 2 — `minLeaseTime` delegated to backend TTL
 
-![Scenario 2 — minLeaseTime delegated to backend TTL diagram](../docs/images/readme-diagrams/leader-redis-lettuce-sequence-03.png)
+![Lettuce minLeaseTime backend TTL delegation flow](../docs/images/readme-diagrams/leader-redis-lettuce-sequence-03.png)
 
 ## Implementations
 
