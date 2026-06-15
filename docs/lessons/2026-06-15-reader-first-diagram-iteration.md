@@ -62,6 +62,20 @@ direct decorators, listener events, and history sink counters. For observability
 modules, diagram the path from source event to meter family to registry/export,
 then make the README overview and meter catalog match that same set of paths.
 
+## Batch Scheduler Follow-up
+
+Example modules need diagrams that preserve the example's behavioral contract,
+not just a generic architecture shape. For `examples/batch-scheduler`, the
+source-backed reader questions were: which replica runs, what losers receive,
+where TTL recovery appears, and whether `nodeId` participates in lock ownership.
+
+Keep source evidence in SVG metadata or commit evidence, not in the rendered
+footer. Use the footer for the module path or another reader-facing locator.
+For flow diagrams, draw leader-only release paths around contention cards
+instead of through them; if a route label only repeats an obvious arrow, remove
+it. For sequence diagrams, keep call-label colors in the same family as the
+call line so numbered calls remain visually tied to their arrows.
+
 ## Verification
 
 - SVG XML parsing passed for changed assets.
