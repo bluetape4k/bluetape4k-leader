@@ -18,7 +18,7 @@
 
 ## 아키텍처
 
-![leader redis lettuce Class Structure diagram](../docs/images/readme-diagrams/leader-redis-lettuce-class-01.png)
+![Lettuce Redis leader contract map](../docs/images/readme-diagrams/leader-redis-lettuce-class-01.png)
 
 ## 그룹 락 흐름
 
@@ -26,11 +26,11 @@ slot-token TTL 모델은 두 시나리오로 가장 잘 이해할 수 있습니�
 
 ### 시나리오 1 — 정상 acquire/release 와 crash recovery
 
-![1 — acquire/release crash recovery diagram](../docs/images/readme-diagrams/leader-redis-lettuce-sequence-02.png)
+![Lettuce slot-token acquire release and crash recovery flow](../docs/images/readme-diagrams/leader-redis-lettuce-sequence-02.png)
 
 ### 시나리오 2 — `minLeaseTime` 의 backend TTL 위임
 
-![2 — minLeaseTime backend TTL diagram](../docs/images/readme-diagrams/leader-redis-lettuce-sequence-03.png)
+![Lettuce minLeaseTime backend TTL delegation flow](../docs/images/readme-diagrams/leader-redis-lettuce-sequence-03.png)
 
 ## 구현체 목록
 

@@ -12,7 +12,7 @@
 
 ## 아키텍처
 
-![leader core Class Structure diagram](../docs/images/readme-diagrams/leader-core-class-01.png)
+![leader-core API contract map](../docs/images/readme-diagrams/leader-core-class-01.png)
 
 ## API 계약
 
@@ -115,11 +115,11 @@ LeaderGroupElectionOptions(
 
 ### 단일 리더: 락 획득/해제
 
-![: / diagram](../docs/images/readme-diagrams/leader-core-sequence-02.png)
+![Single-leader runIfLeader flow](../docs/images/readme-diagrams/leader-core-sequence-02.png)
 
 ### 복수 리더 그룹: 슬롯 기반 세마포어 (maxLeaders = N)
 
-![: (maxLeaders = N) diagram](../docs/images/readme-diagrams/leader-core-sequence-03.png)
+![Group-leader slot flow](../docs/images/readme-diagrams/leader-core-sequence-03.png)
 
 ## 로컬 구현체 목록
 

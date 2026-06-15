@@ -1,106 +1,46 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="980" viewBox="0 0 1500 980" role="img" aria-labelledby="title desc" data-intent="Help README and benchmark readers compare blocking and suspend leader election throughput across distributed backends without local or embedded database rows distorting the scale." data-evidence="benchmark/README.md distributed backend throughput tables" data-source-read="README.md; README.ko.md; benchmark/README.md; benchmark/README.ko.md">
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="960" viewBox="0 0 1500 960" role="img" aria-labelledby="title desc" data-source-read="README.md; README.ko.md; benchmark/README.md; docs/benchmarks/2026-05-29-issue-405-rdb-backend-throughput.json" data-intent="Help README readers compare distributed backend throughput while preserving the benchmark caveat that local and H2 rows are excluded and noisy rows should not be over-interpreted.">
 <title id="title">Distributed Backend Throughput</title>
-<desc id="desc">Cluster-capable backends only; local and H2 rows are excluded so readers compare real coordination cost.</desc>
+<desc id="desc">Table-backed blocking and suspend throughput chart for distributed leader election backends.</desc>
 <defs>
+  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#B9C7D6" flood-opacity="0.22"/></filter>
   <style>
-    .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-    .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-    .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-    .axis{stroke:#D7E2EC;stroke-width:1.5}
-    .label{font-family:"Architects Daughter";font-size:22px;fill:#22344A;font-weight:400}
-    .value{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-    .legend{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-    .note{font-family:"Comic Mono";font-size:13px;fill:#536476;font-weight:400}
+    .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:2.2;filter:url(#shadow)}
+    .title{font-family:"Architects Daughter";font-size:42px;fill:#22344A}.subtitle,.axis,.value,.legend,.note,.group{font-family:"Comic Mono";fill:#4B6075}.subtitle{font-size:15px}.axis{font-size:12px}.value{font-size:12px}.legend{font-size:13px}.note{font-size:13px}.group{font-size:12px;fill:#6A7A8C}
+    .rowLabel{font-family:"Architects Daughter";font-size:21px;fill:#22344A}.panel{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1.6}.track{fill:#EEF4F9;stroke:#D6E2EC;stroke-width:1.1}
   </style>
 </defs>
-<rect class="canvas" width="1500" height="980"/>
-<rect class="frame" x="32" y="28" width="1436" height="924" rx="28"/>
-<text class="title" x="66" y="82">Distributed Backend Throughput</text>
-<text class="subtitle" x="70" y="116">Cluster-capable backends only; local and H2 rows are excluded so readers compare real coordination cost.</text>
-<g><rect x="1070" y="142" width="26" height="14" rx="4" fill="#5B8DEF" opacity="0.84"/><text class="legend" x="1106" y="154">Blocking</text></g>
-<g><rect x="1240" y="142" width="26" height="14" rx="4" fill="#D66B3D" opacity="0.84"/><text class="legend" x="1276" y="154">Suspend</text></g>
-<line class="axis" x1="360" y1="159" x2="1260" y2="159"/>
-<text class="legend" x="360" y="143">ops/s</text>
-<g>
-  <text class="label" x="96" y="203" dominant-baseline="middle">Hazelcast</text>
-  <rect x="360" y="183" width="900" height="36" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
-  <rect x="360" y="185" width="876.56" height="15" rx="5" fill="#5B8DEF" opacity="0.84"/>
-  <text class="value" x="1248.5616" y="198">1,460.9</text>
-  <rect x="360" y="206" width="795.56" height="15" rx="5" fill="#D66B3D" opacity="0.84"/>
-  <text class="value" x="1167.5586" y="219">1,325.9</text>
+<rect class="canvas" width="1500" height="960"/>
+<rect class="frame" x="34" y="28" width="1432" height="904" rx="30"/>
+<text class="title" x="72" y="84">Distributed Backend Throughput</text>
+<text class="subtitle" x="76" y="116">Higher is better. Local and H2 rows are intentionally excluded so the chart compares distributed coordination cost.</text>
+
+<rect class="panel" x="86" y="154" width="1328" height="670" rx="18"/>
+<rect x="1055" y="94" width="18" height="12" rx="4" fill="#5B8DEF"/><text class="legend" x="1082" y="105">Blocking ops/s</text>
+<rect x="1202" y="94" width="18" height="12" rx="4" fill="#D66B3D"/><text class="legend" x="1229" y="105">Suspend ops/s</text>
+<line x1="420" y1="190" x2="420" y2="776" stroke="#D6E2EC" stroke-width="1"/>
+<line x1="635" y1="190" x2="635" y2="776" stroke="#E3EBF2" stroke-width="1"/>
+<line x1="850" y1="190" x2="850" y2="776" stroke="#E3EBF2" stroke-width="1"/>
+<line x1="1065" y1="190" x2="1065" y2="776" stroke="#E3EBF2" stroke-width="1"/>
+<line x1="1280" y1="190" x2="1280" y2="776" stroke="#E3EBF2" stroke-width="1"/>
+<text class="axis" x="420" y="802" text-anchor="middle">0</text><text class="axis" x="635" y="802" text-anchor="middle">400</text><text class="axis" x="850" y="802" text-anchor="middle">800</text><text class="axis" x="1065" y="802" text-anchor="middle">1,200</text><text class="axis" x="1280" y="802" text-anchor="middle">1,600 ops/s</text>
+
+<g transform="translate(0 0)">
+<text class="group" x="120" y="185">fast cluster-backed group</text>
+<text class="rowLabel" x="120" y="218">Hazelcast</text><rect class="track" x="420" y="198" width="860" height="16" rx="6"/><rect x="420" y="198" width="785" height="16" rx="6" fill="#5B8DEF"/><rect class="track" x="420" y="218" width="860" height="16" rx="6"/><rect x="420" y="218" width="713" height="16" rx="6" fill="#D66B3D"/><text class="value" x="1224" y="214">1460.9 / 1325.9</text>
+<text class="rowLabel" x="120" y="278">Lettuce Redis</text><rect class="track" x="420" y="258" width="860" height="16" rx="6"/><rect x="420" y="258" width="782" height="16" rx="6" fill="#5B8DEF"/><rect class="track" x="420" y="278" width="860" height="16" rx="6"/><rect x="420" y="278" width="754" height="16" rx="6" fill="#D66B3D"/><text class="value" x="1224" y="274">1454.7 / 1402.6</text>
+<text class="rowLabel" x="120" y="338">Redisson Redis</text><rect class="track" x="420" y="318" width="860" height="16" rx="6"/><rect x="420" y="318" width="761" height="16" rx="6" fill="#5B8DEF"/><rect class="track" x="420" y="338" width="860" height="16" rx="6"/><rect x="420" y="338" width="745" height="16" rx="6" fill="#D66B3D"/><text class="value" x="1204" y="334">1415.8 / 1386.7</text>
+
+<text class="group" x="120" y="404">document, session, and lease services</text>
+<text class="rowLabel" x="120" y="438">MongoDB</text><rect class="track" x="420" y="418" width="860" height="16" rx="6"/><rect x="420" y="418" width="453" height="16" rx="6" fill="#5B8DEF"/><rect class="track" x="420" y="438" width="860" height="16" rx="6"/><rect x="420" y="438" width="429" height="16" rx="6" fill="#D66B3D"/><text class="value" x="900" y="434">843.7 / 798.4</text>
+<text class="rowLabel" x="120" y="498">ZooKeeper</text><rect class="track" x="420" y="478" width="860" height="16" rx="6"/><rect x="420" y="478" width="432" height="16" rx="6" fill="#5B8DEF"/><rect class="track" x="420" y="498" width="860" height="16" rx="6"/><rect x="420" y="498" width="360" height="16" rx="6" fill="#D66B3D"/><text class="value" x="875" y="494">804.3 / 670.6</text>
+<text class="rowLabel" x="120" y="558">DynamoDB</text><rect class="track" x="420" y="538" width="860" height="16" rx="6"/><rect x="420" y="538" width="388" height="16" rx="6" fill="#5B8DEF"/><rect class="track" x="420" y="558" width="860" height="16" rx="6"/><rect x="420" y="558" width="274" height="16" rx="6" fill="#D66B3D"/><text class="value" x="830" y="554">722.2 / 510.2</text>
+<text class="rowLabel" x="120" y="618">Consul</text><rect class="track" x="420" y="598" width="860" height="16" rx="6"/><rect x="420" y="598" width="319" height="16" rx="6" fill="#5B8DEF"/><rect class="track" x="420" y="618" width="860" height="16" rx="6"/><rect x="420" y="618" width="303" height="16" rx="6" fill="#D66B3D"/><text class="value" x="760" y="614">593.6 / 563.2</text>
+<text class="rowLabel" x="120" y="678">etcd</text><rect class="track" x="420" y="658" width="860" height="16" rx="6"/><rect x="420" y="658" width="239" height="16" rx="6" fill="#5B8DEF"/><rect class="track" x="420" y="678" width="860" height="16" rx="6"/><rect x="420" y="678" width="251" height="16" rx="6" fill="#D66B3D"/><text class="value" x="700" y="674">443.8 / 467.5</text>
+
+<text class="group" x="120" y="728">SQL over Testcontainers in this run</text>
+<text class="rowLabel" x="120" y="758">PostgreSQL / MySQL</text><rect class="track" x="420" y="738" width="860" height="16" rx="6"/><rect x="420" y="738" width="43" height="16" rx="6" fill="#5B8DEF"/><rect class="track" x="420" y="758" width="860" height="16" rx="6"/><rect x="420" y="758" width="35" height="16" rx="6" fill="#D66B3D"/><text class="value" x="486" y="754">80.3/69.5 blocking, 53.6/65.2 suspend</text>
 </g>
-<g>
-  <text class="label" x="96" y="275" dominant-baseline="middle">Lettuce Redis</text>
-  <rect x="360" y="255" width="900" height="36" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
-  <rect x="360" y="257" width="872.80" height="15" rx="5" fill="#5B8DEF" opacity="0.84"/>
-  <text class="value" x="1244.7954" y="270">1,454.7</text>
-  <rect x="360" y="278" width="841.55" height="15" rx="5" fill="#D66B3D" opacity="0.84"/>
-  <text class="value" x="1213.5456" y="291">1,402.6</text>
-</g>
-<g>
-  <text class="label" x="96" y="347" dominant-baseline="middle">Redisson Redis</text>
-  <rect x="360" y="327" width="900" height="36" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
-  <rect x="360" y="329" width="849.50" height="15" rx="5" fill="#5B8DEF" opacity="0.84"/>
-  <text class="value" x="1221.504" y="342">1,415.8</text>
-  <rect x="360" y="350" width="831.99" height="15" rx="5" fill="#D66B3D" opacity="0.84"/>
-  <text class="value" x="1203.9918" y="363">1,386.7</text>
-</g>
-<g>
-  <text class="label" x="96" y="419" dominant-baseline="middle">MongoDB</text>
-  <rect x="360" y="399" width="900" height="36" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
-  <rect x="360" y="401" width="506.24" height="15" rx="5" fill="#5B8DEF" opacity="0.84"/>
-  <text class="value" x="878.2356" y="414">843.7</text>
-  <rect x="360" y="422" width="479.06" height="15" rx="5" fill="#D66B3D" opacity="0.84"/>
-  <text class="value" x="851.0634" y="435">798.4</text>
-</g>
-<g>
-  <text class="label" x="96" y="491" dominant-baseline="middle">ZooKeeper</text>
-  <rect x="360" y="471" width="900" height="36" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
-  <rect x="360" y="473" width="482.60" height="15" rx="5" fill="#5B8DEF" opacity="0.84"/>
-  <text class="value" x="854.6004" y="486">804.3</text>
-  <rect x="360" y="494" width="402.34" height="15" rx="5" fill="#D66B3D" opacity="0.84"/>
-  <text class="value" x="774.3384" y="507">670.6</text>
-</g>
-<g>
-  <text class="label" x="96" y="563" dominant-baseline="middle">DynamoDB Local</text>
-  <rect x="360" y="543" width="900" height="36" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
-  <rect x="360" y="545" width="433.30" height="15" rx="5" fill="#5B8DEF" opacity="0.84"/>
-  <text class="value" x="805.3026" y="558">722.2</text>
-  <rect x="360" y="566" width="306.10" height="15" rx="5" fill="#D66B3D" opacity="0.84"/>
-  <text class="value" x="678.0966" y="579">510.2</text>
-</g>
-<g>
-  <text class="label" x="96" y="635" dominant-baseline="middle">Consul</text>
-  <rect x="360" y="615" width="900" height="36" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
-  <rect x="360" y="617" width="356.17" height="15" rx="5" fill="#5B8DEF" opacity="0.84"/>
-  <text class="value" x="728.166" y="630">593.6</text>
-  <rect x="360" y="638" width="337.89" height="15" rx="5" fill="#D66B3D" opacity="0.84"/>
-  <text class="value" x="709.8948" y="651">563.2</text>
-</g>
-<g>
-  <text class="label" x="96" y="707" dominant-baseline="middle">etcd</text>
-  <rect x="360" y="687" width="900" height="36" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
-  <rect x="360" y="689" width="266.30" height="15" rx="5" fill="#5B8DEF" opacity="0.84"/>
-  <text class="value" x="638.3027999999999" y="702">443.8</text>
-  <rect x="360" y="710" width="280.48" height="15" rx="5" fill="#D66B3D" opacity="0.84"/>
-  <text class="value" x="652.4766" y="723">467.5</text>
-</g>
-<g>
-  <text class="label" x="96" y="779" dominant-baseline="middle">PostgreSQL</text>
-  <rect x="360" y="759" width="900" height="36" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
-  <rect x="360" y="761" width="48.19" height="15" rx="5" fill="#5B8DEF" opacity="0.84"/>
-  <text class="value" x="420.18600000000004" y="774">80.3</text>
-  <rect x="360" y="782" width="32.15" height="15" rx="5" fill="#D66B3D" opacity="0.84"/>
-  <text class="value" x="404.1528" y="795">53.6</text>
-</g>
-<g>
-  <text class="label" x="96" y="851" dominant-baseline="middle">MySQL</text>
-  <rect x="360" y="831" width="900" height="36" rx="7" fill="#EEF4F9" stroke="#D7E2EC" stroke-width="1.1"/>
-  <rect x="360" y="833" width="41.71" height="15" rx="5" fill="#5B8DEF" opacity="0.84"/>
-  <text class="value" x="413.7108" y="846">69.5</text>
-  <rect x="360" y="854" width="39.12" height="15" rx="5" fill="#D66B3D" opacity="0.84"/>
-  <text class="value" x="411.12239999999997" y="867">65.2</text>
-</g>
-<rect x="94" y="880" width="1312" height="44" rx="12" fill="#FFFFFF" stroke="#D7E2EC" stroke-width="1.4"/>
-<text class="note" x="750" y="907" text-anchor="middle">Higher is better. Source: benchmark/README.md distributed throughput tables.</text>
+
+<rect x="86" y="852" width="1328" height="42" rx="14" fill="#FFFFFF" stroke="#D6E2EC" stroke-width="1.4"/>
+<text class="note" x="750" y="878" text-anchor="middle">Source: benchmark/README.md distributed backend tables and 2026-05-29 raw JSON. Error bounds are broad; use this as same-machine comparison evidence.</text>
 </svg>

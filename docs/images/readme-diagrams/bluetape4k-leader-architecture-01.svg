@@ -1,108 +1,141 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1644" height="1057" viewBox="0 0 1644 1057" role="img" aria-labelledby="title desc" data-intent="Answer the implementation reader's question: how does a call such as runIfLeader travel from caller code through bluetape4k core contracts into backend lock, lease, or document ownership and back to result or metrics?" data-evidence="README feature sections, settings module registration, SuspendLeaderElector contract, SuspendLeaderGroupElector contract" data-source-read="README.md; settings.gradle.kts; leader-core/src/main/kotlin/io/bluetape4k/leader/coroutines/SuspendLeaderElector.kt; leader-core/src/main/kotlin/io/bluetape4k/leader/coroutines/SuspendLeaderGroupElector.kt">
-  <title id="title">Leader Election Runtime Architecture</title>
-  <desc id="desc">Runtime architecture for bluetape4k-leader showing caller code, core election contracts, backend adapters, lock or lease stores, and listener/metric hooks.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1020" viewBox="0 0 1600 1020" role="img" aria-labelledby="title desc">
+  <title id="title">Leader Election Runtime Map</title>
+  <desc id="desc">Competing service instances enter a shared ownership gate. One elected path runs the action under a backend primitive; skipped contenders return without running work.</desc>
   <defs>
-    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
-    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
-    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
-    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
-    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
-    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
-    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
-    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
-    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
-    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
+    <filter id="soft-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#27415f" flood-opacity="0.10"/>
+    </filter>
+    <marker id="arrow-blue" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4f77c9"/></marker>
+    <marker id="arrow-green" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3c987e"/></marker>
+    <marker id="arrow-pink" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#d85f8d"/></marker>
+    <marker id="arrow-amber" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#d28a28"/></marker>
+    <marker id="arrow-purple" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#8a65d8"/></marker>
     <style>
-      .canvas{fill:#F7FAFC}
-      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
-      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
-      .card{filter:url(#shadow);stroke-width:2}
-      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
-      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
-      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
-      .seq{fill:none;stroke-width:3;stroke-linecap:round}
-      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
-      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
-      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
-      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
+      .canvas { fill: #f6f9fc; }
+      .frame { fill: #ffffff; stroke: #c4d5e8; stroke-width: 3; filter: url(#soft-shadow); }
+      .title, .panel-title, .card-title, .gate-title, .chip-title { font-family: "Architects Daughter"; fill: #263a57; }
+      .title { font-size: 46px; }
+      .panel-title { font-size: 25px; }
+      .gate-title { font-size: 32px; }
+      .card-title { font-size: 22px; }
+      .chip-title { font-size: 20px; }
+      .subtitle, .detail, .route-label, .footer, .small { font-family: "Comic Mono"; fill: #526276; }
+      .subtitle { font-size: 17px; }
+      .detail { font-size: 13px; }
+      .small { font-size: 12px; }
+      .route-label { font-size: 12px; }
+      .footer { font-size: 14px; }
+      .panel { stroke: #d0deeb; stroke-width: 2; rx: 24; }
+      .card { stroke-width: 2.3; rx: 16; }
+      .chip { stroke-width: 2; rx: 15; }
+      .route { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .route-soft { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 8 7; }
+      .gate-core { fill: #fffdf7; stroke: #d7b970; stroke-width: 3; }
+      .gate-port { fill: #ffffff; stroke: #d9e3ef; stroke-width: 1.8; rx: 12; }
+      .label-pill { fill: #ffffff; stroke: #cfdae7; stroke-width: 1.4; rx: 9; }
     </style>
   </defs>
-  <rect class="canvas" width="1644" height="1057"/>
-  <rect class="frame" x="32" y="28" width="1580" height="1001" rx="28"/>
-  <text class="title" x="66" y="82">Leader Election Runtime Architecture</text>
-  <text class="subtitle" x="70" y="116">Application work enters the core contracts and exits through one backend ownership primitive.</text>
-<g>
-  <rect class="band" x="128" y="228" width="1388" height="180" rx="18"/>
-  <text class="bandTitle" x="154" y="262">Caller and contract</text>
-</g>
-<g>
-  <rect class="band" x="128" y="453" width="1388" height="230" rx="18"/>
-  <text class="bandTitle" x="154" y="487">Election implementation</text>
-</g>
-<g>
-  <rect class="band" x="128" y="753" width="1388" height="180" rx="18"/>
-  <text class="bandTitle" x="154" y="787">Ownership state and outcomes</text>
-</g>
-<path class="route" data-from="caller" data-to="core" data-route-tone="call" d="M472 332 L572 332" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="core" data-to="group" data-route-tone="call" d="M892 332 L1002 332" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="core" data-to="options" data-route-tone="dependency" d="M732 376 L732 428 L562 428 L562 562 L482 562" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="options" data-to="adapter" data-route-tone="dependency" d="M482 562 L592 562" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="core" data-to="adapter" data-route-tone="call" d="M732 376 L732 518" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="group" data-to="adapter" data-route-tone="call" d="M1167 376 L1167 428 L747 428 L747 518" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="adapter" data-to="store" data-route-tone="contention" d="M747 606 L747 728 L712 728 L712 852 L682 852" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
-<path class="route" data-from="adapter" data-to="result" data-route-tone="success" d="M747 606 L747 728 L1067 728 L1067 813" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="adapter" data-to="listeners" data-route-tone="metric" d="M902 562 L1022 562" stroke="#718A35" marker-end="url(#arrow-metric)"/>
-<path class="route" data-from="listeners" data-to="result" data-route-tone="release" d="M1352 562 L1412 562 L1412 852 L1232 852" stroke="#755BC6" marker-end="url(#arrow-release)"/>
-<g id="node-caller">
-  <rect class="card" x="202" y="293" width="270" height="78" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="337" y="314" text-anchor="middle" dominant-baseline="middle">Caller work</text>
-  <text class="detail" x="337" y="333" text-anchor="middle" dominant-baseline="middle">scheduled task</text>
-  <text class="detail" x="337" y="352" text-anchor="middle" dominant-baseline="middle">critical section</text>
-</g>
-<g id="node-core">
-  <rect class="card" x="572" y="288" width="320" height="88" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="732" y="314" text-anchor="middle" dominant-baseline="middle">SuspendLeaderElector</text>
-  <text class="detail" x="732" y="333" text-anchor="middle" dominant-baseline="middle">tryAcquire/runIfLeader</text>
-  <text class="detail" x="732" y="352" text-anchor="middle" dominant-baseline="middle">nullable skip result</text>
-</g>
-<g id="node-group">
-  <rect class="card" x="1002" y="288" width="330" height="88" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="1167" y="314" text-anchor="middle" dominant-baseline="middle">SuspendLeaderGroupElector</text>
-  <text class="detail" x="1167" y="333" text-anchor="middle" dominant-baseline="middle">bounded slots</text>
-  <text class="detail" x="1167" y="352" text-anchor="middle" dominant-baseline="middle">token ownership</text>
-</g>
-<g id="node-options">
-  <rect class="card" x="202" y="518" width="280" height="88" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="342" y="544" text-anchor="middle" dominant-baseline="middle">Election options</text>
-  <text class="detail" x="342" y="563" text-anchor="middle" dominant-baseline="middle">waitTime, leaseTime</text>
-  <text class="detail" x="342" y="582" text-anchor="middle" dominant-baseline="middle">owner identity</text>
-</g>
-<g id="node-adapter">
-  <rect class="card" x="592" y="518" width="310" height="88" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="cardTitle" x="747" y="544" text-anchor="middle" dominant-baseline="middle">Backend adapter</text>
-  <text class="detail" x="747" y="563" text-anchor="middle" dominant-baseline="middle">Redis, K8s, etcd</text>
-  <text class="detail" x="747" y="582" text-anchor="middle" dominant-baseline="middle">DB or client primitive</text>
-</g>
-<g id="node-listeners">
-  <rect class="card" x="1022" y="518" width="330" height="88" rx="10" fill="#EEF6D9" stroke="#8BA84D"/>
-  <text class="cardTitle" x="1187" y="544" text-anchor="middle" dominant-baseline="middle">Listeners and metrics</text>
-  <text class="detail" x="1187" y="563" text-anchor="middle" dominant-baseline="middle">acquired/skipped/released</text>
-  <text class="detail" x="1187" y="582" text-anchor="middle" dominant-baseline="middle">Micrometer bridge</text>
-</g>
-<g id="node-store">
-  <rect class="card" x="352" y="813" width="330" height="78" rx="10" fill="#FDECEF" stroke="#DC6B82"/>
-  <text class="cardTitle" x="517" y="834" text-anchor="middle" dominant-baseline="middle">Ownership store</text>
-  <text class="detail" x="517" y="853" text-anchor="middle" dominant-baseline="middle">lock, lease, row</text>
-  <text class="detail" x="517" y="872" text-anchor="middle" dominant-baseline="middle">document or semaphore</text>
-</g>
-<g id="node-result">
-  <rect class="card" x="902" y="813" width="330" height="78" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="1067" y="834" text-anchor="middle" dominant-baseline="middle">Election result</text>
-  <text class="detail" x="1067" y="853" text-anchor="middle" dominant-baseline="middle">body result</text>
-  <text class="detail" x="1067" y="872" text-anchor="middle" dominant-baseline="middle">skip/null, release</text>
-</g>
+
+  <rect class="canvas" width="1600" height="1020"/>
+  <rect class="frame" x="48" y="42" width="1504" height="914" rx="34"/>
+  <text class="title" x="800" y="104" text-anchor="middle">Leader Election Runtime Map</text>
+  <text class="subtitle" x="800" y="138" text-anchor="middle">Competing callers enter one ownership gate; only the elected path runs user work, while skipped contenders return normally.</text>
+
+  <g id="callers">
+    <rect class="panel" x="92" y="206" width="360" height="410" fill="#eef6ff"/>
+    <text class="panel-title" x="132" y="250">Competing callers</text>
+    <rect class="card" x="132" y="286" width="250" height="70" fill="#ffffff" stroke="#76a5ee"/>
+    <text class="card-title" x="257" y="313" text-anchor="middle">Service node A</text>
+    <text class="detail" x="257" y="337" text-anchor="middle">direct runIfLeader()</text>
+    <rect class="card" x="132" y="404" width="250" height="70" fill="#ffffff" stroke="#9f84e9"/>
+    <text class="card-title" x="257" y="431" text-anchor="middle">Framework entry</text>
+    <text class="detail" x="257" y="455" text-anchor="middle">Spring AOP or Ktor route</text>
+    <rect class="card" x="132" y="522" width="250" height="70" fill="#ffffff" stroke="#64bdb4"/>
+    <text class="card-title" x="257" y="549" text-anchor="middle">Service node B</text>
+    <text class="detail" x="257" y="573" text-anchor="middle">same lock or group id</text>
+  </g>
+
+  <g id="gate">
+    <rect class="panel" x="534" y="194" width="532" height="452" fill="#fbf7ec" stroke="#dfc783"/>
+    <text class="gate-title" x="800" y="238" text-anchor="middle">Ownership Gate</text>
+    <text class="detail" x="800" y="264" text-anchor="middle">lockName or LeaderSlot decides whether action may start</text>
+    <path class="gate-core" d="M800 296 L984 404 L800 512 L616 404 Z"/>
+    <text class="card-title" x="800" y="389" text-anchor="middle">atomic acquire</text>
+    <text class="detail" x="800" y="414" text-anchor="middle">backend decides owner</text>
+    <text class="detail" x="800" y="439" text-anchor="middle">release happens after action</text>
+    <rect class="gate-port" x="584" y="542" width="196" height="70"/>
+    <text class="card-title" x="682" y="568" text-anchor="middle">Single leader</text>
+    <text class="detail" x="682" y="591" text-anchor="middle">max active owner = 1</text>
+    <rect class="gate-port" x="820" y="542" width="196" height="70"/>
+    <text class="card-title" x="918" y="568" text-anchor="middle">Group slots</text>
+    <text class="detail" x="918" y="591" text-anchor="middle">up to maxLeaders</text>
+  </g>
+
+  <g id="outcomes">
+    <rect class="panel" x="1148" y="206" width="360" height="410" fill="#f4f7fb"/>
+    <text class="panel-title" x="1188" y="250">Gate decision</text>
+    <rect class="card" x="1190" y="286" width="252" height="72" fill="#effaf5" stroke="#64b894"/>
+    <text class="card-title" x="1316" y="313" text-anchor="middle">Elected</text>
+    <text class="detail" x="1316" y="337" text-anchor="middle">run action, return value</text>
+    <rect class="card" x="1190" y="404" width="252" height="72" fill="#fcecf3" stroke="#df7fa4"/>
+    <text class="card-title" x="1316" y="431" text-anchor="middle">Skipped</text>
+    <text class="detail" x="1316" y="455" text-anchor="middle">no action, null or Skipped</text>
+    <rect class="card" x="1190" y="522" width="252" height="72" fill="#fff4df" stroke="#d6a048"/>
+    <text class="card-title" x="1316" y="549" text-anchor="middle">Action failed</text>
+    <text class="detail" x="1316" y="573" text-anchor="middle">failure belongs to user work</text>
+  </g>
+
+  <g id="backend">
+    <rect class="panel" x="188" y="724" width="1224" height="142" fill="#eef9f5" stroke="#a7d5c5"/>
+    <text class="panel-title" x="232" y="766">Backend primitive bank</text>
+    <text class="detail" x="232" y="792">Same contract, native ownership.</text>
+    <rect class="chip" x="482" y="776" width="145" height="54" fill="#ffffff" stroke="#64b894"/>
+    <text class="chip-title" x="554" y="805" text-anchor="middle">Redis</text>
+    <text class="small" x="554" y="824" text-anchor="middle">SET NX / RLock</text>
+    <rect class="chip" x="654" y="776" width="145" height="54" fill="#ffffff" stroke="#d6a048"/>
+    <text class="chip-title" x="726" y="805" text-anchor="middle">SQL</text>
+    <text class="small" x="726" y="824" text-anchor="middle">lease rows</text>
+    <rect class="chip" x="826" y="776" width="165" height="54" fill="#ffffff" stroke="#df7fa4"/>
+    <text class="chip-title" x="908" y="805" text-anchor="middle">Documents</text>
+    <text class="small" x="908" y="824" text-anchor="middle">Mongo / Dynamo TTL</text>
+    <rect class="chip" x="1018" y="776" width="145" height="54" fill="#ffffff" stroke="#879ee6"/>
+    <text class="chip-title" x="1090" y="805" text-anchor="middle">Leases</text>
+    <text class="small" x="1090" y="824" text-anchor="middle">etcd / Consul / K8s</text>
+    <rect class="chip" x="1190" y="776" width="165" height="54" fill="#ffffff" stroke="#73bdb5"/>
+    <text class="chip-title" x="1272" y="805" text-anchor="middle">Clusters</text>
+    <text class="small" x="1272" y="824" text-anchor="middle">Hazelcast / ZooKeeper</text>
+  </g>
+
+  <rect class="card" x="988" y="650" width="240" height="56" fill="#f1eaff" stroke="#a181ee"/>
+  <text class="card-title" x="1108" y="672" text-anchor="middle">Telemetry</text>
+  <text class="detail" x="1108" y="692" text-anchor="middle">events, metrics, audit id</text>
+
+  <path class="route" d="M382 321 L534 321 L616 369" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
+  <rect class="label-pill" x="414" y="292" width="100" height="26"/>
+  <text class="route-label" x="464" y="310" text-anchor="middle">same key</text>
+  <path class="route" d="M382 439 L534 439 L616 421" stroke="#8a65d8" marker-end="url(#arrow-purple)"/>
+  <rect class="label-pill" x="414" y="448" width="104" height="26"/>
+  <text class="route-label" x="466" y="466" text-anchor="middle">wrapped API</text>
+  <path class="route" d="M382 557 L534 557 L616 439" stroke="#3c987e" marker-end="url(#arrow-green)"/>
+  <rect class="label-pill" x="414" y="566" width="102" height="26"/>
+  <text class="route-label" x="465" y="584" text-anchor="middle">contender</text>
+
+  <path class="route" d="M984 386 L1148 386 L1190 322" stroke="#3c987e" marker-end="url(#arrow-green)"/>
+  <rect class="label-pill" x="1044" y="354" width="78" height="26"/>
+  <text class="route-label" x="1083" y="372" text-anchor="middle">acquired</text>
+  <path class="route" d="M984 424 L1148 424 L1190 440" stroke="#d85f8d" marker-end="url(#arrow-pink)"/>
+  <rect class="label-pill" x="1044" y="430" width="70" height="26"/>
+  <text class="route-label" x="1079" y="448" text-anchor="middle">missed</text>
+  <path class="route" d="M1316 358 L1316 382 L1468 382 L1468 558 L1442 558" stroke="#d28a28" marker-end="url(#arrow-amber)"/>
+  <rect class="label-pill" x="1418" y="486" width="80" height="26"/>
+  <text class="route-label" x="1458" y="504" text-anchor="middle">if thrown</text>
+
+  <path class="route" d="M800 512 L800 724" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
+  <rect class="label-pill" x="704" y="650" width="192" height="28"/>
+  <text class="route-label" x="800" y="669" text-anchor="middle">acquire / renew / release</text>
+  <path class="route-soft" d="M1190 558 L1108 558 L1108 650" stroke="#8a65d8" marker-end="url(#arrow-purple)"/>
+  <path class="route-soft" d="M1108 706 L1108 724" stroke="#8a65d8" marker-end="url(#arrow-purple)"/>
+
+  <rect x="134" y="890" width="1332" height="42" rx="14" fill="#f7fbff" stroke="#d4e0ec" stroke-width="1.6"/>
+  <text class="footer" x="800" y="916" text-anchor="middle">Skip is a normal contention outcome; cancellation is propagated, and release is part of the elected path. github.com/bluetape4k/bluetape4k-leader</text>
 </svg>
