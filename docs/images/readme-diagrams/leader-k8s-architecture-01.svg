@@ -1,136 +1,148 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1712" height="1037" viewBox="0 0 1712 1037" role="img" aria-labelledby="title desc" data-intent="Answer a Kubernetes backend reader's question: how do blocking, coroutine, and async leader electors use a caller-owned Fabric8 KubernetesClient to create or update native Lease objects, acquire single locks or group slot leases, detect contention through holderIdentity expiry and 409 conflicts, extend renewTime while work runs, and release ownership without deleting production Lease objects?" data-evidence="leader-k8s README architecture/RBAC/configuration sections; KubernetesLeaseLeaderElector; KubernetesLeaseLeaderGroupElector; KubernetesLeaseSuspendLeaderElector; KubernetesLeaseSuspendLeaderGroupElector; KubernetesLeaseLock; KubernetesLeaseNames; KubernetesLeaseAnnotations; KubernetesLeaseStateMapper" data-source-read="leader-k8s/README.md; leader-k8s/src/main/kotlin/io/bluetape4k/leader/k8s/KubernetesLeaseLeaderElector.kt; leader-k8s/src/main/kotlin/io/bluetape4k/leader/k8s/KubernetesLeaseLeaderGroupElector.kt; leader-k8s/src/main/kotlin/io/bluetape4k/leader/k8s/KubernetesLeaseSuspendLeaderElector.kt; leader-k8s/src/main/kotlin/io/bluetape4k/leader/k8s/KubernetesLeaseSuspendLeaderGroupElector.kt; leader-k8s/src/main/kotlin/io/bluetape4k/leader/k8s/internal/KubernetesLeaseLock.kt; leader-k8s/src/main/kotlin/io/bluetape4k/leader/k8s/internal/KubernetesLeaseNames.kt; leader-k8s/src/main/kotlin/io/bluetape4k/leader/k8s/internal/KubernetesLeaseAnnotations.kt; leader-k8s/src/main/kotlin/io/bluetape4k/leader/k8s/KubernetesLeaseStateMapper.kt">
-  <title id="title">Kubernetes Lease Ownership Architecture</title>
-  <desc id="desc">Architecture diagram for the Kubernetes Lease backend showing caller-owned Fabric8 client lifecycle, namespace/RBAC boundary, single and group Lease electors, owner-conditional Lease updates, resourceVersion contention, holderIdentity fencing, audit annotations, and min-lease release behavior.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1320 900" width="1320" height="900" role="img" aria-labelledby="title desc">
+  <title id="title">leader-k8s Lease architecture</title>
+  <desc id="desc">Architecture diagram for the Kubernetes Lease backend showing electors, Fabric8 client, API Server, Lease resources, annotations, owner tokens, and group slot leases.</desc>
+  <style>
+    text { font-family: 'Architects Daughter', 'Comic Mono', 'Comic Sans MS', Arial, sans-serif; letter-spacing: 0; }
+    .title { font-size: 28px; font-weight: 700; fill: #111827; }
+    .subtitle { font-size: 14px; fill: #4b5563; }
+    .section { font-size: 15px; font-weight: 700; fill: #374151; }
+    .card-title { font-size: 16px; font-weight: 700; fill: #111827; }
+    .card-sub { font-size: 12px; fill: #4b5563; }
+    .mono { font-family: 'Comic Mono', 'Architects Daughter', monospace; font-size: 12px; fill: #374151; }
+    .tiny { font-size: 11px; fill: #6b7280; }
+    .footer { font-size: 12px; fill: #6b7280; }
+    .dash { stroke-dasharray: 6 5; }
+  </style>
   <defs>
-    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
-    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
-    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
-    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
-    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
-    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
-    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
-    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
-    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
-    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
-    <style>
-      .canvas{fill:#F7FAFC}
-      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
-      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
-      .card{filter:url(#shadow);stroke-width:2}
-      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
-      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
-      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
-      .seq{fill:none;stroke-width:3;stroke-linecap:round}
-      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
-      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
-      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
-      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
-    </style>
+    <marker id="blueArrow" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11 Z" fill="#2563eb"/>
+    </marker>
+    <marker id="greenArrow" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11 Z" fill="#059669"/>
+    </marker>
+    <marker id="orangeArrow" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11 Z" fill="#ea580c"/>
+    </marker>
+    <marker id="purpleArrow" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11 Z" fill="#7c3aed"/>
+    </marker>
   </defs>
-  <rect class="canvas" width="1712" height="1037"/>
-  <rect class="frame" x="32" y="28" width="1648" height="981" rx="28"/>
-  <text class="title" x="66" y="82">Kubernetes Lease Ownership Architecture</text>
-  <text class="subtitle" x="70" y="116">Fabric8 updates coordination.k8s.io Lease objects with fencing tokens, renewTime, and resourceVersion conflict checks.</text>
-<g>
-  <rect class="band" x="152" y="228" width="1432" height="180" rx="18"/>
-  <text class="bandTitle" x="178" y="262">Caller-owned Kubernetes boundary</text>
-</g>
-<g>
-  <rect class="band" x="152" y="443" width="1432" height="215" rx="18"/>
-  <text class="bandTitle" x="178" y="477">Elector surfaces and owner-conditional updates</text>
-</g>
-<g>
-  <rect class="band" x="152" y="718" width="1432" height="195" rx="18"/>
-  <text class="bandTitle" x="178" y="752">Native Lease object state</text>
-</g>
-<path class="route" data-from="caller" data-to="single" data-route-tone="call" d="M353 366 L353 413 L128 413 L128 555 L193 555" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="caller" data-to="group" data-route-tone="call" d="M353 366 L353 413 L788 413 L788 508" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="fabric8" data-to="lock" data-route-tone="dependency" d="M723 366 L723 423 L1218 423 L1218 508" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="options" data-to="lock" data-route-tone="dependency" d="M1093 366 L1093 508" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="rbac" data-to="metadata" data-route-tone="dependency" d="M1428 366 L1428 783" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="single" data-to="lock" data-route-tone="call" d="M553 555 L583 555 L583 623 L1013 623 L1013 555 L1033 555" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="group" data-to="lock" data-route-tone="call" d="M968 555 L1033 555" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="single" data-to="handle" data-route-tone="success" d="M373 602 L373 692 L683 692" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="group" data-to="handle" data-route-tone="success" d="M788 602 L788 648" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="handle" data-to="lock" data-route-tone="retry" d="M1033 692 L1428 692 L1428 555 L1403 555" stroke="#4F63C7" marker-end="url(#arrow-retry)"/>
-<path class="route" data-from="lock" data-to="version" data-route-tone="contention" d="M1218 602 L1218 783" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
-<path class="route" data-from="singleLease" data-to="version" data-route-tone="success" d="M363 873 L363 913 L1153 913 L1153 873" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="slotLeases" data-to="version" data-route-tone="success" d="M938 828 L988 828" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="version" data-to="metadata" data-route-tone="release" d="M1318 828 L1358 828" stroke="#755BC6" marker-end="url(#arrow-release)"/>
-<g id="node-caller">
-  <rect class="card" x="188" y="278" width="330" height="88" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="353" y="304" text-anchor="middle" dominant-baseline="middle">Application Caller</text>
-  <text class="detail" x="353" y="323" text-anchor="middle" dominant-baseline="middle">runIfLeader / group</text>
-  <text class="detail" x="353" y="342" text-anchor="middle" dominant-baseline="middle">blocking, async, suspend</text>
-</g>
-<g id="node-fabric8">
-  <rect class="card" x="558" y="278" width="330" height="88" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="723" y="304" text-anchor="middle" dominant-baseline="middle">Caller-Owned Fabric8 Client</text>
-  <text class="detail" x="723" y="323" text-anchor="middle" dominant-baseline="middle">KubernetesClient API</text>
-  <text class="detail" x="723" y="342" text-anchor="middle" dominant-baseline="middle">not closed by module</text>
-</g>
-<g id="node-options">
-  <rect class="card" x="928" y="278" width="330" height="88" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="1093" y="304" text-anchor="middle" dominant-baseline="middle">Kubernetes Lease Options</text>
-  <text class="detail" x="1093" y="323" text-anchor="middle" dominant-baseline="middle">namespace, retryDelay</text>
-  <text class="detail" x="1093" y="342" text-anchor="middle" dominant-baseline="middle">wait/lease/minLease</text>
-</g>
-<g id="node-rbac">
-  <rect class="card" x="1298" y="278" width="260" height="88" rx="10" fill="#EEF6D9" stroke="#8BA84D"/>
-  <text class="cardTitle" x="1428" y="304" text-anchor="middle" dominant-baseline="middle">Namespace And RBAC</text>
-  <text class="detail" x="1428" y="323" text-anchor="middle" dominant-baseline="middle">leases get/list/watch</text>
-  <text class="detail" x="1428" y="342" text-anchor="middle" dominant-baseline="middle">create/update/patch/delete</text>
-</g>
-<g id="node-single">
-  <rect class="card" x="193" y="508" width="360" height="94" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="373" y="537" text-anchor="middle" dominant-baseline="middle">Single Lease Electors</text>
-  <text class="detail" x="373" y="556" text-anchor="middle" dominant-baseline="middle">blocking + CompletableFuture</text>
-  <text class="detail" x="373" y="575" text-anchor="middle" dominant-baseline="middle">coroutine + virtual-thread</text>
-</g>
-<g id="node-group">
-  <rect class="card" x="608" y="508" width="360" height="94" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="788" y="537" text-anchor="middle" dominant-baseline="middle">Group Lease Electors</text>
-  <text class="detail" x="788" y="556" text-anchor="middle" dominant-baseline="middle">one Lease per slot</text>
-  <text class="detail" x="788" y="575" text-anchor="middle" dominant-baseline="middle">random start + slot budget</text>
-</g>
-<g id="node-lock">
-  <rect class="card" x="1033" y="508" width="370" height="94" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="cardTitle" x="1218" y="537" text-anchor="middle" dominant-baseline="middle">KubernetesLeaseLock</text>
-  <text class="detail" x="1218" y="556" text-anchor="middle" dominant-baseline="middle">create or update Lease</text>
-  <text class="detail" x="1218" y="575" text-anchor="middle" dominant-baseline="middle">409 conflict =&gt; contention</text>
-</g>
-<g id="node-handle">
-  <rect class="card" x="683" y="648" width="350" height="88" rx="10" fill="#EEF1FF" stroke="#6477D8"/>
-  <text class="cardTitle" x="858" y="674" text-anchor="middle" dominant-baseline="middle">Lease Handle And Extender</text>
-  <text class="detail" x="858" y="693" text-anchor="middle" dominant-baseline="middle">ownerToken fencing</text>
-  <text class="detail" x="858" y="712" text-anchor="middle" dominant-baseline="middle">renewTime keepalive</text>
-</g>
-<g id="node-singleLease">
-  <rect class="card" x="198" y="783" width="330" height="90" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="363" y="810" text-anchor="middle" dominant-baseline="middle">Single Lease Object</text>
-  <text class="detail" x="363" y="829" text-anchor="middle" dominant-baseline="middle">DNS-1123 lockName</text>
-  <text class="detail" x="363" y="848" text-anchor="middle" dominant-baseline="middle">holderIdentity token</text>
-</g>
-<g id="node-slotLeases">
-  <rect class="card" x="578" y="783" width="360" height="90" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="758" y="810" text-anchor="middle" dominant-baseline="middle">Group Slot Leases</text>
-  <text class="detail" x="758" y="829" text-anchor="middle" dominant-baseline="middle">&lt;lockName&gt;-slot-i</text>
-  <text class="detail" x="758" y="848" text-anchor="middle" dominant-baseline="middle">maxLeaders bounded</text>
-</g>
-<g id="node-version">
-  <rect class="card" x="988" y="783" width="330" height="90" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="1153" y="810" text-anchor="middle" dominant-baseline="middle">ResourceVersion Conflict</text>
-  <text class="detail" x="1153" y="829" text-anchor="middle" dominant-baseline="middle">update false on 409</text>
-  <text class="detail" x="1153" y="848" text-anchor="middle" dominant-baseline="middle">expired Lease takeover</text>
-</g>
-<g id="node-metadata">
-  <rect class="card" x="1358" y="783" width="210" height="90" rx="10" fill="#F2F5F9" stroke="#9AA8B8"/>
-  <text class="cardTitle" x="1463" y="810" text-anchor="middle" dominant-baseline="middle">Audit Annotations</text>
-  <text class="detail" x="1463" y="829" text-anchor="middle" dominant-baseline="middle">audit leader id</text>
-  <text class="detail" x="1463" y="848" text-anchor="middle" dominant-baseline="middle">node id + managed-by</text>
-</g>
+
+  <rect width="1320" height="900" fill="#f8fafc"/>
+  <rect x="28" y="24" width="1264" height="820" rx="18" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+  <text x="52" y="66" class="title">leader-k8s Lease architecture</text>
+  <text x="52" y="92" class="subtitle">Native coordination.k8s.io/v1 Lease objects provide a Kubernetes-native leader token and resourceVersion CAS boundary.</text>
+
+  <rect x="52" y="128" width="270" height="638" rx="12" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+  <text x="72" y="158" class="section">Callers in a Pod</text>
+  <g transform="translate(80 194)">
+    <rect width="214" height="104" rx="8" fill="#ffffff" stroke="#93c5fd" stroke-width="1.4"/>
+    <text x="107" y="30" text-anchor="middle" class="card-title">Workload code</text>
+    <text x="20" y="60" class="mono">runIfLeader(...)</text>
+    <text x="20" y="82" class="mono">runAsyncIfLeader(...)</text>
+  </g>
+  <g transform="translate(80 344)">
+    <rect width="214" height="104" rx="8" fill="#dbeafe" stroke="#60a5fa" stroke-width="1.4"/>
+    <text x="107" y="30" text-anchor="middle" class="card-title">LeaderSlot audit</text>
+    <text x="20" y="60" class="card-sub">optional leaderId becomes</text>
+    <text x="20" y="80" class="card-sub">audit annotation</text>
+  </g>
+  <g transform="translate(80 514)">
+    <rect width="214" height="104" rx="8" fill="#ffffff" stroke="#93c5fd" stroke-width="1.4"/>
+    <text x="107" y="30" text-anchor="middle" class="card-title">RBAC boundary</text>
+    <text x="20" y="60" class="mono">get/list/watch</text>
+    <text x="20" y="82" class="mono">create/update/patch/delete</text>
+  </g>
+
+  <rect x="374" y="128" width="454" height="638" rx="12" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+  <text x="394" y="158" class="section">leader-k8s module</text>
+  <g transform="translate(408 194)">
+    <rect width="180" height="126" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.4"/>
+    <text x="90" y="30" text-anchor="middle" class="card-title">KubernetesLease</text>
+    <text x="90" y="50" text-anchor="middle" class="card-title">LeaderElector</text>
+    <text x="20" y="82" class="card-sub">single Lease name</text>
+    <text x="20" y="104" class="card-sub">blocking + async</text>
+  </g>
+  <g transform="translate(614 194)">
+    <rect width="180" height="126" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.4"/>
+    <text x="90" y="30" text-anchor="middle" class="card-title">KubernetesLease</text>
+    <text x="90" y="50" text-anchor="middle" class="card-title">SuspendLeader</text>
+    <text x="20" y="82" class="card-sub">coroutine API</text>
+    <text x="20" y="104" class="card-sub">NonCancellable release</text>
+  </g>
+  <g transform="translate(408 374)">
+    <rect width="180" height="138" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.4"/>
+    <text x="90" y="30" text-anchor="middle" class="card-title">KubernetesLease</text>
+    <text x="90" y="50" text-anchor="middle" class="card-title">LeaderGroup</text>
+    <text x="20" y="82" class="card-sub">random slot start</text>
+    <text x="20" y="104" class="card-sub">one Lease per slot</text>
+    <text x="20" y="124" class="mono">&lt;lock&gt;-slot-N</text>
+  </g>
+  <g transform="translate(614 374)">
+    <rect width="180" height="138" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.4"/>
+    <text x="90" y="30" text-anchor="middle" class="card-title">KubernetesLease</text>
+    <text x="90" y="50" text-anchor="middle" class="card-title">SuspendGroup</text>
+    <text x="20" y="82" class="card-sub">slot budget scan</text>
+    <text x="20" y="104" class="card-sub">owner-conditional</text>
+    <text x="20" y="124" class="card-sub">cleanup</text>
+  </g>
+  <g transform="translate(408 574)">
+    <rect width="386" height="92" rx="8" fill="#dcfce7" stroke="#22c55e" stroke-width="1.4"/>
+    <text x="193" y="30" text-anchor="middle" class="card-title">KubernetesLeaseLock</text>
+    <text x="24" y="58" class="mono">ownerToken = b4k-Base58...</text>
+    <text x="24" y="78" class="card-sub">tryLock / unlock / extendDetailed / state</text>
+  </g>
+
+  <rect x="880" y="128" width="360" height="638" rx="12" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5"/>
+  <text x="900" y="158" class="section">Kubernetes API and Lease objects</text>
+  <g transform="translate(912 194)">
+    <rect width="296" height="98" rx="8" fill="#ffffff" stroke="#c084fc" stroke-width="1.4"/>
+    <text x="148" y="30" text-anchor="middle" class="card-title">Fabric8 KubernetesClient</text>
+    <text x="24" y="58" class="card-sub">client.leases().inNamespace(ns)</text>
+    <text x="24" y="78" class="card-sub">caller owns client lifecycle</text>
+  </g>
+  <g transform="translate(912 328)">
+    <rect width="296" height="110" rx="8" fill="#f5f3ff" stroke="#a78bfa" stroke-width="1.4"/>
+    <text x="148" y="30" text-anchor="middle" class="card-title">API Server CAS</text>
+    <text x="24" y="58" class="mono">create Lease if absent</text>
+    <text x="24" y="80" class="mono">update with resourceVersion</text>
+    <text x="24" y="100" class="card-sub">409 Conflict means retry/contended</text>
+  </g>
+  <g transform="translate(912 474)">
+    <rect width="296" height="146" rx="8" fill="#ffffff" stroke="#c084fc" stroke-width="1.4"/>
+    <text x="148" y="30" text-anchor="middle" class="card-title">Lease spec</text>
+    <text x="24" y="60" class="mono">holderIdentity = ownerToken</text>
+    <text x="24" y="82" class="mono">renewTime + duration</text>
+    <text x="24" y="104" class="mono">leaseTransitions++ on takeover</text>
+    <text x="24" y="126" class="card-sub">expired when renewTime + leaseDuration &lt;= now</text>
+  </g>
+  <g transform="translate(912 650)">
+    <rect width="296" height="62" rx="8" fill="#f5f3ff" stroke="#a78bfa" stroke-width="1.4"/>
+    <text x="24" y="24" class="mono">annotations: audit-leader-id, node-id</text>
+    <text x="24" y="44" class="mono">managed-by = bluetape4k-leader</text>
+  </g>
+
+  <path d="M 294 246 L 408 246" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#blueArrow)"/>
+  <text x="350" y="232" text-anchor="middle" class="tiny" fill="#1d4ed8">run</text>
+  <path d="M 794 620 L 850 620 L 850 244 L 912 244" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#blueArrow)"/>
+  <text x="838" y="428" text-anchor="middle" class="tiny" fill="#1d4ed8">Lease API</text>
+  <path d="M 1058 292 L 1058 328" fill="none" stroke="#ea580c" stroke-width="2" marker-end="url(#orangeArrow)"/>
+  <path d="M 1058 438 L 1058 474" fill="none" stroke="#059669" stroke-width="2" marker-end="url(#greenArrow)"/>
+  <path d="M 588 257 L 634 257" fill="none" stroke="#7c3aed" stroke-width="2" marker-end="url(#purpleArrow)"/>
+  <text x="690" y="262" class="tiny" fill="#6d28d9">single Lease name</text>
+  <path d="M 588 437 L 634 437" fill="none" stroke="#7c3aed" stroke-width="2" marker-end="url(#purpleArrow)"/>
+  <text x="690" y="442" class="tiny" fill="#6d28d9">slot Lease name</text>
+
+  <g transform="translate(80 802)">
+    <line x1="0" y1="10" x2="34" y2="10" stroke="#2563eb" stroke-width="2" marker-end="url(#blueArrow)"/>
+    <text x="44" y="15" class="tiny">client call</text>
+    <line x1="154" y1="10" x2="188" y2="10" stroke="#ea580c" stroke-width="2" marker-end="url(#orangeArrow)"/>
+    <text x="198" y="15" class="tiny">API update</text>
+    <line x1="324" y1="10" x2="358" y2="10" stroke="#059669" stroke-width="2" marker-end="url(#greenArrow)"/>
+    <text x="368" y="15" class="tiny">Lease spec</text>
+    <line x1="510" y1="10" x2="544" y2="10" stroke="#7c3aed" stroke-width="2" marker-end="url(#purpleArrow)"/>
+    <text x="554" y="15" class="tiny">Lease name rule</text>
+  </g>
+
+  <text x="52" y="832" class="footer">github.com/bluetape4k/bluetape4k-leader / leader-k8s - Kubernetes Lease ownership via holderIdentity and resourceVersion updates.</text>
 </svg>
