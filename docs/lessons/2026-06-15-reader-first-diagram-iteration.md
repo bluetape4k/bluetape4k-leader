@@ -40,6 +40,20 @@ just arrows. A note can still obscure a lifeline or clip long field lists even
 when the arrows look clean. Move notes into empty participant corridors and
 split long field lists before rendering the final PNG.
 
+## Hazelcast Follow-up
+
+Diagram refresh can expose stale adjacent README prose. The Hazelcast README
+still claimed that no watchdog renewal exists, but source inspection showed
+single-leader electors start auto-extension when `autoExtend` is enabled. Fix
+the prose and section title in the same module pass instead of preserving a
+misleading README around a correct diagram.
+
+For class diagrams, do not force every source concept into a connected edge. A
+factory/extension entrypoint can be clearer as a separate entrypoint card when
+create arrows would cross elector-to-lock dependency lines. Keep inheritance
+vertical where possible, route dependency lines through empty corridors, and
+shrink or split long class labels before accepting the PNG.
+
 ## Verification
 
 - SVG XML parsing passed for changed assets.
