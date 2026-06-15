@@ -54,6 +54,14 @@ create arrows would cross elector-to-lock dependency lines. Keep inheritance
 vertical where possible, route dependency lines through empty corridors, and
 shrink or split long class labels before accepting the PNG.
 
+## Micrometer Follow-up
+
+The Micrometer README also carried stale summary prose: it said there were two
+instrumentation paths while source and meter constants showed AOP recorder,
+direct decorators, listener events, and history sink counters. For observability
+modules, diagram the path from source event to meter family to registry/export,
+then make the README overview and meter catalog match that same set of paths.
+
 ## Verification
 
 - SVG XML parsing passed for changed assets.
