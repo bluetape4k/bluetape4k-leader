@@ -1,136 +1,147 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1736" height="1037" viewBox="0 0 1736 1037" role="img" aria-labelledby="title desc" data-intent="Answer an etcd backend reader's question: how do blocking, coroutine, and virtual-thread leader electors use a caller-owned jetcd Client to grant leases, acquire single or group-slot Lock keys, keep active leases alive, unlock ownership keys, revoke leases, and publish Elected or Revoked events from watch notifications?" data-evidence="leader-etcd README behavior/client sections; EtcdLeaderElector; EtcdLeaderGroupElector; EtcdSuspendLeaderElector; EtcdSuspendLeaderGroupElector; EtcdLockClient; EtcdLeaderPaths; EtcdLeaseHandle; EtcdLeaderElectionEventPublisher" data-source-read="leader-etcd/README.md; leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdLeaderElector.kt; leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdLeaderGroupElector.kt; leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdSuspendLeaderElector.kt; leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdSuspendLeaderGroupElector.kt; leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/internal/EtcdLockClient.kt; leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/internal/EtcdLeaderPaths.kt; leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/internal/EtcdLeaseHandle.kt; leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdLeaderElectionEventPublisher.kt">
-  <title id="title">Etcd Leader Lease Architecture</title>
-  <desc id="desc">Architecture diagram for the etcd leader module showing caller-owned jetcd clients, single and group elector surfaces, the internal Lock client, etcd leases, ownership keys, keepalive extension, revoke cleanup, and watch-backed election events.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1320 860" width="1320" height="860" role="img" aria-labelledby="title desc">
+  <title id="title">leader-etcd runtime architecture</title>
+  <desc id="desc">Architecture diagram for the etcd backend showing bluetape4k electors, jetcd client boundaries, Lock and Lease services, Watch publisher, keyspace layout, and cleanup behavior.</desc>
+  <style>
+    text { font-family: 'Architects Daughter', 'Comic Mono', 'Comic Sans MS', Arial, sans-serif; letter-spacing: 0; }
+    .title { font-size: 28px; font-weight: 700; fill: #111827; }
+    .subtitle { font-size: 14px; fill: #4b5563; }
+    .section { font-size: 15px; font-weight: 700; fill: #374151; }
+    .card-title { font-size: 16px; font-weight: 700; fill: #111827; }
+    .card-sub { font-size: 12px; fill: #4b5563; }
+    .mono { font-family: 'Comic Mono', 'Architects Daughter', monospace; font-size: 12px; fill: #374151; }
+    .tiny { font-size: 11px; fill: #6b7280; }
+    .badge { font-size: 11px; font-weight: 700; }
+    .footer { font-size: 12px; fill: #6b7280; }
+    .dash { stroke-dasharray: 6 5; }
+  </style>
   <defs>
-    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
-    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
-    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
-    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
-    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
-    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
-    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
-    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
-    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
-    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
-    <style>
-      .canvas{fill:#F7FAFC}
-      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
-      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
-      .card{filter:url(#shadow);stroke-width:2}
-      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
-      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
-      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
-      .seq{fill:none;stroke-width:3;stroke-linecap:round}
-      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
-      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
-      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
-      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
-    </style>
+    <marker id="blueArrow" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11 Z" fill="#2563eb"/>
+    </marker>
+    <marker id="greenArrow" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11 Z" fill="#059669"/>
+    </marker>
+    <marker id="purpleArrow" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11 Z" fill="#7c3aed"/>
+    </marker>
+    <marker id="orangeArrow" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11 Z" fill="#ea580c"/>
+    </marker>
   </defs>
-  <rect class="canvas" width="1736" height="1037"/>
-  <rect class="frame" x="32" y="28" width="1672" height="981" rx="28"/>
-  <text class="title" x="66" y="82">Etcd Leader Lease Architecture</text>
-  <text class="subtitle" x="70" y="116">jetcd Lock returns an ownership key bound to an etcd lease; keepalive extends active work and unlock/revoke ends ownership.</text>
-<g>
-  <rect class="band" x="152" y="228" width="1432" height="180" rx="18"/>
-  <text class="bandTitle" x="178" y="262">Caller-owned jetcd boundary</text>
-</g>
-<g>
-  <rect class="band" x="152" y="443" width="1432" height="215" rx="18"/>
-  <text class="bandTitle" x="178" y="477">Elector surfaces and Lock service</text>
-</g>
-<g>
-  <rect class="band" x="152" y="718" width="1432" height="195" rx="18"/>
-  <text class="bandTitle" x="178" y="752">Etcd lease and ownership key state</text>
-</g>
-<path class="route" data-from="caller" data-to="single" data-route-tone="call" d="M353 366 L353 413 L128 413 L128 555 L193 555" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="caller" data-to="group" data-route-tone="call" d="M353 366 L353 413 L788 413 L788 508" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="jetcd" data-to="client" data-route-tone="dependency" d="M723 366 L723 423 L1218 423 L1218 508" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="options" data-to="client" data-route-tone="dependency" d="M1093 366 L1093 508" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="publisher" data-to="watch" data-route-tone="dependency" d="M1428 366 L1428 783" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="single" data-to="client" data-route-tone="call" d="M553 555 L583 555 L583 623 L1013 623 L1013 555 L1033 555" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="group" data-to="client" data-route-tone="call" d="M968 555 L1033 555" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="single" data-to="handle" data-route-tone="success" d="M373 602 L373 692 L683 692" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="group" data-to="handle" data-route-tone="success" d="M788 602 L788 648" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="handle" data-to="client" data-route-tone="retry" d="M1033 692 L1428 692 L1428 555 L1403 555" stroke="#4F63C7" marker-end="url(#arrow-retry)"/>
-<path class="route" data-from="client" data-to="lease" data-route-tone="dependency" d="M1403 555 L1608 555 L1608 913 L363 913 L363 873" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="lease" data-to="singleKey" data-route-tone="success" d="M528 828 L578 828" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="singleKey" data-to="groupKeys" data-route-tone="contention" d="M938 828 L988 828" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
-<path class="route" data-from="groupKeys" data-to="watch" data-route-tone="release" d="M1318 828 L1358 828" stroke="#755BC6" marker-end="url(#arrow-release)"/>
-<g id="node-caller">
-  <rect class="card" x="188" y="278" width="330" height="88" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="353" y="304" text-anchor="middle" dominant-baseline="middle">Application Caller</text>
-  <text class="detail" x="353" y="323" text-anchor="middle" dominant-baseline="middle">runIfLeader / group</text>
-  <text class="detail" x="353" y="342" text-anchor="middle" dominant-baseline="middle">blocking, async, suspend</text>
-</g>
-<g id="node-jetcd">
-  <rect class="card" x="558" y="278" width="330" height="88" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="723" y="304" text-anchor="middle" dominant-baseline="middle">Caller-Owned jetcd Client</text>
-  <text class="detail" x="723" y="323" text-anchor="middle" dominant-baseline="middle">endpoints, TLS, auth</text>
-  <text class="detail" x="723" y="342" text-anchor="middle" dominant-baseline="middle">not closed by module</text>
-</g>
-<g id="node-options">
-  <rect class="card" x="928" y="278" width="330" height="88" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="1093" y="304" text-anchor="middle" dominant-baseline="middle">Etcd Options</text>
-  <text class="detail" x="1093" y="323" text-anchor="middle" dominant-baseline="middle">keyPrefix, waitTime</text>
-  <text class="detail" x="1093" y="342" text-anchor="middle" dominant-baseline="middle">leaseTime, minLeaseTime</text>
-</g>
-<g id="node-publisher">
-  <rect class="card" x="1298" y="278" width="260" height="88" rx="10" fill="#EEF6D9" stroke="#8BA84D"/>
-  <text class="cardTitle" x="1428" y="304" text-anchor="middle" dominant-baseline="middle">Event Publisher</text>
-  <text class="detail" x="1428" y="323" text-anchor="middle" dominant-baseline="middle">watch keyPrefix</text>
-  <text class="detail" x="1428" y="342" text-anchor="middle" dominant-baseline="middle">Elected / Revoked only</text>
-</g>
-<g id="node-single">
-  <rect class="card" x="193" y="508" width="360" height="94" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="373" y="537" text-anchor="middle" dominant-baseline="middle">Single Leader Electors</text>
-  <text class="detail" x="373" y="556" text-anchor="middle" dominant-baseline="middle">blocking + CompletableFuture</text>
-  <text class="detail" x="373" y="575" text-anchor="middle" dominant-baseline="middle">coroutine + virtual-thread</text>
-</g>
-<g id="node-group">
-  <rect class="card" x="608" y="508" width="360" height="94" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="788" y="537" text-anchor="middle" dominant-baseline="middle">Group Slot Electors</text>
-  <text class="detail" x="788" y="556" text-anchor="middle" dominant-baseline="middle">random start slot scan</text>
-  <text class="detail" x="788" y="575" text-anchor="middle" dominant-baseline="middle">bounded per-slot wait</text>
-</g>
-<g id="node-client">
-  <rect class="card" x="1033" y="508" width="370" height="94" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="cardTitle" x="1218" y="537" text-anchor="middle" dominant-baseline="middle">EtcdLockClient</text>
-  <text class="detail" x="1218" y="556" text-anchor="middle" dominant-baseline="middle">grant lease, Lock key</text>
-  <text class="detail" x="1218" y="575" text-anchor="middle" dominant-baseline="middle">unlock ownership, revoke</text>
-</g>
-<g id="node-handle">
-  <rect class="card" x="683" y="648" width="350" height="88" rx="10" fill="#EEF1FF" stroke="#6477D8"/>
-  <text class="cardTitle" x="858" y="674" text-anchor="middle" dominant-baseline="middle">Lease Handle And Extender</text>
-  <text class="detail" x="858" y="693" text-anchor="middle" dominant-baseline="middle">leaseId + ownershipKey</text>
-  <text class="detail" x="858" y="712" text-anchor="middle" dominant-baseline="middle">keepAliveOnce</text>
-</g>
-<g id="node-lease">
-  <rect class="card" x="198" y="783" width="330" height="90" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="363" y="810" text-anchor="middle" dominant-baseline="middle">Etcd Lease</text>
-  <text class="detail" x="363" y="829" text-anchor="middle" dominant-baseline="middle">TTL grants ownership life</text>
-  <text class="detail" x="363" y="848" text-anchor="middle" dominant-baseline="middle">keepalive or revoke</text>
-</g>
-<g id="node-singleKey">
-  <rect class="card" x="578" y="783" width="360" height="90" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="758" y="810" text-anchor="middle" dominant-baseline="middle">Single Lock Key</text>
-  <text class="detail" x="758" y="829" text-anchor="middle" dominant-baseline="middle">/prefix/single/{lock}</text>
-  <text class="detail" x="758" y="848" text-anchor="middle" dominant-baseline="middle">ownership key result</text>
-</g>
-<g id="node-groupKeys">
-  <rect class="card" x="988" y="783" width="330" height="90" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="1153" y="810" text-anchor="middle" dominant-baseline="middle">Group Slot Lock Keys</text>
-  <text class="detail" x="1153" y="829" text-anchor="middle" dominant-baseline="middle">/prefix/group/{lock}/slot-n</text>
-  <text class="detail" x="1153" y="848" text-anchor="middle" dominant-baseline="middle">one Lock key per slot</text>
-</g>
-<g id="node-watch">
-  <rect class="card" x="1358" y="783" width="210" height="90" rx="10" fill="#F2F5F9" stroke="#9AA8B8"/>
-  <text class="cardTitle" x="1463" y="810" text-anchor="middle" dominant-baseline="middle">Ownership Key Watch</text>
-  <text class="detail" x="1463" y="829" text-anchor="middle" dominant-baseline="middle">PUT -&gt; Elected</text>
-  <text class="detail" x="1463" y="848" text-anchor="middle" dominant-baseline="middle">DELETE -&gt; Revoked</text>
-</g>
+
+  <rect width="1320" height="860" fill="#f8fafc"/>
+  <rect x="28" y="24" width="1264" height="788" rx="18" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+  <text x="52" y="66" class="title">leader-etcd runtime architecture</text>
+  <text x="52" y="92" class="subtitle">jetcd Lock owns the mutex key; etcd Lease owns the TTL. bluetape4k keeps the returned ownership key as the fencing token.</text>
+
+  <rect x="52" y="128" width="284" height="584" rx="12" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+  <text x="72" y="158" class="section">Application surface</text>
+  <g transform="translate(80 190)">
+    <rect width="228" height="92" rx="8" fill="#ffffff" stroke="#93c5fd" stroke-width="1.4"/>
+    <text x="114" y="30" text-anchor="middle" class="card-title">Caller-owned Client</text>
+    <text x="20" y="57" class="card-sub">endpoints, TLS, auth</text>
+    <text x="20" y="77" class="card-sub">lifecycle stays external</text>
+  </g>
+  <g transform="translate(80 318)">
+    <rect width="228" height="122" rx="8" fill="#ffffff" stroke="#93c5fd" stroke-width="1.4"/>
+    <text x="114" y="30" text-anchor="middle" class="card-title">User action</text>
+    <text x="20" y="58" class="mono">runIfLeader(lock)</text>
+    <text x="20" y="80" class="mono">runIfLeader(slot)</text>
+    <text x="20" y="102" class="mono">runVirtualIfLeader</text>
+  </g>
+  <g transform="translate(80 486)">
+    <rect width="228" height="102" rx="8" fill="#dbeafe" stroke="#60a5fa" stroke-width="1.4"/>
+    <text x="114" y="29" text-anchor="middle" class="card-title">Spring Boot adapter</text>
+    <text x="20" y="57" class="card-sub">activated only when a jetcd</text>
+    <text x="20" y="77" class="card-sub">Client bean is present</text>
+  </g>
+
+  <rect x="390" y="128" width="408" height="584" rx="12" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+  <text x="410" y="158" class="section">bluetape4k leader-etcd</text>
+  <g transform="translate(422 190)">
+    <rect width="156" height="112" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.4"/>
+    <text x="78" y="30" text-anchor="middle" class="card-title">EtcdLeader</text>
+    <text x="78" y="50" text-anchor="middle" class="card-title">Elector</text>
+    <text x="18" y="78" class="card-sub">blocking + async</text>
+    <text x="18" y="96" class="card-sub">autoExtend optional</text>
+  </g>
+  <g transform="translate(610 190)">
+    <rect width="156" height="112" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.4"/>
+    <text x="78" y="30" text-anchor="middle" class="card-title">EtcdSuspend</text>
+    <text x="78" y="50" text-anchor="middle" class="card-title">Elector</text>
+    <text x="18" y="78" class="card-sub">coroutine API</text>
+    <text x="18" y="96" class="card-sub">awaits lock futures</text>
+  </g>
+  <g transform="translate(422 338)">
+    <rect width="156" height="126" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.4"/>
+    <text x="78" y="30" text-anchor="middle" class="card-title">EtcdLeader</text>
+    <text x="78" y="50" text-anchor="middle" class="card-title">Group</text>
+    <text x="18" y="80" class="card-sub">random slot start</text>
+    <text x="18" y="100" class="card-sub">one Lock per slot</text>
+  </g>
+  <g transform="translate(610 338)">
+    <rect width="156" height="126" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.4"/>
+    <text x="78" y="30" text-anchor="middle" class="card-title">VirtualThread</text>
+    <text x="78" y="50" text-anchor="middle" class="card-title">Adapter</text>
+    <text x="18" y="80" class="card-sub">runs blocking path</text>
+    <text x="18" y="100" class="card-sub">on virtual threads</text>
+  </g>
+  <g transform="translate(422 520)">
+    <rect width="344" height="116" rx="8" fill="#dcfce7" stroke="#22c55e" stroke-width="1.4"/>
+    <text x="172" y="30" text-anchor="middle" class="card-title">EtcdLeaseHandle</text>
+    <text x="24" y="58" class="mono">leaseId + ownershipKey + acquiredAtNanos</text>
+    <text x="24" y="82" class="card-sub">ownershipKey becomes LeaderLockHandle token</text>
+  </g>
+
+  <rect x="846" y="128" width="394" height="584" rx="12" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5"/>
+  <text x="866" y="158" class="section">etcd cluster services</text>
+  <g transform="translate(878 190)">
+    <rect width="146" height="112" rx="8" fill="#ffffff" stroke="#c084fc" stroke-width="1.4"/>
+    <text x="73" y="30" text-anchor="middle" class="card-title">Lock service</text>
+    <text x="18" y="60" class="mono">lock(key, lease)</text>
+    <text x="18" y="82" class="mono">unlock(ownerKey)</text>
+  </g>
+  <g transform="translate(1062 190)">
+    <rect width="146" height="112" rx="8" fill="#ffffff" stroke="#c084fc" stroke-width="1.4"/>
+    <text x="73" y="30" text-anchor="middle" class="card-title">Lease service</text>
+    <text x="18" y="60" class="mono">grant(ttl)</text>
+    <text x="18" y="82" class="mono">keepAliveOnce</text>
+  </g>
+  <g transform="translate(878 350)">
+    <rect width="330" height="128" rx="8" fill="#f5f3ff" stroke="#a78bfa" stroke-width="1.4"/>
+    <text x="165" y="30" text-anchor="middle" class="card-title">Keyspace layout</text>
+    <text x="22" y="60" class="mono">/prefix/single/{encodedLockName}</text>
+    <text x="22" y="84" class="mono">/prefix/group/{encodedLockName}/slot-N</text>
+    <text x="22" y="108" class="card-sub">raw lockName is percent-encoded per path segment</text>
+  </g>
+  <g transform="translate(878 536)">
+    <rect width="330" height="96" rx="8" fill="#f5f3ff" stroke="#a78bfa" stroke-width="1.4"/>
+    <text x="165" y="30" text-anchor="middle" class="card-title">Watch service</text>
+    <text x="22" y="58" class="card-sub">prefix watch emits Elected / Revoked</text>
+    <text x="22" y="78" class="card-sub">publisher revalidates current owner key</text>
+  </g>
+
+  <path d="M 308 364 L 390 364 L 422 246" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#blueArrow)"/>
+  <text x="356" y="350" text-anchor="middle" class="tiny" fill="#1d4ed8">run action</text>
+  <path d="M 798 246 L 878 246" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#blueArrow)"/>
+  <text x="838" y="232" text-anchor="middle" class="tiny" fill="#1d4ed8">Lock</text>
+  <path d="M 798 306 L 828 306 L 828 174 L 1135 174 L 1135 190" fill="none" stroke="#059669" stroke-width="2" marker-end="url(#greenArrow)"/>
+  <text x="1174" y="184" text-anchor="middle" class="tiny" fill="#047857">lease TTL</text>
+  <path d="M 766 580 L 878 426" fill="none" stroke="#7c3aed" stroke-width="2" marker-end="url(#purpleArrow)"/>
+  <text x="842" y="520" text-anchor="middle" class="tiny" fill="#6d28d9">key path</text>
+  <path d="M 1038 536 L 1038 478" fill="none" stroke="#ea580c" stroke-width="1.8" class="dash" marker-end="url(#orangeArrow)"/>
+  <text x="1060" y="510" class="tiny" fill="#c2410c">watch prefix</text>
+
+  <g transform="translate(80 742)">
+    <line x1="0" y1="10" x2="34" y2="10" stroke="#2563eb" stroke-width="2" marker-end="url(#blueArrow)"/>
+    <text x="44" y="15" class="tiny">lock request</text>
+    <line x1="160" y1="10" x2="194" y2="10" stroke="#059669" stroke-width="2" marker-end="url(#greenArrow)"/>
+    <text x="204" y="15" class="tiny">lease TTL</text>
+    <line x1="318" y1="10" x2="352" y2="10" stroke="#7c3aed" stroke-width="2" marker-end="url(#purpleArrow)"/>
+    <text x="362" y="15" class="tiny">keyspace mapping</text>
+    <line x1="528" y1="10" x2="562" y2="10" stroke="#ea580c" stroke-width="1.8" class="dash" marker-end="url(#orangeArrow)"/>
+    <text x="572" y="15" class="tiny">watch event</text>
+  </g>
+
+  <text x="52" y="792" class="footer">github.com/bluetape4k/bluetape4k-leader / leader-etcd - jetcd Lock ownership keys, etcd leases, and prefix watch events.</text>
 </svg>
