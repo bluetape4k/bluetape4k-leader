@@ -5,17 +5,17 @@
     <filter id="shadow" x="-12%" y="-16%" width="124%" height="140%">
       <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#64748b" flood-opacity="0.13"/>
     </filter>
-    <marker id="arrowBlue" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="strokeWidth">
-      <path d="M 1 1 L 8 4 L 1 7 Z" fill="#2563eb"/>
+    <marker id="arrowBlue" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
     </marker>
-    <marker id="arrowGreen" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="strokeWidth">
-      <path d="M 1 1 L 8 4 L 1 7 Z" fill="#16a34a"/>
+    <marker id="arrowGreen" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#16a34a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
     </marker>
-    <marker id="arrowPurple" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="strokeWidth">
-      <path d="M 1 1 L 8 4 L 1 7 Z" fill="#7c3aed"/>
+    <marker id="arrowPurple" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#7c3aed" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
     </marker>
-    <marker id="hollowTri" markerWidth="10" markerHeight="9" refX="9" refY="4.5" orient="auto" markerUnits="strokeWidth">
-      <path d="M 1 1 L 9 4.5 L 1 8 Z" fill="#ffffff" stroke="#334155" stroke-width="1.15"/>
+    <marker id="hollowTri" viewBox="0 0 18 16" markerWidth="16" markerHeight="14" refX="16" refY="8" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 16 8 L 1 15 Z" fill="#ffffff" stroke="#334155" stroke-width="1.7"/>
     </marker>
   </defs>
   <style>
@@ -35,9 +35,9 @@
     .table { fill: #fdf2f8; stroke: #f9a8d4; }
     .history { fill: #faf5ff; stroke: #c4b5fd; }
     .divider { stroke: rgba(100,116,139,0.35); stroke-width: 1; }
-    .impl { stroke: #334155; stroke-width: 1.2; fill: none; stroke-dasharray: 6 5; marker-end: url(#hollowTri); }
-    .uses { stroke: #2563eb; stroke-width: 1.45; fill: none; marker-end: url(#arrowBlue); }
-    .data { stroke: #16a34a; stroke-width: 1.45; fill: none; marker-end: url(#arrowGreen); }
+    .impl { stroke: #334155; stroke-width: 1.2; fill: none; marker-end: url(#hollowTri); }
+    .uses { stroke: #2563eb; stroke-width: 1.45; fill: none; stroke-dasharray: 6 5; marker-end: url(#arrowBlue); }
+    .data { stroke: #16a34a; stroke-width: 1.45; fill: none; stroke-dasharray: 6 5; marker-end: url(#arrowGreen); }
     .audit { stroke: #7c3aed; stroke-width: 1.35; fill: none; stroke-dasharray: 5 5; marker-end: url(#arrowPurple); }
   </style>
 
@@ -146,8 +146,8 @@
   </g>
 
   <path class="impl" d="M 442 260 L 364 260 L 334 252"/>
-  <path class="impl" d="M 624 260 L 392 260 L 392 390 L 334 390"/>
-  <path class="impl" d="M 442 443 L 384 443 L 384 548 L 334 548"/>
+  <path class="impl" d="M 624 314 L 614 314 L 614 340 L 392 340 L 392 390 L 334 390"/>
+  <path class="impl" d="M 442 478 L 384 478 L 384 548 L 334 548"/>
   <path class="uses" d="M 602 241 L 614 241 L 614 184 L 838 184 L 838 241 L 890 241"/>
   <path class="uses" d="M 784 260 L 838 260 L 838 363 L 890 363"/>
   <path class="uses" d="M 522 490 L 522 532 L 560 532 L 560 562"/>
