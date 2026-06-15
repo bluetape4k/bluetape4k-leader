@@ -12,15 +12,15 @@ Hazelcast-backed leader election — blocking, async, virtual-thread, and corout
 
 Lock strategy: `IMap.putIfAbsent(key, token, leaseTimeMs, MILLISECONDS)` for atomic acquire, `IMap.remove(key, token)` for owner-only release. Thread-unbound token model — safe for Virtual Threads and coroutine thread switches.
 
-> **Note:** `leaseTime` must be longer than the expected action duration. TTL expiry automatically releases the lock; no watchdog renewal is performed.
+> **Note:** `leaseTime` must be longer than the expected action duration. TTL expiry automatically releases the lock; single-leader electors can renew the TTL when `autoExtend` is enabled.
 >
 > `minLeaseTime` retains the token with a shortened map-entry TTL when work finishes early, so other nodes cannot reacquire the same lock until the minimum lease has elapsed.
 >
 > **Note:** Never enable near-cache on the lock map. Stale near-cache reads can cause `isHeldByCurrentInstance()` to misidentify the lock holder.
 
-## Architecture
+## Implementation Structure
 
-![leader hazelcast Class Structure diagram](../docs/images/readme-diagrams/leader-hazelcast-class-01.png)
+![leader-hazelcast implementation structure diagram](../docs/images/readme-diagrams/leader-hazelcast-class-01.png)
 
 ## Implementations
 
