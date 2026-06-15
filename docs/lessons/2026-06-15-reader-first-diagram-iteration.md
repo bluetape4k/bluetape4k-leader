@@ -76,6 +76,19 @@ instead of through them; if a route label only repeats an obvious arrow, remove
 it. For sequence diagrams, keep call-label colors in the same family as the
 call line so numbered calls remain visually tied to their arrows.
 
+## Cache Warmer Follow-up
+
+Do not draw every concurrent attempt when the source behavior is an `N x M`
+contention matrix. The cache-warmer scenario became readable only after grouping
+the three warmer instances and fanning out to one lock per partition; drawing
+all node-to-partition attempts made the core contract look like a routing knot.
+
+For example flows, avoid drawing every non-terminal branch back to the loop
+when the cards can state `then continue`. Multiple return lines from success,
+skip, and failure branches crossed the cancellation and result cards. A single
+loop/back edge plus branch-local text explains the same source contract with
+less visual noise.
+
 ## Verification
 
 - SVG XML parsing passed for changed assets.

@@ -1,105 +1,71 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1776" height="1052" viewBox="0 0 1776 1052" role="img" aria-labelledby="title desc" data-intent="Answer the Cache Warmer README reader's operational-flow question: what happens after the cache warm cycle, where does CacheWarmer validate or prepare the request, how does Leader elector factory interact with partition locks, what is the success path for warm cache partition, and what terminal result appears when the node is not leader?" data-evidence="examples/cache-warmer README scenario/usage sections; examples/cache-warmer/src/main workflow code; examples/cache-warmer/src/test behavior checks when present" data-source-read="examples/cache-warmer/README.md; examples/cache-warmer/README.ko.md; examples/cache-warmer/src/main; examples/cache-warmer/src/test">
-  <title id="title">Cache Warmer Leader Decision Flow</title>
-  <desc id="desc">Flow diagram for the Cache Warmer example showing validation, leadership decision, leader-only work, skip terminal state, release, and recovery path.</desc>
-  <defs>
-    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
-    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
-    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
-    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
-    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
-    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
-    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
-    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
-    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
-    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
-    <style>
-      .canvas{fill:#F7FAFC}
-      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
-      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
-      .card{filter:url(#shadow);stroke-width:2}
-      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
-      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
-      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
-      .seq{fill:none;stroke-width:3;stroke-linecap:round}
-      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
-      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
-      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
-      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
-    </style>
-  </defs>
-  <rect class="canvas" width="1776" height="1052"/>
-  <rect class="frame" x="32" y="28" width="1712" height="996" rx="28"/>
-  <text class="title" x="66" y="82">Cache Warmer Leader Decision Flow</text>
-  <text class="subtitle" x="70" y="116">The example validates inputs, attempts leadership, runs warm cache partition only on success, and returns a visible skip otherwise.</text>
-<g>
-  <rect class="band" x="128" y="228" width="1500" height="205" rx="18"/>
-  <text class="bandTitle" x="154" y="262">Input and ownership attempt</text>
-</g>
-<g>
-  <rect class="band" x="128" y="468" width="1500" height="190" rx="18"/>
-  <text class="bandTitle" x="154" y="502">Branch-specific work</text>
-</g>
-<g>
-  <rect class="band" x="128" y="738" width="1500" height="190" rx="18"/>
-  <text class="bandTitle" x="154" y="772">Terminal result</text>
-</g>
-<path class="route" data-from="start" data-to="validate" data-route-tone="call" d="M468 339 L533 339" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="validate" data-to="attempt" data-route-tone="dependency" d="M848 339 L913 339" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="attempt" data-to="decision" data-route-tone="contention" d="M1243 339 L1303 339" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
-<path class="route" data-from="decision" data-to="execute" data-route-tone="success" d="M1443 380 L1443 438 L1113 438 L1113 538" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="execute" data-to="release" data-route-tone="release" d="M943 582 L891 582 L891 582 L838 582" stroke="#755BC6" marker-end="url(#arrow-release)"/>
-<path class="route" data-from="release" data-to="executed" data-route-tone="success" d="M668 626 L668 708 L698 708 L698 844 L673 844" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="decision" data-to="skipped" data-route-tone="skip" d="M1583 339 L1648 339 L1648 844 L1403 844" stroke="#C94D68" marker-end="url(#arrow-skip)"/>
-<g id="node-start">
-  <rect class="card" x="188" y="298" width="280" height="82" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="328" y="321" text-anchor="middle" dominant-baseline="middle">Cache Warm Cycle</text>
-  <text class="detail" x="328" y="340" text-anchor="middle" dominant-baseline="middle">build request</text>
-  <text class="detail" x="328" y="359" text-anchor="middle" dominant-baseline="middle">same lock name</text>
-</g>
-<g id="node-validate">
-  <rect class="card" x="533" y="298" width="315" height="82" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="690.5" y="321" text-anchor="middle" dominant-baseline="middle">Validate Example Inputs</text>
-  <text class="detail" x="690.5" y="340" text-anchor="middle" dominant-baseline="middle">node id / lock name</text>
-  <text class="detail" x="690.5" y="359" text-anchor="middle" dominant-baseline="middle">backend options</text>
-</g>
-<g id="node-attempt">
-  <rect class="card" x="913" y="298" width="330" height="82" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="cardTitle" x="1078" y="321" text-anchor="middle" dominant-baseline="middle">Leader elector factory</text>
-  <text class="detail" x="1078" y="340" text-anchor="middle" dominant-baseline="middle">attempt ownership</text>
-  <text class="detail" x="1078" y="359" text-anchor="middle" dominant-baseline="middle">bounded wait</text>
-</g>
-<g id="node-decision">
-  <rect class="card" x="1303" y="298" width="280" height="82" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="1443" y="321" text-anchor="middle" dominant-baseline="middle">Leadership Result</text>
-  <text class="detail" x="1443" y="340" text-anchor="middle" dominant-baseline="middle">acquired?</text>
-  <text class="detail" x="1443" y="359" text-anchor="middle" dominant-baseline="middle">skip when false</text>
-</g>
-<g id="node-release">
-  <rect class="card" x="498" y="538" width="340" height="88" rx="10" fill="#EEF1FF" stroke="#6477D8"/>
-  <text class="cardTitle" x="668" y="564" text-anchor="middle" dominant-baseline="middle">Release Or Extend</text>
-  <text class="detail" x="668" y="583" text-anchor="middle" dominant-baseline="middle">finally path</text>
-  <text class="detail" x="668" y="602" text-anchor="middle" dominant-baseline="middle">failed partition isolation</text>
-</g>
-<g id="node-execute">
-  <rect class="card" x="943" y="538" width="340" height="88" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="1113" y="564" text-anchor="middle" dominant-baseline="middle">Warm Cache Partition</text>
-  <text class="detail" x="1113" y="583" text-anchor="middle" dominant-baseline="middle">leader branch</text>
-  <text class="detail" x="1113" y="602" text-anchor="middle" dominant-baseline="middle">body runs once</text>
-</g>
-<g id="node-executed">
-  <rect class="card" x="353" y="803" width="320" height="82" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="513" y="826" text-anchor="middle" dominant-baseline="middle">Return Executed</text>
-  <text class="detail" x="513" y="845" text-anchor="middle" dominant-baseline="middle">result payload</text>
-  <text class="detail" x="513" y="864" text-anchor="middle" dominant-baseline="middle">observable success</text>
-</g>
-<g id="node-skipped">
-  <rect class="card" x="1063" y="803" width="340" height="82" rx="10" fill="#FDECEF" stroke="#DC6B82"/>
-  <text class="cardTitle" x="1233" y="826" text-anchor="middle" dominant-baseline="middle">Return Skipped</text>
-  <text class="detail" x="1233" y="845" text-anchor="middle" dominant-baseline="middle">null or skipped status</text>
-  <text class="detail" x="1233" y="864" text-anchor="middle" dominant-baseline="middle">no duplicate work</text>
-</g>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-labelledby="title desc" data-source-read="examples/cache-warmer/README.md; examples/cache-warmer/src/main/kotlin/io/bluetape4k/leader/examples/warmer/CachePartitionWarmer.kt; examples/cache-warmer/src/test/kotlin/io/bluetape4k/leader/examples/warmer/CachePartitionWarmerTest.kt">
+<title id="title">Cache Warmer Flow</title>
+<desc id="desc">warmAll processes partitions one by one, records warmed/skipped/failed outcomes, and rethrows cancellation.</desc>
+<defs>
+  <marker id="arrow-blue" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#3F73D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-green" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#2D8F64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-orange" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#C96B2C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-red" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#B94A5A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <marker id="arrow-purple" viewBox="0 0 12 12" markerWidth="7" markerHeight="7" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#755BC6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#B9C7D6" flood-opacity="0.24"/></filter>
+  <style>
+    .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:2.2;filter:url(#shadow)}
+    .title{font-family:"Architects Daughter";font-size:40px;fill:#21334A}.subtitle,.label,.footer{font-family:"Comic Mono";fill:#4B6075}.subtitle{font-size:15px}.label{font-size:14px}.footer{font-size:13px}
+    .step{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1.8;filter:url(#shadow)}.start{fill:#FEF7E6;stroke:#E4BD67}.decision{fill:#EAF2FF;stroke:#8EB2F0}.success{fill:#EEF7F2;stroke:#8BC6A3}.skip{fill:#FFF1EA;stroke:#E8A47D}.fail{fill:#FDECEF;stroke:#DC8A98}.done{fill:#F4EEFF;stroke:#B7A3EC}
+    .stepTitle{font-family:"Architects Daughter";font-size:22px;fill:#21334A}.stepText{font-family:"Comic Mono";font-size:13px;fill:#4B6075}.route{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:7 6}
+  </style>
+</defs>
+<rect class="canvas" width="1280" height="760"/>
+<rect class="frame" x="34" y="28" width="1212" height="704" rx="30"/>
+<text class="title" x="72" y="84">Cache Warmer Flow</text>
+<text class="subtitle" x="76" y="116">Each partition is handled independently; failures are recorded and cancellation is rethrown.</text>
+
+<rect class="step start" x="78" y="198" width="224" height="88" rx="18"/>
+<text class="stepTitle" x="112" y="234">1. Start warmAll</text>
+<text class="stepText" x="112" y="262">empty result buckets</text>
+
+<rect class="step" x="376" y="198" width="230" height="88" rx="18"/>
+<text class="stepTitle" x="410" y="234">2. Pick partition</text>
+<text class="stepText" x="410" y="262">sequential forEach</text>
+
+<rect class="step decision" x="680" y="176" width="242" height="112" rx="18"/>
+<text class="stepTitle" x="714" y="214">3. Elect leader</text>
+<text class="stepText" x="714" y="242">lock = prefix-partition</text>
+<text class="stepText" x="714" y="264">runIfLeader(lock)</text>
+
+<rect class="step success" x="982" y="150" width="220" height="88" rx="18"/>
+<text class="stepTitle" x="1016" y="186">4a. Acquired</text>
+<text class="stepText" x="1016" y="214">warmFunction(partition)</text>
+<text class="stepText" x="1016" y="232">then continue</text>
+<rect class="step skip" x="982" y="284" width="220" height="88" rx="18"/>
+<text class="stepTitle" x="1016" y="320">4b. Not leader</text>
+<text class="stepText" x="1016" y="348">record skipped</text>
+<text class="stepText" x="1016" y="366">then continue</text>
+<rect class="step fail" x="982" y="418" width="220" height="88" rx="18"/>
+<text class="stepTitle" x="1016" y="454">4c. Exception</text>
+<text class="stepText" x="1016" y="482">record failed message</text>
+<text class="stepText" x="1016" y="500">then continue</text>
+
+<rect class="step fail" x="680" y="438" width="242" height="88" rx="18"/>
+<text class="stepTitle" x="714" y="474">Cancellation</text>
+<text class="stepText" x="714" y="502">rethrow immediately</text>
+
+<rect class="step done" x="376" y="566" width="230" height="88" rx="18"/>
+<text class="stepTitle" x="410" y="602">5. Next partition</text>
+<text class="stepText" x="410" y="630">continue loop</text>
+<rect class="step done" x="680" y="566" width="242" height="88" rx="18"/>
+<text class="stepTitle" x="714" y="602">6. Return result</text>
+<text class="stepText" x="714" y="630">warmed/skipped/failed</text>
+
+<path class="route" d="M 302 242 L 376 242" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
+<path class="route" d="M 606 242 L 680 242" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
+<path class="route" d="M 922 212 C 946 194 958 194 982 194" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
+<path class="route" d="M 922 252 C 946 304 958 328 982 328" stroke="#C96B2C" marker-end="url(#arrow-orange)"/>
+<path class="route" d="M 922 274 C 950 392 960 462 982 462" stroke="#B94A5A" marker-end="url(#arrow-red)"/>
+<path class="route dash" d="M 801 288 L 801 438" stroke="#B94A5A" marker-end="url(#arrow-red)"/>
+<path class="route dash" d="M 376 610 C 254 610 190 442 190 286" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
+<path class="route" d="M 606 610 L 680 610" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
+
+<text class="label" x="214" y="590">more partitions</text>
+<text class="footer" x="640" y="710" text-anchor="middle">bluetape4k-leader/examples/cache-warmer</text>
 </svg>

@@ -26,7 +26,7 @@ the rest.
 
 ## Architecture Diagram
 
-![cache warmer Architecture diagram](../../docs/images/readme-diagrams/examples-cache-warmer-architecture-01.png)
+![Cache warmer architecture diagram](../../docs/images/readme-diagrams/examples-cache-warmer-architecture-01.png)
 
 ## Flow Diagram
 
@@ -34,7 +34,7 @@ the rest.
 
 ## Sequence Diagram
 
-![cache warmer Sequence Flow diagram](../../docs/images/readme-diagrams/examples-cache-warmer-sequence-01.png)
+![Cache warmer sequence diagram](../../docs/images/readme-diagrams/examples-cache-warmer-sequence-01.png)
 
 ## Core Features
 
