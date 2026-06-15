@@ -62,6 +62,13 @@ direct decorators, listener events, and history sink counters. For observability
 modules, diagram the path from source event to meter family to registry/export,
 then make the README overview and meter catalog match that same set of paths.
 
+For observability examples such as `examples/prometheus-dashboard`, separate
+the leader execution path from the metrics scrape/query path. Prometheus and
+Grafana observe meters; they do not trigger leader work. Long Spring bean names
+such as `LeaderScheduledTrigger` and `LeaderScheduledJob proxy` should be split
+into compact reader-facing titles before rendering instead of being squeezed
+inside cards.
+
 ## Batch Scheduler Follow-up
 
 Example modules need diagrams that preserve the example's behavioral contract,
