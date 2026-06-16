@@ -1,105 +1,67 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1776" height="1052" viewBox="0 0 1776 1052" role="img" aria-labelledby="title desc" data-intent="Answer the Strategic Election README reader's operational-flow question: what happens after the candidate scan, where does StrategicLeaderRunner validate or prepare the request, how does Scored election strategy interact with local leader slot, what is the success path for winner-only work, and what terminal result appears when the node is not leader?" data-evidence="examples/strategic-election README scenario/usage sections; examples/strategic-election/src/main workflow code; examples/strategic-election/src/test behavior checks when present" data-source-read="examples/strategic-election/README.md; examples/strategic-election/README.ko.md; examples/strategic-election/src/main; examples/strategic-election/src/test">
-  <title id="title">Strategic Election Leader Decision Flow</title>
-  <desc id="desc">Flow diagram for the Strategic Election example showing validation, leadership decision, leader-only work, skip terminal state, release, and recovery path.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900" role="img" aria-labelledby="title desc" data-source-read="StrategicElectionDemo.kt; StrategicElectionDemoTest.kt">
+  <title id="title">Strategic Election Flow</title>
+  <desc id="desc">Flow from default profiles to candidate registration, weighted election, selected node execution, skipped nodes, and final report.</desc>
   <defs>
-    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
-    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
-    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
-    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
-    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
-    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
-    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
-    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
-    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
-    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
+    <marker id="arrow-blue" markerWidth="14" markerHeight="14" refX="13" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 14 7 L 0 14 Z" fill="#4f77c9"/></marker>
+    <marker id="arrow-green" markerWidth="14" markerHeight="14" refX="13" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 14 7 L 0 14 Z" fill="#319873"/></marker>
+    <marker id="arrow-red" markerWidth="11" markerHeight="11" refX="10" refY="5.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 11 5.5 L 0 11 Z" fill="#c65b55"/></marker>
     <style>
-      .canvas{fill:#F7FAFC}
-      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
-      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
-      .card{filter:url(#shadow);stroke-width:2}
-      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
-      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
-      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
-      .seq{fill:none;stroke-width:3;stroke-linecap:round}
-      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
-      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
-      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
-      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
+      .canvas { fill: #f6f9fc; }
+      .frame { fill: #ffffff; stroke: #c5d5e6; stroke-width: 3; }
+      .title, .node-title { font-family: "Architects Daughter"; fill: #263a57; }
+      .title { font-size: 44px; }
+      .subtitle, .node-sub, .label, .footer { font-family: "Comic Mono"; fill: #526276; }
+      .subtitle { font-size: 17px; }
+      .node-title { font-size: 23px; }
+      .node-sub { font-size: 13px; }
+      .label { font-size: 13px; font-weight: 700; }
+      .footer { font-size: 14px; }
+      .node { stroke-width: 2.5; rx: 16; }
+      .decision { stroke-width: 2.5; }
+      .route { fill: none; stroke-width: 4.4; stroke-linecap: round; stroke-linejoin: round; }
+      .skip { stroke-dasharray: 10 9; }
+      .pill { fill: #ffffff; stroke: #cbd9e7; stroke-width: 1.4; rx: 10; }
     </style>
   </defs>
-  <rect class="canvas" width="1776" height="1052"/>
-  <rect class="frame" x="32" y="28" width="1712" height="996" rx="28"/>
-  <text class="title" x="66" y="82">Strategic Election Leader Decision Flow</text>
-  <text class="subtitle" x="70" y="116">The example validates inputs, attempts leadership, runs winner-only work only on success, and returns a visible skip otherwise.</text>
-<g>
-  <rect class="band" x="128" y="228" width="1500" height="205" rx="18"/>
-  <text class="bandTitle" x="154" y="262">Input and ownership attempt</text>
-</g>
-<g>
-  <rect class="band" x="128" y="468" width="1500" height="190" rx="18"/>
-  <text class="bandTitle" x="154" y="502">Branch-specific work</text>
-</g>
-<g>
-  <rect class="band" x="128" y="738" width="1500" height="190" rx="18"/>
-  <text class="bandTitle" x="154" y="772">Terminal result</text>
-</g>
-<path class="route" data-from="start" data-to="validate" data-route-tone="call" d="M468 339 L533 339" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="validate" data-to="attempt" data-route-tone="dependency" d="M848 339 L913 339" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="attempt" data-to="decision" data-route-tone="contention" d="M1243 339 L1303 339" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
-<path class="route" data-from="decision" data-to="execute" data-route-tone="success" d="M1443 380 L1443 438 L1113 438 L1113 538" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="execute" data-to="release" data-route-tone="release" d="M943 582 L891 582 L891 582 L838 582" stroke="#755BC6" marker-end="url(#arrow-release)"/>
-<path class="route" data-from="release" data-to="executed" data-route-tone="success" d="M668 626 L668 708 L698 708 L698 844 L673 844" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="decision" data-to="skipped" data-route-tone="skip" d="M1583 339 L1648 339 L1648 844 L1403 844" stroke="#C94D68" marker-end="url(#arrow-skip)"/>
-<g id="node-start">
-  <rect class="card" x="188" y="298" width="280" height="82" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="328" y="321" text-anchor="middle" dominant-baseline="middle">Candidate Scan</text>
-  <text class="detail" x="328" y="340" text-anchor="middle" dominant-baseline="middle">build request</text>
-  <text class="detail" x="328" y="359" text-anchor="middle" dominant-baseline="middle">same lock name</text>
-</g>
-<g id="node-validate">
-  <rect class="card" x="533" y="298" width="315" height="82" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="690.5" y="321" text-anchor="middle" dominant-baseline="middle">Validate Example Inputs</text>
-  <text class="detail" x="690.5" y="340" text-anchor="middle" dominant-baseline="middle">node id / lock name</text>
-  <text class="detail" x="690.5" y="359" text-anchor="middle" dominant-baseline="middle">backend options</text>
-</g>
-<g id="node-attempt">
-  <rect class="card" x="913" y="298" width="330" height="82" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="cardTitle" x="1078" y="321" text-anchor="middle" dominant-baseline="middle">Scored election strategy</text>
-  <text class="detail" x="1078" y="340" text-anchor="middle" dominant-baseline="middle">attempt ownership</text>
-  <text class="detail" x="1078" y="359" text-anchor="middle" dominant-baseline="middle">bounded wait</text>
-</g>
-<g id="node-decision">
-  <rect class="card" x="1303" y="298" width="280" height="82" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="1443" y="321" text-anchor="middle" dominant-baseline="middle">Leadership Result</text>
-  <text class="detail" x="1443" y="340" text-anchor="middle" dominant-baseline="middle">acquired?</text>
-  <text class="detail" x="1443" y="359" text-anchor="middle" dominant-baseline="middle">skip when false</text>
-</g>
-<g id="node-release">
-  <rect class="card" x="498" y="538" width="340" height="88" rx="10" fill="#EEF1FF" stroke="#6477D8"/>
-  <text class="cardTitle" x="668" y="564" text-anchor="middle" dominant-baseline="middle">Release Or Extend</text>
-  <text class="detail" x="668" y="583" text-anchor="middle" dominant-baseline="middle">finally path</text>
-  <text class="detail" x="668" y="602" text-anchor="middle" dominant-baseline="middle">score refresh</text>
-</g>
-<g id="node-execute">
-  <rect class="card" x="943" y="538" width="340" height="88" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="1113" y="564" text-anchor="middle" dominant-baseline="middle">Winner-Only Work</text>
-  <text class="detail" x="1113" y="583" text-anchor="middle" dominant-baseline="middle">leader branch</text>
-  <text class="detail" x="1113" y="602" text-anchor="middle" dominant-baseline="middle">body runs once</text>
-</g>
-<g id="node-executed">
-  <rect class="card" x="353" y="803" width="320" height="82" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="513" y="826" text-anchor="middle" dominant-baseline="middle">Return Executed</text>
-  <text class="detail" x="513" y="845" text-anchor="middle" dominant-baseline="middle">result payload</text>
-  <text class="detail" x="513" y="864" text-anchor="middle" dominant-baseline="middle">observable success</text>
-</g>
-<g id="node-skipped">
-  <rect class="card" x="1063" y="803" width="340" height="82" rx="10" fill="#FDECEF" stroke="#DC6B82"/>
-  <text class="cardTitle" x="1233" y="826" text-anchor="middle" dominant-baseline="middle">Return Skipped</text>
-  <text class="detail" x="1233" y="845" text-anchor="middle" dominant-baseline="middle">null or skipped status</text>
-  <text class="detail" x="1233" y="864" text-anchor="middle" dominant-baseline="middle">no duplicate work</text>
-</g>
+  <rect class="canvas" width="1500" height="900"/>
+  <rect class="frame" x="44" y="34" width="1412" height="820" rx="30"/>
+  <text class="title" x="90" y="92">Strategic Election Flow</text>
+  <text class="subtitle" x="94" y="126">The score is computed before each local elector decides whether its body may run.</text>
+
+  <rect class="node" x="100" y="290" width="214" height="104" fill="#eaf2ff" stroke="#6d9df0"/>
+  <text class="node-title" x="207" y="328" text-anchor="middle">Profiles</text>
+  <text class="node-sub" x="207" y="356" text-anchor="middle">node-a/b/c facts</text>
+  <rect class="node" x="392" y="290" width="230" height="104" fill="#eef7ff" stroke="#6d9df0"/>
+  <text class="node-title" x="507" y="328" text-anchor="middle">Candidates</text>
+  <text class="node-sub" x="507" y="356" text-anchor="middle">registered per lock</text>
+  <rect class="node" x="700" y="290" width="234" height="104" fill="#f0ecff" stroke="#9b7aec"/>
+  <text class="node-title" x="817" y="328" text-anchor="middle">Weighted Score</text>
+  <text class="node-sub" x="817" y="356" text-anchor="middle">three scorer inputs</text>
+  <polygon class="decision" points="1100,254 1270,342 1100,430 930,342" fill="#fff7e8" stroke="#d8a24d"/>
+  <text class="node-title" x="1100" y="334" text-anchor="middle">node-b</text>
+  <text class="node-title" x="1100" y="360" text-anchor="middle">wins?</text>
+
+  <rect class="node" x="834" y="584" width="248" height="112" fill="#edf9f4" stroke="#63b891"/>
+  <text class="node-title" x="958" y="624" text-anchor="middle">Run Body</text>
+  <text class="node-sub" x="958" y="654" text-anchor="middle">selected report</text>
+  <rect class="node" x="1162" y="584" width="248" height="112" fill="#fff1ee" stroke="#db8f89"/>
+  <text class="node-title" x="1286" y="624" text-anchor="middle">Skip Body</text>
+  <text class="node-sub" x="1286" y="654" text-anchor="middle">two skipped reports</text>
+  <rect class="node" x="504" y="584" width="248" height="112" fill="#f8fbff" stroke="#cbd9e7"/>
+  <text class="node-title" x="628" y="624" text-anchor="middle">Final Report</text>
+  <text class="node-sub" x="628" y="654" text-anchor="middle">selected=node-b</text>
+
+  <path class="route" d="M314 342 L392 342" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
+  <path class="route" d="M622 342 L700 342" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
+  <path class="route" d="M934 342 L930 342" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
+  <path class="route" d="M1100 430 L1100 520 L958 520 L958 584" stroke="#319873" marker-end="url(#arrow-green)"/>
+  <path class="route skip" d="M1270 342 L1352 342 L1352 520 L1286 520 L1286 584" stroke="#c65b55" marker-end="url(#arrow-red)"/>
+  <path class="route" d="M834 640 L752 640" stroke="#319873" marker-end="url(#arrow-green)"/>
+  <path class="route skip" d="M1286 696 L1286 740 L628 740 L628 696" stroke="#c65b55" marker-end="url(#arrow-red)"/>
+
+  <rect class="pill" x="1020" y="500" width="74" height="30"/>
+  <text class="label" x="1057" y="521" text-anchor="middle">yes</text>
+  <rect class="pill" x="1314" y="454" width="72" height="30"/>
+  <text class="label" x="1350" y="475" text-anchor="middle">no</text>
+  <text class="footer" x="750" y="810" text-anchor="middle">No backend race is shown here; the flow is score first, then run the winner and skip everyone else.</text>
 </svg>

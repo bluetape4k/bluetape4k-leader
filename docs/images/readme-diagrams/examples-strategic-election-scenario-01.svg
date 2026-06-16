@@ -1,107 +1,67 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1756" height="1172" viewBox="0 0 1756 1172" role="img" aria-labelledby="title desc" data-intent="Answer the Strategic Election README reader's scenario question: when more than one instance observes the same candidate scan, which candidates race, which shared backend object arbitrates leadership, which node runs winner-only work, how do non-leaders return without duplicate work, and how does score refresh make the next cycle safe?" data-evidence="examples/strategic-election README scenario/demo sections; examples/strategic-election/src/main example implementation; examples/strategic-election/src/test concurrency or behavior examples when present" data-source-read="examples/strategic-election/README.md; examples/strategic-election/README.ko.md; examples/strategic-election/src/main; examples/strategic-election/src/test">
-  <title id="title">Strategic Election Replica Race Scenario</title>
-  <desc id="desc">Scenario diagram for the Strategic Election example showing concurrent candidates, shared backend ownership, one elected leader, skipped peers, and recovery semantics.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900" role="img" aria-labelledby="title desc" data-source-read="examples/strategic-election/README.md; StrategicElectionDemo.kt; StrategicElectionDemoTest.kt">
+  <title id="title">Strategic Election Scenario</title>
+  <desc id="desc">Three node profiles are scored by readiness, success rate, and idle time. Node-b wins and runs the maintenance body; node-a and node-c skip.</desc>
   <defs>
-    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
-    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
-    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
-    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
-    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
-    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
-    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
-    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
-    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
-    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
+    <marker id="arrow-blue" markerWidth="14" markerHeight="14" refX="13" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 14 7 L 0 14 Z" fill="#4f77c9"/></marker>
+    <marker id="arrow-green" markerWidth="14" markerHeight="14" refX="13" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 14 7 L 0 14 Z" fill="#319873"/></marker>
+    <marker id="arrow-red" markerWidth="11" markerHeight="11" refX="10" refY="5.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 11 5.5 L 0 11 Z" fill="#c65b55"/></marker>
     <style>
-      .canvas{fill:#F7FAFC}
-      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
-      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
-      .card{filter:url(#shadow);stroke-width:2}
-      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
-      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
-      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
-      .seq{fill:none;stroke-width:3;stroke-linecap:round}
-      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
-      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
-      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
-      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
+      .canvas { fill: #f6f9fc; }
+      .frame { fill: #ffffff; stroke: #c5d5e6; stroke-width: 3; }
+      .title, .node-title { font-family: "Architects Daughter"; fill: #263a57; }
+      .title { font-size: 44px; }
+      .subtitle, .node-sub, .label, .footer, .score { font-family: "Comic Mono"; fill: #526276; }
+      .subtitle { font-size: 17px; }
+      .node-title { font-size: 24px; }
+      .node-sub { font-size: 13px; }
+      .label { font-size: 13px; font-weight: 700; }
+      .score { font-size: 15px; font-weight: 700; }
+      .footer { font-size: 14px; }
+      .node { stroke-width: 2.5; rx: 16; }
+      .route { fill: none; stroke-width: 4.4; stroke-linecap: round; stroke-linejoin: round; }
+      .skip { stroke-dasharray: 10 9; }
+      .panel { fill: #f8fbff; stroke: #d3dfec; stroke-width: 2.2; rx: 18; }
     </style>
   </defs>
-  <rect class="canvas" width="1756" height="1172"/>
-  <rect class="frame" x="32" y="28" width="1692" height="1116" rx="28"/>
-  <text class="title" x="66" y="82">Strategic Election Replica Race Scenario</text>
-  <text class="subtitle" x="70" y="116">Multiple candidates see the same candidate scan; local leader slot allows one leader and makes peers skip cleanly.</text>
-<g>
-  <rect class="band" x="128" y="228" width="1500" height="190" rx="18"/>
-  <text class="bandTitle" x="154" y="262">Shared trigger</text>
-</g>
-<g>
-  <rect class="band" x="128" y="468" width="1500" height="370" rx="18"/>
-  <text class="bandTitle" x="154" y="502">Replica race</text>
-</g>
-<g>
-  <rect class="band" x="128" y="858" width="1500" height="190" rx="18"/>
-  <text class="bandTitle" x="154" y="892">Outcome and handoff</text>
-</g>
-<path class="route" data-from="tick" data-to="nodeA" data-route-tone="call" d="M418 381 L418 433 L748 433 L748 528" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="tick" data-to="nodeB" data-route-tone="call" d="M418 381 L418 448 L568 448 L568 662 L598 662" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="tick" data-to="nodeC" data-route-tone="call" d="M418 381 L418 463 L558 463 L558 757 L598 757" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="nodeA" data-to="backend" data-route-tone="contention" d="M898 567 L978 567 L978 645 L1058 645" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
-<path class="route" data-from="nodeB" data-to="backend" data-route-tone="contention" d="M898 662 L1058 662" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
-<path class="route" data-from="nodeC" data-to="backend" data-route-tone="contention" d="M898 757 L978 757 L978 689 L1058 689" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
-<path class="route" data-from="backend" data-to="leader" data-route-tone="success" d="M1408 667 L1508 667 L1508 967 L1463 967" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="backend" data-to="skipped" data-route-tone="skip" d="M1233 711 L1233 828 L858 828 L858 928" stroke="#C94D68" marker-end="url(#arrow-skip)"/>
-<path class="route" data-from="backend" data-to="recovery" data-route-tone="release" d="M1233 711 L1233 828 L608 828 L608 967 L578 967" stroke="#755BC6" marker-end="url(#arrow-release)"/>
-<g id="node-tick">
-  <rect class="card" x="258" y="303" width="320" height="78" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="418" y="324" text-anchor="middle" dominant-baseline="middle">Candidate Scan</text>
-  <text class="detail" x="418" y="343" text-anchor="middle" dominant-baseline="middle">one logical event</text>
-  <text class="detail" x="418" y="362" text-anchor="middle" dominant-baseline="middle">seen by all nodes</text>
-</g>
-<g id="node-nodeA">
-  <rect class="card" x="598" y="528" width="300" height="78" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="748" y="549" text-anchor="middle" dominant-baseline="middle">Candidate A</text>
-  <text class="detail" x="748" y="568" text-anchor="middle" dominant-baseline="middle">StrategicLeaderRunner</text>
-  <text class="detail" x="748" y="587" text-anchor="middle" dominant-baseline="middle">attempts lock</text>
-</g>
-<g id="node-nodeB">
-  <rect class="card" x="598" y="623" width="300" height="78" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="748" y="644" text-anchor="middle" dominant-baseline="middle">Candidate B</text>
-  <text class="detail" x="748" y="663" text-anchor="middle" dominant-baseline="middle">StrategicLeaderRunner</text>
-  <text class="detail" x="748" y="682" text-anchor="middle" dominant-baseline="middle">same lock name</text>
-</g>
-<g id="node-nodeC">
-  <rect class="card" x="598" y="718" width="300" height="78" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="748" y="739" text-anchor="middle" dominant-baseline="middle">Candidate C</text>
-  <text class="detail" x="748" y="758" text-anchor="middle" dominant-baseline="middle">StrategicLeaderRunner</text>
-  <text class="detail" x="748" y="777" text-anchor="middle" dominant-baseline="middle">standby on miss</text>
-</g>
-<g id="node-backend">
-  <rect class="card" x="1058" y="623" width="350" height="88" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="cardTitle" x="1233" y="649" text-anchor="middle" dominant-baseline="middle">local leader slot</text>
-  <text class="detail" x="1233" y="668" text-anchor="middle" dominant-baseline="middle">single owner wins</text>
-  <text class="detail" x="1233" y="687" text-anchor="middle" dominant-baseline="middle">contention is explicit</text>
-</g>
-<g id="node-recovery">
-  <rect class="card" x="238" y="928" width="340" height="78" rx="10" fill="#EEF1FF" stroke="#6477D8"/>
-  <text class="cardTitle" x="408" y="949" text-anchor="middle" dominant-baseline="middle">Score Refresh</text>
-  <text class="detail" x="408" y="968" text-anchor="middle" dominant-baseline="middle">release or expiry</text>
-  <text class="detail" x="408" y="987" text-anchor="middle" dominant-baseline="middle">next cycle safe</text>
-</g>
-<g id="node-skipped">
-  <rect class="card" x="688" y="928" width="340" height="78" rx="10" fill="#FDECEF" stroke="#DC6B82"/>
-  <text class="cardTitle" x="858" y="949" text-anchor="middle" dominant-baseline="middle">Peers Skip</text>
-  <text class="detail" x="858" y="968" text-anchor="middle" dominant-baseline="middle">no duplicate body</text>
-  <text class="detail" x="858" y="987" text-anchor="middle" dominant-baseline="middle">visible skipped result</text>
-</g>
-<g id="node-leader">
-  <rect class="card" x="1113" y="928" width="350" height="78" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="1288" y="949" text-anchor="middle" dominant-baseline="middle">One Leader Runs</text>
-  <text class="detail" x="1288" y="968" text-anchor="middle" dominant-baseline="middle">Winner-Only Work</text>
-  <text class="detail" x="1288" y="987" text-anchor="middle" dominant-baseline="middle">exactly once</text>
-</g>
+  <rect class="canvas" width="1500" height="900"/>
+  <rect class="frame" x="46" y="38" width="1408" height="820" rx="30"/>
+  <text class="title" x="92" y="98">Strategic Election Scenario</text>
+  <text class="subtitle" x="96" y="132">Weighted suitability decides the leader before any maintenance work starts.</text>
+
+  <rect class="panel" x="100" y="190" width="380" height="520"/>
+  <text class="label" x="132" y="224">candidate facts</text>
+  <rect class="node" x="148" y="260" width="284" height="94" fill="#eaf2ff" stroke="#6d9df0"/>
+  <text class="node-title" x="290" y="294" text-anchor="middle">node-a</text>
+  <text class="node-sub" x="290" y="322" text-anchor="middle">health 92, capacity 35</text>
+  <text class="score" x="290" y="346" text-anchor="middle">SKIPPED</text>
+  <rect class="node" x="148" y="410" width="284" height="94" fill="#edf9f4" stroke="#63b891"/>
+  <text class="node-title" x="290" y="444" text-anchor="middle">node-b</text>
+  <text class="node-sub" x="290" y="472" text-anchor="middle">balanced winner facts</text>
+  <text class="score" x="290" y="496" text-anchor="middle">SELECTED</text>
+  <rect class="node" x="148" y="560" width="284" height="94" fill="#fff1ee" stroke="#db8f89"/>
+  <text class="node-title" x="290" y="594" text-anchor="middle">node-c</text>
+  <text class="node-sub" x="290" y="622" text-anchor="middle">low success history</text>
+  <text class="score" x="290" y="646" text-anchor="middle">SKIPPED</text>
+
+  <rect class="node" x="600" y="318" width="300" height="224" fill="#f0ecff" stroke="#9b7aec"/>
+  <text class="node-title" x="750" y="362" text-anchor="middle">WeightedScorer</text>
+  <text class="node-sub" x="750" y="398" text-anchor="middle">readiness 50%</text>
+  <text class="node-sub" x="750" y="426" text-anchor="middle">success rate 35%</text>
+  <text class="node-sub" x="750" y="454" text-anchor="middle">idle time 15%</text>
+  <text class="score" x="750" y="494" text-anchor="middle">node-b has top score</text>
+
+  <rect class="node" x="1040" y="260" width="300" height="112" fill="#edf9f4" stroke="#63b891"/>
+  <text class="node-title" x="1190" y="302" text-anchor="middle">Leader Body</text>
+  <text class="node-sub" x="1190" y="334" text-anchor="middle">node-b runs once</text>
+  <rect class="node" x="1040" y="528" width="300" height="112" fill="#fff1ee" stroke="#db8f89"/>
+  <text class="node-title" x="1190" y="570" text-anchor="middle">Skip Reports</text>
+  <text class="node-sub" x="1190" y="602" text-anchor="middle">node-a and node-c</text>
+
+  <path class="route" d="M432 307 L600 382" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
+  <path class="route" d="M432 457 L600 430" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
+  <path class="route" d="M432 607 L600 478" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
+  <path class="route" d="M900 382 L1040 316" stroke="#319873" marker-end="url(#arrow-green)"/>
+  <path class="route skip" d="M900 478 L1040 584" stroke="#c65b55" marker-end="url(#arrow-red)"/>
+
+  <text class="footer" x="750" y="810" text-anchor="middle">This example explains suitability-based leadership: the chosen node runs, and every non-winner returns SKIPPED.</text>
 </svg>
