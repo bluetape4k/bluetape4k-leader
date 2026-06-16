@@ -1,106 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1756" height="1212" viewBox="0 0 1756 1212" role="img" aria-labelledby="title desc" data-intent="Answer the Tenant Aggregator README reader's architecture question: which runtime component receives the tenant cycle, which coordinator owns the example workflow, which bluetape4k leader elector decides ownership, which backend state stores the lock or lease, and which work is allowed to run only while leadership is held?" data-evidence="examples/tenant-aggregator README overview/scenario/usage sections; example source under examples/tenant-aggregator/src/main; tests under examples/tenant-aggregator/src/test when present" data-source-read="examples/tenant-aggregator/README.md; examples/tenant-aggregator/README.ko.md; examples/tenant-aggregator/src/main; examples/tenant-aggregator/src/test">
-  <title id="title">Tenant Aggregator Architecture</title>
-  <desc id="desc">Architecture diagram for the Tenant Aggregator example showing the runtime trigger, coordinator, leader elector, backend ownership state, leader-only work, and recovery/observability boundary.</desc>
-  <defs>
-    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
-    <marker id="arrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
-    <marker id="arrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
-    <marker id="arrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
-    <marker id="arrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
-    <marker id="arrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
-    <marker id="arrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
-    <marker id="arrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
-    <marker id="arrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
-    <marker id="arrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
-    <style>
-      .canvas{fill:#F7FAFC}
-      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
-      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
-      .card{filter:url(#shadow);stroke-width:2}
-      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
-      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
-      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
-      .seq{fill:none;stroke-width:3;stroke-linecap:round}
-      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
-      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
-      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
-      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
-    </style>
-  </defs>
-  <rect class="canvas" width="1756" height="1212"/>
-  <rect class="frame" x="32" y="28" width="1692" height="1156" rx="28"/>
-  <text class="title" x="66" y="82">Tenant Aggregator Architecture</text>
-  <text class="subtitle" x="70" y="116">TenantAggregator gates aggregate tenant metrics through R2DBC leader electors and a source-backed backend ownership boundary.</text>
-<g>
-  <rect class="band" x="128" y="228" width="1500" height="310" rx="18"/>
-  <text class="bandTitle" x="154" y="262">Runtime entrypoints</text>
-</g>
-<g>
-  <rect class="band" x="128" y="598" width="1500" height="220" rx="18"/>
-  <text class="bandTitle" x="154" y="632">Leader election boundary</text>
-</g>
-<g>
-  <rect class="band" x="128" y="878" width="1500" height="210" rx="18"/>
-  <text class="bandTitle" x="154" y="912">Leader-only work and recovery</text>
-</g>
-<path class="route" data-from="trigger" data-to="nodeA" data-route-tone="call" d="M488 359 L521 359 L521 339 L553 339" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="trigger" data-to="nodeB" data-route-tone="call" d="M488 359 L521 359 L521 444 L553 444" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="nodeA" data-to="coordinator" data-route-tone="call" d="M853 339 L906 339 L906 396 L958 396" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="nodeB" data-to="coordinator" data-route-tone="call" d="M853 444 L906 444 L906 396 L958 396" stroke="#4F83BF" marker-end="url(#arrow-call)"/>
-<path class="route" data-from="coordinator" data-to="elector" data-route-tone="dependency" d="M1128 442 L1128 568 L1138 568 L1138 683" stroke="#2E8F89" marker-end="url(#arrow-dependency)"/>
-<path class="route" data-from="elector" data-to="backend" data-route-tone="contention" d="M958 729 L823 729" stroke="#B9851B" marker-end="url(#arrow-contention)"/>
-<path class="route" data-from="coordinator" data-to="work" data-route-tone="success" d="M1298 414 L1398 414 L1398 1001 L1318 1001" stroke="#3E9868" marker-end="url(#arrow-success)"/>
-<path class="route" data-from="backend" data-to="recovery" data-route-tone="release" d="M823 729 L878 729 L878 1001 L823 1001" stroke="#755BC6" marker-end="url(#arrow-release)"/>
-<g id="node-trigger">
-  <rect class="card" x="188" y="318" width="300" height="82" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="338" y="341" text-anchor="middle" dominant-baseline="middle">Tenant Cycle</text>
-  <text class="detail" x="338" y="360" text-anchor="middle" dominant-baseline="middle">same logical cycle</text>
-  <text class="detail" x="338" y="379" text-anchor="middle" dominant-baseline="middle">all candidates see it</text>
-</g>
-<g id="node-nodeA">
-  <rect class="card" x="553" y="298" width="300" height="82" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="703" y="321" text-anchor="middle" dominant-baseline="middle">Candidate Node A</text>
-  <text class="detail" x="703" y="340" text-anchor="middle" dominant-baseline="middle">attempts leadership</text>
-  <text class="detail" x="703" y="359" text-anchor="middle" dominant-baseline="middle">may execute</text>
-</g>
-<g id="node-nodeB">
-  <rect class="card" x="553" y="403" width="300" height="82" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="703" y="426" text-anchor="middle" dominant-baseline="middle">Candidate Node B</text>
-  <text class="detail" x="703" y="445" text-anchor="middle" dominant-baseline="middle">same workflow</text>
-  <text class="detail" x="703" y="464" text-anchor="middle" dominant-baseline="middle">skips on miss</text>
-</g>
-<g id="node-coordinator">
-  <rect class="card" x="958" y="350" width="340" height="92" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="1128" y="378" text-anchor="middle" dominant-baseline="middle">TenantAggregator</text>
-  <text class="detail" x="1128" y="397" text-anchor="middle" dominant-baseline="middle">example facade</text>
-  <text class="detail" x="1128" y="416" text-anchor="middle" dominant-baseline="middle">wraps runIfLeader</text>
-</g>
-<g id="node-backend">
-  <rect class="card" x="463" y="683" width="360" height="92" rx="10" fill="#EEF1FF" stroke="#6477D8"/>
-  <text class="cardTitle" x="643" y="711" text-anchor="middle" dominant-baseline="middle">tenant lock rows</text>
-  <text class="detail" x="643" y="730" text-anchor="middle" dominant-baseline="middle">acquire or conflict</text>
-  <text class="detail" x="643" y="749" text-anchor="middle" dominant-baseline="middle">release or expire</text>
-</g>
-<g id="node-elector">
-  <rect class="card" x="958" y="683" width="360" height="92" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="cardTitle" x="1138" y="711" text-anchor="middle" dominant-baseline="middle">R2DBC leader electors</text>
-  <text class="detail" x="1138" y="730" text-anchor="middle" dominant-baseline="middle">wait + lease options</text>
-  <text class="detail" x="1138" y="749" text-anchor="middle" dominant-baseline="middle">owner token semantics</text>
-</g>
-<g id="node-recovery">
-  <rect class="card" x="463" y="958" width="360" height="86" rx="10" fill="#F2F5F9" stroke="#9AA8B8"/>
-  <text class="cardTitle" x="643" y="983" text-anchor="middle" dominant-baseline="middle">Per-Tenant Isolation</text>
-  <text class="detail" x="643" y="1002" text-anchor="middle" dominant-baseline="middle">crash or release path</text>
-  <text class="detail" x="643" y="1021" text-anchor="middle" dominant-baseline="middle">next cycle can proceed</text>
-</g>
-<g id="node-work">
-  <rect class="card" x="958" y="958" width="360" height="86" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="1138" y="983" text-anchor="middle" dominant-baseline="middle">Aggregate Tenant Metrics</text>
-  <text class="detail" x="1138" y="1002" text-anchor="middle" dominant-baseline="middle">leader-only body</text>
-  <text class="detail" x="1138" y="1021" text-anchor="middle" dominant-baseline="middle">single execution</text>
-</g>
-</svg>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 980" width="1600" height="980" role="img" aria-label="Tenant Aggregator Architecture">
+<defs>
+<marker id="arrow" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 14 7 L 0 14 Z" fill="#334155" stroke-dasharray="none"/></marker>
+<marker id="arrowBlue" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 14 7 L 0 14 Z" fill="#1d4ed8" stroke-dasharray="none"/></marker>
+<marker id="arrowGreen" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 14 7 L 0 14 Z" fill="#047857" stroke-dasharray="none"/></marker>
+<marker id="arrowRed" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 12 6 L 0 12 Z" fill="#b91c1c" stroke-dasharray="none"/></marker>
+<filter id="soft" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#0f172a" flood-opacity="0.14"/></filter>
+</defs>
+<style>.bg{fill:#f8fafc}.title{font:700 34px 'Architects Daughter','Comic Mono',sans-serif;fill:#0f172a}.subtitle{font:400 17px 'Comic Mono','Architects Daughter',sans-serif;fill:#475569}.groupLabel{font:700 18px 'Comic Mono','Architects Daughter',sans-serif;fill:#334155}.cardTitle{font:700 18px 'Comic Mono','Architects Daughter',sans-serif;fill:#0f172a}.cardText{font:400 14px 'Comic Mono','Architects Daughter',sans-serif;fill:#475569}.small{font:400 13px 'Comic Mono','Architects Daughter',sans-serif;fill:#475569}.label{font:700 13px 'Comic Mono','Architects Daughter',sans-serif;fill:#334155}.line{fill:none;stroke:#334155;stroke-width:4.2;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrow)}.lineBlue{fill:none;stroke:#1d4ed8;stroke-width:4.4;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrowBlue)}.lineGreen{fill:none;stroke:#047857;stroke-width:4.4;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrowGreen)}.lineRed{fill:none;stroke:#b91c1c;stroke-width:3.8;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrowRed);stroke-dasharray:10 8}.lifeline{stroke:#cbd5e1;stroke-width:2.5;stroke-dasharray:8 8}.alt{fill:#eff6ff;stroke:#2563eb;stroke-width:2.4;stroke-dasharray:10 7;opacity:.55}.else{fill:#fff7ed;stroke:#ea580c;stroke-width:2.4;stroke-dasharray:10 7;opacity:.55}</style>
+<rect class="bg" width="1600" height="980"/>
+<path d="M80 104 H1520" stroke="#e2e8f0" stroke-width="2"/>
+<text x="80" y="58" class="title">Tenant Aggregator Architecture</text>
+<text x="80" y="88" class="subtitle">Exposed R2DBC backed leader-only example components</text>
+<rect x="70" y="135" width="455" height="700" rx="20" fill="#ffffff" stroke="#2563eb" stroke-width="2.2" stroke-dasharray="12 8" opacity="0.95"/>
+<text x="94" y="169" class="groupLabel">Application Runtime</text><rect x="572" y="135" width="455" height="700" rx="20" fill="#ffffff" stroke="#16a34a" stroke-width="2.2" stroke-dasharray="12 8" opacity="0.95"/>
+<text x="596" y="169" class="groupLabel">Leader Coordination</text><rect x="1075" y="135" width="455" height="700" rx="20" fill="#ffffff" stroke="#dc2626" stroke-width="2.2" stroke-dasharray="12 8" opacity="0.95"/>
+<text x="1099" y="169" class="groupLabel">Domain Outcome</text><rect x="120" y="205" width="355" height="120" rx="14" fill="#eef2ff" stroke="#2563eb" stroke-width="2.4" filter="url(#soft)"/>
+<text x="297.5" y="236" class="cardTitle" text-anchor="middle">TenantAggregator.start()</text>
+<text x="297.5" y="262" class="cardText" text-anchor="middle">launches one coroutine per</text>
+<text x="297.5" y="280" class="cardText" text-anchor="middle">tenant</text><rect x="120" y="390" width="355" height="120" rx="14" fill="#f8fafc" stroke="#64748b" stroke-width="2.4" filter="url(#soft)"/>
+<text x="297.5" y="421" class="cardTitle" text-anchor="middle">Tenant Loop</text>
+<text x="297.5" y="447" class="cardText" text-anchor="middle">reuses elector per tenant</text><rect x="622" y="205" width="355" height="120" rx="14" fill="#ecfeff" stroke="#16a34a" stroke-width="2.4" filter="url(#soft)"/>
+<text x="799.5" y="236" class="cardTitle" text-anchor="middle">ExposedR2DbcSuspendLeaderElector</text>
+<text x="799.5" y="262" class="cardText" text-anchor="middle">lockNamePrefix-tenantId</text><rect x="622" y="390" width="355" height="120" rx="14" fill="#f0fdf4" stroke="#22c55e" stroke-width="2.4" filter="url(#soft)"/>
+<text x="799.5" y="421" class="cardTitle" text-anchor="middle">R2DBC leader table</text>
+<text x="799.5" y="447" class="cardText" text-anchor="middle">lease owner per tenant</text><rect x="1125" y="205" width="355" height="120" rx="14" fill="#fff7ed" stroke="#f97316" stroke-width="2.4" filter="url(#soft)"/>
+<text x="1302.5" y="236" class="cardTitle" text-anchor="middle">aggregateFunction</text>
+<text x="1302.5" y="262" class="cardText" text-anchor="middle">tenant-scoped polling</text><rect x="1125" y="390" width="355" height="120" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="2.4" filter="url(#soft)"/>
+<text x="1302.5" y="421" class="cardTitle" text-anchor="middle">Reports / Logs</text>
+<text x="1302.5" y="447" class="cardText" text-anchor="middle">selected or skipped cycle</text><path d="M475 265 L622 265" class="lineBlue"/><rect x="504" y="228" width="88" height="23" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
+<text x="548" y="244" class="label" text-anchor="middle" fill="#334155">calls</text><path d="M800 325 L800 390" class="lineGreen"/><rect x="802" y="347" width="88" height="23" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
+<text x="846" y="363" class="label" text-anchor="middle" fill="#334155">stores</text><path d="M977 265 L1125 265" class="lineGreen"/><rect x="1007" y="228" width="88" height="23" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
+<text x="1051" y="244" class="label" text-anchor="middle" fill="#334155">if leader</text><path d="M1302 325 L1302 390" class="lineRed"/><rect x="1316" y="347" width="88" height="23" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
+<text x="1360" y="363" class="label" text-anchor="middle" fill="#334155">report</text><path d="M298 325 L298 390" class="line"/><rect x="308" y="347" width="88" height="23" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
+<text x="352" y="363" class="label" text-anchor="middle" fill="#334155">loop</text><path d="M475 450 L622 450" class="lineRed"/><rect x="504" y="414" width="88" height="23" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
+<text x="548" y="430" class="label" text-anchor="middle" fill="#334155">skip/null</text><rect x="260" y="720" width="1080" height="86" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="2.4" filter="url(#soft)"/>
+<text x="800" y="751" class="cardTitle" text-anchor="middle">Reader contract</text>
+<text x="800" y="777" class="cardText" text-anchor="middle">Per-tenant lock names let tenant A and tenant B elect different leaders while preserving</text>
+<text x="800" y="795" class="cardText" text-anchor="middle">exactly-one polling per tenant.</text></svg>

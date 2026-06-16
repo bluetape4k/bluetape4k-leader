@@ -1,151 +1,112 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1840" height="1496" viewBox="0 0 1840 1496" role="img" aria-labelledby="title desc" data-intent="Answer the Rate Limiter README reader's runtime-order question: which call starts from the dispatch window, how LeaderDispatchScheduler delegates to Redis Leader Elector, what Bucket4j quota returns during acquire or contention, which messages are leader-only for call external API, which messages return a skipped result, and when quota window reset becomes visible?" data-evidence="examples/rate-limiter README scenario/usage sections; examples/rate-limiter/src/main example workflow; examples/rate-limiter/src/test behavior checks when present" data-source-read="examples/rate-limiter/README.md; examples/rate-limiter/README.ko.md; examples/rate-limiter/src/main; examples/rate-limiter/src/test">
-  <title id="title">Rate Limiter Runtime Sequence</title>
-  <desc id="desc">Sequence diagram for the Rate Limiter example showing trigger, coordinator, elector, backend ownership attempt, leader work, release, and skipped peer response.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1100" viewBox="0 0 1500 1100" role="img" aria-labelledby="title desc" data-source-read="examples/rate-limiter/README.md; RateLimiterDemo.kt; LeaderDispatchScheduler.kt; RateLimitedApiWorker.kt; ExternalApiProbe.kt; RateLimiterDemoTest.kt">
+  <title id="title">Rate Limiter Sequence</title>
+  <desc id="desc">Sequence diagram showing dispatch election, scheduled work creation, shared quota consumption, external API calls, quota rejections, and final report assertions.</desc>
   <defs>
-    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#203040" flood-opacity="0.10"/></filter>
-    <marker id="seqArrow-call" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F83BF"/></marker>
-    <marker id="seqArrow-success" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3E9868"/></marker>
-    <marker id="seqArrow-skip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#C94D68"/></marker>
-    <marker id="seqArrow-contention" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#B9851B"/></marker>
-    <marker id="seqArrow-release" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#755BC6"/></marker>
-    <marker id="seqArrow-retry" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4F63C7"/></marker>
-    <marker id="seqArrow-dependency" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#2E8F89"/></marker>
-    <marker id="seqArrow-metric" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#718A35"/></marker>
-    <marker id="seqArrow-neutral" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#758297"/></marker>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#4f77c9"/></marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#319873"/></marker>
+    <marker id="arrow-amber" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#cf8428"/></marker>
+    <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c85d73"/></marker>
+    <marker id="arrow-purple" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7e62d9"/></marker>
     <style>
-      .canvas{fill:#F7FAFC}
-      .frame{fill:#FFFFFF;stroke:#D7E2EC;stroke-width:2}
-      .title{font-family:"Architects Daughter";font-size:44px;fill:#22344A;font-weight:400}
-      .subtitle{font-family:"Comic Mono";font-size:16px;fill:#536476;font-weight:400}
-      .band{fill:#F3F7FB;stroke:#D7E2EC;stroke-width:2}
-      .bandTitle{font-family:"Architects Daughter";font-size:24px;fill:#22344A;font-weight:400;paint-order:stroke;stroke:#F3F7FB;stroke-width:5px;stroke-linejoin:round}
-      .card{filter:url(#shadow);stroke-width:2}
-      .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#22344A;font-weight:400}
-      .detail{font-family:"Comic Mono";font-size:13px;fill:#42556B;font-weight:400}
-      .small{font-family:"Comic Mono";font-size:12px;fill:#627184;font-weight:400}
-      .route{fill:none;stroke-width:2.45;stroke-linejoin:round;stroke-linecap:round}
-      .seq{fill:none;stroke-width:3;stroke-linecap:round}
-      .seqReturn{fill:none;stroke-width:2.7;stroke-linecap:round;stroke-dasharray:8 7}
-      .lifeline{stroke:#A7B4C3;stroke-width:1.8;stroke-dasharray:8 8}
-      .pill{fill:#FFFFFF;stroke:#D6E3EF;stroke-width:1.4}
-      .branchBox{fill:#FFFFFF;fill-opacity:.42;stroke:#D6A441;stroke-width:1.8;stroke-dasharray:8 8}
+      .canvas { fill: #f6f9fc; }
+      .frame { fill: #ffffff; stroke: #c4d5e8; stroke-width: 3; }
+      .title, .part-title { font-family: "Architects Daughter"; fill: #263a57; }
+      .title { font-size: 44px; }
+      .subtitle, .part-sub, .msg, .region, .footer { font-family: "Comic Mono"; fill: #526276; }
+      .subtitle { font-size: 17px; }
+      .part-title { font-size: 20px; }
+      .part-sub { font-size: 12px; }
+      .msg { font-size: 12px; font-weight: 700; }
+      .region { font-size: 12px; font-weight: 700; }
+      .footer { font-size: 14px; }
+      .participant { stroke-width: 2.2; rx: 12; }
+      .lifeline { stroke: #c5d4e3; stroke-width: 2; stroke-dasharray: 8 8; }
+      .call { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .return { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 9 8; }
+      .region-box { fill: #f7f2ff; fill-opacity: .34; stroke: #b69bf0; stroke-width: 2.2; rx: 16; }
+      .divider { stroke: #d8c8fa; stroke-width: 2; stroke-dasharray: 9 8; }
     </style>
   </defs>
-  <rect class="canvas" width="1840" height="1496"/>
-  <rect class="frame" x="32" y="28" width="1776" height="1440" rx="28"/>
-  <text class="title" x="66" y="82">Rate Limiter Runtime Sequence</text>
-  <text class="subtitle" x="70" y="116">LeaderDispatchScheduler delegates to Redis Leader Elector; the elected branch runs call external API and the losing branch returns skipped.</text>
-<g id="participant-trigger">
-  <rect class="card" x="128" y="228" width="214" height="76" rx="10" fill="#E8F3FF" stroke="#5B8DEF"/>
-  <text class="cardTitle" x="235" y="273" text-anchor="middle">Dispatch Window</text>
-  <line class="lifeline" x1="235" y1="304" x2="235" y2="1372"/>
-</g>
-<g id="participant-coord">
-  <rect class="card" x="402" y="228" width="214" height="76" rx="10" fill="#EAF7EF" stroke="#58A978"/>
-  <text class="cardTitle" x="509" y="273" text-anchor="middle">LeaderDispatchScheduler</text>
-  <line class="lifeline" x1="509" y1="304" x2="509" y2="1372"/>
-</g>
-<g id="participant-elector">
-  <rect class="card" x="676" y="228" width="214" height="76" rx="10" fill="#FFF3D9" stroke="#D6A441"/>
-  <text class="cardTitle" x="783" y="260" text-anchor="middle">Redis Leader</text>
-  <text class="cardTitle" x="783" y="283" text-anchor="middle">Elector</text>
-  <line class="lifeline" x1="783" y1="304" x2="783" y2="1372"/>
-</g>
-<g id="participant-backend">
-  <rect class="card" x="950" y="228" width="214" height="76" rx="10" fill="#F1ECFF" stroke="#8A72D6"/>
-  <text class="cardTitle" x="1057" y="273" text-anchor="middle">Bucket4j quota</text>
-  <line class="lifeline" x1="1057" y1="304" x2="1057" y2="1372"/>
-</g>
-<g id="participant-work">
-  <rect class="card" x="1224" y="228" width="214" height="76" rx="10" fill="#E9F7F6" stroke="#45A7A1"/>
-  <text class="cardTitle" x="1331" y="273" text-anchor="middle">Call External API</text>
-  <line class="lifeline" x1="1331" y1="304" x2="1331" y2="1372"/>
-</g>
-<g id="participant-peer">
-  <rect class="card" x="1498" y="228" width="214" height="76" rx="10" fill="#FDECEF" stroke="#DC6B82"/>
-  <text class="cardTitle" x="1605" y="273" text-anchor="middle">Skipped Peer</text>
-  <line class="lifeline" x1="1605" y1="304" x2="1605" y2="1372"/>
-</g>
-<g id="m1">
-  <rect class="pill" x="249" y="343" width="246" height="28" rx="7"/>
-  <circle cx="268" cy="357" r="12" fill="#4F83BF"/>
-  <text class="detail" x="268" y="358" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">1</text>
-  <text class="detail" x="390" y="358" text-anchor="middle" dominant-baseline="middle">start dispatch window</text>
-  <path class="seq" d="M235 388 L509 388" stroke="#4F83BF" marker-end="url(#seqArrow-call)"/>
-</g>
-<g id="m2">
-  <rect class="pill" x="523" y="411" width="246" height="42" rx="7"/>
-  <circle cx="542" cy="432" r="12" fill="#4F83BF"/>
-  <text class="detail" x="542" y="433" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">2</text>
-  <text class="detail" x="664" y="424" text-anchor="middle" dominant-baseline="middle">runIfLeader with source</text>
-  <text class="detail" x="664" y="439" text-anchor="middle" dominant-baseline="middle">options</text>
-  <path class="seq" d="M509 470 L783 470" stroke="#4F83BF" marker-end="url(#seqArrow-call)"/>
-</g>
-<g id="m3">
-  <rect class="pill" x="797" y="507" width="246" height="28" rx="7"/>
-  <circle cx="816" cy="521" r="12" fill="#B9851B"/>
-  <text class="detail" x="816" y="522" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">3</text>
-  <text class="detail" x="938" y="522" text-anchor="middle" dominant-baseline="middle">attempt backend ownership</text>
-  <path class="seq" d="M783 552 L1057 552" stroke="#B9851B" marker-end="url(#seqArrow-contention)"/>
-</g>
-<g>
-  <rect class="branchBox" x="128" y="599" width="1584" height="46" rx="15"/>
-  <rect class="pill" x="267.5" y="593" width="209" height="30" rx="8"/>
-  <text class="detail" x="372" y="609" text-anchor="middle" dominant-baseline="middle">alt ownership acquired</text>
-</g>
-<g id="m5">
-  <rect class="pill" x="797" y="671" width="246" height="28" rx="7"/>
-  <circle cx="816" cy="685" r="12" fill="#3E9868"/>
-  <text class="detail" x="816" y="686" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">5</text>
-  <text class="detail" x="938" y="686" text-anchor="middle" dominant-baseline="middle">owner token accepted</text>
-  <path class="seqReturn" d="M1057 716 L783 716" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
-</g>
-<g id="m6">
-  <rect class="pill" x="915" y="753" width="284" height="28" rx="7"/>
-  <circle cx="934" cy="767" r="12" fill="#3E9868"/>
-  <text class="detail" x="934" y="768" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">6</text>
-  <text class="detail" x="1075" y="768" text-anchor="middle" dominant-baseline="middle">execute call external API</text>
-  <path class="seq" d="M783 798 L1331 798" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
-</g>
-<g id="m7">
-  <rect class="pill" x="933" y="835" width="248" height="28" rx="7"/>
-  <circle cx="952" cy="849" r="12" fill="#3E9868"/>
-  <text class="detail" x="952" y="850" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">7</text>
-  <text class="detail" x="1075" y="850" text-anchor="middle" dominant-baseline="middle">return leader result</text>
-  <path class="seqReturn" d="M1331 880 L783 880" stroke="#3E9868" marker-end="url(#seqArrow-success)"/>
-</g>
-<g id="m8">
-  <rect class="pill" x="797" y="903" width="246" height="42" rx="7"/>
-  <circle cx="816" cy="924" r="12" fill="#755BC6"/>
-  <text class="detail" x="816" y="925" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">8</text>
-  <text class="detail" x="938" y="916" text-anchor="middle" dominant-baseline="middle">release or renew for quota</text>
-  <text class="detail" x="938" y="931" text-anchor="middle" dominant-baseline="middle">window reset</text>
-  <path class="seq" d="M783 962 L1057 962" stroke="#755BC6" marker-end="url(#seqArrow-release)"/>
-</g>
-<g>
-  <rect class="branchBox" x="128" y="1009" width="1584" height="46" rx="15"/>
-  <rect class="pill" x="256" y="1003" width="232" height="30" rx="8"/>
-  <text class="detail" x="372" y="1019" text-anchor="middle" dominant-baseline="middle">else ownership unavailable</text>
-</g>
-<g id="m10">
-  <rect class="pill" x="803.2" y="1081" width="233.6" height="28" rx="7"/>
-  <circle cx="822.2" cy="1095" r="12" fill="#C94D68"/>
-  <text class="detail" x="822.2" y="1096" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">10</text>
-  <text class="detail" x="938" y="1096" text-anchor="middle" dominant-baseline="middle">lock already owned</text>
-  <path class="seqReturn" d="M1057 1126 L783 1126" stroke="#C94D68" marker-end="url(#seqArrow-skip)"/>
-</g>
-<g id="m11">
-  <rect class="pill" x="1066.4" y="1163" width="255.20000000000002" height="28" rx="7"/>
-  <circle cx="1085.4" cy="1177" r="12" fill="#C94D68"/>
-  <text class="detail" x="1085.4" y="1178" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">11</text>
-  <text class="detail" x="1212" y="1178" text-anchor="middle" dominant-baseline="middle">return skipped result</text>
-  <path class="seq" d="M783 1208 L1605 1208" stroke="#C94D68" marker-end="url(#seqArrow-skip)"/>
-</g>
-<g id="m12">
-  <rect class="pill" x="731.2" y="1245" width="377.6" height="28" rx="7"/>
-  <circle cx="750.2" cy="1259" r="12" fill="#C94D68"/>
-  <text class="detail" x="750.2" y="1260" text-anchor="middle" dominant-baseline="middle" style="fill:#fff;font-size:12px">12</text>
-  <text class="detail" x="938" y="1260" text-anchor="middle" dominant-baseline="middle">cycle completes without duplicate work</text>
-  <path class="seqReturn" d="M1605 1290 L235 1290" stroke="#C94D68" marker-end="url(#seqArrow-skip)"/>
-</g>
+
+  <rect class="canvas" width="1500" height="1100"/>
+  <rect class="frame" x="42" y="34" width="1416" height="1020" rx="30"/>
+  <text class="title" x="86" y="92">Rate Limiter Sequence</text>
+  <text class="subtitle" x="90" y="126">Time order: elect one dispatcher, then let workers share one quota before any external API call.</text>
+
+  <g id="participants">
+    <rect class="participant" x="88" y="174" width="154" height="68" fill="#eaf2ff" stroke="#6d9df0"/>
+    <text class="part-title" x="165" y="202" text-anchor="middle">Demo</text>
+    <text class="part-sub" x="165" y="224" text-anchor="middle">runScenario</text>
+
+    <rect class="participant" x="292" y="174" width="178" height="68" fill="#fff4de" stroke="#d59c3f"/>
+    <text class="part-title" x="381" y="202" text-anchor="middle">Dispatch pool</text>
+    <text class="part-sub" x="381" y="224" text-anchor="middle">3 schedulers</text>
+
+    <rect class="participant" x="520" y="174" width="166" height="68" fill="#fff9ea" stroke="#d59c3f"/>
+    <text class="part-title" x="603" y="202" text-anchor="middle">Redis lock</text>
+    <text class="part-sub" x="603" y="224" text-anchor="middle">rate-limiter:*</text>
+
+    <rect class="participant" x="736" y="174" width="166" height="68" fill="#edf9f4" stroke="#63b891"/>
+    <text class="part-title" x="819" y="202" text-anchor="middle">Workers</text>
+    <text class="part-sub" x="819" y="224" text-anchor="middle">node-1..3</text>
+
+    <rect class="participant" x="952" y="174" width="176" height="68" fill="#f0ecff" stroke="#9b7aec"/>
+    <text class="part-title" x="1040" y="202" text-anchor="middle">Bucket4j</text>
+    <text class="part-sub" x="1040" y="224" text-anchor="middle">Redis quota</text>
+
+    <rect class="participant" x="1178" y="174" width="166" height="68" fill="#fff0f5" stroke="#de7f9e"/>
+    <text class="part-title" x="1261" y="202" text-anchor="middle">API probe</text>
+    <text class="part-sub" x="1261" y="224" text-anchor="middle">callCount</text>
+  </g>
+
+  <line class="lifeline" x1="165" y1="242" x2="165" y2="986"/>
+  <line class="lifeline" x1="381" y1="242" x2="381" y2="986"/>
+  <line class="lifeline" x1="603" y1="242" x2="603" y2="986"/>
+  <line class="lifeline" x1="819" y1="242" x2="819" y2="986"/>
+  <line class="lifeline" x1="1040" y1="242" x2="1040" y2="986"/>
+  <line class="lifeline" x1="1261" y1="242" x2="1261" y2="986"/>
+
+  <path class="call" d="M165 300 L381 300" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
+  <text class="msg" x="273" y="286" text-anchor="middle" fill="#315fbd">1. submit 3 dispatch attempts</text>
+
+  <path class="call" d="M381 360 L603 360" stroke="#cf8428" marker-end="url(#arrow-amber)"/>
+  <text class="msg" x="492" y="346" text-anchor="middle" fill="#9b651c">2. runIfLeader(lockName)</text>
+
+  <rect class="region-box" x="78" y="400" width="1276" height="268"/>
+  <text class="region" x="104" y="430">alt Redis lock result</text>
+  <line class="divider" x1="92" y1="548" x2="1340" y2="548"/>
+  <text class="region" x="104" y="578">else not leader</text>
+
+  <path class="return" d="M603 474 L381 474" stroke="#319873" marker-end="url(#arrow-green)"/>
+  <text class="msg" x="492" y="458" text-anchor="middle" fill="#24785a">3a. acquired</text>
+  <path class="call" d="M381 514 L819 514" stroke="#319873" marker-end="url(#arrow-green)"/>
+  <text class="msg" x="600" y="500" text-anchor="middle" fill="#24785a">4a. winner creates 45 scheduled items</text>
+
+  <path class="return" d="M603 608 L381 608" stroke="#c85d73" marker-end="url(#arrow-red)"/>
+  <text class="msg" x="492" y="592" text-anchor="middle" fill="#a7465d">3b. not acquired</text>
+  <path class="call" d="M381 640 L165 640" stroke="#c85d73" marker-end="url(#arrow-red)"/>
+  <text class="msg" x="273" y="626" text-anchor="middle" fill="#a7465d">4b. dispatch report REJECTED</text>
+
+  <path class="call" d="M165 714 L1040 714" stroke="#7e62d9" marker-end="url(#arrow-purple)"/>
+  <text class="msg" x="602" y="700" text-anchor="middle" fill="#6245bd">5. build shared Redis Bucket4j limiter</text>
+
+  <rect class="region-box" x="78" y="748" width="1276" height="214"/>
+  <text class="region" x="104" y="778">loop 3 one-second windows, 15 attempts per second</text>
+  <line class="divider" x1="92" y1="910" x2="1340" y2="910"/>
+  <text class="region" x="104" y="940">else quota rejects</text>
+
+  <path class="call" d="M819 824 L1040 824" stroke="#7e62d9" marker-end="url(#arrow-purple)"/>
+  <text class="msg" x="930" y="810" text-anchor="middle" fill="#6245bd">6. consume(quotaKey, 1)</text>
+  <path class="return" d="M1040 852 L819 852" stroke="#319873" marker-end="url(#arrow-green)"/>
+  <text class="msg" x="930" y="838" text-anchor="middle" fill="#24785a">7a. token consumed</text>
+  <path class="call" d="M819 874 L1261 874" stroke="#319873" marker-end="url(#arrow-green)"/>
+  <text class="msg" x="1040" y="892" text-anchor="middle" fill="#24785a">8a. call external API once</text>
+
+  <path class="return" d="M1040 956 L819 956" stroke="#cf8428" marker-end="url(#arrow-amber)"/>
+  <text class="msg" x="930" y="942" text-anchor="middle" fill="#9b651c">7b. rejected, no API call</text>
+
+  <path class="call" d="M1261 1000 L165 1000" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
+  <text class="msg" x="713" y="984" text-anchor="middle" fill="#315fbd">9. aggregate report counts dispatch and quota outcomes</text>
+
+  <text class="footer" x="750" y="1030" text-anchor="middle">Reports count scheduler outcomes and consumed API calls; rejected quota attempts stop before the probe.</text>
 </svg>
