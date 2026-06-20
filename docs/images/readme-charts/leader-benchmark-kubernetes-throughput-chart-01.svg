@@ -28,5 +28,5 @@
   <text class="value" x="1087" y="286" dominant-baseline="middle">164.7 ops/s</text>
 </g>
 <rect x="94" y="360" width="1172" height="42" rx="12" fill="#FFFFFF" stroke="#D7E2EC" stroke-width="1.4"/>
-<text class="note" x="680" y="386" text-anchor="middle">Higher is better. Source: benchmark/README.md Kubernetes benchmark table.</text>
+<text class="note" x="680" y="386" text-anchor="middle">Higher is better. Benchmark context: Kubernetes benchmark table.</text>
 </svg>

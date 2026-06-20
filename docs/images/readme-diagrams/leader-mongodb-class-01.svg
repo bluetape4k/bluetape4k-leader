@@ -2,13 +2,13 @@
   <title id="title">leader-mongodb class structure</title>
   <desc id="desc">Class diagram showing MongoDB leader electors, core contracts, lock primitives, TTL collections, token guarded updates, and extension delegates.</desc>
   <style>
-    text { font-family: 'Architects Daughter', 'Comic Mono', 'Comic Sans MS', Arial, sans-serif; letter-spacing: 0; }
+    text { font-family: 'Architects Daughter', 'Comic Mono'; letter-spacing: 0; }
     .title { font-size: 28px; font-weight: 700; fill: #111827; }
     .subtitle { font-size: 14px; fill: #4b5563; }
     .section { font-size: 15px; font-weight: 700; fill: #374151; }
     .card-title { font-size: 16px; font-weight: 700; fill: #111827; }
     .card-sub { font-size: 12px; fill: #4b5563; }
-    .mono { font-family: 'Comic Mono', 'Architects Daughter', monospace; font-size: 12px; fill: #374151; }
+    .mono { font-family: 'Comic Mono', 'Architects Daughter'; font-size: 12px; fill: #374151; }
     .tiny { font-size: 11px; fill: #6b7280; }
     .badge { font-size: 11px; font-weight: 700; }
     .footer { font-size: 12px; fill: #6b7280; }
@@ -16,14 +16,10 @@
   </style>
   <defs>
     <marker id="implArrow" viewBox="0 0 18 16" markerWidth="16" markerHeight="14" refX="16" refY="8" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 16 8 L 1 15 Z" fill="#ffffff" stroke="#2563eb" stroke-width="1.7"/>
+      <path d="M 1 1 L 16 8 L 1 15 Z" fill="#ffffff" stroke="#2563eb" stroke-width="1.7" stroke-dasharray="none" style="stroke-dasharray:none"/>
     </marker>
-    <marker id="useArrow" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#059669" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
-    <marker id="dataArrow" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#7c3aed" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
+    <marker id="useArrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#334155" stroke="#334155" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="dataArrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#334155" stroke="#334155" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
 
   <rect width="1280" height="900" fill="#f8fafc"/>
@@ -144,24 +140,24 @@
     <text x="20" y="52" class="mono">token + expireAt &gt; now</text>
   </g>
 
-  <path d="M 438 246 L 380 246 L 380 207 L 308 207" fill="none" stroke="#2563eb" stroke-width="1.5" marker-end="url(#implArrow)"/>
-  <path d="M 658 246 L 640 246 L 640 330 L 380 330 L 380 351 L 308 351" fill="none" stroke="#2563eb" stroke-width="1.5" marker-end="url(#implArrow)"/>
-  <path d="M 438 420 L 380 420 L 380 423 L 308 423" fill="none" stroke="#2563eb" stroke-width="1.5" marker-end="url(#implArrow)"/>
-  <path d="M 658 420 L 640 420 L 640 506 L 380 506 L 380 495 L 308 495" fill="none" stroke="#2563eb" stroke-width="1.5" marker-end="url(#implArrow)"/>
+  <path d="M 438 246 L 393 246 Q 380 246 380 233 L 380 220 Q 380 207 367 207 L 308 207" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#implArrow)"/>
+  <path d="M 658 246 L 501 246 Q 483 246 483 264 L 483 333 Q 483 351 465 351 L 308 351" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#implArrow)"/>
+  <path d="M 438 420 L 308 420" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#implArrow)"/>
+  <path d="M 658 420 L 501 420 Q 483 420 483 438 L 483 477 Q 483 495 465 495 L 308 495" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#implArrow)"/>
 
-  <path d="M 874 246 L 928 246 L 958 246" fill="none" stroke="#059669" stroke-width="1.8" class="dash" marker-end="url(#useArrow)"/>
+  <path d="M 874 246 L 918 246 L 938 246 L 958 246" fill="none" stroke="#059669" stroke-width="2.5" class="dash" marker-end="url(#useArrow)"/>
   <text x="901" y="231" text-anchor="middle" class="tiny" fill="#047857">sync lock</text>
-  <path d="M 874 420 L 928 420 L 958 405" fill="none" stroke="#059669" stroke-width="1.8" class="dash" marker-end="url(#useArrow)"/>
+  <path d="M 874 420 L 910 420 Q 928 420 928 402 L 928 396 Q 928 378 946 378 L 958 378" fill="none" stroke="#059669" stroke-width="2.5" class="dash" marker-end="url(#useArrow)"/>
   <text x="901" y="405" text-anchor="middle" class="tiny" fill="#047857">suspend lock</text>
 
-  <path d="M 1186 246 L 1210 246 L 1210 560 L 1186 560" fill="none" stroke="#7c3aed" stroke-width="1.7" class="dash" marker-end="url(#dataArrow)"/>
+  <path d="M 1186 246 L 1202 246 Q 1210 246 1210 254 L 1210 552 Q 1210 560 1202 560 L 1186 560" fill="none" stroke="#7c3aed" stroke-width="2.5" class="dash" marker-end="url(#dataArrow)"/>
   <text x="1130" y="488" text-anchor="middle" class="tiny" fill="#6d28d9">findOneAndUpdate</text>
-  <path d="M 1186 405 L 1198 405 L 1198 560 L 1186 560" fill="none" stroke="#7c3aed" stroke-width="1.7" class="dash" marker-end="url(#dataArrow)"/>
+  <path d="M 1186 405 L 1186 560" fill="none" stroke="#7c3aed" stroke-width="2.5" class="dash" marker-end="url(#dataArrow)"/>
 
   <g transform="translate(438 716)">
-    <line x1="34" y1="10" x2="0" y2="10" stroke="#2563eb" stroke-width="1.5" marker-end="url(#implArrow)"/>
+    <line x1="34" y1="10" x2="0" y2="10" stroke="#2563eb" stroke-width="2.5" marker-end="url(#implArrow)"/>
     <text x="44" y="15" class="tiny">implements core contract</text>
-    <line x1="210" y1="10" x2="244" y2="10" stroke="#059669" stroke-width="1.8" class="dash" marker-end="url(#useArrow)"/>
+    <line x1="210" y1="10" x2="244" y2="10" stroke="#059669" stroke-width="2.5" class="dash" marker-end="url(#useArrow)"/>
     <text x="254" y="15" class="tiny">uses lock primitive</text>
   </g>
 

@@ -1,59 +1,131 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 980" width="1600" height="980" role="img" aria-label="DynamoDB Export Scenario">
-<defs>
-<marker id="arrow" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 14 7 L 0 14 Z" fill="#334155" stroke-dasharray="none"/></marker>
-<marker id="arrowBlue" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 14 7 L 0 14 Z" fill="#1d4ed8" stroke-dasharray="none"/></marker>
-<marker id="arrowGreen" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 14 7 L 0 14 Z" fill="#047857" stroke-dasharray="none"/></marker>
-<marker id="arrowRed" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 12 6 L 0 12 Z" fill="#b91c1c" stroke-dasharray="none"/></marker>
-<filter id="soft" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#0f172a" flood-opacity="0.14"/></filter>
-</defs>
-<style>.bg{fill:#f8fafc}.title{font:700 34px 'Architects Daughter','Comic Mono',sans-serif;fill:#0f172a}.subtitle{font:400 17px 'Comic Mono','Architects Daughter',sans-serif;fill:#475569}.groupLabel{font:700 18px 'Comic Mono','Architects Daughter',sans-serif;fill:#334155}.cardTitle{font:700 18px 'Comic Mono','Architects Daughter',sans-serif;fill:#0f172a}.cardText{font:400 14px 'Comic Mono','Architects Daughter',sans-serif;fill:#475569}.small{font:400 13px 'Comic Mono','Architects Daughter',sans-serif;fill:#475569}.label{font:700 13px 'Comic Mono','Architects Daughter',sans-serif;fill:#334155}.line{fill:none;stroke:#334155;stroke-width:4.2;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrow)}.lineBlue{fill:none;stroke:#1d4ed8;stroke-width:4.4;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrowBlue)}.lineGreen{fill:none;stroke:#047857;stroke-width:4.4;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrowGreen)}.lineRed{fill:none;stroke:#b91c1c;stroke-width:3.8;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrowRed);stroke-dasharray:10 8}.lifeline{stroke:#cbd5e1;stroke-width:2.5;stroke-dasharray:8 8}.alt{fill:#eff6ff;stroke:#2563eb;stroke-width:2.4;stroke-dasharray:10 7;opacity:.55}.else{fill:#fff7ed;stroke:#ea580c;stroke-width:2.4;stroke-dasharray:10 7;opacity:.55}</style>
-<rect class="bg" width="1600" height="980"/>
-<path d="M80 104 H1520" stroke="#e2e8f0" stroke-width="2"/>
-<text x="80" y="58" class="title">DynamoDB Export Scenario</text>
-<text x="80" y="88" class="subtitle">node-a starts billing batch</text>
-<rect x="70" y="130" width="1460" height="760" rx="20" fill="#ffffff" stroke="#9333ea" stroke-width="2.2" stroke-dasharray="12 8" opacity="0.95"/>
-<text x="94" y="164" class="groupLabel">Source-backed runtime story</text><rect x="130" y="200" width="210" height="104" rx="14" fill="#eef2ff" stroke="#94a3b8" stroke-width="2.4" filter="url(#soft)"/>
-<text x="235" y="231" class="cardTitle" text-anchor="middle">node-a</text>
-<text x="235" y="257" class="cardText" text-anchor="middle">node-a starts</text>
-<text x="235" y="275" class="cardText" text-anchor="middle">billing batch</text>
-<rect x="430" y="200" width="210" height="104" rx="14" fill="#ecfeff" stroke="#94a3b8" stroke-width="2.4" filter="url(#soft)"/>
-<text x="535" y="231" class="cardTitle" text-anchor="middle">node-b</text>
-<text x="535" y="257" class="cardText" text-anchor="middle">DynamoDB lock table</text>
-<text x="535" y="275" class="cardText" text-anchor="middle">grants leadership</text>
-<rect x="730" y="200" width="210" height="104" rx="14" fill="#f0fdf4" stroke="#9333ea" stroke-width="2.4" filter="url(#soft)"/>
-<text x="835" y="231" class="cardTitle" text-anchor="middle">Lock Table</text>
-<text x="835" y="257" class="cardText" text-anchor="middle">node-b skips same</text>
-<text x="835" y="275" class="cardText" text-anchor="middle">batch</text>
-<rect x="1030" y="200" width="210" height="104" rx="14" fill="#fff7ed" stroke="#94a3b8" stroke-width="2.4" filter="url(#soft)"/>
-<text x="1135" y="231" class="cardTitle" text-anchor="middle">Export Table</text>
-<text x="1135" y="257" class="cardText" text-anchor="middle">Leader writes one</text>
-<text x="1135" y="275" class="cardText" text-anchor="middle">export row</text>
-<rect x="1330" y="200" width="210" height="104" rx="14" fill="#fef2f2" stroke="#94a3b8" stroke-width="2.4" filter="url(#soft)"/>
-<text x="1435" y="231" class="cardTitle" text-anchor="middle">Export Report</text>
-<text x="1435" y="257" class="cardText" text-anchor="middle">node-b exports next</text>
-<text x="1435" y="275" class="cardText" text-anchor="middle">batch after release</text>
-<path d="M340 252 L420 252" class="lineBlue"/><rect x="336" y="215" width="88" height="23" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
-<text x="380" y="231" class="label" text-anchor="middle" fill="#334155">compete</text>
-<path d="M640 252 L720 252" class="lineBlue"/><rect x="636" y="215" width="88" height="23" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
-<text x="680" y="231" class="label" text-anchor="middle" fill="#334155">own</text>
-<path d="M940 252 L1020 252" class="lineGreen"/><rect x="936" y="215" width="88" height="23" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
-<text x="980" y="231" class="label" text-anchor="middle" fill="#334155">work</text>
-<path d="M1240 252 L1320 252" class="lineRed"/><rect x="1236" y="215" width="88" height="23" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
-<text x="1280" y="231" class="label" text-anchor="middle" fill="#334155">outcome</text>
-<rect x="430" y="470" width="250" height="118" rx="14" fill="#fff7ed" stroke="#f59e0b" stroke-width="2.4" filter="url(#soft)"/>
-<text x="555" y="501" class="cardTitle" text-anchor="middle">Non-leader path</text>
-<text x="555" y="527" class="cardText" text-anchor="middle">Leader writes one</text>
-<text x="555" y="545" class="cardText" text-anchor="middle">export row</text>
-<rect x="920" y="470" width="260" height="118" rx="14" fill="#fef2f2" stroke="#ef4444" stroke-width="2.4" filter="url(#soft)"/>
-<text x="1050" y="501" class="cardTitle" text-anchor="middle">Handoff / next cycle</text>
-<text x="1050" y="527" class="cardText" text-anchor="middle">node-b exports next</text>
-<text x="1050" y="545" class="cardText" text-anchor="middle">batch after release</text>
-<path d="M835 304 L835 386 L555 386 L555 470" class="lineRed"/><rect x="647.25" y="351" width="115.5" height="23" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
-<text x="705" y="367" class="label" text-anchor="middle" fill="#b91c1c">skip corridor</text>
-<path d="M555 588 L555 668 L1050 668 L1050 588" class="lineGreen"/><rect x="754.75" y="632" width="100.5" height="23" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
-<text x="805" y="648" class="label" text-anchor="middle" fill="#047857">retry later</text>
-<rect x="170" y="705" width="1230" height="92" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="2.4" filter="url(#soft)"/>
-<text x="785" y="736" class="cardTitle" text-anchor="middle">Reader contract</text>
-<text x="785" y="762" class="cardText" text-anchor="middle">node-a starts billing batch -&gt; DynamoDB lock table grants leadership -&gt; node-b skips same batch -&gt; Leader</text>
-<text x="785" y="780" class="cardText" text-anchor="middle">writes one export row -&gt; node-b exports next batch after release</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1040" viewBox="0 0 1680 1040" role="img" aria-labelledby="title desc">
+  <defs>
+    <filter id="softShadow" x="-12%" y="-12%" width="124%" height="124%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#263238" flood-opacity="0.14"/>
+    </filter>
+    <style>
+      .canvas { fill: #fbfcf8; }
+      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 3; }
+      .title { font-family: "Architects Daughter"; font-size: 42px; fill: #263238; }
+      .subtitle, .small, .labelText, .detail, .footer, .msg, .note { font-family: "Comic Mono"; fill: #36464f; }
+      .subtitle { font-size: 17px; }
+      .footer { font-size: 13px; fill: #60727d; }
+      .band { fill: #f5f9fb; stroke: #c8d7df; stroke-width: 1.6; }
+      .bandAlt { fill: #fbfdf8; stroke: #d7e0d0; stroke-width: 1.6; }
+      .bandTitle { font-family: "Architects Daughter"; font-size: 22px; fill: #263238; }
+      .bandHint { font-family: "Comic Mono"; font-size: 12px; fill: #60727d; }
+      .card { filter: url(#softShadow); stroke-width: 2.4; rx: 8; }
+      .cardTitle { font-family: "Architects Daughter"; font-size: 24px; fill: #1f3138; }
+      .detail { font-size: 13.5px; fill: #546a73; }
+      .edge { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+      .edgeThin { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .dash { stroke-dasharray: 10 8; }
+      .pill { fill: #ffffff; stroke-width: 1.5; }
+      .labelText { font-size: 12.5px; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2.2; }
+      .participant { font-family: "Architects Daughter"; font-size: 20px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.7; }
+      .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+    </style>
+    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+  </defs>
+  <title id="title">DynamoDB Export Scenario</title>
+  <desc id="desc">Scenario diagram for DynamoDB Export.</desc>
+  <rect width="1680" height="1040" class="canvas"/>
+  <rect x="28" y="26" width="1624" height="988" rx="8" class="frame"/>
+  <text x="80" y="82" class="title">DynamoDB Export Scenario</text>
+  <text x="82" y="114" class="subtitle">DynamoDB shows the happy path plus skipped and retry outcomes without crossing cards.</text>
+
+  <rect x="84" y="150" width="1512" height="720" rx="8" class="band"/>
+  <text x="112" y="184" class="bandTitle">Scenario Workflow</text>
+  <text x="112" y="207" class="bandHint">best-practices branching layout with explicit success, skipped, and retry lanes</text>
+  <g>
+    <rect x="150" y="260" width="315" height="96" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/><image data-bluetape4k-icon="dynamodb" data-icon-source="testcontainers/aws/amazon-dynamodb.svg" x="160" y="268" width="18" height="18" href="data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjNDA1M0Q2IiByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+QW1hem9uIER5bmFtb0RCPC90aXRsZT48cGF0aCBkPSJNMTYuNjA2IDIwLjcwNXYtMi4zNzFjLTEuMjYzIDEuMDgyLTMuODg0IDEuNzk1LTcuMDY2IDEuNzk1LTMuMTg0IDAtNS44MDUtLjcxNC03LjA2OC0xLjc5N3YyLjM2OWMwIDEuMTY4IDIuOTAzIDIuNDcgNy4wNjggMi40NyA0LjE2IDAgNy4wNi0xLjMgNy4wNjYtMi40NjZ6bS4wMDEtNi43NjVsLjgxNy0uMDA1di4wMDVjMCAuNTE3LS4yNTguOTk4LS43NSAxLjQ0MS42MDEuNTQuNzUgMS4wNzEuNzUgMS40NDlhMTY2MS43IDE2NjEuNyAwIDAgMCAwIDMuODdjMCAxLjg4MS0zLjM4OSAzLjMtNy44ODQgMy4zLTQuNDcxIDAtNy44NDYtMS40MDQtNy44OC0zLjI3YTU4My4xMTkgNTgzLjExOSAwIDAgMS0uMDAzLTMuOTA5Yy4wMDEtLjM3NS4xNS0uOS43NDUtMS40MzctLjU5Mi0uNTM4LS43NDMtMS4wNjItLjc0Ni0xLjQzNXYtMy44OTJjLjAwMi0uMzc3LjE1My0uOTAzLjc0Ny0xLjQzOC0uNTkzLS41NC0uNzQ0LTEuMDYyLS43NDctMS40MzUgMC0xLjM1Ny0uMDAyLTIuNzM1LjAwMi0zLjg5N0MxLjY3NCAxLjQxMiA1LjA1NiAwIDkuNTQgMGMyLjE1OSAwIDQuMjMzLjM1NiA1LjY4OS45NzRsLS4zMTUuNzY2Yy0xLjM2LS41OC0zLjMxOS0uOTEtNS4zNzQtLjkxLTQuMTY1IDAtNy4wNjcgMS4zLTcuMDY3IDIuNDcgMCAxLjE2OCAyLjkwMiAyLjQ3IDcuMDY3IDIuNDcuMTE1IDAgLjIyMiAwIC4zMzQtLjAwNWwuMDMzLjgyOGMtLjEyMi4wMDYtLjI0NS4wMDYtLjM2Ny4wMDYtMy4xODQgMC01LjgwNS0uNzE0LTcuMDY4LTEuNzk4djIuMzhjLjAwNS40NS40NS44NDMuODIxIDEuMDkzIDEuMTE2LjczNiAzLjExNCAxLjIzOSA1LjM0IDEuMzQybC0uMDM3LjgyOWMtMi4yNTQtLjEwNS00LjIzLS41OS01LjUtMS4zMzItLjMxOC4yNDUtLjYyMy41NzMtLjYyMy45NTIgMCAxLjE2OCAyLjkwMiAyLjQ3IDcuMDY3IDIuNDcuNDExIDAgLjgxMi0uMDE0IDEuMjAzLS4wNDJsLjA2LjgyNmMtLjQxLjAzLS44MzMuMDQ1LTEuMjYzLjA0NS0zLjE4NCAwLTUuODA1LS43MTMtNy4wNjgtMS43OTd2Mi4zNjhjLjAwNS40NjIuNDQ5Ljg1NS44MjEgMS4xMDQgMS4yNzUuODQyIDMuNjcgMS4zNjYgNi4yNDcgMS4zNjZoLjE4MnYuODNIOS41NGMtMi42MiAwLTQuOTktLjUwNy02LjQ0NC0xLjM1OS0uMzE3LjI0NS0uNjIzLjU3NC0uNjIzLjk1NCAwIDEuMTY4IDIuOTAyIDIuNDcgNy4wNjcgMi40NyA0LjE1OSAwIDcuMDU4LTEuMjk4IDcuMDY2LTIuNDY1di0uMDA3YzAtLjM3Ny0uMzAzLS43MDUtLjYyLS45NDhhNS43MzIgNS43MzIgMCAwIDEtLjY2Mi4zMzZsLS4zMTYtLjc2NGMuMy0uMTI4LjU2LS4yNjYuNzc2LS40MTIuMzc2LS4yNTQuODIzLS42NTEuODIzLTEuMXptNC4zNzctNi45MTVoLTIuNzE3YS40MDYuNDA2IDAgMCAxLS4zMzItLjE3My40Mi40MiAwIDAgMS0uMDU1LS4zNzVsMS4yMDQtMy41OTdoLTUuNDAzbC0yLjU4MyA0Ljk3NGgyLjYyM2MuMTI4IDAgLjI0OC4wNi4zMjUuMTY0YS40MTguNDE4IDAgMCAxIC4wNjkuMzZsLTIuMjQ5IDguMzY1em0xLjI0OS0uMTI4bC0xMC44OSAxMS42MDhhLjQwOC40MDggMCAwIDEtLjQ5OC4wNzUuNDE4LjQxOCAwIDAgMS0uMTkyLS40NzFsMi41MzQtOS40MjZoLTIuNzY2YS40MDcuNDA3IDAgMCAxLS4zNDktLjIuNDE4LjQxOCAwIDAgMS0uMDEyLS40MDdsMy4wMTQtNS44MDRhLjQwOC40MDggMCAwIDEgLjM2LS4yMjJoNi4yMmMuMTMyIDAgLjI1Ni4wNjUuMzMyLjE3NGEuNDIyLjQyMiAwIDAgMSAuMDU1LjM3NGwtMS4yMDQgMy41OThoMy4xYy4xNjQgMCAuMzEuMDk5LjM3NS4yNTFhLjQyMi40MjIgMCAwIDEtLjA4LjQ1ek0zLjA4NSAyMC43MjNhOC4xMDcgOC4xMDcgMCAwIDAgMS43Mi43MmwuMjMzLS43OTRhNy4zMiA3LjMyIDAgMCAxLTEuNTQ2LS42NDV6bTEuNzItNS45ODRsLjIzMy0uNzk1YTcuMjYyIDcuMjYyIDAgMCAxLTEuNTQ2LS42NDZsLS40MDcuNzJhOC4wNTEgOC4wNTEgMCAwIDAgMS43Mi43MnptLTEuNzItNy40MjdsLjQwNy0uNzE5Yy40MTguMjQ0LjkzOS40NjIgMS41NDYuNjQ2bC0uMjMyLjc5NGE4LjA0NiA4LjA0NiAwIDAgMS0xLjcyLS43MloiLz48L3N2Zz4=" preserveAspectRatio="xMidYMid meet"/>
+    <text x="307.5" y="294" text-anchor="middle" class="cardTitle">Trigger</text>
+    <text x="307.5" y="318" text-anchor="middle" class="detail">DynamoDB: export partition</text>
+  </g>
+  <g>
+    <rect x="535" y="260" width="315" height="96" rx="8" class="card" fill="#ffffff" stroke="#78909c"/>
+    <text x="692.5" y="294" text-anchor="middle" class="cardTitle">Build Claim</text>
+    <text x="692.5" y="318" text-anchor="middle" class="detail">conditional write key + policy</text>
+  </g>
+  <g>
+    <rect x="920" y="260" width="315" height="96" rx="8" class="card" fill="#fff8ed" stroke="#c97831"/>
+    <text x="1077.5" y="294" text-anchor="middle" class="cardTitle">Acquire</text>
+    <text x="1077.5" y="318" text-anchor="middle" class="detail">single leader decision</text>
+  </g>
+  <g>
+    <rect x="535" y="510" width="315" height="96" rx="8" class="card" fill="#eef7f0" stroke="#6e8f4f"/>
+    <text x="692.5" y="544" text-anchor="middle" class="cardTitle">Leader Work</text>
+    <text x="692.5" y="568" text-anchor="middle" class="detail">perform protected branch</text>
+  </g>
+  <g>
+    <rect x="920" y="510" width="315" height="96" rx="8" class="card" fill="#fff7e8" stroke="#9b7d54"/>
+    <text x="1077.5" y="544" text-anchor="middle" class="cardTitle">Persist Outcome</text>
+    <text x="1077.5" y="568" text-anchor="middle" class="detail">state, metric, and audit event</text>
+  </g>
+  <g>
+    <rect x="1295" y="510" width="240" height="96" rx="8" class="card" fill="#fff8ed" stroke="#c97831"/>
+    <text x="1415" y="544" text-anchor="middle" class="cardTitle">Skipped</text>
+    <text x="1415" y="568" text-anchor="middle" class="detail">peer returns quickly</text>
+  </g>
+  <g>
+    <rect x="150" y="510" width="240" height="96" rx="8" class="card" fill="#fdf7ff" stroke="#7c5aa6"/>
+    <text x="270" y="544" text-anchor="middle" class="cardTitle">Retry</text>
+    <text x="270" y="568" text-anchor="middle" class="detail">backoff or next tick</text>
+  </g>
+  <g>
+    <rect x="725" y="735" width="315" height="96" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
+    <text x="882.5" y="769" text-anchor="middle" class="cardTitle">Visible Result</text>
+    <text x="882.5" y="793" text-anchor="middle" class="detail">caller receives explicit outcome</text>
+  </g>
+  <g>
+    <rect x="392" y="378" width="165" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="414" cy="394" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="414" y="398" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
+    <text x="435" y="399" class="labelText" fill="#3f7d9c">normalize</text>
+  </g>
+  <path d="M 465 308 L 535 308" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <g>
+    <rect x="782" y="378" width="154" height="32" rx="16" class="pill" stroke="#c97831"/>
+    <circle cx="804" cy="394" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
+    <text x="804" y="398" text-anchor="middle" class="badgeText" fill="#c97831">2</text>
+    <text x="825" y="399" class="labelText" fill="#c97831">contend</text>
+  </g>
+  <path d="M 850 308 L 920 308" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
+  <g>
+    <rect x="765" y="438" width="190" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="787" cy="454" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="787" y="458" text-anchor="middle" class="badgeText" fill="#6e8f4f">3</text>
+    <text x="808" y="459" class="labelText" fill="#6e8f4f">leader branch</text>
+  </g>
+  <path d="M 1078 356 L 1078 430 Q 1078 454 1054 454 L 692 454 Q 668 454 668 478 L 668 510" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
+  <g>
+    <rect x="1245" y="438" width="152" height="32" rx="16" class="pill" stroke="#c97831"/>
+    <circle cx="1267" cy="454" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
+    <text x="1267" y="458" text-anchor="middle" class="badgeText" fill="#c97831">4</text>
+    <text x="1288" y="459" class="labelText" fill="#c97831">skipped</text>
+  </g>
+  <path d="M 1235 308 L 1376 308 Q 1400 308 1400 332 L 1400 510" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
+  <g>
+    <rect x="392" y="586" width="160" height="32" rx="16" class="pill" stroke="#7c5aa6"/>
+    <circle cx="414" cy="602" r="12.5" fill="#fff" stroke="#7c5aa6" stroke-width="1.6"/>
+    <text x="414" y="606" text-anchor="middle" class="badgeText" fill="#7c5aa6">5</text>
+    <text x="435" y="607" class="labelText" fill="#7c5aa6">backoff</text>
+  </g>
+  <path d="M 535 558 L 390 558" class="edge dash" stroke="#7c5aa6"/>
+  <polygon points="390,558 406,550 406,566" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
+  <path d="M 850 558 L 920 558" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
+  <path d="M 1078 606 L 1078 682 Q 1078 706 1054 706 L 906 706 Q 882 706 882 730 L 882 735" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <path d="M 1400 606 L 1400 682 Q 1400 706 1376 706 L 906 706" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
+
+</svg>

@@ -2,12 +2,8 @@
   <title id="title">Bluetape4k Leader Repository Overview</title>
   <desc id="desc">Repository overview: core contracts, backend adapters, integrations, benchmark, and runnable examples.</desc>
   <defs>
-    <marker id="arrow-blue" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth">
-      <path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#5278c9"/>
-    </marker>
-    <marker id="arrow-green" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth">
-      <path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3d8f7b"/>
-    </marker>
+    <marker viewBox="0 0 10 10" id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#5278c9" stroke="#5278c9" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3d8f7b" stroke="#3d8f7b" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <style>
       .canvas { fill: #f7fafc; }
       .frame { fill: #ffffff; stroke: #8aa4c8; stroke-width: 3; }
@@ -57,7 +53,7 @@
   <text class="band-title" x="126" y="374">Distributed backend families</text>
   <text class="band-note" x="126" y="399">Backend modules translate the same core contract to different ownership primitives.</text>
   <g>
-    <rect class="chip" x="270" y="420" width="168" height="64" fill="#ffffff" stroke="#8dc7b5"/>
+    <rect class="chip" x="270" y="420" width="168" height="64" fill="#ffffff" stroke="#8dc7b5"/><image data-bluetape4k-icon="redis" data-icon-source="redis/redis-icon.svg" x="280" y="428" width="18" height="18" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiBoZWlnaHQ9IjY0IiB2aWV3Qm94PSIwIDAgMzIgMzIiIHdpZHRoPSI2NCI+PGcgdHJhbnNmb3JtPSJtYXRyaXgoLjg0ODMyNyAwIDAgLjg0ODMyNyAtNy44ODM1NzMgLTkuNDQ5NjkxKSI+PHVzZSB4bGluazpocmVmPSIjQiIgZmlsbD0iI2E0MWUxMSIvPjxwYXRoIGQ9Ik00NS41MzYgMzQuOTVjLTIuMDEzIDEuMDUtMTIuNDQgNS4zMzctMTQuNjYgNi40OTRzLTMuNDUzIDEuMTQ2LTUuMjA3LjMwOC0xMi44NS01LjMyLTE0Ljg1LTYuMjc2LTIuMDQtMS42MTMtLjA3Ny0yLjM4MmwxNS4zMzItNS45MzZjMi4zMzItLjgzNiAzLjE0LS44NjcgNS4xMjYtLjE0UzQzLjU1IDMxLjg3IDQ1LjUxIDMyLjZzMi4wMzcgMS4zMS4wMjQgMi4zNnoiIGZpbGw9IiNkODJjMjAiLz48dXNlIHhsaW5rOmhyZWY9IiNCIiB5PSItNi4yMTgiIGZpbGw9IiNhNDFlMTEiLz48dXNlIHhsaW5rOmhyZWY9IiNDIiBmaWxsPSIjZDgyYzIwIi8+PHBhdGggZD0iTTQ1LjUzNiAyNi4wOThjLTIuMDEzIDEuMDUtMTIuNDQgNS4zMzctMTQuNjYgNi40OTVzLTMuNDUzIDEuMTQ2LTUuMjA3LjMwOC0xMi44NS01LjMyLTE0Ljg1LTYuMjc2Yy0xLS40NzgtMS41MjQtLjg4LTEuNTI0LTEuMjZWMjEuNTVzMTQuNDQ3LTMuMTQ1IDE2Ljc4LTMuOTgyIDMuMTQtLjg2NyA1LjEyNi0uMTQgMTMuODUzIDIuODY4IDE1LjgxNCAzLjU4N3YzLjc2YzAgLjM3Ny0uNDUyLjgtMS40NzcgMS4zMjR6IiBmaWxsPSIjYTQxZTExIi8+PHVzZSB4bGluazpocmVmPSIjQyIgeT0iLTYuNDQ5IiBmaWxsPSIjZDgyYzIwIi8+PGcgZmlsbD0iI2ZmZiI+PHBhdGggZD0iTTI5LjA5NiAyMC43MTJsLTEuMTgyLTEuOTY1LTMuNzc0LS4zNCAyLjgxNi0xLjAxNi0uODQ1LTEuNTYgMi42MzYgMS4wMyAyLjQ4Ni0uODE0LS42NzIgMS42MTIgMi41MzQuOTUtMy4yNjguMzR6TTIyLjggMjQuNjI0bDguNzQtMS4zNDItMi42NCAzLjg3MnoiLz48ZWxsaXBzZSBjeD0iMjAuNDQ0IiByeD0iNC42NzIiIHJ5PSIxLjgxMSIgY3k9IjIxLjQwMiIvPjwvZz48cGF0aCBkPSJNNDIuMTMyIDIxLjEzOGwtNS4xNyAyLjA0Mi0uMDA0LTQuMDg3eiIgZmlsbD0iIzdhMGMwMCIvPjxwYXRoIGQ9Ik0zNi45NjMgMjMuMThsLS41Ni4yMi01LjE2Ni0yLjA0MiA1LjcyMy0yLjI2NHoiIGZpbGw9IiNhZDIxMTUiLz48L2c+PGRlZnMgPjxwYXRoIGlkPSJCIiBkPSJNNDUuNTM2IDM4Ljc2NGMtMi4wMTMgMS4wNS0xMi40NCA1LjMzNy0xNC42NiA2LjQ5NHMtMy40NTMgMS4xNDYtNS4yMDcuMzA4LTEyLjg1LTUuMzItMTQuODUtNi4yNzZjLTEtLjQ3OC0xLjUyNC0uODgtMS41MjQtMS4yNnYtMy44MTNzMTQuNDQ3LTMuMTQ1IDE2Ljc4LTMuOTgyIDMuMTQtLjg2NyA1LjEyNi0uMTQgMTMuODUzIDIuODY4IDE1LjgxNCAzLjU4N3YzLjc2YzAgLjM3Ny0uNDUyLjgtMS40NzcgMS4zMjR6Ii8+PHBhdGggaWQ9IkMiIGQ9Ik00NS41MzYgMjguNzMzYy0yLjAxMyAxLjA1LTEyLjQ0IDUuMzM3LTE0LjY2IDYuNDk0cy0zLjQ1MyAxLjE0Ni01LjIwNy4zMDgtMTIuODUtNS4zMi0xNC44NS02LjI3Ni0yLjA0LTEuNjEzLS4wNzctMi4zODJsMTUuMzMyLTUuOTM1YzIuMzMyLS44MzcgMy4xNC0uODY3IDUuMTI2LS4xNHMxMi4zNSA0Ljg1MyAxNC4zMTIgNS41NyAyLjAzNyAxLjMxLjAyNCAyLjM2eiIvPjwvZGVmcz48L3N2Zz4=" preserveAspectRatio="xMidYMid meet"/>
     <text class="chip-label" x="354" y="448" text-anchor="middle">Redis</text>
     <text class="chip-detail" x="354" y="470" text-anchor="middle">Lettuce, Redisson</text>
     <rect class="chip" x="466" y="420" width="168" height="64" fill="#ffffff" stroke="#8dc7b5"/>
@@ -94,11 +90,11 @@
   <rect class="chip" x="1150" y="660" width="118" height="44" fill="#ffffff" stroke="#b99de0"/>
   <text class="chip-label" x="1209" y="687" text-anchor="middle">BOM</text>
 
-  <path class="route" d="M700 290 L700 332" stroke="#5278c9" marker-end="url(#arrow-blue)"/>
+  <path class="route" d="M 700 290 L 700 332" stroke="#5278c9" marker-end="url(#arrow-blue)"/>
   <text class="route-label" x="720" y="318">choose backend</text>
-  <path class="route" d="M386 562 L386 520" stroke="#3d8f7b" marker-end="url(#arrow-green)"/>
+  <path class="route" d="M 386 562 L 386 520" stroke="#3d8f7b" marker-end="url(#arrow-green)"/>
   <text class="route-label" x="406" y="546">wire core</text>
-  <path class="route" d="M1014 562 L1014 520" stroke="#3d8f7b" marker-end="url(#arrow-green)"/>
+  <path class="route" d="M 1014 562 L 1014 520" stroke="#3d8f7b" marker-end="url(#arrow-green)"/>
   <text class="route-label" x="1034" y="546">prove scenarios</text>
 
   <rect x="110" y="762" width="1180" height="54" rx="18" fill="#f8fbff" stroke="#d4deeb" stroke-width="2"/>

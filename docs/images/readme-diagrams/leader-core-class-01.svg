@@ -27,14 +27,10 @@
       .uses { fill: none; stroke: #4b74a5; stroke-width: 1.8; stroke-dasharray: 7 5; }
       .obs { fill: none; stroke: #8e6aa9; stroke-width: 2.2; }
     </style>
-    <marker id="arrowBlue" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#4b74a5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
-    <marker id="arrowPurple" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#8e6aa9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
+    <marker id="arrowBlue" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#2563eb" stroke="#2563eb" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c3aed" stroke="#7c3aed" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <marker id="hollow" viewBox="0 0 18 16" markerWidth="16" markerHeight="14" refX="16" refY="8" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 16 8 L 1 15 Z" fill="#fbfcf8" stroke="#263238" stroke-width="1.7"/>
+      <path d="M 1 1 L 16 8 L 1 15 Z" fill="#fbfcf8" stroke="#263238" stroke-width="1.7" stroke-dasharray="none" style="stroke-dasharray:none"/>
     </marker>
     <filter id="softShadow" x="-5%" y="-5%" width="110%" height="110%">
       <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#22333b" flood-opacity="0.12"/>
@@ -194,7 +190,7 @@
   <path d="M 249 820 L 249 776" class="realize" marker-end="url(#hollow)"/>
   <path d="M 569 404 L 569 361" class="extends" marker-end="url(#hollow)"/>
   <path d="M 569 820 L 569 776" class="realize" marker-end="url(#hollow)"/>
-  <path d="M 889 572 L 889 552 L 760 552 L 760 404 L 889 404 L 889 382" class="realize" marker-end="url(#hollow)"/>
+  <path d="M 991 618 L 1026 618 Q 1044 618 1044 600 L 1044 352 Q 1044 334 1026 334 L 991 334" class="realize" marker-end="url(#hollow)"/>
   <path d="M 889 572 L 889 525" class="uses" marker-end="url(#arrowBlue)"/>
   <path d="M 889 718 L 889 665" class="realize" marker-end="url(#hollow)"/>
 

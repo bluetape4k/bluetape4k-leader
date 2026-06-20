@@ -5,22 +5,16 @@
     <filter id="shadow" x="-12%" y="-16%" width="124%" height="140%">
       <feDropShadow dx="0" dy="7" stdDeviation="8" flood-color="#64748b" flood-opacity="0.12"/>
     </filter>
-    <marker id="arrowBlue" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#2563eb" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
-    <marker id="arrowGreen" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#059669" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
-    <marker id="arrowAmber" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#b45309" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
+    <marker id="arrowBlue" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#2563eb" stroke="#2563eb" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669" stroke="#059669" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrowAmber" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#cf8428" stroke="#cf8428" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
   <style>
-    text { font-family: "Comic Mono", monospace; fill: #263244; letter-spacing: 0; }
-    .title { font-family: "Architects Daughter", cursive; font-size: 34px; fill: #172033; }
+    text { font-family: "Comic Mono"; fill: #263244; letter-spacing: 0; }
+    .title { font-family: "Architects Daughter"; font-size: 34px; fill: #172033; }
     .subtitle { font-size: 13px; fill: #64748b; }
-    .section { font-family: "Architects Daughter", cursive; font-size: 19px; fill: #1f2937; }
-    .card-title { font-family: "Architects Daughter", cursive; font-size: 18px; fill: #172033; }
+    .section { font-family: "Architects Daughter"; font-size: 19px; fill: #1f2937; }
+    .card-title { font-family: "Architects Daughter"; font-size: 18px; fill: #172033; }
     .mono { font-size: 12px; fill: #475569; }
     .small { font-size: 11px; fill: #64748b; }
     .footer { font-size: 11px; fill: #64748b; }
@@ -104,9 +98,9 @@
     <text class="small" x="18" y="77">AOP, scheduler plugin, metrics decorators</text>
   </g>
 
-  <path class="arrow constraint" d="M 593 398 L 593 418 L 233 418 L 233 430"/>
+  <path class="arrow constraint" d="M 593 398 L 423.67 398 Q 413 398 413 408.67 L 413 419.33 Q 413 430 402.33 430 L 233 430"/>
   <path class="arrow constraint" d="M 593 398 L 593 430"/>
-  <path class="arrow constraint" d="M 593 398 L 593 418 L 922 418 L 922 430"/>
+  <path class="arrow constraint" d="M 593 398 L 746.83 398 Q 757.5 398 757.5 408.67 L 757.5 419.33 Q 757.5 430 768.17 430 L 922 430"/>
   <text class="small" x="635" y="418" fill="#059669">constraints</text>
 
   <g transform="translate(118 620)">

@@ -5,11 +5,11 @@
     <filter id="soft-shadow" x="-10%" y="-10%" width="120%" height="120%">
       <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#27415f" flood-opacity="0.10"/>
     </filter>
-    <marker id="arrow-blue" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4f77c9"/></marker>
-    <marker id="arrow-green" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3c987e"/></marker>
-    <marker id="arrow-pink" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#d85f8d"/></marker>
-    <marker id="arrow-amber" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#d28a28"/></marker>
-    <marker id="arrow-purple" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#8a65d8"/></marker>
+    <marker viewBox="0 0 10 10" id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#4f77c9" stroke="#4f77c9" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3c987e" stroke="#3c987e" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" id="arrow-pink" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#d85f8d" stroke="#d85f8d" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" id="arrow-amber" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#d28a28" stroke="#d28a28" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" id="arrow-purple" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#8a65d8" stroke="#8a65d8" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <style>
       .canvas { fill: #f6f9fc; }
       .frame { fill: #ffffff; stroke: #c4d5e8; stroke-width: 3; filter: url(#soft-shadow); }
@@ -59,7 +59,7 @@
     <rect class="panel" x="534" y="194" width="532" height="452" fill="#fbf7ec" stroke="#dfc783"/>
     <text class="gate-title" x="800" y="238" text-anchor="middle">Ownership Gate</text>
     <text class="detail" x="800" y="264" text-anchor="middle">lockName or LeaderSlot decides whether action may start</text>
-    <path class="gate-core" d="M800 296 L984 404 L800 512 L616 404 Z"/>
+    <rect class="gate-core" x="616" y="312" width="368" height="184" rx="28"/>
     <text class="card-title" x="800" y="389" text-anchor="middle">atomic acquire</text>
     <text class="detail" x="800" y="414" text-anchor="middle">backend decides owner</text>
     <text class="detail" x="800" y="439" text-anchor="middle">release happens after action</text>
@@ -89,7 +89,7 @@
     <rect class="panel" x="188" y="724" width="1224" height="142" fill="#eef9f5" stroke="#a7d5c5"/>
     <text class="panel-title" x="232" y="766">Backend primitive bank</text>
     <text class="detail" x="232" y="792">Same contract, native ownership.</text>
-    <rect class="chip" x="482" y="776" width="145" height="54" fill="#ffffff" stroke="#64b894"/>
+    <rect class="chip" x="482" y="776" width="145" height="54" fill="#ffffff" stroke="#64b894"/><image data-bluetape4k-icon="redis" data-icon-source="redis/redis-icon.svg" x="492" y="784" width="18" height="18" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiBoZWlnaHQ9IjY0IiB2aWV3Qm94PSIwIDAgMzIgMzIiIHdpZHRoPSI2NCI+PGcgdHJhbnNmb3JtPSJtYXRyaXgoLjg0ODMyNyAwIDAgLjg0ODMyNyAtNy44ODM1NzMgLTkuNDQ5NjkxKSI+PHVzZSB4bGluazpocmVmPSIjQiIgZmlsbD0iI2E0MWUxMSIvPjxwYXRoIGQ9Ik00NS41MzYgMzQuOTVjLTIuMDEzIDEuMDUtMTIuNDQgNS4zMzctMTQuNjYgNi40OTRzLTMuNDUzIDEuMTQ2LTUuMjA3LjMwOC0xMi44NS01LjMyLTE0Ljg1LTYuMjc2LTIuMDQtMS42MTMtLjA3Ny0yLjM4MmwxNS4zMzItNS45MzZjMi4zMzItLjgzNiAzLjE0LS44NjcgNS4xMjYtLjE0UzQzLjU1IDMxLjg3IDQ1LjUxIDMyLjZzMi4wMzcgMS4zMS4wMjQgMi4zNnoiIGZpbGw9IiNkODJjMjAiLz48dXNlIHhsaW5rOmhyZWY9IiNCIiB5PSItNi4yMTgiIGZpbGw9IiNhNDFlMTEiLz48dXNlIHhsaW5rOmhyZWY9IiNDIiBmaWxsPSIjZDgyYzIwIi8+PHBhdGggZD0iTTQ1LjUzNiAyNi4wOThjLTIuMDEzIDEuMDUtMTIuNDQgNS4zMzctMTQuNjYgNi40OTVzLTMuNDUzIDEuMTQ2LTUuMjA3LjMwOC0xMi44NS01LjMyLTE0Ljg1LTYuMjc2Yy0xLS40NzgtMS41MjQtLjg4LTEuNTI0LTEuMjZWMjEuNTVzMTQuNDQ3LTMuMTQ1IDE2Ljc4LTMuOTgyIDMuMTQtLjg2NyA1LjEyNi0uMTQgMTMuODUzIDIuODY4IDE1LjgxNCAzLjU4N3YzLjc2YzAgLjM3Ny0uNDUyLjgtMS40NzcgMS4zMjR6IiBmaWxsPSIjYTQxZTExIi8+PHVzZSB4bGluazpocmVmPSIjQyIgeT0iLTYuNDQ5IiBmaWxsPSIjZDgyYzIwIi8+PGcgZmlsbD0iI2ZmZiI+PHBhdGggZD0iTTI5LjA5NiAyMC43MTJsLTEuMTgyLTEuOTY1LTMuNzc0LS4zNCAyLjgxNi0xLjAxNi0uODQ1LTEuNTYgMi42MzYgMS4wMyAyLjQ4Ni0uODE0LS42NzIgMS42MTIgMi41MzQuOTUtMy4yNjguMzR6TTIyLjggMjQuNjI0bDguNzQtMS4zNDItMi42NCAzLjg3MnoiLz48ZWxsaXBzZSBjeD0iMjAuNDQ0IiByeD0iNC42NzIiIHJ5PSIxLjgxMSIgY3k9IjIxLjQwMiIvPjwvZz48cGF0aCBkPSJNNDIuMTMyIDIxLjEzOGwtNS4xNyAyLjA0Mi0uMDA0LTQuMDg3eiIgZmlsbD0iIzdhMGMwMCIvPjxwYXRoIGQ9Ik0zNi45NjMgMjMuMThsLS41Ni4yMi01LjE2Ni0yLjA0MiA1LjcyMy0yLjI2NHoiIGZpbGw9IiNhZDIxMTUiLz48L2c+PGRlZnMgPjxwYXRoIGlkPSJCIiBkPSJNNDUuNTM2IDM4Ljc2NGMtMi4wMTMgMS4wNS0xMi40NCA1LjMzNy0xNC42NiA2LjQ5NHMtMy40NTMgMS4xNDYtNS4yMDcuMzA4LTEyLjg1LTUuMzItMTQuODUtNi4yNzZjLTEtLjQ3OC0xLjUyNC0uODgtMS41MjQtMS4yNnYtMy44MTNzMTQuNDQ3LTMuMTQ1IDE2Ljc4LTMuOTgyIDMuMTQtLjg2NyA1LjEyNi0uMTQgMTMuODUzIDIuODY4IDE1LjgxNCAzLjU4N3YzLjc2YzAgLjM3Ny0uNDUyLjgtMS40NzcgMS4zMjR6Ii8+PHBhdGggaWQ9IkMiIGQ9Ik00NS41MzYgMjguNzMzYy0yLjAxMyAxLjA1LTEyLjQ0IDUuMzM3LTE0LjY2IDYuNDk0cy0zLjQ1MyAxLjE0Ni01LjIwNy4zMDgtMTIuODUtNS4zMi0xNC44NS02LjI3Ni0yLjA0LTEuNjEzLS4wNzctMi4zODJsMTUuMzMyLTUuOTM1YzIuMzMyLS44MzcgMy4xNC0uODY3IDUuMTI2LS4xNHMxMi4zNSA0Ljg1MyAxNC4zMTIgNS41NyAyLjAzNyAxLjMxLjAyNCAyLjM2eiIvPjwvZGVmcz48L3N2Zz4=" preserveAspectRatio="xMidYMid meet"/>
     <text class="chip-title" x="554" y="805" text-anchor="middle">Redis</text>
     <text class="small" x="554" y="824" text-anchor="middle">SET NX / RLock</text>
     <rect class="chip" x="654" y="776" width="145" height="54" fill="#ffffff" stroke="#d6a048"/>
@@ -110,31 +110,31 @@
   <text class="card-title" x="1108" y="672" text-anchor="middle">Telemetry</text>
   <text class="detail" x="1108" y="692" text-anchor="middle">events, metrics, audit id</text>
 
-  <path class="route" d="M382 321 L534 321 L616 369" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
+  <path class="route" d="M 382 321 L 534 321 Q 552 321 552 339 L 552 369 Q 552 387 570 387 L 616 387" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
   <rect class="label-pill" x="414" y="292" width="100" height="26"/>
   <text class="route-label" x="464" y="310" text-anchor="middle">same key</text>
-  <path class="route" d="M382 439 L534 439 L616 421" stroke="#8a65d8" marker-end="url(#arrow-purple)"/>
+  <path class="route" d="M 382 439 L 616 439" stroke="#8a65d8" marker-end="url(#arrow-purple)"/>
   <rect class="label-pill" x="414" y="448" width="104" height="26"/>
   <text class="route-label" x="466" y="466" text-anchor="middle">wrapped API</text>
-  <path class="route" d="M382 557 L534 557 L616 439" stroke="#3c987e" marker-end="url(#arrow-green)"/>
+  <path class="route" d="M 382 557 L 534 557 Q 552 557 552 539 L 552 465 Q 552 447 570 447 L 616 447" stroke="#3c987e" marker-end="url(#arrow-green)"/>
   <rect class="label-pill" x="414" y="566" width="102" height="26"/>
   <text class="route-label" x="465" y="584" text-anchor="middle">contender</text>
 
-  <path class="route" d="M984 386 L1148 386 L1190 322" stroke="#3c987e" marker-end="url(#arrow-green)"/>
+  <path class="route" d="M 984 386 L 1098 386 Q 1116 386 1116 368 L 1116 322 Q 1116 304 1134 304 L 1190 304" stroke="#3c987e" marker-end="url(#arrow-green)"/>
   <rect class="label-pill" x="1044" y="354" width="78" height="26"/>
   <text class="route-label" x="1083" y="372" text-anchor="middle">acquired</text>
-  <path class="route" d="M984 424 L1148 424 L1190 440" stroke="#d85f8d" marker-end="url(#arrow-pink)"/>
+  <path class="route" d="M 984 424 L 1098 424 Q 1116 424 1116 440 L 1190 440" stroke="#d85f8d" marker-end="url(#arrow-pink)"/>
   <rect class="label-pill" x="1044" y="430" width="70" height="26"/>
   <text class="route-label" x="1079" y="448" text-anchor="middle">missed</text>
-  <path class="route" d="M1316 358 L1316 382 L1468 382 L1468 558 L1442 558" stroke="#d28a28" marker-end="url(#arrow-amber)"/>
+  <path class="route" d="M 1316 358 L 1316 374 Q 1316 382 1324 382 L 1450 382 Q 1468 382 1468 400 L 1468 549.33 Q 1468 558 1459.33 558 L 1442 558" stroke="#d28a28" marker-end="url(#arrow-amber)"/>
   <rect class="label-pill" x="1418" y="486" width="80" height="26"/>
   <text class="route-label" x="1458" y="504" text-anchor="middle">if thrown</text>
 
-  <path class="route" d="M800 512 L800 724" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
+  <path class="route" d="M 800 512 L 800 724" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
   <rect class="label-pill" x="704" y="650" width="192" height="28"/>
   <text class="route-label" x="800" y="669" text-anchor="middle">acquire / renew / release</text>
-  <path class="route-soft" d="M1190 558 L1108 558 L1108 650" stroke="#8a65d8" marker-end="url(#arrow-purple)"/>
-  <path class="route-soft" d="M1108 706 L1108 724" stroke="#8a65d8" marker-end="url(#arrow-purple)"/>
+  <path class="route-soft" d="M 1190 558 L 1126 558 Q 1108 558 1108 576 L 1108 650" stroke="#8a65d8" marker-end="url(#arrow-purple)"/>
+  <path class="route-soft" d="M 1108 706 L 1108 724" stroke="#8a65d8" marker-end="url(#arrow-purple)"/>
 
   <rect x="134" y="890" width="1332" height="42" rx="14" fill="#f7fbff" stroke="#d4e0ec" stroke-width="1.6"/>
   <text class="footer" x="800" y="916" text-anchor="middle">Skip is a normal contention outcome; cancellation is propagated, and release is part of the elected path. github.com/bluetape4k/bluetape4k-leader</text>

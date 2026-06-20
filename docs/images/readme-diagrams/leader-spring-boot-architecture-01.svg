@@ -5,12 +5,12 @@
     <filter id="shadow" x="-10%" y="-18%" width="120%" height="140%">
       <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0f172a" flood-opacity="0.14"/>
     </filter>
-    <marker id="arrow-blue" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto"><path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#2563eb" stroke-width="2" stroke-linejoin="round"/></marker>
-    <marker id="arrow-green" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto"><path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#059669" stroke-width="2" stroke-linejoin="round"/></marker>
-    <marker id="arrow-orange" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto"><path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#ea580c" stroke-width="2" stroke-linejoin="round"/></marker>
-    <marker id="arrow-purple" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto"><path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linejoin="round"/></marker>
+    <marker markerUnits="userSpaceOnUse" id="arrow-blue" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#2563eb" stroke="#2563eb" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker markerUnits="userSpaceOnUse" id="arrow-green" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669" stroke="#059669" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker markerUnits="userSpaceOnUse" id="arrow-orange" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#ea580c" stroke="#ea580c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker markerUnits="userSpaceOnUse" id="arrow-purple" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c3aed" stroke="#7c3aed" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <style>
-      .canvas{fill:#f8fafc}.title{font-family:"Architects Daughter","Comic Mono","Comic Sans MS",cursive;font-size:34px;font-weight:700;fill:#0f172a}.subtitle,.small,.footer{font-family:"Comic Mono","Architects Daughter",monospace;fill:#475569}.subtitle{font-size:15px}.small{font-size:11px}.footer{font-size:11px}.band-title{font-family:"Comic Mono","Architects Daughter",monospace;font-size:14px;font-weight:700;fill:#334155}.card-title{font-family:"Comic Mono","Architects Daughter",monospace;font-size:15px;font-weight:700;fill:#0f172a}.card-sub{font-family:"Comic Mono","Architects Daughter",monospace;font-size:11.5px;fill:#475569}.label{font-family:"Comic Mono","Architects Daughter",monospace;font-size:11.5px;font-weight:700}.band{fill:#fff;stroke:#cbd5e1;stroke-width:1.4;rx:18}.card{stroke-width:1.8;rx:14;filter:url(#shadow)}.app{fill:#dbeafe;stroke:#2563eb}.config{fill:#ecfdf5;stroke:#059669}.aop{fill:#fef3c7;stroke:#d97706}.backend{fill:#f3e8ff;stroke:#7c3aed}.obs{fill:#fce7f3;stroke:#db2777}.runtime{fill:#eef2ff;stroke:#4f46e5}.primary{fill:none;stroke:#2563eb;stroke-width:2.2;marker-end:url(#arrow-blue)}.state{fill:none;stroke:#059669;stroke-width:2.1;marker-end:url(#arrow-green)}.control{fill:none;stroke:#ea580c;stroke-width:2.1;marker-end:url(#arrow-orange)}.data{fill:none;stroke:#7c3aed;stroke-width:2.1;marker-end:url(#arrow-purple)}.tap{fill:none;stroke:#64748b;stroke-width:1.7;stroke-dasharray:7 5}.label-bg{fill:#f8fafc;stroke:#e2e8f0;stroke-width:.8;rx:6}
+      .canvas{fill:#f8fafc}.title{font-family:"Architects Daughter","Comic Mono";font-size:34px;font-weight:700;fill:#0f172a}.subtitle,.small,.footer{font-family:"Comic Mono","Architects Daughter";fill:#475569}.subtitle{font-size:15px}.small{font-size:11px}.footer{font-size:11px}.band-title{font-family:"Comic Mono","Architects Daughter";font-size:14px;font-weight:700;fill:#334155}.card-title{font-family:"Comic Mono","Architects Daughter";font-size:15px;font-weight:700;fill:#0f172a}.card-sub{font-family:"Comic Mono","Architects Daughter";font-size:11.5px;fill:#475569}.label{font-family:"Comic Mono","Architects Daughter";font-size:11.5px;font-weight:700}.band{fill:#fff;stroke:#cbd5e1;stroke-width:1.4;rx:18}.card{stroke-width:1.8;rx:14;filter:url(#shadow)}.app{fill:#dbeafe;stroke:#2563eb}.config{fill:#ecfdf5;stroke:#059669}.aop{fill:#fef3c7;stroke:#d97706}.backend{fill:#f3e8ff;stroke:#7c3aed}.obs{fill:#fce7f3;stroke:#db2777}.runtime{fill:#eef2ff;stroke:#4f46e5}.primary{fill:none;stroke:#2563eb;stroke-width:2.5;marker-end:url(#arrow-blue)}.state{fill:none;stroke:#059669;stroke-width:2.5;marker-end:url(#arrow-green)}.control{fill:none;stroke:#ea580c;stroke-width:2.5;marker-end:url(#arrow-orange)}.data{fill:none;stroke:#7c3aed;stroke-width:2.5;marker-end:url(#arrow-purple)}.tap{fill:none;stroke:#64748b;stroke-width:2.5;stroke-dasharray:7 5}.label-bg{fill:#f8fafc;stroke:#e2e8f0;stroke-width:.8;rx:6}
     </style>
   </defs>
   <rect class="canvas" width="1320" height="1080"/>
@@ -44,7 +44,7 @@
   <text class="card-sub" x="660" y="566" text-anchor="middle">LeaderElectionAspect + Group Aspect</text>
   <text class="card-sub" x="660" y="586" text-anchor="middle">SpEL evaluator, bean selector</text>
   <text class="small" x="660" y="606" text-anchor="middle">validator warns or fails invalid annotated methods</text>
-  <rect class="card obs" x="504" y="656" width="312" height="72"/>
+  <rect class="card obs" x="504" y="656" width="312" height="72"/><image data-bluetape4k-icon="springBoot" data-icon-source="spring/spring-boot.svg" x="514" y="664" width="18" height="18" href="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPCEtLSBHZW5lcmF0b3I6IEFkb2JlIElsbHVzdHJhdG9yIDI0LjAuMywgU1ZHIEV4cG9ydCBQbHVnLUluIC4gU1ZHIFZlcnNpb246IDYuMDAgQnVpbGQgMCkgIC0tPgo8c3ZnIGZpbGw9IiM2REIzM0YiIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IgoJIHZpZXdCb3g9IjAgMCA1MTAgNDU3LjgiIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDUxMCA0NTcuODsiIHhtbDpzcGFjZT0icHJlc2VydmUiPgo8c3R5bGUgdHlwZT0idGV4dC9jc3MiPgoJLnN0MHtmaWxsOiM2REIzM0Y7fQo8L3N0eWxlPgo8dGl0bGU+aWNvbi1zcHJpbmctYm9vdDwvdGl0bGU+CjxnIGlkPSJMYXllcl8yXzFfIj4KCTxnIGlkPSJMYXllcl8xLTIiPgoJCTxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik01MDMuNSwyMDEuNEw0MDMsMjcuNUMzOTQuMywxMi40LDM3Mi45LDAsMzU1LjQsMEgxNTQuNmMtMTcuNCwwLTM4LjksMTIuNC00Ny42LDI3LjVMNi42LDIwMS40CgkJCWMtOC43LDE1LjEtOC43LDM5LjgsMCw1NC45bDEwMC40LDE3NGM4LjcsMTUuMSwzMC4xLDI3LjUsNDcuNiwyNy41aDIwMC45YzE3LjQsMCwzOC44LTEyLjQsNDcuNi0yNy41bDEwMC40LTE3NAoJCQlDNTEyLjIsMjQxLjIsNTEyLjIsMjE2LjUsNTAzLjUsMjAxLjR6IE0yMzMuMyw5Ni4yYzAtMTEuNCw5LjMtMjAuNywyMC43LTIwLjdjMTEuNCwwLDIwLjcsOS4zLDIwLjcsMjAuN3YxMjMuNwoJCQljMCwxMS40LTkuMywyMC43LTIwLjcsMjAuN2MtMTEuNCwwLTIwLjctOS4zLTIwLjctMjAuN2wwLDBWOTYuMnogTTI1NCwzNjAuM2MtNzcuNCwwLTE0MC40LTYzLTE0MC40LTE0MC40CgkJCWMwLjEtNDQuNCwyMS4xLTg2LjEsNTYuNy0xMTIuN2M4LjItNi4xLDE5LjctNC40LDI1LjgsMy44czQuNCwxOS43LTMuOCwyNS44bDAsMGMtNDUuOSwzNC4xLTU1LjUsOTktMjEuNCwxNDQuOQoJCQlzOTksNTUuNSwxNDQuOSwyMS40YzI2LjMtMTkuNSw0MS44LTUwLjQsNDEuOC04My4yYy0wLjEtMzIuOS0xNS43LTYzLjgtNDIuMi04My40Yy04LjItNi05LjktMTcuNi0zLjktMjUuOHMxNy42LTkuOSwyNS44LTMuOQoJCQljMzUuOSwyNi41LDU3LDY4LjUsNTcuMSwxMTMuMUMzOTQuNCwyOTcuNCwzMzEuNCwzNjAuMywyNTQsMzYwLjN6Ii8+Cgk8L2c+CjwvZz4KPC9zdmc+Cg==" preserveAspectRatio="xMidYMid meet"/>
   <text class="card-title" x="660" y="684" text-anchor="middle">Observability + Actuator</text>
   <text class="card-sub" x="660" y="708" text-anchor="middle">status registry, event publisher, endpoint</text>
 
@@ -74,19 +74,19 @@
   <text class="card-title" x="1041" y="860" text-anchor="middle">Leader scope</text>
   <text class="card-sub" x="1041" y="884" text-anchor="middle">ThreadLocal / coroutine / Reactor</text>
 
-  <path class="control" d="M 378 230 L 504 224"/>
+  <path class="control" d="M 378 230 L 468 230 Q 486 230 486 224 L 504 224"/>
   <rect class="label-bg" x="404" y="205" width="70" height="22"/><text class="label" x="439" y="221" text-anchor="middle" fill="#9a3412">bind</text>
   <path class="state" d="M 660 260 L 660 292"/>
   <path class="state" d="M 660 380 L 660 412"/>
   <path class="state" d="M 660 482 L 660 514"/>
   <path class="state" d="M 660 624 L 660 656"/>
-  <path class="data" d="M 816 336 L 936 260"/>
+  <path class="data" d="M 816 336 L 876 336 Q 894 336 894 318 L 894 278 Q 894 260 912 260 L 936 260"/>
   <rect class="label-bg" x="846" y="278" width="64" height="22"/><text class="label" x="878" y="294" text-anchor="middle" fill="#6d28d9">create</text>
   <path class="primary" d="M 318 873 L 374 873"/>
   <path class="primary" d="M 596 873 L 652 873"/>
   <path class="primary" d="M 874 873 L 930 873"/>
-  <path class="tap" d="M 485 832 C 500 746, 570 712, 640 712"/>
-  <path class="tap" d="M 763 914 C 804 944, 872 944, 930 914"/>
+  <path class="tap" d="M 485 832 L 544.5 832 Q 562.5 832 562.5 814 L 562.5 730 Q 562.5 712 580.5 712 L 640 712"/>
+  <path class="tap" d="M 763 914 L 930 914"/>
 
   <g transform="translate(112 990)">
     <rect x="0" y="0" width="1096" height="74" rx="14" fill="#ffffff" stroke="#cbd5e1"/>

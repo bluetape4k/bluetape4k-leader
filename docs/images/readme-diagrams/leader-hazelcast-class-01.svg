@@ -2,17 +2,15 @@
   <title id="title">leader-hazelcast implementation structure</title>
   <desc id="desc">Class diagram for the Hazelcast leader backend showing electors, factories, IMap based lock primitives, extend delegates, and token based dependency relationships.</desc>
   <defs>
-    <marker id="hollow-triangle" viewBox="0 0 14 12" markerWidth="11" markerHeight="10" refX="13" refY="6" orient="auto" markerUnits="strokeWidth">
-      <path d="M 1 1 L 13 6 L 1 11 Z" fill="#f8fafc" stroke="#334155" stroke-width="1.5" stroke-linejoin="round"/>
+    <marker id="hollow-triangle" viewBox="0 0 14 12" markerWidth="11" markerHeight="10" refX="13" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 13 6 L 1 11 Z" fill="#f8fafc" stroke="#334155" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="none" style="stroke-dasharray:none"/>
     </marker>
-    <marker id="open-arrow" viewBox="0 0 12 12" markerWidth="9" markerHeight="9" refX="10" refY="6" orient="auto">
-      <path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#2563eb" stroke-width="2" stroke-linejoin="round"/>
-    </marker>
+    <marker markerUnits="userSpaceOnUse" id="open-arrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#334155" stroke="#334155" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <style>
       .canvas { fill: #f8fafc; }
       .frame { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.8; rx: 24; }
-      .title { font-family: "Architects Daughter", "Comic Mono", "Comic Sans MS", cursive; font-size: 35px; fill: #0f172a; font-weight: 700; }
-      .subtitle { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 15px; fill: #475569; }
+      .title { font-family: "Architects Daughter", "Comic Mono", "Comic Mono"; font-size: 35px; fill: #0f172a; font-weight: 700; }
+      .subtitle { font-family: "Comic Mono", "Architects Daughter"; font-size: 15px; fill: #475569; }
       .box { stroke-width: 1.7; rx: 11; }
       .interface { fill: #eff6ff; stroke: #2563eb; }
       .elector { fill: #dcfce7; stroke: #16a34a; }
@@ -20,15 +18,15 @@
       .lock { fill: #ede9fe; stroke: #7c3aed; }
       .delegate { fill: #fce7f3; stroke: #db2777; }
       .external { fill: #f1f5f9; stroke: #64748b; }
-      .box-title { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 14px; fill: #0f172a; font-weight: 700; }
-      .box-title-tight { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 12.5px; fill: #0f172a; font-weight: 700; }
-      .stereo { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 11px; fill: #475569; }
-      .member { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 11px; fill: #475569; }
-      .label { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 11px; fill: #1d4ed8; font-weight: 700; }
-      .footer { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 11px; fill: #64748b; }
-      .implements { fill: none; stroke: #334155; stroke-width: 1.45; stroke-dasharray: 7 6; marker-end: url(#hollow-triangle); }
-      .uses { fill: none; stroke: #2563eb; stroke-width: 1.8; stroke-dasharray: 7 6; marker-end: url(#open-arrow); }
-      .holds { fill: none; stroke: #7c3aed; stroke-width: 1.8; stroke-dasharray: 7 6; marker-end: url(#open-arrow); }
+      .box-title { font-family: "Comic Mono", "Architects Daughter"; font-size: 14px; fill: #0f172a; font-weight: 700; }
+      .box-title-tight { font-family: "Comic Mono", "Architects Daughter"; font-size: 12.5px; fill: #0f172a; font-weight: 700; }
+      .stereo { font-family: "Comic Mono", "Architects Daughter"; font-size: 11px; fill: #475569; }
+      .member { font-family: "Comic Mono", "Architects Daughter"; font-size: 11px; fill: #475569; }
+      .label { font-family: "Comic Mono", "Architects Daughter"; font-size: 11px; fill: #1d4ed8; font-weight: 700; }
+      .footer { font-family: "Comic Mono", "Architects Daughter"; font-size: 11px; fill: #64748b; }
+      .implements { fill: none; stroke: #334155; stroke-width: 1.45; stroke-dasharray: 7 6; }
+      .uses { fill: none; stroke: #2563eb; stroke-width: 1.8; stroke-dasharray: 7 6; }
+      .holds { fill: none; stroke: #7c3aed; stroke-width: 1.8; stroke-dasharray: 7 6; }
       .sep { stroke: rgba(15, 23, 42, 0.18); stroke-width: 1; }
       .legend-line { stroke-width: 1.8; }
     </style>
@@ -95,10 +93,14 @@
     <text class="member" x="1030" y="450">+NonCancellable cleanup</text>
   </g>
 
-  <path class="implements" d="M 200 344 L 200 248"/>
-  <path class="implements" d="M 464 344 L 464 248"/>
-  <path class="implements" d="M 848 344 L 848 248"/>
-  <path class="implements" d="M 1139 344 L 1139 248"/>
+  <path class="implements" d="M 200 344 L 200 260"/>
+  <polygon points="200,248 190,260 210,260" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round"/>
+  <path class="implements" d="M 464 344 L 464 260"/>
+  <polygon points="464,248 454,260 474,260" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round"/>
+  <path class="implements" d="M 848 344 L 848 260"/>
+  <polygon points="848,248 838,260 858,260" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round"/>
+  <path class="implements" d="M 1139 344 L 1139 260"/>
+  <polygon points="1139,248 1129,260 1149,260" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round"/>
 
   <g id="locks">
     <rect class="box lock" x="214" y="590" width="292" height="126"/>
@@ -136,20 +138,27 @@
     <text class="member" x="112" y="820">HazelcastLeaderGroupElectorFactory</text>
   </g>
 
-  <path class="uses" d="M 200 460 L 200 506 L 322 506 L 322 590"/>
-  <path class="uses" d="M 464 460 L 464 516 L 640 516 L 640 590"/>
-  <path class="uses" d="M 848 460 L 848 496 L 476 496 L 476 590"/>
-  <path class="uses" d="M 1139 460 L 1139 528 L 736 528 L 736 590"/>
+  <path class="uses" d="M 200 460 L 200 490.67 Q 200 506 215.33 506 L 304 506 Q 322 506 322 524 L 322 578"/>
+  <polygon points="322,590 314,578 330,578" fill="#2563eb" stroke="#2563eb" stroke-width="0"/>
+  <path class="uses" d="M 464 460 L 464 498 Q 464 516 482 516 L 622 516 Q 640 516 640 534 L 640 578"/>
+  <polygon points="640,590 632,578 648,578" fill="#2563eb" stroke="#2563eb" stroke-width="0"/>
+  <path class="uses" d="M 848 460 L 848 484 Q 848 496 836 496 L 494 496 Q 476 496 476 514 L 476 578"/>
+  <polygon points="476,590 468,578 484,578" fill="#2563eb" stroke="#2563eb" stroke-width="0"/>
+  <path class="uses" d="M 1139 460 L 1139 510 Q 1139 528 1121 528 L 754 528 Q 736 528 736 546 L 736 578"/>
+  <polygon points="736,590 728,578 744,578" fill="#2563eb" stroke="#2563eb" stroke-width="0"/>
 
-  <path class="holds" d="M 360 716 L 590 760"/>
-  <path class="holds" d="M 694 716 L 694 760"/>
-  <path class="holds" d="M 1030 716 L 790 760"/>
-  <text class="label" x="930" y="754" fill="#6d28d9">updates TTL / checks token</text>
+  <path class="holds" d="M 360 716 L 360 734 Q 360 752 378 752 L 590 752 L 590 760"/>
+  <polygon points="590,760 582,748 598,748" fill="#7c3aed" stroke="#7c3aed" stroke-width="0"/>
+  <path class="holds" d="M 694 716 L 694 748"/>
+  <polygon points="694,760 686,748 702,748" fill="#7c3aed" stroke="#7c3aed" stroke-width="0"/>
+  <path class="holds" d="M 1030 716 L 1030 734 Q 1030 752 1012 752 L 790 752 L 790 760"/>
+  <polygon points="790,760 782,748 798,748" fill="#7c3aed" stroke="#7c3aed" stroke-width="0"/>
+  <text class="label" x="930" y="738" fill="#6d28d9">updates TTL / checks token</text>
 
   <g transform="translate(92 836)">
-    <line x1="0" y1="8" x2="36" y2="8" stroke="#334155" stroke-width="1.6" stroke-dasharray="7 6" marker-end="url(#hollow-triangle)"/>
+    <line x1="0" y1="8" x2="36" y2="8" stroke="#334155" stroke-width="2.5" stroke-dasharray="7 6" marker-end="url(#hollow-triangle)"/>
     <text class="member" x="48" y="12">implements interface</text>
-    <line x1="224" y1="8" x2="260" y2="8" stroke="#2563eb" stroke-width="1.8" stroke-dasharray="7 6" marker-end="url(#open-arrow)"/>
+    <line x1="224" y1="8" x2="260" y2="8" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="7 6" marker-end="url(#open-arrow)"/>
     <text class="member" x="272" y="12">uses lock primitive</text>
   </g>
 

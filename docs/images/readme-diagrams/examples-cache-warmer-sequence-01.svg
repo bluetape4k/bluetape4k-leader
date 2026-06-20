@@ -1,125 +1,124 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900" role="img" aria-labelledby="title desc" data-source-read="examples/cache-warmer/README.md; examples/cache-warmer/src/main/kotlin/io/bluetape4k/leader/examples/warmer/CachePartitionWarmer.kt; examples/cache-warmer/src/main/kotlin/io/bluetape4k/leader/examples/warmer/WarmResult.kt; examples/cache-warmer/src/test/kotlin/io/bluetape4k/leader/examples/warmer/CachePartitionWarmerTest.kt">
-  <title id="title">Cache Warmer Sequence</title>
-  <desc id="desc">Sequence for one partition inside warmAll: create backend elector, run only on leadership, classify warmed, skipped, failed, and rethrow cancellation.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1020" viewBox="0 0 1600 1020" role="img" aria-labelledby="title desc">
   <defs>
-    <marker id="arrow-blue" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#4f77c9"/></marker>
-    <marker id="arrow-green" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#329a74"/></marker>
-    <marker id="arrow-amber" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#cf8428"/></marker>
-    <marker id="arrow-pink" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#bd4e64"/></marker>
-    <marker id="arrow-purple" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#7a61c8"/></marker>
+    <filter id="softShadow" x="-12%" y="-12%" width="124%" height="124%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#263238" flood-opacity="0.14"/>
+    </filter>
     <style>
-      .canvas { fill: #f6f9fc; }
-      .frame { fill: #ffffff; stroke: #c4d5e8; stroke-width: 3; }
-      .title, .participant-text { font-family: "Architects Daughter"; fill: #263a57; }
-      .title { font-size: 44px; }
-      .subtitle, .label, .footer { font-family: "Comic Mono"; fill: #526276; }
+      .canvas { fill: #fbfcf8; }
+      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 3; }
+      .title { font-family: "Architects Daughter"; font-size: 42px; fill: #263238; }
+      .subtitle, .small, .labelText, .detail, .footer, .msg, .note { font-family: "Comic Mono"; fill: #36464f; }
       .subtitle { font-size: 17px; }
-      .label { font-size: 13px; }
-      .footer { font-size: 14px; }
-      .participant { stroke-width: 2.4; rx: 12; }
-      .lifeline { stroke: #9aacc2; stroke-width: 2; stroke-dasharray: 8 10; }
-      .activation { fill: #f3eeff; stroke: #8a65d8; stroke-width: 2; rx: 7; }
-      .call { fill: none; stroke: #4f77c9; stroke-width: 2.8; stroke-linecap: round; marker-end: url(#arrow-blue); }
-      .success { fill: none; stroke: #329a74; stroke-width: 2.8; stroke-linecap: round; marker-end: url(#arrow-green); }
-      .skip { fill: none; stroke: #cf8428; stroke-width: 2.8; stroke-linecap: round; marker-end: url(#arrow-amber); }
-      .failure { fill: none; stroke: #bd4e64; stroke-width: 2.8; stroke-linecap: round; marker-end: url(#arrow-pink); }
-      .return { fill: none; stroke: #329a74; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 9 8; marker-end: url(#arrow-green); }
-      .skip-return { fill: none; stroke: #cf8428; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 9 8; marker-end: url(#arrow-amber); }
-      .cancel-return { fill: none; stroke: #7a61c8; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 9 8; marker-end: url(#arrow-purple); }
-      .pill { fill: #ffffff; stroke: #cbd9e7; stroke-width: 1.5; rx: 10; }
-      .num { font-family: "Comic Mono"; font-size: 12px; fill: #ffffff; }
-      .alt { fill: none; stroke: #cf8428; stroke-width: 2; stroke-dasharray: 9 8; rx: 18; }
-      .alt-label { fill: #fff7e8; stroke: #cf8428; stroke-width: 1.5; rx: 8; }
-      .divider { stroke: #cf8428; stroke-width: 1.7; stroke-dasharray: 9 8; }
+      .footer { font-size: 13px; fill: #60727d; }
+      .band { fill: #f5f9fb; stroke: #c8d7df; stroke-width: 1.6; }
+      .bandAlt { fill: #fbfdf8; stroke: #d7e0d0; stroke-width: 1.6; }
+      .bandTitle { font-family: "Architects Daughter"; font-size: 22px; fill: #263238; }
+      .bandHint { font-family: "Comic Mono"; font-size: 12px; fill: #60727d; }
+      .card { filter: url(#softShadow); stroke-width: 2.4; rx: 8; }
+      .cardTitle { font-family: "Architects Daughter"; font-size: 24px; fill: #1f3138; }
+      .detail { font-size: 13.5px; fill: #546a73; }
+      .edge { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+      .edgeThin { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .dash { stroke-dasharray: 10 8; }
+      .pill { fill: #ffffff; stroke-width: 1.5; }
+      .labelText { font-size: 12.5px; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2.2; }
+      .participant { font-family: "Architects Daughter"; font-size: 20px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.7; }
+      .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
     </style>
+    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
+  <title id="title">Cache Warmer Sequence</title>
+  <desc id="desc">Sequence diagram for Cache Warmer.</desc>
+  <rect width="1600" height="1020" class="canvas"/>
+  <rect x="28" y="26" width="1544" height="968" rx="8" class="frame"/>
+  <text x="80" y="82" class="title">Cache Warmer Sequence</text>
+  <text x="82" y="114" class="subtitle">Cache follows the leader-core sequence style with clear calls, returns, and alternate outcomes.</text>
 
-  <rect class="canvas" width="1500" height="900"/>
-  <rect class="frame" x="42" y="34" width="1416" height="820" rx="30"/>
-  <text class="title" x="86" y="92">Cache Warmer Sequence</text>
-  <text class="subtitle" x="90" y="126">One partition iteration creates a backend elector, runs only on leadership, and classifies the local result.</text>
-
-  <g id="participants">
-    <rect class="participant" x="106" y="176" width="160" height="70" fill="#eaf2ff" stroke="#6d9df0"/>
-    <text class="participant-text" x="186" y="218" text-anchor="middle" font-size="24">Caller</text>
-    <rect class="participant" x="340" y="176" width="190" height="70" fill="#f1eaff" stroke="#9b7aec"/>
-    <text class="participant-text" x="435" y="218" text-anchor="middle" font-size="24">Warmer</text>
-    <rect class="participant" x="610" y="176" width="230" height="70" fill="#fff4de" stroke="#d59c3f"/>
-    <text class="participant-text" x="725" y="218" text-anchor="middle" font-size="24">electorFactory</text>
-    <rect class="participant" x="914" y="176" width="230" height="70" fill="#f1eaff" stroke="#9b7aec"/>
-    <text class="participant-text" x="1029" y="218" text-anchor="middle" font-size="24">LeaderElector</text>
-    <rect class="participant" x="1200" y="176" width="150" height="70" fill="#edf9f4" stroke="#63b891"/>
-    <text class="participant-text" x="1275" y="218" text-anchor="middle" font-size="24">Cache</text>
-    <rect class="participant" x="1364" y="176" width="80" height="70" fill="#fff0f5" stroke="#de7f9e"/>
-    <text class="participant-text" x="1404" y="218" text-anchor="middle" font-size="22">Result</text>
+  <rect x="70" y="150" width="170" height="68" rx="8" class="header"/><text x="155" y="179" text-anchor="middle" class="participant">Caller</text><text x="155" y="201" text-anchor="middle" class="role">warm keyspace</text>
+  <rect x="315" y="150" width="190" height="68" rx="8" class="header"/><text x="410" y="179" text-anchor="middle" class="participant">Example</text><text x="410" y="201" text-anchor="middle" class="role">Cache</text>
+  <rect x="570" y="150" width="210" height="68" rx="8" class="header"/><text x="675" y="179" text-anchor="middle" class="participant">Leader API</text><text x="675" y="201" text-anchor="middle" class="role">runIfLeader</text>
+  <rect x="845" y="150" width="210" height="68" rx="8" class="header"/><image data-bluetape4k-icon="redis" data-icon-source="redis/redis-icon.svg" x="855" y="158" width="18" height="18" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiBoZWlnaHQ9IjY0IiB2aWV3Qm94PSIwIDAgMzIgMzIiIHdpZHRoPSI2NCI+PGcgdHJhbnNmb3JtPSJtYXRyaXgoLjg0ODMyNyAwIDAgLjg0ODMyNyAtNy44ODM1NzMgLTkuNDQ5NjkxKSI+PHVzZSB4bGluazpocmVmPSIjQiIgZmlsbD0iI2E0MWUxMSIvPjxwYXRoIGQ9Ik00NS41MzYgMzQuOTVjLTIuMDEzIDEuMDUtMTIuNDQgNS4zMzctMTQuNjYgNi40OTRzLTMuNDUzIDEuMTQ2LTUuMjA3LjMwOC0xMi44NS01LjMyLTE0Ljg1LTYuMjc2LTIuMDQtMS42MTMtLjA3Ny0yLjM4MmwxNS4zMzItNS45MzZjMi4zMzItLjgzNiAzLjE0LS44NjcgNS4xMjYtLjE0UzQzLjU1IDMxLjg3IDQ1LjUxIDMyLjZzMi4wMzcgMS4zMS4wMjQgMi4zNnoiIGZpbGw9IiNkODJjMjAiLz48dXNlIHhsaW5rOmhyZWY9IiNCIiB5PSItNi4yMTgiIGZpbGw9IiNhNDFlMTEiLz48dXNlIHhsaW5rOmhyZWY9IiNDIiBmaWxsPSIjZDgyYzIwIi8+PHBhdGggZD0iTTQ1LjUzNiAyNi4wOThjLTIuMDEzIDEuMDUtMTIuNDQgNS4zMzctMTQuNjYgNi40OTVzLTMuNDUzIDEuMTQ2LTUuMjA3LjMwOC0xMi44NS01LjMyLTE0Ljg1LTYuMjc2Yy0xLS40NzgtMS41MjQtLjg4LTEuNTI0LTEuMjZWMjEuNTVzMTQuNDQ3LTMuMTQ1IDE2Ljc4LTMuOTgyIDMuMTQtLjg2NyA1LjEyNi0uMTQgMTMuODUzIDIuODY4IDE1LjgxNCAzLjU4N3YzLjc2YzAgLjM3Ny0uNDUyLjgtMS40NzcgMS4zMjR6IiBmaWxsPSIjYTQxZTExIi8+PHVzZSB4bGluazpocmVmPSIjQyIgeT0iLTYuNDQ5IiBmaWxsPSIjZDgyYzIwIi8+PGcgZmlsbD0iI2ZmZiI+PHBhdGggZD0iTTI5LjA5NiAyMC43MTJsLTEuMTgyLTEuOTY1LTMuNzc0LS4zNCAyLjgxNi0xLjAxNi0uODQ1LTEuNTYgMi42MzYgMS4wMyAyLjQ4Ni0uODE0LS42NzIgMS42MTIgMi41MzQuOTUtMy4yNjguMzR6TTIyLjggMjQuNjI0bDguNzQtMS4zNDItMi42NCAzLjg3MnoiLz48ZWxsaXBzZSBjeD0iMjAuNDQ0IiByeD0iNC42NzIiIHJ5PSIxLjgxMSIgY3k9IjIxLjQwMiIvPjwvZz48cGF0aCBkPSJNNDIuMTMyIDIxLjEzOGwtNS4xNyAyLjA0Mi0uMDA0LTQuMDg3eiIgZmlsbD0iIzdhMGMwMCIvPjxwYXRoIGQ9Ik0zNi45NjMgMjMuMThsLS41Ni4yMi01LjE2Ni0yLjA0MiA1LjcyMy0yLjI2NHoiIGZpbGw9IiNhZDIxMTUiLz48L2c+PGRlZnMgPjxwYXRoIGlkPSJCIiBkPSJNNDUuNTM2IDM4Ljc2NGMtMi4wMTMgMS4wNS0xMi40NCA1LjMzNy0xNC42NiA2LjQ5NHMtMy40NTMgMS4xNDYtNS4yMDcuMzA4LTEyLjg1LTUuMzItMTQuODUtNi4yNzZjLTEtLjQ3OC0xLjUyNC0uODgtMS41MjQtMS4yNnYtMy44MTNzMTQuNDQ3LTMuMTQ1IDE2Ljc4LTMuOTgyIDMuMTQtLjg2NyA1LjEyNi0uMTQgMTMuODUzIDIuODY4IDE1LjgxNCAzLjU4N3YzLjc2YzAgLjM3Ny0uNDUyLjgtMS40NzcgMS4zMjR6Ii8+PHBhdGggaWQ9IkMiIGQ9Ik00NS41MzYgMjguNzMzYy0yLjAxMyAxLjA1LTEyLjQ0IDUuMzM3LTE0LjY2IDYuNDk0cy0zLjQ1MyAxLjE0Ni01LjIwNy4zMDgtMTIuODUtNS4zMi0xNC44NS02LjI3Ni0yLjA0LTEuNjEzLS4wNzctMi4zODJsMTUuMzMyLTUuOTM1YzIuMzMyLS44MzcgMy4xNC0uODY3IDUuMTI2LS4xNHMxMi4zNSA0Ljg1MyAxNC4zMTIgNS41NyAyLjAzNyAxLjMxLjAyNCAyLjM2eiIvPjwvZGVmcz48L3N2Zz4=" preserveAspectRatio="xMidYMid meet"/><text x="950" y="179" text-anchor="middle" class="participant">Lock Store</text><text x="950" y="201" text-anchor="middle" class="role">Redis population</text>
+  <rect x="1120" y="150" width="190" height="68" rx="8" class="header"/><text x="1215" y="179" text-anchor="middle" class="participant">Action</text><text x="1215" y="201" text-anchor="middle" class="role">protected work</text>
+  <rect x="1365" y="150" width="170" height="68" rx="8" class="header"/><text x="1450" y="179" text-anchor="middle" class="participant">Observer</text><text x="1450" y="201" text-anchor="middle" class="role">metrics/events</text>
+  <line x1="155" y1="218" x2="155" y2="938" class="lifeline"/>
+  <line x1="410" y1="218" x2="410" y2="938" class="lifeline"/>
+  <line x1="675" y1="218" x2="675" y2="938" class="lifeline"/>
+  <line x1="950" y1="218" x2="950" y2="938" class="lifeline"/>
+  <line x1="1215" y1="218" x2="1215" y2="938" class="lifeline"/>
+  <line x1="1450" y1="218" x2="1450" y2="938" class="lifeline"/>
+  <rect x="668" y="316" width="14" height="520" rx="6" class="activation"/>
+  <rect x="943" y="392" width="14" height="216" rx="6" class="activation"/>
+  <rect x="1208" y="560" width="14" height="112" rx="6" class="activation"/>
+  <g>
+    <rect x="175" y="266" width="480" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="197" cy="282" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="197" y="286" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
+    <text x="218" y="287" class="labelText" fill="#3f7d9c">submit leader-guarded request</text>
   </g>
+  <path d="M 155 318 L 675 318" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <g>
+    <rect x="695" y="342" width="362" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="717" cy="358" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="717" y="362" text-anchor="middle" class="badgeText" fill="#6e8f4f">2</text>
+    <text x="738" y="363" class="labelText" fill="#6e8f4f">try acquire lease / conditional claim</text>
+  </g>
+  <path d="M 675 394 L 950 394" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
+  <g>
+    <rect x="695" y="428" width="282" height="32" rx="16" class="pill" stroke="#9b7d54"/>
+    <circle cx="717" cy="444" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
+    <text x="717" y="448" text-anchor="middle" class="badgeText" fill="#9b7d54">3</text>
+    <text x="738" y="449" class="labelText" fill="#9b7d54">acquired or skipped outcome</text>
+  </g>
+  <path d="M 950 480 L 675 480" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
+  <rect x="82" y="518" width="1420" height="270" rx="12" class="branch"/>
+  <text x="112" y="548" class="note">alt acquired</text>
+  <line x1="82" y1="690" x2="1502" y2="690" class="branch"/>
+  <text x="112" y="720" class="note">else skipped / failed</text>
+  <g>
+    <rect x="695" y="538" width="500" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="717" cy="554" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="717" y="558" text-anchor="middle" class="badgeText" fill="#6e8f4f">4</text>
+    <text x="738" y="559" class="labelText" fill="#6e8f4f">invoke protected work once</text>
+  </g>
+  <path d="M 675 590 L 1215 590" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
+  <g>
+    <rect x="695" y="616" width="500" height="32" rx="16" class="pill" stroke="#9b7d54"/>
+    <circle cx="717" cy="632" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
+    <text x="717" y="636" text-anchor="middle" class="badgeText" fill="#9b7d54">5</text>
+    <text x="738" y="637" class="labelText" fill="#9b7d54">return value or action failure</text>
+  </g>
+  <path d="M 1215 668 L 675 668" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
+  <g>
+    <rect x="695" y="702" width="735" height="32" rx="16" class="pill" stroke="#b86868"/>
+    <circle cx="717" cy="718" r="12.5" fill="#fff" stroke="#b86868" stroke-width="1.6"/>
+    <text x="717" y="722" text-anchor="middle" class="badgeText" fill="#b86868">6</text>
+    <text x="738" y="723" class="labelText" fill="#b86868">publish skipped/failed event</text>
+  </g>
+  <path d="M 675 754 L 1450 754" class="edge" stroke="#b86868" marker-end="url(#arrow-skip)"/>
+  <g>
+    <rect x="695" y="786" width="250" height="32" rx="16" class="pill" stroke="#9b7d54"/>
+    <circle cx="717" cy="802" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
+    <text x="717" y="806" text-anchor="middle" class="badgeText" fill="#9b7d54">7</text>
+    <text x="738" y="807" class="labelText" fill="#9b7d54">release lease and state</text>
+  </g>
+  <path d="M 675 838 L 950 838" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
+  <g>
+    <rect x="175" y="858" width="480" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="197" cy="874" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="197" y="878" text-anchor="middle" class="badgeText" fill="#3f7d9c">8</text>
+    <text x="218" y="879" class="labelText" fill="#3f7d9c">return explicit result to caller</text>
+  </g>
+  <path d="M 675 910 L 155 910" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
 
-  <line class="lifeline" x1="186" y1="246" x2="186" y2="736"/>
-  <line class="lifeline" x1="435" y1="246" x2="435" y2="736"/>
-  <line class="lifeline" x1="725" y1="246" x2="725" y2="736"/>
-  <line class="lifeline" x1="1029" y1="246" x2="1029" y2="736"/>
-  <line class="lifeline" x1="1275" y1="246" x2="1275" y2="736"/>
-  <line class="lifeline" x1="1404" y1="246" x2="1404" y2="736"/>
-  <rect class="activation" x="427" y="314" width="16" height="360"/>
-  <rect class="activation" x="717" y="362" width="16" height="80"/>
-  <rect class="activation" x="1021" y="440" width="16" height="170"/>
-  <rect class="activation" x="1267" y="512" width="16" height="64"/>
-
-  <path class="call" d="M186 318 L435 318"/>
-  <rect class="pill" x="250" y="286" width="136" height="28"/>
-  <circle cx="266" cy="300" r="13" fill="#4f77c9"/><text class="num" x="266" y="304" text-anchor="middle">1</text>
-  <text class="label" x="328" y="305" text-anchor="middle">warmAll()</text>
-
-  <path class="call" d="M435 388 L725 388"/>
-  <rect class="pill" x="506" y="356" width="180" height="28"/>
-  <circle cx="522" cy="370" r="13" fill="#4f77c9"/><text class="num" x="522" y="374" text-anchor="middle">2</text>
-  <text class="label" x="604" y="375" text-anchor="middle">create elector</text>
-
-  <path class="return" d="M725 438 L435 438"/>
-  <rect class="pill" x="510" y="406" width="168" height="28"/>
-  <circle cx="526" cy="420" r="13" fill="#329a74"/><text class="num" x="526" y="424" text-anchor="middle">3</text>
-  <text class="label" x="602" y="425" text-anchor="middle">elector ready</text>
-
-  <path class="call" d="M435 490 L1029 490"/>
-  <rect class="pill" x="650" y="458" width="214" height="28"/>
-  <circle cx="666" cy="472" r="13" fill="#4f77c9"/><text class="num" x="666" y="476" text-anchor="middle">4</text>
-  <text class="label" x="762" y="477" text-anchor="middle">runIfLeader(lock)</text>
-
-  <rect class="alt" x="374" y="514" width="1040" height="186"/>
-  <rect class="alt-label" x="398" y="498" width="230" height="28"/>
-  <text class="label" x="513" y="517" text-anchor="middle">partition election result</text>
-  <line class="divider" x1="374" y1="588" x2="1414" y2="588"/>
-  <line class="divider" x1="374" y1="642" x2="1414" y2="642"/>
-
-  <path class="success" d="M1029 554 L1275 554"/>
-  <rect class="pill" x="1086" y="522" width="166" height="28"/>
-  <circle cx="1102" cy="536" r="13" fill="#329a74"/><text class="num" x="1102" y="540" text-anchor="middle">5</text>
-  <text class="label" x="1182" y="541" text-anchor="middle">warmFunction</text>
-
-  <path class="skip-return" d="M1029 614 L1404 614"/>
-  <rect class="pill" x="1132" y="592" width="166" height="28"/>
-  <circle cx="1148" cy="606" r="13" fill="#cf8428"/><text class="num" x="1148" y="610" text-anchor="middle">6</text>
-  <text class="label" x="1226" y="611" text-anchor="middle">record skipped</text>
-
-  <path class="failure" d="M1275 670 L435 670"/>
-  <rect class="pill" x="770" y="648" width="142" height="28"/>
-  <circle cx="786" cy="662" r="13" fill="#bd4e64"/><text class="num" x="786" y="666" text-anchor="middle">7</text>
-  <text class="label" x="852" y="667" text-anchor="middle">throw error</text>
-
-  <path class="failure" d="M435 724 L1404 724"/>
-  <rect class="pill" x="836" y="692" width="152" height="28"/>
-  <circle cx="852" cy="706" r="13" fill="#bd4e64"/><text class="num" x="852" y="710" text-anchor="middle">8</text>
-  <text class="label" x="924" y="711" text-anchor="middle">record failed</text>
-
-  <path class="cancel-return" d="M1029 760 L186 760"/>
-  <rect class="pill" x="532" y="728" width="230" height="28"/>
-  <circle cx="548" cy="742" r="13" fill="#7a61c8"/><text class="num" x="548" y="746" text-anchor="middle">9</text>
-  <text class="label" x="656" y="747" text-anchor="middle">cancellation rethrow</text>
-
-  <path class="call" d="M435 804 L1404 804" stroke="#7a61c8" marker-end="url(#arrow-purple)"/>
-  <rect class="pill" x="836" y="772" width="174" height="28"/>
-  <circle cx="852" cy="786" r="13" fill="#7a61c8"/><text class="num" x="852" y="790" text-anchor="middle">10</text>
-  <text class="label" x="936" y="791" text-anchor="middle">return result</text>
-
-  <text class="footer" x="750" y="832" text-anchor="middle">Each partition has its own lock name, so local results are classified as warmed, skipped, failed, or cancelled. github.com/bluetape4k/bluetape4k-leader</text>
 </svg>

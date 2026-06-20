@@ -5,25 +5,19 @@
     <filter id="shadow" x="-12%" y="-16%" width="124%" height="140%">
       <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#64748b" flood-opacity="0.13"/>
     </filter>
-    <marker id="arrowBlue" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
-    <marker id="arrowGreen" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#16a34a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
-    <marker id="arrowPurple" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#7c3aed" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
+    <marker id="arrowBlue" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#2563eb" stroke="#2563eb" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669" stroke="#059669" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c3aed" stroke="#7c3aed" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <marker id="hollowTri" viewBox="0 0 18 16" markerWidth="16" markerHeight="14" refX="16" refY="8" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 16 8 L 1 15 Z" fill="#ffffff" stroke="#334155" stroke-width="1.7"/>
+      <path d="M 1 1 L 16 8 L 1 15 Z" fill="#ffffff" stroke="#334155" stroke-width="1.7" stroke-dasharray="none" style="stroke-dasharray:none"/>
     </marker>
   </defs>
   <style>
-    text { font-family: "Comic Mono", monospace; fill: #263244; }
-    .title { font-family: "Architects Daughter", cursive; font-size: 34px; fill: #172033; }
+    text { font-family: "Comic Mono"; fill: #263244; }
+    .title { font-family: "Architects Daughter"; font-size: 34px; fill: #172033; }
     .subtitle { font-size: 13px; fill: #64748b; }
-    .panel-label { font-family: "Architects Daughter", cursive; font-size: 18px; fill: #334155; }
-    .card-title { font-family: "Architects Daughter", cursive; font-size: 16px; fill: #172033; }
+    .panel-label { font-family: "Architects Daughter"; font-size: 18px; fill: #334155; }
+    .card-title { font-family: "Architects Daughter"; font-size: 16px; fill: #172033; }
     .stereo { font-size: 10px; fill: #64748b; }
     .member { font-size: 11px; fill: #475569; }
     .footer { font-size: 11px; fill: #64748b; }
@@ -131,7 +125,7 @@
     <text class="member" x="14" y="64">composite PK slot locks</text>
   </g>
   <g id="R2dbcTables" transform="translate(890 442)">
-    <rect class="table" width="240" height="110" rx="6"/>
+    <rect class="table" width="240" height="110" rx="6"/><image data-bluetape4k-icon="database" data-icon-source="generic/database-server.svg" x="10" y="8" width="19.8" height="19.8" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiB2aWV3Qm94PSIwIDAgMTI4IDEyOCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsbGVkYnk9InRpdGxlIGRlc2MiPgogIDx0aXRsZSBpZD0idGl0bGUiPkdlbmVyaWMgZGF0YWJhc2Ugc2VydmVyIGljb248L3RpdGxlPgogIDxkZXNjIGlkPSJkZXNjIj5HZW5lcmljIGRhdGFiYXNlIHNlcnZlciBpY29uIGZvciBibHVldGFwZTRrIGRpYWdyYW1zLjwvZGVzYz4KICA8cmVjdCB4PSIxMCIgeT0iOCIgd2lkdGg9IjEwOCIgaGVpZ2h0PSIxMTIiIHJ4PSIxOCIgZmlsbD0iI2ZmZmFmMiIgc3Ryb2tlPSIjMjg0ODVhIiBzdHJva2Utd2lkdGg9IjYiLz4KICA8ZWxsaXBzZSBjeD0iNjQiIGN5PSIzNiIgcng9IjM0IiByeT0iMTMiIGZpbGw9IiNmZmYwZDgiIHN0cm9rZT0iIzhjNmYzMyIgc3Ryb2tlLXdpZHRoPSI2Ii8+CiAgPHBhdGggZD0iTTMwIDM2djQ0YzAgOCAxNSAxNCAzNCAxNHMzNC02IDM0LTE0VjM2IiBmaWxsPSIjZmZmMGQ4IiBzdHJva2U9IiM4YzZmMzMiIHN0cm9rZS13aWR0aD0iNiIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogIDxlbGxpcHNlIGN4PSI2NCIgY3k9IjM2IiByeD0iMzQiIHJ5PSIxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOGM2ZjMzIiBzdHJva2Utd2lkdGg9IjUiLz4KICA8cGF0aCBkPSJNMzAgNThjMCA4IDE1IDE0IDM0IDE0czM0LTYgMzQtMTQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzhjNmYzMyIgc3Ryb2tlLXdpZHRoPSI1IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8cGF0aCBkPSJNMzAgODBjMCA4IDE1IDE0IDM0IDE0czM0LTYgMzQtMTQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzhjNmYzMyIgc3Ryb2tlLXdpZHRoPSI1IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPC9zdmc+Cg==" preserveAspectRatio="xMidYMid meet"/>
     <text class="card-title" x="120" y="28" text-anchor="middle">ExposedLeaderSchema</text>
     <line class="divider" x1="0" y1="44" x2="240" y2="44"/>
     <text class="member" x="14" y="64">LeaderLockTable: token + TTL</text>
@@ -145,13 +139,13 @@
     <text class="member" x="14" y="60">best-effort suspend audit log</text>
   </g>
 
-  <path class="impl" d="M 442 260 L 364 260 L 334 252"/>
+  <path class="impl" d="M 442 260 L 364 260 Q 352 260 352 252 L 334 252"/>
   <path class="impl" d="M 624 314 L 614 314 L 614 340 L 392 340 L 392 390 L 334 390"/>
   <path class="impl" d="M 442 478 L 384 478 L 384 548 L 334 548"/>
-  <path class="uses" d="M 602 241 L 614 241 L 614 184 L 838 184 L 838 241 L 890 241"/>
-  <path class="uses" d="M 784 260 L 838 260 L 838 363 L 890 363"/>
-  <path class="uses" d="M 522 490 L 522 532 L 560 532 L 560 562"/>
-  <path class="uses" d="M 704 490 L 704 532 L 660 532 L 660 562"/>
+  <path class="uses" d="M 602 241 L 614 241 Q 624 241 624 231 L 624 180 Q 624 168 636 168 L 878 168 Q 890 168 890 180 L 890 198"/>
+  <path class="uses" d="M 784 260 L 820 260 Q 838 260 838 278 L 838 345.67 Q 838 363 855.33 363 L 890 363"/>
+  <path class="uses" d="M 522 490 L 522 519.33 Q 522 532 534.67 532 L 550 532 Q 560 532 560 542 L 560 562"/>
+  <path class="uses" d="M 704 490 L 704 518 Q 704 532 690 532 L 670 532 Q 660 532 660 542 L 660 562"/>
   <path class="audit" d="M 736 601 L 850 601 L 850 623 L 890 623"/>
 
   <g transform="translate(82 724)">

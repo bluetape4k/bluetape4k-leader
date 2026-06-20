@@ -7,14 +7,14 @@
     </filter>
     <style>
       .canvas { fill: #f8fafc; }
-      .title { font-family: "Architects Daughter", "Comic Mono", "Comic Sans MS", cursive; font-size: 34px; fill: #0f172a; font-weight: 700; }
-      .subtitle { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 15px; fill: #475569; }
-      .zone-title { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 14px; fill: #334155; font-weight: 700; }
-      .card-title { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 15px; fill: #0f172a; font-weight: 700; }
-      .card-sub { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 11.5px; fill: #475569; }
-      .small { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 11px; fill: #475569; }
-      .footer { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 11px; fill: #475569; }
-      .tag { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 10.5px; font-weight: 700; }
+      .title { font-family: "Architects Daughter", "Comic Mono", "Comic Mono"; font-size: 34px; fill: #0f172a; font-weight: 700; }
+      .subtitle { font-family: "Comic Mono", "Architects Daughter"; font-size: 15px; fill: #475569; }
+      .zone-title { font-family: "Comic Mono", "Architects Daughter"; font-size: 14px; fill: #334155; font-weight: 700; }
+      .card-title { font-family: "Comic Mono", "Architects Daughter"; font-size: 15px; fill: #0f172a; font-weight: 700; }
+      .card-sub { font-family: "Comic Mono", "Architects Daughter"; font-size: 11.5px; fill: #475569; }
+      .small { font-family: "Comic Mono", "Architects Daughter"; font-size: 11px; fill: #475569; }
+      .footer { font-family: "Comic Mono", "Architects Daughter"; font-size: 11px; fill: #475569; }
+      .tag { font-family: "Comic Mono", "Architects Daughter"; font-size: 10.5px; font-weight: 700; }
       .zone { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; rx: 18; }
       .app-zone { fill: #eff6ff; stroke: #93c5fd; stroke-width: 1.5; rx: 18; }
       .module-zone { fill: #fffaf0; stroke: #f59e0b; stroke-width: 1.5; rx: 18; }
@@ -89,7 +89,7 @@
   <path class="solid-link" d="M 559 560 L 559 590"/>
   <path class="solid-link" d="M 272 552 L 272 590"/>
 
-  <path class="dependency" d="M 272 652 L 272 666 L 808 666 L 808 344 L 930 344"/>
+  <path class="dependency" d="M 272 652 L 583 652 Q 601 652 601 634 L 601 362 Q 601 344 619 344 L 930 344"/>
   <path class="dependency" d="M 559 652 L 559 666"/>
   <circle class="port" cx="272" cy="652" r="5"/>
   <circle class="port" cx="559" cy="652" r="5"/>
