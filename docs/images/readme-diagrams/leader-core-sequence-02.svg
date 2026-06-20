@@ -27,7 +27,7 @@
       .label.returnLabel { stroke: #c8b38f; }
       .label.skipLabel { stroke: #d9abab; }
       .branchOk { fill: #eef7f0; stroke: #6e8f4f; stroke-width: 1.8; }
-      .branchSkip { fill: #fff5f5; stroke: #b86868; stroke-width: 1.8; }
+      .branchSkip { fill: #fff5f5; stroke: #b86868; stroke-width: 3; }
       .badge { stroke-width: 1.8; }
       .badge.callBadge { fill: #eaf4f8; stroke: #3f7d9c; }
       .badge.workBadge { fill: #eef7f0; stroke: #6e8f4f; }
@@ -39,10 +39,10 @@
       .msg.returnText, .badgeText.returnText { fill: #7f6038; }
       .msg.skipText, .badgeText.skipText { fill: #9d4f4f; }
     </style>
-    <marker id="arrowCall" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#3f7d9c"/></marker>
-    <marker id="arrowWork" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#6e8f4f"/></marker>
-    <marker id="arrowReturn" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#9b7d54"/></marker>
-    <marker id="arrowSkip" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#b86868"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowCall" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowWork" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowReturn" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowSkip" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
 
   <rect x="24" y="24" width="1552" height="1072" rx="20" class="frame"/>
@@ -115,7 +115,7 @@
   <rect x="820" y="666" width="476" height="34" rx="17" class="label returnLabel"/>
   <circle cx="844" cy="683" r="13" class="badge returnBadge"/><text x="844" y="688" text-anchor="middle" class="badgeText returnText">6</text>
   <text x="868" y="688" class="msg returnText">minLeaseTime guard, unlock, release state, notifyRevoked</text>
-  <path d="M 690 736 L 957 736 L 957 742 L 1440 742" class="return"/>
+  <path d="M 690 742 L 1440 742" class="return"/>
 
   <rect x="766" y="806" width="340" height="34" rx="17" class="label skipLabel"/>
   <circle cx="790" cy="823" r="13" class="badge skipBadge"/><text x="790" y="828" text-anchor="middle" class="badgeText skipText">3</text>

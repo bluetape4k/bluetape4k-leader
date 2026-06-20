@@ -42,5 +42,5 @@
 </g>
 
 <rect x="86" y="852" width="1328" height="42" rx="14" fill="#FFFFFF" stroke="#D6E2EC" stroke-width="1.4"/>
-<text class="note" x="750" y="878" text-anchor="middle">Source: benchmark/README.md distributed backend tables and 2026-05-29 raw JSON. Error bounds are broad; use this as same-machine comparison evidence.</text>
+<text class="note" x="750" y="878" text-anchor="middle">Benchmark data: distributed backend tables and 2026-05-29 raw JSON. Error bounds are broad; use this as same-machine comparison evidence.</text>
 </svg>

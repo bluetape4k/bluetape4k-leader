@@ -1,71 +1,131 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-labelledby="title desc" data-source-read="examples/batch-scheduler/README.md; examples/batch-scheduler/src/main/kotlin/io/bluetape4k/leader/examples/batch/BatchScheduler.kt; examples/batch-scheduler/src/main/kotlin/io/bluetape4k/leader/examples/batch/BatchSchedulerDemo.kt">
-<title id="title">Batch Scheduler Single Execution Scenario</title>
-<desc id="desc">Three scheduled application instances share one Redis-backed nightly-settlement lock; one executes the job and the others skip.</desc>
-<defs>
-  <marker id="arrow-blue" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#3F73D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="arrow-green" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#2D8F64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="arrow-orange" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#C96B2C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#B9C7D6" flood-opacity="0.24"/></filter>
-  <style>
-    .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:2.2;filter:url(#shadow)}
-    .title{font-family:"Architects Daughter";font-size:40px;fill:#21334A}.subtitle,.small,.label,.footer{font-family:"Comic Mono";fill:#4B6075}.subtitle{font-size:15px}.small{font-size:13px}.label{font-size:14px}.footer{font-size:13px}
-    .card{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1.8;filter:url(#shadow)}.trigger{fill:#FEF7E6;stroke:#E4BD67}.redis{fill:#EEF7F2;stroke:#8BC6A3}.leader{fill:#EAF2FF;stroke:#8EB2F0}.skip{fill:#FFF1EA;stroke:#E8A47D}.job{fill:#EEF8F8;stroke:#86C9C5}.note{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1.4}
-    .cardTitle{font-family:"Architects Daughter";font-size:24px;fill:#21334A}.cardText{font-family:"Comic Mono";font-size:13px;fill:#4B6075}.route{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:7 6}
-  </style>
-</defs>
-<rect class="canvas" width="1280" height="760"/>
-<rect class="frame" x="34" y="28" width="1212" height="704" rx="30"/>
-<text class="title" x="72" y="84">Batch Scheduler: One Run Per Periodic Trigger</text>
-<text class="subtitle" x="76" y="116">Three replicas receive the same nightly-settlement trigger; Redis elects one leader and losers return null without throwing.</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1040" viewBox="0 0 1680 1040" role="img" aria-labelledby="title desc">
+  <defs>
+    <filter id="softShadow" x="-12%" y="-12%" width="124%" height="124%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#263238" flood-opacity="0.14"/>
+    </filter>
+    <style>
+      .canvas { fill: #fbfcf8; }
+      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 3; }
+      .title { font-family: "Architects Daughter"; font-size: 42px; fill: #263238; }
+      .subtitle, .small, .labelText, .detail, .footer, .msg, .note { font-family: "Comic Mono"; fill: #36464f; }
+      .subtitle { font-size: 17px; }
+      .footer { font-size: 13px; fill: #60727d; }
+      .band { fill: #f5f9fb; stroke: #c8d7df; stroke-width: 1.6; }
+      .bandAlt { fill: #fbfdf8; stroke: #d7e0d0; stroke-width: 1.6; }
+      .bandTitle { font-family: "Architects Daughter"; font-size: 22px; fill: #263238; }
+      .bandHint { font-family: "Comic Mono"; font-size: 12px; fill: #60727d; }
+      .card { filter: url(#softShadow); stroke-width: 2.4; rx: 8; }
+      .cardTitle { font-family: "Architects Daughter"; font-size: 24px; fill: #1f3138; }
+      .detail { font-size: 13.5px; fill: #546a73; }
+      .edge { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+      .edgeThin { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .dash { stroke-dasharray: 10 8; }
+      .pill { fill: #ffffff; stroke-width: 1.5; }
+      .labelText { font-size: 12.5px; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2.2; }
+      .participant { font-family: "Architects Daughter"; font-size: 20px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.7; }
+      .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+    </style>
+    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+  </defs>
+  <title id="title">Batch Scheduler Scenario</title>
+  <desc id="desc">Scenario diagram for Batch Scheduler.</desc>
+  <rect width="1680" height="1040" class="canvas"/>
+  <rect x="28" y="26" width="1624" height="988" rx="8" class="frame"/>
+  <text x="80" y="82" class="title">Batch Scheduler Scenario</text>
+  <text x="82" y="114" class="subtitle">Scheduler shows the happy path plus skipped and retry outcomes without crossing cards.</text>
 
-<rect class="card trigger" x="96" y="164" width="270" height="92" rx="16"/>
-<text class="cardTitle" x="122" y="203">Periodic trigger</text>
-<text class="cardText" x="122" y="230">cron / @Scheduled / Quartz</text>
+  <rect x="84" y="150" width="1512" height="720" rx="8" class="band"/>
+  <text x="112" y="184" class="bandTitle">Scenario Workflow</text>
+  <text x="112" y="207" class="bandHint">best-practices branching layout with explicit success, skipped, and retry lanes</text>
+  <g>
+    <rect x="150" y="260" width="315" height="96" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
+    <text x="307.5" y="294" text-anchor="middle" class="cardTitle">Trigger</text>
+    <text x="307.5" y="318" text-anchor="middle" class="detail">Scheduler: batch trigger</text>
+  </g>
+  <g>
+    <rect x="535" y="260" width="315" height="96" rx="8" class="card" fill="#ffffff" stroke="#78909c"/>
+    <text x="692.5" y="294" text-anchor="middle" class="cardTitle">Build Claim</text>
+    <text x="692.5" y="318" text-anchor="middle" class="detail">Quartz-style tick key + policy</text>
+  </g>
+  <g>
+    <rect x="920" y="260" width="315" height="96" rx="8" class="card" fill="#fff8ed" stroke="#c97831"/>
+    <text x="1077.5" y="294" text-anchor="middle" class="cardTitle">Acquire</text>
+    <text x="1077.5" y="318" text-anchor="middle" class="detail">single leader decision</text>
+  </g>
+  <g>
+    <rect x="535" y="510" width="315" height="96" rx="8" class="card" fill="#eef7f0" stroke="#6e8f4f"/>
+    <text x="692.5" y="544" text-anchor="middle" class="cardTitle">Leader Work</text>
+    <text x="692.5" y="568" text-anchor="middle" class="detail">perform protected branch</text>
+  </g>
+  <g>
+    <rect x="920" y="510" width="315" height="96" rx="8" class="card" fill="#fff7e8" stroke="#9b7d54"/>
+    <text x="1077.5" y="544" text-anchor="middle" class="cardTitle">Persist Outcome</text>
+    <text x="1077.5" y="568" text-anchor="middle" class="detail">state, metric, and audit event</text>
+  </g>
+  <g>
+    <rect x="1295" y="510" width="240" height="96" rx="8" class="card" fill="#fff8ed" stroke="#c97831"/>
+    <text x="1415" y="544" text-anchor="middle" class="cardTitle">Skipped</text>
+    <text x="1415" y="568" text-anchor="middle" class="detail">peer returns quickly</text>
+  </g>
+  <g>
+    <rect x="150" y="510" width="240" height="96" rx="8" class="card" fill="#fdf7ff" stroke="#7c5aa6"/>
+    <text x="270" y="544" text-anchor="middle" class="cardTitle">Retry</text>
+    <text x="270" y="568" text-anchor="middle" class="detail">backoff or next tick</text>
+  </g>
+  <g>
+    <rect x="725" y="735" width="315" height="96" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
+    <text x="882.5" y="769" text-anchor="middle" class="cardTitle">Visible Result</text>
+    <text x="882.5" y="793" text-anchor="middle" class="detail">caller receives explicit outcome</text>
+  </g>
+  <g>
+    <rect x="392" y="378" width="165" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="414" cy="394" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="414" y="398" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
+    <text x="435" y="399" class="labelText" fill="#3f7d9c">normalize</text>
+  </g>
+  <path d="M 465 308 L 535 308" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <g>
+    <rect x="782" y="378" width="154" height="32" rx="16" class="pill" stroke="#c97831"/>
+    <circle cx="804" cy="394" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
+    <text x="804" y="398" text-anchor="middle" class="badgeText" fill="#c97831">2</text>
+    <text x="825" y="399" class="labelText" fill="#c97831">contend</text>
+  </g>
+  <path d="M 850 308 L 920 308" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
+  <g>
+    <rect x="765" y="438" width="190" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="787" cy="454" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="787" y="458" text-anchor="middle" class="badgeText" fill="#6e8f4f">3</text>
+    <text x="808" y="459" class="labelText" fill="#6e8f4f">leader branch</text>
+  </g>
+  <path d="M 1078 356 L 1078 430 Q 1078 454 1054 454 L 692 454 Q 668 454 668 478 L 668 510" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
+  <g>
+    <rect x="1245" y="438" width="152" height="32" rx="16" class="pill" stroke="#c97831"/>
+    <circle cx="1267" cy="454" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
+    <text x="1267" y="458" text-anchor="middle" class="badgeText" fill="#c97831">4</text>
+    <text x="1288" y="459" class="labelText" fill="#c97831">skipped</text>
+  </g>
+  <path d="M 1235 308 L 1376 308 Q 1400 308 1400 332 L 1400 510" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
+  <g>
+    <rect x="392" y="586" width="160" height="32" rx="16" class="pill" stroke="#7c5aa6"/>
+    <circle cx="414" cy="602" r="12.5" fill="#fff" stroke="#7c5aa6" stroke-width="1.6"/>
+    <text x="414" y="606" text-anchor="middle" class="badgeText" fill="#7c5aa6">5</text>
+    <text x="435" y="607" class="labelText" fill="#7c5aa6">backoff</text>
+  </g>
+  <path d="M 535 558 L 390 558" class="edge dash" stroke="#7c5aa6"/>
+  <polygon points="390,558 406,550 406,566" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
+  <path d="M 850 558 L 920 558" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
+  <path d="M 1078 606 L 1078 682 Q 1078 706 1054 706 L 906 706 Q 882 706 882 730 L 882 735" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <path d="M 1400 606 L 1400 682 Q 1400 706 1376 706 L 906 706" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
 
-<rect class="card redis" x="500" y="326" width="280" height="112" rx="18"/>
-<text class="cardTitle" x="540" y="366">Redis lock</text>
-<text class="cardText" x="540" y="394">key: nightly-settlement</text>
-<text class="cardText" x="540" y="416">leaseTime prevents leaks</text>
-
-<rect class="card leader" x="96" y="326" width="260" height="106" rx="18"/>
-<text class="cardTitle" x="126" y="365">node-1</text>
-<text class="cardText" x="126" y="393">BatchScheduler.run()</text>
-<text class="cardText" x="126" y="415">result: LEADER</text>
-
-<rect class="card skip" x="96" y="470" width="260" height="100" rx="18"/>
-<text class="cardTitle" x="126" y="508">node-2</text>
-<text class="cardText" x="126" y="536">lock contention</text>
-<text class="cardText" x="126" y="558">result: null skip</text>
-
-<rect class="card skip" x="96" y="604" width="260" height="92" rx="18"/>
-<text class="cardTitle" x="126" y="640">node-3</text>
-<text class="cardText" x="126" y="668">same lock name</text>
-<text class="cardText" x="126" y="690">result: null skip</text>
-
-<rect class="card job" x="902" y="326" width="282" height="112" rx="18"/>
-<text class="cardTitle" x="936" y="366">Settlement job</text>
-<text class="cardText" x="936" y="394">processYesterday()</text>
-<text class="cardText" x="936" y="416">executions.incrementAndGet()</text>
-
-<rect class="note" x="902" y="500" width="282" height="92" rx="16"/>
-<text class="cardTitle" x="936" y="538">Observed outcome</text>
-<text class="cardText" x="936" y="566">executions == 1</text>
-<text class="cardText" x="936" y="588">successCount == 1</text>
-
-<path class="route" d="M 366 210 C 420 210 438 344 500 360" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
-<path class="route" d="M 356 374 L 500 374" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
-<path class="route dash" d="M 356 520 C 430 520 426 398 500 398" stroke="#C96B2C" marker-end="url(#arrow-orange)"/>
-<path class="route dash" d="M 356 652 C 450 652 430 424 500 424" stroke="#C96B2C" marker-end="url(#arrow-orange)"/>
-<path class="route" d="M 780 382 L 902 382" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
-<path class="route" d="M 1043 438 L 1043 500" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
-
-<text class="label" x="405" y="194">same trigger</text>
-<text class="label" x="384" y="356">acquire attempt</text>
-<text class="label" x="382" y="514">null skip</text>
-<text class="label" x="384" y="646">null skip</text>
-<text class="label" x="810" y="358">leader only</text>
-
-<rect class="note" x="720" y="610" width="464" height="58" rx="14"/>
-<text class="small" x="952" y="636" text-anchor="middle">nodeId is for logs only; Lettuce issues the lock owner token.</text>
-<text class="footer" x="640" y="710" text-anchor="middle">bluetape4k-leader/examples/batch-scheduler</text>
 </svg>

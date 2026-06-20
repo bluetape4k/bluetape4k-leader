@@ -1,76 +1,131 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-labelledby="title desc" data-source-read="examples/cache-warmer/README.md; examples/cache-warmer/src/main/kotlin/io/bluetape4k/leader/examples/warmer/CachePartitionWarmer.kt; examples/cache-warmer/src/main/kotlin/io/bluetape4k/leader/examples/warmer/CachePartitionWarmerDemo.kt; examples/cache-warmer/src/test/kotlin/io/bluetape4k/leader/examples/warmer/CachePartitionWarmerTest.kt">
-<title id="title">Cache Warmer Per Partition Scenario</title>
-<desc id="desc">Three warmer instances attempt three independent partition locks; every partition elects exactly one warmer.</desc>
-<defs>
-  <marker id="arrow-blue" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#3F73D8"/></marker>
-  <marker id="arrow-green" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#2D8F64"/></marker>
-  <marker id="arrow-purple" markerWidth="4.5" markerHeight="4.5" refX="4.05" refY="2.25" orient="auto" markerUnits="strokeWidth"><path d="M 0.45 0.45 L 4.05 2.25 L 0.45 4.05 Z" fill="#755BC6"/></marker>
-  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#B9C7D6" flood-opacity="0.24"/></filter>
-  <style>
-    .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:2.2;filter:url(#shadow)}
-    .title{font-family:"Architects Daughter";font-size:40px;fill:#21334A}.subtitle,.small,.label,.footer{font-family:"Comic Mono";fill:#4B6075}.subtitle{font-size:15px}.small{font-size:12.5px}.label{font-size:14px}.footer{font-size:13px}
-    .card{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1.8;filter:url(#shadow)}.group{fill:#EAF2FF;stroke:#8EB2F0}.node{fill:#FFFFFF;stroke:#B8CCF4}.lock{fill:#EEF7F2;stroke:#8BC6A3}.cache{fill:#EEF8F8;stroke:#86C9C5}.result{fill:#FFF7E8;stroke:#E1B866}.warn{fill:#FFF1EA;stroke:#E8A47D}
-    .cardTitle{font-family:"Architects Daughter";font-size:23px;fill:#21334A}.cardText{font-family:"Comic Mono";font-size:13px;fill:#4B6075}.route{fill:none;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:7 6}
-  </style>
-</defs>
-<rect class="canvas" width="1280" height="760"/>
-<rect class="frame" x="34" y="28" width="1212" height="704" rx="30"/>
-<text class="title" x="72" y="84">Cache Warmer: One Winner Per Partition</text>
-<text class="subtitle" x="76" y="116">Every partition gets its own lock name, so concurrent warmer nodes do not share ambiguous group slots.</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1040" viewBox="0 0 1680 1040" role="img" aria-labelledby="title desc">
+  <defs>
+    <filter id="softShadow" x="-12%" y="-12%" width="124%" height="124%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#263238" flood-opacity="0.14"/>
+    </filter>
+    <style>
+      .canvas { fill: #fbfcf8; }
+      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 3; }
+      .title { font-family: "Architects Daughter"; font-size: 42px; fill: #263238; }
+      .subtitle, .small, .labelText, .detail, .footer, .msg, .note { font-family: "Comic Mono"; fill: #36464f; }
+      .subtitle { font-size: 17px; }
+      .footer { font-size: 13px; fill: #60727d; }
+      .band { fill: #f5f9fb; stroke: #c8d7df; stroke-width: 1.6; }
+      .bandAlt { fill: #fbfdf8; stroke: #d7e0d0; stroke-width: 1.6; }
+      .bandTitle { font-family: "Architects Daughter"; font-size: 22px; fill: #263238; }
+      .bandHint { font-family: "Comic Mono"; font-size: 12px; fill: #60727d; }
+      .card { filter: url(#softShadow); stroke-width: 2.4; rx: 8; }
+      .cardTitle { font-family: "Architects Daughter"; font-size: 24px; fill: #1f3138; }
+      .detail { font-size: 13.5px; fill: #546a73; }
+      .edge { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+      .edgeThin { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .dash { stroke-dasharray: 10 8; }
+      .pill { fill: #ffffff; stroke-width: 1.5; }
+      .labelText { font-size: 12.5px; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2.2; }
+      .participant { font-family: "Architects Daughter"; font-size: 20px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.7; }
+      .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+    </style>
+    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+  </defs>
+  <title id="title">Cache Warmer Scenario</title>
+  <desc id="desc">Scenario diagram for Cache Warmer.</desc>
+  <rect width="1680" height="1040" class="canvas"/>
+  <rect x="28" y="26" width="1624" height="988" rx="8" class="frame"/>
+  <text x="80" y="82" class="title">Cache Warmer Scenario</text>
+  <text x="82" y="114" class="subtitle">Cache shows the happy path plus skipped and retry outcomes without crossing cards.</text>
 
-<rect class="card group" x="90" y="212" width="270" height="330" rx="20"/>
-<text class="cardTitle" x="124" y="252">3 warmer instances</text>
-<text class="cardText" x="124" y="278">same prefix + partitions</text>
-<rect class="card node" x="124" y="314" width="202" height="54" rx="12"/>
-<text class="cardTitle" x="152" y="348">node-1</text>
-<rect class="card node" x="124" y="386" width="202" height="54" rx="12"/>
-<text class="cardTitle" x="152" y="420">node-2</text>
-<rect class="card node" x="124" y="458" width="202" height="54" rx="12"/>
-<text class="cardTitle" x="152" y="492">node-3</text>
+  <rect x="84" y="150" width="1512" height="720" rx="8" class="band"/>
+  <text x="112" y="184" class="bandTitle">Scenario Workflow</text>
+  <text x="112" y="207" class="bandHint">best-practices branching layout with explicit success, skipped, and retry lanes</text>
+  <g>
+    <rect x="150" y="260" width="315" height="96" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
+    <text x="307.5" y="294" text-anchor="middle" class="cardTitle">Trigger</text>
+    <text x="307.5" y="318" text-anchor="middle" class="detail">Cache: warm keyspace</text>
+  </g>
+  <g>
+    <rect x="535" y="260" width="315" height="96" rx="8" class="card" fill="#ffffff" stroke="#78909c"/><image data-bluetape4k-icon="redis" data-icon-source="redis/redis-icon.svg" x="545" y="268" width="18" height="18" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiBoZWlnaHQ9IjY0IiB2aWV3Qm94PSIwIDAgMzIgMzIiIHdpZHRoPSI2NCI+PGcgdHJhbnNmb3JtPSJtYXRyaXgoLjg0ODMyNyAwIDAgLjg0ODMyNyAtNy44ODM1NzMgLTkuNDQ5NjkxKSI+PHVzZSB4bGluazpocmVmPSIjQiIgZmlsbD0iI2E0MWUxMSIvPjxwYXRoIGQ9Ik00NS41MzYgMzQuOTVjLTIuMDEzIDEuMDUtMTIuNDQgNS4zMzctMTQuNjYgNi40OTRzLTMuNDUzIDEuMTQ2LTUuMjA3LjMwOC0xMi44NS01LjMyLTE0Ljg1LTYuMjc2LTIuMDQtMS42MTMtLjA3Ny0yLjM4MmwxNS4zMzItNS45MzZjMi4zMzItLjgzNiAzLjE0LS44NjcgNS4xMjYtLjE0UzQzLjU1IDMxLjg3IDQ1LjUxIDMyLjZzMi4wMzcgMS4zMS4wMjQgMi4zNnoiIGZpbGw9IiNkODJjMjAiLz48dXNlIHhsaW5rOmhyZWY9IiNCIiB5PSItNi4yMTgiIGZpbGw9IiNhNDFlMTEiLz48dXNlIHhsaW5rOmhyZWY9IiNDIiBmaWxsPSIjZDgyYzIwIi8+PHBhdGggZD0iTTQ1LjUzNiAyNi4wOThjLTIuMDEzIDEuMDUtMTIuNDQgNS4zMzctMTQuNjYgNi40OTVzLTMuNDUzIDEuMTQ2LTUuMjA3LjMwOC0xMi44NS01LjMyLTE0Ljg1LTYuMjc2Yy0xLS40NzgtMS41MjQtLjg4LTEuNTI0LTEuMjZWMjEuNTVzMTQuNDQ3LTMuMTQ1IDE2Ljc4LTMuOTgyIDMuMTQtLjg2NyA1LjEyNi0uMTQgMTMuODUzIDIuODY4IDE1LjgxNCAzLjU4N3YzLjc2YzAgLjM3Ny0uNDUyLjgtMS40NzcgMS4zMjR6IiBmaWxsPSIjYTQxZTExIi8+PHVzZSB4bGluazpocmVmPSIjQyIgeT0iLTYuNDQ5IiBmaWxsPSIjZDgyYzIwIi8+PGcgZmlsbD0iI2ZmZiI+PHBhdGggZD0iTTI5LjA5NiAyMC43MTJsLTEuMTgyLTEuOTY1LTMuNzc0LS4zNCAyLjgxNi0xLjAxNi0uODQ1LTEuNTYgMi42MzYgMS4wMyAyLjQ4Ni0uODE0LS42NzIgMS42MTIgMi41MzQuOTUtMy4yNjguMzR6TTIyLjggMjQuNjI0bDguNzQtMS4zNDItMi42NCAzLjg3MnoiLz48ZWxsaXBzZSBjeD0iMjAuNDQ0IiByeD0iNC42NzIiIHJ5PSIxLjgxMSIgY3k9IjIxLjQwMiIvPjwvZz48cGF0aCBkPSJNNDIuMTMyIDIxLjEzOGwtNS4xNyAyLjA0Mi0uMDA0LTQuMDg3eiIgZmlsbD0iIzdhMGMwMCIvPjxwYXRoIGQ9Ik0zNi45NjMgMjMuMThsLS41Ni4yMi01LjE2Ni0yLjA0MiA1LjcyMy0yLjI2NHoiIGZpbGw9IiNhZDIxMTUiLz48L2c+PGRlZnMgPjxwYXRoIGlkPSJCIiBkPSJNNDUuNTM2IDM4Ljc2NGMtMi4wMTMgMS4wNS0xMi40NCA1LjMzNy0xNC42NiA2LjQ5NHMtMy40NTMgMS4xNDYtNS4yMDcuMzA4LTEyLjg1LTUuMzItMTQuODUtNi4yNzZjLTEtLjQ3OC0xLjUyNC0uODgtMS41MjQtMS4yNnYtMy44MTNzMTQuNDQ3LTMuMTQ1IDE2Ljc4LTMuOTgyIDMuMTQtLjg2NyA1LjEyNi0uMTQgMTMuODUzIDIuODY4IDE1LjgxNCAzLjU4N3YzLjc2YzAgLjM3Ny0uNDUyLjgtMS40NzcgMS4zMjR6Ii8+PHBhdGggaWQ9IkMiIGQ9Ik00NS41MzYgMjguNzMzYy0yLjAxMyAxLjA1LTEyLjQ0IDUuMzM3LTE0LjY2IDYuNDk0cy0zLjQ1MyAxLjE0Ni01LjIwNy4zMDgtMTIuODUtNS4zMi0xNC44NS02LjI3Ni0yLjA0LTEuNjEzLS4wNzctMi4zODJsMTUuMzMyLTUuOTM1YzIuMzMyLS44MzcgMy4xNC0uODY3IDUuMTI2LS4xNHMxMi4zNSA0Ljg1MyAxNC4zMTIgNS41NyAyLjAzNyAxLjMxLjAyNCAyLjM2eiIvPjwvZGVmcz48L3N2Zz4=" preserveAspectRatio="xMidYMid meet"/>
+    <text x="692.5" y="294" text-anchor="middle" class="cardTitle">Build Claim</text>
+    <text x="692.5" y="318" text-anchor="middle" class="detail">Redis population key + policy</text>
+  </g>
+  <g>
+    <rect x="920" y="260" width="315" height="96" rx="8" class="card" fill="#fff8ed" stroke="#c97831"/>
+    <text x="1077.5" y="294" text-anchor="middle" class="cardTitle">Acquire</text>
+    <text x="1077.5" y="318" text-anchor="middle" class="detail">single leader decision</text>
+  </g>
+  <g>
+    <rect x="535" y="510" width="315" height="96" rx="8" class="card" fill="#eef7f0" stroke="#6e8f4f"/>
+    <text x="692.5" y="544" text-anchor="middle" class="cardTitle">Leader Work</text>
+    <text x="692.5" y="568" text-anchor="middle" class="detail">perform protected branch</text>
+  </g>
+  <g>
+    <rect x="920" y="510" width="315" height="96" rx="8" class="card" fill="#fff7e8" stroke="#9b7d54"/>
+    <text x="1077.5" y="544" text-anchor="middle" class="cardTitle">Persist Outcome</text>
+    <text x="1077.5" y="568" text-anchor="middle" class="detail">state, metric, and audit event</text>
+  </g>
+  <g>
+    <rect x="1295" y="510" width="240" height="96" rx="8" class="card" fill="#fff8ed" stroke="#c97831"/>
+    <text x="1415" y="544" text-anchor="middle" class="cardTitle">Skipped</text>
+    <text x="1415" y="568" text-anchor="middle" class="detail">peer returns quickly</text>
+  </g>
+  <g>
+    <rect x="150" y="510" width="240" height="96" rx="8" class="card" fill="#fdf7ff" stroke="#7c5aa6"/>
+    <text x="270" y="544" text-anchor="middle" class="cardTitle">Retry</text>
+    <text x="270" y="568" text-anchor="middle" class="detail">backoff or next tick</text>
+  </g>
+  <g>
+    <rect x="725" y="735" width="315" height="96" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
+    <text x="882.5" y="769" text-anchor="middle" class="cardTitle">Visible Result</text>
+    <text x="882.5" y="793" text-anchor="middle" class="detail">caller receives explicit outcome</text>
+  </g>
+  <g>
+    <rect x="392" y="378" width="165" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="414" cy="394" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="414" y="398" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
+    <text x="435" y="399" class="labelText" fill="#3f7d9c">normalize</text>
+  </g>
+  <path d="M 465 308 L 535 308" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <g>
+    <rect x="782" y="378" width="154" height="32" rx="16" class="pill" stroke="#c97831"/>
+    <circle cx="804" cy="394" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
+    <text x="804" y="398" text-anchor="middle" class="badgeText" fill="#c97831">2</text>
+    <text x="825" y="399" class="labelText" fill="#c97831">contend</text>
+  </g>
+  <path d="M 850 308 L 920 308" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
+  <g>
+    <rect x="765" y="438" width="190" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="787" cy="454" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="787" y="458" text-anchor="middle" class="badgeText" fill="#6e8f4f">3</text>
+    <text x="808" y="459" class="labelText" fill="#6e8f4f">leader branch</text>
+  </g>
+  <path d="M 1078 356 L 1078 430 Q 1078 454 1054 454 L 692 454 Q 668 454 668 478 L 668 510" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
+  <g>
+    <rect x="1245" y="438" width="152" height="32" rx="16" class="pill" stroke="#c97831"/>
+    <circle cx="1267" cy="454" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
+    <text x="1267" y="458" text-anchor="middle" class="badgeText" fill="#c97831">4</text>
+    <text x="1288" y="459" class="labelText" fill="#c97831">skipped</text>
+  </g>
+  <path d="M 1235 308 L 1376 308 Q 1400 308 1400 332 L 1400 510" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
+  <g>
+    <rect x="392" y="586" width="160" height="32" rx="16" class="pill" stroke="#7c5aa6"/>
+    <circle cx="414" cy="602" r="12.5" fill="#fff" stroke="#7c5aa6" stroke-width="1.6"/>
+    <text x="414" y="606" text-anchor="middle" class="badgeText" fill="#7c5aa6">5</text>
+    <text x="435" y="607" class="labelText" fill="#7c5aa6">backoff</text>
+  </g>
+  <path d="M 535 558 L 390 558" class="edge dash" stroke="#7c5aa6"/>
+  <polygon points="390,558 406,550 406,566" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
+  <path d="M 850 558 L 920 558" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
+  <path d="M 1078 606 L 1078 682 Q 1078 706 1054 706 L 906 706 Q 882 706 882 730 L 882 735" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <path d="M 1400 606 L 1400 682 Q 1400 706 1376 706 L 906 706" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
 
-<rect class="card lock" x="500" y="176" width="300" height="94" rx="18"/>
-<text class="cardTitle" x="534" y="212">region-asia lock</text>
-<text class="cardText" x="534" y="238">warmer:product-cache</text>
-<text class="cardText" x="534" y="256">-region-asia</text>
-<rect class="card lock" x="500" y="326" width="300" height="94" rx="18"/>
-<text class="cardTitle" x="534" y="362">region-eu lock</text>
-<text class="cardText" x="534" y="388">warmer:product-cache</text>
-<text class="cardText" x="534" y="406">-region-eu</text>
-<rect class="card lock" x="500" y="476" width="300" height="94" rx="18"/>
-<text class="cardTitle" x="534" y="512">region-us lock</text>
-<text class="cardText" x="534" y="538">warmer:product-cache</text>
-<text class="cardText" x="534" y="556">-region-us</text>
-
-<rect class="card cache" x="930" y="176" width="254" height="94" rx="18"/>
-<text class="cardTitle" x="964" y="212">Asia cache</text>
-<text class="cardText" x="964" y="238">preload(region-asia)</text>
-<rect class="card cache" x="930" y="326" width="254" height="94" rx="18"/>
-<text class="cardTitle" x="964" y="362">EU cache</text>
-<text class="cardText" x="964" y="388">preload(region-eu)</text>
-<rect class="card cache" x="930" y="476" width="254" height="94" rx="18"/>
-<text class="cardTitle" x="964" y="512">US cache</text>
-<text class="cardText" x="964" y="538">preload(region-us)</text>
-
-<path class="route" d="M 360 310 C 410 260 438 224 500 224" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
-<path class="route" d="M 360 378 L 500 378" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
-<path class="route" d="M 360 446 C 410 486 438 524 500 524" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
-<path class="route" d="M 800 224 L 930 224" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
-<path class="route" d="M 800 374 L 930 374" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
-<path class="route" d="M 800 524 L 930 524" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
-<path class="route dash" d="M 650 570 L 650 624" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
-
-<rect class="card result" x="386" y="624" width="528" height="66" rx="16"/>
-<text class="cardTitle" x="420" y="662">WarmResult</text>
-<text class="cardText" x="584" y="650">each node records warmed / skipped / failed</text>
-<text class="cardText" x="584" y="672">cluster total warmed equals partition count</text>
-
-<rect class="card warn" x="948" y="624" width="236" height="66" rx="16"/>
-<text class="cardTitle" x="982" y="662">No group slots</text>
-<text class="cardText" x="982" y="682">lock names own mapping</text>
-
-<text class="label" x="392" y="190">attempt each partition lock</text>
-<text class="label" x="832" y="206">one owner</text>
-<text class="label" x="832" y="356">one owner</text>
-<text class="label" x="832" y="506">one owner</text>
-<text class="footer" x="640" y="710" text-anchor="middle">bluetape4k-leader/examples/cache-warmer</text>
 </svg>

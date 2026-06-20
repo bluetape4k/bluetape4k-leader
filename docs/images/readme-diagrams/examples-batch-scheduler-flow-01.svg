@@ -1,44 +1,148 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-labelledby="title desc" data-source-read="examples/batch-scheduler/README.md; examples/batch-scheduler/src/main/kotlin/io/bluetape4k/leader/examples/batch/BatchScheduler.kt; examples/batch-scheduler/src/test/kotlin/io/bluetape4k/leader/examples/batch/BatchSchedulerTest.kt">
-<title id="title">Batch Scheduler Acquire Skip Release Flow</title>
-<desc id="desc">Flow of a scheduled batch trigger through lock acquisition, leader execution, contention skip, release, and TTL recovery.</desc>
-<defs>
-  <marker id="arrow-blue" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#3F73D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="arrow-green" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#2D8F64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="arrow-orange" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#C96B2C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <marker id="arrow-purple" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 2 L 10 6 L 1 10" fill="none" stroke="#755BC6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
-  <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#B9C7D6" flood-opacity="0.24"/></filter>
-  <style>
-    .canvas{fill:#F7FAFC}.frame{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:2.2;filter:url(#shadow)}
-    .title{font-family:"Architects Daughter";font-size:40px;fill:#21334A}.subtitle,.small,.label,.footer{font-family:"Comic Mono";fill:#4B6075}.subtitle{font-size:15px}.small{font-size:13px}.label{font-size:14px}.footer{font-size:13px}
-    .step{fill:#FFFFFF;stroke:#D6E2EC;stroke-width:1.8;filter:url(#shadow)}.start{fill:#FEF7E6;stroke:#E4BD67}.decision{fill:#EAF2FF;stroke:#8EB2F0}.success{fill:#EEF7F2;stroke:#8BC6A3}.skip{fill:#FFF1EA;stroke:#E8A47D}.recover{fill:#F4EEFF;stroke:#B7A3EC}
-    .stepTitle{font-family:"Architects Daughter";font-size:22px;fill:#21334A}.stepText{font-family:"Comic Mono";font-size:13px;fill:#4B6075}.route{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.dash{stroke-dasharray:7 6}
-  </style>
-</defs>
-<rect class="canvas" width="1280" height="760"/>
-<rect class="frame" x="34" y="28" width="1212" height="704" rx="30"/>
-<text class="title" x="72" y="84">Batch Scheduler Flow</text>
-<text class="subtitle" x="76" y="116">The example treats lock contention as a normal null result and still releases the lock after success or exception.</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1040" viewBox="0 0 1680 1040" role="img" aria-labelledby="title desc">
+  <defs>
+    <filter id="softShadow" x="-12%" y="-12%" width="124%" height="124%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#263238" flood-opacity="0.14"/>
+    </filter>
+    <style>
+      .canvas { fill: #fbfcf8; }
+      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 3; }
+      .title { font-family: "Architects Daughter"; font-size: 42px; fill: #263238; }
+      .subtitle, .small, .labelText, .detail, .footer, .msg, .note { font-family: "Comic Mono"; fill: #36464f; }
+      .subtitle { font-size: 17px; }
+      .footer { font-size: 13px; fill: #60727d; }
+      .band { fill: #f5f9fb; stroke: #c8d7df; stroke-width: 1.6; }
+      .bandAlt { fill: #fbfdf8; stroke: #d7e0d0; stroke-width: 1.6; }
+      .bandTitle { font-family: "Architects Daughter"; font-size: 22px; fill: #263238; }
+      .bandHint { font-family: "Comic Mono"; font-size: 12px; fill: #60727d; }
+      .card { filter: url(#softShadow); stroke-width: 2.4; rx: 8; }
+      .cardTitle { font-family: "Architects Daughter"; font-size: 24px; fill: #1f3138; }
+      .detail { font-size: 13.5px; fill: #546a73; }
+      .edge { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+      .edgeThin { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .dash { stroke-dasharray: 10 8; }
+      .pill { fill: #ffffff; stroke-width: 1.5; }
+      .labelText { font-size: 12.5px; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2.2; }
+      .participant { font-family: "Architects Daughter"; font-size: 20px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.7; }
+      .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+    </style>
+    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+  </defs>
+  <title id="title">Batch Scheduler Flow</title>
+  <desc id="desc">Flow diagram for Batch Scheduler.</desc>
+  <rect width="1680" height="1040" class="canvas"/>
+  <rect x="28" y="26" width="1624" height="988" rx="8" class="frame"/>
+  <text x="80" y="82" class="title">Batch Scheduler Flow</text>
+  <text x="82" y="114" class="subtitle">Scheduler follows trigger, prepare, election, protected work, and observable outcome bands.</text>
 
-<rect class="step start" x="86" y="200" width="210" height="86" rx="18"/><text class="stepTitle" x="120" y="235">1. Trigger</text><text class="stepText" x="120" y="262">periodic batch tick</text>
-<rect class="step" x="360" y="200" width="220" height="86" rx="18"/><text class="stepTitle" x="394" y="235">2. run(job)</text><text class="stepText" x="394" y="262">shared lockName</text>
-<rect class="step decision" x="650" y="190" width="236" height="106" rx="18"/><text class="stepTitle" x="684" y="228">3. Try Redis lock</text><text class="stepText" x="684" y="256">waitTime bounded</text><text class="stepText" x="684" y="278">leaseTime TTL</text>
-<rect class="step success" x="974" y="130" width="220" height="92" rx="18"/><text class="stepTitle" x="1008" y="166">4a. Leader</text><text class="stepText" x="1008" y="194">execute job once</text>
-<rect class="step skip" x="974" y="294" width="220" height="92" rx="18"/><text class="stepTitle" x="1008" y="330">4b. Contender</text><text class="stepText" x="1008" y="358">return null skip</text>
-<rect class="step success" x="650" y="470" width="236" height="92" rx="18"/><text class="stepTitle" x="684" y="506">5. Release</text><text class="stepText" x="684" y="534">success or exception</text>
-<rect class="step recover" x="360" y="470" width="220" height="92" rx="18"/><text class="stepTitle" x="394" y="506">Crash path</text><text class="stepText" x="394" y="534">TTL expires lock</text>
-<rect class="step" x="86" y="470" width="210" height="92" rx="18"/><text class="stepTitle" x="120" y="506">Next tick</text><text class="stepText" x="120" y="534">new election allowed</text>
+  <rect x="84" y="150" width="1512" height="105" rx="8" class="band"/>
+  <text x="112" y="184" class="bandTitle">Trigger</text><text x="112" y="207" class="bandHint">batch trigger</text>
+  <rect x="84" y="285" width="1512" height="105" rx="8" class="bandAlt"/>
+  <text x="112" y="319" class="bandTitle">Prepare</text><text x="112" y="342" class="bandHint">normalize lockName and deadline</text>
+  <rect x="84" y="420" width="1512" height="190" rx="8" class="band"/>
+  <text x="112" y="454" class="bandTitle">Election</text><text x="112" y="477" class="bandHint">winner, skipped peer, or failure branch</text>
+  <rect x="84" y="640" width="1512" height="105" rx="8" class="bandAlt"/>
+  <text x="112" y="674" class="bandTitle">Leader Work</text><text x="112" y="697" class="bandHint">single protected side effect</text>
+  <rect x="84" y="780" width="1512" height="150" rx="8" class="band"/>
+  <text x="112" y="814" class="bandTitle">Outcome</text><text x="112" y="837" class="bandHint">record, return, and next cycle</text>
+  <g>
+    <rect x="630" y="164" width="420" height="76" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
+    <text x="840" y="198" text-anchor="middle" class="cardTitle">1. Scheduler</text>
+    <text x="840" y="222" text-anchor="middle" class="detail">batch trigger</text>
+  </g>
+  <g>
+    <rect x="630" y="299" width="420" height="76" rx="8" class="card" fill="#ffffff" stroke="#78909c"/>
+    <text x="840" y="333" text-anchor="middle" class="cardTitle">2. Prepare Context</text>
+    <text x="840" y="357" text-anchor="middle" class="detail">Quartz-style tick + wait budget</text>
+  </g>
+  <g>
+    <rect x="630" y="434" width="420" height="76" rx="8" class="card" fill="#f8fbef" stroke="#6e8f4f"/>
+    <text x="840" y="468" text-anchor="middle" class="cardTitle">3. Try Leadership</text>
+    <text x="840" y="492" text-anchor="middle" class="detail">attempt ownership once</text>
+  </g>
+  <polygon points="840,535 982,570 840,605 698,570" fill="#fff8ed" stroke="#c97831" stroke-width="2.4" filter="url(#softShadow)"/>
+  <text x="840" y="566" text-anchor="middle" class="cardTitle">4. Acquired?</text>
+  <text x="840" y="588" text-anchor="middle" class="detail">branch on election result</text>
+  <g>
+    <rect x="200" y="531" width="330" height="78" rx="8" class="card" fill="#fff5f5" stroke="#b86868"/>
+    <text x="365" y="565" text-anchor="middle" class="cardTitle">Failure</text>
+    <text x="365" y="589" text-anchor="middle" class="detail">record thrown error</text>
+  </g>
+  <g>
+    <rect x="1150" y="531" width="330" height="78" rx="8" class="card" fill="#fff8ed" stroke="#c97831"/>
+    <text x="1315" y="565" text-anchor="middle" class="cardTitle">Skipped Peer</text>
+    <text x="1315" y="589" text-anchor="middle" class="detail">return no-op result</text>
+  </g>
+  <g>
+    <rect x="630" y="652" width="420" height="76" rx="8" class="card" fill="#eef7f0" stroke="#6e8f4f"/>
+    <text x="840" y="686" text-anchor="middle" class="cardTitle">5. Run Protected Work</text>
+    <text x="840" y="710" text-anchor="middle" class="detail">only elected worker proceeds</text>
+  </g>
+  <g>
+    <rect x="630" y="792" width="420" height="76" rx="8" class="card" fill="#fff7e8" stroke="#9b7d54"/>
+    <text x="840" y="826" text-anchor="middle" class="cardTitle">6. Record Outcome</text>
+    <text x="840" y="850" text-anchor="middle" class="detail">success, skipped, or failed</text>
+  </g>
+  <g>
+    <rect x="630" y="884" width="420" height="76" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
+    <text x="840" y="918" text-anchor="middle" class="cardTitle">7. Return Result</text>
+    <text x="840" y="942" text-anchor="middle" class="detail">release lease and report</text>
+  </g>
+  <g>
+    <rect x="875" y="257" width="210" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="897" cy="273" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="897" y="277" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
+    <text x="918" y="278" class="labelText" fill="#3f7d9c">request context</text>
+  </g>
+  <path d="M 840 240 L 840 299" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <g>
+    <rect x="875" y="392" width="205" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="897" cy="408" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="897" y="412" text-anchor="middle" class="badgeText" fill="#6e8f4f">2</text>
+    <text x="918" y="413" class="labelText" fill="#6e8f4f">lock attempt</text>
+  </g>
+  <path d="M 840 375 L 840 434" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
+  <path d="M 840 510 L 840 535" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
+  <g>
+    <rect x="525" y="535" width="185" height="32" rx="16" class="pill" stroke="#b86868"/>
+    <circle cx="547" cy="551" r="12.5" fill="#fff" stroke="#b86868" stroke-width="1.6"/>
+    <text x="547" y="555" text-anchor="middle" class="badgeText" fill="#b86868">3</text>
+    <text x="568" y="556" class="labelText" fill="#b86868">exception</text>
+  </g>
+  <path d="M 698 570 L 530 570" class="edge" stroke="#b86868" marker-end="url(#arrow-skip)"/>
+  <g>
+    <rect x="986" y="535" width="178" height="32" rx="16" class="pill" stroke="#c97831"/>
+    <circle cx="1008" cy="551" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
+    <text x="1008" y="555" text-anchor="middle" class="badgeText" fill="#c97831">4</text>
+    <text x="1029" y="556" class="labelText" fill="#c97831">not leader</text>
+  </g>
+  <path d="M 982 570 L 1150 570" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
+  <g>
+    <rect x="875" y="612" width="178" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="897" cy="628" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="897" y="632" text-anchor="middle" class="badgeText" fill="#6e8f4f">5</text>
+    <text x="918" y="633" class="labelText" fill="#6e8f4f">leader only</text>
+  </g>
+  <path d="M 840 605 L 840 652" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
+  <path d="M 840 728 L 840 792" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
+  <path d="M 840 868 L 840 884" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <g>
+    <rect x="236" y="952" width="186" height="32" rx="16" class="pill" stroke="#7c5aa6"/>
+    <circle cx="258" cy="968" r="12.5" fill="#fff" stroke="#7c5aa6" stroke-width="1.6"/>
+    <text x="258" y="972" text-anchor="middle" class="badgeText" fill="#7c5aa6">6</text>
+    <text x="279" y="973" class="labelText" fill="#7c5aa6">next cycle</text>
+  </g>
+  <path d="M 840 960 L 840 986 Q 840 1000 826 1000 L 150 1000 Q 136 1000 136 986 L 136 202 Q 136 184 154 184 L 630 184" class="edge dash" stroke="#7c5aa6"/>
+  <polygon points="630,184 614,176 614,192" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
 
-<path class="route" d="M 296 243 L 360 243" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
-<path class="route" d="M 580 243 L 650 243" stroke="#3F73D8" marker-end="url(#arrow-blue)"/>
-<path class="route" d="M 886 228 L 930 228 L 930 176 L 974 176" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
-<path class="route" d="M 886 258 L 930 258 L 930 340 L 974 340" stroke="#C96B2C" marker-end="url(#arrow-orange)"/>
-<path class="route" d="M 1084 222 L 1084 252 L 1226 252 L 1226 516 L 886 516" stroke="#2D8F64" marker-end="url(#arrow-green)"/>
-<path class="route dash" d="M 650 516 L 580 516" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
-<path class="route dash" d="M 360 516 L 296 516" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
-<path class="route dash" d="M 191 470 C 140 400 140 334 191 286" stroke="#755BC6" marker-end="url(#arrow-purple)"/>
-
-<text class="label" x="910" y="168">acquired</text>
-<text class="label" x="900" y="316">not acquired</text>
-<text class="label" x="590" y="454">TTL fallback</text>
-<text class="footer" x="640" y="710" text-anchor="middle">bluetape4k-leader/examples/batch-scheduler</text>
 </svg>

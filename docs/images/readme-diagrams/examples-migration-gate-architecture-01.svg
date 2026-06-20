@@ -1,88 +1,145 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900" role="img" aria-labelledby="title desc" data-source-read="examples/migration-gate/README.md; examples/migration-gate/src/main/kotlin/io/bluetape4k/leader/examples/migration/MigrationGate.kt; examples/migration-gate/src/main/kotlin/io/bluetape4k/leader/examples/migration/MigrationGateOptions.kt; examples/migration-gate/src/main/kotlin/io/bluetape4k/leader/examples/migration/Outcome.kt">
-  <title id="title">Migration Gate Architecture</title>
-  <desc id="desc">MigrationGate wraps ExposedJdbcLeaderElector so only one rolling-deploy pod runs a schema migration, while all pods verify the schema marker before serving.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1040" viewBox="0 0 1680 1040" role="img" aria-labelledby="title desc">
   <defs>
-    <marker id="arrow-blue" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4f77c9"/></marker>
-    <marker id="arrow-green" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#329a74"/></marker>
-    <marker id="arrow-amber" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#cf8428"/></marker>
-    <marker id="arrow-purple" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#7a61c8"/></marker>
+    <filter id="softShadow" x="-12%" y="-12%" width="124%" height="124%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#263238" flood-opacity="0.14"/>
+    </filter>
     <style>
-      .canvas { fill: #f6f9fc; }
-      .frame { fill: #ffffff; stroke: #c4d5e8; stroke-width: 3; }
-      .title, .card-title { font-family: "Architects Daughter"; fill: #263a57; }
-      .title { font-size: 44px; }
-      .subtitle, .layer-label, .card-sub, .route-label, .footer { font-family: "Comic Mono"; fill: #526276; }
+      .canvas { fill: #fbfcf8; }
+      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 3; }
+      .title { font-family: "Architects Daughter"; font-size: 42px; fill: #263238; }
+      .subtitle, .small, .labelText, .detail, .footer, .msg, .note { font-family: "Comic Mono"; fill: #36464f; }
       .subtitle { font-size: 17px; }
-      .layer-label { font-size: 15px; font-weight: 700; }
-      .card-title { font-size: 26px; }
-      .card-sub { font-size: 14px; }
-      .route-label { font-size: 13px; }
-      .footer { font-size: 14px; }
-      .layer { stroke-width: 2.2; rx: 24; }
-      .card { stroke-width: 2.4; rx: 16; }
-      .route { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-      .dash { stroke-dasharray: 9 8; }
-      .pill { fill: #ffffff; stroke: #cbd9e7; stroke-width: 1.4; rx: 9; }
+      .footer { font-size: 13px; fill: #60727d; }
+      .band { fill: #f5f9fb; stroke: #c8d7df; stroke-width: 1.6; }
+      .bandAlt { fill: #fbfdf8; stroke: #d7e0d0; stroke-width: 1.6; }
+      .bandTitle { font-family: "Architects Daughter"; font-size: 22px; fill: #263238; }
+      .bandHint { font-family: "Comic Mono"; font-size: 12px; fill: #60727d; }
+      .card { filter: url(#softShadow); stroke-width: 2.4; rx: 8; }
+      .cardTitle { font-family: "Architects Daughter"; font-size: 24px; fill: #1f3138; }
+      .detail { font-size: 13.5px; fill: #546a73; }
+      .edge { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+      .edgeThin { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .dash { stroke-dasharray: 10 8; }
+      .pill { fill: #ffffff; stroke-width: 1.5; }
+      .labelText { font-size: 12.5px; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2.2; }
+      .participant { font-family: "Architects Daughter"; font-size: 20px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.7; }
+      .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
     </style>
+    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
+  <title id="title">Migration Gate Architecture</title>
+  <desc id="desc">Architecture diagram for Migration Gate.</desc>
+  <rect width="1680" height="1040" class="canvas"/>
+  <rect x="28" y="26" width="1624" height="988" rx="8" class="frame"/>
+  <text x="80" y="82" class="title">Migration Gate Architecture</text>
+  <text x="82" y="114" class="subtitle">Migration uses one elected worker while peers observe explicit skipped or failed outcomes.</text>
 
-  <rect class="canvas" width="1500" height="900"/>
-  <rect class="frame" x="42" y="34" width="1416" height="820" rx="30"/>
-  <text class="title" x="86" y="92">Migration Gate Architecture</text>
-  <text class="subtitle" x="90" y="126">The example separates boot-time gate orchestration, Exposed JDBC locking, schema marker checks, and user migration SQL.</text>
+  <rect x="84" y="150" width="1512" height="180" rx="8" class="band"/>
+  <text x="112" y="184" class="bandTitle">Trigger Layer</text>
+  <text x="112" y="207" class="bandHint">external request, timer, or controller callback</text>
+  <rect x="84" y="370" width="1512" height="220" rx="8" class="bandAlt"/>
+  <text x="112" y="404" class="bandTitle">Leader Election Layer</text>
+  <text x="112" y="427" class="bandHint">single winner gates the critical branch</text>
+  <rect x="84" y="630" width="1512" height="220" rx="8" class="band"/>
+  <text x="112" y="664" class="bandTitle">Work and State Layer</text>
+  <text x="112" y="687" class="bandHint">protected work records visible state</text>
+  <g>
+    <rect x="250" y="200" width="340" height="90" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
+    <text x="420" y="234" text-anchor="middle" class="cardTitle">Migration</text>
+    <text x="420" y="258" text-anchor="middle" class="detail">schema gate</text>
+  </g>
+  <g>
+    <rect x="670" y="200" width="340" height="90" rx="8" class="card" fill="#f8fbef" stroke="#6e8f4f"/>
+    <text x="840" y="234" text-anchor="middle" class="cardTitle">Leader API</text>
+    <text x="840" y="258" text-anchor="middle" class="detail">runIfLeader / result contract</text>
+  </g>
+  <g>
+    <rect x="1090" y="200" width="340" height="90" rx="8" class="card" fill="#fff8ed" stroke="#c97831"/>
+    <text x="1260" y="234" text-anchor="middle" class="cardTitle">Peer Workers</text>
+    <text x="1260" y="258" text-anchor="middle" class="detail">same lockName, same policy</text>
+  </g>
+  <g>
+    <rect x="250" y="435" width="340" height="92" rx="8" class="card" fill="#ffffff" stroke="#78909c"/>
+    <text x="420" y="469" text-anchor="middle" class="cardTitle">Candidate Context</text>
+    <text x="420" y="493" text-anchor="middle" class="detail">deadline, key, tenant scope</text>
+  </g>
+  <g>
+    <rect x="670" y="435" width="340" height="92" rx="8" class="card" fill="#eef7f0" stroke="#6e8f4f"/>
+    <text x="840" y="469" text-anchor="middle" class="cardTitle">Election Guard</text>
+    <text x="840" y="493" text-anchor="middle" class="detail">try lock, lease, listener events</text>
+  </g>
+  <g>
+    <rect x="1090" y="435" width="340" height="92" rx="8" class="card" fill="#fdf7ff" stroke="#7c5aa6"/>
+    <text x="1260" y="469" text-anchor="middle" class="cardTitle">one writer</text>
+    <text x="1260" y="493" text-anchor="middle" class="detail">lease or conditional ownership</text>
+  </g>
+  <g>
+    <rect x="250" y="700" width="340" height="92" rx="8" class="card" fill="#eef7f0" stroke="#6e8f4f"/>
+    <text x="420" y="734" text-anchor="middle" class="cardTitle">Leader Work</text>
+    <text x="420" y="758" text-anchor="middle" class="detail">one protected side effect</text>
+  </g>
+  <g>
+    <rect x="670" y="700" width="340" height="92" rx="8" class="card" fill="#fff7e8" stroke="#9b7d54"/>
+    <text x="840" y="734" text-anchor="middle" class="cardTitle">Outcome Record</text>
+    <text x="840" y="758" text-anchor="middle" class="detail">elected, skipped, or failed</text>
+  </g>
+  <g>
+    <rect x="1090" y="700" width="340" height="92" rx="8" class="card" fill="#fff5f5" stroke="#b86868"/>
+    <text x="1260" y="734" text-anchor="middle" class="cardTitle">Observers</text>
+    <text x="1260" y="758" text-anchor="middle" class="detail">metrics, logs, dashboards</text>
+  </g>
+  <g>
+    <rect x="608" y="333" width="266" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="630" cy="349" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="630" y="353" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
+    <text x="651" y="354" class="labelText" fill="#3f7d9c">candidate enters election</text>
+  </g>
+  <path d="M 420 290 L 420 346 Q 420 370 444 370 L 840 370 Q 864 370 864 394 L 864 435" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <g>
+    <rect x="948" y="333" width="226" height="32" rx="16" class="pill" stroke="#c97831"/>
+    <circle cx="970" cy="349" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
+    <text x="970" y="353" text-anchor="middle" class="badgeText" fill="#c97831">2</text>
+    <text x="991" y="354" class="labelText" fill="#c97831">peers contend</text>
+  </g>
+  <path d="M 1260 290 L 1260 346 Q 1260 370 1236 370 L 864 370" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
+  <g>
+    <rect x="1045" y="535" width="260" height="32" rx="16" class="pill" stroke="#7c5aa6"/>
+    <circle cx="1067" cy="551" r="12.5" fill="#fff" stroke="#7c5aa6" stroke-width="1.6"/>
+    <text x="1067" y="555" text-anchor="middle" class="badgeText" fill="#7c5aa6">3</text>
+    <text x="1088" y="556" class="labelText" fill="#7c5aa6">ownership stored</text>
+  </g>
+  <path d="M 1010 481 L 1090 481" class="edge" stroke="#7c5aa6" marker-end="url(#arrow-purple)"/>
+  <g>
+    <rect x="528" y="592" width="242" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="550" cy="608" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="550" y="612" text-anchor="middle" class="badgeText" fill="#6e8f4f">4</text>
+    <text x="571" y="613" class="labelText" fill="#6e8f4f">leader branch opens</text>
+  </g>
+  <path d="M 840 527 L 840 592 Q 840 630 802 630 L 420 630 Q 396 630 396 654 L 396 700" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
+  <g>
+    <rect x="608" y="856" width="252" height="32" rx="16" class="pill" stroke="#9b7d54"/>
+    <circle cx="630" cy="872" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
+    <text x="630" y="876" text-anchor="middle" class="badgeText" fill="#9b7d54">5</text>
+    <text x="651" y="877" class="labelText" fill="#9b7d54">state becomes visible</text>
+  </g>
+  <path d="M 590 746 L 670 746" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
+  <g>
+    <rect x="1038" y="856" width="242" height="32" rx="16" class="pill" stroke="#b86868"/>
+    <circle cx="1060" cy="872" r="12.5" fill="#fff" stroke="#b86868" stroke-width="1.6"/>
+    <text x="1060" y="876" text-anchor="middle" class="badgeText" fill="#b86868">6</text>
+    <text x="1081" y="877" class="labelText" fill="#b86868">metrics explain result</text>
+  </g>
+  <path d="M 1010 746 L 1090 746" class="edge" stroke="#b86868" marker-end="url(#arrow-skip)"/>
 
-  <rect class="layer" x="92" y="164" width="1316" height="158" fill="#eef5ff" stroke="#d2e1f3"/>
-  <text class="layer-label" x="124" y="198">Rolling deploy callers</text>
-  <rect class="card" x="134" y="220" width="268" height="76" fill="#eaf2ff" stroke="#6d9df0"/>
-  <text class="card-title" x="268" y="254" text-anchor="middle">new pod set</text>
-  <text class="card-sub" x="268" y="276" text-anchor="middle">pod-1 / pod-2 / pod-3</text>
-  <rect class="card" x="508" y="220" width="348" height="76" fill="#fff4de" stroke="#d59c3f"/>
-  <text class="card-title" x="682" y="254" text-anchor="middle">MigrationGateOptions</text>
-  <text class="card-sub" x="682" y="276" text-anchor="middle">nodeId, lockName, waitTime, leaseTime</text>
-  <rect class="card" x="948" y="220" width="404" height="76" fill="#f0ecff" stroke="#9b7aec"/>
-  <text class="card-title" x="1150" y="254" text-anchor="middle">outcome handling</text>
-  <text class="card-sub" x="1150" y="276" text-anchor="middle">Migrated / AlreadyApplied / Skipped / Failed</text>
-
-  <rect class="layer" x="92" y="360" width="1316" height="208" fill="#fffaf1" stroke="#e6c57c"/>
-  <text class="layer-label" x="124" y="394">Example module boundary</text>
-  <rect class="card" x="132" y="432" width="360" height="98" fill="#eaf2ff" stroke="#6d9df0"/>
-  <text class="card-title" x="312" y="466" text-anchor="middle">MigrationGate</text>
-  <text class="card-sub" x="312" y="490" text-anchor="middle">runMigration(migrationId)</text>
-  <text class="card-sub" x="312" y="512" text-anchor="middle">precheck / in-lock / post-skip</text>
-  <rect class="card" x="570" y="432" width="420" height="98" fill="#f0ecff" stroke="#9b7aec"/>
-  <text class="card-title" x="780" y="466" text-anchor="middle">ExposedJdbcLeaderElector</text>
-  <text class="card-sub" x="780" y="490" text-anchor="middle">runIfLeader(lockName)</text>
-  <text class="card-sub" x="780" y="512" text-anchor="middle">releases on success or failure</text>
-  <rect class="card" x="1064" y="432" width="300" height="98" fill="#edf9f4" stroke="#63b891"/>
-  <text class="card-title" x="1214" y="466" text-anchor="middle">migration lambda</text>
-  <text class="card-sub" x="1214" y="490" text-anchor="middle">idempotent DDL</text>
-  <text class="card-sub" x="1214" y="512" text-anchor="middle">marker insert in same tx</text>
-
-  <rect class="layer" x="92" y="624" width="1316" height="150" fill="#effaf4" stroke="#9dcfaf"/>
-  <text class="layer-label" x="124" y="658">Shared database state</text>
-  <rect class="card" x="242" y="684" width="300" height="64" fill="#edf9f4" stroke="#63b891"/>
-  <text class="card-title" x="392" y="720" text-anchor="middle">LeaderLockTable</text>
-  <text class="card-sub" x="392" y="740" text-anchor="middle">lockOwner + lockedUntil</text>
-  <rect class="card" x="810" y="684" width="330" height="64" fill="#e7f8f7" stroke="#66bebc"/>
-  <text class="card-title" x="975" y="720" text-anchor="middle">MigrationMarkerTable</text>
-  <text class="card-sub" x="975" y="740" text-anchor="middle">migrationId proves schema applied</text>
-
-  <path class="route" d="M402 258 L508 258" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
-  <path class="route" d="M856 258 L948 258" stroke="#7a61c8" marker-end="url(#arrow-purple)"/>
-  <path class="route" d="M268 296 L268 400 L312 400 L312 432" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
-  <path class="route" d="M492 480 L570 480" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
-  <rect class="pill" x="498" y="452" width="64" height="24"/>
-  <text class="route-label" x="530" y="469" text-anchor="middle">delegates</text>
-  <path class="route" d="M990 480 L1064 480" stroke="#329a74" marker-end="url(#arrow-green)"/>
-  <path class="route" d="M780 530 L780 612 L392 612 L392 684" stroke="#7a61c8" marker-end="url(#arrow-purple)"/>
-  <rect class="pill" x="454" y="624" width="126" height="24"/>
-  <text class="route-label" x="517" y="641" text-anchor="middle">lock row TTL</text>
-  <path class="route dash" d="M1214 530 L1214 642 L975 642 L975 684" stroke="#329a74" marker-end="url(#arrow-green)"/>
-  <rect class="pill" x="1058" y="614" width="112" height="24"/>
-  <text class="route-label" x="1114" y="631" text-anchor="middle">write marker</text>
-  <path class="route dash" d="M312 530 L312 574 L975 574 L975 684" stroke="#cf8428" marker-end="url(#arrow-amber)"/>
-  <rect class="pill" x="596" y="540" width="156" height="24"/>
-  <text class="route-label" x="674" y="557" text-anchor="middle">read marker 3 times</text>
-
-  <text class="footer" x="750" y="826" text-anchor="middle">Set leaseTime longer than worst-case migration duration because this backend does not auto-extend the lease. github.com/bluetape4k/bluetape4k-leader</text>
 </svg>

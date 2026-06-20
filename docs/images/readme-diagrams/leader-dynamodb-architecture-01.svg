@@ -2,35 +2,27 @@
   <title id="title">leader-dynamodb runtime architecture</title>
   <desc id="desc">Architecture diagram for the DynamoDB leader backend showing application APIs, electors, lock client operations, caller-owned DynamoDB table rows, and the distinction between leaseExpiry correctness and ttl cleanup.</desc>
   <defs>
-    <marker id="arrow-blue" viewBox="0 0 12 12" markerWidth="9" markerHeight="9" refX="10" refY="6" orient="auto">
-      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#2563eb" stroke-width="2" stroke-linejoin="round"/>
-    </marker>
-    <marker id="arrow-green" viewBox="0 0 12 12" markerWidth="9" markerHeight="9" refX="10" refY="6" orient="auto">
-      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#059669" stroke-width="2" stroke-linejoin="round"/>
-    </marker>
-    <marker id="arrow-orange" viewBox="0 0 12 12" markerWidth="9" markerHeight="9" refX="10" refY="6" orient="auto">
-      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#ea580c" stroke-width="2" stroke-linejoin="round"/>
-    </marker>
-    <marker id="arrow-purple" viewBox="0 0 12 12" markerWidth="9" markerHeight="9" refX="10" refY="6" orient="auto">
-      <path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linejoin="round"/>
-    </marker>
+    <marker markerUnits="userSpaceOnUse" id="arrow-blue" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#2563eb" stroke="#2563eb" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker markerUnits="userSpaceOnUse" id="arrow-green" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669" stroke="#059669" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker markerUnits="userSpaceOnUse" id="arrow-orange" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#ea580c" stroke="#ea580c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker markerUnits="userSpaceOnUse" id="arrow-purple" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c3aed" stroke="#7c3aed" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <style>
       .canvas { fill: #f8fafc; }
       .frame { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.8; rx: 24; }
-      .title { font-family: "Architects Daughter", "Comic Mono", "Comic Sans MS", cursive; font-size: 36px; fill: #0f172a; font-weight: 700; }
-      .subtitle { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 15px; fill: #475569; }
-      .section-title { font-family: "Architects Daughter", "Comic Mono", cursive; font-size: 22px; fill: #0f172a; font-weight: 700; }
-      .card-title { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 15px; fill: #0f172a; font-weight: 700; }
-      .card-sub { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 12px; fill: #475569; }
-      .tiny { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 11px; fill: #475569; }
-      .label { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 12px; font-weight: 700; }
-      .footer { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 11px; fill: #64748b; }
+      .title { font-family: "Architects Daughter", "Comic Mono", "Comic Mono"; font-size: 36px; fill: #0f172a; font-weight: 700; }
+      .subtitle { font-family: "Comic Mono", "Architects Daughter"; font-size: 15px; fill: #475569; }
+      .section-title { font-family: "Architects Daughter", "Comic Mono"; font-size: 22px; fill: #0f172a; font-weight: 700; }
+      .card-title { font-family: "Comic Mono", "Architects Daughter"; font-size: 15px; fill: #0f172a; font-weight: 700; }
+      .card-sub { font-family: "Comic Mono", "Architects Daughter"; font-size: 12px; fill: #475569; }
+      .tiny { font-family: "Comic Mono", "Architects Daughter"; font-size: 11px; fill: #475569; }
+      .label { font-family: "Comic Mono", "Architects Daughter"; font-size: 12px; font-weight: 700; }
+      .footer { font-family: "Comic Mono", "Architects Daughter"; font-size: 11px; fill: #64748b; }
       .zone { fill: #f1f5f9; stroke: #cbd5e1; stroke-width: 1.5; rx: 20; }
       .zone-blue { fill: #eff6ff; stroke: #93c5fd; }
       .zone-green { fill: #ecfdf5; stroke: #86efac; }
       .zone-orange { fill: #fff7ed; stroke: #fdba74; }
       .zone-purple { fill: #faf5ff; stroke: #c4b5fd; }
-      .card { stroke-width: 1.6; rx: 12; }
+      .card { stroke-width: 1.8; rx: 12; }
       .card-blue { fill: #dbeafe; stroke: #2563eb; }
       .card-green { fill: #dcfce7; stroke: #16a34a; }
       .card-orange { fill: #ffedd5; stroke: #ea580c; }
@@ -44,8 +36,8 @@
       .table-line { stroke: #cbd5e1; stroke-width: 1.1; }
       .schema-head { fill: #312e81; }
       .schema-body { fill: #f5f3ff; stroke: #a78bfa; stroke-width: 1.5; rx: 12; }
-      .schema-title { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 14px; fill: #ffffff; font-weight: 700; }
-      .schema-text { font-family: "Comic Mono", "Architects Daughter", monospace; font-size: 12px; fill: #312e81; }
+      .schema-title { font-family: "Comic Mono", "Architects Daughter"; font-size: 14px; fill: #ffffff; font-weight: 700; }
+      .schema-text { font-family: "Comic Mono", "Architects Daughter"; font-size: 12px; fill: #312e81; }
     </style>
   </defs>
 
@@ -113,15 +105,15 @@
   <text class="card-sub" x="1030" y="538" text-anchor="middle">leader/group/{lockName}#slot-N</text>
 
   <path class="blue" d="M 346 248 L 462 248"/>
-  <path class="blue" d="M 346 340 L 462 256"/>
-  <path class="blue" d="M 346 432 L 462 274"/>
+  <path class="blue" d="M 346 340 L 386 340 Q 404 340 404 322 L 404 274 Q 404 256 422 256 L 462 256"/>
+  <path class="blue" d="M 346 432 L 386 432 Q 404 432 404 414 L 404 292 Q 404 274 422 274 L 462 274"/>
   <path class="blue" d="M 346 526 L 462 526"/>
   <text class="label" x="390" y="223" fill="#1d4ed8">API calls</text>
 
   <path class="green" d="M 758 388 L 884 388"/>
   <text class="label" x="806" y="363" fill="#047857">conditional writes</text>
 
-  <path class="orange dashed" d="M 758 526 C 808 526 810 512 884 512"/>
+  <path class="orange dashed" d="M 758 526 L 815 526 Q 821 526 821 520 L 821 518 Q 821 512 827 512 L 884 512"/>
   <text class="label" x="799" y="548" fill="#c2410c">lease context</text>
 
   <rect class="zone zone-purple" x="72" y="628" width="1136" height="112"/>
@@ -143,11 +135,11 @@
   <path class="purple" d="M 858 682 L 890 682"/>
 
   <g transform="translate(94 746)">
-    <line x1="0" y1="8" x2="34" y2="8" stroke="#2563eb" stroke-width="2.2" marker-end="url(#arrow-blue)"/>
+    <line x1="0" y1="8" x2="34" y2="8" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrow-blue)"/>
     <text class="tiny" x="44" y="12">API dependency</text>
-    <line x1="182" y1="8" x2="216" y2="8" stroke="#059669" stroke-width="2.2" marker-end="url(#arrow-green)"/>
+    <line x1="182" y1="8" x2="216" y2="8" stroke="#059669" stroke-width="2.5" marker-end="url(#arrow-green)"/>
     <text class="tiny" x="226" y="12">DynamoDB operation</text>
-    <line x1="428" y1="8" x2="462" y2="8" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 6" marker-end="url(#arrow-orange)"/>
+    <line x1="428" y1="8" x2="462" y2="8" stroke="#ea580c" stroke-width="2.5" stroke-dasharray="7 6" marker-end="url(#arrow-orange)"/>
     <text class="tiny" x="472" y="12">lease handle context</text>
   </g>
 

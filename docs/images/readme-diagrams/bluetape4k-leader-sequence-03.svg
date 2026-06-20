@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1100" viewBox="0 0 1500 1100" role="img" aria-labelledby="title desc">
   <title id="title">Multi-leader Group Slot Sequence</title>
   <desc id="desc">Source model from README.md multi-leader group section and LeaderGroupElector/SuspendLeaderGroupElector contracts. Reader question: how do bounded slots differ from a single leader lock?</desc>
   <defs>
-    <marker id="arrow-blue" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#4f77c9"/></marker>
-    <marker id="arrow-green" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#31956f"/></marker>
-    <marker id="arrow-amber" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#c98320"/></marker>
-    <marker id="arrow-pink" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth"><path d="M 0.5 0.5 L 4.5 2.5 L 0.5 4.5 Z" fill="#d65d7f"/></marker>
+    <marker viewBox="0 0 10 10" id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#4f77c9" stroke="#4f77c9" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#31956f" stroke="#31956f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" id="arrow-amber" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c98320" stroke="#c98320" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" id="arrow-pink" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#d65d7f" stroke="#d65d7f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <style>
       .canvas { fill: #f6f9fc; }
       .frame { fill: #ffffff; stroke: #c4d5e8; stroke-width: 3; }
@@ -31,8 +31,8 @@
     </style>
   </defs>
 
-  <rect class="canvas" width="1500" height="900"/>
-  <rect class="frame" x="42" y="34" width="1416" height="820" rx="30"/>
+  <rect class="canvas" width="1500" height="1100"/>
+  <rect class="frame" x="42" y="34" width="1416" height="1020" rx="30"/>
   <text class="title" x="86" y="92">Multi-leader Group Slot Sequence</text>
   <text class="subtitle" x="90" y="126">Group election allows up to maxLeaders concurrent actions; a caller skips only when no slot can be acquired.</text>
 
@@ -47,16 +47,16 @@
   <rect class="participant" x="1280" y="176" width="140" height="70" fill="#fff4de" stroke="#d59c3f"/>
   <text class="participant-text" x="1350" y="218" text-anchor="middle" font-size="24">Action</text>
 
-  <line class="lifeline" x1="214" y1="246" x2="214" y2="736"/>
-  <line class="lifeline" x1="474" y1="246" x2="474" y2="736"/>
-  <line class="lifeline" x1="777" y1="246" x2="777" y2="736"/>
-  <line class="lifeline" x1="1105" y1="246" x2="1105" y2="736"/>
-  <line class="lifeline" x1="1350" y1="246" x2="1350" y2="736"/>
-  <rect class="activation" x="769" y="314" width="16" height="350"/>
+  <line class="lifeline" x1="214" y1="246" x2="214" y2="956"/>
+  <line class="lifeline" x1="474" y1="246" x2="474" y2="956"/>
+  <line class="lifeline" x1="777" y1="246" x2="777" y2="956"/>
+  <line class="lifeline" x1="1105" y1="246" x2="1105" y2="956"/>
+  <line class="lifeline" x1="1350" y1="246" x2="1350" y2="956"/>
+  <rect class="activation" x="769" y="314" width="16" height="574"/>
   <rect class="activation" x="1097" y="366" width="16" height="210"/>
   <rect class="activation" x="1342" y="492" width="16" height="84"/>
 
-  <path class="call" d="M214 318 L777 318"/>
+  <path class="call" d="M 214 318 L 777 318"/>
   <rect class="pill" x="394" y="286" width="226" height="28"/>
   <circle cx="410" cy="300" r="13" fill="#4f77c9"/><text class="num" x="410" y="304" text-anchor="middle">1</text>
   <text class="label" x="512" y="305" text-anchor="middle">runIfLeader(group)</text>
@@ -66,7 +66,7 @@
   <circle cx="860" cy="372" r="13" fill="#31956f"/><text class="num" x="860" y="376" text-anchor="middle">2</text>
   <text class="label" x="944" y="377" text-anchor="middle">try next slot</text>
 
-  <path class="return" d="M1105 444 L777 444"/>
+  <path class="return" d="M 1105 444 L 777 444"/>
   <rect class="pill" x="850" y="412" width="186" height="28"/>
   <circle cx="866" cy="426" r="13" fill="#31956f"/><text class="num" x="866" y="430" text-anchor="middle">3</text>
   <text class="label" x="950" y="431" text-anchor="middle">slot granted</text>
@@ -78,7 +78,7 @@
   <rect class="pill" x="970" y="488" width="190" height="28"/>
   <circle cx="986" cy="502" r="13" fill="#31956f"/><text class="num" x="986" y="506" text-anchor="middle">4</text>
   <text class="label" x="1070" y="507" text-anchor="middle">execute action</text>
-  <path class="return" d="M1350 574 L777 574"/>
+  <path class="return" d="M 1350 574 L 777 574"/>
   <rect class="pill" x="972" y="542" width="196" height="28"/>
   <circle cx="988" cy="556" r="13" fill="#31956f"/><text class="num" x="988" y="560" text-anchor="middle">5</text>
   <text class="label" x="1076" y="561" text-anchor="middle">group result</text>
@@ -88,27 +88,27 @@
   <circle cx="848" cy="624" r="13" fill="#c98320"/><text class="num" x="848" y="628" text-anchor="middle">6</text>
   <text class="label" x="952" y="629" text-anchor="middle">release one slot</text>
 
-  <path class="return" d="M777 704 L214 704"/>
+  <path class="return" d="M 777 704 L 214 704"/>
   <rect class="pill" x="402" y="672" width="190" height="28"/>
   <circle cx="418" cy="686" r="13" fill="#31956f"/><text class="num" x="418" y="690" text-anchor="middle">7</text>
   <text class="label" x="504" y="691" text-anchor="middle">return value</text>
 
-  <path class="call" d="M474 348 L777 348"/>
-  <rect class="pill" x="536" y="316" width="164" height="28"/>
-  <circle cx="552" cy="330" r="13" fill="#4f77c9"/><text class="num" x="552" y="334" text-anchor="middle">8</text>
-  <text class="label" x="626" y="335" text-anchor="middle">peer call</text>
+  <path class="call" d="M 474 772 L 777 772"/>
+  <rect class="pill" x="536" y="740" width="164" height="28"/>
+  <circle cx="552" cy="754" r="13" fill="#4f77c9"/><text class="num" x="552" y="758" text-anchor="middle">8</text>
+  <text class="label" x="626" y="759" text-anchor="middle">peer call</text>
 
-  <rect class="alt-label" x="340" y="250" width="162" height="28" stroke="#d65d7f" fill="#fff5f8"/>
-  <text class="label" x="421" y="269" text-anchor="middle">slot full branch</text>
-  <path class="skip" d="M1105 296 L777 296"/>
-  <rect class="pill" x="838" y="264" width="216" height="28"/>
-  <circle cx="854" cy="278" r="13" fill="#d65d7f"/><text class="num" x="854" y="282" text-anchor="middle">9</text>
-  <text class="label" x="952" y="283" text-anchor="middle">no slot acquired</text>
-  <path class="skip-return" d="M777 360 L474 360"/>
-  <rect class="pill" x="538" y="370" width="178" height="28"/>
-  <circle cx="554" cy="384" r="13" fill="#d65d7f"/><text class="num" x="554" y="388" text-anchor="middle">10</text>
-  <text class="label" x="636" y="389" text-anchor="middle">null / Skipped</text>
+  <rect class="alt-label" x="340" y="812" width="162" height="28" stroke="#d65d7f" fill="#fff5f8"/>
+  <text class="label" x="421" y="831" text-anchor="middle">slot full branch</text>
+  <path class="skip" d="M 1105 840 L 777 840"/>
+  <rect class="pill" x="838" y="808" width="216" height="28"/>
+  <circle cx="854" cy="822" r="13" fill="#d65d7f"/><text class="num" x="854" y="826" text-anchor="middle">9</text>
+  <text class="label" x="952" y="827" text-anchor="middle">no slot acquired</text>
+  <path class="skip-return" d="M 777 910 L 474 910"/>
+  <rect class="pill" x="538" y="878" width="178" height="28"/>
+  <circle cx="554" cy="892" r="13" fill="#d65d7f"/><text class="num" x="554" y="896" text-anchor="middle">10</text>
+  <text class="label" x="636" y="897" text-anchor="middle">null / Skipped</text>
 
-  <rect x="164" y="776" width="1172" height="42" rx="14" fill="#f8fbff" stroke="#d2deeb" stroke-width="1.6"/>
-  <text class="footer" x="750" y="802" text-anchor="middle">activeCount increases during action, availableSlots decreases, and release runs even when action fails. github.com/bluetape4k/bluetape4k-leader</text>
+  <rect x="164" y="976" width="1172" height="42" rx="14" fill="#f8fbff" stroke="#d2deeb" stroke-width="1.6"/>
+  <text class="footer" x="750" y="1002" text-anchor="middle">activeCount increases during action, availableSlots decreases, and release runs even when action fails. github.com/bluetape4k/bluetape4k-leader</text>
 </svg>

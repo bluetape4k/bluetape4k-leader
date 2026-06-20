@@ -2,13 +2,13 @@
   <title id="title">leader-zookeeper class structure</title>
   <desc id="desc">Class diagram showing ZooKeeper Curator-backed leader electors, core contracts, Curator recipes, session semantics, and extension delegates.</desc>
   <style>
-    text { font-family: 'Architects Daughter', 'Comic Mono', 'Comic Sans MS', Arial, sans-serif; letter-spacing: 0; }
+    text { font-family: 'Architects Daughter', 'Comic Mono'; letter-spacing: 0; }
     .title { font-size: 28px; font-weight: 700; fill: #111827; }
     .subtitle { font-size: 14px; fill: #4b5563; }
     .section { font-size: 15px; font-weight: 700; fill: #374151; }
     .card-title { font-size: 16px; font-weight: 700; fill: #111827; }
     .card-sub { font-size: 12px; fill: #4b5563; }
-    .mono { font-family: 'Comic Mono', 'Architects Daughter', monospace; font-size: 12px; fill: #374151; }
+    .mono { font-family: 'Comic Mono', 'Architects Daughter'; font-size: 12px; fill: #374151; }
     .tiny { font-size: 11px; fill: #6b7280; }
     .badge { font-size: 11px; font-weight: 700; }
     .footer { font-size: 12px; fill: #6b7280; }
@@ -16,14 +16,10 @@
   </style>
   <defs>
     <marker id="implArrow" viewBox="0 0 18 16" markerWidth="16" markerHeight="14" refX="16" refY="8" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 16 8 L 1 15 Z" fill="#ffffff" stroke="#2563eb" stroke-width="1.7"/>
+      <path d="M 1 1 L 16 8 L 1 15 Z" fill="#ffffff" stroke="#2563eb" stroke-width="1.7" stroke-dasharray="none" style="stroke-dasharray:none"/>
     </marker>
-    <marker id="useArrow" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#ea580c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
-    <marker id="sessionArrow" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11" fill="none" stroke="#059669" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
+    <marker id="useArrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#334155" stroke="#334155" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="sessionArrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#334155" stroke="#334155" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
 
   <rect width="1280" height="840" fill="#f8fafc"/>
@@ -127,24 +123,24 @@
     <text x="20" y="69" class="card-sub">are removed on expiry</text>
   </g>
 
-  <path d="M 438 248 L 380 248 L 380 211 L 308 211" fill="none" stroke="#2563eb" stroke-width="1.5" marker-end="url(#implArrow)"/>
-  <path d="M 658 248 L 640 248 L 640 330 L 380 330 L 380 287 L 308 287" fill="none" stroke="#2563eb" stroke-width="1.5" marker-end="url(#implArrow)"/>
-  <path d="M 438 441 L 380 441 L 380 363 L 308 363" fill="none" stroke="#2563eb" stroke-width="1.5" marker-end="url(#implArrow)"/>
-  <path d="M 658 441 L 640 441 L 640 528 L 380 528 L 380 439 L 308 439" fill="none" stroke="#2563eb" stroke-width="1.5" marker-end="url(#implArrow)"/>
+  <path d="M 438 248 L 392.33 248 Q 380 248 380 235.67 L 380 223.33 Q 380 211 367.67 211 L 308 211" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#implArrow)"/>
+  <path d="M 658 248 L 496 248 Q 483 248 483 261 L 483 274 Q 483 287 470 287 L 308 287" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#implArrow)"/>
+  <path d="M 438 441 L 398 441 Q 380 441 380 423 L 380 381 Q 380 363 362 363 L 308 363" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#implArrow)"/>
+  <path d="M 658 441 L 308 441" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#implArrow)"/>
 
-  <path d="M 874 248 L 928 248 L 958 242" fill="none" stroke="#ea580c" stroke-width="1.8" class="dash" marker-end="url(#useArrow)"/>
+  <path d="M 874 248 L 958 248" fill="none" stroke="#ea580c" stroke-width="2.5" class="dash" marker-end="url(#useArrow)"/>
   <text x="902" y="232" text-anchor="middle" class="tiny" fill="#c2410c">mutex</text>
-  <path d="M 874 441 L 928 441 L 958 414" fill="none" stroke="#ea580c" stroke-width="1.8" class="dash" marker-end="url(#useArrow)"/>
+  <path d="M 874 441 L 918 441 L 938 441 L 949 441 Q 958 441 958 432 L 958 414" fill="none" stroke="#ea580c" stroke-width="2.5" class="dash" marker-end="url(#useArrow)"/>
   <text x="902" y="426" text-anchor="middle" class="tiny" fill="#c2410c">semaphore</text>
 
-  <path d="M 1186 242 L 1210 242 L 1210 581 L 1186 581" fill="none" stroke="#059669" stroke-width="1.8" class="dash" marker-end="url(#sessionArrow)"/>
-  <path d="M 1186 414 L 1198 414 L 1198 581 L 1186 581" fill="none" stroke="#059669" stroke-width="1.8" class="dash" marker-end="url(#sessionArrow)"/>
+  <path d="M 1186 242 L 1202 242 Q 1210 242 1210 250 L 1210 573 Q 1210 581 1202 581 L 1186 581" fill="none" stroke="#059669" stroke-width="2.5" class="dash" marker-end="url(#sessionArrow)"/>
+  <path d="M 1186 414 L 1186 581" fill="none" stroke="#059669" stroke-width="2.5" class="dash" marker-end="url(#sessionArrow)"/>
   <text x="1120" y="512" class="tiny" fill="#047857">session liveness</text>
 
   <g transform="translate(438 684)">
-    <line x1="34" y1="10" x2="0" y2="10" stroke="#2563eb" stroke-width="1.5" marker-end="url(#implArrow)"/>
+    <line x1="34" y1="10" x2="0" y2="10" stroke="#2563eb" stroke-width="2.5" marker-end="url(#implArrow)"/>
     <text x="44" y="15" class="tiny">implements core contract</text>
-    <line x1="210" y1="10" x2="244" y2="10" stroke="#ea580c" stroke-width="1.8" class="dash" marker-end="url(#useArrow)"/>
+    <line x1="210" y1="10" x2="244" y2="10" stroke="#ea580c" stroke-width="2.5" class="dash" marker-end="url(#useArrow)"/>
     <text x="254" y="15" class="tiny">uses Curator recipe</text>
   </g>
 

@@ -1,86 +1,124 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="940" viewBox="0 0 1600 940" role="img" aria-labelledby="title desc" data-source-read="StrategicElectionDemo.kt; StrategicElectionDemoTest.kt">
-  <title id="title">Strategic Election Sequence</title>
-  <desc id="desc">Sequence for building candidates, scoring, electing node-b, executing node-b, skipping non-winners, and returning a report.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1020" viewBox="0 0 1600 1020" role="img" aria-labelledby="title desc">
   <defs>
-    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#4f77c9"/></marker>
-    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#319873"/></marker>
-    <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c65b55"/></marker>
+    <filter id="softShadow" x="-12%" y="-12%" width="124%" height="124%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#263238" flood-opacity="0.14"/>
+    </filter>
     <style>
-      .canvas { fill: #f6f9fc; }
-      .frame { fill: #ffffff; stroke: #c4d5e8; stroke-width: 3; }
-      .title, .actor-title { font-family: "Architects Daughter"; fill: #263a57; }
-      .title { font-size: 44px; }
-      .subtitle, .actor-sub, .label, .footer, .region-label { font-family: "Comic Mono"; }
-      .subtitle, .actor-sub, .footer { fill: #526276; }
+      .canvas { fill: #fbfcf8; }
+      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 3; }
+      .title { font-family: "Architects Daughter"; font-size: 42px; fill: #263238; }
+      .subtitle, .small, .labelText, .detail, .footer, .msg, .note { font-family: "Comic Mono"; fill: #36464f; }
       .subtitle { font-size: 17px; }
-      .actor-title { font-size: 22px; }
-      .actor-sub { font-size: 12px; }
-      .label { font-size: 13px; font-weight: 700; }
-      .region-label { font-size: 13px; font-weight: 700; fill: #6c4cb8; }
-      .footer { font-size: 14px; }
-      .actor { fill: #ffffff; stroke: #cbd9e7; stroke-width: 2.2; rx: 14; }
-      .life { stroke: #b7c7d9; stroke-width: 2.2; stroke-dasharray: 7 8; }
-      .call { fill: none; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
-      .return { stroke-dasharray: 8 7; }
-      .alt { fill: rgba(155,122,236,0.08); stroke: #9b7aec; stroke-width: 2; rx: 12; }
-      .divider { stroke: #9b7aec; stroke-width: 2; stroke-dasharray: 8 8; }
+      .footer { font-size: 13px; fill: #60727d; }
+      .band { fill: #f5f9fb; stroke: #c8d7df; stroke-width: 1.6; }
+      .bandAlt { fill: #fbfdf8; stroke: #d7e0d0; stroke-width: 1.6; }
+      .bandTitle { font-family: "Architects Daughter"; font-size: 22px; fill: #263238; }
+      .bandHint { font-family: "Comic Mono"; font-size: 12px; fill: #60727d; }
+      .card { filter: url(#softShadow); stroke-width: 2.4; rx: 8; }
+      .cardTitle { font-family: "Architects Daughter"; font-size: 24px; fill: #1f3138; }
+      .detail { font-size: 13.5px; fill: #546a73; }
+      .edge { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+      .edgeThin { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .dash { stroke-dasharray: 10 8; }
+      .pill { fill: #ffffff; stroke-width: 1.5; }
+      .labelText { font-size: 12.5px; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2.2; }
+      .participant { font-family: "Architects Daughter"; font-size: 20px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.7; }
+      .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
     </style>
+    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
-  <rect class="canvas" width="1600" height="940"/>
-  <rect class="frame" x="42" y="34" width="1516" height="860" rx="30"/>
-  <text class="title" x="86" y="92">Strategic Election Sequence</text>
-  <text class="subtitle" x="90" y="126">Candidates are registered and scored before local electors decide run or skip.</text>
+  <title id="title">Strategic Election Sequence</title>
+  <desc id="desc">Sequence diagram for Strategic Election.</desc>
+  <rect width="1600" height="1020" class="canvas"/>
+  <rect x="28" y="26" width="1544" height="968" rx="8" class="frame"/>
+  <text x="80" y="82" class="title">Strategic Election Sequence</text>
+  <text x="82" y="114" class="subtitle">Strategy follows the leader-core sequence style with clear calls, returns, and alternate outcomes.</text>
 
-  <g transform="translate(116 176)">
-    <rect class="actor" width="186" height="76"/>
-    <text class="actor-title" x="93" y="32" text-anchor="middle">Demo</text>
-    <text class="actor-sub" x="93" y="56" text-anchor="middle">runScenario</text>
+  <rect x="70" y="150" width="170" height="68" rx="8" class="header"/><text x="155" y="179" text-anchor="middle" class="participant">Caller</text><text x="155" y="201" text-anchor="middle" class="role">elector policy</text>
+  <rect x="315" y="150" width="190" height="68" rx="8" class="header"/><text x="410" y="179" text-anchor="middle" class="participant">Example</text><text x="410" y="201" text-anchor="middle" class="role">Strategy</text>
+  <rect x="570" y="150" width="210" height="68" rx="8" class="header"/><text x="675" y="179" text-anchor="middle" class="participant">Leader API</text><text x="675" y="201" text-anchor="middle" class="role">runIfLeader</text>
+  <rect x="845" y="150" width="210" height="68" rx="8" class="header"/><text x="950" y="179" text-anchor="middle" class="participant">Lock Store</text><text x="950" y="201" text-anchor="middle" class="role">candidate scoring</text>
+  <rect x="1120" y="150" width="190" height="68" rx="8" class="header"/><text x="1215" y="179" text-anchor="middle" class="participant">Action</text><text x="1215" y="201" text-anchor="middle" class="role">protected work</text>
+  <rect x="1365" y="150" width="170" height="68" rx="8" class="header"/><text x="1450" y="179" text-anchor="middle" class="participant">Observer</text><text x="1450" y="201" text-anchor="middle" class="role">metrics/events</text>
+  <line x1="155" y1="218" x2="155" y2="938" class="lifeline"/>
+  <line x1="410" y1="218" x2="410" y2="938" class="lifeline"/>
+  <line x1="675" y1="218" x2="675" y2="938" class="lifeline"/>
+  <line x1="950" y1="218" x2="950" y2="938" class="lifeline"/>
+  <line x1="1215" y1="218" x2="1215" y2="938" class="lifeline"/>
+  <line x1="1450" y1="218" x2="1450" y2="938" class="lifeline"/>
+  <rect x="668" y="316" width="14" height="520" rx="6" class="activation"/>
+  <rect x="943" y="392" width="14" height="216" rx="6" class="activation"/>
+  <rect x="1208" y="560" width="14" height="112" rx="6" class="activation"/>
+  <g>
+    <rect x="175" y="266" width="480" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="197" cy="282" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="197" y="286" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
+    <text x="218" y="287" class="labelText" fill="#3f7d9c">submit leader-guarded request</text>
   </g>
-  <g transform="translate(398 176)">
-    <rect class="actor" width="198" height="76"/>
-    <text class="actor-title" x="99" y="32" text-anchor="middle">Profiles</text>
-    <text class="actor-sub" x="99" y="56" text-anchor="middle">CandidateInfo</text>
+  <path d="M 155 318 L 675 318" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <g>
+    <rect x="695" y="342" width="362" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="717" cy="358" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="717" y="362" text-anchor="middle" class="badgeText" fill="#6e8f4f">2</text>
+    <text x="738" y="363" class="labelText" fill="#6e8f4f">try acquire lease / conditional claim</text>
   </g>
-  <g transform="translate(696 176)">
-    <rect class="actor" width="210" height="76"/>
-    <text class="actor-title" x="105" y="32" text-anchor="middle">Strategy</text>
-    <text class="actor-sub" x="105" y="56" text-anchor="middle">WeightedScorer</text>
+  <path d="M 675 394 L 950 394" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
+  <g>
+    <rect x="695" y="428" width="282" height="32" rx="16" class="pill" stroke="#9b7d54"/>
+    <circle cx="717" cy="444" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
+    <text x="717" y="448" text-anchor="middle" class="badgeText" fill="#9b7d54">3</text>
+    <text x="738" y="449" class="labelText" fill="#9b7d54">acquired or skipped outcome</text>
   </g>
-  <g transform="translate(1012 176)">
-    <rect class="actor" width="210" height="76"/>
-    <text class="actor-title" x="105" y="32" text-anchor="middle">Electors</text>
-    <text class="actor-sub" x="105" y="56" text-anchor="middle">node-a/b/c</text>
+  <path d="M 950 480 L 675 480" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
+  <rect x="82" y="518" width="1420" height="270" rx="12" class="branch"/>
+  <text x="112" y="548" class="note">alt acquired</text>
+  <line x1="82" y1="690" x2="1502" y2="690" class="branch"/>
+  <text x="112" y="720" class="note">else skipped / failed</text>
+  <g>
+    <rect x="695" y="538" width="500" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="717" cy="554" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="717" y="558" text-anchor="middle" class="badgeText" fill="#6e8f4f">4</text>
+    <text x="738" y="559" class="labelText" fill="#6e8f4f">invoke protected work once</text>
   </g>
-  <g transform="translate(1310 176)">
-    <rect class="actor" width="176" height="76"/>
-    <text class="actor-title" x="88" y="32" text-anchor="middle">Report</text>
-    <text class="actor-sub" x="88" y="56" text-anchor="middle">result</text>
+  <path d="M 675 590 L 1215 590" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
+  <g>
+    <rect x="695" y="616" width="500" height="32" rx="16" class="pill" stroke="#9b7d54"/>
+    <circle cx="717" cy="632" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
+    <text x="717" y="636" text-anchor="middle" class="badgeText" fill="#9b7d54">5</text>
+    <text x="738" y="637" class="labelText" fill="#9b7d54">return value or action failure</text>
   </g>
+  <path d="M 1215 668 L 675 668" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
+  <g>
+    <rect x="695" y="702" width="735" height="32" rx="16" class="pill" stroke="#b86868"/>
+    <circle cx="717" cy="718" r="12.5" fill="#fff" stroke="#b86868" stroke-width="1.6"/>
+    <text x="717" y="722" text-anchor="middle" class="badgeText" fill="#b86868">6</text>
+    <text x="738" y="723" class="labelText" fill="#b86868">publish skipped/failed event</text>
+  </g>
+  <path d="M 675 754 L 1450 754" class="edge" stroke="#b86868" marker-end="url(#arrow-skip)"/>
+  <g>
+    <rect x="695" y="786" width="250" height="32" rx="16" class="pill" stroke="#9b7d54"/>
+    <circle cx="717" cy="802" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
+    <text x="717" y="806" text-anchor="middle" class="badgeText" fill="#9b7d54">7</text>
+    <text x="738" y="807" class="labelText" fill="#9b7d54">release lease and state</text>
+  </g>
+  <path d="M 675 838 L 950 838" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
+  <g>
+    <rect x="175" y="858" width="480" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="197" cy="874" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="197" y="878" text-anchor="middle" class="badgeText" fill="#3f7d9c">8</text>
+    <text x="218" y="879" class="labelText" fill="#3f7d9c">return explicit result to caller</text>
+  </g>
+  <path d="M 675 910 L 155 910" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
 
-  <path class="life" d="M209 252 L209 806"/>
-  <path class="life" d="M497 252 L497 806"/>
-  <path class="life" d="M801 252 L801 806"/>
-  <path class="life" d="M1117 252 L1117 806"/>
-  <path class="life" d="M1398 252 L1398 806"/>
-
-  <path class="call" d="M209 314 L497 314" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
-  <text class="label" x="353" y="298" text-anchor="middle" fill="#2f579f">1 toCandidateInfo()</text>
-  <path class="call" d="M209 382 L1117 382" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
-  <text class="label" x="663" y="366" text-anchor="middle" fill="#2f579f">2 register candidates for service-maintenance</text>
-  <path class="call" d="M209 450 L801 450" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
-  <text class="label" x="505" y="434" text-anchor="middle" fill="#2f579f">3 strategy.elect(candidates)</text>
-  <path class="call return" d="M801 516 L209 516" stroke="#319873" marker-end="url(#arrow-green)"/>
-  <text class="label" x="505" y="500" text-anchor="middle" fill="#23785a">4 score map selects node-b</text>
-
-  <rect class="alt" x="130" y="566" width="1260" height="166"/>
-  <text class="region-label" x="158" y="594">for each local elector</text>
-  <path class="divider" d="M130 646 L1390 646"/>
-  <path class="call" d="M209 620 L1117 620" stroke="#319873" marker-end="url(#arrow-green)"/>
-  <text class="label" x="663" y="604" text-anchor="middle" fill="#23785a">5 node-b runs selected body</text>
-  <path class="call return" d="M1117 696 L209 696" stroke="#c65b55" marker-end="url(#arrow-red)"/>
-  <text class="label" x="663" y="680" text-anchor="middle" fill="#9d3f3b">6 node-a and node-c return null / skipped</text>
-
-  <path class="call" d="M209 772 L1398 772" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
-  <text class="label" x="804" y="756" text-anchor="middle" fill="#2f579f">7 StrategicElectionReport(selected=node-b, selectedCount=1, skippedCount=2)</text>
-  <text class="footer" x="800" y="850" text-anchor="middle">The tests pin the contract: exactly one SELECTED report and all non-winners are SKIPPED.</text>
 </svg>

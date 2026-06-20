@@ -5,34 +5,26 @@
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
       <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#64748b" flood-opacity="0.13"/>
     </filter>
-    <marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-      <path d="M 1 1 L 7 4 L 1 7 Z" fill="#2563eb"/>
-    </marker>
-    <marker id="arrowGreen" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-      <path d="M 1 1 L 7 4 L 1 7 Z" fill="#16a34a"/>
-    </marker>
-    <marker id="arrowAmber" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-      <path d="M 1 1 L 7 4 L 1 7 Z" fill="#d97706"/>
-    </marker>
-    <marker id="arrowRed" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-      <path d="M 1 1 L 7 4 L 1 7 Z" fill="#dc2626"/>
-    </marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowBlue" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#2563eb" stroke="#2563eb" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#16a34a" stroke="#16a34a" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowAmber" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#d97706" stroke="#d97706" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowRed" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#dc2626" stroke="#dc2626" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
   <style>
-    text { font-family: "Comic Mono", monospace; fill: #243041; }
-    .title { font-family: "Architects Daughter", cursive; font-size: 31px; fill: #172033; }
+    text { font-family: "Comic Mono"; fill: #243041; }
+    .title { font-family: "Architects Daughter"; font-size: 31px; fill: #172033; }
     .subtitle { font-size: 13px; fill: #64748b; }
-    .participant { font-family: "Architects Daughter", cursive; font-size: 16px; fill: #172033; }
+    .participant { font-family: "Architects Daughter"; font-size: 16px; fill: #172033; }
     .label { font-size: 12px; fill: #334155; }
     .num { font-size: 11px; fill: #ffffff; font-weight: 700; }
     .small { font-size: 10px; fill: #64748b; }
     .frame { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.4; filter: url(#shadow); }
     .header { fill: #eff6ff; stroke: #93c5fd; stroke-width: 1.3; }
     .life { stroke: #94a3b8; stroke-width: 1.2; stroke-dasharray: 7 7; }
-    .callBlue { stroke: #2563eb; stroke-width: 1.7; marker-end: url(#arrowBlue); }
-    .callGreen { stroke: #16a34a; stroke-width: 1.7; marker-end: url(#arrowGreen); }
-    .callAmber { stroke: #d97706; stroke-width: 1.7; marker-end: url(#arrowAmber); }
-    .callRed { stroke: #dc2626; stroke-width: 1.7; marker-end: url(#arrowRed); }
+    .callBlue { stroke: #2563eb; stroke-width: 3; marker-end: url(#arrowBlue); }
+    .callGreen { stroke: #16a34a; stroke-width: 3; marker-end: url(#arrowGreen); }
+    .callAmber { stroke: #d97706; stroke-width: 3; marker-end: url(#arrowAmber); }
+    .callRed { stroke: #dc2626; stroke-width: 3; marker-end: url(#arrowRed); }
     .ret { stroke-dasharray: 6 5; }
     .badgeBlue { fill: #2563eb; }
     .badgeGreen { fill: #16a34a; }

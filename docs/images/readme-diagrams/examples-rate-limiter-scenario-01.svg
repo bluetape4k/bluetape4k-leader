@@ -1,92 +1,131 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900" role="img" aria-labelledby="title desc" data-source-read="examples/rate-limiter/README.md; RateLimiterDemo.kt; LeaderDispatchScheduler.kt; RateLimitedApiWorker.kt; ExternalApiProbe.kt; RateLimiterDemoTest.kt">
-  <title id="title">Rate Limiter Scenario</title>
-  <desc id="desc">Scenario diagram showing a compact main path from three app nodes through Redis leader election, one scheduled dispatcher, shared Redis Bucket4j quota, and external API calls.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1040" viewBox="0 0 1680 1040" role="img" aria-labelledby="title desc">
   <defs>
-    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#4f77c9"/></marker>
-    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#319873"/></marker>
-    <marker id="arrow-amber" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#cf8428"/></marker>
-    <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c85d73"/></marker>
+    <filter id="softShadow" x="-12%" y="-12%" width="124%" height="124%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#263238" flood-opacity="0.14"/>
+    </filter>
     <style>
-      .canvas { fill: #f6f9fc; }
-      .frame { fill: #ffffff; stroke: #c4d5e8; stroke-width: 3; }
-      .title, .node-title { font-family: "Architects Daughter"; fill: #263a57; }
-      .title { font-size: 44px; }
-      .subtitle, .node-sub, .label, .footer, .tag { font-family: "Comic Mono"; fill: #526276; }
+      .canvas { fill: #fbfcf8; }
+      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 3; }
+      .title { font-family: "Architects Daughter"; font-size: 42px; fill: #263238; }
+      .subtitle, .small, .labelText, .detail, .footer, .msg, .note { font-family: "Comic Mono"; fill: #36464f; }
       .subtitle { font-size: 17px; }
-      .node-title { font-size: 24px; }
-      .node-sub { font-size: 13px; }
-      .label { font-size: 13px; font-weight: 700; }
-      .tag { font-size: 12px; font-weight: 700; }
-      .footer { font-size: 14px; }
-      .group { fill: #edf4fd; stroke: #cbd9e7; stroke-width: 2.4; }
-      .node { stroke-width: 2.4; rx: 16; }
-      .route { fill: none; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
-      .dash { stroke-dasharray: 9 8; }
-      .pill { fill: #ffffff; stroke: #cbd9e7; stroke-width: 1.4; rx: 10; }
+      .footer { font-size: 13px; fill: #60727d; }
+      .band { fill: #f5f9fb; stroke: #c8d7df; stroke-width: 1.6; }
+      .bandAlt { fill: #fbfdf8; stroke: #d7e0d0; stroke-width: 1.6; }
+      .bandTitle { font-family: "Architects Daughter"; font-size: 22px; fill: #263238; }
+      .bandHint { font-family: "Comic Mono"; font-size: 12px; fill: #60727d; }
+      .card { filter: url(#softShadow); stroke-width: 2.4; rx: 8; }
+      .cardTitle { font-family: "Architects Daughter"; font-size: 24px; fill: #1f3138; }
+      .detail { font-size: 13.5px; fill: #546a73; }
+      .edge { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+      .edgeThin { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .dash { stroke-dasharray: 10 8; }
+      .pill { fill: #ffffff; stroke-width: 1.5; }
+      .labelText { font-size: 12.5px; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2.2; }
+      .participant { font-family: "Architects Daughter"; font-size: 20px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.7; }
+      .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
     </style>
+    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
+  <title id="title">Rate Limiter Scenario</title>
+  <desc id="desc">Scenario diagram for Rate Limiter.</desc>
+  <rect width="1680" height="1040" class="canvas"/>
+  <rect x="28" y="26" width="1624" height="988" rx="8" class="frame"/>
+  <text x="80" y="82" class="title">Rate Limiter Scenario</text>
+  <text x="82" y="114" class="subtitle">Rate Limit shows the happy path plus skipped and retry outcomes without crossing cards.</text>
 
-  <rect class="canvas" width="1500" height="900"/>
-  <rect class="frame" x="42" y="34" width="1416" height="820" rx="30"/>
-  <text class="title" x="86" y="92">Rate Limiter Scenario: Dispatch Gate + Quota Gate</text>
-  <text class="subtitle" x="90" y="126">Redis leader election creates work once; Redis Bucket4j caps the external API calls shared by all workers.</text>
+  <rect x="84" y="150" width="1512" height="720" rx="8" class="band"/>
+  <text x="112" y="184" class="bandTitle">Scenario Workflow</text>
+  <text x="112" y="207" class="bandHint">best-practices branching layout with explicit success, skipped, and retry lanes</text>
+  <g>
+    <rect x="150" y="260" width="315" height="96" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
+    <text x="307.5" y="294" text-anchor="middle" class="cardTitle">Trigger</text>
+    <text x="307.5" y="318" text-anchor="middle" class="detail">Rate Limit: bucket refill</text>
+  </g>
+  <g>
+    <rect x="535" y="260" width="315" height="96" rx="8" class="card" fill="#ffffff" stroke="#78909c"/>
+    <text x="692.5" y="294" text-anchor="middle" class="cardTitle">Build Claim</text>
+    <text x="692.5" y="318" text-anchor="middle" class="detail">shared quota key + policy</text>
+  </g>
+  <g>
+    <rect x="920" y="260" width="315" height="96" rx="8" class="card" fill="#fff8ed" stroke="#c97831"/>
+    <text x="1077.5" y="294" text-anchor="middle" class="cardTitle">Acquire</text>
+    <text x="1077.5" y="318" text-anchor="middle" class="detail">single leader decision</text>
+  </g>
+  <g>
+    <rect x="535" y="510" width="315" height="96" rx="8" class="card" fill="#eef7f0" stroke="#6e8f4f"/>
+    <text x="692.5" y="544" text-anchor="middle" class="cardTitle">Leader Work</text>
+    <text x="692.5" y="568" text-anchor="middle" class="detail">perform protected branch</text>
+  </g>
+  <g>
+    <rect x="920" y="510" width="315" height="96" rx="8" class="card" fill="#fff7e8" stroke="#9b7d54"/>
+    <text x="1077.5" y="544" text-anchor="middle" class="cardTitle">Persist Outcome</text>
+    <text x="1077.5" y="568" text-anchor="middle" class="detail">state, metric, and audit event</text>
+  </g>
+  <g>
+    <rect x="1295" y="510" width="240" height="96" rx="8" class="card" fill="#fff8ed" stroke="#c97831"/>
+    <text x="1415" y="544" text-anchor="middle" class="cardTitle">Skipped</text>
+    <text x="1415" y="568" text-anchor="middle" class="detail">peer returns quickly</text>
+  </g>
+  <g>
+    <rect x="150" y="510" width="240" height="96" rx="8" class="card" fill="#fdf7ff" stroke="#7c5aa6"/>
+    <text x="270" y="544" text-anchor="middle" class="cardTitle">Retry</text>
+    <text x="270" y="568" text-anchor="middle" class="detail">backoff or next tick</text>
+  </g>
+  <g>
+    <rect x="725" y="735" width="315" height="96" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
+    <text x="882.5" y="769" text-anchor="middle" class="cardTitle">Visible Result</text>
+    <text x="882.5" y="793" text-anchor="middle" class="detail">caller receives explicit outcome</text>
+  </g>
+  <g>
+    <rect x="392" y="378" width="165" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="414" cy="394" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="414" y="398" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
+    <text x="435" y="399" class="labelText" fill="#3f7d9c">normalize</text>
+  </g>
+  <path d="M 465 308 L 535 308" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <g>
+    <rect x="782" y="378" width="154" height="32" rx="16" class="pill" stroke="#c97831"/>
+    <circle cx="804" cy="394" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
+    <text x="804" y="398" text-anchor="middle" class="badgeText" fill="#c97831">2</text>
+    <text x="825" y="399" class="labelText" fill="#c97831">contend</text>
+  </g>
+  <path d="M 850 308 L 920 308" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
+  <g>
+    <rect x="765" y="438" width="190" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="787" cy="454" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="787" y="458" text-anchor="middle" class="badgeText" fill="#6e8f4f">3</text>
+    <text x="808" y="459" class="labelText" fill="#6e8f4f">leader branch</text>
+  </g>
+  <path d="M 1078 356 L 1078 430 Q 1078 454 1054 454 L 692 454 Q 668 454 668 478 L 668 510" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
+  <g>
+    <rect x="1245" y="438" width="152" height="32" rx="16" class="pill" stroke="#c97831"/>
+    <circle cx="1267" cy="454" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
+    <text x="1267" y="458" text-anchor="middle" class="badgeText" fill="#c97831">4</text>
+    <text x="1288" y="459" class="labelText" fill="#c97831">skipped</text>
+  </g>
+  <path d="M 1235 308 L 1376 308 Q 1400 308 1400 332 L 1400 510" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
+  <g>
+    <rect x="392" y="586" width="160" height="32" rx="16" class="pill" stroke="#7c5aa6"/>
+    <circle cx="414" cy="602" r="12.5" fill="#fff" stroke="#7c5aa6" stroke-width="1.6"/>
+    <text x="414" y="606" text-anchor="middle" class="badgeText" fill="#7c5aa6">5</text>
+    <text x="435" y="607" class="labelText" fill="#7c5aa6">backoff</text>
+  </g>
+  <path d="M 535 558 L 390 558" class="edge dash" stroke="#7c5aa6"/>
+  <polygon points="390,558 406,550 406,566" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
+  <path d="M 850 558 L 920 558" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
+  <path d="M 1078 606 L 1078 682 Q 1078 706 1054 706 L 906 706 Q 882 706 882 730 L 882 735" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <path d="M 1400 606 L 1400 682 Q 1400 706 1376 706 L 906 706" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
 
-  <rect class="group" x="108" y="236" width="300" height="260" rx="22"/>
-  <text class="tag" x="140" y="272">three app nodes</text>
-  <rect class="node" x="150" y="306" width="216" height="52" fill="#eaf2ff" stroke="#6d9df0"/>
-  <text class="node-title" x="258" y="340" text-anchor="middle">node-1</text>
-  <rect class="node" x="150" y="372" width="216" height="52" fill="#eaf2ff" stroke="#6d9df0"/>
-  <text class="node-title" x="258" y="406" text-anchor="middle">node-2</text>
-  <rect class="node" x="150" y="438" width="216" height="52" fill="#eaf2ff" stroke="#6d9df0"/>
-  <text class="node-title" x="258" y="472" text-anchor="middle">node-3</text>
-
-  <rect class="node" x="518" y="292" width="280" height="112" fill="#fff4de" stroke="#d59c3f"/>
-  <text class="node-title" x="658" y="334" text-anchor="middle">Redis leader lock</text>
-  <text class="node-sub" x="658" y="362" text-anchor="middle">rate-limiter:* lockName</text>
-  <text class="node-sub" x="658" y="386" text-anchor="middle">exactly one scheduler wins</text>
-
-  <rect class="node" x="518" y="552" width="280" height="88" fill="#fff0f5" stroke="#de7f9e"/>
-  <text class="node-title" x="658" y="586" text-anchor="middle">other nodes</text>
-  <text class="node-sub" x="658" y="614" text-anchor="middle">REJECTED, no work items</text>
-
-  <rect class="node" x="908" y="292" width="280" height="112" fill="#edf9f4" stroke="#63b891"/>
-  <text class="node-title" x="1048" y="334" text-anchor="middle">single dispatcher</text>
-  <text class="node-sub" x="1048" y="362" text-anchor="middle">SCHEDULED creates 45 items</text>
-  <text class="node-sub" x="1048" y="386" text-anchor="middle">workers consume the item list</text>
-
-  <rect class="node" x="908" y="512" width="280" height="112" fill="#f0ecff" stroke="#9b7aec"/>
-  <text class="node-title" x="1048" y="554" text-anchor="middle">shared Redis Bucket4j</text>
-  <text class="node-sub" x="1048" y="582" text-anchor="middle">10 tokens per second</text>
-  <text class="node-sub" x="1048" y="606" text-anchor="middle">one quotaKey for all nodes</text>
-
-  <rect class="node" x="1228" y="526" width="190" height="84" fill="#fff5ec" stroke="#e49a72"/>
-  <text class="node-title" x="1323" y="558" text-anchor="middle">quota rejected</text>
-  <text class="node-sub" x="1323" y="584" text-anchor="middle">no API call</text>
-
-  <rect class="node" x="908" y="700" width="280" height="84" fill="#fff5ec" stroke="#e49a72"/>
-  <text class="node-title" x="1048" y="732" text-anchor="middle">external API probe</text>
-  <text class="node-sub" x="1048" y="758" text-anchor="middle">called only after token</text>
-
-  <path class="route" d="M408 366 L518 366" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
-  <rect class="pill" x="432" y="332" width="62" height="26"/>
-  <text class="label" x="463" y="350" text-anchor="middle">race</text>
-
-  <path class="route" d="M798 348 L908 348" stroke="#319873" marker-end="url(#arrow-green)"/>
-  <rect class="pill" x="826" y="314" width="74" height="26"/>
-  <text class="label" x="863" y="332" text-anchor="middle">winner</text>
-
-  <path class="route dash" d="M658 404 L658 552" stroke="#c85d73" marker-end="url(#arrow-red)"/>
-  <rect class="pill" x="684" y="466" width="68" height="26"/>
-  <text class="label" x="718" y="484" text-anchor="middle">losers</text>
-
-  <path class="route" d="M1048 404 L1048 512" stroke="#319873" marker-end="url(#arrow-green)"/>
-  <rect class="pill" x="1074" y="446" width="64" height="26"/>
-  <text class="label" x="1106" y="464" text-anchor="middle">work</text>
-
-  <path class="route" d="M1048 624 L1048 700" stroke="#cf8428" marker-end="url(#arrow-amber)"/>
-  <rect class="pill" x="1074" y="650" width="84" height="26"/>
-  <text class="label" x="1116" y="668" text-anchor="middle">consume</text>
-  <path class="route dash" d="M1188 568 L1228 568" stroke="#c85d73" marker-end="url(#arrow-red)"/>
-
-  <text class="footer" x="750" y="826" text-anchor="middle">Dispatch losers create no work; quota losers never reach the external API.</text>
 </svg>

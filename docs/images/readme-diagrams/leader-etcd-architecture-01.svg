@@ -2,31 +2,23 @@
   <title id="title">leader-etcd runtime architecture</title>
   <desc id="desc">Architecture diagram for the etcd backend showing bluetape4k electors, jetcd client boundaries, Lock and Lease services, Watch publisher, keyspace layout, and cleanup behavior.</desc>
   <style>
-    text { font-family: 'Architects Daughter', 'Comic Mono', 'Comic Sans MS', Arial, sans-serif; letter-spacing: 0; }
+    text { font-family: 'Architects Daughter', 'Comic Mono'; letter-spacing: 0; }
     .title { font-size: 28px; font-weight: 700; fill: #111827; }
     .subtitle { font-size: 14px; fill: #4b5563; }
     .section { font-size: 15px; font-weight: 700; fill: #374151; }
     .card-title { font-size: 16px; font-weight: 700; fill: #111827; }
     .card-sub { font-size: 12px; fill: #4b5563; }
-    .mono { font-family: 'Comic Mono', 'Architects Daughter', monospace; font-size: 12px; fill: #374151; }
+    .mono { font-family: 'Comic Mono', 'Architects Daughter'; font-size: 12px; fill: #374151; }
     .tiny { font-size: 11px; fill: #6b7280; }
     .badge { font-size: 11px; font-weight: 700; }
     .footer { font-size: 12px; fill: #6b7280; }
     .dash { stroke-dasharray: 6 5; }
   </style>
   <defs>
-    <marker id="blueArrow" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11 Z" fill="#2563eb"/>
-    </marker>
-    <marker id="greenArrow" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11 Z" fill="#059669"/>
-    </marker>
-    <marker id="purpleArrow" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11 Z" fill="#7c3aed"/>
-    </marker>
-    <marker id="orangeArrow" viewBox="0 0 14 12" markerWidth="13" markerHeight="11" refX="12" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11 Z" fill="#ea580c"/>
-    </marker>
+    <marker id="blueArrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#2563eb" stroke="#2563eb" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="greenArrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669" stroke="#059669" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="purpleArrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c3aed" stroke="#7c3aed" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="orangeArrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#ea580c" stroke="#ea580c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
 
   <rect width="1320" height="860" fill="#f8fafc"/>
@@ -121,25 +113,25 @@
     <text x="22" y="78" class="card-sub">publisher revalidates current owner key</text>
   </g>
 
-  <path d="M 308 364 L 390 364 L 422 246" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#blueArrow)"/>
+  <path d="M 308 364 L 379.33 364 L 400.67 364 L 411.33 364 Q 422 364 422 353.33 L 422 246" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#blueArrow)"/>
   <text x="356" y="350" text-anchor="middle" class="tiny" fill="#1d4ed8">run action</text>
-  <path d="M 798 246 L 878 246" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#blueArrow)"/>
+  <path d="M 798 246 L 878 246" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#blueArrow)"/>
   <text x="838" y="232" text-anchor="middle" class="tiny" fill="#1d4ed8">Lock</text>
-  <path d="M 798 306 L 828 306 L 828 174 L 1135 174 L 1135 190" fill="none" stroke="#059669" stroke-width="2" marker-end="url(#greenArrow)"/>
-  <text x="1174" y="184" text-anchor="middle" class="tiny" fill="#047857">lease TTL</text>
-  <path d="M 766 580 L 878 426" fill="none" stroke="#7c3aed" stroke-width="2" marker-end="url(#purpleArrow)"/>
+  <path d="M 766 246 L 820 246 Q 838 246 838 228 L 838 194 Q 838 176 856 176 L 1135 176 Q 1153 176 1153 188 L 1153 190" fill="none" stroke="#059669" stroke-width="2.5" marker-end="url(#greenArrow)"/>
+  <text x="1164" y="168" text-anchor="middle" class="tiny" fill="#047857">lease TTL</text>
+  <path d="M 766 580 L 804 580 Q 822 580 822 562 L 822 444 Q 822 426 840 426 L 878 426" fill="none" stroke="#7c3aed" stroke-width="2.5" marker-end="url(#purpleArrow)"/>
   <text x="842" y="520" text-anchor="middle" class="tiny" fill="#6d28d9">key path</text>
-  <path d="M 1038 536 L 1038 478" fill="none" stroke="#ea580c" stroke-width="1.8" class="dash" marker-end="url(#orangeArrow)"/>
+  <path d="M 1038 536 L 1038 478" fill="none" stroke="#ea580c" stroke-width="2.5" class="dash" marker-end="url(#orangeArrow)"/>
   <text x="1060" y="510" class="tiny" fill="#c2410c">watch prefix</text>
 
   <g transform="translate(80 742)">
-    <line x1="0" y1="10" x2="34" y2="10" stroke="#2563eb" stroke-width="2" marker-end="url(#blueArrow)"/>
+    <line x1="0" y1="10" x2="34" y2="10" stroke="#2563eb" stroke-width="2.5" marker-end="url(#blueArrow)"/>
     <text x="44" y="15" class="tiny">lock request</text>
-    <line x1="160" y1="10" x2="194" y2="10" stroke="#059669" stroke-width="2" marker-end="url(#greenArrow)"/>
+    <line x1="160" y1="10" x2="194" y2="10" stroke="#059669" stroke-width="2.5" marker-end="url(#greenArrow)"/>
     <text x="204" y="15" class="tiny">lease TTL</text>
-    <line x1="318" y1="10" x2="352" y2="10" stroke="#7c3aed" stroke-width="2" marker-end="url(#purpleArrow)"/>
+    <line x1="318" y1="10" x2="352" y2="10" stroke="#7c3aed" stroke-width="2.5" marker-end="url(#purpleArrow)"/>
     <text x="362" y="15" class="tiny">keyspace mapping</text>
-    <line x1="528" y1="10" x2="562" y2="10" stroke="#ea580c" stroke-width="1.8" class="dash" marker-end="url(#orangeArrow)"/>
+    <line x1="528" y1="10" x2="562" y2="10" stroke="#ea580c" stroke-width="2.5" class="dash" marker-end="url(#orangeArrow)"/>
     <text x="572" y="15" class="tiny">watch event</text>
   </g>
 

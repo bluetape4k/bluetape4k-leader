@@ -1,114 +1,124 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120" role="img" aria-labelledby="title desc" data-source-read="examples/prometheus-dashboard/README.md; examples/prometheus-dashboard/src/main/kotlin/io/bluetape4k/leader/examples/prometheus/PrometheusDashboardApp.kt; examples/prometheus-dashboard/provisioning/prometheus/prometheus.yml; examples/prometheus-dashboard/provisioning/grafana/dashboards/leader-dashboard.json">
-  <title id="title">Prometheus Dashboard Sequence</title>
-  <desc id="desc">Sequence from scheduled trigger through leader AOP proxy, Redis acquisition, Micrometer recording, actuator scrape, Prometheus storage, and Grafana dashboard rendering.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1020" viewBox="0 0 1600 1020" role="img" aria-labelledby="title desc">
   <defs>
-    <marker id="arrow-blue" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 1 L 8 4.5 L 1 8 Z" fill="#4f77c9"/></marker>
-    <marker id="arrow-green" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 1 L 8 4.5 L 1 8 Z" fill="#329a74"/></marker>
-    <marker id="arrow-amber" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 1 L 8 4.5 L 1 8 Z" fill="#cf8428"/></marker>
-    <marker id="arrow-purple" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 1 1 L 8 4.5 L 1 8 Z" fill="#7e62d9"/></marker>
+    <filter id="softShadow" x="-12%" y="-12%" width="124%" height="124%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#263238" flood-opacity="0.14"/>
+    </filter>
     <style>
-      .canvas { fill: #f6f9fc; }
-      .frame { fill: #ffffff; stroke: #c4d5e8; stroke-width: 3; }
-      .title, .role { font-family: "Architects Daughter"; fill: #263a57; }
-      .title { font-size: 44px; }
-      .subtitle, .note, .label, .region-title, .footer { font-family: "Comic Mono"; fill: #526276; }
+      .canvas { fill: #fbfcf8; }
+      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 3; }
+      .title { font-family: "Architects Daughter"; font-size: 42px; fill: #263238; }
+      .subtitle, .small, .labelText, .detail, .footer, .msg, .note { font-family: "Comic Mono"; fill: #36464f; }
       .subtitle { font-size: 17px; }
-      .role { font-size: 21px; }
-      .note { font-size: 12px; }
-      .label { font-size: 12px; }
-      .region-title { font-size: 13px; font-weight: 700; }
-      .footer { font-size: 14px; }
-      .participant { stroke-width: 2.2; rx: 14; }
-      .lifeline { stroke: #cbd9e7; stroke-width: 2; stroke-dasharray: 8 8; }
-      .call { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-      .return { fill: none; stroke-width: 2.4; stroke-dasharray: 8 7; stroke-linecap: round; stroke-linejoin: round; }
-      .region { stroke-width: 2.2; rx: 18; }
-      .divider { stroke: #d8c8ef; stroke-width: 2; stroke-dasharray: 10 8; }
-      .pill { fill: #ffffff; stroke: #cbd9e7; stroke-width: 1.4; rx: 10; }
+      .footer { font-size: 13px; fill: #60727d; }
+      .band { fill: #f5f9fb; stroke: #c8d7df; stroke-width: 1.6; }
+      .bandAlt { fill: #fbfdf8; stroke: #d7e0d0; stroke-width: 1.6; }
+      .bandTitle { font-family: "Architects Daughter"; font-size: 22px; fill: #263238; }
+      .bandHint { font-family: "Comic Mono"; font-size: 12px; fill: #60727d; }
+      .card { filter: url(#softShadow); stroke-width: 2.4; rx: 8; }
+      .cardTitle { font-family: "Architects Daughter"; font-size: 24px; fill: #1f3138; }
+      .detail { font-size: 13.5px; fill: #546a73; }
+      .edge { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+      .edgeThin { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .dash { stroke-dasharray: 10 8; }
+      .pill { fill: #ffffff; stroke-width: 1.5; }
+      .labelText { font-size: 12.5px; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2.2; }
+      .participant { font-family: "Architects Daughter"; font-size: 20px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.7; }
+      .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
     </style>
+    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
+  <title id="title">Prometheus Dashboard Sequence</title>
+  <desc id="desc">Sequence diagram for Prometheus Dashboard.</desc>
+  <rect width="1600" height="1020" class="canvas"/>
+  <rect x="28" y="26" width="1544" height="968" rx="8" class="frame"/>
+  <text x="80" y="82" class="title">Prometheus Dashboard Sequence</text>
+  <text x="82" y="114" class="subtitle">Prometheus follows the leader-core sequence style with clear calls, returns, and alternate outcomes.</text>
 
-  <rect class="canvas" width="1600" height="1120"/>
-  <rect class="frame" x="42" y="34" width="1516" height="1048" rx="30"/>
-  <text class="title" x="86" y="92">Prometheus Dashboard Sequence</text>
-  <text class="subtitle" x="90" y="126">The scheduled method calls a separate proxied bean so the leader AOP advice can wrap the work and metrics.</text>
+  <rect x="70" y="150" width="170" height="68" rx="8" class="header"/><text x="155" y="179" text-anchor="middle" class="participant">Caller</text><text x="155" y="201" text-anchor="middle" class="role">metrics scrape</text>
+  <rect x="315" y="150" width="190" height="68" rx="8" class="header"/><image data-bluetape4k-icon="prometheus" data-icon-source="testcontainers/infra/prometheus.svg" x="325" y="158" width="18" height="18" href="data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjRTY1MjJDIiByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+UHJvbWV0aGV1czwvdGl0bGU+PHBhdGggZD0iTTEyIDBDNS4zNzMgMCAwIDUuMzcyIDAgMTJjMCA2LjYyNyA1LjM3MyAxMiAxMiAxMnMxMi01LjM3MyAxMi0xMmMwLTYuNjI4LTUuMzczLTEyLTEyLTEyem0wIDIyLjQ2Yy0xLjg4NSAwLTMuNDE0LTEuMjYtMy40MTQtMi44MTRoNi44MjhjMCAxLjU1My0xLjUyOCAyLjgxMy0zLjQxNCAyLjgxM3ptNS42NC0zLjc0NUg2LjM2di0yLjA0NmgxMS4yOHYyLjA0NnptLS4wNC0zLjA5OEg2LjM5MWMtLjAzNy0uMDQzLS4wNzUtLjA4Ni0uMTExLS4xMy0xLjE1NS0xLjQwMS0xLjQyNy0yLjEzMy0xLjY5LTIuODc5LS4wMDUtLjAyNSAxLjQuMjg3IDIuMzk1LjUxMSAwIDAgLjUxMy4xMTkgMS4yNjIuMjU1LS43Mi0uODQzLTEuMTQ3LTEuOTE1LTEuMTQ3LTMuMDEgMC0yLjQwNiAxLjg0NS00LjUwOCAxLjE4LTYuMjA3LjY0OC4wNTMgMS4zNCAxLjM2NyAxLjM4NyAzLjQyMi42ODktLjk1MS45NzctMi42OS45NzctMy43NTUgMC0xLjEwMy43MjctMi4zODUgMS40NTQtMi40MjktLjY0OCAxLjA2OS4xNjggMS45ODQuODk0IDQuMjU2LjI3Mi44NTQuMjM3IDIuMjkuNDQ3IDMuMjAxLjA3LTEuODkyLjM5NS00LjY1MiAxLjU5NS01LjYwNS0uNTI5IDEuMi4wNzkgMi43MDIuNDk0IDMuNDI0LjY3MSAxLjE2NCAxLjA3OCAyLjA0NyAxLjA3OCAzLjcxNmE0LjY0MiA0LjY0MiAwIDAxLTEuMTEgMi45OTZjLjc5Mi0uMTQ5IDEuMzQtLjI4MyAxLjM0LS4yODNsMi41NzMtLjUwMnMtLjM3NCAxLjUzOC0xLjgxIDMuMDE5eiIvPjwvc3ZnPg==" preserveAspectRatio="xMidYMid meet"/><text x="410" y="179" text-anchor="middle" class="participant">Example</text><text x="410" y="201" text-anchor="middle" class="role">Prometheus</text>
+  <rect x="570" y="150" width="210" height="68" rx="8" class="header"/><text x="675" y="179" text-anchor="middle" class="participant">Leader API</text><text x="675" y="201" text-anchor="middle" class="role">runIfLeader</text>
+  <rect x="845" y="150" width="210" height="68" rx="8" class="header"/><text x="950" y="179" text-anchor="middle" class="participant">Lock Store</text><text x="950" y="201" text-anchor="middle" class="role">dashboard refresh</text>
+  <rect x="1120" y="150" width="190" height="68" rx="8" class="header"/><text x="1215" y="179" text-anchor="middle" class="participant">Action</text><text x="1215" y="201" text-anchor="middle" class="role">protected work</text>
+  <rect x="1365" y="150" width="170" height="68" rx="8" class="header"/><text x="1450" y="179" text-anchor="middle" class="participant">Observer</text><text x="1450" y="201" text-anchor="middle" class="role">metrics/events</text>
+  <line x1="155" y1="218" x2="155" y2="938" class="lifeline"/>
+  <line x1="410" y1="218" x2="410" y2="938" class="lifeline"/>
+  <line x1="675" y1="218" x2="675" y2="938" class="lifeline"/>
+  <line x1="950" y1="218" x2="950" y2="938" class="lifeline"/>
+  <line x1="1215" y1="218" x2="1215" y2="938" class="lifeline"/>
+  <line x1="1450" y1="218" x2="1450" y2="938" class="lifeline"/>
+  <rect x="668" y="316" width="14" height="520" rx="6" class="activation"/>
+  <rect x="943" y="392" width="14" height="216" rx="6" class="activation"/>
+  <rect x="1208" y="560" width="14" height="112" rx="6" class="activation"/>
+  <g>
+    <rect x="175" y="266" width="480" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="197" cy="282" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="197" y="286" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
+    <text x="218" y="287" class="labelText" fill="#3f7d9c">submit leader-guarded request</text>
+  </g>
+  <path d="M 155 318 L 675 318" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <g>
+    <rect x="695" y="342" width="362" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="717" cy="358" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="717" y="362" text-anchor="middle" class="badgeText" fill="#6e8f4f">2</text>
+    <text x="738" y="363" class="labelText" fill="#6e8f4f">try acquire lease / conditional claim</text>
+  </g>
+  <path d="M 675 394 L 950 394" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
+  <g>
+    <rect x="695" y="428" width="282" height="32" rx="16" class="pill" stroke="#9b7d54"/>
+    <circle cx="717" cy="444" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
+    <text x="717" y="448" text-anchor="middle" class="badgeText" fill="#9b7d54">3</text>
+    <text x="738" y="449" class="labelText" fill="#9b7d54">acquired or skipped outcome</text>
+  </g>
+  <path d="M 950 480 L 675 480" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
+  <rect x="82" y="518" width="1420" height="270" rx="12" class="branch"/>
+  <text x="112" y="548" class="note">alt acquired</text>
+  <line x1="82" y1="690" x2="1502" y2="690" class="branch"/>
+  <text x="112" y="720" class="note">else skipped / failed</text>
+  <g>
+    <rect x="695" y="538" width="500" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="717" cy="554" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="717" y="558" text-anchor="middle" class="badgeText" fill="#6e8f4f">4</text>
+    <text x="738" y="559" class="labelText" fill="#6e8f4f">invoke protected work once</text>
+  </g>
+  <path d="M 675 590 L 1215 590" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
+  <g>
+    <rect x="695" y="616" width="500" height="32" rx="16" class="pill" stroke="#9b7d54"/>
+    <circle cx="717" cy="632" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
+    <text x="717" y="636" text-anchor="middle" class="badgeText" fill="#9b7d54">5</text>
+    <text x="738" y="637" class="labelText" fill="#9b7d54">return value or action failure</text>
+  </g>
+  <path d="M 1215 668 L 675 668" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
+  <g>
+    <rect x="695" y="702" width="735" height="32" rx="16" class="pill" stroke="#b86868"/>
+    <circle cx="717" cy="718" r="12.5" fill="#fff" stroke="#b86868" stroke-width="1.6"/>
+    <text x="717" y="722" text-anchor="middle" class="badgeText" fill="#b86868">6</text>
+    <text x="738" y="723" class="labelText" fill="#b86868">publish skipped/failed event</text>
+  </g>
+  <path d="M 675 754 L 1450 754" class="edge" stroke="#b86868" marker-end="url(#arrow-skip)"/>
+  <g>
+    <rect x="695" y="786" width="250" height="32" rx="16" class="pill" stroke="#9b7d54"/>
+    <circle cx="717" cy="802" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
+    <text x="717" y="806" text-anchor="middle" class="badgeText" fill="#9b7d54">7</text>
+    <text x="738" y="807" class="labelText" fill="#9b7d54">release lease and state</text>
+  </g>
+  <path d="M 675 838 L 950 838" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
+  <g>
+    <rect x="175" y="858" width="480" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="197" cy="874" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="197" y="878" text-anchor="middle" class="badgeText" fill="#3f7d9c">8</text>
+    <text x="218" y="879" class="labelText" fill="#3f7d9c">return explicit result to caller</text>
+  </g>
+  <path d="M 675 910 L 155 910" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
 
-  <rect class="participant" x="78" y="172" width="166" height="72" fill="#eaf2ff" stroke="#6d9df0"/>
-  <text class="role" x="161" y="202" text-anchor="middle">Scheduler</text>
-  <text class="note" x="161" y="224" text-anchor="middle">fixed delay</text>
-
-  <rect class="participant" x="278" y="172" width="166" height="72" fill="#f0ecff" stroke="#9b7aec"/>
-  <text class="role" x="361" y="202" text-anchor="middle">AOP proxy</text>
-  <text class="note" x="361" y="224" text-anchor="middle">@LeaderElection</text>
-
-  <rect class="participant" x="478" y="172" width="166" height="72" fill="#fff4de" stroke="#d59c3f"/>
-  <text class="role" x="561" y="202" text-anchor="middle">Redis</text>
-  <text class="note" x="561" y="224" text-anchor="middle">Lettuce lock</text>
-
-  <rect class="participant" x="678" y="172" width="166" height="72" fill="#edf9f4" stroke="#63b891"/>
-  <text class="role" x="761" y="202" text-anchor="middle">Job body</text>
-  <text class="note" x="761" y="224" text-anchor="middle">dispatchBatch</text>
-
-  <rect class="participant" x="900" y="172" width="176" height="72" fill="#edf9f4" stroke="#63b891"/>
-  <text class="role" x="988" y="202" text-anchor="middle">Recorder</text>
-  <text class="note" x="988" y="224" text-anchor="middle">Micrometer</text>
-
-  <rect class="participant" x="1120" y="172" width="176" height="72" fill="#f8fbff" stroke="#cbd9e7"/>
-  <text class="role" x="1208" y="202" text-anchor="middle">Actuator</text>
-  <text class="note" x="1208" y="224" text-anchor="middle">prometheus endpoint</text>
-
-  <rect class="participant" x="1340" y="172" width="184" height="72" fill="#fff0f5" stroke="#de7f9e"/>
-  <text class="role" x="1432" y="202" text-anchor="middle">Prom + Grafana</text>
-  <text class="note" x="1432" y="224" text-anchor="middle">scrape and panels</text>
-
-  <path class="lifeline" d="M161 244 L161 1018"/>
-  <path class="lifeline" d="M361 244 L361 1018"/>
-  <path class="lifeline" d="M561 244 L561 1018"/>
-  <path class="lifeline" d="M761 244 L761 1018"/>
-  <path class="lifeline" d="M988 244 L988 1018"/>
-  <path class="lifeline" d="M1208 244 L1208 1018"/>
-  <path class="lifeline" d="M1432 244 L1432 1018"/>
-
-  <path class="call" d="M120 292 L988 292" stroke="#cf8428" marker-end="url(#arrow-amber)"/>
-  <text class="label" x="520" y="276" text-anchor="middle" fill="#8b5d10">1. ApplicationReadyEvent registers dashboard-job meters</text>
-
-  <path class="call" d="M161 350 L361 350" stroke="#4f77c9" marker-end="url(#arrow-blue)"/>
-  <text class="label" x="261" y="334" text-anchor="middle" fill="#234f9b">2. tick calls dispatchBatch() on proxied bean</text>
-
-  <path class="call" d="M361 408 L561 408" stroke="#cf8428" marker-end="url(#arrow-amber)"/>
-  <text class="label" x="461" y="392" text-anchor="middle" fill="#8b5d10">3. acquire dashboard-job, wait 1s, lease 30s</text>
-
-  <rect class="region" x="82" y="444" width="1376" height="376" fill="#f4eefc" fill-opacity="0.42" stroke="#bba7ec"/>
-  <text class="region-title" x="110" y="470">alt Redis lock result</text>
-  <path class="divider" d="M98 652 L1442 652"/>
-  <text class="region-title" x="110" y="678">else lock not acquired</text>
-
-  <path class="return" d="M561 506 L361 506" stroke="#329a74" marker-end="url(#arrow-green)"/>
-  <text class="label" x="461" y="490" text-anchor="middle" fill="#176f4e">4a. acquired</text>
-
-  <path class="call" d="M361 548 L988 548" stroke="#329a74" marker-end="url(#arrow-green)"/>
-  <text class="label" x="674" y="532" text-anchor="middle" fill="#176f4e">5a. attempts + acquired + active gauge on</text>
-
-  <path class="call" d="M361 594 L761 594" stroke="#329a74" marker-end="url(#arrow-green)"/>
-  <text class="label" x="561" y="578" text-anchor="middle" fill="#176f4e">6a. execute leader-only job body</text>
-
-  <path class="return" d="M761 634 L361 634" stroke="#329a74" marker-end="url(#arrow-green)"/>
-  <text class="label" x="561" y="618" text-anchor="middle" fill="#176f4e">7a. return after visible demo latency</text>
-
-  <path class="return" d="M561 714 L361 714" stroke="#cf8428" marker-end="url(#arrow-amber)"/>
-  <text class="label" x="461" y="698" text-anchor="middle" fill="#8b5d10">4b. not acquired</text>
-
-  <path class="call" d="M361 758 L988 758" stroke="#cf8428" marker-end="url(#arrow-amber)"/>
-  <text class="label" x="674" y="742" text-anchor="middle" fill="#8b5d10">5b. leader_aop_lock_not_acquired_total with reason</text>
-
-  <path class="call" d="M361 850 L988 850" stroke="#329a74" marker-end="url(#arrow-green)"/>
-  <text class="label" x="674" y="834" text-anchor="middle" fill="#176f4e">8. final duration and active gauge off when leader path completes</text>
-
-  <path class="call" d="M1432 910 L1208 910" stroke="#7e62d9" marker-end="url(#arrow-purple)"/>
-  <text class="label" x="1320" y="894" text-anchor="middle" fill="#4e3aa5">9. Prometheus scrapes /actuator/prometheus</text>
-
-  <path class="return" d="M1208 950 L1432 950" stroke="#7e62d9" marker-end="url(#arrow-purple)"/>
-  <text class="label" x="1320" y="934" text-anchor="middle" fill="#4e3aa5">10. leader_aop_* samples feed dashboard panels</text>
-
-  <text class="footer" x="800" y="1050" text-anchor="middle">Prometheus queries use rates for counters and max by(lock_name) for the JVM-local active gauge.</text>
 </svg>
