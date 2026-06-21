@@ -30,10 +30,10 @@
     .table { fill: #fdf2f8; stroke: #f9a8d4; }
     .history { fill: #faf5ff; stroke: #c4b5fd; }
     .divider { stroke: rgba(100,116,139,0.35); stroke-width: 1; }
-    .impl { stroke: #334155; stroke-width: 1.2; fill: none; marker-end: url(#hollowTri); }
-    .uses { stroke: #2563eb; stroke-width: 1.45; fill: none; stroke-dasharray: 6 5; marker-end: url(#arrowBlue); }
-    .data { stroke: #16a34a; stroke-width: 1.45; fill: none; stroke-dasharray: 6 5; marker-end: url(#arrowGreen); }
-    .audit { stroke: #7c3aed; stroke-width: 1.35; fill: none; stroke-dasharray: 5 5; marker-end: url(#arrowPurple); }
+    .impl { stroke: #334155; stroke-width: 1.2; fill: none; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#hollowTri); }
+    .uses { stroke: #2563eb; stroke-width: 1.45; fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 6 5; marker-end: url(#arrowBlue); }
+    .data { stroke: #16a34a; stroke-width: 1.45; fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 6 5; marker-end: url(#arrowGreen); }
+    .audit { stroke: #7c3aed; stroke-width: 1.35; fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5 5; marker-end: url(#arrowPurple); }
   </style>
 
   <rect width="1240" height="860" fill="#f6f8fb"/>
@@ -146,16 +146,16 @@
     <text class="member" x="14" y="60">ACQUIRED / COMPLETED / FAILED</text>
   </g>
 
-  <path class="impl" d="M 442 257 L 364 257 L 334 257"/>
-  <path class="impl" d="M 624 306 L 614 306 L 614 330 L 392 330 L 392 359 L 334 359"/>
-  <path class="impl" d="M 442 458 L 384 458 L 384 481 L 334 481"/>
-  <path class="impl" d="M 624 458 L 614 458 L 614 508 L 384 508 L 384 603 L 334 603"/>
+  <path class="impl" d="M 442 257 L 334 257"/>
+  <path class="impl" d="M 624 306 L 614 306 Q 602 306 602 318 L 602 330 Q 602 342 590 342 L 392 342 Q 384 342 384 350 L 384 351 Q 384 359 376 359 L 334 359"/>
+  <path class="impl" d="M 442 458 L 396 458 Q 384 458 384 470 L 384 473 Q 384 481 376 481 L 334 481"/>
+  <path class="impl" d="M 624 458 L 614 458 Q 602 458 602 470 L 602 508 Q 602 520 590 520 L 396 520 Q 384 520 384 532 L 384 591 Q 384 603 372 603 L 334 603"/>
 
   <path class="uses" d="M 602 241 L 614 241 Q 624 241 624 231 L 624 180 Q 624 168 636 168 L 878 168 Q 890 168 890 180 L 890 198"/>
   <path class="uses" d="M 784 257 L 820 257 Q 838 257 838 275 L 838 345.67 Q 838 363 855.33 363 L 890 363"/>
   <path class="uses" d="M 522 470 L 522 503.33 Q 522 516 534.67 516 L 550 516 Q 560 516 560 526 L 560 546"/>
   <path class="uses" d="M 704 470 L 704 501.33 Q 704 516 689.33 516 L 670 516 Q 660 516 660 526 L 660 546"/>
-  <path class="audit" d="M 736 593 L 850 593 L 850 623 L 890 623"/>
+  <path class="audit" d="M 736 593 L 842 593 Q 850 593 850 601 L 850 615 Q 850 623 858 623 L 890 623"/>
 
   <g transform="translate(82 724)">
     <rect fill="#f8fafc" stroke="#dbe4f0" width="1076" height="58" rx="12"/>

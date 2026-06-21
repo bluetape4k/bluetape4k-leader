@@ -1,127 +1,162 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1320 980" width="1320" height="980" role="img" aria-labelledby="title desc">
-  <title id="title">leader-k8s acquire and release sequence</title>
-  <desc id="desc">Sequence diagram showing Kubernetes Lease acquisition, contention, action execution, auto extension, owner conditional release, minimum lease time, and expired takeover behavior.</desc>
-  <style>
-    text { font-family: 'Architects Daughter', 'Comic Mono'; letter-spacing: 0; }
-    .title { font-size: 28px; font-weight: 700; fill: #111827; }
-    .subtitle { font-size: 14px; fill: #4b5563; }
-    .participant { font-size: 15px; font-weight: 700; fill: #111827; }
-    .small { font-size: 12px; fill: #4b5563; }
-    .label-blue { font-size: 12px; fill: #1d4ed8; font-weight: 700; }
-    .label-green { font-size: 12px; fill: #047857; font-weight: 700; }
-    .label-orange { font-size: 12px; fill: #c2410c; font-weight: 700; }
-    .label-purple { font-size: 12px; fill: #6d28d9; font-weight: 700; }
-    .frame-label { font-size: 12px; font-weight: 700; fill: #374151; }
-    .mono { font-family: 'Comic Mono', 'Architects Daughter'; font-size: 12px; fill: #374151; }
-    .tiny { font-size: 11px; fill: #6b7280; }
-    .footer { font-size: 12px; fill: #6b7280; }
-  </style>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1220" viewBox="0 0 1600 1220" role="img" aria-labelledby="title desc">
+  <title id="title">Kubernetes Lease Acquire / Release Sequence</title>
+  <desc id="desc">Kubernetes Lease acquisition, contention, action execution, auto extension, owner conditional release, minimum lease time, and expired takeover behavior.</desc>
   <defs>
-    <marker id="blueArrow" viewBox="0 0 10 10" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#2563eb" stroke="#2563eb" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="greenArrow" viewBox="0 0 10 10" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669" stroke="#059669" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="orangeArrow" viewBox="0 0 10 10" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#ea580c" stroke="#ea580c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="purpleArrow" viewBox="0 0 10 10" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c3aed" stroke="#7c3aed" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <style>
+      .title { font-family: "Architects Daughter"; font-size: 40px; fill: #263238; }
+      .subtitle, .msg, .note, .footer { font-family: "Comic Mono"; fill: #36464f; }
+      .subtitle { font-size: 18px; }
+      .participant { font-family: "Architects Daughter"; font-size: 19px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .msg { font-size: 14px; }
+      .note { font-size: 13px; }
+      .footer { font-size: 14px; fill: #60727d; }
+      .frame { fill: #fbfcf8; stroke: #41545d; stroke-width: 3; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #f3ecdf; stroke: #8f784e; stroke-width: 1.5; }
+      .call { fill: none; stroke: #3f7d9c; stroke-width: 3; marker-end: url(#arrowCall); stroke-linecap: round; stroke-linejoin: round; }
+      .slot { fill: none; stroke: #a2743d; stroke-width: 3; marker-end: url(#arrowSlot); stroke-linecap: round; stroke-linejoin: round; }
+      .state { fill: none; stroke: #6e8f4f; stroke-width: 3; marker-end: url(#arrowState); stroke-linecap: round; stroke-linejoin: round; }
+      .return { fill: none; stroke: #9b7d54; stroke-width: 2.5; stroke-dasharray: 8 6; marker-end: url(#arrowReturn); stroke-linecap: round; stroke-linejoin: round; }
+      .wait { fill: none; stroke: #8e6aa9; stroke-width: 3; marker-end: url(#arrowWait); stroke-linecap: round; stroke-linejoin: round; }
+      .skip { fill: none; stroke: #b86868; stroke-width: 3; marker-end: url(#arrowSkip); stroke-linecap: round; stroke-linejoin: round; }
+      .alt { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 7; }
+      .branchDivider { stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+      .label { fill: #ffffff; stroke: #d7e0e4; stroke-width: 1.5; }
+      .label.callLabel { stroke: #9cc2d1; }
+      .label.slotLabel { stroke: #d0b078; }
+      .label.stateLabel { stroke: #b6c9a4; }
+      .label.returnLabel { stroke: #c8b38f; }
+      .label.waitLabel { stroke: #c7abd8; }
+      .label.skipLabel { stroke: #d9abab; }
+      .branchOk { fill: #f8f1e6; stroke: #a2743d; stroke-width: 1.8; }
+      .branchWait { fill: #f7f0fb; stroke: #8e6aa9; stroke-width: 1.8; }
+      .branchSkip { fill: #fff5f5; stroke: #b86868; stroke-width: 3; }
+      .badge { stroke-width: 1.8; }
+      .badge.callBadge { fill: #eaf4f8; stroke: #3f7d9c; }
+      .badge.slotBadge { fill: #fff4df; stroke: #a2743d; }
+      .badge.stateBadge { fill: #eef7f0; stroke: #6e8f4f; }
+      .badge.returnBadge { fill: #fff7e8; stroke: #9b7d54; }
+      .badge.waitBadge { fill: #f7f0fb; stroke: #8e6aa9; }
+      .badge.skipBadge { fill: #fff0f0; stroke: #b86868; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .msg.callText, .badgeText.callText { fill: #2f6f8e; }
+      .msg.slotText, .badgeText.slotText { fill: #855a29; }
+      .msg.stateText, .badgeText.stateText { fill: #55783f; }
+      .msg.returnText, .badgeText.returnText { fill: #7f6038; }
+      .msg.waitText, .badgeText.waitText { fill: #774f92; }
+      .msg.skipText, .badgeText.skipText { fill: #9d4f4f; }
+    </style>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowCall" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowSlot" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#a2743d" stroke="#a2743d" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowState" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowReturn" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowWait" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#8e6aa9" stroke="#8e6aa9" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowSkip" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
 
-  <rect width="1320" height="980" fill="#f8fafc"/>
-  <rect x="28" y="24" width="1264" height="902" rx="18" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
-  <text x="52" y="66" class="title">leader-k8s acquire and release sequence</text>
-  <text x="52" y="92" class="subtitle">Lease ownership is granted by holderIdentity plus resourceVersion update success; release is also owner-conditional.</text>
+  <rect x="24" y="24" width="1552" height="1172" rx="20" class="frame"/>
+  <text x="800" y="78" text-anchor="middle" class="title">Kubernetes Lease Acquire / Release Sequence</text>
+  <text x="800" y="108" text-anchor="middle" class="subtitle">Lease ownership is holderIdentity plus resourceVersion update success; release is also owner-conditional.</text>
 
-  <g id="participants">
-    <g transform="translate(86 126)">
-      <rect width="154" height="54" rx="8" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.4"/>
-      <text x="77" y="33" text-anchor="middle" class="participant">Caller</text>
-    </g>
-    <g transform="translate(318 126)">
-      <rect width="190" height="54" rx="8" fill="#f0fdf4" stroke="#86efac" stroke-width="1.4"/>
-      <text x="95" y="25" text-anchor="middle" class="participant">K8s Elector</text>
-      <text x="95" y="43" text-anchor="middle" class="tiny">single or group slot</text>
-    </g>
-    <g transform="translate(594 126)">
-      <rect width="178" height="54" rx="8" fill="#fff7ed" stroke="#fdba74" stroke-width="1.4"/>
-      <text x="89" y="25" text-anchor="middle" class="participant">LeaseLock</text>
-      <text x="89" y="43" text-anchor="middle" class="tiny">ownerToken</text>
-    </g>
-    <g transform="translate(858 126)">
-      <rect width="178" height="54" rx="8" fill="#faf5ff" stroke="#c084fc" stroke-width="1.4"/><image data-bluetape4k-icon="kubernetes" data-icon-source="testcontainers/generic/kubernetes.svg" x="10" y="8" width="18" height="18" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHJvbGU9ImltZyIgdmlld0JveD0iLTAuMTcgMC4wOCAyMzAuMTAgMjIzLjM1Ij48ZGVmcz48c3R5bGU+LmNscy0xe2ZpbGw6I2ZmZn0uY2xzLTJ7ZmlsbDojMzI2Y2U1fTwvc3R5bGU+PC9kZWZzPjxwYXRoIGQ9Ik0xMzQuMzU4IDEyNi40NjZhMy41OSAzLjU5IDAgMCAwLS44NTUtLjA2NSAzLjY4NSAzLjY4NSAwIDAgMC0xLjQyNS4zNyAzLjcyNSAzLjcyNSAwIDAgMC0xLjgwMyA0LjgyNWwtLjAyNi4wMzcgOC41MjggMjAuNjAzYTQzLjUzIDQzLjUzIDAgMCAwIDE3LjU5NS0yMi4xMDJsLTIxLjk3Ni0zLjcxNHptLTM0LjE5NCAyLjkyYTMuNzIgMy43MiAwIDAgMC0zLjU2OC0yLjg5NCAzLjY1NiAzLjY1NiAwIDAgMC0uNzMzLjA2NWwtLjAzNy0uMDQ1LTIxLjc4NSAzLjY5OGE0My42OTUgNDMuNjk1IDAgMCAwIDE3LjU0IDIxLjk0Nmw4LjQ0Mi0yMC40LS4wNjYtLjA4YTMuNjgzIDMuNjgzIDAgMCAwIC4yMDctMi4yOXptMTguMjQ1IDhhMy43MTggMy43MTggMCAwIDAtNi41NTcuMDA4aC0uMDE4bC0xMC43MTMgMTkuMzcyYTQzLjYzNyA0My42MzcgMCAwIDAgMjMuODE1IDEuMjI1cTIuMTk3LS41IDQuMjkyLTEuMmwtMTAuNzM4LTE5LjQwNnptMzMuOTE0LTQ1bC0xNi40ODMgMTQuNzUzLjAwOS4wNDdhMy43MjUgMy43MjUgMCAwIDAgMS40NiA2LjM5NWwuMDIuMDg5IDIxLjM1IDYuMTVhNDQuMjc4IDQ0LjI3OCAwIDAgMC02LjM1Ni0yNy40MzJ6TTEyMS43IDk0LjAzOWEzLjcyNSAzLjcyNSAwIDAgMCA1LjkxMyAyLjg0bC4wNjUuMDI3IDE4LjAzNi0xMi43ODhhNDMuODUgNDMuODUgMCAwIDAtMjUuMjg3LTEyLjE5bDEuMjUzIDIyLjEwNXptLTE5LjEgMi45MjFhMy43MiAzLjcyIDAgMCAwIDUuOTA0LTIuODVsLjA5Mi0uMDQzIDEuMjUzLTIyLjE0YTQ0LjY4MiA0NC42ODIgMCAwIDAtNC41MDEuNzc2IDQzLjQ2NyA0My40NjcgMCAwIDAtMjAuOTM3IDExLjQwOWwxOC4xNTQgMTIuODY5em0tOS42NzggMTYuNzI5YTMuNzIgMy43MiAwIDAgMCAxLjQ2Mi02LjM5NmwuMDE4LS4wODgtMTYuNTc0LTE0LjgyNGE0My40NTQgNDMuNDU0IDAgMCAwLTYuMTY4IDI3LjUxbDIxLjI0NS02LjEzem0xNi4wOTggNi41MTJsNi4xMTQgMi45NCA2LjA5Ni0yLjkzNCAxLjUxNC02LjU4MS00LjIxOS01LjI3NmgtNi43OWwtNC4yMzEgNS4yNjh6IiBjbGFzcz0iY2xzLTIiLz48cGF0aCBkPSJNMjE2LjIwOCAxMzMuMTY3bC0xNy40MjItNzUuNjc1YTEzLjYwMiAxMy42MDIgMCAwIDAtNy4yOTMtOS4wNzNsLTcwLjUyMS0zMy42N2ExMy41ODkgMTMuNTg5IDAgMCAwLTExLjcwNSAwTDM4Ljc2IDQ4LjQzN2ExMy41OTggMTMuNTk4IDAgMCAwLTcuMjk1IDkuMDcybC0xNy4zOTQgNzUuNjczYTEzLjMxNSAxMy4zMTUgMCAwIDAtLjAwNCA1LjgxIDEzLjUwNiAxMy41MDYgMCAwIDAgLjQ5MSAxLjcxOCAxMy4xIDEzLjEgMCAwIDAgMS4zNDMgMi43MjZjLjIzOS4zNjUuNDkxLjcyLjc2NSAxLjA2NGw0OC44MDQgNjAuNjc4Yy4yMTMuMjY0LjQ0OC41MDUuNjgxLjc1YTEzLjQyMyAxMy40MjMgMCAwIDAgMi41NzQgMi4xMzMgMTMuOTI0IDEzLjkyNCAwIDAgMCAzLjg1NyAxLjY3NyAxMy4yOTggMTMuMjk4IDAgMCAwIDMuNDMuNDczaC43NTlsNzcuNTA0LS4wMThhMTIuOTkzIDEyLjk5MyAwIDAgMCAxLjQxLS4wODMgMTMuNDcgMTMuNDcgMCAwIDAgMS45ODktLjM3OCAxMy44NzIgMTMuODcyIDAgMCAwIDEuMzgxLS40NDJjLjM1My0uMTM1LjcwNS0uMjcgMS4wNDUtLjQzM2ExMy45NDEgMTMuOTQxIDAgMCAwIDEuNDc5LS44MjIgMTMuMzAzIDEzLjMwMyAwIDAgMCAzLjIzNy0yLjg2NWwxLjQ4OC0xLjg1IDQ3LjI5OS01OC44NGExMy4xODUgMTMuMTg1IDAgMCAwIDIuMTA4LTMuNzg1IDEzLjY3IDEzLjY3IDAgMCAwIC41LTEuNzI0IDEzLjI4MiAxMy4yODIgMCAwIDAtLjAwNC01Ljgxem0tNzMuMTQ3IDI5LjQzMmExNC41MTYgMTQuNTE2IDAgMCAwIC43MDMgMS43MDMgMy4zMTQgMy4zMTQgMCAwIDAtLjMyNyAyLjQ5IDM5LjM3MiAzOS4zNzIgMCAwIDAgMy43NDIgNi43IDM1LjA2IDM1LjA2IDAgMCAxIDIuMjYzIDMuMzY0Yy4xNy4zMTUuMzkyLjgwMy41NTMgMS4xMzZhNC4yNCA0LjI0IDAgMSAxLTcuNjMgMy42MDdjLS4xNjEtLjMzLS4zODUtLjc3LS41MjItMS4wODJhMzUuMjc1IDM1LjI3NSAwIDAgMS0xLjIyNS0zLjg2OCAzOS4zMDUgMzkuMzA1IDAgMCAwLTIuODk2LTcuMDk3IDMuMzM1IDMuMzM1IDAgMCAwLTIuMTU0LTEuMzA3Yy0uMTM1LS4yMzMtLjYzNS0xLjE1LS45MDMtMS42MjNhNTQuNjE3IDU0LjYxNyAwIDAgMS0zOC45NDgtLjFsLS45NTUgMS43M2EzLjQyOSAzLjQyOSAwIDAgMC0xLjgxOS44ODcgMjkuNTE3IDI5LjUxNyAwIDAgMC0zLjI2OCA3LjU4MiAzNC45IDM0LjkgMCAwIDEtMS4yMTggMy44NjhjLS4xMzUuMzEtLjM2MS43NDQtLjUyMiAxLjA3M3YuMDA5bC0uMDA3LjAwOGE0LjIzOCA0LjIzOCAwIDEgMS03LjYxOS0zLjYxNmMuMTU5LS4zMzUuMzcyLS44Mi41NC0xLjEzNWEzNS4xNzcgMzUuMTc3IDAgMCAxIDIuMjYyLTMuMzczIDQxLjIyOCA0MS4yMjggMCAwIDAgMy44Mi02Ljg2NiA0LjE4OCA0LjE4OCAwIDAgMC0uMzc2LTIuMzg3bC43NjgtMS44NGE1NC45MjIgNTQuOTIyIDAgMCAxLTI0LjMzOC0zMC4zODdsLTEuODM5LjMxM2E0LjY4IDQuNjggMCAwIDAtMi40MjgtLjg1NSAzOS41MjQgMzkuNTI0IDAgMCAwLTcuMzU2IDIuMTY1IDM1LjU4OSAzNS41ODkgMCAwIDEtMy43ODcgMS40NWMtLjMwNS4wODQtLjc0NS4xNjgtMS4wOTMuMjQ0LS4wMjguMDEtLjA1Mi4wMjItLjA4LjAyOWEuNjA1LjYwNSAwIDAgMS0uMDY1LjAwNiA0LjIzNiA0LjIzNiAwIDEgMS0xLjg3NC04LjIyNGwuMDYxLS4wMTUuMDM3LS4wMWMuMzUzLS4wODMuODA1LS4yIDEuMTI3LS4yNjJhMzUuMjcgMzUuMjcgMCAwIDEgNC4wNS0uMzI2IDM5LjM4OCAzOS4zODggMCAwIDAgNy41NjQtMS4yNDIgNS44MzUgNS44MzUgMCAwIDAgMS44MTQtMS44M2wxLjc2Ny0uNTE2YTU0LjYxMyA1NC42MTMgMCAwIDEgOC42MTMtMzguMDczbC0xLjM1My0xLjIwNmE0LjY4OCA0LjY4OCAwIDAgMC0uODQ4LTIuNDM2IDM5LjM2NiAzOS4zNjYgMCAwIDAtNi4yNzctNC40MSAzNS4yNSAzNS4yNSAwIDAgMS0zLjQ5OS0yLjA0NmMtLjI1Ni0uMTkxLS41OTYtLjQ3OC0uODc0LS43MDRsLS4wNjMtLjA0NGE0LjQ3MyA0LjQ3MyAwIDAgMS0xLjAzOC02LjIyMiA0LjA2NiA0LjA2NiAwIDAgMSAzLjM2My0xLjQ4OCA1LjAzIDUuMDMgMCAwIDEgMi45NDIgMS4xMWMuMjg3LjIyNS42OC41MjYuOTM1Ljc0NWEzNS4yNTMgMzUuMjUzIDAgMCAxIDIuNzggMi45NSAzOS4zODMgMzkuMzgzIDAgMCAwIDUuNjkgNS4xNDIgMy4zMzMgMy4zMzMgMCAwIDAgMi41MDcuMjQzcS43NTQuNTUgMS41MjIgMS4wODJBNTQuMjg5IDU0LjI4OSAwIDAgMSAxMDIuODYgNjEuODlhNTUuMDUyIDU1LjA1MiAwIDAgMSA3LjYzLTEuMTczbC4xLTEuNzg0YTQuNiA0LjYgMCAwIDAgMS4zNy0yLjE4NCAzOS40NzYgMzkuNDc2IDAgMCAwLS40Ny03LjY1NCAzNS40NjYgMzUuNDY2IDAgMCAxLS41NzYtNC4wMTRjLS4wMTEtLjMwNy4wMDYtLjczMS4wMS0xLjA4MSAwLS4wNC0uMDEtLjA4LS4wMS0uMTE4YTQuMjQyIDQuMjQyIDAgMSAxIDguNDQxLS4wMDRjMCAuMzcuMDIyLjg2LjAwOSAxLjJhMzUuMTA5IDM1LjEwOSAwIDAgMS0uNTc5IDQuMDEzIDM5LjUzMyAzOS41MzMgMCAwIDAtLjQ3OCA3LjY1NiAzLjM0NCAzLjM0NCAwIDAgMCAxLjM3OSAyLjExYy4wMTUuMzA1LjA2NSAxLjMyMy4xMDIgMS44ODRhNTUuMzA5IDU1LjMwOSAwIDAgMSAzNS4wMzIgMTYuOTI3bDEuNjA2LTEuMTQ3YTQuNjkgNC42OSAwIDAgMCAyLjU2LS4yNzggMzkuNTMyIDM5LjUzMiAwIDAgMCA1LjY5LTUuMTQ4IDM1LjAwNCAzNS4wMDQgMCAwIDEgMi43ODctMi45NWMuMjU5LS4yMjIuNjUtLjUyLjkzNi0uNzQ2YTQuMjQyIDQuMjQyIDAgMSAxIDUuMjU4IDYuNTk4Yy0uMjgzLjIyOS0uNjU3LjU0OC0uOTI5Ljc1YTM1LjA5NSAzNS4wOTUgMCAwIDEtMy41MDcgMi4wNDYgMzkuNDk1IDM5LjQ5NSAwIDAgMC02LjI3NyA0LjQxIDMuMzM3IDMuMzM3IDAgMCAwLS43OTIgMi4zOWMtLjIzNS4yMTYtMS4wNi45NDctMS40OTcgMS4zNDNhNTQuODM3IDU0LjgzNyAwIDAgMSA4Ljc5MiAzNy45ODNsMS43MDQuNDk2YTQuNzQ1IDQuNzQ1IDAgMCAwIDEuODIgMS44MyAzOS40NjQgMzkuNDY0IDAgMCAwIDcuNTY4IDEuMjQ2IDM1LjY0IDM1LjY0IDAgMCAxIDQuMDQ2LjMyNGMuMzU1LjA2NS44NjguMjA3IDEuMjMuMjlhNC4yMzYgNC4yMzYgMCAxIDEtMS44NzggOC4yMjNsLS4wNjEtLjAwOGMtLjAyOC0uMDA3LS4wNTQtLjAyMi0uMDgzLS4wMy0uMzQ4LS4wNzUtLjc4NS0uMTUxLTEuMDktLjIzMWEzNS4xNCAzNS4xNCAwIDAgMS0zLjc4NS0xLjQ2MiAzOS40NzcgMzkuNDc3IDAgMCAwLTcuMzYzLTIuMTY1IDMuMzM3IDMuMzM3IDAgMCAwLTIuMzYyLjg3N3EtLjktLjE3MS0xLjgwNC0uMzE2YTU0LjkyIDU0LjkyIDAgMCAxLTI0LjMyOCAzMC42MDV6IiBjbGFzcz0iY2xzLTIiLz48cGF0aCBkPSJNMjI1LjQwNyAxMzUuMTA3TDIwNi40IDUyLjU0N2ExNC44MzggMTQuODM4IDAgMCAwLTcuOTU4LTkuOWwtNzYuOTM1LTM2LjczYTE0LjgyNSAxNC44MjUgMCAwIDAtMTIuNzcxIDBMMzEuODA4IDQyLjY2OWExNC44MzggMTQuODM4IDAgMCAwLTcuOTYxIDkuODk1TDQuODczIDEzNS4xMjlhMTQuNjY4IDE0LjY2OCAwIDAgMCAxLjk5NSAxMS4xODVjLjI2MS40LjUzOC43ODguODM4IDEuMTYybDUzLjI0NiA2Ni4yMDVhMTQuOTggMTQuOTggMCAwIDAgMTEuNDk5IDUuNDg3bDg1LjM4Ny0uMDJhMTQuOTg2IDE0Ljk4NiAwIDAgMCAxMS41LTUuNDhsNTMuMjI3LTY2LjIxMWExNC43MiAxNC43MiAwIDAgMCAyLjg0Mi0xMi4zNDd6bS05LjE5NyAzLjg2NmExMy42NzcgMTMuNjc3IDAgMCAxLS40OTggMS43MjMgMTMuMTg0IDEzLjE4NCAwIDAgMS0yLjExIDMuNzg2bC00Ny4yOTkgNTguODM4LTEuNDg2IDEuODUyYTEzLjMwNSAxMy4zMDUgMCAwIDEtMy4yNCAyLjg2NSAxMy45NDUgMTMuOTQ1IDAgMCAxLTEuNDc0LjgyMnEtLjUxMy4yMzctMS4wNDUuNDNhMTMuODczIDEzLjg3MyAwIDAgMS0xLjM4My40NDUgMTMuNDczIDEzLjQ3MyAwIDAgMS0xLjk4OS4zNzkgMTIuOTg4IDEyLjk4OCAwIDAgMS0xLjQxLjA4MmwtNzcuNTA0LjAxOGgtLjc2YTEzLjI5OCAxMy4yOTggMCAwIDEtMy40MjktLjQ3MiAxMy45MjUgMTMuOTI1IDAgMCAxLTMuODU1LTEuNjc5IDEzLjQyNCAxMy40MjQgMCAwIDEtMi41NzYtMi4xMzJjLS4yMzMtLjI0Ni0uNDY4LS40ODctLjY4LS43NWwtNDguODA1LTYwLjY3OXEtLjQwOC0uNTE0LS43NjUtMS4wNjZhMTMuMTAyIDEzLjEwMiAwIDAgMS0xLjM0My0yLjcyNiAxMy41MDUgMTMuNTA1IDAgMCAxLS40OTEtMS43MTkgMTMuMzE1IDEzLjMxNSAwIDAgMSAuMDA0LTUuODA5bDE3LjM5NC03NS42NzVhMTMuNTk4IDEzLjU5OCAwIDAgMSA3LjI5NS05LjA3bDcwLjUwOC0zMy42ODVhMTMuNTg5IDEzLjU4OSAwIDAgMSAxMS43MDUgMGw3MC41MTkgMzMuNjdhMTMuNjAyIDEzLjYwMiAwIDAgMSA3LjI5MyA5LjA3M2wxNy40MjIgNzUuNjc0YTEzLjI4MiAxMy4yODIgMCAwIDEgLjAwMiA1LjgwN3oiIGNsYXNzPSJjbHMtMSIvPjxwYXRoIGQ9Ik0xODUuODE0IDEyNy4xMDZjLS4zNi0uMDgzLS44NzQtLjIyNS0xLjIyNy0uMjlhMzUuNjQyIDM1LjY0MiAwIDAgMC00LjA0Ni0uMzI2IDM5LjQ2NCAzOS40NjQgMCAwIDEtNy41Ny0xLjI0MiA0Ljc0NSA0Ljc0NSAwIDAgMS0xLjgyLTEuODMybC0xLjcwNC0uNDk2YTU0LjgzNyA1NC44MzcgMCAwIDAtOC43OS0zNy45ODNjLjQzNi0uMzk2IDEuMjYyLTEuMTI3IDEuNDk1LTEuMzQyYTMuMzM4IDMuMzM4IDAgMCAxIC43OTItMi4zOSAzOS40OTUgMzkuNDk1IDAgMCAxIDYuMjc3LTQuNDEgMzUuMDk1IDM1LjA5NSAwIDAgMCAzLjUwNy0yLjA0NmMuMjcyLS4yMDIuNjQ0LS41MjIuOTI5LS43NWE0LjI0MiA0LjI0MiAwIDEgMC01LjI1Ni02LjZjLS4yODguMjI3LS42OC41MjUtLjkzNi43NDdhMzUuMDA0IDM1LjAwNCAwIDAgMC0yLjc4OSAyLjk1IDM5LjUzMyAzOS41MzMgMCAwIDEtNS42OSA1LjE0OCA0LjY5IDQuNjkgMCAwIDEtMi41Ni4yNzhsLTEuNjA2IDEuMTQ3YTU1LjMwOSA1NS4zMDkgMCAwIDAtMzUuMDMyLTE2LjkyN2MtLjAzOS0uNTYxLS4wODctMS41NzctLjEwMi0xLjg4NGEzLjM0NCAzLjM0NCAwIDAgMS0xLjM3Ny0yLjExIDM5LjUzMyAzOS41MzMgMCAwIDEgLjQ3OC03LjY1NiAzNS4xMTIgMzUuMTEyIDAgMCAwIC41NzUtNC4wMTJjLjAxMy0uMzQtLjAwNy0uODM0LS4wMDctMS4yMDFhNC4yNDIgNC4yNDIgMCAxIDAtOC40NDEuMDA0YzAgLjA0LjAwOS4wNzguMDEuMTE4LS4wMDQuMzUtLjAyMS43NzQtLjAxIDEuMDhhMzUuNDc2IDM1LjQ3NiAwIDAgMCAuNTc2IDQuMDE1IDM5LjQ3NSAzOS40NzUgMCAwIDEgLjQ3IDcuNjU0IDQuNjAxIDQuNjAxIDAgMCAxLTEuMzcgMi4xODJsLS4xIDEuNzg2YTU1LjA1MiA1NS4wNTIgMCAwIDAtNy42MyAxLjE3MyA1NC4yODkgNTQuMjg5IDAgMCAwLTI3LjU3NCAxNS43NTRxLS43Ny0uNTMxLTEuNTI2LTEuMDgyYTMuMzMzIDMuMzMzIDAgMCAxLTIuNTA2LS4yNDMgMzkuMzgzIDM5LjM4MyAwIDAgMS01LjY5LTUuMTQxIDM1LjI1NSAzNS4yNTUgMCAwIDAtMi43NzctMi45NWMtLjI1Ny0uMjItLjY1LS41Mi0uOTM4LS43NWE1LjAzIDUuMDMgMCAwIDAtMi45NDItMS4xMSA0LjA2NiA0LjA2NiAwIDAgMC0zLjM2MyAxLjQ5IDQuNDczIDQuNDczIDAgMCAwIDEuMDM4IDYuMjIybC4wNjUuMDQ2Yy4yNzYuMjI2LjYxNi41MTUuODcyLjcwMmEzNS4yNTYgMzUuMjU2IDAgMCAwIDMuNDk5IDIuMDQ4IDM5LjM2NyAzOS4zNjcgMCAwIDEgNi4yNzYgNC40MTIgNC42OSA0LjY5IDAgMCAxIC44NDkgMi40MzRsMS4zNTEgMS4yMDhhNTQuNjEzIDU0LjYxMyAwIDAgMC04LjYxMSAzOC4wNzNsLTEuNzY3LjUxNGE1LjgzNSA1LjgzNSAwIDAgMS0xLjgxNCAxLjgyNyAzOS4zOSAzOS4zOSAwIDAgMS03LjU2NSAxLjI0NyAzNS4yNjYgMzUuMjY2IDAgMCAwLTQuMDQ5LjMyNmMtLjMyNC4wNi0uNzc0LjE3NC0xLjEyNy4yNjJsLS4wMzcuMDA4LS4wNi4wMThhNC4yMzYgNC4yMzYgMCAxIDAgMS44NzUgOC4yMjRsLjA2My0uMDFjLjAyOC0uMDA2LjA1Mi0uMDIuMDgtLjAyNS4zNDgtLjA4Ljc4Ni0uMTYzIDEuMDkyLS4yNDZhMzUuNTkgMzUuNTkgMCAwIDAgMy43ODYtMS40NTEgMzkuNTI3IDM5LjUyNyAwIDAgMSA3LjM1OC0yLjE2NSA0LjY4IDQuNjggMCAwIDEgMi40MjYuODU3bDEuODQtLjMxNWE1NC45MjIgNTQuOTIyIDAgMCAwIDI0LjM0IDMwLjM4N2wtLjc2OSAxLjg0YTQuMTg4IDQuMTg4IDAgMCAxIC4zNzcgMi4zODcgNDEuMjI4IDQxLjIyOCAwIDAgMS0zLjgyIDYuODY0IDM1LjE4MyAzNS4xODMgMCAwIDAtMi4yNjMgMy4zNzJjLS4xNjguMzE4LS4zODEuODA1LS41NDIgMS4xMzhhNC4yMzggNC4yMzggMCAxIDAgNy42MjEgMy42MTZsLjAwNy0uMDA4di0uMDFjLjE2LS4zMy4zODctLjc2My41MjItMS4wNzJhMzQuOTAzIDM0LjkwMyAwIDAgMCAxLjIxOC0zLjg2OCAyOS41MTcgMjkuNTE3IDAgMCAxIDMuMjY4LTcuNTgyIDMuNDMgMy40MyAwIDAgMSAxLjgxOS0uODg4bC45NTctMS43M2E1NC42MTcgNTQuNjE3IDAgMCAwIDM4Ljk0Ni4wOTljLjI2OC40NzguNzY4IDEuMzkyLjkgMS42MjNhMy4zMzUgMy4zMzUgMCAwIDEgMi4xNTUgMS4zMSAzOS4zMDYgMzkuMzA2IDAgMCAxIDIuODk4IDcuMDk2IDM1LjI3NSAzNS4yNzUgMCAwIDAgMS4yMjUgMy44NjhjLjEzNy4zMTIuMzYuNzUuNTIyIDEuMDgyYTQuMjQgNC4yNCAwIDEgMCA3LjYzLTMuNjA3Yy0uMTYxLS4zMzMtLjM4My0uODItLjU1LTEuMTM2YTM1LjA2IDM1LjA2IDAgMCAwLTIuMjYzLTMuMzY0IDM5LjM3MiAzOS4zNzIgMCAwIDEtMy43NDItNi43IDMuMzE0IDMuMzE0IDAgMCAxIC4zMjQtMi40OSAxNC41MTkgMTQuNTE5IDAgMCAxLS43MDMtMS43MDMgNTQuOTIgNTQuOTIgMCAwIDAgMjQuMzI4LTMwLjYwNWMuNTQ2LjA4NyAxLjQ5Ny4yNTMgMS44MDYuMzE2YTMuMzM3IDMuMzM3IDAgMCAxIDIuMzYtLjg3NyAzOS40NzYgMzkuNDc2IDAgMCAxIDcuMzYgMi4xNjUgMzUuMTM1IDM1LjEzNSAwIDAgMCAzLjc4OCAxLjQ2MmMuMzA1LjA4Ljc0LjE1NiAxLjA5LjIzMy4wMjkuMDA4LjA1NS4wMi4wODMuMDI4bC4wNi4wMDlhNC4yMzYgNC4yMzYgMCAxIDAgMS44NzgtOC4yMjR6bS00MC4xLTQyLjk4N2wtMTguMDM3IDEyLjc4Ny0uMDYzLS4wM2EzLjcyMyAzLjcyMyAwIDAgMS01LjkxMy0yLjgzOGwtLjAyLS4wMS0xLjI1My0yMi4xMDNhNDMuODUgNDMuODUgMCAwIDEgMjUuMjg1IDEyLjE5NHptLTMzLjk3OCAyNC4yMjhoNi43ODhsNC4yMiA1LjI3Ni0xLjUxMyA2LjU4LTYuMDk2IDIuOTM0LTYuMTE0LTIuOTQtMS41MTYtNi41ODN6bS02LjM4Ni0zNS42NDhhNDQuNjcyIDQ0LjY3MiAwIDAgMSA0LjUwMy0uNzc0bC0xLjI1NSAyMi4xMzctLjA5Mi4wNDRhMy43MiAzLjcyIDAgMCAxLTUuOTA0IDIuODUybC0uMDM1LjAyLTE4LjE1NC0xMi44NzJhNDMuNDY3IDQzLjQ2NyAwIDAgMSAyMC45MzctMTEuNDA3em0tMjcuNTIgMTkuNjhsMTYuNTc0IDE0LjgyNC0uMDE4LjA5YTMuNzIgMy43MiAwIDAgMS0xLjQ2MiA2LjM5NWwtLjAxNy4wNzItMjEuMjQ1IDYuMTNhNDMuNDU0IDQzLjQ1NCAwIDAgMSA2LjE2OC0yNy41MXptMjIuMTkxIDM5LjM4bC04LjQ0MSAyMC4zOTdhNDMuNjk2IDQzLjY5NiAwIDAgMS0xNy41MzYtMjEuOTQ4bDIxLjc4My0zLjcuMDM3LjA0OWEzLjY1NSAzLjY1NSAwIDAgMSAuNzMtLjA2NSAzLjcyIDMuNzIgMCAwIDEgMy4zNjQgNS4xODV6bTI0LjkxNiAyNi4yM2E0My42MzcgNDMuNjM3IDAgMCAxLTIzLjgxNS0xLjIyM2wxMC43MTMtMTkuMzcyaC4wMThhMy43MjUgMy43MjUgMCAwIDEgNi41NTctLjAwNmguMDhsMTAuNzQgMTkuNDA0cS0yLjA5MS42OTgtNC4yOTMgMS4xOTl6bTEzLjg0MS01Ljc1MWwtOC41MjgtMjAuNjA1LjAyNi0uMDM3YTMuNzI1IDMuNzI1IDAgMCAxIDEuODAzLTQuODIzIDMuNjg1IDMuNjg1IDAgMCAxIDEuNDI1LS4zNyAzLjU5IDMuNTkgMCAwIDEgLjg1NS4wNjNsLjAzNy0uMDQ2IDIxLjk3NyAzLjcxNGE0My41MyA0My41MyAwIDAgMS0xNy41OTUgMjIuMTA1em0xOS45MDMtMzIuNDJsLTIxLjM1Mi02LjE1LS4wMi0uMDlhMy43MjUgMy43MjUgMCAwIDEtMS40Ni02LjM5NWwtLjAwOC0uMDQzIDE2LjQ4Mi0xNC43NTFhNDQuMjc5IDQ0LjI3OSAwIDAgMSA2LjM1NyAyNy40M3oiIGNsYXNzPSJjbHMtMSIvPjwvc3ZnPg==" preserveAspectRatio="xMidYMid meet"/>
-      <text x="89" y="25" text-anchor="middle" class="participant">API Server</text>
-      <text x="89" y="43" text-anchor="middle" class="tiny">resourceVersion CAS</text>
-    </g>
-    <g transform="translate(1112 126)">
-      <rect width="142" height="54" rx="8" fill="#f5f3ff" stroke="#a78bfa" stroke-width="1.4"/>
-      <text x="71" y="25" text-anchor="middle" class="participant">Lease</text>
-      <text x="71" y="43" text-anchor="middle" class="tiny">spec + metadata</text>
-    </g>
+  <g>
+    <rect x="55" y="150" width="150" height="68" rx="10" class="header"/>
+    <text x="130" y="179" text-anchor="middle" class="participant">Caller</text>
+    <text x="130" y="201" text-anchor="middle" class="role">job code</text>
+    <rect x="295" y="150" width="190" height="68" rx="10" class="header"/>
+    <text x="390" y="179" text-anchor="middle" class="participant">K8s Elector</text>
+    <text x="390" y="201" text-anchor="middle" class="role">single or group</text>
+    <rect x="560" y="150" width="180" height="68" rx="10" class="header"/>
+    <text x="650" y="179" text-anchor="middle" class="participant">LeaseLock</text>
+    <text x="650" y="201" text-anchor="middle" class="role">ownerToken</text>
+    <rect x="825" y="150" width="210" height="68" rx="10" class="header"/>
+    <text x="930" y="179" text-anchor="middle" class="participant">API Server</text>
+    <text x="930" y="201" text-anchor="middle" class="role">resourceVersion CAS</text>
+    <rect x="1125" y="150" width="190" height="68" rx="10" class="header"/>
+    <text x="1220" y="179" text-anchor="middle" class="participant">Lease Object</text>
+    <text x="1220" y="201" text-anchor="middle" class="role">spec + metadata</text>
   </g>
 
-  <g stroke="#d1d5db" stroke-width="1.3" stroke-dasharray="6 6">
-    <line x1="163" y1="180" x2="163" y2="874"/>
-    <line x1="413" y1="180" x2="413" y2="874"/>
-    <line x1="683" y1="180" x2="683" y2="874"/>
-    <line x1="947" y1="180" x2="947" y2="874"/>
-    <line x1="1183" y1="180" x2="1183" y2="874"/>
-  </g>
+  <line x1="130" y1="218" x2="130" y2="1086" class="lifeline"/>
+  <line x1="390" y1="218" x2="390" y2="1086" class="lifeline"/>
+  <line x1="650" y1="218" x2="650" y2="1086" class="lifeline"/>
+  <line x1="930" y1="218" x2="930" y2="1086" class="lifeline"/>
+  <line x1="1220" y1="218" x2="1220" y2="1086" class="lifeline"/>
+  <rect x="123" y="290" width="14" height="452" rx="6" class="activation"/>
+  <rect x="383" y="290" width="14" height="670" rx="6" class="activation"/>
+  <rect x="643" y="336" width="14" height="624" rx="6" class="activation"/>
+  <rect x="923" y="404" width="14" height="556" rx="6" class="activation"/>
+  <rect x="1213" y="468" width="14" height="140" rx="6" class="activation"/>
 
-  <rect x="402" y="218" width="22" height="574" rx="5" fill="#dcfce7" stroke="#22c55e"/>
-  <rect x="672" y="252" width="22" height="506" rx="5" fill="#ffedd5" stroke="#fb923c"/>
-  <rect x="936" y="288" width="22" height="382" rx="5" fill="#f3e8ff" stroke="#a855f7"/>
+  <rect x="70" y="392" width="1478" height="270" rx="14" class="alt"/>
+  <rect x="96" y="410" width="170" height="30" rx="15" class="branchOk"/>
+  <text x="118" y="430" class="note">acquire path</text>
 
-  <g id="messages" fill="none">
-    <path d="M 163 224 L 402 224" stroke="#2563eb" stroke-width="2.5" marker-end="url(#blueArrow)"/>
-    <text x="282" y="211" text-anchor="middle" class="label-blue">1. runIfLeader(lockName)</text>
+  <rect x="70" y="746" width="1478" height="142" rx="14" class="alt"/>
+  <rect x="96" y="764" width="184" height="30" rx="15" class="branchWait"/>
+  <text x="118" y="784" class="note">extension path</text>
 
-    <path d="M 424 258 L 672 258" stroke="#ea580c" stroke-width="2.5" marker-end="url(#orangeArrow)"/>
-    <text x="548" y="245" text-anchor="middle" class="label-orange">2. new ownerToken</text>
+  <rect x="70" y="916" width="1478" height="142" rx="14" class="alt"/>
+  <rect x="96" y="934" width="170" height="30" rx="15" class="branchOk"/>
+  <text x="118" y="954" class="note">release path</text>
 
-    <path d="M 694 296 L 936 296" stroke="#ea580c" stroke-width="2.5" marker-end="url(#orangeArrow)"/>
-    <text x="815" y="283" text-anchor="middle" class="label-orange">3. GET Lease</text>
-    <path d="M 958 330 L 1183 330" stroke="#ea580c" stroke-width="2.5" marker-end="url(#orangeArrow)"/>
-    <text x="1070" y="317" text-anchor="middle" class="label-orange">4. create or update</text>
+  <rect x="140" y="234" width="240" height="34" rx="17" class="label callLabel"/>
+  <circle cx="164" cy="251" r="13" class="badge callBadge"/><text x="164" y="256" text-anchor="middle" class="badgeText callText">1</text>
+  <text x="188" y="256" class="msg callText">runIfLeader(lockName)</text>
+  <path d="M 130 292 L 390 292" class="call"/>
 
-    <path d="M 1183 368 L 958 368" stroke="#059669" stroke-width="2.5" marker-end="url(#greenArrow)"/>
-    <text x="1070" y="355" text-anchor="middle" class="label-green">5. success with resourceVersion</text>
-    <path d="M 936 404 L 694 404" stroke="#059669" stroke-width="2.5" marker-end="url(#greenArrow)"/>
-    <text x="815" y="391" text-anchor="middle" class="label-green">6. Acquired</text>
+  <rect x="416" y="298" width="208" height="34" rx="17" class="label slotLabel"/>
+  <circle cx="440" cy="315" r="13" class="badge slotBadge"/><text x="440" y="320" text-anchor="middle" class="badgeText slotText">2</text>
+  <text x="464" y="320" class="msg slotText">create ownerToken</text>
+  <path d="M 390 356 L 650 356" class="slot"/>
 
-    <path d="M 672 448 L 424 448" stroke="#059669" stroke-width="2.5" marker-end="url(#greenArrow)"/>
-    <text x="548" y="435" text-anchor="middle" class="label-green">7. LeaderLockHandle(token)</text>
-    <path d="M 424 490 L 163 490" stroke="#2563eb" stroke-width="2.5" marker-end="url(#blueArrow)"/>
-    <text x="292" y="477" text-anchor="middle" class="label-blue">8. execute action</text>
+  <rect x="705" y="366" width="170" height="34" rx="17" class="label stateLabel"/>
+  <circle cx="729" cy="383" r="13" class="badge stateBadge"/><text x="729" y="388" text-anchor="middle" class="badgeText stateText">3</text>
+  <text x="753" y="388" class="msg stateText">GET Lease</text>
+  <path d="M 650 424 L 930 424" class="state"/>
 
-    <path d="M 424 552 L 672 552" stroke="#7c3aed" stroke-width="2.5" marker-end="url(#purpleArrow)"/>
-    <text x="548" y="539" text-anchor="middle" class="label-purple">9. optional autoExtend</text>
-    <path d="M 694 590 L 936 590" stroke="#7c3aed" stroke-width="2.5" marker-end="url(#purpleArrow)"/>
-    <text x="815" y="577" text-anchor="middle" class="label-purple">10. holderIdentity matches</text>
-    <path d="M 958 628 L 1183 628" stroke="#7c3aed" stroke-width="2.5" marker-end="url(#purpleArrow)"/>
-    <text x="1070" y="615" text-anchor="middle" class="label-purple">11. renewTime + duration</text>
+  <rect x="915" y="430" width="320" height="34" rx="17" class="label stateLabel"/>
+  <circle cx="939" cy="447" r="13" class="badge stateBadge"/><text x="939" y="452" text-anchor="middle" class="badgeText stateText">4</text>
+  <text x="963" y="452" class="msg stateText">create or update holderIdentity</text>
+  <path d="M 930 488 L 1220 488" class="state"/>
 
-    <path d="M 424 696 L 672 696" stroke="#059669" stroke-width="2.5" marker-end="url(#greenArrow)"/>
-    <text x="548" y="683" text-anchor="middle" class="label-green">12. release in finally</text>
-    <path d="M 694 734 L 936 734" stroke="#059669" stroke-width="2.5" marker-end="url(#greenArrow)"/>
-    <text x="815" y="721" text-anchor="middle" class="label-green">13. owner-conditional update</text>
-    <path d="M 958 772 L 1183 772" stroke="#059669" stroke-width="2.5" marker-end="url(#greenArrow)"/>
-    <text x="1070" y="759" text-anchor="middle" class="label-green">14. clear holder or keep minLeaseTime</text>
-  </g>
+  <rect x="927" y="498" width="296" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="951" cy="515" r="13" class="badge returnBadge"/><text x="951" y="520" text-anchor="middle" class="badgeText returnText">5</text>
+  <text x="975" y="520" class="msg returnText">success with resourceVersion</text>
+  <path d="M 1220 556 L 930 556" class="return"/>
 
-  <g id="frames">
-    <rect x="54" y="274" width="1206" height="154" rx="10" fill="none" stroke="#f59e0b" stroke-width="1.5" opacity="0.65"/>
-    <rect x="70" y="286" width="106" height="24" rx="7" fill="#fff7ed" stroke="#f59e0b"/>
-    <text x="123" y="303" text-anchor="middle" class="frame-label">acquire path</text>
+  <rect x="694" y="564" width="192" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="718" cy="581" r="13" class="badge returnBadge"/><text x="718" y="586" text-anchor="middle" class="badgeText returnText">6</text>
+  <text x="742" y="586" class="msg returnText">acquired handle</text>
+  <path d="M 930 622 L 650 622" class="return"/>
 
-    <rect x="54" y="526" width="1206" height="126" rx="10" fill="none" stroke="#8b5cf6" stroke-width="1.5" opacity="0.65"/>
-    <rect x="70" y="538" width="130" height="24" rx="7" fill="#f5f3ff" stroke="#8b5cf6"/>
-    <text x="135" y="555" text-anchor="middle" class="frame-label">extension path</text>
+  <rect x="128" y="632" width="264" height="34" rx="17" class="label callLabel"/>
+  <circle cx="152" cy="649" r="13" class="badge callBadge"/><text x="152" y="654" text-anchor="middle" class="badgeText callText">7</text>
+  <text x="176" y="654" class="msg callText">execute action as leader</text>
+  <path d="M 390 690 L 130 690" class="call"/>
 
-    <rect x="54" y="676" width="1206" height="126" rx="10" fill="none" stroke="#10b981" stroke-width="1.5" opacity="0.65"/>
-    <rect x="70" y="688" width="118" height="24" rx="7" fill="#ecfdf5" stroke="#10b981"/>
-    <text x="129" y="705" text-anchor="middle" class="frame-label">release path</text>
-  </g>
+  <rect x="408" y="726" width="224" height="34" rx="17" class="label waitLabel"/>
+  <circle cx="432" cy="743" r="13" class="badge waitBadge"/><text x="432" y="748" text-anchor="middle" class="badgeText waitText">8</text>
+  <text x="456" y="748" class="msg waitText">optional autoExtend</text>
+  <path d="M 390 784 L 650 784" class="wait"/>
 
-  <g transform="translate(80 832)">
-    <rect width="560" height="42" rx="8" fill="#f8fafc" stroke="#d1d5db"/>
-    <text x="20" y="26" class="mono">Group election repeats the same sequence against &lt;lockName&gt;-slot-N Lease objects.</text>
-  </g>
+  <rect x="626" y="792" width="328" height="34" rx="17" class="label waitLabel"/>
+  <circle cx="650" cy="809" r="13" class="badge waitBadge"/><text x="650" y="814" text-anchor="middle" class="badgeText waitText">9</text>
+  <text x="674" y="814" class="msg waitText">renewTime + leaseDurationSeconds</text>
+  <path d="M 650 850 L 930 850" class="wait"/>
 
-  <text x="52" y="908" class="footer">github.com/bluetape4k/bluetape4k-leader / leader-k8s - Lease holderIdentity, resourceVersion updates, and owner-conditional release.</text>
+  <rect x="412" y="892" width="216" height="34" rx="17" class="label slotLabel"/>
+  <circle cx="436" cy="909" r="13" class="badge slotBadge"/><text x="436" y="914" text-anchor="middle" class="badgeText slotText">10</text>
+  <text x="460" y="914" class="msg slotText">release in finally</text>
+  <path d="M 390 950 L 650 950" class="slot"/>
+
+  <rect x="578" y="958" width="424" height="34" rx="17" class="label slotLabel"/>
+  <circle cx="602" cy="975" r="13" class="badge slotBadge"/><text x="602" y="980" text-anchor="middle" class="badgeText slotText">11</text>
+  <text x="626" y="980" class="msg slotText">owner-conditional clear or keep minLeaseTime</text>
+  <path d="M 650 1016 L 930 1016" class="slot"/>
+
+  <rect x="98" y="1090" width="1404" height="44" rx="12" fill="#ffffff" stroke="#ccd7da" stroke-width="2"/>
+  <text x="118" y="1118" class="note">Group election repeats the same sequence against &lt;lockName&gt;-slot-N Lease objects.</text>
+  <text x="800" y="1164" text-anchor="middle" class="footer">github.com/bluetape4k/bluetape4k-leader - leader-k8s-sequence-02</text>
 </svg>
