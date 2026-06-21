@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -72,7 +72,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: gradle/actions/wrapper-validation@v6
 
   # ── 2. 변경된 모듈 감지 ──────────────────────────────────────────────────
@@ -114,7 +114,7 @@ jobs:
       examples-redisson-watchdog: ${{ steps.filter.outputs.examples-redisson-watchdog }}
       benchmark: ${{ steps.filter.outputs.benchmark }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
         id: filter
         with:
@@ -248,7 +248,7 @@ jobs:
     timeout-minutes: 10
     needs: validate-wrapper
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v5
         with:
@@ -278,7 +278,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['leader-ktor'] == 'true' || needs.changes.outputs['leader-exposed'] == 'true' || needs.changes.outputs['examples-ktor-app'] == 'true' || needs.changes.outputs['examples-migration-gate'] == 'true' || needs.changes.outputs['examples-tenant-aggregator'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v5
         with:
@@ -313,7 +313,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['leader-core'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v5
         with:
@@ -364,7 +364,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['leader-micrometer'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -409,7 +409,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['leader-redis'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v5
         with:
@@ -462,7 +462,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['leader-redis'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v5
         with:
@@ -515,7 +515,7 @@ jobs:
     needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v5
         with:
@@ -567,7 +567,7 @@ jobs:
     needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v5
         with:
@@ -621,7 +621,7 @@ jobs:
     needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v5
         with:
@@ -676,7 +676,7 @@ jobs:
     needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -722,7 +722,7 @@ jobs:
     needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -770,7 +770,7 @@ jobs:
     needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -818,7 +818,7 @@ jobs:
     needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['examples-migration-gate'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -854,7 +854,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['examples-webhook-poller'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -890,7 +890,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['examples-cache-warmer'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -926,7 +926,7 @@ jobs:
     needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['examples-tenant-aggregator'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -962,7 +962,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['examples-batch-scheduler'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -998,7 +998,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['examples-etcd-reconciler'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1034,7 +1034,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['examples-consul-maintenance'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1070,7 +1070,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['examples-dynamodb-export'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1106,7 +1106,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['examples-zookeeper-scheduler'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1142,7 +1142,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['examples-k8s-lease'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1176,7 +1176,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['examples-k8s-operator'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1210,7 +1210,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['examples-rate-limiter'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1246,7 +1246,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['examples-strategic-election'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1280,7 +1280,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['examples-virtual-thread-runner'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1314,7 +1314,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['examples-redisson-watchdog'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1350,7 +1350,7 @@ jobs:
     needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['examples-ktor-app'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1386,7 +1386,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['examples-prometheus-dashboard'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1422,7 +1422,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['leader-spring-boot'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1469,7 +1469,7 @@ jobs:
     needs: [build, changes, snapshot-warmup]
     if: ${{ needs.changes.outputs['leader-ktor'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1516,7 +1516,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['leader-mongodb'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1563,7 +1563,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['leader-dynamodb'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1610,7 +1610,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['leader-etcd'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1657,7 +1657,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['leader-consul'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1704,7 +1704,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['leader-k8s'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1738,7 +1738,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['leader-hazelcast'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1785,7 +1785,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['leader-zookeeper'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1832,7 +1832,7 @@ jobs:
     needs: [build, changes]
     if: ${{ needs.changes.outputs['benchmark'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -1891,7 +1891,7 @@ jobs:
       - compile-benchmark
     if: always()
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
