@@ -261,8 +261,8 @@ function normalizeMarker(open, body) {
   let markerOpen = open;
   for (const [name, value] of [
     ["viewBox", "0 0 10 10"],
-    ["markerWidth", "10"],
-    ["markerHeight", "10"],
+    ["markerWidth", "16"],
+    ["markerHeight", "16"],
     ["refX", "9"],
     ["refY", "5"],
     ["markerUnits", "userSpaceOnUse"],
@@ -306,8 +306,8 @@ function repairSvg(svg) {
       const fill = markerColor(markerOpen, markerBody);
       markerOpen = markerOpen
         .replace(/\bviewBox="[^"]*"/, 'viewBox="0 0 10 10"')
-        .replace(/\bmarkerWidth="[^"]*"/, 'markerWidth="10"')
-        .replace(/\bmarkerHeight="[^"]*"/, 'markerHeight="10"')
+        .replace(/\bmarkerWidth="[^"]*"/, 'markerWidth="16"')
+        .replace(/\bmarkerHeight="[^"]*"/, 'markerHeight="16"')
         .replace(/\brefX="[^"]*"/, 'refX="9"')
         .replace(/\brefY="[^"]*"/, 'refY="5"');
       if (!/\bviewBox=/.test(markerOpen)) markerOpen = markerOpen.replace(/<marker\b/, '<marker viewBox="0 0 10 10"');

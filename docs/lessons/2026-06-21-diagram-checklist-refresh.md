@@ -226,3 +226,22 @@ Extra evidence for the all-example regeneration:
   `examples-prometheus-dashboard-architecture-01`,
   `leader-mongodb-class-01`, and
   `leader-zookeeper-class-01`
+
+A follow-up review found that some example architecture, flow, and scenario
+diagrams still read as horizontal lane diagrams even though they represented
+ordered work. Example diagrams with the `examples-batch-scheduler-architecture-01`
+shape now use vertical lane columns instead. Flow and scenario diagrams keep
+the main scenario top-to-bottom, with retry and skipped branches routed through
+side lanes and rejoining card boundaries. Future reviews should open full-size
+PNGs for `examples-batch-scheduler-architecture-01`,
+`examples-cache-warmer-flow-01`, and `examples-cache-warmer-scenario-01` before
+accepting the example set.
+
+Another review showed that matching the broad best-practices layout is not
+enough: line weight must also match the existing `bluetape4k-projects` and
+`bluetape4k-javers` README families. Before changing a broad diagram template,
+open at least one `projects` and one `javers` class/architecture PNG, compare
+connector weight, then inspect the leader PNG at full size. The defects caught
+here were `leader-ktor-architecture-01` routing a dependency through integration
+cards and `leader-mongodb-class-01` routing class/use connectors through cards
+with marker heads not matching the line color.

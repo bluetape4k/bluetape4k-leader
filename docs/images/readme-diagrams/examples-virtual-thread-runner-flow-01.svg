@@ -5,7 +5,7 @@
     </filter>
     <style>
       .canvas { fill: #fbfcf8; }
-      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 3; }
+      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 2.2; }
       .title { font-family: "Architects Daughter"; font-size: 42px; fill: #263238; }
       .subtitle, .small, .labelText, .detail, .footer, .msg, .note { font-family: "Comic Mono"; fill: #36464f; }
       .subtitle { font-size: 17px; }
@@ -14,10 +14,10 @@
       .bandAlt { fill: #fbfdf8; stroke: #d7e0d0; stroke-width: 1.6; }
       .bandTitle { font-family: "Architects Daughter"; font-size: 22px; fill: #263238; }
       .bandHint { font-family: "Comic Mono"; font-size: 12px; fill: #60727d; }
-      .card { filter: url(#softShadow); stroke-width: 2.4; rx: 8; }
+      .card { filter: url(#softShadow); stroke-width: 2; rx: 8; }
       .cardTitle { font-family: "Architects Daughter"; font-size: 24px; fill: #1f3138; }
       .detail { font-size: 13.5px; fill: #546a73; }
-      .edge { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+      .edge { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
       .edgeThin { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
       .dash { stroke-dasharray: 10 8; }
       .pill { fill: #ffffff; stroke-width: 1.5; }
@@ -28,15 +28,15 @@
       .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
       .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
       .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.7; }
-      .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+      .branch { fill: none; stroke: #78909c; stroke-width: 2.4; stroke-dasharray: 12 8; }
     </style>
-    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
   <title id="title">Virtual Thread Runner Flow</title>
   <desc id="desc">Flow diagram for Virtual Thread Runner.</desc>
@@ -45,16 +45,15 @@
   <text x="80" y="82" class="title">Virtual Thread Runner Flow</text>
   <text x="82" y="114" class="subtitle">Virtual Thread follows trigger, prepare, election, protected work, and observable outcome bands.</text>
 
-  <rect x="84" y="150" width="1512" height="105" rx="8" class="band"/>
-  <text x="112" y="184" class="bandTitle">Trigger</text><text x="112" y="207" class="bandHint">blocking job</text>
-  <rect x="84" y="285" width="1512" height="105" rx="8" class="bandAlt"/>
-  <text x="112" y="319" class="bandTitle">Prepare</text><text x="112" y="342" class="bandHint">normalize lockName and deadline</text>
-  <rect x="84" y="420" width="1512" height="190" rx="8" class="band"/>
-  <text x="112" y="454" class="bandTitle">Election</text><text x="112" y="477" class="bandHint">winner, skipped peer, or failure branch</text>
-  <rect x="84" y="640" width="1512" height="105" rx="8" class="bandAlt"/>
-  <text x="112" y="674" class="bandTitle">Leader Work</text><text x="112" y="697" class="bandHint">single protected side effect</text>
-  <rect x="84" y="780" width="1512" height="150" rx="8" class="band"/>
-  <text x="112" y="814" class="bandTitle">Outcome</text><text x="112" y="837" class="bandHint">record, return, and next cycle</text>
+  <rect x="84" y="150" width="430" height="850" rx="8" class="band"/>
+  <text x="112" y="184" class="bandTitle">Failure / Retry Lane</text>
+  <text x="112" y="207" class="bandHint">errors and later attempts stay off the main lane</text>
+  <rect x="552" y="150" width="576" height="850" rx="8" class="bandAlt"/>
+  <text x="580" y="132" class="bandTitle">Main Scenario Lane</text>
+  <text x="580" y="154" class="bandHint">vertical main path</text>
+  <rect x="1166" y="150" width="430" height="850" rx="8" class="band"/>
+  <text x="1194" y="184" class="bandTitle">Skipped / Next Lane</text>
+  <text x="1194" y="207" class="bandHint">peer and loopback paths stay outside cards</text>
   <g>
     <rect x="630" y="164" width="420" height="76" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
     <text x="840" y="198" text-anchor="middle" class="cardTitle">1. Virtual Thread</text>
@@ -99,50 +98,50 @@
     <text x="840" y="942" text-anchor="middle" class="detail">release lease and report</text>
   </g>
   <g>
-    <rect x="875" y="257" width="210" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
-    <circle cx="897" cy="273" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
-    <text x="897" y="277" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
-    <text x="918" y="278" class="labelText" fill="#3f7d9c">request context</text>
+    <rect x="930" y="246" width="210" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="952" cy="262" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="952" y="266" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
+    <text x="973" y="267" class="labelText" fill="#3f7d9c">request context</text>
   </g>
   <path d="M 840 240 L 840 299" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
   <g>
-    <rect x="875" y="392" width="205" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
-    <circle cx="897" cy="408" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
-    <text x="897" y="412" text-anchor="middle" class="badgeText" fill="#6e8f4f">2</text>
-    <text x="918" y="413" class="labelText" fill="#6e8f4f">lock attempt</text>
+    <rect x="930" y="381" width="205" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="952" cy="397" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="952" y="401" text-anchor="middle" class="badgeText" fill="#6e8f4f">2</text>
+    <text x="973" y="402" class="labelText" fill="#6e8f4f">lock attempt</text>
   </g>
   <path d="M 840 375 L 840 434" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
   <path d="M 840 510 L 840 535" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
   <g>
-    <rect x="525" y="535" width="185" height="32" rx="16" class="pill" stroke="#b86868"/>
-    <circle cx="547" cy="551" r="12.5" fill="#fff" stroke="#b86868" stroke-width="1.6"/>
-    <text x="547" y="555" text-anchor="middle" class="badgeText" fill="#b86868">3</text>
-    <text x="568" y="556" class="labelText" fill="#b86868">exception</text>
+    <rect x="542" y="492" width="185" height="32" rx="16" class="pill" stroke="#b86868"/>
+    <circle cx="564" cy="508" r="12.5" fill="#fff" stroke="#b86868" stroke-width="1.6"/>
+    <text x="564" y="512" text-anchor="middle" class="badgeText" fill="#b86868">3</text>
+    <text x="585" y="513" class="labelText" fill="#b86868">exception</text>
   </g>
   <path d="M 698 570 L 530 570" class="edge" stroke="#b86868" marker-end="url(#arrow-skip)"/>
   <g>
-    <rect x="986" y="535" width="178" height="32" rx="16" class="pill" stroke="#c97831"/>
-    <circle cx="1008" cy="551" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
-    <text x="1008" y="555" text-anchor="middle" class="badgeText" fill="#c97831">4</text>
-    <text x="1029" y="556" class="labelText" fill="#c97831">not leader</text>
+    <rect x="986" y="492" width="178" height="32" rx="16" class="pill" stroke="#c97831"/>
+    <circle cx="1008" cy="508" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
+    <text x="1008" y="512" text-anchor="middle" class="badgeText" fill="#c97831">4</text>
+    <text x="1029" y="513" class="labelText" fill="#c97831">not leader</text>
   </g>
   <path d="M 982 570 L 1150 570" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
   <g>
-    <rect x="875" y="612" width="178" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
-    <circle cx="897" cy="628" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
-    <text x="897" y="632" text-anchor="middle" class="badgeText" fill="#6e8f4f">5</text>
-    <text x="918" y="633" class="labelText" fill="#6e8f4f">leader only</text>
+    <rect x="930" y="612" width="178" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="952" cy="628" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="952" y="632" text-anchor="middle" class="badgeText" fill="#6e8f4f">5</text>
+    <text x="973" y="633" class="labelText" fill="#6e8f4f">leader only</text>
   </g>
   <path d="M 840 605 L 840 652" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
   <path d="M 840 728 L 840 792" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
   <path d="M 840 868 L 840 884" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
   <g>
-    <rect x="236" y="952" width="186" height="32" rx="16" class="pill" stroke="#7c5aa6"/>
-    <circle cx="258" cy="968" r="12.5" fill="#fff" stroke="#7c5aa6" stroke-width="1.6"/>
-    <text x="258" y="972" text-anchor="middle" class="badgeText" fill="#7c5aa6">6</text>
-    <text x="279" y="973" class="labelText" fill="#7c5aa6">next cycle</text>
+    <rect x="1235" y="952" width="186" height="32" rx="16" class="pill" stroke="#7c5aa6"/>
+    <circle cx="1257" cy="968" r="12.5" fill="#fff" stroke="#7c5aa6" stroke-width="1.6"/>
+    <text x="1257" y="972" text-anchor="middle" class="badgeText" fill="#7c5aa6">6</text>
+    <text x="1278" y="973" class="labelText" fill="#7c5aa6">next cycle</text>
   </g>
-  <path d="M 840 960 L 840 986 Q 840 1000 826 1000 L 150 1000 Q 136 1000 136 986 L 136 202 Q 136 184 154 184 L 630 184" class="edge dash" stroke="#7c5aa6"/>
-  <polygon points="630,184 614,176 614,192" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
+  <path d="M 840 960 L 840 986 Q 840 1000 854 1000 L 1530 1000 Q 1544 1000 1544 986 L 1544 140 Q 1544 126 1530 126 L 880 126 Q 840 126 840 140 L 840 164" class="edge dash" stroke="#7c5aa6"/>
+  <polygon points="840,164 832,148 848,148" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
 
 </svg>

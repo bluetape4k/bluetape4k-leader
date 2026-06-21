@@ -26,10 +26,10 @@
       .client { fill: #fce7f3; stroke: #db2777; }
       .session { fill: #dcfce7; stroke: #16a34a; }
       .kv { fill: #d1fae5; stroke: #059669; }
-      .solid-link { fill: none; stroke: #64748b; stroke-width: 2; stroke-linecap: round; }
-      .ownership { fill: none; stroke: #2563eb; stroke-width: 2; stroke-linecap: round; }
-      .dependency { fill: none; stroke: #7c3aed; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 8 6; }
-      .backend { fill: none; stroke: #059669; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 5 5; }
+      .solid-link { fill: none; stroke: #64748b; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+      .ownership { fill: none; stroke: #2563eb; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+      .dependency { fill: none; stroke: #7c3aed; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 8 6; }
+      .backend { fill: none; stroke: #059669; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5 5; }
       .port { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.4; }
     </style>
   </defs>
@@ -82,15 +82,15 @@
   <path class="ownership" d="M 402 318 L 522 318"/>
   <circle class="port" cx="402" cy="318" r="5"/>
   <circle class="port" cx="522" cy="318" r="5"/>
-  <path class="ownership" d="M 402 450 L 462 450 L 462 593 L 522 593"/>
+  <path class="ownership" d="M 402 450 L 452 450 Q 462 450 462 460 L 462 583 Q 462 593 472 593 L 522 593"/>
   <circle class="port" cx="402" cy="450" r="5"/>
   <circle class="port" cx="522" cy="593" r="5"/>
 
   <path class="solid-link" d="M 664 394 L 664 430"/>
   <path class="solid-link" d="M 664 516 L 664 552"/>
 
-  <path class="backend" d="M 806 593 L 872 593 L 872 339 L 948 339"/>
-  <path class="backend" d="M 872 593 L 872 516 L 948 516"/>
+  <path class="backend" d="M 806 593 L 862 593 Q 872 593 872 583 L 872 349 Q 872 339 882 339 L 948 339"/>
+  <path class="backend" d="M 872 593 L 872 526 Q 872 516 882 516 L 948 516"/>
   <circle class="port" cx="806" cy="593" r="5"/>
   <circle class="port" cx="948" cy="339" r="5"/>
   <circle class="port" cx="948" cy="516" r="5"/>

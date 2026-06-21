@@ -5,7 +5,7 @@
     </filter>
     <style>
       .canvas { fill: #fbfcf8; }
-      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 3; }
+      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 2.2; }
       .title { font-family: "Architects Daughter"; font-size: 42px; fill: #263238; }
       .subtitle, .small, .labelText, .detail, .footer, .msg, .note { font-family: "Comic Mono"; fill: #36464f; }
       .subtitle { font-size: 17px; }
@@ -14,10 +14,10 @@
       .bandAlt { fill: #fbfdf8; stroke: #d7e0d0; stroke-width: 1.6; }
       .bandTitle { font-family: "Architects Daughter"; font-size: 22px; fill: #263238; }
       .bandHint { font-family: "Comic Mono"; font-size: 12px; fill: #60727d; }
-      .card { filter: url(#softShadow); stroke-width: 2.4; rx: 8; }
+      .card { filter: url(#softShadow); stroke-width: 2; rx: 8; }
       .cardTitle { font-family: "Architects Daughter"; font-size: 24px; fill: #1f3138; }
       .detail { font-size: 13.5px; fill: #546a73; }
-      .edge { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+      .edge { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
       .edgeThin { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
       .dash { stroke-dasharray: 10 8; }
       .pill { fill: #ffffff; stroke-width: 1.5; }
@@ -28,15 +28,15 @@
       .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
       .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
       .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.7; }
-      .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+      .branch { fill: none; stroke: #78909c; stroke-width: 2.4; stroke-dasharray: 12 8; }
     </style>
-    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
   <title id="title">etcd Reconciler Sequence</title>
   <desc id="desc">Sequence diagram for etcd Reconciler.</desc>

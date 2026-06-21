@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1040" viewBox="0 0 1680 1040" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1160" viewBox="0 0 1680 1160" role="img" aria-labelledby="title desc">
   <defs>
     <filter id="softShadow" x="-12%" y="-12%" width="124%" height="124%">
       <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#263238" flood-opacity="0.14"/>
     </filter>
     <style>
       .canvas { fill: #fbfcf8; }
-      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 3; }
+      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 2.2; }
       .title { font-family: "Architects Daughter"; font-size: 42px; fill: #263238; }
       .subtitle, .small, .labelText, .detail, .footer, .msg, .note { font-family: "Comic Mono"; fill: #36464f; }
       .subtitle { font-size: 17px; }
@@ -14,10 +14,10 @@
       .bandAlt { fill: #fbfdf8; stroke: #d7e0d0; stroke-width: 1.6; }
       .bandTitle { font-family: "Architects Daughter"; font-size: 22px; fill: #263238; }
       .bandHint { font-family: "Comic Mono"; font-size: 12px; fill: #60727d; }
-      .card { filter: url(#softShadow); stroke-width: 2.4; rx: 8; }
+      .card { filter: url(#softShadow); stroke-width: 2; rx: 8; }
       .cardTitle { font-family: "Architects Daughter"; font-size: 24px; fill: #1f3138; }
       .detail { font-size: 13.5px; fill: #546a73; }
-      .edge { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+      .edge { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
       .edgeThin { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
       .dash { stroke-dasharray: 10 8; }
       .pill { fill: #ffffff; stroke-width: 1.5; }
@@ -28,104 +28,122 @@
       .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
       .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
       .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.7; }
-      .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+      .branch { fill: none; stroke: #78909c; stroke-width: 2.4; stroke-dasharray: 12 8; }
     </style>
-    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
   <title id="title">Cache Warmer Scenario</title>
   <desc id="desc">Scenario diagram for Cache Warmer.</desc>
-  <rect width="1680" height="1040" class="canvas"/>
-  <rect x="28" y="26" width="1624" height="988" rx="8" class="frame"/>
+  <rect width="1680" height="1160" class="canvas"/>
+  <rect x="28" y="26" width="1624" height="1108" rx="8" class="frame"/>
   <text x="80" y="82" class="title">Cache Warmer Scenario</text>
-  <text x="82" y="114" class="subtitle">Cache shows the happy path plus skipped and retry outcomes without crossing cards.</text>
+  <text x="82" y="114" class="subtitle">Cache now follows a vertical trigger-to-result scenario with side branches kept off the main lane.</text>
 
-  <rect x="84" y="150" width="1512" height="720" rx="8" class="band"/>
-  <text x="112" y="184" class="bandTitle">Scenario Workflow</text>
-  <text x="112" y="207" class="bandHint">best-practices branching layout with explicit success, skipped, and retry lanes</text>
+  <rect x="84" y="150" width="430" height="938" rx="8" class="band"/>
+  <text x="112" y="184" class="bandTitle">Retry Lane</text>
+  <text x="112" y="207" class="bandHint">backoff path stays outside the main line</text>
+  <rect x="552" y="150" width="576" height="938" rx="8" class="bandAlt"/>
+  <text x="580" y="132" class="bandTitle">Main Scenario Lane</text>
+  <text x="580" y="154" class="bandHint">vertical main path</text>
+  <rect x="1166" y="150" width="430" height="938" rx="8" class="band"/>
+  <text x="1194" y="184" class="bandTitle">Skipped Lane</text>
+  <text x="1194" y="207" class="bandHint">non-leader path rejoins at visible result</text>
   <g>
-    <rect x="150" y="260" width="315" height="96" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
-    <text x="307.5" y="294" text-anchor="middle" class="cardTitle">Trigger</text>
-    <text x="307.5" y="318" text-anchor="middle" class="detail">Cache: warm keyspace</text>
+    <rect x="630" y="168" width="420" height="82" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
+    <text x="840" y="202" text-anchor="middle" class="cardTitle">1. Trigger</text>
+    <text x="840" y="226" text-anchor="middle" class="detail">Cache: warm keyspace</text>
   </g>
   <g>
-    <rect x="535" y="260" width="315" height="96" rx="8" class="card" fill="#ffffff" stroke="#78909c"/><image data-bluetape4k-icon="redis" data-icon-source="redis/redis-icon.svg" x="545" y="268" width="18" height="18" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiBoZWlnaHQ9IjY0IiB2aWV3Qm94PSIwIDAgMzIgMzIiIHdpZHRoPSI2NCI+PGcgdHJhbnNmb3JtPSJtYXRyaXgoLjg0ODMyNyAwIDAgLjg0ODMyNyAtNy44ODM1NzMgLTkuNDQ5NjkxKSI+PHVzZSB4bGluazpocmVmPSIjQiIgZmlsbD0iI2E0MWUxMSIvPjxwYXRoIGQ9Ik00NS41MzYgMzQuOTVjLTIuMDEzIDEuMDUtMTIuNDQgNS4zMzctMTQuNjYgNi40OTRzLTMuNDUzIDEuMTQ2LTUuMjA3LjMwOC0xMi44NS01LjMyLTE0Ljg1LTYuMjc2LTIuMDQtMS42MTMtLjA3Ny0yLjM4MmwxNS4zMzItNS45MzZjMi4zMzItLjgzNiAzLjE0LS44NjcgNS4xMjYtLjE0UzQzLjU1IDMxLjg3IDQ1LjUxIDMyLjZzMi4wMzcgMS4zMS4wMjQgMi4zNnoiIGZpbGw9IiNkODJjMjAiLz48dXNlIHhsaW5rOmhyZWY9IiNCIiB5PSItNi4yMTgiIGZpbGw9IiNhNDFlMTEiLz48dXNlIHhsaW5rOmhyZWY9IiNDIiBmaWxsPSIjZDgyYzIwIi8+PHBhdGggZD0iTTQ1LjUzNiAyNi4wOThjLTIuMDEzIDEuMDUtMTIuNDQgNS4zMzctMTQuNjYgNi40OTVzLTMuNDUzIDEuMTQ2LTUuMjA3LjMwOC0xMi44NS01LjMyLTE0Ljg1LTYuMjc2Yy0xLS40NzgtMS41MjQtLjg4LTEuNTI0LTEuMjZWMjEuNTVzMTQuNDQ3LTMuMTQ1IDE2Ljc4LTMuOTgyIDMuMTQtLjg2NyA1LjEyNi0uMTQgMTMuODUzIDIuODY4IDE1LjgxNCAzLjU4N3YzLjc2YzAgLjM3Ny0uNDUyLjgtMS40NzcgMS4zMjR6IiBmaWxsPSIjYTQxZTExIi8+PHVzZSB4bGluazpocmVmPSIjQyIgeT0iLTYuNDQ5IiBmaWxsPSIjZDgyYzIwIi8+PGcgZmlsbD0iI2ZmZiI+PHBhdGggZD0iTTI5LjA5NiAyMC43MTJsLTEuMTgyLTEuOTY1LTMuNzc0LS4zNCAyLjgxNi0xLjAxNi0uODQ1LTEuNTYgMi42MzYgMS4wMyAyLjQ4Ni0uODE0LS42NzIgMS42MTIgMi41MzQuOTUtMy4yNjguMzR6TTIyLjggMjQuNjI0bDguNzQtMS4zNDItMi42NCAzLjg3MnoiLz48ZWxsaXBzZSBjeD0iMjAuNDQ0IiByeD0iNC42NzIiIHJ5PSIxLjgxMSIgY3k9IjIxLjQwMiIvPjwvZz48cGF0aCBkPSJNNDIuMTMyIDIxLjEzOGwtNS4xNyAyLjA0Mi0uMDA0LTQuMDg3eiIgZmlsbD0iIzdhMGMwMCIvPjxwYXRoIGQ9Ik0zNi45NjMgMjMuMThsLS41Ni4yMi01LjE2Ni0yLjA0MiA1LjcyMy0yLjI2NHoiIGZpbGw9IiNhZDIxMTUiLz48L2c+PGRlZnMgPjxwYXRoIGlkPSJCIiBkPSJNNDUuNTM2IDM4Ljc2NGMtMi4wMTMgMS4wNS0xMi40NCA1LjMzNy0xNC42NiA2LjQ5NHMtMy40NTMgMS4xNDYtNS4yMDcuMzA4LTEyLjg1LTUuMzItMTQuODUtNi4yNzZjLTEtLjQ3OC0xLjUyNC0uODgtMS41MjQtMS4yNnYtMy44MTNzMTQuNDQ3LTMuMTQ1IDE2Ljc4LTMuOTgyIDMuMTQtLjg2NyA1LjEyNi0uMTQgMTMuODUzIDIuODY4IDE1LjgxNCAzLjU4N3YzLjc2YzAgLjM3Ny0uNDUyLjgtMS40NzcgMS4zMjR6Ii8+PHBhdGggaWQ9IkMiIGQ9Ik00NS41MzYgMjguNzMzYy0yLjAxMyAxLjA1LTEyLjQ0IDUuMzM3LTE0LjY2IDYuNDk0cy0zLjQ1MyAxLjE0Ni01LjIwNy4zMDgtMTIuODUtNS4zMi0xNC44NS02LjI3Ni0yLjA0LTEuNjEzLS4wNzctMi4zODJsMTUuMzMyLTUuOTM1YzIuMzMyLS44MzcgMy4xNC0uODY3IDUuMTI2LS4xNHMxMi4zNSA0Ljg1MyAxNC4zMTIgNS41NyAyLjAzNyAxLjMxLjAyNCAyLjM2eiIvPjwvZGVmcz48L3N2Zz4=" preserveAspectRatio="xMidYMid meet"/>
-    <text x="692.5" y="294" text-anchor="middle" class="cardTitle">Build Claim</text>
-    <text x="692.5" y="318" text-anchor="middle" class="detail">Redis population key + policy</text>
+    <rect x="630" y="318" width="420" height="82" rx="8" class="card" fill="#ffffff" stroke="#78909c"/><image data-bluetape4k-icon="redis" data-icon-source="redis/redis-icon.svg" x="640" y="326" width="18" height="18" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiBoZWlnaHQ9IjY0IiB2aWV3Qm94PSIwIDAgMzIgMzIiIHdpZHRoPSI2NCI+PGcgdHJhbnNmb3JtPSJtYXRyaXgoLjg0ODMyNyAwIDAgLjg0ODMyNyAtNy44ODM1NzMgLTkuNDQ5NjkxKSI+PHVzZSB4bGluazpocmVmPSIjQiIgZmlsbD0iI2E0MWUxMSIvPjxwYXRoIGQ9Ik00NS41MzYgMzQuOTVjLTIuMDEzIDEuMDUtMTIuNDQgNS4zMzctMTQuNjYgNi40OTRzLTMuNDUzIDEuMTQ2LTUuMjA3LjMwOC0xMi44NS01LjMyLTE0Ljg1LTYuMjc2LTIuMDQtMS42MTMtLjA3Ny0yLjM4MmwxNS4zMzItNS45MzZjMi4zMzItLjgzNiAzLjE0LS44NjcgNS4xMjYtLjE0UzQzLjU1IDMxLjg3IDQ1LjUxIDMyLjZzMi4wMzcgMS4zMS4wMjQgMi4zNnoiIGZpbGw9IiNkODJjMjAiLz48dXNlIHhsaW5rOmhyZWY9IiNCIiB5PSItNi4yMTgiIGZpbGw9IiNhNDFlMTEiLz48dXNlIHhsaW5rOmhyZWY9IiNDIiBmaWxsPSIjZDgyYzIwIi8+PHBhdGggZD0iTTQ1LjUzNiAyNi4wOThjLTIuMDEzIDEuMDUtMTIuNDQgNS4zMzctMTQuNjYgNi40OTVzLTMuNDUzIDEuMTQ2LTUuMjA3LjMwOC0xMi44NS01LjMyLTE0Ljg1LTYuMjc2Yy0xLS40NzgtMS41MjQtLjg4LTEuNTI0LTEuMjZWMjEuNTVzMTQuNDQ3LTMuMTQ1IDE2Ljc4LTMuOTgyIDMuMTQtLjg2NyA1LjEyNi0uMTQgMTMuODUzIDIuODY4IDE1LjgxNCAzLjU4N3YzLjc2YzAgLjM3Ny0uNDUyLjgtMS40NzcgMS4zMjR6IiBmaWxsPSIjYTQxZTExIi8+PHVzZSB4bGluazpocmVmPSIjQyIgeT0iLTYuNDQ5IiBmaWxsPSIjZDgyYzIwIi8+PGcgZmlsbD0iI2ZmZiI+PHBhdGggZD0iTTI5LjA5NiAyMC43MTJsLTEuMTgyLTEuOTY1LTMuNzc0LS4zNCAyLjgxNi0xLjAxNi0uODQ1LTEuNTYgMi42MzYgMS4wMyAyLjQ4Ni0uODE0LS42NzIgMS42MTIgMi41MzQuOTUtMy4yNjguMzR6TTIyLjggMjQuNjI0bDguNzQtMS4zNDItMi42NCAzLjg3MnoiLz48ZWxsaXBzZSBjeD0iMjAuNDQ0IiByeD0iNC42NzIiIHJ5PSIxLjgxMSIgY3k9IjIxLjQwMiIvPjwvZz48cGF0aCBkPSJNNDIuMTMyIDIxLjEzOGwtNS4xNyAyLjA0Mi0uMDA0LTQuMDg3eiIgZmlsbD0iIzdhMGMwMCIvPjxwYXRoIGQ9Ik0zNi45NjMgMjMuMThsLS41Ni4yMi01LjE2Ni0yLjA0MiA1LjcyMy0yLjI2NHoiIGZpbGw9IiNhZDIxMTUiLz48L2c+PGRlZnMgPjxwYXRoIGlkPSJCIiBkPSJNNDUuNTM2IDM4Ljc2NGMtMi4wMTMgMS4wNS0xMi40NCA1LjMzNy0xNC42NiA2LjQ5NHMtMy40NTMgMS4xNDYtNS4yMDcuMzA4LTEyLjg1LTUuMzItMTQuODUtNi4yNzZjLTEtLjQ3OC0xLjUyNC0uODgtMS41MjQtMS4yNnYtMy44MTNzMTQuNDQ3LTMuMTQ1IDE2Ljc4LTMuOTgyIDMuMTQtLjg2NyA1LjEyNi0uMTQgMTMuODUzIDIuODY4IDE1LjgxNCAzLjU4N3YzLjc2YzAgLjM3Ny0uNDUyLjgtMS40NzcgMS4zMjR6Ii8+PHBhdGggaWQ9IkMiIGQ9Ik00NS41MzYgMjguNzMzYy0yLjAxMyAxLjA1LTEyLjQ0IDUuMzM3LTE0LjY2IDYuNDk0cy0zLjQ1MyAxLjE0Ni01LjIwNy4zMDgtMTIuODUtNS4zMi0xNC44NS02LjI3Ni0yLjA0LTEuNjEzLS4wNzctMi4zODJsMTUuMzMyLTUuOTM1YzIuMzMyLS44MzcgMy4xNC0uODY3IDUuMTI2LS4xNHMxMi4zNSA0Ljg1MyAxNC4zMTIgNS41NyAyLjAzNyAxLjMxLjAyNCAyLjM2eiIvPjwvZGVmcz48L3N2Zz4=" preserveAspectRatio="xMidYMid meet"/>
+    <text x="840" y="352" text-anchor="middle" class="cardTitle">2. Build Claim</text>
+    <text x="840" y="376" text-anchor="middle" class="detail">Redis population key + policy</text>
+  </g>
+  <polygon points="840,455 1000,500 840,545 680,500" fill="#fff8ed" stroke="#c97831" stroke-width="2.4" filter="url(#softShadow)"/>
+  <text x="840" y="496" text-anchor="middle" class="cardTitle">3. Acquire?</text>
+  <text x="840" y="518" text-anchor="middle" class="detail">single leader decision</text>
+  <g>
+    <rect x="210" y="620" width="320" height="82" rx="8" class="card" fill="#fdf7ff" stroke="#7c5aa6"/>
+    <text x="370" y="654" text-anchor="middle" class="cardTitle">Retry</text>
+    <text x="370" y="678" text-anchor="middle" class="detail">backoff or next tick</text>
   </g>
   <g>
-    <rect x="920" y="260" width="315" height="96" rx="8" class="card" fill="#fff8ed" stroke="#c97831"/>
-    <text x="1077.5" y="294" text-anchor="middle" class="cardTitle">Acquire</text>
-    <text x="1077.5" y="318" text-anchor="middle" class="detail">single leader decision</text>
+    <rect x="1150" y="620" width="320" height="82" rx="8" class="card" fill="#fff8ed" stroke="#c97831"/>
+    <text x="1310" y="654" text-anchor="middle" class="cardTitle">Skipped</text>
+    <text x="1310" y="678" text-anchor="middle" class="detail">peer returns quickly</text>
   </g>
   <g>
-    <rect x="535" y="510" width="315" height="96" rx="8" class="card" fill="#eef7f0" stroke="#6e8f4f"/>
-    <text x="692.5" y="544" text-anchor="middle" class="cardTitle">Leader Work</text>
-    <text x="692.5" y="568" text-anchor="middle" class="detail">perform protected branch</text>
+    <rect x="630" y="690" width="420" height="82" rx="8" class="card" fill="#eef7f0" stroke="#6e8f4f"/>
+    <text x="840" y="724" text-anchor="middle" class="cardTitle">4. Leader Work</text>
+    <text x="840" y="748" text-anchor="middle" class="detail">perform protected branch</text>
   </g>
   <g>
-    <rect x="920" y="510" width="315" height="96" rx="8" class="card" fill="#fff7e8" stroke="#9b7d54"/>
-    <text x="1077.5" y="544" text-anchor="middle" class="cardTitle">Persist Outcome</text>
-    <text x="1077.5" y="568" text-anchor="middle" class="detail">state, metric, and audit event</text>
+    <rect x="630" y="840" width="420" height="82" rx="8" class="card" fill="#fff7e8" stroke="#9b7d54"/>
+    <text x="840" y="874" text-anchor="middle" class="cardTitle">5. Persist Outcome</text>
+    <text x="840" y="898" text-anchor="middle" class="detail">state, metric, and audit event</text>
   </g>
   <g>
-    <rect x="1295" y="510" width="240" height="96" rx="8" class="card" fill="#fff8ed" stroke="#c97831"/>
-    <text x="1415" y="544" text-anchor="middle" class="cardTitle">Skipped</text>
-    <text x="1415" y="568" text-anchor="middle" class="detail">peer returns quickly</text>
+    <rect x="630" y="990" width="420" height="82" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
+    <text x="840" y="1024" text-anchor="middle" class="cardTitle">6. Visible Result</text>
+    <text x="840" y="1048" text-anchor="middle" class="detail">caller receives explicit outcome</text>
   </g>
   <g>
-    <rect x="150" y="510" width="240" height="96" rx="8" class="card" fill="#fdf7ff" stroke="#7c5aa6"/>
-    <text x="270" y="544" text-anchor="middle" class="cardTitle">Retry</text>
-    <text x="270" y="568" text-anchor="middle" class="detail">backoff or next tick</text>
+    <rect x="930" y="270" width="160" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="952" cy="286" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="952" y="290" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
+    <text x="973" y="291" class="labelText" fill="#3f7d9c">normalize</text>
   </g>
+  <path d="M 840 250 L 840 318" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
   <g>
-    <rect x="725" y="735" width="315" height="96" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
-    <text x="882.5" y="769" text-anchor="middle" class="cardTitle">Visible Result</text>
-    <text x="882.5" y="793" text-anchor="middle" class="detail">caller receives explicit outcome</text>
+    <rect x="930" y="420" width="170" height="32" rx="16" class="pill" stroke="#c97831"/>
+    <circle cx="952" cy="436" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
+    <text x="952" y="440" text-anchor="middle" class="badgeText" fill="#c97831">2</text>
+    <text x="973" y="441" class="labelText" fill="#c97831">contend</text>
   </g>
+  <path d="M 840 400 L 840 455" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
   <g>
-    <rect x="392" y="378" width="165" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
-    <circle cx="414" cy="394" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
-    <text x="414" y="398" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
-    <text x="435" y="399" class="labelText" fill="#3f7d9c">normalize</text>
+    <rect x="930" y="575" width="190" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="952" cy="591" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="952" y="595" text-anchor="middle" class="badgeText" fill="#6e8f4f">3</text>
+    <text x="973" y="596" class="labelText" fill="#6e8f4f">leader branch</text>
   </g>
-  <path d="M 465 308 L 535 308" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <path d="M 840 545 L 840 690" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
   <g>
-    <rect x="782" y="378" width="154" height="32" rx="16" class="pill" stroke="#c97831"/>
-    <circle cx="804" cy="394" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
-    <text x="804" y="398" text-anchor="middle" class="badgeText" fill="#c97831">2</text>
-    <text x="825" y="399" class="labelText" fill="#c97831">contend</text>
+    <rect x="458" y="454" width="160" height="32" rx="16" class="pill" stroke="#7c5aa6"/>
+    <circle cx="480" cy="470" r="12.5" fill="#fff" stroke="#7c5aa6" stroke-width="1.6"/>
+    <text x="480" y="474" text-anchor="middle" class="badgeText" fill="#7c5aa6">4</text>
+    <text x="501" y="475" class="labelText" fill="#7c5aa6">retry</text>
   </g>
-  <path d="M 850 308 L 920 308" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
+  <path d="M 680 500 L 370 500 Q 350 500 350 520 L 350 620" class="edge dash" stroke="#7c5aa6"/>
+  <polygon points="350,620 342,604 358,604" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
   <g>
-    <rect x="765" y="438" width="190" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
-    <circle cx="787" cy="454" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
-    <text x="787" y="458" text-anchor="middle" class="badgeText" fill="#6e8f4f">3</text>
-    <text x="808" y="459" class="labelText" fill="#6e8f4f">leader branch</text>
+    <rect x="1112" y="454" width="160" height="32" rx="16" class="pill" stroke="#c97831"/>
+    <circle cx="1134" cy="470" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
+    <text x="1134" y="474" text-anchor="middle" class="badgeText" fill="#c97831">5</text>
+    <text x="1155" y="475" class="labelText" fill="#c97831">skipped</text>
   </g>
-  <path d="M 1078 356 L 1078 430 Q 1078 454 1054 454 L 692 454 Q 668 454 668 478 L 668 510" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
+  <path d="M 1000 500 L 1330 500 Q 1350 500 1350 520 L 1350 620" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
   <g>
-    <rect x="1245" y="438" width="152" height="32" rx="16" class="pill" stroke="#c97831"/>
-    <circle cx="1267" cy="454" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
-    <text x="1267" y="458" text-anchor="middle" class="badgeText" fill="#c97831">4</text>
-    <text x="1288" y="459" class="labelText" fill="#c97831">skipped</text>
+    <rect x="930" y="790" width="210" height="32" rx="16" class="pill" stroke="#9b7d54"/>
+    <circle cx="952" cy="806" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
+    <text x="952" y="810" text-anchor="middle" class="badgeText" fill="#9b7d54">6</text>
+    <text x="973" y="811" class="labelText" fill="#9b7d54">persist outcome</text>
   </g>
-  <path d="M 1235 308 L 1376 308 Q 1400 308 1400 332 L 1400 510" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
+  <path d="M 840 772 L 840 840" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
   <g>
-    <rect x="392" y="586" width="160" height="32" rx="16" class="pill" stroke="#7c5aa6"/>
-    <circle cx="414" cy="602" r="12.5" fill="#fff" stroke="#7c5aa6" stroke-width="1.6"/>
-    <text x="414" y="606" text-anchor="middle" class="badgeText" fill="#7c5aa6">5</text>
-    <text x="435" y="607" class="labelText" fill="#7c5aa6">backoff</text>
+    <rect x="930" y="940" width="190" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="952" cy="956" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="952" y="960" text-anchor="middle" class="badgeText" fill="#3f7d9c">7</text>
+    <text x="973" y="961" class="labelText" fill="#3f7d9c">visible result</text>
   </g>
-  <path d="M 535 558 L 390 558" class="edge dash" stroke="#7c5aa6"/>
-  <polygon points="390,558 406,550 406,566" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
-  <path d="M 850 558 L 920 558" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
-  <path d="M 1078 606 L 1078 682 Q 1078 706 1054 706 L 906 706 Q 882 706 882 730 L 882 735" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
-  <path d="M 1400 606 L 1400 682 Q 1400 706 1376 706 L 906 706" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
+  <path d="M 840 922 L 840 990" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <path d="M 370 702 L 370 1018 Q 370 1031 383 1031 L 630 1031" class="edge dash" stroke="#7c5aa6"/>
+  <polygon points="630,1031 614,1023 614,1039" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
+  <path d="M 1350 702 L 1350 1018 Q 1350 1031 1337 1031 L 1050 1031" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
 
 </svg>

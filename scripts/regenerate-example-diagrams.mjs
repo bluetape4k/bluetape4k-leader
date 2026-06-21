@@ -86,7 +86,7 @@ function defs(width = 1680, height = 1040) {
     </filter>
     <style>
       .canvas { fill: ${colors.bg}; }
-      .frame { fill: ${colors.panel}; stroke: ${colors.frame}; stroke-width: 3; }
+      .frame { fill: ${colors.panel}; stroke: ${colors.frame}; stroke-width: 2.2; }
       .title { font-family: "Architects Daughter"; font-size: 42px; fill: ${colors.ink}; }
       .subtitle, .small, .labelText, .detail, .footer, .msg, .note { font-family: "Comic Mono"; fill: ${colors.text}; }
       .subtitle { font-size: 17px; }
@@ -95,11 +95,11 @@ function defs(width = 1680, height = 1040) {
       .bandAlt { fill: #fbfdf8; stroke: #d7e0d0; stroke-width: 1.6; }
       .bandTitle { font-family: "Architects Daughter"; font-size: 22px; fill: ${colors.ink}; }
       .bandHint { font-family: "Comic Mono"; font-size: 12px; fill: ${colors.muted}; }
-      .card { filter: url(#softShadow); stroke-width: 2.4; rx: 8; }
+      .card { filter: url(#softShadow); stroke-width: 2; rx: 8; }
       .cardTitle { font-family: "Architects Daughter"; font-size: 24px; fill: #1f3138; }
       .detail { font-size: 13.5px; fill: #546a73; }
-      .edge { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
-      .edgeThin { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .edge { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+      .edgeThin { fill: none; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
       .dash { stroke-dasharray: 10 8; }
       .pill { fill: #ffffff; stroke-width: 1.5; }
       .labelText { font-size: 12.5px; }
@@ -109,7 +109,7 @@ function defs(width = 1680, height = 1040) {
       .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
       .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
       .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.7; }
-      .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+      .branch { fill: none; stroke: #78909c; stroke-width: 2.4; stroke-dasharray: 12 8; }
     </style>
     ${marker("line", colors.line)}
     ${marker("work", colors.work)}
@@ -122,7 +122,7 @@ function defs(width = 1680, height = 1040) {
 }
 
 function marker(id, color) {
-  return `<marker id="arrow-${id}" viewBox="0 0 14 14" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto"><path d="M 1 1 L 13 7 L 1 13 Z" fill="${color}" stroke="${color}" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>`;
+  return `<marker id="arrow-${id}" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="${color}" stroke="${color}" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>`;
 }
 
 function label(x, y, w, text, color, n) {
@@ -160,36 +160,39 @@ function architecture(file) {
   const { slug, title } = parseName(file);
   const [system, trigger, store] = domain(slug);
   const body = `
-  <rect x="84" y="150" width="1512" height="180" rx="8" class="band"/>
-  <text x="112" y="184" class="bandTitle">Trigger Layer</text>
-  <text x="112" y="207" class="bandHint">external request, timer, or controller callback</text>
-  <rect x="84" y="370" width="1512" height="220" rx="8" class="bandAlt"/>
-  <text x="112" y="404" class="bandTitle">Leader Election Layer</text>
-  <text x="112" y="427" class="bandHint">single winner gates the critical branch</text>
-  <rect x="84" y="630" width="1512" height="220" rx="8" class="band"/>
-  <text x="112" y="664" class="bandTitle">Work and State Layer</text>
-  <text x="112" y="687" class="bandHint">protected work records visible state</text>
-  ${card(250, 200, 340, 90, system, trigger, "#eef7fb", colors.line)}
-  ${card(670, 200, 340, 90, "Leader API", "runIfLeader / result contract", "#f8fbef", colors.work)}
-  ${card(1090, 200, 340, 90, "Peer Workers", "same lockName, same policy", "#fff8ed", colors.amber)}
-  ${card(250, 435, 340, 92, "Candidate Context", "deadline, key, tenant scope", "#ffffff", colors.slate)}
-  ${card(670, 435, 340, 92, "Election Guard", "try lock, lease, listener events", "#eef7f0", colors.work)}
-  ${card(1090, 435, 340, 92, store, "lease or conditional ownership", "#fdf7ff", colors.purple)}
-  ${card(250, 700, 340, 92, "Leader Work", "one protected side effect", "#eef7f0", colors.work)}
-  ${card(670, 700, 340, 92, "Outcome Record", "elected, skipped, or failed", "#fff7e8", colors.return)}
-  ${card(1090, 700, 340, 92, "Observers", "metrics, logs, dashboards", "#fff5f5", colors.skip)}
-  ${label(608, 333, 248, "candidate enters election", colors.line, 1)}
-  <path d="M 420 290 L 420 346 Q 420 370 444 370 L 840 370 Q 864 370 864 394 L 864 435" class="edge" stroke="${colors.line}" marker-end="url(#arrow-line)"/>
-  ${label(948, 333, 226, "peers contend", colors.amber, 2)}
-  <path d="M 1260 290 L 1260 346 Q 1260 370 1236 370 L 864 370" class="edge" stroke="${colors.amber}" marker-end="url(#arrow-amber)"/>
-  ${label(1045, 535, 260, "ownership stored", colors.purple, 3)}
-  <path d="M 1010 481 L 1090 481" class="edge" stroke="${colors.purple}" marker-end="url(#arrow-purple)"/>
-  ${label(528, 592, 242, "leader branch opens", colors.work, 4)}
-  <path d="M 840 527 L 840 592 Q 840 630 802 630 L 420 630 Q 396 630 396 654 L 396 700" class="edge" stroke="${colors.work}" marker-end="url(#arrow-work)"/>
-  ${label(608, 856, 252, "state becomes visible", colors.return, 5)}
-  <path d="M 590 746 L 670 746" class="edge" stroke="${colors.return}" marker-end="url(#arrow-return)"/>
-  ${label(1038, 856, 234, "metrics explain result", colors.skip, 6)}
-  <path d="M 1010 746 L 1090 746" class="edge" stroke="${colors.skip}" marker-end="url(#arrow-skip)"/>
+  <rect x="84" y="150" width="352" height="760" rx="8" class="band"/>
+  <text x="112" y="184" class="bandTitle">Request Lane</text>
+  <text x="112" y="207" class="bandHint">trigger and candidate context</text>
+  <rect x="460" y="150" width="352" height="760" rx="8" class="bandAlt"/>
+  <text x="488" y="184" class="bandTitle">Election Lane</text>
+  <text x="488" y="207" class="bandHint">API contract and guard</text>
+  <rect x="836" y="150" width="352" height="760" rx="8" class="band"/>
+  <text x="864" y="184" class="bandTitle">Work Lane</text>
+  <text x="864" y="207" class="bandHint">leader branch and state</text>
+  <rect x="1212" y="150" width="384" height="760" rx="8" class="bandAlt"/>
+  <text x="1240" y="184" class="bandTitle">Observer Lane</text>
+  <text x="1240" y="207" class="bandHint">peers, store, metrics</text>
+  ${card(100, 255, 320, 90, system, trigger, "#eef7fb", colors.line)}
+  ${card(100, 495, 320, 92, "Candidate Context", "deadline, key, tenant scope", "#ffffff", colors.slate)}
+  ${card(476, 255, 320, 90, "Leader API", "runIfLeader / result contract", "#f8fbef", colors.work)}
+  ${card(476, 495, 320, 92, "Election Guard", "try lock, lease, listener events", "#eef7f0", colors.work)}
+  ${card(852, 495, 320, 92, "Leader Work", "one protected side effect", "#eef7f0", colors.work)}
+  ${card(852, 735, 320, 92, "Outcome Record", "elected, skipped, or failed", "#fff7e8", colors.return)}
+  ${card(1244, 255, 320, 90, "Peer Workers", "same lockName, same policy", "#fff8ed", colors.amber)}
+  ${card(1244, 495, 320, 92, store, "lease or conditional ownership", "#fdf7ff", colors.purple)}
+  ${card(1244, 735, 320, 92, "Observers", "metrics, logs, dashboards", "#fff5f5", colors.skip)}
+  ${label(300, 382, 238, "candidate enters", colors.line, 1)}
+  <path d="M 260 345 L 260 416 Q 260 440 284 440 L 636 440 Q 660 440 660 464 L 660 495" class="edge" stroke="${colors.line}" marker-end="url(#arrow-line)"/>
+  ${label(1170, 350, 200, "peers contend", colors.amber, 2)}
+  <path d="M 1404 345 L 1404 380 Q 1404 398 1386 398 L 775 398 Q 760 398 760 413 L 760 495" class="edge" stroke="${colors.amber}" marker-end="url(#arrow-amber)"/>
+  ${label(860, 350, 238, "ownership stored", colors.purple, 3)}
+  <path d="M 796 541 L 820 541 Q 836 541 836 525 L 836 438 Q 836 416 858 416 L 1388 416 Q 1404 416 1404 432 L 1404 495" class="edge" stroke="${colors.purple}" marker-end="url(#arrow-purple)"/>
+  ${label(690, 604, 228, "leader branch", colors.work, 4)}
+  <path d="M 796 541 L 852 541" class="edge" stroke="${colors.work}" marker-end="url(#arrow-work)"/>
+  ${label(885, 842, 180, "state visible", colors.return, 5)}
+  <path d="M 1012 587 L 1012 735" class="edge" stroke="${colors.return}" marker-end="url(#arrow-return)"/>
+  ${label(1265, 856, 190, "metrics explain", colors.skip, 6)}
+  <path d="M 1172 781 L 1244 781" class="edge" stroke="${colors.skip}" marker-end="url(#arrow-skip)"/>
   `;
   return shell(`${title} Architecture`, `${system} uses one elected worker while peers observe explicit skipped or failed outcomes.`, `Architecture diagram for ${title}.`, body);
 }
@@ -198,16 +201,15 @@ function flow(file) {
   const { slug, title } = parseName(file);
   const [system, trigger, store] = domain(slug);
   const body = `
-  <rect x="84" y="150" width="1512" height="105" rx="8" class="band"/>
-  <text x="112" y="184" class="bandTitle">Trigger</text><text x="112" y="207" class="bandHint">${esc(trigger)}</text>
-  <rect x="84" y="285" width="1512" height="105" rx="8" class="bandAlt"/>
-  <text x="112" y="319" class="bandTitle">Prepare</text><text x="112" y="342" class="bandHint">normalize lockName and deadline</text>
-  <rect x="84" y="420" width="1512" height="190" rx="8" class="band"/>
-  <text x="112" y="454" class="bandTitle">Election</text><text x="112" y="477" class="bandHint">winner, skipped peer, or failure branch</text>
-  <rect x="84" y="640" width="1512" height="105" rx="8" class="bandAlt"/>
-  <text x="112" y="674" class="bandTitle">Leader Work</text><text x="112" y="697" class="bandHint">single protected side effect</text>
-  <rect x="84" y="780" width="1512" height="150" rx="8" class="band"/>
-  <text x="112" y="814" class="bandTitle">Outcome</text><text x="112" y="837" class="bandHint">record, return, and next cycle</text>
+  <rect x="84" y="150" width="430" height="850" rx="8" class="band"/>
+  <text x="112" y="184" class="bandTitle">Failure / Retry Lane</text>
+  <text x="112" y="207" class="bandHint">errors and later attempts stay off the main lane</text>
+  <rect x="552" y="150" width="576" height="850" rx="8" class="bandAlt"/>
+  <text x="580" y="132" class="bandTitle">Main Scenario Lane</text>
+  <text x="580" y="154" class="bandHint">vertical main path</text>
+  <rect x="1166" y="150" width="430" height="850" rx="8" class="band"/>
+  <text x="1194" y="184" class="bandTitle">Skipped / Next Lane</text>
+  <text x="1194" y="207" class="bandHint">peer and loopback paths stay outside cards</text>
   ${card(630, 164, 420, 76, `1. ${system}`, trigger, "#eef7fb", colors.line)}
   ${card(630, 299, 420, 76, "2. Prepare Context", `${store} + wait budget`, "#ffffff", colors.slate)}
   ${card(630, 434, 420, 76, "3. Try Leadership", "attempt ownership once", "#f8fbef", colors.work)}
@@ -219,22 +221,22 @@ function flow(file) {
   ${card(630, 652, 420, 76, "5. Run Protected Work", "only elected worker proceeds", "#eef7f0", colors.work)}
   ${card(630, 792, 420, 76, "6. Record Outcome", "success, skipped, or failed", "#fff7e8", colors.return)}
   ${card(630, 884, 420, 76, "7. Return Result", "release lease and report", "#eef7fb", colors.line)}
-  ${label(875, 257, 210, "request context", colors.line, 1)}
+  ${label(930, 246, 210, "request context", colors.line, 1)}
   <path d="M 840 240 L 840 299" class="edge" stroke="${colors.line}" marker-end="url(#arrow-line)"/>
-  ${label(875, 392, 205, "lock attempt", colors.work, 2)}
+  ${label(930, 381, 205, "lock attempt", colors.work, 2)}
   <path d="M 840 375 L 840 434" class="edge" stroke="${colors.work}" marker-end="url(#arrow-work)"/>
   <path d="M 840 510 L 840 535" class="edge" stroke="${colors.amber}" marker-end="url(#arrow-amber)"/>
-  ${label(525, 535, 185, "exception", colors.skip, 3)}
+  ${label(542, 492, 185, "exception", colors.skip, 3)}
   <path d="M 698 570 L 530 570" class="edge" stroke="${colors.skip}" marker-end="url(#arrow-skip)"/>
-  ${label(986, 535, 178, "not leader", colors.amber, 4)}
+  ${label(986, 492, 178, "not leader", colors.amber, 4)}
   <path d="M 982 570 L 1150 570" class="edge" stroke="${colors.amber}" marker-end="url(#arrow-amber)"/>
-  ${label(875, 612, 178, "leader only", colors.work, 5)}
+  ${label(930, 612, 178, "leader only", colors.work, 5)}
   <path d="M 840 605 L 840 652" class="edge" stroke="${colors.work}" marker-end="url(#arrow-work)"/>
   <path d="M 840 728 L 840 792" class="edge" stroke="${colors.return}" marker-end="url(#arrow-return)"/>
   <path d="M 840 868 L 840 884" class="edge" stroke="${colors.line}" marker-end="url(#arrow-line)"/>
-  ${label(236, 952, 186, "next cycle", colors.purple, 6)}
-  <path d="M 840 960 L 840 986 Q 840 1000 826 1000 L 150 1000 Q 136 1000 136 986 L 136 202 Q 136 184 154 184 L 630 184" class="edge dash" stroke="${colors.purple}"/>
-  <polygon points="630,184 614,176 614,192" fill="${colors.purple}" stroke="${colors.purple}" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
+  ${label(1235, 952, 186, "next cycle", colors.purple, 6)}
+  <path d="M 840 960 L 840 986 Q 840 1000 854 1000 L 1530 1000 Q 1544 1000 1544 986 L 1544 140 Q 1544 126 1530 126 L 880 126 Q 840 126 840 140 L 840 164" class="edge dash" stroke="${colors.purple}"/>
+  <polygon points="840,164 832,148 848,148" fill="${colors.purple}" stroke="${colors.purple}" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
   `;
   return shell(`${title} Flow`, `${system} follows trigger, prepare, election, protected work, and observable outcome bands.`, `Flow diagram for ${title}.`, body);
 }
@@ -243,33 +245,45 @@ function scenario(file) {
   const { slug, title } = parseName(file);
   const [system, trigger, store] = domain(slug);
   const body = `
-  <rect x="84" y="150" width="1512" height="720" rx="8" class="band"/>
-  <text x="112" y="184" class="bandTitle">Scenario Workflow</text>
-  <text x="112" y="207" class="bandHint">best-practices branching layout with explicit success, skipped, and retry lanes</text>
-  ${card(150, 260, 315, 96, "Trigger", `${system}: ${trigger}`, "#eef7fb", colors.line)}
-  ${card(535, 260, 315, 96, "Build Claim", `${store} key + policy`, "#ffffff", colors.slate)}
-  ${card(920, 260, 315, 96, "Acquire", "single leader decision", "#fff8ed", colors.amber)}
-  ${card(535, 510, 315, 96, "Leader Work", "perform protected branch", "#eef7f0", colors.work)}
-  ${card(920, 510, 315, 96, "Persist Outcome", "state, metric, and audit event", "#fff7e8", colors.return)}
-  ${card(1295, 510, 240, 96, "Skipped", "peer returns quickly", "#fff8ed", colors.amber)}
-  ${card(150, 510, 240, 96, "Retry", "backoff or next tick", "#fdf7ff", colors.purple)}
-  ${card(725, 735, 315, 96, "Visible Result", "caller receives explicit outcome", "#eef7fb", colors.line)}
-  ${label(392, 378, 165, "normalize", colors.line, 1)}
-  <path d="M 465 308 L 535 308" class="edge" stroke="${colors.line}" marker-end="url(#arrow-line)"/>
-  ${label(782, 378, 154, "contend", colors.amber, 2)}
-  <path d="M 850 308 L 920 308" class="edge" stroke="${colors.amber}" marker-end="url(#arrow-amber)"/>
-  ${label(765, 438, 190, "leader branch", colors.work, 3)}
-  <path d="M 1078 356 L 1078 430 Q 1078 454 1054 454 L 692 454 Q 668 454 668 478 L 668 510" class="edge" stroke="${colors.work}" marker-end="url(#arrow-work)"/>
-  ${label(1245, 438, 152, "skipped", colors.amber, 4)}
-  <path d="M 1235 308 L 1376 308 Q 1400 308 1400 332 L 1400 510" class="edge" stroke="${colors.amber}" marker-end="url(#arrow-amber)"/>
-  ${label(392, 586, 160, "backoff", colors.purple, 5)}
-  <path d="M 535 558 L 390 558" class="edge dash" stroke="${colors.purple}"/>
-  <polygon points="390,558 406,550 406,566" fill="${colors.purple}" stroke="${colors.purple}" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
-  <path d="M 850 558 L 920 558" class="edge" stroke="${colors.return}" marker-end="url(#arrow-return)"/>
-  <path d="M 1078 606 L 1078 682 Q 1078 706 1054 706 L 906 706 Q 882 706 882 730 L 882 735" class="edge" stroke="${colors.line}" marker-end="url(#arrow-line)"/>
-  <path d="M 1400 606 L 1400 682 Q 1400 706 1376 706 L 906 706" class="edge" stroke="${colors.amber}" marker-end="url(#arrow-amber)"/>
+  <rect x="84" y="150" width="430" height="938" rx="8" class="band"/>
+  <text x="112" y="184" class="bandTitle">Retry Lane</text>
+  <text x="112" y="207" class="bandHint">backoff path stays outside the main line</text>
+  <rect x="552" y="150" width="576" height="938" rx="8" class="bandAlt"/>
+  <text x="580" y="132" class="bandTitle">Main Scenario Lane</text>
+  <text x="580" y="154" class="bandHint">vertical main path</text>
+  <rect x="1166" y="150" width="430" height="938" rx="8" class="band"/>
+  <text x="1194" y="184" class="bandTitle">Skipped Lane</text>
+  <text x="1194" y="207" class="bandHint">non-leader path rejoins at visible result</text>
+  ${card(630, 168, 420, 82, "1. Trigger", `${system}: ${trigger}`, "#eef7fb", colors.line)}
+  ${card(630, 318, 420, 82, "2. Build Claim", `${store} key + policy`, "#ffffff", colors.slate)}
+  <polygon points="840,455 1000,500 840,545 680,500" fill="#fff8ed" stroke="${colors.amber}" stroke-width="2.4" filter="url(#softShadow)"/>
+  <text x="840" y="496" text-anchor="middle" class="cardTitle">3. Acquire?</text>
+  <text x="840" y="518" text-anchor="middle" class="detail">single leader decision</text>
+  ${card(210, 620, 320, 82, "Retry", "backoff or next tick", "#fdf7ff", colors.purple)}
+  ${card(1150, 620, 320, 82, "Skipped", "peer returns quickly", "#fff8ed", colors.amber)}
+  ${card(630, 690, 420, 82, "4. Leader Work", "perform protected branch", "#eef7f0", colors.work)}
+  ${card(630, 840, 420, 82, "5. Persist Outcome", "state, metric, and audit event", "#fff7e8", colors.return)}
+  ${card(630, 990, 420, 82, "6. Visible Result", "caller receives explicit outcome", "#eef7fb", colors.line)}
+  ${label(930, 270, 160, "normalize", colors.line, 1)}
+  <path d="M 840 250 L 840 318" class="edge" stroke="${colors.line}" marker-end="url(#arrow-line)"/>
+  ${label(930, 420, 170, "contend", colors.amber, 2)}
+  <path d="M 840 400 L 840 455" class="edge" stroke="${colors.amber}" marker-end="url(#arrow-amber)"/>
+  ${label(930, 575, 190, "leader branch", colors.work, 3)}
+  <path d="M 840 545 L 840 690" class="edge" stroke="${colors.work}" marker-end="url(#arrow-work)"/>
+  ${label(458, 454, 160, "retry", colors.purple, 4)}
+  <path d="M 680 500 L 370 500 Q 350 500 350 520 L 350 620" class="edge dash" stroke="${colors.purple}"/>
+  <polygon points="350,620 342,604 358,604" fill="${colors.purple}" stroke="${colors.purple}" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
+  ${label(1112, 454, 160, "skipped", colors.amber, 5)}
+  <path d="M 1000 500 L 1330 500 Q 1350 500 1350 520 L 1350 620" class="edge" stroke="${colors.amber}" marker-end="url(#arrow-amber)"/>
+  ${label(930, 790, 210, "persist outcome", colors.return, 6)}
+  <path d="M 840 772 L 840 840" class="edge" stroke="${colors.return}" marker-end="url(#arrow-return)"/>
+  ${label(930, 940, 190, "visible result", colors.line, 7)}
+  <path d="M 840 922 L 840 990" class="edge" stroke="${colors.line}" marker-end="url(#arrow-line)"/>
+  <path d="M 370 702 L 370 1018 Q 370 1031 383 1031 L 630 1031" class="edge dash" stroke="${colors.purple}"/>
+  <polygon points="630,1031 614,1023 614,1039" fill="${colors.purple}" stroke="${colors.purple}" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
+  <path d="M 1350 702 L 1350 1018 Q 1350 1031 1337 1031 L 1050 1031" class="edge" stroke="${colors.amber}" marker-end="url(#arrow-amber)"/>
   `;
-  return shell(`${title} Scenario`, `${system} shows the happy path plus skipped and retry outcomes without crossing cards.`, `Scenario diagram for ${title}.`, body);
+  return shell(`${title} Scenario`, `${system} now follows a vertical trigger-to-result scenario with side branches kept off the main lane.`, `Scenario diagram for ${title}.`, body, 1680, 1160);
 }
 
 function sequence(file) {

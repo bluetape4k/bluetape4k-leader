@@ -5,7 +5,7 @@
     </filter>
     <style>
       .canvas { fill: #fbfcf8; }
-      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 3; }
+      .frame { fill: #ffffff; stroke: #41545d; stroke-width: 2.2; }
       .title { font-family: "Architects Daughter"; font-size: 42px; fill: #263238; }
       .subtitle, .small, .labelText, .detail, .footer, .msg, .note { font-family: "Comic Mono"; fill: #36464f; }
       .subtitle { font-size: 17px; }
@@ -14,10 +14,10 @@
       .bandAlt { fill: #fbfdf8; stroke: #d7e0d0; stroke-width: 1.6; }
       .bandTitle { font-family: "Architects Daughter"; font-size: 22px; fill: #263238; }
       .bandHint { font-family: "Comic Mono"; font-size: 12px; fill: #60727d; }
-      .card { filter: url(#softShadow); stroke-width: 2.4; rx: 8; }
+      .card { filter: url(#softShadow); stroke-width: 2; rx: 8; }
       .cardTitle { font-family: "Architects Daughter"; font-size: 24px; fill: #1f3138; }
       .detail { font-size: 13.5px; fill: #546a73; }
-      .edge { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+      .edge { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
       .edgeThin { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
       .dash { stroke-dasharray: 10 8; }
       .pill { fill: #ffffff; stroke-width: 1.5; }
@@ -28,15 +28,15 @@
       .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
       .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
       .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.7; }
-      .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+      .branch { fill: none; stroke: #78909c; stroke-width: 2.4; stroke-dasharray: 12 8; }
     </style>
-    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-return" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-skip" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831" stroke="#c97831" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c" stroke="#78909c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
   <title id="title">DynamoDB Export Architecture</title>
   <desc id="desc">Architecture diagram for DynamoDB Export.</desc>
@@ -45,101 +45,104 @@
   <text x="80" y="82" class="title">DynamoDB Export Architecture</text>
   <text x="82" y="114" class="subtitle">DynamoDB uses one elected worker while peers observe explicit skipped or failed outcomes.</text>
 
-  <rect x="84" y="150" width="1512" height="180" rx="8" class="band"/>
-  <text x="112" y="184" class="bandTitle">Trigger Layer</text>
-  <text x="112" y="207" class="bandHint">external request, timer, or controller callback</text>
-  <rect x="84" y="370" width="1512" height="220" rx="8" class="bandAlt"/>
-  <text x="112" y="404" class="bandTitle">Leader Election Layer</text>
-  <text x="112" y="427" class="bandHint">single winner gates the critical branch</text>
-  <rect x="84" y="630" width="1512" height="220" rx="8" class="band"/>
-  <text x="112" y="664" class="bandTitle">Work and State Layer</text>
-  <text x="112" y="687" class="bandHint">protected work records visible state</text>
+  <rect x="84" y="150" width="352" height="760" rx="8" class="band"/>
+  <text x="112" y="184" class="bandTitle">Request Lane</text>
+  <text x="112" y="207" class="bandHint">trigger and candidate context</text>
+  <rect x="460" y="150" width="352" height="760" rx="8" class="bandAlt"/>
+  <text x="488" y="184" class="bandTitle">Election Lane</text>
+  <text x="488" y="207" class="bandHint">API contract and guard</text>
+  <rect x="836" y="150" width="352" height="760" rx="8" class="band"/>
+  <text x="864" y="184" class="bandTitle">Work Lane</text>
+  <text x="864" y="207" class="bandHint">leader branch and state</text>
+  <rect x="1212" y="150" width="384" height="760" rx="8" class="bandAlt"/>
+  <text x="1240" y="184" class="bandTitle">Observer Lane</text>
+  <text x="1240" y="207" class="bandHint">peers, store, metrics</text>
   <g>
-    <rect x="250" y="200" width="340" height="90" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/><image data-bluetape4k-icon="dynamodb" data-icon-source="testcontainers/aws/amazon-dynamodb.svg" x="260" y="208" width="18" height="18" href="data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjNDA1M0Q2IiByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+QW1hem9uIER5bmFtb0RCPC90aXRsZT48cGF0aCBkPSJNMTYuNjA2IDIwLjcwNXYtMi4zNzFjLTEuMjYzIDEuMDgyLTMuODg0IDEuNzk1LTcuMDY2IDEuNzk1LTMuMTg0IDAtNS44MDUtLjcxNC03LjA2OC0xLjc5N3YyLjM2OWMwIDEuMTY4IDIuOTAzIDIuNDcgNy4wNjggMi40NyA0LjE2IDAgNy4wNi0xLjMgNy4wNjYtMi40NjZ6bS4wMDEtNi43NjVsLjgxNy0uMDA1di4wMDVjMCAuNTE3LS4yNTguOTk4LS43NSAxLjQ0MS42MDEuNTQuNzUgMS4wNzEuNzUgMS40NDlhMTY2MS43IDE2NjEuNyAwIDAgMCAwIDMuODdjMCAxLjg4MS0zLjM4OSAzLjMtNy44ODQgMy4zLTQuNDcxIDAtNy44NDYtMS40MDQtNy44OC0zLjI3YTU4My4xMTkgNTgzLjExOSAwIDAgMS0uMDAzLTMuOTA5Yy4wMDEtLjM3NS4xNS0uOS43NDUtMS40MzctLjU5Mi0uNTM4LS43NDMtMS4wNjItLjc0Ni0xLjQzNXYtMy44OTJjLjAwMi0uMzc3LjE1My0uOTAzLjc0Ny0xLjQzOC0uNTkzLS41NC0uNzQ0LTEuMDYyLS43NDctMS40MzUgMC0xLjM1Ny0uMDAyLTIuNzM1LjAwMi0zLjg5N0MxLjY3NCAxLjQxMiA1LjA1NiAwIDkuNTQgMGMyLjE1OSAwIDQuMjMzLjM1NiA1LjY4OS45NzRsLS4zMTUuNzY2Yy0xLjM2LS41OC0zLjMxOS0uOTEtNS4zNzQtLjkxLTQuMTY1IDAtNy4wNjcgMS4zLTcuMDY3IDIuNDcgMCAxLjE2OCAyLjkwMiAyLjQ3IDcuMDY3IDIuNDcuMTE1IDAgLjIyMiAwIC4zMzQtLjAwNWwuMDMzLjgyOGMtLjEyMi4wMDYtLjI0NS4wMDYtLjM2Ny4wMDYtMy4xODQgMC01LjgwNS0uNzE0LTcuMDY4LTEuNzk4djIuMzhjLjAwNS40NS40NS44NDMuODIxIDEuMDkzIDEuMTE2LjczNiAzLjExNCAxLjIzOSA1LjM0IDEuMzQybC0uMDM3LjgyOWMtMi4yNTQtLjEwNS00LjIzLS41OS01LjUtMS4zMzItLjMxOC4yNDUtLjYyMy41NzMtLjYyMy45NTIgMCAxLjE2OCAyLjkwMiAyLjQ3IDcuMDY3IDIuNDcuNDExIDAgLjgxMi0uMDE0IDEuMjAzLS4wNDJsLjA2LjgyNmMtLjQxLjAzLS44MzMuMDQ1LTEuMjYzLjA0NS0zLjE4NCAwLTUuODA1LS43MTMtNy4wNjgtMS43OTd2Mi4zNjhjLjAwNS40NjIuNDQ5Ljg1NS44MjEgMS4xMDQgMS4yNzUuODQyIDMuNjcgMS4zNjYgNi4yNDcgMS4zNjZoLjE4MnYuODNIOS41NGMtMi42MiAwLTQuOTktLjUwNy02LjQ0NC0xLjM1OS0uMzE3LjI0NS0uNjIzLjU3NC0uNjIzLjk1NCAwIDEuMTY4IDIuOTAyIDIuNDcgNy4wNjcgMi40NyA0LjE1OSAwIDcuMDU4LTEuMjk4IDcuMDY2LTIuNDY1di0uMDA3YzAtLjM3Ny0uMzAzLS43MDUtLjYyLS45NDhhNS43MzIgNS43MzIgMCAwIDEtLjY2Mi4zMzZsLS4zMTYtLjc2NGMuMy0uMTI4LjU2LS4yNjYuNzc2LS40MTIuMzc2LS4yNTQuODIzLS42NTEuODIzLTEuMXptNC4zNzctNi45MTVoLTIuNzE3YS40MDYuNDA2IDAgMCAxLS4zMzItLjE3My40Mi40MiAwIDAgMS0uMDU1LS4zNzVsMS4yMDQtMy41OTdoLTUuNDAzbC0yLjU4MyA0Ljk3NGgyLjYyM2MuMTI4IDAgLjI0OC4wNi4zMjUuMTY0YS40MTguNDE4IDAgMCAxIC4wNjkuMzZsLTIuMjQ5IDguMzY1em0xLjI0OS0uMTI4bC0xMC44OSAxMS42MDhhLjQwOC40MDggMCAwIDEtLjQ5OC4wNzUuNDE4LjQxOCAwIDAgMS0uMTkyLS40NzFsMi41MzQtOS40MjZoLTIuNzY2YS40MDcuNDA3IDAgMCAxLS4zNDktLjIuNDE4LjQxOCAwIDAgMS0uMDEyLS40MDdsMy4wMTQtNS44MDRhLjQwOC40MDggMCAwIDEgLjM2LS4yMjJoNi4yMmMuMTMyIDAgLjI1Ni4wNjUuMzMyLjE3NGEuNDIyLjQyMiAwIDAgMSAuMDU1LjM3NGwtMS4yMDQgMy41OThoMy4xYy4xNjQgMCAuMzEuMDk5LjM3NS4yNTFhLjQyMi40MjIgMCAwIDEtLjA4LjQ1ek0zLjA4NSAyMC43MjNhOC4xMDcgOC4xMDcgMCAwIDAgMS43Mi43MmwuMjMzLS43OTRhNy4zMiA3LjMyIDAgMCAxLTEuNTQ2LS42NDV6bTEuNzItNS45ODRsLjIzMy0uNzk1YTcuMjYyIDcuMjYyIDAgMCAxLTEuNTQ2LS42NDZsLS40MDcuNzJhOC4wNTEgOC4wNTEgMCAwIDAgMS43Mi43MnptLTEuNzItNy40MjdsLjQwNy0uNzE5Yy40MTguMjQ0LjkzOS40NjIgMS41NDYuNjQ2bC0uMjMyLjc5NGE4LjA0NiA4LjA0NiAwIDAgMS0xLjcyLS43MloiLz48L3N2Zz4=" preserveAspectRatio="xMidYMid meet"/>
-    <text x="420" y="234" text-anchor="middle" class="cardTitle">DynamoDB</text>
-    <text x="420" y="258" text-anchor="middle" class="detail">export partition</text>
+    <rect x="100" y="255" width="320" height="90" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/><image data-bluetape4k-icon="dynamodb" data-icon-source="testcontainers/aws/amazon-dynamodb.svg" x="110" y="263" width="18" height="18" href="data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjNDA1M0Q2IiByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+QW1hem9uIER5bmFtb0RCPC90aXRsZT48cGF0aCBkPSJNMTYuNjA2IDIwLjcwNXYtMi4zNzFjLTEuMjYzIDEuMDgyLTMuODg0IDEuNzk1LTcuMDY2IDEuNzk1LTMuMTg0IDAtNS44MDUtLjcxNC03LjA2OC0xLjc5N3YyLjM2OWMwIDEuMTY4IDIuOTAzIDIuNDcgNy4wNjggMi40NyA0LjE2IDAgNy4wNi0xLjMgNy4wNjYtMi40NjZ6bS4wMDEtNi43NjVsLjgxNy0uMDA1di4wMDVjMCAuNTE3LS4yNTguOTk4LS43NSAxLjQ0MS42MDEuNTQuNzUgMS4wNzEuNzUgMS40NDlhMTY2MS43IDE2NjEuNyAwIDAgMCAwIDMuODdjMCAxLjg4MS0zLjM4OSAzLjMtNy44ODQgMy4zLTQuNDcxIDAtNy44NDYtMS40MDQtNy44OC0zLjI3YTU4My4xMTkgNTgzLjExOSAwIDAgMS0uMDAzLTMuOTA5Yy4wMDEtLjM3NS4xNS0uOS43NDUtMS40MzctLjU5Mi0uNTM4LS43NDMtMS4wNjItLjc0Ni0xLjQzNXYtMy44OTJjLjAwMi0uMzc3LjE1My0uOTAzLjc0Ny0xLjQzOC0uNTkzLS41NC0uNzQ0LTEuMDYyLS43NDctMS40MzUgMC0xLjM1Ny0uMDAyLTIuNzM1LjAwMi0zLjg5N0MxLjY3NCAxLjQxMiA1LjA1NiAwIDkuNTQgMGMyLjE1OSAwIDQuMjMzLjM1NiA1LjY4OS45NzRsLS4zMTUuNzY2Yy0xLjM2LS41OC0zLjMxOS0uOTEtNS4zNzQtLjkxLTQuMTY1IDAtNy4wNjcgMS4zLTcuMDY3IDIuNDcgMCAxLjE2OCAyLjkwMiAyLjQ3IDcuMDY3IDIuNDcuMTE1IDAgLjIyMiAwIC4zMzQtLjAwNWwuMDMzLjgyOGMtLjEyMi4wMDYtLjI0NS4wMDYtLjM2Ny4wMDYtMy4xODQgMC01LjgwNS0uNzE0LTcuMDY4LTEuNzk4djIuMzhjLjAwNS40NS40NS44NDMuODIxIDEuMDkzIDEuMTE2LjczNiAzLjExNCAxLjIzOSA1LjM0IDEuMzQybC0uMDM3LjgyOWMtMi4yNTQtLjEwNS00LjIzLS41OS01LjUtMS4zMzItLjMxOC4yNDUtLjYyMy41NzMtLjYyMy45NTIgMCAxLjE2OCAyLjkwMiAyLjQ3IDcuMDY3IDIuNDcuNDExIDAgLjgxMi0uMDE0IDEuMjAzLS4wNDJsLjA2LjgyNmMtLjQxLjAzLS44MzMuMDQ1LTEuMjYzLjA0NS0zLjE4NCAwLTUuODA1LS43MTMtNy4wNjgtMS43OTd2Mi4zNjhjLjAwNS40NjIuNDQ5Ljg1NS44MjEgMS4xMDQgMS4yNzUuODQyIDMuNjcgMS4zNjYgNi4yNDcgMS4zNjZoLjE4MnYuODNIOS41NGMtMi42MiAwLTQuOTktLjUwNy02LjQ0NC0xLjM1OS0uMzE3LjI0NS0uNjIzLjU3NC0uNjIzLjk1NCAwIDEuMTY4IDIuOTAyIDIuNDcgNy4wNjcgMi40NyA0LjE1OSAwIDcuMDU4LTEuMjk4IDcuMDY2LTIuNDY1di0uMDA3YzAtLjM3Ny0uMzAzLS43MDUtLjYyLS45NDhhNS43MzIgNS43MzIgMCAwIDEtLjY2Mi4zMzZsLS4zMTYtLjc2NGMuMy0uMTI4LjU2LS4yNjYuNzc2LS40MTIuMzc2LS4yNTQuODIzLS42NTEuODIzLTEuMXptNC4zNzctNi45MTVoLTIuNzE3YS40MDYuNDA2IDAgMCAxLS4zMzItLjE3My40Mi40MiAwIDAgMS0uMDU1LS4zNzVsMS4yMDQtMy41OTdoLTUuNDAzbC0yLjU4MyA0Ljk3NGgyLjYyM2MuMTI4IDAgLjI0OC4wNi4zMjUuMTY0YS40MTguNDE4IDAgMCAxIC4wNjkuMzZsLTIuMjQ5IDguMzY1em0xLjI0OS0uMTI4bC0xMC44OSAxMS42MDhhLjQwOC40MDggMCAwIDEtLjQ5OC4wNzUuNDE4LjQxOCAwIDAgMS0uMTkyLS40NzFsMi41MzQtOS40MjZoLTIuNzY2YS40MDcuNDA3IDAgMCAxLS4zNDktLjIuNDE4LjQxOCAwIDAgMS0uMDEyLS40MDdsMy4wMTQtNS44MDRhLjQwOC40MDggMCAwIDEgLjM2LS4yMjJoNi4yMmMuMTMyIDAgLjI1Ni4wNjUuMzMyLjE3NGEuNDIyLjQyMiAwIDAgMSAuMDU1LjM3NGwtMS4yMDQgMy41OThoMy4xYy4xNjQgMCAuMzEuMDk5LjM3NS4yNTFhLjQyMi40MjIgMCAwIDEtLjA4LjQ1ek0zLjA4NSAyMC43MjNhOC4xMDcgOC4xMDcgMCAwIDAgMS43Mi43MmwuMjMzLS43OTRhNy4zMiA3LjMyIDAgMCAxLTEuNTQ2LS42NDV6bTEuNzItNS45ODRsLjIzMy0uNzk1YTcuMjYyIDcuMjYyIDAgMCAxLTEuNTQ2LS42NDZsLS40MDcuNzJhOC4wNTEgOC4wNTEgMCAwIDAgMS43Mi43MnptLTEuNzItNy40MjdsLjQwNy0uNzE5Yy40MTguMjQ0LjkzOS40NjIgMS41NDYuNjQ2bC0uMjMyLjc5NGE4LjA0NiA4LjA0NiAwIDAgMS0xLjcyLS43MloiLz48L3N2Zz4=" preserveAspectRatio="xMidYMid meet"/>
+    <text x="260" y="289" text-anchor="middle" class="cardTitle">DynamoDB</text>
+    <text x="260" y="313" text-anchor="middle" class="detail">export partition</text>
   </g>
   <g>
-    <rect x="670" y="200" width="340" height="90" rx="8" class="card" fill="#f8fbef" stroke="#6e8f4f"/>
-    <text x="840" y="234" text-anchor="middle" class="cardTitle">Leader API</text>
-    <text x="840" y="258" text-anchor="middle" class="detail">runIfLeader / result contract</text>
+    <rect x="100" y="495" width="320" height="92" rx="8" class="card" fill="#ffffff" stroke="#78909c"/>
+    <text x="260" y="529" text-anchor="middle" class="cardTitle">Candidate Context</text>
+    <text x="260" y="553" text-anchor="middle" class="detail">deadline, key, tenant scope</text>
   </g>
   <g>
-    <rect x="1090" y="200" width="340" height="90" rx="8" class="card" fill="#fff8ed" stroke="#c97831"/>
-    <text x="1260" y="234" text-anchor="middle" class="cardTitle">Peer Workers</text>
-    <text x="1260" y="258" text-anchor="middle" class="detail">same lockName, same policy</text>
+    <rect x="476" y="255" width="320" height="90" rx="8" class="card" fill="#f8fbef" stroke="#6e8f4f"/>
+    <text x="636" y="289" text-anchor="middle" class="cardTitle">Leader API</text>
+    <text x="636" y="313" text-anchor="middle" class="detail">runIfLeader / result contract</text>
   </g>
   <g>
-    <rect x="250" y="435" width="340" height="92" rx="8" class="card" fill="#ffffff" stroke="#78909c"/>
-    <text x="420" y="469" text-anchor="middle" class="cardTitle">Candidate Context</text>
-    <text x="420" y="493" text-anchor="middle" class="detail">deadline, key, tenant scope</text>
+    <rect x="476" y="495" width="320" height="92" rx="8" class="card" fill="#eef7f0" stroke="#6e8f4f"/>
+    <text x="636" y="529" text-anchor="middle" class="cardTitle">Election Guard</text>
+    <text x="636" y="553" text-anchor="middle" class="detail">try lock, lease, listener events</text>
   </g>
   <g>
-    <rect x="670" y="435" width="340" height="92" rx="8" class="card" fill="#eef7f0" stroke="#6e8f4f"/>
-    <text x="840" y="469" text-anchor="middle" class="cardTitle">Election Guard</text>
-    <text x="840" y="493" text-anchor="middle" class="detail">try lock, lease, listener events</text>
+    <rect x="852" y="495" width="320" height="92" rx="8" class="card" fill="#eef7f0" stroke="#6e8f4f"/>
+    <text x="1012" y="529" text-anchor="middle" class="cardTitle">Leader Work</text>
+    <text x="1012" y="553" text-anchor="middle" class="detail">one protected side effect</text>
   </g>
   <g>
-    <rect x="1090" y="435" width="340" height="92" rx="8" class="card" fill="#fdf7ff" stroke="#7c5aa6"/>
-    <text x="1260" y="469" text-anchor="middle" class="cardTitle">conditional write</text>
-    <text x="1260" y="493" text-anchor="middle" class="detail">lease or conditional ownership</text>
+    <rect x="852" y="735" width="320" height="92" rx="8" class="card" fill="#fff7e8" stroke="#9b7d54"/>
+    <text x="1012" y="769" text-anchor="middle" class="cardTitle">Outcome Record</text>
+    <text x="1012" y="793" text-anchor="middle" class="detail">elected, skipped, or failed</text>
   </g>
   <g>
-    <rect x="250" y="700" width="340" height="92" rx="8" class="card" fill="#eef7f0" stroke="#6e8f4f"/>
-    <text x="420" y="734" text-anchor="middle" class="cardTitle">Leader Work</text>
-    <text x="420" y="758" text-anchor="middle" class="detail">one protected side effect</text>
+    <rect x="1244" y="255" width="320" height="90" rx="8" class="card" fill="#fff8ed" stroke="#c97831"/>
+    <text x="1404" y="289" text-anchor="middle" class="cardTitle">Peer Workers</text>
+    <text x="1404" y="313" text-anchor="middle" class="detail">same lockName, same policy</text>
   </g>
   <g>
-    <rect x="670" y="700" width="340" height="92" rx="8" class="card" fill="#fff7e8" stroke="#9b7d54"/>
-    <text x="840" y="734" text-anchor="middle" class="cardTitle">Outcome Record</text>
-    <text x="840" y="758" text-anchor="middle" class="detail">elected, skipped, or failed</text>
+    <rect x="1244" y="495" width="320" height="92" rx="8" class="card" fill="#fdf7ff" stroke="#7c5aa6"/>
+    <text x="1404" y="529" text-anchor="middle" class="cardTitle">conditional write</text>
+    <text x="1404" y="553" text-anchor="middle" class="detail">lease or conditional ownership</text>
   </g>
   <g>
-    <rect x="1090" y="700" width="340" height="92" rx="8" class="card" fill="#fff5f5" stroke="#b86868"/>
-    <text x="1260" y="734" text-anchor="middle" class="cardTitle">Observers</text>
-    <text x="1260" y="758" text-anchor="middle" class="detail">metrics, logs, dashboards</text>
+    <rect x="1244" y="735" width="320" height="92" rx="8" class="card" fill="#fff5f5" stroke="#b86868"/>
+    <text x="1404" y="769" text-anchor="middle" class="cardTitle">Observers</text>
+    <text x="1404" y="793" text-anchor="middle" class="detail">metrics, logs, dashboards</text>
   </g>
   <g>
-    <rect x="608" y="333" width="266" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
-    <circle cx="630" cy="349" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
-    <text x="630" y="353" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
-    <text x="651" y="354" class="labelText" fill="#3f7d9c">candidate enters election</text>
+    <rect x="300" y="382" width="238" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="322" cy="398" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="322" y="402" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
+    <text x="343" y="403" class="labelText" fill="#3f7d9c">candidate enters</text>
   </g>
-  <path d="M 420 290 L 420 346 Q 420 370 444 370 L 840 370 Q 864 370 864 394 L 864 435" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
+  <path d="M 260 345 L 260 416 Q 260 440 284 440 L 636 440 Q 660 440 660 464 L 660 495" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
   <g>
-    <rect x="948" y="333" width="226" height="32" rx="16" class="pill" stroke="#c97831"/>
-    <circle cx="970" cy="349" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
-    <text x="970" y="353" text-anchor="middle" class="badgeText" fill="#c97831">2</text>
-    <text x="991" y="354" class="labelText" fill="#c97831">peers contend</text>
+    <rect x="1170" y="350" width="200" height="32" rx="16" class="pill" stroke="#c97831"/>
+    <circle cx="1192" cy="366" r="12.5" fill="#fff" stroke="#c97831" stroke-width="1.6"/>
+    <text x="1192" y="370" text-anchor="middle" class="badgeText" fill="#c97831">2</text>
+    <text x="1213" y="371" class="labelText" fill="#c97831">peers contend</text>
   </g>
-  <path d="M 1260 290 L 1260 346 Q 1260 370 1236 370 L 864 370" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
+  <path d="M 1404 345 L 1404 380 Q 1404 398 1386 398 L 775 398 Q 760 398 760 413 L 760 495" class="edge" stroke="#c97831" marker-end="url(#arrow-amber)"/>
   <g>
-    <rect x="1045" y="535" width="260" height="32" rx="16" class="pill" stroke="#7c5aa6"/>
-    <circle cx="1067" cy="551" r="12.5" fill="#fff" stroke="#7c5aa6" stroke-width="1.6"/>
-    <text x="1067" y="555" text-anchor="middle" class="badgeText" fill="#7c5aa6">3</text>
-    <text x="1088" y="556" class="labelText" fill="#7c5aa6">ownership stored</text>
+    <rect x="860" y="350" width="238" height="32" rx="16" class="pill" stroke="#7c5aa6"/>
+    <circle cx="882" cy="366" r="12.5" fill="#fff" stroke="#7c5aa6" stroke-width="1.6"/>
+    <text x="882" y="370" text-anchor="middle" class="badgeText" fill="#7c5aa6">3</text>
+    <text x="903" y="371" class="labelText" fill="#7c5aa6">ownership stored</text>
   </g>
-  <path d="M 1010 481 L 1090 481" class="edge" stroke="#7c5aa6" marker-end="url(#arrow-purple)"/>
+  <path d="M 796 541 L 820 541 Q 836 541 836 525 L 836 438 Q 836 416 858 416 L 1388 416 Q 1404 416 1404 432 L 1404 495" class="edge" stroke="#7c5aa6" marker-end="url(#arrow-purple)"/>
   <g>
-    <rect x="528" y="592" width="242" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
-    <circle cx="550" cy="608" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
-    <text x="550" y="612" text-anchor="middle" class="badgeText" fill="#6e8f4f">4</text>
-    <text x="571" y="613" class="labelText" fill="#6e8f4f">leader branch opens</text>
+    <rect x="690" y="604" width="228" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="712" cy="620" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="712" y="624" text-anchor="middle" class="badgeText" fill="#6e8f4f">4</text>
+    <text x="733" y="625" class="labelText" fill="#6e8f4f">leader branch</text>
   </g>
-  <path d="M 840 527 L 840 592 Q 840 630 802 630 L 420 630 Q 396 630 396 654 L 396 700" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
+  <path d="M 796 541 L 852 541" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
   <g>
-    <rect x="608" y="856" width="252" height="32" rx="16" class="pill" stroke="#9b7d54"/>
-    <circle cx="630" cy="872" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
-    <text x="630" y="876" text-anchor="middle" class="badgeText" fill="#9b7d54">5</text>
-    <text x="651" y="877" class="labelText" fill="#9b7d54">state becomes visible</text>
+    <rect x="885" y="842" width="180" height="32" rx="16" class="pill" stroke="#9b7d54"/>
+    <circle cx="907" cy="858" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
+    <text x="907" y="862" text-anchor="middle" class="badgeText" fill="#9b7d54">5</text>
+    <text x="928" y="863" class="labelText" fill="#9b7d54">state visible</text>
   </g>
-  <path d="M 590 746 L 670 746" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
+  <path d="M 1012 587 L 1012 735" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
   <g>
-    <rect x="1038" y="856" width="242" height="32" rx="16" class="pill" stroke="#b86868"/>
-    <circle cx="1060" cy="872" r="12.5" fill="#fff" stroke="#b86868" stroke-width="1.6"/>
-    <text x="1060" y="876" text-anchor="middle" class="badgeText" fill="#b86868">6</text>
-    <text x="1081" y="877" class="labelText" fill="#b86868">metrics explain result</text>
+    <rect x="1265" y="856" width="190" height="32" rx="16" class="pill" stroke="#b86868"/>
+    <circle cx="1287" cy="872" r="12.5" fill="#fff" stroke="#b86868" stroke-width="1.6"/>
+    <text x="1287" y="876" text-anchor="middle" class="badgeText" fill="#b86868">6</text>
+    <text x="1308" y="877" class="labelText" fill="#b86868">metrics explain</text>
   </g>
-  <path d="M 1010 746 L 1090 746" class="edge" stroke="#b86868" marker-end="url(#arrow-skip)"/>
+  <path d="M 1172 781 L 1244 781" class="edge" stroke="#b86868" marker-end="url(#arrow-skip)"/>
 
 </svg>
