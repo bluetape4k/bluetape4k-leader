@@ -1,145 +1,162 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="1080" viewBox="0 0 1320 1080" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1320" viewBox="0 0 1600 1320" role="img" aria-labelledby="title desc">
   <title id="title">leader-consul acquire release sequence</title>
-  <desc id="desc">Sequence diagram showing Consul session creation, KV acquire contention, leader action execution, session renewal, release, session destroy, and TTL recovery.</desc>
+  <desc id="desc">Sequence showing Consul session creation, KV acquire contention, leader action execution, optional renewal, release, session destroy, and TTL recovery.</desc>
   <defs>
-    <marker markerUnits="userSpaceOnUse" id="arrow-blue" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#2563eb" stroke="#2563eb" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker markerUnits="userSpaceOnUse" id="arrow-orange" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#ea580c" stroke="#ea580c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker markerUnits="userSpaceOnUse" id="arrow-green" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669" stroke="#059669" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker markerUnits="userSpaceOnUse" id="arrow-purple" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c3aed" stroke="#7c3aed" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <style>
-      .canvas { fill: #f8fafc; }
-      .title { font-family: "Architects Daughter", "Comic Mono", "Comic Mono"; font-size: 34px; fill: #0f172a; font-weight: 700; }
-      .subtitle { font-family: "Comic Mono", "Architects Daughter"; font-size: 15px; fill: #475569; }
-      .participant-title { font-family: "Comic Mono", "Architects Daughter"; font-size: 14px; fill: #0f172a; font-weight: 700; }
-      .participant-sub { font-family: "Comic Mono", "Architects Daughter"; font-size: 11px; fill: #475569; }
-      .label { font-family: "Comic Mono", "Architects Daughter"; font-size: 12px; font-weight: 700; }
-      .frame-label { font-family: "Comic Mono", "Architects Daughter"; font-size: 12px; font-weight: 700; }
-      .small { font-family: "Comic Mono", "Architects Daughter"; font-size: 11px; fill: #475569; }
-      .footer { font-family: "Comic Mono", "Architects Daughter"; font-size: 11px; fill: #475569; }
-      .participant { stroke-width: 1.8; rx: 14; }
-      .caller { fill: #dbeafe; stroke: #2563eb; }
-      .elector { fill: #fef3c7; stroke: #d97706; }
-      .client { fill: #fce7f3; stroke: #db2777; }
-      .session { fill: #dcfce7; stroke: #16a34a; }
-      .kv { fill: #d1fae5; stroke: #059669; }
-      .action { fill: #eef2ff; stroke: #4f46e5; }
-      .lifeline { stroke: #cbd5e1; stroke-width: 1.8; stroke-dasharray: 8 8; }
-      .activation { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.2; rx: 4; }
-      .blue { fill: none; stroke: #2563eb; stroke-width: 2.3; marker-end: url(#arrow-blue); }
-      .orange { fill: none; stroke: #ea580c; stroke-width: 2.3; marker-end: url(#arrow-orange); }
-      .green { fill: none; stroke: #059669; stroke-width: 2.3; marker-end: url(#arrow-green); }
-      .purple { fill: none; stroke: #7c3aed; stroke-width: 2.3; marker-end: url(#arrow-purple); }
-      .return { fill: none; stroke: #64748b; stroke-width: 3; stroke-dasharray: 8 7; marker-end: url(#arrow-blue); }
-      .frame-success { fill: rgba(16, 185, 129, 0.04); stroke: #059669; stroke-width: 1.8; rx: 14; }
-      .frame-skip { fill: rgba(234, 88, 12, 0.04); stroke: #ea580c; stroke-width: 3; rx: 14; }
-      .frame-recovery { fill: rgba(124, 58, 237, 0.04); stroke: #7c3aed; stroke-width: 1.8; stroke-dasharray: 9 7; rx: 14; }
-      .badge { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 0.9; rx: 7; }
+      .title { font-family: "Architects Daughter"; font-size: 40px; fill: #263238; }
+      .subtitle, .msg, .note, .footer { font-family: "Comic Mono"; fill: #36464f; }
+      .subtitle { font-size: 18px; }
+      .participant { font-family: "Architects Daughter"; font-size: 20px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .msg { font-size: 14px; }
+      .note { font-size: 13px; }
+      .footer { font-size: 14px; fill: #60727d; }
+      .frame { fill: #fbfcf8; stroke: #41545d; stroke-width: 3; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.5; }
+      .call { fill: none; stroke: #3f7d9c; stroke-width: 3; marker-end: url(#arrowCall); }
+      .work { fill: none; stroke: #6e8f4f; stroke-width: 3; marker-end: url(#arrowWork); }
+      .return { fill: none; stroke: #9b7d54; stroke-width: 2.5; stroke-dasharray: 8 6; marker-end: url(#arrowReturn); }
+      .skip { fill: none; stroke: #b86868; stroke-width: 3; marker-end: url(#arrowSkip); }
+      .alt { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 7; }
+      .branchDivider { stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+      .label { fill: #ffffff; stroke: #d7e0e4; stroke-width: 1.5; }
+      .label.callLabel { stroke: #9cc2d1; }
+      .label.workLabel { stroke: #b6c9a4; }
+      .label.returnLabel { stroke: #c8b38f; }
+      .label.skipLabel { stroke: #d9abab; }
+      .branchOk { fill: #eef7f0; stroke: #6e8f4f; stroke-width: 1.8; }
+      .branchSkip { fill: #fff5f5; stroke: #b86868; stroke-width: 3; }
+      .branchRecover { fill: #f7f1ff; stroke: #7d66a8; stroke-width: 1.8; }
+      .badge { stroke-width: 1.8; }
+      .badge.callBadge { fill: #eaf4f8; stroke: #3f7d9c; }
+      .badge.workBadge { fill: #eef7f0; stroke: #6e8f4f; }
+      .badge.returnBadge { fill: #fff7e8; stroke: #9b7d54; }
+      .badge.skipBadge { fill: #fff0f0; stroke: #b86868; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; fill: #ffffff; font-weight: 700; }
+      .msg.callText, .badgeText.callText { fill: #2f6f8e; }
+      .msg.workText, .badgeText.workText { fill: #55783f; }
+      .msg.returnText, .badgeText.returnText { fill: #7f6038; }
+      .msg.skipText, .badgeText.skipText { fill: #9d4f4f; }
     </style>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowCall" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowWork" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowReturn" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowSkip" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
 
-  <rect class="canvas" width="1320" height="1080"/>
-  <text class="title" x="660" y="62" text-anchor="middle">Consul Session + KV Lock Sequence</text>
-  <text class="subtitle" x="660" y="90" text-anchor="middle">A short-lived Consul session owns the KV key; normal contention returns null, while TTL releases abandoned ownership.</text>
+  <rect x="24" y="24" width="1552" height="1272" rx="20" class="frame"/>
+  <text x="800" y="78" text-anchor="middle" class="title">Consul Session + KV Lock Sequence</text>
+  <text x="800" y="108" text-anchor="middle" class="subtitle">A short-lived Consul session owns the KV key; contention skips the action, while TTL releases abandoned ownership.</text>
 
   <g>
-    <rect class="participant caller" x="68" y="126" width="144" height="70"/>
-    <text class="participant-title" x="140" y="154" text-anchor="middle">Caller</text>
-    <text class="participant-sub" x="140" y="177" text-anchor="middle">job code</text>
-    <line class="lifeline" x1="140" y1="196" x2="140" y2="984"/>
-
-    <rect class="participant elector" x="272" y="126" width="176" height="70"/>
-    <text class="participant-title" x="360" y="154" text-anchor="middle">Consul Elector</text>
-    <text class="participant-sub" x="360" y="177" text-anchor="middle">single or group</text>
-    <line class="lifeline" x1="360" y1="196" x2="360" y2="984"/>
-
-    <rect class="participant client" x="514" y="126" width="178" height="70"/>
-    <text class="participant-title" x="603" y="154" text-anchor="middle">Lock Client</text>
-    <text class="participant-sub" x="603" y="177" text-anchor="middle">HTTP boundary</text>
-    <line class="lifeline" x1="603" y1="196" x2="603" y2="984"/>
-
-    <rect class="participant session" x="760" y="126" width="164" height="70"/><image data-bluetape4k-icon="consul" data-icon-source="testcontainers/infra/consul.svg" x="770" y="134" width="18" height="18" href="data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjRjI0QzUzIiByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+Q29uc3VsPC90aXRsZT48cGF0aCBkPSJNMTQuMDc1NCAxMi4wMjg1YTIuNTA1OSAyLjUwNTkgMCAwIDAtMi41MDYtMi41MDYgMi41MDU5IDIuNTA1OSAwIDAgMC0yLjUwNTggMi41MDYgMi41MDU5IDIuNTA1OSAwIDAgMCAyLjUwNTkgMi41MDU5IDIuNTA1OSAyLjUwNTkgMCAwIDAgMi41MDU5LTIuNTA2em0zLjUzMTcuMDAwM2ExLjE1NTkgMS4xNTU2IDAgMCAwLTEuMTU1OC0xLjE1NTYgMS4xNTU5IDEuMTU1NiAwIDAgMC0xLjE1NTkgMS4xNTU2IDEuMTU1OSAxLjE1NTYgMCAwIDAgMS4xNTU5IDEuMTU1NSAxLjE1NTkgMS4xNTU2IDAgMCAwIDEuMTU1OC0xLjE1NTV6bTQuNzkxNyA1LjUxMDNhMS4xNTc2IDEuMTU2NCAwIDAgMC0xLjE1NzctMS4xNTY0IDEuMTU3NiAxLjE1NjQgMCAwIDAtMS4xNTc2IDEuMTU2NCAxLjE1NzYgMS4xNTY0IDAgMCAwIDEuMTU3NiAxLjE1NjQgMS4xNTc2IDEuMTU2NCAwIDAgMCAxLjE1NzctMS4xNTY0ek0yMC43NDggMTMuODg4YTEuMTUzNCAxLjE1NyAwIDAgMC0xLjE1MzMtMS4xNTcgMS4xNTM0IDEuMTU3IDAgMCAwLTEuMTUzNCAxLjE1NyAxLjE1MzQgMS4xNTcgMCAwIDAgMS4xNTM0IDEuMTU3MSAxLjE1MzQgMS4xNTcgMCAwIDAgMS4xNTMzLTEuMTU3em0zLjI1MTIuMDYxOWExLjE1NDIgMS4xNTM4IDAgMCAwLTEuMTU0Mi0xLjE1MzggMS4xNTQyIDEuMTUzOCAwIDAgMC0xLjE1NDIgMS4xNTM4IDEuMTU0MiAxLjE1MzggMCAwIDAgMS4xNTQyIDEuMTUzOCAxLjE1NDIgMS4xNTM4IDAgMCAwIDEuMTU0Mi0xLjE1Mzh6bS0zLjI3OS0zLjg4M2ExLjE1NjEgMS4xNTM1IDAgMCAwLTEuMTU2LTEuMTUzNSAxLjE1NjEgMS4xNTM1IDAgMCAwLTEuMTU2MiAxLjE1MzUgMS4xNTYxIDEuMTUzNSAwIDAgMCAxLjE1NjEgMS4xNTM1IDEuMTU2MSAxLjE1MzUgMCAwIDAgMS4xNTYyLTEuMTUzNXptMy4yNzk4LjA0NWExLjE2MTQgMS4xNTcgMCAwIDAtMS4xNjE0LTEuMTU3IDEuMTYxNCAxLjE1NyAwIDAgMC0xLjE2MTMgMS4xNTcgMS4xNjE0IDEuMTU3IDAgMCAwIDEuMTYxMyAxLjE1NzJBMS4xNjE0IDEuMTU3IDAgMCAwIDI0IDEwLjExMTl6bS0xLjYyNi0zLjYzMWExLjE1NzUgMS4xNjAxIDAgMCAwLTEuMTU3NS0xLjE2IDEuMTU3NSAxLjE2MDEgMCAwIDAtMS4xNTc1IDEuMTYgMS4xNTc1IDEuMTYwMSAwIDAgMCAxLjE1NzUgMS4xNjAyQTEuMTU3NSAxLjE2MDEgMCAwIDAgMjIuMzc0IDYuNDgxek0xMS42MTcxLjM4MzJjLTMuMTA5OCAwLTYuMDI5IDEuMjA2My04LjIxOTcgMy4zOTc0QzEuMjA2IDUuOTgyMiAwIDguOTAwNyAwIDExLjk5OThjMCAzLjEwOSAxLjIwNjcgNi4wMjc5IDMuMzk3NCA4LjIxOTMgMi4yMDI4IDIuMTkyMiA1LjEyMTMgMy4zOTc4IDguMjE5NyAzLjM5NzggMi41NzggMCA1LjAxNzYtLjgyNTIgNy4wNTUtMi4zODZsLTEuNDE5Ni0xLjg1MjRjLTEuNjI2MyAxLjI0Ni0zLjU3NDggMS45MDQ4LTUuNjM1NCAxLjkwNDgtMi40Nzc2IDAtNC44MTEyLS45NjQxLTYuNTcxNy0yLjcxNTQtMS43NDgtMS43NDg4LTIuNzExOC00LjA4MjgtMi43MTE4LTYuNTY4IDAtMi40Nzg0Ljk2NDUtNC44MTIgMi43MTU4LTYuNTcwMyAxLjc0ODQtMS43NDg4IDQuMDgxNy0yLjcxMyA2LjU2NzctMi43MTMgMi4wNTggMCA0LjAwNjkuNjU5IDUuNjM2NSAxLjkwNTdsMS40MTc5LTEuODU0QzE2LjYzMTQgMS4yMDgzIDE0LjE5MjIuMzgzMSAxMS42MTcuMzgzMVoiLz48L3N2Zz4=" preserveAspectRatio="xMidYMid meet"/>
-    <text class="participant-title" x="842" y="154" text-anchor="middle">Session API</text>
-    <text class="participant-sub" x="842" y="177" text-anchor="middle">create / renew</text>
-    <line class="lifeline" x1="842" y1="196" x2="842" y2="984"/>
-
-    <rect class="participant kv" x="988" y="126" width="154" height="70"/>
-    <text class="participant-title" x="1065" y="154" text-anchor="middle">KV API</text>
-    <text class="participant-sub" x="1065" y="177" text-anchor="middle">acquire / release</text>
-    <line class="lifeline" x1="1065" y1="196" x2="1065" y2="984"/>
-
-    <rect class="participant action" x="1188" y="126" width="104" height="70"/>
-    <text class="participant-title" x="1240" y="154" text-anchor="middle">Action</text>
-    <text class="participant-sub" x="1240" y="177" text-anchor="middle">work</text>
-    <line class="lifeline" x1="1240" y1="196" x2="1240" y2="984"/>
+    <rect x="75" y="150" width="160" height="68" rx="10" class="header"/>
+    <text x="155" y="179" text-anchor="middle" class="participant">Caller</text>
+    <text x="155" y="201" text-anchor="middle" class="role">job code</text>
+    <rect x="300" y="150" width="190" height="68" rx="10" class="header"/>
+    <text x="395" y="179" text-anchor="middle" class="participant">ConsulElector</text>
+    <text x="395" y="201" text-anchor="middle" class="role">single or group</text>
+    <rect x="570" y="150" width="190" height="68" rx="10" class="header"/>
+    <text x="665" y="179" text-anchor="middle" class="participant">LockClient</text>
+    <text x="665" y="201" text-anchor="middle" class="role">HTTP boundary</text>
+    <rect x="842" y="150" width="190" height="68" rx="10" class="header"/><image data-bluetape4k-icon="consul" data-icon-source="testcontainers/infra/consul.svg" x="852" y="158" width="18" height="18" href="data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjRjI0QzUzIiByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+Q29uc3VsPC90aXRsZT48cGF0aCBkPSJNMTQuMDc1NCAxMi4wMjg1YTIuNTA1OSAyLjUwNTkgMCAwIDAtMi41MDYtMi41MDYgMi41MDU5IDIuNTA1OSAwIDAgMC0yLjUwNTggMi41MDYgMi41MDU5IDIuNTA1OSAwIDAgMCAyLjUwNTkgMi41MDU5IDIuNTA1OSAyLjUwNTkgMCAwIDAgMi41MDU5LTIuNTA2em0zLjUzMTcuMDAwM2ExLjE1NTkgMS4xNTU2IDAgMCAwLTEuMTU1OC0xLjE1NTYgMS4xNTU5IDEuMTU1NiAwIDAgMC0xLjE1NTkgMS4xNTU2IDEuMTU1OSAxLjE1NTYgMCAwIDAgMS4xNTU5IDEuMTU1NSAxLjE1NTkgMS4xNTU2IDAgMCAwIDEuMTU1OC0xLjE1NTV6bTQuNzkxNyA1LjUxMDNhMS4xNTc2IDEuMTU2NCAwIDAgMC0xLjE1NzctMS4xNTY0IDEuMTU3NiAxLjE1NjQgMCAwIDAtMS4xNTc2IDEuMTU2NCAxLjE1NzYgMS4xNTY0IDAgMCAwIDEuMTU3NiAxLjE1NjQgMS4xNTc2IDEuMTU2NCAwIDAgMCAxLjE1NzctMS4xNTY0ek0yMC43NDggMTMuODg4YTEuMTUzNCAxLjE1NyAwIDAgMC0xLjE1MzMtMS4xNTcgMS4xNTM0IDEuMTU3IDAgMCAwLTEuMTUzNCAxLjE1NyAxLjE1MzQgMS4xNTcgMCAwIDAgMS4xNTM0IDEuMTU3MSAxLjE1MzQgMS4xNTcgMCAwIDAgMS4xNTMzLTEuMTU3em0zLjI1MTIuMDYxOWExLjE1NDIgMS4xNTM4IDAgMCAwLTEuMTU0Mi0xLjE1MzggMS4xNTQyIDEuMTUzOCAwIDAgMC0xLjE1NDIgMS4xNTM4IDEuMTU0MiAxLjE1MzggMCAwIDAgMS4xNTQyIDEuMTUzOCAxLjE1NDIgMS4xNTM4IDAgMCAwIDEuMTU0Mi0xLjE1Mzh6bS0zLjI3OS0zLjg4M2ExLjE1NjEgMS4xNTM1IDAgMCAwLTEuMTU2LTEuMTUzNSAxLjE1NjEgMS4xNTM1IDAgMCAwLTEuMTU2MiAxLjE1MzUgMS4xNTYxIDEuMTUzNSAwIDAgMCAxLjE1NjEgMS4xNTM1IDEuMTU2MSAxLjE1MzUgMCAwIDAgMS4xNTYyLTEuMTUzNXptMy4yNzk4LjA0NWExLjE2MTQgMS4xNTcgMCAwIDAtMS4xNjE0LTEuMTU3IDEuMTYxNCAxLjE1NyAwIDAgMC0xLjE2MTMgMS4xNTcgMS4xNjE0IDEuMTU3IDAgMCAwIDEuMTYxMyAxLjE1NzJBMS4xNjE0IDEuMTU3IDAgMCAwIDI0IDEwLjExMTl6bS0xLjYyNi0zLjYzMWExLjE1NzUgMS4xNjAxIDAgMCAwLTEuMTU3NS0xLjE2IDEuMTU3NSAxLjE2MDEgMCAwIDAtMS4xNTc1IDEuMTYgMS4xNTc1IDEuMTYwMSAwIDAgMCAxLjE1NzUgMS4xNjAyQTEuMTU3NSAxLjE2MDEgMCAwIDAgMjIuMzc0IDYuNDgxek0xMS42MTcxLjM4MzJjLTMuMTA5OCAwLTYuMDI5IDEuMjA2My04LjIxOTcgMy4zOTc0QzEuMjA2IDUuOTgyMiAwIDguOTAwNyAwIDExLjk5OThjMCAzLjEwOSAxLjIwNjcgNi4wMjc5IDMuMzk3NCA4LjIxOTMgMi4yMDI4IDIuMTkyMiA1LjEyMTMgMy4zOTc4IDguMjE5NyAzLjM5NzggMi41NzggMCA1LjAxNzYtLjgyNTIgNy4wNTUtMi4zODZsLTEuNDE5Ni0xLjg1MjRjLTEuNjI2MyAxLjI0Ni0zLjU3NDggMS45MDQ4LTUuNjM1NCAxLjkwNDgtMi40Nzc2IDAtNC44MTEyLS45NjQxLTYuNTcxNy0yLjcxNTQtMS43NDgtMS43NDg4LTIuNzExOC00LjA4MjgtMi43MTE4LTYuNTY4IDAtMi40Nzg0Ljk2NDUtNC44MTIgMi43MTU4LTYuNTcwMyAxLjc0ODQtMS43NDg4IDQuMDgxNy0yLjcxMyA2LjU2NzctMi43MTMgMi4wNTggMCA0LjAwNjkuNjU5IDUuNjM2NSAxLjkwNTdsMS40MTc5LTEuODU0QzE2LjYzMTQgMS4yMDgzIDE0LjE5MjIuMzgzMSAxMS42MTcuMzgzMVoiLz48L3N2Zz4=" preserveAspectRatio="xMidYMid meet"/>
+    <text x="937" y="179" text-anchor="middle" class="participant">Session API</text>
+    <text x="937" y="201" text-anchor="middle" class="role">create / renew</text>
+    <rect x="1110" y="150" width="160" height="68" rx="10" class="header"/>
+    <text x="1190" y="179" text-anchor="middle" class="participant">KV API</text>
+    <text x="1190" y="201" text-anchor="middle" class="role">acquire / release</text>
+    <rect x="1360" y="150" width="160" height="68" rx="10" class="header"/>
+    <text x="1440" y="179" text-anchor="middle" class="participant">Action</text>
+    <text x="1440" y="201" text-anchor="middle" class="role">user work</text>
   </g>
 
-  <rect class="activation" x="352" y="222" width="16" height="628"/>
-  <rect class="activation" x="595" y="272" width="16" height="548"/>
-  <rect class="activation" x="1057" y="352" width="16" height="332"/>
-  <rect class="activation" x="1232" y="506" width="16" height="70"/>
+  <line x1="155" y1="218" x2="155" y2="1174" class="lifeline"/>
+  <line x1="395" y1="218" x2="395" y2="1174" class="lifeline"/>
+  <line x1="665" y1="218" x2="665" y2="1174" class="lifeline"/>
+  <line x1="937" y1="218" x2="937" y2="1174" class="lifeline"/>
+  <line x1="1190" y1="218" x2="1190" y2="1174" class="lifeline"/>
+  <line x1="1440" y1="218" x2="1440" y2="1174" class="lifeline"/>
+  <rect x="388" y="300" width="14" height="824" rx="6" class="activation"/>
+  <rect x="658" y="360" width="14" height="642" rx="6" class="activation"/>
+  <rect x="1183" y="448" width="14" height="496" rx="6" class="activation"/>
+  <rect x="1433" y="636" width="14" height="84" rx="6" class="activation"/>
 
-  <path class="blue" d="M 140 236 L 360 236"/>
-  <rect class="badge" x="188" y="211" width="124" height="22"/>
-  <text class="label" x="250" y="227" text-anchor="middle" fill="#1d4ed8">1 runIfLeader</text>
+  <rect x="84" y="260" width="266" height="34" rx="17" class="label callLabel"/>
+  <circle cx="108" cy="277" r="13" class="badge callBadge"/><text x="108" y="282" text-anchor="middle" class="badgeText callText">1</text>
+  <text x="132" y="282" class="msg callText">runIfLeader(lockName)</text>
+  <path d="M 155 318 L 395 318" class="call"/>
 
-  <path class="orange" d="M 368 286 L 603 286"/>
-  <rect class="badge" x="413" y="261" width="146" height="22"/>
-  <text class="label" x="486" y="277" text-anchor="middle" fill="#c2410c">2 create session</text>
+  <rect x="420" y="324" width="282" height="34" rx="17" class="label callLabel"/>
+  <circle cx="444" cy="341" r="13" class="badge callBadge"/><text x="444" y="346" text-anchor="middle" class="badgeText callText">2</text>
+  <text x="468" y="346" class="msg callText">create session with TTL</text>
+  <path d="M 402 382 L 937 382" class="call"/>
 
-  <path class="orange" d="M 611 316 L 842 316"/>
-  <rect class="badge" x="650" y="291" width="156" height="22"/>
-  <text class="label" x="728" y="307" text-anchor="middle" fill="#c2410c">Behavior=release</text>
+  <rect x="615" y="388" width="270" height="34" rx="17" class="label callLabel"/>
+  <circle cx="639" cy="405" r="13" class="badge callBadge"/><text x="639" y="410" text-anchor="middle" class="badgeText callText">3</text>
+  <text x="663" y="410" class="msg callText">Behavior=release session</text>
+  <path d="M 672 446 L 937 446" class="call"/>
 
-  <path class="green" d="M 368 366 L 603 366"/>
-  <rect class="badge" x="415" y="341" width="142" height="22"/>
-  <text class="label" x="486" y="357" text-anchor="middle" fill="#047857">3 build lock key</text>
+  <rect x="448" y="454" width="278" height="34" rx="17" class="label workLabel"/>
+  <circle cx="472" cy="471" r="13" class="badge workBadge"/><text x="472" y="476" text-anchor="middle" class="badgeText workText">4</text>
+  <text x="496" y="476" class="msg workText">build encoded lock key</text>
+  <path d="M 402 494 L 665 494" class="work"/>
 
-  <path class="green" d="M 611 398 L 1065 398"/>
-  <rect class="badge" x="744" y="373" width="190" height="22"/>
-  <text class="label" x="839" y="389" text-anchor="middle" fill="#047857">4 acquire with session</text>
+  <rect x="78" y="510" width="1420" height="620" rx="14" class="alt"/>
+  <rect x="102" y="528" width="222" height="30" rx="15" class="branchOk"/>
+  <text x="123" y="548" class="note">alt acquired</text>
+  <line x1="78" y1="1018" x2="1498" y2="1018" class="branchDivider"/>
+  <rect x="102" y="1036" width="276" height="30" rx="15" class="branchSkip"/>
+  <text x="123" y="1056" class="note">else contention / acquire failed</text>
 
-  <rect class="frame-success" x="92" y="448" width="1180" height="284"/>
-  <text class="frame-label" x="118" y="474" fill="#047857">alt acquired</text>
+  <rect x="830" y="568" width="332" height="34" rx="17" class="label workLabel"/>
+  <circle cx="854" cy="585" r="13" class="badge workBadge"/><text x="854" y="590" text-anchor="middle" class="badgeText workText">5</text>
+  <text x="878" y="590" class="msg workText">KV acquire with session id</text>
+  <path d="M 672 626 L 1190 626" class="work"/>
 
-  <path class="purple" d="M 360 506 L 1240 506"/>
-  <rect class="badge" x="665" y="481" width="270" height="22"/>
-  <text class="label" x="800" y="497" text-anchor="middle" fill="#6d28d9">5 push LeaderLockHandle and run action</text>
+  <rect x="890" y="636" width="442" height="34" rx="17" class="label workLabel"/>
+  <circle cx="914" cy="653" r="13" class="badge workBadge"/><text x="914" y="658" text-anchor="middle" class="badgeText workText">6</text>
+  <text x="938" y="658" class="msg workText">push LeaderLockHandle and run action</text>
+  <path d="M 395 700 L 1440 700" class="work"/>
 
-  <path class="orange" d="M 603 550 L 842 550"/>
-  <rect class="badge" x="648" y="525" width="150" height="22"/>
-  <text class="label" x="723" y="541" text-anchor="middle" fill="#c2410c">optional renew</text>
+  <rect x="430" y="746" width="244" height="34" rx="17" class="label callLabel"/>
+  <circle cx="454" cy="763" r="13" class="badge callBadge"/><text x="454" y="768" text-anchor="middle" class="badgeText callText">7</text>
+  <text x="478" y="768" class="msg callText">optional renew loop</text>
+  <path d="M 672 808 L 937 808" class="call"/>
 
-  <path class="return" d="M 1240 590 L 360 590"/>
-  <rect class="badge" x="716" y="598" width="168" height="22"/>
-  <text class="label" x="800" y="614" text-anchor="middle" fill="#475569">action result</text>
+  <rect x="606" y="822" width="300" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="630" cy="839" r="13" class="badge returnBadge"/><text x="630" y="844" text-anchor="middle" class="badgeText returnText">8</text>
+  <text x="654" y="844" class="msg returnText">action result or failure</text>
+  <path d="M 1440 874 L 395 874" class="return"/>
 
-  <path class="green" d="M 603 660 L 1065 660"/>
-  <rect class="badge" x="734" y="635" width="210" height="22"/>
-  <text class="label" x="839" y="651" text-anchor="middle" fill="#047857">release KV key</text>
-  <path class="orange" d="M 603 700 L 842 700"/>
-  <rect class="badge" x="642" y="669" width="162" height="22"/>
-  <text class="label" x="723" y="685" text-anchor="middle" fill="#c2410c">destroy session</text>
+  <rect x="790" y="884" width="286" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="814" cy="901" r="13" class="badge returnBadge"/><text x="814" y="906" text-anchor="middle" class="badgeText returnText">9</text>
+  <text x="838" y="906" class="msg returnText">release KV key</text>
+  <path d="M 665 936 L 1190 936" class="return"/>
 
-  <rect class="frame-skip" x="92" y="760" width="1180" height="112"/>
-  <text class="frame-label" x="118" y="787" fill="#c2410c">else contention</text>
+  <rect x="572" y="948" width="306" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="596" cy="965" r="13" class="badge returnBadge"/><text x="596" y="970" text-anchor="middle" class="badgeText returnText">10</text>
+  <text x="620" y="970" class="msg returnText">destroy session</text>
+  <path d="M 665 998 L 937 998" class="return"/>
 
-  <path class="orange" d="M 603 816 L 842 816"/>
-  <rect class="badge" x="646" y="791" width="154" height="22"/>
-  <text class="label" x="723" y="807" text-anchor="middle" fill="#c2410c">destroy session</text>
-  <path class="return" d="M 360 846 L 140 846"/>
-  <rect class="badge" x="206" y="854" width="88" height="22"/>
-  <text class="label" x="250" y="870" text-anchor="middle" fill="#475569">null</text>
+  <rect x="620" y="1070" width="312" height="34" rx="17" class="label skipLabel"/>
+  <circle cx="644" cy="1087" r="13" class="badge skipBadge"/><text x="644" y="1092" text-anchor="middle" class="badgeText skipText">6</text>
+  <text x="668" y="1092" class="msg skipText">destroy session; action is not run</text>
+  <path d="M 665 1124 L 937 1124" class="skip"/>
 
-  <rect class="frame-recovery" x="562" y="906" width="612" height="72"/>
-  <text class="frame-label" x="588" y="934" fill="#6d28d9">crash or network loss</text>
-  <path class="purple" d="M 842 956 L 1065 956"/>
-  <rect class="badge" x="884" y="931" width="140" height="22"/>
-  <text class="label" x="954" y="947" text-anchor="middle" fill="#6d28d9">TTL releases key</text>
-  <text class="small" x="868" y="970" text-anchor="middle">lockDelay=0: fast reacquire; add idempotency or fencing for unsafe overlap.</text>
+  <rect x="220" y="1104" width="224" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="244" cy="1121" r="13" class="badge returnBadge"/><text x="244" y="1126" text-anchor="middle" class="badgeText returnText">7</text>
+  <text x="268" y="1126" class="msg returnText">return null</text>
+  <path d="M 395 1156 L 155 1156" class="return"/>
 
-  <g transform="translate(166 1014)">
-    <rect x="0" y="0" width="988" height="42" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
-    <text class="footer" x="494" y="18" text-anchor="middle">github.com/bluetape4k/bluetape4k-leader / leader-consul</text>
-    <text class="small" x="494" y="34" text-anchor="middle">Single locks use keyPrefix/single/{encodedLockName}; group locks scan keyPrefix/group/{encodedLockName}/slot-N.</text>
-  </g>
+  <rect x="862" y="1174" width="320" height="34" rx="17" class="branchRecover"/>
+  <text x="884" y="1194" class="note">crash or network loss: session TTL expires</text>
+  <rect x="910" y="1212" width="300" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="934" cy="1229" r="13" class="badge returnBadge"/><text x="934" y="1234" text-anchor="middle" class="badgeText returnText">11</text>
+  <text x="958" y="1234" class="msg returnText">Consul releases abandoned KV key</text>
+  <path d="M 937 1268 L 1190 1268" class="return"/>
+
+  <rect x="98" y="1222" width="618" height="44" rx="12" fill="#ffffff" stroke="#ccd7da" stroke-width="2"/>
+  <text x="118" y="1250" class="note">lockDelay=0 permits fast reacquire; unsafe overlap still needs idempotency or fencing.</text>
+  <text x="800" y="1288" text-anchor="middle" class="footer">github.com/bluetape4k/bluetape4k-leader - leader-consul README</text>
 </svg>

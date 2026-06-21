@@ -2,8 +2,8 @@
   <title id="title">leader-hazelcast implementation structure</title>
   <desc id="desc">Class diagram for the Hazelcast leader backend showing electors, factories, IMap based lock primitives, extend delegates, and token based dependency relationships.</desc>
   <defs>
-    <marker id="hollow-triangle" viewBox="0 0 14 12" markerWidth="11" markerHeight="10" refX="13" refY="6" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 1 1 L 13 6 L 1 11 Z" fill="#f8fafc" stroke="#334155" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="none" style="stroke-dasharray:none"/>
+    <marker id="hollow-triangle" viewBox="0 0 18 16" markerWidth="18" markerHeight="16" refX="17" refY="8" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 17 8 L 1 15 Z" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round" stroke-dasharray="none" style="stroke-dasharray:none"/>
     </marker>
     <marker markerUnits="userSpaceOnUse" id="open-arrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#334155" stroke="#334155" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <style>
@@ -93,14 +93,14 @@
     <text class="member" x="1030" y="450">+NonCancellable cleanup</text>
   </g>
 
-  <path class="implements" d="M 200 344 L 200 260"/>
-  <polygon points="200,248 190,260 210,260" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round"/>
-  <path class="implements" d="M 464 344 L 464 260"/>
-  <polygon points="464,248 454,260 474,260" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round"/>
-  <path class="implements" d="M 848 344 L 848 260"/>
-  <polygon points="848,248 838,260 858,260" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round"/>
-  <path class="implements" d="M 1139 344 L 1139 260"/>
-  <polygon points="1139,248 1129,260 1149,260" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round"/>
+  <path class="implements" d="M 200 344 L 200 264"/>
+  <polygon points="200,248 191,264 209,264" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round"/>
+  <path class="implements" d="M 464 344 L 464 264"/>
+  <polygon points="464,248 455,264 473,264" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round"/>
+  <path class="implements" d="M 848 344 L 848 264"/>
+  <polygon points="848,248 839,264 857,264" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round"/>
+  <path class="implements" d="M 1139 344 L 1139 264"/>
+  <polygon points="1139,248 1130,264 1148,264" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round"/>
 
   <g id="locks">
     <rect class="box lock" x="214" y="590" width="292" height="126"/>

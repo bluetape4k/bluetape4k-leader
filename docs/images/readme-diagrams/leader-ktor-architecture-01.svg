@@ -89,12 +89,12 @@
   <path class="solid-link" d="M 559 560 L 559 590"/>
   <path class="solid-link" d="M 272 552 L 272 590"/>
 
-  <path class="dependency" d="M 272 652 L 583 652 Q 601 652 601 634 L 601 362 Q 601 344 619 344 L 930 344"/>
-  <path class="dependency" d="M 559 652 L 559 666"/>
+  <path class="dependency" d="M 272 652 L 272 704 Q 272 718 286 718 L 854 718 Q 868 718 868 704 L 868 344 Q 868 326 886 326 L 930 326"/>
+  <path class="dependency" d="M 559 652 L 559 718"/>
   <circle class="port" cx="272" cy="652" r="5"/>
   <circle class="port" cx="559" cy="652" r="5"/>
-  <circle class="port" cx="808" cy="666" r="5"/>
-  <circle class="port" cx="808" cy="344" r="5"/>
+  <circle class="port" cx="868" cy="704" r="5"/>
+  <circle class="port" cx="868" cy="344" r="5"/>
   <path class="dependency" d="M 1033 394 L 1033 558"/>
   <circle class="port" cx="1033" cy="394" r="5"/>
   <circle class="port" cx="1033" cy="558" r="5"/>
