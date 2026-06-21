@@ -29,6 +29,30 @@
       .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
       .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.7; }
       .branch { fill: none; stroke: #78909c; stroke-width: 2.4; stroke-dasharray: 12 8; }
+
+      /* bluetape4k best-practices sequence style override: matches redis-lettuce sequence family. */
+      text { letter-spacing: 0; }
+      text.title { font-family: "Architects Daughter"; font-size: 40px; font-weight: 400; fill: #263238; }
+      text.subtitle, text.msg, text.note, text.footer, text.small, text.detail, text.mono, text.tiny, text.role, text.participant-sub { font-family: "Comic Mono"; fill: #36464f; }
+      text.subtitle { font-size: 18px; }
+      text.participant, text.participant-title, text.cardTitle { font-family: "Architects Daughter"; font-size: 19px; font-weight: 400; fill: #1f3138; }
+      text.role, text.participant-sub, text.detail, text.small, text.tiny { font-size: 13px; fill: #546a73; }
+      text.msg, text.labelText, text.label, text.mono { font-family: "Comic Mono"; font-size: 14px; font-weight: 400; }
+      text.note { font-size: 13px; }
+      text.footer { font-size: 14px; fill: #60727d; }
+      .canvas { fill: #fbfcf8; }
+      .frame { fill: #fbfcf8; stroke: #41545d; stroke-width: 3; filter: none; }
+      rect.header { fill: #ffffff; stroke: #546e7a; stroke-width: 2; }
+      .lifeline, .life { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      rect.activation { fill: #f3ecdf; stroke: #8f784e; stroke-width: 1.5; }
+      .call, .slot, .state, .skip, .wait, .edge, .edgeThin, .blue, .green, .orange, .purple, .amber, .callBlue, .callGreen, .callAmber, .callRed { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .return, .ret { fill: none; stroke-width: 2.5; stroke-dasharray: 8 6; stroke-linecap: round; stroke-linejoin: round; }
+      .alt, .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 7; }
+      .branchDivider { stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+      rect.label, rect.pill, rect.altLabel, rect.badge { fill: #ffffff; stroke-width: 1.5; }
+      text.badgeText, text.num { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .branchOk, .frame-success { fill: #f8f1e6; stroke: #a2743d; stroke-width: 1.8; }
+      .branchSkip, .frame-skip { fill: #fff5f5; stroke: #b86868; stroke-width: 3; }
     </style>
     <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
@@ -41,16 +65,16 @@
   <title id="title">Rate Limiter Sequence</title>
   <desc id="desc">Sequence diagram for Rate Limiter.</desc>
   <rect width="1600" height="1020" class="canvas"/>
-  <rect x="28" y="26" width="1544" height="968" rx="8" class="frame"/>
-  <text x="80" y="82" class="title">Rate Limiter Sequence</text>
-  <text x="82" y="114" class="subtitle">Rate Limit follows the leader-core sequence style with clear calls, returns, and alternate outcomes.</text>
+  <rect x="24" y="24" width="1552" height="972" rx="20" class="frame"/>
+  <text x="800" y="78" text-anchor="middle" class="title">Rate Limiter Sequence</text>
+  <text x="800" y="108" text-anchor="middle" class="subtitle">Rate Limit follows the leader-core sequence style with clear calls, returns, and alternate outcomes.</text>
 
-  <rect x="70" y="150" width="170" height="68" rx="8" class="header"/><text x="155" y="179" text-anchor="middle" class="participant">Caller</text><text x="155" y="201" text-anchor="middle" class="role">bucket refill</text>
-  <rect x="315" y="150" width="190" height="68" rx="8" class="header"/><text x="410" y="179" text-anchor="middle" class="participant">Example</text><text x="410" y="201" text-anchor="middle" class="role">Rate Limit</text>
-  <rect x="570" y="150" width="210" height="68" rx="8" class="header"/><text x="675" y="179" text-anchor="middle" class="participant">Leader API</text><text x="675" y="201" text-anchor="middle" class="role">runIfLeader</text>
-  <rect x="845" y="150" width="210" height="68" rx="8" class="header"/><text x="950" y="179" text-anchor="middle" class="participant">Lock Store</text><text x="950" y="201" text-anchor="middle" class="role">shared quota</text>
-  <rect x="1120" y="150" width="190" height="68" rx="8" class="header"/><text x="1215" y="179" text-anchor="middle" class="participant">Action</text><text x="1215" y="201" text-anchor="middle" class="role">protected work</text>
-  <rect x="1365" y="150" width="170" height="68" rx="8" class="header"/><text x="1450" y="179" text-anchor="middle" class="participant">Observer</text><text x="1450" y="201" text-anchor="middle" class="role">metrics/events</text>
+  <rect x="70" y="150" width="170" height="68" rx="10" class="header"/><text x="155" y="179" text-anchor="middle" class="participant">Caller</text><text x="155" y="201" text-anchor="middle" class="role">bucket refill</text>
+  <rect x="315" y="150" width="190" height="68" rx="10" class="header"/><text x="410" y="179" text-anchor="middle" class="participant">Example</text><text x="410" y="201" text-anchor="middle" class="role">Rate Limit</text>
+  <rect x="570" y="150" width="210" height="68" rx="10" class="header"/><text x="675" y="179" text-anchor="middle" class="participant">Leader API</text><text x="675" y="201" text-anchor="middle" class="role">runIfLeader</text>
+  <rect x="845" y="150" width="210" height="68" rx="10" class="header"/><text x="950" y="179" text-anchor="middle" class="participant">Lock Store</text><text x="950" y="201" text-anchor="middle" class="role">shared quota</text>
+  <rect x="1120" y="150" width="190" height="68" rx="10" class="header"/><text x="1215" y="179" text-anchor="middle" class="participant">Action</text><text x="1215" y="201" text-anchor="middle" class="role">protected work</text>
+  <rect x="1365" y="150" width="170" height="68" rx="10" class="header"/><text x="1450" y="179" text-anchor="middle" class="participant">Observer</text><text x="1450" y="201" text-anchor="middle" class="role">metrics/events</text>
   <line x1="155" y1="218" x2="155" y2="938" class="lifeline"/>
   <line x1="410" y1="218" x2="410" y2="938" class="lifeline"/>
   <line x1="675" y1="218" x2="675" y2="938" class="lifeline"/>

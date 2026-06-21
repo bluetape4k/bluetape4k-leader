@@ -1,118 +1,137 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="780" viewBox="0 0 1180 780" role="img" aria-labelledby="title desc">
-  <title id="title">Redisson Group Lock Flow - minLeaseTime via updateLeaseTime</title>
-  <desc id="desc">Sequence diagram showing how minLeaseTime extends a Redisson permit TTL without caller-side parking.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040" role="img" aria-labelledby="title desc">
+  <title id="title">minLeaseTime via updateLeaseTime</title>
+  <desc id="desc">Redisson minLeaseTime sequence using permit TTL update instead of caller parking.</desc>
   <defs>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
-      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#64748b" flood-opacity="0.13"/>
-    </filter>
-    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowBlue" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowPurple" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6" stroke="#7c5aa6" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowGreen" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowAmber" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowRed" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <style>
+      .title { font-family: "Architects Daughter"; font-size: 40px; fill: #263238; }
+      .subtitle, .msg, .note, .footer { font-family: "Comic Mono"; fill: #36464f; }
+      .subtitle { font-size: 18px; }
+      .participant { font-family: "Architects Daughter"; font-size: 19px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .msg { font-size: 14px; }
+      .note { font-size: 13px; }
+      .footer { font-size: 14px; fill: #60727d; }
+      .frame { fill: #fbfcf8; stroke: #41545d; stroke-width: 3; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #f3ecdf; stroke: #8f784e; stroke-width: 1.5; }
+      .call { fill: none; stroke: #3f7d9c; stroke-width: 3; marker-end: url(#arrowCall); stroke-linecap: round; stroke-linejoin: round; }
+      .slot { fill: none; stroke: #a2743d; stroke-width: 3; marker-end: url(#arrowSlot); stroke-linecap: round; stroke-linejoin: round; }
+      .state { fill: none; stroke: #6e8f4f; stroke-width: 3; marker-end: url(#arrowState); stroke-linecap: round; stroke-linejoin: round; }
+      .return { fill: none; stroke: #9b7d54; stroke-width: 2.5; stroke-dasharray: 8 6; marker-end: url(#arrowReturn); stroke-linecap: round; stroke-linejoin: round; }
+      .wait { fill: none; stroke: #8e6aa9; stroke-width: 3; marker-end: url(#arrowWait); stroke-linecap: round; stroke-linejoin: round; }
+      .skip { fill: none; stroke: #b86868; stroke-width: 3; marker-end: url(#arrowSkip); stroke-linecap: round; stroke-linejoin: round; }
+      .alt { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 7; }
+      .branchDivider { stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+      .label { fill: #ffffff; stroke: #d7e0e4; stroke-width: 1.5; }
+      .label.callLabel { stroke: #9cc2d1; }
+      .label.slotLabel { stroke: #d0b078; }
+      .label.stateLabel { stroke: #b6c9a4; }
+      .label.returnLabel { stroke: #c8b38f; }
+      .label.waitLabel { stroke: #c7abd8; }
+      .label.skipLabel { stroke: #d9abab; }
+      .branchOk { fill: #f8f1e6; stroke: #a2743d; stroke-width: 1.8; }
+      .branchWait { fill: #f7f0fb; stroke: #8e6aa9; stroke-width: 1.8; }
+      .branchSkip { fill: #fff5f5; stroke: #b86868; stroke-width: 3; }
+      .badge { stroke-width: 1.8; }
+      .badge.callBadge { fill: #eaf4f8; stroke: #3f7d9c; }
+      .badge.slotBadge { fill: #fff4df; stroke: #a2743d; }
+      .badge.stateBadge { fill: #eef7f0; stroke: #6e8f4f; }
+      .badge.returnBadge { fill: #fff7e8; stroke: #9b7d54; }
+      .badge.waitBadge { fill: #f7f0fb; stroke: #8e6aa9; }
+      .badge.skipBadge { fill: #fff0f0; stroke: #b86868; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .msg.callText, .badgeText.callText { fill: #2f6f8e; }
+      .msg.slotText, .badgeText.slotText { fill: #855a29; }
+      .msg.stateText, .badgeText.stateText { fill: #55783f; }
+      .msg.returnText, .badgeText.returnText { fill: #7f6038; }
+      .msg.waitText, .badgeText.waitText { fill: #774f92; }
+      .msg.skipText, .badgeText.skipText { fill: #9d4f4f; }
+    </style>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowCall" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowSlot" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#a2743d" stroke="#a2743d" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowState" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowReturn" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowWait" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#8e6aa9" stroke="#8e6aa9" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowSkip" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
-  <style>
-    text { font-family: "Comic Mono"; fill: #36464f; }
-    .title { font-family: "Architects Daughter"; font-size: 42px; fill: #263238; }
-    .subtitle { font-family: "Comic Mono"; font-size: 17px; fill: #36464f; }
-    .participant { font-family: "Architects Daughter"; font-size: 20px; fill: #1f3138; }
-    .label { font-family: "Comic Mono"; font-size: 12.5px; fill: #36464f; }
-    .num { font-family: "Comic Mono"; font-size: 12px; fill: #ffffff; font-weight: 700; }
-    .small { font-family: "Comic Mono"; font-size: 12px; fill: #60727d; }
-    .frame { fill: #ffffff; stroke: #41545d; stroke-width: 2.2; filter: none; }
-    .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2.2; }
-    .life { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
-    .callBlue, .callGreen, .callAmber, .callRed, .blue, .purple, .green, .amber { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
-    .callBlue, .blue { stroke: #3f7d9c; marker-end: url(#arrowBlue); }
-    .callGreen, .green { stroke: #6e8f4f; marker-end: url(#arrowGreen); }
-    .callAmber, .amber { stroke: #9b7d54; marker-end: url(#arrowAmber); }
-    .callRed { stroke: #b86868; marker-end: url(#arrowRed); }
-    .purple { stroke: #7c5aa6; marker-end: url(#arrowPurple); }
-    .ret { stroke-dasharray: 10 8; }
-    .badgeBlue { fill: #3f7d9c; }
-    .badgeGreen { fill: #6e8f4f; }
-    .badgeAmber { fill: #9b7d54; }
-    .badgeRed { fill: #b86868; }
-    .badgePurple { fill: #7c5aa6; }
-    .pill { fill: #ffffff; stroke: #c8d7df; stroke-width: 1.5; }
-    .alt { fill: none; stroke: #78909c; stroke-width: 2.4; stroke-dasharray: 12 8; }
-    .altLabel { fill: #fbfcf8; stroke: #c8d7df; stroke-width: 1.5; }
-    .footer { font-family: "Comic Mono"; font-size: 13px; fill: #60727d; }
-  </style>
-  <rect width="1180" height="780" fill="#fbfcf8"/>
-  <rect class="frame" x="34" y="30" width="1112" height="710" rx="18"/>
-  <text class="title" x="590" y="76" text-anchor="middle">minLeaseTime via updateLeaseTime</text>
-  <text class="subtitle" x="590" y="103" text-anchor="middle">The action returns immediately; Redisson keeps the permit alive for the remaining minimum lease.</text>
 
-  <g transform="translate(72 134)">
-    <rect class="header" x="0" y="0" width="142" height="62" rx="9"/>
-    <text class="participant" x="71" y="37" text-anchor="middle">Caller</text>
-  </g>
-  <g transform="translate(278 134)">
-    <rect class="header" x="0" y="0" width="204" height="62" rx="9"/>
-    <text class="participant" x="102" y="30" text-anchor="middle">RedissonLeader</text>
-    <text class="participant" x="102" y="48" text-anchor="middle">GroupElector</text>
-  </g>
-  <g transform="translate(548 134)">
-    <rect class="header" x="0" y="0" width="168" height="62" rx="9"/>
-    <text class="participant" x="84" y="30" text-anchor="middle">MinLeaseTime</text>
-    <text class="small" x="84" y="48" text-anchor="middle">remainingMinLeaseTime</text>
-  </g>
-  <g transform="translate(778 134)">
-    <rect class="header" x="0" y="0" width="230" height="62" rx="9"/>
-    <text class="participant" x="115" y="30" text-anchor="middle">RPermitExpirableSemaphore</text>
-    <text class="small" x="115" y="48" text-anchor="middle">permitId TTL</text>
+  <rect x="24" y="24" width="1552" height="992" rx="20" class="frame"/>
+  <text x="800" y="78" text-anchor="middle" class="title">minLeaseTime via updateLeaseTime</text>
+  <text x="800" y="108" text-anchor="middle" class="subtitle">Fast actions return immediately; the semaphore permit remains active until the minimum lease expires.</text>
+
+  <g>
+    <rect x="55" y="150" width="150" height="68" rx="10" class="header"/>
+    <text x="130" y="179" text-anchor="middle" class="participant">Caller</text>
+    <text x="130" y="201" text-anchor="middle" class="role">fast action</text>
+    <rect x="305" y="150" width="210" height="68" rx="10" class="header"/>
+    <text x="410" y="179" text-anchor="middle" class="participant">RedissonLeader</text>
+    <text x="410" y="201" text-anchor="middle" class="role">GroupElector</text>
+    <rect x="595" y="150" width="190" height="68" rx="10" class="header"/>
+    <text x="690" y="179" text-anchor="middle" class="participant">MinLeaseTime</text>
+    <text x="690" y="201" text-anchor="middle" class="role">remaining lease</text>
+    <rect x="870" y="150" width="220" height="68" rx="10" class="header"/>
+    <text x="980" y="179" text-anchor="middle" class="participant">Permit Semaphore</text>
+    <text x="980" y="201" text-anchor="middle" class="role">permit TTL</text>
+    <rect x="1200" y="150" width="180" height="68" rx="10" class="header"/>
+    <text x="1290" y="179" text-anchor="middle" class="participant">Contender</text>
+    <text x="1290" y="201" text-anchor="middle" class="role">waitTime path</text>
   </g>
 
-  <line class="life" x1="143" y1="196" x2="143" y2="658"/>
-  <line class="life" x1="380" y1="196" x2="380" y2="658"/>
-  <line class="life" x1="632" y1="196" x2="632" y2="658"/>
-  <line class="life" x1="893" y1="196" x2="893" y2="658"/>
+  <line x1="130" y1="218" x2="130" y2="906" class="lifeline"/>
+  <line x1="410" y1="218" x2="410" y2="906" class="lifeline"/>
+  <line x1="690" y1="218" x2="690" y2="906" class="lifeline"/>
+  <line x1="980" y1="218" x2="980" y2="906" class="lifeline"/>
+  <line x1="1290" y1="218" x2="1290" y2="906" class="lifeline"/>
+  <rect x="123" y="290" width="14" height="482" rx="6" class="activation"/>
+  <rect x="403" y="290" width="14" height="482" rx="6" class="activation"/>
+  <rect x="683" y="442" width="14" height="150" rx="6" class="activation"/>
+  <rect x="973" y="520" width="14" height="300" rx="6" class="activation"/>
+  <rect x="1283" y="622" width="14" height="198" rx="6" class="activation"/>
 
-  <line class="blue" x1="143" y1="250" x2="374" y2="250"/>
-  <rect class="pill" x="190" y="226" width="144" height="28" rx="14"/>
-  <circle class="badgeBlue" cx="206" cy="240" r="11"/><text class="num" x="206" y="244" text-anchor="middle">1</text>
-  <text class="label" x="226" y="244">runIfLeader()</text>
+  <rect x="70" y="430" width="1478" height="310" rx="14" class="alt"/>
+  <line x1="70" y1="784" x2="1548" y2="784" class="branchDivider"/>
+  <rect x="96" y="448" width="288" height="30" rx="15" class="branchWait"/>
+  <text x="118" y="468" class="note">alt remainingMinLeaseMs &gt; 0</text>
+  <rect x="96" y="802" width="232" height="30" rx="15" class="branchOk"/>
+  <text x="118" y="822" class="note">else TTL has expired</text>
 
-  <line class="blue" x1="380" y1="306" x2="887" y2="306"/>
-  <rect class="pill" x="556" y="282" width="158" height="28" rx="14"/>
-  <circle class="badgeBlue" cx="572" cy="296" r="11"/><text class="num" x="572" y="300" text-anchor="middle">2</text>
-  <text class="label" x="592" y="300">tryAcquire(lease)</text>
+  <rect x="118" y="242" width="304" height="34" rx="17" class="label callLabel"/>
+  <circle cx="142" cy="259" r="13" class="badge callBadge"/><text x="142" y="264" text-anchor="middle" class="badgeText callText">1</text>
+  <text x="166" y="264" class="msg callText">acquire permit and run action</text>
+  <path d="M 130 300 L 410 300" class="call"/>
 
-  <line class="green ret" x1="893" y1="352" x2="386" y2="352"/>
-  <rect class="pill" x="592" y="328" width="112" height="28" rx="14"/>
-  <circle class="badgeGreen" cx="608" cy="342" r="11"/><text class="num" x="608" y="346" text-anchor="middle">3</text>
-  <text class="label" x="628" y="346">permitId</text>
+  <rect x="94" y="322" width="352" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="118" cy="339" r="13" class="badge returnBadge"/><text x="118" y="344" text-anchor="middle" class="badgeText returnText">2</text>
+  <text x="142" y="344" class="msg returnText">action finishes before minLeaseTime</text>
+  <path d="M 410 380 L 130 380" class="return"/>
 
-  <line class="purple" x1="380" y1="404" x2="632" y2="404"/>
-  <rect class="pill" x="436" y="380" width="142" height="28" rx="14"/>
-  <circle class="badgePurple" cx="452" cy="394" r="11"/><text class="num" x="452" y="398" text-anchor="middle">4</text>
-  <text class="label" x="472" y="398">capture start time</text>
+  <rect x="406" y="404" width="288" height="34" rx="17" class="label slotLabel"/>
+  <circle cx="430" cy="421" r="13" class="badge slotBadge"/><text x="430" y="426" text-anchor="middle" class="badgeText slotText">3</text>
+  <text x="454" y="426" class="msg slotText">compute remainingMinLeaseMs</text>
+  <path d="M 410 462 L 690 462" class="slot"/>
 
-  <line class="blue" x1="380" y1="456" x2="143" y2="456"/>
-  <rect class="pill" x="206" y="432" width="118" height="28" rx="14"/>
-  <circle class="badgeBlue" cx="222" cy="446" r="11"/><text class="num" x="222" y="450" text-anchor="middle">5</text>
-  <text class="label" x="242" y="450">action done</text>
+  <rect x="647" y="482" width="376" height="34" rx="17" class="label stateLabel"/>
+  <circle cx="671" cy="499" r="13" class="badge stateBadge"/><text x="671" y="504" text-anchor="middle" class="badgeText stateText">4</text>
+  <text x="695" y="504" class="msg stateText">updateLeaseTime(permitId, remainingMs)</text>
+  <path d="M 690 540 L 980 540" class="state"/>
 
-  <rect class="alt" x="82" y="492" width="1016" height="170" rx="10"/>
-  <rect class="altLabel" x="100" y="479" width="244" height="28" rx="6"/>
-  <text class="small" x="222" y="498" text-anchor="middle">if remaining minLeaseTime &gt; 0</text>
+  <rect x="975" y="584" width="320" height="34" rx="17" class="label waitLabel"/>
+  <circle cx="999" cy="601" r="13" class="badge waitBadge"/><text x="999" y="606" text-anchor="middle" class="badgeText waitText">5</text>
+  <text x="1023" y="606" class="msg waitText">active permit blocks contenders</text>
+  <path d="M 1290 642 L 980 642" class="wait"/>
 
-  <line class="purple" x1="380" y1="540" x2="626" y2="540"/>
-  <rect class="pill" x="430" y="516" width="156" height="28" rx="14"/>
-  <circle class="badgePurple" cx="446" cy="530" r="11"/><text class="num" x="446" y="534" text-anchor="middle">6</text>
-  <text class="label" x="466" y="534">remainingMs &gt; 0</text>
+  <rect x="142" y="662" width="256" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="166" cy="679" r="13" class="badge returnBadge"/><text x="166" y="684" text-anchor="middle" class="badgeText returnText">6</text>
+  <text x="190" y="684" class="msg returnText">caller already returned</text>
+  <path d="M 410 720 L 130 720" class="return"/>
 
-  <line class="amber" x1="380" y1="594" x2="887" y2="594"/>
-  <rect class="pill" x="534" y="570" width="230" height="28" rx="14"/>
-  <circle class="badgeAmber" cx="550" cy="584" r="11"/><text class="num" x="550" y="588" text-anchor="middle">7</text>
-  <text class="label" x="570" y="588">updateLeaseTime(permitId, remainingMs)</text>
+  <rect x="947" y="800" width="376" height="34" rx="17" class="label stateLabel"/>
+  <circle cx="971" cy="817" r="13" class="badge stateBadge"/><text x="971" y="822" text-anchor="middle" class="badgeText stateText">7</text>
+  <text x="995" y="822" class="msg stateText">STATUS / acquire prunes expired permit</text>
+  <path d="M 1290 858 L 980 858" class="state"/>
 
-  <line class="green ret" x1="893" y1="642" x2="386" y2="642"/>
-  <rect class="pill" x="548" y="618" width="198" height="28" rx="14"/>
-  <circle class="badgeGreen" cx="564" cy="632" r="11"/><text class="num" x="564" y="636" text-anchor="middle">8</text>
-  <text class="label" x="584" y="636">slot retained until TTL expiry</text>
-
-  <rect fill="#ffffff" stroke="#c8d7df" x="84" y="686" width="1012" height="34" rx="10"/>
-  <text class="footer" x="590" y="708" text-anchor="middle">github.com/bluetape4k/bluetape4k-leader / leader-redis-redisson</text>
+  <rect x="98" y="932" width="1404" height="44" rx="12" fill="#ffffff" stroke="#ccd7da" stroke-width="2"/>
+  <text x="118" y="960" class="note">This is lockAtLeastFor semantics without caller parking: the backend carries the remaining wait through permit TTL.</text>
+  <text x="800" y="984" text-anchor="middle" class="footer">github.com/bluetape4k/bluetape4k-leader - leader-redis-redisson-sequence-03</text>
 </svg>
