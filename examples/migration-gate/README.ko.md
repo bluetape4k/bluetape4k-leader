@@ -92,8 +92,7 @@ H2 in-memory DB + 3 pod 시뮬레이션. 1 Migrated + 2 AlreadyApplied 출력.
 
 ```kotlin
 dependencies {
-    implementation(project(":leader-exposed-jdbc"))
-    implementation(project(":examples:migration-gate"))
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-jdbc:${bluetape4kVersion}")
 }
 ```
 

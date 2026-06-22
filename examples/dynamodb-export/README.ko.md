@@ -98,8 +98,7 @@ Demo는 Testcontainers로 DynamoDB Local을 시작하고 lock table과 export ta
 
 ```kotlin
 dependencies {
-    implementation(project(":bluetape4k-leader-dynamodb"))
-    implementation(project(":examples:dynamodb-export"))
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-dynamodb:${bluetape4kVersion}")
 }
 ```
 

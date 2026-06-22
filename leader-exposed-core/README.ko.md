@@ -101,7 +101,7 @@ validateLockName("-bad-start")       // IllegalArgumentException
 
 ```kotlin
 // 프로덕션
-api(project(":leader-core"))
+api("io.github.bluetape4k.leader:bluetape4k-leader-core:${bluetape4kVersion}")
 api(libs.exposed.core)
 api(libs.exposed.java.time)
 compileOnly(libs.exposed.dao)

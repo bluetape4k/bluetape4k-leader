@@ -79,8 +79,7 @@ Or directly: run `BatchSchedulerDemo.main()` from your IDE. Spawns 3 simulated i
 
 ```kotlin
 dependencies {
-    implementation(project(":leader-redis-lettuce"))
-    implementation(project(":examples:batch-scheduler"))
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:${bluetape4kVersion}")
 }
 ```
 

@@ -144,8 +144,8 @@ PORT=8081 REDIS_URL=redis://localhost:6379 ./gradlew :examples:ktor-app:run
 
 ```kotlin
 dependencies {
-    implementation(project(":leader-ktor"))
-    implementation(project(":leader-redis-lettuce"))
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor:${bluetape4kVersion}")
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:${bluetape4kVersion}")
 
     implementation("io.github.bluetape4k:bluetape4k-ktor-core")
     implementation("io.lettuce:lettuce-core")
