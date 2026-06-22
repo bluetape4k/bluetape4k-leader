@@ -93,9 +93,9 @@ multi-instance deployments. The gauge is JVM-local, so `sum` can over-count.
 
 ```kotlin
 dependencies {
-    implementation(project(":leader-spring-boot"))
-    implementation(project(":leader-micrometer"))
-    implementation(project(":leader-redis-lettuce"))
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:${bluetape4kVersion}")
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:${bluetape4kVersion}")
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:${bluetape4kVersion}")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("io.micrometer:micrometer-registry-prometheus")
 }

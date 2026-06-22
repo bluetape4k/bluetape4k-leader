@@ -97,8 +97,7 @@ MONGO_URL=mongodb://localhost:27017 ./gradlew :examples:webhook-poller:run
 
 ```kotlin
 dependencies {
-    implementation(project(":leader-mongodb"))
-    implementation(project(":examples:webhook-poller"))
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-mongodb:${bluetape4kVersion}")
 }
 ```
 

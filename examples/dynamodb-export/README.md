@@ -98,8 +98,7 @@ simulates two nodes competing for the same scheduled export lock.
 
 ```kotlin
 dependencies {
-    implementation(project(":bluetape4k-leader-dynamodb"))
-    implementation(project(":examples:dynamodb-export"))
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-dynamodb:${bluetape4kVersion}")
 }
 ```
 

@@ -97,8 +97,7 @@ Inserts 10 fake events into a fresh collection, then runs 3 pollers concurrently
 
 ```kotlin
 dependencies {
-    implementation(project(":leader-mongodb"))
-    implementation(project(":examples:webhook-poller"))
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-mongodb:${bluetape4kVersion}")
 }
 ```
 

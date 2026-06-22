@@ -96,8 +96,7 @@ H2 R2DBC in-memory DB 를 공유하는 3개 in-process 집계기를 6초간 poll
 
 ```kotlin
 dependencies {
-    implementation(project(":leader-exposed-r2dbc"))
-    implementation(project(":examples:tenant-aggregator"))
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc:${bluetape4kVersion}")
 
     // R2DBC 드라이버 (택일)
     runtimeOnly(libs.r2dbc.h2)         // demo / tests

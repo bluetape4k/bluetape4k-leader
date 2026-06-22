@@ -96,8 +96,7 @@ Spins up 3 in-process aggregator instances against a shared H2 R2DBC database, p
 
 ```kotlin
 dependencies {
-    implementation(project(":leader-exposed-r2dbc"))
-    implementation(project(":examples:tenant-aggregator"))
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc:${bluetape4kVersion}")
 
     // R2DBC driver (pick one)
     runtimeOnly(libs.r2dbc.h2)         // demo / tests

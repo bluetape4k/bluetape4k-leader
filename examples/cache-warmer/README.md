@@ -92,8 +92,7 @@ that each partition is warmed exactly once across the cluster.
 
 ```kotlin
 dependencies {
-    implementation(project(":leader-hazelcast"))
-    implementation(project(":examples:cache-warmer"))
+    implementation("io.github.bluetape4k.leader:bluetape4k-leader-hazelcast:${bluetape4kVersion}")
 }
 ```
 
