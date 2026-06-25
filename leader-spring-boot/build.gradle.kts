@@ -18,22 +18,30 @@ tasks.jar { enabled = true }
 // processTestAot is what we need and is wired via aotTestClasses below.
 tasks.named("processAot") { enabled = false }
 
-kover {
-    currentProject {
-        sources {
-            includedSourceSets.add("main")
-        }
-    }
-    reports {
-        filters {
-            excludes {
-                classes(
-                    "*__TestContext*_BeanDefinitions",
-                    "*__BeanDefinitions",
-                    "*AjcClosure*",
-                )
+plugins.withId("org.jetbrains.kotlinx.kover") {
+    extensions.configure<kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension>("kover") {
+        currentProject {
+            sources {
+                includedSourceSets.add("main")
             }
         }
+        reports {
+            filters {
+                excludes {
+                    classes(
+                        "*__TestContext*_BeanDefinitions",
+                        "*__BeanDefinitions",
+                        "*AjcClosure*",
+                    )
+                }
+            }
+        }
+    }
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile>().configureEach {
+    extensions.configure<io.freefair.gradle.plugins.aspectj.AjcAction>("ajc") {
+        options.compilerArgs.add("-Xlint:adviceDidNotMatch=ignore")
     }
 }
 
@@ -49,7 +57,7 @@ configurations {
 // Classpath layout:
 //   sourceSets["aotTest"].output.classesDirs  — AOT-generated proxy/hint classes (build/classes/java/aotTest)
 //   sourceSets.test.runtimeClasspath          — regular test deps + test classes
-val aotTest by tasks.registering(Test::class) {
+val aotTest = tasks.register<Test>("aotTest") {
     description = "Validates Spring AOT compatibility of leader-spring-boot auto-configurations"
     group = "verification"
     dependsOn(tasks.named("aotTestClasses"))

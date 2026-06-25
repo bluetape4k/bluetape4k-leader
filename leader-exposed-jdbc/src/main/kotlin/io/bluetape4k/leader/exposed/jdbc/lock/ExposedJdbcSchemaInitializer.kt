@@ -17,7 +17,7 @@ import kotlin.concurrent.withLock
 /**
  * Schema initializer utility for Exposed JDBC leader election tables.
  *
- * Runs [SchemaUtils.createMissingTablesAndColumns] exactly once per `Database` URL.
+ * Creates missing tables and columns exactly once per `Database` URL.
  * On initialization failure the guard key is removed so the next call can retry.
  */
 internal object ExposedJdbcSchemaInitializer : KLogging() {
@@ -52,7 +52,10 @@ internal object ExposedJdbcSchemaInitializer : KLogging() {
             if (initializedDbs.containsKey(dbKey)) return
             try {
                 transaction(db) {
-                    SchemaUtils.createMissingTablesAndColumns(*ExposedLeaderSchema.allTables)
+                    SchemaUtils.create(*ExposedLeaderSchema.allTables)
+                    SchemaUtils
+                        .addMissingColumnsStatements(*ExposedLeaderSchema.allTables)
+                        .forEach { sql -> exec(sql) }
                 }
             } catch (e: Throwable) {
                 log.warn(e) { "리더 선출 스키마 초기화 실패 (다음 호출 시 재시도): ${sanitizeUrl(dbKey)}" }

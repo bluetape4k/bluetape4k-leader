@@ -18,7 +18,7 @@ plugins {
     alias(libs.plugins.kotlinx.atomicfu)
     alias(libs.plugins.kotlinx.benchmark) apply false
 
-    alias(libs.plugins.detekt)
+    alias(libs.plugins.detekt) apply false
     alias(libs.plugins.dependency.management)
 
     alias(libs.plugins.dokka)
@@ -27,7 +27,7 @@ plugins {
     alias(libs.plugins.nmcp.aggregation)
     alias(libs.plugins.nmcp) apply false
 
-    alias(libs.plugins.kover)
+    alias(libs.plugins.kover) apply false
 }
 
 val rootLibs = libs
@@ -37,6 +37,20 @@ fun bt4kVersion(alias: String): String {
     return version.requiredVersion
         .ifBlank { version.preferredVersion }
         .ifBlank { version.strictVersion }
+}
+
+val requestedTaskNames = gradle.startParameter.taskNames + gradle.startParameter.excludedTaskNames
+fun isRequestedTask(token: String): Boolean =
+    requestedTaskNames.any { it.substringAfterLast(':').contains(token, ignoreCase = true) }
+
+val detektRequested = requestedTaskNames.isEmpty() || isRequestedTask("detekt")
+val koverRequested = requestedTaskNames.isEmpty() || isRequestedTask("kover")
+
+if (detektRequested) {
+    apply(plugin = "io.gitlab.arturbosch.detekt")
+}
+if (koverRequested) {
+    apply(plugin = "org.jetbrains.kotlinx.kover")
 }
 
 buildscript.configurations.getByName("classpath").resolutionStrategy.eachDependency {
@@ -59,9 +73,9 @@ val centralSnapshotsParallelism: Int = providers
     .orElse(4)
     .get()
 
-val projectGroup: String by project
-val baseVersion: String by project
-val snapshotVersion: String by project
+val projectGroup = providers.gradleProperty("projectGroup").get()
+val baseVersion = providers.gradleProperty("baseVersion").get()
+val snapshotVersion = providers.gradleProperty("snapshotVersion").get()
 
 fun Project.isNonPublishedProject(): Boolean =
     path == ":examples" || path.startsWith(":examples:") || path == ":benchmark"
@@ -122,7 +136,9 @@ subprojects {
         plugin<JavaLibraryPlugin>()
         plugin("org.jetbrains.kotlin.jvm")
         plugin("org.jetbrains.kotlinx.atomicfu")
-        plugin("org.jetbrains.kotlinx.kover")
+        if (koverRequested) {
+            plugin("org.jetbrains.kotlinx.kover")
+        }
         if (!isNonPublished) {
             plugin("maven-publish")
             plugin("signing")
@@ -219,7 +235,7 @@ subprojects {
             showFullStackTraces = true
         }
 
-        val reportMerge by registering(ReportMergeTask::class) {
+        val reportMerge = register<ReportMergeTask>("reportMerge") {
             val file = rootProject.layout.buildDirectory.asFile.get().resolve("reports/detekt/merged.xml")
             output.set(file)
         }
@@ -300,32 +316,27 @@ subprojects {
     }
 
     dependencies {
-        val api by configurations
-        val implementation by configurations
-        val testImplementation by configurations
-        val testRuntimeOnly by configurations
+        add("api", rootLibs.jetbrains.annotations)
 
-        api(rootLibs.jetbrains.annotations)
+        add("implementation", rootLibs.kotlin.stdlib)
+        add("implementation", rootLibs.kotlin.reflect)
+        add("testImplementation", rootLibs.kotlin.test)
+        add("testImplementation", rootLibs.kotlin.test.junit5)
 
-        implementation(rootLibs.kotlin.stdlib)
-        implementation(rootLibs.kotlin.reflect)
-        testImplementation(rootLibs.kotlin.test)
-        testImplementation(rootLibs.kotlin.test.junit5)
+        add("implementation", rootLibs.kotlinx.coroutines.core)
+        add("implementation", rootLibs.kotlinx.atomicfu)
 
-        implementation(rootLibs.kotlinx.coroutines.core)
-        implementation(rootLibs.kotlinx.atomicfu)
+        add("api", rootLibs.slf4j.api)
+        add("testImplementation", rootLibs.logback)
+        add("testImplementation", rootLibs.jcl.over.slf4j)
+        add("testImplementation", rootLibs.jul.to.slf4j)
+        add("testImplementation", rootLibs.log4j.over.slf4j)
 
-        api(rootLibs.slf4j.api)
-        testImplementation(rootLibs.logback)
-        testImplementation(rootLibs.jcl.over.slf4j)
-        testImplementation(rootLibs.jul.to.slf4j)
-        testImplementation(rootLibs.log4j.over.slf4j)
+        add("testImplementation", rootLibs.junit.jupiter)
+        add("testRuntimeOnly", rootLibs.junit.platform.engine)
 
-        testImplementation(rootLibs.junit.jupiter)
-        testRuntimeOnly(rootLibs.junit.platform.engine)
-
-        testImplementation(rootLibs.awaitility.kotlin)
-        testImplementation(rootLibs.mockk)
+        add("testImplementation", rootLibs.awaitility.kotlin)
+        add("testImplementation", rootLibs.mockk)
     }
 
     if (isNonPublished) {
@@ -335,11 +346,11 @@ subprojects {
     publishing {
         publications {
             create<MavenPublication>("BluetapeLeader") {
-                val sourcesJar by tasks.registering(Jar::class) {
+                val sourcesJar = tasks.register<Jar>("sourcesJar") {
                     archiveClassifier.set("sources")
                     from(sourceSets["main"].allSource)
                 }
-                val javadocJar by tasks.registering(Jar::class) {
+                val javadocJar = tasks.register<Jar>("javadocJar") {
                     archiveClassifier.set("javadoc")
                     from(layout.buildDirectory.asFile.get().resolve("javadoc"))
                 }
@@ -396,11 +407,13 @@ extensions.configure<NmcpAggregationExtension>("nmcpAggregation") {
 dependencies {
     subprojects
         .filter { !it.isNonPublishedProject() }
-        .forEach { add("nmcpAggregation", project(it.path)) }
+        .forEach { add("nmcpAggregation", project(mapOf("path" to it.path))) }
 }
 
-dependencies {
-    subprojects
-        .filter { it.name != "bluetape4k-leader-bom" && !it.isNonPublishedProject() }
-        .forEach { sub -> kover(project(sub.path)) }
+if (koverRequested) {
+    dependencies {
+        subprojects
+            .filter { it.name != "bluetape4k-leader-bom" && !it.isNonPublishedProject() }
+            .forEach { sub -> add("kover", project(mapOf("path" to sub.path))) }
+    }
 }
