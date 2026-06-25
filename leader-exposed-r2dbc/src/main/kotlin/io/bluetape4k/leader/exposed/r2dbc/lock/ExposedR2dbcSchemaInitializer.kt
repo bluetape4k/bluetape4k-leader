@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Utility for initializing the Exposed R2DBC leader election table schema.
  *
- * Runs [SchemaUtils.createMissingTablesAndColumns] only once per R2DBC URL.
+ * Creates missing tables and columns only once per R2DBC URL.
  * Coroutine-safe double-check implemented with [Mutex] + [ConcurrentHashMap].
  * On initialization failure, the guard key is removed to allow retry on the next call.
  */
@@ -53,7 +53,10 @@ internal object ExposedR2dbcSchemaInitializer : KLoggingChannel() {
             if (initializedDbs.containsKey(dbKey)) return
             try {
                 suspendTransaction(db) {
-                    SchemaUtils.createMissingTablesAndColumns(*ExposedLeaderSchema.allTables)
+                    SchemaUtils.create(*ExposedLeaderSchema.allTables)
+                    SchemaUtils
+                        .addMissingColumnsStatements(*ExposedLeaderSchema.allTables)
+                        .forEach { sql -> exec(sql) }
                 }
             } catch (e: Throwable) {
                 log.warn(e) { "리더 선출 스키마 초기화 실패 (다음 호출 시 재시도): ${sanitizeUrl(dbKey)}" }

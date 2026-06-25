@@ -58,7 +58,7 @@ tasks.test {
     }
 }
 
-val k8sTest by tasks.registering(Test::class) {
+val k8sTest = tasks.register<Test>("k8sTest") {
     description = "Runs K3s-backed Kubernetes Lease integration tests."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
 
