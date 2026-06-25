@@ -239,9 +239,8 @@ class EtcdSuspendLeaderGroupElector private constructor(
             if (failure == null && ownershipKey != null && !ownershipKey.isEmpty) {
                 lockClient.unlock(ownershipKey)
                     .thenCompose { lockClient.revokeLease(leaseId) }
-                    .exceptionally { null }
             } else {
-                lockClient.revokeLease(leaseId).exceptionally { null }
+                lockClient.revokeLease(leaseId)
             }
         }
     }

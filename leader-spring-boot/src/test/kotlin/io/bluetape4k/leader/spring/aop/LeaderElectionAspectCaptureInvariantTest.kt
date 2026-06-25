@@ -1,5 +1,8 @@
 package io.bluetape4k.leader.spring.aop
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderElectorFactory
@@ -9,8 +12,6 @@ import io.bluetape4k.leader.spring.aop.internal.CaptureInvariantException
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.shouldBeEqualTo
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
@@ -44,7 +45,8 @@ class LeaderElectionAspectCaptureInvariantTest {
     @Test
     fun `CaptureInvariantException 은 IllegalStateException 서브타입`() {
         val ex = CaptureInvariantException("test message")
-        assert(ex is IllegalStateException) { "CaptureInvariantException must extend IllegalStateException" }
+        ex.shouldBeInstanceOf<IllegalStateException>()
+        // assert(ex is IllegalStateException) { "CaptureInvariantException must extend IllegalStateException" }
         ex.message shouldBeEqualTo "test message"
     }
 
@@ -82,9 +84,9 @@ class LeaderElectionAspectCaptureInvariantTest {
         fun run(): String?
     }
 
-    private class SampleServiceImpl : SampleService {
+    private class SampleServiceImpl: SampleService {
         @LeaderElection(name = "capture-test-job")
-        override fun run(): String? = SAMPLE_RESULT
+        override fun run(): String = SAMPLE_RESULT
     }
 
     private val election: LeaderElector = mockk(relaxed = true)
@@ -109,7 +111,7 @@ class LeaderElectionAspectCaptureInvariantTest {
     private fun newAspect(): LeaderElectionAspect {
         every { factoryMock.create(any()) } returns election
         every { beanSelector.selectElectionFactory(any(), any()) } returns
-            LeaderBeanSelector.Selected("testFactory", factoryMock)
+                LeaderBeanSelector.Selected("testFactory", factoryMock)
         return LeaderElectionAspect(
             beanSelector = beanSelector,
             props = LeaderAopProperties(),

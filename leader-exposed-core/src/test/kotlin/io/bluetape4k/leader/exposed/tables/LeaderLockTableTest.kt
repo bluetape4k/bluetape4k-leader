@@ -16,11 +16,14 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
 
 class LeaderLockTableTest: AbstractExposedTableTest() {
+
+    companion object: KLogging()
 
     @ParameterizedTest
     @MethodSource("enableDialects")

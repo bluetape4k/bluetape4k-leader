@@ -20,11 +20,11 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireNotBlank
 import io.lettuce.core.api.StatefulRedisConnection
+import kotlinx.coroutines.CancellationException
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.CancellationException
 
 /**
  * Creates a [LettuceLeaderElector] instance from this [StatefulRedisConnection].
@@ -184,7 +184,8 @@ class LettuceLeaderElector @JvmOverloads constructor(
                 val acquiredAtNanos = System.nanoTime()
                 val token = lock.currentToken() ?: error("token missing after tryLock — lockName=$lockName")
                 val delegate = LettuceLockExtendDelegate(lock)
-                val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
+                val watchdog =
+                    LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
 
                 val record = historyRecorder?.let {
                     LeaderLockHistoryRecord(
@@ -196,7 +197,8 @@ class LettuceLeaderElector @JvmOverloads constructor(
                     )
                 }
                 val key = record?.let { historyRecorder.recordAcquired(it) }
-                val effectiveKey: LeaderHistoryKey? = key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = token) }
+                val effectiveKey: LeaderHistoryKey? =
+                    key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = token) }
 
                 log.debug { "리더 선출 성공 (async): lockName=$lockName" }
                 val actionFuture: CompletableFuture<T> = try {
@@ -229,15 +231,28 @@ class LettuceLeaderElector @JvmOverloads constructor(
         val finishedAt = Instant.now()
         val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
         when {
-            error == null -> historyKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }
-            error is java.util.concurrent.CancellationException -> { /* cancelled — no audit */ }
-            else -> historyKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, error) }
+            error == null -> historyKey?.let {
+                historyRecorder?.recordCompleted(
+                    it,
+                    finishedAt,
+                    durationMs
+                )
+            }
+            error is java.util.concurrent.CancellationException -> { /* cancelled — no audit */
+            }
+            else -> historyKey?.let {
+                historyRecorder?.recordFailed(
+                    it,
+                    finishedAt,
+                    durationMs,
+                    error
+                )
+            }
         }
 
         return lock.unlockAsync(options.minLeaseTime, acquiredAtNanos)
             .exceptionally { releaseError ->
                 log.warn(releaseError) { "Fail to release lock. lockName=$lockName" }
-                Unit
             }
             .thenCompose {
                 if (error != null) {

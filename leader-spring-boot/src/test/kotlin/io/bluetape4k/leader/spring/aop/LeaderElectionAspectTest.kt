@@ -42,6 +42,7 @@ import kotlin.time.Duration.Companion.seconds
  * - metrics fast-path — recorder 0개 시 fanOut 진입 없음 [Step 3-P-Perf-1]
  * - Method-level cache — annotation lookup 호출당 1회만 [Step 3-P-Perf-2]
  */
+@Suppress("NON_FINAL_MEMBER_IN_FINAL_CLASS")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionAspectTest {
 
@@ -237,7 +238,7 @@ class LeaderElectionAspectTest {
     fun `SKIP 모드 - backend throw 흡수 후 null`() {
         class SampleSkip {
             @LeaderElection(name = "skip-job", failureMode = LeaderAspectFailureMode.SKIP)
-            fun run(): String? = SAMPLE_RESULT
+            fun run(): String = SAMPLE_RESULT
         }
 
         val skipTarget = SampleSkip()
@@ -378,7 +379,7 @@ class LeaderElectionAspectTest {
     fun `Fix-94 - factory create 실패 SKIP - null 반환으로 흡수`() {
         class SampleSkipOnCreate {
             @LeaderElection(name = "create-fail-job", failureMode = LeaderAspectFailureMode.SKIP)
-            fun run(): String? = SAMPLE_RESULT
+            fun run(): String = SAMPLE_RESULT
         }
 
         val skipTarget = SampleSkipOnCreate()
@@ -398,7 +399,7 @@ class LeaderElectionAspectTest {
     fun `FAIL_OPEN_RUN - 경쟁(Skipped) 시 락 없이 본문 실행 후 결과 반환`() {
         class SampleFailOpen {
             @LeaderElection(name = "fail-open-job", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
-            fun run(): String? = SAMPLE_RESULT
+            fun run(): String = SAMPLE_RESULT
         }
 
         val target = SampleFailOpen()
@@ -420,7 +421,7 @@ class LeaderElectionAspectTest {
     fun `FAIL_OPEN_RUN - 경쟁(Skipped) 시 본문 throw 는 그대로 전파`() {
         class SampleFailOpen {
             @LeaderElection(name = "fail-open-job", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
-            fun run(): String? = SAMPLE_RESULT
+            fun run(): String = SAMPLE_RESULT
         }
 
         val target = SampleFailOpen()
@@ -439,7 +440,7 @@ class LeaderElectionAspectTest {
     fun `FAIL_OPEN_RUN - backend 예외 시 락 없이 본문 실행 후 결과 반환`() {
         class SampleFailOpen {
             @LeaderElection(name = "fail-open-job", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
-            fun run(): String? = SAMPLE_RESULT
+            fun run(): String = SAMPLE_RESULT
         }
 
         val target = SampleFailOpen()
@@ -462,7 +463,7 @@ class LeaderElectionAspectTest {
     fun `FAIL_OPEN_RUN - backend 예외 후 본문 throw 는 그대로 전파`() {
         class SampleFailOpen {
             @LeaderElection(name = "fail-open-job", failureMode = LeaderAspectFailureMode.FAIL_OPEN_RUN)
-            fun run(): String? = SAMPLE_RESULT
+            fun run(): String = SAMPLE_RESULT
         }
 
         val target = SampleFailOpen()
@@ -483,7 +484,7 @@ class LeaderElectionAspectTest {
     fun `composed @LeaderElection - Aspect가 merged name 으로 elected 실행`() {
         class SampleComposed {
             @ComposedLeaderElection(name = "composed-alias-job")
-            open fun run(): String? = SAMPLE_RESULT
+            open fun run(): String = SAMPLE_RESULT
         }
 
         val target = SampleComposed()

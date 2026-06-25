@@ -39,7 +39,7 @@ internal interface EtcdLockClient {
 internal class JetcdEtcdLockClient(
     private val client: Client,
     keyPrefix: String = EtcdLeaderPaths.DefaultPrefix,
-) : EtcdLockClient {
+): EtcdLockClient {
 
     private val paths = EtcdLeaderPaths(keyPrefix)
 
@@ -62,12 +62,12 @@ internal class JetcdEtcdLockClient(
 
     override fun unlock(ownershipKey: ByteSequence): CompletableFuture<Unit> {
         require(!ownershipKey.isEmpty) { "ownershipKey must not be empty." }
-        return client.lockClient.unlock(ownershipKey).thenApply { Unit }
+        return client.lockClient.unlock(ownershipKey).thenApply { }
     }
 
     override fun revokeLease(leaseId: Long): CompletableFuture<Unit> {
         require(leaseId > 0L) { "leaseId must be positive. leaseId=$leaseId" }
-        return client.leaseClient.revoke(leaseId).thenApply { Unit }
+        return client.leaseClient.revoke(leaseId).thenApply { }
     }
 
     override fun keepAliveOnce(leaseId: Long): CompletableFuture<LeaseKeepAliveResponse> {

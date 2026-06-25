@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit
 @Measurement(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
 @Fork(1)
 @Threads(1)
-open class HistoryRecorderBenchmark {
+class HistoryRecorderBenchmark {
 
     private lateinit var record: LeaderLockHistoryRecord
     private lateinit var noopRecorder: SafeLeaderHistoryRecorder
@@ -62,21 +62,21 @@ open class HistoryRecorderBenchmark {
     }
 
     @Benchmark
-    open fun blockingNoopAcquireComplete(blackhole: Blackhole) {
+    fun blockingNoopAcquireComplete(blackhole: Blackhole) {
         val key = noopRecorder.recordAcquired(record) ?: fallbackKey()
         noopRecorder.recordCompleted(key, finishedAt, 1)
         blackhole.consume(key)
     }
 
     @Benchmark
-    open fun blockingInMemoryAcquireComplete(blackhole: Blackhole) {
+    fun blockingInMemoryAcquireComplete(blackhole: Blackhole) {
         val key = inMemoryRecorder.recordAcquired(record) ?: fallbackKey()
         inMemoryRecorder.recordCompleted(key, finishedAt, 1)
         blackhole.consume(key)
     }
 
     @Benchmark
-    open fun suspendNoopAcquireComplete(blackhole: Blackhole) {
+    fun suspendNoopAcquireComplete(blackhole: Blackhole) {
         val key = runBlocking {
             val acquired = noopSuspendRecorder.recordAcquired(record) ?: fallbackKey()
             noopSuspendRecorder.recordCompleted(acquired, finishedAt, 1)
@@ -86,7 +86,7 @@ open class HistoryRecorderBenchmark {
     }
 
     @Benchmark
-    open fun suspendInMemoryAcquireComplete(blackhole: Blackhole) {
+    fun suspendInMemoryAcquireComplete(blackhole: Blackhole) {
         val key = runBlocking {
             val acquired = inMemorySuspendRecorder.recordAcquired(record) ?: fallbackKey()
             inMemorySuspendRecorder.recordCompleted(acquired, finishedAt, 1)

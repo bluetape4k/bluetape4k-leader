@@ -8,6 +8,7 @@ import io.bluetape4k.leader.k8s.KubernetesLeaseLeaderElector
 import io.bluetape4k.leader.k8s.KubernetesLeaseOptions
 import io.bluetape4k.leader.k8s.KubernetesLeaseSuspendLeaderElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.warn
 import io.bluetape4k.testcontainers.infra.K3sServer
 import io.fabric8.kubernetes.client.KubernetesClient
 import kotlinx.coroutines.runBlocking
@@ -21,7 +22,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @State(Scope.Benchmark)
-open class KubernetesBackendLeaderElectorBenchmark {
+class KubernetesBackendLeaderElectorBenchmark {
 
     private val leaderOptions = LeaderElectionOptions(waitTime = 1.seconds, leaseTime = 60.seconds)
 
@@ -89,10 +90,12 @@ open class KubernetesBackendLeaderElectorBenchmark {
 
     private inline fun closeResource(resource: String, block: () -> Unit) {
         runCatching(block)
-            .onFailure { log.warn("Kubernetes benchmark resource cleanup failed. resource=$resource", it) }
+            .onFailure {
+                log.warn(it) { "Kubernetes benchmark resource cleanup failed. resource=$resource" }
+            }
     }
 
-    companion object : KLogging() {
+    companion object: KLogging() {
         private const val K8S_NAMESPACE = "default"
     }
 }

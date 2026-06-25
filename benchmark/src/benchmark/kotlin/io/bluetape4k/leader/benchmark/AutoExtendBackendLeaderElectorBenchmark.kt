@@ -25,7 +25,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @State(Scope.Benchmark)
-open class AutoExtendBackendLeaderElectorBenchmark {
+class AutoExtendBackendLeaderElectorBenchmark {
 
     @Param(
         "local-normal",
@@ -89,7 +89,7 @@ open class AutoExtendBackendLeaderElectorBenchmark {
 }
 
 @State(Scope.Benchmark)
-open class SuspendAutoExtendBackendLeaderElectorBenchmark {
+class SuspendAutoExtendBackendLeaderElectorBenchmark {
 
     @Param(
         "local-normal",
@@ -130,7 +130,7 @@ open class SuspendAutoExtendBackendLeaderElectorBenchmark {
     fun runIfLeaderWithRenewalWindow(blackhole: Blackhole) = runBlocking {
         blackhole.consume(
             renewalElector.runIfLeader(renewalLockName) {
-                delay(RENEWAL_ACTION_DWELL_MILLIS)
+                delay(timeMillis = RENEWAL_ACTION_DWELL_MILLIS)
                 1
             },
         )

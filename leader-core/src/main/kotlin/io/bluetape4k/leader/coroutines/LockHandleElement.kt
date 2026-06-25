@@ -22,12 +22,11 @@ import kotlin.coroutines.CoroutineContext
  * }
  * ```
  */
-@ConsistentCopyVisibility
 data class LockHandleElement(
     internal val handle: LeaderLockHandle,
-) : CoroutineContext.Element {
+): CoroutineContext.Element {
 
-    companion object Key : CoroutineContext.Key<LockHandleElement>
+    companion object Key: CoroutineContext.Key<LockHandleElement>
 
     override val key: CoroutineContext.Key<*> get() = Key
 }

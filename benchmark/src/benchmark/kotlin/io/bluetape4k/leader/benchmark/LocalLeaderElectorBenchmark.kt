@@ -31,7 +31,7 @@ import kotlin.time.Duration.Companion.seconds
 @Measurement(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
 @Fork(1)
 @Threads(1)
-open class LocalLeaderElectorBenchmark {
+class LocalLeaderElectorBenchmark {
 
     private lateinit var blockingElector: LocalLeaderElector
     private lateinit var asyncElector: LocalLeaderElector
@@ -56,7 +56,7 @@ open class LocalLeaderElectorBenchmark {
     }
 
     @Benchmark
-    open fun blockingRunIfLeader(blackhole: Blackhole) {
+    fun blockingRunIfLeader(blackhole: Blackhole) {
         val result = blockingElector.runIfLeader("jmh-local-blocking") {
             counter.incrementAndGet()
         }
@@ -64,7 +64,7 @@ open class LocalLeaderElectorBenchmark {
     }
 
     @Benchmark
-    open fun completableFutureRunIfLeader(blackhole: Blackhole) {
+    fun completableFutureRunIfLeader(blackhole: Blackhole) {
         val result = asyncElector.runAsyncIfLeader("jmh-local-completable", directExecutor) {
             CompletableFuture.completedFuture(counter.incrementAndGet())
         }.join()
@@ -72,7 +72,7 @@ open class LocalLeaderElectorBenchmark {
     }
 
     @Benchmark
-    open fun asyncOnlyRunIfLeader(blackhole: Blackhole) {
+    fun asyncOnlyRunIfLeader(blackhole: Blackhole) {
         val result = asyncOnlyElector.runAsyncIfLeader("jmh-local-async-only", directExecutor) {
             CompletableFuture.completedFuture(counter.incrementAndGet())
         }.join()
@@ -80,7 +80,7 @@ open class LocalLeaderElectorBenchmark {
     }
 
     @Benchmark
-    open fun virtualThreadRunIfLeader(blackhole: Blackhole) {
+    fun virtualThreadRunIfLeader(blackhole: Blackhole) {
         val result = virtualThreadElector.runAsyncIfLeader("jmh-local-virtual-thread") {
             counter.incrementAndGet()
         }.await()
@@ -88,7 +88,7 @@ open class LocalLeaderElectorBenchmark {
     }
 
     @Benchmark
-    open fun suspendRunIfLeader(blackhole: Blackhole) {
+    fun suspendRunIfLeader(blackhole: Blackhole) {
         val result = runBlocking {
             suspendElector.runIfLeader("jmh-local-suspend") {
                 counter.incrementAndGet()

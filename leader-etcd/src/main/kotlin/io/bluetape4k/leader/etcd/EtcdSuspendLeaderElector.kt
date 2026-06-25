@@ -37,7 +37,7 @@ import kotlin.time.Duration
 class EtcdSuspendLeaderElector private constructor(
     private val lockClient: EtcdLockClient,
     val options: EtcdLeaderElectionOptions,
-) : SuspendLeaderElector {
+): SuspendLeaderElector {
 
     companion object: KLoggingChannel() {
         internal const val ETCD_SUSPEND_FACTORY_BEAN_NAME = "etcd-suspend-leader-elector"
@@ -155,9 +155,8 @@ class EtcdSuspendLeaderElector private constructor(
             if (failure == null && ownershipKey != null && !ownershipKey.isEmpty) {
                 lockClient.unlock(ownershipKey)
                     .thenCompose { lockClient.revokeLease(leaseId) }
-                    .exceptionally { null }
             } else {
-                lockClient.revokeLease(leaseId).exceptionally { null }
+                lockClient.revokeLease(leaseId)
             }
         }
     }
