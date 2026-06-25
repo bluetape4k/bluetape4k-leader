@@ -24,6 +24,7 @@ import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.leader.redisson.RedissonLeaderElector
 import io.bluetape4k.leader.zookeeper.ZooKeeperLeaderElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.warn
 import io.bluetape4k.testcontainers.aws.DynamoDbLocalServer
 import io.bluetape4k.testcontainers.database.MySQL8Server
 import io.bluetape4k.testcontainers.database.PostgreSQLServer
@@ -65,7 +66,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
 @State(Scope.Benchmark)
-open class BackendLeaderElectorBenchmark {
+class BackendLeaderElectorBenchmark {
 
     @Param(
         "local",
@@ -317,7 +318,9 @@ open class BackendLeaderElectorBenchmark {
 
     private inline fun closeResource(resource: String, block: () -> Unit) {
         runCatching(block)
-            .onFailure { log.warn("Benchmark resource cleanup failed. resource=$resource, backend=$backend", it) }
+            .onFailure {
+                log.warn(it) { "Benchmark resource cleanup failed. resource=$resource, backend=$backend" }
+            }
     }
 
     companion object : KLogging()

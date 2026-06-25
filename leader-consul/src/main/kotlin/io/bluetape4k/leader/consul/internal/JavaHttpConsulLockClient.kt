@@ -9,7 +9,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.time.Instant
-import java.util.Base64
+import java.util.*
 import java.util.concurrent.CompletableFuture
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
@@ -20,7 +20,7 @@ internal class JavaHttpConsulLockClient(
     private val httpClient: HttpClient = HttpClient.newBuilder()
         .connectTimeout(endpoint.requestTimeout.toJavaDuration())
         .build(),
-) : ConsulLockClient {
+): ConsulLockClient {
 
     override val requestTimeout: Duration = endpoint.requestTimeout
 
@@ -85,10 +85,10 @@ internal class JavaHttpConsulLockClient(
             .PUT(HttpRequest.BodyPublishers.noBody())
             .build()
 
-        return sendString(request).thenApply { response ->
-            response.requireStatus(200, "destroy Consul session")
-            Unit
-        }
+        return sendString(request)
+            .thenApply { response ->
+                response.requireStatus(200, "destroy Consul session")
+            }
     }
 
     override fun renewSession(sessionId: ConsulSessionId): CompletableFuture<ConsulSessionRenewal> {
@@ -110,8 +110,8 @@ internal class JavaHttpConsulLockClient(
 
         return sendString(request).thenApply { response ->
             when (response.statusCode()) {
-                200 -> parseKvEntry(response.body())
-                404 -> null
+                200  -> parseKvEntry(response.body())
+                404  -> null
                 else -> throw LeaderElectionException(
                     "Failed to read Consul KV key. status=${response.statusCode()}, body=${response.body()}",
                 )
@@ -212,17 +212,17 @@ private fun String.jsonUnescape(): String {
             index++
             when (val escaped = this[index]) {
                 '"', '\\', '/' -> result.append(escaped)
-                'b' -> result.append('\b')
-                'f' -> result.append('\u000C')
-                'n' -> result.append('\n')
-                'r' -> result.append('\r')
-                't' -> result.append('\t')
-                'u' -> {
+                'b'            -> result.append('\b')
+                'f'            -> result.append('\u000C')
+                'n'            -> result.append('\n')
+                'r'            -> result.append('\r')
+                't'            -> result.append('\t')
+                'u'            -> {
                     val hex = substring(index + 1, index + 5)
                     result.append(hex.toInt(16).toChar())
                     index += 4
                 }
-                else -> result.append(escaped)
+                else           -> result.append(escaped)
             }
         } else {
             result.append(char)

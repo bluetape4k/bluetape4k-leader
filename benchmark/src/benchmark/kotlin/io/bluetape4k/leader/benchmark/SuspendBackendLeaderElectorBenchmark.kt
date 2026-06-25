@@ -24,6 +24,7 @@ import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector
 import io.bluetape4k.leader.zookeeper.ZooKeeperSuspendLeaderElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.warn
 import io.bluetape4k.testcontainers.aws.DynamoDbLocalServer
 import io.bluetape4k.testcontainers.database.MySQL8Server
 import io.bluetape4k.testcontainers.database.PostgreSQLServer
@@ -68,7 +69,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
 @State(Scope.Benchmark)
-open class SuspendBackendLeaderElectorBenchmark {
+class SuspendBackendLeaderElectorBenchmark {
 
     @Param(
         "local",
@@ -103,19 +104,19 @@ open class SuspendBackendLeaderElectorBenchmark {
     fun setup() = runBlocking {
         lockName = "bench-$backend-suspend"
         elector = when (backend) {
-            "local" -> LocalSuspendLeaderElector(leaderOptions)
-            "lettuce" -> createLettuceElector()
-            "redisson" -> createRedissonElector()
-            "exposed-r2dbc-h2" -> createExposedR2dbcH2Elector()
+            "local"                    -> LocalSuspendLeaderElector(leaderOptions)
+            "lettuce"                  -> createLettuceElector()
+            "redisson"                 -> createRedissonElector()
+            "exposed-r2dbc-h2"         -> createExposedR2dbcH2Elector()
             "exposed-r2dbc-postgresql" -> createExposedR2dbcPostgreSqlElector()
-            "exposed-r2dbc-mysql" -> createExposedR2dbcMySqlElector()
-            "mongo" -> createMongoElector()
-            "hazelcast" -> createHazelcastElector()
-            "zookeeper" -> createZooKeeperElector()
-            "consul" -> createConsulElector()
-            "etcd" -> createEtcdElector()
-            "dynamodb" -> createDynamoDbElector()
-            else -> error("Unsupported backend: $backend")
+            "exposed-r2dbc-mysql"      -> createExposedR2dbcMySqlElector()
+            "mongo"                    -> createMongoElector()
+            "hazelcast"                -> createHazelcastElector()
+            "zookeeper"                -> createZooKeeperElector()
+            "consul"                   -> createConsulElector()
+            "etcd"                     -> createEtcdElector()
+            "dynamodb"                 -> createDynamoDbElector()
+            else                       -> error("Unsupported backend: $backend")
         }
         require(elector.runIfLeader("$lockName-smoke") { true } == true) {
             "Benchmark backend failed suspend leader election smoke check. backend=$backend"
@@ -326,8 +327,10 @@ open class SuspendBackendLeaderElectorBenchmark {
 
     private inline fun closeResource(resource: String, block: () -> Unit) {
         runCatching(block)
-            .onFailure { log.warn("Benchmark resource cleanup failed. resource=$resource, backend=$backend", it) }
+            .onFailure {
+                log.warn(it) { "Benchmark resource cleanup failed. resource=$resource, backend=$backend" }
+            }
     }
 
-    companion object : KLogging()
+    companion object: KLogging()
 }

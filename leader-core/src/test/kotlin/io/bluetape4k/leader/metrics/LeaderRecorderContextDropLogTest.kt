@@ -1,8 +1,9 @@
 package io.bluetape4k.leader.metrics
 
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeInstanceOf
 import io.bluetape4k.leader.identity.LeaderIdSource
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.BeforeEach
@@ -12,7 +13,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderRecorderContextDropLogTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     private lateinit var dropLog: LeaderRecorderContextDropLog
 
@@ -90,8 +91,9 @@ class LeaderRecorderContextDropLogTest {
     @Test
     fun `Identified is not Unknown`() {
         val ctx = LeaderAopMetricsContext.Identified("x", LeaderIdSource.LITERAL)
-        (ctx is LeaderAopMetricsContext.Unknown).shouldBeFalse()
-        (ctx is LeaderAopMetricsContext.Identified).shouldBeTrue()
+
+        ctx shouldNotBeInstanceOf LeaderAopMetricsContext.Unknown::class
+        ctx shouldBeInstanceOf LeaderAopMetricsContext.Identified::class
     }
 
     private class FakeRecorder

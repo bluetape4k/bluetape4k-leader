@@ -9,6 +9,7 @@ import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderElector
 import io.bluetape4k.leader.redisson.RedissonLeaderElector
 import io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector
 import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.warn
 import io.bluetape4k.testcontainers.storage.RedisServer
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
@@ -30,7 +31,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @State(Scope.Benchmark)
-open class RedisLeaseExtensionBenchmark {
+class RedisLeaseExtensionBenchmark {
 
     @Param(
         "lettuce-normal",
@@ -56,7 +57,7 @@ open class RedisLeaseExtensionBenchmark {
         renewalLockName = newLockName("blocking-renewal")
 
         when (redisMode.backend) {
-            RedisLeaseBackend.LETTUCE -> {
+            RedisLeaseBackend.LETTUCE  -> {
                 val redis = RedisServer.Launcher.redis
                 val client = RedisClient.create(redis.url)
                 val connection = client.connect(StringCodec.UTF8)
@@ -120,14 +121,16 @@ open class RedisLeaseExtensionBenchmark {
 
     private inline fun closeResource(resource: String, block: () -> Unit) {
         runCatching(block)
-            .onFailure { log.warn("Redis lease benchmark resource cleanup failed. resource=$resource, mode=$mode", it) }
+            .onFailure {
+                log.warn(it) { "Redis lease benchmark resource cleanup failed. resource=$resource, mode=$mode" }
+            }
     }
 
-    companion object : KLogging()
+    companion object: KLogging()
 }
 
 @State(Scope.Benchmark)
-open class SuspendRedisLeaseExtensionBenchmark {
+class SuspendRedisLeaseExtensionBenchmark {
 
     @Param(
         "lettuce-normal",
@@ -153,7 +156,7 @@ open class SuspendRedisLeaseExtensionBenchmark {
         renewalLockName = newLockName("suspend-renewal")
 
         when (redisMode.backend) {
-            RedisLeaseBackend.LETTUCE -> {
+            RedisLeaseBackend.LETTUCE  -> {
                 val redis = RedisServer.Launcher.redis
                 val client = RedisClient.create(redis.url)
                 val connection = client.connect(StringCodec.UTF8)
@@ -194,7 +197,7 @@ open class SuspendRedisLeaseExtensionBenchmark {
     fun runIfLeaderWithRenewalWindow(blackhole: Blackhole) = runBlocking {
         blackhole.consume(
             renewalElector.runIfLeader(renewalLockName) {
-                delay(RENEWAL_ACTION_DWELL_MILLIS)
+                delay(timeMillis = RENEWAL_ACTION_DWELL_MILLIS)
                 1
             },
         )
@@ -217,10 +220,12 @@ open class SuspendRedisLeaseExtensionBenchmark {
 
     private inline fun closeResource(resource: String, block: () -> Unit) {
         runCatching(block)
-            .onFailure { log.warn("Redis lease benchmark resource cleanup failed. resource=$resource, mode=$mode", it) }
+            .onFailure {
+                log.warn(it) { "Redis lease benchmark resource cleanup failed. resource=$resource, mode=$mode" }
+            }
     }
 
-    companion object : KLogging()
+    companion object: KLogging()
 }
 
 private enum class RedisLeaseBackend {

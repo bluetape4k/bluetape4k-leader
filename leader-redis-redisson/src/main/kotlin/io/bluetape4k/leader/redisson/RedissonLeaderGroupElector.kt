@@ -162,7 +162,7 @@ class RedissonLeaderGroupElector private constructor(
         if (auditLeaderId != null) {
             runCatching {
                 auditMap.fastPut(permitId, auditLeaderId)
-                auditMap.expire(leaseTime.inWholeMilliseconds + AUDIT_MAP_TTL_PADDING_MS, TimeUnit.MILLISECONDS)
+                auditMap.expire(java.time.Duration.ofMillis(leaseTime.inWholeMilliseconds + AUDIT_MAP_TTL_PADDING_MS))
             }.onFailure { log.warn(it) { "Failed to write audit map. lockName=$lockName, permitId=$permitId" } }
         }
 
@@ -318,5 +318,8 @@ inline fun <T> RedissonClient.runIfLeaderGroup(
     crossinline action: () -> T,
 ): T? {
     lockName.requireNotBlank("lockName")
-    return RedissonLeaderGroupElector(this, options).runIfLeader(lockName) { action() }
+    return RedissonLeaderGroupElector(this, options)
+        .runIfLeader(lockName) {
+            action()
+        }
 }

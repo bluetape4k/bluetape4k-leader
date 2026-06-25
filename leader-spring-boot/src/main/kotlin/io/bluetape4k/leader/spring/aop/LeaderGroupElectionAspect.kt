@@ -27,6 +27,7 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import io.bluetape4k.support.requireGe
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.reactor.mono
@@ -39,7 +40,6 @@ import org.springframework.beans.factory.SmartInitializingSingleton
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.lang.reflect.Method
-import kotlinx.coroutines.CancellationException
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.intrinsics.startCoroutineUninterceptedOrReturn
@@ -76,6 +76,7 @@ import kotlin.time.toKotlinDuration
  * The sync branch short-circuits when [AopScopeAccess.peekSyncMatching] finds a matching real or
  * fail-open handle.
  */
+@Suppress("ReactiveStreamsUnusedPublisher")
 @Aspect
 class LeaderGroupElectionAspect(
     private val beanSelector: LeaderBeanSelector,
@@ -83,7 +84,7 @@ class LeaderGroupElectionAspect(
     private val spel: SpelExpressionEvaluator,
     private val lockNameValidator: LockNameValidator,
     private val recorders: List<LeaderAopMetricsRecorder>,
-) : SmartInitializingSingleton {
+): SmartInitializingSingleton {
 
     private val metadataCache = ConcurrentHashMap<Method, GroupAdviceMetadata>()
     private val factoryCache = ConcurrentHashMap<GroupFactoryCacheKey, LeaderGroupElector>()
@@ -136,7 +137,7 @@ class LeaderGroupElectionAspect(
             val identity = resolveIdentity(resolvedName, AdviceBranch.SYNC)
             val existing = AopScopeAccess.peekSyncMatching(resolvedName)
             when {
-                existing is LeaderLockHandle.Real && existing.matchesIdentity(identity) -> {
+                existing is LeaderLockHandle.Real && existing.matchesIdentity(identity)     -> {
                     log.debug { "leader.aop.group.reentrant lockName=$resolvedName depth=${existing.reentryDepth + 1}" }
                     val reentrantHandle = AopScopeAccess.incrementReentryDepth(existing)
                     return AopScopeAccess.withPushedSync(reentrantHandle) {
@@ -165,7 +166,7 @@ class LeaderGroupElectionAspect(
                 executeBody(pjp, resolvedName, start)
             }
             when (runResult) {
-                is LeaderRunResult.Skipped -> {
+                is LeaderRunResult.Skipped      -> {
                     if (meta.failureMode == LeaderAspectFailureMode.FAIL_OPEN_RUN) {
                         val failOpenHandle = AopScopeAccess.createFailOpen(identity)
                         fanOut {
@@ -185,7 +186,7 @@ class LeaderGroupElectionAspect(
                         null
                     }
                 }
-                is LeaderRunResult.Elected -> {
+                is LeaderRunResult.Elected      -> {
                     val elapsed = System.nanoTime() - start
                     fanOut { it.onTaskFinished(resolvedName, elapsed.nanoseconds) }
                     log.debug { "leader.aop.group.elected lockName=$resolvedName elapsedNs=$elapsed" }
@@ -204,15 +205,16 @@ class LeaderGroupElectionAspect(
             throw bodyMarker.cause
         } catch (backendEx: Exception) {
             val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
-            val wrapped = LeaderGroupElectionException("leader group backend error for lock '$effectiveName'", backendEx)
+            val wrapped =
+                LeaderGroupElectionException("leader group backend error for lock '$effectiveName'", backendEx)
             when (meta.failureMode) {
-                LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
-                LeaderAspectFailureMode.RETHROW -> {
+                LeaderAspectFailureMode.INHERIT       -> error("INHERIT must be resolved in resolveMetadata")
+                LeaderAspectFailureMode.RETHROW       -> {
                     fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
                     fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                     throw wrapped
                 }
-                LeaderAspectFailureMode.SKIP -> {
+                LeaderAspectFailureMode.SKIP          -> {
                     fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
                     fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                     log.warn(backendEx) { "leader.aop.group.skipped lockName=$effectiveName reason=BACKEND_ERROR" }
@@ -284,11 +286,11 @@ class LeaderGroupElectionAspect(
                     withContext(LeaderElectionInfo(lockName = resolvedName, wasElected = true)) {
                         try {
                             @Suppress("UNCHECKED_CAST")
-                                val bodyResult = suspendCoroutineUninterceptedOrReturn<Any?> { innerCont ->
-                                    val newArgs = pjp.args.copyOf()
-                                    newArgs[newArgs.lastIndex] = innerCont
-                                    pjp.proceed(newArgs)
-                                }
+                            val bodyResult = suspendCoroutineUninterceptedOrReturn<Any?> { innerCont ->
+                                val newArgs = pjp.args.copyOf()
+                                newArgs[newArgs.lastIndex] = innerCont
+                                pjp.proceed(newArgs)
+                            }
                             val elapsed = System.nanoTime() - start
                             fanOut { it.onTaskFinished(resolvedName, elapsed.nanoseconds) }
                             if (elapsed > meta.leaseTimeWarnThresholdNanos) {
@@ -318,7 +320,7 @@ class LeaderGroupElectionAspect(
                             @Suppress("UNCHECKED_CAST")
                             val failOpenResult = withContext(
                                 LeaderElectionInfo(lockName = resolvedName, wasElected = false) +
-                                    AopScopeAccess.createLockHandleElement(failOpenHandle)
+                                        AopScopeAccess.createLockHandleElement(failOpenHandle)
                             ) {
                                 suspendCoroutineUninterceptedOrReturn<Any?> { innerCont ->
                                     val newArgs = pjp.args.copyOf()
@@ -349,15 +351,16 @@ class LeaderGroupElectionAspect(
                 throw bm.cause
             } catch (backendEx: Exception) {
                 val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
-                val wrapped = LeaderGroupElectionException("leader group backend error for lock '$effectiveName'", backendEx)
+                val wrapped =
+                    LeaderGroupElectionException("leader group backend error for lock '$effectiveName'", backendEx)
                 when (meta.failureMode) {
-                    LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
-                    LeaderAspectFailureMode.RETHROW -> {
+                    LeaderAspectFailureMode.INHERIT       -> error("INHERIT must be resolved in resolveMetadata")
+                    LeaderAspectFailureMode.RETHROW       -> {
                         fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
                         fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                         throw wrapped
                     }
-                    LeaderAspectFailureMode.SKIP -> {
+                    LeaderAspectFailureMode.SKIP          -> {
                         fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
                         fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
                         log.warn(backendEx) { "leader.aop.group.skipped lockName=$effectiveName reason=BACKEND_ERROR" }
@@ -372,7 +375,7 @@ class LeaderGroupElectionAspect(
                             @Suppress("UNCHECKED_CAST")
                             val failOpenResult = withContext(
                                 LeaderElectionInfo(lockName = effectiveName, wasElected = false) +
-                                    AopScopeAccess.createLockHandleElement(failOpenHandle)
+                                        AopScopeAccess.createLockHandleElement(failOpenHandle)
                             ) {
                                 suspendCoroutineUninterceptedOrReturn<Any?> { innerCont ->
                                     val newArgs = pjp.args.copyOf()
@@ -446,7 +449,13 @@ class LeaderGroupElectionAspect(
                                 fanOut { it.onTaskFailed(resolvedName, (System.nanoTime() - start).nanoseconds, ce) }
                                 throw ce
                             } catch (bodyEx: Throwable) {
-                                fanOut { it.onTaskFailed(resolvedName, (System.nanoTime() - start).nanoseconds, bodyEx) }
+                                fanOut {
+                                    it.onTaskFailed(
+                                        resolvedName,
+                                        (System.nanoTime() - start).nanoseconds,
+                                        bodyEx
+                                    )
+                                }
                                 throw BodyThrownMarker(bodyEx)
                             }
                         }
@@ -463,7 +472,7 @@ class LeaderGroupElectionAspect(
                             @Suppress("UNCHECKED_CAST")
                             val failOpenResult = withContext(
                                 LeaderElectionInfo(lockName = resolvedName, wasElected = false) +
-                                    AopScopeAccess.createLockHandleElement(failOpenHandle)
+                                        AopScopeAccess.createLockHandleElement(failOpenHandle)
                             ) {
                                 (pjp.proceed() as Mono<*>).awaitSingleOrNull()
                             }
@@ -483,17 +492,30 @@ class LeaderGroupElectionAspect(
                     throw bm.cause
                 } catch (backendEx: Exception) {
                     val effectiveName = lockName ?: "<unresolved:${meta.nameExpression}>"
-                    val wrapped = LeaderGroupElectionException("leader group backend error for lock '$effectiveName'", backendEx)
+                    val wrapped =
+                        LeaderGroupElectionException("leader group backend error for lock '$effectiveName'", backendEx)
                     when (meta.failureMode) {
-                        LeaderAspectFailureMode.INHERIT -> error("INHERIT must be resolved in resolveMetadata")
-                        LeaderAspectFailureMode.RETHROW -> {
+                        LeaderAspectFailureMode.INHERIT       -> error("INHERIT must be resolved in resolveMetadata")
+                        LeaderAspectFailureMode.RETHROW       -> {
                             fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
-                            fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
+                            fanOut {
+                                it.onTaskFailed(
+                                    effectiveName,
+                                    (System.nanoTime() - start).nanoseconds,
+                                    backendEx
+                                )
+                            }
                             throw wrapped
                         }
-                        LeaderAspectFailureMode.SKIP -> {
+                        LeaderAspectFailureMode.SKIP          -> {
                             fanOut { it.onLockNotAcquired(effectiveName, coreOpts, SkipReason.BACKEND_ERROR) }
-                            fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }
+                            fanOut {
+                                it.onTaskFailed(
+                                    effectiveName,
+                                    (System.nanoTime() - start).nanoseconds,
+                                    backendEx
+                                )
+                            }
                             log.warn(backendEx) { "leader.aop.group.skipped lockName=$effectiveName reason=BACKEND_ERROR" }
                             null
                         }
@@ -506,7 +528,7 @@ class LeaderGroupElectionAspect(
                                 @Suppress("UNCHECKED_CAST")
                                 val failOpenResult = withContext(
                                     LeaderElectionInfo(lockName = effectiveName, wasElected = false) +
-                                        AopScopeAccess.createLockHandleElement(failOpenHandle)
+                                            AopScopeAccess.createLockHandleElement(failOpenHandle)
                                 ) {
                                     (pjp.proceed() as Mono<*>).awaitSingleOrNull()
                                 }
@@ -516,7 +538,13 @@ class LeaderGroupElectionAspect(
                                 fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, ce) }
                                 throw ce
                             } catch (bodyEx: Throwable) {
-                                fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, bodyEx) }
+                                fanOut {
+                                    it.onTaskFailed(
+                                        effectiveName,
+                                        (System.nanoTime() - start).nanoseconds,
+                                        bodyEx
+                                    )
+                                }
                                 throw bodyEx
                             }
                         }
@@ -626,7 +654,7 @@ class LeaderGroupElectionAspect(
     private fun unsupportedStreamException(method: Method, returnShape: String): LeaderGroupElectionException =
         LeaderGroupElectionException(
             "@LeaderGroupElection does not support $returnShape streams yet: " +
-                "${method.declaringClass.name}#${method.name}",
+                    "${method.declaringClass.name}#${method.name}",
         )
 
     private data class GroupAdviceMetadata(
@@ -652,7 +680,7 @@ class LeaderGroupElectionAspect(
          */
         fun resolveLockIdentity(lockName: String, branch: AdviceBranch): LockIdentity {
             val beanName = when (branch) {
-                AdviceBranch.SYNC -> factoryBeanName
+                AdviceBranch.SYNC                              -> factoryBeanName
                 AdviceBranch.COROUTINES, AdviceBranch.REACTIVE -> suspendElectorFactoryBeanName
             }
             return LockIdentity(

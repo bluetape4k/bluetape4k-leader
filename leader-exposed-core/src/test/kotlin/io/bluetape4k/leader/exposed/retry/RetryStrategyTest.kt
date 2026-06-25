@@ -1,11 +1,11 @@
 package io.bluetape4k.leader.exposed.retry
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -13,7 +13,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RetryStrategyTest {
 
-    companion object : KLogging()
+    companion object: KLogging()
 
     // -----------------------------------------------------------------------
     // Jitter
@@ -110,13 +110,13 @@ class RetryStrategyTest {
     }
 
     @Test
-    fun `Exponential - attempt 1 이면 baseDelayMs * 2 반환`() {
+    fun `Exponential - attempt 1 이면 baseDelayMs x 2 반환`() {
         val s = RetryStrategy.Exponential(baseDelayMs = 50L, maxDelayMs = 5_000L)
         s.delayMs(1, 10_000L) shouldBeEqualTo 100L
     }
 
     @Test
-    fun `Exponential - attempt 2 이면 baseDelayMs * 4 반환`() {
+    fun `Exponential - attempt 2 이면 baseDelayMs x 4 반환`() {
         val s = RetryStrategy.Exponential(baseDelayMs = 50L, maxDelayMs = 5_000L)
         s.delayMs(2, 10_000L) shouldBeEqualTo 200L
     }
@@ -221,7 +221,9 @@ class RetryStrategyTest {
             RetryStrategy.Exponential(),
             RetryStrategy.Fixed(),
         )
-        strategies.all { it is RetryStrategy }.shouldBeTrue()
+        strategies.forEach {
+            it shouldBeInstanceOf RetryStrategy::class
+        }
     }
 
     @Test

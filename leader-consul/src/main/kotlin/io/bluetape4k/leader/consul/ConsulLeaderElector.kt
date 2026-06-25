@@ -311,13 +311,17 @@ class ConsulLeaderElector private constructor(
         }
 
         runCatching { lockClient.release(handle.key, handle.sessionId).getWithinRequestTimeout(lockClient) }
-            .onFailure { e -> log.warn(e) { "Failed to release Consul leader lock. lockName=${handle.lockName}" } }
+            .onFailure { e ->
+                log.warn(e) { "Failed to release Consul leader lock. lockName=${handle.lockName}" }
+            }
         destroySession(handle.sessionId)
     }
 
     private fun destroySession(sessionId: ConsulSessionId) {
         runCatching { lockClient.destroySession(sessionId).getWithinRequestTimeout(lockClient) }
-            .onFailure { e -> log.warn(e) { "Failed to destroy Consul session. sessionId=${sessionId.value}" } }
+            .onFailure { e ->
+                log.warn(e) { "Failed to destroy Consul session. sessionId=${sessionId.value}" }
+            }
     }
 }
 

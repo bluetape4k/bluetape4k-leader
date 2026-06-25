@@ -7,12 +7,15 @@ import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.logging.KLogging
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.exists
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 
 class ExposedLeaderSchemaTest : AbstractExposedTableTest() {
+
+    companion object: KLogging()
 
     @ParameterizedTest
     @MethodSource("enableDialects")
@@ -34,7 +37,7 @@ class ExposedLeaderSchemaTest : AbstractExposedTableTest() {
     @MethodSource("enableDialects")
     fun `allTables로 SchemaUtils drop 실행이 성공한다`(testDB: TestDB) {
         withDb(testDB) {
-            SchemaUtils.createMissingTablesAndColumns(*ExposedLeaderSchema.allTables)
+            SchemaUtils.create(*ExposedLeaderSchema.allTables)
             SchemaUtils.drop(*ExposedLeaderSchema.allTables)
 
             LeaderLockTable.exists() shouldBeEqualTo false

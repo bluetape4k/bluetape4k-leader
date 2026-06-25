@@ -1,19 +1,24 @@
 package io.bluetape4k.leader.spring.aop.validator
 
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.assertNotFails
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.annotation.LeaderElection
 import io.bluetape4k.leader.annotation.LeaderGroupElection
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.logging.KLogging
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
-import io.bluetape4k.assertions.shouldBeEqualTo
 import org.aspectj.lang.annotation.Aspect
-import io.bluetape4k.assertions.assertFailsWith
-import io.bluetape4k.assertions.assertNotFails
 import org.junit.jupiter.api.Test
 import org.springframework.core.annotation.AliasFor
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Future
 
 // ── #84: 메타 어노테이션 테스트용 composed annotations ──
 
@@ -58,6 +63,7 @@ annotation class ComposedGroupElection(
  * - suspend / Mono / Flux / Flow 반환 타입 검출 (#96)
  * - @Aspect 클래스 skip (#96)
  */
+@Suppress("NON_FINAL_MEMBER_IN_FINAL_CLASS")
 class LeaderAnnotationValidatorBeanPostProcessorTest {
 
     companion object: KLogging()
@@ -68,10 +74,14 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
     fun `정상 method - 통과`() {
         class Sample {
             @LeaderElection(name = "ok-job")
-            open fun ok() {}  // Kotlin default-final 회피 — open 명시
+            open fun ok() {
+            }  // Kotlin default-final 회피 — open 명시
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
-        assertNotFails { bpp.postProcessAfterInitialization(Sample(), "sample") }
+        assertNotFails {
+            bpp.postProcessAfterInitialization(Sample(), "sample")
+        }
     }
 
     @Test
@@ -79,8 +89,10 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         class Sample {
             @LeaderElection(name = "x")
             // Kotlin default = final
-            fun finalMethod() {}
+            fun finalMethod() {
+            }
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
         assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(Sample(), "sample") }
     }
@@ -89,8 +101,10 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
     fun `final method strict false - WARN 만 (throw 안 함)`() {
         class Sample {
             @LeaderElection(name = "x")
-            fun finalMethod() {}
+            fun finalMethod() {
+            }
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
         assertNotFails { bpp.postProcessAfterInitialization(Sample(), "sample") }
     }
@@ -99,8 +113,10 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
     fun `maxLeaders 1 - strict 무관 항상 fail`() {
         class Sample {
             @LeaderGroupElection(name = "x", maxLeaders = 1)
-            open fun bad() {}
+            open fun bad() {
+            }
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
         assertFailsWith<IllegalArgumentException> { bpp.postProcessAfterInitialization(Sample(), "sample") }
     }
@@ -109,8 +125,10 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
     fun `잘못된 SpEL syntax - strict 무관 startup fail`() {
         class Sample {
             @LeaderElection(name = "'unclosed string")  // SpEL 문법 오류 — 닫히지 않은 따옴표
-            open fun bad() {}
+            open fun bad() {
+            }
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
         assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(Sample(), "sample") }
     }
@@ -119,11 +137,14 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
     fun `같은 클래스 2+ annotated method - WARN best-effort (throw 안 함)`() {
         class Sample {
             @LeaderElection(name = "a")
-            open fun a() {}
+            open fun a() {
+            }
 
             @LeaderElection(name = "b")
-            open fun b() {}
+            open fun b() {
+            }
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
         // self-inv 자체는 strict 모드에서도 WARN 만 (정확 검출 불가)
         assertNotFails { bpp.postProcessAfterInitialization(Sample(), "sample") }
@@ -136,7 +157,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         bpp.postProcessAfterInitialization(interceptor, "interceptor") shouldBeEqualTo interceptor
     }
 
-    private class FakeInterceptor : org.aopalliance.intercept.MethodInterceptor {
+    private class FakeInterceptor: org.aopalliance.intercept.MethodInterceptor {
         override fun invoke(invocation: org.aopalliance.intercept.MethodInvocation): Any? = null
     }
 
@@ -148,6 +169,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             @LeaderElection(name = "suspend-job")
             open suspend fun doWork(): String = "ok"
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
         assertNotFails { bpp.postProcessAfterInitialization(SampleSuspend(), "sample") }
     }
@@ -158,6 +180,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             @LeaderElection(name = "suspend-job")
             open suspend fun doWork(): String = "ok"
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
         assertNotFails { bpp.postProcessAfterInitialization(SampleSuspend(), "sample") }
     }
@@ -168,6 +191,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             @LeaderElection(name = "mono-job")
             open fun process(): Mono<String> = Mono.just("ok")
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
         assertNotFails { bpp.postProcessAfterInitialization(SampleMono(), "sample") }
     }
@@ -178,6 +202,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             @LeaderElection(name = "flux-job")
             open fun process(): Flux<String> = Flux.just("ok")
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
         assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleFlux(), "sample") }
     }
@@ -188,6 +213,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             @LeaderElection(name = "flow-job")
             open fun process(): Flow<String> = flowOf("ok")
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
         assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleFlow(), "sample") }
     }
@@ -198,6 +224,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             @LeaderElection(name = "flux-job", streamBounded = true)
             open fun process(): Flux<String> = Flux.just("ok")
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
         assertNotFails { bpp.postProcessAfterInitialization(SampleFlux(), "sample") }
     }
@@ -208,6 +235,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             @LeaderElection(name = "flow-job", autoExtend = true)
             open fun process(): Flow<String> = flowOf("ok")
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
         assertNotFails { bpp.postProcessAfterInitialization(SampleFlow(), "sample") }
     }
@@ -218,6 +246,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             @LeaderGroupElection(name = "group-flux-job", maxLeaders = 3)
             open fun process(): Flux<String> = Flux.just("ok")
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
         assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleFlux(), "sample") }
     }
@@ -228,6 +257,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             @LeaderGroupElection(name = "group-flow-job", maxLeaders = 3)
             open fun process(): Flow<String> = flowOf("ok")
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
         assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleFlow(), "sample") }
     }
@@ -238,8 +268,11 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             @ComposedBoundedLeaderStream(name = "alias-stream-job")
             open fun process(): Flux<String> = Flux.just("ok")
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
-        assertNotFails { bpp.postProcessAfterInitialization(SampleComposedStream(), "sample") }
+        assertNotFails {
+            bpp.postProcessAfterInitialization(SampleComposedStream(), "sample")
+        }
     }
 
     // ── #79 R12: Future / CompletableFuture / Deferred 차단 ──
@@ -251,39 +284,46 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             open fun process(): java.util.concurrent.CompletableFuture<String> =
                 java.util.concurrent.CompletableFuture.completedFuture("ok")
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
-        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleFuture(), "sample") }
+        assertFailsWith<IllegalStateException> {
+            bpp.postProcessAfterInitialization(SampleFuture(), "sample")
+        }
     }
 
     @Test
     fun `Future 반환 타입 strict true - startup fail (R12)`() {
         class SampleFuture {
             @LeaderElection(name = "future-job")
-            open fun process(): java.util.concurrent.Future<String> =
-                java.util.concurrent.CompletableFuture.completedFuture("ok")
+            open fun process(): Future<String> = CompletableFuture.completedFuture("ok")
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
-        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleFuture(), "sample") }
+        assertFailsWith<IllegalStateException> {
+            bpp.postProcessAfterInitialization(SampleFuture(), "sample")
+        }
     }
 
     @Test
     fun `Deferred 반환 타입 strict true - startup fail (R12)`() {
         class SampleDeferred {
             @LeaderElection(name = "deferred-job")
-            open fun process(): kotlinx.coroutines.Deferred<String> =
-                kotlinx.coroutines.CompletableDeferred("ok")
+            open fun process(): Deferred<String> = CompletableDeferred("ok")
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
-        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleDeferred(), "sample") }
+        assertFailsWith<IllegalStateException> {
+            bpp.postProcessAfterInitialization(SampleDeferred(), "sample")
+        }
     }
 
     @Test
     fun `CompletableFuture 반환 타입 strict false - WARN 만 (throw 안 함)`() {
         class SampleFuture {
             @LeaderElection(name = "future-job")
-            open fun process(): java.util.concurrent.CompletableFuture<String> =
-                java.util.concurrent.CompletableFuture.completedFuture("ok")
+            open fun process(): CompletableFuture<String> = completableFutureOf("ok")
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
         assertNotFails { bpp.postProcessAfterInitialization(SampleFuture(), "sample") }
     }
@@ -293,8 +333,10 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
         @Aspect
         class SampleAspect {
             @LeaderElection(name = "x")
-            fun doSomething() {}  // final이어도 @Aspect 클래스는 통째로 skip
+            fun doSomething() {
+            }  // final이어도 @Aspect 클래스는 통째로 skip
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
         val aspect = SampleAspect()
         bpp.postProcessAfterInitialization(aspect, "aspect") shouldBeEqualTo aspect
@@ -308,8 +350,11 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             @ComposedLeaderElection(name = "composed-job")
             open fun run(): String = "ok"
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
-        assertNotFails { bpp.postProcessAfterInitialization(SampleComposed(), "sample") }
+        assertNotFails {
+            bpp.postProcessAfterInitialization(SampleComposed(), "sample")
+        }
     }
 
     @Test
@@ -318,6 +363,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             @ComposedLeaderElection(name = "composed-job")
             fun run(): String = "ok"  // final
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
         assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleComposedFinal(), "sample") }
     }
@@ -328,6 +374,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             @ComposedLeaderElection(name = "'unclosed")
             open fun run(): String = "ok"
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
         assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleBadSpel(), "sample") }
     }
@@ -338,6 +385,7 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
             @ComposedGroupElection(name = "group-job", maxLeaders = 1)
             open fun run(): String = "ok"
         }
+
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
         assertFailsWith<IllegalArgumentException> { bpp.postProcessAfterInitialization(SampleBadGroup(), "sample") }
     }

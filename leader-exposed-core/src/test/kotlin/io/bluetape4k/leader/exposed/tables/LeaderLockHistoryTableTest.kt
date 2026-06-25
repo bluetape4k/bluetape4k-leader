@@ -16,10 +16,13 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import io.bluetape4k.leader.history.LeaderHistoryStatus
+import io.bluetape4k.logging.KLogging
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
+
+    companion object: KLogging()
 
     @ParameterizedTest
     @MethodSource("enableDialects")

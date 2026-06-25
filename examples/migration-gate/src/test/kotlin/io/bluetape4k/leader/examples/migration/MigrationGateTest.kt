@@ -36,12 +36,14 @@ class MigrationGateTest: AbstractMigrationGateTest() {
     }
 
     private fun gate(db: org.jetbrains.exposed.v1.jdbc.Database, lockName: String, nodeId: String = "test-node") =
-        MigrationGate(db, MigrationGateOptions(
-            nodeId = nodeId,
-            lockName = lockName,
-            waitTime = 2.seconds,
-            leaseTime = 30.seconds,
-        ))
+        MigrationGate(
+            db, MigrationGateOptions(
+                nodeId = nodeId,
+                lockName = lockName,
+                waitTime = 2.seconds,
+                leaseTime = 30.seconds,
+            )
+        )
 
     @ParameterizedTest
     @MethodSource("enableDialects")
@@ -61,7 +63,7 @@ class MigrationGateTest: AbstractMigrationGateTest() {
         )
 
         outcome.shouldBeInstanceOf<Outcome.Migrated>()
-        (outcome as Outcome.Migrated).migrationId shouldBeEqualTo migrationId
+        outcome.migrationId shouldBeEqualTo migrationId
         migrated.get() shouldBeEqualTo 1
     }
 
@@ -97,12 +99,14 @@ class MigrationGateTest: AbstractMigrationGateTest() {
         try {
             val outcomes = (1..3).map { idx ->
                 executor.submit<Outcome> {
-                    val g = MigrationGate(db, MigrationGateOptions(
-                        nodeId = "node-$idx",
-                        lockName = lockName,
-                        waitTime = 5.seconds,
-                        leaseTime = 30.seconds,
-                    ))
+                    val g = MigrationGate(
+                        db, MigrationGateOptions(
+                            nodeId = "node-$idx",
+                            lockName = lockName,
+                            waitTime = 5.seconds,
+                            leaseTime = 30.seconds,
+                        )
+                    )
                     g.runMigration(
                         migrationId = migrationId,
                         isApplied = { isApplied(db, migrationId) },
@@ -137,7 +141,7 @@ class MigrationGateTest: AbstractMigrationGateTest() {
             migration = { throw IllegalStateException("DDL 실패") },
         )
         outcome1.shouldBeInstanceOf<Outcome.Failed>()
-        (outcome1 as Outcome.Failed).cause.shouldBeInstanceOf<IllegalStateException>()
+        outcome1.cause.shouldBeInstanceOf<IllegalStateException>()
         isApplied(db, migrationId) shouldBeEqualTo false
 
         // 차순위 인스턴스 takeover — 락이 해제되어 새로 획득 가능
@@ -168,12 +172,14 @@ class MigrationGateTest: AbstractMigrationGateTest() {
         try {
             // 리더는 락 잡고 latch 대기 (마커 생성 안 함 — DDL 실행 중인 상황 시뮬레이션)
             val leaderFuture = executor.submit {
-                MigrationGate(db, MigrationGateOptions(
-                    nodeId = "leader",
-                    lockName = lockName,
-                    waitTime = 100.milliseconds,
-                    leaseTime = 30.seconds,
-                )).runMigration(
+                MigrationGate(
+                    db, MigrationGateOptions(
+                        nodeId = "leader",
+                        lockName = lockName,
+                        waitTime = 100.milliseconds,
+                        leaseTime = 30.seconds,
+                    )
+                ).runMigration(
                     migrationId = migrationId,
                     isApplied = { isApplied(db, migrationId) },
                     migration = {
@@ -187,12 +193,14 @@ class MigrationGateTest: AbstractMigrationGateTest() {
             leaderStarted.await(10, TimeUnit.SECONDS)
 
             // 비리더는 짧은 waitTime — 락 못 잡고 마커도 없음 → Skipped
-            val followerOutcome = MigrationGate(db, MigrationGateOptions(
-                nodeId = "follower",
-                lockName = lockName,
-                waitTime = 200.milliseconds,
-                leaseTime = 30.seconds,
-            )).runMigration(
+            val followerOutcome = MigrationGate(
+                db, MigrationGateOptions(
+                    nodeId = "follower",
+                    lockName = lockName,
+                    waitTime = 200.milliseconds,
+                    leaseTime = 30.seconds,
+                )
+            ).runMigration(
                 migrationId = migrationId,
                 isApplied = { isApplied(db, migrationId) },
                 migration = { error("not reached") },
@@ -249,7 +257,7 @@ class MigrationGateTest: AbstractMigrationGateTest() {
         )
 
         outcome.shouldBeInstanceOf<Outcome.Failed>()
-        (outcome as Outcome.Failed).cause.shouldBeInstanceOf<IllegalStateException>()
+        outcome.cause.shouldBeInstanceOf<IllegalStateException>()
         // isApplied 예외 발생 시 마이그레이션 실행 안 됨
         migrated.get() shouldBeEqualTo 0
     }

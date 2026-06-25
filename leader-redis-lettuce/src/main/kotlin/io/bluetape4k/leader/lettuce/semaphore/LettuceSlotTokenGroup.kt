@@ -14,15 +14,14 @@ import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.api.sync.RedisCommands
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.future.await
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.LockSupport
-import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
@@ -67,6 +66,7 @@ class LettuceSlotTokenGroup(
         private const val SPIN_DELAY_MS = 50L
         private const val SPIN_DELAY_NANOS = SPIN_DELAY_MS * 1_000_000L
         private const val SLOT_KEY_TTL_MARGIN_MS = 5_000L
+
         // Token generation uses SecureRandom for ≥128-bit entropy (see #50 spec §1-3)
         private const val TOKEN_LENGTH = 22
         private const val KEY_PREFIX = "lg:{"
@@ -241,7 +241,7 @@ return 0
                 syncCommands, ACQUIRE_SCRIPT, ScriptOutputType.VALUE,
                 arrayOf(slotKey, metaKey), maxLeaders.toString(), token, leaseMs, auditLeaderId
             )
-            if (!result.isNullOrEmpty()) {
+            if (!result.isEmpty()) {
                 log.debug { "슬롯 획득 성공. slotKey=$slotKey, token=$token" }
                 return result
             }
@@ -344,7 +344,11 @@ return 0
      * - The token is generated only once outside `attempt()`. Because the ACQUIRE script uses the token
      *   as a ZADD member, the same token must be reused on retries to avoid ghost entries.
      */
-    fun tryAcquireAsync(waitTime: Duration, leaseTime: Duration, auditLeaderId: String = ""): CompletableFuture<String?> {
+    fun tryAcquireAsync(
+        waitTime: Duration,
+        leaseTime: Duration,
+        auditLeaderId: String = "",
+    ): CompletableFuture<String?> {
         val token = Base58.randomString(TOKEN_LENGTH)
         val deadline = MonotonicDeadline.fromNow(waitTime)
         val leaseMs = leaseTime.inWholeMilliseconds.toString()
@@ -365,13 +369,13 @@ return 0
                 }
             }.thenCompose { result ->
                 when {
-                    !result.isNullOrEmpty() -> CompletableFuture.completedFuture<String?>(result)
+                    !result.isNullOrEmpty()     -> CompletableFuture.completedFuture<String?>(result)
                     deadline.hasTimeRemaining() -> {
                         val delayMillis = deadline.remainingMillisForDelay(SPIN_DELAY_MS)
                         val delayed = CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS)
                         CompletableFuture.runAsync({}, delayed).thenCompose { attempt() }
                     }
-                    else -> {
+                    else                        -> {
                         // deadline 도달 시점에 마지막 error 가 있으면 backend outage 로 간주하여 surface.
                         // contention (script 정상 실행 + 빈 문자열 반환) 만 null 로 반환.
                         val terminalError = lastError.get()
@@ -396,7 +400,6 @@ return 0
             log.debug {
                 "슬롯 해제 (async). slotKey=$slotKey, token=$token, remainingMinLeaseMs=$remainingMinLeaseMs"
             }
-            Unit
         }
     }
 
@@ -413,7 +416,7 @@ return 0
                 asyncCommands, ACQUIRE_SCRIPT, ScriptOutputType.VALUE,
                 arrayOf(slotKey, metaKey), maxLeaders.toString(), token, leaseMs, auditLeaderId
             )
-            if (!result.isNullOrEmpty()) {
+            if (!result.isEmpty()) {
                 log.debug { "슬롯 획득 성공 (suspend). slotKey=$slotKey, token=$token" }
                 return result
             }
@@ -422,7 +425,7 @@ return 0
                 log.debug { "슬롯 획득 타임아웃 (suspend). slotKey=$slotKey, waitTime=$waitTime" }
                 return null
             }
-            delay(delayMillis)
+            delay(timeMillis = delayMillis)
         }
     }
 
@@ -433,7 +436,7 @@ return 0
      *   explicitly checks cancellation via `coroutineContext.ensureActive()` per R9 guidelines.
      */
     suspend fun extendSlotSuspending(token: String, leaseTime: Duration): ExtendOutcome {
-        coroutineContext.ensureActive()
+        currentCoroutineContext().ensureActive()
         token.requireNotBlank("token")
         val leaseMs = leaseTime.inWholeMilliseconds
         val extended = RedisScriptRunner.runSuspending<Long>(
@@ -451,7 +454,7 @@ return 0
      * Checks whether the slot is still alive in the backend (suspend).
      */
     suspend fun isSlotHeldSuspending(token: String): Boolean {
-        coroutineContext.ensureActive()
+        currentCoroutineContext().ensureActive()
         token.requireNotBlank("token")
         val result = RedisScriptRunner.runSuspending<Long>(
             asyncCommands, IS_HELD_SCRIPT, ScriptOutputType.INTEGER,

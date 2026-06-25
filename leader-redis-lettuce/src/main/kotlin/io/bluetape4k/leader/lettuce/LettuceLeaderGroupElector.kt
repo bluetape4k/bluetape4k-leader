@@ -209,7 +209,6 @@ class LettuceLeaderGroupElector(
         return slotGroup.releaseAsync(token, remainingMs)
             .exceptionally { releaseError ->
                 log.warn(releaseError) { "Failed to release slot. lockName=$lockName, token=$token" }
-                Unit
             }
             .thenCompose {
                 if (error != null) {
