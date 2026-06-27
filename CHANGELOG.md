@@ -9,11 +9,43 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-06-27
+
+### Added
+
+- Added and documented extensible multilingual README switch ordering, module
+  architecture diagrams, scenario diagrams, and semantic lock-state diagram
+  colors for the leader adoption guide
+  ([#486](https://github.com/bluetape4k/bluetape4k-leader/issues/486),
+  [#489](https://github.com/bluetape4k/bluetape4k-leader/issues/489),
+  [#490](https://github.com/bluetape4k/bluetape4k-leader/issues/490),
+  [#491](https://github.com/bluetape4k/bluetape4k-leader/issues/491),
+  [#494](https://github.com/bluetape4k/bluetape4k-leader/issues/494)).
+- Expanded runnable backend adoption examples and performance evidence for
+  supported leader-election backends
+  ([#413](https://github.com/bluetape4k/bluetape4k-leader/issues/413),
+  [#414](https://github.com/bluetape4k/bluetape4k-leader/issues/414),
+  [#416](https://github.com/bluetape4k/bluetape4k-leader/issues/416),
+  [#423](https://github.com/bluetape4k/bluetape4k-leader/issues/423),
+  [#424](https://github.com/bluetape4k/bluetape4k-leader/issues/424),
+  [#427](https://github.com/bluetape4k/bluetape4k-leader/issues/427),
+  [#428](https://github.com/bluetape4k/bluetape4k-leader/issues/428),
+  [#429](https://github.com/bluetape4k/bluetape4k-leader/issues/429)).
+
 ### Changed
 
 - Opened the `0.4.0` development line after publishing `0.3.1`.
-- Aligned local bluetape4k BOM refs to `bluetape4k-bom:1.11.0-SNAPSHOT`
-  and `bluetape4k-exposed-bom:1.11.0-SNAPSHOT`.
+- Aligned local bluetape4k BOM refs with the `1.11.0` release train and kept
+  the next development line ready for the coordinated dependencies train.
+
+### Fixed
+
+- Restored K8s example runtime compatibility, isolated Fabric8 Vert.x 4 runtime
+  for K3s tests, and raised `leader-spring-boot` coverage above the release
+  threshold
+  ([#480](https://github.com/bluetape4k/bluetape4k-leader/issues/480),
+  [#497](https://github.com/bluetape4k/bluetape4k-leader/issues/497),
+  [#499](https://github.com/bluetape4k/bluetape4k-leader/issues/499)).
 
 ---
 
@@ -367,7 +399,8 @@ The following deprecated APIs were removed before 0.1.0 GA (#264):
 
 ---
 
-[Unreleased]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.3.1...HEAD
+[Unreleased]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.4.0...HEAD
+[0.4.0]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.3.1...0.4.0
 [0.3.1]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.3.0...0.3.1
 [0.3.0]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.2.2...0.3.0
 [0.2.2]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.2.1...0.2.2
