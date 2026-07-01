@@ -21,8 +21,10 @@ import io.bluetape4k.support.requireNotBlank
 import io.lettuce.core.api.StatefulRedisConnection
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Creates a [LettuceLeaderGroupElector] instance from a [StatefulRedisConnection].
@@ -169,21 +171,77 @@ class LettuceLeaderGroupElector(
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> =
+        runAsyncImpl(lockName, auditLeaderId = null, executor, action)
+
+    override fun <T> runAsyncIfLeader(
+        slot: LeaderSlot,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> =
+        runAsyncImpl(slot.lockName, auditLeaderId = slot.leaderId, executor, action)
+
+    override fun <T> runAsyncIfLeaderResult(
+        slot: LeaderSlot,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<LeaderRunResult<T>> {
+        val elected = AtomicBoolean(false)
+        return runAsyncIfLeader(slot, executor) {
+            elected.set(true)
+            action()
+        }.handle { value, failure ->
+            when {
+                failure != null && elected.get() -> failure.toActionFailedResult()
+                failure != null -> throw failure.asCompletionException()
+                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else -> LeaderRunResult.Skipped
+            }
+        }
+    }
+
+    private fun <T> runAsyncImpl(
+        lockName: String,
+        auditLeaderId: String?,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         val slotGroup = getSlotGroup(lockName)
 
-        return slotGroup.tryAcquireAsync(options.waitTime, options.leaseTime).thenComposeAsync({ token ->
+        return slotGroup.tryAcquireAsync(options.waitTime, options.leaseTime, auditLeaderId ?: "").thenComposeAsync({ token ->
             if (token == null) {
                 log.debug { "리더 선출 실패 (슬롯 없음, async): lockName=$lockName" }
                 CompletableFuture.completedFuture<T?>(null)
             } else {
                 // Codex P2: acquire 성공 후 startedAtNanos 캡처
                 val startedAtNanos = System.nanoTime()
+                val delegate = LettuceSlotExtendDelegate(slotGroup, token)
+                val identity = LockIdentity(
+                    lockName = lockName,
+                    kind = LockIdentity.AnnotationKind.GROUP,
+                    factoryBeanName = LETTUCE_GROUP_FACTORY_BEAN_NAME,
+                    groupParams = LockIdentity.GroupParams(maxLeaders),
+                )
+                val handle = LeaderLockHandle.real(
+                    identity = identity,
+                    token = token,
+                    acquiredAtNanos = startedAtNanos,
+                    slotId = token,
+                    extendDelegate = delegate,
+                    auditLeaderId = auditLeaderId,
+                )
                 log.debug { "리더 선출 성공 (async): lockName=$lockName, token=$token" }
 
                 // Codex P2-2: action 결과(성공/실패)와 무관하게 release 완료까지 대기한 뒤 outer future 를 complete.
                 val actionFuture: CompletableFuture<T> = try {
-                    action()
+                    AopScopeAccess.withPushedSync(handle) {
+                        AopScopeAccess.setCapture(handle)
+                        try {
+                            action()
+                        } finally {
+                            AopScopeAccess.clearCapture()
+                        }
+                    }
                 } catch (e: Throwable) {
                     return@thenComposeAsync releaseAndPropagate<T>(slotGroup, lockName, token, startedAtNanos, e, null)
                 }
@@ -196,6 +254,20 @@ class LettuceLeaderGroupElector(
             }
         }, executor)
     }
+
+    private fun Throwable.unwrapCompletionCause(): Throwable =
+        (this as? CompletionException)?.cause ?: this
+
+    private fun Throwable.toActionFailedResult(): LeaderRunResult.ActionFailed {
+        val cause = unwrapCompletionCause()
+        if (cause is CancellationException) {
+            throw cause
+        }
+        return LeaderRunResult.ActionFailed(cause)
+    }
+
+    private fun Throwable.asCompletionException(): CompletionException =
+        this as? CompletionException ?: CompletionException(this)
 
     private fun <T> releaseAndPropagate(
         slotGroup: LettuceSlotTokenGroup,

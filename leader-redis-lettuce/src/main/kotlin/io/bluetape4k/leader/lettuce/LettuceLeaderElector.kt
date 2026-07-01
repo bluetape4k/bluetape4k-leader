@@ -23,8 +23,10 @@ import io.lettuce.core.api.StatefulRedisConnection
 import kotlinx.coroutines.CancellationException
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Creates a [LettuceLeaderElector] instance from this [StatefulRedisConnection].
@@ -171,6 +173,40 @@ class LettuceLeaderElector @JvmOverloads constructor(
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> =
+        runAsyncImpl(lockName, auditLeaderId = null, executor, action)
+
+    override fun <T> runAsyncIfLeader(
+        slot: LeaderSlot,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> =
+        runAsyncImpl(slot.lockName, auditLeaderId = slot.leaderId, executor, action)
+
+    override fun <T> runAsyncIfLeaderResult(
+        slot: LeaderSlot,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<LeaderRunResult<T>> {
+        val elected = AtomicBoolean(false)
+        return runAsyncIfLeader(slot, executor) {
+            elected.set(true)
+            action()
+        }.handle { value, failure ->
+            when {
+                failure != null && elected.get() -> failure.toActionFailedResult()
+                failure != null -> throw failure.asCompletionException()
+                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else -> LeaderRunResult.Skipped
+            }
+        }
+    }
+
+    private fun <T> runAsyncImpl(
+        lockName: String,
+        auditLeaderId: String?,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         lockName.requireNotBlank("lockName")
 
@@ -186,6 +222,18 @@ class LettuceLeaderElector @JvmOverloads constructor(
                 val delegate = LettuceLockExtendDelegate(lock)
                 val watchdog =
                     LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
+                val identity = LockIdentity(
+                    lockName = lockName,
+                    kind = LockIdentity.AnnotationKind.SINGLE,
+                    factoryBeanName = LETTUCE_FACTORY_BEAN_NAME,
+                )
+                val handle = LeaderLockHandle.real(
+                    identity = identity,
+                    token = token,
+                    acquiredAtNanos = acquiredAtNanos,
+                    extendDelegate = delegate,
+                    auditLeaderId = auditLeaderId,
+                )
 
                 val record = historyRecorder?.let {
                     LeaderLockHistoryRecord(
@@ -202,7 +250,7 @@ class LettuceLeaderElector @JvmOverloads constructor(
 
                 log.debug { "리더 선출 성공 (async): lockName=$lockName" }
                 val actionFuture: CompletableFuture<T> = try {
-                    action()
+                    AopScopeAccess.withPushedSync(handle) { action() }
                 } catch (e: Throwable) {
                     return@thenComposeAsync releaseAndPropagate<T>(
                         lock, lockName, watchdog, acquiredAtNanos, effectiveKey, e, null
@@ -217,6 +265,23 @@ class LettuceLeaderElector @JvmOverloads constructor(
             }
         }, executor)
     }
+
+    private fun Throwable.unwrapCompletionCause(): Throwable =
+        (this as? CompletionException)?.cause ?: this
+
+    private fun Throwable.toActionFailedResult(): LeaderRunResult.ActionFailed {
+        val cause = unwrapCompletionCause()
+        if (cause is CancellationException) {
+            throw cause
+        }
+        if (cause is java.util.concurrent.CancellationException) {
+            throw cause
+        }
+        return LeaderRunResult.ActionFailed(cause)
+    }
+
+    private fun Throwable.asCompletionException(): CompletionException =
+        this as? CompletionException ?: CompletionException(this)
 
     private fun <T> releaseAndPropagate(
         lock: LettuceLock,
