@@ -22,9 +22,11 @@ import org.redisson.api.RedissonClient
 import org.redisson.client.RedisException
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Elects a single leader among multiple processes/threads using a Redisson distributed lock.
@@ -160,6 +162,40 @@ class RedissonLeaderElector private constructor(
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> =
+        runAsyncImpl(lockName, auditLeaderId = null, executor, action)
+
+    override fun <T> runAsyncIfLeader(
+        slot: LeaderSlot,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> =
+        runAsyncImpl(slot.lockName, auditLeaderId = slot.leaderId, executor, action)
+
+    override fun <T> runAsyncIfLeaderResult(
+        slot: LeaderSlot,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<LeaderRunResult<T>> {
+        val elected = AtomicBoolean(false)
+        return runAsyncIfLeader(slot, executor) {
+            elected.set(true)
+            action()
+        }.handle { value, failure ->
+            when {
+                failure != null && elected.get() -> failure.toActionFailedResult()
+                failure != null -> throw failure.asCompletionException()
+                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else -> LeaderRunResult.Skipped
+            }
+        }
+    }
+
+    private fun <T> runAsyncImpl(
+        lockName: String,
+        auditLeaderId: String?,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         lockName.requireNotBlank("lockName")
 
@@ -174,7 +210,7 @@ class RedissonLeaderElector private constructor(
                 .tryLockAsync(waitTimeMills, leaseTimeMills, TimeUnit.MILLISECONDS, currentThreadId)
                 .thenComposeAsync({ acquired ->
                     if (acquired) {
-                        executeActionAsync(lock, currentThreadId, executor, System.nanoTime(), action)
+                        executeActionAsync(lock, auditLeaderId, currentThreadId, executor, System.nanoTime(), action)
                     } else {
                         log.debug { "Leader 승격 실패 (슬롯 없음). lock=$lockName" }
                         CompletableFuture.completedFuture(null)
@@ -191,10 +227,11 @@ class RedissonLeaderElector private constructor(
     /**
      * Executes the asynchronous [action] while holding the lock and releases the lock on completion (success or failure).
      *
-     * Aligned with the Lettuce pattern — handle push is not performed on the async path (AOP scope supports sync/suspend only).
+     * Aligned with the Lettuce path by pushing a real leader handle while creating the asynchronous action.
      */
-    private inline fun <T> executeActionAsync(
+    private fun <T> executeActionAsync(
         lock: RLock,
+        auditLeaderId: String?,
         currentThreadId: Long,
         executor: Executor,
         acquiredAtNanos: Long,
@@ -202,6 +239,19 @@ class RedissonLeaderElector private constructor(
     ): CompletableFuture<T?> {
         val lockName = lock.name
         val delegate = RedissonLockExtendDelegate(redissonClient, lock, currentThreadId)
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            factoryBeanName = REDISSON_FACTORY_BEAN_NAME,
+        )
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = lockName,
+            acquiredAtNanos = acquiredAtNanos,
+            acquiringThreadId = currentThreadId,
+            extendDelegate = delegate,
+            auditLeaderId = auditLeaderId,
+        )
         val watchdog = LeaderLeaseAutoExtender.start(
             options.autoExtend,
             options.leaseTime,
@@ -210,7 +260,9 @@ class RedissonLeaderElector private constructor(
         )
         log.debug { "Leader로 승격하여 비동기 작업을 수행합니다. lock=$lockName, threadId=$currentThreadId" }
 
-        val actionFuture = runCatching { action() }
+        val actionFuture = runCatching {
+            AopScopeAccess.withPushedSync(handle) { action() }
+        }
             .getOrElse { error ->
                 watchdog.close()
                 releaseLockAsync(lock, currentThreadId, acquiredAtNanos)
@@ -222,6 +274,20 @@ class RedissonLeaderElector private constructor(
             releaseLockAsync(lock, currentThreadId, acquiredAtNanos)
         }, executor)
     }
+
+    private fun Throwable.unwrapCompletionCause(): Throwable =
+        (this as? CompletionException)?.cause ?: this
+
+    private fun Throwable.toActionFailedResult(): LeaderRunResult.ActionFailed {
+        val cause = unwrapCompletionCause()
+        if (cause is CancellationException) {
+            throw cause
+        }
+        return LeaderRunResult.ActionFailed(cause)
+    }
+
+    private fun Throwable.asCompletionException(): CompletionException =
+        this as? CompletionException ?: CompletionException(this)
 
     private fun releaseLock(lock: RLock, acquiredAtNanos: Long) {
         val remaining = remainingMinLeaseTime(acquiredAtNanos, options.minLeaseTime)

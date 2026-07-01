@@ -26,8 +26,10 @@ import org.redisson.api.RedissonClient
 import org.redisson.client.RedisException
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration
 
 /**
@@ -207,6 +209,40 @@ class RedissonLeaderGroupElector private constructor(
         lockName: String,
         executor: Executor,
         action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> =
+        runAsyncImpl(lockName, auditLeaderId = null, executor, action)
+
+    override fun <T> runAsyncIfLeader(
+        slot: LeaderSlot,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> =
+        runAsyncImpl(slot.lockName, auditLeaderId = slot.leaderId, executor, action)
+
+    override fun <T> runAsyncIfLeaderResult(
+        slot: LeaderSlot,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<LeaderRunResult<T>> {
+        val elected = AtomicBoolean(false)
+        return runAsyncIfLeader(slot, executor) {
+            elected.set(true)
+            action()
+        }.handle { value, failure ->
+            when {
+                failure != null && elected.get() -> failure.toActionFailedResult()
+                failure != null -> throw failure.asCompletionException()
+                elected.get() -> LeaderRunResult.Elected(value, leaderId = slot.leaderId)
+                else -> LeaderRunResult.Skipped
+            }
+        }
+    }
+
+    private fun <T> runAsyncImpl(
+        lockName: String,
+        auditLeaderId: String?,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         return try {
             lockName.requireNotBlank("lockName")
@@ -227,7 +263,7 @@ class RedissonLeaderGroupElector private constructor(
                     } else {
                         // Codex P2: acquire 성공 후 startedAtNanos 캡처
                         val startedAtNanos = System.nanoTime()
-                        executeAsync(semaphore, lockName, permitId, startedAtNanos, action)
+                        executeAsync(semaphore, lockName, permitId, auditLeaderId, startedAtNanos, action)
                     }
                 }, executor)
         } catch (e: Throwable) {
@@ -240,23 +276,83 @@ class RedissonLeaderGroupElector private constructor(
         semaphore: RPermitExpirableSemaphore,
         lockName: String,
         permitId: String,
+        auditLeaderId: String?,
         startedAtNanos: Long,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
         log.debug { "슬롯 획득 성공 (async). lockName=$lockName, permitId=$permitId" }
 
+        val auditMap = getAuditMap(lockName)
+        if (auditLeaderId != null) {
+            runCatching {
+                auditMap.fastPut(permitId, auditLeaderId)
+                auditMap.expire(java.time.Duration.ofMillis(leaseTime.inWholeMilliseconds + AUDIT_MAP_TTL_PADDING_MS))
+            }.onFailure { log.warn(it) { "Failed to write audit map. lockName=$lockName, permitId=$permitId" } }
+        }
+
+        val delegate = RedissonSemaphoreExtendDelegate(semaphore, permitId)
+        val identity = LockIdentity(
+            lockName = lockName,
+            kind = LockIdentity.AnnotationKind.GROUP,
+            factoryBeanName = REDISSON_GROUP_FACTORY_BEAN_NAME,
+            groupParams = LockIdentity.GroupParams(maxLeaders),
+        )
+        val handle = LeaderLockHandle.real(
+            identity = identity,
+            token = permitId,
+            acquiredAtNanos = startedAtNanos,
+            slotId = permitId,
+            extendDelegate = delegate,
+            auditLeaderId = auditLeaderId,
+        )
+
         val actionFuture: CompletableFuture<T> = try {
-            action()
+            AopScopeAccess.withPushedSync(handle) {
+                AopScopeAccess.setCapture(handle)
+                try {
+                    action()
+                } finally {
+                    AopScopeAccess.clearCapture()
+                }
+            }
         } catch (e: Throwable) {
+            removeAuditEntry(auditMap, permitId, auditLeaderId, lockName)
             releaseOrExtendAsync(semaphore, permitId, startedAtNanos, lockName)
             return failedCompletableFutureOf(e)
         }
 
         return actionFuture.handle<T?> { value, error ->
+            removeAuditEntry(auditMap, permitId, auditLeaderId, lockName)
             releaseOrExtendAsync(semaphore, permitId, startedAtNanos, lockName)
             if (error != null) throw error else value
         }
     }
+
+    private fun removeAuditEntry(
+        auditMap: RMap<String, String>,
+        permitId: String,
+        auditLeaderId: String?,
+        lockName: String,
+    ) {
+        if (auditLeaderId != null) {
+            runCatching { auditMap.fastRemove(permitId) }
+                .onFailure { log.warn(it) { "Failed to remove audit map. lockName=$lockName, permitId=$permitId" } }
+        }
+    }
+
+    private fun Throwable.unwrapCompletionCause(): Throwable =
+        (this as? CompletionException)?.cause ?: this
+
+    private fun Throwable.toActionFailedResult(): LeaderRunResult.ActionFailed {
+        val cause = unwrapCompletionCause()
+        if (cause is CancellationException) {
+            throw cause
+        }
+        return LeaderRunResult.ActionFailed(cause)
+    }
+
+    private fun Throwable.asCompletionException(): CompletionException =
+        this as? CompletionException ?: CompletionException(this)
 
     private fun releaseOrExtend(
         semaphore: RPermitExpirableSemaphore,
