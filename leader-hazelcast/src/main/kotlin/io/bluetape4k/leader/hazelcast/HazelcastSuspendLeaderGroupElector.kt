@@ -94,7 +94,12 @@ class HazelcastSuspendLeaderGroupElector private constructor(
         for (slot in 0 until maxLeaders) {
             currentCoroutineContext().ensureActive()
             val slotKeyValue = slotKey(lockName, slot)
-            val lock = HazelcastSuspendLock(lockMap, slotKeyValue)
+            val lock = HazelcastSuspendLock(
+                lockMap = lockMap,
+                lockKey = slotKeyValue,
+                transactionMapName = HazelcastLeaderGroupElector.LOCK_MAP_NAME,
+                transactionContextProvider = hazelcast::newTransactionContext,
+            )
             if (lock.tryLock(slotWaitTime, leaseTime)) {
                 acquiredLock = lock
                 acquiredSlot = slot
@@ -139,15 +144,13 @@ class HazelcastSuspendLeaderGroupElector private constructor(
             // NonCancellable: 코루틴 취소 시에도 watchdog close + release 가 중단되지 않도록 보호
             withContext(NonCancellable) {
                 watchdog.close()
-                if (lock.isHeldByCurrentInstance()) {
-                    try {
-                        lock.unlock(minLeaseTime, acquiredAtNanos)
-                        log.debug { "리더 그룹 슬롯을 반납했습니다 (suspend). lockName=$lockName, slot=$slot" }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        log.warn(e) { "그룹 슬롯 해제 실패 (suspend). lockName=$lockName, slot=$slot" }
-                    }
+                try {
+                    lock.unlock(minLeaseTime, acquiredAtNanos)
+                    log.debug { "리더 그룹 슬롯을 반납했습니다 (suspend). lockName=$lockName, slot=$slot" }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    log.warn(e) { "그룹 슬롯 해제 실패 (suspend). lockName=$lockName, slot=$slot" }
                 }
             }
         }

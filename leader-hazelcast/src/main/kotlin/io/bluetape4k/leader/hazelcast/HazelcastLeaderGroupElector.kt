@@ -90,7 +90,7 @@ class HazelcastLeaderGroupElector private constructor(
 
         for (slot in 0 until maxLeaders) {
             val slotKeyValue = slotKey(lockName, slot)
-            val lock = HazelcastLock(lockMap, slotKeyValue)
+            val lock = HazelcastLock(lockMap, slotKeyValue, LOCK_MAP_NAME, hazelcast::newTransactionContext)
             if (lock.tryLock(slotWaitTime, leaseTime)) {
                 acquiredLock = lock
                 acquiredSlot = slot
@@ -138,11 +138,9 @@ class HazelcastLeaderGroupElector private constructor(
             }
         } finally {
             watchdog.close()
-            if (lock.isHeldByCurrentInstance()) {
-                runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
-                    .onSuccess { log.debug { "리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
-                    .onFailure { e -> log.error(e) { "Fail to release group slot. lockName=$lockName, slot=$slot" } }
-            }
+            runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
+                .onSuccess { log.debug { "리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
+                .onFailure { e -> log.error(e) { "Fail to release group slot. lockName=$lockName, slot=$slot" } }
         }
     }
 
@@ -158,7 +156,9 @@ class HazelcastLeaderGroupElector private constructor(
         return CompletableFuture.supplyAsync({
             (0 until maxLeaders)
                 .asSequence()
-                .map { slot -> HazelcastLock(lockMap, slotKey(lockName, slot)) to slot }
+                .map { slot ->
+                    HazelcastLock(lockMap, slotKey(lockName, slot), LOCK_MAP_NAME, hazelcast::newTransactionContext) to slot
+                }
                 .firstOrNull { (lock, _) -> lock.tryLock(slotWaitTime, leaseTime) }
         }, executor).thenComposeAsync({ acquired ->
             if (acquired == null) {
@@ -181,11 +181,9 @@ class HazelcastLeaderGroupElector private constructor(
                     }
                 actionFuture.whenCompleteAsync({ _, _ ->
                     watchdog.close()
-                    if (lock.isHeldByCurrentInstance()) {
-                        runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
-                            .onSuccess { log.debug { "비동기 리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
-                            .onFailure { e -> log.error(e) { "Fail to release group slot (async). lockName=$lockName, slot=$slot" } }
-                    }
+                    runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
+                        .onSuccess { log.debug { "비동기 리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
+                        .onFailure { e -> log.error(e) { "Fail to release group slot (async). lockName=$lockName, slot=$slot" } }
                 }, executor)
             }
         }, executor)

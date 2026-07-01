@@ -70,7 +70,12 @@ class HazelcastSuspendLeaderElector private constructor(
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         lockName.requireNotBlank("lockName")
 
-        val lock = HazelcastSuspendLock(lockMap, lockName)
+        val lock = HazelcastSuspendLock(
+            lockMap = lockMap,
+            lockKey = lockName,
+            transactionMapName = HazelcastLeaderElector.LOCK_MAP_NAME,
+            transactionContextProvider = hazelcast::newTransactionContext,
+        )
         log.debug { "Leader 승격을 요청합니다 (suspend) ... lockName=$lockName" }
 
         val acquired = lock.tryLock(options.waitTime, options.leaseTime)
@@ -107,15 +112,13 @@ class HazelcastSuspendLeaderElector private constructor(
             // NonCancellable: 코루틴 취소 시에도 watchdog close + 락 해제가 중단되지 않도록 보호
             withContext(NonCancellable) {
                 watchdog.close()
-                if (lock.isHeldByCurrentInstance()) {
-                    try {
-                        lock.unlock(options.minLeaseTime, acquiredAtNanos)
-                        log.debug { "Leader 권한을 반납했습니다 (suspend). lockName=$lockName" }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        log.warn(e) { "Fail to release lock (suspend). lockName=$lockName" }
-                    }
+                try {
+                    lock.unlock(options.minLeaseTime, acquiredAtNanos)
+                    log.debug { "Leader 권한을 반납했습니다 (suspend). lockName=$lockName" }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    log.warn(e) { "Fail to release lock (suspend). lockName=$lockName" }
                 }
             }
         }

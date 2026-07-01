@@ -29,9 +29,9 @@ import kotlin.time.Duration.Companion.seconds
  * - sync group ([HazelcastLeaderGroupElector])
  * - suspend group ([HazelcastSuspendLeaderGroupElector])
  *
- * Hazelcast `IMap.replace(K, ourToken, ourToken) + IMap.setTtl(K, leaseMs)` built-in atomic chain 으로
+ * Hazelcast transactional `getForUpdate(K) + put(K, ourToken, leaseMs)` built-in path 으로
  * 토큰 일치 + TTL 갱신이 수행됩니다. acquire 직후 (lease 미만료) 항상 Extended 가 반환됩니다.
- * race window 등 세부사항은 [io.bluetape4k.leader.hazelcast.lock.HazelcastLock.extendDetailed] KDoc 참고.
+ * 세부사항은 [io.bluetape4k.leader.hazelcast.lock.HazelcastLock.extendDetailed] KDoc 참고.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HazelcastExtendDelegateReferenceTest: AbstractHazelcastLeaderTest() {
