@@ -62,7 +62,7 @@ class HazelcastLeaderElector private constructor(
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         lockName.requireNotBlank("lockName")
 
-        val lock = HazelcastLock(lockMap, lockName)
+        val lock = HazelcastLock(lockMap, lockName, LOCK_MAP_NAME, hazelcast::newTransactionContext)
         log.debug { "Leader 승격을 요청합니다 ... lockName=$lockName" }
 
         val acquired = lock.tryLock(options.waitTime, options.leaseTime)
@@ -95,11 +95,9 @@ class HazelcastLeaderElector private constructor(
             return AopScopeAccess.withPushedSync(handle) { action() }
         } finally {
             watchdog.close()
-            if (lock.isHeldByCurrentInstance()) {
-                runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanos) }
-                    .onSuccess { log.debug { "Leader 권한을 반납했습니다. lockName=$lockName" } }
-                    .onFailure { e -> log.error(e) { "Fail to release lock. lockName=$lockName" } }
-            }
+            runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanos) }
+                .onSuccess { log.debug { "Leader 권한을 반납했습니다. lockName=$lockName" } }
+                .onFailure { e -> log.error(e) { "Fail to release lock. lockName=$lockName" } }
         }
     }
 
@@ -115,7 +113,7 @@ class HazelcastLeaderElector private constructor(
     ): CompletableFuture<T?> {
         lockName.requireNotBlank("lockName")
 
-        val lock = HazelcastLock(lockMap, lockName)
+        val lock = HazelcastLock(lockMap, lockName, LOCK_MAP_NAME, hazelcast::newTransactionContext)
 
         return CompletableFuture
             .supplyAsync({ lock.tryLock(options.waitTime, options.leaseTime) }, executor)
@@ -143,11 +141,9 @@ class HazelcastLeaderElector private constructor(
                         }
                     actionFuture.whenCompleteAsync({ _, _ ->
                         watchdog.close()
-                        if (lock.isHeldByCurrentInstance()) {
-                            runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanos) }
-                                .onSuccess { log.debug { "비동기 Leader 권한을 반납했습니다. lockName=$lockName" } }
-                                .onFailure { e -> log.error(e) { "Fail to release lock (async). lockName=$lockName" } }
-                        }
+                        runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanos) }
+                            .onSuccess { log.debug { "비동기 Leader 권한을 반납했습니다. lockName=$lockName" } }
+                            .onFailure { e -> log.error(e) { "Fail to release lock (async). lockName=$lockName" } }
                     }, executor)
                 }
             }, executor)
