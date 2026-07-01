@@ -7,7 +7,6 @@ import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withContext
 import org.redisson.api.RLock
 import org.redisson.api.RedissonClient
@@ -19,8 +18,7 @@ import kotlin.time.Duration
 /**
  * [SuspendExtendDelegate] for Redisson [RLock] (suspend variant) — T8 PR 3 (Issue #79).
  *
- * Redisson's async API is [java.util.concurrent.CompletableFuture]-based,
- * so it is bridged to suspend via `await()`.
+ * Redisson's async API is [java.util.concurrent.CompletableFuture]-based.
  *
  * ## Meaning of acquiringThreadId
  * Redisson's [RLock] identifies lock owners by a `long` identifier. The sync variant uses
@@ -31,12 +29,12 @@ import kotlin.time.Duration
  * simply compares the owner field without interpreting the semantic meaning of the long value.
  *
  * ## RLock TTL renewal mechanism
- * Redisson's [RLock] does not directly implement [org.redisson.api.RExpirable], so
- * `lock.expire(d)` / `lock.expireAsync(d)` cannot be called. Instead, the Redis key TTL is
- * renewed directly via [RedissonClient.getKeys] `expireAsync(name, ms, MILLISECONDS)`.
+ * Redisson's [RLock] stores ownership in a Redis hash field named like `clientId:threadId`.
+ * The extend path uses the same owner field and performs `HEXISTS` + `PEXPIRE` in one Lua script,
+ * avoiding the check-then-expire race where a stale owner could renew a successor lock.
  *
  * ## Behavior / Contract
- * - [extendSuspend]: owner-guarded — checks `lock.isHeldByThread(acquiringThreadId)` then calls `expireAsync(...).await()`.
+ * - [extendSuspend]: owner-atomic — verifies owner and renews key TTL in one Redis Lua script.
  *   Returns [ExtendOutcome.WrongThread] on owner-id mismatch (AC-8).
  * - [isHeldSuspend]: delegates to `lock.isHeldByThread(acquiringThreadId)` through the suspend contract.
  *
@@ -78,23 +76,6 @@ internal class RedissonSuspendLockExtendDelegate(
         }
 
     private suspend fun doExtendSuspend(lockAtMostFor: Duration): ExtendOutcome {
-        // AC-8: owner-id mismatch / 미보유 → WrongThread / NotHeld
-        if (!lock.isHeldByThread(acquiringThreadId)) {
-            return if (lock.remainTimeToLive() >= 0L) {
-                ExtendOutcome.WrongThread
-            } else {
-                ExtendOutcome.NotHeld
-            }
-        }
-        val javaDuration = java.time.Duration.ofNanos(lockAtMostFor.inWholeNanoseconds)
-        // RKeysAsync.expireAsync(Duration, vararg String) → 갱신된 key 개수 반환 (>= 1 이면 성공).
-        val updated = redissonClient.keys.expireAsync(javaDuration, lock.name)
-            .toCompletableFuture()
-            .await()
-        return if (updated >= 1L) {
-            ExtendOutcome.Extended(Instant.now().plus(javaDuration))
-        } else {
-            ExtendOutcome.NotHeld
-        }
+        return RedissonOwnerAtomicExtend.extendSuspend(redissonClient, lock, acquiringThreadId, lockAtMostFor)
     }
 }

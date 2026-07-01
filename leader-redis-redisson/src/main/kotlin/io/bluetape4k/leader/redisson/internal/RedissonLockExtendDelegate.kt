@@ -19,7 +19,7 @@ import kotlin.time.Duration
  * [ExtendDelegate] for Redisson [RLock] (sync blocking) — T8 PR 3 (Issue #79).
  *
  * ## Behavior / Contract
- * - [extend]: owner-guarded — checks `lock.isHeldByThread(acquiringThreadId)` then calls `RKeys.expire(d, key)`.
+ * - [extend]: owner-atomic — verifies Redisson's owner hash field and renews key TTL in one Redis Lua script.
  *   Returns [ExtendOutcome.WrongThread] on thread mismatch (AC-8), [ExtendOutcome.NotHeld] when not holding the lock.
  *   Backend exceptions are wrapped as [ExtendOutcome.BackendError].
  * - [extendSuspend]: Redisson sync is blocking I/O, so dispatched with `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21).
@@ -27,15 +27,9 @@ import kotlin.time.Duration
  * - [lastExtendDeadline]: single `AtomicReference(Instant.EPOCH)` instance — used for R2 watchdog skip.
  *
  * ## RLock TTL renewal mechanism
- * Redisson's [RLock] does not directly implement [org.redisson.api.RExpirable], so `lock.expire(d)`
- * cannot be called. Instead, the Redis key TTL is renewed directly via [RedissonClient.getKeys]
- * `expire(duration, keyName)` — the same mechanism used by Redisson's built-in watchdog.
- *
- * ## Owner-guard race window
- * A race window exists between the `isHeldByThread` check and the `expire(d)` call. If a takeover
- * occurs immediately after the check, the new owner's lease may be renewed in a narrow race.
- * This is explicitly documented as an acceptable race in this PR — for full atomicity, replace with
- * a hand-rolled Lua script (`HEXISTS` + `PEXPIRE`) in a follow-up PR.
+ * Redisson's [RLock] stores ownership in a Redis hash field named like `clientId:threadId`.
+ * The extend path uses the same owner field and performs `HEXISTS` + `PEXPIRE` in one Lua script,
+ * avoiding the check-then-expire race where a stale owner could renew a successor lock.
  *
  * AC-21: blocking backend [ExtendDelegate.extendSuspend] default is never called — this class overrides it explicitly.
  *
@@ -86,23 +80,7 @@ internal class RedissonLockExtendDelegate(
 
     private fun doExtend(lockAtMostFor: Duration): ExtendOutcome {
         return try {
-            // AC-8: thread-id mismatch / 미보유 → WrongThread / NotHeld
-            if (!lock.isHeldByThread(acquiringThreadId)) {
-                return if (lock.remainTimeToLive() >= 0L) {
-                    // 다른 owner 가 보유 — Redisson 의 lock 소유자 식별 단위 (thread id) 가 다르므로 WrongThread.
-                    ExtendOutcome.WrongThread
-                } else {
-                    ExtendOutcome.NotHeld
-                }
-            }
-            val javaDuration = java.time.Duration.ofNanos(lockAtMostFor.inWholeNanoseconds)
-            // RKeys.expire(Duration, vararg String) → 갱신된 key 개수 반환 (>= 1 이면 성공).
-            val updated = redissonClient.keys.expire(javaDuration, lock.name)
-            if (updated >= 1L) {
-                ExtendOutcome.Extended(Instant.now().plus(javaDuration))
-            } else {
-                ExtendOutcome.NotHeld
-            }
+            RedissonOwnerAtomicExtend.extend(redissonClient, lock, acquiringThreadId, lockAtMostFor)
         } catch (e: Exception) {
             log.warn(e) { "Redisson extend failed. lockName=${lock.name}, threadId=$acquiringThreadId" }
             ExtendOutcome.BackendError(e)
