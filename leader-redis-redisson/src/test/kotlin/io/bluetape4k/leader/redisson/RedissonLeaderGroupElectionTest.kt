@@ -22,6 +22,7 @@ import org.junit.jupiter.api.condition.JRE
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
@@ -318,6 +319,41 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
     }
 
     @Test
+    fun `runAsyncIfLeader - future complete 후 다음 호출이 즉시 슬롯을 획득한다`() {
+        val lockName = randomName()
+        val options = LeaderGroupElectionOptions(
+            maxLeaders = 1,
+            waitTime = 50.milliseconds,
+            leaseTime = 5.seconds,
+            minLeaseTime = Duration.ZERO,
+        )
+        val election = RedissonLeaderGroupElector(redissonClient, options)
+
+        val attempts = AtomicInteger(0)
+
+        MultithreadingTester()
+            .workers(4)
+            .rounds(5)
+            .add {
+                val attempt = attempts.incrementAndGet()
+                val attemptLockName = "$lockName-$attempt"
+
+                val first = election.runAsyncIfLeader(attemptLockName) {
+                    CompletableFuture.completedFuture("first-$attempt")
+                }
+                first.get(2, TimeUnit.SECONDS) shouldBeEqualTo "first-$attempt"
+
+                val second = election.runAsyncIfLeader(attemptLockName) {
+                    CompletableFuture.completedFuture("second-$attempt")
+                }
+                second.get(2, TimeUnit.SECONDS) shouldBeEqualTo "second-$attempt"
+            }
+            .run()
+
+        attempts.get() shouldBeEqualTo 20
+    }
+
+    @Test
     fun `runAsyncIfLeader - action 예외 발생 후에도 슬롯이 반환되어 다음 호출이 성공한다`() {
         val lockName = randomName()
 
@@ -344,6 +380,31 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
         // 슬롯이 반환되어 다음 호출이 성공해야 함
         val result = election.runAsyncIfLeader(lockName) { futureOf { 42 } }.join()
         result shouldBeEqualTo 42
+    }
+
+    @Test
+    fun `runAsyncIfLeader - sync throw 후에도 슬롯이 반환되어 다음 호출이 성공한다`() {
+        val lockName = randomName()
+        val options = LeaderGroupElectionOptions(
+            maxLeaders = 1,
+            waitTime = 50.milliseconds,
+            leaseTime = 5.seconds,
+            minLeaseTime = Duration.ZERO,
+        )
+        val election = RedissonLeaderGroupElector(redissonClient, options)
+
+        val failed = election.runAsyncIfLeader<String>(lockName) {
+            throw LeaderGroupElectionException("sync throw")
+        }
+
+        assertFailsWith<CompletionException> {
+            failed.join()
+        }.cause shouldBeInstanceOf LeaderGroupElectionException::class
+
+        val result = election.runAsyncIfLeader(lockName) {
+            CompletableFuture.completedFuture("recovered")
+        }.get(2, TimeUnit.SECONDS)
+        result shouldBeEqualTo "recovered"
     }
 
     // ── runAsyncIfLeader 동시 실행 제한 ──────────────────────────────────

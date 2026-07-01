@@ -10,9 +10,9 @@
 
 `leader-redis-redisson`은 Redisson의 `RLock`과 `RPermitExpirableSemaphore` 를 사용하여 `leader-core` 인터페이스를 구현합니다. 블로킹, 비동기, 코루틴, 가상 스레드 실행 모델을 모두 지원합니다.
 
-단일 리더 선출에서 `LeaderElectionOptions(autoExtend = true)`를 사용하면 명시적 lease timeout 없이 `RLock`을 획득해 Redisson 자체 watchdog에 위임합니다. watchdog release semantics가 모호하므로 `autoExtend=true`와 `minLeaseTime > 0` 조합은 거부합니다.
+단일 리더 선출에서 `LeaderElectionOptions(autoExtend = true)`를 사용하면 공통 `LeaderLeaseAutoExtender` watchdog 이 lease 를 연장합니다(T8 PR 3 / Issue #79). Redisson 자체 lock watchdog 은 사용하지 않습니다. `tryLock`은 항상 명시적 `leaseTime` 으로 호출하므로 `LeaderLeaseAutoExtender`가 lease extension 의 단일 기준이 됩니다. 사용자가 `LockExtender.extendActiveLock(d)`를 호출하면 watchdog 은 공유 `ExtendDelegate`의 `lastExtendDeadline`을 확인하고, 다음 tick 이 사용자 연장분을 줄일 수 있으면 건너뜁니다. 이제 `autoExtend = true`와 `minLeaseTime > 0` 조합도 지원합니다.
 
-복수 리더 그룹 elector 는 `lg:{lockName}` 키의 `RPermitExpirableSemaphore` 를 사용하며, 첫 접근 시 `trySetPermits(maxLeaders)` 를 멱등적으로 호출합니다 (호출하지 않으면 0 permits 로 시작하여 acquire 가 영구 실패). 각 acquire 는 Redisson 이 발급한 고유한 `permitId` 를 반환하며, release / 연장 시 정확히 그 슬롯을 식별합니다. `minLeaseTime` 은 `updateLeaseTime` (sync) / `updateLeaseTimeAsync` (async) 로 backend TTL 에 위임되어 — caller 를 park 하지 않고 `runIfLeader` 가 `action` 종료 직후 즉시 반환합니다. 클라이언트 crash 시 (release 미호출) `leaseTime` 만료 후 Redisson 이 자동으로 슬롯을 회수합니다. `lg:{lockName}` key prefix 는 롤링 배포 시 구버전 semaphore 키와의 충돌을 피하기 위해 의도적으로 분리되었습니다.
+복수 리더 그룹 elector 는 `lg:{lockName}` 키의 `RPermitExpirableSemaphore` 를 사용하며, 첫 접근 시 `trySetPermits(maxLeaders)` 를 멱등적으로 호출합니다 (호출하지 않으면 0 permits 로 시작하여 acquire 가 영구 실패). 각 acquire 는 Redisson 이 발급한 고유한 `permitId` 를 반환하며, release / 연장 시 정확히 그 슬롯을 식별합니다. `minLeaseTime` 은 `updateLeaseTime` (sync) / `updateLeaseTimeAsync` (async) 로 backend TTL 에 위임되어 — caller 를 park 하지 않고 `runIfLeader` 가 `action` 종료 직후 즉시 반환합니다. 비동기 단일/그룹 API 의 반환 `CompletableFuture`는 release/update 경로가 끝난 뒤 완료되므로, caller 가 곧바로 다음 호출을 이어 붙여도 false contention 을 관찰하지 않습니다. 클라이언트 crash 시 (release 미호출) `leaseTime` 만료 후 Redisson 이 자동으로 슬롯을 회수합니다. `lg:{lockName}` key prefix 는 롤링 배포 시 구버전 semaphore 키와의 충돌을 피하기 위해 의도적으로 분리되었습니다.
 
 코루틴 단일 리더 구현체는 PID 시드 기반의 미니 Snowflake ID 생성기를 사용하여 Redis 라운드트립 없이 코루틴별 고유 락 ID를 생성합니다. HA(다중 JVM) 환경에서 안전하게 동작합니다.
 

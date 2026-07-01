@@ -12,6 +12,7 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.utils.Runtimex
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
@@ -118,6 +119,63 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
         leaderElection
             .runAsyncIfLeader(lockName) { CompletableFuture.completedFuture(1) }
             .get(2, TimeUnit.SECONDS) shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `runAsyncIfLeader - second call acquires immediately after first future completes`() {
+        val lockName = randomName()
+        val options = LeaderElectionOptions(
+            waitTime = 50.milliseconds,
+            leaseTime = 5.seconds,
+            minLeaseTime = Duration.ZERO,
+        )
+        val leaderElection = RedissonLeaderElector(redissonClient, options)
+
+        val attempts = AtomicInteger(0)
+
+        MultithreadingTester()
+            .workers(4)
+            .rounds(5)
+            .add {
+                val attempt = attempts.incrementAndGet()
+                val attemptLockName = "$lockName-$attempt"
+
+                val first = leaderElection.runAsyncIfLeader(attemptLockName) {
+                    CompletableFuture.completedFuture("first-$attempt")
+                }
+                first.get(2, TimeUnit.SECONDS) shouldBeEqualTo "first-$attempt"
+
+                val second = leaderElection.runAsyncIfLeader(attemptLockName) {
+                    CompletableFuture.completedFuture("second-$attempt")
+                }
+                second.get(2, TimeUnit.SECONDS) shouldBeEqualTo "second-$attempt"
+            }
+            .run()
+
+        attempts.get() shouldBeEqualTo 20
+    }
+
+    @Test
+    fun `runAsyncIfLeader - sync throw releases lock before failed future completes`() {
+        val lockName = randomName()
+        val options = LeaderElectionOptions(
+            waitTime = 50.milliseconds,
+            leaseTime = 5.seconds,
+            minLeaseTime = Duration.ZERO,
+        )
+        val leaderElection = RedissonLeaderElector(redissonClient, options)
+
+        val failed = leaderElection.runAsyncIfLeader<String>(lockName) {
+            throw IllegalStateException("sync throw")
+        }
+
+        assertFailsWith<CompletionException> {
+            failed.join()
+        }.cause shouldBeInstanceOf IllegalStateException::class
+
+        leaderElection
+            .runAsyncIfLeader(lockName) { CompletableFuture.completedFuture("recovered") }
+            .get(2, TimeUnit.SECONDS) shouldBeEqualTo "recovered"
     }
 
     @Test

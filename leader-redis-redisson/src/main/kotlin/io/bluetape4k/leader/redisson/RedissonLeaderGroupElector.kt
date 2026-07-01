@@ -317,15 +317,15 @@ class RedissonLeaderGroupElector private constructor(
             }
         } catch (e: Throwable) {
             removeAuditEntry(auditMap, permitId, auditLeaderId, lockName)
-            releaseOrExtendAsync(semaphore, permitId, startedAtNanos, lockName)
-            return failedCompletableFutureOf(e)
+            return releaseAndPropagate(semaphore, permitId, startedAtNanos, lockName, e, null)
         }
 
-        return actionFuture.handle<T?> { value, error ->
-            removeAuditEntry(auditMap, permitId, auditLeaderId, lockName)
-            releaseOrExtendAsync(semaphore, permitId, startedAtNanos, lockName)
-            if (error != null) throw error else value
-        }
+        return actionFuture
+            .handle<Pair<T?, Throwable?>> { value, error -> Pair(value, error) }
+            .thenCompose { (value, error) ->
+                removeAuditEntry(auditMap, permitId, auditLeaderId, lockName)
+                releaseAndPropagate(semaphore, permitId, startedAtNanos, lockName, error, value)
+            }
     }
 
     private fun removeAuditEntry(
@@ -376,22 +376,40 @@ class RedissonLeaderGroupElector private constructor(
         }
     }
 
+    private fun <T> releaseAndPropagate(
+        semaphore: RPermitExpirableSemaphore,
+        permitId: String,
+        startedAtNanos: Long,
+        lockName: String,
+        error: Throwable?,
+        value: T?,
+    ): CompletableFuture<T?> =
+        releaseOrExtendAsync(semaphore, permitId, startedAtNanos, lockName)
+            .handle { _, releaseError ->
+                if (releaseError != null) {
+                    log.warn(releaseError) { "Failed to release/extend permit. lockName=$lockName, permitId=$permitId" }
+                }
+                Unit
+            }
+            .thenCompose {
+                if (error != null) {
+                    CompletableFuture.failedFuture(error)
+                } else {
+                    CompletableFuture.completedFuture(value)
+                }
+            }
+
     private fun releaseOrExtendAsync(
         semaphore: RPermitExpirableSemaphore,
         permitId: String,
         startedAtNanos: Long,
         lockName: String,
-    ) {
+    ): CompletableFuture<*> {
         val remainingMs = remainingMinLeaseTime(startedAtNanos, options.minLeaseTime).inWholeMilliseconds
-        val future = if (remainingMs > 0) {
-            semaphore.updateLeaseTimeAsync(permitId, remainingMs, TimeUnit.MILLISECONDS)
+        return if (remainingMs > 0) {
+            semaphore.updateLeaseTimeAsync(permitId, remainingMs, TimeUnit.MILLISECONDS).toCompletableFuture()
         } else {
-            semaphore.releaseAsync(permitId)
-        }
-        future.whenComplete { _, error ->
-            if (error != null) {
-                log.warn(error) { "Failed to release/extend permit. lockName=$lockName, permitId=$permitId" }
-            }
+            semaphore.releaseAsync(permitId).toCompletableFuture()
         }
     }
 }
