@@ -48,6 +48,20 @@ curl http://localhost:8080/actuator/prometheus | grep leader_aop
 `DEMO_REDIS_URL`이 없으면 `bootRun`은 Testcontainers Redis를 사용합니다.
 demo는 로컬 `ObservationHandler`로 leader observation도 로그에 남깁니다. 끄려면 `DEMO_OBSERVATION_LOGGING_HANDLER_ENABLED=false`를 지정하세요.
 
+이 예제는 하나의 정적 job 이름만 사용하므로 raw metric lock label을 명시적으로 켭니다.
+
+```yaml
+bluetape4k:
+  leader:
+    aop:
+      metrics:
+        tags:
+          lock-name:
+            mode: RAW
+```
+
+실제 서비스에서 lock name에 tenant, user, request, 무제한 job identifier가 들어간다면 기본 `REDACT` 모드를 유지하세요. raw label 없이 제한된 상관관계만 필요하면 `HASH`를 사용합니다.
+
 ## Observation Tracing Demo
 
 `application.yml`은 안전한 기본값으로 leader Observation bridge를 켭니다.
@@ -67,7 +81,7 @@ bluetape4k:
 
 `PrometheusDashboardApp`은 `LeaderObservationLoggingHandler`를 로컬 demo hook으로 등록합니다. 이 handler는 `leader.aop.acquire`, `leader.aop.execution`, listener event observation의 이름과 low-cardinality key를 로그로 보여줍니다. production export 설정은 아닙니다.
 
-이 예제는 OpenTelemetry SDK, Micrometer tracing bridge, exporter, collector를 의도적으로 추가하지 않습니다. exported trace가 필요하면 애플리케이션에서 해당 의존성과 설정을 직접 추가하세요. Raw `lock.name`, `leader.id`, exception detail은 tenant, user, job, URL, credential과 비슷한 값을 포함할 수 있어 기본 비활성입니다. 현재 Spring AOP는 `leader.id`를 합성하지 않습니다. direct 호출 또는 future identity-aware 경로가 `LeaderAopMetricsContext.Identified`를 넘길 때만 값이 나타납니다.
+이 예제는 OpenTelemetry SDK, Micrometer tracing bridge, exporter, collector를 의도적으로 추가하지 않습니다. exported trace가 필요하면 애플리케이션에서 해당 의존성과 설정을 직접 추가하세요. Observation `lock.name`, `leader.id`, exception detail은 tenant, user, job, URL, credential과 비슷한 값을 포함할 수 있어 기본 비활성입니다. 현재 Spring AOP는 `leader.id`를 합성하지 않습니다. direct 호출 또는 future identity-aware 경로가 `LeaderAopMetricsContext.Identified`를 넘길 때만 값이 나타납니다.
 
 `LockExtender`가 core observation/event hook을 제공하기 전까지 lease-extension observation도 이 예제의 범위 밖입니다. 후속 작업은 issue #559에서 추적합니다.
 
@@ -95,8 +109,8 @@ Actuator endpoint도 `prometheus,health,info`만 노출합니다. 로컬 워크�
 sum by (lock_name) (rate(leader_aop_attempts_total[1m]))
 sum by (lock_name) (rate(leader_aop_acquired_total[1m]))
 sum by (lock_name, reason) (rate(leader_aop_lock_not_acquired_total[5m]))
-rate(leader_aop_execution_duration_seconds_sum[1m])
-  / rate(leader_aop_execution_duration_seconds_count[1m])
+sum by (lock_name) (rate(leader_aop_execution_duration_seconds_sum[1m]))
+  / sum by (lock_name) (rate(leader_aop_execution_duration_seconds_count[1m]))
 max by (lock_name) (leader_aop_active)
 ```
 
@@ -111,6 +125,7 @@ max by (lock_name) (leader_aop_active)
 | `DEMO_JOB_FIXED_DELAY_MS` / `demo.job.fixed-delay-ms` | `5000` | Scheduler fixed delay |
 | `DEMO_JOB_INITIAL_DELAY_MS` / `demo.job.initial-delay-ms` | `1000` | Scheduler initial delay |
 | `DEMO_OBSERVATION_LOGGING_HANDLER_ENABLED` / `demo.observation.logging-handler-enabled` | `true` | 로컬 demo Observation handler 활성화 |
+| `bluetape4k.leader.aop.metrics.tags.lock-name.mode` | `RAW` | 정적 `dashboard-job` label을 Prometheus에서 보여주기 위한 demo 전용 opt-in |
 | `SERVER_PORT` | `8080` | HTTP port |
 
 ## 의존성

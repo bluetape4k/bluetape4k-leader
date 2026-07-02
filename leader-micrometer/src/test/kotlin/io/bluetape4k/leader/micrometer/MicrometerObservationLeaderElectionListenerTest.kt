@@ -39,10 +39,26 @@ class MicrometerObservationLeaderElectionListenerTest {
     }
 
     @Test
-    fun `listener emits lock name only when explicitly enabled`() {
+    fun `listener sanitizes lock name when explicitly enabled`() {
         listener = MicrometerObservationLeaderElectionListener(
             registry = registry,
             options = LeaderObservationOptions(includeLockName = true),
+        )
+
+        listener.onElected("job-lock")
+
+        val stopped = handler.singleStopped()
+        stopped.high[MicrometerNames.TAG_LOCK_NAME] shouldBeEqualTo "redacted-lock"
+    }
+
+    @Test
+    fun `listener can opt out to raw lock name observation values`() {
+        listener = MicrometerObservationLeaderElectionListener(
+            registry = registry,
+            options = LeaderObservationOptions(
+                includeLockName = true,
+                tagOptions = LeaderMetricTagOptions.Raw,
+            ),
         )
 
         listener.onElected("job-lock")

@@ -120,7 +120,7 @@ class MicrometerObservationLeaderAopMetricsRecorderTest {
     }
 
     @Test
-    fun `lock name and leader id are present only when explicitly enabled and identified`() {
+    fun `lock name and leader id are sanitized when explicitly enabled and identified`() {
         recorder = MicrometerObservationLeaderAopMetricsRecorder(
             registry = registry,
             options = LeaderObservationOptions(includeLockName = true, includeLeaderId = true),
@@ -130,9 +130,28 @@ class MicrometerObservationLeaderAopMetricsRecorderTest {
         recorder.onTaskFinished("job-lock", 3.milliseconds, context)
 
         val stopped = handler.singleStopped()
+        stopped.high[MicrometerNames.TAG_LOCK_NAME] shouldBeEqualTo "redacted-lock"
+        stopped.high[TAG_LEADER_ID] shouldBeEqualTo "redacted-leader"
+        stopped.low[TAG_LEADER_ID_SOURCE] shouldBeEqualTo LeaderIdSource.LITERAL.name
+    }
+
+    @Test
+    fun `lock name and leader id can opt out to raw observation values`() {
+        recorder = MicrometerObservationLeaderAopMetricsRecorder(
+            registry = registry,
+            options = LeaderObservationOptions(
+                includeLockName = true,
+                includeLeaderId = true,
+                tagOptions = LeaderMetricTagOptions.Raw,
+            ),
+        )
+        val context = LeaderAopMetricsContext.Identified("leader-a", LeaderIdSource.LITERAL)
+
+        recorder.onTaskFinished("job-lock", 3.milliseconds, context)
+
+        val stopped = handler.singleStopped()
         stopped.high[MicrometerNames.TAG_LOCK_NAME] shouldBeEqualTo "job-lock"
         stopped.high[TAG_LEADER_ID] shouldBeEqualTo "leader-a"
-        stopped.low[TAG_LEADER_ID_SOURCE] shouldBeEqualTo LeaderIdSource.LITERAL.name
     }
 
     @Test

@@ -39,7 +39,7 @@ data class LeaderObservabilityProperties(
  *
  * ## Behavior / Contract
  * - [enabled] registers Observation recorder/listener beans when `ObservationRegistry` is present.
- * - [includeLockName] adds raw lock names as high-cardinality observation data.
+ * - [includeLockName] adds tag-policy-sanitized lock names as high-cardinality observation data.
  * - [includeLeaderId] adds leader IDs only when the caller provides identified metrics context.
  * - [includeExceptionDetails] attaches the raw throwable to failed execution observations.
  */

@@ -1,10 +1,12 @@
 package io.bluetape4k.leader.spring.metrics
 
+import io.bluetape4k.leader.micrometer.LeaderMetricTagOptions
 import io.bluetape4k.leader.micrometer.LeaderObservationOptions
 import io.bluetape4k.leader.micrometer.MicrometerObservationLeaderAopMetricsRecorder
 import io.bluetape4k.leader.micrometer.MicrometerObservationLeaderElectionListener
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
+import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.properties.LeaderTracingProperties
 import io.micrometer.observation.ObservationRegistry
 import org.springframework.beans.factory.config.BeanDefinition
@@ -39,7 +41,7 @@ import org.springframework.context.annotation.Role
     havingValue = "true",
     matchIfMissing = true,
 )
-@EnableConfigurationProperties(LeaderProperties::class)
+@EnableConfigurationProperties(LeaderProperties::class, LeaderAopProperties::class)
 class LeaderObservationAutoConfiguration {
 
     /**
@@ -59,8 +61,12 @@ class LeaderObservationAutoConfiguration {
     fun micrometerObservationLeaderAopMetricsRecorder(
         registry: ObservationRegistry,
         properties: LeaderProperties,
+        aopProperties: LeaderAopProperties,
     ): MicrometerObservationLeaderAopMetricsRecorder =
-        MicrometerObservationLeaderAopMetricsRecorder(registry, properties.observability.tracing.toOptions())
+        MicrometerObservationLeaderAopMetricsRecorder(
+            registry = registry,
+            options = properties.observability.tracing.toOptions(aopProperties.metrics.tags.toMicrometerOptions()),
+        )
 
     /**
      * Registers a lightweight listener that emits lifecycle event observations.
@@ -78,13 +84,18 @@ class LeaderObservationAutoConfiguration {
     fun micrometerObservationLeaderElectionListener(
         registry: ObservationRegistry,
         properties: LeaderProperties,
+        aopProperties: LeaderAopProperties,
     ): MicrometerObservationLeaderElectionListener =
-        MicrometerObservationLeaderElectionListener(registry, properties.observability.tracing.toOptions())
+        MicrometerObservationLeaderElectionListener(
+            registry = registry,
+            options = properties.observability.tracing.toOptions(aopProperties.metrics.tags.toMicrometerOptions()),
+        )
 }
 
-private fun LeaderTracingProperties.toOptions(): LeaderObservationOptions =
+private fun LeaderTracingProperties.toOptions(tagOptions: LeaderMetricTagOptions): LeaderObservationOptions =
     LeaderObservationOptions(
         includeLockName = includeLockName,
         includeLeaderId = includeLeaderId,
         includeExceptionDetails = includeExceptionDetails,
+        tagOptions = tagOptions,
     )

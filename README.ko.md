@@ -638,6 +638,8 @@ bluetape4k:
         enabled: false
 ```
 
+Metric tag 값은 export 전에 sanitizer를 거칩니다. 기본값은 동적 `lock.name`을 `redacted-lock`으로, opt-in Observation `leader.id` 값을 `redacted-leader`로 접고, custom 또는 future meter path가 `backend.name`을 emit할 때 cardinality가 제한된 backend label만 raw로 유지합니다. 현재 built-in meter path는 `backend.name`을 emit하지 않습니다. `bluetape4k.leader.aop.metrics.tags.lock-name.mode=RAW`는 작고 정적인 job set에만 사용하세요. 동적 이름을 제한적으로 추적해야 한다면 `HASH` 또는 `TRUNCATE`를 사용합니다.
+
 ### 메터 카탈로그
 
 | 메터 이름 | 타입 | 설명 |
@@ -654,7 +656,7 @@ bluetape4k:
 | `shedlock.leader.duration` | Timer | 데코레이터 기반 리더 작업 실행 시간 |
 | `shedlock.leader.active` | Gauge | 데코레이터 기반 현재 실행 중인 리더 작업 수 (JVM 로컬) |
 
-모든 메터는 `lock.name` 태그를 공유합니다. Micrometer의 `NamingConvention`이 백엔드별로 이름을 변환합니다 (Prometheus: `leader_aop_attempts_total` 등).
+모든 메터는 cardinality 제어를 거친 `lock.name` 태그를 공유합니다. Micrometer의 `NamingConvention`이 백엔드별로 이름을 변환합니다 (Prometheus: `leader_aop_attempts_total` 등).
 
 > **멀티 인스턴스 주의:** `leader.aop.active`는 JVM 로컬 값입니다. Prometheus에서 클러스터 전체 리더 수를 보려면 `sum` 대신 `max by (lock_name) (leader_aop_active)`를 사용하세요.
 
@@ -679,7 +681,7 @@ suspendElection.runIfLeader("sync-job") {
 }
 ```
 
-`lockName = "static-job"`를 전달하면 고정 `lock.name` 태그를 사용하고, 생략하면 호출별 lock 이름을 사용합니다.
+`lockName = "static-job"`를 전달하면 sanitizer 적용 전 고정 `lock.name` 태그를 사용하고, 생략하면 호출별 lock 이름을 사용합니다.
 
 ### 메터 사전 등록 (선택)
 

@@ -24,13 +24,13 @@ AOP 계층은 Freefair post-compile weaving을 통한 AspectJ compile-time weavi
 ## 의존성
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.4.0")
 
 // backend 모듈을 하나 이상 추가합니다.
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.4.0")
 
 // 선택: Micrometer/Actuator 연동.
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.4.0")
 implementation("org.springframework.boot:spring-boot-starter-actuator")
 
 // 선택: trace export는 애플리케이션이 선택합니다.
@@ -66,6 +66,15 @@ bluetape4k:
       lock-name-prefix: "${spring.application.name:}:"
       metrics:
         enabled: true
+        tags:
+          lock-name:
+            mode: REDACT
+            redacted-value: redacted-lock
+          leader-id:
+            mode: REDACT
+            redacted-value: redacted-leader
+          backend-name:
+            mode: RAW
       spel:
         allow-method-invocation: false
     observability:
@@ -94,17 +103,21 @@ Metrics와 Observation은 별도 스위치를 가집니다.
 | Property | 기본값 | 제어 대상 |
 |---|---:|---|
 | `bluetape4k.leader.aop.metrics.enabled` | `true` | 기존 Micrometer meter recorder |
+| `bluetape4k.leader.aop.metrics.tags.lock-name.mode` | `REDACT` | meter `lock.name` tag export 정책 |
+| `bluetape4k.leader.aop.metrics.tags.lock-name.redacted-value` | `redacted-lock` | redaction된 lock name sentinel |
+| `bluetape4k.leader.aop.metrics.tags.leader-id.mode` | `REDACT` | opt-in Observation `leader.id` 값 export 정책 |
+| `bluetape4k.leader.aop.metrics.tags.backend-name.mode` | `RAW` | custom 또는 future meter path가 `backend.name`을 emit할 때 cardinality가 제한된 backend label export 정책; 현재 built-in meter는 emit하지 않음 |
 | `bluetape4k.leader.observability.enabled` | `true` | leader observability와 tracing의 parent switch |
 | `bluetape4k.leader.observability.tracing.enabled` | `true` | Observation recorder/listener |
-| `bluetape4k.leader.observability.tracing.include-lock-name` | `false` | raw `lock.name` high-cardinality Observation data |
-| `bluetape4k.leader.observability.tracing.include-leader-id` | `false` | identified context가 있을 때 raw `leader.id` high-cardinality Observation data |
+| `bluetape4k.leader.observability.tracing.include-lock-name` | `false` | tag 정책을 거친 opt-in `lock.name` high-cardinality Observation data |
+| `bluetape4k.leader.observability.tracing.include-leader-id` | `false` | identified context가 있을 때 tag 정책을 거친 opt-in `leader.id` high-cardinality Observation data |
 | `bluetape4k.leader.observability.tracing.include-exception-details` | `false` | `Observation.error(...)`를 통한 raw throwable detail |
 
 Observation bridge는 `leader.aop.acquire`, `leader.aop.execution`, `leader.election.event` 같은 짧은 terminal observation을 남깁니다. 보호된 메서드 본문 전체를 새 current `Observation.Scope`으로 감싸지는 않습니다.
 
 #529는 Micrometer Observation만 발생시킵니다. exported trace가 필요하면 애플리케이션이 Micrometer tracing bridge, exporter, collector, OpenTelemetry SDK를 직접 추가하고 설정해야 합니다.
 
-Raw lock name, leader ID, exception detail은 운영 환경에서 민감할 수 있습니다. tenant, user, job, URL, credential과 비슷한 값이 들어갈 수 있고 #529가 redaction하지 않습니다. 현재 Spring AOP는 node ID나 lock name으로 `leader.id`를 합성하지 않습니다. `include-leader-id=true`는 direct 호출 또는 future identity-aware 경로에서 `LeaderAopMetricsContext.Identified`가 전달될 때만 값을 내보냅니다.
+동적 lock name, leader ID, exception detail은 운영 환경에서 민감할 수 있습니다. tenant, user, job, URL, credential과 비슷한 값이 들어갈 수 있습니다. 메트릭은 기본적으로 `lock.name`을 redaction합니다. 작고 정적인 job set에만 `RAW`를 사용하고, dashboard에서 제한된 상관관계가 필요하면 `bluetape4k.leader.aop.metrics.tags.*` 아래에서 `HASH` 또는 `TRUNCATE`를 사용하세요. 현재 Spring AOP는 node ID나 lock name으로 `leader.id`를 합성하지 않습니다. `include-leader-id=true`는 direct 호출 또는 future identity-aware 경로에서 `LeaderAopMetricsContext.Identified`가 전달될 때만 값을 내보냅니다.
 
 Lease-extension observation은 issue #559로 미뤘습니다. Spring이나 Micrometer가 extension outcome을 관찰하려면 `LockExtender`에 core hook이 먼저 필요합니다.
 

@@ -48,6 +48,20 @@ curl http://localhost:8080/actuator/prometheus | grep leader_aop
 `bootRun` uses Testcontainers Redis unless `DEMO_REDIS_URL` is set.
 The demo also logs leader observations from a local `ObservationHandler`; disable it with `DEMO_OBSERVATION_LOGGING_HANDLER_ENABLED=false`.
 
+The example opts into raw metric lock labels because it uses one static job name:
+
+```yaml
+bluetape4k:
+  leader:
+    aop:
+      metrics:
+        tags:
+          lock-name:
+            mode: RAW
+```
+
+Keep the default `REDACT` mode in real services when lock names contain tenant, user, request, or unbounded job identifiers. Use `HASH` when a dashboard needs bounded correlation without raw labels.
+
 ## Observation Tracing Demo
 
 `application.yml` enables the leader Observation bridge with safe defaults:
@@ -67,7 +81,7 @@ bluetape4k:
 
 `PrometheusDashboardApp` registers `LeaderObservationLoggingHandler` as a local demo hook. It logs observation names and low-cardinality key values for `leader.aop.acquire`, `leader.aop.execution`, and listener events, but it is not production export configuration.
 
-This example intentionally does not add an OpenTelemetry SDK, Micrometer tracing bridge, exporter, or collector. Add those dependencies in the application when exported traces are required. Raw `lock.name`, `leader.id`, and exception details are disabled because they can contain tenant, user, job, URL, or credential-like values. Current Spring AOP does not synthesize `leader.id`; that value appears only when a direct or future identity-aware path supplies `LeaderAopMetricsContext.Identified`.
+This example intentionally does not add an OpenTelemetry SDK, Micrometer tracing bridge, exporter, or collector. Add those dependencies in the application when exported traces are required. Observation `lock.name`, `leader.id`, and exception details are disabled because they can contain tenant, user, job, URL, or credential-like values. Current Spring AOP does not synthesize `leader.id`; that value appears only when a direct or future identity-aware path supplies `LeaderAopMetricsContext.Identified`.
 
 Lease-extension observations are also out of scope for this example until `LockExtender` exposes a core observation/event hook; that follow-up is tracked in issue #559.
 
@@ -97,8 +111,8 @@ password in `.env` before sharing the stack outside a local workstation.
 sum by (lock_name) (rate(leader_aop_attempts_total[1m]))
 sum by (lock_name) (rate(leader_aop_acquired_total[1m]))
 sum by (lock_name, reason) (rate(leader_aop_lock_not_acquired_total[5m]))
-rate(leader_aop_execution_duration_seconds_sum[1m])
-  / rate(leader_aop_execution_duration_seconds_count[1m])
+sum by (lock_name) (rate(leader_aop_execution_duration_seconds_sum[1m]))
+  / sum by (lock_name) (rate(leader_aop_execution_duration_seconds_count[1m]))
 max by (lock_name) (leader_aop_active)
 ```
 
@@ -113,6 +127,7 @@ multi-instance deployments. The gauge is JVM-local, so `sum` can over-count.
 | `DEMO_JOB_FIXED_DELAY_MS` / `demo.job.fixed-delay-ms` | `5000` | Scheduler fixed delay |
 | `DEMO_JOB_INITIAL_DELAY_MS` / `demo.job.initial-delay-ms` | `1000` | Initial scheduler delay |
 | `DEMO_OBSERVATION_LOGGING_HANDLER_ENABLED` / `demo.observation.logging-handler-enabled` | `true` | Enables the local demo Observation handler |
+| `bluetape4k.leader.aop.metrics.tags.lock-name.mode` | `RAW` | Demo-only opt-in so the static `dashboard-job` label is visible in Prometheus |
 | `SERVER_PORT` | `8080` | HTTP port |
 
 ## Dependencies

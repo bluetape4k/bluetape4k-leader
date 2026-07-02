@@ -25,7 +25,7 @@ The module depends only on `leader-core`, Micrometer core, and Micrometer Observ
 ## Dependency
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.4.0")
 
 // Choose the registry in the application.
 implementation("io.micrometer:micrometer-registry-prometheus")
@@ -34,7 +34,7 @@ implementation("io.micrometer:micrometer-registry-prometheus")
 For Spring Boot AOP metrics:
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.4.0")
 implementation("org.springframework.boot:spring-boot-starter-actuator")
 ```
 
@@ -48,6 +48,13 @@ bluetape4k:
     aop:
       metrics:
         enabled: true
+        tags:
+          lock-name:
+            mode: REDACT
+            redacted-value: redacted-lock
+          leader-id:
+            mode: REDACT
+            redacted-value: redacted-leader
 management:
   endpoints:
     web:
@@ -64,6 +71,39 @@ class ReportJobs {
 }
 ```
 
+### Tag Cardinality Controls
+
+Metrics use `LeaderMetricTagOptions` before exporting tag values. The production default redacts dynamic `lock.name` values to `redacted-lock` and opt-in `leader.id` Observation values to `redacted-leader`; bounded `backend.name` values stay raw when a future or custom meter path emits that tag. Current built-in meter paths do not emit `backend.name`. This keeps Prometheus, Datadog, and OTLP backends from receiving one time series per tenant, request, or job id.
+
+Use Spring properties for application-level policy:
+
+```yaml
+bluetape4k:
+  leader:
+    aop:
+      metrics:
+        tags:
+          lock-name:
+            mode: HASH
+            hash-length: 12
+            allow-list:
+              - daily-report
+              - nightly-cleanup
+            deny-list:
+              - tenant-debug-job
+```
+
+| Mode | Behavior | Typical use |
+|---|---|---|
+| `REDACT` | Exports the configured sentinel | Default for dynamic names |
+| `RAW` | Exports the original value | Small, static job sets only |
+| `HASH` | Exports a deterministic SHA-256 hex prefix | Correlation only; not anonymization |
+| `TRUNCATE` | Exports a bounded prefix; requires `max-length > 0` | Legacy dashboards with length limits |
+
+Denylist entries always redact. A non-empty allowlist admits exact raw values and redacts every other value; `TRUNCATE` still applies its max length to allowed values. `LeaderMetricTagSanitizer` can be provided as a Spring bean or constructor argument when one process needs a custom rule source.
+
+`HASH` is deterministic, unsalted pseudonymization. It can still be dictionary-attacked for low-entropy tenant, user, or job names and still creates one time series per raw value. Use `REDACT` for PII, secrets, tenant IDs, user IDs, and unbounded names unless the risk model is documented. Use allowlists only for bounded, non-sensitive static names.
+
 ## Observation Tracing
 
 Use `MicrometerObservationLeaderAopMetricsRecorder` when you want leader execution to become Micrometer Observations that a tracing bridge can convert to spans.
@@ -75,6 +115,7 @@ val recorder = MicrometerObservationLeaderAopMetricsRecorder(
         includeLockName = false,
         includeLeaderId = false,
         includeExceptionDetails = false,
+        tagOptions = LeaderMetricTagOptions.Default,
     ),
 )
 
@@ -124,6 +165,16 @@ suspendElection.runIfLeader("sync-job") {
 ```
 
 Pass `lockName = "static-job"` to a decorator constructor when every call should use the same `lock.name` tag regardless of the runtime lock name.
+
+Decorator and listener metrics use the same sanitizer defaults as AOP metrics. Pass `LeaderMetricTagOptions.Raw` only when the lock-name set is known and bounded:
+
+```kotlin
+val election = InstrumentedLeaderElector(
+    delegate = delegate,
+    registry = registry,
+    tagOptions = LeaderMetricTagOptions.Raw,
+)
+```
 
 ## Listener Event Metrics
 
@@ -245,9 +296,9 @@ class MetricsPreRegistrar(
 
 ## Cardinality Guidance
 
-Keep `lock.name` bounded. Do not put request IDs, user IDs, or unbounded tenant IDs directly into lock names unless the metrics backend is sized for that cardinality. If dynamic names are required, aggregate them at the application layer or register only stable job families.
+Keep `lock.name` bounded. Do not put request IDs, user IDs, or unbounded tenant IDs directly into exported metric tags unless the metrics backend is sized for that cardinality. The default sanitizer collapses dynamic names, so dashboards should opt into `RAW` only for static job names. `HASH` can correlate names without raw labels, but it is not cardinality reduction or anonymization.
 
-Observation high-cardinality fields are disabled by default. `includeLockName=true` and `includeLeaderId=true` can export raw lock names or leader IDs that may contain tenant, user, or job identifiers. #529 does not redact those values. Current Spring AOP does not synthesize `leader.id`; `includeLeaderId=true` emits it only when the recorder receives `LeaderAopMetricsContext.Identified` from direct or future identity-aware paths.
+Observation high-cardinality fields are disabled by default. If `includeLockName=true` or `includeLeaderId=true`, values still pass through `LeaderObservationOptions.tagOptions` before export. Current Spring AOP does not synthesize `leader.id`; `includeLeaderId=true` emits it only when the recorder receives `LeaderAopMetricsContext.Identified` from direct or future identity-aware paths.
 
 Keep `includeExceptionDetails=false` unless the tracing backend is allowed to receive exception messages and stack traces.
 
