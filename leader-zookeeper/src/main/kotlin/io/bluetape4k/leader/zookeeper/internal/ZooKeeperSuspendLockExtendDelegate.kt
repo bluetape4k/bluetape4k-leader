@@ -5,6 +5,7 @@ import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.warn
 import kotlinx.coroutines.CancellationException
+import org.apache.curator.framework.CuratorFramework
 import org.apache.curator.framework.recipes.locks.InterProcessMutex
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
@@ -18,10 +19,9 @@ import kotlin.time.Duration
  * ZooKeeper uses **session-based locks** with no TTL concept. `extend(d)` means
  * **session-held liveness check**, not lease extension (R3-F11).
  *
- * - [extend] / [extendSuspend]: checks `mutex.isAcquiredInThisProcess()` (Curator local counter — non-blocking)
- *   and returns [ExtendOutcome.Extended] (observedExpireAt = [Instant.MAX]) or [ExtendOutcome.NotHeld] accordingly.
- * - [extendSuspend] checks a local counter, so `withContext(IO)` wrapping is unnecessary — only re-propagates CancellationException.
- * - [isHeld]: delegates directly to `isAcquiredInThisProcess`.
+ * - [extend] / [extendSuspend]: return [ExtendOutcome.Extended] (observedExpireAt = [Instant.MAX]) only if
+ *   Curator still reports a local acquisition and the acquired ephemeral znode still exists in ZooKeeper.
+ * - [isHeld]: returns false when ownership is no longer positively observable in ZooKeeper.
  *
  * Token-based lock (session-bound) — no thread affinity.
  *
@@ -29,8 +29,10 @@ import kotlin.time.Duration
  * The elector forces `enabled=false` when calling [io.bluetape4k.leader.LeaderLeaseAutoExtender.start].
  */
 internal class ZooKeeperSuspendLockExtendDelegate(
+    private val client: CuratorFramework,
     private val mutex: InterProcessMutex,
     private val lockKey: String,
+    private val lockPath: String,
 ): ExtendDelegate {
 
     companion object: KLoggingChannel()
@@ -52,7 +54,7 @@ internal class ZooKeeperSuspendLockExtendDelegate(
 
     override fun isHeld(): Boolean =
         try {
-            mutex.isAcquiredInThisProcess
+            isBackendHeld()
         } catch (e: Exception) {
             log.warn(e) { "ZooKeeperSuspend isHeld failed. lockKey=$lockKey" }
             false
@@ -60,10 +62,13 @@ internal class ZooKeeperSuspendLockExtendDelegate(
 
     private fun doExtend(): ExtendOutcome =
         try {
-            if (mutex.isAcquiredInThisProcess) ExtendOutcome.Extended(Instant.MAX)
+            if (isBackendHeld()) ExtendOutcome.Extended(Instant.MAX)
             else ExtendOutcome.NotHeld
         } catch (e: Exception) {
             log.warn(e) { "ZooKeeperSuspend extend (passthrough) failed. lockKey=$lockKey" }
             ExtendOutcome.BackendError(e)
         }
+
+    private fun isBackendHeld(): Boolean =
+        mutex.isAcquiredInThisProcess && ZooKeeperOwnershipProbe.isLiveNode(client, lockPath)
 }

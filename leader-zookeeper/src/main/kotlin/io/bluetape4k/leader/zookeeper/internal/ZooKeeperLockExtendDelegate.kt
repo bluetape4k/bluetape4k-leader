@@ -4,6 +4,7 @@ import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
+import org.apache.curator.framework.CuratorFramework
 import org.apache.curator.framework.recipes.locks.InterProcessMutex
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
@@ -18,12 +19,11 @@ import kotlin.time.Duration
  * as an ephemeral znode and is valid only while the ZK session is alive. Therefore `extend(d)` means
  * **session-held liveness check** rather than lease renewal (R3-F11).
  *
- * - [extend]: returns [ExtendOutcome.Extended] (observedExpireAt = [Instant.MAX]) if
- *   `mutex.isAcquiredInThisProcess()` is `true`; returns [ExtendOutcome.NotHeld] if `false`.
- *   Backend exceptions are wrapped as [ExtendOutcome.BackendError].
- * - [extendSuspend]: `isAcquiredInThisProcess()` is a local counter check — non-blocking, no
- *   `withContext(IO)` needed. Only adds `CancellationException` re-propagation.
- * - [isHeld]: delegates directly to `mutex.isAcquiredInThisProcess()`.
+ * - [extend]: returns [ExtendOutcome.Extended] (observedExpireAt = [Instant.MAX]) only if Curator still
+ *   reports a local acquisition and the acquired ephemeral znode still exists in ZooKeeper. Returns
+ *   [ExtendOutcome.NotHeld] when ownership is no longer positively observable.
+ * - [extendSuspend]: follows the same backend ownership check.
+ * - [isHeld]: returns false when the local mutex state or backend znode check says the lock is no longer held.
  * - [lastExtendDeadline]: single `AtomicReference(Instant.EPOCH)` instance (R2 mitigation interface
  *   compatibility — cosmetic in ZK since the watchdog is disabled, but [LockExtender.extendActiveLockDetailed]
  *   calls `set` on it).
@@ -35,8 +35,10 @@ import kotlin.time.Duration
  * The [extend] method on this delegate is called only via the user-driven `LockExtender.extendActiveLock` path.
  */
 internal class ZooKeeperLockExtendDelegate(
+    private val client: CuratorFramework,
     private val mutex: InterProcessMutex,
     private val lockKey: String,
+    private val lockPath: String,
 ): ExtendDelegate {
 
     companion object: KLogging()
@@ -53,7 +55,7 @@ internal class ZooKeeperLockExtendDelegate(
 
     override fun isHeld(): Boolean =
         try {
-            mutex.isAcquiredInThisProcess
+            isBackendHeld()
         } catch (e: Exception) {
             log.warn(e) { "ZooKeeper isHeld failed. lockKey=$lockKey" }
             false
@@ -61,10 +63,13 @@ internal class ZooKeeperLockExtendDelegate(
 
     private fun doExtend(): ExtendOutcome =
         try {
-            if (mutex.isAcquiredInThisProcess) ExtendOutcome.Extended(Instant.MAX)
+            if (isBackendHeld()) ExtendOutcome.Extended(Instant.MAX)
             else ExtendOutcome.NotHeld
         } catch (e: Exception) {
             log.warn(e) { "ZooKeeper extend (passthrough) failed. lockKey=$lockKey" }
             ExtendOutcome.BackendError(e)
         }
+
+    private fun isBackendHeld(): Boolean =
+        mutex.isAcquiredInThisProcess && ZooKeeperOwnershipProbe.isLiveNode(client, lockPath)
 }
