@@ -12,7 +12,6 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.closeSafe
 import io.bluetape4k.testcontainers.infra.ToxiproxyServer
 import io.bluetape4k.testcontainers.storage.RedisServer
-import io.bluetape4k.utils.ShutdownQueue
 import io.lettuce.core.RedisClient
 import io.lettuce.core.SetArgs
 import io.lettuce.core.api.StatefulRedisConnection
@@ -23,6 +22,7 @@ import io.mockk.mockk
 import io.bluetape4k.assertions.shouldBeEqualTo
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.reflect.MethodSignature
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -49,19 +49,9 @@ class FailOpenRunIntegrationTest {
         private const val CONTENTION_LOCK = "fail-open-it-contention"
         private const val BACKEND_LOCK = "fail-open-it-backend"
 
-        private val redis = RedisServer.Launcher.redis
-
-        private val client: RedisClient by lazy {
-            RedisClient.create(redis.url).also {
-                ShutdownQueue.register { runCatching { it.shutdown() } }
-            }
-        }
-
-        private val connection: StatefulRedisConnection<String, String> by lazy {
-            client.connect(StringCodec.UTF8).also {
-                ShutdownQueue.register { it.closeSafe() }
-            }
-        }
+        private val redis = RedisServer(reuse = false).also { it.start() }
+        private val client: RedisClient = RedisClient.create(redis.url)
+        private val connection: StatefulRedisConnection<String, String> = client.connect(StringCodec.UTF8)
     }
 
     // ── 경쟁 시나리오용 ──
@@ -89,6 +79,13 @@ class FailOpenRunIntegrationTest {
     @BeforeEach
     fun setUp() {
         clearMocks(signature, pjp, beanSelector)
+    }
+
+    @AfterAll
+    fun tearDown() {
+        runCatching { connection.closeSafe() }
+        runCatching { client.shutdown() }
+        runCatching { redis.close() }
     }
 
     private fun configureJoinPoint(method: java.lang.reflect.Method, target: Any) {
@@ -155,11 +152,11 @@ class FailOpenRunIntegrationTest {
     fun `FAIL_OPEN_RUN - ToxiProxy 장애 주입으로 Redis 차단 시 본문 실행`() {
         // ToxiProxy → Redis 연결을 별도 Docker 네트워크에서 구성 후 프록시 삭제로 장애 주입
         Network.newNetwork().use { network ->
-            RedisServer()
+            RedisServer(reuse = false)
                 .withNetwork(network)
                 .withNetworkAliases("redis")
                 .use { redisContainer ->
-                    ToxiproxyServer()
+                    ToxiproxyServer(reuse = false)
                         .withNetwork(network)
                         .use { toxiproxy ->
                             redisContainer.start()

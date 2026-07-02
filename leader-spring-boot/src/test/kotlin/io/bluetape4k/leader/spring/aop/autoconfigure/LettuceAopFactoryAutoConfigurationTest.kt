@@ -10,9 +10,7 @@ import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderElectorFactory
 import io.bluetape4k.leader.lettuce.LettuceSuspendLeaderGroupElectorFactory
 import io.bluetape4k.leader.spring.LeaderTestApplication
 import io.bluetape4k.logging.KLogging
-import io.bluetape4k.support.closeSafe
 import io.bluetape4k.testcontainers.storage.RedisServer
-import io.bluetape4k.utils.ShutdownQueue
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.codec.StringCodec
@@ -42,24 +40,16 @@ class LettuceAopFactoryAutoConfigurationTest {
 
     companion object : KLogging() {
         val redis = RedisServer.Launcher.redis
-
-        val redisClient: RedisClient by lazy {
-            RedisClient.create(redis.url).also {
-                ShutdownQueue.register { runCatching { it.shutdown() } }
-            }
-        }
-
-        val redisConnection: StatefulRedisConnection<String, String> by lazy {
-            redisClient.connect(StringCodec.UTF8).also {
-                ShutdownQueue.register { it.closeSafe() }
-            }
-        }
     }
 
     @TestConfiguration
     open class TestConfig {
-        @Bean
-        fun statefulRedisConnection(): StatefulRedisConnection<String, String> = redisConnection
+        @Bean(destroyMethod = "shutdown")
+        fun redisClient(): RedisClient = RedisClient.create(redis.url)
+
+        @Bean(destroyMethod = "close")
+        fun statefulRedisConnection(redisClient: RedisClient): StatefulRedisConnection<String, String> =
+            redisClient.connect(StringCodec.UTF8)
     }
 
     @Autowired

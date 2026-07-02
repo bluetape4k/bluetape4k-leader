@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.spring.aop.autoconfigure
 
+import com.mongodb.client.MongoClient
+import com.mongodb.kotlin.client.coroutine.MongoClient as CoroutineMongoClient
 import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.LeaderGroupElectorFactory
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
@@ -12,7 +14,6 @@ import io.bluetape4k.leader.mongodb.lock.MongoLock
 import io.bluetape4k.leader.spring.LeaderTestApplication
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.testcontainers.storage.MongoDBServer
-import io.bluetape4k.utils.ShutdownQueue
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import org.bson.Document
 import org.junit.jupiter.api.Test
@@ -23,6 +24,8 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
+
+private const val LEADER_AOP_AUTOCONFIG_DB = "leader_aop_autoconfig_test"
 
 /**
  * [LeaderAopFactoryAutoConfiguration.MongoFactoryConfig] / [LeaderAopFactoryAutoConfiguration.MongoSuspendFactoryConfig]
@@ -41,40 +44,37 @@ class MongoAopFactoryAutoConfigurationTest {
 
     companion object : KLogging() {
         val mongoServer = MongoDBServer.Launcher.mongoDB
-
-        val mongoClient by lazy {
-            MongoDBServer.Launcher.getClient().also {
-                ShutdownQueue.register { it.close() }
-            }
-        }
-
-        val coroutineMongoClient by lazy {
-            MongoDBServer.Launcher.getCoroutineClient().also {
-                ShutdownQueue.register { it.close() }
-            }
-        }
-
-        private val db by lazy { mongoClient.getDatabase("leader_aop_autoconfig_test") }
-        private val coroutineDb by lazy { coroutineMongoClient.getDatabase("leader_aop_autoconfig_test") }
     }
 
     @TestConfiguration
     open class TestConfig {
+        @Bean(destroyMethod = "close")
+        fun mongoClient(): MongoClient =
+            MongoDBServer.Launcher.getClient(mongoServer.url)
+
+        @Bean(destroyMethod = "close")
+        fun coroutineMongoClient(): CoroutineMongoClient =
+            MongoDBServer.Launcher.getCoroutineClient(mongoServer.url)
+
         @Bean(name = ["leaderLockMongoCollection"])
-        fun leaderLockMongoCollection(): com.mongodb.client.MongoCollection<Document> =
-            db.getCollection(MongoLock.LOCK_COLLECTION_NAME)
+        fun leaderLockMongoCollection(mongoClient: MongoClient): com.mongodb.client.MongoCollection<Document> =
+            mongoClient.getDatabase(LEADER_AOP_AUTOCONFIG_DB).getCollection(MongoLock.LOCK_COLLECTION_NAME)
 
         @Bean(name = ["leaderGroupLockMongoCollection"])
-        fun leaderGroupLockMongoCollection(): com.mongodb.client.MongoCollection<Document> =
-            db.getCollection(MongoLock.GROUP_LOCK_COLLECTION_NAME)
+        fun leaderGroupLockMongoCollection(mongoClient: MongoClient): com.mongodb.client.MongoCollection<Document> =
+            mongoClient.getDatabase(LEADER_AOP_AUTOCONFIG_DB).getCollection(MongoLock.GROUP_LOCK_COLLECTION_NAME)
 
         @Bean(name = ["leaderLockMongoCoroutineCollection"])
-        fun leaderLockMongoCoroutineCollection(): com.mongodb.kotlin.client.coroutine.MongoCollection<Document> =
-            coroutineDb.getCollection(MongoLock.LOCK_COLLECTION_NAME)
+        fun leaderLockMongoCoroutineCollection(
+            coroutineMongoClient: CoroutineMongoClient,
+        ): com.mongodb.kotlin.client.coroutine.MongoCollection<Document> =
+            coroutineMongoClient.getDatabase(LEADER_AOP_AUTOCONFIG_DB).getCollection(MongoLock.LOCK_COLLECTION_NAME)
 
         @Bean(name = ["leaderGroupLockMongoCoroutineCollection"])
-        fun leaderGroupLockMongoCoroutineCollection(): com.mongodb.kotlin.client.coroutine.MongoCollection<Document> =
-            coroutineDb.getCollection(MongoLock.GROUP_LOCK_COLLECTION_NAME)
+        fun leaderGroupLockMongoCoroutineCollection(
+            coroutineMongoClient: CoroutineMongoClient,
+        ): com.mongodb.kotlin.client.coroutine.MongoCollection<Document> =
+            coroutineMongoClient.getDatabase(LEADER_AOP_AUTOCONFIG_DB).getCollection(MongoLock.GROUP_LOCK_COLLECTION_NAME)
     }
 
     @Autowired
