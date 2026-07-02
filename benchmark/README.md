@@ -68,6 +68,13 @@ snapshot uses `contenders=8` and a short same-JVM measurement window. Raw JSON,
 commands, charts, and the full result table are stored under
 [`docs/benchmarks/2026-07-02-issue-521-contention-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-521-contention-benchmarks.md).
 
+Issue #522 adds Spring `@LeaderElection` advice overhead rows. The benchmark
+compares direct local elector calls with the Spring aspect path, splits static
+lock names from SpEL-derived lock names, and covers both blocking and suspend
+methods with no recorder and no-op recorder configurations. Raw JSON, commands,
+charts, and interpretation are stored under
+[`docs/benchmarks/2026-07-02-issue-522-spring-advice-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-522-spring-advice-benchmarks.md).
+
 ## Charts
 
 Distributed backend charts exclude the local and H2 rows so infrastructure
@@ -263,6 +270,58 @@ Full report and raw data:
 - [`docs/benchmarks/2026-07-02-issue-521-contention-local-throughput.json`](../docs/benchmarks/2026-07-02-issue-521-contention-local-throughput.json)
 - [`docs/benchmarks/2026-07-02-issue-521-contention-local-average-time.json`](../docs/benchmarks/2026-07-02-issue-521-contention-local-average-time.json)
 
+## Leader Spring Advice Results
+
+Higher is better for throughput. Lower is better for average time. These issue
+#522 rows use local electors so backend I/O does not hide Spring advice
+overhead. Both charts use a log scale because direct suspend, direct blocking,
+static advice, and SpEL advice differ by more than one order of magnitude.
+
+![Spring advice throughput](../docs/images/readme-charts/leader-spring-advice-throughput-chart-01.png)
+
+![Spring advice latency](../docs/images/readme-charts/leader-spring-advice-latency-chart-01.png)
+
+| Benchmark | Instrumentation | Throughput (ops/s) | Average time (us/op) |
+|---|---:|---:|---:|
+| direct sync | none | 2,255,925 | 0.44 |
+| direct sync | noop | 2,258,324 | 0.44 |
+| advice sync static | none | 1,718,542 | 0.56 |
+| advice sync static | noop | 1,691,326 | 0.58 |
+| advice sync SpEL | none | 1,034,113 | 0.94 |
+| advice sync SpEL | noop | 1,030,415 | 0.99 |
+| direct suspend | none | 28,987,468 | 0.035 |
+| direct suspend | noop | 29,639,156 | 0.036 |
+| advice suspend static | none | 544,163 | 1.70 |
+| advice suspend static | noop | 592,620 | 1.66 |
+| advice suspend SpEL | none | 449,808 | 2.21 |
+| advice suspend SpEL | noop | 451,542 | 2.25 |
+
+### Interpretation
+
+The blocking static-name advice path is close to the direct local elector
+baseline in absolute terms: this short run measured about 0.56 us/op for static
+advice compared with 0.44 us/op for direct blocking execution. The SpEL row is
+slower because it evaluates the lock-name expression against method arguments
+on every invocation.
+
+The suspend direct baseline is intentionally tiny in this local fixture, so the
+relative gap to Spring advice looks large. The absolute advice cost is the more
+useful signal: static suspend advice is about 1.7 us/op and SpEL suspend advice
+is about 2.2 us/op. Around real Redis, MongoDB, ZooKeeper, Kubernetes, or JDBC
+locks, backend coordination will normally dominate those local framework costs.
+
+`instrumentation=noop` installs the no-op AOP metrics recorder. It does not
+materially change the shape here; small differences are within the short JMH
+run's noise. Real Micrometer registry overhead remains a separate benchmark
+concern so this section stays focused on advice dispatch and expression
+evaluation.
+
+Full report and raw data:
+
+- [`docs/benchmarks/2026-07-02-issue-522-spring-advice-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-522-spring-advice-benchmarks.md)
+- [`docs/benchmarks/2026-07-02-issue-522-spring-advice-throughput.json`](../docs/benchmarks/2026-07-02-issue-522-spring-advice-throughput.json)
+- [`docs/benchmarks/2026-07-02-issue-522-spring-advice-average-time.json`](../docs/benchmarks/2026-07-02-issue-522-spring-advice-average-time.json)
+
 ## Redis Lease Extension Results
 
 Higher is better for throughput. Lower is better for average time.
@@ -438,6 +497,7 @@ latest self-improve section above for issue #329 after numbers.
 | `SuspendLeaderContentionElectorBenchmark` | Suspend contention and skip-path rows across Redis, Exposed R2DBC H2, MongoDB, and ZooKeeper |
 | `LocalBlockingLeaderContentionElectorBenchmark` | Local blocking contention baseline with shared in-process lock state |
 | `LocalSuspendLeaderContentionElectorBenchmark` | Local suspend positive-wait contention baseline with shared in-process lock state |
+| `SpringLeaderAdviceBenchmark` | Spring `@LeaderElection` AOP overhead against local blocking and suspend elector baselines |
 | `AutoExtendBackendLeaderElectorBenchmark` | Blocking Local and MongoDB normal vs shared `autoExtend` lease-extension rows |
 | `SuspendAutoExtendBackendLeaderElectorBenchmark` | Suspend Local and MongoDB normal vs shared `autoExtend` lease-extension rows |
 | `KubernetesBackendLeaderElectorBenchmark` | Blocking and suspend `runIfLeader` against K3s-backed Kubernetes Lease locks on a separate Vert.x 4 runtime |
