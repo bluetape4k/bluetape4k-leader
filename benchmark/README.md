@@ -54,6 +54,13 @@ that MongoDB stayed slower but too noisy for a narrow tuning target. Raw JSON
 and the decision record are stored under
 [`docs/benchmarks/2026-06-05-issue-414-mongodb-suspend-repeat.md`](../docs/benchmarks/2026-06-05-issue-414-mongodb-suspend-repeat.md).
 
+Issue #520 adds group-semaphore benchmark rows for `maxLeaders` 1, 2, and 8,
+covering free-slot, saturated-skip, mixed-slot, active-count, and state
+snapshot paths. The README chart snapshot uses `maxLeaders=2` and a short
+same-JVM measurement window so the grouped backend shape is visible without a
+full release-grade run. Raw JSON and the full result table are stored under
+[`docs/benchmarks/2026-07-02-issue-520-leader-group-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-520-leader-group-benchmarks.md).
+
 ## Charts
 
 Distributed backend charts exclude the local and H2 rows so infrastructure
@@ -63,6 +70,14 @@ table because it runs on a separate runtime classpath.
 ![Leader benchmark distributed throughput](../docs/images/readme-charts/leader-benchmark-distributed-throughput-chart-01.png)
 
 ![Leader benchmark distributed latency](../docs/images/readme-charts/leader-benchmark-distributed-latency-chart-01.png)
+
+Issue #520 group-semaphore charts also exclude local and blocking H2 rows and
+use a log scale because free-slot, mixed-slot, and saturated-skip paths have
+very different magnitudes.
+
+![Leader group semaphore throughput](../docs/images/readme-charts/leader-group-throughput-chart-01.png)
+
+![Leader group semaphore latency](../docs/images/readme-charts/leader-group-latency-chart-01.png)
 
 Issue #329 also records a history-recorder before/after comparison from the
 same benchmark harness.
@@ -88,6 +103,40 @@ Details:
 ## Cross-Backend Results
 
 Higher is better for throughput. Lower is better for average time.
+
+## Leader Group Semaphore Results
+
+Higher is better for throughput. Lower is better for average time. These rows
+are the remote-backend `maxLeaders=2` chart snapshot from issue #520. Local and
+blocking H2 rows are preserved in the full benchmark report instead of the
+README table.
+
+| API | Scenario | Backend | Throughput (ops/s) | Average time (us/op) |
+|---|---|---|---:|---:|
+| Blocking | Free slot | lettuce | 806.3 | 1,010 |
+| Blocking | Free slot | redisson | 902.4 | 1,017 |
+| Blocking | Free slot | mongo | 344.5 | 3,370 |
+| Blocking | Free slot | zookeeper | 209.2 | 4,605 |
+| Blocking | Mixed slots | lettuce | 1,543 | 2,029 |
+| Blocking | Mixed slots | redisson | 963.4 | 989.9 |
+| Blocking | Mixed slots | mongo | 75.87 | 13,146 |
+| Blocking | Mixed slots | zookeeper | 247.5 | 4,745 |
+| Blocking | Saturated skip | lettuce | 35.89 | 27,693 |
+| Blocking | Saturated skip | redisson | 36.36 | 27,597 |
+| Blocking | Saturated skip | mongo | 35.2 | 27,234 |
+| Blocking | Saturated skip | zookeeper | 32.88 | 29,086 |
+| Suspend | Free slot | lettuce | 1,315 | 770.2 |
+| Suspend | Free slot | redisson | 919.3 | 1,062 |
+| Suspend | Free slot | mongo | 297 | 3,298 |
+| Suspend | Free slot | zookeeper | 211.8 | 4,348 |
+| Suspend | Mixed slots | lettuce | 1,396 | 684.1 |
+| Suspend | Mixed slots | redisson | 1,104 | 971.9 |
+| Suspend | Mixed slots | mongo | 82.79 | 10,747 |
+| Suspend | Mixed slots | zookeeper | 276.7 | 4,017 |
+| Suspend | Saturated skip | lettuce | 36.34 | 27,447 |
+| Suspend | Saturated skip | redisson | 24.69 | 44,784 |
+| Suspend | Saturated skip | mongo | 36.03 | 26,808 |
+| Suspend | Saturated skip | zookeeper | 32.05 | 31,188 |
 
 ## Redis Lease Extension Results
 
@@ -258,6 +307,8 @@ latest self-improve section above for issue #329 after numbers.
 | `SuspendBackendLeaderElectorBenchmark` | Suspend `runIfLeader` across local, Redis, Exposed R2DBC H2/PostgreSQL/MySQL, MongoDB, Hazelcast, ZooKeeper, Consul, etcd, and DynamoDB |
 | `RedisLeaseExtensionBenchmark` | Blocking Lettuce and Redisson normal vs shared `autoExtend` lease-extension rows |
 | `SuspendRedisLeaseExtensionBenchmark` | Suspend Lettuce and Redisson normal vs shared `autoExtend` lease-extension rows |
+| `LeaderGroupElectorBenchmark` | Blocking group-semaphore rows across local, Redis, Exposed JDBC H2, MongoDB, and ZooKeeper |
+| `SuspendLeaderGroupElectorBenchmark` | Suspend group-semaphore rows across local, Redis, MongoDB, and ZooKeeper |
 | `AutoExtendBackendLeaderElectorBenchmark` | Blocking Local and MongoDB normal vs shared `autoExtend` lease-extension rows |
 | `SuspendAutoExtendBackendLeaderElectorBenchmark` | Suspend Local and MongoDB normal vs shared `autoExtend` lease-extension rows |
 | `KubernetesBackendLeaderElectorBenchmark` | Blocking and suspend `runIfLeader` against K3s-backed Kubernetes Lease locks on a separate Vert.x 4 runtime |
