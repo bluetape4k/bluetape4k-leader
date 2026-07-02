@@ -105,6 +105,9 @@ dependencies {
     add("benchmarkImplementation", libs.kotlinx.benchmark.runtime)
     add("benchmarkImplementation", libs.kotlinx.benchmark.runtime.jvm)
     add("benchmarkImplementation", libs.jmh.core)
+    add("benchmarkImplementation", platform(libs.spring.boot4.dependencies))
+    add("benchmarkImplementation", platform(libs.kotlin.bom))
+    add("benchmarkImplementation", platform(libs.kotlinx.coroutines.bom))
 
     add("benchmarkImplementation", project(":bluetape4k-leader-core"))
     add("benchmarkImplementation", project(":bluetape4k-leader-redis-lettuce"))
@@ -117,6 +120,7 @@ dependencies {
     add("benchmarkImplementation", project(":bluetape4k-leader-consul"))
     add("benchmarkImplementation", project(":bluetape4k-leader-etcd"))
     add("benchmarkImplementation", project(":bluetape4k-leader-dynamodb"))
+    add("benchmarkImplementation", project(":bluetape4k-leader-spring-boot"))
 
     add("benchmarkImplementation", libs.bluetape4k.testcontainers)
     add("benchmarkImplementation", libs.bluetape4k.virtualthread.jdk21)
@@ -132,6 +136,7 @@ dependencies {
     add("benchmarkImplementation", libs.testcontainers.postgresql)
     add("benchmarkImplementation", libs.testcontainers.mysql)
     add("benchmarkImplementation", libs.kotlinx.coroutines.core)
+    add("benchmarkImplementation", libs.kotlinx.coroutines.reactor)
 
     add("benchmarkRuntimeOnly", libs.logback)
     add("benchmarkRuntimeOnly", libs.jcl.over.slf4j)

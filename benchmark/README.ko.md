@@ -73,6 +73,13 @@ JSON, 실행 command, 차트, 전체 결과 표는
 [`docs/benchmarks/2026-07-02-issue-521-contention-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-521-contention-benchmarks.md)에
 보존했습니다.
 
+Issue #522는 Spring `@LeaderElection` advice overhead 행을 추가합니다. Direct
+local elector 호출과 Spring aspect 경로를 비교하고, static lock name과
+SpEL-derived lock name을 분리하며, blocking 및 suspend method를 no recorder와
+no-op recorder 설정으로 측정합니다. 원본 JSON, 실행 command, 차트, 해석은
+[`docs/benchmarks/2026-07-02-issue-522-spring-advice-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-522-spring-advice-benchmarks.md)에
+보존했습니다.
+
 ## Charts
 
 분산 환경 backend 차트는 infrastructure backend 간 차이가 보이도록 local
@@ -268,6 +275,56 @@ immediate skip은 held-lock scenario로 검증합니다.
 - [`docs/benchmarks/2026-07-02-issue-521-contention-local-throughput.json`](../docs/benchmarks/2026-07-02-issue-521-contention-local-throughput.json)
 - [`docs/benchmarks/2026-07-02-issue-521-contention-local-average-time.json`](../docs/benchmarks/2026-07-02-issue-521-contention-local-average-time.json)
 
+## Leader Spring Advice Results
+
+Throughput은 높을수록 좋고, average time은 낮을수록 좋습니다. Issue #522의 이
+행들은 backend I/O가 Spring advice overhead를 가리지 않도록 local elector를
+사용합니다. Direct suspend, direct blocking, static advice, SpEL advice의 규모
+차이가 한 자릿수 이상 벌어져 두 차트 모두 log scale을 사용합니다.
+
+![Spring advice throughput](../docs/images/readme-charts/leader-spring-advice-throughput-chart-01.png)
+
+![Spring advice latency](../docs/images/readme-charts/leader-spring-advice-latency-chart-01.png)
+
+| Benchmark | Instrumentation | Throughput (ops/s) | Average time (us/op) |
+|---|---:|---:|---:|
+| direct sync | none | 2,255,925 | 0.44 |
+| direct sync | noop | 2,258,324 | 0.44 |
+| advice sync static | none | 1,718,542 | 0.56 |
+| advice sync static | noop | 1,691,326 | 0.58 |
+| advice sync SpEL | none | 1,034,113 | 0.94 |
+| advice sync SpEL | noop | 1,030,415 | 0.99 |
+| direct suspend | none | 28,987,468 | 0.035 |
+| direct suspend | noop | 29,639,156 | 0.036 |
+| advice suspend static | none | 544,163 | 1.70 |
+| advice suspend static | noop | 592,620 | 1.66 |
+| advice suspend SpEL | none | 449,808 | 2.21 |
+| advice suspend SpEL | noop | 451,542 | 2.25 |
+
+### 해석
+
+Blocking static-name advice 경로는 절대값 기준으로 direct local elector 기준선과
+가깝습니다. 이 짧은 실행에서는 direct blocking이 0.44 us/op, static advice가
+약 0.56 us/op로 측정되었습니다. SpEL 행은 method argument를 기준으로 lock-name
+expression을 매번 평가하기 때문에 더 느립니다.
+
+Suspend direct baseline은 local fixture에서 의도적으로 매우 작기 때문에 Spring
+advice와의 상대 차이는 크게 보입니다. 더 유용한 신호는 절대 advice 비용입니다.
+Static suspend advice는 약 1.7 us/op, SpEL suspend advice는 약 2.2 us/op입니다.
+실제 Redis, MongoDB, ZooKeeper, Kubernetes, JDBC lock 주변에서는 보통 backend
+coordination 비용이 이 local framework 비용보다 큽니다.
+
+`instrumentation=noop`는 no-op AOP metrics recorder를 설치합니다. 여기서는 전체
+형태를 실질적으로 바꾸지 않았고, 작은 차이는 짧은 JMH 실행의 noise 범위로 봐야
+합니다. Real Micrometer registry overhead는 별도 benchmark 주제로 남겨, 이
+섹션은 advice dispatch와 expression evaluation에 집중합니다.
+
+전체 report와 원본 데이터:
+
+- [`docs/benchmarks/2026-07-02-issue-522-spring-advice-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-522-spring-advice-benchmarks.md)
+- [`docs/benchmarks/2026-07-02-issue-522-spring-advice-throughput.json`](../docs/benchmarks/2026-07-02-issue-522-spring-advice-throughput.json)
+- [`docs/benchmarks/2026-07-02-issue-522-spring-advice-average-time.json`](../docs/benchmarks/2026-07-02-issue-522-spring-advice-average-time.json)
+
 ## Redis Lease Extension Results
 
 Throughput은 높을수록 좋고, average time은 낮을수록 좋습니다.
@@ -446,6 +503,7 @@ source set에서 별도로 실행합니다.
 | `SuspendLeaderContentionElectorBenchmark` | Suspend contention 및 skip-path 행: Redis, Exposed R2DBC H2, MongoDB, ZooKeeper |
 | `LocalBlockingLeaderContentionElectorBenchmark` | Shared in-process lock state를 사용하는 local blocking contention 기준선 |
 | `LocalSuspendLeaderContentionElectorBenchmark` | Shared in-process lock state를 사용하는 local suspend positive-wait contention 기준선 |
+| `SpringLeaderAdviceBenchmark` | Local blocking 및 suspend elector 기준선 대비 Spring `@LeaderElection` AOP overhead |
 | `AutoExtendBackendLeaderElectorBenchmark` | Blocking Local/MongoDB 일반 실행과 shared `autoExtend` lease-extension 행 |
 | `SuspendAutoExtendBackendLeaderElectorBenchmark` | Suspend Local/MongoDB 일반 실행과 shared `autoExtend` lease-extension 행 |
 | `KubernetesBackendLeaderElectorBenchmark` | 별도 Vert.x 4 runtime에서 K3s 기반 Kubernetes Lease lock의 blocking/suspend `runIfLeader` 측정 |

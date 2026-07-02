@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1580" height="826" viewBox="0 0 1580 826" role="img" aria-labelledby="title desc">
+<title id="title">Spring Advice Average Time</title>
+<desc id="desc">us/op, lower is better. Issue #522 local-elector Spring AOP overhead snapshot, log scale.</desc>
+<style>.title{font-family:'Architects Daughter','Comic Sans MS',cursive;font-size:36px;fill:#1f2937;}.subtitle,.axis,.label,.value,.legend,.note{font-family:'Comic Mono','Comic Sans MS','SFMono-Regular',monospace;fill:#64748b;}.subtitle{font-size:16px;}.axis{font-size:12px;}.label{font-size:14px;fill:#1f2937;}.value{font-size:12px;fill:#1f2937;}.group{font-family:'Architects Daughter','Comic Sans MS',cursive;font-size:22px;fill:#1f2937;}.legend{font-size:13px;fill:#1f2937;}.note{font-size:13px;}</style>
+<rect width="1580" height="826" fill="#f8fafc"/>
+<text x="54" y="58" class="title">Spring Advice Average Time</text>
+<text x="54" y="90" class="subtitle">us/op, lower is better. Issue #522 local-elector Spring AOP overhead snapshot, log scale.</text>
+<rect x="54" y="114" width="16" height="16" rx="4" fill="#5cc8a7"/><text x="78" y="128" class="legend">instrumentation=none</text>
+<rect x="278" y="114" width="16" height="16" rx="4" fill="#8ab4f8"/><text x="302" y="128" class="legend">instrumentation=noop recorder</text>
+<line x1="360.00" y1="184" x2="360.00" y2="756" stroke="#d9e2ec" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="360.00" y="174" class="axis" text-anchor="middle">0.03</text>
+<line x1="637.13" y1="184" x2="637.13" y2="756" stroke="#d9e2ec" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="637.13" y="174" class="axis" text-anchor="middle">0.1</text>
+<line x1="890.00" y1="184" x2="890.00" y2="756" stroke="#d9e2ec" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="890.00" y="174" class="axis" text-anchor="middle">0.3</text>
+<line x1="1167.13" y1="184" x2="1167.13" y2="756" stroke="#d9e2ec" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="1167.13" y="174" class="axis" text-anchor="middle">1</text>
+<line x1="1420.00" y1="184" x2="1420.00" y2="756" stroke="#d9e2ec" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="1420.00" y="174" class="axis" text-anchor="middle">3</text>
+<text x="54" y="203" class="group">Blocking API</text>
+<text x="342" y="228" class="label" text-anchor="end">direct sync / none</text>
+<rect x="360" y="214" width="620.49" height="16" rx="4" fill="#5cc8a7"/>
+<text x="990.49" y="228" class="value">0.44 us/op</text>
+<text x="342" y="262" class="label" text-anchor="end">direct sync / noop</text>
+<rect x="360" y="248" width="618.15" height="16" rx="4" fill="#8ab4f8"/>
+<text x="988.15" y="262" class="value">0.44 us/op</text>
+<text x="342" y="296" class="label" text-anchor="end">advice sync static / none</text>
+<rect x="360" y="282" width="673.33" height="16" rx="4" fill="#5cc8a7"/>
+<text x="1043.33" y="296" class="value">0.56 us/op</text>
+<text x="342" y="330" class="label" text-anchor="end">advice sync static / noop</text>
+<rect x="360" y="316" width="681.93" height="16" rx="4" fill="#8ab4f8"/>
+<text x="1051.93" y="330" class="value">0.58 us/op</text>
+<text x="342" y="364" class="label" text-anchor="end">advice sync SpEL / none</text>
+<rect x="360" y="350" width="793.77" height="16" rx="4" fill="#5cc8a7"/>
+<text x="1163.77" y="364" class="value">0.94 us/op</text>
+<text x="342" y="398" class="label" text-anchor="end">advice sync SpEL / noop</text>
+<rect x="360" y="384" width="804.60" height="16" rx="4" fill="#8ab4f8"/>
+<text x="1174.60" y="398" class="value">0.99 us/op</text>
+<text x="54" y="455" class="group">Suspend API</text>
+<text x="342" y="480" class="label" text-anchor="end">direct suspend / none</text>
+<rect x="360" y="466" width="38.67" height="16" rx="4" fill="#5cc8a7"/>
+<text x="408.67" y="480" class="value">0.035 us/op</text>
+<text x="342" y="514" class="label" text-anchor="end">direct suspend / noop</text>
+<rect x="360" y="500" width="40.64" height="16" rx="4" fill="#8ab4f8"/>
+<text x="410.64" y="514" class="value">0.036 us/op</text>
+<text x="342" y="548" class="label" text-anchor="end">advice suspend static / none</text>
+<rect x="360" y="534" width="928.99" height="16" rx="4" fill="#5cc8a7"/>
+<text x="1298.99" y="548" class="value">1.70 us/op</text>
+<text x="342" y="582" class="label" text-anchor="end">advice suspend static / noop</text>
+<rect x="360" y="568" width="924.08" height="16" rx="4" fill="#8ab4f8"/>
+<text x="1294.08" y="582" class="value">1.66 us/op</text>
+<text x="342" y="616" class="label" text-anchor="end">advice suspend SpEL / none</text>
+<rect x="360" y="602" width="990.07" height="16" rx="4" fill="#5cc8a7"/>
+<text x="1360.07" y="616" class="value">2.21 us/op</text>
+<text x="342" y="650" class="label" text-anchor="end">advice suspend SpEL / noop</text>
+<rect x="360" y="636" width="993.80" height="16" rx="4" fill="#8ab4f8"/>
+<text x="1363.80" y="650" class="value">2.25 us/op</text>
+<text x="54" y="790" class="note">Lower is better; JMH fork=1, warmup=1x500 ms, measurement=2x500 ms, local elector fixture.</text>
+</svg>
