@@ -75,14 +75,6 @@ snapshot 경로를 함께 측정합니다. README 차트 snapshot은 `maxLeaders
 
 ![Leader benchmark distributed latency](../docs/images/readme-charts/leader-benchmark-distributed-latency-chart-01.png)
 
-Issue #520 group-semaphore 차트도 local 및 blocking H2 행을 제외하고 log
-scale을 사용합니다. free-slot, mixed-slot, saturated-skip 경로의 규모 차이가
-커서 분산 backend 비교가 묻히지 않게 하기 위함입니다.
-
-![Leader group semaphore throughput](../docs/images/readme-charts/leader-group-throughput-chart-01.png)
-
-![Leader group semaphore latency](../docs/images/readme-charts/leader-group-latency-chart-01.png)
-
 Issue #329는 같은 benchmark harness로 history recorder 전/후 비교도
 기록합니다.
 
@@ -114,6 +106,14 @@ Throughput은 높을수록 좋고, average time은 낮을수록 좋습니다. �
 issue #520의 remote-backend `maxLeaders=2` chart snapshot입니다. Local 및
 blocking H2 행은 README 표 대신 전체 benchmark report에 보존했습니다.
 
+Issue #520 group-semaphore 차트도 local 및 blocking H2 행을 제외하고 log
+scale을 사용합니다. free-slot, mixed-slot, saturated-skip 경로의 규모 차이가
+커서 분산 backend 비교가 묻히지 않게 하기 위함입니다.
+
+![Leader group semaphore throughput](../docs/images/readme-charts/leader-group-throughput-chart-01.png)
+
+![Leader group semaphore latency](../docs/images/readme-charts/leader-group-latency-chart-01.png)
+
 | API | Scenario | Backend | Throughput (ops/s) | Average time (us/op) |
 |---|---|---|---:|---:|
 | Blocking | Free slot | lettuce | 806.3 | 1,010 |
@@ -140,6 +140,36 @@ blocking H2 행은 README 표 대신 전체 benchmark report에 보존했습니�
 | Suspend | Saturated skip | redisson | 24.69 | 44,784 |
 | Suspend | Saturated skip | mongo | 36.03 | 26,808 |
 | Suspend | Saturated skip | zookeeper | 32.05 | 31,188 |
+
+### 해석
+
+이 결과는 warmup 없이 fork 1, 200 ms measurement 1회로 빠르게 측정한
+same-JVM `maxLeaders=2` snapshot입니다. Backend의 상대적인 모양과
+group-semaphore 경로의 smoke 검증에는 유용하지만, release-grade 순위표로
+해석하면 안 됩니다.
+
+Free-slot 행은 group에 여유 slot이 있을 때의 acquire 경로를 측정합니다.
+Mixed-slot 행은 `maxLeaders - 1`개 slot을 미리 점유한 상태에서 마지막 남은
+slot을 획득하는 경로입니다. Saturated-skip 행은 더 이상 slot이 없을 때
+설정된 wait 경로를 측정합니다.
+
+Local 및 blocking H2 행은 전체 report에 보존했지만 README 표와 차트에서는
+제외했습니다. 이 행들은 framework 또는 storage 형태의 기준선이라 함께
+보여주면 remote backend 간 규모가 눌려 보입니다. Saturated-skip 행은 대략
+25 ms wait window당 한 번의 operation으로 모이기 때문에, 이 구간에서는
+backend 차이보다 wait 정책이 결과를 지배합니다.
+
+이 짧은 실행에서는 Lettuce와 Redisson이 대부분의 remote free-slot 및
+mixed-slot 행에서 앞섭니다. MongoDB는 특히 mixed-slot 행에서 더 느리고
+노이즈가 큽니다. ZooKeeper는 비교적 일관적이지만 Redis backend보다
+free-slot latency가 큽니다. Log-scale 차트는 훨씬 빠른 free-slot 및
+mixed-slot 경로 옆에서도 saturated 행을 읽을 수 있게 하기 위한 선택입니다.
+
+전체 report와 원본 데이터:
+
+- [`docs/benchmarks/2026-07-02-issue-520-leader-group-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-520-leader-group-benchmarks.md)
+- [`docs/benchmarks/2026-07-02-issue-520-leader-group-throughput.json`](../docs/benchmarks/2026-07-02-issue-520-leader-group-throughput.json)
+- [`docs/benchmarks/2026-07-02-issue-520-leader-group-average-time.json`](../docs/benchmarks/2026-07-02-issue-520-leader-group-average-time.json)
 
 ## Redis Lease Extension Results
 

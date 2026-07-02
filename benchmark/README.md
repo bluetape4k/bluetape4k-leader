@@ -71,14 +71,6 @@ table because it runs on a separate runtime classpath.
 
 ![Leader benchmark distributed latency](../docs/images/readme-charts/leader-benchmark-distributed-latency-chart-01.png)
 
-Issue #520 group-semaphore charts also exclude local and blocking H2 rows and
-use a log scale because free-slot, mixed-slot, and saturated-skip paths have
-very different magnitudes.
-
-![Leader group semaphore throughput](../docs/images/readme-charts/leader-group-throughput-chart-01.png)
-
-![Leader group semaphore latency](../docs/images/readme-charts/leader-group-latency-chart-01.png)
-
 Issue #329 also records a history-recorder before/after comparison from the
 same benchmark harness.
 
@@ -111,6 +103,14 @@ are the remote-backend `maxLeaders=2` chart snapshot from issue #520. Local and
 blocking H2 rows are preserved in the full benchmark report instead of the
 README table.
 
+Issue #520 group-semaphore charts also exclude local and blocking H2 rows and
+use a log scale because free-slot, mixed-slot, and saturated-skip paths have
+very different magnitudes.
+
+![Leader group semaphore throughput](../docs/images/readme-charts/leader-group-throughput-chart-01.png)
+
+![Leader group semaphore latency](../docs/images/readme-charts/leader-group-latency-chart-01.png)
+
 | API | Scenario | Backend | Throughput (ops/s) | Average time (us/op) |
 |---|---|---|---:|---:|
 | Blocking | Free slot | lettuce | 806.3 | 1,010 |
@@ -137,6 +137,35 @@ README table.
 | Suspend | Saturated skip | redisson | 24.69 | 44,784 |
 | Suspend | Saturated skip | mongo | 36.03 | 26,808 |
 | Suspend | Saturated skip | zookeeper | 32.05 | 31,188 |
+
+### Interpretation
+
+This is a quick same-JVM `maxLeaders=2` snapshot with no warmup, one fork, and a
+single 200 ms measurement iteration. Use it to compare backend shape and smoke
+the group-semaphore paths, not as a release-grade ranking.
+
+Free-slot rows measure acquisition when a group still has capacity. Mixed-slot
+rows keep `maxLeaders - 1` slots held and measure the final available slot.
+Saturated-skip rows measure the configured wait path when no slots are
+available.
+
+Local and blocking H2 rows are preserved in the full report, but they are
+omitted from the README table and charts because they are framework or storage
+shape baselines that compress the remote-backend scale. Saturated-skip rows
+cluster around one operation per roughly 25 ms wait window, so the wait policy
+hides most backend differences there.
+
+Lettuce and Redisson lead most remote free-slot and mixed-slot rows in this
+short run. MongoDB is slower and noisier, especially in mixed-slot rows.
+ZooKeeper stays consistent but has higher free-slot latency than the Redis
+backends. The log-scale charts keep saturated rows visible beside the much
+faster free-slot and mixed-slot paths.
+
+Full report and raw data:
+
+- [`docs/benchmarks/2026-07-02-issue-520-leader-group-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-520-leader-group-benchmarks.md)
+- [`docs/benchmarks/2026-07-02-issue-520-leader-group-throughput.json`](../docs/benchmarks/2026-07-02-issue-520-leader-group-throughput.json)
+- [`docs/benchmarks/2026-07-02-issue-520-leader-group-average-time.json`](../docs/benchmarks/2026-07-02-issue-520-leader-group-average-time.json)
 
 ## Redis Lease Extension Results
 
