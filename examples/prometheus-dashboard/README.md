@@ -52,6 +52,8 @@ The demo also logs leader observations from a local `ObservationHandler`; disabl
 
 `application.yml` enables the leader Observation bridge with safe defaults:
 
+![leader metrics and Observation tracing bridge architecture](../../docs/images/readme-diagrams/leader-micrometer-architecture-01.png)
+
 ```yaml
 bluetape4k:
   leader:
