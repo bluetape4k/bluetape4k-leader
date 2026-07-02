@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="900" viewBox="0 0 1240 900">
+<rect width="1240" height="900" fill="#f8f6ef"/>
+<style>text{font-family:"Comic Mono","Comic Sans MS","Comic Neue",Arial,sans-serif;fill:#24313f}.title{font-family:"Architects Daughter","Comic Sans MS",cursive;font-size:34px}.sub{font-size:15px;fill:#5f6b76}.axis{font-size:13px;fill:#687480}.label{font-size:15px}.value{font-size:14px;font-weight:700}.legend{font-size:14px}</style>
+<text x="620.0" y="52" text-anchor="middle" class="title">History Recorder Observability Throughput</text>
+<text x="620.0" y="82" text-anchor="middle" class="sub">Issue #523 - metadataMode=small - one fork, one thread, 1 warmup, 2 x 500 ms measurements</text>
+<line x1="320" y1="107" x2="320" y2="792" stroke="#d4cec0" stroke-width="1"/>
+<line x1="320.0" y1="107" x2="320.0" y2="792" stroke="#e2dccf" stroke-width="1"/>
+<text x="320.0" y="817" text-anchor="middle" class="axis">0.0M</text>
+<line x1="507.5" y1="107" x2="507.5" y2="792" stroke="#e2dccf" stroke-width="1"/>
+<text x="507.5" y="817" text-anchor="middle" class="axis">15.5M</text>
+<line x1="695.0" y1="107" x2="695.0" y2="792" stroke="#e2dccf" stroke-width="1"/>
+<text x="695.0" y="817" text-anchor="middle" class="axis">31.1M</text>
+<line x1="882.5" y1="107" x2="882.5" y2="792" stroke="#e2dccf" stroke-width="1"/>
+<text x="882.5" y="817" text-anchor="middle" class="axis">46.6M</text>
+<line x1="1070.0" y1="107" x2="1070.0" y2="792" stroke="#e2dccf" stroke-width="1"/>
+<text x="1070.0" y="817" text-anchor="middle" class="axis">62.2M</text>
+<text x="302" y="148" text-anchor="end" class="label">Blocking Noop Completed</text>
+<rect x="320" y="132" width="750.0" height="24" rx="5" fill="#4f86c6" opacity="0.86"/>
+<text x="1080.0" y="149" class="value">62.2M</text>
+<text x="302" y="196" text-anchor="end" class="label">Blocking Noop Failed</text>
+<rect x="320" y="180" width="368.1" height="24" rx="5" fill="#4f86c6" opacity="0.86"/>
+<text x="698.1" y="197" class="value">30.5M</text>
+<text x="302" y="244" text-anchor="end" class="label">Blocking In-memory Completed</text>
+<rect x="320" y="228" width="227.8" height="24" rx="5" fill="#789262" opacity="0.86"/>
+<text x="557.8" y="245" class="value">18.9M</text>
+<text x="302" y="292" text-anchor="end" class="label">Blocking In-memory Failed</text>
+<rect x="320" y="276" width="172.0" height="24" rx="5" fill="#789262" opacity="0.86"/>
+<text x="502.0" y="293" class="value">14.3M</text>
+<text x="302" y="340" text-anchor="end" class="label">Blocking Micrometer Completed</text>
+<rect x="320" y="324" width="217.6" height="24" rx="5" fill="#b57a4a" opacity="0.86"/>
+<text x="547.6" y="341" class="value">18.0M</text>
+<text x="302" y="388" text-anchor="end" class="label">Blocking Micrometer Failed</text>
+<rect x="320" y="372" width="167.9" height="24" rx="5" fill="#b57a4a" opacity="0.86"/>
+<text x="497.9" y="389" class="value">13.9M</text>
+<text x="302" y="436" text-anchor="end" class="label">Suspend Noop Completed</text>
+<rect x="320" y="420" width="283.3" height="24" rx="5" fill="#4f86c6" opacity="0.86"/>
+<text x="613.3" y="437" class="value">23.5M</text>
+<text x="302" y="484" text-anchor="end" class="label">Suspend Noop Failed</text>
+<rect x="320" y="468" width="204.0" height="24" rx="5" fill="#4f86c6" opacity="0.86"/>
+<text x="534.0" y="485" class="value">16.9M</text>
+<text x="302" y="532" text-anchor="end" class="label">Suspend In-memory Completed</text>
+<rect x="320" y="516" width="134.8" height="24" rx="5" fill="#789262" opacity="0.86"/>
+<text x="464.8" y="533" class="value">11.2M</text>
+<text x="302" y="580" text-anchor="end" class="label">Suspend In-memory Failed</text>
+<rect x="320" y="564" width="123.9" height="24" rx="5" fill="#789262" opacity="0.86"/>
+<text x="453.9" y="581" class="value">10.3M</text>
+<text x="302" y="628" text-anchor="end" class="label">Suspend Micrometer Completed</text>
+<rect x="320" y="612" width="140.8" height="24" rx="5" fill="#b57a4a" opacity="0.86"/>
+<text x="470.8" y="629" class="value">11.7M</text>
+<text x="302" y="676" text-anchor="end" class="label">Suspend Micrometer Failed</text>
+<rect x="320" y="660" width="115.3" height="24" rx="5" fill="#b57a4a" opacity="0.86"/>
+<text x="445.3" y="677" class="value">9.6M</text>
+<rect x="320" y="859" width="14" height="14" rx="3" fill="#4f86c6" opacity="0.86"/>
+<text x="342" y="872" class="legend">Noop</text>
+<rect x="470" y="859" width="14" height="14" rx="3" fill="#789262" opacity="0.86"/>
+<text x="492" y="872" class="legend">In-memory</text>
+<rect x="620" y="859" width="14" height="14" rx="3" fill="#b57a4a" opacity="0.86"/>
+<text x="642" y="872" class="legend">Micrometer</text>
+<text x="1070" y="872" text-anchor="end" class="legend">ops/s. Higher is better.</text>
+</svg>

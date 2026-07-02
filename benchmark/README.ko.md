@@ -80,6 +80,13 @@ no-op recorder 설정으로 측정합니다. 원본 JSON, 실행 command, 차트
 [`docs/benchmarks/2026-07-02-issue-522-spring-advice-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-522-spring-advice-benchmarks.md)에
 보존했습니다.
 
+Issue #523는 history recorder observability 행을 추가합니다. No-op, in-memory,
+Micrometer wrapper recorder를 비교하고, completed와 failed terminal state를
+분리하며, `empty`, `small`, `large` metadata mode를 실행합니다. 원본 JSON,
+차트, 해석은
+[`docs/benchmarks/2026-07-02-issue-523-history-recorder-observability.md`](../docs/benchmarks/2026-07-02-issue-523-history-recorder-observability.md)에
+보존했습니다.
+
 ## Charts
 
 분산 환경 backend 차트는 infrastructure backend 간 차이가 보이도록 local
@@ -325,6 +332,58 @@ coordination 비용이 이 local framework 비용보다 큽니다.
 - [`docs/benchmarks/2026-07-02-issue-522-spring-advice-throughput.json`](../docs/benchmarks/2026-07-02-issue-522-spring-advice-throughput.json)
 - [`docs/benchmarks/2026-07-02-issue-522-spring-advice-average-time.json`](../docs/benchmarks/2026-07-02-issue-522-spring-advice-average-time.json)
 
+## Leader History Observability Results
+
+Throughput은 높을수록 좋고, average time은 낮을수록 좋습니다. Issue #523의 이
+행들은 recorder-only 행이며 README 표와 차트는 `metadataMode=small` snapshot을
+사용합니다. 전체 report와 원본 JSON에는 `empty`, `small`, `large` metadata
+mode가 모두 들어 있습니다.
+
+![History recorder observability throughput](../docs/images/readme-charts/leader-history-observability-throughput-chart-01.png)
+
+![History recorder observability latency](../docs/images/readme-charts/leader-history-observability-latency-chart-01.png)
+
+| API | Recorder | Terminal | Metadata | Throughput (ops/s) | Average time (us/op) |
+|---|---|---|---|---:|---:|
+| Blocking | Noop | Completed | small | 62,153,981 | 0.0167 |
+| Blocking | Noop | Failed | small | 30,506,848 | 0.0323 |
+| Blocking | In-memory | Completed | small | 18,875,312 | 0.0545 |
+| Blocking | In-memory | Failed | small | 14,255,133 | 0.0715 |
+| Blocking | Micrometer | Completed | small | 18,031,147 | 0.0570 |
+| Blocking | Micrometer | Failed | small | 13,910,688 | 0.0709 |
+| Suspend | Noop | Completed | small | 23,477,969 | 0.0426 |
+| Suspend | Noop | Failed | small | 16,906,301 | 0.0635 |
+| Suspend | In-memory | Completed | small | 11,173,330 | 0.0860 |
+| Suspend | In-memory | Failed | small | 10,270,385 | 0.1035 |
+| Suspend | Micrometer | Completed | small | 11,671,342 | 0.0878 |
+| Suspend | Micrometer | Failed | small | 9,551,932 | 0.1031 |
+
+### 해석
+
+Small metadata 행에서는 Micrometer wrapper가 completed event 기준으로 in-memory
+recorder와 가깝게 나타납니다. 이 짧은 실행에서 blocking completed 행은
+in-memory 18.9M ops/s, Micrometer 18.0M ops/s였고, suspend completed 행은 각각
+11.2M ops/s와 11.7M ops/s였습니다. Suspend 행의 작은 역전은 throughput 장점이
+아니라 짧은 실행의 noise로 봐야 합니다.
+
+Failure 행은 `recordFailed`가 exception metadata를 추출하고 sanitize하기 때문에
+completed 행보다 느립니다. 더 큰 요인은 metadata 크기입니다. 전체 report에서는
+no-op blocking completed 행도 empty metadata 0.0026 us/op에서 large metadata
+0.2205 us/op로 증가합니다. Sink I/O가 없어도 recorder sanitizer 비용이 먼저
+보이는 것입니다.
+
+이 행들은 Spring advice나 backend lock acquisition overhead를 포함하지 않습니다.
+Spring advice dispatch 비용은 issue #522를, skipped 또는 not-elected behavior는
+issue #521을 참고하세요. 이 benchmark는 `SimpleMeterRegistry`를 사용하며,
+external metric backend, exporter, scrape/push 비용은 이 local snapshot 범위
+밖입니다.
+
+전체 report와 원본 데이터:
+
+- [`docs/benchmarks/2026-07-02-issue-523-history-recorder-observability.md`](../docs/benchmarks/2026-07-02-issue-523-history-recorder-observability.md)
+- [`docs/benchmarks/2026-07-02-issue-523-history-recorder-throughput.json`](../docs/benchmarks/2026-07-02-issue-523-history-recorder-throughput.json)
+- [`docs/benchmarks/2026-07-02-issue-523-history-recorder-average-time.json`](../docs/benchmarks/2026-07-02-issue-523-history-recorder-average-time.json)
+
 ## Redis Lease Extension Results
 
 Throughput은 높을수록 좋고, average time은 낮을수록 좋습니다.
@@ -508,4 +567,4 @@ source set에서 별도로 실행합니다.
 | `SuspendAutoExtendBackendLeaderElectorBenchmark` | Suspend Local/MongoDB 일반 실행과 shared `autoExtend` lease-extension 행 |
 | `KubernetesBackendLeaderElectorBenchmark` | 별도 Vert.x 4 runtime에서 K3s 기반 Kubernetes Lease lock의 blocking/suspend `runIfLeader` 측정 |
 | `LocalLeaderElectorBenchmark` | Local blocking, async, completable-future, suspend, virtual-thread elector overhead |
-| `HistoryRecorderBenchmark` | No-op 및 in-memory leader history recorder overhead |
+| `HistoryRecorderBenchmark` | No-op, in-memory, Micrometer leader history recorder overhead |

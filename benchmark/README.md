@@ -75,6 +75,12 @@ methods with no recorder and no-op recorder configurations. Raw JSON, commands,
 charts, and interpretation are stored under
 [`docs/benchmarks/2026-07-02-issue-522-spring-advice-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-522-spring-advice-benchmarks.md).
 
+Issue #523 adds history recorder observability rows. The benchmark compares
+no-op, in-memory, and Micrometer-wrapped recorders, separates completed from
+failed terminal states, and runs `empty`, `small`, and `large` metadata modes.
+Raw JSON, charts, and interpretation are stored under
+[`docs/benchmarks/2026-07-02-issue-523-history-recorder-observability.md`](../docs/benchmarks/2026-07-02-issue-523-history-recorder-observability.md).
+
 ## Charts
 
 Distributed backend charts exclude the local and H2 rows so infrastructure
@@ -322,6 +328,56 @@ Full report and raw data:
 - [`docs/benchmarks/2026-07-02-issue-522-spring-advice-throughput.json`](../docs/benchmarks/2026-07-02-issue-522-spring-advice-throughput.json)
 - [`docs/benchmarks/2026-07-02-issue-522-spring-advice-average-time.json`](../docs/benchmarks/2026-07-02-issue-522-spring-advice-average-time.json)
 
+## Leader History Observability Results
+
+Higher is better for throughput. Lower is better for average time. These issue
+#523 rows are recorder-only rows with `metadataMode=small`; the full report and
+raw JSON also include `empty` and `large` metadata modes.
+
+![History recorder observability throughput](../docs/images/readme-charts/leader-history-observability-throughput-chart-01.png)
+
+![History recorder observability latency](../docs/images/readme-charts/leader-history-observability-latency-chart-01.png)
+
+| API | Recorder | Terminal | Metadata | Throughput (ops/s) | Average time (us/op) |
+|---|---|---|---|---:|---:|
+| Blocking | Noop | Completed | small | 62,153,981 | 0.0167 |
+| Blocking | Noop | Failed | small | 30,506,848 | 0.0323 |
+| Blocking | In-memory | Completed | small | 18,875,312 | 0.0545 |
+| Blocking | In-memory | Failed | small | 14,255,133 | 0.0715 |
+| Blocking | Micrometer | Completed | small | 18,031,147 | 0.0570 |
+| Blocking | Micrometer | Failed | small | 13,910,688 | 0.0709 |
+| Suspend | Noop | Completed | small | 23,477,969 | 0.0426 |
+| Suspend | Noop | Failed | small | 16,906,301 | 0.0635 |
+| Suspend | In-memory | Completed | small | 11,173,330 | 0.0860 |
+| Suspend | In-memory | Failed | small | 10,270,385 | 0.1035 |
+| Suspend | Micrometer | Completed | small | 11,671,342 | 0.0878 |
+| Suspend | Micrometer | Failed | small | 9,551,932 | 0.1031 |
+
+### Interpretation
+
+The small-metadata rows show that the Micrometer wrapper is close to the
+in-memory recorder for completed events. In this short run, blocking completed
+rows measured 18.9M ops/s for in-memory and 18.0M ops/s for Micrometer; suspend
+completed rows measured 11.2M ops/s and 11.7M ops/s respectively. Treat the
+small suspend inversion as noise, not as a throughput advantage.
+
+Failure rows are consistently slower than completed rows because `recordFailed`
+extracts and sanitizes exception metadata. Metadata size is the larger driver:
+the full report shows the no-op blocking completed row moving from 0.0026 us/op
+with empty metadata to 0.2205 us/op with large metadata, even before sink I/O.
+
+These rows do not include Spring advice or backend lock acquisition overhead.
+Use issue #522 for Spring advice dispatch cost and issue #521 for skipped or
+not-elected behavior. This benchmark uses `SimpleMeterRegistry`; external
+metric backends, exporters, and scrape/push costs remain outside this local
+snapshot.
+
+Full report and raw data:
+
+- [`docs/benchmarks/2026-07-02-issue-523-history-recorder-observability.md`](../docs/benchmarks/2026-07-02-issue-523-history-recorder-observability.md)
+- [`docs/benchmarks/2026-07-02-issue-523-history-recorder-throughput.json`](../docs/benchmarks/2026-07-02-issue-523-history-recorder-throughput.json)
+- [`docs/benchmarks/2026-07-02-issue-523-history-recorder-average-time.json`](../docs/benchmarks/2026-07-02-issue-523-history-recorder-average-time.json)
+
 ## Redis Lease Extension Results
 
 Higher is better for throughput. Lower is better for average time.
@@ -502,4 +558,4 @@ latest self-improve section above for issue #329 after numbers.
 | `SuspendAutoExtendBackendLeaderElectorBenchmark` | Suspend Local and MongoDB normal vs shared `autoExtend` lease-extension rows |
 | `KubernetesBackendLeaderElectorBenchmark` | Blocking and suspend `runIfLeader` against K3s-backed Kubernetes Lease locks on a separate Vert.x 4 runtime |
 | `LocalLeaderElectorBenchmark` | Local blocking, async, completable-future, suspend, and virtual-thread elector overhead |
-| `HistoryRecorderBenchmark` | No-op and in-memory leader history recorder overhead |
+| `HistoryRecorderBenchmark` | No-op, in-memory, and Micrometer leader history recorder overhead |
