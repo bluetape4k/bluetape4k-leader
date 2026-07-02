@@ -65,6 +65,14 @@ snapshot 경로를 함께 측정합니다. README 차트 snapshot은 `maxLeaders
 [`docs/benchmarks/2026-07-02-issue-520-leader-group-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-520-leader-group-benchmarks.md)에
 보존했습니다.
 
+Issue #521은 single-leader elector의 contention 및 skip-path benchmark 행을
+추가합니다. 기존 holder가 있을 때의 skip, N개 contender 병렬 경로, mixed
+acquire/skip 경로를 blocking 및 suspend API별로 나눠 측정합니다. README
+차트 snapshot은 `contenders=8`과 짧은 same-JVM 측정 창을 사용합니다. 원본
+JSON, 실행 command, 차트, 전체 결과 표는
+[`docs/benchmarks/2026-07-02-issue-521-contention-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-521-contention-benchmarks.md)에
+보존했습니다.
+
 ## Charts
 
 분산 환경 backend 차트는 infrastructure backend 간 차이가 보이도록 local
@@ -170,6 +178,95 @@ mixed-slot 경로 옆에서도 saturated 행을 읽을 수 있게 하기 위한 
 - [`docs/benchmarks/2026-07-02-issue-520-leader-group-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-520-leader-group-benchmarks.md)
 - [`docs/benchmarks/2026-07-02-issue-520-leader-group-throughput.json`](../docs/benchmarks/2026-07-02-issue-520-leader-group-throughput.json)
 - [`docs/benchmarks/2026-07-02-issue-520-leader-group-average-time.json`](../docs/benchmarks/2026-07-02-issue-520-leader-group-average-time.json)
+
+## Leader Contention Results
+
+Throughput은 높을수록 좋고, average time은 낮을수록 좋습니다. 이 행들은
+issue #521의 `contenders=8` chart snapshot입니다. Immediate local skip,
+remote immediate skip, positive-wait contention 경로의 규모 차이가 커서 두
+차트 모두 log scale을 사용합니다.
+
+![Leader contention throughput](../docs/images/readme-charts/leader-contention-throughput-chart-01.png)
+
+![Leader contention latency](../docs/images/readme-charts/leader-contention-latency-chart-01.png)
+
+| API | Scenario | Backend | Throughput (ops/s) | Average time (us/op) |
+|---|---|---|---:|---:|
+| Blocking | Skip held / wait 0 | local | 18,457,123 | 0.056 |
+| Blocking | Skip held / wait 0 | lettuce | 2,307 | 511.16 |
+| Blocking | Skip held / wait 0 | redisson | 2,993 | 357.93 |
+| Blocking | Skip held / wait 0 | mongo | 1,210 | 844.57 |
+| Blocking | Skip held / wait 0 | zookeeper | 323.93 | 2,296 |
+| Blocking | Skip held / wait 25 ms | local | 38.47 | 26,109 |
+| Blocking | Skip held / wait 25 ms | lettuce | 38.5 | 26,058 |
+| Blocking | Skip held / wait 25 ms | redisson | 37.9 | 25,976 |
+| Blocking | Skip held / wait 25 ms | mongo | 38.83 | 25,626 |
+| Blocking | Skip held / wait 25 ms | zookeeper | 30.38 | 32,747 |
+| Blocking | Parallel / wait 0 | lettuce | 362.43 | 2,932 |
+| Blocking | Parallel / wait 0 | redisson | 350 | 2,846 |
+| Blocking | Parallel / wait 0 | mongo | 158.84 | 6,458 |
+| Blocking | Parallel / wait 0 | zookeeper | 41.87 | 17,101 |
+| Blocking | Parallel / wait 25 ms | local | 37.08 | 27,066 |
+| Blocking | Parallel / wait 25 ms | lettuce | 34.51 | 30,093 |
+| Blocking | Parallel / wait 25 ms | redisson | 35.04 | 30,112 |
+| Blocking | Parallel / wait 25 ms | mongo | 28.04 | 33,632 |
+| Blocking | Parallel / wait 25 ms | zookeeper | 31.08 | 35,607 |
+| Blocking | Mixed acquire + skip | local | 37.54 | 26,720 |
+| Blocking | Mixed acquire + skip | lettuce | 33.44 | 34,213 |
+| Blocking | Mixed acquire + skip | redisson | 34.35 | 31,610 |
+| Blocking | Mixed acquire + skip | mongo | 32.81 | 33,646 |
+| Blocking | Mixed acquire + skip | zookeeper | 24.67 | 36,621 |
+| Suspend | Skip held / wait 0 | lettuce | 2,381 | 612.83 |
+| Suspend | Skip held / wait 0 | redisson | 2,557 | 467.89 |
+| Suspend | Skip held / wait 0 | mongo | 1,170 | 1,126 |
+| Suspend | Skip held / wait 0 | zookeeper | 406.58 | 2,788 |
+| Suspend | Skip held / wait 25 ms | local | 38.76 | 26,341 |
+| Suspend | Skip held / wait 25 ms | lettuce | 38.45 | 25,710 |
+| Suspend | Skip held / wait 25 ms | redisson | 22.11 | 30,111 |
+| Suspend | Skip held / wait 25 ms | mongo | 37 | 27,206 |
+| Suspend | Skip held / wait 25 ms | zookeeper | 34.69 | 33,887 |
+| Suspend | Parallel / wait 25 ms | local | 35.57 | 27,552 |
+| Suspend | Parallel / wait 25 ms | lettuce | 32.96 | 29,658 |
+| Suspend | Parallel / wait 25 ms | redisson | 29.48 | 37,131 |
+| Suspend | Parallel / wait 25 ms | mongo | 28.67 | 33,180 |
+| Suspend | Parallel / wait 25 ms | zookeeper | 30.94 | 33,493 |
+| Suspend | Mixed acquire + skip | local | 37.63 | 26,499 |
+| Suspend | Mixed acquire + skip | lettuce | 32.43 | 30,257 |
+| Suspend | Mixed acquire + skip | redisson | 22.62 | 44,968 |
+| Suspend | Mixed acquire + skip | mongo | 28.02 | 35,939 |
+| Suspend | Mixed acquire + skip | zookeeper | 22.29 | 46,421 |
+
+### 해석
+
+이 결과는 warmup 없이 fork 0, 100 ms measurement 1회로 빠르게 측정한
+same-JVM snapshot입니다. Backend의 상대적인 모양과 contention 경로 smoke
+검증에는 유용하지만, release-grade 순위표로 해석하면 안 됩니다.
+
+Existing-holder setup은 skip 결과에서 action body가 실행되지 않는지 먼저
+검증합니다. 따라서 immediate skip 행은 이미 lock이 잡힌 상태를 감지하고
+`LeaderRunResult.Skipped`를 반환하는 비용을 측정합니다. Local blocking 행은
+in-process 상태 확인이라 remote backend보다 의도적으로 훨씬 빠릅니다. 이
+짧은 실행의 remote immediate skip 행에서는 Redisson과 Lettuce가 앞서고,
+MongoDB는 중간, ZooKeeper는 coordination 비용이 가장 크게 나타났습니다.
+
+Positive-wait 행은 대략 25 ms wait window당 한 번의 operation으로 모입니다.
+설정된 wait 정책이 측정을 지배하기 때문에 backend 차이는 눌려 보입니다. 이
+행들은 backend 순위표라기보다 skip behavior, wait handling, state cleanup을
+확인하는 regression smoke check로 보는 편이 맞습니다.
+
+Parallel `waitTime=0` 행은 blocking remote/shared benchmark에만 있습니다.
+Local suspend 구현은 `withTimeoutOrNull(0)`를 사용하므로 immediate free
+acquire가 의미 있는 contention을 측정하기 전에 timeout될 수 있습니다. 그래서
+suspend local baseline은 positive-wait 및 mixed 행만 유지하고, remote suspend
+immediate skip은 held-lock scenario로 검증합니다.
+
+전체 report와 원본 데이터:
+
+- [`docs/benchmarks/2026-07-02-issue-521-contention-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-521-contention-benchmarks.md)
+- [`docs/benchmarks/2026-07-02-issue-521-contention-remote-throughput.json`](../docs/benchmarks/2026-07-02-issue-521-contention-remote-throughput.json)
+- [`docs/benchmarks/2026-07-02-issue-521-contention-remote-average-time.json`](../docs/benchmarks/2026-07-02-issue-521-contention-remote-average-time.json)
+- [`docs/benchmarks/2026-07-02-issue-521-contention-local-throughput.json`](../docs/benchmarks/2026-07-02-issue-521-contention-local-throughput.json)
+- [`docs/benchmarks/2026-07-02-issue-521-contention-local-average-time.json`](../docs/benchmarks/2026-07-02-issue-521-contention-local-average-time.json)
 
 ## Redis Lease Extension Results
 
@@ -345,6 +442,10 @@ source set에서 별도로 실행합니다.
 | `SuspendRedisLeaseExtensionBenchmark` | Suspend Lettuce/Redisson 일반 실행과 shared `autoExtend` lease-extension 행 |
 | `LeaderGroupElectorBenchmark` | Blocking group-semaphore 행: local, Redis, Exposed JDBC H2, MongoDB, ZooKeeper |
 | `SuspendLeaderGroupElectorBenchmark` | Suspend group-semaphore 행: local, Redis, MongoDB, ZooKeeper |
+| `BlockingLeaderContentionElectorBenchmark` | Blocking contention 및 skip-path 행: Redis, Exposed JDBC H2, MongoDB, ZooKeeper |
+| `SuspendLeaderContentionElectorBenchmark` | Suspend contention 및 skip-path 행: Redis, Exposed R2DBC H2, MongoDB, ZooKeeper |
+| `LocalBlockingLeaderContentionElectorBenchmark` | Shared in-process lock state를 사용하는 local blocking contention 기준선 |
+| `LocalSuspendLeaderContentionElectorBenchmark` | Shared in-process lock state를 사용하는 local suspend positive-wait contention 기준선 |
 | `AutoExtendBackendLeaderElectorBenchmark` | Blocking Local/MongoDB 일반 실행과 shared `autoExtend` lease-extension 행 |
 | `SuspendAutoExtendBackendLeaderElectorBenchmark` | Suspend Local/MongoDB 일반 실행과 shared `autoExtend` lease-extension 행 |
 | `KubernetesBackendLeaderElectorBenchmark` | 별도 Vert.x 4 runtime에서 K3s 기반 Kubernetes Lease lock의 blocking/suspend `runIfLeader` 측정 |

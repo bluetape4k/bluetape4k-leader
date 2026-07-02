@@ -61,6 +61,13 @@ same-JVM measurement window so the grouped backend shape is visible without a
 full release-grade run. Raw JSON and the full result table are stored under
 [`docs/benchmarks/2026-07-02-issue-520-leader-group-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-520-leader-group-benchmarks.md).
 
+Issue #521 adds contention and skip-path benchmark rows for single-leader
+electors. The rows split existing-holder skip, N-contender parallel paths, and
+mixed acquire/skip paths for blocking and suspend APIs. The README chart
+snapshot uses `contenders=8` and a short same-JVM measurement window. Raw JSON,
+commands, charts, and the full result table are stored under
+[`docs/benchmarks/2026-07-02-issue-521-contention-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-521-contention-benchmarks.md).
+
 ## Charts
 
 Distributed backend charts exclude the local and H2 rows so infrastructure
@@ -166,6 +173,95 @@ Full report and raw data:
 - [`docs/benchmarks/2026-07-02-issue-520-leader-group-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-520-leader-group-benchmarks.md)
 - [`docs/benchmarks/2026-07-02-issue-520-leader-group-throughput.json`](../docs/benchmarks/2026-07-02-issue-520-leader-group-throughput.json)
 - [`docs/benchmarks/2026-07-02-issue-520-leader-group-average-time.json`](../docs/benchmarks/2026-07-02-issue-520-leader-group-average-time.json)
+
+## Leader Contention Results
+
+Higher is better for throughput. Lower is better for average time. These rows
+are the issue #521 `contenders=8` chart snapshot. The charts use a log scale
+because immediate local skip, remote immediate skip, and positive-wait
+contention paths differ by several orders of magnitude.
+
+![Leader contention throughput](../docs/images/readme-charts/leader-contention-throughput-chart-01.png)
+
+![Leader contention latency](../docs/images/readme-charts/leader-contention-latency-chart-01.png)
+
+| API | Scenario | Backend | Throughput (ops/s) | Average time (us/op) |
+|---|---|---|---:|---:|
+| Blocking | Skip held / wait 0 | local | 18,457,123 | 0.056 |
+| Blocking | Skip held / wait 0 | lettuce | 2,307 | 511.16 |
+| Blocking | Skip held / wait 0 | redisson | 2,993 | 357.93 |
+| Blocking | Skip held / wait 0 | mongo | 1,210 | 844.57 |
+| Blocking | Skip held / wait 0 | zookeeper | 323.93 | 2,296 |
+| Blocking | Skip held / wait 25 ms | local | 38.47 | 26,109 |
+| Blocking | Skip held / wait 25 ms | lettuce | 38.5 | 26,058 |
+| Blocking | Skip held / wait 25 ms | redisson | 37.9 | 25,976 |
+| Blocking | Skip held / wait 25 ms | mongo | 38.83 | 25,626 |
+| Blocking | Skip held / wait 25 ms | zookeeper | 30.38 | 32,747 |
+| Blocking | Parallel / wait 0 | lettuce | 362.43 | 2,932 |
+| Blocking | Parallel / wait 0 | redisson | 350 | 2,846 |
+| Blocking | Parallel / wait 0 | mongo | 158.84 | 6,458 |
+| Blocking | Parallel / wait 0 | zookeeper | 41.87 | 17,101 |
+| Blocking | Parallel / wait 25 ms | local | 37.08 | 27,066 |
+| Blocking | Parallel / wait 25 ms | lettuce | 34.51 | 30,093 |
+| Blocking | Parallel / wait 25 ms | redisson | 35.04 | 30,112 |
+| Blocking | Parallel / wait 25 ms | mongo | 28.04 | 33,632 |
+| Blocking | Parallel / wait 25 ms | zookeeper | 31.08 | 35,607 |
+| Blocking | Mixed acquire + skip | local | 37.54 | 26,720 |
+| Blocking | Mixed acquire + skip | lettuce | 33.44 | 34,213 |
+| Blocking | Mixed acquire + skip | redisson | 34.35 | 31,610 |
+| Blocking | Mixed acquire + skip | mongo | 32.81 | 33,646 |
+| Blocking | Mixed acquire + skip | zookeeper | 24.67 | 36,621 |
+| Suspend | Skip held / wait 0 | lettuce | 2,381 | 612.83 |
+| Suspend | Skip held / wait 0 | redisson | 2,557 | 467.89 |
+| Suspend | Skip held / wait 0 | mongo | 1,170 | 1,126 |
+| Suspend | Skip held / wait 0 | zookeeper | 406.58 | 2,788 |
+| Suspend | Skip held / wait 25 ms | local | 38.76 | 26,341 |
+| Suspend | Skip held / wait 25 ms | lettuce | 38.45 | 25,710 |
+| Suspend | Skip held / wait 25 ms | redisson | 22.11 | 30,111 |
+| Suspend | Skip held / wait 25 ms | mongo | 37 | 27,206 |
+| Suspend | Skip held / wait 25 ms | zookeeper | 34.69 | 33,887 |
+| Suspend | Parallel / wait 25 ms | local | 35.57 | 27,552 |
+| Suspend | Parallel / wait 25 ms | lettuce | 32.96 | 29,658 |
+| Suspend | Parallel / wait 25 ms | redisson | 29.48 | 37,131 |
+| Suspend | Parallel / wait 25 ms | mongo | 28.67 | 33,180 |
+| Suspend | Parallel / wait 25 ms | zookeeper | 30.94 | 33,493 |
+| Suspend | Mixed acquire + skip | local | 37.63 | 26,499 |
+| Suspend | Mixed acquire + skip | lettuce | 32.43 | 30,257 |
+| Suspend | Mixed acquire + skip | redisson | 22.62 | 44,968 |
+| Suspend | Mixed acquire + skip | mongo | 28.02 | 35,939 |
+| Suspend | Mixed acquire + skip | zookeeper | 22.29 | 46,421 |
+
+### Interpretation
+
+This is a quick same-JVM snapshot with no warmup, no fork, and one 100 ms
+measurement iteration. Use it to compare backend shape and smoke the
+contention paths, not as a release-grade ranking.
+
+The existing-holder setup verifies that the action body is not executed on a
+skip result. Immediate skip rows therefore measure the cost of detecting a held
+lock and returning `LeaderRunResult.Skipped`. The local blocking row is an
+in-process state check and is intentionally much faster than remote backends.
+Among remote rows in this short run, Redisson and Lettuce lead immediate skip,
+MongoDB sits in the middle, and ZooKeeper pays the highest coordination cost.
+
+Positive-wait rows cluster around one operation per roughly 25 ms wait window.
+That is expected because the configured wait policy dominates the measurement,
+so backend differences are compressed. These rows are primarily regression
+smoke checks for skip behavior, wait handling, and state cleanup.
+
+Parallel `waitTime=0` exists only for the blocking remote/shared benchmark.
+The local suspend implementation uses `withTimeoutOrNull(0)`, so an immediate
+free acquisition can time out before meaningful contention is measured. The
+suspend local baseline therefore keeps the positive-wait and mixed rows, while
+remote suspend immediate skip remains covered by the held-lock scenario.
+
+Full report and raw data:
+
+- [`docs/benchmarks/2026-07-02-issue-521-contention-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-521-contention-benchmarks.md)
+- [`docs/benchmarks/2026-07-02-issue-521-contention-remote-throughput.json`](../docs/benchmarks/2026-07-02-issue-521-contention-remote-throughput.json)
+- [`docs/benchmarks/2026-07-02-issue-521-contention-remote-average-time.json`](../docs/benchmarks/2026-07-02-issue-521-contention-remote-average-time.json)
+- [`docs/benchmarks/2026-07-02-issue-521-contention-local-throughput.json`](../docs/benchmarks/2026-07-02-issue-521-contention-local-throughput.json)
+- [`docs/benchmarks/2026-07-02-issue-521-contention-local-average-time.json`](../docs/benchmarks/2026-07-02-issue-521-contention-local-average-time.json)
 
 ## Redis Lease Extension Results
 
@@ -338,6 +434,10 @@ latest self-improve section above for issue #329 after numbers.
 | `SuspendRedisLeaseExtensionBenchmark` | Suspend Lettuce and Redisson normal vs shared `autoExtend` lease-extension rows |
 | `LeaderGroupElectorBenchmark` | Blocking group-semaphore rows across local, Redis, Exposed JDBC H2, MongoDB, and ZooKeeper |
 | `SuspendLeaderGroupElectorBenchmark` | Suspend group-semaphore rows across local, Redis, MongoDB, and ZooKeeper |
+| `BlockingLeaderContentionElectorBenchmark` | Blocking contention and skip-path rows across Redis, Exposed JDBC H2, MongoDB, and ZooKeeper |
+| `SuspendLeaderContentionElectorBenchmark` | Suspend contention and skip-path rows across Redis, Exposed R2DBC H2, MongoDB, and ZooKeeper |
+| `LocalBlockingLeaderContentionElectorBenchmark` | Local blocking contention baseline with shared in-process lock state |
+| `LocalSuspendLeaderContentionElectorBenchmark` | Local suspend positive-wait contention baseline with shared in-process lock state |
 | `AutoExtendBackendLeaderElectorBenchmark` | Blocking Local and MongoDB normal vs shared `autoExtend` lease-extension rows |
 | `SuspendAutoExtendBackendLeaderElectorBenchmark` | Suspend Local and MongoDB normal vs shared `autoExtend` lease-extension rows |
 | `KubernetesBackendLeaderElectorBenchmark` | Blocking and suspend `runIfLeader` against K3s-backed Kubernetes Lease locks on a separate Vert.x 4 runtime |

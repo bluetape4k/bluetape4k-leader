@@ -1,0 +1,176 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1580" height="2096" viewBox="0 0 1580 2096" role="img" aria-labelledby="title desc">
+<title id="title">Leader Contention Throughput</title>
+<desc id="desc">ops/s, higher is better. Issue #521 quick snapshot, contenders=8, same-JVM JMH, log scale.</desc>
+<style>.title{font-family:'Architects Daughter','Comic Sans MS',cursive;font-size:36px;fill:#1f2937;}.subtitle,.axis,.label,.value,.legend{font-family:'Comic Mono','Comic Sans MS','SFMono-Regular',monospace;fill:#64748b;}.subtitle{font-size:16px;}.axis{font-size:12px;}.label{font-size:13px;fill:#1f2937;}.value{font-size:12px;fill:#1f2937;}.api{font-family:'Architects Daughter','Comic Sans MS',cursive;font-size:24px;fill:#1f2937;}.scenario{font-family:'Architects Daughter','Comic Sans MS',cursive;font-size:18px;fill:#1f2937;}.legend{font-size:13px;fill:#1f2937;}</style>
+<rect width="1580" height="2096" fill="#f8fafc"/>
+<text x="54" y="58" class="title" >Leader Contention Throughput</text>
+<text x="54" y="90" class="subtitle" >ops/s, higher is better. Issue #521 quick snapshot, contenders=8, same-JVM JMH, log scale.</text>
+<rect x="54" y="110" width="16" height="16" rx="4" fill="#9ca3af"/>
+<text x="78" y="124" class="legend" >local</text>
+<rect x="178" y="110" width="16" height="16" rx="4" fill="#5cc8a7"/>
+<text x="202" y="124" class="legend" >lettuce</text>
+<rect x="302" y="110" width="16" height="16" rx="4" fill="#ff8a8a"/>
+<text x="326" y="124" class="legend" >redisson</text>
+<rect x="426" y="110" width="16" height="16" rx="4" fill="#9cc76f"/>
+<text x="450" y="124" class="legend" >mongo</text>
+<rect x="550" y="110" width="16" height="16" rx="4" fill="#8ab4f8"/>
+<text x="574" y="124" class="legend" >zookeeper</text>
+<line x1="292.00" y1="158" x2="292.00" y2="2360" stroke="#d9e2ec" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="292.00" y="152" class="axis" text-anchor="middle">20</text>
+<line x1="368.80" y1="158" x2="368.80" y2="2360" stroke="#d9e2ec" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="368.80" y="152" class="axis" text-anchor="middle">50</text>
+<line x1="426.90" y1="158" x2="426.90" y2="2360" stroke="#d9e2ec" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="426.90" y="152" class="axis" text-anchor="middle">100</text>
+<line x1="561.80" y1="158" x2="561.80" y2="2360" stroke="#d9e2ec" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="561.80" y="152" class="axis" text-anchor="middle">500</text>
+<line x1="619.90" y1="158" x2="619.90" y2="2360" stroke="#d9e2ec" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="619.90" y="152" class="axis" text-anchor="middle">1,000</text>
+<line x1="812.90" y1="158" x2="812.90" y2="2360" stroke="#d9e2ec" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="812.90" y="152" class="axis" text-anchor="middle">10,000</text>
+<line x1="1005.90" y1="158" x2="1005.90" y2="2360" stroke="#d9e2ec" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="1005.90" y="152" class="axis" text-anchor="middle">100,000</text>
+<line x1="1198.90" y1="158" x2="1198.90" y2="2360" stroke="#d9e2ec" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="1198.90" y="152" class="axis" text-anchor="middle">1M</text>
+<line x1="1391.90" y1="158" x2="1391.90" y2="2360" stroke="#d9e2ec" stroke-width="1" stroke-dasharray="4 6"/>
+<text x="1391.90" y="152" class="axis" text-anchor="middle">10M</text>
+<text x="54" y="200" class="api" >Blocking API</text>
+<text x="75" y="238" class="scenario" >Skip held / wait 0</text>
+<text x="276" y="275" class="label" text-anchor="end">local</text>
+<rect x="292" y="263" width="1151.27" height="14" rx="4" fill="#9ca3af"/>
+<text x="1453.27" y="275" class="value" >18.46M ops/s</text>
+<text x="276" y="301" class="label" text-anchor="end">lettuce</text>
+<rect x="292" y="289" width="397.96" height="14" rx="4" fill="#5cc8a7"/>
+<text x="699.96" y="301" class="value" >2,307 ops/s</text>
+<text x="276" y="327" class="label" text-anchor="end">redisson</text>
+<rect x="292" y="315" width="419.78" height="14" rx="4" fill="#ff8a8a"/>
+<text x="721.78" y="327" class="value" >2,993 ops/s</text>
+<text x="276" y="353" class="label" text-anchor="end">mongo</text>
+<rect x="292" y="341" width="343.90" height="14" rx="4" fill="#9cc76f"/>
+<text x="645.90" y="353" class="value" >1,210 ops/s</text>
+<text x="276" y="379" class="label" text-anchor="end">zookeeper</text>
+<rect x="292" y="367" width="233.42" height="14" rx="4" fill="#8ab4f8"/>
+<text x="535.42" y="379" class="value" >323.93 ops/s</text>
+<text x="75" y="424" class="scenario" >Skip held / wait 25 ms</text>
+<text x="276" y="461" class="label" text-anchor="end">local</text>
+<rect x="292" y="449" width="54.83" height="14" rx="4" fill="#9ca3af"/>
+<text x="356.83" y="461" class="value" >38.47 ops/s</text>
+<text x="276" y="487" class="label" text-anchor="end">lettuce</text>
+<rect x="292" y="475" width="54.90" height="14" rx="4" fill="#5cc8a7"/>
+<text x="356.90" y="487" class="value" >38.5 ops/s</text>
+<text x="276" y="513" class="label" text-anchor="end">redisson</text>
+<rect x="292" y="501" width="53.57" height="14" rx="4" fill="#ff8a8a"/>
+<text x="355.57" y="513" class="value" >37.9 ops/s</text>
+<text x="276" y="539" class="label" text-anchor="end">mongo</text>
+<rect x="292" y="527" width="55.60" height="14" rx="4" fill="#9cc76f"/>
+<text x="357.60" y="539" class="value" >38.83 ops/s</text>
+<text x="276" y="565" class="label" text-anchor="end">zookeeper</text>
+<rect x="292" y="553" width="35.05" height="14" rx="4" fill="#8ab4f8"/>
+<text x="337.05" y="565" class="value" >30.38 ops/s</text>
+<text x="75" y="610" class="scenario" >Parallel / wait 0</text>
+<text x="276" y="647" class="label" text-anchor="end">lettuce</text>
+<rect x="292" y="635" width="242.83" height="14" rx="4" fill="#5cc8a7"/>
+<text x="544.83" y="647" class="value" >362.43 ops/s</text>
+<text x="276" y="673" class="label" text-anchor="end">redisson</text>
+<rect x="292" y="661" width="239.91" height="14" rx="4" fill="#ff8a8a"/>
+<text x="541.91" y="673" class="value" >350 ops/s</text>
+<text x="276" y="699" class="label" text-anchor="end">mongo</text>
+<rect x="292" y="687" width="173.69" height="14" rx="4" fill="#9cc76f"/>
+<text x="475.69" y="699" class="value" >158.84 ops/s</text>
+<text x="276" y="725" class="label" text-anchor="end">zookeeper</text>
+<rect x="292" y="713" width="61.93" height="14" rx="4" fill="#8ab4f8"/>
+<text x="363.93" y="725" class="value" >41.87 ops/s</text>
+<text x="75" y="770" class="scenario" >Parallel / wait 25 ms</text>
+<text x="276" y="807" class="label" text-anchor="end">local</text>
+<rect x="292" y="795" width="51.75" height="14" rx="4" fill="#9ca3af"/>
+<text x="353.75" y="807" class="value" >37.08 ops/s</text>
+<text x="276" y="833" class="label" text-anchor="end">lettuce</text>
+<rect x="292" y="821" width="45.74" height="14" rx="4" fill="#5cc8a7"/>
+<text x="347.74" y="833" class="value" >34.51 ops/s</text>
+<text x="276" y="859" class="label" text-anchor="end">redisson</text>
+<rect x="292" y="847" width="47.01" height="14" rx="4" fill="#ff8a8a"/>
+<text x="349.01" y="859" class="value" >35.04 ops/s</text>
+<text x="276" y="885" class="label" text-anchor="end">mongo</text>
+<rect x="292" y="873" width="28.31" height="14" rx="4" fill="#9cc76f"/>
+<text x="330.31" y="885" class="value" >28.04 ops/s</text>
+<text x="276" y="911" class="label" text-anchor="end">zookeeper</text>
+<rect x="292" y="899" width="36.94" height="14" rx="4" fill="#8ab4f8"/>
+<text x="338.94" y="911" class="value" >31.08 ops/s</text>
+<text x="75" y="956" class="scenario" >Mixed acquire + skip</text>
+<text x="276" y="993" class="label" text-anchor="end">local</text>
+<rect x="292" y="981" width="52.78" height="14" rx="4" fill="#9ca3af"/>
+<text x="354.78" y="993" class="value" >37.54 ops/s</text>
+<text x="276" y="1019" class="label" text-anchor="end">lettuce</text>
+<rect x="292" y="1007" width="43.07" height="14" rx="4" fill="#5cc8a7"/>
+<text x="345.07" y="1019" class="value" >33.44 ops/s</text>
+<text x="276" y="1045" class="label" text-anchor="end">redisson</text>
+<rect x="292" y="1033" width="45.33" height="14" rx="4" fill="#ff8a8a"/>
+<text x="347.33" y="1045" class="value" >34.35 ops/s</text>
+<text x="276" y="1071" class="label" text-anchor="end">mongo</text>
+<rect x="292" y="1059" width="41.50" height="14" rx="4" fill="#9cc76f"/>
+<text x="343.50" y="1071" class="value" >32.81 ops/s</text>
+<text x="276" y="1097" class="label" text-anchor="end">zookeeper</text>
+<rect x="292" y="1085" width="17.59" height="14" rx="4" fill="#8ab4f8"/>
+<text x="319.59" y="1097" class="value" >24.67 ops/s</text>
+<text x="54" y="1210" class="api" >Suspend API</text>
+<text x="75" y="1248" class="scenario" >Skip held / wait 0</text>
+<text x="276" y="1285" class="label" text-anchor="end">lettuce</text>
+<rect x="292" y="1273" width="400.63" height="14" rx="4" fill="#5cc8a7"/>
+<text x="702.63" y="1285" class="value" >2,381 ops/s</text>
+<text x="276" y="1311" class="label" text-anchor="end">redisson</text>
+<rect x="292" y="1299" width="406.58" height="14" rx="4" fill="#ff8a8a"/>
+<text x="708.58" y="1311" class="value" >2,557 ops/s</text>
+<text x="276" y="1337" class="label" text-anchor="end">mongo</text>
+<rect x="292" y="1325" width="341.09" height="14" rx="4" fill="#9cc76f"/>
+<text x="643.09" y="1337" class="value" >1,170 ops/s</text>
+<text x="276" y="1363" class="label" text-anchor="end">zookeeper</text>
+<rect x="292" y="1351" width="252.47" height="14" rx="4" fill="#8ab4f8"/>
+<text x="554.47" y="1363" class="value" >406.58 ops/s</text>
+<text x="75" y="1408" class="scenario" >Skip held / wait 25 ms</text>
+<text x="276" y="1445" class="label" text-anchor="end">local</text>
+<rect x="292" y="1433" width="55.45" height="14" rx="4" fill="#9ca3af"/>
+<text x="357.45" y="1445" class="value" >38.76 ops/s</text>
+<text x="276" y="1471" class="label" text-anchor="end">lettuce</text>
+<rect x="292" y="1459" width="54.80" height="14" rx="4" fill="#5cc8a7"/>
+<text x="356.80" y="1471" class="value" >38.45 ops/s</text>
+<text x="276" y="1497" class="label" text-anchor="end">redisson</text>
+<rect x="292" y="1485" width="8.42" height="14" rx="4" fill="#ff8a8a"/>
+<text x="310.42" y="1497" class="value" >22.11 ops/s</text>
+<text x="276" y="1523" class="label" text-anchor="end">mongo</text>
+<rect x="292" y="1511" width="51.57" height="14" rx="4" fill="#9cc76f"/>
+<text x="353.57" y="1523" class="value" >37 ops/s</text>
+<text x="276" y="1549" class="label" text-anchor="end">zookeeper</text>
+<rect x="292" y="1537" width="46.16" height="14" rx="4" fill="#8ab4f8"/>
+<text x="348.16" y="1549" class="value" >34.69 ops/s</text>
+<text x="75" y="1594" class="scenario" >Parallel / wait 25 ms</text>
+<text x="276" y="1631" class="label" text-anchor="end">local</text>
+<rect x="292" y="1619" width="48.26" height="14" rx="4" fill="#9ca3af"/>
+<text x="350.26" y="1631" class="value" >35.57 ops/s</text>
+<text x="276" y="1657" class="label" text-anchor="end">lettuce</text>
+<rect x="292" y="1645" width="41.86" height="14" rx="4" fill="#5cc8a7"/>
+<text x="343.86" y="1657" class="value" >32.96 ops/s</text>
+<text x="276" y="1683" class="label" text-anchor="end">redisson</text>
+<rect x="292" y="1671" width="32.53" height="14" rx="4" fill="#ff8a8a"/>
+<text x="334.53" y="1683" class="value" >29.48 ops/s</text>
+<text x="276" y="1709" class="label" text-anchor="end">mongo</text>
+<rect x="292" y="1697" width="30.20" height="14" rx="4" fill="#9cc76f"/>
+<text x="332.20" y="1709" class="value" >28.67 ops/s</text>
+<text x="276" y="1735" class="label" text-anchor="end">zookeeper</text>
+<rect x="292" y="1723" width="36.58" height="14" rx="4" fill="#8ab4f8"/>
+<text x="338.58" y="1735" class="value" >30.94 ops/s</text>
+<text x="75" y="1780" class="scenario" >Mixed acquire + skip</text>
+<text x="276" y="1817" class="label" text-anchor="end">local</text>
+<rect x="292" y="1805" width="52.99" height="14" rx="4" fill="#9ca3af"/>
+<text x="354.99" y="1817" class="value" >37.63 ops/s</text>
+<text x="276" y="1843" class="label" text-anchor="end">lettuce</text>
+<rect x="292" y="1831" width="40.52" height="14" rx="4" fill="#5cc8a7"/>
+<text x="342.52" y="1843" class="value" >32.43 ops/s</text>
+<text x="276" y="1869" class="label" text-anchor="end">redisson</text>
+<rect x="292" y="1857" width="10.31" height="14" rx="4" fill="#ff8a8a"/>
+<text x="312.31" y="1869" class="value" >22.62 ops/s</text>
+<text x="276" y="1895" class="label" text-anchor="end">mongo</text>
+<rect x="292" y="1883" width="28.25" height="14" rx="4" fill="#9cc76f"/>
+<text x="330.25" y="1895" class="value" >28.02 ops/s</text>
+<text x="276" y="1921" class="label" text-anchor="end">zookeeper</text>
+<rect x="292" y="1909" width="9.10" height="14" rx="4" fill="#8ab4f8"/>
+<text x="311.10" y="1921" class="value" >22.29 ops/s</text>
+</svg>
