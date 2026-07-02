@@ -52,6 +52,8 @@ demo는 로컬 `ObservationHandler`로 leader observation도 로그에 남깁니
 
 `application.yml`은 안전한 기본값으로 leader Observation bridge를 켭니다.
 
+![leader metrics and Observation tracing bridge architecture](../../docs/images/readme-diagrams/leader-micrometer-architecture-01.png)
+
 ```yaml
 bluetape4k:
   leader:

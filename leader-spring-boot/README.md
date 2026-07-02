@@ -83,6 +83,8 @@ Spring configuration properties use Spring Boot duration binding (`5s`, `60s`, `
 
 `LeaderMicrometerAutoConfiguration` registers `MicrometerLeaderAopMetricsRecorder` when `leader-micrometer` and a `MeterRegistry` bean are present. `LeaderObservationAutoConfiguration` registers `MicrometerObservationLeaderAopMetricsRecorder` and `MicrometerObservationLeaderElectionListener` when `leader-micrometer` and an `ObservationRegistry` bean are present.
 
+![leader metrics and Observation tracing bridge architecture](../docs/images/readme-diagrams/leader-micrometer-architecture-01.png)
+
 Metrics and Observations are independent:
 
 - disabling `bluetape4k.leader.aop.metrics.enabled` disables the existing meter recorder only;

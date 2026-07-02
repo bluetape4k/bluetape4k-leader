@@ -83,6 +83,8 @@ Spring 설정 속성은 Spring Boot duration binding을 사용하므로 `5s`, `6
 
 `leader-micrometer`와 `MeterRegistry` bean이 있으면 `LeaderMicrometerAutoConfiguration`이 `MicrometerLeaderAopMetricsRecorder`를 등록합니다. `leader-micrometer`와 `ObservationRegistry` bean이 있으면 `LeaderObservationAutoConfiguration`이 `MicrometerObservationLeaderAopMetricsRecorder`, `MicrometerObservationLeaderElectionListener`를 등록합니다.
 
+![leader metrics and Observation tracing bridge architecture](../docs/images/readme-diagrams/leader-micrometer-architecture-01.png)
+
 Metrics와 Observation은 별도 스위치를 가집니다.
 
 - `bluetape4k.leader.aop.metrics.enabled=false`: 기존 meter recorder만 끕니다.
