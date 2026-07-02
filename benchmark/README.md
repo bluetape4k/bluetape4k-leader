@@ -495,16 +495,43 @@ so compare those rows only within the same method.
 
 Kubernetes uses the K3s Testcontainers wrapper and runs from the
 `kubernetesBenchmark` source set so its Fabric8 runtime does not downgrade the
-default preview backend classpath.
+default preview backend classpath. Issue #524 adds stateful Lease scenarios
+beside the original happy path so conflict, skip, renewal, and takeover costs
+are visible.
 
 | Benchmark | Throughput (ops/s) | Average time (us/op) | Notes |
 |---|---:|---:|---|
-| `Kubernetes.blockingRunIfLeader` | 171.525 ± 160.477 | 5,835.436 ± 8,251.639 | K3s-backed Lease lock |
-| `Kubernetes.suspendRunIfLeader` | 164.687 ± 57.773 | 6,075.660 ± 4,944.763 | K3s-backed Lease lock |
+| `Kubernetes.blockingFreshAcquire` | 82.297 | 12,810.608 | Public blocking elector creates/acquires/releases a fresh Lease |
+| `Kubernetes.blockingPreHeldSkip` | 661.149 | 1,547.237 | Active external holder skip path |
+| `Kubernetes.blockingExpiredTakeover` | 89.767 | 9,137.928 | Expired holder takeover through the public elector |
+| `Kubernetes.blockingLeaseRenewalUpdate` | 208.781 | 4,209.766 | Direct Lease API update for same-holder renewal |
+| `Kubernetes.blockingResourceVersionConflict` | 539.753 | 3,039.625 | Direct stale `resourceVersion` update returning Kubernetes 409 |
+| `Kubernetes.suspendFreshAcquire` | 90.055 | 10,753.638 | Suspend elector acquire+release with Fabric8 calls on `Dispatchers.IO` |
+| `Kubernetes.suspendPreHeldSkip` | 465.583 | 2,690.823 | Suspend active-holder skip path |
+| `Kubernetes.suspendExpiredTakeover` | 97.097 | 8,634.000 | Suspend expired-holder takeover |
+| `Kubernetes.suspendLeaseRenewalUpdate` | 258.746 | 4,720.792 | Direct Lease API renewal probe from the suspend lane |
+| `Kubernetes.suspendResourceVersionConflict` | 425.577 | 2,181.023 | Direct stale `resourceVersion` conflict probe from the suspend lane |
 
-![Kubernetes benchmark throughput](../docs/images/readme-charts/leader-benchmark-kubernetes-throughput-chart-01.png)
+![Kubernetes Lease scenario throughput](../docs/images/readme-charts/leader-kubernetes-scenarios-throughput-chart-01.png)
 
-![Kubernetes benchmark latency](../docs/images/readme-charts/leader-benchmark-kubernetes-latency-chart-01.png)
+![Kubernetes Lease scenario latency](../docs/images/readme-charts/leader-kubernetes-scenarios-latency-chart-01.png)
+
+Raw results are stored in
+[`2026-07-02-issue-524-kubernetes-scenarios-throughput.json`](../docs/benchmarks/2026-07-02-issue-524-kubernetes-scenarios-throughput.json)
+and
+[`2026-07-02-issue-524-kubernetes-scenarios-average-time.json`](../docs/benchmarks/2026-07-02-issue-524-kubernetes-scenarios-average-time.json).
+The detailed report is
+[`2026-07-02-issue-524-kubernetes-lease-scenarios.md`](../docs/benchmarks/2026-07-02-issue-524-kubernetes-lease-scenarios.md).
+
+Interpretation:
+
+- The skip rows are fastest because the elector reads an active holder and
+  returns without writing the Lease.
+- Fresh acquire and expired takeover include public elector acquire+release
+  work. The direct renewal and conflict rows isolate API-server update/conflict
+  behavior and should not be ranked as full user-action paths.
+- This is a short K3s smoke snapshot: one fork, one thread, one warmup, and one
+  200 ms measurement iteration. Repeat with longer windows before tuning.
 
 ## Local Core Rows
 
@@ -556,6 +583,6 @@ latest self-improve section above for issue #329 after numbers.
 | `SpringLeaderAdviceBenchmark` | Spring `@LeaderElection` AOP overhead against local blocking and suspend elector baselines |
 | `AutoExtendBackendLeaderElectorBenchmark` | Blocking Local and MongoDB normal vs shared `autoExtend` lease-extension rows |
 | `SuspendAutoExtendBackendLeaderElectorBenchmark` | Suspend Local and MongoDB normal vs shared `autoExtend` lease-extension rows |
-| `KubernetesBackendLeaderElectorBenchmark` | Blocking and suspend `runIfLeader` against K3s-backed Kubernetes Lease locks on a separate Vert.x 4 runtime |
+| `KubernetesBackendLeaderElectorBenchmark` | K3s-backed Kubernetes Lease fresh acquire, active-holder skip, expired takeover, direct renewal update, and stale `resourceVersion` conflict rows on a separate Vert.x 4 runtime |
 | `LocalLeaderElectorBenchmark` | Local blocking, async, completable-future, suspend, and virtual-thread elector overhead |
 | `HistoryRecorderBenchmark` | No-op, in-memory, and Micrometer leader history recorder overhead |

@@ -502,16 +502,44 @@ Group election auto-extension은 아직 지원하지 않으며, 문서화되지 
 
 Kubernetes는 K3s Testcontainers wrapper를 사용하며, Fabric8 runtime이 기본
 preview backend classpath를 downgrade하지 않도록 `kubernetesBenchmark`
-source set에서 별도로 실행합니다.
+source set에서 별도로 실행합니다. Issue #524에서는 기존 happy path 옆에
+상태가 있는 Lease 시나리오를 추가해 conflict, skip, renewal, takeover
+비용을 분리해서 볼 수 있게 했습니다.
 
 | Benchmark | Throughput (ops/s) | Average time (us/op) | Notes |
 |---|---:|---:|---|
-| `Kubernetes.blockingRunIfLeader` | 171.525 ± 160.477 | 5,835.436 ± 8,251.639 | K3s 기반 Lease lock |
-| `Kubernetes.suspendRunIfLeader` | 164.687 ± 57.773 | 6,075.660 ± 4,944.763 | K3s 기반 Lease lock |
+| `Kubernetes.blockingFreshAcquire` | 82.297 | 12,810.608 | Public blocking elector가 fresh Lease를 create/acquire/release |
+| `Kubernetes.blockingPreHeldSkip` | 661.149 | 1,547.237 | Active external holder skip path |
+| `Kubernetes.blockingExpiredTakeover` | 89.767 | 9,137.928 | Public elector의 expired holder takeover |
+| `Kubernetes.blockingLeaseRenewalUpdate` | 208.781 | 4,209.766 | Same-holder renewal을 위한 직접 Lease API update |
+| `Kubernetes.blockingResourceVersionConflict` | 539.753 | 3,039.625 | Stale `resourceVersion` update가 Kubernetes 409를 받는 직접 probe |
+| `Kubernetes.suspendFreshAcquire` | 90.055 | 10,753.638 | Fabric8 호출을 `Dispatchers.IO`로 감싼 suspend elector acquire+release |
+| `Kubernetes.suspendPreHeldSkip` | 465.583 | 2,690.823 | Suspend active-holder skip path |
+| `Kubernetes.suspendExpiredTakeover` | 97.097 | 8,634.000 | Suspend expired-holder takeover |
+| `Kubernetes.suspendLeaseRenewalUpdate` | 258.746 | 4,720.792 | Suspend lane에서 실행한 직접 Lease API renewal probe |
+| `Kubernetes.suspendResourceVersionConflict` | 425.577 | 2,181.023 | Suspend lane에서 실행한 stale `resourceVersion` conflict probe |
 
-![Kubernetes benchmark throughput](../docs/images/readme-charts/leader-benchmark-kubernetes-throughput-chart-01.png)
+![Kubernetes Lease scenario throughput](../docs/images/readme-charts/leader-kubernetes-scenarios-throughput-chart-01.png)
 
-![Kubernetes benchmark latency](../docs/images/readme-charts/leader-benchmark-kubernetes-latency-chart-01.png)
+![Kubernetes Lease scenario latency](../docs/images/readme-charts/leader-kubernetes-scenarios-latency-chart-01.png)
+
+Raw 결과는
+[`2026-07-02-issue-524-kubernetes-scenarios-throughput.json`](../docs/benchmarks/2026-07-02-issue-524-kubernetes-scenarios-throughput.json),
+[`2026-07-02-issue-524-kubernetes-scenarios-average-time.json`](../docs/benchmarks/2026-07-02-issue-524-kubernetes-scenarios-average-time.json)에
+저장했습니다. 상세 보고서는
+[`2026-07-02-issue-524-kubernetes-lease-scenarios.md`](../docs/benchmarks/2026-07-02-issue-524-kubernetes-lease-scenarios.md)를
+보세요.
+
+해석:
+
+- skip 행이 가장 빠릅니다. Elector가 active holder를 읽고 Lease write 없이
+  바로 반환하기 때문입니다.
+- fresh acquire와 expired takeover는 public elector의 acquire+release 비용을
+  포함합니다. 반대로 renewal/conflict 행은 API-server update/conflict 비용을
+  분리한 직접 probe이므로 full user-action path로 순위 비교하면 안 됩니다.
+- 이 결과는 짧은 K3s smoke snapshot입니다. 조건은 one fork, one thread,
+  one warmup, 200 ms measurement 한 번입니다. 튜닝 판단 전에는 더 긴 창으로
+  반복 측정하세요.
 
 ## Local Core Rows
 
@@ -565,6 +593,6 @@ source set에서 별도로 실행합니다.
 | `SpringLeaderAdviceBenchmark` | Local blocking 및 suspend elector 기준선 대비 Spring `@LeaderElection` AOP overhead |
 | `AutoExtendBackendLeaderElectorBenchmark` | Blocking Local/MongoDB 일반 실행과 shared `autoExtend` lease-extension 행 |
 | `SuspendAutoExtendBackendLeaderElectorBenchmark` | Suspend Local/MongoDB 일반 실행과 shared `autoExtend` lease-extension 행 |
-| `KubernetesBackendLeaderElectorBenchmark` | 별도 Vert.x 4 runtime에서 K3s 기반 Kubernetes Lease lock의 blocking/suspend `runIfLeader` 측정 |
+| `KubernetesBackendLeaderElectorBenchmark` | 별도 Vert.x 4 runtime에서 K3s 기반 Kubernetes Lease fresh acquire, active-holder skip, expired takeover, 직접 renewal update, stale `resourceVersion` conflict 행 측정 |
 | `LocalLeaderElectorBenchmark` | Local blocking, async, completable-future, suspend, virtual-thread elector overhead |
 | `HistoryRecorderBenchmark` | No-op, in-memory, Micrometer leader history recorder overhead |
