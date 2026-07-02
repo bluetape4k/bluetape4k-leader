@@ -57,6 +57,14 @@ MongoDB가 더 느리지만 짧은 측정 창에서는 좁은 tuning target으�
 [`docs/benchmarks/2026-06-05-issue-414-mongodb-suspend-repeat.md`](../docs/benchmarks/2026-06-05-issue-414-mongodb-suspend-repeat.md)에
 보존했습니다.
 
+Issue #520는 `maxLeaders` 1, 2, 8 기준 group-semaphore benchmark 행을
+추가합니다. free-slot, saturated-skip, mixed-slot, active-count, state
+snapshot 경로를 함께 측정합니다. README 차트 snapshot은 `maxLeaders=2`와
+짧은 same-JVM 측정 창을 사용해 전체 release-grade 실행 없이 grouped backend
+형태를 확인하기 위한 자료입니다. 원본 JSON과 전체 결과 표는
+[`docs/benchmarks/2026-07-02-issue-520-leader-group-benchmarks.md`](../docs/benchmarks/2026-07-02-issue-520-leader-group-benchmarks.md)에
+보존했습니다.
+
 ## Charts
 
 분산 환경 backend 차트는 infrastructure backend 간 차이가 보이도록 local
@@ -66,6 +74,14 @@ MongoDB가 더 느리지만 짧은 측정 창에서는 좁은 tuning target으�
 ![Leader benchmark distributed throughput](../docs/images/readme-charts/leader-benchmark-distributed-throughput-chart-01.png)
 
 ![Leader benchmark distributed latency](../docs/images/readme-charts/leader-benchmark-distributed-latency-chart-01.png)
+
+Issue #520 group-semaphore 차트도 local 및 blocking H2 행을 제외하고 log
+scale을 사용합니다. free-slot, mixed-slot, saturated-skip 경로의 규모 차이가
+커서 분산 backend 비교가 묻히지 않게 하기 위함입니다.
+
+![Leader group semaphore throughput](../docs/images/readme-charts/leader-group-throughput-chart-01.png)
+
+![Leader group semaphore latency](../docs/images/readme-charts/leader-group-latency-chart-01.png)
 
 Issue #329는 같은 benchmark harness로 history recorder 전/후 비교도
 기록합니다.
@@ -91,6 +107,39 @@ safe fast path를 최적화했습니다. 같은 throughput command에서 local h
 ## Cross-Backend Results
 
 Throughput은 높을수록 좋고, average time은 낮을수록 좋습니다.
+
+## Leader Group Semaphore Results
+
+Throughput은 높을수록 좋고, average time은 낮을수록 좋습니다. 이 행들은
+issue #520의 remote-backend `maxLeaders=2` chart snapshot입니다. Local 및
+blocking H2 행은 README 표 대신 전체 benchmark report에 보존했습니다.
+
+| API | Scenario | Backend | Throughput (ops/s) | Average time (us/op) |
+|---|---|---|---:|---:|
+| Blocking | Free slot | lettuce | 806.3 | 1,010 |
+| Blocking | Free slot | redisson | 902.4 | 1,017 |
+| Blocking | Free slot | mongo | 344.5 | 3,370 |
+| Blocking | Free slot | zookeeper | 209.2 | 4,605 |
+| Blocking | Mixed slots | lettuce | 1,543 | 2,029 |
+| Blocking | Mixed slots | redisson | 963.4 | 989.9 |
+| Blocking | Mixed slots | mongo | 75.87 | 13,146 |
+| Blocking | Mixed slots | zookeeper | 247.5 | 4,745 |
+| Blocking | Saturated skip | lettuce | 35.89 | 27,693 |
+| Blocking | Saturated skip | redisson | 36.36 | 27,597 |
+| Blocking | Saturated skip | mongo | 35.2 | 27,234 |
+| Blocking | Saturated skip | zookeeper | 32.88 | 29,086 |
+| Suspend | Free slot | lettuce | 1,315 | 770.2 |
+| Suspend | Free slot | redisson | 919.3 | 1,062 |
+| Suspend | Free slot | mongo | 297 | 3,298 |
+| Suspend | Free slot | zookeeper | 211.8 | 4,348 |
+| Suspend | Mixed slots | lettuce | 1,396 | 684.1 |
+| Suspend | Mixed slots | redisson | 1,104 | 971.9 |
+| Suspend | Mixed slots | mongo | 82.79 | 10,747 |
+| Suspend | Mixed slots | zookeeper | 276.7 | 4,017 |
+| Suspend | Saturated skip | lettuce | 36.34 | 27,447 |
+| Suspend | Saturated skip | redisson | 24.69 | 44,784 |
+| Suspend | Saturated skip | mongo | 36.03 | 26,808 |
+| Suspend | Saturated skip | zookeeper | 32.05 | 31,188 |
 
 ## Redis Lease Extension Results
 
@@ -264,6 +313,8 @@ source set에서 별도로 실행합니다.
 | `SuspendBackendLeaderElectorBenchmark` | Suspend `runIfLeader`: local, Redis, Exposed R2DBC H2/PostgreSQL/MySQL, MongoDB, Hazelcast, ZooKeeper, Consul, etcd, DynamoDB |
 | `RedisLeaseExtensionBenchmark` | Blocking Lettuce/Redisson 일반 실행과 shared `autoExtend` lease-extension 행 |
 | `SuspendRedisLeaseExtensionBenchmark` | Suspend Lettuce/Redisson 일반 실행과 shared `autoExtend` lease-extension 행 |
+| `LeaderGroupElectorBenchmark` | Blocking group-semaphore 행: local, Redis, Exposed JDBC H2, MongoDB, ZooKeeper |
+| `SuspendLeaderGroupElectorBenchmark` | Suspend group-semaphore 행: local, Redis, MongoDB, ZooKeeper |
 | `AutoExtendBackendLeaderElectorBenchmark` | Blocking Local/MongoDB 일반 실행과 shared `autoExtend` lease-extension 행 |
 | `SuspendAutoExtendBackendLeaderElectorBenchmark` | Suspend Local/MongoDB 일반 실행과 shared `autoExtend` lease-extension 행 |
 | `KubernetesBackendLeaderElectorBenchmark` | 별도 Vert.x 4 runtime에서 K3s 기반 Kubernetes Lease lock의 blocking/suspend `runIfLeader` 측정 |
