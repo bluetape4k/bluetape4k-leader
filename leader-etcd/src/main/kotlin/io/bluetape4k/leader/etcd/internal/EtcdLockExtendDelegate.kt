@@ -3,6 +3,7 @@ package io.bluetape4k.leader.etcd.internal
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.etcd.jetcd.lease.LeaseKeepAliveResponse
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.future.await
 import java.time.Instant
@@ -23,8 +24,7 @@ internal class EtcdLockExtendDelegate(
         }
 
         return runCatching {
-            lockClient.keepAliveOnce(handle.leaseId).get(10, TimeUnit.SECONDS)
-            ExtendOutcome.Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+            lockClient.keepAliveOnce(handle.leaseId).get(10, TimeUnit.SECONDS).toExtendOutcome()
         }.getOrElse { e ->
             if (EtcdBackendErrorClassifier.isExpectedCleanup(e)) {
                 ExtendOutcome.NotHeld
@@ -36,8 +36,7 @@ internal class EtcdLockExtendDelegate(
 
     override fun isHeld(): Boolean =
         !handle.isReleased && runCatching {
-            lockClient.keepAliveOnce(handle.leaseId).get(10, TimeUnit.SECONDS)
-            true
+            lockClient.keepAliveOnce(handle.leaseId).get(10, TimeUnit.SECONDS).getTTL() > 0L
         }.getOrDefault(false)
 
     override val lastExtendDeadline: AtomicReference<Instant>
@@ -57,8 +56,7 @@ internal class EtcdSuspendLockExtendDelegate(
         }
 
         return try {
-            lockClient.keepAliveOnce(handle.leaseId).await()
-            ExtendOutcome.Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+            lockClient.keepAliveOnce(handle.leaseId).await().toExtendOutcome()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -72,8 +70,7 @@ internal class EtcdSuspendLockExtendDelegate(
 
     override suspend fun isHeldSuspend(): Boolean =
         !handle.isReleased && try {
-            lockClient.keepAliveOnce(handle.leaseId).await()
-            true
+            lockClient.keepAliveOnce(handle.leaseId).await().getTTL() > 0L
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -86,3 +83,12 @@ internal class EtcdSuspendLockExtendDelegate(
 
 private fun Throwable.asException(): Exception =
     this as? Exception ?: RuntimeException(this)
+
+private fun LeaseKeepAliveResponse.toExtendOutcome(): ExtendOutcome {
+    val ttlSeconds = getTTL()
+    return if (ttlSeconds > 0L) {
+        ExtendOutcome.Extended(Instant.now().plusSeconds(ttlSeconds))
+    } else {
+        ExtendOutcome.NotHeld
+    }
+}

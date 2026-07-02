@@ -18,11 +18,12 @@ import kotlin.time.Duration
  * - `extend` calls the backend atomic extend — implemented by sync backends (Lettuce sync, Redisson, Hazelcast, Exposed JDBC, ZK).
  * - `extendSuspend` default calls sync `extend` directly — **blocking backends must override** using
  *   `withContext(Dispatchers.IO)` + `coroutineContext.ensureActive()` (R9 mitigation).
- * - `lastExtendDeadline` tracks the expire deadline at the time user calls `LockExtender.extendActiveLock(d)` (R2 mitigation).
+ * - `lastExtendDeadline` tracks the backend-observed expire deadline after `LockExtender.extendActiveLock(d)`
+ *   succeeds (R2 mitigation).
  *   If the Watchdog tick finds `now() + watchdogCadence < lastExtendDeadline.get()`, backend extend is skipped.
  *
  * ## R2 Watchdog skip semantics (Step 3-P)
- * User calls `extend(60s)` → `lastExtendDeadline = now + 60s` is updated.
+ * User calls `extend(60s)` → backend returns `Extended(observedExpireAt)` → `lastExtendDeadline = observedExpireAt`.
  * Watchdog cadence = leaseTime/3 (e.g. 10s for 30s lease). On tick, if `now + 10s < deadline`, skip.
  * → Prevents user-extended lease from being silently shortened by the watchdog (split-brain guard).
  */
@@ -49,7 +50,7 @@ interface ExtendDelegate {
     /**
      * Tracks the expire deadline of user explicit extend calls (R2 mitigation).
      *
-     * `LockExtender.extendActiveLock(d)` sets: `now() + d`.
+     * `LockExtender.extendActiveLock(d)` sets this to [ExtendOutcome.Extended.observedExpireAt].
      * Watchdog reads: if `now() + cadence < lastExtendDeadline.get()`, backend call is skipped.
      *
      * **Implementation rule**: must return the stored `AtomicReference<Instant>` instance.

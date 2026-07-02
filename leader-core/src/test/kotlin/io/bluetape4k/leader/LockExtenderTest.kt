@@ -2,6 +2,7 @@ package io.bluetape4k.leader
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.internal.ExtendDelegate
@@ -239,24 +240,14 @@ class LockExtenderTest {
     // --- R2 mitigation: lastExtendDeadline update ---
 
     @Test
-    fun `extendActiveLock sets lastExtendDeadline to approximately now plus duration (R2)`() {
-        val delegate = FakeDelegate(ExtendOutcome.Extended(Instant.now()))
-        val beforeCall = Instant.now()
+    fun `extendActiveLock sets lastExtendDeadline to backend observed expireAt (R2)`() {
+        val observedExpireAt = Instant.now().plusSeconds(5)
+        val delegate = FakeDelegate(ExtendOutcome.Extended(observedExpireAt))
         LockStateHolder.withPushed(realHandle(delegate = delegate)) {
             LockExtender.extendActiveLock(60.seconds)
         }
-        val afterCall = Instant.now()
 
-        val deadline = delegate.lastExtendDeadline.get()
-        val expectedMin = beforeCall.plusSeconds(59)   // some tolerance
-        val expectedMax = afterCall.plusSeconds(61)    // some tolerance
-
-        assert(!deadline.isBefore(expectedMin)) {
-            "lastExtendDeadline=$deadline is before expected minimum=$expectedMin"
-        }
-        assert(!deadline.isAfter(expectedMax)) {
-            "lastExtendDeadline=$deadline is after expected maximum=$expectedMax"
-        }
+        delegate.lastExtendDeadline.get() shouldBeEqualTo observedExpireAt
     }
 
     // --- suspend variants ---
@@ -330,6 +321,21 @@ class LockExtenderTest {
         }
 
         delegate.lastExtendDeadline.get() shouldBeEqualTo Instant.EPOCH
+        delegate.suspendExtendCalls.get() shouldBeEqualTo 1
+        delegate.syncExtendCalls.get() shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `extendActiveLockDetailedSuspend sets lastExtendDeadline to backend observed expireAt`() = runTest {
+        val observedExpireAt = Instant.now().plusSeconds(5)
+        val delegate = FakeSuspendDelegate(ExtendOutcome.Extended(observedExpireAt))
+
+        withContext(LockHandleElement(realHandle(delegate = delegate))) {
+            val outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
+            outcome.shouldBeInstanceOf<ExtendOutcome.Extended>()
+        }
+
+        delegate.lastExtendDeadline.get() shouldBeEqualTo observedExpireAt
         delegate.suspendExtendCalls.get() shouldBeEqualTo 1
         delegate.syncExtendCalls.get() shouldBeEqualTo 0
     }
