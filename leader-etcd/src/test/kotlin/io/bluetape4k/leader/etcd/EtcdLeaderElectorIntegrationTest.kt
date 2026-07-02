@@ -1,12 +1,18 @@
 package io.bluetape4k.leader.etcd
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import org.junit.jupiter.api.Test
+import java.time.Duration
+import java.time.Instant
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -112,6 +118,31 @@ class EtcdLeaderElectorIntegrationTest: AbstractEtcdLeaderTest() {
             }
 
             extended shouldBeEqualTo true
+        }
+    }
+
+    @Test
+    fun `extendActiveLockDetailed reports etcd keepalive TTL instead of requested duration`() {
+        newClient().use { client ->
+            val options = EtcdLeaderElectionOptions(
+                leaderOptions = LeaderElectionOptions(waitTime = 2.seconds, leaseTime = 3.seconds),
+                keyPrefix = "/bluetape4k/leader/test/${randomName()}",
+            )
+            val elector = EtcdLeaderElector(client, options)
+
+            val outcome = checkNotNull(elector.runIfLeader(randomName()) {
+                val beforeExtend = Instant.now()
+                val result = LockExtender.extendActiveLockDetailed(60.seconds)
+                beforeExtend to result
+            })
+
+            val result = outcome.second
+            result.shouldBeInstanceOf<ExtendOutcome.Extended>()
+
+            val observedMillis = Duration.between(outcome.first, (result as ExtendOutcome.Extended).observedExpireAt)
+                .toMillis()
+            observedMillis shouldBeGreaterOrEqualTo 0L
+            observedMillis shouldBeLessOrEqualTo 6_000L
         }
     }
 

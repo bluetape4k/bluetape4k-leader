@@ -4,7 +4,6 @@ import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.internal.LockStateHolder
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
-import java.time.Instant
 import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 import kotlin.time.toKotlinDuration
@@ -43,7 +42,7 @@ import kotlin.time.toKotlinDuration
  * ## Concurrency (Watchdog × LockExtender)
  * - Both make atomic backend extend calls → race-free, but **last-write-wins**.
  * - Calling `extendActiveLock(d)` updates [io.bluetape4k.leader.internal.ExtendDelegate.lastExtendDeadline]
- *   → watchdog skips on the next tick if the user deadline is later (R2 mitigation).
+ *   to the backend-observed expiry → watchdog skips only while the renewed lease is still safely ahead (R2 mitigation).
  * - Disable watchdog if precise TTL protection is required (= ShedLock equivalent mode).
  *
  * ## ⚠️ Reactor non-suspend operators not supported (Step 3-P R5)
@@ -191,11 +190,11 @@ object LockExtender : KLogging() {
             return ExtendOutcome.NotHeld
         }
         val real = handle as LeaderLockHandle.Real
-        // ⚠️ Tier 8 T8-H1 — backend extend 호출 후 Extended 일 때만 lastExtendDeadline 갱신.
-        //   pre-extend 갱신 시 backend 가 NotHeld/BackendError 반환해도 watchdog 가 deadline 기준 skip → split-brain.
+        // Update only after a successful backend extend. Use the backend-observed expiry so watchdog skips
+        // never outlive the lease that was actually renewed.
         val outcome = real.extend(lockAtMostFor)
         if (outcome is ExtendOutcome.Extended) {
-            real.extendDelegate.lastExtendDeadline.set(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+            real.extendDelegate.lastExtendDeadline.set(outcome.observedExpireAt)
         }
         return outcome
     }
@@ -206,10 +205,11 @@ object LockExtender : KLogging() {
             return ExtendOutcome.NotHeld
         }
         val real = handle as LeaderLockHandle.Real
-        // ⚠️ Tier 8 T8-H1 — backend extend 호출 후 Extended 일 때만 lastExtendDeadline 갱신.
+        // Update only after a successful backend extend. Use the backend-observed expiry so watchdog skips
+        // never outlive the lease that was actually renewed.
         val outcome = real.extendSuspend(lockAtMostFor)
         if (outcome is ExtendOutcome.Extended) {
-            real.extendDelegate.lastExtendDeadline.set(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
+            real.extendDelegate.lastExtendDeadline.set(outcome.observedExpireAt)
         }
         return outcome
     }

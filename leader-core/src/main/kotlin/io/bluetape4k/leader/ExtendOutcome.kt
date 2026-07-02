@@ -41,6 +41,7 @@ sealed interface ExtendOutcome {
      * - Redisson: Redisson internal atomic — may use client clock → ±50ms
      * - MongoDB: server-side `$$NOW` aggregation → accurate
      * - Exposed JDBC/R2DBC: DB server time (`now()` SQL) → accurate
+     * - etcd: keep-alive response TTL from the server plus local receipt time → bounded by actual lease TTL
      * - ZooKeeper: no TTL concept — `Instant.MAX` (session-held liveness passthrough)
      *
      * Do not use as a precise deadline — intended for observability/logging only.
