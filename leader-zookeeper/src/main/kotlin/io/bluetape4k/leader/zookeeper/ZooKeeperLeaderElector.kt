@@ -10,20 +10,20 @@ import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperLockExtendDelegate
+import io.bluetape4k.leader.zookeeper.internal.ZooKeeperOwnedInterProcessMutex
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
 import org.apache.curator.framework.CuratorFramework
-import org.apache.curator.framework.recipes.locks.InterProcessMutex
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 
 /**
- * ZooKeeper single-leader election implementation based on Apache Curator [InterProcessMutex].
+ * ZooKeeper single-leader election implementation based on Apache Curator's inter-process mutex recipe.
  *
  * ## Behavior / Contract
- * - Creates an [InterProcessMutex] at the ZooKeeper path for each [lockName] and attempts acquisition
+ * - Creates a Curator mutex at the ZooKeeper path for each [lockName] and attempts acquisition
  *   for up to [LeaderElectionOptions.waitTime].
  * - Returns `null` without executing [action] if acquisition fails.
  * - Executes [action] on successful acquisition and always calls `release()` in a `finally` block.
@@ -72,7 +72,7 @@ class ZooKeeperLeaderElector private constructor(
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         val path = ZooKeeperPaths.electionPath(basePath, lockName)
-        val mutex = InterProcessMutex(client, path)
+        val mutex = ZooKeeperOwnedInterProcessMutex(client, path)
 
         log.debug { "ZooKeeper leader lock 획득을 요청합니다. path=$path" }
         val acquired = try {
@@ -93,8 +93,19 @@ class ZooKeeperLeaderElector private constructor(
 
         log.debug { "ZooKeeper leader lock 획득 성공. path=$path" }
 
+        val lockPath = mutex.currentThreadLockPath()
+        if (lockPath == null) {
+            log.warn { "ZooKeeper leader lock path 조회 실패. path=$path" }
+            try {
+                mutex.release()
+            } catch (e: Exception) {
+                log.warn(e) { "ZooKeeper leader lock path 조회 실패 후 반납 실패. path=$path" }
+            }
+            return null
+        }
+
         val acquiredAtNanos = System.nanoTime()
-        val delegate = ZooKeeperLockExtendDelegate(mutex, path)
+        val delegate = ZooKeeperLockExtendDelegate(client, mutex, path, lockPath)
         val identity = LockIdentity(
             lockName = lockName,
             kind = LockIdentity.AnnotationKind.SINGLE,

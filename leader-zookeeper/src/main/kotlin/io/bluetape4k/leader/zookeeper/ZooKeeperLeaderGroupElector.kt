@@ -111,7 +111,7 @@ class ZooKeeperLeaderGroupElector private constructor(
 
         val acquiredAtNanos = System.nanoTime()
         val slotKey = path
-        val delegate = ZooKeeperSlotExtendDelegate(slotKey)
+        val delegate = ZooKeeperSlotExtendDelegate(client, slotKey, lease.nodeName)
         val identity = LockIdentity(
             lockName = lockName,
             kind = LockIdentity.AnnotationKind.GROUP,

@@ -8,6 +8,7 @@ import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperBackendErrorClassifier
+import io.bluetape4k.leader.zookeeper.internal.ZooKeeperOwnedInterProcessMutex
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperSuspendLockExtendDelegate
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
@@ -18,15 +19,14 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import org.apache.curator.framework.CuratorFramework
-import org.apache.curator.framework.recipes.locks.InterProcessMutex
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
- * ZooKeeper suspend single-leader election implementation based on Apache Curator [InterProcessMutex].
+ * ZooKeeper suspend single-leader election implementation based on Apache Curator's inter-process mutex recipe.
  *
  * ## Behavior / Contract
- * - Uses the same [InterProcessMutex] recipe as the blocking [ZooKeeperLeaderElector] to mutually exclude the same [lockName].
+ * - Uses the same Curator mutex recipe as the blocking [ZooKeeperLeaderElector] to mutually exclude the same [lockName].
  * - Since the Curator mutex has a thread-owner constraint, acquire/release is performed on a per-call single-thread dispatcher.
  * - Even during cancellation, releases the lock inside `withContext(NonCancellable)` and re-propagates [CancellationException].
  * - [LeaderElectionOptions.leaseTime] is not used as a ZooKeeper TTL; session termination/expiry is the automatic release boundary.
@@ -72,7 +72,7 @@ class ZooKeeperSuspendLeaderElector private constructor(
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         val path = ZooKeeperPaths.electionPath(basePath, lockName)
-        val mutex = InterProcessMutex(client, path)
+        val mutex = ZooKeeperOwnedInterProcessMutex(client, path)
         val ownerDispatcher = Executors.newSingleThreadExecutor { task ->
             Thread(task, "zookeeper-suspend-leader-$lockName").apply {
                 isDaemon = true
@@ -99,8 +99,25 @@ class ZooKeeperSuspendLeaderElector private constructor(
 
             log.debug { "ZooKeeper suspend leader lock 획득 성공. path=$path" }
 
+            val lockPath = runInterruptible(ownerDispatcher) {
+                mutex.currentThreadLockPath()
+            }
+            if (lockPath == null) {
+                log.warn { "ZooKeeper suspend leader lock path 조회 실패. path=$path" }
+                withContext(NonCancellable) {
+                    try {
+                        runInterruptible(ownerDispatcher) {
+                            mutex.release()
+                        }
+                    } catch (e: Exception) {
+                        log.warn(e) { "ZooKeeper suspend leader lock path 조회 실패 후 반납 실패. path=$path" }
+                    }
+                }
+                return null
+            }
+
             val acquiredAtNanos = System.nanoTime()
-            val delegate = ZooKeeperSuspendLockExtendDelegate(mutex, path)
+            val delegate = ZooKeeperSuspendLockExtendDelegate(client, mutex, path, lockPath)
             val identity = LockIdentity(
                 lockName = lockName,
                 kind = LockIdentity.AnnotationKind.SINGLE,

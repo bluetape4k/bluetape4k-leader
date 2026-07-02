@@ -1,12 +1,14 @@
 package io.bluetape4k.leader.zookeeper.contract
 
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.leader.zookeeper.AbstractZooKeeperLeaderTest
@@ -15,6 +17,7 @@ import io.bluetape4k.leader.zookeeper.ZooKeeperLeaderGroupElector
 import io.bluetape4k.leader.zookeeper.ZooKeeperSuspendLeaderElector
 import io.bluetape4k.leader.zookeeper.ZooKeeperSuspendLeaderGroupElector
 import io.bluetape4k.logging.coroutines.KLoggingChannel
+import org.apache.curator.utils.ZKPaths
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
@@ -46,6 +49,20 @@ class ZooKeeperExtendDelegateReferenceTest: AbstractZooKeeperLeaderTest() {
     companion object: KLoggingChannel()
 
     private fun randomLockName(): String = "extdelref-zk-${Base58.randomString(8)}"
+
+    private fun deleteChildren(path: String) {
+        curator.children.forPath(path)
+            .forEach { child -> curator.delete().forPath(ZKPaths.makePath(path, child)) }
+    }
+
+    private fun deleteSingleLockNode(lockName: String) {
+        deleteChildren(ZKPaths.makePath(ZooKeeperLeaderElector.DEFAULT_BASE_PATH, lockName))
+    }
+
+    private fun deleteGroupLeaseNode(lockName: String) {
+        val groupPath = ZKPaths.makePath(ZooKeeperLeaderGroupElector.DEFAULT_BASE_PATH, lockName)
+        deleteChildren(ZKPaths.makePath(groupPath, "leases"))
+    }
 
     @Test
     fun `sync single — extendActiveLockDetailed returns Extended inside body (passthrough)`() {
@@ -130,5 +147,71 @@ class ZooKeeperExtendDelegateReferenceTest: AbstractZooKeeperLeaderTest() {
         }
 
         outcomes.forEach { it.shouldBeInstanceOf<ExtendOutcome.Extended>() }
+    }
+
+    @Test
+    fun `sync single — extendActiveLockDetailed returns NotHeld after lock znode loss`() {
+        val elector = ZooKeeperLeaderElector(curator)
+        val lockName = randomLockName()
+
+        var outcome: ExtendOutcome? = null
+        elector.runIfLeader(lockName) {
+            val handle = AopScopeAccess.peekSyncMatching(lockName) as LeaderLockHandle.Real
+            deleteSingleLockNode(lockName)
+            handle.isStillHeld().shouldBeFalse()
+            outcome = LockExtender.extendActiveLockDetailed(60.seconds)
+        }
+
+        outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
+    }
+
+    @Test
+    fun `suspend single — extendActiveLockDetailedSuspend returns NotHeld after lock znode loss`() = runSuspendIO {
+        val elector = ZooKeeperSuspendLeaderElector(curator)
+        val lockName = randomLockName()
+
+        var outcome: ExtendOutcome? = null
+        elector.runIfLeader(lockName) {
+            deleteSingleLockNode(lockName)
+            outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
+        }
+
+        outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
+    }
+
+    @Test
+    fun `sync group — extendActiveLockDetailed returns NotHeld after lease znode loss`() {
+        val elector = ZooKeeperLeaderGroupElector(
+            curator,
+            LeaderGroupElectionOptions(maxLeaders = 2),
+        )
+        val lockName = randomLockName()
+
+        var outcome: ExtendOutcome? = null
+        elector.runIfLeader(lockName) {
+            val handle = AopScopeAccess.peekSyncMatching(lockName) as LeaderLockHandle.Real
+            deleteGroupLeaseNode(lockName)
+            handle.isStillHeld().shouldBeFalse()
+            outcome = LockExtender.extendActiveLockDetailed(60.seconds)
+        }
+
+        outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
+    }
+
+    @Test
+    fun `suspend group — extendActiveLockDetailedSuspend returns NotHeld after lease znode loss`() = runSuspendIO {
+        val elector = ZooKeeperSuspendLeaderGroupElector(
+            curator,
+            LeaderGroupElectionOptions(maxLeaders = 2),
+        )
+        val lockName = randomLockName()
+
+        var outcome: ExtendOutcome? = null
+        elector.runIfLeader(lockName) {
+            deleteGroupLeaseNode(lockName)
+            outcome = LockExtender.extendActiveLockDetailedSuspend(60.seconds)
+        }
+
+        outcome.shouldBeInstanceOf<ExtendOutcome.NotHeld>()
     }
 }
