@@ -121,6 +121,7 @@ dependencies {
     add("benchmarkImplementation", project(":bluetape4k-leader-etcd"))
     add("benchmarkImplementation", project(":bluetape4k-leader-dynamodb"))
     add("benchmarkImplementation", project(":bluetape4k-leader-spring-boot"))
+    add("benchmarkImplementation", project(":bluetape4k-leader-micrometer"))
 
     add("benchmarkImplementation", libs.bluetape4k.testcontainers)
     add("benchmarkImplementation", libs.bluetape4k.virtualthread.jdk21)
