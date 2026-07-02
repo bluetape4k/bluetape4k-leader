@@ -5,6 +5,7 @@ configurations {
 dependencies {
     api(project(":bluetape4k-leader-core"))
     api(libs.micrometer.core)
+    api(libs.micrometer.observation)
 
     testImplementation(libs.bluetape4k.virtualthread.jdk21)
     testImplementation(libs.bluetape4k.junit5)

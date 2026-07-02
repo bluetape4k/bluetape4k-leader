@@ -24,6 +24,8 @@ demo:
     initial-delay-ms: ${DEMO_JOB_INITIAL_DELAY_MS:1000}
   redis:
     url: ${DEMO_REDIS_URL:}
+  observation:
+    logging-handler-enabled: ${DEMO_OBSERVATION_LOGGING_HANDLER_ENABLED:true}
 
 bluetape4k:
   leader:
@@ -33,3 +35,9 @@ bluetape4k:
       lock-name-prefix: ""
       metrics:
         enabled: true
+    observability:
+      tracing:
+        enabled: true
+        include-lock-name: false
+        include-leader-id: false
+        include-exception-details: false

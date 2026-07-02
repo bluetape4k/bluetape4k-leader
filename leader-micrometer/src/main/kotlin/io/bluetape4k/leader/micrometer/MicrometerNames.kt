@@ -57,6 +57,47 @@ const val GAUGE_BRIDGE_RESULT_DROPPED: String = "leader.aop.bridge.result-droppe
 const val COUNTER_LEADER_ID_RESOLUTION_FAILED: String = "leader.aop.leader_id.resolution_failed"
 
 /**
+ * Observation name for leader lock acquisition terminal events.
+ *
+ * Emits short Micrometer Observations for acquired and skipped AOP acquisition
+ * outcomes. The measured acquisition elapsed time is stored as a key value,
+ * not as the observation's own wall-clock duration.
+ */
+const val OBSERVATION_LEADER_AOP_ACQUIRE: String = "leader.aop.acquire"
+
+/**
+ * Observation name for leader task execution terminal events.
+ *
+ * Emits short Micrometer Observations for success, error, and cancellation
+ * outcomes after the guarded task reaches a terminal callback.
+ */
+const val OBSERVATION_LEADER_AOP_EXECUTION: String = "leader.aop.execution"
+
+/** Observation name for listener-based elected, revoked, and skipped events. */
+const val OBSERVATION_LEADER_ELECTION_EVENT: String = "leader.election.event"
+
+/** Observation key for the logical operation, such as `acquire` or `execute`. */
+const val OBSERVATION_TAG_OPERATION: String = "leader.operation"
+
+/** Observation key for terminal result values such as `acquired`, `success`, or `error`. */
+const val OBSERVATION_TAG_OUTCOME: String = "outcome"
+
+/** Observation key for skipped-acquire reason values. */
+const val OBSERVATION_TAG_REASON: String = "reason"
+
+/** Observation key for exception simple class names. */
+const val OBSERVATION_TAG_EXCEPTION: String = "exception"
+
+/** Observation key for listener event values such as `elected`, `revoked`, or `skipped`. */
+const val OBSERVATION_TAG_EVENT: String = "event"
+
+/** Observation key for callback-provided acquisition elapsed milliseconds. */
+const val OBSERVATION_TAG_ACQUIRE_ELAPSED_MS: String = "acquire.elapsed.ms"
+
+/** Observation key for callback-provided execution elapsed milliseconds. */
+const val OBSERVATION_TAG_EXECUTION_ELAPSED_MS: String = "execution.elapsed.ms"
+
+/**
  * Micrometer meter and tag name constants for leader-aop.
  *
  * All meter names share the `leader.aop.` prefix.

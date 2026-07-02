@@ -33,6 +33,7 @@ scrape하고 Grafana가 사전 provision된 dashboard를 렌더링합니다.
 - `@Scheduled` trigger가 `dashboard-job` 이름의 proxied `@LeaderElection` 작업을 호출
 - Lettuce Redis backend, `bootRun` 시 Testcontainers Redis 자동 fallback
 - Spring Boot Actuator를 통한 Micrometer leader AOP 메트릭 노출
+- leader Micrometer Observation을 확인하는 로컬 demo `ObservationHandler`
 - Prometheus scrape 설정과 직접 작성한 Grafana dashboard
 - 첫 실행 전에도 dashboard series가 보이도록 정적 lock 메트릭 사전 등록
 - 애플리케이션과 Spring test context의 Spring Boot AOT 처리
@@ -45,6 +46,28 @@ curl http://localhost:8080/actuator/prometheus | grep leader_aop
 ```
 
 `DEMO_REDIS_URL`이 없으면 `bootRun`은 Testcontainers Redis를 사용합니다.
+demo는 로컬 `ObservationHandler`로 leader observation도 로그에 남깁니다. 끄려면 `DEMO_OBSERVATION_LOGGING_HANDLER_ENABLED=false`를 지정하세요.
+
+## Observation Tracing Demo
+
+`application.yml`은 안전한 기본값으로 leader Observation bridge를 켭니다.
+
+```yaml
+bluetape4k:
+  leader:
+    observability:
+      tracing:
+        enabled: true
+        include-lock-name: false
+        include-leader-id: false
+        include-exception-details: false
+```
+
+`PrometheusDashboardApp`은 `LeaderObservationLoggingHandler`를 로컬 demo hook으로 등록합니다. 이 handler는 `leader.aop.acquire`, `leader.aop.execution`, listener event observation의 이름과 low-cardinality key를 로그로 보여줍니다. production export 설정은 아닙니다.
+
+이 예제는 OpenTelemetry SDK, Micrometer tracing bridge, exporter, collector를 의도적으로 추가하지 않습니다. exported trace가 필요하면 애플리케이션에서 해당 의존성과 설정을 직접 추가하세요. Raw `lock.name`, `leader.id`, exception detail은 tenant, user, job, URL, credential과 비슷한 값을 포함할 수 있어 기본 비활성입니다. 현재 Spring AOP는 `leader.id`를 합성하지 않습니다. direct 호출 또는 future identity-aware 경로가 `LeaderAopMetricsContext.Identified`를 넘길 때만 값이 나타납니다.
+
+`LockExtender`가 core observation/event hook을 제공하기 전까지 lease-extension observation도 이 예제의 범위 밖입니다. 후속 작업은 issue #559에서 추적합니다.
 
 ## Prometheus/Grafana 실행
 
@@ -85,6 +108,7 @@ max by (lock_name) (leader_aop_active)
 | `DEMO_REDIS_URL` / `demo.redis.url` | Testcontainers Redis | Lettuce가 사용할 Redis URI |
 | `DEMO_JOB_FIXED_DELAY_MS` / `demo.job.fixed-delay-ms` | `5000` | Scheduler fixed delay |
 | `DEMO_JOB_INITIAL_DELAY_MS` / `demo.job.initial-delay-ms` | `1000` | Scheduler initial delay |
+| `DEMO_OBSERVATION_LOGGING_HANDLER_ENABLED` / `demo.observation.logging-handler-enabled` | `true` | 로컬 demo Observation handler 활성화 |
 | `SERVER_PORT` | `8080` | HTTP port |
 
 ## 의존성
@@ -96,6 +120,8 @@ dependencies {
     implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:${bluetape4kVersion}")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("io.micrometer:micrometer-registry-prometheus")
+    // Observation을 trace로 export하려면 애플리케이션에서
+    // Micrometer tracing / OpenTelemetry exporter 의존성을 추가하세요.
 }
 ```
 
