@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -179,6 +180,36 @@ class ConsulLeaderElectorDelegationTest {
     }
 
     @Test
+    fun `extend returns NotHeld when Consul KV ownership moved to another session`() {
+        val sessionId = ConsulSessionId("session-a")
+        val handle = ConsulLeaseHandle(
+            lockName = "lock-a",
+            key = "bluetape4k/leader/single/lock-a",
+            sessionId = sessionId,
+            ownerToken = "owner-a",
+            auditLeaderId = "audit-a",
+            nodeId = "node-a",
+            electedAt = Instant.parse("2026-05-22T01:02:03Z"),
+            leaseUntil = Instant.parse("2026-05-22T01:02:13Z"),
+        )
+        val client = FakeConsulLockClient(
+            entry = ConsulKvEntry(
+                key = handle.key,
+                value = null,
+                sessionId = ConsulSessionId("session-b"),
+                lockIndex = 3L,
+                modifyIndex = 4L,
+            ),
+        )
+        val delegate = ConsulLockExtendDelegate(client, handle)
+
+        delegate.extend(20.seconds) shouldBeEqualTo ExtendOutcome.NotHeld
+
+        client.readCalls shouldBeEqualTo 1
+        delegate.lastExtendDeadline.get() shouldBeEqualTo Instant.EPOCH
+    }
+
+    @Test
     fun `runIfLeaderResult returns ActionFailed for elected action failure`() {
         val client = FakeConsulLockClient()
         val elector = ConsulLeaderElector.create(client)
@@ -261,6 +292,8 @@ class ConsulLeaderElectorDelegationTest {
         private val readFuture: CompletableFuture<ConsulKvEntry?>? = null,
     ) : ConsulLockClient {
 
+        private var currentEntry: ConsulKvEntry? = entry
+
         var createdSessions: Int = 0
             private set
         var acquireCalls: Int = 0
@@ -295,6 +328,15 @@ class ConsulLeaderElectorDelegationTest {
             ownerPayload: String,
         ): CompletableFuture<Boolean> {
             acquireCalls++
+            if (acquireResult) {
+                currentEntry = ConsulKvEntry(
+                    key = key,
+                    value = ownerPayload,
+                    sessionId = sessionId,
+                    lockIndex = 1L,
+                    modifyIndex = 1L,
+                )
+            }
             return CompletableFuture.completedFuture(acquireResult)
         }
 
@@ -318,7 +360,7 @@ class ConsulLeaderElectorDelegationTest {
 
         override fun read(key: String): CompletableFuture<ConsulKvEntry?> {
             readCalls++
-            return readFuture ?: CompletableFuture.completedFuture(entry)
+            return readFuture ?: CompletableFuture.completedFuture(currentEntry)
         }
     }
 
