@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="940" viewBox="0 0 1320 940">
+<rect width="1320" height="940" fill="#f8f6ef"/>
+<style>text{font-family:"Comic Mono","Comic Sans MS","Comic Neue",Arial,sans-serif;fill:#24313f}.title{font-family:"Architects Daughter","Comic Sans MS",cursive;font-size:34px}.sub{font-size:15px;fill:#5f6b76}.axis{font-size:13px;fill:#687480}.label{font-size:15px}.value{font-size:14px;font-weight:700}.hint{font-size:13px;fill:#5f6b76}</style>
+<text x="660" y="52" text-anchor="middle" class="title">Kubernetes Lease Scenario Throughput</text>
+<text x="660" y="82" text-anchor="middle" class="sub">Issue #524 - K3s-backed Lease fresh, skip, takeover, renewal, and conflict paths</text>
+<line x1="335" y1="108" x2="335" y2="700" stroke="#d4cec0" stroke-width="1"/>
+<line x1="335.0" y1="108" x2="335.0" y2="700" stroke="#e2dccf" stroke-width="1"/>
+<text x="335.0" y="730" text-anchor="middle" class="axis">0.0</text>
+<line x1="551.3" y1="108" x2="551.3" y2="700" stroke="#e2dccf" stroke-width="1"/>
+<text x="551.3" y="730" text-anchor="middle" class="axis">175.0</text>
+<line x1="767.5" y1="108" x2="767.5" y2="700" stroke="#e2dccf" stroke-width="1"/>
+<text x="767.5" y="730" text-anchor="middle" class="axis">350.0</text>
+<line x1="983.8" y1="108" x2="983.8" y2="700" stroke="#e2dccf" stroke-width="1"/>
+<text x="983.8" y="730" text-anchor="middle" class="axis">525.0</text>
+<line x1="1200.0" y1="108" x2="1200.0" y2="700" stroke="#e2dccf" stroke-width="1"/>
+<text x="1200.0" y="730" text-anchor="middle" class="axis">700.0</text>
+<text x="317" y="136" text-anchor="end" class="label">Blocking Fresh Acquire</text>
+<rect x="335" y="118" width="101.7" height="26" rx="5" fill="#4f86c6" opacity="0.88"/>
+<text x="446.7" y="136" class="value">82.3</text>
+<text x="317" y="196" text-anchor="end" class="label">Blocking Pre-held Skip</text>
+<rect x="335" y="178" width="817.0" height="26" rx="5" fill="#789262" opacity="0.88"/>
+<text x="1162.0" y="196" class="value">661.1</text>
+<text x="317" y="256" text-anchor="end" class="label">Blocking Expired Takeover</text>
+<rect x="335" y="238" width="110.9" height="26" rx="5" fill="#b57a4a" opacity="0.88"/>
+<text x="455.9" y="256" class="value">89.8</text>
+<text x="317" y="316" text-anchor="end" class="label">Blocking Lease Renewal API</text>
+<rect x="335" y="298" width="258.0" height="26" rx="5" fill="#7d6fa9" opacity="0.88"/>
+<text x="603.0" y="316" class="value">208.8</text>
+<text x="317" y="376" text-anchor="end" class="label">Blocking resourceVersion 409</text>
+<rect x="335" y="358" width="667.0" height="26" rx="5" fill="#b75f5f" opacity="0.88"/>
+<text x="1012.0" y="376" class="value">539.8</text>
+<text x="317" y="436" text-anchor="end" class="label">Suspend Fresh Acquire</text>
+<rect x="335" y="418" width="111.3" height="26" rx="5" fill="#4f86c6" opacity="0.88"/>
+<text x="456.3" y="436" class="value">90.1</text>
+<text x="317" y="496" text-anchor="end" class="label">Suspend Pre-held Skip</text>
+<rect x="335" y="478" width="575.3" height="26" rx="5" fill="#789262" opacity="0.88"/>
+<text x="920.3" y="496" class="value">465.6</text>
+<text x="317" y="556" text-anchor="end" class="label">Suspend Expired Takeover</text>
+<rect x="335" y="538" width="120.0" height="26" rx="5" fill="#b57a4a" opacity="0.88"/>
+<text x="465.0" y="556" class="value">97.1</text>
+<text x="317" y="616" text-anchor="end" class="label">Suspend Lease Renewal API</text>
+<rect x="335" y="598" width="319.7" height="26" rx="5" fill="#7d6fa9" opacity="0.88"/>
+<text x="664.7" y="616" class="value">258.7</text>
+<text x="317" y="676" text-anchor="end" class="label">Suspend resourceVersion 409</text>
+<rect x="335" y="658" width="525.9" height="26" rx="5" fill="#b75f5f" opacity="0.88"/>
+<text x="870.9" y="676" class="value">425.6</text>
+<text x="335" y="842" class="hint">Higher ops/s is better.</text>
+<text x="335" y="864" class="hint">Fresh and takeover rows include public elector acquire+release.</text>
+<text x="335" y="886" class="hint">Renewal and conflict rows isolate Kubernetes Lease API-server update/conflict cost.</text>
+<text x="335" y="908" class="hint">K3s Testcontainers, one fork, one thread, 1 warmup and 1 x 200 ms measurement. Smoke snapshot, not production capacity.</text>
+</svg>
