@@ -35,6 +35,9 @@ bluetape4k:
       lock-name-prefix: ""
       metrics:
         enabled: true
+        tags:
+          lock-name:
+            mode: RAW
     observability:
       tracing:
         enabled: true

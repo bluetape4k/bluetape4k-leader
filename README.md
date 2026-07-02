@@ -636,6 +636,8 @@ bluetape4k:
         enabled: false
 ```
 
+Metric tag values are sanitized before export. By default, dynamic `lock.name` values are collapsed to `redacted-lock`, opt-in Observation `leader.id` values are collapsed to `redacted-leader`, and bounded backend labels stay raw when custom or future meter paths emit `backend.name`. Current built-in meter paths do not emit `backend.name`. Use `bluetape4k.leader.aop.metrics.tags.lock-name.mode=RAW` only for small static job sets; use `HASH` or `TRUNCATE` when dashboards need bounded correlation for dynamic names.
+
 ### Meter Catalog
 
 | Meter name | Type | Description |
@@ -652,7 +654,7 @@ bluetape4k:
 | `shedlock.leader.duration` | Timer | Decorator-based leader action duration |
 | `shedlock.leader.active` | Gauge | Decorator-based currently running leader actions (JVM-local) |
 
-All meters are tagged with `lock.name`. Micrometer's `NamingConvention` converts names per backend (e.g., `leader_aop_attempts_total` for Prometheus).
+All meters use the exported `lock.name` tag after cardinality control. Micrometer's `NamingConvention` converts names per backend (e.g., `leader_aop_attempts_total` for Prometheus).
 
 > **Multi-instance note:** `leader.aop.active` is JVM-local. Use `max by (lock_name) (leader_aop_active)` in Prometheus — not `sum` — to avoid counting each node's gauge separately.
 
@@ -677,7 +679,7 @@ suspendElection.runIfLeader("sync-job") {
 }
 ```
 
-Pass `lockName = "static-job"` to any wrapper to use a fixed `lock.name` tag; omit it to use the per-call lock name.
+Pass `lockName = "static-job"` to any wrapper to use a fixed `lock.name` tag before sanitization; omit it to use the per-call lock name.
 
 ### Pre-registration (optional)
 

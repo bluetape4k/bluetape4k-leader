@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LeaderElectionListener
 import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder
+import io.bluetape4k.leader.micrometer.LeaderMetricTagMode
 import io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder
 import io.bluetape4k.leader.micrometer.MicrometerObservationLeaderAopMetricsRecorder
 import io.bluetape4k.leader.micrometer.MicrometerObservationLeaderElectionListener
@@ -84,6 +85,8 @@ class LeaderObservationAutoConfigurationTest {
                 "bluetape4k.leader.observability.tracing.include-lock-name=true",
                 "bluetape4k.leader.observability.tracing.include-leader-id=true",
                 "bluetape4k.leader.observability.tracing.include-exception-details=true",
+                "bluetape4k.leader.aop.metrics.tags.lock-name.mode=HASH",
+                "bluetape4k.leader.aop.metrics.tags.lock-name.hash-length=12",
             )
             .run { ctx ->
                 val recorder = ctx.getBean(MicrometerObservationLeaderAopMetricsRecorder::class.java)
@@ -92,6 +95,8 @@ class LeaderObservationAutoConfigurationTest {
                 recorder.options.includeLockName.shouldBeTrue()
                 recorder.options.includeLeaderId.shouldBeTrue()
                 recorder.options.includeExceptionDetails.shouldBeTrue()
+                recorder.options.tagOptions.lockName.mode shouldBeEqualTo LeaderMetricTagMode.HASH
+                recorder.options.tagOptions.lockName.hashLength shouldBeEqualTo 12
                 listener.options shouldBeEqualTo recorder.options
             }
     }

@@ -11,6 +11,36 @@
       "description": "Leader AOP SpEL 보안 옵션."
     },
     {
+      "name": "bluetape4k.leader.aop.metrics",
+      "type": "io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties$Metrics",
+      "description": "Leader AOP Micrometer metrics options."
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags",
+      "type": "io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties$Metrics$Tags",
+      "description": "Cardinality controls for leader metric tags."
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.lock-name",
+      "type": "io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties$Metrics$TagRule",
+      "description": "Cardinality rule for the exported lock.name metric tag."
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.leader-id",
+      "type": "io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties$Metrics$TagRule",
+      "description": "Cardinality rule for the opt-in leader.id Observation tag."
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.backend-name",
+      "type": "io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties$Metrics$TagRule",
+      "description": "Cardinality rule for bounded backend.name metric tags."
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.default-rule",
+      "type": "io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties$Metrics$TagRule",
+      "description": "Fallback cardinality rule for unknown leader metric tags."
+    },
+    {
       "name": "bluetape4k.leader.observability",
       "type": "io.bluetape4k.leader.spring.properties.LeaderObservabilityProperties",
       "description": "Leader election observability options."
@@ -65,6 +95,148 @@
       "defaultValue": false
     },
     {
+      "name": "bluetape4k.leader.aop.metrics.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Micrometer leader AOP metrics integration.",
+      "defaultValue": true
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.lock-name.mode",
+      "type": "io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties$Metrics$TagMode",
+      "description": "Export mode for lock.name. Defaults to REDACT to collapse high-cardinality dynamic lock names.",
+      "defaultValue": "REDACT"
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.lock-name.allow-list",
+      "type": "java.util.Set<java.lang.String>",
+      "description": "Exact lock.name values allowed to pass through as raw values."
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.lock-name.deny-list",
+      "type": "java.util.Set<java.lang.String>",
+      "description": "Exact lock.name values that are always redacted."
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.lock-name.hash-length",
+      "type": "java.lang.Integer",
+      "description": "SHA-256 hex prefix length used when lock.name mode is HASH.",
+      "defaultValue": 16
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.lock-name.max-length",
+      "type": "java.lang.Integer",
+      "description": "Maximum exported lock.name length used when mode is TRUNCATE.",
+      "defaultValue": 0
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.lock-name.redacted-value",
+      "type": "java.lang.String",
+      "description": "Sentinel exported for redacted lock.name values.",
+      "defaultValue": "redacted-lock"
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.leader-id.mode",
+      "type": "io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties$Metrics$TagMode",
+      "description": "Export mode for leader.id Observation tags. Defaults to REDACT.",
+      "defaultValue": "REDACT"
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.leader-id.allow-list",
+      "type": "java.util.Set<java.lang.String>",
+      "description": "Exact leader.id values allowed to pass through as raw values."
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.leader-id.deny-list",
+      "type": "java.util.Set<java.lang.String>",
+      "description": "Exact leader.id values that are always redacted."
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.leader-id.hash-length",
+      "type": "java.lang.Integer",
+      "description": "SHA-256 hex prefix length used when leader.id mode is HASH.",
+      "defaultValue": 16
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.leader-id.max-length",
+      "type": "java.lang.Integer",
+      "description": "Maximum exported leader.id length used when mode is TRUNCATE.",
+      "defaultValue": 0
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.leader-id.redacted-value",
+      "type": "java.lang.String",
+      "description": "Sentinel exported for redacted leader.id values.",
+      "defaultValue": "redacted-leader"
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.backend-name.mode",
+      "type": "io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties$Metrics$TagMode",
+      "description": "Export mode for backend.name. Defaults to RAW because backend identifiers are bounded.",
+      "defaultValue": "RAW"
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.backend-name.allow-list",
+      "type": "java.util.Set<java.lang.String>",
+      "description": "Exact backend.name values allowed to pass through as raw values."
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.backend-name.deny-list",
+      "type": "java.util.Set<java.lang.String>",
+      "description": "Exact backend.name values that are always redacted."
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.backend-name.hash-length",
+      "type": "java.lang.Integer",
+      "description": "SHA-256 hex prefix length used when backend.name mode is HASH.",
+      "defaultValue": 16
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.backend-name.max-length",
+      "type": "java.lang.Integer",
+      "description": "Maximum exported backend.name length used when mode is TRUNCATE.",
+      "defaultValue": 0
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.backend-name.redacted-value",
+      "type": "java.lang.String",
+      "description": "Sentinel exported for redacted backend.name values.",
+      "defaultValue": "redacted"
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.default-rule.mode",
+      "type": "io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties$Metrics$TagMode",
+      "description": "Fallback export mode for unknown leader metric tag keys.",
+      "defaultValue": "REDACT"
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.default-rule.allow-list",
+      "type": "java.util.Set<java.lang.String>",
+      "description": "Exact unknown tag values allowed to pass through as raw values."
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.default-rule.deny-list",
+      "type": "java.util.Set<java.lang.String>",
+      "description": "Exact unknown tag values that are always redacted."
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.default-rule.hash-length",
+      "type": "java.lang.Integer",
+      "description": "SHA-256 hex prefix length used when the fallback mode is HASH.",
+      "defaultValue": 16
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.default-rule.max-length",
+      "type": "java.lang.Integer",
+      "description": "Maximum exported unknown tag length used when fallback mode is TRUNCATE.",
+      "defaultValue": 0
+    },
+    {
+      "name": "bluetape4k.leader.aop.metrics.tags.default-rule.redacted-value",
+      "type": "java.lang.String",
+      "description": "Sentinel exported for redacted unknown tag values.",
+      "defaultValue": "redacted"
+    },
+    {
       "name": "bluetape4k.leader.observability.enabled",
       "type": "java.lang.Boolean",
       "description": "Enable leader election observability support beans.",
@@ -84,7 +256,7 @@
     {
       "name": "bluetape4k.leader.observability.tracing.include-lock-name",
       "type": "java.lang.Boolean",
-      "description": "Attach raw lock.name as high-cardinality Observation data. Keep disabled for dynamic SpEL lock names unless the tracing backend can handle the cardinality.",
+      "description": "Attach tag-policy-sanitized lock.name as high-cardinality Observation data. Keep disabled for dynamic SpEL lock names unless the tracing backend can handle the cardinality.",
       "defaultValue": false
     },
     {

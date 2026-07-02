@@ -25,7 +25,7 @@ bluetape4k leader election을 위한 Micrometer 계측 모듈입니다.
 ## 의존성
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.4.0")
 
 // 애플리케이션에서 사용할 registry를 선택합니다.
 implementation("io.micrometer:micrometer-registry-prometheus")
@@ -34,7 +34,7 @@ implementation("io.micrometer:micrometer-registry-prometheus")
 Spring Boot AOP 메트릭을 사용할 때:
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.4.0")
 implementation("org.springframework.boot:spring-boot-starter-actuator")
 ```
 
@@ -48,6 +48,13 @@ bluetape4k:
     aop:
       metrics:
         enabled: true
+        tags:
+          lock-name:
+            mode: REDACT
+            redacted-value: redacted-lock
+          leader-id:
+            mode: REDACT
+            redacted-value: redacted-leader
 management:
   endpoints:
     web:
@@ -64,6 +71,39 @@ class ReportJobs {
 }
 ```
 
+### 태그 Cardinality 제어
+
+메트릭은 tag 값을 export하기 전에 `LeaderMetricTagOptions`를 적용합니다. 운영 기본값은 동적 `lock.name`을 `redacted-lock`으로, opt-in `leader.id` Observation 값을 `redacted-leader`로 redaction합니다. future/custom meter path가 `backend.name` tag를 emit할 때는 cardinality가 제한된 backend 값만 raw로 유지합니다. 현재 built-in meter path는 `backend.name`을 emit하지 않습니다. 이렇게 하면 Prometheus, Datadog, OTLP backend에 tenant, request, job id마다 새로운 time series가 생기는 일을 막을 수 있습니다.
+
+애플리케이션 정책은 Spring property로 설정합니다.
+
+```yaml
+bluetape4k:
+  leader:
+    aop:
+      metrics:
+        tags:
+          lock-name:
+            mode: HASH
+            hash-length: 12
+            allow-list:
+              - daily-report
+              - nightly-cleanup
+            deny-list:
+              - tenant-debug-job
+```
+
+| Mode | 동작 | 주 사용처 |
+|---|---|---|
+| `REDACT` | 설정한 sentinel 값으로 export | 동적 이름 기본값 |
+| `RAW` | 원본 값을 그대로 export | 작고 정적인 job set |
+| `HASH` | 결정적인 SHA-256 hex prefix export | 상관관계 확인용, 익명화 아님 |
+| `TRUNCATE` | 제한된 prefix export, `max-length > 0` 필요 | 길이 제한이 있는 기존 dashboard |
+
+Denylist가 항상 우선 redaction됩니다. allowlist가 비어 있지 않으면 정확히 일치하는 값만 raw로 통과하고 나머지는 redaction됩니다. 단 `TRUNCATE`는 allow된 값에도 최대 길이를 적용합니다. 프로세스별 custom rule source가 필요하면 `LeaderMetricTagSanitizer`를 Spring bean이나 생성자 인자로 제공할 수 있습니다.
+
+`HASH`는 결정적이고 salt가 없는 pseudonymization입니다. entropy가 낮은 tenant, user, job 이름은 dictionary attack으로 추정될 수 있고, raw 값마다 time series가 하나씩 생기므로 cardinality도 줄지 않습니다. PII, secret, tenant ID, user ID, 무제한 이름에는 위험 모델을 문서화하지 않는 한 `REDACT`를 사용하세요. allowlist는 민감하지 않고 cardinality가 제한된 정적 이름에만 사용합니다.
+
 ## Observation Tracing
 
 leader 실행을 Micrometer Observation으로 남기고, 애플리케이션이 가진 tracing bridge가 span으로 변환하게 하려면 `MicrometerObservationLeaderAopMetricsRecorder`를 사용합니다.
@@ -75,6 +115,7 @@ val recorder = MicrometerObservationLeaderAopMetricsRecorder(
         includeLockName = false,
         includeLeaderId = false,
         includeExceptionDetails = false,
+        tagOptions = LeaderMetricTagOptions.Default,
     ),
 )
 
@@ -124,6 +165,16 @@ suspendElection.runIfLeader("sync-job") {
 ```
 
 데코레이터 생성자에 `lockName = "static-job"`을 넘기면 실제 호출 lock 이름과 무관하게 고정 `lock.name` 태그를 사용합니다.
+
+Decorator와 listener 메트릭도 AOP 메트릭과 같은 sanitizer 기본값을 사용합니다. lock name 집합이 작고 고정되어 있다는 확신이 있을 때만 `LeaderMetricTagOptions.Raw`를 넘기세요.
+
+```kotlin
+val election = InstrumentedLeaderElector(
+    delegate = delegate,
+    registry = registry,
+    tagOptions = LeaderMetricTagOptions.Raw,
+)
+```
 
 ## Listener 이벤트 메트릭
 
@@ -244,9 +295,9 @@ class MetricsPreRegistrar(
 
 ## Cardinality 가이드
 
-`lock.name` cardinality는 제한해야 합니다. 요청 ID, 사용자 ID, 무제한 tenant ID를 그대로 lock 이름에 넣지 마세요. 동적 이름이 필요하다면 애플리케이션 레벨에서 집계하거나 안정적인 job family만 등록하세요.
+`lock.name` cardinality는 제한해야 합니다. 요청 ID, 사용자 ID, 무제한 tenant ID를 export되는 metric tag에 그대로 넣지 마세요. 기본 sanitizer는 동적 이름을 하나의 sentinel로 접습니다. dashboard가 raw label이 꼭 필요하다면 정적 job 이름에만 `RAW`를 사용하세요. `HASH`는 raw label 없이 상관관계를 볼 수 있지만, cardinality reduction이나 익명화는 아닙니다.
 
-Observation의 high-cardinality 필드는 기본 비활성입니다. `includeLockName=true`, `includeLeaderId=true`를 켜면 tenant, user, job 식별자가 들어간 raw lock name이나 leader ID가 export될 수 있습니다. #529는 이 값을 redaction하지 않습니다. 현재 Spring AOP는 `leader.id`를 합성하지 않습니다. `includeLeaderId=true`는 direct 호출 또는 future identity-aware 경로에서 `LeaderAopMetricsContext.Identified`가 전달될 때만 값을 내보냅니다.
+Observation의 high-cardinality 필드는 기본 비활성입니다. `includeLockName=true` 또는 `includeLeaderId=true`를 켜더라도 값은 export 전에 `LeaderObservationOptions.tagOptions`를 거칩니다. 현재 Spring AOP는 `leader.id`를 합성하지 않습니다. `includeLeaderId=true`는 direct 호출 또는 future identity-aware 경로에서 `LeaderAopMetricsContext.Identified`가 전달될 때만 값을 내보냅니다.
 
 tracing backend가 예외 message와 stack trace를 받아도 되는 환경이 아니라면 `includeExceptionDetails=false`를 유지하세요.
 

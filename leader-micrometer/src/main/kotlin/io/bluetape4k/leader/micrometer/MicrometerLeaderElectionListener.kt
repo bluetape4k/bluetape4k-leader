@@ -21,20 +21,31 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class MicrometerLeaderElectionListener(
     private val registry: MeterRegistry,
+    private val tagSanitizer: LeaderMetricTagSanitizer,
 ) : LeaderElectionListener {
+
+    constructor(registry: MeterRegistry): this(
+        registry = registry,
+        tagSanitizer = LeaderMetricTagSanitizer.Default,
+    )
+
+    constructor(registry: MeterRegistry, tagOptions: LeaderMetricTagOptions): this(
+        registry = registry,
+        tagSanitizer = LeaderMetricTagSanitizer.from(tagOptions),
+    )
 
     private val counters = ConcurrentHashMap<Pair<String, String>, Counter>()
 
     override fun onElected(lockName: String) {
-        counter(lockName, EVENT_ELECTED).increment()
+        counter(sanitizeLockName(lockName), EVENT_ELECTED).increment()
     }
 
     override fun onRevoked(lockName: String) {
-        counter(lockName, EVENT_REVOKED).increment()
+        counter(sanitizeLockName(lockName), EVENT_REVOKED).increment()
     }
 
     override fun onSkipped(lockName: String) {
-        counter(lockName, EVENT_SKIPPED).increment()
+        counter(sanitizeLockName(lockName), EVENT_SKIPPED).increment()
     }
 
     private fun counter(lockName: String, event: String): Counter =
@@ -44,6 +55,9 @@ class MicrometerLeaderElectionListener(
                 .tag(MicrometerNames.TAG_EVENT, value)
                 .register(registry)
         }
+
+    private fun sanitizeLockName(lockName: String): String =
+        tagSanitizer.sanitize(MicrometerNames.TAG_LOCK_NAME, lockName)
 
     private companion object {
         private const val EVENT_ELECTED = "elected"

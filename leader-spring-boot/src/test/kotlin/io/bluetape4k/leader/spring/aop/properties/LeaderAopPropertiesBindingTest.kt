@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.spring.aop.properties
 
 import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -22,6 +23,13 @@ class LeaderAopPropertiesBindingTest {
                 "bluetape4k.leader.aop.default-lease-time" to "PT3M",
                 "bluetape4k.leader.aop.lock-name-prefix" to "myapp:",
                 "bluetape4k.leader.aop.metrics.enabled" to "false",
+                "bluetape4k.leader.aop.metrics.tags.lock-name.mode" to "HASH",
+                "bluetape4k.leader.aop.metrics.tags.lock-name.hash-length" to "12",
+                "bluetape4k.leader.aop.metrics.tags.lock-name.allow-list[0]" to "static-job",
+                "bluetape4k.leader.aop.metrics.tags.lock-name.deny-list[0]" to "blocked-job",
+                "bluetape4k.leader.aop.metrics.tags.lock-name.redacted-value" to "job",
+                "bluetape4k.leader.aop.metrics.tags.leader-id.redacted-value" to "leader",
+                "bluetape4k.leader.aop.metrics.tags.backend-name.mode" to "RAW",
                 "bluetape4k.leader.aop.spel.allow-method-invocation" to "true",
             ),
         )
@@ -34,6 +42,13 @@ class LeaderAopPropertiesBindingTest {
         props.defaultLeaseTime shouldBeEqualTo Duration.ofMinutes(3)
         props.lockNamePrefix shouldBeEqualTo "myapp:"
         props.metrics.enabled shouldBeEqualTo false
+        props.metrics.tags.lockName.mode shouldBeEqualTo LeaderAopProperties.Metrics.TagMode.HASH
+        props.metrics.tags.lockName.hashLength shouldBeEqualTo 12
+        props.metrics.tags.lockName.allowList shouldBeEqualTo setOf("static-job")
+        props.metrics.tags.lockName.denyList shouldBeEqualTo setOf("blocked-job")
+        props.metrics.tags.lockName.redactedValue shouldBeEqualTo "job"
+        props.metrics.tags.leaderId.redactedValue shouldBeEqualTo "leader"
+        props.metrics.tags.backendName.mode shouldBeEqualTo LeaderAopProperties.Metrics.TagMode.RAW
         props.spel.allowMethodInvocation shouldBeEqualTo true
     }
 
@@ -50,6 +65,9 @@ class LeaderAopPropertiesBindingTest {
         props.defaultLeaseTime shouldBeEqualTo LeaderAopProperties.DEFAULT_LEASE_TIME
         props.lockNamePrefix shouldBeEqualTo LeaderAopProperties.DEFAULT_LOCK_NAME_PREFIX
         props.metrics.enabled shouldBeEqualTo true
+        props.metrics.tags.lockName.redactedValue shouldBeEqualTo "redacted-lock"
+        props.metrics.tags.leaderId.redactedValue shouldBeEqualTo "redacted-leader"
+        props.metrics.tags.backendName.mode shouldBeEqualTo LeaderAopProperties.Metrics.TagMode.RAW
         props.spel.allowMethodInvocation shouldBeEqualTo false
     }
 
@@ -62,5 +80,19 @@ class LeaderAopPropertiesBindingTest {
             .bindOrCreate(LeaderAopProperties.PREFIX, LeaderAopProperties::class.java)
 
         props.metrics.enabled shouldBeEqualTo false
+    }
+
+    @Test
+    fun `truncate mode requires positive max length`() {
+        val source = MapConfigurationPropertySource(
+            mapOf(
+                "bluetape4k.leader.aop.metrics.tags.lock-name.mode" to "TRUNCATE",
+                "bluetape4k.leader.aop.metrics.tags.lock-name.max-length" to "0",
+            ),
+        )
+
+        assertFailsWith<Exception> {
+            Binder(source).bindOrCreate(LeaderAopProperties.PREFIX, LeaderAopProperties::class.java)
+        }
     }
 }

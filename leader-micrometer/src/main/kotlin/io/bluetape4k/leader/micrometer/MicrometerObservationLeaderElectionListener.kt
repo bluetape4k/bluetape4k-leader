@@ -22,6 +22,8 @@ class MicrometerObservationLeaderElectionListener(
     val options: LeaderObservationOptions = LeaderObservationOptions(),
 ) : LeaderElectionListener {
 
+    private val tagSanitizer = LeaderMetricTagSanitizer.from(options.tagOptions)
+
     override fun onElected(lockName: String) {
         observeEvent(lockName, EVENT_ELECTED)
     }
@@ -41,7 +43,10 @@ class MicrometerObservationLeaderElectionListener(
             .lowCardinalityKeyValue(OBSERVATION_TAG_EVENT, event)
 
         if (options.includeLockName) {
-            observation = observation.highCardinalityKeyValue(MicrometerNames.TAG_LOCK_NAME, lockName)
+            observation = observation.highCardinalityKeyValue(
+                MicrometerNames.TAG_LOCK_NAME,
+                tagSanitizer.sanitize(MicrometerNames.TAG_LOCK_NAME, lockName),
+            )
         }
 
         observation.start().stop()

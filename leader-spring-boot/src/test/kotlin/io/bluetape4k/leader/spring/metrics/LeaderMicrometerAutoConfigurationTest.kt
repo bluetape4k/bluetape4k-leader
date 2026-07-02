@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.spring.metrics
 
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.micrometer.LeaderMetricTagSanitizer
 import io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder
 import io.bluetape4k.leader.metrics.LeaderAopMetricsRecorder
 import io.bluetape4k.leader.metrics.SkipReason
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.getBeansOfType
 import org.springframework.boot.autoconfigure.AutoConfigurations
+import org.springframework.boot.test.context.FilteredClassLoader
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -84,6 +86,7 @@ class LeaderMicrometerAutoConfigurationTest {
     fun `recorder 콜백 호출 시 attempts+acquired+timer+active 전체 검증`() {
         runner
             .withUserConfiguration(MeterRegistryConfig::class.java)
+            .withPropertyValues("bluetape4k.leader.aop.metrics.tags.lock-name.mode=RAW")
             .run { ctx ->
                 val recorder = ctx.getBean(MicrometerLeaderAopMetricsRecorder::class.java)
                 val registry = ctx.getBean(SimpleMeterRegistry::class.java)
@@ -113,6 +116,7 @@ class LeaderMicrometerAutoConfigurationTest {
     fun `backend 예외 발생 시 lock_not_acquired reason=BACKEND_ERROR 메트릭 증가`() {
         runner
             .withUserConfiguration(MeterRegistryConfig::class.java)
+            .withPropertyValues("bluetape4k.leader.aop.metrics.tags.lock-name.mode=RAW")
             .run { ctx ->
                 val recorder = ctx.getBean(MicrometerLeaderAopMetricsRecorder::class.java)
                 val registry = ctx.getBean(SimpleMeterRegistry::class.java)
@@ -123,6 +127,50 @@ class LeaderMicrometerAutoConfigurationTest {
                     .tag("lock.name", "test-lock")
                     .tag("reason", "BACKEND_ERROR")
                     .counter().count() shouldBeEqualTo 1.0
+            }
+    }
+
+    @Test
+    fun `default Spring recorder redacts lock name tags`() {
+        runner
+            .withUserConfiguration(MeterRegistryConfig::class.java)
+            .run { ctx ->
+                val recorder = ctx.getBean(MicrometerLeaderAopMetricsRecorder::class.java)
+                val registry = ctx.getBean(SimpleMeterRegistry::class.java)
+
+                recorder.onLockAttempt("tenant-a", LeaderElectionOptions.Default)
+                recorder.onLockAttempt("tenant-b", LeaderElectionOptions.Default)
+
+                registry.get("leader.aop.attempts")
+                    .tag("lock.name", "redacted-lock")
+                    .counter().count() shouldBeEqualTo 2.0
+            }
+    }
+
+    @Test
+    fun `custom LeaderMetricTagSanitizer bean overrides bound properties`() {
+        runner
+            .withUserConfiguration(MeterRegistryConfig::class.java, CustomSanitizerConfig::class.java)
+            .withPropertyValues("bluetape4k.leader.aop.metrics.tags.lock-name.mode=RAW")
+            .run { ctx ->
+                val recorder = ctx.getBean(MicrometerLeaderAopMetricsRecorder::class.java)
+                val registry = ctx.getBean(SimpleMeterRegistry::class.java)
+
+                recorder.onLockAttempt("tenant-a", LeaderElectionOptions.Default)
+
+                registry.get("leader.aop.attempts")
+                    .tag("lock.name", "custom-tag")
+                    .counter().count() shouldBeEqualTo 1.0
+            }
+    }
+
+    @Test
+    fun `spring boot context starts when leader micrometer classes are absent`() {
+        runner
+            .withClassLoader(FilteredClassLoader("io.bluetape4k.leader.micrometer"))
+            .run { ctx ->
+                ctx.startupFailure shouldBeEqualTo null
+                ctx.getBeansOfType<LeaderAopMetricsRecorder>().isEmpty().shouldBeTrue()
             }
     }
 
@@ -138,5 +186,12 @@ class LeaderMicrometerAutoConfigurationTest {
     class CustomRecorderConfig {
         @Bean
         fun customRecorder(): LeaderAopMetricsRecorder = LeaderAopMetricsRecorder.NoOp
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class CustomSanitizerConfig {
+        @Bean
+        fun customSanitizer(): LeaderMetricTagSanitizer =
+            LeaderMetricTagSanitizer { _, _ -> "custom-tag" }
     }
 }

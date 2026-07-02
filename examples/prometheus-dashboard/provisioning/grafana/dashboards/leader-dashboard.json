@@ -152,7 +152,7 @@
       },
       "targets": [
         {
-          "expr": "rate(leader_aop_execution_duration_seconds_sum[1m]) / rate(leader_aop_execution_duration_seconds_count[1m])",
+          "expr": "sum by (lock_name) (rate(leader_aop_execution_duration_seconds_sum[1m])) / sum by (lock_name) (rate(leader_aop_execution_duration_seconds_count[1m]))",
           "legendFormat": "avg {{lock_name}}",
           "refId": "A"
         }

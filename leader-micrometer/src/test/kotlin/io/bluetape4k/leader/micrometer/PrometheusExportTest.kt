@@ -44,17 +44,17 @@ class PrometheusExportTest {
 
         val scrape = registry.scrape()
 
-        scrape shouldContain """leader_aop_attempts_total{lock_name="aop-job"} 1.0"""
-        scrape shouldContain """leader_aop_acquired_total{lock_name="aop-job"} 1.0"""
-        scrape shouldContain """leader_aop_lock_not_acquired_total{lock_name="aop-job",reason="CONTENTION"} 1.0"""
-        scrape shouldContain """leader_aop_execution_duration_seconds_count{lock_name="aop-job"} 1"""
-        scrape shouldContain """leader_aop_task_failed_total{exception="IllegalStateException",lock_name="aop-job"} 1.0"""
-        scrape shouldContain """leader_aop_active{lock_name="aop-job"} 0.0"""
+        scrape shouldContain """leader_aop_attempts_total{lock_name="$REDACTED_LOCK_NAME"} 1.0"""
+        scrape shouldContain """leader_aop_acquired_total{lock_name="$REDACTED_LOCK_NAME"} 1.0"""
+        scrape shouldContain """leader_aop_lock_not_acquired_total{lock_name="$REDACTED_LOCK_NAME",reason="CONTENTION"} 1.0"""
+        scrape shouldContain """leader_aop_execution_duration_seconds_count{lock_name="$REDACTED_LOCK_NAME"} 1"""
+        scrape shouldContain """leader_aop_task_failed_total{exception="IllegalStateException",lock_name="$REDACTED_LOCK_NAME"} 1.0"""
+        scrape shouldContain """leader_aop_active{lock_name="$REDACTED_LOCK_NAME"} 0.0"""
 
-        scrape shouldContain """shedlock_leader_acquired_total{lock_name="direct-job"} 1.0"""
-        scrape shouldContain """shedlock_leader_not_acquired_total{lock_name="direct-skip-job"} 1.0"""
-        scrape shouldContain """shedlock_leader_duration_seconds_count{lock_name="direct-job"} 1"""
-        scrape shouldContain """shedlock_leader_active{lock_name="direct-job"} 0.0"""
+        scrape shouldContain """shedlock_leader_acquired_total{lock_name="$REDACTED_LOCK_NAME"} 1.0"""
+        scrape shouldContain """shedlock_leader_not_acquired_total{lock_name="$REDACTED_LOCK_NAME"} 1.0"""
+        scrape shouldContain """shedlock_leader_duration_seconds_count{lock_name="$REDACTED_LOCK_NAME"} 1"""
+        scrape shouldContain """shedlock_leader_active{lock_name="$REDACTED_LOCK_NAME"} 0.0"""
     }
 
     @Test
@@ -97,24 +97,24 @@ class PrometheusExportTest {
 
                             val aopResponse = queryPrometheus(
                                 prometheus.url,
-                                """leader_aop_acquired_total{lock_name="aop-container-job"}""",
+                                """leader_aop_acquired_total{lock_name="$REDACTED_LOCK_NAME"}""",
                             )
                             aopResponse shouldContain """"status":"success""""
-                            aopResponse shouldContain """"lock_name":"aop-container-job""""
+                            aopResponse shouldContain """"lock_name":"$REDACTED_LOCK_NAME""""
 
                             val aopFailureResponse = queryPrometheus(
                                 prometheus.url,
-                                """leader_aop_task_failed_total{lock_name="aop-container-job"}""",
+                                """leader_aop_task_failed_total{lock_name="$REDACTED_LOCK_NAME"}""",
                             )
                             aopFailureResponse shouldContain """"status":"success""""
                             aopFailureResponse shouldContain """"exception":"IllegalStateException""""
 
                             val directResponse = queryPrometheus(
                                 prometheus.url,
-                                """shedlock_leader_acquired_total{lock_name="direct-container-job"}""",
+                                """shedlock_leader_acquired_total{lock_name="$REDACTED_LOCK_NAME"}""",
                             )
                             directResponse shouldContain """"status":"success""""
-                            directResponse shouldContain """"lock_name":"direct-container-job""""
+                            directResponse shouldContain """"lock_name":"$REDACTED_LOCK_NAME""""
                         }
                 }
             }
@@ -234,5 +234,6 @@ class PrometheusExportTest {
     private companion object {
         const val METRICS_TARGET_ALIAS = "leader-metrics-target"
         const val METRICS_TARGET_PORT = 8000
+        const val REDACTED_LOCK_NAME = "redacted-lock"
     }
 }

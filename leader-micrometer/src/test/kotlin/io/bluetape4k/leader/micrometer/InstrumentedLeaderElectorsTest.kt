@@ -10,11 +10,13 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicInteger
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class InstrumentedLeaderElectorsTest {
@@ -27,8 +29,50 @@ class InstrumentedLeaderElectorsTest {
     }
 
     @Test
-    fun `LeaderElector - action 실행 시 acquired duration active 기록`() {
+    fun `LeaderElector - default constructor redacts runtime lock names`() {
         val election = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry)
+
+        election.runIfLeader("tenant-a") { "done" }
+        election.runIfLeader("tenant-b") { "done" }
+
+        acquiredCount("redacted-lock") shouldBeEqualTo 2.0
+        acquiredCount("tenant-a") shouldBeEqualTo 0.0
+    }
+
+    @Test
+    fun `LeaderElector - fixed lockName is sanitized after selection`() {
+        val election = InstrumentedLeaderElector(
+            delegate = StubLeaderElector(elected = true),
+            registry = registry,
+            lockName = "configured-lock",
+        )
+
+        election.runIfLeader("runtime-lock") { "done" }
+
+        acquiredCount("redacted-lock") shouldBeEqualTo 1.0
+        acquiredCount("configured-lock") shouldBeEqualTo 0.0
+    }
+
+    @Test
+    fun `LeaderElector - concurrent redacted first use creates one acquired meter`(): Unit {
+        val election = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry)
+        val sequence = AtomicInteger()
+
+        MultithreadingTester()
+            .workers(8)
+            .rounds(50)
+            .add {
+                election.runIfLeader("tenant-${sequence.incrementAndGet()}") { "done" }
+            }
+            .run()
+
+        acquiredCount("redacted-lock") shouldBeEqualTo 400.0
+        acquiredCounters("redacted-lock") shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `LeaderElector - action 실행 시 acquired duration active 기록`() {
+        val election = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry, LeaderMetricTagOptions.Raw)
 
         val result = election.runIfLeader("job-lock") { "done" }
 
@@ -40,7 +84,7 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderElector - action 이 null 을 반환해도 acquired 로 기록`() {
-        val election = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry)
+        val election = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry, LeaderMetricTagOptions.Raw)
 
         val result = election.runIfLeader<String?>("nullable-job") { null }
 
@@ -51,7 +95,7 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderElector - 리더 미획득 시 not_acquired 기록`() {
-        val election = InstrumentedLeaderElector(StubLeaderElector(elected = false), registry)
+        val election = InstrumentedLeaderElector(StubLeaderElector(elected = false), registry, LeaderMetricTagOptions.Raw)
 
         val result = election.runIfLeader("skip-job") { "not-called" }
 
@@ -63,7 +107,7 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderElector - async action 실행 시 acquired duration active 기록`() {
-        val election = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry)
+        val election = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry, LeaderMetricTagOptions.Raw)
 
         val result = election.runAsyncIfLeader("async-job", sameThreadExecutor) {
             CompletableFuture.completedFuture("done")
@@ -77,7 +121,7 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderElector - async 리더 미획득 시 not_acquired 기록`() {
-        val election = InstrumentedLeaderElector(StubLeaderElector(elected = false), registry)
+        val election = InstrumentedLeaderElector(StubLeaderElector(elected = false), registry, LeaderMetricTagOptions.Raw)
 
         val result = election.runAsyncIfLeader("async-skip-job", sameThreadExecutor) {
             CompletableFuture.completedFuture("not-called")
@@ -94,6 +138,7 @@ class InstrumentedLeaderElectorsTest {
             delegate = StubLeaderElector(elected = true),
             registry = registry,
             lockName = "configured-lock",
+            tagOptions = LeaderMetricTagOptions.Raw,
         )
 
         election.runIfLeader("runtime-lock") { "done" }
@@ -104,7 +149,7 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderElector - action 예외 전파 후 active 가 0 으로 복구`() {
-        val election = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry)
+        val election = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry, LeaderMetricTagOptions.Raw)
 
         val result = runCatching {
             election.runIfLeader("failed-job") {
@@ -120,7 +165,7 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderGroupElector - action 실행 시 acquired duration active 기록`() {
-        val election = InstrumentedLeaderGroupElector(StubLeaderGroupElector(elected = true), registry)
+        val election = InstrumentedLeaderGroupElector(StubLeaderGroupElector(elected = true), registry, LeaderMetricTagOptions.Raw)
 
         val result = election.runIfLeader("group-lock") { 42 }
 
@@ -132,7 +177,7 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderGroupElector - async action 실행 시 acquired duration active 기록`() {
-        val election = InstrumentedLeaderGroupElector(StubLeaderGroupElector(elected = true), registry)
+        val election = InstrumentedLeaderGroupElector(StubLeaderGroupElector(elected = true), registry, LeaderMetricTagOptions.Raw)
 
         val result = election.runAsyncIfLeader("group-async-lock", sameThreadExecutor) {
             CompletableFuture.completedFuture(42)
@@ -146,7 +191,7 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `LeaderGroupElector - 슬롯 미획득 시 not_acquired 기록`() {
-        val election = InstrumentedLeaderGroupElector(StubLeaderGroupElector(elected = false), registry)
+        val election = InstrumentedLeaderGroupElector(StubLeaderGroupElector(elected = false), registry, LeaderMetricTagOptions.Raw)
 
         val result = election.runIfLeader("group-skip-lock") { 42 }
 
@@ -157,7 +202,7 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `SuspendLeaderElector - action 실행 시 acquired duration active 기록`() = runSuspendIO {
-        val election = InstrumentedSuspendLeaderElector(StubSuspendLeaderElector(elected = true), registry)
+        val election = InstrumentedSuspendLeaderElector(StubSuspendLeaderElector(elected = true), registry, LeaderMetricTagOptions.Raw)
 
         val result = election.runIfLeader("suspend-lock") { "done" }
 
@@ -169,7 +214,7 @@ class InstrumentedLeaderElectorsTest {
 
     @Test
     fun `SuspendLeaderElector - 리더 미획득 시 not_acquired 기록`() = runSuspendIO {
-        val election = InstrumentedSuspendLeaderElector(StubSuspendLeaderElector(elected = false), registry)
+        val election = InstrumentedSuspendLeaderElector(StubSuspendLeaderElector(elected = false), registry, LeaderMetricTagOptions.Raw)
 
         val result = election.runIfLeader("suspend-skip-lock") { "not-called" }
 
@@ -183,6 +228,12 @@ class InstrumentedLeaderElectorsTest {
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .counter()
             ?.count() ?: 0.0
+
+    private fun acquiredCounters(lockName: String): Int =
+        registry.find(MicrometerNames.METER_LEADER_ACQUIRED)
+            .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
+            .counters()
+            .size
 
     private fun notAcquiredCount(lockName: String): Double =
         registry.find(MicrometerNames.METER_LEADER_NOT_ACQUIRED)

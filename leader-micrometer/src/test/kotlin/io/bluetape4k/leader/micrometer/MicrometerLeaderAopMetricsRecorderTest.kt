@@ -4,14 +4,11 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.metrics.SkipReason
 import io.bluetape4k.logging.KLogging
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -31,7 +28,22 @@ class MicrometerLeaderAopMetricsRecorderTest {
     @BeforeEach
     fun setup() {
         registry = SimpleMeterRegistry()
+        recorder = MicrometerLeaderAopMetricsRecorder(registry, LeaderMetricTagOptions.Raw)
+    }
+
+    @Test
+    fun `default constructor redacts lock name tag`() {
         recorder = MicrometerLeaderAopMetricsRecorder(registry)
+
+        recorder.onLockAttempt("tenant-42-job", defaultOptions)
+        recorder.onLockAttempt("tenant-99-job", defaultOptions)
+
+        registry.get(MicrometerNames.METER_ATTEMPTS)
+            .tag(MicrometerNames.TAG_LOCK_NAME, "redacted-lock")
+            .counter().count() shouldBeEqualTo 2.0
+        registry.find(MicrometerNames.METER_ATTEMPTS)
+            .tag(MicrometerNames.TAG_LOCK_NAME, "tenant-42-job")
+            .counter().shouldBeNull()
     }
 
     @Test
@@ -199,17 +211,30 @@ class MicrometerLeaderAopMetricsRecorderTest {
     }
 
     @Test
+    fun `registerMetricsFor - repeated registration is removed by one deregistration`() {
+        recorder.registerMetricsFor(lockName)
+        recorder.registerMetricsFor(lockName)
+
+        recorder.deregisterMetricsFor(lockName)
+
+        registry.find(MicrometerNames.METER_ACTIVE)
+            .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
+            .gauge().shouldBeNull()
+        registry.find(MicrometerNames.METER_ATTEMPTS)
+            .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
+            .counter().shouldBeNull()
+    }
+
+    @Test
     fun `concurrent onTaskStarted and onTaskFinished - active gauge thread safe`(): Unit {
-        runBlocking(Dispatchers.Default) {
-            coroutineScope {
-                repeat(1000) {
-                    launch {
-                        recorder.onTaskStarted(lockName)
-                        recorder.onTaskFinished(lockName, 1.milliseconds)
-                    }
-                }
+        MultithreadingTester()
+            .workers(8)
+            .rounds(125)
+            .add {
+                recorder.onTaskStarted(lockName)
+                recorder.onTaskFinished(lockName, 1.milliseconds)
             }
-        }
+            .run()
 
         val gaugeValue = registry.find(MicrometerNames.METER_ACTIVE)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
@@ -239,5 +264,57 @@ class MicrometerLeaderAopMetricsRecorderTest {
         registry.find(MicrometerNames.METER_ACQUIRE_DURATION)
             .tag(MicrometerNames.TAG_LOCK_NAME, lockName)
             .timer().shouldBeNull()
+    }
+
+    @Test
+    fun `explicit registrations sharing redacted key are removed only after last deregistration`() {
+        recorder = MicrometerLeaderAopMetricsRecorder(registry)
+
+        recorder.registerMetricsFor("tenant-a", "tenant-b")
+
+        registry.find(MicrometerNames.METER_ACTIVE)
+            .tag(MicrometerNames.TAG_LOCK_NAME, "redacted-lock")
+            .gauge().shouldNotBeNull()
+
+        recorder.deregisterMetricsFor("tenant-a")
+
+        registry.find(MicrometerNames.METER_ACTIVE)
+            .tag(MicrometerNames.TAG_LOCK_NAME, "redacted-lock")
+            .gauge().shouldNotBeNull()
+
+        recorder.deregisterMetricsFor("tenant-b")
+
+        registry.find(MicrometerNames.METER_ACTIVE)
+            .tag(MicrometerNames.TAG_LOCK_NAME, "redacted-lock")
+            .gauge().shouldBeNull()
+    }
+
+    @Test
+    fun `in-flight deregistration keeps active gauge non-negative`() {
+        recorder = MicrometerLeaderAopMetricsRecorder(registry)
+        recorder.registerMetricsFor("tenant-a", "tenant-b")
+        recorder.onTaskStarted("tenant-a")
+
+        recorder.deregisterMetricsFor("tenant-a")
+        recorder.deregisterMetricsFor("tenant-b")
+
+        registry.find(MicrometerNames.METER_ACTIVE)
+            .tag(MicrometerNames.TAG_LOCK_NAME, "redacted-lock")
+            .gauge()?.value() shouldBeEqualTo 1.0
+
+        recorder.onTaskFinished("tenant-a", 1.milliseconds)
+
+        val gaugeValue = registry.find(MicrometerNames.METER_ACTIVE)
+            .tag(MicrometerNames.TAG_LOCK_NAME, "redacted-lock")
+            .gauge()?.value() ?: 0.0
+
+        gaugeValue shouldBeEqualTo 0.0
+
+        recorder.deregisterMetricsFor("tenant-a")
+        recorder.deregisterMetricsFor("tenant-b")
+
+        registry.find(MicrometerNames.METER_ACTIVE)
+            .tag(MicrometerNames.TAG_LOCK_NAME, "redacted-lock")
+            .gauge().shouldBeNull()
     }
 }

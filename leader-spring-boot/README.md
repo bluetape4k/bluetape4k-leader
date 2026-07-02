@@ -24,13 +24,13 @@ The AOP layer is built for AspectJ compile-time weaving via Freefair post-compil
 ## Dependency
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.4.0")
 
 // Add at least one backend module.
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.4.0")
 
 // Optional metrics.
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.4.0")
 implementation("org.springframework.boot:spring-boot-starter-actuator")
 
 // Optional tracing export, chosen by the application.
@@ -66,6 +66,15 @@ bluetape4k:
       lock-name-prefix: "${spring.application.name:}:"
       metrics:
         enabled: true
+        tags:
+          lock-name:
+            mode: REDACT
+            redacted-value: redacted-lock
+          leader-id:
+            mode: REDACT
+            redacted-value: redacted-leader
+          backend-name:
+            mode: RAW
       spel:
         allow-method-invocation: false
     observability:
@@ -94,17 +103,21 @@ Metrics and Observations are independent:
 | Property | Default | Controls |
 |---|---:|---|
 | `bluetape4k.leader.aop.metrics.enabled` | `true` | Existing Micrometer meter recorder |
+| `bluetape4k.leader.aop.metrics.tags.lock-name.mode` | `REDACT` | Export policy for meter `lock.name` tags |
+| `bluetape4k.leader.aop.metrics.tags.lock-name.redacted-value` | `redacted-lock` | Sentinel for redacted lock names |
+| `bluetape4k.leader.aop.metrics.tags.leader-id.mode` | `REDACT` | Export policy for opt-in Observation `leader.id` values |
+| `bluetape4k.leader.aop.metrics.tags.backend-name.mode` | `RAW` | Export policy for bounded backend labels when custom or future meter paths emit `backend.name`; current built-in meters do not emit it |
 | `bluetape4k.leader.observability.enabled` | `true` | Parent switch for leader observability and tracing |
 | `bluetape4k.leader.observability.tracing.enabled` | `true` | Observation recorder and listener |
-| `bluetape4k.leader.observability.tracing.include-lock-name` | `false` | Raw `lock.name` high-cardinality Observation data |
-| `bluetape4k.leader.observability.tracing.include-leader-id` | `false` | Raw `leader.id` high-cardinality Observation data when identified context exists |
+| `bluetape4k.leader.observability.tracing.include-lock-name` | `false` | Opt-in `lock.name` high-cardinality Observation data, sanitized by tag policy |
+| `bluetape4k.leader.observability.tracing.include-leader-id` | `false` | Opt-in `leader.id` high-cardinality Observation data when identified context exists, sanitized by tag policy |
 | `bluetape4k.leader.observability.tracing.include-exception-details` | `false` | Raw throwable details through `Observation.error(...)` |
 
 The Observation bridge emits standalone terminal observations such as `leader.aop.acquire`, `leader.aop.execution`, and `leader.election.event`. It does not open a new current `Observation.Scope` around the protected method body.
 
 #529 emits Micrometer Observations only. Applications must add their own Micrometer tracing bridge, exporter, collector, and OpenTelemetry SDK if they want exported traces.
 
-Raw lock names, leader IDs, and exception details are production-sensitive. They can contain tenant, user, job, URL, or credential-like data and are not redacted by #529. Current Spring AOP does not synthesize `leader.id` from node IDs or lock names; `include-leader-id=true` emits a value only when the recorder receives `LeaderAopMetricsContext.Identified` from direct or future identity-aware paths.
+Dynamic lock names, leader IDs, and exception details are production-sensitive. They can contain tenant, user, job, URL, or credential-like data. Metrics now redact `lock.name` by default; opt into `RAW` only for small static job sets, or use `HASH`/`TRUNCATE` through `bluetape4k.leader.aop.metrics.tags.*` when dashboards need bounded correlation. Current Spring AOP does not synthesize `leader.id` from node IDs or lock names; `include-leader-id=true` emits a value only when the recorder receives `LeaderAopMetricsContext.Identified` from direct or future identity-aware paths.
 
 Lease-extension observations are deferred to issue #559 because `LockExtender` needs a core hook before Spring or Micrometer can observe extension outcomes.
 

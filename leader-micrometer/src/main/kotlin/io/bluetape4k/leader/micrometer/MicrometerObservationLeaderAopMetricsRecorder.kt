@@ -29,6 +29,8 @@ class MicrometerObservationLeaderAopMetricsRecorder(
     val options: LeaderObservationOptions = LeaderObservationOptions(),
 ) : LeaderAopMetricsRecorder {
 
+    private val tagSanitizer = LeaderMetricTagSanitizer.from(options.tagOptions)
+
     override fun onLockAttempt(name: String, options: LeaderElectionOptions) = Unit
 
     override fun onLockAcquired(name: String, options: LeaderElectionOptions, acquireElapsed: Duration) {
@@ -126,12 +128,15 @@ class MicrometerObservationLeaderAopMetricsRecorder(
         var observation = Observation.createNotStarted(observationName, registry)
 
         if (options.includeLockName) {
-            observation = observation.highCardinalityKeyValue(MicrometerNames.TAG_LOCK_NAME, lockName)
+            observation = observation.highCardinalityKeyValue(
+                MicrometerNames.TAG_LOCK_NAME,
+                tagSanitizer.sanitize(MicrometerNames.TAG_LOCK_NAME, lockName),
+            )
         }
 
         if (options.includeLeaderId && context is LeaderAopMetricsContext.Identified) {
             observation = observation
-                .highCardinalityKeyValue(TAG_LEADER_ID, context.leaderId)
+                .highCardinalityKeyValue(TAG_LEADER_ID, tagSanitizer.sanitize(TAG_LEADER_ID, context.leaderId))
                 .lowCardinalityKeyValue(TAG_LEADER_ID_SOURCE, context.leaderIdSource.name)
         }
 

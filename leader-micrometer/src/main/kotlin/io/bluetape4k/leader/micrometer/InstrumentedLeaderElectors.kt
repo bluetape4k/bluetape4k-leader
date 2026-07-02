@@ -35,13 +35,33 @@ import kotlin.time.toJavaDuration
  * @param registry Micrometer [MeterRegistry] to register metrics against
  * @param lockName Fixed lock name for the metric tag. If `null`, uses the per-call lock name
  */
-class InstrumentedLeaderElector(
+class InstrumentedLeaderElector private constructor(
     private val delegate: LeaderElector,
     registry: MeterRegistry,
     private val lockName: String? = null,
+    private val tagSanitizer: LeaderMetricTagSanitizer,
 ): LeaderElector by delegate {
 
     private val metrics = InstrumentedLeaderMetrics(registry)
+
+    constructor(
+        delegate: LeaderElector,
+        registry: MeterRegistry,
+        lockName: String? = null,
+    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.Default)
+
+    constructor(
+        delegate: LeaderElector,
+        registry: MeterRegistry,
+        tagOptions: LeaderMetricTagOptions,
+    ): this(delegate, registry, null, LeaderMetricTagSanitizer.from(tagOptions))
+
+    constructor(
+        delegate: LeaderElector,
+        registry: MeterRegistry,
+        lockName: String?,
+        tagOptions: LeaderMetricTagOptions,
+    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.from(tagOptions))
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         val metricLockName = metricLockName(lockName)
@@ -78,7 +98,7 @@ class InstrumentedLeaderElector(
     }
 
     private fun metricLockName(requestedLockName: String): String =
-        lockName ?: requestedLockName
+        tagSanitizer.sanitize(MicrometerNames.TAG_LOCK_NAME, lockName ?: requestedLockName)
 }
 
 /**
@@ -99,13 +119,33 @@ class InstrumentedLeaderElector(
  * @param registry Micrometer [MeterRegistry] to register metrics against
  * @param lockName Fixed lock name for the metric tag. If `null`, uses the per-call lock name
  */
-class InstrumentedLeaderGroupElector(
+class InstrumentedLeaderGroupElector private constructor(
     private val delegate: LeaderGroupElector,
     registry: MeterRegistry,
     private val lockName: String? = null,
+    private val tagSanitizer: LeaderMetricTagSanitizer,
 ): LeaderGroupElector by delegate {
 
     private val metrics = InstrumentedLeaderMetrics(registry)
+
+    constructor(
+        delegate: LeaderGroupElector,
+        registry: MeterRegistry,
+        lockName: String? = null,
+    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.Default)
+
+    constructor(
+        delegate: LeaderGroupElector,
+        registry: MeterRegistry,
+        tagOptions: LeaderMetricTagOptions,
+    ): this(delegate, registry, null, LeaderMetricTagSanitizer.from(tagOptions))
+
+    constructor(
+        delegate: LeaderGroupElector,
+        registry: MeterRegistry,
+        lockName: String?,
+        tagOptions: LeaderMetricTagOptions,
+    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.from(tagOptions))
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         val metricLockName = metricLockName(lockName)
@@ -142,7 +182,7 @@ class InstrumentedLeaderGroupElector(
     }
 
     private fun metricLockName(requestedLockName: String): String =
-        lockName ?: requestedLockName
+        tagSanitizer.sanitize(MicrometerNames.TAG_LOCK_NAME, lockName ?: requestedLockName)
 }
 
 /**
@@ -163,13 +203,33 @@ class InstrumentedLeaderGroupElector(
  * @param registry Micrometer [MeterRegistry] to register metrics against
  * @param lockName Fixed lock name for the metric tag. If `null`, uses the per-call lock name
  */
-class InstrumentedSuspendLeaderElector(
+class InstrumentedSuspendLeaderElector private constructor(
     private val delegate: SuspendLeaderElector,
     registry: MeterRegistry,
     private val lockName: String? = null,
+    private val tagSanitizer: LeaderMetricTagSanitizer,
 ): SuspendLeaderElector by delegate {
 
     private val metrics = InstrumentedLeaderMetrics(registry)
+
+    constructor(
+        delegate: SuspendLeaderElector,
+        registry: MeterRegistry,
+        lockName: String? = null,
+    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.Default)
+
+    constructor(
+        delegate: SuspendLeaderElector,
+        registry: MeterRegistry,
+        tagOptions: LeaderMetricTagOptions,
+    ): this(delegate, registry, null, LeaderMetricTagSanitizer.from(tagOptions))
+
+    constructor(
+        delegate: SuspendLeaderElector,
+        registry: MeterRegistry,
+        lockName: String?,
+        tagOptions: LeaderMetricTagOptions,
+    ): this(delegate, registry, lockName, LeaderMetricTagSanitizer.from(tagOptions))
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         val metricLockName = metricLockName(lockName)
@@ -187,7 +247,7 @@ class InstrumentedSuspendLeaderElector(
     }
 
     private fun metricLockName(requestedLockName: String): String =
-        lockName ?: requestedLockName
+        tagSanitizer.sanitize(MicrometerNames.TAG_LOCK_NAME, lockName ?: requestedLockName)
 }
 
 private class InstrumentedLeaderMetrics(

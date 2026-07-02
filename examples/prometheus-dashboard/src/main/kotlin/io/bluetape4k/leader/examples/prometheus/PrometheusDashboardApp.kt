@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.examples.prometheus
 
 import io.bluetape4k.leader.annotation.LeaderElection
+import io.bluetape4k.leader.micrometer.LeaderMetricTagSanitizer
 import io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
@@ -46,8 +47,11 @@ class PrometheusDashboardApp {
     // Keep the recorder explicit so pre-registration works in normal and AOT test contexts.
     @Bean
     @ConditionalOnMissingBean
-    fun micrometerLeaderAopMetricsRecorder(registry: MeterRegistry): MicrometerLeaderAopMetricsRecorder =
-        MicrometerLeaderAopMetricsRecorder(registry)
+    fun micrometerLeaderAopMetricsRecorder(
+        registry: MeterRegistry,
+        tagSanitizer: LeaderMetricTagSanitizer,
+    ): MicrometerLeaderAopMetricsRecorder =
+        MicrometerLeaderAopMetricsRecorder(registry, tagSanitizer)
 
     @Bean
     @ConditionalOnProperty(
