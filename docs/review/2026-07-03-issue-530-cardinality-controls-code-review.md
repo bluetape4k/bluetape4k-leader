@@ -17,7 +17,7 @@
 | Tier 4 Operations | PASS | Fresh affected-module verification completed; prior evidence gap was closed by full module tests. |
 | Tier 5 Developer/API | PASS | Existing constructors remain available for `LeaderObservationOptions` and `LeaderAopProperties.Metrics`; javap confirmed binary-compatible entry points. |
 | Tier 6 User/Caller | PASS | README EN/KO now explains RAW, HASH, TRUNCATE, allowlist risk, and that built-in meters do not currently emit `backend.name`. Rerun result: P0=0, P1=0. |
-| Tier 7 Evidence | PASS | Tracked review artifact and lessons are included before PR creation. |
+| Tier 7 Evidence | PASS | Tracked review artifact and lessons are included before PR creation; README architecture diagram was updated after the cardinality-control documentation changed. |
 
 Final blocking count: P0=0, P1=0.
 
@@ -29,6 +29,7 @@ Final blocking count: P0=0, P1=0.
 - P2 performance: HASH mode created digest instances per call. Fixed with a thread-local SHA-256 digest and per-use reset.
 - P2 operations: dashboard duration PromQL divided separately aggregated series. Fixed with matching `sum by (lock_name)` on sum and count.
 - P2/P3 docs: HASH and backend-name semantics were ambiguous. README EN/KO now states deterministic unsalted hash risk, static allowlist expectations, and current `backend.name` emission status.
+- Diagram drift: the reused `leader-micrometer` architecture diagram still described raw/high-cardinality tags without the shared sanitizer policy. Updated the SVG/PNG to show `LeaderMetricTagSanitizer`, sanitized meter/Observation tags, and REDACT/RAW/HASH/TRUNCATE guardrails.
 
 ## Verification
 
@@ -48,6 +49,20 @@ Final blocking count: P0=0, P1=0.
   - Result: PASS.
 - Pattern scan for forbidden assertions, stale raw-lock docs, and ad hoc concurrency helpers.
   - Result: PASS for touched scope; concurrency coverage uses `MultithreadingTester`.
+- `xmllint --noout docs/images/readme-diagrams/leader-micrometer-architecture-01.svg`
+  - Result: PASS.
+- `~/.local/bin/cairosvg docs/images/readme-diagrams/leader-micrometer-architecture-01.svg -o docs/images/readme-diagrams/leader-micrometer-architecture-01.png -s 2`
+  - Result: PASS, PNG rendered at 3692x2240.
+- `python3 /Users/debop/.codex/skills/bluetape4k-diagram/references/diagram-geometry-audit.py docs/images/readme-diagrams/leader-micrometer-architecture-01.svg`
+  - Result: PASS, `geometry_failures=0`.
+- `python3 /Users/debop/.codex/skills/bluetape4k-diagram/references/diagram-endpoint-audit.py docs/images/readme-diagrams/leader-micrometer-architecture-01.svg`
+  - Result: PASS, `files=1`.
+- `python3 /Users/debop/.codex/skills/bluetape4k-diagram/references/diagram-mixed-corner-audit.py docs/images/readme-diagrams/leader-micrometer-architecture-01.svg`
+  - Result: PASS, `paths=16`, `q_bends=0`, `failures=0`; all connectors are straight lines in this asset.
+- `python3 /Users/debop/.codex/skills/bluetape4k-diagram/references/diagram-connector-audit.py docs/images/readme-diagrams/leader-micrometer-architecture-01.svg`
+  - Result: PASS, `markers=5`, `connectors=16`, `cards=19`, `intrusions=0`, `crossings=0`.
+- Full-size PNG inspection with `view_image`
+  - Result: PASS, no visible text overflow, connector/card intrusion, label overlap, or clipped guardrail text.
 
 ## Residual Risk
 
