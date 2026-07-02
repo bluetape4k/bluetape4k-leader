@@ -33,6 +33,7 @@ the app while Grafana renders the pre-provisioned dashboard.
 - `@Scheduled` trigger that calls a proxied `@LeaderElection` job named `dashboard-job`
 - Lettuce Redis backend with a local Testcontainers fallback for `bootRun`
 - Micrometer leader AOP metrics exposed through Spring Boot Actuator
+- Local demo `ObservationHandler` for leader Micrometer Observations
 - Prometheus scrape config and a hand-authored Grafana dashboard
 - Static lock metric pre-registration so the dashboard shows series immediately
 - Spring Boot AOT processing for the application and Spring test context
@@ -45,6 +46,28 @@ curl http://localhost:8080/actuator/prometheus | grep leader_aop
 ```
 
 `bootRun` uses Testcontainers Redis unless `DEMO_REDIS_URL` is set.
+The demo also logs leader observations from a local `ObservationHandler`; disable it with `DEMO_OBSERVATION_LOGGING_HANDLER_ENABLED=false`.
+
+## Observation Tracing Demo
+
+`application.yml` enables the leader Observation bridge with safe defaults:
+
+```yaml
+bluetape4k:
+  leader:
+    observability:
+      tracing:
+        enabled: true
+        include-lock-name: false
+        include-leader-id: false
+        include-exception-details: false
+```
+
+`PrometheusDashboardApp` registers `LeaderObservationLoggingHandler` as a local demo hook. It logs observation names and low-cardinality key values for `leader.aop.acquire`, `leader.aop.execution`, and listener events, but it is not production export configuration.
+
+This example intentionally does not add an OpenTelemetry SDK, Micrometer tracing bridge, exporter, or collector. Add those dependencies in the application when exported traces are required. Raw `lock.name`, `leader.id`, and exception details are disabled because they can contain tenant, user, job, URL, or credential-like values. Current Spring AOP does not synthesize `leader.id`; that value appears only when a direct or future identity-aware path supplies `LeaderAopMetricsContext.Identified`.
+
+Lease-extension observations are also out of scope for this example until `LockExtender` exposes a core observation/event hook; that follow-up is tracked in issue #559.
 
 ## Run With Prometheus And Grafana
 
@@ -87,6 +110,7 @@ multi-instance deployments. The gauge is JVM-local, so `sum` can over-count.
 | `DEMO_REDIS_URL` / `demo.redis.url` | Testcontainers Redis | Redis URI used by Lettuce |
 | `DEMO_JOB_FIXED_DELAY_MS` / `demo.job.fixed-delay-ms` | `5000` | Scheduler fixed delay |
 | `DEMO_JOB_INITIAL_DELAY_MS` / `demo.job.initial-delay-ms` | `1000` | Initial scheduler delay |
+| `DEMO_OBSERVATION_LOGGING_HANDLER_ENABLED` / `demo.observation.logging-handler-enabled` | `true` | Enables the local demo Observation handler |
 | `SERVER_PORT` | `8080` | HTTP port |
 
 ## Dependencies
@@ -98,6 +122,8 @@ dependencies {
     implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:${bluetape4kVersion}")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("io.micrometer:micrometer-registry-prometheus")
+    // Add Micrometer tracing / OpenTelemetry exporter dependencies in the application
+    // only when you want to export Observations as traces.
 }
 ```
 

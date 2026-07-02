@@ -14,6 +14,11 @@
       "name": "bluetape4k.leader.observability",
       "type": "io.bluetape4k.leader.spring.properties.LeaderObservabilityProperties",
       "description": "Leader election observability options."
+    },
+    {
+      "name": "bluetape4k.leader.observability.tracing",
+      "type": "io.bluetape4k.leader.spring.properties.LeaderTracingProperties",
+      "description": "Micrometer Observation tracing options for leader election."
     }
   ],
   "properties": [
@@ -69,6 +74,30 @@
       "name": "bluetape4k.leader.observability.lock-names",
       "type": "java.util.Set<java.lang.String>",
       "description": "Static lock names seeded into the leader election status registry."
+    },
+    {
+      "name": "bluetape4k.leader.observability.tracing.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Micrometer Observation recorder and listener beans when ObservationRegistry is present.",
+      "defaultValue": true
+    },
+    {
+      "name": "bluetape4k.leader.observability.tracing.include-lock-name",
+      "type": "java.lang.Boolean",
+      "description": "Attach raw lock.name as high-cardinality Observation data. Keep disabled for dynamic SpEL lock names unless the tracing backend can handle the cardinality.",
+      "defaultValue": false
+    },
+    {
+      "name": "bluetape4k.leader.observability.tracing.include-leader-id",
+      "type": "java.lang.Boolean",
+      "description": "Attach leader.id as high-cardinality Observation data when the recorder receives identified leader context.",
+      "defaultValue": false
+    },
+    {
+      "name": "bluetape4k.leader.observability.tracing.include-exception-details",
+      "type": "java.lang.Boolean",
+      "description": "Attach raw Throwable details to failed execution Observations. The exception class name tag is emitted without this option.",
+      "defaultValue": false
     },
     {
       "name": "management.endpoint.leaderElection.enabled",

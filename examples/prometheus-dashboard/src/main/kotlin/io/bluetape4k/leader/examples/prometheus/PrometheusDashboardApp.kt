@@ -9,10 +9,13 @@ import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.codec.StringCodec
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.observation.Observation
+import io.micrometer.observation.ObservationHandler
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.EnableAspectJAutoProxy
@@ -46,12 +49,38 @@ class PrometheusDashboardApp {
     fun micrometerLeaderAopMetricsRecorder(registry: MeterRegistry): MicrometerLeaderAopMetricsRecorder =
         MicrometerLeaderAopMetricsRecorder(registry)
 
+    @Bean
+    @ConditionalOnProperty(
+        prefix = "demo.observation",
+        name = ["logging-handler-enabled"],
+        havingValue = "true",
+        matchIfMissing = true,
+    )
+    fun leaderObservationLoggingHandler(): ObservationHandler<Observation.Context> =
+        LeaderObservationLoggingHandler()
+
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
             SpringApplication.run(PrometheusDashboardApp::class.java, *args)
         }
     }
+}
+
+class LeaderObservationLoggingHandler : ObservationHandler<Observation.Context> {
+
+    override fun onStop(context: Observation.Context) {
+        log.info {
+            "leader observation name=${context.name} " +
+                    "low=${context.lowCardinalityKeyValues.associate { it.key to it.value }} " +
+                    "highKeys=${context.highCardinalityKeyValues.map { it.key }}"
+        }
+    }
+
+    override fun supportsContext(context: Observation.Context): Boolean =
+        context.name?.startsWith("leader.") == true
+
+    companion object: KLogging()
 }
 
 @Component

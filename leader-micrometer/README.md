@@ -8,14 +8,15 @@ Micrometer instrumentation for bluetape4k leader election.
 
 ## Overview
 
-`leader-micrometer` provides four instrumentation paths:
+`leader-micrometer` provides five instrumentation paths:
 
 - `MicrometerLeaderAopMetricsRecorder` for Spring AOP annotations from `leader-spring-boot`
+- `MicrometerObservationLeaderAopMetricsRecorder` and `MicrometerObservationLeaderElectionListener` for Micrometer Observation tracing bridges
 - `InstrumentedLeaderElector`, `InstrumentedLeaderGroupElector`, and `InstrumentedSuspendLeaderElector` decorators for direct elector calls
 - `MicrometerLeaderElectionListener` for lifecycle callback counters from `LeaderElectionListenerRegistry`
 - `MicrometerSafeLeaderHistoryRecorder` and `MicrometerSuspendSafeLeaderHistoryRecorder` for history sink health counters
 
-The module depends only on `leader-core` and Micrometer core. Export format is chosen by the application's Micrometer registry, such as Prometheus, Datadog, OTLP, or a composite registry.
+The module depends only on `leader-core`, Micrometer core, and Micrometer Observation. Metric export format is chosen by the application's Micrometer registry, such as Prometheus, Datadog, OTLP, or a composite registry. Observation export is chosen by the application-provided Micrometer tracing bridge and exporter.
 
 ## Architecture
 
@@ -39,7 +40,7 @@ implementation("org.springframework.boot:spring-boot-starter-actuator")
 
 ## Spring AOP Metrics
 
-When `leader-spring-boot`, `leader-micrometer`, and a `MeterRegistry` bean are present, Spring auto-configuration registers `MicrometerLeaderAopMetricsRecorder`.
+When `leader-spring-boot`, `leader-micrometer`, and a `MeterRegistry` bean are present, Spring auto-configuration registers `MicrometerLeaderAopMetricsRecorder`. When an `ObservationRegistry` bean is also present, Spring can additionally register the Observation recorder; the two recorders are complementary and can run together.
 
 ```yaml
 bluetape4k:
@@ -62,6 +63,38 @@ class ReportJobs {
         reportService.generate()
 }
 ```
+
+## Observation Tracing
+
+Use `MicrometerObservationLeaderAopMetricsRecorder` when you want leader execution to become Micrometer Observations that a tracing bridge can convert to spans.
+
+```kotlin
+val recorder = MicrometerObservationLeaderAopMetricsRecorder(
+    registry = observationRegistry,
+    options = LeaderObservationOptions(
+        includeLockName = false,
+        includeLeaderId = false,
+        includeExceptionDetails = false,
+    ),
+)
+
+recorder.onLockAcquired("daily-report", LeaderElectionOptions.Default, 12.milliseconds)
+```
+
+The recorder emits standalone terminal observations. It does not open a new current `Observation.Scope` around the guarded method body because the current AOP SPI has no per-invocation id that could safely pair same-lock concurrent starts and stops.
+
+Use `MicrometerObservationLeaderElectionListener` for lifecycle events from listener-aware electors:
+
+```kotlin
+val listener = MicrometerObservationLeaderElectionListener(observationRegistry)
+val election = LocalLeaderElector().apply {
+    addListener(listener)
+}
+```
+
+This module emits Micrometer Observations only. It does not add an OpenTelemetry SDK, tracing bridge, exporter, or collector. Applications that want exported traces must add and configure those dependencies themselves.
+
+Lease-extension observations are tracked separately in issue #559 because `LockExtender` needs a core observation/event hook before Micrometer can record extension outcomes consistently.
 
 ## Direct Elector Metrics
 
@@ -135,6 +168,16 @@ election.runIfLeader("daily-report") {
 |-------|------|------|-------------|
 | `leader.election.events` | Counter | `lock.name`, `event` | Lifecycle callbacks: `elected`, `revoked`, `skipped` |
 
+### Observation Names
+
+| Observation | Low-cardinality keys | High-cardinality keys |
+|---|---|---|
+| `leader.aop.acquire` | `leader.operation`, `outcome`, `reason` | `acquire.elapsed.ms`, plus `lock.name` / `leader.id` only when enabled |
+| `leader.aop.execution` | `leader.operation`, `outcome`, `exception` | `execution.elapsed.ms`, plus `lock.name` / `leader.id` only when enabled |
+| `leader.election.event` | `event` | `lock.name` only when enabled |
+
+`CancellationException` is recorded as `outcome=cancelled` and is not sent to `Observation.error(...)`. Non-cancellation failures record the exception simple class name by default; raw throwable details are attached only when `LeaderObservationOptions(includeExceptionDetails = true)` is used.
+
 ### History Sink Meters
 
 | Meter | Type | Tags | Description |
@@ -204,10 +247,14 @@ class MetricsPreRegistrar(
 
 Keep `lock.name` bounded. Do not put request IDs, user IDs, or unbounded tenant IDs directly into lock names unless the metrics backend is sized for that cardinality. If dynamic names are required, aggregate them at the application layer or register only stable job families.
 
+Observation high-cardinality fields are disabled by default. `includeLockName=true` and `includeLeaderId=true` can export raw lock names or leader IDs that may contain tenant, user, or job identifiers. #529 does not redact those values. Current Spring AOP does not synthesize `leader.id`; `includeLeaderId=true` emits it only when the recorder receives `LeaderAopMetricsContext.Identified` from direct or future identity-aware paths.
+
+Keep `includeExceptionDetails=false` unless the tracing backend is allowed to receive exception messages and stack traces.
+
 ## Cleanup
 
-Use `removeMetricsFor(lockName)` when a static lock name is retired and no longer needs to remain in the registry.
+Use `deregisterMetricsFor(lockName)` when a static lock name is retired and no longer needs to remain in the registry.
 
 ```kotlin
-recorder.removeMetricsFor("old-nightly-job")
+recorder.deregisterMetricsFor("old-nightly-job")
 ```

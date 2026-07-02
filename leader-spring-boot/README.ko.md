@@ -32,6 +32,10 @@ implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.3
 // 선택: Micrometer/Actuator 연동.
 implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.3.0")
 implementation("org.springframework.boot:spring-boot-starter-actuator")
+
+// 선택: trace export는 애플리케이션이 선택합니다.
+// implementation("io.micrometer:micrometer-tracing-bridge-otel")
+// implementation("io.opentelemetry:opentelemetry-exporter-otlp")
 ```
 
 어노테이션이 붙은 애플리케이션 메서드를 weaving하려면 소비 애플리케이션에 AspectJ compile-time weaving을 활성화합니다.
@@ -64,9 +68,43 @@ bluetape4k:
         enabled: true
       spel:
         allow-method-invocation: false
+    observability:
+      enabled: true
+      tracing:
+        enabled: true
+        include-lock-name: false
+        include-leader-id: false
+        include-exception-details: false
 ```
 
 Spring 설정 속성은 Spring Boot duration binding을 사용하므로 `5s`, `60s`, `PT1M`을 그대로 쓸 수 있습니다. Kotlin 코드의 core `LeaderElectionOptions`, `LeaderGroupElectionOptions`는 `kotlin.time.Duration`을 사용합니다.
+
+## Metrics와 Observation Tracing
+
+`leader-micrometer`와 `MeterRegistry` bean이 있으면 `LeaderMicrometerAutoConfiguration`이 `MicrometerLeaderAopMetricsRecorder`를 등록합니다. `leader-micrometer`와 `ObservationRegistry` bean이 있으면 `LeaderObservationAutoConfiguration`이 `MicrometerObservationLeaderAopMetricsRecorder`, `MicrometerObservationLeaderElectionListener`를 등록합니다.
+
+Metrics와 Observation은 별도 스위치를 가집니다.
+
+- `bluetape4k.leader.aop.metrics.enabled=false`: 기존 meter recorder만 끕니다.
+- `bluetape4k.leader.observability.tracing.enabled=false`: Observation bridge만 끕니다.
+- `bluetape4k.leader.observability.enabled=false`: leader observability 지원 bean과 tracing bridge를 함께 끕니다.
+
+| Property | 기본값 | 제어 대상 |
+|---|---:|---|
+| `bluetape4k.leader.aop.metrics.enabled` | `true` | 기존 Micrometer meter recorder |
+| `bluetape4k.leader.observability.enabled` | `true` | leader observability와 tracing의 parent switch |
+| `bluetape4k.leader.observability.tracing.enabled` | `true` | Observation recorder/listener |
+| `bluetape4k.leader.observability.tracing.include-lock-name` | `false` | raw `lock.name` high-cardinality Observation data |
+| `bluetape4k.leader.observability.tracing.include-leader-id` | `false` | identified context가 있을 때 raw `leader.id` high-cardinality Observation data |
+| `bluetape4k.leader.observability.tracing.include-exception-details` | `false` | `Observation.error(...)`를 통한 raw throwable detail |
+
+Observation bridge는 `leader.aop.acquire`, `leader.aop.execution`, `leader.election.event` 같은 짧은 terminal observation을 남깁니다. 보호된 메서드 본문 전체를 새 current `Observation.Scope`으로 감싸지는 않습니다.
+
+#529는 Micrometer Observation만 발생시킵니다. exported trace가 필요하면 애플리케이션이 Micrometer tracing bridge, exporter, collector, OpenTelemetry SDK를 직접 추가하고 설정해야 합니다.
+
+Raw lock name, leader ID, exception detail은 운영 환경에서 민감할 수 있습니다. tenant, user, job, URL, credential과 비슷한 값이 들어갈 수 있고 #529가 redaction하지 않습니다. 현재 Spring AOP는 node ID나 lock name으로 `leader.id`를 합성하지 않습니다. `include-leader-id=true`는 direct 호출 또는 future identity-aware 경로에서 `LeaderAopMetricsContext.Identified`가 전달될 때만 값을 내보냅니다.
+
+Lease-extension observation은 issue #559로 미뤘습니다. Spring이나 Micrometer가 extension outcome을 관찰하려면 `LockExtender`에 core hook이 먼저 필요합니다.
 
 ## Backend Factory
 
@@ -244,10 +282,11 @@ Java caller 는 `@JvmStatic` overload — `kotlin.time.Duration` 과 `java.time.
 1. `LeaderElectionAutoConfiguration`: 공통 backend 속성 바인딩
 2. `LeaderAopFactoryAutoConfiguration`: backend factory 등록
 3. `LeaderMicrometerAutoConfiguration`: `MeterRegistry`가 있으면 `MicrometerLeaderAopMetricsRecorder` 등록
-4. `LeaderAopAutoConfiguration`: Aspect, SpEL evaluator, lock-name validator, annotation validator 등록
-5. `LeaderMicrometerHealthAutoConfiguration`: Actuator가 있으면 health indicator 등록
-6. `LeaderElectionObservabilityAutoConfiguration`: lock-name 상태 registry와 fallback event-publisher adapter 등록
-7. `LeaderElectionActuatorAutoConfiguration`: opt-in `/actuator/leaderElection` endpoint 등록
+4. `LeaderObservationAutoConfiguration`: `ObservationRegistry`가 있으면 Observation recorder/listener 등록
+5. `LeaderAopAutoConfiguration`: Aspect, SpEL evaluator, lock-name validator, annotation validator 등록
+6. `LeaderMicrometerHealthAutoConfiguration`: Actuator가 있으면 health indicator 등록
+7. `LeaderElectionObservabilityAutoConfiguration`: lock-name 상태 registry와 fallback event-publisher adapter 등록
+8. `LeaderElectionActuatorAutoConfiguration`: opt-in `/actuator/leaderElection` endpoint 등록
 
 ## Leader Election Actuator Endpoint
 

@@ -32,6 +32,10 @@ implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.3
 // Optional metrics.
 implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.3.0")
 implementation("org.springframework.boot:spring-boot-starter-actuator")
+
+// Optional tracing export, chosen by the application.
+// implementation("io.micrometer:micrometer-tracing-bridge-otel")
+// implementation("io.opentelemetry:opentelemetry-exporter-otlp")
 ```
 
 For annotated application methods, enable AspectJ compile-time weaving in the consuming application:
@@ -64,9 +68,43 @@ bluetape4k:
         enabled: true
       spel:
         allow-method-invocation: false
+    observability:
+      enabled: true
+      tracing:
+        enabled: true
+        include-lock-name: false
+        include-leader-id: false
+        include-exception-details: false
 ```
 
 Spring configuration properties use Spring Boot duration binding (`5s`, `60s`, `PT1M`). Core `LeaderElectionOptions` and `LeaderGroupElectionOptions` use `kotlin.time.Duration` in Kotlin code.
+
+## Metrics And Observation Tracing
+
+`LeaderMicrometerAutoConfiguration` registers `MicrometerLeaderAopMetricsRecorder` when `leader-micrometer` and a `MeterRegistry` bean are present. `LeaderObservationAutoConfiguration` registers `MicrometerObservationLeaderAopMetricsRecorder` and `MicrometerObservationLeaderElectionListener` when `leader-micrometer` and an `ObservationRegistry` bean are present.
+
+Metrics and Observations are independent:
+
+- disabling `bluetape4k.leader.aop.metrics.enabled` disables the existing meter recorder only;
+- disabling `bluetape4k.leader.observability.tracing.enabled` disables only the Observation bridge;
+- disabling `bluetape4k.leader.observability.enabled` disables the tracing bridge together with leader observability support beans.
+
+| Property | Default | Controls |
+|---|---:|---|
+| `bluetape4k.leader.aop.metrics.enabled` | `true` | Existing Micrometer meter recorder |
+| `bluetape4k.leader.observability.enabled` | `true` | Parent switch for leader observability and tracing |
+| `bluetape4k.leader.observability.tracing.enabled` | `true` | Observation recorder and listener |
+| `bluetape4k.leader.observability.tracing.include-lock-name` | `false` | Raw `lock.name` high-cardinality Observation data |
+| `bluetape4k.leader.observability.tracing.include-leader-id` | `false` | Raw `leader.id` high-cardinality Observation data when identified context exists |
+| `bluetape4k.leader.observability.tracing.include-exception-details` | `false` | Raw throwable details through `Observation.error(...)` |
+
+The Observation bridge emits standalone terminal observations such as `leader.aop.acquire`, `leader.aop.execution`, and `leader.election.event`. It does not open a new current `Observation.Scope` around the protected method body.
+
+#529 emits Micrometer Observations only. Applications must add their own Micrometer tracing bridge, exporter, collector, and OpenTelemetry SDK if they want exported traces.
+
+Raw lock names, leader IDs, and exception details are production-sensitive. They can contain tenant, user, job, URL, or credential-like data and are not redacted by #529. Current Spring AOP does not synthesize `leader.id` from node IDs or lock names; `include-leader-id=true` emits a value only when the recorder receives `LeaderAopMetricsContext.Identified` from direct or future identity-aware paths.
+
+Lease-extension observations are deferred to issue #559 because `LockExtender` needs a core hook before Spring or Micrometer can observe extension outcomes.
 
 ## Backend Factories
 
@@ -244,10 +282,11 @@ For Java callers, `@JvmStatic` overloads accept both `kotlin.time.Duration` and 
 1. `LeaderElectionAutoConfiguration` binds shared backend properties.
 2. `LeaderAopFactoryAutoConfiguration` registers backend factories.
 3. `LeaderMicrometerAutoConfiguration` registers `MicrometerLeaderAopMetricsRecorder` when `MeterRegistry` exists.
-4. `LeaderAopAutoConfiguration` registers the Aspect, SpEL evaluator, lock-name validator, and annotation validator.
-5. `LeaderMicrometerHealthAutoConfiguration` registers the Actuator health indicator when Actuator is present.
-6. `LeaderElectionObservabilityAutoConfiguration` registers the lock-name status registry and fallback event-publisher adapter.
-7. `LeaderElectionActuatorAutoConfiguration` registers the opt-in `/actuator/leaderElection` endpoint.
+4. `LeaderObservationAutoConfiguration` registers Observation recorder/listener beans when `ObservationRegistry` exists.
+5. `LeaderAopAutoConfiguration` registers the Aspect, SpEL evaluator, lock-name validator, and annotation validator.
+6. `LeaderMicrometerHealthAutoConfiguration` registers the Actuator health indicator when Actuator is present.
+7. `LeaderElectionObservabilityAutoConfiguration` registers the lock-name status registry and fallback event-publisher adapter.
+8. `LeaderElectionActuatorAutoConfiguration` registers the opt-in `/actuator/leaderElection` endpoint.
 
 ## Leader Election Actuator Endpoint
 

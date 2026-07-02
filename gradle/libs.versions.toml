@@ -165,6 +165,7 @@ aws2-dynamodb = { module = "software.amazon.awssdk:dynamodb" }
 # Micrometer
 micrometer-bom = { module = "io.micrometer:micrometer-bom", version.ref = "micrometer" }
 micrometer-core = { module = "io.micrometer:micrometer-core" }
+micrometer-observation = { module = "io.micrometer:micrometer-observation" }
 micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
 
 # Spring Boot
