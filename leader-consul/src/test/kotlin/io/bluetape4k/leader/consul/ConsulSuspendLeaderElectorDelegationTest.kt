@@ -15,9 +15,11 @@ import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import io.bluetape4k.leader.consul.internal.ConsulKvEntry
 import io.bluetape4k.leader.consul.internal.ConsulLockClient
+import io.bluetape4k.leader.consul.internal.ConsulLeaseHandle
 import io.bluetape4k.leader.consul.internal.ConsulOwnerPayload
 import io.bluetape4k.leader.consul.internal.ConsulSessionId
 import io.bluetape4k.leader.consul.internal.ConsulSessionRenewal
+import io.bluetape4k.leader.consul.internal.ConsulSuspendLockExtendDelegate
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
@@ -186,6 +188,36 @@ class ConsulSuspendLeaderElectorDelegationTest {
     }
 
     @Test
+    fun `extendSuspend returns NotHeld when Consul KV ownership moved to another session`() = runSuspendIO {
+        val sessionId = ConsulSessionId("session-a")
+        val handle = ConsulLeaseHandle(
+            lockName = "lock-a",
+            key = "bluetape4k/leader/single/lock-a",
+            sessionId = sessionId,
+            ownerToken = "owner-a",
+            auditLeaderId = "audit-a",
+            nodeId = "node-a",
+            electedAt = Instant.parse("2026-05-22T01:02:03Z"),
+            leaseUntil = Instant.parse("2026-05-22T01:02:13Z"),
+        )
+        val client = FakeConsulLockClient(
+            entry = ConsulKvEntry(
+                key = handle.key,
+                value = null,
+                sessionId = ConsulSessionId("session-b"),
+                lockIndex = 3L,
+                modifyIndex = 4L,
+            ),
+        )
+        val delegate = ConsulSuspendLockExtendDelegate(client, handle)
+
+        delegate.extendSuspend(20.seconds) shouldBeEqualTo ExtendOutcome.NotHeld
+
+        client.readCalls shouldBeEqualTo 1
+        delegate.lastExtendDeadline.get() shouldBeEqualTo Instant.EPOCH
+    }
+
+    @Test
     fun `wait timeout returns null and destroys candidate session`() = runSuspendIO {
         val client = FakeConsulLockClient(acquireResult = false)
         val elector = ConsulSuspendLeaderElector.create(
@@ -253,6 +285,8 @@ class ConsulSuspendLeaderElectorDelegationTest {
         private val readFuture: CompletableFuture<ConsulKvEntry?>? = null,
     ) : ConsulLockClient {
 
+        private var currentEntry: ConsulKvEntry? = entry
+
         var createdSessions: Int = 0
             private set
         var acquireCalls: Int = 0
@@ -262,6 +296,8 @@ class ConsulSuspendLeaderElectorDelegationTest {
         var releaseCalls: Int = 0
             private set
         var renewCalls: Int = 0
+            private set
+        var readCalls: Int = 0
             private set
 
         override fun singleLockKey(lockName: String): String =
@@ -285,6 +321,15 @@ class ConsulSuspendLeaderElectorDelegationTest {
             ownerPayload: String,
         ): CompletableFuture<Boolean> {
             acquireCalls++
+            if (acquireResult) {
+                currentEntry = ConsulKvEntry(
+                    key = key,
+                    value = ownerPayload,
+                    sessionId = sessionId,
+                    lockIndex = 1L,
+                    modifyIndex = 1L,
+                )
+            }
             return CompletableFuture.completedFuture(acquireResult)
         }
 
@@ -306,8 +351,10 @@ class ConsulSuspendLeaderElectorDelegationTest {
             return CompletableFuture.completedFuture(ConsulSessionRenewal(sessionId, Instant.now()))
         }
 
-        override fun read(key: String): CompletableFuture<ConsulKvEntry?> =
-            readFuture ?: CompletableFuture.completedFuture(entry)
+        override fun read(key: String): CompletableFuture<ConsulKvEntry?> {
+            readCalls++
+            return readFuture ?: CompletableFuture.completedFuture(currentEntry)
+        }
     }
 
     private class RecordingFuture<T>(

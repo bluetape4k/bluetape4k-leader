@@ -26,9 +26,13 @@ internal class ConsulSuspendLockExtendDelegate(
 
         return try {
             lockClient.renewSession(handle.sessionId).await()
-            val deadline = Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds)
-            _lastExtendDeadline.set(deadline)
-            ExtendOutcome.Extended(deadline)
+            if (lockClient.read(handle.key).await()?.sessionId != handle.sessionId) {
+                ExtendOutcome.NotHeld
+            } else {
+                val deadline = Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds)
+                _lastExtendDeadline.set(deadline)
+                ExtendOutcome.Extended(deadline)
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
