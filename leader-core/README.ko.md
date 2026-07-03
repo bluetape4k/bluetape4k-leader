@@ -470,5 +470,5 @@ Lettuce 또는 Redisson **그룹** 백엔드를 사용하면 슬롯 토큰과 �
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-core:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-core:0.4.0")
 ```

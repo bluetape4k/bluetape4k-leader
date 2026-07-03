@@ -39,7 +39,7 @@ ZooKeeper 세션이 만료되면 ephemeral recipe node가 제거되어 lock이 �
 ### Gradle
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-zookeeper:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-zookeeper:0.4.0")
 ```
 
 ### 설정

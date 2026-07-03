@@ -194,7 +194,7 @@ release 시 `HDEL`로 삭제됩니다. `leaderId`가 빈 문자열이면 기록�
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:0.4.0")
 
 // Lettuce가 클래스패스에 있어야 합니다
 implementation("io.lettuce:lettuce-core:6.x.x")
