@@ -19,16 +19,13 @@
       .detail { font-size: 13.5px; fill: #546a73; }
       .edge { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
       .edgeThin { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-      .dash { stroke-dasharray: 10 8; }
       .pill { fill: #ffffff; stroke-width: 1.5; }
       .labelText { font-size: 12.5px; }
       .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
       .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2.2; }
       .participant { font-family: "Architects Daughter"; font-size: 20px; fill: #1f3138; }
       .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
-      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
       .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.7; }
-      .branch { fill: none; stroke: #78909c; stroke-width: 2.4; stroke-dasharray: 12 8; }
     </style>
     <marker id="arrow-line" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <marker id="arrow-work" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
@@ -122,7 +119,7 @@
     <text x="882" y="370" text-anchor="middle" class="badgeText" fill="#7c5aa6">3</text>
     <text x="903" y="371" class="labelText" fill="#7c5aa6">ownership stored</text>
   </g>
-  <path d="M 796 541 L 820 541 Q 836 541 836 525 L 836 438 Q 836 416 858 416 L 1388 416 Q 1404 416 1404 432 L 1404 495" class="edge" stroke="#7c5aa6" marker-end="url(#arrow-purple)"/>
+  <path d="M 796 541 L 820 541 Q 836 541 836 525 L 836 438 Q 836 416 858 416 L 1184 416 Q 1204 416 1204 436 L 1204 525 Q 1204 541 1220 541 L 1244 541" class="edge" stroke="#7c5aa6" marker-end="url(#arrow-purple)"/>
   <g>
     <rect x="690" y="604" width="228" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
     <circle cx="712" cy="620" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
