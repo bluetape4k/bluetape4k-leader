@@ -23,6 +23,7 @@ import org.springframework.context.annotation.Configuration
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import io.bluetape4k.assertions.shouldBeFalse
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderStartupDiagnosticsAutoConfigurationTest {
@@ -46,7 +47,8 @@ class LeaderStartupDiagnosticsAutoConfigurationTest {
 
             report.activeBackends shouldBeEqualTo listOf("local")
             report.warningCodes shouldBeEqualTo emptyList()
-            report.strict shouldBeEqualTo false
+            report.strict.shouldBeFalse()
+
             report.leaderElectorBeans shouldContain "localLeaderElector"
         }
     }

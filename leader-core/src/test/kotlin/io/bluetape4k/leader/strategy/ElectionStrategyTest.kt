@@ -92,7 +92,7 @@ class ElectionStrategyTest {
         val r1 = strategy.elect(candidates).winner
         val r2 = strategy.elect(candidates).winner
         r1.shouldNotBeNull()
-        r1.nodeId shouldBeEqualTo r2!!.nodeId
+        r1.nodeId shouldBeEqualTo r2.shouldNotBeNull().nodeId
     }
 
     @Test

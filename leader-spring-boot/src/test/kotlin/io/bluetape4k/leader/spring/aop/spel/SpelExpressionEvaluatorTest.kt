@@ -6,6 +6,9 @@ import io.bluetape4k.assertions.shouldContain
 import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
 import org.springframework.expression.spel.SpelEvaluationException
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 
 /**
  * [SpelExpressionEvaluator] (T5.1 + T5.9a):
@@ -106,8 +109,8 @@ class SpelExpressionEvaluatorTest {
         val sut = newEvaluator()
         val ex = runCatching { sut.preParse("'process-#region", method("process")) }.exceptionOrNull()
         check(ex != null) { "expected throw" }
-        check(ex.message!!.contains("SampleService")) { "message should include FQN: ${ex.message}" }
-        check(ex.message!!.contains("process")) { "message should include method name: ${ex.message}" }
+        check(ex.message.shouldNotBeNull().contains("SampleService")) { "message should include FQN: ${ex.message}" }
+        check(ex.message.shouldNotBeNull().contains("process")) { "message should include method name: ${ex.message}" }
     }
 
     @Test
@@ -134,8 +137,8 @@ class SpelExpressionEvaluatorTest {
         val ex = assertFailsWith<IllegalStateException> {
             sut.evaluate("#a0", method("process"), arrayOf<Any?>(null), SampleService())
         }
-        ex.message!! shouldContain "SampleService"
-        ex.message!! shouldContain "process"
+        ex.message.shouldNotBeNull() shouldContain "SampleService"
+        ex.message.shouldNotBeNull() shouldContain "process"
     }
 
     @Test
@@ -201,7 +204,7 @@ class SpelExpressionEvaluatorTest {
         val sut = newEvaluator()
         val ex = runCatching { sut.preParse("prefix-#{'unclosed}", method("process")) }.exceptionOrNull()
         check(ex != null) { "expected throw" }
-        check(ex.message!!.contains("SpEL template")) { "message should mention 'SpEL template': ${ex.message}" }
+        check(ex.message.shouldNotBeNull().contains("SpEL template")) { "message should mention 'SpEL template': ${ex.message}" }
     }
 
     @Test
@@ -224,19 +227,22 @@ class SpelExpressionEvaluatorTest {
         val target = SampleService()
         val ctx1 = SpelExpressionEvaluator.RootCtx(m, args, target)
         val ctx2 = SpelExpressionEvaluator.RootCtx(m, args.copyOf(), target)
-        (ctx1 == ctx2) shouldBeEqualTo true
+        (ctx1 == ctx2).shouldBeTrue()
+
     }
 
     @Test
     fun `RootCtx equals - 자기 자신은 equal`() {
         val ctx = SpelExpressionEvaluator.RootCtx(method("process"), arrayOf("EU"), SampleService())
-        (ctx == ctx) shouldBeEqualTo true
+        (ctx == ctx).shouldBeTrue()
+
     }
 
     @Test
     fun `RootCtx equals - 다른 타입이면 not equal`() {
         val ctx = SpelExpressionEvaluator.RootCtx(method("process"), arrayOf("EU"), SampleService())
-        (ctx.equals("other")) shouldBeEqualTo false
+        (ctx.equals("other")).shouldBeFalse()
+
     }
 
     @Test
@@ -245,7 +251,8 @@ class SpelExpressionEvaluatorTest {
         val target = SampleService()
         val ctx1 = SpelExpressionEvaluator.RootCtx(m, arrayOf("EU"), target)
         val ctx2 = SpelExpressionEvaluator.RootCtx(m, arrayOf("KR"), target)
-        (ctx1 == ctx2) shouldBeEqualTo false
+        (ctx1 == ctx2).shouldBeFalse()
+
     }
 
     @Test

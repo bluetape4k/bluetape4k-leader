@@ -11,6 +11,8 @@ import io.bluetape4k.assertions.shouldBeNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CancellationException
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderRunResultTest {
@@ -69,7 +71,8 @@ class LeaderRunResultTest {
         }
 
         thrown shouldBeEqualTo interrupted
-        Thread.interrupted() shouldBeEqualTo true
+        Thread.interrupted().shouldBeTrue()
+
     }
 
     @Test
@@ -138,7 +141,8 @@ class LeaderRunResultTest {
         }
 
         thrown shouldBeEqualTo interrupted
-        Thread.interrupted() shouldBeEqualTo true
+        Thread.interrupted().shouldBeTrue()
+
     }
 
     // --- data class / object 특성 ---
@@ -154,7 +158,8 @@ class LeaderRunResultTest {
     fun `LeaderRunResult Skipped - singleton object`() {
         val a: LeaderRunResult<String> = LeaderRunResult.Skipped
         val b: LeaderRunResult<Int> = LeaderRunResult.Skipped
-        (a === b) shouldBeEqualTo true
+        (a === b).shouldBeTrue()
+
     }
 
     // --- T58: Elected.leaderId (@JvmOverloads 호환성) ---
@@ -184,7 +189,8 @@ class LeaderRunResultTest {
     fun `Elected - leaderId 다르면 not equals`() {
         val a = LeaderRunResult.Elected("v", leaderId = "node-a")
         val b = LeaderRunResult.Elected("v", leaderId = "node-b")
-        (a == b) shouldBeEqualTo false
+        (a == b).shouldBeFalse()
+
     }
 
     @Test

@@ -19,6 +19,7 @@ import org.springframework.boot.health.contributor.Status
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import io.bluetape4k.assertions.shouldBeTrue
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderMicrometerHealthAutoConfigurationTest {
@@ -47,7 +48,8 @@ class LeaderMicrometerHealthAutoConfigurationTest {
     @Test
     fun `MicrometerLeaderAopMetricsRecorder 없을 때 HealthIndicator 미등록`() {
         runner.run { ctx ->
-            ctx.getBeansOfType<HealthIndicator>().isEmpty() shouldBeEqualTo true
+            ctx.getBeansOfType<HealthIndicator>().isEmpty().shouldBeTrue()
+
         }
     }
 
@@ -57,7 +59,8 @@ class LeaderMicrometerHealthAutoConfigurationTest {
             .withUserConfiguration(MeterRegistryConfig::class.java)
             .withPropertyValues("bluetape4k.leader.aop.metrics.enabled=false")
             .run { ctx ->
-                ctx.getBeansOfType<HealthIndicator>().isEmpty() shouldBeEqualTo true
+                ctx.getBeansOfType<HealthIndicator>().isEmpty().shouldBeTrue()
+
             }
     }
 

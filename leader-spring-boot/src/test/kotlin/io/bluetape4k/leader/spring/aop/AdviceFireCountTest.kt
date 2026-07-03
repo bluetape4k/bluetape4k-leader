@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import io.bluetape4k.assertions.shouldBeFalse
 
 /**
  * Freefair CTW (compile-time weaving) + Spring AOP double-fire 방지 검증.
@@ -71,7 +72,8 @@ class AdviceFireCountTest {
             // @EnableAspectJAutoProxy 활성 시 Spring 이 internalAutoProxyCreator 빈을 등록한다.
             // 본 AutoConfig 에는 없어야 double-fire 가 발생하지 않는다.
             val hasAutoProxy = ctx.containsBeanDefinition("org.springframework.aop.config.internalAutoProxyCreator")
-            hasAutoProxy shouldBeEqualTo false
+            hasAutoProxy.shouldBeFalse()
+
         }
     }
 

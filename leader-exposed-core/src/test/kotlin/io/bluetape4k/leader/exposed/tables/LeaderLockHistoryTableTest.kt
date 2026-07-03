@@ -19,6 +19,7 @@ import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.logging.KLogging
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import io.bluetape4k.assertions.shouldBeTrue
 
 class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
 
@@ -28,7 +29,8 @@ class LeaderLockHistoryTableTest: AbstractExposedTableTest() {
     @MethodSource("enableDialects")
     fun `테이블 생성 및 삭제가 성공한다`(testDB: TestDB) {
         withTables(testDB, LeaderLockHistoryTable) {
-            LeaderLockHistoryTable.exists() shouldBeEqualTo true
+            LeaderLockHistoryTable.exists().shouldBeTrue()
+
         }
     }
 

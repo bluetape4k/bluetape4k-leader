@@ -25,6 +25,9 @@ import org.aspectj.lang.reflect.MethodSignature
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 
 /**
  * 6-cell failure mode matrix 검증:
@@ -155,7 +158,7 @@ class LeaderElectionAspectFailureModeTest {
         val aspect = newAspect()
         aspect.aroundLeader(pjp)
 
-        isLockedInsideBody shouldBeEqualTo false  // FailOpen sentinel → not locked
+        isLockedInsideBody.shouldBeFalse()  // FailOpen sentinel → not locked
     }
 
     // ── Row 2: backend Exception ──
@@ -172,9 +175,11 @@ class LeaderElectionAspectFailureModeTest {
         val wrapped = assertFailsWith<LeaderElectionException> { aspect.aroundLeader(pjp) }
 
         wrapped.cause shouldBeEqualTo backendEx
-        wrapped.message!!.contains("rethrow-job") shouldBeEqualTo true
+        wrapped.message.shouldNotBeNull().contains("rethrow-job").shouldBeTrue()
+
         // host info must NOT leak (R-33)
-        wrapped.message!!.contains("redis-prod-01") shouldBeEqualTo false
+        wrapped.message.shouldNotBeNull().contains("redis-prod-01").shouldBeFalse()
+
 
         verify(exactly = 1) { recorder.onLockNotAcquired("rethrow-job", any(), SkipReason.BACKEND_ERROR) }
     }
@@ -241,7 +246,8 @@ class LeaderElectionAspectFailureModeTest {
         val aspect = newAspect()
         aspect.aroundLeader(pjp)
 
-        isLockedInsideBody shouldBeEqualTo false
+        isLockedInsideBody.shouldBeFalse()
+
     }
 
     // ── FailOpen scope handle cleanup ──

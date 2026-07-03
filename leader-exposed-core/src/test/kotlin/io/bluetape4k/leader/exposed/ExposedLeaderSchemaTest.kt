@@ -12,6 +12,8 @@ import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.exists
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 
 class ExposedLeaderSchemaTest : AbstractExposedTableTest() {
 
@@ -27,9 +29,12 @@ class ExposedLeaderSchemaTest : AbstractExposedTableTest() {
     @MethodSource("enableDialects")
     fun `allTables로 SchemaUtils createMissingTablesAndColumns 실행이 성공한다`(testDB: TestDB) {
         withTables(testDB, *ExposedLeaderSchema.allTables) {
-            LeaderLockTable.exists() shouldBeEqualTo true
-            LeaderGroupLockTable.exists() shouldBeEqualTo true
-            LeaderLockHistoryTable.exists() shouldBeEqualTo true
+            LeaderLockTable.exists().shouldBeTrue()
+
+            LeaderGroupLockTable.exists().shouldBeTrue()
+
+            LeaderLockHistoryTable.exists().shouldBeTrue()
+
         }
     }
 
@@ -40,9 +45,12 @@ class ExposedLeaderSchemaTest : AbstractExposedTableTest() {
             SchemaUtils.create(*ExposedLeaderSchema.allTables)
             SchemaUtils.drop(*ExposedLeaderSchema.allTables)
 
-            LeaderLockTable.exists() shouldBeEqualTo false
-            LeaderGroupLockTable.exists() shouldBeEqualTo false
-            LeaderLockHistoryTable.exists() shouldBeEqualTo false
+            LeaderLockTable.exists().shouldBeFalse()
+
+            LeaderGroupLockTable.exists().shouldBeFalse()
+
+            LeaderLockHistoryTable.exists().shouldBeFalse()
+
         }
     }
 }

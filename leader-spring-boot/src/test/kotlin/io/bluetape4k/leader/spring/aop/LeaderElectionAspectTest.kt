@@ -30,6 +30,9 @@ import org.junit.jupiter.api.TestInstance
 import io.bluetape4k.assertions.assertFailsWith
 import java.util.concurrent.CancellationException
 import kotlin.time.Duration.Companion.seconds
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 
 /**
  * [LeaderElectionAspect] 통합 (T5.6 + T5.9c/d/e/f):
@@ -182,7 +185,8 @@ class LeaderElectionAspectTest {
         val result = aspect.aroundLeader(pjp)
 
         result shouldBeEqualTo SAMPLE_RESULT
-        optionsSlot.captured.autoExtend shouldBeEqualTo true
+        optionsSlot.captured.autoExtend.shouldBeTrue()
+
     }
 
     @Test
@@ -214,8 +218,10 @@ class LeaderElectionAspectTest {
         val wrapped = assertFailsWith<LeaderElectionException> { aspect.aroundLeader(pjp) }
         wrapped.cause shouldBeEqualTo backendEx
         // message 일반화 — host 정보 미포함
-        wrapped.message!!.contains("redis-prod-01") shouldBeEqualTo false
-        wrapped.message!!.contains("static-job") shouldBeEqualTo true
+        wrapped.message.shouldNotBeNull().contains("redis-prod-01").shouldBeFalse()
+
+        wrapped.message.shouldNotBeNull().contains("static-job").shouldBeTrue()
+
     }
 
     @Test
@@ -371,8 +377,10 @@ class LeaderElectionAspectTest {
         val wrapped = assertFailsWith<LeaderElectionException> { aspect.aroundLeader(pjp) }
         wrapped.cause shouldBeEqualTo backendEx
         // lockName 은 포함, backend host 정보는 누출 안 됨 (R-33)
-        wrapped.message!!.contains("static-job") shouldBeEqualTo true
-        wrapped.message!!.contains("redis-prod-01") shouldBeEqualTo false
+        wrapped.message.shouldNotBeNull().contains("static-job").shouldBeTrue()
+
+        wrapped.message.shouldNotBeNull().contains("redis-prod-01").shouldBeFalse()
+
     }
 
     @Test

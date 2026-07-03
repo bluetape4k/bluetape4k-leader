@@ -26,6 +26,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import kotlin.time.Duration.Companion.milliseconds
+import io.bluetape4k.assertions.shouldBeTrue
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionListenerTest {
@@ -157,7 +158,8 @@ class LeaderElectionListenerTest {
         val skipped = election.runIfLeader(lockName) { "not-called" }
 
         skipped shouldBeEqualTo null
-        listener.events.contains("skipped:$lockName") shouldBeEqualTo true
+        listener.events.contains("skipped:$lockName").shouldBeTrue()
+
 
         holderDone.countDown()
         holder.join()

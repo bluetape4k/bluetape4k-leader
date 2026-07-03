@@ -16,6 +16,7 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
+import io.bluetape4k.assertions.shouldNotBeNull
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LockHandleElementTest {
@@ -82,7 +83,7 @@ class LockHandleElementTest {
         withContext(element) {
             val found = currentCoroutineContext()[LockHandleElement]
             (found === element).shouldBeTrue()
-            (found!!.handle === handle).shouldBeTrue()
+            (found.shouldNotBeNull().handle === handle).shouldBeTrue()
         }
     }
 
