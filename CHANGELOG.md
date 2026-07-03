@@ -9,6 +9,65 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-07-03
+
+### Added
+
+- Added Micrometer Observation and OpenTelemetry tracing support for leader
+  election attempts, selected work, skipped work, and failures
+  ([#529](https://github.com/bluetape4k/bluetape4k-leader/issues/529)).
+- Added metric tag cardinality controls so leader lock names and leader IDs can
+  be normalized, allow-listed, or redacted before metric export
+  ([#530](https://github.com/bluetape4k/bluetape4k-leader/issues/530)).
+- Added Prometheus alert rules, Grafana guidance, and leader operation runbooks
+  for stuck leadership, error spikes, and backend risk signals
+  ([#534](https://github.com/bluetape4k/bluetape4k-leader/issues/534)).
+- Added Spring Boot configuration metadata and startup diagnostics for active
+  backend candidates, management endpoint exposure, registry seed gaps, and
+  high-cardinality tag risks
+  ([#538](https://github.com/bluetape4k/bluetape4k-leader/issues/538)).
+
+### Changed
+
+- Refreshed README and localized README guidance around observability,
+  operational readiness, diagnostics, and benchmark-backed interpretation
+  ([#529](https://github.com/bluetape4k/bluetape4k-leader/issues/529),
+  [#530](https://github.com/bluetape4k/bluetape4k-leader/issues/530),
+  [#534](https://github.com/bluetape4k/bluetape4k-leader/issues/534),
+  [#538](https://github.com/bluetape4k/bluetape4k-leader/issues/538)).
+- Kept the remaining management, health, audit-export, route-helper, Ktor, and
+  lease-extension follow-ups in Backlog instead of expanding the 0.5.0 scope
+  ([#561](https://github.com/bluetape4k/bluetape4k-leader/issues/561)).
+
+### Fixed
+
+- Closed the 0.5.0 correctness and integration hardening lane for ownership
+  retention, lease TTL reporting, session-loss detection, and shared container
+  stability across Redis, Hazelcast, ZooKeeper, etcd, Consul, and Spring Boot
+  tests
+  ([#511](https://github.com/bluetape4k/bluetape4k-leader/issues/511),
+  [#512](https://github.com/bluetape4k/bluetape4k-leader/issues/512),
+  [#513](https://github.com/bluetape4k/bluetape4k-leader/issues/513),
+  [#514](https://github.com/bluetape4k/bluetape4k-leader/issues/514),
+  [#515](https://github.com/bluetape4k/bluetape4k-leader/issues/515),
+  [#516](https://github.com/bluetape4k/bluetape4k-leader/issues/516),
+  [#517](https://github.com/bluetape4k/bluetape4k-leader/issues/517),
+  [#518](https://github.com/bluetape4k/bluetape4k-leader/issues/518),
+  [#519](https://github.com/bluetape4k/bluetape4k-leader/issues/519)).
+
+### Performance
+
+- Added benchmark coverage for group semaphore behavior, contention and skip
+  paths, Spring annotation advice overhead, Micrometer/history-recorder
+  overhead, and Kubernetes Lease conflict and renewal scenarios
+  ([#520](https://github.com/bluetape4k/bluetape4k-leader/issues/520),
+  [#521](https://github.com/bluetape4k/bluetape4k-leader/issues/521),
+  [#522](https://github.com/bluetape4k/bluetape4k-leader/issues/522),
+  [#523](https://github.com/bluetape4k/bluetape4k-leader/issues/523),
+  [#524](https://github.com/bluetape4k/bluetape4k-leader/issues/524)).
+
+---
+
 ## [0.4.0] — 2026-06-27
 
 ### Added
