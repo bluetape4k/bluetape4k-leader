@@ -2,11 +2,38 @@ package io.bluetape4k.leader.k8s.internal
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.leader.k8s.KubernetesLeaseGroupOptions
+import io.bluetape4k.leader.k8s.KubernetesLeaseOptions
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class KubernetesLeaseSupportTest {
+
+    @Test
+    fun `namespace must be DNS-1123 label`() {
+        KubernetesLeaseNames.validateNamespace("operator-system")
+
+        assertFailsWith<IllegalArgumentException> {
+            KubernetesLeaseNames.validateNamespace("OperatorSystem")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            KubernetesLeaseNames.validateNamespace("operator_system")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            KubernetesLeaseNames.validateNamespace("x".repeat(64))
+        }
+    }
+
+    @Test
+    fun `options reject invalid namespace`() {
+        assertFailsWith<IllegalArgumentException> {
+            KubernetesLeaseOptions(namespace = "OperatorSystem")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            KubernetesLeaseGroupOptions(namespace = "operator_system")
+        }
+    }
 
     @Test
     fun `lease name must be DNS-1123 label`() {

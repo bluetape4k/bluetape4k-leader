@@ -6,6 +6,16 @@ import io.bluetape4k.support.requireInRange
 internal object KubernetesLeaseNames {
     private val Dns1123Label = Regex("[a-z0-9]([-a-z0-9]*[a-z0-9])?")
 
+    fun validateNamespace(namespace: String) {
+        namespace.requireNotBlank("namespace")
+        require(namespace.length <= 63) {
+            "namespace must be at most 63 characters for Kubernetes namespace name. namespace=$namespace"
+        }
+        require(Dns1123Label.matches(namespace)) {
+            "namespace must be a DNS-1123 label for Kubernetes namespace name. namespace=$namespace"
+        }
+    }
+
     fun validateLeaseName(lockName: String) {
         lockName.requireNotBlank("lockName")
         require(lockName.length <= 63) {

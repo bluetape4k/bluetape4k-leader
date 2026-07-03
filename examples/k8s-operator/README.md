@@ -76,5 +76,19 @@ kubectl apply -f k8s/deployment.yaml
 kubectl logs deploy/bluetape4k-k8s-operator -f
 ```
 
-The service account needs `get`, `create`, `update`, `patch`, and `delete` on
-`coordination.k8s.io/leases` in the target namespace.
+The runtime service account needs only `get`, `create`, `update`, and `patch`
+on `coordination.k8s.io/leases` in the target namespace. Lease deletion is an
+admin/test cleanup concern and is intentionally not granted to the running
+operator.
+
+The example Deployment uses a stable `0.5.0` image tag instead of `latest`.
+Replace it with the immutable tag or digest you build for your own registry.
+
+The probe contract is:
+
+- `startupProbe` waits for the Spring Boot actuator endpoint before Kubernetes
+  applies liveness decisions.
+- `livenessProbe` restarts a pod whose actuator health endpoint stops
+  responding.
+- `readinessProbe` keeps non-ready pods out of service routing while the
+  operator starts or recovers.

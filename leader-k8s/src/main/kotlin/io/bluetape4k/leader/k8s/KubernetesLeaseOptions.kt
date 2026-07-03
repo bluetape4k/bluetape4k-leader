@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.k8s
 
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.k8s.internal.KubernetesLeaseNames
 import io.bluetape4k.support.requireGt
-import io.bluetape4k.support.requireNotBlank
 import java.io.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -28,7 +28,7 @@ data class KubernetesLeaseOptions(
     val retryDelay: Duration = 50.milliseconds,
 ) : Serializable {
     init {
-        namespace.requireNotBlank("namespace")
+        KubernetesLeaseNames.validateNamespace(namespace)
         retryDelay.requireGt(Duration.ZERO, "retryDelay")
     }
 
