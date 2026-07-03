@@ -1,48 +1,55 @@
 # WIP - bluetape4k-leader
 
-Snapshot: 2026-06-02 KST
+Snapshot: 2026-07-03 KST
 Scope: open GitHub issues assigned to `debop`.
-Open count: 9 issues.
-The release-train dependency alignment shipped in the `0.3.1` patch release.
+Open count: 12 Backlog issues after closing the 0.5.0 epic.
+Milestone `0.5.0` is complete except for final epic closure.
 
 ## Current Direction
 
-The `0.3.1` patch release carried only the release-train dependency alignment
-for the Exposed-backed modules. Remaining assigned issues are parked in Backlog
-and should be scheduled into a later minor release.
+The `0.5.0` milestone is capped and complete. It closed the operational
+readiness lane around observability, metric cardinality, Prometheus runbooks,
+Spring Boot metadata, startup diagnostics, correctness fixes, and benchmark
+evidence.
 
-The current `0.4.0` development line carries the `bluetape4k-bom`
-`1.11.0-SNAPSHOT` and `bluetape4k-exposed` `1.11.0-SNAPSHOT` alignment. The
-publishable Exposed leader modules should keep
-`bluetape4k-exposed-bom` on `implementation(platform(...))` so the BOM does not
-leak as an API platform dependency.
+Do not expand `0.5.0` with additional Backlog work unless a release-blocking
+defect is found. The remaining assigned issues should be scheduled into the next
+minor line after the 0.5.0 release closeout.
 
 ## Active Queue
 
 | Priority | Issue | Milestone | Notes |
 |---|---|---|---|
-| P1 | [#413](https://github.com/bluetape4k/bluetape4k-leader/issues/413) preview backend stable-promotion checklist | Backlog | Epic for Consul, DynamoDB, etcd, and Kubernetes promotion criteria. |
-| P2 | [#416](https://github.com/bluetape4k/bluetape4k-leader/issues/416) reconcile Spring AOP return-type notes | Backlog | Documentation cleanup; do not block 0.3.x patch releases. |
-| P2 | [#423](https://github.com/bluetape4k/bluetape4k-leader/issues/423) DynamoDB scheduled export example | Backlog | Example lane for a future minor release. |
-| P2 | [#424](https://github.com/bluetape4k/bluetape4k-leader/issues/424) ZooKeeper legacy scheduler example | Backlog | Example lane for a future minor release. |
-| P2 | [#427](https://github.com/bluetape4k/bluetape4k-leader/issues/427) watchdog overhead benchmark | Backlog | Performance lane under epic #428. |
-| P3 | [#414](https://github.com/bluetape4k/bluetape4k-leader/issues/414) noisy MongoDB suspend benchmark tuning | Backlog | Performance follow-up; verify fresh benchmark variance first. |
-| P3 | [#428](https://github.com/bluetape4k/bluetape4k-leader/issues/428) performance benchmark epic | Backlog | Umbrella issue. |
-| P3 | [#429](https://github.com/bluetape4k/bluetape4k-leader/issues/429) examples epic | Backlog | Umbrella issue. |
+| P1 | [#532](https://github.com/bluetape4k/bluetape4k-leader/issues/532) opt-in leader management actions for known locks | Backlog | Security-sensitive management action surface; keep separate from 0.5.0 closeout. |
+| P1 | [#542](https://github.com/bluetape4k/bluetape4k-leader/issues/542) route-scoped Ktor leader guard DSL | Backlog | Security-sensitive route guard API; needs design review before implementation. |
+| P1 | [#537](https://github.com/bluetape4k/bluetape4k-leader/issues/537) MVC/WebFlux leader-gated route helpers | Backlog | Spring route helper surface; pair with security and API ergonomics review. |
+| P2 | [#531](https://github.com/bluetape4k/bluetape4k-leader/issues/531) readiness and lease-risk health indicators | Backlog | Spring health surface for a later operational-readiness increment. |
+| P2 | [#533](https://github.com/bluetape4k/bluetape4k-leader/issues/533) backend health and capability diagnostics SPI | Backlog | Cross-backend diagnostics design candidate. |
+| P2 | [#535](https://github.com/bluetape4k/bluetape4k-leader/issues/535) pluggable audit export adapters | Backlog | Audit/export integration lane. |
+| P2 | [#536](https://github.com/bluetape4k/bluetape4k-leader/issues/536) leader-aware scheduled task adapter | Backlog | Spring scheduling convenience API. |
+| P2 | [#539](https://github.com/bluetape4k/bluetape4k-leader/issues/539) SSE and WebSocket leader event streams | Backlog | Ktor streaming integration. |
+| P2 | [#540](https://github.com/bluetape4k/bluetape4k-leader/issues/540) Ktor StatusPages and structured error integration | Backlog | Ktor error contract integration. |
+| P2 | [#541](https://github.com/bluetape4k/bluetape4k-leader/issues/541) Ktor lifecycle and graceful shutdown hooks | Backlog | Ktor plugin lifecycle hardening. |
+| P2 | [#559](https://github.com/bluetape4k/bluetape4k-leader/issues/559) lease-extension observation hook | Backlog | Observation follow-up for renewal paths. |
+| P3 | [#463](https://github.com/bluetape4k/bluetape4k-leader/issues/463) strategic group election API design | Backlog | Design-only API exploration. |
 
 ## Open PRs
 
-None after the `0.3.1` patch release.
+No open PRs were present before this closeout documentation branch.
 
 ## Recently Completed
 
-- [#417](https://github.com/bluetape4k/bluetape4k-leader/issues/417) / [PR #454](https://github.com/bluetape4k/bluetape4k-leader/pull/454) surfaced preview backend release gates in Nightly summaries.
-- [#426](https://github.com/bluetape4k/bluetape4k-leader/issues/426) / [PR #455](https://github.com/bluetape4k/bluetape4k-leader/pull/455) added the virtual-thread runner example.
-- [#425](https://github.com/bluetape4k/bluetape4k-leader/issues/425) / [PR #456](https://github.com/bluetape4k/bluetape4k-leader/pull/456) added the Redisson watchdog example.
-- [#415](https://github.com/bluetape4k/bluetape4k-leader/issues/415) normalized the misspelled performance label.
+- [#529](https://github.com/bluetape4k/bluetape4k-leader/issues/529) added the Micrometer Observation and OpenTelemetry bridge.
+- [#530](https://github.com/bluetape4k/bluetape4k-leader/issues/530) added metric tag cardinality controls.
+- [#534](https://github.com/bluetape4k/bluetape4k-leader/issues/534) added Prometheus alert rules and leader runbooks.
+- [#538](https://github.com/bluetape4k/bluetape4k-leader/issues/538) added Spring Boot configuration metadata and startup diagnostics.
+- [#561](https://github.com/bluetape4k/bluetape4k-leader/issues/561) is the final 0.5.0 epic and should close after this documentation refresh is merged.
 
 ## Refresh Notes
 
-- Verified with `gh` on 2026-06-02 KST.
-- Keep `bluetape4k-*` issue and resolving PR milestones aligned. Prefer minor
-  release grouping for non-bugfix work.
+- Verified with `gh` on 2026-07-03 KST.
+- Milestone `0.5.0` has no open non-epic issues.
+- `CHANGELOG.md` now records the 0.5.0 observability, diagnostics,
+  correctness, and benchmark closeout.
+- Keep remaining Backlog issues out of 0.5.0 unless a release-blocking defect is
+  discovered.
