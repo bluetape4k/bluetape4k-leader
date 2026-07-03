@@ -18,6 +18,7 @@ import org.junit.jupiter.api.TestInstance
 import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import io.bluetape4k.assertions.shouldBeFalse
 
 /**
  * [LocalSuspendLeaderElector] capture integration test.
@@ -126,7 +127,8 @@ class LocalSuspendLeaderElectorCaptureTest {
 
         // scope 밖 → NotHeld → false
         val extended = LockExtender.extendActiveLockSuspend(30.seconds)
-        extended shouldBeEqualTo false
+        extended.shouldBeFalse()
+
     }
 
     // ── action 예외 시 cleanup ────────────────────────────────────────────
@@ -177,7 +179,7 @@ class LocalSuspendLeaderElectorCaptureTest {
 
         initialLeaseUntil.shouldNotBeNull()
         extendedLeaseUntil.shouldNotBeNull()
-        extendedLeaseUntil!!.isAfter(initialLeaseUntil!!).shouldBeTrue()
+        extendedLeaseUntil.shouldNotBeNull().isAfter(initialLeaseUntil.shouldNotBeNull()).shouldBeTrue()
     }
 
     // ── delay 안에서도 LockHandleElement 유지 ────────────────────────────

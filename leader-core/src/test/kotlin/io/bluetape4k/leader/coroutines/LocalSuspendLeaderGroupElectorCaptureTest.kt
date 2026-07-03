@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.coroutineContext
+import io.bluetape4k.assertions.shouldBeTrue
 
 /**
  * [LocalSuspendLeaderGroupElector] capture integration test.
@@ -61,7 +62,8 @@ class LocalSuspendLeaderGroupElectorCaptureTest {
     private suspend fun assertCoroutineContextOnly(checks: AtomicInteger) {
         LeaderLockHandleCapture.poll().shouldBeNull()
         coroutineContext[LockHandleElement].shouldNotBeNull()
-        LockAssert.isLockedSuspend() shouldBeEqualTo true
+        LockAssert.isLockedSuspend().shouldBeTrue()
+
         checks.incrementAndGet()
     }
 }

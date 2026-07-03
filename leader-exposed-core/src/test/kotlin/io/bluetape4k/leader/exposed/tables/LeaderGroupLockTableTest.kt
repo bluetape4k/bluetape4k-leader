@@ -19,6 +19,7 @@ import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.time.Instant
+import io.bluetape4k.assertions.shouldBeTrue
 
 class LeaderGroupLockTableTest : AbstractExposedTableTest() {
 
@@ -28,7 +29,8 @@ class LeaderGroupLockTableTest : AbstractExposedTableTest() {
     @MethodSource("enableDialects")
     fun `테이블 생성 및 삭제가 성공한다`(testDB: TestDB) {
         withTables(testDB, LeaderGroupLockTable) {
-            LeaderGroupLockTable.exists() shouldBeEqualTo true
+            LeaderGroupLockTable.exists().shouldBeTrue()
+
         }
     }
 

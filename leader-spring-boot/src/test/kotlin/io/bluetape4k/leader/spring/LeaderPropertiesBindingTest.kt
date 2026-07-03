@@ -12,6 +12,8 @@ import org.springframework.boot.context.properties.source.ConfigurationPropertyS
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 import java.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 
 private inline fun <reified T : Any> Binder.bindAs(name: String): BindResult<T> =
     bind(name, T::class.java)
@@ -55,9 +57,12 @@ class LeaderPropertiesBindingTest {
         props.consul.keyPrefix shouldBeEqualTo "apps/orders/leader"
         props.consul.sessionNamePrefix shouldBeEqualTo "orders-leader"
         props.consul.lockDelay shouldBeEqualTo Duration.ofSeconds(2)
-        props.diagnostics.enabled shouldBeEqualTo false
-        props.diagnostics.strict shouldBeEqualTo true
-        props.diagnostics.includeBeanNames shouldBeEqualTo false
+        props.diagnostics.enabled.shouldBeFalse()
+
+        props.diagnostics.strict.shouldBeTrue()
+
+        props.diagnostics.includeBeanNames.shouldBeFalse()
+
     }
 
     @Test
@@ -74,9 +79,12 @@ class LeaderPropertiesBindingTest {
         props.consul.keyPrefix shouldBeEqualTo "bluetape4k/leader"
         props.consul.sessionNamePrefix shouldBeEqualTo "bluetape4k-leader"
         props.consul.lockDelay shouldBeEqualTo Duration.ZERO
-        props.diagnostics.enabled shouldBeEqualTo true
-        props.diagnostics.strict shouldBeEqualTo false
-        props.diagnostics.includeBeanNames shouldBeEqualTo true
+        props.diagnostics.enabled.shouldBeTrue()
+
+        props.diagnostics.strict.shouldBeFalse()
+
+        props.diagnostics.includeBeanNames.shouldBeTrue()
+
     }
 
     @Test

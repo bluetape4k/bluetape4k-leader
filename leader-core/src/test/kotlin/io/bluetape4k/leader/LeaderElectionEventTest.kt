@@ -10,6 +10,7 @@ import java.io.ByteArrayOutputStream
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.time.Instant
+import io.bluetape4k.assertions.shouldBeFalse
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionEventTest {
@@ -145,7 +146,9 @@ class LeaderElectionEventTest {
         val d = LeaderElectionEvent.Elected("lock")
 
         a shouldBeEqualTo b
-        (a == c) shouldBeEqualTo false
-        (a == d) shouldBeEqualTo false
+        (a == c).shouldBeFalse()
+
+        (a == d).shouldBeFalse()
+
     }
 }

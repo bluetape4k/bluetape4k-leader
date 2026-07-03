@@ -6,6 +6,7 @@ import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import io.bluetape4k.assertions.shouldBeTrue
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectorBridgeLogTest {
@@ -70,7 +71,8 @@ class LeaderElectorBridgeLogTest {
     fun `global - setGlobal replaces instance`() {
         val fresh = LeaderElectorBridgeLog()
         LeaderElectorBridgeLog.setGlobal(fresh)
-        (LeaderElectorBridgeLog.global() === fresh) shouldBeEqualTo true
+        (LeaderElectorBridgeLog.global() === fresh).shouldBeTrue()
+
     }
 
     @Test

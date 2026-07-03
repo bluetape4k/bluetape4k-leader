@@ -32,6 +32,8 @@ import org.junit.jupiter.api.TestInstance
 import io.bluetape4k.assertions.assertFailsWith
 import java.util.concurrent.CancellationException
 import kotlin.time.Duration.Companion.seconds
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldNotBeNull
 
 /**
  * [LeaderGroupElectionAspect] 통합 테스트 (#95):
@@ -190,8 +192,9 @@ class LeaderGroupElectionAspectTest {
         val aspect = newAspect()
         val wrapped = assertFailsWith<LeaderGroupElectionException> { aspect.aroundLeader(pjp) }
         wrapped.cause shouldBeEqualTo backendEx
-        wrapped.message!!.contains("redis-prod-01") shouldBeEqualTo false
-        wrapped.message!! shouldContain "static-group-job"
+        wrapped.message.shouldNotBeNull().contains("redis-prod-01").shouldBeFalse()
+
+        wrapped.message.shouldNotBeNull() shouldContain "static-group-job"
     }
 
     @Test
@@ -317,8 +320,9 @@ class LeaderGroupElectionAspectTest {
 
         val wrapped = assertFailsWith<LeaderGroupElectionException> { aspect.aroundLeader(pjp) }
         wrapped.cause shouldBeEqualTo backendEx
-        wrapped.message!! shouldContain "static-group-job"
-        wrapped.message!!.contains("redis-prod-01") shouldBeEqualTo false
+        wrapped.message.shouldNotBeNull() shouldContain "static-group-job"
+        wrapped.message.shouldNotBeNull().contains("redis-prod-01").shouldBeFalse()
+
     }
 
     @Test

@@ -8,6 +8,8 @@ import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderElectionOptionsTest {
@@ -20,8 +22,10 @@ class LeaderElectionOptionsTest {
         options.waitTime shouldBeEqualTo LeaderElectionOptions.DefaultWaitTime
         options.leaseTime shouldBeEqualTo LeaderElectionOptions.DefaultLeaseTime
         options.minLeaseTime shouldBeEqualTo Duration.ZERO
-        options.autoExtend shouldBeEqualTo false
-        options.useDbTime shouldBeEqualTo false
+        options.autoExtend.shouldBeFalse()
+
+        options.useDbTime.shouldBeFalse()
+
     }
 
     @Test
@@ -36,8 +40,10 @@ class LeaderElectionOptionsTest {
         options.waitTime shouldBeEqualTo 10.seconds
         options.leaseTime shouldBeEqualTo 120.seconds
         options.minLeaseTime shouldBeEqualTo 5.seconds
-        options.autoExtend shouldBeEqualTo true
-        options.useDbTime shouldBeEqualTo true
+        options.autoExtend.shouldBeTrue()
+
+        options.useDbTime.shouldBeTrue()
+
     }
 
     @Test

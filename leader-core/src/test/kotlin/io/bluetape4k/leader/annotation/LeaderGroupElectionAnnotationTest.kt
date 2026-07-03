@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.reflect.full.findAnnotation
+import io.bluetape4k.assertions.shouldNotBeNull
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderGroupElectionAnnotationTest {
@@ -28,7 +29,7 @@ class LeaderGroupElectionAnnotationTest {
 
     @Test
     fun `기본 속성값 확인`() {
-        val annotation = ::annotatedMethod.findAnnotation<LeaderGroupElection>()!!
+        val annotation = ::annotatedMethod.findAnnotation<LeaderGroupElection>().shouldNotBeNull()
         annotation.name shouldBeEqualTo "group-lock"
         annotation.maxLeaders shouldBeEqualTo -1
         annotation.waitTime shouldBeEqualTo ""
@@ -40,7 +41,7 @@ class LeaderGroupElectionAnnotationTest {
 
     @Test
     fun `커스텀 속성값 확인`() {
-        val annotation = ::fullyAnnotatedMethod.findAnnotation<LeaderGroupElection>()!!
+        val annotation = ::fullyAnnotatedMethod.findAnnotation<LeaderGroupElection>().shouldNotBeNull()
         annotation.name shouldBeEqualTo "custom-group"
         annotation.maxLeaders shouldBeEqualTo 3
         annotation.waitTime shouldBeEqualTo "PT5S"

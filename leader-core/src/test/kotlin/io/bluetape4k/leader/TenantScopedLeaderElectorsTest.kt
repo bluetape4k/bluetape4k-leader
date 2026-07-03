@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import io.bluetape4k.assertions.shouldBeTrue
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class TenantScopedLeaderElectorsTest {
@@ -33,7 +34,8 @@ class TenantScopedLeaderElectorsTest {
             TenantLockNamespace("a").lockName("x".repeat(247))
         }
 
-        thrown.message?.contains("maxLockNameLength=246") shouldBeEqualTo true
+        thrown.message?.contains("maxLockNameLength=246").shouldBeTrue()
+
     }
 
     @Test

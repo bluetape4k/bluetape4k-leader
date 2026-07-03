@@ -8,6 +8,8 @@ import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 import java.time.Duration
+import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeTrue
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderAopPropertiesBindingTest {
@@ -35,13 +37,16 @@ class LeaderAopPropertiesBindingTest {
         )
         val props = Binder(source).bind(LeaderAopProperties.PREFIX, LeaderAopProperties::class.java).get()
 
-        props.enabled shouldBeEqualTo false
-        props.strict shouldBeEqualTo true
+        props.enabled.shouldBeFalse()
+
+        props.strict.shouldBeTrue()
+
         props.failureMode shouldBeEqualTo LeaderAspectFailureMode.SKIP
         props.defaultWaitTime shouldBeEqualTo Duration.ofSeconds(7)
         props.defaultLeaseTime shouldBeEqualTo Duration.ofMinutes(3)
         props.lockNamePrefix shouldBeEqualTo "myapp:"
-        props.metrics.enabled shouldBeEqualTo false
+        props.metrics.enabled.shouldBeFalse()
+
         props.metrics.tags.lockName.mode shouldBeEqualTo LeaderAopProperties.Metrics.TagMode.HASH
         props.metrics.tags.lockName.hashLength shouldBeEqualTo 12
         props.metrics.tags.lockName.allowList shouldBeEqualTo setOf("static-job")
@@ -49,7 +54,8 @@ class LeaderAopPropertiesBindingTest {
         props.metrics.tags.lockName.redactedValue shouldBeEqualTo "job"
         props.metrics.tags.leaderId.redactedValue shouldBeEqualTo "leader"
         props.metrics.tags.backendName.mode shouldBeEqualTo LeaderAopProperties.Metrics.TagMode.RAW
-        props.spel.allowMethodInvocation shouldBeEqualTo true
+        props.spel.allowMethodInvocation.shouldBeTrue()
+
     }
 
     @Test
@@ -58,17 +64,21 @@ class LeaderAopPropertiesBindingTest {
         val props = Binder(source)
             .bindOrCreate(LeaderAopProperties.PREFIX, LeaderAopProperties::class.java)
 
-        props.enabled shouldBeEqualTo true
-        props.strict shouldBeEqualTo false
+        props.enabled.shouldBeTrue()
+
+        props.strict.shouldBeFalse()
+
         props.failureMode shouldBeEqualTo LeaderAspectFailureMode.RETHROW
         props.defaultWaitTime shouldBeEqualTo LeaderAopProperties.DEFAULT_WAIT_TIME
         props.defaultLeaseTime shouldBeEqualTo LeaderAopProperties.DEFAULT_LEASE_TIME
         props.lockNamePrefix shouldBeEqualTo LeaderAopProperties.DEFAULT_LOCK_NAME_PREFIX
-        props.metrics.enabled shouldBeEqualTo true
+        props.metrics.enabled.shouldBeTrue()
+
         props.metrics.tags.lockName.redactedValue shouldBeEqualTo "redacted-lock"
         props.metrics.tags.leaderId.redactedValue shouldBeEqualTo "redacted-leader"
         props.metrics.tags.backendName.mode shouldBeEqualTo LeaderAopProperties.Metrics.TagMode.RAW
-        props.spel.allowMethodInvocation shouldBeEqualTo false
+        props.spel.allowMethodInvocation.shouldBeFalse()
+
     }
 
     @Test
@@ -79,7 +89,8 @@ class LeaderAopPropertiesBindingTest {
         val props = Binder(source)
             .bindOrCreate(LeaderAopProperties.PREFIX, LeaderAopProperties::class.java)
 
-        props.metrics.enabled shouldBeEqualTo false
+        props.metrics.enabled.shouldBeFalse()
+
     }
 
     @Test

@@ -146,6 +146,7 @@ dependencies {
     testImplementation(libs.testcontainers.toxiproxy)
     testImplementation(libs.r2dbc.h2)
 
+    // Required by Spring Boot's AssertableApplicationContext test API supertype.
     testImplementation("org.assertj:assertj-core")
     testRuntimeOnly("org.springframework.boot:spring-boot-starter-actuator")
     testRuntimeOnly("org.springframework.boot:spring-boot-starter-web")

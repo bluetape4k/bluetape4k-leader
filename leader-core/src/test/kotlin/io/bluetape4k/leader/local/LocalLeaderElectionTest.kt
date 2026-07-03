@@ -19,6 +19,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
+import io.bluetape4k.assertions.shouldBeTrue
 
 class LocalLeaderElectionTest {
 
@@ -64,7 +65,8 @@ class LocalLeaderElectionTest {
 
         val occupied = stateElection.state(lockName)
         occupied.status shouldBeEqualTo LeaderStatus.Occupied
-        occupied.isOccupied shouldBeEqualTo true
+        occupied.isOccupied.shouldBeTrue()
+
         val leader = occupied.leader.shouldNotBeNull()
         leader.auditLeaderId shouldBeEqualTo nodeId
         leader.electedAt.shouldNotBeNull()
@@ -75,7 +77,8 @@ class LocalLeaderElectionTest {
 
         val empty = stateElection.state(lockName)
         empty.status shouldBeEqualTo LeaderStatus.Empty
-        empty.isEmpty shouldBeEqualTo true
+        empty.isEmpty.shouldBeTrue()
+
         empty.leader.shouldBeNull()
     }
 
@@ -106,7 +109,8 @@ class LocalLeaderElectionTest {
         release.countDown()
         holder.join()
 
-        extendedLeaseUntil.isAfter(initialLeaseUntil) shouldBeEqualTo true
+        extendedLeaseUntil.isAfter(initialLeaseUntil).shouldBeTrue()
+
     }
 
     @Test

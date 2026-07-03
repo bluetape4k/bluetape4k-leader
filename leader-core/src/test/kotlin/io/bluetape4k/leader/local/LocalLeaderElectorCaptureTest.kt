@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import io.bluetape4k.assertions.shouldBeFalse
 
 /**
  * [LocalLeaderElector] capture integration test.
@@ -114,7 +115,8 @@ class LocalLeaderElectorCaptureTest {
 
         // scope 밖에서 호출 → NotHeld → false
         val extended = LockExtender.extendActiveLock(30.seconds)
-        extended shouldBeEqualTo false
+        extended.shouldBeFalse()
+
     }
 
     // ── 재진입 동작 ───────────────────────────────────────────────────────

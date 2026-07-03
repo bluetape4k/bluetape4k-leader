@@ -9,6 +9,7 @@ import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.CancellationException
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import io.bluetape4k.assertions.shouldBeTrue
 
 class SafeLeaderHistoryRecorderTest {
 
@@ -126,7 +127,8 @@ class SafeLeaderHistoryRecorderTest {
         val cause = IllegalStateException("bad state")
         recorder.recordFailed(key, now, 50L, cause)
 
-        capturedType?.contains("IllegalStateException") shouldBeEqualTo true
+        capturedType?.contains("IllegalStateException").shouldBeTrue()
+
         capturedMsg shouldBeEqualTo "bad state"
     }
 
