@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.spring
 
 import io.bluetape4k.leader.spring.properties.LeaderElectionProperties
+import io.bluetape4k.leader.spring.properties.LeaderDiagnosticsProperties
 import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
 import io.bluetape4k.leader.spring.properties.LeaderObservabilityProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -23,6 +24,9 @@ import java.time.Duration
  *     observability:
  *       lock-names:
  *         - batch-job
+ *     diagnostics:
+ *       enabled: true
+ *       strict: false
  *     group:
  *       max-leaders: 3
  *       wait-time: 5s
@@ -44,6 +48,7 @@ import java.time.Duration
  * @property leaseTime maximum hold time for a single leader lease. Default 60 seconds.
  * @property watchdogThreads watchdog scheduler thread count. When null, uses [LeaderLeaseAutoExtender.DEFAULT_WATCHDOG_THREADS].
  * @property watchdogAsyncExtend when true, each watchdog tick dispatches the extend call asynchronously on a virtual thread.
+ * @property diagnostics startup diagnostics options for backend, management, and cardinality checks.
  * @property observability leader status observability and endpoint seed options.
  * @property group multi-leader group options.
  * @property mongo MongoDB backend collection names.
@@ -57,6 +62,8 @@ data class LeaderProperties(
     val leaseTime: Duration = LeaderElectionProperties.DefaultLeaseTime,
     val watchdogThreads: Int? = null,
     val watchdogAsyncExtend: Boolean = false,
+    @field:NestedConfigurationProperty
+    val diagnostics: LeaderDiagnosticsProperties = LeaderDiagnosticsProperties(),
     @field:NestedConfigurationProperty
     val observability: LeaderObservabilityProperties = LeaderObservabilityProperties(),
     @field:NestedConfigurationProperty

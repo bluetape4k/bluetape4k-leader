@@ -77,6 +77,10 @@ bluetape4k:
             mode: RAW
       spel:
         allow-method-invocation: false
+    diagnostics:
+      enabled: true
+      strict: false
+      include-bean-names: true
     observability:
       enabled: true
       tracing:
@@ -87,6 +91,22 @@ bluetape4k:
 ```
 
 Spring configuration properties use Spring Boot duration binding (`5s`, `60s`, `PT1M`). Core `LeaderElectionOptions` and `LeaderGroupElectionOptions` use `kotlin.time.Duration` in Kotlin code.
+
+## Startup Diagnostics
+
+`LeaderStartupDiagnosticsAutoConfiguration` runs after backend, observability, and Actuator auto-configuration. It records a startup report with the selected backend candidates, `LeaderElector` bean count, `leaderElection` endpoint enablement, web exposure state, and warnings for risky combinations.
+
+Diagnostics are non-fatal by default. Set `bluetape4k.leader.diagnostics.strict=true` to fail startup when a warning is found. This is separate from `bluetape4k.leader.aop.strict`: AOP strict mode validates annotated methods, while diagnostics strict mode validates the assembled Spring context and management/cardinality settings.
+
+| Warning | Meaning | Typical fix |
+|---|---|---|
+| `MULTIPLE_NON_LOCAL_BACKENDS` | More than one non-local `LeaderElector` is active. | Select a bean with `@LeaderElection(bean = "...")`, `@LeaderElectionBackend`, or `@Primary`. |
+| `MANAGEMENT_ENDPOINT_NOT_EXPOSED` | `management.endpoint.leaderElection.enabled=true`, but web exposure does not include `leaderElection` or `*`. | Add `leaderElection` to `management.endpoints.web.exposure.include`. |
+| `MANAGEMENT_REGISTRY_NOT_SEEDED` | The endpoint is enabled but `bluetape4k.leader.observability.lock-names` is empty, so the initial report can look empty until runtime events arrive. | Seed static lock names for scheduled jobs or accept runtime discovery. |
+| `RAW_LOCK_NAME_TAGS` | Raw `lock.name` metric tags are enabled without an allow-list. | Keep `REDACT`, or use a small allow-list, `HASH`, or `TRUNCATE`. |
+| `RAW_LEADER_ID_TAGS` | Opt-in raw `leader.id` Observation tags can be emitted without an allow-list. | Disable leader ID tags, or bound them with tag policy. |
+
+The `leaderElection` Actuator endpoint currently exposes read-only status operations. Diagnostics therefore checks endpoint visibility and tag-cardinality risks, not destructive management actions.
 
 ## Metrics And Observation Tracing
 
@@ -302,6 +322,7 @@ For Java callers, `@JvmStatic` overloads accept both `kotlin.time.Duration` and 
 6. `LeaderMicrometerHealthAutoConfiguration` registers the Actuator health indicator when Actuator is present.
 7. `LeaderElectionObservabilityAutoConfiguration` registers the lock-name status registry and fallback event-publisher adapter.
 8. `LeaderElectionActuatorAutoConfiguration` registers the opt-in `/actuator/leaderElection` endpoint.
+9. `LeaderStartupDiagnosticsAutoConfiguration` records backend, management, and cardinality diagnostics after the runtime surface exists.
 
 ## Leader Election Actuator Endpoint
 

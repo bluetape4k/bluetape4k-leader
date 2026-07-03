@@ -1,6 +1,41 @@
 {
   "groups": [
     {
+      "name": "bluetape4k.leader",
+      "type": "io.bluetape4k.leader.spring.LeaderProperties",
+      "description": "Shared leader election backend, diagnostics, observability, and group options."
+    },
+    {
+      "name": "bluetape4k.leader.group",
+      "type": "io.bluetape4k.leader.spring.properties.LeaderGroupProperties",
+      "description": "Multi-leader group election options."
+    },
+    {
+      "name": "bluetape4k.leader.diagnostics",
+      "type": "io.bluetape4k.leader.spring.properties.LeaderDiagnosticsProperties",
+      "description": "Startup diagnostics for selected backend, management exposure, and high-cardinality tag risks."
+    },
+    {
+      "name": "bluetape4k.leader.mongo",
+      "type": "io.bluetape4k.leader.spring.MongoCollectionProperties",
+      "description": "MongoDB leader election collection options."
+    },
+    {
+      "name": "bluetape4k.leader.etcd",
+      "type": "io.bluetape4k.leader.spring.EtcdLeaderProperties",
+      "description": "etcd leader election key options."
+    },
+    {
+      "name": "bluetape4k.leader.consul",
+      "type": "io.bluetape4k.leader.spring.ConsulLeaderProperties",
+      "description": "Consul leader election key and session options."
+    },
+    {
+      "name": "bluetape4k.leader.dynamodb",
+      "type": "io.bluetape4k.leader.spring.DynamoDbLeaderProperties",
+      "description": "DynamoDB leader election table, key, retry, TTL, and clock-skew options."
+    },
+    {
       "name": "bluetape4k.leader.aop",
       "type": "io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties",
       "description": "Leader AOP 자동 구성 속성."
@@ -52,6 +87,131 @@
     }
   ],
   "properties": [
+    {
+      "name": "bluetape4k.leader.wait-time",
+      "type": "java.time.Duration",
+      "description": "Maximum wait time to acquire a single leader lease.",
+      "defaultValue": "PT5S"
+    },
+    {
+      "name": "bluetape4k.leader.lease-time",
+      "type": "java.time.Duration",
+      "description": "Maximum hold time for a single leader lease.",
+      "defaultValue": "PT1M"
+    },
+    {
+      "name": "bluetape4k.leader.watchdog-threads",
+      "type": "java.lang.Integer",
+      "description": "Watchdog scheduler thread count. When unset, the module chooses an available-processor-based default."
+    },
+    {
+      "name": "bluetape4k.leader.watchdog-async-extend",
+      "type": "java.lang.Boolean",
+      "description": "Dispatch each watchdog extension call asynchronously on a virtual thread.",
+      "defaultValue": false
+    },
+    {
+      "name": "bluetape4k.leader.group.max-leaders",
+      "type": "java.lang.Integer",
+      "description": "Maximum concurrent leaders for group election.",
+      "defaultValue": 2
+    },
+    {
+      "name": "bluetape4k.leader.group.wait-time",
+      "type": "java.time.Duration",
+      "description": "Maximum wait time to acquire a group leader slot.",
+      "defaultValue": "PT5S"
+    },
+    {
+      "name": "bluetape4k.leader.group.lease-time",
+      "type": "java.time.Duration",
+      "description": "Maximum hold time for a group leader slot.",
+      "defaultValue": "PT1M"
+    },
+    {
+      "name": "bluetape4k.leader.diagnostics.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Run leader startup diagnostics after auto-configuration creates leader beans.",
+      "defaultValue": true
+    },
+    {
+      "name": "bluetape4k.leader.diagnostics.strict",
+      "type": "java.lang.Boolean",
+      "description": "Fail application startup when leader startup diagnostics find warnings.",
+      "defaultValue": false
+    },
+    {
+      "name": "bluetape4k.leader.diagnostics.include-bean-names",
+      "type": "java.lang.Boolean",
+      "description": "Include concrete LeaderElector bean names in the diagnostics report.",
+      "defaultValue": true
+    },
+    {
+      "name": "bluetape4k.leader.mongo.single-collection",
+      "type": "java.lang.String",
+      "description": "MongoDB collection used for single-leader election.",
+      "defaultValue": "leader_election"
+    },
+    {
+      "name": "bluetape4k.leader.mongo.group-collection",
+      "type": "java.lang.String",
+      "description": "MongoDB collection used for group leader election.",
+      "defaultValue": "leader_group_election"
+    },
+    {
+      "name": "bluetape4k.leader.etcd.key-prefix",
+      "type": "java.lang.String",
+      "description": "etcd key prefix used for leader election records.",
+      "defaultValue": "/bluetape4k/leader"
+    },
+    {
+      "name": "bluetape4k.leader.consul.key-prefix",
+      "type": "java.lang.String",
+      "description": "Consul KV key prefix used for leader election records.",
+      "defaultValue": "bluetape4k/leader"
+    },
+    {
+      "name": "bluetape4k.leader.consul.session-name-prefix",
+      "type": "java.lang.String",
+      "description": "Consul session name prefix used for leader election sessions.",
+      "defaultValue": "bluetape4k-leader"
+    },
+    {
+      "name": "bluetape4k.leader.consul.lock-delay",
+      "type": "java.time.Duration",
+      "description": "Consul lock delay applied to leader election sessions.",
+      "defaultValue": "PT0S"
+    },
+    {
+      "name": "bluetape4k.leader.dynamodb.table-name",
+      "type": "java.lang.String",
+      "description": "DynamoDB table name used for leader election records.",
+      "defaultValue": "bluetape4k_leader_locks"
+    },
+    {
+      "name": "bluetape4k.leader.dynamodb.key-prefix",
+      "type": "java.lang.String",
+      "description": "DynamoDB partition key prefix used for leader election records.",
+      "defaultValue": "leader"
+    },
+    {
+      "name": "bluetape4k.leader.dynamodb.retry-delay",
+      "type": "java.time.Duration",
+      "description": "Delay between DynamoDB conditional-write retry attempts.",
+      "defaultValue": "PT0.05S"
+    },
+    {
+      "name": "bluetape4k.leader.dynamodb.ttl-padding",
+      "type": "java.time.Duration",
+      "description": "Extra TTL padding applied to DynamoDB leader election records.",
+      "defaultValue": "PT1M"
+    },
+    {
+      "name": "bluetape4k.leader.dynamodb.clock-skew-tolerance",
+      "type": "java.time.Duration",
+      "description": "Clock skew tolerance applied when interpreting DynamoDB lease timestamps.",
+      "defaultValue": "PT5S"
+    },
     {
       "name": "bluetape4k.leader.aop.enabled",
       "type": "java.lang.Boolean",
@@ -276,6 +436,11 @@
       "type": "java.lang.Boolean",
       "description": "Enable the custom leaderElection Actuator endpoint.",
       "defaultValue": false
+    },
+    {
+      "name": "management.endpoints.web.exposure.include",
+      "type": "java.lang.String",
+      "description": "Comma-separated Actuator web endpoint exposure list. Include leaderElection or * to expose the leaderElection endpoint over HTTP."
     }
   ]
 }

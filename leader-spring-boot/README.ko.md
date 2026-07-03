@@ -77,6 +77,10 @@ bluetape4k:
             mode: RAW
       spel:
         allow-method-invocation: false
+    diagnostics:
+      enabled: true
+      strict: false
+      include-bean-names: true
     observability:
       enabled: true
       tracing:
@@ -87,6 +91,22 @@ bluetape4k:
 ```
 
 Spring 설정 속성은 Spring Boot duration binding을 사용하므로 `5s`, `60s`, `PT1M`을 그대로 쓸 수 있습니다. Kotlin 코드의 core `LeaderElectionOptions`, `LeaderGroupElectionOptions`는 `kotlin.time.Duration`을 사용합니다.
+
+## Startup Diagnostics
+
+`LeaderStartupDiagnosticsAutoConfiguration`은 backend, observability, Actuator 자동 구성이 끝난 뒤 실행됩니다. 시작 시점에 선택된 backend 후보, `LeaderElector` bean 개수, `leaderElection` endpoint 활성화 여부, web exposure 상태, 위험 조합 warning을 report로 남깁니다.
+
+Diagnostics는 기본적으로 startup을 실패시키지 않습니다. warning이 있을 때 애플리케이션을 실패시키려면 `bluetape4k.leader.diagnostics.strict=true`를 설정하세요. 이 값은 `bluetape4k.leader.aop.strict`와 별개입니다. AOP strict mode는 어노테이션이 붙은 메서드를 검증하고, diagnostics strict mode는 조립된 Spring context와 management/cardinality 설정을 검증합니다.
+
+| Warning | 의미 | 일반적인 조치 |
+|---|---|---|
+| `MULTIPLE_NON_LOCAL_BACKENDS` | non-local `LeaderElector`가 둘 이상 활성화됨 | `@LeaderElection(bean = "...")`, `@LeaderElectionBackend`, `@Primary`로 사용할 bean 지정 |
+| `MANAGEMENT_ENDPOINT_NOT_EXPOSED` | `management.endpoint.leaderElection.enabled=true`지만 web exposure에 `leaderElection` 또는 `*`가 없음 | `management.endpoints.web.exposure.include`에 `leaderElection` 추가 |
+| `MANAGEMENT_REGISTRY_NOT_SEEDED` | endpoint는 켜졌지만 `bluetape4k.leader.observability.lock-names`가 비어 있어 runtime event 전 초기 report가 비어 보일 수 있음 | scheduled job의 정적 lock name을 seed하거나 runtime discovery를 의도적으로 허용 |
+| `RAW_LOCK_NAME_TAGS` | raw `lock.name` metric tag가 allow-list 없이 활성화됨 | 기본 `REDACT` 유지, 또는 작은 allow-list, `HASH`, `TRUNCATE` 사용 |
+| `RAW_LEADER_ID_TAGS` | opt-in raw `leader.id` Observation tag가 allow-list 없이 emit될 수 있음 | leader ID tag 비활성화 또는 tag policy로 bounded 처리 |
+
+현재 `leaderElection` Actuator endpoint는 read-only 상태 조회만 제공합니다. 따라서 diagnostics는 파괴적인 management action이 아니라 endpoint 노출 여부와 tag cardinality 위험을 확인합니다.
 
 ## Metrics와 Observation Tracing
 
@@ -302,6 +322,7 @@ Java caller 는 `@JvmStatic` overload — `kotlin.time.Duration` 과 `java.time.
 6. `LeaderMicrometerHealthAutoConfiguration`: Actuator가 있으면 health indicator 등록
 7. `LeaderElectionObservabilityAutoConfiguration`: lock-name 상태 registry와 fallback event-publisher adapter 등록
 8. `LeaderElectionActuatorAutoConfiguration`: opt-in `/actuator/leaderElection` endpoint 등록
+9. `LeaderStartupDiagnosticsAutoConfiguration`: runtime surface가 준비된 뒤 backend, management, cardinality diagnostics 기록
 
 ## Leader Election Actuator Endpoint
 
