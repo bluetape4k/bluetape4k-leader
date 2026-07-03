@@ -2,6 +2,7 @@ package io.bluetape4k.leader.consul
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.junit5.coroutines.runSuspendIO
@@ -171,6 +172,26 @@ class ConsulSuspendLeaderElectorDelegationTest {
         elector.state("lock-a").activeCount shouldBeEqualTo 0
 
         future.requestedTimeoutNanos shouldBeEqualTo 77.milliseconds.inWholeNanoseconds
+    }
+
+    @Test
+    fun `suspend group acquisition caps slot probes per retry under saturation`() = runSuspendIO {
+        val client = FakeConsulLockClient(acquireResult = false)
+        val elector = ConsulSuspendLeaderGroupElector.create(
+            client,
+            ConsulLeaderGroupElectionOptions(
+                leaderGroupOptions = LeaderGroupElectionOptions(
+                    maxLeaders = 64,
+                    waitTime = 120.milliseconds,
+                    leaseTime = 10.seconds,
+                ),
+            ),
+        )
+
+        elector.runIfLeader("lock-a") { "should-not-run" }.shouldBeNull()
+
+        client.acquireCalls shouldBeLessOrEqualTo (CONSUL_GROUP_SLOT_PROBE_LIMIT * 8)
+        client.destroyCalls shouldBeEqualTo 1
     }
 
     @Test

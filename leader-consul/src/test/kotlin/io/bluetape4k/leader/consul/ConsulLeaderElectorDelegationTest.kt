@@ -4,6 +4,7 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
+import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.ExtendOutcome
@@ -301,6 +302,26 @@ class ConsulLeaderElectorDelegationTest {
 
         failure.cause.shouldBeInstanceOf<CancellationException>()
         client.releaseCalls shouldBeEqualTo 1
+        client.destroyCalls shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `group acquisition caps slot probes per retry under saturation`() {
+        val client = FakeConsulLockClient(acquireResult = false)
+        val elector = ConsulLeaderGroupElector.create(
+            client,
+            ConsulLeaderGroupElectionOptions(
+                leaderGroupOptions = LeaderGroupElectionOptions(
+                    maxLeaders = 64,
+                    waitTime = 120.milliseconds,
+                    leaseTime = 10.seconds,
+                ),
+            ),
+        )
+
+        elector.runIfLeader("lock-a") { "should-not-run" }.shouldBeNull()
+
+        client.acquireCalls shouldBeLessOrEqualTo (CONSUL_GROUP_SLOT_PROBE_LIMIT * 8)
         client.destroyCalls shouldBeEqualTo 1
     }
 
