@@ -1,5 +1,6 @@
 package io.bluetape4k.leader
 
+import java.io.Serializable
 import java.time.Instant
 
 /**
@@ -31,7 +32,7 @@ import java.time.Instant
  * }
  * ```
  */
-sealed interface ExtendOutcome {
+sealed interface ExtendOutcome : Serializable {
 
     /**
      * Extend succeeded.
@@ -46,13 +47,21 @@ sealed interface ExtendOutcome {
      *
      * Do not use as a precise deadline — intended for observability/logging only.
      */
-    data class Extended(val observedExpireAt: Instant) : ExtendOutcome
+    data class Extended(val observedExpireAt: Instant) : ExtendOutcome {
+        companion object {
+            private const val serialVersionUID = 1L
+        }
+    }
 
     /** Token mismatch / lease expired / takeover — lock is no longer held. */
-    data object NotHeld : ExtendOutcome
+    data object NotHeld : ExtendOutcome {
+        private const val serialVersionUID = 1L
+    }
 
     /** Called from a thread different from the acquiring thread on a Redisson thread-bound lock. */
-    data object WrongThread : ExtendOutcome
+    data object WrongThread : ExtendOutcome {
+        private const val serialVersionUID = 1L
+    }
 
     /**
      * Backend error. Use `BackendErrorClassifier` to classify as transient (retryable) or non-transient.
@@ -60,7 +69,11 @@ sealed interface ExtendOutcome {
      * `cause` must be an [Exception] — wrapping FATAL [Error] ([OutOfMemoryError], [StackOverflowError],
      * [LinkageError], etc.) is forbidden; propagate them directly.
      */
-    data class BackendError(val cause: Exception) : ExtendOutcome
+    data class BackendError(val cause: Exception) : ExtendOutcome {
+        companion object {
+            private const val serialVersionUID = 1L
+        }
+    }
 
     /** Shortcut for Boolean API conversion. */
     val isExtended: Boolean get() = this is Extended

@@ -1,12 +1,14 @@
 package io.bluetape4k.leader.identity
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldNotBeBlank
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.logging.KLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import kotlin.test.assertFailsWith
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderSlotTest {
@@ -48,7 +50,7 @@ class LeaderSlotTest {
         val a = LeaderSlot("lock", "node-a")
         val b = LeaderSlot("lock", "node-a")
         a shouldBeEqualTo b
-        (a.hashCode() == b.hashCode()) shouldBeEqualTo true
+        (a.hashCode() == b.hashCode()).shouldBeTrue()
     }
 
     @Test
@@ -71,7 +73,7 @@ class LeaderSlotTest {
     fun `RandomLeaderIdProvider - different calls produce different ids`() {
         val a = RandomLeaderIdProvider.Default.nextLeaderId("lock")
         val b = RandomLeaderIdProvider.Default.nextLeaderId("lock")
-        (a == b) shouldBeEqualTo false
+        (a == b).shouldBeFalse()
     }
 
     @Test
@@ -79,7 +81,7 @@ class LeaderSlotTest {
         val provider = RandomLeaderIdProvider(length = 6)
         val id = provider.nextLeaderId("lock")
         id.shouldNotBeBlank()
-        (id.length <= 8) shouldBeEqualTo true // Base58 chars, length is approximate
+        (id.length <= 8).shouldBeTrue() // Base58 chars, length is approximate
     }
 
     // --- CompositeLeaderIdProvider ---
@@ -92,7 +94,7 @@ class LeaderSlotTest {
             delegate = RandomLeaderIdProvider.Default,
         )
         val id = provider.nextLeaderId("lock")
-        (id.startsWith("tenant-acme:")) shouldBeEqualTo true
+        id.startsWith("tenant-acme:").shouldBeTrue()
     }
 
     @Test
@@ -106,7 +108,7 @@ class LeaderSlotTest {
     fun `CompositeLeaderIdProvider - custom separator`() {
         val provider = CompositeLeaderIdProvider(prefix = "env-prod", separator = "#")
         val id = provider.nextLeaderId("lock")
-        (id.startsWith("env-prod#")) shouldBeEqualTo true
+        id.startsWith("env-prod#").shouldBeTrue()
     }
 
     // --- safeNextLeaderId ---
