@@ -32,7 +32,6 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withContext
 import java.time.Instant
-import java.util.concurrent.ThreadLocalRandom
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -215,14 +214,15 @@ class ConsulSuspendLeaderGroupElector private constructor(
     ): Pair<Int, String>? {
         val timeoutNanos = options.leaderGroupOptions.waitTime.inWholeNanoseconds
         val deadline = System.nanoTime() + timeoutNanos
-        val startSlot = ThreadLocalRandom.current().nextInt(maxLeaders)
         val renewDelayNanos = ConsulSessionTtl.renewDelay(options.leaderGroupOptions.leaseTime).inWholeNanoseconds
         var lastRenewNanos = System.nanoTime()
         val payloadJson = ownerPayload.toJson()
+        val slotsPerAttempt = consulGroupSlotProbeCount(maxLeaders)
 
         do {
             currentCoroutineContext().ensureActive()
-            for (attempt in 0 until maxLeaders) {
+            val startSlot = java.util.concurrent.ThreadLocalRandom.current().nextInt(maxLeaders)
+            for (attempt in 0 until slotsPerAttempt) {
                 val slot = (startSlot + attempt) % maxLeaders
                 val key = lockClient.groupLockKey(lockName, slot)
                 if (lockClient.acquire(key, sessionId, payloadJson).await()) {
@@ -237,8 +237,7 @@ class ConsulSuspendLeaderGroupElector private constructor(
                 lockClient.renewSession(sessionId).await()
                 lastRenewNanos = now
             }
-            val delayMillis = minOf(50.milliseconds.inWholeMilliseconds, remainingMillis(deadline)).coerceAtLeast(1)
-            delay(delayMillis.milliseconds)
+            delay(consulGroupAcquireDelayMillis(deadline).milliseconds)
         } while (true)
     }
 
@@ -299,9 +298,6 @@ class ConsulSuspendLeaderGroupElector private constructor(
             }
         }
 }
-
-private fun remainingMillis(deadlineNanos: Long): Long =
-    ((deadlineNanos - System.nanoTime()).coerceAtLeast(0L) / 1_000_000L).coerceAtLeast(1L)
 
 /**
  * Runs [action] only when this Consul endpoint acquires a group leader slot in a coroutine.

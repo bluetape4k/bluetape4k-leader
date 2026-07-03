@@ -30,7 +30,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.ThreadLocalRandom
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Blocking and async Consul multi-leader election backed by fixed KV slot keys and Consul Sessions.
@@ -280,14 +279,15 @@ class ConsulLeaderGroupElector private constructor(
     ): Pair<Int, String>? {
         val timeoutNanos = options.leaderGroupOptions.waitTime.inWholeNanoseconds
         val deadline = System.nanoTime() + timeoutNanos
-        val startSlot = ThreadLocalRandom.current().nextInt(maxLeaders)
         val renewDelayNanos = ConsulSessionTtl.renewDelay(options.leaderGroupOptions.leaseTime).inWholeNanoseconds
         var lastRenewNanos = System.nanoTime()
         val payloadJson = ownerPayload.toJson()
+        val slotsPerAttempt = consulGroupSlotProbeCount(maxLeaders)
 
         do {
             try {
-                for (attempt in 0 until maxLeaders) {
+                val startSlot = ThreadLocalRandom.current().nextInt(maxLeaders)
+                for (attempt in 0 until slotsPerAttempt) {
                     val slot = (startSlot + attempt) % maxLeaders
                     val key = lockClient.groupLockKey(lockName, slot)
                     if (lockClient.acquire(key, sessionId, payloadJson).getWithinRequestTimeout(lockClient)) {
@@ -302,7 +302,7 @@ class ConsulLeaderGroupElector private constructor(
                     lockClient.renewSession(sessionId).getWithinRequestTimeout(lockClient)
                     lastRenewNanos = now
                 }
-                Thread.sleep(minOf(50.milliseconds.inWholeMilliseconds, remainingMillis(deadline)).coerceAtLeast(1))
+                Thread.sleep(consulGroupAcquireDelayMillis(deadline))
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()
                 return null
@@ -362,9 +362,6 @@ class ConsulLeaderGroupElector private constructor(
 
 private fun Throwable?.unwrapCompletionException(): Throwable? =
     if (this is CompletionException && cause != null) cause else this
-
-private fun remainingMillis(deadlineNanos: Long): Long =
-    ((deadlineNanos - System.nanoTime()).coerceAtLeast(0L) / 1_000_000L).coerceAtLeast(1L)
 
 /**
  * Runs [action] only when this Consul endpoint acquires a group leader slot.

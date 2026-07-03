@@ -67,7 +67,7 @@ import kotlin.concurrent.withLock
  *
  * ### Indexes
  *
- * The first [start] call creates a `(status, claimExpiresAt)` compound index for claim-query performance.
+ * The first [start] call creates mandatory compound indexes for claim-query performance.
  *
  * ```kotlin
  * val elector = MongoSuspendLeaderElector(lockCollection)
@@ -100,6 +100,10 @@ class WebhookPoller(
         internal const val FIELD_ATTEMPTS = "attempts"
         internal const val FIELD_LAST_ERROR = "lastError"
         internal const val FIELD_CREATED_AT = "createdAt"
+
+        internal const val INDEX_PENDING_CLAIM = "idx_webhook_claim_pending_created_at"
+        internal const val INDEX_EXPIRED_CLAIM = "idx_webhook_claim_expired_created_at"
+        internal const val INDEX_EVENT_ID = "idx_webhook_event_id"
     }
 
     /**
@@ -162,20 +166,25 @@ class WebhookPoller(
         if (indexEnsured) return
         try {
             eventCollection.createIndex(
-                Indexes.ascending(FIELD_STATUS, FIELD_CLAIM_EXPIRES_AT),
-                IndexOptions().name("idx_status_claim_expires_at").background(true),
+                Indexes.ascending(FIELD_STATUS, FIELD_CREATED_AT, FIELD_ATTEMPTS),
+                IndexOptions().name(INDEX_PENDING_CLAIM).background(true),
+            )
+            eventCollection.createIndex(
+                Indexes.ascending(FIELD_STATUS, FIELD_CREATED_AT, FIELD_ATTEMPTS, FIELD_CLAIM_EXPIRES_AT),
+                IndexOptions().name(INDEX_EXPIRED_CLAIM).background(true),
             )
             eventCollection.createIndex(
                 Indexes.ascending(FIELD_EVENT_ID),
-                IndexOptions().name("idx_event_id").unique(true).background(true),
+                IndexOptions().name(INDEX_EVENT_ID).unique(true).background(true),
             )
             indexEnsured = true
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            // Index creation is not fatal; the poller can continue with slower collection scans.
-            log.warn(e) { "[${options.nodeId}] failed to create webhook event index; falling back to collection scans" }
-            indexEnsured = true
+            throw IllegalStateException(
+                "Failed to create mandatory webhook claim indexes. nodeId=${options.nodeId}",
+                e,
+            )
         }
     }
 

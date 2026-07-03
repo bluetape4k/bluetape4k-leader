@@ -17,8 +17,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
+import org.bson.Document
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import java.util.concurrent.CountDownLatch
@@ -58,6 +60,52 @@ class WebhookPollerTest: AbstractWebhookPollerTest() {
             delay(50.milliseconds)
         }
         return false
+    }
+
+    @Test
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    fun `start creates mandatory claim indexes that include createdAt ordering`() = runBlocking {
+        val lockName = randomLockName()
+        val poller = WebhookPoller(
+            elector = newElector(),
+            eventCollection = eventCollection,
+            options = fastOptions("node-index", lockName),
+        ) { }
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+        try {
+            poller.start(scope)
+
+            val ok = waitUntil(INSTANCE_TIMEOUT) {
+                val names = eventCollection.listIndexes().toList().mapNotNull { it.getString("name") }.toSet()
+                names.containsAll(
+                    setOf(
+                        WebhookPoller.INDEX_PENDING_CLAIM,
+                        WebhookPoller.INDEX_EXPIRED_CLAIM,
+                        WebhookPoller.INDEX_EVENT_ID,
+                    )
+                )
+            }
+            ok shouldBeEqualTo true
+
+            val indexes = eventCollection.listIndexes().toList().associateBy { it.getString("name") }
+            indexes.getValue(WebhookPoller.INDEX_PENDING_CLAIM).indexKeys() shouldBeEqualTo
+                listOf(
+                    WebhookPoller.FIELD_STATUS,
+                    WebhookPoller.FIELD_CREATED_AT,
+                    WebhookPoller.FIELD_ATTEMPTS,
+                )
+            indexes.getValue(WebhookPoller.INDEX_EXPIRED_CLAIM).indexKeys() shouldBeEqualTo
+                listOf(
+                    WebhookPoller.FIELD_STATUS,
+                    WebhookPoller.FIELD_CREATED_AT,
+                    WebhookPoller.FIELD_ATTEMPTS,
+                    WebhookPoller.FIELD_CLAIM_EXPIRES_AT,
+                )
+        } finally {
+            poller.stopGracefully(2.seconds)
+            scope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin()
+        }
     }
 
     @Test
@@ -476,3 +524,6 @@ class WebhookPollerTest: AbstractWebhookPollerTest() {
         }
     }
 }
+
+private fun Document.indexKeys(): List<String> =
+    get("key", Document::class.java).keys.toList()
