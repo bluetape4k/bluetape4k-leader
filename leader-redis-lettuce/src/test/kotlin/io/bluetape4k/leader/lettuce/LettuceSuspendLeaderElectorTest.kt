@@ -6,6 +6,10 @@ import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.history.LeaderHistoryKey
+import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.leader.history.SuspendLeaderHistorySink
+import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.delay
 import io.bluetape4k.assertions.shouldBeEqualTo
@@ -19,6 +23,7 @@ import io.bluetape4k.assertions.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import java.time.Instant
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -90,6 +95,18 @@ class LettuceSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
             thrown.message shouldBeEqualTo cancellation.message
         }
 
+    @Test
+    fun `runIfLeader - recordAcquired 취소 후에도 lock 이 해제되어 다음 호출이 성공한다`() = runSuspendIO {
+        val cancelingRecorder = SuspendSafeLeaderHistoryRecorder(CancelOnAcquiredHistorySink)
+        val election = LettuceSuspendLeaderElector(connection, options, cancelingRecorder)
+
+        assertFailsWith<CancellationException> {
+            election.runIfLeader(lockName) { "should-not-run" }
+        }
+
+        suspendElection.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+    }
+
     // =========================================================================
     // 확장 함수
     // =========================================================================
@@ -155,5 +172,23 @@ class LettuceSuspendLeaderElectorTest: AbstractLettuceLeaderTest() {
             .run()
 
         counter.get() shouldBeGreaterOrEqualTo 1
+    }
+
+    private object CancelOnAcquiredHistorySink: SuspendLeaderHistorySink {
+        override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
+            throw CancellationException("cancel after acquire")
+        }
+
+        override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
+        }
+
+        override suspend fun recordFailed(
+            key: LeaderHistoryKey,
+            finishedAt: Instant,
+            durationMs: Long,
+            errorType: String?,
+            errorMessage: String?,
+        ) {
+        }
     }
 }

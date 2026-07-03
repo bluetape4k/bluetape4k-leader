@@ -82,42 +82,44 @@ class MongoSuspendLeaderElector private constructor(
             return null
         }
 
-        val startedAt = Instant.now()
         val acquiredAtNanos = System.nanoTime()
-        val delegate: SuspendExtendDelegate = MongoSuspendLockExtendDelegate(lock)
-        val identity = LockIdentity(
-            lockName = lockName,
-            kind = LockIdentity.AnnotationKind.SINGLE,
-            factoryBeanName = MONGO_SUSPEND_FACTORY_BEAN_NAME,
-        )
-        val handle = LeaderLockHandle.real(
-            identity = identity,
-            token = lock.token,
-            acquiredAtNanos = acquiredAtNanos,
-            extendDelegate = delegate,
-        )
-        val watchdog = LeaderLeaseAutoExtender.start(
-            options.leaderOptions.autoExtend,
-            options.leaderOptions.leaseTime,
-            delegate,
-            ERROR_CLASSIFIER,
-        )
-
-        val record = historyRecorder?.let {
-            LeaderLockHistoryRecord(
-                lockName = lockName,
-                token = lock.token,
-                kind = LockIdentity.AnnotationKind.SINGLE,
-                acquiredAt = startedAt,
-                lockedUntil = startedAt.plusMillis(options.leaderOptions.leaseTime.inWholeMilliseconds),
-            )
-        }
-        val key = record?.let { historyRecorder.recordAcquired(it) }
-        val effectiveKey: LeaderHistoryKey? =
-            key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = lock.token) }
+        var watchdog: AutoCloseable? = null
 
         log.debug { "리더로 승격하여 suspend 작업을 수행합니다. lockName=$lockName" }
         try {
+            val startedAt = Instant.now()
+            val delegate: SuspendExtendDelegate = MongoSuspendLockExtendDelegate(lock)
+            val identity = LockIdentity(
+                lockName = lockName,
+                kind = LockIdentity.AnnotationKind.SINGLE,
+                factoryBeanName = MONGO_SUSPEND_FACTORY_BEAN_NAME,
+            )
+            val handle = LeaderLockHandle.real(
+                identity = identity,
+                token = lock.token,
+                acquiredAtNanos = acquiredAtNanos,
+                extendDelegate = delegate,
+            )
+            watchdog = LeaderLeaseAutoExtender.start(
+                options.leaderOptions.autoExtend,
+                options.leaderOptions.leaseTime,
+                delegate,
+                ERROR_CLASSIFIER,
+            )
+
+            val record = historyRecorder?.let {
+                LeaderLockHistoryRecord(
+                    lockName = lockName,
+                    token = lock.token,
+                    kind = LockIdentity.AnnotationKind.SINGLE,
+                    acquiredAt = startedAt,
+                    lockedUntil = startedAt.plusMillis(options.leaderOptions.leaseTime.inWholeMilliseconds),
+                )
+            }
+            val key = record?.let { historyRecorder.recordAcquired(it) }
+            val effectiveKey: LeaderHistoryKey? =
+                key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = lock.token) }
+
             return try {
                 val result = withContext(AopScopeAccess.createLockHandleElement(handle)) {
                     action()
@@ -137,7 +139,7 @@ class MongoSuspendLeaderElector private constructor(
         } finally {
             // NonCancellable: 코루틴 취소 시에도 watchdog close + 락 해제가 중단되지 않도록 보호
             withContext(NonCancellable) {
-                watchdog.close()
+                watchdog?.close()
                 try {
                     lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos)
                     log.debug { "리더 권한을 반납했습니다 (suspend). lockName=$lockName" }

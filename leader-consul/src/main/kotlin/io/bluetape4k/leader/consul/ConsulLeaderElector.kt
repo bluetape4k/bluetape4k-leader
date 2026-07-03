@@ -204,7 +204,7 @@ class ConsulLeaderElector private constructor(
             return CompletableFuture.failedFuture(e)
         }
 
-        return actionFuture.handleAsync({ value, failure ->
+        return actionFuture.handle { value, failure ->
             watchdog.close()
             release(handle)
             val cause = failure.unwrapCompletionException()
@@ -212,7 +212,7 @@ class ConsulLeaderElector private constructor(
                 throw CompletionException(cause)
             }
             value
-        }, executor)
+        }
     }
 
     private fun acquire(lockName: String, auditLeaderId: String?): ConsulLeaseHandle? {

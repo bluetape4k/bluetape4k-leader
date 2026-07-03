@@ -92,26 +92,27 @@ class KubernetesLeaseSuspendLeaderElector @JvmOverloads constructor(
         }
 
         val acquiredAtNanos = System.nanoTime()
-        val delegate = KubernetesLeaseLockExtendDelegate(lock)
-        val handle = LeaderLockHandle.real(
-            identity = LockIdentity(
-                lockName = lockName,
-                kind = LockIdentity.AnnotationKind.SINGLE,
-                factoryBeanName = K8S_SUSPEND_FACTORY_BEAN_NAME,
-            ),
-            token = lock.ownerToken,
-            acquiredAtNanos = acquiredAtNanos,
-            extendDelegate = delegate,
-            auditLeaderId = auditLeaderId ?: lock.ownerToken,
-        )
-        val watchdog = LeaderLeaseAutoExtender.start(
-            options.leaderOptions.autoExtend,
-            options.leaderOptions.leaseTime,
-            delegate,
-            KubernetesLeaseLeaderElector.ERROR_CLASSIFIER,
-        )
+        var watchdog: AutoCloseable? = null
 
         try {
+            val delegate = KubernetesLeaseLockExtendDelegate(lock)
+            val handle = LeaderLockHandle.real(
+                identity = LockIdentity(
+                    lockName = lockName,
+                    kind = LockIdentity.AnnotationKind.SINGLE,
+                    factoryBeanName = K8S_SUSPEND_FACTORY_BEAN_NAME,
+                ),
+                token = lock.ownerToken,
+                acquiredAtNanos = acquiredAtNanos,
+                extendDelegate = delegate,
+                auditLeaderId = auditLeaderId ?: lock.ownerToken,
+            )
+            watchdog = LeaderLeaseAutoExtender.start(
+                options.leaderOptions.autoExtend,
+                options.leaderOptions.leaseTime,
+                delegate,
+                KubernetesLeaseLeaderElector.ERROR_CLASSIFIER,
+            )
             return withContext(AopScopeAccess.createLockHandleElement(handle)) {
                 action()
             }
@@ -119,7 +120,7 @@ class KubernetesLeaseSuspendLeaderElector @JvmOverloads constructor(
             throw e
         } finally {
             withContext(NonCancellable + Dispatchers.IO) {
-                watchdog.close()
+                watchdog?.close()
                 try {
                     lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos)
                     log.debug { "Kubernetes Lease released (suspend). lockName=$lockName" }

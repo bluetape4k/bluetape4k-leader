@@ -15,6 +15,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
+import java.nio.file.Path
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -139,6 +140,15 @@ class RedissonSuspendLeaderElectorTest: AbstractRedissonLeaderTest() {
             thrown.message shouldBeEqualTo cancellation.message
         }
 
+    @Test
+    fun `suspend elector opens cleanup scope immediately after acquisition`() {
+        val source = Path.of("src/main/kotlin/io/bluetape4k/leader/redisson/RedissonSuspendLeaderElector.kt")
+            .toFile()
+            .readText()
+
+        source.cleanupScopeStartsImmediatelyAfterAcquire().shouldBeTrue()
+    }
+
     /**
      * [SuspendedJobTester]를 사용하여 짧은 `waitTime` 환경에서 여러 코루틴이 동시에
      * [RedissonSuspendLeaderElector.runIfLeader]를 호출할 때,
@@ -174,5 +184,22 @@ class RedissonSuspendLeaderElectorTest: AbstractRedissonLeaderTest() {
 
     private suspend fun randomDelay(from: Long = 5L, until: Long = 10L) {
         delay(Random.nextLong(from, until).milliseconds)
+    }
+
+    private fun String.cleanupScopeStartsImmediatelyAfterAcquire(): Boolean {
+        val acquiredAt = indexOf("val acquiredAtNanos = System.nanoTime()")
+        val cleanupScope = indexOf("var watchdog: AutoCloseable? = null", startIndex = acquiredAt.coerceAtLeast(0))
+        val tryStart = indexOf("try {", startIndex = cleanupScope.coerceAtLeast(0))
+        val watchdogStart = indexOf("LeaderLeaseAutoExtender.start", startIndex = tryStart.coerceAtLeast(0))
+        val finallyStart = indexOf("} finally {", startIndex = watchdogStart.coerceAtLeast(0))
+        val watchdogClose = indexOf("watchdog?.close()", startIndex = finallyStart.coerceAtLeast(0))
+        val release = indexOf("releaseLock(lock, lockId, acquiredAtNanos)", startIndex = watchdogClose.coerceAtLeast(0))
+        return listOf(acquiredAt, cleanupScope, tryStart, watchdogStart, finallyStart, watchdogClose, release).all { it >= 0 } &&
+            acquiredAt < cleanupScope &&
+            cleanupScope < tryStart &&
+            tryStart < watchdogStart &&
+            watchdogStart < finallyStart &&
+            finallyStart < watchdogClose &&
+            watchdogClose < release
     }
 }

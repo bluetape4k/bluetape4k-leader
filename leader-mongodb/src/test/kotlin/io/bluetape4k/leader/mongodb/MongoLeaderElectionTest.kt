@@ -17,6 +17,7 @@ import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -301,6 +302,40 @@ class MongoLeaderElectionTest: AbstractMongoLeaderTest() {
 
         val result = election.runIfLeader(lockName) { "복구 성공" }
         result shouldBeEqualTo "복구 성공"
+    }
+
+    @Test
+    fun `runAsyncIfLeader - caller executor shutdown 후 action 완료되어도 cleanup 이 실행된다`() {
+        val lockName = randomName()
+        val election = MongoLeaderElector(
+            lockCollection,
+            MongoLeaderElectionOptions(
+                leaderOptions = LeaderElectionOptions(
+                    waitTime = 2.seconds,
+                    leaseTime = 10.seconds,
+                    autoExtend = true,
+                ),
+            ),
+        )
+        val executor = Executors.newSingleThreadExecutor()
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        try {
+            val resultFuture = election.runAsyncIfLeader(lockName, executor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            executor.shutdown()
+
+            actionFuture.complete("done")
+
+            resultFuture.get(3, TimeUnit.SECONDS) shouldBeEqualTo "done"
+            election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+        } finally {
+            executor.shutdownNow()
+        }
     }
 
     @Test

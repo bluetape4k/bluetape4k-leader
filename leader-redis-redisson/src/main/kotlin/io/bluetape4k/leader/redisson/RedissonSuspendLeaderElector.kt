@@ -179,35 +179,36 @@ class RedissonSuspendLeaderElector private constructor(
                 return null
             }
             val acquiredAtNanos = System.nanoTime()
-            val delegate: SuspendExtendDelegate = RedissonSuspendLockExtendDelegate(redissonClient, lock, lockId)
-            val identity = LockIdentity(
-                lockName = lockName,
-                kind = LockIdentity.AnnotationKind.SINGLE,
-                factoryBeanName = REDISSON_SUSPEND_FACTORY_BEAN_NAME,
-            )
-            val handle = LeaderLockHandle.real(
-                identity = identity,
-                token = lockName,
-                acquiredAtNanos = acquiredAtNanos,
-                acquiringThreadId = lockId,
-                extendDelegate = delegate,
-                auditLeaderId = auditLeaderId,
-            )
-            val watchdog = LeaderLeaseAutoExtender.start(
-                options.autoExtend,
-                options.leaseTime,
-                delegate,
-                ERROR_CLASSIFIER,
-            )
-            log.debug { "Leader로 승격되어 작업을 수행합니다. lock=$lockName, lockId=$lockId" }
+            var watchdog: AutoCloseable? = null
             try {
+                val delegate: SuspendExtendDelegate = RedissonSuspendLockExtendDelegate(redissonClient, lock, lockId)
+                val identity = LockIdentity(
+                    lockName = lockName,
+                    kind = LockIdentity.AnnotationKind.SINGLE,
+                    factoryBeanName = REDISSON_SUSPEND_FACTORY_BEAN_NAME,
+                )
+                val handle = LeaderLockHandle.real(
+                    identity = identity,
+                    token = lockName,
+                    acquiredAtNanos = acquiredAtNanos,
+                    acquiringThreadId = lockId,
+                    extendDelegate = delegate,
+                    auditLeaderId = auditLeaderId,
+                )
+                watchdog = LeaderLeaseAutoExtender.start(
+                    options.autoExtend,
+                    options.leaseTime,
+                    delegate,
+                    ERROR_CLASSIFIER,
+                )
+                log.debug { "Leader로 승격되어 작업을 수행합니다. lock=$lockName, lockId=$lockId" }
                 return withContext(AopScopeAccess.createLockHandleElement(handle)) {
                     action()
                 }
             } finally {
                 // NonCancellable: 코루틴 취소 시에도 lease 정리가 중단되지 않도록 보호
                 withContext(NonCancellable) {
-                    watchdog.close()
+                    watchdog?.close()
                     if (lock.isHeldByThread(lockId)) {
                         try {
                             releaseLock(lock, lockId, acquiredAtNanos)

@@ -16,6 +16,7 @@ import io.bluetape4k.logging.debug
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -178,6 +179,34 @@ class HazelcastLeaderGroupElectionTest: AbstractHazelcastLeaderTest() {
         }
         val result = election.runAsyncIfLeader(lockName) { futureOf { "복구 성공" } }.join()
         result shouldBeEqualTo "복구 성공"
+    }
+
+    @Test
+    fun `runAsyncIfLeader - caller executor shutdown 후 action 완료되어도 그룹 슬롯 cleanup 이 실행된다`() {
+        val lockName = randomName()
+        val singleElection = HazelcastLeaderGroupElector(
+            hazelcastClient,
+            LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 2.seconds, leaseTime = 10.seconds),
+        )
+        val executor = Executors.newSingleThreadExecutor()
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        try {
+            val resultFuture = singleElection.runAsyncIfLeader(lockName, executor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            executor.shutdown()
+
+            actionFuture.complete("done")
+
+            resultFuture.get(3, TimeUnit.SECONDS) shouldBeEqualTo "done"
+            singleElection.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+        } finally {
+            executor.shutdownNow()
+        }
     }
 
     @Test

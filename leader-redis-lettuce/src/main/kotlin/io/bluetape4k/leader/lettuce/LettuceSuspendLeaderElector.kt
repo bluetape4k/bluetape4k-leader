@@ -108,39 +108,41 @@ class LettuceSuspendLeaderElector(
             log.debug { "리더 선출 실패 (슬롯 없음, suspend): lockName=$lockName" }
             return null
         }
-        val startedAt = Instant.now()
         val acquiredAtNanos = System.nanoTime()
         val token = lock.currentToken() ?: error("token missing after tryLock — lockName=$lockName")
-        val delegate: SuspendExtendDelegate = LettuceSuspendLockExtendDelegate(lock)
-        val identity = LockIdentity(
-            lockName = lockName,
-            kind = LockIdentity.AnnotationKind.SINGLE,
-            factoryBeanName = LETTUCE_SUSPEND_FACTORY_BEAN_NAME,
-        )
-        val handle = LeaderLockHandle.real(
-            identity = identity,
-            token = token,
-            acquiredAtNanos = acquiredAtNanos,
-            extendDelegate = delegate,
-            auditLeaderId = auditLeaderId,
-        )
-        val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
-
-        val record = historyRecorder?.let {
-            LeaderLockHistoryRecord(
-                lockName = lockName,
-                token = token,
-                kind = LockIdentity.AnnotationKind.SINGLE,
-                acquiredAt = startedAt,
-                lockedUntil = startedAt.plusMillis(options.leaseTime.inWholeMilliseconds),
-            )
-        }
-        val key = record?.let { historyRecorder.recordAcquired(it) }
-        val effectiveKey: LeaderHistoryKey? =
-            key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = token) }
+        var watchdog: AutoCloseable? = null
 
         log.debug { "리더 선출 성공 (suspend): lockName=$lockName" }
         try {
+            val startedAt = Instant.now()
+            val delegate: SuspendExtendDelegate = LettuceSuspendLockExtendDelegate(lock)
+            val identity = LockIdentity(
+                lockName = lockName,
+                kind = LockIdentity.AnnotationKind.SINGLE,
+                factoryBeanName = LETTUCE_SUSPEND_FACTORY_BEAN_NAME,
+            )
+            val handle = LeaderLockHandle.real(
+                identity = identity,
+                token = token,
+                acquiredAtNanos = acquiredAtNanos,
+                extendDelegate = delegate,
+                auditLeaderId = auditLeaderId,
+            )
+            watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate, ERROR_CLASSIFIER)
+
+            val record = historyRecorder?.let {
+                LeaderLockHistoryRecord(
+                    lockName = lockName,
+                    token = token,
+                    kind = LockIdentity.AnnotationKind.SINGLE,
+                    acquiredAt = startedAt,
+                    lockedUntil = startedAt.plusMillis(options.leaseTime.inWholeMilliseconds),
+                )
+            }
+            val key = record?.let { historyRecorder.recordAcquired(it) }
+            val effectiveKey: LeaderHistoryKey? =
+                key ?: record?.let { LeaderHistoryKey(lockName = lockName, token = token) }
+
             return try {
                 val result = withContext(AopScopeAccess.createLockHandleElement(handle)) {
                     action()
@@ -160,7 +162,7 @@ class LettuceSuspendLeaderElector(
         } finally {
             // NonCancellable: 코루틴 취소 시에도 lease 정리가 중단되지 않도록 보호
             withContext(NonCancellable) {
-                watchdog.close()
+                watchdog?.close()
                 try {
                     if (lock.isHeldByCurrentInstance()) {
                         lock.unlock(options.minLeaseTime, acquiredAtNanos)

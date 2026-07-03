@@ -349,7 +349,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                         return@thenComposeAsync CompletableFuture.failedFuture(e)
                     }
 
-                actionFuture.whenCompleteAsync({ _, throwable ->
+                actionFuture.whenComplete { _, throwable ->
                     watchdog.close()
                     val finishedAt = Instant.now()
                     val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
@@ -368,7 +368,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                     } catch (e: Exception) {
                         log.warn(e) { "비동기 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
                     }
-                }, executor)
+                }
             }
         }, executor)
     }

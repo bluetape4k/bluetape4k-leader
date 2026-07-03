@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
@@ -23,6 +24,8 @@ import java.time.Instant
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -239,6 +242,42 @@ class ConsulLeaderElectorDelegationTest {
         failure.cause.shouldBeInstanceOf<CancellationException>()
         client.releaseCalls shouldBeEqualTo 1
         client.destroyCalls shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `runAsyncIfLeader cleanup runs after caller executor shutdown`() {
+        val client = FakeConsulLockClient()
+        val elector = ConsulLeaderElector.create(
+            client,
+            ConsulLeaderElectionOptions(
+                leaderOptions = LeaderElectionOptions(
+                    waitTime = Duration.ZERO,
+                    leaseTime = 10.seconds,
+                    autoExtend = true,
+                ),
+            ),
+        )
+        val executor = Executors.newSingleThreadExecutor()
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        try {
+            val resultFuture = elector.runAsyncIfLeader("lock-a", executor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            executor.shutdown()
+
+            actionFuture.complete("done")
+
+            resultFuture.get(3, TimeUnit.SECONDS) shouldBeEqualTo "done"
+            elector.runIfLeader("lock-a") { "reacquired" } shouldBeEqualTo "reacquired"
+            client.releaseCalls shouldBeEqualTo 2
+            client.destroyCalls shouldBeEqualTo 2
+        } finally {
+            executor.shutdownNow()
+        }
     }
 
     @Test

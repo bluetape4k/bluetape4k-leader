@@ -192,7 +192,7 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
             return CompletableFuture.failedFuture(e)
         }
 
-        return actionFuture.handleAsync({ value, failure ->
+        return actionFuture.handle { value, failure ->
             watchdog.close()
             release(lock, acquiredAtNanos, lockName)
             val cause = failure.unwrapCompletionException()
@@ -200,7 +200,7 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
                 throw cause
             }
             value
-        }, executor)
+        }
     }
 
     private fun release(

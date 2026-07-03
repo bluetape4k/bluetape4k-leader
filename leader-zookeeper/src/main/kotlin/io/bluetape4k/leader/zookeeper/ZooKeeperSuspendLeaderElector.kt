@@ -99,51 +99,43 @@ class ZooKeeperSuspendLeaderElector private constructor(
 
             log.debug { "ZooKeeper suspend leader lock 획득 성공. path=$path" }
 
-            val lockPath = runInterruptible(ownerDispatcher) {
-                mutex.currentThreadLockPath()
-            }
-            if (lockPath == null) {
-                log.warn { "ZooKeeper suspend leader lock path 조회 실패. path=$path" }
-                withContext(NonCancellable) {
-                    try {
-                        runInterruptible(ownerDispatcher) {
-                            mutex.release()
-                        }
-                    } catch (e: Exception) {
-                        log.warn(e) { "ZooKeeper suspend leader lock path 조회 실패 후 반납 실패. path=$path" }
+            var watchdog: AutoCloseable? = null
+            try {
+                val lockPath = runInterruptible(ownerDispatcher) {
+                    mutex.currentThreadLockPath()
+                }
+                if (lockPath == null) {
+                    log.warn { "ZooKeeper suspend leader lock path 조회 실패. path=$path" }
+                    return null
+                }
+
+                val acquiredAtNanos = System.nanoTime()
+                val delegate = ZooKeeperSuspendLockExtendDelegate(client, mutex, path, lockPath)
+                val identity = LockIdentity(
+                    lockName = lockName,
+                    kind = LockIdentity.AnnotationKind.SINGLE,
+                    factoryBeanName = ZOOKEEPER_SUSPEND_FACTORY_BEAN_NAME,
+                )
+                val handle = LeaderLockHandle.real(
+                    identity = identity,
+                    token = lockName,
+                    acquiredAtNanos = acquiredAtNanos,
+                    extendDelegate = delegate,
+                )
+                // R16 enforce: ZK 는 TTL 없음 — autoExtend 강제 비활성화 (사용자 설정 무시 + WARN)
+                if (options.autoExtend) {
+                    log.warn {
+                        "ZooKeeper 는 TTL 이 없는 세션 기반 락 — autoExtend=true 설정이 무시됩니다. " +
+                            "ZK 세션 keepalive 가 lease 역할을 대신합니다. lockName=$lockName"
                     }
                 }
-                return null
-            }
+                watchdog = LeaderLeaseAutoExtender.start(
+                    enabled = false,
+                    leaseTime = options.leaseTime,
+                    delegate = delegate,
+                    classifier = ERROR_CLASSIFIER,
+                )
 
-            val acquiredAtNanos = System.nanoTime()
-            val delegate = ZooKeeperSuspendLockExtendDelegate(client, mutex, path, lockPath)
-            val identity = LockIdentity(
-                lockName = lockName,
-                kind = LockIdentity.AnnotationKind.SINGLE,
-                factoryBeanName = ZOOKEEPER_SUSPEND_FACTORY_BEAN_NAME,
-            )
-            val handle = LeaderLockHandle.real(
-                identity = identity,
-                token = lockName,
-                acquiredAtNanos = acquiredAtNanos,
-                extendDelegate = delegate,
-            )
-            // R16 enforce: ZK 는 TTL 없음 — autoExtend 강제 비활성화 (사용자 설정 무시 + WARN)
-            if (options.autoExtend) {
-                log.warn {
-                    "ZooKeeper 는 TTL 이 없는 세션 기반 락 — autoExtend=true 설정이 무시됩니다. " +
-                        "ZK 세션 keepalive 가 lease 역할을 대신합니다. lockName=$lockName"
-                }
-            }
-            val watchdog = LeaderLeaseAutoExtender.start(
-                enabled = false,
-                leaseTime = options.leaseTime,
-                delegate = delegate,
-                classifier = ERROR_CLASSIFIER,
-            )
-
-            try {
                 return withContext(AopScopeAccess.createLockHandleElement(handle)) {
                     action()
                 }
@@ -151,7 +143,7 @@ class ZooKeeperSuspendLeaderElector private constructor(
                 // NonCancellable: 코루틴 취소 시에도 watchdog close + 락 해제가 중단되지 않도록 보호
                 withContext(NonCancellable) {
                     try {
-                        watchdog.close()
+                        watchdog?.close()
                     } catch (e: Exception) {
                         log.warn(e) { "ZooKeeper suspend watchdog close 실패. path=$path" }
                     }

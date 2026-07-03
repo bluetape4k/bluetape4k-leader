@@ -20,6 +20,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -32,6 +33,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -383,6 +386,43 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
                 .count()
         }
         failedCount shouldBeEqualTo 1L
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `runAsyncIfLeader - caller executor shutdown 후 action 완료되어도 cleanup 이 실행된다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val election = ExposedJdbcLeaderElector(
+            db,
+            ExposedJdbcLeaderElectionOptions(
+                leaderOptions = LeaderElectionOptions(
+                    waitTime = 2.seconds,
+                    leaseTime = 10.seconds,
+                    autoExtend = true,
+                ),
+            ),
+        )
+        val executor = Executors.newSingleThreadExecutor()
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<String>()
+
+        try {
+            val resultFuture = election.runAsyncIfLeader(lockName, executor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            executor.shutdown()
+
+            actionFuture.complete("done")
+
+            resultFuture.get(3, TimeUnit.SECONDS) shouldBeEqualTo "done"
+            election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+        } finally {
+            executor.shutdownNow()
+        }
     }
 
     @ParameterizedTest

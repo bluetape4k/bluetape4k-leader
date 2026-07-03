@@ -179,12 +179,12 @@ class HazelcastLeaderGroupElector private constructor(
                             .onFailure { ex -> log.error(ex) { "Fail to release group slot on action error (async). lockName=$lockName, slot=$slot" } }
                         return@thenComposeAsync CompletableFuture.failedFuture(e)
                     }
-                actionFuture.whenCompleteAsync({ _, _ ->
+                actionFuture.whenComplete { _, _ ->
                     watchdog.close()
                     runCatching { lock.unlock(minLeaseTime, acquiredAtNanos) }
                         .onSuccess { log.debug { "비동기 리더 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
                         .onFailure { e -> log.error(e) { "Fail to release group slot (async). lockName=$lockName, slot=$slot" } }
-                }, executor)
+                }
             }
         }, executor)
     }

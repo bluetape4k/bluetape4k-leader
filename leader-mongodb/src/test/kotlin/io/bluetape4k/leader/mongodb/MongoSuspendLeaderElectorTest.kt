@@ -9,9 +9,14 @@ import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.history.LeaderHistoryKey
+import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.leader.history.SuspendLeaderHistorySink
+import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.leader.mongodb.lock.MongoSuspendLock
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -19,6 +24,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
+import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -173,6 +179,21 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
     }
 
     @Test
+    fun `runIfLeader - recordAcquired 취소 후에도 lock 이 해제되어 다음 호출이 성공한다`() = runSuspendIO {
+        val lockName = randomName()
+        val cancelingRecorder = SuspendSafeLeaderHistoryRecorder(CancelOnAcquiredHistorySink)
+        val election = MongoSuspendLeaderElector(coroutineLockCollection, historyRecorder = cancelingRecorder)
+
+        assertFailsWith<CancellationException> {
+            election.runIfLeader(lockName) { "should-not-run" }
+        }
+
+        val doc = lockCollection.find(Filters.eq("_id", lockName)).first()
+        doc.shouldBeNull()
+        MongoSuspendLeaderElector(coroutineLockCollection).runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+    }
+
+    @Test
     fun `runIfLeader - 반복 실행 시 매번 성공한다`() = runSuspendIO {
         val election = MongoSuspendLeaderElector(coroutineLockCollection)
         val lockName = randomName()
@@ -189,5 +210,23 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
         io.bluetape4k.leader.mongodb.lock.MongoSuspendLock.resetEnsuredFor(namespace)
 
         io.bluetape4k.leader.mongodb.lock.MongoSuspendLock.ensureIndexes(coroutineLockCollection)
+    }
+
+    private object CancelOnAcquiredHistorySink: SuspendLeaderHistorySink {
+        override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
+            throw CancellationException("cancel after acquire")
+        }
+
+        override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
+        }
+
+        override suspend fun recordFailed(
+            key: LeaderHistoryKey,
+            finishedAt: Instant,
+            durationMs: Long,
+            errorType: String?,
+            errorMessage: String?,
+        ) {
+        }
     }
 }
