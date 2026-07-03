@@ -85,63 +85,65 @@
   <rect x="943" y="392" width="14" height="216" rx="6" class="activation"/>
   <rect x="1208" y="560" width="14" height="112" rx="6" class="activation"/>
   <g>
-    <rect x="175" y="266" width="480" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
-    <circle cx="197" cy="282" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
-    <text x="197" y="286" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
-    <text x="218" y="287" class="labelText" fill="#3f7d9c">submit leader-guarded request</text>
+    <rect x="175" y="278" width="480" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="197" cy="294" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="197" y="298" text-anchor="middle" class="badgeText" fill="#3f7d9c">1</text>
+    <text x="218" y="299" class="labelText" fill="#3f7d9c">submit leader-guarded request</text>
   </g>
   <path d="M 155 318 L 675 318" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
   <g>
-    <rect x="695" y="342" width="362" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
-    <circle cx="717" cy="358" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
-    <text x="717" y="362" text-anchor="middle" class="badgeText" fill="#6e8f4f">2</text>
-    <text x="738" y="363" class="labelText" fill="#6e8f4f">try acquire lease / conditional claim</text>
+    <rect x="695" y="354" width="362" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="717" cy="370" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="717" y="374" text-anchor="middle" class="badgeText" fill="#6e8f4f">2</text>
+    <text x="738" y="375" class="labelText" fill="#6e8f4f">try acquire lease / conditional claim</text>
   </g>
   <path d="M 675 394 L 950 394" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
   <g>
-    <rect x="695" y="428" width="282" height="32" rx="16" class="pill" stroke="#9b7d54"/>
-    <circle cx="717" cy="444" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
-    <text x="717" y="448" text-anchor="middle" class="badgeText" fill="#9b7d54">3</text>
-    <text x="738" y="449" class="labelText" fill="#9b7d54">acquired or skipped outcome</text>
+    <rect x="695" y="440" width="282" height="32" rx="16" class="pill" stroke="#9b7d54"/>
+    <circle cx="717" cy="456" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
+    <text x="717" y="460" text-anchor="middle" class="badgeText" fill="#9b7d54">3</text>
+    <text x="738" y="461" class="labelText" fill="#9b7d54">acquired or skipped outcome</text>
   </g>
   <path d="M 950 480 L 675 480" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
   <rect x="82" y="518" width="1420" height="270" rx="12" class="branch"/>
-  <text x="112" y="548" class="note">alt acquired</text>
+  <rect x="96" y="500" width="206" height="36" rx="18" class="altLabel branchOk"/>
+  <text x="126" y="523" class="note">alt acquired</text>
   <line x1="82" y1="690" x2="1502" y2="690" class="branch"/>
-  <text x="112" y="720" class="note">else skipped / failed</text>
+  <rect x="96" y="672" width="260" height="36" rx="18" class="altLabel branchSkip"/>
+  <text x="126" y="695" class="note">else skipped / failed</text>
   <g>
-    <rect x="695" y="538" width="500" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
-    <circle cx="717" cy="554" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
-    <text x="717" y="558" text-anchor="middle" class="badgeText" fill="#6e8f4f">4</text>
-    <text x="738" y="559" class="labelText" fill="#6e8f4f">invoke protected work once</text>
+    <rect x="695" y="550" width="500" height="32" rx="16" class="pill" stroke="#6e8f4f"/>
+    <circle cx="717" cy="566" r="12.5" fill="#fff" stroke="#6e8f4f" stroke-width="1.6"/>
+    <text x="717" y="570" text-anchor="middle" class="badgeText" fill="#6e8f4f">4</text>
+    <text x="738" y="571" class="labelText" fill="#6e8f4f">invoke protected work once</text>
   </g>
   <path d="M 675 590 L 1215 590" class="edge" stroke="#6e8f4f" marker-end="url(#arrow-work)"/>
   <g>
-    <rect x="695" y="616" width="500" height="32" rx="16" class="pill" stroke="#9b7d54"/>
-    <circle cx="717" cy="632" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
-    <text x="717" y="636" text-anchor="middle" class="badgeText" fill="#9b7d54">5</text>
-    <text x="738" y="637" class="labelText" fill="#9b7d54">return value or action failure</text>
+    <rect x="695" y="628" width="500" height="32" rx="16" class="pill" stroke="#9b7d54"/>
+    <circle cx="717" cy="644" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
+    <text x="717" y="648" text-anchor="middle" class="badgeText" fill="#9b7d54">5</text>
+    <text x="738" y="649" class="labelText" fill="#9b7d54">return value or action failure</text>
   </g>
   <path d="M 1215 668 L 675 668" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
   <g>
-    <rect x="695" y="702" width="735" height="32" rx="16" class="pill" stroke="#b86868"/>
-    <circle cx="717" cy="718" r="12.5" fill="#fff" stroke="#b86868" stroke-width="1.6"/>
-    <text x="717" y="722" text-anchor="middle" class="badgeText" fill="#b86868">6</text>
-    <text x="738" y="723" class="labelText" fill="#b86868">publish skipped/failed event</text>
+    <rect x="695" y="714" width="735" height="32" rx="16" class="pill" stroke="#b86868"/>
+    <circle cx="717" cy="730" r="12.5" fill="#fff" stroke="#b86868" stroke-width="1.6"/>
+    <text x="717" y="734" text-anchor="middle" class="badgeText" fill="#b86868">6</text>
+    <text x="738" y="735" class="labelText" fill="#b86868">publish skipped/failed event</text>
   </g>
   <path d="M 675 754 L 1450 754" class="edge" stroke="#b86868" marker-end="url(#arrow-skip)"/>
   <g>
-    <rect x="695" y="786" width="250" height="32" rx="16" class="pill" stroke="#9b7d54"/>
-    <circle cx="717" cy="802" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
-    <text x="717" y="806" text-anchor="middle" class="badgeText" fill="#9b7d54">7</text>
-    <text x="738" y="807" class="labelText" fill="#9b7d54">release lease and state</text>
+    <rect x="695" y="798" width="250" height="32" rx="16" class="pill" stroke="#9b7d54"/>
+    <circle cx="717" cy="814" r="12.5" fill="#fff" stroke="#9b7d54" stroke-width="1.6"/>
+    <text x="717" y="818" text-anchor="middle" class="badgeText" fill="#9b7d54">7</text>
+    <text x="738" y="819" class="labelText" fill="#9b7d54">release lease and state</text>
   </g>
   <path d="M 675 838 L 950 838" class="edge" stroke="#9b7d54" marker-end="url(#arrow-return)"/>
   <g>
-    <rect x="175" y="858" width="480" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
-    <circle cx="197" cy="874" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
-    <text x="197" y="878" text-anchor="middle" class="badgeText" fill="#3f7d9c">8</text>
-    <text x="218" y="879" class="labelText" fill="#3f7d9c">return explicit result to caller</text>
+    <rect x="175" y="870" width="480" height="32" rx="16" class="pill" stroke="#3f7d9c"/>
+    <circle cx="197" cy="886" r="12.5" fill="#fff" stroke="#3f7d9c" stroke-width="1.6"/>
+    <text x="197" y="890" text-anchor="middle" class="badgeText" fill="#3f7d9c">8</text>
+    <text x="218" y="891" class="labelText" fill="#3f7d9c">return explicit result to caller</text>
   </g>
   <path d="M 675 910 L 155 910" class="edge" stroke="#3f7d9c" marker-end="url(#arrow-line)"/>
 
