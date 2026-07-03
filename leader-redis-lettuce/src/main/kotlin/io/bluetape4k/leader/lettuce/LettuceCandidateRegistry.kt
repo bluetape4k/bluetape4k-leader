@@ -5,19 +5,16 @@ import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.logging.warn
-import io.lettuce.core.ScanArgs
-import io.lettuce.core.ScanCursor
 import io.lettuce.core.SetArgs
 import io.lettuce.core.api.StatefulRedisConnection
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Candidate registry backed by Lettuce [StatefulRedisConnection].
  *
  * ## Storage Structure
- * - Key: `leader:strategy:candidates:{lockName}:{nodeId}`
+ * - Index key: `leader:strategy:candidates:{lockName}` (Redis Set of node ids)
+ * - Candidate key: `leader:strategy:candidates:{lockName}:{nodeId}`
  * - Value: String encoded by [LettuceCandidateInfoCodec]
  * - TTL: set via `PSETEX` to serve as a heartbeat (configured at registration time)
  *
@@ -31,21 +28,19 @@ internal class LettuceCandidateRegistry(
     private val connection: StatefulRedisConnection<String, String>,
 ) {
     companion object: KLogging() {
-        /** Redis SCAN page size hint. This is a guide for the number of keys returned per page, not a hard upper bound. */
-        private const val SCAN_PAGE_SIZE = 1000L
+        private const val KEY_PREFIX = "leader:strategy:candidates"
     }
 
     private val sync = connection.sync()
 
-    private fun candidateKey(lockName: String, nodeId: String) =
-        "leader:strategy:candidates:$lockName:$nodeId"
+    private fun indexKey(lockName: String) =
+        "$KEY_PREFIX:$lockName"
 
-    private fun keyPattern(lockName: String) =
-        "leader:strategy:candidates:$lockName:*"
+    private fun candidateKey(lockName: String, nodeId: String) =
+        "${indexKey(lockName)}:$nodeId"
 
     private fun validateLockName(lockName: String) {
         lockName.requireNotBlank("lockName")
-        require(lockName.none { it in "*?[]\\" }) { "lockName must not contain SCAN glob metacharacters: $lockName" }
     }
 
     /**
@@ -57,15 +52,20 @@ internal class LettuceCandidateRegistry(
     fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
         validateLockName(lockName)
         val key = candidateKey(lockName, info.nodeId)
+        val indexKey = indexKey(lockName)
         val value = LettuceCandidateInfoCodec.encode(info)
         if (ttl == Duration.ZERO) sync.set(key, value)
         else sync.psetex(key, ttl.inWholeMilliseconds, value)
+        sync.sadd(indexKey, info.nodeId)
+        if (ttl == Duration.ZERO) sync.persist(indexKey)
+        else sync.pexpire(indexKey, ttl.inWholeMilliseconds)
     }
 
     /** Unregisters a candidate. A non-existent nodeId is silently ignored. */
     fun unregisterCandidate(lockName: String, nodeId: String) {
         validateLockName(lockName)
         sync.del(candidateKey(lockName, nodeId))
+        sync.srem(indexKey(lockName), nodeId)
     }
 
     /**
@@ -76,14 +76,25 @@ internal class LettuceCandidateRegistry(
      */
     fun listCandidates(lockName: String): List<CandidateInfo> {
         validateLockName(lockName)
-        val keys = scanKeys(lockName)
-        if (keys.isEmpty()) return emptyList()
+        val nodeIds = sync.smembers(indexKey(lockName)).toList()
+        if (nodeIds.isEmpty()) return emptyList()
+        val staleNodeIds = mutableListOf<String>()
+        val keys = nodeIds.map { nodeId -> candidateKey(lockName, nodeId) }
         return sync.mget(*keys.toTypedArray())
             .mapNotNull { kv ->
-                val raw = if (kv.hasValue()) kv.value else return@mapNotNull null
+                if (!kv.hasValue()) {
+                    kv.key.removePrefix("${indexKey(lockName)}:").takeIf { it.isNotBlank() }?.let(staleNodeIds::add)
+                    return@mapNotNull null
+                }
+                val raw = kv.value
                 runCatching { LettuceCandidateInfoCodec.decode(raw) }
                     .onFailure { log.warn(it) { "[$lockName] CandidateInfo 디코딩 실패 — 항목 skip: key=${kv.key}" } }
                     .getOrNull()
+            }
+            .also {
+                if (staleNodeIds.isNotEmpty()) {
+                    sync.srem(indexKey(lockName), *staleNodeIds.toTypedArray())
+                }
             }
     }
 
@@ -99,17 +110,5 @@ internal class LettuceCandidateRegistry(
         val current = sync.get(key)?.let { LettuceCandidateInfoCodec.decode(it) } ?: return
         val updated = LettuceCandidateInfoCodec.encode(current.withResult(result))
         sync.set(key, updated, SetArgs.Builder.xx().keepttl())
-    }
-
-    private fun scanKeys(lockName: String): List<String> {
-        val args = ScanArgs.Builder.matches(keyPattern(lockName)).limit(SCAN_PAGE_SIZE)
-        val keys = mutableListOf<String>()
-        var cursor: ScanCursor = ScanCursor.INITIAL
-        do {
-            val result = sync.scan(cursor, args)
-            keys += result.keys
-            cursor = result
-        } while (!cursor.isFinished)
-        return keys
     }
 }
