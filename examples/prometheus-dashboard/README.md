@@ -28,6 +28,10 @@ the app while Grafana renders the pre-provisioned dashboard.
 
 ![prometheus dashboard Sequence Flow diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-sequence-01.png)
 
+## Alert And Runbook Diagram
+
+![Prometheus alert and runbook diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-alert-runbook-01.png)
+
 ## Core Features
 
 - `@Scheduled` trigger that calls a proxied `@LeaderElection` job named `dashboard-job`
@@ -35,6 +39,8 @@ the app while Grafana renders the pre-provisioned dashboard.
 - Micrometer leader AOP metrics exposed through Spring Boot Actuator
 - Local demo `ObservationHandler` for leader Micrometer Observations
 - Prometheus scrape config and a hand-authored Grafana dashboard
+- Example-scoped Prometheus alert rules and runbook guidance
+- No-op history recorder registration so history health meters are visible at zero
 - Static lock metric pre-registration so the dashboard shows series immediately
 - Spring Boot AOT processing for the application and Spring test context
 
@@ -103,7 +109,46 @@ Endpoints:
 
 The compose file binds host ports to `127.0.0.1`, does not publish Redis, and
 exposes only `prometheus,health,info` actuator endpoints. Change the Grafana
-password in `.env` before sharing the stack outside a local workstation.
+password in `.env`, remove Prometheus `--web.enable-lifecycle` if it is not
+needed, and put the app, Prometheus, and Grafana behind explicit auth, TLS, and
+reverse-proxy controls before exposing the stack outside a local workstation.
+
+Prometheus loads `provisioning/prometheus/rules/leader-alerts.yml` through the
+compose-mounted `/etc/prometheus/rules` directory. The rules are example-scoped
+starting points; copy and tune windows, severities, and notification routing in
+your production monitoring stack.
+
+## Alert Runbooks
+
+| Alert | What it means | Safe first actions |
+|---|---|---|
+| `LeaderElectionNoAcquisitions` | The job keeps attempting but no instance reports `leader_aop_acquired_total` growth. | Check Redis reachability, lock key contention, scheduler cadence, and whether all instances share the same backend. |
+| `LeaderElectionBackendErrors` | The AOP path reports `reason="BACKEND_ERROR"` for lock acquisition. | Inspect app logs around `leader backend error`, Redis health, network errors, and failure-mode settings before restarting workers. |
+| `LeaderElectionTaskFailures` | An elected task body throws after the lock is acquired. | Use the `exception` label to find the failing code path, inspect application logs, and keep the lock backend running while fixing the task. |
+| `LeaderHistorySinkFailures` | A real history/audit sink throws while recording leader history. The demo excludes `NoopLeaderHistorySink`. | Verify sink credentials, schema/index state, write capacity, and retention jobs. Leader execution may still proceed while audit durability is degraded. |
+| `LeaderHistoryAcquireMissing` | A real history sink returned no acquire key for elected work. The demo excludes `NoopLeaderHistorySink`, which intentionally returns no key. | Look for duplicate records, storage unavailability, or sink-specific conditional write conflicts. |
+| `LeaderActiveGaugeAnomaly` | One JVM reports `leader_aop_active > 1` for the single-leader `dashboard-job` lock. | Inspect the `instance` label, thread dumps, long-running executions, and release/finish logging for that JVM. Scope or exclude group-election locks before copying this rule. |
+| `LeaderLeaseRiskHighExecutionTime` | Completed executions average above 24s, 80% of this demo's 30s lease. | Treat it as a delayed symptom: shorten work, increase lease time, or add direct lease-extension instrumentation before using it as a hard production page. |
+| `LeaderPrometheusScrapeMissing` | Prometheus has no `up` series for the app or the scrape target is down. | Check app health, compose networking, `/actuator/prometheus`, and the Prometheus target page before debugging leader logic. |
+
+The active gauge is JVM-local. Use `max by (lock_name) (leader_aop_active)` for
+cluster dashboards and avoid `sum`, which can over-count across instances.
+The anomaly alert intentionally uses the raw `leader_aop_active > 1` series so
+the firing alert keeps the offending `instance` label.
+
+`exception` is the exception class name tag. Keep exception-grouped alert and
+dashboard views internal, or collapse them to `sum by (lock_name)` when
+cardinality or implementation-detail exposure matters.
+
+This demo registers `MicrometerSafeLeaderHistoryRecorder` with
+`NoopLeaderHistorySink` so `leader_history_*` meters are visible. The alert
+rules exclude that no-op sink because it intentionally returns no acquire key.
+In a real service, wire the recorder around the actual JDBC, R2DBC, MongoDB, or
+custom history sink before relying on these alerts.
+
+Lease-extension failure is not directly observable in this example yet because
+`LockExtender` does not publish a core metric or observation hook. The lease
+risk rule uses completed execution duration as a conservative symptom only.
 
 ## Prometheus Queries
 
@@ -111,6 +156,10 @@ password in `.env` before sharing the stack outside a local workstation.
 sum by (lock_name) (rate(leader_aop_attempts_total[1m]))
 sum by (lock_name) (rate(leader_aop_acquired_total[1m]))
 sum by (lock_name, reason) (rate(leader_aop_lock_not_acquired_total[5m]))
+sum by (lock_name) (rate(leader_aop_lock_not_acquired_total{reason="BACKEND_ERROR"}[5m]))
+sum by (lock_name, exception) (rate(leader_aop_task_failed_total[5m]))
+sum by (sink) (rate(leader_history_sink_failures_total[5m]))
+sum by (sink) (rate(leader_history_acquire_missing_total[5m]))
 sum by (lock_name) (rate(leader_aop_execution_duration_seconds_sum[1m]))
   / sum by (lock_name) (rate(leader_aop_execution_duration_seconds_count[1m]))
 max by (lock_name) (leader_aop_active)

@@ -1,8 +1,10 @@
 package io.bluetape4k.leader.examples.prometheus
 
 import io.bluetape4k.leader.annotation.LeaderElection
+import io.bluetape4k.leader.history.NoopLeaderHistorySink
 import io.bluetape4k.leader.micrometer.LeaderMetricTagSanitizer
 import io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder
+import io.bluetape4k.leader.micrometer.history.MicrometerSafeLeaderHistoryRecorder
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
 import io.bluetape4k.testcontainers.storage.RedisServer
@@ -52,6 +54,13 @@ class PrometheusDashboardApp {
         tagSanitizer: LeaderMetricTagSanitizer,
     ): MicrometerLeaderAopMetricsRecorder =
         MicrometerLeaderAopMetricsRecorder(registry, tagSanitizer)
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun micrometerSafeLeaderHistoryRecorder(
+        registry: MeterRegistry,
+    ): MicrometerSafeLeaderHistoryRecorder =
+        MicrometerSafeLeaderHistoryRecorder(NoopLeaderHistorySink, registry)
 
     @Bean
     @ConditionalOnProperty(

@@ -1,0 +1,185 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1880" height="1040" viewBox="0 0 1880 1040" role="img" aria-labelledby="title desc">
+  <defs>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#23323a" flood-opacity="0.14"/>
+    </filter>
+    <style>
+      .canvas { fill: #fbfcf8; }
+      .frame { fill: #ffffff; stroke: #40545d; stroke-width: 2.2; }
+      .title { font-family: "Architects Daughter", "Comic Sans MS", sans-serif; font-size: 42px; fill: #263238; }
+      .subtitle, .hint, .detail, .label, .footer { font-family: "Comic Mono", "SFMono-Regular", monospace; fill: #40545d; }
+      .subtitle { font-size: 17px; }
+      .footer { font-size: 13px; fill: #60727d; }
+      .band { fill: #f5f9fb; stroke: #c8d7df; stroke-width: 1.6; }
+      .bandAlt { fill: #fbfdf8; stroke: #d7e0d0; stroke-width: 1.6; }
+      .bandTitle { font-family: "Architects Daughter", "Comic Sans MS", sans-serif; font-size: 24px; fill: #263238; }
+      .hint { font-size: 12px; fill: #60727d; }
+      .card { filter: url(#softShadow); stroke-width: 2; rx: 8; }
+      .cardTitle { font-family: "Architects Daughter", "Comic Sans MS", sans-serif; font-size: 23px; fill: #1f3138; }
+      .detail { font-size: 13px; fill: #546a73; }
+      .badge { stroke-width: 2; }
+      .badgeText { font-family: "Comic Mono", "SFMono-Regular", monospace; font-size: 15px; font-weight: 700; }
+      .edge { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .dash { stroke-dasharray: 10 8; }
+      .labelBox { fill: #ffffff; stroke-width: 1.5; rx: 14; }
+      .label { font-size: 12px; }
+    </style>
+    <marker id="arrowBlue" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f"/>
+    </marker>
+    <marker id="arrowAmber" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#c97831"/>
+    </marker>
+    <marker id="arrowRed" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868"/>
+    </marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c5aa6"/>
+    </marker>
+    <marker id="arrowGray" viewBox="0 0 10 10" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#78909c"/>
+    </marker>
+  </defs>
+
+  <title id="title">Prometheus alert and runbook flow</title>
+  <desc id="desc">Leader work emits metrics, Prometheus evaluates alert rules, Grafana shows operational signals, and operators follow runbooks.</desc>
+
+  <rect width="1880" height="1040" class="canvas"/>
+  <rect x="28" y="26" width="1824" height="988" rx="8" class="frame"/>
+  <text x="78" y="82" class="title">Prometheus Alert And Runbook Flow</text>
+  <text x="80" y="116" class="subtitle">Leader work produces metrics; Prometheus and Grafana observe them without triggering leader execution.</text>
+
+  <rect x="72" y="150" width="404" height="760" rx="8" class="band"/>
+  <text x="104" y="186" class="bandTitle">Leader Work Path</text>
+  <text x="104" y="210" class="hint">scheduler, lock backend, elected task</text>
+
+  <rect x="512" y="150" width="404" height="760" rx="8" class="bandAlt"/>
+  <text x="544" y="186" class="bandTitle">Metrics Export</text>
+  <text x="544" y="210" class="hint">Micrometer and Actuator endpoint</text>
+
+  <rect x="952" y="150" width="404" height="760" rx="8" class="band"/>
+  <text x="984" y="186" class="bandTitle">Alert Evaluation</text>
+  <text x="984" y="210" class="hint">Prometheus scrape and rules</text>
+
+  <rect x="1392" y="150" width="404" height="760" rx="8" class="bandAlt"/>
+  <text x="1424" y="186" class="bandTitle">Operator Response</text>
+  <text x="1424" y="210" class="hint">Grafana panels and runbooks</text>
+
+  <g id="scheduled-job" data-card="true">
+    <rect x="112" y="270" width="324" height="94" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
+    <circle cx="148" cy="317" r="22" class="badge" fill="#d7edf7" stroke="#3f7d9c"/>
+    <text x="148" y="323" text-anchor="middle" class="badgeText" fill="#21566f">JOB</text>
+    <text x="310" y="307" text-anchor="middle" class="cardTitle">Scheduled Job</text>
+    <text x="310" y="333" text-anchor="middle" class="detail">@LeaderElection dashboard-job</text>
+  </g>
+
+  <g id="redis-lock" data-card="true">
+    <rect x="112" y="484" width="324" height="94" rx="8" class="card" fill="#fff7e8" stroke="#c97831"/>
+    <circle cx="148" cy="531" r="22" class="badge" fill="#ffe4c1" stroke="#c97831"/>
+    <text x="148" y="537" text-anchor="middle" class="badgeText" fill="#8a4c16">R</text>
+    <text x="310" y="521" text-anchor="middle" class="cardTitle">Redis Lock</text>
+    <text x="310" y="547" text-anchor="middle" class="detail">lease ownership and contention</text>
+  </g>
+
+  <g id="leader-outcome" data-card="true">
+    <rect x="112" y="698" width="324" height="94" rx="8" class="card" fill="#eef7f0" stroke="#6e8f4f"/>
+    <circle cx="148" cy="745" r="22" class="badge" fill="#dcefdc" stroke="#6e8f4f"/>
+    <text x="148" y="751" text-anchor="middle" class="badgeText" fill="#46672a">OK</text>
+    <text x="310" y="735" text-anchor="middle" class="cardTitle">Outcome</text>
+    <text x="310" y="761" text-anchor="middle" class="detail">acquired, skipped, failed</text>
+  </g>
+
+  <g id="micrometer" data-card="true">
+    <rect x="552" y="270" width="324" height="94" rx="8" class="card" fill="#fdf7ff" stroke="#7c5aa6"/>
+    <circle cx="588" cy="317" r="22" class="badge" fill="#efe2ff" stroke="#7c5aa6"/>
+    <text x="588" y="323" text-anchor="middle" class="badgeText" fill="#563a7a">M</text>
+    <text x="750" y="307" text-anchor="middle" class="cardTitle">Micrometer Meters</text>
+    <text x="750" y="333" text-anchor="middle" class="detail">attempts, active, failures, history</text>
+  </g>
+
+  <g id="actuator" data-card="true">
+    <rect x="552" y="484" width="324" height="94" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
+    <circle cx="588" cy="531" r="22" class="badge" fill="#d7edf7" stroke="#3f7d9c"/>
+    <text x="588" y="537" text-anchor="middle" class="badgeText" fill="#21566f">HTTP</text>
+    <text x="750" y="521" text-anchor="middle" class="cardTitle">Actuator Endpoint</text>
+    <text x="750" y="547" text-anchor="middle" class="detail">/actuator/prometheus</text>
+  </g>
+
+  <g id="tag-guard" data-card="true">
+    <rect x="552" y="698" width="324" height="94" rx="8" class="card" fill="#fff7e8" stroke="#c97831"/>
+    <circle cx="588" cy="745" r="22" class="badge" fill="#ffe4c1" stroke="#c97831"/>
+    <text x="588" y="751" text-anchor="middle" class="badgeText" fill="#8a4c16">TAG</text>
+    <text x="750" y="735" text-anchor="middle" class="cardTitle">Cardinality Guard</text>
+    <text x="750" y="761" text-anchor="middle" class="detail">RAW only for one static job</text>
+  </g>
+
+  <g id="prometheus" data-card="true">
+    <rect x="992" y="270" width="324" height="94" rx="8" class="card" fill="#fff7e8" stroke="#c97831"/>
+    <circle cx="1028" cy="317" r="22" class="badge" fill="#ffe4c1" stroke="#c97831"/>
+    <text x="1028" y="323" text-anchor="middle" class="badgeText" fill="#8a4c16">P</text>
+    <text x="1190" y="307" text-anchor="middle" class="cardTitle">Prometheus</text>
+    <text x="1190" y="333" text-anchor="middle" class="detail">scrape every 5 seconds</text>
+  </g>
+
+  <g id="rules" data-card="true">
+    <rect x="992" y="484" width="324" height="94" rx="8" class="card" fill="#fff5f5" stroke="#b86868"/>
+    <circle cx="1028" cy="531" r="22" class="badge" fill="#ffe1e1" stroke="#b86868"/>
+    <text x="1028" y="537" text-anchor="middle" class="badgeText" fill="#823b3b">AL</text>
+    <text x="1190" y="521" text-anchor="middle" class="cardTitle">leader-alerts.yml</text>
+    <text x="1190" y="547" text-anchor="middle" class="detail">rules, windows, runbook_url</text>
+  </g>
+
+  <g id="signals" data-card="true">
+    <rect x="992" y="698" width="324" height="94" rx="8" class="card" fill="#fdf7ff" stroke="#7c5aa6"/>
+    <circle cx="1028" cy="745" r="22" class="badge" fill="#efe2ff" stroke="#7c5aa6"/>
+    <text x="1028" y="751" text-anchor="middle" class="badgeText" fill="#563a7a">SIG</text>
+    <text x="1190" y="735" text-anchor="middle" class="cardTitle">Operational Signals</text>
+    <text x="1190" y="761" text-anchor="middle" class="detail">backend, history, active, lease risk</text>
+  </g>
+
+  <g id="grafana" data-card="true">
+    <rect x="1432" y="270" width="324" height="94" rx="8" class="card" fill="#eef7fb" stroke="#3f7d9c"/>
+    <circle cx="1468" cy="317" r="22" class="badge" fill="#d7edf7" stroke="#3f7d9c"/>
+    <text x="1468" y="323" text-anchor="middle" class="badgeText" fill="#21566f">G</text>
+    <text x="1630" y="307" text-anchor="middle" class="cardTitle">Grafana</text>
+    <text x="1630" y="333" text-anchor="middle" class="detail">success ratio and failure panels</text>
+  </g>
+
+  <g id="runbook" data-card="true">
+    <rect x="1432" y="484" width="324" height="94" rx="8" class="card" fill="#eef7f0" stroke="#6e8f4f"/>
+    <circle cx="1468" cy="531" r="22" class="badge" fill="#dcefdc" stroke="#6e8f4f"/>
+    <text x="1468" y="537" text-anchor="middle" class="badgeText" fill="#46672a">RB</text>
+    <text x="1630" y="521" text-anchor="middle" class="cardTitle">README Runbook</text>
+    <text x="1630" y="547" text-anchor="middle" class="detail">meaning and safe first actions</text>
+  </g>
+
+  <g id="actions" data-card="true">
+    <rect x="1432" y="698" width="324" height="94" rx="8" class="card" fill="#fff7e8" stroke="#c97831"/>
+    <circle cx="1468" cy="745" r="22" class="badge" fill="#ffe4c1" stroke="#c97831"/>
+    <text x="1468" y="751" text-anchor="middle" class="badgeText" fill="#8a4c16">OPS</text>
+    <text x="1630" y="735" text-anchor="middle" class="cardTitle">Safe Actions</text>
+    <text x="1630" y="761" text-anchor="middle" class="detail">check backend before restart</text>
+  </g>
+
+  <path d="M 274 364 L 274 484" class="edge" stroke="#3f7d9c" marker-end="url(#arrowBlue)" data-connector="job-to-redis"/>
+  <path d="M 274 578 L 274 698" class="edge" stroke="#6e8f4f" marker-end="url(#arrowGreen)" data-connector="redis-to-outcome"/>
+  <path d="M 436 745 L 480 745 Q 500 745 500 725 L 500 238 Q 500 218 520 218 L 714 218 Q 734 218 734 238 L 734 270" class="edge" stroke="#7c5aa6" marker-end="url(#arrowPurple)" data-connector="outcome-to-meters"/>
+  <path d="M 714 364 L 714 484" class="edge" stroke="#3f7d9c" marker-end="url(#arrowBlue)" data-connector="meters-to-actuator"/>
+  <path d="M 714 578 L 714 698" class="edge" stroke="#c97831" marker-end="url(#arrowAmber)" data-connector="actuator-to-tags"/>
+  <path d="M 876 531 L 920 531 Q 940 531 940 511 L 940 238 Q 940 218 960 218 L 1154 218 Q 1174 218 1174 238 L 1174 270" class="edge" stroke="#c97831" marker-end="url(#arrowAmber)" data-connector="actuator-to-prometheus"/>
+  <path d="M 1154 364 L 1154 484" class="edge" stroke="#b86868" marker-end="url(#arrowRed)" data-connector="prometheus-to-rules"/>
+  <path d="M 1154 578 L 1154 698" class="edge" stroke="#7c5aa6" marker-end="url(#arrowPurple)" data-connector="rules-to-signals"/>
+  <path d="M 1316 745 L 1360 745 Q 1380 745 1380 725 L 1380 238 Q 1380 218 1400 218 L 1594 218 Q 1614 218 1614 238 L 1614 270" class="edge" stroke="#3f7d9c" marker-end="url(#arrowBlue)" data-connector="signals-to-grafana"/>
+  <path d="M 1594 364 L 1594 484" class="edge" stroke="#6e8f4f" marker-end="url(#arrowGreen)" data-connector="grafana-to-runbook"/>
+  <path d="M 1594 578 L 1594 698" class="edge" stroke="#c97831" marker-end="url(#arrowAmber)" data-connector="runbook-to-actions"/>
+
+  <path d="M 1432 810 L 112 810" class="edge dash" stroke="#78909c" marker-end="url(#arrowGray)" data-connector="observe-only-note"/>
+  <rect x="722" y="824" width="392" height="38" rx="19" class="labelBox" stroke="#78909c"/>
+  <text x="918" y="848" text-anchor="middle" class="label">observe only: dashboards do not trigger leader work</text>
+
+  <rect x="542" y="895" width="792" height="46" rx="8" fill="#ffffff" stroke="#c8d7df" stroke-width="1.5"/>
+  <text x="938" y="924" text-anchor="middle" class="footer">Use max by(lock_name) for cluster active dashboards; raw leader_aop_active alerts keep instance labels.</text>
+</svg>

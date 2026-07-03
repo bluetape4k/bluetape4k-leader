@@ -36,6 +36,7 @@ services:
       - --web.enable-lifecycle
     volumes:
       - ./provisioning/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./provisioning/prometheus/rules:/etc/prometheus/rules:ro
     ports:
       - "127.0.0.1:9090:9090"
     depends_on:
