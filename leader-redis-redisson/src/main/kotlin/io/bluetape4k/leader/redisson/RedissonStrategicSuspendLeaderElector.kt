@@ -81,15 +81,44 @@ class RedissonStrategicSuspendLeaderElector(
 
         return try {
             val value = action()
-            runCatching { updateResult(lockName, nodeId, CandidateResult.SUCCESS) }
-                .onFailure { log.warn(it) { "[$lockName] successCount 업데이트 실패 — 무시됨" } }
+            updateStrategicResultPreservingCancellation(
+                lockName = lockName,
+                result = CandidateResult.SUCCESS,
+                update = { updateResult(lockName, nodeId, CandidateResult.SUCCESS) },
+                onFailure = { e, message -> log.warn(e) { message } },
+            )
             value
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
-            runCatching { updateResult(lockName, nodeId, CandidateResult.FAILURE) }
-                .onFailure { log.warn(it) { "[$lockName] failureCount 업데이트 실패 — 무시됨" } }
+            updateStrategicResultPreservingCancellation(
+                lockName = lockName,
+                result = CandidateResult.FAILURE,
+                update = { updateResult(lockName, nodeId, CandidateResult.FAILURE) },
+                onFailure = { e, message -> log.warn(e) { message } },
+            )
             throw e
         }
     }
 }
+
+internal suspend fun updateStrategicResultPreservingCancellation(
+    lockName: String,
+    result: CandidateResult,
+    update: suspend () -> Unit,
+    onFailure: (Exception, String) -> Unit,
+) {
+    try {
+        update()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        onFailure(e, "[$lockName] ${result.logFieldName} 업데이트 실패 — 무시됨")
+    }
+}
+
+private val CandidateResult.logFieldName: String
+    get() = when (this) {
+        CandidateResult.SUCCESS -> "successCount"
+        CandidateResult.FAILURE -> "failureCount"
+    }

@@ -174,23 +174,26 @@ internal class ExposedR2dbcGroupLock internal constructor(
      *
      * Returns `false` if the lease has expired and another instance has re-acquired it.
      */
-    suspend fun isHeldByCurrentInstance(): Boolean = runCatching {
-        suspendTransaction(db) {
-            val now = Instant.now()
-            !LeaderGroupLockTable
-                .selectAll()
-                .where {
-                    (LeaderGroupLockTable.lockName eq lockName) and
-                            (LeaderGroupLockTable.slot eq slot) and
-                            (LeaderGroupLockTable.token eq token) and
-                            (LeaderGroupLockTable.lockedUntil greater now)
-                }
-                .empty()
+    suspend fun isHeldByCurrentInstance(): Boolean =
+        runR2dbcLockOperationPreservingCancellation(
+            onFailure = { e ->
+                log.warn(e) { "isHeldByCurrentInstance DB 오류 (false 반환): lockName=$lockName, slot=$slot" }
+                false
+            },
+        ) {
+            suspendTransaction(db) {
+                val now = Instant.now()
+                !LeaderGroupLockTable
+                    .selectAll()
+                    .where {
+                        (LeaderGroupLockTable.lockName eq lockName) and
+                                (LeaderGroupLockTable.slot eq slot) and
+                                (LeaderGroupLockTable.token eq token) and
+                                (LeaderGroupLockTable.lockedUntil greater now)
+                    }
+                    .empty()
+            }
         }
-    }.getOrElse { e ->
-        log.warn(e) { "isHeldByCurrentInstance DB 오류 (false 반환): lockName=$lockName, slot=$slot" }
-        false
-    }
 
     /**
      * Releases the slot lock held by the current instance.
@@ -206,7 +209,11 @@ internal class ExposedR2dbcGroupLock internal constructor(
         val tokenVal = this@ExposedR2dbcGroupLock.token
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
 
-        runCatching {
+        runR2dbcLockOperationPreservingCancellation(
+            onFailure = { e ->
+                log.warn(e) { "그룹 슬롯 해제 중 DB 오류: lockName=$lockName, slot=$slot" }
+            },
+        ) {
             val matched = suspendTransaction(db) {
                 if (remaining > Duration.ZERO) {
                     LeaderGroupLockTable.update(
@@ -231,8 +238,6 @@ internal class ExposedR2dbcGroupLock internal constructor(
             } else {
                 log.debug { "그룹 슬롯 해제 성공: lockName=$lockName, slot=$slot" }
             }
-        }.onFailure { e ->
-            log.warn(e) { "그룹 슬롯 해제 중 DB 오류: lockName=$lockName, slot=$slot" }
         }
     }
 
