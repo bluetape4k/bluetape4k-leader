@@ -167,9 +167,19 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
  * Runs a suspend multi-leader election action using a ZooKeeper [CuratorFramework].
  */
 suspend inline fun <T> CuratorFramework.suspendRunIfLeaderGroup(
+    path: ZooKeeperElectionPath,
+    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
+    crossinline action: suspend () -> T,
+): T? =
+    ZooKeeperSuspendLeaderGroupElector(this, options, path.basePath).runIfLeader(path.lockName) { action() }
+
+/**
+ * Runs a suspend multi-leader election action using a ZooKeeper [CuratorFramework].
+ */
+suspend inline fun <T> CuratorFramework.suspendRunIfLeaderGroup(
     lockName: String,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     basePath: String = ZooKeeperSuspendLeaderGroupElector.DEFAULT_BASE_PATH,
     crossinline action: suspend () -> T,
 ): T? =
-    ZooKeeperSuspendLeaderGroupElector(this, options, basePath).runIfLeader(lockName) { action() }
+    suspendRunIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), options, action)

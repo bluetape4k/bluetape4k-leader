@@ -25,9 +25,13 @@ class ZooKeeperSuspendLeaderElectorTest: AbstractZooKeeperLeaderTest() {
     fun `runIfLeader - 리더로 선출되어 suspend action 을 실행하고 결과를 반환한다`() = runTest {
         val election = ZooKeeperSuspendLeaderElector(curator)
 
-        val result = election.runIfLeader(randomName()) {
-            delay(10.milliseconds)
-            "hello"
+        val result = try {
+            election.runIfLeader(randomName()) {
+                delay(10.milliseconds)
+                "hello"
+            }
+        } finally {
+            election.close()
         }
 
         result shouldBeEqualTo "hello"
@@ -55,6 +59,7 @@ class ZooKeeperSuspendLeaderElectorTest: AbstractZooKeeperLeaderTest() {
             val result = election.runIfLeader(lockName) { "should-skip" }
             result.shouldBeNull()
         } finally {
+            election.close()
             release.countDown()
             holder.shutdownNow()
         }
@@ -65,8 +70,12 @@ class ZooKeeperSuspendLeaderElectorTest: AbstractZooKeeperLeaderTest() {
         val lockName = randomName()
         val election = ZooKeeperSuspendLeaderElector(curator)
 
-        runCatching { election.runIfLeader(lockName) { error("boom") } }
-        val result = election.runIfLeader(lockName) { "recovered" }
+        val result = try {
+            runCatching { election.runIfLeader(lockName) { error("boom") } }
+            election.runIfLeader(lockName) { "recovered" }
+        } finally {
+            election.close()
+        }
 
         result shouldBeEqualTo "recovered"
     }
@@ -88,25 +97,29 @@ class ZooKeeperSuspendLeaderElectorTest: AbstractZooKeeperLeaderTest() {
         val peakConcurrent = AtomicInteger(0)
         val executed = AtomicInteger(0)
 
-        SuspendedJobTester()
-            .workers(8)
-            .rounds(16)
-            .add {
-                election.runIfLeader(lockName) {
-                    val current = currentConcurrent.incrementAndGet()
-                    peakConcurrent.updateAndGet { max(it, current) }
-                    try {
-                        executed.incrementAndGet()
-                        delay(10.milliseconds)
-                    } finally {
-                        currentConcurrent.decrementAndGet()
+        try {
+            SuspendedJobTester()
+                .workers(12)
+                .rounds(16)
+                .add {
+                    election.runIfLeader(lockName) {
+                        val current = currentConcurrent.incrementAndGet()
+                        peakConcurrent.updateAndGet { max(it, current) }
+                        try {
+                            executed.incrementAndGet()
+                            delay(10.milliseconds)
+                        } finally {
+                            currentConcurrent.decrementAndGet()
+                        }
                     }
                 }
-            }
-            .run()
+                .run()
 
-        executed.get() shouldBeGreaterThan 0
-        peakConcurrent.get() shouldBeLessOrEqualTo 1
+            executed.get() shouldBeGreaterThan 0
+            peakConcurrent.get() shouldBeLessOrEqualTo 1
+        } finally {
+            election.close()
+        }
     }
 
     private fun String.cleanupScopeStartsImmediatelyAfterAcquire(): Boolean {

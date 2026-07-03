@@ -177,12 +177,33 @@ class ZooKeeperLeaderGroupElector private constructor(
  * Runs a multi-leader election action using a ZooKeeper [CuratorFramework].
  */
 inline fun <T> CuratorFramework.runIfLeaderGroup(
+    path: ZooKeeperElectionPath,
+    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
+    crossinline action: () -> T,
+): T? =
+    ZooKeeperLeaderGroupElector(this, options, path.basePath).runIfLeader(path.lockName) { action() }
+
+/**
+ * Runs a multi-leader election action using a ZooKeeper [CuratorFramework].
+ */
+inline fun <T> CuratorFramework.runIfLeaderGroup(
     lockName: String,
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     basePath: String = ZooKeeperLeaderGroupElector.DEFAULT_BASE_PATH,
     crossinline action: () -> T,
 ): T? =
-    ZooKeeperLeaderGroupElector(this, options, basePath).runIfLeader(lockName) { action() }
+    runIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), options, action)
+
+/**
+ * Runs an async multi-leader election action using a ZooKeeper [CuratorFramework].
+ */
+fun <T> CuratorFramework.runAsyncIfLeaderGroup(
+    path: ZooKeeperElectionPath,
+    executor: Executor = VirtualThreadExecutor,
+    options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
+    action: () -> CompletableFuture<T>,
+): CompletableFuture<T?> =
+    ZooKeeperLeaderGroupElector(this, options, path.basePath).runAsyncIfLeader(path.lockName, executor, action)
 
 /**
  * Runs an async multi-leader election action using a ZooKeeper [CuratorFramework].
@@ -194,4 +215,4 @@ fun <T> CuratorFramework.runAsyncIfLeaderGroup(
     basePath: String = ZooKeeperLeaderGroupElector.DEFAULT_BASE_PATH,
     action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> =
-    ZooKeeperLeaderGroupElector(this, options, basePath).runAsyncIfLeader(lockName, executor, action)
+    runAsyncIfLeaderGroup(ZooKeeperElectionPath(lockName, basePath), executor, options, action)
