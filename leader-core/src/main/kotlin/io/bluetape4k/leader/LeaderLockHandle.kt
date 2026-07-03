@@ -122,7 +122,7 @@ sealed class LeaderLockHandle : Serializable {
         }
 
         override fun toString(): String = buildString {
-            append("LeaderLockHandle.Real(identity=$identity, token='$token', reentryDepth=$reentryDepth, slotId=$slotId")
+            append("LeaderLockHandle.Real(identity=$identity, token=<redacted>, reentryDepth=$reentryDepth, slotId=$slotId")
             if (auditLeaderId != null) append(", auditLeaderId='$auditLeaderId'")
             append(")")
         }

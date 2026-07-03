@@ -1,5 +1,7 @@
 package io.bluetape4k.leader.strategy
 
+import java.io.Serializable
+
 /**
  * Represents the result of an election.
  *
@@ -11,8 +13,10 @@ data class ElectionResult(
     val winner: CandidateInfo?,
     val eliminations: List<Elimination>,
     val scores: Map<String, Double> = emptyMap(),
-) {
+) : Serializable {
     companion object {
+        private const val serialVersionUID = 1L
+
         /** No candidates — empty result with no winner and no eliminations. */
         val EMPTY = ElectionResult(winner = null, eliminations = emptyList())
     }

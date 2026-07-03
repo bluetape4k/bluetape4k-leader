@@ -1,10 +1,9 @@
 package io.bluetape4k.leader.strategy
 
+import java.time.Instant
 import java.io.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
-import java.time.Instant
 
 /**
  * Data class holding metadata for a leader election candidate node.
@@ -60,4 +59,8 @@ data class CandidateInfo(
                 failureCount = failureCount + 1,
             )
         }
+
+    companion object {
+        private const val serialVersionUID = 1L
+    }
 }

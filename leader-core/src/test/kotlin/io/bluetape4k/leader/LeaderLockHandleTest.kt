@@ -151,6 +151,15 @@ class LeaderLockHandleTest {
         inner.token shouldBeEqualTo handle.token
     }
 
+    @Test
+    fun `Real toString redacts ownership token`() {
+        val token = "tok-secret-123456"
+        val text = realHandle(token = token).toString()
+
+        text.contains(token).shouldBeFalse()
+        text.contains("token=<redacted>").shouldBeTrue()
+    }
+
     // --- equals / hashCode ---
 
     @Test
