@@ -172,22 +172,25 @@ internal class ExposedR2dbcLock internal constructor(
      *
      * Returns `false` if the lease has expired and another instance has re-acquired it.
      */
-    suspend fun isHeldByCurrentInstance(): Boolean = runCatching {
-        suspendTransaction(db) {
-            val now = currentTime()
-            !LeaderLockTable
-                .selectAll()
-                .where {
-                    (LeaderLockTable.lockName eq lockName) and
-                            (LeaderLockTable.token eq token) and
-                            (LeaderLockTable.lockedUntil greater now)
-                }
-                .empty()
+    suspend fun isHeldByCurrentInstance(): Boolean =
+        runR2dbcLockOperationPreservingCancellation(
+            onFailure = { e ->
+                log.warn(e) { "isHeldByCurrentInstance DB 오류 (false 반환): lockName=$lockName" }
+                false
+            },
+        ) {
+            suspendTransaction(db) {
+                val now = currentTime()
+                !LeaderLockTable
+                    .selectAll()
+                    .where {
+                        (LeaderLockTable.lockName eq lockName) and
+                                (LeaderLockTable.token eq token) and
+                                (LeaderLockTable.lockedUntil greater now)
+                    }
+                    .empty()
+            }
         }
-    }.getOrElse { e ->
-        log.warn(e) { "isHeldByCurrentInstance DB 오류 (false 반환): lockName=$lockName" }
-        false
-    }
 
     /**
      * Releases the lock held by the current instance.
@@ -203,7 +206,11 @@ internal class ExposedR2dbcLock internal constructor(
         val tokenVal = this@ExposedR2dbcLock.token
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
 
-        runCatching {
+        runR2dbcLockOperationPreservingCancellation(
+            onFailure = { e ->
+                log.warn(e) { "락 해제 중 DB 오류: lockName=$lockName" }
+            },
+        ) {
             val matched = suspendTransaction(db) {
                 if (remaining > Duration.ZERO) {
                     val now = currentTime()
@@ -223,8 +230,6 @@ internal class ExposedR2dbcLock internal constructor(
             } else {
                 log.debug { "락 해제 성공: lockName=$lockName, token=${token.take(8)}" }
             }
-        }.onFailure { e ->
-            log.warn(e) { "락 해제 중 DB 오류: lockName=$lockName" }
         }
     }
 
@@ -278,6 +283,18 @@ internal class ExposedR2dbcLock internal constructor(
     private suspend fun R2dbcTransaction.currentTime(): Instant =
         if (useDbTime) dbCurrentTimestamp() else Instant.now()
 }
+
+internal suspend fun <T> runR2dbcLockOperationPreservingCancellation(
+    onFailure: (Exception) -> T,
+    operation: suspend () -> T,
+): T =
+    try {
+        operation()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        onFailure(e)
+    }
 
 private suspend fun R2dbcTransaction.dbCurrentTimestamp(): Instant =
     exec("SELECT CURRENT_TIMESTAMP") { row -> row.get(0).toInstant() }

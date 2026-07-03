@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.local
 
 import io.bluetape4k.codec.Base58
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.strategy.CandidateInfo
@@ -8,6 +9,7 @@ import io.bluetape4k.leader.strategy.CandidateResult
 import io.bluetape4k.leader.strategy.scorers.SuccessRateScorer
 import io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy
 import io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -95,6 +97,42 @@ class LocalStrategicSuspendLeaderElectorTest {
         caughtCancellation.shouldBeTrue()
         val candidate = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
         candidate.failureCount shouldBeEqualTo 0L
+    }
+
+    @Test
+    fun `updateResult cancellation - CancellationException 재전파`() = runSuspendIO {
+        val cancellation = CancellationException("cancel update")
+
+        val thrown = assertFailsWith<CancellationException> {
+            updateStrategicResultPreservingCancellation(
+                lockName = lockName,
+                result = CandidateResult.SUCCESS,
+                update = { throw cancellation },
+                onFailure = { _, _ -> error("CancellationException must not be handled as a backend failure") },
+            )
+        }
+
+        thrown shouldBeEqualTo cancellation
+    }
+
+    @Test
+    fun `updateResult exception - 일반 예외는 fallback 으로 처리`() = runSuspendIO {
+        val failure = IllegalStateException("update failed")
+        var handledFailure: Exception? = null
+        var handledMessage: String? = null
+
+        updateStrategicResultPreservingCancellation(
+            lockName = lockName,
+            result = CandidateResult.FAILURE,
+            update = { throw failure },
+            onFailure = { e, message ->
+                handledFailure = e
+                handledMessage = message
+            },
+        )
+
+        handledFailure shouldBeEqualTo failure
+        handledMessage shouldBeEqualTo "[$lockName] failureCount 업데이트 실패 — 무시됨"
     }
 
     @Test
