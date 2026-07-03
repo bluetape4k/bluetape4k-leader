@@ -10,11 +10,12 @@ import io.bluetape4k.logging.warn
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue
+import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest
+import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest
-import software.amazon.awssdk.services.dynamodb.model.ScanRequest
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest
 import java.time.Instant
 import java.util.UUID
@@ -42,6 +43,7 @@ internal class DynamoDbLockClient(
         private const val OwnerAttr = "#ownerId"
         private const val LeaseAttr = "#leaseExpiry"
         private const val TtlAttr = "#ttl"
+        private const val BatchGetLimit = 100
 
         fun newOwnerId(): String = UUID.randomUUID().toString()
     }
@@ -295,41 +297,48 @@ internal class DynamoDbLockClient(
         }
     }
 
-    fun activeGroupLeases(prefix: String): List<LeaderLease> {
+    fun activeGroupLeases(prefix: String, maxLeaders: Int): List<LeaderLease> {
         val now = nowMillis()
-        val request = ScanRequest.builder()
-            .tableName(tableName)
-            .filterExpression("begins_with($LockNameAttr, :prefix) AND $LeaseAttr > :now")
-            .expressionAttributeNames(mapOf(LockNameAttr to LockName, LeaseAttr to LeaseExpiry))
-            .expressionAttributeValues(mapOf(":prefix" to s(prefix), ":now" to n(now)))
-            .build()
-        val items = scanAll(request)
+        val keys = (0 until maxLeaders).map { slot -> "$prefix$slot" }
+        val items = batchRead(keys)
         return items.mapNotNull { item ->
             val ownerId = item[OwnerId]?.s() ?: return@mapNotNull null
             val auditLeaderId = item[AuditLeaderId]?.s() ?: ownerId
             val nodeId = item[NodeId]?.s()
             val leaseExpiry = item[LeaseExpiry]?.n()?.toLongOrNull() ?: return@mapNotNull null
+            if (leaseExpiry <= now) {
+                return@mapNotNull null
+            }
             val slot = item[LockName]?.s()?.substringAfterLast("#slot-", "")?.toIntOrNull()
             LeaderLease(auditLeaderId, leaseUntil = Instant.ofEpochMilli(leaseExpiry), slot = slot, nodeId = nodeId)
         }
     }
 
-    private fun scanAll(request: ScanRequest): List<Map<String, AttributeValue>> {
+    private fun batchRead(keys: List<String>): List<Map<String, AttributeValue>> {
         val items = mutableListOf<Map<String, AttributeValue>>()
-        var nextKey: Map<String, AttributeValue>? = null
-        do {
-            val pageRequest = request.toBuilder().apply {
-                if (!nextKey.isNullOrEmpty()) {
-                    exclusiveStartKey(nextKey)
+        keys.chunked(BatchGetLimit).forEach { chunk ->
+            var requestItems = batchRequestItems(chunk)
+            do {
+                val response = syncClient?.batchGetItem(BatchGetItemRequest.builder().requestItems(requestItems).build())
+                    ?: requireNotNull(asyncClient) { "DynamoDB client is required" }
+                        .batchGetItem(BatchGetItemRequest.builder().requestItems(requestItems).build())
+                        .join()
+                items += response.responses()[tableName].orEmpty()
+                requestItems = response.unprocessedKeys().filterValues { tableKeys ->
+                    !tableKeys.keys().isNullOrEmpty()
                 }
-            }.build()
-            val response = syncClient?.scan(pageRequest)
-                ?: requireNotNull(asyncClient) { "DynamoDB client is required" }.scan(pageRequest).join()
-            items += response.items()
-            nextKey = response.lastEvaluatedKey().takeUnless { it.isNullOrEmpty() }
-        } while (nextKey != null)
+            } while (requestItems.isNotEmpty())
+        }
         return items
     }
+
+    private fun batchRequestItems(keys: List<String>): Map<String, KeysAndAttributes> =
+        mapOf(
+            tableName to KeysAndAttributes.builder()
+                .consistentRead(true)
+                .keys(keys.map { key -> mapOf(LockName to s(key)) })
+                .build(),
+        )
 
     private data class LockRecord(
         val ownerId: String,
