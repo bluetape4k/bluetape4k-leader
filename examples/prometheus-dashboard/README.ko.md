@@ -28,6 +28,10 @@ scrape하고 Grafana가 사전 provision된 dashboard를 렌더링합니다.
 
 ![prometheus dashboard Sequence Flow diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-sequence-01.png)
 
+## Alert 및 Runbook 다이어그램
+
+![Prometheus alert and runbook diagram](../../docs/images/readme-diagrams/examples-prometheus-dashboard-alert-runbook-01.png)
+
 ## 핵심 기능
 
 - `@Scheduled` trigger가 `dashboard-job` 이름의 proxied `@LeaderElection` 작업을 호출
@@ -35,6 +39,8 @@ scrape하고 Grafana가 사전 provision된 dashboard를 렌더링합니다.
 - Spring Boot Actuator를 통한 Micrometer leader AOP 메트릭 노출
 - leader Micrometer Observation을 확인하는 로컬 demo `ObservationHandler`
 - Prometheus scrape 설정과 직접 작성한 Grafana dashboard
+- 예제 범위의 Prometheus alert rule과 runbook 안내
+- History health meter가 0으로 보이도록 no-op history recorder 등록
 - 첫 실행 전에도 dashboard series가 보이도록 정적 lock 메트릭 사전 등록
 - 애플리케이션과 Spring test context의 Spring Boot AOT 처리
 
@@ -101,14 +107,56 @@ docker compose up --build
 
 Compose는 host port를 `127.0.0.1`에만 바인딩하고 Redis를 host에 노출하지 않습니다.
 Actuator endpoint도 `prometheus,health,info`만 노출합니다. 로컬 워크스테이션
-밖에서 stack을 공유하려면 `.env`의 Grafana password를 먼저 바꾸세요.
+밖에서 stack을 노출하려면 `.env`의 Grafana password를 바꾸는 것만으로는
+부족합니다. 필요 없으면 Prometheus `--web.enable-lifecycle`을 제거하고, app,
+Prometheus, Grafana 앞에 명시적인 auth, TLS, reverse proxy 제어를 두세요.
 
-## Prometheus Query
+Prometheus는 compose에서 `/etc/prometheus/rules`로 마운트한
+`provisioning/prometheus/rules/leader-alerts.yml`을 읽습니다. 이 rule은
+예제용 출발점입니다. production monitoring stack에서는 window, severity,
+notification route를 서비스 상황에 맞게 조정하세요.
+
+## Alert Runbooks
+
+| Alert | 의미 | 안전한 첫 조치 |
+|---|---|---|
+| `LeaderElectionNoAcquisitions` | 작업은 계속 시도하지만 어느 instance도 `leader_aop_acquired_total` 증가를 보고하지 않습니다. | Redis 접근성, lock key contention, scheduler 주기, 모든 instance가 같은 backend를 쓰는지 확인합니다. |
+| `LeaderElectionBackendErrors` | AOP 경로가 lock 획득에서 `reason="BACKEND_ERROR"`를 보고합니다. | worker 재시작 전에 `leader backend error` 주변 로그, Redis 상태, network 오류, failure-mode 설정을 확인합니다. |
+| `LeaderElectionTaskFailures` | lock 획득 후 elected task 본문에서 예외가 발생했습니다. | `exception` label로 실패 코드 경로를 찾고, 애플리케이션 로그를 확인하며, 수정 중에도 lock backend는 유지합니다. |
+| `LeaderHistorySinkFailures` | 실제 history/audit sink가 leader history 기록 중 예외를 던졌습니다. Demo는 `NoopLeaderHistorySink`를 제외합니다. | sink credential, schema/index 상태, write capacity, retention job을 확인합니다. Leader 실행은 계속될 수 있지만 audit 내구성은 낮아진 상태입니다. |
+| `LeaderHistoryAcquireMissing` | 실제 history sink가 elected work에 대한 acquire key를 반환하지 않았습니다. Demo는 의도적으로 key를 반환하지 않는 `NoopLeaderHistorySink`를 제외합니다. | 중복 record, storage unavailable, sink별 conditional write conflict를 확인합니다. |
+| `LeaderActiveGaugeAnomaly` | 한 JVM이 single-leader `dashboard-job` lock에 대해 `leader_aop_active > 1`을 보고합니다. | `instance` label을 기준으로 해당 JVM의 thread dump, 장시간 실행, release/finish 로그를 확인합니다. 이 rule을 복사하기 전에 group-election lock은 scope 조정 또는 제외하세요. |
+| `LeaderLeaseRiskHighExecutionTime` | 완료된 실행의 평균이 24초를 넘었습니다. 이 값은 demo lease 30초의 80%입니다. | 지연된 증상으로만 다루세요. 작업을 줄이거나 lease time을 늘리고, production page로 쓰려면 직접 lease-extension instrumentation을 추가합니다. |
+| `LeaderPrometheusScrapeMissing` | Prometheus가 앱의 `up` series를 만들지 못했거나 scrape target이 down입니다. | leader 로직을 보기 전에 app health, compose network, `/actuator/prometheus`, Prometheus target page를 확인합니다. |
+
+`leader_aop_active`는 JVM-local gauge입니다. Cluster dashboard에서는
+`sum` 대신 `max by (lock_name) (leader_aop_active)`를 사용하세요. Anomaly
+alert는 문제가 있는 `instance` label을 보존하려고 의도적으로 raw
+`leader_aop_active > 1` series를 사용합니다.
+
+`exception`은 예외 클래스 이름 tag입니다. Exception별 alert/dashboard view는
+내부용으로 유지하세요. Cardinality나 구현 상세 노출이 문제라면
+`sum by (lock_name)`으로 접으세요.
+
+이 demo는 `MicrometerSafeLeaderHistoryRecorder`를 `NoopLeaderHistorySink`와
+함께 등록해 `leader_history_*` meter가 보이게 합니다. Alert rule은 no-op sink가
+의도적으로 acquire key를 반환하지 않으므로 해당 sink를 제외합니다. 실제 서비스에서는
+JDBC, R2DBC, MongoDB, custom history sink를 recorder로 감싼 뒤 이 alert를 사용하세요.
+
+이 예제는 아직 lease-extension 실패를 직접 관찰하지 못합니다. `LockExtender`가
+core metric이나 observation hook을 제공하지 않기 때문입니다. lease risk rule은
+완료된 실행 시간으로 보는 보수적인 증상 rule일 뿐입니다.
+
+## Prometheus Queries
 
 ```promql
 sum by (lock_name) (rate(leader_aop_attempts_total[1m]))
 sum by (lock_name) (rate(leader_aop_acquired_total[1m]))
 sum by (lock_name, reason) (rate(leader_aop_lock_not_acquired_total[5m]))
+sum by (lock_name) (rate(leader_aop_lock_not_acquired_total{reason="BACKEND_ERROR"}[5m]))
+sum by (lock_name, exception) (rate(leader_aop_task_failed_total[5m]))
+sum by (sink) (rate(leader_history_sink_failures_total[5m]))
+sum by (sink) (rate(leader_history_acquire_missing_total[5m]))
 sum by (lock_name) (rate(leader_aop_execution_duration_seconds_sum[1m]))
   / sum by (lock_name) (rate(leader_aop_execution_duration_seconds_count[1m]))
 max by (lock_name) (leader_aop_active)

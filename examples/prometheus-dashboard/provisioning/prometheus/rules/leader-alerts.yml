@@ -1,0 +1,107 @@
+groups:
+  - name: bluetape4k-leader-example
+    interval: 30s
+    rules:
+      - alert: LeaderElectionNoAcquisitions
+        expr: |
+          sum by (lock_name) (increase(leader_aop_attempts_total[5m])) > 0
+          unless
+          sum by (lock_name) (increase(leader_aop_acquired_total[5m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: leader-election
+        annotations:
+          summary: "Leader job is attempting but not acquiring"
+          description: "Lock {{ $labels.lock_name }} has attempts but no successful acquisitions in the last 5 minutes."
+          runbook_url: "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/examples/prometheus-dashboard/README.md#alert-runbooks"
+
+      - alert: LeaderElectionBackendErrors
+        expr: |
+          sum by (lock_name) (
+            rate(leader_aop_lock_not_acquired_total{reason="BACKEND_ERROR"}[5m])
+          ) > 0
+        for: 2m
+        labels:
+          severity: warning
+          component: leader-election
+        annotations:
+          summary: "Leader backend errors are preventing acquisition"
+          description: "Lock {{ $labels.lock_name }} is reporting BACKEND_ERROR acquisition outcomes."
+          runbook_url: "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/examples/prometheus-dashboard/README.md#alert-runbooks"
+
+      - alert: LeaderElectionTaskFailures
+        expr: |
+          sum by (lock_name, exception) (rate(leader_aop_task_failed_total[5m])) > 0
+        for: 2m
+        labels:
+          severity: warning
+          component: leader-election
+        annotations:
+          summary: "Leader task body is failing"
+          description: "Lock {{ $labels.lock_name }} reports task failures of type {{ $labels.exception }}."
+          runbook_url: "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/examples/prometheus-dashboard/README.md#alert-runbooks"
+
+      - alert: LeaderHistorySinkFailures
+        expr: |
+          sum by (sink) (rate(leader_history_sink_failures_total{sink!="NoopLeaderHistorySink"}[5m])) > 0
+        for: 2m
+        labels:
+          severity: warning
+          component: leader-history
+        annotations:
+          summary: "Leader history sink writes are failing"
+          description: "History sink {{ $labels.sink }} is throwing while recording leader history."
+          runbook_url: "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/examples/prometheus-dashboard/README.md#alert-runbooks"
+
+      - alert: LeaderHistoryAcquireMissing
+        expr: |
+          sum by (sink) (rate(leader_history_acquire_missing_total{sink!="NoopLeaderHistorySink"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: leader-history
+        annotations:
+          summary: "Leader history acquire records are missing"
+          description: "History sink {{ $labels.sink }} returned no acquire key for elected leader work."
+          runbook_url: "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/examples/prometheus-dashboard/README.md#alert-runbooks"
+
+      - alert: LeaderActiveGaugeAnomaly
+        expr: |
+          leader_aop_active{lock_name="dashboard-job"} > 1
+        for: 1m
+        labels:
+          severity: critical
+          component: leader-election
+        annotations:
+          summary: "A JVM reports more than one active leader task"
+          description: "Lock {{ $labels.lock_name }} has a JVM-local active gauge greater than 1."
+          runbook_url: "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/examples/prometheus-dashboard/README.md#alert-runbooks"
+
+      - alert: LeaderLeaseRiskHighExecutionTime
+        expr: |
+          (
+            sum by (lock_name) (rate(leader_aop_execution_duration_seconds_sum[5m]))
+            /
+            clamp_min(sum by (lock_name) (rate(leader_aop_execution_duration_seconds_count[5m])), 0.001)
+          ) > 24
+        for: 5m
+        labels:
+          severity: warning
+          component: leader-election
+        annotations:
+          summary: "Leader execution time is near the demo lease budget"
+          description: "Lock {{ $labels.lock_name }} average execution time is above 24s, 80% of the 30s demo lease."
+          runbook_url: "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/examples/prometheus-dashboard/README.md#alert-runbooks"
+
+      - alert: LeaderPrometheusScrapeMissing
+        expr: |
+          absent(up{job="bluetape4k-leader"}) or up{job="bluetape4k-leader"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: observability
+        annotations:
+          summary: "Prometheus cannot scrape the leader example"
+          description: "The bluetape4k-leader scrape target is down or unreachable."
+          runbook_url: "https://github.com/bluetape4k/bluetape4k-leader/blob/develop/examples/prometheus-dashboard/README.md#alert-runbooks"

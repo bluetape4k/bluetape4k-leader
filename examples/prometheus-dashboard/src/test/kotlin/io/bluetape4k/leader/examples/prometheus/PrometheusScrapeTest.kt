@@ -50,6 +50,10 @@ class PrometheusScrapeTest {
                     .shouldBeTrue()
                 scrape.contains("""leader_aop_active{lock_name="${LeaderScheduledJob.LOCK_NAME}"""")
                     .shouldBeTrue()
+                scrape.contains("""leader_history_sink_failures_total{sink="NoopLeaderHistorySink"}""")
+                    .shouldBeTrue()
+                scrape.contains("""leader_history_acquire_missing_total{sink="NoopLeaderHistorySink"}""")
+                    .shouldBeTrue()
 
                 val attempts = scrape.sampleValue("leader_aop_attempts_total")
                 val acquired = scrape.sampleValue("leader_aop_acquired_total")
