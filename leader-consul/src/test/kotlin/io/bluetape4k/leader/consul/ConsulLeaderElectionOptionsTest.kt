@@ -6,6 +6,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.consul.internal.ConsulLeaderPaths
 import io.bluetape4k.leader.consul.internal.ConsulSessionTtl
 import org.junit.jupiter.api.Test
@@ -53,6 +54,29 @@ class ConsulLeaderElectionOptionsTest {
         }
         assertFailsWith<IllegalArgumentException> {
             ConsulLeaderElectionOptions(sessionNamePrefix = " ")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            ConsulLeaderGroupElectionOptions(sessionNamePrefix = " ")
+        }
+    }
+
+    @Test
+    fun `validates Consul timing options with standard helpers`() {
+        assertFailsWith<IllegalArgumentException> {
+            ConsulLeaderElectionOptions(lockDelay = (-1).seconds)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            ConsulLeaderGroupElectionOptions(lockDelay = (-1).seconds)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            ConsulLeaderGroupElectionOptions(
+                leaderGroupOptions = LeaderGroupElectionOptions(leaseTime = 9.seconds),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            ConsulLeaderGroupElectionOptions(
+                leaderGroupOptions = LeaderGroupElectionOptions(leaseTime = 86_401.seconds),
+            )
         }
     }
 

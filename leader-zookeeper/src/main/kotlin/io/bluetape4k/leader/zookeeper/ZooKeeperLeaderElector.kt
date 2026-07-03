@@ -166,12 +166,33 @@ class ZooKeeperLeaderElector private constructor(
  * Runs a leader-elected action using the ZooKeeper [CuratorFramework].
  */
 inline fun <T> CuratorFramework.runIfLeader(
+    path: ZooKeeperElectionPath,
+    options: LeaderElectionOptions = LeaderElectionOptions.Default,
+    crossinline action: () -> T,
+): T? =
+    ZooKeeperLeaderElector(this, path.basePath, options).runIfLeader(path.lockName) { action() }
+
+/**
+ * Runs a leader-elected action using the ZooKeeper [CuratorFramework].
+ */
+inline fun <T> CuratorFramework.runIfLeader(
     lockName: String,
     basePath: String = ZooKeeperLeaderElector.DEFAULT_BASE_PATH,
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: () -> T,
 ): T? =
-    ZooKeeperLeaderElector(this, basePath, options).runIfLeader(lockName) { action() }
+    runIfLeader(ZooKeeperElectionPath(lockName, basePath), options, action)
+
+/**
+ * Runs an async leader-elected action using the ZooKeeper [CuratorFramework].
+ */
+fun <T> CuratorFramework.runAsyncIfLeader(
+    path: ZooKeeperElectionPath,
+    executor: Executor = VirtualThreadExecutor,
+    options: LeaderElectionOptions = LeaderElectionOptions.Default,
+    action: () -> CompletableFuture<T>,
+): CompletableFuture<T?> =
+    ZooKeeperLeaderElector(this, path.basePath, options).runAsyncIfLeader(path.lockName, executor, action)
 
 /**
  * Runs an async leader-elected action using the ZooKeeper [CuratorFramework].
@@ -183,4 +204,4 @@ fun <T> CuratorFramework.runAsyncIfLeader(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> =
-    ZooKeeperLeaderElector(this, basePath, options).runAsyncIfLeader(lockName, executor, action)
+    runAsyncIfLeader(ZooKeeperElectionPath(lockName, basePath), executor, options, action)

@@ -3,6 +3,9 @@ package io.bluetape4k.leader.consul
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.consul.internal.ConsulLeaderPaths
+import io.bluetape4k.support.requireGe
+import io.bluetape4k.support.requireLe
+import io.bluetape4k.support.requireNotBlank
 import java.io.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -27,20 +30,10 @@ data class ConsulLeaderElectionOptions(
 
     init {
         ConsulLeaderPaths.validatePrefix(keyPrefix)
-        require(sessionNamePrefix.isNotBlank()) {
-            "sessionNamePrefix must not be blank."
-        }
-        require(leaderOptions.leaseTime >= MinLeaseTime) {
-            "leaderOptions.leaseTime must be at least $MinLeaseTime for Consul Session TTL. " +
-                "leaseTime=${leaderOptions.leaseTime}"
-        }
-        require(leaderOptions.leaseTime <= MaxLeaseTime) {
-            "leaderOptions.leaseTime must be at most $MaxLeaseTime for Consul Session TTL. " +
-                "leaseTime=${leaderOptions.leaseTime}"
-        }
-        require(lockDelay >= Duration.ZERO) {
-            "lockDelay must be non-negative. lockDelay=$lockDelay"
-        }
+        sessionNamePrefix.requireNotBlank("sessionNamePrefix")
+        leaderOptions.leaseTime.requireGe(MinLeaseTime, "leaderOptions.leaseTime")
+        leaderOptions.leaseTime.requireLe(MaxLeaseTime, "leaderOptions.leaseTime")
+        lockDelay.requireGe(Duration.ZERO, "lockDelay")
     }
 
     companion object {
@@ -81,20 +74,16 @@ data class ConsulLeaderGroupElectionOptions(
 
     init {
         ConsulLeaderPaths.validatePrefix(keyPrefix)
-        require(sessionNamePrefix.isNotBlank()) {
-            "sessionNamePrefix must not be blank."
-        }
-        require(leaderGroupOptions.leaseTime >= ConsulLeaderElectionOptions.MinLeaseTime) {
-            "leaderGroupOptions.leaseTime must be at least ${ConsulLeaderElectionOptions.MinLeaseTime} " +
-                "for Consul Session TTL. leaseTime=${leaderGroupOptions.leaseTime}"
-        }
-        require(leaderGroupOptions.leaseTime <= ConsulLeaderElectionOptions.MaxLeaseTime) {
-            "leaderGroupOptions.leaseTime must be at most ${ConsulLeaderElectionOptions.MaxLeaseTime} " +
-                "for Consul Session TTL. leaseTime=${leaderGroupOptions.leaseTime}"
-        }
-        require(lockDelay >= Duration.ZERO) {
-            "lockDelay must be non-negative. lockDelay=$lockDelay"
-        }
+        sessionNamePrefix.requireNotBlank("sessionNamePrefix")
+        leaderGroupOptions.leaseTime.requireGe(
+            ConsulLeaderElectionOptions.MinLeaseTime,
+            "leaderGroupOptions.leaseTime",
+        )
+        leaderGroupOptions.leaseTime.requireLe(
+            ConsulLeaderElectionOptions.MaxLeaseTime,
+            "leaderGroupOptions.leaseTime",
+        )
+        lockDelay.requireGe(Duration.ZERO, "lockDelay")
     }
 
     companion object {
