@@ -42,7 +42,7 @@ class DynamoDbSuspendLeaderGroupElector(
 
     override fun state(lockName: String): LeaderGroupState {
         DynamoDbKeys.validateUserLockName(lockName)
-        val leases = lockClient.activeGroupLeases(DynamoDbKeys.groupPrefix(options.keyPrefix, lockName))
+        val leases = lockClient.activeGroupLeases(DynamoDbKeys.groupPrefix(options.keyPrefix, lockName), maxLeaders)
         return LeaderGroupState(lockName, maxLeaders, leases.size.coerceAtMost(maxLeaders), leases)
     }
 
