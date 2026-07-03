@@ -18,8 +18,10 @@ import org.junit.jupiter.api.TestInstance
 import java.time.Clock
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -162,6 +164,35 @@ class KubernetesLeaseLeaderElectorK3sTest {
     }
 
     @Test
+    fun `async cleanup runs after caller executor shutdown`() {
+        k3s.kubernetesClient().use { client ->
+            val lockName = randomLockName()
+            withCleanLease(client, lockName) {
+                val election = elector(client, nodeId = "node-a", autoExtend = true)
+                val executor = Executors.newSingleThreadExecutor()
+                val actionStarted = CountDownLatch(1)
+                val actionFuture = CompletableFuture<String>()
+
+                try {
+                    val resultFuture = election.runAsyncIfLeader(lockName, executor) {
+                        actionStarted.countDown()
+                        actionFuture
+                    }
+                    actionStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                    executor.shutdown()
+
+                    actionFuture.complete("done")
+
+                    resultFuture.get(5, TimeUnit.SECONDS) shouldBeEqualTo "done"
+                    elector(client, nodeId = "node-b").runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+                } finally {
+                    executor.shutdownNow()
+                }
+            }
+        }
+    }
+
+    @Test
     fun `async result propagates cancellation and releases lease`() {
         k3s.kubernetesClient().use { client ->
             val lockName = randomLockName()
@@ -186,6 +217,7 @@ class KubernetesLeaseLeaderElectorK3sTest {
         nodeId: String,
         waitTime: Duration = 150.milliseconds,
         leaseTime: Duration = 1.seconds,
+        autoExtend: Boolean = false,
     ): KubernetesLeaseLeaderElector =
         KubernetesLeaseLeaderElector(
             client,
@@ -196,6 +228,7 @@ class KubernetesLeaseLeaderElectorK3sTest {
                     waitTime = waitTime,
                     leaseTime = leaseTime,
                     nodeId = nodeId,
+                    autoExtend = autoExtend,
                 ),
             ),
         )

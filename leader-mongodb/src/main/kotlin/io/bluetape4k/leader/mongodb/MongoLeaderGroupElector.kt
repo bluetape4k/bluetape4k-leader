@@ -217,7 +217,7 @@ class MongoLeaderGroupElector private constructor(
                             .onFailure { ex -> log.warn(ex) { "그룹 슬롯 해제 실패 (action 오류 경로). lockName=$lockName, slot=$slot" } }
                         return@thenComposeAsync CompletableFuture.failedFuture(e)
                     }
-                actionFuture.whenCompleteAsync({ _, throwable ->
+                actionFuture.whenComplete { _, throwable ->
                     val finishedAt = Instant.now()
                     val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
                     if (throwable == null) {
@@ -229,7 +229,7 @@ class MongoLeaderGroupElector private constructor(
                     runCatching { lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos) }
                         .onSuccess { log.debug { "비동기 그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" } }
                         .onFailure { e -> log.warn(e) { "비동기 그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" } }
-                }, executor)
+                }
             }
         }, executor)
     }

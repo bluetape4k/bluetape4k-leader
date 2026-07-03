@@ -189,7 +189,7 @@ class MongoLeaderElector private constructor(
                                 .onFailure { ex -> log.warn(ex) { "락 해제 실패 (action 오류 경로). lockName=$lockName" } }
                             return@thenComposeAsync CompletableFuture.failedFuture(e)
                         }
-                    actionFuture.whenCompleteAsync({ _, throwable ->
+                    actionFuture.whenComplete { _, throwable ->
                         watchdog.close()
                         val finishedAt = Instant.now()
                         val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)
@@ -205,7 +205,7 @@ class MongoLeaderElector private constructor(
                         runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
                             .onSuccess { log.debug { "비동기 리더 권한을 반납했습니다. lockName=$lockName" } }
                             .onFailure { e -> log.warn(e) { "비동기 락 해제 실패. lockName=$lockName" } }
-                    }, executor)
+                    }
                 }
             }, executor)
     }

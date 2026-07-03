@@ -8,9 +8,13 @@ import io.bluetape4k.leader.exposed.r2dbc.history.ExposedSuspendLeaderHistorySin
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
 import io.bluetape4k.leader.exposed.tables.LeaderLockTable
+import io.bluetape4k.leader.history.LeaderHistoryKey
+import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.leader.history.SuspendLeaderHistorySink
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
@@ -26,11 +30,11 @@ import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import io.bluetape4k.assertions.assertFailsWith
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration.Companion.milliseconds
 
 class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
 
@@ -144,6 +148,37 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
         val result = election.runIfLeader(lockName) { "recovered" }
         result shouldBeEqualTo "recovered"
     }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `runIfLeader - recordAcquired 취소 후에도 lock 이 해제되어 다음 호출이 성공한다`(testDB: TestR2dbcDB) =
+        runSuspendIO {
+            val db = setupDb(testDB)
+            cleanTables(db)
+            val lockName = randomName()
+            val options = ExposedR2dbcLeaderElectionOptions(
+                leaderOptions = LeaderElectionOptions(
+                    waitTime = 2.seconds,
+                    leaseTime = 10.seconds,
+                ),
+                retryStrategy = RetryStrategy.Jitter(),
+            )
+            val cancelingRecorder = SuspendSafeLeaderHistoryRecorder(CancelOnAcquiredHistorySink)
+            val election = ExposedR2DbcSuspendLeaderElector(db, options, cancelingRecorder)
+
+            assertFailsWith<CancellationException> {
+                election.runIfLeader(lockName) { "should-not-run" }
+            }
+
+            val rowCount = suspendTransaction(db) {
+                LeaderLockTable
+                    .selectAll()
+                    .where { LeaderLockTable.lockName eq lockName }
+                    .count()
+            }
+            rowCount shouldBeEqualTo 0L
+            ExposedR2DbcSuspendLeaderElector(db, options).runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+        }
 
     @ParameterizedTest
     @MethodSource("enableDialects")
@@ -309,5 +344,23 @@ class ExposedR2DbcSuspendLeaderElectorTest: AbstractExposedR2dbcLeaderTest() {
                 .count()
         }
         failedCount shouldBeGreaterOrEqualTo 1L
+    }
+
+    private object CancelOnAcquiredHistorySink: SuspendLeaderHistorySink {
+        override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
+            throw CancellationException("cancel after acquire")
+        }
+
+        override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
+        }
+
+        override suspend fun recordFailed(
+            key: LeaderHistoryKey,
+            finishedAt: Instant,
+            durationMs: Long,
+            errorType: String?,
+            errorMessage: String?,
+        ) {
+        }
     }
 }

@@ -197,7 +197,7 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
             return CompletableFuture.failedFuture(e)
         }
 
-        return actionFuture.handleAsync({ value, failure ->
+        return actionFuture.handle { value, failure ->
             watchdog.close()
             release(lock, acquired.acquiredAtNanos, lockName, acquired.slot)
             val cause = failure.unwrapCompletionException()
@@ -205,7 +205,7 @@ class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
                 throw cause
             }
             value
-        }, executor)
+        }
     }
 
     private fun acquire(lockName: String, auditLeaderId: String?): AcquiredSlot? {

@@ -10,6 +10,7 @@ import io.bluetape4k.logging.debug
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
@@ -190,6 +191,34 @@ class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
         val result = election.runAsyncIfLeader(lockName) { futureOf { 99 } }
             .get(3, TimeUnit.SECONDS)
         result shouldBeEqualTo 99
+    }
+
+    @Test
+    fun `runAsyncIfLeader - caller executor shutdown 후 action 완료되어도 cleanup 이 실행된다`() {
+        val lockName = randomName()
+        val election = HazelcastLeaderElector(
+            hazelcastClient,
+            LeaderElectionOptions(waitTime = 2.seconds, leaseTime = 10.seconds, autoExtend = true),
+        )
+        val executor = Executors.newSingleThreadExecutor()
+        val actionStarted = CountDownLatch(1)
+        val actionFuture = CompletableFuture<Int>()
+
+        try {
+            val resultFuture = election.runAsyncIfLeader(lockName, executor) {
+                actionStarted.countDown()
+                actionFuture
+            }
+            actionStarted.await(3, TimeUnit.SECONDS).shouldBeTrue()
+            executor.shutdown()
+
+            actionFuture.complete(7)
+
+            resultFuture.get(3, TimeUnit.SECONDS) shouldBeEqualTo 7
+            election.runIfLeader(lockName) { "reacquired" } shouldBeEqualTo "reacquired"
+        } finally {
+            executor.shutdownNow()
+        }
     }
 
     @Test

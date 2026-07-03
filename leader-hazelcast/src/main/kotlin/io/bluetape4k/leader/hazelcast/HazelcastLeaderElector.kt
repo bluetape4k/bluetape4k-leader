@@ -139,12 +139,12 @@ class HazelcastLeaderElector private constructor(
                                 .onFailure { e -> log.error(e) { "Fail to release lock on action error (async). lockName=$lockName" } }
                             return@thenComposeAsync CompletableFuture.failedFuture(error)
                         }
-                    actionFuture.whenCompleteAsync({ _, _ ->
+                    actionFuture.whenComplete { _, _ ->
                         watchdog.close()
                         runCatching { lock.unlock(options.minLeaseTime, acquiredAtNanos) }
                             .onSuccess { log.debug { "비동기 Leader 권한을 반납했습니다. lockName=$lockName" } }
                             .onFailure { e -> log.error(e) { "Fail to release lock (async). lockName=$lockName" } }
-                    }, executor)
+                    }
                 }
             }, executor)
     }

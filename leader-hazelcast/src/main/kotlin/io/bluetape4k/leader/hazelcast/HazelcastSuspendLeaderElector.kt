@@ -85,33 +85,34 @@ class HazelcastSuspendLeaderElector private constructor(
         }
 
         val acquiredAtNanos = System.nanoTime()
-        val delegate: SuspendExtendDelegate = HazelcastSuspendLockExtendDelegate(lock)
-        val identity = LockIdentity(
-            lockName = lockName,
-            kind = LockIdentity.AnnotationKind.SINGLE,
-            factoryBeanName = HAZELCAST_SUSPEND_FACTORY_BEAN_NAME,
-        )
-        val handle = LeaderLockHandle.real(
-            identity = identity,
-            token = lockName,
-            acquiredAtNanos = acquiredAtNanos,
-            extendDelegate = delegate,
-        )
-        val watchdog = LeaderLeaseAutoExtender.start(
-            options.autoExtend,
-            options.leaseTime,
-            delegate,
-            ERROR_CLASSIFIER,
-        )
-        log.debug { "Leader로 승격하여 suspend 작업을 수행합니다. lockName=$lockName" }
+        var watchdog: AutoCloseable? = null
         try {
+            val delegate: SuspendExtendDelegate = HazelcastSuspendLockExtendDelegate(lock)
+            val identity = LockIdentity(
+                lockName = lockName,
+                kind = LockIdentity.AnnotationKind.SINGLE,
+                factoryBeanName = HAZELCAST_SUSPEND_FACTORY_BEAN_NAME,
+            )
+            val handle = LeaderLockHandle.real(
+                identity = identity,
+                token = lockName,
+                acquiredAtNanos = acquiredAtNanos,
+                extendDelegate = delegate,
+            )
+            watchdog = LeaderLeaseAutoExtender.start(
+                options.autoExtend,
+                options.leaseTime,
+                delegate,
+                ERROR_CLASSIFIER,
+            )
+            log.debug { "Leader로 승격하여 suspend 작업을 수행합니다. lockName=$lockName" }
             return withContext(AopScopeAccess.createLockHandleElement(handle)) {
                 action()
             }
         } finally {
             // NonCancellable: 코루틴 취소 시에도 watchdog close + 락 해제가 중단되지 않도록 보호
             withContext(NonCancellable) {
-                watchdog.close()
+                watchdog?.close()
                 try {
                     lock.unlock(options.minLeaseTime, acquiredAtNanos)
                     log.debug { "Leader 권한을 반납했습니다 (suspend). lockName=$lockName" }

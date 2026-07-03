@@ -8,7 +8,9 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
+import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -70,6 +72,15 @@ class ZooKeeperSuspendLeaderElectorTest: AbstractZooKeeperLeaderTest() {
     }
 
     @Test
+    fun `suspend elector opens cleanup scope immediately after acquisition`() {
+        val source = Path.of("src/main/kotlin/io/bluetape4k/leader/zookeeper/ZooKeeperSuspendLeaderElector.kt")
+            .toFile()
+            .readText()
+
+        source.cleanupScopeStartsImmediatelyAfterAcquire().shouldBeTrue()
+    }
+
+    @Test
     fun `SuspendedJobTester - 코루틴 job 경합에서 단일 리더만 실행된다`() = runTest {
         val lockName = randomName()
         val election = ZooKeeperSuspendLeaderElector(curator)
@@ -96,5 +107,22 @@ class ZooKeeperSuspendLeaderElectorTest: AbstractZooKeeperLeaderTest() {
 
         executed.get() shouldBeGreaterThan 0
         peakConcurrent.get() shouldBeLessOrEqualTo 1
+    }
+
+    private fun String.cleanupScopeStartsImmediatelyAfterAcquire(): Boolean {
+        val acquired = indexOf("log.debug { \"ZooKeeper suspend leader lock 획득 성공. path=${'$'}path\" }")
+        val cleanupScope = indexOf("var watchdog: AutoCloseable? = null", startIndex = acquired.coerceAtLeast(0))
+        val tryStart = indexOf("try {", startIndex = cleanupScope.coerceAtLeast(0))
+        val watchdogStart = indexOf("LeaderLeaseAutoExtender.start", startIndex = tryStart.coerceAtLeast(0))
+        val finallyStart = indexOf("} finally {", startIndex = watchdogStart.coerceAtLeast(0))
+        val watchdogClose = indexOf("watchdog?.close()", startIndex = finallyStart.coerceAtLeast(0))
+        val release = indexOf("mutex.release()", startIndex = watchdogClose.coerceAtLeast(0))
+        return listOf(acquired, cleanupScope, tryStart, watchdogStart, finallyStart, watchdogClose, release).all { it >= 0 } &&
+            acquired < cleanupScope &&
+            cleanupScope < tryStart &&
+            tryStart < watchdogStart &&
+            watchdogStart < finallyStart &&
+            finallyStart < watchdogClose &&
+            watchdogClose < release
     }
 }
