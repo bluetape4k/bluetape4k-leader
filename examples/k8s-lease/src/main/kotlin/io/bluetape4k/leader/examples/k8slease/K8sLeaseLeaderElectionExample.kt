@@ -31,7 +31,7 @@ class K8sLeaseLeaderElectionExample(
 ) {
 
     init {
-        namespace.requireNotBlank("namespace")
+        validateKubernetesNamespace(namespace)
         require(!leaseDuration.isNegative && !leaseDuration.isZero) {
             "leaseDuration must be positive. leaseDuration=$leaseDuration"
         }
@@ -39,6 +39,7 @@ class K8sLeaseLeaderElectionExample(
 
     companion object: KLogging() {
         private const val CONFLICT_STATUS = 409
+        private val DNS_1123_LABEL = Regex("[a-z0-9]([-a-z0-9]*[a-z0-9])?")
 
         @JvmStatic
         fun main(args: Array<String>) {
@@ -47,7 +48,7 @@ class K8sLeaseLeaderElectionExample(
     }
 
     fun tryAcquire(leaseName: String, holderIdentity: String): LeaseAttempt {
-        leaseName.requireNotBlank("leaseName")
+        validateLeaseName(leaseName)
         holderIdentity.requireNotBlank("holderIdentity")
 
         val now = now()
@@ -81,7 +82,7 @@ class K8sLeaseLeaderElectionExample(
     }
 
     fun release(leaseName: String, holderIdentity: String): Boolean {
-        leaseName.requireNotBlank("leaseName")
+        validateLeaseName(leaseName)
         holderIdentity.requireNotBlank("holderIdentity")
 
         val current = lease(leaseName) ?: return false
@@ -104,7 +105,7 @@ class K8sLeaseLeaderElectionExample(
     }
 
     fun delete(leaseName: String) {
-        leaseName.requireNotBlank("leaseName")
+        validateLeaseName(leaseName)
         client.leases().inNamespace(namespace).withName(leaseName).delete()
     }
 
@@ -167,6 +168,26 @@ class K8sLeaseLeaderElectionExample(
     }
 
     private fun now(): ZonedDateTime = ZonedDateTime.now(clock)
+
+    private fun validateKubernetesNamespace(namespace: String) {
+        namespace.requireNotBlank("namespace")
+        require(namespace.length <= 63) {
+            "namespace must be at most 63 characters for Kubernetes namespace name. namespace=$namespace"
+        }
+        require(DNS_1123_LABEL.matches(namespace)) {
+            "namespace must be a DNS-1123 label for Kubernetes namespace name. namespace=$namespace"
+        }
+    }
+
+    private fun validateLeaseName(leaseName: String) {
+        leaseName.requireNotBlank("leaseName")
+        require(leaseName.length <= 63) {
+            "leaseName must be at most 63 characters for Kubernetes Lease name. leaseName=$leaseName"
+        }
+        require(DNS_1123_LABEL.matches(leaseName)) {
+            "leaseName must be a DNS-1123 label for Kubernetes Lease name. leaseName=$leaseName"
+        }
+    }
 }
 
 enum class LeaseOutcome {

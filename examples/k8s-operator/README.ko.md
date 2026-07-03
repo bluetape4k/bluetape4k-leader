@@ -76,5 +76,16 @@ kubectl apply -f k8s/deployment.yaml
 kubectl logs deploy/bluetape4k-k8s-operator -f
 ```
 
-ServiceAccount에는 대상 namespace의 `coordination.k8s.io/leases`에 대해
-`get`, `create`, `update`, `patch`, `delete` 권한이 필요합니다.
+런타임 ServiceAccount에는 대상 namespace의 `coordination.k8s.io/leases`에 대해
+`get`, `create`, `update`, `patch` 권한만 필요합니다. Lease 삭제는 운영 중인
+operator 권한이 아니라 관리자/테스트 정리 권한으로 분리합니다.
+
+예제 Deployment는 `latest` 대신 안정적인 `0.5.0` 이미지 태그를 사용합니다. 실제
+환경에서는 직접 빌드한 immutable tag나 digest로 교체하세요.
+
+Probe 계약은 다음과 같습니다.
+
+- `startupProbe`는 Spring Boot actuator endpoint가 준비될 때까지 liveness 판단을
+  늦춥니다.
+- `livenessProbe`는 actuator health endpoint가 응답하지 않는 pod를 재시작합니다.
+- `readinessProbe`는 시작 또는 복구 중인 pod를 service routing에서 제외합니다.
