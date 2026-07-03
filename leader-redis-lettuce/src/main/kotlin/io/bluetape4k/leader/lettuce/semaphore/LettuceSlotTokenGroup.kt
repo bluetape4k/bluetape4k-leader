@@ -5,6 +5,7 @@ import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.lettuce.internal.MonotonicDeadline
 import io.bluetape4k.leader.lettuce.script.RedisScript
 import io.bluetape4k.leader.lettuce.script.RedisScriptRunner
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -210,7 +211,7 @@ return 0
     }
 
     init {
-        lockName.requireNotBlank("lockName")
+        validateLockName(lockName)
         maxLeaders.requirePositiveNumber("maxLeaders")
     }
 

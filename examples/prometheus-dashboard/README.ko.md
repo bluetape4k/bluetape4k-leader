@@ -54,7 +54,8 @@ curl http://localhost:8080/actuator/prometheus | grep leader_aop
 `DEMO_REDIS_URL`이 없으면 `bootRun`은 Testcontainers Redis를 사용합니다.
 demo는 로컬 `ObservationHandler`로 leader observation도 로그에 남깁니다. 끄려면 `DEMO_OBSERVATION_LOGGING_HANDLER_ENABLED=false`를 지정하세요.
 
-이 예제는 하나의 정적 job 이름만 사용하므로 raw metric lock label을 명시적으로 켭니다.
+이 예제는 metric lock label을 기본적으로 `REDACT`로 둡니다. raw label 없이 제한된 상관관계만
+필요하면 `HASH`를 사용하고, `RAW`는 정적 job 이름만 쓰는 로컬 데모 profile에서만 켜세요.
 
 ```yaml
 bluetape4k:
@@ -63,10 +64,10 @@ bluetape4k:
       metrics:
         tags:
           lock-name:
-            mode: RAW
+            mode: REDACT
 ```
 
-실제 서비스에서 lock name에 tenant, user, request, 무제한 job identifier가 들어간다면 기본 `REDACT` 모드를 유지하세요. raw label 없이 제한된 상관관계만 필요하면 `HASH`를 사용합니다.
+실제 서비스에서 lock name에 tenant, user, request, 무제한 job identifier가 들어간다면 `REDACT`를 유지하세요.
 
 ## Observation Tracing Demo
 

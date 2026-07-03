@@ -3,6 +3,7 @@ package io.bluetape4k.leader.examples.ktor
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.coroutines.runSuspendIO
@@ -41,6 +42,20 @@ class KtorAppTest: AbstractKtorAppTest() {
         private val AWAIT_TIMEOUT = 15.seconds
 
         private val objectMapper = ObjectMapper()
+    }
+
+    @Test
+    fun `Redis URL redaction removes credentials from startup log value`() {
+        val redacted = redactRedisUrlForLog("redis://user:secret@localhost:6379/0")
+
+        redacted shouldBeEqualTo "redis://redacted@localhost:6379/0"
+        redacted.contains("user").shouldBeFalse()
+        redacted.contains("secret").shouldBeFalse()
+    }
+
+    @Test
+    fun `Redis URL redaction handles malformed values without leaking input`() {
+        redactRedisUrlForLog("redis://user:secret@[bad-host") shouldBeEqualTo "<invalid-redis-url>"
     }
 
     @Test

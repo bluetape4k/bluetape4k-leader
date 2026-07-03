@@ -35,6 +35,15 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
     companion object: KLogging()
 
     @Test
+    fun `lock name validation rejects Redis namespace manipulation before backend calls`() {
+        val leaderElection = RedissonLeaderElector(redissonClient)
+
+        assertFailsWith<IllegalArgumentException> {
+            leaderElection.runIfLeader("tenant{other}") { "should-not-run" }
+        }
+    }
+
+    @Test
     fun `run action if leader`() {
         val lockName = randomName()
         val leaderElection = RedissonLeaderElector(redissonClient)

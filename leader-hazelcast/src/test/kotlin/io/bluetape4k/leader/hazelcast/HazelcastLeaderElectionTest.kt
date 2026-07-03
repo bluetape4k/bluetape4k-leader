@@ -2,15 +2,16 @@ package io.bluetape4k.leader.hazelcast
 
 import io.bluetape4k.concurrent.futureOf
 import io.bluetape4k.concurrent.virtualthread.VirtualThreadExecutor
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeGreaterThan
-import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
@@ -26,6 +27,15 @@ import kotlin.time.Duration.Companion.seconds
 class HazelcastLeaderElectionTest: AbstractHazelcastLeaderTest() {
 
     companion object: KLogging()
+
+    @Test
+    fun `lock name validation rejects map namespace manipulation before backend calls`() {
+        val election = HazelcastLeaderElector(hazelcastClient)
+
+        assertFailsWith<IllegalArgumentException> {
+            election.runIfLeader("tenant{other}") { "should-not-run" }
+        }
+    }
 
     @Test
     fun `runIfLeader - 리더로 선출되어 action 을 실행하고 결과를 반환한다`() {

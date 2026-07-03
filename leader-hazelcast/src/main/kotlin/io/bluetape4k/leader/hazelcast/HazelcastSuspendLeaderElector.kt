@@ -13,10 +13,10 @@ import io.bluetape4k.leader.hazelcast.internal.HazelcastSuspendLockExtendDelegat
 import io.bluetape4k.leader.hazelcast.lock.HazelcastSuspendLock
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
-import io.bluetape4k.support.requireNotBlank
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -68,7 +68,7 @@ class HazelcastSuspendLeaderElector private constructor(
     private val lockMap: IMap<String, String> = hazelcast.getMap(HazelcastLeaderElector.LOCK_MAP_NAME)
 
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
-        lockName.requireNotBlank("lockName")
+        validateLockName(lockName)
 
         val lock = HazelcastSuspendLock(
             lockMap = lockMap,
@@ -134,6 +134,6 @@ suspend inline fun <T> HazelcastInstance.suspendRunIfLeader(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: suspend () -> T,
 ): T? {
-    jobName.requireNotBlank("jobName")
+    validateLockName(jobName)
     return HazelcastSuspendLeaderElector(this, options).runIfLeader(jobName) { action() }
 }

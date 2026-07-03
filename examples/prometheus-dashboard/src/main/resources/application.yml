@@ -37,7 +37,7 @@ bluetape4k:
         enabled: true
         tags:
           lock-name:
-            mode: RAW
+            mode: REDACT
     observability:
       tracing:
         enabled: true

@@ -54,7 +54,8 @@ curl http://localhost:8080/actuator/prometheus | grep leader_aop
 `bootRun` uses Testcontainers Redis unless `DEMO_REDIS_URL` is set.
 The demo also logs leader observations from a local `ObservationHandler`; disable it with `DEMO_OBSERVATION_LOGGING_HANDLER_ENABLED=false`.
 
-The example opts into raw metric lock labels because it uses one static job name:
+The example keeps metric lock labels redacted by default. Use `HASH` when a dashboard needs bounded
+correlation without raw labels, and reserve `RAW` for profile-gated local demos with static job names.
 
 ```yaml
 bluetape4k:
@@ -63,10 +64,10 @@ bluetape4k:
       metrics:
         tags:
           lock-name:
-            mode: RAW
+            mode: REDACT
 ```
 
-Keep the default `REDACT` mode in real services when lock names contain tenant, user, request, or unbounded job identifiers. Use `HASH` when a dashboard needs bounded correlation without raw labels.
+Keep `REDACT` in real services when lock names contain tenant, user, request, or unbounded job identifiers.
 
 ## Observation Tracing Demo
 
