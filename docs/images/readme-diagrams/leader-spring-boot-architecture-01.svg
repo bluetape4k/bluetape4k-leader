@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1320" height="1080" viewBox="0 0 1320 1080" role="img" aria-labelledby="title desc">
   <title id="title">leader-spring-boot architecture</title>
-  <desc id="desc">Architecture diagram for Spring Boot auto-configuration, backend factory registration, AspectJ compile-time woven advice, metrics, observability, and actuator integration.</desc>
+  <desc id="desc">Architecture diagram for Spring Boot auto-configuration, backend factory registration, AspectJ compile-time woven advice, metrics, observability, actuator integration, and startup diagnostics.</desc>
   <defs>
     <filter id="shadow" x="-10%" y="-18%" width="120%" height="140%">
       <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0f172a" flood-opacity="0.14"/>
@@ -15,7 +15,7 @@
   </defs>
   <rect class="canvas" width="1320" height="1080"/>
   <text class="title" x="660" y="68" text-anchor="middle">leader-spring-boot Architecture</text>
-  <text class="subtitle" x="660" y="96" text-anchor="middle">Spring Boot registers backend factories first, then AspectJ-woven advice guards annotated methods with core leader electors.</text>
+  <text class="subtitle" x="660" y="96" text-anchor="middle">Spring Boot registers backend factories, then diagnostics checks the assembled runtime surface before woven advice guards methods.</text>
 
   <rect class="band" x="58" y="128" width="360" height="278"/>
   <text class="band-title" x="84" y="158">Application surface</text>
@@ -59,6 +59,16 @@
   <text class="small" x="1079" y="324" text-anchor="middle">explicit bean, backend annotation,</text>
   <text class="small" x="1079" y="340" text-anchor="middle">single bean, or @Primary selection</text>
 
+  <rect class="band" x="902" y="438" width="360" height="280"/>
+  <text class="band-title" x="928" y="468">Startup checks</text>
+  <rect class="card obs" x="936" y="498" width="286" height="150"/>
+  <text class="card-title" x="1079" y="526" text-anchor="middle">Startup diagnostics</text>
+  <text class="card-sub" x="1079" y="550" text-anchor="middle">active backend report</text>
+  <text class="card-sub" x="1079" y="570" text-anchor="middle">management endpoint exposure</text>
+  <text class="card-sub" x="1079" y="590" text-anchor="middle">registry seed and tag warnings</text>
+  <text class="small" x="1079" y="616" text-anchor="middle">non-fatal by default</text>
+  <text class="small" x="1079" y="634" text-anchor="middle">strict mode fails on warnings</text>
+
   <rect class="band" x="58" y="760" width="1204" height="196"/>
   <text class="band-title" x="84" y="790">Runtime path after AspectJ compile-time weaving</text>
   <rect class="card runtime" x="96" y="832" width="222" height="82"/>
@@ -80,6 +90,8 @@
   <path class="state" d="M 660 380 L 660 412"/>
   <path class="state" d="M 660 482 L 660 514"/>
   <path class="state" d="M 660 624 L 660 656"/>
+  <path class="control" d="M 816 692 L 876 692 Q 894 692 894 572 L 936 572"/>
+  <rect class="label-bg" x="846" y="644" width="78" height="22"/><text class="label" x="885" y="660" text-anchor="middle" fill="#9a3412">diagnose</text>
   <path class="data" d="M 816 336 L 876 336 Q 894 336 894 318 L 894 278 Q 894 260 912 260 L 936 260"/>
   <rect class="label-bg" x="846" y="278" width="64" height="22"/><text class="label" x="878" y="294" text-anchor="middle" fill="#6d28d9">create</text>
   <path class="primary" d="M 318 873 L 374 873"/>

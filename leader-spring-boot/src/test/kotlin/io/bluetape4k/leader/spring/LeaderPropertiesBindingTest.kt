@@ -37,6 +37,9 @@ class LeaderPropertiesBindingTest {
                 "bluetape4k.leader.consul.key-prefix" to "apps/orders/leader",
                 "bluetape4k.leader.consul.session-name-prefix" to "orders-leader",
                 "bluetape4k.leader.consul.lock-delay" to "2s",
+                "bluetape4k.leader.diagnostics.enabled" to "false",
+                "bluetape4k.leader.diagnostics.strict" to "true",
+                "bluetape4k.leader.diagnostics.include-bean-names" to "false",
             ),
         )
         val props = Binder(source).bindAs<LeaderProperties>("bluetape4k.leader").get()
@@ -52,6 +55,9 @@ class LeaderPropertiesBindingTest {
         props.consul.keyPrefix shouldBeEqualTo "apps/orders/leader"
         props.consul.sessionNamePrefix shouldBeEqualTo "orders-leader"
         props.consul.lockDelay shouldBeEqualTo Duration.ofSeconds(2)
+        props.diagnostics.enabled shouldBeEqualTo false
+        props.diagnostics.strict shouldBeEqualTo true
+        props.diagnostics.includeBeanNames shouldBeEqualTo false
     }
 
     @Test
@@ -68,6 +74,9 @@ class LeaderPropertiesBindingTest {
         props.consul.keyPrefix shouldBeEqualTo "bluetape4k/leader"
         props.consul.sessionNamePrefix shouldBeEqualTo "bluetape4k-leader"
         props.consul.lockDelay shouldBeEqualTo Duration.ZERO
+        props.diagnostics.enabled shouldBeEqualTo true
+        props.diagnostics.strict shouldBeEqualTo false
+        props.diagnostics.includeBeanNames shouldBeEqualTo true
     }
 
     @Test
