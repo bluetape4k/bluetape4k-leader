@@ -2,13 +2,13 @@
 
 English | [한국어](README.ko.md)
 
-Redis-backed leader election using [Redisson](https://redisson.org/) — blocking and coroutine APIs.
+Redis-backed leader election using [Redisson](https://redisson.org/) — blocking, async, and coroutine APIs.
 
 ---
 
 ## Overview
 
-`leader-redis-redisson` implements `leader-core` interfaces using Redisson's `RLock` and `RPermitExpirableSemaphore`. It supports blocking, async, coroutine, and virtual-thread execution models.
+`leader-redis-redisson` implements `leader-core` interfaces using Redisson's `RLock` and `RPermitExpirableSemaphore`. It supports blocking, `CompletableFuture` async, and coroutine APIs. Async calls accept caller-provided executors, so callers may use a virtual-thread executor, but this module does not expose a dedicated `RedissonVirtualThread*` elector type.
 
 For single-leader elections, `LeaderElectionOptions(autoExtend = true)` enables the shared `LeaderLeaseAutoExtender` watchdog (T8 PR 3 / Issue #79). The Redisson built-in lock watchdog is disabled — `tryLock` is always called with an explicit `leaseTime` so that `LeaderLeaseAutoExtender` is the single source of truth for lease extension. This activates R2 watchdog-skip semantics: when the user calls `LockExtender.extendActiveLock(d)`, the watchdog observes the updated `lastExtendDeadline` on the shared `ExtendDelegate` and skips the next tick if it would shorten the user-extended lease. `minLeaseTime > 0` combined with `autoExtend = true` is now supported (the earlier restriction tied to Redisson's built-in watchdog has been removed).
 
@@ -225,7 +225,7 @@ removed with `HDEL` on release. A `null` or absent `leaderId` skips the write en
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.4.0")
 
 // Redisson must be on the classpath
 implementation("org.redisson:redisson:3.x.x")

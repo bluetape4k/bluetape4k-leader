@@ -2,13 +2,13 @@
 
 [English](README.md) | 한국어
 
-[Redisson](https://redisson.org/) 기반 Redis 분산 리더 선출 구현체입니다. 블로킹과 코루틴 API를 제공합니다.
+[Redisson](https://redisson.org/) 기반 Redis 분산 리더 선출 구현체입니다. 블로킹, 비동기, 코루틴 API를 제공합니다.
 
 ---
 
 ## 개요
 
-`leader-redis-redisson`은 Redisson의 `RLock`과 `RPermitExpirableSemaphore` 를 사용하여 `leader-core` 인터페이스를 구현합니다. 블로킹, 비동기, 코루틴, 가상 스레드 실행 모델을 모두 지원합니다.
+`leader-redis-redisson`은 Redisson의 `RLock`과 `RPermitExpirableSemaphore` 를 사용하여 `leader-core` 인터페이스를 구현합니다. 블로킹, `CompletableFuture` 비동기, 코루틴 API를 지원합니다. 비동기 호출은 caller가 제공한 executor를 사용하므로 virtual-thread executor를 전달할 수 있지만, 이 모듈은 별도의 `RedissonVirtualThread*` elector 타입을 제공하지 않습니다.
 
 단일 리더 선출에서 `LeaderElectionOptions(autoExtend = true)`를 사용하면 공통 `LeaderLeaseAutoExtender` watchdog 이 lease 를 연장합니다(T8 PR 3 / Issue #79). Redisson 자체 lock watchdog 은 사용하지 않습니다. `tryLock`은 항상 명시적 `leaseTime` 으로 호출하므로 `LeaderLeaseAutoExtender`가 lease extension 의 단일 기준이 됩니다. 사용자가 `LockExtender.extendActiveLock(d)`를 호출하면 watchdog 은 공유 `ExtendDelegate`의 `lastExtendDeadline`을 확인하고, 다음 tick 이 사용자 연장분을 줄일 수 있으면 건너뜁니다. 이제 `autoExtend = true`와 `minLeaseTime > 0` 조합도 지원합니다.
 
@@ -159,6 +159,12 @@ val options = LeaderGroupElectionOptions(
 val election = RedissonLeaderGroupElector(client, options)
 ```
 
+### `invoke` 팩토리 사용
+
+```kotlin
+val election = RedissonSuspendLeaderElector(client, LeaderElectionOptions.Default)
+```
+
 ### SPI 팩토리 사용
 
 ```kotlin
@@ -217,7 +223,7 @@ release 시 `HDEL`로 삭제됩니다. `null` 또는 생략된 `leaderId`는 기
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.4.0")
 
 // Redisson이 클래스패스에 있어야 합니다
 implementation("org.redisson:redisson:3.x.x")

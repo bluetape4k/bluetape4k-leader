@@ -473,5 +473,5 @@ required.
 
 ```kotlin
 // build.gradle.kts
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-core:0.3.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-core:0.4.0")
 ```

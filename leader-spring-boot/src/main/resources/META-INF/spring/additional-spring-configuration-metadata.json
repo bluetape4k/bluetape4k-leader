@@ -38,12 +38,12 @@
     {
       "name": "bluetape4k.leader.aop",
       "type": "io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties",
-      "description": "Leader AOP 자동 구성 속성."
+      "description": "Leader AOP auto-configuration options."
     },
     {
       "name": "bluetape4k.leader.aop.spel",
       "type": "io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties$Spel",
-      "description": "Leader AOP SpEL 보안 옵션."
+      "description": "Leader AOP SpEL security options."
     },
     {
       "name": "bluetape4k.leader.aop.metrics",
@@ -215,43 +215,43 @@
     {
       "name": "bluetape4k.leader.aop.enabled",
       "type": "java.lang.Boolean",
-      "description": "Leader AOP 자동 구성 전체 활성화 여부.",
+      "description": "Enable Leader AOP auto-configuration.",
       "defaultValue": true
     },
     {
       "name": "bluetape4k.leader.aop.strict",
       "type": "java.lang.Boolean",
-      "description": "Footgun 검출 strict 모드. true=startup fail, false=WARN.",
+      "description": "Strict mode for footgun detection. true fails startup; false logs warnings.",
       "defaultValue": false
     },
     {
       "name": "bluetape4k.leader.aop.failure-mode",
       "type": "io.bluetape4k.leader.annotation.LeaderAspectFailureMode",
-      "description": "전역 default failure mode (어노테이션 미지정 시).",
+      "description": "Global default failure mode used when an annotation does not specify one.",
       "defaultValue": "RETHROW"
     },
     {
       "name": "bluetape4k.leader.aop.default-wait-time",
       "type": "java.time.Duration",
-      "description": "전역 default waitTime (어노테이션 미지정 시).",
+      "description": "Global default waitTime used when an annotation does not specify one.",
       "defaultValue": "PT5S"
     },
     {
       "name": "bluetape4k.leader.aop.default-lease-time",
       "type": "java.time.Duration",
-      "description": "전역 default leaseTime (어노테이션 미지정 시).",
+      "description": "Global default leaseTime used when an annotation does not specify one.",
       "defaultValue": "PT1M"
     },
     {
       "name": "bluetape4k.leader.aop.lock-name-prefix",
       "type": "java.lang.String",
-      "description": "SpEL 평가 결과 앞에 자동 부착되는 prefix. empty string opt-out.",
+      "description": "Prefix prepended to SpEL-evaluated lock names. Use an empty string to opt out.",
       "defaultValue": "${spring.application.name:}:"
     },
     {
       "name": "bluetape4k.leader.aop.spel.allow-method-invocation",
       "type": "java.lang.Boolean",
-      "description": "SpEL withMethodResolvers 활성화. CVE-2022-22947 회색지대 차단을 위해 default false.",
+      "description": "Enable SpEL method resolvers. Defaults to false to avoid CVE-2022-22947-adjacent risk.",
       "defaultValue": false
     },
     {
