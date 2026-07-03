@@ -13,10 +13,10 @@ import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonLockExtendDelegate
 import io.bluetape4k.leader.remainingMinLeaseTime
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
-import io.bluetape4k.support.requireNotBlank
 import org.redisson.api.RLock
 import org.redisson.api.RedissonClient
 import org.redisson.client.RedisException
@@ -104,7 +104,7 @@ class RedissonLeaderElector private constructor(
     }
 
     private fun <T> runImpl(lockName: String, auditLeaderId: String?, action: () -> T): T? {
-        lockName.requireNotBlank("lockName")
+        validateLockName(lockName)
 
         val lock: RLock = redissonClient.getLock(lockName)
 
@@ -197,7 +197,7 @@ class RedissonLeaderElector private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
-        lockName.requireNotBlank("lockName")
+        validateLockName(lockName)
 
         val lock: RLock = redissonClient.getLock(lockName)
 
@@ -357,7 +357,7 @@ inline fun <T> RedissonClient.runIfLeader(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: () -> T,
 ): T? {
-    jobName.requireNotBlank("jobName")
+    validateLockName(jobName)
     val leaderElection = RedissonLeaderElector(this, options)
     return leaderElection.runIfLeader(jobName) { action() }
 }
@@ -371,7 +371,7 @@ inline fun <T> RedissonClient.runAsyncIfLeader(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> {
-    jobName.requireNotBlank("jobName")
+    validateLockName(jobName)
     val leaderElection = RedissonLeaderElector(this, options)
     return leaderElection.runAsyncIfLeader(jobName, executor) { action() }
 }

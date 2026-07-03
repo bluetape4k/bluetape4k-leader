@@ -12,10 +12,10 @@ import io.bluetape4k.leader.hazelcast.internal.HazelcastBackendErrorClassifier
 import io.bluetape4k.leader.hazelcast.internal.HazelcastLockExtendDelegate
 import io.bluetape4k.leader.hazelcast.lock.HazelcastLock
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.error
-import io.bluetape4k.support.requireNotBlank
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
@@ -60,7 +60,7 @@ class HazelcastLeaderElector private constructor(
     private val lockMap: IMap<String, String> = hazelcast.getMap(LOCK_MAP_NAME)
 
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
-        lockName.requireNotBlank("lockName")
+        validateLockName(lockName)
 
         val lock = HazelcastLock(lockMap, lockName, LOCK_MAP_NAME, hazelcast::newTransactionContext)
         log.debug { "Leader 승격을 요청합니다 ... lockName=$lockName" }
@@ -111,7 +111,7 @@ class HazelcastLeaderElector private constructor(
         executor: Executor,
         action: () -> CompletableFuture<T>,
     ): CompletableFuture<T?> {
-        lockName.requireNotBlank("lockName")
+        validateLockName(lockName)
 
         val lock = HazelcastLock(lockMap, lockName, LOCK_MAP_NAME, hazelcast::newTransactionContext)
 
@@ -158,7 +158,7 @@ inline fun <T> HazelcastInstance.runIfLeader(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: () -> T,
 ): T? {
-    jobName.requireNotBlank("jobName")
+    validateLockName(jobName)
     return HazelcastLeaderElector(this, options).runIfLeader(jobName) { action() }
 }
 
@@ -171,6 +171,6 @@ inline fun <T> HazelcastInstance.runAsyncIfLeader(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: () -> CompletableFuture<T>,
 ): CompletableFuture<T?> {
-    jobName.requireNotBlank("jobName")
+    validateLockName(jobName)
     return HazelcastLeaderElector(this, options).runAsyncIfLeader(jobName, executor) { action() }
 }

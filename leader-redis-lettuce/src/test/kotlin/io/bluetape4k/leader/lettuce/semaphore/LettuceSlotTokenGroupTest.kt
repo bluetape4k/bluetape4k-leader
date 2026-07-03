@@ -35,6 +35,13 @@ class LettuceSlotTokenGroupTest: AbstractLettuceLeaderTest() {
         group = LettuceSlotTokenGroup(connection, lockName, MAX_LEADERS)
     }
 
+    @Test
+    fun `slot key rejects Redis hash-tag manipulation in lock name`() {
+        assertFailsWith<IllegalArgumentException> {
+            LettuceSlotTokenGroup(connection, "tenant{other}", MAX_LEADERS)
+        }
+    }
+
     @AfterEach
     fun teardown() {
         connection.sync().del(group.slotKey)

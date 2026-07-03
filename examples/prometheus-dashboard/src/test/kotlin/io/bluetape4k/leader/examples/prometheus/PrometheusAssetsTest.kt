@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.examples.prometheus
 
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -63,6 +64,14 @@ class PrometheusAssetsTest {
     }
 
     @Test
+    fun `application config redacts lock name metric tags by default`() {
+        val config = applicationConfigPath.readText()
+
+        config.contains("mode: REDACT").shouldBeTrue()
+        config.contains("mode: RAW").shouldBeFalse()
+    }
+
+    @Test
     fun `readme files document alerts runbooks and diagram`() {
         val english = englishReadmePath.readText()
         val korean = koreanReadmePath.readText()
@@ -89,6 +98,7 @@ class PrometheusAssetsTest {
         private val docsImageRoot = projectRoot.resolve("docs/images/readme-diagrams")
 
         private val prometheusConfigPath = exampleRoot.resolve("provisioning/prometheus/prometheus.yml")
+        private val applicationConfigPath = exampleRoot.resolve("src/main/resources/application.yml")
         private val prometheusRulesPath = exampleRoot.resolve("provisioning/prometheus/rules/leader-alerts.yml")
         private val grafanaDashboardPath =
             exampleRoot.resolve("provisioning/grafana/dashboards/leader-dashboard.json")

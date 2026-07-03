@@ -23,6 +23,7 @@ import io.ktor.server.routing.routing
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.codec.StringCodec
+import java.net.URI
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
@@ -66,7 +67,7 @@ object KtorAppMain: KLogging() {
     fun main(args: Array<String>) {
         val redisUrl = System.getenv(ENV_REDIS_URL) ?: DEFAULT_REDIS_URL
         val port = System.getenv(ENV_PORT)?.toIntOrNull() ?: DEFAULT_PORT
-        log.info { "KtorAppMain 시작 — redisUrl=$redisUrl, port=$port" }
+        log.info { "KtorAppMain 시작 — redisUrl=${redactRedisUrlForLog(redisUrl)}, port=$port" }
 
         val client = RedisClient.create(redisUrl).also {
             ShutdownQueue.register { runCatching { it.shutdown() } }
@@ -80,6 +81,16 @@ object KtorAppMain: KLogging() {
         }.start(wait = true)
     }
 }
+
+internal fun redactRedisUrlForLog(redisUrl: String): String =
+    runCatching {
+        val uri = URI(redisUrl)
+        if (uri.userInfo == null) {
+            redisUrl
+        } else {
+            URI(uri.scheme, "redacted", uri.host, uri.port, uri.path, uri.query, uri.fragment).toString()
+        }
+    }.getOrElse { "<invalid-redis-url>" }
 
 /**
  * Ktor 애플리케이션 모듈 — 플러그인 install + 라우트 + 백그라운드 leader scheduled job 을 구성한다.

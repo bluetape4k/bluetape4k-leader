@@ -13,10 +13,10 @@ import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonSuspendLockExtendDelegate
 import io.bluetape4k.leader.remainingMinLeaseTime
+import io.bluetape4k.leader.validateLockName
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
-import io.bluetape4k.support.requireNotBlank
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -53,7 +53,7 @@ suspend inline fun <T> RedissonClient.suspendRunIfLeader(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
     crossinline action: suspend () -> T,
 ): T? {
-    jobName.requireNotBlank("jobName")
+    validateLockName(jobName)
 
     val leaderElection = RedissonSuspendLeaderElector(this, options)
     return leaderElection.runIfLeader(jobName) { action() }
@@ -160,7 +160,7 @@ class RedissonSuspendLeaderElector private constructor(
     }
 
     private suspend fun <T> runImpl(lockName: String, auditLeaderId: String?, action: suspend () -> T): T? {
-        lockName.requireNotBlank("lockName")
+        validateLockName(lockName)
 
         val lock: RLock = redissonClient.getLock(lockName)
 

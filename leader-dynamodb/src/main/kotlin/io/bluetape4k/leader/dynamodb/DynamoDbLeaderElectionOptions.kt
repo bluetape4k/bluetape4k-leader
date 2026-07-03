@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.dynamodb
 
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.dynamodb.internal.DynamoDbKeys
 import io.bluetape4k.support.requireGt
-import io.bluetape4k.support.requireNotBlank
 import java.io.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -31,8 +31,8 @@ data class DynamoDbLeaderElectionOptions(
 ) : Serializable {
 
     init {
-        tableName.requireNotBlank("tableName")
-        keyPrefix.requireNotBlank("keyPrefix")
+        DynamoDbKeys.validateTableName(tableName)
+        DynamoDbKeys.validateKeyPrefix(keyPrefix)
         retryDelay.requireGt(Duration.ZERO, "retryDelay")
         ttlPadding.requireGt(Duration.ZERO, "ttlPadding")
         require(clockSkewTolerance >= Duration.ZERO) { "clockSkewTolerance must be >= 0: $clockSkewTolerance" }
