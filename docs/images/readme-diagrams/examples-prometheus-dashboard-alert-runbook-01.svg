@@ -20,7 +20,6 @@
       .badge { stroke-width: 2; }
       .badgeText { font-family: "Comic Mono", "SFMono-Regular", monospace; font-size: 15px; font-weight: 700; }
       .edge { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-      .dash { stroke-dasharray: 10 8; }
       .labelBox { fill: #ffffff; stroke-width: 1.5; rx: 14; }
       .label { font-size: 12px; }
     </style>
@@ -166,17 +165,17 @@
 
   <path d="M 274 364 L 274 484" class="edge" stroke="#3f7d9c" marker-end="url(#arrowBlue)" data-connector="job-to-redis"/>
   <path d="M 274 578 L 274 698" class="edge" stroke="#6e8f4f" marker-end="url(#arrowGreen)" data-connector="redis-to-outcome"/>
-  <path d="M 436 745 L 480 745 Q 500 745 500 725 L 500 238 Q 500 218 520 218 L 714 218 Q 734 218 734 238 L 734 270" class="edge" stroke="#7c5aa6" marker-end="url(#arrowPurple)" data-connector="outcome-to-meters"/>
+  <path d="M 436 745 L 480 745 Q 500 745 500 725 L 500 337 Q 500 317 520 317 L 552 317" class="edge" stroke="#7c5aa6" marker-end="url(#arrowPurple)" data-connector="outcome-to-meters"/>
   <path d="M 714 364 L 714 484" class="edge" stroke="#3f7d9c" marker-end="url(#arrowBlue)" data-connector="meters-to-actuator"/>
   <path d="M 714 578 L 714 698" class="edge" stroke="#c97831" marker-end="url(#arrowAmber)" data-connector="actuator-to-tags"/>
-  <path d="M 876 531 L 920 531 Q 940 531 940 511 L 940 238 Q 940 218 960 218 L 1154 218 Q 1174 218 1174 238 L 1174 270" class="edge" stroke="#c97831" marker-end="url(#arrowAmber)" data-connector="actuator-to-prometheus"/>
+  <path d="M 876 531 L 920 531 Q 940 531 940 511 L 940 337 Q 940 317 960 317 L 992 317" class="edge" stroke="#c97831" marker-end="url(#arrowAmber)" data-connector="actuator-to-prometheus"/>
   <path d="M 1154 364 L 1154 484" class="edge" stroke="#b86868" marker-end="url(#arrowRed)" data-connector="prometheus-to-rules"/>
   <path d="M 1154 578 L 1154 698" class="edge" stroke="#7c5aa6" marker-end="url(#arrowPurple)" data-connector="rules-to-signals"/>
-  <path d="M 1316 745 L 1360 745 Q 1380 745 1380 725 L 1380 238 Q 1380 218 1400 218 L 1594 218 Q 1614 218 1614 238 L 1614 270" class="edge" stroke="#3f7d9c" marker-end="url(#arrowBlue)" data-connector="signals-to-grafana"/>
+  <path d="M 1316 745 L 1360 745 Q 1380 745 1380 725 L 1380 337 Q 1380 317 1400 317 L 1432 317" class="edge" stroke="#3f7d9c" marker-end="url(#arrowBlue)" data-connector="signals-to-grafana"/>
   <path d="M 1594 364 L 1594 484" class="edge" stroke="#6e8f4f" marker-end="url(#arrowGreen)" data-connector="grafana-to-runbook"/>
   <path d="M 1594 578 L 1594 698" class="edge" stroke="#c97831" marker-end="url(#arrowAmber)" data-connector="runbook-to-actions"/>
 
-  <path d="M 1432 810 L 112 810" class="edge dash" stroke="#78909c" marker-end="url(#arrowGray)" data-connector="observe-only-note"/>
+  <path d="M 1432 810 L 112 810" class="edge" stroke="#78909c" marker-end="url(#arrowGray)" data-connector="observe-only-note"/>
   <rect x="722" y="824" width="392" height="38" rx="19" class="labelBox" stroke="#78909c"/>
   <text x="918" y="848" text-anchor="middle" class="label">observe only: dashboards do not trigger leader work</text>
 
