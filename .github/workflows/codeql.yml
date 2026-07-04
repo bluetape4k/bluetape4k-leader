@@ -28,6 +28,12 @@ jobs:
         with:
           languages: ${{ matrix.language }}
 
+      - name: Pin Kotlin for CodeQL extractor
+        if: matrix.language == 'java-kotlin'
+        run: |
+          perl -0pi -e 's/kotlin = "2\.4\.0"/kotlin = "2.3.21"/' gradle/libs.versions.toml
+          grep -n 'kotlin = "2.3.21"' gradle/libs.versions.toml
+
       - name: Setup JDK 21
         if: matrix.language == 'java-kotlin'
         uses: actions/setup-java@v5
