@@ -38,6 +38,7 @@ bluetape4k:
         tags:
           lock-name:
             mode: REDACT
+            redacted-value: redacted-lock
     observability:
       tracing:
         enabled: true

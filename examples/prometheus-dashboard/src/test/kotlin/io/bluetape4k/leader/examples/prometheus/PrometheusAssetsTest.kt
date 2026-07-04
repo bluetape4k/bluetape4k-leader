@@ -68,6 +68,7 @@ class PrometheusAssetsTest {
         val config = applicationConfigPath.readText()
 
         config.contains("mode: REDACT").shouldBeTrue()
+        config.contains("redacted-value: redacted-lock").shouldBeTrue()
         config.contains("mode: RAW").shouldBeFalse()
     }
 
