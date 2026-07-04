@@ -1,7 +1,9 @@
 package io.bluetape4k.leader.examples.prometheus
 
 import io.bluetape4k.assertions.shouldBeGreaterThan
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.leader.micrometer.LeaderMetricTagOptions
 import io.bluetape4k.testcontainers.storage.RedisServer
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
@@ -44,12 +46,10 @@ class PrometheusScrapeTest {
             .untilAsserted {
                 val scrape = scrapePrometheus()
 
-                scrape.contains("""leader_aop_attempts_total{lock_name="${LeaderScheduledJob.LOCK_NAME}"""")
-                    .shouldBeTrue()
-                scrape.contains("""leader_aop_acquired_total{lock_name="${LeaderScheduledJob.LOCK_NAME}"""")
-                    .shouldBeTrue()
-                scrape.contains("""leader_aop_active{lock_name="${LeaderScheduledJob.LOCK_NAME}"""")
-                    .shouldBeTrue()
+                scrape.hasLockNameSeries("leader_aop_attempts_total").shouldBeTrue()
+                scrape.hasLockNameSeries("leader_aop_acquired_total").shouldBeTrue()
+                scrape.hasLockNameSeries("leader_aop_active").shouldBeTrue()
+                scrape.contains("""lock_name="${LeaderScheduledJob.LOCK_NAME}"""").shouldBeFalse()
                 scrape.contains("""leader_history_sink_failures_total{sink="NoopLeaderHistorySink"}""")
                     .shouldBeTrue()
                 scrape.contains("""leader_history_acquire_missing_total{sink="NoopLeaderHistorySink"}""")
@@ -73,14 +73,20 @@ class PrometheusScrapeTest {
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body()
     }
 
+    private fun String.hasLockNameSeries(metricName: String): Boolean {
+        val lockNameTag = Regex.escape("""lock_name="$EXPORTED_LOCK_NAME"""")
+        return Regex("""$metricName\{[^}]*$lockNameTag[^}]*}\s+[0-9.Ee+-]+""").containsMatchIn(this)
+    }
+
     private fun String.sampleValue(metricName: String): Double {
-        val regex = Regex("""$metricName\{[^}]*lock_name="${LeaderScheduledJob.LOCK_NAME}"[^}]*}\s+([0-9.Ee+-]+)""")
+        val regex = Regex("""$metricName\{[^}]*lock_name="$EXPORTED_LOCK_NAME"[^}]*}\s+([0-9.Ee+-]+)""")
         return requireNotNull(regex.find(this)) {
-            "$metricName for ${LeaderScheduledJob.LOCK_NAME} not found in scrape"
+            "$metricName for $EXPORTED_LOCK_NAME not found in scrape"
         }.groupValues[1].toDouble()
     }
 
     companion object {
+        private const val EXPORTED_LOCK_NAME = LeaderMetricTagOptions.DEFAULT_LOCK_NAME_REDACTED_VALUE
         private val redis = RedisServer.Launcher.redis
         private val httpClient = HttpClient.newHttpClient()
 

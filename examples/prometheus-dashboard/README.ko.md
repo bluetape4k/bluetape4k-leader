@@ -65,6 +65,7 @@ bluetape4k:
         tags:
           lock-name:
             mode: REDACT
+            redacted-value: redacted-lock
 ```
 
 실제 서비스에서 lock name에 tenant, user, request, 무제한 job identifier가 들어간다면 `REDACT`를 유지하세요.

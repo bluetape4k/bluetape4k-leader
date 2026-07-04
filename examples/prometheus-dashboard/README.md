@@ -65,6 +65,7 @@ bluetape4k:
         tags:
           lock-name:
             mode: REDACT
+            redacted-value: redacted-lock
 ```
 
 Keep `REDACT` in real services when lock names contain tenant, user, request, or unbounded job identifiers.
