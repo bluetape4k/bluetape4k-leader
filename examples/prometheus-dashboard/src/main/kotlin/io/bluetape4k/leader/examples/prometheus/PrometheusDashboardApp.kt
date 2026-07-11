@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.examples.prometheus
 
 import io.bluetape4k.leader.annotation.LeaderElection
+import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.leader.history.NoopLeaderHistorySink
 import io.bluetape4k.leader.micrometer.LeaderMetricTagSanitizer
 import io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder
@@ -8,7 +9,6 @@ import io.bluetape4k.leader.micrometer.history.MicrometerSafeLeaderHistoryRecord
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
 import io.bluetape4k.testcontainers.storage.RedisServer
-import io.bluetape4k.utils.ShutdownQueue
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.codec.StringCodec
@@ -27,7 +27,6 @@ import org.springframework.context.event.EventListener
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
-import org.testcontainers.utility.TestcontainersConfiguration
 import java.util.concurrent.atomic.AtomicLong
 
 @SpringBootApplication(proxyBeanMethods = false)
@@ -41,16 +40,10 @@ class PrometheusDashboardApp {
     ): RedisClient {
         val redisUrl = configuredRedisUrl
             .ifBlank {
-                RedisServer(reuse = developerLocalReuseEnabled()).apply {
-                    start()
-                    ShutdownQueue.register(this)
-                }.url
+                startExampleContainer { reuse -> RedisServer(reuse = reuse) }.url
             }
         return RedisClient.create(redisUrl)
     }
-
-    private fun developerLocalReuseEnabled(): Boolean =
-        System.getenv("CI") != "true" && TestcontainersConfiguration.getInstance().environmentSupportsReuse()
 
     @Bean(destroyMethod = "close")
     fun redisConnection(client: RedisClient): StatefulRedisConnection<String, String> =
