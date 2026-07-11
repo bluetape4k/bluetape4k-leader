@@ -107,6 +107,10 @@ Runnable example modules under `examples/` demonstrate production scenarios acro
 
 Run any example with `./gradlew :examples:<name>:run` (Docker required for Testcontainers-backed demos).
 
+Testcontainers-backed examples create non-reusable containers by default. For an explicit developer-local opt-in,
+set `testcontainers.reuse.enable=true` in `~/.testcontainers.properties`; the examples ignore this setting when
+`CI=true`. Module tests always use one non-reusable launcher container per test JVM.
+
 ## Quick Start
 
 ### Gradle

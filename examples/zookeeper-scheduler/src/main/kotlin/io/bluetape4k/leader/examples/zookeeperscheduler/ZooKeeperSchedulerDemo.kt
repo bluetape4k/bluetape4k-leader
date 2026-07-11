@@ -4,7 +4,9 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
 import io.bluetape4k.testcontainers.infra.ZooKeeperServer
+import io.bluetape4k.utils.ShutdownQueue
 import org.apache.curator.framework.CuratorFramework
+import org.testcontainers.utility.TestcontainersConfiguration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -16,7 +18,10 @@ object ZooKeeperSchedulerDemo: KLogging() {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        val server = ZooKeeperServer.Launcher.zookeeper
+        val server = ZooKeeperServer(reuse = developerLocalReuseEnabled()).apply {
+            start()
+            ShutdownQueue.register(this)
+        }
         val curator = ZooKeeperServer.Launcher.getCuratorFramework(server)
         curator.start()
 
@@ -29,6 +34,9 @@ object ZooKeeperSchedulerDemo: KLogging() {
             curator.close()
         }
     }
+
+    private fun developerLocalReuseEnabled(): Boolean =
+        System.getenv("CI") != "true" && TestcontainersConfiguration.getInstance().environmentSupportsReuse()
 
     private fun runScenario(curator: CuratorFramework) {
         val lockName = SchedulerLockName("legacy-report-${Base58.randomString(8)}")
