@@ -6,6 +6,7 @@ import io.bluetape4k.bucket4j.ratelimit.distributed.DistributedSuspendRateLimite
 import io.bluetape4k.codec.Base58
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
+import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.support.closeSafe
 import io.bluetape4k.testcontainers.storage.RedisServer
 import io.bluetape4k.utils.ShutdownQueue
@@ -18,7 +19,6 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import org.testcontainers.utility.TestcontainersConfiguration
 import java.io.Serializable
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
@@ -45,10 +45,7 @@ object RateLimiterDemo: KLogging() {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        val redis = RedisServer(reuse = developerLocalReuseEnabled()).apply {
-            start()
-            ShutdownQueue.register(this)
-        }
+        val redis = startExampleContainer { reuse -> RedisServer(reuse = reuse) }
         val report = runScenario(redis.url)
 
         log.info { "=== rate limiter demo result ===" }
@@ -66,9 +63,6 @@ object RateLimiterDemo: KLogging() {
             }
         log.info { "total external API calls=${report.totalCalls}, expectedMax=${report.expectedMaxCalls}" }
     }
-
-    private fun developerLocalReuseEnabled(): Boolean =
-        System.getenv("CI") != "true" && TestcontainersConfiguration.getInstance().environmentSupportsReuse()
 
     fun runScenario(
         redisUrl: String,

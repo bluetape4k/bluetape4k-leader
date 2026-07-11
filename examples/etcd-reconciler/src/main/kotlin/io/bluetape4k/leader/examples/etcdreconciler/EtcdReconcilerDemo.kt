@@ -1,9 +1,8 @@
 package io.bluetape4k.leader.examples.etcdreconciler
 
+import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.testcontainers.infra.EtcdServer
-import io.bluetape4k.utils.ShutdownQueue
 import io.etcd.jetcd.Client
-import org.testcontainers.utility.TestcontainersConfiguration
 import java.time.Duration
 
 /**
@@ -13,11 +12,7 @@ object EtcdReconcilerDemo {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        EtcdServer(reuse = developerLocalReuseEnabled())
-            .apply {
-                start()
-                ShutdownQueue.register(this)
-            }
+        startExampleContainer { reuse -> EtcdServer(reuse = reuse) }
             .also { etcd ->
                 Client.builder()
                     .endpoints(etcd.endpoint)
@@ -36,7 +31,4 @@ object EtcdReconcilerDemo {
                     }
             }
     }
-
-    private fun developerLocalReuseEnabled(): Boolean =
-        System.getenv("CI") != "true" && TestcontainersConfiguration.getInstance().environmentSupportsReuse()
 }

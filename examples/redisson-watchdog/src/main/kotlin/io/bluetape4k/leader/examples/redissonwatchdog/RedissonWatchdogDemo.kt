@@ -2,11 +2,11 @@ package io.bluetape4k.leader.examples.redissonwatchdog
 
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
+import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.testcontainers.storage.RedisServer
 import io.bluetape4k.utils.ShutdownQueue
 import org.redisson.Redisson
 import org.redisson.config.Config
-import org.testcontainers.utility.TestcontainersConfiguration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -19,10 +19,7 @@ object RedissonWatchdogDemo: KLogging() {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        val redis = RedisServer(reuse = developerLocalReuseEnabled()).apply {
-            start()
-            ShutdownQueue.register(this)
-        }
+        val redis = startExampleContainer { reuse -> RedisServer(reuse = reuse) }
         val redisson = Redisson.create(
             Config().apply {
                 useSingleServer()
@@ -80,6 +77,4 @@ object RedissonWatchdogDemo: KLogging() {
         }
     }
 
-    private fun developerLocalReuseEnabled(): Boolean =
-        System.getenv("CI") != "true" && TestcontainersConfiguration.getInstance().environmentSupportsReuse()
 }

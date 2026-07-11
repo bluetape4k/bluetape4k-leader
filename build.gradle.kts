@@ -45,6 +45,17 @@ fun isRequestedTask(token: String): Boolean =
 
 val detektRequested = requestedTaskNames.isEmpty() || isRequestedTask("detekt")
 val koverRequested = requestedTaskNames.isEmpty() || isRequestedTask("kover")
+val reusableTestcontainersExamplePaths = setOf(
+    ":examples:batch-scheduler",
+    ":examples:cache-warmer",
+    ":examples:consul-maintenance",
+    ":examples:dynamodb-export",
+    ":examples:etcd-reconciler",
+    ":examples:prometheus-dashboard",
+    ":examples:rate-limiter",
+    ":examples:redisson-watchdog",
+    ":examples:zookeeper-scheduler",
+)
 
 if (detektRequested) {
     apply(plugin = "io.gitlab.arturbosch.detekt")
@@ -149,6 +160,11 @@ subprojects {
     }
 
     pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
+        if (path in reusableTestcontainersExamplePaths) {
+            kotlin.sourceSets.named("main") {
+                kotlin.srcDir(rootProject.file("examples/shared/src/main/kotlin"))
+            }
+        }
         configurations.matching { it.name == "kotlinCompilerClasspath" || it.name == "kotlinCompilerPluginClasspath" }.configureEach {
             resolutionStrategy.eachDependency {
                 if (requested.group == "org.jetbrains.kotlin") {

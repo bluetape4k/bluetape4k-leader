@@ -14,6 +14,7 @@ class TestcontainersReusePolicyTest {
     fun `tests and examples never enable container reuse implicitly`() {
         val kotlinSources = kotlinSourcesUnder(repositoryRoot)
             .filter { !it.toString().contains("/buildSrc/") }
+            .filter { it.fileName.toString() != "ExampleTestcontainersTest.kt" }
             .filter { it.toString().contains("/src/test/") || it.toString().contains("/examples/") }
 
         val explicitReuseViolations = kotlinSources.flatMap { source ->
@@ -37,18 +38,38 @@ class TestcontainersReusePolicyTest {
     fun `developer local reuse is explicit and disabled in CI`() {
         val exampleMainSources = kotlinSourcesUnder(repositoryRoot.resolve("examples"))
             .filter { it.toString().contains("/src/main/") }
-        val optInSources = exampleMainSources.filter { source ->
+        val policySources = exampleMainSources.filter { source ->
             source.toFile().readText().contains("environmentSupportsReuse()")
         }
-
-        assertEquals(9, optInSources.size, "Every Testcontainers-backed example main must declare the local opt-in")
-        optInSources.forEach { source ->
-            val text = source.toFile().readText()
-            assertTrue(
-                text.contains("System.getenv(\"CI\") != \"true\""),
-                "${repositoryRoot.relativize(source)} must disable reuse in CI",
-            )
+        val optInCallSites = exampleMainSources.filter { source ->
+            source.toFile().readText().contains("startExampleContainer { reuse ->")
         }
+
+        assertEquals(9, optInCallSites.size, "Every Testcontainers-backed example main must use the shared policy")
+        assertEquals(1, policySources.size, "The reuse policy must have one shared owner")
+        assertTrue(
+            policySources.single().toFile().readText().contains("environment.keys.none(CI_MARKERS::contains)"),
+            "CI and GITHUB_ACTIONS marker presence must deny reuse",
+        )
+    }
+
+    @Test
+    fun `reusable example containers are not registered for shutdown removal`() {
+        val exampleMainSources = kotlinSourcesUnder(repositoryRoot.resolve("examples"))
+            .filter { it.toString().contains("/src/main/") }
+        val shutdownRegisteredContainers = exampleMainSources.flatMap { source ->
+            source.readLinesWithNumbers()
+                .filter { (_, line) -> line.contains("ShutdownQueue.register(this)") }
+                .map { (lineNumber, line) -> "${repositoryRoot.relativize(source)}:$lineNumber: ${line.trim()}" }
+        }
+
+        assertTrue(
+            shutdownRegisteredContainers.isEmpty(),
+            shutdownRegisteredContainers.joinToString(
+                prefix = "Reusable containers must not be registered for shutdown removal:\n",
+                separator = "\n",
+            ),
+        )
     }
 
     private fun kotlinSourcesUnder(root: Path): List<Path> =

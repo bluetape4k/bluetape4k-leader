@@ -109,7 +109,9 @@ Run any example with `./gradlew :examples:<name>:run` (Docker required for Testc
 
 Testcontainers-backed examples create non-reusable containers by default. For an explicit developer-local opt-in,
 set `testcontainers.reuse.enable=true` in `~/.testcontainers.properties`; the examples ignore this setting when
-`CI=true`. Module tests always use one non-reusable launcher container per test JVM.
+either the `CI` or `GITHUB_ACTIONS` marker is present, regardless of its value. Module tests always use one
+non-reusable launcher container per test JVM. Reusable example containers remain developer-owned and are not
+registered for shutdown removal.
 
 ## Quick Start
 

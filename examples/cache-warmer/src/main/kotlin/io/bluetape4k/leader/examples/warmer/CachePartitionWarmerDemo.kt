@@ -4,11 +4,11 @@ import com.hazelcast.client.HazelcastClient
 import com.hazelcast.client.config.ClientConfig
 import com.hazelcast.core.HazelcastInstance
 import io.bluetape4k.leader.hazelcast.HazelcastLeaderElector
+import io.bluetape4k.leader.examples.support.startExampleContainer
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
 import io.bluetape4k.testcontainers.storage.HazelcastServer
 import io.bluetape4k.utils.ShutdownQueue
-import org.testcontainers.utility.TestcontainersConfiguration
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
@@ -29,10 +29,7 @@ object CachePartitionWarmerDemo: KLogging() {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        val server = HazelcastServer(reuse = developerLocalReuseEnabled()).apply {
-            start()
-            ShutdownQueue.register(this)
-        }
+        val server = startExampleContainer { reuse -> HazelcastServer(reuse = reuse) }
         val config = ClientConfig().apply {
             networkConfig.addAddress(server.url)
         }
@@ -83,7 +80,4 @@ object CachePartitionWarmerDemo: KLogging() {
             executor.shutdown()
         }
     }
-
-    private fun developerLocalReuseEnabled(): Boolean =
-        System.getenv("CI") != "true" && TestcontainersConfiguration.getInstance().environmentSupportsReuse()
 }
