@@ -6,6 +6,7 @@ import io.bluetape4k.testcontainers.storage.RedisServer
 import io.bluetape4k.utils.ShutdownQueue
 import org.redisson.Redisson
 import org.redisson.config.Config
+import org.testcontainers.utility.TestcontainersConfiguration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -18,7 +19,10 @@ object RedissonWatchdogDemo: KLogging() {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        val redis = RedisServer.Launcher.redis
+        val redis = RedisServer(reuse = developerLocalReuseEnabled()).apply {
+            start()
+            ShutdownQueue.register(this)
+        }
         val redisson = Redisson.create(
             Config().apply {
                 useSingleServer()
@@ -75,4 +79,7 @@ object RedissonWatchdogDemo: KLogging() {
             redisson.shutdown()
         }
     }
+
+    private fun developerLocalReuseEnabled(): Boolean =
+        System.getenv("CI") != "true" && TestcontainersConfiguration.getInstance().environmentSupportsReuse()
 }

@@ -107,6 +107,10 @@ JMH이며, 결과는 같은 장비에서 전/후 비교를 하기 위한 기준�
 
 `./gradlew :examples:<name>:run` 으로 실행 (Testcontainers 기반 데모는 Docker 필요).
 
+Testcontainers 기반 예제는 기본적으로 재사용하지 않는 컨테이너를 생성합니다. 개발자 로컬 환경에서만
+명시적으로 재사용하려면 `~/.testcontainers.properties`에 `testcontainers.reuse.enable=true`를 설정하세요.
+예제는 `CI=true`일 때 이 설정을 무시하며, 모듈 테스트는 테스트 JVM마다 재사용하지 않는 런처 컨테이너 하나를 사용합니다.
+
 ## 빠른 시작
 
 ### Gradle 의존성 추가

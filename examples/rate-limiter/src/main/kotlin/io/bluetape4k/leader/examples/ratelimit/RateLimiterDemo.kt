@@ -18,6 +18,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import org.testcontainers.utility.TestcontainersConfiguration
 import java.io.Serializable
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
@@ -44,7 +45,10 @@ object RateLimiterDemo: KLogging() {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        val redis = RedisServer.Launcher.redis
+        val redis = RedisServer(reuse = developerLocalReuseEnabled()).apply {
+            start()
+            ShutdownQueue.register(this)
+        }
         val report = runScenario(redis.url)
 
         log.info { "=== rate limiter demo result ===" }
@@ -62,6 +66,9 @@ object RateLimiterDemo: KLogging() {
             }
         log.info { "total external API calls=${report.totalCalls}, expectedMax=${report.expectedMaxCalls}" }
     }
+
+    private fun developerLocalReuseEnabled(): Boolean =
+        System.getenv("CI") != "true" && TestcontainersConfiguration.getInstance().environmentSupportsReuse()
 
     fun runScenario(
         redisUrl: String,

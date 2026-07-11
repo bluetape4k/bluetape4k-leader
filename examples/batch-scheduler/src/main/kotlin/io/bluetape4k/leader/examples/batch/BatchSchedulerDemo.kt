@@ -7,6 +7,7 @@ import io.bluetape4k.testcontainers.storage.RedisServer
 import io.bluetape4k.utils.ShutdownQueue
 import io.lettuce.core.RedisClient
 import io.lettuce.core.codec.StringCodec
+import org.testcontainers.utility.TestcontainersConfiguration
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -22,7 +23,10 @@ object BatchSchedulerDemo: KLogging() {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        val redis = RedisServer.Launcher.redis
+        val redis = RedisServer(reuse = developerLocalReuseEnabled()).apply {
+            start()
+            ShutdownQueue.register(this)
+        }
         val client = RedisClient.create(redis.url).also {
             ShutdownQueue.register { runCatching { it.shutdown() } }
         }
@@ -63,4 +67,7 @@ object BatchSchedulerDemo: KLogging() {
             executor.shutdown()
         }
     }
+
+    private fun developerLocalReuseEnabled(): Boolean =
+        System.getenv("CI") != "true" && TestcontainersConfiguration.getInstance().environmentSupportsReuse()
 }

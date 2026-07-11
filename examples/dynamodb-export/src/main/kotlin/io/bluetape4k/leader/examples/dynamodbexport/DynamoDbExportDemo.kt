@@ -6,6 +6,7 @@ import io.bluetape4k.leader.dynamodb.DynamoDbSuspendLeaderElector
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.info
 import io.bluetape4k.testcontainers.aws.DynamoDbLocalServer
+import io.bluetape4k.utils.ShutdownQueue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CompletableDeferred
@@ -16,6 +17,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
+import org.testcontainers.utility.TestcontainersConfiguration
 
 /**
  * Demonstrates leader-only scheduled exports using DynamoDB Local.
@@ -24,7 +26,10 @@ object DynamoDbExportDemo: KLogging() {
 
     @JvmStatic
     fun main(args: Array<String>) = runBlocking {
-        val container = DynamoDbLocalServer.Launcher.dynamoDb
+        val container = DynamoDbLocalServer(reuse = developerLocalReuseEnabled()).apply {
+            start()
+            ShutdownQueue.register(this)
+        }
         val credentials = StaticCredentialsProvider.create(
             AwsBasicCredentials.create(container.awsAccessKey, container.awsSecretKey),
         )
@@ -86,6 +91,9 @@ object DynamoDbExportDemo: KLogging() {
             syncClient.close()
         }
     }
+
+    private fun developerLocalReuseEnabled(): Boolean =
+        System.getenv("CI") != "true" && TestcontainersConfiguration.getInstance().environmentSupportsReuse()
 
     private fun newRunner(
         nodeId: String,
