@@ -1,0 +1,756 @@
+---
+schemaVersion: 2
+repository: bluetape4k/bluetape4k-leader
+releaseRef: 0.4.0
+releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
+overview:
+  documents:
+    en:
+    - en/index.md
+    - en/getting-started.md
+    - en/architecture/repository-map.md
+    - en/architecture/runtime-model.md
+    - en/guides/learning-path.md
+    - en/guides/election-model-selection.md
+    - en/guides/execution-model-selection.md
+    - en/guides/backend-selection.md
+    - en/guides/lease-lifecycle.md
+    - en/guides/failure-and-cancellation.md
+    - en/guides/identity-state-and-history.md
+    - en/guides/spring-vs-ktor.md
+    - en/guides/observability-and-operations.md
+    - en/guides/testing.md
+    - en/guides/scheduled-job-migration.md
+    - en/core/result-semantics.md
+    - en/core/single-group-strategic.md
+    - en/core/execution-apis.md
+    - en/core/lease-extension.md
+    - en/backends/redis.md
+    - en/backends/exposed-sql.md
+    - en/backends/document-stores.md
+    - en/backends/control-plane-leases.md
+    - en/backends/cluster-coordination.md
+    - en/frameworks/spring-boot.md
+    - en/frameworks/ktor.md
+    - en/frameworks/micrometer.md
+    - en/benchmarks/interpreting-results.md
+    ko:
+    - ko/index.md
+    - ko/getting-started.md
+    - ko/architecture/repository-map.md
+    - ko/architecture/runtime-model.md
+    - ko/guides/learning-path.md
+    - ko/guides/election-model-selection.md
+    - ko/guides/execution-model-selection.md
+    - ko/guides/backend-selection.md
+    - ko/guides/lease-lifecycle.md
+    - ko/guides/failure-and-cancellation.md
+    - ko/guides/identity-state-and-history.md
+    - ko/guides/spring-vs-ktor.md
+    - ko/guides/observability-and-operations.md
+    - ko/guides/testing.md
+    - ko/guides/scheduled-job-migration.md
+    - ko/core/result-semantics.md
+    - ko/core/single-group-strategic.md
+    - ko/core/execution-apis.md
+    - ko/core/lease-extension.md
+    - ko/backends/redis.md
+    - ko/backends/exposed-sql.md
+    - ko/backends/document-stores.md
+    - ko/backends/control-plane-leases.md
+    - ko/backends/cluster-coordination.md
+    - ko/frameworks/spring-boot.md
+    - ko/frameworks/ktor.md
+    - ko/frameworks/micrometer.md
+    - ko/benchmarks/interpreting-results.md
+  assets:
+  - assets/overview/repository-learning-map.svg
+  - assets/overview/repository-learning-map.png
+  - assets/architecture/election-lifecycle.svg
+  - assets/architecture/election-lifecycle.png
+  - assets/architecture/model-decision-map.svg
+  - assets/architecture/model-decision-map.png
+  - assets/backends/backend-selection-map.svg
+  - assets/backends/backend-selection-map.png
+  - assets/frameworks/framework-observability-flow.svg
+  - assets/frameworks/framework-observability-flow.png
+modules:
+- id: batch-scheduler
+  title:
+    en: Batch scheduler workshop
+    ko: 배치 스케줄러 워크숍
+  gradlePath: ":examples:batch-scheduler"
+  sourceDir: examples/batch-scheduler
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/batch-scheduler.md
+  ko: ko/modules/batch-scheduler.md
+  sourcePaths:
+  - examples/batch-scheduler/src/main
+  - examples/batch-scheduler/README.md
+  - examples/batch-scheduler/README.ko.md
+  testPaths:
+  - examples/batch-scheduler/src/test
+  workshops:
+  - examples/batch-scheduler
+- id: benchmark
+  title:
+    en: Leader election benchmarks
+    ko: 리더 선출 벤치마크
+  gradlePath: ":benchmark"
+  sourceDir: benchmark
+  kind: benchmark
+  group: benchmarks
+  status: stable
+  artifact: 
+  en: en/modules/benchmark.md
+  ko: ko/modules/benchmark.md
+  sourcePaths:
+  - benchmark/src/benchmark
+  - benchmark/src/kubernetesBenchmark
+  - benchmark/README.md
+  - benchmark/README.ko.md
+  testPaths: []
+  workshops: []
+- id: bluetape4k-leader-bom
+  title:
+    en: Leader BOM
+    ko: Leader BOM
+  gradlePath: ":bluetape4k-leader-bom"
+  sourceDir: bluetape4k-leader-bom
+  kind: library
+  group: platform
+  status: stable
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-bom
+  en: en/modules/bluetape4k-leader-bom.md
+  ko: ko/modules/bluetape4k-leader-bom.md
+  sourcePaths:
+  - bluetape4k-leader-bom/build.gradle.kts
+  testPaths: []
+  workshops: []
+- id: bluetape4k-leader-consul
+  title:
+    en: Consul backend
+    ko: Consul 백엔드
+  gradlePath: ":bluetape4k-leader-consul"
+  sourceDir: leader-consul
+  kind: library
+  group: backends
+  status: preview
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-consul
+  en: en/modules/bluetape4k-leader-consul.md
+  ko: ko/modules/bluetape4k-leader-consul.md
+  sourcePaths:
+  - leader-consul/src/main
+  - leader-consul/README.md
+  - leader-consul/README.ko.md
+  testPaths:
+  - leader-consul/src/test
+  workshops: []
+- id: bluetape4k-leader-core
+  title:
+    en: Leader core library
+    ko: Leader 핵심 라이브러리
+  gradlePath: ":bluetape4k-leader-core"
+  sourceDir: leader-core
+  kind: library
+  group: foundation
+  status: stable
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-core
+  en: en/modules/bluetape4k-leader-core.md
+  ko: ko/modules/bluetape4k-leader-core.md
+  sourcePaths:
+  - leader-core/src/main
+  - leader-core/README.md
+  - leader-core/README.ko.md
+  testPaths:
+  - leader-core/src/test
+  workshops: []
+- id: bluetape4k-leader-dynamodb
+  title:
+    en: DynamoDB backend
+    ko: DynamoDB 백엔드
+  gradlePath: ":bluetape4k-leader-dynamodb"
+  sourceDir: leader-dynamodb
+  kind: library
+  group: backends
+  status: preview
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-dynamodb
+  en: en/modules/bluetape4k-leader-dynamodb.md
+  ko: ko/modules/bluetape4k-leader-dynamodb.md
+  sourcePaths:
+  - leader-dynamodb/src/main
+  - leader-dynamodb/README.md
+  - leader-dynamodb/README.ko.md
+  testPaths:
+  - leader-dynamodb/src/test
+  workshops: []
+- id: bluetape4k-leader-etcd
+  title:
+    en: etcd backend
+    ko: etcd 백엔드
+  gradlePath: ":bluetape4k-leader-etcd"
+  sourceDir: leader-etcd
+  kind: library
+  group: backends
+  status: preview
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-etcd
+  en: en/modules/bluetape4k-leader-etcd.md
+  ko: ko/modules/bluetape4k-leader-etcd.md
+  sourcePaths:
+  - leader-etcd/src/main
+  - leader-etcd/README.md
+  - leader-etcd/README.ko.md
+  testPaths:
+  - leader-etcd/src/test
+  workshops: []
+- id: bluetape4k-leader-exposed-core
+  title:
+    en: Exposed shared backend support
+    ko: Exposed 공통 백엔드 지원
+  gradlePath: ":bluetape4k-leader-exposed-core"
+  sourceDir: leader-exposed-core
+  kind: library
+  group: backends
+  status: stable
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-exposed-core
+  en: en/modules/bluetape4k-leader-exposed-core.md
+  ko: ko/modules/bluetape4k-leader-exposed-core.md
+  sourcePaths:
+  - leader-exposed-core/src/main
+  - leader-exposed-core/README.md
+  - leader-exposed-core/README.ko.md
+  testPaths:
+  - leader-exposed-core/src/test
+  workshops: []
+- id: bluetape4k-leader-exposed-jdbc
+  title:
+    en: Exposed JDBC backend
+    ko: Exposed JDBC 백엔드
+  gradlePath: ":bluetape4k-leader-exposed-jdbc"
+  sourceDir: leader-exposed-jdbc
+  kind: library
+  group: backends
+  status: stable
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-exposed-jdbc
+  en: en/modules/bluetape4k-leader-exposed-jdbc.md
+  ko: ko/modules/bluetape4k-leader-exposed-jdbc.md
+  sourcePaths:
+  - leader-exposed-jdbc/src/main
+  - leader-exposed-jdbc/README.md
+  - leader-exposed-jdbc/README.ko.md
+  testPaths:
+  - leader-exposed-jdbc/src/test
+  workshops: []
+- id: bluetape4k-leader-exposed-r2dbc
+  title:
+    en: Exposed R2DBC backend
+    ko: Exposed R2DBC 백엔드
+  gradlePath: ":bluetape4k-leader-exposed-r2dbc"
+  sourceDir: leader-exposed-r2dbc
+  kind: library
+  group: backends
+  status: stable
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc
+  en: en/modules/bluetape4k-leader-exposed-r2dbc.md
+  ko: ko/modules/bluetape4k-leader-exposed-r2dbc.md
+  sourcePaths:
+  - leader-exposed-r2dbc/src/main
+  - leader-exposed-r2dbc/README.md
+  - leader-exposed-r2dbc/README.ko.md
+  testPaths:
+  - leader-exposed-r2dbc/src/test
+  workshops: []
+- id: bluetape4k-leader-hazelcast
+  title:
+    en: Hazelcast backend
+    ko: Hazelcast 백엔드
+  gradlePath: ":bluetape4k-leader-hazelcast"
+  sourceDir: leader-hazelcast
+  kind: library
+  group: backends
+  status: stable
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-hazelcast
+  en: en/modules/bluetape4k-leader-hazelcast.md
+  ko: ko/modules/bluetape4k-leader-hazelcast.md
+  sourcePaths:
+  - leader-hazelcast/src/main
+  - leader-hazelcast/README.md
+  - leader-hazelcast/README.ko.md
+  testPaths:
+  - leader-hazelcast/src/test
+  workshops: []
+- id: bluetape4k-leader-k8s
+  title:
+    en: Kubernetes Lease backend
+    ko: Kubernetes Lease 백엔드
+  gradlePath: ":bluetape4k-leader-k8s"
+  sourceDir: leader-k8s
+  kind: library
+  group: backends
+  status: preview
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-k8s
+  en: en/modules/bluetape4k-leader-k8s.md
+  ko: ko/modules/bluetape4k-leader-k8s.md
+  sourcePaths:
+  - leader-k8s/src/main
+  - leader-k8s/README.md
+  - leader-k8s/README.ko.md
+  testPaths:
+  - leader-k8s/src/test
+  workshops: []
+- id: bluetape4k-leader-ktor
+  title:
+    en: Ktor integration
+    ko: Ktor 연동
+  gradlePath: ":bluetape4k-leader-ktor"
+  sourceDir: leader-ktor
+  kind: library
+  group: frameworks
+  status: stable
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-ktor
+  en: en/modules/bluetape4k-leader-ktor.md
+  ko: ko/modules/bluetape4k-leader-ktor.md
+  sourcePaths:
+  - leader-ktor/src/main
+  - leader-ktor/README.md
+  - leader-ktor/README.ko.md
+  testPaths:
+  - leader-ktor/src/test
+  workshops: []
+- id: bluetape4k-leader-micrometer
+  title:
+    en: Micrometer integration
+    ko: Micrometer 연동
+  gradlePath: ":bluetape4k-leader-micrometer"
+  sourceDir: leader-micrometer
+  kind: library
+  group: frameworks
+  status: stable
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-micrometer
+  en: en/modules/bluetape4k-leader-micrometer.md
+  ko: ko/modules/bluetape4k-leader-micrometer.md
+  sourcePaths:
+  - leader-micrometer/src/main
+  - leader-micrometer/README.md
+  - leader-micrometer/README.ko.md
+  testPaths:
+  - leader-micrometer/src/test
+  workshops: []
+- id: bluetape4k-leader-mongodb
+  title:
+    en: MongoDB backend
+    ko: MongoDB 백엔드
+  gradlePath: ":bluetape4k-leader-mongodb"
+  sourceDir: leader-mongodb
+  kind: library
+  group: backends
+  status: stable
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-mongodb
+  en: en/modules/bluetape4k-leader-mongodb.md
+  ko: ko/modules/bluetape4k-leader-mongodb.md
+  sourcePaths:
+  - leader-mongodb/src/main
+  - leader-mongodb/README.md
+  - leader-mongodb/README.ko.md
+  testPaths:
+  - leader-mongodb/src/test
+  workshops: []
+- id: bluetape4k-leader-redis-lettuce
+  title:
+    en: Redis Lettuce backend
+    ko: Redis Lettuce 백엔드
+  gradlePath: ":bluetape4k-leader-redis-lettuce"
+  sourceDir: leader-redis-lettuce
+  kind: library
+  group: backends
+  status: stable
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce
+  en: en/modules/bluetape4k-leader-redis-lettuce.md
+  ko: ko/modules/bluetape4k-leader-redis-lettuce.md
+  sourcePaths:
+  - leader-redis-lettuce/src/main
+  - leader-redis-lettuce/README.md
+  - leader-redis-lettuce/README.ko.md
+  testPaths:
+  - leader-redis-lettuce/src/test
+  workshops: []
+- id: bluetape4k-leader-redis-redisson
+  title:
+    en: Redis Redisson backend
+    ko: Redis Redisson 백엔드
+  gradlePath: ":bluetape4k-leader-redis-redisson"
+  sourceDir: leader-redis-redisson
+  kind: library
+  group: backends
+  status: stable
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson
+  en: en/modules/bluetape4k-leader-redis-redisson.md
+  ko: ko/modules/bluetape4k-leader-redis-redisson.md
+  sourcePaths:
+  - leader-redis-redisson/src/main
+  - leader-redis-redisson/README.md
+  - leader-redis-redisson/README.ko.md
+  testPaths:
+  - leader-redis-redisson/src/test
+  workshops: []
+- id: bluetape4k-leader-spring-boot
+  title:
+    en: Spring Boot integration
+    ko: Spring Boot 연동
+  gradlePath: ":bluetape4k-leader-spring-boot"
+  sourceDir: leader-spring-boot
+  kind: library
+  group: frameworks
+  status: stable
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-spring-boot
+  en: en/modules/bluetape4k-leader-spring-boot.md
+  ko: ko/modules/bluetape4k-leader-spring-boot.md
+  sourcePaths:
+  - leader-spring-boot/src/main
+  - leader-spring-boot/README.md
+  - leader-spring-boot/README.ko.md
+  testPaths:
+  - leader-spring-boot/src/test
+  workshops: []
+- id: bluetape4k-leader-zookeeper
+  title:
+    en: ZooKeeper backend
+    ko: ZooKeeper 백엔드
+  gradlePath: ":bluetape4k-leader-zookeeper"
+  sourceDir: leader-zookeeper
+  kind: library
+  group: backends
+  status: stable
+  artifact: io.github.bluetape4k.leader:bluetape4k-leader-zookeeper
+  en: en/modules/bluetape4k-leader-zookeeper.md
+  ko: ko/modules/bluetape4k-leader-zookeeper.md
+  sourcePaths:
+  - leader-zookeeper/src/main
+  - leader-zookeeper/README.md
+  - leader-zookeeper/README.ko.md
+  testPaths:
+  - leader-zookeeper/src/test
+  workshops: []
+- id: cache-warmer
+  title:
+    en: Cache warmer workshop
+    ko: 캐시 워머 워크숍
+  gradlePath: ":examples:cache-warmer"
+  sourceDir: examples/cache-warmer
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/cache-warmer.md
+  ko: ko/modules/cache-warmer.md
+  sourcePaths:
+  - examples/cache-warmer/src/main
+  - examples/cache-warmer/README.md
+  - examples/cache-warmer/README.ko.md
+  testPaths:
+  - examples/cache-warmer/src/test
+  workshops:
+  - examples/cache-warmer
+- id: consul-maintenance
+  title:
+    en: Consul maintenance workshop
+    ko: Consul 유지보수 워크숍
+  gradlePath: ":examples:consul-maintenance"
+  sourceDir: examples/consul-maintenance
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/consul-maintenance.md
+  ko: ko/modules/consul-maintenance.md
+  sourcePaths:
+  - examples/consul-maintenance/src/main
+  - examples/consul-maintenance/README.md
+  - examples/consul-maintenance/README.ko.md
+  testPaths:
+  - examples/consul-maintenance/src/test
+  workshops:
+  - examples/consul-maintenance
+- id: dynamodb-export
+  title:
+    en: DynamoDB export workshop
+    ko: DynamoDB 내보내기 워크숍
+  gradlePath: ":examples:dynamodb-export"
+  sourceDir: examples/dynamodb-export
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/dynamodb-export.md
+  ko: ko/modules/dynamodb-export.md
+  sourcePaths:
+  - examples/dynamodb-export/src/main
+  - examples/dynamodb-export/README.md
+  - examples/dynamodb-export/README.ko.md
+  testPaths:
+  - examples/dynamodb-export/src/test
+  workshops:
+  - examples/dynamodb-export
+- id: etcd-reconciler
+  title:
+    en: etcd reconciler workshop
+    ko: etcd 조정기 워크숍
+  gradlePath: ":examples:etcd-reconciler"
+  sourceDir: examples/etcd-reconciler
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/etcd-reconciler.md
+  ko: ko/modules/etcd-reconciler.md
+  sourcePaths:
+  - examples/etcd-reconciler/src/main
+  - examples/etcd-reconciler/README.md
+  - examples/etcd-reconciler/README.ko.md
+  testPaths:
+  - examples/etcd-reconciler/src/test
+  workshops:
+  - examples/etcd-reconciler
+- id: k8s-lease
+  title:
+    en: Kubernetes Lease workshop
+    ko: Kubernetes Lease 워크숍
+  gradlePath: ":examples:k8s-lease"
+  sourceDir: examples/k8s-lease
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/k8s-lease.md
+  ko: ko/modules/k8s-lease.md
+  sourcePaths:
+  - examples/k8s-lease/src/main
+  - examples/k8s-lease/README.md
+  - examples/k8s-lease/README.ko.md
+  testPaths:
+  - examples/k8s-lease/src/test
+  workshops:
+  - examples/k8s-lease
+- id: k8s-operator
+  title:
+    en: Kubernetes operator workshop
+    ko: Kubernetes 오퍼레이터 워크숍
+  gradlePath: ":examples:k8s-operator"
+  sourceDir: examples/k8s-operator
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/k8s-operator.md
+  ko: ko/modules/k8s-operator.md
+  sourcePaths:
+  - examples/k8s-operator/src/main
+  - examples/k8s-operator/README.md
+  - examples/k8s-operator/README.ko.md
+  testPaths:
+  - examples/k8s-operator/src/test
+  workshops:
+  - examples/k8s-operator
+- id: ktor-app
+  title:
+    en: Ktor application workshop
+    ko: Ktor 애플리케이션 워크숍
+  gradlePath: ":examples:ktor-app"
+  sourceDir: examples/ktor-app
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/ktor-app.md
+  ko: ko/modules/ktor-app.md
+  sourcePaths:
+  - examples/ktor-app/src/main
+  - examples/ktor-app/README.md
+  - examples/ktor-app/README.ko.md
+  testPaths:
+  - examples/ktor-app/src/test
+  workshops:
+  - examples/ktor-app
+- id: migration-gate
+  title:
+    en: Migration gate workshop
+    ko: 마이그레이션 게이트 워크숍
+  gradlePath: ":examples:migration-gate"
+  sourceDir: examples/migration-gate
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/migration-gate.md
+  ko: ko/modules/migration-gate.md
+  sourcePaths:
+  - examples/migration-gate/src/main
+  - examples/migration-gate/README.md
+  - examples/migration-gate/README.ko.md
+  testPaths:
+  - examples/migration-gate/src/test
+  workshops:
+  - examples/migration-gate
+- id: prometheus-dashboard
+  title:
+    en: Prometheus dashboard workshop
+    ko: Prometheus 대시보드 워크숍
+  gradlePath: ":examples:prometheus-dashboard"
+  sourceDir: examples/prometheus-dashboard
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/prometheus-dashboard.md
+  ko: ko/modules/prometheus-dashboard.md
+  sourcePaths:
+  - examples/prometheus-dashboard/src/main
+  - examples/prometheus-dashboard/README.md
+  - examples/prometheus-dashboard/README.ko.md
+  testPaths:
+  - examples/prometheus-dashboard/src/test
+  workshops:
+  - examples/prometheus-dashboard
+- id: rate-limiter
+  title:
+    en: Rate limiter workshop
+    ko: 요청 제한기 워크숍
+  gradlePath: ":examples:rate-limiter"
+  sourceDir: examples/rate-limiter
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/rate-limiter.md
+  ko: ko/modules/rate-limiter.md
+  sourcePaths:
+  - examples/rate-limiter/src/main
+  - examples/rate-limiter/README.md
+  - examples/rate-limiter/README.ko.md
+  testPaths:
+  - examples/rate-limiter/src/test
+  workshops:
+  - examples/rate-limiter
+- id: redisson-watchdog
+  title:
+    en: Redisson watchdog workshop
+    ko: Redisson watchdog 워크숍
+  gradlePath: ":examples:redisson-watchdog"
+  sourceDir: examples/redisson-watchdog
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/redisson-watchdog.md
+  ko: ko/modules/redisson-watchdog.md
+  sourcePaths:
+  - examples/redisson-watchdog/src/main
+  - examples/redisson-watchdog/README.md
+  - examples/redisson-watchdog/README.ko.md
+  testPaths:
+  - examples/redisson-watchdog/src/test
+  workshops:
+  - examples/redisson-watchdog
+- id: strategic-election
+  title:
+    en: Strategic election workshop
+    ko: 전략 기반 선출 워크숍
+  gradlePath: ":examples:strategic-election"
+  sourceDir: examples/strategic-election
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/strategic-election.md
+  ko: ko/modules/strategic-election.md
+  sourcePaths:
+  - examples/strategic-election/src/main
+  - examples/strategic-election/README.md
+  - examples/strategic-election/README.ko.md
+  testPaths:
+  - examples/strategic-election/src/test
+  workshops:
+  - examples/strategic-election
+- id: tenant-aggregator
+  title:
+    en: Tenant aggregator workshop
+    ko: 테넌트 집계 워크숍
+  gradlePath: ":examples:tenant-aggregator"
+  sourceDir: examples/tenant-aggregator
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/tenant-aggregator.md
+  ko: ko/modules/tenant-aggregator.md
+  sourcePaths:
+  - examples/tenant-aggregator/src/main
+  - examples/tenant-aggregator/README.md
+  - examples/tenant-aggregator/README.ko.md
+  testPaths:
+  - examples/tenant-aggregator/src/test
+  workshops:
+  - examples/tenant-aggregator
+- id: virtual-thread-runner
+  title:
+    en: Virtual-thread runner workshop
+    ko: 가상 스레드 실행 워크숍
+  gradlePath: ":examples:virtual-thread-runner"
+  sourceDir: examples/virtual-thread-runner
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/virtual-thread-runner.md
+  ko: ko/modules/virtual-thread-runner.md
+  sourcePaths:
+  - examples/virtual-thread-runner/src/main
+  - examples/virtual-thread-runner/README.md
+  - examples/virtual-thread-runner/README.ko.md
+  testPaths:
+  - examples/virtual-thread-runner/src/test
+  workshops:
+  - examples/virtual-thread-runner
+- id: webhook-poller
+  title:
+    en: Webhook poller workshop
+    ko: Webhook 폴러 워크숍
+  gradlePath: ":examples:webhook-poller"
+  sourceDir: examples/webhook-poller
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/webhook-poller.md
+  ko: ko/modules/webhook-poller.md
+  sourcePaths:
+  - examples/webhook-poller/src/main
+  - examples/webhook-poller/README.md
+  - examples/webhook-poller/README.ko.md
+  testPaths:
+  - examples/webhook-poller/src/test
+  workshops:
+  - examples/webhook-poller
+- id: zookeeper-scheduler
+  title:
+    en: ZooKeeper scheduler workshop
+    ko: ZooKeeper 스케줄러 워크숍
+  gradlePath: ":examples:zookeeper-scheduler"
+  sourceDir: examples/zookeeper-scheduler
+  kind: example
+  group: workshops
+  status: stable
+  artifact: 
+  en: en/modules/zookeeper-scheduler.md
+  ko: ko/modules/zookeeper-scheduler.md
+  sourcePaths:
+  - examples/zookeeper-scheduler/src/main
+  - examples/zookeeper-scheduler/README.md
+  - examples/zookeeper-scheduler/README.ko.md
+  testPaths:
+  - examples/zookeeper-scheduler/src/test
+  workshops:
+  - examples/zookeeper-scheduler

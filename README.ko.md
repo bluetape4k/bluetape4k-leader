@@ -36,6 +36,10 @@ Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
 ![Bluetape4k Leader module composition chart](docs/images/readme-charts/root-readme-module-chart-01.png)
 <!-- README_VISUAL_OVERVIEW:END -->
 
+## 매뉴얼
+
+[Leader 0.4 매뉴얼](docs/manual/ko/index.md)은 안정판 동작을 설명하는 기준 문서입니다. 선출 모델과 백엔드 선택, 실행 결과와 취소 규칙, Spring Boot·Ktor 연동, 운영 방법, 17개 실행 예제를 따라가는 학습 경로를 함께 다룹니다. README는 빠른 안내만 맡고, 상세한 사용법은 `docs/manual/`에서 관리합니다.
+
 ## 벤치마크
 
 non-published [`benchmark`](./benchmark) 모듈은 leader election backend를
@@ -116,44 +120,18 @@ Testcontainers 기반 예제는 기본적으로 재사용하지 않는 컨테이
 
 ### Gradle 의존성 추가
 
-BOM을 import하면 모든 `bluetape4k-leader-*` 모듈 버전을 한 곳에서 관리할 수 있습니다:
+애플리케이션에서는 중앙 dependency platform으로 bluetape4k 생태계 버전 하나만 선택합니다. Leader BOM 버전을 따로 맞추지 마세요.
 
 ```kotlin
-val leaderVersion = "0.4.0"
+val bluetape4kVersion = "<version>"
 
-implementation(platform("io.github.bluetape4k.leader:bluetape4k-leader-bom:$leaderVersion"))
+implementation(platform("io.github.bluetape4k:bluetape4k-dependencies:$bluetape4kVersion"))
 implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson")
+// 서비스에서 사용할 백엔드와 프레임워크 모듈만 추가합니다.
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot")
 ```
 
-BOM을 사용하지 않는 경우 각 모듈 의존성에 `0.4.0`를 명시하세요:
-
-```kotlin
-// Redis (Redisson 또는 Lettuce)
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.4.0")
-// 또는
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:0.4.0")
-
-// JDBC (H2 / PostgreSQL / MySQL, Exposed 기반)
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-jdbc:0.4.0")
-
-// R2DBC 코루틴 네이티브 (H2 / PostgreSQL / MySQL, Exposed 기반)
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc:0.4.0")
-
-// ZooKeeper / Apache Curator
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-zookeeper:0.4.0")
-
-// etcd v3 / jetcd
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-etcd:0.4.0")
-
-// Consul Session + KV
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-consul:0.4.0")
-
-// AWS DynamoDB
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-dynamodb:0.4.0")
-
-// Ktor 3.x 통합 (LeaderElectionPlugin + leaderScheduled())
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor:0.4.0")
-```
+Leader 안정판의 실제 버전은 버전별 매뉴얼에 근거로 남기며, 사용자가 별도로 선택할 값은 아닙니다.
 
 ### Exposed JDBC 방식 (H2 / PostgreSQL / MySQL)
 
@@ -629,8 +607,8 @@ Spring Boot AOP(`@LeaderElection`)를 사용할 때 `leader-micrometer`를 추�
 ### 의존성 추가
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.4.0")
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.4.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer")
 ```
 
 `MeterRegistry` 빈이 존재하면 `MicrometerLeaderAopMetricsRecorder`가 자동 등록됩니다. 비활성화:

@@ -37,6 +37,10 @@ Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
 ![Bluetape4k Leader module composition chart](docs/images/readme-charts/root-readme-module-chart-01.png)
 <!-- README_VISUAL_OVERVIEW:END -->
 
+## Manual
+
+The [Leader 0.4 manual](docs/manual/en/index.md) is the source of truth for release behavior. It covers model and backend selection, result and cancellation semantics, Spring Boot and Ktor integration, operations, and a progressive path through all 17 runnable examples. README files remain concise entry points; detailed guidance belongs in `docs/manual/`.
+
 ## Benchmarks
 
 The non-published [`benchmark`](./benchmark) module publishes comparable
@@ -117,44 +121,18 @@ registered for shutdown removal.
 
 ### Gradle
 
-Import the BOM to manage every `bluetape4k-leader-*` module with one version:
+Choose the bluetape4k ecosystem version once through the central dependency platform. Do not coordinate a separate Leader BOM version in application builds:
 
 ```kotlin
-val leaderVersion = "0.4.0"
+val bluetape4kVersion = "<version>"
 
-implementation(platform("io.github.bluetape4k.leader:bluetape4k-leader-bom:$leaderVersion"))
+implementation(platform("io.github.bluetape4k:bluetape4k-dependencies:$bluetape4kVersion"))
 implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson")
+// Add only the backend and framework modules the service uses.
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot")
 ```
 
-When not using the BOM, specify `0.4.0` on each module dependency:
-
-```kotlin
-// Redis (Redisson or Lettuce)
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson:0.4.0")
-// or
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce:0.4.0")
-
-// JDBC (H2 / PostgreSQL / MySQL via Exposed)
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-jdbc:0.4.0")
-
-// R2DBC coroutine-native (H2 / PostgreSQL / MySQL via Exposed)
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc:0.4.0")
-
-// ZooKeeper / Apache Curator
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-zookeeper:0.4.0")
-
-// etcd v3 / jetcd
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-etcd:0.4.0")
-
-// Consul Session + KV
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-consul:0.4.0")
-
-// AWS DynamoDB
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-dynamodb:0.4.0")
-
-// Ktor 3.x integration (LeaderElectionPlugin + leaderScheduled())
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-ktor:0.4.0")
-```
+The direct Leader release version is recorded by the versioned manual for provenance; it is not an additional consumer choice.
 
 ### Exposed JDBC (H2 / PostgreSQL / MySQL)
 
@@ -628,8 +606,8 @@ When using Spring Boot AOP (`@LeaderElection`), add `leader-micrometer` to expos
 ### Dependency
 
 ```kotlin
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot:0.4.0")
-implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer:0.4.0")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-spring-boot")
+implementation("io.github.bluetape4k.leader:bluetape4k-leader-micrometer")
 ```
 
 `MicrometerLeaderAopMetricsRecorder` is auto-registered when a `MeterRegistry` bean is present. Disable with:

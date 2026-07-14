@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040" role="img" aria-labelledby="title desc">
+  <title id="title">Choose the Election Model Before the Backend</title><desc id="desc">Decision map for single, group, and strategic leader election and their execution APIs.</desc>
+  <defs>
+  <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1220"/><stop offset="0.58" stop-color="#152235"/><stop offset="1" stop-color="#213149"/></linearGradient>
+  <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f2937"/><stop offset="1" stop-color="#101827"/></linearGradient>
+  <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="9" stdDeviation="10" flood-color="#020617" flood-opacity="0.38"/></filter>
+  <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#67e8f9" flood-opacity="0.2"/></filter>
+  <marker id="arrow-cyan" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse">
+  <path d="M0 0 L14 7 L0 14 Z" fill="#9ed8ff" stroke="#9ed8ff"/>
+</marker>
+<marker id="arrow-teal" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse">
+  <path d="M0 0 L14 7 L0 14 Z" fill="#5eead4" stroke="#5eead4"/>
+</marker>
+<marker id="arrow-purple" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse">
+  <path d="M0 0 L14 7 L0 14 Z" fill="#c4b5fd" stroke="#c4b5fd"/>
+</marker>
+<marker id="arrow-amber" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse">
+  <path d="M0 0 L14 7 L0 14 Z" fill="#f6c96b" stroke="#f6c96b"/>
+</marker>
+<marker id="arrow-rose" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse">
+  <path d="M0 0 L14 7 L0 14 Z" fill="#fda4af" stroke="#fda4af"/>
+</marker>
+
+</defs>
+
+  <rect width="1600" height="1040" fill="url(#canvas)"/>
+  <rect x="42" y="34" width="1516" height="972" rx="34" fill="url(#panel)" stroke="#536377" stroke-width="4" filter="url(#shadow)"/>
+  <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="48" font-weight="700" fill="#f8fafc"><tspan x="800" y="96">Choose the Election Model Before the Backend</tspan></text>
+  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="500" fill="#b6c4d6"><tspan x="800" y="137">scope -&gt; ownership rule -&gt; execution API -&gt; backend</tspan></text>
+  <g id="connectors" filter="url(#glow)">
+  <path id="start-scope" d="M800 280 V340" fill="none" stroke="#c4b5fd" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-purple)"/>
+  <path id="scope-single" d="M800 455 V500 H280 V545" fill="none" stroke="#9ed8ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-cyan)"/>
+  <path id="scope-group" d="M800 455 V545" fill="none" stroke="#5eead4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
+  <path id="scope-strategic" d="M800 455 V500 H1320 V545" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-amber)"/>
+  <path id="single-exec" d="M280 690 V745 H550 V790" fill="none" stroke="#9ed8ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-cyan)"/>
+  <path id="group-exec" d="M800 690 V790" fill="none" stroke="#5eead4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
+  <path id="strategic-exec" d="M1320 690 V745 H1050 V790" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-amber)"/>
+</g>
+<g filter="url(#shadow)">
+  <rect x="430" y="175" width="740" height="105" rx="22" fill="#172033" stroke="#c4b5fd" stroke-width="4"/>
+  
+  <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#c4b5fd"><tspan x="800" y="218">How many nodes may run?</tspan></text>
+  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="800" y="255">decide concurrency before choosing a backend</tspan></text>
+</g>
+
+<g filter="url(#shadow)">
+  <rect x="540" y="340" width="520" height="115" rx="22" fill="#172033" stroke="#c4b5fd" stroke-width="4"/>
+  
+  <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#c4b5fd"><tspan x="800" y="383">What selects the owner?</tspan></text>
+  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="800" y="420">one lock / fixed slots / scored candidates</tspan></text>
+</g>
+
+<g filter="url(#shadow)">
+  <rect x="90" y="545" width="380" height="145" rx="22" fill="#172033" stroke="#9ed8ff" stroke-width="4"/>
+  
+  <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#9ed8ff"><tspan x="280" y="588">Single leader</tspan></text>
+  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="280" y="625">exactly one active owner</tspan><tspan x="280" y="650">batch / migration / polling</tspan></text>
+</g>
+
+<g filter="url(#shadow)">
+  <rect x="610" y="545" width="380" height="145" rx="22" fill="#172033" stroke="#5eead4" stroke-width="4"/>
+  
+  <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#5eead4"><tspan x="800" y="588">Group election</tspan></text>
+  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="800" y="625">bounded parallel slots</tspan><tspan x="800" y="650">partitioned or tenant work</tspan></text>
+</g>
+
+<g filter="url(#shadow)">
+  <rect x="1130" y="545" width="380" height="145" rx="22" fill="#172033" stroke="#f6c96b" stroke-width="4"/>
+  
+  <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#f6c96b"><tspan x="1320" y="588">Strategic election</tspan></text>
+  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="1320" y="625">candidate registry + scorer</tspan><tspan x="1320" y="650">capacity or locality aware</tspan></text>
+</g>
+
+<g filter="url(#shadow)">
+  <rect x="310" y="790" width="480" height="120" rx="22" fill="#172033" stroke="#9ed8ff" stroke-width="4"/>
+  
+  <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#9ed8ff"><tspan x="550" y="833">Execution API</tspan></text>
+  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="550" y="870">blocking / CompletableFuture / virtual thread</tspan><tspan x="550" y="895">choose by caller ownership and cancellation</tspan></text>
+</g>
+
+<g filter="url(#shadow)">
+  <rect x="810" y="790" width="480" height="120" rx="22" fill="#172033" stroke="#5eead4" stroke-width="4"/>
+  
+  <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#5eead4"><tspan x="1050" y="833">Coroutine API</tspan></text>
+  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="1050" y="870">SuspendLeaderElector for suspend work</tspan><tspan x="1050" y="895">structured cancellation stays visible</tspan></text>
+</g>
+
+<text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17" font-weight="500" fill="#91a4bb"><tspan x="800" y="966">backend choice comes next: match atomicity, time source, failure model, and operations</tspan></text>
+
+</svg>
