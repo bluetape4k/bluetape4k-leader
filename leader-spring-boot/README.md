@@ -83,6 +83,11 @@ bluetape4k:
       include-bean-names: true
     observability:
       enabled: true
+      lock-names:
+        - daily-settlement
+      health:
+        enabled: true
+        lease-warning-threshold: 10s
       tracing:
         enabled: true
         include-lock-name: false
@@ -91,6 +96,31 @@ bluetape4k:
 ```
 
 Spring configuration properties use Spring Boot duration binding (`5s`, `60s`, `PT1M`). Core `LeaderElectionOptions` and `LeaderGroupElectionOptions` use `kotlin.time.Duration` in Kotlin code.
+
+## Leader Readiness (0.5.0)
+
+The opt-in `leaderElectionReadiness` contributor checks only lock names configured in or observed by this JVM. It performs one read-only `LeaderElector.state(...)` call per known name; it never enumerates backend locks or changes election state.
+
+```yaml
+bluetape4k:
+  leader:
+    observability:
+      lock-names: [daily-settlement]
+      health:
+        enabled: true
+        lease-warning-threshold: 10s
+
+management:
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,leaderElectionReadiness
+```
+
+The contributor reports `UP` for successful reads without near-expiry leases, `OUT_OF_SERVICE` when an occupied lease expires within the threshold, and `DOWN` when a known-lock state read fails. Unknown lease expiry is reported in details but does not make the application unready. The result is a best-effort JVM-local diagnostic, not an ownership decision.
+
+Each health evaluation performs one backend state read per lock name in the JVM-local registry, so its cost grows linearly with the registered lock count and backend latency. Enable it for a small, bounded set of stable lock names; leave it disabled for applications that generate unbounded dynamic names. Health details can include raw lock names, so protect Actuator access and configure `management.endpoint.health.show-details` according to your disclosure policy.
 
 ## Startup Diagnostics
 
@@ -162,8 +192,12 @@ Use `bean = "..."` on the annotation when more than one backend is available.
 ```kotlin
 @Service
 class SettlementJobs {
-    @Scheduled(cron = "0 0 2 * * *")
-    @LeaderElection(name = "daily-settlement", leaseTime = "30m", minLeaseTime = "10s")
+    @LeaderScheduled(
+        name = "daily-settlement",
+        cron = "\${jobs.settlement.cron:0 0 2 * * *}",
+        leaseTime = "30m",
+        minLeaseTime = "10s",
+    )
     fun settleDaily(): SettlementReport? =
         settlementService.settle()
 
@@ -173,6 +207,8 @@ class SettlementJobs {
     }
 }
 ```
+
+`@LeaderScheduled` composes Spring `@Scheduled` with `@LeaderElection`; Spring still owns scheduling and scheduled-task observation, while the existing leader aspect owns lock acquisition and contention skips. Spring scheduling must be enabled, and the usual `@Scheduled` method-signature and exactly-one-trigger rules still apply. Separate `@Scheduled` and `@LeaderElection` annotations remain useful for custom composed annotations or when the two concerns should stay visually explicit.
 
 ### Sequence: AOP-triggered `runIfLeader`
 

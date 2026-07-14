@@ -2,12 +2,11 @@ package io.bluetape4k.leader.spring.history
 
 import io.bluetape4k.leader.history.LeaderHistorySink
 import io.bluetape4k.leader.history.NoopLeaderHistorySink
-import io.bluetape4k.leader.annotation.LeaderElection
+import io.bluetape4k.leader.spring.scheduling.LeaderScheduled
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import org.springframework.beans.factory.InitializingBean
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.scheduling.annotation.Scheduled
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -23,7 +22,7 @@ import java.time.temporal.ChronoUnit
  * - Bounded by a wall-clock budget: `bluetape4k.leader.history.retention.max-duration-ms`
  *   (default 300000 ms = 5 minutes).  If the budget is exceeded, remaining rows are deferred
  *   to the next scheduled run and a WARN is logged.
- * - Decorated with `@LeaderElection` to prevent concurrent execution across multiple pods
+ * - Decorated with `@LeaderScheduled` to prevent concurrent execution across multiple pods
  *   (dogfooding this library's own AOP).
  *
  * ## Configuration example
@@ -53,8 +52,11 @@ class LeaderHistoryRetentionJob(
         }
     }
 
-    @Scheduled(cron = "\${bluetape4k.leader.history.retention.cron:0 0 2 * * ?}")
-    @LeaderElection("bluetape4k-leader-history-retention", autoExtend = true)
+    @LeaderScheduled(
+        name = "bluetape4k-leader-history-retention",
+        cron = "\${bluetape4k.leader.history.retention.cron:0 0 2 * * ?}",
+        autoExtend = true,
+    )
     fun runRetention() {
         val cutoff = Instant.now().minus(retentionDays, ChronoUnit.DAYS)
         val deadline = System.currentTimeMillis() + maxDurationMs
