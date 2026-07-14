@@ -195,3 +195,23 @@ still run the Code Review pass before merging.
   Nightly's explicit contract.
 - When `.github/workflows/nightly-tests.yml` is changed, explicitly dispatch
   Nightly before DoD and record the run URL/result.
+
+## Manual Ownership
+
+- `docs/manual/` is the source of truth for user-facing release documentation. README files are concise entry points and must link into the manual instead of duplicating it.
+- Versioned manuals are written against the pinned `releaseRef` and `releaseCommit` in `docs/manual/manifest.yaml`. Authoring may happen on `develop`, but API claims and repository links must remain valid at that release commit.
+- Applications select only `io.github.bluetape4k:bluetape4k-dependencies`; do not teach users to coordinate a separate Leader BOM or per-module version.
+- Keep English and Korean paths aligned. Korean prose should read as native technical writing, not as a literal translation.
+- Treat every `examples/*` project as a workshop: document prerequisites, execution, observable results, diagnosis, and the next learning step.
+- Manual diagrams use the dark diagram style and ship as SVG plus 2x PNG pairs. Run the `bluetape-diagram` checklist and full-size visual review; ensure card text fits and every connector and arrowhead is visible.
+
+Manual validation sequence:
+
+```bash
+./gradlew exportManualModuleInventory
+ruby scripts/manual/release_inventory.rb 0.4.0 17ab7f872c1f96318c73d3580729cac20a67e017 build/manual/module-inventory.json build/manual/release-module-inventory.json 35
+ruby scripts/manual/validate_manuals.rb build/manual/release-module-inventory.json
+ruby scripts/manual/validate_release_manuals.rb 0.4.0 17ab7f872c1f96318c73d3580729cac20a67e017
+ruby scripts/manual/export_manifest.rb --check
+ruby -I scripts/manual -e 'Dir["scripts/manual/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
+```
