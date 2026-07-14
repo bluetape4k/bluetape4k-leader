@@ -44,7 +44,7 @@ module ManualDocs
       },
       "example" => {
         "en" => "Prerequisites: prepare the required service. Run: `./gradlew {{gradle_task}}`. Observable result: verify the test report. Diagnosis: inspect the service state and Gradle logs when the result differs.",
-        "ko" => "사전 준비: 예제에 필요한 서비스를 준비합니다. 실행 명령: `./gradlew {{gradle_task}}`. 확인할 결과: 테스트 보고서를 확인합니다. 문제 진단: 결과가 다르면 서비스 상태와 Gradle 로그부터 살펴봅니다.",
+        "ko" => "사전 준비: 예제에 필요한 서비스를 준비합니다. `./gradlew {{gradle_task}}` 명령으로 실행합니다. 테스트 보고서에서 실행 결과를 확인하고, 예상과 다르면 서비스 상태와 Gradle 로그부터 살펴봅니다.",
       },
       "benchmark" => {
         "en" => "Workload: define the measured operation. Environment: record hardware and runtime settings. Metric direction: state whether higher or lower is better. Representative result: report a reproducible sample. Caveats: compare equivalent conditions. What this does not prove: production performance under a different workload or environment.",
@@ -191,7 +191,10 @@ module ManualDocs
       elsif kind == "example"
         content = locale == "ko" ? "이 예제는 별도 라이브러리 좌표를 제공하지 않습니다." : "This runnable example does not publish a library coordinate." if section == "coordinates"
         content = locale == "ko" ? "사전 준비를 마친 뒤 `./gradlew #{entry.fetch('gradlePath')}:test`로 예제 시나리오를 실행합니다." : "Complete the prerequisites, then run the example scenarios with `./gradlew #{entry.fetch('gradlePath')}:test`." if section == "quick-start"
-        content = locale == "ko" ? "예상한 출력이 보이지 않으면 서비스 상태와 Gradle 로그부터 확인합니다." : "Verify the observable result; inspect the service state and Gradle logs for failure diagnosis." if section == "failures"
+        content = locale == "ko" ? "예상한 결과가 나오지 않으면 백엔드 상태와 Gradle 로그를 차례로 확인합니다." : "Verify the observable result; inspect the service state and Gradle logs for failure diagnosis." if section == "failures"
+        content = locale == "ko" ? "실행한 작업, 리더 선출 경쟁에서 건너뛴 작업, 실패한 작업을 구분해 기록합니다. 태그 값의 종류가 지나치게 늘어나지 않도록 제한합니다." : content if section == "operations"
+        content = locale == "ko" ? "통합 테스트에 Docker나 특권 모드가 필요하면 빠른 단위 테스트와 분리하되, 모의 객체만으로 실제 백엔드 검증을 대신하지 않습니다." : content if section == "testing"
+        content = locale == "ko" ? "예제를 실행한 뒤 작업 본문을 찾고, 여러 후보의 경쟁과 리더 인계를 차례로 확인합니다. 그런 다음 해당 백엔드와 코어 실행 모델 문서를 읽고 서비스에 적용합니다." : content if section == "workshops"
       elsif kind == "benchmark"
         content = locale == "ko" ? "워크로드와 실행 환경을 고정하고 함께 기록합니다." : "Define the workload and record the execution environment." if section == "concepts"
         content = locale == "ko" ? "지표의 방향과 재현 가능한 대표 결과를 함께 제시합니다." : "State the metric direction and a reproducible representative result." if section == "operations"

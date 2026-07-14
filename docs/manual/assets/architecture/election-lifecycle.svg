@@ -28,37 +28,37 @@
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="48" font-weight="700" fill="#f8fafc"><tspan x="800" y="96">Election Is a Lease Lifecycle</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="500" fill="#b6c4d6"><tspan x="800" y="137">Every successful run has an ownership boundary and an observable outcome</tspan></text>
   <g filter="url(#shadow)">
-  <rect x="90" y="360" width="195" height="150" rx="22" fill="#172033" stroke="#9ed8ff" stroke-width="4"/>
+  <rect class="card" x="90" y="360" width="195" height="150" rx="22" fill="#172033" stroke="#9ed8ff" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#9ed8ff"><tspan x="187" y="403">Contend</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="187" y="440">same lock name</tspan><tspan x="187" y="465">tenant namespace</tspan></text>
 </g>
 <g filter="url(#shadow)">
-  <rect x="335" y="360" width="195" height="150" rx="22" fill="#172033" stroke="#5eead4" stroke-width="4"/>
+  <rect class="card" x="335" y="360" width="195" height="150" rx="22" fill="#172033" stroke="#5eead4" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#5eead4"><tspan x="432" y="403">Acquire</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="432" y="440">backend atomicity</tspan><tspan x="432" y="465">lease + owner token</tspan></text>
 </g>
 <g filter="url(#shadow)">
-  <rect x="580" y="360" width="195" height="150" rx="22" fill="#172033" stroke="#c4b5fd" stroke-width="4"/>
+  <rect class="card" x="580" y="360" width="195" height="150" rx="22" fill="#172033" stroke="#c4b5fd" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#c4b5fd"><tspan x="677" y="403">Run</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="677" y="440">Elected or Skipped</tspan><tspan x="677" y="465">action owns work</tspan></text>
 </g>
 <g filter="url(#shadow)">
-  <rect x="825" y="360" width="195" height="150" rx="22" fill="#172033" stroke="#f6c96b" stroke-width="4"/>
+  <rect class="card" x="825" y="360" width="195" height="150" rx="22" fill="#172033" stroke="#f6c96b" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#f6c96b"><tspan x="922" y="403">Observe</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="922" y="440">state / events</tspan><tspan x="922" y="465">history / metrics</tspan></text>
 </g>
 <g filter="url(#shadow)">
-  <rect x="1070" y="360" width="195" height="150" rx="22" fill="#172033" stroke="#fda4af" stroke-width="4"/>
+  <rect class="card" x="1070" y="360" width="195" height="150" rx="22" fill="#172033" stroke="#fda4af" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#fda4af"><tspan x="1167" y="403">Extend</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="1167" y="440">before expiry</tspan><tspan x="1167" y="465">ownership re-check</tspan></text>
 </g>
 <g filter="url(#shadow)">
-  <rect x="1315" y="360" width="195" height="150" rx="22" fill="#172033" stroke="#5eead4" stroke-width="4"/>
+  <rect class="card" x="1315" y="360" width="195" height="150" rx="22" fill="#172033" stroke="#5eead4" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#5eead4"><tspan x="1412" y="403">Release</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="1412" y="440">finally block</tspan><tspan x="1412" y="465">token-safe unlock</tspan></text>
@@ -66,25 +66,25 @@
 
 <g id="main-flow"><path id="step-0" d="M285 435 H323" fill="none" stroke="#9ed8ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-cyan)"/><path id="step-1" d="M530 435 H568" fill="none" stroke="#5eead4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-teal)"/><path id="step-2" d="M775 435 H813" fill="none" stroke="#c4b5fd" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-purple)"/><path id="step-3" d="M1020 435 H1058" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-amber)"/><path id="step-4" d="M1265 435 H1303" fill="none" stroke="#fda4af" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-rose)"/></g>
 <g filter="url(#shadow)">
-  <rect x="180" y="180" width="500" height="135" rx="22" fill="#172033" stroke="#9ed8ff" stroke-width="4"/>
+  <rect class="card" x="180" y="165" width="500" height="135" rx="22" fill="#172033" stroke="#9ed8ff" stroke-width="4"/>
   
-  <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#9ed8ff"><tspan x="430" y="223">Contention is a normal outcome</tspan></text>
-  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="430" y="260">Skipped means another node owns the work</tspan><tspan x="430" y="285">do not treat it as an application failure</tspan></text>
+  <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#9ed8ff"><tspan x="430" y="208">Contention is a normal outcome</tspan></text>
+  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="430" y="245">Skipped means another node owns the work</tspan><tspan x="430" y="270">do not treat it as an application failure</tspan></text>
 </g>
 
 <g filter="url(#shadow)">
-  <rect x="920" y="180" width="500" height="135" rx="22" fill="#172033" stroke="#fda4af" stroke-width="4"/>
+  <rect class="card" x="920" y="165" width="500" height="135" rx="22" fill="#172033" stroke="#fda4af" stroke-width="4"/>
   
-  <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#fda4af"><tspan x="1170" y="223">Action failure remains visible</tspan></text>
-  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="1170" y="260">LeaderRunResult distinguishes ActionFailed</tspan><tspan x="1170" y="285">exceptions are not collapsed into contention</tspan></text>
+  <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#fda4af"><tspan x="1170" y="208">Action failure remains visible</tspan></text>
+  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="1170" y="245">LeaderRunResult distinguishes ActionFailed</tspan><tspan x="1170" y="270">exceptions are not collapsed into contention</tspan></text>
 </g>
 
 <g id="recovery" filter="url(#glow)">
-  <path id="retry" d="M1412 510 V640 H188 V530" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="10 8" marker-end="url(#arrow-amber)"/>
-  <path id="cancel" d="M922 510 V700 H800 V780" fill="none" stroke="#fda4af" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="10 8" marker-end="url(#arrow-rose)"/>
+  <path id="retry" d="M1412 360 L1412 337 Q1412 325 1400 325 L200 325 Q188 325 188 337 L188 360" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="10 8" marker-end="url(#arrow-amber)"/>
+  <path id="cancel" d="M677 510 L677 686 Q677 700 691 700 L746 700 Q760 700 760 714 L760 780" fill="none" stroke="#fda4af" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="10 8" marker-end="url(#arrow-rose)"/>
 </g>
 <g filter="url(#shadow)">
-  <rect x="560" y="780" width="480" height="115" rx="22" fill="#172033" stroke="#fda4af" stroke-width="4"/>
+  <rect class="card" x="560" y="780" width="480" height="115" rx="22" fill="#172033" stroke="#fda4af" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#fda4af"><tspan x="800" y="823">Cancellation boundary</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="800" y="860">cancel the action and stop extending the lease</tspan><tspan x="800" y="885">release only while ownership is still valid</tspan></text>

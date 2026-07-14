@@ -50,12 +50,35 @@ def card(x, y, width, height, title, lines = [], color: COLORS[:cyan], tag: nil)
   tag_svg = tag ? %(<text x="#{x + width - 20}" y="#{y + 26}" text-anchor="end" font-family="ui-monospace, monospace" font-size="13" fill="#{color}">#{esc(tag)}</text>) : ""
   <<~SVG
     <g filter="url(#shadow)">
-      <rect x="#{x}" y="#{y}" width="#{width}" height="#{height}" rx="22" fill="#172033" stroke="#{color}" stroke-width="4"/>
+      <rect class="card" x="#{x}" y="#{y}" width="#{width}" height="#{height}" rx="22" fill="#172033" stroke="#{color}" stroke-width="4"/>
       #{tag_svg}
       #{text_lines(x + width / 2, title_y, [title], size: 27, color: color, family: "Architects Daughter, Comic Sans MS, cursive", weight: 700)}
       #{text_lines(x + width / 2, lines_y, lines, size: 15, color: COLORS[:muted], gap: 25)}
     </g>
   SVG
+end
+
+def rounded_path(points, radius: 14)
+  raise ArgumentError, "a route needs at least two points" if points.length < 2
+
+  commands = ["M#{points.first.join(' ')}"]
+  points.each_cons(3) do |from, corner, to|
+    incoming = [corner[0] - from[0], corner[1] - from[1]]
+    outgoing = [to[0] - corner[0], to[1] - corner[1]]
+    raise ArgumentError, "routes must be orthogonal" unless incoming.one?(&:zero?) && outgoing.one?(&:zero?)
+
+    in_length = incoming.map(&:abs).max
+    out_length = outgoing.map(&:abs).max
+    bend = [radius, in_length / 2.0, out_length / 2.0].min
+    in_unit = incoming.map { |value| value.zero? ? 0 : value / value.abs }
+    out_unit = outgoing.map { |value| value.zero? ? 0 : value / value.abs }
+    approach = [corner[0] - in_unit[0] * bend, corner[1] - in_unit[1] * bend]
+    departure = [corner[0] + out_unit[0] * bend, corner[1] + out_unit[1] * bend]
+    commands << "L#{approach.join(' ')}"
+    commands << "Q#{corner.join(' ')} #{departure.join(' ')}"
+  end
+  commands << "L#{points.last.join(' ')}"
+  commands.join(" ")
 end
 
 def edge(id, d, color: :cyan, dashed: false, width: 4)
@@ -80,12 +103,12 @@ end
 def repository_learning_map
   connectors = [
     edge("deps-core", "M800 270 V325", color: :purple),
-    edge("core-model", "M800 445 V490 H300 V525", color: :cyan),
+    edge("core-model", rounded_path([[735, 445], [735, 470], [300, 470], [300, 525]]), color: :cyan),
     edge("core-backend", "M800 445 V525", color: :teal),
-    edge("core-framework", "M800 445 V490 H1300 V525", color: :amber),
-    edge("model-workshops", "M300 675 V720 H570 V760", color: :cyan),
+    edge("core-framework", rounded_path([[865, 445], [865, 500], [1300, 500], [1300, 525]]), color: :amber),
+    edge("model-workshops", rounded_path([[300, 675], [300, 710], [570, 710], [570, 760]]), color: :cyan),
     edge("backend-workshops", "M800 675 V760", color: :teal),
-    edge("framework-workshops", "M1300 675 V720 H1030 V760", color: :amber),
+    edge("framework-workshops", rounded_path([[1300, 675], [1300, 730], [1030, 730], [1030, 760]]), color: :amber),
   ].join
   body = <<~SVG
     <g id="connectors" filter="url(#glow)">#{connectors}</g>
@@ -116,11 +139,11 @@ def election_lifecycle
   body = <<~SVG
     #{cards}
     <g id="main-flow">#{edges}</g>
-    #{card(180, 180, 500, 135, "Contention is a normal outcome", ["Skipped means another node owns the work", "do not treat it as an application failure"], color: COLORS[:cyan])}
-    #{card(920, 180, 500, 135, "Action failure remains visible", ["LeaderRunResult distinguishes ActionFailed", "exceptions are not collapsed into contention"], color: COLORS[:rose])}
+    #{card(180, 165, 500, 135, "Contention is a normal outcome", ["Skipped means another node owns the work", "do not treat it as an application failure"], color: COLORS[:cyan])}
+    #{card(920, 165, 500, 135, "Action failure remains visible", ["LeaderRunResult distinguishes ActionFailed", "exceptions are not collapsed into contention"], color: COLORS[:rose])}
     <g id="recovery" filter="url(#glow)">
-      #{edge("retry", "M1412 510 V640 H188 V530", color: :amber, dashed: true)}
-      #{edge("cancel", "M922 510 V700 H800 V780", color: :rose, dashed: true)}
+      #{edge("retry", rounded_path([[1412, 360], [1412, 325], [188, 325], [188, 360]], radius: 12), color: :amber, dashed: true)}
+      #{edge("cancel", rounded_path([[677, 510], [677, 700], [760, 700], [760, 780]]), color: :rose, dashed: true)}
     </g>
     #{card(560, 780, 480, 115, "Cancellation boundary", ["cancel the action and stop extending the lease", "release only while ownership is still valid"], color: COLORS[:rose])}
     #{text_lines(800, 955, ["retry is a new election attempt, never an assumption of retained leadership"], size: 17, color: COLORS[:dim])}
@@ -132,12 +155,12 @@ def model_decision_map
   body = <<~SVG
     <g id="connectors" filter="url(#glow)">
       #{edge("start-scope", "M800 280 V340", color: :purple)}
-      #{edge("scope-single", "M800 455 V500 H280 V545", color: :cyan)}
+      #{edge("scope-single", rounded_path([[700, 455], [700, 490], [280, 490], [280, 545]]), color: :cyan)}
       #{edge("scope-group", "M800 455 V545", color: :teal)}
-      #{edge("scope-strategic", "M800 455 V500 H1320 V545", color: :amber)}
-      #{edge("single-exec", "M280 690 V745 H550 V790", color: :cyan)}
-      #{edge("group-exec", "M800 690 V790", color: :teal)}
-      #{edge("strategic-exec", "M1320 690 V745 H1050 V790", color: :amber)}
+      #{edge("scope-strategic", rounded_path([[900, 455], [900, 510], [1320, 510], [1320, 545]]), color: :amber)}
+      #{edge("single-exec", rounded_path([[280, 690], [280, 735], [550, 735], [550, 790]]), color: :cyan)}
+      #{edge("group-exec", rounded_path([[800, 690], [800, 750], [930, 750], [930, 790]]), color: :teal)}
+      #{edge("strategic-exec", rounded_path([[1320, 690], [1320, 720], [1170, 720], [1170, 790]]), color: :amber)}
     </g>
     #{card(430, 175, 740, 105, "How many nodes may run?", ["decide concurrency before choosing a backend"], color: COLORS[:purple])}
     #{card(540, 340, 520, 115, "What selects the owner?", ["one lock / fixed slots / scored candidates"], color: COLORS[:purple])}
@@ -154,11 +177,11 @@ end
 def backend_selection_map
   body = <<~SVG
     <g id="connectors" filter="url(#glow)">
-      #{edge("start-latency", "M800 270 V335 H190 V390", color: :cyan)}
-      #{edge("start-sql", "M800 270 V335 H495 V390", color: :teal)}
+      #{edge("start-latency", rounded_path([[680, 270], [680, 310], [190, 310], [190, 390]]), color: :cyan)}
+      #{edge("start-sql", rounded_path([[740, 270], [740, 325], [495, 325], [495, 390]]), color: :teal)}
       #{edge("start-doc", "M800 270 V390", color: :purple)}
-      #{edge("start-control", "M800 270 V335 H1105 V390", color: :amber)}
-      #{edge("start-cluster", "M800 270 V335 H1410 V390", color: :rose)}
+      #{edge("start-control", rounded_path([[860, 270], [860, 350], [1105, 350], [1105, 390]]), color: :amber)}
+      #{edge("start-cluster", rounded_path([[920, 270], [920, 325], [1410, 325], [1410, 390]]), color: :rose)}
     </g>
     #{card(430, 175, 740, 95, "What infrastructure already owns coordination?", ["prefer the system your operators can observe and recover"], color: COLORS[:purple])}
     #{card(70, 390, 240, 210, "Redis", ["Lettuce: explicit APIs", "Redisson: watchdog", "low-latency TTL locks", "STABLE"], color: COLORS[:cyan])}
@@ -170,8 +193,8 @@ def backend_selection_map
     #{card(590, 680, 420, 165, "Compare operations", ["credentials / topology", "monitoring / outage behavior", "clock assumptions / cleanup"], color: COLORS[:teal])}
     #{card(1055, 680, 420, 165, "Prove with a workshop", ["run the matching example", "observe contention and expiry", "verify recovery and metrics"], color: COLORS[:amber])}
     <g id="comparison-flow" filter="url(#glow)">
-      #{edge("semantics-ops", "M545 762 H578", color: :cyan)}
-      #{edge("ops-proof", "M1010 762 H1043", color: :teal)}
+      #{edge("semantics-ops", "M545 762 H590", color: :cyan)}
+      #{edge("ops-proof", "M1010 762 H1055", color: :teal)}
     </g>
     #{text_lines(800, 935, ["preview means the API exists in 0.4, but the operational contract is still intentionally narrower"], size: 17, color: COLORS[:dim])}
   SVG
@@ -181,22 +204,22 @@ end
 def framework_observability_flow
   body = <<~SVG
     <g id="connectors" filter="url(#glow)">
-      #{edge("trigger-spring", "M800 285 V335 H390 V390", color: :cyan)}
-      #{edge("trigger-ktor", "M800 285 V335 H1210 V390", color: :amber)}
-      #{edge("spring-elector", "M390 540 V590 H800 V635", color: :cyan)}
-      #{edge("ktor-elector", "M1210 540 V590 H800 V635", color: :amber)}
-      #{edge("elector-backend", "M800 755 V800 H360 V845", color: :teal)}
-      #{edge("elector-events", "M800 755 V800 H1240 V845", color: :purple)}
-      #{edge("events-metrics", "M1240 930 H1040", color: :purple)}
-      #{edge("backend-release", "M360 930 H560", color: :teal)}
+      #{edge("trigger-spring", rounded_path([[700, 285], [700, 330], [390, 330], [390, 390]]), color: :cyan)}
+      #{edge("trigger-ktor", rounded_path([[900, 285], [900, 345], [1210, 345], [1210, 390]]), color: :amber)}
+      #{edge("spring-elector", rounded_path([[390, 540], [390, 580], [700, 580], [700, 635]]), color: :cyan)}
+      #{edge("ktor-elector", rounded_path([[1210, 540], [1210, 595], [900, 595], [900, 635]]), color: :amber)}
+      #{edge("elector-backend", rounded_path([[720, 755], [720, 790], [310, 790], [310, 845]]), color: :teal)}
+      #{edge("elector-events", rounded_path([[880, 755], [880, 805], [1290, 805], [1290, 845]]), color: :purple)}
+      #{edge("release-events", "M950 920 H1060", color: :purple)}
+      #{edge("backend-release", "M540 900 H650", color: :teal)}
     </g>
     #{card(500, 180, 600, 105, "Application-owned trigger", ["scheduled job / request-independent background task"], color: COLORS[:purple])}
     #{card(170, 390, 440, 150, "Spring Boot", ["auto-configuration + CTW aspect", "annotations / SpEL / health", "private methods are not intercepted"], color: COLORS[:cyan])}
     #{card(990, 390, 440, 150, "Ktor", ["LeaderElection plugin", "leaderScheduled suspend action", "management registry + lifecycle"], color: COLORS[:amber])}
     #{card(520, 635, 560, 120, "LeaderElector boundary", ["Elected / Skipped / ActionFailed", "cancellation and lease ownership remain explicit"], color: COLORS[:teal])}
-    #{card(120, 845, 480, 115, "Selected backend", ["atomic acquire / renew / release", "resource lifecycle belongs to the application"], color: COLORS[:teal])}
-    #{card(620, 845, 360, 115, "Release gate", ["finally + owner token", "stop extender before unlock"], color: COLORS[:rose])}
-    #{card(1000, 845, 480, 115, "Events and Micrometer", ["state / listener / history", "meters, health, dashboards, alerts"], color: COLORS[:purple])}
+    #{card(80, 845, 460, 115, "Selected backend", ["atomic acquire / renew / release", "resource lifecycle belongs to the application"], color: COLORS[:teal])}
+    #{card(650, 845, 300, 115, "Release gate", ["finally + owner token", "stop extender before unlock"], color: COLORS[:rose])}
+    #{card(1060, 845, 460, 115, "Events and Micrometer", ["state / listener / history", "meters, health, dashboards, alerts"], color: COLORS[:purple])}
   SVG
   canvas("Framework Convenience Must Preserve Ownership", "Spring Boot and Ktor converge on the same elector, backend, and observability contracts", "Flow from application triggers through Spring or Ktor to an elector, backend, release gate, and Micrometer observations.", body)
 end
@@ -209,13 +232,18 @@ DIAGRAMS = {
   "frameworks/framework-observability-flow" => framework_observability_flow,
 }.freeze
 
-DIAGRAMS.each do |relative, svg|
+requested = ARGV.empty? ? DIAGRAMS.keys : ARGV
+unknown = requested - DIAGRAMS.keys
+abort("Unknown diagram(s): #{unknown.join(', ')}") unless unknown.empty?
+
+requested.each do |relative|
+  svg = DIAGRAMS.fetch(relative)
   svg_path = File.join(ASSETS, "#{relative}.svg")
   png_path = File.join(ASSETS, "#{relative}.png")
   FileUtils.mkdir_p(File.dirname(svg_path))
   File.write(svg_path, svg)
-  stdout, stderr, status = Open3.capture3("rsvg-convert", "-w", (W * 2).to_s, "-h", (H * 2).to_s, "-o", png_path, svg_path)
+  stdout, stderr, status = Open3.capture3("cairosvg", svg_path, "-o", png_path, "-s", "2")
   abort("render failed for #{relative}: #{stdout}#{stderr}") unless status.success?
 end
 
-puts "Rendered #{DIAGRAMS.length} dark Leader diagrams as SVG and 2x PNG pairs."
+puts "Rendered #{requested.length} dark Leader diagrams as SVG and 2x PNG pairs with CairoSVG."
