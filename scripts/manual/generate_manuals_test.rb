@@ -53,6 +53,12 @@ class GenerateManualsTest < Minitest::Test
       example = File.read(File.join(root, "docs/manual/en/modules/example.md"))
       %w[Prerequisites Gradle Observable Diagnosis].each { |term| assert_includes example, term }
 
+      example_ko = File.read(File.join(root, "docs/manual/ko/modules/example.md"))
+      ["명령으로 실행합니다", "실행 결과를 확인하고", "Gradle 로그부터 살펴봅니다"].each do |term|
+        assert_includes example_ko, term
+      end
+      %w[workload client credential mock].each { |term| refute_includes example_ko, term }
+
       benchmark = File.read(File.join(root, "docs/manual/en/modules/benchmark.md"))
       ["Workload", "Environment", "Metric direction", "Representative result", "Caveats", "does not prove"].each do |term|
         assert_includes benchmark, term
@@ -77,7 +83,10 @@ class GenerateManualsTest < Minitest::Test
         },
         "example" => {
           "en" => ["Prerequisites:", "Run:", "Observable result:", "Diagnosis:"],
-          "ko" => ["사전 준비:", "실행 명령:", "확인할 결과:", "문제 진단:"],
+          "ko" => [
+            "사전 준비:", "명령으로 실행합니다", "실행 결과를 확인하고", "Gradle 로그부터 살펴봅니다",
+            "실행한 작업", "태그 값의 종류", "특권 모드", "모의 객체", "작업 본문", "코어 실행 모델",
+          ],
         },
         "benchmark" => {
           "en" => ["Workload:", "Environment:", "Metric direction:", "Representative result:", "Caveats:", "What this does not prove:"],

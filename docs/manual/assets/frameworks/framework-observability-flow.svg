@@ -28,62 +28,62 @@
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="48" font-weight="700" fill="#f8fafc"><tspan x="800" y="96">Framework Convenience Must Preserve Ownership</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="500" fill="#b6c4d6"><tspan x="800" y="137">Spring Boot and Ktor converge on the same elector, backend, and observability contracts</tspan></text>
   <g id="connectors" filter="url(#glow)">
-  <path id="trigger-spring" d="M800 285 V335 H390 V390" fill="none" stroke="#9ed8ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-cyan)"/>
-  <path id="trigger-ktor" d="M800 285 V335 H1210 V390" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-amber)"/>
-  <path id="spring-elector" d="M390 540 V590 H800 V635" fill="none" stroke="#9ed8ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-cyan)"/>
-  <path id="ktor-elector" d="M1210 540 V590 H800 V635" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-amber)"/>
-  <path id="elector-backend" d="M800 755 V800 H360 V845" fill="none" stroke="#5eead4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
-  <path id="elector-events" d="M800 755 V800 H1240 V845" fill="none" stroke="#c4b5fd" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-purple)"/>
-  <path id="events-metrics" d="M1240 930 H1040" fill="none" stroke="#c4b5fd" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-purple)"/>
-  <path id="backend-release" d="M360 930 H560" fill="none" stroke="#5eead4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
+  <path id="trigger-spring" d="M700 285 L700 316 Q700 330 686 330 L404 330 Q390 330 390 344 L390 390" fill="none" stroke="#9ed8ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-cyan)"/>
+  <path id="trigger-ktor" d="M900 285 L900 331 Q900 345 914 345 L1196 345 Q1210 345 1210 359 L1210 390" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-amber)"/>
+  <path id="spring-elector" d="M390 540 L390 566 Q390 580 404 580 L686 580 Q700 580 700 594 L700 635" fill="none" stroke="#9ed8ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-cyan)"/>
+  <path id="ktor-elector" d="M1210 540 L1210 581 Q1210 595 1196 595 L914 595 Q900 595 900 609 L900 635" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-amber)"/>
+  <path id="elector-backend" d="M720 755 L720 776 Q720 790 706 790 L324 790 Q310 790 310 804 L310 845" fill="none" stroke="#5eead4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
+  <path id="elector-events" d="M880 755 L880 791 Q880 805 894 805 L1276 805 Q1290 805 1290 819 L1290 845" fill="none" stroke="#c4b5fd" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-purple)"/>
+  <path id="release-events" d="M950 920 H1060" fill="none" stroke="#c4b5fd" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-purple)"/>
+  <path id="backend-release" d="M540 900 H650" fill="none" stroke="#5eead4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
 </g>
 <g filter="url(#shadow)">
-  <rect x="500" y="180" width="600" height="105" rx="22" fill="#172033" stroke="#c4b5fd" stroke-width="4"/>
+  <rect class="card" x="500" y="180" width="600" height="105" rx="22" fill="#172033" stroke="#c4b5fd" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#c4b5fd"><tspan x="800" y="223">Application-owned trigger</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="800" y="260">scheduled job / request-independent background task</tspan></text>
 </g>
 
 <g filter="url(#shadow)">
-  <rect x="170" y="390" width="440" height="150" rx="22" fill="#172033" stroke="#9ed8ff" stroke-width="4"/>
+  <rect class="card" x="170" y="390" width="440" height="150" rx="22" fill="#172033" stroke="#9ed8ff" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#9ed8ff"><tspan x="390" y="433">Spring Boot</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="390" y="470">auto-configuration + CTW aspect</tspan><tspan x="390" y="495">annotations / SpEL / health</tspan><tspan x="390" y="520">private methods are not intercepted</tspan></text>
 </g>
 
 <g filter="url(#shadow)">
-  <rect x="990" y="390" width="440" height="150" rx="22" fill="#172033" stroke="#f6c96b" stroke-width="4"/>
+  <rect class="card" x="990" y="390" width="440" height="150" rx="22" fill="#172033" stroke="#f6c96b" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#f6c96b"><tspan x="1210" y="433">Ktor</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="1210" y="470">LeaderElection plugin</tspan><tspan x="1210" y="495">leaderScheduled suspend action</tspan><tspan x="1210" y="520">management registry + lifecycle</tspan></text>
 </g>
 
 <g filter="url(#shadow)">
-  <rect x="520" y="635" width="560" height="120" rx="22" fill="#172033" stroke="#5eead4" stroke-width="4"/>
+  <rect class="card" x="520" y="635" width="560" height="120" rx="22" fill="#172033" stroke="#5eead4" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#5eead4"><tspan x="800" y="678">LeaderElector boundary</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="800" y="715">Elected / Skipped / ActionFailed</tspan><tspan x="800" y="740">cancellation and lease ownership remain explicit</tspan></text>
 </g>
 
 <g filter="url(#shadow)">
-  <rect x="120" y="845" width="480" height="115" rx="22" fill="#172033" stroke="#5eead4" stroke-width="4"/>
+  <rect class="card" x="80" y="845" width="460" height="115" rx="22" fill="#172033" stroke="#5eead4" stroke-width="4"/>
   
-  <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#5eead4"><tspan x="360" y="888">Selected backend</tspan></text>
-  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="360" y="925">atomic acquire / renew / release</tspan><tspan x="360" y="950">resource lifecycle belongs to the application</tspan></text>
+  <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#5eead4"><tspan x="310" y="888">Selected backend</tspan></text>
+  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="310" y="925">atomic acquire / renew / release</tspan><tspan x="310" y="950">resource lifecycle belongs to the application</tspan></text>
 </g>
 
 <g filter="url(#shadow)">
-  <rect x="620" y="845" width="360" height="115" rx="22" fill="#172033" stroke="#fda4af" stroke-width="4"/>
+  <rect class="card" x="650" y="845" width="300" height="115" rx="22" fill="#172033" stroke="#fda4af" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#fda4af"><tspan x="800" y="888">Release gate</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="800" y="925">finally + owner token</tspan><tspan x="800" y="950">stop extender before unlock</tspan></text>
 </g>
 
 <g filter="url(#shadow)">
-  <rect x="1000" y="845" width="480" height="115" rx="22" fill="#172033" stroke="#c4b5fd" stroke-width="4"/>
+  <rect class="card" x="1060" y="845" width="460" height="115" rx="22" fill="#172033" stroke="#c4b5fd" stroke-width="4"/>
   
-  <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#c4b5fd"><tspan x="1240" y="888">Events and Micrometer</tspan></text>
-  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="1240" y="925">state / listener / history</tspan><tspan x="1240" y="950">meters, health, dashboards, alerts</tspan></text>
+  <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#c4b5fd"><tspan x="1290" y="888">Events and Micrometer</tspan></text>
+  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="1290" y="925">state / listener / history</tspan><tspan x="1290" y="950">meters, health, dashboards, alerts</tspan></text>
 </g>
 
 

@@ -66,7 +66,7 @@ Configure the elector in its backend module, then set schedule interval/delay an
 
 ## Failure modes {#failures}
 
-Missing plugin/elector is startup configuration failure. Backend failures and action failures surface; normal contention skips. Cancellation should stop scheduling and release owned state.
+A missing plugin or elector is a startup configuration failure. Direct elector calls propagate backend and action failures. `Application.leaderScheduled` catches non-cancellation `Exception`, logs it at WARN, suppresses that iteration, and continues with the next cycle; normal contention still skips. Cancellation stops scheduling and lets the elector release owned state.
 
 ## Operations {#operations}
 

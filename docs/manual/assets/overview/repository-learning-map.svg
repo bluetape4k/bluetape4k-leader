@@ -27,44 +27,44 @@
   <rect x="42" y="34" width="1516" height="972" rx="34" fill="url(#panel)" stroke="#536377" stroke-width="4" filter="url(#shadow)"/>
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="48" font-weight="700" fill="#f8fafc"><tspan x="800" y="96">Learn Leader Election from the Boundary Inward</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="500" fill="#b6c4d6"><tspan x="800" y="137">Leader 0.4 / 17 libraries / 17 workshops / 1 benchmark</tspan></text>
-  <g id="connectors" filter="url(#glow)"><path id="deps-core" d="M800 270 V325" fill="none" stroke="#c4b5fd" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-purple)"/><path id="core-model" d="M800 445 V490 H300 V525" fill="none" stroke="#9ed8ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-cyan)"/><path id="core-backend" d="M800 445 V525" fill="none" stroke="#5eead4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-teal)"/><path id="core-framework" d="M800 445 V490 H1300 V525" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-amber)"/><path id="model-workshops" d="M300 675 V720 H570 V760" fill="none" stroke="#9ed8ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-cyan)"/><path id="backend-workshops" d="M800 675 V760" fill="none" stroke="#5eead4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-teal)"/><path id="framework-workshops" d="M1300 675 V720 H1030 V760" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-amber)"/></g>
+  <g id="connectors" filter="url(#glow)"><path id="deps-core" d="M800 270 V325" fill="none" stroke="#c4b5fd" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-purple)"/><path id="core-model" d="M735 445 L735.0 457.5 Q735 470 722.5 470.0 L314 470 Q300 470 300 484 L300 525" fill="none" stroke="#9ed8ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-cyan)"/><path id="core-backend" d="M800 445 V525" fill="none" stroke="#5eead4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-teal)"/><path id="core-framework" d="M865 445 L865 486 Q865 500 879 500 L1287.5 500.0 Q1300 500 1300.0 512.5 L1300 525" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-amber)"/><path id="model-workshops" d="M300 675 L300 696 Q300 710 314 710 L556 710 Q570 710 570 724 L570 760" fill="none" stroke="#9ed8ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-cyan)"/><path id="backend-workshops" d="M800 675 V760" fill="none" stroke="#5eead4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-teal)"/><path id="framework-workshops" d="M1300 675 L1300 716 Q1300 730 1286 730 L1044 730 Q1030 730 1030 744 L1030 760" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-amber)"/></g>
 <g filter="url(#shadow)">
-  <rect x="360" y="175" width="880" height="95" rx="22" fill="#172033" stroke="#c4b5fd" stroke-width="4"/>
+  <rect class="card" x="360" y="175" width="880" height="95" rx="22" fill="#172033" stroke="#c4b5fd" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#c4b5fd"><tspan x="800" y="218">bluetape4k-dependencies</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="800" y="255">the only version selected by the application</tspan></text>
 </g>
 
 <g filter="url(#shadow)">
-  <rect x="510" y="325" width="580" height="120" rx="22" fill="#172033" stroke="#9ed8ff" stroke-width="4"/>
+  <rect class="card" x="510" y="325" width="580" height="120" rx="22" fill="#172033" stroke="#9ed8ff" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#9ed8ff"><tspan x="800" y="368">leader-core</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="800" y="405">election contracts / options / state</tspan><tspan x="800" y="430">events / history / lease extension</tspan></text>
 </g>
 
 <g filter="url(#shadow)">
-  <rect x="105" y="525" width="390" height="150" rx="22" fill="#172033" stroke="#9ed8ff" stroke-width="4"/>
+  <rect class="card" x="105" y="525" width="390" height="150" rx="22" fill="#172033" stroke="#9ed8ff" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#9ed8ff"><tspan x="300" y="568">Election models</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="300" y="605">single leader</tspan><tspan x="300" y="630">group slots</tspan><tspan x="300" y="655">strategic candidate scoring</tspan></text>
 </g>
 
 <g filter="url(#shadow)">
-  <rect x="605" y="525" width="390" height="150" rx="22" fill="#172033" stroke="#5eead4" stroke-width="4"/>
+  <rect class="card" x="605" y="525" width="390" height="150" rx="22" fill="#172033" stroke="#5eead4" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#5eead4"><tspan x="800" y="568">Backend families</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="800" y="605">Redis / SQL / document</tspan><tspan x="800" y="630">control plane / cluster coordination</tspan></text>
 </g>
 
 <g filter="url(#shadow)">
-  <rect x="1105" y="525" width="390" height="150" rx="22" fill="#172033" stroke="#f6c96b" stroke-width="4"/>
+  <rect class="card" x="1105" y="525" width="390" height="150" rx="22" fill="#172033" stroke="#f6c96b" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#f6c96b"><tspan x="1300" y="568">Framework and ops</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="1300" y="605">Spring Boot / Ktor</tspan><tspan x="1300" y="630">Micrometer / health / history</tspan></text>
 </g>
 
 <g filter="url(#shadow)">
-  <rect x="185" y="760" width="1230" height="145" rx="22" fill="#172033" stroke="#fda4af" stroke-width="4"/>
+  <rect class="card" x="185" y="760" width="1230" height="145" rx="22" fill="#172033" stroke="#fda4af" stroke-width="4"/>
   
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="27" font-weight="700" fill="#fda4af"><tspan x="800" y="803">17 runnable workshops</tspan></text>
   <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="500" fill="#b6c4d6"><tspan x="800" y="840">start with batch-scheduler, then choose a backend and execution model</tspan><tspan x="800" y="865">observe election results, contention, lease ownership, metrics, and recovery</tspan></text>
