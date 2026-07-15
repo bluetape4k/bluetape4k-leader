@@ -14,7 +14,7 @@ configurations {
 
 dependencyManagement {
     imports {
-        mavenBom(libs.ktor.bom.get().toString())
+        mavenBom(bt4k.ktor.bom.get().toString())
     }
 }
 
@@ -22,10 +22,10 @@ dependencies {
     implementation(project(":bluetape4k-leader-ktor"))
     implementation(project(":bluetape4k-leader-redis-lettuce"))
 
-    implementation(libs.bluetape4k.coroutines)
-    implementation(libs.bluetape4k.logging)
-    implementation(libs.bluetape4k.lettuce)
-    implementation(libs.bluetape4k.ktor.core)
+    implementation(bt4k.bluetape4k.coroutines)
+    implementation(bt4k.bluetape4k.logging)
+    implementation(bt4k.bluetape4k.lettuce)
+    implementation(bt4k.bluetape4k.ktor.core)
     implementation(libs.lettuce.core)
 
     implementation(libs.kotlinx.coroutines.core)
@@ -43,11 +43,11 @@ dependencies {
     runtimeOnly(libs.logback)
 
     // Testcontainers (data layer test container singleton)
-    implementation(libs.bluetape4k.testcontainers)
+    implementation(bt4k.bluetape4k.testcontainers)
     implementation(libs.testcontainers)
 
-    testImplementation(libs.bluetape4k.junit5)
-    testImplementation(libs.bluetape4k.ktor.testing)
+    testImplementation(bt4k.bluetape4k.junit5)
+    testImplementation(bt4k.bluetape4k.ktor.testing)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.ktor.server.test.host)

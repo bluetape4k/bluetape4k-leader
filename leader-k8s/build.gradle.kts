@@ -35,11 +35,11 @@ configurations.named("testRuntimeClasspath") {
 
 dependencies {
     api(project(":bluetape4k-leader-core"))
-    api(libs.fabric8.kubernetes.client)
+    api(bt4k.fabric8.kubernetes.client)
 
     testImplementation(testFixtures(project(":bluetape4k-leader-core")))
-    testImplementation(libs.bluetape4k.junit5)
-    testImplementation(libs.bluetape4k.testcontainers)
+    testImplementation(bt4k.bluetape4k.junit5)
+    testImplementation(bt4k.bluetape4k.testcontainers)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)

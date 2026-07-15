@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.kotlin.allopen)
+    alias(bt4k.plugins.kotlin.allopen)
     alias(libs.plugins.kotlinx.benchmark)
 }
 
@@ -105,7 +105,7 @@ dependencies {
     add("benchmarkImplementation", libs.kotlinx.benchmark.runtime)
     add("benchmarkImplementation", libs.kotlinx.benchmark.runtime.jvm)
     add("benchmarkImplementation", libs.jmh.core)
-    add("benchmarkImplementation", platform(libs.spring.boot4.dependencies))
+    add("benchmarkImplementation", platform(bt4k.spring.boot4.dependencies))
     add("benchmarkImplementation", platform(libs.kotlin.bom))
     add("benchmarkImplementation", platform(libs.kotlinx.coroutines.bom))
 
@@ -123,12 +123,12 @@ dependencies {
     add("benchmarkImplementation", project(":bluetape4k-leader-spring-boot"))
     add("benchmarkImplementation", project(":bluetape4k-leader-micrometer"))
 
-    add("benchmarkImplementation", libs.bluetape4k.testcontainers)
-    add("benchmarkImplementation", libs.bluetape4k.virtualthread.jdk21)
+    add("benchmarkImplementation", bt4k.bluetape4k.testcontainers)
+    add("benchmarkImplementation", bt4k.bluetape4k.virtualthread.jdk21)
     add("benchmarkImplementation", libs.h2.v2)
-    add("benchmarkImplementation", libs.postgresql)
-    add("benchmarkImplementation", libs.mysql.connector.j)
-    add("benchmarkImplementation", libs.r2dbc.h2)
+    add("benchmarkImplementation", bt4k.postgresql)
+    add("benchmarkImplementation", bt4k.mysql.connector.j)
+    add("benchmarkImplementation", bt4k.r2dbc.h2)
     add("benchmarkImplementation", libs.r2dbc.postgresql)
     add("benchmarkImplementation", libs.r2dbc.mysql)
     add("benchmarkImplementation", libs.mongodb.driver.kotlin.coroutine)
@@ -151,7 +151,7 @@ dependencies {
     add("kubernetesBenchmarkImplementation", project(":bluetape4k-leader-core"))
     add("kubernetesBenchmarkImplementation", project(":bluetape4k-leader-k8s"))
 
-    add("kubernetesBenchmarkImplementation", libs.bluetape4k.testcontainers)
+    add("kubernetesBenchmarkImplementation", bt4k.bluetape4k.testcontainers)
     add("kubernetesBenchmarkImplementation", libs.kotlinx.coroutines.core)
 
     add("kubernetesBenchmarkRuntimeOnly", libs.logback)

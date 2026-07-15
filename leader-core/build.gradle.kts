@@ -7,18 +7,18 @@ configurations {
 }
 
 dependencies {
-    api(libs.bluetape4k.core)
-    api(libs.bluetape4k.idgenerators)
-    compileOnly(libs.bluetape4k.virtualthread.jdk21)
-    testImplementation(libs.bluetape4k.junit5)
+    api(bt4k.bluetape4k.core)
+    api(bt4k.bluetape4k.idgenerators)
+    compileOnly(bt4k.bluetape4k.virtualthread.jdk21)
+    testImplementation(bt4k.bluetape4k.junit5)
 
-    implementation(libs.bluetape4k.coroutines)
+    implementation(bt4k.bluetape4k.coroutines)
     implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.kotlinx.coroutines.reactor)
 
     // testFixtures: backend module 들이 contract test 를 상속할 수 있도록 노출
-    testFixturesApi(libs.bluetape4k.junit5)
+    testFixturesApi(bt4k.bluetape4k.junit5)
     testFixturesApi(libs.kotlin.test)
     testFixturesApi(libs.kotlin.test.junit5)
     testFixturesApi(libs.junit.jupiter)

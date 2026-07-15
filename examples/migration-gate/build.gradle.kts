@@ -9,20 +9,20 @@ application {
 dependencies {
     implementation(project(":bluetape4k-leader-exposed-jdbc"))
 
-    implementation(libs.exposed.core)
-    implementation(libs.exposed.jdbc)
+    implementation(bt4k.exposed.core)
+    implementation(bt4k.exposed.jdbc)
     implementation(libs.exposed.dao)
-    implementation(libs.exposed.java.time)
-    implementation(libs.hikaricp)
+    implementation(bt4k.exposed.java.time)
+    implementation(bt4k.hikaricp)
 
     runtimeOnly(libs.h2.v2)
 
-    testImplementation(libs.bluetape4k.junit5)
-    testImplementation(libs.bluetape4k.testcontainers)
-    testImplementation(libs.exposed.jdbc.tests)
+    testImplementation(bt4k.bluetape4k.junit5)
+    testImplementation(bt4k.bluetape4k.testcontainers)
+    testImplementation(bt4k.bluetape4k.exposed.jdbc.tests)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.h2.v2)
-    testImplementation(libs.postgresql)
-    testImplementation(libs.mysql.connector.j)
+    testImplementation(bt4k.postgresql)
+    testImplementation(bt4k.mysql.connector.j)
 }

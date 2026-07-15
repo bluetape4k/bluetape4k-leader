@@ -9,11 +9,11 @@ application {
 dependencies {
     implementation(project(":bluetape4k-leader-redis-lettuce"))
 
-    implementation(libs.bluetape4k.bucket4j)
-    implementation(libs.bluetape4k.core)
-    implementation(libs.bluetape4k.lettuce)
-    implementation(libs.bluetape4k.logging)
-    implementation(libs.bluetape4k.testcontainers)
+    implementation(bt4k.bluetape4k.bucket4j)
+    implementation(bt4k.bluetape4k.core)
+    implementation(bt4k.bluetape4k.lettuce)
+    implementation(bt4k.bluetape4k.logging)
+    implementation(bt4k.bluetape4k.testcontainers)
     implementation(libs.bucket4j.jdk17.core)
     implementation(libs.bucket4j.jdk17.lettuce)
     implementation(libs.kotlinx.coroutines.core)
@@ -22,8 +22,8 @@ dependencies {
 
     runtimeOnly(libs.logback)
 
-    testImplementation(libs.bluetape4k.junit5)
-    testImplementation(libs.bluetape4k.testcontainers)
+    testImplementation(bt4k.bluetape4k.junit5)
+    testImplementation(bt4k.bluetape4k.testcontainers)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
 

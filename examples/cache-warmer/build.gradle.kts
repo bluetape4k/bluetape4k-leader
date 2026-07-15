@@ -9,12 +9,12 @@ application {
 dependencies {
     implementation(project(":bluetape4k-leader-hazelcast"))
 
-    implementation(libs.hazelcast)
-    implementation(libs.bluetape4k.testcontainers)
+    implementation(bt4k.hazelcast)
+    implementation(bt4k.bluetape4k.testcontainers)
     implementation(libs.testcontainers)
 
-    testImplementation(libs.bluetape4k.junit5)
-    testImplementation(libs.bluetape4k.testcontainers)
+    testImplementation(bt4k.bluetape4k.junit5)
+    testImplementation(bt4k.bluetape4k.testcontainers)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
 }

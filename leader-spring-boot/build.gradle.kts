@@ -1,9 +1,9 @@
 plugins {
-    alias(libs.plugins.kotlin.spring)
-    alias(libs.plugins.kotlin.allopen)
+    alias(bt4k.plugins.kotlin.spring)
+    alias(bt4k.plugins.kotlin.allopen)
     // Applied (not apply false) so bootJar / processAot tasks are registered.
     // bootJar is disabled below to keep the published artifact a plain jar.
-    alias(libs.plugins.spring.boot4)
+    alias(bt4k.plugins.spring.boot4)
     // Freefair AspectJ post-compile-weaving (CTW-only — @EnableAspectJAutoProxy 미사용)
     id("io.freefair.aspectj.post-compile-weaving") version "9.5.0"
 }
@@ -73,14 +73,14 @@ tasks.check { dependsOn(aotTest) }
 
 dependencyManagement {
     imports {
-        mavenBom(libs.spring.boot4.dependencies.get().toString())
+        mavenBom(bt4k.spring.boot4.dependencies.get().toString())
         // spring-boot-dependencies는 kotlin.version=1.9.25를 강제하므로
         // kotlin-bom을 뒤에서 다시 import하여 프로젝트 Kotlin 버전을 우선시킨다.
-        mavenBom(libs.kotlin.bom.get().toString())
+        mavenBom("org.jetbrains.kotlin:kotlin-bom:${bt4k.versions.kotlin.get()}")
         // spring-boot-dependencies pins kotlinx-coroutines to 1.10.2, but leader-core
         // is compiled against 1.11.0 which moves Mutex.$default methods to the interface.
         // Override here to prevent NoSuchMethodError at runtime.
-        mavenBom(libs.kotlinx.coroutines.bom.get().toString())
+        mavenBom("org.jetbrains.kotlinx:kotlinx-coroutines-bom:${bt4k.versions.kotlinx.coroutines.get()}")
     }
     dependencies {
         // mongodb-driver-core 버전을 driver-sync/driver-kotlin-coroutine과 일치시킨다.
@@ -104,10 +104,10 @@ dependencies {
     compileOnly(project(":bluetape4k-leader-micrometer"))
 
     compileOnly(libs.lettuce.core)
-    compileOnly(libs.redisson)
+    compileOnly(bt4k.redisson)
     compileOnly(libs.mongodb.driver.sync)
     compileOnly(libs.mongodb.driver.kotlin.coroutine)
-    compileOnly(libs.hazelcast)
+    compileOnly(bt4k.hazelcast)
     compileOnly(libs.aws2.dynamodb)
 
     api(libs.spring.boot.autoconfigure)
@@ -131,9 +131,9 @@ dependencies {
     implementation(libs.caffeine)
 
     // Logging
-    implementation(libs.bluetape4k.logging)
+    implementation(bt4k.bluetape4k.logging)
 
-    testImplementation(libs.bluetape4k.junit5)
+    testImplementation(bt4k.bluetape4k.junit5)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.spring.boot.test)
     testImplementation(libs.spring.boot.test.autoconfigure)
@@ -142,15 +142,15 @@ dependencies {
     testImplementation("org.springframework:spring-webflux")
     testImplementation("jakarta.servlet:jakarta.servlet-api")
     testImplementation(libs.springmockk)
-    testImplementation(libs.bluetape4k.virtualthread.jdk21)
+    testImplementation(bt4k.bluetape4k.virtualthread.jdk21)
     testImplementation(project(":bluetape4k-leader-consul"))
     testImplementation(project(":bluetape4k-leader-dynamodb"))
-    testImplementation(libs.bluetape4k.testcontainers)
+    testImplementation(bt4k.bluetape4k.testcontainers)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.mongodb)
     testImplementation(libs.testcontainers.toxiproxy)
-    testImplementation(libs.r2dbc.h2)
+    testImplementation(bt4k.r2dbc.h2)
 
     // Required by Spring Boot's AssertableApplicationContext test API supertype.
     testImplementation("org.assertj:assertj-core")
