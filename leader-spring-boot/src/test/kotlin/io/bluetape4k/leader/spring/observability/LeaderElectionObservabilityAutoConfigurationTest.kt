@@ -19,6 +19,7 @@ import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.getBean
 import org.springframework.beans.factory.getBeansOfType
 import org.springframework.boot.autoconfigure.AutoConfigurations
+import org.springframework.boot.health.contributor.HealthIndicator
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -34,6 +35,7 @@ class LeaderElectionObservabilityAutoConfigurationTest {
             AutoConfigurations.of(
                 LeaderElectionObservabilityAutoConfiguration::class.java,
                 LeaderElectionActuatorAutoConfiguration::class.java,
+                LeaderElectionReadinessHealthAutoConfiguration::class.java,
             )
         )
         .withUserConfiguration(TestLeaderElectorConfig::class.java)
@@ -93,6 +95,27 @@ class LeaderElectionObservabilityAutoConfigurationTest {
                 response.locks[0].status shouldBeEqualTo "Occupied"
                 response.locks[0].leaderId shouldBeEqualTo "node-1"
                 response.locks[0].leaseExpiry shouldBeEqualTo TestLeaderElector.LeaseUntil
+            }
+    }
+
+    @Test
+    fun `readiness health indicator is disabled by default`() {
+        runner.run { ctx ->
+            ctx.getBeansOfType<HealthIndicator>().isEmpty().shouldBeTrue()
+        }
+    }
+
+    @Test
+    fun `readiness health indicator is registered when explicitly enabled`() {
+        runner
+            .withPropertyValues(
+                "bluetape4k.leader.observability.health.enabled=true",
+                "bluetape4k.leader.observability.health.lease-warning-threshold=15s",
+            )
+            .run { ctx ->
+                ctx.getBean("leaderElectionReadiness", HealthIndicator::class.java).shouldNotBeNull()
+                ctx.getBean<io.bluetape4k.leader.spring.LeaderProperties>()
+                    .observability.health.leaseWarningThreshold shouldBeEqualTo java.time.Duration.ofSeconds(15)
             }
     }
 

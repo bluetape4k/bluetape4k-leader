@@ -106,7 +106,11 @@ class LeaderElectionAspect(
     private val suspendElectorCache = ConcurrentHashMap<FactoryCacheKey, SuspendLeaderElector>()
     private val hasRecorders = recorders.isNotEmpty()
 
-    @Around("@annotation(io.bluetape4k.leader.annotation.LeaderElection)")
+    @Around(
+        "execution(* *(..)) && (" +
+            "@annotation(io.bluetape4k.leader.annotation.LeaderElection) || " +
+            "@annotation(io.bluetape4k.leader.spring.scheduling.LeaderScheduled))"
+    )
     fun aroundLeader(pjp: ProceedingJoinPoint): Any? {
         val method = (pjp.signature as MethodSignature).method
         val target = pjp.target

@@ -13,6 +13,7 @@ import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
 import io.bluetape4k.leader.spring.aop.validator.ComposedLeaderElection
+import io.bluetape4k.leader.spring.scheduling.LeaderScheduled
 import io.bluetape4k.logging.KLogging
 import io.mockk.clearMocks
 import io.mockk.every
@@ -512,5 +513,23 @@ class LeaderElectionAspectTest {
 
         result shouldBeEqualTo SAMPLE_RESULT
         nameSlot.captured shouldBeEqualTo "composed-alias-job"
+    }
+
+    @Test
+    fun `LeaderScheduled contention skips scheduled body without throwing`() {
+        class ScheduledJob {
+            @LeaderScheduled(name = "scheduled-job", fixedDelay = 1_000)
+            fun run() = Unit
+        }
+
+        val target = ScheduledJob()
+        val method = ScheduledJob::class.java.getDeclaredMethod("run")
+        configureJoinPoint(method, target, emptyArray())
+        every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } returns LeaderRunResult.Skipped
+
+        val result = newAspect().aroundLeader(pjp)
+
+        result.shouldBeNull()
+        verify(exactly = 0) { pjp.proceed() }
     }
 }

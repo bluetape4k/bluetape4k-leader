@@ -83,6 +83,11 @@ bluetape4k:
       include-bean-names: true
     observability:
       enabled: true
+      lock-names:
+        - daily-settlement
+      health:
+        enabled: true
+        lease-warning-threshold: 10s
       tracing:
         enabled: true
         include-lock-name: false
@@ -91,6 +96,31 @@ bluetape4k:
 ```
 
 Spring 설정 속성은 Spring Boot duration binding을 사용하므로 `5s`, `60s`, `PT1M`을 그대로 쓸 수 있습니다. Kotlin 코드의 core `LeaderElectionOptions`, `LeaderGroupElectionOptions`는 `kotlin.time.Duration`을 사용합니다.
+
+## Leader Readiness (0.5.0)
+
+opt-in `leaderElectionReadiness` contributor는 설정했거나 현재 JVM에서 관찰한 lock name만 검사합니다. 알려진 이름마다 read-only `LeaderElector.state(...)`를 한 번 호출하며 backend lock을 열거하거나 선출 상태를 변경하지 않습니다.
+
+```yaml
+bluetape4k:
+  leader:
+    observability:
+      lock-names: [daily-settlement]
+      health:
+        enabled: true
+        lease-warning-threshold: 10s
+
+management:
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,leaderElectionReadiness
+```
+
+상태 조회가 모두 성공하고 만료 임박 lease가 없으면 `UP`, 점유 중인 lease가 threshold 안에 만료되면 `OUT_OF_SERVICE`, 알려진 lock 상태 조회가 실패하면 `DOWN`입니다. 만료 시각을 알 수 없는 lease는 detail에 표시하지만 애플리케이션을 unready로 만들지는 않습니다. 이 결과는 JVM-local best-effort 진단 정보이며 소유권 판단에 사용하면 안 됩니다.
+
+health 평가마다 JVM-local registry의 lock 이름별로 backend 상태를 한 번씩 조회하므로 비용은 등록된 lock 수와 backend 지연 시간에 비례합니다. 작고 고정된 lock 집합에서만 활성화하고, 동적 이름이 무제한으로 늘어나는 애플리케이션에서는 비활성 상태를 유지하세요. health detail에는 원본 lock 이름이 포함될 수 있으므로 Actuator 접근을 보호하고 공개 정책에 맞게 `management.endpoint.health.show-details`를 설정해야 합니다.
 
 ## Startup Diagnostics
 
@@ -162,8 +192,12 @@ Lease-extension observation은 issue #559로 미뤘습니다. Spring이나 Micro
 ```kotlin
 @Service
 class SettlementJobs {
-    @Scheduled(cron = "0 0 2 * * *")
-    @LeaderElection(name = "daily-settlement", leaseTime = "30m", minLeaseTime = "10s")
+    @LeaderScheduled(
+        name = "daily-settlement",
+        cron = "\${jobs.settlement.cron:0 0 2 * * *}",
+        leaseTime = "30m",
+        minLeaseTime = "10s",
+    )
     fun settleDaily(): SettlementReport? =
         settlementService.settle()
 
@@ -173,6 +207,8 @@ class SettlementJobs {
     }
 }
 ```
+
+`@LeaderScheduled`는 Spring `@Scheduled`와 `@LeaderElection`을 합성합니다. Spring이 scheduling과 scheduled-task observation을 계속 담당하고, 기존 leader aspect가 lock 획득과 경합 시 skip을 담당합니다. Spring scheduling을 활성화해야 하며, 일반 `@Scheduled`의 메서드 시그니처와 trigger 하나만 지정하는 규칙도 그대로 적용됩니다. 사용자 정의 합성 어노테이션이 필요하거나 두 관심사를 코드에서 분명히 나누고 싶다면 `@Scheduled`와 `@LeaderElection`을 따로 사용해도 됩니다.
 
 ### 시퀀스 — AOP가 트리거하는 `runIfLeader`
 

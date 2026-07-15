@@ -7,6 +7,7 @@ import io.bluetape4k.concurrent.completableFutureOf
 import io.bluetape4k.leader.annotation.LeaderElection
 import io.bluetape4k.leader.annotation.LeaderGroupElection
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
+import io.bluetape4k.leader.spring.scheduling.LeaderScheduled
 import io.bluetape4k.logging.KLogging
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
@@ -377,6 +378,28 @@ class LeaderAnnotationValidatorBeanPostProcessorTest {
 
         val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
         assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(SampleBadSpel(), "sample") }
+    }
+
+    @Test
+    fun `LeaderScheduled invalid SpEL fails startup`() {
+        class Sample {
+            @LeaderScheduled(name = "'unclosed", fixedDelay = 1_000)
+            open fun run() = Unit
+        }
+
+        val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = false, spel = spel)
+        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(Sample(), "sample") }
+    }
+
+    @Test
+    fun `LeaderScheduled final method fails in strict mode`() {
+        class Sample {
+            @LeaderScheduled(name = "scheduled-job", fixedDelay = 1_000)
+            fun run() = Unit
+        }
+
+        val bpp = LeaderAnnotationValidatorBeanPostProcessor(strict = true, spel = spel)
+        assertFailsWith<IllegalStateException> { bpp.postProcessAfterInitialization(Sample(), "sample") }
     }
 
     @Test
