@@ -86,6 +86,7 @@ class KubernetesLeaseSuspendLeaderElectorK3sTest {
                 val leaderId = "audit-node-a"
                 val election = elector(client, nodeId = "node-a")
 
+                election.supportsAuditLeaderState.shouldBeTrue()
                 val result = election.runIfLeaderResultSuspend(LeaderSlot(lockName, leaderId)) {
                     val state = election.state(lockName)
 

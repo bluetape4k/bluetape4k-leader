@@ -5,6 +5,8 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import kotlinx.coroutines.CompletableDeferred
@@ -85,6 +87,21 @@ class DynamoDbSuspendLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest()
         }
 
         extended shouldBeEqualTo true
+    }
+
+    @Test
+    fun `capability state preserves slot audit identity`() = runSuspendIO {
+        val elector = newElector()
+        val slot = LeaderSlot(randomName(), "dynamodb-suspend-audit-node-a")
+
+        elector.supportsAuditLeaderState shouldBeEqualTo true
+        val result = elector.runIfLeaderResultSuspend(slot) {
+            val lease = elector.state(slot.lockName).leader
+            lease?.auditLeaderId shouldBeEqualTo slot.leaderId
+            "ok"
+        }
+
+        result shouldBeEqualTo LeaderRunResult.Elected("ok", leaderId = slot.leaderId)
     }
 
     private fun newElector(

@@ -42,6 +42,9 @@ class InstrumentedLeaderElector private constructor(
     private val tagSanitizer: LeaderMetricTagSanitizer,
 ): LeaderElector by delegate {
 
+    override val supportsAuditLeaderState: Boolean
+        get() = delegate.supportsAuditLeaderState
+
     private val metrics = InstrumentedLeaderMetrics(registry)
 
     constructor(
@@ -209,6 +212,9 @@ class InstrumentedSuspendLeaderElector private constructor(
     private val lockName: String? = null,
     private val tagSanitizer: LeaderMetricTagSanitizer,
 ): SuspendLeaderElector by delegate {
+
+    override val supportsAuditLeaderState: Boolean
+        get() = delegate.supportsAuditLeaderState
 
     private val metrics = InstrumentedLeaderMetrics(registry)
 

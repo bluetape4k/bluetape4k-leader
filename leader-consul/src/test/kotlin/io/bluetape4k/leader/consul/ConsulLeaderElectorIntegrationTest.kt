@@ -143,6 +143,7 @@ class ConsulLeaderElectorIntegrationTest {
         )
         val slot = LeaderSlot(lockName = randomName(), leaderId = "audit-node-a")
 
+        elector.supportsAuditLeaderState shouldBeEqualTo true
         elector.runIfLeader(slot) {
             val state = elector.state(slot.lockName)
 

@@ -1,21 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="1080" viewBox="0 0 1320 1080" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="1360" viewBox="0 0 1320 1360" role="img" aria-labelledby="title desc">
   <title id="title">leader-spring-boot architecture</title>
-  <desc id="desc">Architecture diagram for Spring Boot auto-configuration, backend factory registration, AspectJ compile-time woven advice, leader-aware scheduling, observability, actuator readiness, and startup diagnostics.</desc>
+  <desc id="desc">Architecture diagram for Spring Boot auto-configuration, backend factory registration, AspectJ compile-time woven advice, leader-aware scheduling, observability, actuator readiness, startup diagnostics, and exclusive state or custom route-guard authority.</desc>
   <defs>
     <filter id="shadow" x="-10%" y="-18%" width="120%" height="140%">
       <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0f172a" flood-opacity="0.14"/>
     </filter>
-    <marker markerUnits="userSpaceOnUse" id="arrow-blue" viewBox="0 0 10 10" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#2563eb" stroke="#2563eb" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker markerUnits="userSpaceOnUse" id="arrow-green" viewBox="0 0 10 10" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669" stroke="#059669" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker markerUnits="userSpaceOnUse" id="arrow-orange" viewBox="0 0 10 10" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#ea580c" stroke="#ea580c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker markerUnits="userSpaceOnUse" id="arrow-purple" viewBox="0 0 10 10" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c3aed" stroke="#7c3aed" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker markerUnits="userSpaceOnUse" id="arrow-blue" viewBox="0 0 10 10" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#2563eb" stroke="#2563eb" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker markerUnits="userSpaceOnUse" id="arrow-green" viewBox="0 0 10 10" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669" stroke="#059669" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker markerUnits="userSpaceOnUse" id="arrow-orange" viewBox="0 0 10 10" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#ea580c" stroke="#ea580c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker markerUnits="userSpaceOnUse" id="arrow-purple" viewBox="0 0 10 10" markerWidth="14" markerHeight="14" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c3aed" stroke="#7c3aed" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <style>
       .canvas{fill:#f8fafc}.title{font-family:"Architects Daughter","Comic Mono";font-size:34px;font-weight:700;fill:#0f172a}.subtitle,.small,.footer{font-family:"Comic Mono","Architects Daughter";fill:#475569}.subtitle{font-size:15px}.small{font-size:11px}.footer{font-size:11px}.band-title{font-family:"Comic Mono","Architects Daughter";font-size:14px;font-weight:700;fill:#334155}.card-title{font-family:"Comic Mono","Architects Daughter";font-size:15px;font-weight:700;fill:#0f172a}.card-sub{font-family:"Comic Mono","Architects Daughter";font-size:11.5px;fill:#475569}.label{font-family:"Comic Mono","Architects Daughter";font-size:11.5px;font-weight:700}.band{fill:#fff;stroke:#cbd5e1;stroke-width:1.4;rx:18}.card{stroke-width:1.8;rx:14;filter:url(#shadow)}.app{fill:#dbeafe;stroke:#2563eb}.config{fill:#ecfdf5;stroke:#059669}.aop{fill:#fef3c7;stroke:#d97706}.backend{fill:#f3e8ff;stroke:#7c3aed}.obs{fill:#fce7f3;stroke:#db2777}.runtime{fill:#eef2ff;stroke:#4f46e5}.primary{fill:none;stroke:#2563eb;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrow-blue)}.state{fill:none;stroke:#059669;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrow-green)}.control{fill:none;stroke:#ea580c;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrow-orange)}.data{fill:none;stroke:#7c3aed;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrow-purple)}.label-bg{fill:#f8fafc;stroke:#e2e8f0;stroke-width:.8;rx:6}
     </style>
   </defs>
-  <rect class="canvas" width="1320" height="1080"/>
+  <rect class="canvas" width="1320" height="1360"/>
   <text class="title" x="660" y="68" text-anchor="middle">leader-spring-boot Architecture</text>
-  <text class="subtitle" x="660" y="96" text-anchor="middle">Spring Boot registers backend factories and operational checks before woven advice guards scheduled and invoked methods.</text>
+  <text class="subtitle" x="660" y="96" text-anchor="middle">Spring Boot composes election, operations, woven execution, and opt-in route authorization without acquiring leases on requests.</text>
 
   <rect class="band" x="58" y="128" width="360" height="278"/>
   <text class="band-title" x="84" y="158">Application surface</text>
@@ -69,20 +69,42 @@
   <text class="small" x="1079" y="616" text-anchor="middle">read-only, JVM-local, opt-in</text>
   <text class="small" x="1079" y="634" text-anchor="middle">ownership remains in backend elector</text>
 
-  <rect class="band" x="58" y="760" width="1204" height="196"/>
-  <text class="band-title" x="84" y="790">Runtime path after AspectJ compile-time weaving</text>
-  <rect class="card runtime" x="96" y="832" width="222" height="82"/>
-  <text class="card-title" x="207" y="860" text-anchor="middle">Woven join point</text>
-  <text class="card-sub" x="207" y="884" text-anchor="middle">no runtime proxy required</text>
-  <rect class="card aop" x="374" y="832" width="222" height="82"/>
-  <text class="card-title" x="485" y="860" text-anchor="middle">LeaderElectionAspect</text>
-  <text class="card-sub" x="485" y="884" text-anchor="middle">name, options, identity</text>
-  <rect class="card backend" x="652" y="832" width="222" height="82"/>
-  <text class="card-title" x="763" y="860" text-anchor="middle">Selected elector</text>
-  <text class="card-sub" x="763" y="884" text-anchor="middle">runIfLeaderResult</text>
-  <rect class="card runtime" x="930" y="832" width="222" height="82"/>
-  <text class="card-title" x="1041" y="860" text-anchor="middle">Leader scope</text>
-  <text class="card-sub" x="1041" y="884" text-anchor="middle">ThreadLocal / coroutine / Reactor</text>
+  <rect class="band" x="58" y="760" width="1204" height="230"/>
+  <text class="band-title" x="84" y="790">Opt-in route guards — exactly one authority mode</text>
+  <rect class="card config" x="92" y="818" width="286" height="72"/>
+  <text class="card-title" x="235" y="846" text-anchor="middle">STATE: audit-state authority</text>
+  <text class="card-sub" x="235" y="868" text-anchor="middle">capability check + audit ID match</text>
+  <rect class="card aop" x="92" y="906" width="286" height="68"/>
+  <text class="card-title" x="235" y="932" text-anchor="middle">CUSTOM: application authority</text>
+  <text class="card-sub" x="235" y="952" text-anchor="middle">evaluate(the same LeaderSlot)</text>
+  <text class="small" x="235" y="968" text-anchor="middle">exactly one application bean</text>
+  <rect class="card config" x="460" y="850" width="310" height="90"/>
+  <text class="card-title" x="615" y="878" text-anchor="middle">LeaderRouteGuardAutoConfiguration</text>
+  <text class="card-sub" x="615" y="902" text-anchor="middle">select one effective authority</text>
+  <text class="small" x="615" y="922" text-anchor="middle">mixed / missing / unsupported causes startup error</text>
+  <rect class="card app" x="850" y="850" width="330" height="90"/>
+  <text class="card-title" x="1015" y="878" text-anchor="middle">Route-scoped adapters</text>
+  <text class="card-sub" x="1015" y="902" text-anchor="middle">MVC interceptor / WebFlux filter</text>
+  <text class="small" x="1015" y="922" text-anchor="middle">allow handler or empty-body 404 / 409 / 423 / 503</text>
+
+  <path class="state" d="M 378 854 L 420 854 Q 440 854 440 874 L 440 875 L 460 875"/>
+  <path class="control" d="M 378 940 L 420 940 Q 440 940 440 920 L 460 920"/>
+  <path class="primary" d="M 770 895 L 850 895"/>
+
+  <rect class="band" x="58" y="1030" width="1204" height="196"/>
+  <text class="band-title" x="84" y="1060">Runtime path after AspectJ compile-time weaving</text>
+  <rect class="card runtime" x="96" y="1102" width="222" height="82"/>
+  <text class="card-title" x="207" y="1130" text-anchor="middle">Woven join point</text>
+  <text class="card-sub" x="207" y="1154" text-anchor="middle">no runtime proxy required</text>
+  <rect class="card aop" x="374" y="1102" width="222" height="82"/>
+  <text class="card-title" x="485" y="1130" text-anchor="middle">LeaderElectionAspect</text>
+  <text class="card-sub" x="485" y="1154" text-anchor="middle">name, options, identity</text>
+  <rect class="card backend" x="652" y="1102" width="222" height="82"/>
+  <text class="card-title" x="763" y="1130" text-anchor="middle">Selected elector</text>
+  <text class="card-sub" x="763" y="1154" text-anchor="middle">runIfLeaderResult</text>
+  <rect class="card runtime" x="930" y="1102" width="222" height="82"/>
+  <text class="card-title" x="1041" y="1130" text-anchor="middle">Leader scope</text>
+  <text class="card-sub" x="1041" y="1154" text-anchor="middle">ThreadLocal / coroutine / Reactor</text>
 
   <path class="control" d="M 378 230 L 504 230"/>
   <rect class="label-bg" x="404" y="205" width="70" height="22"/><text class="label" x="439" y="221" text-anchor="middle" fill="#9a3412">bind</text>
@@ -94,15 +116,16 @@
   <rect class="label-bg" x="800" y="634" width="78" height="22"/><text class="label" x="839" y="650" text-anchor="middle" fill="#9a3412">diagnose</text>
   <path class="data" d="M 816 336 L 876 336 Q 894 336 894 318 L 894 278 Q 894 260 912 260 L 936 260"/>
   <rect class="label-bg" x="846" y="278" width="64" height="22"/><text class="label" x="878" y="294" text-anchor="middle" fill="#6d28d9">create</text>
-  <path class="primary" d="M 318 873 L 374 873"/>
-  <path class="primary" d="M 596 873 L 652 873"/>
-  <path class="primary" d="M 874 873 L 930 873"/>
+  <path class="primary" d="M 318 1143 L 374 1143"/>
+  <path class="primary" d="M 596 1143 L 652 1143"/>
+  <path class="primary" d="M 874 1143 L 930 1143"/>
 
-  <g transform="translate(112 990)">
+  <g transform="translate(112 1260)">
     <rect x="0" y="0" width="1096" height="74" rx="14" fill="#ffffff" stroke="#cbd5e1"/>
-    <line x1="92" y1="22" x2="142" y2="22" class="primary"/><text class="small" x="156" y="26">guarded method execution</text>
-    <line x1="422" y1="22" x2="472" y2="22" class="state"/><text class="small" x="486" y="26">auto-config order</text>
-    <line x1="718" y1="22" x2="768" y2="22" class="data"/><text class="small" x="782" y="26">factory/backend binding</text>
+    <line x1="56" y1="22" x2="96" y2="22" class="primary"/><text class="small" x="110" y="26">execution / adapter path</text>
+    <line x1="326" y1="22" x2="366" y2="22" class="state"/><text class="small" x="380" y="26">auto-config / state</text>
+    <line x1="584" y1="22" x2="624" y2="22" class="data"/><text class="small" x="638" y="26">factory / backend</text>
+    <line x1="818" y1="22" x2="858" y2="22" class="control"/><text class="small" x="872" y="26">validation / diagnostics</text>
     <text class="footer" x="548" y="56" text-anchor="middle">github.com/bluetape4k/bluetape4k-leader / leader-spring-boot</text>
   </g>
 </svg>

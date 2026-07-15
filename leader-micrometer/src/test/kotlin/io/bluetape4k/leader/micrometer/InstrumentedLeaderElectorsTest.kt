@@ -40,6 +40,19 @@ class InstrumentedLeaderElectorsTest {
     }
 
     @Test
+    fun `single leader decorators preserve audit state capability`() {
+        InstrumentedLeaderElector(
+            StubLeaderElector(elected = true, supportsAuditLeaderState = true),
+            registry,
+        ).supportsAuditLeaderState.shouldBeTrue()
+
+        InstrumentedSuspendLeaderElector(
+            StubSuspendLeaderElector(elected = true, supportsAuditLeaderState = true),
+            registry,
+        ).supportsAuditLeaderState.shouldBeTrue()
+    }
+
+    @Test
     fun `LeaderElector - fixed lockName is sanitized after selection`() {
         val election = InstrumentedLeaderElector(
             delegate = StubLeaderElector(elected = true),
@@ -257,6 +270,7 @@ class InstrumentedLeaderElectorsTest {
 
     private class StubLeaderElector(
         private val elected: Boolean,
+        override val supportsAuditLeaderState: Boolean = false,
     ): LeaderElector {
 
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
@@ -296,6 +310,7 @@ class InstrumentedLeaderElectorsTest {
 
     private class StubSuspendLeaderElector(
         private val elected: Boolean,
+        override val supportsAuditLeaderState: Boolean = false,
     ): SuspendLeaderElector {
 
         override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? =

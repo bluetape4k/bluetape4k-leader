@@ -33,6 +33,8 @@ class DynamoDbSuspendLeaderElector(
 
     private val lockClient = DynamoDbLockClient(options.tableName, asyncClient = dynamoDb)
 
+    override val supportsAuditLeaderState: Boolean = true
+
     override fun state(lockName: String): LeaderState {
         DynamoDbKeys.validateUserLockName(lockName)
         return lockClient.state(lockName, DynamoDbKeys.single(options.keyPrefix, lockName))

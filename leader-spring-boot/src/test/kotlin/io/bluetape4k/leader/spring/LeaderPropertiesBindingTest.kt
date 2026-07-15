@@ -3,6 +3,8 @@ package io.bluetape4k.leader.spring
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.leader.spring.properties.LeaderElectionProperties
 import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
+import io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode
+import io.bluetape4k.leader.spring.properties.LeaderRouteRejectionStatus
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -42,6 +44,10 @@ class LeaderPropertiesBindingTest {
                 "bluetape4k.leader.diagnostics.enabled" to "false",
                 "bluetape4k.leader.diagnostics.strict" to "true",
                 "bluetape4k.leader.diagnostics.include-bean-names" to "false",
+                "bluetape4k.leader.route-guard.enabled" to "true",
+                "bluetape4k.leader.route-guard.authority-mode" to "custom",
+                "bluetape4k.leader.route-guard.elector-bean" to "ordersLeaderElector",
+                "bluetape4k.leader.route-guard.rejection-status" to "not-found",
             ),
         )
         val props = Binder(source).bindAs<LeaderProperties>("bluetape4k.leader").get()
@@ -62,7 +68,10 @@ class LeaderPropertiesBindingTest {
         props.diagnostics.strict.shouldBeTrue()
 
         props.diagnostics.includeBeanNames.shouldBeFalse()
-
+        props.routeGuard.enabled.shouldBeTrue()
+        props.routeGuard.authorityMode shouldBeEqualTo LeaderRouteAuthorityMode.CUSTOM
+        props.routeGuard.electorBean shouldBeEqualTo "ordersLeaderElector"
+        props.routeGuard.rejectionStatus shouldBeEqualTo LeaderRouteRejectionStatus.NOT_FOUND
     }
 
     @Test
@@ -84,7 +93,10 @@ class LeaderPropertiesBindingTest {
         props.diagnostics.strict.shouldBeFalse()
 
         props.diagnostics.includeBeanNames.shouldBeTrue()
-
+        props.routeGuard.enabled.shouldBeFalse()
+        props.routeGuard.authorityMode shouldBeEqualTo LeaderRouteAuthorityMode.STATE
+        props.routeGuard.electorBean shouldBeEqualTo ""
+        props.routeGuard.rejectionStatus shouldBeEqualTo LeaderRouteRejectionStatus.SERVICE_UNAVAILABLE
     }
 
     @Test

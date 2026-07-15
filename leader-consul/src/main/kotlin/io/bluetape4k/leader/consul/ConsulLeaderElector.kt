@@ -140,6 +140,8 @@ class ConsulLeaderElector private constructor(
         return LeaderState.occupied(lockName, lease)
     }
 
+    override val supportsAuditLeaderState: Boolean = true
+
     private fun <T> runWithLock(lockName: String, auditLeaderId: String?, action: () -> T): T? {
         val handle = acquire(lockName, auditLeaderId) ?: return null
         val delegate = ConsulLockExtendDelegate(lockClient, handle)

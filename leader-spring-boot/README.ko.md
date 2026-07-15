@@ -81,6 +81,11 @@ bluetape4k:
       enabled: true
       strict: false
       include-bean-names: true
+    route-guard:
+      enabled: false
+      authority-mode: STATE
+      elector-bean: ""
+      rejection-status: SERVICE_UNAVAILABLE
     observability:
       enabled: true
       lock-names:
@@ -96,6 +101,101 @@ bluetape4k:
 ```
 
 Spring 설정 속성은 Spring Boot duration binding을 사용하므로 `5s`, `60s`, `PT1M`을 그대로 쓸 수 있습니다. Kotlin 코드의 core `LeaderElectionOptions`, `LeaderGroupElectionOptions`는 `kotlin.time.Duration`을 사용합니다.
+
+## 리더 전용 Route (0.5.0)
+
+Route guard는 opt-in read-only 기능입니다. 선택한 Spring MVC 또는 WebFlux route를 현재 애플리케이션이 처리해도 되는지 판단할 뿐, request path에서 lease를 획득·연장·해제하지 않습니다. `bluetape4k.leader.route-guard.enabled=true`를 명시하지 않으면 어떤 guard bean도 활성화되지 않습니다.
+
+기본 `STATE` authority는 `LeaderElector.state(slot.lockName)`을 한 번 조회하고, 점유 중인 snapshot의 audit leader ID가 `slot.leaderId`와 같을 때만 request를 허용합니다. Leader ID는 실행 중인 프로세스 incarnation마다 한 번 생성하고, 해당 프로세스의 선출과 route guard에서 동일한 `LeaderSlot`을 재사용하세요. 재시작을 거쳐 고정 node ID를 재사용하면 새 프로세스가 이전 프로세스의 stale lease와 일치할 수 있습니다.
+
+```kotlin
+@Bean
+fun ordersSlot(): LeaderSlot =
+    LeaderSlot("orders-route", "orders-node-${UUID.randomUUID()}")
+
+fun runOrdersLeader(elector: LeaderElector, slot: LeaderSlot) =
+    elector.runIfLeader(slot) {
+        runLeaderWork()
+    }
+```
+
+애플리케이션에 `LeaderElector` bean이 여러 개라면 built-in authority를 켜면서 사용할 elector를 명시합니다.
+
+```yaml
+bluetape4k:
+  leader:
+    route-guard:
+      enabled: true
+      authority-mode: STATE
+      elector-bean: ordersLeaderElector
+      rejection-status: SERVICE_UNAVAILABLE
+```
+
+생성된 MVC interceptor는 보호할 path에만 등록합니다.
+
+```kotlin
+@Configuration
+class OrdersMvcRoutes(
+    private val guards: LeaderMvcRouteGuardFactory,
+    private val ordersSlot: LeaderSlot,
+) : WebMvcConfigurer {
+    override fun addInterceptors(registry: InterceptorRegistry) {
+        registry.addInterceptor(guards.interceptor(ordersSlot))
+            .addPathPatterns("/internal/orders/**")
+    }
+}
+```
+
+선택한 elector가 `supportsAuditLeaderState=true`를 선언해야 `STATE` mode가 시작됩니다. Built-in Local, Consul, DynamoDB, Kubernetes Lease elector는 audit identity snapshot을 지원하며 listening, tenant-scoped, Micrometer decorator도 이 capability를 보존합니다. Lettuce와 Redisson처럼 빈 `state()` fallback을 상속하는 elector는 `LEADER_ROUTE_ELECTOR_STATE_UNSUPPORTED`로 startup이 실패합니다. 그런 backend에서는 애플리케이션이 신뢰할 수 있는 다른 ownership source를 제공하는 명시적 `CUSTOM` mode를 사용하세요.
+
+WebFlux에서는 애플리케이션의 route/path 선택 안에서만 생성된 filter를 적용합니다. `WebFilter` bean은 전역으로 동작하므로 일부 route만 보호하려면 반환된 filter를 제한 없이 bean으로 등록하면 안 됩니다.
+
+```kotlin
+@Bean
+fun ordersRouteGuard(
+    guards: LeaderWebFluxRouteGuardFactory,
+    ordersSlot: LeaderSlot,
+): WebFilter {
+    val guarded = guards.filter(ordersSlot)
+    val path = PathPatternParser().parse("/internal/orders/**")
+    return WebFilter { exchange, chain ->
+        if (path.matches(exchange.request.path.pathWithinApplication())) {
+            guarded.filter(exchange, chain)
+        } else {
+            chain.filter(exchange)
+        }
+    }
+}
+```
+
+다른 authority source가 필요하면 `CUSTOM`을 선택하고 `LeaderRouteAuthority` bean을 정확히 하나 제공합니다.
+
+```yaml
+bluetape4k:
+  leader:
+    route-guard:
+      enabled: true
+      authority-mode: CUSTOM
+      rejection-status: LOCKED
+```
+
+```kotlin
+@Bean
+fun controlPlaneAuthority(controlPlane: ControlPlane): LeaderRouteAuthority =
+    LeaderRouteAuthority { slot ->
+        if (controlPlane.isLocalLeader(slot)) {
+            LeaderRouteDecision.Allowed
+        } else {
+            LeaderRouteDecision.NotLeader
+        }
+    }
+```
+
+`STATE`와 `CUSTOM`은 완전히 분리된 mode입니다. `STATE`는 애플리케이션이 제공한 모든 `LeaderRouteAuthority`를 거부합니다. `CUSTOM`은 해당 bean을 정확히 하나 요구하며 `elector-bean` 설정을 허용하지 않습니다. Elector가 없거나 여러 개이거나 타입/capability가 맞지 않는 경우와 authority 조합이 잘못된 경우에는 `LEADER_ROUTE_AUTHORITY_MIXED`, `LEADER_ROUTE_AUTHORITY_MISSING`, `LEADER_ROUTE_AUTHORITY_AMBIGUOUS`, `LEADER_ROUTE_ELECTOR_MISSING`, `LEADER_ROUTE_ELECTOR_AMBIGUOUS`, `LEADER_ROUTE_ELECTOR_STATE_UNSUPPORTED` 중 해당하는 안정적 error code로 startup이 실패합니다.
+
+Custom authority는 실행 시간이 제한적이고 side effect가 없어야 하며 lease를 획득·연장·해제해서는 안 됩니다. 일반 authority/state 오류는 fail-closed로 처리합니다. 허용하는 rejection status는 `NOT_FOUND`(404), `CONFLICT`(409), `LOCKED`(423), `SERVICE_UNAVAILABLE`(503, 기본값)입니다. 거부 응답의 body는 비어 있으며 leader identity, lock name, backend 오류, host, `Location` header를 노출하지 않습니다.
+
+Built-in state 판단은 best-effort snapshot이며 HTTP request 전체에서 leadership이 유지된다는 원자적 보장이 아닙니다. 짧은 stale-state window를 허용할 수 있는 route에만 사용하세요. 작업 자체를 lease로 보호해야 한다면 `@LeaderElection` 또는 명시적인 lease-owned 실행 경로를 사용해야 합니다.
 
 ## Leader Readiness (0.5.0)
 

@@ -215,4 +215,6 @@ class LocalSuspendLeaderElector(
 
     override fun state(lockName: String): LeaderState =
         states.singleState(lockName)
+
+    override val supportsAuditLeaderState: Boolean = true
 }

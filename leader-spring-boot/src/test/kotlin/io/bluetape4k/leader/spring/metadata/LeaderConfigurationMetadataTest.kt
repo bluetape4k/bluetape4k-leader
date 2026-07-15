@@ -35,6 +35,10 @@ class LeaderConfigurationMetadataTest {
             "bluetape4k.leader.diagnostics.enabled",
             "bluetape4k.leader.diagnostics.strict",
             "bluetape4k.leader.diagnostics.include-bean-names",
+            "bluetape4k.leader.route-guard.enabled",
+            "bluetape4k.leader.route-guard.authority-mode",
+            "bluetape4k.leader.route-guard.elector-bean",
+            "bluetape4k.leader.route-guard.rejection-status",
             "bluetape4k.leader.mongo.single-collection",
             "bluetape4k.leader.etcd.key-prefix",
             "bluetape4k.leader.consul.key-prefix",
@@ -53,6 +57,10 @@ class LeaderConfigurationMetadataTest {
             "bluetape4k.leader.mongo.group-collection" to "leader_group_election",
             "bluetape4k.leader.dynamodb.retry-delay" to "PT0.05S",
             "bluetape4k.leader.dynamodb.ttl-padding" to "PT1M",
+            "bluetape4k.leader.route-guard.enabled" to "false",
+            "bluetape4k.leader.route-guard.authority-mode" to "STATE",
+            "bluetape4k.leader.route-guard.elector-bean" to "",
+            "bluetape4k.leader.route-guard.rejection-status" to "SERVICE_UNAVAILABLE",
         ).forEach { (propertyName, defaultValue) ->
             properties[propertyName].shouldNotBeNull().defaultValue shouldBeEqualTo defaultValue
         }

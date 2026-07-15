@@ -40,6 +40,9 @@ class ListeningLeaderElector(
 
     override val events: Flow<LeaderElectionEvent> = eventSubject.asSharedFlow()
 
+    override val supportsAuditLeaderState: Boolean
+        get() = delegate.supportsAuditLeaderState
+
     override fun addListener(listener: LeaderElectionListener): AutoCloseable =
         listeners.addListener(listener)
 
@@ -70,6 +73,48 @@ class ListeningLeaderElector(
         return result
     }
 
+    override fun <T> runIfLeader(slot: LeaderSlot, action: () -> T): T? {
+        var elected = false
+        val result = delegate.runIfLeader(slot) {
+            elected = true
+            val leader = delegate.state(slot.lockName).leader
+            listeners.notifyElected(slot.lockName, leader)
+            eventSubject.tryEmit(LeaderElectionEvent.Elected.fromLease(slot.lockName, leader))
+            try {
+                action()
+            } finally {
+                listeners.notifyRevoked(slot.lockName)
+                eventSubject.tryEmit(LeaderElectionEvent.Revoked(slot.lockName))
+            }
+        }
+        if (!elected) {
+            listeners.notifySkipped(slot.lockName)
+            eventSubject.tryEmit(LeaderElectionEvent.Skipped(slot.lockName))
+        }
+        return result
+    }
+
+    override fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
+        var elected = false
+        val result = delegate.runIfLeaderResult(slot) {
+            elected = true
+            val leader = delegate.state(slot.lockName).leader
+            listeners.notifyElected(slot.lockName, leader)
+            eventSubject.tryEmit(LeaderElectionEvent.Elected.fromLease(slot.lockName, leader))
+            try {
+                action()
+            } finally {
+                listeners.notifyRevoked(slot.lockName)
+                eventSubject.tryEmit(LeaderElectionEvent.Revoked(slot.lockName))
+            }
+        }
+        if (!elected && result is LeaderRunResult.Skipped) {
+            listeners.notifySkipped(slot.lockName)
+            eventSubject.tryEmit(LeaderElectionEvent.Skipped(slot.lockName))
+        }
+        return result
+    }
+
     override fun <T> runAsyncIfLeader(
         lockName: String,
         executor: Executor,
@@ -95,6 +140,64 @@ class ListeningLeaderElector(
             if (!elected.get() && failure == null && value == null) {
                 listeners.notifySkipped(lockName)
                 eventSubject.tryEmit(LeaderElectionEvent.Skipped(lockName))
+            }
+        }
+    }
+
+    override fun <T> runAsyncIfLeader(
+        slot: LeaderSlot,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<T?> {
+        val elected = AtomicBoolean(false)
+        return delegate.runAsyncIfLeader(slot, executor) {
+            elected.set(true)
+            val leader = delegate.state(slot.lockName).leader
+            listeners.notifyElected(slot.lockName, leader)
+            eventSubject.tryEmit(LeaderElectionEvent.Elected.fromLease(slot.lockName, leader))
+            try {
+                action().whenComplete { _, _ ->
+                    listeners.notifyRevoked(slot.lockName)
+                    eventSubject.tryEmit(LeaderElectionEvent.Revoked(slot.lockName))
+                }
+            } catch (e: Throwable) {
+                listeners.notifyRevoked(slot.lockName)
+                eventSubject.tryEmit(LeaderElectionEvent.Revoked(slot.lockName))
+                CompletableFuture.failedFuture(e)
+            }
+        }.whenComplete { value, failure ->
+            if (!elected.get() && failure == null && value == null) {
+                listeners.notifySkipped(slot.lockName)
+                eventSubject.tryEmit(LeaderElectionEvent.Skipped(slot.lockName))
+            }
+        }
+    }
+
+    override fun <T> runAsyncIfLeaderResult(
+        slot: LeaderSlot,
+        executor: Executor,
+        action: () -> CompletableFuture<T>,
+    ): CompletableFuture<LeaderRunResult<T>> {
+        val elected = AtomicBoolean(false)
+        return delegate.runAsyncIfLeaderResult(slot, executor) {
+            elected.set(true)
+            val leader = delegate.state(slot.lockName).leader
+            listeners.notifyElected(slot.lockName, leader)
+            eventSubject.tryEmit(LeaderElectionEvent.Elected.fromLease(slot.lockName, leader))
+            try {
+                action().whenComplete { _, _ ->
+                    listeners.notifyRevoked(slot.lockName)
+                    eventSubject.tryEmit(LeaderElectionEvent.Revoked(slot.lockName))
+                }
+            } catch (e: Throwable) {
+                listeners.notifyRevoked(slot.lockName)
+                eventSubject.tryEmit(LeaderElectionEvent.Revoked(slot.lockName))
+                CompletableFuture.failedFuture(e)
+            }
+        }.whenComplete { result, failure ->
+            if (!elected.get() && failure == null && result is LeaderRunResult.Skipped) {
+                listeners.notifySkipped(slot.lockName)
+                eventSubject.tryEmit(LeaderElectionEvent.Skipped(slot.lockName))
             }
         }
     }

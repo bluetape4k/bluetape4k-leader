@@ -57,6 +57,9 @@ internal class TenantScopedLeaderElector(
     private val namespace: TenantLockNamespace,
 ) : LeaderElector {
 
+    override val supportsAuditLeaderState: Boolean
+        get() = delegate.supportsAuditLeaderState
+
     override fun state(lockName: String): LeaderState =
         delegate.state(namespace.lockName(lockName))
 
@@ -154,6 +157,9 @@ internal class TenantScopedVirtualThreadLeaderElector(
     private val delegate: VirtualThreadLeaderElector,
     private val namespace: TenantLockNamespace,
 ) : VirtualThreadLeaderElector {
+
+    override val supportsAuditLeaderState: Boolean
+        get() = delegate.supportsAuditLeaderState
 
     override fun state(lockName: String): LeaderState =
         delegate.state(namespace.lockName(lockName))

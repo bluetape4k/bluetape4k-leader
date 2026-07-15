@@ -46,6 +46,8 @@ abstract class AbstractLocalLeaderElector(
     private val listeners = LeaderElectionListenerSupport()
     private val states = LocalLeaderStateRegistry()
 
+    override val supportsAuditLeaderState: Boolean = true
+
     override fun addListener(listener: LeaderElectionListener): AutoCloseable =
         listeners.addListener(listener)
 

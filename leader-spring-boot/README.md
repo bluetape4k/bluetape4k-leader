@@ -81,6 +81,11 @@ bluetape4k:
       enabled: true
       strict: false
       include-bean-names: true
+    route-guard:
+      enabled: false
+      authority-mode: STATE
+      elector-bean: ""
+      rejection-status: SERVICE_UNAVAILABLE
     observability:
       enabled: true
       lock-names:
@@ -96,6 +101,101 @@ bluetape4k:
 ```
 
 Spring configuration properties use Spring Boot duration binding (`5s`, `60s`, `PT1M`). Core `LeaderElectionOptions` and `LeaderGroupElectionOptions` use `kotlin.time.Duration` in Kotlin code.
+
+## Leader-Gated Routes (0.5.0)
+
+Route guards are opt-in and read-only. They decide whether the local application may serve selected Spring MVC or WebFlux routes; they never acquire, extend, or release a lease on the request path. The feature is inactive unless `bluetape4k.leader.route-guard.enabled=true`.
+
+The default `STATE` authority performs one `LeaderElector.state(slot.lockName)` lookup and allows the request only when the occupied snapshot's audit leader ID equals `slot.leaderId`. Create the leader ID once per live process incarnation, then reuse the same `LeaderSlot` for election and route guarding. Do not reuse a fixed node ID across restarts: a new process could otherwise match a stale lease owned by its predecessor.
+
+```kotlin
+@Bean
+fun ordersSlot(): LeaderSlot =
+    LeaderSlot("orders-route", "orders-node-${UUID.randomUUID()}")
+
+fun runOrdersLeader(elector: LeaderElector, slot: LeaderSlot) =
+    elector.runIfLeader(slot) {
+        runLeaderWork()
+    }
+```
+
+Enable the built-in authority and select the elector explicitly when the application has multiple `LeaderElector` beans:
+
+```yaml
+bluetape4k:
+  leader:
+    route-guard:
+      enabled: true
+      authority-mode: STATE
+      elector-bean: ordersLeaderElector
+      rejection-status: SERVICE_UNAVAILABLE
+```
+
+Register the generated MVC interceptor only for protected paths:
+
+```kotlin
+@Configuration
+class OrdersMvcRoutes(
+    private val guards: LeaderMvcRouteGuardFactory,
+    private val ordersSlot: LeaderSlot,
+) : WebMvcConfigurer {
+    override fun addInterceptors(registry: InterceptorRegistry) {
+        registry.addInterceptor(guards.interceptor(ordersSlot))
+            .addPathPatterns("/internal/orders/**")
+    }
+}
+```
+
+`STATE` starts only when the selected elector declares `supportsAuditLeaderState=true`. The built-in Local, Consul, DynamoDB, and Kubernetes Lease electors provide this audit-identity snapshot capability; their listening, tenant-scoped, and Micrometer decorators preserve it. Electors that inherit the empty `state()` fallback, including Lettuce and Redisson, fail startup with `LEADER_ROUTE_ELECTOR_STATE_UNSUPPORTED`; use explicit `CUSTOM` mode for those backends unless the application supplies another trustworthy ownership source.
+
+For WebFlux, apply the generated filter only inside the application's route/path selection. A `WebFilter` bean is global, so do not register the returned filter as an unrestricted bean when only some routes are leader-gated:
+
+```kotlin
+@Bean
+fun ordersRouteGuard(
+    guards: LeaderWebFluxRouteGuardFactory,
+    ordersSlot: LeaderSlot,
+): WebFilter {
+    val guarded = guards.filter(ordersSlot)
+    val path = PathPatternParser().parse("/internal/orders/**")
+    return WebFilter { exchange, chain ->
+        if (path.matches(exchange.request.path.pathWithinApplication())) {
+            guarded.filter(exchange, chain)
+        } else {
+            chain.filter(exchange)
+        }
+    }
+}
+```
+
+Applications that need another authority source may choose `CUSTOM` and provide exactly one `LeaderRouteAuthority` bean:
+
+```yaml
+bluetape4k:
+  leader:
+    route-guard:
+      enabled: true
+      authority-mode: CUSTOM
+      rejection-status: LOCKED
+```
+
+```kotlin
+@Bean
+fun controlPlaneAuthority(controlPlane: ControlPlane): LeaderRouteAuthority =
+    LeaderRouteAuthority { slot ->
+        if (controlPlane.isLocalLeader(slot)) {
+            LeaderRouteDecision.Allowed
+        } else {
+            LeaderRouteDecision.NotLeader
+        }
+    }
+```
+
+`STATE` and `CUSTOM` are strictly separate modes. `STATE` rejects every application-provided `LeaderRouteAuthority`; `CUSTOM` requires exactly one such bean and rejects a configured `elector-bean`. Missing, ambiguous, wrong-type, or state-incapable electors and invalid authority combinations fail startup with stable codes: `LEADER_ROUTE_AUTHORITY_MIXED`, `LEADER_ROUTE_AUTHORITY_MISSING`, `LEADER_ROUTE_AUTHORITY_AMBIGUOUS`, `LEADER_ROUTE_ELECTOR_MISSING`, `LEADER_ROUTE_ELECTOR_AMBIGUOUS`, or `LEADER_ROUTE_ELECTOR_STATE_UNSUPPORTED`.
+
+Custom authorities must be bounded, side-effect-free, and must not acquire, extend, or release leases. Ordinary authority/state failures fail closed. The supported rejection statuses are `NOT_FOUND` (404), `CONFLICT` (409), `LOCKED` (423), and `SERVICE_UNAVAILABLE` (503, default). Rejections have an empty body and expose no leader identity, lock name, backend error, host, or `Location` header.
+
+The built-in state decision is a best-effort snapshot, not an atomic guarantee that leadership lasts for the whole HTTP request. Use it only where a short stale-state window is acceptable; use `@LeaderElection` or an explicit lease-owned execution path when the work itself must be protected by a lease.
 
 ## Leader Readiness (0.5.0)
 
