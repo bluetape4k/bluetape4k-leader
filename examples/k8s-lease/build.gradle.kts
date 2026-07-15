@@ -38,13 +38,13 @@ configurations.named("testRuntimeClasspath") {
 }
 
 dependencies {
-    implementation(libs.bluetape4k.core)
-    implementation(libs.fabric8.kubernetes.client)
-    implementation(libs.bluetape4k.logging)
+    implementation(bt4k.bluetape4k.core)
+    implementation(bt4k.fabric8.kubernetes.client)
+    implementation(bt4k.bluetape4k.logging)
 
-    testImplementation(libs.bluetape4k.junit5)
-    testImplementation(libs.bluetape4k.testcontainers)
-    testImplementation(libs.fabric8.kubernetes.client)
+    testImplementation(bt4k.bluetape4k.junit5)
+    testImplementation(bt4k.bluetape4k.testcontainers)
+    testImplementation(bt4k.fabric8.kubernetes.client)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
 

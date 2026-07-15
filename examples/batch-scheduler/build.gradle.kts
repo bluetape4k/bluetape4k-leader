@@ -9,13 +9,13 @@ application {
 dependencies {
     implementation(project(":bluetape4k-leader-redis-lettuce"))
 
-    implementation(libs.bluetape4k.lettuce)
+    implementation(bt4k.bluetape4k.lettuce)
     implementation(libs.lettuce.core)
-    implementation(libs.bluetape4k.testcontainers)
+    implementation(bt4k.bluetape4k.testcontainers)
     implementation(libs.testcontainers)
 
-    testImplementation(libs.bluetape4k.junit5)
-    testImplementation(libs.bluetape4k.testcontainers)
+    testImplementation(bt4k.bluetape4k.junit5)
+    testImplementation(bt4k.bluetape4k.testcontainers)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
 }

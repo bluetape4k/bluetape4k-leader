@@ -4,34 +4,34 @@ configurations {
 
 dependencyManagement {
     imports {
-        mavenBom(libs.ktor.bom.get().toString())
+        mavenBom(bt4k.ktor.bom.get().toString())
     }
 }
 
 dependencies {
     api(project(":bluetape4k-leader-core"))
 
-    api(libs.bluetape4k.coroutines)
+    api(bt4k.bluetape4k.coroutines)
     implementation(libs.kotlinx.coroutines.core)
 
     // Ktor 3.x — application/plugin DSL
     compileOnly(libs.ktor.server.core)
 
     // Logging
-    implementation(libs.bluetape4k.logging)
+    implementation(bt4k.bluetape4k.logging)
 
     // Testing
     testImplementation(libs.ktor.server.core)
     testImplementation(libs.ktor.server.cio)
     testImplementation(libs.ktor.server.test.host)
-    testImplementation(libs.bluetape4k.ktor.testing)
+    testImplementation(bt4k.bluetape4k.ktor.testing)
 
     testImplementation(project(":bluetape4k-leader-redis-redisson"))
-    testImplementation(libs.redisson)
-    testImplementation(libs.bluetape4k.redisson)
+    testImplementation(bt4k.redisson)
+    testImplementation(bt4k.bluetape4k.redisson)
 
-    testImplementation(libs.bluetape4k.junit5)
-    testImplementation(libs.bluetape4k.testcontainers)
+    testImplementation(bt4k.bluetape4k.junit5)
+    testImplementation(bt4k.bluetape4k.testcontainers)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)

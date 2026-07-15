@@ -9,8 +9,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.jdk8)
 
     testImplementation(testFixtures(project(":bluetape4k-leader-core")))
-    testImplementation(libs.bluetape4k.junit5)
-    testImplementation(libs.bluetape4k.testcontainers)
+    testImplementation(bt4k.bluetape4k.junit5)
+    testImplementation(bt4k.bluetape4k.testcontainers)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.mockk)
     testImplementation(libs.testcontainers)

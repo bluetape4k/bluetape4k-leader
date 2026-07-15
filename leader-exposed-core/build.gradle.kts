@@ -5,31 +5,31 @@ configurations {
 dependencies {
     api(project(":bluetape4k-leader-core"))
 
-    implementation(platform(libs.bluetape4k.exposed.bom))
+    implementation(platform(bt4k.bluetape4k.exposed.bom))
 
     // Exposed core (스키마 정의 — JDBC/R2DBC 드라이버 없음)
-    api(libs.exposed.core)
-    api(libs.exposed.java.time)
+    api(bt4k.exposed.core)
+    api(bt4k.exposed.java.time)
     compileOnly(libs.exposed.dao)
 
     // Test — Multi-DB (H2, PostgreSQL, MySQL)
-    testImplementation(libs.bluetape4k.junit5)
-    testImplementation(libs.bluetape4k.virtualthread.jdk21)
-    testImplementation(libs.exposed.jdbc.tests)
+    testImplementation(bt4k.bluetape4k.junit5)
+    testImplementation(bt4k.bluetape4k.virtualthread.jdk21)
+    testImplementation(bt4k.bluetape4k.exposed.jdbc.tests)
 
-    testImplementation(libs.exposed.jdbc)
-    testImplementation(libs.hikaricp)
+    testImplementation(bt4k.exposed.jdbc)
+    testImplementation(bt4k.hikaricp)
 
     // H2 (in-memory, 빠른 단위 테스트)
     testImplementation(libs.h2.v2)
 
     // PostgreSQL (Testcontainers)
-    testImplementation(libs.postgresql)
+    testImplementation(bt4k.postgresql)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.postgresql)
 
     // MySQL (Testcontainers)
-    testImplementation(libs.mysql.connector.j)
+    testImplementation(bt4k.mysql.connector.j)
     testImplementation(libs.testcontainers.mysql)
 }

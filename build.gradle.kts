@@ -9,29 +9,30 @@ plugins {
     base
     `maven-publish`
     signing
-    alias(libs.plugins.kotlin.jvm)
+    alias(bt4k.plugins.kotlin.jvm)
 
-    alias(libs.plugins.kotlin.spring) apply false
-    alias(libs.plugins.kotlin.allopen) apply false
-    alias(libs.plugins.kotlin.noarg) apply false
-    alias(libs.plugins.kotlin.serialization) apply false
+    alias(bt4k.plugins.kotlin.spring) apply false
+    alias(bt4k.plugins.kotlin.allopen) apply false
+    alias(bt4k.plugins.kotlin.noarg) apply false
+    alias(bt4k.plugins.kotlin.serialization) apply false
     alias(libs.plugins.kotlinx.atomicfu)
     alias(libs.plugins.kotlinx.benchmark) apply false
 
     alias(libs.plugins.detekt) apply false
-    alias(libs.plugins.dependency.management)
+    alias(bt4k.plugins.dependency.management)
 
-    alias(libs.plugins.dokka)
+    alias(bt4k.plugins.dokka)
     alias(libs.plugins.test.logger)
 
-    alias(libs.plugins.nmcp.aggregation)
-    alias(libs.plugins.nmcp) apply false
+    alias(bt4k.plugins.nmcp.aggregation)
+    alias(bt4k.plugins.nmcp) apply false
 
-    alias(libs.plugins.kover) apply false
+    alias(bt4k.plugins.kover) apply false
 }
 
 val rootLibs = libs
 val bt4kCatalog = extensions.getByType<org.gradle.api.artifacts.VersionCatalogsExtension>().named("bt4k")
+fun bt4kLibrary(alias: String) = bt4kCatalog.findLibrary(alias).get()
 fun bt4kVersion(alias: String): String {
     val version = bt4kCatalog.findVersion(alias).get()
     return version.requiredVersion
@@ -168,7 +169,7 @@ subprojects {
         configurations.matching { it.name == "kotlinCompilerClasspath" || it.name == "kotlinCompilerPluginClasspath" }.configureEach {
             resolutionStrategy.eachDependency {
                 if (requested.group == "org.jetbrains.kotlin") {
-                    useVersion(rootLibs.versions.kotlin.get())
+                    useVersion(bt4kVersion("kotlin"))
                     because("KGP build-tools requires matching kotlin-compiler version")
                 }
             }
@@ -291,19 +292,53 @@ subprojects {
     dependencyManagement {
         setApplyMavenExclusions(false)
         imports {
-            mavenBom(rootLibs.bluetape4k.bom.get().toString())
-            mavenBom(rootLibs.kotlinx.coroutines.bom.get().toString())
-            mavenBom(rootLibs.kotlin.bom.get().toString())
+            mavenBom(bt4kLibrary("bluetape4k-bom").get().toString())
+            mavenBom("org.jetbrains.kotlinx:kotlinx-coroutines-bom:${bt4kVersion("kotlinx-coroutines")}")
+            mavenBom("org.jetbrains.kotlin:kotlin-bom:${bt4kVersion("kotlin")}")
             mavenBom(rootLibs.junit.bom.get().toString())
             mavenBom(rootLibs.micrometer.bom.get().toString())
-            mavenBom(rootLibs.testcontainers.bom.get().toString())
-            mavenBom(rootLibs.aws2.bom.get().toString())
+            mavenBom("org.testcontainers:testcontainers-bom:${bt4kVersion("testcontainers")}")
+            mavenBom(bt4kLibrary("aws2-bom").get().toString())
             mavenBom("io.netty:netty-bom:${bt4kVersion("netty")}")
             mavenBom("com.google.protobuf:protobuf-bom:${bt4kVersion("protobuf")}")
             mavenBom("io.vertx:vertx-dependencies:${bt4kVersion("vertx")}")
         }
-    
+
         dependencies {
+
+            // <central-catalog-local-aliases>
+
+            dependency("io.lettuce:lettuce-core:${bt4kVersion("lettuce")}")
+
+            dependency("org.awaitility:awaitility-kotlin:${bt4kVersion("awaitility")}")
+
+            dependency("org.jetbrains.exposed:exposed-dao:${bt4kVersion("exposed")}")
+
+            dependency("org.jetbrains.exposed:exposed-kotlin-datetime:${bt4kVersion("exposed")}")
+
+            dependency("org.jetbrains.kotlin:kotlin-bom:${bt4kVersion("kotlin")}")
+
+            dependency("org.jetbrains.kotlinx:kotlinx-coroutines-bom:${bt4kVersion("kotlinx-coroutines")}")
+
+            dependency("org.slf4j:jcl-over-slf4j:${bt4kVersion("slf4j")}")
+
+            dependency("org.slf4j:jul-to-slf4j:${bt4kVersion("slf4j")}")
+
+            dependency("org.slf4j:log4j-over-slf4j:${bt4kVersion("slf4j")}")
+
+            dependency("org.testcontainers:testcontainers-bom:${bt4kVersion("testcontainers")}")
+
+            dependency("org.testcontainers:testcontainers-junit-jupiter:${bt4kVersion("testcontainers")}")
+
+            dependency("org.testcontainers:testcontainers-mongodb:${bt4kVersion("testcontainers")}")
+
+            dependency("org.testcontainers:testcontainers-mysql:${bt4kVersion("testcontainers")}")
+
+            dependency("org.testcontainers:testcontainers-postgresql:${bt4kVersion("testcontainers")}")
+
+            dependency("org.testcontainers:testcontainers-toxiproxy:${bt4kVersion("testcontainers")}")
+
+            // </central-catalog-local-aliases>
             dependency("com.hazelcast:hazelcast:${bt4kVersion("hazelcast")}")
             dependency("com.google.protobuf:protobuf-java:${bt4kVersion("protobuf")}")
             dependency("io.netty:netty-codec-http:${bt4kVersion("netty")}")
@@ -342,7 +377,7 @@ subprojects {
         add("implementation", rootLibs.kotlinx.coroutines.core)
         add("implementation", rootLibs.kotlinx.atomicfu)
 
-        add("api", rootLibs.slf4j.api)
+        add("api", bt4kLibrary("slf4j-api"))
         add("testImplementation", rootLibs.logback)
         add("testImplementation", rootLibs.jcl.over.slf4j)
         add("testImplementation", rootLibs.jul.to.slf4j)
