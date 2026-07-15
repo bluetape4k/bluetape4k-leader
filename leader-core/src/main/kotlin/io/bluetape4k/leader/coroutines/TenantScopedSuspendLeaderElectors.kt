@@ -35,6 +35,9 @@ internal class TenantScopedSuspendLeaderElector(
     private val namespace: TenantLockNamespace,
 ) : SuspendLeaderElector {
 
+    override val supportsAuditLeaderState: Boolean
+        get() = delegate.supportsAuditLeaderState
+
     override fun state(lockName: String): LeaderState =
         delegate.state(namespace.lockName(lockName))
 

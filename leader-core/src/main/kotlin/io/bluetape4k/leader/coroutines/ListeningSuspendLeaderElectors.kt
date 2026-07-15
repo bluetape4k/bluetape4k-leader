@@ -7,6 +7,8 @@ import io.bluetape4k.leader.LeaderElectionListener
 import io.bluetape4k.leader.LeaderElectionListenerRegistry
 import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.leader.LeaderGroupState
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
 import kotlinx.coroutines.flow.Flow
 
@@ -21,6 +23,9 @@ class ListeningSuspendLeaderElector(
     private val eventSubject = PublishSubject<LeaderElectionEvent>()
 
     override val events: Flow<LeaderElectionEvent> = eventSubject
+
+    override val supportsAuditLeaderState: Boolean
+        get() = delegate.supportsAuditLeaderState
 
     override fun addListener(listener: LeaderElectionListener): AutoCloseable =
         listeners.addListener(listener)
@@ -48,6 +53,51 @@ class ListeningSuspendLeaderElector(
         if (!elected) {
             listeners.notifySkipped(lockName)
             eventSubject.emit(LeaderElectionEvent.Skipped(lockName))
+        }
+        return result
+    }
+
+    override suspend fun <T> runIfLeader(slot: LeaderSlot, action: suspend () -> T): T? {
+        var elected = false
+        val result = delegate.runIfLeader(slot) {
+            elected = true
+            val leader = delegate.state(slot.lockName).leader
+            listeners.notifyElected(slot.lockName, leader)
+            eventSubject.emit(LeaderElectionEvent.Elected.fromLease(slot.lockName, leader))
+            try {
+                action()
+            } finally {
+                listeners.notifyRevoked(slot.lockName)
+                eventSubject.emit(LeaderElectionEvent.Revoked(slot.lockName))
+            }
+        }
+        if (!elected) {
+            listeners.notifySkipped(slot.lockName)
+            eventSubject.emit(LeaderElectionEvent.Skipped(slot.lockName))
+        }
+        return result
+    }
+
+    override suspend fun <T> runIfLeaderResultSuspend(
+        slot: LeaderSlot,
+        action: suspend () -> T,
+    ): LeaderRunResult<T> {
+        var elected = false
+        val result = delegate.runIfLeaderResultSuspend(slot) {
+            elected = true
+            val leader = delegate.state(slot.lockName).leader
+            listeners.notifyElected(slot.lockName, leader)
+            eventSubject.emit(LeaderElectionEvent.Elected.fromLease(slot.lockName, leader))
+            try {
+                action()
+            } finally {
+                listeners.notifyRevoked(slot.lockName)
+                eventSubject.emit(LeaderElectionEvent.Revoked(slot.lockName))
+            }
+        }
+        if (!elected && result is LeaderRunResult.Skipped) {
+            listeners.notifySkipped(slot.lockName)
+            eventSubject.emit(LeaderElectionEvent.Skipped(slot.lockName))
         }
         return result
     }

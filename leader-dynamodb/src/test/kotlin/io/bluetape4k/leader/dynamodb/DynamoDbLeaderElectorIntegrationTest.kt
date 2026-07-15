@@ -187,6 +187,7 @@ class DynamoDbLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
         )
         val slot = LeaderSlot(randomName(), "dynamodb-audit-node-a")
 
+        elector.supportsAuditLeaderState shouldBeEqualTo true
         val result = elector.runIfLeaderResult(slot) {
             val lease = elector.state(slot.lockName).leader
             lease?.auditLeaderId shouldBeEqualTo "dynamodb-audit-node-a"

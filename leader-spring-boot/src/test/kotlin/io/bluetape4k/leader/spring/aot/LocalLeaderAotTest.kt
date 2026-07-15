@@ -1,16 +1,19 @@
 package io.bluetape4k.leader.spring.aot
 
-import io.bluetape4k.codec.Base58
-import io.bluetape4k.leader.LeaderElector
-import io.bluetape4k.leader.coroutines.SuspendLeaderElector
-import io.bluetape4k.leader.local.LocalLeaderElector
-import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
-import io.bluetape4k.leader.spring.LeaderElectionAutoConfiguration
-import io.bluetape4k.leader.spring.LeaderTestApplication
-import io.bluetape4k.leader.spring.backend.LocalLeaderConfiguration
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldNotBeNull
+import io.bluetape4k.codec.Base58
+import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.local.LocalLeaderElector
+import io.bluetape4k.leader.spring.LeaderElectionAutoConfiguration
+import io.bluetape4k.leader.spring.LeaderTestApplication
+import io.bluetape4k.leader.spring.backend.LocalLeaderConfiguration
+import io.bluetape4k.leader.spring.route.LeaderRouteAuthorityRuntime
+import io.bluetape4k.leader.spring.route.LeaderRouteGuardAutoConfiguration
+import io.bluetape4k.leader.spring.route.StateLeaderRouteAuthority
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -34,11 +37,13 @@ import org.springframework.context.ApplicationContext
  */
 @SpringBootTest(
     classes = [LeaderTestApplication::class],
+    properties = ["bluetape4k.leader.route-guard.enabled=true"],
     webEnvironment = SpringBootTest.WebEnvironment.NONE,
 )
 @ImportAutoConfiguration(
     LeaderElectionAutoConfiguration::class,
     LocalLeaderConfiguration::class,
+    LeaderRouteGuardAutoConfiguration::class,
 )
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LocalLeaderAotTest {
@@ -51,6 +56,9 @@ class LocalLeaderAotTest {
 
     @Autowired
     private lateinit var suspendLeaderElector: SuspendLeaderElector
+
+    @Autowired
+    private lateinit var routeAuthorityRuntime: LeaderRouteAuthorityRuntime
 
     @Test
     fun `ApplicationContext loads with local backend in AOT mode`() {
@@ -65,6 +73,11 @@ class LocalLeaderAotTest {
     @Test
     fun `LocalSuspendLeaderElector bean type is correct in AOT mode`() {
         suspendLeaderElector.shouldBeInstanceOf<LocalSuspendLeaderElector>()
+    }
+
+    @Test
+    fun `state route authority runtime is created in AOT mode`() {
+        routeAuthorityRuntime.authority.shouldBeInstanceOf<StateLeaderRouteAuthority>()
     }
 
     @Test

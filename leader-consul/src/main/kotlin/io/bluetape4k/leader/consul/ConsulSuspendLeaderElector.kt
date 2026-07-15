@@ -118,6 +118,8 @@ class ConsulSuspendLeaderElector private constructor(
         return LeaderState.occupied(lockName, lease)
     }
 
+    override val supportsAuditLeaderState: Boolean = true
+
     private suspend fun <T> runWithLock(
         lockName: String,
         auditLeaderId: String?,

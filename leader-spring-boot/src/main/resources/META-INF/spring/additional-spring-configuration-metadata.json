@@ -16,6 +16,11 @@
       "description": "Startup diagnostics for selected backend, management exposure, and high-cardinality tag risks."
     },
     {
+      "name": "bluetape4k.leader.route-guard",
+      "type": "io.bluetape4k.leader.spring.properties.LeaderRouteGuardProperties",
+      "description": "Opt-in MVC and WebFlux passive leader route-guard options."
+    },
+    {
       "name": "bluetape4k.leader.mongo",
       "type": "io.bluetape4k.leader.spring.MongoCollectionProperties",
       "description": "MongoDB leader election collection options."
@@ -145,6 +150,30 @@
       "type": "java.lang.Boolean",
       "description": "Include concrete LeaderElector bean names in the diagnostics report.",
       "defaultValue": true
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable passive leader route-authority and MVC/WebFlux helper auto-configuration.",
+      "defaultValue": false
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.authority-mode",
+      "type": "io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode",
+      "description": "Select the mutually exclusive built-in STATE or application-provided CUSTOM authority model.",
+      "defaultValue": "STATE"
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.elector-bean",
+      "type": "java.lang.String",
+      "description": "LeaderElector bean used by STATE mode. Empty selects the unique or primary candidate.",
+      "defaultValue": ""
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.rejection-status",
+      "type": "io.bluetape4k.leader.spring.properties.LeaderRouteRejectionStatus",
+      "description": "Safe empty-body HTTP status returned when route authorization fails closed.",
+      "defaultValue": "SERVICE_UNAVAILABLE"
     },
     {
       "name": "bluetape4k.leader.mongo.single-collection",

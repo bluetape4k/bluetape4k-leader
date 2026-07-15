@@ -82,6 +82,7 @@ class ConsulSuspendLeaderElectorIntegrationTest {
         )
         val slot = LeaderSlot(lockName = randomName(), leaderId = "suspend-audit-node-a")
 
+        elector.supportsAuditLeaderState shouldBeEqualTo true
         elector.runIfLeader(slot) {
             val state = elector.state(slot.lockName)
 

@@ -15,6 +15,17 @@ package io.bluetape4k.leader
 interface LeaderElectionState {
 
     /**
+     * Whether [state] can return occupied snapshots with a trustworthy
+     * [LeaderLease.auditLeaderId].
+     *
+     * The conservative default is `false`. Implementations must opt in only
+     * when their state representation preserves the audit identity written by
+     * slot-aware election calls. Decorators must delegate this capability.
+     */
+    val supportsAuditLeaderState: Boolean
+        get() = false
+
+    /**
      * Returns the current single-leader state snapshot for [lockName].
      *
      * The default implementation returns an empty snapshot for source compatibility with external implementations.

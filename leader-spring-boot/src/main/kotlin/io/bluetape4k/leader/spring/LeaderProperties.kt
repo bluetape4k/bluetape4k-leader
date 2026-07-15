@@ -4,6 +4,7 @@ import io.bluetape4k.leader.spring.properties.LeaderElectionProperties
 import io.bluetape4k.leader.spring.properties.LeaderDiagnosticsProperties
 import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
 import io.bluetape4k.leader.spring.properties.LeaderObservabilityProperties
+import io.bluetape4k.leader.spring.properties.LeaderRouteGuardProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 import java.time.Duration
@@ -27,6 +28,10 @@ import java.time.Duration
  *     diagnostics:
  *       enabled: true
  *       strict: false
+ *     route-guard:
+ *       enabled: false
+ *       authority-mode: STATE
+ *       rejection-status: SERVICE_UNAVAILABLE
  *     group:
  *       max-leaders: 3
  *       wait-time: 5s
@@ -49,6 +54,7 @@ import java.time.Duration
  * @property watchdogThreads watchdog scheduler thread count. When null, uses [LeaderLeaseAutoExtender.DEFAULT_WATCHDOG_THREADS].
  * @property watchdogAsyncExtend when true, each watchdog tick dispatches the extend call asynchronously on a virtual thread.
  * @property diagnostics startup diagnostics options for backend, management, and cardinality checks.
+ * @property routeGuard opt-in MVC and WebFlux leader route-guard options.
  * @property observability leader status observability and endpoint seed options.
  * @property group multi-leader group options.
  * @property mongo MongoDB backend collection names.
@@ -64,6 +70,8 @@ data class LeaderProperties(
     val watchdogAsyncExtend: Boolean = false,
     @field:NestedConfigurationProperty
     val diagnostics: LeaderDiagnosticsProperties = LeaderDiagnosticsProperties(),
+    @field:NestedConfigurationProperty
+    val routeGuard: LeaderRouteGuardProperties = LeaderRouteGuardProperties(),
     @field:NestedConfigurationProperty
     val observability: LeaderObservabilityProperties = LeaderObservabilityProperties(),
     @field:NestedConfigurationProperty

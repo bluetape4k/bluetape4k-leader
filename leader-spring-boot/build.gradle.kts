@@ -121,6 +121,9 @@ dependencies {
     compileOnly(libs.spring.boot.configuration.processor)
     compileOnly(libs.spring.context)
     compileOnly(libs.spring.tx)
+    compileOnly("org.springframework:spring-webmvc")
+    compileOnly("org.springframework:spring-webflux")
+    compileOnly("jakarta.servlet:jakarta.servlet-api")
 
     compileOnly(libs.kotlinx.coroutines.reactor)
 
@@ -135,6 +138,9 @@ dependencies {
     testImplementation(libs.spring.boot.test)
     testImplementation(libs.spring.boot.test.autoconfigure)
     testImplementation(libs.spring.test)
+    testImplementation("org.springframework:spring-webmvc")
+    testImplementation("org.springframework:spring-webflux")
+    testImplementation("jakarta.servlet:jakarta.servlet-api")
     testImplementation(libs.springmockk)
     testImplementation(libs.bluetape4k.virtualthread.jdk21)
     testImplementation(project(":bluetape4k-leader-consul"))
@@ -150,6 +156,7 @@ dependencies {
     testImplementation("org.assertj:assertj-core")
     testRuntimeOnly("org.springframework.boot:spring-boot-starter-actuator")
     testRuntimeOnly("org.springframework.boot:spring-boot-starter-web")
+    testRuntimeOnly("org.springframework.boot:spring-boot-starter-webflux")
 }
 
 tasks.compileJava {

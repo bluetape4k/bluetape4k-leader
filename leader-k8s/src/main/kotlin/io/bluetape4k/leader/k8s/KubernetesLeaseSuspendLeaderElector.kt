@@ -76,6 +76,8 @@ class KubernetesLeaseSuspendLeaderElector @JvmOverloads constructor(
     override fun state(lockName: String) =
         newLock(lockName, null).state()
 
+    override val supportsAuditLeaderState: Boolean = true
+
     private suspend fun <T> runWithLock(
         lockName: String,
         auditLeaderId: String?,
