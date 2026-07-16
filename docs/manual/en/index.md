@@ -11,6 +11,15 @@ A release-faithful guide to choosing, running, and operating distributed leader 
 
 ![Leader repository and learning map](../assets/overview/repository-learning-map.png)
 
+## Core capabilities
+
+- **Election models:** [Single, group, and strategic election](core/single-group-strategic.md) support one global leader, bounded parallel leaders, and policy-driven ownership.
+- **Execution APIs:** [Blocking, future, virtual-thread, and coroutine APIs](core/execution-apis.md) preserve the same election result semantics across application execution models.
+- **Lease lifecycle:** [Lease extension](core/lease-extension.md) and the [lease lifecycle guide](guides/lease-lifecycle.md) define wait time, lease time, minimum hold, renewal, release, and loss behavior.
+- **Distributed backends:** The [backend selection guide](guides/backend-selection.md) covers Redis, SQL, document stores, cluster coordination systems, and control-plane leases without changing the core contract.
+- **Framework integration:** [Spring Boot](frameworks/spring-boot.md), [Ktor](frameworks/ktor.md), and [Micrometer](frameworks/micrometer.md) modules connect configuration, lifecycle, and metrics to the host application.
+- **Operations and workshops:** [Observability and operations](guides/observability-and-operations.md) plus runnable scheduler, migration, and dashboard examples turn election behavior into deployable runbooks.
+
 ## Start with the decision, not the backend
 
 Leader election is useful when every service instance can see the same work but only one, or a bounded number, should execute it. This manual starts with execution semantics and failure boundaries before it asks you to choose Redis, SQL, MongoDB, or a control-plane lease.
