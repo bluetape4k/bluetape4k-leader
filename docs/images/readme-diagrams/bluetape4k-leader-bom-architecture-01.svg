@@ -32,7 +32,8 @@
     .import { stroke: #2563eb; marker-end: url(#arrowBlue); }
     .constraint { stroke: #059669; stroke-dasharray: 7 5; marker-end: url(#arrowGreen); }
     .publishLine { stroke: #b45309; stroke-dasharray: 7 5; marker-end: url(#arrowAmber); }
-  </style>
+
+    .syntax-keyword{fill:#7E22CE}.syntax-type{fill:#0F766E}.syntax-function{fill:#1D4ED8}.syntax-string{fill:#B45309}.syntax-number{fill:#C2410C}.syntax-comment{fill:#64748B}.syntax-operator{fill:#BE123C}</style>
 
   <rect width="1240" height="760" fill="#f6f8fb"/>
   <rect class="frame" x="38" y="30" width="1164" height="690" rx="18"/>
@@ -46,9 +47,9 @@
     <rect class="source" width="236" height="164" rx="10"/>
     <text class="card-title" x="118" y="34" text-anchor="middle">Gradle source</text>
     <line x1="0" y1="52" x2="236" y2="52" stroke="#bfdbfe"/>
-    <text class="mono" x="18" y="78">plugins: java-platform</text>
-    <text class="mono" x="18" y="100">allowDependencies()</text>
-    <text class="mono" x="18" y="122">constraints { api(project(...)) }</text>
+    <text class="mono" data-code-snippet="gradle-kotlin" x="18" y="78">plugins<tspan class="syntax-operator">:</tspan> java<tspan class="syntax-operator">-</tspan>platform</text>
+    <text class="mono" data-code-snippet="gradle-kotlin" x="18" y="100"><tspan class="syntax-function">allowDependencies</tspan>()</text>
+    <text class="mono" data-code-snippet="gradle-kotlin" x="18" y="122">constraints { <tspan class="syntax-function">api</tspan>(<tspan class="syntax-function">project</tspan>(...)) }</text>
     <text class="small" x="18" y="146">bluetape4k-leader-bom/build.gradle.kts</text>
   </g>
 
