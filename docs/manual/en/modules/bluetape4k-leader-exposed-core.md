@@ -85,11 +85,11 @@ This is not a complete elector and selects no driver, pool, or transaction manag
 <!-- release-readme-diagrams:start -->
 ## Release diagrams {#release-diagrams}
 
-These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+These diagrams are loaded directly from README assets published with the `0.4.0` release and pinned to its immutable commit. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG at the same release commit.
 
 ### leader exposed core ERD diagram
 
-[![leader exposed core ERD diagram](../../assets/readme-diagrams/leader-exposed-core-erd-01.png)](../../assets/readme-diagrams/leader-exposed-core-erd-01.svg)
+[![leader exposed core ERD diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-exposed-core-erd-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-exposed-core-erd-01.svg)
 
 _Release README: [`leader-exposed-core/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-exposed-core/README.md)_
 

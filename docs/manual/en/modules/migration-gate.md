@@ -131,29 +131,29 @@ The demo favors a compact, observable scenario. It does not define production to
 <!-- release-readme-diagrams:start -->
 ## Release diagrams {#release-diagrams}
 
-These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+These diagrams are loaded directly from README assets published with the `0.4.0` release and pinned to its immutable commit. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG at the same release commit.
 
 ### migration gate Architecture diagram
 
-[![migration gate Architecture diagram](../../assets/readme-diagrams/examples-migration-gate-architecture-01.png)](../../assets/readme-diagrams/examples-migration-gate-architecture-01.svg)
+[![migration gate Architecture diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-migration-gate-architecture-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-migration-gate-architecture-01.svg)
 
 _Release README: [`examples/migration-gate/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/migration-gate/README.md)_
 
 ### Migration gate flow diagram
 
-[![Migration gate flow diagram](../../assets/readme-diagrams/examples-migration-gate-flow-01.png)](../../assets/readme-diagrams/examples-migration-gate-flow-01.svg)
+[![Migration gate flow diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-migration-gate-flow-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-migration-gate-flow-01.svg)
 
 _Release README: [`examples/migration-gate/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/migration-gate/README.md)_
 
 ### Migration gate scenario diagram
 
-[![Migration gate scenario diagram](../../assets/readme-diagrams/examples-migration-gate-scenario-01.png)](../../assets/readme-diagrams/examples-migration-gate-scenario-01.svg)
+[![Migration gate scenario diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-migration-gate-scenario-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-migration-gate-scenario-01.svg)
 
 _Release README: [`examples/migration-gate/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/migration-gate/README.md)_
 
 ### migration gate Sequence Flow diagram
 
-[![migration gate Sequence Flow diagram](../../assets/readme-diagrams/examples-migration-gate-sequence-01.png)](../../assets/readme-diagrams/examples-migration-gate-sequence-01.svg)
+[![migration gate Sequence Flow diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-migration-gate-sequence-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-migration-gate-sequence-01.svg)
 
 _Release README: [`examples/migration-gate/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/migration-gate/README.md)_
 

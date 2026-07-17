@@ -131,29 +131,29 @@ The demo favors a compact, observable scenario. It does not define production to
 <!-- release-readme-diagrams:start -->
 ## Release diagrams {#release-diagrams}
 
-These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+These diagrams are loaded directly from README assets published with the `0.4.0` release and pinned to its immutable commit. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG at the same release commit.
 
 ### ZooKeeper scheduler architecture diagram
 
-[![ZooKeeper scheduler architecture diagram](../../assets/readme-diagrams/examples-zookeeper-scheduler-architecture-01.png)](../../assets/readme-diagrams/examples-zookeeper-scheduler-architecture-01.svg)
+[![ZooKeeper scheduler architecture diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-zookeeper-scheduler-architecture-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-zookeeper-scheduler-architecture-01.svg)
 
 _Release README: [`examples/zookeeper-scheduler/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/zookeeper-scheduler/README.md)_
 
 ### ZooKeeper scheduler flow diagram
 
-[![ZooKeeper scheduler flow diagram](../../assets/readme-diagrams/examples-zookeeper-scheduler-flow-01.png)](../../assets/readme-diagrams/examples-zookeeper-scheduler-flow-01.svg)
+[![ZooKeeper scheduler flow diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-zookeeper-scheduler-flow-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-zookeeper-scheduler-flow-01.svg)
 
 _Release README: [`examples/zookeeper-scheduler/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/zookeeper-scheduler/README.md)_
 
 ### ZooKeeper scheduler scenario diagram
 
-[![ZooKeeper scheduler scenario diagram](../../assets/readme-diagrams/examples-zookeeper-scheduler-scenario-01.png)](../../assets/readme-diagrams/examples-zookeeper-scheduler-scenario-01.svg)
+[![ZooKeeper scheduler scenario diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-zookeeper-scheduler-scenario-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-zookeeper-scheduler-scenario-01.svg)
 
 _Release README: [`examples/zookeeper-scheduler/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/zookeeper-scheduler/README.md)_
 
 ### ZooKeeper scheduler sequence diagram
 
-[![ZooKeeper scheduler sequence diagram](../../assets/readme-diagrams/examples-zookeeper-scheduler-sequence-01.png)](../../assets/readme-diagrams/examples-zookeeper-scheduler-sequence-01.svg)
+[![ZooKeeper scheduler sequence diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-zookeeper-scheduler-sequence-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-zookeeper-scheduler-sequence-01.svg)
 
 _Release README: [`examples/zookeeper-scheduler/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/zookeeper-scheduler/README.md)_
 

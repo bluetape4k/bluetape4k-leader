@@ -84,11 +84,11 @@ Replica-set configuration affects split-brain risk. MongoDB lease ownership does
 <!-- release-readme-diagrams:start -->
 ## Release diagrams {#release-diagrams}
 
-These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+These diagrams are loaded directly from README assets published with the `0.4.0` release and pinned to its immutable commit. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG at the same release commit.
 
 ### leader mongodb Class Structure diagram
 
-[![leader mongodb Class Structure diagram](../../assets/readme-diagrams/leader-mongodb-class-01.png)](../../assets/readme-diagrams/leader-mongodb-class-01.svg)
+[![leader mongodb Class Structure diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-mongodb-class-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-mongodb-class-01.svg)
 
 _Release README: [`leader-mongodb/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-mongodb/README.md)_
 
