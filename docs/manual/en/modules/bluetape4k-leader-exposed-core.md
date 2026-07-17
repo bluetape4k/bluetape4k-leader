@@ -82,6 +82,19 @@ Read this before JDBC/R2DBC when migration ownership is separate. The migration-
 
 This is not a complete elector and selects no driver, pool, or transaction manager.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### leader exposed core ERD diagram
+
+[![leader exposed core ERD diagram](../../assets/readme-diagrams/leader-exposed-core-erd-01.png)](../../assets/readme-diagrams/leader-exposed-core-erd-01.svg)
+
+_Release README: [`leader-exposed-core/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-exposed-core/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 [Schema](../../../../leader-exposed-core/src/main/kotlin/io/bluetape4k/leader/exposed/ExposedLeaderSchema.kt) · [Lock table](../../../../leader-exposed-core/src/main/kotlin/io/bluetape4k/leader/exposed/tables/LeaderLockTable.kt) · [Stable guide](../../../../leader-exposed-core/README.md)

@@ -128,6 +128,37 @@ DynamoDB TTL is asynchronous cleanup metadata, not the correctness clock. Lease 
 
 The demo favors a compact, observable scenario. It does not define production topology, credential rotation, capacity planning, disaster recovery, or a universal exactly-once guarantee.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### DynamoDB export architecture diagram
+
+[![DynamoDB export architecture diagram](../../assets/readme-diagrams/examples-dynamodb-export-architecture-01.png)](../../assets/readme-diagrams/examples-dynamodb-export-architecture-01.svg)
+
+_Release README: [`examples/dynamodb-export/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/dynamodb-export/README.md)_
+
+### DynamoDB export flow diagram
+
+[![DynamoDB export flow diagram](../../assets/readme-diagrams/examples-dynamodb-export-flow-01.png)](../../assets/readme-diagrams/examples-dynamodb-export-flow-01.svg)
+
+_Release README: [`examples/dynamodb-export/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/dynamodb-export/README.md)_
+
+### DynamoDB export scenario diagram
+
+[![DynamoDB export scenario diagram](../../assets/readme-diagrams/examples-dynamodb-export-scenario-01.png)](../../assets/readme-diagrams/examples-dynamodb-export-scenario-01.svg)
+
+_Release README: [`examples/dynamodb-export/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/dynamodb-export/README.md)_
+
+### DynamoDB export sequence diagram
+
+[![DynamoDB export sequence diagram](../../assets/readme-diagrams/examples-dynamodb-export-sequence-01.png)](../../assets/readme-diagrams/examples-dynamodb-export-sequence-01.svg)
+
+_Release README: [`examples/dynamodb-export/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/dynamodb-export/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 - [Stable example README](../../../../examples/dynamodb-export/README.md)

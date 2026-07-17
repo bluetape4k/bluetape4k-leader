@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1060" viewBox="0 0 1600 1060" role="img" aria-labelledby="title desc">
+  <title id="title">leader-ktor Sequence Flow</title>
+  <desc id="desc">Ktor plugin startup, LeaderElection scheduling, and request-time leader guarded execution.</desc>
+  <defs>
+    <style>
+      .title { font-family: "Architects Daughter"; font-size: 40px; fill: #263238; }
+      .subtitle, .msg, .note, .footer { font-family: "Comic Mono"; fill: #36464f; }
+      .subtitle { font-size: 18px; }
+      .participant { font-family: "Architects Daughter"; font-size: 19px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .msg { font-size: 14px; }
+      .note { font-size: 13px; }
+      .footer { font-size: 14px; fill: #60727d; }
+      .frame { fill: #fbfcf8; stroke: #41545d; stroke-width: 3; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #f3ecdf; stroke: #8f784e; stroke-width: 1.5; }
+      .call { fill: none; stroke: #3f7d9c; stroke-width: 3; marker-end: url(#arrowCall); stroke-linecap: round; stroke-linejoin: round; }
+      .slot { fill: none; stroke: #a2743d; stroke-width: 3; marker-end: url(#arrowSlot); stroke-linecap: round; stroke-linejoin: round; }
+      .state { fill: none; stroke: #6e8f4f; stroke-width: 3; marker-end: url(#arrowState); stroke-linecap: round; stroke-linejoin: round; }
+      .return { fill: none; stroke: #9b7d54; stroke-width: 2.5; stroke-dasharray: 8 6; marker-end: url(#arrowReturn); stroke-linecap: round; stroke-linejoin: round; }
+      .wait { fill: none; stroke: #8e6aa9; stroke-width: 3; marker-end: url(#arrowWait); stroke-linecap: round; stroke-linejoin: round; }
+      .skip { fill: none; stroke: #b86868; stroke-width: 3; marker-end: url(#arrowSkip); stroke-linecap: round; stroke-linejoin: round; }
+      .alt { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 7; }
+      .branchDivider { stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+      .label { fill: #ffffff; stroke: #d7e0e4; stroke-width: 1.5; }
+      .label.callLabel { stroke: #9cc2d1; }
+      .label.slotLabel { stroke: #d0b078; }
+      .label.stateLabel { stroke: #b6c9a4; }
+      .label.returnLabel { stroke: #c8b38f; }
+      .label.waitLabel { stroke: #c7abd8; }
+      .label.skipLabel { stroke: #d9abab; }
+      .branchOk { fill: #f8f1e6; stroke: #a2743d; stroke-width: 1.8; }
+      .branchWait { fill: #f7f0fb; stroke: #8e6aa9; stroke-width: 1.8; }
+      .branchSkip { fill: #fff5f5; stroke: #b86868; stroke-width: 3; }
+      .badge { stroke-width: 1.8; }
+      .badge.callBadge { fill: #eaf4f8; stroke: #3f7d9c; }
+      .badge.slotBadge { fill: #fff4df; stroke: #a2743d; }
+      .badge.stateBadge { fill: #eef7f0; stroke: #6e8f4f; }
+      .badge.returnBadge { fill: #fff7e8; stroke: #9b7d54; }
+      .badge.waitBadge { fill: #f7f0fb; stroke: #8e6aa9; }
+      .badge.skipBadge { fill: #fff0f0; stroke: #b86868; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .msg.callText, .badgeText.callText { fill: #2f6f8e; }
+      .msg.slotText, .badgeText.slotText { fill: #855a29; }
+      .msg.stateText, .badgeText.stateText { fill: #55783f; }
+      .msg.returnText, .badgeText.returnText { fill: #7f6038; }
+      .msg.waitText, .badgeText.waitText { fill: #774f92; }
+      .msg.skipText, .badgeText.skipText { fill: #9d4f4f; }
+    </style>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowCall" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowSlot" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#a2743d" stroke="#a2743d" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowState" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowReturn" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowWait" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#8e6aa9" stroke="#8e6aa9" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowSkip" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+  </defs>
+
+
+
+  <rect x="24" y="24" width="1552" height="1012" rx="20" class="frame"/>
+  <text x="800" y="78" text-anchor="middle" class="title">leader-ktor Sequence Flow</text>
+  <text x="800" y="108" text-anchor="middle" class="subtitle">The plugin stores configuration, launches a coroutine loop, and calls runIfLeader for scheduled jobs.</text>
+
+  <g>
+    <rect x="35" y="150" width="170" height="68" rx="10" class="header"/>
+    <text x="120" y="179" text-anchor="middle" class="participant">Application</text>
+    <text x="120" y="201" text-anchor="middle" class="role">module + scope</text>
+    <rect x="260" y="150" width="180" height="68" rx="10" class="header"/>
+    <text x="350" y="179" text-anchor="middle" class="participant">LeaderElection</text>
+    <text x="350" y="201" text-anchor="middle" class="role">plugin</text>
+    <rect x="505" y="150" width="170" height="68" rx="10" class="header"/>
+    <text x="590" y="179" text-anchor="middle" class="participant">Attributes</text>
+    <text x="590" y="201" text-anchor="middle" class="role">config key</text>
+    <rect x="735" y="150" width="190" height="68" rx="10" class="header"/>
+    <text x="830" y="179" text-anchor="middle" class="participant">Job Scheduler</text>
+    <text x="830" y="201" text-anchor="middle" class="role">period loop</text>
+    <rect x="990" y="150" width="180" height="68" rx="10" class="header"/>
+    <text x="1080" y="179" text-anchor="middle" class="participant">Leader API</text>
+    <text x="1080" y="201" text-anchor="middle" class="role">runIfLeader</text>
+    <rect x="1265" y="150" width="170" height="68" rx="10" class="header"/>
+    <text x="1350" y="179" text-anchor="middle" class="participant">Action</text>
+    <text x="1350" y="201" text-anchor="middle" class="role">suspend block</text>
+  </g>
+
+  <line x1="120" y1="218" x2="120" y2="926" class="lifeline"/>
+  <line x1="350" y1="218" x2="350" y2="926" class="lifeline"/>
+  <line x1="590" y1="218" x2="590" y2="926" class="lifeline"/>
+  <line x1="830" y1="218" x2="830" y2="926" class="lifeline"/>
+  <line x1="1080" y1="218" x2="1080" y2="926" class="lifeline"/>
+  <line x1="1350" y1="218" x2="1350" y2="926" class="lifeline"/>
+  <rect x="113" y="290" width="14" height="70" rx="6" class="activation"/>
+  <rect x="343" y="290" width="14" height="194" rx="6" class="activation"/>
+  <rect x="583" y="342" width="14" height="72" rx="6" class="activation"/>
+  <rect x="823" y="412" width="14" height="428" rx="6" class="activation"/>
+  <rect x="1073" y="510" width="14" height="330" rx="6" class="activation"/>
+  <rect x="1343" y="584" width="14" height="146" rx="6" class="activation"/>
+
+  <rect x="70" y="488" width="1478" height="230" rx="14" class="alt"/>
+  <rect x="96" y="506" width="200" height="30" rx="15" class="branchOk"/>
+  <text x="118" y="526" class="note">leader tick path</text>
+
+  <rect x="70" y="734" width="1478" height="160" rx="14" class="alt"/>
+  <rect x="96" y="752" width="192" height="30" rx="15" class="branchWait"/>
+  <text x="118" y="772" class="note">retry loop path</text>
+
+  <rect x="83" y="234" width="304" height="34" rx="17" class="label callLabel"/>
+  <circle cx="107" cy="251" r="13" class="badge callBadge"/><text x="107" y="256" text-anchor="middle" class="badgeText callText">1</text>
+  <text x="131" y="256" class="msg callText">install LeaderElection plugin</text>
+  <path d="M 120 292 L 350 292" class="call"/>
+
+  <rect x="290" y="304" width="360" height="34" rx="17" class="label stateLabel"/>
+  <circle cx="314" cy="321" r="13" class="badge stateBadge"/><text x="314" y="326" text-anchor="middle" class="badgeText stateText">2</text>
+  <text x="338" y="326" class="msg stateText">put config in Application attributes</text>
+  <path d="M 350 362 L 590 362" class="state"/>
+
+  <rect x="470" y="374" width="240" height="34" rx="17" class="label slotLabel"/>
+  <circle cx="494" cy="391" r="13" class="badge slotBadge"/><text x="494" y="396" text-anchor="middle" class="badgeText slotText">3</text>
+  <text x="518" y="396" class="msg slotText">launch coroutine loop</text>
+  <path d="M 350 432 L 830 432" class="slot"/>
+
+  <rect x="803" y="472" width="304" height="34" rx="17" class="label callLabel"/>
+  <circle cx="827" cy="489" r="13" class="badge callBadge"/><text x="827" y="494" text-anchor="middle" class="badgeText callText">4</text>
+  <text x="851" y="494" class="msg callText">runIfLeader(lockName, period)</text>
+  <path d="M 830 530 L 1080 530" class="call"/>
+
+  <rect x="1051" y="546" width="328" height="34" rx="17" class="label stateLabel"/>
+  <circle cx="1075" cy="563" r="13" class="badge stateBadge"/><text x="1075" y="568" text-anchor="middle" class="badgeText stateText">5</text>
+  <text x="1099" y="568" class="msg stateText">when acquired, run scheduled job</text>
+  <path d="M 1080 604 L 1350 604" class="state"/>
+
+  <rect x="1087" y="620" width="256" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="1111" cy="637" r="13" class="badge returnBadge"/><text x="1111" y="642" text-anchor="middle" class="badgeText returnText">6</text>
+  <text x="1135" y="642" class="msg returnText">job result or exception</text>
+  <path d="M 1350 678 L 1080 678" class="return"/>
+
+  <rect x="760" y="704" width="312" height="34" rx="17" class="label waitLabel"/>
+  <circle cx="784" cy="721" r="13" class="badge waitBadge"/><text x="784" y="726" text-anchor="middle" class="badgeText waitText">7</text>
+  <text x="808" y="726" class="msg waitText">delay(period) before next tick</text>
+  <path d="M 830 762 L 830 762" class="wait"/>
+
+  <rect x="831" y="792" width="248" height="34" rx="17" class="label skipLabel"/>
+  <circle cx="855" cy="809" r="13" class="badge skipBadge"/><text x="855" y="814" text-anchor="middle" class="badgeText skipText">8</text>
+  <text x="879" y="814" class="msg skipText">skip / fail / continue</text>
+  <path d="M 1080 850 L 830 850" class="skip"/>
+
+  <rect x="98" y="944" width="1404" height="44" rx="12" fill="#ffffff" stroke="#ccd7da" stroke-width="2"/>
+  <text x="118" y="972" class="note">CancellationException is rethrown; ordinary action failures are logged and the next cycle still runs.</text>
+  <text x="800" y="1004" text-anchor="middle" class="footer">github.com/bluetape4k/bluetape4k-leader - leader-ktor-sequence-01</text>
+</svg>

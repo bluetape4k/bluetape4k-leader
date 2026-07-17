@@ -1,0 +1,165 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 900" width="1280" height="900" role="img" aria-labelledby="title desc">
+  <title id="title">leader-mongodb class structure</title>
+  <desc id="desc">Class diagram showing MongoDB leader electors, core contracts, lock primitives, TTL collections, token guarded updates, and extension delegates.</desc>
+  <style>
+    text { font-family: 'Architects Daughter', 'Comic Mono'; letter-spacing: 0; }
+    .title { font-size: 28px; font-weight: 700; fill: #111827; }
+    .subtitle { font-size: 14px; fill: #4b5563; }
+    .section { font-size: 15px; font-weight: 700; fill: #374151; }
+    .card-title { font-size: 16px; font-weight: 700; fill: #111827; }
+    .card-sub { font-size: 12px; fill: #4b5563; }
+    .mono { font-family: 'Comic Mono', 'Architects Daughter'; font-size: 12px; fill: #374151; }
+    .tiny { font-size: 11px; fill: #6b7280; }
+    .badge { font-size: 11px; font-weight: 700; }
+    .footer { font-size: 12px; fill: #6b7280; }
+    .dash { stroke-dasharray: 7 5; }
+  </style>
+  <defs>
+    <marker id="implArrow" viewBox="0 0 18 16" markerWidth="18" markerHeight="16" refX="16" refY="8" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 16 8 L 1 15 Z" fill="#ffffff" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="none" style="stroke-dasharray:none"/>
+    </marker>
+    <marker id="useArrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669" stroke="#059669" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="dataArrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c3aed" stroke="#7c3aed" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+  </defs>
+
+  <rect width="1280" height="900" fill="#f8fafc"/>
+  <rect x="28" y="24" width="1224" height="824" rx="18" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+
+  <text x="52" y="66" class="title">leader-mongodb class structure</text>
+  <text x="52" y="92" class="subtitle">MongoDB atomic document locks: findOneAndUpdate upsert, expireAt TTL index, and per-acquisition fencing token.</text>
+
+  <rect x="52" y="124" width="300" height="668" rx="12" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+  <text x="72" y="154" class="section">Core contracts</text>
+
+  <g transform="translate(76 180)">
+    <rect width="232" height="54" rx="8" fill="#ffffff" stroke="#93c5fd" stroke-width="1.4"/>
+    <text x="116" y="20" text-anchor="middle" class="tiny">&lt;&lt;interface&gt;&gt;</text>
+    <text x="116" y="40" text-anchor="middle" class="card-title">LeaderElector</text>
+  </g>
+  <g transform="translate(76 252)">
+    <rect width="232" height="54" rx="8" fill="#ffffff" stroke="#93c5fd" stroke-width="1.4"/>
+    <text x="116" y="20" text-anchor="middle" class="tiny">&lt;&lt;interface&gt;&gt;</text>
+    <text x="116" y="40" text-anchor="middle" class="card-title">AsyncLeaderElector</text>
+  </g>
+  <g transform="translate(76 324)">
+    <rect width="232" height="54" rx="8" fill="#ffffff" stroke="#93c5fd" stroke-width="1.4"/>
+    <text x="116" y="20" text-anchor="middle" class="tiny">&lt;&lt;interface&gt;&gt;</text>
+    <text x="116" y="40" text-anchor="middle" class="card-title">LeaderGroupElector</text>
+  </g>
+  <g transform="translate(76 396)">
+    <rect width="232" height="54" rx="8" fill="#ffffff" stroke="#93c5fd" stroke-width="1.4"/>
+    <text x="116" y="20" text-anchor="middle" class="tiny">&lt;&lt;interface&gt;&gt;</text>
+    <text x="116" y="40" text-anchor="middle" class="card-title">SuspendLeaderElector</text>
+  </g>
+  <g transform="translate(76 468)">
+    <rect width="232" height="54" rx="8" fill="#ffffff" stroke="#93c5fd" stroke-width="1.4"/>
+    <text x="116" y="20" text-anchor="middle" class="tiny">&lt;&lt;interface&gt;&gt;</text>
+    <text x="116" y="40" text-anchor="middle" class="card-title">SuspendLeaderGroup</text>
+  </g>
+  <g transform="translate(76 570)">
+    <rect width="232" height="138" rx="8" fill="#dbeafe" stroke="#60a5fa" stroke-width="1.4"/>
+    <text x="116" y="25" text-anchor="middle" class="card-title">Factory surface</text>
+    <text x="18" y="55" class="mono">MongoLeaderElectorFactory</text>
+    <text x="18" y="78" class="mono">MongoLeaderGroupFactory</text>
+    <text x="18" y="101" class="mono">MongoSuspendLeaderFactory</text>
+    <text x="18" y="124" class="mono">MongoSuspendGroupFactory</text>
+  </g>
+
+  <rect x="406" y="124" width="468" height="668" rx="12" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+  <text x="426" y="154" class="section">Mongo adapters</text>
+
+  <g id="mongodb-adapters">
+    <g transform="translate(438 182)">
+      <rect width="184" height="128" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.4"/>
+      <rect x="12" y="12" width="160" height="22" rx="11" fill="#dcfce7"/>
+      <text x="92" y="28" text-anchor="middle" class="badge" fill="#166534">blocking + async</text>
+      <text x="92" y="58" text-anchor="middle" class="card-title">MongoLeaderElector</text>
+      <text x="18" y="84" class="card-sub">implements LeaderElector</text>
+      <text x="18" y="105" class="card-sub">uses MongoLock</text>
+    </g>
+    <g transform="translate(658 182)">
+      <rect width="184" height="128" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.4"/>
+      <rect x="12" y="12" width="160" height="22" rx="11" fill="#dcfce7"/>
+      <text x="92" y="28" text-anchor="middle" class="badge" fill="#166534">multi leader</text>
+      <text x="92" y="58" text-anchor="middle" class="card-title">MongoLeaderGroup</text>
+      <text x="18" y="84" class="card-sub">random slot scan</text>
+      <text x="18" y="105" class="card-sub">lockName:slot:N</text>
+    </g>
+    <g transform="translate(438 356)">
+      <rect width="184" height="128" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.4"/>
+      <rect x="12" y="12" width="160" height="22" rx="11" fill="#dcfce7"/>
+      <text x="92" y="28" text-anchor="middle" class="badge" fill="#166534">coroutine</text>
+      <text x="92" y="58" text-anchor="middle" class="card-title">MongoSuspend</text>
+      <text x="92" y="77" text-anchor="middle" class="card-title">LeaderElector</text>
+      <text x="18" y="104" class="card-sub">native coroutine driver</text>
+    </g>
+    <g transform="translate(658 356)">
+      <rect width="184" height="128" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.4"/>
+      <rect x="12" y="12" width="160" height="22" rx="11" fill="#dcfce7"/>
+      <text x="92" y="28" text-anchor="middle" class="badge" fill="#166534">coroutine group</text>
+      <text x="92" y="58" text-anchor="middle" class="card-title">MongoSuspend</text>
+      <text x="92" y="77" text-anchor="middle" class="card-title">LeaderGroup</text>
+      <text x="18" y="104" class="card-sub">dual collection state</text>
+    </g>
+    <g transform="translate(438 552)">
+      <rect width="404" height="120" rx="8" fill="#dcfce7" stroke="#22c55e" stroke-width="1.4"/>
+      <text x="202" y="30" text-anchor="middle" class="card-title">Common election behavior</text>
+      <text x="24" y="58" class="card-sub">1. validate lockName and build tokenized lock</text>
+      <text x="24" y="80" class="card-sub">2. acquire before action, push LeaderLockHandle</text>
+      <text x="24" y="102" class="card-sub">3. release with minLeaseTime and token guard</text>
+    </g>
+  </g>
+
+  <rect x="928" y="124" width="300" height="668" rx="12" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5"/>
+  <text x="948" y="154" class="section">MongoDB primitives</text>
+
+  <g transform="translate(958 184)">
+    <rect width="228" height="128" rx="8" fill="#ffffff" stroke="#c084fc" stroke-width="1.4"/>
+    <text x="114" y="30" text-anchor="middle" class="card-title">MongoLock</text>
+    <text x="20" y="58" class="mono">token = Base58...</text>
+    <text x="20" y="80" class="mono">tryLock(wait, lease)</text>
+    <text x="20" y="102" class="mono">unlock(minLeaseTime)</text>
+  </g>
+  <g transform="translate(958 346)">
+    <rect width="228" height="118" rx="8" fill="#ffffff" stroke="#c084fc" stroke-width="1.4"/>
+    <text x="114" y="30" text-anchor="middle" class="card-title">MongoSuspendLock</text>
+    <text x="20" y="58" class="mono">suspend tryLock</text>
+    <text x="20" y="80" class="mono">reactive Mongo driver</text>
+    <text x="20" y="102" class="mono">no IO dispatcher hop</text>
+  </g>
+  <g transform="translate(958 500)">
+    <path d="M 0 24 C 0 10 228 10 228 24 L 228 102 C 228 116 0 116 0 102 Z" fill="#f5f3ff" stroke="#a78bfa" stroke-width="1.4"/>
+    <path d="M 0 24 C 0 38 228 38 228 24" fill="none" stroke="#a78bfa" stroke-width="1.4"/>
+    <text x="114" y="54" text-anchor="middle" class="card-title">TTL collections</text>
+    <text x="20" y="78" class="mono">bluetape4k_leader_locks</text>
+    <text x="20" y="98" class="mono">..._group_locks</text>
+  </g>
+  <g transform="translate(958 658)">
+    <rect width="228" height="72" rx="8" fill="#f5f3ff" stroke="#a78bfa" stroke-width="1.4"/>
+    <text x="114" y="28" text-anchor="middle" class="card-title">Extend delegates</text>
+    <text x="20" y="52" class="mono">token + expireAt &gt; now</text>
+  </g>
+
+  <path d="M 438 246 L 393 246 Q 380 246 380 233 L 380 220 Q 380 207 367 207 L 308 207" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#implArrow)"/>
+  <path d="M 658 246 L 642 246 Q 628 246 628 232 L 628 180 Q 628 166 614 166 L 380 166 Q 366 166 366 180 L 366 338 Q 366 351 353 351 L 308 351" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#implArrow)"/>
+  <path d="M 438 420 L 308 420" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#implArrow)"/>
+  <path d="M 658 420 L 642 420 Q 628 420 628 506 L 628 536 Q 628 550 614 550 L 380 550 Q 366 550 366 536 L 366 508 Q 366 495 353 495 L 308 495" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#implArrow)"/>
+
+  <path d="M 874 246 L 918 246 L 938 246 L 958 246" fill="none" stroke="#059669" stroke-width="2.5" class="dash" marker-end="url(#useArrow)"/>
+  <text x="901" y="231" text-anchor="middle" class="tiny" fill="#047857">sync lock</text>
+  <path d="M 874 420 L 910 420 Q 928 420 928 402 L 928 396 Q 928 378 946 378 L 958 378" fill="none" stroke="#059669" stroke-width="2.5" class="dash" marker-end="url(#useArrow)"/>
+  <text x="901" y="405" text-anchor="middle" class="tiny" fill="#047857">suspend lock</text>
+
+  <path d="M 1186 246 L 1202 246 Q 1210 246 1210 254 L 1210 552 Q 1210 560 1202 560 L 1186 560" fill="none" stroke="#7c3aed" stroke-width="2.5" class="dash" marker-end="url(#dataArrow)"/>
+  <text x="1130" y="488" text-anchor="middle" class="tiny" fill="#6d28d9">findOneAndUpdate</text>
+  <path d="M 1072 464 L 1072 500" fill="none" stroke="#7c3aed" stroke-width="2.5" class="dash" marker-end="url(#dataArrow)"/>
+
+  <g transform="translate(438 716)">
+    <line x1="34" y1="10" x2="0" y2="10" stroke="#2563eb" stroke-width="2.5" marker-end="url(#implArrow)"/>
+    <text x="44" y="15" class="tiny">implements core contract</text>
+    <line x1="210" y1="10" x2="244" y2="10" stroke="#059669" stroke-width="2.5" class="dash" marker-end="url(#useArrow)"/>
+    <text x="254" y="15" class="tiny">uses lock primitive</text>
+  </g>
+
+  <text x="52" y="832" class="footer">github.com/bluetape4k/bluetape4k-leader / leader-mongodb - MongoDB TTL document locks with token-guarded release.</text>
+</svg>

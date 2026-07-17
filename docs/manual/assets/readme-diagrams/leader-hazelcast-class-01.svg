@@ -1,0 +1,166 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="900" viewBox="0 0 1320 900" role="img" aria-labelledby="title desc">
+  <title id="title">leader-hazelcast implementation structure</title>
+  <desc id="desc">Class diagram for the Hazelcast leader backend showing electors, factories, IMap based lock primitives, extend delegates, and token based dependency relationships.</desc>
+  <defs>
+    <marker id="hollow-triangle" viewBox="0 0 18 16" markerWidth="18" markerHeight="16" refX="17" refY="8" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 17 8 L 1 15 Z" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round" stroke-dasharray="none" style="stroke-dasharray:none"/>
+    </marker>
+    <marker markerUnits="userSpaceOnUse" id="open-arrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#334155" stroke="#334155" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <style>
+      .canvas { fill: #f8fafc; }
+      .frame { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.8; rx: 24; }
+      .title { font-family: "Architects Daughter", "Comic Mono", "Comic Mono"; font-size: 35px; fill: #0f172a; font-weight: 700; }
+      .subtitle { font-family: "Comic Mono", "Architects Daughter"; font-size: 15px; fill: #475569; }
+      .box { stroke-width: 1.7; rx: 11; }
+      .interface { fill: #eff6ff; stroke: #2563eb; }
+      .elector { fill: #dcfce7; stroke: #16a34a; }
+      .factory { fill: #ffedd5; stroke: #ea580c; }
+      .lock { fill: #ede9fe; stroke: #7c3aed; }
+      .delegate { fill: #fce7f3; stroke: #db2777; }
+      .external { fill: #f1f5f9; stroke: #64748b; }
+      .box-title { font-family: "Comic Mono", "Architects Daughter"; font-size: 14px; fill: #0f172a; font-weight: 700; }
+      .box-title-tight { font-family: "Comic Mono", "Architects Daughter"; font-size: 12.5px; fill: #0f172a; font-weight: 700; }
+      .stereo { font-family: "Comic Mono", "Architects Daughter"; font-size: 11px; fill: #475569; }
+      .member { font-family: "Comic Mono", "Architects Daughter"; font-size: 11px; fill: #475569; }
+      .label { font-family: "Comic Mono", "Architects Daughter"; font-size: 11px; fill: #1d4ed8; font-weight: 700; }
+      .footer { font-family: "Comic Mono", "Architects Daughter"; font-size: 11px; fill: #64748b; }
+      .implements { fill: none; stroke: #334155; stroke-width: 1.45; stroke-dasharray: 7 6; }
+      .uses { fill: none; stroke: #2563eb; stroke-width: 1.8; stroke-dasharray: 7 6; }
+      .holds { fill: none; stroke: #7c3aed; stroke-width: 1.8; stroke-dasharray: 7 6; }
+      .sep { stroke: rgba(15, 23, 42, 0.18); stroke-width: 1; }
+      .legend-line { stroke-width: 1.8; }
+    </style>
+  </defs>
+
+  <rect class="canvas" width="1320" height="900"/>
+  <rect class="frame" x="34" y="30" width="1252" height="826"/>
+  <text class="title" x="660" y="78" text-anchor="middle">Hazelcast Leader Implementation Structure</text>
+  <text class="subtitle" x="660" y="108" text-anchor="middle">Electors expose leader-core contracts; all lock ownership is delegated to token-based IMap entries.</text>
+
+  <g id="interfaces">
+    <rect class="box interface" x="92" y="156" width="212" height="92"/>
+    <text class="stereo" x="198" y="180" text-anchor="middle">&lt;&lt;interface&gt;&gt;</text>
+    <text class="box-title" x="198" y="202" text-anchor="middle">LeaderElector</text>
+    <line class="sep" x1="92" y1="214" x2="304" y2="214"/>
+    <text class="member" x="112" y="235">+runIfLeader()</text>
+
+    <rect class="box interface" x="346" y="156" width="230" height="92"/>
+    <text class="stereo" x="461" y="180" text-anchor="middle">&lt;&lt;interface&gt;&gt;</text>
+    <text class="box-title" x="461" y="202" text-anchor="middle">SuspendLeaderElector</text>
+    <line class="sep" x1="346" y1="214" x2="576" y2="214"/>
+    <text class="member" x="366" y="235">+suspend runIfLeader()</text>
+
+    <rect class="box interface" x="742" y="156" width="232" height="92"/>
+    <text class="stereo" x="858" y="180" text-anchor="middle">&lt;&lt;interface&gt;&gt;</text>
+    <text class="box-title" x="858" y="202" text-anchor="middle">LeaderGroupElector</text>
+    <line class="sep" x1="742" y1="214" x2="974" y2="214"/>
+    <text class="member" x="762" y="235">+activeCount()</text>
+
+    <rect class="box interface" x="1016" y="156" width="240" height="92"/>
+    <text class="stereo" x="1136" y="180" text-anchor="middle">&lt;&lt;interface&gt;&gt;</text>
+    <text class="box-title" x="1136" y="202" text-anchor="middle">SuspendLeaderGroupElector</text>
+    <line class="sep" x1="1016" y1="214" x2="1256" y2="214"/>
+    <text class="member" x="1036" y="235">+availableSlots()</text>
+  </g>
+
+  <g id="electors">
+    <rect class="box elector" x="82" y="344" width="236" height="116"/>
+    <text class="box-title" x="200" y="372" text-anchor="middle">HazelcastLeaderElector</text>
+    <line class="sep" x1="82" y1="388" x2="318" y2="388"/>
+    <text class="member" x="102" y="410">-lockMap: IMap&lt;String,String&gt;</text>
+    <text class="member" x="102" y="430">+runAsyncIfLeader()</text>
+    <text class="member" x="102" y="450">+runIfLeader()</text>
+
+    <rect class="box elector" x="340" y="344" width="248" height="116"/>
+    <text class="box-title" x="464" y="372" text-anchor="middle">HazelcastSuspendLeaderElector</text>
+    <line class="sep" x1="340" y1="388" x2="588" y2="388"/>
+    <text class="member" x="360" y="410">-lockMap: IMap&lt;String,String&gt;</text>
+    <text class="member" x="360" y="430">+suspend runIfLeader()</text>
+    <text class="member" x="360" y="450">+NonCancellable cleanup</text>
+
+    <rect class="box elector" x="722" y="344" width="252" height="116"/>
+    <text class="box-title" x="848" y="372" text-anchor="middle">HazelcastLeaderGroupElector</text>
+    <line class="sep" x1="722" y1="388" x2="974" y2="388"/>
+    <text class="member" x="742" y="410">-slotKey(lockName, slot)</text>
+    <text class="member" x="742" y="430">+runIfLeader()</text>
+    <text class="member" x="742" y="450">+runAsyncIfLeader()</text>
+
+    <rect class="box elector" x="1010" y="344" width="258" height="116"/>
+    <text class="box-title-tight" x="1139" y="372" text-anchor="middle">HazelcastSuspendLeaderGroupElector</text>
+    <line class="sep" x1="1010" y1="388" x2="1268" y2="388"/>
+    <text class="member" x="1030" y="410">-slotKey(lockName, slot)</text>
+    <text class="member" x="1030" y="430">+suspend runIfLeader()</text>
+    <text class="member" x="1030" y="450">+NonCancellable cleanup</text>
+  </g>
+
+  <path class="implements" d="M 200 344 L 200 264"/>
+  <polygon points="200,248 191,264 209,264" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round"/>
+  <path class="implements" d="M 464 344 L 464 264"/>
+  <polygon points="464,248 455,264 473,264" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round"/>
+  <path class="implements" d="M 848 344 L 848 264"/>
+  <polygon points="848,248 839,264 857,264" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round"/>
+  <path class="implements" d="M 1139 344 L 1139 264"/>
+  <polygon points="1139,248 1130,264 1148,264" fill="#f8fafc" stroke="#334155" stroke-width="1.7" stroke-linejoin="round"/>
+
+  <g id="locks">
+    <rect class="box lock" x="214" y="590" width="292" height="126"/>
+    <text class="box-title" x="360" y="620" text-anchor="middle">HazelcastLock</text>
+    <line class="sep" x1="214" y1="636" x2="506" y2="636"/>
+    <text class="member" x="236" y="658">-token: Base58 random</text>
+    <text class="member" x="236" y="678">+tryLock(): putIfAbsent + TTL</text>
+    <text class="member" x="236" y="698">+unlock(): remove(key, token)</text>
+
+    <rect class="box lock" x="544" y="590" width="300" height="126"/>
+    <text class="box-title" x="694" y="620" text-anchor="middle">HazelcastSuspendLock</text>
+    <line class="sep" x1="544" y1="636" x2="844" y2="636"/>
+    <text class="member" x="566" y="658">-token: Base58 random</text>
+    <text class="member" x="566" y="678">+tryLock(): Dispatchers.IO</text>
+    <text class="member" x="566" y="698">+unlock(): token guarded</text>
+
+    <rect class="box delegate" x="884" y="590" width="292" height="126"/>
+    <text class="box-title" x="1030" y="620" text-anchor="middle">Extend Delegates</text>
+    <line class="sep" x1="884" y1="636" x2="1176" y2="636"/>
+    <text class="member" x="906" y="658">HazelcastLockExtendDelegate</text>
+    <text class="member" x="906" y="678">HazelcastSlotExtendDelegate</text>
+    <text class="member" x="906" y="698">suspend delegate variants</text>
+  </g>
+
+  <g id="external">
+    <rect class="box external" x="504" y="760" width="398" height="62"/>
+    <text class="box-title" x="703" y="786" text-anchor="middle">Hazelcast IMap&lt;String,String&gt;</text>
+    <text class="member" x="703" y="808" text-anchor="middle">no CP Subsystem, no near-cache on lock maps</text>
+  </g>
+
+  <g id="factories">
+    <rect class="box factory" x="92" y="754" width="348" height="74"/>
+    <text class="box-title" x="266" y="780" text-anchor="middle">Factory Entrypoints</text>
+    <text class="member" x="112" y="802">HazelcastLeaderElectorFactory</text>
+    <text class="member" x="112" y="820">HazelcastLeaderGroupElectorFactory</text>
+  </g>
+
+  <path class="uses" d="M 200 460 L 200 490.67 Q 200 506 215.33 506 L 304 506 Q 322 506 322 524 L 322 578"/>
+  <polygon points="322,590 314,578 330,578" fill="#2563eb" stroke="#2563eb" stroke-width="0"/>
+  <path class="uses" d="M 464 460 L 464 498 Q 464 516 482 516 L 622 516 Q 640 516 640 534 L 640 578"/>
+  <polygon points="640,590 632,578 648,578" fill="#2563eb" stroke="#2563eb" stroke-width="0"/>
+  <path class="uses" d="M 848 460 L 848 484 Q 848 496 836 496 L 494 496 Q 476 496 476 514 L 476 578"/>
+  <polygon points="476,590 468,578 484,578" fill="#2563eb" stroke="#2563eb" stroke-width="0"/>
+  <path class="uses" d="M 1139 460 L 1139 510 Q 1139 528 1121 528 L 754 528 Q 736 528 736 546 L 736 578"/>
+  <polygon points="736,590 728,578 744,578" fill="#2563eb" stroke="#2563eb" stroke-width="0"/>
+
+  <path class="holds" d="M 360 716 L 360 734 Q 360 752 378 752 L 590 752 L 590 760"/>
+  <polygon points="590,760 582,748 598,748" fill="#7c3aed" stroke="#7c3aed" stroke-width="0"/>
+  <path class="holds" d="M 694 716 L 694 748"/>
+  <polygon points="694,760 686,748 702,748" fill="#7c3aed" stroke="#7c3aed" stroke-width="0"/>
+  <path class="holds" d="M 1030 716 L 1030 734 Q 1030 752 1012 752 L 790 752 L 790 760"/>
+  <polygon points="790,760 782,748 798,748" fill="#7c3aed" stroke="#7c3aed" stroke-width="0"/>
+  <text class="label" x="930" y="738" fill="#6d28d9">updates TTL / checks token</text>
+
+  <g transform="translate(92 836)">
+    <line x1="0" y1="8" x2="36" y2="8" stroke="#334155" stroke-width="2.5" stroke-dasharray="7 6" marker-end="url(#hollow-triangle)"/>
+    <text class="member" x="48" y="12">implements interface</text>
+    <line x1="224" y1="8" x2="260" y2="8" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="7 6" marker-end="url(#open-arrow)"/>
+    <text class="member" x="272" y="12">uses lock primitive</text>
+  </g>
+
+  <text class="footer" x="1238" y="848" text-anchor="end">github.com/bluetape4k/bluetape4k-leader</text>
+</svg>

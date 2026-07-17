@@ -81,6 +81,19 @@ Run tenant-aggregator, then compare MongoDB with SQL when deciding document vers
 
 Replica-set configuration affects split-brain risk. MongoDB lease ownership does not fence writes to another system.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### leader mongodb Class Structure diagram
+
+[![leader mongodb Class Structure diagram](../../assets/readme-diagrams/leader-mongodb-class-01.png)](../../assets/readme-diagrams/leader-mongodb-class-01.svg)
+
+_Release README: [`leader-mongodb/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-mongodb/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 [Elector](../../../../leader-mongodb/src/main/kotlin/io/bluetape4k/leader/mongodb/MongoLeaderElector.kt) · [Lock implementation](../../../../leader-mongodb/src/main/kotlin/io/bluetape4k/leader/mongodb/lock/MongoLock.kt) · [Stable guide](../../../../leader-mongodb/README.md)

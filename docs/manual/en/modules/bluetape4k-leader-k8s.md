@@ -85,6 +85,25 @@ Run k8s-lease first, then k8s-operator. Compare this control-plane dependency wi
 
 Preview API may evolve. Kubernetes API availability, RBAC, and rate limits are on the execution path; Lease ownership does not fence an external database.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### leader-k8s architecture diagram
+
+[![leader-k8s architecture diagram](../../assets/readme-diagrams/leader-k8s-architecture-01.png)](../../assets/readme-diagrams/leader-k8s-architecture-01.svg)
+
+_Release README: [`leader-k8s/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-k8s/README.md)_
+
+### leader-k8s acquire and release sequence diagram
+
+[![leader-k8s acquire and release sequence diagram](../../assets/readme-diagrams/leader-k8s-sequence-02.png)](../../assets/readme-diagrams/leader-k8s-sequence-02.svg)
+
+_Release README: [`leader-k8s/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-k8s/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 [Elector](../../../../leader-k8s/src/main/kotlin/io/bluetape4k/leader/k8s/KubernetesLeaseLeaderElector.kt) · [Options](../../../../leader-k8s/src/main/kotlin/io/bluetape4k/leader/k8s/KubernetesLeaseOptions.kt) · [Stable guide](../../../../leader-k8s/README.md)

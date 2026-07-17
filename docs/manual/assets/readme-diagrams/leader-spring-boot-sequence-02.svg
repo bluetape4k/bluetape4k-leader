@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1160" viewBox="0 0 1600 1160" role="img" aria-labelledby="title desc">
+  <title id="title">Reentrant @LeaderElection Sequence</title>
+  <desc id="desc">Nested leader-scoped method calls reuse the same backend handle while outer scope is active.</desc>
+  <defs>
+    <style>
+      .title { font-family: "Architects Daughter"; font-size: 40px; fill: #263238; }
+      .subtitle, .msg, .note, .footer { font-family: "Comic Mono"; fill: #36464f; }
+      .subtitle { font-size: 18px; }
+      .participant { font-family: "Architects Daughter"; font-size: 19px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .msg { font-size: 14px; }
+      .note { font-size: 13px; }
+      .footer { font-size: 14px; fill: #60727d; }
+      .frame { fill: #fbfcf8; stroke: #41545d; stroke-width: 3; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #f3ecdf; stroke: #8f784e; stroke-width: 1.5; }
+      .call { fill: none; stroke: #3f7d9c; stroke-width: 3; marker-end: url(#arrowCall); stroke-linecap: round; stroke-linejoin: round; }
+      .slot { fill: none; stroke: #a2743d; stroke-width: 3; marker-end: url(#arrowSlot); stroke-linecap: round; stroke-linejoin: round; }
+      .state { fill: none; stroke: #6e8f4f; stroke-width: 3; marker-end: url(#arrowState); stroke-linecap: round; stroke-linejoin: round; }
+      .return { fill: none; stroke: #9b7d54; stroke-width: 2.5; stroke-dasharray: 8 6; marker-end: url(#arrowReturn); stroke-linecap: round; stroke-linejoin: round; }
+      .wait { fill: none; stroke: #8e6aa9; stroke-width: 3; marker-end: url(#arrowWait); stroke-linecap: round; stroke-linejoin: round; }
+      .skip { fill: none; stroke: #b86868; stroke-width: 3; marker-end: url(#arrowSkip); stroke-linecap: round; stroke-linejoin: round; }
+      .alt { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 7; }
+      .branchDivider { stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+      .label { fill: #ffffff; stroke: #d7e0e4; stroke-width: 1.5; }
+      .label.callLabel { stroke: #9cc2d1; }
+      .label.slotLabel { stroke: #d0b078; }
+      .label.stateLabel { stroke: #b6c9a4; }
+      .label.returnLabel { stroke: #c8b38f; }
+      .label.waitLabel { stroke: #c7abd8; }
+      .label.skipLabel { stroke: #d9abab; }
+      .branchOk { fill: #f8f1e6; stroke: #a2743d; stroke-width: 1.8; }
+      .branchWait { fill: #f7f0fb; stroke: #8e6aa9; stroke-width: 1.8; }
+      .branchSkip { fill: #fff5f5; stroke: #b86868; stroke-width: 3; }
+      .badge { stroke-width: 1.8; }
+      .badge.callBadge { fill: #eaf4f8; stroke: #3f7d9c; }
+      .badge.slotBadge { fill: #fff4df; stroke: #a2743d; }
+      .badge.stateBadge { fill: #eef7f0; stroke: #6e8f4f; }
+      .badge.returnBadge { fill: #fff7e8; stroke: #9b7d54; }
+      .badge.waitBadge { fill: #f7f0fb; stroke: #8e6aa9; }
+      .badge.skipBadge { fill: #fff0f0; stroke: #b86868; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .msg.callText, .badgeText.callText { fill: #2f6f8e; }
+      .msg.slotText, .badgeText.slotText { fill: #855a29; }
+      .msg.stateText, .badgeText.stateText { fill: #55783f; }
+      .msg.returnText, .badgeText.returnText { fill: #7f6038; }
+      .msg.waitText, .badgeText.waitText { fill: #774f92; }
+      .msg.skipText, .badgeText.skipText { fill: #9d4f4f; }
+    </style>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowCall" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowSlot" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#a2743d" stroke="#a2743d" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowState" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowReturn" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowWait" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#8e6aa9" stroke="#8e6aa9" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowSkip" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+  </defs>
+
+
+
+  <rect x="24" y="24" width="1552" height="1112" rx="20" class="frame"/>
+  <text x="800" y="78" text-anchor="middle" class="title">Reentrant @LeaderElection Sequence</text>
+  <text x="800" y="108" text-anchor="middle" class="subtitle">A matching LockIdentity reuses the existing leader scope; no second backend lock is acquired.</text>
+
+  <g>
+    <rect x="35" y="150" width="150" height="68" rx="10" class="header"/>
+    <text x="110" y="179" text-anchor="middle" class="participant">Caller</text>
+    <text x="110" y="201" text-anchor="middle" class="role">scheduler</text>
+    <rect x="235" y="150" width="190" height="68" rx="10" class="header"/>
+    <text x="330" y="179" text-anchor="middle" class="participant">Outer Aspect</text>
+    <text x="330" y="201" text-anchor="middle" class="role">first invocation</text>
+    <rect x="465" y="150" width="190" height="68" rx="10" class="header"/>
+    <text x="560" y="179" text-anchor="middle" class="participant">Scope Handle</text>
+    <text x="560" y="201" text-anchor="middle" class="role">backend handle</text>
+    <rect x="720" y="150" width="180" height="68" rx="10" class="header"/>
+    <text x="810" y="179" text-anchor="middle" class="participant">Outer Body</text>
+    <text x="810" y="201" text-anchor="middle" class="role">critical work</text>
+    <rect x="960" y="150" width="180" height="68" rx="10" class="header"/>
+    <text x="1050" y="179" text-anchor="middle" class="participant">Inner Aspect</text>
+    <text x="1050" y="201" text-anchor="middle" class="role">nested call</text>
+    <rect x="1225" y="150" width="190" height="68" rx="10" class="header"/>
+    <text x="1320" y="179" text-anchor="middle" class="participant">Inner Body</text>
+    <text x="1320" y="201" text-anchor="middle" class="role">already leader</text>
+  </g>
+
+  <line x1="110" y1="218" x2="110" y2="1026" class="lifeline"/>
+  <line x1="330" y1="218" x2="330" y2="1026" class="lifeline"/>
+  <line x1="560" y1="218" x2="560" y2="1026" class="lifeline"/>
+  <line x1="810" y1="218" x2="810" y2="1026" class="lifeline"/>
+  <line x1="1050" y1="218" x2="1050" y2="1026" class="lifeline"/>
+  <line x1="1320" y1="218" x2="1320" y2="1026" class="lifeline"/>
+  <rect x="103" y="290" width="14" height="70" rx="6" class="activation"/>
+  <rect x="323" y="290" width="14" height="650" rx="6" class="activation"/>
+  <rect x="553" y="340" width="14" height="600" rx="6" class="activation"/>
+  <rect x="803" y="410" width="14" height="506" rx="6" class="activation"/>
+  <rect x="1043" y="540" width="14" height="284" rx="6" class="activation"/>
+  <rect x="1313" y="680" width="14" height="144" rx="6" class="activation"/>
+
+  <rect x="70" y="514" width="1478" height="310" rx="14" class="alt"/>
+  <rect x="96" y="532" width="408" height="30" rx="15" class="branchOk"/>
+  <text x="118" y="552" class="note">alt nested execution has same LockIdentity</text>
+
+  <rect x="70" y="838" width="1478" height="150" rx="14" class="alt"/>
+  <rect x="96" y="856" width="480" height="30" rx="15" class="branchWait"/>
+  <text x="118" y="876" class="note">else different name, annotation kind, or group zone</text>
+
+  <rect x="120" y="234" width="200" height="34" rx="17" class="label callLabel"/>
+  <circle cx="144" cy="251" r="13" class="badge callBadge"/><text x="144" y="256" text-anchor="middle" class="badgeText callText">1</text>
+  <text x="168" y="256" class="msg callText">enter outer call</text>
+  <path d="M 110 292 L 330 292" class="call"/>
+
+  <rect x="309" y="302" width="272" height="34" rx="17" class="label slotLabel"/>
+  <circle cx="333" cy="319" r="13" class="badge slotBadge"/><text x="333" y="324" text-anchor="middle" class="badgeText slotText">2</text>
+  <text x="357" y="324" class="msg slotText">resolve identity and lock</text>
+  <path d="M 330 360 L 560 360" class="slot"/>
+
+  <rect x="597" y="372" width="176" height="34" rx="17" class="label stateLabel"/>
+  <circle cx="621" cy="389" r="13" class="badge stateBadge"/><text x="621" y="394" text-anchor="middle" class="badgeText stateText">3</text>
+  <text x="645" y="394" class="msg stateText">proceed outer</text>
+  <path d="M 560 430 L 810 430" class="state"/>
+
+  <rect x="845" y="502" width="170" height="34" rx="17" class="label callLabel"/>
+  <circle cx="869" cy="519" r="13" class="badge callBadge"/><text x="869" y="524" text-anchor="middle" class="badgeText callText">4</text>
+  <text x="893" y="524" class="msg callText">inner call</text>
+  <path d="M 810 560 L 1050 560" class="call"/>
+
+  <rect x="645" y="570" width="320" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="669" cy="587" r="13" class="badge returnBadge"/><text x="669" y="592" text-anchor="middle" class="badgeText returnText">5</text>
+  <text x="693" y="592" class="msg returnText">same LockIdentity reuses handle</text>
+  <path d="M 1050 628 L 560 628" class="return"/>
+
+  <rect x="1093" y="642" width="184" height="34" rx="17" class="label stateLabel"/>
+  <circle cx="1117" cy="659" r="13" class="badge stateBadge"/><text x="1117" y="664" text-anchor="middle" class="badgeText stateText">6</text>
+  <text x="1141" y="664" class="msg stateText">run inner body</text>
+  <path d="M 1050 700 L 1320 700" class="state"/>
+
+  <rect x="1100" y="714" width="170" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="1124" cy="731" r="13" class="badge returnBadge"/><text x="1124" y="736" text-anchor="middle" class="badgeText returnText">7</text>
+  <text x="1148" y="736" class="msg returnText">body result</text>
+  <path d="M 1320 772 L 1050 772" class="return"/>
+
+  <rect x="466" y="806" width="208" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="490" cy="823" r="13" class="badge returnBadge"/><text x="490" y="828" text-anchor="middle" class="badgeText returnText">8</text>
+  <text x="514" y="828" class="msg returnText">outer body result</text>
+  <path d="M 810 864 L 330 864" class="return"/>
+
+  <rect x="337" y="888" width="216" height="34" rx="17" class="label slotLabel"/>
+  <circle cx="361" cy="905" r="13" class="badge slotBadge"/><text x="361" y="910" text-anchor="middle" class="badgeText slotText">9</text>
+  <text x="385" y="910" class="msg slotText">release outer lock</text>
+  <path d="M 330 946 L 560 946" class="slot"/>
+
+  <rect x="98" y="1038" width="1404" height="44" rx="12" fill="#ffffff" stroke="#ccd7da" stroke-width="2"/>
+  <text x="118" y="1066" class="note">Reentrant pass-through keeps the outer lock handle and avoids duplicate backend acquisition until the outer scope exits.</text>
+  <text x="800" y="1104" text-anchor="middle" class="footer">github.com/bluetape4k/bluetape4k-leader - leader-spring-boot-sequence-02</text>
+</svg>

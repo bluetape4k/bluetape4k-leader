@@ -80,6 +80,31 @@ Run strategic-election for candidate scoring and rate-limiter for group slots; c
 
 Redis availability and failover semantics are on the job path. A Redis token is not fencing for an external database.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### Lettuce Redis leader contract map
+
+[![Lettuce Redis leader contract map](../../assets/readme-diagrams/leader-redis-lettuce-class-01.png)](../../assets/readme-diagrams/leader-redis-lettuce-class-01.svg)
+
+_Release README: [`leader-redis-lettuce/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/README.md)_
+
+### Lettuce slot-token acquire release and crash recovery flow
+
+[![Lettuce slot-token acquire release and crash recovery flow](../../assets/readme-diagrams/leader-redis-lettuce-sequence-02.png)](../../assets/readme-diagrams/leader-redis-lettuce-sequence-02.svg)
+
+_Release README: [`leader-redis-lettuce/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/README.md)_
+
+### Lettuce minLeaseTime backend TTL delegation flow
+
+[![Lettuce minLeaseTime backend TTL delegation flow](../../assets/readme-diagrams/leader-redis-lettuce-sequence-03.png)](../../assets/readme-diagrams/leader-redis-lettuce-sequence-03.svg)
+
+_Release README: [`leader-redis-lettuce/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 [Elector](../../../../leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceLeaderElector.kt) · [Lua support](../../../../leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/script/RedisScript.kt) · [Stable guide](../../../../leader-redis-lettuce/README.md)

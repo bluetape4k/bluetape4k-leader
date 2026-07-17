@@ -80,6 +80,31 @@ Run redisson-watchdog before production adoption, then compare rate-limiter and 
 
 Explicit leases can expire during long pauses. Redisson ownership still does not fence writes to another store.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### leader redis redisson Class Structure diagram
+
+[![leader redis redisson Class Structure diagram](../../assets/readme-diagrams/leader-redis-redisson-class-01.png)](../../assets/readme-diagrams/leader-redis-redisson-class-01.svg)
+
+_Release README: [`leader-redis-redisson/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-redisson/README.md)_
+
+### Scenario 1 — Normal acquire/release plus crash recovery diagram
+
+[![Scenario 1 — Normal acquire/release plus crash recovery diagram](../../assets/readme-diagrams/leader-redis-redisson-sequence-02.png)](../../assets/readme-diagrams/leader-redis-redisson-sequence-02.svg)
+
+_Release README: [`leader-redis-redisson/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-redisson/README.md)_
+
+### Scenario 2 — minLeaseTime via updateLeaseTime diagram
+
+[![Scenario 2 — minLeaseTime via updateLeaseTime diagram](../../assets/readme-diagrams/leader-redis-redisson-sequence-03.png)](../../assets/readme-diagrams/leader-redis-redisson-sequence-03.svg)
+
+_Release README: [`leader-redis-redisson/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-redisson/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 [Elector](../../../../leader-redis-redisson/src/main/kotlin/io/bluetape4k/leader/redisson/RedissonLeaderElector.kt) · [Shared extender delegate](../../../../leader-redis-redisson/src/main/kotlin/io/bluetape4k/leader/redisson/internal/RedissonLockExtendDelegate.kt) · [Stable guide](../../../../leader-redis-redisson/README.md)

@@ -128,6 +128,37 @@ A group election does not guarantee a stable slot-to-partition mapping. Keep ind
 
 The demo favors a compact, observable scenario. It does not define production topology, credential rotation, capacity planning, disaster recovery, or a universal exactly-once guarantee.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### Cache warmer architecture diagram
+
+[![Cache warmer architecture diagram](../../assets/readme-diagrams/examples-cache-warmer-architecture-01.png)](../../assets/readme-diagrams/examples-cache-warmer-architecture-01.svg)
+
+_Release README: [`examples/cache-warmer/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/cache-warmer/README.md)_
+
+### Cache warmer flow diagram
+
+[![Cache warmer flow diagram](../../assets/readme-diagrams/examples-cache-warmer-flow-01.png)](../../assets/readme-diagrams/examples-cache-warmer-flow-01.svg)
+
+_Release README: [`examples/cache-warmer/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/cache-warmer/README.md)_
+
+### Cache warmer scenario diagram
+
+[![Cache warmer scenario diagram](../../assets/readme-diagrams/examples-cache-warmer-scenario-01.png)](../../assets/readme-diagrams/examples-cache-warmer-scenario-01.svg)
+
+_Release README: [`examples/cache-warmer/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/cache-warmer/README.md)_
+
+### Cache warmer sequence diagram
+
+[![Cache warmer sequence diagram](../../assets/readme-diagrams/examples-cache-warmer-sequence-01.png)](../../assets/readme-diagrams/examples-cache-warmer-sequence-01.svg)
+
+_Release README: [`examples/cache-warmer/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/cache-warmer/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 - [Stable example README](../../../../examples/cache-warmer/README.md)

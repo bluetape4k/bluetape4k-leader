@@ -84,6 +84,25 @@ Run ktor-app, then follow the chosen backend page. Compare with Spring when deci
 
 The integration schedules jobs; it does not provide durable scheduling, missed-run recovery, cron persistence, or exactly-once delivery.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### leader ktor Architecture diagram
+
+[![leader ktor Architecture diagram](../../assets/readme-diagrams/leader-ktor-architecture-01.png)](../../assets/readme-diagrams/leader-ktor-architecture-01.svg)
+
+_Release README: [`leader-ktor/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-ktor/README.md)_
+
+### leader ktor Sequence Flow diagram
+
+[![leader ktor Sequence Flow diagram](../../assets/readme-diagrams/leader-ktor-sequence-01.png)](../../assets/readme-diagrams/leader-ktor-sequence-01.svg)
+
+_Release README: [`leader-ktor/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-ktor/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 [Plugin](../../../../leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/LeaderElectionPlugin.kt) · [Scheduling extension](../../../../leader-ktor/src/main/kotlin/io/bluetape4k/leader/ktor/ApplicationExt.kt) · [Stable guide](../../../../leader-ktor/README.md)

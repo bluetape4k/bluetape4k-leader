@@ -85,6 +85,25 @@ Run dynamodb-export and compare the AWS operational model with Redis or SQL back
 
 Preview status and eventually executed TTL cleanup require conservative operations. Cross-region coordination and global-table conflict behavior are outside this contract.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### leader-dynamodb architecture diagram
+
+[![leader-dynamodb architecture diagram](../../assets/readme-diagrams/leader-dynamodb-architecture-01.png)](../../assets/readme-diagrams/leader-dynamodb-architecture-01.svg)
+
+_Release README: [`leader-dynamodb/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-dynamodb/README.md)_
+
+### leader-dynamodb conditional lease sequence
+
+[![leader-dynamodb conditional lease sequence](../../assets/readme-diagrams/leader-dynamodb-sequence-02.png)](../../assets/readme-diagrams/leader-dynamodb-sequence-02.svg)
+
+_Release README: [`leader-dynamodb/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-dynamodb/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 [Elector](../../../../leader-dynamodb/src/main/kotlin/io/bluetape4k/leader/dynamodb/DynamoDbLeaderElector.kt) · [Options](../../../../leader-dynamodb/src/main/kotlin/io/bluetape4k/leader/dynamodb/DynamoDbLeaderElectionOptions.kt) · [Stable guide](../../../../leader-dynamodb/README.md)

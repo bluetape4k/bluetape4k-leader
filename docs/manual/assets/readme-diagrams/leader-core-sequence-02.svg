@@ -1,0 +1,162 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120" role="img" aria-labelledby="title desc">
+  <title id="title">leader-core single leader sequence</title>
+  <desc id="desc">Sequence showing runIfLeader acquiring a single lock, running an action, releasing the lock, and returning explicit elected or skipped outcomes.</desc>
+  <defs>
+    <style>
+      .title { font-family: "Architects Daughter"; font-size: 40px; fill: #263238; }
+      .subtitle, .msg, .note, .footer { font-family: "Comic Mono"; fill: #36464f; }
+      .subtitle { font-size: 18px; }
+      .participant { font-family: "Architects Daughter"; font-size: 20px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .msg { font-size: 14px; }
+      .note { font-size: 13px; }
+      .footer { font-size: 14px; fill: #60727d; }
+      .frame { fill: #fbfcf8; stroke: #41545d; stroke-width: 3; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.5; }
+      .call { fill: none; stroke: #3f7d9c; stroke-width: 3; marker-end: url(#arrowCall); }
+      .work { fill: none; stroke: #6e8f4f; stroke-width: 3; marker-end: url(#arrowWork); }
+      .return { fill: none; stroke: #9b7d54; stroke-width: 2.5; stroke-dasharray: 8 6; marker-end: url(#arrowReturn); }
+      .skip { fill: none; stroke: #b86868; stroke-width: 3; marker-end: url(#arrowSkip); }
+      .alt { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 7; }
+      .branchDivider { stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+      .label { fill: #ffffff; stroke: #d7e0e4; stroke-width: 1.5; }
+      .label.callLabel { stroke: #9cc2d1; }
+      .label.workLabel { stroke: #b6c9a4; }
+      .label.returnLabel { stroke: #c8b38f; }
+      .label.skipLabel { stroke: #d9abab; }
+      .branchOk { fill: #eef7f0; stroke: #6e8f4f; stroke-width: 1.8; }
+      .branchSkip { fill: #fff5f5; stroke: #b86868; stroke-width: 3; }
+      .badge { stroke-width: 1.8; }
+      .badge.callBadge { fill: #eaf4f8; stroke: #3f7d9c; }
+      .badge.workBadge { fill: #eef7f0; stroke: #6e8f4f; }
+      .badge.returnBadge { fill: #fff7e8; stroke: #9b7d54; }
+      .badge.skipBadge { fill: #fff0f0; stroke: #b86868; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; fill: #ffffff; font-weight: 700; }
+      .msg.callText, .badgeText.callText { fill: #2f6f8e; }
+      .msg.workText, .badgeText.workText { fill: #55783f; }
+      .msg.returnText, .badgeText.returnText { fill: #7f6038; }
+      .msg.skipText, .badgeText.skipText { fill: #9d4f4f; }
+
+      /* bluetape4k best-practices sequence style override: matches redis-lettuce sequence family. */
+      text { letter-spacing: 0; }
+      text.title { font-family: "Architects Daughter"; font-size: 40px; font-weight: 400; fill: #263238; }
+      text.subtitle, text.msg, text.note, text.footer, text.small, text.detail, text.mono, text.tiny, text.role, text.participant-sub { font-family: "Comic Mono"; fill: #36464f; }
+      text.subtitle { font-size: 18px; }
+      text.participant, text.participant-title, text.cardTitle { font-family: "Architects Daughter"; font-size: 19px; font-weight: 400; fill: #1f3138; }
+      text.role, text.participant-sub, text.detail, text.small, text.tiny { font-size: 13px; fill: #546a73; }
+      text.msg, text.labelText, text.label, text.mono { font-family: "Comic Mono"; font-size: 14px; font-weight: 400; }
+      text.note { font-size: 13px; }
+      text.footer { font-size: 14px; fill: #60727d; }
+      .canvas { fill: #fbfcf8; }
+      .frame { fill: #fbfcf8; stroke: #41545d; stroke-width: 3; filter: none; }
+      rect.header { fill: #ffffff; stroke: #546e7a; stroke-width: 2; }
+      .lifeline, .life { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      rect.activation { fill: #f3ecdf; stroke: #8f784e; stroke-width: 1.5; }
+      .call, .slot, .state, .skip, .wait, .edge, .edgeThin, .blue, .green, .orange, .purple, .amber, .callBlue, .callGreen, .callAmber, .callRed { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .return, .ret { fill: none; stroke-width: 2.5; stroke-dasharray: 8 6; stroke-linecap: round; stroke-linejoin: round; }
+      .alt, .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 7; }
+      .branchDivider { stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+      rect.label, rect.pill, rect.altLabel, rect.badge { fill: #ffffff; stroke-width: 1.5; }
+      text.badgeText, text.num { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .branchOk, .frame-success { fill: #f8f1e6; stroke: #a2743d; stroke-width: 1.8; }
+      .branchSkip, .frame-skip { fill: #fff5f5; stroke: #b86868; stroke-width: 3; }
+    </style>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowCall" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowWork" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowReturn" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowSkip" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+  </defs>
+
+  <rect x="24" y="24" width="1552" height="1072" rx="20" class="frame"/>
+  <text x="800" y="78" text-anchor="middle" class="title">Single-Leader runIfLeader Flow</text>
+  <text x="800" y="108" text-anchor="middle" class="subtitle">Only the caller that acquires the named lock runs the action; contention returns null or LeaderRunResult.Skipped.</text>
+
+  <g>
+    <rect x="75" y="150" width="160" height="68" rx="10" class="header"/>
+    <text x="155" y="179" text-anchor="middle" class="participant">Caller</text>
+    <text x="155" y="201" text-anchor="middle" class="role">job code</text>
+    <rect x="316" y="150" width="190" height="68" rx="10" class="header"/>
+    <text x="411" y="179" text-anchor="middle" class="participant">LeaderElector</text>
+    <text x="411" y="201" text-anchor="middle" class="role">API contract</text>
+    <rect x="590" y="150" width="200" height="68" rx="10" class="header"/>
+    <text x="690" y="179" text-anchor="middle" class="participant">LocalLeader</text>
+    <text x="690" y="201" text-anchor="middle" class="role">tryWithLeaderLock</text>
+    <rect x="862" y="150" width="190" height="68" rx="10" class="header"/>
+    <text x="957" y="179" text-anchor="middle" class="participant">ReentrantLock</text>
+    <text x="957" y="201" text-anchor="middle" class="role">state + lease</text>
+    <rect x="1130" y="150" width="150" height="68" rx="10" class="header"/>
+    <text x="1205" y="179" text-anchor="middle" class="participant">Action</text>
+    <text x="1205" y="201" text-anchor="middle" class="role">user work</text>
+    <rect x="1360" y="150" width="160" height="68" rx="10" class="header"/>
+    <text x="1440" y="179" text-anchor="middle" class="participant">Listener</text>
+    <text x="1440" y="201" text-anchor="middle" class="role">events</text>
+  </g>
+
+  <line x1="155" y1="218" x2="155" y2="966" class="lifeline"/>
+  <line x1="411" y1="218" x2="411" y2="966" class="lifeline"/>
+  <line x1="690" y1="218" x2="690" y2="966" class="lifeline"/>
+  <line x1="957" y1="218" x2="957" y2="966" class="lifeline"/>
+  <line x1="1205" y1="218" x2="1205" y2="966" class="lifeline"/>
+  <line x1="1440" y1="218" x2="1440" y2="966" class="lifeline"/>
+  <rect x="683" y="300" width="14" height="604" rx="6" class="activation"/>
+  <rect x="950" y="360" width="14" height="342" rx="6" class="activation"/>
+  <rect x="1198" y="528" width="14" height="88" rx="6" class="activation"/>
+
+  <rect x="84" y="260" width="410" height="34" rx="17" class="label callLabel"/>
+  <circle cx="108" cy="277" r="13" class="badge callBadge"/><text x="108" y="282" text-anchor="middle" class="badgeText callText">1</text>
+  <text x="132" y="282" class="msg callText">runIfLeader(lockName) or runIfLeaderResult()</text>
+  <path d="M 155 318 L 690 318" class="call"/>
+
+  <rect x="615" y="324" width="362" height="34" rx="17" class="label callLabel"/>
+  <circle cx="639" cy="341" r="13" class="badge callBadge"/><text x="639" y="346" text-anchor="middle" class="badgeText callText">2</text>
+  <text x="663" y="346" class="msg callText">tryLock(waitTime) for this lockName</text>
+  <path d="M 697 382 L 957 382" class="call"/>
+
+  <rect x="78" y="420" width="1420" height="492" rx="14" class="alt"/>
+  <rect x="102" y="438" width="222" height="30" rx="15" class="branchOk"/>
+  <text x="123" y="458" class="note">alt acquired</text>
+  <line x1="78" y1="748" x2="1498" y2="748" class="branchDivider"/>
+  <rect x="102" y="766" width="300" height="30" rx="15" class="branchSkip"/>
+  <text x="123" y="786" class="note">else contention / waitTime elapsed</text>
+
+  <rect x="878" y="448" width="395" height="34" rx="17" class="label workLabel"/>
+  <circle cx="902" cy="465" r="13" class="badge workBadge"/><text x="902" y="470" text-anchor="middle" class="badgeText workText">3</text>
+  <text x="926" y="470" class="msg workText">create LeaderLease, handle, and state snapshot</text>
+  <path d="M 957 500 L 1440 500" class="work"/>
+
+  <rect x="770" y="532" width="385" height="34" rx="17" class="label workLabel"/>
+  <circle cx="794" cy="549" r="13" class="badge workBadge"/><text x="794" y="554" text-anchor="middle" class="badgeText workText">4</text>
+  <text x="818" y="554" class="msg workText">notifyElected(leader?) then execute action</text>
+  <path d="M 697 588 L 1205 588" class="work"/>
+
+  <rect x="652" y="628" width="436" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="676" cy="645" r="13" class="badge returnBadge"/><text x="676" y="650" text-anchor="middle" class="badgeText returnText">5</text>
+  <text x="700" y="650" class="msg returnText">return value, or ActionFailed when action throws</text>
+  <path d="M 1205 688 L 690 688" class="return"/>
+
+  <rect x="820" y="666" width="476" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="844" cy="683" r="13" class="badge returnBadge"/><text x="844" y="688" text-anchor="middle" class="badgeText returnText">6</text>
+  <text x="868" y="688" class="msg returnText">minLeaseTime guard, unlock, release state, notifyRevoked</text>
+  <path d="M 690 742 L 1440 742" class="return"/>
+
+  <rect x="766" y="806" width="340" height="34" rx="17" class="label skipLabel"/>
+  <circle cx="790" cy="823" r="13" class="badge skipBadge"/><text x="790" y="828" text-anchor="middle" class="badgeText skipText">3</text>
+  <text x="814" y="828" class="msg skipText">notifySkipped; action is not run</text>
+  <path d="M 690 860 L 1440 860" class="skip"/>
+
+  <rect x="222" y="862" width="338" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="246" cy="879" r="13" class="badge returnBadge"/><text x="246" y="884" text-anchor="middle" class="badgeText returnText">4</text>
+  <text x="270" y="884" class="msg returnText">return null or LeaderRunResult.Skipped</text>
+  <path d="M 690 920 L 155 920" class="return"/>
+
+  <rect x="526" y="940" width="548" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="550" cy="957" r="13" class="badge returnBadge"/><text x="550" y="962" text-anchor="middle" class="badgeText returnText">7</text>
+  <text x="574" y="962" class="msg returnText">caller receives T?, Elected(value), Skipped, or ActionFailed</text>
+  <path d="M 690 992 L 155 992" class="return"/>
+
+  <rect x="98" y="1022" width="1404" height="44" rx="12" fill="#ffffff" stroke="#ccd7da" stroke-width="2"/>
+  <text x="118" y="1050" class="note">Cancellation is never converted to ActionFailed; blocking APIs restore the interrupt flag before rethrowing InterruptedException.</text>
+  <text x="800" y="1088" text-anchor="middle" class="footer">github.com/bluetape4k/bluetape4k-leader - leader-core README</text>
+</svg>

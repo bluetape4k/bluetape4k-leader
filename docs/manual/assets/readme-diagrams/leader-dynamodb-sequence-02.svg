@@ -1,0 +1,176 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1320" viewBox="0 0 1600 1320" role="img" aria-labelledby="title desc">
+  <title id="title">leader-dynamodb conditional lease sequence</title>
+  <desc id="desc">Sequence showing DynamoDB conditional PutItem acquisition, logical lease expiry, action execution, optional extension, release or min-lease retention, and contention skip behavior.</desc>
+  <defs>
+    <style>
+      .title { font-family: "Architects Daughter"; font-size: 40px; fill: #263238; }
+      .subtitle, .msg, .note, .footer { font-family: "Comic Mono"; fill: #36464f; }
+      .subtitle { font-size: 18px; }
+      .participant { font-family: "Architects Daughter"; font-size: 20px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .msg { font-size: 14px; }
+      .note { font-size: 13px; }
+      .footer { font-size: 14px; fill: #60727d; }
+      .frame { fill: #fbfcf8; stroke: #41545d; stroke-width: 3; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #e6f2ec; stroke: #5b7e67; stroke-width: 1.5; }
+      .call { fill: none; stroke: #3f7d9c; stroke-width: 3; marker-end: url(#arrowCall); }
+      .work { fill: none; stroke: #6e8f4f; stroke-width: 3; marker-end: url(#arrowWork); }
+      .return { fill: none; stroke: #9b7d54; stroke-width: 2.5; stroke-dasharray: 8 6; marker-end: url(#arrowReturn); }
+      .skip { fill: none; stroke: #b86868; stroke-width: 3; marker-end: url(#arrowSkip); }
+      .alt { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 7; }
+      .branchDivider { stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+      .label { fill: #ffffff; stroke: #d7e0e4; stroke-width: 1.5; }
+      .label.callLabel { stroke: #9cc2d1; }
+      .label.workLabel { stroke: #b6c9a4; }
+      .label.returnLabel { stroke: #c8b38f; }
+      .label.skipLabel { stroke: #d9abab; }
+      .branchOk { fill: #eef7f0; stroke: #6e8f4f; stroke-width: 1.8; }
+      .branchSkip { fill: #fff5f5; stroke: #b86868; stroke-width: 3; }
+      .branchNote { fill: #f7f1ff; stroke: #7d66a8; stroke-width: 1.8; }
+      .badge { stroke-width: 1.8; }
+      .badge.callBadge { fill: #eaf4f8; stroke: #3f7d9c; }
+      .badge.workBadge { fill: #eef7f0; stroke: #6e8f4f; }
+      .badge.returnBadge { fill: #fff7e8; stroke: #9b7d54; }
+      .badge.skipBadge { fill: #fff0f0; stroke: #b86868; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; fill: #ffffff; font-weight: 700; }
+      .msg.callText, .badgeText.callText { fill: #2f6f8e; }
+      .msg.workText, .badgeText.workText { fill: #55783f; }
+      .msg.returnText, .badgeText.returnText { fill: #7f6038; }
+      .msg.skipText, .badgeText.skipText { fill: #9d4f4f; }
+
+      /* bluetape4k best-practices sequence style override: matches redis-lettuce sequence family. */
+      text { letter-spacing: 0; }
+      text.title { font-family: "Architects Daughter"; font-size: 40px; font-weight: 400; fill: #263238; }
+      text.subtitle, text.msg, text.note, text.footer, text.small, text.detail, text.mono, text.tiny, text.role, text.participant-sub { font-family: "Comic Mono"; fill: #36464f; }
+      text.subtitle { font-size: 18px; }
+      text.participant, text.participant-title, text.cardTitle { font-family: "Architects Daughter"; font-size: 19px; font-weight: 400; fill: #1f3138; }
+      text.role, text.participant-sub, text.detail, text.small, text.tiny { font-size: 13px; fill: #546a73; }
+      text.msg, text.labelText, text.label, text.mono { font-family: "Comic Mono"; font-size: 14px; font-weight: 400; }
+      text.note { font-size: 13px; }
+      text.footer { font-size: 14px; fill: #60727d; }
+      .canvas { fill: #fbfcf8; }
+      .frame { fill: #fbfcf8; stroke: #41545d; stroke-width: 3; filter: none; }
+      rect.header { fill: #ffffff; stroke: #546e7a; stroke-width: 2; }
+      .lifeline, .life { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      rect.activation { fill: #f3ecdf; stroke: #8f784e; stroke-width: 1.5; }
+      .call, .slot, .state, .skip, .wait, .edge, .edgeThin, .blue, .green, .orange, .purple, .amber, .callBlue, .callGreen, .callAmber, .callRed { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .return, .ret { fill: none; stroke-width: 2.5; stroke-dasharray: 8 6; stroke-linecap: round; stroke-linejoin: round; }
+      .alt, .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 7; }
+      .branchDivider { stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+      rect.label, rect.pill, rect.altLabel, rect.badge { fill: #ffffff; stroke-width: 1.5; }
+      text.badgeText, text.num { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .branchOk, .frame-success { fill: #f8f1e6; stroke: #a2743d; stroke-width: 1.8; }
+      .branchSkip, .frame-skip { fill: #fff5f5; stroke: #b86868; stroke-width: 3; }
+    </style>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowCall" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowWork" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowReturn" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowSkip" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+  </defs>
+
+  <rect x="24" y="24" width="1552" height="1272" rx="20" class="frame"/>
+  <text x="800" y="78" text-anchor="middle" class="title">DynamoDB Conditional Lease Sequence</text>
+  <text x="800" y="108" text-anchor="middle" class="subtitle">A conditional row write owns leadership; logical leaseExpiry controls takeover even when TTL cleanup is delayed.</text>
+
+  <g>
+    <rect x="75" y="150" width="160" height="68" rx="10" class="header"/>
+    <text x="155" y="179" text-anchor="middle" class="participant">Caller</text>
+    <text x="155" y="201" text-anchor="middle" class="role">job code</text>
+    <rect x="300" y="150" width="210" height="68" rx="10" class="header"/>
+    <text x="405" y="179" text-anchor="middle" class="participant">DynamoElector</text>
+    <text x="405" y="201" text-anchor="middle" class="role">single or group</text>
+    <rect x="590" y="150" width="190" height="68" rx="10" class="header"/>
+    <text x="685" y="179" text-anchor="middle" class="participant">LockClient</text>
+    <text x="685" y="201" text-anchor="middle" class="role">request builder</text>
+    <rect x="862" y="150" width="210" height="68" rx="10" class="header"/><image data-bluetape4k-icon="dynamodb" data-icon-source="testcontainers/aws/amazon-dynamodb.svg" x="872" y="158" width="18" height="18" href="data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjNDA1M0Q2IiByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+QW1hem9uIER5bmFtb0RCPC90aXRsZT48cGF0aCBkPSJNMTYuNjA2IDIwLjcwNXYtMi4zNzFjLTEuMjYzIDEuMDgyLTMuODg0IDEuNzk1LTcuMDY2IDEuNzk1LTMuMTg0IDAtNS44MDUtLjcxNC03LjA2OC0xLjc5N3YyLjM2OWMwIDEuMTY4IDIuOTAzIDIuNDcgNy4wNjggMi40NyA0LjE2IDAgNy4wNi0xLjMgNy4wNjYtMi40NjZ6bS4wMDEtNi43NjVsLjgxNy0uMDA1di4wMDVjMCAuNTE3LS4yNTguOTk4LS43NSAxLjQ0MS42MDEuNTQuNzUgMS4wNzEuNzUgMS40NDlhMTY2MS43IDE2NjEuNyAwIDAgMCAwIDMuODdjMCAxLjg4MS0zLjM4OSAzLjMtNy44ODQgMy4zLTQuNDcxIDAtNy44NDYtMS40MDQtNy44OC0zLjI3YTU4My4xMTkgNTgzLjExOSAwIDAgMS0uMDAzLTMuOTA5Yy4wMDEtLjM3NS4xNS0uOS43NDUtMS40MzctLjU5Mi0uNTM4LS43NDMtMS4wNjItLjc0Ni0xLjQzNXYtMy44OTJjLjAwMi0uMzc3LjE1My0uOTAzLjc0Ny0xLjQzOC0uNTkzLS41NC0uNzQ0LTEuMDYyLS43NDctMS40MzUgMC0xLjM1Ny0uMDAyLTIuNzM1LjAwMi0zLjg5N0MxLjY3NCAxLjQxMiA1LjA1NiAwIDkuNTQgMGMyLjE1OSAwIDQuMjMzLjM1NiA1LjY4OS45NzRsLS4zMTUuNzY2Yy0xLjM2LS41OC0zLjMxOS0uOTEtNS4zNzQtLjkxLTQuMTY1IDAtNy4wNjcgMS4zLTcuMDY3IDIuNDcgMCAxLjE2OCAyLjkwMiAyLjQ3IDcuMDY3IDIuNDcuMTE1IDAgLjIyMiAwIC4zMzQtLjAwNWwuMDMzLjgyOGMtLjEyMi4wMDYtLjI0NS4wMDYtLjM2Ny4wMDYtMy4xODQgMC01LjgwNS0uNzE0LTcuMDY4LTEuNzk4djIuMzhjLjAwNS40NS40NS44NDMuODIxIDEuMDkzIDEuMTE2LjczNiAzLjExNCAxLjIzOSA1LjM0IDEuMzQybC0uMDM3LjgyOWMtMi4yNTQtLjEwNS00LjIzLS41OS01LjUtMS4zMzItLjMxOC4yNDUtLjYyMy41NzMtLjYyMy45NTIgMCAxLjE2OCAyLjkwMiAyLjQ3IDcuMDY3IDIuNDcuNDExIDAgLjgxMi0uMDE0IDEuMjAzLS4wNDJsLjA2LjgyNmMtLjQxLjAzLS44MzMuMDQ1LTEuMjYzLjA0NS0zLjE4NCAwLTUuODA1LS43MTMtNy4wNjgtMS43OTd2Mi4zNjhjLjAwNS40NjIuNDQ5Ljg1NS44MjEgMS4xMDQgMS4yNzUuODQyIDMuNjcgMS4zNjYgNi4yNDcgMS4zNjZoLjE4MnYuODNIOS41NGMtMi42MiAwLTQuOTktLjUwNy02LjQ0NC0xLjM1OS0uMzE3LjI0NS0uNjIzLjU3NC0uNjIzLjk1NCAwIDEuMTY4IDIuOTAyIDIuNDcgNy4wNjcgMi40NyA0LjE1OSAwIDcuMDU4LTEuMjk4IDcuMDY2LTIuNDY1di0uMDA3YzAtLjM3Ny0uMzAzLS43MDUtLjYyLS45NDhhNS43MzIgNS43MzIgMCAwIDEtLjY2Mi4zMzZsLS4zMTYtLjc2NGMuMy0uMTI4LjU2LS4yNjYuNzc2LS40MTIuMzc2LS4yNTQuODIzLS42NTEuODIzLTEuMXptNC4zNzctNi45MTVoLTIuNzE3YS40MDYuNDA2IDAgMCAxLS4zMzItLjE3My40Mi40MiAwIDAgMS0uMDU1LS4zNzVsMS4yMDQtMy41OTdoLTUuNDAzbC0yLjU4MyA0Ljk3NGgyLjYyM2MuMTI4IDAgLjI0OC4wNi4zMjUuMTY0YS40MTguNDE4IDAgMCAxIC4wNjkuMzZsLTIuMjQ5IDguMzY1em0xLjI0OS0uMTI4bC0xMC44OSAxMS42MDhhLjQwOC40MDggMCAwIDEtLjQ5OC4wNzUuNDE4LjQxOCAwIDAgMS0uMTkyLS40NzFsMi41MzQtOS40MjZoLTIuNzY2YS40MDcuNDA3IDAgMCAxLS4zNDktLjIuNDE4LjQxOCAwIDAgMS0uMDEyLS40MDdsMy4wMTQtNS44MDRhLjQwOC40MDggMCAwIDEgLjM2LS4yMjJoNi4yMmMuMTMyIDAgLjI1Ni4wNjUuMzMyLjE3NGEuNDIyLjQyMiAwIDAgMSAuMDU1LjM3NGwtMS4yMDQgMy41OThoMy4xYy4xNjQgMCAuMzEuMDk5LjM3NS4yNTFhLjQyMi40MjIgMCAwIDEtLjA4LjQ1ek0zLjA4NSAyMC43MjNhOC4xMDcgOC4xMDcgMCAwIDAgMS43Mi43MmwuMjMzLS43OTRhNy4zMiA3LjMyIDAgMCAxLTEuNTQ2LS42NDV6bTEuNzItNS45ODRsLjIzMy0uNzk1YTcuMjYyIDcuMjYyIDAgMCAxLTEuNTQ2LS42NDZsLS40MDcuNzJhOC4wNTEgOC4wNTEgMCAwIDAgMS43Mi43MnptLTEuNzItNy40MjdsLjQwNy0uNzE5Yy40MTguMjQ0LjkzOS40NjIgMS41NDYuNjQ2bC0uMjMyLjc5NGE4LjA0NiA4LjA0NiAwIDAgMS0xLjcyLS43MloiLz48L3N2Zz4=" preserveAspectRatio="xMidYMid meet"/>
+    <text x="967" y="179" text-anchor="middle" class="participant">DynamoDB Table</text>
+    <text x="967" y="201" text-anchor="middle" class="role">lockName partition key</text>
+    <rect x="1215" y="150" width="190" height="68" rx="10" class="header"/>
+    <text x="1310" y="179" text-anchor="middle" class="participant">Action</text>
+    <text x="1310" y="201" text-anchor="middle" class="role">protected work</text>
+  </g>
+
+  <line x1="155" y1="218" x2="155" y2="1200" class="lifeline"/>
+  <line x1="405" y1="218" x2="405" y2="1200" class="lifeline"/>
+  <line x1="685" y1="218" x2="685" y2="1200" class="lifeline"/>
+  <line x1="967" y1="218" x2="967" y2="1200" class="lifeline"/>
+  <line x1="1310" y1="218" x2="1310" y2="1200" class="lifeline"/>
+  <rect x="398" y="300" width="14" height="832" rx="6" class="activation"/>
+  <rect x="678" y="360" width="14" height="646" rx="6" class="activation"/>
+  <rect x="960" y="420" width="14" height="544" rx="6" class="activation"/>
+  <rect x="1303" y="690" width="14" height="150" rx="6" class="activation"/>
+
+  <rect x="84" y="260" width="266" height="34" rx="17" class="label callLabel"/>
+  <circle cx="108" cy="277" r="13" class="badge callBadge"/><text x="108" y="282" text-anchor="middle" class="badgeText callText">1</text>
+  <text x="132" y="282" class="msg callText">runIfLeader(lockName)</text>
+  <path d="M 155 318 L 405 318" class="call"/>
+
+  <rect x="450" y="324" width="220" height="34" rx="17" class="label callLabel"/>
+  <circle cx="474" cy="341" r="13" class="badge callBadge"/><text x="474" y="346" text-anchor="middle" class="badgeText callText">2</text>
+  <text x="498" y="346" class="msg callText">derive table key</text>
+  <path d="M 412 382 L 685 382" class="call"/>
+
+  <rect x="740" y="390" width="300" height="34" rx="17" class="label callLabel"/>
+  <circle cx="764" cy="407" r="13" class="badge callBadge"/><text x="764" y="412" text-anchor="middle" class="badgeText callText">3</text>
+  <text x="788" y="412" class="msg callText">conditional PutItem</text>
+  <path d="M 692 450 L 967 450" class="call"/>
+
+  <rect x="810" y="464" width="320" height="34" rx="17" class="branchNote"/>
+  <text x="834" y="486" class="note">missing row OR leaseExpiry &lt; safeNow</text>
+  <rect x="808" y="510" width="304" height="64" rx="14" class="branchNote"/>
+  <text x="832" y="536" class="note">row fields: ownerId, nodeId</text>
+  <text x="832" y="558" class="note">leaseExpiry for correctness; ttl for cleanup</text>
+
+  <rect x="78" y="602" width="1420" height="606" rx="14" class="alt"/>
+  <rect x="102" y="620" width="222" height="30" rx="15" class="branchOk"/>
+  <text x="123" y="640" class="note">alt acquired</text>
+  <line x1="78" y1="974" x2="1498" y2="974" class="branchDivider"/>
+  <rect x="102" y="992" width="280" height="30" rx="15" class="branchSkip"/>
+  <text x="123" y="1012" class="note">else contention / condition failed</text>
+
+  <rect x="790" y="608" width="300" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="814" cy="625" r="13" class="badge returnBadge"/><text x="814" y="630" text-anchor="middle" class="badgeText returnText">4</text>
+  <text x="838" y="630" class="msg returnText">AcquiredLock returned</text>
+  <path d="M 967 666 L 685 666" class="return"/>
+
+  <rect x="720" y="672" width="410" height="34" rx="17" class="label workLabel"/>
+  <circle cx="744" cy="689" r="13" class="badge workBadge"/><text x="744" y="694" text-anchor="middle" class="badgeText workText">5</text>
+  <text x="768" y="694" class="msg workText">push handle and run protected action</text>
+  <path d="M 405 728 L 1310 728" class="work"/>
+
+  <rect x="720" y="734" width="290" height="34" rx="17" class="label callLabel"/>
+  <circle cx="744" cy="751" r="13" class="badge callBadge"/><text x="744" y="756" text-anchor="middle" class="badgeText callText">6</text>
+  <text x="768" y="756" class="msg callText">optional autoExtend</text>
+  <path d="M 692 792 L 967 792" class="call"/>
+
+  <rect x="610" y="800" width="310" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="634" cy="817" r="13" class="badge returnBadge"/><text x="634" y="822" text-anchor="middle" class="badgeText returnText">7</text>
+  <text x="658" y="822" class="msg returnText">action result or failure</text>
+  <path d="M 1310 864 L 405 864" class="return"/>
+
+  <rect x="790" y="888" width="390" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="814" cy="905" r="13" class="badge returnBadge"/><text x="814" y="910" text-anchor="middle" class="badgeText returnText">8</text>
+  <text x="838" y="910" class="msg returnText">DeleteItem or retain until minLeaseTime</text>
+  <path d="M 685 946 L 967 946" class="return"/>
+
+  <rect x="1000" y="1016" width="280" height="34" rx="17" class="label skipLabel"/>
+  <circle cx="1024" cy="1033" r="13" class="badge skipBadge"/><text x="1024" y="1038" text-anchor="middle" class="badgeText skipText">4</text>
+  <text x="1048" y="1038" class="msg skipText">ConditionalCheckFailed</text>
+  <path d="M 967 1070 L 685 1070" class="skip"/>
+
+  <rect x="438" y="1076" width="220" height="34" rx="17" class="label skipLabel"/>
+  <circle cx="462" cy="1093" r="13" class="badge skipBadge"/><text x="462" y="1098" text-anchor="middle" class="badgeText skipText">5</text>
+  <text x="486" y="1098" class="msg skipText">retry or null</text>
+  <path d="M 685 1130 L 405 1130" class="skip"/>
+
+  <rect x="178" y="1134" width="210" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="202" cy="1151" r="13" class="badge returnBadge"/><text x="202" y="1156" text-anchor="middle" class="badgeText returnText">6</text>
+  <text x="226" y="1156" class="msg returnText">return null</text>
+  <path d="M 405 1184 L 155 1184" class="return"/>
+
+  <rect x="98" y="1216" width="948" height="44" rx="12" fill="#ffffff" stroke="#ccd7da" stroke-width="2"/>
+  <text x="118" y="1244" class="note">DynamoDB TTL is eventual cleanup only; leaseExpiry is the takeover correctness boundary.</text>
+  <text x="800" y="1288" text-anchor="middle" class="footer">github.com/bluetape4k/bluetape4k-leader - leader-dynamodb README</text>
+</svg>
