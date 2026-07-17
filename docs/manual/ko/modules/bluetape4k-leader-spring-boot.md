@@ -86,23 +86,23 @@ AOP가 임의의 부수 효과를 exactly-once로 바꿔 주지는 않습니다.
 <!-- release-readme-diagrams:start -->
 ## 배포본 다이어그램 {#release-diagrams}
 
-아래 그림은 현재 개발 브랜치가 아니라 `0.4.0` 배포 태그의 README 자산을 바이트 단위로 그대로 옮긴 것입니다. 따라서 이후 SNAPSHOT 변경이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 SVG 원본이 열립니다.
+아래 그림은 `0.4.0` 배포본의 README 자산을 해당 배포 커밋에서 직접 불러옵니다. 이후 SNAPSHOT이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 같은 배포 커밋의 SVG 원본이 열립니다.
 
 ### leader spring boot 아키텍처
 
-[![leader spring boot 아키텍처](../../assets/readme-diagrams/leader-spring-boot-architecture-01.png)](../../assets/readme-diagrams/leader-spring-boot-architecture-01.svg)
+[![leader spring boot 아키텍처](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-spring-boot-architecture-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-spring-boot-architecture-01.svg)
 
 _배포본 README: [`leader-spring-boot/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-spring-boot/README.ko.md)_
 
 ### 처리 순서: AOP-triggered runIfLeader 다이어그램
 
-[![처리 순서: AOP-triggered runIfLeader 다이어그램](../../assets/readme-diagrams/leader-spring-boot-sequence-01.png)](../../assets/readme-diagrams/leader-spring-boot-sequence-01.svg)
+[![처리 순서: AOP-triggered runIfLeader 다이어그램](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-spring-boot-sequence-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-spring-boot-sequence-01.svg)
 
 _배포본 README: [`leader-spring-boot/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-spring-boot/README.ko.md)_
 
 ### — reentrant @LeaderElection 다이어그램
 
-[![— reentrant @LeaderElection 다이어그램](../../assets/readme-diagrams/leader-spring-boot-sequence-02.png)](../../assets/readme-diagrams/leader-spring-boot-sequence-02.svg)
+[![— reentrant @LeaderElection 다이어그램](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-spring-boot-sequence-02.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-spring-boot-sequence-02.svg)
 
 _배포본 README: [`leader-spring-boot/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-spring-boot/README.ko.md)_
 

@@ -131,29 +131,29 @@ The demo favors a compact, observable scenario. It does not define production to
 <!-- release-readme-diagrams:start -->
 ## Release diagrams {#release-diagrams}
 
-These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+These diagrams are loaded directly from README assets published with the `0.4.0` release and pinned to its immutable commit. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG at the same release commit.
 
 ### Virtual Thread Runner Architecture diagram
 
-[![Virtual Thread Runner Architecture diagram](../../assets/readme-diagrams/examples-virtual-thread-runner-architecture-01.png)](../../assets/readme-diagrams/examples-virtual-thread-runner-architecture-01.svg)
+[![Virtual Thread Runner Architecture diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-virtual-thread-runner-architecture-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-virtual-thread-runner-architecture-01.svg)
 
 _Release README: [`examples/virtual-thread-runner/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/virtual-thread-runner/README.md)_
 
 ### Virtual thread runner flow diagram
 
-[![Virtual thread runner flow diagram](../../assets/readme-diagrams/examples-virtual-thread-runner-flow-01.png)](../../assets/readme-diagrams/examples-virtual-thread-runner-flow-01.svg)
+[![Virtual thread runner flow diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-virtual-thread-runner-flow-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-virtual-thread-runner-flow-01.svg)
 
 _Release README: [`examples/virtual-thread-runner/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/virtual-thread-runner/README.md)_
 
 ### Virtual thread runner scenario diagram
 
-[![Virtual thread runner scenario diagram](../../assets/readme-diagrams/examples-virtual-thread-runner-scenario-01.png)](../../assets/readme-diagrams/examples-virtual-thread-runner-scenario-01.svg)
+[![Virtual thread runner scenario diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-virtual-thread-runner-scenario-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-virtual-thread-runner-scenario-01.svg)
 
 _Release README: [`examples/virtual-thread-runner/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/virtual-thread-runner/README.md)_
 
 ### Virtual Thread Runner Sequence Flow diagram
 
-[![Virtual Thread Runner Sequence Flow diagram](../../assets/readme-diagrams/examples-virtual-thread-runner-sequence-01.png)](../../assets/readme-diagrams/examples-virtual-thread-runner-sequence-01.svg)
+[![Virtual Thread Runner Sequence Flow diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-virtual-thread-runner-sequence-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-virtual-thread-runner-sequence-01.svg)
 
 _Release README: [`examples/virtual-thread-runner/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/virtual-thread-runner/README.md)_
 

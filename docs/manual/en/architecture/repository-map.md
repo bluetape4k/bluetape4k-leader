@@ -38,29 +38,29 @@ Release 0.4.0 marks core, Redis, Exposed, MongoDB, Hazelcast, ZooKeeper, framewo
 <!-- release-readme-diagrams:start -->
 ## Release diagrams {#release-diagrams}
 
-These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+These diagrams are loaded directly from README assets published with the `0.4.0` release and pinned to its immutable commit. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG at the same release commit.
 
 ### Leader election runtime map
 
-[![Leader election runtime map](../../assets/readme-diagrams/bluetape4k-leader-architecture-01.png)](../../assets/readme-diagrams/bluetape4k-leader-architecture-01.svg)
+[![Leader election runtime map](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/bluetape4k-leader-architecture-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/bluetape4k-leader-architecture-01.svg)
 
 _Release README: [`README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/README.md)_
 
 ### How runIfLeader Works diagram
 
-[![How runIfLeader Works diagram](../../assets/readme-diagrams/bluetape4k-leader-sequence-02.png)](../../assets/readme-diagrams/bluetape4k-leader-sequence-02.svg)
+[![How runIfLeader Works diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/bluetape4k-leader-sequence-02.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/bluetape4k-leader-sequence-02.svg)
 
 _Release README: [`README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/README.md)_
 
 ### Multi-leader group: slot-based semaphore diagram
 
-[![Multi-leader group: slot-based semaphore diagram](../../assets/readme-diagrams/bluetape4k-leader-sequence-03.png)](../../assets/readme-diagrams/bluetape4k-leader-sequence-03.svg)
+[![Multi-leader group: slot-based semaphore diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/bluetape4k-leader-sequence-03.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/bluetape4k-leader-sequence-03.svg)
 
 _Release README: [`README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/README.md)_
 
 ### Bluetape4k Leader overview diagram
 
-[![Bluetape4k Leader overview diagram](../../assets/readme-diagrams/root-readme-overview-01.png)](../../assets/readme-diagrams/root-readme-overview-01.svg)
+[![Bluetape4k Leader overview diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/root-readme-overview-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/root-readme-overview-01.svg)
 
 _Release README: [`README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/README.md)_
 

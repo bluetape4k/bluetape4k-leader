@@ -83,23 +83,23 @@ Redis availability and failover semantics are on the job path. A Redis token is 
 <!-- release-readme-diagrams:start -->
 ## Release diagrams {#release-diagrams}
 
-These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+These diagrams are loaded directly from README assets published with the `0.4.0` release and pinned to its immutable commit. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG at the same release commit.
 
 ### Lettuce Redis leader contract map
 
-[![Lettuce Redis leader contract map](../../assets/readme-diagrams/leader-redis-lettuce-class-01.png)](../../assets/readme-diagrams/leader-redis-lettuce-class-01.svg)
+[![Lettuce Redis leader contract map](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-redis-lettuce-class-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-redis-lettuce-class-01.svg)
 
 _Release README: [`leader-redis-lettuce/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/README.md)_
 
 ### Lettuce slot-token acquire release and crash recovery flow
 
-[![Lettuce slot-token acquire release and crash recovery flow](../../assets/readme-diagrams/leader-redis-lettuce-sequence-02.png)](../../assets/readme-diagrams/leader-redis-lettuce-sequence-02.svg)
+[![Lettuce slot-token acquire release and crash recovery flow](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-redis-lettuce-sequence-02.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-redis-lettuce-sequence-02.svg)
 
 _Release README: [`leader-redis-lettuce/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/README.md)_
 
 ### Lettuce minLeaseTime backend TTL delegation flow
 
-[![Lettuce minLeaseTime backend TTL delegation flow](../../assets/readme-diagrams/leader-redis-lettuce-sequence-03.png)](../../assets/readme-diagrams/leader-redis-lettuce-sequence-03.svg)
+[![Lettuce minLeaseTime backend TTL delegation flow](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-redis-lettuce-sequence-03.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-redis-lettuce-sequence-03.svg)
 
 _Release README: [`leader-redis-lettuce/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/README.md)_
 

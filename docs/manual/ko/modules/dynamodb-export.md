@@ -131,29 +131,29 @@ DynamoDB TTL은 비동기 정리에 쓰는 메타데이터이지 정확성을 �
 <!-- release-readme-diagrams:start -->
 ## 배포본 다이어그램 {#release-diagrams}
 
-아래 그림은 현재 개발 브랜치가 아니라 `0.4.0` 배포 태그의 README 자산을 바이트 단위로 그대로 옮긴 것입니다. 따라서 이후 SNAPSHOT 변경이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 SVG 원본이 열립니다.
+아래 그림은 `0.4.0` 배포본의 README 자산을 해당 배포 커밋에서 직접 불러옵니다. 이후 SNAPSHOT이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 같은 배포 커밋의 SVG 원본이 열립니다.
 
 ### DynamoDB export 아키텍처
 
-[![DynamoDB export 아키텍처](../../assets/readme-diagrams/examples-dynamodb-export-architecture-01.png)](../../assets/readme-diagrams/examples-dynamodb-export-architecture-01.svg)
+[![DynamoDB export 아키텍처](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-dynamodb-export-architecture-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-dynamodb-export-architecture-01.svg)
 
 _배포본 README: [`examples/dynamodb-export/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/dynamodb-export/README.ko.md)_
 
 ### DynamoDB export 처리 흐름
 
-[![DynamoDB export 처리 흐름](../../assets/readme-diagrams/examples-dynamodb-export-flow-01.png)](../../assets/readme-diagrams/examples-dynamodb-export-flow-01.svg)
+[![DynamoDB export 처리 흐름](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-dynamodb-export-flow-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-dynamodb-export-flow-01.svg)
 
 _배포본 README: [`examples/dynamodb-export/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/dynamodb-export/README.ko.md)_
 
 ### DynamoDB export 실행 시나리오 다이어그램
 
-[![DynamoDB export 실행 시나리오 다이어그램](../../assets/readme-diagrams/examples-dynamodb-export-scenario-01.png)](../../assets/readme-diagrams/examples-dynamodb-export-scenario-01.svg)
+[![DynamoDB export 실행 시나리오 다이어그램](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-dynamodb-export-scenario-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-dynamodb-export-scenario-01.svg)
 
 _배포본 README: [`examples/dynamodb-export/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/dynamodb-export/README.ko.md)_
 
 ### DynamoDB export 시퀀스 다이어그램
 
-[![DynamoDB export 시퀀스 다이어그램](../../assets/readme-diagrams/examples-dynamodb-export-sequence-01.png)](../../assets/readme-diagrams/examples-dynamodb-export-sequence-01.svg)
+[![DynamoDB export 시퀀스 다이어그램](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-dynamodb-export-sequence-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-dynamodb-export-sequence-01.svg)
 
 _배포본 README: [`examples/dynamodb-export/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/dynamodb-export/README.ko.md)_
 

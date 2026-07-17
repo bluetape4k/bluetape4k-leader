@@ -131,29 +131,29 @@ Actuator 노출 범위, Redis URL, 락 이름, 메트릭 태그, Prometheus 수�
 <!-- release-readme-diagrams:start -->
 ## 배포본 다이어그램 {#release-diagrams}
 
-아래 그림은 현재 개발 브랜치가 아니라 `0.4.0` 배포 태그의 README 자산을 바이트 단위로 그대로 옮긴 것입니다. 따라서 이후 SNAPSHOT 변경이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 SVG 원본이 열립니다.
+아래 그림은 `0.4.0` 배포본의 README 자산을 해당 배포 커밋에서 직접 불러옵니다. 이후 SNAPSHOT이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 같은 배포 커밋의 SVG 원본이 열립니다.
 
 ### prometheus dashboard 아키텍처
 
-[![prometheus dashboard 아키텍처](../../assets/readme-diagrams/examples-prometheus-dashboard-architecture-01.png)](../../assets/readme-diagrams/examples-prometheus-dashboard-architecture-01.svg)
+[![prometheus dashboard 아키텍처](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-prometheus-dashboard-architecture-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-prometheus-dashboard-architecture-01.svg)
 
 _배포본 README: [`examples/prometheus-dashboard/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/prometheus-dashboard/README.ko.md)_
 
 ### Prometheus dashboard 처리 흐름
 
-[![Prometheus dashboard 처리 흐름](../../assets/readme-diagrams/examples-prometheus-dashboard-flow-01.png)](../../assets/readme-diagrams/examples-prometheus-dashboard-flow-01.svg)
+[![Prometheus dashboard 처리 흐름](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-prometheus-dashboard-flow-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-prometheus-dashboard-flow-01.svg)
 
 _배포본 README: [`examples/prometheus-dashboard/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/prometheus-dashboard/README.ko.md)_
 
 ### Prometheus dashboard 실행 시나리오 다이어그램
 
-[![Prometheus dashboard 실행 시나리오 다이어그램](../../assets/readme-diagrams/examples-prometheus-dashboard-scenario-01.png)](../../assets/readme-diagrams/examples-prometheus-dashboard-scenario-01.svg)
+[![Prometheus dashboard 실행 시나리오 다이어그램](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-prometheus-dashboard-scenario-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-prometheus-dashboard-scenario-01.svg)
 
 _배포본 README: [`examples/prometheus-dashboard/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/prometheus-dashboard/README.ko.md)_
 
 ### prometheus dashboard 실행 흐름
 
-[![prometheus dashboard 실행 흐름](../../assets/readme-diagrams/examples-prometheus-dashboard-sequence-01.png)](../../assets/readme-diagrams/examples-prometheus-dashboard-sequence-01.svg)
+[![prometheus dashboard 실행 흐름](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-prometheus-dashboard-sequence-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-prometheus-dashboard-sequence-01.svg)
 
 _배포본 README: [`examples/prometheus-dashboard/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/prometheus-dashboard/README.ko.md)_
 
