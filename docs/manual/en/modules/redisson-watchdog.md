@@ -128,6 +128,37 @@ Auto-extension is not permission for an unbounded body. Shutdown, cancellation, 
 
 The demo favors a compact, observable scenario. It does not define production topology, credential rotation, capacity planning, disaster recovery, or a universal exactly-once guarantee.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### Redisson Watchdog Architecture diagram
+
+[![Redisson Watchdog Architecture diagram](../../assets/readme-diagrams/examples-redisson-watchdog-architecture-01.png)](../../assets/readme-diagrams/examples-redisson-watchdog-architecture-01.svg)
+
+_Release README: [`examples/redisson-watchdog/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/redisson-watchdog/README.md)_
+
+### Redisson watchdog flow diagram
+
+[![Redisson watchdog flow diagram](../../assets/readme-diagrams/examples-redisson-watchdog-flow-01.png)](../../assets/readme-diagrams/examples-redisson-watchdog-flow-01.svg)
+
+_Release README: [`examples/redisson-watchdog/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/redisson-watchdog/README.md)_
+
+### Redisson watchdog scenario diagram
+
+[![Redisson watchdog scenario diagram](../../assets/readme-diagrams/examples-redisson-watchdog-scenario-01.png)](../../assets/readme-diagrams/examples-redisson-watchdog-scenario-01.svg)
+
+_Release README: [`examples/redisson-watchdog/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/redisson-watchdog/README.md)_
+
+### Redisson Watchdog Sequence Flow diagram
+
+[![Redisson Watchdog Sequence Flow diagram](../../assets/readme-diagrams/examples-redisson-watchdog-sequence-01.png)](../../assets/readme-diagrams/examples-redisson-watchdog-sequence-01.svg)
+
+_Release README: [`examples/redisson-watchdog/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/redisson-watchdog/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 - [Stable example README](../../../../examples/redisson-watchdog/README.md)

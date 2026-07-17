@@ -75,6 +75,19 @@ Start with the repository overview, then open the backend you will operate. Exam
 
 Version alignment does not guarantee compatibility with every external Redis, database, Kubernetes, or framework version.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### leader bom Architecture diagram
+
+[![leader bom Architecture diagram](../../assets/readme-diagrams/bluetape4k-leader-bom-architecture-01.png)](../../assets/readme-diagrams/bluetape4k-leader-bom-architecture-01.svg)
+
+_Release README: [`bluetape4k-leader-bom/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/bluetape4k-leader-bom/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 [Stable BOM build](../../../../bluetape4k-leader-bom/build.gradle.kts) · [Stable repository guide](../../../../README.md)

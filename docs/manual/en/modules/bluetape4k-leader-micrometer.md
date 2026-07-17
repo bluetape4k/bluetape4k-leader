@@ -83,6 +83,19 @@ Run prometheus-dashboard after learning Core outcomes. Then use the chosen backe
 
 Metrics are observational and may be dropped. They do not provide durable audit, tracing, alerts, dashboards, or low-cardinality policy automatically.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### leader-micrometer instrumentation architecture diagram
+
+[![leader-micrometer instrumentation architecture diagram](../../assets/readme-diagrams/leader-micrometer-architecture-01.png)](../../assets/readme-diagrams/leader-micrometer-architecture-01.svg)
+
+_Release README: [`leader-micrometer/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-micrometer/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 [Instrumented electors](../../../../leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/InstrumentedLeaderElectors.kt) · [Listener](../../../../leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/MicrometerLeaderElectionListener.kt) · [Stable guide](../../../../leader-micrometer/README.md)

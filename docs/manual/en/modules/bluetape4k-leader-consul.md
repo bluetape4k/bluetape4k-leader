@@ -87,6 +87,25 @@ Run the consul-maintenance example, then compare Consul with etcd and ZooKeeper 
 
 Preview status means API/operations may change. Consul's lock is a lease, not fencing; the endpoint and agent lifecycle are not managed by the library.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### leader-consul architecture diagram
+
+[![leader-consul architecture diagram](../../assets/readme-diagrams/leader-consul-architecture-01.png)](../../assets/readme-diagrams/leader-consul-architecture-01.svg)
+
+_Release README: [`leader-consul/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-consul/README.md)_
+
+### Consul acquire release sequence diagram
+
+[![Consul acquire release sequence diagram](../../assets/readme-diagrams/leader-consul-sequence-02.png)](../../assets/readme-diagrams/leader-consul-sequence-02.svg)
+
+_Release README: [`leader-consul/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-consul/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 [Elector](../../../../leader-consul/src/main/kotlin/io/bluetape4k/leader/consul/ConsulLeaderElector.kt) · [Options](../../../../leader-consul/src/main/kotlin/io/bluetape4k/leader/consul/ConsulLeaderElectionOptions.kt) · [Stable guide](../../../../leader-consul/README.md)

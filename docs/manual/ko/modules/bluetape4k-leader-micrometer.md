@@ -83,6 +83,19 @@ instrumented.runIfLeader("daily-report") { generateReport() }
 
 메트릭은 유실될 수 있는 관측값입니다. 영속적인 감사 기록, 추적, 경보, 대시보드, 낮은 카디널리티를 유지하는 정책까지 자동으로 제공하지는 않습니다.
 
+<!-- release-readme-diagrams:start -->
+## 배포본 다이어그램 {#release-diagrams}
+
+아래 그림은 현재 개발 브랜치가 아니라 `0.4.0` 배포 태그의 README 자산을 바이트 단위로 그대로 옮긴 것입니다. 따라서 이후 SNAPSHOT 변경이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 SVG 원본이 열립니다.
+
+### leader-micrometer instrumentation 아키텍처
+
+[![leader-micrometer instrumentation 아키텍처](../../assets/readme-diagrams/leader-micrometer-architecture-01.png)](../../assets/readme-diagrams/leader-micrometer-architecture-01.svg)
+
+_배포본 README: [`leader-micrometer/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-micrometer/README.ko.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## 근거 자료 {#sources}
 
 [계측 elector](../../../../leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/InstrumentedLeaderElectors.kt) · [Listener](../../../../leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/MicrometerLeaderElectionListener.kt) · [안정판 안내](../../../../leader-micrometer/README.ko.md)

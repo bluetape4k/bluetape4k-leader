@@ -128,6 +128,37 @@ ZooKeeper 소유권은 TTL 갱신 루프가 아니라 Curator 세션을 따릅�
 
 데모는 짧고 관찰하기 쉬운 시나리오에 집중합니다. 운영 토폴로지, 인증 정보 교체, 용량 계획, 재해 복구, 보편적인 `exactly-once` 실행 보장까지 정의하지는 않습니다.
 
+<!-- release-readme-diagrams:start -->
+## 배포본 다이어그램 {#release-diagrams}
+
+아래 그림은 현재 개발 브랜치가 아니라 `0.4.0` 배포 태그의 README 자산을 바이트 단위로 그대로 옮긴 것입니다. 따라서 이후 SNAPSHOT 변경이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 SVG 원본이 열립니다.
+
+### ZooKeeper scheduler 아키텍처
+
+[![ZooKeeper scheduler 아키텍처](../../assets/readme-diagrams/examples-zookeeper-scheduler-architecture-01.png)](../../assets/readme-diagrams/examples-zookeeper-scheduler-architecture-01.svg)
+
+_배포본 README: [`examples/zookeeper-scheduler/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/zookeeper-scheduler/README.ko.md)_
+
+### ZooKeeper scheduler 처리 흐름
+
+[![ZooKeeper scheduler 처리 흐름](../../assets/readme-diagrams/examples-zookeeper-scheduler-flow-01.png)](../../assets/readme-diagrams/examples-zookeeper-scheduler-flow-01.svg)
+
+_배포본 README: [`examples/zookeeper-scheduler/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/zookeeper-scheduler/README.ko.md)_
+
+### ZooKeeper scheduler 실행 시나리오 다이어그램
+
+[![ZooKeeper scheduler 실행 시나리오 다이어그램](../../assets/readme-diagrams/examples-zookeeper-scheduler-scenario-01.png)](../../assets/readme-diagrams/examples-zookeeper-scheduler-scenario-01.svg)
+
+_배포본 README: [`examples/zookeeper-scheduler/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/zookeeper-scheduler/README.ko.md)_
+
+### ZooKeeper scheduler 시퀀스 다이어그램
+
+[![ZooKeeper scheduler 시퀀스 다이어그램](../../assets/readme-diagrams/examples-zookeeper-scheduler-sequence-01.png)](../../assets/readme-diagrams/examples-zookeeper-scheduler-sequence-01.svg)
+
+_배포본 README: [`examples/zookeeper-scheduler/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/zookeeper-scheduler/README.ko.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## 근거 자료 {#sources}
 
 - [안정판 예제 README](../../../../examples/zookeeper-scheduler/README.ko.md)

@@ -1,0 +1,162 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120" role="img" aria-labelledby="title desc">
+  <title id="title">How runIfLeader Works</title>
+  <desc id="desc">Source model from README.md and leader-core LeaderElector/SuspendLeaderElector contracts.</desc>
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#2f7fa7" stroke="#2f7fa7" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#5b8f43" stroke="#5b8f43" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#a87332" stroke="#a87332" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#8b5fb3" stroke="#8b5fb3" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+
+    <style>
+      text { letter-spacing: 0; }
+      .canvas { fill: #fbfcf8; }
+      .frame { fill: #fbfcf8; stroke: #41545d; stroke-width: 3; filter: none; }
+      .title { font-family: "Architects Daughter"; font-size: 42px; font-weight: 400; fill: #263238; }
+      .subtitle, .msg, .note, .footer, .small, .role, .participant-sub { font-family: "Comic Mono"; fill: #36464f; }
+      .subtitle { font-size: 18px; }
+      .participant-title { font-family: "Architects Daughter"; font-size: 21px; font-weight: 400; fill: #1f3138; }
+      .participant-sub { font-size: 13px; fill: #546a73; }
+      .msg { font-family: "Comic Mono"; font-size: 14px; font-weight: 400; }
+      .note { font-size: 13px; }
+      .footer { font-size: 14px; fill: #60727d; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2; }
+      .life { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; stroke-linecap: round; }
+      .activation { fill: #f3ecdf; stroke: #8f784e; stroke-width: 1.5; }
+      .callBlue, .callGreen, .callAmber, .callRed, .callPurple { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .callBlue { stroke: #2f7fa7; marker-end: url(#arrow-blue); }
+      .callGreen { stroke: #5b8f43; marker-end: url(#arrow-green); }
+      .callAmber { stroke: #a87332; marker-end: url(#arrow-amber); }
+      .callRed { stroke: #b86868; marker-end: url(#arrow-red); }
+      .callPurple { stroke: #8b5fb3; marker-end: url(#arrow-purple); }
+      .retBlue, .retGreen, .retAmber, .retRed, .retPurple { fill: none; stroke-width: 2.5; stroke-dasharray: 8 6; stroke-linecap: round; stroke-linejoin: round; }
+      .retBlue { stroke: #2f7fa7; marker-end: url(#arrow-blue); }
+      .retGreen { stroke: #5b8f43; marker-end: url(#arrow-green); }
+      .retAmber { stroke: #a87332; marker-end: url(#arrow-amber); }
+      .retRed { stroke: #b86868; marker-end: url(#arrow-red); }
+      .retPurple { stroke: #8b5fb3; marker-end: url(#arrow-purple); }
+      .branch { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 7; stroke-linecap: round; stroke-linejoin: round; }
+      .branchDivider { stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; stroke-linecap: round; }
+      .label { fill: #ffffff; stroke-width: 1.5; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; fill: #36464f; }
+    </style>
+  </defs>
+  <rect class="canvas" width="1600" height="1120"/>
+  <rect class="frame" x="24" y="24" width="1552" height="1072" rx="20"/>
+  <text class="title" x="800" y="78" text-anchor="middle">How runIfLeader Works</text>
+  <text class="subtitle" x="800" y="112" text-anchor="middle">Only the elected caller runs the action; contenders receive null or LeaderRunResult.Skipped.</text>
+
+  <g>
+    <rect class="header" x="90" y="160" width="210" height="70" rx="10"/>
+    <text class="participant-title" x="195.0" y="191" text-anchor="middle">Node A</text>
+    <text class="participant-sub" x="195.0" y="215" text-anchor="middle">caller</text>
+  </g>
+  <g>
+    <rect class="header" x="405" y="160" width="270" height="70" rx="10"/>
+    <text class="participant-title" x="540.0" y="191" text-anchor="middle">LeaderElector</text>
+    <text class="participant-sub" x="540.0" y="215" text-anchor="middle">single leader</text>
+  </g>
+  <g>
+    <rect class="header" x="730" y="160" width="240" height="70" rx="10"/>
+    <text class="participant-title" x="850.0" y="191" text-anchor="middle">Backend Lock</text>
+    <text class="participant-sub" x="850.0" y="215" text-anchor="middle">atomic owner</text>
+  </g>
+  <g>
+    <rect class="header" x="1080" y="160" width="220" height="70" rx="10"/>
+    <text class="participant-title" x="1190.0" y="191" text-anchor="middle">Action</text>
+    <text class="participant-sub" x="1190.0" y="215" text-anchor="middle">critical work</text>
+  </g>
+  <g>
+    <rect class="header" x="1390" y="160" width="150" height="70" rx="10"/>
+    <text class="participant-title" x="1465.0" y="191" text-anchor="middle">Node B</text>
+    <text class="participant-sub" x="1465.0" y="215" text-anchor="middle">contender</text>
+  </g>
+  <line class="life" x1="210" y1="230" x2="210" y2="980"/>
+  <line class="life" x1="540" y1="230" x2="540" y2="980"/>
+  <line class="life" x1="850" y1="230" x2="850" y2="980"/>
+  <line class="life" x1="1180" y1="230" x2="1180" y2="980"/>
+  <line class="life" x1="1465" y1="230" x2="1465" y2="980"/>
+  <rect class="activation" x="532" y="302" width="16" height="498" rx="7"/>
+  <rect class="activation" x="842" y="370" width="16" height="354" rx="7"/>
+  <rect class="activation" x="1172" y="512" width="16" height="112" rx="7"/>
+  <g>
+    <rect class="label" x="182.0" y="260.0" width="260" height="34" rx="17" stroke="#2f7fa7" fill="#ffffff"/>
+    <circle cx="324.0" cy="277.0" r="13" fill="#fbfcf8" stroke="#2f7fa7" stroke-width="1.8"/>
+    <text class="badgeText" x="324.0" y="281.0" text-anchor="middle">1</text>
+    <text class="msg" x="342.0" y="282.0" text-anchor="start" fill="#2f7fa7">runIfLeader(lock)</text>
+  </g>
+  <path class="callBlue" d="M 210 312 L 540 312"/>
+  <g>
+    <rect class="label" x="551.0" y="330.0" width="250" height="34" rx="17" stroke="#a87332" fill="#ffffff"/>
+    <circle cx="688.0" cy="347.0" r="13" fill="#fbfcf8" stroke="#a87332" stroke-width="1.8"/>
+    <text class="badgeText" x="688.0" y="351.0" text-anchor="middle">2</text>
+    <text class="msg" x="706.0" y="352.0" text-anchor="start" fill="#a87332">try acquire owner</text>
+  </g>
+  <path class="callAmber" d="M 540 382 L 850 382"/>
+  <g>
+    <rect class="label" x="551.0" y="402.0" width="230" height="34" rx="17" stroke="#5b8f43" fill="#ffffff"/>
+    <circle cx="678.0" cy="419.0" r="13" fill="#fbfcf8" stroke="#5b8f43" stroke-width="1.8"/>
+    <text class="badgeText" x="678.0" y="423.0" text-anchor="middle">3</text>
+    <text class="msg" x="696.0" y="424.0" text-anchor="start" fill="#5b8f43">lock granted</text>
+  </g>
+  <path class="retGreen" d="M 850 454 L 540 454"/>
+  <rect class="branch" x="70" y="472" width="1460" height="510" rx="20"/>
+  <g>
+    <rect class="label" x="105.0" y="487.0" width="235" height="34" rx="17" stroke="#a87332" fill="#ffffff"/>
+    <circle cx="157.0" cy="504.0" r="13" fill="#fbfcf8" stroke="#a87332" stroke-width="1.8"/>
+    <text class="badgeText" x="157.0" y="508.0" text-anchor="middle">alt</text>
+    <text class="msg" x="187.0" y="509.0" text-anchor="start" fill="#a87332">alt elected branch</text>
+  </g>
+  <g>
+    <rect class="label" x="641.0" y="520.0" width="250" height="34" rx="17" stroke="#5b8f43" fill="#ffffff"/>
+    <circle cx="778.0" cy="537.0" r="13" fill="#fbfcf8" stroke="#5b8f43" stroke-width="1.8"/>
+    <text class="badgeText" x="778.0" y="541.0" text-anchor="middle">4</text>
+    <text class="msg" x="796.0" y="542.0" text-anchor="start" fill="#5b8f43">execute action()</text>
+  </g>
+  <path class="callGreen" d="M 540 572 L 1180 572"/>
+  <g>
+    <rect class="label" x="701.0" y="594.0" width="230" height="34" rx="17" stroke="#a87332" fill="#ffffff"/>
+    <circle cx="828.0" cy="611.0" r="13" fill="#fbfcf8" stroke="#a87332" stroke-width="1.8"/>
+    <text class="badgeText" x="828.0" y="615.0" text-anchor="middle">5</text>
+    <text class="msg" x="846.0" y="616.0" text-anchor="start" fill="#a87332">action result</text>
+  </g>
+  <path class="retAmber" d="M 1180 646 L 540 646"/>
+  <g>
+    <rect class="label" x="555.5" y="672.0" width="225" height="34" rx="17" stroke="#a87332" fill="#ffffff"/>
+    <circle cx="680.0" cy="689.0" r="13" fill="#fbfcf8" stroke="#a87332" stroke-width="1.8"/>
+    <text class="badgeText" x="680.0" y="693.0" text-anchor="middle">6</text>
+    <text class="msg" x="698.0" y="694.0" text-anchor="start" fill="#a87332">release lock</text>
+  </g>
+  <path class="callAmber" d="M 540 724 L 850 724"/>
+  <g>
+    <rect class="label" x="204.5" y="744.0" width="225" height="34" rx="17" stroke="#2f7fa7" fill="#ffffff"/>
+    <circle cx="329.0" cy="761.0" r="13" fill="#fbfcf8" stroke="#2f7fa7" stroke-width="1.8"/>
+    <text class="badgeText" x="329.0" y="765.0" text-anchor="middle">7</text>
+    <text class="msg" x="347.0" y="766.0" text-anchor="start" fill="#2f7fa7">return value</text>
+  </g>
+  <path class="retBlue" d="M 540 796 L 210 796"/>
+  <line class="branchDivider" x1="70" y1="820" x2="1530" y2="820"/>
+  <g>
+    <rect class="label" x="105.0" y="834.0" width="250" height="34" rx="17" stroke="#b86868" fill="#ffffff"/>
+    <circle cx="157.0" cy="851.0" r="13" fill="#fbfcf8" stroke="#b86868" stroke-width="1.8"/>
+    <text class="badgeText" x="157.0" y="855.0" text-anchor="middle">else</text>
+    <text class="msg" x="187.0" y="856.0" text-anchor="start" fill="#b86868">else lock already held</text>
+  </g>
+  <g>
+    <rect class="label" x="973.5" y="828.0" width="285" height="34" rx="17" stroke="#b86868" fill="#ffffff"/>
+    <circle cx="1128.0" cy="845.0" r="13" fill="#fbfcf8" stroke="#b86868" stroke-width="1.8"/>
+    <text class="badgeText" x="1128.0" y="849.0" text-anchor="middle">8</text>
+    <text class="msg" x="1146.0" y="850.0" text-anchor="start" fill="#b86868">concurrent runIfLeader</text>
+  </g>
+  <path class="callRed" d="M 1465 880 L 540 880"/>
+  <g>
+    <rect class="label" x="1017.0" y="900.0" width="230" height="34" rx="17" stroke="#b86868" fill="#ffffff"/>
+    <circle cx="1144.0" cy="917.0" r="13" fill="#fbfcf8" stroke="#b86868" stroke-width="1.8"/>
+    <text class="badgeText" x="1144.0" y="921.0" text-anchor="middle">9</text>
+    <text class="msg" x="1162.0" y="922.0" text-anchor="start" fill="#b86868">null / Skipped</text>
+  </g>
+  <path class="retRed" d="M 540 952 L 1465 952"/>
+  <rect x="100" y="1024" width="1400" height="42" rx="12" fill="#ffffff" stroke="#cfdde3" stroke-width="1.8"/>
+  <text class="note" x="118" y="1050" text-anchor="start">Action exceptions propagate, cancellation is not wrapped, and contention is represented as skip/null.</text>
+  <text class="footer" x="800" y="1090" text-anchor="middle">github.com/bluetape4k/bluetape4k-leader - bluetape4k-leader-sequence-02</text>
+</svg>

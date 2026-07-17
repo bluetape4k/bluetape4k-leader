@@ -1,0 +1,162 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1220" viewBox="0 0 1600 1220" role="img" aria-labelledby="title desc">
+  <title id="title">Kubernetes Lease Acquire / Release Sequence</title>
+  <desc id="desc">Kubernetes Lease acquisition, contention, action execution, auto extension, owner conditional release, minimum lease time, and expired takeover behavior.</desc>
+  <defs>
+    <style>
+      .title { font-family: "Architects Daughter"; font-size: 40px; fill: #263238; }
+      .subtitle, .msg, .note, .footer { font-family: "Comic Mono"; fill: #36464f; }
+      .subtitle { font-size: 18px; }
+      .participant { font-family: "Architects Daughter"; font-size: 19px; fill: #1f3138; }
+      .role { font-family: "Comic Mono"; font-size: 13px; fill: #546a73; }
+      .msg { font-size: 14px; }
+      .note { font-size: 13px; }
+      .footer { font-size: 14px; fill: #60727d; }
+      .frame { fill: #fbfcf8; stroke: #41545d; stroke-width: 3; }
+      .header { fill: #ffffff; stroke: #546e7a; stroke-width: 2; }
+      .lifeline { stroke: #9aaab1; stroke-width: 2; stroke-dasharray: 7 8; }
+      .activation { fill: #f3ecdf; stroke: #8f784e; stroke-width: 1.5; }
+      .call { fill: none; stroke: #3f7d9c; stroke-width: 3; marker-end: url(#arrowCall); stroke-linecap: round; stroke-linejoin: round; }
+      .slot { fill: none; stroke: #a2743d; stroke-width: 3; marker-end: url(#arrowSlot); stroke-linecap: round; stroke-linejoin: round; }
+      .state { fill: none; stroke: #6e8f4f; stroke-width: 3; marker-end: url(#arrowState); stroke-linecap: round; stroke-linejoin: round; }
+      .return { fill: none; stroke: #9b7d54; stroke-width: 2.5; stroke-dasharray: 8 6; marker-end: url(#arrowReturn); stroke-linecap: round; stroke-linejoin: round; }
+      .wait { fill: none; stroke: #8e6aa9; stroke-width: 3; marker-end: url(#arrowWait); stroke-linecap: round; stroke-linejoin: round; }
+      .skip { fill: none; stroke: #b86868; stroke-width: 3; marker-end: url(#arrowSkip); stroke-linecap: round; stroke-linejoin: round; }
+      .alt { fill: none; stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 7; }
+      .branchDivider { stroke: #78909c; stroke-width: 3; stroke-dasharray: 12 8; }
+      .label { fill: #ffffff; stroke: #d7e0e4; stroke-width: 1.5; }
+      .label.callLabel { stroke: #9cc2d1; }
+      .label.slotLabel { stroke: #d0b078; }
+      .label.stateLabel { stroke: #b6c9a4; }
+      .label.returnLabel { stroke: #c8b38f; }
+      .label.waitLabel { stroke: #c7abd8; }
+      .label.skipLabel { stroke: #d9abab; }
+      .branchOk { fill: #f8f1e6; stroke: #a2743d; stroke-width: 1.8; }
+      .branchWait { fill: #f7f0fb; stroke: #8e6aa9; stroke-width: 1.8; }
+      .branchSkip { fill: #fff5f5; stroke: #b86868; stroke-width: 3; }
+      .badge { stroke-width: 1.8; }
+      .badge.callBadge { fill: #eaf4f8; stroke: #3f7d9c; }
+      .badge.slotBadge { fill: #fff4df; stroke: #a2743d; }
+      .badge.stateBadge { fill: #eef7f0; stroke: #6e8f4f; }
+      .badge.returnBadge { fill: #fff7e8; stroke: #9b7d54; }
+      .badge.waitBadge { fill: #f7f0fb; stroke: #8e6aa9; }
+      .badge.skipBadge { fill: #fff0f0; stroke: #b86868; }
+      .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
+      .msg.callText, .badgeText.callText { fill: #2f6f8e; }
+      .msg.slotText, .badgeText.slotText { fill: #855a29; }
+      .msg.stateText, .badgeText.stateText { fill: #55783f; }
+      .msg.returnText, .badgeText.returnText { fill: #7f6038; }
+      .msg.waitText, .badgeText.waitText { fill: #774f92; }
+      .msg.skipText, .badgeText.skipText { fill: #9d4f4f; }
+    </style>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowCall" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowSlot" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#a2743d" stroke="#a2743d" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowState" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowReturn" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowWait" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#8e6aa9" stroke="#8e6aa9" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowSkip" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#b86868" stroke="#b86868" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+  </defs>
+
+  <rect x="24" y="24" width="1552" height="1172" rx="20" class="frame"/>
+  <text x="800" y="78" text-anchor="middle" class="title">Kubernetes Lease Acquire / Release Sequence</text>
+  <text x="800" y="108" text-anchor="middle" class="subtitle">Lease ownership is holderIdentity plus resourceVersion update success; release is also owner-conditional.</text>
+
+  <g>
+    <rect x="55" y="150" width="150" height="68" rx="10" class="header"/>
+    <text x="130" y="179" text-anchor="middle" class="participant">Caller</text>
+    <text x="130" y="201" text-anchor="middle" class="role">job code</text>
+    <rect x="295" y="150" width="190" height="68" rx="10" class="header"/>
+    <text x="390" y="179" text-anchor="middle" class="participant">K8s Elector</text>
+    <text x="390" y="201" text-anchor="middle" class="role">single or group</text>
+    <rect x="560" y="150" width="180" height="68" rx="10" class="header"/>
+    <text x="650" y="179" text-anchor="middle" class="participant">LeaseLock</text>
+    <text x="650" y="201" text-anchor="middle" class="role">ownerToken</text>
+    <rect x="825" y="150" width="210" height="68" rx="10" class="header"/>
+    <text x="930" y="179" text-anchor="middle" class="participant">API Server</text>
+    <text x="930" y="201" text-anchor="middle" class="role">resourceVersion CAS</text>
+    <rect x="1125" y="150" width="190" height="68" rx="10" class="header"/>
+    <text x="1220" y="179" text-anchor="middle" class="participant">Lease Object</text>
+    <text x="1220" y="201" text-anchor="middle" class="role">spec + metadata</text>
+  </g>
+
+  <line x1="130" y1="218" x2="130" y2="1086" class="lifeline"/>
+  <line x1="390" y1="218" x2="390" y2="1086" class="lifeline"/>
+  <line x1="650" y1="218" x2="650" y2="1086" class="lifeline"/>
+  <line x1="930" y1="218" x2="930" y2="1086" class="lifeline"/>
+  <line x1="1220" y1="218" x2="1220" y2="1086" class="lifeline"/>
+  <rect x="123" y="290" width="14" height="452" rx="6" class="activation"/>
+  <rect x="383" y="290" width="14" height="670" rx="6" class="activation"/>
+  <rect x="643" y="336" width="14" height="624" rx="6" class="activation"/>
+  <rect x="923" y="404" width="14" height="556" rx="6" class="activation"/>
+  <rect x="1213" y="468" width="14" height="140" rx="6" class="activation"/>
+
+  <rect x="70" y="392" width="1478" height="270" rx="14" class="alt"/>
+  <rect x="96" y="410" width="170" height="30" rx="15" class="branchOk"/>
+  <text x="118" y="430" class="note">acquire path</text>
+
+  <rect x="70" y="746" width="1478" height="142" rx="14" class="alt"/>
+  <rect x="96" y="764" width="184" height="30" rx="15" class="branchWait"/>
+  <text x="118" y="784" class="note">extension path</text>
+
+  <rect x="70" y="916" width="1478" height="142" rx="14" class="alt"/>
+  <rect x="96" y="934" width="170" height="30" rx="15" class="branchOk"/>
+  <text x="118" y="954" class="note">release path</text>
+
+  <rect x="140" y="234" width="240" height="34" rx="17" class="label callLabel"/>
+  <circle cx="164" cy="251" r="13" class="badge callBadge"/><text x="164" y="256" text-anchor="middle" class="badgeText callText">1</text>
+  <text x="188" y="256" class="msg callText">runIfLeader(lockName)</text>
+  <path d="M 130 292 L 390 292" class="call"/>
+
+  <rect x="416" y="298" width="208" height="34" rx="17" class="label slotLabel"/>
+  <circle cx="440" cy="315" r="13" class="badge slotBadge"/><text x="440" y="320" text-anchor="middle" class="badgeText slotText">2</text>
+  <text x="464" y="320" class="msg slotText">create ownerToken</text>
+  <path d="M 390 356 L 650 356" class="slot"/>
+
+  <rect x="705" y="366" width="170" height="34" rx="17" class="label stateLabel"/>
+  <circle cx="729" cy="383" r="13" class="badge stateBadge"/><text x="729" y="388" text-anchor="middle" class="badgeText stateText">3</text>
+  <text x="753" y="388" class="msg stateText">GET Lease</text>
+  <path d="M 650 424 L 930 424" class="state"/>
+
+  <rect x="915" y="430" width="320" height="34" rx="17" class="label stateLabel"/>
+  <circle cx="939" cy="447" r="13" class="badge stateBadge"/><text x="939" y="452" text-anchor="middle" class="badgeText stateText">4</text>
+  <text x="963" y="452" class="msg stateText">create or update holderIdentity</text>
+  <path d="M 930 488 L 1220 488" class="state"/>
+
+  <rect x="927" y="498" width="296" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="951" cy="515" r="13" class="badge returnBadge"/><text x="951" y="520" text-anchor="middle" class="badgeText returnText">5</text>
+  <text x="975" y="520" class="msg returnText">success with resourceVersion</text>
+  <path d="M 1220 556 L 930 556" class="return"/>
+
+  <rect x="694" y="564" width="192" height="34" rx="17" class="label returnLabel"/>
+  <circle cx="718" cy="581" r="13" class="badge returnBadge"/><text x="718" y="586" text-anchor="middle" class="badgeText returnText">6</text>
+  <text x="742" y="586" class="msg returnText">acquired handle</text>
+  <path d="M 930 622 L 650 622" class="return"/>
+
+  <rect x="128" y="632" width="264" height="34" rx="17" class="label callLabel"/>
+  <circle cx="152" cy="649" r="13" class="badge callBadge"/><text x="152" y="654" text-anchor="middle" class="badgeText callText">7</text>
+  <text x="176" y="654" class="msg callText">execute action as leader</text>
+  <path d="M 390 690 L 130 690" class="call"/>
+
+  <rect x="408" y="726" width="224" height="34" rx="17" class="label waitLabel"/>
+  <circle cx="432" cy="743" r="13" class="badge waitBadge"/><text x="432" y="748" text-anchor="middle" class="badgeText waitText">8</text>
+  <text x="456" y="748" class="msg waitText">optional autoExtend</text>
+  <path d="M 390 784 L 650 784" class="wait"/>
+
+  <rect x="626" y="792" width="328" height="34" rx="17" class="label waitLabel"/>
+  <circle cx="650" cy="809" r="13" class="badge waitBadge"/><text x="650" y="814" text-anchor="middle" class="badgeText waitText">9</text>
+  <text x="674" y="814" class="msg waitText">renewTime + leaseDurationSeconds</text>
+  <path d="M 650 850 L 930 850" class="wait"/>
+
+  <rect x="412" y="892" width="216" height="34" rx="17" class="label slotLabel"/>
+  <circle cx="436" cy="909" r="13" class="badge slotBadge"/><text x="436" y="914" text-anchor="middle" class="badgeText slotText">10</text>
+  <text x="460" y="914" class="msg slotText">release in finally</text>
+  <path d="M 390 950 L 650 950" class="slot"/>
+
+  <rect x="578" y="958" width="424" height="34" rx="17" class="label slotLabel"/>
+  <circle cx="602" cy="975" r="13" class="badge slotBadge"/><text x="602" y="980" text-anchor="middle" class="badgeText slotText">11</text>
+  <text x="626" y="980" class="msg slotText">owner-conditional clear or keep minLeaseTime</text>
+  <path d="M 650 1016 L 930 1016" class="slot"/>
+
+  <rect x="98" y="1090" width="1404" height="44" rx="12" fill="#ffffff" stroke="#ccd7da" stroke-width="2"/>
+  <text x="118" y="1118" class="note">Group election repeats the same sequence against &lt;lockName&gt;-slot-N Lease objects.</text>
+  <text x="800" y="1164" text-anchor="middle" class="footer">github.com/bluetape4k/bluetape4k-leader - leader-k8s-sequence-02</text>
+</svg>

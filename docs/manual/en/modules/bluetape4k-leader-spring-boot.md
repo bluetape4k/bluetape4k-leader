@@ -83,6 +83,31 @@ Start with batch-scheduler, then webhook-poller and prometheus-dashboard. Read t
 
 AOP cannot make arbitrary side effects exactly once. Self/private invocation and long-lived streams require careful boundary testing; `FAIL_OPEN_RUN` permits duplicates by design.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### leader spring boot Architecture diagram
+
+[![leader spring boot Architecture diagram](../../assets/readme-diagrams/leader-spring-boot-architecture-01.png)](../../assets/readme-diagrams/leader-spring-boot-architecture-01.svg)
+
+_Release README: [`leader-spring-boot/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-spring-boot/README.md)_
+
+### Sequence: AOP-triggered runIfLeader diagram
+
+[![Sequence: AOP-triggered runIfLeader diagram](../../assets/readme-diagrams/leader-spring-boot-sequence-01.png)](../../assets/readme-diagrams/leader-spring-boot-sequence-01.svg)
+
+_Release README: [`leader-spring-boot/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-spring-boot/README.md)_
+
+### Sequence: reentrant @LeaderElection diagram
+
+[![Sequence: reentrant @LeaderElection diagram](../../assets/readme-diagrams/leader-spring-boot-sequence-02.png)](../../assets/readme-diagrams/leader-spring-boot-sequence-02.svg)
+
+_Release README: [`leader-spring-boot/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-spring-boot/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 [Auto-configuration](../../../../leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/LeaderElectionAutoConfiguration.kt) · [Aspect](../../../../leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspect.kt) · [Stable guide](../../../../leader-spring-boot/README.md)

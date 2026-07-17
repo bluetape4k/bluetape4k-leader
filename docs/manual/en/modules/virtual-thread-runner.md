@@ -128,6 +128,37 @@ Virtual threads make blocking cheaper; they do not make blocking calls cancellab
 
 The demo favors a compact, observable scenario. It does not define production topology, credential rotation, capacity planning, disaster recovery, or a universal exactly-once guarantee.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### Virtual Thread Runner Architecture diagram
+
+[![Virtual Thread Runner Architecture diagram](../../assets/readme-diagrams/examples-virtual-thread-runner-architecture-01.png)](../../assets/readme-diagrams/examples-virtual-thread-runner-architecture-01.svg)
+
+_Release README: [`examples/virtual-thread-runner/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/virtual-thread-runner/README.md)_
+
+### Virtual thread runner flow diagram
+
+[![Virtual thread runner flow diagram](../../assets/readme-diagrams/examples-virtual-thread-runner-flow-01.png)](../../assets/readme-diagrams/examples-virtual-thread-runner-flow-01.svg)
+
+_Release README: [`examples/virtual-thread-runner/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/virtual-thread-runner/README.md)_
+
+### Virtual thread runner scenario diagram
+
+[![Virtual thread runner scenario diagram](../../assets/readme-diagrams/examples-virtual-thread-runner-scenario-01.png)](../../assets/readme-diagrams/examples-virtual-thread-runner-scenario-01.svg)
+
+_Release README: [`examples/virtual-thread-runner/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/virtual-thread-runner/README.md)_
+
+### Virtual Thread Runner Sequence Flow diagram
+
+[![Virtual Thread Runner Sequence Flow diagram](../../assets/readme-diagrams/examples-virtual-thread-runner-sequence-01.png)](../../assets/readme-diagrams/examples-virtual-thread-runner-sequence-01.svg)
+
+_Release README: [`examples/virtual-thread-runner/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/virtual-thread-runner/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 - [Stable example README](../../../../examples/virtual-thread-runner/README.md)

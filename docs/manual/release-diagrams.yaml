@@ -1,0 +1,931 @@
+---
+schemaVersion: 1
+sourcePolicy: release-readme
+diagrams:
+- id: bluetape4k-leader-architecture-01
+  canonical: bluetape4k-leader-architecture-01
+  target: overview
+  manualPages:
+    en: docs/manual/en/architecture/repository-map.md
+    ko: docs/manual/ko/architecture/repository-map.md
+  releaseReadmes:
+  - README.ko.md
+  - README.md
+- id: bluetape4k-leader-bom-architecture-01
+  canonical: bluetape4k-leader-bom-architecture-01
+  target: bluetape4k-leader-bom
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-bom.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-bom.md
+  releaseReadmes:
+  - bluetape4k-leader-bom/README.ko.md
+  - bluetape4k-leader-bom/README.md
+- id: bluetape4k-leader-sequence-02
+  canonical: bluetape4k-leader-sequence-02
+  target: overview
+  manualPages:
+    en: docs/manual/en/architecture/repository-map.md
+    ko: docs/manual/ko/architecture/repository-map.md
+  releaseReadmes:
+  - README.ko.md
+  - README.md
+- id: bluetape4k-leader-sequence-03
+  canonical: bluetape4k-leader-sequence-03
+  target: overview
+  manualPages:
+    en: docs/manual/en/architecture/repository-map.md
+    ko: docs/manual/ko/architecture/repository-map.md
+  releaseReadmes:
+  - README.ko.md
+  - README.md
+- id: examples-batch-scheduler-architecture-01
+  canonical: examples-batch-scheduler-architecture-01
+  target: batch-scheduler
+  manualPages:
+    en: docs/manual/en/modules/batch-scheduler.md
+    ko: docs/manual/ko/modules/batch-scheduler.md
+  releaseReadmes:
+  - examples/batch-scheduler/README.ko.md
+  - examples/batch-scheduler/README.md
+- id: examples-batch-scheduler-flow-01
+  canonical: examples-batch-scheduler-flow-01
+  target: batch-scheduler
+  manualPages:
+    en: docs/manual/en/modules/batch-scheduler.md
+    ko: docs/manual/ko/modules/batch-scheduler.md
+  releaseReadmes:
+  - examples/batch-scheduler/README.ko.md
+  - examples/batch-scheduler/README.md
+- id: examples-batch-scheduler-scenario-01
+  canonical: examples-batch-scheduler-scenario-01
+  target: batch-scheduler
+  manualPages:
+    en: docs/manual/en/modules/batch-scheduler.md
+    ko: docs/manual/ko/modules/batch-scheduler.md
+  releaseReadmes:
+  - examples/batch-scheduler/README.ko.md
+  - examples/batch-scheduler/README.md
+- id: examples-batch-scheduler-sequence-01
+  canonical: examples-batch-scheduler-sequence-01
+  target: batch-scheduler
+  manualPages:
+    en: docs/manual/en/modules/batch-scheduler.md
+    ko: docs/manual/ko/modules/batch-scheduler.md
+  releaseReadmes:
+  - examples/batch-scheduler/README.ko.md
+  - examples/batch-scheduler/README.md
+- id: examples-cache-warmer-architecture-01
+  canonical: examples-cache-warmer-architecture-01
+  target: cache-warmer
+  manualPages:
+    en: docs/manual/en/modules/cache-warmer.md
+    ko: docs/manual/ko/modules/cache-warmer.md
+  releaseReadmes:
+  - examples/cache-warmer/README.ko.md
+  - examples/cache-warmer/README.md
+- id: examples-cache-warmer-flow-01
+  canonical: examples-cache-warmer-flow-01
+  target: cache-warmer
+  manualPages:
+    en: docs/manual/en/modules/cache-warmer.md
+    ko: docs/manual/ko/modules/cache-warmer.md
+  releaseReadmes:
+  - examples/cache-warmer/README.ko.md
+  - examples/cache-warmer/README.md
+- id: examples-cache-warmer-scenario-01
+  canonical: examples-cache-warmer-scenario-01
+  target: cache-warmer
+  manualPages:
+    en: docs/manual/en/modules/cache-warmer.md
+    ko: docs/manual/ko/modules/cache-warmer.md
+  releaseReadmes:
+  - examples/cache-warmer/README.ko.md
+  - examples/cache-warmer/README.md
+- id: examples-cache-warmer-sequence-01
+  canonical: examples-cache-warmer-sequence-01
+  target: cache-warmer
+  manualPages:
+    en: docs/manual/en/modules/cache-warmer.md
+    ko: docs/manual/ko/modules/cache-warmer.md
+  releaseReadmes:
+  - examples/cache-warmer/README.ko.md
+  - examples/cache-warmer/README.md
+- id: examples-consul-maintenance-architecture-01
+  canonical: examples-consul-maintenance-architecture-01
+  target: consul-maintenance
+  manualPages:
+    en: docs/manual/en/modules/consul-maintenance.md
+    ko: docs/manual/ko/modules/consul-maintenance.md
+  releaseReadmes:
+  - examples/consul-maintenance/README.ko.md
+  - examples/consul-maintenance/README.md
+- id: examples-consul-maintenance-flow-01
+  canonical: examples-consul-maintenance-flow-01
+  target: consul-maintenance
+  manualPages:
+    en: docs/manual/en/modules/consul-maintenance.md
+    ko: docs/manual/ko/modules/consul-maintenance.md
+  releaseReadmes:
+  - examples/consul-maintenance/README.ko.md
+  - examples/consul-maintenance/README.md
+- id: examples-consul-maintenance-scenario-01
+  canonical: examples-consul-maintenance-scenario-01
+  target: consul-maintenance
+  manualPages:
+    en: docs/manual/en/modules/consul-maintenance.md
+    ko: docs/manual/ko/modules/consul-maintenance.md
+  releaseReadmes:
+  - examples/consul-maintenance/README.ko.md
+  - examples/consul-maintenance/README.md
+- id: examples-consul-maintenance-sequence-01
+  canonical: examples-consul-maintenance-sequence-01
+  target: consul-maintenance
+  manualPages:
+    en: docs/manual/en/modules/consul-maintenance.md
+    ko: docs/manual/ko/modules/consul-maintenance.md
+  releaseReadmes:
+  - examples/consul-maintenance/README.ko.md
+  - examples/consul-maintenance/README.md
+- id: examples-dynamodb-export-architecture-01
+  canonical: examples-dynamodb-export-architecture-01
+  target: dynamodb-export
+  manualPages:
+    en: docs/manual/en/modules/dynamodb-export.md
+    ko: docs/manual/ko/modules/dynamodb-export.md
+  releaseReadmes:
+  - examples/dynamodb-export/README.ko.md
+  - examples/dynamodb-export/README.md
+- id: examples-dynamodb-export-flow-01
+  canonical: examples-dynamodb-export-flow-01
+  target: dynamodb-export
+  manualPages:
+    en: docs/manual/en/modules/dynamodb-export.md
+    ko: docs/manual/ko/modules/dynamodb-export.md
+  releaseReadmes:
+  - examples/dynamodb-export/README.ko.md
+  - examples/dynamodb-export/README.md
+- id: examples-dynamodb-export-scenario-01
+  canonical: examples-dynamodb-export-scenario-01
+  target: dynamodb-export
+  manualPages:
+    en: docs/manual/en/modules/dynamodb-export.md
+    ko: docs/manual/ko/modules/dynamodb-export.md
+  releaseReadmes:
+  - examples/dynamodb-export/README.ko.md
+  - examples/dynamodb-export/README.md
+- id: examples-dynamodb-export-sequence-01
+  canonical: examples-dynamodb-export-sequence-01
+  target: dynamodb-export
+  manualPages:
+    en: docs/manual/en/modules/dynamodb-export.md
+    ko: docs/manual/ko/modules/dynamodb-export.md
+  releaseReadmes:
+  - examples/dynamodb-export/README.ko.md
+  - examples/dynamodb-export/README.md
+- id: examples-etcd-reconciler-architecture-01
+  canonical: examples-etcd-reconciler-architecture-01
+  target: etcd-reconciler
+  manualPages:
+    en: docs/manual/en/modules/etcd-reconciler.md
+    ko: docs/manual/ko/modules/etcd-reconciler.md
+  releaseReadmes:
+  - examples/etcd-reconciler/README.ko.md
+  - examples/etcd-reconciler/README.md
+- id: examples-etcd-reconciler-flow-01
+  canonical: examples-etcd-reconciler-flow-01
+  target: etcd-reconciler
+  manualPages:
+    en: docs/manual/en/modules/etcd-reconciler.md
+    ko: docs/manual/ko/modules/etcd-reconciler.md
+  releaseReadmes:
+  - examples/etcd-reconciler/README.ko.md
+  - examples/etcd-reconciler/README.md
+- id: examples-etcd-reconciler-scenario-01
+  canonical: examples-etcd-reconciler-scenario-01
+  target: etcd-reconciler
+  manualPages:
+    en: docs/manual/en/modules/etcd-reconciler.md
+    ko: docs/manual/ko/modules/etcd-reconciler.md
+  releaseReadmes:
+  - examples/etcd-reconciler/README.ko.md
+  - examples/etcd-reconciler/README.md
+- id: examples-etcd-reconciler-sequence-01
+  canonical: examples-etcd-reconciler-sequence-01
+  target: etcd-reconciler
+  manualPages:
+    en: docs/manual/en/modules/etcd-reconciler.md
+    ko: docs/manual/ko/modules/etcd-reconciler.md
+  releaseReadmes:
+  - examples/etcd-reconciler/README.ko.md
+  - examples/etcd-reconciler/README.md
+- id: examples-k8s-lease-architecture-01
+  canonical: examples-k8s-lease-architecture-01
+  target: k8s-lease
+  manualPages:
+    en: docs/manual/en/modules/k8s-lease.md
+    ko: docs/manual/ko/modules/k8s-lease.md
+  releaseReadmes:
+  - examples/k8s-lease/README.ko.md
+  - examples/k8s-lease/README.md
+- id: examples-k8s-lease-flow-01
+  canonical: examples-k8s-lease-flow-01
+  target: k8s-lease
+  manualPages:
+    en: docs/manual/en/modules/k8s-lease.md
+    ko: docs/manual/ko/modules/k8s-lease.md
+  releaseReadmes:
+  - examples/k8s-lease/README.ko.md
+  - examples/k8s-lease/README.md
+- id: examples-k8s-lease-scenario-01
+  canonical: examples-k8s-lease-scenario-01
+  target: k8s-lease
+  manualPages:
+    en: docs/manual/en/modules/k8s-lease.md
+    ko: docs/manual/ko/modules/k8s-lease.md
+  releaseReadmes:
+  - examples/k8s-lease/README.ko.md
+  - examples/k8s-lease/README.md
+- id: examples-k8s-lease-sequence-01
+  canonical: examples-k8s-lease-sequence-01
+  target: k8s-lease
+  manualPages:
+    en: docs/manual/en/modules/k8s-lease.md
+    ko: docs/manual/ko/modules/k8s-lease.md
+  releaseReadmes:
+  - examples/k8s-lease/README.ko.md
+  - examples/k8s-lease/README.md
+- id: examples-k8s-operator-architecture-01
+  canonical: examples-k8s-operator-architecture-01
+  target: k8s-operator
+  manualPages:
+    en: docs/manual/en/modules/k8s-operator.md
+    ko: docs/manual/ko/modules/k8s-operator.md
+  releaseReadmes:
+  - examples/k8s-operator/README.ko.md
+  - examples/k8s-operator/README.md
+- id: examples-k8s-operator-flow-01
+  canonical: examples-k8s-operator-flow-01
+  target: k8s-operator
+  manualPages:
+    en: docs/manual/en/modules/k8s-operator.md
+    ko: docs/manual/ko/modules/k8s-operator.md
+  releaseReadmes:
+  - examples/k8s-operator/README.ko.md
+  - examples/k8s-operator/README.md
+- id: examples-k8s-operator-scenario-01
+  canonical: examples-k8s-operator-scenario-01
+  target: k8s-operator
+  manualPages:
+    en: docs/manual/en/modules/k8s-operator.md
+    ko: docs/manual/ko/modules/k8s-operator.md
+  releaseReadmes:
+  - examples/k8s-operator/README.ko.md
+  - examples/k8s-operator/README.md
+- id: examples-k8s-operator-sequence-01
+  canonical: examples-k8s-operator-sequence-01
+  target: k8s-operator
+  manualPages:
+    en: docs/manual/en/modules/k8s-operator.md
+    ko: docs/manual/ko/modules/k8s-operator.md
+  releaseReadmes:
+  - examples/k8s-operator/README.ko.md
+  - examples/k8s-operator/README.md
+- id: examples-ktor-app-architecture-01
+  canonical: examples-ktor-app-architecture-01
+  target: ktor-app
+  manualPages:
+    en: docs/manual/en/modules/ktor-app.md
+    ko: docs/manual/ko/modules/ktor-app.md
+  releaseReadmes:
+  - examples/ktor-app/README.ko.md
+  - examples/ktor-app/README.md
+- id: examples-ktor-app-flow-01
+  canonical: examples-ktor-app-flow-01
+  target: ktor-app
+  manualPages:
+    en: docs/manual/en/modules/ktor-app.md
+    ko: docs/manual/ko/modules/ktor-app.md
+  releaseReadmes:
+  - examples/ktor-app/README.ko.md
+  - examples/ktor-app/README.md
+- id: examples-ktor-app-scenario-01
+  canonical: examples-ktor-app-scenario-01
+  target: ktor-app
+  manualPages:
+    en: docs/manual/en/modules/ktor-app.md
+    ko: docs/manual/ko/modules/ktor-app.md
+  releaseReadmes:
+  - examples/ktor-app/README.ko.md
+  - examples/ktor-app/README.md
+- id: examples-ktor-app-sequence-01
+  canonical: examples-ktor-app-sequence-01
+  target: ktor-app
+  manualPages:
+    en: docs/manual/en/modules/ktor-app.md
+    ko: docs/manual/ko/modules/ktor-app.md
+  releaseReadmes:
+  - examples/ktor-app/README.ko.md
+  - examples/ktor-app/README.md
+- id: examples-migration-gate-architecture-01
+  canonical: examples-migration-gate-architecture-01
+  target: migration-gate
+  manualPages:
+    en: docs/manual/en/modules/migration-gate.md
+    ko: docs/manual/ko/modules/migration-gate.md
+  releaseReadmes:
+  - examples/migration-gate/README.ko.md
+  - examples/migration-gate/README.md
+- id: examples-migration-gate-flow-01
+  canonical: examples-migration-gate-flow-01
+  target: migration-gate
+  manualPages:
+    en: docs/manual/en/modules/migration-gate.md
+    ko: docs/manual/ko/modules/migration-gate.md
+  releaseReadmes:
+  - examples/migration-gate/README.ko.md
+  - examples/migration-gate/README.md
+- id: examples-migration-gate-scenario-01
+  canonical: examples-migration-gate-scenario-01
+  target: migration-gate
+  manualPages:
+    en: docs/manual/en/modules/migration-gate.md
+    ko: docs/manual/ko/modules/migration-gate.md
+  releaseReadmes:
+  - examples/migration-gate/README.ko.md
+  - examples/migration-gate/README.md
+- id: examples-migration-gate-sequence-01
+  canonical: examples-migration-gate-sequence-01
+  target: migration-gate
+  manualPages:
+    en: docs/manual/en/modules/migration-gate.md
+    ko: docs/manual/ko/modules/migration-gate.md
+  releaseReadmes:
+  - examples/migration-gate/README.ko.md
+  - examples/migration-gate/README.md
+- id: examples-prometheus-dashboard-architecture-01
+  canonical: examples-prometheus-dashboard-architecture-01
+  target: prometheus-dashboard
+  manualPages:
+    en: docs/manual/en/modules/prometheus-dashboard.md
+    ko: docs/manual/ko/modules/prometheus-dashboard.md
+  releaseReadmes:
+  - examples/prometheus-dashboard/README.ko.md
+  - examples/prometheus-dashboard/README.md
+- id: examples-prometheus-dashboard-flow-01
+  canonical: examples-prometheus-dashboard-flow-01
+  target: prometheus-dashboard
+  manualPages:
+    en: docs/manual/en/modules/prometheus-dashboard.md
+    ko: docs/manual/ko/modules/prometheus-dashboard.md
+  releaseReadmes:
+  - examples/prometheus-dashboard/README.ko.md
+  - examples/prometheus-dashboard/README.md
+- id: examples-prometheus-dashboard-scenario-01
+  canonical: examples-prometheus-dashboard-scenario-01
+  target: prometheus-dashboard
+  manualPages:
+    en: docs/manual/en/modules/prometheus-dashboard.md
+    ko: docs/manual/ko/modules/prometheus-dashboard.md
+  releaseReadmes:
+  - examples/prometheus-dashboard/README.ko.md
+  - examples/prometheus-dashboard/README.md
+- id: examples-prometheus-dashboard-sequence-01
+  canonical: examples-prometheus-dashboard-sequence-01
+  target: prometheus-dashboard
+  manualPages:
+    en: docs/manual/en/modules/prometheus-dashboard.md
+    ko: docs/manual/ko/modules/prometheus-dashboard.md
+  releaseReadmes:
+  - examples/prometheus-dashboard/README.ko.md
+  - examples/prometheus-dashboard/README.md
+- id: examples-rate-limiter-architecture-01
+  canonical: examples-rate-limiter-architecture-01
+  target: rate-limiter
+  manualPages:
+    en: docs/manual/en/modules/rate-limiter.md
+    ko: docs/manual/ko/modules/rate-limiter.md
+  releaseReadmes:
+  - examples/rate-limiter/README.ko.md
+  - examples/rate-limiter/README.md
+- id: examples-rate-limiter-flow-01
+  canonical: examples-rate-limiter-flow-01
+  target: rate-limiter
+  manualPages:
+    en: docs/manual/en/modules/rate-limiter.md
+    ko: docs/manual/ko/modules/rate-limiter.md
+  releaseReadmes:
+  - examples/rate-limiter/README.ko.md
+  - examples/rate-limiter/README.md
+- id: examples-rate-limiter-scenario-01
+  canonical: examples-rate-limiter-scenario-01
+  target: rate-limiter
+  manualPages:
+    en: docs/manual/en/modules/rate-limiter.md
+    ko: docs/manual/ko/modules/rate-limiter.md
+  releaseReadmes:
+  - examples/rate-limiter/README.ko.md
+  - examples/rate-limiter/README.md
+- id: examples-rate-limiter-sequence-01
+  canonical: examples-rate-limiter-sequence-01
+  target: rate-limiter
+  manualPages:
+    en: docs/manual/en/modules/rate-limiter.md
+    ko: docs/manual/ko/modules/rate-limiter.md
+  releaseReadmes:
+  - examples/rate-limiter/README.ko.md
+  - examples/rate-limiter/README.md
+- id: examples-redisson-watchdog-architecture-01
+  canonical: examples-redisson-watchdog-architecture-01
+  target: redisson-watchdog
+  manualPages:
+    en: docs/manual/en/modules/redisson-watchdog.md
+    ko: docs/manual/ko/modules/redisson-watchdog.md
+  releaseReadmes:
+  - examples/redisson-watchdog/README.ko.md
+  - examples/redisson-watchdog/README.md
+- id: examples-redisson-watchdog-flow-01
+  canonical: examples-redisson-watchdog-flow-01
+  target: redisson-watchdog
+  manualPages:
+    en: docs/manual/en/modules/redisson-watchdog.md
+    ko: docs/manual/ko/modules/redisson-watchdog.md
+  releaseReadmes:
+  - examples/redisson-watchdog/README.ko.md
+  - examples/redisson-watchdog/README.md
+- id: examples-redisson-watchdog-scenario-01
+  canonical: examples-redisson-watchdog-scenario-01
+  target: redisson-watchdog
+  manualPages:
+    en: docs/manual/en/modules/redisson-watchdog.md
+    ko: docs/manual/ko/modules/redisson-watchdog.md
+  releaseReadmes:
+  - examples/redisson-watchdog/README.ko.md
+  - examples/redisson-watchdog/README.md
+- id: examples-redisson-watchdog-sequence-01
+  canonical: examples-redisson-watchdog-sequence-01
+  target: redisson-watchdog
+  manualPages:
+    en: docs/manual/en/modules/redisson-watchdog.md
+    ko: docs/manual/ko/modules/redisson-watchdog.md
+  releaseReadmes:
+  - examples/redisson-watchdog/README.ko.md
+  - examples/redisson-watchdog/README.md
+- id: examples-strategic-election-architecture-01
+  canonical: examples-strategic-election-architecture-01
+  target: strategic-election
+  manualPages:
+    en: docs/manual/en/modules/strategic-election.md
+    ko: docs/manual/ko/modules/strategic-election.md
+  releaseReadmes:
+  - examples/strategic-election/README.ko.md
+  - examples/strategic-election/README.md
+- id: examples-strategic-election-flow-01
+  canonical: examples-strategic-election-flow-01
+  target: strategic-election
+  manualPages:
+    en: docs/manual/en/modules/strategic-election.md
+    ko: docs/manual/ko/modules/strategic-election.md
+  releaseReadmes:
+  - examples/strategic-election/README.ko.md
+  - examples/strategic-election/README.md
+- id: examples-strategic-election-scenario-01
+  canonical: examples-strategic-election-scenario-01
+  target: strategic-election
+  manualPages:
+    en: docs/manual/en/modules/strategic-election.md
+    ko: docs/manual/ko/modules/strategic-election.md
+  releaseReadmes:
+  - examples/strategic-election/README.ko.md
+  - examples/strategic-election/README.md
+- id: examples-strategic-election-sequence-01
+  canonical: examples-strategic-election-sequence-01
+  target: strategic-election
+  manualPages:
+    en: docs/manual/en/modules/strategic-election.md
+    ko: docs/manual/ko/modules/strategic-election.md
+  releaseReadmes:
+  - examples/strategic-election/README.ko.md
+  - examples/strategic-election/README.md
+- id: examples-tenant-aggregator-architecture-01
+  canonical: examples-tenant-aggregator-architecture-01
+  target: tenant-aggregator
+  manualPages:
+    en: docs/manual/en/modules/tenant-aggregator.md
+    ko: docs/manual/ko/modules/tenant-aggregator.md
+  releaseReadmes:
+  - examples/tenant-aggregator/README.ko.md
+  - examples/tenant-aggregator/README.md
+- id: examples-tenant-aggregator-flow-01
+  canonical: examples-tenant-aggregator-flow-01
+  target: tenant-aggregator
+  manualPages:
+    en: docs/manual/en/modules/tenant-aggregator.md
+    ko: docs/manual/ko/modules/tenant-aggregator.md
+  releaseReadmes:
+  - examples/tenant-aggregator/README.ko.md
+  - examples/tenant-aggregator/README.md
+- id: examples-tenant-aggregator-scenario-01
+  canonical: examples-tenant-aggregator-scenario-01
+  target: tenant-aggregator
+  manualPages:
+    en: docs/manual/en/modules/tenant-aggregator.md
+    ko: docs/manual/ko/modules/tenant-aggregator.md
+  releaseReadmes:
+  - examples/tenant-aggregator/README.ko.md
+  - examples/tenant-aggregator/README.md
+- id: examples-tenant-aggregator-sequence-01
+  canonical: examples-tenant-aggregator-sequence-01
+  target: tenant-aggregator
+  manualPages:
+    en: docs/manual/en/modules/tenant-aggregator.md
+    ko: docs/manual/ko/modules/tenant-aggregator.md
+  releaseReadmes:
+  - examples/tenant-aggregator/README.ko.md
+  - examples/tenant-aggregator/README.md
+- id: examples-virtual-thread-runner-architecture-01
+  canonical: examples-virtual-thread-runner-architecture-01
+  target: virtual-thread-runner
+  manualPages:
+    en: docs/manual/en/modules/virtual-thread-runner.md
+    ko: docs/manual/ko/modules/virtual-thread-runner.md
+  releaseReadmes:
+  - examples/virtual-thread-runner/README.ko.md
+  - examples/virtual-thread-runner/README.md
+- id: examples-virtual-thread-runner-flow-01
+  canonical: examples-virtual-thread-runner-flow-01
+  target: virtual-thread-runner
+  manualPages:
+    en: docs/manual/en/modules/virtual-thread-runner.md
+    ko: docs/manual/ko/modules/virtual-thread-runner.md
+  releaseReadmes:
+  - examples/virtual-thread-runner/README.ko.md
+  - examples/virtual-thread-runner/README.md
+- id: examples-virtual-thread-runner-scenario-01
+  canonical: examples-virtual-thread-runner-scenario-01
+  target: virtual-thread-runner
+  manualPages:
+    en: docs/manual/en/modules/virtual-thread-runner.md
+    ko: docs/manual/ko/modules/virtual-thread-runner.md
+  releaseReadmes:
+  - examples/virtual-thread-runner/README.ko.md
+  - examples/virtual-thread-runner/README.md
+- id: examples-virtual-thread-runner-sequence-01
+  canonical: examples-virtual-thread-runner-sequence-01
+  target: virtual-thread-runner
+  manualPages:
+    en: docs/manual/en/modules/virtual-thread-runner.md
+    ko: docs/manual/ko/modules/virtual-thread-runner.md
+  releaseReadmes:
+  - examples/virtual-thread-runner/README.ko.md
+  - examples/virtual-thread-runner/README.md
+- id: examples-webhook-poller-architecture-01
+  canonical: examples-webhook-poller-architecture-01
+  target: webhook-poller
+  manualPages:
+    en: docs/manual/en/modules/webhook-poller.md
+    ko: docs/manual/ko/modules/webhook-poller.md
+  releaseReadmes:
+  - examples/webhook-poller/README.ko.md
+  - examples/webhook-poller/README.md
+- id: examples-webhook-poller-flow-01
+  canonical: examples-webhook-poller-flow-01
+  target: webhook-poller
+  manualPages:
+    en: docs/manual/en/modules/webhook-poller.md
+    ko: docs/manual/ko/modules/webhook-poller.md
+  releaseReadmes:
+  - examples/webhook-poller/README.ko.md
+  - examples/webhook-poller/README.md
+- id: examples-webhook-poller-scenario-01
+  canonical: examples-webhook-poller-scenario-01
+  target: webhook-poller
+  manualPages:
+    en: docs/manual/en/modules/webhook-poller.md
+    ko: docs/manual/ko/modules/webhook-poller.md
+  releaseReadmes:
+  - examples/webhook-poller/README.ko.md
+  - examples/webhook-poller/README.md
+- id: examples-webhook-poller-sequence-01
+  canonical: examples-webhook-poller-sequence-01
+  target: webhook-poller
+  manualPages:
+    en: docs/manual/en/modules/webhook-poller.md
+    ko: docs/manual/ko/modules/webhook-poller.md
+  releaseReadmes:
+  - examples/webhook-poller/README.ko.md
+  - examples/webhook-poller/README.md
+- id: examples-zookeeper-scheduler-architecture-01
+  canonical: examples-zookeeper-scheduler-architecture-01
+  target: zookeeper-scheduler
+  manualPages:
+    en: docs/manual/en/modules/zookeeper-scheduler.md
+    ko: docs/manual/ko/modules/zookeeper-scheduler.md
+  releaseReadmes:
+  - examples/zookeeper-scheduler/README.ko.md
+  - examples/zookeeper-scheduler/README.md
+- id: examples-zookeeper-scheduler-flow-01
+  canonical: examples-zookeeper-scheduler-flow-01
+  target: zookeeper-scheduler
+  manualPages:
+    en: docs/manual/en/modules/zookeeper-scheduler.md
+    ko: docs/manual/ko/modules/zookeeper-scheduler.md
+  releaseReadmes:
+  - examples/zookeeper-scheduler/README.ko.md
+  - examples/zookeeper-scheduler/README.md
+- id: examples-zookeeper-scheduler-scenario-01
+  canonical: examples-zookeeper-scheduler-scenario-01
+  target: zookeeper-scheduler
+  manualPages:
+    en: docs/manual/en/modules/zookeeper-scheduler.md
+    ko: docs/manual/ko/modules/zookeeper-scheduler.md
+  releaseReadmes:
+  - examples/zookeeper-scheduler/README.ko.md
+  - examples/zookeeper-scheduler/README.md
+- id: examples-zookeeper-scheduler-sequence-01
+  canonical: examples-zookeeper-scheduler-sequence-01
+  target: zookeeper-scheduler
+  manualPages:
+    en: docs/manual/en/modules/zookeeper-scheduler.md
+    ko: docs/manual/ko/modules/zookeeper-scheduler.md
+  releaseReadmes:
+  - examples/zookeeper-scheduler/README.ko.md
+  - examples/zookeeper-scheduler/README.md
+- id: leader-consul-architecture-01
+  canonical: leader-consul-architecture-01
+  target: bluetape4k-leader-consul
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-consul.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-consul.md
+  releaseReadmes:
+  - leader-consul/README.ko.md
+  - leader-consul/README.md
+- id: leader-consul-sequence-02
+  canonical: leader-consul-sequence-02
+  target: bluetape4k-leader-consul
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-consul.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-consul.md
+  releaseReadmes:
+  - leader-consul/README.ko.md
+  - leader-consul/README.md
+- id: leader-core-class-01
+  canonical: leader-core-class-01
+  target: bluetape4k-leader-core
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-core.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-core.md
+  releaseReadmes:
+  - leader-core/README.ko.md
+  - leader-core/README.md
+- id: leader-core-sequence-02
+  canonical: leader-core-sequence-02
+  target: bluetape4k-leader-core
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-core.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-core.md
+  releaseReadmes:
+  - leader-core/README.ko.md
+  - leader-core/README.md
+- id: leader-core-sequence-03
+  canonical: leader-core-sequence-03
+  target: bluetape4k-leader-core
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-core.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-core.md
+  releaseReadmes:
+  - leader-core/README.ko.md
+  - leader-core/README.md
+- id: leader-dynamodb-architecture-01
+  canonical: leader-dynamodb-architecture-01
+  target: bluetape4k-leader-dynamodb
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-dynamodb.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-dynamodb.md
+  releaseReadmes:
+  - leader-dynamodb/README.ko.md
+  - leader-dynamodb/README.md
+- id: leader-dynamodb-sequence-02
+  canonical: leader-dynamodb-sequence-02
+  target: bluetape4k-leader-dynamodb
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-dynamodb.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-dynamodb.md
+  releaseReadmes:
+  - leader-dynamodb/README.ko.md
+  - leader-dynamodb/README.md
+- id: leader-etcd-architecture-01
+  canonical: leader-etcd-architecture-01
+  target: bluetape4k-leader-etcd
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-etcd.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-etcd.md
+  releaseReadmes:
+  - leader-etcd/README.ko.md
+  - leader-etcd/README.md
+- id: leader-exposed-core-erd-01
+  canonical: leader-exposed-core-erd-01
+  target: bluetape4k-leader-exposed-core
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-exposed-core.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-exposed-core.md
+  releaseReadmes:
+  - leader-exposed-core/README.ko.md
+  - leader-exposed-core/README.md
+- id: leader-exposed-jdbc-class-01
+  canonical: leader-exposed-jdbc-class-01
+  target: bluetape4k-leader-exposed-jdbc
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-exposed-jdbc.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-exposed-jdbc.md
+  releaseReadmes:
+  - leader-exposed-jdbc/README.ko.md
+  - leader-exposed-jdbc/README.md
+- id: leader-exposed-r2dbc-class-01
+  canonical: leader-exposed-r2dbc-class-01
+  target: bluetape4k-leader-exposed-r2dbc
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-exposed-r2dbc.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-exposed-r2dbc.md
+  releaseReadmes:
+  - leader-exposed-r2dbc/README.ko.md
+  - leader-exposed-r2dbc/README.md
+- id: leader-hazelcast-class-01
+  canonical: leader-hazelcast-class-01
+  target: bluetape4k-leader-hazelcast
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-hazelcast.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-hazelcast.md
+  releaseReadmes:
+  - leader-hazelcast/README.ko.md
+  - leader-hazelcast/README.md
+- id: leader-hazelcast-sequence-02
+  canonical: leader-hazelcast-sequence-02
+  target: bluetape4k-leader-hazelcast
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-hazelcast.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-hazelcast.md
+  releaseReadmes:
+  - leader-hazelcast/README.ko.md
+  - leader-hazelcast/README.md
+- id: leader-hazelcast-sequence-03
+  canonical: leader-hazelcast-sequence-03
+  target: bluetape4k-leader-hazelcast
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-hazelcast.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-hazelcast.md
+  releaseReadmes:
+  - leader-hazelcast/README.ko.md
+  - leader-hazelcast/README.md
+- id: leader-k8s-architecture-01
+  canonical: leader-k8s-architecture-01
+  target: bluetape4k-leader-k8s
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-k8s.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-k8s.md
+  releaseReadmes:
+  - leader-k8s/README.ko.md
+  - leader-k8s/README.md
+- id: leader-k8s-sequence-02
+  canonical: leader-k8s-sequence-02
+  target: bluetape4k-leader-k8s
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-k8s.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-k8s.md
+  releaseReadmes:
+  - leader-k8s/README.ko.md
+  - leader-k8s/README.md
+- id: leader-ktor-architecture-01
+  canonical: leader-ktor-architecture-01
+  target: bluetape4k-leader-ktor
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-ktor.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-ktor.md
+  releaseReadmes:
+  - leader-ktor/README.ko.md
+  - leader-ktor/README.md
+- id: leader-ktor-sequence-01
+  canonical: leader-ktor-sequence-01
+  target: bluetape4k-leader-ktor
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-ktor.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-ktor.md
+  releaseReadmes:
+  - leader-ktor/README.ko.md
+  - leader-ktor/README.md
+- id: leader-micrometer-architecture-01
+  canonical: leader-micrometer-architecture-01
+  target: bluetape4k-leader-micrometer
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-micrometer.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-micrometer.md
+  releaseReadmes:
+  - leader-micrometer/README.ko.md
+  - leader-micrometer/README.md
+- id: leader-mongodb-class-01
+  canonical: leader-mongodb-class-01
+  target: bluetape4k-leader-mongodb
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-mongodb.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-mongodb.md
+  releaseReadmes:
+  - leader-mongodb/README.ko.md
+  - leader-mongodb/README.md
+- id: leader-redis-lettuce-class-01
+  canonical: leader-redis-lettuce-class-01
+  target: bluetape4k-leader-redis-lettuce
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-redis-lettuce.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-redis-lettuce.md
+  releaseReadmes:
+  - leader-redis-lettuce/README.ko.md
+  - leader-redis-lettuce/README.md
+- id: leader-redis-lettuce-sequence-02
+  canonical: leader-redis-lettuce-sequence-02
+  target: bluetape4k-leader-redis-lettuce
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-redis-lettuce.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-redis-lettuce.md
+  releaseReadmes:
+  - leader-redis-lettuce/README.ko.md
+  - leader-redis-lettuce/README.md
+- id: leader-redis-lettuce-sequence-03
+  canonical: leader-redis-lettuce-sequence-03
+  target: bluetape4k-leader-redis-lettuce
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-redis-lettuce.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-redis-lettuce.md
+  releaseReadmes:
+  - leader-redis-lettuce/README.ko.md
+  - leader-redis-lettuce/README.md
+- id: leader-redis-redisson-class-01
+  canonical: leader-redis-redisson-class-01
+  target: bluetape4k-leader-redis-redisson
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-redis-redisson.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-redis-redisson.md
+  releaseReadmes:
+  - leader-redis-redisson/README.ko.md
+  - leader-redis-redisson/README.md
+- id: leader-redis-redisson-sequence-02
+  canonical: leader-redis-redisson-sequence-02
+  target: bluetape4k-leader-redis-redisson
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-redis-redisson.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-redis-redisson.md
+  releaseReadmes:
+  - leader-redis-redisson/README.ko.md
+  - leader-redis-redisson/README.md
+- id: leader-redis-redisson-sequence-03
+  canonical: leader-redis-redisson-sequence-03
+  target: bluetape4k-leader-redis-redisson
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-redis-redisson.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-redis-redisson.md
+  releaseReadmes:
+  - leader-redis-redisson/README.ko.md
+  - leader-redis-redisson/README.md
+- id: leader-spring-boot-architecture-01
+  canonical: leader-spring-boot-architecture-01
+  target: bluetape4k-leader-spring-boot
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-spring-boot.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-spring-boot.md
+  releaseReadmes:
+  - leader-spring-boot/README.ko.md
+  - leader-spring-boot/README.md
+- id: leader-spring-boot-sequence-01
+  canonical: leader-spring-boot-sequence-01
+  target: bluetape4k-leader-spring-boot
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-spring-boot.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-spring-boot.md
+  releaseReadmes:
+  - leader-spring-boot/README.ko.md
+  - leader-spring-boot/README.md
+- id: leader-spring-boot-sequence-02
+  canonical: leader-spring-boot-sequence-02
+  target: bluetape4k-leader-spring-boot
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-spring-boot.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-spring-boot.md
+  releaseReadmes:
+  - leader-spring-boot/README.ko.md
+  - leader-spring-boot/README.md
+- id: leader-zookeeper-class-01
+  canonical: leader-zookeeper-class-01
+  target: bluetape4k-leader-zookeeper
+  manualPages:
+    en: docs/manual/en/modules/bluetape4k-leader-zookeeper.md
+    ko: docs/manual/ko/modules/bluetape4k-leader-zookeeper.md
+  releaseReadmes:
+  - leader-zookeeper/README.ko.md
+  - leader-zookeeper/README.md
+- id: root-readme-overview-01
+  canonical: root-readme-overview-01
+  target: overview
+  manualPages:
+    en: docs/manual/en/architecture/repository-map.md
+    ko: docs/manual/ko/architecture/repository-map.md
+  releaseReadmes:
+  - README.ko.md
+  - README.md

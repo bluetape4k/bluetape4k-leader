@@ -81,6 +81,19 @@ zookeeper-scheduler를 실행한 뒤 session 기반 소유권을 TTL 기반 Redi
 
 `leaseTime` 시점에 고정적으로 해제된다는 보장은 없고 session timeout이 결정합니다. ZooKeeper 소유권도 외부 부수 효과를 fence하지 못합니다.
 
+<!-- release-readme-diagrams:start -->
+## 배포본 다이어그램 {#release-diagrams}
+
+아래 그림은 현재 개발 브랜치가 아니라 `0.4.0` 배포 태그의 README 자산을 바이트 단위로 그대로 옮긴 것입니다. 따라서 이후 SNAPSHOT 변경이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 SVG 원본이 열립니다.
+
+### leader zookeeper 클래스 구조도
+
+[![leader zookeeper 클래스 구조도](../../assets/readme-diagrams/leader-zookeeper-class-01.png)](../../assets/readme-diagrams/leader-zookeeper-class-01.svg)
+
+_배포본 README: [`leader-zookeeper/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-zookeeper/README.ko.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## 근거 자료 {#sources}
 
 [Elector](../../../../leader-zookeeper/src/main/kotlin/io/bluetape4k/leader/zookeeper/ZooKeeperLeaderElector.kt) · [Suspend elector](../../../../leader-zookeeper/src/main/kotlin/io/bluetape4k/leader/zookeeper/ZooKeeperSuspendLeaderElector.kt) · [안정판 안내](../../../../leader-zookeeper/README.ko.md)

@@ -80,6 +80,19 @@ Compare JDBC, then run migration-gate and the Ktor example to see lifecycle inte
 
 R2DBC removes blocked threads, not database round trips or database availability risk.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### leader exposed r2dbc Class Structure diagram
+
+[![leader exposed r2dbc Class Structure diagram](../../assets/readme-diagrams/leader-exposed-r2dbc-class-01.png)](../../assets/readme-diagrams/leader-exposed-r2dbc-class-01.svg)
+
+_Release README: [`leader-exposed-r2dbc/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-exposed-r2dbc/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 [Elector](../../../../leader-exposed-r2dbc/src/main/kotlin/io/bluetape4k/leader/exposed/r2dbc/ExposedR2DbcSuspendLeaderElector.kt) · [Initializer](../../../../leader-exposed-r2dbc/src/main/kotlin/io/bluetape4k/leader/exposed/r2dbc/lock/ExposedR2dbcSchemaInitializer.kt) · [Stable guide](../../../../leader-exposed-r2dbc/README.md)

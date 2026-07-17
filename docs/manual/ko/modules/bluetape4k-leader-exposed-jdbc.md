@@ -80,6 +80,19 @@ DB 지연, 연결 풀 포화, 재시도, 정리 작업, 인덱스, 시계 일관
 
 모든 락 획득 요청이 DB를 거칩니다. 따로 설계하지 않으면 리스와 업무 처리가 하나의 트랜잭션으로 묶이지 않습니다.
 
+<!-- release-readme-diagrams:start -->
+## 배포본 다이어그램 {#release-diagrams}
+
+아래 그림은 현재 개발 브랜치가 아니라 `0.4.0` 배포 태그의 README 자산을 바이트 단위로 그대로 옮긴 것입니다. 따라서 이후 SNAPSHOT 변경이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 SVG 원본이 열립니다.
+
+### leader exposed jdbc 클래스 구조도
+
+[![leader exposed jdbc 클래스 구조도](../../assets/readme-diagrams/leader-exposed-jdbc-class-01.png)](../../assets/readme-diagrams/leader-exposed-jdbc-class-01.svg)
+
+_배포본 README: [`leader-exposed-jdbc/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-exposed-jdbc/README.ko.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## 근거 자료 {#sources}
 
 [Elector](../../../../leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/ExposedJdbcLeaderElector.kt) · [Initializer](../../../../leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/lock/ExposedJdbcSchemaInitializer.kt) · [안정판 안내](../../../../leader-exposed-jdbc/README.ko.md)

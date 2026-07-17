@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="860" viewBox="0 0 1240 860" role="img" aria-labelledby="title desc">
+  <title id="title">leader-exposed-r2dbc Class Structure</title>
+  <desc id="desc">Class structure for coroutine-native R2DBC leader election built on Exposed suspend transactions, insert-ignore acquisition, token fencing, and history recording.</desc>
+  <defs>
+    <filter id="shadow" x="-12%" y="-16%" width="124%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#64748b" flood-opacity="0.13"/>
+    </filter>
+    <marker id="arrowBlue" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#2563eb" stroke="#2563eb" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669" stroke="#059669" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c3aed" stroke="#7c3aed" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="hollowTri" viewBox="0 0 18 16" markerWidth="18" markerHeight="16" refX="16" refY="8" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 16 8 L 1 15 Z" fill="#ffffff" stroke="#334155" stroke-width="1.7" stroke-dasharray="none" style="stroke-dasharray:none"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: "Comic Mono"; fill: #263244; }
+    .title { font-family: "Architects Daughter"; font-size: 34px; fill: #172033; }
+    .subtitle { font-size: 13px; fill: #64748b; }
+    .panel-label { font-family: "Architects Daughter"; font-size: 18px; fill: #334155; }
+    .card-title { font-family: "Architects Daughter"; font-size: 16px; fill: #172033; }
+    .stereo { font-size: 10px; fill: #64748b; }
+    .member { font-size: 11px; fill: #475569; }
+    .footer { font-size: 11px; fill: #64748b; }
+    .frame { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.4; filter: url(#shadow); }
+    .panel { fill: #f8fafc; stroke: #dbe4f0; stroke-width: 1.2; }
+    .contract { fill: #eff6ff; stroke: #93c5fd; }
+    .adapter { fill: #f0fdfa; stroke: #5eead4; }
+    .runtime { fill: #fff7ed; stroke: #fdba74; }
+    .table { fill: #fdf2f8; stroke: #f9a8d4; }
+    .history { fill: #faf5ff; stroke: #c4b5fd; }
+    .divider { stroke: rgba(100,116,139,0.35); stroke-width: 1; }
+    .impl { stroke: #334155; stroke-width: 1.2; fill: none; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#hollowTri); }
+    .uses { stroke: #2563eb; stroke-width: 1.45; fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 6 5; marker-end: url(#arrowBlue); }
+    .data { stroke: #16a34a; stroke-width: 1.45; fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 6 5; marker-end: url(#arrowGreen); }
+    .audit { stroke: #7c3aed; stroke-width: 1.35; fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5 5; marker-end: url(#arrowPurple); }
+  </style>
+
+  <rect width="1240" height="860" fill="#f6f8fb"/>
+  <rect class="frame" x="34" y="30" width="1172" height="790" rx="18"/>
+  <text class="title" x="620" y="76" text-anchor="middle">leader-exposed-r2dbc Class Structure</text>
+  <text class="subtitle" x="620" y="102" text-anchor="middle">Coroutine-native electors use Exposed suspendTransaction, insert-ignore acquisition, and token-guarded TTL rows.</text>
+
+  <rect class="panel" x="64" y="138" width="300" height="552" rx="14"/>
+  <rect class="panel" x="410" y="138" width="404" height="552" rx="14"/>
+  <rect class="panel" x="860" y="138" width="300" height="552" rx="14"/>
+  <text class="panel-label" x="214" y="168" text-anchor="middle">suspend contracts</text>
+  <text class="panel-label" x="612" y="168" text-anchor="middle">R2DBC adapters</text>
+  <text class="panel-label" x="1010" y="168" text-anchor="middle">Exposed runtime tables</text>
+
+  <g id="SuspendLeaderElector" transform="translate(94 210)">
+    <rect class="contract" width="240" height="84" rx="6"/>
+    <text class="stereo" x="120" y="18" text-anchor="middle">&lt;&lt;interface&gt;&gt;</text>
+    <text class="card-title" x="120" y="40" text-anchor="middle">SuspendLeaderElector</text>
+    <line class="divider" x1="0" y1="56" x2="240" y2="56"/>
+    <text class="member" x="16" y="74">+ suspend runIfLeader()</text>
+  </g>
+  <g id="SuspendLeaderGroup" transform="translate(94 348)">
+    <rect class="contract" width="240" height="84" rx="6"/>
+    <text class="stereo" x="120" y="18" text-anchor="middle">&lt;&lt;interface&gt;&gt;</text>
+    <text class="card-title" x="120" y="40" text-anchor="middle">SuspendLeaderGroupElector</text>
+    <line class="divider" x1="0" y1="56" x2="240" y2="56"/>
+    <text class="member" x="16" y="74">+ suspend group slots</text>
+  </g>
+  <g id="SuspendFactories" transform="translate(94 506)">
+    <rect class="contract" width="240" height="84" rx="6"/>
+    <text class="stereo" x="120" y="18" text-anchor="middle">&lt;&lt;SPI&gt;&gt;</text>
+    <text class="card-title" x="120" y="40" text-anchor="middle">Suspend factories</text>
+    <line class="divider" x1="0" y1="56" x2="240" y2="56"/>
+    <text class="member" x="16" y="74">+ suspend create(options)</text>
+  </g>
+
+  <g id="R2dbcSingle" transform="translate(442 198)">
+    <rect class="adapter" width="160" height="126" rx="6"/>
+    <text class="card-title" x="80" y="24" text-anchor="middle">ExposedR2Dbc</text>
+    <text class="card-title" x="80" y="41" text-anchor="middle">SuspendLeader</text>
+    <text class="card-title" x="80" y="58" text-anchor="middle">Elector</text>
+    <line class="divider" x1="0" y1="70" x2="160" y2="70"/>
+    <text class="member" x="14" y="88">- R2dbcDatabase</text>
+    <text class="member" x="14" y="106">- RetryStrategy</text>
+    <line class="divider" x1="0" y1="114" x2="160" y2="114"/>
+    <text class="member" x="14" y="122">+ suspend lock</text>
+  </g>
+  <g id="R2dbcGroup" transform="translate(624 198)">
+    <rect class="adapter" width="160" height="126" rx="6"/>
+    <text class="card-title" x="80" y="24" text-anchor="middle">ExposedR2Dbc</text>
+    <text class="card-title" x="80" y="41" text-anchor="middle">SuspendGroup</text>
+    <text class="card-title" x="80" y="58" text-anchor="middle">Elector</text>
+    <line class="divider" x1="0" y1="70" x2="160" y2="70"/>
+    <text class="member" x="14" y="88">- maxLeaders</text>
+    <text class="member" x="14" y="106">- slot scan</text>
+    <line class="divider" x1="0" y1="114" x2="160" y2="114"/>
+    <text class="member" x="14" y="122">+ suspend slots</text>
+  </g>
+  <g id="R2dbcFactories" transform="translate(442 396)">
+    <rect class="adapter" width="160" height="94" rx="6"/>
+    <text class="card-title" x="80" y="27" text-anchor="middle">R2DBC factory</text>
+    <text class="card-title" x="80" y="44" text-anchor="middle">adapters</text>
+    <line class="divider" x1="0" y1="58" x2="160" y2="58"/>
+    <text class="member" x="14" y="77">single + group SPI</text>
+  </g>
+  <g id="R2dbcDelegates" transform="translate(624 396)">
+    <rect class="runtime" width="160" height="94" rx="6"/>
+    <text class="card-title" x="80" y="27" text-anchor="middle">Suspend extend</text>
+    <text class="card-title" x="80" y="44" text-anchor="middle">delegates</text>
+    <line class="divider" x1="0" y1="58" x2="160" y2="58"/>
+    <text class="member" x="14" y="77">lock + slot TTL</text>
+  </g>
+  <g id="SuspendTx" transform="translate(490 562)">
+    <rect class="runtime" width="246" height="78" rx="6"/>
+    <text class="card-title" x="123" y="27" text-anchor="middle">suspendTransaction boundary</text>
+    <line class="divider" x1="0" y1="42" x2="246" y2="42"/>
+    <text class="member" x="14" y="62">no blocking pool; delay outside transaction</text>
+  </g>
+
+  <g id="R2dbcLock" transform="translate(890 198)">
+    <rect class="runtime" width="240" height="86" rx="6"/>
+    <text class="card-title" x="120" y="28" text-anchor="middle">ExposedR2dbcLock</text>
+    <line class="divider" x1="0" y1="44" x2="240" y2="44"/>
+    <text class="member" x="14" y="64">UPDATE expired -> insertIgnore -> SELECT</text>
+  </g>
+  <g id="R2dbcGroupLock" transform="translate(890 320)">
+    <rect class="runtime" width="240" height="86" rx="6"/>
+    <text class="card-title" x="120" y="28" text-anchor="middle">ExposedR2dbcGroupLock</text>
+    <line class="divider" x1="0" y1="44" x2="240" y2="44"/>
+    <text class="member" x="14" y="64">composite PK slot locks</text>
+  </g>
+  <g id="R2dbcTables" transform="translate(890 442)">
+    <rect class="table" width="240" height="110" rx="6"/><image data-bluetape4k-icon="database" data-icon-source="generic/database-server.svg" x="10" y="8" width="19.8" height="19.8" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiB2aWV3Qm94PSIwIDAgMTI4IDEyOCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsbGVkYnk9InRpdGxlIGRlc2MiPgogIDx0aXRsZSBpZD0idGl0bGUiPkdlbmVyaWMgZGF0YWJhc2Ugc2VydmVyIGljb248L3RpdGxlPgogIDxkZXNjIGlkPSJkZXNjIj5HZW5lcmljIGRhdGFiYXNlIHNlcnZlciBpY29uIGZvciBibHVldGFwZTRrIGRpYWdyYW1zLjwvZGVzYz4KICA8cmVjdCB4PSIxMCIgeT0iOCIgd2lkdGg9IjEwOCIgaGVpZ2h0PSIxMTIiIHJ4PSIxOCIgZmlsbD0iI2ZmZmFmMiIgc3Ryb2tlPSIjMjg0ODVhIiBzdHJva2Utd2lkdGg9IjYiLz4KICA8ZWxsaXBzZSBjeD0iNjQiIGN5PSIzNiIgcng9IjM0IiByeT0iMTMiIGZpbGw9IiNmZmYwZDgiIHN0cm9rZT0iIzhjNmYzMyIgc3Ryb2tlLXdpZHRoPSI2Ii8+CiAgPHBhdGggZD0iTTMwIDM2djQ0YzAgOCAxNSAxNCAzNCAxNHMzNC02IDM0LTE0VjM2IiBmaWxsPSIjZmZmMGQ4IiBzdHJva2U9IiM4YzZmMzMiIHN0cm9rZS13aWR0aD0iNiIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogIDxlbGxpcHNlIGN4PSI2NCIgY3k9IjM2IiByeD0iMzQiIHJ5PSIxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOGM2ZjMzIiBzdHJva2Utd2lkdGg9IjUiLz4KICA8cGF0aCBkPSJNMzAgNThjMCA4IDE1IDE0IDM0IDE0czM0LTYgMzQtMTQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzhjNmYzMyIgc3Ryb2tlLXdpZHRoPSI1IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8cGF0aCBkPSJNMzAgODBjMCA4IDE1IDE0IDM0IDE0czM0LTYgMzQtMTQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzhjNmYzMyIgc3Ryb2tlLXdpZHRoPSI1IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPC9zdmc+Cg==" preserveAspectRatio="xMidYMid meet"/>
+    <text class="card-title" x="120" y="28" text-anchor="middle">ExposedLeaderSchema</text>
+    <line class="divider" x1="0" y1="44" x2="240" y2="44"/>
+    <text class="member" x="14" y="64">LeaderLockTable: token + TTL</text>
+    <text class="member" x="14" y="82">LeaderGroupLockTable: lockName+slot</text>
+    <text class="member" x="14" y="100">SchemaInitializer: Mutex guard</text>
+  </g>
+  <g id="R2dbcHistory" transform="translate(890 588)">
+    <rect class="history" width="240" height="70" rx="6"/>
+    <text class="card-title" x="120" y="27" text-anchor="middle">ExposedSuspendHistorySink</text>
+    <line class="divider" x1="0" y1="42" x2="240" y2="42"/>
+    <text class="member" x="14" y="60">best-effort suspend audit log</text>
+  </g>
+
+  <path class="impl" d="M 442 260 L 334 260"/>
+  <path class="impl" d="M 624 314 L 614 314 Q 602 314 602 326 L 602 340 Q 602 352 590 352 L 392 352 Q 384 352 384 360 L 384 382 Q 384 390 376 390 L 334 390"/>
+  <path class="impl" d="M 442 478 L 396 478 Q 384 478 384 490 L 384 536 Q 384 548 372 548 L 334 548"/>
+  <path class="uses" d="M 602 241 L 614 241 Q 624 241 624 231 L 624 180 Q 624 168 636 168 L 878 168 Q 890 168 890 180 L 890 198"/>
+  <path class="uses" d="M 784 260 L 820 260 Q 838 260 838 278 L 838 345.67 Q 838 363 855.33 363 L 890 363"/>
+  <path class="uses" d="M 522 490 L 522 519.33 Q 522 532 534.67 532 L 550 532 Q 560 532 560 542 L 560 562"/>
+  <path class="uses" d="M 704 490 L 704 518 Q 704 532 690 532 L 670 532 Q 660 532 660 542 L 660 562"/>
+  <path class="audit" d="M 736 601 L 842 601 Q 850 601 850 609 L 850 615 Q 850 623 858 623 L 890 623"/>
+
+  <g transform="translate(82 724)">
+    <rect fill="#f8fafc" stroke="#dbe4f0" width="1076" height="58" rx="12"/>
+    <text class="footer" x="538" y="24" text-anchor="middle">github.com/bluetape4k/bluetape4k-leader / leader-exposed-r2dbc</text>
+    <text class="footer" x="538" y="43" text-anchor="middle">R2DBC path: suspendTransaction with insertIgnore, token-guarded unlock, and TTL extension.</text>
+  </g>
+</svg>

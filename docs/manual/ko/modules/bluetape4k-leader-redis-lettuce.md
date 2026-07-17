@@ -80,6 +80,31 @@ strategic-election으로 후보 점수 방식을, rate-limiter로 그룹 슬롯�
 
 Redis 가용성과 failover 의미가 job 경로에 들어옵니다. Redis token은 외부 DB의 fencing이 아닙니다.
 
+<!-- release-readme-diagrams:start -->
+## 배포본 다이어그램 {#release-diagrams}
+
+아래 그림은 현재 개발 브랜치가 아니라 `0.4.0` 배포 태그의 README 자산을 바이트 단위로 그대로 옮긴 것입니다. 따라서 이후 SNAPSHOT 변경이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 SVG 원본이 열립니다.
+
+### Lettuce Redis leader contract 지도
+
+[![Lettuce Redis leader contract 지도](../../assets/readme-diagrams/leader-redis-lettuce-class-01.png)](../../assets/readme-diagrams/leader-redis-lettuce-class-01.svg)
+
+_배포본 README: [`leader-redis-lettuce/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/README.ko.md)_
+
+### Lettuce slot-token acquire release and crash recovery 흐름
+
+[![Lettuce slot-token acquire release and crash recovery 흐름](../../assets/readme-diagrams/leader-redis-lettuce-sequence-02.png)](../../assets/readme-diagrams/leader-redis-lettuce-sequence-02.svg)
+
+_배포본 README: [`leader-redis-lettuce/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/README.ko.md)_
+
+### Lettuce minLeaseTime backend TTL delegation 흐름
+
+[![Lettuce minLeaseTime backend TTL delegation 흐름](../../assets/readme-diagrams/leader-redis-lettuce-sequence-03.png)](../../assets/readme-diagrams/leader-redis-lettuce-sequence-03.svg)
+
+_배포본 README: [`leader-redis-lettuce/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/README.ko.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## 근거 자료 {#sources}
 
 [Elector](../../../../leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceLeaderElector.kt) · [Lua 지원](../../../../leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/script/RedisScript.kt) · [안정판 안내](../../../../leader-redis-lettuce/README.ko.md)

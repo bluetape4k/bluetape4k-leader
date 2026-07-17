@@ -80,6 +80,19 @@ JDBC와 비교한 뒤 migration-gate와 Ktor 예제에서 생명주기 통합을
 
 R2DBC는 막힌 스레드를 줄이지만 DB 왕복과 가용성 위험을 없애지는 않습니다.
 
+<!-- release-readme-diagrams:start -->
+## 배포본 다이어그램 {#release-diagrams}
+
+아래 그림은 현재 개발 브랜치가 아니라 `0.4.0` 배포 태그의 README 자산을 바이트 단위로 그대로 옮긴 것입니다. 따라서 이후 SNAPSHOT 변경이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 SVG 원본이 열립니다.
+
+### leader exposed r2dbc 클래스 구조도
+
+[![leader exposed r2dbc 클래스 구조도](../../assets/readme-diagrams/leader-exposed-r2dbc-class-01.png)](../../assets/readme-diagrams/leader-exposed-r2dbc-class-01.svg)
+
+_배포본 README: [`leader-exposed-r2dbc/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-exposed-r2dbc/README.ko.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## 근거 자료 {#sources}
 
 [Elector](../../../../leader-exposed-r2dbc/src/main/kotlin/io/bluetape4k/leader/exposed/r2dbc/ExposedR2DbcSuspendLeaderElector.kt) · [Initializer](../../../../leader-exposed-r2dbc/src/main/kotlin/io/bluetape4k/leader/exposed/r2dbc/lock/ExposedR2dbcSchemaInitializer.kt) · [안정판 안내](../../../../leader-exposed-r2dbc/README.ko.md)

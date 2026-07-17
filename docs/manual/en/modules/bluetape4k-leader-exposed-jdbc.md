@@ -80,6 +80,19 @@ Run migration-gate, compare R2DBC, then use batch-scheduler for a Spring job.
 
 The database is on every acquire path. Lease and business action are not one transaction unless explicitly designed that way.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### leader exposed jdbc Class Structure diagram
+
+[![leader exposed jdbc Class Structure diagram](../../assets/readme-diagrams/leader-exposed-jdbc-class-01.png)](../../assets/readme-diagrams/leader-exposed-jdbc-class-01.svg)
+
+_Release README: [`leader-exposed-jdbc/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-exposed-jdbc/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 [Elector](../../../../leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/ExposedJdbcLeaderElector.kt) · [Initializer](../../../../leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/lock/ExposedJdbcSchemaInitializer.kt) · [Stable guide](../../../../leader-exposed-jdbc/README.md)

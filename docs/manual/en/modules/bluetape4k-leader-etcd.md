@@ -85,6 +85,19 @@ Run etcd-reconciler, then compare etcd leases with Consul sessions and Kubernete
 
 Preview API may evolve. etcd availability is now on the job path; a lease is not a business-side fencing token.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### leader-etcd architecture diagram
+
+[![leader-etcd architecture diagram](../../assets/readme-diagrams/leader-etcd-architecture-01.png)](../../assets/readme-diagrams/leader-etcd-architecture-01.svg)
+
+_Release README: [`leader-etcd/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-etcd/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 [Elector](../../../../leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdLeaderElector.kt) · [Options](../../../../leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdLeaderElectionOptions.kt) · [Stable guide](../../../../leader-etcd/README.md)

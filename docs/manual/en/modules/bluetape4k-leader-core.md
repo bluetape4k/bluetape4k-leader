@@ -82,6 +82,31 @@ Read the lifecycle and model-selection guides, then run batch-scheduler and stra
 
 Local electors coordinate only one JVM. A distributed lease cannot roll back external side effects; use idempotency or fencing where duplicates are unsafe.
 
+<!-- release-readme-diagrams:start -->
+## Release diagrams {#release-diagrams}
+
+These diagrams are copied byte-for-byte from README assets in the `0.4.0` release tag. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG source.
+
+### leader-core API contract map
+
+[![leader-core API contract map](../../assets/readme-diagrams/leader-core-class-01.png)](../../assets/readme-diagrams/leader-core-class-01.svg)
+
+_Release README: [`leader-core/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-core/README.md)_
+
+### Single-leader runIfLeader flow
+
+[![Single-leader runIfLeader flow](../../assets/readme-diagrams/leader-core-sequence-02.png)](../../assets/readme-diagrams/leader-core-sequence-02.svg)
+
+_Release README: [`leader-core/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-core/README.md)_
+
+### Group-leader slot flow
+
+[![Group-leader slot flow](../../assets/readme-diagrams/leader-core-sequence-03.png)](../../assets/readme-diagrams/leader-core-sequence-03.svg)
+
+_Release README: [`leader-core/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-core/README.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## Sources {#sources}
 
 [Core contract](../../../../leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderElector.kt) · [Options](../../../../leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderElectionOptions.kt) · [Contract test](../../../../leader-core/src/test/kotlin/io/bluetape4k/leader/LeaderRunResultTest.kt)

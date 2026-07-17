@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 840" width="1280" height="840" role="img" aria-labelledby="title desc">
+  <title id="title">leader-zookeeper class structure</title>
+  <desc id="desc">Class diagram showing ZooKeeper Curator-backed leader electors, core contracts, Curator recipes, session semantics, and extension delegates.</desc>
+  <style>
+    text { font-family: 'Architects Daughter', 'Comic Mono'; letter-spacing: 0; }
+    .title { font-size: 28px; font-weight: 700; fill: #111827; }
+    .subtitle { font-size: 14px; fill: #4b5563; }
+    .section { font-size: 15px; font-weight: 700; fill: #374151; }
+    .card-title { font-size: 16px; font-weight: 700; fill: #111827; }
+    .card-sub { font-size: 12px; fill: #4b5563; }
+    .mono { font-family: 'Comic Mono', 'Architects Daughter'; font-size: 12px; fill: #374151; }
+    .tiny { font-size: 11px; fill: #6b7280; }
+    .badge { font-size: 11px; font-weight: 700; }
+    .footer { font-size: 12px; fill: #6b7280; }
+    .dash { stroke-dasharray: 7 5; }
+  </style>
+  <defs>
+    <marker id="useArrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#ea580c" stroke="#ea580c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="sessionArrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669" stroke="#059669" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+  </defs>
+
+  <rect width="1280" height="840" fill="#f8fafc"/>
+  <rect x="28" y="24" width="1224" height="764" rx="18" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+
+  <text x="52" y="66" class="title">leader-zookeeper class structure</text>
+  <text x="52" y="92" class="subtitle">Curator recipes provide ownership: InterProcessMutex for one leader, InterProcessSemaphoreV2 for bounded groups.</text>
+
+  <rect x="52" y="124" width="300" height="600" rx="12" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+  <text x="72" y="154" class="section">Core contracts</text>
+  <g transform="translate(78 184)">
+    <rect width="230" height="54" rx="8" fill="#ffffff" stroke="#93c5fd" stroke-width="1.4"/>
+    <text x="115" y="20" text-anchor="middle" class="tiny">&lt;&lt;interface&gt;&gt;</text>
+    <text x="115" y="40" text-anchor="middle" class="card-title">LeaderElector</text>
+  </g>
+  <g transform="translate(78 260)">
+    <rect width="230" height="54" rx="8" fill="#ffffff" stroke="#93c5fd" stroke-width="1.4"/>
+    <text x="115" y="20" text-anchor="middle" class="tiny">&lt;&lt;interface&gt;&gt;</text>
+    <text x="115" y="40" text-anchor="middle" class="card-title">LeaderGroupElector</text>
+  </g>
+  <g transform="translate(78 336)">
+    <rect width="230" height="54" rx="8" fill="#ffffff" stroke="#93c5fd" stroke-width="1.4"/>
+    <text x="115" y="20" text-anchor="middle" class="tiny">&lt;&lt;interface&gt;&gt;</text>
+    <text x="115" y="40" text-anchor="middle" class="card-title">SuspendLeaderElector</text>
+  </g>
+  <g transform="translate(78 412)">
+    <rect width="230" height="54" rx="8" fill="#ffffff" stroke="#93c5fd" stroke-width="1.4"/>
+    <text x="115" y="20" text-anchor="middle" class="tiny">&lt;&lt;interface&gt;&gt;</text>
+    <text x="115" y="40" text-anchor="middle" class="card-title">SuspendLeaderGroup</text>
+  </g>
+  <g transform="translate(78 532)">
+    <rect width="230" height="116" rx="8" fill="#dbeafe" stroke="#60a5fa" stroke-width="1.4"/>
+    <text x="115" y="28" text-anchor="middle" class="card-title">Factories</text>
+    <text x="18" y="58" class="mono">ZooKeeperLeaderFactory</text>
+    <text x="18" y="80" class="mono">ZooKeeperGroupFactory</text>
+    <text x="18" y="102" class="mono">Suspend factories</text>
+  </g>
+
+  <rect x="406" y="124" width="468" height="600" rx="12" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5"/>
+  <text x="426" y="154" class="section">ZooKeeper adapters</text>
+  <g transform="translate(438 184)">
+    <rect width="184" height="128" rx="8" fill="#ffffff" stroke="#fdba74" stroke-width="1.4"/>
+    <rect x="12" y="12" width="160" height="22" rx="11" fill="#ffedd5"/>
+    <text x="92" y="28" text-anchor="middle" class="badge" fill="#9a3412">single leader</text>
+    <text x="92" y="58" text-anchor="middle" class="card-title">ZooKeeper</text>
+    <text x="92" y="77" text-anchor="middle" class="card-title">LeaderElector</text>
+    <text x="18" y="104" class="card-sub">creates InterProcessMutex</text>
+  </g>
+  <g transform="translate(658 184)">
+    <rect width="184" height="128" rx="8" fill="#ffffff" stroke="#fdba74" stroke-width="1.4"/>
+    <rect x="12" y="12" width="160" height="22" rx="11" fill="#ffedd5"/>
+    <text x="92" y="28" text-anchor="middle" class="badge" fill="#9a3412">bounded group</text>
+    <text x="92" y="58" text-anchor="middle" class="card-title">ZooKeeper</text>
+    <text x="92" y="77" text-anchor="middle" class="card-title">LeaderGroup</text>
+    <text x="18" y="104" class="card-sub">uses semaphore leases</text>
+  </g>
+  <g transform="translate(438 370)">
+    <rect width="184" height="142" rx="8" fill="#ffffff" stroke="#fdba74" stroke-width="1.4"/>
+    <rect x="12" y="12" width="160" height="22" rx="11" fill="#ffedd5"/>
+    <text x="92" y="28" text-anchor="middle" class="badge" fill="#9a3412">coroutine single</text>
+    <text x="92" y="58" text-anchor="middle" class="card-title">ZooKeeper</text>
+    <text x="92" y="77" text-anchor="middle" class="card-title">SuspendLeader</text>
+    <text x="18" y="104" class="card-sub">single-thread dispatcher</text>
+    <text x="18" y="124" class="card-sub">same Curator owner thread</text>
+  </g>
+  <g transform="translate(658 370)">
+    <rect width="184" height="142" rx="8" fill="#ffffff" stroke="#fdba74" stroke-width="1.4"/>
+    <rect x="12" y="12" width="160" height="22" rx="11" fill="#ffedd5"/>
+    <text x="92" y="28" text-anchor="middle" class="badge" fill="#9a3412">coroutine group</text>
+    <text x="92" y="58" text-anchor="middle" class="card-title">ZooKeeper</text>
+    <text x="92" y="77" text-anchor="middle" class="card-title">SuspendGroup</text>
+    <text x="18" y="104" class="card-sub">acquire Lease</text>
+    <text x="18" y="124" class="card-sub">close in NonCancellable</text>
+  </g>
+  <g transform="translate(438 574)">
+    <rect width="404" height="82" rx="8" fill="#ffedd5" stroke="#fb923c" stroke-width="1.4"/>
+    <text x="202" y="29" text-anchor="middle" class="card-title">Common semantics</text>
+    <text x="24" y="56" class="card-sub">leaseTime is API compatibility; ZK session expiry is the release boundary.</text>
+  </g>
+
+  <rect x="928" y="124" width="300" height="600" rx="12" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+  <text x="948" y="154" class="section">Curator runtime</text>
+  <g transform="translate(958 184)">
+    <rect width="228" height="118" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.4"/>
+    <text x="114" y="30" text-anchor="middle" class="card-title">InterProcessMutex</text>
+    <text x="20" y="58" class="mono">basePath / lockName</text>
+    <text x="20" y="80" class="mono">acquire(waitTime)</text>
+    <text x="20" y="102" class="mono">release()</text>
+  </g>
+  <g transform="translate(958 356)">
+    <rect width="228" height="118" rx="8" fill="#ffffff" stroke="#86efac" stroke-width="1.4"/>
+    <text x="114" y="30" text-anchor="middle" class="card-title">InterProcessSemaphoreV2</text>
+    <text x="20" y="58" class="mono">maxLeaders permits</text>
+    <text x="20" y="80" class="mono">participantNodes</text>
+    <text x="20" y="102" class="mono">Lease.close()</text>
+  </g>
+  <g transform="translate(958 540)">
+    <rect width="228" height="82" rx="8" fill="#dcfce7" stroke="#22c55e" stroke-width="1.4"/>
+    <text x="114" y="28" text-anchor="middle" class="card-title">Session-owned znodes</text>
+    <text x="20" y="53" class="card-sub">ephemeral session nodes</text>
+    <text x="20" y="69" class="card-sub">are removed on expiry</text>
+  </g>
+
+  <path d="M 438 248 L 392.33 248 Q 380 248 380 235.67 L 380 223.33 Q 380 211 367.67 211 L 326 211" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+  <polygon points="308,211 324,204 324,218" fill="#ffffff" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
+  <path d="M 658 248 L 640 248 Q 628 248 628 260 L 628 314 Q 628 326 616 326 L 352 326 Q 340 326 340 314 L 340 299 Q 340 287 328 287 L 326 287" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+  <polygon points="308,287 324,280 324,294" fill="#ffffff" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
+  <path d="M 438 441 L 398 441 Q 380 441 380 423 L 380 381 Q 380 363 362 363 L 326 363" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+  <polygon points="308,363 324,356 324,370" fill="#ffffff" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
+  <path d="M 658 441 L 640 441 Q 628 441 628 453 L 628 512 Q 628 524 616 524 L 352 524 Q 340 524 340 512 L 340 451 Q 340 439 328 439 L 326 439" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+  <polygon points="308,439 324,432 324,446" fill="#ffffff" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
+
+  <path d="M 874 248 L 958 248" fill="none" stroke="#ea580c" stroke-width="2.5" class="dash" marker-end="url(#useArrow)"/>
+  <text x="902" y="232" text-anchor="middle" class="tiny" fill="#c2410c">mutex</text>
+  <path d="M 874 441 L 958 441" fill="none" stroke="#ea580c" stroke-width="2.5" class="dash" marker-end="url(#useArrow)"/>
+  <text x="902" y="426" text-anchor="middle" class="tiny" fill="#c2410c">semaphore</text>
+
+  <path d="M 1186 242 L 1202 242 Q 1210 242 1210 250 L 1210 573 Q 1210 581 1202 581 L 1186 581" fill="none" stroke="#059669" stroke-width="2.5" class="dash" marker-end="url(#sessionArrow)"/>
+  <path d="M 1072 474 L 1072 540" fill="none" stroke="#059669" stroke-width="2.5" class="dash" marker-end="url(#sessionArrow)"/>
+  <text x="1120" y="512" class="tiny" fill="#047857">session liveness</text>
+
+  <g transform="translate(438 684)">
+    <line x1="34" y1="10" x2="18" y2="10" stroke="#2563eb" stroke-width="2.5"/>
+    <polygon points="0,10 16,3 16,17" fill="#ffffff" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="none" style="stroke-dasharray:none!important"/>
+    <text x="44" y="15" class="tiny">implements core contract</text>
+    <line x1="210" y1="10" x2="244" y2="10" stroke="#ea580c" stroke-width="2.5" class="dash" marker-end="url(#useArrow)"/>
+    <text x="254" y="15" class="tiny">uses Curator recipe</text>
+  </g>
+
+  <text x="52" y="772" class="footer">github.com/bluetape4k/bluetape4k-leader / leader-zookeeper - Curator recipes backed by ZooKeeper session liveness.</text>
+</svg>

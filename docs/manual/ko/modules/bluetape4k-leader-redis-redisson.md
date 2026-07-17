@@ -80,6 +80,31 @@ Redis 지연, connection 상태, lock TTL, permit 사용량, extension 실패, s
 
 명시적 lease는 긴 pause 중 만료될 수 있습니다. Redisson 소유권도 다른 저장소의 쓰기를 fence하지 못합니다.
 
+<!-- release-readme-diagrams:start -->
+## 배포본 다이어그램 {#release-diagrams}
+
+아래 그림은 현재 개발 브랜치가 아니라 `0.4.0` 배포 태그의 README 자산을 바이트 단위로 그대로 옮긴 것입니다. 따라서 이후 SNAPSHOT 변경이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 SVG 원본이 열립니다.
+
+### leader redis redisson 클래스 구조도
+
+[![leader redis redisson 클래스 구조도](../../assets/readme-diagrams/leader-redis-redisson-class-01.png)](../../assets/readme-diagrams/leader-redis-redisson-class-01.svg)
+
+_배포본 README: [`leader-redis-redisson/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-redisson/README.ko.md)_
+
+### 1 — acquire/release crash recovery 다이어그램
+
+[![1 — acquire/release crash recovery 다이어그램](../../assets/readme-diagrams/leader-redis-redisson-sequence-02.png)](../../assets/readme-diagrams/leader-redis-redisson-sequence-02.svg)
+
+_배포본 README: [`leader-redis-redisson/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-redisson/README.ko.md)_
+
+### 2 — updateLeaseTime minLeaseTime 다이어그램
+
+[![2 — updateLeaseTime minLeaseTime 다이어그램](../../assets/readme-diagrams/leader-redis-redisson-sequence-03.png)](../../assets/readme-diagrams/leader-redis-redisson-sequence-03.svg)
+
+_배포본 README: [`leader-redis-redisson/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-redisson/README.ko.md)_
+
+<!-- release-readme-diagrams:end -->
+
 ## 근거 자료 {#sources}
 
 [Elector](../../../../leader-redis-redisson/src/main/kotlin/io/bluetape4k/leader/redisson/RedissonLeaderElector.kt) · [Shared extender delegate](../../../../leader-redis-redisson/src/main/kotlin/io/bluetape4k/leader/redisson/internal/RedissonLockExtendDelegate.kt) · [안정판 안내](../../../../leader-redis-redisson/README.ko.md)
