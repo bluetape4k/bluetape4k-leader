@@ -1,12 +1,12 @@
-# Issue 499 Coverage Review
+# 이슈 499 취재 검토
 
-## Scope
+## 범위
 
-- `leader-spring-boot` Kover report filtering.
-- Focused tests for retention auto-configuration and observability event publishing.
-- Coverage governance documentation.
+- `leader-spring-boot` Kover 보고서 필터링.
+- 보존 자동 구성 및 관찰 가능성 이벤트 게시를 위한 집중 테스트입니다.
+- 적용 범위 거버넌스 문서.
 
-## Findings
+## 조사 결과
 
 | Tier | Result | P0 | P1 | Notes |
 |---|---|---:|---:|---|
@@ -18,9 +18,8 @@
 | 6 Maintainability | PASS | 0 | 0 | Policy documents generated class exclusions and keeps hard gates out of CI. |
 | 7 Regression Risk | PASS | 0 | 0 | Test changes use existing `ApplicationContextRunner` and coroutine test patterns. |
 
-## Verdict
+## 평결
 
-P0=0
-P1=0
+P0=0 P1=0
 
-Gate: PASS.
+게이트: 통과.

@@ -1,26 +1,18 @@
-# Lesson: Migrate Concurrency Tests to MultithreadingTester / SuspendedJobTester
+# 단원: 동시성 테스트를 MultithreadingTester / SuspendedJobTester로 마이그레이션
 
-**Date**: 2026-05-16
-**Issue**: #275
-**PR**: #282
-**Modules affected**: `leader-core`
+**날짜**: 2026-05-16 **문제**: #275 **PR**: #282 **영향을 받는 모듈**: `leader-core`
 
-## Summary
+## 요약
 
-Migrated `LeaderGroupElectionStateTest.kt` from raw `Executors.newFixedThreadPool` + `CountDownLatch`
-to `coroutineScope` + `async(Dispatchers.IO)` + `AtomicInteger` polling, consistent with the pattern
-already established in `LocalSuspendLeaderGroupElectorTest.kt`.
+`LocalSuspendLeaderGroupElectorTest.kt`에 이미 설정된 패턴과 일치하여 원시 `Executors.newFixedThreadPool` + `CountDownLatch`에서 `coroutineScope` + `async(Dispatchers.IO)` + `AtomicInteger` 폴링으로 `LeaderGroupElectionStateTest.kt`를 마이그레이션했습니다.
 
-## Scope
+## 범위
 
-The initial audit found 33+ test files already using `MultithreadingTester` or `SuspendedJobTester`.
-The only remaining raw-executor pattern was a single test in `LeaderGroupElectionStateTest.kt`.
-`AsyncLeaderElectorContractTest.kt` and `AsyncLeaderGroupElectorContractTest.kt` had no raw thread
-primitives to migrate.
+초기 감사에서는 이미 `MultithreadingTester` 또는 `SuspendedJobTester`를 사용하고 있는 33개 이상의 테스트 파일이 발견되었습니다. 유일하게 남아 있는 원시 실행기 패턴은 `LeaderGroupElectionStateTest.kt`의 단일 테스트였습니다. `AsyncLeaderElectorContractTest.kt` 및 `AsyncLeaderGroupElectorContractTest.kt`에는 마이그레이션할 원시 스레드 기본 요소가 없었습니다.
 
-## Migration Pattern
+## 마이그레이션 패턴
 
-**Before** (raw thread pool):
+**이전**(원시 스레드 풀):
 ```kotlin
 val startLatch = CountDownLatch(2)
 val holdLatch = CountDownLatch(1)
@@ -41,7 +33,7 @@ executor.shutdown()
 executor.awaitTermination(3, TimeUnit.SECONDS)
 ```
 
-**After** (coroutines + AtomicInteger polling):
+**이후**(코루틴 + AtomicInteger 폴링):
 ```kotlin
 val acquiredCount = AtomicInteger(0)
 val holdLatch = CountDownLatch(1)  // required: action lambda is blocking, not suspend
@@ -62,18 +54,15 @@ coroutineScope {
 }
 ```
 
-## Why CountDownLatch Remains
+## CountDownLatch가 유지되는 이유
 
-`LocalLeaderGroupElector.runIfLeader` takes a `() -> T` blocking lambda — not a suspend lambda.
-`CountDownLatch.await()` is the correct mechanism to hold the lock inside a blocking action.
-This is consistent with the existing pattern in `LocalLeaderGroupElectionTest.kt`.
+`LocalLeaderGroupElector.runIfLeader`는 일시 중단 람다가 아닌 `() -> T` 차단 람다를 사용합니다. `CountDownLatch.await()`는 차단 작업 내에서 잠금을 유지하는 올바른 메커니즘입니다. 이는 `LocalLeaderGroupElectionTest.kt`의 기존 패턴과 일치합니다.
 
-The key improvement is replacing `Executors.newFixedThreadPool` (unstructured, leak-prone) with
-structured `coroutineScope { async(Dispatchers.IO) { } }`.
+주요 개선 사항은 `Executors.newFixedThreadPool`(비구조화, 누출 가능성 있음)를 구조화된 `coroutineScope { async(Dispatchers.IO) { } }`로 교체하는 것입니다.
 
-## Future Guidance
+## 향후 지침
 
-- `MultithreadingTester` / `SuspendedJobTester`: use for stress / fire-and-complete concurrency tests
-- `coroutineScope + async(Dispatchers.IO)` + `AtomicInteger` polling: use for "check while holding" correctness tests with blocking electors
-- `CountDownLatch.await()` inside a blocking action lambda is acceptable and expected
-- `Executors.newFixedThreadPool` in tests: always replace with coroutines (structured) or `MultithreadingTester`
+- `MultithreadingTester` / `SuspendedJobTester`: 스트레스/실행 및 전체 동시성 테스트에 사용
+- `coroutineScope + async(Dispatchers.IO)` + `AtomicInteger` 폴링: 차단 선택기를 사용하여 "보류 중 검증" 정확성 테스트에 사용
+- 차단 작업 람다 내부의 `CountDownLatch.await()`는 허용되며 예상됩니다.
+- 테스트 중 `Executors.newFixedThreadPool`: 항상 코루틴(구조적) 또는 `MultithreadingTester`로 교체

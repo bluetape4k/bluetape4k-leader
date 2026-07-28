@@ -1,27 +1,23 @@
-# bt4k Version Catalog Consumption
+# bt4k 버전 카탈로그 소비
 
-## Context
+## 맥락
 
-`bluetape4k-leader` duplicated several shared dependency versions locally while
-the ecosystem catalog already publishes those values.
+`bluetape4k-leader`는 생태계 카탈로그가 이미 해당 값을 게시하는 동안 여러 공유 종속성 버전을 로컬로 복제했습니다.
 
-## Decision
+## 결정
 
-Import `io.github.bluetape4k:bluetape4k-version-catalog` as `bt4k` and resolve
-shared dependency constraints via `bt4kVersion(alias)`.
+`io.github.bluetape4k:bluetape4k-version-catalog`를 `bt4k`로 가져오고 `bt4kVersion(alias)`를 통해 공유 종속성 제약 조건을 해결합니다.
 
-## Outcome
+## 결과
 
-The selected shared dependency aliases are now versionless in the local catalog.
-Their versions are supplied by dependency management from the shared catalog.
+선택한 공유 종속성 별칭은 이제 로컬 카탈로그에서 버전이 없습니다. 해당 버전은 공유 카탈로그의 종속성 관리를 통해 제공됩니다.
 
-## Verification
+## 검증
 
 - `git diff --check`
 - `./gradlew help --no-daemon --no-configuration-cache`
 - `./gradlew compileKotlin --no-daemon --no-configuration-cache`
 
-## Future Guidance
+## 향후 지침
 
-Avoid local pins for shared Redis, JDBC/R2DBC, logging, and cluster dependency
-versions when `bt4k` already exposes them.
+`bt4k`가 이미 노출한 경우 공유 Redis, JDBC/R2DBC, 로깅 및 클러스터 종속성 버전에 대한 로컬 핀을 피하세요.

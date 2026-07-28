@@ -1,16 +1,12 @@
-# Lesson: English KDoc for strategy/scorer public APIs
+# 강의: 전략/득점자 공개 API를 위한 영어 KDoc
 
-**Date**: 2026-05-16
-**Issue**: #267
-**PR**: #277
+**날짜**: 2026-05-16 **문제**: #267 **홍보**: #277
 
-## Root Cause
+## 근본 원인
 
-Nine public classes and interfaces in the `leader-core` strategy/scorer subsystem had
-Korean KDoc. The workspace CLAUDE.md requires English KDoc for new or meaningfully
-changed public API; the Korean text was written before the English-first rule was adopted.
+`leader-core` 전략/득점자 하위 시스템의 9개 공개 클래스 및 인터페이스에는 한국어 KDoc가 있었습니다. 작업 공간 CLAUDE.md에는 새롭거나 의미 있게 변경된 공개 API를 위한 영어 KDoc가 필요합니다. 한국어 텍스트는 영어 우선 규칙이 채택되기 전에 작성되었습니다.
 
-## Files Updated
+## 업데이트된 파일
 
 | File | Change |
 |------|--------|
@@ -24,14 +20,11 @@ changed public API; the Korean text was written before the English-first rule wa
 | `strategy/strategies/RandomElectionStrategy.kt` | Korean → English; elimination reason strings converted |
 | `strategy/strategies/ScoredElectionStrategy.kt` | Korean → English; elimination reason strings converted |
 
-Note: `ListeningLeaderElectors.kt` and `TenantScopedLeaderElectors.kt` already had
-complete English KDoc and required no changes.
+참고: `ListeningLeaderElectors.kt` 및 `TenantScopedLeaderElectors.kt`에는 이미 완전한 영어 KDoc가 있으므로 변경할 필요가 없습니다.
 
-## Elimination Reason Strings
+## 제거 사유 문자열
 
-Elimination reason strings inside `ElectionResult` are part of the public audit trail
-exposed to callers. They were also converted to English so the public `ElectionResult`
-surface is consistent:
+`ElectionResult` 내부의 제거 이유 문자열은 호출자에게 노출되는 공개 감사 추적의 일부입니다. 또한 공개 `ElectionResult` 표면이 일관되도록 영어로 변환되었습니다.
 
 - `"등록 시각 늦음"` → `"registered later"`
 - `"nodeId 사전순 뒤"` → `"nodeId lexicographically after winner"`
@@ -39,18 +32,18 @@ surface is consistent:
 - `"점수 미달"` → `"score below winner"`
 - `"점수 동점"` → `"tied score — ranked lower by registeredAt/nodeId"`
 
-## KDoc Format Applied
+## KDoc 형식 적용
 
-Per CLAUDE.md for public classes:
-1. One-line summary sentence.
-2. `## Behavior / Contract` section listing invariants and edge cases.
-3. `## Example` or `## Example / Built-in strategies` Kotlin code block.
-4. `@property` / `@param` / `@return` tags where a parameter's semantics are non-obvious.
+공개 수업의 경우 CLAUDE.md 기준:
+1. 한 줄 요약 문장입니다.
+2. 불변 및 엣지 케이스를 나열하는 `## Behavior / Contract` 섹션.
+3. `## Example` 또는 `## Example / Built-in strategies` Kotlin 코드 블록.
+4. 매개변수의 의미가 명확하지 않은 `@property`/`@param`/`@return` 태그.
 
-## Future Guidance
+## 향후 지침
 
-When adding a new `ElectionStrategy` or `CandidateScorer`:
-1. Write English KDoc from the start.
-2. Include `## Behavior / Contract` — determinism invariant is mandatory for `ElectionStrategy`.
-3. Include an `## Example` showing typical usage.
-4. Translate any user-visible string literals (elimination reasons, log messages) to English.
+새로운 `ElectionStrategy` 또는 `CandidateScorer`를 추가하는 경우:
+1. 처음부터 영어 KDoc를 작성하세요.
+2. `## Behavior / Contract` 포함 — `ElectionStrategy`에는 결정론 불변이 필수입니다.
+3. 일반적인 사용법을 보여주는 `## Example`를 포함합니다.
+4. 사용자에게 표시되는 모든 문자열 리터럴(제거 이유, 로그 메시지)을 영어로 번역합니다.

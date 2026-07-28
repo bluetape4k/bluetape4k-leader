@@ -1,12 +1,12 @@
-# Issue #529 Observation Tracing Review
+# 이슈 #529 관찰 추적 검토
 
-## Scope
+## 범위
 
-- `leader-micrometer` Observation recorder/listener and public constants.
-- `leader-spring-boot` Observation auto-configuration, property binding, and meter-recorder coexistence.
-- `examples/prometheus-dashboard` demo Observation handler and README coverage.
+- `leader-micrometer` 관찰 레코더/리스너 및 공개 상수.
+- `leader-spring-boot` 관찰 자동 구성, 속성 바인딩 및 미터-레코더 공존.
+- `examples/prometheus-dashboard` 데모 관찰 처리기 및 README 범위.
 
-## 7-Tier Verdict
+## 7단계 평결
 
 | Tier | Verdict | Evidence |
 |---|---|---|
@@ -18,16 +18,16 @@
 | Docs/Examples | PASS | English/Korean README files describe direct API, Spring properties, demo handler, cardinality risks, and #559 lease-extension follow-up. |
 | Evidence | PASS_WITH_NOTE | Focused tests pass. Full three-module run failed in pre-existing Redis-backed spring tests with `Connection refused` to `localhost:34545`; new tests passed in that run. |
 
-## Findings
+## 조사 결과
 
-No P0/P1 findings remain.
+P0/P1 결과가 남아 있지 않습니다.
 
-Resolved during review:
+검토 중 해결됨:
 
-- `acquire.elapsed.ms` and `execution.elapsed.ms` were initially low-cardinality Observation keys. They now use high-cardinality keys because elapsed values are unbounded.
-- Current Spring AOP does not expose real leader identity. The implementation does not synthesize `leader.id` from node IDs or lock names; docs say `include-leader-id=true` requires `LeaderAopMetricsContext.Identified`.
+- `acquire.elapsed.ms` 및 `execution.elapsed.ms`는 처음에는 카디널리티가 낮은 관찰 키였습니다. 이제 경과된 값은 제한이 없기 때문에 높은 카디널리티 키를 사용합니다.
+- 현재 Spring AOP는 실제 리더 ID를 노출하지 않습니다. 구현은 노드 ID 또는 잠금 이름에서 `leader.id`를 합성하지 않습니다. 문서에는 `include-leader-id=true`에 `LeaderAopMetricsContext.Identified`가 필요하다고 나와 있습니다.
 
-## Validation Evidence
+## 검증 증거
 
 | Command | Result |
 |---|---|
@@ -37,7 +37,7 @@ Resolved during review:
 | `git diff --check` | PASS |
 | Full attempted run: `./gradlew :bluetape4k-leader-micrometer:test :bluetape4k-leader-spring-boot:test :examples:prometheus-dashboard:test ...` | FAIL in existing Redis-backed spring tests: Redisson/Lettuce connection refused to `localhost:34545`; new observation tests passed |
 
-## Residual Risk
+## 잔여 위험
 
-- Lease-extension Observation requires a core hook and is tracked in #559.
-- True long-lived spans require a future per-invocation AOP/core SPI; #529 deliberately emits standalone terminal observations.
+- 임대 연장 관찰에는 코어 후크가 필요하며 #559에서 추적됩니다.
+- 진정한 수명이 긴 범위에는 향후 호출별 AOP/코어 SPI가 필요합니다. #529는 의도적으로 독립형 터미널 관찰을 내보냅니다.

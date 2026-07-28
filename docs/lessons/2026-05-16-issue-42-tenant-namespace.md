@@ -1,25 +1,25 @@
-# Issue 42 Tenant Namespace
+# 문제 42 테넌트 네임스페이스
 
-## Context
+## 맥락
 
-Tenant isolation was requested without backend changes. The implementation had to work across blocking, coroutine, group, and virtual-thread leader APIs.
+백엔드 변경 없이 테넌트 격리가 요청되었습니다. 구현은 차단, 코루틴, 그룹 및 가상 스레드 리더 API 전반에 걸쳐 작동해야 했습니다.
 
-## Decision
+## 결정
 
-Use backend-independent decorators that translate caller-facing lock names through `TenantLockNamespace`. Reserve `:` as the namespace separator and reject it in tenant-local values so `(tenantId, lockName)` maps injectively to one backend lock name.
+`TenantLockNamespace`를 통해 호출자 측 잠금 이름을 변환하는 백엔드 독립적 데코레이터를 사용합니다. `:`를 네임스페이스 구분 기호로 예약하고 이를 테넌트 로컬 값에서 거부하여 `(tenantId, lockName)`가 하나의 백엔드 잠금 이름에 주입적으로 매핑되도록 합니다.
 
-## Outcome
+## 결과
 
-`forTenant()` wrappers now exist for blocking, coroutine, group, and virtual-thread electors. The wrappers translate state, run, async, result, and slot paths while preserving slot `leaderId`.
+이제 차단, 코루틴, 그룹 및 가상 스레드 선택기에 대한 `forTenant()` 래퍼가 존재합니다. 래퍼는 슬롯 `leaderId`를 유지하면서 상태, 실행, 비동기, 결과 및 슬롯 경로를 변환합니다.
 
-## Verification
+## 검증
 
-- Spec/plan Claude advisor found namespace bypass and separator-injection risks; spec/plan updated before implementation.
-- Targeted tests: `TenantScopedLeaderElectorsTest` and `TenantScopedSuspendLeaderElectorsTest`.
-- Result: 14 tests passing, build successful.
-- README/README.ko API names verified against source.
-- Post-PR Claude feedback added group slot/result coverage and README/README.ko migration caveats for `:` and backend `state().lockName`.
+- 사양/계획 Claude Advisor는 네임스페이스 우회 및 구분 기호 삽입 위험을 발견했습니다. 구현 전에 사양/계획이 업데이트되었습니다.
+- 대상 테스트: `TenantScopedLeaderElectorsTest` 및 `TenantScopedSuspendLeaderElectorsTest`.
+- 결과: 14개 테스트를 통과하고 빌드에 success했습니다.
+- README/README.ko API 이름이 소스에 대해 검증되었습니다.
+- PR 이후 Claude 피드백에는 `:` 및 백엔드 `state().lockName`에 대한 그룹 슬롯/결과 적용 범위 및 README/README.ko 마이그레이션 주의 사항이 추가되었습니다.
 
-## Future Notes
+## 미래 노트
 
-When adding decorators over leader APIs, avoid Kotlin interface delegation unless every lock-name-taking inherited method has been reviewed. Async, state, slot, and result overloads are easy bypass paths.
+리더 API에 데코레이터를 추가할 때 모든 잠금 이름 가져오기 상속 메서드를 검토하지 않는 한 Kotlin 인터페이스 위임을 피하세요. 비동기, 상태, 슬롯 및 결과 오버로드는 쉬운 우회 경로입니다.

@@ -1,6 +1,6 @@
-# Review - Issue #524 Kubernetes Lease Scenario Benchmarks
+# 검토 - Issue #524 Kubernetes Lease 시나리오 벤치마크
 
-Scope:
+범위:
 
 - `benchmark/src/kubernetesBenchmark/kotlin/io/bluetape4k/leader/benchmark/KubernetesBackendLeaderElectorBenchmark.kt`
 - `benchmark/README.md`
@@ -9,28 +9,19 @@ Scope:
 - `docs/benchmarks/2026-07-02-issue-524-kubernetes-scenarios-*.json`
 - `docs/images/readme-charts/leader-kubernetes-scenarios-*-chart-01.{svg,png}`
 
-## Findings
+## 조사 결과
 
-No P0/P1 findings.
+P0/P1 발견 항목이 없습니다.
 
-## Review Notes
+## 리뷰 노트
 
-- The benchmark remains isolated in the `kubernetesBenchmark` source set so the
-  Fabric8 Vert.x 4 runtime line does not alter the default preview backend
-  classpath.
-- Public elector rows cover fresh acquire, active-holder skip, and expired
-  takeover for both blocking and suspend lanes.
-- Same-holder renewal and stale `resourceVersion` conflict rows are documented
-  as direct Lease API probes. They intentionally measure API-server update and
-  conflict behavior, not full user action execution.
-- JMH state fixtures reset Lease resources at invocation or trial scope based
-  on scenario state, preventing prior iterations from converting fresh or
-  expired paths into same-holder paths.
-- CodeGraph review returned no changed function nodes for the benchmark source
-  set, so manual diff review plus compile, K3s JMH smoke, chart QA, README
-  switch validation, and `git diff --check` were used as the review evidence.
+- 벤치마크는 `kubernetesBenchmark` 소스 세트에서 격리된 상태로 유지되므로 Fabric8 Vert.x 4 런타임 라인은 기본 미리 보기 백엔드 클래스 경로를 변경하지 않습니다.
+- 공개 선거인 행에는 차단 및 정지 차선 모두에 대한 신규 획득, 활성 보유자 건너뛰기, 만료된 인수가 포함됩니다.
+- 동일 보유자 갱신 및 오래된 `resourceVersion` 충돌 행은 직접 임대 API 프로브로 문서화되어 있습니다. 전체 사용자 작업 실행이 아닌 API 서버 업데이트 및 충돌 동작을 의도적으로 측정합니다.
+- JMH 상태 설비는 시나리오 상태에 따라 호출 또는 평가판 범위에서 리소스를 재설정하여 이전 반복이 신규 또는 만료된 경로를 동일한 소유자 경로로 변환하는 것을 방지합니다.
+- CodeGraph 검토에서는 벤치마크 소스 세트에 대해 변경된 기능 노드가 반환되지 않았으므로 수동 diff 검토와 컴파일, K3s JMH 스모크, 차트 QA, README 스위치 검증 및 `git diff --check`가 검토 증거로 사용되었습니다.
 
-## 7-Tier Gate
+## 7층 관문
 
 | Tier | Verdict | Evidence |
 |---|---|---|
@@ -42,5 +33,4 @@ No P0/P1 findings.
 | Tier 6 Performance | PASS | README and benchmark report state that the numbers are short K3s smoke snapshots and separate direct API probes from full elector paths. |
 | Tier 7 Docs/Release | PASS | README and README.ko were updated together with raw JSON, generated SVG/PNG charts, commands, tables, and interpretation. |
 
-P0: 0  
-P1: 0
+P0: 0 P1: 0

@@ -1,36 +1,36 @@
-# Issues 531 and 536 Spring Operations Lessons
+# 이슈 531 및 536 봄 운영 레슨
 
-## Context
+## 맥락
 
-Milestone 0.5.0 needed two narrow Spring operations improvements: an opt-in readiness signal for lock names already known to the JVM and a first-party annotation composing Spring scheduling with the existing leader-election aspect. Backend-wide health, recent failure windows, YAML-only wrapping, and route helpers were split into #533, #602, #603, and #537 so the implementation could remain additive and reviewable.
+Milestone 0.5.0에는 두 가지 좁은 Spring 작업 개선이 필요했습니다. 즉, JVM에 이미 알려진 잠금 이름에 대한 옵트인 준비 신호와 기존 리더 선택 측면으로 Spring 스케줄링을 구성하는 자사 주석입니다. 백엔드 전체 상태, 최근 오류 기간, YAML 전용 래핑 및 경로 도우미가 #533, #602, #603 및 #537로 분할되어 구현이 추가되고 검토 가능한 상태로 유지될 수 있습니다.
 
-## Decision
+## 결정
 
-- Reuse `LeaderElectionStatusRegistry` and one read-only `LeaderElector.state` call per known lock instead of enumerating backend state or adding a cache.
-- Keep readiness disabled by default and make status/details explicitly JVM-local diagnostics, never an ownership oracle.
-- Implement `@LeaderScheduled` as a pure composition of Spring `@Scheduled` and core `@LeaderElection`; Spring remains the scheduler and the current aspect remains the election boundary.
-- Dogfood the annotation on the existing history-retention job so normal main-source AspectJ compilation proves the real integration.
+- 백엔드 상태를 열거하거나 캐시를 추가하는 대신 알려진 잠금당 `LeaderElectionStatusRegistry` 및 하나의 읽기 전용 `LeaderElector.state` 호출을 재사용합니다.
+- 기본적으로 준비 상태를 비활성화하고 상태/세부 정보를 소유권 오라클이 아닌 명시적으로 JVM 로컬 진단으로 만듭니다.
+- Spring `@Scheduled`와 코어 `@LeaderElection`의 순수 구성으로 `@LeaderScheduled`를 구현합니다. Spring은 스케줄러로 남아 있고 현재 측면은 선택 경계로 남아 있습니다.
+- Dogfood는 기존 기록 보존 작업에 대한 주석을 추가하므로 일반적인 기본 소스 AspectJ 컴파일이 실제 통합을 증명합니다.
 
-## Surprise and failure
+## 놀라움과 failure
 
-The first pointcut expansion used a bare union of `@annotation(LeaderElection)` and `@annotation(LeaderScheduled)`. AspectJ then tried to apply the around advice to `LeaderScheduled` annotation static initialization and failed compilation because around advice is unsupported for that join point.
+첫 번째 포인트컷 확장에서는 `@annotation(LeaderElection)`와 `@annotation(LeaderScheduled)`의 통합을 사용했습니다. 그런 다음 AspectJ는 `LeaderScheduled` 주석 정적 초기화에 around 어드바이스를 적용하려고 시도했지만 해당 조인 포인트에 대해 어라운드 어드바이스가 지원되지 않기 때문에 컴파일에 failure했습니다.
 
-The readiness call-count test also initially failed after otherwise-correct health behavior because this repository uses a per-class JUnit lifecycle and MockK invocation history accumulated across test methods.
+이 저장소는 클래스별 JUnit 수명 주기와 테스트 메서드 전체에 누적된 MockK 호출 기록을 사용하기 때문에 올바른 상태 동작 후에 준비 호출 횟수 테스트도 처음에 failure했습니다.
 
-## Repair
+## 수리
 
-- Constrain the pointcut union with `execution(* *(..))` so only method execution join points are advised.
-- Clear the shared mock before each readiness test and verify each known lock is read exactly once, including the mixed success/failure case.
-- Catch only `Exception` during backend state reads; do not use broad `runCatching` where it could absorb fatal errors.
+- `execution(* *(..))`로 포인트컷 통합을 제한하여 메소드 실행 조인 포인트만 권장됩니다.
+- 각 준비 테스트 전에 공유 모의를 지우고 혼합된 success/failure 사례를 포함하여 알려진 각 잠금이 정확히 한 번 읽혀지는지 검증합니다.
+- 백엔드 상태 읽기 중에는 `Exception`만 포착합니다. 치명적인 오류를 흡수할 수 있는 광범위한 `runCatching`를 사용하지 마십시오.
 
-## Outcome and proof
+## 결과 및 증명
 
-- Targeted readiness, auto-configuration, composed-annotation, aspect, and validator selection: 65 tests passed.
-- Full `leader-spring-boot` suite: 372 tests passed.
-- Module build: passed, including 5 AOT tests.
-- Root Detekt command completed but reported `NO-SOURCE`; the result is recorded honestly rather than claimed as Kotlin source coverage.
-- Final six-lens review converged at P0=0 and P1=0.
+- 대상 준비 상태, 자동 구성, 작성된 주석, 측면 및 유효성 검사기 선택: 65개 테스트를 통과했습니다.
+- 전체 `leader-spring-boot` 제품군: 372개 테스트를 통과했습니다.
+- 모듈 빌드: 5개의 AOT 테스트를 포함하여 통과했습니다.
+- Root Detect 명령이 완료되었지만 `NO-SOURCE`가 보고되었습니다. 결과는 Kotlin 소스 보도라고 주장하기보다는 정직하게 기록되었습니다.
+- 최종 6개 렌즈 검토는 P0=0 및 P1=0으로 수렴되었습니다.
 
-## Review misses and future guard
+## 미스 및 향후 가드 검토
 
-Treat a new AspectJ meta-annotation as a join-point-shape change, not just an annotation lookup change. Keep a main-source dogfood target and compile it before relying on unit tests that invoke advice directly. In repositories using JUnit `PER_CLASS`, exact-call tests must reset shared mocks before every test. For readiness contributors, always document and test the backend-call cardinality, disclosure surface, and the distinction between diagnostic health and lock ownership.
+새로운 AspectJ 메타 주석을 단순한 주석 조회 변경이 아닌 조인 포인트 모양 변경으로 처리합니다. 조언을 직접 호출하는 단위 테스트에 의존하기 전에 기본 소스 dogfood 대상을 유지하고 컴파일하세요. JUnit `PER_CLASS`를 사용하는 저장소에서 정확한 호출 테스트는 모든 테스트 전에 공유 모의를 재설정해야 합니다. 준비 기여자의 경우 백엔드 호출 카디널리티, 공개 표면, 진단 상태와 잠금 소유권 간의 차이를 항상 문서화하고 테스트하세요.

@@ -1,29 +1,20 @@
-# Issue 335 leader-k8s lesson
+# 문제 335 leader-k8s 레슨
 
-## Context
+## 맥락
 
-Issue #335 added a publishable Kubernetes Lease backend for `bluetape4k-leader`.
-The backend had to support blocking, async, and suspend single-leader APIs while
-using the native `coordination.k8s.io/v1` Lease object.
+Issue #335에는 `bluetape4k-leader`에 대해 게시 가능한 Kubernetes Lease 백엔드가 추가되었습니다. 백엔드는 기본 `coordination.k8s.io/v1` 임대 개체를 사용하는 동안 단일 리더 API 차단, 비동기 및 일시 중지를 지원해야 했습니다.
 
-## Decision
+## 결정
 
-Do not store `LeaderElectionOptions.nodeId` directly in `spec.holderIdentity`.
-Use a per-acquisition fencing token as `holderIdentity`, and store display/audit
-identity in bluetape4k annotations. This avoids duplicate execution when two
-electors run in the same JVM or Pod with the same `nodeId`.
+`LeaderElectionOptions.nodeId`를 `spec.holderIdentity`에 직접 저장하지 마십시오. 획득별 펜싱 토큰을 `holderIdentity`로 사용하고 bluetape4k 주석에 표시/감사 ID를 저장합니다. 이렇게 하면 두 개의 선택기가 동일한 `nodeId`가 있는 동일한 JVM 또는 Pod에서 실행될 때 중복 실행이 방지됩니다.
 
-PR CI should run `:bluetape4k-leader-k8s:test` only. `koverXmlReport` currently
-pulls custom `Test` tasks into its graph, so K3s coverage generation belongs in
-Nightly full after `:k8sTest`, not in the fast PR lane.
+PR CI는 `:bluetape4k-leader-k8s:test`만 실행해야 합니다. `koverXmlReport`는 현재 사용자 정의 `Test` 작업을 그래프로 가져오므로 K3s 적용 범위 생성은 빠른 PR 레인이 아닌 `:k8sTest` 이후 Nightly 전체에 속합니다.
 
-## Outcome
+## 결과
 
-Added `leader-k8s` with Fabric8 Kubernetes Client, owner-conditional create,
-update, release, state mapping, README/RBAC guidance, SVG+PNG README diagrams,
-BOM/settings wiring, and CI/Nightly jobs.
+Fabric8 Kubernetes 클라이언트, 소유자 조건부 생성, 업데이트, 릴리스, 상태 매핑, README/RBAC 지침, SVG+PNG README 다이어그램, BOM/설정 연결 및 CI/Nightly 작업이 포함된 `leader-k8s`가 추가되었습니다.
 
-## Verification
+## 검증
 
 - `./gradlew :bluetape4k-leader-k8s:compileKotlin :bluetape4k-leader-k8s:compileTestKotlin --no-daemon --console=plain`
 - `./gradlew :bluetape4k-leader-k8s:test --no-daemon --console=plain`
@@ -34,11 +25,8 @@ BOM/settings wiring, and CI/Nightly jobs.
 - `node /Users/debop/work/bluetape4k/.omx/scripts/audit-readme-diagrams.mjs .`
 - `node /Users/debop/work/bluetape4k/.omx/scripts/audit-readme-diagram-quality.mjs .`
 
-The module-level `detekt` task is not present for `:bluetape4k-leader-k8s`; use
-the repository-level `detekt` lane when static analysis is required.
+`:bluetape4k-leader-k8s`에는 모듈 수준 `detekt` 작업이 없습니다. 정적 분석이 필요한 경우 저장소 수준 `detekt` 레인을 사용하십시오.
 
-## Future Notes
+## 미래 노트
 
-Keep K3s tests tagged with `@Tag("k8s")` and excluded from the default `test`
-task. If Kover is later configured to exclude custom integration test tasks,
-coverage upload can return to the PR CI job.
+`@Tag("k8s")` 태그가 지정된 K3s 테스트를 유지하고 기본 `test` 작업에서 제외합니다. 나중에 사용자 정의 통합 테스트 작업을 제외하도록 Kover를 구성하면 적용 범위 업로드가 PR CI 작업으로 돌아갈 수 있습니다.

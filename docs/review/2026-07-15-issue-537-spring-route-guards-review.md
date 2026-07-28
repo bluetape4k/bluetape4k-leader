@@ -1,24 +1,19 @@
-# Issue 537 Spring Route Guards Review
+# 문제 537 스프링 루트 가드 검토
 
-## Scope and review basis
+## 범위 및 검토 근거
 
-- Branch: `feature/issue-537-spring-route-guards`
-- Base: `develop` at `ad024ca9`
-- Approved artifacts:
+- 분기: `feature/issue-537-spring-route-guards`
+- 베이스: `ad024ca9`의 `develop`
+- 승인된 아티팩트:
   - `docs/superpowers/specs/2026-07-15-issue-537-spring-route-guards-design.md`
   - `docs/superpowers/plans/2026-07-15-issue-537-spring-route-guards-plan.md`
-- Primary module: `leader-spring-boot`
-- Supporting contract changes: Core audit-state capability plus Local, Consul,
-  DynamoDB, Kubernetes Lease, listener, tenant-scoped, and Micrometer support
-- Explicit exclusions: redirect/identity metadata in #606 and request-path
-  lease acquisition in #607
+- 기본 모듈: `leader-spring-boot`
+- 계약 변경 지원: 핵심 감사 상태 기능과 로컬, Consul, DynamoDB, Kubernetes Lease, 수신기, 테넌트 범위 및 Micrometer 지원
+- 명시적 제외: #606의 리디렉션/ID 메타데이터 및 #607의 요청 경로 임대 획득
 
-The final implementation keeps `STATE` and `CUSTOM` as separate authority
-models. Mixed, missing, ambiguous, and audit-state-unsupported selections fail
-startup with stable codes. Route evaluation is passive, fail-closed, empty-body,
-identity-free, and disabled by default.
+최종 구현에서는 `STATE`와 `CUSTOM`를 별도의 권한 모델로 유지합니다. 혼합, 누락, 모호함 및 감사 상태 지원되지 않는 선택은 안정적인 코드로 시작되지 않습니다. 경로 평가는 수동적이고 장애 시 폐쇄되며 본문이 비어 있고 ID가 없으며 기본적으로 비활성화되어 있습니다.
 
-## Performance and stability scan
+## 성능 및 안정성 검사
 
 | Priority | Surface | Lens | Finding | Resolution / evidence |
 |---|---|---|---|---|
@@ -27,11 +22,9 @@ identity-free, and disabled by default.
 | P1, repaired | state capability decorators | correctness/stability | A listener wrapper could advertise audit-state capability while interface bridge defaults discarded `LeaderSlot.leaderId`. | Slot-aware sync, async, suspend, and result overloads now delegate the full slot. Local async and decorated regression tests read the exact audit identity back from state. |
 | P1, repaired | MVC/WebFlux adapters | cancellation | Normalizing every throwable would convert cancellation/interruption into a rejection. | Cancellation is rethrown, interruption restores the thread flag, and only ordinary failures become `Unavailable`; pre-evaluation, during-evaluation, and post-subscription tests pass. |
 
-No new retry loop, shared cache, unbounded buffer, lease mutation, watchdog, or
-request-owned resource was added. Final performance/stability result: P0=0,
-P1=0.
+새로운 재시도 루프, 공유 캐시, 무제한 버퍼, 임대 변형, 감시 또는 요청 소유 리소스가 추가되지 않았습니다. 최종 성능/안정성 결과: P0=0, P1=0.
 
-## Spec and plan verification
+## 사양 및 계획 검증
 
 | Requirement | Implementation and proof | Status |
 |---|---|---|
@@ -47,33 +40,22 @@ P1=0.
 | Diagram | Existing Spring architecture SVG and 2x PNG show exclusive authority inputs and shared route adapters | PASS |
 | Scope discipline | Redirect and request-path acquisition remain in #606/#607; no module, BOM, publishing, or workflow change | PASS |
 
-## Independent review convergence
+## 독립적 리뷰 융합
 
-The first independent code review requested changes for Java-null handling,
-unsupported state fallbacks, explicit bean type errors, Servlet classpath
-conditioning, selection-proof tests, and cancellation/interruption coverage.
-The first architecture pass additionally blocked capability claims that were
-not backed by an explicit state contract, warned about process identity reuse,
-and found the built-in bean-name collision path. Those findings were repaired.
+첫 번째 독립 코드 검토에서는 Java-null 처리, 지원되지 않는 상태 폴백, 명시적 Bean 유형 오류, 서블릿 클래스 경로 조건화, 선택 방지 테스트 및 취소/중단 적용 범위에 대한 변경을 요청했습니다. 첫 번째 아키텍처는 명시적 상태 계약으로 뒷받침되지 않는 차단된 기능 클레임을 추가로 통과하고 프로세스 ID 재사용에 대해 경고하며 내장된 Bean 이름 충돌 경로를 찾았습니다. 그 발견은 복구되었습니다.
 
-A later architecture delta review found one remaining P1: listener decorators
-delegated the capability flag but not slot-aware execution methods. Regression
-tests first reproduced the default node identity in sync, async, and suspend
-state. The listener and Local async paths were repaired, and public
-`StateLeaderRouteAuthority` construction was made capability-safe.
+이후의 아키텍처 델타 검토에서는 나머지 P1가 하나 발견되었습니다. 리스너 데코레이터는 기능 플래그를 위임했지만 슬롯 인식 실행 방법은 위임하지 않았습니다. 회귀 테스트에서는 먼저 동기화, 비동기 및 일시 중지 상태의 기본 노드 ID를 재현했습니다. 수신기 및 로컬 비동기 경로가 복구되었으며 공개 `StateLeaderRouteAuthority` 구성이 기능적으로 안전해졌습니다.
 
-Final independent results:
+최종 독립 결과:
 
 | Lane | Verdict | P0 | P1 | P2 |
 |---|---|---:|---:|---:|
 | Code review | APPROVE | 0 | 0 | 0 |
 | Architecture review | CLEAR | 0 | 0 | 0 |
 
-Both final passes were read-only. They independently confirmed slot identity,
-async result classification, notification cardinality, cancellation behavior,
-constructor enforcement, and public API compatibility.
+두 최종 패스는 모두 읽기 전용이었습니다. 슬롯 ID, 비동기 결과 분류, 알림 카디널리티, 취소 동작, 생성자 적용 및 공개 API 호환성을 독립적으로 검증했습니다.
 
-## Six-lens final review
+## 6개 렌즈 최종 검토
 
 | Lens | P0 | P1 | P2 | Integrated result |
 |---|---:|---:|---:|---|
@@ -84,7 +66,7 @@ constructor enforcement, and public API compatibility.
 | Developer/API | 0 | 0 | 0 | APIs are additive; STATE is the default, CUSTOM is an explicit SPI, and mixing is an error. |
 | User/caller | 0 | 0 | 0 | MVC/WebFlux usage, route scope, process-incarnation identity, and non-atomic caveats are aligned in both locales. |
 
-## Diagram evidence ledger
+## 다이어그램 증거 원장
 
 | Check | Result |
 |---|---|
@@ -96,7 +78,7 @@ constructor enforcement, and public API compatibility.
 | Raster pair | PASS: SVG 1320x1360, PNG 2640x2720, 2x, sRGB |
 | Full-size visual review | PASS: text fits, all arrowheads/connectors are visible, and the authority band remains distinct from the woven execution path |
 
-## Fresh verification
+## 새로운 검증
 
 | Command / gate | Result |
 |---|---|
@@ -113,14 +95,8 @@ constructor enforcement, and public API compatibility.
 | Diagram audits and full-size review | PASS |
 | `git diff --check` | PASS |
 
-One earlier Core run and one earlier Spring run completed all test cases but
-Gradle then lost `in-progress-results-generic.bin`. Neither run was accepted as
-verification evidence; isolated reruns with observed exit code 0 are the results
-listed above.
+하나의 이전 Core 실행과 하나의 이전 Spring 실행이 모든 테스트 사례를 완료했지만 Gradle는 `in-progress-results-generic.bin`를 잃었습니다. 두 실행 모두 검증 증거로 인정되지 않았습니다. 종료 코드 0이 관찰된 격리된 재실행은 위에 나열된 결과입니다.
 
-`dokkaGenerateHtml` remains unavailable because the repository baseline fails
-with `Unexpected classifier: "#"` and pre-existing unresolved KDoc warnings. The
-same failure was reproduced on clean `develop`; compilation, tests, AOT, and the
-module build are the accepted API-documentation checks for this change.
+`Unexpected classifier: "#"` 및 기존의 해결되지 않은 KDoc 경고로 인해 리포지토리 기준이 failure하기 때문에 `dokkaGenerateHtml`는 계속 사용할 수 없습니다. 깨끗한 `develop`에서도 동일한 오류가 재현되었습니다. 컴파일, 테스트, AOT 및 모듈 빌드는 이 변경 사항에 대해 허용되는 API 문서 검증입니다.
 
-Final review verdict: `PASS`; P0=0, P1=0, P2=0.
+최종 검토 결과: `PASS`; P0=0, P1=0, P2=0.

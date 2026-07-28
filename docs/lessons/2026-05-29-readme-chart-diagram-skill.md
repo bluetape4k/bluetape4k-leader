@@ -1,40 +1,29 @@
-# README chart diagram skill lesson
+# README 차트 다이어그램 기술 강의
 
-## Context
+## 맥락
 
-README benchmark charts drifted from the `bluetape4k-diagram` visual contract:
-some SVG sources used non-skill fallback fonts, and chart colors were stronger
-than the required pastel tone.
+README 벤치마크 차트는 `bluetape4k-diagram` 시각적 계약에서 벗어났습니다. 일부 SVG 소스는 비기술 대체 글꼴을 사용했으며 차트 색상은 필요한 파스텔 톤보다 더 강했습니다.
 
-## Decision
+## 결정
 
-Regenerate all `docs/images/readme-charts/*.{svg,png}` assets with one shared
-pastel palette and explicit font roles:
+하나의 공유 파스텔 팔레트와 명시적인 글꼴 역할을 사용하여 모든 `docs/images/readme-charts/*.{svg,png}` 자산을 재생성합니다.
 
-- `Architects Daughter` for titles and prominent labels.
-- `Comic Mono` for subtitles, ticks, values, legends, and notes.
+- 제목과 눈에 띄는 라벨을 위한 `Architects Daughter`.
+- 자막, 눈금, 값, 범례 및 메모용 `Comic Mono`입니다.
 
-For local rendering, do not rely on `fc-match` alone. This machine can report a
-fallback for `fc-match 'Architects Daughter'` even though `fc-list` and
-`fc-scan` find the installed font file. Generated SVGs should bind the discovered
-font file explicitly when needed.
+로컬 렌더링의 경우 `fc-match`에만 의존하지 마십시오. `fc-list` 및 `fc-scan`가 설치된 글꼴 파일을 찾는 경우에도 이 컴퓨터는 `fc-match 'Architects Daughter'`에 대한 대체를 보고할 수 있습니다. 생성된 SVG는 필요할 때 검색된 글꼴 파일을 명시적으로 바인딩해야 합니다.
 
-## Outcome
+## 결과
 
-All README chart assets now use PNG embeds backed by matching SVG sources with
-pastel chart colors and explicit skill fonts.
+이제 모든 README 차트 자산은 SVG 소스를 파스텔 차트 색상 및 명시적 기술 글꼴과 일치시켜 지원되는 PNG 임베드를 사용합니다.
 
-## Verification
+## 검증
 
 - `xmllint --noout docs/images/readme-charts/*.svg`
 - `git diff --check`
-- Rendered all chart PNGs with `rsvg-convert`.
-- Previewed a six-chart contact sheet for clipping, spacing, font roles, and
-  obvious overlap.
+- `rsvg-convert`를 사용하여 모든 차트 PNG를 렌더링했습니다.
+- 클리핑, 간격, 글꼴 역할 및 명백한 중복을 위한 6개 차트 밀착 인화를 미리 보았습니다.
 
-## Future agents
+## 미래의 에이전트
 
-Before claiming a bluetape4k font is missing, check `fc-list`, direct font
-paths, and `fc-scan`. If those show the font, configure rendering to use that
-font instead of switching to another family because `fc-match` returned a
-fallback.
+bluetape4k 글꼴이 누락되었다고 주장하기 전에 `fc-list`, 직접 글꼴 경로 및 `fc-scan`를 검증하세요. 글꼴이 표시되면 `fc-match`가 대체를 반환했기 때문에 다른 글꼴로 전환하는 대신 해당 글꼴을 사용하도록 렌더링을 구성합니다.

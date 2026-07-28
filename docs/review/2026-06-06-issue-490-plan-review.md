@@ -1,21 +1,20 @@
-# Issue 490 Plan Review
+# 490호 계획 검토
 
-- Issue: #490 — `docs(readme): refresh layered module architecture diagrams`
-- Review type: plan gate
-- Reviewed artifact:
-  `docs/superpowers/plans/2026-06-06-issue-490-layered-architecture-plan.md`
+- 문제: #490 - `docs(readme): refresh layered module architecture diagrams`
+- 검토 유형: 계획 게이트
+- 검토된 아티팩트: `docs/superpowers/plans/2026-06-06-issue-490-layered-architecture-plan.md`
 
-## Verdict
+## 평결
 
 - P0 = 0
 - P1 = 0
-- Gate: PASS
+- 게이트: 통과
 
-## Findings
+## 조사 결과
 
-No P0/P1 blockers.
+P0/P1 차단제가 없습니다.
 
-## Checks
+## 수표
 
 | Check | Status | Evidence |
 |---|---:|---|
@@ -25,10 +24,7 @@ No P0/P1 blockers.
 | Scope boundary | PASS | Plan excludes #491 example scenario/flow work and Kotlin source changes |
 | Verification sufficiency | PASS | Plan includes shared evidence check, XML parse, README image-link check, `git diff --check`, contact sheet and individual PNG inspection |
 
-## Notes
+## 메모
 
-- Target scope order starts with root architecture diagrams so the most visible
-  README page is corrected first.
-- The plan allows lighter boundary treatment for class-style diagrams only when
-  full bands would make the diagram less readable; this must be documented if
-  used.
+- 대상 범위 순서는 루트 아키텍처 다이어그램으로 시작하므로 가장 눈에 띄는 README 페이지가 먼저 수정됩니다.
+- 이 계획에서는 전체 밴드로 인해 다이어그램의 가독성이 떨어지는 경우에만 클래스 스타일 다이어그램에 대해 더 가벼운 경계 처리를 허용합니다. 이를 사용하는 경우 문서화해야 합니다.

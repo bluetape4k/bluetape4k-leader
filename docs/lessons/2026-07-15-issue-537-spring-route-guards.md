@@ -1,72 +1,42 @@
-# Issue 537 Spring Route Guards Lessons
+# 537호 스프링 루트 가드 레슨
 
-## Context
+## 맥락
 
-Spring applications needed an opt-in way to keep selected MVC and WebFlux
-routes on the current leader without turning every HTTP request into a lock
-acquisition. Redirect metadata and request-bound leases were deliberately split
-into #606 and #607.
+Spring 애플리케이션에는 모든 HTTP 요청을 잠금 획득으로 전환하지 않고 현재 리더에서 선택된 MVC 및 WebFlux 경로를 유지하는 옵트인 방법이 필요했습니다. 리디렉션 메타데이터와 요청 바인딩 임대는 의도적으로 #606과 #607로 분할되었습니다.
 
-## Decision
+## 결정
 
-- Make `STATE` the built-in default: read one state snapshot and compare its
-  audit leader ID with the same process-incarnation `LeaderSlot` used for
-  election.
-- Expose `CUSTOM` as a separate application authority SPI. Never silently blend
-  it with the built-in model; mixed configuration is a startup error.
-- Keep rejections fail-closed, empty-body, identity-free, and limited to a small
-  documented status set.
-- Require an explicit audit-state capability before STATE can start, and enforce
-  that invariant both in auto-configuration and the public authority
-  constructor.
+- `STATE`를 기본 제공 기본값으로 만듭니다. 하나의 상태 스냅샷을 읽고 해당 감사 리더 ID를 선택에 사용된 동일한 프로세스 구현 `LeaderSlot`와 비교합니다.
+- `CUSTOM`를 별도의 애플리케이션 권한 SPI로 노출합니다. 내장 모델과 자동으로 혼합하지 마십시오. 혼합 구성은 시작 오류입니다.
+- 거부는 failure 시 닫히고, 본문이 비어 있고, 신원이 없으며, 문서화된 작은 상태 세트로 제한됩니다.
+- STATE가 시작되기 전에 명시적인 감사 상태 기능을 요구하고 자동 구성과 공용 권한 생성자 모두에서 해당 불변성을 적용합니다.
 
-## Surprises and failures
+## 놀라움과 failure
 
-An initial capability flag was too shallow. `ListeningLeaderElector` delegated
-the flag and `state()`, but inherited slot bridge defaults for execution. Those
-defaults converted `LeaderSlot` to `lockName` and discarded `leaderId`. A capable
-backend wrapped with listeners could therefore pass startup, acquire under a
-different audit identity, and be denied by its own route guard forever. The same
-gap existed in Local synchronous elector's async slot path.
+초기 기능 플래그가 너무 얕습니다. `ListeningLeaderElector`는 플래그와 `state()`를 위임했지만 실행을 위해 슬롯 브리지 기본값을 상속했습니다. 이러한 기본값은 `LeaderSlot`를 `lockName`로 변환하고 `leaderId`를 폐기했습니다. 따라서 리스너로 래핑된 유능한 백엔드는 시작을 통과하고, 다른 감사 ID로 획득하고, 자체 경로 가드에 의해 영원히 거부될 수 있습니다. 로컬 동기 선택기의 비동기 슬롯 경로에도 동일한 간격이 존재했습니다.
 
-Java interop exposed a second fail-closed edge: a Java implementation of the
-Kotlin authority interface can return `null`. Reactor's `Mono.fromCallable`
-treats null as empty completion, so normalizing only exceptions could allow a
-request to fall through without a decision.
+Java interop은 두 번째 장애 폐쇄 에지를 노출했습니다. 즉, Kotlin 권한 인터페이스의 Java 구현은 `null`를 반환할 수 있습니다. Reactor의 `Mono.fromCallable`는 null을 빈 완료로 처리하므로 예외만 정규화하면 요청이 결정 없이 failure할 수 있습니다.
 
-Cancellation was another category boundary. Treating it as an ordinary
-authority failure would hide caller shutdown and could leave work running after
-the request was gone.
+취소는 또 다른 카테고리 경계였습니다. 이를 일반적인 권한 failure로 처리하면 호출자 종료가 숨겨지고 요청이 사라진 후에도 작업이 계속 실행될 수 있습니다.
 
-## Repair
+## 수리
 
-- Add slot-aware listener overloads for sync, async, suspend, and result APIs;
-  repair Local async delegation and preserve `Elected.leaderId`.
-- Add real state round-trip tests that assert the audit identity while the slot
-  is held, including every backend marked capable and its relevant decorators.
-- Normalize Java `null` to `Unavailable` before MVC/WebFlux adaptation.
-- Propagate cancellation, restore and rethrow interruption, and normalize only
-  ordinary failures.
-- Require leader IDs unique per live process incarnation; reuse the value only
-  inside that process for election and route guarding.
+- 동기화, 비동기, 일시 중단 및 결과 API에 대한 슬롯 인식 리스너 오버로드를 추가합니다. 로컬 비동기 위임을 복구하고 `Elected.leaderId`를 보존합니다.
+- 가능하다고 표시된 모든 백엔드와 관련 데코레이터를 포함하여 슬롯이 유지되는 동안 감사 ID를 검증하는 실제 상태 왕복 테스트를 추가합니다.
+- MVC/WebFlux 적응 전에 Java `null`를 `Unavailable`로 정규화합니다.
+- 취소를 전파하고 중단을 복원 및 다시 발생시키며 일반적인 오류만 정상화합니다.
+- 라이브 프로세스 구현마다 고유한 리더 ID가 필요합니다. 선택 및 경로 보호를 위해 해당 프로세스 내에서만 값을 재사용합니다.
 
-## Outcome and proof
+## 결과 및 증명
 
-- Core: 713 tests passed.
-- Consul: 64 tests passed; DynamoDB: 30 tests passed.
-- Kubernetes: 13 unit and 21 K3s integration tests passed.
-- Micrometer: 76 tests passed.
-- Spring Boot: 422 tests and 6 AOT tests passed; module build passed.
-- Diagram XML, connector, geometry, endpoint, mixed-corner, raster, and
-  full-size visual checks passed.
-- Two independent final reviews converged at P0=0, P1=0, P2=0.
+- 코어: 713개의 테스트를 통과했습니다.
+- Consul: 64개의 테스트를 통과했습니다. DynamoDB: 30개의 테스트를 통과했습니다.
+- Kubernetes: 13개 장치 및 21개 K3s 통합 테스트를 통과했습니다.
+- Micrometer: 76개의 테스트가 통과되었습니다.
+- Spring Boot: 422개의 테스트와 6개의 AOT 테스트를 통과했습니다. 모듈 빌드가 통과되었습니다.
+- 다이어그램 XML, 커넥터, 형상, 끝점, 혼합 모서리, 래스터 및 전체 크기 시각적 검사를 통과했습니다.
+- 두 개의 독립적인 최종 검토가 P0=0, P1=0, P2=0에서 수렴되었습니다.
 
-## Future guard
+## 미래의 가드
 
-A capability is not just a property. Every wrapper that advertises it must
-preserve the identity-bearing operation that creates the observable state, and
-tests must prove the round trip rather than only assert the flag. Treat
-interface bridge defaults as compatibility fallbacks, not as evidence that a
-decorator preserves semantic identity. At language and reactive boundaries,
-test impossible-looking values such as Java null and classify cancellation
-before ordinary failure normalization.
+능력은 단순한 재산이 아닙니다. 이를 광고하는 모든 래퍼는 관찰 가능한 상태를 생성하는 ID 보유 작업을 보존해야 하며 테스트에서는 플래그를 주장하기만 하는 것이 아니라 왕복을 증명해야 합니다. 인터페이스 브리지 기본값을 데코레이터가 의미론적 정체성을 유지한다는 증거가 아니라 호환성 폴백으로 처리합니다. 언어 및 반응 경계에서 Java null과 같이 불가능해 보이는 값을 테스트하고 일반적인 failure 정규화 전에 취소를 분류합니다.

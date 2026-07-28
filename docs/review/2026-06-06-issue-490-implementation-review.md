@@ -1,23 +1,23 @@
-# Issue #490 Implementation Review
+# 이슈 #490 구현 검토
 
-## Scope
+## 범위
 
-- Rebuild root and module architecture/class README diagram assets with visible layer bands.
-- Normalize README language switch lines to `English | 한국어` for every README pair.
-- Preserve the existing Graphviz-backed node and route geometry unless a layer-specific layout correction is required.
+- 눈에 보이는 레이어 밴드를 사용하여 루트 및 모듈 아키텍처/클래스 README 다이어그램 자산을 다시 빌드합니다.
+- 모든 README 쌍에 대해 README 언어 스위치 행을 `English | 한국어`로 정규화합니다.
+- 레이어별 레이아웃 수정이 필요하지 않은 한 기존 Graphviz 지원 노드 및 경로 형상을 유지합니다.
 
-## Review Verdict
+## 평결 검토
 
 - P0 = 0
 - P1 = 0
-- Gate: PASS
+- 게이트: 통과
 
-## Findings
+## 조사 결과
 
-- P0: none.
-- P1: none.
-- P2: none.
-- P3: The existing `leader-exposed-jdbc-class-01` inheritance routing remains visually dense, but the current change does not redraw class relationships and the Graphviz evidence gate still passes. Keep a future redraw scoped to a dedicated class-diagram issue if needed.
+- P0: 없음.
+- P1: 없음.
+- P2: 없음.
+- P3: 기존 `leader-exposed-jdbc-class-01` 상속 라우팅은 시각적으로 조밀하게 유지되지만 현재 변경 사항은 클래스 관계를 다시 그리지 않으며 Graphviz 증거 게이트는 여전히 통과합니다. 필요한 경우 향후 다시 그리기 범위를 전용 클래스 다이어그램 문제로 유지하세요.
 
 ## Step DoD
 
@@ -31,7 +31,7 @@
 | Step 6 - Rendered preview | PASS | `.omx/artifacts/issue-490-layered-architecture-contact-sheet.png`; individually inspected root, DynamoDB, K8s, and Exposed JDBC PNGs. |
 | Step 7 - Repository validation | PASS | `node scripts/regenerate-readme-diagram-graphviz-evidence.mjs --check`: `diagrams=65 failures=0`; `xmllint --noout` over README SVG assets passed; README image-link check passed; `git diff --check` passed. |
 
-## Notes
+## 메모
 
-- `root-readme-overview-01` remains an overview module map and is not rewritten in this issue; the root Leader Architecture Diagram is `bluetape4k-leader-architecture-01`.
-- `leader-dynamodb-architecture-01` and `leader-k8s-architecture-01` use column-oriented layer bands because their source layouts are actor/elector/state flows rather than stacked layer rows.
+- `root-readme-overview-01`는 개요 모듈 맵으로 남아 있으며 이번 호에서는 다시 작성되지 않습니다. 루트 리더 아키텍처 다이어그램은 `bluetape4k-leader-architecture-01`입니다.
+- `leader-dynamodb-architecture-01` 및 `leader-k8s-architecture-01`는 소스 레이아웃이 누적된 레이어 행이 아닌 행위자/선택자/상태 흐름이기 때문에 열 기반 레이어 밴드를 사용합니다.

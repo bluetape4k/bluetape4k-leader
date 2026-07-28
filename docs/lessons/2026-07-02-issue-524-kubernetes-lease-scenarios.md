@@ -1,30 +1,17 @@
-# Lesson - Issue #524 Kubernetes Lease Scenario Benchmarks
+# 강의 - Issue #524 Kubernetes Lease 시나리오 벤치마크
 
-## Context
+## 맥락
 
-Issue #524 required K3s-backed Kubernetes Lease benchmarks beyond the basic
-successful `runIfLeader` path. The missing cases were active-holder skip,
-expired takeover, renewal, and resource-version conflict behavior across
-blocking and suspend lanes.
+Issue #524에서는 기본적인 success적인 `runIfLeader` 경로를 넘어서는 K3s 지원 Kubernetes Lease 벤치마크가 필요했습니다. 누락된 사례는 활성 보유자 건너뛰기, 만료된 인수, 갱신, 차단 및 정지 레인 전반에 걸친 리소스 버전 충돌 동작이었습니다.
 
-## Decision
+## 결정
 
-Keep public elector benchmarks for the scenarios the public API can model:
-fresh acquire, active-holder skip, and expired takeover. Model same-holder
-renewal and stale `resourceVersion` conflict as direct Fabric8 Lease API probes
-because public electors generate an internal owner token per acquisition and
-release clears the holder by default.
+공개 API가 모델링할 수 있는 시나리오(신규 획득, 활성 보유자 건너뛰기, 만료된 인수)에 대한 공개 선거인 벤치마크를 유지하세요. 동일 보유자 갱신 및 오래된 `resourceVersion` 충돌을 직접 Fabric8 Lease API 프로브로 모델링합니다. 왜냐하면 공개 선거인은 획득당 내부 소유자 토큰을 생성하고 릴리스는 기본적으로 보유자를 지우기 때문입니다.
 
-## Outcome
+## 결과
 
-The results show that skip paths are cheapest because they avoid Lease writes,
-while fresh acquire and expired takeover include public elector acquire and
-release work. Renewal and conflict rows now provide API-server update/conflict
-cost visibility without pretending they are full user action paths.
+결과에 따르면 건너뛰기 경로는 임대 쓰기를 방지하기 때문에 가장 저렴한 반면, 신규 획득 및 만료된 인수에는 공공 선거인 획득 및 릴리스 작업이 포함됩니다. 이제 갱신 및 충돌 행은 전체 사용자 작업 경로인 것처럼 가장하지 않고도 API 서버 업데이트/충돌 비용 가시성을 제공합니다.
 
-## Future Guard
+## 퓨쳐 가드
 
-When Kubernetes Lease benchmark rows mix public elector paths with direct Lease
-API probes, keep that boundary explicit in README tables, benchmark reports,
-and chart captions. Do not compare direct renewal/conflict probes as if they
-were complete acquire+release user workflows.
+Kubernetes Lease 벤치마크 행이 공개 선택자 경로와 직접 Lease API 프로브를 혼합하는 경우 README 테이블, 벤치마크 보고서 및 차트 캡션에서 해당 경계를 명시적으로 유지하세요. 직접적인 갱신/충돌 조사를 완전한 사용자 획득+해제 워크플로우인 것처럼 비교하지 마십시오.

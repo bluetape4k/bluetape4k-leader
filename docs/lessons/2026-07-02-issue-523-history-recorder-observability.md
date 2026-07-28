@@ -1,28 +1,17 @@
-# Lesson - Issue #523 History Recorder Observability Benchmarks
+# 단원 - Issue #523 기록 레코더 관찰 가능성 벤치마크
 
-## Context
+## 맥락
 
-Issue #523 required Micrometer and terminal-state overhead coverage for leader
-history recorders. The benchmark needed to stay inside the existing benchmark
-module and avoid implying backend or Spring advice overhead.
+이슈 #523에는 리더 기록 레코더에 대한 Micrometer 및 터미널 상태 오버헤드 적용이 필요합니다. 벤치마크는 기존 벤치마크 모듈 내에 있어야 하고 백엔드 또는 Spring 조언 오버헤드를 암시하지 않아야 합니다.
 
-## Decision
+## 결정
 
-Extend `HistoryRecorderBenchmark` with a JMH `metadataMode` parameter and add
-explicit no-op, in-memory, and Micrometer rows for completed and failed terminal
-states. Use `SimpleMeterRegistry` so the Micrometer rows measure local counter
-decoration, not exporter or external backend I/O.
+JMH `metadataMode` 매개변수를 사용하여 `HistoryRecorderBenchmark`를 확장하고 완료 및 failure한 터미널 상태에 대해 명시적인 no-op, 메모리 내 및 Micrometer 행을 추가합니다. `SimpleMeterRegistry`를 사용하면 Micrometer 행이 내보내기 또는 외부 백엔드 I/O가 아닌 로컬 카운터 장식을 측정합니다.
 
-## Outcome
+## 결과
 
-The result table made the main cost visible: metadata sanitization dominates
-large metadata rows, while Micrometer counter decoration stays close to the
-in-memory sink for small metadata. Failed rows are slower because
-`recordFailed` extracts and sanitizes exception details.
+결과 테이블을 통해 주요 비용을 검증할 수 있습니다. 메타데이터 삭제는 큰 메타데이터 행을 지배하는 반면, Micrometer 카운터 장식은 작은 메타데이터를 위해 인메모리 싱크에 가깝게 유지됩니다. `recordFailed`는 예외 세부 정보를 추출하고 삭제하므로 failure한 행의 속도가 느려집니다.
 
-## Future Guard
+## 퓨쳐 가드
 
-When adding benchmark observability rows, document the measurement boundary
-explicitly. If the benchmark is recorder-only, say so in the README and report,
-and point readers to separate advice/backend/contention benchmarks for the
-other costs.
+벤치마크 관측 가능성 행을 추가할 때 측정 경계를 명시적으로 문서화하세요. 벤치마크가 기록기 전용인 경우 README 및 보고서에 그렇게 명시하고 독자에게 다른 비용에 대한 별도의 조언/백엔드/경합 벤치마크를 안내합니다.

@@ -1,83 +1,64 @@
-# 6-Tier Code Review - Issue #345 Consul Runtime Slice
+# 6계층 코드 검토 - Issue #345 Consul 런타임 슬라이스
 
-Scope: `leader-consul` single-leader blocking and `CompletableFuture` runtime,
-internal Java 21 HTTP boundary, owner payload/state mapping, tests, and README
-status updates.
+범위: `leader-consul` 단일 리더 차단 및 `CompletableFuture` 런타임, 내부 Java 21 HTTP 경계, 소유자 페이로드/상태 매핑, 테스트 및 README 상태 업데이트.
 
-## Verdict
+## 평결
 
-- Local Codex 6-Tier: APPROVE with follow-up P2.
-- Claude final advisor: APPROVE with COMMENT.
-- Gate: P0=0, P1=0.
-- Claude artifacts:
+- 지역 코덱스 6계층: 후속 P2로 승인합니다.
+- Claude 최종 조언자: COMMENT로 승인하세요.
+- 게이트: P0=0, P1=0.
+- 클로드 유물:
   - `.omx/artifacts/ask-claude-code-review-consul-runtime-20260522232205.md`
   - `.omx/artifacts/ask-claude-code-review-consul-runtime-final-20260522232633.md`
 
-## Tier 1 - Security
+## 계층 1 - 보안
 
-- PASS: Consul ACL token is passed only through `X-Consul-Token`; README and
-  endpoint `toString()` avoid token disclosure.
-- PASS: `keyPrefix` now rejects query/hash/control-like path injection by
-  allowing only `[a-zA-Z0-9_\-./:]`.
-- PASS: Lock names are validated by core rules and encoded as final path
-  segments before Consul KV use.
+- PASS: Consul ACL 토큰은 `X-Consul-Token`를 통해서만 전달됩니다. README 및 엔드포인트 `toString()`는 토큰 공개를 방지합니다.
+- 통과: `keyPrefix`는 이제 `[a-zA-Z0-9_\-./:]`만 허용하여 쿼리/해시/컨트롤과 같은 경로 삽입을 거부합니다.
+- PASS: 잠금 이름은 핵심 규칙에 의해 검증되고 Consul KV를 사용하기 전에 최종 경로 세그먼트로 인코딩됩니다.
 
-## Tier 2 - Ops / SRE Reliability
+## 계층 2 - 운영/SRE 안정성
 
-- PASS: Normal contention returns `null`.
-- PASS: Action failure releases/destroys the session and permits reacquire.
-- PASS: Waiting candidates renew their own session when `waitTime` exceeds the
-  Consul renew delay; this prevents `invalid session` during takeover.
-- PASS: Interrupted `minLeaseTime` sleep restores the interrupt flag but still
-  runs Consul `release`/`destroy`.
-- WATCH: Blocking `.get(10, TimeUnit.SECONDS)` calls are not derived from
-  `ConsulEndpoint.requestTimeout`. Track as follow-up before stable promotion.
+- PASS: 일반 경합이 `null`를 반환합니다.
+- PASS: 작업 failure 시 세션이 해제/파기되고 재획득이 허용됩니다.
+- 통과: `waitTime`가 Consul 갱신 지연을 초과하면 대기 후보자가 자신의 세션을 갱신합니다. 이는 인수 중에 `invalid session`를 방지합니다.
+- PASS: 중단된 `minLeaseTime` 절전 모드는 인터럽트 플래그를 복원하지만 여전히 Consul `release`/`destroy`를 실행합니다.
+- WATCH: `.get(10, TimeUnit.SECONDS)` 호출 차단은 `ConsulEndpoint.requestTimeout`에서 파생되지 않습니다. 안정적인 프로모션 전 후속 조치로 추적하세요.
 
-## Tier 3 - Structural Impact
+## 계층 3 - 구조적 영향
 
-- PASS: Public API exposes only bluetape4k-owned `ConsulEndpoint`,
-  `ConsulLeaderElectionOptions`, `ConsulLeaderElector`, and extension helpers.
-- PASS: Consul HTTP details remain behind internal `ConsulLockClient`.
-- WATCH: Custom `HttpClient`/TLS/proxy injection is not public in this slice.
+- 통과: 공개 API는 bluetape4k 소유 `ConsulEndpoint`, `ConsulLeaderElectionOptions`, `ConsulLeaderElector` 및 확장 도우미만 노출합니다.
+- 통과: Consul HTTP 세부 정보는 내부 `ConsulLockClient` 뒤에 남아 있습니다.
+- 시청: 이 슬라이스에서는 사용자 정의 `HttpClient`/TLS/프록시 주입이 공개되지 않습니다.
 
-## Tier 4 - Kotlin / Code Quality
+## 계층 4 - Kotlin/코드 품질
 
-- PASS: Cleanup paths preserve interruption semantics and avoid swallowing
-  action exceptions through cleanup sleep failures.
-- PASS: `ConsulLockExtendDelegate.isHeld()` is now a passive read-only ownership
-  check, not a session renewal side effect.
-- PASS: Public APIs have English KDoc.
+- 통과: 정리 경로는 중단 의미 체계를 보존하고 정리 절전 failure를 통해 작업 예외를 삼키는 것을 방지합니다.
+- 통과: `ConsulLockExtendDelegate.isHeld()`는 이제 세션 갱신 부작용이 아닌 수동적 읽기 전용 소유권 검증입니다.
+- 통과: 공개 API에는 영어 KDoc가 있습니다.
 
-## Tier 5 - Tests / Types / Silent Failure
+## 계층 5 - 테스트 / 유형 / 자동 failure
 
-- PASS: `:bluetape4k-leader-consul:test` executes 25 tests.
-- PASS: Tests cover options/key validation, owner payload roundtrip, backend
-  error classification, state mapping, contention skip, destroy failure on
-  contention, interrupted cleanup, waiting-candidate renewal, async happy path,
-  `LeaderRunResult.ActionFailed`, action-failure cleanup, and real Consul TTL
-  takeover.
-- WATCH: Release/destroy failures remain best-effort WARN-only by design.
+- 통과: `:bluetape4k-leader-consul:test`는 25개의 테스트를 실행합니다.
+- 통과: 테스트에는 옵션/키 검증, 소유자 페이로드 왕복, 백엔드 오류 분류, 상태 매핑, 경합 건너뛰기, 경합 시 삭제 failure, 중단된 정리, 대기 중인 후보 갱신, 비동기 행복한 경로, `LeaderRunResult.ActionFailed`, 작업 failure 정리 및 실제 Consul TTL 인계가 포함됩니다.
+- 주의: 릴리스/파기 failure는 설계상 최선의 경고로만 유지됩니다.
 
-## Tier 6 - Performance / Stability
+## 계층 6 - 성능/안정성
 
-- PASS: Polling loop has a fixed 50 ms sleep and a hard `waitTime` deadline.
-- PASS: Real Consul expiry takeover test uses a wider timeout budget to account
-  for Consul TTL expiry variance.
-- WATCH: Async release can block the caller-provided executor for
-  `minLeaseTime`; current README/defaults favor virtual threads, but a future
-  cleanup executor or documentation note would reduce surprises.
+- 통과: 폴링 루프에는 고정된 50ms 절전 및 엄격한 `waitTime` 기한이 있습니다.
+- 통과: 실제 Consul 만료 인수 테스트는 Consul TTL 만료 차이를 설명하기 위해 더 넓은 시간 제한 예산을 사용합니다.
+- 주의: 비동기 릴리스는 `minLeaseTime`에 대해 호출자가 제공한 실행기를 차단할 수 있습니다. 현재 README/기본값은 가상 스레드를 선호하지만 향후 정리 실행기 또는 문서 메모를 통해 놀라움을 줄일 수 있습니다.
 
-## Validation
+## 검증
 
 - `git diff --check`
 - `./gradlew :bluetape4k-leader-consul:test --no-daemon --console=plain`
-  - PASS: 25 tests.
+  - 통과: 25개 테스트.
 - `./gradlew :bluetape4k-leader-consul:check --no-daemon --console=plain`
-  - PASS.
+  - 통과.
 
-## Follow-Up Candidates
+## 후속 후보자
 
-- Derive blocking `.get(...)` limits from endpoint/request timeout policy.
-- Decide whether Consul elector should expose custom `HttpClient` configuration.
-- Document or isolate executor blocking in async cleanup when `minLeaseTime` is
-  non-zero.
+- 엔드포인트/요청 시간 초과 정책에서 차단 `.get(...)` 제한을 파생시킵니다.
+- Consul 선택기가 사용자 정의 `HttpClient` 구성을 노출해야 하는지 여부를 결정합니다.
+- `minLeaseTime`가 0이 아닐 때 비동기 정리에서 차단되는 실행기를 문서화하거나 격리합니다.

@@ -1,28 +1,28 @@
-# README Diagram Layout Fixes
+# README 다이어그램 레이아웃 수정
 
-## Context
+## 맥락
 
-Follow-up visual QA found two layout defects in generated README diagrams:
+후속 시각적 QA에서는 생성된 README 다이어그램에서 두 가지 레이아웃 결함을 발견했습니다.
 
-- some architecture connectors were rendered as very short line segments where only the arrow head was visible
-- sequence participant header labels were vertically biased toward the top of the header box
+- 일부 아키텍처 커넥터는 화살표 머리만 보이는 매우 짧은 선분으로 렌더링되었습니다.
+- 시퀀스 참가자 헤더 라벨이 헤더 상자 상단을 향해 수직으로 편향되었습니다.
 
-A related sequence issue was also fixed: self-calls previously rendered as zero-length arrows, which looked like a standalone arrow head.
+관련 시퀀스 문제도 해결되었습니다. 이전에는 독립형 화살촉처럼 보였던 길이가 0인 화살표로 렌더링된 자체 호출이 있었습니다.
 
-## Decision
+## 결정
 
-Keep the existing diagram style and update only geometry in the generated SVG/PNG assets. Architecture connector line segments must span the visible gap between adjacent cards. Sequence participant labels must use the same vertical-centering baseline as architecture cards. Sequence self-calls should render as a small loop instead of a zero-length line.
+기존 다이어그램 스타일을 유지하고 생성된 SVG/PNG 자산의 형상만 업데이트합니다. 아키텍처 커넥터 선 세그먼트는 인접한 카드 사이의 눈에 보이는 간격에 걸쳐 있어야 합니다. 시퀀스 참여자 레이블은 아키텍처 카드와 동일한 수직 중심 기준선을 사용해야 합니다. 시퀀스 자체 호출은 길이가 0인 줄 대신 작은 루프로 렌더링되어야 합니다.
 
-## Verification
+## 검증
 
-- README image link check: missing=0, localSvgImageLinks=0, mermaidResidue=0
-- PNG/SVG shape check: shapeCandidates=0
-- architecture short connector check: shortArch=0
-- sequence header alignment check: seqTop=0
-- sequence zero-length arrow check: zeroSeq=0
+- README 이미지 링크 검증: 누락=0, localSvgImageLinks=0, mermaidResidue=0
+- PNG/SVG 모양 검증: ShapeCandidates=0
+- 아키텍처 짧은 커넥터 검증: shortArch=0
+- 시퀀스 헤더 정렬 검증: seqTop=0
+- 시퀀스 길이가 0인 화살표 검증: zeroSeq=0
 - `git diff --check`
-- visual samples reviewed for exposed root architecture and representative sequence diagrams
+- Exposed 루트 아키텍처 및 대표적인 시퀀스 다이어그램에 대해 검토된 시각적 샘플
 
-## Future Guidance
+## 향후 지침
 
-Treat arrow head-only connectors as a failed rendering even when the SVG is syntactically valid. Geometry checks should cover architecture connector length, sequence header baseline, and sequence self-call arrows before PR creation.
+SVG가 구문적으로 유효한 경우에도 화살표 머리만 있는 커넥터를 failure한 렌더링으로 처리합니다. 형상 검사에서는 PR 생성 전에 아키텍처 커넥터 길이, 시퀀스 헤더 기준선 및 시퀀스 자체 호출 화살표를 다루어야 합니다.

@@ -1,35 +1,21 @@
-# Issue 328 benchmark README and charts
+# Issue 328 벤치마크 README 및 차트
 
-## Context
+## 맥락
 
-Issue #328 asked for published benchmark reports and charts after the
-cross-backend benchmark suites were added. The raw baseline existed in
-`docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md`, but README
-readers had no direct entry point from the module or repository root.
+Issue #328에서는 크로스 백엔드 벤치마크 제품군이 추가된 후 게시된 벤치마크 보고서와 차트를 요청했습니다. 원시 기준선은 `docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md`에 존재했지만 README 판독기에는 모듈이나 저장소 루트에서 직접 진입점이 없었습니다.
 
-## Decision
+## 결정
 
-Keep the full result tables in `benchmark/README.md` and
-`benchmark/README.ko.md`, then expose a smaller benchmark summary from the root
-README files. Chart only the distributed backend rows for remote comparisons so
-local and H2 rows do not compress the Redis, Hazelcast, MongoDB, and ZooKeeper
-differences.
+`benchmark/README.md` 및 `benchmark/README.ko.md`에 전체 결과 테이블을 유지한 다음 루트 README 파일에서 더 작은 벤치마크 요약을 공개합니다. 원격 비교를 위해 분산된 백엔드 행만 차트로 작성하므로 로컬 및 H2 행은 Redis, Hazelcast, MongoDB 및 ZooKeeper 차이를 압축하지 않습니다.
 
-## Outcome
+## 결과
 
-The benchmark module now documents the `kotlinx-benchmark`/JMH command, source
-set, baseline caveats, throughput and latency charts, cross-backend tables, and
-local core overhead rows. Root README files link to the benchmark module and
-baseline report with a concise interpretation table.
+이제 벤치마크 모듈에는 `kotlinx-benchmark`/JMH 명령, 소스 세트, 기본 주의 사항, 처리량 및 대기 시간 차트, 크로스 백엔드 테이블 및 로컬 코어 오버헤드 행이 문서화되어 있습니다. 루트 README 파일은 간결한 해석표가 포함된 벤치마크 모듈 및 기준 보고서에 연결됩니다.
 
-## Verification
+## 검증
 
-Run `git diff --check` and markdown link/path checks after editing. No Gradle
-execution is required for this docs-only change unless benchmark source or
-Gradle configuration changes.
+편집 후 `git diff --check` 및 마크다운 링크/경로 검증을 실행합니다. 벤치마크 소스 또는 Gradle 구성이 변경되지 않는 한 이 문서 전용 변경에는 Gradle 실행이 필요하지 않습니다.
 
-## Future Guidance
+## 향후 지침
 
-When benchmarks are rerun, update the baseline report, both benchmark README
-files, and the SVG charts in the same PR. Keep local/H2 rows out of remote
-backend charts unless a separate scale or panel is added.
+벤치마크가 다시 실행되면 동일한 PR의 기준 보고서, 벤치마크 README 파일 및 SVG 차트를 모두 업데이트합니다. 별도의 척도나 패널이 추가되지 않는 한 원격 백엔드 차트에서 로컬/H2 행을 유지하세요.

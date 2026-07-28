@@ -1,42 +1,29 @@
-# Lessons Learned - issue #329 leader history recorder self-improve (2026-05-21)
+# 배운 교훈 - 이슈 #329 리더 이력 기록기 자기 개선(2026-05-21)
 
-**Related issue**: #329
-**Affected module**: `leader-core`
+**관련 문제**: #329 **영향을 받는 모듈**: `leader-core`
 
-## Context
+## 맥락
 
-Issue #329 required benchmark-guided performance improvement after the central
-`benchmark/` module had made leader benchmark rows comparable. The primary gate
-was `HistoryRecorderBenchmark.blockingInMemoryAcquireComplete` throughput, with
-no more than 5% regression in core guard rows.
+Issue #329에서는 중앙 `benchmark/` 모듈이 리더 벤치마크 행을 비교할 수 있게 만든 후 벤치마크 기반 성능 개선이 필요했습니다. 기본 게이트는 `HistoryRecorderBenchmark.blockingInMemoryAcquireComplete` 처리량으로 코어 가드 행에서 회귀가 5%를 넘지 않았습니다.
 
-## Decision
+## 결정
 
-The accepted optimization was a safe-path sanitizer change in
-`LeaderHistoryRecorderSupport`: return original strings and metadata maps when
-they are already within recorder limits, and allocate sanitized copies only when
-replacement or truncation is required.
+허용된 최적화는 `LeaderHistoryRecorderSupport`의 안전 경로 삭제 프로그램 변경이었습니다. 원래 문자열과 메타데이터 맵이 이미 레코더 제한 내에 있는 경우 반환하고 교체 또는 잘림이 필요한 경우에만 삭제된 복사본을 할당합니다.
 
-## Outcome
+## 결과
 
-The first candidate passed the gate:
+첫 번째 후보자가 관문을 통과했습니다.
 
-- `blockingInMemoryAcquireComplete`: 5,601,881.043 -> 20,018,125.709 ops/s
-  (+257.35%).
-- `blockingNoopAcquireComplete`: 7,642,848.188 -> 62,740,146.724 ops/s
-  (+720.90%).
-- `suspendInMemoryAcquireComplete`: 4,843,511.108 -> 11,441,889.888 ops/s
-  (+136.23%).
+- `blockingInMemoryAcquireComplete`: 5,601,881.043 -> 20,018,125.709 ops/s (+257.35%).
+- `blockingNoopAcquireComplete`: 7,642,848.188 -> 62,740,146.724 ops/s (+720.90%).
+- `suspendInMemoryAcquireComplete`: 4,843,511.108 -> 11,441,889.888 ops/s (+136.23%).
 
-## Verification Evidence
+## 검증 증거
 
-- Targeted support tests passed.
-- Full `:benchmark:benchmarkBenchmark` throughput run passed before and after.
-- Self-improve sealed-file validation passed after the code change.
+- 타겟 지원 테스트를 통과했습니다.
+- 전체 `:benchmark:benchmarkBenchmark` 처리량 실행이 전후에 전달되었습니다.
+- 코드 변경 후 자체 개선된 봉인된 파일 유효성 검사가 통과되었습니다.
 
-## Future Guard
+## 퓨쳐 가드
 
-For hot-path audit/history code, first look for avoidable allocation in the
-safe case before changing backend semantics or token generation. Keep the
-benchmark harness sealed for before/after comparisons, and repeat longer
-profiles before publishing release-grade performance claims.
+핫 경로 감사/기록 코드의 경우 백엔드 의미 체계 또는 토큰 생성을 변경하기 전에 먼저 안전한 경우에서 피할 수 있는 할당을 찾으세요. 전후 비교를 위해 벤치마크 하네스를 봉인된 상태로 유지하고 릴리스 등급 성능 주장을 게시하기 전에 더 긴 프로필을 반복하십시오.

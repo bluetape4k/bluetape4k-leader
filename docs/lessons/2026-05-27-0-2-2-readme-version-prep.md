@@ -1,29 +1,21 @@
-# 2026-05-27 0.2.2 README Version Prep
+# 2026-05-27 0.2.2 README 버전 준비
 
-## Context
+## 맥락
 
-The 0.2.2 patch fixes were merged before stable release publication, but the
-root README locale set only pinned individual dependency snippets. It did not
-make the current stable version obvious or show the BOM-first dependency path.
+0.2.2 패치 수정 사항은 안정적인 릴리스가 게시되기 전에 병합되었지만 루트 README 로케일 세트에는 개별 종속성 조각만 고정되었습니다. 현재 안정 버전을 명확하게 만들지 않았으며 BOM 우선 종속성 경로를 표시하지도 않았습니다.
 
-## Decision
+## 결정
 
-Add an explicit `0.2.2` stable-version line near the top of both README files
-and make the Gradle quick start start with the published
-`bluetape4k-leader-bom` coordinate.
+두 README 파일 상단 근처에 명시적인 `0.2.2` 안정 버전 라인을 추가하고 게시된 `bluetape4k-leader-bom` 좌표로 Gradle 빠른 시작을 시작합니다.
 
-## Outcome
+## 결과
 
-Release users can either import the BOM and omit module versions, or use the
-direct module snippets that remain pinned to `0.2.2`.
+릴리스 사용자는 BOM을 가져오고 모듈 버전을 생략하거나 `0.2.2`에 고정된 직접 모듈 조각을 사용할 수 있습니다.
 
-## Verification
+## 검증
 
-Run `git diff --check` and grep the README locale set for `0.2.2` and BOM
-coordinates before opening the documentation PR.
+문서 PR을 열기 전에 `git diff --check`를 실행하고 `0.2.2` 및 BOM 좌표에 대한 README 로케일 세트를 grep하십시오.
 
-## Future Guidance
+## 향후 지침
 
-For each stable release, update both README locale files with the visible
-current version and keep BOM-first dependency instructions ahead of direct
-module coordinates.
+각각의 안정적인 릴리스에 대해 두 README 로케일 파일을 모두 표시되는 현재 버전으로 업데이트하고 직접 모듈 좌표보다 먼저 BOM 우선 종속성 지침을 유지하세요.

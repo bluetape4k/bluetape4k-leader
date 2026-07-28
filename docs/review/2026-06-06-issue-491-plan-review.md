@@ -1,18 +1,17 @@
-# Issue 491 Plan Review
+# 491호 계획 검토
 
-- Issue: #491 `docs(examples): add scenario and flow diagrams`
-- Review type: plan gate
-- Reviewed artifact:
-  `docs/superpowers/plans/2026-06-06-issue-491-example-scenario-flow-plan.md`
+- 문제: #491 `docs(examples): add scenario and flow diagrams`
+- 검토 유형: 계획 게이트
+- 검토된 아티팩트: `docs/superpowers/plans/2026-06-06-issue-491-example-scenario-flow-plan.md`
 
-## Findings
+## 조사 결과
 
 - P0: 0
 - P1: 0
 - P2: 0
 - P3: 0
 
-## Gate Checks
+## 게이트 점검
 
 | Check | Result | Evidence |
 |---|---|---|
@@ -23,6 +22,6 @@
 | Diagram gate coverage | PASS | Plan requires deterministic geometry summaries, semantic route colors, layer containment, Graphviz evidence, PNG visual QA, XML parsing, PNG-only README embeds, and diff check |
 | PR/merge boundary | PASS | Plan creates a PR but explicitly does not merge without a separate user request |
 
-## Verdict
+## 평결
 
-PASS. Proceed to implementation.
+통과. 구현을 진행합니다.

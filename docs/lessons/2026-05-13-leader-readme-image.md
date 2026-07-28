@@ -1,26 +1,22 @@
-# Leader README Hero Image
+# 리더 README 영웅 이미지
 
-## Context
+## 맥락
 
-The project README needed a representative image that matches the bluetape4k
-profile workbench style while making the leader-election domain visible.
+프로젝트 README에는 리더 선택 도메인을 표시하면서 bluetape4k 프로필 워크벤치 스타일과 일치하는 대표 이미지가 필요했습니다.
 
-## Decision
+## 결정
 
-Store the generated raster asset in `docs/assets/leader-election-workbench.png`
-and reference the same relative path from both `README.md` and `README.ko.md`.
+생성된 래스터 자산을 `docs/assets/leader-election-workbench.png`에 저장하고 `README.md` 및 `README.ko.md` 모두에서 동일한 상대 경로를 참조합니다.
 
-## Outcome
+## 결과
 
-The root README now opens with a leader-election workbench illustration before
-the introductory copy in both locales.
+이제 루트 README가 두 로케일의 소개 사본 앞에 리더 선출 워크벤치 그림과 함께 열립니다.
 
-## Verification
+## 검증
 
-- Confirmed the asset exists as a PNG under `docs/assets`.
-- Checked README references and Markdown diff formatting.
+- 자산이 `docs/assets` 아래에 PNG로 존재하는지 검증했습니다.
+- README 참조 및 Markdown diff 형식을 검증했습니다.
 
-## Future Guidance
+## 향후 지침
 
-Keep README hero images inside `docs/assets` so localized README files can share
-one stable relative path.
+현지화된 README 파일이 하나의 안정적인 상대 경로를 공유할 수 있도록 README 히어로 이미지를 `docs/assets` 내부에 보관하세요.

@@ -1,26 +1,18 @@
-# Issue #326 leader-core benchmarks
+# 이슈 #326 leader-core 벤치마크
 
-## Context
+## 맥락
 
-`bluetape4k-leader` needed a benchmark baseline before self-improve work. The
-repo had no JMH setup, while the history audit spec already required evidence
-that in-memory recorder overhead stays below the 1 ms hot-path target.
+`bluetape4k-leader`는 자체 개선 작업을 수행하기 전에 벤치마크 기준이 필요했습니다. 저장소에는 JMH 설정이 없었지만 기록 감사 사양에는 이미 메모리 내 레코더 오버헤드가 1ms 핫 경로 목표 미만으로 유지된다는 증거가 필요했습니다.
 
-## Decision
+## 결정
 
-Added a small `buildSrc` JMH convention using `me.champeau.jmh` 0.7.3 and
-applied it only to `leader-core`. The first benchmarks cover local elector
-execution models and history recorder wrapper overhead. Cross-backend
-Testcontainers benchmarks remain separate follow-up work.
+`me.champeau.jmh` 0.7.3을 사용하여 작은 `buildSrc` JMH 규칙을 추가하고 `leader-core`에만 적용했습니다. 첫 번째 벤치마크에서는 로컬 선택기 실행 모델과 기록 레코더 래퍼 오버헤드를 다룹니다. 크로스 백엔드 Testcontainers 벤치마크는 별도의 후속 작업으로 남아 있습니다.
 
-## Outcome
+## 결과
 
-`compileJmhKotlin`, `jmhRunBytecodeGenerator`, and `jmh` all pass on Gradle
-9.5.1 with Kotlin 2.3. The generated report is under
-`leader-core/build/reports/jmh/`, and the durable baseline is in
-`docs/benchmarks/2026-05-21-leader-core-baseline.md`.
+`compileJmhKotlin`, `jmhRunBytecodeGenerator` 및 `jmh`는 모두 Kotlin 2.3을 사용하여 Gradle 9.5.1을 통과합니다. 생성된 보고서는 `leader-core/build/reports/jmh/`에 있고 내구성 기준은 `docs/benchmarks/2026-05-21-leader-core-baseline.md`에 있습니다.
 
-## Verification
+## 검증
 
 - `./gradlew :bluetape4k-leader-core:compileJmhKotlin --no-configuration-cache`
 - `./gradlew :bluetape4k-leader-core:jmhRunBytecodeGenerator --no-configuration-cache`
@@ -28,14 +20,9 @@ Testcontainers benchmarks remain separate follow-up work.
 - `./gradlew :bluetape4k-leader-core:test --no-configuration-cache`
 - `codex review --uncommitted`
 
-## Future Guidance
+## 향후 지침
 
-- Issue #327 superseded the direct `me.champeau.jmh` Gradle plugin setup. New
-  leader benchmarks should use the central `benchmark/` module with
-  `kotlinx-benchmark` and JMH as the JVM backend.
-- Do not use `waitTime = 0.seconds` for coroutine elector benchmarks; it can
-  measure the `withTimeoutOrNull(0)` skip path instead of the elected path.
-- Document `runBlocking` and virtual-thread scheduling caveats next to every
-  benchmark chart that compares execution models.
-- Keep README charts out of the harness PR; add them only when backend data is
-  comparable.
+- Issue #327은 직접 `me.champeau.jmh` Gradle 플러그인 설정을 대체했습니다. 새로운 리더 벤치마크는 JVM 백엔드로 `kotlinx-benchmark` 및 JMH와 함께 중앙 `benchmark/` 모듈을 사용해야 합니다.
+- 코루틴 선택기 벤치마크에는 `waitTime = 0.seconds`를 사용하지 마세요. 선택한 경로 대신 `withTimeoutOrNull(0)` 건너뛰기 경로를 측정할 수 있습니다.
+- 실행 모델을 비교하는 모든 벤치마크 차트 옆에 `runBlocking` 및 가상 스레드 예약 주의 사항을 문서화하세요.
+- README 차트를 하네스 PR에서 제외하세요. 백엔드 데이터를 비교할 수 있는 경우에만 추가하세요.

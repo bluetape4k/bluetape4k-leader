@@ -1,37 +1,25 @@
-# Issue 518 - Consul Extension Ownership
+# 문제 518 - Consul 확장 소유권
 
-## Context
+## 맥락
 
-Consul lock extension renewed the session and returned `Extended` without
-checking that the KV lock key still belonged to the same session. A renewable
-session is not proof of lock ownership after the KV key is deleted, released, or
-acquired by another session.
+Consul 잠금 확장은 KV 잠금 키가 여전히 동일한 세션에 속하는지 검증하지 않고 세션을 갱신하고 `Extended`를 반환했습니다. 갱신 가능한 세션은 KV 키가 삭제, 해제 또는 다른 세션에서 획득된 후 잠금 소유권을 증명하지 않습니다.
 
-## Decision
+## 결정
 
-Treat Consul extension as a two-part proof: session renewal must succeed and
-the KV entry must still point at the same session id. Return `NotHeld` before
-updating `lastExtendDeadline` when the KV entry is missing or owned by a
-different session.
+Consul 확장을 두 부분으로 구성된 증명으로 처리합니다. 세션 갱신이 success해야 하며 KV 항목이 여전히 동일한 세션 ID를 가리켜야 합니다. KV 항목이 누락되었거나 다른 세션에서 소유된 경우 `lastExtendDeadline`를 업데이트하기 전에 `NotHeld`를 반환합니다.
 
-## Test Guard
+## 테스트 가드
 
-Add deterministic delegation tests for both sync and suspend delegates where
-`renewSession` succeeds but `read(key)` returns another session. Also keep fake
-Consul clients stateful enough that successful `acquire` writes the current KV
-owner; otherwise normal extension tests do not model Consul ownership after the
-new guard.
+`renewSession`가 success했지만 `read(key)`가 다른 세션을 반환하는 동기화 및 일시 중단 대리자 모두에 대한 결정적 위임 테스트를 추가합니다. 또한 success적인 `acquire`가 현재 KV 소유자를 쓸 수 있을 만큼 가짜 Consul 클라이언트의 상태를 유지하세요. 그렇지 않으면 일반 확장 테스트에서는 새 가드 이후의 Consul 소유권을 모델링하지 않습니다.
 
-## Outcome
+## 결과
 
-Sync and suspend Consul extension no longer mask lock loss. Explicit extension
-and watchdog extension paths now stop with `NotHeld` when the KV owner moved.
+Consul 확장을 동기화하고 일시 중단하면 더 이상 마스크 잠금 손실이 발생하지 않습니다. 이제 KV 소유자가 이동하면 명시적 확장 및 감시 확장 경로가 `NotHeld`로 중지됩니다.
 
-## Verification
+## 검증
 
-- Targeted RED: both new tests failed against the old implementation with
-  `Extended(...)`.
-- Targeted GREEN: the two new ownership mismatch tests passed.
-- Full `leader-consul` test: 60 tests passed in 36s.
-- Review gate: P0/P1/P2/P3 = 0.
-- `git diff --check`: pass.
+- 대상 RED: `Extended(...)`를 사용한 이전 구현에 대해 두 가지 새로운 테스트가 모두 failure했습니다.
+- 녹색 대상: 두 가지 새로운 소유권 불일치 테스트를 통과했습니다.
+- 전체 `leader-consul` 테스트: 36초 안에 60개 테스트를 통과했습니다.
+- 리뷰 게이트: P0/P1/P2/P3 = 0.
+- `git diff --check`: 통과.

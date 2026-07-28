@@ -1,26 +1,17 @@
-# Issue 520 Leader Group Benchmark Lessons
+# Issue 520 리더 그룹 벤치마크 강의
 
-## Context
+## 맥락
 
-Issue #520 needed group-semaphore benchmark coverage and README-visible chart
-evidence. The benchmark result scale spans local in-process rows, blocking H2
-rows, and remote Testcontainers-backed rows.
+이슈 #520에는 그룹 세마포어 벤치마크 범위와 README 표시 차트 증거가 필요했습니다. 벤치마크 결과 규모는 로컬 in-process 행, 차단 H2 행 및 원격 Testcontainers 지원 행에 걸쳐 있습니다.
 
-## Decision
+## 결정
 
-Keep local and blocking H2 rows in the raw JSON and report table, but omit them
-from the README charts. Use log-scale remote-backend charts so free-slot,
-mixed-slot, and saturated-skip rows remain visible in one image.
+원시 JSON 및 보고서 테이블에서 로컬 및 차단 H2 행을 유지하지만 README 차트에서는 생략합니다. 로그 규모 원격 백엔드 차트를 사용하면 사용 가능한 슬롯, 혼합 슬롯 및 포화 건너뛰기 행이 하나의 이미지에 계속 표시됩니다.
 
-## Outcome
+## 결과
 
-Added blocking and suspend `LeaderGroupElectorBenchmark` suites with
-`maxLeaders` parameters and charted the `maxLeaders=2` snapshot. The charts are
-SVG+PNG assets under `docs/images/readme-charts/`, with raw JMH JSON preserved
-under `docs/benchmarks/`.
+`maxLeaders` 매개변수를 사용하여 `LeaderGroupElectorBenchmark` 제품군 차단 및 일시 중단을 추가하고 `maxLeaders=2` 스냅샷을 차트로 작성했습니다. 차트는 `docs/images/readme-charts/` 아래의 SVG+PNG 자산이며 `docs/benchmarks/` 아래에 원시 JMH JSON이 보존됩니다.
 
-## Future Guidance
+## 향후 지침
 
-For future benchmark chart work, record whether the chart is a quick smoke
-snapshot or a release-grade run. If local rows differ by orders of magnitude,
-chart remote rows separately and keep the omitted rows in the report table.
+향후 벤치마크 차트 작업을 위해 차트가 빠른 스모크 스냅샷인지 또는 릴리스 등급 실행인지 기록하세요. 로컬 행이 크기 순서에 따라 다른 경우 원격 행을 별도로 차트로 작성하고 보고서 테이블에서 생략된 행을 유지합니다.

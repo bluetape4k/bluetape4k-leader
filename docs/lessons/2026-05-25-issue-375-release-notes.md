@@ -1,25 +1,18 @@
-# Issue 375 release notes
+# 375호 릴리스 노트
 
-## Context
+## 맥락
 
-Milestone 0.2.2 follows the published 0.2.1 release, but the public README
-dependency snippets and changelog compare links still pointed at 0.2.0, skipping
-the 0.2.1 release line.
+Milestone 0.2.2는 게시된 0.2.1 릴리스를 따르지만 공개 README 종속성 스니펫과 변경 로그 비교 링크는 여전히 0.2.0을 가리키며 0.2.1 릴리스 라인을 건너뜁니다.
 
-## Decision
+## 결정
 
-Use `baseVersion=0.2.2` as the public coordinate for README snippets and add
-explicit 0.2.2 changelog coverage for the milestone issues already represented
-by PRs. Keep root and module-level English/Korean README dependency blocks
-aligned by updating the artifact coordinates mechanically.
+README 스니펫의 공개 좌표로 `baseVersion=0.2.2`를 사용하고 이미 PR로 표시된 마일스톤 문제에 대한 명시적인 0.2.2 변경 로그 적용 범위를 추가하세요. 아티팩트 좌표를 기계적으로 업데이트하여 루트 및 모듈 수준 영어/한국어 README 종속성 블록을 정렬된 상태로 유지합니다.
 
-## Outcome
+## 결과
 
-Root and module-level `README.md` / `README.ko.md` files now advertise `0.2.2`
-for public dependency snippets. `CHANGELOG.md` includes 0.2.1 and 0.2.2 sections
-plus compare links from `0.2.2` to `HEAD`.
+루트 및 모듈 수준 `README.md`/`README.ko.md` 파일은 이제 공개 종속성 조각에 대해 `0.2.2`를 광고합니다. `CHANGELOG.md`에는 0.2.1 및 0.2.2 섹션이 포함되어 있으며 `0.2.2`에서 `HEAD`로의 링크도 비교됩니다.
 
-## Verification
+## 검증
 
 - `git diff --check`
 - `rg -n '0\\.2\\.0|0\\.2\\.1|0\\.2\\.2' README.md README.ko.md CHANGELOG.md`

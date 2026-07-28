@@ -1,16 +1,12 @@
-# Lesson: Remove all @Deprecated APIs before 0.1.0
+# 교훈: 0.1.0 이전의 @Deprecated API를 모두 제거하세요.
 
-**Date**: 2026-05-16
-**Issue**: #264
-**PR**: TBD
+**날짜**: 2026-05-16 **문제**: #264 **PR**: TBD
 
-## Root Cause
+## 근본 원인
 
-10 APIs were deprecated during development with migration paths documented.
-Publishing them in 0.1.0 would create a cluttered public API surface and
-require maintaining backward compatibility from day one.
+10개의 API는 문서화된 마이그레이션 경로를 통해 개발 중에 더 이상 사용되지 않습니다. 0.1.0에 게시하면 복잡한 공개 API 표면이 생성되고 첫날부터 이전 버전과의 호환성을 유지해야 합니다.
 
-## Removed Items
+## 제거된 항목
 
 | Item | Type | Action |
 |------|------|--------|
@@ -25,27 +21,27 @@ require maintaining backward compatibility from day one.
 | `LettuceSemaphore` class | deprecated entire class | Removed + test file deleted |
 | `LettuceSuspendSemaphore` class | deprecated entire class | Removed + test file deleted |
 
-## Migration Notes
+## 마이그레이션 노트
 
-- `LettuceSemaphore` → use `LettuceLeaderGroupElector` (slot-token TTL model)
-- `LettuceSuspendSemaphore` → use `LettuceSuspendLeaderGroupElector`
-- `LeaderLease.leaderId` → use `LeaderLease.auditLeaderId`
-- `HistoryStatus` → use `LeaderHistoryStatus`
+- `LettuceSemaphore` → `LettuceLeaderGroupElector` 사용(슬롯 토큰 TTL 모델)
+- `LettuceSuspendSemaphore` → `LettuceSuspendLeaderGroupElector` 사용
+- `LeaderLease.leaderId` → `LeaderLease.auditLeaderId` 사용
+- `HistoryStatus` → `LeaderHistoryStatus` 사용
 
-## Key Decisions
+## 주요 결정
 
-- Tests that only tested deprecated code were deleted (not just disabled)
-- Tests that used deprecated APIs were migrated to the new API
-- 3 test files were updated, 1 test file (LettuceSemaphore test) was deleted
+- 더 이상 사용되지 않는 코드만 테스트한 테스트가 삭제되었습니다(비활성화뿐만 아니라).
+- 더 이상 사용되지 않는 API를 사용한 테스트가 새 API로 마이그레이션되었습니다.
+- 테스트 파일 3개 업데이트, 테스트 파일 1개(LettuceSemaphore 테스트) 삭제됨
 
-## Verification
+## 검증
 
-- `./gradlew assemble` → BUILD SUCCESSFUL (76 tasks)
-- `./gradlew :leader-core:test :leader-exposed-core:test` → BUILD SUCCESSFUL
+- `./gradlew assemble` → BUILD SUCCESSFUL(76개 작업)
+- `./gradlew :leader-core:test :leader-exposed-core:test` → 빌드 success
 
-## Future Guidance
+## 향후 지침
 
-Before adding `@Deprecated` to any public API:
-1. Confirm the replacement is production-ready
-2. Set explicit removal milestone in the deprecation message
-3. Remove at the milestone — don't let deprecated APIs accumulate across releases
+공개 API에 `@Deprecated`를 추가하기 전에:
+1. 교체품이 생산 준비가 되었는지 검증
+2. 지원 중단 메시지에 명시적인 제거 마일스톤 설정
+3. 마일스톤에서 제거 - 더 이상 사용되지 않는 API가 릴리스 전체에 누적되지 않도록 하세요.

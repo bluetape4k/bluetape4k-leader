@@ -1,7 +1,13 @@
 # Plan - Issue #327 Cross-Backend Leader Benchmarks
 
+## 한국어 해설
+
+이 문서는 `Plan - Issue #327 Cross-Backend Leader Benchmarks`에 대한 설계 또는 실행 계획 기록입니다. 아래 원문 구조의 범위, 결정, 작업 순서, 검증 조건, 위험 및 후속 조치는 기록 보존을 위해 유지합니다. 검토자는 각 `Action`, `Expected DoD`, `Validation`, `Target files` 항목을 한국어 해설과 함께 읽고, 코드 식별자와 명령은 원문 그대로 취급해야 합니다.
+
+
+
 > Date: 2026-05-21
-> Scope: cross-backend benchmark module and first baseline
+> 범위: cross-backend benchmark module and first baseline
 
 ## Tasks
 

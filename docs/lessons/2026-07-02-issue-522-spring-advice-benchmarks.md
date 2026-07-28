@@ -1,31 +1,24 @@
-# Issue #522 Spring advice benchmark lesson
+# Issue #522 Spring 조언 벤치마크 레슨
 
-## Context
+## 맥락
 
-Issue #522 needed a benchmark that isolates `@LeaderElection` Spring AOP advice
-overhead from backend lock I/O.
+Issue #522에는 백엔드 잠금 I/O에서 `@LeaderElection` Spring AOP 조언 오버헤드를 분리하는 벤치마크가 필요했습니다.
 
-## Decision
+## 결정
 
-Use local blocking and suspend electors, and invoke `LeaderElectionAspect`
-directly with a small benchmark-only `ProceedingJoinPoint` fixture. This keeps
-the benchmark focused on annotation metadata, SpEL, AspectJ dispatch, coroutine
-continuation wiring, bean selection, and recorder iteration.
+로컬 차단 및 일시 중단 선택기를 사용하고 작은 벤치마크 전용 `ProceedingJoinPoint` 고정 장치를 사용하여 `LeaderElectionAspect`를 직접 호출합니다. 이를 통해 벤치마크는 주석 메타데이터, SpEL, AspectJ 디스패치, 코루틴 연속 연결, Bean 선택 및 레코더 반복에 중점을 둡니다.
 
-## Outcome
+## 결과
 
-The benchmark now covers direct vs advice paths, static lock names vs SpEL lock
-names, sync and suspend methods, and `instrumentation=none|noop` recorder
-configuration. README charts and raw JSON document the short JMH snapshot.
+이제 벤치마크에서는 직접 경로와 조언 경로, 정적 잠금 이름과 SpEL 잠금 이름, 동기화 및 일시 중지 방법, `instrumentation=none|noop` 레코더 구성을 다룹니다. README 차트와 원시 JSON은 짧은 JMH 스냅샷을 문서화합니다.
 
-## Verification
+## 검증
 
 - `:benchmark:compileBenchmarkKotlin`
 - `:benchmark:benchmarkBenchmarkJar`
-- JMH throughput and average-time smoke runs for `SpringLeaderAdviceBenchmark`
-- `xmllint --noout` for the new SVG charts
+- `SpringLeaderAdviceBenchmark`에 대한 JMH 처리량 및 평균 연기 실행 시간
+- 새로운 SVG 차트용 `xmllint --noout`
 
-## Future note
+## 미래의 메모
 
-Keep real Micrometer registry overhead in a separate benchmark so this fixture
-continues to isolate AOP dispatch and expression-evaluation cost.
+실제 Micrometer 레지스트리 오버헤드를 별도의 벤치마크에 유지하여 이 픽스처가 AOP 디스패치 및 표현 평가 비용을 계속 격리하도록 합니다.

@@ -1,32 +1,32 @@
-# Issue #530 Lessons
+# 이슈 #530 레슨
 
-## Context
+## 맥락
 
-Issue #530 added cardinality controls for leader Micrometer tags. The change touched direct meter recorders, Observation integration, Spring Boot property binding, Prometheus dashboard docs, and README locale pairs.
+이슈 #530에는 리더 Micrometer 태그에 대한 카디널리티 제어가 추가되었습니다. 변경 사항은 직접 미터 레코더, 관찰 통합, Spring Boot 속성 바인딩, Prometheus 대시보드 문서 및 README 로케일 쌍에 영향을 미쳤습니다.
 
-## Decisions
+## 결정
 
-- Treat dynamic `lock.name` and opt-in `leader.id` as sensitive high-cardinality values by default.
-- Keep `RAW` opt-in available only for small static sets, and document that `HASH` is deterministic unsalted pseudonymization, not cardinality reduction.
-- Apply the same tag policy to Micrometer meters and Observation high-cardinality fields.
-- Preserve binary-compatible constructor entry points when adding data-class properties used by public Kotlin/JVM callers.
+- 기본적으로 동적 `lock.name` 및 옵트인 `leader.id`를 민감한 높은 카디널리티 값으로 처리합니다.
+- `RAW` 옵트인을 소규모 정적 세트에만 사용할 수 있도록 유지하고 `HASH`가 카디널리티 감소가 아닌 결정론적 무염 가명화임을 문서화하세요.
+- Micrometer 미터 및 Observation 높은 카디널리티 필드에 동일한 태그 정책을 적용합니다.
+- 공용 Kotlin/JVM 호출자가 사용하는 데이터 클래스 속성을 추가할 때 바이너리 호환 생성자 진입점을 유지합니다.
 
-## Outcome
+## 결과
 
-- Default exports collapse dynamic lock and leader identifiers to redacted sentinels.
-- Spring Boot exposes nested tag policy properties and passes them to both meter and Observation auto-configurations.
-- Registration and deregistration now handle collapsed tags without prematurely removing active meters.
-- README EN/KO, module docs, metadata, and dashboard PromQL were updated together.
+- 기본 내보내기는 동적 잠금 및 리더 식별자를 수정된 센티널로 축소합니다.
+- Spring Boot는 중첩된 태그 정책 속성을 노출하고 이를 미터 및 관찰 자동 구성 모두에 전달합니다.
+- 이제 등록 및 등록 취소 시 활성 측정기를 조기에 제거하지 않고도 축소된 태그를 처리할 수 있습니다.
+- README EN/KO, 모듈 문서, 메타데이터, 대시보드 PromQL이 함께 업데이트되었습니다.
 
-## Future Guard
+## 퓨쳐 가드
 
-- When adding observability options, verify every emission path: direct meters, decorators, event listeners, Observation recorders, Spring auto-config, metadata, dashboard examples, and README locale pairs.
-- For public Kotlin data classes, run `javap` after constructor changes and preserve prior JVM entry points when compatibility matters.
-- For concurrency-sensitive meter registration, use `MultithreadingTester` rather than ad hoc thread loops and record the helper in review evidence.
-- If a tag policy exists for future or custom emitters, state whether current built-in emitters actually produce that tag.
+- 관찰 가능성 옵션을 추가할 때 직접 측정기, 데코레이터, 이벤트 리스너, 관찰 레코더, Spring 자동 구성, 메타데이터, 대시보드 예제 및 README 로캘 쌍 등 모든 방출 경로를 검증하세요.
+- 공용 Kotlin 데이터 클래스의 경우 생성자가 변경된 후 `javap`를 실행하고 호환성이 중요한 경우 이전 JVM 진입점을 유지합니다.
+- 동시성에 민감한 측정기 등록의 경우 임시 스레드 루프 대신 `MultithreadingTester`를 사용하고 검토 증거에 도우미를 기록합니다.
+- 미래 또는 사용자 정의 이미터에 대한 태그 정책이 존재하는 경우 현재 내장 이미터가 실제로 해당 태그를 생성하는지 여부를 명시하십시오.
 
-## Verification Evidence
+## 검증 증거
 
 - `./gradlew :bluetape4k-leader-micrometer:test :bluetape4k-leader-spring-boot:test :examples:prometheus-dashboard:test`
-  - PASS, 349 passing, `BUILD SUCCESSFUL in 1m 36s`.
-- Step 6-R final blocking count: P0=0, P1=0.
+  - 통과, 349 통과, `BUILD SUCCESSFUL in 1m 36s`.
+- 6단계-R 최종 차단 횟수: P0=0, P1=0.
