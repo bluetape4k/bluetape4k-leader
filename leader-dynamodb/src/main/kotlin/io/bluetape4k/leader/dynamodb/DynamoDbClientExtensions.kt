@@ -3,17 +3,9 @@ package io.bluetape4k.leader.dynamodb
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 
 /**
- * Runs a suspending action only while this async DynamoDB client holds leadership.
+ * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
  *
- * ## Behavior / Contract
- * Returns the action result when leadership is acquired. Returns `null` when another node holds the lock
- * or acquisition times out according to [options].
- *
- * ```kotlin
- * val result = dynamoDbAsync.suspendRunIfLeader("nightly-job") {
- *     rebuildIndex()
- * }
- * ```
+ * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
  */
 suspend fun <T> DynamoDbAsyncClient.suspendRunIfLeader(
     lockName: String,
@@ -22,17 +14,9 @@ suspend fun <T> DynamoDbAsyncClient.suspendRunIfLeader(
 ): T? = DynamoDbSuspendLeaderElector(this, options).runIfLeader(lockName, action)
 
 /**
- * Runs a suspending action while this async DynamoDB client owns one leader-group slot.
+ * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
  *
- * ## Behavior / Contract
- * Returns the action result when a group slot is acquired. Returns `null` when all slots are occupied
- * or acquisition times out according to [options].
- *
- * ```kotlin
- * val result = dynamoDbAsync.suspendRunIfLeaderGroup("partition-worker") {
- *     processPartition()
- * }
- * ```
+ * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
  */
 suspend fun <T> DynamoDbAsyncClient.suspendRunIfLeaderGroup(
     lockName: String,

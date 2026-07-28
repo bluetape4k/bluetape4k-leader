@@ -13,9 +13,11 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 import io.etcd.jetcd.Client
 
 /**
- * Factory for etcd single-leader electors.
+ * `EtcdLeaderElectorFactory`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * The supplied jetcd [Client] is caller-owned and is never closed by created electors.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client etcd backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property baseOptions etcd backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class EtcdLeaderElectorFactory(
     private val client: Client,
@@ -30,9 +32,11 @@ class EtcdLeaderElectorFactory(
 }
 
 /**
- * Factory for etcd group electors.
+ * `EtcdLeaderGroupElectorFactory`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * The supplied jetcd [Client] is caller-owned and is never closed by created electors.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client etcd backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property baseOptions etcd backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class EtcdLeaderGroupElectorFactory(
     private val client: Client,
@@ -47,9 +51,11 @@ class EtcdLeaderGroupElectorFactory(
 }
 
 /**
- * Factory for etcd coroutine single-leader electors.
+ * `EtcdSuspendLeaderElectorFactory`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * The supplied jetcd [Client] is caller-owned and is never closed by created electors.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client etcd backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property baseOptions etcd backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class EtcdSuspendLeaderElectorFactory(
     private val client: Client,
@@ -64,9 +70,11 @@ class EtcdSuspendLeaderElectorFactory(
 }
 
 /**
- * Factory for etcd coroutine group electors.
+ * `EtcdSuspendLeaderGroupElectorFactory`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * The supplied jetcd [Client] is caller-owned and is never closed by created electors.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client etcd backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property baseOptions etcd backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class EtcdSuspendLeaderGroupElectorFactory(
     private val client: Client,

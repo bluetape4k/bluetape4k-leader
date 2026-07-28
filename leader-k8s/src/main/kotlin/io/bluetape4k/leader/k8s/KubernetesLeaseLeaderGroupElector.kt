@@ -28,23 +28,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Blocking and async group leader election backed by one Kubernetes Lease per group slot.
+ * `KubernetesLeaseLeaderGroupElector`는 Kubernetes Lease backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * ## Behavior / Contract
- * - At most [maxLeaders] actions run concurrently for a logical `lockName`.
- * - Each slot is represented as a separate Kubernetes Lease named `<lockName>-slot-<index>`.
- * - Release and extension are owner-conditional for the acquired slot Lease.
- * - The supplied [KubernetesClient] is caller-owned and is never closed by this elector.
- *
- * ```kotlin
- * val election = KubernetesLeaseLeaderGroupElector(
- *     client,
- *     KubernetesLeaseGroupOptions(leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3)),
- * )
- * val result = election.runIfLeader("partition-worker") {
- *     processPartition()
- * }
- * ```
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property clock Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
     private val client: KubernetesClient,
@@ -312,7 +301,9 @@ private fun Throwable?.unwrapCompletionException(): Throwable? =
     if (this is CompletionException && cause != null) cause else this
 
 /**
- * Runs [action] only when this client acquires one Kubernetes Lease group slot.
+ * `선언` 호출은 Kubernetes Lease backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
  */
 inline fun <T> KubernetesClient.runIfLeaderGroup(
     lockName: String,
@@ -322,7 +313,9 @@ inline fun <T> KubernetesClient.runIfLeaderGroup(
     KubernetesLeaseLeaderGroupElector(this, options).runIfLeader(lockName) { action() }
 
 /**
- * Runs [action] asynchronously only when this client acquires one Kubernetes Lease group slot.
+ * `선언` 호출은 Kubernetes Lease backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
  */
 fun <T> KubernetesClient.runAsyncIfLeaderGroup(
     lockName: String,

@@ -9,17 +9,14 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Options for DynamoDB single-leader election.
+ * `DynamoDbLeaderElectionOptions`는 DynamoDB backend leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * The DynamoDB table is caller-provisioned. It must have a string partition key
- * named `lockName` and should enable TTL on the numeric `ttl` attribute.
- *
- * @property leaderOptions common single-leader election options.
- * @property tableName DynamoDB table that stores lock rows.
- * @property keyPrefix prefix applied to logical lock keys.
- * @property retryDelay upper bound for full-jitter acquisition retry delays.
- * @property ttlPadding extra TTL cleanup padding added after logical lease expiry.
- * @property clockSkewTolerance tolerated host-clock skew subtracted from takeover checks.
+ * @property leaderOptions DynamoDB backend 계약에서 `leaderOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property tableName DynamoDB backend 계약에서 `tableName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property keyPrefix DynamoDB backend 계약에서 `keyPrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property retryDelay DynamoDB backend 계약에서 `retryDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property ttlPadding DynamoDB backend 계약에서 `ttlPadding` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property clockSkewTolerance DynamoDB backend 계약에서 `clockSkewTolerance` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class DynamoDbLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,

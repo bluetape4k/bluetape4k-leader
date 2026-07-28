@@ -8,13 +8,11 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Options for etcd-backed multi-leader group election.
+ * `EtcdLeaderGroupElectionOptions`는 etcd backend leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## Behavior / Contract
- * - [leaderGroupOptions] controls slot count, wait time, lease duration, node identity, and minimum lease time.
- * - [keyPrefix] is the absolute etcd key prefix used for group slot lock keys.
- * - [retryDelay] is reserved for retrying APIs that do not use jetcd's queued Lock service directly.
- * - Authentication, TLS, endpoints, and client lifecycle are caller-owned through the supplied jetcd `Client`.
+ * @property leaderGroupOptions etcd backend 계약에서 `leaderGroupOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property keyPrefix etcd backend 계약에서 `keyPrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property retryDelay etcd backend 계약에서 `retryDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class EtcdLeaderGroupElectionOptions(
     val leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -22,7 +20,9 @@ data class EtcdLeaderGroupElectionOptions(
     val retryDelay: Duration = 50.milliseconds,
 ) : Serializable {
 
-    /** Maximum number of concurrent leaders allowed. */
+    /**
+     * `maxLeaders` 값은 etcd backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val maxLeaders: Int get() = leaderGroupOptions.maxLeaders
 
     init {
@@ -32,7 +32,7 @@ data class EtcdLeaderGroupElectionOptions(
 
     companion object {
         /**
-         * Default options instance using `/bluetape4k/leader` and [LeaderGroupElectionOptions.Default].
+         * `Default` 값은 etcd backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
          */
         @JvmField
         val Default = EtcdLeaderGroupElectionOptions()

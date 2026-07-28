@@ -9,14 +9,14 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Options for DynamoDB slot-based multi-leader election.
+ * `DynamoDbLeaderGroupElectionOptions`는 DynamoDB backend leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * @property leaderGroupOptions common group-election options.
- * @property tableName DynamoDB table that stores group slot rows.
- * @property keyPrefix prefix applied to logical lock keys.
- * @property retryDelay upper bound for full-jitter acquisition retry delays.
- * @property ttlPadding extra TTL cleanup padding added after logical lease expiry.
- * @property clockSkewTolerance tolerated host-clock skew subtracted from takeover checks.
+ * @property leaderGroupOptions DynamoDB backend 계약에서 `leaderGroupOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property tableName DynamoDB backend 계약에서 `tableName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property keyPrefix DynamoDB backend 계약에서 `keyPrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property retryDelay DynamoDB backend 계약에서 `retryDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property ttlPadding DynamoDB backend 계약에서 `ttlPadding` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property clockSkewTolerance DynamoDB backend 계약에서 `clockSkewTolerance` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class DynamoDbLeaderGroupElectionOptions(
     val leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,

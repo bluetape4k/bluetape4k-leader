@@ -8,19 +8,11 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Options for Kubernetes Lease-backed leader election.
+ * `KubernetesLeaseOptions`는 Kubernetes Lease backend leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## Behavior / Contract
- * - [leaderOptions] controls wait time, lease duration, node identity, minimum lease time, and auto-extension.
- * - [namespace] is the namespace that stores `coordination.k8s.io/v1` Lease objects.
- * - [retryDelay] bounds full-jitter retry sleeps after contention or Kubernetes resource-version conflicts.
- *
- * ```kotlin
- * val options = KubernetesLeaseOptions(
- *     namespace = "operators",
- *     leaderOptions = LeaderElectionOptions(leaseTime = 30.seconds),
- * )
- * ```
+ * @property leaderOptions Kubernetes Lease backend 계약에서 `leaderOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property namespace Kubernetes Lease backend 계약에서 `namespace` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property retryDelay Kubernetes Lease backend 계약에서 `retryDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class KubernetesLeaseOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -34,7 +26,7 @@ data class KubernetesLeaseOptions(
 
     companion object {
         /**
-         * Default options instance using namespace `default` and `LeaderElectionOptions.Default`.
+         * `Default` 값은 Kubernetes Lease backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
          */
         @JvmField
         val Default = KubernetesLeaseOptions()

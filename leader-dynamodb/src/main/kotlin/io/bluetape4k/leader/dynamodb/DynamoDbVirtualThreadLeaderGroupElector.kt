@@ -9,16 +9,10 @@ import io.bluetape4k.leader.VirtualThreadLeaderGroupElector
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 
 /**
- * Virtual-thread adapter for [DynamoDbLeaderGroupElector].
+ * `DynamoDbVirtualThreadLeaderGroupElector`는 DynamoDB backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * ## Behavior / Contract
- * Runs blocking DynamoDB group-leadership work in virtual threads and returns [VirtualFuture] handles.
- * The delegate keeps the same null-on-skip contract: results are `null` when no group slot is acquired.
- *
- * ```kotlin
- * val elector = DynamoDbVirtualThreadLeaderGroupElector(DynamoDbLeaderGroupElector(dynamoDb))
- * val future = elector.runAsyncIfLeader("partition-worker") { processPartition() }
- * ```
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property delegate DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class DynamoDbVirtualThreadLeaderGroupElector(
     private val delegate: DynamoDbLeaderGroupElector,
@@ -55,18 +49,9 @@ class DynamoDbVirtualThreadLeaderGroupElector(
 }
 
 /**
- * Runs a blocking action in a virtual thread while this DynamoDB client owns one group slot.
+ * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
  *
- * ## Behavior / Contract
- * Returns a [VirtualFuture] that completes with the action result when a group slot is acquired.
- * The future completes with `null` when all slots are occupied or acquisition times out according to
- * [options].
- *
- * ```kotlin
- * val future = dynamoDb.runVirtualIfLeaderGroup("partition-worker") {
- *     processPartition()
- * }
- * ```
+ * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
  */
 fun <T> DynamoDbClient.runVirtualIfLeaderGroup(
     lockName: String,

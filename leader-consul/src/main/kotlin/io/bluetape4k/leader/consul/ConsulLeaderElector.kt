@@ -34,13 +34,11 @@ import java.util.concurrent.Executor
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Blocking and async single-leader election backed by Consul Sessions and KV acquire/release.
+ * `ConsulLeaderElector`는 Consul backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * ## Behavior / Contract
- * - Normal contention returns `null`; action exceptions are propagated.
- * - The supplied [endpoint] is caller-owned configuration. This elector owns only its internal HTTP boundary.
- * - Consul ACL token and datacenter are read from [ConsulEndpoint].
- * - Release/destroy cleanup is best-effort and owner/session scoped.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property lockClient Consul backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Consul backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class ConsulLeaderElector private constructor(
     private val lockClient: ConsulLockClient,
@@ -334,7 +332,9 @@ private fun remainingMillis(deadlineNanos: Long): Long =
     ((deadlineNanos - System.nanoTime()).coerceAtLeast(0L) / 1_000_000L).coerceAtLeast(1L)
 
 /**
- * Runs [action] only when this Consul endpoint acquires the leader lock.
+ * `선언` 호출은 Consul backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
  */
 fun <T> ConsulEndpoint.runIfLeader(
     lockName: String,
@@ -343,7 +343,9 @@ fun <T> ConsulEndpoint.runIfLeader(
 ): T? = ConsulLeaderElector(this, options).runIfLeader(lockName, action)
 
 /**
- * Runs [action] asynchronously only when this Consul endpoint acquires the leader lock.
+ * `선언` 호출은 Consul backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
  */
 fun <T> ConsulEndpoint.runAsyncIfLeader(
     lockName: String,

@@ -25,6 +25,15 @@ import kotlin.math.ceil
 import kotlin.random.Random
 import kotlin.time.Duration
 
+/**
+ * `DynamoDbLockClient`는 DynamoDB backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 class입니다.
+ *
+ * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
+ * @property tableName DynamoDB backend 계약에서 `tableName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property syncClient DynamoDB backend 계약에서 `syncClient` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property asyncClient DynamoDB backend 계약에서 `asyncClient` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property nowMillis DynamoDB backend 계약에서 `nowMillis` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 internal class DynamoDbLockClient(
     private val tableName: String,
     private val syncClient: DynamoDbClient? = null,
@@ -48,6 +57,15 @@ internal class DynamoDbLockClient(
         fun newOwnerId(): String = UUID.randomUUID().toString()
     }
 
+    /**
+     * `AcquiredLock`는 DynamoDB conditional write로 획득한 lock owner snapshot입니다.
+     *
+     * @property key DynamoDB partition key로 저장되는 lock 이름입니다.
+     * @property ownerId 현재 owner를 식별하고 release/extend 조건식에 사용하는 fencing 값입니다.
+     * @property auditLeaderId history와 audit record에 남기는 leader 식별자입니다.
+     * @property nodeId lock을 획득한 application node 식별자입니다.
+     * @property leaseExpiryMillis DynamoDB item의 lease 만료 시각을 epoch milliseconds로 표현한 값입니다.
+     */
     data class AcquiredLock(
         val key: String,
         val ownerId: String,

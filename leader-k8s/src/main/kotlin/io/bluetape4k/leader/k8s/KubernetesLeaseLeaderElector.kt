@@ -23,20 +23,12 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 
 /**
- * Blocking and async leader election backed by Kubernetes `coordination.k8s.io/v1` Lease objects.
+ * `KubernetesLeaseLeaderElector`는 Kubernetes Lease backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * ## Behavior / Contract
- * - Contention returns `null` instead of throwing.
- * - Action exceptions are propagated to the caller.
- * - Lease release and extension are owner-conditional using a per-acquisition fencing token.
- * - The supplied [KubernetesClient] is caller-owned and is never closed by this elector.
- *
- * ```kotlin
- * val election = KubernetesLeaseLeaderElector(client, KubernetesLeaseOptions(namespace = "operators"))
- * val result = election.runIfLeader("daily-report") {
- *     generateReport()
- * }
- * ```
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property clock Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class KubernetesLeaseLeaderElector @JvmOverloads constructor(
     private val client: KubernetesClient,
@@ -236,7 +228,9 @@ private fun Throwable?.unwrapCompletionException(): Throwable? =
     if (this is CompletionException && cause != null) cause else this
 
 /**
- * Runs [action] only when this client acquires the Kubernetes Lease.
+ * `선언` 호출은 Kubernetes Lease backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
  */
 fun <T> KubernetesClient.runIfLeader(
     lockName: String,
@@ -245,7 +239,9 @@ fun <T> KubernetesClient.runIfLeader(
 ): T? = KubernetesLeaseLeaderElector(this, options).runIfLeader(lockName, action)
 
 /**
- * Runs [action] asynchronously only when this client acquires the Kubernetes Lease.
+ * `선언` 호출은 Kubernetes Lease backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
  */
 fun <T> KubernetesClient.runAsyncIfLeader(
     lockName: String,

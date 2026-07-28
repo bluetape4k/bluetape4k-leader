@@ -24,6 +24,19 @@ import kotlin.math.min
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
 
+/**
+ * `KubernetesLeaseLock`는 Kubernetes Lease backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 class입니다.
+ *
+ * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
+ * @property client Kubernetes Lease backend 계약에서 `client` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property namespace Kubernetes Lease backend 계약에서 `namespace` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockName Kubernetes Lease backend 계약에서 `lockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property ownerToken Kubernetes Lease backend 계약에서 `ownerToken` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property auditLeaderId Kubernetes Lease backend 계약에서 `auditLeaderId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property nodeId Kubernetes Lease backend 계약에서 `nodeId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property retryDelay Kubernetes Lease backend 계약에서 `retryDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property clock Kubernetes Lease backend 계약에서 `clock` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 internal class KubernetesLeaseLock(
     private val client: KubernetesClient,
     private val namespace: String,

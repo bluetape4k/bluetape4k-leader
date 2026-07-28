@@ -36,10 +36,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Watch-backed etcd event publisher for leader ownership key changes.
+ * `EtcdLeaderElectionEventPublisher`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * The supplied jetcd [Client] is caller-owned and is never closed by this publisher.
- * Closing this publisher only closes the active watch and its internally owned coroutine scope.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 class EtcdLeaderElectionEventPublisher @JvmOverloads constructor(
     client: Client,

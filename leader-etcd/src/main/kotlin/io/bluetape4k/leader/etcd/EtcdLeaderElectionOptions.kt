@@ -8,20 +8,11 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Options for etcd-backed single-leader election.
+ * `EtcdLeaderElectionOptions`는 etcd backend leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## Behavior / Contract
- * - [leaderOptions] controls wait time, lease duration, node identity, minimum lease time, and auto-extension.
- * - [keyPrefix] is the absolute etcd key prefix used for leader lock keys.
- * - [retryDelay] is reserved for retrying APIs that do not use jetcd's queued Lock service directly.
- * - Authentication, TLS, endpoints, and client lifecycle are caller-owned through the supplied jetcd `Client`.
- *
- * ```kotlin
- * val options = EtcdLeaderElectionOptions(
- *     leaderOptions = LeaderElectionOptions(leaseTime = 30.seconds),
- *     keyPrefix = "/apps/orders/leader",
- * )
- * ```
+ * @property leaderOptions etcd backend 계약에서 `leaderOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property keyPrefix etcd backend 계약에서 `keyPrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property retryDelay etcd backend 계약에서 `retryDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class EtcdLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -36,7 +27,7 @@ data class EtcdLeaderElectionOptions(
 
     companion object {
         /**
-         * Default options instance using `/bluetape4k/leader` and [LeaderElectionOptions.Default].
+         * `Default` 값은 etcd backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
          */
         @JvmField
         val Default = EtcdLeaderElectionOptions()

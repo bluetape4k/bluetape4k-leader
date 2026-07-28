@@ -3,7 +3,9 @@ package io.bluetape4k.leader.consul.internal
 import io.bluetape4k.leader.validateLockName
 
 /**
- * Builds stable Consul KV keys for leader ownership.
+ * `ConsulLeaderPaths`는 Consul backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ *
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal class ConsulLeaderPaths(
     keyPrefix: String = DefaultPrefix,

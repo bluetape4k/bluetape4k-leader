@@ -14,16 +14,11 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 
 /**
- * Creates blocking single-leader DynamoDB electors from a shared client.
+ * `DynamoDbLeaderElectorFactory`는 DynamoDB backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * ## Behavior / Contract
- * Each [create] call keeps the factory's table/key-prefix settings and replaces only
- * [LeaderElectionOptions]. The created elector returns `null` when leadership is not acquired.
- *
- * ```kotlin
- * val factory = DynamoDbLeaderElectorFactory(dynamoDb)
- * val elector = factory.create(LeaderElectionOptions.Default)
- * ```
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property baseOptions DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class DynamoDbLeaderElectorFactory(
     private val client: DynamoDbClient,
@@ -34,16 +29,11 @@ class DynamoDbLeaderElectorFactory(
 }
 
 /**
- * Creates blocking multi-leader DynamoDB group electors from a shared client.
+ * `DynamoDbLeaderGroupElectorFactory`는 DynamoDB backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * ## Behavior / Contract
- * Each [create] call keeps the factory's table/key-prefix settings and replaces only
- * [LeaderGroupElectionOptions]. The created elector returns `null` when no group slot is acquired.
- *
- * ```kotlin
- * val factory = DynamoDbLeaderGroupElectorFactory(dynamoDb)
- * val elector = factory.create(LeaderGroupElectionOptions.Default)
- * ```
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property baseOptions DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class DynamoDbLeaderGroupElectorFactory(
     private val client: DynamoDbClient,
@@ -54,16 +44,11 @@ class DynamoDbLeaderGroupElectorFactory(
 }
 
 /**
- * Creates coroutine single-leader DynamoDB electors from a shared async client.
+ * `DynamoDbSuspendLeaderElectorFactory`는 DynamoDB backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * ## Behavior / Contract
- * Each [create] call keeps the factory's table/key-prefix settings and replaces only
- * [LeaderElectionOptions]. The created suspend elector returns `null` when leadership is not acquired.
- *
- * ```kotlin
- * val factory = DynamoDbSuspendLeaderElectorFactory(dynamoDbAsync)
- * val elector = factory.create(LeaderElectionOptions.Default)
- * ```
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property baseOptions DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class DynamoDbSuspendLeaderElectorFactory(
     private val client: DynamoDbAsyncClient,
@@ -74,16 +59,11 @@ class DynamoDbSuspendLeaderElectorFactory(
 }
 
 /**
- * Creates coroutine multi-leader DynamoDB group electors from a shared async client.
+ * `DynamoDbSuspendLeaderGroupElectorFactory`는 DynamoDB backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * ## Behavior / Contract
- * Each [create] call keeps the factory's table/key-prefix settings and replaces only
- * [LeaderGroupElectionOptions]. The created suspend group elector returns `null` when no slot is acquired.
- *
- * ```kotlin
- * val factory = DynamoDbSuspendLeaderGroupElectorFactory(dynamoDbAsync)
- * val elector = factory.create(LeaderGroupElectionOptions.Default)
- * ```
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property baseOptions DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class DynamoDbSuspendLeaderGroupElectorFactory(
     private val client: DynamoDbAsyncClient,

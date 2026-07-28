@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.CompletableFuture
 
 /**
- * Narrow boundary over jetcd lease and lock clients.
+ * etcd backend leader election 계약을 설명하는 한국어 KDoc입니다.
  */
 internal interface EtcdLockClient {
 
@@ -32,9 +32,10 @@ internal interface EtcdLockClient {
 }
 
 /**
- * jetcd-backed [EtcdLockClient].
+ * `JetcdEtcdLockClient`는 etcd backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * This wrapper never closes the supplied [client]; the caller owns the jetcd client lifecycle.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client etcd backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class JetcdEtcdLockClient(
     private val client: Client,
