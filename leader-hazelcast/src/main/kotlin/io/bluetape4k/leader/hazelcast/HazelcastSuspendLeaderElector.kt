@@ -22,32 +22,11 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 /**
- * Coroutine-based leader election implementation using [IMap] distributed locks from [HazelcastInstance].
+ * `HazelcastSuspendLeaderElector`는 Hazelcast backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Uses a token-based lock (`putIfAbsent` + TTL) that operates safely regardless of coroutine thread switches.
- *
- * ## ExtendDelegate Integration (T12 PR 7 / Issue #79)
- *
- * - After acquire, creates [HazelcastSuspendLockExtendDelegate] sharing the same reference with
- *   [LeaderLockHandle.Real] and the watchdog (AC-15).
- * - The aspect's `LockExtenderSuspend.extendActiveLockSuspend` uses the same delegate reference.
- * - The handle is propagated to the coroutineContext via
- *   `withContext(AopScopeAccess.createLockHandleElement(handle))`.
- * - The `autoExtend` option is handled by the [LeaderLeaseAutoExtender] watchdog.
- *
- * ```kotlin
- * val election = HazelcastSuspendLeaderElector(hazelcastInstance)
- * val result = election.runIfLeader("daily-job") {
- *     delay(100)
- *     processData()
- * }
- * ```
- *
- * **Cancellation Safety:** Even on coroutine cancellation, `withContext(NonCancellable)` guarantees
- * that watchdog close and lock release are always executed.
- *
- * @param hazelcast Hazelcast client instance
- * @param options Leader election options (waitTime, leaseTime)
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property hazelcast Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class HazelcastSuspendLeaderElector private constructor(
     private val hazelcast: HazelcastInstance,
@@ -127,7 +106,9 @@ class HazelcastSuspendLeaderElector private constructor(
 }
 
 /**
- * Executes the suspend [action] only when this node is elected as leader using a Hazelcast distributed lock.
+ * `선언` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 suspend inline fun <T> HazelcastInstance.suspendRunIfLeader(
     jobName: String,

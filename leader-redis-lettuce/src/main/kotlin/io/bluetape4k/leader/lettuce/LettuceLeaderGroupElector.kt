@@ -27,16 +27,9 @@ import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Creates a [LettuceLeaderGroupElector] instance from a [StatefulRedisConnection].
+ * `StatefulRedisConnection` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
  *
- * ```kotlin
- * val options = LeaderGroupElectionOptions(maxLeaders = 3)
- * val election = connection.leaderGroupElection(options)
- * val result = election.runIfLeader("batch-job") { processChunk() }
- * ```
- *
- * @param options    Leader election options (default: [LeaderGroupElectionOptions.Default])
- * @return [LettuceLeaderGroupElector] instance
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun StatefulRedisConnection<String, String>.leaderGroupElection(
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -45,23 +38,11 @@ fun StatefulRedisConnection<String, String>.leaderGroupElection(
 
 
 /**
- * Multi-leader election implementation backed by the Lettuce Redis client.
+ * `LettuceLeaderGroupElector`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract (T7 PR 2)
- *
- * - Internally uses [LettuceSlotTokenGroup] (ZSET + Lua) operating on the slot-token model.
- * - After acquire, creates a [LettuceSlotExtendDelegate] that is shared by [LeaderLockHandle.Real] and the watchdog under the same reference (AC-15).
- * - When the aspect calls `LockExtender.extendActiveLock`, the same delegate executes the server-side TIME Lua script (AC-16).
- * - Pushes the handle into both `LockStateHolder` and `LeaderLockHandleCapture` (via AopScopeAccess) so the aspect can do both reentrant peek and capture poll.
- *
- * ```kotlin
- * val options = LeaderGroupElectionOptions(maxLeaders = 3, minLeaseTime = 1.seconds)
- * val election = LettuceLeaderGroupElector(connection, options)
- * val result = election.runIfLeader("batch-job") { processChunk() }
- * ```
- *
- * @param connection Lettuce [StatefulRedisConnection] (StringCodec-based)
- * @param options    Leader election options (maxLeaders, waitTime, leaseTime, minLeaseTime)
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property connection Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class LettuceLeaderGroupElector(
     private val connection: StatefulRedisConnection<String, String>,

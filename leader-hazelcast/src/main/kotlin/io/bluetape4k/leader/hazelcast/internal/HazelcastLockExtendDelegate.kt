@@ -15,15 +15,10 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * [ExtendDelegate] for [HazelcastLock] (sync, blocking IMap) — T12 PR 7 (Issue #79).
+ * `HazelcastLockExtendDelegate`는 Hazelcast backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - [extend]: delegates to `lock.extendDetailed(d)`. Backend exceptions are wrapped as [ExtendOutcome.BackendError].
- * - [extendSuspend]: Hazelcast IMap is blocking IO — uses `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21).
- * - [isHeld]: delegates to `lock.isHeldByCurrentInstance()`.
- * - [lastExtendDeadline]: held in a single `AtomicReference(Instant.EPOCH)` instance (for R2 watchdog skip).
- *
- * Token-based lock — no thread affinity (Hazelcast does not use WrongThread).
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property lock Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class HazelcastLockExtendDelegate(
     private val lock: HazelcastLock,
@@ -43,10 +38,9 @@ internal class HazelcastLockExtendDelegate(
         }
 
     /**
-     * Hazelcast IMap is blocking — dispatched via `withContext(Dispatchers.IO)`.
+     * `extendSuspend` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * **Do not use runCatching {}** — it may swallow CancellationException inside suspend functions.
-     * Use manual try/catch with `catch(CancellationException) { throw e }`.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
         coroutineContext.ensureActive()

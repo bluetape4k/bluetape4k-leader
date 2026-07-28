@@ -32,30 +32,11 @@ import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 
 /**
- * Coroutine-based multi-leader election implementation using Redisson distributed [RPermitExpirableSemaphore].
+ * `RedissonSuspendLeaderGroupElector`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract (T8 PR 3)
- *
- * - Uses a Redisson [RPermitExpirableSemaphore] keyed as `lg:{lockName}` per `lockName`.
- * - Returns `null` when a slot cannot be acquired (ShedLock skip-on-contention).
- * - If `options.minLeaseTime > 0` and the action completes quickly, the slot TTL is extended by minLeaseTime
- *   via `updateLeaseTimeAsync` (no caller-park).
- * - Release is guaranteed inside `withContext(NonCancellable)` even on coroutine cancellation.
- * - `CancellationException` is always re-thrown.
- *
- * ## ExtendDelegate Integration
- *
- * - After acquire, creates a [RedissonSuspendSemaphoreExtendDelegate] shared with [LeaderLockHandle.Real] and the watchdog under the same reference (AC-15).
- * - Propagates the handle into the coroutineContext via `withContext(AopScopeAccess.createLockHandleElement(handle))`.
- *
- * ```kotlin
- * val options = LeaderGroupElectionOptions(maxLeaders = 3, minLeaseTime = 1.seconds)
- * val election = RedissonSuspendLeaderGroupElector(redissonClient, options)
- * val result = election.runIfLeader("batch-job") { processChunkSuspend() }
- * ```
- *
- * @param redissonClient Redisson client
- * @param options Leader election options (maxLeaders, waitTime, leaseTime, minLeaseTime)
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property redissonClient Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class RedissonSuspendLeaderGroupElector private constructor(
     private val redissonClient: RedissonClient,
@@ -81,7 +62,9 @@ class RedissonSuspendLeaderGroupElector private constructor(
     private val leaseTime: Duration = options.leaseTime
 
     /**
-     * Codex P1: Idempotent `trySetPermits(maxLeaders)` call — omitting it causes acquire to fail permanently.
+     * `getInitializedPermitSemaphore` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     private fun getInitializedPermitSemaphore(lockName: String): RPermitExpirableSemaphore {
         lockName.requireNotBlank("lockName")
@@ -231,16 +214,9 @@ class RedissonSuspendLeaderGroupElector private constructor(
 }
 
 /**
- * Performs a suspend action via multi-leader election using a Redisson distributed [RPermitExpirableSemaphore].
+ * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
  *
- * ```kotlin
- * val client: RedissonClient = ...
- * val options = LeaderGroupElectionOptions(maxLeaders = 3)
- * val result: Int = client.runSuspendIfLeaderGroup("batch-job", options) {
- *     delay(100)
- *     42
- * }
- * ```
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 suspend fun <T> RedissonClient.runSuspendIfLeaderGroup(
     lockName: String,

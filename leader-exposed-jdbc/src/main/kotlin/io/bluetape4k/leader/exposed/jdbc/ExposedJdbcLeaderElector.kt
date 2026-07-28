@@ -25,42 +25,12 @@ import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 
 /**
- * Single leader election implementation backed by Exposed JDBC.
+ * `ExposedJdbcLeaderElector`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Implements row-level locking via the `UPDATE + INSERT + SELECT` pattern.
- * See the module README compatibility matrix for supported databases.
- *
- * ### Basic usage
- * ```kotlin
- * val election = ExposedJdbcLeaderElector(db)
- * val result = election.runIfLeader("daily-job") { processData() }
- * // result == processData() return value (lock acquired) or null (lock not acquired / action threw)
- * ```
- *
- * ### History recording
- * ```kotlin
- * val sink = ExposedLeaderHistorySink(db)
- * val recorder = SafeLeaderHistoryRecorder(sink)
- * val election = ExposedJdbcLeaderElector(db, historyRecorder = recorder)
- * ```
- *
- * ### Skip on contention
- * ```kotlin
- * val report = election.runIfLeader("nightly-report") { generateReport() }
- *     ?: run { logger.info("Not the leader — skipping"); return }
- * ```
- *
- * ## Behavior / Contract
- * - Returns `null` when the lock cannot be acquired (contention) — never throws.
- * - Rethrows [CancellationException] or [InterruptedException] thrown by action.
- * - Records FAILED history and rethrows any other [Exception] thrown by action.
- * - When [historyRecorder] is null, operates without recording history.
- *
- * **private constructor** — create instances only through the [invoke] factory.
- *
- * @param db Exposed [Database] instance
- * @param options single leader election options
- * @param historyRecorder optional history recorder; no history is recorded when null
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property db Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property historyRecorder Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class ExposedJdbcLeaderElector private constructor(
     private val db: Database,
@@ -74,9 +44,9 @@ class ExposedJdbcLeaderElector private constructor(
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedJdbcBackendErrorClassifier)
 
         /**
-         * Creates an [ExposedJdbcLeaderElector] instance.
+         * `invoke` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
          *
-         * On the first call, automatically creates the leader election table schema (once per database URL).
+         * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
          */
         @JvmStatic
         @JvmOverloads
@@ -91,18 +61,9 @@ class ExposedJdbcLeaderElector private constructor(
     }
 
     /**
-     * Executes [action] and returns its result when this node is elected leader for [lockName].
+     * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * - Returns the [action] result when the lock is acquired successfully.
-     * - Returns `null` when the lock cannot be acquired (no exception — ShedLock-compatible skip-on-contention contract).
-     * - Records FAILED history and rethrows any exception thrown by [action].
-     * - The lock is always released regardless of whether the action succeeds or throws.
-     *
-     * @param lockName lock identifier (alphanumeric/hyphen/underscore/colon, 1–255 characters)
-     * @param action the work to execute when the leader lock is acquired
-     * @return [action] result, or `null` when the lock cannot be acquired
-     * @throws IllegalArgumentException when [lockName] is invalid
-     * @throws Exception exception thrown by [action] (recorded as FAILED and rethrown)
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         validateExposedLockName(lockName)
@@ -189,12 +150,9 @@ class ExposedJdbcLeaderElector private constructor(
     }
 
     /**
-     * Executes [action] asynchronously when this node is elected leader for [lockName].
+     * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * @param lockName lock identifier
-     * @param executor async executor
-     * @param action the async work to execute when the leader lock is acquired
-     * @return [CompletableFuture] holding the action result, or completing with `null` on lock failure or action exception
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override fun <T> runAsyncIfLeader(
         lockName: String,

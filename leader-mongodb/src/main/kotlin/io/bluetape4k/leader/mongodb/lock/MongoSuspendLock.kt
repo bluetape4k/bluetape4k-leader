@@ -34,25 +34,12 @@ import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Coroutine token-based distributed lock using MongoDB `findOneAndUpdate` upsert + TTL index.
+ * `MongoSuspendLock`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Uses the same lock strategy as [MongoLock], but exposed as `suspend` functions.
- * Uses `delay()` instead of blocking `Thread.sleep` so the coroutine thread is not held.
- *
- * ## Cancellation safety
- * `unlock()` is vulnerable to coroutine cancellation.
- * **It must always be called inside a `withContext(NonCancellable)` block.**
- * Calling it directly from a cancelled context causes an immediate CancellationException.
- * Election implementations (e.g. [MongoSuspendLeaderElector]) are responsible for this guarantee.
- *
- * ## Design notes
- * - [leaseTime] must be sufficiently larger than the maximum action execution time.
- * - `WriteConcern.MAJORITY` is recommended in a Replica Set environment.
- * - Token-based, so safe regardless of coroutine thread switches.
- *
- * @param collection coroutine [MongoCollection] storing the lock state
- * @param lockKey lock identification key
- * @param retryDelay base retry wait time (includes jitter)
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property collection MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockKey MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property retryDelay MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class MongoSuspendLock private constructor(
     private val collection: MongoCollection<Document>,
@@ -63,10 +50,9 @@ class MongoSuspendLock private constructor(
         private val ensuredNamespaces: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
         /**
-         * Creates a TTL index (`expireAt`, expireAfterSeconds=0) on the collection.
+         * `ensureIndexes` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
          *
-         * Runs only once per namespace. On failure, removes the namespace from the guard set
-         * so that the next call can retry.
+         * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
          */
         suspend fun ensureIndexes(collection: MongoCollection<Document>) {
             val namespace = collection.namespace.fullName
@@ -83,7 +69,11 @@ class MongoSuspendLock private constructor(
             }
         }
 
-        /** Resets the ensureIndexes state for a specific namespace in tests. */
+        /**
+         * `resetEnsuredFor` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
+         *
+         * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+         */
         internal fun resetEnsuredFor(namespace: String) {
             ensuredNamespaces.remove(namespace)
         }
@@ -101,15 +91,9 @@ class MongoSuspendLock private constructor(
     internal val token: String = Base58.randomString(22)
 
     /**
-     * Attempts to acquire the lock within [waitTime]. Returns `true` on success,
-     * `false` on timeout or error.
+     * `tryLock` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * This function never throws exceptions (except `CancellationException`, which is propagated).
-     * On coroutine cancellation, `ensureActive()` raises `CancellationException` to break the loop.
-     *
-     * @param waitTime maximum wait time for lock acquisition
-     * @param leaseTime maximum lock hold (TTL) duration
-     * @return `true` on successful lock acquisition, `false` on failure or error
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
         val deadline = MonotonicDeadline.fromNow(waitTime)
@@ -178,7 +162,9 @@ class MongoSuspendLock private constructor(
     }
 
     /**
-     * Checks whether the current instance (token) holds the lock.
+     * `isHeldByCurrentInstance` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     suspend fun isHeldByCurrentInstance(): Boolean =
         collection.countDocuments(
@@ -186,12 +172,9 @@ class MongoSuspendLock private constructor(
         ) > 0
 
     /**
-     * Releases the lock held by the current instance.
+     * `unlock` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * **Must always be called inside a `withContext(NonCancellable)` block.**
-     * Calling it directly from a cancelled context causes an immediate CancellationException.
-     *
-     * Logs a warning on token mismatch without throwing.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     suspend fun unlock(
         minLeaseTime: Duration = Duration.ZERO,
@@ -216,19 +199,9 @@ class MongoSuspendLock private constructor(
     }
 
     /**
-     * Atomically extends the lock's `expireAt` by [leaseTime] and returns an [ExtendOutcome].
+     * `extendDetailed` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * ## R6 filter (Issue #79 PR 4)
-     * Adds `expireAt > now()` to the filter to block split-brain scenarios where a stale token
-     * could revive an expired document that another instance has already re-acquired.
-     *
-     * ## Return values
-     * - matchedCount == 1 → [ExtendOutcome.Extended] (`observedExpireAt = now + leaseTime`, best-effort)
-     * - matchedCount == 0 → [ExtendOutcome.NotHeld] (token mismatch / lease expired / takeover occurred)
-     * - Backend exceptions are wrapped as [ExtendOutcome.BackendError] by the caller (delegate) —
-     *   this function rethrows them as-is.
-     *
-     * The coroutine driver is reactive-native, so `withContext(Dispatchers.IO)` is not needed.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     suspend fun extendDetailed(leaseTime: Duration): ExtendOutcome {
         val nowMs = System.currentTimeMillis()

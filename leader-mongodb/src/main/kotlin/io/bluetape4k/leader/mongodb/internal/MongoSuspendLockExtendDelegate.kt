@@ -11,14 +11,10 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * [SuspendExtendDelegate] for [MongoSuspendLock] (suspend native, reactive coroutine driver) — T9 PR 4 (Issue #79).
+ * `MongoSuspendLockExtendDelegate`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - The MongoDB coroutine driver (`com.mongodb.kotlin.client.coroutine.MongoCollection`) is reactive native → suspend
- * - [extendSuspend] : Calls `lock.extendDetailed(d)` directly (suspend native — withContext(IO) is not needed)
- * - [isHeldSuspend] : Calls `lock.isHeldByCurrentInstance()` directly
- *
- * Token-based lock with no thread affinity (MongoDB does not use WrongThread).
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property lock MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class MongoSuspendLockExtendDelegate(
     private val lock: MongoSuspendLock,

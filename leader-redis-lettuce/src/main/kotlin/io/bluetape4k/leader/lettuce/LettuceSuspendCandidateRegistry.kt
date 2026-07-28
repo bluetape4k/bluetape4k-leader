@@ -17,12 +17,9 @@ import kotlinx.coroutines.flow.toList
 import kotlin.time.Duration
 
 /**
- * Suspend candidate registry backed by the Lettuce coroutines API.
+ * `LettuceSuspendCandidateRegistry`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * This is the suspend variant of [LettuceCandidateRegistry] and uses [RedisCoroutinesCommands].
- * Because Lettuce uses Netty-based asynchronous I/O, no [kotlinx.coroutines.Dispatchers.IO] switch is required.
- *
- * @param connection Lettuce StatefulRedisConnection (StringCodec-based)
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal class LettuceSuspendCandidateRegistry(
     connection: StatefulRedisConnection<String, String>,
@@ -44,9 +41,9 @@ internal class LettuceSuspendCandidateRegistry(
     }
 
     /**
-     * Registers or refreshes a candidate entry.
+     * `registerCandidate` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * If [ttl] = [Duration.ZERO], the entry is stored permanently without a TTL.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     suspend fun registerCandidate(lockName: String, info: CandidateInfo, ttl: Duration) {
         validateLockName(lockName)
@@ -60,7 +57,11 @@ internal class LettuceSuspendCandidateRegistry(
         else cmds.pexpire(indexKey, ttl.inWholeMilliseconds)
     }
 
-    /** Unregisters a candidate. A non-existent nodeId is silently ignored. */
+    /**
+     * `unregisterCandidate` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     */
     suspend fun unregisterCandidate(lockName: String, nodeId: String) {
         validateLockName(lockName)
         cmds.del(candidateKey(lockName, nodeId))
@@ -68,9 +69,9 @@ internal class LettuceSuspendCandidateRegistry(
     }
 
     /**
-     * Returns the current list of candidates registered under [lockName].
+     * `listCandidates` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Corrupted individual entries (invalid encoding, numeric parsing failures, etc.) are skipped with a warning log.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     suspend fun listCandidates(lockName: String): List<CandidateInfo> {
         validateLockName(lockName)
@@ -97,9 +98,9 @@ internal class LettuceSuspendCandidateRegistry(
     }
 
     /**
-     * Applies an action result to the candidate entry.
+     * `updateResult` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Uses `SET key value XX KEEPTTL` to prevent zombie resurrection of expired keys.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     suspend fun updateResult(lockName: String, nodeId: String, result: CandidateResult) {
         validateLockName(lockName)

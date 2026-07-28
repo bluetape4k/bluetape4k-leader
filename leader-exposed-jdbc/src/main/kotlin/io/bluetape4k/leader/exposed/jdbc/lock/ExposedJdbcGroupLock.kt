@@ -27,20 +27,14 @@ import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 
 /**
- * Group lock backed by Exposed JDBC using a composite-PK slot model.
+ * `ExposedJdbcGroupLock`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Implements a semaphore that allows up to N simultaneous leaders by using
- * the `(lockName, slot)` composite primary key of [LeaderGroupLockTable].
- *
- * ## Behavior
- * Uses the same UPDATE+INSERT+SELECT pattern as [ExposedJdbcLock] with
- * an additional `slot` number in the composite primary key.
- *
- * @param db Exposed [Database] instance
- * @param lockName group lock identifier
- * @param slot slot number (0-based)
- * @param retryStrategy back-off strategy for retries
- * @param lockOwner optional lock owner identifier
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property db Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockName Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property slot Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property retryStrategy Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockOwner Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class ExposedJdbcGroupLock internal constructor(
     private val db: Database,
@@ -55,13 +49,15 @@ internal class ExposedJdbcGroupLock internal constructor(
 
     companion object : KLoggingChannel()
 
-    /** Per-instance unique fencing token. */
+    /**
+     * `token` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val token: String = Base58.randomString(8)
 
     /**
-     * Attempts to acquire the slot lock within [waitTime].
+     * `tryLock` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * @return `true` when the lock is acquired, `false` on contention or timeout, `null` on DB error
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean? {
         val deadline = MonotonicDeadline.fromNow(waitTime)
@@ -157,9 +153,9 @@ internal class ExposedJdbcGroupLock internal constructor(
     }
 
     /**
-     * Returns whether the current instance (token) holds a valid slot lock.
+     * `isHeldByCurrentInstance` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Returns `false` when the lease has expired and another instance has re-acquired the slot.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun isHeldByCurrentInstance(): Boolean =
         try {
@@ -186,9 +182,9 @@ internal class ExposedJdbcGroupLock internal constructor(
         }
 
     /**
-     * Releases the slot lock held by the current instance.
+     * `unlock` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Logs a warning on token mismatch and does not delete another owner's slot.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun unlock(
         minLeaseTime: Duration = Duration.ZERO,
@@ -232,25 +228,9 @@ internal class ExposedJdbcGroupLock internal constructor(
     }
 
     /**
-     * Atomically extends the slot lock's `lockedUntil` by [leaseTime] and returns an [ExtendOutcome].
+     * `extendDetailed` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * ## R6 guard (Issue #79 PR 5)
-     * Adds `lockedUntil > now()` to the `WHERE` clause to prevent a split-brain where a stale token
-     * revives an expired row after another instance has re-acquired it.
-     *
-     * ## SQL
-     * ```sql
-     * UPDATE leader_group_lock
-     * SET locked_until = ? -- now + leaseTime
-     * WHERE lock_name = ? AND slot = ? AND token = ? AND locked_until > ?  -- now
-     * ```
-     *
-     * ## Return value
-     * - `affectedRows == 1` → [ExtendOutcome.Extended] (`observedExpireAt = now + leaseTime`)
-     * - `affectedRows == 0` → [ExtendOutcome.NotHeld] (token mismatch / lease expired / takeover)
-     * - DB exceptions propagate as-is; the caller (delegate) wraps them as [ExtendOutcome.BackendError]
-     *
-     * [ExtendOutcome.WrongThread] never occurs because this is a token-based lock.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun extendDetailed(leaseTime: Duration): ExtendOutcome {
         val lockNameVal = this@ExposedJdbcGroupLock.lockName

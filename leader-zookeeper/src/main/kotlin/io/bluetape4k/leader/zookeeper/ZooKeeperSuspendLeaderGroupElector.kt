@@ -23,30 +23,11 @@ import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2
 import java.util.concurrent.TimeUnit
 
 /**
- * ZooKeeper suspend multi-leader election implementation based on Apache Curator [InterProcessSemaphoreV2].
+ * `ZooKeeperSuspendLeaderGroupElector`는 ZooKeeper backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - Allows at most [maxLeaders] concurrent leases for the same [lockName].
- * - Returns `null` without executing [action] if lease acquisition fails.
- * - Even during cancellation, releases the lease inside `withContext(NonCancellable)` and re-propagates [CancellationException].
- *
- * ## ExtendDelegate Integration (T13 PR 8 / Issue #79)
- *
- * - Wraps the acquired per-slot lease with [ZooKeeperSuspendSlotExtendDelegate] — shares the same reference with [LeaderLockHandle.Real] (AC-15).
- * - suspend group: propagates handle to coroutineContext via `withContext(createLockHandleElement(handle))`.
- *
- * ## R16 enforce
- *
- * [LeaderLeaseAutoExtender.start] always uses `enabled=false` — ZooKeeper has no TTL.
- *
- * ```kotlin
- * val elector = ZooKeeperSuspendLeaderGroupElector(curator, LeaderGroupElectionOptions(maxLeaders = 3))
- * val result = elector.runIfLeader("batch-job") { processChunk() }
- * ```
- *
- * @param client A started [CuratorFramework] client. Lifecycle management is the caller's responsibility.
- * @param basePath Base path where leader group znodes will be created
- * @param options Leader group election options
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property basePath ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class ZooKeeperSuspendLeaderGroupElector private constructor(
     private val client: CuratorFramework,
@@ -164,7 +145,9 @@ class ZooKeeperSuspendLeaderGroupElector private constructor(
 }
 
 /**
- * Runs a suspend multi-leader election action using a ZooKeeper [CuratorFramework].
+ * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 suspend inline fun <T> CuratorFramework.suspendRunIfLeaderGroup(
     path: ZooKeeperElectionPath,
@@ -174,7 +157,9 @@ suspend inline fun <T> CuratorFramework.suspendRunIfLeaderGroup(
     ZooKeeperSuspendLeaderGroupElector(this, options, path.basePath).runIfLeader(path.lockName) { action() }
 
 /**
- * Runs a suspend multi-leader election action using a ZooKeeper [CuratorFramework].
+ * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 suspend inline fun <T> CuratorFramework.suspendRunIfLeaderGroup(
     lockName: String,

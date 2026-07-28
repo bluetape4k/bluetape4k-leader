@@ -15,15 +15,10 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * [ExtendDelegate] for [LettuceLock] (sync blocking) — T7 PR 2.
+ * `LettuceLockExtendDelegate`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - [extend]: Returns the result of `lock.extendDetailed(d)` as-is. Backend exceptions are wrapped as [ExtendOutcome.BackendError].
- * - [extendSuspend]: Lettuce sync is blocking I/O, so it is wrapped with `withContext(Dispatchers.IO)` + `ensureActive()` (R9).
- * - [isHeld]: Delegates to `lock.isHeldByCurrentInstance()`.
- * - [lastExtendDeadline]: Stored in a single `AtomicReference(Instant.EPOCH)` instance — used for R2 watchdog skip.
- *
- * AC-21: The blocking backend's [ExtendDelegate.extendSuspend] default is never used — this class explicitly overrides it.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property lock Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class LettuceLockExtendDelegate(
     private val lock: LettuceLock,
@@ -43,10 +38,9 @@ internal class LettuceLockExtendDelegate(
         }
 
     /**
-     * The Lettuce sync API is a blocking facade over the Netty client — dispatched via `withContext(Dispatchers.IO)`.
+     * `extendSuspend` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * **Do not use runCatching {}** — it can swallow `CancellationException` inside a suspend function.
-     * Use manual try/catch with `catch(CancellationException) { throw e }` instead.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
         coroutineContext.ensureActive()

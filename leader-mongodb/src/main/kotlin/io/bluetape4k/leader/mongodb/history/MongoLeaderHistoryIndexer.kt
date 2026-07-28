@@ -24,33 +24,11 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Builds and maintains MongoDB indexes for the leader-lock history collection.
+ * `MongoLeaderHistoryIndexer`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Index creation runs asynchronously in a background coroutine at startup so that
- * the application does not block waiting for `createIndex` to complete.  Use
- * [indexState] or the `leader.history.mongodb.index.state` gauge to observe
- * readiness.
- *
- * ## Index set
- * - `{ lockName: 1, startedAt: -1 }` — compound query index
- * - `{ token: 1 }` — token lookup index
- * - `{ startedAt: 1 }` with `expireAfterSeconds` — TTL index (only when
- *   [MongoHistoryConfig.ttlDays] > 0)
- *
- * ## Index state gauge
- * | Value | Meaning |
- * |-------|---------|
- * | `0.0` | Build in progress |
- * | `1.0` | All indexes ready |
- * | `-1.0` | Build failed after retries |
- *
- * ## Lifecycle
- * Call [close] on application shutdown.  It cancels the background scope and
- * waits up to [SHUTDOWN_TIMEOUT_MS] milliseconds for the index job to finish.
- *
- * @param database MongoDB coroutine [MongoDatabase] instance.
- * @param config Collection name and TTL settings.
- * @param registry Optional [MeterRegistry] for the index-state gauge.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property database MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property config MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class MongoLeaderHistoryIndexer(
     private val database: MongoDatabase,
@@ -70,7 +48,9 @@ class MongoLeaderHistoryIndexer(
         private const val INDEX_TTL_STARTED = "startedAt_1"
     }
 
-    /** `-1` failed, `0` in-progress, `1` ready. */
+    /**
+     * `_indexState` 값은 MongoDB backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     private val _indexState = AtomicInteger(0)
     val indexState: Int get() = _indexState.get()
 
@@ -134,8 +114,9 @@ class MongoLeaderHistoryIndexer(
     }
 
     /**
-     * Cancels the background scope and waits up to [SHUTDOWN_TIMEOUT_MS] for
-     * the index job to complete.
+     * `close` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override fun close() {
         runCatching { scope.cancel() }

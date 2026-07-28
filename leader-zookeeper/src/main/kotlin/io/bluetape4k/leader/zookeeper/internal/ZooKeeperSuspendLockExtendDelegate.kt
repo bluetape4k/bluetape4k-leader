@@ -12,21 +12,13 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * [ExtendDelegate] for ZooKeeper [InterProcessMutex] (suspend) — T13 PR 8 (Issue #79).
+ * `ZooKeeperSuspendLockExtendDelegate`는 ZooKeeper backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract (PASSTHROUGH — Spec §6 row 12)
- *
- * ZooKeeper uses **session-based locks** with no TTL concept. `extend(d)` means
- * **session-held liveness check**, not lease extension (R3-F11).
- *
- * - [extend] / [extendSuspend]: return [ExtendOutcome.Extended] (observedExpireAt = [Instant.MAX]) only if
- *   Curator still reports a local acquisition and the acquired ephemeral znode still exists in ZooKeeper.
- * - [isHeld]: returns false when ownership is no longer positively observable in ZooKeeper.
- *
- * Token-based lock (session-bound) — no thread affinity.
- *
- * ## R16 enforce
- * The elector forces `enabled=false` when calling [io.bluetape4k.leader.LeaderLeaseAutoExtender.start].
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property mutex ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockKey ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockPath ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class ZooKeeperSuspendLockExtendDelegate(
     private val client: CuratorFramework,

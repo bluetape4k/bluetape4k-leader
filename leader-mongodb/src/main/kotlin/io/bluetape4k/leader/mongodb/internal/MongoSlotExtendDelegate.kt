@@ -15,12 +15,10 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * [ExtendDelegate] for per-slot [MongoLock] (`{lockName}:slot:N`) in the MongoDB group elector — T9 PR 4 (Issue #79).
+ * `MongoSlotExtendDelegate`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - [extend] : Delegates to `slotLock.extendDetailed(d)`. Applies the R6 filter (`expireAt > now`)
- * - [extendSuspend] : The MongoDB sync driver is blocking — wraps with `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21)
- * - [isHeld] : Delegates to `slotLock.isHeldByCurrentInstance()`
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property slotLock MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class MongoSlotExtendDelegate(
     private val slotLock: MongoLock,

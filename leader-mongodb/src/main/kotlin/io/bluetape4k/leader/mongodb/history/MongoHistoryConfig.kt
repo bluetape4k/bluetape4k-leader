@@ -4,19 +4,10 @@ import io.bluetape4k.logging.KLogging
 import java.io.Serializable
 
 /**
- * Configuration for MongoDB-backed leader-lock history storage.
+ * `MongoHistoryConfig`는 MongoDB leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## Properties
- * - [collectionName]: MongoDB collection name for history records. Defaults to
- *   [DEFAULT_COLLECTION_NAME].
- * - [ttlDays]: TTL index expiry in days. A value of `0` disables the TTL index;
- *   the `leader.history.mongodb.ttl.disabled` gauge will read `1.0` in that case.
- *
- * ## Behavior / Contract
- * - TTL index is the primary retention mechanism in MongoDB; `deleteOlderThan()`
- *   is a supplementary immediate-purge helper.
- * - When [ttlDays] is `0`, data accumulates indefinitely unless the caller invokes
- *   `deleteOlderThan()` explicitly.
+ * @property collectionName MongoDB backend 계약에서 `collectionName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property ttlDays MongoDB backend 계약에서 `ttlDays` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class MongoHistoryConfig(
     val collectionName: String = DEFAULT_COLLECTION_NAME,

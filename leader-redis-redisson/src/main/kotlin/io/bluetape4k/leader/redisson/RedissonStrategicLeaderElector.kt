@@ -17,19 +17,10 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * [StrategicLeaderElector] implementation backed by Redisson.
+ * `RedissonStrategicLeaderElector`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Election approach
- * Uses a deterministic strategy without distributed locks.
- * When all nodes apply the same strategy to the same candidate list, they compute the same winner.
- * Only the winner node executes the action.
- *
- * ## Note
- * Differences in candidate registration/expiry timing may cause nodes to see different candidate lists.
- * Use [RedissonLeaderElector] (lock-based) when strict mutual exclusion is required.
- *
- * @param redissonClient Redisson client
- * @param nodeId node identifier for this instance; auto-generated as UUID v7 when not specified
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property nodeId Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class RedissonStrategicLeaderElector(
     redissonClient: RedissonClient,

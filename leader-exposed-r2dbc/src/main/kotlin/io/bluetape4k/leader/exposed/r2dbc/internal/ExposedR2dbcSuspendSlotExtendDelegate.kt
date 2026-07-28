@@ -11,16 +11,10 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * [SuspendExtendDelegate] for per-slot [ExposedR2dbcGroupLock] (`(lockName, slot)`) in the Exposed R2DBC suspend group elector
- * — T11 PR 6 (Issue #79).
+ * `ExposedR2dbcSuspendSlotExtendDelegate`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Exposed R2DBC is reactive native → suspend.
- *
- * ## Behavior / Contract
- * - [extendSuspend] : Calls `slotLock.extendDetailed(d)` directly (suspend native)
- * - [isHeldSuspend] : Calls `slotLock.isHeldByCurrentInstance()` directly
- *
- * Token-based lock with no thread affinity.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property slotLock Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class ExposedR2dbcSuspendSlotExtendDelegate(
     private val slotLock: ExposedR2dbcGroupLock,

@@ -4,11 +4,9 @@ import io.bluetape4k.leader.strategy.CandidateInfo
 import java.time.Instant
 
 /**
- * Internal codec that encodes/decodes [CandidateInfo] to/from a Redis String value.
+ * `LettuceCandidateInfoCodec`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Format: `nodeId|registeredAtMs|lastStartMs|lastCompletionMs|successCount|failureCount|metadata`
- * - Instant?: epochMilli string; empty string when absent
- * - metadata: `key=value` pairs separated by `,`. Keys, values, and nodeId are percent-encoded when they contain `|`, `,`, `=`, or `%`
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal object LettuceCandidateInfoCodec {
 
@@ -47,8 +45,9 @@ internal object LettuceCandidateInfoCodec {
     private fun String.esc() = replace("%", "%25").replace("|", "%7C").replace(",", "%2C").replace("=", "%3D")
 
     /**
-     * Single-pass percent-decoder. Chained [String.replace] produces incorrect results for nested tokens
-     * (e.g., encoded `%7C` = `%257C`), so the string is scanned directly.
+     * `String` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     private fun String.unesc(): String {
         if (isEmpty() || !contains('%')) return this

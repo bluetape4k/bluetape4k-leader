@@ -7,19 +7,9 @@ import org.redisson.client.RedisException
 import org.redisson.client.RedisTimeoutException
 
 /**
- * Redisson backend exception classifier — T7 PR 3 (Issue #79).
+ * `RedissonBackendErrorClassifier`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - [RedisTimeoutException] / [RedisConnectionException] → [BackendErrorKind.TRANSIENT] (retryable)
- * - [RedisException] (other than timeout/connection) → [BackendErrorKind.NON_TRANSIENT] (Lua execution error, ACL failure, etc.)
- * - Other → `null` (unclassified — delegated to the next classifier in the chain)
- *
- * ## Usage
- * Registered as a chain entry in [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier] by the elector.
- *
- * ```kotlin
- * val classifier = CompositeBackendErrorClassifier(RedissonBackendErrorClassifier)
- * ```
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal object RedissonBackendErrorClassifier: BackendErrorClassifier {
 

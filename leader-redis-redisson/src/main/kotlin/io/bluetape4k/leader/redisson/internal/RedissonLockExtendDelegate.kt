@@ -16,27 +16,12 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * [ExtendDelegate] for Redisson [RLock] (sync blocking) — T8 PR 3 (Issue #79).
+ * `RedissonLockExtendDelegate`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - [extend]: owner-atomic — verifies Redisson's owner hash field and renews key TTL in one Redis Lua script.
- *   Returns [ExtendOutcome.WrongThread] on thread mismatch (AC-8), [ExtendOutcome.NotHeld] when not holding the lock.
- *   Backend exceptions are wrapped as [ExtendOutcome.BackendError].
- * - [extendSuspend]: Redisson sync is blocking I/O, so dispatched with `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21).
- * - [isHeld]: delegates to `lock.isHeldByThread(acquiringThreadId)`.
- * - [lastExtendDeadline]: single `AtomicReference(Instant.EPOCH)` instance — used for R2 watchdog skip.
- *
- * ## RLock TTL renewal mechanism
- * Redisson's [RLock] stores ownership in a Redis hash field named like `clientId:threadId`.
- * The extend path uses the same owner field and performs `HEXISTS` + `PEXPIRE` in one Lua script,
- * avoiding the check-then-expire race where a stale owner could renew a successor lock.
- *
- * AC-21: blocking backend [ExtendDelegate.extendSuspend] default is never called — this class overrides it explicitly.
- *
- * @property redissonClient Redisson client used to renew the lock key TTL
- * @property lock Redisson [RLock] instance
- * @property acquiringThreadId thread id used when acquiring the lock ([Thread.currentThread.threadId]).
- *           Redisson identifies lock owners by thread id, so only the same thread can extend in sync mode.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property redissonClient Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lock Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property acquiringThreadId Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class RedissonLockExtendDelegate(
     private val redissonClient: RedissonClient,
@@ -53,10 +38,9 @@ internal class RedissonLockExtendDelegate(
         doExtend(lockAtMostFor)
 
     /**
-     * Redisson sync API is a Netty client-based blocking facade — dispatched with `withContext(Dispatchers.IO)`.
+     * `extendSuspend` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * **Do not use `runCatching {}`** — it can swallow [CancellationException] inside a suspend function.
-     * Use manual try/catch with `catch(CancellationException) { throw e }`.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
         coroutineContext.ensureActive()

@@ -9,27 +9,19 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Options data class for MongoDB-based multi-leader group election.
+ * `MongoLeaderGroupElectionOptions`는 MongoDB leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ```kotlin
- * val options = MongoLeaderGroupElectionOptions(
- *     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3),
- *     retryDelay = 100.milliseconds,
- * )
- * val election = MongoLeaderGroupElector(groupCollection, options)
- * val result = election.runIfLeader("batch-job") { processChunk() }
- * // result == processChunk() return value (slot acquired) or null (no slot available)
- * ```
- *
- * @property leaderGroupOptions Group leader election options (maxLeaders, waitTime, leaseTime)
- * @property retryDelay Upper bound for full jitter applied on lock acquisition retry (`[1ms, retryDelay)` uniform distribution). Defaults to 50ms
+ * @property leaderGroupOptions MongoDB backend 계약에서 `leaderGroupOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property retryDelay MongoDB backend 계약에서 `retryDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class MongoLeaderGroupElectionOptions(
     val leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
     val retryDelay: Duration = 50.milliseconds,
 ) : Serializable {
 
-    /** Maximum number of concurrent leaders allowed (delegates to [LeaderGroupElectionOptions.maxLeaders]). */
+    /**
+     * `maxLeaders` 값은 MongoDB backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val maxLeaders: Int get() = leaderGroupOptions.maxLeaders
 
     init {
@@ -39,7 +31,7 @@ data class MongoLeaderGroupElectionOptions(
 
     companion object {
         /**
-         * Default options instance (`maxLeaders=2`, `waitTime=5s`, `leaseTime=60s`, `retryDelay=50ms`).
+         * `Default` 값은 MongoDB backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
          */
         @JvmField
         val Default = MongoLeaderGroupElectionOptions()

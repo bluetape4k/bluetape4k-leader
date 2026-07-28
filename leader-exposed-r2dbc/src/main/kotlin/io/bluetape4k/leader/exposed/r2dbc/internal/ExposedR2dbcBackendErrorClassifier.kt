@@ -10,27 +10,9 @@ import io.r2dbc.spi.R2dbcTransientException
 import io.r2dbc.spi.R2dbcTransientResourceException
 
 /**
- * Exposed R2DBC backend exception classifier — T11 PR 6 (Issue #79).
+ * `ExposedR2dbcBackendErrorClassifier`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - [R2dbcTimeoutException] / [R2dbcTransientException] / [R2dbcTransientResourceException]
- *   → [BackendErrorKind.TRANSIENT] (retryable — query timeout / transient connection loss)
- * - [R2dbcRollbackException] → [BackendErrorKind.NON_TRANSIENT] (retry after rollback is meaningless)
- * - [R2dbcNonTransientException] → [BackendErrorKind.NON_TRANSIENT] (permanent error — constraint violation, etc.)
- * - Other [R2dbcException] → [BackendErrorKind.NON_TRANSIENT] (conservative default)
- * - Other → `null` (unclassifiable — delegated to the next classifier in the chain)
- *
- * ## Usage
- * Registered as a chain entry in [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier] by the elector.
- *
- * ```kotlin
- * val classifier = CompositeBackendErrorClassifier(ExposedR2dbcBackendErrorClassifier)
- * ```
- *
- * ## Notes
- * The R2DBC SPI hierarchy is separate from JDBC's [java.sql.SQLException] hierarchy.
- * Classification priority: narrow types first (transient family / rollback / non-transient),
- * with the general [R2dbcException] checked last.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal object ExposedR2dbcBackendErrorClassifier: BackendErrorClassifier {
 

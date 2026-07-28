@@ -20,35 +20,12 @@ import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 
 /**
- * ZooKeeper single-leader election implementation based on Apache Curator's inter-process mutex recipe.
+ * `ZooKeeperLeaderElector`는 ZooKeeper backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - Creates a Curator mutex at the ZooKeeper path for each [lockName] and attempts acquisition
- *   for up to [LeaderElectionOptions.waitTime].
- * - Returns `null` without executing [action] if acquisition fails.
- * - Executes [action] on successful acquisition and always calls `release()` in a `finally` block.
- * - Due to Curator recipe semantics, when the session disconnects the ZooKeeper ephemeral node disappears
- *   and the lock is released automatically.
- *
- * ## ExtendDelegate Integration (T13 PR 8 / Issue #79)
- *
- * - After acquire, creates [ZooKeeperLockExtendDelegate] sharing the same reference as [LeaderLockHandle.Real] (AC-15).
- * - When the aspect calls `LockExtender.extendActiveLock`, returns a passthrough extend via the same delegate — Spec §6 row 12.
- *
- * ## R16 Enforcement — ZooKeeper Has No TTL
- *
- * ZooKeeper uses session-based locks (ephemeral znodes) — there is no TTL concept.
- * Therefore [LeaderLeaseAutoExtender.start] is **always called with `enabled=false`** (ignored even if the user
- * sets `options.autoExtend=true`, with a WARN log). Lease renewal is handled by ZK session keepalive.
- *
- * ```kotlin
- * val elector = ZooKeeperLeaderElector(curator)
- * val result = elector.runIfLeader("daily-job") { runJob() }
- * ```
- *
- * @param client A started [CuratorFramework] client. Lifecycle management is the caller's responsibility.
- * @param basePath Base path under which leader election znodes are created
- * @param options Leader election options
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property basePath ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class ZooKeeperLeaderElector private constructor(
     private val client: CuratorFramework,
@@ -163,7 +140,9 @@ class ZooKeeperLeaderElector private constructor(
 }
 
 /**
- * Runs a leader-elected action using the ZooKeeper [CuratorFramework].
+ * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 inline fun <T> CuratorFramework.runIfLeader(
     path: ZooKeeperElectionPath,
@@ -173,7 +152,9 @@ inline fun <T> CuratorFramework.runIfLeader(
     ZooKeeperLeaderElector(this, path.basePath, options).runIfLeader(path.lockName) { action() }
 
 /**
- * Runs a leader-elected action using the ZooKeeper [CuratorFramework].
+ * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 inline fun <T> CuratorFramework.runIfLeader(
     lockName: String,
@@ -184,7 +165,9 @@ inline fun <T> CuratorFramework.runIfLeader(
     runIfLeader(ZooKeeperElectionPath(lockName, basePath), options, action)
 
 /**
- * Runs an async leader-elected action using the ZooKeeper [CuratorFramework].
+ * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun <T> CuratorFramework.runAsyncIfLeader(
     path: ZooKeeperElectionPath,
@@ -195,7 +178,9 @@ fun <T> CuratorFramework.runAsyncIfLeader(
     ZooKeeperLeaderElector(this, path.basePath, options).runAsyncIfLeader(path.lockName, executor, action)
 
 /**
- * Runs an async leader-elected action using the ZooKeeper [CuratorFramework].
+ * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun <T> CuratorFramework.runAsyncIfLeader(
     lockName: String,

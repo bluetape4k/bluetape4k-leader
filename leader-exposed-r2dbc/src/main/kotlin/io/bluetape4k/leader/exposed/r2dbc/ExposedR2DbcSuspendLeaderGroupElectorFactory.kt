@@ -6,25 +6,11 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElectorFactory
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 
 /**
- * Factory for [ExposedR2DbcSuspendLeaderGroupElector] — suspend multi-leader election backed by Exposed R2DBC.
+ * `ExposedR2DbcSuspendLeaderGroupElectorFactory`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Option handling
- * Exposed R2DBC-specific options (`retryStrategy`, `recordHistory`) are fixed at factory construction time
- * via [baseOptions]; each call replaces only `maxLeaders`/`waitTime`/`leaseTime` via
- * `baseOptions.copy(leaderGroupOptions = options)`.
- *
- * Calls to `ExposedR2DbcSuspendLeaderGroupElector(...)` are routed through the companion
- * `suspend operator fun invoke`, which also runs [ExposedR2dbcSchemaInitializer.ensureSchema].
- *
- * ## Usage
- * ```kotlin
- * val factory = ExposedR2DbcSuspendLeaderGroupElectorFactory(r2dbcDatabase)
- * val elector = factory.create(LeaderGroupElectionOptions(maxLeaders = 3))
- * val result = elector.runIfLeader("batch-shard") { processChunk() }
- * ```
- *
- * @param db Exposed [R2dbcDatabase] instance
- * @param baseOptions Exposed R2DBC-specific option defaults
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property db Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property baseOptions Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class ExposedR2DbcSuspendLeaderGroupElectorFactory(
     private val db: R2dbcDatabase,

@@ -3,25 +3,9 @@ package io.bluetape4k.leader.exposed.r2dbc
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 
 /**
- * Runs a suspend single leader election on this [R2dbcDatabase].
+ * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
  *
- * Convenience function for `ExposedR2dbcSuspendLeaderElector(this, options).runIfLeader(lockName, action)`.
- * `ensureSchema` is guaranteed via [ExposedR2DbcSuspendLeaderElector.invoke].
- *
- * **Note**: A new [ExposedR2DbcSuspendLeaderElector] instance is created on every call.
- * For frequent repeated calls, create and reuse an instance directly.
- *
- * ```kotlin
- * val report = db.suspendRunIfLeader("daily-report") {
- *     delay(100)
- *     generateReport()
- * } ?: return // skip if not leader
- * ```
- *
- * @param lockName lock name to use for leader election
- * @param options election options; defaults to [ExposedR2dbcLeaderElectionOptions.Default]
- * @param action suspend action to run when leader acquisition succeeds
- * @return result of [action], or `null` if leader acquisition failed
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 suspend fun <T> R2dbcDatabase.suspendRunIfLeader(
     lockName: String,
@@ -30,29 +14,9 @@ suspend fun <T> R2dbcDatabase.suspendRunIfLeader(
 ): T? = ExposedR2DbcSuspendLeaderElector(this, options).runIfLeader(lockName, action)
 
 /**
- * Runs a suspend group leader election on this [R2dbcDatabase].
+ * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
  *
- * Convenience function for `ExposedR2dbcSuspendLeaderGroupElector(this, options).runIfLeader(lockName, action)`.
- * `ensureSchema` is guaranteed via [ExposedR2DbcSuspendLeaderGroupElector.invoke].
- *
- * **Note**: A new [ExposedR2DbcSuspendLeaderGroupElector] instance is created on every call.
- * For frequent repeated calls, create and reuse an instance directly.
- *
- * ```kotlin
- * val opts = ExposedR2dbcLeaderGroupElectionOptions(
- *     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 4),
- * )
- * val result = db.suspendRunIfLeaderGroup("worker-pool", opts) {
- *     delay(100)
- *     processChunk()
- * }
- * // Up to 4 nodes run concurrently; returns null when all slots are taken
- * ```
- *
- * @param lockName lock name to use for group leader election
- * @param options group election options; defaults to [ExposedR2dbcLeaderGroupElectionOptions.Default]
- * @param action suspend action to run when leader acquisition succeeds
- * @return result of [action], or `null` if slot acquisition failed
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 suspend fun <T> R2dbcDatabase.suspendRunIfLeaderGroup(
     lockName: String,

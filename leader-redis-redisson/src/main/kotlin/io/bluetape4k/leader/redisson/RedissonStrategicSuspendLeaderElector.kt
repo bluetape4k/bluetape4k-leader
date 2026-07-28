@@ -19,13 +19,10 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * [StrategicSuspendLeaderElector] implementation backed by the Redisson Redis client.
+ * `RedissonStrategicSuspendLeaderElector`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Redisson blocking calls are executed on [Dispatchers.IO].
- * [CancellationException] is not treated as an action failure; it is re-thrown without incrementing failureCount.
- *
- * @param redissonClient Redisson client
- * @param nodeId Node identifier for this instance. Auto-generated as UUID v7 if not specified.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property nodeId Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class RedissonStrategicSuspendLeaderElector(
     redissonClient: RedissonClient,

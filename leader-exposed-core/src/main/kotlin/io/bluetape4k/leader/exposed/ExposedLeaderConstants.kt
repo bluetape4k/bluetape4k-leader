@@ -1,29 +1,44 @@
 package io.bluetape4k.leader.exposed
 
 /**
- * Shared constants for the leader-exposed-core module.
- * Centralizes table names and column length constraints.
+ * `ExposedLeaderConstants`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
+ *
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 object ExposedLeaderConstants {
 
-    /** Table name for single-leader locks. */
+    /**
+     * `LOCK_TABLE_NAME` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val LOCK_TABLE_NAME = "bluetape4k_leader_locks"
 
-    /** Table name for group leader locks (semaphore-based multi-leader). */
+    /**
+     * `GROUP_LOCK_TABLE_NAME` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val GROUP_LOCK_TABLE_NAME = "bluetape4k_leader_group_locks"
 
-    /** Table name for leader election history. */
+    /**
+     * `LOCK_HISTORY_TABLE_NAME` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val LOCK_HISTORY_TABLE_NAME = "bluetape4k_leader_lock_history"
 
-    /** Maximum length of the lockName column. */
+    /**
+     * `LOCK_NAME_LENGTH` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val LOCK_NAME_LENGTH = 255
 
-    /** Maximum length of the lockOwner column. */
+    /**
+     * `LOCK_OWNER_LENGTH` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val LOCK_OWNER_LENGTH = 255
 
-    /** Length of the fencing token (UUID) column — standard UUID is 36 characters. */
+    /**
+     * `TOKEN_LENGTH` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val TOKEN_LENGTH = 36
 
-    /** Maximum length of the history status column. */
+    /**
+     * `STATUS_LENGTH` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val STATUS_LENGTH = 20
 }

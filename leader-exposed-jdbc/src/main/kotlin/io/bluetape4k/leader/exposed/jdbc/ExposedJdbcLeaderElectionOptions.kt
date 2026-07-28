@@ -7,23 +7,11 @@ import io.bluetape4k.support.requireLe
 import java.io.Serializable
 
 /**
- * Options for single-leader election backed by Exposed JDBC.
+ * `ExposedJdbcLeaderElectionOptions`는 Exposed database leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ```kotlin
- * val options = ExposedJdbcLeaderElectionOptions(
- *     leaderOptions = LeaderElectionOptions(
- *         waitTime = Duration.ofSeconds(3),
- *         leaseTime = Duration.ofSeconds(30),
- *     ),
- *     retryStrategy = RetryStrategy.Jitter(baseDelayMs = 100L),
- *     lockOwner = "worker-1",
- * )
- * val election = ExposedJdbcLeaderElector(db, options)
- * ```
- *
- * @property leaderOptions Single-leader election options (waitTime, leaseTime)
- * @property retryStrategy Lock acquisition retry strategy. Defaults to [RetryStrategy.Jitter]
- * @property lockOwner Lock owner identifier. Must be within [ExposedLeaderConstants.LOCK_OWNER_LENGTH] characters. Not recorded if `null`
+ * @property leaderOptions Exposed database backend 계약에서 `leaderOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property retryStrategy Exposed database backend 계약에서 `retryStrategy` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockOwner Exposed database backend 계약에서 `lockOwner` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class ExposedJdbcLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -39,11 +27,7 @@ data class ExposedJdbcLeaderElectionOptions(
 
     companion object {
         /**
-         * Default options instance.
-         *
-         * - leaderOptions = [LeaderElectionOptions.Default] (waitTime/leaseTime use leader-core defaults)
-         * - retryStrategy = [RetryStrategy.Jitter] (baseDelayMs = 50ms)
-         * - lockOwner = `null`
+         * `Default` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
          */
         @JvmField
         val Default = ExposedJdbcLeaderElectionOptions()

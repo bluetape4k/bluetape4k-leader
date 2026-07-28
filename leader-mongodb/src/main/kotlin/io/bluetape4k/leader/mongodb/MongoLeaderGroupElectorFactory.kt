@@ -7,20 +7,11 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import org.bson.Document
 
 /**
- * Factory for [MongoLeaderGroupElector] — multi-leader election backed by the MongoDB sync client.
+ * `MongoLeaderGroupElectorFactory`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Usage
- * ```kotlin
- * val factory = MongoLeaderGroupElectionFactory(groupCollection)
- * val election = factory.create(LeaderGroupElectionOptions(maxLeaders = 3))
- * val result = election.runIfLeader("batch-shard") { processChunk() }
- * ```
- *
- * Replaces `maxLeaders`/`waitTime`/`leaseTime` on each call via
- * `baseOptions.copy(leaderGroupOptions = options)` while preserving `retryDelay`.
- *
- * @param groupCollection group lock collection
- * @param baseOptions MongoDB-specific option defaults
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property groupCollection MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property baseOptions MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class MongoLeaderGroupElectorFactory(
     private val groupCollection: MongoCollection<Document>,

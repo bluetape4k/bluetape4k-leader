@@ -11,12 +11,10 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * [SuspendExtendDelegate] for [LettuceSuspendLock] (suspend native) — T7 PR 2.
+ * `LettuceSuspendLockExtendDelegate`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - Lettuce async API is Netty event-loop-based non-blocking → suspend native.
- * - [extendSuspend]: Calls `lock.extendDetailed(d)` directly (suspend native — no `withContext(IO)` needed).
- * - [isHeldSuspend]: Calls `lock.isHeldByCurrentInstance()` directly.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property lock Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class LettuceSuspendLockExtendDelegate(
     private val lock: LettuceSuspendLock,

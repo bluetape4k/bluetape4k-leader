@@ -8,27 +8,35 @@ import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.javatime.timestamp
 
 /**
- * Single-leader lock table.
+ * `LeaderLockTable`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * - [lockName] is the PK — duplicate acquisition is naturally prevented by INSERT conflicts.
- * - [token] is a fencing token (UUID). The `WHERE token = ?` condition on unlock prevents zombie unlocks.
- * - [lockedUntil] is the TTL expiry timestamp. The `locked_until < NOW()` condition allows re-acquisition of stale locks.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 object LeaderLockTable : Table(LOCK_TABLE_NAME) {
 
-    /** Lock identifier (PK). Allows alphanumerics, hyphens, underscores, and colons. */
+    /**
+     * `lockName` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val lockName = varchar("lock_name", LOCK_NAME_LENGTH)
 
-    /** Lock holder identifier (hostname + PID, etc.). Null means unused slot. */
+    /**
+     * `lockOwner` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val lockOwner = varchar("lock_owner", LOCK_OWNER_LENGTH).nullable()
 
-    /** Fencing token — UUID. Rejects unlock attempts from an older holder of the same lock. */
+    /**
+     * `token` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val token = varchar("token", TOKEN_LENGTH)
 
-    /** Timestamp when the lock was acquired (UTC). */
+    /**
+     * `lockedAt` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val lockedAt = timestamp("locked_at")
 
-    /** Lock expiry timestamp (UTC). Based on leaseTime. Considered stale after this time. */
+    /**
+     * `lockedUntil` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val lockedUntil = timestamp("locked_until")
 
     override val primaryKey = PrimaryKey(lockName)

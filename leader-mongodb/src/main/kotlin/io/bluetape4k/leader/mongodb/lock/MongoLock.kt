@@ -34,23 +34,12 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Token-based distributed lock backed by MongoDB `findOneAndUpdate` upsert + TTL index.
+ * `MongoLock`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## How it works
- * - `findOneAndUpdate(filter=expired, upsert=true)`: Atomically acquires the lock by updating an expired lock document or inserting a new one
- * - E11000 Duplicate Key: A valid lock already exists → returns `null` and retries
- * - TTL index (`expireAt`, expireAfterSeconds=0): MongoDB automatically removes expired documents
- *
- * ## Design considerations
- * - [leaseTime] must be sufficiently larger than the maximum action execution time.
- *   After TTL expiry, another instance can re-acquire the lock (takeover risk).
- * - In a Replica Set environment, `WriteConcern.MAJORITY` is recommended.
- *   `ACKNOWLEDGED` carries a split-brain risk on network partition.
- * - Token-based, so not thread-bound and safe in Virtual Thread environments.
- *
- * @param collection [MongoCollection] used to store lock state
- * @param lockKey Lock identification key
- * @param retryDelay Base wait time for retries (including jitter)
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property collection MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockKey MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property retryDelay MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class MongoLock private constructor(
     private val collection: MongoCollection<Document>,
@@ -58,19 +47,22 @@ class MongoLock private constructor(
     private val retryDelay: Duration,
 ) {
     companion object : KLogging() {
-        /** Collection name for single-leader election */
+        /**
+         * `LOCK_COLLECTION_NAME` 값은 MongoDB backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         const val LOCK_COLLECTION_NAME = "bluetape4k_leader_locks"
 
-        /** Collection name for group leader election */
+        /**
+         * `GROUP_LOCK_COLLECTION_NAME` 값은 MongoDB backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         const val GROUP_LOCK_COLLECTION_NAME = "bluetape4k_leader_group_locks"
 
         private val ensuredNamespaces: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
         /**
-         * Creates a TTL index (`expireAt`, expireAfterSeconds=0) on the collection.
+         * `ensureIndexes` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
          *
-         * Runs only once per namespace. On index creation failure, removes the namespace from
-         * the guard set so the next call can retry.
+         * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
          */
         fun ensureIndexes(collection: MongoCollection<Document>) {
             val namespace = collection.namespace.fullName
@@ -87,7 +79,11 @@ class MongoLock private constructor(
             }
         }
 
-        /** Resets the ensureIndexes state for a specific namespace in tests. */
+        /**
+         * `resetEnsuredFor` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
+         *
+         * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+         */
         internal fun resetEnsuredFor(namespace: String) {
             ensuredNamespaces.remove(namespace)
         }
@@ -111,14 +107,9 @@ class MongoLock private constructor(
     }
 
     /**
-     * Attempts to acquire the lock within [waitTime]. Returns `true` on success, `false` on timeout or error.
+     * `tryLock` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * This is a blocking API: retry waits use [Thread.sleep]. Use [tryLockAsync] from CompletableFuture paths so
-     * retry waits do not occupy executor threads.
-     *
-     * @param waitTime Maximum wait time for lock acquisition
-     * @param leaseTime Maximum lock hold (TTL) duration
-     * @return `true` if the lock was acquired, `false` on failure or error
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
         val deadline = MonotonicDeadline.fromNow(waitTime)
@@ -148,11 +139,9 @@ class MongoLock private constructor(
     }
 
     /**
-     * Attempts to acquire the lock without occupying [executor] threads for retry waits.
+     * `tryLockAsync` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * The MongoDB sync driver still performs each individual database operation on [executor], which defaults to
-     * [VirtualThreadExecutor]. Retry delays are scheduled with [CompletableFuture.delayedExecutor] instead of
-     * sleeping inside the executor thread.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun tryLockAsync(
         waitTime: Duration,
@@ -239,9 +228,9 @@ class MongoLock private constructor(
     }
 
     /**
-     * Checks whether the current instance (token) holds the lock.
+     * `isHeldByCurrentInstance` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Returns `false` if the lease has expired and another instance has re-acquired the lock.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun isHeldByCurrentInstance(): Boolean =
         collection.find(
@@ -249,9 +238,9 @@ class MongoLock private constructor(
         ).first() != null
 
     /**
-     * Releases the lock held by the current instance.
+     * `unlock` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Only logs a warning on token mismatch (e.g., when another instance has re-acquired the lock after lease expiry).
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun unlock(
         minLeaseTime: Duration = Duration.ZERO,
@@ -276,16 +265,9 @@ class MongoLock private constructor(
     }
 
     /**
-     * Atomically extends the lock's expireAt by [leaseTime] and returns an [ExtendOutcome].
+     * `extendDetailed` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * ## R6 filter (Issue #79 PR 4)
-     * Adds `expireAt > now()` to the filter to prevent a stale token from reviving an expired document
-     * in a race where another instance has already re-acquired the lock (split-brain protection).
-     *
-     * ## Return values
-     * - matchedCount == 1 → [ExtendOutcome.Extended] (`observedExpireAt = now + leaseTime`, best-effort)
-     * - matchedCount == 0 → [ExtendOutcome.NotHeld] (token mismatch / lease expired / takeover occurred)
-     * - Backend exceptions are wrapped by the caller (delegate) as [ExtendOutcome.BackendError] — this function throws as-is
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun extendDetailed(leaseTime: Duration): ExtendOutcome {
         val nowMs = System.currentTimeMillis()

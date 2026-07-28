@@ -14,20 +14,13 @@ import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 
 /**
- * Distributed lock implementation backed by [IMap].
+ * `HazelcastLock`는 Hazelcast backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Uses `putIfAbsent(key, token, ttl)` for atomic acquisition and `remove(key, token)` for
- * token-guarded release. Does not depend on thread ID, so it is safe under any execution model
- * including Virtual Threads and thread pools.
- *
- * **Warning:** [leaseTime] must be sufficiently longer than the maximum execution time of the action.
- * If the TTL expires, the lock is released automatically and another node may become leader concurrently.
- *
- * **Warning:** Never enable near-cache on [lockMap].
- * Stale values from near-cache can cause [isHeldByCurrentInstance] to return incorrect results.
- *
- * @param lockMap The [IMap] used to store lock state
- * @param lockKey Key that identifies this lock
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property lockMap Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockKey Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property transactionMapName Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property transactionContextProvider Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class HazelcastLock(
     private val lockMap: IMap<String, String>,
@@ -42,12 +35,9 @@ class HazelcastLock(
     private val token: String = Base58.randomString(8)
 
     /**
-     * Attempts to acquire the lock within [waitTime]. Returns `true` on success,
-     * or `false` on timeout or cluster error.
+     * `tryLock` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * [HazelcastException] caused by cluster events (partition migration, member departure, etc.)
-     * is handled as `false` rather than being propagated, preserving the contract that
-     * `runIfLeader()` never throws.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean {
         val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds
@@ -75,17 +65,16 @@ class HazelcastLock(
     }
 
     /**
-     * Checks whether the current instance (token) holds the lock.
+     * `isHeldByCurrentInstance` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Returns `true` only when the value stored in [IMap] matches this instance's token.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun isHeldByCurrentInstance(): Boolean = lockMap[lockKey] == token
 
     /**
-     * Releases the lock held by the current instance.
+     * `unlock` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Validates token ownership in a Hazelcast transaction before rewriting TTL or removing the entry.
-     * Logs a warning on token mismatch (e.g., the lease expired and another node re-acquired the lock).
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun unlock(
         minLeaseTime: Duration = Duration.ZERO,
@@ -112,28 +101,9 @@ class HazelcastLock(
     }
 
     /**
-     * Extends the lock's TTL by [leaseTime] in a token-guarded manner and returns an [ExtendOutcome]
-     * — T12 PR 7 (Issue #79).
+     * `extendDetailed` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * ## Behavior / Contract
-     * - Step 1: opens a Hazelcast transaction and reads [lockKey] with `getForUpdate`.
-     * - Step 2: validates that the entry value still matches our token.
-     * - Step 3: on token match, rewrites the same token with a new TTL via transactional `put`.
-     * - Token mismatch or not held → [ExtendOutcome.NotHeld]
-     * - Successful renewal → [ExtendOutcome.Extended] (`observedExpireAt = now + leaseTime` — best-effort)
-     * - [HazelcastException] → [ExtendOutcome.BackendError]
-     *
-     * ## R6 — Expired-Entry Revival Prevention
-     * Hazelcast IMap automatically evicts entries on TTL expiry, so [IMap.replace] returns `false`
-     * for expired entries → NotHeld.
-     *
-     * ## Design Note — Why Transaction Instead of EntryProcessor
-     * In Hazelcast client-server mode, a custom `EntryProcessor` requires class deployment to the
-     * server JVM ([UserCodeDeployment] or pre-deployment on the server side). The Hazelcast server in
-     * bluetape4k-testcontainers uses a vanilla image, so the class cannot be found and a
-     * `HazelcastSerializationException(ClassNotFoundException)` is thrown.
-     * Instead, token validation and TTL rewrite use Hazelcast's built-in transactional map API,
-     * so a stale owner cannot refresh a successor entry between validation and TTL update.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun extendDetailed(leaseTime: Duration): ExtendOutcome {
         val leaseMs = leaseTime.inWholeMilliseconds

@@ -7,26 +7,11 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import org.bson.Document
 
 /**
- * Factory for [MongoLeaderElector] — single leader election backed by the MongoDB sync client.
+ * `MongoLeaderElectorFactory`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Usage
- * ```kotlin
- * val collection: MongoCollection<Document> = database.getCollection("leader_lock")
- * val factory = MongoLeaderElectionFactory(collection)
- * val election = factory.create(LeaderElectionOptions(waitTime = 3.seconds, leaseTime = 30.seconds))
- * val result = election.runIfLeader("daily-job") { processData() }
- * ```
- *
- * ## Option handling
- * The [LeaderElectionOptions] passed by an AOP advice only carries `waitTime`/`leaseTime`.
- * MongoDB-specific options (e.g. `retryDelay`) are fixed at factory construction time via [baseOptions];
- * each call replaces only [LeaderElectionOptions] via `baseOptions.copy(leaderOptions = options)`.
- *
- * Calls to `MongoLeaderElector(...)` are routed through the companion `operator fun invoke`,
- * which also runs [MongoLock.ensureIndexes].
- *
- * @param collection lock collection
- * @param baseOptions MongoDB-specific option defaults. Only `waitTime`/`leaseTime` are replaced on each AOP call.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property collection MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property baseOptions MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class MongoLeaderElectorFactory(
     private val collection: MongoCollection<Document>,
