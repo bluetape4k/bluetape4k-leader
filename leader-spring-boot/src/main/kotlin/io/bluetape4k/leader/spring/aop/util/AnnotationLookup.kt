@@ -4,27 +4,16 @@ import org.springframework.aop.support.AopUtils
 import java.lang.reflect.Method
 
 /**
- * Helper for annotation lookup in Aspect advice.
+ * `AnnotationLookup`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## [R-24] Proxy → target class fallback
- * Borrowed from ShedLock `SpringLockConfigurationExtractor.java:212-229` pattern.
- *
- * When an annotation is placed only on an interface method and the implementation is separate,
- * looking up the proxy method (interface method) directly will miss the annotation. This helper:
- * 1. First attempts `method.findMergedAnnotationOrNull<A>()`
- * 2. If not found, retries via `AopUtils.getTargetClass(target).getMethod(name, params)` on the target class method
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 object AnnotationLookup {
 
     /**
-     * Finds annotation [A] on [method] or on the corresponding target class method of [target].
+     * `선언` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
      *
-     * Kotlin idiom — reified variant. Usage:
-     * ```kotlin
-     * val ann = AnnotationLookup.findAnnotationWithTargetFallback<LeaderElection>(method, target)
-     * ```
-     *
-     * @return the annotation instance, or `null` if not found
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     inline fun <reified A : Annotation> findAnnotationWithTargetFallback(
         method: Method,

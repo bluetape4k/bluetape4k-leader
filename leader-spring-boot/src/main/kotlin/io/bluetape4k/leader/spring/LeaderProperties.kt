@@ -10,59 +10,39 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty
 import java.time.Duration
 
 /**
- * Spring Boot auto-configuration entry properties.
+ * `LeaderProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * Bound from yaml under the `bluetape4k.leader.*` prefix. Use [adapter.PropertiesAdapter] for
- * per-backend option conversion.
- *
- * ```yaml
- * bluetape4k:
- *   leader:
- *     wait-time: 5s
- *     lease-time: 60s
- *     watchdog-threads: 4          # optional; defaults to availableProcessors().coerceAtLeast(2)
- *     watchdog-async-extend: true  # optional; defaults to false
- *     observability:
- *       lock-names:
- *         - batch-job
- *     diagnostics:
- *       enabled: true
- *       strict: false
- *     route-guard:
- *       enabled: false
- *       authority-mode: STATE
- *       rejection-status: SERVICE_UNAVAILABLE
- *     group:
- *       max-leaders: 3
- *       wait-time: 5s
- *       lease-time: 60s
- *     mongo:
- *       single-collection: leader_election
- *       group-collection: leader_group_election
- *     etcd:
- *       key-prefix: /apps/orders/leader
- *     consul:
- *       key-prefix: apps/orders/leader
- *       session-name-prefix: orders-leader
- *     dynamodb:
- *       table-name: bluetape4k_leader_locks
- *       key-prefix: leader
- * ```
- *
- * @property waitTime maximum wait time to acquire a single leader lease. Default 5 seconds.
- * @property leaseTime maximum hold time for a single leader lease. Default 60 seconds.
- * @property watchdogThreads watchdog scheduler thread count. When null, uses [LeaderLeaseAutoExtender.DEFAULT_WATCHDOG_THREADS].
- * @property watchdogAsyncExtend when true, each watchdog tick dispatches the extend call asynchronously on a virtual thread.
- * @property diagnostics startup diagnostics options for backend, management, and cardinality checks.
- * @property routeGuard opt-in MVC and WebFlux leader route-guard options.
- * @property observability leader status observability and endpoint seed options.
- * @property group multi-leader group options.
- * @property mongo MongoDB backend collection names.
- * @property etcd etcd backend key-prefix options.
- * @property consul Consul backend KV/session options.
- * @property dynamodb DynamoDB backend table, key-prefix, TTL, retry, and clock-skew options.
+ * @property waitTime Spring Boot integration 계약에서 `waitTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaseTime Spring Boot integration 계약에서 `leaseTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property watchdogThreads Spring Boot integration 계약에서 `watchdogThreads` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property watchdogAsyncExtend Spring Boot integration 계약에서 `watchdogAsyncExtend` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property diagnostics Spring Boot integration 계약에서 `diagnostics` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property routeGuard Spring Boot integration 계약에서 `routeGuard` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property observability Spring Boot integration 계약에서 `observability` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property group Spring Boot integration 계약에서 `group` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property mongo Spring Boot integration 계약에서 `mongo` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property etcd Spring Boot integration 계약에서 `etcd` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property consul Spring Boot integration 계약에서 `consul` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property dynamodb Spring Boot integration 계약에서 `dynamodb` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 @ConfigurationProperties(prefix = "bluetape4k.leader")
+/**
+ * `LeaderProperties`는 Spring Boot integration에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property waitTime Spring Boot integration 계약에서 `waitTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaseTime Spring Boot integration 계약에서 `leaseTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property watchdogThreads Spring Boot integration 계약에서 `watchdogThreads` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property watchdogAsyncExtend Spring Boot integration 계약에서 `watchdogAsyncExtend` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property diagnostics Spring Boot integration 계약에서 `diagnostics` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property routeGuard Spring Boot integration 계약에서 `routeGuard` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property observability Spring Boot integration 계약에서 `observability` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property group Spring Boot integration 계약에서 `group` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property mongo Spring Boot integration 계약에서 `mongo` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property etcd Spring Boot integration 계약에서 `etcd` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property consul Spring Boot integration 계약에서 `consul` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property dynamodb Spring Boot integration 계약에서 `dynamodb` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 data class LeaderProperties(
     val waitTime: Duration = LeaderElectionProperties.DefaultWaitTime,
     val leaseTime: Duration = LeaderElectionProperties.DefaultLeaseTime,

@@ -3,25 +3,14 @@ package io.bluetape4k.leader.spring.aop
 import org.springframework.core.Ordered
 
 /**
- * Advice order constants for the Leader Aspect.
+ * `LeaderAspectOrder`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Ordering table relative to external advice
- *
- * | Aspect | Order | Intent |
- * |--------|-------|--------|
- * | `LeaderElectionAspect` (this library) | `HIGHEST_PRECEDENCE + 100` | Lock acquisition is the outermost |
- * | `@Cacheable` | `LOWEST_PRECEDENCE - 1` | Cache check |
- * | `@CircuitBreaker` (Resilience4j) | `LOWEST_PRECEDENCE - 4` | Circuit breaking |
- * | `@Retry` (Resilience4j) | `LOWEST_PRECEDENCE - 3` | Retry |
- * | `@Transactional` | `LOWEST_PRECEDENCE` | Transaction (innermost) |
- *
- * Execution order: lock acquire → (Cache) → CircuitBreaker → Retry → Transaction → body → tx commit → lock release.
- * Equivalent to ShedLock's recommended ordering.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property AOP_ORDER Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 object LeaderAspectOrder {
     /**
-     * Recommended order for the Leader Aspect. `HIGHEST_PRECEDENCE + 100` — places lock acquisition
-     * as the outermost layer while leaving 100 slots for users to add even-outer aspects.
+     * `AOP_ORDER` 값은 Spring Boot integration 계약에서 사용하는 설정 또는 상태 항목입니다.
      */
     const val AOP_ORDER: Int = Ordered.HIGHEST_PRECEDENCE + 100
 }

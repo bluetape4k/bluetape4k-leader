@@ -6,22 +6,9 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 
 /**
- * [StatsAggregator] 의 현재 상태를 노출하는 REST 라우트.
+ * `Route` 호출은 example workflow 계약의 일부 동작을 수행합니다.
  *
- * ## 동작/계약
- *
- * - `GET /stats` — [StatsAggregator.currentState] 결과를 JSON 으로 반환 (200 OK).
- * - 범용 health/readiness endpoint 는 bluetape4k Ktor core installer 로 등록한다.
- * - JSON 직렬화는 [ContentNegotiation] + Jackson 으로 처리되므로, 본 모듈에서는 [respond] 만 호출한다.
- *
- * ```kotlin
- * fun Application.configureRoutes(aggregator: StatsAggregator) {
- *     install(ContentNegotiation) { jackson() }
- *     routing { statsRoutes(aggregator) }
- * }
- * ```
- *
- * @param aggregator REST 응답 데이터의 출처 — 동일 [Application] 라이프사이클 안에서 공유한다.
+ * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun Route.statsRoutes(aggregator: StatsAggregator) {
     get("/stats") {

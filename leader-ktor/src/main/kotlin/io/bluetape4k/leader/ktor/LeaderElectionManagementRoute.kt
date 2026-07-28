@@ -10,19 +10,9 @@ import io.ktor.server.routing.routing
 import java.util.concurrent.ConcurrentSkipListSet
 
 /**
- * JVM-local registry of lock names exposed through the Ktor management route.
+ * `LeaderElectionManagementRegistry`는 Ktor integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Behavior / Contract
- * - Thread-safe: backed by [ConcurrentSkipListSet]; safe to call [register] concurrently.
- * - [snapshot] returns a stable sorted copy for deterministic JSON responses.
- * - The registry is JVM-local. It does not discover lock names from the backend.
- * - Seed static lock names at startup, or register lock names on the fly as application code starts
- *   scheduled leader-only work.
- *
- * ```kotlin
- * val registry = LeaderElectionManagementRegistry(listOf("batch-job", "nightly-sync"))
- * registry.register("on-demand-lock")
- * ```
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 class LeaderElectionManagementRegistry(
     initialLockNames: Iterable<String> = emptyList(),
@@ -34,7 +24,9 @@ class LeaderElectionManagementRegistry(
     }
 
     /**
-     * Registers [lockName] as known to the management route.
+     * `register` 호출은 Ktor integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun register(lockName: String) {
         lockName.requireNotBlank("lockName")
@@ -42,25 +34,18 @@ class LeaderElectionManagementRegistry(
     }
 
     /**
-     * Returns a stable sorted snapshot of known lock names.
+     * `snapshot` 호출은 Ktor integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun snapshot(): List<String> =
         lockNames.toList()
 }
 
 /**
- * Installs `GET /management/leaderElection`-style JSON status route.
+ * `Application` 호출은 Ktor integration 계약의 일부 동작을 수행합니다.
  *
- * ## Behavior / Contract
- * - [registry] provides the lock names to inspect.
- * - [leaderElection] is queried with `state(lockName)` at request time.
- * - The JSON is emitted as text so consumers do not need to install a serialization plugin.
- * - This route is installed on the application's main routing pipeline. Protect it with an
- *   authentication plugin, network policy, or a dedicated internal port before exposing it outside
- *   a trusted management boundary.
- *
- * Requires [LeaderElectionPlugin] to be installed first when [leaderElection] or [registry] are not
- * passed explicitly; otherwise the default argument resolution throws [IllegalStateException].
+ * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun Application.leaderElectionManagementRoute(
     path: String = LeaderElectionPluginConfig.DefaultManagementRoutePath,

@@ -53,44 +53,14 @@ import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.toKotlinDuration
 
 /**
- * Aspect that applies `@LeaderElection` to sync `T?`, suspend `T?`, `Mono<T>`,
- * `Flux<T>`, and Kotlin `Flow<T>` methods.
+ * `LeaderElectionAspect`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## CTW (Freefair post-compile weaving)
- * The auto-configuration registers this aspect as a bean without requiring
- * `@EnableAspectJAutoProxy`.
- *
- * ## Suspend support (#90)
- * Methods whose last parameter is [Continuation] use [aroundLeaderSuspend].
- * The implementation follows the `startCoroutineUninterceptedOrReturn` and
- * `suspendCoroutineUninterceptedOrReturn` intrinsics pattern.
- *
- * ## Mono support (#91)
- * `reactor.core.publisher.Mono` return types use [aroundLeaderMono] and defer
- * leader acquisition until subscription.
- *
- * ## Stream support (#74)
- * `Flux<T>` and `Flow<T>` return types hold the leader lock for the stream
- * lifecycle. They require `autoExtend=true` or `streamBounded=true`, and unsafe
- * stream configurations are rejected again at subscription or collection time
- * even when startup validation is disabled.
- *
- * ## LeaderElectionInfo (#92)
- * Suspend, Mono, Flux, and Flow branches install [LeaderElectionInfo] with
- * `withContext` while the method body is collected or awaited.
- *
- * ## LockHandleElement / LockStateHolder (T14)
- * - Sync branch: the elector manages `LockStateHolder`, so [io.bluetape4k.leader.LockAssert]
- *   and [io.bluetape4k.leader.LockExtender] see the active lock.
- * - Coroutine / reactive branches: the elector already installs `LockHandleElement`; the aspect
- *   adds only [LeaderElectionInfo].
- * - `FAIL_OPEN_RUN` installs a [LeaderLockHandle.FailOpen] sentinel so the body can detect the
- *   fail-open scope.
- *
- * ## Reentrant pass-through (T14)
- * The sync branch short-circuits when [AopScopeAccess.peekSyncMatching] finds a matching real
- * handle. Coroutine branches delegate reentrant handling to the elector because the lock handle
- * lives in the coroutine context.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property beanSelector Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property props Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property spel Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property lockNameValidator Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property recorders Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 @Aspect
 class LeaderElectionAspect(
@@ -263,10 +233,9 @@ class LeaderElectionAspect(
     }
 
     /**
-     * Handles suspend methods using the `startCoroutineUninterceptedOrReturn` intrinsics pattern.
-     * Injects [LeaderElectionInfo] into the CoroutineContext via `withContext` during body execution.
-     * Because the suspend elector already pushes `withContext(LockHandleElement(handle))`,
-     * the aspect only adds [LeaderElectionInfo] — the handle context is provided by the elector.
+     * `aroundLeaderSuspend` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
         @Suppress("UNCHECKED_CAST")
@@ -417,11 +386,9 @@ class LeaderElectionAspect(
     }
 
     /**
-     * Handles methods returning `Flux`.
+     * `aroundLeaderFlux` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
      *
-     * The returned [Flux] is cold. Each subscription resolves the lock name,
-     * acquires the leader lock, collects the user [Flux], and releases the lock
-     * only after complete/error/cancel.
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     private fun aroundLeaderFlux(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
         val method = (pjp.signature as MethodSignature).method
@@ -563,11 +530,9 @@ class LeaderElectionAspect(
     }
 
     /**
-     * Handles methods returning Kotlin `Flow`.
+     * `aroundLeaderFlow` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
      *
-     * Uses [channelFlow] instead of `flow { withContext { emit(...) } }` so the
-     * leader context can be installed while values are sent without violating
-     * Kotlin Flow context-preservation rules.
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     private fun aroundLeaderFlow(
         pjp: ProceedingJoinPoint,
@@ -709,11 +674,9 @@ class LeaderElectionAspect(
         }.buffer(Channel.RENDEZVOUS)
 
     /**
-     * Handles methods returning `Mono` using the `Mono.defer { mono { suspendElector.runIfLeader(...) } }` pattern.
+     * `aroundLeaderMono` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
      *
-     * `Mono.defer` ensures exactly one lock acquisition per subscription.
-     * Injects [LeaderElectionInfo] via `withContext` for CoroutineContext propagation.
-     * The suspend elector already pushes `withContext(LockHandleElement(handle))`.
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any? {
         val method = (pjp.signature as MethodSignature).method

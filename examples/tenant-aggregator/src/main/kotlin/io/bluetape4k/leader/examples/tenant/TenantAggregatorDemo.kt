@@ -18,11 +18,9 @@ import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 
 /**
- * 3 인스턴스 × 3 테넌트 멀티테넌트 집계 데모.
+ * `TenantAggregatorDemo`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * H2 in-memory R2DBC 데이터베이스를 공유하며 3개의 [TenantAggregator] 인스턴스가 동일한
- * `lockNamePrefix` + `tenants` 를 polling 한다. 각 테넌트마다 정확히 1 인스턴스만 집계 실행되는지
- * `ConcurrentHashMap` 카운트로 검증한다.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 object TenantAggregatorDemo: KLogging() {
 

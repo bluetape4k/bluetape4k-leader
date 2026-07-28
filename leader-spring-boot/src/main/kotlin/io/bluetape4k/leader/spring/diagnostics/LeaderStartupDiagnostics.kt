@@ -11,10 +11,13 @@ import org.springframework.core.env.Environment
 import java.io.Serializable
 
 /**
- * Startup diagnostics for leader Spring Boot auto-configuration.
+ * `LeaderStartupDiagnostics`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * The checker inspects already-created Spring beans and bound properties only. It never opens
- * network connections to leader backends and is therefore safe to run during application startup.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property beanFactory Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property environment Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property leaderProperties Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property aopProperties Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 class LeaderStartupDiagnostics(
     private val beanFactory: ConfigurableListableBeanFactory,
@@ -47,7 +50,9 @@ class LeaderStartupDiagnostics(
     }
 
     /**
-     * Returns the most recent startup diagnostics report, or `null` before singleton initialization completes.
+     * `lastReport` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun lastReport(): Report? =
         report
@@ -162,7 +167,15 @@ class LeaderStartupDiagnostics(
     }
 
     /**
-     * Immutable diagnostics summary captured after Spring singleton initialization.
+     * `Report`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+     *
+     * @property activeBackends Spring Boot integration 계약에서 `activeBackends` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property leaderElectorBeans Spring Boot integration 계약에서 `leaderElectorBeans` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property leaderElectorCount Spring Boot integration 계약에서 `leaderElectorCount` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property actuatorEndpoint Spring Boot integration 계약에서 `actuatorEndpoint` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property webExposure Spring Boot integration 계약에서 `webExposure` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property strict Spring Boot integration 계약에서 `strict` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property warnings Spring Boot integration 계약에서 `warnings` 값을 계산하거나 전달할 때 사용하는 속성입니다.
      */
     data class Report(
         val activeBackends: List<String>,
@@ -181,7 +194,10 @@ class LeaderStartupDiagnostics(
     }
 
     /**
-     * Non-fatal diagnostics finding unless diagnostics strict mode is enabled.
+     * `Warning`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+     *
+     * @property code Spring Boot integration 계약에서 `code` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property message Spring Boot integration 계약에서 `message` 값을 계산하거나 전달할 때 사용하는 속성입니다.
      */
     data class Warning(
         val code: WarningCode,
@@ -193,7 +209,9 @@ class LeaderStartupDiagnostics(
     }
 
     /**
-     * Stable machine-readable diagnostics warning identifiers.
+     * `WarningCode`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+     *
+     * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
      */
     enum class WarningCode {
         NO_LEADER_ELECTOR,

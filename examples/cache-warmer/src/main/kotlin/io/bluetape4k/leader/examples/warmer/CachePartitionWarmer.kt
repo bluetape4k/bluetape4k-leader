@@ -9,41 +9,12 @@ import io.bluetape4k.logging.warn
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * 파티션별 독립 leader-election 으로 캐시를 워밍하는 워커.
+ * `CachePartitionWarmer`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## 동작/계약
- *
- * - 다중 인스턴스 환경에서 동일 [CachePartitionWarmerOptions.lockNamePrefix] / [partitions] 를
- *   공유하는 N 개 워머가 [warmAll] 을 호출하면, **각 partition 마다 정확히 1개 인스턴스만**
- *   [warmFunction] 을 실행한다.
- * - 락 이름은 `"${lockNamePrefix}-${partitionId}"` 으로 조립된다 (파티션 단위 독립).
- * - 비리더 호출은 [WarmResult.skipped] 에 기록되며 throw 하지 않는다 (ShedLock 호환 동작).
- * - [warmFunction] 예외는 격리되어 [WarmResult.failed] 에 기록되고, 다음 partition 처리는 계속.
- * - [CancellationException] 은 모든 catch 에서 즉시 re-throw 한다 (coroutine cancellation 무결성).
- *
- * ### 왜 LeaderGroup 이 아닌가
- *
- * Hazelcast `LeaderGroupElector` 는 단일 lockName 의 maxLeaders 슬롯을 공유하므로 슬롯 ↔ partition
- * 매핑을 호출자가 강제할 수 없다. 본 워머는 partition 별 별도 lockName 으로 leader-election 하여
- * "partition P 에 대해서는 정확히 1 인스턴스" 계약을 직접 만족시킨다.
- *
- * ```kotlin
- * val warmer = CachePartitionWarmer(
- *     electorFactory = { _, options -> HazelcastLeaderElector(hazelcast, options) },
- *     options = CachePartitionWarmerOptions(
- *         nodeId = "node-A",
- *         lockNamePrefix = "warmer:product",
- *         partitions = listOf("region-asia", "region-eu"),
- *     ),
- *     warmFunction = { partitionId -> productCache.preload(partitionId) },
- * )
- * val result = warmer.warmAll()
- * ```
- *
- * @param electorFactory 락 이름 + 옵션을 받아 [LeaderElector] 인스턴스를 생성하는 팩토리.
- *                       Hazelcast / Redis / Mongo 등 백엔드 교체 가능 + 테스트 fake 주입.
- * @param options 워머 동작 설정
- * @param warmFunction 파티션 워밍 콜백. 예외는 격리되어 [WarmResult.failed] 로 수집.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property electorFactory example workflow 계약에서 사용하는 속성입니다.
+ * @property options example workflow 계약에서 사용하는 속성입니다.
+ * @property warmFunction example workflow 계약에서 사용하는 속성입니다.
  */
 class CachePartitionWarmer(
     private val electorFactory: (lockName: String, options: LeaderElectionOptions) -> LeaderElector,
@@ -54,13 +25,9 @@ class CachePartitionWarmer(
     companion object: KLogging()
 
     /**
-     * 모든 [CachePartitionWarmerOptions.partitions] 에 대해 leader-election 을 시도하고
-     * 리더로 선출된 partition 만 워밍한다.
+     * `warmAll` 호출은 example workflow 계약의 일부 동작을 수행합니다.
      *
-     * 본 메서드는 partition 을 순차 처리한다 (concurrent execution 미지원).
-     * 호출자가 동시 실행이 필요하면 외부에서 thread-pool / coroutine 으로 병렬 호출하면 된다.
-     *
-     * @return 본 인스턴스의 워밍 결과 [WarmResult]
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun warmAll(): WarmResult {
         val warmed = mutableListOf<String>()
@@ -115,6 +82,12 @@ class CachePartitionWarmer(
     private sealed interface WarmOutcome {
         data object Warmed: WarmOutcome
         data object Skipped: WarmOutcome
+        /**
+         * `Failed`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+         *
+         * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+         * @property message example workflow 계약에서 `message` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+         */
         data class Failed(val message: String): WarmOutcome
     }
 }

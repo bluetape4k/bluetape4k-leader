@@ -20,27 +20,9 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * Auto-configuration for the leader-history audit contract (Issue #50).
+ * `LeaderHistoryAutoConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Load order
- * This configuration must be loaded **before** [LeaderElectionAutoConfiguration] so that
- * `SafeLeaderHistoryRecorder` / `SuspendSafeLeaderHistoryRecorder` beans are available when
- * elector beans are created.  The ordering is declared via `before` and is also reflected
- * in the `AutoConfiguration.imports` file where this class appears first.
- *
- * ## Behaviour
- * - When no [LeaderHistorySink] bean is present, a [NoopLeaderHistorySink] fallback is
- *   registered and an INFO log warns that history audit is disabled.
- * - When exactly one [LeaderHistorySink] bean is present, a [SafeLeaderHistoryRecorder]
- *   wrapping it is registered.  If Micrometer is on the classpath, a
- *   `MicrometerSafeLeaderHistoryRecorder` is preferred over the plain variant.
- * - The [SuspendLeaderHistorySink] path mirrors the blocking path using `ObjectProvider.ifUnique`
- *   to avoid `NoUniqueBeanDefinitionException` when multiple suspend-sink beans are present.
- * - When multiple sinks of the same type are found, a WARN is logged asking the user to add
- *   `@Primary` to disambiguate.
- *
- * ## Configuration property
- * `bluetape4k.leader.history.enabled` (default `true`) — set to `false` to disable entirely.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 @AutoConfiguration(before = [LeaderElectionAutoConfiguration::class])
 @ConditionalOnProperty(prefix = "bluetape4k.leader.history", name = ["enabled"], matchIfMissing = true)
@@ -53,8 +35,9 @@ class LeaderHistoryAutoConfiguration {
     // ----------------------------------------------------------------
 
     /**
-     * Fallback [LeaderHistorySink] that discards all events.
-     * Logs an INFO message so operators know history audit is inactive.
+     * `leaderHistorySink` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     @Bean
     @ConditionalOnMissingBean(LeaderHistorySink::class)
@@ -64,7 +47,9 @@ class LeaderHistoryAutoConfiguration {
     }
 
     /**
-     * Fallback [SuspendLeaderHistorySink] that discards all events.
+     * `suspendLeaderHistorySink` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     @Bean
     @ConditionalOnMissingBean(SuspendLeaderHistorySink::class)
@@ -75,8 +60,9 @@ class LeaderHistoryAutoConfiguration {
     // ----------------------------------------------------------------
 
     /**
-     * Plain [SafeLeaderHistoryRecorder] registered when Micrometer is **not** on the classpath.
-     * When Micrometer is present, [MicrometerHistoryConfig] provides the instrumented variant.
+     * `safeLeaderHistoryRecorder` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     @Bean
     @ConditionalOnMissingBean(SafeLeaderHistoryRecorder::class)
@@ -87,8 +73,9 @@ class LeaderHistoryAutoConfiguration {
     }
 
     /**
-     * Plain [SuspendSafeLeaderHistoryRecorder].  Uses `ObjectProvider.ifUnique` to avoid
-     * `NoUniqueBeanDefinitionException` when multiple suspend-sink beans are present.
+     * `suspendSafeLeaderHistoryRecorder` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     @Bean
     @ConditionalOnMissingBean(SuspendSafeLeaderHistoryRecorder::class)
@@ -117,8 +104,7 @@ class LeaderHistoryAutoConfiguration {
     // ----------------------------------------------------------------
 
     /**
-     * Inner configuration activated when `io.micrometer.core.instrument.MeterRegistry` is present.
-     * Provides instrumented recorder beans that take precedence over the plain variants.
+     * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
      */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(

@@ -22,16 +22,9 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * MongoDB backend auto-configuration.
+ * `MongoLeaderConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * - Sync beans: require a [com.mongodb.client.MongoDatabase] bean.
- * - Suspend beans: require a [com.mongodb.kotlin.client.coroutine.MongoDatabase] bean.
- *
- * Collection names are configured via `bluetape4k.leader.mongo.{single|group}-collection` properties.
- *
- * Suspend beans use [runBlocking] at startup for TTL-index initialization.
- * Called once during Spring context startup from a platform thread; the coroutine body
- * contains no `synchronized` blocks, so there is no virtual-thread carrier-pinning risk.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(com.mongodb.client.MongoCollection::class)

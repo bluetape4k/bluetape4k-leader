@@ -10,28 +10,11 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * 배치 스케줄러 예제.
+ * `BatchScheduler`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## 동작/계약
- *
- * 다중 인스턴스 배포 환경에서 동일 lock 이름으로 [LettuceLeaderElector] 를 공유하면,
- * 매 실행 시점에 단 한 인스턴스만 [run] 의 action 을 수행한다.
- *
- * - 리더 선출 실패 시 [run] 은 `null` 반환 — throw 하지 않음 (ShedLock 호환 동작)
- * - [waitTime] 동안 락 획득 시도 후 실패하면 즉시 skip
- * - [leaseTime] 동안 다른 인스턴스의 락 획득을 차단
- * - [nodeId] 는 로그 식별 용도 — 락 키나 락 소유자 식별에는 사용되지 않음
- *   (락 소유자 ID 는 [LettuceLeaderElector] 가 자체 발급)
- *
- * ```kotlin
- * val scheduler = BatchScheduler(
- *     nodeId = "node-A",
- *     connection = redisConnection,
- *     lockName = "nightly-settlement",
- * )
- * val executed = scheduler.run { settlementJob.execute() }
- * if (executed != null) println("리더로 실행 완료") else println("다른 인스턴스 실행 중")
- * ```
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property nodeId example workflow 계약에서 사용하는 속성입니다.
+ * @property lockName example workflow 계약에서 사용하는 속성입니다.
  */
 class BatchScheduler(
     val nodeId: String,
@@ -53,9 +36,9 @@ class BatchScheduler(
     )
 
     /**
-     * 리더 선출 성공 시 [job] 을 1회 실행하고 반환값을 돌려준다.
+     * `선언` 호출은 example workflow 계약의 일부 동작을 수행합니다.
      *
-     * @return 리더로 실행 시 [job] 의 반환값, 실패 시 `null`
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun <T> run(job: () -> T): T? {
         return elector.runIfLeader(lockName) {

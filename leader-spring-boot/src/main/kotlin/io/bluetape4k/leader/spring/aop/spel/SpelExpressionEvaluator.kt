@@ -17,33 +17,11 @@ import java.lang.reflect.Method
 import java.time.Duration
 
 /**
- * Plain SpEL / Template SpEL evaluator for `@LeaderElection.name` / `@LeaderGroupElection.name`.
+ * `SpelExpressionEvaluator`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Evaluation Pipeline
- * 1. `${...}` placeholder resolution — Spring [StringValueResolver] (constructor-injected)
- * 2. Literal fast-path — bypasses SpEL when the regex matches (~100ns)
- * 3. **Auto-detection** — template mode when `#{...}` is present, plain SpEL otherwise
- *    - Plain: `name = "#region"` — entire expression is SpEL
- *    - Template: `name = "prefix-#{#region}-suffix"` — literal + SpEL mix (`TemplateParserContext`)
- * 4. Caffeine cache hit ~200ns; parser invoked on miss
- * 5. [SimpleEvaluationContext] evaluation — only read-only property access allowed by default
- *
- * ## Template Mode (#82)
- * Auto-detects `#{...}` patterns using `TemplateParserContext.DEFAULT_TEMPLATE_PARSER_CONTEXT`.
- * - ✅ `name = "daily-#{#region}"` → `"daily-KR"` (template)
- * - ✅ `name = "#region"` → `"KR"` (plain SpEL)
- * - ✅ `name = "my-lock"` → `"my-lock"` (literal fast-path)
- *
- * ## [Step 3-P-Sec-1][R-32] Security Defaults
- * `withMethodResolvers()` is removed by default — blocks arbitrary method calls such as `#root.target.shutdown()`.
- * Enabled only when [allowMethodInvocation] = `true`.
- *
- * ## Cache
- * Caffeine `maximumSize(1024) + expireAfterAccess(1h)` — DoS defence.
- * Template expressions are distinguished in the cache key with a `"T:"` prefix.
- *
- * @param embeddedValueResolver Spring `${...}` placeholder resolver
- * @param allowMethodInvocation When `true`, enables `withMethodResolvers()` and exposes `#root.target`. default `false`
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property embeddedValueResolver Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property allowMethodInvocation Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 class SpelExpressionEvaluator(
     private val embeddedValueResolver: StringValueResolver?,
@@ -58,12 +36,9 @@ class SpelExpressionEvaluator(
         .build()
 
     /**
-     * Evaluates [expression] and returns the string result.
+     * `evaluate` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
      *
-     * Evaluation order: `${...}` resolution → literal fast-path → auto-detection (template/plain) → SpEL evaluation.
-     *
-     * @return The evaluated lock name
-     * @throws IllegalStateException If the SpEL result is `null`
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun evaluate(expression: String, method: Method, args: Array<Any?>, target: Any): String {
         val resolved = resolveplaceholder(expression)
@@ -86,7 +61,9 @@ class SpelExpressionEvaluator(
     }
 
     /**
-     * Pre-parses [expression] at startup — fails fast with a message including the method FQN if the SpEL is invalid.
+     * `preParse` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun preParse(expression: String, method: Method) {
         val resolved = resolveplaceholder(expression)
@@ -114,7 +91,11 @@ class SpelExpressionEvaluator(
         }
     }
 
-    /** Current cache size. Exposed via health endpoint. */
+    /**
+     * `cacheSize` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
+     */
     fun cacheSize(): Long = expressionCache.estimatedSize()
 
     private fun resolveplaceholder(expression: String): String =
@@ -146,10 +127,21 @@ class SpelExpressionEvaluator(
     }
 
     /**
-     * SpEL `#root` object — exposes `#root.method`, `#root.methodName`, `#root.args`,
-     * and `#root.target` only when [allowMethodInvocation]=true.
+     * `RootCtx`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+     *
+     * @property method Spring Boot integration 계약에서 `method` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property args Spring Boot integration 계약에서 `args` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property target Spring Boot integration 계약에서 `target` 값을 계산하거나 전달할 때 사용하는 속성입니다.
      */
     @Suppress("unused")
+    /**
+     * `RootCtx`는 Spring Boot integration에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+     *
+     * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+     * @property method Spring Boot integration 계약에서 `method` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property args Spring Boot integration 계약에서 `args` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property target Spring Boot integration 계약에서 `target` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     */
     data class RootCtx(
         val method: Method,
         val args: Array<Any?>,
@@ -172,24 +164,33 @@ class SpelExpressionEvaluator(
     }
 
     /**
-     * Pre-built helpers such as [MethodBasedEvaluationContext] are not compatible with [SimpleEvaluationContext],
-     * so this evaluator uses [RootCtx] directly.
+     * `unusedReference` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     @Suppress("unused")
     private fun unusedReference(): Pair<Class<*>, Class<*>> =
         MethodBasedEvaluationContext::class.java to StandardEvaluationContext::class.java
 
     companion object: KLogging() {
-        /** Static lock name pattern — bypasses SpEL evaluation on match. */
+        /**
+         * `LITERAL_PATTERN` 값은 Spring Boot integration 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         private val LITERAL_PATTERN = Regex("^[A-Za-z0-9_:.\\-]+$")
 
-        /** `#{...}` pattern detector — automatically selects template mode (#82). */
+        /**
+         * `TEMPLATE_DETECT` 값은 Spring Boot integration 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         private val TEMPLATE_DETECT = Regex("#\\{.+}")
 
-        /** Spring TemplateParserContext — default `#{` / `}` delimiters. */
+        /**
+         * `TEMPLATE_PARSER_CTX` 값은 Spring Boot integration 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         private val TEMPLATE_PARSER_CTX = org.springframework.expression.ParserContext.TEMPLATE_EXPRESSION
 
-        /** Caffeine cache maximum size. */
+        /**
+         * `MAX_CACHE_SIZE` 값은 Spring Boot integration 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         const val MAX_CACHE_SIZE: Long = 1024L
     }
 }

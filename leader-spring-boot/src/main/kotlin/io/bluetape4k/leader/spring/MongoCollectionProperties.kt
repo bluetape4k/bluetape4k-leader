@@ -1,13 +1,10 @@
 package io.bluetape4k.leader.spring
 
 /**
- * Collection name properties for the MongoDB backend.
+ * `MongoCollectionProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * Separates the collection names used by single and group elections. Even when only a `MongoDatabase`
- * bean is present in the application, the correct collection can be selected safely through these properties.
- *
- * @property singleCollection Collection for single-leader election. Default `leader_election`
- * @property groupCollection Collection for multi-leader group election. Default `leader_group_election`
+ * @property singleCollection Spring Boot integration 계약에서 `singleCollection` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property groupCollection Spring Boot integration 계약에서 `groupCollection` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class MongoCollectionProperties(
     val singleCollection: String = "leader_election",

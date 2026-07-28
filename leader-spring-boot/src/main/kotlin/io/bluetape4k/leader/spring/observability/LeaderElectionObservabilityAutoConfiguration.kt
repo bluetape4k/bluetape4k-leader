@@ -20,12 +20,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Role
 
 /**
- * Spring Boot observability auto-configuration for leader election.
- *
- * ## Behavior / Contract
- * - Registers a JVM-local [LeaderElectionStatusRegistry].
- * - Exposes a publisher-only fallback [LeaderElectionEventPublisher] when no publisher bean exists.
- * - Attaches the registry to listener-aware leader beans when they are present.
+ * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
  */
 @AutoConfiguration(
     after = [

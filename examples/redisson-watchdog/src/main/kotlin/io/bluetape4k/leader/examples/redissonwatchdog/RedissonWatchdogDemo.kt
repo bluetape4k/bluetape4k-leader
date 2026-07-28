@@ -13,7 +13,9 @@ import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Demonstrates a long-running Redisson-backed job protected by lease auto-extension.
+ * `RedissonWatchdogDemo`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 object RedissonWatchdogDemo: KLogging() {
 

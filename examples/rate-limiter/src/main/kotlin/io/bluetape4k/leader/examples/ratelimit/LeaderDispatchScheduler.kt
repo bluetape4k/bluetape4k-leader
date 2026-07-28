@@ -12,13 +12,11 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Dispatch scheduler guarded by Redis leader election.
+ * `LeaderDispatchScheduler`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Contract
- *
- * Nodes sharing the same [lockName] race for leadership. Exactly one holder can
- * run [schedule] while the lease is active; non-leaders return an empty
- * scheduled-item list and [RateLimiterDemoStatus.REJECTED] for dispatch.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property nodeId example workflow 계약에서 사용하는 속성입니다.
+ * @property lockName example workflow 계약에서 사용하는 속성입니다.
  */
 class LeaderDispatchScheduler(
     val nodeId: String,
@@ -62,6 +60,14 @@ class LeaderDispatchScheduler(
     }
 }
 
+/**
+ * `DispatchReport`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property nodeId example workflow 계약에서 `nodeId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property status example workflow 계약에서 `status` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property scheduledItems example workflow 계약에서 `scheduledItems` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 data class DispatchReport(
     val nodeId: String,
     val status: RateLimiterDemoStatus,

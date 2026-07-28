@@ -18,10 +18,9 @@ import org.junit.jupiter.api.TestInstance
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * tenant-aggregator 멀티 DB 테스트의 공통 베이스.
+ * `AbstractTenantAggregatorTest`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * H2 / PostgreSQL 두 가지 DB 를 대상으로 파라미터화 테스트를 실행한다.
- * `LEADER_TEST_DB` 환경 변수로 단일 DB 를 강제할 수 있다 (CI 에서 H2 만 실행 등).
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractTenantAggregatorTest {
@@ -35,8 +34,9 @@ abstract class AbstractTenantAggregatorTest {
         private val dbCache = ConcurrentHashMap<TestTenantDB, R2dbcDatabase>()
 
         /**
-         * `LEADER_TEST_DB` 환경 변수로 단일 DB 선택. 미설정 시 H2 + PostgreSQL.
-         * 허용 값: `H2`, `POSTGRESQL` (또는 `POSTGRES`).
+         * `enableDialects` 호출은 example workflow 계약의 일부 동작을 수행합니다.
+         *
+         * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
          */
         @JvmStatic
         fun enableDialects(): List<TestTenantDB> {
@@ -65,8 +65,9 @@ abstract class AbstractTenantAggregatorTest {
     }
 
     /**
-     * testDB 에 대한 R2DBC 연결. PostgreSQL 은 캐시 재사용, H2 는 매번 새 in-memory DB
-     * (테스트 격리를 위해).
+     * `connectDb` 호출은 example workflow 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     protected fun connectDb(testDB: TestTenantDB): R2dbcDatabase = when (testDB) {
         TestTenantDB.H2 -> {
@@ -108,7 +109,11 @@ abstract class AbstractTenantAggregatorTest {
     protected fun randomPrefix(): String = "tenant-test-${Base58.randomString(8)}"
 }
 
-/** 테스트 대상 R2DBC DB 종류 (tenant-aggregator 는 H2 + PostgreSQL 만 지원). */
+/**
+ * `TestTenantDB`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ */
 enum class TestTenantDB {
     H2,
     POSTGRESQL,

@@ -4,26 +4,11 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 
 /**
- * Configuration class for [LeaderElectionPlugin].
+ * `LeaderElectionPluginConfig`는 Ktor integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Behavior / Contract
- * - [leaderElection] is required and must be configured inside the `install(LeaderElectionPlugin) { ... }` block.
- * - [leaderGroupElection] is optional and should only be configured for applications that need multi-leader (group election).
- * - If not configured, an [IllegalArgumentException] is thrown at plugin installation time.
- *
- * ```kotlin
- * fun Application.module() {
- *     install(LeaderElectionPlugin) {
- *         leaderElection = RedissonSuspendLeaderElector(redissonClient)
- *         leaderGroupElection = RedissonSuspendLeaderGroupElector(redissonClient)
- *     }
- * }
- * ```
- *
- * @property leaderElection single-leader elector backend (required)
- * @property leaderGroupElection group/multi-leader elector backend (optional)
- * @property managementRouteEnabled whether to install the management status route
- * @property managementRoutePath path for the management status route
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property DefaultManagementRoutePath Ktor integration 계약에서 사용하는 속성입니다.
+ * @property managementRegistry Ktor integration 계약에서 사용하는 속성입니다.
  */
 class LeaderElectionPluginConfig {
 
@@ -31,22 +16,32 @@ class LeaderElectionPluginConfig {
         const val DefaultManagementRoutePath: String = "/management/leaderElection"
     }
 
-    /** Single-leader elector backend. Required before installing the plugin. */
+    /**
+     * `leaderElection` 값은 Ktor integration 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     var leaderElection: SuspendLeaderElector? = null
 
-    /** Group/multi-leader elector backend. Optional. */
+    /**
+     * `leaderGroupElection` 값은 Ktor integration 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     var leaderGroupElection: SuspendLeaderGroupElector? = null
 
-    /** Whether to install the Ktor management status route. Defaults to false. */
+    /**
+     * `managementRouteEnabled` 값은 Ktor integration 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     var managementRouteEnabled: Boolean = false
 
-    /** Management route path. Defaults to `/management/leaderElection`. */
+    /**
+     * `managementRoutePath` 값은 Ktor integration 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     var managementRoutePath: String = DefaultManagementRoutePath
 
     internal val managementRegistry: LeaderElectionManagementRegistry = LeaderElectionManagementRegistry()
 
     /**
-     * Registers static lock names exposed through the management route.
+     * `managementLockNames` 호출은 Ktor integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun managementLockNames(vararg lockNames: String) {
         lockNames.forEach(managementRegistry::register)

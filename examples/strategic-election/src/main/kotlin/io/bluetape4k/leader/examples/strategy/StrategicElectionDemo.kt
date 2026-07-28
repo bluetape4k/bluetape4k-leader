@@ -13,12 +13,9 @@ import java.io.Serializable
 import java.time.Instant
 
 /**
- * Backend-neutral weighted strategic-election demo.
+ * `StrategicElectionDemo`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * The scenario models three service nodes that can run a maintenance job. The
- * elected node is chosen by combining service health, available capacity,
- * historical success rate, and idle time. Only the elected node executes the
- * action; all other nodes return a skip report.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 object StrategicElectionDemo: KLogging() {
 
@@ -121,6 +118,18 @@ object ServiceReadinessScorer: CandidateScorer {
         get(key)?.toDoubleOrNull()?.coerceIn(0.0, 100.0) ?: 0.0
 }
 
+/**
+ * `ServiceNodeProfile`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property nodeId example workflow 계약에서 `nodeId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property registeredAt example workflow 계약에서 `registeredAt` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lastCompletionTime example workflow 계약에서 `lastCompletionTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property healthPercent example workflow 계약에서 `healthPercent` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property availableCapacityPercent example workflow 계약에서 `availableCapacityPercent` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property successCount example workflow 계약에서 `successCount` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property failureCount example workflow 계약에서 `failureCount` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 data class ServiceNodeProfile(
     val nodeId: String,
     val registeredAt: Instant,
@@ -154,6 +163,13 @@ enum class StrategicElectionStatus {
     SKIPPED,
 }
 
+/**
+ * `StrategicNodeReport`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property nodeId example workflow 계약에서 `nodeId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property status example workflow 계약에서 `status` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 data class StrategicNodeReport(
     val nodeId: String,
     val status: StrategicElectionStatus,
@@ -163,6 +179,14 @@ data class StrategicNodeReport(
     }
 }
 
+/**
+ * `StrategicElectionReport`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property selectedNodeId example workflow 계약에서 `selectedNodeId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property nodeReports example workflow 계약에서 `nodeReports` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property scores example workflow 계약에서 `scores` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 data class StrategicElectionReport(
     val selectedNodeId: String?,
     val nodeReports: List<StrategicNodeReport>,

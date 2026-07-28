@@ -10,14 +10,9 @@ import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.codec.StringCodec
 
 /**
- * `examples/ktor-app` 통합 테스트의 공통 베이스 클래스.
+ * `AbstractKtorAppTest`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## 동작/계약
- * - `bluetape4k-testcontainers` 의 [RedisServer.Launcher.redis] singleton 을 공유한다.
- * - Lettuce [RedisClient] 는 lazy 로 1회 생성되며, JVM 종료 시 [ShutdownQueue] 를 통해 정리된다.
- * - [newConnection] 은 매 호출마다 새 [StatefulRedisConnection] 을 발급한다 — 다중 인스턴스 시뮬레이션 시
- *   인스턴스별 별도 connection 을 보장하기 위함 (E1 batch-scheduler 와 동일 패턴).
- * - 각 테스트는 [randomLockName] 으로 테스트 간 충돌 없는 고유 lock 이름을 발급한다.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 abstract class AbstractKtorAppTest {
 

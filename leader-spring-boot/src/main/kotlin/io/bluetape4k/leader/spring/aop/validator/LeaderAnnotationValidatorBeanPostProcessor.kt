@@ -17,27 +17,11 @@ import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 
 /**
- * BeanPostProcessor that detects footguns on methods annotated with `@LeaderElection` / `@LeaderGroupElection`.
+ * `LeaderAnnotationValidatorBeanPostProcessor`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Detected issues
- * - `final` / `private` methods (proxy cannot be applied)
- * - `@LeaderGroupElection.maxLeaders` ≤ 1
- * - Unsafe stream return types (`Flux` / `Flow`) — single leader requires `autoExtend` or `streamBounded`
- * - SpEL pre-parse failure
- * - 2+ annotated methods on the same class (best-effort self-invocation WARN)
- *
- * ## Meta-annotation support (#84)
- * Also detects composed annotations built with `@AliasFor`.
- * Example: `@DailyJob` → `@LeaderElection(name = "daily-job")` composed annotation.
- * Uses [AnnotatedElementUtils.hasAnnotation] / [AnnotatedElementUtils.findMergedAnnotation].
- *
- * ## Strict mode
- * - `true`: startup fails on any violation (`maxLeaders ≤ 1` / SpEL failure always fails regardless of strict)
- * - `false` (default): WARN log only
- *
- * ## Self-throw defense [Step 3-P-Rel]
- * If reflection / SpEL calls inside the BPP itself throw (e.g. ClassNotFoundException), they are isolated
- * with `runCatching` to avoid blocking startup. Even in strict mode, internal BPP errors are WARN only.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property strict Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property spel Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 class LeaderAnnotationValidatorBeanPostProcessor(
     private val strict: Boolean,
@@ -142,14 +126,9 @@ class LeaderAnnotationValidatorBeanPostProcessor(
     }
 
     /**
-     * Detects Future / CompletableFuture / ListenableFuture / Deferred return types (R12).
+     * `isUnsupportedFutureReturn` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
      *
-     * - `java.util.concurrent.Future` and its sub-types (including CompletableFuture)
-     * - `com.google.common.util.concurrent.ListenableFuture` (Guava optional — silently skipped if class not found)
-     * - `kotlinx.coroutines.Deferred`
-     *
-     * When the aspect processes these in the sync branch, lock release occurs at action completion,
-     * which happens before the future completes — causing a split-brain risk.
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     private fun isUnsupportedFutureReturn(returnType: Class<*>): Boolean {
         // java.util.concurrent.Future 와 그 sub-types (CompletableFuture 등)

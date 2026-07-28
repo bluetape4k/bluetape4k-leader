@@ -4,30 +4,12 @@ import java.io.Serializable
 import java.time.Duration
 
 /**
- * Spring Boot observability options for leader election.
+ * `LeaderObservabilityProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## Behavior / Contract
- * - [enabled] controls leader observability support beans such as the status registry and
- *   event-publisher facade.
- * - [lockNames] seeds the status registry with statically known lock names so the Actuator
- *   endpoint can report them before the first runtime event is observed.
- * - [tracing] controls optional Micrometer Observation bridge beans.
- * - [health] controls the opt-in known-lock readiness contributor.
- *
- * ```yaml
- * bluetape4k:
- *   leader:
- *     observability:
- *       enabled: true
- *       lock-names:
- *         - batch-job
- *         - migration-gate
- *       tracing:
- *         enabled: true
- *       health:
- *         enabled: true
- *         lease-warning-threshold: 10s
- * ```
+ * @property enabled Spring Boot integration 계약에서 `enabled` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockNames Spring Boot integration 계약에서 `lockNames` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property tracing Spring Boot integration 계약에서 `tracing` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property health Spring Boot integration 계약에서 `health` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class LeaderObservabilityProperties(
     val enabled: Boolean = true,
@@ -41,14 +23,10 @@ data class LeaderObservabilityProperties(
 }
 
 /**
- * Known-lock readiness health options.
+ * `LeaderObservabilityHealthProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * The contributor is disabled by default because each health invocation calls
- * `LeaderElector.state` once for every JVM-known lock name.
- *
- * @property enabled whether to register the `leaderElectionReadiness` health contributor.
- * @property leaseWarningThreshold occupied leases expiring within this duration are reported as
- * `OUT_OF_SERVICE`. Zero only flags leases that are already expired at query time.
+ * @property enabled Spring Boot integration 계약에서 `enabled` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaseWarningThreshold Spring Boot integration 계약에서 `leaseWarningThreshold` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class LeaderObservabilityHealthProperties(
     val enabled: Boolean = false,
@@ -66,13 +44,12 @@ data class LeaderObservabilityHealthProperties(
 }
 
 /**
- * Micrometer Observation bridge options for leader election.
+ * `LeaderTracingProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## Behavior / Contract
- * - [enabled] registers Observation recorder/listener beans when `ObservationRegistry` is present.
- * - [includeLockName] adds tag-policy-sanitized lock names as high-cardinality observation data.
- * - [includeLeaderId] adds leader IDs only when the caller provides identified metrics context.
- * - [includeExceptionDetails] attaches the raw throwable to failed execution observations.
+ * @property enabled Spring Boot integration 계약에서 `enabled` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property includeLockName Spring Boot integration 계약에서 `includeLockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property includeLeaderId Spring Boot integration 계약에서 `includeLeaderId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property includeExceptionDetails Spring Boot integration 계약에서 `includeExceptionDetails` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class LeaderTracingProperties(
     val enabled: Boolean = true,

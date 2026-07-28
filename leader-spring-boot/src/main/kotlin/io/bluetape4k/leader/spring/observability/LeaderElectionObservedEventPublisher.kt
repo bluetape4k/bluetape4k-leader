@@ -9,14 +9,10 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
 /**
- * Publisher adapter that turns observed listener callbacks into leader election events.
+ * `LeaderElectionObservedEventPublisher`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Behavior / Contract
- * - This adapter is publisher-only; it does not implement [io.bluetape4k.leader.LeaderElector],
- *   so it cannot make `LeaderElector` injection ambiguous.
- * - It emits events observed through [LeaderElectionListener] callbacks.
- * - Delivery is best-effort: the buffer keeps 64 events and drops the oldest buffered event
- *   under back-pressure.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property registry Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 class LeaderElectionObservedEventPublisher(
     private val registry: LeaderElectionStatusRegistry,

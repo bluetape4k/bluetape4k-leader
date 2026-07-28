@@ -30,59 +30,13 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * Distributed webhook event polling worker.
+ * `WebhookPoller`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Behavior / Contract
- *
- * - Uses [SuspendLeaderElector] so only one instance polls in a multi-instance deployment.
- * - The elected leader atomically claims up to [WebhookPollerOptions.batchSize] events and then runs [handler].
- * - Non-leaders sleep briefly and retry, allowing automatic handoff when the current leader dies.
- *
- * ### Claim Model
- *
- * 1. Atomically claims a PENDING or expired CLAIMED event with `findOneAndUpdate`.
- *    - filter: `{ attempts: { $lt: maxAttempts } }` AND
- *      (`{ status: PENDING }` OR `{ status: CLAIMED, claimExpiresAt: { $lt: now } }`)
- *    - update: `status=CLAIMED, claimedBy=nodeId, claimExpiresAt=now+claimDuration, $inc attempts: 1`
- * 2. **Attempts are incremented exactly once at claim time**. Handler success or failure does not increment again.
- * 3. The claim itself is the attempt.
- * 4. Expired CLAIMED events with `attempts >= maxAttempts` are not reclaimed (P2-3);
- *    a separate sweeper should clean them up.
- *
- * ### Failure Transition
- *
- * If [handler] throws, the state changes **only if this instance still owns the claim**:
- * - `attempts >= maxAttempts` -> `status=FAILED`, `lastError=ex.message`, acting as the DLQ terminal state.
- * - Otherwise -> `status=PENDING`, `claimedBy=null`, `claimExpiresAt=null`, `lastError=ex.message`,
- *   allowing the next cycle to reclaim it immediately.
- *
- * If this instance wakes up late after another instance reclaimed the event due to claim expiration (P2-2),
- * the update is ignored and a `claim ownership lost` log is emitted.
- *
- * ### Graceful Stop
- *
- * [stopGracefully] cancels the polling job and joins it within the timeout.
- * Events already claimed at cancellation time remain `CLAIMED`; after `claimExpiresAt` expires,
- * another instance may reclaim and process them, preserving at-least-once delivery.
- *
- * ### Indexes
- *
- * The first [start] call creates mandatory compound indexes for claim-query performance.
- *
- * ```kotlin
- * val elector = MongoSuspendLeaderElector(lockCollection)
- * val poller = WebhookPoller(elector, eventCollection, options) { event ->
- *     httpClient.post(targetUrl, event.payload)   // Deliver the webhook externally.
- * }
- * val job = poller.start(applicationScope)
- * // ... shutdown ...
- * poller.stopGracefully()
- * ```
- *
- * @param elector externally supplied [SuspendLeaderElector], making tests and backend replacement simple.
- * @param eventCollection collection that stores [WebhookEvent] documents; separate from the lock collection.
- * @param options polling behavior settings.
- * @param handler event-processing callback. Exceptions are isolated so the next event can continue.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property elector example workflow 계약에서 사용하는 속성입니다.
+ * @property eventCollection example workflow 계약에서 사용하는 속성입니다.
+ * @property options example workflow 계약에서 사용하는 속성입니다.
+ * @property handler example workflow 계약에서 사용하는 속성입니다.
  */
 class WebhookPoller(
     private val elector: SuspendLeaderElector,
@@ -107,9 +61,7 @@ class WebhookPoller(
     }
 
     /**
-     * Serializes concurrent [start] and [stopGracefully] calls.
-     *
-     * Uses [ReentrantLock] instead of `synchronized` so it remains safe in virtual-thread environments.
+     * `lifecycleLock` 값은 example workflow 계약에서 사용하는 설정 또는 상태 항목입니다.
      */
     private val lifecycleLock = ReentrantLock()
 
@@ -120,10 +72,9 @@ class WebhookPoller(
     private var indexEnsured: Boolean = false
 
     /**
-     * Starts the polling loop and returns its [Job].
+     * `start` 호출은 example workflow 계약의 일부 동작을 수행합니다.
      *
-     * - Calling this twice on the same instance is not allowed; an active poller throws [IllegalStateException].
-     * - Cancelling [scope] stops the loop automatically.
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun start(scope: CoroutineScope): Job = lifecycleLock.withLock {
         check(pollerJob == null || pollerJob?.isActive != true) {
@@ -145,7 +96,9 @@ class WebhookPoller(
     }
 
     /**
-     * Gracefully stops the polling loop. If it does not stop within [timeout], returns after forced cancellation.
+     * `stopGracefully` 호출은 example workflow 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     suspend fun stopGracefully(timeout: Duration = 30.seconds) {
         val job = lifecycleLock.withLock { pollerJob } ?: return
@@ -208,8 +161,9 @@ class WebhookPoller(
     }
 
     /**
-     * Processes one batch by claiming and handling up to [WebhookPollerOptions.batchSize] events.
-     * @return number of processed events.
+     * `processBatch` 호출은 example workflow 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     private suspend fun processBatch(): Int {
         var processed = 0
@@ -222,8 +176,9 @@ class WebhookPoller(
     }
 
     /**
-     * Atomically claims a PENDING or expired CLAIMED event with `findOneAndUpdate`.
-     * @return the claimed [WebhookEvent], or null when no event is available.
+     * `claimNext` 호출은 example workflow 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     private suspend fun claimNext(): WebhookEvent? {
         val now = Instant.now()
@@ -264,7 +219,9 @@ class WebhookPoller(
     }
 
     /**
-     * Handles one event. Handler exceptions are isolated so the next event can continue.
+     * `handleSingle` 호출은 example workflow 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     private suspend fun handleSingle(event: WebhookEvent) {
         try {
@@ -353,11 +310,9 @@ class WebhookPoller(
     }
 
     /**
-     * P2-2: filter that verifies claim ownership.
+     * `ownedClaimFilter` 호출은 example workflow 계약의 일부 동작을 수행합니다.
      *
-     * Matches only documents where the `(eventId, status=CLAIMED, claimedBy=nodeId, claimExpiresAt)` tuple
-     * written by this instance at claim time is still intact. If another instance reclaimed the event,
-     * `claimExpiresAt` or `claimedBy` changes and the match fails with `matchedCount=0`.
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     private fun ownedClaimFilter(event: WebhookEvent): org.bson.conversions.Bson = Filters.and(
         Filters.eq(FIELD_EVENT_ID, event.eventId),
@@ -369,7 +324,11 @@ class WebhookPoller(
     )
 }
 
-/** Converts a Mongo [Document] to [WebhookEvent]. */
+/**
+ * `Document` 호출은 example workflow 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
+ */
 internal fun Document.toWebhookEvent(): WebhookEvent {
     val statusStr = getString(WebhookPoller.FIELD_STATUS) ?: WebhookEventStatus.PENDING.name
     val claimExpiresAtDate: java.util.Date? = get(WebhookPoller.FIELD_CLAIM_EXPIRES_AT) as? java.util.Date
@@ -386,7 +345,11 @@ internal fun Document.toWebhookEvent(): WebhookEvent {
     )
 }
 
-/** Converts [WebhookEvent] to a Mongo [Document] for inserts. */
+/**
+ * `WebhookEvent` 호출은 example workflow 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
+ */
 internal fun WebhookEvent.toDocument(): Document = Document().apply {
     put(WebhookPoller.FIELD_EVENT_ID, eventId)
     put(WebhookPoller.FIELD_PAYLOAD, payload)

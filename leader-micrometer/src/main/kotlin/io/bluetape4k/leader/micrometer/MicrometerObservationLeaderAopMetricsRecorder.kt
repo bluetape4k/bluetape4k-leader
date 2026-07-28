@@ -10,19 +10,11 @@ import java.util.concurrent.CancellationException
 import kotlin.time.Duration
 
 /**
- * Micrometer Observation based implementation of [LeaderAopMetricsRecorder].
+ * `MicrometerObservationLeaderAopMetricsRecorder`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Behavior / Contract
- * - Emits short terminal observations for acquire, skipped acquire, successful execution,
- *   failed execution, and cancelled execution.
- * - Does not keep an [Observation.Scope] open around the guarded user body.
- * - Does not export raw lock names, leader IDs, or raw throwable details unless [options]
- *   explicitly enables them.
- *
- * ```kotlin
- * val recorder = MicrometerObservationLeaderAopMetricsRecorder(observationRegistry)
- * recorder.onLockAcquired("daily-job", LeaderElectionOptions.Default, 12.milliseconds)
- * ```
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property registry Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property options Micrometer observability 계약에서 사용하는 속성입니다.
  */
 class MicrometerObservationLeaderAopMetricsRecorder(
     private val registry: ObservationRegistry,

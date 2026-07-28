@@ -25,15 +25,9 @@ import org.springframework.context.annotation.Role
 import org.springframework.core.annotation.Order
 
 /**
- * AutoConfig Phase 2 — registers the Aspect, BPP, SpEL evaluator, and properties.
+ * `LeaderAopAutoConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## [Codex H3] Phase Separation Pattern
- * Evaluated after factory registration via `@AutoConfiguration(after = LeaderAopFactoryAutoConfiguration::class)`.
- * `@ConditionalOnBean(LeaderElectionFactory)` — this auto-configuration is inactive when no backend factory is registered.
- *
- * ## CTW (Freefair post-compile weaving) only
- * `@EnableAspectJAutoProxy` is not used — compile-time weaving replaces the Spring AOP runtime proxy.
- * Aspects are applied automatically by CTW once registered as `@Bean`.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 @AutoConfiguration(after = [LeaderAopFactoryAutoConfiguration::class])
 @ConditionalOnClass(name = ["org.aspectj.lang.annotation.Aspect"])

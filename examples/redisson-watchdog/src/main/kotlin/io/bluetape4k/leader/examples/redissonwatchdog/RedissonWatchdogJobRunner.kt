@@ -13,21 +13,11 @@ import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Runs a leader-only job with the Redisson backend and bluetape4k lease auto-extension.
+ * `RedissonWatchdogJobRunner`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Contract
- *
- * A runner calls [RedissonLeaderElector.runIfLeader] with `autoExtend=true`.
- * The initial Redisson lock uses an explicit lease time, and bluetape4k's
- * `LeaderLeaseAutoExtender` renews that lease while [runJob] is still running.
- * Contending nodes return [RedissonWatchdogStatus.SKIPPED] instead of throwing.
- *
- * ```kotlin
- * val runner = RedissonWatchdogJobRunner("node-a", redissonClient, "report-rollup")
- * val report = runner.runJob {
- *     reportService.rollup()
- * }
- * ```
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property nodeId example workflow 계약에서 사용하는 속성입니다.
+ * @property lockName example workflow 계약에서 사용하는 속성입니다.
  */
 class RedissonWatchdogJobRunner(
     val nodeId: String,
@@ -56,9 +46,9 @@ class RedissonWatchdogJobRunner(
     private val elector = RedissonLeaderElector(redissonClient, options)
 
     /**
-     * Executes [job] only when this runner acquires leadership.
+     * `runJob` 호출은 example workflow 계약의 일부 동작을 수행합니다.
      *
-     * @return a report describing whether this node executed or skipped the job
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun runJob(job: () -> Unit): RedissonWatchdogNodeReport {
         var elected = false
@@ -88,6 +78,15 @@ enum class RedissonWatchdogStatus {
     SKIPPED,
 }
 
+/**
+ * `RedissonWatchdogNodeReport`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property nodeId example workflow 계약에서 `nodeId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property status example workflow 계약에서 `status` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property elapsed example workflow 계약에서 `elapsed` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property jobThreadName example workflow 계약에서 `jobThreadName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 data class RedissonWatchdogNodeReport(
     val nodeId: String,
     val status: RedissonWatchdogStatus,

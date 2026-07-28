@@ -27,18 +27,9 @@ import org.springframework.context.annotation.Role
 import org.springframework.core.type.AnnotatedTypeMetadata
 
 /**
- * Micrometer metrics AutoConfiguration.
+ * `선언`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * Automatically registers [MicrometerLeaderAopMetricsRecorder] when a `MeterRegistry` bean is present.
- *
- * ## AutoConfig Order
- * ```
- * LeaderAopFactoryAutoConfiguration (backend factories)
- *   ↓
- * LeaderMicrometerAutoConfiguration  ← this class
- *   ↓
- * LeaderAopAutoConfiguration (Aspect + BPP)
- * ```
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 @AutoConfiguration(
     after = [LeaderAopFactoryAutoConfiguration::class],
@@ -58,7 +49,9 @@ import org.springframework.core.type.AnnotatedTypeMetadata
 class LeaderMicrometerAutoConfiguration {
 
     /**
-     * Builds the default leader metric tag sanitizer from Spring properties.
+     * `leaderMetricTagSanitizer` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     @Bean
     @ConditionalOnMissingBean(LeaderMetricTagSanitizer::class)
@@ -67,10 +60,9 @@ class LeaderMicrometerAutoConfiguration {
         LeaderMetricTagSanitizer.from(props.metrics.tags.toMicrometerOptions())
 
     /**
-     * Automatically registers [MicrometerLeaderAopMetricsRecorder] only when a `MeterRegistry` bean is present
-     * and the user has not registered a non-Observation [LeaderAopMetricsRecorder] directly.
+     * `micrometerLeaderAopMetricsRecorder` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
      *
-     * Observation recorders are complementary tracing hooks, so they do not suppress the default meter recorder.
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     @Bean
     @ConditionalOnBean(MeterRegistry::class)

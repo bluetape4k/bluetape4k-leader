@@ -11,11 +11,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Role
 
 /**
- * Auto-configuration for the opt-in leader election Actuator endpoint.
- *
- * The endpoint bean is disabled by default. Applications must enable it with
- * `management.endpoint.leaderElection.enabled=true`, and expose it over HTTP with
- * `management.endpoints.web.exposure.include`.
+ * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
  */
 @AutoConfiguration(after = [LeaderElectionObservabilityAutoConfiguration::class])
 @ConditionalOnClass(

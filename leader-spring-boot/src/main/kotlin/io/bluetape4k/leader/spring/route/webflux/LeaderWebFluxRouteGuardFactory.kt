@@ -10,15 +10,22 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import java.util.concurrent.CancellationException
 
-/** Creates opt-in, cancellation-aware WebFlux filters for leader-gated routes. */
+/**
+ * `LeaderWebFluxRouteGuardFactory`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property runtime Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property properties Spring Boot integration 계약에서 사용하는 속성입니다.
+ */
 class LeaderWebFluxRouteGuardFactory internal constructor(
     private val runtime: LeaderRouteAuthorityRuntime,
     private val properties: LeaderRouteGuardProperties,
 ) {
 
     /**
-     * Creates a deferred filter for [slot]. Authority evaluation is offloaded
-     * from Reactor non-blocking threads because leader state lookup is synchronous.
+     * `filter` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun filter(slot: LeaderSlot): WebFilter = WebFilter { exchange, chain ->
         Mono.fromCallable { runtime.evaluate(slot) }

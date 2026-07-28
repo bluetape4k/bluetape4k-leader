@@ -3,21 +3,12 @@ package io.bluetape4k.leader.micrometer
 import java.io.Serializable
 
 /**
- * Options for Micrometer Observation based leader tracing.
+ * `LeaderObservationOptions`는 Micrometer observability에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## Behavior / Contract
- * - Lock names and leader IDs are high-cardinality values and are disabled by default.
- * - Raw exception details are disabled by default because tracing exporters may include
- *   exception messages and stack traces.
- * - Enabling any option affects only Observation key values; existing Micrometer meters are unchanged.
- * - When lock names or leader IDs are enabled, [tagOptions] controls their exported values.
- *
- * ```kotlin
- * val recorder = MicrometerObservationLeaderAopMetricsRecorder(
- *     registry = observationRegistry,
- *     options = LeaderObservationOptions(includeLockName = true),
- * )
- * ```
+ * @property includeLockName Micrometer observability 계약에서 `includeLockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property includeLeaderId Micrometer observability 계약에서 `includeLeaderId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property includeExceptionDetails Micrometer observability 계약에서 `includeExceptionDetails` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property tagOptions Micrometer observability 계약에서 `tagOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class LeaderObservationOptions(
     val includeLockName: Boolean = false,
@@ -27,7 +18,7 @@ data class LeaderObservationOptions(
 ) : Serializable {
 
     /**
-     * Binary-compatible constructor for callers compiled before tag options were added.
+     * Micrometer observability 계약을 설명하는 한국어 KDoc입니다.
      */
     constructor(
         includeLockName: Boolean,

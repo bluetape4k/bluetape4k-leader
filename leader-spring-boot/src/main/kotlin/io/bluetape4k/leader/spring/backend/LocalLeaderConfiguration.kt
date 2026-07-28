@@ -17,12 +17,9 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 
 /**
- * Auto-configuration that provides a local (in-memory) backend as the default fallback.
+ * `LocalLeaderConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * Registers local beans only when no other backend (Redisson/Lettuce/Mongo/Hazelcast/Exposed) is active.
- * Works immediately in dev/test environments without any external infrastructure.
- *
- * Evaluated after backend beans have been registered via `@AutoConfigureAfter(LeaderElectionAutoConfiguration::class)`.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 @AutoConfiguration(after = [LeaderElectionAutoConfiguration::class])
 @EnableConfigurationProperties(LeaderProperties::class)

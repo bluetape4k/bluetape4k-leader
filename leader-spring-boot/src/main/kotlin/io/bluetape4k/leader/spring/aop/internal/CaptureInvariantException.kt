@@ -1,17 +1,8 @@
 package io.bluetape4k.leader.spring.aop.internal
 
 /**
- * Thrown by the AOP aspect when it detects a handle-capture invariant violation between the elector and the aspect.
+ * `CaptureInvariantException`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Invariant
- * The sync group elector's `CaptureScope.runWithCapture` calls `LeaderLockHandleCapture.set(handle)`
- * just before invoking the action. The sync aspect receives the handle via `AopScopeAccess.pollCapture()`
- * as the first statement of the action lambda. The suspend group elector does not use ThreadLocal capture;
- * instead it propagates the handle into the coroutine context via `LockHandleElement`.
- *
- * **Single elector does not use CaptureScope, so `pollCapture() == null` is normal** — this exception is
- * thrown only on capture failure specific to the group elector.
- *
- * Silent fail-open conversion is strictly forbidden (Codex F10 / SF3).
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 internal class CaptureInvariantException(message: String) : IllegalStateException(message)

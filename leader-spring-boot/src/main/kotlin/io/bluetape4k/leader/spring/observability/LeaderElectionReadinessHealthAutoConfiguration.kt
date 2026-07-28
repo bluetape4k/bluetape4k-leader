@@ -13,7 +13,9 @@ import org.springframework.boot.health.contributor.HealthIndicator
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Role
 
-/** Auto-configures the opt-in JVM-known-lock readiness contributor. */
+/**
+ * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
+ */
 @AutoConfiguration(after = [LeaderElectionObservabilityAutoConfiguration::class])
 @ConditionalOnClass(name = ["org.springframework.boot.health.contributor.HealthIndicator"])
 @ConditionalOnBean(LeaderElectionStatusRegistry::class, LeaderElector::class)

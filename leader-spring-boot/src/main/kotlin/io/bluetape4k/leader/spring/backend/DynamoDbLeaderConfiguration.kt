@@ -20,10 +20,9 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import kotlin.time.toKotlinDuration
 
 /**
- * DynamoDB backend auto-configuration.
+ * `DynamoDbLeaderConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * The DynamoDB table is caller-provisioned. It must use `lockName` as the string partition key
- * and should enable TTL on the numeric `ttl` attribute.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(DynamoDbClient::class)

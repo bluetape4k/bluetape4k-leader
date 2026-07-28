@@ -5,12 +5,9 @@ import io.bluetape4k.support.requireNotBlank
 import java.util.concurrent.ConcurrentSkipListSet
 
 /**
- * Registry of lock names known to the Spring Boot leader observability endpoint.
+ * `LeaderElectionStatusRegistry`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Behavior / Contract
- * - Static lock names can be seeded from configuration.
- * - Listener callbacks record lock names observed through listener-aware electors.
- * - The registry is best-effort and JVM-local; it does not discover arbitrary backend locks.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 class LeaderElectionStatusRegistry(
     initialLockNames: Iterable<String> = emptyList(),
@@ -23,7 +20,9 @@ class LeaderElectionStatusRegistry(
     }
 
     /**
-     * Registers [lockName] as known to observability endpoints.
+     * `register` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun register(lockName: String) {
         lockName.requireNotBlank("lockName")
@@ -31,7 +30,9 @@ class LeaderElectionStatusRegistry(
     }
 
     /**
-     * Returns a stable sorted snapshot of currently known lock names.
+     * `snapshot` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun snapshot(): List<String> =
         lockNames.toList()

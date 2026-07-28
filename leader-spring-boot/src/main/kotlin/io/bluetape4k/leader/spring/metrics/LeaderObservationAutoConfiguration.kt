@@ -20,12 +20,9 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Role
 
 /**
- * Micrometer Observation auto-configuration for leader election tracing.
+ * `선언`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * Automatically registers Observation-based recorder and listener beans when an
- * [ObservationRegistry] is available. The bridge is intentionally exporter-neutral:
- * applications provide Micrometer Tracing/OpenTelemetry exporters through their own
- * Spring Boot observability setup.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 @AutoConfiguration(
     after = [LeaderMicrometerAutoConfiguration::class],
@@ -45,8 +42,7 @@ import org.springframework.context.annotation.Role
 class LeaderObservationAutoConfiguration {
 
     /**
-     * Registers the AOP Observation recorder when tracing is enabled and no custom
-     * Observation recorder bean is present.
+     * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
      */
     @Bean
     @ConditionalOnBean(ObservationRegistry::class)
@@ -69,7 +65,7 @@ class LeaderObservationAutoConfiguration {
         )
 
     /**
-     * Registers a lightweight listener that emits lifecycle event observations.
+     * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
      */
     @Bean
     @ConditionalOnBean(ObservationRegistry::class)

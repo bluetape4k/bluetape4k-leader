@@ -28,7 +28,9 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
- * [WebhookPoller] 통합 테스트 — 실시간 Mongo Testcontainers 기반.
+ * `WebhookPollerTest`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 class WebhookPollerTest: AbstractWebhookPollerTest() {
 
@@ -394,11 +396,9 @@ class WebhookPollerTest: AbstractWebhookPollerTest() {
     }
 
     /**
-     * P2-3: lease 만료 reclaim 시나리오.
+     * `선언` 호출은 example workflow 계약의 일부 동작을 수행합니다.
      *
-     * - node-A 가 event 를 claim 하지만 handler 실행 중 사망(cancel) → CLAIMED 상태 유지
-     * - claimDuration 만료 후 node-B 가 동일 event 를 reclaim 하여 처리 완료
-     * - at-least-once 보장 검증
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     @Test
     @Timeout(value = 60, unit = TimeUnit.SECONDS)
@@ -457,14 +457,9 @@ class WebhookPollerTest: AbstractWebhookPollerTest() {
     }
 
     /**
-     * P2-3: maxAttempts 도달한 expired CLAIMED event 는 reclaim 되지 않아야 한다.
+     * `선언` 호출은 example workflow 계약의 일부 동작을 수행합니다.
      *
-     * 자연스러운 흐름에선 이 상태가 거의 발생하지 않지만 (handler-throw 경로는 markFailureOrRequeue 가 정리),
-     * 다음 시나리오에선 발생 가능:
-     * - claim 직후 인스턴스 crash → CLAIMED 잔존 → 다음 인스턴스 reclaim → handler-throw
-     * - 위 사이클이 maxAttempts 만큼 반복된 직후 또 한 번 crash → `attempts==maxAttempts` 인 expired CLAIMED 동결
-     *
-     * 본 테스트는 이 상태를 직접 insert 하여 폴러가 절대 reclaim 하지 않음을 검증.
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     @Test
     @Timeout(value = 60, unit = TimeUnit.SECONDS)

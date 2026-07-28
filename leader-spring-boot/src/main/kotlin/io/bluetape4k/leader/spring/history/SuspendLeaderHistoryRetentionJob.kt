@@ -15,23 +15,13 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 /**
- * Coroutine-based retention job for R2DBC and MongoDB backends.
+ * `SuspendLeaderHistoryRetentionJob`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * Uses a deferred [Mono] bridge so that `@LeaderElection` (Mono return-type path, Issue #91)
- * holds the lock until the coroutine completes, preventing fire-and-forget split-brain.
- *
- * JDBC (blocking) cleanup is handled by [LeaderHistoryRetentionJob].  Both jobs run
- * independently because they target different physical storage backends.
- *
- * ## Configuration example
- * ```yaml
- * bluetape4k.leader.history.retention:
- *   enabled: true
- *   cron: "0 0 2 * * ?"
- *   days: 30
- *   chunk-size: 1000
- *   max-duration-ms: 300000
- * ```
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property sink Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property retentionDays Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property chunkSize Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property maxDurationMs Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 class SuspendLeaderHistoryRetentionJob(
     private val sink: SuspendLeaderHistorySink,

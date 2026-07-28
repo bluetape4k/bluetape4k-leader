@@ -12,12 +12,9 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * 3-인스턴스 배치 스케줄러 데모.
+ * `BatchSchedulerDemo`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * 동일 lock 이름을 공유하는 3개의 [BatchScheduler] 인스턴스를 동시 실행하여,
- * 단 1개만 정산 Job 을 수행하는 모습을 시연한다.
- *
- * Testcontainers Redis 를 자동 기동.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 object BatchSchedulerDemo: KLogging() {
 

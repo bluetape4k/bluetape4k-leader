@@ -8,11 +8,13 @@ import java.time.Clock
 import java.time.Duration
 
 /**
- * Opt-in readiness contributor for lock names known to this JVM.
+ * `LeaderElectionReadinessHealthIndicator`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * This indicator performs one best-effort [LeaderElector.state] read per registered lock. It does
- * not enumerate backend locks or mutate election state, and its result must not be used as an
- * ownership decision.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property leaderElector Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property registry Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property leaseWarningThreshold Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property clock Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 class LeaderElectionReadinessHealthIndicator(
     private val leaderElector: LeaderElector,

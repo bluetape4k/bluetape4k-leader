@@ -5,17 +5,11 @@ import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationRegistry
 
 /**
- * Listener that records leader election lifecycle events as Micrometer Observations.
+ * `MicrometerObservationLeaderElectionListener`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Behavior / Contract
- * - Emits `leader.election.event` for `elected`, `revoked`, and `skipped` callbacks.
- * - Keeps `lock.name` high-cardinality and disabled by default.
- * - Does not configure tracing exporters; applications provide their own Micrometer tracing bridge.
- *
- * ```kotlin
- * val listener = MicrometerObservationLeaderElectionListener(observationRegistry)
- * registry.addListener(listener)
- * ```
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property registry Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property options Micrometer observability 계약에서 사용하는 속성입니다.
  */
 class MicrometerObservationLeaderElectionListener(
     private val registry: ObservationRegistry,

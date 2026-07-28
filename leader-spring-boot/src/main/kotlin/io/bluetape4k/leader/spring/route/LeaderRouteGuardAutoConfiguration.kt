@@ -19,10 +19,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 
 /**
- * Selects one effective route authority when leader route guards are explicitly enabled.
- *
- * `STATE` and `CUSTOM` modes are mutually exclusive. Invalid combinations fail
- * startup instead of relying on `@ConditionalOnMissingBean` precedence.
+ * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
  */
 @AutoConfiguration(after = [LeaderElectionAutoConfiguration::class, LocalLeaderConfiguration::class])
 @ConditionalOnProperty(

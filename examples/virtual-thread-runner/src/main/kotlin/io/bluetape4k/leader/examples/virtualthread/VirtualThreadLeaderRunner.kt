@@ -16,14 +16,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * High-concurrency runner guarded by [VirtualThreadLeaderElector].
+ * `VirtualThreadLeaderRunner`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Contract
- *
- * All nodes race for the same [lockName]. Exactly one node executes the
- * leader-only action on a Java virtual thread; every loser returns a skipped
- * report without throwing. The runner keeps the leader action bounded with a
- * latch timeout so demos and tests shut down predictably.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property lockName example workflow 계약에서 사용하는 속성입니다.
+ * @property elector example workflow 계약에서 사용하는 속성입니다.
+ * @property leaderHoldTimeout example workflow 계약에서 사용하는 속성입니다.
  */
 class VirtualThreadLeaderRunner(
     private val lockName: String,
@@ -115,6 +113,15 @@ enum class VirtualThreadNodeStatus {
     SKIPPED,
 }
 
+/**
+ * `VirtualThreadNodeReport`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property nodeId example workflow 계약에서 `nodeId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property status example workflow 계약에서 `status` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property ranOnVirtualThread example workflow 계약에서 `ranOnVirtualThread` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property threadName example workflow 계약에서 `threadName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 data class VirtualThreadNodeReport(
     val nodeId: String,
     val status: VirtualThreadNodeStatus,
@@ -126,6 +133,13 @@ data class VirtualThreadNodeReport(
     }
 }
 
+/**
+ * `VirtualThreadRunReport`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property lockName example workflow 계약에서 `lockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property nodeReports example workflow 계약에서 `nodeReports` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 data class VirtualThreadRunReport(
     val lockName: String,
     val nodeReports: List<VirtualThreadNodeReport>,
