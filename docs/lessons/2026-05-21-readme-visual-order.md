@@ -1,27 +1,23 @@
-# README visual order
+# 읽어보기 시각적 순서
 
-## Context
+## 맥락
 
-The Korean root README placed the architecture section before the source-backed
-overview diagram, while the English README already exposed the overview first.
+한국어 루트 README는 소스 지원 개요 다이어그램 앞에 아키텍처 섹션을 배치한 반면, 영어 README는 이미 개요를 먼저 노출했습니다.
 
-## Decision
+## 결정
 
-Keep root overview visuals immediately after the feature summary in every
-localized README, then place architecture detail below them.
+모든 지역화된 README의 기능 요약 바로 뒤에 루트 개요 시각적 요소를 유지한 다음 그 아래에 아키텍처 세부 정보를 배치합니다.
 
-## Outcome
+## 결과
 
-`README.ko.md` now matches the English visual order and has a descriptive
-multi-leader sequence image label.
+`README.ko.md`는 이제 영어 시각적 순서와 일치하며 설명이 포함된 다중 지시선 시퀀스 이미지 라벨을 갖습니다.
 
-## Verification
+## 검증
 
 - `git diff --check`
-- `xmllint --noout` for README SVG assets
-- README image-link existence scan
+- README SVG 자산용 `xmllint --noout`
+- README 이미지 링크 존재 여부 검사
 
-## Next
+## 다음
 
-Future README edits should preserve Overview Diagram and Module Composition
-Chart as the first visual explanation readers see.
+향후 README 편집에서는 독자가 보는 첫 번째 시각적 설명으로 개요 다이어그램과 모듈 구성 차트를 유지해야 합니다.

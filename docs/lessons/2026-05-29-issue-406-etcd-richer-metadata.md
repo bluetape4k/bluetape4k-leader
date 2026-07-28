@@ -1,31 +1,24 @@
-# Lessons — Issue 406 etcd richer metadata
+# 강의 — Issue 406 etcd 더욱 풍부한 메타데이터
 
-Date: 2026-05-29
-Issue: #406
-Branch: test/412-design-406-k8s-nightly-etcd-metadata
+날짜: 2026-05-29 문제: #406 분기: test/412-design-406-k8s-nightly-etcd-metadata
 
-## Context
+## 맥락
 
-`leader-etcd` uses jetcd Lock service ownership keys for correctness. That gives safe lease-bound ownership but only
-opaque backend tokens for state snapshots unless another metadata channel is added.
+`leader-etcd`는 정확성을 위해 jetcd 잠금 서비스 소유권 키를 사용합니다. 이는 안전한 임대 바인딩 소유권을 제공하지만 다른 메타데이터 채널이 추가되지 않는 한 상태 스냅샷에 대한 불투명 백엔드 토큰만 제공합니다.
 
-## Decision
+## 결정
 
-Keep Lock service as the 0.3.0 correctness primitive. Do not migrate to Election service or raw KV transactions for
-metadata alone. If richer `LeaderState` or `LeaderGroupState` becomes necessary, add sidecar metadata keys attached
-to the same lease and treat them as observability-only.
+잠금 서비스를 0.3.0 정확성 프리미티브로 유지하세요. 메타데이터만을 위해 선거 서비스 또는 원시 KV 트랜잭션으로 마이그레이션하지 마십시오. 더 풍부한 `LeaderState` 또는 `LeaderGroupState`가 필요한 경우 동일한 임대에 연결된 사이드카 메타데이터 키를 추가하고 이를 관찰 전용으로 처리합니다.
 
-## Outcome
+## 결과
 
-The design note records the selected approach, rejected alternatives, sidecar key/value shape, correctness rules,
-and future EtcdServer-backed test list.
+디자인 노트에는 선택된 접근 방식, 거부된 대안, 사이드카 키/값 형태, 정확성 규칙 및 향후 EtcdServer 지원 테스트 목록이 기록됩니다.
 
-## Verification
+## 검증
 
-- `./gradlew :bluetape4k-leader-etcd:test --no-daemon` passed with 66 tests.
-- `git diff --check` passed.
+- `./gradlew :bluetape4k-leader-etcd:test --no-daemon`는 66개의 테스트를 통과했습니다.
+- `git diff --check`가 통과되었습니다.
 
-## Future Guard
+## 퓨쳐 가드
 
-Do not let sidecar metadata decide etcd leadership. Always confirm the current owner through the Lock service
-ownership key ordering before mapping metadata into state or event output.
+사이드카 메타데이터가 etcd 리더십을 결정하도록 하지 마십시오. 메타데이터를 상태 또는 이벤트 출력에 매핑하기 전에 항상 잠금 서비스 소유권 키 순서를 통해 현재 소유자를 검증하세요.

@@ -1,171 +1,85 @@
-# Reader-First Diagram Iteration
+# 리더 우선 다이어그램 반복
 
-## Context
+## 맥락
 
-The README diagram refresh moved from bulk regeneration toward one module at a
-time. User review caught architecture diagrams that still read like runtime
-flows, sequence frames that overlapped cleanup branches, and a render defect
-where the SVG canvas height no longer matched the enlarged viewBox.
+README 다이어그램 새로 고침이 대량 재생성에서 한 번에 하나의 모듈로 이동되었습니다. 사용자 검토에서는 여전히 런타임 흐름처럼 읽는 아키텍처 다이어그램, 정리 분기가 겹치는 시퀀스 프레임, SVG 캔버스 높이가 더 이상 확대된 viewBox와 일치하지 않는 렌더링 결함을 발견했습니다.
 
-## Decision
+## 결정
 
-Treat every module as a small reader-question pass:
+모든 모듈을 작은 독자 질문 단계로 취급하십시오.
 
-- Architecture diagrams explain static ownership, component boundaries, and
-  dependencies first. Put runtime ordering in sequence diagrams.
-- Add a new diagram when the README behavior contract needs it, such as Consul
-  Session/KV acquire-release and TTL recovery semantics.
-- After every module, promote repeated visual failures into `bluetape4k-diagram`
-  instead of relying on memory.
+- 아키텍처 다이어그램은 정적 소유권, 구성 요소 경계 및 종속성을 먼저 설명합니다. 시퀀스 다이어그램에 런타임 순서를 지정합니다.
+- Consul 세션/KV 획득-릴리스 및 TTL 복구 의미 체계와 같이 README 동작 계약에 필요할 때 새 다이어그램을 추가합니다.
+- 모든 모듈이 끝나면 메모리에 의존하는 대신 반복되는 시각적 오류를 `bluetape4k-diagram`로 승격합니다.
 
-## Outcome
+## 결과
 
-`leader-ktor` now uses a component architecture view, `leader-spring-boot`
-replaces stale architecture and reentrant sequence visuals, and `leader-consul`
-adds a source-backed acquire/release sequence next to its architecture diagram.
-`leader-dynamodb` adds a second sequence diagram because the key reader problem
-is not component ownership alone: DynamoDB TTL cleanup is eventual, while
-correctness is decided by `leaseExpiry` and owner-guarded conditional writes.
+이제 `leader-ktor`는 구성 요소 아키텍처 보기를 사용하고, `leader-spring-boot`는 오래된 아키텍처 및 재진입 시퀀스 시각적 개체를 대체하며, `leader-consul`는 아키텍처 다이어그램 옆에 소스 지원 획득/릴리스 시퀀스를 추가합니다. 키 판독기 문제가 구성 요소 소유권에만 국한되지 않기 때문에 `leader-dynamodb`는 두 번째 시퀀스 다이어그램을 추가합니다. DynamoDB TTL 정리는 최종적이고 정확성은 `leaseExpiry` 및 소유자 보호 조건부 쓰기에 의해 결정됩니다.
 
-## DynamoDB Follow-up
+## DynamoDB 후속 조치
 
-For backend modules where correctness and cleanup use different fields or
-primitives, pair the component architecture with a lifecycle or sequence view.
-Architecture can show the caller-owned table and lock-client dependency, but a
-sequence diagram is better for conditional acquire, auto-extend, release,
-min-lease retention, and contention skip behavior.
+정확성과 정리가 다른 필드나 기본 요소를 사용하는 백엔드 모듈의 경우 구성 요소 아키텍처를 수명 주기 또는 시퀀스 보기와 쌍으로 연결하세요. 아키텍처는 호출자 소유 테이블과 클라이언트 잠금 종속성을 표시할 수 있지만 조건부 획득, 자동 확장, 릴리스, 최소 임대 보존 및 경합 건너뛰기 동작에는 시퀀스 다이어그램이 더 좋습니다.
 
-During visual review, treat explanatory note boxes as collision candidates, not
-just arrows. A note can still obscure a lifeline or clip long field lists even
-when the arrows look clean. Move notes into empty participant corridors and
-split long field lists before rendering the final PNG.
+시각적 검토 중에는 설명 메모 상자를 화살표뿐만 아니라 충돌 후보로 처리합니다. 화살표가 깨끗해 보이는 경우에도 메모로 인해 생명선이 가릴 수 있거나 긴 필드 목록이 잘릴 수 있습니다. 최종 PNG를 렌더링하기 전에 메모를 빈 참가자 복도로 이동하고 긴 필드 목록을 분할합니다.
 
-## Hazelcast Follow-up
+## Hazelcast 후속 조치
 
-Diagram refresh can expose stale adjacent README prose. The Hazelcast README
-still claimed that no watchdog renewal exists, but source inspection showed
-single-leader electors start auto-extension when `autoExtend` is enabled. Fix
-the prose and section title in the same module pass instead of preserving a
-misleading README around a correct diagram.
+다이어그램 새로 고침으로 인해 인접한 README 구문이 오래되어 노출될 수 있습니다. Hazelcast README에서는 여전히 감시 갱신이 존재하지 않는다고 주장했지만 소스 검사에 따르면 `autoExtend`가 활성화되면 단일 리더 선택기가 자동 확장을 시작하는 것으로 나타났습니다. 올바른 다이어그램 주위에 오해의 소지가 있는 README를 유지하는 대신 동일한 모듈 패스에서 문장과 섹션 제목을 수정하세요.
 
-For class diagrams, do not force every source concept into a connected edge. A
-factory/extension entrypoint can be clearer as a separate entrypoint card when
-create arrows would cross elector-to-lock dependency lines. Keep inheritance
-vertical where possible, route dependency lines through empty corridors, and
-shrink or split long class labels before accepting the PNG.
+클래스 다이어그램의 경우 모든 소스 개념을 연결된 에지에 강제로 적용하지 마세요. 만들기 화살표가 선택기-잠금 종속 선을 교차할 때 팩터리/확장 진입점은 별도의 진입점 카드로 더 명확해질 수 있습니다. 가능한 경우 상속을 수직으로 유지하고, 빈 복도를 통해 종속성 선을 라우팅하고, PNG를 허용하기 전에 긴 클래스 레이블을 축소하거나 분할합니다.
 
-## Micrometer Follow-up
+## Micrometer 후속 조치
 
-The Micrometer README also carried stale summary prose: it said there were two
-instrumentation paths while source and meter constants showed AOP recorder,
-direct decorators, listener events, and history sink counters. For observability
-modules, diagram the path from source event to meter family to registry/export,
-then make the README overview and meter catalog match that same set of paths.
+Micrometer README에는 진부한 요약문도 실렸습니다. 두 개의 계측 경로가 있고 소스 및 미터 상수에는 AOP 레코더, 직접 데코레이터, 리스너 이벤트 및 히스토리 싱크 카운터가 표시되어 있다고 했습니다. 관찰 가능성 모듈의 경우 소스 이벤트에서 측정기 제품군, 레지스트리/내보내기까지의 경로를 다이어그램으로 작성한 다음 README 개요 및 측정기 카탈로그가 동일한 경로 집합과 일치하도록 만듭니다.
 
-For observability examples such as `examples/prometheus-dashboard`, separate
-the leader execution path from the metrics scrape/query path. Prometheus and
-Grafana observe meters; they do not trigger leader work. Long Spring bean names
-such as `LeaderScheduledTrigger` and `LeaderScheduledJob proxy` should be split
-into compact reader-facing titles before rendering instead of being squeezed
-inside cards.
+`examples/prometheus-dashboard`와 같은 관찰 가능성 예제의 경우 리더 실행 경로를 메트릭 스크랩/쿼리 경로와 분리하세요. Prometheus 및 Grafana는 미터를 관찰합니다. 리더 작업을 촉발하지 않습니다. `LeaderScheduledTrigger` 및 `LeaderScheduledJob proxy`와 같은 긴 Spring 빈 이름은 카드 안에 압축하는 대신 렌더링하기 전에 독자가 볼 수 있는 간단한 제목으로 분할되어야 합니다.
 
-## Batch Scheduler Follow-up
+## 배치 스케줄러 후속 조치
 
-Example modules need diagrams that preserve the example's behavioral contract,
-not just a generic architecture shape. For `examples/batch-scheduler`, the
-source-backed reader questions were: which replica runs, what losers receive,
-where TTL recovery appears, and whether `nodeId` participates in lock ownership.
+예제 모듈에는 일반적인 아키텍처 형태뿐만 아니라 예제의 동작 계약을 보존하는 다이어그램이 필요합니다. `examples/batch-scheduler`의 경우 소스 지원 리더 질문은 어떤 복제본이 실행되는지, 패자는 무엇을 받는지, TTL 복구가 나타나는 위치 및 `nodeId`가 잠금 소유권에 참여하는지 여부였습니다.
 
-Keep source evidence in SVG metadata or commit evidence, not in the rendered
-footer. Use the footer for the module path or another reader-facing locator.
-For flow diagrams, draw leader-only release paths around contention cards
-instead of through them; if a route label only repeats an obvious arrow, remove
-it. For sequence diagrams, keep call-label colors in the same family as the
-call line so numbered calls remain visually tied to their arrows.
+렌더링된 바닥글이 아닌 SVG 메타데이터에 소스 증거를 유지하거나 증거를 커밋하세요. 모듈 경로에 대한 바닥글이나 다른 독자용 위치 표시기를 사용하십시오. 흐름도의 경우 경합 카드를 통하는 대신 경합 카드 주위에 리더 전용 릴리스 경로를 그립니다. 경로 레이블에 명확한 화살표만 반복되는 경우 제거하십시오. 시퀀스 다이어그램의 경우 통화 라인과 동일한 계열의 통화 레이블 색상을 유지하여 번호가 매겨진 통화가 화살표에 시각적으로 연결되도록 합니다.
 
-## Cache Warmer Follow-up
+## 캐시 워머 후속 조치
 
-Do not draw every concurrent attempt when the source behavior is an `N x M`
-contention matrix. The cache-warmer scenario became readable only after grouping
-the three warmer instances and fanning out to one lock per partition; drawing
-all node-to-partition attempts made the core contract look like a routing knot.
+소스 동작이 `N x M` 경합 행렬인 경우 모든 동시 시도를 그리지 마십시오. 캐시 워머 시나리오는 세 개의 워머 인스턴스를 그룹화하고 파티션당 하나의 잠금으로 팬아웃한 후에만 읽을 수 있게 되었습니다. 모든 노드에서 파티션으로의 시도를 그리면 핵심 계약이 라우팅 매듭처럼 보입니다.
 
-For example flows, avoid drawing every non-terminal branch back to the loop
-when the cards can state `then continue`. Multiple return lines from success,
-skip, and failure branches crossed the cancellation and result cards. A single
-loop/back edge plus branch-local text explains the same source contract with
-less visual noise.
+예를 들어 흐름의 경우 카드에 `then continue`가 표시될 수 있으면 모든 비터미널 분기를 루프로 다시 그리는 것을 피하세요. success, 건너뛰기 및 failure 분기의 여러 반환 라인이 취소 및 결과 카드를 넘었습니다. 단일 루프/백 에지와 분기 로컬 텍스트는 시각적 노이즈를 줄이면서 동일한 소스 계약을 설명합니다.
 
-When converting curved routes to orthogonal routes, do not let multiple branch
-lines share the same vertical or horizontal lane. Parallel branches need their
-own corridor and enough standoff from card edges; otherwise the rendered PNG
-still reads as an overlap even if the SVG path technically stays outside the
-card interior.
+곡선 경로를 직교 경로로 변환할 때 여러 분기선이 동일한 수직 또는 수평 차선을 공유하지 않도록 하십시오. 평행 가지에는 자체 복도가 필요하고 카드 가장자리로부터 충분한 간격이 필요합니다. 그렇지 않으면 SVG 경로가 기술적으로 카드 내부 외부에 있더라도 렌더링된 PNG가 여전히 겹치는 것으로 읽혀집니다.
 
-## Rate Limiter Follow-up
+## 속도 제한기 후속 조치
 
-Rate-limiter examples combine two independent controls, so diagrams should not
-collapse them into one generic "Redis" path. Show leader election as the
-single-dispatch control and Bucket4j as the shared external-call quota control.
-Readers need to see that dispatch losers prevent duplicate work, while quota
-rejections prevent external API calls.
+속도 제한기 예제는 두 개의 독립적인 컨트롤을 결합하므로 다이어그램은 이를 하나의 일반 "Redis" 경로로 축소해서는 안 됩니다. 리더 선택을 단일 디스패치 제어로 표시하고 Bucket4j를 공유 외부 호출 할당량 제어로 표시합니다. 독자는 파견 패자가 중복 작업을 방지하는 반면 할당량 거부는 외부 API 호출을 방지한다는 점을 검증해야 합니다.
 
-For flow and sequence diagrams, keep the dispatch decision and the quota
-decision in separate vertical bands or corridors. A consumed-token branch can
-easily cut through the quota card if it is drawn directly to the external API;
-route it around the quota component and give the consumed/rejected labels enough
-vertical separation inside the alt/loop region.
+흐름 및 시퀀스 다이어그램의 경우 파견 결정과 할당량 결정을 별도의 수직 밴드 또는 통로에 유지합니다. 소비된 토큰 분기는 외부 API에 직접 그려지는 경우 할당량 카드를 쉽게 잘라낼 수 있습니다. 할당량 구성 요소 주위로 라우팅하고 대체/루프 영역 내에서 소비/거부된 레이블에 충분한 수직 분리를 제공합니다.
 
-## Redisson Watchdog Follow-up
+## Redisson 워치독 후속 조치
 
-Watchdog diagrams should distinguish the short initial lease from the
-source-backed auto-extension contract. A component diagram can show
-`autoExtend = true` on the options card, but lease renewal and contender skip
-behavior are clearer in scenario or sequence diagrams where the elected body
-outlives the initial lease.
+워치독 다이어그램은 짧은 초기 임대를 소스 지원 자동 연장 계약과 구별해야 합니다. 구성 요소 다이어그램은 옵션 카드에 `autoExtend = true`를 표시할 수 있지만 임대 갱신 및 경쟁자 건너뛰기 동작은 선출된 기관이 초기 임대보다 오래 지속되는 시나리오 또는 시퀀스 다이어그램에서 더 명확합니다.
 
-Avoid long decorative renewal loops in architecture diagrams. They tend to
-cross group boundaries or look like a runtime flow. Put the auto-extension fact
-inside the option card and reserve explicit renewal arrows for the sequence
-timeline.
+아키텍처 다이어그램에서 긴 장식 갱신 루프를 피하세요. 그룹 경계를 넘거나 런타임 흐름처럼 보이는 경향이 있습니다. 옵션 카드 안에 자동 확장 사실을 넣고 시퀀스 타임라인에 대한 명시적인 갱신 화살표를 예약하세요.
 
-## Strategic Election Follow-up
+## 전략적 선거 후속 조치
 
-Strategic election is not a backend contention example. The key reader
-question is why the selected node is allowed to run: profiles become
-`CandidateInfo`, scorers produce a score map, the strategy ranks candidates,
-and local electors enforce selected-vs-skipped reports.
+전략적 선택은 백엔드 경합의 예가 아닙니다. 독자의 주요 질문은 선택한 노드가 실행되도록 허용되는 이유입니다. 프로필은 `CandidateInfo`가 되고, 채점자는 점수 맵을 생성하고, 전략은 후보자의 순위를 매기고, 지역 선거인은 선택 대 건너뛴 보고서를 시행합니다.
 
-For suitability diagrams, do not draw skip routes through the selected work
-card. Non-winner skip paths should use separate outer corridors so the selected
-maintenance path remains visually and semantically independent.
+적합성 다이어그램의 경우 선택한 작업 카드를 통해 건너뛰기 경로를 그리지 마십시오. 승자가 아닌 건너뛰기 경로는 별도의 외부 복도를 사용해야 선택한 유지 관리 경로가 시각적으로나 의미적으로 독립적으로 유지됩니다.
 
-## Remaining Examples Follow-up
+## 나머지 예 후속 조치
 
-Example sequence diagrams cannot be safely generated from a fixed actor order.
-The initial remaining-example pass rendered clean lines but gave several
-modules misleading message directions, such as a node calling another node
-instead of calling the elector. Model the sequence as leader attempt, selected
-work, and contender skip, then map those calls to the actual participants before
-accepting the image.
+예제 시퀀스 다이어그램은 고정된 행위자 순서에서 안전하게 생성될 수 없습니다. 초기 나머지 예제 패스는 깔끔한 라인을 렌더링했지만 노드가 선거인을 호출하는 대신 다른 노드를 호출하는 등 여러 모듈에 잘못된 메시지 지시를 제공했습니다. 리더 시도, 선택한 작업 및 경쟁자 건너뛰기로 시퀀스를 모델링한 다음 이미지를 수락하기 전에 해당 호출을 실제 참가자에게 매핑합니다.
 
-Architecture summary cards should carry module-specific reader contracts, not a
-generic "leader-only" sentence. If the same sentence could appear under
-TenantAggregator, WebhookPoller, and Ktor App, it is probably process metadata
-rather than user-facing documentation.
+아키텍처 요약 카드에는 일반적인 "리더 전용" 문장이 아닌 모듈별 독자 계약이 포함되어야 합니다. TenantAggregator, WebhookPoller 및 Ktor App 아래에 동일한 문장이 나타날 수 있다면 이는 아마도 사용자 대상 문서가 아닌 프로세스 메타데이터일 것입니다.
 
-## Verification
+## 검증
 
-- SVG XML parsing passed for changed assets.
-- PNGs were rendered with CairoSVG and inspected individually.
-- Forbidden legacy-layout/work-metadata scans passed.
-- README image links were verified for changed module README files.
-- `git diff --check` passed.
+- 변경된 자산에 대한 SVG XML 구문 분석이 통과되었습니다.
+- PNG는 CairoSVG로 렌더링되었으며 개별적으로 검사되었습니다.
+- 금지된 레거시 레이아웃/작업 메타데이터 스캔이 통과되었습니다.
+- 변경된 모듈 README 파일에 대해 README 이미지 링크가 검증되었습니다.
+- `git diff --check`가 통과되었습니다.
 
-## Future Guidance
+## 향후 지침
 
-For each module, finish the module commit first, then add/update a lesson and
-promote repeated guidance into the diagram skill before starting the next
-module. Visual review must include frame separation, footer readability,
-canvas/viewBox background coverage, and whether the diagram answers a real
-README/source-backed reader question.
+각 모듈에 대해 먼저 모듈 커밋을 완료한 후 강의를 추가/업데이트하고 다음 모듈을 시작하기 전에 다이어그램 기술에 대한 반복 지침을 승격하세요. 시각적 검토에는 프레임 분리, 바닥글 가독성, 캔버스/viewBox 배경 적용 범위 및 다이어그램이 실제 README/소스 기반 독자 질문에 대한 답변인지 여부가 포함되어야 합니다.

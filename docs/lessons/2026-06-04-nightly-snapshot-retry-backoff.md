@@ -1,20 +1,20 @@
-## Context
+## 맥락
 
-Nightly and CI matrix jobs failed intermittently while resolving upstream `1.11.0-SNAPSHOT` artifacts from Central snapshots. The local Central metadata checks returned HTTP 200, while GitHub-hosted runners intermittently received HTTP 403.
+중앙 스냅샷에서 업스트림 `1.11.0-SNAPSHOT` 아티팩트를 해결하는 동안 야간 및 CI 매트릭스 작업이 간헐적으로 failure했습니다. 로컬 중앙 메타데이터 검사에서는 HTTP 200을 반환했지만 GitHub에서 호스팅하는 실행기는 간헐적으로 HTTP 403을 수신했습니다.
 
-## Decision
+## 결정
 
-Use the same retry posture across CI, Nightly, and example workflow Gradle steps: five attempts with a 30 second wait between attempts.
+CI, Nightly 및 예시 워크플로 Gradle 단계에서 동일한 재시도 상태를 사용합니다. 즉, 5회 시도, 시도 간 30초 대기입니다.
 
-## Outcome
+## 결과
 
-The workflow now gives transient Central snapshot metadata failures more time to recover before marking module tests failed.
+이제 워크플로는 일시적인 중앙 스냅샷 메타데이터 오류를 모듈 테스트 failure로 표시하기 전에 복구할 수 있는 더 많은 시간을 제공합니다.
 
-## Verification
+## 검증
 
 - `git diff --check`
 - `actionlint .github/workflows/*.yml`
 
-## Future Guidance
+## 향후 지침
 
-When a downstream bluetape4k repo consumes unreleased upstream snapshots, stabilize upstream first, then rerun downstream Nightly after the upstream CI and Nightly gates are green.
+다운스트림 bluetape4k 저장소가 릴리스되지 않은 업스트림 스냅샷을 사용하는 경우 먼저 업스트림을 안정화한 다음 업스트림 CI 및 Nightly 게이트가 녹색이 된 후 다운스트림 Nightly를 다시 실행합니다.

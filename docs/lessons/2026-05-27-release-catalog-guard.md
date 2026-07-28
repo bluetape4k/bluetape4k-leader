@@ -1,28 +1,21 @@
-# Release Catalog Guard
+# 릴리스 카탈로그 가드
 
-## Context
+## 맥락
 
-The AWS 0.3.0 release exposed a shared release workflow risk: a stale GitHub
-repository variable can override the checked-in `settings.gradle.kts` catalog
-default before Gradle compiles build scripts.
+AWS 0.3.0 릴리스에서는 공유 릴리스 워크플로 위험이 노출되었습니다. 오래된 GitHub 저장소 변수는 Gradle가 빌드 스크립트를 컴파일하기 전에 체크인된 `settings.gradle.kts` 카탈로그 기본값을 재정의할 수 있습니다.
 
-## Decision
+## 결정
 
-Stable tag releases use the checked-in catalog default. Manual dispatch can use
-an explicit `catalogRef` override, then the repository variable as an
-operational fallback.
+안정적인 태그 릴리스는 체크인된 카탈로그 기본값을 사용합니다. 수동 디스패치는 명시적인 `catalogRef` 재정의를 사용한 다음 저장소 변수를 운영 대체 수단으로 사용할 수 있습니다.
 
-## Outcome
+## 결과
 
-The release workflow logs the selected catalog source and verifies required
-catalog aliases before Maven Central publish.
+릴리스 워크플로는 선택한 카탈로그 소스를 기록하고 Maven Central이 게시되기 전에 필요한 카탈로그 별칭을 검증합니다.
 
-## Verification
+## 검증
 
-Run `actionlint`, validate catalog selection branches locally, and check the
-current release catalog contains the required aliases.
+`actionlint`를 실행하고, 카탈로그 선택 분기를 로컬로 검증하고, 현재 릴리스 카탈로그에 필요한 별칭이 포함되어 있는지 검증하세요.
 
-## Future Guidance
+## 향후 지침
 
-Treat repository catalog variables as manual release overrides, not as the
-release train source of truth.
+저장소 카탈로그 변수를 릴리스 트레인 정보 소스가 아닌 수동 릴리스 재정의로 취급하십시오.

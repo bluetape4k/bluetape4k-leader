@@ -1,27 +1,20 @@
-# 2026-05-23 Issue 270 Truncate Support Promotion
+# 2026-05-23 270호 Truncate 지원 프로모션
 
-## Context
+## 맥락
 
-`bluetape4k-projects 1.9.1` promoted `String.truncateUtf8` to
-`io.bluetape4k.support`. `bluetape4k-leader` issue #270 tracks removal of the
-local internal truncation helper after that upstream release.
+`bluetape4k-projects 1.9.1`는 `String.truncateUtf8`를 `io.bluetape4k.support`로 승격했습니다. `bluetape4k-leader` Issue #270은 해당 업스트림 릴리스 이후 로컬 내부 잘림 도우미 제거를 추적합니다.
 
-## Decision
+## 결정
 
-Use `io.bluetape4k.support.truncateUtf8` from `bluetape4k-core` and delete the
-local `leader.internal.StringTruncateSupport` copy.
+`bluetape4k-core`에서 `io.bluetape4k.support.truncateUtf8`를 사용하고 로컬 `leader.internal.StringTruncateSupport` 복사본을 삭제합니다.
 
-The leader build must reference the newly published `bluetape4k-projects`
-release version directly. `catalogVersion` is for external library/plugin
-alignment across bluetape4k repositories, not for replacing internal
-`bluetape4k-*` release ordering.
+리더 빌드는 새로 게시된 `bluetape4k-projects` 릴리스 버전을 직접 참조해야 합니다. `catalogVersion`는 내부 `bluetape4k-*` 릴리스 순서를 대체하는 것이 아니라 bluetape4k 저장소 전반에 걸쳐 외부 라이브러리/플러그인 정렬을 위한 것입니다.
 
-## Outcome
+## 결과
 
-`leader-core` history sanitization now depends on the shared support function.
-The local duplicate helper was removed.
+`leader-core` 기록 삭제는 이제 공유 지원 기능에 따라 달라집니다. 로컬 중복 도우미가 제거되었습니다.
 
-## Verification
+## 검증
 
 ```bash
 ./gradlew :bluetape4k-leader-core:test \
@@ -30,11 +23,8 @@ The local duplicate helper was removed.
   --refresh-dependencies --no-daemon --no-configuration-cache --no-build-cache
 ```
 
-Result: `BUILD SUCCESSFUL`, 15 tests passing.
+결과: `BUILD SUCCESSFUL`, 15개 테스트 통과.
 
-## Future Guard
+## 퓨쳐 가드
 
-When migrating bluetape4k repositories to the shared catalog, do not move
-internal `bluetape4k-*` release versions behind `catalogVersion`. Check the
-local BOM/version declarations and bump them only after the upstream release is
-visible from Maven Central.
+bluetape4k 리포지토리를 공유 카탈로그로 마이그레이션할 때 내부 `bluetape4k-*` 릴리스 버전을 `catalogVersion` 뒤로 이동하지 마십시오. 로컬 BOM/버전 선언을 검증하고 Maven Central에서 업스트림 릴리스가 표시된 후에만 충돌하십시오.

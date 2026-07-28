@@ -1,31 +1,31 @@
-# README Diagram Image Validation
+# README 다이어그램 이미지 검증
 
-## Context
+## 맥락
 
-README diagrams in bluetape4k-leader were refreshed with the shared pastel infographic renderer. The work covers current Mermaid blocks and existing README diagram image links recovered from git history.
+bluetape4k-leader의 README 다이어그램은 공유 파스텔 인포그래픽 렌더러로 새로 고쳐졌습니다. 이 작업은 현재 Mermaid 블록과 git 기록에서 복구된 기존 README 다이어그램 이미지 링크를 다룹니다.
 
-## Decision
+## 결정
 
-Use PNG as the README-facing artifact and keep SVG sources beside the PNG files for reuse. Diagram labels are English-only. Generic titles such as `Diagram`, `Architecture`, and `Sequence Diagram` are replaced with module-specific English titles. Sequence labels that lose non-English text fall back to the participating components instead of a meaningless generic label.
+README 관련 아티팩트로 PNG를 사용하고 재사용을 위해 PNG 파일 옆에 SVG 소스를 유지합니다. 다이어그램 레이블은 영어로만 제공됩니다. `Diagram`, `Architecture` 및 `Sequence Diagram`와 같은 일반 제목은 모듈별 영어 제목으로 대체됩니다. 영어가 아닌 텍스트가 손실된 시퀀스 라벨은 의미 없는 일반 라벨 대신 참여 구성요소로 대체됩니다.
 
-## Outcome
+## 결과
 
-- 62 rendered artifacts
-- 31 PNG files
-- 31 SVG source files
-- no missing README image links
-- no local SVG image embeds in README files
-- no remaining Mermaid code blocks
-- no shape-check candidates
+- 62개의 렌더링된 아티팩트
+- PNG 파일 31개
+- 31개의 SVG 소스 파일
+- 누락된 README 이미지 링크 없음
+- README 파일에 로컬 SVG 이미지가 포함되지 않습니다.
+- 남은 인어 코드 블록 없음
+- 형상 검증 후보 없음
 
-## Verification
+## 검증
 
 - `node /Users/debop/work/bluetape4k/.omx/scripts/refine-readme-diagrams.mjs .`
-- README image link and Mermaid residue checker
-- PNG/SVG shape checker
-- Visual contact sheet review: `/tmp/bluetape4k-leader-diagram-review-samples.png`
+- README 이미지 링크 및 인어 잔여물 검사기
+- PNG/SVG 모양 검사기
+- 시각적 밀착인화지 검토: `/tmp/bluetape4k-leader-diagram-review-samples.png`
 - `git diff --check`
 
-## Future Guidance
+## 향후 지침
 
-Regenerate from the original Mermaid source when available, including git history for previously replaced blocks. Keep image size content-driven, avoid fake filler nodes, preserve SVG sources, and inspect a sample sheet before publishing.
+이전에 대체된 블록에 대한 Git 기록을 포함하여 가능한 경우 원본 Mermaid 소스에서 다시 생성합니다. 이미지 크기를 콘텐츠 중심으로 유지하고, 가짜 필러 노드를 피하고, SVG 소스를 보존하고, 게시하기 전에 샘플 시트를 검사하세요.

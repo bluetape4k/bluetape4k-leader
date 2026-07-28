@@ -1,45 +1,44 @@
-# Hot-Path Cost Review
+# 핫패스 비용 검토
 
-Issue: #580
-Milestone: 0.5.0
+문제: #580 마일스톤: 0.5.0
 
-## Scope
+## 범위
 
 - `bluetape4k-leader-consul`
 - `examples/webhook-poller`
 
-## 7-Tier Findings
+## 7계층 조사 결과
 
-### Tier 1 - Correctness
+### 1단계 - 정확성
 
-- Consul group election still returns `null` under saturated contention and releases candidate sessions.
-- Webhook poller startup now fails if mandatory claim indexes cannot be created.
+- Consul 그룹 선택은 여전히 포화 경합 하에서 `null`를 반환하고 후보 세션을 해제합니다.
+- 이제 필수 클레임 인덱스를 생성할 수 없는 경우 웹후크 폴러 시작이 failure합니다.
 
-### Tier 2 - Security
+### 계층 2 - 보안
 
-- No credential or authorization surface changed.
-- Mandatory indexes avoid a hidden production fallback to unbounded collection scans.
+- 자격 증명이나 승인 표면이 변경되지 않았습니다.
+- 필수 인덱스는 무제한 컬렉션 스캔에 대한 숨겨진 프로덕션 폴백을 방지합니다.
 
-### Tier 3 - Concurrency
+### 계층 3 - 동시성
 
-- Consul retry loops retain session renewal and cancellation/interrupt handling.
-- Jittered retry delay reduces synchronized contention against the same slot set.
+- Consul 재시도 루프는 세션 갱신 및 취소/인터럽트 처리를 유지합니다.
+- 지터링된 재시도 지연은 동일한 슬롯 세트에 대한 동기화된 경합을 줄입니다.
 
-### Tier 4 - API
+### 계층 4 - API
 
-- No public API changes.
-- The Consul slot probe limit is an internal policy constant.
+- 공개 API는 변경되지 않습니다.
+- Consul 슬롯 프로브 제한은 내부 정책 상수입니다.
 
-### Tier 5 - Performance
+### 계층 5 - 성능
 
-- Saturated Consul group acquisition is capped to three remote slot-acquire calls per retry.
-- Webhook poller claim indexes include `createdAt` ordering fields used by the claim sort path.
+- 포화 Consul 그룹 획득은 재시도당 원격 슬롯 획득 호출 3회로 제한됩니다.
+- 웹후크 폴러 클레임 인덱스에는 클레임 정렬 경로에서 사용되는 `createdAt` 순서 지정 필드가 포함됩니다.
 
-### Tier 6 - Tests
+### 계층 6 - 테스트
 
-- Blocking and suspend Consul delegation tests assert bounded acquire call counts with `maxLeaders = 64`.
-- Webhook poller integration tests verify index names and key ordering against real MongoDB metadata.
+- Consul 위임 테스트 차단 및 일시 중단은 `maxLeaders = 64`를 사용하여 제한된 획득 호출 수를 검증합니다.
+- 웹후크 폴러 통합 테스트는 실제 MongoDB 메타데이터에 대해 인덱스 이름과 키 순서를 검증합니다.
 
-### Tier 7 - Documentation
+### 계층 7 - 문서
 
-- Added `docs/benchmarks/2026-07-04-issue-580-hotpath-cost-model.md` with the cost model and validation evidence.
+- 비용 모델 및 검증 증거와 함께 `docs/benchmarks/2026-07-04-issue-580-hotpath-cost-model.md`를 추가했습니다.

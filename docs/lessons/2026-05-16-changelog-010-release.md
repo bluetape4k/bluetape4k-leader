@@ -1,33 +1,28 @@
-# Lesson: CHANGELOG restructuring for 0.1.0 release
+# Lesson: 0.1.0 릴리스를 위한 CHANGELOG 재구성
 
-**Date**: 2026-05-16
-**Issue**: #266
-**PR**: #278
+**날짜**: 2026-05-16 **문제**: #266 **PR**: #278
 
-## Root Cause
+## 근본 원인
 
-The repository had a large `[Unreleased]` section and a separate `[0.1.0-SNAPSHOT] — In Progress`
-section that accumulated throughout the development cycle. Before the 0.1.0 release these needed
-to be merged, grouped by change type, and converted to a versioned entry with a release date.
+저장소에는 대규모 `[Unreleased]` 섹션과 개발 주기 전반에 걸쳐 누적된 별도의 `[0.1.0-SNAPSHOT] — In Progress` 섹션이 있었습니다. 0.1.0 릴리스 이전에는 이러한 항목을 병합하고 변경 유형별로 그룹화하고 릴리스 날짜가 있는 버전 항목으로 변환해야 했습니다.
 
-## Actions Taken
+## 취한 조치
 
-1. Merged `[Unreleased]` + `[0.1.0-SNAPSHOT]` into `## [0.1.0] — 2026-05-16`.
-2. Grouped entries into Keep-a-Changelog sections:
-   - **Breaking Changes** — renamed interfaces, `runIfLeader()` semantics, Duration migration,
-     Spring Boot module consolidation, `LeaderElectionEvent.Elected` field additions
-   - **Added** — all new modules, interfaces, implementations, CI/CD, and examples
-   - **Changed** — behavior changes that are not breaking
-   - **Fixed** — bug fixes
-   - **Removed** — 10 deprecated APIs removed by #264
-3. Added empty `## [Unreleased]` section at the top for post-release work.
-4. Updated comparison links to point to `v0.1.0` instead of `v0.1.0-SNAPSHOT`.
-5. Removed the `### Open Follow-ups` subsection (tracked in GitHub issues #73, #77, #79, etc.).
+1. `[Unreleased]` + `[0.1.0-SNAPSHOT]`를 `## [0.1.0] — 2026-05-16`로 병합했습니다.
+2. Keep-a-Changelog 섹션으로 항목을 그룹화했습니다.
+   - **주요 변경 사항** — 이름이 변경된 인터페이스, `runIfLeader()` 의미 체계, 기간 마이그레이션,
+Spring Boot 모듈 통합, `LeaderElectionEvent.Elected` 필드 추가
+   - **추가됨** — 모든 새로운 모듈, 인터페이스, 구현, CI/CD 및 예제
+   - **변경됨** — 중단되지 않는 동작 변경
+   - **수정됨** — 버그 수정
+   - **제거됨** — #264에 의해 제거된 10개의 더 이상 사용되지 않는 API
+3. 출시 후 작업을 위해 상단에 빈 `## [Unreleased]` 섹션을 추가했습니다.
+4. `v0.1.0-SNAPSHOT` 대신 `v0.1.0`를 가리키도록 비교 링크를 업데이트했습니다.
+5. `### Open Follow-ups` 하위 섹션을 제거했습니다(GitHub Issue #73, #77, #79 등에서 추적됨).
 
-## Future Guidance
+## 향후 지침
 
-- Keep entries under `[Unreleased]` current during development — don't let them accumulate
-  without section headers.
-- Every merged PR should add at least one bullet under the appropriate section.
-- Breaking changes always get their own `### Breaking Changes` subsection with a migration snippet.
-- The `### Removed` section should reference the issue that drove the removal.
+- 개발 중에 `[Unreleased]` 아래의 항목을 최신 상태로 유지하십시오. 섹션 헤더 없이 항목이 누적되지 않도록 하십시오.
+- 병합된 모든 PR은 해당 섹션 아래에 최소한 하나의 글머리 기호를 추가해야 합니다.
+- 주요 변경 사항은 항상 마이그레이션 코드 조각이 포함된 자체 `### Breaking Changes` 하위 섹션을 갖습니다.
+- `### Removed` 섹션에서는 제거를 초래한 문제를 참조해야 합니다.

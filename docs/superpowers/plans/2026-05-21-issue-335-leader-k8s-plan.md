@@ -1,5 +1,11 @@
 # Issue 335 leader-k8s Implementation Plan
 
+## 한국어 해설
+
+이 문서는 `Issue 335 leader-k8s Implementation Plan`에 대한 설계 또는 실행 계획 기록입니다. 아래 원문 구조의 범위, 결정, 작업 순서, 검증 조건, 위험 및 후속 조치는 기록 보존을 위해 유지합니다. 검토자는 각 `Action`, `Expected DoD`, `Validation`, `Target files` 항목을 한국어 해설과 함께 읽고, 코드 식별자와 명령은 원문 그대로 취급해야 합니다.
+
+
+
 ## Step 0: Worktree
 
 - Branch: `feat/issue-335-leader-k8s`
@@ -129,6 +135,6 @@ Artifact: `.omx/artifacts/claude-issue-335-plan-20260521220106.md`
 Result: advisor could not run because the local Claude account reported
 `You're out of usage credits · resets 11pm (Asia/Seoul)`.
 
-Decision: record the advisor gap and continue with Codex plan review because the
+결정: record the advisor gap and continue with Codex plan review because the
 external CLI is installed but temporarily quota-blocked. No advisor P0/P1
 findings are available for this iteration.

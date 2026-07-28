@@ -1,5 +1,11 @@
 # Issue 345 leader-consul Design
 
+## 한국어 해설
+
+이 문서는 `Issue 345 leader-consul Design`에 대한 설계 또는 실행 계획 기록입니다. 아래 원문 구조의 범위, 결정, 작업 순서, 검증 조건, 위험 및 후속 조치는 기록 보존을 위해 유지합니다. 검토자는 각 `Action`, `Expected DoD`, `Validation`, `Target files` 항목을 한국어 해설과 함께 읽고, 코드 식별자와 명령은 원문 그대로 취급해야 합니다.
+
+
+
 ## Context
 
 Issue #345 adds a Consul-backed leader election backend for deployments that
@@ -113,7 +119,7 @@ exception mapping, then release/destroy the active session in a
   zero to keep skip/reacquire behavior predictable for job schedulers.
 - `leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default`.
 
-Validation:
+검증:
 
 - `leaseTime` must be at least 10 seconds and at most 86,400 seconds for Consul
   Session TTL.

@@ -1,35 +1,26 @@
-# Lessons — Issue 412 K8s group slot Nightly coverage
+# 레슨 — Issue 412 K8s 그룹 슬롯 Nightly Coverage
 
-Date: 2026-05-29
-Issue: #412
-Branch: test/412-design-406-k8s-nightly-etcd-metadata
+날짜: 2026-05-29 문제: #412 분기: test/412-design-406-k8s-nightly-etcd-metadata
 
-## Context
+## 맥락
 
-Issue #404 added Kubernetes Lease-per-slot group election and K3s tests. The follow-up #412 exists to make sure
-the privileged group-slot runtime coverage remains in the Nightly full lane rather than only in local evidence.
+Issue #404에는 슬롯당 Kubernetes Lease 그룹 선택 및 K3s 테스트가 추가되었습니다. 후속 #412는 권한 있는 그룹 슬롯 런타임 범위가 로컬 증거에만 있는 것이 아니라 Nightly 전체 레인에 유지되도록 하기 위해 존재합니다.
 
-## Decision
+## 결정
 
-Keep pull request CI on the non-K3s `:bluetape4k-leader-k8s:test` slice. Keep real K3s runtime coverage in the
-Nightly full `test-leader-k8s` job and make the job, Gradle task description, and README text explicitly mention
-Lease-per-slot group slot coverage.
+비K3s `:bluetape4k-leader-k8s:test` 슬라이스에서 풀 요청 CI를 유지합니다. Nightly 전체 `test-leader-k8s` 작업에서 실제 K3s 런타임 적용 범위를 유지하고 작업, Gradle 작업 설명 및 README 텍스트에서 슬롯당 임대 그룹 슬롯 적용 범위를 명시적으로 언급하도록 합니다.
 
-## Outcome
+## 결과
 
-The Nightly full job still runs `:bluetape4k-leader-k8s:test :bluetape4k-leader-k8s:k8sTest`. The `k8sTest` task
-includes the blocking and suspend group K3s test classes added by #404, so acquire, contention, release,
-reacquire, expiry takeover, and cancellation/error cleanup paths are covered in the privileged lane.
+Nightly 전체 작업은 여전히 `:bluetape4k-leader-k8s:test :bluetape4k-leader-k8s:k8sTest`를 실행합니다. `k8sTest` 작업에는 #404에 의해 추가된 차단 및 일시 중지 그룹 K3s 테스트 클래스가 포함되어 있으므로 획득, 경합, 해제, 재획득, 만료 인수 및 취소/오류 정리 경로가 권한 있는 레인에서 다뤄집니다.
 
-## Verification
+## 검증
 
-- `./gradlew :bluetape4k-leader-k8s:test --no-daemon` passed.
-- `./gradlew :bluetape4k-leader-k8s:cleanK8sTest :bluetape4k-leader-k8s:k8sTest --no-daemon --max-workers=1 --no-build-cache` passed with 20 K3s tests.
-- `actionlint .github/workflows/nightly-tests.yml` passed.
-- `git diff --check` passed.
+- `./gradlew :bluetape4k-leader-k8s:test --no-daemon`가 통과되었습니다.
+- `./gradlew :bluetape4k-leader-k8s:cleanK8sTest :bluetape4k-leader-k8s:k8sTest --no-daemon --max-workers=1 --no-build-cache`는 20개의 K3s 테스트를 통과했습니다.
+- `actionlint .github/workflows/nightly-tests.yml`가 통과되었습니다.
+- `git diff --check`가 통과되었습니다.
 
-## Future Guard
+## 퓨쳐 가드
 
-When K3s-only tests are added to `leader-k8s`, keep them tagged `k8s` and verify that the Nightly full
-`test-leader-k8s` job still runs `:bluetape4k-leader-k8s:k8sTest`. Do not move privileged K3s coverage into the
-fast pull request CI lane.
+K3s 전용 테스트가 `leader-k8s`에 추가되면 `k8s` 태그를 유지하고 Nightly 전체 `test-leader-k8s` 작업이 여전히 `:bluetape4k-leader-k8s:k8sTest`를 실행하는지 검증합니다. 권한 있는 K3s 적용 범위를 빠른 풀 요청 CI 레인으로 이동하지 마십시오.

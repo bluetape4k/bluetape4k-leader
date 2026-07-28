@@ -1,44 +1,36 @@
-# Lesson: Replace 1_000_000L magic number with TimeUnit.NANOSECONDS.toMillis()
+# Lesson: 1_000_000L 매직 넘버를 TimeUnit.NANOSECONDS.toMillis()로 대체
 
-**Date**: 2026-05-16
-**Issue**: #265
-**PR**: TBD
+**날짜**: 2026-05-16 **문제**: #265 **PR**: TBD
 
-## Root Cause
+## 근본 원인
 
-The magic number `1_000_000L` (nanoseconds-to-milliseconds divisor) appeared 21 times
-across 7 files in 4 modules with no named constant, making the intent opaque and
-creating a maintenance risk.
+매직 넘버 `1_000_000L`(나노초-밀리초 제수)는 명명된 상수 없이 4개 모듈의 7개 파일에서 21번 나타나 의도를 불투명하게 만들고 유지 관리 위험을 초래했습니다.
 
-## Decision
+## 결정
 
-Replaced `(System.nanoTime() - acquiredAtNanos) / 1_000_000L` with
-`TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)` in all 7 files.
+7개 파일 모두에서 `(System.nanoTime() - acquiredAtNanos) / 1_000_000L`를 `TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - acquiredAtNanos)`로 대체했습니다.
 
-Chose `TimeUnit.NANOSECONDS.toMillis()` over a named constant (`NANOS_PER_MS`) because:
-- Self-documenting — no need to look up what the constant means
-- Standard JDK idiom (java.util.concurrent.TimeUnit)
-- No new constant to share across modules
-- Avoids cross-module visibility concerns (internal vs public)
+다음과 같은 이유로 명명된 상수(`NANOS_PER_MS`) 대신 `TimeUnit.NANOSECONDS.toMillis()`를 선택했습니다.
+- 자체 문서화 — 상수가 무엇을 의미하는지 찾아볼 필요가 없습니다.
+- 표준 JDK 관용구(java.util.concurrent.TimeUnit)
+- 모듈 간에 공유할 새로운 상수가 없습니다.
+- 모듈 간 가시성 문제 방지(내부 및 공개)
 
-Not changed: `RETRY_DELAY_NANOS` and `SPIN_DELAY_NANOS` definitions in
-`LettuceLock.kt`, `LettuceSemaphore.kt`, `LettuceSlotTokenGroup.kt` — those
-multiply by `1_000_000L` as part of a named constant definition (already readable).
+변경되지 않음: `LettuceLock.kt`, `LettuceSemaphore.kt`, `LettuceSlotTokenGroup.kt`의 `RETRY_DELAY_NANOS` 및 `SPIN_DELAY_NANOS` 정의 — 명명된 상수 정의의 일부로 `1_000_000L`를 곱합니다(이미 읽을 수 있음).
 
-## Files Changed
+## 변경된 파일
 
-7 production files across 4 modules:
+4개 모듈에 걸쳐 7개 프로덕션 파일:
 - `leader-exposed-jdbc`: `ExposedJdbcLeaderElector.kt` (4), `ExposedJdbcLeaderGroupElector.kt` (4)
 - `leader-exposed-r2dbc`: `ExposedR2DbcSuspendLeaderElector.kt` (2)
 - `leader-mongodb`: `MongoLeaderElector.kt` (4), `MongoSuspendLeaderElector.kt` (2)
 - `leader-redis-lettuce`: `LettuceLeaderElector.kt` (4), `LettuceSuspendLeaderElector.kt` (2)
 
-## Verification
+## 검증
 
-- `rg "/ 1_000_000L" --glob "*.kt"` → 0 matches in production code
-- `./gradlew :leader-exposed-jdbc:build :leader-exposed-r2dbc:build :leader-mongodb:build :leader-redis-lettuce:build -x test` → BUILD SUCCESSFUL
+- `rg "/ 1_000_000L" --glob "*.kt"` → 프로덕션 코드에서 0 일치
+- `./gradlew :leader-exposed-jdbc:build :leader-exposed-r2dbc:build :leader-mongodb:build :leader-redis-lettuce:build -x test` → 빌드 success
 
-## Future Guidance
+## 향후 지침
 
-For any new duration-to-milliseconds conversion from `System.nanoTime()`:
-use `TimeUnit.NANOSECONDS.toMillis(nanos)` — not `/ 1_000_000L`.
+`System.nanoTime()`에서 새로운 기간을 밀리초로 변환하려면 `/ 1_000_000L`가 아닌 `TimeUnit.NANOSECONDS.toMillis(nanos)`를 사용하세요.

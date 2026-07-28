@@ -1,28 +1,16 @@
-# 2026-06-22 Sequence Diagram Style Parity
+# 2026-06-22 시퀀스 다이어그램 스타일 패리티
 
-## Context
+## 맥락
 
-The README diagram refresh repeatedly passed XML, marker, and geometry checks
-while several `*-sequence-*` assets still did not look like the established
-best-practices sequence family. The clearest local reference was
-`leader-redis-lettuce-sequence-*`: handwritten title, participant headers,
-vertical lifelines, activation bars, horizontal message lanes, pill labels,
-subdued `alt` and `else` regions, and solid fixed-size arrowheads.
+README 다이어그램 새로 고침은 XML, 마커 및 기하학 검사를 반복적으로 통과했지만 여러 `*-sequence-*` 자산은 여전히 확립된 모범 사례 시퀀스 제품군처럼 보이지 않았습니다. 가장 명확한 로컬 참조는 `leader-redis-lettuce-sequence-*`였습니다. 손으로 쓴 제목, 참가자 헤더, 수직 생명선, 활성화 표시줄, 수평 메시지 레인, 알약 라벨, 차분한 `alt` 및 `else` 영역, 고정된 크기의 화살촉 등이 있었습니다.
 
-The failure was not a single broken marker or route. Some diagrams had valid
-SVG and rendered PNG output, but still kept older flowchart-like or
-module-specific styling. Contact sheets made the drift visible only after the
-whole sequence family was placed side by side.
+failure는 단일의 깨진 표시나 경로가 아니었습니다. 일부 다이어그램에는 유효한 SVG 및 렌더링된 PNG 출력이 있었지만 여전히 이전 순서도와 유사한 스타일이나 모듈별 스타일이 유지되었습니다. 밀착 시트는 전체 시퀀스 계열이 나란히 배치된 후에만 드리프트를 볼 수 있게 만들었습니다.
 
-## Decision
+## 결정
 
-Treat sequence style parity as a visual contract, not only as an SVG checklist.
-For this repository, a diagram named `*-sequence-*` must follow the
-`leader-redis-lettuce-sequence-*` family unless a future design note records an
-explicit exception.
+시퀀스 스타일 패리티를 SVG 체크리스트뿐만 아니라 시각적 계약으로 취급하십시오. 이 저장소의 경우 향후 설계 노트에서 명시적인 예외를 기록하지 않는 한 `*-sequence-*`라는 다이어그램은 `leader-redis-lettuce-sequence-*` 제품군을 따라야 합니다.
 
-The repair pass normalized all sequence diagrams and redrew the outliers
-instead of trying to preserve old local styles:
+복구 단계에서는 모든 시퀀스 다이어그램을 정규화하고 이전 로컬 스타일을 유지하려고 시도하는 대신 이상값을 다시 그렸습니다.
 
 - `bluetape4k-leader-sequence-02/03`
 - `leader-hazelcast-sequence-02/03`
@@ -31,13 +19,11 @@ instead of trying to preserve old local styles:
 - `leader-redis-redisson-sequence-02/03`
 - `leader-spring-boot-sequence-01/02`
 
-The example sequence set was also kept on the same visual grammar so the README
-does not mix best-practices sequence diagrams with rougher example-specific
-variants.
+예제 시퀀스 세트도 동일한 시각적 문법으로 유지되었으므로 README에서는 모범 사례 시퀀스 다이어그램과 대략적인 예제별 변형을 혼합하지 않습니다.
 
-## Verification
+## 검증
 
-Use these checks for future sequence refreshes:
+향후 시퀀스 새로 고침에는 다음 검사를 사용하세요.
 
 ```bash
 xmllint --noout docs/images/readme-diagrams/*-sequence-*.svg
@@ -46,31 +32,20 @@ python3 /Users/debop/.codex/skills/bluetape4k-diagram/references/diagram-endpoin
 git diff --check -- docs/images/readme-diagrams
 ```
 
-Then run a marker audit that rejects sequence markers unless they are
-`16x16`, use `markerUnits="userSpaceOnUse"`, and harden the marker body with
-`stroke-dasharray="none"`.
+그런 다음 `16x16`가 아닌 이상 시퀀스 마커를 거부하는 마커 감사를 실행하고, `markerUnits="userSpaceOnUse"`를 사용하고, `stroke-dasharray="none"`로 마커 본체를 강화합니다.
 
-Static checks are not sufficient. Render with CairoSVG, inspect high-risk PNGs
-at full size, and create contact sheets for both `examples-*-sequence-*` and
-leader `*-sequence-*` diagrams. If any thumbnail looks like a different diagram
-family, reopen the full-size PNG and redraw it before reporting completion.
+정적 검사로는 충분하지 않습니다. CairoSVG로 렌더링하고, 위험도가 높은 PNG를 전체 크기로 검사하고, `examples-*-sequence-*` 및 리더 `*-sequence-*` 다이어그램 모두에 대한 밀착 시트를 만듭니다. 축소판이 다른 다이어그램 계열처럼 보이는 경우 전체 크기 PNG를 다시 열고 완료를 보고하기 전에 다시 그립니다.
 
-## Future Guidance
+## 향후 지침
 
-Do not claim sequence diagram checklist completion by checking only:
+다음 사항만 검증하여 시퀀스 다이어그램 체크리스트 완료를 주장하지 마십시오.
 
-- file names
-- XML validity
-- marker size attributes
-- successful PNG rendering
-- generic geometry audit success
+- 파일 이름
+- XML 유효성
+- 마커 크기 속성
+- success적인 PNG 렌더링
+- 일반 형상 감사 success
 
-First compare the rendered PNG against the current best-practices sequence
-family. The expected visual signals are participant headers, lifelines,
-activation bars, horizontal message lanes, pill labels that do not sit on call
-lines, subdued branch regions, and solid arrowheads even on dashed return
-messages.
+먼저 렌더링된 PNG를 현재 모범 사례 시퀀스 계열과 비교합니다. 예상되는 시각적 신호는 참가자 머리글, 생명줄, 활성화 표시줄, 수평 메시지 줄, 호출 회선에 위치하지 않는 알약 라벨, 차분한 분기 영역 및 점선 반환 메시지에도 있는 실선 화살촉입니다.
 
-When user review reports that a sequence diagram does not match
-best-practices, audit every `*-sequence-*` asset as a family. Fixing one named
-diagram is not enough if the contact sheet still shows another local style.
+사용자 검토에서 시퀀스 다이어그램이 모범 사례와 일치하지 않는다고 보고하면 모든 `*-sequence-*` 자산을 제품군으로 감사하세요. 밀착 인화에 여전히 다른 로컬 스타일이 표시되는 경우 명명된 다이어그램 하나를 수정하는 것만으로는 충분하지 않습니다.

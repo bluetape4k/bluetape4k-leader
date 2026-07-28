@@ -1,18 +1,17 @@
-# Issue 491 Spec Review
+# 이슈 491 사양 검토
 
-- Issue: #491 `docs(examples): add scenario and flow diagrams`
-- Review type: spec gate
-- Reviewed artifact:
-  `docs/superpowers/specs/2026-06-06-issue-491-example-scenario-flow-design.md`
+- 문제: #491 `docs(examples): add scenario and flow diagrams`
+- 검토 유형: 사양 게이트
+- 검토된 아티팩트: `docs/superpowers/specs/2026-06-06-issue-491-example-scenario-flow-design.md`
 
-## Findings
+## 조사 결과
 
 - P0: 0
 - P1: 0
 - P2: 0
 - P3: 0
 
-## Gate Checks
+## 게이트 점검
 
 | Check | Result | Evidence |
 |---|---|---|
@@ -22,6 +21,6 @@
 | Locale policy | PASS | Spec keeps diagram labels English and surrounding README prose localized across `README.md` and `README.ko.md` |
 | Validation completeness | PASS | Spec requires Graphviz evidence check, XML parsing, PNG visual QA, PNG-only README embeds, and `git diff --check` |
 
-## Verdict
+## 평결
 
-PASS. Proceed to plan.
+통과. 계획을 진행하십시오.

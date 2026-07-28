@@ -1,22 +1,18 @@
-# Issue #419 Strategic Election Example
+# 이슈 #419 전략적 선거 예시
 
-## Context
+## 맥락
 
-The root README documented strategic election APIs, but the examples catalog had
-no runnable backend-neutral weighted election scenario.
+루트 README에는 전략적 선택 API가 문서화되어 있지만 예제 카탈로그에는 실행 가능한 백엔드 중립적 가중치 선택 시나리오가 없었습니다.
 
-## Decision
+## 결정
 
-Added `examples/strategic-election` as a local strategic-election demo. The
-example reuses `WeightedScorer`, `ScoredElectionStrategy`, and
-`LocalStrategicLeaderElector` instead of adding new `leader-core` API.
+지역 전략 선거 데모로 `examples/strategic-election`를 추가했습니다. 이 예제에서는 새로운 `leader-core` API를 추가하는 대신 `WeightedScorer`, `ScoredElectionStrategy` 및 `LocalStrategicLeaderElector`를 재사용합니다.
 
-## Outcome
+## 결과
 
-The example selects one maintenance node with weighted health, capacity,
-success-rate, and idle-time scoring. Non-winner nodes return skipped reports.
+이 예에서는 가중치가 부여된 상태, 용량, success률 및 유휴 시간 점수를 사용하여 하나의 유지 관리 노드를 선택합니다. 승자가 아닌 노드는 건너뛴 보고서를 반환합니다.
 
-## Verification
+## 검증
 
 - `./gradlew projects`
 - `./gradlew :examples:strategic-election:test`
@@ -24,8 +20,6 @@ success-rate, and idle-time scoring. Non-winner nodes return skipped reports.
 - `actionlint .github/workflows/ci.yml .github/workflows/examples.yml`
 - `git diff --check`
 
-## Future Guidance
+## 향후 지침
 
-Backend-neutral examples should still wire the full module chain: settings,
-root README locale set, repo-local AGENTS module list, CI path filter/job,
-weekly Examples workflow, and test resources.
+백엔드 중립적 예제는 설정, 루트 README 로케일 세트, repo-local AGENTS 모듈 목록, CI 경로 필터/작업, 주간 예제 워크플로 및 테스트 리소스 등 전체 모듈 체인을 계속 연결해야 합니다.

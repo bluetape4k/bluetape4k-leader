@@ -1,18 +1,15 @@
-# Issue #522 Review Notes
+# 이슈 #522 리뷰 노트
 
-## Scope
+## 범위
 
-Reviewed the Spring advice benchmark fixture, benchmark dependencies, generated
-charts, raw JMH JSON, and README updates.
+Spring 조언 벤치마크 픽스처, 벤치마크 종속성, 생성된 차트, 원시 JMH JSON 및 README 업데이트를 검토했습니다.
 
-## Findings
+## 조사 결과
 
-No P0/P1 findings.
+P0/P1 발견 항목이 없습니다.
 
-## Notes
+## 메모
 
-- The benchmark keeps backend I/O out of scope by using local electors.
-- The fake `ProceedingJoinPoint` is benchmark-local and implements the AspectJ
-  contract required by `LeaderElectionAspect`.
-- The no-op recorder parameter verifies recorder dispatch shape without mixing
-  real Micrometer registry cost into this issue.
+- 벤치마크에서는 로컬 선택기를 사용하여 백엔드 I/O를 범위 밖으로 유지합니다.
+- 가짜 `ProceedingJoinPoint`는 벤치마크 로컬이며 `LeaderElectionAspect`에 필요한 AspectJ 계약을 구현합니다.
+- 무작동 레코더 매개변수는 실제 Micrometer 레지스트리 비용을 이 문제에 혼합하지 않고 레코더 디스패치 형태를 검증합니다.

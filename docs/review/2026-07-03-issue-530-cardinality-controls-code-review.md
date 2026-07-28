@@ -1,13 +1,13 @@
-# Issue #530 Code Review
+# 이슈 #530 코드 검토
 
-## Scope
+## 범위
 
-- Issue: #530, `feat(leader-micrometer): add metric tag cardinality controls`
-- Branch: `feat/issue-530-cardinality-controls`
-- Milestone: `0.5.0`
-- Review target: metric tag cardinality controls for `leader-micrometer`, Spring Boot binding, Observation integration, Prometheus dashboard docs, and README locale parity.
+- 문제: #530, `feat(leader-micrometer): add metric tag cardinality controls`
+- 분기: `feat/issue-530-cardinality-controls`
+- 마일스톤: `0.5.0`
+- 검토 대상: `leader-micrometer`, Spring Boot 바인딩, 관찰 통합, Prometheus 대시보드 문서 및 README 로케일 패리티에 대한 메트릭 태그 카디널리티 제어.
 
-## Seven-Tier Gate Result
+## 칠층문 결과
 
 | Tier | Result | Evidence |
 |---|---|---|
@@ -19,52 +19,52 @@
 | Tier 6 User/Caller | PASS | README EN/KO now explains RAW, HASH, TRUNCATE, allowlist risk, and that built-in meters do not currently emit `backend.name`. Rerun result: P0=0, P1=0. |
 | Tier 7 Evidence | PASS | Tracked review artifact and lessons are included before PR creation; README architecture diagram was updated after the cardinality-control documentation changed. |
 
-Final blocking count: P0=0, P1=0.
+최종 차단 횟수: P0=0, P1=0.
 
-## Findings And Fixes
+## 발견 사항 및 수정 사항
 
-- P1 stability: repeated `registerMetricsFor` calls and collapsed redacted tag cleanup could remove meters too early. Fixed by tracking raw registrations per exported tag and by guarding cleanup while the active gauge is positive.
-- P1 security: Observation listener could expose raw `lock.name` when high-cardinality fields were enabled. Fixed by constructing `LeaderMetricTagSanitizer` from `LeaderObservationOptions.tagOptions` and sanitizing before emitting Observation key values.
-- P1 Spring parity: Observation auto-configuration was not passing AOP metric tag policy into Observation options. Fixed recorder and listener bean creation so Spring-bound tag options apply to both meter and Observation paths.
-- P2 performance: HASH mode created digest instances per call. Fixed with a thread-local SHA-256 digest and per-use reset.
-- P2 operations: dashboard duration PromQL divided separately aggregated series. Fixed with matching `sum by (lock_name)` on sum and count.
-- P2/P3 docs: HASH and backend-name semantics were ambiguous. README EN/KO now states deterministic unsalted hash risk, static allowlist expectations, and current `backend.name` emission status.
-- Diagram drift: the reused `leader-micrometer` architecture diagram still described raw/high-cardinality tags without the shared sanitizer policy. Updated the SVG/PNG to show `LeaderMetricTagSanitizer`, sanitized meter/Observation tags, and REDACT/RAW/HASH/TRUNCATE guardrails.
+- P1 안정성: `registerMetricsFor` 호출을 반복하고 수정된 태그 정리를 축소하면 미터가 너무 일찍 제거될 수 있습니다. 내보낸 태그별로 원시 등록을 추적하고 활성 게이지가 양수인 동안 정리를 보호하여 문제를 해결했습니다.
+- P1 보안: 관찰 수신기는 높은 카디널리티 필드가 활성화된 경우 원시 `lock.name`를 노출할 수 있습니다. `LeaderObservationOptions.tagOptions`에서 `LeaderMetricTagSanitizer`를 구성하고 관찰 키 값을 내보내기 전에 정리하여 문제를 해결했습니다.
+- P1 Spring 패리티: 관찰 자동 구성이 AOP 측정항목 태그 정책을 관찰 옵션에 전달하지 않았습니다. 스프링 바인딩 태그 옵션이 미터 및 관찰 경로 모두에 적용되도록 레코더 및 리스너 Bean 생성이 수정되었습니다.
+- P2 성능: HASH 모드는 호출당 다이제스트 인스턴스를 생성했습니다. 스레드 로컬 SHA-256 다이제스트 및 사용별 재설정으로 수정되었습니다.
+- P2 작업: 대시보드 기간 PromQL은 별도로 집계된 시리즈로 나뉩니다. 합계 및 개수에서 `sum by (lock_name)`가 일치하도록 수정되었습니다.
+- P2/P3 문서: HASH 및 백엔드 이름 의미가 모호했습니다. README EN/KO는 이제 결정론적 무염 해시 위험, 정적 허용 목록 기대치 및 현재 `backend.name` 방출 상태를 명시합니다.
+- 다이어그램 드리프트: 재사용된 `leader-micrometer` 아키텍처 다이어그램은 공유된 새니타이저 정책 없이 여전히 원시/높은 카디널리티 태그를 설명했습니다. `LeaderMetricTagSanitizer`, 위생화된 측정기/관찰 태그 및 REDACT/RAW/HASH/TRUNCATE 가드레일을 표시하도록 SVG/PNG를 업데이트했습니다.
 
-## Verification
+## 검증
 
 - `./gradlew :bluetape4k-leader-micrometer:test :bluetape4k-leader-spring-boot:test --tests '*LeaderMetricTagOptionsTest' --tests '*MicrometerLeaderAopMetricsRecorderTest' --tests '*InstrumentedLeaderElectorsTest' --tests '*MicrometerLeaderElectionListenerTest' --tests '*MicrometerObservationLeaderAopMetricsRecorderTest' --tests '*MicrometerObservationLeaderElectionListenerTest' --tests '*PrometheusExportTest' --tests '*LeaderAopPropertiesBindingTest' --tests '*LeaderMicrometerAutoConfigurationTest' --tests '*LeaderObservationAutoConfigurationTest'`
-  - Result: PASS, Micrometer 75 passing, Spring 23 passing.
+  - 결과: PASS, Micrometer 75 합격, Spring 23 합격.
 - `./gradlew :examples:prometheus-dashboard:test --tests '*PrometheusScrapeTest'`
-  - Result: PASS, 1 passing.
+  - 결과: PASS, 1개 통과.
 - `./gradlew :bluetape4k-leader-micrometer:test :bluetape4k-leader-spring-boot:test :examples:prometheus-dashboard:test`
-  - Result: PASS, 349 passing, `BUILD SUCCESSFUL in 1m 36s`.
+  - 결과: PASS, 349 통과, `BUILD SUCCESSFUL in 1m 36s`.
 - `javap -classpath leader-micrometer/build/classes/kotlin/main io.bluetape4k.leader.micrometer.LeaderObservationOptions`
-  - Result: PASS, constructors include `(boolean, boolean, boolean, LeaderMetricTagOptions)`, `(boolean, boolean, boolean)`, and no-arg.
+  - 결과: PASS, 생성자에는 `(boolean, boolean, boolean, LeaderMetricTagOptions)`, `(boolean, boolean, boolean)` 및 no-arg가 포함됩니다.
 - `javap -classpath leader-spring-boot/build/classes/kotlin/main 'io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties$Metrics'`
-  - Result: PASS, constructors include `(boolean, Tags)`, `(boolean)`, and no-arg.
+  - 결과: PASS, 생성자에는 `(boolean, Tags)`, `(boolean)` 및 no-arg가 포함됩니다.
 - `git diff --check`
-  - Result: PASS.
+  - 결과: 통과.
 - `jq empty leader-spring-boot/src/main/resources/META-INF/spring/additional-spring-configuration-metadata.json examples/prometheus-dashboard/provisioning/grafana/dashboards/leader-dashboard.json`
-  - Result: PASS.
-- Pattern scan for forbidden assertions, stale raw-lock docs, and ad hoc concurrency helpers.
-  - Result: PASS for touched scope; concurrency coverage uses `MultithreadingTester`.
+  - 결과: 통과.
+- 금지된 어설션, 오래된 원시 잠금 문서 및 임시 동시성 도우미에 대한 패턴 스캔입니다.
+  - 결과: 접촉된 범위에 대해 통과; 동시 적용 범위는 `MultithreadingTester`를 사용합니다.
 - `xmllint --noout docs/images/readme-diagrams/leader-micrometer-architecture-01.svg`
-  - Result: PASS.
+  - 결과: 통과.
 - `~/.local/bin/cairosvg docs/images/readme-diagrams/leader-micrometer-architecture-01.svg -o docs/images/readme-diagrams/leader-micrometer-architecture-01.png -s 2`
-  - Result: PASS, PNG rendered at 3692x2240.
+  - 결과: PASS, PNG가 3692x2240에서 렌더링되었습니다.
 - `python3 /Users/debop/.codex/skills/bluetape4k-diagram/references/diagram-geometry-audit.py docs/images/readme-diagrams/leader-micrometer-architecture-01.svg`
-  - Result: PASS, `geometry_failures=0`.
+  - 결과: 통과, `geometry_failures=0`.
 - `python3 /Users/debop/.codex/skills/bluetape4k-diagram/references/diagram-endpoint-audit.py docs/images/readme-diagrams/leader-micrometer-architecture-01.svg`
-  - Result: PASS, `files=1`.
+  - 결과: 통과, `files=1`.
 - `python3 /Users/debop/.codex/skills/bluetape4k-diagram/references/diagram-mixed-corner-audit.py docs/images/readme-diagrams/leader-micrometer-architecture-01.svg`
-  - Result: PASS, `paths=16`, `q_bends=0`, `failures=0`; all connectors are straight lines in this asset.
+  - 결과: 통과, `paths=16`, `q_bends=0`, `failures=0`; 이 자산의 모든 커넥터는 직선입니다.
 - `python3 /Users/debop/.codex/skills/bluetape4k-diagram/references/diagram-connector-audit.py docs/images/readme-diagrams/leader-micrometer-architecture-01.svg`
-  - Result: PASS, `markers=5`, `connectors=16`, `cards=19`, `intrusions=0`, `crossings=0`.
-- Full-size PNG inspection with `view_image`
-  - Result: PASS, no visible text overflow, connector/card intrusion, label overlap, or clipped guardrail text.
+  - 결과: 통과, `markers=5`, `connectors=16`, `cards=19`, `intrusions=0`, `crossings=0`.
+- `view_image`를 사용한 전체 크기 PNG 검사
+  - 결과: 통과, 눈에 띄는 텍스트 오버플로 없음, 커넥터/카드 침입, 라벨 겹침 또는 잘린 가드레일 텍스트.
 
-## Residual Risk
+## 잔여 위험
 
-- Full repository tests were not run. Verification covered affected Micrometer, Spring Boot, and Prometheus dashboard modules.
-- Shutdown-time Mongo/Lettuce reconnect log noise appeared in full affected-module test output, but Gradle completed successfully with 349 passing tests.
+- 전체 저장소 테스트가 실행되지 않았습니다. 영향을 받는 Micrometer, Spring Boot 및 Prometheus 대시보드 모듈에 대한 검증이 이루어졌습니다.
+- 종료 시간 Mongo/Lettuce 재연결 로그 노이즈는 영향을 받는 전체 모듈 테스트 출력에 나타났지만 Gradle는 349개의 테스트를 통과하여 success적으로 완료되었습니다.

@@ -1,20 +1,20 @@
-# Issue 489 Spec Review
+# 이슈 489 사양 검토
 
-- Reviewed artifact: `docs/superpowers/specs/2026-06-05-issue-489-lock-state-line-colors-design.md`
-- Review type: Spec gate review
-- Scope: semantic lock-state line colors for README diagrams
+- 검토된 아티팩트: `docs/superpowers/specs/2026-06-05-issue-489-lock-state-line-colors-design.md`
+- 검토 유형: 사양 게이트 검토
+- 범위: README 다이어그램의 의미론적 잠금 상태 선 색상
 
-## Verdict
+## 평결
 
 - P0 = 0
 - P1 = 0
-- Gate: PASS
+- 게이트: 통과
 
-## Findings
+## 조사 결과
 
-No P0/P1 blockers.
+P0/P1 차단제가 없습니다.
 
-## Checks
+## 수표
 
 | Check | Result | Evidence |
 |---|---:|---|
@@ -25,15 +25,11 @@ No P0/P1 blockers.
 | Validation is gate-shaped | PASS | Acceptance criteria require generator/evidence, XML, README link, diff, color, geometry, and visual QA evidence |
 | Existing blocker is acknowledged | PASS | Spec records current evidence-check failures for two ZooKeeper scheduler assets |
 
-## Residual Risks
+## 잔여 위험
 
-- P2: Target diagram family list is intentionally broad. The plan must split
-  implementation into small batches and allow source-backed skips for diagrams
-  where semantic color would be decorative.
-- P2: Color mismatch checks may require extending the evidence script rather
-  than only updating generator SVG output.
+- P2: 대상 다이어그램 제품군 목록은 의도적으로 광범위합니다. 계획은 구현을 작은 배치로 분할하고 의미 색상이 장식적인 다이어그램에 대해 소스 지원 건너뛰기를 허용해야 합니다.
+- P2: 색상 불일치 검사를 위해서는 생성기 SVG 출력만 업데이트하는 것이 아니라 증거 스크립트를 확장해야 할 수도 있습니다.
 
-## Recommendation
+## 추천
 
-Proceed to plan. The plan must map each target diagram family to generator
-ownership, expected route semantics, validation command, and visual QA evidence.
+계획을 진행하십시오. 계획은 각 대상 다이어그램 제품군을 생성기 소유권, 예상 경로 의미 체계, 유효성 검사 명령 및 시각적 QA 증거에 매핑해야 합니다.

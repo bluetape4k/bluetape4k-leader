@@ -534,6 +534,7 @@ class LeaderElectorBridgeLog(private val cacheSize: Int = DEFAULT_CACHE_SIZE) {
 - (Round 17 N17-1) **super-call forbid**: 모든 backend override 안에서 `super.runIfLeader(slot, ...)` / `super.runIfLeaderResult(slot, ...)` / `super.runAsyncIfLeader(slot, ...)` / suspend variant 호출 금지 — bridge default 재진입 → false-positive WARN 발생
 `AbstractLeaderIdContractTest` 신규 assertion: `bridge WARN counter is zero when backend overrides slot variants` — 위반 시 CI fail
 
+```kotlin
 // PR2-6 backend override — slot.leaderId 를 LeaderLease 에 stamp
 // Round 7 codex #2 fix: 반드시 BOTH runIfLeader(slot) AND runIfLeaderResult(slot) override
 class LettuceLeaderGroupElector(...) : LeaderGroupElector {

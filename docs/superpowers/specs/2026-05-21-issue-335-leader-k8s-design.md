@@ -1,5 +1,11 @@
 # Issue 335 leader-k8s Design
 
+## 한국어 해설
+
+이 문서는 `Issue 335 leader-k8s Design`에 대한 설계 또는 실행 계획 기록입니다. 아래 원문 구조의 범위, 결정, 작업 순서, 검증 조건, 위험 및 후속 조치는 기록 보존을 위해 유지합니다. 검토자는 각 `Action`, `Expected DoD`, `Validation`, `Target files` 항목을 한국어 해설과 함께 읽고, 코드 식별자와 명령은 원문 그대로 취급해야 합니다.
+
+
+
 ## Context
 
 #335 adds a publishable `leader-k8s` backend for Kubernetes controller and
@@ -375,6 +381,6 @@ Artifact: `.omx/artifacts/claude-issue-335-spec-20260521215739.md`
 Result: advisor could not run because the local Claude account reported
 `You're out of usage credits · resets 11pm (Asia/Seoul)`.
 
-Decision: record the advisor gap and continue with Codex multi-perspective review
+결정: record the advisor gap and continue with Codex multi-perspective review
 because the external CLI is installed but temporarily quota-blocked. No advisor
 P0/P1 findings are available for this iteration.

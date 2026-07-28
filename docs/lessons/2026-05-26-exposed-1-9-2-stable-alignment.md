@@ -1,26 +1,21 @@
-# Exposed 1.9.2 Stable Alignment
+# Exposed 1.9.2 안정적인 정렬
 
-## Context
+## 맥락
 
-`bluetape4k-exposed` 1.9.2 is published on Maven Central, but leader still used
-`bluetape4k-exposed = 1.9.2-SNAPSHOT` for Exposed test fixtures.
+`bluetape4k-exposed` 1.9.2는 Maven Central에 게시되었지만 리더는 여전히 Exposed 테스트 픽스처에 `bluetape4k-exposed = 1.9.2-SNAPSHOT`를 사용했습니다.
 
-## Decision
+## 결정
 
-Move the direct `bluetape4k-exposed` catalog version to the stable `1.9.2`
-release while keeping the existing `bluetape4k` core BOM at `1.9.2`.
+기존 `bluetape4k` 코어 BOM을 `1.9.2`에 유지하면서 직접 `bluetape4k-exposed` 카탈로그 버전을 안정적인 `1.9.2` 릴리스로 이동합니다.
 
-## Outcome
+## 결과
 
-Leader's Exposed JDBC/R2DBC modules no longer depend on the temporary snapshot
-line for Exposed helpers.
+Leader의 Exposed JDBC/R2DBC 모듈은 더 이상 Exposed 도우미의 임시 스냅샷 라인에 의존하지 않습니다.
 
-## Verification
+## 검증
 
-- Maven Central HTTP 200 for `bluetape4k-exposed-bom:1.9.2`
+- `bluetape4k-exposed-bom:1.9.2`용 Maven Central HTTP 200
 
-## Future Notes
+## 미래 노트
 
-After a stable Exposed release is visible, downstream direct references should
-move from the matching snapshot to the stable BOM before the next leader
-release-prep.
+안정적인 Exposed 릴리스가 표시된 후 다운스트림 직접 참조는 다음 리더 릴리스 준비 전에 일치하는 스냅샷에서 안정적인 BOM으로 이동해야 합니다.

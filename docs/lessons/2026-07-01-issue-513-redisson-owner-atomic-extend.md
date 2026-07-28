@@ -1,24 +1,24 @@
-# Issue 513 - Redisson Owner-Atomic Extend
+# 문제 513 - Redisson 소유자 원자 확장
 
-## Context
+## 맥락
 
-Issue #513 exposed a race in Redisson single-lock extension: the old implementation checked owner state locally and renewed the key TTL in a separate Redis command.
+Issue #513은 Redisson 단일 잠금 확장의 경합을 노출시켰습니다. 이전 구현에서는 소유자 상태를 로컬로 검증하고 별도의 Redis 명령에서 키 TTL을 갱신했습니다.
 
-## Decision
+## 결정
 
-Use a shared internal helper that performs owner verification and TTL renewal in one Redis Lua script. The helper reflects Redisson's own `getLockName(long)` owner field and `getRawName()` raw Redis key name from the resolved Redisson 4.4.0 artifact.
+하나의 Redis Lua 스크립트에서 소유자 검증 및 TTL 갱신을 수행하는 공유 내부 도우미를 사용하세요. 도우미는 해결된 Redisson 4.4.0 아티팩트의 Redisson 자체 `getLockName(long)` 소유자 필드와 `getRawName()` 원시 Redis 키 이름을 반영합니다.
 
-## Test Guard
+## 테스트 가드
 
-Keep MockK doubles as class-level fields and reset them in `@BeforeEach` with `clearMocks(...)`. Do not introduce method-local `mockk(...)` or `spyk(...)` in new bluetape4k tests unless the review evidence explicitly justifies why the object cannot be a normal fixture or real test object.
+MockK를 클래스 수준 필드로 두 배로 유지하고 `clearMocks(...)`를 사용하여 `@BeforeEach`에서 재설정합니다. 검토 증거가 개체가 일반 고정 장치 또는 실제 테스트 개체가 될 수 없는 이유를 명시적으로 정당화하지 않는 한 새로운 bluetape4k 테스트에 메서드 로컬 `mockk(...)` 또는 `spyk(...)`를 도입하지 마십시오.
 
-## Outcome
+## 결과
 
-The sync and suspend delegates now share the same owner-atomic extend path. Regression coverage verifies that stale-owner results map to `WrongThread` or `NotHeld`, and full `leader-redis-redisson` tests pass serially.
+이제 동기화 및 일시중단 대리자가 동일한 소유자 원자 확장 경로를 공유합니다. 회귀 분석에서는 오래된 소유자 결과가 `WrongThread` 또는 `NotHeld`에 매핑되고 전체 `leader-redis-redisson` 테스트가 순차적으로 통과되는지 검증합니다.
 
-## Verification
+## 검증
 
 - `RedissonOwnerAtomicExtendDelegateTest`: `BUILD SUCCESSFUL in 13s`
-- Redisson extend contract tests: `BUILD SUCCESSFUL in 4s`
+- Redisson 확장 계약 테스트: `BUILD SUCCESSFUL in 4s`
 - `:bluetape4k-leader-redis-redisson:test --no-parallel`: `BUILD SUCCESSFUL in 19s`
-- `git diff --check`: pass
+- `git diff --check`: 통과

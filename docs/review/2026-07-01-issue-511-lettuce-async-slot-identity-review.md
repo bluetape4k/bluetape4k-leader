@@ -1,17 +1,17 @@
-# Issue 511 Review - Lettuce Async Slot Identity
+# 문제 511 검토 - Lettuce 비동기 슬롯 ID
 
-## Scope
+## 범위
 
 - `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceLeaderElector.kt`
 - `leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceLeaderGroupElector.kt`
-- async slot identity contract fixtures in `leader-core/src/testFixtures`
-- Lettuce async single/group contract subclasses
+- `leader-core/src/testFixtures`의 비동기 슬롯 ID 계약 설비
+- Lettuce 비동기 단일/그룹 계약 하위 클래스
 
-## Review Result
+## 검토 결과
 
-P0/P1 findings: 0
+P0/P1 발견 항목: 0
 
-## Checks
+## 수표
 
 | Tier | Result | Evidence |
 |---|---|---|
@@ -23,7 +23,7 @@ P0/P1 findings: 0
 | Bridge warning regression | PASS | New contract tests assert `LeaderElectorBridgeLog` slot/result counters stay at zero. |
 | Test coverage | PASS | `./gradlew :bluetape4k-leader-redis-lettuce:test --no-parallel` passed, 221 tests, 0 failures, 0 errors, 0 skipped. |
 
-## Tooling Notes
+## 툴링 노트
 
-- CodeGraph reported low risk but did not resolve new test fixture nodes in this worktree, so this review used direct diff inspection plus targeted source checks.
-- IntelliJ diagnostics MCP was not available in this session; Gradle compile/test was used as the fallback diagnostic gate.
+- CodeGraph는 위험이 낮다고 보고했지만 이 작업 트리에서 새로운 테스트 픽스처 노드를 해결하지 못했습니다. 따라서 이 검토에서는 직접적인 diff 검사와 대상 소스 검증을 사용했습니다.
+- 이 세션에서는 IntelliJ 진단 MCP를 사용할 수 없습니다. Gradle 컴파일/테스트가 대체 진단 게이트로 사용되었습니다.
