@@ -11,6 +11,13 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
+/**
+ * `EtcdLockExtendDelegate`는 etcd backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 class입니다.
+ *
+ * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
+ * @property lockClient etcd backend 계약에서 `lockClient` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property handle etcd backend 계약에서 `handle` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 internal class EtcdLockExtendDelegate(
     private val lockClient: EtcdLockClient,
     private val handle: EtcdLeaseHandle,
@@ -43,6 +50,13 @@ internal class EtcdLockExtendDelegate(
         get() = _lastExtendDeadline
 }
 
+/**
+ * `EtcdSuspendLockExtendDelegate`는 etcd backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 class입니다.
+ *
+ * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
+ * @property lockClient etcd backend 계약에서 `lockClient` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property handle etcd backend 계약에서 `handle` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 internal class EtcdSuspendLockExtendDelegate(
     private val lockClient: EtcdLockClient,
     private val handle: EtcdLeaseHandle,

@@ -25,10 +25,11 @@ import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Single-leader election backed by DynamoDB conditional writes.
+ * `DynamoDbLeaderElector`는 DynamoDB backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * The table is caller-provisioned with `lockName` as string partition key and
- * TTL enabled on the numeric `ttl` attribute.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property dynamoDb DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class DynamoDbLeaderElector(
     private val dynamoDb: DynamoDbClient,
@@ -160,17 +161,9 @@ class DynamoDbLeaderElector(
 }
 
 /**
- * Runs a blocking action only while this DynamoDB client holds leadership.
+ * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
  *
- * ## Behavior / Contract
- * Returns the action result when leadership is acquired. Returns `null` when another node holds the lock
- * or acquisition times out according to [options].
- *
- * ```kotlin
- * val result = dynamoDb.runIfLeader("nightly-job") {
- *     rebuildIndex()
- * }
- * ```
+ * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
  */
 fun <T> DynamoDbClient.runIfLeader(
     lockName: String,
@@ -179,18 +172,9 @@ fun <T> DynamoDbClient.runIfLeader(
 ): T? = DynamoDbLeaderElector(this, options).runIfLeader(lockName, action)
 
 /**
- * Runs an asynchronous action only while this DynamoDB client holds leadership.
+ * `선언` 호출은 DynamoDB backend leader election 계약의 일부 동작을 수행합니다.
  *
- * ## Behavior / Contract
- * Returns a [CompletableFuture] that completes with the action result when leadership is acquired.
- * The future completes with `null` when another node holds the lock or acquisition times out according
- * to [options].
- *
- * ```kotlin
- * val future = dynamoDb.runAsyncIfLeader("nightly-job") {
- *     CompletableFuture.supplyAsync { rebuildIndex() }
- * }
- * ```
+ * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
  */
 fun <T> DynamoDbClient.runAsyncIfLeader(
     lockName: String,

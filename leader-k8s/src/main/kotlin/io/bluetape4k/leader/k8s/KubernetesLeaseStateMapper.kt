@@ -9,18 +9,16 @@ import java.time.Clock
 import java.time.Instant
 
 /**
- * Maps Kubernetes Lease snapshots into `leader-core` state values.
+ * `KubernetesLeaseStateMapper`는 Kubernetes Lease backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * ## Behavior / Contract
- * - Missing Lease, blank holder, and expired Lease map to [LeaderState.empty].
- * - Active Lease maps to [LeaderState.occupied].
- * - `LeaderLease.auditLeaderId` prefers the bluetape4k audit annotation and falls back to `spec.holderIdentity`.
- * - `LeaderLease.nodeId` comes from the bluetape4k node annotation when present.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 object KubernetesLeaseStateMapper {
 
     /**
-     * Converts a Kubernetes [Lease] into a best-effort [LeaderState].
+     * `map` 호출은 Kubernetes Lease backend leader election 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
      */
     fun map(
         lockName: String,

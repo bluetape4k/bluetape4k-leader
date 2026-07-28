@@ -22,7 +22,11 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import kotlin.time.Duration
 
 /**
- * Coroutine single-leader election backed by DynamoDB conditional writes.
+ * `DynamoDbSuspendLeaderElector`는 DynamoDB backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
+ *
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property dynamoDb DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options DynamoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class DynamoDbSuspendLeaderElector(
     private val dynamoDb: DynamoDbAsyncClient,

@@ -8,19 +8,11 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Options for Kubernetes Lease-backed group leader election.
+ * `KubernetesLeaseGroupOptions`는 Kubernetes Lease backend leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## Behavior / Contract
- * - [leaderGroupOptions] controls max leaders, wait time, lease duration, node identity, and minimum lease time.
- * - [namespace] stores one `coordination.k8s.io/v1` Lease per group slot.
- * - [retryDelay] bounds full-jitter retry sleeps after contention or Kubernetes resource-version conflicts.
- *
- * ```kotlin
- * val options = KubernetesLeaseGroupOptions(
- *     namespace = "operators",
- *     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 4),
- * )
- * ```
+ * @property leaderGroupOptions Kubernetes Lease backend 계약에서 `leaderGroupOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property namespace Kubernetes Lease backend 계약에서 `namespace` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property retryDelay Kubernetes Lease backend 계약에서 `retryDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class KubernetesLeaseGroupOptions(
     val leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -37,7 +29,7 @@ data class KubernetesLeaseGroupOptions(
 
     companion object {
         /**
-         * Default group options instance using namespace `default` and [LeaderGroupElectionOptions.Default].
+         * `Default` 값은 Kubernetes Lease backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
          */
         @JvmField
         val Default = KubernetesLeaseGroupOptions()

@@ -6,13 +6,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Caller-owned Consul HTTP endpoint configuration.
+ * `ConsulEndpoint`는 Consul backend leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## Behavior / Contract
- * - The endpoint is a bluetape4k-owned DTO; no third-party Consul client type is part of the public API.
- * - [baseUrl] must point to a Consul HTTP API endpoint such as `http://localhost:8500`.
- * - [aclToken] is optional and is sent as the Consul ACL token when supplied.
- * - The elector creates internal HTTP requests from this value but does not own or mutate external Consul lifecycle.
+ * @property baseUrl Consul backend 계약에서 `baseUrl` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property datacenter Consul backend 계약에서 `datacenter` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property aclToken Consul backend 계약에서 `aclToken` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property requestTimeout Consul backend 계약에서 `requestTimeout` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class ConsulEndpoint(
     val baseUrl: URI,

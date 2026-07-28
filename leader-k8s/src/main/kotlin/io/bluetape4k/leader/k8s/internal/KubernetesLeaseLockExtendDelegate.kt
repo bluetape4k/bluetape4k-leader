@@ -11,15 +11,10 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * Extend delegate for the Kubernetes Lease backend.
+ * `KubernetesLeaseLockExtendDelegate`는 Kubernetes Lease backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * ## Behavior / Contract
- *
- * Implements [SuspendExtendDelegate] so that [io.bluetape4k.leader.LeaderLeaseAutoExtender] selects
- * the suspend watchdog overload and dispatches all Fabric8 I/O into [Dispatchers.IO].
- *
- * The sync [extend] and [isHeld] overrides keep the blocking elector ([KubernetesLeaseLeaderElector])
- * functional without going through `runBlocking`.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property lock Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class KubernetesLeaseLockExtendDelegate(
     private val lock: KubernetesLeaseLock,

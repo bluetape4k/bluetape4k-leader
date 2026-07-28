@@ -11,15 +11,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Options for Consul-backed single-leader election.
+ * `ConsulLeaderElectionOptions`는 Consul backend leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## Behavior / Contract
- * - [leaderOptions] controls wait time, lease duration, node identity, minimum lease time, and auto-extension.
- * - Consul Session TTL requires `leaderOptions.leaseTime` in the range `[10.seconds, 86_400.seconds]`.
- * - [lockDelay] defaults to zero to keep scheduler-style skip/reacquire behavior predictable.
- * - A zero lock delay can overlap an old holder that is still running after TTL expiry; use idempotent actions or fencing
- *   tokens when duplicate execution is unsafe.
- * - Consul endpoint, ACL token, datacenter, and agent lifecycle are caller-owned through [ConsulEndpoint].
+ * @property leaderOptions Consul backend 계약에서 `leaderOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property keyPrefix Consul backend 계약에서 `keyPrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property sessionNamePrefix Consul backend 계약에서 `sessionNamePrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockDelay Consul backend 계약에서 `lockDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class ConsulLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -51,16 +48,12 @@ data class ConsulLeaderElectionOptions(
 }
 
 /**
- * Options for Consul-backed multi-leader group election.
+ * `ConsulLeaderGroupElectionOptions`는 Consul backend leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## Behavior / Contract
- * - [leaderGroupOptions] controls slot count, wait time, lease duration, node identity, and minimum lease time.
- * - Each group slot is a stable Consul KV key: `keyPrefix/group/{encodedLockName}/slot-{index}`.
- * - Consul Session TTL uses [LeaderGroupElectionOptions.leaseTime] and must be within Consul's TTL range.
- * - Session `Behavior=release` lets Consul release a slot after process crash or network loss once TTL expires.
- * - [lockDelay] defaults to zero. Use idempotent actions or external fencing when duplicate execution after TTL expiry
- *   is unsafe.
- * - Consul endpoint, ACL token, datacenter, and agent lifecycle are caller-owned through [ConsulEndpoint].
+ * @property leaderGroupOptions Consul backend 계약에서 `leaderGroupOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property keyPrefix Consul backend 계약에서 `keyPrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property sessionNamePrefix Consul backend 계약에서 `sessionNamePrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockDelay Consul backend 계약에서 `lockDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class ConsulLeaderGroupElectionOptions(
     val leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -69,7 +62,9 @@ data class ConsulLeaderGroupElectionOptions(
     val lockDelay: Duration = Duration.ZERO,
 ) : Serializable {
 
-    /** Maximum number of concurrent leaders allowed. */
+    /**
+     * `maxLeaders` 값은 Consul backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val maxLeaders: Int get() = leaderGroupOptions.maxLeaders
 
     init {

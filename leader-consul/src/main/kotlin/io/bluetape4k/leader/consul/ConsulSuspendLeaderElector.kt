@@ -34,20 +34,11 @@ import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Coroutine-native single-leader election backed by Consul Sessions and KV acquire/release.
+ * `ConsulSuspendLeaderElector`는 Consul backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * ## Behavior / Contract
- * - Normal contention returns `null`; action exceptions are propagated.
- * - Cancellation is rethrown after best-effort release and session destroy in [NonCancellable] cleanup.
- * - Consul Session TTL is derived from [ConsulLeaderElectionOptions.leaderOptions].
- * - The supplied [endpoint] is caller-owned configuration. This elector owns only its internal HTTP boundary.
- *
- * ```kotlin
- * val elector = ConsulSuspendLeaderElector(ConsulEndpoint("http://localhost:8500"))
- * val result = elector.runIfLeader("partition-leader") {
- *     processPartition()
- * }
- * ```
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property lockClient Consul backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Consul backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class ConsulSuspendLeaderElector private constructor(
     private val lockClient: ConsulLockClient,
@@ -97,11 +88,9 @@ class ConsulSuspendLeaderElector private constructor(
     }
 
     /**
-     * Returns a best-effort Consul KV state snapshot.
+     * `state` 호출은 Consul backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * This method follows the synchronous [io.bluetape4k.leader.LeaderElectionState] contract and blocks
-     * up to the endpoint request timeout while reading Consul. Avoid calling it on a latency-sensitive
-     * coroutine dispatcher.
+     * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
      */
     override fun state(lockName: String): LeaderState {
         val key = lockClient.singleLockKey(lockName)
@@ -284,12 +273,9 @@ private fun remainingMillis(deadlineNanos: Long): Long =
     ((deadlineNanos - System.nanoTime()).coerceAtLeast(0L) / 1_000_000L).coerceAtLeast(1L)
 
 /**
- * Runs [action] only when this Consul endpoint acquires the leader lock in a coroutine.
+ * `선언` 호출은 Consul backend leader election 계약의 일부 동작을 수행합니다.
  *
- * ## Behavior / Contract
- * - Returns `null` on normal contention.
- * - Propagates exceptions and coroutine cancellation from [action].
- * - The endpoint is caller-owned; this helper creates a short-lived elector for one call.
+ * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
  */
 suspend fun <T> ConsulEndpoint.suspendRunIfLeader(
     lockName: String,

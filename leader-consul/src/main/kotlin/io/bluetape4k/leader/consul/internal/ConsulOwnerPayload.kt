@@ -3,6 +3,16 @@ package io.bluetape4k.leader.consul.internal
 import io.bluetape4k.leader.LeaderLease
 import java.time.Instant
 
+/**
+ * `ConsulOwnerPayload`는 Consul backend의 lease, session/TTL, owner 검증 상태를 보존하는 내부 data class입니다.
+ *
+ * backend의 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 유지합니다.
+ * @property ownerToken Consul backend 계약에서 `ownerToken` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property auditLeaderId Consul backend 계약에서 `auditLeaderId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property nodeId Consul backend 계약에서 `nodeId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property electedAt Consul backend 계약에서 `electedAt` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaseUntil Consul backend 계약에서 `leaseUntil` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 internal data class ConsulOwnerPayload(
     val ownerToken: String,
     val auditLeaderId: String,

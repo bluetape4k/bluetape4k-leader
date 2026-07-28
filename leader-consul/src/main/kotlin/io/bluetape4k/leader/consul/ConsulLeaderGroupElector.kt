@@ -32,16 +32,11 @@ import java.util.concurrent.Executor
 import java.util.concurrent.ThreadLocalRandom
 
 /**
- * Blocking and async Consul multi-leader election backed by fixed KV slot keys and Consul Sessions.
+ * `ConsulLeaderGroupElector`는 Consul backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * ## Behavior / Contract
- * - At most [maxLeaders] actions run concurrently per `lockName`.
- * - Normal full-group contention returns `null`; action exceptions are propagated or reported by result APIs.
- * - Slots are stable KV keys: `keyPrefix/group/{encodedLockName}/slot-{index}`.
- * - Consul Session TTL is derived from [ConsulLeaderGroupElectionOptions.leaderGroupOptions].
- * - A crashed process releases its slot when Consul expires the session; until then, another contender skips or waits.
- * - State snapshots are best-effort: a slot with invalid owner payload is treated as unknown and is not counted.
- * - The supplied [endpoint] is caller-owned configuration. This elector owns only its internal HTTP boundary.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property lockClient Consul backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Consul backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class ConsulLeaderGroupElector private constructor(
     private val lockClient: ConsulLockClient,
@@ -364,7 +359,9 @@ private fun Throwable?.unwrapCompletionException(): Throwable? =
     if (this is CompletionException && cause != null) cause else this
 
 /**
- * Runs [action] only when this Consul endpoint acquires a group leader slot.
+ * `선언` 호출은 Consul backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
  */
 fun <T> ConsulEndpoint.runIfLeaderGroup(
     lockName: String,
@@ -373,7 +370,9 @@ fun <T> ConsulEndpoint.runIfLeaderGroup(
 ): T? = ConsulLeaderGroupElector(this, options).runIfLeader(lockName, action)
 
 /**
- * Runs [action] asynchronously only when this Consul endpoint acquires a group leader slot.
+ * `선언` 호출은 Consul backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
  */
 fun <T> ConsulEndpoint.runAsyncIfLeaderGroup(
     lockName: String,

@@ -29,19 +29,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Coroutine group leader election backed by one Kubernetes Lease per group slot.
+ * `KubernetesLeaseSuspendLeaderGroupElector`는 Kubernetes Lease backend의 lease, ownership 확인, session/TTL 정리를 담당합니다.
  *
- * ## Behavior / Contract
- * - Fabric8 client calls are wrapped in [Dispatchers.IO].
- * - Cancellation is rethrown after owner-conditional slot release in a [NonCancellable] cleanup section.
- * - The supplied [KubernetesClient] is caller-owned and is never closed by this elector.
- *
- * ```kotlin
- * val election = KubernetesLeaseSuspendLeaderGroupElector(client)
- * election.runIfLeader("partition-worker") {
- *     processPartitionSuspend()
- * }
- * ```
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property clock Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class KubernetesLeaseSuspendLeaderGroupElector @JvmOverloads constructor(
     private val client: KubernetesClient,
@@ -226,7 +219,9 @@ class KubernetesLeaseSuspendLeaderGroupElector @JvmOverloads constructor(
 }
 
 /**
- * Runs [action] only when this client acquires one Kubernetes Lease group slot in a coroutine.
+ * `선언` 호출은 Kubernetes Lease backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lease`, `session`, `TTL`, `owner`, `annotation`, `cleanup` 용어는 backend 계약과 동일하게 유지합니다.
  */
 suspend fun <T> KubernetesClient.suspendRunIfLeaderGroup(
     lockName: String,
