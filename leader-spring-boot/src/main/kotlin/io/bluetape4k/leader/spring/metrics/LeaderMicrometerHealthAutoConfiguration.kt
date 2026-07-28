@@ -13,26 +13,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Role
 
 /**
- * Leader AOP Micrometer HealthIndicator AutoConfiguration.
- *
- * Automatically registers [LeaderMetricsHealthIndicator] with the Spring Boot Actuator health endpoint
- * when a `MicrometerLeaderAopMetricsRecorder` bean is registered.
- *
- * ## AutoConfig Order
- * ```
- * LeaderMicrometerAutoConfiguration  ← registers MicrometerLeaderAopMetricsRecorder
- *   ↓
- * LeaderMicrometerHealthAutoConfiguration  ← this class (registers LeaderMetricsHealthIndicator)
- * ```
- *
- * ## Disabling
- * ```yaml
- * bluetape4k:
- *   leader:
- *     aop:
- *       metrics:
- *         enabled: false   # also disables the HealthIndicator
- * ```
+ * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
  */
 @AutoConfiguration(after = [LeaderMicrometerAutoConfiguration::class])
 @ConditionalOnClass(
@@ -51,8 +32,9 @@ import org.springframework.context.annotation.Role
 class LeaderMicrometerHealthAutoConfiguration {
 
     /**
-     * Automatically registers [LeaderMetricsHealthIndicator] only when a `MeterRegistry` bean is present
-     * and the user has not registered a [LeaderMetricsHealthIndicator] directly.
+     * `leaderMetricsHealthIndicator` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     @Bean("leaderMetricsHealthIndicator")
     @ConditionalOnMissingBean(name = ["leaderMetricsHealthIndicator"])

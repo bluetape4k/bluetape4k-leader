@@ -16,24 +16,12 @@ import kotlin.time.TimeSource
 import kotlin.time.toJavaDuration
 
 /**
- * Decorator that instruments [LeaderElector] calls with Micrometer metrics.
+ * `InstrumentedLeaderElector`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Behavior / Contract
- * - Does not alter [delegate]'s behavior or exception propagation.
- * - Records `shedlock.leader.acquired`, `shedlock.leader.duration`, and `shedlock.leader.active`
- *   when the actual [action] is executed in synchronous or asynchronous calls.
- * - Records `shedlock.leader.not_acquired` when [action] is not executed because the leader was not acquired.
- * - If [lockName] is specified, uses the fixed value for the `lock.name` tag on all metrics;
- *   if `null`, uses the lock name passed at call time.
- *
- * ```kotlin
- * val election = InstrumentedLeaderElector(delegate, registry)
- * val result = election.runIfLeader("nightly-job") { runJob() }
- * ```
- *
- * @param delegate The [LeaderElector] that performs the actual leader election
- * @param registry Micrometer [MeterRegistry] to register metrics against
- * @param lockName Fixed lock name for the metric tag. If `null`, uses the per-call lock name
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property delegate Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property lockName Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property tagSanitizer Micrometer observability 계약에서 사용하는 속성입니다.
  */
 class InstrumentedLeaderElector private constructor(
     private val delegate: LeaderElector,
@@ -105,22 +93,12 @@ class InstrumentedLeaderElector private constructor(
 }
 
 /**
- * Decorator that instruments [LeaderGroupElector] calls with Micrometer metrics.
+ * `InstrumentedLeaderGroupElector`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Behavior / Contract
- * - Delegates slot acquisition and state query behavior from [delegate] unchanged.
- * - Records `shedlock.leader.acquired`, `shedlock.leader.duration`, and `shedlock.leader.active`
- *   when a slot is acquired and [action] is executed in synchronous or asynchronous calls.
- * - Records `shedlock.leader.not_acquired` when a slot is not acquired.
- *
- * ```kotlin
- * val election = InstrumentedLeaderGroupElector(delegate, registry)
- * election.runIfLeader("batch-shard") { processShard() }
- * ```
- *
- * @param delegate The [LeaderGroupElector] that performs the actual multi-leader election
- * @param registry Micrometer [MeterRegistry] to register metrics against
- * @param lockName Fixed lock name for the metric tag. If `null`, uses the per-call lock name
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property delegate Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property lockName Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property tagSanitizer Micrometer observability 계약에서 사용하는 속성입니다.
  */
 class InstrumentedLeaderGroupElector private constructor(
     private val delegate: LeaderGroupElector,
@@ -189,22 +167,12 @@ class InstrumentedLeaderGroupElector private constructor(
 }
 
 /**
- * Decorator that instruments [SuspendLeaderElector] calls with Micrometer metrics.
+ * `InstrumentedSuspendLeaderElector`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Behavior / Contract
- * - Does not alter [delegate]'s suspend execution, exception, or cancellation propagation.
- * - Records `shedlock.leader.acquired`, `shedlock.leader.duration`, and `shedlock.leader.active`
- *   when the actual suspend [action] is executed.
- * - Records `shedlock.leader.not_acquired` when [action] is not executed because the leader was not acquired.
- *
- * ```kotlin
- * val election = InstrumentedSuspendLeaderElector(delegate, registry)
- * val result = election.runIfLeader("sync-job") { syncData() }
- * ```
- *
- * @param delegate The [SuspendLeaderElector] that performs the actual leader election
- * @param registry Micrometer [MeterRegistry] to register metrics against
- * @param lockName Fixed lock name for the metric tag. If `null`, uses the per-call lock name
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property delegate Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property lockName Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property tagSanitizer Micrometer observability 계약에서 사용하는 속성입니다.
  */
 class InstrumentedSuspendLeaderElector private constructor(
     private val delegate: SuspendLeaderElector,

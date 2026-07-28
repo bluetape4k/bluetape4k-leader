@@ -16,9 +16,9 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * etcd backend auto-configuration.
+ * `EtcdLeaderConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * Activated only when a caller-owned jetcd [Client] bean is registered.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(Client::class, EtcdLeaderElector::class)

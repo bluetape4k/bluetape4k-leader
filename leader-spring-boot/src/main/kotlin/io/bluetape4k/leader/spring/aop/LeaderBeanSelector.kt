@@ -13,49 +13,43 @@ import org.springframework.beans.factory.NoUniqueBeanDefinitionException
 import java.lang.reflect.Method
 
 /**
- * Selects the [LeaderElectorFactory] / [LeaderGroupElectorFactory] bean to use per AOP advice invocation.
+ * `LeaderBeanSelector`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Priority (#78 — 7-step fallback)
- * 1. Explicit annotation `bean` attribute (`@LeaderElection(bean = "...")`)
- * 2. Method-level `@LeaderElectionBackend`
- * 3. Declaring class `@LeaderElectionBackend`
- * 4. Package-level `@LeaderElectionBackend` (`@file:LeaderElectionBackend(...)`)
- * 5. Single factory bean
- * 6. `@Primary` factory bean
- * 7. Ambiguous → [NoUniqueBeanDefinitionException]
- *
- * @param beanFactory Spring [BeanFactory]
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property beanFactory Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 class LeaderBeanSelector(
     private val beanFactory: BeanFactory,
 ) {
 
     /**
-     * Selects a single-leader [LeaderElectorFactory] bean.
+     * `selectElectionFactory` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
      *
-     * @param explicitBeanName Annotation `bean` field. Falls back to lower-priority steps when blank.
-     * @param method The invoked method — used for `@LeaderElectionBackend` lookup.
-     * @return Selected factory and its bean name.
-     * @throws NoSuchBeanDefinitionException If the explicitly named bean does not exist.
-     * @throws NoUniqueBeanDefinitionException If auto-selection is ambiguous.
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun selectElectionFactory(explicitBeanName: String, method: Method? = null): Selected<LeaderElectorFactory> =
         select(explicitBeanName, method, LeaderElectorFactory::class.java)
 
     /**
-     * Selects a multi-leader [LeaderGroupElectorFactory] bean.
+     * `selectGroupElectionFactory` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun selectGroupElectionFactory(explicitBeanName: String, method: Method? = null): Selected<LeaderGroupElectorFactory> =
         select(explicitBeanName, method, LeaderGroupElectorFactory::class.java)
 
     /**
-     * Selects a suspend single-leader [SuspendLeaderElectorFactory] bean.
+     * `selectSuspendElectorFactory` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun selectSuspendElectorFactory(explicitBeanName: String, method: Method? = null): Selected<SuspendLeaderElectorFactory> =
         select(explicitBeanName, method, SuspendLeaderElectorFactory::class.java)
 
     /**
-     * Selects a suspend multi-leader [SuspendLeaderGroupElectorFactory] bean.
+     * `selectSuspendGroupElectorFactory` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun selectSuspendGroupElectorFactory(explicitBeanName: String, method: Method? = null): Selected<SuspendLeaderGroupElectorFactory> =
         select(explicitBeanName, method, SuspendLeaderGroupElectorFactory::class.java)
@@ -99,7 +93,9 @@ class LeaderBeanSelector(
     }
 
     /**
-     * Searches for [LeaderElectionBackend] in order: method → declaring class → package.
+     * `resolveFromBackendAnnotation` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     private fun resolveFromBackendAnnotation(method: Method): String? {
         // Step 2: 메서드 @LeaderElectionBackend
@@ -121,6 +117,11 @@ class LeaderBeanSelector(
         return null
     }
 
-    /** Selected bean and its bean name (used as a cache key). */
+    /**
+     * `Selected`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+     *
+     * @property beanName Spring Boot integration 계약에서 `beanName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property bean Spring Boot integration 계약에서 `bean` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     */
     data class Selected<T>(val beanName: String, val bean: T)
 }

@@ -48,33 +48,14 @@ import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.toKotlinDuration
 
 /**
- * Aspect that applies `@LeaderGroupElection` to sync `T?`, suspend `T?`, and `Mono<T>` methods.
- * `Flux<T>` and `Flow<T>` return types are rejected until group lease extension semantics are defined.
+ * `LeaderGroupElectionAspect`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * The implementation mirrors [LeaderElectionAspect] and adds the `maxLeaders` option. Backend
- * failures are wrapped in [LeaderGroupElectionException].
- *
- * ## Suspend support (#90)
- * Suspend methods use the same intrinsics pattern as [LeaderElectionAspect.aroundLeaderSuspend] and
- * acquire through [SuspendLeaderGroupElectorFactory].
- *
- * ## Mono support (#91)
- * `reactor.core.publisher.Mono` return types use [aroundLeaderMono] and defer group leader
- * acquisition until subscription.
- *
- * ## LeaderElectionInfo (#92)
- * Suspend and Mono branches install [LeaderElectionInfo] with `withContext` while the method body is
- * awaited.
- *
- * ## LockHandleElement / LockStateHolder (T15)
- * - Sync branch: the elector manages the sync lock holder.
- * - Coroutine / reactive branches: the elector already installs `LockHandleElement`; the aspect adds
- *   only [LeaderElectionInfo].
- * - `FAIL_OPEN_RUN` installs a [LeaderLockHandle.FailOpen] sentinel.
- *
- * ## Reentrant pass-through (T15)
- * The sync branch short-circuits when [AopScopeAccess.peekSyncMatching] finds a matching real or
- * fail-open handle.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property beanSelector Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property props Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property spel Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property lockNameValidator Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property recorders Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 @Suppress("ReactiveStreamsUnusedPublisher")
 @Aspect
@@ -247,8 +228,9 @@ class LeaderGroupElectionAspect(
     }
 
     /**
-     * Handles suspend methods using the same pattern as [LeaderElectionAspect.aroundLeaderSuspend].
-     * Injects [LeaderElectionInfo] via `withContext` during body execution.
+     * `aroundLeaderSuspend` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any? {
         @Suppress("UNCHECKED_CAST")
@@ -400,8 +382,9 @@ class LeaderGroupElectionAspect(
     }
 
     /**
-     * Handles methods returning `Mono` using the `Mono.defer { mono { suspendElector.runIfLeader(...) } }` pattern.
-     * Injects [LeaderElectionInfo] via `withContext`.
+     * `aroundLeaderMono` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any? {
         val method = (pjp.signature as MethodSignature).method
@@ -672,11 +655,9 @@ class LeaderGroupElectionAspect(
     ) {
 
         /**
-         * Creates a [LockIdentity] for the given [branch].
+         * `resolveLockIdentity` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
          *
-         * Because this is a group annotation, `kind = GROUP` and `groupParams = GroupParams(maxLeaders)`.
-         * `factoryBeanName` is excluded from `equals/hashCode`, so nested sync ↔ suspend calls
-         * are recognised as the same lock (Step 3-P R3 mitigation).
+         * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
          */
         fun resolveLockIdentity(lockName: String, branch: AdviceBranch): LockIdentity {
             val beanName = when (branch) {

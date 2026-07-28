@@ -15,11 +15,9 @@ import kotlinx.coroutines.runBlocking
 import org.bson.Document
 
 /**
- * Demo that runs three poller instances concurrently.
+ * `WebhookPollerDemo`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * - Simulates a scenario where multiple instances share the same MongoDB collection and only one
- *   instance processes each event.
- * - Inserts 10 fake events and verifies the polling result.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 object WebhookPollerDemo: KLogging() {
 

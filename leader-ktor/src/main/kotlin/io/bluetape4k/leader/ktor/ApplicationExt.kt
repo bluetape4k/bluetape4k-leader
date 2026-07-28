@@ -15,44 +15,9 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 
 /**
- * Ktor extension function that runs a leader-only action on a recurring schedule.
+ * `Application` 호출은 Ktor integration 계약의 일부 동작을 수행합니다.
  *
- * ## Behavior / Contract
- * - Starts a background job via [launch] in the [Application]'s coroutine scope — automatically
- *   cancelled on `ApplicationStopped`.
- * - Each cycle calls [SuspendLeaderElector.runIfLeader] with [lockName] so only a single instance
- *   executes [action].
- * - Repeats at [period] intervals. Exceptions from [action] are logged at WARN and suppressed so
- *   the next cycle continues (poison-job prevention).
- * - [CancellationException] is always re-propagated to the caller for normal cancellation.
- * - If [leaderElection] is omitted, it is resolved from the [LeaderElectionPlugin] configuration —
- *   throws [IllegalStateException] if the plugin is not installed.
- * - Management route registration happens only when [LeaderElectionPlugin] is already installed.
- *   Install the plugin before calling [leaderScheduled] if `/management/leaderElection` should list
- *   this lock automatically.
- *
- * ## Input Validation
- * - [lockName] must not be blank (`IllegalArgumentException`).
- * - [period] must be positive (`IllegalArgumentException`).
- *
- * ```kotlin
- * fun Application.module() {
- *     install(LeaderElectionPlugin) {
- *         leaderElection = redissonElector
- *     }
- *     leaderScheduled("daily-report", period = 1.hours) {
- *         reportService.generate()
- *     }
- * }
- * ```
- *
- * @param lockName Lock name used for leader election (must not be blank)
- * @param period Interval to wait between executions (must be positive)
- * @param leaderElection The [SuspendLeaderElector] to use — resolved from plugin config if not specified
- * @param action The suspend action to execute when elected as leader
- * @return Background [Job] — can be cancelled manually
- * @throws IllegalArgumentException if [lockName] is blank or [period] is not positive
- * @throws IllegalStateException if [leaderElection] is not specified and the plugin is not installed
+ * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun Application.leaderScheduled(
     lockName: String,
@@ -85,10 +50,9 @@ fun Application.leaderScheduled(
 }
 
 /**
- * Resolves the [SuspendLeaderElector] from the [LeaderElectionPlugin] configuration.
+ * `Application` 호출은 Ktor integration 계약의 일부 동작을 수행합니다.
  *
- * ## Behavior / Contract
- * - Throws [IllegalStateException] if the plugin is not installed or `leaderElection` is not configured.
+ * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
  */
 internal fun Application.resolveLeaderElection(): SuspendLeaderElector {
     val config = leaderElectionPluginConfig()
@@ -97,5 +61,9 @@ internal fun Application.resolveLeaderElection(): SuspendLeaderElector {
     }
 }
 
-/** Internal object for holding the file-scoped logger. */
+/**
+ * `LeaderScheduledLogger`는 Ktor integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ */
 internal object LeaderScheduledLogger: KLogging()

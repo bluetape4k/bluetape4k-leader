@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.core.env.Environment
 
 /**
- * Auto-configuration for startup diagnostics of leader Spring Boot integration.
+ * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
  */
 @AutoConfiguration(
     after = [

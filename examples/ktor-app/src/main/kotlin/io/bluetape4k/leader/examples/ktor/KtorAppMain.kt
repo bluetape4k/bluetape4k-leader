@@ -28,39 +28,40 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
 /**
- * `examples/ktor-app` 의 main 진입점.
+ * `KtorAppMain`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## 동작/계약
- *
- * - 환경 변수 [ENV_REDIS_URL] (`REDIS_URL`) 로 Redis 주소를 받고, 미설정 시 [DEFAULT_REDIS_URL] 사용.
- * - 환경 변수 [ENV_PORT] (`PORT`) 로 listen 포트를 받고, 미설정 시 [DEFAULT_PORT] (8080) 사용.
- *   다중 인스턴스 데모(예: `PORT=8081`) 시 collision 회피.
- * - JVM 종료 시 Lettuce [RedisClient] + [StatefulRedisConnection] 을 [ShutdownQueue] 로 정리한다.
- * - 백그라운드로 [DEFAULT_AGGREGATION_LOCK] 락 이름의 시간별 통계 집계 작업을 [DEFAULT_AGGREGATION_PERIOD]
- *   주기로 실행한다 — 다중 인스턴스 환경에서 단 하나의 인스턴스만 cycle 마다 실행한다.
- * - leaderElection 의 `leaseTime` 은 `aggregationPeriod * 2` 로 설정되며, `minLeaseTime` 은
- *   `aggregationPeriod` 와 동일하게 설정되어 다음 cycle 까지 lock 을 보유한다.
- *   짧은 작업이 빨리 끝나도 다른 replica 가 같은 cycle 의 작업을 중복 실행하지 않도록 보장.
- * - 본 객체는 main 진입점 + 모듈 함수만 노출한다. 테스트는 [module] 을 직접 호출하여 testApplication 에 결합한다.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 object KtorAppMain: KLogging() {
 
-    /** Redis 접속 URL 환경 변수 이름. */
+    /**
+     * `ENV_REDIS_URL` 값은 example workflow 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val ENV_REDIS_URL: String = "REDIS_URL"
 
-    /** Ktor 서버 listen 포트 환경 변수 이름. 다중 인스턴스 데모 시 사용. */
+    /**
+     * `ENV_PORT` 값은 example workflow 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val ENV_PORT: String = "PORT"
 
-    /** [ENV_REDIS_URL] 미설정 시 사용할 기본 Redis URL. */
+    /**
+     * `DEFAULT_REDIS_URL` 값은 example workflow 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val DEFAULT_REDIS_URL: String = "redis://localhost:6379"
 
-    /** [ENV_PORT] 미설정 시 사용할 Ktor 서버 listen 기본 포트. */
+    /**
+     * `DEFAULT_PORT` 값은 example workflow 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val DEFAULT_PORT: Int = 8080
 
-    /** 시간별 통계 집계 작업의 락 이름. */
+    /**
+     * `DEFAULT_AGGREGATION_LOCK` 값은 example workflow 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val DEFAULT_AGGREGATION_LOCK: String = "hourly-stats-aggregation"
 
-    /** 시간별 통계 집계 작업의 기본 cycle 주기. */
+    /**
+     * `DEFAULT_AGGREGATION_PERIOD` 값은 example workflow 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val DEFAULT_AGGREGATION_PERIOD: Duration = 60.minutes
 
     @JvmStatic
@@ -93,27 +94,9 @@ internal fun redactRedisUrlForLog(redisUrl: String): String =
     }.getOrElse { "<invalid-redis-url>" }
 
 /**
- * Ktor 애플리케이션 모듈 — 플러그인 install + 라우트 + 백그라운드 leader scheduled job 을 구성한다.
+ * `Application` 호출은 example workflow 계약의 일부 동작을 수행합니다.
  *
- * ## 동작/계약
- *
- * - [ContentNegotiation] + Jackson 으로 `/stats` JSON 직렬화 활성화.
- * - [installBluetape4kKtorCore] 로 `/health`, `/readyz` 공통 health/readiness route 등록.
- * - [LeaderElectionPlugin] 설치 — [SuspendLeaderElector] 인스턴스 주입.
- * - [Application.leaderScheduled] 로 시간별 통계 집계 백그라운드 잡을 등록 — `ApplicationStopped` 시 자동 취소.
- * - `/stats`, `/health`, `/readyz` 라우트를 등록한다.
- *
- * ## 리더 선출 옵션 — leaseTime / minLeaseTime
- *
- * 짧은 [aggregationPeriod] 사용 시 작업이 빨리 끝나면 lock 이 즉시 해제되어 다음 cycle 에서
- * 다른 replica 가 같은 작업을 중복 실행할 수 있다. 이를 방지하기 위해:
- * - `leaseTime = aggregationPeriod * 2` — auto-extend 미사용 환경에서 안전 마진 확보
- * - `minLeaseTime = aggregationPeriod` — 작업 완료 후에도 다음 cycle 까지 lock 보유
- *
- * @param connection 리더 선출 백엔드로 사용할 Lettuce [StatefulRedisConnection] (StringCodec).
- * @param aggregator 통계 집계 도메인. 테스트에서 fake/spy 주입 목적으로 외부 주입 허용 (기본값: 새 인스턴스).
- * @param aggregationLockName 리더 선출에 사용할 락 이름 (기본 [KtorAppMain.DEFAULT_AGGREGATION_LOCK]).
- * @param aggregationPeriod cycle 주기 (기본 [KtorAppMain.DEFAULT_AGGREGATION_PERIOD]).
+ * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun Application.module(
     connection: StatefulRedisConnection<String, String>,

@@ -5,21 +5,11 @@ import java.time.Duration
 import kotlin.time.toKotlinDuration
 
 /**
- * Auto-configuration properties for leader election.
+ * `LeaderElectionProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ```yaml
- * leader:
- *   wait-time: 5s
- *   lease-time: 60s
- *   group:
- *     max-leaders: 3
- *     wait-time: 5s
- *     lease-time: 60s
- * ```
- *
- * @property waitTime Maximum time to wait for leader acquisition. Default 5 seconds
- * @property leaseTime Maximum time to hold (lease) the leader role. Default 60 seconds
- * @property group Properties for multi-leader group election
+ * @property waitTime Spring Boot integration 계약에서 `waitTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaseTime Spring Boot integration 계약에서 `leaseTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property group Spring Boot integration 계약에서 `group` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class LeaderElectionProperties(
     val waitTime: Duration = DefaultWaitTime,

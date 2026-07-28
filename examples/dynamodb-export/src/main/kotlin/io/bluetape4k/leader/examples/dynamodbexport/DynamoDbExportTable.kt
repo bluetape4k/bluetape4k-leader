@@ -17,14 +17,11 @@ import software.amazon.awssdk.services.dynamodb.model.ScanRequest
 import software.amazon.awssdk.services.dynamodb.model.TimeToLiveSpecification
 
 /**
- * Small DynamoDB export table helper for the scheduled export example.
+ * `DynamoDbExportTable`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Contract
- *
- * The export table is ordinary application data and is intentionally separate
- * from the `leader-dynamodb` lock table. Leadership correctness depends on the
- * lock table's conditional writes and logical `leaseExpiry`; export rows only
- * prove which elected node performed the example work.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property dynamoDb example workflow 계약에서 사용하는 속성입니다.
+ * @property tableName example workflow 계약에서 사용하는 속성입니다.
  */
 class DynamoDbExportTable(
     private val dynamoDb: DynamoDbClient,

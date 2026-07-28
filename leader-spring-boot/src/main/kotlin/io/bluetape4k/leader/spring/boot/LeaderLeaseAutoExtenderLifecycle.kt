@@ -8,21 +8,11 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * Manages the [LeaderLeaseAutoExtender] lifecycle within a Spring application context.
+ * `LeaderLeaseAutoExtenderLifecycle`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Behavior / Contract
- * - [afterPropertiesSet]: registers this instance (once) with the JVM-scoped ref-count and calls
- *   [LeaderLeaseAutoExtender.restart] so the shared scheduler is running. Repeated calls on the
- *   same instance are idempotent — the global counter is incremented at most once per instance.
- * - [destroy]: unregisters this instance (once) and calls [LeaderLeaseAutoExtender.shutdown]
- *   **only when the last active context closes**. Repeated calls on the same instance are
- *   no-ops, preventing counter underflow.
- *
- * ## Ref-counting
- * The [activeContextCount] companion-object counter tracks how many `ApplicationContext`s currently
- * hold a live `LeaderLeaseAutoExtenderLifecycle` bean. Each instance contributes exactly 1 to the
- * count regardless of how many times its lifecycle callbacks are invoked. The [lifecycleLock] guards
- * the register/unregister sequences so that concurrent calls cannot produce a spurious zero.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property watchdogThreads Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property watchdogAsyncExtend Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 class LeaderLeaseAutoExtenderLifecycle(
     private val watchdogThreads: Int? = null,

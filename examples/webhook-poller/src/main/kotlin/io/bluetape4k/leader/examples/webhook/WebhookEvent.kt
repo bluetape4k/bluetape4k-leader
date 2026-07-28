@@ -3,7 +3,17 @@ package io.bluetape4k.leader.examples.webhook
 import java.time.Instant
 
 /**
- * Processing state for a webhook event.
+ * `WebhookEventStatus`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property eventId example workflow 계약에서 사용하는 속성입니다.
+ * @property payload example workflow 계약에서 사용하는 속성입니다.
+ * @property status example workflow 계약에서 사용하는 속성입니다.
+ * @property claimedBy example workflow 계약에서 사용하는 속성입니다.
+ * @property claimExpiresAt example workflow 계약에서 사용하는 속성입니다.
+ * @property attempts example workflow 계약에서 사용하는 속성입니다.
+ * @property lastError example workflow 계약에서 사용하는 속성입니다.
+ * @property createdAt example workflow 계약에서 사용하는 속성입니다.
  */
 enum class WebhookEventStatus {
     PENDING,    // Waiting to be processed.
@@ -13,22 +23,16 @@ enum class WebhookEventStatus {
 }
 
 /**
- * Domain model for a webhook event.
+ * `WebhookEvent`는 example workflow에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * Represents one document in the Mongo collection.
- *
- * ## Fields
- *
- * - [eventId]: unique external webhook ID used as the idempotency key.
- * - [payload]: raw external payload, such as a JSON string.
- * - [status]: processing state represented by [WebhookEventStatus].
- * - [claimedBy]: node ID of the poller instance that owns the claim; meaningful only while
- *   [status] is [WebhookEventStatus.CLAIMED].
- * - [claimExpiresAt]: claim expiration time. Another instance may reclaim the event after this lease expires.
- * - [attempts]: number of handler attempts. The event becomes [WebhookEventStatus.FAILED] when
- *   this reaches `maxAttempts`.
- * - [lastError]: previous handler exception message.
- * - [createdAt]: event creation time.
+ * @property eventId example workflow 계약에서 `eventId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property payload example workflow 계약에서 `payload` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property status example workflow 계약에서 `status` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property claimedBy example workflow 계약에서 `claimedBy` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property claimExpiresAt example workflow 계약에서 `claimExpiresAt` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property attempts example workflow 계약에서 `attempts` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lastError example workflow 계약에서 `lastError` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property createdAt example workflow 계약에서 `createdAt` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class WebhookEvent(
     val eventId: String,

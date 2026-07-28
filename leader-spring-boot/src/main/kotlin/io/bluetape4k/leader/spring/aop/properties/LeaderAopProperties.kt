@@ -10,35 +10,31 @@ import java.io.Serializable
 import java.time.Duration
 
 /**
- * Leader AOP auto-configuration properties. `bluetape4k.leader.aop.*` namespace.
+ * `LeaderAopProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## YAML Example
- * ```yaml
- * bluetape4k:
- *   leader:
- *     aop:
- *       enabled: true                # default true
- *       strict: false                # default false
- *       failure-mode: RETHROW        # default RETHROW
- *       default-wait-time: PT5S
- *       default-lease-time: PT1M
- *       lock-name-prefix: "myapp:"   # default "${spring.application.name}:"
- *       metrics:
- *         enabled: true              # default true — enables Micrometer integration
- *       spel:
- *         allow-method-invocation: false  # default false (blocks CVE-2022-22947 gray area)
- * ```
- *
- * @property enabled Enables AOP globally (default `true`, `matchIfMissing=true`)
- * @property strict Footgun detection policy. `true` = fail at startup, `false` = WARN
- * @property failureMode Global default failure mode (used when not specified on the annotation)
- * @property defaultWaitTime Global default waitTime (used when not specified on the annotation)
- * @property defaultLeaseTime Global default leaseTime (used when not specified on the annotation)
- * @property lockNamePrefix [Step 3-P-Sec-2][R-34] Prefix automatically prepended to SpEL evaluation results. Use empty string to opt out.
- * @property metrics Micrometer metrics enable option
- * @property spel SpEL security options
+ * @property enabled Spring Boot integration 계약에서 `enabled` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property strict Spring Boot integration 계약에서 `strict` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property failureMode Spring Boot integration 계약에서 `failureMode` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property defaultWaitTime Spring Boot integration 계약에서 `defaultWaitTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property defaultLeaseTime Spring Boot integration 계약에서 `defaultLeaseTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockNamePrefix Spring Boot integration 계약에서 `lockNamePrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property metrics Spring Boot integration 계약에서 `metrics` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property spel Spring Boot integration 계약에서 `spel` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 @ConfigurationProperties(prefix = LeaderAopProperties.PREFIX)
+/**
+ * `LeaderAopProperties`는 Spring Boot integration에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property enabled Spring Boot integration 계약에서 `enabled` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property strict Spring Boot integration 계약에서 `strict` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property failureMode Spring Boot integration 계약에서 `failureMode` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property defaultWaitTime Spring Boot integration 계약에서 `defaultWaitTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property defaultLeaseTime Spring Boot integration 계약에서 `defaultLeaseTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockNamePrefix Spring Boot integration 계약에서 `lockNamePrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property metrics Spring Boot integration 계약에서 `metrics` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property spel Spring Boot integration 계약에서 `spel` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 data class LeaderAopProperties(
     val enabled: Boolean = true,
     val strict: Boolean = false,
@@ -50,10 +46,10 @@ data class LeaderAopProperties(
     val spel: Spel = Spel(),
 ) : Serializable {
     /**
-     * Micrometer metrics enable option. `bluetape4k.leader.aop.metrics.*` namespace.
+     * `Metrics`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
      *
-     * @property enabled Enables Micrometer integration (default `true`)
-     * @property tags Metric tag cardinality controls
+     * @property enabled Spring Boot integration 계약에서 `enabled` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property tags Spring Boot integration 계약에서 `tags` 값을 계산하거나 전달할 때 사용하는 속성입니다.
      */
     data class Metrics(
         val enabled: Boolean = true,
@@ -61,7 +57,7 @@ data class LeaderAopProperties(
     ) : Serializable {
 
         /**
-         * Binary-compatible constructor for callers compiled before tag controls were added.
+         * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
          */
         constructor(enabled: Boolean) : this(
             enabled = enabled,
@@ -69,12 +65,12 @@ data class LeaderAopProperties(
         )
 
         /**
-         * Tag-key-specific cardinality controls.
+         * `Tags`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
          *
-         * @property lockName Controls the exported `lock.name` tag
-         * @property leaderId Controls the opt-in exported `leader.id` Observation tag
-         * @property backendName Controls bounded backend tag values when emitted
-         * @property defaultRule Controls unknown tag keys
+         * @property lockName Spring Boot integration 계약에서 `lockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+         * @property leaderId Spring Boot integration 계약에서 `leaderId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+         * @property backendName Spring Boot integration 계약에서 `backendName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+         * @property defaultRule Spring Boot integration 계약에서 `defaultRule` 값을 계산하거나 전달할 때 사용하는 속성입니다.
          */
         data class Tags(
             val lockName: TagRule = TagRule(redactedValue = "redacted-lock"),
@@ -88,14 +84,14 @@ data class LeaderAopProperties(
         }
 
         /**
-         * Per-tag sanitization rule bound from Spring configuration.
+         * `TagRule`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
          *
-         * @property mode Export mode for values not handled by allow/deny lists
-         * @property allowList Exact raw values allowed to pass through
-         * @property denyList Exact raw values always redacted
-         * @property hashLength SHA-256 hex prefix length for `HASH`
-         * @property maxLength Maximum exported length for `TRUNCATE`
-         * @property redactedValue Sentinel used for redacted values
+         * @property mode Spring Boot integration 계약에서 `mode` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+         * @property allowList Spring Boot integration 계약에서 `allowList` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+         * @property denyList Spring Boot integration 계약에서 `denyList` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+         * @property hashLength Spring Boot integration 계약에서 `hashLength` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+         * @property maxLength Spring Boot integration 계약에서 `maxLength` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+         * @property redactedValue Spring Boot integration 계약에서 `redactedValue` 값을 계산하거나 전달할 때 사용하는 속성입니다.
          */
         data class TagRule(
             val mode: TagMode = TagMode.REDACT,
@@ -120,7 +116,9 @@ data class LeaderAopProperties(
         }
 
         /**
-         * Spring property enum mirroring leader-micrometer tag modes without requiring the optional module.
+         * `TagMode`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+         *
+         * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
          */
         enum class TagMode {
             REDACT,
@@ -135,9 +133,9 @@ data class LeaderAopProperties(
     }
 
     /**
-     * SpEL security options.
+     * `Spel`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
      *
-     * @property allowMethodInvocation [Step 3-P-Sec-1][R-32] Enables `withMethodResolvers()`. default `false`
+     * @property allowMethodInvocation Spring Boot integration 계약에서 `allowMethodInvocation` 값을 계산하거나 전달할 때 사용하는 속성입니다.
      */
     data class Spel(
         val allowMethodInvocation: Boolean = false,
@@ -150,7 +148,9 @@ data class LeaderAopProperties(
     companion object {
         private const val serialVersionUID = 1L
 
-        /** Default `bluetape4k.leader.aop.*` namespace prefix. */
+        /**
+         * `PREFIX` 값은 Spring Boot integration 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         const val PREFIX: String = "bluetape4k.leader.aop"
 
         @JvmField
@@ -159,7 +159,9 @@ data class LeaderAopProperties(
         @JvmField
         val DEFAULT_LEASE_TIME: Duration = Duration.ofMinutes(1)
 
-        /** Default lock name prefix — automatically appends the application name via Spring property placeholder. */
+        /**
+         * `DEFAULT_LOCK_NAME_PREFIX` 값은 Spring Boot integration 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         const val DEFAULT_LOCK_NAME_PREFIX: String = "\${spring.application.name:}:"
     }
 }

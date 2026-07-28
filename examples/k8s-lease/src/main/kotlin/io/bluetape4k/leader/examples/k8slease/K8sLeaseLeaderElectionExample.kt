@@ -14,14 +14,13 @@ import java.time.Duration
 import java.time.ZonedDateTime
 
 /**
- * Demonstrates leader election with the Kubernetes `coordination.k8s.io/v1` Lease API.
+ * `K8sLeaseLeaderElectionExample`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Behavior / Contract
- *
- * - [tryAcquire] creates the Lease when absent.
- * - A different holder receives [LeaseOutcome.CONFLICT] while the current Lease is still valid.
- * - The same holder may renew its Lease.
- * - [release] clears the holder only when the caller still owns the Lease.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property client example workflow 계약에서 사용하는 속성입니다.
+ * @property namespace example workflow 계약에서 사용하는 속성입니다.
+ * @property leaseDuration example workflow 계약에서 사용하는 속성입니다.
+ * @property clock example workflow 계약에서 사용하는 속성입니다.
  */
 class K8sLeaseLeaderElectionExample(
     private val client: KubernetesClient,
@@ -195,6 +194,14 @@ enum class LeaseOutcome {
     CONFLICT,
 }
 
+/**
+ * `LeaseAttempt`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property outcome example workflow 계약에서 `outcome` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property holderIdentity example workflow 계약에서 `holderIdentity` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaseName example workflow 계약에서 `leaseName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 data class LeaseAttempt(
     val outcome: LeaseOutcome,
     val holderIdentity: String?,

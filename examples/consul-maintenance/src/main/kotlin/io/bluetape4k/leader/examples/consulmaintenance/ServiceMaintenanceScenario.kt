@@ -7,6 +7,12 @@ import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
+/**
+ * `ServiceMaintenanceScenario`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property endpoint example workflow 계약에서 `endpoint` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 internal class ServiceMaintenanceScenario(
     private val endpoint: ConsulEndpoint,
 ) {

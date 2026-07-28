@@ -4,15 +4,10 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 
 /**
- * Cache key for [io.bluetape4k.leader.LeaderElector] instances used in AOP advice.
+ * `FactoryCacheKey`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## [Codex C1][R-26] Cross-backend collision prevention
- * Including `factoryBeanName` in the key ensures that even with identical options, different factory beans
- * produce separate cached instances. This prevents reuse of the wrong backend instance when multiple backends
- * (e.g. Redisson + Lettuce) are configured simultaneously.
- *
- * @property factoryBeanName Spring [io.bluetape4k.leader.LeaderElectorFactory] bean name
- * @property options [LeaderElectionOptions] extracted from the annotation by the Aspect
+ * @property factoryBeanName Spring Boot integration 계약에서 `factoryBeanName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property options Spring Boot integration 계약에서 `options` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class FactoryCacheKey(
     val factoryBeanName: String,
@@ -20,10 +15,10 @@ data class FactoryCacheKey(
 )
 
 /**
- * Cache key for [io.bluetape4k.leader.LeaderGroupElector] instances used in AOP advice.
+ * `GroupFactoryCacheKey`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * @property factoryBeanName Spring [io.bluetape4k.leader.LeaderGroupElectorFactory] bean name
- * @property options [LeaderGroupElectionOptions] extracted from the annotation by the Aspect
+ * @property factoryBeanName Spring Boot integration 계약에서 `factoryBeanName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property options Spring Boot integration 계약에서 `options` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class GroupFactoryCacheKey(
     val factoryBeanName: String,

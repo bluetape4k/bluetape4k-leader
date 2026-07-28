@@ -31,7 +31,11 @@ abstract class AbstractMigrationGateTest {
         }
     }
 
-    /** 마이그레이션 완료 마커 테이블 (예제용 — Flyway/Liquibase 대체). */
+    /**
+     * `MigrationMarkerTable`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+     *
+     * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+     */
     object MigrationMarkerTable: Table("migration_marker_example") {
         val migrationId = varchar("migration_id", 100)
         override val primaryKey = PrimaryKey(migrationId)

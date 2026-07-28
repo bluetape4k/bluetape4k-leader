@@ -6,18 +6,11 @@ import io.micrometer.core.instrument.MeterRegistry
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Listener that records [LeaderElectionListener] events as Micrometer counters.
+ * `MicrometerLeaderElectionListener`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Behavior / Contract
- * - Records the `leader.election.events` counter with `lock.name` and `event` tags.
- * - `event` values are `elected`, `revoked`, and `skipped`.
- * - Records only listener-based lifecycle events, separate from the `shedlock.leader.*` execution metrics of the direct elector decorator.
- *
- * ```kotlin
- * val listener = MicrometerLeaderElectionListener(registry)
- * val election = LocalLeaderElector().withListeners(listener)
- * election.runIfLeader("daily-job") { runJob() }
- * ```
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property registry Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property tagSanitizer Micrometer observability 계약에서 사용하는 속성입니다.
  */
 class MicrometerLeaderElectionListener(
     private val registry: MeterRegistry,

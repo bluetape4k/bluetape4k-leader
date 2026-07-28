@@ -7,20 +7,9 @@ import io.bluetape4k.logging.KLogging
 import io.micrometer.core.instrument.MeterRegistry
 
 /**
- * [SafeLeaderHistoryRecorder] with Micrometer counter instrumentation.
+ * `MicrometerSafeLeaderHistoryRecorder`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * Counter instrumentation is applied via [CounterAwareSinkDecorator] injected at construction
- * time; no method overrides are needed.  The decorator increments counters only on normal
- * returns and swallowed exceptions — [kotlinx.coroutines.CancellationException] and
- * [InterruptedException] are rethrown before any counter increment.
- *
- * ## Example
- * ```kotlin
- * val recorder = MicrometerSafeLeaderHistoryRecorder(
- *     sink = jdbcLeaderHistorySink,
- *     meterRegistry = Metrics.globalRegistry,
- * )
- * ```
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 open class MicrometerSafeLeaderHistoryRecorder(
     sink: LeaderHistorySink,

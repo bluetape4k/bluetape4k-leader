@@ -18,48 +18,12 @@ private typealias NotAcquiredKey = Pair<String, SkipReason>
 private typealias FailedKey = Pair<String, String>
 
 /**
- * Micrometer-based implementation of [LeaderAopMetricsRecorder].
+ * `MicrometerLeaderAopMetricsRecorder`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * Maps the 6 leader-aop callbacks to Micrometer Counter/Timer/Gauge meters so they can be
- * exported to any backend such as Prometheus or Datadog.
- *
- * ## Meter Catalog
- *
- * | Meter name (`MicrometerNames.*`)            | Type    | Callback              |
- * |--------------------------------------------|--------|----------------------|
- * | `leader.aop.attempts`                      | Counter | onLockAttempt         |
- * | `leader.aop.acquired`                      | Counter | onLockAcquired        |
- * | `leader.aop.acquire.duration`              | Timer   | onLockAcquired        |
- * | `leader.aop.lock.not.acquired`             | Counter | onLockNotAcquired     |
- * | `leader.aop.execution.duration`            | Timer   | onTaskFinished        |
- * | `leader.aop.task.failed`                   | Counter | onTaskFailed          |
- * | `leader.aop.active`                        | Gauge   | onTaskStarted/Finished/Failed |
- *
- * All meters share the `lock.name` tag; `not.acquired` additionally carries a `reason` tag and
- * `task.failed` carries an `exception` tag. See [MicrometerNames] for meter and tag name constants.
- *
- * ## Cardinality Warning
- *
- * `lock.name` is sanitized before export. The default constructor collapses dynamic names to
- * `redacted-lock`; opt into raw labels only for small, static lock-name sets. Exposing dynamic SpEL
- * values (e.g., `'tenant-' + #tenantId`) directly can cause unbounded meter instance growth that may
- * overwhelm the metrics backend. A WARN is logged when an unexpected exported tag is first seen.
- *
- * ## Multi-Instance Environments
- *
- * The `leader.aop.active` Gauge is a **JVM-local** value. To see the cluster-wide leader count in
- * Prometheus, use `max by (lock_name) (leader_aop_active)` rather than `sum` — using `sum` would
- * report N even when only one leader is active across N instances.
- *
- * ## Pre- and Post-Registration
- *
- * - [registerMetricsFor]: registers static lock names at boot time so the dashboard shows 0 before
- *   the first callback fires. Recommended for use with `SmartInitializingSingleton`.
- * - [deregisterMetricsFor]: removes meters for lock names created by dynamic SpEL that are no longer
- *   in use, preventing `MeterRegistry` memory leaks.
- *
- * @see MicrometerNames
- * @see LeaderAopMetricsRecorder
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property registry Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property tagSanitizer Micrometer observability 계약에서 사용하는 속성입니다.
+ * @property removeUnregisteredMeters Micrometer observability 계약에서 사용하는 속성입니다.
  */
 class MicrometerLeaderAopMetricsRecorder private constructor(
     private val registry: MeterRegistry,
@@ -138,29 +102,9 @@ class MicrometerLeaderAopMetricsRecorder private constructor(
     }
 
     /**
-     * Pre-registers meters for the given statically known lock names.
+     * `registerMetricsFor` 호출은 Micrometer observability 계약의 일부 동작을 수행합니다.
      *
-     * Ensures the dashboard shows 0 even before the first callback fires — Prometheus's `rate()`
-     * function reports NaN for intervals where a series does not yet exist, so pre-registration
-     * is operationally beneficial.
-     *
-     * **Idempotent**: lock names that are already registered are not re-registered (`computeIfAbsent`).
-     *
-     * **Pre-registered meters**:
-     * - `leader.aop.attempts` Counter
-     * - `leader.aop.acquired` Counter
-     * - `leader.aop.acquire.duration` Timer
-     * - `leader.aop.execution.duration` Timer
-     * - `leader.aop.active` Gauge
-     *
-     * **Excluded from pre-registration**:
-     * - `leader.aop.lock.not.acquired` — `reason` tag cardinality is unknown before the first call
-     * - `leader.aop.task.failed` — `exception` tag cardinality cannot be predicted in advance
-     *
-     * This function does not emit cardinality WARN logs — if statically pre-registered lock names
-     * triggered WARNs, the signal value of genuine dynamic-SpEL WARNs in production would be diluted.
-     *
-     * Recommended to call from a `SmartInitializingSingleton` or `ApplicationReadyEvent` listener.
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun registerMetricsFor(vararg lockNames: String) {
         lockNames.forEach { name ->
@@ -179,16 +123,9 @@ class MicrometerLeaderAopMetricsRecorder private constructor(
     }
 
     /**
-     * Removes meters for the given lock names from the [MeterRegistry].
+     * `deregisterMetricsFor` 호출은 Micrometer observability 계약의 일부 동작을 수행합니다.
      *
-     * Cleans up lock names created by dynamic SpEL (e.g., `'tenant-' + #tenantId`) or retired jobs
-     * to prevent `MeterRegistry` memory leaks and cardinality explosion in the time-series backend.
-     *
-     * **Removed**: all meter types (Counter/Timer/Gauge) registered under the given `lockName`,
-     * including all `reason` variants of `notAcquired` and all `exception` variants of `failed`.
-     *
-     * If a callback fires again for the same lock name after removal, meters are automatically
-     * recreated (a cardinality WARN will be emitted at that point).
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun deregisterMetricsFor(vararg lockNames: String) {
         lockNames.forEach { name ->

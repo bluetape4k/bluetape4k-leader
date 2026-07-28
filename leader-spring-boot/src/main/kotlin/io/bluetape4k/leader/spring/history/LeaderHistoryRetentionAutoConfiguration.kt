@@ -14,17 +14,9 @@ import org.springframework.context.annotation.Bean
 import org.springframework.scheduling.annotation.EnableScheduling
 
 /**
- * Auto-configuration for leader-history retention jobs.
+ * `LeaderHistoryRetentionAutoConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * Loaded **after** [LeaderAopAutoConfiguration] so that `@LeaderElection` AOP weaving is
- * active before the retention jobs are created.
- *
- * Retention is enabled by default.  Set `bluetape4k.leader.history.retention.enabled=false`
- * to disable.
- *
- * Both [LeaderHistoryRetentionJob] (blocking) and [SuspendLeaderHistoryRetentionJob] (coroutine)
- * can run simultaneously when both JDBC and R2DBC / MongoDB sinks are present — they target
- * independent physical storage backends.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 @AutoConfiguration(after = [LeaderAopAutoConfiguration::class])
 @ConditionalOnProperty(prefix = "bluetape4k.leader.history.retention", name = ["enabled"], matchIfMissing = true)

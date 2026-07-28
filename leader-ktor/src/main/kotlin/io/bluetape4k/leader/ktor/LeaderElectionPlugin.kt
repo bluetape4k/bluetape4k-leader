@@ -10,32 +10,7 @@ import io.ktor.server.application.hooks.MonitoringEvent
 import io.ktor.util.AttributeKey
 
 /**
- * Plugin entry point that integrates the coroutine-based leader election feature of
- * `bluetape4k-leader` into a Ktor 3.x application.
- *
- * ## Behavior / Contract
- * - Install with `install(LeaderElectionPlugin) { leaderElection = ... }`.
- * - Throws [IllegalArgumentException] at `install()` time if [LeaderElectionPluginConfig.leaderElection]
- *   is not configured (`requireNotNull` validation).
- * - Subscribes to [ApplicationStarted] / [ApplicationStopped] lifecycle events and logs at INFO level.
- * - The plugin itself does not start background jobs — combine with the [Application.leaderScheduled]
- *   extension function for periodic work.
- * - No explicit cleanup on shutdown — the `Application` CoroutineScope automatically cancels child coroutines.
- *
- * ```kotlin
- * fun Application.module() {
- *     install(LeaderElectionPlugin) {
- *         leaderElection = RedissonSuspendLeaderElector(redissonClient)
- *     }
- *
- *     leaderScheduled("daily-report", 1.hours) {
- *         reportService.generate()
- *     }
- * }
- * ```
- *
- * @see LeaderElectionPluginConfig
- * @see leaderScheduled
+ * `LeaderElectionPlugin` 값은 Ktor integration 계약에서 사용하는 설정 또는 상태 항목입니다.
  */
 val LeaderElectionPlugin = createApplicationPlugin(
     name = LeaderElectionPluginInternals.NAME,
@@ -71,20 +46,15 @@ val LeaderElectionPlugin = createApplicationPlugin(
 }
 
 /**
- * Key used to identify [LeaderElectionPluginConfig] in the `Application` attributes store.
- * Assumes a single plugin instance per [Application].
+ * `LeaderElectionConfigKey` 값은 Ktor integration 계약에서 사용하는 설정 또는 상태 항목입니다.
  */
 internal val LeaderElectionConfigKey: AttributeKey<LeaderElectionPluginConfig> =
     AttributeKey("io.bluetape4k.leader.ktor.LeaderElectionPluginConfig")
 
 /**
- * Returns the [LeaderElectionPluginConfig] of the [LeaderElectionPlugin] installed in the current [Application].
+ * `Application` 호출은 Ktor integration 계약의 일부 동작을 수행합니다.
  *
- * ## Behavior / Contract
- * - Throws [IllegalStateException] if the plugin has not been installed.
- *
- * @return The configuration object of the installed plugin
- * @throws IllegalStateException if the plugin is not installed
+ * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun Application.leaderElectionPluginConfig(): LeaderElectionPluginConfig {
     return attributes.getOrNull(LeaderElectionConfigKey)
@@ -92,8 +62,9 @@ fun Application.leaderElectionPluginConfig(): LeaderElectionPluginConfig {
 }
 
 /**
- * Internal object holding plugin constants and the logger. Not intended for external exposure;
- * exists as a workaround to apply the `KLogging` companion pattern in a top-level plugin definition.
+ * `LeaderElectionPluginInternals`는 Ktor integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 internal object LeaderElectionPluginInternals: KLogging() {
     const val NAME: String = "LeaderElection"

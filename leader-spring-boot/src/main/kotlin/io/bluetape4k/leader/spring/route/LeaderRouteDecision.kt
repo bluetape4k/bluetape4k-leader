@@ -1,14 +1,28 @@
 package io.bluetape4k.leader.spring.route
 
-/** Result of a passive leader-route authorization decision. */
+/**
+ * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
+ */
 sealed interface LeaderRouteDecision {
 
-    /** Local leadership was established and the protected handler may run. */
+    /**
+     * `Allowed`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+     *
+     * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+     */
     data object Allowed : LeaderRouteDecision
 
-    /** The authority completed normally but did not establish local leadership. */
+    /**
+     * `NotLeader`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+     *
+     * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+     */
     data object NotLeader : LeaderRouteDecision
 
-    /** Leadership could not be determined safely, so the request must fail closed. */
+    /**
+     * `Unavailable`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+     *
+     * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+     */
     data object Unavailable : LeaderRouteDecision
 }

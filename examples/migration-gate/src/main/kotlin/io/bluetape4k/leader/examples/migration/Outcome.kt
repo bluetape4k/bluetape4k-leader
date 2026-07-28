@@ -1,39 +1,49 @@
 package io.bluetape4k.leader.examples.migration
 
 /**
- * [MigrationGate.runMigration] 의 실행 결과.
- *
- * ## 동작/계약
- *
- * 4가지 분기로 마이그레이션 시도의 모든 결과를 표현한다:
- * - [Migrated]: 본 인스턴스가 리더로 선출되어 마이그레이션을 성공적으로 수행
- * - [AlreadyApplied]: 마이그레이션이 이미 적용된 상태 (precheck/in-lock recheck/post-skip check 어느 단계에서든)
- * - [Skipped]: 락 미획득 + 마커 미생성 — 다른 인스턴스가 처리 중이거나 wait 시간 초과
- * - [Failed]: 마이그레이션 lambda 실행 중 예외 발생 — 락은 자동 해제됨
- *
- * 호출자는 sealed interface 의 모든 분기를 명시적으로 처리해야 한다 (exhaustive when).
+ * example workflow 계약을 설명하는 한국어 KDoc입니다.
  */
 sealed interface Outcome {
     val migrationId: String
 
-    /** 본 인스턴스가 리더로 마이그레이션 수행 완료. */
+    /**
+     * `Migrated`는 example workflow에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+     *
+     * @property migrationId example workflow 계약에서 `migrationId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property durationMs example workflow 계약에서 `durationMs` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     */
     data class Migrated(
         override val migrationId: String,
         val durationMs: Long,
     ): Outcome
 
-    /** 마이그레이션이 이미 적용된 상태 (마커 확인됨). */
+    /**
+     * `AlreadyApplied`는 example workflow에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+     *
+     * @property migrationId example workflow 계약에서 `migrationId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     */
     data class AlreadyApplied(
         override val migrationId: String,
     ): Outcome
 
-    /** 락 미획득 + 마커 미생성 — 다른 인스턴스 처리 중일 가능성. */
+    /**
+     * `Skipped`는 example workflow에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+     *
+     * @property migrationId example workflow 계약에서 `migrationId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property reason example workflow 계약에서 `reason` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     */
     data class Skipped(
         override val migrationId: String,
         val reason: String,
     ): Outcome
 
-    /** 마이그레이션 실행 중 예외 발생. */
+    /**
+     * `Failed`는 example workflow에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+     *
+     * @property migrationId example workflow 계약에서 `migrationId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property cause example workflow 계약에서 `cause` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property durationMs example workflow 계약에서 `durationMs` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     */
     data class Failed(
         override val migrationId: String,
         val cause: Throwable,

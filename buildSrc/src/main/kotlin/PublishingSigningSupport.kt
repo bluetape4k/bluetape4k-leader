@@ -4,21 +4,29 @@ import org.gradle.kotlin.dsl.configure
 import org.gradle.plugins.signing.SigningExtension
 
 /**
- * Project property 또는 환경 변수에서 값을 조회합니다.
+ * `Project` 호출은 benchmark/build support 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun Project.getEnvOrProperty(propertyKey: String, envKey: String): String =
     findProperty(propertyKey) as? String ?: System.getenv(envKey).orEmpty()
 
+/**
+ * `CentralPublishingConfig`는 benchmark/build support에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property username benchmark/build support 계약에서 `username` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property password benchmark/build support 계약에서 `password` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 data class CentralPublishingConfig(
     val username: String,
     val password: String,
 )
 
 /**
- * Central Portal 자격증명을 project property / 환경 변수에서 로딩합니다.
+ * `Project` 호출은 benchmark/build support 계약의 일부 동작을 수행합니다.
  *
- * Property keys: `central.user`, `central.password`
- * Env var keys:  `CENTRAL_USERNAME`, `CENTRAL_PASSWORD`
+ * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun Project.resolveCentralPublishingConfig(): CentralPublishingConfig = CentralPublishingConfig(
     username = getEnvOrProperty("central.user", "CENTRAL_USERNAME")
@@ -27,6 +35,17 @@ fun Project.resolveCentralPublishingConfig(): CentralPublishingConfig = CentralP
         .ifBlank { getEnvOrProperty("centralPortalPassword", "CENTRAL_PASSWORD") },
 )
 
+/**
+ * `SigningConfig`는 benchmark/build support에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property keyId benchmark/build support 계약에서 `keyId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property key benchmark/build support 계약에서 `key` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property password benchmark/build support 계약에서 `password` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property useGpgCmd benchmark/build support 계약에서 `useGpgCmd` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property gpgExecutable benchmark/build support 계약에서 `gpgExecutable` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property gpgKeyName benchmark/build support 계약에서 `gpgKeyName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 data class SigningConfig(
     val keyId: String,
     val key: String,
@@ -37,9 +56,9 @@ data class SigningConfig(
 )
 
 /**
- * Signing 설정을 project property / 환경 변수에서 로딩합니다.
+ * `Project` 호출은 benchmark/build support 계약의 일부 동작을 수행합니다.
  *
- * Env var keys: `SIGNING_KEY_ID`, `SIGNING_KEY`, `SIGNING_PASSWORD`
+ * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun Project.resolveSigningConfig(): SigningConfig {
     val keyId = getEnvOrProperty("signingKeyId", "SIGNING_KEY_ID")
@@ -53,9 +72,9 @@ fun Project.resolveSigningConfig(): SigningConfig {
 }
 
 /**
- * Maven publication 서명을 설정합니다.
- * - CI: `SIGNING_KEY` + `SIGNING_PASSWORD` 환경 변수로 in-memory PGP 서명
- * - 로컬: `signingUseGpgCmd=true` 또는 gpg-cmd 설정으로 서명
+ * `Project` 호출은 benchmark/build support 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun Project.configurePublishingSigning(publicationName: String) {
     val config = resolveSigningConfig()

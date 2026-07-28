@@ -5,21 +5,11 @@ import java.time.Duration
 import kotlin.time.toKotlinDuration
 
 /**
- * Auto-configuration properties for multi-leader group election.
+ * `LeaderGroupProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * Nested under [LeaderElectionProperties.group].
- *
- * ```yaml
- * leader:
- *   group:
- *     max-leaders: 3
- *     wait-time: 5s
- *     lease-time: 60s
- * ```
- *
- * @property maxLeaders Maximum number of concurrent leaders allowed. Default 2
- * @property waitTime Maximum time to wait for a slot acquisition. Default 5 seconds
- * @property leaseTime Maximum time to hold (lease) a slot. Default 60 seconds
+ * @property maxLeaders Spring Boot integration 계약에서 `maxLeaders` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property waitTime Spring Boot integration 계약에서 `waitTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaseTime Spring Boot integration 계약에서 `leaseTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class LeaderGroupProperties(
     val maxLeaders: Int = DefaultMaxLeaders,

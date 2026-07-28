@@ -3,24 +3,13 @@ package io.bluetape4k.leader.spring
 import java.time.Duration
 
 /**
- * DynamoDB backend properties.
+ * `DynamoDbLeaderProperties`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ```yaml
- * bluetape4k:
- *   leader:
- *     dynamodb:
- *       table-name: bluetape4k_leader_locks
- *       key-prefix: leader
- *       retry-delay: 50ms
- *       ttl-padding: 60s
- *       clock-skew-tolerance: 5s
- * ```
- *
- * @property tableName caller-provisioned DynamoDB table with `lockName` as string partition key.
- * @property keyPrefix prefix applied before logical lock names.
- * @property retryDelay upper bound for full-jitter acquisition retry delay.
- * @property ttlPadding extra DynamoDB TTL padding after logical lease expiry.
- * @property clockSkewTolerance tolerated host-clock skew subtracted from takeover checks.
+ * @property tableName Spring Boot integration 계약에서 `tableName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property keyPrefix Spring Boot integration 계약에서 `keyPrefix` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property retryDelay Spring Boot integration 계약에서 `retryDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property ttlPadding Spring Boot integration 계약에서 `ttlPadding` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property clockSkewTolerance Spring Boot integration 계약에서 `clockSkewTolerance` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class DynamoDbLeaderProperties(
     val tableName: String = DefaultTableName,

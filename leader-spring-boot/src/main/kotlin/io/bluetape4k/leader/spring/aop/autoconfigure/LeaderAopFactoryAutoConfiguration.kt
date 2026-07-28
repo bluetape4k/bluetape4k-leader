@@ -71,19 +71,9 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import kotlin.time.toKotlinDuration
 
 /**
- * AutoConfig Phase 1 — registers backend factory `@Bean`s (sync + suspend).
+ * `LeaderAopFactoryAutoConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## [Codex H3] Separation Rationale
- * Factory `@Bean` registration is separated from the Aspect/BPP registration in [LeaderAopAutoConfiguration]
- * to avoid a `@ConditionalOnBean(LeaderElectionFactory)` self-reference.
- *
- * ## Evaluation
- * - `@ConditionalOnClass(Aspect)` — activated only when aspectjweaver is on the classpath
- * - `@ConditionalOnProperty(enabled, matchIfMissing=true)` — can be disabled via `bluetape4k.leader.aop.enabled=false`
- * - Each factory `@Bean` is guarded by `@ConditionalOnClass/Bean(BackendClient)` and registered only when the backend is in use
- *
- * ## Local fallback
- * The local factory is always registered (single-JVM fallback for all environments). Used when no other backend is specified.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 @AutoConfiguration
 @ConditionalOnClass(Aspect::class)

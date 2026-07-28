@@ -5,23 +5,10 @@ import org.springframework.boot.health.contributor.AbstractHealthIndicator
 import org.springframework.boot.health.contributor.Health
 
 /**
- * A [HealthIndicator] that exposes Leader AOP metrics to the Spring Boot Actuator health endpoint.
+ * `LeaderMetricsHealthIndicator`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * Activated only when a `MicrometerLeaderAopMetricsRecorder` is registered.
- * Queries the `leader.aop.active` Gauge and reports the number of currently running leader tasks as a detail.
- *
- * ## Actuator Response Example
- * ```json
- * {
- *   "status": "UP",
- *   "details": {
- *     "active": 2,
- *     "trackedLocks": 3
- *   }
- * }
- * ```
- *
- * @param registry Micrometer [MeterRegistry]
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property registry Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 class LeaderMetricsHealthIndicator(
     private val registry: MeterRegistry,

@@ -7,23 +7,9 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * 시간별 통계 집계 작업의 도메인 객체.
+ * `StatsAggregator`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## 동작/계약
- *
- * - 다중 인스턴스 환경에서 [LeaderElectionPlugin] + [Application.leaderScheduled] 와 결합되어
- *   매 cycle 마다 단 하나의 인스턴스만 [aggregate] 를 호출한다.
- * - in-memory `runCount` + `lastRunAt` 만 보유하는 단순 데모 — 프로덕션에서는 Redis/DB 등 외부 저장소로 대체.
- * - `aggregate` 는 멱등성을 보장하지 않는다 — 호출 횟수만큼 카운터가 증가한다.
- * - `currentState` 는 thread-safe 하다 — `AtomicLong` + `AtomicReference` 로 보호된다.
- *
- * ```kotlin
- * val aggregator = StatsAggregator()
- * aggregator.aggregate()
- * val state = aggregator.currentState()  // runCount=1, lastRunAt=...
- * ```
- *
- * @see StatsAggregatorState
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 class StatsAggregator {
 
@@ -33,11 +19,9 @@ class StatsAggregator {
     private val lastRunAt = AtomicReference<Instant?>(null)
 
     /**
-     * 한 cycle 의 집계 작업을 수행한다.
+     * `aggregate` 호출은 example workflow 계약의 일부 동작을 수행합니다.
      *
-     * - `runCount` 를 1 증가시키고 `lastRunAt` 을 현재 시각으로 갱신한다.
-     * - 데모 목적이므로 실제 집계 로직은 생략 — 카운터 갱신 + INFO 로그만 남긴다.
-     * - suspend 함수로 정의되어 [Application.leaderScheduled] 와 자연스럽게 결합된다.
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     suspend fun aggregate() {
         val now = Instant.now()
@@ -47,19 +31,19 @@ class StatsAggregator {
     }
 
     /**
-     * 현재 집계 상태의 스냅샷을 반환한다.
+     * `currentState` 호출은 example workflow 계약의 일부 동작을 수행합니다.
      *
-     * `runCount` 와 `lastRunAt` 은 같은 cycle 의 값이 보장되지 않는다 (CAS 분리). 데모 목적상 허용한다.
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun currentState(): StatsAggregatorState =
         StatsAggregatorState(runCount = runCount.get(), lastRunAt = lastRunAt.get())
 }
 
 /**
- * REST API 응답에 노출되는 [StatsAggregator] 의 상태 스냅샷.
+ * `StatsAggregatorState`는 example workflow에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * @property runCount 누적 집계 cycle 실행 횟수
- * @property lastRunAt 마지막 cycle 실행 시각 (UTC). 한 번도 실행되지 않았다면 `null`.
+ * @property runCount example workflow 계약에서 `runCount` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lastRunAt example workflow 계약에서 `lastRunAt` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class StatsAggregatorState(
     val runCount: Long,

@@ -5,18 +5,10 @@ import io.bluetape4k.leader.LeaderSlot
 import java.util.concurrent.CancellationException
 
 /**
- * Default read-only authority backed by one [LeaderElector] state snapshot.
+ * `StateLeaderRouteAuthority`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * The elector must declare [LeaderElector.supportsAuditLeaderState]. The
- * guarded [LeaderSlot.leaderId] must be unique to one live process incarnation
- * and reused by that process for both election and route guarding. Reusing an
- * identity across restarts can match a stale lease left by the previous process.
- *
- * A request is allowed only when the snapshot is occupied and its audit leader
- * ID equals [LeaderSlot.leaderId]. Occupancy alone never proves local ownership.
- *
- * @throws LeaderRouteGuardConfigurationException when [elector] cannot expose
- * audit leader identity through its state snapshot.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property elector Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 class StateLeaderRouteAuthority(
     private val elector: LeaderElector,

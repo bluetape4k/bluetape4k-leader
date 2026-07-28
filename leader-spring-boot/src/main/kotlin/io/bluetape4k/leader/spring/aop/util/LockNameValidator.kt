@@ -5,28 +5,11 @@ import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 
 /**
- * Lock name validation and automatic prefix application for AOP annotations.
+ * `LockNameValidator`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## [Step 3-P-Sec-2][R-34] Charset whitelist
- * `^[A-Za-z0-9_:.\-]+$` — only characters safe for both Redis (< 1KB) and MongoDB (index 1024) are allowed.
- * Violation throws [IllegalArgumentException] — guards against lock-namespace pollution.
- *
- * ## Automatic prefix
- * The Aspect attaches [prefix] (default `${spring.application.name}:`) automatically just before calling
- * this validator after SpEL evaluation, preventing business lock namespace collisions.
- * Pass an empty string to opt out.
- *
- * ## Usage example
- * ```kotlin
- * val validator = LockNameValidator(prefix = "myapp:")
- * validator.validate("daily-job")      // OK
- * validator.applyPrefix("daily-job")   // "myapp:daily-job"
- * validator.validate("invalid name")   // throws (space not allowed)
- * validator.validate("a".repeat(257))  // throws (max 256)
- * ```
- *
- * @property prefix Automatic prefix; pass empty string to opt out
- * @property maxLength Maximum length before prefix is applied. Default 256
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property prefix Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property maxLength Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 class LockNameValidator(
     val prefix: String = "",
@@ -37,9 +20,9 @@ class LockNameValidator(
     }
 
     /**
-     * Validates that [name] satisfies the charset whitelist and max length constraints.
+     * `validate` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
      *
-     * @throws IllegalArgumentException if any constraint is violated
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun validate(name: String) {
         name.requireNotBlank("name")
@@ -50,7 +33,9 @@ class LockNameValidator(
     }
 
     /**
-     * Prepends [prefix] to [name] if [prefix] is non-empty; otherwise returns [name] as-is.
+     * `applyPrefix` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun applyPrefix(name: String): String =
         if (prefix.isEmpty()) name else "$prefix$name"

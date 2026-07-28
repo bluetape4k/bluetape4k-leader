@@ -6,23 +6,28 @@ import io.bluetape4k.leader.spring.LeaderProperties
 import kotlin.time.toKotlinDuration
 
 /**
- * Adapter that converts [LeaderProperties] to backend-specific Options.
+ * `PropertiesAdapter`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * Each backend (Mongo, Exposed JDBC/R2DBC) has its own options class, but v1.0 exposes only common properties;
- * backend-specific options (`retryDelay`, `retryStrategy`, `lockOwner`) use their defaults.
- *
- * Exposing backend-specific options is deferred to a follow-up issue.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 internal object PropertiesAdapter {
 
-    /** Converts to common [LeaderElectionOptions]. */
+    /**
+     * `toCommonElection` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
+     */
     fun toCommonElection(props: LeaderProperties): LeaderElectionOptions =
         LeaderElectionOptions(
             waitTime = props.waitTime.toKotlinDuration(),
             leaseTime = props.leaseTime.toKotlinDuration(),
         )
 
-    /** Converts to common [LeaderGroupElectionOptions]. */
+    /**
+     * `toCommonGroup` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
+     */
     fun toCommonGroup(props: LeaderProperties): LeaderGroupElectionOptions =
         LeaderGroupElectionOptions(
             maxLeaders = props.group.maxLeaders,

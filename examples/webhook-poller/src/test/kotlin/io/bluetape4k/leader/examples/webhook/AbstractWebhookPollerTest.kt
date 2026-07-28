@@ -16,7 +16,9 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestInstance
 
 /**
- * MongoDB Testcontainers 기반 webhook poller 테스트 베이스.
+ * `AbstractWebhookPollerTest`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractWebhookPollerTest {
@@ -54,12 +56,20 @@ abstract class AbstractWebhookPollerTest {
         }
     }
 
-    /** 테스트용 elector — 매번 새 인스턴스 생성 (`MongoSuspendLock.ensureIndexes` suspend invoke). */
+    /**
+     * `newElector` 호출은 example workflow 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
+     */
     protected suspend fun newElector(
         options: MongoLeaderElectionOptions = MongoLeaderElectionOptions.Default,
     ): MongoSuspendLeaderElector = MongoSuspendLeaderElector(lockCollection, options)
 
-    /** 테스트용 PENDING event 1건 insert. */
+    /**
+     * `insertPending` 호출은 example workflow 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
+     */
     protected suspend fun insertPending(eventId: String = randomEventId(), payload: String = "payload"): WebhookEvent {
         val event = WebhookEvent(eventId = eventId, payload = payload)
         eventCollection.insertOne(event.toDocument())

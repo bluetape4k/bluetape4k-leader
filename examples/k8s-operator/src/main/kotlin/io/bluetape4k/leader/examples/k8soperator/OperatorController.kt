@@ -12,6 +12,15 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicLong
 
 @Component
+/**
+ * `OperatorController`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property leaderElector example workflow 계약에서 `leaderElector` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property workload example workflow 계약에서 `workload` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockName example workflow 계약에서 `lockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property podName example workflow 계약에서 `podName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 class OperatorController(
     private val leaderElector: LeaderElector,
     private val workload: DemoCustomResourceWorkload,
@@ -51,6 +60,11 @@ class OperatorController(
 }
 
 @Component
+/**
+ * `DemoCustomResourceWorkload`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ */
 class DemoCustomResourceWorkload {
 
     private val reconciliations = AtomicLong()
@@ -75,6 +89,15 @@ class DemoCustomResourceWorkload {
     companion object : KLogging()
 }
 
+/**
+ * `OperatorReconcileRequest`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property lockName example workflow 계약에서 `lockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property podName example workflow 계약에서 `podName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property sequence example workflow 계약에서 `sequence` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property requestedAt example workflow 계약에서 `requestedAt` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 data class OperatorReconcileRequest(
     val lockName: String,
     val podName: String,
@@ -86,6 +109,16 @@ data class OperatorReconcileRequest(
     }
 }
 
+/**
+ * `OperatorReconcileResult`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property lockName example workflow 계약에서 `lockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property podName example workflow 계약에서 `podName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property sequence example workflow 계약에서 `sequence` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property revision example workflow 계약에서 `revision` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property reconciledAt example workflow 계약에서 `reconciledAt` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 data class OperatorReconcileResult(
     val lockName: String,
     val podName: String,

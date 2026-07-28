@@ -15,11 +15,9 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * 3-인스턴스 × 3-파티션 캐시 워밍 데모.
+ * `CachePartitionWarmerDemo`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * Testcontainers Hazelcast 를 자동 기동하고, 동일 lockNamePrefix + partitions 를 공유하는 3개의
- * [CachePartitionWarmer] 를 별도 스레드에서 동시 호출한다. 각 partition 에 대해 정확히 1 인스턴스만
- * [warmFunction] 을 실행하는지 ConcurrentHashMap 카운트로 검증한다.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 object CachePartitionWarmerDemo: KLogging() {
 

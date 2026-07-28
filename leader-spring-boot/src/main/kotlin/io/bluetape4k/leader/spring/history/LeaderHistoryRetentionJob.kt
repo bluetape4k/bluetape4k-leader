@@ -11,29 +11,13 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 /**
- * Periodic retention job that deletes expired leader-lock history records.
+ * `LeaderHistoryRetentionJob`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Behavior / Contract
- * - Runs on the cron schedule defined by `bluetape4k.leader.history.retention.cron`
- *   (default: `0 0 2 * * ?` — every day at 02:00).
- * - Deletes records older than `bluetape4k.leader.history.retention.days` days (default 30).
- * - Processes at most `bluetape4k.leader.history.retention.chunk-size` rows per batch
- *   (default 1000) to avoid long-running transactions.
- * - Bounded by a wall-clock budget: `bluetape4k.leader.history.retention.max-duration-ms`
- *   (default 300000 ms = 5 minutes).  If the budget is exceeded, remaining rows are deferred
- *   to the next scheduled run and a WARN is logged.
- * - Decorated with `@LeaderScheduled` to prevent concurrent execution across multiple pods
- *   (dogfooding this library's own AOP).
- *
- * ## Configuration example
- * ```yaml
- * bluetape4k.leader.history.retention:
- *   enabled: true
- *   cron: "0 0 2 * * ?"
- *   days: 30
- *   chunk-size: 1000
- *   max-duration-ms: 300000
- * ```
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property sink Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property retentionDays Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property chunkSize Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property maxDurationMs Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 class LeaderHistoryRetentionJob(
     private val sink: LeaderHistorySink,

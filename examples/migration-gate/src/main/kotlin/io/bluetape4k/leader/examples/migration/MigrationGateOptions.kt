@@ -7,25 +7,12 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * [MigrationGate] 설정.
+ * `MigrationGateOptions`는 example workflow에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## 동작/계약
- *
- * - [nodeId]: 본 인스턴스 식별자. 락 row 와 history 에 lockOwner 로 기록되어 운영 추적성 확보
- * - [lockName]: 분산 락 키. 환경/스키마/마이그레이션 셋 단위로 다르게 설정 권장
- *   (예: `"prod-app-schema-v3"`)
- * - [waitTime]: 비리더 인스턴스가 마이그레이션 완료를 대기하는 최대 시간
- * - [leaseTime]: 락 TTL. **마이그레이션 최악 실행 시간보다 길게** 설정해야 split-brain 방지
- *   (현재 backend 는 auto-extend 미지원)
- *
- * ```kotlin
- * MigrationGateOptions(
- *     nodeId = System.getenv("HOSTNAME") ?: "node-${UUID.randomUUID()}",
- *     lockName = "prod-app-schema-v3",
- *     waitTime = 30.seconds,
- *     leaseTime = 5.minutes,
- * )
- * ```
+ * @property nodeId example workflow 계약에서 `nodeId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockName example workflow 계약에서 `lockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property waitTime example workflow 계약에서 `waitTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaseTime example workflow 계약에서 `leaseTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class MigrationGateOptions(
     val nodeId: String,

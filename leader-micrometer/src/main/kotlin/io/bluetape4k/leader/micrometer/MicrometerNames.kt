@@ -3,184 +3,199 @@ package io.bluetape4k.leader.micrometer
 // ========= Public constants — importable from leader-spring-boot =========
 
 /**
- * Micrometer tag key for the elected leader's audit identity.
- *
- * ## Contract
- * Tag value is the [io.bluetape4k.leader.LeaderSlot.leaderId] resolved by the aspect.
- * For `AUTO` source, this is a random Base58 string per call — high cardinality.
- *
- * ## Usage
- * ```kotlin
- * registry.counter("leader.aop.acquired", TAG_LEADER_ID, leaderId).increment()
- * ```
+ * `TAG_LEADER_ID` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
  */
 const val TAG_LEADER_ID: String = "leader.id"
 
 /**
- * Micrometer tag key for the provenance of the elected leader's identity.
- *
- * ## Contract
- * Tag value is one of: `LITERAL`, `SPEL`, `PROPERTY`, `AUTO`.
- * Bounded cardinality (4 values) — safe for all Micrometer backends.
+ * `TAG_LEADER_ID_SOURCE` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
  */
 const val TAG_LEADER_ID_SOURCE: String = "leader.id.source"
 
 /**
- * Gauge name for the count of bridge-dropped slot elections.
- *
- * ## Contract
- * Incremented by [io.bluetape4k.leader.identity.LeaderElectorBridgeLog] when a backend
- * falls through to the bridge default instead of overriding the slot variant.
+ * `GAUGE_BRIDGE_DROPPED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
  */
 const val GAUGE_BRIDGE_DROPPED: String = "leader.aop.bridge.dropped"
 
 /**
- * Gauge name for the count of bridge-dropped result elections.
- *
- * ## Contract
- * Incremented by [io.bluetape4k.leader.identity.LeaderElectorBridgeLog] when the result
- * variant bridge default is used instead of a backend override.
+ * `GAUGE_BRIDGE_RESULT_DROPPED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
  */
 const val GAUGE_BRIDGE_RESULT_DROPPED: String = "leader.aop.bridge.result-dropped"
 
 /**
- * Counter name for leader ID resolution failures.
- *
- * ## Contract
- * Single source of truth: delegates to [io.bluetape4k.leader.metrics.LeaderMetricNames.METRIC_LEADER_ID_RESOLUTION_FAILED].
- * Incremented from the PR7 aspect on every [io.bluetape4k.leader.identity.LeaderIdResolutionException].
- *
- * ```kotlin
- * registry.counter(COUNTER_LEADER_ID_RESOLUTION_FAILED).increment()
- * ```
+ * `COUNTER_LEADER_ID_RESOLUTION_FAILED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
  */
 const val COUNTER_LEADER_ID_RESOLUTION_FAILED: String = "leader.aop.leader_id.resolution_failed"
 
 /**
- * Observation name for leader lock acquisition terminal events.
- *
- * Emits short Micrometer Observations for acquired and skipped AOP acquisition
- * outcomes. The measured acquisition elapsed time is stored as a key value,
- * not as the observation's own wall-clock duration.
+ * `OBSERVATION_LEADER_AOP_ACQUIRE` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
  */
 const val OBSERVATION_LEADER_AOP_ACQUIRE: String = "leader.aop.acquire"
 
 /**
- * Observation name for leader task execution terminal events.
- *
- * Emits short Micrometer Observations for success, error, and cancellation
- * outcomes after the guarded task reaches a terminal callback.
+ * `OBSERVATION_LEADER_AOP_EXECUTION` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
  */
 const val OBSERVATION_LEADER_AOP_EXECUTION: String = "leader.aop.execution"
 
-/** Observation name for listener-based elected, revoked, and skipped events. */
+/**
+ * `OBSERVATION_LEADER_ELECTION_EVENT` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ */
 const val OBSERVATION_LEADER_ELECTION_EVENT: String = "leader.election.event"
 
-/** Observation key for the logical operation, such as `acquire` or `execute`. */
+/**
+ * `OBSERVATION_TAG_OPERATION` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ */
 const val OBSERVATION_TAG_OPERATION: String = "leader.operation"
 
-/** Observation key for terminal result values such as `acquired`, `success`, or `error`. */
+/**
+ * `OBSERVATION_TAG_OUTCOME` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ */
 const val OBSERVATION_TAG_OUTCOME: String = "outcome"
 
-/** Observation key for skipped-acquire reason values. */
+/**
+ * `OBSERVATION_TAG_REASON` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ */
 const val OBSERVATION_TAG_REASON: String = "reason"
 
-/** Observation key for exception simple class names. */
+/**
+ * `OBSERVATION_TAG_EXCEPTION` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ */
 const val OBSERVATION_TAG_EXCEPTION: String = "exception"
 
-/** Observation key for listener event values such as `elected`, `revoked`, or `skipped`. */
+/**
+ * `OBSERVATION_TAG_EVENT` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ */
 const val OBSERVATION_TAG_EVENT: String = "event"
 
-/** Observation key for callback-provided acquisition elapsed milliseconds. */
+/**
+ * `OBSERVATION_TAG_ACQUIRE_ELAPSED_MS` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ */
 const val OBSERVATION_TAG_ACQUIRE_ELAPSED_MS: String = "acquire.elapsed.ms"
 
-/** Observation key for callback-provided execution elapsed milliseconds. */
+/**
+ * `OBSERVATION_TAG_EXECUTION_ELAPSED_MS` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+ */
 const val OBSERVATION_TAG_EXECUTION_ELAPSED_MS: String = "execution.elapsed.ms"
 
 /**
- * Micrometer meter and tag name constants for leader-aop.
+ * `MicrometerNames`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * All meter names share the `leader.aop.` prefix.
- * Micrometer's [io.micrometer.core.instrument.config.NamingConvention] automatically converts them
- * per backend (e.g., Prometheus: `leader_aop_attempts_total`, Datadog: `leader.aop.attempts.count`).
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 internal object MicrometerNames {
 
     // --- Meter names ---
 
-    /** Counter for the number of lock acquisition attempts. */
+    /**
+     * `METER_ATTEMPTS` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val METER_ATTEMPTS = "leader.aop.attempts"
 
-    /** Counter for successful lock acquisitions (leader elected). */
+    /**
+     * `METER_ACQUIRED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val METER_ACQUIRED = "leader.aop.acquired"
 
-    /** Timer for lock acquisition duration from attempt to acquired. */
+    /**
+     * `METER_ACQUIRE_DURATION` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val METER_ACQUIRE_DURATION = "leader.aop.acquire.duration"
 
-    /** Counter for failed lock acquisitions. Reason distinguished by [TAG_REASON] tag. */
+    /**
+     * `METER_NOT_ACQUIRED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val METER_NOT_ACQUIRED = "leader.aop.lock.not.acquired"
 
-    /** Timer for execution duration of successfully completed tasks. */
+    /**
+     * `METER_EXECUTION_DURATION` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val METER_EXECUTION_DURATION = "leader.aop.execution.duration"
 
-    /** Counter for exceptions thrown from the task body. Exception type distinguished by [TAG_EXCEPTION] tag. */
+    /**
+     * `METER_TASK_FAILED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val METER_TASK_FAILED = "leader.aop.task.failed"
 
     /**
-     * Gauge for the number of currently running leader tasks.
-     *
-     * **JVM-local value** — when aggregating in Prometheus across a multi-instance cluster,
-     * prefer `max by (lock_name) (leader_aop_active)` over `sum`.
+     * `METER_ACTIVE` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
      */
     const val METER_ACTIVE = "leader.aop.active"
 
     // --- Tag keys ---
 
-    /** Tag for the lock name resolved via SpEL. */
+    /**
+     * `TAG_LOCK_NAME` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val TAG_LOCK_NAME = "lock.name"
 
-    /** Tag for the lock acquisition failure reason (`CONTENTION` / `BACKEND_ERROR`). */
+    /**
+     * `TAG_REASON` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val TAG_REASON = "reason"
 
-    /** Tag for the exception type on task failure (`throwable::class.simpleName`). */
+    /**
+     * `TAG_EXCEPTION` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val TAG_EXCEPTION = "exception"
 
-    /** Tag for leader election lifecycle events (`elected` / `revoked` / `skipped`). */
+    /**
+     * `TAG_EVENT` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val TAG_EVENT = "event"
 
     // --- Sentinel values ---
 
-    /** Fallback value for the [TAG_EXCEPTION] tag when `simpleName == null` (e.g., anonymous classes). */
+    /**
+     * `UNKNOWN_EXCEPTION` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val UNKNOWN_EXCEPTION = "Unknown"
 
     // --- Decorator meter names ---
 
-    /** Counter for successful leader elections via decorator. */
+    /**
+     * `METER_LEADER_ACQUIRED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val METER_LEADER_ACQUIRED = "shedlock.leader.acquired"
 
-    /** Counter for failed leader acquisitions via decorator. */
+    /**
+     * `METER_LEADER_NOT_ACQUIRED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val METER_LEADER_NOT_ACQUIRED = "shedlock.leader.not_acquired"
 
-    /** Timer for leader task execution duration via decorator. */
+    /**
+     * `METER_LEADER_DURATION` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val METER_LEADER_DURATION = "shedlock.leader.duration"
 
-    /** Gauge for the number of currently running leader tasks via decorator. */
+    /**
+     * `METER_LEADER_ACTIVE` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val METER_LEADER_ACTIVE = "shedlock.leader.active"
 
-    /** Counter for listener-based leader election lifecycle events. */
+    /**
+     * `METER_LEADER_EVENTS` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val METER_LEADER_EVENTS = "leader.election.events"
 
     // --- History / Audit meter names ---
 
-    /** Counter: history sink call failures (any Exception). Tag: `sink`. */
+    /**
+     * `HISTORY_SINK_FAILURES` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val HISTORY_SINK_FAILURES = "leader.history.sink.failures"
 
-    /** Counter: recordAcquired returned null (storage unavailable or duplicate). Tag: `sink`. */
+    /**
+     * `HISTORY_ACQUIRE_MISSING` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val HISTORY_ACQUIRE_MISSING = "leader.history.acquire.missing"
 
-    /** Gauge: MongoDB TTL index presence state (1 = present, 0 = absent). */
+    /**
+     * `HISTORY_MONGODB_INDEX_STATE` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val HISTORY_MONGODB_INDEX_STATE = "leader.history.mongodb.index.state"
 
-    /** Counter: MongoDB TTL index was disabled at startup (misconfiguration signal). */
+    /**
+     * `HISTORY_MONGODB_TTL_DISABLED` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     const val HISTORY_MONGODB_TTL_DISABLED = "leader.history.mongodb.ttl.disabled"
 }

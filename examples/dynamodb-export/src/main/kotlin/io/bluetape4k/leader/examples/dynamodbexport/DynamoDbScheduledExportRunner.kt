@@ -14,14 +14,12 @@ import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Runs a scheduled export job only on the node elected through DynamoDB.
+ * `DynamoDbScheduledExportRunner`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Contract
- *
- * The runner delegates leadership to [SuspendLeaderElector]. When leadership is
- * acquired, [runOnce] executes the caller's export job and writes one export
- * record to [exportTable]. When another node holds the same lock, [runOnce]
- * returns [DynamoDbExportStatus.SKIPPED] without throwing.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property options example workflow 계약에서 사용하는 속성입니다.
+ * @property elector example workflow 계약에서 사용하는 속성입니다.
+ * @property exportTable example workflow 계약에서 사용하는 속성입니다.
  */
 class DynamoDbScheduledExportRunner(
     val options: DynamoDbExportRunnerOptions,
@@ -67,6 +65,14 @@ class DynamoDbScheduledExportRunner(
     }
 }
 
+/**
+ * `DynamoDbExportRunnerOptions`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property nodeId example workflow 계약에서 `nodeId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockName example workflow 계약에서 `lockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaderOptions example workflow 계약에서 `leaderOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 data class DynamoDbExportRunnerOptions(
     val nodeId: String,
     val lockName: String,

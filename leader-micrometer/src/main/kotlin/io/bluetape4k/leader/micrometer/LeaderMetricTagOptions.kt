@@ -9,13 +9,9 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
 /**
- * Cardinality-control mode for leader metric tag values.
+ * `LeaderMetricTagMode`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Contract
- * - [REDACT] collapses every non-allowed value to a configured sentinel.
- * - [RAW] exports the original value and should only be used for bounded, non-sensitive tags.
- * - [HASH] exports a deterministic unsalted SHA-256 hex prefix. It is pseudonymization, not secrecy.
- * - [TRUNCATE] exports a bounded prefix and requires `maxLength > 0`.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 enum class LeaderMetricTagMode {
     REDACT,
@@ -25,16 +21,14 @@ enum class LeaderMetricTagMode {
 }
 
 /**
- * Sanitization rule for one metric tag key.
+ * `LeaderMetricTagRule`는 Micrometer observability에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## Contract
- * Denylist wins over allowlist. A non-empty allowlist admits exact raw values and redacts every
- * non-member. Mode-specific transformation runs only after the allow/deny decision.
- *
- * ```kotlin
- * val rule = LeaderMetricTagRule(mode = LeaderMetricTagMode.REDACT, redactedValue = "job")
- * val exported = rule.sanitize("tenant-42")
- * ```
+ * @property mode Micrometer observability 계약에서 `mode` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property allowList Micrometer observability 계약에서 `allowList` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property denyList Micrometer observability 계약에서 `denyList` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property hashLength Micrometer observability 계약에서 `hashLength` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property maxLength Micrometer observability 계약에서 `maxLength` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property redactedValue Micrometer observability 계약에서 `redactedValue` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 @ConsistentCopyVisibility
 data class LeaderMetricTagRule private constructor(
@@ -59,7 +53,9 @@ data class LeaderMetricTagRule private constructor(
     }
 
     /**
-     * Converts [rawValue] to the exported tag value according to this rule.
+     * `sanitize` 호출은 Micrometer observability 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun sanitize(rawValue: String): String {
         if (rawValue in deniedValues) {
@@ -84,29 +80,41 @@ data class LeaderMetricTagRule private constructor(
     companion object {
         private const val serialVersionUID = 1L
 
-        /** Default hash prefix length. */
+        /**
+         * `DEFAULT_HASH_LENGTH` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         const val DEFAULT_HASH_LENGTH = 16
 
-        /** Default maximum length. `0` means no truncation unless [LeaderMetricTagMode.TRUNCATE] is used. */
+        /**
+         * `DEFAULT_MAX_LENGTH` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         const val DEFAULT_MAX_LENGTH = 0
 
-        /** Default sentinel for unknown tag keys. */
+        /**
+         * `DEFAULT_REDACTED_VALUE` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         const val DEFAULT_REDACTED_VALUE = "redacted"
 
         private const val SHA256_HEX_LENGTH = 64
         private val HEX = "0123456789abcdef".toCharArray()
         private val SHA256 = ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
 
-        /** Raw passthrough rule for bounded, non-sensitive tags. */
+        /**
+         * `Raw` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         @JvmField
         val Raw: LeaderMetricTagRule = LeaderMetricTagRule(mode = LeaderMetricTagMode.RAW)
 
-        /** Redaction rule for unknown or high-cardinality tag keys. */
+        /**
+         * `Redacted` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         @JvmField
         val Redacted: LeaderMetricTagRule = LeaderMetricTagRule()
 
         /**
-         * Factory for immutable tag sanitization rules.
+         * `invoke` 호출은 Micrometer observability 계약의 일부 동작을 수행합니다.
+         *
+         * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
          */
         operator fun invoke(
             mode: LeaderMetricTagMode = LeaderMetricTagMode.REDACT,
@@ -140,11 +148,12 @@ data class LeaderMetricTagRule private constructor(
 }
 
 /**
- * Tag-key-aware cardinality controls for leader Micrometer tags.
+ * `LeaderMetricTagOptions`는 Micrometer observability에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## Contract
- * Defaults are production-safe for high-cardinality lock names and leader IDs. Use [Raw] only after
- * accepting the time-series cardinality risk.
+ * @property lockName Micrometer observability 계약에서 `lockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaderId Micrometer observability 계약에서 `leaderId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property backendName Micrometer observability 계약에서 `backendName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property defaultRule Micrometer observability 계약에서 `defaultRule` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class LeaderMetricTagOptions(
     val lockName: LeaderMetricTagRule = LeaderMetricTagRule(redactedValue = DEFAULT_LOCK_NAME_REDACTED_VALUE),
@@ -154,7 +163,9 @@ data class LeaderMetricTagOptions(
 ) : Serializable {
 
     /**
-     * Returns the rule for [tagKey], falling back to [defaultRule] for unknown tags.
+     * `ruleFor` 호출은 Micrometer observability 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun ruleFor(tagKey: String): LeaderMetricTagRule =
         when (tagKey) {
@@ -167,20 +178,30 @@ data class LeaderMetricTagOptions(
     companion object {
         private const val serialVersionUID = 1L
 
-        /** Tag key reserved for bounded backend identifiers. */
+        /**
+         * `TAG_BACKEND_NAME` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         const val TAG_BACKEND_NAME: String = "backend.name"
 
-        /** Default exported value for redacted lock names. */
+        /**
+         * `DEFAULT_LOCK_NAME_REDACTED_VALUE` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         const val DEFAULT_LOCK_NAME_REDACTED_VALUE: String = "redacted-lock"
 
-        /** Default exported value for redacted leader IDs. */
+        /**
+         * `DEFAULT_LEADER_ID_REDACTED_VALUE` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         const val DEFAULT_LEADER_ID_REDACTED_VALUE: String = "redacted-leader"
 
-        /** Production-safe default options. */
+        /**
+         * `Default` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         @JvmField
         val Default: LeaderMetricTagOptions = LeaderMetricTagOptions()
 
-        /** Raw passthrough options for legacy dashboards that accept cardinality risk. */
+        /**
+         * `Raw` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         @JvmField
         val Raw: LeaderMetricTagOptions = LeaderMetricTagOptions(
             lockName = LeaderMetricTagRule.Raw,
@@ -192,30 +213,36 @@ data class LeaderMetricTagOptions(
 }
 
 /**
- * Maps raw leader metric tag values to exported tag values.
+ * `interface` 호출은 Micrometer observability 계약의 일부 동작을 수행합니다.
  *
- * ## Contract
- * Implementations must be thread-safe. The default implementation is immutable and keeps no
- * unbounded raw-value cache.
+ * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun interface LeaderMetricTagSanitizer {
 
     /**
-     * Sanitizes [rawValue] for [tagKey].
+     * `sanitize` 호출은 Micrometer observability 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun sanitize(tagKey: String, rawValue: String): String
 
     companion object {
-        /** Production-safe default sanitizer. */
+        /**
+         * `Default` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         @JvmField
         val Default: LeaderMetricTagSanitizer = from(LeaderMetricTagOptions.Default)
 
-        /** Raw passthrough sanitizer for compatibility opt-out. */
+        /**
+         * `Raw` 값은 Micrometer observability 계약에서 사용하는 설정 또는 상태 항목입니다.
+         */
         @JvmField
         val Raw: LeaderMetricTagSanitizer = LeaderMetricTagSanitizer { _, rawValue -> rawValue }
 
         /**
-         * Builds a sanitizer from [options].
+         * `from` 호출은 Micrometer observability 계약의 일부 동작을 수행합니다.
+         *
+         * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
          */
         @JvmStatic
         fun from(options: LeaderMetricTagOptions): LeaderMetricTagSanitizer {

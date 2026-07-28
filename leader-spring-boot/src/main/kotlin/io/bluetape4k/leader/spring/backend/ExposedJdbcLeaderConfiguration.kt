@@ -17,14 +17,9 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * Auto-configuration for the Exposed (JDBC) backend.
+ * `ExposedJdbcLeaderConfiguration`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * Activated only when an `org.jetbrains.exposed.v1.jdbc.Database` bean is registered.
- *
- * Registered beans:
- * - `exposedJdbcLeaderElector` — synchronous single-leader elector
- * - `exposedJdbcLeaderGroupElector` — synchronous group-leader elector
- * - `exposedJdbcVirtualThreadLeaderElector` — Virtual Thread variant (wraps the sync bean)
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(Database::class)

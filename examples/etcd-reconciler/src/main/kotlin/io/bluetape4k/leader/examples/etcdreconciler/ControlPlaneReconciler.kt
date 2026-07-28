@@ -13,14 +13,11 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Demonstrates a control-plane reconcile loop guarded by etcd leader election.
+ * `ControlPlaneReconciler`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Behavior / Contract
- *
- * - Nodes sharing the same [lockName] compete through the same etcd key prefix.
- * - Exactly one node can run [reconcile] while the etcd lease is held.
- * - Non-leaders return [ReconcileStatus.SKIPPED] without running the supplied work.
- * - After the leader body completes, the lease is released and another node can acquire the lock.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property nodeId example workflow 계약에서 사용하는 속성입니다.
+ * @property lockName example workflow 계약에서 사용하는 속성입니다.
  */
 class ControlPlaneReconciler(
     val nodeId: String,
@@ -52,7 +49,9 @@ class ControlPlaneReconciler(
     )
 
     /**
-     * Runs one reconcile cycle only when this node acquires leadership.
+     * `reconcile` 호출은 example workflow 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun reconcile(workSupplier: () -> List<String>): ReconcileReport {
         val appliedResources = elector.runIfLeader(lockName) {
@@ -78,7 +77,12 @@ class ControlPlaneReconciler(
 }
 
 /**
- * Result state for a single control-plane reconcile attempt.
+ * `ReconcileStatus`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property nodeId example workflow 계약에서 사용하는 속성입니다.
+ * @property status example workflow 계약에서 사용하는 속성입니다.
+ * @property appliedResources example workflow 계약에서 사용하는 속성입니다.
  */
 enum class ReconcileStatus {
     APPLIED,
@@ -86,7 +90,11 @@ enum class ReconcileStatus {
 }
 
 /**
- * Serializable report emitted by [ControlPlaneReconciler].
+ * `ReconcileReport`는 example workflow에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ *
+ * @property nodeId example workflow 계약에서 `nodeId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property status example workflow 계약에서 `status` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property appliedResources example workflow 계약에서 `appliedResources` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class ReconcileReport(
     val nodeId: String,

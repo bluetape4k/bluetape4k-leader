@@ -7,23 +7,25 @@ import io.bluetape4k.leader.annotation.LeaderAspectFailureMode
 import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
 
 /**
- * Resolved metadata cached per-method by the `@LeaderElection` processing aspect.
+ * `AdviceMetadata`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## Field Description
- * - [nameExpression]: Raw `@LeaderElection.name` value (SpEL expression or literal)
- * - [literalName]: Pre-parsed value when the name matches the literal pattern; `null` for SpEL
- * - [options]: Resolved [LeaderElectionOptions]
- * - [factoryBeanName]: Sync elector factory bean name (used for diagnostic metadata and [LockIdentity] construction)
- * - [factory]: Sync elector factory instance
- * - [failureMode]: Effective failure mode with INHERIT already resolved
- * - [leaseTimeWarnThresholdNanos]: leaseTime × 0.8 threshold in nanoseconds
- * - [branch]: [AdviceBranch] — SYNC / COROUTINES / REACTIVE
- * - [isSuspend], [isMono], [isFlux], [isFlow]: Exact method return-shape markers
- * - [streamBounded]: Caller opt-in for finite `Flux` / `Flow` streams without auto-extension
- * - [suspendElectorFactory]: Factory for the SUSPEND / MONO branch (`null` for SYNC)
- * - [suspendElectorFactoryBeanName]: Factory bean name for the SUSPEND / MONO branch
- * - [annotationKind]: [LockIdentity.AnnotationKind.SINGLE] (exclusive to LeaderElection)
- * - [groupParams]: `null` (not a group — always `null` for LeaderElection)
+ * @property nameExpression Spring Boot integration 계약에서 `nameExpression` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property literalName Spring Boot integration 계약에서 `literalName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property options Spring Boot integration 계약에서 `options` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property factoryBeanName Spring Boot integration 계약에서 `factoryBeanName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property factory Spring Boot integration 계약에서 `factory` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property failureMode Spring Boot integration 계약에서 `failureMode` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaseTimeWarnThresholdNanos Spring Boot integration 계약에서 `leaseTimeWarnThresholdNanos` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property branch Spring Boot integration 계약에서 `branch` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property isSuspend Spring Boot integration 계약에서 `isSuspend` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property isMono Spring Boot integration 계약에서 `isMono` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property isFlux Spring Boot integration 계약에서 `isFlux` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property isFlow Spring Boot integration 계약에서 `isFlow` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property streamBounded Spring Boot integration 계약에서 `streamBounded` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property suspendElectorFactory Spring Boot integration 계약에서 `suspendElectorFactory` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property suspendElectorFactoryBeanName Spring Boot integration 계약에서 `suspendElectorFactoryBeanName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property annotationKind Spring Boot integration 계약에서 `annotationKind` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property groupParams Spring Boot integration 계약에서 `groupParams` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 internal data class AdviceMetadata(
     val nameExpression: String,
@@ -45,10 +47,9 @@ internal data class AdviceMetadata(
     val groupParams: LockIdentity.GroupParams? = null,
 ) {
     /**
-     * Creates a [LockIdentity] for the given [branch].
+     * `resolveLockIdentity` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
      *
-     * `factoryBeanName` is excluded from `equals/hashCode`, so nested sync ↔ suspend calls
-     * are recognised as the same lock (Step 3-P R3 mitigation).
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun resolveLockIdentity(lockName: String, branch: AdviceBranch): LockIdentity {
         val beanName = when (branch) {

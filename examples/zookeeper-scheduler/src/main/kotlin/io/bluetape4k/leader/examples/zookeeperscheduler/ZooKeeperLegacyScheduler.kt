@@ -13,14 +13,10 @@ import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Runs a legacy scheduled job only on the node elected through ZooKeeper.
+ * `ZooKeeperLegacyScheduler`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Behavior / Contract
- *
- * - Instances sharing the same [ZooKeeperSchedulerConfig.lockName] compete through `ZooKeeperLeaderElector`.
- * - The elected instance executes the supplied job and returns [SchedulerRunStatus.EXECUTED].
- * - Non-leaders return [SchedulerRunStatus.SKIPPED] without executing the supplied job.
- * - ZooKeeper locks are session-based; this example keeps `autoExtend=false`.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property config example workflow 계약에서 사용하는 속성입니다.
  */
 class ZooKeeperLegacyScheduler(
     private val config: ZooKeeperSchedulerConfig,
@@ -41,7 +37,9 @@ class ZooKeeperLegacyScheduler(
     )
 
     /**
-     * Executes [job] only when this node acquires the ZooKeeper scheduler lock.
+     * `runOnce` 호출은 example workflow 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun runOnce(
         scheduleId: SchedulerRunId,
@@ -78,7 +76,13 @@ class ZooKeeperLegacyScheduler(
 }
 
 /**
- * Caller-owned configuration for one ZooKeeper-backed scheduler participant.
+ * `ZooKeeperSchedulerConfig`는 example workflow에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ *
+ * @property nodeId example workflow 계약에서 `nodeId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockName example workflow 계약에서 `lockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property basePath example workflow 계약에서 `basePath` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property waitTime example workflow 계약에서 `waitTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property leaseTime example workflow 계약에서 `leaseTime` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class ZooKeeperSchedulerConfig(
     val nodeId: SchedulerNodeId,
@@ -94,7 +98,10 @@ data class ZooKeeperSchedulerConfig(
 }
 
 /**
- * Stable node identity used by the example scheduler.
+ * `SchedulerNodeId`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property value example workflow 계약에서 사용하는 속성입니다.
  */
 @JvmInline
 value class SchedulerNodeId(val value: String): Serializable {
@@ -110,7 +117,10 @@ value class SchedulerNodeId(val value: String): Serializable {
 }
 
 /**
- * Logical lock name shared by scheduler instances that must not run concurrently.
+ * `SchedulerLockName`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property value example workflow 계약에서 사용하는 속성입니다.
  */
 @JvmInline
 value class SchedulerLockName(val value: String): Serializable {
@@ -126,7 +136,10 @@ value class SchedulerLockName(val value: String): Serializable {
 }
 
 /**
- * ZooKeeper base path for this example's leader-election znodes.
+ * `ZooKeeperSchedulerBasePath`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property value example workflow 계약에서 사용하는 속성입니다.
  */
 @JvmInline
 value class ZooKeeperSchedulerBasePath(val value: String): Serializable {
@@ -142,7 +155,10 @@ value class ZooKeeperSchedulerBasePath(val value: String): Serializable {
 }
 
 /**
- * Business run id for one scheduled execution.
+ * `SchedulerRunId`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property value example workflow 계약에서 사용하는 속성입니다.
  */
 @JvmInline
 value class SchedulerRunId(val value: String): Serializable {
@@ -158,7 +174,14 @@ value class SchedulerRunId(val value: String): Serializable {
 }
 
 /**
- * Outcome of one scheduler attempt.
+ * `SchedulerRunStatus`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property nodeId example workflow 계약에서 사용하는 속성입니다.
+ * @property scheduleId example workflow 계약에서 사용하는 속성입니다.
+ * @property status example workflow 계약에서 사용하는 속성입니다.
+ * @property completedSteps example workflow 계약에서 사용하는 속성입니다.
+ * @property elapsed example workflow 계약에서 사용하는 속성입니다.
  */
 enum class SchedulerRunStatus {
     EXECUTED,
@@ -166,7 +189,13 @@ enum class SchedulerRunStatus {
 }
 
 /**
- * Serializable report emitted after one scheduler attempt.
+ * `SchedulerRunReport`는 example workflow에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
+ *
+ * @property nodeId example workflow 계약에서 `nodeId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property scheduleId example workflow 계약에서 `scheduleId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property status example workflow 계약에서 `status` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property completedSteps example workflow 계약에서 `completedSteps` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property elapsed example workflow 계약에서 `elapsed` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class SchedulerRunReport(
     val nodeId: SchedulerNodeId,

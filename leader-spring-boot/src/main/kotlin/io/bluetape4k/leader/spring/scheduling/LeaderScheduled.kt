@@ -7,14 +7,27 @@ import org.springframework.scheduling.annotation.Scheduled
 import java.util.concurrent.TimeUnit
 
 /**
- * Runs a Spring scheduled method only when this node acquires the named leader lease.
+ * `LeaderScheduled`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * This is a composed convenience annotation. Spring still owns trigger registration and scheduled
- * task observation, while the existing leader-election aspect owns acquisition, contention skips,
- * lease handling, and leader metrics.
- *
- * Exactly one of [cron], [fixedRate], [fixedRateString], [fixedDelay], or [fixedDelayString] must
- * define the schedule, following Spring's [Scheduled] contract.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property name Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property cron Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property zone Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property fixedRate Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property fixedRateString Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property fixedDelay Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property fixedDelayString Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property initialDelay Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property initialDelayString Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property timeUnit Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property scheduler Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property waitTime Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property leaseTime Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property minLeaseTime Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property autoExtend Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property streamBounded Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property bean Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property failureMode Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)

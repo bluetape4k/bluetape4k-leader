@@ -28,13 +28,9 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Three-node leader-election plus distributed rate-limiter demo.
+ * `RateLimiterDemo`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * ## Contract
- *
- * One leader node schedules the work. Multiple worker nodes then consume the
- * scheduled work through one Redis-backed Bucket4j quota so the aggregate
- * external API calls do not exceed [quotaPerSecond] per second.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 object RateLimiterDemo: KLogging() {
 
@@ -231,6 +227,16 @@ enum class RateLimiterDemoStatus {
     ERROR,
 }
 
+/**
+ * `RateLimiterDemoReport`는 example workflow에서 사용하는 설정, 상태, 또는 예제 workflow 값을 담는 모델입니다.
+ *
+ * 실행 동작은 유지하고 annotation, auto-configuration, route guard, metric, example intent를 문서화합니다.
+ * @property dispatchReports example workflow 계약에서 `dispatchReports` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property workerReports example workflow 계약에서 `workerReports` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property totalCalls example workflow 계약에서 `totalCalls` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property quotaPerSecond example workflow 계약에서 `quotaPerSecond` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property windowSeconds example workflow 계약에서 `windowSeconds` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ */
 data class RateLimiterDemoReport(
     val dispatchReports: List<DispatchReport>,
     val workerReports: List<WorkerCallReport>,

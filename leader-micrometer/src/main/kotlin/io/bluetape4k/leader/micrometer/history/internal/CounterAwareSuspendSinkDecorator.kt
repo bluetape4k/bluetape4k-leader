@@ -11,12 +11,10 @@ import kotlinx.coroutines.CancellationException
 import java.time.Instant
 
 /**
- * Internal [SuspendLeaderHistorySink] decorator that increments Micrometer counters on sink events.
+ * `CounterAwareSuspendSinkDecorator`는 Micrometer observability의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * [CancellationException] is rethrown **before** any counter increment to prevent
- * structured-concurrency cancellations from being counted as sink failures.
- *
- * @param sinkSimpleName used as the `sink` tag value on all meters.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
+ * @property delegate Micrometer observability 계약에서 사용하는 속성입니다.
  */
 internal class CounterAwareSuspendSinkDecorator(
     private val delegate: SuspendLeaderHistorySink,

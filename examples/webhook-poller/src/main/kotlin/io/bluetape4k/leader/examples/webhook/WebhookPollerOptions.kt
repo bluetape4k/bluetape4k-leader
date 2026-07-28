@@ -6,37 +6,14 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Configuration for [WebhookPoller].
+ * `WebhookPollerOptions`는 example workflow에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ## Behavior / Contract
- *
- * - [nodeId]: identifier for this poller instance. Stored in the claimed event's `claimedBy` field.
- * - [lockName]: leader-election lock name. Prefer a separate lock per event collection.
- * - [pollInterval]: pause between polling cycles. Leaders use it after each batch, and non-leaders
- *   use it before retrying after a failed leader-lock acquisition.
- * - [batchSize]: maximum number of events to process per cycle; also the upper bound for atomic claim retries.
- * - [maxAttempts]: maximum accumulated handler attempts. The event status becomes `FAILED` when reached.
- * - [claimDuration]: lease duration after a claim before another instance may reclaim the event.
- *   If the handler can run longer than [claimDuration], another instance may reclaim the same event, so set
- *   this to at least the average handler runtime plus a safety margin, such as 2x.
- *
- * ### Leader-Election Options Are Owned By The Elector
- *
- * Configure leader-lock options such as `waitTime` and `leaseTime` on the externally supplied elector,
- * for example through [io.bluetape4k.leader.mongodb.MongoSuspendLeaderElector]'s
- * `MongoLeaderElectionOptions.leaderOptions`. Keeping those settings outside this type avoids
- * configuration drift.
- *
- * ```kotlin
- * WebhookPollerOptions(
- *     nodeId = System.getenv("HOSTNAME"),
- *     lockName = "webhook-poller:prod",
- *     pollInterval = 500.milliseconds,
- *     batchSize = 20,
- *     maxAttempts = 5,
- *     claimDuration = 30.seconds,
- * )
- * ```
+ * @property nodeId example workflow 계약에서 `nodeId` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockName example workflow 계약에서 `lockName` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property pollInterval example workflow 계약에서 `pollInterval` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property batchSize example workflow 계약에서 `batchSize` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property maxAttempts example workflow 계약에서 `maxAttempts` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property claimDuration example workflow 계약에서 `claimDuration` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class WebhookPollerOptions(
     val nodeId: String,

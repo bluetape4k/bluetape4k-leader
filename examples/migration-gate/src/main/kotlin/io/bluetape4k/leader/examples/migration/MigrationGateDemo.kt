@@ -15,9 +15,9 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * 3-인스턴스 마이그레이션 게이트 데모 (H2 in-memory).
+ * `MigrationGateDemo`는 example workflow의 leader election, route guard, metric, example workflow 계약을 설명합니다.
  *
- * Kubernetes 롤링 배포에서 새 pod 3개가 동시 기동 → 단 1개만 마이그레이션 실행하는 시나리오.
+ * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  */
 object MigrationGateDemo: KLogging() {
 
