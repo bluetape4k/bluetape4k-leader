@@ -24,26 +24,19 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Abstract class providing common state management for local (single-JVM) leader group election implementations.
+ * `AbstractLocalLeaderGroupElector` 선언은 leader election 계약에서 사용되는 class입니다.
  *
- * ## Role
- * - Manages a pool of per-lockName [Semaphore] instances using [ConcurrentHashMap].
- * - Implements [LeaderGroupElectionState] state query methods ([activeCount], [availableSlots], [state]).
- * - Subclasses use [getSemaphore] to acquire/release slots and implement execution logic.
- *
- * ## Subclasses
- * - [LocalLeaderGroupElector]: synchronous + async ([java.util.concurrent.CompletableFuture]) execution
- * - [LocalAsyncLeaderGroupElector]: async ([java.util.concurrent.CompletableFuture]) execution only
- * - [LocalVirtualThreadLeaderGroupElector]: [io.bluetape4k.concurrent.virtualthread.VirtualFuture] execution
- *
- * @param options leader group election options (maxLeaders, waitTime, leaseTime). Default is [LeaderGroupElectionOptions.Default].
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property options `options` 호출 또는 상태 계산에 필요한 값입니다.
  */
 abstract class AbstractLocalLeaderGroupElector(
     protected val options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
 ): LeaderGroupElectionState, LeaderElectionListenerRegistry {
 
     companion object {
-        /** Constant for [LockIdentity.factoryBeanName] diagnostic metadata — Local backend group. */
+        /**
+         * `LOCAL_GROUP_FACTORY_BEAN_NAME`는 backend별 leader elector 인스턴스를 생성하는 factory 계약입니다.
+         */
         internal const val LOCAL_GROUP_FACTORY_BEAN_NAME = "local-leader-group-elector"
     }
 
@@ -64,16 +57,10 @@ abstract class AbstractLocalLeaderGroupElector(
         listeners.removeListener(listener)
 
     /**
-     * Returns the [Semaphore] for [lockName], creating `Semaphore(maxLeaders, fair=true)` if it does not exist.
+     * `lockName`에 대응하는 fair [Semaphore]를 반환하고, 없으면 `maxLeaders` 크기로 생성합니다.
      *
-     * ```kotlin
-     * val semaphore = getSemaphore("batch-job")
-     * semaphore.acquire()
-     * try { /* critical section */ } finally { semaphore.release() }
-     * ```
-     *
-     * @param lockName the lock name (must not be blank)
-     * @return the [Semaphore] instance for the given lockName
+     * @param lockName group leader election에 사용할 lock 이름입니다. blank 값은 허용하지 않습니다.
+     * @return 지정한 lock 이름에 재사용되는 [Semaphore] 인스턴스입니다.
      */
     protected fun getSemaphore(lockName: String): Semaphore {
         lockName.requireNotBlank("lockName")
@@ -81,16 +68,12 @@ abstract class AbstractLocalLeaderGroupElector(
     }
 
     /**
-     * Executes [action] while holding a slot for [lockName] and releases the slot on completion.
+     * `withPermit` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * ```kotlin
-     * val result = withPermit("batch-job") { "done" }
-     * // result == "done"
-     * ```
-     *
-     * @param lockName the lock name
-     * @param action the action to run while holding the slot
-     * @return [action] result
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     protected fun <T> withPermit(lockName: String, action: () -> T): T {
         val semaphore = getSemaphore(lockName)
@@ -103,16 +86,12 @@ abstract class AbstractLocalLeaderGroupElector(
     }
 
     /**
-     * Executes [action] if a slot for [lockName] is acquired within the configured wait time; returns `null` if not.
+     * `tryWithPermit` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * ```kotlin
-     * val result = tryWithPermit("batch-job") { "done" }
-     * // result == "done" (slot acquired) or null (not acquired)
-     * ```
-     *
-     * @param lockName the lock name
-     * @param action the action to run when the slot is acquired
-     * @return [action] result, or `null` if the slot was not acquired
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     protected fun <T> tryWithPermit(lockName: String, action: () -> T): T? =
         tryWithPermit(
@@ -123,17 +102,14 @@ abstract class AbstractLocalLeaderGroupElector(
         )
 
     /**
-     * Executes [action] if a slot for [lockName] is acquired; returns `null` if not.
+     * `tryWithPermit` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * Slot-aware overload — stamps [auditLeaderId] (typically `LeaderSlot.leaderId`) into the
-     * [LeaderLease.auditLeaderId] / [LeaderLockHandle.Real.auditLeaderId] for audit traceability,
-     * and the optional [nodeId] into [LeaderLease.nodeId].
-     *
-     * @param lockName the lock name
-     * @param auditLeaderId stamped as `LeaderLease.auditLeaderId` and `LeaderLockHandle.Real.auditLeaderId`
-     * @param nodeId stamped as `LeaderLease.nodeId`; defaults to `options.nodeId`
-     * @param action the action to run when the slot is acquired
-     * @return [action] result, or `null` if the slot was not acquired
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param auditLeaderId `auditLeaderId` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param nodeId 상태 조회와 audit에 노출되는 노드 또는 인스턴스 식별자입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     protected fun <T> tryWithPermit(
         lockName: String,
@@ -207,45 +183,31 @@ abstract class AbstractLocalLeaderGroupElector(
     }
 
     /**
-     * Returns the number of currently active (running) leaders for [lockName].
+     * `activeCount`는 현재 점유된 group leader slot 수를 조회합니다.
      *
-     * ```kotlin
-     * val count = activeCount("batch-job")
-     * // count == 0  (when no leader is running)
-     * ```
-     *
-     * @param lockName the lock name to query
-     * @return current active leader count (approximate)
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override fun activeCount(lockName: String): Int =
         maxLeaders - getSemaphore(lockName).availablePermits()
 
     /**
-     * Returns the number of remaining slots available to accept new leaders for [lockName].
+     * `availableSlots`는 아직 획득 가능한 group leader slot 수를 조회합니다.
      *
-     * ```kotlin
-     * val slots = availableSlots("batch-job")
-     * // slots == maxLeaders  (when no leader is running)
-     * ```
-     *
-     * @param lockName the lock name to query
-     * @return number of available slots (approximate)
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override fun availableSlots(lockName: String): Int =
         getSemaphore(lockName).availablePermits()
 
     /**
-     * Returns a snapshot of the current [LeaderGroupState] for [lockName].
+     * `state`는 현재 leader election 상태 snapshot을 조회합니다.
      *
-     * ```kotlin
-     * val state = state("batch-job")
-     * // state.maxLeaders == maxLeaders
-     * // state.activeCount == 0
-     * // state.isEmpty == true
-     * ```
-     *
-     * @param lockName the lock name to query
-     * @return current leader group state snapshot
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override fun state(lockName: String): LeaderGroupState =
         states.groupState(lockName, maxLeaders, activeCount(lockName))

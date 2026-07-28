@@ -13,7 +13,10 @@ import io.bluetape4k.leader.LeaderState
 import kotlinx.coroutines.flow.Flow
 
 /**
- * A decorator that adds [LeaderElectionListener] dispatch and a hot event stream to [SuspendLeaderElector].
+ * `ListeningSuspendLeaderElector` 선언은 leader election 계약에서 사용되는 class입니다.
+ *
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property delegate 실제 leader election 동작을 수행하는 위임 객체입니다.
  */
 class ListeningSuspendLeaderElector(
     private val delegate: SuspendLeaderElector,
@@ -104,7 +107,10 @@ class ListeningSuspendLeaderElector(
 }
 
 /**
- * A decorator that adds [LeaderElectionListener] dispatch and a hot event stream to [SuspendLeaderGroupElector].
+ * `ListeningSuspendLeaderGroupElector` 선언은 leader election 계약에서 사용되는 class입니다.
+ *
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property delegate 실제 leader election 동작을 수행하는 위임 객체입니다.
  */
 class ListeningSuspendLeaderGroupElector(
     private val delegate: SuspendLeaderGroupElector,
@@ -153,7 +159,11 @@ class ListeningSuspendLeaderGroupElector(
 }
 
 /**
- * Wraps [SuspendLeaderElector] in a listener-aware decorator.
+ * `SuspendLeaderElector`는 coroutine suspend leader election 실행자입니다.
+ *
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param listeners `listeners` 호출 또는 상태 계산에 필요한 값입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 fun SuspendLeaderElector.withListeners(
     vararg listeners: LeaderElectionListener,
@@ -163,7 +173,11 @@ fun SuspendLeaderElector.withListeners(
     }
 
 /**
- * Wraps [SuspendLeaderGroupElector] in a listener-aware decorator.
+ * `SuspendLeaderGroupElector`는 여러 slot을 허용하는 coroutine group leader election 실행자입니다.
+ *
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param listeners `listeners` 호출 또는 상태 계산에 필요한 값입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 fun SuspendLeaderGroupElector.withListeners(
     vararg listeners: LeaderElectionListener,

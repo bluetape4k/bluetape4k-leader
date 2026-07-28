@@ -7,13 +7,10 @@ import io.bluetape4k.leader.strategy.ElectionStrategy
 import io.bluetape4k.leader.strategy.Elimination
 
 /**
- * An [ElectionStrategy] that elects the candidate with the highest score computed by [scorer].
+ * `ScoredElectionStrategy`는 전략 기반 leader 선출에서 후보 평가 규칙을 제공합니다.
  *
- * ## Behavior / Contract
- * - Tie-breaking when scores are equal: ascending [CandidateInfo.registeredAt],
- *   then lexicographic [CandidateInfo.nodeId].
- *
- * @property scorer the [CandidateScorer] used to rank candidates
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property scorer 후보 점수를 계산하는 전략 객체입니다.
  */
 class ScoredElectionStrategy(val scorer: CandidateScorer) : ElectionStrategy {
 

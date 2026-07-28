@@ -6,23 +6,10 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireGt
 
 /**
- * [LeaderIdProvider] that combines the current node's hostname+PID with a random suffix.
+ * `HostnamePidLeaderIdProvider` 선언은 leader election 계약에서 사용되는 class입니다.
  *
- * ## Contract
- * - Format: `"${LeaderNodeId.Default}:${Base58.randomString(suffixLength)}"`
- * - Each call returns a unique value (random suffix prevents repeated-startup collisions).
- *
- * ## PII Warning
- * The hostname portion may be sensitive in multi-tenant SaaS environments where
- * hostnames identify customers or internal infrastructure. **Do NOT use in such contexts.**
- * Prefer [RandomLeaderIdProvider] for PII-safe anonymous identity.
- *
- * ## Usage
- * ```kotlin
- * // Use with caution — hostname may be PII in multi-tenant environments
- * val provider = HostnamePidLeaderIdProvider(suffixLength = 6)
- * val leaderId = provider.nextLeaderId("my-lock") // e.g. "app-server-42:aBcDeF"
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property suffixLength `suffixLength` 호출 또는 상태 계산에 필요한 값입니다.
  */
 class HostnamePidLeaderIdProvider(val suffixLength: Int = 8) : LeaderIdProvider {
 

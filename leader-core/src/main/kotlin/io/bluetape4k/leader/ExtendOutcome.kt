@@ -4,48 +4,17 @@ import java.io.Serializable
 import java.time.Instant
 
 /**
- * Detailed result of [LeaderLockHandle.Real.extend] / [LeaderLockHandle.Real.extendSuspend].
+ * `ExtendOutcome` 선언은 leader election 계약에서 사용되는 interface입니다.
  *
- * The `Boolean` API ([LockExtender.extendActiveLock]) is equivalent to an `is Extended` conversion.
- * Use [LockExtender.extendActiveLockDetailed] when you need a classified result for operational visibility.
- *
- * ## Classification
- * - [Extended] — backend extend succeeded. `observedExpireAt` is a best-effort value (accuracy varies by backend).
- * - [NotHeld] — token mismatch / lease expired / takeover occurred — lock is no longer held.
- * - [WrongThread] — called from a thread different from the acquiring thread on a Redisson thread-bound lock.
- * - [BackendError] — transient (retryable) or non-transient backend error. `cause` must be an [Exception] (FATAL [Error] is blocked).
- *
- * ## Boolean conversion policy
- * The `Boolean` returned by `LockExtender.extendActiveLock(d)`:
- * - [Extended] → `true`
- * - [NotHeld], [WrongThread] → `false` (WARN log + metric)
- * - [BackendError] (transient) → `false` (WARN log + metric)
- * - [BackendError] (non-transient) → throws (caller's responsibility)
- *
- * ## Example
- * ```kotlin
- * when (val outcome = LockExtender.extendActiveLockDetailed(60.seconds)) {
- *     is ExtendOutcome.Extended -> log.info { "lease extended until ${outcome.observedExpireAt}" }
- *     is ExtendOutcome.NotHeld -> rollbackWork()
- *     is ExtendOutcome.WrongThread -> log.warn { "Redisson thread-bound — dispatched from wrong thread" }
- *     is ExtendOutcome.BackendError -> retry(outcome.cause)
- * }
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 sealed interface ExtendOutcome : Serializable {
 
     /**
-     * Extend succeeded.
+     * `Extended` 선언은 leader election 계약에서 사용되는 data class입니다.
      *
-     * @property observedExpireAt **best-effort** new expiry time. Accuracy by backend:
-     * - Lettuce / Hazelcast / Local: uses server-side time → accurate
-     * - Redisson: Redisson internal atomic — may use client clock → ±50ms
-     * - MongoDB: server-side `$$NOW` aggregation → accurate
-     * - Exposed JDBC/R2DBC: DB server time (`now()` SQL) → accurate
-     * - etcd: keep-alive response TTL from the server plus local receipt time → bounded by actual lease TTL
-     * - ZooKeeper: no TTL concept — `Instant.MAX` (session-held liveness passthrough)
-     *
-     * Do not use as a precise deadline — intended for observability/logging only.
+     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+     * @property observedExpireAt `observedExpireAt` 호출 또는 상태 계산에 필요한 값입니다.
      */
     data class Extended(val observedExpireAt: Instant) : ExtendOutcome {
         companion object {
@@ -53,21 +22,29 @@ sealed interface ExtendOutcome : Serializable {
         }
     }
 
-    /** Token mismatch / lease expired / takeover — lock is no longer held. */
+    /**
+     * `NotHeld` 선언은 leader election 계약에서 사용되는 object입니다.
+     *
+     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+     */
     data object NotHeld : ExtendOutcome {
         private const val serialVersionUID = 1L
     }
 
-    /** Called from a thread different from the acquiring thread on a Redisson thread-bound lock. */
+    /**
+     * `WrongThread` 선언은 leader election 계약에서 사용되는 object입니다.
+     *
+     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+     */
     data object WrongThread : ExtendOutcome {
         private const val serialVersionUID = 1L
     }
 
     /**
-     * Backend error. Use `BackendErrorClassifier` to classify as transient (retryable) or non-transient.
+     * `BackendError` 선언은 leader election 계약에서 사용되는 data class입니다.
      *
-     * `cause` must be an [Exception] — wrapping FATAL [Error] ([OutOfMemoryError], [StackOverflowError],
-     * [LinkageError], etc.) is forbidden; propagate them directly.
+     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+     * @property cause 실패 결과를 만든 원본 예외입니다.
      */
     data class BackendError(val cause: Exception) : ExtendOutcome {
         companion object {
@@ -75,6 +52,8 @@ sealed interface ExtendOutcome : Serializable {
         }
     }
 
-    /** Shortcut for Boolean API conversion. */
+    /**
+     * `isExtended` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val isExtended: Boolean get() = this is Extended
 }

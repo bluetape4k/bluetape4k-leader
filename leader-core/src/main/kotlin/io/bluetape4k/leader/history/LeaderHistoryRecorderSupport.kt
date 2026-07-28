@@ -5,13 +5,10 @@ import io.bluetape4k.support.truncateUtf8
 private const val MAX_METADATA_KEY_LENGTH = 64
 
 /**
- * Replaces control characters and Unicode line/paragraph separators with `?` to
- * prevent log-injection attacks.
+ * `String` 호출은 leader election 계약의 일부 동작을 수행합니다.
  *
- * This is a **log-injection defence**, not a credential scrubber.  JDBC driver
- * exception messages may still contain sensitive data such as connection URLs or
- * passwords.  Callers are responsible for redacting credentials before they reach
- * the recorder layer.
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 internal fun String.sanitizeForLog(): String {
     val firstUnsafe = indexOfFirstUnsafeLogChar()
@@ -29,15 +26,11 @@ internal fun String.sanitizeForLog(): String {
 }
 
 /**
- * Returns a copy of [record] with [LeaderLockHistoryRecord.errorMessage] truncated and
- * [LeaderLockHistoryRecord.metadata] keys/values sanitized and capped.
+ * `sanitize` 호출은 leader election 계약의 일부 동작을 수행합니다.
  *
- * Sanitization rules:
- * - [LeaderLockHistoryRecord.errorMessage]: `sanitizeForLog()` then `truncateUtf8(MAX_ERROR_MESSAGE_BYTES)`.
- * - [LeaderLockHistoryRecord.metadata]: capped to [LeaderLockHistoryRecord.MAX_METADATA_KEYS] entries
- *   (iteration order is non-deterministic for arbitrary [Map] implementations — prefer
- *   [LinkedHashMap] if insertion order matters); each key is `take(64).sanitizeForLog()`,
- *   each value is `take(MAX_METADATA_VALUE_LENGTH).sanitizeForLog()`.
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param record `record` 호출 또는 상태 계산에 필요한 값입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 internal fun sanitize(record: LeaderLockHistoryRecord): LeaderLockHistoryRecord {
     val sanitizedMessage = record.errorMessage

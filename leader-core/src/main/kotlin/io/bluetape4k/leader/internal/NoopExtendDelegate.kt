@@ -6,11 +6,9 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * No-op [ExtendDelegate] for testing — extend/isHeld always return NotHeld / false.
+ * `NoopExtendDelegate` 선언은 leader election 계약에서 사용되는 object입니다.
  *
- * Used when creating a synthetic [io.bluetape4k.leader.LeaderLockHandle.Real] in
- * `AopScopeAccess.createSyntheticReal()`. For verifying reentrant peek/push scenarios
- * in unit tests without a real backend.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 internal object NoopExtendDelegate : ExtendDelegate {
 

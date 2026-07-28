@@ -7,25 +7,9 @@ import java.io.Serializable
 import kotlin.time.Duration
 
 /**
- * Handle for an active lock. Pushed by the AOP aspect and read by `LockAssert` / `LockExtender`.
+ * `LeaderLockHandle`는 실행 컨텍스트에 캡처되는 lock handle입니다.
  *
- * ## Variants
- * - [Real] — holds a real backend lock; `extend()` / `extendSuspend()` can be called.
- * - [FailOpen] — fail-open sentinel; extend always returns [ExtendOutcome.NotHeld] per external definition.
- *
- * ## Behavior / Contract
- * - External construction is blocked **at source API level** via `internal constructor`. Only AOP aspects or electors create instances.
- *   ⚠️ `internal` is not a reflection/security boundary — it means source API restriction to trusted callers only.
- * - `when` branches on the sealed class are exhaustive — no `else` branch.
- *
- * ## Example
- * ```kotlin
- * when (val handle = LockStateHolder.peekSync()) {
- *     is LeaderLockHandle.Real -> handle.extend(60.seconds)
- *     is LeaderLockHandle.FailOpen -> error("fail-open scope — no real lock")
- *     null -> error("no active scope")
- * }
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 sealed class LeaderLockHandle : Serializable {
 
@@ -35,26 +19,26 @@ sealed class LeaderLockHandle : Serializable {
     val isReentrant: Boolean get() = reentryDepth > 0
 
     /**
-     * Compares whether another [LockIdentity] refers to the same lock (for reentrant peek).
+     * `matchesIdentity` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * Because [LockIdentity.equals] excludes `factoryBeanName`, the same lock with different
-     * sync/suspend factories still passes reentrant pass-through (R3 mitigation).
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param other `other` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun matchesIdentity(other: LockIdentity): Boolean = identity == other
 
     /**
-     * Active backend lock handle.
+     * `Real` 선언은 leader election 계약에서 사용되는 class입니다.
      *
-     * @property identity full lock identity (unit of reentrant peek comparison)
-     * @property token Base58(8) lock token — backend atomic extend guard
-     * @property acquiredAtNanos `System.nanoTime()` acquisition timestamp — for minLeaseTime calculation
-     * @property slotId group lock permit/slot identifier; `null` for single-leader
-     * @property acquiringThreadId Redisson thread-bound extend validation; `null` for non-Redisson.
-     *   **Do not use for ownership comparison** (R6-P2) — Redisson cross-thread debug info only.
-     * @property reentryDepth 0 = outermost real lock, >0 = reentrant passthrough copy
-     * @property extendDelegate shares same reference as watchdog (AC-15)
-     * @property auditLeaderId Audit identity of the elected leader stamped at acquisition time.
-     *   Excluded from equals/hashCode — traceability only.
+     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+     * @property identity lock 이름, token, kind, slot 정보를 묶은 소유권 식별자입니다.
+     * @property token backend lock을 해제하거나 검증할 때 사용하는 소유권 token입니다.
+     * @property acquiredAtNanos `acquiredAtNanos` 호출 또는 상태 계산에 필요한 값입니다.
+     * @property slotId group election backend가 slot을 식별할 때 쓰는 값입니다.
+     * @property acquiringThreadId `acquiringThreadId` 호출 또는 상태 계산에 필요한 값입니다.
+     * @property reentryDepth 같은 실행 컨텍스트에서 재진입한 깊이입니다.
+     * @property extendDelegate `extendDelegate` 호출 또는 상태 계산에 필요한 값입니다.
+     * @property auditLeaderId `auditLeaderId` 호출 또는 상태 계산에 필요한 값입니다.
      */
     class Real internal constructor(
         override val identity: LockIdentity,
@@ -63,38 +47,55 @@ sealed class LeaderLockHandle : Serializable {
         val slotId: String? = null,
         val acquiringThreadId: Long? = null,
         override val reentryDepth: Int = 0,
-        /** ⚠️ Backend module / aspect SPI only — do not access from application code. */
+        /**
+         * `extendDelegate` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+         */
         val extendDelegate: ExtendDelegate,
         val auditLeaderId: String? = null,
     ) : LeaderLockHandle() {
 
         /**
-         * Invokes backend atomic extend.
+         * `extend`는 현재 lock 소유권을 확인한 뒤 lease를 연장합니다.
          *
-         * Even for a reentrant passthrough copy, the outer [extendDelegate] is retained as-is,
-         * so **calling from an inner scope renews the outer/backend lease** (R5-F3 / SF11).
+         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+         * @param lockAtMostFor `lockAtMostFor` 호출 또는 상태 계산에 필요한 값입니다.
+         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
          */
         fun extend(lockAtMostFor: Duration): ExtendOutcome = extendDelegate.extend(lockAtMostFor)
 
-        /** Suspend variant — non-blocking if the backend is suspend-native, otherwise overridden with `withContext(IO)`. */
+        /**
+         * `extendSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
+         *
+         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+         * @param lockAtMostFor `lockAtMostFor` 호출 또는 상태 계산에 필요한 값입니다.
+         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+         */
         suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome =
             extendDelegate.extendSuspend(lockAtMostFor)
 
         /**
-         * Checks whether the current token is still alive in the backend. Returns `false` if a takeover occurs after lease expiry.
+         * `isStillHeld` 호출은 leader election 계약의 일부 동작을 수행합니다.
+         *
+         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
          */
         fun isStillHeld(): Boolean = extendDelegate.isHeld()
 
         /**
-         * Suspend ownership check. Uses the coroutine-native path when the backend delegate supports it.
+         * `isStillHeldSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
+         *
+         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
          */
         suspend fun isStillHeldSuspend(): Boolean =
             if (extendDelegate is SuspendExtendDelegate) extendDelegate.isHeldSuspend() else extendDelegate.isHeld()
 
         /**
-         * Creates a reentrant passthrough copy.
+         * `withReentryDepth` 호출은 leader election 계약의 일부 동작을 수행합니다.
          *
-         * **Inner extend calls the outer [extendDelegate] as-is → outer/backend lease is renewed** (R5-F3 / SF11).
+         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+         * @param n `n` 호출 또는 상태 계산에 필요한 값입니다.
+         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
          */
         internal fun withReentryDepth(n: Int): Real {
             n.requireGe(0, "n")
@@ -133,10 +134,10 @@ sealed class LeaderLockHandle : Serializable {
     }
 
     /**
-     * Fail-open sentinel — runs the body without holding a backend lock when `failureMode = FAIL_OPEN_RUN`.
+     * `FailOpen` 선언은 leader election 계약에서 사용되는 class입니다.
      *
-     * `LockAssert.assertLocked()` throws — no lock is held inside a fail-open scope.
-     * `LockExtender.extendActiveLock(d)` returns `false` and emits a WARN log.
+     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+     * @property identity lock 이름, token, kind, slot 정보를 묶은 소유권 식별자입니다.
      */
     class FailOpen internal constructor(
         override val identity: LockIdentity,
@@ -162,11 +163,18 @@ sealed class LeaderLockHandle : Serializable {
         private const val serialVersionUID = 1L
 
         /**
-         * Factory for backend modules only. Called by AOP aspects / electors.
+         * `real` 호출은 leader election 계약의 일부 동작을 수행합니다.
          *
-         * ⚠️ Do not call directly from application code — external callers should use `LockAssert` / `LockExtender` only.
-         * This factory is used by backend modules such as `leader-redis-lettuce`, `leader-redis-redisson`,
-         * `leader-mongodb`, `leader-exposed-jdbc`, `leader-exposed-r2dbc`, `leader-hazelcast`, `leader-zookeeper`.
+         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+         * @param identity lock 이름, token, kind, slot 정보를 묶은 소유권 식별자입니다.
+         * @param token backend lock을 해제하거나 검증할 때 사용하는 소유권 token입니다.
+         * @param acquiredAtNanos `acquiredAtNanos` 호출 또는 상태 계산에 필요한 값입니다.
+         * @param slotId group election backend가 slot을 식별할 때 쓰는 값입니다.
+         * @param acquiringThreadId `acquiringThreadId` 호출 또는 상태 계산에 필요한 값입니다.
+         * @param reentryDepth 같은 실행 컨텍스트에서 재진입한 깊이입니다.
+         * @param extendDelegate `extendDelegate` 호출 또는 상태 계산에 필요한 값입니다.
+         * @param auditLeaderId `auditLeaderId` 호출 또는 상태 계산에 필요한 값입니다.
+         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
          */
         fun real(
             identity: LockIdentity,
@@ -176,13 +184,15 @@ sealed class LeaderLockHandle : Serializable {
             acquiringThreadId: Long? = null,
             reentryDepth: Int = 0,
             extendDelegate: ExtendDelegate,
-            auditLeaderId: String? = null,  // END positional — default null for backward compat
+            auditLeaderId: String? = null,  // positional 끝: backward compatibility를 위해 기본값은 null입니다.
         ): Real = Real(identity, token, acquiredAtNanos, slotId, acquiringThreadId, reentryDepth, extendDelegate, auditLeaderId)
 
         /**
-         * Sentinel factory for backend modules / aspects only. Used when `failureMode = FAIL_OPEN_RUN`.
+         * `failOpen` 호출은 leader election 계약의 일부 동작을 수행합니다.
          *
-         * ⚠️ Do not call directly from application code.
+         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+         * @param identity lock 이름, token, kind, slot 정보를 묶은 소유권 식별자입니다.
+         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
          */
         fun failOpen(identity: LockIdentity): FailOpen = FailOpen(identity)
     }

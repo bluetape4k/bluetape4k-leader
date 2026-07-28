@@ -1,23 +1,18 @@
 package io.bluetape4k.leader
 
 /**
- * Represents the current occupancy state of a single leader election.
+ * `LeaderStatus`는 leader election의 현재 상태를 표현합니다.
  *
- * ## Contract
- * - [Empty] means there is currently no leader.
- * - [Occupied] means a leader is currently elected and holds a lease.
- *
- * ```kotlin
- * val state = election.state("daily-job")
- * if (state.status == LeaderStatus.Occupied) {
- *     println(state.leader?.leaderId)
- * }
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 enum class LeaderStatus {
-    /** There is currently no leader. */
+    /**
+     * `Empty` 선언은 leader election 계약에서 사용되는 declaration입니다.
+     */
     Empty,
 
-    /** A leader is currently elected. */
+    /**
+     * `Occupied` 선언은 leader election 계약에서 사용되는 declaration입니다.
+     */
     Occupied,
 }

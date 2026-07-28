@@ -5,37 +5,20 @@ import io.bluetape4k.support.requirePositiveNumber
 import java.io.Serializable
 
 /**
- * The comparison unit for reentrant deduplication.
+ * `LockIdentity`는 lockName, token, kind, slot을 묶은 lock 소유권 식별자입니다.
  *
- * Represents the full identity of a lock to determine whether the same lock is held
- * in nested calls of `@LeaderElection` / `@LeaderGroupElection`.
- *
- * ## Behavior / Contract
- * - `equals` / `hashCode` are based on `(lockName, kind, groupParams)`.
- * - **`factoryBeanName` is used only as diagnostic metadata** — excluded from `equals` (Step 3-P R3 mitigation).
- *   Designed so that reentrant pass-through works correctly even for nested calls between
- *   sync ↔ suspend or different factory beans with the same `lockName`.
- * - When `kind == GROUP`, `groupParams != null` is enforced; when `kind == SINGLE`, `groupParams == null` is enforced.
- *
- * ## Example
- * ```kotlin
- * val singleIdentity = LockIdentity(
- *     lockName = "daily-report",
- *     kind = LockIdentity.AnnotationKind.SINGLE,
- *     factoryBeanName = "lettuceLeaderElector",
- * )
- * val groupIdentity = LockIdentity(
- *     lockName = "shard-worker",
- *     kind = LockIdentity.AnnotationKind.GROUP,
- *     factoryBeanName = "lettuceLeaderGroupElector",
- *     groupParams = LockIdentity.GroupParams(maxLeaders = 3),
- * )
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+ * @property kind single leader election인지 group leader election인지 나타내는 분류입니다.
+ * @property factoryBeanName `factoryBeanName` 호출 또는 상태 계산에 필요한 값입니다.
+ * @property groupParams `groupParams` 호출 또는 상태 계산에 필요한 값입니다.
  */
 class LockIdentity(
     val lockName: String,
     val kind: AnnotationKind,
-    /** For diagnostic metadata only — excluded from `equals/hashCode` (Step 3-P R3). */
+    /**
+     * `factoryBeanName`는 backend별 leader elector 인스턴스를 생성하는 factory 계약입니다.
+     */
     val factoryBeanName: String,
     val groupParams: GroupParams? = null,
 ) : Serializable {
@@ -49,9 +32,11 @@ class LockIdentity(
     }
 
     /**
-     * Reentrant equality — excludes `factoryBeanName`.
+     * `equals` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * In sync→suspend nested calls, treats the same lock as identical even when factory beans differ, enabling passthrough.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param other `other` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -74,10 +59,10 @@ class LockIdentity(
     enum class AnnotationKind { SINGLE, GROUP }
 
     /**
-     * Identification parameters for a group lock.
+     * `GroupParams` 선언은 leader election 계약에서 사용되는 data class입니다.
      *
-     * Currently holds only `maxLeaders`. Future additions such as slot strategy or weight
-     * will be added with default values (preserving binary compatibility).
+     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+     * @property maxLeaders 동시에 leadership을 획득할 수 있는 최대 슬롯 수입니다.
      */
     data class GroupParams(val maxLeaders: Int) : Serializable {
 

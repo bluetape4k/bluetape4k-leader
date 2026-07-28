@@ -4,17 +4,9 @@ import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateScorer
 
 /**
- * A [CandidateScorer] that assigns a higher score to nodes with a higher success rate.
+ * `SuccessRateScorer`는 전략 기반 leader 선출에서 후보 평가 규칙을 제공합니다.
  *
- * Nodes with no execution history are assigned a success rate of 0.0.
- * Designed for resilience: consistently stable nodes are preferred over unreliable ones.
- *
- * ## Example
- * ```kotlin
- * // Stability first: elect the node with the highest success rate
- * val strategy = ScoredElectionStrategy(SuccessRateScorer)
- * election.runIfLeader("payment-job", strategy) { processPayments() }
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 object SuccessRateScorer : CandidateScorer {
 

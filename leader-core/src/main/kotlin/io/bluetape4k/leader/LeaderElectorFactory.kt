@@ -1,36 +1,18 @@
 package io.bluetape4k.leader
 
 /**
- * Factory SPI that creates [LeaderElector] instances with per-call options.
+ * `LeaderElectorFactory`는 backend별 leader elector 인스턴스를 생성하는 factory 계약입니다.
  *
- * ## Background
- * The core interface [LeaderElector.runIfLeader] only provides a `(lockName, action)` signature
- * and has no means to accept per-call options. This SPI is added so that AOP advice can create
- * and cache backend instances for each set of annotation options.
- *
- * ## Usage Example
- * ```kotlin
- * val factory: LeaderElectionFactory = RedissonLeaderElectionFactory(redisson)
- * val election = factory.create(LeaderElectionOptions(waitTime = 3.seconds, leaseTime = 30.seconds))
- * val result = election.runIfLeader("daily-job") { processData() }
- * ```
- *
- * ## Responsibility Separation
- * - This SPI: creates a new [LeaderElector] instance with the options requested by the caller.
- * - Caching: responsibility of the AOP layer or the caller (e.g. `ConcurrentHashMap<FactoryCacheKey, LeaderElector>`).
- * - Backend client lifetime (`RedissonClient`, `MongoClient`, etc.): responsibility of the caller or DI container.
- *
- * @see LeaderGroupElectorFactory factory for group leader election
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 fun interface LeaderElectorFactory {
 
     /**
-     * Creates a new [LeaderElector] instance with the given [options].
+     * `create` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * A new instance may be returned for the same [options] on every call; identity guarantees are the caller's responsibility.
-     *
-     * @param options the options to apply to the new instance (waitTime, leaseTime)
-     * @return a new [LeaderElector] instance with the per-call options applied
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun create(options: LeaderElectionOptions): LeaderElector
 }

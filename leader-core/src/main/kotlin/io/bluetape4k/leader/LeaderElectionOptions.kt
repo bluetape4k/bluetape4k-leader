@@ -8,25 +8,15 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Options data class used for leader election.
+ * `LeaderElectionOptions`는 single leader election 옵션입니다.
  *
- * ```kotlin
- * val options = LeaderElectionOptions(
- *     waitTime = 3.seconds,
- *     leaseTime = 30.seconds,
- * )
- * val election = LocalLeaderElector(options)
- * val result = election.runIfLeader("job-lock") { "done" }
- * // result == "done"
- * ```
- *
- * @property waitTime maximum wait time to acquire the leader lock. Default is 5 seconds.
- * @property leaseTime maximum lease duration for holding leadership. Default is 60 seconds.
- * @property nodeId node identifier exposed in state queries. Default is a stable JVM-process-level id.
- * @property minLeaseTime minimum time to hold the leader lease even if the action finishes early. Default is 0 seconds.
- * @property autoExtend whether to periodically extend the lease while the action is running. Default is false.
- * @property useDbTime whether DB-backed implementations should use the database server clock for lease expiry.
- * Implementations without a database backend ignore this option. Default is false.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property waitTime leader lock 획득을 기다리는 최대 시간입니다.
+ * @property leaseTime leadership을 보유할 수 있는 lease TTL입니다.
+ * @property nodeId 상태 조회와 audit에 노출되는 노드 또는 인스턴스 식별자입니다.
+ * @property minLeaseTime 작업이 빨리 끝나더라도 lease를 최소로 유지할 시간입니다.
+ * @property autoExtend 작업 실행 중 lease를 주기적으로 연장할지 결정합니다.
+ * @property useDbTime DB backend가 lease 만료 계산에 database server clock을 사용할지 결정합니다.
  */
 data class LeaderElectionOptions(
     val waitTime: Duration = DefaultWaitTime,
@@ -51,11 +41,7 @@ data class LeaderElectionOptions(
         val DefaultLeaseTime: Duration = 60.seconds
 
         /**
-         * Default options instance (`waitTime=5s`, `leaseTime=60s`).
-         *
-         * ```kotlin
-         * val election = LocalLeaderElector(LeaderElectionOptions.Default)
-         * ```
+         * `Default` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
          */
         @JvmField
         val Default = LeaderElectionOptions()

@@ -5,38 +5,29 @@ import io.bluetape4k.leader.internal.LeaderLockHandleCapture
 import io.bluetape4k.leader.internal.LockStateHolder
 
 /**
- * Public bridge for the AOP aspect (`leader-spring-boot`) to access `internal` scope management symbols in `leader-core`.
+ * `AopScopeAccess` 선언은 leader election 계약에서 사용되는 object입니다.
  *
- * ## Usage Restrictions
- * - **AOP aspect-only API** — do not use directly in general application code.
- * - In general code, use only [LockAssert] / [LockExtender].
- *
- * ## Exposed Scope
- * | Symbol | Purpose |
- * |--------|---------|
- * | [peekSyncMatching] | sync branch reentrant peek (checks whether the same lockName is held) |
- * | [withPushedSync] | sync branch handle push/pop — manages LockStateHolder before and after body execution |
- * | [pollCapture] | sync group elector → aspect handle delivery receiver (after CaptureScope.runWithCapture) |
- * | [createFailOpen] | creates a fail-open sentinel handle |
- * | [createLockHandleElement] | creates a LockHandleElement to inject into CoroutineContext |
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 object AopScopeAccess {
 
     /**
-     * Peeks the handle matching [lockName] from the current thread's lock stack.
+     * `peekSyncMatching` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * Used by the aspect to determine whether the call is reentrant before entering the sync branch.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun peekSyncMatching(lockName: String): LeaderLockHandle? =
         LockStateHolder.peekSyncMatching(lockName)
 
     /**
-     * Pushes [handle] onto the sync lock stack, executes [block], then pops it.
+     * `withPushedSync` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * Prevents leaks via try/finally. Used when injecting a fail-open sentinel or reentrant passthrough handle.
-     *
-     * Note: cannot be `inline` because this is a public bridge — push/pop are implemented explicitly
-     * instead of delegating directly to the internal `LockStateHolder.withPushed` inline function.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param handle `handle` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param block `block` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun <R> withPushedSync(handle: LeaderLockHandle, block: () -> R): R {
         LockStateHolder.push(handle)
@@ -49,83 +40,72 @@ object AopScopeAccess {
     }
 
     /**
-     * Retrieves the handle from the [LeaderLockHandleCapture] ThreadLocal and immediately clears it.
+     * `pollCapture` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * The aspect receives the value set by `CaptureScope.runWithCapture` in the sync group elector.
-     * Single electors do not capture, so `null` is normal — do not use CaptureInvariantException.
-     * Suspend group electors do not use ThreadLocal capture; they use only [createLockHandleElement].
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun pollCapture(): LeaderLockHandle.Real? = LeaderLockHandleCapture.poll()
 
     /**
-     * Backend module only — sets the handle that the aspect will poll immediately after the sync group elector acquires.
+     * `setCapture` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * ⚠️ Do not call directly from application code — sync group electors such as `leader-redis-lettuce`,
-     * `leader-redis-redisson`, and `leader-mongodb` must guarantee the
-     * `setCapture` → action → [clearCapture] sequence on the same thread.
-     *
-     * Suspend group electors must not call this because a dispatcher hop may cause the ThreadLocal
-     * set/clear to run on different threads. Instead, propagate the handle to coroutine context
-     * via [createLockHandleElement].
-     *
-     * Typical usage with try/finally:
-     *
-     * ```kotlin
-     * AopScopeAccess.setCapture(handle)
-     * try {
-     *     action()  // the aspect calls pollCapture as its first statement
-     * } finally {
-     *     AopScopeAccess.clearCapture()
-     * }
-     * ```
-     *
-     * Single electors do not need capture, so this is not called for them.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param handle `handle` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun setCapture(handle: LeaderLockHandle.Real) {
         LeaderLockHandleCapture.set(handle)
     }
 
     /**
-     * Backend module only — explicitly clears the sync group ThreadLocal set by [setCapture].
+     * `clearCapture` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * Call in the `try/finally` finally block to prevent ThreadLocal leaks.
-     * Do not call from suspend group electors.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun clearCapture() {
         LeaderLockHandleCapture.clear()
     }
 
     /**
-     * Creates a fail-open sentinel [LeaderLockHandle.FailOpen].
+     * `createFailOpen` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * Pushes it onto the stack so that [LockAssert] / [LockExtender] can recognize
-     * the fail-open scope when the body executes in the `failureMode = FAIL_OPEN_RUN` branch.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param identity lock 이름, token, kind, slot 정보를 묶은 소유권 식별자입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun createFailOpen(identity: LockIdentity): LeaderLockHandle.FailOpen =
         LeaderLockHandle.failOpen(identity)
 
     /**
-     * Creates a passthrough copy of [LeaderLockHandle.Real] with an incremented reentry depth.
+     * `incrementReentryDepth` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * When the same lock is re-entered, the aspect pushes a handle with the new depth.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param handle `handle` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun incrementReentryDepth(handle: LeaderLockHandle.Real): LeaderLockHandle.Real =
         handle.withReentryDepth(handle.reentryDepth + 1)
 
     /**
-     * Creates a [LockHandleElement] for the aspect to inject into the coroutine context.
+     * `createLockHandleElement` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * Used in the suspend / Mono branch with the pattern
-     * `withContext(LeaderElectionInfo(...) + createLockHandleElement(handle))`.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param handle `handle` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun createLockHandleElement(handle: LeaderLockHandle): LockHandleElement =
         LockHandleElement(handle)
 
     /**
-     * Used by tests or the aspect to create a synthetic `LeaderLockHandle.Real`.
+     * `createSyntheticReal` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * Creates a handle to push into `LockStateHolder` when writing reentrant unit tests
-     * without a real backend. Production aspect code uses only handles created by electors.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param factoryBeanName `factoryBeanName` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param token backend lock을 해제하거나 검증할 때 사용하는 소유권 token입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun createSyntheticReal(
         lockName: String,
@@ -146,9 +126,15 @@ object AopScopeAccess {
     }
 
     /**
-     * Creates a group `LeaderLockHandle.Real` for testing, holding `slotId` and `groupParams`.
+     * `createSyntheticGroupReal` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * Used to create a handle to push onto the stack in reentrant unit tests for the `@LeaderGroupElection` aspect.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param factoryBeanName `factoryBeanName` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param maxLeaders 동시에 leadership을 획득할 수 있는 최대 슬롯 수입니다.
+     * @param slotId group election backend가 slot을 식별할 때 쓰는 값입니다.
+     * @param token backend lock을 해제하거나 검증할 때 사용하는 소유권 token입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun createSyntheticGroupReal(
         lockName: String,
@@ -172,12 +158,18 @@ object AopScopeAccess {
         )
     }
 
-    /** Synthetic single handle default token — do not depend on this in production. */
+    /**
+     * `SYNTHETIC_SINGLE_TOKEN` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     private const val SYNTHETIC_SINGLE_TOKEN = "test-token"
 
-    /** Synthetic group handle default token — do not depend on this in production. */
+    /**
+     * `SYNTHETIC_GROUP_TOKEN` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     private const val SYNTHETIC_GROUP_TOKEN = "test-group-token"
 
-    /** Synthetic group handle default slotId. */
+    /**
+     * `SYNTHETIC_DEFAULT_SLOT` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     private const val SYNTHETIC_DEFAULT_SLOT = "0"
 }

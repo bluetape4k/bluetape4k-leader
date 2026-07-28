@@ -4,98 +4,174 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import kotlin.time.Duration
 
 /**
- * Leader Aspect callback SPI — implemented by callers for metrics / tracing / custom hooks.
+ * `LeaderAopMetricsRecorder`는 leader election audit/history 저장 계약을 표현합니다.
  *
- * Provides 6 legacy overloads (no context) and 6 context-bearing overloads (with [LeaderAopMetricsContext]).
- * Implementations that need leader ID information should override the context variants.
- *
- * ## Multi-bean injection
- * The aspect fan-outs to all registered [LeaderAopMetricsRecorder] beans via
- * `ObjectProvider<List<...>>` — 0 (NoOp) to N simultaneous registrations are supported.
- *
- * ## Isolation
- * Each recorder is isolated with `runCatching` — a throw from one recorder does not affect
- * the leader body or other recorders.
- *
- * ## Best-effort
- * `onLockNotAcquired(CONTENTION)` cannot distinguish a null body result from a non-elected result
- * due to core SPI limitations — precise separation is tracked in issue #85.
- *
- * ## Call order
- * - elected: `onLockAttempt` → `onLockAcquired` → `onTaskStarted` → `onTaskFinished`
- * - skipped (CONTENTION): `onLockAttempt` → `onLockNotAcquired(CONTENTION)`
- * - failed: `onLockAttempt` → `onLockAcquired` → `onTaskStarted` → `onTaskFailed`
- * - skipped (BACKEND_ERROR, SKIP mode): `onLockAttempt` → `onLockNotAcquired(BACKEND_ERROR)`
- *
- * ## Micrometer integration
- * See [io.bluetape4k.leader.micrometer.MicrometerLeaderAopMetricsRecorder] for a full implementation.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 interface LeaderAopMetricsRecorder {
 
     // =========================================================================
-    // Legacy overloads (no context) — 6 methods
+    // legacy overload: context를 받지 않는 6개 method입니다.
     // =========================================================================
 
-    /** Lock acquisition attempt — called immediately before `pjp.proceed()`. */
+    /**
+     * `onLockAttempt` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param name 호출자가 전달하는 이름 또는 key입니다.
+     * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun onLockAttempt(name: String, options: LeaderElectionOptions) {}
 
-    /** Lock acquired — called before entering the body. [acquireElapsed] = attempt-to-acquired elapsed time. */
+    /**
+     * `onLockAcquired` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param name 호출자가 전달하는 이름 또는 key입니다.
+     * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param acquireElapsed `acquireElapsed` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun onLockAcquired(name: String, options: LeaderElectionOptions, acquireElapsed: Duration) {}
 
-    /** Lock not acquired — [reason] classifies the cause. */
+    /**
+     * `onLockNotAcquired` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param name 호출자가 전달하는 이름 또는 key입니다.
+     * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param reason `reason` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun onLockNotAcquired(name: String, options: LeaderElectionOptions, reason: SkipReason) {}
 
-    /** Task body starting — called immediately after `onLockAcquired`. */
+    /**
+     * `onTaskStarted` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param name 호출자가 전달하는 이름 또는 key입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun onTaskStarted(name: String) {}
 
-    /** Task body completed normally. [executionTime] = attempt-to-completion elapsed time. */
+    /**
+     * `onTaskFinished` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param name 호출자가 전달하는 이름 또는 key입니다.
+     * @param executionTime `executionTime` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun onTaskFinished(name: String, executionTime: Duration) {}
 
-    /** Task body or backend threw an exception. */
+    /**
+     * `onTaskFailed` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param name 호출자가 전달하는 이름 또는 key입니다.
+     * @param executionTime `executionTime` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param throwable `throwable` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun onTaskFailed(name: String, executionTime: Duration, throwable: Throwable) {}
 
     // =========================================================================
-    // Context-bearing overloads — 6 methods
-    // Default implementations drop context via LeaderRecorderContextDropLog and
-    // delegate to the legacy overloads. Override to capture leader ID information.
+    // context-bearing overload: context를 받는 6개 method입니다.
+    // 기본 구현은 LeaderRecorderContextDropLog를 통해 context를 버리고 legacy overload로 위임합니다.
+    // leader ID 정보를 수집하려면 이 overload를 override합니다.
     // =========================================================================
 
-    /** Context-bearing variant — default drops [context] and delegates to [onLockAttempt]. */
+    /**
+     * `onLockAttempt` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param name 호출자가 전달하는 이름 또는 key입니다.
+     * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param context `context` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun onLockAttempt(name: String, options: LeaderElectionOptions, context: LeaderAopMetricsContext) {
         LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
         onLockAttempt(name, options)
     }
 
-    /** Context-bearing variant — default drops [context] and delegates to [onLockAcquired]. */
+    /**
+     * `onLockAcquired` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param name 호출자가 전달하는 이름 또는 key입니다.
+     * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param acquireElapsed `acquireElapsed` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param context `context` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun onLockAcquired(name: String, options: LeaderElectionOptions, acquireElapsed: Duration, context: LeaderAopMetricsContext) {
         LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
         onLockAcquired(name, options, acquireElapsed)
     }
 
-    /** Context-bearing variant — default drops [context] and delegates to [onLockNotAcquired]. */
+    /**
+     * `onLockNotAcquired` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param name 호출자가 전달하는 이름 또는 key입니다.
+     * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param reason `reason` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param context `context` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun onLockNotAcquired(name: String, options: LeaderElectionOptions, reason: SkipReason, context: LeaderAopMetricsContext) {
         LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
         onLockNotAcquired(name, options, reason)
     }
 
-    /** Context-bearing variant — default drops [context] and delegates to [onTaskStarted]. */
+    /**
+     * `onTaskStarted` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param name 호출자가 전달하는 이름 또는 key입니다.
+     * @param context `context` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun onTaskStarted(name: String, context: LeaderAopMetricsContext) {
         LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
         onTaskStarted(name)
     }
 
-    /** Context-bearing variant — default drops [context] and delegates to [onTaskFinished]. */
+    /**
+     * `onTaskFinished` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param name 호출자가 전달하는 이름 또는 key입니다.
+     * @param executionTime `executionTime` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param context `context` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun onTaskFinished(name: String, executionTime: Duration, context: LeaderAopMetricsContext) {
         LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
         onTaskFinished(name, executionTime)
     }
 
-    /** Context-bearing variant — default drops [context] and delegates to [onTaskFailed]. */
+    /**
+     * `onTaskFailed` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param name 호출자가 전달하는 이름 또는 key입니다.
+     * @param executionTime `executionTime` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param throwable `throwable` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param context `context` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun onTaskFailed(name: String, executionTime: Duration, throwable: Throwable, context: LeaderAopMetricsContext) {
         LeaderRecorderContextDropLog.global().warnOnDrop(this::class, context)
         onTaskFailed(name, executionTime, throwable)
     }
 
-    /** No-op default implementation — used to enable fast-path when no recorder beans are registered. */
+    /**
+     * `NoOp` 선언은 leader election 계약에서 사용되는 object입니다.
+     *
+     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+     */
     object NoOp : LeaderAopMetricsRecorder
 }

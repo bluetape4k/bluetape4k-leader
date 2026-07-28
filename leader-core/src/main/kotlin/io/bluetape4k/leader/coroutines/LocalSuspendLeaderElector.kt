@@ -32,23 +32,10 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Local (single-JVM) suspend leader election implementation using coroutines [Mutex].
+ * `LocalSuspendLeaderElector` 선언은 leader election 계약에서 사용되는 class입니다.
  *
- * ## Behavior
- * - Guarantees serial execution via mutual exclusion between coroutines for the same `lockName`.
- * - The coroutine that acquires the [Mutex] runs `action` as leader; other coroutines suspend until it is released.
- * - Suitable for serializing concurrent coroutine execution within a single JVM process, not a distributed environment.
- *
- * ## Warning
- * - [Mutex] does not support re-entrancy.
- *   Nested calls with the same `lockName` from the same coroutine will cause a deadlock.
- *   If re-entrancy is needed, use [io.bluetape4k.leader.local.LocalLeaderElector] (based on [java.util.concurrent.locks.ReentrantLock]).
- *
- * ```kotlin
- * val election = LocalSuspendLeaderElector()
- * val result = election.runIfLeader("job-lock") { "done" }
- * // result == "done"
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property options `options` 호출 또는 상태 계산에 필요한 값입니다.
  */
 class LocalSuspendLeaderElector(
     private val options: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -73,19 +60,12 @@ class LocalSuspendLeaderElector(
     }
 
     /**
-     * Acquires the [Mutex] for [lockName] and executes [action] serially.
+     * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
      *
-     * If another coroutine holds the [Mutex] for the same [lockName], this coroutine suspends until it is released.
-     *
-     * ```kotlin
-     * val election = LocalSuspendLeaderElector()
-     * val result = election.runIfLeader("job-lock") { "done" }
-     * // result == "done"
-     * ```
-     *
-     * @param lockName the lock name used for leader election
-     * @param action the suspend action to run when leader acquisition succeeds
-     * @return the [action] result, or `null` when leader acquisition fails
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? =
         tryWithLock(
@@ -96,10 +76,12 @@ class LocalSuspendLeaderElector(
         )
 
     /**
-     * Slot-aware override — stamps [LeaderSlot.leaderId] as `LeaderLease.auditLeaderId`
-     * and `LeaderLockHandle.Real.auditLeaderId` for audit traceability.
+     * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
      *
-     * Cancellation: rethrows `CancellationException` directly; no `runCatching` around suspend calls.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override suspend fun <T> runIfLeader(slot: LeaderSlot, action: suspend () -> T): T? =
         tryWithLock(
@@ -110,10 +92,12 @@ class LocalSuspendLeaderElector(
         )
 
     /**
-     * Slot-aware override — returns [LeaderRunResult.Elected] with [LeaderSlot.leaderId] stamped
-     * on `LeaderRunResult.Elected.leaderId`, or [LeaderRunResult.Skipped] when not elected.
+     * `runIfLeaderResultSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * Cancellation: rethrows `CancellationException` directly; no `runCatching` around suspend calls.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override suspend fun <T> runIfLeaderResultSuspend(
         slot: LeaderSlot,

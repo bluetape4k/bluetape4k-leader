@@ -3,14 +3,9 @@ package io.bluetape4k.leader.coroutines
 import io.bluetape4k.leader.LeaderElectionOptions
 
 /**
- * Factory for [LocalSuspendLeaderElector] — creates single-JVM suspend leader election instances based on `kotlinx.coroutines.sync.Mutex`.
+ * `LocalSuspendLeaderElectorFactory`는 backend별 leader elector 인스턴스를 생성하는 factory 계약입니다.
  *
- * ## Usage
- * ```kotlin
- * val factory = LocalSuspendLeaderElectorFactory()
- * val elector = factory.create(LeaderElectionOptions.Default)
- * val result = elector.runIfLeader("job-lock") { "done" }
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 class LocalSuspendLeaderElectorFactory : SuspendLeaderElectorFactory {
 

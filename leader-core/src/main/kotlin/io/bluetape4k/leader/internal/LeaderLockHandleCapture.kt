@@ -3,19 +3,9 @@ package io.bluetape4k.leader.internal
 import io.bluetape4k.leader.LeaderLockHandle
 
 /**
- * ThreadLocal for passing a handle from the elector to the aspect.
+ * `LeaderLockHandleCapture` 선언은 leader election 계약에서 사용되는 object입니다.
  *
- * ## Strict Invariant (Step 2-R R10)
- * - Sync group elector calls [set] on the same thread **immediately before** invoking the action after acquire.
- * - Sync group aspect calls [poll] as the **first statement** of the action lambda.
- * - **Missing capture (poll returns null) → throws `CaptureInvariantException`** ("elector did not capture handle — bug").
- *   Silent fallback to FailOpen is strictly forbidden (Codex F10 / SF3).
- * - Splitting set/poll across a virtual thread / dispatcher hop is forbidden.
- *
- * ## Usage Recommendation
- * Do not call directly; use [CaptureScope.runWithCapture] in sync electors.
- * Suspend electors must use `LockHandleElement`-based coroutine context propagation only,
- * because a dispatcher hop may cause the ThreadLocal set/clear to run on different threads.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 internal object LeaderLockHandleCapture {
 
@@ -25,7 +15,12 @@ internal object LeaderLockHandleCapture {
         tl.set(handle)
     }
 
-    /** Retrieves the value from the ThreadLocal and immediately clears it. */
+    /**
+     * `poll` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun poll(): LeaderLockHandle.Real? {
         val handle = tl.get()
         tl.remove()

@@ -34,29 +34,10 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Local (single-JVM) suspend multi-leader election implementation using coroutine [Semaphore].
+ * `LocalSuspendLeaderGroupElector` 선언은 leader election 계약에서 사용되는 class입니다.
  *
- * ## Behavior
- * - Creates a `kotlinx.coroutines.sync.Semaphore(maxLeaders)` per `lockName` to limit concurrent executions.
- * - If all slots are full, the calling coroutine suspends until a slot becomes available.
- * - Slots are managed via [Semaphore.withPermit] and are always released even when an exception occurs.
- * - Suitable for limiting concurrent coroutine execution within a single JVM process, not distributed environments.
- *
- * ## Difference from [io.bluetape4k.leader.local.LocalLeaderGroupElector]
- * - [io.bluetape4k.leader.local.LocalLeaderGroupElector] uses `java.util.concurrent.Semaphore` (thread blocking).
- * - This implementation uses `kotlinx.coroutines.sync.Semaphore` (coroutine suspend).
- *
- * ```kotlin
- * val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
- *
- * // up to 3 coroutines run concurrently
- * val result = election.runIfLeader("batch-job") { processChunkSuspend() }
- *
- * // state query
- * println(election.state("batch-job"))
- * ```
- *
- * @param options leader group election options. Default is [LeaderGroupElectionOptions.Default]
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property options `options` 호출 또는 상태 계산에 필요한 값입니다.
  */
 class LocalSuspendLeaderGroupElector private constructor(
     private val options: LeaderGroupElectionOptions,
@@ -64,16 +45,11 @@ class LocalSuspendLeaderGroupElector private constructor(
 
     companion object: KLogging() {
         /**
-         * Creates a [LocalSuspendLeaderGroupElector] instance with the given [LeaderGroupElectionOptions].
+         * `invoke` 호출은 leader election 계약의 일부 동작을 수행합니다.
          *
-         * ```kotlin
-         * val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
-         * val result = election.runIfLeader("batch-job") { "done" }
-         * // result == "done"
-         * ```
-         *
-         * @param options leader group election options. Default is [LeaderGroupElectionOptions.Default]
-         * @return a [LocalSuspendLeaderGroupElector] instance
+         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+         * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
+         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
          */
         operator fun invoke(
             options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -104,69 +80,42 @@ class LocalSuspendLeaderGroupElector private constructor(
     override val maxLeaders: Int = options.maxLeaders
 
     /**
-     * Returns the number of currently active (running) leaders for [lockName].
+     * `activeCount`는 현재 점유된 group leader slot 수를 조회합니다.
      *
-     * Computed as `maxLeaders - availablePermits`, so the value is approximate.
-     *
-     * ```kotlin
-     * val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
-     * val count = election.activeCount("batch-job")
-     * // count == 0  (when no leader is running)
-     * ```
-     *
-     * @param lockName the lock name to query
-     * @return current active leader count (approximate)
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override fun activeCount(lockName: String): Int =
         maxLeaders - getSemaphore(lockName).availablePermits
 
     /**
-     * Returns the number of remaining slots available to accept new leaders for [lockName].
+     * `availableSlots`는 아직 획득 가능한 group leader slot 수를 조회합니다.
      *
-     * ```kotlin
-     * val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
-     * val slots = election.availableSlots("batch-job")
-     * // slots == 3  (when no leader is running)
-     * ```
-     *
-     * @param lockName the lock name to query
-     * @return number of available slots (approximate)
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override fun availableSlots(lockName: String): Int =
         getSemaphore(lockName).availablePermits
 
     /**
-     * Returns a snapshot of the current [LeaderGroupState] for [lockName].
+     * `state`는 현재 leader election 상태 snapshot을 조회합니다.
      *
-     * ```kotlin
-     * val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
-     * val state = election.state("batch-job")
-     * // state.maxLeaders == 3
-     * // state.activeCount == 0
-     * // state.isEmpty == true
-     * ```
-     *
-     * @param lockName the lock name to query
-     * @return current leader group state snapshot
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override fun state(lockName: String): LeaderGroupState =
         states.groupState(lockName, maxLeaders, activeCount(lockName))
 
     /**
-     * Acquires a [Semaphore] slot for [lockName] and runs suspend [action].
+     * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
      *
-     * - If all slots are full, the coroutine suspends until a slot becomes available.
-     * - The slot is always released even if [action] throws.
-     *
-     * ```kotlin
-     * val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
-     * val result = election.runIfLeader("batch-job") { "done" }
-     * // result == "done"
-     * ```
-     *
-     * @param lockName the lock name used for leader group election
-     * @param action the suspend action to run when a slot is acquired
-     * @return [action] result, or `null` if the slot was not acquired
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? =
         tryWithPermit(
@@ -177,10 +126,12 @@ class LocalSuspendLeaderGroupElector private constructor(
         )
 
     /**
-     * Slot-aware override — stamps [LeaderSlot.leaderId] as `LeaderLease.auditLeaderId`
-     * and `LeaderLockHandle.Real.auditLeaderId` for audit traceability.
+     * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
      *
-     * Cancellation: rethrows `CancellationException` directly; no `runCatching` around suspend calls.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override suspend fun <T> runIfLeader(slot: LeaderSlot, action: suspend () -> T): T? =
         tryWithPermit(
@@ -191,10 +142,12 @@ class LocalSuspendLeaderGroupElector private constructor(
         )
 
     /**
-     * Slot-aware override — returns [LeaderRunResult.Elected] with [LeaderSlot.leaderId] stamped
-     * on `LeaderRunResult.Elected.leaderId`, or [LeaderRunResult.Skipped] when not elected.
+     * `runIfLeaderResultSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * Cancellation: rethrows `CancellationException` directly; no `runCatching` around suspend calls.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override suspend fun <T> runIfLeaderResultSuspend(
         slot: LeaderSlot,

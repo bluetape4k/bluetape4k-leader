@@ -1,41 +1,18 @@
 package io.bluetape4k.leader.strategy
 
 /**
- * Strategy interface for electing a leader from a list of candidates.
+ * `ElectionStrategy`는 전략 기반 leader 선출에서 후보 평가 규칙을 제공합니다.
  *
- * ## Behavior / Contract
- * - All implementations must be deterministic: the same [candidates] input must always produce
- *   the same [ElectionResult]. This allows each node in a distributed environment to compute
- *   the same winner independently without coordination.
- * - Default tie-breaker: ascending [CandidateInfo.registeredAt], then lexicographic [CandidateInfo.nodeId].
- *
- * ## Built-in strategies
- * - [io.bluetape4k.leader.strategy.strategies.FifoElectionStrategy] — earliest-registered candidate
- * - [io.bluetape4k.leader.strategy.strategies.RandomElectionStrategy] — deterministic random (requires shared seed)
- * - [io.bluetape4k.leader.strategy.strategies.ScoredElectionStrategy] — highest-scoring candidate
- *
- * ## Custom strategy example
- * ```kotlin
- * // Elect only candidates whose nodeId ends with an even digit
- * object EvenNodeStrategy : ElectionStrategy {
- *     override fun elect(candidates: List<CandidateInfo>): ElectionResult {
- *         val even = candidates.filter { it.nodeId.last().digitToIntOrNull()?.rem(2) == 0 }
- *         val winner = even.minByOrNull { it.registeredAt } ?: return ElectionResult.EMPTY
- *         val eliminations = candidates.filter { it.nodeId != winner.nodeId }
- *             .map { Elimination(it, "odd nodeId") }
- *         return ElectionResult(winner, eliminations)
- *     }
- * }
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 interface ElectionStrategy {
 
     /**
-     * Elects a leader from [candidates] and returns an [ElectionResult] containing
-     * the winner and the elimination reason for each losing candidate.
+     * `elect`는 후보 목록에서 strategy 규칙에 따라 leader를 선택합니다.
      *
-     * @param candidates candidates participating in this election
-     * @return election result (winner + list of eliminations with reasons)
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param candidates 전략 선출에서 평가할 후보 목록입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun elect(candidates: List<CandidateInfo>): ElectionResult
 }

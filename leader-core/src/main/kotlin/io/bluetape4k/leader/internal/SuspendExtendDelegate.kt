@@ -4,17 +4,9 @@ import io.bluetape4k.leader.ExtendOutcome
 import kotlin.time.Duration
 
 /**
- * Coroutine-native extension SPI for suspend backend modules.
+ * `SuspendExtendDelegate` 선언은 leader election 계약에서 사용되는 interface입니다.
  *
- * ## Behavior / Contract
- * - [extendSuspend] performs the backend atomic extend without `runBlocking`.
- * - [isHeldSuspend] checks backend ownership without `runBlocking`.
- * - Sync [extend] and [isHeld] are misuse paths for suspend-only delegates. They do not bridge to
- *   suspend APIs because the suspend watchdog and `LockExtender.extendActiveLockDetailedSuspend` must call
- *   the suspend entry points directly.
- *
- * Application code must not implement this directly. Backend modules use it to share one delegate
- * reference between `LeaderLockHandle.Real` and `LeaderLeaseAutoExtender`.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 interface SuspendExtendDelegate : ExtendDelegate {
 

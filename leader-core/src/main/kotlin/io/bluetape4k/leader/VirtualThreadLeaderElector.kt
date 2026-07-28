@@ -7,43 +7,19 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Defines the contract for Virtual Thread-based leader election execution.
+ * `VirtualThreadLeaderElector`는 virtual thread 기반 leader election 실행자입니다.
  *
- * ## Difference from [AsyncLeaderElector]
- * - `action` is a `() -> T` lambda that returns the result directly without wrapping in [java.util.concurrent.CompletableFuture].
- * - The return type is [VirtualFuture], and the result is consumed via `await()` or `toCompletableFuture()`.
- * - Internally uses Virtual Threads, so carrier threads are released during lock waiting or I/O blocking.
- * - Requires Java 21 or later.
- *
- * ## Behavior / Contract
- * - Implementations execute `action` only when the leader is successfully acquired for `lockName`.
- * - Exceptions from `action` are propagated to the caller when [VirtualFuture.await] is called.
- * - The exception model for leader election failure / execution error follows the implementation policy.
- *
- * ```kotlin
- * val future = election.runAsyncIfLeader("batch-lock") { "ok" }
- * val result = future.await()  // "ok"
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 interface VirtualThreadLeaderElector: LeaderElectionState {
 
     /**
-     * Executes [action] asynchronously on a Virtual Thread when leader acquisition succeeds.
+     * `runAsyncIfLeader`는 leadership을 획득한 경우에만 async action을 실행하고, 획득하지 못하면 null 결과를 완료합니다.
      *
-     * ## Behavior / Contract
-     * - `action` returns the result directly; [java.util.concurrent.CompletableFuture] wrapping is not needed.
-     * - Use [VirtualFuture.await] to wait synchronously or [VirtualFuture.toCompletableFuture] to convert.
-     * - The lock is safely released even when an exception occurs during `action` execution.
-     * - Validation rules for `lockName` follow the implementation policy.
-     *
-     * ```kotlin
-     * val result = election.runAsyncIfLeader("job-lock") { computeResult() }.await()
-     * // result == computeResult() return value (leader acquired) or null (not acquired)
-     * ```
-     *
-     * @param lockName the lock name used for leader election
-     * @param action the action to run when leader acquisition succeeds. Returns the result directly.
-     * @return [VirtualFuture] resolving to the [action] result, or `null` when leader acquisition fails
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun <T> runAsyncIfLeader(
         lockName: String,
@@ -51,16 +27,12 @@ interface VirtualThreadLeaderElector: LeaderElectionState {
     ): VirtualFuture<T?>
 
     /**
-     * Runs [action] on a Virtual Thread if elected for [slot], stamping [slot.leaderId] as audit identity.
+     * `runAsyncIfLeader`는 leadership을 획득한 경우에만 async action을 실행하고, 획득하지 못하면 null 결과를 완료합니다.
      *
-     * ## Bridge Default
-     * Delegates to [runAsyncIfLeader] (lockName-based) and emits a throttled WARN via
-     * [LeaderElectorBridgeLog]. Backend implementations MUST override to stamp [slot.leaderId]
-     * into [LeaderLease.auditLeaderId].
-     *
-     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
-     * @param action the action to run when elected.
-     * @return [VirtualFuture] resolving to the action result, or `null` when not elected.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun <T> runAsyncIfLeader(
         slot: LeaderSlot,
@@ -71,16 +43,12 @@ interface VirtualThreadLeaderElector: LeaderElectionState {
     }
 
     /**
-     * Returns [LeaderRunResult] for the Virtual Thread slot election.
+     * `runAsyncIfLeaderResult`는 async leadership 획득, skip, action 실패를 명시적인 LeaderRunResult로 반환합니다.
      *
-     * ## Bridge Default
-     * Uses an `elected: AtomicBoolean` flag pattern to distinguish elected (action ran) from skipped.
-     * Returns `Elected(value, leaderId = null)` — fabrication of [slot.leaderId] is intentionally
-     * blocked. Backend MUST override BOTH slot variants to carry [slot.leaderId] through.
-     *
-     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
-     * @param action the action to run when elected.
-     * @return [VirtualFuture] resolving to [LeaderRunResult.Elected] or [LeaderRunResult.Skipped].
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun <T> runAsyncIfLeaderResult(
         slot: LeaderSlot,

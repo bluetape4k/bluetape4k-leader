@@ -5,19 +5,10 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireGt
 
 /**
- * [LeaderIdProvider] that generates random Base58 strings as leader identities.
+ * `RandomLeaderIdProvider` 선언은 leader election 계약에서 사용되는 class입니다.
  *
- * ## Contract
- * - Each call to [nextLeaderId] returns a statistically unique string of [length] Base58 characters.
- * - Default length is [DefaultLength] (12 characters, ~70 bits of entropy).
- * - Thread-safe: Base58 generation is stateless.
- *
- * ## Usage
- * ```kotlin
- * val provider = RandomLeaderIdProvider()            // length 12
- * val custom   = RandomLeaderIdProvider(length = 16) // longer
- * val leaderId = provider.nextLeaderId("my-lock")    // e.g. "aBcDeFgHiJkL"
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property length `length` 호출 또는 상태 계산에 필요한 값입니다.
  */
 class RandomLeaderIdProvider(val length: Int = DefaultLength) : LeaderIdProvider {
 
@@ -26,10 +17,14 @@ class RandomLeaderIdProvider(val length: Int = DefaultLength) : LeaderIdProvider
     }
 
     companion object : KLogging() {
-        /** Default generated string length (12 Base58 characters ≈ 70 bits of entropy). */
+        /**
+         * `DefaultLength` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+         */
         const val DefaultLength: Int = 12
 
-        /** Shared default instance. Thread-safe. */
+        /**
+         * `Default` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+         */
         @JvmField
         val Default: LeaderIdProvider = RandomLeaderIdProvider()
     }

@@ -23,34 +23,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * Maps this publisher's event stream into a single-leader [StateFlow] for [lockName].
+ * `LeaderElectionEventPublisher` 호출은 leader election 계약의 일부 동작을 수행합니다.
  *
- * ## Behavior / Contract
- * - Initial value is [LeaderState.empty] for [lockName].
- * - [LeaderElectionEvent.Elected] transitions to [LeaderState.occupied]:
- *   [LeaderElectionEvent.Elected.leader] is used when present. Older events without a lease snapshot
- *   use [LeaderElectionEvent.Elected.leaderId] and [LeaderElectionEvent.Elected.leaseExpiry].
- * - [LeaderElectionEvent.Revoked] transitions back to [LeaderState.empty].
- * - [LeaderElectionEvent.Skipped] produces no state transition.
- * - This is a single-leader projection. For group electors with `maxLeaders > 1`, use
- *   [leaderGroupStateFlow] so one revoked group slot does not clear the whole lock state.
- * - Events for other lock names are filtered out, so a single publisher serving multiple locks
- *   can be safely observed per-lock.
- * - The returned [StateFlow] is hot and shares the upstream according to [started].
- * - With the default [SharingStarted.Eagerly], the upstream collector starts undispatched before
- *   this function returns, so hot publishers with no replay do not drop events emitted immediately
- *   after `leaderStateFlow()` returns.
- *
- * ```kotlin
- * val stateFlow = elector.leaderStateFlow("my-lock", scope)
- * stateFlow.collect { state ->
- *     if (state.isOccupied) println("Leader: ${state.leader?.auditLeaderId}")
- * }
- * ```
- *
- * @param lockName the lock to observe.
- * @param scope the [CoroutineScope] used to share the upstream flow.
- * @param started sharing strategy; defaults to [SharingStarted.Eagerly].
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+ * @param scope `scope` 호출 또는 상태 계산에 필요한 값입니다.
+ * @param started `started` 호출 또는 상태 계산에 필요한 값입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 fun LeaderElectionEventPublisher.leaderStateFlow(
     lockName: String,
@@ -61,32 +40,14 @@ fun LeaderElectionEventPublisher.leaderStateFlow(
         .toStateFlow(LeaderState.empty(lockName), scope, started)
 
 /**
- * Maps this publisher's event stream into a group-leader [StateFlow] for [lockName].
+ * `LeaderElectionEventPublisher` 호출은 leader election 계약의 일부 동작을 수행합니다.
  *
- * ## Behavior / Contract
- * - Initial value is an empty [LeaderGroupState] for [lockName] and [maxLeaders].
- * - [LeaderElectionEvent.Elected] increments [LeaderGroupState.activeCount] up to [maxLeaders].
- * - [LeaderElectionEvent.Revoked] decrements [LeaderGroupState.activeCount] down to zero.
- * - [LeaderElectionEvent.Skipped] produces no state transition.
- * - The `leaders` list is intentionally empty because [LeaderElectionEvent.Revoked] does not
- *   carry slot or leader identity, so this projection can report count semantics but cannot
- *   prove which leader remains after a partial revoke.
- * - Events for other lock names are filtered out, so a single publisher serving multiple locks
- *   can be safely observed per-lock.
- * - With the default [SharingStarted.Eagerly], the upstream collector starts undispatched before
- *   this function returns, matching [leaderStateFlow] for hot publishers with no replay.
- *
- * ```kotlin
- * val stateFlow = elector.leaderGroupStateFlow("batch-job", maxLeaders = 3, scope)
- * stateFlow.collect { state ->
- *     println("Active leaders: ${state.activeCount}/${state.maxLeaders}")
- * }
- * ```
- *
- * @param lockName the lock to observe.
- * @param maxLeaders maximum number of leaders the group elector allows.
- * @param scope the [CoroutineScope] used to share the upstream flow.
- * @param started sharing strategy; defaults to [SharingStarted.Eagerly].
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+ * @param maxLeaders 동시에 leadership을 획득할 수 있는 최대 슬롯 수입니다.
+ * @param scope `scope` 호출 또는 상태 계산에 필요한 값입니다.
+ * @param started `started` 호출 또는 상태 계산에 필요한 값입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 fun LeaderElectionEventPublisher.leaderGroupStateFlow(
     lockName: String,
@@ -141,8 +102,8 @@ private fun <T> Flow<T>.toStateFlow(
     started: SharingStarted,
 ): StateFlow<T> =
     if (started == SharingStarted.Eagerly) {
-        // Identity check is intentional: SharingStarted.Eagerly is a singleton. Custom eager-like strategies
-        // use stateIn(), so only the standard eager path gets the no-drop startup guarantee for hot publishers.
+        // identity 비교는 의도적입니다. SharingStarted.Eagerly는 singleton이고, custom eager-like 전략은 stateIn()을 사용합니다.
+        // 따라서 표준 eager 경로에만 hot publisher 시작 시 no-drop 보장을 제공합니다.
         val state = MutableStateFlow(initialValue)
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             collect { state.value = it }

@@ -1,64 +1,17 @@
 package io.bluetape4k.leader.annotation
 
 /**
- * Protects a method with single-leader election in a distributed environment.
+ * `LeaderElection` 선언은 leader election 계약에서 사용되는 annotation입니다.
  *
- * ## Contract
- * - The aspect resolves [name], attempts to acquire the leader lock, then runs the method body only
- *   when this node is elected unless [failureMode] says otherwise.
- * - Supported return shapes are `T?`, `suspend T?`, `Mono<T>`, `Flux<T>`, and Kotlin `Flow<T>`.
- * - `Flux<T>` and `Flow<T>` stream returns require either [autoExtend] or [streamBounded].
- * - `@LeaderGroupElection` does not support `Flux<T>` or `Flow<T>` yet.
- *
- * ## SpEL evaluation
- * [name] is plain SpEL. Literal prefixes must be quoted:
- * - `name = "daily-job"` for a static lock name.
- * - `name = "'process-' + #region"` for a prefixed dynamic name.
- * - `name = "#user.tenantId"` for a property lookup.
- * - `name = "\${spring.application.name}-warmup"` after Spring property placeholder resolution.
- * - `name = "process-#region"` is invalid because `process-` is parsed as an identifier.
- *
- * ## Security
- * SpEL method invocation is disabled by default to avoid side-effect expressions such as
- * `#user.delete()`. Set `bluetape4k.leader.aop.spel.allow-method-invocation=true` to opt in.
- *
- * ## Usage
- * ```kotlin
- * @Scheduled(cron = "0 0 2 * * *")
- * @LeaderElection(name = "daily-settlement", leaseTime = "PT1H")
- * fun dailySettlement() { ... }
- *
- * @LeaderElection(name = "'process-' + #region", failureMode = LeaderAspectFailureMode.SKIP)
- * fun process(region: String): Result? = service.process(region)
- *
- * // Explicit factory selection in a multi-backend environment
- * @LeaderElection(name = "audit", bean = "redissonLeaderElectionFactory")
- * fun audit() { ... }
- *
- * @LeaderElection(name = "event-stream", autoExtend = true)
- * fun streamEvents(): Flux<Event> = repository.stream()
- *
- * @LeaderElection(name = "bounded-flow", streamBounded = true)
- * fun boundedFlow(): Flow<Event> = repository.findRecent()
- * ```
- *
- * ## Not-elected mapping
- * - `T?`: returns `null`.
- * - `Unit`: skips the method body.
- * - `Mono<T>`: completes empty.
- * - `Flux<T>` / `Flow<T>`: emits no elements.
- *
- * @property name Required lock name. Plain SpEL plus `${...}` Spring property placeholders.
- * @property waitTime Maximum leader acquisition wait time. Empty means property or core default.
- * @property leaseTime Leader lease duration. Empty means property or core default.
- * @property minLeaseTime Minimum lease retention. `PT0S` releases immediately after fast completion.
- * @property autoExtend Whether to periodically renew the single-leader lease while the action runs.
- * @property streamBounded Opt-in marker that a `Flux` / `Flow` stream completes within the lease window.
- * @property bean [io.bluetape4k.leader.LeaderElectorFactory] bean name to use. Empty means default factory.
- * @property failureMode Backend error handling policy. Defaults to `RETHROW` after property resolution.
- *
- * @see LeaderGroupElection Semaphore-based multi-leader variant.
- * @see LeaderAspectFailureMode Failure mode enum.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property name 호출자가 전달하는 이름 또는 key입니다.
+ * @property waitTime leader lock 획득을 기다리는 최대 시간입니다.
+ * @property leaseTime leadership을 보유할 수 있는 lease TTL입니다.
+ * @property minLeaseTime 작업이 빨리 끝나더라도 lease를 최소로 유지할 시간입니다.
+ * @property autoExtend 작업 실행 중 lease를 주기적으로 연장할지 결정합니다.
+ * @property streamBounded `streamBounded` 호출 또는 상태 계산에 필요한 값입니다.
+ * @property bean `bean` 호출 또는 상태 계산에 필요한 값입니다.
+ * @property failureMode `failureMode` 호출 또는 상태 계산에 필요한 값입니다.
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Retention(AnnotationRetention.RUNTIME)

@@ -4,24 +4,12 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireNotBlank
 
 /**
- * [LeaderIdProvider] that prepends a fixed prefix to another provider's output.
+ * `CompositeLeaderIdProvider` 선언은 leader election 계약에서 사용되는 class입니다.
  *
- * Useful for multi-tenancy scenarios where a tenant tag distinguishes leader identities
- * across shared lock namespaces. See follow-up #42 for full multi-tenancy support.
- *
- * ## Contract
- * - [prefix] must be non-blank.
- * - Result format: `"$prefix$separator${delegate.nextLeaderId(lockName)}"`
- *
- * ## Usage
- * ```kotlin
- * val tenantProvider = CompositeLeaderIdProvider(
- *     prefix = "tenant-acme",
- *     separator = ":",
- *     delegate = RandomLeaderIdProvider.Default,
- * )
- * val leaderId = tenantProvider.nextLeaderId("billing-job") // "tenant-acme:aBcDeFgHiJkL"
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property prefix `prefix` 호출 또는 상태 계산에 필요한 값입니다.
+ * @property separator `separator` 호출 또는 상태 계산에 필요한 값입니다.
+ * @property delegate 실제 leader election 동작을 수행하는 위임 객체입니다.
  */
 class CompositeLeaderIdProvider(
     val prefix: String,

@@ -11,22 +11,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 private const val EVENT_BUFFER_CAPACITY = 64
 
 /**
- * Decorates a [LeaderElector] with listener callbacks and hot lifecycle events.
+ * `ListeningLeaderElector` 선언은 leader election 계약에서 사용되는 class입니다.
  *
- * ## Behavior / Contract
- * - Preserves the election, result, and exception behavior of [delegate].
- * - Calls registered [LeaderElectionListener] callbacks around successful or skipped leader actions.
- * - Exposes the same lifecycle as [events] through a non-suspending [MutableSharedFlow] publisher.
- * - Emits listener callbacks before the corresponding [events] item.
- * - Buffers up to [EVENT_BUFFER_CAPACITY] events and drops the oldest buffered event under back-pressure; this is
- *   not a guaranteed-delivery stream.
- *
- * ```kotlin
- * val election = redisLeaderElector.withListeners()
- * val job = scope.launch {
- *     election.events.collect { event -> println(event) }
- * }
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property delegate 실제 leader election 동작을 수행하는 위임 객체입니다.
  */
 class ListeningLeaderElector(
     private val delegate: LeaderElector,
@@ -204,15 +192,10 @@ class ListeningLeaderElector(
 }
 
 /**
- * Decorates a [LeaderGroupElector] with listener callbacks and hot lifecycle events.
+ * `ListeningLeaderGroupElector` 선언은 leader election 계약에서 사용되는 class입니다.
  *
- * ## Behavior / Contract
- * - Preserves group election, slot-count, result, and exception behavior of [delegate].
- * - Calls registered [LeaderElectionListener] callbacks around successful or skipped group-slot actions.
- * - Exposes lifecycle events through a non-suspending [MutableSharedFlow] publisher.
- * - Emits listener callbacks before the corresponding [events] item.
- * - Buffers up to [EVENT_BUFFER_CAPACITY] events and drops the oldest buffered event under back-pressure; this is
- *   not a guaranteed-delivery stream.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property delegate 실제 leader election 동작을 수행하는 위임 객체입니다.
  */
 class ListeningLeaderGroupElector(
     private val delegate: LeaderGroupElector,
@@ -293,7 +276,11 @@ class ListeningLeaderGroupElector(
 }
 
 /**
- * Wraps this [LeaderElector] with listener callbacks and event publishing.
+ * `LeaderElector`는 blocking leader election 실행자입니다.
+ *
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param listeners `listeners` 호출 또는 상태 계산에 필요한 값입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 fun LeaderElector.withListeners(vararg listeners: LeaderElectionListener): ListeningLeaderElector =
     ListeningLeaderElector(this).apply {
@@ -301,7 +288,11 @@ fun LeaderElector.withListeners(vararg listeners: LeaderElectionListener): Liste
     }
 
 /**
- * Wraps this [LeaderGroupElector] with listener callbacks and event publishing.
+ * `LeaderGroupElector`는 여러 slot을 허용하는 blocking group leader election 실행자입니다.
+ *
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param listeners `listeners` 호출 또는 상태 계산에 필요한 값입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 fun LeaderGroupElector.withListeners(vararg listeners: LeaderElectionListener): ListeningLeaderGroupElector =
     ListeningLeaderGroupElector(this).apply {

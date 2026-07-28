@@ -6,11 +6,9 @@ import io.bluetape4k.leader.strategy.ElectionStrategy
 import io.bluetape4k.leader.strategy.Elimination
 
 /**
- * An [ElectionStrategy] that elects the earliest-registered candidate as leader (FIFO order).
+ * `FifoElectionStrategy`는 전략 기반 leader 선출에서 후보 평가 규칙을 제공합니다.
  *
- * ## Behavior / Contract
- * - When two candidates share the same [CandidateInfo.registeredAt], the one with the
- *   lexicographically earlier [CandidateInfo.nodeId] wins.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 object FifoElectionStrategy : ElectionStrategy {
 

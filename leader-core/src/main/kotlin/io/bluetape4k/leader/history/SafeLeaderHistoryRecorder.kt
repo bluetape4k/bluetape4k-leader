@@ -7,29 +7,10 @@ import kotlinx.coroutines.CancellationException
 import java.time.Instant
 
 /**
- * Fault-isolating wrapper around a [LeaderHistorySink] for blocking (non-coroutine) electors.
+ * `SafeLeaderHistoryRecorder`는 leader election audit/history 저장 계약을 표현합니다.
  *
- * ## Behavior / Contract
- * - All sink calls are wrapped in a try/catch ladder that:
- *   1. Rethrows [kotlinx.coroutines.CancellationException] (structured concurrency safety).
- *   2. Rethrows [InterruptedException] after restoring the thread interrupt flag.
- *   3. Catches all other [Exception] subtypes, logs a warning, and swallows — the
- *      audit failure never propagates to the caller's action result.
- * - `CancellationException` from [recordFailed] is logged as a warning and then
- *   **not** re-propagated (the CE has already been handled by the elector; recording it
- *   as a failure is best-effort).
- * - [recordAcquired] applies [sanitize] before forwarding to the sink.
- * - Subclasses may override the `open fun` variants to inject additional behaviour
- *   (e.g. Micrometer counters).
- *
- * ## Audit isolation
- * Any [Exception] thrown by the sink is absorbed by this recorder.  `Error` subtypes
- * (e.g. [OutOfMemoryError]) are **not** caught — JVM-fatal errors propagate freely.
- *
- * ## Security note on errorMessage
- * `sanitizeForLog()` is a log-injection defence, **not** a credential scrubber.
- * JDBC/driver exception messages may contain passwords or connection URLs.  Callers
- * are responsible for redacting credentials before passing an exception to [recordFailed].
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property sink `sink` 호출 또는 상태 계산에 필요한 값입니다.
  */
 open class SafeLeaderHistoryRecorder(protected val sink: LeaderHistorySink) {
 

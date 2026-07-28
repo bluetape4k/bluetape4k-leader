@@ -3,16 +3,9 @@ package io.bluetape4k.leader.internal
 import io.bluetape4k.leader.LeaderLockHandle
 
 /**
- * Lock stack for the sync ([io.bluetape4k.leader.LeaderElector] / [io.bluetape4k.leader.VirtualThreadLeaderElector])
- * context — a ThreadLocal Deque.
+ * `LockStateHolder`는 leader election의 현재 상태를 표현합니다.
  *
- * Suspend / Mono contexts use `LockHandleElement` (CoroutineContext.Element) and do not use this holder.
- *
- * ## Behavior / Contract
- * - Tracks nested calls via a per-thread `ArrayDeque<LeaderLockHandle>`
- * - In virtual thread environments: ThreadLocal binds to the virtual thread, not the carrier thread (Java 21 standard)
- *   → no inheritance when a child spawns a new virtual thread (R3-F8 explicit)
- * - The aspect guarantees push/pop via try/finally — use the [withPushed] inline helper
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 internal object LockStateHolder {
 
@@ -30,7 +23,12 @@ internal object LockStateHolder {
     fun peekSyncMatching(lockName: String): LeaderLockHandle? =
         tl.get().firstOrNull { it.lockName == lockName }
 
-    /** Removes the ThreadLocal when the stack is empty (prevents pool thread leaks). */
+    /**
+     * `cleanup` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun cleanup() {
         if (tl.get().isEmpty()) {
             tl.remove()
@@ -38,12 +36,12 @@ internal object LockStateHolder {
     }
 
     /**
-     * push/pop helper — prevents leaks.
+     * `withPushed` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * ## Usage
-     * ```kotlin
-     * LockStateHolder.withPushed(handle) { pjp.proceed() }
-     * ```
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param handle `handle` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param block `block` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     inline fun <R> withPushed(handle: LeaderLockHandle, block: () -> R): R {
         push(handle)

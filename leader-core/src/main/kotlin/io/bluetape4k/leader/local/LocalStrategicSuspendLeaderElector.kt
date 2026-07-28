@@ -19,14 +19,10 @@ import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * In-memory (single-process) [StrategicSuspendLeaderElector] implementation.
+ * `LocalStrategicSuspendLeaderElector` 선언은 leader election 계약에서 사용되는 class입니다.
  *
- * Suspend variant of [LocalStrategicLeaderElector] — coroutine safety in the election phase is
- * guaranteed by a per-lockName [Mutex]. Action execution is performed outside the mutex to prevent
- * interference across unrelated lockNames. [CancellationException] is not treated as a task failure;
- * it does not increment failureCount and is immediately rethrown.
- *
- * @property nodeId node identifier represented by this instance. Auto-generated as UUID v7 ([Uuid.V7]) if not specified.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property nodeId 상태 조회와 audit에 노출되는 노드 또는 인스턴스 식별자입니다.
  */
 class LocalStrategicSuspendLeaderElector(
     override val nodeId: String = Uuid.V7.nextIdAsString(),

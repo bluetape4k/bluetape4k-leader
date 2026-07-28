@@ -3,69 +3,42 @@ package io.bluetape4k.leader.history
 import java.time.Instant
 
 /**
- * Coroutine-aware SPI for persisting leader-lock lifecycle events.
+ * `SuspendLeaderHistorySink`는 leader election audit/history 저장 계약을 표현합니다.
  *
- * Implementations are expected to be **thread-safe**: a single sink instance is
- * shared across concurrent election coroutines.
- *
- * ## Behavior / Contract
- * - [recordAcquired] is called immediately after the lock is obtained, before the
- *   protected action starts.  It returns a [LeaderHistoryKey] that callers pass to
- *   [recordCompleted] or [recordFailed].
- * - If [recordAcquired] returns `null`, the caller **must** construct a fallback key
- *   from `(lockName, token)` and pass it to subsequent calls.
- * - [deleteOlderThan] has a no-op default; JDBC R2DBC backends override it.
- *   MongoDB uses `deleteMany` without a `LIMIT` clause and ignores [limit].
- *
- * ## Blocking I/O inside suspend functions
- * Implementations that call **synchronous blocking I/O** (e.g. JDBC) MUST wrap
- * those calls in `runInterruptible {}` so that coroutine cancellation correctly
- * restores the thread interrupt flag:
- *
- * ```kotlin
- * // MUST — JDBC / synchronous blocking call
- * override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? =
- *     runInterruptible {
- *         transaction(database) { LeaderLockHistoryTable.insert { … } get id }
- *     }
- *
- * // NOT needed — MongoDB Reactive Streams is natively async
- * override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
- *     collection.insertOne(document).awaitSingle()
- * }
- * ```
- *
- * ## null-key fallback contract
- * When [recordAcquired] returns null, callers create a fallback [LeaderHistoryKey]
- * using `(lockName, token)`.  Implementations must handle a `null` [LeaderHistoryKey.id]
- * gracefully (e.g. fall back to a natural-key update or no-op).
- *
- * ## CancellationException
- * This interface does **not** catch [kotlinx.coroutines.CancellationException]; the
- * recorder layer (`SuspendSafeLeaderHistoryRecorder`) rethrows it before any fallback
- * counter increments.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 interface SuspendLeaderHistorySink {
 
     /**
-     * Persists an ACQUIRED event and returns an opaque key for subsequent updates.
+     * `recordAcquired`는 leader election audit/history 저장 계약을 표현합니다.
      *
-     * Returns `null` if the record could not be persisted.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param record `record` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey?
 
     /**
-     * Updates the record to COMPLETED status.
+     * `recordCompleted`는 leader election audit/history 저장 계약을 표현합니다.
      *
-     * @param key key returned by [recordAcquired], or a fallback key when that returned null.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param key `key` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param finishedAt 사용자 작업이 종료된 wall-clock 시각입니다. 실행 중이면 null입니다.
+     * @param durationMs 사용자 작업 실행 시간입니다. 실행 중이면 null입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long)
 
     /**
-     * Updates the record to FAILED status.
+     * `recordFailed`는 leader election audit/history 저장 계약을 표현합니다.
      *
-     * @param errorType fully-qualified class name of the thrown exception, or null.
-     * @param errorMessage sanitized exception message, or null.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param key `key` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param finishedAt 사용자 작업이 종료된 wall-clock 시각입니다. 실행 중이면 null입니다.
+     * @param durationMs 사용자 작업 실행 시간입니다. 실행 중이면 null입니다.
+     * @param errorType 작업 실패 시 예외의 fully-qualified class 이름입니다.
+     * @param errorMessage 작업 실패 시 정제되고 길이가 제한된 예외 메시지입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     suspend fun recordFailed(
         key: LeaderHistoryKey,
@@ -76,11 +49,12 @@ interface SuspendLeaderHistorySink {
     )
 
     /**
-     * Deletes records older than [cutoff], processing at most [limit] rows per call.
+     * `deleteOlderThan` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * The default implementation is a no-op.
-     *
-     * @return number of records actually deleted.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param cutoff `cutoff` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param limit `limit` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     suspend fun deleteOlderThan(cutoff: Instant, limit: Int): Int = 0
 }

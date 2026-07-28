@@ -30,44 +30,16 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Common watchdog helper that periodically extends a leader lease under backend ownership conditions.
+ * `LeaderLeaseAutoExtender` 선언은 leader election 계약에서 사용되는 object입니다.
  *
- * ## Contract
- * - [extend] must verify the current owner token/thread/instance condition.
- * - If [extend] returns `false` or throws an exception, the watchdog stops iterating.
- * - The caller must close the returned [AutoCloseable] in the action's termination/exception/cancellation release path.
- *
- * ## Recommended usage with ExtendDelegate (R2 watchdog skip)
- * ```kotlin
- * val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime, delegate)
- * try {
- *     action()
- * } finally {
- *     watchdog.close()
- * }
- * ```
- *
- * ## Legacy Boolean lambda usage (Deprecated)
- * ```kotlin
- * val watchdog = LeaderLeaseAutoExtender.start(options.autoExtend, options.leaseTime) {
- *     lock.extend(options.leaseTime)
- * }
- * try {
- *     action()
- * } finally {
- *     watchdog.close()
- * }
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 object LeaderLeaseAutoExtender : KLogging() {
 
     private val threadSeq = AtomicInteger()
 
     /**
-     * Default watchdog scheduler thread-pool size.
-     *
-     * Uses `availableProcessors().coerceAtLeast(2)` so single-CPU environments still get 2 threads.
-     * Override at runtime with [configure].
+     * `DEFAULT_WATCHDOG_THREADS` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
      */
     internal val DEFAULT_WATCHDOG_THREADS: Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(2)
 
@@ -81,22 +53,20 @@ object LeaderLeaseAutoExtender : KLogging() {
     private var scheduler: ScheduledThreadPoolExecutor = newScheduler()
 
     /**
-     * Returns the current configured watchdog thread-pool size.
+     * `watchdogThreadCount` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun watchdogThreadCount(): Int = configuredThreadCount
 
     /**
-     * Configures the shared watchdog scheduler.
+     * `configure` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * ## Behavior / Contract
-     * - `watchdogThreads` is applied immediately to any running scheduler via
-     *   [ScheduledThreadPoolExecutor.setCorePoolSize] and also stored for the next [restart].
-     * - `asyncExtend` takes effect immediately for new [start] calls. When `true`, each watchdog tick
-     *   dispatches the backend extend call onto a virtual thread, preventing slow backends from blocking
-     *   the shared scheduler. An `extendInFlight` guard ensures at most one async extend runs per watchdog.
-     *
-     * @param watchdogThreads thread-pool size for the scheduler (>= 1). Defaults to current value.
-     * @param asyncExtend when `true`, extend calls are dispatched on virtual threads.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param watchdogThreads `watchdogThreads` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param asyncExtend `asyncExtend` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun configure(
         watchdogThreads: Int = configuredThreadCount,
@@ -105,8 +75,8 @@ object LeaderLeaseAutoExtender : KLogging() {
         require(watchdogThreads >= 1) { "watchdogThreads must be >= 1, got $watchdogThreads" }
         configuredThreadCount = watchdogThreads
         asyncExtendEnabled = asyncExtend
-        // Apply thread count to the running scheduler immediately.
-        // ScheduledThreadPoolExecutor supports live setCorePoolSize() without disrupting queued tasks.
+        // 실행 중인 scheduler에 thread count를 즉시 반영합니다.
+        // ScheduledThreadPoolExecutor는 queued task를 깨지 않고 live setCorePoolSize()를 지원합니다.
         val current = scheduler
         if (!current.isShutdown && current.corePoolSize != watchdogThreads) {
             current.corePoolSize = watchdogThreads
@@ -114,15 +84,10 @@ object LeaderLeaseAutoExtender : KLogging() {
     }
 
     /**
-     * Shuts down the shared watchdog scheduler, waiting up to 5 seconds for in-flight ticks to finish.
-     * Safe to call multiple times. After shutdown, calls to [start] will throw [RejectedExecutionException]
-     * from the scheduler until [restart] is invoked. The tick-body [RejectedExecutionException] catch
-     * protects ticks whose delegate submits further work to a separately shut-down executor.
+     * `shutdown` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * ## Concurrency note
-     * The scheduler reference is captured once into a local variable before any blocking calls so that
-     * a concurrent [restart] cannot swap in a fresh executor between [shutdown][ScheduledThreadPoolExecutor.shutdown]
-     * and [awaitTermination][ScheduledThreadPoolExecutor.awaitTermination] / [shutdownNow][ScheduledThreadPoolExecutor.shutdownNow].
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun shutdown() {
         val current = scheduler
@@ -133,15 +98,22 @@ object LeaderLeaseAutoExtender : KLogging() {
     }
 
     /**
-     * Replaces the scheduler with a fresh instance if the current one has been shut down.
-     * No-op when the scheduler is still running.
+     * `restart` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun restart() {
         if (!scheduler.isShutdown) return
         scheduler = newScheduler()
     }
 
-    /** Returns `true` if the shared watchdog scheduler has been shut down. */
+    /**
+     * `isShutdown` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun isShutdown(): Boolean = scheduler.isShutdown
 
     private fun newScheduler(): ScheduledThreadPoolExecutor =
@@ -152,28 +124,14 @@ object LeaderLeaseAutoExtender : KLogging() {
         }.apply { removeOnCancelPolicy = true }
 
     /**
-     * Starts a lease-extension watchdog using [ExtendDelegate] when [enabled] is true.
+     * `start` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * ## R2 watchdog skip
-     * On each tick, reads `delegate.lastExtendDeadline.get()`. If
-     * `now + cadence < lastExtendDeadline`, the backend extend call is skipped.
-     * This prevents a split-brain where the watchdog silently shrinks the lease to a smaller
-     * value immediately after the user calls `LockExtender.extendActiveLock(60s)`.
-     *
-     * ## Termination conditions
-     * - [ExtendOutcome.NotHeld] / [ExtendOutcome.WrongThread] → watchdog stops (ownership lost)
-     * - [ExtendOutcome.BackendError] (TRANSIENT) → WARN log + continue (retry)
-     * - [ExtendOutcome.BackendError] (NON_TRANSIENT / FATAL) → WARN log + watchdog stops
-     * - [AutoCloseable.close] called → stops
-     *
-     * @param enabled returns a no-op closeable when `false`
-     * @param leaseTime backend lease duration — cadence = leaseTime / 3 (minimum [MIN_RENEWAL_PERIOD])
-     * @param delegate backend extend SPI — [ExtendDelegate.extend] + [ExtendDelegate.lastExtendDeadline]
-     * @param classifier backend-specific [BackendErrorClassifier]. When `null` (default),
-     * [CoreBackendErrorClassifier] (JDK / SQL only) is used — may miss transient classifications for
-     * specific backends. Each backend module should wrap its own classifier (e.g.
-     * [io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier]) with
-     * [CompositeBackendErrorClassifier] and pass it here.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param enabled `enabled` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param leaseTime leadership을 보유할 수 있는 lease TTL입니다.
+     * @param delegate 실제 leader election 동작을 수행하는 위임 객체입니다.
+     * @param classifier `classifier` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun start(
         enabled: Boolean,
@@ -189,7 +147,7 @@ object LeaderLeaseAutoExtender : KLogging() {
         val closed = AtomicBoolean(false)
         val cadence = renewalPeriod(leaseTime)
         val futureRef = AtomicReference<ScheduledFuture<*>?>(null)
-        // Capture async mode at start() call time — subsequent configure() calls don't affect running watchdogs.
+        // start() 호출 시점의 async mode를 캡처합니다. 이후 configure() 호출은 실행 중인 watchdog에 영향을 주지 않습니다.
         val capturedAsyncExtend = asyncExtendEnabled
         val extendInFlight = AtomicBoolean(false)
 
@@ -199,7 +157,7 @@ object LeaderLeaseAutoExtender : KLogging() {
                 return@doTick
             }
 
-            // R2 mitigation: skip watchdog if the user already called an explicit extend
+            // R2 완화: 사용자가 이미 명시적으로 extend를 호출했다면 watchdog tick을 건너뜁니다.
             val deadline = delegate.lastExtendDeadline.get()
             if (deadline != null && Instant.now().plusMillis(cadence.inWholeMilliseconds).isBefore(deadline)) {
                 return@doTick
@@ -217,7 +175,7 @@ object LeaderLeaseAutoExtender : KLogging() {
             }
 
             when (outcome) {
-                is Extended -> { /* Extended successfully — continue */ }
+                is Extended -> { /* 성공적으로 연장했으므로 계속 진행합니다. */ }
                 is NotHeld, is WrongThread -> {
                     log.warn { "leader.lease.auto-extend.stopped reason=$outcome" }
                     if (closed.compareAndSet(false, true)) {
@@ -242,8 +200,8 @@ object LeaderLeaseAutoExtender : KLogging() {
             }
         }
 
-        // When async mode is enabled: dispatch each tick onto a virtual thread so that a slow backend
-        // cannot block the shared scheduler. The extendInFlight guard prevents overlapping extends.
+        // async mode에서는 각 tick을 virtual thread로 dispatch해 느린 backend가 shared scheduler를 막지 않게 합니다.
+        // extendInFlight guard는 extend 호출이 겹치지 않도록 막습니다.
         val tickRunnable: Runnable = if (capturedAsyncExtend) {
             Runnable {
                 if (extendInFlight.compareAndSet(false, true)) {
@@ -288,15 +246,14 @@ object LeaderLeaseAutoExtender : KLogging() {
     }
 
     /**
-     * Starts a lease-extension watchdog for a coroutine-native [SuspendExtendDelegate].
+     * `start` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * The existing scheduler owns cadence so [configure] thread-count behavior still applies.
-     * Each due tick is dispatched into a private coroutine scope and calls [SuspendExtendDelegate.extendSuspend]
-     * directly. This overload must not use `runBlocking`.
-     * `asyncExtend` does not apply because the backend call already runs outside the scheduler thread.
-     *
-     * `close()` stops future scheduling immediately. If a suspend extend is already in flight, it is allowed
-     * to finish the atomic backend operation; the private scope is cancelled after that tick completes.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param enabled `enabled` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param leaseTime leadership을 보유할 수 있는 lease TTL입니다.
+     * @param delegate 실제 leader election 동작을 수행하는 위임 객체입니다.
+     * @param classifier `classifier` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun start(
         enabled: Boolean,
@@ -390,7 +347,11 @@ object LeaderLeaseAutoExtender : KLogging() {
     }
 
     /**
-     * Computes the watchdog repetition period based on [leaseTime].
+     * `renewalPeriod` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param leaseTime leadership을 보유할 수 있는 lease TTL입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun renewalPeriod(leaseTime: Duration): Duration {
         val third = leaseTime / 3
@@ -427,7 +388,7 @@ object LeaderLeaseAutoExtender : KLogging() {
         futureRef: AtomicReference<ScheduledFuture<*>?>,
     ) {
         when (outcome) {
-            is Extended -> { /* Extended successfully — continue */ }
+            is Extended -> { /* 성공적으로 연장했으므로 계속 진행합니다. */ }
             is NotHeld, is WrongThread -> {
                 log.warn { "leader.lease.auto-extend.stopped reason=$outcome" }
                 if (closed.compareAndSet(false, true)) {

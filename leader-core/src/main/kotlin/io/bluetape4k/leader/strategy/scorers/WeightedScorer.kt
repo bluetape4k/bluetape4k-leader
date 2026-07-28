@@ -5,22 +5,10 @@ import io.bluetape4k.leader.strategy.CandidateScorer
 import io.bluetape4k.support.requireNotEmpty
 
 /**
- * A composite [CandidateScorer] that combines multiple scorers by applying individual weights
- * and summing the results.
+ * `WeightedScorer`는 전략 기반 leader 선출에서 후보 평가 규칙을 제공합니다.
  *
- * ## Behavior / Contract
- * - Weights do not need to sum to 1.0; each scorer's result is scaled by its weight and summed.
- * - All weights must be positive (enforced at construction).
- *
- * ## Example
- * ```kotlin
- * val scorer = WeightedScorer(
- *     IdleTimeScorer to 0.6,
- *     SuccessRateScorer to 0.4,
- * )
- * ```
- *
- * @property scorers list of (scorer, weight) pairs
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property scorers 가중치와 함께 조합할 후보 점수 계산기 목록입니다.
  */
 class WeightedScorer(
     val scorers: List<Pair<CandidateScorer, Double>>,

@@ -1,34 +1,21 @@
 package io.bluetape4k.leader.internal
 
 /**
- * Composite that chains a backend-specific classifier with [CoreBackendErrorClassifier].
+ * `CompositeBackendErrorClassifier` 선언은 leader election 계약에서 사용되는 class입니다.
  *
- * ## Behavior / Contract
- * Classification order:
- * 1. Attempt `backendSpecific.classify(cause)`
- * 2. If `null` returned, attempt `[CoreBackendErrorClassifier].classify(cause)`
- * 3. If both return `null`, fall back to [BackendErrorKind.NON_TRANSIENT] (safe default — caller handles explicitly)
- *
- * ## Example
- * ```kotlin
- * // in a backend module:
- * val classifier = CompositeBackendErrorClassifier(LettuceBackendErrorClassifier)
- *
- * when (classifier.classify(ex)) {
- *     BackendErrorKind.TRANSIENT     -> { log.warn { "transient backend error — continuing" } }
- *     BackendErrorKind.NON_TRANSIENT -> throw ex
- *     BackendErrorKind.FATAL         -> throw ex  // FATAL Error — propagate
- * }
- * ```
- *
- * @param backendSpecific backend-specific [BackendErrorClassifier] provided by the backend module
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property backendSpecific `backendSpecific` 호출 또는 상태 계산에 필요한 값입니다.
  */
 class CompositeBackendErrorClassifier(
     private val backendSpecific: BackendErrorClassifier,
 ) : BackendErrorClassifier {
 
     /**
-     * Classifies [cause]. Never returns `null` — fallback is [BackendErrorKind.NON_TRANSIENT].
+     * `classify` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param cause 실패 결과를 만든 원본 예외입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override fun classify(cause: Throwable): BackendErrorKind =
         backendSpecific.classify(cause)

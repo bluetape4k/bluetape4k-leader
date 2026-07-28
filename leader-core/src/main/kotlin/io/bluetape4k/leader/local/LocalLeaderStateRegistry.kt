@@ -10,10 +10,9 @@ import kotlin.concurrent.withLock
 import kotlin.time.Duration
 
 /**
- * In-memory leader state registry used by local elector implementations.
+ * `LocalLeaderStateRegistry`는 leader election의 현재 상태를 표현합니다.
  *
- * Because `ReentrantLock` and semaphores do not expose current owner metadata,
- * separate lease snapshots are recorded on the acquire/release path.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 internal class LocalLeaderStateRegistry {
 
