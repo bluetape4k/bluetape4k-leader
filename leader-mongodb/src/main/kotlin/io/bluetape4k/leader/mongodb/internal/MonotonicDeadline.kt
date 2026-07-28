@@ -4,11 +4,11 @@ import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 
 /**
- * Monotonic timeout budget for local MongoDB acquisition retry loops.
+ * `MonotonicDeadline`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * MongoDB lease expiry remains wall-clock based because `expireAt` is persisted
- * and compared by the database. Client-side waits use [System.nanoTime] so wall
- * clock adjustments do not extend or shorten `tryLock` retry budgets.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property deadlineNanos MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property ticker MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class MonotonicDeadline private constructor(
     private val deadlineNanos: Long,

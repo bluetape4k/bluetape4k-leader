@@ -34,35 +34,13 @@ import kotlin.random.Random
 import kotlin.time.Duration
 
 /**
- * Coroutine-based multi-leader group election implementation using a MongoDB slot-based distributed semaphore.
+ * `MongoSuspendLeaderGroupElector`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Dual-collection design
- * The `activeCount`, `availableSlots`, and `state` methods of the [LeaderGroupState] interface are non-suspend contracts.
- * Because the coroutine driver's `countDocuments` is a suspend function, it cannot be used for state queries.
- * Therefore, state queries use the synchronous [groupCollection], while lock acquire/release uses
- * the coroutine [coroutineGroupCollection].
- *
- * ## ExtendDelegate Integration (T9 PR 4 / Issue #79)
- *
- * - Wraps each acquired per-slot [MongoSuspendLock] with [MongoSuspendSlotExtendDelegate], sharing the same
- *   reference with the watchdog (AC-15).
- * - The aspect's `LockExtenderSuspend.extendActiveLockSuspend` uses the same delegate reference.
- * - Propagates the handle into the coroutine context via
- *   `withContext(createLockHandleElement(handle))`.
- *
- * ```kotlin
- * val db = mongoClient.getDatabase("mydb")
- * val election = MongoSuspendLeaderGroupElector(
- *     groupCollection = db.getCollection("bluetape4k_leader_group_locks"),
- *     coroutineGroupCollection = db.toCoroutineDatabase().getCollection("bluetape4k_leader_group_locks"),
- *     options = MongoLeaderGroupElectionOptions(LeaderGroupElectionOptions(maxLeaders = 3)),
- * )
- * val result = election.runIfLeader("batch-job") { processChunk() }
- * ```
- *
- * @param groupCollection synchronous [MongoCollection] for state queries
- * @param coroutineGroupCollection coroutine [CoroutineMongoCollection] for lock acquire/release
- * @param options group leader election options
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property groupCollection MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property coroutineGroupCollection MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property historyRecorder MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class MongoSuspendLeaderGroupElector private constructor(
     private val groupCollection: MongoCollection<Document>,
@@ -99,11 +77,9 @@ class MongoSuspendLeaderGroupElector private constructor(
     private fun slotKey(lockName: String, slot: Int) = "$lockName:slot:$slot"
 
     /**
-     * Returns the number of currently active slots using the synchronous driver
-     * (based on non-expired documents).
+     * `activeCount` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * **Note:** This value is approximate. Expired documents may linger for up to 60 seconds
-     * during a TTL expiration cycle.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override fun activeCount(lockName: String): Int {
         val ids = (0 until maxLeaders).map { slotKey(lockName, it) }
@@ -240,12 +216,9 @@ class MongoSuspendLeaderGroupElector private constructor(
 }
 
 /**
- * Runs the suspend [action] only when elected as one of at most [options.maxLeaders] leaders
- * using a MongoDB slot-based distributed semaphore.
+ * `선언` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
  *
- * The receiver is the synchronous collection for state queries; [coroutineGroupCollection] must also be
- * provided for lock acquire/release. This is required by the dual-collection design of
- * [MongoSuspendLeaderGroupElector].
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 suspend fun <T> MongoCollection<Document>.suspendRunIfLeaderGroup(
     coroutineGroupCollection: CoroutineMongoCollection<Document>,

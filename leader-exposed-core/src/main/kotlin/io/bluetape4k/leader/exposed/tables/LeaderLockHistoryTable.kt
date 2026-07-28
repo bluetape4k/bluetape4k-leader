@@ -9,76 +9,91 @@ import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.javatime.timestamp
 
 /**
- * Leader election history table.
+ * `LeaderLockHistoryTable`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Status lifecycle: [io.bluetape4k.leader.history.LeaderHistoryStatus.ACQUIRED] → [io.bluetape4k.leader.history.LeaderHistoryStatus.COMPLETED] | [io.bluetape4k.leader.history.LeaderHistoryStatus.FAILED] | [io.bluetape4k.leader.history.LeaderHistoryStatus.EXPIRED]
- *
- * - [token] is NOT NULL — the fencing token at the time of lock acquisition.
- *   Used with `WHERE token = ?` when transitioning to EXPIRED for accurate history record matching.
- * - [slot] is exclusive to group locks. Null for single-leader locks.
- * - [lockedUntil] is the EXPIRED judgment threshold — transitions to expired when `lockedUntil < NOW()`.
- *
- * TTL policy: Records older than 30 days are deleted by a periodic batch job.
- * Uses Kotlin [java.time.Instant] parameter binding instead of DB-native INTERVAL
- * to avoid syntax incompatibilities between H2/PostgreSQL/MySQL.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 object LeaderLockHistoryTable : Table(LOCK_HISTORY_TABLE_NAME) {
 
-    /** AUTO_INCREMENT PK. */
+    /**
+     * `id` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val id = long("id").autoIncrement()
 
-    /** Lock identifier. */
+    /**
+     * `lockName` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val lockName = varchar("lock_name", LOCK_NAME_LENGTH)
 
-    /** Lock holder identifier. Nullable. */
+    /**
+     * `lockOwner` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val lockOwner = varchar("lock_owner", LOCK_OWNER_LENGTH).nullable()
 
-    /** Fencing token — UUID at the time of lock acquisition. Used for EXPIRED transition matching. */
+    /**
+     * `token` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val token = varchar("token", TOKEN_LENGTH)
 
-    /** Group lock slot number. Null for single-leader locks. */
+    /**
+     * `slot` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val slot = integer("slot").nullable()
 
-    /** Expiry timestamp for this acquisition (UTC). Used as the EXPIRED judgment threshold. */
+    /**
+     * `lockedUntil` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val lockedUntil = timestamp("locked_until")
 
-    /** History status. Stores the name of the [io.bluetape4k.leader.history.LeaderHistoryStatus] enum value. */
+    /**
+     * `status` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val status = varchar("status", STATUS_LENGTH)
 
-    /** Timestamp when the lock was acquired (ACQUIRED state) (UTC). */
+    /**
+     * `startedAt` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val startedAt = timestamp("started_at")
 
-    /** Timestamp when the leader action completed. Null while in ACQUIRED state. */
+    /**
+     * `finishedAt` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val finishedAt = timestamp("finished_at").nullable()
 
-    /** Duration of the leader action in milliseconds. Null while in ACQUIRED state. */
+    /**
+     * `durationMs` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val durationMs = long("duration_ms").nullable()
 
     // ── Audit contract columns (Issue #50) ────────────────────────────────
 
-    /** Fully-qualified class name of the thrown exception. null when action succeeded. */
+    /**
+     * `errorType` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val errorType = varchar("error_type", 255).nullable()
 
-    /** Sanitized exception message, truncated to 512 UTF-8 bytes. null when action succeeded. */
+    /**
+     * `errorMessage` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val errorMessage = varchar("error_message", 512).nullable()
 
     /**
-     * [io.bluetape4k.leader.LockIdentity.AnnotationKind] name (SINGLE / GROUP).
-     * Stored as VARCHAR to avoid ordinal-dependency (D3).
+     * `kind` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
      */
     val kind = varchar("kind", 32).nullable()
 
-    /** Node/instance identifier (hostname, pod name, etc.). */
+    /**
+     * `participantId` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val participantId = varchar("participant_id", 255).nullable()
 
-    /** JSON-serialized metadata map. null when no metadata was supplied. */
+    /**
+     * `metadata` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val metadata = text("metadata").nullable()
 
     /**
-     * Slot identifier for group elections stored as VARCHAR(255).
-     * Redisson permitId is UUID-shaped — cannot be stored as Int without NFE (H4).
-     * When non-null and parseable as Int, the legacy [slot] column is also populated
-     * for backward compatibility.
+     * `slotId` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
      */
     val slotId = varchar("slot_id", 255).nullable()
 

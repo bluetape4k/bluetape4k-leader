@@ -6,20 +6,11 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import org.jetbrains.exposed.v1.jdbc.Database
 
 /**
- * Factory for [ExposedJdbcLeaderGroupElector] — Exposed JDBC-backed multi-leader election.
+ * `ExposedJdbcLeaderGroupElectorFactory`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Example
- * ```kotlin
- * val factory = ExposedJdbcLeaderGroupElectionFactory(db)
- * val election = factory.create(LeaderGroupElectionOptions(maxLeaders = 3))
- * val result = election.runIfLeader("batch-shard") { processChunk() }
- * ```
- *
- * Each call replaces only `maxLeaders`/`waitTime`/`leaseTime` via
- * `baseOptions.copy(leaderGroupOptions = options)`, preserving `retryStrategy`/`lockOwner`.
- *
- * @param db Exposed [Database]
- * @param baseOptions base Exposed-specific options
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property db Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property baseOptions Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class ExposedJdbcLeaderGroupElectorFactory(
     private val db: Database,

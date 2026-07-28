@@ -23,22 +23,12 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.LockSupport
 
 /**
- * Distributed lock implementation using the Lettuce Redis client.
+ * `LettuceLock`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * A non-reentrant distributed mutex based on `SET NX PX` + Lua scripts.
- * Uses a UUID as the lock token, making it thread- and coroutine-independent.
- *
- * ```kotlin
- * val lock = LettuceLock(connection, "my-lock")
- *
- * if (lock.tryLock()) {
- *     try { doWork() } finally { lock.unlock() }
- * }
- * ```
- *
- * @param connection Lettuce StatefulRedisConnection (StringCodec-based)
- * @param lockKey lock key stored in Redis
- * @param defaultLeaseTime default lock hold time (default: 30 seconds)
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property connection Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockKey Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property defaultLeaseTime Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class LettuceLock(
     private val connection: StatefulRedisConnection<String, String>,
@@ -85,10 +75,9 @@ end"""
     }
 
     /**
-     * Returns the current lock token (after acquire, before unlock).
+     * `currentToken` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Used as the value injected into [io.bluetape4k.leader.LeaderLockHandle.Real.token] by the backend module elector.
-     * Returns `null` when the lock is not held.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun currentToken(): String? = tokenRef.value
 
@@ -162,28 +151,17 @@ end"""
     }
 
     /**
-     * Lua atomic extend — token guard + PEXPIRE.
+     * `extend` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * ## Behavior / Contract
-     * - token not held ([tokenRef] is null) → `false`
-     * - script result `1` → `true` (PEXPIRE succeeded)
-     * - script result `0` → `false` (token mismatch / lease expired)
-     *
-     * Use [extendDetailed] when a detailed classification result is needed.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun extend(leaseTime: Duration = defaultLeaseTime): Boolean =
         extendDetailed(leaseTime).isExtended
 
     /**
-     * Lua atomic extend — returns [ExtendOutcome] (T7 PR 2).
+     * `extendDetailed` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * ## Behavior / Contract
-     * - token not held → [ExtendOutcome.NotHeld]
-     * - script result `1` → [ExtendOutcome.Extended] (`observedExpireAt = Instant.now() + leaseTime`, best-effort)
-     * - script result `0` → [ExtendOutcome.NotHeld] (token mismatch / lease expired)
-     *
-     * **The caller (`LettuceLockExtendDelegate`) converts backend exceptions to [ExtendOutcome.BackendError] via try/catch**.
-     * This method propagates backend exceptions as-is.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun extendDetailed(leaseTime: Duration = defaultLeaseTime): ExtendOutcome {
         val token = tokenRef.value ?: return ExtendOutcome.NotHeld

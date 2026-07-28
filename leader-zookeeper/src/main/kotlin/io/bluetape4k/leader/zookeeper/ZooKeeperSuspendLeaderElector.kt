@@ -26,35 +26,12 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * ZooKeeper suspend single-leader election implementation based on Apache Curator's inter-process mutex recipe.
+ * `ZooKeeperSuspendLeaderElector`는 ZooKeeper backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - Uses the same Curator mutex recipe as the blocking [ZooKeeperLeaderElector] to mutually exclude the same [lockName].
- * - Since the Curator mutex has a thread-owner constraint, acquire/release is performed on a bounded pool of reusable
- *   single-thread owner dispatchers owned by this elector instance. Each call keeps one owner lane until release.
- * - Even during cancellation, releases the lock inside `withContext(NonCancellable)` and re-propagates [CancellationException].
- * - [LeaderElectionOptions.leaseTime] is not used as a ZooKeeper TTL; session termination/expiry is the automatic release boundary.
- * - Call [close] when the elector is no longer used. Convenience extension functions close their one-shot elector
- *   automatically.
- *
- * ## ExtendDelegate Integration (T13 PR 8 / Issue #79)
- *
- * - After acquire, creates a [ZooKeeperSuspendLockExtendDelegate] that shares the same reference with [LeaderLockHandle.Real] (AC-15).
- * - The aspect's `LockExtenderSuspend.extendActiveLockSuspend` uses the same delegate reference.
- * - Propagates handle to coroutineContext via `withContext(AopScopeAccess.createLockHandleElement(handle))`.
- *
- * ## R16 enforce — ZooKeeper has no TTL
- *
- * [LeaderLeaseAutoExtender.start] is **always forced to `enabled=false`**. A WARN log is emitted if the user sets `autoExtend=true`.
- *
- * ```kotlin
- * val elector = ZooKeeperSuspendLeaderElector(curator)
- * val result = elector.runIfLeader("sync-job") { syncData() }
- * ```
- *
- * @param client A started [CuratorFramework] client. Lifecycle management is the caller's responsibility.
- * @param basePath Base path where leader election znodes will be created
- * @param options Leader election options
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property basePath ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class ZooKeeperSuspendLeaderElector private constructor(
     private val client: CuratorFramework,
@@ -218,7 +195,9 @@ class ZooKeeperSuspendLeaderElector private constructor(
 }
 
 /**
- * Runs a suspend leader election action using a ZooKeeper [CuratorFramework].
+ * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 suspend inline fun <T> CuratorFramework.suspendRunIfLeader(
     path: ZooKeeperElectionPath,
@@ -234,7 +213,9 @@ suspend inline fun <T> CuratorFramework.suspendRunIfLeader(
 }
 
 /**
- * Runs a suspend leader election action using a ZooKeeper [CuratorFramework].
+ * `선언` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 suspend inline fun <T> CuratorFramework.suspendRunIfLeader(
     lockName: String,

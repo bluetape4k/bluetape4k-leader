@@ -29,15 +29,9 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Creates a [LettuceLeaderElector] instance from this [StatefulRedisConnection].
+ * `StatefulRedisConnection` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
  *
- * ```kotlin
- * val election = connection.leaderElection()
- * val result = election.runIfLeader("daily-job") { "done" }
- * ```
- *
- * @param options leader election options (default: [LeaderElectionOptions.Default])
- * @return [LettuceLeaderElector] instance
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun StatefulRedisConnection<String, String>.leaderElection(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -45,25 +39,12 @@ fun StatefulRedisConnection<String, String>.leaderElection(
 
 
 /**
- * Leader election implementation using the Lettuce Redis client.
+ * `LettuceLeaderElector`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Uses [LettuceLock] to elect a single leader in a distributed environment.
- * Supports both synchronous ([runIfLeader]) and asynchronous ([runAsyncIfLeader]) execution.
- *
- * ## Behavior / Contract (T7 PR 2)
- *
- * - After acquire, creates [LettuceLockExtendDelegate] and shares the same reference
- *   with [LeaderLockHandle.Real] and the watchdog.
- * - When the aspect extends the lease via `LockAssert` / `LockExtender`, it uses the same delegate reference (AC-15).
- * - [LeaderLeaseAutoExtender.start] also receives the same delegate to activate R2 watchdog skip semantics.
- *
- * ```kotlin
- * val election = LettuceLeaderElector(connection)
- * val result = election.runIfLeader("daily-job") { "done" }
- * ```
- *
- * @param connection Lettuce [StatefulRedisConnection] (StringCodec-based)
- * @param options    leader election options (waitTime, leaseTime)
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property connection Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property historyRecorder Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class LettuceLeaderElector @JvmOverloads constructor(
     private val connection: StatefulRedisConnection<String, String>,

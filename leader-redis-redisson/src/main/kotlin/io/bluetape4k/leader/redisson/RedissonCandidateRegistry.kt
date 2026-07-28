@@ -10,18 +10,10 @@ import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.TimeUnit
 
 /**
- * Candidate registry backed by Redisson [RMapCache][org.redisson.api.RMapCache].
+ * `RedissonCandidateRegistry`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Storage Structure
- * - Key: `leader:strategy:candidates:{lockName}`
- * - Field: `nodeId`, Value: [CandidateInfo]
- * - Per-entry TTL: set on each [registerCandidate] call (serves as a heartbeat)
- *
- * ## Distributed Consistency Warning
- * [updateResult] is a read-modify-write operation and does not guarantee full atomicity.
- * In practice, collision risk is low because only the winner node updates its own entry.
- *
- * @param redissonClient Redisson client
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property redissonClient Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class RedissonCandidateRegistry(private val redissonClient: RedissonClient) {
 

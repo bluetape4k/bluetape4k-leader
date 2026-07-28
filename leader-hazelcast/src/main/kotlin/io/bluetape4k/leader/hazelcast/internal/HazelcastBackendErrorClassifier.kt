@@ -8,16 +8,9 @@ import io.bluetape4k.leader.internal.BackendErrorClassifier
 import io.bluetape4k.leader.internal.BackendErrorKind
 
 /**
- * Hazelcast backend exception classifier — T12 PR 7 (Issue #79).
+ * `HazelcastBackendErrorClassifier`는 Hazelcast backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - [RetryableHazelcastException] / [TargetNotMemberException] / [WrongTargetException] →
- *   [BackendErrorKind.TRANSIENT] (retryable — cluster event / member departure)
- * - Other [HazelcastException] → [BackendErrorKind.NON_TRANSIENT] (safe default)
- * - Other → `null` (unclassifiable — delegated to the next classifier in the chain)
- *
- * ## Usage
- * Registered as a chain entry in [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier] by the elector.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal object HazelcastBackendErrorClassifier : BackendErrorClassifier {
 

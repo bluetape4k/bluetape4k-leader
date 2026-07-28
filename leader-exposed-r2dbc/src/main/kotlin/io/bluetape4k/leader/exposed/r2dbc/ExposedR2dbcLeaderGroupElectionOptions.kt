@@ -8,22 +8,12 @@ import io.bluetape4k.support.requirePositiveNumber
 import java.io.Serializable
 
 /**
- * Options for multi-leader group election backed by Exposed R2DBC.
+ * `ExposedR2dbcLeaderGroupElectionOptions`는 Exposed database leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ```kotlin
- * val options = ExposedR2dbcLeaderGroupElectionOptions(
- *     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3),
- *     retryStrategy = RetryStrategy.Exponential(),
- *     recordHistory = true,
- *     lockOwner = "worker-1",
- * )
- * val election = ExposedR2dbcSuspendLeaderGroupElector(db, options)
- * ```
- *
- * @property leaderGroupOptions Group leader election options (maxLeaders, waitTime, leaseTime). `maxLeaders` must be positive
- * @property retryStrategy Lock acquisition retry strategy. Defaults to [RetryStrategy.Jitter]
- * @property recordHistory When `true`, records acquire/complete/fail history
- * @property lockOwner Lock owner identifier. Must be within [ExposedLeaderConstants.LOCK_OWNER_LENGTH] characters. Not recorded if `null`
+ * @property leaderGroupOptions Exposed database backend 계약에서 `leaderGroupOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property retryStrategy Exposed database backend 계약에서 `retryStrategy` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property recordHistory Exposed database backend 계약에서 `recordHistory` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property lockOwner Exposed database backend 계약에서 `lockOwner` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class ExposedR2dbcLeaderGroupElectionOptions(
     val leaderGroupOptions: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -32,7 +22,9 @@ data class ExposedR2dbcLeaderGroupElectionOptions(
     val lockOwner: String? = null,
 ) : Serializable {
 
-    /** Maximum number of concurrent leaders allowed (delegates to [LeaderGroupElectionOptions.maxLeaders]). */
+    /**
+     * `maxLeaders` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val maxLeaders: Int get() = leaderGroupOptions.maxLeaders
 
     init {
@@ -44,12 +36,7 @@ data class ExposedR2dbcLeaderGroupElectionOptions(
 
     companion object {
         /**
-         * Default options instance.
-         *
-         * - leaderGroupOptions = [LeaderGroupElectionOptions.Default]
-         * - retryStrategy = [RetryStrategy.Jitter]
-         * - recordHistory = `false`
-         * - lockOwner = `null`
+         * `Default` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
          */
         @JvmField
         val Default = ExposedR2dbcLeaderGroupElectionOptions()

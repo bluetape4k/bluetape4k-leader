@@ -19,20 +19,11 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * [SuspendExtendDelegate] for Redisson [RPermitExpirableSemaphore] (suspend group) — T8 PR 3 (Issue #79).
+ * `RedissonSuspendSemaphoreExtendDelegate`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Redisson's async API ([RPermitExpirableSemaphore.updateLeaseTimeAsync]) is [java.util.concurrent.CompletableFuture]-based,
- * so it is bridged to suspend via `await()`.
- *
- * ## Behavior / Contract
- * - [extendSuspend]: delegates to `semaphore.updateLeaseTimeAsync(permitId, ms, MILLISECONDS).await()`.
- *   - success (`true`) → [ExtendOutcome.Extended]; [active] stays `true`
- *   - failure (`false`) → [ExtendOutcome.NotHeld]; [active] transitions to `false`
- *   - exception → classifies backend kind; keeps active on transient, sets false on non-transient/FATAL
- * - [isHeldSuspend]: reads the local [AtomicBoolean] flag directly (Redisson API does not support this query).
- *
- * @property semaphore Redisson [RPermitExpirableSemaphore]
- * @property permitId permit identifier issued by Redisson
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property semaphore Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property permitId Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class RedissonSuspendSemaphoreExtendDelegate(
     private val semaphore: RPermitExpirableSemaphore,
@@ -45,7 +36,7 @@ internal class RedissonSuspendSemaphoreExtendDelegate(
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
 
     /**
-     * Whether the permit is held — starts as `true` on acquire. Transitions to `false` based on [extendSuspend] results.
+     * `active` 값은 Redis Redisson backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
      */
     private val active = AtomicBoolean(true)
 
@@ -65,9 +56,9 @@ internal class RedissonSuspendSemaphoreExtendDelegate(
     }
 
     /**
-     * Reads the local [active] flag directly — a workaround for Redisson's lack of a per-permitId query API.
+     * `isHeldSuspend` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * For diagnostic use only — for a strong guarantee, check [extendSuspend] results directly.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override suspend fun isHeldSuspend(): Boolean = active.get()
 

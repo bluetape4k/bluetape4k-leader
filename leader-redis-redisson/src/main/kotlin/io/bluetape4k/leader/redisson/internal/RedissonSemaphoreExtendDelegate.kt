@@ -18,28 +18,11 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * [ExtendDelegate] for Redisson [RPermitExpirableSemaphore] (sync group) — T8 PR 3 (Issue #79).
+ * `RedissonSemaphoreExtendDelegate`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - [extend]: delegates to `semaphore.updateLeaseTime(permitId, ms, MILLISECONDS)`.
- *   - `true` → [ExtendOutcome.Extended]; the internal [active] flag stays `true`
- *   - `false` → [ExtendOutcome.NotHeld]; transitions [active] flag to `false`
- *   - exception → classifies backend kind; keeps active on transient, sets false on non-transient/FATAL
- * - [extendSuspend]: Redisson sync facade — dispatched with `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21).
- * - [isHeld]: reads the local [AtomicBoolean] flag directly. Redisson `RPermitExpirableSemaphore`
- *   provides no non-destructive API to query permitId ownership — a probe like `updateLeaseTime(1ms)`
- *   would destructively shorten the lease and must not be used. [extend] results are the single source of truth.
- *
- * ## Acceptable race window
- * Between the last `Extended` result from [extend] and the next backend lease expiry / takeover,
- * [isHeld] may momentarily return `true`. It is corrected to `false` on the next [extend] call.
- * Use for diagnostic purposes only — for a strong guarantee, check [extend] results directly.
- *
- * AC-16: server-side TIME (Redisson internal Lua) — blocks client clock skew.
- * AC-21: blocking backend [ExtendDelegate.extendSuspend] override.
- *
- * @property semaphore Redisson [RPermitExpirableSemaphore]
- * @property permitId permit identifier issued by Redisson
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property semaphore Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property permitId Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class RedissonSemaphoreExtendDelegate(
     private val semaphore: RPermitExpirableSemaphore,
@@ -52,7 +35,7 @@ internal class RedissonSemaphoreExtendDelegate(
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
 
     /**
-     * Whether the permit is held — starts as `true` on acquire. Transitions to `false` based on [extend] results.
+     * `active` 값은 Redis Redisson backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
      */
     private val active = AtomicBoolean(true)
 
@@ -93,11 +76,9 @@ internal class RedissonSemaphoreExtendDelegate(
     }
 
     /**
-     * Reads the local [active] flag directly — a workaround for Redisson's lack of a non-destructive
-     * per-permitId query API.
+     * `isHeld` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * **Race window**: may return a stale `true` between a backend expiry/takeover and the next [extend] call.
-     * For diagnostic use only. For a strong guarantee, check [extend] results directly.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override fun isHeld(): Boolean = active.get()
 }

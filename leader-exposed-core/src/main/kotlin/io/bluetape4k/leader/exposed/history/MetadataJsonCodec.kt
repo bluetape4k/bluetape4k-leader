@@ -1,30 +1,16 @@
 package io.bluetape4k.leader.exposed.history
 
 /**
- * Lightweight JSON codec for `Map<String, String>` metadata stored in the
- * `bluetape4k_leader_lock_history.metadata` column.
+ * `MetadataJsonCodec`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - [encode] returns `null` for an empty map (avoids storing empty `{}` in the DB).
- * - [decode] returns an empty map for null or blank input.
- * - Keys and values must not contain raw control characters; callers are expected to
- *   have applied `sanitizeForLog()` before encoding.
- * - This codec does **not** depend on Jackson or kotlinx.serialization to avoid
- *   adding a heavy runtime dependency to `leader-exposed-core`.
- *
- * ## Example
- * ```kotlin
- * val json  = MetadataJsonCodec.encode(mapOf("env" to "prod", "region" to "us-east-1"))
- * // json == "{\"env\":\"prod\",\"region\":\"us-east-1\"}"
- * val map   = MetadataJsonCodec.decode(json)
- * // map  == mapOf("env" to "prod", "region" to "us-east-1")
- * ```
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 object MetadataJsonCodec {
 
     /**
-     * Encodes [map] to a compact JSON object string.
-     * Returns `null` when [map] is empty.
+     * `encode` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun encode(map: Map<String, String>): String? {
         if (map.isEmpty()) return null
@@ -43,8 +29,9 @@ object MetadataJsonCodec {
     }
 
     /**
-     * Decodes a JSON object string previously produced by [encode].
-     * Returns an empty map for null or blank input.
+     * `decode` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun decode(json: String?): Map<String, String> {
         if (json.isNullOrBlank()) return emptyMap()

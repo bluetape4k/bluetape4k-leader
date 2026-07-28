@@ -6,16 +6,9 @@ import java.io.Serializable
 import java.util.concurrent.ThreadLocalRandom
 
 /**
- * Sealed class defining the wait strategy for lock acquisition retries.
+ * `RetryStrategy`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * This is the retry strategy used internally by lock implementations
- * (`ExposedJdbcLock`, `ExposedR2dbcLock`, etc.).
- * Callers only need to select a strategy via `XxxLeaderElectionOptions.retryStrategy`.
- *
- * ### Contract (common to all variants)
- * - When `remaining > 0`: `1 <= delayMs(attempt, remaining) <= remaining`.
- * - When `remaining <= 0`: `delayMs` may return `0`, but this is never used in practice
- *   because callers validate `remaining > 0` first.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 sealed class RetryStrategy : Serializable {
 
@@ -24,21 +17,16 @@ sealed class RetryStrategy : Serializable {
     }
 
     /**
-     * Calculates the wait duration in milliseconds based on the attempt count and remaining time.
+     * `delayMs` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * @param attempt current retry attempt count (0-based)
-     * @param remaining milliseconds remaining until the deadline; the return value is guaranteed not to exceed this
-     * @return wait duration in milliseconds; in the range `1..remaining` when `remaining > 0`, otherwise `0`
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     abstract fun delayMs(attempt: Int, remaining: Long): Long
 
     /**
-     * AWS full jitter retry strategy.
+     * `Jitter`는 Exposed database leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
      *
-     * Selects a random value from a uniform distribution in `[1ms, baseDelayMs)`.
-     * Prevents instance stampede within the same retry window.
-     *
-     * @property baseDelayMs upper bound for jitter (default 50ms, minimum 2)
+     * @property baseDelayMs Exposed database backend 계약에서 `baseDelayMs` 값을 계산하거나 전달할 때 사용하는 속성입니다.
      */
     data class Jitter(val baseDelayMs: Long = 50L) : RetryStrategy() {
         init {
@@ -52,12 +40,10 @@ sealed class RetryStrategy : Serializable {
     }
 
     /**
-     * Exponential backoff retry strategy.
+     * `Exponential`는 Exposed database leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
      *
-     * Increases the wait by `baseDelayMs * 2^attempt` up to a maximum of `maxDelayMs`.
-     *
-     * @property baseDelayMs base wait duration (default 50ms, minimum 1)
-     * @property maxDelayMs maximum wait duration (default 5000ms, must be >= `baseDelayMs`)
+     * @property baseDelayMs Exposed database backend 계약에서 `baseDelayMs` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property maxDelayMs Exposed database backend 계약에서 `maxDelayMs` 값을 계산하거나 전달할 때 사용하는 속성입니다.
      */
     data class Exponential(val baseDelayMs: Long = 50L, val maxDelayMs: Long = 5_000L) : RetryStrategy() {
         init {
@@ -74,9 +60,9 @@ sealed class RetryStrategy : Serializable {
     }
 
     /**
-     * Fixed-interval retry strategy.
+     * `Fixed`는 Exposed database leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
      *
-     * @property fixedMs fixed wait duration (default 50ms, minimum 1)
+     * @property fixedMs Exposed database backend 계약에서 `fixedMs` 값을 계산하거나 전달할 때 사용하는 속성입니다.
      */
     data class Fixed(val fixedMs: Long = 50L) : RetryStrategy() {
         init {

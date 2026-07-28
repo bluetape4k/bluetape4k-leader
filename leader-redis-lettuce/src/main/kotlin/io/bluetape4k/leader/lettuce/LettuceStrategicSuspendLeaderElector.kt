@@ -20,15 +20,10 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * [StrategicSuspendLeaderElector] implementation backed by the Lettuce Redis client.
+ * `LettuceStrategicSuspendLeaderElector`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Delegates to [LettuceSuspendCandidateRegistry] to execute Redis commands via the Lettuce coroutines API.
- * Because Lettuce uses Netty-based asynchronous I/O, no [kotlinx.coroutines.Dispatchers.IO] switch is required.
- *
- * [CancellationException] is not treated as an action failure; it is re-thrown without incrementing failureCount.
- *
- * @param connection Lettuce StatefulRedisConnection (StringCodec-based)
- * @param nodeId Node identifier for this instance. Auto-generated as UUID v7 if not specified.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property nodeId Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class LettuceStrategicSuspendLeaderElector(
     connection: StatefulRedisConnection<String, String>,
@@ -52,14 +47,9 @@ class LettuceStrategicSuspendLeaderElector(
         registry.updateResult(lockName, nodeId, result)
 
     /**
-     * Elects a leader using the given strategy and executes [action] only if this node is the winner.
+     * `선언` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Because deterministic election is used without a distributed lock, the waitTime/leaseTime in [options] are not applied.
-     * Set the TTL directly when registering candidates.
-     *
-     * [CancellationException] is not treated as a failure and does not increment failureCount.
-     *
-     * @return The result of [action] if this node is elected, or `null` if there are no candidates or another node wins.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override suspend fun <T> runIfLeader(
         lockName: String,

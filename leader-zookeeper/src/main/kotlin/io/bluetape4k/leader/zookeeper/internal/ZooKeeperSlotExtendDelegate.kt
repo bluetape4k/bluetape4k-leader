@@ -11,23 +11,11 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * [ExtendDelegate] for the per-slot [org.apache.curator.framework.recipes.locks.Lease] of the
- * ZooKeeper group elector — T13 PR 8 (Issue #79).
+ * `ZooKeeperSlotExtendDelegate`는 ZooKeeper backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract (PASSTHROUGH — Spec §6 row 12)
- *
- * A `Lease` from [org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2] is an
- * ephemeral znode with no TTL. It is only released by `Lease.close()` or session expiry.
- *
- * - [extend] / [extendSuspend]: returns [ExtendOutcome.Extended] (observedExpireAt = [Instant.MAX]) only while
- *   the delegate is alive and the lease ephemeral znode still exists in ZooKeeper.
- * - [isHeld]: returns false after [markReleased] or when the lease node is no longer positively observable.
- *
- * `Lease` only exposes the acquired node name, so the elector passes it to this delegate for backend liveness checks.
- *
- * ## R16 Enforcement
- * Group elector always uses `autoExtend=false` (no option available) — watchdog disabled.
- * The [extend] method on this delegate is called only via the user-driven `LockExtender.extendActiveLock` path.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property slotKey ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class ZooKeeperSlotExtendDelegate(
     private val client: CuratorFramework,
@@ -44,10 +32,9 @@ internal class ZooKeeperSlotExtendDelegate(
     override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
 
     /**
-     * Called by the elector just before `lease.close()` to transition the delegate to the NotHeld state.
+     * `markReleased` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Race guard (synchronizes handle pop with delegate state):
-     * - Even after `lease.close()`, any extend call via a user-held handle reference returns NotHeld.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun markReleased() {
         released.set(true)

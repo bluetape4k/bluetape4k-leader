@@ -29,24 +29,9 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Executes a suspend action via leader election using a Redisson distributed lock.
+ * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
  *
- * When the lock is acquired, [action] is executed and the lock is released after completion.
- * Returns `null` when the lock cannot be acquired within [LeaderElectionOptions.waitTime] (ShedLock skip semantics).
- * An interrupt while waiting for the lock is propagated wrapped as [org.redisson.client.RedisException].
- *
- * ```kotlin
- * val result = redissonClient.suspendRunIfLeader("my-job") {
- *     delay(100)
- *     42
- * }
- * ```
- *
- * @param jobName job name (used as the distributed lock key)
- * @param options leader election options (waitTime, leaseTime)
- * @param action the suspend action to execute when elected leader
- * @return [action] result
- * @see RedissonSuspendLeaderElector
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 suspend inline fun <T> RedissonClient.suspendRunIfLeader(
     jobName: String,
@@ -61,35 +46,11 @@ suspend inline fun <T> RedissonClient.suspendRunIfLeader(
 
 
 /**
- * Elects a leader among multiple processes/threads using a Redisson distributed lock,
- * ensuring only one executes the action. This is the suspend variant for use in coroutine contexts.
+ * `RedissonSuspendLeaderElector`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract (T8 PR 3)
- *
- * - After acquire, creates [RedissonSuspendLockExtendDelegate] and shares the same reference
- *   with [LeaderLockHandle.Real] and the watchdog (AC-15).
- * - The aspect's `LockExtenderSuspend.extendActiveLockSuspend` uses the same delegate reference.
- * - Propagates the handle to `coroutineContext` via `withContext(AopScopeAccess.createLockHandleElement(handle))`.
- * - Always acquires with an explicit `leaseTime` regardless of `autoExtend` — disables Redisson's built-in watchdog.
- *
- * ## Why PID-seeded Snowflake ID instead of threadId
- * Redisson's [RLock] identifies lock owners by thread ID. However, coroutines may run on different
- * threads, so the thread acquiring the lock may differ from the thread releasing it. To solve this,
- * an ID of the form `timestamp | pid%(2^10) | seq` is generated, providing collision-free lock owner
- * identification across different processes on the same machine and different coroutines in the same
- * process — with no Redis round-trip.
- *
- * ```kotlin
- * val election = RedissonSuspendLeaderElector(redissonClient)
- * val result = election.runIfLeader("my-job") {
- *     delay(100)
- *     processData()
- * }
- * ```
- *
- * @param redissonClient Redisson client
- * @param options leader election options (waitTime, leaseTime)
- * @see RedissonLeaderElector sync/async (CompletableFuture) variant
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property redissonClient Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class RedissonSuspendLeaderElector private constructor(
     private val redissonClient: RedissonClient,
@@ -124,16 +85,9 @@ class RedissonSuspendLeaderElector private constructor(
     private val leaseTimeMills = options.leaseTime.inWholeMilliseconds
 
     /**
-     * Executes [action] when elected leader using a Redisson lock; does nothing otherwise.
+     * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Uses a PID-seeded Snowflake-like ID (`timestamp | pid%(2^10) | seq`) as the lock identifier
-     * instead of `Thread.currentThread().threadId()` to prevent lock owner mismatch caused by
-     * thread switching in coroutine contexts.
-     *
-     * @param lockName lock name — acquiring this lock promotes the node to leader
-     * @param action the suspend code block to execute when promoted to leader
-     * @return [action] result, or `null` when the leader lock cannot be acquired
-     * @throws org.redisson.client.RedisException when an interrupt occurs while waiting for the lock
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? =
         runImpl(lockName, auditLeaderId = null, action)

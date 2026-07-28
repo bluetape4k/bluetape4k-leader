@@ -29,31 +29,11 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Elects a single leader among multiple processes/threads using a Redisson distributed lock.
+ * `RedissonLeaderElector`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior (T8 PR 3)
- * - [runIfLeader]: Acquires the lock synchronously, executes [LeaderElector.runIfLeader], then releases the lock on completion.
- * - [runAsyncIfLeader]: Acquires the lock asynchronously via `tryLockAsync` and releases it via [RLock.unlockAsync] when the `CompletableFuture` completes.
- * - Returns `null` if lock acquisition fails within [LeaderElectionOptions.waitTime] (ShedLock skip-on-contention behavior).
- * - An interrupt during lock wait is wrapped and propagated as [org.redisson.client.RedisException].
- *
- * ## ExtendDelegate Integration
- *
- * - After acquire, creates a [RedissonLockExtendDelegate] shared with [LeaderLockHandle.Real] and the watchdog under the same reference (AC-15).
- * - When the aspect calls `LockExtender.extendActiveLock`, the same delegate executes `RLock.expire(d)`.
- * - Always acquires with an explicit `leaseTime` regardless of autoExtend, disabling Redisson's built-in watchdog.
- *   [LeaderLeaseAutoExtender] acts as the sole watchdog, ensuring R2 watchdog skip semantics.
- *
- * ```kotlin
- * val election = RedissonLeaderElector(redissonClient)
- * val result = election.runIfLeader("my-job") {
- *     processData()
- * }
- * ```
- *
- * @param redissonClient Redisson client
- * @param options Leader election options (waitTime, leaseTime)
- * @see RedissonSuspendLeaderElector Suspend variant for coroutine environments
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property redissonClient Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class RedissonLeaderElector private constructor(
     private val redissonClient: RedissonClient,
@@ -225,9 +205,9 @@ class RedissonLeaderElector private constructor(
     }
 
     /**
-     * Executes the asynchronous [action] while holding the lock and releases the lock on completion (success or failure).
+     * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Aligned with the Lettuce path by pushing a real leader handle while creating the asynchronous action.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     private fun <T> executeActionAsync(
         lock: RLock,
@@ -350,7 +330,9 @@ class RedissonLeaderElector private constructor(
 
 
 /**
- * Performs an action via leader election using a Redisson distributed lock.
+ * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 inline fun <T> RedissonClient.runIfLeader(
     jobName: String,
@@ -363,7 +345,9 @@ inline fun <T> RedissonClient.runIfLeader(
 }
 
 /**
- * Performs an asynchronous action via leader election using a Redisson distributed lock.
+ * `선언` 호출은 Redis Redisson backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 inline fun <T> RedissonClient.runAsyncIfLeader(
     jobName: String,

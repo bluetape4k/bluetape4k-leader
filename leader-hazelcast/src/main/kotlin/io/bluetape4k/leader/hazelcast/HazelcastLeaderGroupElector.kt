@@ -22,24 +22,10 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
 /**
- * Multi-leader election implementation using [IMap] slot-based distributed semaphore.
+ * `HazelcastLeaderGroupElector`는 Hazelcast backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Simulates `maxLeaders` slots using N [HazelcastLock] instances with keys `${lockName}:slot:N`.
- * Works without the CP Subsystem and is token-based, so it is not bound to any thread.
- *
- * ## ExtendDelegate Integration (T12 PR 7 / Issue #79)
- *
- * - Wraps the acquired per-slot [HazelcastLock] with [HazelcastSlotExtendDelegate], sharing the same reference with the watchdog (AC-15).
- * - When the aspect calls `LockExtender.extendActiveLock`, the extend is executed through the same delegate with R6 (IMap auto-evict) applied.
- * - sync group: pushed to both `withPushedSync(handle)` + `setCapture(handle)`.
- *
- * ```kotlin
- * val election = HazelcastLeaderGroupElector(hazelcastInstance, LeaderGroupElectionOptions(maxLeaders = 3))
- * val result = election.runIfLeader("batch-job") { processChunk() }
- * ```
- *
- * @param hazelcast Hazelcast client instance
- * @param options Leader group election options (maxLeaders, waitTime, leaseTime)
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property hazelcast Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class HazelcastLeaderGroupElector private constructor(
     private val hazelcast: HazelcastInstance,
@@ -191,7 +177,9 @@ class HazelcastLeaderGroupElector private constructor(
 }
 
 /**
- * Executes [action] only when elected as one of up to [options.maxLeaders] leaders using a Hazelcast distributed semaphore (slot-based).
+ * `선언` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 inline fun <T> HazelcastInstance.runIfLeaderGroup(
     lockName: String,

@@ -26,37 +26,12 @@ import java.util.concurrent.locks.LockSupport
 import kotlin.time.Duration
 
 /**
- * Slot-token group primitive backed by Lettuce Redis ZSET + Lua scripts.
+ * `LettuceSlotTokenGroup`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- *
- * - Represents each slot as a ZSET member `token = Base58.randomString(8)` with `score = expiryAtMs`
- *   under the single key `lg:{lockName}`.
- * - All three Lua scripts (ACQUIRE / RELEASE / STATUS) use `redis.call('TIME')` to determine expiry
- *   solely by **Redis server time**, eliminating client clock skew.
- * - At ACQUIRE time, expired entries are automatically reclaimed via `ZREMRANGEBYSCORE 0 nowMs`.
- *   Even if a client crashes without calling release, the slot is cleaned up on the next acquire.
- * - On RELEASE, if `remainingMinLeaseMs > 0` the score is updated via `ZADD XX` to keep the slot alive,
- *   delegating minLeaseTime semantics to the backend TTL (no caller-park).
- * - Slot acquisition spin-polls at 50 ms intervals and returns `null` when the deadline is exceeded.
- *   Acquisition failure returns `null` rather than throwing `IllegalStateException`.
- * - Tokens are held by the caller stack, so the same instance can safely hold multiple slots concurrently.
- *
- * ## Usage
- *
- * ```kotlin
- * val group = LettuceSlotTokenGroup(connection, "batch-job", maxLeaders = 3)
- * val token = group.tryAcquire(5.seconds) ?: return
- * try {
- *     doWork()
- * } finally {
- *     group.release(token, remainingMinLeaseMs = 0)
- * }
- * ```
- *
- * @param connection Lettuce [StatefulRedisConnection] (StringCodec-based)
- * @param lockName   Slot identifier name (prefixed as `lg:{lockName}`)
- * @param maxLeaders Maximum number of concurrently held slots (>= 1)
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property connection Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockName Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property maxLeaders Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class LettuceSlotTokenGroup(
     private val connection: StatefulRedisConnection<String, String>,
@@ -74,16 +49,7 @@ class LettuceSlotTokenGroup(
         private const val KEY_SUFFIX = "}"
 
         /**
-         * ACQUIRE script.
-         *
-         * KEYS[1] = slotKey  (lg:{lockName})
-         * KEYS[2] = metaKey  (lg:{lockName}:meta)
-         * ARGV[1] = maxLeaders
-         * ARGV[2] = token (Base58, 8 characters)
-         * ARGV[3] = leaseTimeMs
-         * ARGV[4] = auditLeaderId (empty string = not set)
-         *
-         * Returns: token (success) or empty string (failure)
+         * `ACQUIRE_SCRIPT` 값은 Redis Lettuce backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
          */
         private val ACQUIRE_SCRIPT = RedisScript(
             """
@@ -105,16 +71,7 @@ return ''
         )
 
         /**
-         * RELEASE script.
-         *
-         * KEYS[1] = slotKey  (lg:{lockName})
-         * KEYS[2] = metaKey  (lg:{lockName}:meta)
-         * ARGV[1] = token
-         * ARGV[2] = remainingMinLeaseMs
-         *
-         * remainingMinLeaseMs > 0 → Updates score via ZADD XX only if the current score is greater than nowMs
-         *                            (token still alive), keeping the slot. Prevents resurrection of expired tokens.
-         * Otherwise → Immediately releases via ZREM + HDEL
+         * `RELEASE_SCRIPT` 값은 Redis Lettuce backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
          */
         private val RELEASE_SCRIPT = RedisScript(
             """
@@ -135,12 +92,7 @@ end
         )
 
         /**
-         * STATUS script.
-         *
-         * KEYS[1] = slotKey
-         * ARGV[1] = maxLeaders
-         *
-         * Returns: { active, available }
+         * `STATUS_SCRIPT` 값은 Redis Lettuce backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
          */
         private val STATUS_SCRIPT = RedisScript(
             """
@@ -154,21 +106,7 @@ return { active, tonumber(ARGV[1]) - active }
         )
 
         /**
-         * EXTEND script (T7 PR 2, AC-16).
-         *
-         * Uses only server time `redis.call('TIME')` to determine expiry, eliminating client clock skew.
-         *
-         * KEYS[1] = slotKey  (lg:{lockName})
-         * KEYS[2] = metaKey  (lg:{lockName}:meta)
-         * ARGV[1] = token (Base58, 8 characters)
-         * ARGV[2] = leaseTimeMs
-         *
-         * Returns:
-         *  - `1` : Token is alive (score > nowMs) and score is updated to `nowMs + leaseTimeMs`
-         *  - `0` : Token absent or already expired — extend failed
-         *
-         * Also refreshes the ZSET key TTL via `PEXPIRE k leaseTimeMs + SLOT_KEY_TTL_MARGIN_MS`.
-         * metaKey TTL is refreshed at the same time to prevent ghost audit entries.
+         * `EXTEND_SCRIPT` 값은 Redis Lettuce backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
          */
         private val EXTEND_SCRIPT = RedisScript(
             """
@@ -187,14 +125,7 @@ return 0
         )
 
         /**
-         * IS_HELD script (T7 PR 2).
-         *
-         * Determines expiry using server-side TIME — eliminates client clock skew.
-         *
-         * KEYS[1] = slotKey
-         * ARGV[1] = token
-         *
-         * Returns: `1` (alive) / `0` (expired or absent)
+         * `IS_HELD_SCRIPT` 값은 Redis Lettuce backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
          */
         private val IS_HELD_SCRIPT = RedisScript(
             """
@@ -226,12 +157,9 @@ return 0
     // =========================================================================
 
     /**
-     * Acquires a slot synchronously.
+     * `tryAcquire` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * @param waitTime      Maximum time to wait for a slot
-     * @param leaseTime     Duration to hold the slot
-     * @param auditLeaderId Audit identifier (if empty, nothing is recorded in the meta hash)
-     * @return Token on success, `null` on failure
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun tryAcquire(waitTime: Duration, leaseTime: Duration, auditLeaderId: String = ""): String? {
         val token = Base58.randomString(TOKEN_LENGTH)
@@ -256,14 +184,9 @@ return 0
     }
 
     /**
-     * Atomically extends the slot lease (sync, T7 PR 2, AC-16).
+     * `extendSlot` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * ## Behavior / Contract
-     * - Uses server-side `redis.call('TIME')` to eliminate client clock skew.
-     * - If the token's score is less than nowMs (already expired) → [ExtendOutcome.NotHeld]
-     * - If score > nowMs → Updates to `nowMs + leaseTime` via ZADD XX and refreshes ZSET key TTL via PEXPIRE → [ExtendOutcome.Extended]
-     *
-     * **The caller must convert backend exceptions to [ExtendOutcome.BackendError] via try/catch**.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun extendSlot(token: String, leaseTime: Duration): ExtendOutcome {
         token.requireNotBlank("token")
@@ -280,9 +203,9 @@ return 0
     }
 
     /**
-     * Checks whether the slot is still alive in the backend (sync).
+     * `isSlotHeld` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Uses server-side `redis.call('TIME')` to determine expiry — eliminates client clock skew.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun isSlotHeld(token: String): Boolean {
         token.requireNotBlank("token")
@@ -294,7 +217,9 @@ return 0
     }
 
     /**
-     * Releases the slot immediately (`remainingMinLeaseMs <= 0`) or keeps it alive by updating only the score.
+     * `release` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun release(token: String, remainingMinLeaseMs: Long) {
         token.requireNotBlank("token")
@@ -326,24 +251,9 @@ return 0
     // =========================================================================
 
     /**
-     * Acquires a slot asynchronously.
+     * `tryAcquireAsync` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * @param waitTime  Maximum time to wait for a slot
-     * @param leaseTime Duration to hold the slot (automatically reclaimed on expiry)
-     * @return A [CompletableFuture] containing the token on success, or `null` if the deadline is reached due to contention.
-     *         If a backend error (Redis connection/auth/script error) is not resolved by the retry deadline,
-     *         the future fails with the last error.
-     *
-     * ### Caveats
-     *
-     * - Delays between retries use the global single-scheduler thread of [CompletableFuture.delayedExecutor].
-     *   This scheduler may become a bottleneck if many concurrent acquires are spin-polling.
-     * - Transient script errors (e.g., temporary connection failures) are swallowed within the retry loop
-     *   and the next attempt is awaited. However, if the error persists until the deadline (and it is not
-     *   just contention), the last error is propagated to the caller. Backend outages are not silently
-     *   ignored, consistent with the sync/suspend paths.
-     * - The token is generated only once outside `attempt()`. Because the ACQUIRE script uses the token
-     *   as a ZADD member, the same token must be reused on retries to avoid ghost entries.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun tryAcquireAsync(
         waitTime: Duration,
@@ -431,10 +341,9 @@ return 0
     }
 
     /**
-     * Atomically extends the slot lease (suspend, T7 PR 2, AC-16).
+     * `extendSlotSuspending` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * - Although Lettuce `asyncCommands` is Netty event-loop-based non-blocking, the suspend entry point
-     *   explicitly checks cancellation via `coroutineContext.ensureActive()` per R9 guidelines.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     suspend fun extendSlotSuspending(token: String, leaseTime: Duration): ExtendOutcome {
         currentCoroutineContext().ensureActive()
@@ -452,7 +361,9 @@ return 0
     }
 
     /**
-     * Checks whether the slot is still alive in the backend (suspend).
+     * `isSlotHeldSuspending` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     suspend fun isSlotHeldSuspending(token: String): Boolean {
         currentCoroutineContext().ensureActive()

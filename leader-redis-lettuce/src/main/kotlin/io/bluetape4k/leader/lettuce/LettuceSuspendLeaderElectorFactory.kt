@@ -6,16 +6,10 @@ import io.bluetape4k.leader.coroutines.SuspendLeaderElectorFactory
 import io.lettuce.core.api.StatefulRedisConnection
 
 /**
- * Factory for [LettuceSuspendLeaderElector] — suspend single-leader election backed by the Lettuce Redis client.
+ * `LettuceSuspendLeaderElectorFactory`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Usage
- * ```kotlin
- * val factory = LettuceSuspendLeaderElectorFactory(connection)
- * val elector = factory.create(LeaderElectionOptions(waitTime = 3.seconds, leaseTime = 30.seconds))
- * val result = elector.runIfLeader("daily-job") { processData() }
- * ```
- *
- * @param connection Shared Redis connection whose lifecycle is managed by the caller.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property connection Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class LettuceSuspendLeaderElectorFactory(
     private val connection: StatefulRedisConnection<String, String>,

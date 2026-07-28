@@ -15,15 +15,10 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * [ExtendDelegate] for [MongoLock] (sync, blocking driver) — T9 PR 4 (Issue #79).
+ * `MongoLockExtendDelegate`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - [extend] : Returns the result of `lock.extendDetailed(d)` as-is. Backend exceptions are wrapped in [ExtendOutcome.BackendError]
- * - [extendSuspend] : Since the MongoDB sync driver is blocking IO, wraps with `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21)
- * - [isHeld] : Delegates to `lock.isHeldByCurrentInstance()`
- * - [lastExtendDeadline] : Stored in a single `AtomicReference(Instant.EPOCH)` instance — used to skip the R2 watchdog
- *
- * Token-based lock with no thread affinity (MongoDB does not use WrongThread).
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property lock MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class MongoLockExtendDelegate(
     private val lock: MongoLock,
@@ -43,10 +38,9 @@ internal class MongoLockExtendDelegate(
         }
 
     /**
-     * The MongoDB sync driver is blocking — dispatched with `withContext(Dispatchers.IO)`.
+     * `extendSuspend` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * **Do not use runCatching {}** — it can swallow CancellationException inside a suspend function.
-     * Use manual try/catch with `catch(CancellationException) { throw e }` instead.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
         coroutineContext.ensureActive()

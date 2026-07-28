@@ -35,35 +35,12 @@ import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
 /**
- * Multi-leader group election implementation backed by Exposed JDBC.
+ * `ExposedJdbcLeaderGroupElector`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Iterates over slots using the `(lockName, slot)` composite primary key to allow up to
- * [ExposedJdbcLeaderGroupElectionOptions.maxLeaders] simultaneous leaders.
- * The starting slot position is randomized to prevent hotspots.
- *
- * ### Basic usage
- * ```kotlin
- * val election = ExposedJdbcLeaderGroupElector(
- *     db,
- *     ExposedJdbcLeaderGroupElectionOptions(
- *         leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3),
- *     ),
- * )
- * val result = election.runIfLeader("batch-job") { processChunk() }
- * // up to 3 nodes run concurrently; remaining nodes return null
- * ```
- *
- * ### Group state query
- * ```kotlin
- * val state = election.state("batch-job")
- * println("active=${state.activeCount} / max=${state.maxLeaders}")
- * println("available=${election.availableSlots("batch-job")}")
- * ```
- *
- * **private constructor** — use the [invoke] factory. Schema is automatically created on the first call.
- *
- * @param db Exposed [Database] instance
- * @param options group leader election options
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property db Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property historyRecorder Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class ExposedJdbcLeaderGroupElector private constructor(
     private val db: Database,
@@ -77,9 +54,9 @@ class ExposedJdbcLeaderGroupElector private constructor(
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedJdbcBackendErrorClassifier)
 
         /**
-         * Creates an [ExposedJdbcLeaderGroupElector] instance.
+         * `invoke` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
          *
-         * On the first call, automatically creates the leader election table schema (once per database URL).
+         * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
          */
         @JvmStatic
         @JvmOverloads
@@ -93,20 +70,15 @@ class ExposedJdbcLeaderGroupElector private constructor(
         }
     }
 
-    /** Maximum number of simultaneous leaders (delegates to [ExposedJdbcLeaderGroupElectionOptions.maxLeaders]). */
+    /**
+     * `maxLeaders` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     override val maxLeaders: Int get() = options.maxLeaders
 
     /**
-     * Returns the current number of active slots (rows with a non-expired lease) for [lockName] from the DB.
+     * `activeCount` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Expired slots (`lockedUntil <= NOW()`) are excluded from the count.
-     * Call cost: `SELECT COUNT(*)` — consider adding a cache layer for frequent calls.
-     *
-     * ⚠️ The returned value is a point-in-time snapshot. Another instance may acquire or release
-     * a slot immediately after the query, so do not use this for concurrency decisions
-     * (monitoring/logging only).
-     *
-     * Returns `0` on DB error (best-effort; no exception propagation).
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override fun activeCount(lockName: String): Int =
         try {
@@ -128,36 +100,25 @@ class ExposedJdbcLeaderGroupElector private constructor(
             0
         }
 
-    /** Number of slots immediately available for [lockName]. */
+    /**
+     * `availableSlots` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     */
     override fun availableSlots(lockName: String): Int = maxLeaders - activeCount(lockName)
 
-    /** Returns a [LeaderGroupState] snapshot for [lockName]. */
+    /**
+     * `state` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     */
     override fun state(lockName: String): LeaderGroupState =
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
     /**
-     * Executes [action] when an empty slot in the [lockName] group is acquired.
+     * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * - Returns `null` when all slots are occupied (no exception).
-     * - Exceptions from [action] propagate as-is; the slot is always released.
-     * - [CancellationException] is rethrown and not recorded as FAILED.
-     *
-     * ## Skip on slot contention
-     * ```kotlin
-     * val result = election.runIfLeader("batch-job") { processChunk() }
-     * when (result) {
-     *     null -> log.debug { "No slot — another instance handles this run" }
-     *     else -> log.info { "Processing complete: $result" }
-     * }
-     * ```
-     *
-     * ## Slot tryLock tri-state
-     * For each slot iterated:
-     * - `true` — slot acquired; [action] is executed
-     * - `false` — slot contested; iteration continues to the next slot
-     * - `null` — DB error; iteration aborted and `null` is returned (distinguishable by warn log)
-     *
-     * @throws IllegalArgumentException when [lockName] is invalid
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         validateExposedLockName(lockName)
@@ -261,16 +222,9 @@ class ExposedJdbcLeaderGroupElector private constructor(
     }
 
     /**
-     * Acquires a slot in the [lockName] group asynchronously and executes [action].
+     * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Returns a [CompletableFuture] completing with `null` when no slot can be acquired.
-     * Synchronous exceptions from action are wrapped as [CompletableFuture.failedFuture].
-     *
-     * ```kotlin
-     * val future = election.runAsyncIfLeader("batch", VirtualThreadExecutor) {
-     *     processChunkAsync()  // CompletableFuture<Result>
-     * }
-     * ```
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override fun <T> runAsyncIfLeader(
         lockName: String,

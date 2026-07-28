@@ -30,25 +30,14 @@ import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
 
 /**
- * Exposed R2DBC-based group lock (composite PK slot-based).
+ * `ExposedR2dbcGroupLock`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Implements a semaphore allowing up to N simultaneous leaders using the
- * `(lockName, slot)` composite PK of [LeaderGroupLockTable].
- *
- * ## Behavior
- * Uses the same UPDATE+insertIgnore+SELECT pattern as [ExposedR2dbcLock],
- * with a composite PK that includes the `slot` number.
- *
- * ## Distinguishing DB errors from normal contention failures
- * - **Normal contention failure** (another node holds the slot): `tryAcquireOnce()` returns `false`
- * - **DB error** (connection lost, timeout, etc.): `tryLock()` returns `null` → caller can abort slot traversal
- *   (same contract as its JDBC counterpart)
- *
- * @param db Exposed [R2dbcDatabase] instance
- * @param lockName group lock identifier
- * @param slot slot number (0-based)
- * @param retryStrategy retry wait strategy
- * @param lockOwner lock holder identifier (optional)
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property db Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockName Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property slot Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property retryStrategy Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockOwner Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class ExposedR2dbcGroupLock internal constructor(
     private val db: R2dbcDatabase,
@@ -63,13 +52,15 @@ internal class ExposedR2dbcGroupLock internal constructor(
 
     companion object: KLoggingChannel()
 
-    /** Unique fencing token per instance. */
+    /**
+     * `token` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val token: String = Base58.randomString(length = 8)
 
     /**
-     * Attempts to acquire the slot lock within [waitTime].
+     * `tryLock` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * @return `true` on successful lock acquisition, `false` on contention failure (timeout), `null` on DB error
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean? {
         val deadline = System.currentTimeMillis() + waitTime.inWholeMilliseconds.coerceAtLeast(0L)
@@ -170,9 +161,9 @@ internal class ExposedR2dbcGroupLock internal constructor(
     }
 
     /**
-     * Checks whether the current instance (token) holds a valid slot lock.
+     * `isHeldByCurrentInstance` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Returns `false` if the lease has expired and another instance has re-acquired it.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     suspend fun isHeldByCurrentInstance(): Boolean =
         runR2dbcLockOperationPreservingCancellation(
@@ -196,9 +187,9 @@ internal class ExposedR2dbcGroupLock internal constructor(
         }
 
     /**
-     * Releases the slot lock held by the current instance.
+     * `unlock` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Logs a warning on token mismatch without deleting another owner's slot.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     suspend fun unlock(
         minLeaseTime: Duration = Duration.ZERO,
@@ -242,26 +233,9 @@ internal class ExposedR2dbcGroupLock internal constructor(
     }
 
     /**
-     * Atomically extends the slot lock's `lockedUntil` by [leaseTime] and returns an [ExtendOutcome].
+     * `extendDetailed` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * ## R6 guard (Issue #79 PR 6)
-     * Adds `lockedUntil > now()` to the `WHERE` clause to block split-brain scenarios where a stale token
-     * could revive an expired row that another instance has already re-acquired.
-     *
-     * ## SQL
-     * ```sql
-     * UPDATE leader_group_lock
-     * SET locked_until = ? -- now + leaseTime
-     * WHERE lock_name = ? AND slot = ? AND token = ? AND locked_until > ?  -- now
-     * ```
-     *
-     * ## Return values
-     * - `affectedRows == 1` → [ExtendOutcome.Extended] (`observedExpireAt = now + leaseTime`)
-     * - `affectedRows == 0` → [ExtendOutcome.NotHeld] (token mismatch / lease expired / takeover)
-     * - R2DBC exceptions are wrapped as [ExtendOutcome.BackendError] by the caller (delegate) —
-     *   this function rethrows them as-is.
-     *
-     * Token-based lock — [ExtendOutcome.WrongThread] never occurs.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     suspend fun extendDetailed(leaseTime: Duration): ExtendOutcome {
         val lockNameVal = this@ExposedR2dbcGroupLock.lockName

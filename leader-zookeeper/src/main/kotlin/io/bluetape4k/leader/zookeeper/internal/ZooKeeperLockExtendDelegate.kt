@@ -11,28 +11,13 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * [ExtendDelegate] for ZooKeeper [InterProcessMutex] (synchronous, Curator) — T13 PR 8 (Issue #79).
+ * `ZooKeeperLockExtendDelegate`는 ZooKeeper backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract (PASSTHROUGH — Spec §6 row 12)
- *
- * ZooKeeper uses a **session-based lock** with no TTL concept. [InterProcessMutex] is implemented
- * as an ephemeral znode and is valid only while the ZK session is alive. Therefore `extend(d)` means
- * **session-held liveness check** rather than lease renewal (R3-F11).
- *
- * - [extend]: returns [ExtendOutcome.Extended] (observedExpireAt = [Instant.MAX]) only if Curator still
- *   reports a local acquisition and the acquired ephemeral znode still exists in ZooKeeper. Returns
- *   [ExtendOutcome.NotHeld] when ownership is no longer positively observable.
- * - [extendSuspend]: follows the same backend ownership check.
- * - [isHeld]: returns false when the local mutex state or backend znode check says the lock is no longer held.
- * - [lastExtendDeadline]: single `AtomicReference(Instant.EPOCH)` instance (R2 mitigation interface
- *   compatibility — cosmetic in ZK since the watchdog is disabled, but [LockExtender.extendActiveLockDetailed]
- *   calls `set` on it).
- *
- * Token-based lock (session-bound) — no thread affinity (no WrongThread usage unlike Redisson).
- *
- * ## R16 Enforcement
- * The elector forces `enabled=false` when calling [io.bluetape4k.leader.LeaderLeaseAutoExtender.start].
- * The [extend] method on this delegate is called only via the user-driven `LockExtender.extendActiveLock` path.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property client ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property mutex ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockKey ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lockPath ZooKeeper backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class ZooKeeperLockExtendDelegate(
     private val client: CuratorFramework,
@@ -49,7 +34,9 @@ internal class ZooKeeperLockExtendDelegate(
     override fun extend(lockAtMostFor: Duration): ExtendOutcome = doExtend()
 
     /**
-     * `isAcquiredInThisProcess()` is a Curator local counter check — non-blocking. No `withContext(IO)` needed.
+     * `extendSuspend` 호출은 ZooKeeper backend leader election 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = doExtend()
 

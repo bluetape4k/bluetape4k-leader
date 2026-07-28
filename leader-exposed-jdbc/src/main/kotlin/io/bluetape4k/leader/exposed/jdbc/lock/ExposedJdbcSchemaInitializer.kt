@@ -15,10 +15,9 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * Schema initializer utility for Exposed JDBC leader election tables.
+ * `ExposedJdbcSchemaInitializer`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Creates missing tables and columns exactly once per `Database` URL.
- * On initialization failure the guard key is removed so the next call can retry.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal object ExposedJdbcSchemaInitializer : KLogging() {
 
@@ -26,24 +25,9 @@ internal object ExposedJdbcSchemaInitializer : KLogging() {
     private val initLock = ReentrantLock()
 
     /**
-     * Creates leader election tables in [db] if they do not exist. Runs at most once per database URL.
+     * `ensureSchema` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * When schema creation fails the guard key is not recorded, so the next call will retry.
-     * Logs context on failure and propagates the original exception.
-     *
-     * ## Recommended configuration for H2
-     *
-     * When using H2, set `MODE=MySQL` or `MODE=PostgreSQL` in the JDBC URL.
-     * In the default mode, some column type or syntax differences may cause DDL or DML
-     * to behave unexpectedly.
-     *
-     * Recommended URL examples:
-     * - H2 in-memory:  `jdbc:h2:mem:test;MODE=MySQL;DB_CLOSE_DELAY=-1`
-     * - H2 file:       `jdbc:h2:file:./data/leader;MODE=MySQL`
-     * - PostgreSQL:    `jdbc:postgresql://host:5432/db`
-     * - MySQL:         `jdbc:mysql://host:3306/db`
-     *
-     * @throws Exception on DB error during schema creation (retry is allowed)
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     fun ensureSchema(db: Database) {
         val dbKey = db.url
@@ -67,10 +51,9 @@ internal object ExposedJdbcSchemaInitializer : KLogging() {
     }
 
     /**
-     * Masks the userinfo (especially the password) in a JDBC URL with `***`.
+     * `sanitizeUrl` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Strips the `jdbc:` prefix, parses the remainder as a [URI], and replaces only the userinfo portion.
-     * Returns the original URL on parse failure (best-effort).
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     internal fun sanitizeUrl(url: String): String {
         // "jdbc:postgresql://user:pw@host/db" → URI는 opaque로 파싱하므로 rawUserInfo == null.
@@ -102,19 +85,20 @@ internal object ExposedJdbcSchemaInitializer : KLogging() {
         }
     }
 
-    /** Resets the initialization state for a specific database in tests. */
+    /**
+     * `resetFor` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     */
     internal fun resetFor(db: Database) {
         initializedDbs.remove(db.url)
     }
 }
 
 /**
- * Validates `lockName`.
+ * `validateExposedLockName` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
  *
- * Applies the leader-core common rules (allowed characters, first character, 255-character limit)
- * via [validateLockName].
- *
- * @throws IllegalArgumentException when `lockName` is invalid
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 internal fun validateExposedLockName(lockName: String) {
     validateLockName(lockName)

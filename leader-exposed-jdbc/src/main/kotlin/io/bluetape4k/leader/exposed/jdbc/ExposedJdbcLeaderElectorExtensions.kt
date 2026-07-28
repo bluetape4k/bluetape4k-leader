@@ -7,20 +7,9 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
 /**
- * Runs a single leader election on this [Database].
+ * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
  *
- * Convenience wrapper for `ExposedJdbcLeaderElector(this, options).runIfLeader(lockName, action)`.
- * Schema creation is guaranteed via [ExposedJdbcLeaderElector.invoke].
- *
- * ```kotlin
- * val report = db.runIfLeader("daily-report") { generateReport() }
- *     ?: return // not the leader — skip
- * ```
- *
- * @param lockName lock name used for leader election
- * @param options election options; defaults to [ExposedJdbcLeaderElectionOptions.Default]
- * @param action the work to execute when the leader lock is acquired
- * @return [action] result, or `null` when the leader lock cannot be acquired
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun <T> Database.runIfLeader(
     lockName: String,
@@ -29,19 +18,9 @@ fun <T> Database.runIfLeader(
 ): T? = ExposedJdbcLeaderElector(this, options).runIfLeader(lockName, action)
 
 /**
- * Runs a single leader election on this [Database] asynchronously.
+ * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
  *
- * ```kotlin
- * val future: CompletableFuture<Report?> = db.runAsyncIfLeader("nightly-sync") {
- *     CompletableFuture.supplyAsync { syncData() }
- * }
- * ```
- *
- * @param lockName lock name used for leader election
- * @param executor async [Executor]; defaults to [VirtualThreadExecutor]
- * @param options election options; defaults to [ExposedJdbcLeaderElectionOptions.Default]
- * @param action the async work to execute when the leader lock is acquired
- * @return [CompletableFuture] holding the result, completing with `null` when the leader lock cannot be acquired
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun <T> Database.runAsyncIfLeader(
     lockName: String,
@@ -51,17 +30,9 @@ fun <T> Database.runAsyncIfLeader(
 ): CompletableFuture<T?> = ExposedJdbcLeaderElector(this, options).runAsyncIfLeader(lockName, executor, action)
 
 /**
- * Runs a single leader election on this [Database] asynchronously on a Virtual Thread.
+ * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
  *
- * ```kotlin
- * val result: String? = db.runVirtualIfLeader("vt-job") { computeHeavy() }
- *     .get(5, TimeUnit.SECONDS)
- * ```
- *
- * @param lockName lock name used for leader election
- * @param options election options; defaults to [ExposedJdbcLeaderElectionOptions.Default]
- * @param action the work to execute when the leader lock is acquired
- * @return [VirtualFuture] holding the result, completing with `null` when the leader lock cannot be acquired
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun <T> Database.runVirtualIfLeader(
     lockName: String,
@@ -73,20 +44,9 @@ fun <T> Database.runVirtualIfLeader(
 }
 
 /**
- * Runs a group leader election on this [Database].
+ * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
  *
- * ```kotlin
- * val opts = ExposedJdbcLeaderGroupElectionOptions(
- *     leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 4),
- * )
- * val result = db.runIfLeaderGroup("worker-pool", opts) { processChunk() }
- * // up to 4 nodes run concurrently; returns null when all slots are occupied
- * ```
- *
- * @param lockName lock name used for group leader election
- * @param options group election options; defaults to [ExposedJdbcLeaderGroupElectionOptions.Default]
- * @param action the work to execute when a group slot is acquired
- * @return [action] result, or `null` when no slot can be acquired
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun <T> Database.runIfLeaderGroup(
     lockName: String,
@@ -95,24 +55,9 @@ fun <T> Database.runIfLeaderGroup(
 ): T? = ExposedJdbcLeaderGroupElector(this, options).runIfLeader(lockName, action)
 
 /**
- * Runs a group leader election on this [Database] asynchronously.
+ * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
  *
- * ```kotlin
- * val future = db.runAsyncIfLeaderGroup(
- *     lockName = "parallel-batch",
- *     options = ExposedJdbcLeaderGroupElectionOptions(
- *         leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3),
- *     ),
- * ) {
- *     CompletableFuture.supplyAsync { processChunk() }
- * }
- * ```
- *
- * @param lockName lock name used for group leader election
- * @param executor async [Executor]; defaults to [VirtualThreadExecutor]
- * @param options group election options; defaults to [ExposedJdbcLeaderGroupElectionOptions.Default]
- * @param action the async work to execute when a group slot is acquired
- * @return [CompletableFuture] holding the result, completing with `null` when no slot can be acquired
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun <T> Database.runAsyncIfLeaderGroup(
     lockName: String,

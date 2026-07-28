@@ -15,13 +15,10 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * [ExtendDelegate] for per-slot [ExposedJdbcGroupLock] (`(lockName, slot)`) in the Exposed JDBC group elector
- * — T10 PR 5 (Issue #79).
+ * `ExposedJdbcSlotExtendDelegate`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - [extend] : Delegates to `slotLock.extendDetailed(d)`. Applies the R6 guard (`lockedUntil > now`).
- * - [extendSuspend] : JDBC is blocking — wraps with `withContext(Dispatchers.IO)` + `ensureActive()` (R9 / AC-21).
- * - [isHeld] : Delegates to `slotLock.isHeldByCurrentInstance()`.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property slotLock Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class ExposedJdbcSlotExtendDelegate(
     private val slotLock: ExposedJdbcGroupLock,

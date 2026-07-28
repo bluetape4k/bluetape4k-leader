@@ -16,31 +16,12 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * [SuspendExtendDelegate] for Redisson [RLock] (suspend variant) — T8 PR 3 (Issue #79).
+ * `RedissonSuspendLockExtendDelegate`는 Redis Redisson backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Redisson's async API is [java.util.concurrent.CompletableFuture]-based.
- *
- * ## Meaning of acquiringThreadId
- * Redisson's [RLock] identifies lock owners by a `long` identifier. The sync variant uses
- * `Thread.currentThread().threadId()`, but the suspend variant cannot rely on thread id because
- * coroutines may hop between threads. Therefore [io.bluetape4k.leader.redisson.RedissonSuspendLeaderElector]
- * issues a PID-seeded Snowflake-like ID (`lockId: Long`) and uses it as Redisson's thread-id slot.
- * This delegate stores that `lockId` as [acquiringThreadId]. Redisson's [RLock.isHeldByThread]
- * simply compares the owner field without interpreting the semantic meaning of the long value.
- *
- * ## RLock TTL renewal mechanism
- * Redisson's [RLock] stores ownership in a Redis hash field named like `clientId:threadId`.
- * The extend path uses the same owner field and performs `HEXISTS` + `PEXPIRE` in one Lua script,
- * avoiding the check-then-expire race where a stale owner could renew a successor lock.
- *
- * ## Behavior / Contract
- * - [extendSuspend]: owner-atomic — verifies owner and renews key TTL in one Redis Lua script.
- *   Returns [ExtendOutcome.WrongThread] on owner-id mismatch (AC-8).
- * - [isHeldSuspend]: delegates to `lock.isHeldByThread(acquiringThreadId)` through the suspend contract.
- *
- * @property redissonClient Redisson client used to renew the lock key TTL
- * @property lock Redisson [RLock] instance
- * @property acquiringThreadId owner id used when acquiring the lock (PID-seeded Snowflake-like `Long`)
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property redissonClient Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property lock Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property acquiringThreadId Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class RedissonSuspendLockExtendDelegate(
     private val redissonClient: RedissonClient,

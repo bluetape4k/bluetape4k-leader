@@ -15,17 +15,10 @@ import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 
 /**
- * [ExtendDelegate] for [ExposedJdbcLock] (sync, blocking JDBC) — T10 PR 5 (Issue #79).
+ * `ExposedJdbcLockExtendDelegate`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - [extend] : Returns the result of `lock.extendDetailed(d)` as-is. Backend exceptions are wrapped in
- *   [ExtendOutcome.BackendError] — the classifier then categorizes them as TRANSIENT/NON_TRANSIENT.
- * - [extendSuspend] : Since JDBC is blocking IO, wraps the call with `withContext(Dispatchers.IO)` + `ensureActive()`
- *   (R9 / AC-21).
- * - [isHeld] : Delegates to `lock.isHeldByCurrentInstance()` (returns false on exception).
- * - [lastExtendDeadline] : Stored in a single `AtomicReference(Instant.EPOCH)` instance — used to skip the R2 watchdog.
- *
- * Token-based lock with no thread affinity (Exposed JDBC does not use [ExtendOutcome.WrongThread]).
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property lock Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class ExposedJdbcLockExtendDelegate(
     private val lock: ExposedJdbcLock,
@@ -45,10 +38,9 @@ internal class ExposedJdbcLockExtendDelegate(
         }
 
     /**
-     * JDBC is blocking — dispatched with `withContext(Dispatchers.IO)`.
+     * `extendSuspend` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * **Do not use runCatching {}** — it can swallow [CancellationException] inside a suspend function.
-     * Use manual try/catch with `catch(CancellationException) { throw e }` instead.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override suspend fun extendSuspend(lockAtMostFor: Duration): ExtendOutcome = withContext(Dispatchers.IO) {
         coroutineContext.ensureActive()

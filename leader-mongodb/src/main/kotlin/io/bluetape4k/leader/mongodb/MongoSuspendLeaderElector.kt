@@ -26,31 +26,12 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 /**
- * Coroutine-based single leader election implementation using MongoDB distributed locks.
+ * `MongoSuspendLeaderElector`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Token-based lock (`findOneAndUpdate` + TTL) — safe regardless of coroutine thread switches.
- *
- * ## ExtendDelegate Integration (T9 PR 4 / Issue #79)
- *
- * - After acquire, creates a [MongoSuspendLockExtendDelegate] shared by [LeaderLockHandle.Real] and the watchdog (AC-15).
- * - The aspect's `LockExtenderSuspend.extendActiveLockSuspend` uses the same delegate reference.
- * - Propagates the handle into the coroutine context via
- *   `withContext(AopScopeAccess.createLockHandleElement(handle))`.
- * - The autoExtend option is handled by the [LeaderLeaseAutoExtender] watchdog — no separate `launch` watchdog.
- *
- * ```kotlin
- * val election = MongoSuspendLeaderElector(coroutineDatabase.getCollection("bluetape4k_leader_locks"))
- * val result = election.runIfLeader("daily-job") {
- *     delay(100)
- *     processData()
- * }
- * ```
- *
- * **Cancellation safety:** Even on coroutine cancellation, `withContext(NonCancellable)` guarantees
- * watchdog close and lock release.
- *
- * @param collection coroutine [MongoCollection] storing the lock state
- * @param options leader election options
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property collection MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property historyRecorder MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class MongoSuspendLeaderElector private constructor(
     private val collection: MongoCollection<Document>,
@@ -154,7 +135,9 @@ class MongoSuspendLeaderElector private constructor(
 }
 
 /**
- * Runs the suspend [action] only when elected as leader using a MongoDB distributed lock.
+ * `선언` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 suspend fun <T> MongoCollection<Document>.suspendRunIfLeader(
     lockName: String,

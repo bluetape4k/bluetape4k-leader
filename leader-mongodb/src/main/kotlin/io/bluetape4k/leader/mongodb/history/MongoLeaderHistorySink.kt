@@ -15,34 +15,11 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * MongoDB Reactive Streams implementation of [SuspendLeaderHistorySink].
+ * `MongoLeaderHistorySink`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Persists leader-lock lifecycle events into the [MongoHistoryConfig.collectionName]
- * collection using the Kotlin coroutine MongoDB driver.  Intended to be wrapped by
- * [io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder], which absorbs
- * exceptions so that a storage failure never affects the lock action result.
- *
- * ## Behavior / Contract
- * - [recordAcquired] inserts a new document and returns [LeaderHistoryKey] with
- *   [LeaderHistoryKey.historyId] set to a UUID string.
- * - [recordCompleted] and [recordFailed] use a two-strategy update:
- *   1. `WHERE historyId = ?` when [LeaderHistoryKey.historyId] is non-null.
- *   2. `WHERE lockName = ? AND token = ?` as a fallback.
- * - [deleteOlderThan]: uses `deleteMany(lt("startedAt", cutoff))`.
- *   MongoDB does not support `LIMIT` on `deleteMany` — the [limit] parameter is
- *   **ignored**.  TTL index is the primary retention mechanism; this method is a
- *   supplementary immediate-purge helper.  Because `deleteMany` deletes all
- *   matching rows in a single call, the `RetentionLoop` will always exit after
- *   the first iteration when backed by this sink.
- *
- * ## Security / Trust Boundary
- * The `token` field stores the live lock-release credential.  Database read
- * access to this collection must be restricted to the same trust boundary as the
- * lock backend.  Do not expose this collection via public APIs or logs at INFO
- * level or above.
- *
- * @param database MongoDB coroutine [MongoDatabase] instance.
- * @param config Collection name and TTL settings.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property database MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property config MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class MongoLeaderHistorySink(
     private val database: MongoDatabase,
@@ -108,13 +85,9 @@ class MongoLeaderHistorySink(
     }
 
     /**
-     * Deletes records with [FIELD_STARTED_AT] before [cutoff].
+     * `deleteOlderThan` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * **Note**: MongoDB `deleteMany` does not support a `LIMIT` clause.  The
-     * [limit] parameter is ignored.  Use the TTL index for bounded retention; call
-     * this method only for immediate out-of-band purges.
-     *
-     * @return total count of deleted documents (may be large in a single call).
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override suspend fun deleteOlderThan(cutoff: Instant, limit: Int): Int {
         val result = collection.deleteMany(Filters.lt(FIELD_STARTED_AT, cutoff))

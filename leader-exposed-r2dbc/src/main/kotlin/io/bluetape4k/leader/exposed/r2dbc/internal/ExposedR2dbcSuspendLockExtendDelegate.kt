@@ -11,17 +11,10 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * [SuspendExtendDelegate] for [ExposedR2dbcLock] (suspend native, reactive R2DBC driver) — T11 PR 6 (Issue #79).
+ * `ExposedR2dbcSuspendLockExtendDelegate`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - Exposed R2DBC is reactive native → `suspendTransaction(db)` is a suspend function
- * - [extendSuspend] : Calls `lock.extendDetailed(d)` directly (suspend native — `withContext(IO)` is not needed)
- * - [isHeldSuspend] : Calls `lock.isHeldByCurrentInstance()` directly
- *
- * Token-based lock with no thread affinity (Exposed R2DBC does not use [ExtendOutcome.WrongThread]).
- *
- * ## CancellationException handling
- * All `catch(Exception)` blocks are preceded by `catch(CancellationException) { throw e }` — coroutine cancellation contract guaranteed.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property lock Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class ExposedR2dbcSuspendLockExtendDelegate(
     private val lock: ExposedR2dbcLock,

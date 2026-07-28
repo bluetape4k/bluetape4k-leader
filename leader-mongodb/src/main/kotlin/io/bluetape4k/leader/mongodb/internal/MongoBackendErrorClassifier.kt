@@ -12,26 +12,9 @@ import io.bluetape4k.leader.internal.BackendErrorClassifier
 import io.bluetape4k.leader.internal.BackendErrorKind
 
 /**
- * MongoDB backend exception classifier — T9 PR 4 (Issue #79).
+ * `MongoBackendErrorClassifier`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - [MongoTimeoutException] / [MongoSocketException] /
- *   [MongoNodeIsRecoveringException] / [MongoNotPrimaryException] → [BackendErrorKind.TRANSIENT]
- *   (retryable — replica set failover / transient network disconnect)
- * - [MongoSecurityException] / [MongoWriteException] / auth-related [MongoCommandException] (code 13/18) →
- *   [BackendErrorKind.NON_TRANSIENT] (permanent error — permission / write failure)
- * - Other [MongoException] → [BackendErrorKind.NON_TRANSIENT] (safe default)
- * - Otherwise → `null` (unclassifiable — delegated to the next classifier in the chain)
- *
- * ## Usage
- * The elector registers this as a chain entry in [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier].
- *
- * ```kotlin
- * val classifier = CompositeBackendErrorClassifier(
- *     MongoBackendErrorClassifier,
- *     CoreBackendErrorClassifier,
- * )
- * ```
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal object MongoBackendErrorClassifier : BackendErrorClassifier {
 

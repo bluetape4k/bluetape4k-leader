@@ -20,25 +20,11 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
 /**
- * Performs leader election using the [IMap] distributed lock of [HazelcastInstance].
+ * `HazelcastLeaderElector`는 Hazelcast backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Uses a `putIfAbsent` + TTL token-based lock, so it is not bound to any thread and
- * operates safely in both Virtual Thread and ThreadPool environments.
- *
- * ## ExtendDelegate Integration (T12 PR 7 / Issue #79)
- *
- * - After acquire, creates a [HazelcastLockExtendDelegate] that shares the same reference with [LeaderLockHandle.Real] + watchdog (AC-15).
- * - When the aspect calls `LockExtender.extendActiveLock`, the extend is executed through the same delegate with R6 (IMap auto-evict blocks expired entry revival) applied.
- * - The autoExtend option is handled by the [LeaderLeaseAutoExtender] watchdog (R2 watchdog skip semantics guaranteed).
- *
- * ```kotlin
- * val election = HazelcastLeaderElector(hazelcastInstance)
- * val result = election.runIfLeader("daily-job") { processData() }
- * // result == processData() return value (leader acquired) or null (not acquired)
- * ```
- *
- * @param hazelcast Hazelcast client instance
- * @param options Leader election options (waitTime, leaseTime)
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property hazelcast Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class HazelcastLeaderElector private constructor(
     private val hazelcast: HazelcastInstance,
@@ -102,9 +88,9 @@ class HazelcastLeaderElector private constructor(
     }
 
     /**
-     * Performs lock acquisition and action execution on the [executor] thread.
+     * `선언` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Since the [IMap]-based token lock is not thread-bound, it is safely released on the completion callback thread.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override fun <T> runAsyncIfLeader(
         lockName: String,
@@ -151,7 +137,9 @@ class HazelcastLeaderElector private constructor(
 }
 
 /**
- * Executes [action] only when elected as leader using a Hazelcast distributed lock.
+ * `선언` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 inline fun <T> HazelcastInstance.runIfLeader(
     jobName: String,
@@ -163,7 +151,9 @@ inline fun <T> HazelcastInstance.runIfLeader(
 }
 
 /**
- * Executes async [action] only when elected as leader using a Hazelcast distributed lock.
+ * `선언` 호출은 Hazelcast backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 inline fun <T> HazelcastInstance.runAsyncIfLeader(
     jobName: String,

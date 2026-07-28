@@ -25,29 +25,12 @@ import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 
 /**
- * Leader election implementation for a single leader using MongoDB distributed locks.
+ * `MongoLeaderElector`는 MongoDB backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Token-based lock using `findOneAndUpdate` upsert + TTL index —
- * not bound to any thread, safe in Virtual Thread environments.
- *
- * ## ExtendDelegate Integration (T9 PR 4 / Issue #79)
- *
- * - After acquire, creates a [MongoLockExtendDelegate] shared by [LeaderLockHandle.Real] and the watchdog (AC-15).
- * - When the aspect calls `LockExtender.extendActiveLock`, the same delegate applies the R6 filter
- *   (`expireAt > now`) before executing the extend.
- * - The autoExtend option is handled by the [LeaderLeaseAutoExtender] watchdog (R2 watchdog skip semantics guaranteed).
- *
- * ```kotlin
- * val election = MongoLeaderElector(database.getCollection("bluetape4k_leader_locks"))
- * val result = election.runIfLeader("daily-job") { processData() }
- * // result == return value of processData() (leader acquired) or null (not elected)
- * ```
- *
- * **WriteConcern:** In a Replica Set environment, configure the collection with `MAJORITY`.
- * `ACKNOWLEDGED` carries a split-brain risk during network partitions.
- *
- * @param collection [MongoCollection] storing the lock state (collection name: [MongoLock.LOCK_COLLECTION_NAME])
- * @param options leader election options
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property collection MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property historyRecorder MongoDB backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class MongoLeaderElector private constructor(
     private val collection: MongoCollection<Document>,
@@ -212,7 +195,9 @@ class MongoLeaderElector private constructor(
 }
 
 /**
- * Runs [action] only when elected as leader using a MongoDB distributed lock.
+ * `선언` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun <T> MongoCollection<Document>.runIfLeader(
     lockName: String,
@@ -221,7 +206,9 @@ fun <T> MongoCollection<Document>.runIfLeader(
 ): T? = MongoLeaderElector(this, options).runIfLeader(lockName, action)
 
 /**
- * Runs the async [action] only when elected as leader using a MongoDB distributed lock.
+ * `선언` 호출은 MongoDB backend leader election 계약의 일부 동작을 수행합니다.
+ *
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun <T> MongoCollection<Document>.runAsyncIfLeader(
     lockName: String,

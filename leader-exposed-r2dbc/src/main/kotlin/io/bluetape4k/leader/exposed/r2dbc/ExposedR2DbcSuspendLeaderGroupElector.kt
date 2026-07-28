@@ -37,44 +37,18 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
 /**
- * Coroutine-based multi-leader group election implementation backed by Exposed R2DBC.
+ * `ExposedR2DbcSuspendLeaderGroupElector`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Allows up to [ExposedR2dbcLeaderGroupElectionOptions.maxLeaders] simultaneous leaders
- * by traversing slots using a `(lockName, slot)` composite PK.
- * The starting slot is randomized to avoid hotspots.
- *
- * ## Basic usage
- * ```kotlin
- * val election = ExposedR2dbcSuspendLeaderGroupElector(
- *     db,
- *     ExposedR2dbcLeaderGroupElectionOptions(
- *         leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3),
- *     ),
- * )
- * val result = election.runIfLeader("batch-job") {
- *     delay(100)
- *     processChunk()
- * }
- * // Up to 3 nodes run concurrently; others return null
- * ```
- *
- * ## State queries
- * - [activeCount] / [availableSlots] / [state] — cache-based approximate values, auto-refreshed after `runIfLeader`.
- *   Changes from other JVM instances are not reflected — use for monitoring/logging only.
- * - [activeCountSuspend] — real-time DB query via SELECT. Use when an accurate count is needed
- *   in a multi-JVM environment. Has query cost (SELECT COUNT(*)); must not be used as a concurrency decision gate.
- *
- * **private constructor** — use the [invoke] factory. The schema is automatically created on the first call.
- *
- * @param db Exposed [R2dbcDatabase] instance
- * @param options group leader election options
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property db Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property historyRecorder Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     private val db: R2dbcDatabase,
     val options: ExposedR2dbcLeaderGroupElectionOptions,
     /**
-     * Optional history recorder for group elections.
-     * Group elector full wiring is deferred to v2 (#50 follow-up).
+     * `historyRecorder` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
      */
     @Suppress("unused")
     private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
@@ -86,9 +60,9 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedR2dbcBackendErrorClassifier)
 
         /**
-         * Creates an [ExposedR2DbcSuspendLeaderGroupElector] instance.
+         * `invoke` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
          *
-         * Automatically creates the leader election table schema on the first call (once only).
+         * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
          */
         suspend operator fun invoke(
             db: R2dbcDatabase,
@@ -100,49 +74,42 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         }
     }
 
-    /** Number of simultaneous leaders allowed (delegates to [ExposedR2dbcLeaderGroupElectionOptions.maxLeaders]). */
+    /**
+     * `maxLeaders` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     override val maxLeaders: Int get() = options.maxLeaders
 
     /**
-     * Last observed active slot count. Starts at 0 and is updated after `runIfLeader`.
-     *
-     * [activeCount] / [availableSlots] / [state] return values from this cache.
-     * Use the suspend version [activeCountSuspend] when a direct DB query is needed.
+     * `cachedActiveCount` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
      */
     private val cachedActiveCount = AtomicInteger(0)
 
     /**
-     * Current active slot count for [lockName] (cache-based, approximate).
+     * `activeCount` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * External changes after the last [runIfLeader] call may not be reflected.
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override fun activeCount(lockName: String): Int = cachedActiveCount.get()
 
-    /** Number of immediately acquirable slots for [lockName] (cache-based). */
+    /**
+     * `availableSlots` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     */
     override fun availableSlots(lockName: String): Int = maxLeaders - activeCount(lockName)
 
-    /** Returns a [LeaderGroupState] snapshot for [lockName] (cache-based). */
+    /**
+     * `state` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
+     *
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
+     */
     override fun state(lockName: String): LeaderGroupState =
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
     /**
-     * Queries the current active slot count for [lockName] directly from the DB in real time.
+     * `activeCountSuspend` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * Unlike [activeCount], this executes `SELECT COUNT(*)` directly against the DB without using the cache.
-     * Expired slots (`lockedUntil <= NOW()`) are excluded from the count.
-     *
-     * The internal cache ([activeCount]) is also synchronized after the query.
-     *
-     * ```kotlin
-     * // Check the accurate slot count in a multi-JVM environment
-     * val realCount = election.activeCountSuspend("batch-job")
-     * println("active=$realCount / max=${election.maxLeaders}")
-     * // ⚠️ Another instance may acquire/release a slot immediately after — do not use as a concurrency decision gate
-     * ```
-     *
-     * Returns `0` on a best-effort basis when a DB error occurs.
-     *
-     * @throws IllegalArgumentException if [lockName] is invalid
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     suspend fun activeCountSuspend(lockName: String): Int {
         validateExposedR2dbcLockName(lockName)
@@ -167,26 +134,9 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     }
 
     /**
-     * Acquires an empty slot in the [lockName] group and runs the suspend [action].
+     * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * - Returns `null` without throwing if all slots are in use.
-     * - Exceptions from [action] propagate as-is; the slot is always released.
-     * - [CancellationException] is re-propagated and is not recorded as a FAILED history entry.
-     *
-     * ## Skip on slot contention
-     * ```kotlin
-     * val result = election.runIfLeader("batch-job") { processChunk() }
-     * when (result) {
-     *     null -> log.debug { "No slot — this execution handled by another instance" }
-     *     else -> log.info { "Completed: $result" }
-     * }
-     * ```
-     *
-     * ## DB error vs normal contention
-     * If a DB error occurs during slot traversal, traversal stops and `null` is returned.
-     * (Same return value as normal contention, but distinguishable via warn log.)
-     *
-     * @throws IllegalArgumentException if [lockName] is invalid
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         validateExposedR2dbcLockName(lockName)

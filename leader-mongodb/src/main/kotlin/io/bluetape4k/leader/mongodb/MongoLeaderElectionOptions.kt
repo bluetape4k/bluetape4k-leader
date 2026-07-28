@@ -8,23 +8,10 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Options data class for MongoDB-based leader election.
+ * `MongoLeaderElectionOptions`는 MongoDB leader election에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
  *
- * ```kotlin
- * val options = MongoLeaderElectionOptions(
- *     leaderOptions = LeaderElectionOptions(
- *         waitTime = 3.seconds,
- *         leaseTime = 30.seconds,
- *     ),
- *     retryDelay = 100.milliseconds,
- * )
- * val election = MongoLeaderElector(collection, options)
- * val result = election.runIfLeader("job-lock") { "done" }
- * // result == "done"
- * ```
- *
- * @property leaderOptions Single-leader election options (waitTime, leaseTime)
- * @property retryDelay Upper bound for full jitter applied on lock acquisition retry (`[1ms, retryDelay)` uniform distribution). Defaults to 50ms
+ * @property leaderOptions MongoDB backend 계약에서 `leaderOptions` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property retryDelay MongoDB backend 계약에서 `retryDelay` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  */
 data class MongoLeaderElectionOptions(
     val leaderOptions: LeaderElectionOptions = LeaderElectionOptions.Default,
@@ -36,7 +23,7 @@ data class MongoLeaderElectionOptions(
 
     companion object {
         /**
-         * Default options instance (`waitTime=5s`, `leaseTime=60s`, `retryDelay=50ms`).
+         * `Default` 값은 MongoDB backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
          */
         @JvmField
         val Default = MongoLeaderElectionOptions()

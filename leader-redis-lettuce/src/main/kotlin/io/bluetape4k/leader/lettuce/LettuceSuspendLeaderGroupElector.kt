@@ -26,15 +26,9 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Creates a [LettuceSuspendLeaderGroupElector] instance from a [StatefulRedisConnection].
+ * `StatefulRedisConnection` 호출은 Redis Lettuce backend leader election 계약의 일부 동작을 수행합니다.
  *
- * ```kotlin
- * val election = connection.suspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
- * val result = election.runIfLeader("batch-job") { processChunkSuspend() }
- * ```
- *
- * @param options    Leader election options (default: [LeaderGroupElectionOptions.Default])
- * @return [LettuceSuspendLeaderGroupElector] instance
+ * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
  */
 fun StatefulRedisConnection<String, String>.suspendLeaderGroupElector(
     options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
@@ -43,24 +37,11 @@ fun StatefulRedisConnection<String, String>.suspendLeaderGroupElector(
 
 
 /**
- * Coroutine-based multi-leader election implementation backed by Lettuce Redis.
+ * `LettuceSuspendLeaderGroupElector`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract (T7 PR 2)
- *
- * - Internally uses [LettuceSlotTokenGroup] (ZSET + Lua, server-side TIME).
- * - After acquire, creates a [LettuceSuspendSlotExtendDelegate] shared with [LeaderLockHandle.Real] and the watchdog under the same reference (AC-15).
- * - Propagates the handle into the coroutineContext via `withContext(AopScopeAccess.createLockHandleElement(handle))`.
- * - Release is guaranteed inside `withContext(NonCancellable)` even on coroutine cancellation.
- * - `CancellationException` is always re-thrown.
- *
- * ```kotlin
- * val options = LeaderGroupElectionOptions(maxLeaders = 3, minLeaseTime = 1.seconds)
- * val election = LettuceSuspendLeaderGroupElector(connection, options)
- * val result = election.runIfLeader("batch-job") { processChunk() }
- * ```
- *
- * @param connection Lettuce [StatefulRedisConnection] (StringCodec-based)
- * @param options    Leader election options (maxLeaders, waitTime, leaseTime, minLeaseTime)
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property connection Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class LettuceSuspendLeaderGroupElector(
     private val connection: StatefulRedisConnection<String, String>,

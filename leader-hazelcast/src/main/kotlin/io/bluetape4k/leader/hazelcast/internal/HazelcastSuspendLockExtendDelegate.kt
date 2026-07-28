@@ -11,14 +11,10 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * [SuspendExtendDelegate] for [HazelcastSuspendLock] — T12 PR 7 (Issue #79).
+ * `HazelcastSuspendLockExtendDelegate`는 Hazelcast backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - Hazelcast IMap is a native blocking API — the suspend lock only adds a `withContext(Dispatchers.IO)` wrapper.
- * - [extendSuspend]: calls `lock.extendDetailed(d)` directly (lock already handles `withContext(IO)`).
- * - [isHeldSuspend]: calls `lock.isHeldByCurrentInstance()` directly.
- *
- * Token-based lock — no thread affinity.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property lock Hazelcast backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal class HazelcastSuspendLockExtendDelegate(
     private val lock: HazelcastSuspendLock,

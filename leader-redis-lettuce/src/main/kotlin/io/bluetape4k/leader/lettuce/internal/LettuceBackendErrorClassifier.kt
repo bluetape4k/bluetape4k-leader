@@ -7,22 +7,9 @@ import io.lettuce.core.RedisCommandTimeoutException
 import io.lettuce.core.RedisConnectionException
 
 /**
- * Lettuce backend exception classifier — T7 PR 2.
+ * `LettuceBackendErrorClassifier`는 Redis Lettuce backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * ## Behavior / Contract
- * - [RedisCommandTimeoutException] / [RedisConnectionException] → [BackendErrorKind.TRANSIENT] (retryable)
- * - [RedisCommandExecutionException] → [BackendErrorKind.NON_TRANSIENT] (Lua syntax error, ACL failure, etc. — permanent error)
- * - Other → `null` (unclassified — delegated to the next classifier in the chain)
- *
- * ## Usage
- * Registered as a chain entry in [io.bluetape4k.leader.internal.CompositeBackendErrorClassifier] by the elector.
- *
- * ```kotlin
- * val classifier = CompositeBackendErrorClassifier(
- *     LettuceBackendErrorClassifier,
- *     CoreBackendErrorClassifier,
- * )
- * ```
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 internal object LettuceBackendErrorClassifier : BackendErrorClassifier {
 

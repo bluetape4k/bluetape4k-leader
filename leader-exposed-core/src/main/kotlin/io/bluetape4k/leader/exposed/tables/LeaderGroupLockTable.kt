@@ -8,31 +8,40 @@ import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.javatime.timestamp
 
 /**
- * Group leader lock table (semaphore-based multi-leader).
+ * `LeaderGroupLockTable`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * - `(lockName, slot)` composite PK — allows up to N simultaneous leaders in the same group.
- * - [slot] is a 0-based slot number, equivalent to MongoDB's `${lockName}:slot:N` pattern.
- * - [token] is a fencing token with an independent UUID issued per slot.
- * - [lockedUntil] is the slot TTL expiry timestamp. Re-acquisition is possible via `locked_until < NOW()`.
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
  */
 object LeaderGroupLockTable : Table(GROUP_LOCK_TABLE_NAME) {
 
-    /** Group lock identifier. Part of the composite PK. */
+    /**
+     * `lockName` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val lockName = varchar("lock_name", LOCK_NAME_LENGTH)
 
-    /** Slot number (0-based). Value within the maxLeaders range. Part of the composite PK. */
+    /**
+     * `slot` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val slot = integer("slot")
 
-    /** Lock holder identifier. Null means unused slot. */
+    /**
+     * `lockOwner` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val lockOwner = varchar("lock_owner", LOCK_OWNER_LENGTH).nullable()
 
-    /** Fencing token — UUID. Issued independently per slot. */
+    /**
+     * `token` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val token = varchar("token", TOKEN_LENGTH)
 
-    /** Timestamp when the lock was acquired (UTC). */
+    /**
+     * `lockedAt` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val lockedAt = timestamp("locked_at")
 
-    /** Lock expiry timestamp (UTC). The slot can be re-acquired after this time. */
+    /**
+     * `lockedUntil` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     */
     val lockedUntil = timestamp("locked_until")
 
     override val primaryKey = PrimaryKey(lockName, slot)

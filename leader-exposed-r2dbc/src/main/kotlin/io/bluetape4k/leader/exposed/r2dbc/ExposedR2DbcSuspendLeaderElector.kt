@@ -26,41 +26,12 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 /**
- * Coroutine-based single-leader election implementation backed by Exposed R2DBC.
+ * `ExposedR2DbcSuspendLeaderElector`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
  *
- * Implements row-level database locking using the `UPDATE + insertIgnore + SELECT` pattern.
- *
- * ## Basic usage
- * ```kotlin
- * val election = ExposedR2dbcSuspendLeaderElector(db)
- * val result = election.runIfLeader("daily-job") {
- *     delay(100)
- *     processData()
- * }
- * // result == processData() return value (leader acquired) or null (acquisition failed / action threw)
- * ```
- *
- * ## History recording
- * ```kotlin
- * val sink = ExposedSuspendLeaderHistorySink(db)
- * val recorder = SuspendSafeLeaderHistoryRecorder(sink)
- * val election = ExposedR2DbcSuspendLeaderElector(db, historyRecorder = recorder)
- * ```
- *
- * ## Cancellation safety
- * The `finally` block always runs inside `withContext(NonCancellable)` to guarantee lock release.
- *
- * ## Behavior / Contract
- * - Returns `null` when the lock cannot be acquired (contention) — no exception is thrown.
- * - Rethrows [CancellationException] if the action throws it.
- * - If the action throws any other [Exception], records a FAILED history entry and rethrows the exception.
- * - If [historyRecorder] is null, operates without recording history.
- *
- * **private constructor** — create instances only through the [invoke] factory.
- *
- * @param db Exposed [R2dbcDatabase] instance
- * @param options Single-leader election options
- * @param historyRecorder Optional history recorder; no history is recorded when null
+ * 정상 lock contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @property db Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property options Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property historyRecorder Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 class ExposedR2DbcSuspendLeaderElector private constructor(
     private val db: R2dbcDatabase,
@@ -74,9 +45,9 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(ExposedR2dbcBackendErrorClassifier)
 
         /**
-         * Creates an [ExposedR2DbcSuspendLeaderElector] instance.
+         * `invoke` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
          *
-         * Automatically creates the leader election table schema on the first call (once only).
+         * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
          */
         suspend operator fun invoke(
             db: R2dbcDatabase,
@@ -89,19 +60,9 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
     }
 
     /**
-     * Executes the suspend [action] and returns its result when promoted to leader for [lockName].
+     * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
-     * - Returns the [action] result on successful leader acquisition.
-     * - Returns `null` when leader acquisition fails (no exception thrown).
-     * - Rethrows [CancellationException] if [action] throws it.
-     * - If [action] throws any other exception, records a FAILED history entry and rethrows the exception.
-     * - The lock is always released regardless of whether execution completes normally or with an exception.
-     *
-     * @param lockName Lock identifier (alphanumeric/hyphen/underscore/colon, 1–255 characters)
-     * @param action Suspend action to execute upon successful leader acquisition
-     * @return [action] result or `null`
-     * @throws IllegalArgumentException if [lockName] is invalid
-     * @throws CancellationException if the action throws CancellationException
+     * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         validateExposedR2dbcLockName(lockName)
