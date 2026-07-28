@@ -34,4 +34,4 @@
 ## 메모
 
 - `root-readme-overview-01`는 개요 모듈 맵으로 남아 있으며 이번 호에서는 다시 작성되지 않습니다. 루트 리더 아키텍처 다이어그램은 `bluetape4k-leader-architecture-01`입니다.
-- `leader-dynamodb-architecture-01` 및 `leader-k8s-architecture-01`는 소스 레이아웃이 누적된 레이어 행이 아닌 행위자/선택자/상태 흐름이기 때문에 열 기반 레이어 밴드를 사용합니다.
+- `leader-dynamodb-architecture-01` 및 `leader-k8s-architecture-01`는 소스 레이아웃이 누적된 레이어 행이 아닌 행위자/선출기/상태 흐름이기 때문에 열 기반 레이어 밴드를 사용합니다.

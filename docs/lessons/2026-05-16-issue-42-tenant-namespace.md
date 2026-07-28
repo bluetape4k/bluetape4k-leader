@@ -10,13 +10,13 @@
 
 ## 결과
 
-이제 차단, 코루틴, 그룹 및 가상 스레드 선택기에 대한 `forTenant()` 래퍼가 존재합니다. 래퍼는 슬롯 `leaderId`를 유지하면서 상태, 실행, 비동기, 결과 및 슬롯 경로를 변환합니다.
+이제 차단, 코루틴, 그룹 및 가상 스레드 선출기에 대한 `forTenant()` 래퍼가 존재합니다. 래퍼는 슬롯 `leaderId`를 유지하면서 상태, 실행, 비동기, 결과 및 슬롯 경로를 변환합니다.
 
 ## 검증
 
 - 사양/계획 Claude Advisor는 네임스페이스 우회 및 구분 기호 삽입 위험을 발견했습니다. 구현 전에 사양/계획이 업데이트되었습니다.
 - 대상 테스트: `TenantScopedLeaderElectorsTest` 및 `TenantScopedSuspendLeaderElectorsTest`.
-- 결과: 14개 테스트를 통과하고 빌드에 success했습니다.
+- 결과: 14개 테스트를 통과하고 빌드에 성공했습니다.
 - README/README.ko API 이름이 소스에 대해 검증되었습니다.
 - PR 이후 Claude 피드백에는 `:` 및 백엔드 `state().lockName`에 대한 그룹 슬롯/결과 적용 범위 및 README/README.ko 마이그레이션 주의 사항이 추가되었습니다.
 

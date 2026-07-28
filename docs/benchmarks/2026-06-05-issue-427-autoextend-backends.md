@@ -4,21 +4,21 @@
 백엔드에 초점을 맞춘 `kotlinx-benchmark` 행을 추가합니다. 벤치마크 코드는 일반 `benchmark` 소스 세트에 있으며 측정된 아티팩트는
 Gradle이 생성한 JMH jar 작업에 의해 구축되었습니다.
 
-동일한 기계 비교에만 이 보고서를 사용하십시오. 이는 릴리스 등급 성능 주장이 아닙니다.
+동일한 머신 비교에만 이 보고서를 사용하세요. 이는 릴리스 등급 성능 주장이 아닙니다.
 
 ## 주의 사항
 
 - Redis `autoExtend` 적용 범위는
 - [`2026-06-01-issue-422-redis-lease-extension.md`](./2026-06-01-issue-422-redis-lease-extension.md)에
 - 유지됩니다.
-- 일반 'runIfLeader' 행은 60초 임대와 빠른 작업을 사용하여 정상적인 실행과 'autoExtend' 활성화 오버헤드를 측정합니다.
-- 'runIfLeaderWithRenewalWindow' 행은 90ms 임대 및 45ms 작업 유지를 사용하므로 자동 확장 경로에 갱신 기간이 있습니다.
-- 체류 시간이 지배적이므로 동일한 방법 내에서만 이러한 행을 비교하십시오.
-- MongoDB 행은 리포지토리 Testcontainers 실행 프로그램을 사용합니다. Short-window MongoDB 점수는 특히 일시 중단된
+- 일반 'runIfLeader' 행은 60초 리스와 빠른 작업을 사용하여 정상적인 실행과 'autoExtend' 활성화 오버헤드를 측정합니다.
+- 'runIfLeaderWithRenewalWindow' 행은 90ms 리스 및 45ms 작업 유지를 사용하므로 자동 확장 경로에 갱신 기간이 있습니다.
+- 체류 시간이 지배적이므로 동일한 방법 내에서만 이러한 행을 비교하세요.
+- MongoDB 행은 리포지토리 Testcontainers 실행 프로그램을 사용합니다. Short-window MongoDB 점수는 특히 suspend
 - 빠른 행의 경우 광범위한 오류 범위를 가지므로 자체적으로 프로덕션 튜닝 문제를 정당화하지 않습니다.
 - 생성된 Gradle 벤치마크 작업은 전체 벤치마크 매트릭스를 실행합니다. 이 실행에서는 Gradle을 사용하여 공식 JMH jar를 빌드한 다음 JMH
 - 포함 패턴을 사용하여 원시 출력을 새로운 #427 행에 집중하도록 유지했습니다.
-- 그룹 선택 자동 확장이 아직 지원되지 않기 때문에 `@LeaderGroupElection`은 벤치마킹되지 않습니다. 단일 리더 `autoExtend`를
+- 그룹 선출 자동 확장이 아직 지원되지 않기 때문에 `@LeaderGroupElection`은 벤치마킹되지 않습니다. 단일 리더 `autoExtend`를
 - 지원하는 것으로 README에 문서화되지 않은 백엔드는 이 문제의 벤치마크 범위를 벗어납니다.
 
 ## 환경
@@ -85,7 +85,7 @@ java -jar benchmark/build/benchmarks/benchmark/jars/benchmark-benchmark-jmh-0.4.
 ## 결정
 
 생산 최적화 후속 조치가 열리지 않았습니다. 새로운 행은 README 지원 로컬 및 MongoDB 단일 리더 'autoExtend'에 대한 벤치마크 적용 범위
-격차를 줄이는 반면, 새로운 MongoDB 증거는 좁은 조정 문제에 비해 너무 복잡합니다. Redis는 #422의 적용을 받으며, 지원되지 않는 그룹 선택
+격차를 줄이는 반면, 새로운 MongoDB 증거는 좁은 조정 문제에 비해 너무 복잡합니다. Redis는 #422의 적용을 받으며, 지원되지 않는 그룹 선출
 또는 문서화되지 않은 백엔드 조합은 벤치마크 행을 추가하기 전에 별도의 API/지원 작업으로 추적해야 합니다.
 
 ## 확인

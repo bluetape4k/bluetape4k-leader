@@ -2,11 +2,11 @@
 
 ## 맥락
 
-Issue #512에서는 Redisson 비동기 `LeaderSlot` API가 기본 브리지 경로를 상속한 것으로 나타났습니다. 차단 및 일시 중단 API는 `slot.leaderId`를 유지하지만 비동기 단일/그룹 결과 API는 `LeaderRunResult.Elected(..., leaderId = null)`를 반환하고 브리지 경고를 내보낼 수 있습니다.
+Issue #512에서는 Redisson 비동기 `LeaderSlot` API가 기본 브리지 경로를 상속한 것으로 나타났습니다. 블로킹 및 suspend API는 `slot.leaderId`를 유지하지만 비동기 단일/그룹 결과 API는 `LeaderRunResult.Elected(..., leaderId = null)`를 반환하고 브리지 경고를 내보낼 수 있습니다.
 
 ## 결정
 
-두 슬롯 변형을 재정의하여 Redisson 단일/그룹 선택기에서 Lettuce 비동기 슬롯 ID 수정 사항을 미러링합니다.
+두 슬롯 변형을 재정의하여 Redisson 단일/그룹 선출기에서 Lettuce 비동기 슬롯 ID 수정 사항을 미러링합니다.
 
 - `runAsyncIfLeader(slot, ...)`
 - `runAsyncIfLeaderResult(slot, ...)`
@@ -15,13 +15,13 @@ Issue #512에서는 Redisson 비동기 `LeaderSlot` API가 기본 브리지 경�
 
 ## 결과
 
-failure한 비동기 계약 테스트는 먼저 문제를 재현한 다음 Redisson 구현 변경 후 통과했습니다.
+실패한 비동기 계약 테스트는 먼저 문제를 재현한 다음 Redisson 구현 변경 후 통과했습니다.
 
 검증 증거:
 
 - `./gradlew :bluetape4k-leader-redis-redisson:test --tests '*RedissonAsyncLeader*LeaderIdContractTest' --no-parallel`
 - `./gradlew :bluetape4k-leader-redis-redisson:test --no-parallel`
-- 테스트 XML 요약: 198개 테스트, 0개 failure, 0개 오류, 0개 건너뛰기.
+- 테스트 XML 요약: 198개 테스트, 0개 실패, 0개 오류, 0개 건너뛰기.
 
 ## 퓨쳐 가드
 

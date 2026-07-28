@@ -6,7 +6,7 @@ Issue #522에는 백엔드 잠금 I/O에서 `@LeaderElection` Spring AOP 조언 
 
 ## 결정
 
-로컬 차단 및 일시 중단 선택기를 사용하고 작은 벤치마크 전용 `ProceedingJoinPoint` 고정 장치를 사용하여 `LeaderElectionAspect`를 직접 호출합니다. 이를 통해 벤치마크는 주석 메타데이터, SpEL, AspectJ 디스패치, 코루틴 연속 연결, Bean 선택 및 레코더 반복에 중점을 둡니다.
+로컬 블로킹 및 suspend 선출기를 사용하고 작은 벤치마크 전용 `ProceedingJoinPoint` 고정 장치를 사용하여 `LeaderElectionAspect`를 직접 호출합니다. 이를 통해 벤치마크는 주석 메타데이터, SpEL, AspectJ 디스패치, 코루틴 연속 연결, Bean 선택 및 레코더 반복에 중점을 둡니다.
 
 ## 결과
 

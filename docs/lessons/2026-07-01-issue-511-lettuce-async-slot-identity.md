@@ -2,11 +2,11 @@
 
 ## 맥락
 
-Issue #511에서는 Lettuce 비동기 `LeaderSlot` API가 기본 브리지 경로를 상속한 것으로 나타났습니다. 차단 및 일시 중단 API는 `slot.leaderId`를 유지하지만 비동기 단일/그룹 결과 API는 `LeaderRunResult.Elected(..., leaderId = null)`를 반환하고 브리지 경고를 내보낼 수 있습니다.
+Issue #511에서는 Lettuce 비동기 `LeaderSlot` API가 기본 브리지 경로를 상속한 것으로 나타났습니다. 블로킹 및 suspend API는 `slot.leaderId`를 유지하지만 비동기 단일/그룹 결과 API는 `LeaderRunResult.Elected(..., leaderId = null)`를 반환하고 브리지 경고를 내보낼 수 있습니다.
 
 ## 결정
 
-`leader-core` 테스트 고정 장치에 비동기 슬롯 ID 계약 고정 장치를 추가하고 Lettuce 단일/그룹 비동기 선택기가 두 슬롯 변형을 재정의하도록 합니다.
+`leader-core` 테스트 고정 장치에 비동기 슬롯 ID 계약 고정 장치를 추가하고 Lettuce 단일/그룹 비동기 선출기가 두 슬롯 변형을 재정의하도록 합니다.
 
 - `runAsyncIfLeader(slot, ...)`
 - `runAsyncIfLeaderResult(slot, ...)`
@@ -15,13 +15,13 @@ Issue #511에서는 Lettuce 비동기 `LeaderSlot` API가 기본 브리지 경�
 
 ## 결과
 
-failure한 비동기 계약 테스트는 먼저 문제를 재현한 다음 Lettuce 구현 변경 후 통과했습니다.
+실패한 비동기 계약 테스트는 먼저 문제를 재현한 다음 Lettuce 구현 변경 후 통과했습니다.
 
 검증 증거:
 
 - `./gradlew :bluetape4k-leader-redis-lettuce:test --tests '*LettuceAsyncLeader*LeaderIdContractTest' --no-parallel`
 - `./gradlew :bluetape4k-leader-redis-lettuce:test --no-parallel`
-- 테스트 XML 요약: 테스트 221개, failure 0개, 오류 0개, 건너뛰기 0개.
+- 테스트 XML 요약: 테스트 221개, 실패 0개, 오류 0개, 건너뛰기 0개.
 
 ## 퓨쳐 가드
 

@@ -16,7 +16,7 @@
 
 P0/P1/P2/P3: 0.
 
-Redisson 비동기 단일 잠금 및 그룹 경로는 이제 호출자에게 표시되는 `CompletableFuture`를 완료하기 전에 백엔드 릴리스/업데이트 미래로 작업 완료를 구성합니다. 릴리스/업데이트가 완료된 후 작업 예외가 보존되는 반면, 릴리스/업데이트 failure는 결정적으로 기록되며 원래 작업 결과를 숨기지 않습니다.
+Redisson 비동기 단일 잠금 및 그룹 경로는 이제 호출자에게 표시되는 `CompletableFuture`를 완료하기 전에 백엔드 릴리스/업데이트 미래로 작업 완료를 구성합니다. 릴리스/업데이트가 완료된 후 작업 예외가 보존되는 반면, 릴리스/업데이트 실패는 결정적으로 기록되며 원래 작업 결과를 숨기지 않습니다.
 
 ## 증거
 
@@ -24,7 +24,7 @@ Redisson 비동기 단일 잠금 및 그룹 경로는 이제 호출자에게 표
 - `RedissonLeaderGroupElector.kt`: `actionFuture.handle(...).thenCompose { releaseAndPropagate(...) }`는 외부 완료 전에 감사 정리와 허가 릴리스/업데이트를 기다립니다.
 - `RedissonLeaderElectionTest`: 향후 첫 번째 완료 후 `MultithreadingTester` 즉시 재시도 및 동기화 던지기 복구가 단일 잠금 경로를 포함합니다.
 - `RedissonLeaderGroupElectionTest`: 첫 번째 향후 완료 후 `MultithreadingTester` 즉시 재시도 및 동기화 던지기 복구가 그룹 허용 경로를 포함합니다.
-- 기존의 failure한 미래 테스트는 미래 생성 이후의 작업 failure를 다룹니다.
+- 기존의 실패한 미래 테스트는 미래 생성 이후의 작업 실패를 다룹니다.
 - 릴리스/업데이트 후 비동기가 미래 완료를 반환한 `leader-redis-redisson/README.md` 및 `README.ko.md` 문서입니다.
 
 ## 검증

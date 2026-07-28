@@ -21,9 +21,9 @@
 ## 검증
 
 - `./gradlew properties --no-daemon | rg '^version:|^group:'`는 `group: io.github.bluetape4k.leader` 및 `version: 0.2.0`를 보고했습니다.
-- 로컬 K3s Testcontainers 엔드포인트가 이미 임대 정리 중에 연결을 거부했기 때문에 `./gradlew build --no-daemon`는 `:bluetape4k-leader-k8s:k8sTest`가 failure할 때까지 다운스트림 모듈을 컴파일하고 실행했습니다.
-- `./gradlew :bluetape4k-leader-k8s:k8sTest --no-daemon`를 재시도하면 K3s 테스트 본문에 도달했지만 다른 12개의 K3s 테스트는 통과했지만 하나의 감시 장치 재획득 어설션은 failure했습니다.
-- `./gradlew build -x :bluetape4k-leader-k8s:k8sTest --no-daemon`가 success적으로 완료되어 릴리스 준비 표면의 나머지 부분을 덮었습니다.
+- 로컬 K3s Testcontainers 엔드포인트가 이미 리스 정리 중에 연결을 거부했기 때문에 `./gradlew build --no-daemon`는 `:bluetape4k-leader-k8s:k8sTest`가 실패할 때까지 다운스트림 모듈을 컴파일하고 실행했습니다.
+- `./gradlew :bluetape4k-leader-k8s:k8sTest --no-daemon`를 재시도하면 K3s 테스트 본문에 도달했지만 다른 12개의 K3s 테스트는 통과했지만 하나의 감시 장치 재획득 어설션은 실패했습니다.
+- `./gradlew build -x :bluetape4k-leader-k8s:k8sTest --no-daemon`가 성공적으로 완료되어 릴리스 준비 표면의 나머지 부분을 덮었습니다.
 
 ## 향후 지침
 
