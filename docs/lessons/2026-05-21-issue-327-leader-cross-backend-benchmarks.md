@@ -10,7 +10,7 @@
 
 ## 결과
 
-`./gradlew :benchmark:benchmarkBenchmark :benchmark:benchmarkAverageTimeBenchmark --no-configuration-cache --rerun-tasks`는 설정 연기 검사가 추가된 후 포크 1을 사용하여 5분 18초 만에 success적으로 완료되었습니다. 결과는 `docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md`에 기록됩니다.
+`./gradlew :benchmark:benchmarkBenchmark :benchmark:benchmarkAverageTimeBenchmark --no-configuration-cache --rerun-tasks`는 설정 연기 검사가 추가된 후 포크 1을 사용하여 5분 18초 만에 성공적으로 완료되었습니다. 결과는 `docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md`에 기록됩니다.
 
 ## 검증
 
@@ -23,6 +23,6 @@
 
 - bluetape4k 벤치마크 작업의 경우 직접 JMH Gradle 플러그인을 추가하는 대신 설정된 `kotlinx-benchmark` 소스 세트 패턴에서 시작하세요.
 - 처리량을 기본 순위 지표로 유지하고 평균 시간을 보조 대기 시간 증거로 유지합니다.
-- 인프라가 연결되지 않은 경우 조기에 설정을 failure하고 설정 스모크 체크를 유지하여 벤치마크가 건너뛴 리더 경로를 자동으로 측정하지 않도록 합니다.
+- 인프라가 연결되지 않은 경우 조기에 설정을 실패하고 설정 스모크 체크를 유지하여 벤치마크가 건너뛴 리더 경로를 자동으로 측정하지 않도록 합니다.
 - H2 행을 분산 백엔드 클레임으로 비교하지 마세요. 로컬 SQL 계층 오버헤드를 측정합니다.
 - 최적화 결정을 위해 MongoDB 행을 사용하기 전에 MongoDB 측정을 반복하거나 프로필을 늘립니다.

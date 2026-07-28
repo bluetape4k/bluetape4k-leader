@@ -22,7 +22,7 @@
 
 이는 `MultithreadingTester.workers(N).rounds(M)` = N×M 총 호출과 다릅니다.
 
-일시 중단 테스트에 대한 어설션: `rounds * extendsPerRound`(`workers * rounds * extendsPerRound` 아님).
+suspend 테스트에 대한 어설션: `rounds * extendsPerRound`(`workers * rounds * extendsPerRound` 아님).
 
 ## 추가된 테스트
 

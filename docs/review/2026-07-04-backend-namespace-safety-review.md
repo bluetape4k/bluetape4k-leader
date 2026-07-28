@@ -18,7 +18,7 @@
 
 - Mongo 기록 수집 네임스페이스 및 TTL은 구성 생성 시 유효성이 검사됩니다.
 - DynamoDB 테이블 이름과 키 접두사는 키 구성 또는 클라이언트 호출 전에 검증됩니다.
-- Redis 및 Hazelcast 단일 선택 잠금 이름은 이제 백엔드 호출 전에 핵심 `validateLockName` 계약을 공유합니다.
+- Redis 및 Hazelcast 단일 선출 잠금 이름은 이제 백엔드 호출 전에 핵심 `validateLockName` 계약을 공유합니다.
 
 ### 계층 2 - 보안
 
@@ -33,7 +33,7 @@
 ### 계층 4 - API
 
 - 기존 공개 API는 유지됩니다.
-- 잘못된 네임스페이스 값은 이제 `IllegalArgumentException`에서 조기에 failure합니다.
+- 잘못된 네임스페이스 값은 이제 `IllegalArgumentException`에서 조기에 실패합니다.
 
 ### 계층 5 - 관찰 가능성
 

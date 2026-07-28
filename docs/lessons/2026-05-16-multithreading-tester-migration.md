@@ -56,13 +56,13 @@ coroutineScope {
 
 ## CountDownLatch가 유지되는 이유
 
-`LocalLeaderGroupElector.runIfLeader`는 일시 중단 람다가 아닌 `() -> T` 차단 람다를 사용합니다. `CountDownLatch.await()`는 차단 작업 내에서 잠금을 유지하는 올바른 메커니즘입니다. 이는 `LocalLeaderGroupElectionTest.kt`의 기존 패턴과 일치합니다.
+`LocalLeaderGroupElector.runIfLeader`는 일시 중단 람다가 아닌 `() -> T` 블로킹 람다를 사용합니다. `CountDownLatch.await()`는 차단 작업 내에서 잠금을 유지하는 올바른 메커니즘입니다. 이는 `LocalLeaderGroupElectionTest.kt`의 기존 패턴과 일치합니다.
 
 주요 개선 사항은 `Executors.newFixedThreadPool`(비구조화, 누출 가능성 있음)를 구조화된 `coroutineScope { async(Dispatchers.IO) { } }`로 교체하는 것입니다.
 
 ## 향후 지침
 
 - `MultithreadingTester` / `SuspendedJobTester`: 스트레스/실행 및 전체 동시성 테스트에 사용
-- `coroutineScope + async(Dispatchers.IO)` + `AtomicInteger` 폴링: 차단 선택기를 사용하여 "보류 중 검증" 정확성 테스트에 사용
+- `coroutineScope + async(Dispatchers.IO)` + `AtomicInteger` 폴링: 차단 선출기를 사용하여 "보류 중 검증" 정확성 테스트에 사용
 - 차단 작업 람다 내부의 `CountDownLatch.await()`는 허용되며 예상됩니다.
 - 테스트 중 `Executors.newFixedThreadPool`: 항상 코루틴(구조적) 또는 `MultithreadingTester`로 교체

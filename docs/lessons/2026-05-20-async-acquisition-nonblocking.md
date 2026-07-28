@@ -2,7 +2,7 @@
 
 ## 맥락
 
-Issue #320은 단조로운 기한 수정 후 `CompletableFuture` 리더 획득을 강화했습니다. 일부 비동기 선택기는 미래를 반환했지만 여전히 호출자 실행기에서 차단 `tryLock(waitTime, leaseTime)` 루프를 래핑하므로 재시도 대기가 경합 하에서 제공된 실행기를 차지할 수 있습니다.
+Issue #320은 단조로운 기한 수정 후 `CompletableFuture` 리더 획득을 강화했습니다. 일부 비동기 선출기는 미래를 반환했지만 여전히 호출자 실행기에서 차단 `tryLock(waitTime, leaseTime)` 루프를 래핑하므로 재시도 대기가 경합 하에서 제공된 실행기를 차지할 수 있습니다.
 
 ## 결정
 
@@ -14,7 +14,7 @@ Issue #320은 단조로운 기한 수정 후 `CompletableFuture` 리더 획득�
 
 ## 결과
 
-`MongoLeaderElector`, `MongoLeaderGroupElector` 및 `LettuceLeaderElector` 비동기 경로는 더 이상 호출자 실행기에서 차단 대기 루프 `tryLock` 호출을 래핑하지 않습니다. 새로운 경합 테스트는 단일 스레드 호출 실행기를 사용하고 획득이 시간 초과를 기다리는 동안 마커 작업이 실행될 수 있음을 증명합니다.
+`MongoLeaderElector`, `MongoLeaderGroupElector` 및 `LettuceLeaderElector` 비동기 경로는 더 이상 호출자 실행기에서 블로킹 대기 루프 `tryLock` 호출을 래핑하지 않습니다. 새로운 경합 테스트는 단일 스레드 호출 실행기를 사용하고 획득이 시간 초과를 기다리는 동안 마커 작업이 실행될 수 있음을 증명합니다.
 
 ## 검증
 

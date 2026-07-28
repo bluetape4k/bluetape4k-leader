@@ -6,13 +6,13 @@ Issue #308에서는 Mongo 잠금 `tryLock` 획득 루프가 벽시계 시간을 
 
 ## 결정
 
-`tryLock` 재시도 예산을 차단하고 일시 중단하려면 작은 Mongo-local `MonotonicDeadline` 도우미를 사용하세요. `expireAt`는 MongoDB에 의해 클라이언트 간에 지속되고 비교되므로 MongoDB 임대 만료를 벽시계 `Date` 값으로 유지합니다.
+`tryLock` 재시도 예산을 차단하고 일시 중단하려면 작은 Mongo-local `MonotonicDeadline` 도우미를 사용하세요. `expireAt`는 MongoDB에 의해 클라이언트 간에 지속되고 비교되므로 MongoDB 리스 만료를 벽시계 `Date` 값으로 유지합니다.
 
 무작위 재시도 지연을 나머지 단순 예산으로 고정하고 도우미 경계에서 양수가 아닌 최대 지연 값을 거부합니다.
 
 ## 결과
 
-`MongoLock.tryLock` 및 `MongoSuspendLock.tryLock`는 이제 기존 임대 지속성 의미를 유지하면서 로컬 획득 시간 초과 계산에 `System.nanoTime()`를 사용합니다.
+`MongoLock.tryLock` 및 `MongoSuspendLock.tryLock`는 이제 기존 리스 지속성 의미를 유지하면서 로컬 획득 시간 초과 계산에 `System.nanoTime()`를 사용합니다.
 
 ## 검증
 
@@ -23,4 +23,4 @@ Issue #308에서는 Mongo 잠금 `tryLock` 획득 루프가 벽시계 시간을 
 
 ## 향후 지침
 
-로컬 클라이언트 대기 예산에 대해서만 단조로운 JVM 시간을 사용하십시오. 스토리지 계약이 변경되지 않는 한 지속적인 MongoDB 임대 타임스탬프를 벽시계 기반으로 유지합니다.
+로컬 클라이언트 대기 예산에 대해서만 단조로운 JVM 시간을 사용하세요. 스토리지 계약이 변경되지 않는 한 지속적인 MongoDB 리스 타임스탬프를 벽시계 기반으로 유지합니다.

@@ -25,11 +25,11 @@
   - `PrometheusAssetsTest`: 4개 테스트를 통과했습니다.
   - `PrometheusScrapeTest`: 1개의 테스트가 통과되었습니다.
 - `./gradlew :examples:prometheus-dashboard:processAot :examples:prometheus-dashboard:processTestAot :examples:prometheus-dashboard:test --no-configuration-cache --console=plain`
-  - 빌드에 success했습니다.
+  - 빌드에 성공했습니다.
 - `docker run --rm --entrypoint promtool -v "$PWD/examples/prometheus-dashboard/provisioning/prometheus:/etc/prometheus:ro" prom/prometheus:v2.55.1 check rules /etc/prometheus/rules/leader-alerts.yml`
-  - success: 8개의 규칙이 발견되었습니다.
+  - 성공: 8개의 규칙이 발견되었습니다.
 - `docker run --rm --entrypoint promtool -v "$PWD/examples/prometheus-dashboard/provisioning/prometheus:/etc/prometheus:ro" prom/prometheus:v2.55.1 check config /etc/prometheus/prometheus.yml`
-  - success: 규칙 파일 1개를 찾았습니다. 구성 구문이 유효합니다.
+  - 성공: 규칙 파일 1개를 찾았습니다. 구성 구문이 유효합니다.
 - `jq empty examples/prometheus-dashboard/provisioning/grafana/dashboards/leader-dashboard.json`
   - JSON이 구문 분석되었습니다.
 - 다이어그램 QA:
@@ -45,4 +45,4 @@
 ## 잔여 지폐
 
 - `leader_history_*` 미터는 `NoopLeaderHistorySink`를 통해 데모에서 볼 수 있지만 의도적으로 획득 키를 반환하지 않기 때문에 경고 규칙은 해당 싱크를 제외합니다.
-- `LeaderLeaseRiskHighExecutionTime`는 직접적인 임대 연장 failure 감지기가 아닌 완료된 실행 기간을 기반으로 하는 증상 규칙으로 남아 있습니다.
+- `LeaderLeaseRiskHighExecutionTime`는 직접적인 리스 연장 실패 감지기가 아닌 완료된 실행 기간을 기반으로 하는 증상 규칙으로 남아 있습니다.

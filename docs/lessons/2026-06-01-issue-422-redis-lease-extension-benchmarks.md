@@ -1,8 +1,8 @@
-# 이슈 #422 Redis 임대 연장 벤치마크
+# 이슈 #422 Redis 리스 연장 벤치마크
 
 ## 맥락
 
-Milestone 0.3.0에는 Lettuce 및 Redisson 임대 연장 동작을 위해 집중된 Redis 벤치마크 행이 필요했습니다. 이 문제에서는 Redisson 감시 동작을 언급했지만 현재 Redisson 선택기는 항상 명시적인 `leaseTime`를 전달합니다.
+Milestone 0.3.0에는 Lettuce 및 Redisson 리스 연장 동작을 위해 집중된 Redis 벤치마크 행이 필요했습니다. 이 문제에서는 Redisson 감시 동작을 언급했지만 현재 Redisson 선출기는 항상 명시적인 `leaseTime`를 전달합니다.
 
 ## 결정
 
@@ -10,7 +10,7 @@ Milestone 0.3.0에는 Lettuce 및 Redisson 임대 연장 동작을 위해 집중
 
 ## 결과
 
-Redis 임대 연장 벤치마크 클래스 차단 및 일시 중단을 추가하고 원시 처리량 및 평균 시간 JSON 아티팩트를 저장했으며 벤치마크 README/보고서에 Redisson 감시 주의 사항을 문서화했습니다.
+Redis 리스 연장 벤치마크 클래스 블로킹 및 일시 중단을 추가하고 원시 처리량 및 평균 시간 JSON 아티팩트를 저장했으며 벤치마크 README/보고서에 Redisson 감시 주의 사항을 문서화했습니다.
 
 ## 검증
 

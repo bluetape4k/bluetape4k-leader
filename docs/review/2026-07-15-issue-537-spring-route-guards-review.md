@@ -9,7 +9,7 @@
   - `docs/superpowers/plans/2026-07-15-issue-537-spring-route-guards-plan.md`
 - 기본 모듈: `leader-spring-boot`
 - 계약 변경 지원: 핵심 감사 상태 기능과 로컬, Consul, DynamoDB, Kubernetes Lease, 수신기, 테넌트 범위 및 Micrometer 지원
-- 명시적 제외: #606의 리디렉션/ID 메타데이터 및 #607의 요청 경로 임대 획득
+- 명시적 제외: #606의 리디렉션/ID 메타데이터 및 #607의 요청 경로 리스 획득
 
 최종 구현에서는 `STATE`와 `CUSTOM`를 별도의 권한 모델로 유지합니다. 혼합, 누락, 모호함 및 감사 상태 지원되지 않는 선택은 안정적인 코드로 시작되지 않습니다. 경로 평가는 수동적이고 장애 시 폐쇄되며 본문이 비어 있고 ID가 없으며 기본적으로 비활성화되어 있습니다.
 
@@ -22,7 +22,7 @@
 | P1, repaired | state capability decorators | correctness/stability | A listener wrapper could advertise audit-state capability while interface bridge defaults discarded `LeaderSlot.leaderId`. | Slot-aware sync, async, suspend, and result overloads now delegate the full slot. Local async and decorated regression tests read the exact audit identity back from state. |
 | P1, repaired | MVC/WebFlux adapters | cancellation | Normalizing every throwable would convert cancellation/interruption into a rejection. | Cancellation is rethrown, interruption restores the thread flag, and only ordinary failures become `Unavailable`; pre-evaluation, during-evaluation, and post-subscription tests pass. |
 
-새로운 재시도 루프, 공유 캐시, 무제한 버퍼, 임대 변형, 감시 또는 요청 소유 리소스가 추가되지 않았습니다. 최종 성능/안정성 결과: P0=0, P1=0.
+새로운 재시도 루프, 공유 캐시, 무제한 버퍼, 리스 변형, 감시 또는 요청 소유 리소스가 추가되지 않았습니다. 최종 성능/안정성 결과: P0=0, P1=0.
 
 ## 사양 및 계획 검증
 
@@ -97,6 +97,6 @@
 
 하나의 이전 Core 실행과 하나의 이전 Spring 실행이 모든 테스트 사례를 완료했지만 Gradle는 `in-progress-results-generic.bin`를 잃었습니다. 두 실행 모두 검증 증거로 인정되지 않았습니다. 종료 코드 0이 관찰된 격리된 재실행은 위에 나열된 결과입니다.
 
-`Unexpected classifier: "#"` 및 기존의 해결되지 않은 KDoc 경고로 인해 리포지토리 기준이 failure하기 때문에 `dokkaGenerateHtml`는 계속 사용할 수 없습니다. 깨끗한 `develop`에서도 동일한 오류가 재현되었습니다. 컴파일, 테스트, AOT 및 모듈 빌드는 이 변경 사항에 대해 허용되는 API 문서 검증입니다.
+`Unexpected classifier: "#"` 및 기존의 해결되지 않은 KDoc 경고로 인해 리포지토리 기준이 실패하기 때문에 `dokkaGenerateHtml`는 계속 사용할 수 없습니다. 깨끗한 `develop`에서도 동일한 오류가 재현되었습니다. 컴파일, 테스트, AOT 및 모듈 빌드는 이 변경 사항에 대해 허용되는 API 문서 검증입니다.
 
 최종 검토 결과: `PASS`; P0=0, P1=0, P2=0.
