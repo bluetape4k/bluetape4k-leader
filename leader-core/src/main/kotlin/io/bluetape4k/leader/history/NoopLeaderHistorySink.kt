@@ -3,10 +3,9 @@ package io.bluetape4k.leader.history
 import java.time.Instant
 
 /**
- * No-op [LeaderHistorySink] that discards all events.
+ * `NoopLeaderHistorySink`는 leader election audit/history 저장 계약을 표현합니다.
  *
- * Use this when audit persistence is intentionally disabled.  It can be injected
- * explicitly or used as the default sink when no other bean is configured.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 object NoopLeaderHistorySink : LeaderHistorySink {
     override fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? = null
@@ -21,9 +20,9 @@ object NoopLeaderHistorySink : LeaderHistorySink {
 }
 
 /**
- * No-op [SuspendLeaderHistorySink] that discards all events.
+ * `NoopSuspendLeaderHistorySink`는 leader election audit/history 저장 계약을 표현합니다.
  *
- * Use this when audit persistence is intentionally disabled for coroutine-based electors.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 object NoopSuspendLeaderHistorySink : SuspendLeaderHistorySink {
     override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? = null

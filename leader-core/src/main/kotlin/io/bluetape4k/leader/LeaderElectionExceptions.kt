@@ -1,15 +1,9 @@
 package io.bluetape4k.leader
 
 /**
- * Base exception for leader election failures.
+ * `LeaderElectionException` 선언은 leader election 계약에서 사용되는 class입니다.
  *
- * ## Behavior / Contract
- * Thrown when a leader election operation fails due to backend errors,
- * lock acquisition timeouts, or other irrecoverable conditions.
- *
- * ```kotlin
- * throw LeaderElectionException("Failed to acquire lock: $lockName")
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 open class LeaderElectionException: RuntimeException {
     constructor(): super()
@@ -19,15 +13,9 @@ open class LeaderElectionException: RuntimeException {
 }
 
 /**
- * Exception for leader group election failures.
+ * `LeaderGroupElectionException` 선언은 leader election 계약에서 사용되는 class입니다.
  *
- * ## Behavior / Contract
- * Thrown when a leader group election operation fails — e.g., all slots in a group lock
- * are occupied or a group member cannot acquire a permit.
- *
- * ```kotlin
- * throw LeaderGroupElectionException("No available slot in group: $groupName")
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 open class LeaderGroupElectionException: LeaderElectionException {
     constructor(): super()

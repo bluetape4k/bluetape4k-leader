@@ -7,25 +7,10 @@ import kotlinx.coroutines.CancellationException
 import java.time.Instant
 
 /**
- * Fault-isolating wrapper around a [SuspendLeaderHistorySink] for coroutine-based electors.
+ * `SuspendSafeLeaderHistoryRecorder`는 leader election audit/history 저장 계약을 표현합니다.
  *
- * ## Behavior / Contract
- * - All sink calls are wrapped in a try/catch ladder that:
- *   1. Rethrows [CancellationException] (structured concurrency safety).
- *   2. Rethrows [InterruptedException] after restoring the thread interrupt flag
- *      (best-effort — sink implementations should use `runInterruptible {}` for blocking I/O).
- *   3. Catches all other [Exception] subtypes, logs a warning, and swallows.
- * - `CancellationException` from [recordFailed] is logged as a warning but **not**
- *   re-propagated (the CE has already been handled by the elector; recording it is best-effort).
- * - [recordAcquired] applies [sanitize] before forwarding to the sink.
- *
- * ## Audit isolation
- * Any [Exception] thrown by the sink is absorbed.  `Error` subtypes propagate freely.
- *
- * ## Security note on errorMessage
- * `sanitizeForLog()` is a log-injection defence, **not** a credential scrubber.
- * JDBC/driver exception messages may contain passwords or connection URLs.  Callers
- * are responsible for redacting credentials before passing an exception to [recordFailed].
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property sink `sink` 호출 또는 상태 계산에 필요한 값입니다.
  */
 open class SuspendSafeLeaderHistoryRecorder(protected val sink: SuspendLeaderHistorySink) {
 
@@ -70,7 +55,7 @@ open class SuspendSafeLeaderHistoryRecorder(protected val sink: SuspendLeaderHis
         } catch (e: CancellationException) {
             throw e
         } catch (e: InterruptedException) {
-            // best-effort: sink implementations should use runInterruptible {} for blocking IO
+            // best-effort: blocking IO를 수행하는 sink 구현은 runInterruptible {}을 사용해야 합니다.
             Thread.currentThread().interrupt()
             throw e
         } catch (e: Exception) {

@@ -7,24 +7,9 @@ import java.sql.SQLRecoverableException
 import java.sql.SQLTransientException
 
 /**
- * JDK / common exception classifier — no backend module dependencies.
+ * `CoreBackendErrorClassifier` 선언은 leader election 계약에서 사용되는 object입니다.
  *
- * ## Behavior / Contract
- * Each backend module's [CompositeBackendErrorClassifier] delegates to this core classifier
- * when its backend-specific classifier returns `null`.
- *
- * - [OutOfMemoryError], [StackOverflowError], [LinkageError] → [BackendErrorKind.FATAL]
- * - [SQLTransientException], [SQLRecoverableException] → [BackendErrorKind.TRANSIENT]
- * - [SQLNonTransientException] → [BackendErrorKind.NON_TRANSIENT]
- * - [SocketTimeoutException], [ConnectException] → [BackendErrorKind.TRANSIENT]
- * - Other → `null` (unclassifiable)
- *
- * ## Example
- * ```kotlin
- * CoreBackendErrorClassifier.classify(OutOfMemoryError())        // FATAL
- * CoreBackendErrorClassifier.classify(SQLTransientException("")) // TRANSIENT
- * CoreBackendErrorClassifier.classify(RuntimeException("x"))    // null
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 internal object CoreBackendErrorClassifier : BackendErrorClassifier {
 

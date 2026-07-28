@@ -7,19 +7,10 @@ import io.bluetape4k.leader.strategy.Elimination
 import kotlin.random.Random
 
 /**
- * An [ElectionStrategy] that elects a candidate at random.
+ * `RandomElectionStrategy`는 전략 기반 leader 선출에서 후보 평가 규칙을 제공합니다.
  *
- * ## Behavior / Contract
- * - When [seed] is provided, results are deterministic for the same candidate list.
- * - Candidates are sorted by [CandidateInfo.nodeId] before random selection to remove
- *   input-order dependency.
- *
- * **Distributed-environment warning**: a `null` [seed] means each node may compute a different
- * winner (split-brain risk). In distributed deployments, all nodes must share the same [seed].
- * Generate the seed from a shared backend (e.g., Redis) on a per-epoch basis.
- * Use `seed=null` only for single-process tests or when outcome distribution is not critical.
- *
- * @property seed random seed. `null` uses system random (non-deterministic — not recommended in distributed environments).
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property seed random 선출을 재현 가능하게 만드는 optional seed입니다.
  */
 class RandomElectionStrategy(val seed: Long? = null) : ElectionStrategy {
 

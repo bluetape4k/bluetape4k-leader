@@ -1,24 +1,14 @@
 package io.bluetape4k.leader.metrics
 
 /**
- * Metric name constants for the leader AOP layer.
+ * `LeaderMetricNames` 선언은 leader election 계약에서 사용되는 object입니다.
  *
- * ## Contract
- * All constants are stable public API — do not rename without a deprecation cycle.
- *
- * ## Usage
- * ```kotlin
- * registry.counter(LeaderMetricNames.METRIC_LEADER_ID_RESOLUTION_FAILED)
- *     .increment()
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 object LeaderMetricNames {
 
     /**
-     * Counter incremented when the leader ID resolution chain exhausts all fallback levels
-     * and throws [io.bluetape4k.leader.identity.LeaderIdResolutionException].
-     *
-     * Incremented from the PR7 aspect on every [LeaderIdResolutionException].
+     * `METRIC_LEADER_ID_RESOLUTION_FAILED` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
      */
     const val METRIC_LEADER_ID_RESOLUTION_FAILED: String = "leader.aop.leader_id.resolution_failed"
 }

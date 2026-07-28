@@ -4,65 +4,29 @@ import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import java.util.concurrent.CancellationException
 
 /**
- * Defines the contract for synchronous leader election execution.
+ * `LeaderElector`는 blocking leader election 실행자입니다.
  *
- * ## Behavior / Contract
- * - Only the call that successfully acquires leadership for the given [lockName] executes [action].
- * - Leader acquisition/release strategy and failure handling (exceptions/retries) follow the implementation policy.
- * - The thread and context at the time [action] runs may vary by implementation.
- *
- * ```kotlin
- * val leaderElection = DefaultLeaderElector()
- * val result = leaderElection.runIfLeader("daily-job") {
- *     "done"
- * }
- * // result == "done" (leader acquired path)
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 interface LeaderElector: AsyncLeaderElector {
 
     /**
-     * Executes the synchronous [action] only when elected as leader.
+     * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
      *
-     * ## Behavior / Contract
-     * - [action] is executed exactly once when leadership for [lockName] is successfully acquired.
-     * - Exceptions thrown from [action] are propagated to the caller.
-     * - [lockName] validation rules (e.g. blank allowed) follow the implementation policy.
-     * - Returns `null` if leadership is not acquired within [waitTime] (ShedLock skip-on-contention behavior).
-     *
-     * ```kotlin
-     * val value = leaderElection.runIfLeader("job-lock") { 42 }
-     * // value == 42 (leader acquired) or null (not acquired)
-     * ```
-     *
-     * @param lockName the lock name used for leader election
-     * @param action the synchronous action to run when elected
-     * @return the [action] result, or `null` if leadership was not acquired
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun <T> runIfLeader(lockName: String, action: () -> T): T?
 
     /**
-     * Returns the leader election result as a [LeaderRunResult].
+     * `runIfLeaderResult`는 leadership 획득, skip, action 실패를 명시적인 LeaderRunResult로 반환합니다.
      *
-     * Resolves the ambiguity of `runIfLeader` returning `null`:
-     * even if action() returns null, the result is [LeaderRunResult.Elected];
-     * a lock-not-acquired outcome is represented as [LeaderRunResult.Skipped].
-     *
-     * An equivalent result API is provided for coroutine/async/virtual-thread electors.
-     * `CancellationException` is propagated directly to the caller without wrapping in [LeaderRunResult.ActionFailed].
-     * `InterruptedException` restores the interrupt flag before rethrowing.
-     *
-     * ```kotlin
-     * when (val r = election.runIfLeaderResult("job-lock") { compute() }) {
-     *     is LeaderRunResult.Elected -> println("elected, value=${r.value}")
-     *     is LeaderRunResult.Skipped -> println("skipped — lock not acquired")
-     *     is LeaderRunResult.ActionFailed -> println("action failed: ${r.cause.message}")
-     * }
-     * ```
-     *
-     * @param lockName the lock name used for leader election
-     * @param action the synchronous action to run when elected
-     * @return [LeaderRunResult.Elected] (action ran), [LeaderRunResult.Skipped] (lock not acquired),
-     *   or [LeaderRunResult.ActionFailed] (action failed)
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun <T> runIfLeaderResult(lockName: String, action: () -> T): LeaderRunResult<T> {
         var elected = false
@@ -86,17 +50,12 @@ interface LeaderElector: AsyncLeaderElector {
     }
 
     /**
-     * Runs [action] if elected for [slot], stamping [slot.leaderId] as audit identity.
+     * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
      *
-     * ## Bridge Default
-     * Delegates to [runIfLeader] (lockName-based) and emits a throttled WARN via
-     * [LeaderElectorBridgeLog] on first use per `(implClass, slot)` pair.
-     * Backend implementations MUST override this method to stamp [slot.leaderId] into
-     * [LeaderLease.auditLeaderId] for audit traceability.
-     *
-     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
-     * @param action the action to run when elected.
-     * @return [action] result, or `null` when not elected.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun <T> runIfLeader(slot: LeaderSlot, action: () -> T): T? {
         LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
@@ -104,20 +63,12 @@ interface LeaderElector: AsyncLeaderElector {
     }
 
     /**
-     * Returns [LeaderRunResult] for this slot election.
+     * `runIfLeaderResult`는 leadership 획득, skip, action 실패를 명시적인 LeaderRunResult로 반환합니다.
      *
-     * ## Bridge Default
-     * Returns `Elected(value, leaderId = null)` — fabrication of [slot.leaderId] is intentionally
-     * blocked because the bridge cannot verify that the backend actually used this slot's identity.
-     *
-     * Backend implementations MUST override BOTH slot variants
-     * ([runIfLeader] and [runIfLeaderResult]) to carry [slot.leaderId] through to
-     * [LeaderRunResult.Elected.leaderId].
-     *
-     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
-     * @param action the action to run when elected.
-     * @return [LeaderRunResult.Elected] (action ran), [LeaderRunResult.Skipped] (not elected),
-     *   or [LeaderRunResult.ActionFailed] (action failed).
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
         LeaderElectorBridgeLog.global().warnOnResultBridgeUse(this::class, slot)

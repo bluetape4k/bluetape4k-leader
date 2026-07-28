@@ -6,75 +6,91 @@ import java.io.Serializable
 import java.time.Instant
 
 /**
- * Immutable audit record capturing one leader-lock lifecycle event.
+ * `LeaderLockHistoryRecord`는 leader lock lifecycle event를 저장하는 audit record입니다.
  *
- * ## Behavior / Contract
- * - Construction is only possible via the [companion operator invoke][LeaderLockHistoryRecord.Companion.invoke]
- *   factory; the primary constructor is private to enforce invariants.
- * - [metadata] is defensively copied on construction; further `copy()` calls are
- *   restricted by `@ConsistentCopyVisibility` — callers cannot invoke `copy()`
- *   from outside the package.
- * - [lockName] and [token] are validated non-blank by the factory.
- * - [errorMessage] is pre-truncated to [MAX_ERROR_MESSAGE_BYTES] UTF-8 bytes by
- *   [io.bluetape4k.leader.history.SafeLeaderHistoryRecorder]; raw records arriving
- *   at the sink may still be un-truncated — sinks should not assume truncation.
- * - [metadata] keys and values are limited to [MAX_METADATA_KEYS] entries and
- *   [MAX_METADATA_VALUE_LENGTH] characters respectively by the recorder layer.
- *
- * ## Security / Trust Boundary
- * The [token] field holds the live lock-release credential.  It is included in
- * the default `toString()` output — **do not log this object at INFO or above in
- * production**.  Access to the audit storage must be restricted to the same trust
- * boundary as the lock backend.  If a separate fingerprint column is needed, use
- * `Base64(SHA-256(token)).take(22)` as an opaque identifier instead.
- *
- * ## Example
- * ```kotlin
- * val record = LeaderLockHistoryRecord(
- *     lockName   = "daily-report",
- *     token      = lockHandle.token,
- *     kind       = LockIdentity.AnnotationKind.SINGLE,
- *     acquiredAt = Instant.now(),
- *     lockedUntil = Instant.now().plusSeconds(60),
- *     nodeId     = "node-1",
- * )
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+ * @property token backend lock을 해제하거나 검증할 때 사용하는 소유권 token입니다.
+ * @property kind single leader election인지 group leader election인지 나타내는 분류입니다.
+ * @property acquiredAt lock을 획득한 wall-clock 시각입니다.
+ * @property lockedUntil backend가 보고한 lease 만료 시각입니다.
+ * @property nodeId 상태 조회와 audit에 노출되는 노드 또는 인스턴스 식별자입니다.
+ * @property finishedAt 사용자 작업이 종료된 wall-clock 시각입니다. 실행 중이면 null입니다.
+ * @property durationMs 사용자 작업 실행 시간입니다. 실행 중이면 null입니다.
+ * @property status history record의 현재 또는 최종 상태입니다.
+ * @property errorType 작업 실패 시 예외의 fully-qualified class 이름입니다.
+ * @property errorMessage 작업 실패 시 정제되고 길이가 제한된 예외 메시지입니다.
+ * @property slotId group election backend가 slot을 식별할 때 쓰는 값입니다.
+ * @property metadata 호출자가 제공한 key-value audit context입니다. recorder 계층에서 크기와 길이가 제한됩니다.
  */
 @ConsistentCopyVisibility
 data class LeaderLockHistoryRecord private constructor(
-    /** Lock name as registered with the backend. */
+    /**
+     * `lockName` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val lockName: String,
-    /** Live lock-release credential — see Security / Trust Boundary note above. */
+    /**
+     * `token` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val token: String,
-    /** Whether this is a single-leader or group-leader election. */
+    /**
+     * `kind` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val kind: io.bluetape4k.leader.LockIdentity.AnnotationKind,
-    /** Wall-clock time when the lock was acquired. */
+    /**
+     * `acquiredAt` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val acquiredAt: Instant,
-    /** Lock TTL expiry instant as reported by the backend. */
+    /**
+     * `lockedUntil` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val lockedUntil: Instant,
-    /** Node/instance identifier (hostname, pod name, etc.). */
+    /**
+     * `nodeId` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val nodeId: String?,
-    /** Wall-clock time when the action finished (null while [LeaderHistoryStatus.ACQUIRED]). */
+    /**
+     * `finishedAt` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val finishedAt: Instant? = null,
-    /** Elapsed time of the action in milliseconds (null while [LeaderHistoryStatus.ACQUIRED]). */
+    /**
+     * `durationMs` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val durationMs: Long? = null,
-    /** Terminal status; null means still [LeaderHistoryStatus.ACQUIRED]. */
+    /**
+     * `status`는 leader election의 현재 상태를 표현합니다.
+     */
     val status: LeaderHistoryStatus? = null,
-    /** Fully-qualified class name of the thrown exception, if the action failed. */
+    /**
+     * `errorType` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val errorType: String? = null,
-    /** Sanitized and truncated exception message, if the action failed. */
+    /**
+     * `errorMessage` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val errorMessage: String? = null,
-    /** Slot identifier for group elections (Redisson permitId or Lettuce token). */
+    /**
+     * `slotId` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val slotId: String? = null,
-    /** Caller-supplied key-value context; keys and values are sanitized and limited in length. */
+    /**
+     * `metadata` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val metadata: Map<String, String> = emptyMap(),
 ) : Serializable {
 
-    /** Returns a copy of this record with sanitized [errorMessage] and [metadata]. Internal use only. */
+    /**
+     * `withSanitizedContent` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param errorMessage 작업 실패 시 정제되고 길이가 제한된 예외 메시지입니다.
+     * @param metadata 호출자가 제공한 key-value audit context입니다. recorder 계층에서 크기와 길이가 제한됩니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     internal fun withSanitizedContent(errorMessage: String?, metadata: Map<String, String>): LeaderLockHistoryRecord =
         copy(errorMessage = errorMessage, metadata = metadata)
 
-    // Redact token to prevent credential leakage via log statements that interpolate this record
+    // 이 record를 문자열 보간으로 로그에 남길 때 credential이 노출되지 않도록 token을 가립니다.
     override fun toString(): String =
         "LeaderLockHistoryRecord(lockName=$lockName, token=***, kind=$kind, acquiredAt=$acquiredAt, " +
         "lockedUntil=$lockedUntil, nodeId=$nodeId, status=$status, slotId=$slotId, " +
@@ -83,18 +99,39 @@ data class LeaderLockHistoryRecord private constructor(
     companion object : KLogging() {
         private const val serialVersionUID = 1L
 
-        /** Maximum UTF-8 byte length for [errorMessage] after truncation. */
+        /**
+         * `MAX_ERROR_MESSAGE_BYTES` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+         */
         const val MAX_ERROR_MESSAGE_BYTES = 512
 
-        /** Maximum number of entries retained from [metadata]. */
+        /**
+         * `MAX_METADATA_KEYS` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+         */
         const val MAX_METADATA_KEYS = 16
 
-        /** Maximum character length of a single metadata value. */
+        /**
+         * `MAX_METADATA_VALUE_LENGTH` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+         */
         const val MAX_METADATA_VALUE_LENGTH = 256
 
         /**
-         * Factory function. Validates [lockName] and [token] are non-blank, and
-         * defensively copies [metadata] to prevent external mutation.
+         * `invoke` 호출은 leader election 계약의 일부 동작을 수행합니다.
+         *
+         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+         * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+         * @param token backend lock을 해제하거나 검증할 때 사용하는 소유권 token입니다.
+         * @param kind single leader election인지 group leader election인지 나타내는 분류입니다.
+         * @param acquiredAt lock을 획득한 wall-clock 시각입니다.
+         * @param lockedUntil backend가 보고한 lease 만료 시각입니다.
+         * @param nodeId 상태 조회와 audit에 노출되는 노드 또는 인스턴스 식별자입니다.
+         * @param finishedAt 사용자 작업이 종료된 wall-clock 시각입니다. 실행 중이면 null입니다.
+         * @param durationMs 사용자 작업 실행 시간입니다. 실행 중이면 null입니다.
+         * @param status history record의 현재 또는 최종 상태입니다.
+         * @param errorType 작업 실패 시 예외의 fully-qualified class 이름입니다.
+         * @param errorMessage 작업 실패 시 정제되고 길이가 제한된 예외 메시지입니다.
+         * @param slotId group election backend가 slot을 식별할 때 쓰는 값입니다.
+         * @param metadata 호출자가 제공한 key-value audit context입니다. recorder 계층에서 크기와 길이가 제한됩니다.
+         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
          */
         operator fun invoke(
             lockName: String,

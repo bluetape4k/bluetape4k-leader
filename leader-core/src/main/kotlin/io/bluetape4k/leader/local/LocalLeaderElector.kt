@@ -12,61 +12,34 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 
 /**
- * Local (single-JVM) leader election implementation using [ReentrantLock].
+ * `LocalLeaderElector` 선언은 leader election 계약에서 사용되는 class입니다.
  *
- * ## Behavior
- * - Guarantees serial execution via mutual exclusion between threads for the same `lockName`.
- * - The thread that acquires the lock runs `action` as leader; other threads block until the lock is released.
- * - Due to [ReentrantLock] semantics, nested calls (re-entrancy) with the same `lockName` from the same thread are allowed.
- * - Suitable for serializing concurrent execution within a single JVM process, not a distributed environment.
- *
- * ```kotlin
- * val election = LocalLeaderElector()
- * val result = election.runIfLeader("job-lock") { "done" }
- * // result == "done"
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property options `options` 호출 또는 상태 계산에 필요한 값입니다.
  */
 class LocalLeaderElector(
     options: LeaderElectionOptions = LeaderElectionOptions.Default,
 ): AbstractLocalLeaderElector(options), LeaderElector {
 
     /**
-     * Acquires the [ReentrantLock] for [lockName] and executes [action] serially.
+     * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
      *
-     * If another thread holds the lock for the same [lockName], this thread blocks until it is released.
-     * Re-entrant calls from the same thread acquire the lock immediately.
-     *
-     * ```kotlin
-     * val election = LocalLeaderElector()
-     * val result = election.runIfLeader("job-lock") { 42 }
-     * // result == 42
-     * ```
-     *
-     * @param lockName the lock name used for leader election
-     * @param action the synchronous action to run when leader acquisition succeeds
-     * @return the [action] result, or `null` when leader acquisition fails
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
         tryWithLeaderLock(lockName, options.waitTime, action)
 
     /**
-     * Acquires the [ReentrantLock] for [lockName] and executes [action] asynchronously on [executor].
+     * `runAsyncIfLeader`는 leadership을 획득한 경우에만 async action을 실행하고, 획득하지 못하면 null 결과를 완료합니다.
      *
-     * Holds the lock until the [CompletableFuture] returned by [action] completes.
-     * If another thread holds the lock for the same [lockName], the [executor] thread blocks.
-     *
-     * ```kotlin
-     * val election = LocalLeaderElector()
-     * val result = election.runAsyncIfLeader("job-lock") {
-     *     CompletableFuture.completedFuture("async-ok")
-     * }.join()
-     * // result == "async-ok"
-     * ```
-     *
-     * @param lockName the lock name used for leader election
-     * @param executor the [Executor] for async execution
-     * @param action the async action to run when leader acquisition succeeds
-     * @return [CompletableFuture] resolving to the [action] result, or `null` when leader acquisition fails
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param executor `executor` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override fun <T> runAsyncIfLeader(
         lockName: String,
@@ -108,8 +81,12 @@ class LocalLeaderElector(
     }
 
     /**
-     * Slot-aware override — stamps [LeaderSlot.leaderId] as `LeaderLease.auditLeaderId`
-     * and `LeaderLockHandle.Real.auditLeaderId` for audit traceability.
+     * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override fun <T> runIfLeader(slot: LeaderSlot, action: () -> T): T? =
         tryWithLeaderLock(
@@ -121,8 +98,12 @@ class LocalLeaderElector(
         )
 
     /**
-     * Slot-aware override — returns [LeaderRunResult.Elected] with [LeaderSlot.leaderId] stamped
-     * on `LeaderRunResult.Elected.leaderId`, or [LeaderRunResult.Skipped] when not elected.
+     * `runIfLeaderResult`는 leadership 획득, skip, action 실패를 명시적인 LeaderRunResult로 반환합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     override fun <T> runIfLeaderResult(slot: LeaderSlot, action: () -> T): LeaderRunResult<T> {
         var elected = false

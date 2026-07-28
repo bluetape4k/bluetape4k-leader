@@ -6,22 +6,13 @@ import io.bluetape4k.support.requireNotBlank
 import java.io.Serializable
 
 /**
- * Immutable data class holding the current state of a leader group.
+ * `LeaderGroupState`는 group leader lock의 현재 상태 snapshot입니다.
  *
- * Shared across [LeaderGroupElector] and [SuspendLeaderGroupElector] implementations.
- *
- * ```kotlin
- * val state = election.state("batch-lock")
- * println("active leaders: ${state.activeCount}/${state.maxLeaders}")
- * if (state.isFull) println("all slots occupied")
- * ```
- *
- * @property lockName the lock name used to identify the leader group
- * @property maxLeaders maximum number of concurrent leaders allowed
- * @property activeCount number of currently active (running) leaders
- * @property leaders list of node/slot leases currently elected as leaders. May be empty depending on the backend.
- *   Event-stream projections such as `leaderGroupStateFlow()` always keep this empty because revoke events do not
- *   identify the released slot.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+ * @property maxLeaders 동시에 leadership을 획득할 수 있는 최대 슬롯 수입니다.
+ * @property activeCount 현재 점유 중인 leader slot 수입니다.
+ * @property leaders 현재 group lock을 점유한 leader lease 목록입니다.
  */
 data class LeaderGroupState(
     val lockName: String,
@@ -42,35 +33,17 @@ data class LeaderGroupState(
     }
 
     /**
-     * Number of remaining slots available to accept a new leader.
-     *
-     * ```kotlin
-     * val state = LeaderGroupState(lockName = "job", maxLeaders = 3, activeCount = 1)
-     * val slots = state.availableSlots
-     * // slots == 2
-     * ```
+     * `availableSlots`는 아직 획득 가능한 group leader slot 수를 조회합니다.
      */
     val availableSlots: Int get() = maxLeaders - activeCount
 
     /**
-     * Whether the maximum leader count has been reached and no additional election is possible.
-     *
-     * ```kotlin
-     * val state = LeaderGroupState(lockName = "job", maxLeaders = 3, activeCount = 3)
-     * val full = state.isFull
-     * // full == true
-     * ```
+     * `isFull` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
      */
     val isFull: Boolean get() = activeCount >= maxLeaders
 
     /**
-     * Whether there are currently no active leaders.
-     *
-     * ```kotlin
-     * val state = LeaderGroupState(lockName = "job", maxLeaders = 3, activeCount = 0)
-     * val empty = state.isEmpty
-     * // empty == true
-     * ```
+     * `isEmpty` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
      */
     val isEmpty: Boolean get() = activeCount == 0
 }

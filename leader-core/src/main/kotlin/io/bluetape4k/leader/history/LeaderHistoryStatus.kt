@@ -1,24 +1,9 @@
 package io.bluetape4k.leader.history
 
 /**
- * Four-state lifecycle of a leader lock history record.
+ * `LeaderHistoryStatus`는 leader election의 현재 상태를 표현합니다.
  *
- * ## Behavior / Contract
- * - [ACQUIRED]: the lock was obtained; the protected action has not yet finished.
- * - [COMPLETED]: the action finished without error and the lock was released normally.
- * - [FAILED]: the action threw an exception (or a pre-action guard failed).
- * - [EXPIRED]: the record's `lockedUntil` has passed while the status is still [ACQUIRED],
- *   indicating a possible crash or lease timeout.  Transition to [EXPIRED] is computed
- *   on read via [io.bluetape4k.leader.history.effectiveStatus] and is **not persisted**
- *   by the sink — sweeper-based status update is out-of-scope for v1.
- *
- * ## Example
- * ```kotlin
- * val effective = record.effectiveStatus()
- * if (effective == LeaderHistoryStatus.EXPIRED) {
- *     alertStaleRecord(record)
- * }
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 enum class LeaderHistoryStatus {
     ACQUIRED,

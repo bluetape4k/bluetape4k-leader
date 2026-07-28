@@ -6,33 +6,14 @@ import java.io.Serializable
 import java.time.Instant
 
 /**
- * Snapshot of the lease held by the elected leader node or slot occupant.
+ * `LeaderLease`는 leader가 lock을 보유한 기간과 audit identity를 담는 lease snapshot입니다.
  *
- * ## Contract
- * - [auditLeaderId] is the audit identity stamped at election time. This may be a node identifier,
- *   a fencing token, or a backend holder id depending on the backend's capabilities.
- * - [nodeId] is the physical node identity, when the backend tracks it separately.
- *   If the backend does not support physical node identity, this is `null`.
- * - [electedAt] and [leaseUntil] are best-effort values filled in by the backend where available.
- * - [slot] is only used in group leader election; `null` for single-leader election.
- *
- * ## Semantic Note — Fencing Token
- * Use [auditLeaderId] for the fencing token (or backend-issued holder id).
- * Use [nodeId] for the physical node identity when the backend tracks it separately.
- * Mixing [nodeId] (physical) and [auditLeaderId] (token) in a fencing comparison is a split-brain risk.
- *
- * @property auditLeaderId the audit identity of the elected leader (fencing token or backend holder id).
- * @property electedAt the instant at which the leader was elected; `null` if unavailable.
- * @property leaseUntil the instant until which the lease is valid; `null` if unavailable.
- * @property slot slot index in group election; `null` for single-leader election.
- * @property nodeId the physical node identity of the elected leader; `null` if unavailable.
- *
- * ```kotlin
- * val lease = LeaderLease(
- *     auditLeaderId = "node-a",
- *     electedAt = Instant.now(),
- * )
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property auditLeaderId `auditLeaderId` 호출 또는 상태 계산에 필요한 값입니다.
+ * @property electedAt `electedAt` 호출 또는 상태 계산에 필요한 값입니다.
+ * @property leaseUntil `leaseUntil` 호출 또는 상태 계산에 필요한 값입니다.
+ * @property slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+ * @property nodeId 상태 조회와 audit에 노출되는 노드 또는 인스턴스 식별자입니다.
  */
 data class LeaderLease(
     val auditLeaderId: String,

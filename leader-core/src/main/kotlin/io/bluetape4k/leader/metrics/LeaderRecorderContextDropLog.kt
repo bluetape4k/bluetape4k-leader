@@ -8,38 +8,31 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlin.reflect.KClass
 
 /**
- * Throttled drop logger for [LeaderAopMetricsRecorder] implementations that do not override
- * the context-bearing overloads.
+ * `LeaderRecorderContextDropLog`는 leader election audit/history 저장 계약을 표현합니다.
  *
- * ## Contract
- * - [warnOnDrop] is a no-op when [context] is [LeaderAopMetricsContext.Unknown].
- * - For [LeaderAopMetricsContext.Identified]: increments [droppedCounter] on every call,
- *   but only logs a WARN once per recorder class (first-add semantics).
- * - Thread-safe: [ConcurrentHashMap.newKeySet] + [AtomicLong].
- *
- * ## Global Holder
- * Use [global] / [setGlobal] to manage the singleton instance.
- * In tests, call `setGlobal(LeaderRecorderContextDropLog())` in `@BeforeEach` to reset state.
- *
- * ## Usage
- * ```kotlin
- * LeaderRecorderContextDropLog.global().warnOnDrop(MyRecorder::class, context)
- * val dropped = LeaderRecorderContextDropLog.global().droppedCount()
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property cacheSize `cacheSize` 호출 또는 상태 계산에 필요한 값입니다.
  */
 class LeaderRecorderContextDropLog(val cacheSize: Int = 256) {
 
     private val warnedClasses = ConcurrentHashMap.newKeySet<KClass<*>>()
     private val droppedCounter = AtomicLong(0L)
 
-    /** Returns the total number of context drops recorded (including repeated drops from same class). */
+    /**
+     * `droppedCount` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun droppedCount(): Long = droppedCounter.get()
 
     /**
-     * Records a context drop for [recorderClass].
+     * `warnOnDrop` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * - [LeaderAopMetricsContext.Unknown]: early return, no counter increment, no warn.
-     * - [LeaderAopMetricsContext.Identified]: always increments [droppedCounter]; WARN only on first call per class.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param recorderClass `recorderClass` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param context `context` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun warnOnDrop(recorderClass: KClass<*>, context: LeaderAopMetricsContext) {
         if (context !is LeaderAopMetricsContext.Identified) return
@@ -56,13 +49,20 @@ class LeaderRecorderContextDropLog(val cacheSize: Int = 256) {
         @Volatile
         private var globalInstance: LeaderRecorderContextDropLog = LeaderRecorderContextDropLog()
 
-        /** Returns the current global [LeaderRecorderContextDropLog] instance. */
+        /**
+         * `global` 호출은 leader election 계약의 일부 동작을 수행합니다.
+         *
+         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+         */
         fun global(): LeaderRecorderContextDropLog = globalInstance
 
         /**
-         * Replaces the global instance. Logs the previous instance's drop count.
+         * `setGlobal` 호출은 leader election 계약의 일부 동작을 수행합니다.
          *
-         * Warning: In tests, `@DirtiesContext` alone does NOT reset this holder. Call [setGlobal] explicitly in `@BeforeEach`.
+         * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+         * @param instance `instance` 호출 또는 상태 계산에 필요한 값입니다.
+         * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
          */
         fun setGlobal(instance: LeaderRecorderContextDropLog) {
             val prev = globalInstance

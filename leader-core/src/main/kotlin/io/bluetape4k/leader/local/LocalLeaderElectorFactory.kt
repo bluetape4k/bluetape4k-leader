@@ -5,18 +5,9 @@ import io.bluetape4k.leader.LeaderElectorFactory
 import io.bluetape4k.leader.LeaderElectionOptions
 
 /**
- * [LocalLeaderElector] factory — creates single-JVM leader election instances backed by `ReentrantLock`.
+ * `LocalLeaderElectorFactory`는 backend별 leader elector 인스턴스를 생성하는 factory 계약입니다.
  *
- * ## Usage
- * ```kotlin
- * val factory = LocalLeaderElectionFactory()
- * val election = factory.create(LeaderElectionOptions.Default)
- * val result = election.runIfLeader("job-lock") { "done" }
- * ```
- *
- * Every call returns a new [LocalLeaderElector] instance. Serialization for the same lock name is
- * guaranteed by the lock map shared statically inside [AbstractLocalLeaderElector], so mutual
- * exclusion across the same lockName is preserved even across different instances.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 class LocalLeaderElectorFactory : LeaderElectorFactory {
 

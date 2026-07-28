@@ -7,79 +7,29 @@ import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Defines the contract for coroutine-based multi-leader election.
+ * `SuspendLeaderGroupElector`는 여러 slot을 허용하는 coroutine group leader election 실행자입니다.
  *
- * ## Difference from [SuspendLeaderElector]
- * - [SuspendLeaderElector] limits leaders to 1 per `lockName`.
- * - [SuspendLeaderGroupElector] allows up to [maxLeaders] concurrent leaders.
- * - Internally uses `kotlinx.coroutines.sync.Semaphore(maxLeaders)`.
- *
- * ## [LeaderGroupElectionState] inheritance
- * - Shares state query methods: [maxLeaders], [activeCount], [availableSlots], [state].
- *
- * ## Behavior / Contract
- * - Implementations run up to [maxLeaders] concurrent `action` invocations per `lockName`.
- * - If all slots are full and a slot cannot be acquired within [waitTime], returns `null` (ShedLock skip behavior).
- * - The slot is always released even if `action` throws.
- * - On coroutine cancellation, the slot must be released and `CancellationException` must be rethrown after release.
- * - State query methods ([state], [activeCount], [availableSlots]) may return approximate values.
- *
- * ```kotlin
- * val election = LocalSuspendLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
- * val result = election.runIfLeader("batch-job") { processChunkSuspend() }
- *
- * println(election.state("batch-job"))  // LeaderGroupState(activeCount=2, ...)
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 interface SuspendLeaderGroupElector: LeaderGroupElectionState {
 
     /**
-     * Acquires a slot and runs suspend [action] when elected as leader.
+     * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
      *
-     * ## Behavior / Contract
-     * - If all slots are full, the coroutine suspends until a slot becomes available.
-     * - The slot is always released even if [action] throws.
-     * - [activeCount] increases while [action] runs and decreases on completion.
-     *
-     * ```kotlin
-     * val result = election.runIfLeader("job-lock") { computeSuspend() }
-     * // result == computeSuspend() return value (slot acquired) or null (not acquired)
-     * ```
-     *
-     * @param lockName the lock name used for leader group election
-     * @param action the suspend action to run when elected as leader
-     * @return [action] result, or `null` if the slot was not acquired
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T?
 
     /**
-     * Result-typed API that makes the leader election outcome explicit.
+     * `runIfLeaderResultSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * Removes ambiguity when [runIfLeader] returns `null`: (a) slot not acquired vs (b) action returned null.
-     *
-     * ## Behavior / Contract
-     * - Slot acquired → [LeaderRunResult.Elected]`(value)` — `value` is the action return value (may be null)
-     * - Slot not acquired → [LeaderRunResult.Skipped]
-     * - Action failed → [LeaderRunResult.ActionFailed]
-     * - `CancellationException` is rethrown directly, not wrapped in [LeaderRunResult.ActionFailed]
-     * - Accurate classification via `elected: Boolean` flag (returns [LeaderRunResult.Elected] even if action returns null)
-     *
-     * ## binary-compat (Step 2-R R3-F3)
-     * Added as Kotlin interface default fun — compiled as JVM `default` method under `-jvm-default=enable`,
-     * preserving binary compatibility for existing external implementations.
-     *
-     * ```kotlin
-     * val result = election.runIfLeaderResultSuspend("batch-job") { processChunkSuspend() }
-     * when (result) {
-     *     is LeaderRunResult.Elected -> println("elected, value=${result.value}")
-     *     LeaderRunResult.Skipped   -> println("slot full — skipped")
-     *     is LeaderRunResult.ActionFailed -> println("action failed: ${result.cause.message}")
-     * }
-     * ```
-     *
-     * @param lockName the lock name used for leader group election
-     * @param action the suspend action to run when a slot is acquired
-     * @return [LeaderRunResult.Elected] (action ran) or [LeaderRunResult.Skipped] (slot not acquired)
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     suspend fun <T> runIfLeaderResultSuspend(
         lockName: String,
@@ -103,16 +53,12 @@ interface SuspendLeaderGroupElector: LeaderGroupElectionState {
     }
 
     /**
-     * Runs [action] if a group slot is acquired, stamping [slot.leaderId] as audit identity.
+     * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
      *
-     * ## Bridge Default
-     * Delegates to [runIfLeader] (lockName-based) and emits a throttled WARN via
-     * [LeaderElectorBridgeLog]. Backend implementations MUST override to stamp [slot.leaderId]
-     * into [LeaderLease.auditLeaderId] for audit traceability.
-     *
-     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
-     * @param action the suspend action to run when a slot is acquired.
-     * @return [action] result, or `null` when no slot acquired.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     suspend fun <T> runIfLeader(slot: LeaderSlot, action: suspend () -> T): T? {
         LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
@@ -120,18 +66,12 @@ interface SuspendLeaderGroupElector: LeaderGroupElectionState {
     }
 
     /**
-     * Returns [LeaderRunResult] for this suspend group slot election.
+     * `runIfLeaderResultSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * ## Bridge Default
-     * Returns `Elected(value, leaderId = null)` — fabrication of [slot.leaderId] is intentionally
-     * blocked. Backend MUST override BOTH slot variants to carry [slot.leaderId] through.
-     *
-     * Cancellation: the underlying [runIfLeader] propagates `CancellationException` directly;
-     * no `runCatching` is used around suspend calls.
-     *
-     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
-     * @param action the suspend action to run when a slot is acquired.
-     * @return [LeaderRunResult.Elected] (action ran) or [LeaderRunResult.Skipped] (no slot acquired).
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     suspend fun <T> runIfLeaderResultSuspend(
         slot: LeaderSlot,

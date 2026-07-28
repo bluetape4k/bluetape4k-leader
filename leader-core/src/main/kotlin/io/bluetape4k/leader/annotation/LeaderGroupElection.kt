@@ -1,36 +1,16 @@
 package io.bluetape4k.leader.annotation
 
 /**
- * Annotation that protects a method with multi-leader (semaphore-based) entry in a distributed environment.
+ * `LeaderGroupElection` 선언은 leader election 계약에서 사용되는 annotation입니다.
  *
- * ## Behavior
- * - On method call, attempts to acquire one of [maxLeaders] slots using [name]. If successful, runs the body;
- *   otherwise branches according to [failureMode].
- * - Supports sync `T?`, `suspend T?`, and Reactor `Mono<T>` return types.
- * - Reactor `Flux<T>` and Kotlin `Flow<T>` return types are intentionally unsupported in 0.3.0.
- *   Group stream execution would require per-slot lease extension semantics across subscription,
- *   cancellation, completion, and error paths. Unsafe stream signatures fail validation and are
- *   also rejected by the runtime aspect at subscription or collection time.
- * - Startup fails if [maxLeaders] ≤ 1 (use [LeaderElection] for single-leader).
- *
- * ## Usage Example
- * ```kotlin
- * @LeaderGroupElection(name = "batch-shard", maxLeaders = 3, leaseTime = "PT5M")
- * fun batch() { ... }
- *
- * @LeaderGroupElection(name = "'process-' + #region", maxLeaders = 2)
- * fun processRegion(region: String) { ... }
- * ```
- *
- * @property name lock name (required). Plain SpEL + `${...}` Spring property placeholder.
- * @property maxLeaders number of concurrent leaders (≥2 required). Startup fails if ≤1.
- * @property waitTime slot acquisition wait time — falls back to property or core default if blank.
- * @property leaseTime slot hold duration — falls back to property or core default if blank.
- * @property minLeaseTime minimum slot hold time. `PT0S` means immediate release on early completion.
- * @property bean [io.bluetape4k.leader.LeaderGroupElectorFactory] bean name to use (literal only).
- * @property failureMode backend exception handling policy. Default is `RETHROW`.
- *
- * @see LeaderElection single-leader variant
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property name 호출자가 전달하는 이름 또는 key입니다.
+ * @property maxLeaders 동시에 leadership을 획득할 수 있는 최대 슬롯 수입니다.
+ * @property waitTime leader lock 획득을 기다리는 최대 시간입니다.
+ * @property leaseTime leadership을 보유할 수 있는 lease TTL입니다.
+ * @property minLeaseTime 작업이 빨리 끝나더라도 lease를 최소로 유지할 시간입니다.
+ * @property bean `bean` 호출 또는 상태 계산에 필요한 값입니다.
+ * @property failureMode `failureMode` 호출 또는 상태 계산에 필요한 값입니다.
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Retention(AnnotationRetention.RUNTIME)

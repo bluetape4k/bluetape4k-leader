@@ -4,23 +4,10 @@ import io.bluetape4k.leader.LeaderLockHandle
 import kotlin.coroutines.CoroutineContext
 
 /**
- * `CoroutineContext.Element` that carries the active lock handle in suspend / Mono contexts.
+ * `LockHandleElement` 선언은 leader election 계약에서 사용되는 data class입니다.
  *
- * **Separate element** from the existing [LeaderElectionInfo] — preserves binary compatibility (Codex F5 / Type T8).
- * The aspect pushes both elements simultaneously using `withContext(LeaderElectionInfo(...) + LockHandleElement(...))`.
- *
- * ## Behavior / Contract
- * - The `handle` property is `internal` — external callers must use [io.bluetape4k.leader.LockAssert] /
- *   [io.bluetape4k.leader.LockExtender] APIs only. Direct access to handle metadata (token, slotId, etc.) is blocked (R3-F12).
- * - The public companion `Key` allows `currentCoroutineContext()[LockHandleElement]` checks — only element presence is exposed.
- *
- * ## Example
- * ```kotlin
- * // inside the aspect:
- * withContext(LeaderElectionInfo("job-A", true) + LockHandleElement(handle)) {
- *     userBody()  // LockAssert.assertLockedSuspend() / LockExtender.extendActiveLockSuspend(d) can be called inside
- * }
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property handle `handle` 호출 또는 상태 계산에 필요한 값입니다.
  */
 data class LockHandleElement(
     internal val handle: LeaderLockHandle,

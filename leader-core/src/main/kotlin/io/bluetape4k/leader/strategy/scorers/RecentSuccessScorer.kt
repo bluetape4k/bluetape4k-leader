@@ -4,26 +4,9 @@ import io.bluetape4k.leader.strategy.CandidateInfo
 import io.bluetape4k.leader.strategy.CandidateScorer
 
 /**
- * A [CandidateScorer] that assigns a higher score to the node that most recently completed
- * a successful execution.
+ * `RecentSuccessScorer`는 전략 기반 leader 선출에서 후보 평가 규칙을 제공합니다.
  *
- * ## Scoring rules
- * - Last execution succeeded: score normalized 0.0–100.0 against the latest successful completion
- *   time in the candidate pool.
- * - Last execution failed, or no execution history: 0.0.
- *
- * Favors re-electing the node that succeeded last time, increasing the likelihood of consecutive
- * successes (sticky-leader pattern).
- *
- * ## Example
- * ```kotlin
- * // Sticky leader: prefer the last successful node, with partial load balancing
- * val scorer = WeightedScorer(
- *     RecentSuccessScorer to 0.7,
- *     IdleTimeScorer to 0.3,
- * )
- * val strategy = ScoredElectionStrategy(scorer)
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 object RecentSuccessScorer : CandidateScorer {
 

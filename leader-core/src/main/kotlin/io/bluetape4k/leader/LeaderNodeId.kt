@@ -4,19 +4,14 @@ import java.lang.management.ManagementFactory
 import java.net.InetAddress
 
 /**
- * Provides the default leader node identifier.
+ * `LeaderNodeId` 선언은 leader election 계약에서 사용되는 object입니다.
  *
- * ## Contract
- * [Default] is a stable id computed once per JVM process. Generating a random id on each options
- * default call would destabilize equality and cache keys across identical configurations,
- * so the default must remain constant for the lifetime of the process.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 object LeaderNodeId {
 
     /**
-     * Default node identifier for the current JVM process.
-     *
-     * Format is `host:pid`; falls back to `localhost` if host resolution fails.
+     * `Default` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
      */
     @JvmField
     val Default: String = "${hostname()}:${ProcessHandle.current().pid()}"

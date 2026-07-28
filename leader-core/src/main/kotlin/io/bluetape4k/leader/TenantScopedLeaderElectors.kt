@@ -5,53 +5,91 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
 /**
- * Wraps this [LeaderElector] so every caller-facing lock name is scoped to [tenantId].
+ * `LeaderElector`는 blocking leader election 실행자입니다.
+ *
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param tenantId tenant scope를 구분하는 식별자입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 fun LeaderElector.forTenant(tenantId: String): LeaderElector =
     forTenant(TenantLockNamespace(tenantId))
 
 /**
- * Wraps this [LeaderElector] so every caller-facing lock name is scoped to [namespace].
+ * `LeaderElector`는 blocking leader election 실행자입니다.
+ *
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param namespace tenant별 lock 이름을 구성하는 namespace 규칙입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 fun LeaderElector.forTenant(namespace: TenantLockNamespace): LeaderElector =
     TenantScopedLeaderElector(this, namespace)
 
 /**
- * Wraps this [LeaderGroupElector] so every caller-facing lock name is scoped to [tenantId].
+ * `LeaderGroupElector`는 여러 slot을 허용하는 blocking group leader election 실행자입니다.
+ *
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param tenantId tenant scope를 구분하는 식별자입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 fun LeaderGroupElector.forTenant(tenantId: String): LeaderGroupElector =
     forTenant(TenantLockNamespace(tenantId))
 
 /**
- * Wraps this [LeaderGroupElector] so every caller-facing lock name is scoped to [namespace].
+ * `LeaderGroupElector`는 여러 slot을 허용하는 blocking group leader election 실행자입니다.
+ *
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param namespace tenant별 lock 이름을 구성하는 namespace 규칙입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 fun LeaderGroupElector.forTenant(namespace: TenantLockNamespace): LeaderGroupElector =
     TenantScopedLeaderGroupElector(this, namespace)
 
 /**
- * Wraps this [VirtualThreadLeaderElector] so every caller-facing lock name is scoped to [tenantId].
+ * `VirtualThreadLeaderElector`는 virtual thread 기반 leader election 실행자입니다.
+ *
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param tenantId tenant scope를 구분하는 식별자입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 fun VirtualThreadLeaderElector.forTenant(tenantId: String): VirtualThreadLeaderElector =
     forTenant(TenantLockNamespace(tenantId))
 
 /**
- * Wraps this [VirtualThreadLeaderElector] so every caller-facing lock name is scoped to [namespace].
+ * `VirtualThreadLeaderElector`는 virtual thread 기반 leader election 실행자입니다.
+ *
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param namespace tenant별 lock 이름을 구성하는 namespace 규칙입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 fun VirtualThreadLeaderElector.forTenant(namespace: TenantLockNamespace): VirtualThreadLeaderElector =
     TenantScopedVirtualThreadLeaderElector(this, namespace)
 
 /**
- * Wraps this [VirtualThreadLeaderGroupElector] so every caller-facing lock name is scoped to [tenantId].
+ * `VirtualThreadLeaderGroupElector`는 여러 slot을 허용하는 virtual thread group leader election 실행자입니다.
+ *
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param tenantId tenant scope를 구분하는 식별자입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 fun VirtualThreadLeaderGroupElector.forTenant(tenantId: String): VirtualThreadLeaderGroupElector =
     forTenant(TenantLockNamespace(tenantId))
 
 /**
- * Wraps this [VirtualThreadLeaderGroupElector] so every caller-facing lock name is scoped to [namespace].
+ * `VirtualThreadLeaderGroupElector`는 여러 slot을 허용하는 virtual thread group leader election 실행자입니다.
+ *
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param namespace tenant별 lock 이름을 구성하는 namespace 규칙입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 fun VirtualThreadLeaderGroupElector.forTenant(namespace: TenantLockNamespace): VirtualThreadLeaderGroupElector =
     TenantScopedVirtualThreadLeaderGroupElector(this, namespace)
 
+/**
+ * `TenantScopedLeaderElector`는 delegate의 single leader election API를 tenant namespace로 감싸는 internal adapter입니다.
+ *
+ * @property delegate 실제 lock 획득, 상태 조회, async 실행을 수행하는 원본 elector입니다.
+ * @property namespace 호출자가 전달한 lock 이름을 tenant별 lock 이름으로 변환하는 namespace 규칙입니다.
+ */
 internal class TenantScopedLeaderElector(
     private val delegate: LeaderElector,
     private val namespace: TenantLockNamespace,
@@ -100,6 +138,12 @@ internal class TenantScopedLeaderElector(
         copy(lockName = namespace.lockName(lockName))
 }
 
+/**
+ * `TenantScopedLeaderGroupElector`는 delegate의 group leader election API를 tenant namespace로 감싸는 internal adapter입니다.
+ *
+ * @property delegate 실제 group slot 획득, 상태 조회, async 실행을 수행하는 원본 group elector입니다.
+ * @property namespace 호출자가 전달한 lock 이름을 tenant별 group lock 이름으로 변환하는 namespace 규칙입니다.
+ */
 internal class TenantScopedLeaderGroupElector(
     private val delegate: LeaderGroupElector,
     private val namespace: TenantLockNamespace,
@@ -153,6 +197,12 @@ internal class TenantScopedLeaderGroupElector(
         copy(lockName = namespace.lockName(lockName))
 }
 
+/**
+ * `TenantScopedVirtualThreadLeaderElector`는 virtual thread elector 호출을 tenant namespace로 변환하는 internal adapter입니다.
+ *
+ * @property delegate 실제 virtual thread 기반 single leader election을 수행하는 원본 elector입니다.
+ * @property namespace `LeaderSlot`과 lock 이름을 tenant scope로 변환하는 namespace 규칙입니다.
+ */
 internal class TenantScopedVirtualThreadLeaderElector(
     private val delegate: VirtualThreadLeaderElector,
     private val namespace: TenantLockNamespace,
@@ -177,6 +227,12 @@ internal class TenantScopedVirtualThreadLeaderElector(
         copy(lockName = namespace.lockName(lockName))
 }
 
+/**
+ * `TenantScopedVirtualThreadLeaderGroupElector`는 virtual thread group elector 호출을 tenant namespace로 변환하는 internal adapter입니다.
+ *
+ * @property delegate 실제 virtual thread 기반 group leader election을 수행하는 원본 group elector입니다.
+ * @property namespace `LeaderSlot`과 lock 이름을 tenant scope로 변환하는 namespace 규칙입니다.
+ */
 internal class TenantScopedVirtualThreadLeaderGroupElector(
     private val delegate: VirtualThreadLeaderGroupElector,
     private val namespace: TenantLockNamespace,

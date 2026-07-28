@@ -5,15 +5,13 @@ import io.bluetape4k.logging.KLogging
 import kotlin.coroutines.CoroutineContext
 
 /**
- * CoroutineContext element that propagates leader election results.
+ * `LeaderElectionInfo` 선언은 leader election 계약에서 사용되는 data class입니다.
  *
- * Injected by the AOP aspect when executing `@LeaderElection` / `@LeaderGroupElection` annotated methods.
- * Accessible inside suspend / `Mono` return methods via `coroutineContext[LeaderElectionInfo]`.
- *
- * @property lockName the lock name used for election
- * @property wasElected whether this node was elected as leader and the body is executing
- * @property leaderId the audit identity of the elected leader; `null` if not elected or not available
- * @property leaderIdSource the source strategy that produced [leaderId]; `null` if [leaderId] is null
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+ * @property wasElected `wasElected` 호출 또는 상태 계산에 필요한 값입니다.
+ * @property leaderId audit에 기록할 leader identity입니다.
+ * @property leaderIdSource `leaderIdSource` 호출 또는 상태 계산에 필요한 값입니다.
  */
 data class LeaderElectionInfo(
     val lockName: String,
@@ -26,14 +24,10 @@ data class LeaderElectionInfo(
 }
 
 /**
- * Validates the pairing invariants of this [LeaderElectionInfo].
+ * `LeaderElectionInfo` 호출은 leader election 계약의 일부 동작을 수행합니다.
  *
- * ## Contract
- * - [LeaderElectionInfo.leaderId] and [LeaderElectionInfo.leaderIdSource] must both be null or both non-null.
- * - [LeaderElectionInfo.wasElected] true implies [LeaderElectionInfo.leaderId] is non-null (hasLeader invariant).
- *
- * @throws IllegalArgumentException if any invariant is violated
- * @return this instance (for chaining)
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 fun LeaderElectionInfo.validate(): LeaderElectionInfo = apply {
     require((leaderId == null) == (leaderIdSource == null)) {

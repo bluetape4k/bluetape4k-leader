@@ -1,29 +1,18 @@
 package io.bluetape4k.leader
 
 /**
- * Factory SPI that creates [LeaderGroupElector] instances with per-call options.
+ * `LeaderGroupElectorFactory`는 backend별 leader elector 인스턴스를 생성하는 factory 계약입니다.
  *
- * ## Background
- * The core interface [LeaderGroupElector.runIfLeader] only provides a `(lockName, action)` signature
- * and has no means to accept per-call options. This SPI is added so that AOP advice can create
- * and cache backend instances for each set of annotation options (`maxLeaders`, `waitTime`, `leaseTime`).
- *
- * ## Usage Example
- * ```kotlin
- * val factory: LeaderGroupElectionFactory = RedissonLeaderGroupElectionFactory(redisson)
- * val election = factory.create(LeaderGroupElectionOptions(maxLeaders = 3))
- * val result = election.runIfLeader("batch-shard") { processChunk() }
- * ```
- *
- * @see LeaderElectorFactory factory for single-leader election
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 fun interface LeaderGroupElectorFactory {
 
     /**
-     * Creates a new [LeaderGroupElector] instance with the given [options].
+     * `create` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * @param options the options to apply to the new instance (maxLeaders, waitTime, leaseTime)
-     * @return a new [LeaderGroupElector] instance with the per-call options applied
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param options `options` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun create(options: LeaderGroupElectionOptions): LeaderGroupElector
 }

@@ -7,38 +7,19 @@ import io.bluetape4k.leader.identity.LeaderElectorBridgeLog
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Defines the contract for coroutine-based leader election execution.
+ * `SuspendLeaderElector`는 coroutine suspend leader election 실행자입니다.
  *
- * ## Behavior / Contract
- * - Implementations execute [action] only for the call that successfully acquires leadership for [lockName].
- * - [action] is a suspend function; the call context and dispatcher follow the implementation policy.
- * - Returns `null` when leadership is not acquired (ShedLock skip style).
- * - If the coroutine is cancelled while [action] is running, the lock/slot must be released,
- *   and `CancellationException` must be re-propagated to the caller after the release.
- *
- * ```kotlin
- * val result = election.runIfLeader("sync-job") { "ok" }
- * // result == "ok"
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 interface SuspendLeaderElector: LeaderElectionState {
 
     /**
-     * Executes the suspend [action] when leadership is successfully acquired.
+     * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
      *
-     * ## Behavior / Contract
-     * - [action] is executed exactly once when leadership for [lockName] is acquired.
-     * - Exceptions from [action] are propagated to the caller.
-     * - [lockName] validation rules follow the implementation policy.
-     *
-     * ```kotlin
-     * val value = election.runIfLeader("job-lock") { 7 }
-     * // value == 7 (leader acquired) or null (not acquired)
-     * ```
-     *
-     * @param lockName the lock name used for leader election
-     * @param action the suspend action to run when elected
-     * @return [action] result, or `null` if leadership was not acquired
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     suspend fun <T> runIfLeader(
         lockName: String,
@@ -46,33 +27,12 @@ interface SuspendLeaderElector: LeaderElectionState {
     ): T?
 
     /**
-     * Result-type API that explicitly represents the leader election outcome.
+     * `runIfLeaderResultSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * Removes the ambiguity when [runIfLeader] returns `null`: (a) not elected vs (b) action returned null.
-     *
-     * ## Behavior / Contract
-     * - Leadership acquired → [LeaderRunResult.Elected]`(value)` — `value` is the action return value (may be null)
-     * - Not elected → [LeaderRunResult.Skipped]
-     * - `elected: Boolean` flag pattern for precise classification (even if action returns null, result is [LeaderRunResult.Elected])
-     *
-     * ## binary-compat (Step 2-R R3-F3)
-     * Added as a Kotlin interface default fun — compiled as a JVM `default` method under `-jvm-default=enable`,
-     * preserving binary compatibility with existing external implementations.
-     *
-     * ```kotlin
-     * val result = election.runIfLeaderResultSuspend("job-lock") { computeResult() }
-     * when (result) {
-     *     is LeaderRunResult.Elected -> println("elected, value=${result.value}")
-     *     LeaderRunResult.Skipped   -> println("not elected")
-     *     is LeaderRunResult.ActionFailed -> println("action failed: ${result.cause.message}")
-     * }
-     * ```
-     *
-     * `CancellationException` is rethrown directly and is not wrapped as [LeaderRunResult.ActionFailed].
-     *
-     * @param lockName the lock name used for leader election
-     * @param action the suspend action to run when elected
-     * @return [LeaderRunResult.Elected] (action ran) or [LeaderRunResult.Skipped] (not elected)
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     suspend fun <T> runIfLeaderResultSuspend(
         lockName: String,
@@ -96,16 +56,12 @@ interface SuspendLeaderElector: LeaderElectionState {
     }
 
     /**
-     * Runs [action] if elected for [slot], stamping [slot.leaderId] as audit identity.
+     * `runIfLeader`는 leadership을 획득한 경우에만 action을 실행하고, 획득하지 못하면 null을 반환합니다.
      *
-     * ## Bridge Default
-     * Delegates to [runIfLeader] (lockName-based) and emits a throttled WARN via
-     * [LeaderElectorBridgeLog]. Backend implementations MUST override to stamp [slot.leaderId]
-     * into [LeaderLease.auditLeaderId] for audit traceability.
-     *
-     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
-     * @param action the suspend action to run when elected.
-     * @return [action] result, or `null` when not elected.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     suspend fun <T> runIfLeader(slot: LeaderSlot, action: suspend () -> T): T? {
         LeaderElectorBridgeLog.global().warnOnBridgeUse(this::class, slot)
@@ -113,18 +69,12 @@ interface SuspendLeaderElector: LeaderElectionState {
     }
 
     /**
-     * Returns [LeaderRunResult] for this suspend slot election.
+     * `runIfLeaderResultSuspend` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * ## Bridge Default
-     * Returns `Elected(value, leaderId = null)` — fabrication of [slot.leaderId] is intentionally
-     * blocked. Backend MUST override BOTH slot variants to carry [slot.leaderId] through.
-     *
-     * Cancellation: the underlying [runIfLeader] propagates `CancellationException` directly;
-     * no `runCatching` is used around suspend calls.
-     *
-     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
-     * @param action the suspend action to run when elected.
-     * @return [LeaderRunResult.Elected] (action ran) or [LeaderRunResult.Skipped] (not elected).
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     suspend fun <T> runIfLeaderResultSuspend(
         slot: LeaderSlot,

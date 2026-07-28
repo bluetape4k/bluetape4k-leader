@@ -4,32 +4,25 @@ import io.bluetape4k.leader.identity.LeaderIdSource
 import io.bluetape4k.support.requireNotBlank
 
 /**
- * Context carrying the resolved leader identity for metrics recording.
+ * `LeaderAopMetricsContext` 선언은 leader election 계약에서 사용되는 interface입니다.
  *
- * ## Variants
- * - [Unknown]: No identity available — recorded before election or on skip path.
- * - [Identified]: Election succeeded and a leader ID + source are known.
- *
- * ## Contract
- * - [Empty] is a Java-compatible alias for [Unknown].
- * - [Identified.leaderId] must be non-blank (enforced in `init`).
- *
- * ## Usage
- * ```kotlin
- * val ctx: LeaderAopMetricsContext = LeaderAopMetricsContext.Identified("node-a", LeaderIdSource.LITERAL)
- * recorder.onLockAcquired("my-lock", opts, elapsed, ctx)
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 sealed interface LeaderAopMetricsContext {
 
-    /** No leader identity available. Used on the skip/pre-election path. */
+    /**
+     * `Unknown` 선언은 leader election 계약에서 사용되는 object입니다.
+     *
+     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+     */
     data object Unknown : LeaderAopMetricsContext
 
     /**
-     * Leader identity is known after election.
+     * `Identified` 선언은 leader election 계약에서 사용되는 data class입니다.
      *
-     * @property leaderId the resolved leader identity (non-blank)
-     * @property leaderIdSource the provenance of [leaderId]
+     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+     * @property leaderId audit에 기록할 leader identity입니다.
+     * @property leaderIdSource `leaderIdSource` 호출 또는 상태 계산에 필요한 값입니다.
      */
     data class Identified(
         val leaderId: String,
@@ -41,7 +34,9 @@ sealed interface LeaderAopMetricsContext {
     }
 
     companion object {
-        /** Java-compatible alias for [Unknown]. */
+        /**
+         * `Empty` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+         */
         @JvmField
         val Empty: LeaderAopMetricsContext = Unknown
     }

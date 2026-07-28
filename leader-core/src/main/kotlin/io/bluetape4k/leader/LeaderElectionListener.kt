@@ -13,66 +13,71 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.function.Consumer
 
 /**
- * Synchronous listener that receives leader election lifecycle events.
+ * `LeaderElectionListener`는 leader election event를 관찰하거나 전달하는 계약입니다.
  *
- * ## Behavior / Contract
- * - [onElected] is called immediately before the user action runs, after this call acquires a leader or group slot.
- *   Implementations that need owner or expiry metadata should override [onElected] with [LeaderLease].
- * - [onSkipped] is called when a leader or group slot could not be acquired within the wait time and the user action is skipped.
- * - [onRevoked] is called after this call releases the leadership or slot it held — not on external lease-loss detection.
- * - Ordinary listener exceptions are logged and ignored so they do not affect the leader action result.
- *
- * ```kotlin
- * val listener = object : LeaderElectionListener {
- *     override fun onElected(lockName: String) {
- *         println("elected: $lockName")
- *     }
- * }
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 interface LeaderElectionListener {
 
-    /** Called when a leader or group slot is acquired. */
+    /**
+     * `onElected` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun onElected(lockName: String) = Unit
 
     /**
-     * Called when a leader or group slot is acquired, with a best-effort lease snapshot.
+     * `onElected` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * Backends that cannot report precise expiry pass `null` or a [LeaderLease] whose
-     * [LeaderLease.leaseUntil] is `null`. This callback is for observability only; callers must still use the
-     * backend's atomic acquire path to decide ownership.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param leader 현재 lock을 점유한 leader lease입니다. 비어 있으면 leadership이 없는 상태입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun onElected(lockName: String, leader: LeaderLease?) {
         onElected(lockName)
     }
 
-    /** Called after leadership or a group slot is released. */
+    /**
+     * `onRevoked` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun onRevoked(lockName: String) = Unit
 
-    /** Called when a leader or group slot could not be acquired and the user action was skipped. */
+    /**
+     * `onSkipped` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun onSkipped(lockName: String) = Unit
 }
 
 /**
- * Leader election lifecycle event.
+ * `LeaderElectionEvent` 선언은 leader election 계약에서 사용되는 interface입니다.
  *
- * In suspend contexts, collect [LeaderElectionEventPublisher.events] instead of using callbacks
- * to observe the leader execution lifecycle as a stream.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 sealed interface LeaderElectionEvent : Serializable {
-    /** The lock name for which the event was emitted. */
+    /**
+     * `lockName` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val lockName: String
 
     /**
-     * Leader or group slot acquisition event.
+     * `Elected` 선언은 leader election 계약에서 사용되는 data class입니다.
      *
-     * ## Behavior / Contract
-     * - [leader] is the full lease snapshot when the backend can report it at election time.
-     * - [leaderId] is the elected audit identity. When [leader] is present, this should match
-     *   [LeaderLease.auditLeaderId].
-     * - [leaseExpiry] is the absolute time at which the lease expires. When [leader] is present, this should
-     *   match [LeaderLease.leaseUntil].
-     * - `null` leader or expiry means the backend could not report precise metadata for this event.
+     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+     * @property lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @property leaderId audit에 기록할 leader identity입니다.
+     * @property leaseExpiry `leaseExpiry` 호출 또는 상태 계산에 필요한 값입니다.
+     * @property leader 현재 lock을 점유한 leader lease입니다. 비어 있으면 leadership이 없는 상태입니다.
      */
     data class Elected @JvmOverloads constructor(
         override val lockName: String,
@@ -83,7 +88,14 @@ sealed interface LeaderElectionEvent : Serializable {
         companion object {
             private const val serialVersionUID = 2L
 
-            /** Creates an elected event from a best-effort [LeaderLease] snapshot. */
+            /**
+             * `fromLease` 호출은 leader election 계약의 일부 동작을 수행합니다.
+             *
+             * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+             * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+             * @param leader 현재 lock을 점유한 leader lease입니다. 비어 있으면 leadership이 없는 상태입니다.
+             * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+             */
             fun fromLease(lockName: String, leader: LeaderLease?): Elected =
                 Elected(
                     lockName = lockName,
@@ -94,14 +106,24 @@ sealed interface LeaderElectionEvent : Serializable {
         }
     }
 
-    /** Event emitted when leadership or a group slot is released. */
+    /**
+     * `Revoked` 선언은 leader election 계약에서 사용되는 data class입니다.
+     *
+     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+     * @property lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     */
     data class Revoked(override val lockName: String) : LeaderElectionEvent {
         companion object {
             private const val serialVersionUID = 1L
         }
     }
 
-    /** Event emitted when a leader or group slot could not be acquired and the user action was skipped. */
+    /**
+     * `Skipped` 선언은 leader election 계약에서 사용되는 data class입니다.
+     *
+     * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+     * @property lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     */
     data class Skipped(override val lockName: String) : LeaderElectionEvent {
         companion object {
             private const val serialVersionUID = 1L
@@ -110,34 +132,24 @@ sealed interface LeaderElectionEvent : Serializable {
 }
 
 /**
- * Contract that exposes a leader election lifecycle event stream.
+ * `LeaderElectionEventPublisher` 선언은 leader election 계약에서 사용되는 interface입니다.
  *
- * ## Behavior / Contract
- * - [events] remains the coroutine-native hot stream.
- * - Callback registration helpers collect [events] in a caller-owned [CoroutineScope].
- * - Closing the returned [AutoCloseable] cancels only that callback collection job.
- * - Callback exceptions are logged and ignored so observability hooks do not affect leader execution.
- *
- * ```kotlin
- * val handle = publisher.onElected(applicationScope) { event ->
- *     println("elected ${event.lockName}")
- * }
- * handle.close()
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 interface LeaderElectionEventPublisher {
 
     /**
-     * Leader election event stream.
-     *
-     * Implementations use a hot event source internally and deliver events that occur while a collector is active.
+     * `events` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
      */
     val events: Flow<LeaderElectionEvent>
 
     /**
-     * Registers [listener] for every leader election event.
+     * `onEvent` 호출은 leader election 계약의 일부 동작을 수행합니다.
      *
-     * The caller owns [scope]. Close the returned handle to stop collecting this publisher for [listener].
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param scope `scope` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param listener `listener` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun onEvent(
         scope: CoroutineScope,
@@ -146,7 +158,12 @@ interface LeaderElectionEventPublisher {
         subscribeToEvents(scope, "onEvent", LeaderElectionEvent::class.java, listener)
 
     /**
-     * Registers [listener] for [LeaderElectionEvent.Elected] events.
+     * `onElected` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param scope `scope` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param listener `listener` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun onElected(
         scope: CoroutineScope,
@@ -155,7 +172,12 @@ interface LeaderElectionEventPublisher {
         subscribeToEvents(scope, "onElected", LeaderElectionEvent.Elected::class.java, listener)
 
     /**
-     * Registers [listener] for [LeaderElectionEvent.Revoked] events.
+     * `onRevoked` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param scope `scope` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param listener `listener` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun onRevoked(
         scope: CoroutineScope,
@@ -164,7 +186,12 @@ interface LeaderElectionEventPublisher {
         subscribeToEvents(scope, "onRevoked", LeaderElectionEvent.Revoked::class.java, listener)
 
     /**
-     * Registers [listener] for [LeaderElectionEvent.Skipped] events.
+     * `onSkipped` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param scope `scope` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param listener `listener` 호출 또는 상태 계산에 필요한 값입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun onSkipped(
         scope: CoroutineScope,
@@ -200,30 +227,33 @@ private fun <T : LeaderElectionEvent> LeaderElectionEventPublisher.subscribeToEv
 private object LeaderElectionEventPublisherCallbackLogger : KLogging()
 
 /**
- * Contract for registering and unregistering [LeaderElectionListener] instances.
+ * `LeaderElectionListenerRegistry`는 leader election event를 관찰하거나 전달하는 계약입니다.
  *
- * Implementations also allow unregistering the same listener by closing the returned [AutoCloseable].
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 interface LeaderElectionListenerRegistry {
 
     /**
-     * Registers [listener] and returns a handle that unregisters it when closed.
+     * `addListener`는 leader election event listener를 등록하고 해제 handle을 반환합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param listener `listener` 호출 또는 상태 계산에 필요한 값입니다.
      */
     fun addListener(listener: LeaderElectionListener): AutoCloseable
 
     /**
-     * Unregisters [listener].
+     * `removeListener`는 등록된 leader election event listener를 제거합니다.
      *
-     * @return `true` if the listener was actually registered and has been removed
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param listener `listener` 호출 또는 상태 계산에 필요한 값입니다.
      */
     fun removeListener(listener: LeaderElectionListener): Boolean
 }
 
 /**
- * Thread-safe default implementation of [LeaderElectionListenerRegistry].
+ * `LeaderElectionListenerSupport`는 leader election event를 관찰하거나 전달하는 계약입니다.
  *
- * Uses [CopyOnWriteArrayList] so that registrations or unregistrations during listener dispatch
- * do not affect the stable snapshot used by the current dispatch.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 open class LeaderElectionListenerSupport : LeaderElectionListenerRegistry {
 
@@ -237,17 +267,36 @@ open class LeaderElectionListenerSupport : LeaderElectionListenerRegistry {
     override fun removeListener(listener: LeaderElectionListener): Boolean =
         listeners.remove(listener)
 
-    /** Dispatches an elected event to all registered listeners. */
+    /**
+     * `notifyElected` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param leader 현재 lock을 점유한 leader lease입니다. 비어 있으면 leadership이 없는 상태입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun notifyElected(lockName: String, leader: LeaderLease? = null) {
         notify(lockName, "onElected") { it.onElected(lockName, leader) }
     }
 
-    /** Dispatches a revoked event to all registered listeners. */
+    /**
+     * `notifyRevoked` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun notifyRevoked(lockName: String) {
         notify(lockName, "onRevoked") { it.onRevoked(lockName) }
     }
 
-    /** Dispatches a skipped event to all registered listeners. */
+    /**
+     * `notifySkipped` 호출은 leader election 계약의 일부 동작을 수행합니다.
+     *
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
+     */
     fun notifySkipped(lockName: String) {
         notify(lockName, "onSkipped") { it.onSkipped(lockName) }
     }

@@ -1,41 +1,28 @@
 package io.bluetape4k.leader.annotation
 
 /**
- * Aspect failure policy when leader lock acquisition fails (backend exception or contention).
+ * `LeaderAspectFailureMode` 선언은 leader election 계약에서 사용되는 enum입니다.
  *
- * ## Options
- * - [RETHROW] (default): wraps backend exceptions in [io.bluetape4k.leader.LeaderElectionException] /
- *   `LeaderGroupElectionException` and propagates to the caller.
- *   Generalizes the message to prevent leaking host/credentials infrastructure details. Preserves cause.
- * - [SKIP]: absorbs lock acquisition failures or backend exceptions and returns `null` (equivalent to ShedLock skip).
- * - [FAIL_OPEN_RUN]: runs the body without a lock when acquisition fails or a backend exception occurs.
- *   For circuit-breaker scenarios where continuing execution is preferable to stopping on lock system failure.
- *   **Warning**: multiple instances may execute the body concurrently — use only with idempotent actions.
- *
- * ## Independent of body exceptions
- * This enum handles only lock acquisition failure. Exceptions thrown by the user body (`pjp.proceed()`)
- * are always propagated as-is regardless of `failureMode` (no wrapping).
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 enum class LeaderAspectFailureMode {
     /**
-     * Sentinel — uses the `LeaderAopProperties.failureMode` global default.
-     * Used in annotations only. The `LeaderAopProperties.failureMode` default is [RETHROW].
+     * `INHERIT` 선언은 leader election 계약에서 사용되는 declaration입니다.
      */
     INHERIT,
 
-    /** Wraps the backend exception and propagates it to the caller. */
+    /**
+     * `RETHROW` 선언은 leader election 계약에서 사용되는 declaration입니다.
+     */
     RETHROW,
 
-    /** Absorbs lock acquisition failures or backend exceptions and returns `null` (equivalent to ShedLock skip). */
+    /**
+     * `SKIP` 선언은 leader election 계약에서 사용되는 declaration입니다.
+     */
     SKIP,
 
     /**
-     * Runs the body without a lock when acquisition fails or a backend exception occurs (fail-open).
-     *
-     * - Skipped due to contention → emits `onLockNotAcquired(FAIL_OPEN_FORCED)` then runs the body.
-     * - Backend exception → logs a warning then runs the body.
-     *
-     * **Warning**: multiple instances may run the body concurrently since no lock is held. Use only with idempotent actions.
+     * `FAIL_OPEN_RUN` 선언은 leader election 계약에서 사용되는 declaration입니다.
      */
     FAIL_OPEN_RUN,
 }

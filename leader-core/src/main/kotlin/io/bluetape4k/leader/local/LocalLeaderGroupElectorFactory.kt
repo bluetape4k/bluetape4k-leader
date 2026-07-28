@@ -5,14 +5,9 @@ import io.bluetape4k.leader.LeaderGroupElectorFactory
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 
 /**
- * Factory for [LocalLeaderGroupElector] — creates single-JVM multi-leader election instances based on Semaphore.
+ * `LocalLeaderGroupElectorFactory`는 backend별 leader elector 인스턴스를 생성하는 factory 계약입니다.
  *
- * ## Usage
- * ```kotlin
- * val factory = LocalLeaderGroupElectionFactory()
- * val election = factory.create(LeaderGroupElectionOptions(maxLeaders = 3))
- * val result = election.runIfLeader("batch-shard") { processChunk() }
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 class LocalLeaderGroupElectorFactory : LeaderGroupElectorFactory {
 

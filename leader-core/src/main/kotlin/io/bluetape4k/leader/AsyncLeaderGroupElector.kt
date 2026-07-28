@@ -9,51 +9,20 @@ import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Defines the contract for semaphore-based multi-leader asynchronous election.
+ * `AsyncLeaderGroupElector`는 여러 slot을 허용하는 async group leader election 실행자입니다.
  *
- * ## Relationship with [LeaderGroupElector]
- * - [LeaderGroupElector] extends [AsyncLeaderGroupElector] and adds the synchronous [LeaderGroupElector.runIfLeader].
- * - [AsyncLeaderGroupElector] defines only asynchronous execution ([runAsyncIfLeader]).
- *
- * ## Difference from [AsyncLeaderElector]
- * - [AsyncLeaderElector] limits leaders to 1 per `lockName`.
- * - [AsyncLeaderGroupElector] allows up to [maxLeaders] concurrent leaders.
- *
- * ## Behavior / Contract
- * - Implementations run at most [maxLeaders] concurrent `action` invocations per `lockName`.
- * - When all slots are occupied, the [Executor] thread blocks until a slot becomes available.
- * - Slots are always released even when `action` throws an exception.
- * - State query methods ([state], [activeCount], [availableSlots]) are inherited from [LeaderGroupElectionState].
- *
- * ```kotlin
- * val election: AsyncLeaderGroupElector = LocalAsyncLeaderGroupElector(LeaderGroupElectionOptions(maxLeaders = 3))
- * val result = election.runAsyncIfLeader("batch-job") {
- *     CompletableFuture.completedFuture(processChunk())
- * }.join()
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 interface AsyncLeaderGroupElector: LeaderGroupElectionState {
 
     /**
-     * Acquires a slot and, when elected as leader, executes the asynchronous [action].
+     * `runAsyncIfLeader`는 leadership을 획득한 경우에만 async action을 실행하고, 획득하지 못하면 null 결과를 완료합니다.
      *
-     * ## Behavior / Contract
-     * - When all slots are occupied, the [executor] thread blocks until a slot becomes available.
-     * - The slot is held until the [CompletableFuture] returned by [action] completes.
-     * - The slot is always released even when [action] fails (exception or future failure).
-     * - The default [executor] is the [VirtualThreadExecutor] singleton, suitable for blocking work.
-     *
-     * ```kotlin
-     * val result = election.runAsyncIfLeader("job-lock") {
-     *     CompletableFuture.completedFuture(42)
-     * }.join()
-     * // result == 42 (slot acquired) or null (not acquired)
-     * ```
-     *
-     * @param lockName the lock name used for group leader election
-     * @param executor the [Executor] for async execution. Defaults to the [VirtualThreadExecutor] singleton
-     * @param action the async action to run when elected as leader
-     * @return [CompletableFuture] resolving to the [action] result, or `null` when no slot is acquired
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+     * @param executor `executor` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun <T> runAsyncIfLeader(
         lockName: String,
@@ -62,17 +31,13 @@ interface AsyncLeaderGroupElector: LeaderGroupElectionState {
     ): CompletableFuture<T?>
 
     /**
-     * Runs [action] asynchronously if a group slot is acquired, stamping [slot.leaderId] as audit identity.
+     * `runAsyncIfLeader`는 leadership을 획득한 경우에만 async action을 실행하고, 획득하지 못하면 null 결과를 완료합니다.
      *
-     * ## Bridge Default
-     * Delegates to [runAsyncIfLeader] (lockName-based) and emits a throttled WARN via
-     * [LeaderElectorBridgeLog]. Backend implementations MUST override to carry [slot.leaderId]
-     * into the lease/lock audit identity.
-     *
-     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
-     * @param executor the [Executor] for async execution. Defaults to [VirtualThreadExecutor].
-     * @param action the async action to run when a slot is acquired.
-     * @return [CompletableFuture] resolving to the action result, or `null` when no slot acquired.
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+     * @param executor `executor` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun <T> runAsyncIfLeader(
         slot: LeaderSlot,
@@ -84,17 +49,13 @@ interface AsyncLeaderGroupElector: LeaderGroupElectionState {
     }
 
     /**
-     * Returns [LeaderRunResult] for the async group slot election.
+     * `runAsyncIfLeaderResult`는 async leadership 획득, skip, action 실패를 명시적인 LeaderRunResult로 반환합니다.
      *
-     * ## Bridge Default
-     * Uses an `elected: AtomicBoolean` flag pattern to distinguish elected (action ran) from skipped.
-     * Returns `Elected(value, leaderId = null)` — fabrication of [slot.leaderId] is intentionally
-     * blocked. Backend MUST override BOTH slot variants to carry [slot.leaderId] through.
-     *
-     * @param slot the [LeaderSlot] carrying both lock name and audit leader id.
-     * @param executor the [Executor] for async execution. Defaults to [VirtualThreadExecutor].
-     * @param action the async action to run when elected.
-     * @return [CompletableFuture] resolving to [LeaderRunResult.Elected] or [LeaderRunResult.Skipped].
+     * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+     * @param slot group election slot과 audit leader id를 함께 전달하는 값입니다.
+     * @param executor `executor` 호출 또는 상태 계산에 필요한 값입니다.
+     * @param action leadership을 획득한 경우에만 실행되는 사용자 작업입니다.
+     * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
      */
     fun <T> runAsyncIfLeaderResult(
         slot: LeaderSlot,

@@ -5,38 +5,35 @@ import io.bluetape4k.support.requireNotBlank
 import java.io.Serializable
 
 /**
- * Composite key returned by [LeaderHistorySink.recordAcquired] and passed to
- * subsequent [LeaderHistorySink.recordCompleted] / [LeaderHistorySink.recordFailed] calls.
+ * `LeaderHistoryKey`는 leader election audit/history 저장 계약을 표현합니다.
  *
- * ## Behavior / Contract
- * Sinks may use different update strategies depending on which fields are populated:
- *
- * | [id] | [historyId] | Strategy |
- * |------|-------------|----------|
- * | non-null | any | Primary-key update (JDBC `UPDATE … WHERE id = ?`) |
- * | null | non-null | Natural-key update (`WHERE historyId = ?`) |
- * | null | null | Natural-key update (`WHERE lockName = ? AND token = ?`) |
- *
- * - [lockName] and [token] are always required and validated non-blank.
- * - [slotId] is populated for group elections (Redisson `permitId` or Lettuce slot token);
- *   sinks store it in a `VARCHAR(255)` column to avoid `toInt()` NFE on UUID-shaped values.
- *
- * ## Example
- * ```kotlin
- * val key: LeaderHistoryKey? = sink.recordAcquired(record)
- * val fallbackKey = key ?: LeaderHistoryKey(lockName = record.lockName, token = record.token)
- * ```
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
+ * @property id `id` 호출 또는 상태 계산에 필요한 값입니다.
+ * @property historyId `historyId` 호출 또는 상태 계산에 필요한 값입니다.
+ * @property lockName leader election에 사용할 lock 이름입니다. backend별 검증 규칙을 통과해야 하며 상태 조회와 audit의 기준 키가 됩니다.
+ * @property token backend lock을 해제하거나 검증할 때 사용하는 소유권 token입니다.
+ * @property slotId group election backend가 slot을 식별할 때 쓰는 값입니다.
  */
 data class LeaderHistoryKey(
-    /** Auto-increment or surrogate primary key; null when the sink does not use numeric PKs. */
+    /**
+     * `id` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val id: Long? = null,
-    /** UUID or opaque string primary key; null when the sink uses [id]. */
+    /**
+     * `historyId`는 leader election audit/history 저장 계약을 표현합니다.
+     */
     val historyId: String? = null,
-    /** Lock name — always required. */
+    /**
+     * `lockName` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val lockName: String,
-    /** Live lock-release credential — always required. */
+    /**
+     * `token` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val token: String,
-    /** Slot identifier for group elections; stored as VARCHAR to avoid NFE on UUID-shaped values. */
+    /**
+     * `slotId` 값은 leader election 계약에서 노출되는 상태 또는 설정 항목입니다.
+     */
     val slotId: String? = null,
 ) : Serializable {
 
@@ -45,7 +42,7 @@ data class LeaderHistoryKey(
         token.requireNotBlank("token")
     }
 
-    // Redact token to prevent credential leakage via log statements that interpolate this key
+    // 이 key를 문자열 보간으로 로그에 남길 때 credential이 노출되지 않도록 token을 가립니다.
     override fun toString(): String =
         "LeaderHistoryKey(id=$id, historyId=$historyId, lockName=$lockName, token=***, slotId=$slotId)"
 

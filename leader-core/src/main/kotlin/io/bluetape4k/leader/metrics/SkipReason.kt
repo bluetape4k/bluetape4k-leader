@@ -1,21 +1,23 @@
 package io.bluetape4k.leader.metrics
 
 /**
- * Reason passed to `LeaderAopMetricsRecorder.onLockNotAcquired` when a leader is not elected.
+ * `SkipReason` 선언은 leader election 계약에서 사용되는 enum입니다.
  *
- * [#85] With the introduction of the `LeaderRunResult` sealed SPI, `CONTENTION` is now accurate —
- * the `elected` flag inside `runIfLeaderResult` clearly distinguishes a body `null` return from not being elected.
+ * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.
  */
 enum class SkipReason {
-    /** Lock not acquired within waitTime. */
+    /**
+     * `CONTENTION` 선언은 leader election 계약에서 사용되는 declaration입니다.
+     */
     CONTENTION,
 
-    /** Backend exception occurred and absorbed in SKIP mode. */
+    /**
+     * `BACKEND_ERROR` 선언은 leader election 계약에서 사용되는 declaration입니다.
+     */
     BACKEND_ERROR,
 
     /**
-     * Lock not acquired (contention) or backend exception occurred, then body runs without a lock in `FAIL_OPEN_RUN` mode.
-     * After the `onLockNotAcquired` event is published, `onTaskFinished` is published if the body completes normally.
+     * `FAIL_OPEN_FORCED` 선언은 leader election 계약에서 사용되는 declaration입니다.
      */
     FAIL_OPEN_FORCED,
 }

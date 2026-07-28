@@ -5,10 +5,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
 
 /**
- * Returns the remaining minimum lease duration from [startedAtNanos].
+ * `remainingMinLeaseTime` 호출은 leader election 계약의 일부 동작을 수행합니다.
  *
- * Backend adapters use this value to delegate lock retention to their storage TTL
- * instead of blocking caller threads after a fast action returns.
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param startedAtNanos `startedAtNanos` 호출 또는 상태 계산에 필요한 값입니다.
+ * @param minLeaseTime 작업이 빨리 끝나더라도 lease를 최소로 유지할 시간입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 fun remainingMinLeaseTime(startedAtNanos: Long, minLeaseTime: Duration): Duration {
     if (minLeaseTime <= Duration.ZERO) {
@@ -20,14 +22,12 @@ fun remainingMinLeaseTime(startedAtNanos: Long, minLeaseTime: Duration): Duratio
 }
 
 /**
- * Parks the calling thread for the remaining minimum lease time.
+ * `parkRemainingMinLeaseTime` 호출은 leader election 계약의 일부 동작을 수행합니다.
  *
- * ⚠️ **BLOCKING CALL** — must NOT be invoked from coroutine dispatcher threads or virtual threads
- * managed by a coroutine scheduler. Only safe for platform threads in sync electors
- * (e.g., [LeaderElector], [VirtualThreadLeaderElector]).
- *
- * Backend adapters that need TTL-based retention should use [remainingMinLeaseTime] to update
- * the backend TTL directly instead of calling this function.
+ * 정상 contention은 예외가 아니라 skip/null/result 상태로 표현한다는 core 계약을 보존합니다.
+ * @param startedAtNanos `startedAtNanos` 호출 또는 상태 계산에 필요한 값입니다.
+ * @param minLeaseTime 작업이 빨리 끝나더라도 lease를 최소로 유지할 시간입니다.
+ * @return 호출 결과입니다. leadership을 획득하지 못한 경우 null 또는 skip result가 될 수 있습니다.
  */
 @Suppress("BlockingMethodInNonBlockingContext")
 internal fun parkRemainingMinLeaseTime(startedAtNanos: Long, minLeaseTime: Duration) {
