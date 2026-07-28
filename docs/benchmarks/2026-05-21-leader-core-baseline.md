@@ -1,28 +1,22 @@
-# leader-core benchmark baseline — 2026-05-21
+# 리더 코어 벤치마크 기준 — 2026-05-21
 
-This is a local developer-machine baseline for issue #326. Use it to compare
-future changes on the same machine and JVM. Do not treat it as a release-grade
-throughput claim.
+이는 문제 #326에 대한 로컬 개발자-머신 기준입니다. 이를 사용하여 동일한 시스템 및 JVM의 향후 변경 사항을 비교합니다. 릴리스 등급 처리량 청구로
+처리하지 마십시오.
 
-Update: issue #327 moved these benchmark scenarios from `leader-core/src/jmh`
-into the central non-published `benchmark/` module and switched the Gradle
-frontend to `kotlinx-benchmark` with JMH as the JVM backend. Keep the numbers
-below as the PR #330 historical baseline; use
-`docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md` for current
-comparisons.
+업데이트: 문제 #327은 이러한 벤치마크 시나리오를 `leader-core/src/jmh`에서 게시되지 않은 중앙 `benchmark/` 모듈로 이동하고
+JVM 백엔드로 JMH를 사용하여 Gradle 프런트엔드를 `kotlinx-benchmark`로 전환했습니다. 아래 숫자를 PR #330 역사적 기준으로
+유지하십시오. 현재 비교를 위해서는 `docs/benchmarks/2026-05-21-leader-cross-backend-baseline.md`를
+사용하세요.
 
-## Caveats
+## 주의 사항
 
-- The coroutine benchmark uses `runBlocking {}` because JMH cannot invoke
-  `suspend` benchmark methods directly; the result includes bridge cost.
-- The virtual-thread benchmark includes virtual-thread submission and scheduling
-  cost, not just local lock acquisition.
-- The local elector benchmarks are uncontended, single-threaded hot-path
-  measurements.
-- JMH used compiler blackholes on this JVM; keep the same JVM and blackhole mode
-  when comparing future runs.
+- 코루틴 벤치마크는 JMH가 '일시 중지' 벤치마크 메서드를 직접 호출할 수 없기 때문에 'runBlocking {}'을 사용합니다. 결과에는 교량
+- 비용이 포함됩니다.
+- 가상 스레드 벤치마크에는 로컬 잠금 획득뿐만 아니라 가상 스레드 제출 및 예약 비용도 포함됩니다.
+- 로컬 선택기 벤치마크는 경쟁이 없는 단일 스레드 핫 경로 측정입니다.
+- JMH는 이 JVM에서 컴파일러 블랙홀을 사용했습니다. 향후 실행을 비교할 때 동일한 JVM 및 블랙홀 모드를 유지하십시오.
 
-## Environment
+## 환경
 
 | Field | Value |
 |---|---|
@@ -37,20 +31,20 @@ comparisons.
 | Forks | 1 |
 | Threads | 1 |
 
-## Command
+## 명령
 
 ```bash
 ./gradlew :bluetape4k-leader-core:jmh --no-configuration-cache
 ```
 
-Report files:
+보고서 파일:
 
-- `leader-core/build/reports/jmh/human.txt`
-- `leader-core/build/reports/jmh/results.json`
+- `리더 코어/빌드/보고서/jmh/human.txt`
+- `리더 코어/빌드/보고서/jmh/results.json`
 
-## Results
+## 결과
 
-Higher is better for throughput. Lower is better for average time.
+높을수록 처리량이 더 좋습니다. 평균 시간에는 낮을수록 좋습니다.
 
 | Benchmark | Throughput (ops/us) | Average time (us/op) |
 |---|---:|---:|
@@ -64,24 +58,17 @@ Higher is better for throughput. Lower is better for average time.
 | LocalLeader.suspendRunIfLeader | 0.787 ± 0.566 | 1.247 ± 0.184 |
 | LocalLeader.virtualThreadRunIfLeader | 0.140 ± 0.006 | 7.018 ± 1.371 |
 
-## Observations
+## 관찰
 
-- Blocking and direct-executor `CompletableFuture` local paths are effectively
-  tied at roughly `0.45 us/op` in this uncontended scenario.
-- Coroutine local election is slower in this harness because it includes
-  `runBlocking` plus `Mutex` acquisition/release.
-- Virtual-thread local election is intentionally slower in this microbench
-  because every operation submits work to the virtual-thread executor and waits
-  for completion.
-- In-memory history recorder overhead is below `0.25 us/op` in both blocking
-  and suspend fixtures, well under the prior 1 ms hot-path target for in-memory
-  recording.
+- 차단 및 직접 실행기 'CompletableFuture' 로컬 경로는 이 경합이 없는 시나리오에서 대략 '0.45us/op'로 효과적으로 연결됩니다.
+- 이 하네스에서는 'runBlocking'과 'Mutex' 획득/해제가 포함되어 있기 때문에 코루틴 지역 선택이 더 느립니다.
+- 모든 작업이 가상 스레드 실행기에 작업을 제출하고 완료될 때까지 기다리기 때문에 이 마이크로벤치에서는 가상 스레드 로컬 선택이 의도적으로 느려집니다.
+- 인 메모리 내역 레코더 오버헤드는 차단 및 정지 픽스처 모두에서 '0.25us/op' 미만이며, 이는 인 메모리 기록을 위한 이전 1ms 핫 경로
+- 목표보다 훨씬 낮습니다.
 
-## Next Work
+## 다음 작품
 
-- Issue #327 should add cross-backend benchmarks with Testcontainers and
-  separate lock-backend setup cost from hot-path acquire/release cost.
-- Issue #328 should publish README charts only after backend results are
-  comparable.
-- Issue #329 should start self-improve work from the benchmark rows above and
-  the cross-backend results from issue #327.
+- 문제 #327은 Testcontainers를 사용하여 크로스 백엔드 벤치마크를 추가하고 핫 경로 획득/해제 비용과 별도의 잠금 백엔드 설정 비용을
+- 추가해야 합니다.
+- 문제 #328에서는 백엔드 결과를 비교할 수 있는 후에만 README 차트를 게시해야 합니다.
+- 문제 #329는 위의 벤치마크 행과 문제 #327의 크로스 백엔드 결과에서 자체 개선 작업을 시작해야 합니다.

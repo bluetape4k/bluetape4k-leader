@@ -1,447 +1,333 @@
-# Changelog
+# 변경 내역
 
-All notable changes to `bluetape4k-leader` are documented here.
+`bluetape4k-leader`에 대한 모든 주요 변경 사항은 여기에 문서화되어 있습니다.
 
-Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
-Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+형식은 [변경 로그 유지](https://keepachangelog.com/en/1.0.0/)를 따릅니다. 버전은 [의미적 버전 관리](https://semver.org/spec/v2.0.0.html)를 따릅니다.
 
 ---
 
-## [Unreleased]
+## [미공개]
 
 ## [0.5.0] — 2026-07-03
 
-### Added
+### 추가됨
 
-- Added Micrometer Observation and OpenTelemetry tracing support for leader
-  election attempts, selected work, skipped work, and failures
-  ([#529](https://github.com/bluetape4k/bluetape4k-leader/issues/529)).
-- Added metric tag cardinality controls so leader lock names and leader IDs can
-  be normalized, allow-listed, or redacted before metric export
-  ([#530](https://github.com/bluetape4k/bluetape4k-leader/issues/530)).
-- Added Prometheus alert rules, Grafana guidance, and leader operation runbooks
-  for stuck leadership, error spikes, and backend risk signals
-  ([#534](https://github.com/bluetape4k/bluetape4k-leader/issues/534)).
-- Added Spring Boot configuration metadata and startup diagnostics for active
-  backend candidates, management endpoint exposure, registry seed gaps, and
-  high-cardinality tag risks
-  ([#538](https://github.com/bluetape4k/bluetape4k-leader/issues/538)).
+- 리더 선택 attempts, 선택한 작업, 건너뛴 작업 및 failure에 대한 Micrometer 관찰 및 OpenTelemetry 추적 지원을 추가했습니다([#529](https://github.com/bluetape4k/bluetape4k-leader/issues/529)).
+- 지표 내보내기 전에 리더 잠금 이름과 리더 ID를 정규화하거나, 허용 목록에 추가하거나, 수정할 수 있도록 지표 태그 카디널리티 제어를 추가했습니다([#530](https://github.com/bluetape4k/bluetape4k-leader/issues/530)).
+- 정체된 리더십, 오류 급증 및 백엔드 위험 신호에 대한 Prometheus 경고 규칙, Grafana 지침 및 리더 운영 런북을 추가했습니다([#534](https://github.com/bluetape4k/bluetape4k-leader/issues/534)).
+- 활성 백엔드 후보, 관리 엔드포인트 노출, 레지스트리 시드 격차 및 높은 카디널리티 태그 위험에 대한 Spring Boot 구성 메타데이터 및 시작 진단을 추가했습니다([#538](https://github.com/bluetape4k/bluetape4k-leader/issues/538)).
 
-### Changed
+### 변경됨
 
-- Refreshed README and localized README guidance around observability,
-  operational readiness, diagnostics, and benchmark-backed interpretation
-  ([#529](https://github.com/bluetape4k/bluetape4k-leader/issues/529),
-  [#530](https://github.com/bluetape4k/bluetape4k-leader/issues/530),
-  [#534](https://github.com/bluetape4k/bluetape4k-leader/issues/534),
-  [#538](https://github.com/bluetape4k/bluetape4k-leader/issues/538)).
-- Kept the remaining management, health, audit-export, route-helper, Ktor, and
-  lease-extension follow-ups in Backlog instead of expanding the 0.5.0 scope
-  ([#561](https://github.com/bluetape4k/bluetape4k-leader/issues/561)).
+- 관찰 가능성, 운영 준비 status, 진단 및 벤치마크 지원 해석에 대한 새로워진 README 및 현지화된 README 지침([#529](https://github.com/bluetape4k/bluetape4k-leader/issues/529), [#530](https://github.com/bluetape4k/bluetape4k-leader/issues/530), [#534](https://github.com/bluetape4k/bluetape4k-leader/issues/534), [#538](https://github.com/bluetape4k/bluetape4k-leader/issues/538)).
+- 0.5.0 범위를 확장하는 대신([#561](https://github.com/bluetape4k/bluetape4k-leader/issues/561)) 백로그에 나머지 관리, status, 감사 내보내기, 경로 도우미, Ktor 및 임대 연장 후속 조치를 유지했습니다.
 
-### Fixed
+### 결정된
 
-- Closed the 0.5.0 correctness and integration hardening lane for ownership
-  retention, lease TTL reporting, session-loss detection, and shared container
-  stability across Redis, Hazelcast, ZooKeeper, etcd, Consul, and Spring Boot
-  tests
-  ([#511](https://github.com/bluetape4k/bluetape4k-leader/issues/511),
-  [#512](https://github.com/bluetape4k/bluetape4k-leader/issues/512),
-  [#513](https://github.com/bluetape4k/bluetape4k-leader/issues/513),
-  [#514](https://github.com/bluetape4k/bluetape4k-leader/issues/514),
-  [#515](https://github.com/bluetape4k/bluetape4k-leader/issues/515),
-  [#516](https://github.com/bluetape4k/bluetape4k-leader/issues/516),
-  [#517](https://github.com/bluetape4k/bluetape4k-leader/issues/517),
-  [#518](https://github.com/bluetape4k/bluetape4k-leader/issues/518),
-  [#519](https://github.com/bluetape4k/bluetape4k-leader/issues/519)).
+- Redis, Hazelcast, ZooKeeper, etcd, Consul 및 Spring Boot 테스트 전반에 걸쳐 소유권 보존, 임대 TTL 보고, 세션 손실 감지 및 공유 컨테이너 안정성을 위한 0.5.0 정확성 및 통합 강화 레인을 폐쇄했습니다. ([#511](https://github.com/bluetape4k/bluetape4k-leader/issues/511), [#512](https://github.com/bluetape4k/bluetape4k-leader/issues/512), [#513](https://github.com/bluetape4k/bluetape4k-leader/issues/513), [#514](https://github.com/bluetape4k/bluetape4k-leader/issues/514), [#515](https://github.com/bluetape4k/bluetape4k-leader/issues/515), [#516](https://github.com/bluetape4k/bluetape4k-leader/issues/516), [#517](https://github.com/bluetape4k/bluetape4k-leader/issues/517), [#518](https://github.com/bluetape4k/bluetape4k-leader/issues/518), [#519](https://github.com/bluetape4k/bluetape4k-leader/issues/519)).
 
-### Performance
+### 성능
 
-- Added benchmark coverage for group semaphore behavior, contention and skip
-  paths, Spring annotation advice overhead, Micrometer/history-recorder
-  overhead, and Kubernetes Lease conflict and renewal scenarios
-  ([#520](https://github.com/bluetape4k/bluetape4k-leader/issues/520),
-  [#521](https://github.com/bluetape4k/bluetape4k-leader/issues/521),
-  [#522](https://github.com/bluetape4k/bluetape4k-leader/issues/522),
-  [#523](https://github.com/bluetape4k/bluetape4k-leader/issues/523),
-  [#524](https://github.com/bluetape4k/bluetape4k-leader/issues/524)).
+- 그룹 세마포어 동작, 경합 및 건너뛰기 경로, Spring 주석 조언 오버헤드, Micrometer/history-recorder 오버헤드, Kubernetes Lease 충돌 및 갱신 시나리오에 대한 벤치마크 적용 범위를 추가했습니다([#520](https://github.com/bluetape4k/bluetape4k-leader/issues/520). [#521](https://github.com/bluetape4k/bluetape4k-leader/issues/521), [#522](https://github.com/bluetape4k/bluetape4k-leader/issues/522), [#523](https://github.com/bluetape4k/bluetape4k-leader/issues/523), [#524](https://github.com/bluetape4k/bluetape4k-leader/issues/524)).
 
 ---
 
 ## [0.4.0] — 2026-06-27
 
-### Added
+### 추가됨
 
-- Added and documented extensible multilingual README switch ordering, module
-  architecture diagrams, scenario diagrams, and semantic lock-state diagram
-  colors for the leader adoption guide
-  ([#486](https://github.com/bluetape4k/bluetape4k-leader/issues/486),
-  [#489](https://github.com/bluetape4k/bluetape4k-leader/issues/489),
-  [#490](https://github.com/bluetape4k/bluetape4k-leader/issues/490),
-  [#491](https://github.com/bluetape4k/bluetape4k-leader/issues/491),
-  [#494](https://github.com/bluetape4k/bluetape4k-leader/issues/494)).
-- Expanded runnable backend adoption examples and performance evidence for
-  supported leader-election backends
-  ([#413](https://github.com/bluetape4k/bluetape4k-leader/issues/413),
-  [#414](https://github.com/bluetape4k/bluetape4k-leader/issues/414),
-  [#416](https://github.com/bluetape4k/bluetape4k-leader/issues/416),
-  [#423](https://github.com/bluetape4k/bluetape4k-leader/issues/423),
-  [#424](https://github.com/bluetape4k/bluetape4k-leader/issues/424),
-  [#427](https://github.com/bluetape4k/bluetape4k-leader/issues/427),
-  [#428](https://github.com/bluetape4k/bluetape4k-leader/issues/428),
-  [#429](https://github.com/bluetape4k/bluetape4k-leader/issues/429)).
+- 리더 채택 가이드에 대한 확장 가능한 다국어 README 스위치 순서, 모듈 아키텍처 다이어그램, 시나리오 다이어그램 및 의미론적 잠금 status 다이어그램 색상을 추가하고 문서화했습니다([#486](https://github.com/bluetape4k/bluetape4k-leader/issues/486), [#489](https://github.com/bluetape4k/bluetape4k-leader/issues/489), [#490](https://github.com/bluetape4k/bluetape4k-leader/issues/490), [#491](https://github.com/bluetape4k/bluetape4k-leader/issues/491), [#494](https://github.com/bluetape4k/bluetape4k-leader/issues/494)).
+- 지원되는 리더 선택 백엔드에 대한 확장된 실행 가능 백엔드 채택 예 및 성능 증거([#413](https://github.com/bluetape4k/bluetape4k-leader/issues/413), [#414](https://github.com/bluetape4k/bluetape4k-leader/issues/414), [#416](https://github.com/bluetape4k/bluetape4k-leader/issues/416), [#423](https://github.com/bluetape4k/bluetape4k-leader/issues/423), [#424](https://github.com/bluetape4k/bluetape4k-leader/issues/424), [#427](https://github.com/bluetape4k/bluetape4k-leader/issues/427), [#428](https://github.com/bluetape4k/bluetape4k-leader/issues/428), [#429](https://github.com/bluetape4k/bluetape4k-leader/issues/429)).
 
-### Changed
+### 변경됨
 
-- Opened the `0.4.0` development line after publishing `0.3.1`.
-- Aligned local bluetape4k BOM refs with the `1.11.0` release train and kept
-  the next development line ready for the coordinated dependencies train.
+- `0.3.1` 퍼블리싱 후 `0.4.0` 개발 라인을 오픈했습니다.
+- 로컬 bluetape4k BOM 참조를 `1.11.0` 릴리스 트레인과 정렬하고 조정된 종속성 트레인을 위해 다음 개발 라인을 준비했습니다.
 
-### Fixed
+### 결정된
 
-- Restored K8s example runtime compatibility, isolated Fabric8 Vert.x 4 runtime
-  for K3s tests, and raised `leader-spring-boot` coverage above the release
-  threshold
-  ([#480](https://github.com/bluetape4k/bluetape4k-leader/issues/480),
-  [#497](https://github.com/bluetape4k/bluetape4k-leader/issues/497),
-  [#499](https://github.com/bluetape4k/bluetape4k-leader/issues/499)).
+- K8s 예제 런타임 호환성을 복원하고, K3s 테스트를 위한 Fabric8 Vert.x 4 런타임을 격리하고, 릴리스 임계값([#480](https://github.com/bluetape4k/bluetape4k-leader/issues/480) 이상으로 `leader-spring-boot` 적용 범위를 높였습니다. [#497](https://github.com/bluetape4k/bluetape4k-leader/issues/497), [#499](https://github.com/bluetape4k/bluetape4k-leader/issues/499)).
 
 ---
 
 ## [0.3.1] — 2026-06-01
 
-### Changed
+### 변경됨
 
-- Updated the `bluetape4k-exposed` test helper line to `1.10.0` and imported
-  the `bluetape4k-exposed-bom` as an implementation-scoped platform in the
-  publishable Exposed leader modules.
-- Updated the default bluetape4k dependencies catalog ref to
-  `catalog/2026-06-01-00` for release workflow alignment.
+- `bluetape4k-exposed` 테스트 도우미 줄을 `1.10.0`로 업데이트하고 `bluetape4k-exposed-bom`를 게시 가능한 Exposed 리더 모듈의 구현 범위 플랫폼으로 가져왔습니다.
+- 릴리스 워크플로 정렬을 위해 기본 bluetape4k 종속성 카탈로그 참조를 `catalog/2026-06-01-00`으로 업데이트했습니다.
 
 ---
 
 ## [0.3.0] — 2026-06-01
 
-### Added
+### 추가됨
 
-- Added Kubernetes Lease per-slot group election support with Nightly-backed
-  coverage for the safe slot contract.
-- Added framework-neutral leader event callback handles for callers that need
-  lifecycle events without binding to Spring or Ktor.
-- Added runnable adoption examples for etcd reconcilers, Consul maintenance
-  windows, strategic election, virtual-thread leader jobs, and Redisson-backed
-  long-running leader jobs.
-- Added a runnable virtual-thread leader runner example for high-concurrency
-  leader-only maintenance work. (#426)
-- Added a runnable Redisson watchdog example for long-running leader-only jobs
-  protected by bluetape4k lease auto-extension. (#425)
+- 안전한 슬롯 계약에 대한 Nightly 지원 적용 범위와 함께 Kubernetes Lease 슬롯별 그룹 선택 지원을 추가했습니다.
+- Spring 또는 Ktor에 바인딩하지 않고 수명 주기 이벤트가 필요한 호출자를 위해 프레임워크 중립 리더 이벤트 콜백 핸들을 추가했습니다.
+- etcd 조정자, Consul 유지 관리 기간, 전략적 선택, 가상 스레드 리더 작업 및 Redisson 지원 장기 실행 리더 작업에 대한 실행 가능한 채택 예가 추가되었습니다.
+- 동시성이 높은 리더 전용 유지 관리 작업을 위해 실행 가능한 가상 스레드 리더 러너 예제가 추가되었습니다. (#426)
+- bluetape4k 임대 자동 연장으로 보호되는 장기 실행 리더 전용 작업에 대해 실행 가능한 Redisson 감시 예제를 추가했습니다. (#425)
 
-### Changed
+### 변경됨
 
-- Opened the `0.3.0` development line after publishing `0.2.2`.
-- Updated public README dependency snippets to the `0.3.0` release coordinate.
-- Refreshed README architecture, benchmark, and example workflow diagrams with
-  reproducible rendering evidence.
-- Aligned the Ktor example and Ktor-facing consumer guidance with shared
-  bluetape4k Ktor health modules.
-- Made preview backend release gate evidence explicit in the Nightly summary
-  documentation and workflow surface. (#417)
-- Updated the `bluetape4k-exposed` test helper reference from `1.9.2-SNAPSHOT`
-  to the published `1.9.2` release.
-- Aligned the AWS SDK BOM with the central `bluetape4k-dependencies` catalog.
-- Consumed the `bluetape4k-projects` `1.10.0` BOM line.
+- `0.2.2` 퍼블리싱 후 `0.3.0` 개발 라인을 오픈했습니다.
+- 공개 README 종속성 조각을 `0.3.0` 릴리스 좌표로 업데이트했습니다.
+- 재현 가능한 렌더링 증거가 포함된 새로워진 README 아키텍처, 벤치마크 및 예제 워크플로 다이어그램.
+- Ktor 예시와 Ktor 관련 소비자 지침을 공유 bluetape4k Ktor status 모듈과 일치시켰습니다.
+- Nightly 요약 문서 및 워크플로 화면에서 미리 보기 백엔드 릴리스 게이트 증거를 명시적으로 만들었습니다. (#417)
+- `bluetape4k-exposed` 테스트 도우미 참조를 `1.9.2-SNAPSHOT`에서 게시된 `1.9.2` 릴리스로 업데이트했습니다.
+- AWS SDK BOM을 중앙 `bluetape4k-dependencies` 카탈로그에 맞게 조정했습니다.
+- `bluetape4k-projects` `1.10.0` BOM 라인을 사용했습니다.
 
-### Fixed
+### 결정된
 
-- Applied central catalog-managed Netty 4.1, Protobuf, Fabric8, and Vert.x 4
-  dependency overrides for Dependabot security alerts. (#389)
-- Forced Gradle plugin classpath MySQL and Protobuf dependencies onto the
-  central catalog lines to clear plugin-classpath Dependabot alerts. (#389)
-- Removed the unused root `apply false` Exposed plugin declaration so GitHub
-  dependency submission no longer reports its stale plugin POM transitives. (#389)
-- Removed the unused Exposed migration plugin from `examples/migration-gate`;
-  the example uses runtime Exposed APIs directly and does not need plugin tasks. (#389)
-- Kept Spring group stream support explicitly rejected until per-slot group lease
-  extension semantics are defined.
+- Dependabot 보안 경고에 대해 중앙 카탈로그 관리 Netty 4.1, Protobuf, Fabric8 및 Vert.x 4 종속성 재정의를 적용했습니다. (#389)
+- 플러그인 클래스 경로 Dependabot 경고를 지우기 위해 Gradle 플러그인 클래스 경로 MySQL 및 Protobuf 종속성을 중앙 카탈로그 라인에 강제 적용합니다. (#389)
+- 사용되지 않는 루트 `apply false` Exposed 플러그인 선언을 제거하여 GitHub 종속성 제출이 더 이상 오래된 플러그인 POM 전이문을 보고하지 않습니다. (#389)
+- `examples/migration-gate`에서 사용되지 않는 Exposed 마이그레이션 플러그인을 제거했습니다. 이 예에서는 런타임 Exposed API를 직접 사용하며 플러그인 작업이 필요하지 않습니다. (#389)
+- 슬롯별 그룹 임대 확장 의미가 정의될 ​​때까지 Spring 그룹 스트림 지원이 명시적으로 거부됩니다.
 
-### Performance
+### 성능
 
-- Added Redis lease-extension benchmark evidence for Lettuce and Redisson.
-- Added SQL backend and preview backend benchmark evidence to make release
-  recommendations measurement-backed.
+- Lettuce 및 Redisson에 대한 Redis 임대 연장 벤치마크 증거를 추가했습니다.
+- 릴리스 권장사항이 측정을 뒷받침하도록 SQL 백엔드 및 미리보기 백엔드 벤치마크 증거를 추가했습니다.
 
 ---
 
 ## [0.2.2] — 2026-05-25
 
-### Added
+### 추가됨
 
-- Expanded DynamoDB leader election edge-case coverage. (#366, PR #368)
-- Added preview backend state snapshot contract coverage for Consul, DynamoDB, and etcd. (#374, PR #381)
-- Added KDoc for DynamoDB leader factory classes and extension functions. (#365, PR #369)
+- DynamoDB 리더 선거 엣지 케이스 적용 범위를 확장했습니다. (#366, PR #368)
+- Consul, DynamoDB 및 etcd에 대한 미리 보기 백엔드 status 스냅샷 계약 적용 범위를 추가했습니다. (#374, PR #381)
+- DynamoDB 리더 팩토리 클래스 및 확장 기능에 대해 KDoc을 추가했습니다. (#365, PR #369)
 
-### Changed
+### 변경됨
 
-- Updated public README dependency snippets to the `0.2.2` release coordinate. (#375)
-- Made the preview backend release gate explicit for Consul, DynamoDB Local, etcd, and Kubernetes Lease; K3s runtime coverage remains in Nightly full. (#376, PR #382)
-- Shared the DynamoDB Local test launcher through `bluetape4k-testcontainers` to remove duplicated container wiring. (#367, PR #370)
+- 공개 README 종속성 조각을 `0.2.2` 릴리스 좌표로 업데이트했습니다. (#375)
+- Consul, DynamoDB Local, etcd 및 Kubernetes Lease에 대해 미리 보기 백엔드 릴리스 게이트를 명시적으로 만들었습니다. K3s 런타임 적용 범위는 Nightly 전체로 유지됩니다. (#376, PR #382)
+- 중복된 컨테이너 배선을 제거하기 위해 `bluetape4k-testcontainers`을 통해 DynamoDB Local 테스트 실행기를 공유했습니다. (#367, PR #370)
 
-### Fixed
+### 결정된
 
-- Bound Consul blocking wait and acquire cleanup paths to the configured request timeout budget. (#372, PR #379)
-- Bound etcd cleanup waits to configured timeout budgets. (#373, PR #380)
+- 바운드 Consul 차단 대기 및 구성된 요청 제한 시간 예산에 대한 정리 경로 획득. (#372, PR #379)
+- 바운드 etcd 정리는 구성된 제한 시간 예산을 기다립니다. (#373, PR #380)
 
 ---
 
 ## [0.2.1] — 2026-05-23
 
-### Changed
+### 변경됨
 
-- Updated the release line to use the `bluetape4k-exposed` `1.9.1` release.
+- `bluetape4k-exposed` `1.9.1` 릴리스를 사용하도록 릴리스 라인을 업데이트했습니다.
 
 ---
 
 ## [0.2.0] — 2026-05-23
 
-### Added
+### 추가됨
 
-- `leader-k8s` Kubernetes Lease backend with K3s integration coverage. (#335)
-- `leader-etcd` etcd v3 backend with blocking, async, and suspend election paths. (#227)
-- `leader-consul` Consul KV/session backend with blocking and suspend leader election. (#345)
-- `leader-dynamodb` AWS DynamoDB backend for conditional-write based leader election. (#228)
-- Per-lock `StateFlow<LeaderState>` support for coroutine-native state observation. (#222)
-- DB server-time based lock acquisition support for Exposed JDBC/R2DBC backends. (#39)
-- Runnable adoption examples for Kubernetes operator leadership and leader-coordinated rate limiting. (#231, #229)
-- K3s Lease integration example coverage. (#248)
+- `leader-k8s` Kubernetes Lease 백엔드(K3s 통합 적용 범위 포함) (#335)
+- `leader-etcd` etcd v3 백엔드(차단, 비동기 및 일시 중지 선택 경로 포함). (#227)
+- `leader-consul` Consul 리더 선택을 차단 및 일시 중단하는 KV/세션 백엔드. (#345)
+- `leader-dynamodb` AWS DynamoDB 조건부 쓰기 기반 리더 선택을 위한 백엔드. (#228)
+- 코루틴 기본 status 관찰을 위한 잠금별 `StateFlow<LeaderState>` 지원. (#222)
+- Exposed JDBC/R2DBC 백엔드에 대한 DB 서버 시간 기반 잠금 획득을 지원합니다. (#39)
+- Kubernetes 운영자 리더십 및 리더 조정 속도 제한에 대한 실행 가능한 채택 예입니다. (#231, #229)
+- K3s 임대 통합 예시 적용 범위. (#248)
 
-### Changed
+### 변경됨
 
-- Replaced internal `runBlocking` bridge delegates with a pure-suspend `ExtendDelegate` contract. (#271)
-- Updated `bluetape4k-exposed` test helper references to `1.9.0`.
-- Updated public README dependency snippets to the `0.2.0` release coordinate.
+- 내부 `runBlocking` 브리지 위임을 순수 일시 중단 `ExtendDelegate` 계약으로 대체했습니다. (#271)
+- `1.9.0`에 대한 `bluetape4k-exposed` 테스트 도우미 참조를 업데이트했습니다.
+- 공개 README 종속성 조각을 `0.2.0` 릴리스 좌표로 업데이트했습니다.
 
-### Fixed
+### 결정된
 
-- Reworked Exposed JDBC cancellation handling to rethrow `CancellationException` instead of swallowing it through `runCatching`. (#304)
-- Replaced wall-clock wait deadlines with monotonic timeout budgets in Exposed JDBC, MongoDB, and Lettuce acquisition loops. (#305, #306, #308, #309)
-- Fixed Kubernetes Lease annotation conversion to avoid mutating the original Lease instance in-place. (#347)
-- Added missing Kubernetes Lease suspend elector K3s scenarios. (#349)
-- Synchronized Korean README content with observability and Ktor management route documentation. (#287)
-- Expanded Ktor management registry KDoc and translated WebhookPoller public documentation/comments to English. (#288, #348)
+- `runCatching`을 통해 삼키는 대신 `CancellationException`을 다시 발생시키기 위해 Exposed JDBC 취소 처리를 재작업했습니다. (#304)
+- Exposed JDBC, MongoDB 및 Lettuce 획득 루프에서 벽시계 대기 기한을 단조로운 시간 초과 예산으로 대체했습니다. (305호, 306호, 308호, 309호)
+- 원래 Lease 인스턴스를 내부에서 변경하지 않도록 Kubernetes Lease 주석 변환을 수정했습니다. (#347)
+- 누락된 Kubernetes Lease 일시 중지 선택기 K3s 시나리오를 추가했습니다. (#349)
+- 관찰 가능성 및 Ktor 관리 경로 문서를 사용하여 한국어 README 콘텐츠를 동기화했습니다. (#287)
+- Ktor 관리 레지스트리 KDoc을 확장하고 WebhookPoller 공개 문서/설명을 영어로 번역했습니다. (#288, #348)
 
-### Removed
+### 제거됨
 
-- Removed all APIs deprecated before the 0.1.0 GA line. (#269)
+- 0.1.0 GA 라인 이전에 더 이상 사용되지 않는 모든 API를 제거했습니다. (#269)
 
 ---
 
 ## [0.1.0] — 2026-05-16
 
-First public release of `bluetape4k-leader`. All APIs are stable unless noted as experimental.
+`bluetape4k-leader`의 첫 번째 공개 릴리스입니다. 실험적이라고 언급되지 않는 한 모든 API는 안정적입니다.
 
-### Breaking Changes
+### 주요 변경 사항
 
-- **`runIfLeader()` never throws on lock contention**: returns `null` instead of propagating
-  backend exceptions when the lock is not acquired — aligns with ShedLock skip-on-contention
-  semantics. `CancellationException` and `InterruptedException` are still rethrown. (PR #15)
+- **`runIfLeader()`은 잠금 경합을 발생시키지 않습니다**: 잠금이 획득되지 않은 경우 백엔드 예외를 전파하는 대신 `null`을 반환합니다. ShedLock 경합 건너뛰기 의미 체계와 일치합니다. `CancellationException` 및 `InterruptedException`은 여전히 다시 발생합니다. (PR #15)
 
   ```kotlin
-  // Null means "not elected" or "action threw" — check logs
+  // null은 "선택되지 않음" 또는 "작업이 예외를 던짐"을 의미합니다. 로그를 확인하세요.
   val result = leaderElector.runIfLeader("job") { riskyWork() }
 
-  // To preserve exception propagation, wrap in the action:
+  // 예외 전파를 유지하려면 작업 내부에서 래핑합니다.
   leaderElector.runIfLeader("job") {
       try { riskyWork() } catch (e: MyException) { handleError(e); throw e }
   }
   ```
 
-- **`leader-exposed-jdbc`**: `ExposedJdbcLeaderElector.runIfLeader()` now returns `null` instead
-  of rethrowing action exceptions. `CancellationException` and `InterruptedException` are still
-  rethrown. (issue #50)
+- **`leader-exposed-jdbc`**: `ExposedJdbcLeaderElector.runIfLeader()`은 이제 작업 예외를 다시 발생시키는 대신 `null`를 반환합니다. `CancellationException` 및 `InterruptedException`은 여전히 ​​다시 발생합니다. (문제 #50)
 
-- **`leader-exposed-r2dbc`**: Same change for `ExposedR2DbcSuspendLeaderElector.runIfLeader()`.
-  `CancellationException` is still rethrown.
+- **`leader-exposed-r2dbc`**: `ExposedR2DbcSuspendLeaderElector.runIfLeader()`에도 동일한 변경이 적용됩니다. `CancellationException`은(는) 여전히 다시 발생합니다.
 
-- **`leader-exposed-jdbc` / `leader-exposed-r2dbc`**: Elector factories now accept an optional
-  `historyRecorder` parameter (`SafeLeaderHistoryRecorder?` / `SuspendSafeLeaderHistoryRecorder?`).
-  The previous `recordHistory` option in election options is superseded.
+- **`leader-exposed-jdbc` / `leader-exposed-r2dbc`**: 선택기 팩토리는 이제 선택적 `historyRecorder` 매개변수(`SafeLeaderHistoryRecorder?` / `SuspendSafeLeaderHistoryRecorder?`)를 허용합니다. 선택 옵션의 이전 `recordHistory` 옵션이 대체되었습니다.
 
-- **`LeaderElection` / `LeaderGroupElection` renamed** to `LeaderElector` / `LeaderGroupElector`
-  for consistency across all interfaces. (PR #106, #123, #125)
+- **`LeaderElection` / `LeaderGroupElection` 이름 변경**: 모든 인터페이스의 일관성을 위해 `LeaderElector` / `LeaderGroupElector`로 변경되었습니다. (PR #106, #123, #125)
 
-- **Duration APIs**: migrated from `java.time.Duration` to `kotlin.time.Duration`. (PR #126)
+- **기간 API**: `java.time.Duration`에서 `kotlin.time.Duration`로 마이그레이션되었습니다. (PR #126)
 
-- **`LeaderElectionEvent.Elected`** now carries optional `leaderId: String?` and
-  `leaseExpiry: Instant?` fields (both default to `null`). Compiled callers that construct
-  `Elected(lockName)` positionally will fail to link against new bytecode; recompilation is
-  required (source-compatible).
+- **`LeaderElectionEvent.Elected`**에는 이제 선택적 `leaderId: String?` 및 `leaseExpiry: Instant?` 필드가 있습니다(둘 다 기본값은 `null`임). `Elected(lockName)`을 위치적으로 생성하는 컴파일된 호출자는 새 바이트코드에 대한 링크에 failure합니다. 재컴파일이 필요합니다(소스 호환).
 
-- **Spring Boot 3/4 split consolidated**: `leader-spring-boot-common`, `leader-spring-boot3`, and
-  `leader-spring-boot4` merged into a single `leader-spring-boot` module. (PR #105)
+- **Spring Boot 3/4 분할 통합**: `leader-spring-boot-common`, `leader-spring-boot3` 및 `leader-spring-boot4`가 단일 `leader-spring-boot` 모듈로 병합되었습니다. (PR #105)
 
-### Added
+### 추가됨
 
-**`leader-core`** — Core interfaces and local in-process implementations:
+**`leader-core`** — 핵심 인터페이스 및 로컬 프로세스 내 구현:
 
-- `LeaderElector` — blocking single-leader interface
-- `AsyncLeaderElector` — `CompletableFuture`-based async interface
-- `VirtualThreadLeaderElector` — virtual-thread-per-election interface
-- `SuspendLeaderElector` — Kotlin coroutine suspend interface
-- `LeaderGroupElector` — blocking multi-leader (semaphore) interface
-- `SuspendLeaderGroupElector` — coroutine multi-leader interface
-- `LeaderElectionOptions(waitTime, leaseTime)` — shared option data class
-- `LeaderGroupElectionOptions(maxLeaders, waitTime, leaseTime)` — group option data class
-- Local implementations: `LocalLeaderElector`, `LocalLeaderGroupElector`,
-  `LocalSuspendLeaderElector`, `LocalSuspendLeaderGroupElector`, `LocalAsyncLeaderElector`,
-  `LocalVirtualThreadLeaderElector`
-- `LockAssert` — `assertLocked()` / `assertLocked(lockName)` / `isLocked()` and suspend variants
-- `LockExtender` — `extendActiveLock(Duration): Boolean` + detailed sealed `ExtendOutcome` result
-  + suspend variants
-- `LeaderLockHandle` sealed class (`Real` / `FailOpen`) — explicit lease handle
-- `LeaderLeaseAutoExtender` — periodic background lease renewal with `shutdown()` / `restart()`
-- `ListeningLeaderElector` / `ListeningLeaderGroupElector` — listener-aware decorators with a hot
-  `events: Flow<LeaderElectionEvent>` stream (issue #40, PR #146)
-- `TenantScopedLeaderElectors` — `forTenant(tenantId)` extension functions for multi-tenant
-  lock-name scoping (issue #42)
-- Strategic election API (issue #29, #31, #32):
-  - `CandidateInfo`, `ElectionStrategy`, `CandidateScorer` interfaces
-  - Built-in strategies: `FifoElectionStrategy`, `RandomElectionStrategy`, `ScoredElectionStrategy`
-  - Built-in scorers: `IdleTimeScorer`, `SuccessRateScorer`, `RecentSuccessScorer`, `WeightedScorer`
-  - Redis `CandidateRegistry` (Redisson sorted-set/hash + TTL; Lettuce variant included)
-- `LeaderSlot` audit identity propagation: `LeaderSlot(lockName, leaderId)` propagates to
-  `LeaderRunResult.Elected.leaderId` (issue #72)
+- `LeaderElector` — 단일 리더 인터페이스 차단
+- `AsyncLeaderElector` — `CompletableFuture` 기반 비동기 인터페이스
+- `VirtualThreadLeaderElector` — 선택당 가상 스레드 인터페이스
+- `SuspendLeaderElector` — Kotlin 코루틴 정지 인터페이스
+- `LeaderGroupElector` — 다중 지시선(세마포어) 인터페이스 차단
+- `SuspendLeaderGroupElector` — 코루틴 다중 리더 인터페이스
+- `LeaderElectionOptions(waitTime, leaseTime)` — 공유 옵션 데이터 클래스
+- `LeaderGroupElectionOptions(maxLeaders, waitTime, leaseTime)` — 그룹 옵션 데이터 클래스
+- 로컬 구현: `LocalLeaderElector`, `LocalLeaderGroupElector`, `LocalSuspendLeaderElector`, `LocalSuspendLeaderGroupElector`, `LocalAsyncLeaderElector`, `LocalVirtualThreadLeaderElector`
+- `LockAssert` — `assertLocked()` / `assertLocked(lockName)` / `isLocked()` 및 변형 일시 중지
+- `LockExtender` — `extendActiveLock(Duration): Boolean` + 상세 봉인된 `ExtendOutcome` 결과 + suspend 변형
+- `LeaderLockHandle` 봉인 클래스(`Real` / `FailOpen`) — 명시적 임대 핸들
+- `LeaderLeaseAutoExtender` — `shutdown()` / `restart()`를 사용한 정기적인 백그라운드 임대 갱신
+- `ListeningLeaderElector` / `ListeningLeaderGroupElector` — 핫 `events: Flow<LeaderElectionEvent>` 스트림이 있는 청취자 인식 데코레이터(문제 #40, PR #146)
+- `TenantScopedLeaderElectors` — `forTenant(tenantId)` 다중 테넌트 잠금 이름 범위 지정을 위한 확장 함수(문제 #42)
+- 전략적 선거 API(문제 #29, #31, #32):
+  - `CandidateInfo`, `ElectionStrategy`, `CandidateScorer` 인터페이스
+  - 내장 전략: `FifoElectionStrategy`, `RandomElectionStrategy`, `ScoredElectionStrategy`
+  - 내장 득점자: `IdleTimeScorer`, `SuccessRateScorer`, `RecentSuccessScorer`, `WeightedScorer`
+  - Redis `CandidateRegistry` (Redisson 정렬 집합/해시 + TTL, Lettuce 변형 포함)
+- `LeaderSlot` 감사 ID 전파: `LeaderSlot(lockName, leaderId)`이 `LeaderRunResult.Elected.leaderId`로 전파됩니다(문제 #72).
 
-**`leader-redis-lettuce`** — Lettuce Redis backend:
+**`leader-redis-lettuce`** — Lettuce Redis 백엔드:
 
-- `LettuceLeaderElector` — blocking, uses `SET NX PX` via `LettuceLock`
-- `LettuceLeaderGroupElector` — blocking multi-leader via `LettuceSlotTokenGroup` (ZSET + Lua TTL)
-- `LettuceSuspendLeaderElector` — coroutine single-leader
-- `LettuceSuspendLeaderGroupElector` — coroutine multi-leader
-- `LettuceLock`, `LettuceSuspendLock` — Redis distributed lock primitives (self-contained, no `bluetape4k-lettuce` dependency)
+- `LettuceLeaderElector` — 차단, `LettuceLock`를 통해 `SET NX PX` 사용
+- `LettuceLeaderGroupElector` — `LettuceSlotTokenGroup`(ZSET + Lua TTL)을 통해 다중 지시선 차단
+- `LettuceSuspendLeaderElector` — 코루틴 단일 리더
+- `LettuceSuspendLeaderGroupElector` — 코루틴 다중 리더
+- `LettuceLock`, `LettuceSuspendLock` — Redis 분산 잠금 기본 요소(자체 포함, `bluetape4k-lettuce` 종속성 없음)
 
-**`leader-redis-redisson`** — Redisson Redis backend:
+**`leader-redis-redisson`** — Redisson Redis 백엔드:
 
-- `RedissonLeaderElector` — blocking via `RLock.tryLock()`
-- `RedissonLeaderGroupElector` — blocking multi-leader via `RPermitExpirableSemaphore`
-- `RedissonSuspendLeaderElector` — coroutine single-leader with PID-seeded Snowflake lock ID
-- `RedissonSuspendLeaderGroupElector` — coroutine multi-leader
+- `RedissonLeaderElector` — `RLock.tryLock()`을 통해 차단
+- `RedissonLeaderGroupElector` — `RPermitExpirableSemaphore`을 통한 다중 지시선 차단
+- `RedissonSuspendLeaderElector` — PID 시드 Snowflake 잠금 ID가 있는 코루틴 단일 리더
+- `RedissonSuspendLeaderGroupElector` — 코루틴 다중 리더
 
-**`leader-exposed-core`**: Shared Exposed table DDL (`LeaderLockTable`, `LeaderGroupLockTable`) for
-JDBC and R2DBC backends. (issue #23)
+**`leader-exposed-core`**: JDBC 및 R2DBC 백엔드에 대한 공유 Exposed 테이블 DDL(`LeaderLockTable`, `LeaderGroupLockTable`). (문제 #23)
 
-**`leader-exposed-jdbc`** — Exposed JDBC blocking backend (issue #21, PR #52):
+**`leader-exposed-jdbc`** — Exposed JDBC 차단 백엔드(문제 #21, PR #52):
 
-- `ExposedJdbcLeaderElector` — blocking single-leader (sync + `CompletableFuture` async)
-- `ExposedJdbcLeaderGroupElector` — blocking multi-leader
-- H2/PostgreSQL/MySQL Testcontainers integration tests
+- `ExposedJdbcLeaderElector` — 단일 리더 차단(동기화 + `CompletableFuture` 비동기)
+- `ExposedJdbcLeaderGroupElector` — 다중 지시선 차단
+- H2/PostgreSQL/MySQL Testcontainers 통합 테스트
 
-**`leader-exposed-r2dbc`** — Exposed R2DBC coroutine backend (issue #22, PR #62):
+**`leader-exposed-r2dbc`** — Exposed R2DBC 코루틴 백엔드(문제 #22, PR #62):
 
-- `ExposedR2DbcSuspendLeaderElector` — coroutine single-leader
-- `ExposedR2DbcSuspendLeaderGroupElector` — coroutine multi-leader
-- R2DBC PostgreSQL Testcontainers integration tests
+- `ExposedR2DbcSuspendLeaderElector` — 코루틴 단일 리더
+- `ExposedR2DbcSuspendLeaderGroupElector` — 코루틴 다중 리더
+- R2DBC PostgreSQL Testcontainers 통합 테스트
 
-**`leader-mongodb`** — MongoDB backend (issue #8, PR #46):
+**`leader-mongodb`** — MongoDB 백엔드(문제 #8, PR #46):
 
-- `MongoLeaderElector` — blocking, `findOneAndUpdate` upsert + `deleteOne(token)` owner-only release
-- `MongoSuspendLeaderElector` — coroutine, Kotlin coroutine driver
-- `MongoLeaderGroupElector` — blocking multi-leader (`lockName:slot:N` slot model)
-- `MongoSuspendLeaderGroupElector` — coroutine multi-leader (dual-collection design)
-- TTL index auto-creation at startup
-- 82.4% line coverage (42 tests, Testcontainers MongoDB)
+- `MongoLeaderElector` — 차단, `findOneAndUpdate` upsert + `deleteOne(token)` 소유자 전용 릴리스
+- `MongoSuspendLeaderElector` — 코루틴, Kotlin 코루틴 드라이버
+- `MongoLeaderGroupElector` — 다중 지시선 차단(`lockName:slot:N` 슬롯 모델)
+- `MongoSuspendLeaderGroupElector` — 코루틴 다중 리더(이중 컬렉션 디자인)
+- 시작 시 TTL 색인 자동 생성
+- 82.4% 라인 커버리지(42개 테스트, Testcontainers MongoDB)
 
-**`leader-hazelcast`** — Hazelcast `IMap` token-lock backend (issue #9):
+**`leader-hazelcast`** — Hazelcast `IMap` 토큰 잠금 백엔드(문제 #9):
 
-- `HazelcastLeaderElector`, `HazelcastLeaderGroupElector` — blocking single/multi-leader
-- `HazelcastSuspendLeaderElector`, `HazelcastSuspendLeaderGroupElector` — coroutine variants
+- `HazelcastLeaderElector`, `HazelcastLeaderGroupElector` — 단일/다중 지시선 차단
+- `HazelcastSuspendLeaderElector`, `HazelcastSuspendLeaderGroupElector` — 코루틴 변형
 
-**`leader-zookeeper`** — ZooKeeper/Curator backend. (PR #138)
+**`leader-zookeeper`** — ZooKeeper/큐레이터 백엔드. (PR #138)
 
-**`leader-micrometer`** — Micrometer metrics integration:
+**`leader-micrometer`** — Micrometer 측정항목 통합:
 
-- `MicrometerLeaderElectionListener` records `leader.election.events` with `lock.name` and `event` tags (issue #40, PR #146)
+- `MicrometerLeaderElectionListener`은 `lock.name` 및 `event` 태그를 사용하여 `leader.election.events`을 기록합니다(문제 #40, PR #146).
 
-**`leader-spring-boot`** — Spring Boot 4 auto-configuration + AOP:
+**`leader-spring-boot`** — Spring Boot 4 자동 구성 + AOP:
 
-- `@LeaderElection` / `@LeaderGroupElection` annotations with AspectJ compile-time weaving (CTW)
-- Supports `suspend`, `Mono`, `Flux`, and Kotlin `Flow` return types (#74, #90, #91)
-  - `@LeaderElection(streamBounded = true)` explicit opt-in for bounded streams
-- `LeaderAnnotationValidatorBeanPostProcessor` — startup validation; blocks unsafe return types
-  (`CompletableFuture`, `Deferred`, etc.) (PR #79)
-- `LockAssert` / `LockExtender` integration in AOP aspect (issue #79)
-- `LeaderMetricsHealthIndicator` — Spring Boot Actuator health indicator (registered as `leaderMetricsHealthIndicator`)
-- `LeaderLeaseAutoExtenderLifecycle` — context-lifecycle-aware auto-extender integration
-- Backend auto-configurations: Lettuce, Redisson, Exposed JDBC, Exposed R2DBC, MongoDB, Hazelcast
-- `LeaderProperties` — `bluetape4k.leader.*` configuration properties
+- `@LeaderElection` / `@LeaderGroupElection` AspectJ 컴파일 타임 위빙(CTW)을 사용한 주석
+- `suspend`, `Mono`, `Flux` 및 Kotlin `Flow` 반환 유형(#74, #90, #91) 지원
+  - `@LeaderElection(streamBounded = true)` 제한된 스트림에 대한 명시적인 선택
+- `LeaderAnnotationValidatorBeanPostProcessor` — 시작 유효성 검사; 안전하지 않은 반환 유형(`CompletableFuture`, `Deferred` 등)을 차단합니다(PR #79)
+- `LockAssert` / `LockExtender` AOP 측면 통합(문제 #79)
+- `LeaderMetricsHealthIndicator` — Spring Boot 액추에이터 status 표시기(`leaderMetricsHealthIndicator`로 등록됨)
+- `LeaderLeaseAutoExtenderLifecycle` — 컨텍스트 수명 주기 인식 자동 확장기 통합
+- 백엔드 자동 구성: Lettuce, Redisson, Exposed JDBC, Exposed R2DBC, MongoDB, Hazelcast
+- `LeaderProperties` — `bluetape4k.leader.*` 구성 속성
 
-**`leader-ktor`** — Ktor 3.x integration (issue #37, PR #164):
+**`leader-ktor`** — Ktor 3.x 통합(문제 #37, PR #164):
 
-- `LeaderElectionPlugin` — `createApplicationPlugin` DSL, `SuspendLeaderElector`-based
-- `Application.leaderScheduled(lockName, period) { }` — Spring `@Scheduled`-style leader-only
-  periodic task helper; auto-cancelled on `ApplicationStopped`
+- `LeaderElectionPlugin` — `createApplicationPlugin` DSL, `SuspendLeaderElector` 기반
+- `Application.leaderScheduled(lockName, period) { }` — Spring `@Scheduled` 스타일 리더 전용 주기적 작업 도우미. `ApplicationStopped`에 자동 취소되었습니다.
 
-**`leader-bom`** — Bill of Materials for consumers. All `leader-*` modules included; BOM users
-do not need to specify individual versions.
+**`leader-bom`** — 소비자용 BOM(Bill of Materials). 모든 `leader-*` 모듈이 포함되어 있습니다. BOM 사용자는 개별 버전을 지정할 필요가 없습니다.
 
-**`examples/`** — Runnable example applications (issue #36):
+**`examples/`** — 실행 가능한 예제 애플리케이션(문제 #36):
 
-- `batch-scheduler` — Lettuce Redis periodic batch single-execution (PR #159)
-- `migration-gate` — Exposed JDBC boot-time schema migration gate (PR #160)
-- `webhook-poller` — MongoDB single-instance webhook polling (PR #161)
-- `cache-warmer` — Hazelcast per-partition leader cache warming (PR #162)
-- `tenant-aggregator` — Exposed R2DBC coroutine multi-tenant aggregation (PR #163)
-- `ktor-app` — Ktor 3.x + Lettuce Redis `leaderScheduled()` demo (PR #166)
-- `prometheus-dashboard` — Spring Boot + Prometheus/Grafana leader metrics dashboard
+- `batch-scheduler` — Lettuce Redis 주기적 일괄 단일 실행(PR #159)
+- `migration-gate` — Exposed JDBC 부팅 시 스키마 마이그레이션 게이트(PR #160)
+- `webhook-poller` — MongoDB 단일 인스턴스 웹훅 폴링(PR #161)
+- `cache-warmer` — Hazelcast 파티션별 리더 캐시 워밍(PR #162)
+- `tenant-aggregator` — Exposed R2DBC 코루틴 다중 테넌트 집계(PR #163)
+- `ktor-app` — Ktor 3.x + Lettuce Redis `leaderScheduled()` 데모(PR #166)
+- `prometheus-dashboard` — Spring Boot + Prometheus/Grafana 리더 지표 대시보드
 
-**CI/CD** (issue #13, #35, PR #19, #20, #44, #135):
+**CI/CD**(문제 #13, #35, PR #19, #20, #44, #135):
 
-- GitHub Actions build, test, secret-scan, Gradle wrapper validation
-- Nightly SNAPSHOT auto-publish (on test success only)
-- Parallel test jobs for Lettuce and Redisson backends
+- GitHub Actions 빌드, 테스트, 비밀 스캔, Gradle 래퍼 검증
+- Nightly SNAPSHOT 자동 게시(테스트 success 시에만)
+- Lettuce 및 Redisson 백엔드에 대한 병렬 테스트 작업
 
-### Changed
+### 변경됨
 
-- `LeaderElectionAspect` / `LeaderGroupElectionAspect` outer catch narrowed to `Exception` (not
-  `Throwable`) to let `OutOfMemoryError` / `StackOverflowError` propagate.
-- `LeaderElectionOptions`, `LeaderGroupElectionOptions`, `LeaderGroupState` validate eagerly in
-  `init {}` (`waitTime ≥ 0`, `leaseTime > 0`, `maxLeaders ≥ 1`). (PR #25)
-- `ExposedJdbcGroupLock.tryLock()` return type changed to `Boolean?`: `null` = DB error,
-  `false` = slot contention, `true` = acquired. (issue #60, PR #63)
-- Suspend tests use `runBlocking(Dispatchers.IO)` instead of `runTest` for real-IO
-  (MongoDB / Testcontainers) tests.
-- CI uses paths-filter and retry configuration to reduce unnecessary work and transient failures.
-  (PR #135)
-- Prometheus export coverage verified through `PrometheusServer` scrape tests. (PR #144)
-- `leader-bom` NMCP aggregation and Central Snapshots publishing fixed. (PR #140)
-- factory `create()` I/O failures now respect the configured failure mode. (PR #107)
-- `@ConfigurationProperties` added to AOP properties binding where missing. (PR #93)
+- `LeaderElectionAspect` / `LeaderGroupElectionAspect` 외부 캐치가 `Exception`(`Throwable` 아님)로 좁아져 `OutOfMemoryError` / `StackOverflowError`가 전파될 수 있습니다.
+- `LeaderElectionOptions`, `LeaderGroupElectionOptions`, `LeaderGroupState`는 `init {}`(`waitTime ≥ 0`, `leaseTime > 0`, `maxLeaders ≥ 1`)에서 열심히 검증합니다. (PR #25)
+- `ExposedJdbcGroupLock.tryLock()` 반환 유형이 `Boolean?`로 변경됨: `null` = DB 오류, `false` = 슬롯 경합, `true` = 획득됨. (문제 #60, PR #63)
+- 일시 중단 테스트에서는 실제 IO(MongoDB / Testcontainers) 테스트에 `runTest` 대신 `runBlocking(Dispatchers.IO)`을 사용합니다.
+- CI는 불필요한 작업과 일시적인 오류를 줄이기 위해 경로 필터 및 재attempts 구성을 사용합니다. (PR #135)
+- Prometheus 수출 범위는 `PrometheusServer` 스크랩 테스트를 통해 확인되었습니다. (PR #144)
+- `leader-bom` NMCP 집계 및 중앙 스냅샷 게시가 수정되었습니다. (PR #140)
+- 공장 `create()` I/O 오류는 이제 구성된 오류 모드를 따릅니다. (PR #107)
+- 누락된 AOP 속성 바인딩에 `@ConfigurationProperties`이 추가되었습니다. (PR #93)
 
-### Fixed
+### 결정된
 
-- **Coroutine cancellation safety**: `unlock`/`release` in all coroutine backends (Lettuce,
-  Redisson, Hazelcast, MongoDB) wrapped in `withContext(NonCancellable)` to prevent lock leaks
-  on cancellation. (PR #25, review 2026-05-01)
-- **`CancellationException` rethrow**: `catch(CancellationException) { throw e }` added before
-  all `catch(Exception)` blocks, including inside `withContext(NonCancellable)`. (PR #45)
-- **Lettuce observability**: `runCatching { unlock }` failures now logged via `.onFailure { log.warn }`;
-  previously, token-mismatch / Redis errors were silently discarded.
-- **`ExposedJdbcGroupLock.isHeldByCurrentInstance()`**: added missing token + `lockedUntil > NOW()`
-  check. (issue #59, PR #63)
-- **`ExposedJdbcGroupLock.tryLock()` DB error propagation**: `Boolean?` tri-state separates DB
-  errors from slot contention. (issue #60, PR #63)
-- **Exposed lock SELECT predicate**: `lockedUntil > NOW()` added to JDBC `tryAcquireOnce` Step 3
-  SELECT to prevent split-brain; symmetric with R2DBC. (review 2026-05-04)
-- **`leader-redis-redisson` coroutine lock ID**: replaced `bluetape4k-idgenerators` compileOnly
-  dependency (caused `ClassNotFoundException` at runtime) with a self-contained PID-seeded
-  mini-Snowflake generator. (issue #3, PR #17)
-- **`leader-redis-lettuce`**: ported `LettuceLock` primitives directly, removing the runtime
-  dependency on `bluetape4k-lettuce`. (PR #2)
-- **Kover coverage aggregation**: fixed missing-module aggregation bug in the CI coverage script.
-- **Deprecated API replaced**: `TimebasedUuid.Epoch` → `Uuid.V7` (Kotlin 2.3+).
+- **코루틴 취소 안전성**: 취소 시 잠금 누출을 방지하기 위해 모든 코루틴 백엔드(Lettuce, Redisson, Hazelcast, MongoDB)의 `unlock`/`release`을 `withContext(NonCancellable)`로 래핑합니다. (홍보25호, 리뷰 2026-05-01)
+- **`CancellationException` 다시 발생**: `withContext(NonCancellable)` 내부를 포함하여 모든 `catch(Exception)` 블록 앞에 `catch(CancellationException) { throw e }`이 추가되었습니다. (PR #45)
+- **Lettuce 관찰 가능성**: `runCatching { unlock }` failure는 이제 `.onFailure { log.warn }`을 통해 기록됩니다. 이전에는 토큰 불일치/Redis 오류가 자동으로 삭제되었습니다.
+- **`ExposedJdbcGroupLock.isHeldByCurrentInstance()`**: 누락된 토큰 + `lockedUntil > NOW()` 확인을 추가했습니다. (문제 #59, PR #63)
+- **`ExposedJdbcGroupLock.tryLock()` DB 오류 전파**: `Boolean?` 3단계는 DB 오류를 슬롯 경합과 분리합니다. (문제 #60, PR #63)
+- **Exposed SELECT 조건자 잠금**: `lockedUntil > NOW()`이 JDBC `tryAcquireOnce`에 추가되었습니다. 3단계 분할 브레인을 방지하기 위해 SELECT; R2DBC과 대칭입니다. (리뷰 2026-05-04)
+- **`leader-redis-redisson` 코루틴 잠금 ID**: `bluetape4k-idgenerators` compileOnly 종속성(런타임에 `ClassNotFoundException` 발생)을 자체 포함 PID 시드 미니 눈송이 생성기로 대체했습니다. (문제 #3, PR #17)
+- **`leader-redis-lettuce`**: `LettuceLock` 기본 요소를 직접 포팅하여 `bluetape4k-lettuce`에 대한 런타임 종속성을 제거했습니다. (PR #2)
+- **Kover 적용 범위 집계**: CI 적용 범위 스크립트에서 누락된 모듈 집계 버그를 수정했습니다.
+- **더 이상 사용되지 않는 API가 대체됨**: `TimebasedUuid.Epoch` → `Uuid.V7`(Kotlin 2.3+).
 
-### Removed
+### 제거됨
 
-The following deprecated APIs were removed before 0.1.0 GA (#264):
+다음과 같은 더 이상 사용되지 않는 API는 0.1.0 GA(#264) 이전에 제거되었습니다.
 
 | Item | Replacement |
 |------|-------------|
@@ -458,7 +344,7 @@ The following deprecated APIs were removed before 0.1.0 GA (#264):
 
 ---
 
-[Unreleased]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.4.0...HEAD
+[미공개]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.4.0...HEAD
 [0.4.0]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.3.1...0.4.0
 [0.3.1]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.3.0...0.3.1
 [0.3.0]: https://github.com/bluetape4k/bluetape4k-leader/compare/0.2.2...0.3.0

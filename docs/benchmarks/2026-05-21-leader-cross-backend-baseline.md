@@ -1,26 +1,19 @@
-# leader cross-backend benchmark baseline - 2026-05-21
+# 선두 크로스백엔드 벤치마크 기준 - 2026-05-21
 
-This is a local developer-machine baseline for issue #327. It uses
-`kotlinx-benchmark` as the Gradle benchmark frontend and JMH as the JVM backend.
-Use it for same-machine before/after comparisons, not as a release-grade
-performance claim.
+이는 문제 #327에 대한 로컬 개발자-머신 기준입니다. Gradle 벤치마크 프런트엔드로 'kotlinx-benchmark'를 사용하고 JVM 백엔드로
+JMH를 사용합니다. 릴리스 등급 성능 주장이 아닌 동일 시스템 전후 비교에 사용하십시오.
 
-## Caveats
+## 주의 사항
 
-- The benchmark source set lives under `benchmark/src/benchmark/kotlin`.
-- The JVM runner is JMH through `kotlinx-benchmark`; benchmark classes still use
-  JMH annotations and `Blackhole`.
-- Testcontainers-backed rows include Docker network and client round-trip cost.
-- H2 rows are local in-memory database baselines, not distributed lock backend
-  claims.
-- Suspend rows include the benchmark harness bridge cost where the measured API
-  is invoked from non-suspend JMH methods.
-- Benchmark setup performs a smoke `runIfLeader` check before measurement so
-  failed infrastructure connections do not turn into false fast-path rows.
-- The suspend MongoDB row was noisy in this short run; repeat before using it
-  for a tuning decision.
+- 벤치마크 소스 세트는 `benchmark/src/benchmark/kotlin`에 있습니다.
+- JVM 실행기는 'kotlinx-benchmark'를 통한 JMH입니다. 벤치마크 클래스는 여전히 JMH 주석과 `Blackhole`을 사용합니다.
+- Testcontainers 지원 행에는 Docker 네트워크 및 클라이언트 왕복 비용이 포함됩니다.
+- H2 행은 분산 잠금 백엔드 클레임이 아닌 로컬 인메모리 데이터베이스 기준선입니다.
+- 일시 중단 행에는 측정된 API가 일시 중단되지 않은 JMH 메서드에서 호출되는 벤치마크 하네스 브리지 비용이 포함됩니다.
+- 벤치마크 설정은 측정 전에 'runIfLeader' 검사를 수행하므로 실패한 인프라 연결이 잘못된 빠른 경로 행으로 바뀌지 않습니다.
+- 일시 중단된 MongoDB 행은 이 단기 실행에서 잡음이 많았습니다. 튜닝 결정에 사용하기 전에 반복하십시오.
 
-## Environment
+## 환경
 
 | Field | Value |
 |---|---|
@@ -38,22 +31,22 @@ performance claim.
 | Threads | 1 |
 | Logging | INFO root / `io.bluetape4k`, selected noisy libraries WARN |
 
-## Command
+## 명령
 
 ```bash
 ./gradlew :benchmark:benchmarkBenchmark :benchmark:benchmarkAverageTimeBenchmark --no-configuration-cache --rerun-tasks
 ```
 
-Machine-readable source artifacts:
+기계가 읽을 수 있는 소스 아티팩트:
 
 - `benchmark/build/reports/benchmarks/main/2026-05-21T13.57.04.377621/benchmark.json`
 - `benchmark/build/reports/benchmarks/averageTime/2026-05-21T13.57.04.377621/benchmark.json`
 
-## Cross-Backend Results
+## 크로스백엔드 결과
 
-Higher is better for throughput. Lower is better for average time.
+높을수록 처리량이 더 좋습니다. 평균 시간에는 낮을수록 좋습니다.
 
-### Blocking API
+### 차단 API
 
 | Backend | Throughput (ops/s) | Average time (us/op) |
 |---|---:|---:|
@@ -65,7 +58,7 @@ Higher is better for throughput. Lower is better for average time.
 | mongo | 934.619 ± 691.550 | 1,105.806 ± 87.387 |
 | zookeeper | 760.439 ± 1,079.874 | 1,252.265 ± 1,393.136 |
 
-### Suspend API
+### API 일시중단
 
 | Backend | Throughput (ops/s) | Average time (us/op) |
 |---|---:|---:|
@@ -77,7 +70,7 @@ Higher is better for throughput. Lower is better for average time.
 | mongo | 829.311 ± 666.735 | 3,334.853 ± 61,304.680 |
 | zookeeper | 721.758 ± 938.116 | 1,250.279 ± 947.488 |
 
-## Local Core Rows
+## 로컬 핵심 행
 
 | Benchmark | Throughput (ops/s) | Average time (us/op) |
 |---|---:|---:|
@@ -91,25 +84,17 @@ Higher is better for throughput. Lower is better for average time.
 | HistoryRecorder.suspendNoopAcquireComplete | 5,300,097.780 ± 186,734.921 | 0.164 ± 0.007 |
 | HistoryRecorder.suspendInMemoryAcquireComplete | 4,784,646.339 ± 1,302,210.407 | 0.206 ± 0.032 |
 
-## Observations
+## 관찰
 
-- The central `benchmark/` module now gives one comparable command for local
-  core, blocking backend, and suspend backend rows.
-- Local hot paths are three orders of magnitude faster than Docker-backed
-  distributed backend rows; future optimization should separate local API
-  overhead from backend round-trip cost.
-- Redis Lettuce, Redis Redisson, and Hazelcast are close in this short
-  single-threaded hot-path run.
-- Exposed H2 rows are fast because the storage is local in-memory H2. They are
-  useful for SQL layer overhead but should not be ranked against Redis,
-  Hazelcast, ZooKeeper, or MongoDB as distributed systems.
-- Suspend MongoDB needs repeated runs or a longer measurement profile before
-  ranking.
+- 중앙 `benchmark/` 모듈은 이제 로컬 코어, 백엔드 차단 및 백엔드 행 일시 중지에 대해 하나의 유사한 명령을 제공합니다.
+- 로컬 핫 경로는 Docker 지원 분산 백엔드 행보다 3배 더 빠릅니다. 향후 최적화에서는 로컬 API 오버헤드를 백엔드 왕복 비용과 분리해야 합니다.
+- Redis Lettuce, Redis Redisson 및 Hazelcast는 이 짧은 단일 스레드 핫 경로 실행에서 가깝습니다.
+- 노출된 H2 행은 스토리지가 로컬 인메모리 H2이기 때문에 빠릅니다. 이는 SQL 계층 오버헤드에 유용하지만 분산 시스템으로서 Redis,
+- Hazelcast, ZooKeeper 또는 MongoDB와 비교하여 순위를 매겨서는 안 됩니다.
+- Suspend MongoDB는 순위를 매기기 전에 반복 실행이나 더 긴 측정 프로필이 필요합니다.
 
-## Next Work
+## 다음 작품
 
-- Issue #328 should generate README charts from the two JSON files above.
-- Issue #329 self-improve work should use throughput as the primary metric and
-  average time as auxiliary latency evidence.
-- For tuning candidates, keep the same command, fork count, JVM, Docker runtime,
-  and logging level.
+- 문제 #328은 위의 두 JSON 파일에서 README 차트를 생성해야 합니다.
+- 문제 #329 자체 개선 작업에서는 처리량을 기본 측정항목으로, 평균 시간을 보조 대기 시간 증거로 사용해야 합니다.
+- 튜닝 후보의 경우 동일한 명령, 포크 수, JVM, Docker 런타임 및 로깅 수준을 유지하십시오.

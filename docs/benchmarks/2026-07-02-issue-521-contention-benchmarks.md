@@ -1,49 +1,38 @@
-# Issue #521 Leader Contention Benchmarks
+# 이슈 #521 리더 경합 벤치마크
 
-Issue #521 adds focused contention and skip-path benchmarks for single-leader
-electors. The benchmark separates existing-holder skip paths, parallel
-contender paths, and mixed acquire/skip paths so the elected and skipped
-outcomes are visible instead of being folded into one generic `runIfLeader`
-row.
+문제 #521에는 단일 리더 선거인에 대한 집중 경합 및 경로 건너뛰기 벤치마크가 추가되었습니다. 벤치마크는 기존 보유자 건너뛰기 경로, 병렬 경쟁자 경로 및
+혼합 획득/건너뛰기 경로를 분리하므로 하나의 일반적인 'runIfLeader' 행으로 접히는 대신 선택된 결과와 건너뛴 결과가 표시됩니다.
 
-These results are a quick same-machine snapshot. They are useful for regression
-tracking, README charts, and backend-shape inspection. They are not
-release-grade performance claims.
+이러한 결과는 동일한 머신의 빠른 스냅샷입니다. 회귀 추적, README 차트 및 백엔드 형태 검사에 유용합니다. 이는 릴리스 등급 성능 주장이 아닙니다.
 
-## Scope
+## 범위
 
-- Blocking remote/shared backends: Lettuce, Redisson, MongoDB, ZooKeeper, and
-  Exposed JDBC H2 in the benchmark source.
-- Suspend remote/shared backends: Lettuce, Redisson, MongoDB, ZooKeeper, and
-  Exposed R2DBC H2 in the benchmark source.
-- Local blocking and local suspend baselines are isolated in local-only classes
-  because local lock instances only contend when the same elector instance is
-  shared.
-- README chart data uses `contenders=8`, `-f 0`, no warmup, and one 100 ms
-  measurement iteration.
-- Exposed H2 contention rows are implemented in the benchmark source, but the
-  README chart snapshot focuses on remote backends plus local baseline rows.
+- 원격/공유 백엔드 차단: 벤치마크 소스에서 Lettuce, Redisson, MongoDB, ZooKeeper 및 Exposed JDBC H2.
+- 벤치마크 소스에서 원격/공유 백엔드(Lettuce, Redisson, MongoDB, ZooKeeper 및 Exposed R2DBC H2)를 일시
+- 중단합니다.
+- 로컬 잠금 인스턴스는 동일한 선택기 인스턴스가 공유될 때만 경합하기 때문에 로컬 차단 및 로컬 일시 중지 기준선은 로컬 전용 클래스에서 격리됩니다.
+- README 차트 데이터는 `contenders=8`, `-f 0`, 준비 작업 없음, 100ms 측정 반복을 사용합니다.
+- 노출된 H2 경합 행은 벤치마크 소스에서 구현되지만 README 차트 스냅샷은 원격 백엔드와 로컬 기준 행에 중점을 둡니다.
 
-## Charts
+## 차트
 
-Higher is better for throughput. Lower is better for average time. Both charts
-use a log scale because immediate local skip, remote immediate skip, and
-positive-wait contention paths differ by several orders of magnitude.
+높을수록 처리량이 더 좋습니다. 평균 시간에는 낮을수록 좋습니다. 즉시 로컬 건너뛰기, 원격 즉시 건너뛰기 및 긍정적 대기 경합 경로가 몇 배나 다르기 때문에
+두 차트 모두 로그 스케일을 사용합니다.
 
-![Leader contention throughput](../images/readme-charts/leader-contention-throughput-chart-01.png)
+![리더 경합 처리량](../images/readme-charts/leader-contention-throughput-chart-01.png)
 
-![Leader contention latency](../images/readme-charts/leader-contention-latency-chart-01.png)
+![리더 경합 대기 시간](../images/readme-charts/leader-contention-latency-chart-01.png)
 
-## Commands
+## 명령
 
-The benchmark jar was compiled first:
+벤치마크 jar가 먼저 컴파일되었습니다.
 
 ```bash
 ./gradlew :benchmark:compileBenchmarkKotlin --no-daemon --no-configuration-cache --console=plain
 ./gradlew :benchmark:benchmarkBenchmarkJar --no-daemon --no-configuration-cache --console=plain
 ```
 
-The README snapshot was collected from the generated JMH jar:
+README 스냅샷은 생성된 JMH jar에서 수집되었습니다.
 
 ```bash
 JAR=benchmark/build/benchmarks/benchmark/jars/benchmark-benchmark-jmh-0.5.0-JMH.jar
@@ -71,17 +60,16 @@ java -jar "$JAR" 'io\.bluetape4k\.leader\.benchmark\.Local.*LeaderContentionElec
   -rf json -rff docs/benchmarks/2026-07-02-issue-521-contention-local-average-time.json
 ```
 
-Smoke verification also ran the local-only benchmark classes and a
-container-backed Lettuce skip-path subset with `contenders=2`.
+Smoke 검증은 또한 `contenders=2`를 사용하여 로컬 전용 벤치마크 클래스와 컨테이너 지원 Lettuce 건너뛰기 경로 하위 집합을 실행했습니다.
 
-## Raw Data
+## 원본 데이터
 
 - [`2026-07-02-issue-521-contention-remote-throughput.json`](2026-07-02-issue-521-contention-remote-throughput.json)
 - [`2026-07-02-issue-521-contention-remote-average-time.json`](2026-07-02-issue-521-contention-remote-average-time.json)
 - [`2026-07-02-issue-521-contention-local-throughput.json`](2026-07-02-issue-521-contention-local-throughput.json)
 - [`2026-07-02-issue-521-contention-local-average-time.json`](2026-07-02-issue-521-contention-local-average-time.json)
 
-## Result Table
+## 결과표
 
 | API | Scenario | Backend | Throughput (ops/s) | Average time (us/op) |
 |---|---|---|---:|---:|
@@ -129,32 +117,22 @@ container-backed Lettuce skip-path subset with `contenders=2`.
 | Suspend | Mixed acquire + skip | mongo | 28.02 | 35,939 |
 | Suspend | Mixed acquire + skip | zookeeper | 22.29 | 46,421 |
 
-## Interpretation
+## 해석
 
-The existing-holder setup verifies that the action body is not executed on a
-skip result. Immediate skip rows therefore measure the backend cost of
-detecting a held lock and returning `LeaderRunResult.Skipped`, not a hidden
-action path.
+기존 홀더 설정은 건너뛰기 결과에서 작업 본문이 실행되지 않는지 확인합니다. 따라서 즉시 건너뛰기 행은 보류된 잠금을 감지하고 숨겨진 작업 경로가 아닌
+'LeaderRunResult.Skipped'를 반환하는 백엔드 비용을 측정합니다.
 
-The local blocking `waitTime=0` skip row is intentionally much faster than the
-remote rows because it is an in-process lock-state check. The remote immediate
-skip rows still have to touch their backend. In this short run, Redisson and
-Lettuce lead the remote immediate skip rows, MongoDB sits in the middle, and
-ZooKeeper pays the highest coordination cost.
+로컬 차단 `waitTime=0` 건너뛰기 행은 진행 중인 잠금 상태 검사이기 때문에 의도적으로 원격 행보다 훨씬 빠릅니다. 원격 즉시 건너뛰기 행은 여전히
+​​백엔드에 닿아야 합니다. 이 단기에서는 Redisson과 Lettuce가 원격 즉시 건너뛰기 행을 주도하고 MongoDB가 중간에 위치하며
+ZooKeeper가 가장 높은 조정 비용을 지불합니다.
 
-Positive-wait rows cluster around one operation per roughly 25 ms wait window.
-That is expected: the configured wait policy dominates the measurement, so
-backend differences are compressed. These rows are more useful as regression
-smoke checks than as backend ranking rows.
+대략 25ms 대기 창당 하나의 작업 주위에 긍정적 대기 행 클러스터가 있습니다. 이는 예상된 결과입니다. 구성된 대기 정책이 측정을 지배하므로 백엔드 차이가
+압축됩니다. 이러한 행은 백엔드 순위 행보다 회귀 연기 검사로 더 유용합니다.
 
-Parallel `waitTime=0` exists only for the blocking remote/shared benchmark.
-The local suspend implementation uses `withTimeoutOrNull(0)`, so an immediate
-free acquisition can time out before meaningful contention is measured. The
-suspend local baseline therefore keeps the positive-wait and mixed rows, while
-remote suspend immediate skip remains covered by the held-lock scenario.
+병렬 `waitTime=0`은 차단 원격/공유 벤치마크에만 존재합니다. 로컬 일시 중지 구현은 `withTimeoutOrNull(0)`을 사용하므로 의미 있는
+경합이 측정되기 전에 즉시 무료 획득이 시간 초과될 수 있습니다. 따라서 일시 중지 로컬 기준은 긍정적 대기 및 혼합 행을 유지하는 반면 원격 일시 중지 즉시
+건너뛰기는 잠금 유지 시나리오의 적용을 받습니다.
 
-The mixed acquire/skip rows keep one leader path and several skipped contender
-paths in the same measurement. Their latency is close to the positive-wait
-shape because skipped contenders still wait before returning. These rows are
-useful for detecting regressions where a backend accidentally executes the
-action on a skipped contender or leaks held state across iterations.
+혼합 획득/건너뛰기 행은 동일한 측정에서 하나의 리더 경로와 건너뛴 여러 경쟁 경로를 유지합니다. 건너뛴 경쟁자가 돌아오기 전에 여전히 기다리기 때문에 지연
+시간은 긍정적인 대기 형태에 가깝습니다. 이러한 행은 백엔드가 건너뛴 경쟁자에 대해 실수로 작업을 실행하거나 반복 전반에 걸쳐 유지 상태를 누출하는 회귀를
+감지하는 데 유용합니다.
