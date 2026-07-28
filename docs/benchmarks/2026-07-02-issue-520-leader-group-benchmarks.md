@@ -1,30 +1,27 @@
-# Issue 520 Leader Group Benchmark Snapshot
+# Issue 520 리더 그룹 벤치마크 스냅샷
 
-Issue #520 adds benchmark coverage for group semaphore election paths. The new
-benchmark classes cover blocking and suspend APIs with `maxLeaders` values 1,
-2, and 8. This report records the quick `maxLeaders=2` chart snapshot used in
-the README.
+이슈 #520에는 그룹 세마포어 선택 경로에 대한 벤치마크 적용 범위가 추가되었습니다. 새로운 벤치마크 클래스는 `maxLeaders` 값 1, 2, 8을
+사용하여 API 차단 및 정지를 다룹니다. 이 보고서는 README에 사용된 빠른 `maxLeaders=2` 차트 스냅샷을 기록합니다.
 
-## Environment
+## 환경
 
 - Date: 2026-07-02
-- Host OS: macOS 26.5.1, build 25F80
-- Java: Oracle GraalVM 21.0.11
+- 호스트 OS: macOS 26.5.1, 빌드 25F80
+- 자바: 오라클 GraalVM 21.0.11
 - Gradle: 9.6.0
 - Kotlin: 2.3.21
-- Scope: same-machine developer snapshot, not release-grade performance data
+- 범위: 릴리스 등급 성능 데이터가 아닌 동일 머신 개발자 스냅샷
 
-## Commands
+## 명령
 
-The benchmark source was compiled and packaged first:
+벤치마크 소스가 먼저 컴파일되고 패키징되었습니다.
 
 ```bash
 ./gradlew :benchmark:compileBenchmarkKotlin --no-configuration-cache --console=plain --warning-mode all
 ./gradlew :benchmark:benchmarkBenchmarkJar --no-daemon --no-configuration-cache --console=plain --rerun-tasks
 ```
 
-The chart snapshot used short, non-forked JMH runs so Testcontainers-backed
-backends could be compared quickly from the same process:
+차트 스냅샷은 짧고 포크되지 않은 JMH 실행을 사용하여 Testcontainers 지원 백엔드를 동일한 프로세스에서 빠르게 비교할 수 있습니다.
 
 ```bash
 java -jar benchmark/build/benchmarks/benchmark/jars/benchmark-benchmark-jmh-0.5.0-JMH.jar \
@@ -38,20 +35,27 @@ java -jar benchmark/build/benchmarks/benchmark/jars/benchmark-benchmark-jmh-0.5.
   -rf json -rff docs/benchmarks/2026-07-02-issue-520-leader-group-average-time.json
 ```
 
-JMH warns that `-f 0` is suitable only for debugging-style runs. Treat this file
-as a chart and smoke-test record. Use a forked, warmed benchmark before making a
-production tuning decision.
+JMH는 '-f 0'이 디버깅 스타일 실행에만 적합하다고 경고합니다. 이 파일을 차트 및 연기 테스트 기록으로 취급하십시오. 프로덕션 튜닝 결정을 내리기 전에
+분기되고 예열된 벤치마크를 사용하십시오.
 
-## Raw Data
+## 원본 데이터
 
-- Throughput JSON: [`2026-07-02-issue-520-leader-group-throughput.json`](./2026-07-02-issue-520-leader-group-throughput.json)
-- Average-time JSON: [`2026-07-02-issue-520-leader-group-average-time.json`](./2026-07-02-issue-520-leader-group-average-time.json)
-- Throughput chart: [`leader-group-throughput-chart-01.svg`](../images/readme-charts/leader-group-throughput-chart-01.svg) / [`leader-group-throughput-chart-01.png`](../images/readme-charts/leader-group-throughput-chart-01.png)
-- Average-time chart: [`leader-group-latency-chart-01.svg`](../images/readme-charts/leader-group-latency-chart-01.svg) / [`leader-group-latency-chart-01.png`](../images/readme-charts/leader-group-latency-chart-01.png)
+- 처리량 JSON:
+- [`2026-07-02-issue-520-leader-group-throughput.json`](./2026-07-02-issue-520-leader-group-throughput.json)
+- 평균 시간 JSON:
+- [`2026-07-02-issue-520-leader-group-average-time.json`](./2026-07-02-issue-520-leader-group-average-time.json)
+- 처리량 차트:
+- [`leader-group-throughput-chart-01.svg`](../images/readme-charts/leader-group-throughput-chart-01.svg)
+- /
+- [`leader-group-throughput-chart-01.png`](../images/readme-charts/leader-group-throughput-chart-01.png)
+- 평균 시간 차트:
+- [`leader-group-latency-chart-01.svg`](../images/readme-charts/leader-group-latency-chart-01.svg)
+- /
+- [`leader-group-latency-chart-01.png`](../images/readme-charts/leader-group-latency-chart-01.png)
 
-## Result Table
+## 결과표
 
-Higher is better for throughput. Lower is better for average time.
+높을수록 처리량이 더 좋습니다. 평균 시간에는 낮을수록 좋습니다.
 
 | API | Scenario | Backend | Throughput (ops/s) | Average time (us/op) |
 |---|---|---|---:|---:|
@@ -89,14 +93,11 @@ Higher is better for throughput. Lower is better for average time.
 | Suspend | Saturated skip | mongo | 36.03 | 26,808 |
 | Suspend | Saturated skip | zookeeper | 32.05 | 31,188 |
 
-## Interpretation
+## 해석
 
-- Local and blocking H2 rows are framework/storage-shape baselines. They are
-  preserved in the table but omitted from README charts because they obscure
-  remote backend differences.
-- Saturated-skip rows are dominated by the 25 ms wait-time path, so all
-  backends cluster around roughly one operation per wait window.
-- Lettuce and Redisson lead most free-slot and mixed-slot remote rows in this
-  short snapshot. MongoDB remains slower and noisier for mixed slots.
-- The chart uses a log scale to keep saturated rows visible beside free-slot
-  and mixed-slot rows.
+- 로컬 및 차단 H2 행은 프레임워크/스토리지 형태 기준선입니다. 테이블에는 보존되어 있지만 원격 백엔드 차이점을 모호하게 하기 때문에 README
+- 차트에서는 생략되었습니다.
+- 포화 건너뛰기 행은 25ms 대기 시간 경로에 의해 지배되므로 모든 백엔드는 대기 창당 대략 하나의 작업 주위에 클러스터됩니다.
+- Lettuce와 Redisson은 이 짧은 스냅샷에서 대부분의 사용 가능한 슬롯 및 혼합 슬롯 원격 행을 선도합니다. MongoDB는 혼합 슬롯의 경우
+- 여전히 느리고 잡음이 많습니다.
+- 차트는 로그 눈금을 사용하여 여유 슬롯 및 혼합 슬롯 행 옆에 포화된 행을 표시합니다.

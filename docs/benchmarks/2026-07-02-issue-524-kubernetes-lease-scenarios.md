@@ -1,28 +1,26 @@
-# Issue #524 Kubernetes Lease Scenario Benchmarks
+# 이슈 #524 Kubernetes 임대 시나리오 벤치마크
 
-This benchmark expands the K3s-backed Kubernetes Lease coverage from the basic
-successful `runIfLeader` path to stateful Lease scenarios:
+이 벤치마크는 K3s 지원 Kubernetes 임대 적용 범위를 기본적인 성공적인 'runIfLeader' 경로에서 상태 저장 임대 시나리오로 확장합니다.
 
-- fresh acquire through the public elector
-- pre-held Lease skip through the public elector
-- expired holder takeover through the public elector
-- same-holder Lease renewal update as a direct Kubernetes API-server probe
-- stale `resourceVersion` update conflict as a direct Kubernetes API-server probe
+- 공공 선거를 통해 새로운 획득
+- 사전 보유 임대는 공공 선거인을 거치지 않고 건너뜁니다.
+- 만료된 보유자는 공공 선거인을 통해 인수됩니다.
+- 직접 Kubernetes API 서버 프로브로 동일 소유자 임대 갱신 업데이트
+- 직접 Kubernetes API 서버 프로브로 오래된 'resourceVersion' 업데이트 충돌이 발생함
 
-The renewal and conflict rows intentionally isolate Kubernetes Lease API-server
-update/conflict latency. They are not action execution costs and should not be
-ranked as full elector acquire+release rows.
+갱신 및 충돌 행은 Kubernetes Lease API 서버 업데이트/충돌 대기 시간을 의도적으로 격리합니다. 이는 조치 실행 비용이 아니며 전체 선거인
+획득+해제 행으로 순위를 지정해서는 안 됩니다.
 
-## Commands
+## 명령
 
-Gradle task discovery and JMH jar creation:
+Gradle 작업 검색 및 JMH jar 생성:
 
 ```bash
 ./gradlew :benchmark:tasks --all --no-daemon --no-configuration-cache --console=plain
 ./gradlew :benchmark:kubernetesBenchmarkBenchmarkJar --no-daemon --no-configuration-cache --console=plain
 ```
 
-Measured smoke snapshot:
+측정된 연기 스냅샷:
 
 ```bash
 java -jar benchmark/build/benchmarks/kubernetesBenchmark/jars/benchmark-kubernetesBenchmark-jmh-0.5.0-JMH.jar \
@@ -36,11 +34,10 @@ java -jar benchmark/build/benchmarks/kubernetesBenchmark/jars/benchmark-kubernet
   -rf json -rff docs/benchmarks/2026-07-02-issue-524-kubernetes-scenarios-average-time.json
 ```
 
-The direct JMH jar path is used here so the short K3s smoke run can write
-issue-specific JSON files. The canonical discovery/build surface remains the
-`kubernetesBenchmark` Gradle target.
+여기서는 직접적인 JMH jar 경로가 사용되므로 짧은 K3s 연기 실행이 문제별 JSON 파일을 작성할 수 있습니다. 표준 검색/빌드 표면은
+'kubernetesBenchmark' Gradle 대상으로 유지됩니다.
 
-## Results
+## 결과
 
 | Scenario | Throughput (ops/s) | Average time (us/op) | Interpretation |
 |---|---:|---:|---|
@@ -55,29 +52,34 @@ issue-specific JSON files. The canonical discovery/build surface remains the
 | `suspendLeaseRenewalUpdate` | 258.746 | 4,720.792 | Direct Lease API renewal update from the suspend benchmark lane. |
 | `suspendResourceVersionConflict` | 425.577 | 2,181.023 | Direct stale `resourceVersion` conflict from the suspend benchmark lane. |
 
-![Kubernetes Lease scenario throughput](../images/readme-charts/leader-kubernetes-scenarios-throughput-chart-01.png)
+![Kubernetes 임대 시나리오
+처리량](../images/readme-charts/leader-kubernetes-scenarios-throughput-chart-01.png)
 
-![Kubernetes Lease scenario latency](../images/readme-charts/leader-kubernetes-scenarios-latency-chart-01.png)
+![Kubernetes 임대 시나리오 대기
+시간](../images/readme-charts/leader-kubernetes-scenarios-latency-chart-01.png)
 
-## Interpretation
+## 해석
 
-- The pre-held skip path is much faster than fresh acquire or expired takeover
-  because it reads the active holder and returns without writing the Lease.
-- Fresh acquire is slower than expired takeover in this short smoke snapshot.
-  The fresh path creates the Lease before release, while takeover updates an
-  existing Lease resource.
-- Renewal and conflict rows are intentionally direct API probes. They help
-  separate API-server update/conflict cost from local user action execution.
-- Blocking and suspend rows are comparable but not identical. Suspend public
-  elector calls wrap Fabric8 operations in `Dispatchers.IO`, while direct
-  suspend probes use the same IO boundary around Lease API calls.
-- This is a short K3s Testcontainers smoke snapshot with one fork, one thread,
-  one warmup, and one 200 ms measurement iteration. Repeat with longer windows
-  before using the numbers for production tuning.
+- 미리 보유된 건너뛰기 경로는 활성 보유자를 읽고 임대를 작성하지 않고 반환하기 때문에 새로 획득하거나 만료된 인수보다 훨씬 빠릅니다.
+- 이 짧은 연기 스냅샷에서 새로운 획득은 만료된 인수보다 느립니다. 새로운 경로는 릴리스 전에 임대를 생성하는 반면 인계는 기존 임대 리소스를
+- 업데이트합니다.
+- 갱신 및 충돌 행은 의도적으로 직접적인 API 프로브입니다. 로컬 사용자 작업 실행과 API 서버 업데이트/충돌 비용을 분리하는 데 도움이 됩니다.
+- 차단 행과 일시중단 행은 비슷하지만 동일하지는 않습니다. 일시 중지 공개 선택기 호출은 'Dispatchers.IO'에서 Fabric8 작업을 래핑하는
+- 반면, 직접 일시 중지 프로브는 Lease API 호출 주위에 동일한 IO 경계를 사용합니다.
+- 이것은 하나의 포크, 하나의 스레드, 하나의 워밍업 및 하나의 200ms 측정 반복을 포함하는 짧은 K3s Testcontainers 연기
+- 스냅샷입니다. 프로덕션 튜닝에 숫자를 사용하기 전에 더 긴 창에서 반복하십시오.
 
-## Artifacts
+## 유물
 
-- Throughput JSON: [`2026-07-02-issue-524-kubernetes-scenarios-throughput.json`](2026-07-02-issue-524-kubernetes-scenarios-throughput.json)
-- Average-time JSON: [`2026-07-02-issue-524-kubernetes-scenarios-average-time.json`](2026-07-02-issue-524-kubernetes-scenarios-average-time.json)
-- Throughput chart: [`leader-kubernetes-scenarios-throughput-chart-01.svg`](../images/readme-charts/leader-kubernetes-scenarios-throughput-chart-01.svg) / [`leader-kubernetes-scenarios-throughput-chart-01.png`](../images/readme-charts/leader-kubernetes-scenarios-throughput-chart-01.png)
-- Latency chart: [`leader-kubernetes-scenarios-latency-chart-01.svg`](../images/readme-charts/leader-kubernetes-scenarios-latency-chart-01.svg) / [`leader-kubernetes-scenarios-latency-chart-01.png`](../images/readme-charts/leader-kubernetes-scenarios-latency-chart-01.png)
+- 처리량 JSON:
+- [`2026-07-02-issue-524-kubernetes-scenarios-throughput.json`](2026-07-02-issue-524-kubernetes-scenarios-throughput.json)
+- 평균 시간 JSON:
+- [`2026-07-02-issue-524-kubernetes-scenarios-average-time.json`](2026-07-02-issue-524-kubernetes-scenarios-average-time.json)
+- 처리량 차트:
+- [`leader-kubernetes-scenarios-throughput-chart-01.svg`](../images/readme-charts/leader-kubernetes-scenarios-throughput-chart-01.svg)
+- /
+- [`leader-kubernetes-scenarios-throughput-chart-01.png`](../images/readme-charts/leader-kubernetes-scenarios-throughput-chart-01.png)
+- 지연 시간 차트:
+- [`leader-kubernetes-scenarios-latency-chart-01.svg`](../images/readme-charts/leader-kubernetes-scenarios-latency-chart-01.svg)
+- /
+- [`leader-kubernetes-scenarios-latency-chart-01.png`](../images/readme-charts/leader-kubernetes-scenarios-latency-chart-01.png)

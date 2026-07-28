@@ -1,9 +1,8 @@
-# Security Policy
+# 보안정책
 
-## Supported Versions
+## 지원되는 버전
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+이 섹션을 사용하여 현재 보안 업데이트가 지원되는 프로젝트 버전을 사람들에게 알리세요.
 
 | Version | Supported          |
 | ------- | ------------------ |
@@ -12,10 +11,8 @@ currently being supported with security updates.
 | 4.0.x   | :white_check_mark: |
 | < 4.0   | :x:                |
 
-## Reporting a Vulnerability
+## 취약점 보고
 
-Use this section to tell people how to report a vulnerability.
+이 섹션을 사용하여 사람들에게 취약점을 보고하는 방법을 알려주세요.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+어디로 가야 할지, 보고된 취약점에 대한 업데이트를 받을 수 있는 빈도, 취약점이 승인되거나 거부될 경우 예상되는 사항 등을 알려주십시오.

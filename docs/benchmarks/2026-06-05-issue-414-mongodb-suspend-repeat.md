@@ -1,29 +1,23 @@
-# Issue #414 MongoDB suspend benchmark repeat - 2026-06-05
+# 문제 #414 MongoDB 벤치마크 반복 일시 중지 - 2026-06-05
 
-Issue #414 repeated the noisy MongoDB suspend leader-election row against the
-same-machine Lettuce, Redisson, and Hazelcast suspend baselines. The goal was to
-separate repeatable backend overhead from short-window benchmark noise before
-opening a tuning task.
+문제 #414는 동일한 시스템의 Lettuce, Redisson 및 Hazelcast 일시 중지 기준에 대해 시끄러운 MongoDB 일시 중지 리더 선택 행을
+반복했습니다. 목표는 튜닝 작업을 시작하기 전에 짧은 기간의 벤치마크 노이즈에서 반복 가능한 백엔드 오버헤드를 분리하는 것이었습니다.
 
-Use this report for same-machine comparison only. It is not a release-grade
-performance claim.
+동일한 기계 비교에만 이 보고서를 사용하십시오. 이는 릴리스 등급 성능 주장이 아닙니다.
 
-## Caveats
+## 주의 사항
 
-- Only `SuspendBackendLeaderElectorBenchmark.runIfLeader` was measured.
-- The benchmark used the same one fork, one thread, two warmups, and three
-  one-second measurement iterations as the existing cross-backend baseline.
-- The generated Gradle `benchmarkBenchmark` and `benchmarkAverageTimeBenchmark`
-  tasks were verified first, but runtime filtering through `--args` replaces the
-  `kotlinx-benchmark` runner config path. The focused run therefore used the
-  official JVM benchmark JAR produced by `:benchmark:benchmarkBenchmarkJar`.
-- Each row starts its own Testcontainer in the JMH fork. Container startup is
-  outside measured iterations, but Docker and local resource pressure can still
-  affect short-window scores.
-- JMH ran on GraalVM JDK 25 because that was the active shell `JAVA_HOME` for
-  this repeat. Compare with the same JDK before making a before/after claim.
+- 'SuspendBackendLeaderElectorBenchmark.runIfLeader'만 측정되었습니다.
+- 벤치마크에서는 기존 크로스 백엔드 기준과 동일한 포크 1개, 스레드 1개, 워밍업 2개, 1초 측정 반복 3회를 사용했습니다.
+- 생성된 Gradle `benchmarkBenchmark` 및 `benchmarkAverageTimeBenchmark` 작업이 먼저 확인되었지만
+- `--args`를 통한 런타임 필터링이 `kotlinx-benchmark` 실행기 구성 경로를 대체합니다. 따라서 집중 실행에서는
+- `:benchmark:benchmarkBenchmarkJar`에서 생성된 공식 JVM 벤치마크 JAR을 사용했습니다.
+- 각 행은 JMH 포크에서 자체 Testcontainer를 시작합니다. 컨테이너 시작은 측정된 반복 범위를 벗어나지만 Docker 및 로컬 리소스 압력은
+- 여전히 ​​단기 점수에 영향을 미칠 수 있습니다.
+- JMH는 GraalVM JDK 25에서 실행되었습니다. 왜냐하면 GraalVM JDK 25가 이 반복에 대한 활성 셸 `JAVA_HOME`이었기
+- 때문입니다. 이전/이후 주장을 하기 전에 동일한 JDK와 비교하십시오.
 
-## Environment
+## 환경
 
 | Field | Value |
 |---|---|
@@ -40,21 +34,21 @@ performance claim.
 | Forks | 1 |
 | Threads | 1 |
 
-## Commands
+## 명령
 
-Task-name verification:
+작업 이름 확인:
 
 ```bash
 ./gradlew :benchmark:tasks --all --no-daemon
 ```
 
-JMH JAR generation:
+JMH JAR 생성:
 
 ```bash
 ./gradlew :benchmark:benchmarkBenchmarkJar --no-daemon --no-configuration-cache --rerun-tasks
 ```
 
-Throughput repeat, run once per `run` value from 1 to 3:
+처리량 반복, 1에서 3까지 `run` 값당 한 번씩 실행:
 
 ```bash
 java -jar benchmark/build/benchmarks/benchmark/jars/benchmark-benchmark-jmh-0.4.0-JMH.jar \
@@ -64,7 +58,7 @@ java -jar benchmark/build/benchmarks/benchmark/jars/benchmark-benchmark-jmh-0.4.
   '.*SuspendBackendLeaderElectorBenchmark.runIfLeader.*'
 ```
 
-Average-time repeat, run once per `run` value from 1 to 3:
+평균 시간 반복, 1에서 3까지 `run` 값당 한 번 실행:
 
 ```bash
 java -jar benchmark/build/benchmarks/benchmark/jars/benchmark-benchmark-jmh-0.4.0-JMH.jar \
@@ -74,18 +68,18 @@ java -jar benchmark/build/benchmarks/benchmark/jars/benchmark-benchmark-jmh-0.4.
   '.*SuspendBackendLeaderElectorBenchmark.runIfLeader.*'
 ```
 
-Machine-readable source artifacts:
+기계가 읽을 수 있는 소스 아티팩트:
 
-- [`2026-06-05-issue-414-mongodb-suspend-throughput-run-1.json`](./2026-06-05-issue-414-mongodb-suspend-throughput-run-1.json)
-- [`2026-06-05-issue-414-mongodb-suspend-throughput-run-2.json`](./2026-06-05-issue-414-mongodb-suspend-throughput-run-2.json)
-- [`2026-06-05-issue-414-mongodb-suspend-throughput-run-3.json`](./2026-06-05-issue-414-mongodb-suspend-throughput-run-3.json)
-- [`2026-06-05-issue-414-mongodb-suspend-average-time-run-1.json`](./2026-06-05-issue-414-mongodb-suspend-average-time-run-1.json)
-- [`2026-06-05-issue-414-mongodb-suspend-average-time-run-2.json`](./2026-06-05-issue-414-mongodb-suspend-average-time-run-2.json)
-- [`2026-06-05-issue-414-mongodb-suspend-average-time-run-3.json`](./2026-06-05-issue-414-mongodb-suspend-average-time-run-3.json)
+- [`2026-06-05-issue-414-mongodb-suspens-throughput-run-1.json`](./2026-06-05-issue-414-mongodb-suspens-throughput-run-1.json)
+- [`2026-06-05-issue-414-mongodb-suspens-throughput-run-2.json`](./2026-06-05-issue-414-mongodb-suspens-throughput-run-2.json)
+- [`2026-06-05-issue-414-mongodb-suspens-throughput-run-3.json`](./2026-06-05-issue-414-mongodb-suspens-throughput-run-3.json)
+- [`2026-06-05-issue-414-mongodb-suspens-average-time-run-1.json`](./2026-06-05-issue-414-mongodb-suspens-average-time-run-1.json)
+- [`2026-06-05-issue-414-mongodb-suspens-average-time-run-2.json`](./2026-06-05-issue-414-mongodb-suspens-average-time-run-2.json)
+- [`2026-06-05-issue-414-mongodb-suspens-average-time-run-3.json`](./2026-06-05-issue-414-mongodb-suspens-average-time-run-3.json)
 
-## Repeat Summary
+## 요약 반복
 
-Higher is better for throughput. Lower is better for average time.
+높을수록 처리량이 더 좋습니다. 평균 시간에는 낮을수록 좋습니다.
 
 | Backend | Throughput mean (ops/s) | Throughput run range (ops/s) | Mean JMH error (ops/s) | Average-time mean (us/op) | Average-time run range (us/op) | Mean JMH error (us/op) |
 |---|---:|---:|---:|---:|---:|---:|
@@ -94,9 +88,9 @@ Higher is better for throughput. Lower is better for average time.
 | hazelcast | 1,406.936 | 1,378.012 - 1,441.799 | 695.930 | 734.549 | 700.048 - 762.327 | 716.699 |
 | mongo | 634.467 | 302.035 - 896.383 | 3,030.521 | 3,796.573 | 1,324.228 - 5,348.705 | 25,693.233 |
 
-## Per-Run Results
+## 실행별 결과
 
-### Throughput
+### 처리량
 
 | Run | Lettuce (ops/s) | Redisson (ops/s) | Hazelcast (ops/s) | MongoDB (ops/s) |
 |---:|---:|---:|---:|---:|
@@ -104,7 +98,7 @@ Higher is better for throughput. Lower is better for average time.
 | 2 | 1,454.580 ± 241.711 | 1,431.931 ± 797.288 | 1,400.998 ± 236.957 | 704.984 ± 3,923.388 |
 | 3 | 1,437.426 ± 1,288.199 | 1,395.184 ± 1,340.612 | 1,441.799 ± 1,563.414 | 302.035 ± 4,413.367 |
 
-### Average Time
+### 평균 시간
 
 | Run | Lettuce (us/op) | Redisson (us/op) | Hazelcast (us/op) | MongoDB (us/op) |
 |---:|---:|---:|---:|---:|
@@ -112,24 +106,21 @@ Higher is better for throughput. Lower is better for average time.
 | 2 | 675.345 ± 83.277 | 731.004 ± 751.351 | 762.327 ± 591.689 | 4,716.788 ± 39,107.223 |
 | 3 | 741.277 ± 311.589 | 730.357 ± 575.876 | 700.048 ± 668.298 | 5,348.705 ± 35,069.352 |
 
-## Decision
+## 결정
 
-No production tuning issue was opened from this repeat. MongoDB was consistently
-slower than the Redis and Hazelcast suspend rows, but the score and error range
-were too wide for a narrow optimization target:
+이번 반복에서는 프로덕션 튜닝 문제가 발생하지 않았습니다. MongoDB는 Redis 및 Hazelcast 정지 행보다 지속적으로 느렸지만 좁은 최적화 목표에
+비해 점수와 오류 범위가 너무 넓었습니다.
 
-- Throughput fell from 896 ops/s to 302 ops/s across three repeats.
-- Average time moved from 1.3 ms/op to 5.3 ms/op across three repeats.
-- JMH error for MongoDB exceeded the measured score in the noisier repeats.
+- 처리량은 3회 반복에 걸쳐 896ops/s에서 302ops/s로 감소했습니다.
+- 세 번의 반복에 걸쳐 평균 시간이 1.3ms/op에서 5.3ms/op로 이동했습니다.
+- MongoDB에 대한 JMH 오류는 노이즈가 많은 반복에서 측정된 점수를 초과했습니다.
 
-Treat the current MongoDB suspend row as a noisy preview-backend comparison
-point. Before changing production code, rerun a longer profile with the same JDK,
-more measurement time, and optional MongoDB/client profiling so the bottleneck is
-stable enough to isolate.
+현재 MongoDB 일시 중지 행을 시끄러운 미리 보기-백엔드 비교 지점으로 처리합니다. 프로덕션 코드를 변경하기 전에 동일한 JDK, 더 많은 측정 시간 및
+선택적 MongoDB/클라이언트 프로파일링을 사용하여 더 긴 프로필을 다시 실행하여 병목 현상을 격리할 수 있을 만큼 안정적으로 유지하세요.
 
-## Verification
+## 확인
 
 - `./gradlew :benchmark:tasks --all --no-daemon`
 - `./gradlew :benchmark:benchmarkBenchmarkJar --no-daemon --no-configuration-cache --rerun-tasks`
-- JMH throughput repeat, 3 runs, raw JSON linked above.
-- JMH average-time repeat, 3 runs, raw JSON linked above.
+- JMH 처리량 반복, 3회 실행, 위에 링크된 원시 JSON.
+- JMH 평균 시간 반복, 3회 실행, 위에 링크된 원시 JSON.

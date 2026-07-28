@@ -1,28 +1,20 @@
-# Issue #422 Redis lease extension benchmark - 2026-06-01
+# 이슈 #422 Redis 임대 연장 벤치마크 - 2026-06-01
 
-Issue #422 added focused `kotlinx-benchmark` rows for Redis leader election
-lease-extension behavior. The goal was to compare Lettuce and Redisson normal
-execution against bluetape4k's shared `autoExtend` lease extender without
-changing production code.
+문제 #422에는 Redis 리더 선택 임대 연장 동작에 초점을 맞춘 'kotlinx-benchmark' 행이 추가되었습니다. 목표는 프로덕션 코드를 변경하지
+않고 Bluetape4k의 공유 'autoExtend' 임대 확장 프로그램과 Lettuce 및 Redisson의 일반 실행을 비교하는 것이었습니다.
 
-Use this report for same-machine comparison only. It is not a release-grade
-performance claim.
+동일한 기계 비교에만 이 보고서를 사용하십시오. 이는 릴리스 등급 성능 주장이 아닙니다.
 
-## Caveats
+## 주의 사항
 
-- The blocking and suspend rows use the same Redis Testcontainers launcher.
-- The plain `runIfLeader` rows use a 60 second lease and a fast action to
-  measure normal execution versus `autoExtend` enablement overhead.
-- The `runIfLeaderWithRenewalWindow` rows use a 90 ms lease and 45 ms action
-  dwell so the auto-extension path has a renewal window. Compare those rows only
-  within the same method because the dwell time dominates.
-- `redisson-auto-extend` uses bluetape4k's shared `LeaderLeaseAutoExtender`.
-  Redisson native watchdog mode is not represented because the current Redisson
-  electors always acquire locks with an explicit `leaseTime`.
-- The score deltas are within broad JMH error bounds. Do not use this run as
-  evidence for production optimization.
+- 차단 및 일시 중단 행은 동일한 Redis Testcontainers 실행 프로그램을 사용합니다.
+- 일반 'runIfLeader' 행은 60초 임대와 빠른 작업을 사용하여 정상적인 실행과 'autoExtend' 활성화 오버헤드를 측정합니다.
+- 'runIfLeaderWithRenewalWindow' 행은 90ms 임대 및 45ms 작업 유지를 사용하므로 자동 확장 경로에 갱신 기간이 있습니다.
+- 체류 시간이 지배적이므로 동일한 방법 내에서만 해당 행을 비교하십시오.
+- `redisson-auto-extend`는 bluetape4k의 공유 `LeaderLeaseAutoExtender`를 사용합니다. 현재 Redisson 선택자는 항상 명시적인 `leaseTime`을 사용하여 잠금을 획득하기 때문에 Redisson 기본 watchdog 모드는 표시되지 않습니다.
+- 점수 델타는 광범위한 JMH 오류 범위 내에 있습니다. 이 실행을 생산 최적화에 대한 증거로 사용하지 마십시오.
 
-## Environment
+## 환경
 
 | Field | Value |
 |---|---|
@@ -39,20 +31,20 @@ performance claim.
 | Forks | 1 |
 | Threads | 1 |
 
-## Command
+## 명령
 
 ```bash
 ./gradlew :benchmark:benchmarkBenchmark :benchmark:benchmarkAverageTimeBenchmark --no-daemon --no-configuration-cache --rerun-tasks
 ```
 
-Machine-readable source artifacts:
+기계가 읽을 수 있는 소스 아티팩트:
 
 - [`2026-06-01-issue-422-redis-lease-extension-throughput.json`](./2026-06-01-issue-422-redis-lease-extension-throughput.json)
 - [`2026-06-01-issue-422-redis-lease-extension-average-time.json`](./2026-06-01-issue-422-redis-lease-extension-average-time.json)
 
-## Blocking Redis API
+## Redis API 차단
 
-Higher is better for throughput. Lower is better for average time.
+높을수록 처리량이 더 좋습니다. 평균 시간에는 낮을수록 좋습니다.
 
 | Scenario | Mode | Throughput (ops/s) | Average time (us/op) | Notes |
 |---|---|---:|---:|---|
@@ -65,7 +57,7 @@ Higher is better for throughput. Lower is better for average time.
 | `runIfLeaderWithRenewalWindow` | redisson-normal | 18.540 ± 4.514 | 52,495.646 ± 13,993.629 | 90ms lease, 45ms action dwell |
 | `runIfLeaderWithRenewalWindow` | redisson-auto-extend | 19.150 ± 6.465 | 51,782.799 ± 5,184.910 | Shared auto extender, not native watchdog |
 
-## Suspend Redis API
+## Redis API 일시중단
 
 | Scenario | Mode | Throughput (ops/s) | Average time (us/op) | Notes |
 |---|---|---:|---:|---|
@@ -78,14 +70,12 @@ Higher is better for throughput. Lower is better for average time.
 | `runIfLeaderWithRenewalWindow` | redisson-normal | 18.603 ± 7.860 | 53,558.941 ± 19,665.787 | 90ms lease, 45ms action dwell |
 | `runIfLeaderWithRenewalWindow` | redisson-auto-extend | 19.214 ± 8.932 | 51,883.433 ± 6,959.355 | Shared auto extender, not native watchdog |
 
-## Decision
+## 결정
 
-No production optimization was made. The benchmark establishes coverage for the
-currently exposed public elector behavior and documents that native Redisson
-watchdog benchmarking needs a separate API or production behavior change before
-it can be measured honestly.
+생산 최적화가 이루어지지 않았습니다. 벤치마크는 현재 노출된 공공 선거인 행동에 대한 적용 범위를 설정하고 기본 Redisson 감시 벤치마킹이 정직하게
+측정되기 전에 별도의 API 또는 생산 행동 변경이 필요하다는 것을 문서화합니다.
 
-## Verification
+## 확인
 
 - `./gradlew :benchmark:compileBenchmarkKotlin --no-daemon`
 - `./gradlew :benchmark:benchmarkBenchmark :benchmark:benchmarkAverageTimeBenchmark --no-daemon --no-configuration-cache --rerun-tasks`

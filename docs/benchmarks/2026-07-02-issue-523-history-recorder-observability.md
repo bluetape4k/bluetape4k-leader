@@ -1,34 +1,29 @@
-# Issue #523 History Recorder Observability Benchmarks
+# 이슈 #523 기록 레코더 관찰 가능성 벤치마크
 
-Issue #523 extends `HistoryRecorderBenchmark` so the recorder-only history path
-has explicit observability rows. The benchmark compares no-op, in-memory, and
-Micrometer-wrapped history recorders across blocking and suspend APIs, terminal
-states, and metadata sizes.
+문제 #523은 `HistoryRecorderBenchmark`를 확장하여 레코더 전용 기록 경로에 명시적인 관찰 가능성 행이 있습니다. 벤치마크는 차단 및
+일시 중단 API, 터미널 상태 및 메타데이터 크기 전반에 걸쳐 무작동, 메모리 내 및 마이크로미터 래핑 기록 레코더를 비교합니다.
 
-## Scope
+## 범위
 
-- Recorder implementations: no-op, in-memory, Micrometer with `SimpleMeterRegistry`.
-- Terminal states: acquire + completed, acquire + failed.
-- APIs: blocking `SafeLeaderHistoryRecorder`, suspend `SuspendSafeLeaderHistoryRecorder`.
-- Metadata modes: `empty`, `small`, `large`.
+- 레코더 구현: 무작동, 메모리 내, `SimpleMeterRegistry`를 갖춘 마이크로미터.
+- 터미널 상태: 획득 + 완료, 획득 + 실패.
+- API: `SafeLeaderHistoryRecorder`를 차단하고 `SuspendSafeLeaderHistoryRecorder`를 일시 중지합니다.
+- 메타데이터 모드: '비어 있음', '소형', '대형'.
 
-The current history recorder contract records acquired, completed, and failed
-events. It does not expose a skipped or not-elected terminal event, so skip
-state coverage remains in the leader contention benchmarks from issue #521.
-These rows are recorder-only rows. They do not include Spring advice dispatch
-or backend lock acquisition; issue #522 covers Spring advice overhead.
+현재 이력 레코더 계약은 획득, 완료 및 실패한 이벤트를 기록합니다. 건너뛰거나 선택되지 않은 터미널 이벤트를 노출하지 않으므로 건너뛰기 상태 적용 범위는
+문제 #521의 리더 경합 벤치마크에 남아 있습니다. 이러한 행은 레코더 전용 행입니다. 여기에는 Spring 조언 디스패치 또는 백엔드 잠금 획득이 포함되지
+않습니다. 이슈 #522에서는 Spring 조언 오버헤드를 다루고 있습니다.
 
-## Commands
+## 명령
 
-The primary Gradle benchmark tasks for this module are:
+이 모듈의 주요 Gradle 벤치마크 작업은 다음과 같습니다.
 
 ```bash
 ./gradlew :benchmark:benchmarkBenchmark :benchmark:benchmarkAverageTimeBenchmark --no-configuration-cache --rerun-tasks
 ```
 
-For this issue, the full Gradle task would run the entire benchmark suite. The
-raw issue evidence therefore uses the generated JMH jar with a class filter,
-matching the existing benchmark evidence pattern in this repository:
+이 문제의 경우 전체 Gradle 작업은 전체 벤치마크 제품군을 실행합니다. 따라서 원시 문제 증거는 생성된 JMH jar를 클래스 필터와 함께 사용하여 이
+저장소의 기존 벤치마크 증거 패턴과 일치합니다.
 
 ```bash
 ./gradlew :benchmark:compileBenchmarkKotlin :benchmark:benchmarkBenchmarkJar --no-daemon --no-configuration-cache --console=plain
@@ -44,9 +39,8 @@ java -jar benchmark/build/benchmarks/benchmark/jars/benchmark-benchmark-jmh-0.5.
   -rf json -rff docs/benchmarks/2026-07-02-issue-523-history-recorder-average-time.json
 ```
 
-Run shape: one fork, one thread, one 500 ms warmup iteration, and two 500 ms
-measurement iterations. Use this as a same-machine comparable snapshot, not as
-a release-grade performance claim.
+실행 형태: 포크 1개, 스레드 1개, 500ms 워밍업 반복 1회, 500ms 측정 반복 2회. 이를 릴리스 등급 성능 주장이 아닌 동일한 시스템과 비교할
+수 있는 스냅샷으로 사용하십시오.
 
 Raw data:
 
@@ -58,9 +52,9 @@ Charts:
 - [`leader-history-observability-throughput-chart-01.svg`](../images/readme-charts/leader-history-observability-throughput-chart-01.svg)
 - [`leader-history-observability-latency-chart-01.svg`](../images/readme-charts/leader-history-observability-latency-chart-01.svg)
 
-## Results
+## 결과
 
-Higher is better for throughput. Lower is better for average time.
+높을수록 처리량이 더 좋습니다. 평균 시간에는 낮을수록 좋습니다.
 
 | API | Recorder | Terminal | Metadata | Throughput (ops/s) | Average time (us/op) |
 |---|---|---|---|---:|---:|
@@ -101,25 +95,18 @@ Higher is better for throughput. Lower is better for average time.
 | Suspend | Micrometer | Failed | small | 9,551,932 | 0.1031 |
 | Suspend | Micrometer | Failed | large | 2,516,993 | 0.3844 |
 
-## Interpretation
+## 해석
 
-Metadata size dominates the recorder-only path. The no-op blocking completed
-row moves from 0.0026 us/op with empty metadata to 0.2205 us/op with large
-metadata because the safe recorder still sanitizes the record before handing it
-to the sink. In-memory and Micrometer rows show the same shape: large metadata
-cost is much more visible than the counter decorator itself.
+메타데이터 크기는 레코더 전용 경로를 지배합니다. 무작동 차단 완료 행은 빈 메타데이터가 있는 0.0026 us/op에서 큰 메타데이터가 있는 0.2205
+us/op로 이동합니다. 안전한 레코더가 레코드를 싱크에 전달하기 전에 여전히 레코드를 삭제하기 때문입니다. 인 메모리 행과 마이크로미터 행은 동일한 모양을
+보여줍니다. 즉, 큰 메타데이터 비용이 카운터 데코레이터 자체보다 훨씬 더 눈에 띕니다.
 
-For small metadata, the Micrometer wrapper is close to the in-memory recorder in
-the completed path. Blocking completed rows are 18.9M ops/s for in-memory and
-18.0M ops/s for Micrometer; suspend completed rows are 11.2M ops/s and 11.7M
-ops/s respectively in this short run. Treat the small inversion in the suspend
-completed row as run noise, not as evidence that Micrometer improves the path.
+작은 메타데이터의 경우 Micrometer 래퍼는 완성된 경로의 메모리 내 레코더에 가깝습니다. 완료된 행 차단은 인메모리의 경우 18.9M ops/s이고
+마이크로미터의 경우 18.0M ops/s입니다. 일시 중단 완료된 행은 이 단기 실행에서 각각 11.2M ops/s 및 11.7M ops/s입니다. 정지 완료
+행의 작은 반전을 마이크로미터가 경로를 개선한다는 증거가 아니라 실행 노이즈로 처리합니다.
 
-Failure rows are slower than completed rows because `recordFailed` extracts the
-exception type and sanitizes/truncates the message. With small metadata,
-blocking in-memory moves from 0.0545 us/op to 0.0715 us/op, while suspend
-in-memory moves from 0.0860 us/op to 0.1035 us/op.
+'recordFailed'는 예외 유형을 추출하고 메시지를 삭제/자르기 때문에 실패 행은 완료된 행보다 느립니다. 작은 메타데이터의 경우 인 메모리 차단은
+0.0545 us/op에서 0.0715 us/op로 이동하고, 인 메모리 일시 중단은 0.0860 us/op에서 0.1035 us/op로 이동합니다.
 
-The benchmark uses `SimpleMeterRegistry` only. External metric backends,
-histogram publication, push registries, scraping, and exporter I/O remain
-outside this local recorder-only benchmark.
+벤치마크에서는 'SimpleMeterRegistry'만 사용합니다. 외부 메트릭 백엔드, 히스토그램 게시, 푸시 레지스트리, 스크래핑 및 내보내기 I/O는 이
+로컬 레코더 전용 벤치마크 외부에 남아 있습니다.
