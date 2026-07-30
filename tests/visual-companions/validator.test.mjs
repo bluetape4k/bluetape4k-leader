@@ -168,6 +168,50 @@ test('LeaderGroupElector English companion explains the 1-to-N slot delta', asyn
   assert.doesNotMatch(content, /data-control=["']auto-extend|Math\.random|Date\.now|performance\.now/);
 });
 
+test('LeaderGroupElector locale documents expose equivalent structure and behavior', async () => {
+  const en = await readFile(
+    new URL('docs/superpowers/specs/2026-07-30-leader-group-elector-visual-companion.html', root),
+    'utf8',
+  );
+  const ko = await readFile(
+    new URL('docs/superpowers/specs/2026-07-30-leader-group-elector-visual-companion.ko.html', root),
+    'utf8',
+  );
+  const parityPatterns = [
+    /<section\b[^>]*id=["']([^"']+)/gi,
+    /data-step=["']([^"']+)/gi,
+    /data-scenario=["']([^"']+)/gi,
+    /data-control=["']([^"']+)/gi,
+    /data-state-field=["']([^"']+)/gi,
+    /data-event-field=["']([^"']+)/gi,
+  ];
+  for (const pattern of parityPatterns) {
+    assert.deepEqual(values(en, pattern), values(ko, pattern));
+  }
+  assert.equal((en.match(/<pre\b/g) ?? []).length, (ko.match(/<pre\b/g) ?? []).length);
+  for (const source of [
+    'LeaderGroupElector.kt',
+    'LeaderGroupElectionOptions.kt',
+    'LeaderGroupState.kt',
+    'LettuceLeaderGroupElector.kt',
+    'LettuceSlotTokenGroup.kt',
+    'LeaderGroupElection.kt',
+    'single-group-strategic.md',
+  ]) {
+    assert.match(ko, new RegExp(source.replaceAll('.', '\\.')));
+  }
+  for (const phrase of [
+    '1 → N',
+    '작업을 고유하게 분배하지',
+    '독립적인 slot token',
+    '포화',
+    '나중 후보',
+  ]) {
+    assert.match(ko, new RegExp(phrase));
+  }
+  assert.doesNotMatch(ko, /data-control=["']auto-extend|Math\.random|Date\.now|performance\.now/);
+});
+
 function pngHeader(width = 2880, height = 2000) {
   const buffer = Buffer.alloc(24);
   Buffer.from('89504e470d0a1a0a', 'hex').copy(buffer, 0);
