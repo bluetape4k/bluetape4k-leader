@@ -489,4 +489,8 @@ test('Korean LeaderGroupElector models a stale release after lease expiry', asyn
   assert.match(content, /candidate\.actionEndsAt===state\.tick/);
   assert.match(content, /\['running','stale'\]\.includes\(candidate\.status\)/);
   assert.match(content, /거부: 오래된 token/);
+  assert.match(content, /attemptAt:preset\.attempts\[index\]\?\?index/);
+  assert.match(content, /state\.tick>=candidate\.deadline/);
+  assert.match(content, /ttl:ttl\?\?'—'/);
+  assert.match(content, /!state\.candidates\.some\(candidate=>\['queued','waiting','running'\]\.includes\(candidate\.status\)\)/);
 });
