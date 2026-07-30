@@ -16,6 +16,8 @@ const forbidden = [
   /<link\b[^>]*\brel\s*=\s*["']?stylesheet\b/i,
   /<(?:img|iframe|audio|video|source)\b[^>]*\bsrc\s*=\s*["'](?!data:|#)[^"']+["']/i,
   /<(?:img|iframe|audio|video|source)\b[^>]*\bsrc\s*=\s*(?:https?:)?\/\//i,
+  /<object\b[^>]*\bdata\s*=\s*["']?(?!data:|#)(?:https?:)?\/\//i,
+  /<embed\b[^>]*\bsrc\s*=\s*["']?(?!data:|#)(?:https?:)?\/\//i,
   /@import\s+(?:url\(\s*)?["']?\s*(?:https?:)?\/\//i,
   /url\(\s*["']?\s*(?:https?:)?\/\//i,
   /<form\b/i,

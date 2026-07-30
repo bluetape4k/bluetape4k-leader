@@ -513,6 +513,8 @@ for (const [surface, snippet] of [
   ['an unquoted external resource attribute', '<img src=https://example.com/a.png>'],
   ['a CSS import', '<style>@import "https://example.com/a.css";</style>'],
   ['an external CSS URL', '<div style="background:url(https://example.com/a.png)"></div>'],
+  ['an external object resource', '<object data="https://example.com/tracker"></object>'],
+  ['an external embed resource', '<embed src=https://example.com/tracker>'],
 ]) {
   test(`validator rejects ${surface}`, async (t) => {
     const { fixtureRoot, manifest } = await createFixture(t);
