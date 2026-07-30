@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "repository": "bluetape4k/bluetape4k-leader",
+  "release": {
+    "ref": "0.4.0",
+    "commit": "17ab7f872c1f96318c73d3580729cac20a67e017"
+  },
+  "documents": [
+    {
+      "id": "leader-elector",
+      "source": "docs/superpowers/specs/2026-07-30-leader-election-visual-companions-design.md",
+      "status": "approved",
+      "public": true,
+      "presentation": {
+        "mode": "simulation",
+        "defaultView": "simulation",
+        "views": [
+          "simulation"
+        ]
+      },
+      "manuals": [
+        "docs/manual/en/core/single-group-strategic.md",
+        "docs/manual/ko/core/single-group-strategic.md",
+        "docs/manual/en/frameworks/spring-boot.md",
+        "docs/manual/ko/frameworks/spring-boot.md"
+      ],
+      "locales": {
+        "en": {
+          "title": "LeaderElector Lock and Lease",
+          "html": "docs/superpowers/specs/2026-07-30-leader-elector-visual-companion.html",
+          "route": "/visual-companions/bluetape4k-leader/leader-elector/",
+          "fallback": "docs/manual/assets/visual-companions/leader-elector.en.png"
+        },
+        "ko": {
+          "title": "LeaderElector 락과 리스",
+          "html": "docs/superpowers/specs/2026-07-30-leader-elector-visual-companion.ko.html",
+          "route": "/ko/visual-companions/bluetape4k-leader/leader-elector/",
+          "fallback": "docs/manual/assets/visual-companions/leader-elector.ko.png"
+        }
+      }
+    },
+    {
+      "id": "leader-group-elector",
+      "source": "docs/superpowers/specs/2026-07-30-leader-election-visual-companions-design.md",
+      "status": "approved",
+      "public": true,
+      "presentation": {
+        "mode": "simulation",
+        "defaultView": "simulation",
+        "views": [
+          "simulation"
+        ]
+      },
+      "manuals": [
+        "docs/manual/en/core/single-group-strategic.md",
+        "docs/manual/ko/core/single-group-strategic.md",
+        "docs/manual/en/frameworks/spring-boot.md",
+        "docs/manual/ko/frameworks/spring-boot.md"
+      ],
+      "locales": {
+        "en": {
+          "title": "LeaderGroupElector Slot Capacity",
+          "html": "docs/superpowers/specs/2026-07-30-leader-group-elector-visual-companion.html",
+          "route": "/visual-companions/bluetape4k-leader/leader-group-elector/",
+          "fallback": "docs/manual/assets/visual-companions/leader-group-elector.en.png"
+        },
+        "ko": {
+          "title": "LeaderGroupElector 슬롯 수용량",
+          "html": "docs/superpowers/specs/2026-07-30-leader-group-elector-visual-companion.ko.html",
+          "route": "/ko/visual-companions/bluetape4k-leader/leader-group-elector/",
+          "fallback": "docs/manual/assets/visual-companions/leader-group-elector.ko.png"
+        }
+      }
+    }
+  ]
+}
