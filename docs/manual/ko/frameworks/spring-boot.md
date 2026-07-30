@@ -9,6 +9,14 @@ releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
 
 elector를 자동 구성하고 AspectJ compile-time weaving으로 메서드 호출을 보호합니다.
 
+## 대화형 시각화 자료
+
+[`LeaderElector` 상세 흐름](/ko/visual-companions/bluetape4k-leader/leader-elector/)은 lock, token, TTL, 리스 만료, `autoExtend`, 직접 API, `@LeaderElection`을 연결해 설명합니다. [`LeaderGroupElector` 차이 안내](/ko/visual-companions/bluetape4k-leader/leader-group-elector/)는 단일 리더 모델을 반복하지 않고 제한된 `maxLeaders` 슬롯과 `@LeaderGroupElection` 제약을 보강합니다.
+
+[![LeaderElector 락과 리스 시각화 자료](../../assets/visual-companions/leader-elector.ko.png)](/ko/visual-companions/bluetape4k-leader/leader-elector/)
+
+[![LeaderGroupElector 슬롯 수용량 시각화 자료](../../assets/visual-companions/leader-group-elector.ko.png)](/ko/visual-companions/bluetape4k-leader/leader-group-elector/)
+
 ## Weaving 방식
 
 0.4.0은 Freefair post-compile AspectJ weaving을 사용합니다. `@EnableAspectJAutoProxy`를 추가하지 않으며 Kotlin 메서드를 `open`으로 만들 필요도 없습니다. private 메서드는 가로채지 못하므로 startup validation이 잘못된 선언을 알려 줍니다. 단순 unit test만 보지 말고 weaving된 애플리케이션 artifact를 검증합니다.

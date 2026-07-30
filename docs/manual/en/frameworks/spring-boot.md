@@ -9,6 +9,14 @@ releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
 
 Auto-configure electors and guard invocations with AspectJ compile-time weaving.
 
+## Interactive visual companions
+
+The detailed [`LeaderElector` walkthrough](/visual-companions/bluetape4k-leader/leader-elector/) connects lock, token, TTL, lease expiry, `autoExtend`, the direct API, and `@LeaderElection`. The [`LeaderGroupElector` delta](/visual-companions/bluetape4k-leader/leader-group-elector/) adds bounded `maxLeaders` slots and the `@LeaderGroupElection` constraints without repeating the single-leader model.
+
+[![LeaderElector lock and lease visual companion](../../assets/visual-companions/leader-elector.en.png)](/visual-companions/bluetape4k-leader/leader-elector/)
+
+[![LeaderGroupElector slot capacity visual companion](../../assets/visual-companions/leader-group-elector.en.png)](/visual-companions/bluetape4k-leader/leader-group-elector/)
+
 ## Weaving model
 
 Release 0.4.0 uses Freefair post-compile AspectJ weaving. Do not add `@EnableAspectJAutoProxy`, and Kotlin methods do not need to be `open`. Private methods are not intercepted; startup validation reports invalid declarations. Verify the woven application artifact, not only a plain unit test.

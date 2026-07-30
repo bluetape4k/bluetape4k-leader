@@ -9,6 +9,14 @@ releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
 
 각 모델이 보장하는 범위와 애플리케이션이 별도로 맡아야 할 작업 분배를 구분합니다.
 
+## 대화형 시각화 자료
+
+먼저 `LeaderElector`의 락·리스 상세 흐름을 익힌 다음, `LeaderGroupElector` 자료에서 `1 → N` 슬롯 수용량의 차이에 집중합니다. 두 시뮬레이션 모두 릴리스에 고정된 Redis/Lettuce 모델을 사용합니다.
+
+[![LeaderElector 락과 리스 시각화 자료](../../assets/visual-companions/leader-elector.ko.png)](/ko/visual-companions/bluetape4k-leader/leader-elector/)
+
+[![LeaderGroupElector 슬롯 수용량 시각화 자료](../../assets/visual-companions/leader-group-elector.ko.png)](/ko/visual-companions/bluetape4k-leader/leader-group-elector/)
+
 ## 단일
 
 같은 lock name에는 규칙을 따르는 owner가 최대 하나만 존재합니다. 리스가 만료되거나 호출자가 재시도하면 업무 관점에서는 at-least-once가 될 수 있으므로 외부 효과는 멱등해야 합니다.
