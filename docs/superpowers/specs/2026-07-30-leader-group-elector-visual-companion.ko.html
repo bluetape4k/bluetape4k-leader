@@ -342,19 +342,28 @@ tick 6  node-D          acquire → slot-token-D-3
         if(state.slots.length >= state.maxLeaders){candidate.status='waiting';addEvent(candidate.id,'tryAcquire',null,0,'group full');return;}
         state.sequence += 1;
         const token = `slot-token-${candidate.id.slice(-1)}-${state.sequence}`;
-        state.slots.push({candidate:candidate.id,token,acquiredAt:state.tick,expiresAt:state.tick+state.leaseTime});
-        candidate.status='running';
+        const slot={owner:candidate.id,token,expiresAt:state.tick+state.leaseTime,actionEndsAt:state.tick+state.actionTime};
+        state.slots.push(slot);
+        candidate.status='running';candidate.token=token;candidate.actionEndsAt=slot.actionEndsAt;
         addEvent(candidate.id,'acquire',token,state.leaseTime,'admitted');
       };
       const process = () => {
-        for(const slot of [...state.slots]){
-          const candidate=state.candidates.find((item)=>item.id===slot.candidate);
-          if(state.tick >= slot.expiresAt){
-            state.slots=state.slots.filter((item)=>item!==slot);candidate.status='stale';
-            addEvent(candidate.id,'expire',slot.token,0,'slot available');
-          } else if(state.tick >= slot.acquiredAt+state.actionTime){
-            state.slots=state.slots.filter((item)=>item!==slot);candidate.status='done';
-            addEvent(candidate.id,'release',slot.token,slot.expiresAt-state.tick,'completed');
+        const expired=state.slots.filter((slot)=>state.tick>=slot.expiresAt);
+        for(const slot of expired){
+          const candidate=state.candidates.find((item)=>item.id===slot.owner);
+          candidate.status='stale';
+          addEvent(candidate.id,'expire',slot.token,0,'슬롯 사용 가능');
+        }
+        state.slots=state.slots.filter((slot)=>state.tick<slot.expiresAt);
+        for(const candidate of state.candidates){
+          if(candidate.actionEndsAt===state.tick&&['running','stale'].includes(candidate.status)){
+            const owned=state.slots.find((slot)=>slot.owner===candidate.id&&slot.token===candidate.token);
+            if(owned){
+              state.slots=state.slots.filter((slot)=>slot!==owned);candidate.status='done';
+              addEvent(candidate.id,'release',candidate.token,0,'슬롯 반환');
+            } else {
+              addEvent(candidate.id,'release',candidate.token,null,'거부: 오래된 token');
+            }
           }
         }
         state.candidates.forEach((candidate,index)=>{
@@ -397,7 +406,7 @@ tick 6  node-D          acquire → slot-token-D-3
         el.slots.replaceChildren(...Array.from({length:state.maxLeaders},(_,index)=>{
           const slot=state.slots[index];const card=document.createElement('div');card.className=`slot${slot?' is-active':''}`;
           const ttl=slot?Math.max(0,slot.expiresAt-state.tick):'—';
-          card.append(Object.assign(document.createElement('span'),{textContent:slot?slot.token:`slot-${index+1}`}),Object.assign(document.createElement('span'),{textContent:slot?`${slot.candidate} · TTL ${ttl}`:'사용 가능'}));
+          card.append(Object.assign(document.createElement('span'),{textContent:slot?slot.token:`slot-${index+1}`}),Object.assign(document.createElement('span'),{textContent:slot?`${slot.owner} · TTL ${ttl}`:'사용 가능'}));
           return card;
         }));
         el.events.replaceChildren(...state.events.map((event)=>{

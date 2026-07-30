@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import test from 'node:test';
+import { deflateSync } from 'node:zlib';
 
 import { validateRepository } from '../../scripts/validate-visual-companions.mjs';
 
@@ -220,6 +221,44 @@ function pngHeader(width = 2880, height = 2000) {
   return buffer;
 }
 
+function crc32(buffer) {
+  let crc = 0xffffffff;
+  for (const byte of buffer) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type, data = Buffer.alloc(0)) {
+  const typeBuffer = Buffer.from(type, 'ascii');
+  const chunk = Buffer.alloc(12 + data.length);
+  chunk.writeUInt32BE(data.length, 0);
+  typeBuffer.copy(chunk, 4);
+  data.copy(chunk, 8);
+  chunk.writeUInt32BE(crc32(Buffer.concat([typeBuffer, data])), 8 + data.length);
+  return chunk;
+}
+
+function validPng(width = 2880, height = 2000) {
+  const signature = Buffer.from('89504e470d0a1a0a', 'hex');
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 1;
+  ihdr[9] = 0;
+  const scanlineBytes = Math.ceil(width / 8) + 1;
+  const imageData = deflateSync(Buffer.alloc(scanlineBytes * height));
+  return Buffer.concat([
+    signature,
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', imageData),
+    pngChunk('IEND'),
+  ]);
+}
+
 function fixtureHtml(documentId, locale) {
   const isElector = documentId === 'leader-elector';
   const oppositeSuffix = locale === 'en' ? '.ko.html' : '.html';
@@ -369,7 +408,7 @@ async function createFixture(t) {
       );
       await writeFile(
         path.join(fixtureRoot, document.locales[locale].fallback),
-        pngHeader(),
+        validPng(),
       );
     }
   }
@@ -433,4 +472,21 @@ test('validator rejects a missing fallback PNG', async (t) => {
   const { fixtureRoot, manifest } = await createFixture(t);
   await unlink(path.join(fixtureRoot, manifest.documents[1].locales.ko.fallback));
   await assert.rejects(validateRepository(fixtureRoot), /leader-group-elector\.ko\.fallback does not exist/);
+});
+
+test('validator rejects a truncated fallback PNG with only a signature and dimensions', async (t) => {
+  const { fixtureRoot, manifest } = await createFixture(t);
+  const fallback = path.join(fixtureRoot, manifest.documents[0].locales.en.fallback);
+  await writeFile(fallback, pngHeader());
+  await assert.rejects(validateRepository(fixtureRoot), /must contain a complete PNG structure/);
+});
+
+test('Korean LeaderGroupElector models a stale release after lease expiry', async () => {
+  const content = await readFile(
+    new URL('docs/superpowers/specs/2026-07-30-leader-group-elector-visual-companion.ko.html', root),
+    'utf8',
+  );
+  assert.match(content, /candidate\.actionEndsAt===state\.tick/);
+  assert.match(content, /\['running','stale'\]\.includes\(candidate\.status\)/);
+  assert.match(content, /거부: 오래된 token/);
 });

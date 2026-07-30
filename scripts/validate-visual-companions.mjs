@@ -145,15 +145,83 @@ function requirePattern(errors, content, pattern, message) {
   if (!pattern.test(content)) errors.push(message);
 }
 
+function crc32(buffer) {
+  let crc = 0xffffffff;
+  for (const byte of buffer) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
 function parsePngDimensions(buffer) {
   const signature = '89504e470d0a1a0a';
-  if (buffer.length < 24 || buffer.subarray(0, 8).toString('hex') !== signature) {
+  if (buffer.length < 8 || buffer.subarray(0, 8).toString('hex') !== signature) {
     throw new Error('must be a PNG file');
   }
-  return {
-    width: buffer.readUInt32BE(16),
-    height: buffer.readUInt32BE(20),
-  };
+  if (buffer.length < 45) {
+    throw new Error('must contain a complete PNG structure');
+  }
+
+  let offset = 8;
+  let width;
+  let height;
+  let chunkIndex = 0;
+  let hasImageData = false;
+  let hasEnd = false;
+
+  while (offset < buffer.length) {
+    if (buffer.length - offset < 12) {
+      throw new Error('must contain a complete PNG structure');
+    }
+    const length = buffer.readUInt32BE(offset);
+    const chunkEnd = offset + 12 + length;
+    if (chunkEnd > buffer.length) {
+      throw new Error('must contain a complete PNG structure');
+    }
+
+    const typeStart = offset + 4;
+    const dataStart = offset + 8;
+    const type = buffer.subarray(typeStart, dataStart).toString('ascii');
+    const storedCrc = buffer.readUInt32BE(dataStart + length);
+    const computedCrc = crc32(buffer.subarray(typeStart, dataStart + length));
+    if (storedCrc !== computedCrc) {
+      throw new Error(`contains an invalid ${type || 'unknown'} chunk checksum`);
+    }
+
+    if (chunkIndex === 0) {
+      if (type !== 'IHDR' || length !== 13) {
+        throw new Error('must begin with a valid IHDR chunk');
+      }
+      width = buffer.readUInt32BE(dataStart);
+      height = buffer.readUInt32BE(dataStart + 4);
+      if (width === 0 || height === 0) {
+        throw new Error('must have non-zero dimensions');
+      }
+    } else if (type === 'IHDR') {
+      throw new Error('must contain exactly one IHDR chunk');
+    }
+
+    if (type === 'IDAT') hasImageData = true;
+    if (type === 'IEND') {
+      if (length !== 0 || chunkEnd !== buffer.length) {
+        throw new Error('must end with a valid IEND chunk');
+      }
+      hasEnd = true;
+      offset = chunkEnd;
+      break;
+    }
+
+    offset = chunkEnd;
+    chunkIndex += 1;
+  }
+
+  if (!hasImageData || !hasEnd || offset !== buffer.length) {
+    throw new Error('must contain a complete PNG structure');
+  }
+  return { width, height };
 }
 
 function validatePresentation(document, field, errors) {
