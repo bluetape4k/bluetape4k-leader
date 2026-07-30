@@ -124,6 +124,50 @@ test('LeaderElector locale documents expose equivalent structure and behavior', 
   assert.doesNotMatch(ko, /Math\.random|Date\.now|performance\.now/);
 });
 
+test('LeaderGroupElector English companion explains the 1-to-N slot delta', async () => {
+  const content = await readFile(
+    new URL('docs/superpowers/specs/2026-07-30-leader-group-elector-visual-companion.html', root),
+    'utf8',
+  );
+  assert.deepEqual(
+    values(content, /<section\b[^>]*id=["']([^"']+)/gi),
+    ['direct-api', 'model', 'recovery', 'settings', 'sources', 'spring'],
+  );
+  assert.deepEqual(
+    [...new Set(values(content, /data-scenario=["']([^"']+)/gi))],
+    ['capacity', 'expiry', 'saturation'],
+  );
+  assert.deepEqual(
+    [...new Set(values(content, /data-control=["']([^"']+)/gi))],
+    ['action-time', 'candidate-count', 'lease-time', 'max-leaders'],
+  );
+  assert.deepEqual(
+    [...new Set(values(content, /data-state-field=["']([^"']+)/gi))],
+    ['activeCount', 'availableSlots', 'isFull'],
+  );
+  for (const marker of [
+    'LeaderElector',
+    'LeaderGroupElector',
+    '1 → N',
+    'LeaderGroupElectionOptions',
+    'LeaderGroupState',
+    'maxLeaders',
+    'activeCount',
+    'availableSlots',
+    'isFull',
+    'runIfLeader',
+    '@LeaderGroupElection',
+    'Flux',
+    'Flow',
+    'does not assign unique work',
+    'token',
+    'TTL',
+  ]) {
+    assert.match(content, new RegExp(marker));
+  }
+  assert.doesNotMatch(content, /data-control=["']auto-extend|Math\.random|Date\.now|performance\.now/);
+});
+
 function pngHeader(width = 2880, height = 2000) {
   const buffer = Buffer.alloc(24);
   Buffer.from('89504e470d0a1a0a', 'hex').copy(buffer, 0);
