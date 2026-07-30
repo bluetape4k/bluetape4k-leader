@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>LeaderElector 락과 리스 · bluetape4k</title>
+  <script>
+    (() => {
+      const storageKey = 'bluetape4k-leader-visual-theme';
+      const selected = localStorage.getItem(storageKey) || 'auto';
+      const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.dataset.theme = selected === 'auto' ? (dark ? 'dark' : 'light') : selected;
+      document.documentElement.dataset.themeMode = selected;
+    })();
+  </script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", Consolas, monospace;
+      --r-lg: 22px;
+      --r-md: 14px;
+      --shadow: 0 24px 70px rgba(3, 10, 24, .2);
+    }
+    :root[data-theme="light"] {
+      --bg: #f4f7fb; --grid: rgba(31, 73, 125, .07); --surface: rgba(255,255,255,.95);
+      --surface-2: #eef3f9; --surface-3: #e3ebf5; --text: #122033; --muted: #5a6a7d;
+      --line: #c8d5e5; --blue: #1f6feb; --blue-soft: #dbeafe; --cyan: #087f8c;
+      --violet: #6d4aff; --green: #147d4f; --amber: #a45b09; --red: #c43b4d;
+      --code: #172033; --code-text: #dce8ff;
+    }
+    :root[data-theme="dark"] {
+      --bg: #07101f; --grid: rgba(112,154,214,.08); --surface: rgba(13,25,45,.95);
+      --surface-2: #111f35; --surface-3: #182b47; --text: #e7eef9; --muted: #9eb0c8;
+      --line: #2b4567; --blue: #67a4ff; --blue-soft: #162f55; --cyan: #55d7e3;
+      --violet: #a995ff; --green: #55d69a; --amber: #ffc66d; --red: #ff7f91;
+      --code: #050a13; --code-text: #dce8ff; --shadow: 0 28px 80px rgba(0,0,0,.36);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--bg); }
+    body {
+      margin: 0; min-width: 320px; color: var(--text); font-family: var(--sans); line-height: 1.6;
+      background:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+        radial-gradient(circle at 18% 8%, color-mix(in srgb,var(--blue) 18%,transparent), transparent 30rem),
+        radial-gradient(circle at 82% 28%, color-mix(in srgb,var(--violet) 14%,transparent), transparent 34rem),
+        var(--bg);
+      background-size: 32px 32px, 32px 32px, auto, auto, auto;
+    }
+    button, input { font: inherit; }
+    button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+    a { color: var(--blue); }
+    code, pre { font-family: var(--mono); }
+    .topbar {
+      position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; min-height: 66px; padding: 10px clamp(18px,4vw,56px); border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb,var(--bg) 84%,transparent); backdrop-filter: blur(18px);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; color: var(--text); font-weight: 800; text-decoration: none; }
+    .brand-mark {
+      display: grid; width: 34px; height: 34px; place-items: center; border-radius: 11px; color: white;
+      background: linear-gradient(135deg,var(--blue),var(--violet));
+    }
+    .top-actions, .theme-picker, .transport { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .link-button, .theme-button, .step-button, .scenario-button, .transport-button {
+      min-height: 44px; border: 1px solid var(--line); border-radius: 999px; color: var(--text);
+      background: var(--surface); cursor: pointer; transition: transform .18s ease, border-color .18s ease;
+    }
+    .link-button { display: inline-flex; align-items: center; padding: 0 14px; text-decoration: none; }
+    .theme-button { min-width: 44px; padding: 0 12px; }
+    [aria-pressed="true"].theme-button, [aria-pressed="true"].step-button, [aria-pressed="true"].scenario-button {
+      border-color: var(--blue); color: var(--blue); background: var(--blue-soft);
+    }
+    .link-button:hover, button:hover { transform: translateY(-1px); border-color: var(--blue); }
+    .page { width: min(1540px,calc(100% - 32px)); margin: 0 auto; padding: 54px 0 90px; }
+    .hero { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(320px,.75fr); gap: 28px; align-items: end; margin-bottom: 30px; }
+    .eyebrow { margin: 0 0 12px; color: var(--cyan); font-size: .78rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(2.4rem,6vw,5.2rem); line-height: 1.02; letter-spacing: -.06em; }
+    .hero-copy { max-width: 780px; margin: 22px 0 0; color: var(--muted); font-size: clamp(1rem,1.5vw,1.2rem); }
+    .card, .panel { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow); }
+    .card { padding: 22px; }
+    .card strong { display: block; margin-bottom: 8px; color: var(--green); }
+    .card p { margin: 0; color: var(--muted); }
+    .step-nav { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; margin-bottom: 20px; }
+    .step-button { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: var(--r-md); text-align: left; }
+    .step-index { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 9px; background: var(--surface-2); font-size: .75rem; font-weight: 800; }
+    .step-button[aria-pressed="true"] .step-index { color: white; background: var(--blue); }
+    .workspace { display: grid; grid-template-columns: minmax(520px,1.12fr) minmax(390px,.88fr); gap: 20px; align-items: start; }
+    .panel { overflow: hidden; }
+    .panel-header { display: flex; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+    .panel-header h2, .lesson-section h2 { margin: 0; letter-spacing: -.025em; }
+    .panel-header p { margin: 4px 0 0; color: var(--muted); font-size: .88rem; }
+    .simulation-body { padding: 18px; }
+    .scenario-bar { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 16px; }
+    .scenario-button { padding: 10px 8px; border-radius: 12px; font-size: .84rem; font-weight: 750; }
+    .diagram { display: grid; grid-template-columns: minmax(150px,.72fr) 44px minmax(210px,1fr) 44px minmax(160px,.78fr); gap: 8px; min-height: 276px; }
+    .stack { display: flex; flex-direction: column; gap: 9px; }
+    .label { color: var(--muted); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .candidate { padding: 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); }
+    .candidate[data-status="running"] { border-color: var(--green); transform: translateX(3px); }
+    .candidate[data-status="waiting"] { border-color: var(--amber); }
+    .candidate[data-status="skipped"], .candidate[data-status="stale"] { border-color: var(--red); }
+    .candidate-title { display: flex; justify-content: space-between; font: 750 .82rem var(--mono); }
+    .candidate-status { color: var(--muted); font: .75rem var(--sans); }
+    .connector { display: grid; place-items: center; color: var(--blue); font-size: 1.5rem; font-weight: 900; }
+    .redis {
+      display: flex; flex-direction: column; justify-content: space-between; padding: 16px; border: 1px solid var(--violet);
+      border-radius: var(--r-lg); background: radial-gradient(circle at 100% 0,color-mix(in srgb,var(--violet) 18%,transparent),transparent 55%),var(--surface-2);
+    }
+    .redis-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .redis-head strong { color: var(--violet); }
+    .ttl {
+      display: grid; width: 58px; height: 58px; place-items: center; border-radius: 50%;
+      background: conic-gradient(var(--cyan) var(--ttl-progress,0%),var(--surface-3) 0);
+      box-shadow: inset 0 0 0 7px var(--surface-2); font: 800 .78rem var(--mono);
+    }
+    .record { display: grid; gap: 8px; margin-top: 16px; }
+    .record-row { display: grid; grid-template-columns: 72px 1fr; gap: 8px; padding: 8px 9px; border-radius: 9px; background: var(--surface-3); font: .75rem var(--mono); }
+    .record-row span:first-child { color: var(--muted); }
+    .action-box { display: flex; min-height: 148px; flex: 1; flex-direction: column; justify-content: center; padding: 14px; border: 1px dashed var(--line); border-radius: var(--r-md); background: var(--surface-2); }
+    .action-box strong { color: var(--green); }
+    .action-box p { margin: 8px 0 0; color: var(--muted); font-size: .82rem; }
+    .controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+    .range { display: grid; gap: 6px; color: var(--muted); font-size: .78rem; font-weight: 700; }
+    .range output { color: var(--text); font-family: var(--mono); }
+    input[type="range"] { width: 100%; accent-color: var(--blue); }
+    .transport-button { min-width: 46px; padding: 0 12px; border-radius: 12px; font-weight: 800; }
+    .clock { display: flex; justify-content: space-between; gap: 10px; margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font: .76rem var(--mono); }
+    .clock strong { color: var(--cyan); }
+    .lesson-panel { min-height: 720px; }
+    .lesson-section { display: none; padding: 26px; }
+    .lesson-section.is-active { display: block; }
+    .kicker { margin: 0 0 8px; color: var(--blue); font-size: .75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .lead { margin: 10px 0 20px; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+    .concept, .callout { padding: 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); }
+    .concept strong { display: block; margin-bottom: 6px; }
+    .concept p, .callout p { margin: 0; color: var(--muted); font-size: .88rem; }
+    .callout { margin-top: 16px; border-color: var(--amber); }
+    .callout.danger { border-color: var(--red); }
+    .callout strong { color: var(--amber); }
+    .callout.danger strong { color: var(--red); }
+    pre { margin: 14px 0 0; padding: 16px; overflow-x: auto; border-radius: var(--r-md); color: var(--code-text); background: var(--code); font-size: .78rem; line-height: 1.65; }
+    .events { margin-top: 20px; border-top: 1px solid var(--line); }
+    .events h3 { margin: 18px 0 10px; font-size: .95rem; }
+    table { width: 100%; border-collapse: collapse; font-size: .73rem; }
+    th { padding: 8px 6px; color: var(--muted); text-align: left; font-size: .65rem; text-transform: uppercase; }
+    td { padding: 8px 6px; border-top: 1px solid var(--line); font-family: var(--mono); }
+    .source-list { display: grid; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
+    .source-list a { display: flex; justify-content: space-between; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); background: var(--surface-2); text-decoration: none; font: .75rem var(--mono); }
+    .status { min-height: 24px; color: var(--muted); font-size: .8rem; }
+    @media (max-width:1120px) { .hero,.workspace { grid-template-columns:1fr; } .lesson-panel { min-height:0; } }
+    @media (max-width:760px) {
+      .brand span:last-child { display:none; } .page { width:calc(100% - 20px); padding-top:34px; }
+      .step-nav { grid-template-columns:1fr 1fr; } .step-button:last-child { grid-column:1/-1; }
+      .diagram { grid-template-columns:1fr; } .connector { min-height:24px; transform:rotate(90deg); }
+      .controls,.grid { grid-template-columns:1fr; } .lesson-section { padding:20px 16px; } table { display:block; overflow-x:auto; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; transition-duration:.01ms!important; }
+    }
+  </style>
+</head>
+<body
+  data-design-baseline="ed346a14bf223b0eb456198fdee617b608795b54"
+  data-release-ref="0.4.0"
+  data-release-commit="17ab7f872c1f96318c73d3580729cac20a67e017"
+>
+  <header class="topbar">
+    <a class="brand" href="https://github.com/bluetape4k/bluetape4k-leader"><span class="brand-mark">L</span><span>bluetape4k Leader</span></a>
+    <div class="top-actions">
+      <a class="link-button" href="./2026-07-30-leader-group-elector-visual-companion.ko.html">1 → N 슬롯</a>
+      <a class="link-button" href="./2026-07-30-leader-elector-visual-companion.html" lang="en">English</a>
+      <div class="theme-picker" aria-label="화면 테마">
+        <button class="theme-button" type="button" data-theme-choice="auto" aria-pressed="true" aria-label="시스템 테마">A</button>
+        <button class="theme-button" type="button" data-theme-choice="light" aria-pressed="false" aria-label="밝은 테마">☀</button>
+        <button class="theme-button" type="button" data-theme-choice="dark" aria-pressed="false" aria-label="어두운 테마">☾</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">시각 자료 · Release 0.4.0 · Redis Lettuce</p>
+        <h1 id="page-title">하나의 락.<br>하나의 유효한 리더.</h1>
+        <p class="hero-copy">
+          blocking <code>LeaderElector</code>가 락 경쟁을 거쳐 소유권 token과 리스 TTL을 얻고,
+          보호된 작업을 실행한 뒤 연장·만료·token 확인 해제로 끝나는 흐름을 따라갑니다.
+        </p>
+      </div>
+      <aside class="card">
+        <strong>정상적인 락 경쟁은 예외가 아니라 건너뜀입니다.</strong>
+        <p>
+          <code>waitTime</code> 안에 락을 얻지 못하면 <code>runIfLeader</code>는 <code>null</code>을 반환합니다.
+          <code>runIfLeaderResult</code>는 작업이 null을 반환한 경우와 <code>LeaderRunResult.Skipped</code>를 구분합니다.
+        </p>
+      </aside>
+    </section>
+
+    <nav class="step-nav" aria-label="학습 단계">
+      <button class="step-button" type="button" data-step="model" aria-pressed="true"><span class="step-index">01</span><span>모델</span></button>
+      <button class="step-button" type="button" data-step="settings" aria-pressed="false"><span class="step-index">02</span><span>설정</span></button>
+      <button class="step-button" type="button" data-step="direct-api" aria-pressed="false"><span class="step-index">03</span><span>직접 API</span></button>
+      <button class="step-button" type="button" data-step="spring" aria-pressed="false"><span class="step-index">04</span><span>Spring</span></button>
+      <button class="step-button" type="button" data-step="recovery" aria-pressed="false"><span class="step-index">05</span><span>장애와 복구</span></button>
+    </nav>
+
+    <div class="workspace">
+      <article class="panel">
+        <div class="panel-header">
+          <div><h2>결정적인 리스 타임라인</h2><p>논리 tick은 순서를 설명하며 Redis 지연 시간을 재현하지 않습니다.</p></div>
+          <div id="status-message" class="status" aria-live="polite">tick 0에서 준비되었습니다.</div>
+        </div>
+        <div class="simulation-body">
+          <div class="scenario-bar" aria-label="시나리오">
+            <button class="scenario-button" type="button" data-scenario="contention" aria-pressed="true">락 경쟁</button>
+            <button class="scenario-button" type="button" data-scenario="expiry" aria-pressed="false">리스 만료와 재획득</button>
+            <button class="scenario-button" type="button" data-scenario="extension" aria-pressed="false">자동 연장</button>
+          </div>
+
+          <div class="diagram" aria-label="후보, Redis 락, 보호된 작업">
+            <div class="stack">
+              <span class="label">리더 후보</span>
+              <div class="candidate" data-candidate="node-a" data-status="idle"><div class="candidate-title"><span>node-a</span><span class="candidate-status">대기</span></div></div>
+              <div class="candidate" data-candidate="node-b" data-status="idle"><div class="candidate-title"><span>node-b</span><span class="candidate-status">대기</span></div></div>
+              <div class="candidate" data-candidate="node-c" data-status="idle"><div class="candidate-title"><span>node-c</span><span class="candidate-status">대기</span></div></div>
+            </div>
+            <div class="connector" aria-hidden="true">→</div>
+            <div class="redis">
+              <div>
+                <span class="label">Redis · 개념적 record</span>
+                <div class="redis-head"><strong>invoice-close</strong><div id="ttl-ring" class="ttl" style="--ttl-progress:0%">TTL —</div></div>
+              </div>
+              <div class="record">
+                <div class="record-row"><span>lockName</span><span>invoice-close</span></div>
+                <div class="record-row"><span>owner</span><span id="record-owner">—</span></div>
+                <div class="record-row"><span>token</span><span id="record-token">—</span></div>
+                <div class="record-row"><span>expires</span><span id="record-expiry">—</span></div>
+              </div>
+            </div>
+            <div class="connector" aria-hidden="true">→</div>
+            <div class="stack">
+              <span class="label">보호된 작업</span>
+              <div class="action-box"><strong id="action-owner">리더 대기</strong><p id="action-copy">현재 token을 가진 후보만 이 경계에 들어갑니다.</p></div>
+            </div>
+          </div>
+
+          <div class="controls">
+            <label class="range" data-control="action-time">
+              <span>작업 시간 · <output id="action-output">8 ticks</output></span>
+              <input id="action-time" type="range" min="4" max="14" step="2" value="8" aria-label="작업 시간">
+            </label>
+            <label class="range" data-control="lease-time">
+              <span>leaseTime · <output id="lease-output">10 ticks</output></span>
+              <input id="lease-time" type="range" min="4" max="12" step="2" value="10" aria-label="리스 시간">
+            </label>
+            <div class="transport" aria-label="타임라인 제어">
+              <button id="reset-button" class="transport-button" type="button" aria-label="초기화">↺</button>
+              <button id="play-button" class="transport-button" type="button" aria-label="재생" aria-pressed="false">▶</button>
+              <button id="step-button" class="transport-button" type="button" aria-label="한 tick 진행">+1</button>
+            </div>
+          </div>
+          <div class="clock">
+            <span>logical tick <strong id="tick-value">0</strong></span>
+            <span>waitTime <strong>2</strong></span>
+            <span>minLeaseTime <strong>1</strong></span>
+            <span>autoExtend <strong id="extend-value">false</strong></span>
+          </div>
+
+          <div class="events">
+            <h3>최근 소유권 event</h3>
+            <table>
+              <thead><tr>
+                <th data-event-field="tick">Tick</th>
+                <th data-event-field="candidate">후보</th>
+                <th data-event-field="operation">동작</th>
+                <th data-event-field="token">Token</th>
+                <th data-event-field="ttl">TTL</th>
+                <th data-event-field="outcome">결과</th>
+              </tr></thead>
+              <tbody id="event-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel lesson-panel">
+        <section id="model" class="lesson-section is-active" aria-labelledby="model-title">
+          <p class="kicker">Step 01 · 모델</p>
+          <h2 id="model-title">현재 소유권 token이 리더를 증명합니다</h2>
+          <p class="lead"><code>lockName → { owner, token, TTL }</code>은 Redis key 직렬화 형식이 아니라 동작을 설명하는 개념 모델입니다.</p>
+          <div class="grid">
+            <div class="concept"><strong>원자적 획득</strong><p>락이 없을 때 한 후보만 소유권을 얻습니다.</p></div>
+            <div class="concept"><strong>불투명 token</strong><p>현재 소유권 token과 일치할 때만 연장하거나 해제합니다.</p></div>
+            <div class="concept"><strong>리스 TTL</strong><p>유효한 연장이 없으면 <code>leaseTime</code> 뒤에 소유권이 사라집니다.</p></div>
+            <div class="concept"><strong>호출 범위 작업</strong><p>락 획득이 성공한 경우에만 사용자 작업을 실행합니다.</p></div>
+          </div>
+          <div class="callout"><strong>정상적인 락 경쟁은 throw하지 않습니다.</strong><p>기다림이 끝난 후보는 작업을 실행하지 않고 건너뜁니다.</p></div>
+        </section>
+
+        <section id="settings" class="lesson-section" aria-labelledby="settings-title">
+          <p class="kicker">Step 02 · 설정</p>
+          <h2 id="settings-title">서로 다른 네 가지 시간 경계</h2>
+          <p class="lead">위 control에서 작업 시간과 leaseTime을 바꾸면 같은 상태 전이가 새 설정으로 초기화됩니다.</p>
+          <div class="grid">
+            <div class="concept"><strong>waitTime</strong><p>후보가 락을 얻으려고 기다릴 수 있는 최대 시간입니다.</p></div>
+            <div class="concept"><strong>leaseTime</strong><p>획득 또는 연장 뒤 token이 유효한 TTL입니다.</p></div>
+            <div class="concept"><strong>minLeaseTime</strong><p>작업이 빨리 끝나도 성공한 락을 유지할 최소 시간이며 leaseTime보다 클 수 없습니다.</p></div>
+            <div class="concept"><strong>작업 시간</strong><p>업무 코드가 실행되는 시간으로 리스보다 길 수 있습니다.</p></div>
+          </div>
+          <div class="callout"><strong>autoExtend는 단일 리더 경로의 기능입니다.</strong><p>자동 연장 시나리오는 작업 중 리스 TTL을 주기적으로 갱신합니다.</p></div>
+        </section>
+
+        <section id="direct-api" class="lesson-section" aria-labelledby="api-title">
+          <p class="kicker">Step 03 · 직접 API</p>
+          <h2 id="api-title">간결한 null 또는 명시적인 result</h2>
+          <pre><code>val value = elector.runIfLeader("invoice-close") {
+    closeInvoices()
+}
+// elected: 작업 반환값
+// contention: null</code></pre>
+          <pre><code>when (val result =
+    elector.runIfLeaderResult("invoice-close") { closeInvoices() }) {
+    is LeaderRunResult.Elected -&gt; showCompleted(result.value)
+    LeaderRunResult.Skipped -&gt; showSkipped()
+    is LeaderRunResult.ActionFailed -&gt; showFailure(result.cause)
+}</code></pre>
+          <div class="grid">
+            <div class="concept"><strong>LeaderRunResult.Elected</strong><p>작업 반환값이 null이어도 락 획득 여부가 분명합니다.</p></div>
+            <div class="concept"><strong>LeaderRunResult.Skipped</strong><p>정상적인 경쟁 때문에 락을 획득하지 못했습니다.</p></div>
+            <div class="concept"><strong>LeaderRunResult.ActionFailed</strong><p>락을 얻은 뒤 사용자 작업이 실패했습니다.</p></div>
+            <div class="concept"><strong>Backend 실패</strong><p>연결이나 설정 실패를 정상 경쟁으로 바꾸지 않습니다.</p></div>
+          </div>
+        </section>
+
+        <section id="spring" class="lesson-section" aria-labelledby="spring-title">
+          <p class="kicker">Step 04 · Spring Boot</p>
+          <h2 id="spring-title">annotation이 같은 실행 경계를 보호합니다</h2>
+          <pre><code>@LeaderElection(
+    name = "invoice-close",
+    waitTime = "PT0.5S",
+    leaseTime = "PT10S",
+    minLeaseTime = "PT1S",
+    autoExtend = true,
+)
+fun closeInvoices(): CloseSummary? = service.closeInvoices()</code></pre>
+          <div class="callout"><strong>AspectJ compile-time weaving</strong><p><code>@EnableAspectJAutoProxy</code>는 추가하지 않습니다. Kotlin method는 <code>open</code>일 필요가 없고 private method는 가로채지 않습니다. 동적 이름에는 유효한 SpEL을 사용합니다.</p></div>
+          <p class="lead">이 자료는 동기 호출만 움직입니다. release는 suspend, <code>Mono</code>, <code>Flux</code>, Kotlin <code>Flow</code>도 지원합니다. 긴 stream은 <code>autoExtend = true</code>가 필요하며 리스 안에 완료될 때만 <code>streamBounded = true</code>를 사용합니다.</p>
+        </section>
+
+        <section id="recovery" class="lesson-section" aria-labelledby="recovery-title">
+          <p class="kicker">Step 05 · 장애와 복구</p>
+          <h2 id="recovery-title">리스 만료 뒤 업무 작업은 겹칠 수 있습니다</h2>
+          <p class="lead">리스 만료 시나리오에서 node-a는 stale owner가 되고 node-b가 새 token으로 락을 얻습니다.</p>
+          <div class="callout danger"><strong>리스는 외부 부수 효과를 막는 fencing token이 아닙니다.</strong><p>오래된 token은 후속 리더의 락을 해제할 수 없지만, 이미 실행 중인 외부 쓰기를 되돌리지는 못합니다. 작업을 멱등하게 만들고 stale 쓰기를 거부해야 한다면 업무에 맞는 fencing 또는 claim을 사용합니다.</p></div>
+          <p class="lead">자동 연장 시나리오는 유효한 owner가 만료 전에 TTL을 갱신합니다. 모든 해제는 token을 확인하므로 오래된 token이 새 owner의 락을 삭제하지 못합니다.</p>
+        </section>
+
+        <section id="sources" class="lesson-section" aria-labelledby="sources-title">
+          <p class="kicker">Release 근거</p>
+          <h2 id="sources-title">0.4.0 commit에 고정</h2>
+          <p class="lead">아래 코드와 manual link는 <code>17ab7f8</code>을 가리킵니다.</p>
+          <ul class="source-list">
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderElector.kt"><span>LeaderElector.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderElectionOptions.kt"><span>LeaderElectionOptions.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderRunResult.kt"><span>LeaderRunResult.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceLeaderElector.kt"><span>LettuceLeaderElector.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-core/src/main/kotlin/io/bluetape4k/leader/annotation/LeaderElection.kt"><span>LeaderElection.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/manual/ko/architecture/runtime-model.md"><span>runtime-model.md</span><span>↗</span></a></li>
+            <li><a href="./2026-07-30-leader-election-visual-companions-design.md"><span>설계 문서</span><span>↗</span></a></li>
+          </ul>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      const themeStorageKey = 'bluetape4k-leader-visual-theme';
+      const themeButtons = [...document.querySelectorAll('[data-theme-choice]')];
+      const systemTheme = () => matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      function applyTheme(choice) {
+        document.documentElement.dataset.theme = choice === 'auto' ? systemTheme() : choice;
+        document.documentElement.dataset.themeMode = choice;
+        localStorage.setItem(themeStorageKey, choice);
+        themeButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.themeChoice === choice)));
+      }
+      themeButtons.forEach(button => button.addEventListener('click', () => applyTheme(button.dataset.themeChoice)));
+      applyTheme(localStorage.getItem(themeStorageKey) || 'auto');
+      matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        if (document.documentElement.dataset.themeMode === 'auto') applyTheme('auto');
+      });
+
+      const presets = {
+        contention: { actionTime:8, leaseTime:10, autoExtend:false, attempts:{'node-a':0,'node-b':1,'node-c':9}, description:'node-b가 waitTime에 도달해 건너뜁니다.' },
+        expiry: { actionTime:12, leaseTime:6, autoExtend:false, attempts:{'node-a':0,'node-b':6,'node-c':10}, description:'node-a 리스가 만료되고 node-b가 새 token을 얻습니다.' },
+        extension: { actionTime:12, leaseTime:6, autoExtend:true, attempts:{'node-a':0,'node-b':1,'node-c':7}, description:'node-a가 만료 전에 리스를 연장합니다.' },
+      };
+      const ids = ['node-a','node-b','node-c'];
+      const el = {
+        actionInput:document.querySelector('#action-time'), leaseInput:document.querySelector('#lease-time'),
+        actionOutput:document.querySelector('#action-output'), leaseOutput:document.querySelector('#lease-output'),
+        play:document.querySelector('#play-button'), reset:document.querySelector('#reset-button'), step:document.querySelector('#step-button'),
+        tick:document.querySelector('#tick-value'), extend:document.querySelector('#extend-value'),
+        owner:document.querySelector('#record-owner'), token:document.querySelector('#record-token'),
+        expiry:document.querySelector('#record-expiry'), ttl:document.querySelector('#ttl-ring'),
+        actionOwner:document.querySelector('#action-owner'), actionCopy:document.querySelector('#action-copy'),
+        eventBody:document.querySelector('#event-body'), status:document.querySelector('#status-message'),
+      };
+      let state;
+      let timer = null;
+
+      function candidates(attempts) {
+        return Object.fromEntries(ids.map(id => [id,{id,attemptAt:attempts[id],deadline:attempts[id]+2,status:'idle',acquiredAt:null,actionEndsAt:null,token:null}]));
+      }
+      function event(candidate,operation,token,ttl,outcome) {
+        state.events.push({tick:state.logicalTick,candidate,operation,token:token||'—',ttl:ttl??'—',outcome});
+      }
+      function acquire(candidate) {
+        if (state.lock) {
+          candidate.status='waiting';
+          event(candidate.id,'tryAcquire',null,state.lock.expiresAt-state.logicalTick,'경쟁 중');
+          return;
+        }
+        state.tokenSequence += 1;
+        const token=`token-${candidate.id.slice(-1)}-${state.tokenSequence}`;
+        state.lock={owner:candidate.id,token,expiresAt:state.logicalTick+state.leaseTime};
+        Object.assign(candidate,{status:'running',acquiredAt:state.logicalTick,actionEndsAt:state.logicalTick+state.actionTime,token});
+        event(candidate.id,'acquire',token,state.leaseTime,'선출');
+      }
+      function extend(candidate) {
+        if (!state.lock || state.lock.owner!==candidate.id || state.lock.token!==candidate.token) {
+          event(candidate.id,'extend',candidate.token,null,'거부: 현재 owner 아님'); return;
+        }
+        state.lock.expiresAt=state.logicalTick+state.leaseTime;
+        event(candidate.id,'extend',candidate.token,state.leaseTime,'TTL 갱신');
+      }
+      function release(candidate) {
+        if (!state.lock || state.lock.owner!==candidate.id || state.lock.token!==candidate.token) {
+          event(candidate.id,'release',candidate.token,null,'거부: 오래된 token'); return;
+        }
+        event(candidate.id,'release',candidate.token,0,'락 제거');
+        state.lock=null;
+      }
+      function processTick() {
+        if (state.lock && state.logicalTick>=state.lock.expiresAt) {
+          const owner=state.candidates[state.lock.owner];
+          event(owner.id,'expire',state.lock.token,0,'리스 만료');
+          if (owner.status==='running') owner.status='stale';
+          state.lock=null;
+        }
+        for (const candidate of Object.values(state.candidates)) {
+          if (candidate.actionEndsAt===state.logicalTick && ['running','stale'].includes(candidate.status)) {
+            release(candidate);
+            if (candidate.status!=='stale') candidate.status='completed';
+          }
+        }
+        for (const candidate of Object.values(state.candidates)) {
+          if (candidate.status==='idle' && candidate.attemptAt===state.logicalTick) acquire(candidate);
+          else if (candidate.status==='waiting') {
+            if (!state.lock) acquire(candidate);
+            else if (state.logicalTick>=candidate.deadline) {
+              candidate.status='skipped';
+              event(candidate.id,'wait',null,state.lock.expiresAt-state.logicalTick,'LeaderRunResult.Skipped');
+            }
+          }
+        }
+        if (state.autoExtend && state.lock) {
+          const owner=state.candidates[state.lock.owner];
+          if (owner.status==='running' && state.lock.expiresAt-state.logicalTick<=2) extend(owner);
+        }
+      }
+      function stop() {
+        if (timer) clearInterval(timer);
+        timer=null;
+        if (state) state.playing=false;
+        el.play.textContent='▶'; el.play.setAttribute('aria-label','재생'); el.play.setAttribute('aria-pressed','false');
+      }
+      function reset(name=state?.scenario||'contention') {
+        stop();
+        const preset=presets[name];
+        el.actionInput.value=String(preset.actionTime); el.leaseInput.value=String(preset.leaseTime);
+        state={scenario:name,logicalTick:0,playing:false,actionTime:+el.actionInput.value,waitTime:2,leaseTime:+el.leaseInput.value,minLeaseTime:1,autoExtend:preset.autoExtend,candidates:candidates(preset.attempts),lock:null,events:[],tokenSequence:0};
+        document.querySelectorAll('[data-scenario]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.scenario===name)));
+        processTick(); render(`${name}: ${preset.description}`);
+      }
+      function advance() {
+        if (state.logicalTick>=22) { stop(); return; }
+        state.logicalTick+=1; processTick(); render(`논리 tick ${state.logicalTick}까지 진행했습니다.`);
+        if (!Object.values(state.candidates).some(candidate => ['idle','waiting','running'].includes(candidate.status))) stop();
+      }
+      function play() {
+        if (timer) { stop(); return; }
+        state.playing=true; el.play.textContent='Ⅱ'; el.play.setAttribute('aria-label','일시 정지'); el.play.setAttribute('aria-pressed','true');
+        timer=setInterval(advance,650); render('타임라인을 재생합니다.');
+      }
+      function render(message) {
+        el.tick.textContent=String(state.logicalTick); el.extend.textContent=String(state.autoExtend);
+        el.actionOutput.textContent=`${state.actionTime} ticks`; el.leaseOutput.textContent=`${state.leaseTime} ticks`; el.status.textContent=message;
+        for (const candidate of Object.values(state.candidates)) {
+          const card=document.querySelector(`[data-candidate="${candidate.id}"]`);
+          card.dataset.status=candidate.status; card.querySelector('.candidate-status').textContent=candidate.status;
+        }
+        if (state.lock) {
+          const ttl=Math.max(0,state.lock.expiresAt-state.logicalTick);
+          el.owner.textContent=state.lock.owner; el.token.textContent=state.lock.token; el.expiry.textContent=`tick ${state.lock.expiresAt}`;
+          el.ttl.textContent=`TTL ${ttl}`; el.ttl.style.setProperty('--ttl-progress',`${ttl/state.leaseTime*100}%`);
+          el.actionOwner.textContent=`${state.lock.owner}가 리더입니다`; el.actionCopy.textContent=`${state.lock.token}이 보호된 경계를 소유합니다.`;
+        } else {
+          const stale=Object.values(state.candidates).find(candidate => candidate.status==='stale');
+          el.owner.textContent='—'; el.token.textContent='—'; el.expiry.textContent='—'; el.ttl.textContent='TTL —'; el.ttl.style.setProperty('--ttl-progress','0%');
+          el.actionOwner.textContent=stale?`${stale.id}는 stale owner입니다`:'리더 대기';
+          el.actionCopy.textContent=stale?'만료된 token은 Redis 락을 소유하지 않습니다.':'현재 token을 가진 후보만 이 경계에 들어갑니다.';
+        }
+        el.eventBody.replaceChildren(...state.events.slice(-6).reverse().map(item => {
+          const row=document.createElement('tr');
+          for (const field of ['tick','candidate','operation','token','ttl','outcome']) {
+            const cell=document.createElement('td'); cell.textContent=String(item[field]); row.append(cell);
+          }
+          return row;
+        }));
+      }
+
+      document.querySelectorAll('[data-scenario]').forEach(button => button.addEventListener('click',()=>reset(button.dataset.scenario)));
+      document.querySelectorAll('.step-button').forEach(button => button.addEventListener('click',()=>{
+        document.querySelectorAll('.step-button').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
+        document.querySelectorAll('.lesson-section').forEach(section=>section.classList.toggle('is-active',section.id===button.dataset.step));
+      }));
+      for (const input of [el.actionInput,el.leaseInput]) input.addEventListener('input',()=>{
+        presets[state.scenario].actionTime=+el.actionInput.value; presets[state.scenario].leaseTime=+el.leaseInput.value; reset(state.scenario);
+      });
+      el.reset.addEventListener('click',()=>reset(state.scenario));
+      el.play.addEventListener('click',play);
+      el.step.addEventListener('click',advance);
+      reset('contention');
+    })();
+  </script>
+</body>
+</html>

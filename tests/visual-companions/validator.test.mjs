@@ -81,6 +81,49 @@ test('LeaderElector English companion exposes the approved deterministic model',
   assert.doesNotMatch(content, /Math\.random|Date\.now|performance\.now/);
 });
 
+test('LeaderElector locale documents expose equivalent structure and behavior', async () => {
+  const en = await readFile(
+    new URL('docs/superpowers/specs/2026-07-30-leader-elector-visual-companion.html', root),
+    'utf8',
+  );
+  const ko = await readFile(
+    new URL('docs/superpowers/specs/2026-07-30-leader-elector-visual-companion.ko.html', root),
+    'utf8',
+  );
+  const parityPatterns = [
+    /<section\b[^>]*id=["']([^"']+)/gi,
+    /data-step=["']([^"']+)/gi,
+    /data-scenario=["']([^"']+)/gi,
+    /data-control=["']([^"']+)/gi,
+    /data-candidate=["']([^"'$]+)/gi,
+    /data-event-field=["']([^"']+)/gi,
+  ];
+  for (const pattern of parityPatterns) {
+    assert.deepEqual(values(en, pattern), values(ko, pattern));
+  }
+  assert.equal((en.match(/<pre\b/g) ?? []).length, (ko.match(/<pre\b/g) ?? []).length);
+  for (const source of [
+    'LeaderElector.kt',
+    'LeaderElectionOptions.kt',
+    'LeaderRunResult.kt',
+    'LettuceLeaderElector.kt',
+    'LeaderElection.kt',
+    'runtime-model.md',
+  ]) {
+    assert.match(ko, new RegExp(source.replaceAll('.', '\\.')));
+  }
+  for (const phrase of [
+    '정상적인 락 경쟁',
+    '소유권 token',
+    '리스 만료',
+    '오래된 token',
+    '멱등',
+  ]) {
+    assert.match(ko, new RegExp(phrase));
+  }
+  assert.doesNotMatch(ko, /Math\.random|Date\.now|performance\.now/);
+});
+
 function pngHeader(width = 2880, height = 2000) {
   const buffer = Buffer.alloc(24);
   Buffer.from('89504e470d0a1a0a', 'hex').copy(buffer, 0);
