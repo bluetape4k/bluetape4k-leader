@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:,">
   <title>LeaderGroupElector 슬롯 용량 · bluetape4k</title>
   <script>
     (() => {
@@ -365,7 +366,7 @@ tick 6  node-D          acquire → slot-token-D-3
         });
       };
       const stop = () => {
-        clearInterval(timer); timer=undefined; state.playing=false; el.play.textContent='▶'; el.play.setAttribute('aria-pressed','false');
+        clearInterval(timer); timer=undefined; if(state) state.playing=false; el.play.textContent='▶'; el.play.setAttribute('aria-pressed','false');
       };
       const reset = (name=state?.scenario || 'capacity') => {
         stop();
