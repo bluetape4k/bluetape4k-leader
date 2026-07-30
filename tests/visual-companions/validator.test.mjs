@@ -220,6 +220,12 @@ test('LeaderGroupElector locale documents expose equivalent structure and behavi
   assert.match(ko, /candidate\.status='completed'/);
   assert.match(ko, /addEvent\(candidate\.id,'wait',null,0,'LeaderRunResult\.Skipped'\)/);
   assert.match(ko, /\['idle','waiting','running'\]\.includes\(candidate\.status\)/);
+  assert.match(ko, /val group = connection\.leaderGroupElection\(/);
+  assert.match(ko, /group\.runIfLeader\("thumbnail-workers"\)/);
+  assert.match(ko, /group\.state\("thumbnail-workers"\)/);
+  assert.match(ko, /@LeaderGroupElection\(\s+name = "thumbnail-workers"/);
+  assert.doesNotMatch(ko, /runIfLeader\([^)]*,\s*options\)/);
+  assert.doesNotMatch(ko, /@LeaderGroupElection\(\s+lockName\s*=/);
 });
 
 function pngHeader(width = 2880, height = 2000) {
