@@ -319,13 +319,22 @@ tick 6  node-D          acquire → slot-token-D-3
 
   <script>
     (() => {
+      const $ = (selector) => document.querySelector(selector);
+      const $$ = (selector) => [...document.querySelectorAll(selector)];
+      const themeStorageKey='bluetape4k-leader-visual-theme';
+      const themeButtons=$$('.theme');
+      const systemTheme=()=>matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+      function theme(choice){
+        document.documentElement.dataset.theme=choice==='auto'?systemTheme():choice;
+        document.documentElement.dataset.themeMode=choice;
+        localStorage.setItem(themeStorageKey,choice);
+        themeButtons.forEach((button)=>button.setAttribute('aria-pressed',String(button.dataset.themeChoice===choice)));
+      }
       const presets = {
         capacity:{candidateCount:4,maxLeaders:3,actionTime:8,leaseTime:10,attempts:[0,0,1,9],description:'용량이 남아 있는 동안 세 후보가 진입합니다.'},
         saturation:{candidateCount:5,maxLeaders:2,actionTime:8,leaseTime:10,attempts:[0,0,1,4,9],description:'그룹이 포화되고 한 후보가 대기 기한에 도달합니다.'},
         expiry:{candidateCount:5,maxLeaders:2,actionTime:12,leaseTime:6,attempts:[0,0,1,6,9],description:'슬롯이 만료되고 나중 후보가 새 token으로 진입합니다.'},
       };
-      const $ = (selector) => document.querySelector(selector);
-      const $$ = (selector) => [...document.querySelectorAll(selector)];
       const el = {
         candidates:$('#candidates'),slots:$('#slots'),active:$('#active-count'),available:$('#available-slots'),full:$('#is-full'),
         tick:$('#tick'),status:$('#status'),events:$('#event-body'),play:$('#play'),candidateInput:$('#candidate-count'),
@@ -375,7 +384,8 @@ tick 6  node-D          acquire → slot-token-D-3
         });
       };
       const stop = () => {
-        clearInterval(timer); timer=undefined; if(state) state.playing=false; el.play.textContent='▶'; el.play.setAttribute('aria-pressed','false');
+        clearInterval(timer); timer=undefined; if(state) state.playing=false; el.play.textContent='▶';
+        el.play.setAttribute('aria-pressed','false');el.play.setAttribute('aria-label','재생');
       };
       const reset = (name=state?.scenario || 'capacity') => {
         stop();
@@ -421,14 +431,11 @@ tick 6  node-D          acquire → slot-token-D-3
         $$('.lesson').forEach((lesson)=>lesson.classList.toggle('is-active',lesson.id===button.dataset.step));
       }));
       $$('.scenario').forEach((button)=>button.addEventListener('click',()=>reset(button.dataset.scenario)));
-      $$('.theme').forEach((button)=>button.addEventListener('click',()=>{
-        const choice=button.dataset.themeChoice;
-        localStorage.setItem('bluetape4k-leader-visual-theme',choice);
-        const dark=matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.dataset.theme=choice==='auto'?(dark?'dark':'light'):choice;
-        document.documentElement.dataset.themeMode=choice;
-        $$('.theme').forEach((item)=>item.setAttribute('aria-pressed',String(item===button)));
-      }));
+      themeButtons.forEach((button)=>button.addEventListener('click',()=>theme(button.dataset.themeChoice)));
+      theme(localStorage.getItem(themeStorageKey)||'auto');
+      matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{
+        if(document.documentElement.dataset.themeMode==='auto')theme('auto');
+      });
       [el.candidateInput,el.maxInput,el.actionInput,el.leaseInput].forEach((input)=>input.addEventListener('input',()=>{
         const preset=presets[state.scenario];preset.candidateCount=+el.candidateInput.value;preset.maxLeaders=+el.maxInput.value;
         preset.actionTime=+el.actionInput.value;preset.leaseTime=+el.leaseInput.value;reset(state.scenario);
@@ -437,10 +444,9 @@ tick 6  node-D          acquire → slot-token-D-3
       $('#next').addEventListener('click',advance);
       el.play.addEventListener('click',()=>{
         if(state.playing){stop();return;}
-        state.playing=true;el.play.textContent='Ⅱ';el.play.setAttribute('aria-pressed','true');timer=setInterval(advance,700);
+        state.playing=true;el.play.textContent='Ⅱ';el.play.setAttribute('aria-pressed','true');
+        el.play.setAttribute('aria-label','일시 정지');timer=setInterval(advance,700);
       });
-      const mode=document.documentElement.dataset.themeMode;
-      $$('.theme').forEach((button)=>button.setAttribute('aria-pressed',String(button.dataset.themeChoice===mode)));
       reset('capacity');
     })();
   </script>

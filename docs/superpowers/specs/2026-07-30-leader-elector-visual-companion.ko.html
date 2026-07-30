@@ -529,6 +529,7 @@ fun closeInvoices(): CloseSummary? = service.closeInvoices()</code></pre>
       document.querySelectorAll('.step-button').forEach(button => button.addEventListener('click',()=>{
         document.querySelectorAll('.step-button').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
         document.querySelectorAll('.lesson-section').forEach(section=>section.classList.toggle('is-active',section.id===button.dataset.step));
+        document.querySelector(`#${button.dataset.step}`).focus({ preventScroll: true });
       }));
       for (const input of [el.actionInput,el.leaseInput]) input.addEventListener('input',()=>{
         presets[state.scenario].actionTime=+el.actionInput.value; presets[state.scenario].leaseTime=+el.leaseInput.value; reset(state.scenario);
