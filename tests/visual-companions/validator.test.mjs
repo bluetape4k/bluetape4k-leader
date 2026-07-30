@@ -108,8 +108,8 @@ test('LeaderElector locale documents expose equivalent structure and behavior', 
     'LeaderElectionOptions.kt',
     'LeaderRunResult.kt',
     'LettuceLeaderElector.kt',
+    'LettuceLockExtendDelegate.kt',
     'LeaderElection.kt',
-    'runtime-model.md',
   ]) {
     assert.match(ko, new RegExp(source.replaceAll('.', '\\.')));
   }
@@ -198,7 +198,7 @@ test('LeaderGroupElector locale documents expose equivalent structure and behavi
     'LettuceLeaderGroupElector.kt',
     'LettuceSlotTokenGroup.kt',
     'LeaderGroupElection.kt',
-    'single-group-strategic.md',
+    'LeaderElector.kt',
   ]) {
     assert.match(ko, new RegExp(source.replaceAll('.', '\\.')));
   }
@@ -311,8 +311,8 @@ function fixtureHtml(documentId, locale) {
         'LeaderElectionOptions.kt',
         'LeaderRunResult.kt',
         'LettuceLeaderElector.kt',
+        'LettuceLockExtendDelegate.kt',
         'LeaderElection.kt',
-        'runtime-model.md',
       ]
     : [
         'LeaderGroupElector.kt',
@@ -321,7 +321,7 @@ function fixtureHtml(documentId, locale) {
         'LettuceLeaderGroupElector.kt',
         'LettuceSlotTokenGroup.kt',
         'LeaderGroupElection.kt',
-        'single-group-strategic.md',
+        'LeaderElector.kt',
       ];
   return `<!doctype html>
 <html lang="${locale}">
@@ -425,6 +425,27 @@ test('validator rejects duplicated document IDs', async (t) => {
   manifest.documents[1].id = 'leader-elector';
   await writeJson(path.join(fixtureRoot, 'docs/visual-companions/manifest.json'), manifest);
   await assert.rejects(validateRepository(fixtureRoot), /id is duplicated/);
+});
+
+test('release-pinned GitHub source links resolve at the declared release commit', async () => {
+  const files = [
+    'docs/superpowers/specs/2026-07-30-leader-elector-visual-companion.html',
+    'docs/superpowers/specs/2026-07-30-leader-elector-visual-companion.ko.html',
+    'docs/superpowers/specs/2026-07-30-leader-group-elector-visual-companion.html',
+    'docs/superpowers/specs/2026-07-30-leader-group-elector-visual-companion.ko.html',
+  ];
+  const prefix = `https://github.com/bluetape4k/bluetape4k-leader/blob/${releaseCommit}/`;
+  for (const file of files) {
+    const content = await readFile(new URL(file, root), 'utf8');
+    const paths = [...content.matchAll(/href=["']([^"']+)["']/g)]
+      .map((match) => match[1])
+      .filter((href) => href.startsWith(prefix))
+      .map((href) => decodeURIComponent(href.slice(prefix.length)));
+    assert.ok(paths.length > 0, `${file} must expose release-pinned source links`);
+    for (const sourcePath of paths) {
+      await execute('git', ['cat-file', '-e', `${releaseCommit}:${sourcePath}`], { cwd: root });
+    }
+  }
 });
 
 test('validator reports a non-array documents field without throwing TypeError', async (t) => {

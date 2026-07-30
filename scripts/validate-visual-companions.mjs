@@ -67,8 +67,8 @@ const contracts = {
       'LeaderElectionOptions.kt',
       'LeaderRunResult.kt',
       'LettuceLeaderElector.kt',
+      'LettuceLockExtendDelegate.kt',
       'LeaderElection.kt',
-      'runtime-model.md',
     ],
   },
   'leader-group-elector': {
@@ -96,7 +96,7 @@ const contracts = {
       'LettuceLeaderGroupElector.kt',
       'LettuceSlotTokenGroup.kt',
       'LeaderGroupElection.kt',
-      'single-group-strategic.md',
+      'LeaderElector.kt',
     ],
   },
 };
