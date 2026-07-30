@@ -246,15 +246,17 @@ function pngChunk(type, data = Buffer.alloc(0)) {
   return chunk;
 }
 
-function validPng(width = 2880, height = 2000) {
+function validPng(width = 2880, height = 2000, shade = 0) {
   const signature = Buffer.from('89504e470d0a1a0a', 'hex');
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0);
   ihdr.writeUInt32BE(height, 4);
-  ihdr[8] = 1;
-  ihdr[9] = 0;
-  const scanlineBytes = Math.ceil(width / 8) + 1;
-  const imageData = deflateSync(Buffer.alloc(scanlineBytes * height));
+  ihdr[8] = 8;
+  ihdr[9] = 2;
+  const scanlineBytes = width * 3 + 1;
+  const pixels = Buffer.alloc(scanlineBytes * height, shade);
+  for (let row = 0; row < height; row += 1) pixels[row * scanlineBytes] = 0;
+  const imageData = deflateSync(pixels);
   return Buffer.concat([
     signature,
     pngChunk('IHDR', ihdr),
@@ -531,6 +533,13 @@ test('validator rejects a truncated fallback PNG with only a signature and dimen
   const fallback = path.join(fixtureRoot, manifest.documents[0].locales.en.fallback);
   await writeFile(fallback, pngHeader());
   await assert.rejects(validateRepository(fixtureRoot), /must contain a complete PNG structure/);
+});
+
+test('validator rejects a light-theme fallback PNG', async (t) => {
+  const { fixtureRoot, manifest } = await createFixture(t);
+  const fallback = path.join(fixtureRoot, manifest.documents[0].locales.en.fallback);
+  await writeFile(fallback, validPng(2880, 2000, 255));
+  await assert.rejects(validateRepository(fixtureRoot), /must use the dark diagram theme/);
 });
 
 test('Korean LeaderGroupElector models a stale release after lease expiry', async () => {

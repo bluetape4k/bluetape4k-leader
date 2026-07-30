@@ -3,6 +3,7 @@
 import { readFile, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { inflateSync } from 'node:zlib';
 
 const REPOSITORY = 'bluetape4k/bluetape4k-leader';
 const RELEASE_REF = '0.4.0';
@@ -156,7 +157,7 @@ function crc32(buffer) {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-function parsePngDimensions(buffer) {
+function parsePng(buffer) {
   const signature = '89504e470d0a1a0a';
   if (buffer.length < 8 || buffer.subarray(0, 8).toString('hex') !== signature) {
     throw new Error('must be a PNG file');
@@ -168,8 +169,11 @@ function parsePngDimensions(buffer) {
   let offset = 8;
   let width;
   let height;
+  let bitDepth;
+  let colorType;
+  let interlaceMethod;
   let chunkIndex = 0;
-  let hasImageData = false;
+  const imageData = [];
   let hasEnd = false;
 
   while (offset < buffer.length) {
@@ -197,6 +201,9 @@ function parsePngDimensions(buffer) {
       }
       width = buffer.readUInt32BE(dataStart);
       height = buffer.readUInt32BE(dataStart + 4);
+      bitDepth = buffer[dataStart + 8];
+      colorType = buffer[dataStart + 9];
+      interlaceMethod = buffer[dataStart + 12];
       if (width === 0 || height === 0) {
         throw new Error('must have non-zero dimensions');
       }
@@ -204,7 +211,7 @@ function parsePngDimensions(buffer) {
       throw new Error('must contain exactly one IHDR chunk');
     }
 
-    if (type === 'IDAT') hasImageData = true;
+    if (type === 'IDAT') imageData.push(buffer.subarray(dataStart, dataStart + length));
     if (type === 'IEND') {
       if (length !== 0 || chunkEnd !== buffer.length) {
         throw new Error('must end with a valid IEND chunk');
@@ -218,10 +225,77 @@ function parsePngDimensions(buffer) {
     chunkIndex += 1;
   }
 
-  if (!hasImageData || !hasEnd || offset !== buffer.length) {
+  if (imageData.length === 0 || !hasEnd || offset !== buffer.length) {
     throw new Error('must contain a complete PNG structure');
   }
-  return { width, height };
+  return { width, height, bitDepth, colorType, interlaceMethod, imageData };
+}
+
+function pngMeanLuminance(png) {
+  if (png.bitDepth !== 8 || png.interlaceMethod !== 0) {
+    throw new Error('must use non-interlaced 8-bit pixels for theme validation');
+  }
+  const channels = { 0: 1, 2: 3, 4: 2, 6: 4 }[png.colorType];
+  if (!channels) throw new Error('must use grayscale or RGB pixels for theme validation');
+
+  const rowBytes = png.width * channels;
+  const inflated = inflateSync(Buffer.concat(png.imageData));
+  if (inflated.length !== (rowBytes + 1) * png.height) {
+    throw new Error('contains invalid image data');
+  }
+
+  const previous = Buffer.alloc(rowBytes);
+  const current = Buffer.alloc(rowBytes);
+  const sampleStep = Math.max(1, Math.floor(Math.min(png.width, png.height) / 240));
+  let luminance = 0;
+  let samples = 0;
+  for (let row = 0; row < png.height; row += 1) {
+    const rowStart = row * (rowBytes + 1);
+    const filter = inflated[rowStart];
+    for (let column = 0; column < rowBytes; column += 1) {
+      const raw = inflated[rowStart + 1 + column];
+      const left = column >= channels ? current[column - channels] : 0;
+      const above = previous[column];
+      const upperLeft = column >= channels ? previous[column - channels] : 0;
+      let value;
+      if (filter === 0) value = raw;
+      else if (filter === 1) value = raw + left;
+      else if (filter === 2) value = raw + above;
+      else if (filter === 3) value = raw + Math.floor((left + above) / 2);
+      else if (filter === 4) {
+        const prediction = left + above - upperLeft;
+        const leftDistance = Math.abs(prediction - left);
+        const aboveDistance = Math.abs(prediction - above);
+        const upperLeftDistance = Math.abs(prediction - upperLeft);
+        value = raw + (
+          leftDistance <= aboveDistance && leftDistance <= upperLeftDistance
+            ? left
+            : aboveDistance <= upperLeftDistance ? above : upperLeft
+        );
+      } else {
+        throw new Error(`contains unsupported PNG filter ${filter}`);
+      }
+      current[column] = value & 0xff;
+    }
+
+    if (row % sampleStep === 0) {
+      for (let pixel = 0; pixel < png.width; pixel += sampleStep) {
+        const offset = pixel * channels;
+        if (png.colorType === 0 || png.colorType === 4) {
+          luminance += current[offset] / 255;
+        } else {
+          luminance += (
+            0.2126 * current[offset]
+            + 0.7152 * current[offset + 1]
+            + 0.0722 * current[offset + 2]
+          ) / 255;
+        }
+        samples += 1;
+      }
+    }
+    previous.set(current);
+  }
+  return luminance / samples;
 }
 
 function validatePresentation(document, field, errors) {
@@ -253,9 +327,13 @@ async function validateLocale(root, document, locale, errors) {
   const fallback = await readContained(root, localeEntry.fallback, errors, `${prefix}.fallback`, null);
   if (fallback) {
     try {
-      const { width, height } = parsePngDimensions(fallback);
+      const png = parsePng(fallback);
+      const { width, height } = png;
       if (width < 2000 || height < 1200) {
         errors.push(`${prefix}.fallback must be a 2x desktop capture`);
+      }
+      if (pngMeanLuminance(png) >= 0.6) {
+        errors.push(`${prefix}.fallback must use the dark diagram theme`);
       }
     } catch (error) {
       errors.push(`${prefix}.fallback ${error.message}`);
