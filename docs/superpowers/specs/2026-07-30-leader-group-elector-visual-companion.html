@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>LeaderGroupElector Slot Capacity · bluetape4k</title>
+  <script>
+    (() => {
+      const storageKey = 'bluetape4k-leader-visual-theme';
+      const choice = localStorage.getItem(storageKey) || 'auto';
+      const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.dataset.theme = choice === 'auto' ? (dark ? 'dark' : 'light') : choice;
+      document.documentElement.dataset.themeMode = choice;
+    })();
+  </script>
+  <style>
+    :root { color-scheme:light dark; --sans:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif; --mono:"SFMono-Regular",Consolas,monospace; --r:20px; }
+    :root[data-theme="light"] {
+      --bg:#f4f7fb; --grid:rgba(31,73,125,.07); --surface:rgba(255,255,255,.95); --surface-2:#eef3f9;
+      --surface-3:#e2eaf5; --text:#122033; --muted:#5a6a7d; --line:#c8d5e5; --blue:#1f6feb;
+      --blue-soft:#dbeafe; --violet:#6d4aff; --cyan:#087f8c; --green:#147d4f; --amber:#a45b09;
+      --red:#c43b4d; --code:#172033; --code-text:#dce8ff; --shadow:0 22px 60px rgba(6,12,28,.18);
+    }
+    :root[data-theme="dark"] {
+      --bg:#07101f; --grid:rgba(112,154,214,.08); --surface:rgba(13,25,45,.95); --surface-2:#111f35;
+      --surface-3:#182b47; --text:#e7eef9; --muted:#9eb0c8; --line:#2b4567; --blue:#67a4ff;
+      --blue-soft:#162f55; --violet:#a995ff; --cyan:#55d7e3; --green:#55d69a; --amber:#ffc66d;
+      --red:#ff7f91; --code:#050a13; --code-text:#dce8ff; --shadow:0 28px 80px rgba(0,0,0,.36);
+    }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; background:var(--bg); }
+    body {
+      margin:0; min-width:320px; color:var(--text); font-family:var(--sans); line-height:1.55;
+      background:
+        linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px),
+        radial-gradient(circle at 15% 8%,color-mix(in srgb,var(--violet) 18%,transparent),transparent 30rem),
+        radial-gradient(circle at 85% 24%,color-mix(in srgb,var(--cyan) 13%,transparent),transparent 34rem),var(--bg);
+      background-size:32px 32px,32px 32px,auto,auto,auto;
+    }
+    button,input { font:inherit; }
+    button:focus-visible,a:focus-visible,input:focus-visible { outline:3px solid var(--blue); outline-offset:3px; }
+    a { color:var(--blue); } code,pre { font-family:var(--mono); }
+    .topbar {
+      position:sticky; top:0; z-index:20; display:flex; justify-content:space-between; align-items:center; gap:16px;
+      min-height:66px; padding:10px clamp(18px,4vw,56px); border-bottom:1px solid var(--line);
+      background:color-mix(in srgb,var(--bg) 84%,transparent); backdrop-filter:blur(18px);
+    }
+    .brand,.actions,.themes,.transport { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .brand { color:var(--text); font-weight:800; text-decoration:none; }
+    .mark { display:grid; width:34px; height:34px; place-items:center; border-radius:11px; color:white; background:linear-gradient(135deg,var(--violet),var(--blue)); }
+    .pill,.theme,.step,.scenario,.transport button {
+      min-height:44px; border:1px solid var(--line); border-radius:999px; color:var(--text); background:var(--surface); cursor:pointer;
+    }
+    .pill { display:inline-flex; align-items:center; padding:0 14px; text-decoration:none; }
+    .theme { min-width:44px; padding:0 12px; }
+    [aria-pressed="true"].theme,[aria-pressed="true"].step,[aria-pressed="true"].scenario { border-color:var(--blue); color:var(--blue); background:var(--blue-soft); }
+    button:hover,.pill:hover { border-color:var(--blue); transform:translateY(-1px); }
+    .page { width:min(1540px,calc(100% - 32px)); margin:0 auto; padding:54px 0 90px; }
+    .hero { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr); gap:28px; align-items:end; margin-bottom:30px; }
+    .eyebrow { margin:0 0 12px; color:var(--cyan); font-size:.78rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    h1 { margin:0; font-size:clamp(2.4rem,6vw,5.2rem); line-height:1; letter-spacing:-.06em; }
+    .lead { margin:18px 0 0; color:var(--muted); font-size:clamp(1rem,1.5vw,1.2rem); }
+    .warning,.panel { border:1px solid var(--line); border-radius:var(--r); background:var(--surface); box-shadow:var(--shadow); }
+    .warning { padding:22px; border-color:var(--amber); }
+    .warning strong { display:block; color:var(--amber); margin-bottom:8px; }
+    .warning p { margin:0; color:var(--muted); }
+    .step-nav { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:20px; }
+    .step { display:flex; align-items:center; gap:9px; padding:9px 13px; border-radius:14px; text-align:left; }
+    .num { display:grid; width:28px; height:28px; place-items:center; border-radius:9px; background:var(--surface-2); font-size:.74rem; font-weight:800; }
+    .step[aria-pressed="true"] .num { color:white; background:var(--blue); }
+    .workspace { display:grid; grid-template-columns:minmax(560px,1.15fr) minmax(380px,.85fr); gap:20px; align-items:start; }
+    .panel { overflow:hidden; }
+    .panel-head { display:flex; justify-content:space-between; gap:16px; padding:18px 20px; border-bottom:1px solid var(--line); }
+    .panel-head h2,.lesson h2 { margin:0; letter-spacing:-.025em; }
+    .panel-head p { margin:4px 0 0; color:var(--muted); font-size:.88rem; }
+    .sim { padding:18px; }
+    .scenario-bar { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
+    .scenario { padding:10px 8px; border-radius:12px; font-size:.84rem; font-weight:750; }
+    .model-strip { display:grid; grid-template-columns:1fr auto 1.35fr; gap:12px; align-items:center; margin-bottom:16px; }
+    .model-card { padding:13px; border:1px solid var(--line); border-radius:14px; background:var(--surface-2); text-align:center; }
+    .model-card strong { display:block; color:var(--violet); font-size:1.1rem; }
+    .arrow { color:var(--blue); font-size:1.5rem; font-weight:900; }
+    .stage { display:grid; grid-template-columns:minmax(180px,.65fr) minmax(320px,1.35fr); gap:14px; min-height:290px; }
+    .candidate-list,.slot-list { display:flex; flex-direction:column; gap:8px; }
+    .label { color:var(--muted); font-size:.7rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+    .candidate,.slot {
+      display:flex; justify-content:space-between; gap:10px; padding:10px 12px; border:1px solid var(--line);
+      border-radius:12px; background:var(--surface-2); font:750 .78rem var(--mono);
+    }
+    .candidate span:last-child,.slot span:last-child { color:var(--muted); font: .74rem var(--sans); }
+    .candidate[data-status="running"] { border-color:var(--green); }
+    .candidate[data-status="waiting"] { border-color:var(--amber); }
+    .candidate[data-status="skipped"],.candidate[data-status="stale"] { border-color:var(--red); }
+    .slots {
+      padding:14px; border:1px solid var(--violet); border-radius:var(--r);
+      background:radial-gradient(circle at 100% 0,color-mix(in srgb,var(--violet) 18%,transparent),transparent 55%),var(--surface-2);
+    }
+    .slot { min-height:48px; align-items:center; }
+    .slot.is-active { border-color:var(--cyan); background:color-mix(in srgb,var(--cyan) 8%,var(--surface-2)); }
+    .state-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
+    .state { padding:10px; border-radius:10px; background:var(--surface-3); text-align:center; }
+    .state span { display:block; color:var(--muted); font-size:.68rem; }
+    .state strong { color:var(--cyan); font:800 1.05rem var(--mono); }
+    .controls { display:grid; grid-template-columns:repeat(4,1fr) auto; gap:10px; align-items:end; margin-top:16px; padding-top:16px; border-top:1px solid var(--line); }
+    .range { display:grid; gap:5px; color:var(--muted); font-size:.73rem; font-weight:700; }
+    .range output { color:var(--text); font-family:var(--mono); }
+    input[type="range"] { width:100%; accent-color:var(--violet); }
+    .transport button { min-width:44px; padding:0 10px; border-radius:12px; font-weight:800; }
+    .clock { display:flex; justify-content:space-between; gap:10px; margin-top:12px; padding:10px 12px; border-radius:11px; background:var(--surface-2); font:.75rem var(--mono); }
+    .clock strong { color:var(--cyan); }
+    .events { margin-top:18px; border-top:1px solid var(--line); }
+    .events h3 { margin:16px 0 8px; font-size:.92rem; }
+    table { width:100%; border-collapse:collapse; font-size:.72rem; }
+    th { color:var(--muted); text-align:left; font-size:.64rem; text-transform:uppercase; }
+    th,td { padding:7px 5px; } td { border-top:1px solid var(--line); font-family:var(--mono); }
+    .lesson-panel { min-height:720px; }
+    .lesson { display:none; padding:26px; } .lesson.is-active { display:block; }
+    .kicker { margin:0 0 8px; color:var(--blue); font-size:.74rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    .lesson > p { color:var(--muted); }
+    .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+    .concept,.callout { padding:14px; border:1px solid var(--line); border-radius:14px; background:var(--surface-2); }
+    .concept strong { display:block; margin-bottom:6px; }
+    .concept p,.callout p { margin:0; color:var(--muted); font-size:.87rem; }
+    .callout { margin-top:16px; border-color:var(--amber); } .callout strong { color:var(--amber); }
+    .callout.danger { border-color:var(--red); } .callout.danger strong { color:var(--red); }
+    pre { margin:14px 0 0; padding:16px; overflow-x:auto; border-radius:14px; color:var(--code-text); background:var(--code); font-size:.77rem; line-height:1.65; }
+    .sources { display:grid; gap:8px; padding:0; list-style:none; }
+    .sources a { display:flex; justify-content:space-between; padding:10px 12px; border:1px solid var(--line); border-radius:10px; color:var(--text); background:var(--surface-2); text-decoration:none; font:.74rem var(--mono); }
+    .status { min-height:24px; color:var(--muted); font-size:.8rem; }
+    @media(max-width:1160px){.hero,.workspace{grid-template-columns:1fr}.lesson-panel{min-height:0}}
+    @media(max-width:760px){
+      .brand span:last-child{display:none}.page{width:calc(100% - 20px);padding-top:34px}.step-nav{grid-template-columns:1fr 1fr}.step:last-child{grid-column:1/-1}
+      .stage,.model-strip{grid-template-columns:1fr}.arrow{transform:rotate(90deg);text-align:center}.controls,.grid{grid-template-columns:1fr}.lesson{padding:20px 16px}table{display:block;overflow-x:auto}
+    }
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+  </style>
+</head>
+<body data-design-baseline="ed346a14bf223b0eb456198fdee617b608795b54" data-release-ref="0.4.0" data-release-commit="17ab7f872c1f96318c73d3580729cac20a67e017">
+  <header class="topbar">
+    <a class="brand" href="https://github.com/bluetape4k/bluetape4k-leader"><span class="mark">G</span><span>bluetape4k Leader</span></a>
+    <div class="actions">
+      <a class="pill" href="./2026-07-30-leader-elector-visual-companion.html">Detailed 1-leader model</a>
+      <a class="pill" href="./2026-07-30-leader-group-elector-visual-companion.ko.html" lang="ko">한국어</a>
+      <div class="themes" aria-label="Theme">
+        <button class="theme" data-theme-choice="auto" type="button" aria-label="Use system theme" aria-pressed="true">A</button>
+        <button class="theme" data-theme-choice="light" type="button" aria-label="Use light theme" aria-pressed="false">☀</button>
+        <button class="theme" data-theme-choice="dark" type="button" aria-label="Use dark theme" aria-pressed="false">☾</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero" aria-labelledby="title">
+      <div>
+        <p class="eyebrow">Visual companion · Release 0.4.0 · Redis Lettuce</p>
+        <h1 id="title">From 1 → N<br>leader slots.</h1>
+        <p class="lead"><code>LeaderGroupElector</code> keeps the token-and-lease model and changes one boundary: up to <code>maxLeaders</code> candidates may own independent slots.</p>
+      </div>
+      <aside class="warning">
+        <strong>Capacity does not assign unique work.</strong>
+        <p>A slot limits concurrency. Your queue, claim table, or partition map must decide which work each admitted leader processes.</p>
+      </aside>
+    </section>
+
+    <nav class="step-nav" aria-label="Guided learning steps">
+      <button class="step" data-step="model" type="button" aria-pressed="true"><span class="num">01</span><span>Model</span></button>
+      <button class="step" data-step="settings" type="button" aria-pressed="false"><span class="num">02</span><span>Settings</span></button>
+      <button class="step" data-step="direct-api" type="button" aria-pressed="false"><span class="num">03</span><span>Direct API</span></button>
+      <button class="step" data-step="spring" type="button" aria-pressed="false"><span class="num">04</span><span>Spring</span></button>
+      <button class="step" data-step="recovery" type="button" aria-pressed="false"><span class="num">05</span><span>Recovery</span></button>
+    </nav>
+
+    <div class="workspace">
+      <article class="panel">
+        <div class="panel-head">
+          <div><h2>Bounded slot admission</h2><p>Every active slot has its own token and TTL.</p></div>
+          <div id="status" class="status" aria-live="polite">Ready.</div>
+        </div>
+        <div class="sim">
+          <div class="scenario-bar">
+            <button class="scenario" data-scenario="capacity" type="button" aria-pressed="true">Available capacity</button>
+            <button class="scenario" data-scenario="saturation" type="button" aria-pressed="false">Saturation + skip</button>
+            <button class="scenario" data-scenario="expiry" type="button" aria-pressed="false">Expiry + admission</button>
+          </div>
+
+          <div class="model-strip">
+            <div class="model-card"><span class="label">LeaderElector</span><strong>1 lock → 1</strong></div>
+            <div class="arrow">→</div>
+            <div class="model-card"><span class="label">LeaderGroupElector</span><strong>1 group → N occupied slots</strong></div>
+          </div>
+
+          <div class="stage">
+            <div class="candidate-list" id="candidate-list"><span class="label">Candidates</span></div>
+            <div class="slots">
+              <span class="label">Redis slot-token group</span>
+              <div class="slot-list" id="slot-list"></div>
+              <div class="state-grid">
+                <div class="state" data-state-field="activeCount"><span>activeCount</span><strong id="active-count">0</strong></div>
+                <div class="state" data-state-field="availableSlots"><span>availableSlots</span><strong id="available-slots">0</strong></div>
+                <div class="state" data-state-field="isFull"><span>isFull</span><strong id="is-full">false</strong></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="controls">
+            <label class="range" data-control="candidate-count"><span>Candidates · <output id="candidate-output">4</output></span><input id="candidate-count" type="range" min="2" max="6" step="1" value="4" aria-label="Candidate count"></label>
+            <label class="range" data-control="max-leaders"><span>maxLeaders · <output id="max-output">3</output></span><input id="max-leaders" type="range" min="1" max="4" step="1" value="3" aria-label="Maximum leaders"></label>
+            <label class="range" data-control="action-time"><span>Action · <output id="action-output">8</output></span><input id="action-time" type="range" min="4" max="14" step="2" value="8" aria-label="Action duration"></label>
+            <label class="range" data-control="lease-time"><span>leaseTime · <output id="lease-output">10</output></span><input id="lease-time" type="range" min="4" max="12" step="2" value="10" aria-label="Lease time"></label>
+            <div class="transport"><button id="reset" type="button" aria-label="Reset">↺</button><button id="play" type="button" aria-label="Play" aria-pressed="false">▶</button><button id="next" type="button" aria-label="Advance one tick">+1</button></div>
+          </div>
+          <div class="clock"><span>tick <strong id="tick">0</strong></span><span>waitTime <strong>2</strong></span><span>minLeaseTime <strong>1</strong></span><span>group autoExtend <strong>not available</strong></span></div>
+
+          <div class="events">
+            <h3>Latest slot events</h3>
+            <table><thead><tr>
+              <th data-event-field="tick">Tick</th><th data-event-field="candidate">Candidate</th><th data-event-field="operation">Operation</th>
+              <th data-event-field="token">Token</th><th data-event-field="ttl">TTL</th><th data-event-field="outcome">Outcome</th>
+            </tr></thead><tbody id="events"></tbody></table>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel lesson-panel">
+        <section id="model" class="lesson is-active">
+          <p class="kicker">Step 01 · Delta model</p><h2>Same lease, bounded multiplicity</h2>
+          <p>The detailed <code>LeaderElector</code> companion explains acquire, token, TTL, expiry, and release. Here each admitted candidate receives an independent slot token.</p>
+          <div class="grid">
+            <div class="concept"><strong>One logical group</strong><p>All candidates use the same lockName.</p></div>
+            <div class="concept"><strong>N independent tokens</strong><p>At most maxLeaders tokens remain active.</p></div>
+            <div class="concept"><strong>Same skip contract</strong><p>A full group can produce <code>LeaderRunResult.Skipped</code>.</p></div>
+            <div class="concept"><strong>No business partition</strong><p>A token is ownership evidence, not a stable shard number.</p></div>
+          </div>
+        </section>
+
+        <section id="settings" class="lesson">
+          <p class="kicker">Step 02 · Settings</p><h2>Capacity is the additional setting</h2>
+          <div class="grid">
+            <div class="concept"><strong>maxLeaders</strong><p>Maximum concurrent slot owners. Direct options accept values greater than or equal to 1.</p></div>
+            <div class="concept"><strong>Candidate count</strong><p>Use more candidates than slots to make saturation visible.</p></div>
+            <div class="concept"><strong>waitTime / leaseTime</strong><p>Keep their single-leader meanings for each slot attempt and TTL.</p></div>
+            <div class="concept"><strong>minLeaseTime</strong><p>Keeps a successful slot for a minimum duration after fast completion.</p></div>
+          </div>
+          <div class="callout"><strong>No group autoExtend option</strong><p>Explicit active-lock extension exists as an advanced contract, but this delta companion does not animate it.</p></div>
+        </section>
+
+        <section id="direct-api" class="lesson">
+          <p class="kicker">Step 03 · Direct API</p><h2>Run work only after slot admission</h2>
+          <pre><code>val group = connection.leaderGroupElection(
+    LeaderGroupElectionOptions(
+        maxLeaders = 3,
+        waitTime = 500.milliseconds,
+        leaseTime = 10.seconds,
+    )
+)</code></pre>
+          <pre><code>val value = group.runIfLeader("thumbnail-workers") {
+    processNextClaimedBatch()
+}
+
+val state: LeaderGroupState =
+    group.state("thumbnail-workers")</code></pre>
+          <div class="callout danger"><strong>Claim before processing.</strong><p><code>processNextClaimedBatch()</code> still needs a queue or claim table. Slot admission alone does not assign unique work.</p></div>
+        </section>
+
+        <section id="spring" class="lesson">
+          <p class="kicker">Step 04 · Spring Boot</p><h2>Annotation validation is stricter</h2>
+          <pre><code>@LeaderGroupElection(
+    name = "thumbnail-workers",
+    maxLeaders = 3,
+    waitTime = "PT0.5S",
+    leaseTime = "PT10S",
+)
+fun processNextClaimedBatch(): BatchSummary? =
+    service.processNextClaimedBatch()</code></pre>
+          <p>While direct <code>LeaderGroupElectionOptions</code> accepts <code>maxLeaders &gt;= 1</code>, Spring startup validation requires <code>@LeaderGroupElection.maxLeaders &gt; 1</code> and directs a single leader to <code>@LeaderElection</code>.</p>
+          <div class="callout"><strong>Return types</strong><p>Synchronous, suspend, and <code>Mono</code> are supported. <code>Flux</code> and Kotlin <code>Flow</code> are rejected because per-slot stream lease extension is undefined.</p></div>
+        </section>
+
+        <section id="recovery" class="lesson">
+          <p class="kicker">Step 05 · Failure and recovery</p><h2>Capacity returns after release or expiry</h2>
+          <p>Run saturation to see a contender skip. Run expiry to see one token disappear and a later candidate enter the newly available capacity with a new token.</p>
+          <div class="callout danger"><strong>Slot IDs are not work IDs.</strong><p>Do not turn a rendered slot position into a business partition. Use application-owned work distribution.</p></div>
+        </section>
+
+        <section id="sources" class="lesson">
+          <p class="kicker">Release evidence</p><h2>Pinned to 0.4.0</h2>
+          <ul class="sources">
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderGroupElector.kt"><span>LeaderGroupElector.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderGroupElectionOptions.kt"><span>LeaderGroupElectionOptions.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderGroupState.kt"><span>LeaderGroupState.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceLeaderGroupElector.kt"><span>LettuceLeaderGroupElector.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/semaphore/LettuceSlotTokenGroup.kt"><span>LettuceSlotTokenGroup.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-core/src/main/kotlin/io/bluetape4k/leader/annotation/LeaderGroupElection.kt"><span>LeaderGroupElection.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/manual/en/core/single-group-strategic.md"><span>single-group-strategic.md</span><span>↗</span></a></li>
+            <li><a href="./2026-07-30-leader-election-visual-companions-design.md"><span>Design source</span><span>↗</span></a></li>
+          </ul>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      const themeStorageKey='bluetape4k-leader-visual-theme';
+      const themeButtons=[...document.querySelectorAll('[data-theme-choice]')];
+      const systemTheme=()=>matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
+      function theme(choice){
+        document.documentElement.dataset.theme=choice==='auto'?systemTheme():choice;
+        document.documentElement.dataset.themeMode=choice; localStorage.setItem(themeStorageKey,choice);
+        themeButtons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.themeChoice===choice)));
+      }
+      themeButtons.forEach(button=>button.addEventListener('click',()=>theme(button.dataset.themeChoice)));
+      theme(localStorage.getItem(themeStorageKey)||'auto');
+      matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{if(document.documentElement.dataset.themeMode==='auto')theme('auto')});
+
+      const presets={
+        capacity:{candidateCount:4,maxLeaders:3,actionTime:8,leaseTime:10,attempts:[0,0,1,9],description:'Three candidates enter while capacity remains.'},
+        saturation:{candidateCount:5,maxLeaders:2,actionTime:8,leaseTime:10,attempts:[0,0,1,4,9],description:'The group fills and a contender reaches its wait deadline.'},
+        expiry:{candidateCount:5,maxLeaders:2,actionTime:12,leaseTime:6,attempts:[0,0,1,6,9],description:'A slot expires and a later candidate enters with a new token.'},
+      };
+      const el={
+        candidates:document.querySelector('#candidate-list'),slots:document.querySelector('#slot-list'),events:document.querySelector('#events'),
+        status:document.querySelector('#status'),tick:document.querySelector('#tick'),active:document.querySelector('#active-count'),
+        available:document.querySelector('#available-slots'),full:document.querySelector('#is-full'),
+        candidateInput:document.querySelector('#candidate-count'),maxInput:document.querySelector('#max-leaders'),
+        actionInput:document.querySelector('#action-time'),leaseInput:document.querySelector('#lease-time'),
+        candidateOutput:document.querySelector('#candidate-output'),maxOutput:document.querySelector('#max-output'),
+        actionOutput:document.querySelector('#action-output'),leaseOutput:document.querySelector('#lease-output'),
+        reset:document.querySelector('#reset'),play:document.querySelector('#play'),next:document.querySelector('#next'),
+      };
+      let state; let timer=null;
+      function addEvent(candidate,operation,token,ttl,outcome){state.events.push({tick:state.tick,candidate,operation,token:token||'—',ttl:ttl??'—',outcome})}
+      function acquire(candidate){
+        if(state.slots.length>=state.maxLeaders){candidate.status='waiting';addEvent(candidate.id,'tryAcquire',null,0,'group full');return}
+        state.sequence+=1; const token=`slot-token-${candidate.id.slice(-1)}-${state.sequence}`;
+        const slot={owner:candidate.id,token,expiresAt:state.tick+state.leaseTime,actionEndsAt:state.tick+state.actionTime};
+        state.slots.push(slot); candidate.status='running'; candidate.token=token; candidate.actionEndsAt=slot.actionEndsAt;
+        addEvent(candidate.id,'acquire',token,state.leaseTime,'admitted');
+      }
+      function process(){
+        const expired=state.slots.filter(slot=>state.tick>=slot.expiresAt);
+        for(const slot of expired){const candidate=state.candidates.find(item=>item.id===slot.owner);candidate.status='stale';addEvent(slot.owner,'expire',slot.token,0,'capacity returned')}
+        state.slots=state.slots.filter(slot=>state.tick<slot.expiresAt);
+        for(const candidate of state.candidates){
+          if(candidate.actionEndsAt===state.tick&&['running','stale'].includes(candidate.status)){
+            const owned=state.slots.find(slot=>slot.owner===candidate.id&&slot.token===candidate.token);
+            if(owned){state.slots=state.slots.filter(slot=>slot!==owned);candidate.status='completed';addEvent(candidate.id,'release',candidate.token,0,'capacity returned')}
+            else addEvent(candidate.id,'release',candidate.token,null,'rejected: stale token');
+          }
+        }
+        for(const candidate of state.candidates){
+          if(candidate.status==='idle'&&candidate.attemptAt===state.tick)acquire(candidate);
+          else if(candidate.status==='waiting'){
+            if(state.slots.length<state.maxLeaders)acquire(candidate);
+            else if(state.tick>=candidate.deadline){candidate.status='skipped';addEvent(candidate.id,'wait',null,0,'LeaderRunResult.Skipped')}
+          }
+        }
+      }
+      function stop(){if(timer)clearInterval(timer);timer=null;if(state)state.playing=false;el.play.textContent='▶';el.play.setAttribute('aria-pressed','false');el.play.setAttribute('aria-label','Play')}
+      function reset(name=state?.scenario||'capacity'){
+        stop();const preset=presets[name];
+        for(const [input,value] of [[el.candidateInput,preset.candidateCount],[el.maxInput,preset.maxLeaders],[el.actionInput,preset.actionTime],[el.leaseInput,preset.leaseTime]])input.value=String(value);
+        state={scenario:name,tick:0,playing:false,candidateCount:+el.candidateInput.value,maxLeaders:+el.maxInput.value,actionTime:+el.actionInput.value,leaseTime:+el.leaseInput.value,waitTime:2,minLeaseTime:1,
+          candidates:Array.from({length:+el.candidateInput.value},(_,index)=>({id:`node-${String.fromCharCode(97+index)}`,attemptAt:preset.attempts[index]??index,deadline:(preset.attempts[index]??index)+2,status:'idle',token:null,actionEndsAt:null})),
+          slots:[],events:[],sequence:0};
+        document.querySelectorAll('[data-scenario]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.scenario===name)));
+        process();render(`${name}: ${preset.description}`);
+      }
+      function advance(){
+        if(state.tick>=22){stop();return}state.tick+=1;process();render(`Advanced to tick ${state.tick}.`);
+        if(!state.candidates.some(candidate=>['idle','waiting','running'].includes(candidate.status)))stop();
+      }
+      function play(){if(timer){stop();return}state.playing=true;el.play.textContent='Ⅱ';el.play.setAttribute('aria-pressed','true');el.play.setAttribute('aria-label','Pause');timer=setInterval(advance,650);render('Timeline playing.')}
+      function render(message){
+        const activeCount=state.slots.length,availableSlots=state.maxLeaders-activeCount,isFull=activeCount>=state.maxLeaders;
+        el.tick.textContent=String(state.tick);el.active.textContent=String(activeCount);el.available.textContent=String(availableSlots);el.full.textContent=String(isFull);el.status.textContent=message;
+        el.candidateOutput.textContent=String(state.candidateCount);el.maxOutput.textContent=String(state.maxLeaders);el.actionOutput.textContent=String(state.actionTime);el.leaseOutput.textContent=String(state.leaseTime);
+        el.candidates.replaceChildren(Object.assign(document.createElement('span'),{className:'label',textContent:'Candidates'}),...state.candidates.map(candidate=>{
+          const card=document.createElement('div');card.className='candidate';card.dataset.status=candidate.status;
+          const name=document.createElement('span');name.textContent=candidate.id;const status=document.createElement('span');status.textContent=candidate.status;card.append(name,status);return card;
+        }));
+        el.slots.replaceChildren(...Array.from({length:state.maxLeaders},(_,index)=>{
+          const slot=state.slots[index];const card=document.createElement('div');card.className=`slot${slot?' is-active':''}`;
+          const owner=document.createElement('span');owner.textContent=slot?slot.owner:'available';
+          const detail=document.createElement('span');detail.textContent=slot?`${slot.token} · TTL ${slot.expiresAt-state.tick}`:'no token';card.append(owner,detail);return card;
+        }));
+        el.events.replaceChildren(...state.events.slice(-6).reverse().map(item=>{const row=document.createElement('tr');for(const field of ['tick','candidate','operation','token','ttl','outcome']){const cell=document.createElement('td');cell.textContent=String(item[field]);row.append(cell)}return row}));
+      }
+      document.querySelectorAll('[data-scenario]').forEach(button=>button.addEventListener('click',()=>reset(button.dataset.scenario)));
+      document.querySelectorAll('.step').forEach(button=>button.addEventListener('click',()=>{
+        document.querySelectorAll('.step').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
+        document.querySelectorAll('.lesson').forEach(section=>section.classList.toggle('is-active',section.id===button.dataset.step));
+      }));
+      for(const input of [el.candidateInput,el.maxInput,el.actionInput,el.leaseInput])input.addEventListener('input',()=>{
+        const preset=presets[state.scenario];preset.candidateCount=+el.candidateInput.value;preset.maxLeaders=+el.maxInput.value;preset.actionTime=+el.actionInput.value;preset.leaseTime=+el.leaseInput.value;reset(state.scenario);
+      });
+      el.reset.addEventListener('click',()=>reset(state.scenario));el.play.addEventListener('click',play);el.next.addEventListener('click',advance);reset('capacity');
+    })();
+  </script>
+</body>
+</html>
