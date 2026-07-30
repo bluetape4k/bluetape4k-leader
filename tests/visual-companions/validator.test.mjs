@@ -17,9 +17,68 @@ async function validate() {
   return execute('node', ['scripts/validate-visual-companions.mjs'], { cwd: root });
 }
 
+function values(content, pattern) {
+  return [...content.matchAll(pattern)].map((match) => match[1]).sort();
+}
+
 test('approved leader visual companions satisfy the repository contract', async () => {
   const { stdout } = await validate();
   assert.match(stdout, /2 documents \/ 4 locale files \/ 4 fallbacks/);
+});
+
+test('LeaderElector English companion exposes the approved deterministic model', async () => {
+  const content = await readFile(
+    new URL('docs/superpowers/specs/2026-07-30-leader-elector-visual-companion.html', root),
+    'utf8',
+  );
+  assert.deepEqual(
+    values(content, /<section\b[^>]*id=["']([^"']+)/gi),
+    ['direct-api', 'model', 'recovery', 'settings', 'sources', 'spring'],
+  );
+  assert.deepEqual(
+    [...new Set(values(content, /data-step=["']([^"']+)/gi))],
+    ['direct-api', 'model', 'recovery', 'settings', 'spring'],
+  );
+  assert.deepEqual(
+    [...new Set(values(content, /data-scenario=["']([^"']+)/gi))],
+    ['contention', 'expiry', 'extension'],
+  );
+  assert.deepEqual(
+    [...new Set(values(content, /data-control=["']([^"']+)/gi))],
+    ['action-time', 'lease-time'],
+  );
+  assert.deepEqual(
+    [...new Set(values(content, /data-candidate=["']([^"']+)/gi).filter((value) => !value.includes('$')))],
+    ['node-a', 'node-b', 'node-c'],
+  );
+  assert.deepEqual(
+    [...new Set(values(content, /data-event-field=["']([^"']+)/gi))],
+    ['candidate', 'operation', 'outcome', 'tick', 'token', 'ttl'],
+  );
+  for (const marker of [
+    'lockName',
+    'owner',
+    'token',
+    'TTL',
+    'waitTime',
+    'leaseTime',
+    'minLeaseTime',
+    'autoExtend',
+    'runIfLeader',
+    'runIfLeaderResult',
+    'LeaderRunResult.Elected',
+    'LeaderRunResult.Skipped',
+    'LeaderRunResult.ActionFailed',
+    '@LeaderElection',
+    'AspectJ',
+    '@EnableAspectJAutoProxy',
+    'streamBounded',
+    'stale',
+    'idempotent',
+  ]) {
+    assert.match(content, new RegExp(marker));
+  }
+  assert.doesNotMatch(content, /Math\.random|Date\.now|performance\.now/);
 });
 
 function pngHeader(width = 2880, height = 2000) {
