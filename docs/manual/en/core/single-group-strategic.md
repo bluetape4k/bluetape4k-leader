@@ -9,6 +9,14 @@ releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
 
 Understand what each model guarantees—and what work partitioning remains outside the library.
 
+## Interactive visual companions
+
+Start with the detailed `LeaderElector` lock-and-lease walkthrough, then use the `LeaderGroupElector` companion to focus on the `1 → N` slot-capacity delta. Both simulations use the release-pinned Redis/Lettuce model.
+
+[![LeaderElector lock and lease visual companion](../../assets/visual-companions/leader-elector.en.png)](/visual-companions/bluetape4k-leader/leader-elector/)
+
+[![LeaderGroupElector slot capacity visual companion](../../assets/visual-companions/leader-group-elector.en.png)](/visual-companions/bluetape4k-leader/leader-group-elector/)
+
 ## Single
 
 One lock name permits at most one compliant owner. The action is still at-least-once from a business perspective when leases expire or callers retry, so external effects need idempotency.

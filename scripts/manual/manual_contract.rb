@@ -232,6 +232,8 @@ module ManualDocs
         end
       end
       assets.grep(String).map { |asset| asset.delete_suffix(File.extname(asset)) }.uniq.each do |base|
+        next if standalone_visual_companion_png?(base, assets)
+
         MANUAL_ASSET_EXTENSIONS.each do |extension|
           pair = "#{base}#{extension}"
           errors << "#{label(entry)}: missing paired asset #{pair}" unless assets.include?(pair) && File.file?(File.expand_path(pair, root))
@@ -296,6 +298,8 @@ module ManualDocs
         end
       end
       assets.grep(String).map { |asset| asset.delete_suffix(File.extname(asset)) }.uniq.each do |base|
+        next if standalone_visual_companion_png?(base, assets)
+
         MANUAL_ASSET_EXTENSIONS.each do |extension|
           pair = "#{base}#{extension}"
           errors << "manual overview: missing paired asset #{pair}" unless assets.include?(pair) && File.file?(File.expand_path(pair, root))
@@ -311,6 +315,12 @@ module ManualDocs
       registered = entries.flat_map { |entry| entry["assets"].is_a?(Array) ? entry["assets"] : [] }
       registered.concat(overview["assets"]) if overview.is_a?(Hash) && overview["assets"].is_a?(Array)
       (actual - registered).sort.map { |asset| "manual assets: orphan asset #{asset}" }
+    end
+
+    def standalone_visual_companion_png?(base, assets)
+      base.start_with?("assets/visual-companions/") &&
+        assets.include?("#{base}.png") &&
+        !assets.include?("#{base}.svg")
     end
 
     def duplicate_values(entries, field)

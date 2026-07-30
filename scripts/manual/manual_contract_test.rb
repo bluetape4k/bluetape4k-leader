@@ -120,6 +120,24 @@ class ManualContractTest < Minitest::Test
     end
   end
 
+  def test_accepts_registered_visual_companion_png_without_svg_pair
+    with_repository do |root, manifest|
+      manifest["overview"] = {
+        "documents" => {
+          "en" => [],
+          "ko" => [],
+        },
+        "assets" => ["assets/visual-companions/leader-elector.en.png"],
+      }
+      asset = File.join(root, "docs/manual/assets/visual-companions/leader-elector.en.png")
+      FileUtils.mkdir_p(File.dirname(asset))
+      File.write(asset, "png\n")
+      write_manifest(root, manifest)
+
+      assert_empty validator(root).errors
+    end
+  end
+
   def test_rejects_overview_locale_inventory_drift
     with_repository do |root, manifest|
       manifest["overview"] = {

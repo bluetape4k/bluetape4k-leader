@@ -124,6 +124,10 @@ manifest = {
       assets/architecture/model-decision-map.svg assets/architecture/model-decision-map.png
       assets/backends/backend-selection-map.svg assets/backends/backend-selection-map.png
       assets/frameworks/framework-observability-flow.svg assets/frameworks/framework-observability-flow.png
+      assets/visual-companions/leader-elector.en.png
+      assets/visual-companions/leader-elector.ko.png
+      assets/visual-companions/leader-group-elector.en.png
+      assets/visual-companions/leader-group-elector.ko.png
     ],
   },
   "modules" => modules,
