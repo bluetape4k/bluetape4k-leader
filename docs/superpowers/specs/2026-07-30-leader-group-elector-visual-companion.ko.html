@@ -335,7 +335,7 @@ tick 6  node-D          acquire → slot-token-D-3
       let timer;
       let state;
       const addEvent = (candidate,operation,token,ttl,outcome) => {
-        state.events.unshift({tick:state.tick,candidate,operation,token:token || '—',ttl:String(ttl),outcome});
+        state.events.unshift({tick:state.tick,candidate,operation,token:token || '—',ttl:ttl??'—',outcome});
         state.events = state.events.slice(0,6);
       };
       const acquire = (candidate) => {
@@ -366,11 +366,11 @@ tick 6  node-D          acquire → slot-token-D-3
             }
           }
         }
-        state.candidates.forEach((candidate,index)=>{
-          if(candidate.status==='queued' && state.tick>=state.attempts[index]) acquire(candidate);
+        state.candidates.forEach((candidate)=>{
+          if(candidate.status==='queued' && state.tick>=candidate.attemptAt) acquire(candidate);
           else if(candidate.status==='waiting'){
             if(state.slots.length<state.maxLeaders) acquire(candidate);
-            else if(state.tick>=state.attempts[index]+state.waitTime){candidate.status='skipped';addEvent(candidate.id,'runIfLeader',null,0,'skipped');}
+            else if(state.tick>=candidate.deadline){candidate.status='skipped';addEvent(candidate.id,'runIfLeader',null,0,'skipped');}
           }
         });
       };
@@ -382,13 +382,14 @@ tick 6  node-D          acquire → slot-token-D-3
         const preset=presets[name];
         for(const [input,value] of [[el.candidateInput,preset.candidateCount],[el.maxInput,preset.maxLeaders],[el.actionInput,preset.actionTime],[el.leaseInput,preset.leaseTime]]) input.value=String(value);
         state={scenario:name,tick:0,playing:false,candidateCount:+el.candidateInput.value,maxLeaders:+el.maxInput.value,actionTime:+el.actionInput.value,leaseTime:+el.leaseInput.value,waitTime:2,
-          sequence:0,attempts:preset.attempts,candidates:Array.from({length:+el.candidateInput.value},(_,index)=>({id:`node-${String.fromCharCode(65+index)}`,status:'queued'})),slots:[],events:[]};
+          sequence:0,candidates:Array.from({length:+el.candidateInput.value},(_,index)=>({id:`node-${String.fromCharCode(65+index)}`,attemptAt:preset.attempts[index]??index,deadline:(preset.attempts[index]??index)+2,status:'queued',token:null,actionEndsAt:null})),slots:[],events:[]};
         $$('.scenario').forEach((button)=>button.setAttribute('aria-pressed',String(button.dataset.scenario===name)));
         process(); render(preset.description);
       };
       const advance = () => {
         if(state.tick>=22){stop();return;}
         state.tick += 1; process(); render(`${state.tick} tick까지 진행했습니다.`);
+        if(!state.candidates.some(candidate=>['queued','waiting','running'].includes(candidate.status)))stop();
       };
       const render = (message) => {
         const activeCount=state.slots.length;
