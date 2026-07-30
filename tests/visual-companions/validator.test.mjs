@@ -215,6 +215,11 @@ test('LeaderGroupElector locale documents expose equivalent structure and behavi
   assert.match(ko, /matchMedia\('\(prefers-color-scheme: dark\)'\)\.addEventListener\('change'/);
   assert.match(ko, /el\.play\.setAttribute\('aria-label','일시 정지'\)/);
   assert.match(ko, /el\.play\.setAttribute\('aria-label','재생'\)/);
+  assert.match(ko, /String\.fromCharCode\(97\+index\)/);
+  assert.match(ko, /status:'idle'/);
+  assert.match(ko, /candidate\.status='completed'/);
+  assert.match(ko, /addEvent\(candidate\.id,'wait',null,0,'LeaderRunResult\.Skipped'\)/);
+  assert.match(ko, /\['idle','waiting','running'\]\.includes\(candidate\.status\)/);
 });
 
 function pngHeader(width = 2880, height = 2000) {
@@ -498,6 +503,20 @@ test('validator rejects external scripts', async (t) => {
   await assert.rejects(validateRepository(fixtureRoot), /forbidden external surface/);
 });
 
+for (const [surface, snippet] of [
+  ['an unquoted external resource attribute', '<img src=https://example.com/a.png>'],
+  ['a CSS import', '<style>@import "https://example.com/a.css";</style>'],
+  ['an external CSS URL', '<div style="background:url(https://example.com/a.png)"></div>'],
+]) {
+  test(`validator rejects ${surface}`, async (t) => {
+    const { fixtureRoot, manifest } = await createFixture(t);
+    const htmlPath = path.join(fixtureRoot, manifest.documents[0].locales.en.html);
+    const html = await readFile(htmlPath, 'utf8');
+    await writeFile(htmlPath, html.replace('</head>', `${snippet}</head>`));
+    await assert.rejects(validateRepository(fixtureRoot), /forbidden external surface/);
+  });
+}
+
 test('validator rejects a missing design baseline', async (t) => {
   const { fixtureRoot, manifest } = await createFixture(t);
   const htmlPath = path.join(fixtureRoot, manifest.documents[0].locales.en.html);
@@ -553,5 +572,5 @@ test('Korean LeaderGroupElector models a stale release after lease expiry', asyn
   assert.match(content, /attemptAt:preset\.attempts\[index\]\?\?index/);
   assert.match(content, /state\.tick>=candidate\.deadline/);
   assert.match(content, /ttl:ttl\?\?'—'/);
-  assert.match(content, /!state\.candidates\.some\(candidate=>\['queued','waiting','running'\]\.includes\(candidate\.status\)\)/);
+  assert.match(content, /!state\.candidates\.some\(candidate=>\['idle','waiting','running'\]\.includes\(candidate\.status\)\)/);
 });
