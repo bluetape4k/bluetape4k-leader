@@ -69,19 +69,20 @@ Both companions use the same five-step guided flow:
 2. **Settings** — inspect the small set of parameters that changes the scenario.
 3. **Direct API** — connect the timeline to `runIfLeader` and `runIfLeaderResult`.
 4. **Spring mapping** — show the equivalent annotation boundary and configuration.
-5. **Failure and recovery** — observe contention, expiry, extension, and later admission.
+5. **Failure and recovery** — observe contention, expiry, single-leader extension, and later admission.
 
 The layout keeps the timeline and current state visible while the learner moves between steps. It uses semantic buttons, labels, status text, and a live region so meaning is not color-only.
 
-### Shared Controls
+### Common Controls
 
 Controls are intentionally bounded:
 
-- Scenario preset: contention, expiry/takeover, or extension.
 - Action duration.
 - `leaseTime`.
 - Reset and play/pause.
 - Theme: auto, light, or dark.
+
+The `LeaderElector` scenario presets are contention, expiry/takeover, and extension. The `LeaderGroupElector` presets are available capacity, saturation/skip, and expiry/later admission. The group page does not present an extension preset because group options do not provide `autoExtend` and explicit active-lock extension is outside the simulation.
 
 The controls use discrete values rather than unconstrained input. Each change resets the simulation to a deterministic initial state.
 
@@ -92,7 +93,7 @@ The timeline advances in fixed logical ticks. It displays educational ordering, 
 ```text
 request -> wait/acquire -> action -> release
                          -> lease expiry -> later acquire
-                         -> periodic extension -> release
+single only              -> periodic extension -> release
 ```
 
 Every acquisition receives an opaque token. Release or extension succeeds only when the presented token still owns the lock or slot. The visualization must not imply that a process which has outlived its lease can safely release or extend a successor's ownership.
@@ -252,6 +253,14 @@ It does not repeat the detailed lock/lease lesson. Each occupied slot still has 
 Candidate count must allow both available-capacity and saturated states. `maxLeaders` uses a bounded positive range and the page prevents invalid values below one.
 
 The direct `LeaderGroupElectionOptions` contract accepts `maxLeaders >= 1`, while Spring startup validation requires `@LeaderGroupElection.maxLeaders > 1` and directs single-leader use cases to `@LeaderElection`. The Spring mapping must make that stricter boundary explicit.
+
+### Scenario Presets
+
+- **Available capacity** — candidates acquire independent tokens while fewer than `maxLeaders` slots are occupied.
+- **Saturation and skip** — the group becomes full and a contender that reaches its wait deadline skips without an exception.
+- **Expiry and later admission** — an occupied slot expires and a later candidate acquires newly available capacity with a new token.
+
+Explicit group lease extension remains a compatibility note and is not animated.
 
 ### Group State
 
