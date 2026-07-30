@@ -295,8 +295,11 @@ async function validateLocale(root, document, locale, errors) {
   }
   requirePattern(errors, content, new RegExp(`href=["'][^"']*${DESIGN_FILE.replaceAll('.', '\\.')}["']`, 'i'), `${prefix} must link the design`);
 
-  const opposite = path.posix.basename(document.locales[locale === 'en' ? 'ko' : 'en'].html);
-  requirePattern(errors, content, new RegExp(`href=["'][^"']*${opposite.replaceAll('.', '\\.')}["']`, 'i'), `${prefix} must link the opposite locale`);
+  const oppositeEntry = document.locales?.[locale === 'en' ? 'ko' : 'en'];
+  if (typeof oppositeEntry?.html === 'string' && oppositeEntry.html.length > 0) {
+    const opposite = path.posix.basename(oppositeEntry.html);
+    requirePattern(errors, content, new RegExp(`href=["'][^"']*${opposite.replaceAll('.', '\\.')}["']`, 'i'), `${prefix} must link the opposite locale`);
+  }
   const sibling = document.id === 'leader-elector' ? 'leader-group-elector' : 'leader-elector';
   requirePattern(errors, content, new RegExp(`href=["'][^"']*${sibling}[^"']*["']`, 'i'), `${prefix} must link the sibling companion`);
 
@@ -357,17 +360,21 @@ export async function validateRepository(inputRoot = process.cwd()) {
     errors.push('manifest.documents must contain the two approved documents');
   }
 
+  const documents = Array.isArray(manifest.documents) ? manifest.documents : [];
   const ids = new Set();
   let localeFileCount = 0;
   let fallbackCount = 0;
-  for (const [index, document] of (manifest.documents ?? []).entries()) {
+  for (const [index, document] of documents.entries()) {
     const field = `documents[${index}]`;
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(document.id ?? '')) {
       errors.push(`${field}.id must be kebab-case`);
     }
     if (ids.has(document.id)) errors.push(`${field}.id is duplicated`);
     ids.add(document.id);
-    if (!contracts[document.id]) errors.push(`${field}.id has no validation contract`);
+    if (!contracts[document.id]) {
+      errors.push(`${field}.id has no validation contract`);
+      continue;
+    }
     if (document.status !== 'approved' || document.public !== true) {
       errors.push(`${field} must be approved and public`);
     }
@@ -393,7 +400,7 @@ export async function validateRepository(inputRoot = process.cwd()) {
     if (!ids.has(requiredId)) errors.push(`manifest must include ${requiredId}`);
   }
   if (errors.length > 0) throw new Error(errors.join('\n'));
-  return { documentCount: manifest.documents.length, localeFileCount, fallbackCount };
+  return { documentCount: documents.length, localeFileCount, fallbackCount };
 }
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);

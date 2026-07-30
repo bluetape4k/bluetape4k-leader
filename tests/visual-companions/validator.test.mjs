@@ -123,6 +123,7 @@ test('LeaderElector locale documents expose equivalent structure and behavior', 
     assert.match(ko, new RegExp(phrase));
   }
   assert.doesNotMatch(ko, /Math\.random|Date\.now|performance\.now/);
+  assert.match(ko, /document\.querySelector\(`#\$\{button\.dataset\.step\}`\)\.focus\(\{ preventScroll: true \}\)/);
 });
 
 test('LeaderGroupElector English companion explains the 1-to-N slot delta', async () => {
@@ -211,6 +212,9 @@ test('LeaderGroupElector locale documents expose equivalent structure and behavi
     assert.match(ko, new RegExp(phrase));
   }
   assert.doesNotMatch(ko, /data-control=["']auto-extend|Math\.random|Date\.now|performance\.now/);
+  assert.match(ko, /matchMedia\('\(prefers-color-scheme: dark\)'\)\.addEventListener\('change'/);
+  assert.match(ko, /el\.play\.setAttribute\('aria-label','일시 정지'\)/);
+  assert.match(ko, /el\.play\.setAttribute\('aria-label','재생'\)/);
 });
 
 function pngHeader(width = 2880, height = 2000) {
@@ -421,6 +425,33 @@ test('validator rejects duplicated document IDs', async (t) => {
   manifest.documents[1].id = 'leader-elector';
   await writeJson(path.join(fixtureRoot, 'docs/visual-companions/manifest.json'), manifest);
   await assert.rejects(validateRepository(fixtureRoot), /id is duplicated/);
+});
+
+test('validator reports a non-array documents field without throwing TypeError', async (t) => {
+  const { fixtureRoot, manifest } = await createFixture(t);
+  manifest.documents = {};
+  await writeJson(path.join(fixtureRoot, 'docs/visual-companions/manifest.json'), manifest);
+  await assert.rejects(
+    validateRepository(fixtureRoot),
+    /manifest\.documents must contain the two approved documents/,
+  );
+});
+
+test('validator reports an unsupported document ID without throwing TypeError', async (t) => {
+  const { fixtureRoot, manifest } = await createFixture(t);
+  manifest.documents[0].id = 'unknown';
+  await writeJson(path.join(fixtureRoot, 'docs/visual-companions/manifest.json'), manifest);
+  await assert.rejects(validateRepository(fixtureRoot), /id has no validation contract/);
+});
+
+test('validator reports a missing locale entry without throwing TypeError', async (t) => {
+  const { fixtureRoot, manifest } = await createFixture(t);
+  delete manifest.documents[0].locales.ko;
+  await writeJson(path.join(fixtureRoot, 'docs/visual-companions/manifest.json'), manifest);
+  await assert.rejects(
+    validateRepository(fixtureRoot),
+    /leader-elector\.ko must define title, html, route, and fallback/,
+  );
 });
 
 test('validator rejects a missing Korean locale file', async (t) => {
