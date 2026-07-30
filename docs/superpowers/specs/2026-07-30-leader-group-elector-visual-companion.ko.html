@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>LeaderGroupElector 슬롯 용량 · bluetape4k</title>
+  <script>
+    (() => {
+      const storageKey = 'bluetape4k-leader-visual-theme';
+      const choice = localStorage.getItem(storageKey) || 'auto';
+      const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.dataset.theme = choice === 'auto' ? (dark ? 'dark' : 'light') : choice;
+      document.documentElement.dataset.themeMode = choice;
+    })();
+  </script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --sans: Pretendard, "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
+      --mono: "SFMono-Regular", Consolas, monospace;
+      --radius: 20px;
+    }
+    :root[data-theme="light"] {
+      --bg:#f4f7fb; --grid:rgba(31,73,125,.07); --surface:rgba(255,255,255,.95);
+      --surface-2:#eef3f9; --surface-3:#e2eaf5; --text:#122033; --muted:#5a6a7d;
+      --line:#c8d5e5; --blue:#1f6feb; --blue-soft:#dbeafe; --violet:#6d4aff;
+      --cyan:#087f8c; --green:#147d4f; --amber:#a45b09; --red:#c43b4d;
+      --code:#172033; --code-text:#dce8ff; --shadow:0 22px 60px rgba(6,12,28,.18);
+    }
+    :root[data-theme="dark"] {
+      --bg:#07101f; --grid:rgba(112,154,214,.08); --surface:rgba(13,25,45,.95);
+      --surface-2:#111f35; --surface-3:#182b47; --text:#e7eef9; --muted:#9eb0c8;
+      --line:#2b4567; --blue:#67a4ff; --blue-soft:#162f55; --violet:#a995ff;
+      --cyan:#55d7e3; --green:#55d69a; --amber:#ffc66d; --red:#ff7f91;
+      --code:#050a13; --code-text:#dce8ff; --shadow:0 28px 80px rgba(0,0,0,.36);
+    }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; background:var(--bg); }
+    body {
+      margin:0; min-width:320px; color:var(--text); font-family:var(--sans); line-height:1.6;
+      background:
+        linear-gradient(var(--grid) 1px,transparent 1px),
+        linear-gradient(90deg,var(--grid) 1px,transparent 1px),
+        radial-gradient(circle at 15% 8%,color-mix(in srgb,var(--violet) 18%,transparent),transparent 30rem),
+        radial-gradient(circle at 85% 24%,color-mix(in srgb,var(--cyan) 13%,transparent),transparent 34rem),
+        var(--bg);
+      background-size:32px 32px,32px 32px,auto,auto,auto;
+    }
+    button,input { font:inherit; }
+    button:focus-visible,a:focus-visible,input:focus-visible { outline:3px solid var(--blue); outline-offset:3px; }
+    a { color:var(--blue); }
+    code,pre { font-family:var(--mono); }
+    .topbar {
+      position:sticky; top:0; z-index:20; display:flex; justify-content:space-between;
+      align-items:center; gap:16px; min-height:66px; padding:10px clamp(18px,4vw,56px);
+      border-bottom:1px solid var(--line); background:color-mix(in srgb,var(--bg) 84%,transparent);
+      backdrop-filter:blur(18px);
+    }
+    .brand,.actions,.themes,.transport { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .brand { color:var(--text); font-weight:800; text-decoration:none; }
+    .mark {
+      display:grid; width:34px; height:34px; place-items:center; border-radius:11px;
+      color:white; background:linear-gradient(135deg,var(--violet),var(--blue));
+    }
+    .pill,.theme,.step,.scenario,.transport button {
+      min-height:44px; border:1px solid var(--line); border-radius:999px;
+      color:var(--text); background:var(--surface); cursor:pointer;
+    }
+    .pill { display:inline-flex; align-items:center; padding:0 14px; text-decoration:none; }
+    .theme { min-width:44px; padding:0 12px; }
+    [aria-pressed="true"].theme,[aria-pressed="true"].step,[aria-pressed="true"].scenario {
+      border-color:var(--blue); color:var(--blue); background:var(--blue-soft);
+    }
+    button:hover,.pill:hover { border-color:var(--blue); transform:translateY(-1px); }
+    .page { width:min(1540px,calc(100% - 32px)); margin:0 auto; padding:54px 0 90px; }
+    .hero {
+      display:grid; grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);
+      gap:28px; align-items:end; margin-bottom:30px;
+    }
+    .eyebrow { margin:0 0 12px; color:var(--cyan); font-size:.78rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    h1 { margin:0; font-size:clamp(2.4rem,6vw,5.2rem); line-height:1.05; letter-spacing:-.06em; }
+    .lead { margin:18px 0 0; color:var(--muted); font-size:clamp(1rem,1.5vw,1.2rem); }
+    .warning,.panel { border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); box-shadow:var(--shadow); }
+    .warning { padding:22px; border-color:var(--amber); }
+    .warning strong { display:block; color:var(--amber); margin-bottom:8px; }
+    .warning p { margin:0; color:var(--muted); }
+    .step-nav { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:20px; }
+    .step { display:flex; align-items:center; gap:9px; padding:9px 13px; border-radius:14px; text-align:left; }
+    .num { display:grid; width:28px; height:28px; place-items:center; border-radius:9px; background:var(--surface-2); font-size:.74rem; font-weight:800; }
+    .step[aria-pressed="true"] .num { color:white; background:var(--blue); }
+    .workspace { display:grid; grid-template-columns:minmax(560px,1.15fr) minmax(380px,.85fr); gap:20px; align-items:start; }
+    .panel { overflow:hidden; }
+    .panel-head { display:flex; justify-content:space-between; gap:16px; padding:18px 20px; border-bottom:1px solid var(--line); }
+    .panel-head h2,.lesson h2 { margin:0; letter-spacing:-.025em; }
+    .panel-head p { margin:4px 0 0; color:var(--muted); font-size:.88rem; }
+    .sim { padding:18px; }
+    .scenario-bar { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
+    .scenario { padding:10px 8px; border-radius:12px; font-size:.84rem; font-weight:750; }
+    .model-strip { display:grid; grid-template-columns:1fr auto 1.35fr; gap:12px; align-items:center; margin-bottom:16px; }
+    .model-card { padding:13px; border:1px solid var(--line); border-radius:14px; background:var(--surface-2); text-align:center; }
+    .model-card strong { display:block; color:var(--violet); font-size:1.1rem; }
+    .arrow { color:var(--blue); font-size:1.5rem; font-weight:900; }
+    .stage { display:grid; grid-template-columns:minmax(180px,.65fr) minmax(320px,1.35fr); gap:14px; min-height:290px; }
+    .candidate-list,.slot-list { display:flex; flex-direction:column; gap:8px; }
+    .label { color:var(--muted); font-size:.7rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+    .candidate,.slot {
+      display:flex; justify-content:space-between; gap:10px; padding:10px 12px;
+      border:1px solid var(--line); border-radius:12px; background:var(--surface-2);
+      font:750 .78rem var(--mono);
+    }
+    .candidate span:last-child,.slot span:last-child { color:var(--muted); font:.74rem var(--sans); }
+    .candidate[data-status="running"] { border-color:var(--green); }
+    .candidate[data-status="waiting"] { border-color:var(--amber); }
+    .candidate[data-status="skipped"],.candidate[data-status="stale"] { border-color:var(--red); }
+    .slots {
+      padding:14px; border:1px solid var(--violet); border-radius:var(--radius);
+      background:radial-gradient(circle at 100% 0,color-mix(in srgb,var(--violet) 18%,transparent),transparent 55%),var(--surface-2);
+    }
+    .slot { min-height:48px; align-items:center; }
+    .slot.is-active { border-color:var(--cyan); background:color-mix(in srgb,var(--cyan) 8%,var(--surface-2)); }
+    .state-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
+    .state { padding:10px; border-radius:10px; background:var(--surface-3); text-align:center; }
+    .state span { display:block; color:var(--muted); font-size:.68rem; }
+    .state strong { color:var(--cyan); font:800 1.05rem var(--mono); }
+    .controls { display:grid; grid-template-columns:repeat(4,1fr) auto; gap:10px; align-items:end; margin-top:16px; padding-top:16px; border-top:1px solid var(--line); }
+    .range { display:grid; gap:5px; color:var(--muted); font-size:.73rem; font-weight:700; }
+    .range output { color:var(--text); font-family:var(--mono); }
+    input[type="range"] { width:100%; accent-color:var(--violet); }
+    .transport button { min-width:44px; padding:0 10px; border-radius:12px; font-weight:800; }
+    .clock { display:flex; justify-content:space-between; gap:10px; margin-top:12px; padding:10px 12px; border-radius:11px; background:var(--surface-2); font:.75rem var(--mono); }
+    .clock strong { color:var(--cyan); }
+    .events { margin-top:18px; border-top:1px solid var(--line); }
+    .events h3 { margin:16px 0 8px; font-size:.92rem; }
+    table { width:100%; border-collapse:collapse; font-size:.72rem; }
+    th { color:var(--muted); text-align:left; font-size:.64rem; text-transform:uppercase; }
+    th,td { padding:7px 5px; }
+    td { border-top:1px solid var(--line); font-family:var(--mono); }
+    .lesson-panel { min-height:720px; }
+    .lesson { display:none; padding:26px; }
+    .lesson.is-active { display:block; }
+    .kicker { margin:0 0 8px; color:var(--blue); font-size:.74rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    .lesson > p { color:var(--muted); }
+    .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+    .concept,.callout { padding:14px; border:1px solid var(--line); border-radius:14px; background:var(--surface-2); }
+    .concept strong { display:block; margin-bottom:6px; }
+    .concept p,.callout p { margin:0; color:var(--muted); font-size:.87rem; }
+    .callout { margin-top:16px; border-color:var(--amber); }
+    .callout strong { color:var(--amber); }
+    .callout.danger { border-color:var(--red); }
+    .callout.danger strong { color:var(--red); }
+    pre { margin:14px 0 0; padding:16px; overflow-x:auto; border-radius:14px; color:var(--code-text); background:var(--code); font-size:.77rem; line-height:1.65; }
+    .sources { display:grid; gap:8px; padding:0; list-style:none; }
+    .sources a { display:flex; justify-content:space-between; padding:10px 12px; border:1px solid var(--line); border-radius:10px; color:var(--text); background:var(--surface-2); text-decoration:none; font:.74rem var(--mono); }
+    .status { min-height:24px; margin:12px 0 0; color:var(--muted); font-size:.78rem; }
+    @media(max-width:1160px) { .hero,.workspace{grid-template-columns:1fr}.lesson-panel{min-height:0} }
+    @media(max-width:760px) {
+      .brand span:last-child{display:none}.page{width:calc(100% - 20px);padding-top:34px}
+      .step-nav{grid-template-columns:1fr 1fr}.step:last-child{grid-column:1/-1}
+      .stage,.model-strip{grid-template-columns:1fr}.arrow{transform:rotate(90deg);text-align:center}
+      .controls,.grid{grid-template-columns:1fr}.lesson{padding:20px 16px}table{display:block;overflow-x:auto}
+    }
+    @media(prefers-reduced-motion:reduce) {
+      *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}
+    }
+  </style>
+</head>
+<body data-design-baseline="ed346a14bf223b0eb456198fdee617b608795b54" data-release-ref="0.4.0" data-release-commit="17ab7f872c1f96318c73d3580729cac20a67e017">
+  <header class="topbar">
+    <a class="brand" href="https://github.com/bluetape4k/bluetape4k-leader"><span class="mark">L</span><span>bluetape4k · leader</span></a>
+    <div class="actions">
+      <a class="pill" href="./2026-07-30-leader-elector-visual-companion.ko.html">단일 Leader 상세 모델</a>
+      <a class="pill" href="./2026-07-30-leader-group-elector-visual-companion.html" lang="en">EN</a>
+      <div class="themes" aria-label="색상 테마">
+        <button class="theme" type="button" data-theme-choice="auto" aria-pressed="true">자동</button>
+        <button class="theme" type="button" data-theme-choice="light" aria-pressed="false">밝게</button>
+        <button class="theme" type="button" data-theme-choice="dark" aria-pressed="false">어둡게</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero" aria-labelledby="title">
+      <div>
+        <p class="eyebrow">Redis · Lettuce · 차이 중심 안내서</p>
+        <h1 id="title">Leader 1 → N<br>독립 슬롯.</h1>
+        <p class="lead"><code>LeaderGroupElector</code>는 token과 lease 모델을 그대로 두고 경계 하나만 바꿉니다. 최대 <code>maxLeaders</code>개의 후보가 독립적인 slot token을 소유할 수 있습니다.</p>
+      </div>
+      <aside class="warning">
+        <strong>중요: 선출은 작업 분배가 아닙니다.</strong>
+        <p>그룹 슬롯은 동시 실행 수만 제한합니다. 작업을 고유하게 분배하지 않으므로 queue, partition 또는 claim table이 별도로 필요합니다. 즉, <span lang="en">does not assign unique work</span>입니다.</p>
+      </aside>
+    </section>
+
+    <nav class="step-nav" aria-label="학습 단계">
+      <button class="step" data-step="model" type="button" aria-pressed="true"><span class="num">01</span><span>차이 모델</span></button>
+      <button class="step" data-step="settings" type="button" aria-pressed="false"><span class="num">02</span><span>용량 설정</span></button>
+      <button class="step" data-step="direct-api" type="button" aria-pressed="false"><span class="num">03</span><span>직접 API</span></button>
+      <button class="step" data-step="spring" type="button" aria-pressed="false"><span class="num">04</span><span>Spring</span></button>
+      <button class="step" data-step="recovery" type="button" aria-pressed="false"><span class="num">05</span><span>만료와 회복</span></button>
+    </nav>
+
+    <div class="workspace">
+      <article class="panel" aria-labelledby="simulation-title">
+        <header class="panel-head">
+          <div><h2 id="simulation-title">슬롯 용량 시뮬레이션</h2><p>동기식 모델 · 결정적 tick · 외부 요청 없음</p></div>
+          <span class="pill">Lettuce</span>
+        </header>
+        <div class="sim">
+          <div class="scenario-bar" aria-label="시나리오">
+            <button class="scenario" data-scenario="capacity" type="button" aria-pressed="true">용량 내 진입</button>
+            <button class="scenario" data-scenario="saturation" type="button" aria-pressed="false">그룹 포화</button>
+            <button class="scenario" data-scenario="expiry" type="button" aria-pressed="false">만료 후 진입</button>
+          </div>
+          <div class="model-strip">
+            <div class="model-card"><span class="label">LeaderElector</span><strong>1 lock → 1</strong></div>
+            <div class="arrow">→</div>
+            <div class="model-card"><span class="label">LeaderGroupElector</span><strong>1 group → N occupied slots</strong></div>
+          </div>
+          <div class="stage">
+            <div id="candidates" class="candidate-list"></div>
+            <div class="slots">
+              <span class="label">Redis group slots · token + TTL</span>
+              <div id="slots" class="slot-list"></div>
+              <div class="state-grid">
+                <div class="state" data-state-field="activeCount"><span>activeCount</span><strong id="active-count">0</strong></div>
+                <div class="state" data-state-field="availableSlots"><span>availableSlots</span><strong id="available-slots">0</strong></div>
+                <div class="state" data-state-field="isFull"><span>isFull</span><strong id="is-full">false</strong></div>
+              </div>
+            </div>
+          </div>
+          <div class="controls">
+            <label class="range" data-control="candidate-count"><span>후보 수 · <output id="candidate-output">4</output></span><input id="candidate-count" type="range" min="2" max="6" step="1" value="4" aria-label="후보 수"></label>
+            <label class="range" data-control="max-leaders"><span>maxLeaders · <output id="max-output">3</output></span><input id="max-leaders" type="range" min="1" max="4" step="1" value="3" aria-label="최대 리더 수"></label>
+            <label class="range" data-control="action-time"><span>작업 시간 · <output id="action-output">8</output></span><input id="action-time" type="range" min="4" max="14" step="2" value="8" aria-label="작업 시간"></label>
+            <label class="range" data-control="lease-time"><span>leaseTime · <output id="lease-output">10</output></span><input id="lease-time" type="range" min="4" max="12" step="2" value="10" aria-label="리스 시간"></label>
+            <div class="transport"><button id="reset" type="button" aria-label="초기화">↺</button><button id="play" type="button" aria-label="재생" aria-pressed="false">▶</button><button id="next" type="button" aria-label="한 tick 진행">+1</button></div>
+          </div>
+          <div class="clock"><span>tick <strong id="tick">0</strong></span><span>waitTime <strong>2</strong></span><span>minLeaseTime <strong>1</strong></span><span>group autoExtend <strong>미제공</strong></span></div>
+          <p id="status" class="status" aria-live="polite"></p>
+          <div class="events"><h3>최근 이벤트</h3><table><thead><tr><th data-event-field="tick">tick</th><th data-event-field="candidate">후보</th><th data-event-field="operation">연산</th><th data-event-field="token">token</th><th data-event-field="ttl">TTL</th><th data-event-field="outcome">결과</th></tr></thead><tbody id="event-body"></tbody></table></div>
+        </div>
+      </article>
+
+      <article class="panel lesson-panel">
+        <section id="model" class="lesson is-active">
+          <p class="kicker">01 · 차이 모델</p><h2>같은 lease, 제한된 다중성</h2>
+          <p>상세 <code>LeaderElector</code> 자료에서 acquire, 소유권 token, TTL, 만료, release를 먼저 설명합니다. 여기서는 허용된 후보마다 독립적인 slot token이 생기는 차이만 봅니다.</p>
+          <div class="grid">
+            <div class="concept"><strong>하나의 논리 그룹</strong><p>모든 후보는 같은 lockName을 사용합니다.</p></div>
+            <div class="concept"><strong>N개의 독립 token</strong><p>활성 token은 최대 maxLeaders개입니다.</p></div>
+            <div class="concept"><strong>LeaderGroupState</strong><p>activeCount, availableSlots, isFull로 현재 용량을 읽습니다.</p></div>
+            <div class="concept"><strong>업무 partition 아님</strong><p>token은 소유권 증거이지 안정적인 shard 번호가 아닙니다.</p></div>
+          </div>
+        </section>
+        <section id="settings" class="lesson">
+          <p class="kicker">02 · 용량 설정</p><h2>동시성 상한을 명시합니다</h2>
+          <div class="grid">
+            <div class="concept"><strong>maxLeaders</strong><p>동시에 슬롯을 소유할 수 있는 후보 수입니다. 직접 API는 1 이상을 허용합니다.</p></div>
+            <div class="concept"><strong>waitTime</strong><p>그룹이 포화일 때 후보가 슬롯을 기다리는 상한입니다.</p></div>
+            <div class="concept"><strong>leaseTime</strong><p>각 slot token의 TTL입니다.</p></div>
+            <div class="concept"><strong>minLeaseTime</strong><p>짧은 작업도 최소 소유 시간을 지킵니다.</p></div>
+          </div>
+          <div class="callout"><strong>그룹 autoExtend 옵션은 없습니다.</strong><p>명시적인 active-lock 연장은 고급 계약으로 존재하지만 이 차이 중심 자료에서는 애니메이션하지 않습니다.</p></div>
+        </section>
+        <section id="direct-api" class="lesson">
+          <p class="kicker">03 · 직접 API</p><h2>슬롯을 얻은 호출만 실행됩니다</h2>
+          <pre><code>val options = LeaderGroupElectionOptions(
+    maxLeaders = 3,
+    waitTime = 2.seconds,
+    leaseTime = 10.seconds,
+    minLeaseTime = 1.second,
+)
+
+val result = groupElector.runIfLeader("batch-workers", options) {
+    processNextClaimedBatch()
+}</code></pre>
+          <div class="callout danger"><strong>처리 전에 claim 하십시오.</strong><p><code>processNextClaimedBatch()</code>에는 여전히 queue 또는 claim table이 필요합니다. 슬롯 허용 자체는 작업을 고유하게 분배하지 않습니다.</p></div>
+        </section>
+        <section id="spring" class="lesson">
+          <p class="kicker">04 · Spring Boot</p><h2>같은 경계를 선언적으로 적용합니다</h2>
+          <pre><code>@LeaderGroupElection(
+    lockName = "'tenant-rollup'",
+    maxLeaders = 3,
+    waitTime = "PT2S",
+    leaseTime = "PT10S",
+)
+fun processNextClaimedBatch(): BatchSummary? =
+    service.processNextClaimedBatch()</code></pre>
+          <p>직접 <code>LeaderGroupElectionOptions</code>는 <code>maxLeaders &gt;= 1</code>을 허용하지만 Spring 시작 검증은 <code>@LeaderGroupElection.maxLeaders &gt; 1</code>을 요구합니다. 단일 리더에는 <code>@LeaderElection</code>을 사용합니다.</p>
+          <div class="callout"><strong>반환형 경계</strong><p><code>T?</code>, <code>suspend T?</code>, <code>Mono&lt;T&gt;</code>를 지원합니다. 슬롯별 stream lease 연장이 정의되지 않아 <code>Flux&lt;T&gt;</code>와 Kotlin <code>Flow&lt;T&gt;</code>는 거부합니다.</p></div>
+        </section>
+        <section id="recovery" class="lesson">
+          <p class="kicker">05 · 만료와 회복</p><h2>만료된 슬롯은 나중 후보에게 열립니다</h2>
+          <p><strong>만료 후 진입</strong> 시나리오에서 작업 시간이 leaseTime보다 길면 기존 token의 TTL이 0이 됩니다. 그 token은 stale이며, 이후 후보가 새로운 token으로 빈 슬롯에 진입합니다.</p>
+          <pre><code>tick 6  slot-token-A-1  TTL 0  → expired
+tick 6  node-D          acquire → slot-token-D-3
+
+// 기존 token은 새 소유자의 슬롯을 release할 수 없습니다.</code></pre>
+          <div class="callout"><strong>멱등성과 fencing을 설계하십시오.</strong><p>리스 만료 뒤 이전 작업이 계속될 수 있으므로 부작용은 중복 실행을 견디거나 stale writer를 거부해야 합니다.</p></div>
+        </section>
+        <section id="sources" class="lesson">
+          <p class="kicker">고정 기준</p><h2>0.4.0 소스와 설계 근거</h2>
+          <ul class="sources">
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderGroupElector.kt"><span>LeaderGroupElector.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderGroupElectionOptions.kt"><span>LeaderGroupElectionOptions.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-core/src/main/kotlin/io/bluetape4k/leader/LeaderGroupState.kt"><span>LeaderGroupState.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceLeaderGroupElector.kt"><span>LettuceLeaderGroupElector.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/semaphore/LettuceSlotTokenGroup.kt"><span>LettuceSlotTokenGroup.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-core/src/main/kotlin/io/bluetape4k/leader/annotation/LeaderGroupElection.kt"><span>LeaderGroupElection.kt</span><span>↗</span></a></li>
+            <li><a href="https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/manual/ko/core/single-group-strategic.md"><span>single-group-strategic.md</span><span>↗</span></a></li>
+            <li><a href="./2026-07-30-leader-election-visual-companions-design.md"><span>승인된 설계 기준</span><span>↗</span></a></li>
+          </ul>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      const presets = {
+        capacity:{candidateCount:4,maxLeaders:3,actionTime:8,leaseTime:10,attempts:[0,0,1,9],description:'용량이 남아 있는 동안 세 후보가 진입합니다.'},
+        saturation:{candidateCount:5,maxLeaders:2,actionTime:8,leaseTime:10,attempts:[0,0,1,4,9],description:'그룹이 포화되고 한 후보가 대기 기한에 도달합니다.'},
+        expiry:{candidateCount:5,maxLeaders:2,actionTime:12,leaseTime:6,attempts:[0,0,1,6,9],description:'슬롯이 만료되고 나중 후보가 새 token으로 진입합니다.'},
+      };
+      const $ = (selector) => document.querySelector(selector);
+      const $$ = (selector) => [...document.querySelectorAll(selector)];
+      const el = {
+        candidates:$('#candidates'),slots:$('#slots'),active:$('#active-count'),available:$('#available-slots'),full:$('#is-full'),
+        tick:$('#tick'),status:$('#status'),events:$('#event-body'),play:$('#play'),candidateInput:$('#candidate-count'),
+        maxInput:$('#max-leaders'),actionInput:$('#action-time'),leaseInput:$('#lease-time'),candidateOutput:$('#candidate-output'),
+        maxOutput:$('#max-output'),actionOutput:$('#action-output'),leaseOutput:$('#lease-output'),
+      };
+      let timer;
+      let state;
+      const addEvent = (candidate,operation,token,ttl,outcome) => {
+        state.events.unshift({tick:state.tick,candidate,operation,token:token || '—',ttl:String(ttl),outcome});
+        state.events = state.events.slice(0,6);
+      };
+      const acquire = (candidate) => {
+        if(state.slots.length >= state.maxLeaders){candidate.status='waiting';addEvent(candidate.id,'tryAcquire',null,0,'group full');return;}
+        state.sequence += 1;
+        const token = `slot-token-${candidate.id.slice(-1)}-${state.sequence}`;
+        state.slots.push({candidate:candidate.id,token,acquiredAt:state.tick,expiresAt:state.tick+state.leaseTime});
+        candidate.status='running';
+        addEvent(candidate.id,'acquire',token,state.leaseTime,'admitted');
+      };
+      const process = () => {
+        for(const slot of [...state.slots]){
+          const candidate=state.candidates.find((item)=>item.id===slot.candidate);
+          if(state.tick >= slot.expiresAt){
+            state.slots=state.slots.filter((item)=>item!==slot);candidate.status='stale';
+            addEvent(candidate.id,'expire',slot.token,0,'slot available');
+          } else if(state.tick >= slot.acquiredAt+state.actionTime){
+            state.slots=state.slots.filter((item)=>item!==slot);candidate.status='done';
+            addEvent(candidate.id,'release',slot.token,slot.expiresAt-state.tick,'completed');
+          }
+        }
+        state.candidates.forEach((candidate,index)=>{
+          if(candidate.status==='queued' && state.tick>=state.attempts[index]) acquire(candidate);
+          else if(candidate.status==='waiting'){
+            if(state.slots.length<state.maxLeaders) acquire(candidate);
+            else if(state.tick>=state.attempts[index]+state.waitTime){candidate.status='skipped';addEvent(candidate.id,'runIfLeader',null,0,'skipped');}
+          }
+        });
+      };
+      const stop = () => {
+        clearInterval(timer); timer=undefined; state.playing=false; el.play.textContent='▶'; el.play.setAttribute('aria-pressed','false');
+      };
+      const reset = (name=state?.scenario || 'capacity') => {
+        stop();
+        const preset=presets[name];
+        for(const [input,value] of [[el.candidateInput,preset.candidateCount],[el.maxInput,preset.maxLeaders],[el.actionInput,preset.actionTime],[el.leaseInput,preset.leaseTime]]) input.value=String(value);
+        state={scenario:name,tick:0,playing:false,candidateCount:+el.candidateInput.value,maxLeaders:+el.maxInput.value,actionTime:+el.actionInput.value,leaseTime:+el.leaseInput.value,waitTime:2,
+          sequence:0,attempts:preset.attempts,candidates:Array.from({length:+el.candidateInput.value},(_,index)=>({id:`node-${String.fromCharCode(65+index)}`,status:'queued'})),slots:[],events:[]};
+        $$('.scenario').forEach((button)=>button.setAttribute('aria-pressed',String(button.dataset.scenario===name)));
+        process(); render(preset.description);
+      };
+      const advance = () => {
+        if(state.tick>=22){stop();return;}
+        state.tick += 1; process(); render(`${state.tick} tick까지 진행했습니다.`);
+      };
+      const render = (message) => {
+        const activeCount=state.slots.length;
+        const availableSlots=state.maxLeaders-activeCount;
+        const isFull=activeCount>=state.maxLeaders;
+        el.tick.textContent=String(state.tick); el.active.textContent=String(activeCount);
+        el.available.textContent=String(availableSlots); el.full.textContent=String(isFull); el.status.textContent=message;
+        el.candidateOutput.textContent=String(state.candidateCount);el.maxOutput.textContent=String(state.maxLeaders);
+        el.actionOutput.textContent=String(state.actionTime);el.leaseOutput.textContent=String(state.leaseTime);
+        el.candidates.replaceChildren(Object.assign(document.createElement('span'),{className:'label',textContent:'후보'}),...state.candidates.map((candidate)=>{
+          const card=document.createElement('div');card.className='candidate';card.dataset.status=candidate.status;
+          card.append(Object.assign(document.createElement('span'),{textContent:candidate.id}),Object.assign(document.createElement('span'),{textContent:candidate.status}));
+          return card;
+        }));
+        el.slots.replaceChildren(...Array.from({length:state.maxLeaders},(_,index)=>{
+          const slot=state.slots[index];const card=document.createElement('div');card.className=`slot${slot?' is-active':''}`;
+          const ttl=slot?Math.max(0,slot.expiresAt-state.tick):'—';
+          card.append(Object.assign(document.createElement('span'),{textContent:slot?slot.token:`slot-${index+1}`}),Object.assign(document.createElement('span'),{textContent:slot?`${slot.candidate} · TTL ${ttl}`:'사용 가능'}));
+          return card;
+        }));
+        el.events.replaceChildren(...state.events.map((event)=>{
+          const row=document.createElement('tr');
+          for(const value of [event.tick,event.candidate,event.operation,event.token,event.ttl,event.outcome]) row.append(Object.assign(document.createElement('td'),{textContent:String(value)}));
+          return row;
+        }));
+      };
+      $$('.step').forEach((button)=>button.addEventListener('click',()=>{
+        $$('.step').forEach((item)=>item.setAttribute('aria-pressed',String(item===button)));
+        $$('.lesson').forEach((lesson)=>lesson.classList.toggle('is-active',lesson.id===button.dataset.step));
+      }));
+      $$('.scenario').forEach((button)=>button.addEventListener('click',()=>reset(button.dataset.scenario)));
+      $$('.theme').forEach((button)=>button.addEventListener('click',()=>{
+        const choice=button.dataset.themeChoice;
+        localStorage.setItem('bluetape4k-leader-visual-theme',choice);
+        const dark=matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme=choice==='auto'?(dark?'dark':'light'):choice;
+        document.documentElement.dataset.themeMode=choice;
+        $$('.theme').forEach((item)=>item.setAttribute('aria-pressed',String(item===button)));
+      }));
+      [el.candidateInput,el.maxInput,el.actionInput,el.leaseInput].forEach((input)=>input.addEventListener('input',()=>{
+        const preset=presets[state.scenario];preset.candidateCount=+el.candidateInput.value;preset.maxLeaders=+el.maxInput.value;
+        preset.actionTime=+el.actionInput.value;preset.leaseTime=+el.leaseInput.value;reset(state.scenario);
+      }));
+      $('#reset').addEventListener('click',()=>reset());
+      $('#next').addEventListener('click',advance);
+      el.play.addEventListener('click',()=>{
+        if(state.playing){stop();return;}
+        state.playing=true;el.play.textContent='Ⅱ';el.play.setAttribute('aria-pressed','true');timer=setInterval(advance,700);
+      });
+      const mode=document.documentElement.dataset.themeMode;
+      $$('.theme').forEach((button)=>button.setAttribute('aria-pressed',String(button.dataset.themeChoice===mode)));
+      reset('capacity');
+    })();
+  </script>
+</body>
+</html>
