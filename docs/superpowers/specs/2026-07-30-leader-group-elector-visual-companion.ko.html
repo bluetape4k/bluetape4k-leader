@@ -266,24 +266,28 @@
         </section>
         <section id="direct-api" class="lesson">
           <p class="kicker">03 · 직접 API</p><h2>슬롯을 얻은 호출만 실행됩니다</h2>
-          <pre><code>val options = LeaderGroupElectionOptions(
-    maxLeaders = 3,
-    waitTime = 2.seconds,
-    leaseTime = 10.seconds,
-    minLeaseTime = 1.second,
+          <pre><code>val group = connection.leaderGroupElection(
+    LeaderGroupElectionOptions(
+        maxLeaders = 3,
+        waitTime = 500.milliseconds,
+        leaseTime = 10.seconds,
+    )
 )
 
-val result = groupElector.runIfLeader("batch-workers", options) {
+val value = group.runIfLeader("thumbnail-workers") {
     processNextClaimedBatch()
-}</code></pre>
+}
+
+val state: LeaderGroupState =
+    group.state("thumbnail-workers")</code></pre>
           <div class="callout danger"><strong>처리 전에 claim 하십시오.</strong><p><code>processNextClaimedBatch()</code>에는 여전히 queue 또는 claim table이 필요합니다. 슬롯 허용 자체는 작업을 고유하게 분배하지 않습니다.</p></div>
         </section>
         <section id="spring" class="lesson">
           <p class="kicker">04 · Spring Boot</p><h2>같은 경계를 선언적으로 적용합니다</h2>
           <pre><code>@LeaderGroupElection(
-    lockName = "'tenant-rollup'",
+    name = "thumbnail-workers",
     maxLeaders = 3,
-    waitTime = "PT2S",
+    waitTime = "PT0.5S",
     leaseTime = "PT10S",
 )
 fun processNextClaimedBatch(): BatchSummary? =
