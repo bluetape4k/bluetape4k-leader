@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongMethod:ZooKeeperLeaderElector.kt$ZooKeeperLeaderElector$override fun &lt;T> runIfLeader(lockName: String, action: () -> T): T?</ID>
+    <ID>LongMethod:ZooKeeperLeaderGroupElector.kt$ZooKeeperLeaderGroupElector$override fun &lt;T> runIfLeader(lockName: String, action: () -> T): T?</ID>
+    <ID>LongMethod:ZooKeeperSuspendLeaderElector.kt$ZooKeeperSuspendLeaderElector$private suspend fun &lt;T> runWithOwnerDispatcher( lockName: String, ownerDispatcher: ExecutorCoroutineDispatcher, action: suspend () -> T, ): T?</ID>
+    <ID>LongMethod:ZooKeeperSuspendLeaderGroupElector.kt$ZooKeeperSuspendLeaderGroupElector$override suspend fun &lt;T> runIfLeader(lockName: String, action: suspend () -> T): T?</ID>
+    <ID>ReturnCount:ZooKeeperLeaderElector.kt$ZooKeeperLeaderElector$override fun &lt;T> runIfLeader(lockName: String, action: () -> T): T?</ID>
+    <ID>ReturnCount:ZooKeeperLeaderGroupElector.kt$ZooKeeperLeaderGroupElector$override fun &lt;T> runIfLeader(lockName: String, action: () -> T): T?</ID>
+    <ID>ReturnCount:ZooKeeperOwnershipProbe.kt$ZooKeeperOwnershipProbe$fun isLiveNode(client: CuratorFramework, nodePath: String): Boolean</ID>
+    <ID>ReturnCount:ZooKeeperSuspendLeaderElector.kt$ZooKeeperSuspendLeaderElector$private suspend fun &lt;T> runWithOwnerDispatcher( lockName: String, ownerDispatcher: ExecutorCoroutineDispatcher, action: suspend () -> T, ): T?</ID>
+    <ID>ReturnCount:ZooKeeperSuspendLeaderGroupElector.kt$ZooKeeperSuspendLeaderGroupElector$override suspend fun &lt;T> runIfLeader(lockName: String, action: suspend () -> T): T?</ID>
+    <ID>ThrowingExceptionFromFinally:ZooKeeperSuspendLeaderElector.kt$ZooKeeperSuspendLeaderElector$throw e</ID>
+    <ID>ThrowingExceptionFromFinally:ZooKeeperSuspendLeaderGroupElector.kt$ZooKeeperSuspendLeaderGroupElector$throw e</ID>
+    <ID>TooGenericExceptionCaught:ZooKeeperLeaderElector.kt$ZooKeeperLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ZooKeeperLeaderGroupElector.kt$ZooKeeperLeaderGroupElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ZooKeeperLockExtendDelegate.kt$ZooKeeperLockExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ZooKeeperSlotExtendDelegate.kt$ZooKeeperSlotExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ZooKeeperSuspendLeaderElector.kt$ZooKeeperSuspendLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ZooKeeperSuspendLeaderGroupElector.kt$ZooKeeperSuspendLeaderGroupElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ZooKeeperSuspendLockExtendDelegate.kt$ZooKeeperSuspendLockExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ZooKeeperSuspendSlotExtendDelegate.kt$ZooKeeperSuspendSlotExtendDelegate$e: Exception</ID>
+  </CurrentIssues>
+</SmellBaseline>

@@ -18,6 +18,8 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executor
 
 class LeaderElectionReadinessHealthIndicatorTest {
 
@@ -29,6 +31,7 @@ class LeaderElectionReadinessHealthIndicatorTest {
     @BeforeEach
     fun clearElector() {
         clearMocks(elector)
+        every { elector.supportsAuditLeaderState } returns true
     }
 
     @Test
@@ -37,6 +40,9 @@ class LeaderElectionReadinessHealthIndicatorTest {
 
         health.status shouldBeEqualTo Status.UP
         health.details shouldBeEqualTo mapOf(
+            "backend" to "unknown",
+            "stateProviderBean" to "",
+            "stateSupported" to true,
             "knownLocks" to 0,
             "occupiedLocks" to 0,
             "unknownLeaseExpiry" to 0,
@@ -44,6 +50,18 @@ class LeaderElectionReadinessHealthIndicatorTest {
             "expiringLockNames" to emptyList<String>(),
             "failedLockNames" to emptyList<String>(),
         )
+    }
+
+    @Test
+    fun `unsupported state provider is UNKNOWN instead of false UP`() {
+        val health = LeaderElectionReadinessHealthIndicator(
+            leaderElector = DefaultStateLeaderElector(),
+            registry = LeaderElectionStatusRegistry(listOf("unsupported-job")),
+            leaseWarningThreshold = warningThreshold,
+            clock = clock,
+        ).health()
+
+        health.status shouldBeEqualTo Status.UNKNOWN
     }
 
     @Test
@@ -119,4 +137,14 @@ class LeaderElectionReadinessHealthIndicatorTest {
             lockName,
             LeaderLease(auditLeaderId = "node-1", leaseUntil = leaseUntil),
         )
+
+    private class DefaultStateLeaderElector : LeaderElector {
+        override fun <T> runIfLeader(lockName: String, action: () -> T): T? = action()
+
+        override fun <T> runAsyncIfLeader(
+            lockName: String,
+            executor: Executor,
+            action: () -> CompletableFuture<T>,
+        ): CompletableFuture<T?> = action().thenApply { it }
+    }
 }

@@ -170,6 +170,27 @@ jobs:
           gradle-version: wrapper
           cache-read-only: true
 
+      - name: Verify published binary compatibility
+        shell: bash
+        env:
+          VERSION: ${{ needs.resolve-version.outputs.version }}
+        run: |
+          set -euo pipefail
+          previous_tag=$(git tag --list --sort=-v:refname \
+            | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$' \
+            | grep -vx "$VERSION" \
+            | head -1 || true)
+          if [[ -z "$previous_tag" ]]; then
+            echo "::error::Could not resolve a published binary-compatibility baseline tag"
+            exit 1
+          fi
+          baseline_version="${previous_tag#v}"
+          echo "Comparing $VERSION against published baseline $baseline_version ($previous_tag)"
+          ABI_BASE_VERSION="$baseline_version" \
+            ABI_CURRENT_VERSION="$VERSION" \
+            ./gradlew checkBinaryCompatibility \
+              --no-daemon --no-configuration-cache --no-build-cache --console=plain
+
       - name: Diagnose signing inputs
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnoseSigning }}
         shell: bash

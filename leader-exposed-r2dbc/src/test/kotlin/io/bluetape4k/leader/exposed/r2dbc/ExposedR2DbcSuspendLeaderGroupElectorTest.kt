@@ -7,9 +7,9 @@ import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcGroupLock
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.delay
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeInRange
@@ -23,7 +23,6 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration.Companion.milliseconds
 
 class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest() {
 
@@ -173,20 +172,68 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
             ),
         )
         val election = ExposedR2DbcSuspendLeaderGroupElector(db, options)
+        val acquired = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
 
         val holdJob = async {
             election.runIfLeader(lockName) {
-                delay(500.milliseconds)
+                acquired.complete(Unit)
+                release.await()
                 "held"
             }
         }
-        delay(100.milliseconds)
+        acquired.await()
 
         val count = election.activeCountSuspend(lockName)
         log.debug { "활성 슬롯 수: $count" }
         count shouldBeGreaterOrEqualTo 1
 
+        release.complete(Unit)
         holdJob.await()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `서로 다른 lockName의 활성 상태는 격리된다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        val lockA = randomName()
+        val lockB = randomName()
+        val election = makeGroupElection(testDB)
+        val acquired = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+
+        val holdJob = async {
+            election.runIfLeader(lockA) {
+                acquired.complete(Unit)
+                release.await()
+            }
+        }
+        acquired.await()
+
+        try {
+            election.activeCount(lockA) shouldBeEqualTo 1
+            election.state(lockA).activeCount shouldBeEqualTo 1
+            election.availableSlots(lockA) shouldBeEqualTo maxLeaders - 1
+
+            election.activeCount(lockB) shouldBeEqualTo 0
+            election.state(lockB).activeCount shouldBeEqualTo 0
+            election.availableSlots(lockB) shouldBeEqualTo maxLeaders
+
+            election.activeCountSuspend(lockB) shouldBeEqualTo 0
+            election.activeCount(lockA) shouldBeEqualTo 1
+            election.state(lockA).activeCount shouldBeEqualTo 1
+
+            election.activeCountSuspend(lockA) shouldBeEqualTo 1
+            election.activeCount(lockB) shouldBeEqualTo 0
+            election.state(lockB).activeCount shouldBeEqualTo 0
+        } finally {
+            release.complete(Unit)
+            holdJob.await()
+        }
+
+        election.activeCount(lockA) shouldBeEqualTo 0
+        election.activeCount(lockB) shouldBeEqualTo 0
     }
 
     @ParameterizedTest
@@ -198,11 +245,14 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
         val concurrent = AtomicInteger(0)
         val maxConcurrent = AtomicInteger(0)
         val executed = AtomicInteger(0)
+        val acquired = AtomicInteger(0)
+        val allLeadersAcquired = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
 
         val options = ExposedR2dbcLeaderGroupElectionOptions(
             leaderGroupOptions = LeaderGroupElectionOptions(
                 maxLeaders = maxLeaders,
-                waitTime = 500.milliseconds,
+                waitTime = 5.seconds,
                 leaseTime = 5.seconds,
             ),
             retryStrategy = RetryStrategy.Fixed(fixedMs = 10L),
@@ -214,12 +264,17 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
                 election.runIfLeader(lockName) {
                     val current = concurrent.incrementAndGet()
                     maxConcurrent.updateAndGet { max -> maxOf(max, current) }
-                    delay(60.milliseconds)
+                    if (acquired.incrementAndGet() == maxLeaders) {
+                        allLeadersAcquired.complete(Unit)
+                    }
+                    release.await()
                     concurrent.decrementAndGet()
                     executed.incrementAndGet()
                 }
             }
         }
+        allLeadersAcquired.await()
+        release.complete(Unit)
         jobs.awaitAll()
 
         log.debug { "최대 동시 실행: ${maxConcurrent.get()}, 총 실행 횟수: ${executed.get()}" }

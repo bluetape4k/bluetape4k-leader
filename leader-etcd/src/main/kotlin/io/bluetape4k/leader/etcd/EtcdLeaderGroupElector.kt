@@ -173,14 +173,19 @@ class EtcdLeaderGroupElector private constructor(
         return null
     }
 
+    // Each slot acquisition must preserve distinct cleanup behavior for timeout,
+    // cancellation, interruption, and backend failures.
+    @Suppress("ThrowsCount", "ReturnCount")
     private fun acquireSlot(lockName: String, slot: Int, timeoutMs: Long): EtcdLeaseHandle? {
         val slotDeadline = EtcdAcquisitionDeadline.fromNow(timeoutMs.milliseconds)
         val ttlSeconds = EtcdLeaseTime.ttlSeconds(options.leaderGroupOptions.leaseTime)
         val leaseId = try {
             lockClient.grantLease(ttlSeconds).get(slotDeadline.remainingMillis(), TimeUnit.MILLISECONDS)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
-            return null
+            throw e
         } catch (e: TimeoutException) {
             log.debug { "etcd group lease grant timed out. lockName=$lockName, slot=$slot" }
             return null
@@ -193,12 +198,15 @@ class EtcdLeaderGroupElector private constructor(
         val lockFuture = lockClient.lock(lockKey, leaseId)
         val ownershipKey = try {
             lockFuture.get(slotDeadline.remainingMillis(), TimeUnit.MILLISECONDS)
+        } catch (e: CancellationException) {
+            revokeLease(leaseId)
+            throw e
         } catch (e: InterruptedException) {
-            Thread.currentThread().interrupt()
             scheduleLateCleanup(lockFuture, leaseId)
             lockFuture.cancel(true)
             revokeLease(leaseId)
-            return null
+            Thread.currentThread().interrupt()
+            throw e
         } catch (e: TimeoutException) {
             scheduleLateCleanup(lockFuture, leaseId)
             lockFuture.cancel(true)
@@ -220,15 +228,19 @@ class EtcdLeaderGroupElector private constructor(
 
     private fun releaseAfterMinLease(handle: EtcdLeaseHandle) {
         val remaining = remainingMinLeaseTime(handle.acquiredAtNanos, options.leaderGroupOptions.minLeaseTime)
+        var interruption: InterruptedException? = null
         if (remaining > Duration.ZERO) {
-            runCatching { Thread.sleep(remaining.inWholeMilliseconds.coerceAtLeast(1L)) }
-                .onFailure { e ->
-                    if (e is InterruptedException) {
-                        Thread.currentThread().interrupt()
-                    }
-                }
+            try {
+                Thread.sleep(remaining.inWholeMilliseconds.coerceAtLeast(1L))
+            } catch (e: InterruptedException) {
+                interruption = e
+            }
         }
         release(handle)
+        interruption?.let {
+            Thread.currentThread().interrupt()
+            throw it
+        }
     }
 
     private fun release(handle: EtcdLeaseHandle) {

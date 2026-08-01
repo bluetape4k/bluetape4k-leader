@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.spring.observability
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
@@ -9,6 +10,7 @@ import io.bluetape4k.leader.LeaderElectionEventPublisher
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderState
+import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -80,6 +82,21 @@ class LeaderElectionObservabilityAutoConfigurationTest {
     }
 
     @Test
+    fun `actuator endpoint stays absent when no state provider is registered`() {
+        ApplicationContextRunner()
+            .withConfiguration(
+                AutoConfigurations.of(
+                    LeaderElectionObservabilityAutoConfiguration::class.java,
+                    LeaderElectionActuatorAutoConfiguration::class.java,
+                )
+            )
+            .withPropertyValues("management.endpoint.leaderElection.enabled=true")
+            .run { ctx ->
+                ctx.getBeansOfType<LeaderElectionStatusEndpoint>().isEmpty().shouldBeTrue()
+            }
+    }
+
+    @Test
     fun `actuator endpoint returns known lock response shape`() {
         runner
             .withPropertyValues(
@@ -95,6 +112,77 @@ class LeaderElectionObservabilityAutoConfigurationTest {
                 response.locks[0].status shouldBeEqualTo "Occupied"
                 response.locks[0].leaderId shouldBeEqualTo "node-1"
                 response.locks[0].leaseExpiry shouldBeEqualTo TestLeaderElector.LeaseUntil
+                response.backend shouldBeEqualTo "test"
+                response.stateProviderBean shouldBeEqualTo "testLeaderElector"
+                response.stateSupported.shouldBeTrue()
+            }
+    }
+
+    @Test
+    fun `actuator selects non-local suspend state provider over local blocking fallback`() {
+        ApplicationContextRunner()
+            .withConfiguration(
+                AutoConfigurations.of(
+                    LeaderElectionObservabilityAutoConfiguration::class.java,
+                    LeaderElectionActuatorAutoConfiguration::class.java,
+                )
+            )
+            .withUserConfiguration(LocalAndSuspendElectorConfig::class.java)
+            .withPropertyValues(
+                "management.endpoint.leaderElection.enabled=true",
+                "bluetape4k.leader.observability.lock-names[0]=batch-job",
+            )
+            .run { ctx ->
+                val response = ctx.getBean<LeaderElectionStatusEndpoint>().leaderElectionStatus()
+
+                response.locks.single().status shouldBeEqualTo "Occupied"
+                response.locks.single().leaderId shouldBeEqualTo "r2dbc-node"
+            }
+    }
+
+    @Test
+    fun `unsupported suspend backend is represented explicitly`() {
+        ApplicationContextRunner()
+            .withConfiguration(
+                AutoConfigurations.of(
+                    LeaderElectionObservabilityAutoConfiguration::class.java,
+                    LeaderElectionActuatorAutoConfiguration::class.java,
+                )
+            )
+            .withUserConfiguration(UnsupportedSuspendElectorConfig::class.java)
+            .withPropertyValues(
+                "management.endpoint.leaderElection.enabled=true",
+                "bluetape4k.leader.observability.lock-names[0]=batch-job",
+            )
+            .run { ctx ->
+                val response = ctx.getBean<LeaderElectionStatusEndpoint>().leaderElectionStatus()
+
+                response.backend shouldBeEqualTo "exposed-r2dbc"
+                response.stateProviderBean shouldBeEqualTo "exposedR2dbcSuspendLeaderElector"
+                response.stateSupported.shouldBeFalse()
+                response.locks.single().status shouldBeEqualTo "Unsupported"
+            }
+    }
+
+    @Test
+    fun `explicit state provider selects one backend in multi-backend context`() {
+        ApplicationContextRunner()
+            .withConfiguration(
+                AutoConfigurations.of(
+                    LeaderElectionObservabilityAutoConfiguration::class.java,
+                    LeaderElectionActuatorAutoConfiguration::class.java,
+                )
+            )
+            .withUserConfiguration(MultipleElectorConfig::class.java)
+            .withPropertyValues(
+                "management.endpoint.leaderElection.enabled=true",
+                "bluetape4k.leader.observability.state-provider-bean=backendBLeaderElector",
+                "bluetape4k.leader.observability.lock-names[0]=batch-job",
+            )
+            .run { ctx ->
+                val response = ctx.getBean<LeaderElectionStatusEndpoint>().leaderElectionStatus()
+
+                response.locks.single().leaderId shouldBeEqualTo "backend-b"
             }
     }
 
@@ -145,7 +233,36 @@ class LeaderElectionObservabilityAutoConfigurationTest {
             TestLeaderElector()
     }
 
-    private class TestLeaderElector : LeaderElector {
+    @Configuration(proxyBeanMethods = false)
+    class LocalAndSuspendElectorConfig {
+        @Bean("localLeaderElector")
+        fun localLeaderElector(): LeaderElector = TestLeaderElector("local-node")
+
+        @Bean("exposedR2dbcSuspendLeaderElector")
+        fun exposedR2dbcSuspendLeaderElector(): SuspendLeaderElector = TestSuspendLeaderElector("r2dbc-node")
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class MultipleElectorConfig {
+        @Bean("backendALeaderElector")
+        fun backendALeaderElector(): LeaderElector = TestLeaderElector("backend-a")
+
+        @Bean("backendBLeaderElector")
+        fun backendBLeaderElector(): LeaderElector = TestLeaderElector("backend-b")
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class UnsupportedSuspendElectorConfig {
+        @Bean("localLeaderElector")
+        fun localLeaderElector(): LeaderElector = TestLeaderElector("local-node")
+
+        @Bean("exposedR2dbcSuspendLeaderElector")
+        fun exposedR2dbcSuspendLeaderElector(): SuspendLeaderElector = UnsupportedSuspendLeaderElector()
+    }
+
+    private class TestLeaderElector(
+        private val leaderId: String = "node-1",
+    ) : LeaderElector {
 
         companion object {
             val LeaseUntil: Instant = Instant.parse("2026-05-16T00:00:00Z")
@@ -166,12 +283,31 @@ class LeaderElectionObservabilityAutoConfigurationTest {
                 LeaderState.occupied(
                     lockName = lockName,
                     leader = LeaderLease(
-                        auditLeaderId = "node-1",
+                        auditLeaderId = leaderId,
                         leaseUntil = LeaseUntil,
                     )
                 )
             } else {
                 LeaderState.empty(lockName)
             }
+
+        override val supportsAuditLeaderState: Boolean = true
+    }
+
+    private class TestSuspendLeaderElector(
+        private val leaderId: String,
+    ) : SuspendLeaderElector {
+        override val supportsAuditLeaderState: Boolean = true
+
+        override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = action()
+
+        override fun state(lockName: String): LeaderState = LeaderState.occupied(
+            lockName,
+            LeaderLease(auditLeaderId = leaderId, leaseUntil = TestLeaderElector.LeaseUntil),
+        )
+    }
+
+    private class UnsupportedSuspendLeaderElector : SuspendLeaderElector {
+        override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = action()
     }
 }

@@ -1,9 +1,8 @@
 package io.bluetape4k.leader.spring.diagnostics
 
-import io.bluetape4k.leader.LeaderElector
-import io.bluetape4k.leader.local.LocalLeaderElector
 import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
+import io.bluetape4k.leader.spring.internal.LeaderElectionStateSelector
 import io.bluetape4k.logging.KLogging
 import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
@@ -11,7 +10,8 @@ import org.springframework.core.env.Environment
 import java.io.Serializable
 
 /**
- * `LeaderStartupDiagnostics`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
+ * `LeaderStartupDiagnostics`는 Spring Boot integration의 leader election,
+ * route guard, metric, example workflow 계약을 설명합니다.
  *
  * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  * @property beanFactory Spring Boot integration 계약에서 사용하는 속성입니다.
@@ -25,6 +25,11 @@ class LeaderStartupDiagnostics(
     private val leaderProperties: LeaderProperties,
     private val aopProperties: LeaderAopProperties,
 ) : SmartInitializingSingleton {
+
+    private val stateSelector = LeaderElectionStateSelector(
+        beanFactory,
+        leaderProperties.observability.stateProviderBean,
+    )
 
     @Volatile
     private var report: Report? = null
@@ -58,27 +63,37 @@ class LeaderStartupDiagnostics(
         report
 
     private fun inspect(): Report {
-        val leaderElectorBeans = beanFactory.getBeanNamesForType(LeaderElector::class.java, true, false)
-            .sorted()
-        val nonLocalLeaderElectorBeans = leaderElectorBeans
-            .filterNot { beanName -> isLocalLeaderElector(beanName) }
-        val activeBackends = if (nonLocalLeaderElectorBeans.isEmpty() && leaderElectorBeans.isNotEmpty()) {
-            listOf("local")
-        } else {
-            nonLocalLeaderElectorBeans.map(::backendNameFromBeanName)
+        val stateProviderCandidates = stateSelector.candidates()
+        val stateProviderBeans = stateProviderCandidates.map(LeaderElectionStateSelector.Candidate::beanName)
+        val leaderElectorBeans = stateProviderCandidates.filter(LeaderElectionStateSelector.Candidate::blocking)
+            .map(LeaderElectionStateSelector.Candidate::beanName)
+        val activeBackends = stateProviderCandidates.map(LeaderElectionStateSelector.Candidate::backendName).distinct()
+        val selectedStateProvider = when {
+            leaderProperties.observability.stateProviderBean.isNotBlank() ->
+                // An explicit but invalid bean name is a configuration error; do not hide it.
+                stateSelector.selectedOrNull()
+
+            activeBackends.size > 1 ->
+                // Multiple backends without an explicit choice remains a reportable warning.
+                null
+
+            else ->
+                // A single backend must still surface provider creation/lookup failures.
+                stateSelector.selectedOrNull()
         }
         val actuatorEndpoint = if (isManagementEndpointEnabled()) "enabled" else "disabled"
         val webExposure = managementWebExposure()
         val warnings = buildList {
-            if (leaderElectorBeans.isEmpty()) {
-                add(Warning(WarningCode.NO_LEADER_ELECTOR, "No LeaderElector bean is registered."))
+            if (stateProviderBeans.isEmpty()) {
+                add(Warning(WarningCode.NO_LEADER_ELECTOR, "No LeaderElectionState bean is registered."))
             }
-            if (nonLocalLeaderElectorBeans.size > 1) {
+            if (activeBackends.size > 1) {
                 add(
                     Warning(
                         WarningCode.MULTIPLE_NON_LOCAL_BACKENDS,
-                        "Multiple non-local LeaderElector beans are active: ${nonLocalLeaderElectorBeans.joinToString()}. " +
-                                "Use annotation bean selection or @LeaderElectionBackend.",
+                        "Multiple non-local leader election backends are active: ${activeBackends.joinToString()}. " +
+                                "Use annotation bean selection or set " +
+                                "bluetape4k.leader.observability.state-provider-bean for operational state.",
                     )
                 )
             }
@@ -131,24 +146,15 @@ class LeaderStartupDiagnostics(
                 emptyList()
             },
             leaderElectorCount = leaderElectorBeans.size,
+            stateProviderBeans = if (leaderProperties.diagnostics.includeBeanNames) stateProviderBeans else emptyList(),
+            stateProviderCount = stateProviderBeans.size,
+            selectedStateProviderBean = selectedStateProvider?.beanName,
             actuatorEndpoint = actuatorEndpoint,
             webExposure = webExposure,
             strict = leaderProperties.diagnostics.strict,
             warnings = warnings,
         )
     }
-
-    private fun isLocalLeaderElector(beanName: String): Boolean {
-        val beanType = beanFactory.getType(beanName, false)
-        return beanName == "localLeaderElector" ||
-                beanType?.let { LocalLeaderElector::class.java.isAssignableFrom(it) } == true
-    }
-
-    private fun backendNameFromBeanName(beanName: String): String =
-        beanName
-            .removeSuffix("LeaderElector")
-            .replace(CAMEL_BOUNDARY, "-$1")
-            .lowercase()
 
     private fun isManagementEndpointEnabled(): Boolean =
         environment.getProperty("management.endpoint.leaderElection.enabled", Boolean::class.java, false)
@@ -172,6 +178,9 @@ class LeaderStartupDiagnostics(
      * @property activeBackends Spring Boot integration 계약에서 `activeBackends` 값을 계산하거나 전달할 때 사용하는 속성입니다.
      * @property leaderElectorBeans Spring Boot integration 계약에서 `leaderElectorBeans` 값을 계산하거나 전달할 때 사용하는 속성입니다.
      * @property leaderElectorCount Spring Boot integration 계약에서 `leaderElectorCount` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+     * @property stateProviderBeans blocking과 suspend 상태 provider bean 이름입니다.
+     * @property stateProviderCount local fallback 제외 정책을 적용한 상태 provider 수입니다.
+     * @property selectedStateProviderBean 운영 상태에 선택된 bean이며 multi-backend ambiguity에서는 null입니다.
      * @property actuatorEndpoint Spring Boot integration 계약에서 `actuatorEndpoint` 값을 계산하거나 전달할 때 사용하는 속성입니다.
      * @property webExposure Spring Boot integration 계약에서 `webExposure` 값을 계산하거나 전달할 때 사용하는 속성입니다.
      * @property strict Spring Boot integration 계약에서 `strict` 값을 계산하거나 전달할 때 사용하는 속성입니다.
@@ -185,6 +194,9 @@ class LeaderStartupDiagnostics(
         val webExposure: String,
         val strict: Boolean,
         val warnings: List<Warning>,
+        val stateProviderBeans: List<String> = emptyList(),
+        val stateProviderCount: Int = leaderElectorCount,
+        val selectedStateProviderBean: String? = null,
     ) : Serializable {
         val warningCodes: List<String> = warnings.map { it.code.name }
 
@@ -222,7 +234,5 @@ class LeaderStartupDiagnostics(
         RAW_LEADER_ID_TAGS,
     }
 
-    companion object : KLogging() {
-        private val CAMEL_BOUNDARY = Regex("([A-Z])")
-    }
+    companion object : KLogging()
 }

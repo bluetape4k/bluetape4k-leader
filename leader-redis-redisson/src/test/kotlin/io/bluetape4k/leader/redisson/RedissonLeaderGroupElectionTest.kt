@@ -17,6 +17,7 @@ import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
+import org.awaitility.kotlin.*
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
 import kotlin.time.Duration
@@ -29,6 +30,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.max
 import kotlin.random.Random
 
@@ -131,6 +133,51 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
         } finally {
             holdLatch.countDown()
             executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `runIfLeader - 슬롯 획득 중 인터럽트는 InterruptedException 으로 재전파되고 플래그를 복원한다`() {
+        val lockName = randomName()
+        val holderOptions = LeaderGroupElectionOptions(maxLeaders = 1, waitTime = 30.seconds, leaseTime = 5.seconds)
+        val holderElection = RedissonLeaderGroupElector(redissonClient, holderOptions)
+        val contender = RedissonLeaderGroupElector(redissonClient, holderOptions)
+        val holderReady = CountDownLatch(1)
+        val releaseHolder = CountDownLatch(1)
+        val holder = Executors.newSingleThreadExecutor()
+        val workerStarted = CountDownLatch(1)
+        val thrown = AtomicReference<Throwable?>()
+        val interrupted = AtomicReference(false)
+        val worker = Thread {
+            workerStarted.countDown()
+            try {
+                contender.runIfLeader(lockName) { error("interrupted contender must not run") }
+            } catch (error: Throwable) {
+                thrown.set(error)
+                interrupted.set(Thread.currentThread().isInterrupted)
+            }
+        }
+
+        holder.submit {
+            holderElection.runIfLeader(lockName) {
+                holderReady.countDown()
+                releaseHolder.await(5, TimeUnit.SECONDS)
+            }
+        }
+
+        try {
+            holderReady.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
+            worker.start()
+            workerStarted.await(1, TimeUnit.SECONDS) shouldBeEqualTo true
+            worker.interrupt()
+            worker.join(2_000)
+
+            thrown.get() shouldBeInstanceOf InterruptedException::class
+            interrupted.get() shouldBeEqualTo true
+        } finally {
+            worker.interrupt()
+            releaseHolder.countDown()
+            holder.shutdownNow()
         }
     }
 
@@ -603,10 +650,10 @@ class RedissonLeaderGroupElectionTest: AbstractRedissonLeaderTest() {
 
         el.runIfLeader(lockName) { "first" } shouldBeEqualTo "first"
 
-        Thread.sleep(400)
-
         val secondElector = RedissonLeaderGroupElector(redissonClient, opts)
-        secondElector.runIfLeader(lockName) { "second" } shouldBeEqualTo "second"
+        await.atMost(2.seconds).withPollInterval(50.milliseconds).until {
+            secondElector.runIfLeader(lockName) { "second" } == "second"
+        }
     }
 
     @Test

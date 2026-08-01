@@ -32,6 +32,17 @@ class HazelcastSuspendLock(
     private val transactionMapName: String? = null,
     private val transactionContextProvider: (() -> TransactionContext)? = null,
 ) {
+    /**
+     * Preserves the two-argument JVM constructor published before transaction-aware
+     * unlock support was added.
+     */
+    constructor(lockMap: IMap<String, String>, lockKey: String) : this(
+        lockMap = lockMap,
+        lockKey = lockKey,
+        transactionMapName = null,
+        transactionContextProvider = null,
+    )
+
     companion object: KLoggingChannel() {
         private const val RETRY_DELAY_MS = 50L
     }

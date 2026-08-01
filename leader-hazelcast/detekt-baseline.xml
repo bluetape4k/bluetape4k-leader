@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongMethod:HazelcastSuspendLeaderGroupElector.kt$HazelcastSuspendLeaderGroupElector$override suspend fun &lt;T> runIfLeader(lockName: String, action: suspend () -> T): T?</ID>
+    <ID>MagicNumber:HazelcastLock.kt$HazelcastLock$8</ID>
+    <ID>MagicNumber:HazelcastSuspendLock.kt$HazelcastSuspendLock$8</ID>
+    <ID>MaxLineLength:HazelcastLeaderElector.kt$HazelcastLeaderElector$.</ID>
+    <ID>MaxLineLength:HazelcastLeaderGroupElector.kt$HazelcastLeaderGroupElector$.</ID>
+    <ID>MaxLineLength:HazelcastLeaderGroupElector.kt$HazelcastLeaderGroupElector$HazelcastLock(lockMap, slotKey(lockName, slot), LOCK_MAP_NAME, hazelcast::newTransactionContext) to slot</ID>
+    <ID>ReturnCount:HazelcastLock.kt$HazelcastLock$fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean</ID>
+    <ID>ReturnCount:HazelcastSuspendLock.kt$HazelcastSuspendLock$suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean</ID>
+    <ID>ThrowingExceptionFromFinally:HazelcastSuspendLeaderElector.kt$HazelcastSuspendLeaderElector$throw e</ID>
+    <ID>ThrowingExceptionFromFinally:HazelcastSuspendLeaderGroupElector.kt$HazelcastSuspendLeaderGroupElector$throw e</ID>
+    <ID>TooGenericExceptionCaught:HazelcastLock.kt$HazelcastLock$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:HazelcastLockExtendDelegate.kt$HazelcastLockExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:HazelcastSlotExtendDelegate.kt$HazelcastSlotExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:HazelcastSuspendLeaderElector.kt$HazelcastSuspendLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:HazelcastSuspendLeaderGroupElector.kt$HazelcastSuspendLeaderGroupElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:HazelcastSuspendLock.kt$HazelcastSuspendLock$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:HazelcastSuspendLockExtendDelegate.kt$HazelcastSuspendLockExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:HazelcastSuspendSlotExtendDelegate.kt$HazelcastSuspendSlotExtendDelegate$e: Exception</ID>
+  </CurrentIssues>
+</SmellBaseline>

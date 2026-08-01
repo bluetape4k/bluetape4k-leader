@@ -1,7 +1,9 @@
 import io.gitlab.arturbosch.detekt.Detekt
+import io.gitlab.arturbosch.detekt.DetektCreateBaselineTask
 import io.gitlab.arturbosch.detekt.report.ReportMergeTask
 import nmcp.NmcpAggregationExtension
 import nmcp.NmcpExtension
+import org.gradle.api.tasks.Exec
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import java.util.concurrent.TimeUnit
 
@@ -147,6 +149,9 @@ subprojects {
     apply {
         plugin<JavaLibraryPlugin>()
         plugin("org.jetbrains.kotlin.jvm")
+        if (detektRequested) {
+            plugin("io.gitlab.arturbosch.detekt")
+        }
         plugin("org.jetbrains.kotlinx.atomicfu")
         if (koverRequested) {
             plugin("org.jetbrains.kotlinx.kover")
@@ -158,6 +163,21 @@ subprojects {
         plugin("io.spring.dependency-management")
         plugin("org.jetbrains.dokka")
         plugin("com.adarshr.test-logger")
+    }
+
+    if (detektRequested) {
+        configurations.named("detekt") {
+            resolutionStrategy.force(
+                "org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.21",
+                "org.jetbrains.kotlin:kotlin-stdlib:2.0.21",
+            )
+            resolutionStrategy.eachDependency {
+                if (requested.group == "org.jetbrains.kotlin") {
+                    useVersion("2.0.21")
+                    because("detekt 1.23.8 is compiled against Kotlin 2.0.21")
+                }
+            }
+        }
     }
 
     pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
@@ -252,13 +272,28 @@ subprojects {
             showFullStackTraces = true
         }
 
-        val reportMerge = register<ReportMergeTask>("reportMerge") {
-            val file = rootProject.layout.buildDirectory.asFile.get().resolve("reports/detekt/merged.xml")
-            output.set(file)
-        }
-        withType<Detekt>().configureEach detekt@{
-            finalizedBy(reportMerge)
-            reportMerge.configure { input.from(this@detekt.xmlReportFile) }
+        if (detektRequested) {
+            val productionDetektSourceRoots = buildList {
+                add(project.file("src/main/kotlin"))
+                add(project.file("src/main/java"))
+                if (path in reusableTestcontainersExamplePaths) {
+                    add(rootProject.file("examples/shared/src/main/kotlin"))
+                }
+            }
+            val productionDetektSources = project.files(productionDetektSourceRoots)
+            named<Detekt>("detekt") {
+                setSource(productionDetektSources)
+                include("**/*.kt", "**/*.kts", "**/*.java")
+                project.layout.projectDirectory.file("detekt-baseline.xml").asFile
+                    .takeIf(File::isFile)
+                    ?.let(baseline::set)
+                ignoreFailures = false
+            }
+            named<DetektCreateBaselineTask>("detektBaseline") {
+                setSource(productionDetektSources)
+                include("**/*.kt", "**/*.kts", "**/*.java")
+                baseline.set(project.layout.projectDirectory.file("detekt-baseline.xml"))
+            }
         }
 
         jar {
@@ -444,6 +479,64 @@ subprojects {
     }
 
     configurePublishingSigning("BluetapeLeader")
+}
+
+if (detektRequested) {
+    val moduleDetektTasks = subprojects.mapNotNull { subproject ->
+        subproject.tasks.findByName("detekt") as? Detekt
+    }
+    val reportMerge = tasks.register<ReportMergeTask>("reportMerge") {
+        val file = layout.buildDirectory.asFile.get().resolve("reports/detekt/merged.xml")
+        output.set(file)
+        input.from(moduleDetektTasks.map { it.xmlReportFile })
+        dependsOn(moduleDetektTasks)
+    }
+
+    val detektProductionSourceGuard = tasks.register("detektProductionSourceGuard") {
+        group = "verification"
+        description = "Fails when no Kotlin production sources are available for Detekt."
+        doLast {
+            val sourceModules = subprojects
+                .mapNotNull { subproject ->
+                    val sourceRoots = buildList {
+                        add(subproject.file("src/main/kotlin"))
+                        if (subproject.path in reusableTestcontainersExamplePaths) {
+                            add(rootProject.file("examples/shared/src/main/kotlin"))
+                        }
+                    }
+                    val files = sourceRoots
+                        .flatMap { sourceRoot ->
+                            subproject.fileTree(sourceRoot) {
+                                include("**/*.kt", "**/*.kts")
+                            }.files
+                        }.toSet()
+                    files.size.takeIf { it > 0 }?.let { count -> subproject.path to count }
+                }
+            val productionSources = sourceModules.sumOf { (_, count) -> count }
+            check(productionSources > 0) {
+                "Detekt expected at least one Kotlin production source file, but found none"
+            }
+            logger.lifecycle(
+                "Detekt production modules: ${sourceModules.joinToString { (path, count) -> "$path=$count" }}",
+            )
+        }
+    }
+
+    gradle.projectsEvaluated {
+        tasks.named("detekt") {
+            dependsOn(detektProductionSourceGuard)
+            dependsOn(moduleDetektTasks)
+            finalizedBy(reportMerge)
+        }
+    }
+}
+
+val binaryCompatibilityProjects = subprojects.filterNot { it.isNonPublishedProject() || it.name == "bluetape4k-leader-bom" }
+tasks.register<Exec>("checkBinaryCompatibility") {
+    group = "verification"
+    description = "Compare publishable JVM artifacts with the configured published baseline."
+    dependsOn(binaryCompatibilityProjects.map { "${it.path}:jar" })
+    commandLine("python3", rootProject.file("scripts/compatibility/check_binary_api.py").absolutePath)
 }
 
 val manualModuleInventory = layout.buildDirectory.file("manual/module-inventory.json")

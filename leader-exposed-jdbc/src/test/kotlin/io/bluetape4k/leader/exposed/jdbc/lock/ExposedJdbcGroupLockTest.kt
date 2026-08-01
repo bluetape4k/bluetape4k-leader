@@ -46,6 +46,29 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
+    fun `tryLock - group 재시도 대기 interrupt 를 재전파한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val holder = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Jitter())
+        holder.tryLock(1.seconds, 30.seconds)
+        val contender = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 10L))
+
+        try {
+            Thread.currentThread().interrupt()
+
+            assertFailsWith<InterruptedException> {
+                contender.tryLock(1.seconds, 5.seconds)
+            }
+            Thread.currentThread().isInterrupted.shouldBeTrue()
+        } finally {
+            Thread.interrupted()
+            holder.unlock()
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
     fun `tryLock - 다른 slot은 동시에 획득 가능하다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)

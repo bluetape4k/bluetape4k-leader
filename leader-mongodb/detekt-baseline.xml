@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongMethod:MongoLeaderElector.kt$MongoLeaderElector$override fun &lt;T> runAsyncIfLeader( lockName: String, executor: Executor, action: () -> CompletableFuture&lt;T>, ): CompletableFuture&lt;T?></ID>
+    <ID>LongMethod:MongoLeaderElector.kt$MongoLeaderElector$override fun &lt;T> runIfLeader(lockName: String, action: () -> T): T?</ID>
+    <ID>LongMethod:MongoLeaderGroupElector.kt$MongoLeaderGroupElector$override fun &lt;T> runIfLeader(lockName: String, action: () -> T): T?</ID>
+    <ID>LongMethod:MongoSuspendLeaderElector.kt$MongoSuspendLeaderElector$override suspend fun &lt;T> runIfLeader(lockName: String, action: suspend () -> T): T?</ID>
+    <ID>LongMethod:MongoSuspendLeaderGroupElector.kt$MongoSuspendLeaderGroupElector$override suspend fun &lt;T> runIfLeader(lockName: String, action: suspend () -> T): T?</ID>
+    <ID>LongParameterList:MongoLeaderHistorySink.kt$MongoLeaderHistorySink$( key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, status: LeaderHistoryStatus, errorType: String?, errorMessage: String?, )</ID>
+    <ID>MagicNumber:MongoHistoryConfig.kt$120</ID>
+    <ID>MagicNumber:MongoLeaderHistoryIndexer.kt$MongoLeaderHistoryIndexer$86400L</ID>
+    <ID>MagicNumber:MongoLock.kt$MongoLock$11000</ID>
+    <ID>MagicNumber:MongoLock.kt$MongoLock$13</ID>
+    <ID>MagicNumber:MongoLock.kt$MongoLock$18</ID>
+    <ID>MagicNumber:MongoLock.kt$MongoLock$22</ID>
+    <ID>MagicNumber:MongoSuspendLock.kt$MongoSuspendLock$11000</ID>
+    <ID>MagicNumber:MongoSuspendLock.kt$MongoSuspendLock$13</ID>
+    <ID>MagicNumber:MongoSuspendLock.kt$MongoSuspendLock$18</ID>
+    <ID>MagicNumber:MongoSuspendLock.kt$MongoSuspendLock$22</ID>
+    <ID>MaxLineLength:MongoHistoryTtlGauge.kt$MongoHistoryTtlGauge$log.warn { "MongoDB leader history TTL index is disabled (ttlDays=${config.ttlDays}). Data will accumulate indefinitely." }</ID>
+    <ID>MaxLineLength:MongoLeaderGroupElector.kt$MongoLeaderGroupElector$.</ID>
+    <ID>MaxLineLength:MongoSuspendLeaderGroupElector.kt$MongoSuspendLeaderGroupElector$private suspend</ID>
+    <ID>ReturnCount:MongoLock.kt$MongoLock$fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean</ID>
+    <ID>ReturnCount:MongoLock.kt$MongoLock$private fun tryAcquireOnce(leaseTime: Duration): AcquireResult</ID>
+    <ID>ReturnCount:MongoSuspendLock.kt$MongoSuspendLock$suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean</ID>
+    <ID>SerialVersionUIDInSerializableClass:MongoLeaderElectionOptions.kt$MongoLeaderElectionOptions : Serializable</ID>
+    <ID>SerialVersionUIDInSerializableClass:MongoLeaderGroupElectionOptions.kt$MongoLeaderGroupElectionOptions : Serializable</ID>
+    <ID>ThrowingExceptionFromFinally:MongoSuspendLeaderElector.kt$MongoSuspendLeaderElector$throw e</ID>
+    <ID>ThrowingExceptionFromFinally:MongoSuspendLeaderGroupElector.kt$MongoSuspendLeaderGroupElector$throw e</ID>
+    <ID>TooGenericExceptionCaught:MongoLeaderElector.kt$MongoLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MongoLeaderGroupElector.kt$MongoLeaderGroupElector$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:MongoLeaderHistoryIndexer.kt$MongoLeaderHistoryIndexer$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MongoLock.kt$MongoLock.Companion$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MongoLockExtendDelegate.kt$MongoLockExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MongoSlotExtendDelegate.kt$MongoSlotExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MongoSuspendLeaderElector.kt$MongoSuspendLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MongoSuspendLeaderGroupElector.kt$MongoSuspendLeaderGroupElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MongoSuspendLeaderGroupElector.kt$MongoSuspendLeaderGroupElector$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:MongoSuspendLock.kt$MongoSuspendLock.Companion$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MongoSuspendLockExtendDelegate.kt$MongoSuspendLockExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MongoSuspendSlotExtendDelegate.kt$MongoSuspendSlotExtendDelegate$e: Exception</ID>
+  </CurrentIssues>
+</SmellBaseline>

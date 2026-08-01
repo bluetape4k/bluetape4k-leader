@@ -17,6 +17,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
+import org.springframework.core.env.Environment
 
 /**
  * `선언`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -41,6 +42,18 @@ class LeaderElectionAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    fun leaderLeaseAutoExtenderLifecycle(
+        props: LeaderProperties,
+        environment: Environment,
+    ): LeaderLeaseAutoExtenderLifecycle =
+        LeaderLeaseAutoExtenderLifecycle(
+            watchdogThreads = props.watchdogThreads,
+            watchdogAsyncExtend = props.watchdogAsyncExtend.takeIf {
+                environment.containsProperty("bluetape4k.leader.watchdog-async-extend")
+            },
+        )
+
+    /** Preserves the one-argument bean factory method published in 0.4.0. */
     fun leaderLeaseAutoExtenderLifecycle(props: LeaderProperties): LeaderLeaseAutoExtenderLifecycle =
         LeaderLeaseAutoExtenderLifecycle(
             watchdogThreads = props.watchdogThreads,

@@ -39,6 +39,7 @@ class LeaderConfigurationMetadataTest {
             "bluetape4k.leader.route-guard.authority-mode",
             "bluetape4k.leader.route-guard.elector-bean",
             "bluetape4k.leader.route-guard.rejection-status",
+            "bluetape4k.leader.observability.state-provider-bean",
             "bluetape4k.leader.mongo.single-collection",
             "bluetape4k.leader.etcd.key-prefix",
             "bluetape4k.leader.consul.key-prefix",
@@ -61,6 +62,7 @@ class LeaderConfigurationMetadataTest {
             "bluetape4k.leader.route-guard.authority-mode" to "STATE",
             "bluetape4k.leader.route-guard.elector-bean" to "",
             "bluetape4k.leader.route-guard.rejection-status" to "SERVICE_UNAVAILABLE",
+            "bluetape4k.leader.observability.state-provider-bean" to "",
         ).forEach { (propertyName, defaultValue) ->
             properties[propertyName].shouldNotBeNull().defaultValue shouldBeEqualTo defaultValue
         }

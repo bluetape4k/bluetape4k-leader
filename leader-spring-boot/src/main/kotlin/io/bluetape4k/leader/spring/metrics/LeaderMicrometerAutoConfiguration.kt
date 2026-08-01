@@ -74,6 +74,14 @@ class LeaderMicrometerAutoConfiguration {
         tagSanitizer: LeaderMetricTagSanitizer,
     ): MicrometerLeaderAopMetricsRecorder =
         MicrometerLeaderAopMetricsRecorder(registry, tagSanitizer)
+
+    /**
+     * Preserves the one-argument factory method published in 0.4.0. It is kept
+     * as a normal compatibility method so Spring registers only the tagged bean.
+     */
+    @Deprecated("Use the tagged overload supplied by Spring auto-configuration")
+    fun micrometerLeaderAopMetricsRecorder(registry: MeterRegistry): MicrometerLeaderAopMetricsRecorder =
+        MicrometerLeaderAopMetricsRecorder(registry)
 }
 
 internal fun LeaderAopProperties.Metrics.Tags.toMicrometerOptions(): LeaderMetricTagOptions =

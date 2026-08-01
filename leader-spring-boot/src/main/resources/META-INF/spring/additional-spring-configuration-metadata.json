@@ -437,6 +437,12 @@
       "description": "Static lock names seeded into the leader election status registry."
     },
     {
+      "name": "bluetape4k.leader.observability.state-provider-bean",
+      "type": "java.lang.String",
+      "description": "Blocking or suspend LeaderElectionState bean used by diagnostics, readiness, and Actuator. Empty auto-selects the only non-local backend; multi-backend applications must name one bean.",
+      "defaultValue": ""
+    },
+    {
       "name": "bluetape4k.leader.observability.tracing.enabled",
       "type": "java.lang.Boolean",
       "description": "Enable Micrometer Observation recorder and listener beans when ObservationRegistry is present.",

@@ -531,6 +531,9 @@ GET /actuator/leaderElection
 
 ```json
 {
+  "backend": "redis",
+  "stateProviderBean": "redisLeaderElector",
+  "stateSupported": true,
   "locks": [
     {
       "name": "batch-job",
@@ -549,6 +552,18 @@ routes, Micrometer, logging, tracing, and custom dashboards should adapt from th
 introducing framework-specific event contracts.
 
 `bluetape4k.leader.observability.lock-names` seeds the JVM-local status registry before the first runtime event. Listener-aware electors can also add names as they observe lifecycle events. The fallback `LeaderElectionEventPublisher` is publisher-only and never becomes a `LeaderElector` candidate, so existing elector injection remains stable.
+
+Spring diagnostics, readiness, and the Actuator endpoint select from both blocking and suspend
+`LeaderElectionState` beans. A non-local suspend backend therefore wins over the blocking local fallback.
+When more than one non-local backend is active, set
+`bluetape4k.leader.observability.state-provider-bean` to the bean used for operational state.
+If that provider does not support audit state, the endpoint reports `stateSupported=false` and lock
+status `Unsupported`; opt-in readiness reports `UNKNOWN` instead of a false `UP`.
+
+`LeaderLeaseAutoExtender` remains JVM-global. Live Spring contexts may share defaults or the same
+explicit `watchdog-threads` / `watchdog-async-extend` values, but a context with conflicting explicit
+values is rejected before it can overwrite the active scheduler configuration. The scheduler stops only
+after the last registered context closes.
 
 ---
 
@@ -580,6 +595,9 @@ The HTTP path is `GET /actuator/leaderElection`. Lock names come from the JVM-lo
 `LeaderElectionStatusRegistry`: configure static names with
 `bluetape4k.leader.observability.lock-names`, or let Spring AOP observations register names as
 leader-election methods run. The endpoint does not enumerate backend locks.
+The response identifies the selected backend and provider bean. In multi-backend applications, configure
+`bluetape4k.leader.observability.state-provider-bean`; otherwise endpoint/readiness startup fails rather
+than selecting an arbitrary backend.
 
 Ktor applications can expose the same status shape with `leaderElectionManagementRoute()`:
 

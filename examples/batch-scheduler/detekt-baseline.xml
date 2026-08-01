@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MagicNumber:BatchSchedulerDemo.kt$BatchSchedulerDemo$3</ID>
+    <ID>MagicNumber:BatchSchedulerDemo.kt$BatchSchedulerDemo$500</ID>
+  </CurrentIssues>
+</SmellBaseline>

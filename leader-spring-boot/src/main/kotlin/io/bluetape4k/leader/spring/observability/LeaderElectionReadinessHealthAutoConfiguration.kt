@@ -1,8 +1,10 @@
 package io.bluetape4k.leader.spring.observability
 
-import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.leader.LeaderElectionState
+import io.bluetape4k.leader.spring.internal.LeaderElectionStateSelector
 import io.bluetape4k.leader.spring.LeaderProperties
 import org.springframework.beans.factory.config.BeanDefinition
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -18,7 +20,7 @@ import org.springframework.context.annotation.Role
  */
 @AutoConfiguration(after = [LeaderElectionObservabilityAutoConfiguration::class])
 @ConditionalOnClass(name = ["org.springframework.boot.health.contributor.HealthIndicator"])
-@ConditionalOnBean(LeaderElectionStatusRegistry::class, LeaderElector::class)
+@ConditionalOnBean(LeaderElectionStatusRegistry::class, LeaderElectionState::class)
 @ConditionalOnProperty(
     prefix = "bluetape4k.leader.observability.health",
     name = ["enabled"],
@@ -31,13 +33,20 @@ class LeaderElectionReadinessHealthAutoConfiguration {
     @ConditionalOnMissingBean(name = ["leaderElectionReadiness"])
     @Role(BeanDefinition.ROLE_APPLICATION)
     fun leaderElectionReadiness(
-        leaderElector: LeaderElector,
+        beanFactory: ConfigurableListableBeanFactory,
         registry: LeaderElectionStatusRegistry,
         properties: LeaderProperties,
-    ): HealthIndicator =
-        LeaderElectionReadinessHealthIndicator(
-            leaderElector = leaderElector,
+    ): HealthIndicator {
+        val selected = LeaderElectionStateSelector(
+            beanFactory,
+            properties.observability.stateProviderBean,
+        ).selected()
+        return LeaderElectionReadinessHealthIndicator.fromSelectedState(
+            backendName = selected.backendName,
+            stateProviderBean = selected.beanName,
+            state = selected.state,
             registry = registry,
             leaseWarningThreshold = properties.observability.health.leaseWarningThreshold,
         )
+    }
 }

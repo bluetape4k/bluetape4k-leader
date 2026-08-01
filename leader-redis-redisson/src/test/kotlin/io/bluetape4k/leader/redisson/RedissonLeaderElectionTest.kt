@@ -28,6 +28,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.random.Random
 
 class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
@@ -328,6 +329,56 @@ class RedissonLeaderElectionTest: AbstractRedissonLeaderTest() {
         } finally {
             releaseLock.countDown()
             lockHolder.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `runIfLeader - acquire 중 인터럽트는 InterruptedException 으로 재전파되고 플래그를 복원한다`() {
+        val lockName = randomName()
+        val options = LeaderElectionOptions(waitTime = 30.seconds, leaseTime = 5.seconds)
+        val leaderElection = RedissonLeaderElector(redissonClient, options)
+        val holderReady = CountDownLatch(1)
+        val releaseHolder = CountDownLatch(1)
+        val holder = Executors.newSingleThreadExecutor()
+        val workerStarted = CountDownLatch(1)
+        val thrown = AtomicReference<Throwable?>()
+        val interrupted = AtomicReference(false)
+        val worker = Thread {
+            workerStarted.countDown()
+            try {
+                leaderElection.runIfLeader(lockName) { error("interrupted contender must not run") }
+            } catch (error: Throwable) {
+                thrown.set(error)
+                interrupted.set(Thread.currentThread().isInterrupted)
+            }
+        }
+
+        holder.submit {
+            val lock = redissonClient.getLock(lockName)
+            lock.lock(5, TimeUnit.SECONDS)
+            holderReady.countDown()
+            try {
+                releaseHolder.await(5, TimeUnit.SECONDS)
+            } finally {
+                if (lock.isHeldByCurrentThread) {
+                    lock.unlock()
+                }
+            }
+        }
+
+        try {
+            holderReady.await(2, TimeUnit.SECONDS) shouldBeEqualTo true
+            worker.start()
+            workerStarted.await(1, TimeUnit.SECONDS) shouldBeEqualTo true
+            worker.interrupt()
+            worker.join(2_000)
+
+            thrown.get() shouldBeInstanceOf InterruptedException::class
+            interrupted.get() shouldBeEqualTo true
+        } finally {
+            worker.interrupt()
+            releaseHolder.countDown()
+            holder.shutdownNow()
         }
     }
 

@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongParameterList:KubernetesLeaseLeaderGroupElector.kt$KubernetesLeaseLeaderGroupElector$( lockName: String, lock: KubernetesLeaseLock, slot: Int, acquiredAtNanos: Long, delegate: KubernetesLeaseLockExtendDelegate, auditLeaderId: String?, )</ID>
+    <ID>LongParameterList:KubernetesLeaseLock.kt$KubernetesLeaseLock$( private val client: KubernetesClient, private val namespace: String, val lockName: String, val ownerToken: String, private val auditLeaderId: String, private val nodeId: String, private val retryDelay: Duration, private val clock: Clock, )</ID>
+    <ID>LongParameterList:KubernetesLeaseSuspendLeaderGroupElector.kt$KubernetesLeaseSuspendLeaderGroupElector$( lockName: String, lock: KubernetesLeaseLock, slot: Int, acquiredAtNanos: Long, delegate: KubernetesLeaseLockExtendDelegate, auditLeaderId: String?, )</ID>
+    <ID>MagicNumber:KubernetesBackendErrorClassifier.kt$KubernetesBackendErrorClassifier$500</ID>
+    <ID>MagicNumber:KubernetesBackendErrorClassifier.kt$KubernetesBackendErrorClassifier$599</ID>
+    <ID>MagicNumber:KubernetesLeaseLock.kt$KubernetesLeaseLock.Companion$22</ID>
+    <ID>MagicNumber:KubernetesLeaseNames.kt$KubernetesLeaseNames$63</ID>
+    <ID>MagicNumber:KubernetesLeaseTime.kt$1_000L</ID>
+    <ID>MagicNumber:KubernetesLeaseTime.kt$999L</ID>
+    <ID>MaxLineLength:KubernetesLeaseLock.kt$KubernetesLeaseLock$private</ID>
+    <ID>MaxLineLength:KubernetesLeaseSuspendLeaderGroupElector.kt$KubernetesLeaseSuspendLeaderGroupElector$"Failed to release Kubernetes Lease group slot (suspend). lockName=$lockName, slot=${acquired.slot}"</ID>
+    <ID>MaxLineLength:KubernetesLeaseSuspendLeaderGroupElector.kt$KubernetesLeaseSuspendLeaderGroupElector$log.debug { "Kubernetes Lease group slot released (suspend). lockName=$lockName, slot=${acquired.slot}" }</ID>
+    <ID>RethrowCaughtException:KubernetesLeaseSuspendLeaderElector.kt$KubernetesLeaseSuspendLeaderElector$throw e</ID>
+    <ID>RethrowCaughtException:KubernetesLeaseSuspendLeaderGroupElector.kt$KubernetesLeaseSuspendLeaderGroupElector$throw e</ID>
+    <ID>ReturnCount:KubernetesLeaseLock.kt$KubernetesLeaseLock$fun extendDetailed(leaseTime: Duration): ExtendOutcome</ID>
+    <ID>ReturnCount:KubernetesLeaseLock.kt$KubernetesLeaseLock$fun unlock( minLeaseTime: Duration = Duration.ZERO, acquiredAtNanos: Long = System.nanoTime(), ): Boolean</ID>
+    <ID>ReturnCount:KubernetesLeaseLock.kt$KubernetesLeaseLock$private fun tryAcquireOnce(leaseTime: Duration): AcquireResult</ID>
+    <ID>ReturnCount:KubernetesLeaseStateMapper.kt$KubernetesLeaseStateMapper$fun map( lockName: String, lease: Lease?, clock: Clock = Clock.systemUTC(), ): LeaderState</ID>
+    <ID>ReturnCount:KubernetesLeaseStateMapper.kt$KubernetesLeaseStateMapper$internal fun leaseUntil(lease: Lease): Instant?</ID>
+    <ID>TooGenericExceptionCaught:KubernetesLeaseLeaderElector.kt$KubernetesLeaseLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:KubernetesLeaseLeaderGroupElector.kt$KubernetesLeaseLeaderGroupElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:KubernetesLeaseLock.kt$KubernetesLeaseLock$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:KubernetesLeaseSuspendLeaderElector.kt$KubernetesLeaseSuspendLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:KubernetesLeaseSuspendLeaderGroupElector.kt$KubernetesLeaseSuspendLeaderGroupElector$e: Exception</ID>
+    <ID>TooManyFunctions:KubernetesLeaseLeaderElector.kt$KubernetesLeaseLeaderElector : LeaderElector</ID>
+    <ID>TooManyFunctions:KubernetesLeaseLeaderGroupElector.kt$KubernetesLeaseLeaderGroupElector : LeaderGroupElector</ID>
+    <ID>TooManyFunctions:KubernetesLeaseLock.kt$KubernetesLeaseLock</ID>
+    <ID>TooManyFunctions:KubernetesLeaseSuspendLeaderGroupElector.kt$KubernetesLeaseSuspendLeaderGroupElector : SuspendLeaderGroupElector</ID>
+    <ID>UnusedParameter:KubernetesLeaseLeaderElector.kt$KubernetesLeaseLeaderElector$executor: Executor</ID>
+    <ID>UnusedParameter:KubernetesLeaseLeaderGroupElector.kt$KubernetesLeaseLeaderGroupElector$executor: Executor</ID>
+  </CurrentIssues>
+</SmellBaseline>

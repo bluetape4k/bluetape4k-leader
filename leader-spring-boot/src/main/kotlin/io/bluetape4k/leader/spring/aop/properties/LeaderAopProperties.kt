@@ -64,6 +64,20 @@ data class LeaderAopProperties(
             tags = Tags(),
         )
 
+        /** Preserves Kotlin's published one-argument default-constructor descriptor. */
+        @Suppress("UNUSED_PARAMETER")
+        constructor(
+            enabled: Boolean,
+            mask: Int,
+            marker: kotlin.jvm.internal.DefaultConstructorMarker?,
+        ) : this(
+            enabled = if (mask and 0x001 != 0) true else enabled,
+            tags = Tags(),
+        )
+
+        /** Preserves the one-argument data-class copy entry point from 0.4.0. */
+        fun copy(enabled: Boolean): Metrics = copy(enabled = enabled, tags = tags)
+
         /**
          * `Tags`는 Spring Boot integration에서 사용하는 설정과 상태 값을 담는 데이터 모델입니다.
          *
@@ -128,6 +142,18 @@ data class LeaderAopProperties(
         }
 
         companion object {
+            /** Preserves Kotlin's published one-argument `copy$default` descriptor. */
+            @JvmStatic
+            @Suppress("UNUSED_PARAMETER", "FunctionNaming")
+            fun `copy$default`(
+                self: Metrics,
+                enabled: Boolean,
+                mask: Int,
+                marker: Any?,
+            ): Metrics = self.copy(
+                enabled = if (mask and 0x001 != 0) self.enabled else enabled,
+            )
+
             private const val serialVersionUID = 1L
         }
     }

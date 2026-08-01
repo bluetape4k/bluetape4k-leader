@@ -30,9 +30,29 @@ jobs:
 
       - name: Pin Kotlin for CodeQL extractor
         if: matrix.language == 'java-kotlin'
+        shell: bash
         run: |
-          perl -0pi -e 's/kotlin = "2\.4\.0"/kotlin = "2.3.21"/' gradle/libs.versions.toml
-          grep -n 'kotlin = "2.3.21"' gradle/libs.versions.toml
+          set -euo pipefail
+
+          catalog_ref="$(python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          settings = Path("settings.gradle.kts").read_text()
+          match = re.search(r'\.orElse\("([0-9a-f]{40}|[0-9a-f]{64})"\)', settings)
+          if not match:
+              raise SystemExit("could not find the immutable dependency-catalog ref")
+          print(match.group(1))
+          PY
+          )"
+          catalog="$RUNNER_TEMP/bluetape4k-dependencies-libs.versions.toml"
+          curl --fail --location --retry 3 --retry-all-errors \
+            "https://raw.githubusercontent.com/bluetape4k/bluetape4k-dependencies/${catalog_ref}/gradle/libs.versions.toml" \
+            --output "$catalog"
+          grep -Eq '^kotlin[[:space:]]*=[[:space:]]*"2\.4\.0"' "$catalog"
+          sed -Ei 's/^(kotlin[[:space:]]*=[[:space:]]*)"2\.4\.0"/\1"2.3.21"/' "$catalog"
+          grep -En '^kotlin[[:space:]]*=[[:space:]]*"2\.3\.21"' "$catalog"
+          echo "BLUETAPE4K_DEPENDENCIES_CATALOG_PATH=$catalog" >> "$GITHUB_ENV"
 
       - name: Setup JDK 21
         if: matrix.language == 'java-kotlin'

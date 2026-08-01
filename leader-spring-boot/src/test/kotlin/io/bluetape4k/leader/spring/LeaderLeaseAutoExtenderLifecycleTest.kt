@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.spring
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
@@ -17,12 +18,14 @@ class LeaderLeaseAutoExtenderLifecycleTest {
     fun resetState() {
         // Reset ref-count and ensure scheduler is running before each test.
         LeaderLeaseAutoExtenderLifecycle.activeContextCount.value = 0
+        LeaderLeaseAutoExtenderLifecycle.activeConfiguration = null
         LeaderLeaseAutoExtender.restart()
     }
 
     @AfterEach
     fun restoreScheduler() {
         LeaderLeaseAutoExtenderLifecycle.activeContextCount.value = 0
+        LeaderLeaseAutoExtenderLifecycle.activeConfiguration = null
         LeaderLeaseAutoExtender.restart()
     }
 
@@ -95,6 +98,57 @@ class LeaderLeaseAutoExtenderLifecycleTest {
         LeaderLeaseAutoExtender.isShutdown().shouldBeFalse()
 
         lifecycle2.destroy()             // count = 0 → shutdown
+        LeaderLeaseAutoExtender.isShutdown().shouldBeTrue()
+    }
+
+    @Test
+    fun `conflicting explicit context configuration is rejected without overwriting owner`() {
+        val owner = LeaderLeaseAutoExtenderLifecycle(watchdogThreads = 2, watchdogAsyncExtend = false)
+        val conflicting = LeaderLeaseAutoExtenderLifecycle(watchdogThreads = 4, watchdogAsyncExtend = true)
+        owner.afterPropertiesSet()
+
+        assertFailsWith<IllegalStateException> {
+            conflicting.afterPropertiesSet()
+        }
+
+        LeaderLeaseAutoExtender.watchdogThreadCount() shouldBeEqualTo 2
+        LeaderLeaseAutoExtenderLifecycle.activeContextCount.value shouldBeEqualTo 1
+
+        owner.destroy()
+        conflicting.destroy()
+        LeaderLeaseAutoExtender.isShutdown().shouldBeTrue()
+    }
+
+    @Test
+    fun `conflicting explicit context configuration is rejected in reverse registration order`() {
+        val owner = LeaderLeaseAutoExtenderLifecycle(watchdogThreads = 4, watchdogAsyncExtend = true)
+        val conflicting = LeaderLeaseAutoExtenderLifecycle(watchdogThreads = 2, watchdogAsyncExtend = false)
+        owner.afterPropertiesSet()
+
+        assertFailsWith<IllegalStateException> {
+            conflicting.afterPropertiesSet()
+        }
+
+        LeaderLeaseAutoExtender.watchdogThreadCount() shouldBeEqualTo 4
+        LeaderLeaseAutoExtenderLifecycle.activeContextCount.value shouldBeEqualTo 1
+
+        conflicting.destroy()
+        LeaderLeaseAutoExtender.isShutdown().shouldBeFalse()
+        owner.destroy()
+        LeaderLeaseAutoExtender.isShutdown().shouldBeTrue()
+    }
+
+    @Test
+    fun `matching explicit contexts keep scheduler alive in reverse close order`() {
+        val first = LeaderLeaseAutoExtenderLifecycle(watchdogThreads = 3, watchdogAsyncExtend = true)
+        val second = LeaderLeaseAutoExtenderLifecycle(watchdogThreads = 3, watchdogAsyncExtend = true)
+        first.afterPropertiesSet()
+        second.afterPropertiesSet()
+
+        second.destroy()
+        LeaderLeaseAutoExtender.isShutdown().shouldBeFalse()
+
+        first.destroy()
         LeaderLeaseAutoExtender.isShutdown().shouldBeTrue()
     }
 }

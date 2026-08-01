@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MagicNumber:MigrationGateDemo.kt$MigrationGateDemo$3</ID>
+    <ID>MagicNumber:MigrationGateDemo.kt$MigrationGateDemo$500</ID>
+    <ID>MagicNumber:MigrationGateDemo.kt$MigrationGateDemo$60</ID>
+    <ID>MagicNumber:MigrationGateDemo.kt$MigrationGateDemo.DemoSchemaMarkerTable$100</ID>
+    <ID>MaxLineLength:MigrationGate.kt$MigrationGate$log.warn(e) { "[${options.nodeId}] migration=$migrationId: 마이그레이션 또는 in-lock isApplied() 실패 (${elapsed}ms)" }</ID>
+    <ID>ReturnCount:MigrationGate.kt$MigrationGate$fun runMigration( migrationId: String, isApplied: () -> Boolean, migration: () -> Unit, ): Outcome</ID>
+    <ID>ThrowsCount:MigrationGate.kt$MigrationGate$fun runMigration( migrationId: String, isApplied: () -> Boolean, migration: () -> Unit, ): Outcome</ID>
+    <ID>TooGenericExceptionCaught:MigrationGate.kt$MigrationGate$e: Exception</ID>
+  </CurrentIssues>
+</SmellBaseline>

@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongMethod:RedissonLeaderGroupElector.kt$RedissonLeaderGroupElector$private fun &lt;T> runImpl(lockName: String, auditLeaderId: String?, action: () -> T): T?</ID>
+    <ID>LongMethod:RedissonSuspendLeaderElector.kt$RedissonSuspendLeaderElector$private suspend fun &lt;T> runImpl(lockName: String, auditLeaderId: String?, action: suspend () -> T): T?</ID>
+    <ID>LongMethod:RedissonSuspendLeaderGroupElector.kt$RedissonSuspendLeaderGroupElector$private suspend fun &lt;T> runImpl(lockName: String, auditLeaderId: String?, action: suspend () -> T): T?</ID>
+    <ID>LongParameterList:RedissonLeaderElector.kt$RedissonLeaderElector$( lock: RLock, auditLeaderId: String?, currentThreadId: Long, executor: Executor, acquiredAtNanos: Long, action: () -> CompletableFuture&lt;T>, )</ID>
+    <ID>LongParameterList:RedissonLeaderElector.kt$RedissonLeaderElector$( lock: RLock, currentThreadId: Long, acquiredAtNanos: Long, watchdog: AutoCloseable, error: Throwable?, value: T?, )</ID>
+    <ID>LongParameterList:RedissonLeaderGroupElector.kt$RedissonLeaderGroupElector$( semaphore: RPermitExpirableSemaphore, lockName: String, permitId: String, auditLeaderId: String?, startedAtNanos: Long, action: () -> CompletableFuture&lt;T>, )</ID>
+    <ID>LongParameterList:RedissonLeaderGroupElector.kt$RedissonLeaderGroupElector$( semaphore: RPermitExpirableSemaphore, permitId: String, startedAtNanos: Long, lockName: String, error: Throwable?, value: T?, )</ID>
+    <ID>MagicNumber:RedissonSuspendLeaderElector.kt$RedissonSuspendLeaderElector.Companion$0xFFFL</ID>
+    <ID>MagicNumber:RedissonSuspendLeaderElector.kt$RedissonSuspendLeaderElector.Companion$12</ID>
+    <ID>MagicNumber:RedissonSuspendLeaderElector.kt$RedissonSuspendLeaderElector.Companion$22</ID>
+    <ID>MaxLineLength:RedissonSuspendLeaderGroupElector.kt$RedissonSuspendLeaderGroupElector$"minLease 유지를 위해 leaseTime 갱신. lockName=$lockName, permitId=$permitId, remainingMs=$remainingMs"</ID>
+    <ID>MaxLineLength:RedissonSuspendLeaderGroupElector.kt$RedissonSuspendLeaderGroupElector$auditMap.expire(java.time.Duration.ofMillis(leaseTime.inWholeMilliseconds + AUDIT_MAP_TTL_PADDING_MS))</ID>
+    <ID>ReturnCount:RedissonStrategicLeaderElector.kt$RedissonStrategicLeaderElector$override fun &lt;T> runIfLeader( lockName: String, strategy: ElectionStrategy, options: LeaderElectionOptions, action: () -> T, ): T?</ID>
+    <ID>ReturnCount:RedissonStrategicSuspendLeaderElector.kt$RedissonStrategicSuspendLeaderElector$override suspend fun &lt;T> runIfLeader( lockName: String, strategy: ElectionStrategy, options: LeaderElectionOptions, action: suspend () -> T, ): T?</ID>
+    <ID>ThrowingExceptionFromFinally:RedissonSuspendLeaderElector.kt$RedissonSuspendLeaderElector$throw e</ID>
+    <ID>ThrowingExceptionFromFinally:RedissonSuspendLeaderGroupElector.kt$RedissonSuspendLeaderGroupElector$throw e</ID>
+    <ID>ThrowsCount:RedissonSuspendLeaderGroupElector.kt$RedissonSuspendLeaderGroupElector$private suspend fun &lt;T> runImpl(lockName: String, auditLeaderId: String?, action: suspend () -> T): T?</ID>
+    <ID>TooGenericExceptionCaught:RedissonLeaderElector.kt$RedissonLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RedissonLeaderElector.kt$RedissonLeaderElector$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:RedissonLeaderGroupElector.kt$RedissonLeaderGroupElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RedissonLeaderGroupElector.kt$RedissonLeaderGroupElector$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:RedissonLockExtendDelegate.kt$RedissonLockExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RedissonSemaphoreExtendDelegate.kt$RedissonSemaphoreExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RedissonStrategicLeaderElector.kt$RedissonStrategicLeaderElector$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:RedissonStrategicSuspendLeaderElector.kt$RedissonStrategicSuspendLeaderElector$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:RedissonStrategicSuspendLeaderElector.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RedissonSuspendLeaderElector.kt$RedissonSuspendLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RedissonSuspendLeaderGroupElector.kt$RedissonSuspendLeaderGroupElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RedissonSuspendLeaderGroupElector.kt$RedissonSuspendLeaderGroupElector$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:RedissonSuspendLockExtendDelegate.kt$RedissonSuspendLockExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RedissonSuspendSemaphoreExtendDelegate.kt$RedissonSuspendSemaphoreExtendDelegate$e: Exception</ID>
+    <ID>TooManyFunctions:RedissonLeaderElector.kt$RedissonLeaderElector : LeaderElector</ID>
+    <ID>TooManyFunctions:RedissonLeaderGroupElector.kt$RedissonLeaderGroupElector : LeaderGroupElector</ID>
+    <ID>UnusedParameter:RedissonLeaderGroupElector.kt$RedissonLeaderGroupElector$lockName: String</ID>
+  </CurrentIssues>
+</SmellBaseline>

@@ -39,6 +39,12 @@ import java.time.Instant
  * @property retryStrategy Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property lockOwner Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
+internal enum class ExposedR2dbcUnlockOutcome {
+    RELEASED,
+    NOT_HELD,
+    FAILED,
+}
+
 internal class ExposedR2dbcGroupLock internal constructor(
     private val db: R2dbcDatabase,
     val lockName: String,
@@ -195,14 +201,26 @@ internal class ExposedR2dbcGroupLock internal constructor(
         minLeaseTime: Duration = Duration.ZERO,
         acquiredAtNanos: Long = System.nanoTime(),
     ) {
+        unlockAndReport(minLeaseTime, acquiredAtNanos)
+    }
+
+    /**
+     * The elector needs to distinguish a confirmed lost token from a database failure before it
+     * evicts its local active-count entry. The public `unlock` keeps its 0.4.0 Unit contract.
+     */
+    internal suspend fun unlockAndReport(
+        minLeaseTime: Duration = Duration.ZERO,
+        acquiredAtNanos: Long = System.nanoTime(),
+    ): ExposedR2dbcUnlockOutcome {
         val lockNameVal = this@ExposedR2dbcGroupLock.lockName
         val slotVal = this@ExposedR2dbcGroupLock.slot
         val tokenVal = this@ExposedR2dbcGroupLock.token
         val remaining = remainingMinLeaseTime(acquiredAtNanos, minLeaseTime)
 
-        runR2dbcLockOperationPreservingCancellation(
+        return runR2dbcLockOperationPreservingCancellation(
             onFailure = { e ->
                 log.warn(e) { "그룹 슬롯 해제 중 DB 오류: lockName=$lockName, slot=$slot" }
+                ExposedR2dbcUnlockOutcome.FAILED
             },
         ) {
             val matched = suspendTransaction(db) {
@@ -226,8 +244,10 @@ internal class ExposedR2dbcGroupLock internal constructor(
             }
             if (matched == 0) {
                 log.warn { "그룹 슬롯 해제 실패 — 토큰 불일치 또는 이미 만료됨: lockName=$lockName, slot=$slot" }
+                ExposedR2dbcUnlockOutcome.NOT_HELD
             } else {
                 log.debug { "그룹 슬롯 해제 성공: lockName=$lockName, slot=$slot" }
+                ExposedR2dbcUnlockOutcome.RELEASED
             }
         }
     }

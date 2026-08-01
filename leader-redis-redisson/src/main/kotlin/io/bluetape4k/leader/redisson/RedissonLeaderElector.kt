@@ -92,7 +92,14 @@ class RedissonLeaderElector private constructor(
 
         try {
             // T8: autoExtend 여부와 무관하게 항상 명시적 leaseTime 사용 — Redisson 내장 watchdog 비활성화.
-            val acquired = lock.tryLock(waitTimeMills, leaseTimeMills, TimeUnit.MILLISECONDS)
+            val acquired = try {
+                lock.tryLock(waitTimeMills, leaseTimeMills, TimeUnit.MILLISECONDS)
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                throw e
+            } catch (e: RedisException) {
+                e.rethrowInterruptedCause()
+            }
             if (!acquired) {
                 log.debug { "Leader 승격 실패 (슬롯 없음). lock=$lockName" }
                 return null
@@ -134,8 +141,20 @@ class RedissonLeaderElector private constructor(
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
             log.error(e) { "Fail to run as leader" }
-            throw RedisException("Interrupted while acquiring lock. lock=$lockName", e)
+            throw e
         }
+    }
+
+    private fun Throwable.rethrowInterruptedCause(): Nothing {
+        var current: Throwable? = this
+        while (current != null) {
+            if (current is InterruptedException) {
+                Thread.currentThread().interrupt()
+                throw current
+            }
+            current = current.cause
+        }
+        throw this
     }
 
     override fun <T> runAsyncIfLeader(
