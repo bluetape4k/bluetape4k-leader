@@ -9,14 +9,16 @@
 ## [미공개]
 
 `0.5.0`은 아직 태그, GitHub Release 또는 Maven Central publication이 없는
-개발 중인 릴리스입니다. PR [#648](https://github.com/bluetape4k/bluetape4k-leader/pull/648)은
-`develop`의 merge commit `7268feff2020bc73e836015a517bf4d16e1bf457`에 병합되었고,
-post-merge CI와 수동 CodeQL 검증도 exact head에서 통과했습니다. release-readiness
-이슈 [#637–#647](https://github.com/bluetape4k/bluetape4k-leader/milestone/0.5.0)와
+개발 중인 릴리스입니다. release-readiness PR [#648](https://github.com/bluetape4k/bluetape4k-leader/pull/648)은
+`develop`의 readiness merge commit `7268feff2020bc73e836015a517bf4d16e1bf457`에
+병합되었고, 해당 head의 post-merge CI와 수동 CodeQL 검증도 통과했습니다.
+release-readiness 이슈 [#637–#647](https://github.com/bluetape4k/bluetape4k-leader/milestone/0.5.0)와
 문서/KDoc localization Epic [#617](https://github.com/bluetape4k/bluetape4k-leader/issues/617)은
-모두 종료되었습니다. 현재 안정적으로 게시된 버전은 `0.4.0`이며, 릴리스 preflight
-checklist는 [docs/release/0.5.0-release-preflight.md](docs/release/0.5.0-release-preflight.md)에
-고정되어 있습니다.
+모두 종료되었습니다. 후속 문서 정합성 PR [#650](https://github.com/bluetape4k/bluetape4k-leader/pull/650)은
+현재 `develop` head `3a0cd0e43c48b24775cbc1cb0d024e460301e2ee`에 병합되었고,
+연결 이슈 [#649](https://github.com/bluetape4k/bluetape4k-leader/issues/649)도 종료되었습니다.
+현재 안정적으로 게시된 버전은 `0.4.0`이며, 릴리스 preflight checklist는
+[docs/release/0.5.0-release-preflight.md](docs/release/0.5.0-release-preflight.md)에 고정되어 있습니다.
 
 ## [0.5.0] — 미공개
 
@@ -33,6 +35,7 @@ checklist는 [docs/release/0.5.0-release-preflight.md](docs/release/0.5.0-releas
 - 관찰 가능성, 운영 준비 상태, 진단 및 벤치마크 지원 해석에 대한 새로워진 README 및 현지화된 README 지침([#529](https://github.com/bluetape4k/bluetape4k-leader/issues/529), [#530](https://github.com/bluetape4k/bluetape4k-leader/issues/530), [#534](https://github.com/bluetape4k/bluetape4k-leader/issues/534), [#538](https://github.com/bluetape4k/bluetape4k-leader/issues/538)).
 - 0.5.0 범위를 확장하는 대신([#561](https://github.com/bluetape4k/bluetape4k-leader/issues/561)) 백로그에 나머지 관리, 상태, 감사 내보내기, 경로 도우미, Ktor 및 리스 연장 후속 조치를 유지했습니다.
 - release-readiness 수정과 문서/KDoc localization train을 각각 PR [#648](https://github.com/bluetape4k/bluetape4k-leader/pull/648) 및 PR [#625](https://github.com/bluetape4k/bluetape4k-leader/pull/625)–[#632](https://github.com/bluetape4k/bluetape4k-leader/pull/632)로 `develop`에 반영했습니다.
+- release-facing `CHANGELOG.md`, `WIP.md` 및 preflight evidence를 현재 `develop` head에 맞춘 문서 정합성 PR [#650](https://github.com/bluetape4k/bluetape4k-leader/pull/650)을 병합했습니다.
 - 단일 리더와 그룹 리더 선출의 bilingual visual companion을 추가하고 manual 링크와 source anchor를 정렬했습니다([#633](https://github.com/bluetape4k/bluetape4k-leader/issues/633), [PR #636](https://github.com/bluetape4k/bluetape4k-leader/pull/636)).
 
 ### 버그 수정
