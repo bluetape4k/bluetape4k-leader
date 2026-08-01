@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongParameterList:DynamoDbExportDemo.kt$DynamoDbExportDemo$( nodeId: String, lockName: String, lockTableName: String, keyPrefix: String, asyncClient: DynamoDbAsyncClient, exportTable: DynamoDbExportTable, )</ID>
+    <ID>MagicNumber:DynamoDbExportDemo.kt$DynamoDbExportDemo$8</ID>
+    <ID>MagicNumber:DynamoDbScheduledExportRunner.kt$DynamoDbScheduledExportRunner$8</ID>
+    <ID>RethrowCaughtException:DynamoDbScheduledExportRunner.kt$DynamoDbScheduledExportRunner$throw e</ID>
+  </CurrentIssues>
+</SmellBaseline>

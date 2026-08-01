@@ -219,6 +219,9 @@ class ConsulLeaderGroupElector private constructor(
         }
     }
 
+    // Session creation and slot acquisition have separate cleanup and interruption branches;
+    // the explicit branches preserve the backend/session lifecycle contract.
+    @Suppress("ThrowsCount")
     private fun acquire(lockName: String, auditLeaderId: String?): ConsulLeaseHandle? {
         val electedAt = Instant.now()
         val leaseUntil = electedAt.plusMillis(options.leaderGroupOptions.leaseTime.inWholeMilliseconds)
@@ -236,9 +239,11 @@ class ConsulLeaderGroupElector private constructor(
                 ttl = options.leaderGroupOptions.leaseTime,
                 lockDelay = options.lockDelay,
             ).getWithinRequestTimeout(lockClient)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
-            return null
+            throw e
         } catch (e: Exception) {
             throw LeaderElectionException("Failed to create Consul group session. lockName=$lockName", e)
         }
@@ -261,12 +266,20 @@ class ConsulLeaderGroupElector private constructor(
                 log.debug { "Consul leader group slot acquisition skipped by contention. lockName=$lockName" }
                 null
             }
+        } catch (e: CancellationException) {
+            destroySession(sessionId)
+            throw e
+        } catch (e: InterruptedException) {
+            destroySession(sessionId)
+            Thread.currentThread().interrupt()
+            throw e
         } catch (e: Exception) {
             destroySession(sessionId)
             throw LeaderElectionException("Failed to acquire Consul group slot. lockName=$lockName", e)
         }
     }
 
+    @Suppress("RethrowCaughtException", "NestedBlockDepth")
     private fun acquireWithinWaitTime(
         lockName: String,
         sessionId: ConsulSessionId,
@@ -299,8 +312,7 @@ class ConsulLeaderGroupElector private constructor(
                 }
                 Thread.sleep(consulGroupAcquireDelayMillis(deadline))
             } catch (e: InterruptedException) {
-                Thread.currentThread().interrupt()
-                return null
+                throw e
             }
         } while (true)
     }
@@ -311,17 +323,22 @@ class ConsulLeaderGroupElector private constructor(
         }
 
         val remaining = remainingMinLeaseTime(handle.acquiredAtNanos, options.leaderGroupOptions.minLeaseTime)
+        var interruption: InterruptedException? = null
         if (remaining.isPositive()) {
             try {
                 Thread.sleep(remaining.inWholeMilliseconds)
             } catch (e: InterruptedException) {
-                Thread.currentThread().interrupt()
+                interruption = e
             }
         }
 
         runCatching { lockClient.release(handle.key, handle.sessionId).getWithinRequestTimeout(lockClient) }
             .onFailure { e -> log.warn(e) { "Failed to release Consul group slot. lockName=${handle.lockName}" } }
         destroySession(handle.sessionId)
+        interruption?.let {
+            Thread.currentThread().interrupt()
+            throw it
+        }
     }
 
     private fun currentLeaders(lockName: String): List<LeaderLease> =

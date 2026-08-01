@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.exposed.jdbc.lock
 
 import io.bluetape4k.exposed.tests.TestDB
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.logging.KLogging
@@ -47,6 +48,29 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
 
         acquired.shouldBeFalse()
         holder.unlock()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `tryLock - 재시도 대기 interrupt 를 재전파한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val holder = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
+        holder.tryLock(1.seconds, 30.seconds)
+        val contender = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 10L))
+
+        try {
+            Thread.currentThread().interrupt()
+
+            assertFailsWith<InterruptedException> {
+                contender.tryLock(1.seconds, 5.seconds)
+            }
+            Thread.currentThread().isInterrupted.shouldBeTrue()
+        } finally {
+            Thread.interrupted()
+            holder.unlock()
+        }
     }
 
     @ParameterizedTest

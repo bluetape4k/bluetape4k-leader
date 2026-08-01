@@ -1,32 +1,36 @@
 # WIP - bluetape4k-leader
 
-스냅샷: 2026-07-03 KST 범위: 'debop'에 할당된 GitHub 문제를 공개합니다. 공개 횟수: 0.5.0 에픽을 종료한 후 백로그 문제가
-12개 있습니다. 최종 에픽 종료를 제외하고 마일스톤 '0.5.0'이 완료되었습니다.
+스냅샷: 2026-08-01 KST. `0.5.0`은 아직 태그, GitHub Release 또는 Maven
+Central publication이 없는 개발 라인입니다. 2026-08-01 7-Tier review에서
+발견한 release-blocking 이슈는 Epic [#647](https://github.com/bluetape4k/bluetape4k-leader/issues/647)와
+그 하위 이슈 [#637–#646](https://github.com/bluetape4k/bluetape4k-leader/milestone/0.5.0)로
+추적합니다. 이 문서는 병합·게시 완료를 주장하지 않으며, 각 이슈의 DoD와
+정확한 CI/릴리스 증거를 확인한 뒤에만 상태를 갱신합니다.
 
 ## 현재 방향
 
-'0.5.0' 마일스톤이 제한되어 완료되었습니다. 관찰 가능성, 메트릭 카디널리티, Prometheus Runbook, Spring Boot 메타데이터, 시작
-진단, 정확성 수정 및 벤치마크 증거에 대한 운영 준비 레인을 폐쇄했습니다.
+현재 방향은 이 release-readiness train을 먼저 닫는 것입니다. R2DBC 상태
+격리, blocking interruption, Spring 운영 surface, Detekt/ABI/CodeQL gate,
+full-suite timing, release-state 문서를 각각 검증합니다. 모든 항목이 정확한
+head에서 green이 되기 전에는 `0.5.0`을 게시된 릴리스로 표시하지 않습니다.
 
-릴리스 차단 결함이 발견되지 않는 한 추가 백로그 작업으로 '0.5.0'을 확장하지 마세요. 나머지 할당된 문제는 0.5.0 릴리스 종료 후 다음 마이너
-라인으로 예약되어야 합니다.
-
-## 활성 대기열
+## 0.5.0 release-readiness 대기열
 
 | 우선순위 | 이슈 | 마일스톤 | 메모 |
 |---|---|---|---|
-| P1 | [#532](https://github.com/bluetape4k/bluetape4k-leader/issues/532) 알려진 잠금에 대한 opt-in 리더 관리 작업 | Backlog | 보안에 민감한 관리 작업 표면입니다. 0.5.0 종료 범위와 분리합니다. |
-| P1 | [#542](https://github.com/bluetape4k/bluetape4k-leader/issues/542) 라우트 범위 Ktor 리더 guard DSL | Backlog | 보안에 민감한 라우트 guard API입니다. 구현 전에 설계 검토가 필요합니다. |
-| P1 | [#537](https://github.com/bluetape4k/bluetape4k-leader/issues/537) MVC/WebFlux 리더 게이트 라우트 도우미 | Backlog | Spring 라우트 도우미 표면입니다. 보안과 API 사용성 검토를 함께 수행합니다. |
-| P2 | [#531](https://github.com/bluetape4k/bluetape4k-leader/issues/531) readiness 및 lease-risk health indicator | Backlog | 이후 운영 준비 증분에서 다룰 Spring health 표면입니다. |
-| P2 | [#533](https://github.com/bluetape4k/bluetape4k-leader/issues/533) 백엔드 health 및 capability diagnostics SPI | Backlog | 교차 백엔드 진단 설계 후보입니다. |
-| P2 | [#535](https://github.com/bluetape4k/bluetape4k-leader/issues/535) 플러그형 audit export adapter | Backlog | audit/export 통합 레인입니다. |
-| P2 | [#536](https://github.com/bluetape4k/bluetape4k-leader/issues/536) 리더 인식 scheduled task adapter | Backlog | Spring scheduling 편의 API입니다. |
-| P2 | [#539](https://github.com/bluetape4k/bluetape4k-leader/issues/539) SSE 및 WebSocket 리더 이벤트 스트림 | Backlog | Ktor 스트리밍 통합입니다. |
-| P2 | [#540](https://github.com/bluetape4k/bluetape4k-leader/issues/540) Ktor StatusPages 및 구조화된 오류 통합 | Backlog | Ktor 오류 계약 통합입니다. |
-| P2 | [#541](https://github.com/bluetape4k/bluetape4k-leader/issues/541) Ktor lifecycle 및 graceful shutdown hook | Backlog | Ktor plugin lifecycle 강화입니다. |
-| P2 | [#559](https://github.com/bluetape4k/bluetape4k-leader/issues/559) lease-extension observation hook | Backlog | renewal 경로 observation 후속 작업입니다. |
-| P3 | [#463](https://github.com/bluetape4k/bluetape4k-leader/issues/463) strategic group election API 설계 | Backlog | 설계 전용 API 탐색입니다. |
+| P1 | [#637](https://github.com/bluetape4k/bluetape4k-leader/issues/637) R2DBC group state 격리 | 0.5.0 | 로컬 구현·H2/PostgreSQL/MySQL 검증 완료; exact-head CI/merge 대기 |
+| P1 | [#638](https://github.com/bluetape4k/bluetape4k-leader/issues/638) unsupported readiness false `UP` 방지 | 0.5.0 | 로컬 구현·Spring 회귀 검증 완료; exact-head CI/merge 대기 |
+| P1 | [#639](https://github.com/bluetape4k/bluetape4k-leader/issues/639) blocking interruption 보존 | 0.5.0 | 로컬 구현·4 backend 회귀 검증 완료; exact-head CI/merge 대기 |
+| P1 | [#640](https://github.com/bluetape4k/bluetape4k-leader/issues/640) 0.4.0→0.5.0 ABI gate | 0.5.0 | 16 artifact 로컬 gate 통과; exact-head release 검증 대기 |
+| P1 | [#641](https://github.com/bluetape4k/bluetape4k-leader/issues/641) CodeQL catalog centralization | 0.5.0 | catalog pin workflow·actionlint 통과; exact-head CodeQL 대기 |
+| P1 | [#642](https://github.com/bluetape4k/bluetape4k-leader/issues/642) full-suite lease timing 안정화 | 0.5.0 | DynamoDB/Redisson 반복 테스트와 전체 suite 통과; exact-head CI 대기 |
+| P1 | [#643](https://github.com/bluetape4k/bluetape4k-leader/issues/643) production Detekt wiring | 0.5.0 | root lifecycle·zero-source guard와 module evidence 확인; exact-head CI 대기 |
+| P1 | [#644](https://github.com/bluetape4k/bluetape4k-leader/issues/644) selected backend operational surfaces | 0.5.0 | blocking/suspend/multi-backend 선택과 unsupported 상태 검증 완료; exact-head CI 대기 |
+| P1 | [#645](https://github.com/bluetape4k/bluetape4k-leader/issues/645) 0.5.0 release-state 문서 | 0.5.0 | preflight/WIP boundary 갱신; publication·merge 미수행 |
+| P1 | [#646](https://github.com/bluetape4k/bluetape4k-leader/issues/646) JVM-global extender ownership | 0.5.0 | conflict fail-fast·ref-count close-order 회귀 검증 완료; exact-head CI/merge 대기 |
+
+기존 보안·Ktor·추가 운영 backlog는 이 release-readiness train과 섞지 않고
+다음 마이너 라인에서 별도로 계획합니다.
 
 ## Open PRs
 
@@ -38,11 +42,11 @@
 - [#530](https://github.com/bluetape4k/bluetape4k-leader/issues/530)는 metric tag cardinality control을 추가했습니다.
 - [#534](https://github.com/bluetape4k/bluetape4k-leader/issues/534)는 Prometheus alert rule 및 leader runbook을 추가했습니다.
 - [#538](https://github.com/bluetape4k/bluetape4k-leader/issues/538)는 Spring Boot configuration metadata 및 startup diagnostics를 추가했습니다.
-- [#561](https://github.com/bluetape4k/bluetape4k-leader/issues/561)은 최종 0.5.0 에픽이며 이 문서 refresh가 병합된 후 종료되어야 합니다.
+- [#647](https://github.com/bluetape4k/bluetape4k-leader/issues/647)은 이 release-readiness train을 묶는 Epic이며, 하위 이슈와 exact-head 증거가 모두 닫힌 뒤에만 종료합니다.
 
 ## 메모 새로 고침
 
-- 2026-07-03 KST에 'gh'로 확인되었습니다.
-- 마일스톤 `0.5.0`에는 미해결된 비에픽 문제가 없습니다.
-- 'CHANGELOG.md'는 이제 0.5.0 관찰 가능성, 진단, 정확성 및 벤치마크 종료를 기록합니다.
-- 릴리스 차단 결함이 발견되지 않는 한 0.5.0에서 남은 백로그 문제를 유지하세요.
+- 2026-08-01 KST에 `gh`로 tag/release와 milestone 상태를 확인했습니다.
+- latest published version은 `0.4.0`이며 release commit은 `17ab7f872c1f96318c73d3580729cac20a67e017`입니다.
+- `CHANGELOG.md`와 [release preflight](docs/release/0.5.0-release-preflight.md)는 `0.5.0`을 unpublished 상태로 유지합니다.
+- exact-head CI, ABI, manual validation, publication dispatch 증거가 없는 상태에서 tag/release/milestone 종료를 추론하지 않습니다.

@@ -71,6 +71,8 @@ class ZooKeeperLeaderGroupElector private constructor(
     override fun state(lockName: String): LeaderGroupState =
         LeaderGroupState(lockName, maxLeaders, activeCount(lockName))
 
+    // Cleanup must rethrow an interrupted release while restoring the flag, even from finally.
+    @Suppress("ThrowingExceptionFromFinally", "LongMethod", "ReturnCount")
     override fun <T> runIfLeader(lockName: String, action: () -> T): T? {
         val path = ZooKeeperPaths.electionPath(basePath, lockName)
         val semaphore = InterProcessSemaphoreV2(client, path, maxLeaders)
@@ -81,7 +83,7 @@ class ZooKeeperLeaderGroupElector private constructor(
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
             log.warn(e) { "ZooKeeper group lease 획득 중 interrupt. path=$path" }
-            return null
+            throw e
         } catch (e: Exception) {
             log.warn(e) { "ZooKeeper group lease 획득 실패. path=$path" }
             return null
@@ -133,6 +135,10 @@ class ZooKeeperLeaderGroupElector private constructor(
             try {
                 lease.close()
                 log.debug { "ZooKeeper group lease 반납 완료. path=$path" }
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                log.warn(e) { "ZooKeeper group lease 반납 중 interrupt. path=$path" }
+                throw e
             } catch (e: Exception) {
                 log.warn(e) { "ZooKeeper group lease 반납 실패. path=$path" }
             }

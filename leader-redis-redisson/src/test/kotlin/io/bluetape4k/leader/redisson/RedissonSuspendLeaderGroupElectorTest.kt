@@ -2,6 +2,7 @@ package io.bluetape4k.leader.redisson
 
 import io.bluetape4k.junit5.coroutines.SuspendedJobTester
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.junit5.awaitility.untilSuspending
 import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.LeaderRunResult
@@ -21,6 +22,7 @@ import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
+import org.awaitility.kotlin.*
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -250,10 +252,10 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
         val lockName = randomName()
         el.runIfLeader(lockName) { "first" } shouldBeEqualTo "first"
 
-        delay(400.milliseconds)
-
         val secondElector = RedissonSuspendLeaderGroupElector(redissonClient, opts)
-        secondElector.runIfLeader(lockName) { "second" } shouldBeEqualTo "second"
+        await.atMost(2.seconds).withPollInterval(50.milliseconds) untilSuspending {
+            secondElector.runIfLeader(lockName) { "second" } == "second"
+        }
     }
 
     @Test

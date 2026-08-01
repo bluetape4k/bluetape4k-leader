@@ -532,6 +532,9 @@ GET /actuator/leaderElection
 
 ```json
 {
+  "backend": "redis",
+  "stateProviderBean": "redisLeaderElector",
+  "stateSupported": true,
   "locks": [
     {
       "name": "batch-job",
@@ -550,6 +553,17 @@ Actuator, Ktor management route, Micrometer, logging, tracing, custom dashboard�
 contract를 새로 만들지 말고 이 core event stream을 adapter로 사용해야 합니다.
 
 `bluetape4k.leader.observability.lock-names`는 첫 runtime event가 관측되기 전에 JVM-local status registry를 seed합니다. Listener-aware elector는 lifecycle event를 관측하면서 이름을 추가할 수도 있습니다. fallback `LeaderElectionEventPublisher`는 publisher 전용이며 `LeaderElector` candidate가 되지 않으므로 기존 elector injection은 안정적으로 유지됩니다.
+
+Spring diagnostics, readiness, Actuator endpoint는 blocking과 suspend `LeaderElectionState` bean을
+모두 대상으로 선택합니다. 따라서 non-local suspend backend가 있으면 blocking local fallback보다 우선합니다.
+non-local backend가 둘 이상이면 운영 상태에 사용할 bean을
+`bluetape4k.leader.observability.state-provider-bean`으로 지정하세요. 선택한 provider가 audit state를
+지원하지 않으면 endpoint는 `stateSupported=false`와 lock 상태 `Unsupported`를 반환하고, opt-in
+readiness는 잘못된 `UP` 대신 `UNKNOWN`을 반환합니다.
+
+`LeaderLeaseAutoExtender`는 JVM-global로 유지됩니다. 동시에 살아 있는 Spring context는 default 또는
+같은 명시적 `watchdog-threads` / `watchdog-async-extend` 값을 공유할 수 있지만, 서로 다른 명시 설정은
+활성 scheduler 구성을 덮어쓰기 전에 거부됩니다. 마지막 등록 context가 닫힌 뒤에만 scheduler가 종료됩니다.
 
 ---
 
@@ -581,6 +595,9 @@ HTTP 경로는 `GET /actuator/leaderElection`입니다. Lock 이름은 JVM-local
 `LeaderElectionStatusRegistry`에서 가져옵니다. 정적 이름은
 `bluetape4k.leader.observability.lock-names`로 설정하거나, Spring AOP 관측 이벤트가 실행 시점에
 leader-election 메서드 이름을 등록하게 둘 수 있습니다. 이 엔드포인트는 백엔드 lock을 열거하지 않습니다.
+응답은 선택된 backend와 provider bean을 함께 표시합니다. multi-backend 애플리케이션에서는
+`bluetape4k.leader.observability.state-provider-bean`을 설정해야 하며, 그렇지 않으면 임의 backend를
+선택하지 않고 endpoint/readiness 시작이 실패합니다.
 
 Ktor 애플리케이션은 `leaderElectionManagementRoute()`로 같은 상태 응답을 노출할 수 있습니다:
 

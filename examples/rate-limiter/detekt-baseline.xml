@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongParameterList:RateLimiterDemo.kt$RateLimiterDemo$( nodeCount: Int, scheduledItems: List&lt;String>, attemptsPerSecond: Int, windowSeconds: Int, rateLimiter: DistributedSuspendRateLimiter, externalApi: ExternalApiProbe, quotaKey: String, )</ID>
+    <ID>MagicNumber:RateLimiterDemo.kt$RateLimiterDemo$15</ID>
+    <ID>MagicNumber:RateLimiterDemo.kt$RateLimiterDemo$1_050</ID>
+    <ID>MagicNumber:RateLimiterDemo.kt$RateLimiterDemo$5</ID>
+    <ID>MagicNumber:RateLimiterDemo.kt$RateLimiterDemo$8</ID>
+  </CurrentIssues>
+</SmellBaseline>

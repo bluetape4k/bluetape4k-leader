@@ -59,6 +59,9 @@ internal class ExposedJdbcGroupLock internal constructor(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
+    // The retry loop must distinguish cancellation, interruption, transient database errors,
+    // and the sleep interruption path to preserve the blocking API contract.
+    @Suppress("ThrowsCount", "ReturnCount")
     fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean? {
         val deadline = MonotonicDeadline.fromNow(waitTime)
         var attempt = 0
@@ -68,7 +71,10 @@ internal class ExposedJdbcGroupLock internal constructor(
                 tryAcquireOnce(leaseTime)
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Throwable) {
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                throw e
+            } catch (e: Exception) {
                 log.warn(e) { "DB 오류로 슬롯 순회 중단: lockName=$lockName, slot=$slot, attempt=$attempt" }
                 return null
             }
@@ -85,7 +91,7 @@ internal class ExposedJdbcGroupLock internal constructor(
                 } catch (e: InterruptedException) {
                     Thread.currentThread().interrupt()
                     log.debug { "sleep interrupted; 재시도 중단: lockName=$lockName, slot=$slot" }
-                    return false
+                    throw e
                 }
             }
         } while (deadline.hasTimeRemaining())

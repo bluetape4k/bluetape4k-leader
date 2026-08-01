@@ -48,6 +48,7 @@ class LeaderPropertiesBindingTest {
                 "bluetape4k.leader.route-guard.authority-mode" to "custom",
                 "bluetape4k.leader.route-guard.elector-bean" to "ordersLeaderElector",
                 "bluetape4k.leader.route-guard.rejection-status" to "not-found",
+                "bluetape4k.leader.observability.state-provider-bean" to "ordersSuspendLeaderElector",
             ),
         )
         val props = Binder(source).bindAs<LeaderProperties>("bluetape4k.leader").get()
@@ -72,6 +73,7 @@ class LeaderPropertiesBindingTest {
         props.routeGuard.authorityMode shouldBeEqualTo LeaderRouteAuthorityMode.CUSTOM
         props.routeGuard.electorBean shouldBeEqualTo "ordersLeaderElector"
         props.routeGuard.rejectionStatus shouldBeEqualTo LeaderRouteRejectionStatus.NOT_FOUND
+        props.observability.stateProviderBean shouldBeEqualTo "ordersSuspendLeaderElector"
     }
 
     @Test
@@ -97,6 +99,7 @@ class LeaderPropertiesBindingTest {
         props.routeGuard.authorityMode shouldBeEqualTo LeaderRouteAuthorityMode.STATE
         props.routeGuard.electorBean shouldBeEqualTo ""
         props.routeGuard.rejectionStatus shouldBeEqualTo LeaderRouteRejectionStatus.SERVICE_UNAVAILABLE
+        props.observability.stateProviderBean shouldBeEqualTo ""
     }
 
     @Test

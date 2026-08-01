@@ -1,0 +1,125 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:LeaderElectionAspect.kt$LeaderElectionAspect$isSuspend || isMono || isFlux || isFlow</ID>
+    <ID>CyclomaticComplexMethod:LeaderAnnotationValidatorBeanPostProcessor.kt$LeaderAnnotationValidatorBeanPostProcessor$private fun validateMethod(method: Method, beanName: String, targetClass: Class&lt;*>)</ID>
+    <ID>CyclomaticComplexMethod:LeaderElectionAspect.kt$LeaderElectionAspect$@Around( "execution(* *(..)) &amp;&amp; (" + "@annotation(io.bluetape4k.leader.annotation.LeaderElection) || " + "@annotation(io.bluetape4k.leader.spring.scheduling.LeaderScheduled))" ) fun aroundLeader(pjp: ProceedingJoinPoint): Any?</ID>
+    <ID>CyclomaticComplexMethod:LeaderElectionAspect.kt$LeaderElectionAspect$private fun aroundLeaderFlow( pjp: ProceedingJoinPoint, method: Method, target: Any, ): Flow&lt;Any?></ID>
+    <ID>CyclomaticComplexMethod:LeaderElectionAspect.kt$LeaderElectionAspect$private fun aroundLeaderFlux(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any?</ID>
+    <ID>CyclomaticComplexMethod:LeaderElectionAspect.kt$LeaderElectionAspect$private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any?</ID>
+    <ID>CyclomaticComplexMethod:LeaderElectionAspect.kt$LeaderElectionAspect$private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any?</ID>
+    <ID>CyclomaticComplexMethod:LeaderElectionAspect.kt$LeaderElectionAspect$private fun resolveMetadata(method: Method, target: Any): AdviceMetadata</ID>
+    <ID>CyclomaticComplexMethod:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$@Around("@annotation(io.bluetape4k.leader.annotation.LeaderGroupElection)") fun aroundLeader(pjp: ProceedingJoinPoint): Any?</ID>
+    <ID>CyclomaticComplexMethod:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any?</ID>
+    <ID>CyclomaticComplexMethod:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any?</ID>
+    <ID>CyclomaticComplexMethod:LeaderStartupDiagnostics.kt$LeaderStartupDiagnostics$private fun inspect(): Report</ID>
+    <ID>EmptyFunctionBlock:LeaderElectionAspect.kt$LeaderElectionAspect${}</ID>
+    <ID>EmptyFunctionBlock:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect${}</ID>
+    <ID>LargeClass:LeaderElectionAspect.kt$LeaderElectionAspect : SmartInitializingSingleton</ID>
+    <ID>LongMethod:LeaderElectionAspect.kt$LeaderElectionAspect$@Around( "execution(* *(..)) &amp;&amp; (" + "@annotation(io.bluetape4k.leader.annotation.LeaderElection) || " + "@annotation(io.bluetape4k.leader.spring.scheduling.LeaderScheduled))" ) fun aroundLeader(pjp: ProceedingJoinPoint): Any?</ID>
+    <ID>LongMethod:LeaderElectionAspect.kt$LeaderElectionAspect$private fun aroundLeaderFlow( pjp: ProceedingJoinPoint, method: Method, target: Any, ): Flow&lt;Any?></ID>
+    <ID>LongMethod:LeaderElectionAspect.kt$LeaderElectionAspect$private fun aroundLeaderFlux(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any?</ID>
+    <ID>LongMethod:LeaderElectionAspect.kt$LeaderElectionAspect$private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any?</ID>
+    <ID>LongMethod:LeaderElectionAspect.kt$LeaderElectionAspect$private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any?</ID>
+    <ID>LongMethod:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$@Around("@annotation(io.bluetape4k.leader.annotation.LeaderGroupElection)") fun aroundLeader(pjp: ProceedingJoinPoint): Any?</ID>
+    <ID>LongMethod:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any?</ID>
+    <ID>LongMethod:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any?</ID>
+    <ID>LongMethod:LeaderStartupDiagnostics.kt$LeaderStartupDiagnostics$private fun inspect(): Report</ID>
+    <ID>LongParameterList:LeaderScheduled.kt$LeaderScheduled$( @get:AliasFor(annotation = LeaderElection::class, attribute = "name") val name: String, @get:AliasFor(annotation = Scheduled::class, attribute = "cron") val cron: String = "", @get:AliasFor(annotation = Scheduled::class, attribute = "zone") val zone: String = "", @get:AliasFor(annotation = Scheduled::class, attribute = "fixedRate") val fixedRate: Long = -1, @get:AliasFor(annotation = Scheduled::class, attribute = "fixedRateString") val fixedRateString: String = "", @get:AliasFor(annotation = Scheduled::class, attribute = "fixedDelay") val fixedDelay: Long = -1, @get:AliasFor(annotation = Scheduled::class, attribute = "fixedDelayString") val fixedDelayString: String = "", @get:AliasFor(annotation = Scheduled::class, attribute = "initialDelay") val initialDelay: Long = -1, @get:AliasFor(annotation = Scheduled::class, attribute = "initialDelayString") val initialDelayString: String = "", @get:AliasFor(annotation = Scheduled::class, attribute = "timeUnit") val timeUnit: TimeUnit = TimeUnit.MILLISECONDS, @get:AliasFor(annotation = Scheduled::class, attribute = "scheduler") val scheduler: String = "", @get:AliasFor(annotation = LeaderElection::class, attribute = "waitTime") val waitTime: String = "", @get:AliasFor(annotation = LeaderElection::class, attribute = "leaseTime") val leaseTime: String = "", @get:AliasFor(annotation = LeaderElection::class, attribute = "minLeaseTime") val minLeaseTime: String = "PT0S", @get:AliasFor(annotation = LeaderElection::class, attribute = "autoExtend") val autoExtend: Boolean = false, @get:AliasFor(annotation = LeaderElection::class, attribute = "streamBounded") val streamBounded: Boolean = false, @get:AliasFor(annotation = LeaderElection::class, attribute = "bean") val bean: String = "", @get:AliasFor(annotation = LeaderElection::class, attribute = "failureMode") val failureMode: LeaderAspectFailureMode = LeaderAspectFailureMode.INHERIT, )</ID>
+    <ID>MagicNumber:DynamoDbLeaderProperties.kt$DynamoDbLeaderProperties$5</ID>
+    <ID>MagicNumber:DynamoDbLeaderProperties.kt$DynamoDbLeaderProperties$50</ID>
+    <ID>MagicNumber:DynamoDbLeaderProperties.kt$DynamoDbLeaderProperties$60</ID>
+    <ID>MagicNumber:LeaderAopProperties.kt$LeaderAopProperties.Metrics.TagRule$64</ID>
+    <ID>MagicNumber:LeaderObservabilityProperties.kt$LeaderObservabilityHealthProperties$10</ID>
+    <ID>MagicNumber:LeaderRouteGuardProperties.kt$LeaderRouteRejectionStatus.CONFLICT$409</ID>
+    <ID>MagicNumber:LeaderRouteGuardProperties.kt$LeaderRouteRejectionStatus.LOCKED$423</ID>
+    <ID>MagicNumber:LeaderRouteGuardProperties.kt$LeaderRouteRejectionStatus.NOT_FOUND$404</ID>
+    <ID>MagicNumber:LeaderRouteGuardProperties.kt$LeaderRouteRejectionStatus.SERVICE_UNAVAILABLE$503</ID>
+    <ID>MaxLineLength:AdviceMetadata.kt$AdviceMetadata$*</ID>
+    <ID>MaxLineLength:CaptureInvariantException.kt$CaptureInvariantException$*</ID>
+    <ID>MaxLineLength:ConsulLeaderConfiguration.kt$ConsulLeaderConfiguration$*</ID>
+    <ID>MaxLineLength:DynamoDbLeaderConfiguration.kt$DynamoDbLeaderConfiguration$*</ID>
+    <ID>MaxLineLength:ExposedJdbcLeaderConfiguration.kt$ExposedJdbcLeaderConfiguration$*</ID>
+    <ID>MaxLineLength:ExposedR2dbcLeaderConfiguration.kt$ExposedR2dbcLeaderConfiguration$*</ID>
+    <ID>MaxLineLength:HazelcastLeaderConfiguration.kt$HazelcastLeaderConfiguration$*</ID>
+    <ID>MaxLineLength:LeaderAnnotationValidatorBeanPostProcessor.kt$LeaderAnnotationValidatorBeanPostProcessor$"leader.aop.self-inv-risk bean='$beanName' class=${targetClass.name} methods=${annotated.map { it.name }} "</ID>
+    <ID>MaxLineLength:LeaderAnnotationValidatorBeanPostProcessor.kt$LeaderAnnotationValidatorBeanPostProcessor$*</ID>
+    <ID>MaxLineLength:LeaderAopAutoConfiguration.kt$LeaderAopAutoConfiguration$*</ID>
+    <ID>MaxLineLength:LeaderAopAutoConfiguration.kt$LeaderAopAutoConfiguration$@ConditionalOnProperty(prefix = "bluetape4k.leader.aop", name = ["enabled"], havingValue = "true", matchIfMissing = true)</ID>
+    <ID>MaxLineLength:LeaderAopFactoryAutoConfiguration.kt$LeaderAopFactoryAutoConfiguration$*</ID>
+    <ID>MaxLineLength:LeaderAopFactoryAutoConfiguration.kt$LeaderAopFactoryAutoConfiguration$@ConditionalOnProperty(prefix = "bluetape4k.leader.aop", name = ["enabled"], havingValue = "true", matchIfMissing = true)</ID>
+    <ID>MaxLineLength:LeaderAopFactoryAutoConfiguration.kt$LeaderAopFactoryAutoConfiguration$fun</ID>
+    <ID>MaxLineLength:LeaderAopFactoryAutoConfiguration.kt$LeaderAopFactoryAutoConfiguration.MongoSuspendFactoryConfig$)</ID>
+    <ID>MaxLineLength:LeaderBeanSelector.kt$LeaderBeanSelector$fun</ID>
+    <ID>MaxLineLength:LeaderElectionAspect.kt$LeaderElectionAspect$"leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${opts.leaseTime.inWholeNanoseconds}"</ID>
+    <ID>MaxLineLength:LeaderElectionAspect.kt$LeaderElectionAspect$fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, backendEx) }</ID>
+    <ID>MaxLineLength:LeaderElectionAspect.kt$LeaderElectionAspect$fanOut { it.onTaskFailed(effectiveName, (System.nanoTime() - start).nanoseconds, bodyEx) }</ID>
+    <ID>MaxLineLength:LeaderElectionAspect.kt$LeaderElectionAspect$fanOut { it.onTaskFailed(resolvedName, (System.nanoTime() - start).nanoseconds, bodyEx) }</ID>
+    <ID>MaxLineLength:LeaderElectionAspect.kt$LeaderElectionAspect$fanOut { it.onTaskFailed(resolvedName, (System.nanoTime() - start).nanoseconds, ce) }</ID>
+    <ID>MaxLineLength:LeaderElectionAspect.kt$LeaderElectionAspect$log.warn { "leader.aop.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}" }</ID>
+    <ID>MaxLineLength:LeaderElectionObservedEventPublisher.kt$LeaderElectionObservedEventPublisher$*</ID>
+    <ID>MaxLineLength:LeaderElectionStatusRegistry.kt$LeaderElectionStatusRegistry$*</ID>
+    <ID>MaxLineLength:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$"leader.aop.group.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${opts.leaseTime.inWholeNanoseconds}"</ID>
+    <ID>MaxLineLength:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$*</ID>
+    <ID>MaxLineLength:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$// Elector (e.g., AbstractLocalLeaderGroupElector) 내부에서 LockStateHolder.withPushed 호출 — aspect 가 double-push 하지 않음.</ID>
+    <ID>MaxLineLength:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$log.warn { "leader.aop.group.lease-warn lockName=$resolvedName elapsedNs=$elapsed leaseTimeNs=${meta.options.leaseTime.inWholeNanoseconds}" }</ID>
+    <ID>MaxLineLength:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$log.warn(backendEx) { "leader.aop.group.fail-open lockName=$effectiveName reason=BACKEND_ERROR" }</ID>
+    <ID>MaxLineLength:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$log.warn(backendEx) { "leader.aop.group.skipped lockName=$effectiveName reason=BACKEND_ERROR" }</ID>
+    <ID>MaxLineLength:LeaderHistoryAutoConfiguration.kt$LeaderHistoryAutoConfiguration$*</ID>
+    <ID>MaxLineLength:LeaderHistoryAutoConfiguration.kt$LeaderHistoryAutoConfiguration$log.info { "Leader history audit disabled (NoopLeaderHistorySink). Provide a LeaderHistorySink bean to enable." }</ID>
+    <ID>MaxLineLength:LeaderHistoryAutoConfiguration.kt$LeaderHistoryAutoConfiguration$log.warn { "Multiple SuspendLeaderHistorySink beans found; use @Primary to disambiguate. Suspend history recorder not created." }</ID>
+    <ID>MaxLineLength:LeaderHistoryAutoConfiguration.kt$LeaderHistoryAutoConfiguration.MicrometerHistoryConfig$log.warn { "Multiple SuspendLeaderHistorySink beans found; use @Primary to disambiguate. Suspend history recorder not created." }</ID>
+    <ID>MaxLineLength:LeaderHistoryRetentionAutoConfiguration.kt$LeaderHistoryRetentionAutoConfiguration$*</ID>
+    <ID>MaxLineLength:LeaderHistoryRetentionJob.kt$LeaderHistoryRetentionJob$*</ID>
+    <ID>MaxLineLength:LeaderMetricsHealthIndicator.kt$LeaderMetricsHealthIndicator$*</ID>
+    <ID>MaxLineLength:LeaderMvcRouteGuardFactory.kt$LeaderMvcRouteGuardFactory$*</ID>
+    <ID>MaxLineLength:LeaderRouteAuthorityRuntime.kt$LeaderRouteAuthorityRuntime$*</ID>
+    <ID>MaxLineLength:LeaderRouteGuardConfigurationException.kt$LeaderRouteGuardConfigurationException$*</ID>
+    <ID>MaxLineLength:LeaderRouteGuardProperties.kt$LeaderRouteAuthorityMode$*</ID>
+    <ID>MaxLineLength:LeaderRouteGuardProperties.kt$LeaderRouteRejectionStatus$*</ID>
+    <ID>MaxLineLength:LeaderStartupDiagnostics.kt$LeaderStartupDiagnostics$"Multiple non-local LeaderElector beans are active: ${nonLocalLeaderElectorBeans.joinToString()}. "</ID>
+    <ID>MaxLineLength:LeaderStartupDiagnostics.kt$LeaderStartupDiagnostics$"management.endpoint.leaderElection.enabled=true but bluetape4k.leader.observability.lock-names "</ID>
+    <ID>MaxLineLength:LeaderStartupDiagnostics.kt$LeaderStartupDiagnostics$"management.endpoint.leaderElection.enabled=true but management.endpoints.web.exposure.include "</ID>
+    <ID>MaxLineLength:LeaderStartupDiagnosticsException.kt$LeaderStartupDiagnosticsException$*</ID>
+    <ID>MaxLineLength:LeaderWebFluxRouteGuardFactory.kt$LeaderWebFluxRouteGuardFactory$*</ID>
+    <ID>MaxLineLength:LettuceLeaderConfiguration.kt$LettuceLeaderConfiguration$*</ID>
+    <ID>MaxLineLength:LocalLeaderConfiguration.kt$LocalLeaderConfiguration$*</ID>
+    <ID>MaxLineLength:MongoLeaderConfiguration.kt$MongoLeaderConfiguration$*</ID>
+    <ID>MaxLineLength:MongoLeaderConfiguration.kt$MongoLeaderConfiguration$MongoSuspendLeaderGroupElector(syncCollection, coroutineCollection, groupOptions(props), recorderProvider.ifAvailable)</ID>
+    <ID>MaxLineLength:RedissonLeaderConfiguration.kt$RedissonLeaderConfiguration$*</ID>
+    <ID>MaxLineLength:SpelExpressionEvaluator.kt$SpelExpressionEvaluator$"Invalid SpEL expression '$resolved' on ${method.declaringClass.name}#${method.name}: ${ex.message}"</ID>
+    <ID>MaxLineLength:SpelExpressionEvaluator.kt$SpelExpressionEvaluator$val rootObject = if (allowMethodInvocation) RootCtx(method, args ?: emptyArray(), target) else RootCtx(method, args ?: emptyArray(), null)</ID>
+    <ID>MaxLineLength:StateLeaderRouteAuthority.kt$StateLeaderRouteAuthority$*</ID>
+    <ID>MaxLineLength:SuspendLeaderHistoryRetentionJob.kt$SuspendLeaderHistoryRetentionJob$*</ID>
+    <ID>NestedBlockDepth:LeaderElectionAspect.kt$LeaderElectionAspect$private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any?</ID>
+    <ID>NestedBlockDepth:LeaderElectionReadinessHealthIndicator.kt$LeaderElectionReadinessHealthIndicator$override fun doHealthCheck(builder: Health.Builder)</ID>
+    <ID>NestedBlockDepth:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any?</ID>
+    <ID>ReturnCount:AnnotationLookup.kt$AnnotationLookup$inline fun &lt;reified A : Annotation> findAnnotationWithTargetFallback( method: Method, target: Any, ): A?</ID>
+    <ID>ReturnCount:DurationParser.kt$DurationParser$fun parseNonNegativeOrDefault(text: String, default: Duration): Duration</ID>
+    <ID>ReturnCount:LeaderAnnotationValidatorBeanPostProcessor.kt$LeaderAnnotationValidatorBeanPostProcessor$override fun postProcessAfterInitialization(bean: Any, beanName: String): Any</ID>
+    <ID>ReturnCount:LeaderAnnotationValidatorBeanPostProcessor.kt$LeaderAnnotationValidatorBeanPostProcessor$private fun collectAnnotatedMethods(bean: Any): Pair&lt;Class&lt;*>, List&lt;Method>>?</ID>
+    <ID>ReturnCount:LeaderAnnotationValidatorBeanPostProcessor.kt$LeaderAnnotationValidatorBeanPostProcessor$private fun isUnsupportedFutureReturn(returnType: Class&lt;*>): Boolean</ID>
+    <ID>ReturnCount:LeaderBeanSelector.kt$LeaderBeanSelector$private fun &lt;T : Any> select(explicitBeanName: String, method: Method?, type: Class&lt;T>): Selected&lt;T></ID>
+    <ID>ReturnCount:LeaderBeanSelector.kt$LeaderBeanSelector$private fun resolveFromBackendAnnotation(method: Method): String?</ID>
+    <ID>ReturnCount:LeaderElectionAspect.kt$LeaderElectionAspect$@Around( "execution(* *(..)) &amp;&amp; (" + "@annotation(io.bluetape4k.leader.annotation.LeaderElection) || " + "@annotation(io.bluetape4k.leader.spring.scheduling.LeaderScheduled))" ) fun aroundLeader(pjp: ProceedingJoinPoint): Any?</ID>
+    <ID>ReturnCount:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$@Around("@annotation(io.bluetape4k.leader.annotation.LeaderGroupElection)") fun aroundLeader(pjp: ProceedingJoinPoint): Any?</ID>
+    <ID>SpreadOperator:AnnotationLookup.kt$AnnotationLookup$(method.name, *method.parameterTypes)</ID>
+    <ID>ThrowsCount:DurationParser.kt$DurationParser$fun parse(text: String): Duration</ID>
+    <ID>ThrowsCount:LeaderBeanSelector.kt$LeaderBeanSelector$private fun &lt;T : Any> select(explicitBeanName: String, method: Method?, type: Class&lt;T>): Selected&lt;T></ID>
+    <ID>ThrowsCount:LeaderElectionAspect.kt$LeaderElectionAspect$@Around( "execution(* *(..)) &amp;&amp; (" + "@annotation(io.bluetape4k.leader.annotation.LeaderElection) || " + "@annotation(io.bluetape4k.leader.spring.scheduling.LeaderScheduled))" ) fun aroundLeader(pjp: ProceedingJoinPoint): Any?</ID>
+    <ID>ThrowsCount:LeaderElectionAspect.kt$LeaderElectionAspect$private fun aroundLeaderFlux(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any?</ID>
+    <ID>ThrowsCount:LeaderElectionAspect.kt$LeaderElectionAspect$private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any?</ID>
+    <ID>ThrowsCount:LeaderElectionAspect.kt$LeaderElectionAspect$private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: AdviceMetadata): Any?</ID>
+    <ID>ThrowsCount:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$@Around("@annotation(io.bluetape4k.leader.annotation.LeaderGroupElection)") fun aroundLeader(pjp: ProceedingJoinPoint): Any?</ID>
+    <ID>ThrowsCount:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$private fun aroundLeaderMono(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any?</ID>
+    <ID>ThrowsCount:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$private fun aroundLeaderSuspend(pjp: ProceedingJoinPoint, meta: GroupAdviceMetadata): Any?</ID>
+    <ID>ThrowsCount:LeaderRouteGuardAutoConfiguration.kt$LeaderRouteGuardAutoConfiguration.Companion$private fun selectElector( beanFactory: ListableBeanFactory, electorBean: String, ): LeaderElector</ID>
+    <ID>ThrowsCount:LeaderRouteGuardAutoConfiguration.kt$LeaderRouteGuardAutoConfiguration.CustomModeConfiguration$@Bean internal fun leaderRouteAuthorityRuntime( beanFactory: ListableBeanFactory, properties: LeaderProperties, ): LeaderRouteAuthorityRuntime</ID>
+    <ID>TooGenericExceptionCaught:LeaderElectionAspect.kt$LeaderElectionAspect$backendEx: Exception</ID>
+    <ID>TooGenericExceptionCaught:LeaderElectionAspect.kt$LeaderElectionAspect$bodyEx: Throwable</ID>
+    <ID>TooGenericExceptionCaught:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$backendEx: Exception</ID>
+    <ID>TooGenericExceptionCaught:LeaderGroupElectionAspect.kt$LeaderGroupElectionAspect$bodyEx: Throwable</ID>
+    <ID>TooManyFunctions:LeaderElectionAspect.kt$LeaderElectionAspect : SmartInitializingSingleton</ID>
+  </CurrentIssues>
+</SmellBaseline>

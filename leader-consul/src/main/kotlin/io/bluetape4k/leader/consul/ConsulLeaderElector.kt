@@ -215,6 +215,9 @@ class ConsulLeaderElector private constructor(
         }
     }
 
+    // Session creation and lock acquisition have separate cleanup and interruption branches;
+    // the explicit branches preserve the backend/session lifecycle contract.
+    @Suppress("ThrowsCount")
     private fun acquire(lockName: String, auditLeaderId: String?): ConsulLeaseHandle? {
         val key = lockClient.singleLockKey(lockName)
         val electedAt = Instant.now()
@@ -233,15 +236,24 @@ class ConsulLeaderElector private constructor(
                 ttl = options.leaderOptions.leaseTime,
                 lockDelay = options.lockDelay,
             ).getWithinRequestTimeout(lockClient)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
-            return null
+            throw e
         } catch (e: Exception) {
             throw LeaderElectionException("Failed to create Consul session. lockName=$lockName", e)
         }
 
         val acquired = try {
             acquireWithinWaitTime(key, sessionId, payload.toJson())
+        } catch (e: CancellationException) {
+            destroySession(sessionId)
+            throw e
+        } catch (e: InterruptedException) {
+            destroySession(sessionId)
+            Thread.currentThread().interrupt()
+            throw e
         } catch (e: Exception) {
             destroySession(sessionId)
             throw LeaderElectionException("Failed to acquire Consul leader lock. lockName=$lockName", e)
@@ -265,6 +277,7 @@ class ConsulLeaderElector private constructor(
         )
     }
 
+    @Suppress("RethrowCaughtException")
     private fun acquireWithinWaitTime(
         key: String,
         sessionId: ConsulSessionId,
@@ -290,8 +303,7 @@ class ConsulLeaderElector private constructor(
                 }
                 Thread.sleep(minOf(50.milliseconds.inWholeMilliseconds, remainingMillis(deadline)).coerceAtLeast(1))
             } catch (e: InterruptedException) {
-                Thread.currentThread().interrupt()
-                return false
+                throw e
             }
         } while (true)
     }
@@ -302,11 +314,12 @@ class ConsulLeaderElector private constructor(
         }
 
         val remaining = remainingMinLeaseTime(handle.acquiredAtNanos, options.leaderOptions.minLeaseTime)
+        var interruption: InterruptedException? = null
         if (remaining.isPositive()) {
             try {
                 Thread.sleep(remaining.inWholeMilliseconds)
             } catch (e: InterruptedException) {
-                Thread.currentThread().interrupt()
+                interruption = e
             }
         }
 
@@ -315,6 +328,10 @@ class ConsulLeaderElector private constructor(
                 log.warn(e) { "Failed to release Consul leader lock. lockName=${handle.lockName}" }
             }
         destroySession(handle.sessionId)
+        interruption?.let {
+            Thread.currentThread().interrupt()
+            throw it
+        }
     }
 
     private fun destroySession(sessionId: ConsulSessionId) {

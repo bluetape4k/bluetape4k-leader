@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MagicNumber:ZooKeeperSchedulerDemo.kt$ZooKeeperSchedulerDemo$10</ID>
+    <ID>MagicNumber:ZooKeeperSchedulerDemo.kt$ZooKeeperSchedulerDemo$8</ID>
+  </CurrentIssues>
+</SmellBaseline>

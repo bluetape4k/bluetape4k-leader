@@ -12,6 +12,8 @@ import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockAssert
 import io.bluetape4k.leader.LockExtender
 import org.junit.jupiter.api.Test
+import org.awaitility.kotlin.*
+import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -145,23 +147,31 @@ class DynamoDbLeaderElectorIntegrationTest : AbstractDynamoDbLeaderTest() {
 
     @Test
     fun `watchdog keeps lease active beyond lease time`() {
+        val leaseTime = 3.seconds
         val keyPrefix = keyPrefix()
         val holder = newElector(
             keyPrefix = keyPrefix,
             leaderOptions = LeaderElectionOptions(
                 waitTime = 100.milliseconds,
-                leaseTime = 600.milliseconds,
+                leaseTime = leaseTime,
                 autoExtend = true,
             ),
         )
         val contender = newElector(
             keyPrefix = keyPrefix,
-            leaderOptions = LeaderElectionOptions(waitTime = 150.milliseconds, leaseTime = 600.milliseconds),
+            leaderOptions = LeaderElectionOptions(waitTime = 150.milliseconds, leaseTime = leaseTime),
         )
         val lockName = randomName()
 
         holder.runIfLeader(lockName) {
-            Thread.sleep(1_300)
+            val initialLeaseUntil = requireNotNull(holder.state(lockName).leader?.leaseUntil)
+
+            await.atMost(leaseTime * 3).withPollInterval(100.milliseconds).until {
+                val now = Instant.now()
+                val currentLeaseUntil = holder.state(lockName).leader?.leaseUntil
+                now.isAfter(initialLeaseUntil) && currentLeaseUntil?.isAfter(now) == true
+            }
+
             contender.runIfLeader(lockName) { "contender" }.shouldBeNull()
             "holder"
         } shouldBeEqualTo "holder"

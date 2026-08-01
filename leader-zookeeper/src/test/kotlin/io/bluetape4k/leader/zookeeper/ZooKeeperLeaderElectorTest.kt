@@ -1,5 +1,6 @@
 package io.bluetape4k.leader.zookeeper
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.junit5.concurrency.StructuredTaskScopeTester
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -7,6 +8,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledForJreRange
 import org.junit.jupiter.api.condition.JRE
@@ -54,6 +56,22 @@ class ZooKeeperLeaderElectorTest: AbstractZooKeeperLeaderTest() {
         } finally {
             releaseLock.countDown()
             holder.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `runIfLeader - 획득 대기 interrupt 를 재전파한다`() {
+        val election = ZooKeeperLeaderElector(curator)
+
+        try {
+            Thread.currentThread().interrupt()
+
+            assertFailsWith<InterruptedException> {
+                election.runIfLeader(randomName()) { "should-not-run" }
+            }
+            Thread.currentThread().isInterrupted.shouldBeTrue()
+        } finally {
+            Thread.interrupted()
         }
     }
 

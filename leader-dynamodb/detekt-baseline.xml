@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>CyclomaticComplexMethod:DynamoDbLockClient.kt$DynamoDbLockClient$fun acquireAsync( key: String, ownerId: String, auditLeaderId: String, nodeId: String, waitTime: Duration, leaseTime: Duration, retryDelay: Duration, ttlPadding: Duration, clockSkewTolerance: Duration, ): CompletableFuture&lt;AcquiredLock?></ID>
+    <ID>LongMethod:DynamoDbLeaderGroupElector.kt$DynamoDbLeaderGroupElector$private fun &lt;T> runWithLock(lockName: String, auditLeaderId: String?, action: () -> T): T?</ID>
+    <ID>LongMethod:DynamoDbSuspendLeaderElector.kt$DynamoDbSuspendLeaderElector$private suspend fun &lt;T> runWithLock(lockName: String, auditLeaderId: String?, action: suspend () -> T): T?</ID>
+    <ID>LongMethod:DynamoDbSuspendLeaderGroupElector.kt$DynamoDbSuspendLeaderGroupElector$private suspend fun &lt;T> runWithLock(lockName: String, auditLeaderId: String?, action: suspend () -> T): T?</ID>
+    <ID>LongParameterList:DynamoDbLockClient.kt$DynamoDbLockClient$( key: String, ownerId: String, auditLeaderId: String, nodeId: String, leaseExpiryMillis: Long, ttlPadding: Duration, clockSkewTolerance: Duration, )</ID>
+    <ID>LongParameterList:DynamoDbLockClient.kt$DynamoDbLockClient$( key: String, ownerId: String, auditLeaderId: String, nodeId: String, leaseTime: Duration, ttlPadding: Duration, clockSkewTolerance: Duration, )</ID>
+    <ID>LongParameterList:DynamoDbLockClient.kt$DynamoDbLockClient$( key: String, ownerId: String, auditLeaderId: String, nodeId: String, waitTime: Duration, leaseTime: Duration, retryDelay: Duration, ttlPadding: Duration, clockSkewTolerance: Duration, )</ID>
+    <ID>MagicNumber:DynamoDbBackendErrorClassifier.kt$DynamoDbBackendErrorClassifier$500</ID>
+    <ID>MagicNumber:DynamoDbLockClient.kt$DynamoDbLockClient$1000.0</ID>
+    <ID>MaxLineLength:DynamoDbLeaderGroupElector.kt$DynamoDbLeaderGroupElector$.</ID>
+    <ID>MaxLineLength:DynamoDbLockClient.kt$DynamoDbLockClient$client.putItem(acquireRequest(key, ownerId, auditLeaderId, nodeId, leaseExpiryMillis, ttlPadding, clockSkewTolerance))</ID>
+    <ID>MaxLineLength:DynamoDbLockClient.kt$DynamoDbLockClient$return</ID>
+    <ID>MaxLineLength:DynamoDbLockClient.kt$DynamoDbLockClient$val</ID>
+    <ID>MaxLineLength:DynamoDbVirtualThreadLeaderGroupElector.kt$DynamoDbVirtualThreadLeaderGroupElector(DynamoDbLeaderGroupElector(this, options)).runAsyncIfLeader(lockName, action)</ID>
+    <ID>RethrowCaughtException:DynamoDbSuspendLeaderElector.kt$DynamoDbSuspendLeaderElector$throw e</ID>
+    <ID>RethrowCaughtException:DynamoDbSuspendLeaderGroupElector.kt$DynamoDbSuspendLeaderGroupElector$throw e</ID>
+    <ID>ReturnCount:DynamoDbLockClient.kt$DynamoDbLockClient$private fun Map&lt;String, AttributeValue>?.toLockRecord(): LockRecord?</ID>
+    <ID>SwallowedException:DynamoDbLockClient.kt$DynamoDbLockClient$e: ConditionalCheckFailedException</ID>
+    <ID>ThrowingExceptionFromFinally:DynamoDbSuspendLeaderElector.kt$DynamoDbSuspendLeaderElector$throw e</ID>
+    <ID>ThrowingExceptionFromFinally:DynamoDbSuspendLeaderGroupElector.kt$DynamoDbSuspendLeaderGroupElector$throw e</ID>
+    <ID>TooGenericExceptionCaught:DynamoDbLeaderElector.kt$DynamoDbLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DynamoDbLeaderGroupElector.kt$DynamoDbLeaderGroupElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DynamoDbLockExtendDelegate.kt$DynamoDbLockExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DynamoDbLockExtendDelegate.kt$DynamoDbSuspendLockExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DynamoDbSuspendLeaderElector.kt$DynamoDbSuspendLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DynamoDbSuspendLeaderGroupElector.kt$DynamoDbSuspendLeaderGroupElector$e: Exception</ID>
+    <ID>TooManyFunctions:DynamoDbLockClient.kt$DynamoDbLockClient</ID>
+  </CurrentIssues>
+</SmellBaseline>

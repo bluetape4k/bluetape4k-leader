@@ -8,7 +8,12 @@
 
 ## [미공개]
 
-## [0.5.0] — 2026-07-03
+`0.5.0`은 아직 태그, GitHub Release 또는 Maven Central publication이 없는
+개발 중인 릴리스입니다. 현재 안정적으로 게시된 버전은 `0.4.0`이며, 릴리스
+preflight checklist는 [docs/release/0.5.0-release-preflight.md](docs/release/0.5.0-release-preflight.md)에
+고정되어 있습니다.
+
+## [0.5.0] — 미공개
 
 ### 추가됨
 

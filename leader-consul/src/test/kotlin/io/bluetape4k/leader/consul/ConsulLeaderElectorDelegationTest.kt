@@ -52,6 +52,45 @@ class ConsulLeaderElectorDelegationTest {
     }
 
     @Test
+    fun `interrupted single acquisition cleans up session and rethrows`() {
+        val client = FakeConsulLockClient(interruptAcquire = true)
+        val elector = ConsulLeaderElector.create(client)
+
+        try {
+            assertFailsWith<InterruptedException> {
+                elector.runIfLeader("lock-a") { "should-not-run" }
+            }
+
+            Thread.currentThread().isInterrupted.shouldBeTrue()
+            client.destroyCalls shouldBeEqualTo 1
+        } finally {
+            Thread.interrupted()
+        }
+    }
+
+    @Test
+    fun `interrupted group acquisition cleans up session and rethrows`() {
+        val client = FakeConsulLockClient(interruptAcquire = true)
+        val elector = ConsulLeaderGroupElector.create(
+            client,
+            ConsulLeaderGroupElectionOptions(
+                leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 1, leaseTime = 10.seconds),
+            ),
+        )
+
+        try {
+            assertFailsWith<InterruptedException> {
+                elector.runIfLeader("lock-a") { "should-not-run" }
+            }
+
+            Thread.currentThread().isInterrupted.shouldBeTrue()
+            client.destroyCalls shouldBeEqualTo 1
+        } finally {
+            Thread.interrupted()
+        }
+    }
+
+    @Test
     fun `state maps owner payload to leader lease`() {
         val now = Instant.parse("2026-05-22T01:02:03Z")
         val payload = ConsulOwnerPayload(
@@ -112,7 +151,7 @@ class ConsulLeaderElectorDelegationTest {
     }
 
     @Test
-    fun `interrupted min lease wait still releases and destroys session`() {
+    fun `interrupted min lease wait releases session and rethrows`() {
         val client = FakeConsulLockClient()
         val elector = ConsulLeaderElector.create(
             client,
@@ -126,11 +165,14 @@ class ConsulLeaderElectorDelegationTest {
         )
 
         try {
-            elector.runIfLeader("lock-a") {
-                Thread.currentThread().interrupt()
-                "ok"
-            } shouldBeEqualTo "ok"
+            assertFailsWith<InterruptedException> {
+                elector.runIfLeader("lock-a") {
+                    Thread.currentThread().interrupt()
+                    "ok"
+                }
+            }
 
+            Thread.currentThread().isInterrupted.shouldBeTrue()
             client.releaseCalls shouldBeEqualTo 1
             client.destroyCalls shouldBeEqualTo 1
         } finally {
@@ -350,6 +392,7 @@ class ConsulLeaderElectorDelegationTest {
         private val entry: ConsulKvEntry? = null,
         override val requestTimeout: Duration = 5.seconds,
         private val readFuture: CompletableFuture<ConsulKvEntry?>? = null,
+        private val interruptAcquire: Boolean = false,
     ) : ConsulLockClient {
 
         private var currentEntry: ConsulKvEntry? = entry
@@ -388,6 +431,9 @@ class ConsulLeaderElectorDelegationTest {
             ownerPayload: String,
         ): CompletableFuture<Boolean> {
             acquireCalls++
+            if (interruptAcquire) {
+                return InterruptingFuture()
+            }
             if (acquireResult) {
                 currentEntry = ConsulKvEntry(
                     key = key,
@@ -434,5 +480,10 @@ class ConsulLeaderElectorDelegationTest {
             requestedTimeoutNanos = unit.toNanos(timeout)
             return value
         }
+    }
+
+    private class InterruptingFuture<T> : CompletableFuture<T>() {
+        override fun get(timeout: Long, unit: TimeUnit): T =
+            throw InterruptedException("interrupted acquisition")
     }
 }

@@ -10,6 +10,7 @@ import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcBackendErrorClass
 import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcSuspendSlotExtendDelegate
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcGroupLock
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcSchemaInitializer
+import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcUnlockOutcome
 import io.bluetape4k.leader.exposed.r2dbc.lock.validateExposedR2dbcLockName
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
@@ -33,7 +34,9 @@ import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
 import kotlin.time.Duration.Companion.milliseconds
 import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.random.Random
 
 /**
@@ -44,6 +47,9 @@ import kotlin.random.Random
  * @property options Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property historyRecorder Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
+// The suspend group elector intentionally implements the complete group-election contract,
+// including blocking state queries, coroutine execution, history, and lease lifecycle hooks.
+@Suppress("TooManyFunctions")
 class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     private val db: R2dbcDatabase,
     val options: ExposedR2dbcLeaderGroupElectionOptions,
@@ -80,16 +86,83 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     override val maxLeaders: Int get() = options.maxLeaders
 
     /**
-     * `cachedActiveCount` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
+     * `cachedActiveCounts` 값은 lock 이름별 활성 슬롯 수를 보관합니다.
      */
-    private val cachedActiveCount = AtomicInteger(0)
+    private class CachedActiveCount(initialValue: Int = 0) {
+        val value = AtomicInteger(initialValue)
+        val generation = AtomicLong(if (initialValue == 0) 0 else 1)
+    }
+
+    private data class CacheSnapshot(
+        val entry: CachedActiveCount?,
+        val generation: Long,
+    )
+
+    private val cachedActiveCounts = ConcurrentHashMap<String, CachedActiveCount>()
+
+    /**
+     * Local acquisitions and releases are serialized through the map entry.  The generation lets a
+     * database refresh detect a local change that happened while its suspended query was in flight.
+     */
+    private fun incrementCachedActiveCount(lockName: String): CachedActiveCount =
+        cachedActiveCounts.compute(lockName) { _, current ->
+            val entry = current ?: CachedActiveCount()
+            entry.value.incrementAndGet()
+            entry.generation.incrementAndGet()
+            entry
+        }!!
+
+    private fun decrementCachedActiveCount(lockName: String, expected: CachedActiveCount) {
+        cachedActiveCounts.computeIfPresent(lockName) { _, current ->
+            if (current !== expected) {
+                current
+            } else {
+                val remaining = current.value.updateAndGet { it.coerceAtLeast(1) - 1 }
+                current.generation.incrementAndGet()
+                remaining.takeIf { it > 0 }?.let { current }
+            }
+        }
+    }
+
+    private fun cacheSnapshot(lockName: String): CacheSnapshot {
+        val entry = cachedActiveCounts[lockName]
+        return CacheSnapshot(entry, entry?.generation?.get() ?: 0L)
+    }
+
+    /**
+     * Applies only a refresh based on the snapshot that started the query.  A concurrent local
+     * acquisition/release wins over a stale database result; a zero result never creates a cache
+     * entry and removes only the unchanged entry it refreshed.
+     */
+    private fun applyActiveCountRefresh(
+        lockName: String,
+        snapshot: CacheSnapshot,
+        refreshedCount: Int,
+    ): Int = cachedActiveCounts.compute(lockName) { _, current ->
+        when {
+            snapshot.entry == null -> when {
+                current == null && refreshedCount > 0 -> CachedActiveCount(refreshedCount)
+                else -> current
+            }
+
+            current !== snapshot.entry -> current
+            current.generation.get() != snapshot.generation -> current
+            refreshedCount > 0 -> {
+                current.value.set(refreshedCount)
+                current.generation.incrementAndGet()
+                current
+            }
+
+            else -> null
+        }
+    }?.value?.get() ?: 0
 
     /**
      * `activeCount` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
-    override fun activeCount(lockName: String): Int = cachedActiveCount.get()
+    override fun activeCount(lockName: String): Int = cachedActiveCounts[lockName]?.value?.get() ?: 0
 
     /**
      * `availableSlots` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
@@ -113,7 +186,8 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
      */
     suspend fun activeCountSuspend(lockName: String): Int {
         validateExposedR2dbcLockName(lockName)
-        return try {
+        val snapshot = cacheSnapshot(lockName)
+        val refreshedCount = try {
             suspendTransaction(db) {
                 val now = Instant.now()
                 LeaderGroupLockTable
@@ -128,9 +202,10 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            log.warn(e) { "activeCount DB 조회 오류 (0 반환): lockName=$lockName" }
-            0
-        }.also { cachedActiveCount.set(it) }
+            log.warn(e) { "activeCount DB 조회 오류 (기존 캐시 유지): lockName=$lockName" }
+            return cachedActiveCounts[lockName]?.value?.get() ?: 0
+        }
+        return applyActiveCountRefresh(lockName, snapshot, refreshedCount)
     }
 
     /**
@@ -161,7 +236,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
             }
 
             log.debug { "그룹 슬롯을 획득하여 작업을 수행합니다. lockName=$lockName, slot=$slot" }
-            cachedActiveCount.incrementAndGet()
+            val cachedActiveCount = incrementCachedActiveCount(lockName)
 
             val historyId = recordAcquired(lockName, lock.token, slot)
             val startedAt = Instant.now()
@@ -203,14 +278,21 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                 // NonCancellable: 코루틴 취소 시에도 watchdog close + 락 해제가 중단되지 않도록 보호
                 withContext(NonCancellable) {
                     watchdog.close()
-                    cachedActiveCount.updateAndGet { it.coerceAtLeast(1) - 1 }
                     when {
                         actionSucceeded -> recordCompleted(historyId, lock.token, startedAt, slot)
                         actionFailed -> recordFailed(historyId, lock.token, startedAt, slot)
                     }
                     try {
-                        lock.unlock(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)
-                        log.debug { "그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" }
+                        when (lock.unlockAndReport(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)) {
+                            ExposedR2dbcUnlockOutcome.RELEASED,
+                            ExposedR2dbcUnlockOutcome.NOT_HELD -> {
+                                decrementCachedActiveCount(lockName, cachedActiveCount)
+                                log.debug { "그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" }
+                            }
+
+                            ExposedR2dbcUnlockOutcome.FAILED ->
+                                log.warn { "DB 해제 실패로 그룹 슬롯 캐시를 유지합니다. lockName=$lockName, slot=$slot" }
+                        }
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {

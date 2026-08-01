@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongParameterList:LeaderMetricTagOptions.kt$LeaderMetricTagRule.Companion$( mode: LeaderMetricTagMode = LeaderMetricTagMode.REDACT, allowList: Set&lt;String> = emptySet(), denyList: Set&lt;String> = emptySet(), hashLength: Int = DEFAULT_HASH_LENGTH, maxLength: Int = DEFAULT_MAX_LENGTH, redactedValue: String = DEFAULT_REDACTED_VALUE, )</ID>
+    <ID>MagicNumber:LeaderMetricTagOptions.kt$LeaderMetricTagRule.Companion$0xff</ID>
+    <ID>MagicNumber:LeaderMetricTagOptions.kt$LeaderMetricTagRule.Companion$4</ID>
+    <ID>MaxLineLength:CounterAwareSinkDecorator.kt$CounterAwareSinkDecorator$*</ID>
+    <ID>MaxLineLength:CounterAwareSuspendSinkDecorator.kt$CounterAwareSuspendSinkDecorator$*</ID>
+    <ID>MaxLineLength:InstrumentedLeaderElectors.kt$InstrumentedLeaderElector$*</ID>
+    <ID>MaxLineLength:InstrumentedLeaderElectors.kt$InstrumentedLeaderGroupElector$*</ID>
+    <ID>MaxLineLength:InstrumentedLeaderElectors.kt$InstrumentedSuspendLeaderElector$*</ID>
+    <ID>MaxLineLength:MicrometerLeaderAopMetricsRecorder.kt$MicrometerLeaderAopMetricsRecorder$*</ID>
+    <ID>MaxLineLength:MicrometerLeaderAopMetricsRecorder.kt$MicrometerLeaderAopMetricsRecorder$log.warn { "leader-micrometer: new lock.name='$name' registered — beware tag cardinality if using dynamic SpEL" }</ID>
+    <ID>MaxLineLength:MicrometerLeaderElectionListener.kt$MicrometerLeaderElectionListener$*</ID>
+    <ID>MaxLineLength:MicrometerObservationLeaderAopMetricsRecorder.kt$MicrometerObservationLeaderAopMetricsRecorder$*</ID>
+    <ID>MaxLineLength:MicrometerObservationLeaderAopMetricsRecorder.kt$MicrometerObservationLeaderAopMetricsRecorder$.</ID>
+    <ID>MaxLineLength:MicrometerObservationLeaderElectionListener.kt$MicrometerObservationLeaderElectionListener$*</ID>
+    <ID>MaxLineLength:MicrometerSafeLeaderHistoryRecorder.kt$MicrometerSafeLeaderHistoryRecorder$*</ID>
+    <ID>MaxLineLength:MicrometerSuspendSafeLeaderHistoryRecorder.kt$MicrometerSuspendSafeLeaderHistoryRecorder$*</ID>
+    <ID>ReturnCount:LeaderMetricTagOptions.kt$LeaderMetricTagRule$fun sanitize(rawValue: String): String</ID>
+    <ID>TooGenericExceptionCaught:CounterAwareSinkDecorator.kt$CounterAwareSinkDecorator$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:CounterAwareSuspendSinkDecorator.kt$CounterAwareSuspendSinkDecorator$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:InstrumentedLeaderElectors.kt$InstrumentedLeaderMetrics$e: Throwable</ID>
+    <ID>TooManyFunctions:MicrometerLeaderAopMetricsRecorder.kt$MicrometerLeaderAopMetricsRecorder : LeaderAopMetricsRecorder</ID>
+    <ID>TooManyFunctions:MicrometerObservationLeaderAopMetricsRecorder.kt$MicrometerObservationLeaderAopMetricsRecorder : LeaderAopMetricsRecorder</ID>
+  </CurrentIssues>
+</SmellBaseline>

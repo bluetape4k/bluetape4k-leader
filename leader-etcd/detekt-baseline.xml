@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MagicNumber:EtcdKeyEncoder.kt$EtcdKeyEncoder$0xFF</ID>
+    <ID>MagicNumber:EtcdKeyEncoder.kt$EtcdKeyEncoder$10</ID>
+    <ID>MagicNumber:EtcdKeyEncoder.kt$EtcdKeyEncoder$3</ID>
+    <ID>MagicNumber:EtcdKeyEncoder.kt$EtcdKeyEncoder$4</ID>
+    <ID>MagicNumber:EtcdLeaderElectionEventPublisher.kt$EtcdLeaderElectionEventPublisher$5</ID>
+    <ID>MagicNumber:EtcdLeaderGroupElector.kt$EtcdLeaderGroupElector$10</ID>
+    <ID>MagicNumber:EtcdLeaderGroupElector.kt$EtcdLeaderGroupElector$50L</ID>
+    <ID>MagicNumber:EtcdLeaseHandle.kt$16</ID>
+    <ID>MagicNumber:EtcdLeaseHandle.kt$EtcdLeaseHandle.Companion$0xFF</ID>
+    <ID>MagicNumber:EtcdLeaseHandle.kt$EtcdLeaseHandle.Companion$4</ID>
+    <ID>MagicNumber:EtcdLeaseTime.kt$EtcdLeaseTime$3</ID>
+    <ID>MagicNumber:EtcdLockExtendDelegate.kt$EtcdLockExtendDelegate$10</ID>
+    <ID>MagicNumber:EtcdSuspendLeaderGroupElector.kt$EtcdSuspendLeaderGroupElector$50L</ID>
+    <ID>ReturnCount:EtcdLeaderElectionEventPublisher.kt$EtcdLeaderElectionEventPublisher$private fun resourceFromKey(key: ByteSequence): WatchedResource?</ID>
+    <ID>ReturnCount:EtcdLeaderElector.kt$EtcdLeaderElector$private fun acquire(lockName: String): EtcdLeaseHandle?</ID>
+    <ID>ReturnCount:EtcdLeaderGroupElector.kt$EtcdLeaderGroupElector$private fun acquireSlot(lockName: String, slot: Int, timeoutMs: Long): EtcdLeaseHandle?</ID>
+    <ID>ReturnCount:EtcdSuspendLeaderElector.kt$EtcdSuspendLeaderElector$private suspend fun acquire(lockName: String): EtcdLeaseHandle?</ID>
+    <ID>ReturnCount:EtcdSuspendLeaderGroupElector.kt$EtcdSuspendLeaderGroupElector$private suspend fun acquireSlot(lockName: String, slot: Int, timeout: Duration): EtcdLeaseHandle?</ID>
+    <ID>SwallowedException:EtcdLeaderElector.kt$EtcdLeaderElector$e: TimeoutException</ID>
+    <ID>SwallowedException:EtcdLeaderGroupElector.kt$EtcdLeaderGroupElector$e: TimeoutException</ID>
+    <ID>SwallowedException:EtcdLockExtendDelegate.kt$EtcdSuspendLockExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:EtcdLeaderElectionEventPublisher.kt$EtcdLeaderElectionEventPublisher$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:EtcdLeaderElector.kt$EtcdLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:EtcdLeaderGroupElector.kt$EtcdLeaderGroupElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:EtcdLockExtendDelegate.kt$EtcdSuspendLockExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:EtcdSuspendLeaderElector.kt$EtcdSuspendLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:EtcdSuspendLeaderGroupElector.kt$EtcdSuspendLeaderGroupElector$e: Exception</ID>
+    <ID>TooManyFunctions:EtcdLeaderElectionEventPublisher.kt$EtcdLeaderElectionEventPublisher : LeaderElectionEventPublisherAutoCloseable</ID>
+    <ID>TooManyFunctions:EtcdLeaderGroupElector.kt$EtcdLeaderGroupElector : LeaderGroupElector</ID>
+    <ID>TooManyFunctions:EtcdSuspendLeaderGroupElector.kt$EtcdSuspendLeaderGroupElector : SuspendLeaderGroupElector</ID>
+  </CurrentIssues>
+</SmellBaseline>

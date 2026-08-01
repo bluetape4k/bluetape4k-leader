@@ -55,6 +55,9 @@ class LeaderElectionActuatorHttpPathTest {
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
 
         response.statusCode() shouldBeEqualTo 200
+        response.body().shouldContain("\"backend\":\"test\"")
+        response.body().shouldContain("\"stateProviderBean\":\"testLeaderElector\"")
+        response.body().shouldContain("\"stateSupported\":true")
         response.body().shouldContain("\"name\":\"batch-job\"")
         response.body().shouldContain("\"status\":\"Occupied\"")
         response.body().shouldContain("\"leaderId\":\"node-1\"")
@@ -70,6 +73,8 @@ class LeaderElectionActuatorHttpPathTest {
     }
 
     private class TestLeaderElector : LeaderElector {
+
+        override val supportsAuditLeaderState: Boolean = true
 
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
             action()

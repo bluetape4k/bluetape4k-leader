@@ -23,6 +23,7 @@ import io.bluetape4k.logging.warn
 import io.etcd.jetcd.ByteSequence
 import io.etcd.jetcd.Client
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CancellationException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -98,14 +99,19 @@ class EtcdLeaderElector private constructor(
             executor,
         )
 
+    // Lease grant and lock acquisition have separate timeout, cancellation, interruption,
+    // and backend-error branches; keeping them explicit preserves cleanup semantics.
+    @Suppress("ThrowsCount", "ReturnCount")
     private fun acquire(lockName: String): EtcdLeaseHandle? {
         val ttlSeconds = EtcdLeaseTime.ttlSeconds(options.leaderOptions.leaseTime)
         val deadline = EtcdAcquisitionDeadline.fromNow(options.leaderOptions.waitTime)
         val leaseId = try {
             lockClient.grantLease(ttlSeconds).get(deadline.remainingMillis(), TimeUnit.MILLISECONDS)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
-            return null
+            throw e
         } catch (e: TimeoutException) {
             log.debug { "etcd lease grant timed out. lockName=$lockName" }
             return null
@@ -118,12 +124,15 @@ class EtcdLeaderElector private constructor(
         val lockFuture = lockClient.lock(lockKey, leaseId)
         val ownershipKey = try {
             lockFuture.get(deadline.remainingMillis(), TimeUnit.MILLISECONDS)
+        } catch (e: CancellationException) {
+            revokeLease(leaseId)
+            throw e
         } catch (e: InterruptedException) {
-            Thread.currentThread().interrupt()
             scheduleLateCleanup(lockFuture, leaseId)
             lockFuture.cancel(true)
             revokeLease(leaseId)
-            return null
+            Thread.currentThread().interrupt()
+            throw e
         } catch (e: TimeoutException) {
             scheduleLateCleanup(lockFuture, leaseId)
             lockFuture.cancel(true)
@@ -145,15 +154,19 @@ class EtcdLeaderElector private constructor(
 
     private fun releaseAfterMinLease(handle: EtcdLeaseHandle) {
         val remaining = remainingMinLeaseTime(handle.acquiredAtNanos, options.leaderOptions.minLeaseTime)
+        var interruption: InterruptedException? = null
         if (remaining > Duration.ZERO) {
-            runCatching { Thread.sleep(remaining.inWholeMilliseconds.coerceAtLeast(1L)) }
-                .onFailure { e ->
-                    if (e is InterruptedException) {
-                        Thread.currentThread().interrupt()
-                    }
-                }
+            try {
+                Thread.sleep(remaining.inWholeMilliseconds.coerceAtLeast(1L))
+            } catch (e: InterruptedException) {
+                interruption = e
+            }
         }
         release(handle)
+        interruption?.let {
+            Thread.currentThread().interrupt()
+            throw it
+        }
     }
 
     private fun release(handle: EtcdLeaseHandle) {

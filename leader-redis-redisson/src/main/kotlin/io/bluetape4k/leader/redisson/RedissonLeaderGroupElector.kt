@@ -116,7 +116,11 @@ class RedissonLeaderGroupElector private constructor(
 
     private fun <T> runImpl(lockName: String, auditLeaderId: String?, action: () -> T): T? {
         lockName.requireNotBlank("lockName")
-        val semaphore = getPermitSemaphore(lockName)
+        val semaphore = try {
+            getPermitSemaphore(lockName)
+        } catch (e: RedisException) {
+            e.rethrowInterruptedCause()
+        }
         log.debug { "리더 그룹 슬롯 획득 요청. lockName=$lockName, maxLeaders=$maxLeaders" }
 
         val permitId: String? = try {
@@ -128,7 +132,9 @@ class RedissonLeaderGroupElector private constructor(
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
             log.error(e) { "슬롯 획득 대기 중 인터럽트. lockName=$lockName" }
-            throw RedisException("Interrupted while acquiring permit. lockName=$lockName", e)
+            throw e
+        } catch (e: RedisException) {
+            e.rethrowInterruptedCause()
         }
 
         if (permitId == null) {
@@ -183,6 +189,18 @@ class RedissonLeaderGroupElector private constructor(
             }
             releaseOrExtend(semaphore, permitId, startedAtNanos, lockName)
         }
+    }
+
+    private fun Throwable.rethrowInterruptedCause(): Nothing {
+        var current: Throwable? = this
+        while (current != null) {
+            if (current is InterruptedException) {
+                Thread.currentThread().interrupt()
+                throw current
+            }
+            current = current.cause
+        }
+        throw this
     }
 
     override fun <T> runAsyncIfLeader(

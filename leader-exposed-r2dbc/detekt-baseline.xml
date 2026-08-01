@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongMethod:ExposedR2DbcSuspendLeaderElector.kt$ExposedR2DbcSuspendLeaderElector$override suspend fun &lt;T> runIfLeader(lockName: String, action: suspend () -> T): T?</ID>
+    <ID>LongMethod:ExposedR2DbcSuspendLeaderGroupElector.kt$ExposedR2DbcSuspendLeaderGroupElector$override suspend fun &lt;T> runIfLeader(lockName: String, action: suspend () -> T): T?</ID>
+    <ID>LongParameterList:ExposedSuspendLeaderHistorySink.kt$ExposedSuspendLeaderHistorySink$( key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, status: LeaderHistoryStatus, errorType: String?, errorMessage: String?, )</ID>
+    <ID>MagicNumber:ExposedR2dbcGroupLock.kt$ExposedR2dbcGroupLock$8</ID>
+    <ID>MagicNumber:ExposedR2dbcLock.kt$ExposedR2dbcLock$8</ID>
+    <ID>MagicNumber:ExposedR2dbcSchemaInitializer.kt$ExposedR2dbcSchemaInitializer$6</ID>
+    <ID>MaxLineLength:ExposedR2DbcSuspendLeaderElectorFactory.kt$ExposedR2DbcSuspendLeaderElectorFactory$*</ID>
+    <ID>MaxLineLength:ExposedR2DbcSuspendLeaderGroupElectorFactory.kt$ExposedR2DbcSuspendLeaderGroupElectorFactory$*</ID>
+    <ID>MaxLineLength:ExposedR2dbcSuspendSlotExtendDelegate.kt$ExposedR2dbcSuspendSlotExtendDelegate$log.warn(e) { "Exposed R2DBC suspend group extendSuspend failed. lockName=${slotLock.lockName}, slot=${slotLock.slot}" }</ID>
+    <ID>MaxLineLength:ExposedR2dbcSuspendSlotExtendDelegate.kt$ExposedR2dbcSuspendSlotExtendDelegate$log.warn(e) { "Exposed R2DBC suspend group isHeld failed. lockName=${slotLock.lockName}, slot=${slotLock.slot}" }</ID>
+    <ID>ReturnCount:ExposedR2DbcSuspendLeaderGroupElector.kt$ExposedR2DbcSuspendLeaderGroupElector$override suspend fun &lt;T> runIfLeader(lockName: String, action: suspend () -> T): T?</ID>
+    <ID>ReturnCount:ExposedR2dbcGroupLock.kt$ExposedR2dbcGroupLock$suspend fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean?</ID>
+    <ID>SerialVersionUIDInSerializableClass:ExposedR2dbcLeaderElectionOptions.kt$ExposedR2dbcLeaderElectionOptions : Serializable</ID>
+    <ID>SerialVersionUIDInSerializableClass:ExposedR2dbcLeaderGroupElectionOptions.kt$ExposedR2dbcLeaderGroupElectionOptions : Serializable</ID>
+    <ID>SpreadOperator:ExposedR2dbcSchemaInitializer.kt$ExposedR2dbcSchemaInitializer$(*ExposedLeaderSchema.allTables)</ID>
+    <ID>SwallowedException:ExposedR2dbcGroupLock.kt$ExposedR2dbcGroupLock$e: UnsupportedByDialectException</ID>
+    <ID>SwallowedException:ExposedR2dbcLock.kt$ExposedR2dbcLock$e: UnsupportedByDialectException</ID>
+    <ID>ThrowingExceptionFromFinally:ExposedR2DbcSuspendLeaderElector.kt$ExposedR2DbcSuspendLeaderElector$throw e</ID>
+    <ID>ThrowingExceptionFromFinally:ExposedR2DbcSuspendLeaderGroupElector.kt$ExposedR2DbcSuspendLeaderGroupElector$throw e</ID>
+    <ID>TooGenericExceptionCaught:ExposedR2DbcSuspendLeaderElector.kt$ExposedR2DbcSuspendLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ExposedR2DbcSuspendLeaderGroupElector.kt$ExposedR2DbcSuspendLeaderGroupElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ExposedR2DbcSuspendLeaderGroupElector.kt$ExposedR2DbcSuspendLeaderGroupElector$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ExposedR2dbcGroupLock.kt$ExposedR2dbcGroupLock$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ExposedR2dbcLock.kt$ExposedR2dbcLock$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ExposedR2dbcLock.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ExposedR2dbcSchemaInitializer.kt$ExposedR2dbcSchemaInitializer$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ExposedR2dbcSuspendLockExtendDelegate.kt$ExposedR2dbcSuspendLockExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ExposedR2dbcSuspendSlotExtendDelegate.kt$ExposedR2dbcSuspendSlotExtendDelegate$e: Exception</ID>
+  </CurrentIssues>
+</SmellBaseline>

@@ -8,6 +8,7 @@ import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderState
+import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.spring.LeaderElectionAutoConfiguration
 import io.bluetape4k.leader.spring.backend.LocalLeaderConfiguration
 import io.bluetape4k.leader.spring.observability.LeaderElectionActuatorAutoConfiguration
@@ -71,6 +72,27 @@ class LeaderStartupDiagnosticsAutoConfigurationTest {
 
                 report.warningCodes shouldContain LeaderStartupDiagnostics.WarningCode.MULTIPLE_NON_LOCAL_BACKENDS.name
                 report.activeBackends shouldBeEqualTo listOf("custom-a", "custom-b")
+            }
+    }
+
+    @Test
+    fun `invalid explicit state provider fails startup instead of being silently ignored`() {
+        runner
+            .withPropertyValues("bluetape4k.leader.observability.state-provider-bean=missingStateProvider")
+            .run { ctx ->
+                ctx.startupFailure.shouldNotBeNull()
+                    .shouldBeInstanceOf<IllegalStateException>()
+            }
+    }
+
+    @Test
+    fun `suspend-only backend replaces local fallback in diagnostics`() {
+        runner
+            .withUserConfiguration(SuspendOnlyBackendConfig::class.java)
+            .run { ctx ->
+                val report = ctx.getBean<LeaderStartupDiagnostics>().lastReport().shouldNotBeNull()
+
+                report.activeBackends shouldBeEqualTo listOf("exposed-r2dbc")
             }
     }
 
@@ -148,6 +170,12 @@ class LeaderStartupDiagnosticsAutoConfigurationTest {
             NamedLeaderElector("custom-b")
     }
 
+    @Configuration(proxyBeanMethods = false)
+    class SuspendOnlyBackendConfig {
+        @Bean("exposedR2dbcSuspendLeaderElector")
+        fun exposedR2dbcSuspendLeaderElector(): SuspendLeaderElector = NamedSuspendLeaderElector()
+    }
+
     private class NamedLeaderElector(private val backendName: String) : LeaderElector {
 
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? =
@@ -168,5 +196,14 @@ class LeaderStartupDiagnosticsAutoConfigurationTest {
                     leaseUntil = Instant.parse("2026-07-03T00:00:00Z"),
                 ),
             )
+    }
+
+
+    private class NamedSuspendLeaderElector : SuspendLeaderElector {
+        override val supportsAuditLeaderState: Boolean = true
+
+        override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? = action()
+
+        override fun state(lockName: String): LeaderState = LeaderState.empty(lockName)
     }
 }
