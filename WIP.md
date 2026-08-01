@@ -1,14 +1,16 @@
 # WIP - bluetape4k-leader
 
 스냅샷: 2026-08-01 KST. `develop`의 현재 head는
-`7268feff2020bc73e836015a517bf4d16e1bf457`이며, `0.5.0`은 아직 태그,
-GitHub Release 또는 Maven Central publication이 없는 개발 라인입니다. 이
-문서는 병합·게시 완료를 혼동하지 않고, 관찰된 검증 증거를 기준으로 상태를
-갱신합니다.
+`3a0cd0e43c48b24775cbc1cb0d024e460301e2ee`이며, 문서 정합성 PR [#650](https://github.com/bluetape4k/bluetape4k-leader/pull/650)은
+병합되었고 연결 이슈 [#649](https://github.com/bluetape4k/bluetape4k-leader/issues/649)는 종료되었습니다.
+`0.5.0`은 아직 태그, GitHub Release 또는 Maven Central publication이 없는 개발
+라인입니다. 이 문서는 병합·게시 완료를 혼동하지 않고, 관찰된 검증 증거를 기준으로
+상태를 갱신합니다.
 
 ## 현재 방향
 
-0.5.0 release-readiness와 문서/KDoc localization train은 완료되었습니다.
+0.5.0 release-readiness, 문서/KDoc localization train 및 release-facing 문서 정합성
+작업(PR #650)은 완료되었습니다.
 다음 단계는 게시 승인 전 preflight 증거를 유지하고, 별도 release로 약속되지
 않은 Backlog 후보를 다음 마이너 라인에서 계획하는 것입니다. `0.5.0`을
 게시된 릴리스로 표시하려면 tag, Maven Central publication, GitHub Release가
@@ -23,6 +25,7 @@ GitHub Release 또는 Maven Central publication이 없는 개발 라인입니다
 | PR CI | [run #30691084868](https://github.com/bluetape4k/bluetape4k-leader/actions/runs/30691084868) success |
 | post-merge `develop` CI | [run #30691656980](https://github.com/bluetape4k/bluetape4k-leader/actions/runs/30691656980) success |
 | Java/Kotlin·Actions CodeQL | 수동 [run #30692366188](https://github.com/bluetape4k/bluetape4k-leader/actions/runs/30692366188) success; merge head exact |
+| release-facing 문서 정합성 | [PR #650](https://github.com/bluetape4k/bluetape4k-leader/pull/650) merged at `3a0cd0e4…`; issue [#649](https://github.com/bluetape4k/bluetape4k-leader/issues/649) closed; [submit-gradle run #30694254927](https://github.com/bluetape4k/bluetape4k-leader/actions/runs/30694254927) success |
 | 0.5.0 milestone | open issues `0`; milestone 자체는 publication 승인 없이 유지 |
 
 주요 수정에는 R2DBC group state 격리, blocking interruption 보존, Spring
