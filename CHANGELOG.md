@@ -9,8 +9,13 @@
 ## [미공개]
 
 `0.5.0`은 아직 태그, GitHub Release 또는 Maven Central publication이 없는
-개발 중인 릴리스입니다. 현재 안정적으로 게시된 버전은 `0.4.0`이며, 릴리스
-preflight checklist는 [docs/release/0.5.0-release-preflight.md](docs/release/0.5.0-release-preflight.md)에
+개발 중인 릴리스입니다. PR [#648](https://github.com/bluetape4k/bluetape4k-leader/pull/648)은
+`develop`의 merge commit `7268feff2020bc73e836015a517bf4d16e1bf457`에 병합되었고,
+post-merge CI와 수동 CodeQL 검증도 exact head에서 통과했습니다. release-readiness
+이슈 [#637–#647](https://github.com/bluetape4k/bluetape4k-leader/milestone/0.5.0)와
+문서/KDoc localization Epic [#617](https://github.com/bluetape4k/bluetape4k-leader/issues/617)은
+모두 종료되었습니다. 현재 안정적으로 게시된 버전은 `0.4.0`이며, 릴리스 preflight
+checklist는 [docs/release/0.5.0-release-preflight.md](docs/release/0.5.0-release-preflight.md)에
 고정되어 있습니다.
 
 ## [0.5.0] — 미공개
@@ -21,19 +26,24 @@ preflight checklist는 [docs/release/0.5.0-release-preflight.md](docs/release/0.
 - 지표 내보내기 전에 리더 잠금 이름과 리더 ID를 정규화하거나, 허용 목록에 추가하거나, 수정할 수 있도록 지표 태그 카디널리티 제어를 추가했습니다([#530](https://github.com/bluetape4k/bluetape4k-leader/issues/530)).
 - 정체된 리더십, 오류 급증 및 백엔드 위험 신호에 대한 Prometheus 경고 규칙, Grafana 지침 및 리더 운영 런북을 추가했습니다([#534](https://github.com/bluetape4k/bluetape4k-leader/issues/534)).
 - 활성 백엔드 후보, 관리 엔드포인트 노출, 레지스트리 시드 격차 및 높은 카디널리티 태그 위험에 대한 Spring Boot 구성 메타데이터 및 시작 진단을 추가했습니다([#538](https://github.com/bluetape4k/bluetape4k-leader/issues/538)).
+- 모든 Kotlin production source를 대상으로 하는 Detekt 검증, `0.4.0` 기준 ABI 호환성 gate, 중앙 catalog를 인식하는 CodeQL Kotlin pinning workflow를 추가했습니다([#640](https://github.com/bluetape4k/bluetape4k-leader/issues/640), [#641](https://github.com/bluetape4k/bluetape4k-leader/issues/641), [#643](https://github.com/bluetape4k/bluetape4k-leader/issues/643)).
 
 ### 변경됨
 
 - 관찰 가능성, 운영 준비 상태, 진단 및 벤치마크 지원 해석에 대한 새로워진 README 및 현지화된 README 지침([#529](https://github.com/bluetape4k/bluetape4k-leader/issues/529), [#530](https://github.com/bluetape4k/bluetape4k-leader/issues/530), [#534](https://github.com/bluetape4k/bluetape4k-leader/issues/534), [#538](https://github.com/bluetape4k/bluetape4k-leader/issues/538)).
 - 0.5.0 범위를 확장하는 대신([#561](https://github.com/bluetape4k/bluetape4k-leader/issues/561)) 백로그에 나머지 관리, 상태, 감사 내보내기, 경로 도우미, Ktor 및 리스 연장 후속 조치를 유지했습니다.
+- release-readiness 수정과 문서/KDoc localization train을 각각 PR [#648](https://github.com/bluetape4k/bluetape4k-leader/pull/648) 및 PR [#625](https://github.com/bluetape4k/bluetape4k-leader/pull/625)–[#632](https://github.com/bluetape4k/bluetape4k-leader/pull/632)로 `develop`에 반영했습니다.
+- 단일 리더와 그룹 리더 선출의 bilingual visual companion을 추가하고 manual 링크와 source anchor를 정렬했습니다([#633](https://github.com/bluetape4k/bluetape4k-leader/issues/633), [PR #636](https://github.com/bluetape4k/bluetape4k-leader/pull/636)).
 
-### 결정된
+### 버그 수정
 
 - Redis, Hazelcast, ZooKeeper, etcd, Consul 및 Spring Boot 테스트 전반에 걸쳐 소유권 보존, 리스 TTL 보고, 세션 손실 감지 및 공유 컨테이너 안정성을 위한 0.5.0 정확성 및 통합 강화 레인을 폐쇄했습니다. ([#511](https://github.com/bluetape4k/bluetape4k-leader/issues/511), [#512](https://github.com/bluetape4k/bluetape4k-leader/issues/512), [#513](https://github.com/bluetape4k/bluetape4k-leader/issues/513), [#514](https://github.com/bluetape4k/bluetape4k-leader/issues/514), [#515](https://github.com/bluetape4k/bluetape4k-leader/issues/515), [#516](https://github.com/bluetape4k/bluetape4k-leader/issues/516), [#517](https://github.com/bluetape4k/bluetape4k-leader/issues/517), [#518](https://github.com/bluetape4k/bluetape4k-leader/issues/518), [#519](https://github.com/bluetape4k/bluetape4k-leader/issues/519)).
+- R2DBC group state를 lock name별로 격리하고 blocking interruption을 보존했으며, 전체 lease timing 회귀를 안정화했습니다([#637](https://github.com/bluetape4k/bluetape4k-leader/issues/637), [#639](https://github.com/bluetape4k/bluetape4k-leader/issues/639), [#642](https://github.com/bluetape4k/bluetape4k-leader/issues/642)).
+- 선택한 backend와 지원하지 않는 operational state가 Spring surface에 일관되게 반영되도록 정리하고, JVM-global lease extender의 ownership conflict와 close order를 명시했습니다([#638](https://github.com/bluetape4k/bluetape4k-leader/issues/638), [#644](https://github.com/bluetape4k/bluetape4k-leader/issues/644), [#646](https://github.com/bluetape4k/bluetape4k-leader/issues/646)).
 
 ### 성능
 
-- 그룹 세마포어 동작, 경합 및 건너뛰기 경로, Spring 주석 조언 오버헤드, Micrometer/history-recorder 오버헤드, Kubernetes Lease 충돌 및 갱신 시나리오에 대한 벤치마크 적용 범위를 추가했습니다([#520](https://github.com/bluetape4k/bluetape4k-leader/issues/520). [#521](https://github.com/bluetape4k/bluetape4k-leader/issues/521), [#522](https://github.com/bluetape4k/bluetape4k-leader/issues/522), [#523](https://github.com/bluetape4k/bluetape4k-leader/issues/523), [#524](https://github.com/bluetape4k/bluetape4k-leader/issues/524)).
+- 그룹 세마포어 동작, 경합 및 건너뛰기 경로, Spring 주석 조언 오버헤드, Micrometer/history-recorder 오버헤드, Kubernetes Lease 충돌 및 갱신 시나리오에 대한 벤치마크 적용 범위를 추가했습니다([#520](https://github.com/bluetape4k/bluetape4k-leader/issues/520), [#521](https://github.com/bluetape4k/bluetape4k-leader/issues/521), [#522](https://github.com/bluetape4k/bluetape4k-leader/issues/522), [#523](https://github.com/bluetape4k/bluetape4k-leader/issues/523), [#524](https://github.com/bluetape4k/bluetape4k-leader/issues/524)).
 
 ---
 
@@ -49,7 +59,7 @@ preflight checklist는 [docs/release/0.5.0-release-preflight.md](docs/release/0.
 - `0.3.1` 퍼블리싱 후 `0.4.0` 개발 라인을 오픈했습니다.
 - 로컬 bluetape4k BOM 참조를 `1.11.0` 릴리스 트레인과 정렬하고 조정된 종속성 트레인을 위해 다음 개발 라인을 준비했습니다.
 
-### 결정된
+### 버그 수정
 
 - K8s 예제 런타임 호환성을 복원하고, K3s 테스트를 위한 Fabric8 Vert.x 4 런타임을 격리하고, 릴리스 임계값([#480](https://github.com/bluetape4k/bluetape4k-leader/issues/480) 이상으로 `leader-spring-boot` 적용 범위를 높였습니다. [#497](https://github.com/bluetape4k/bluetape4k-leader/issues/497), [#499](https://github.com/bluetape4k/bluetape4k-leader/issues/499)).
 
@@ -85,7 +95,7 @@ preflight checklist는 [docs/release/0.5.0-release-preflight.md](docs/release/0.
 - AWS SDK BOM을 중앙 `bluetape4k-dependencies` 카탈로그에 맞게 조정했습니다.
 - `bluetape4k-projects` `1.10.0` BOM 라인을 사용했습니다.
 
-### 결정된
+### 버그 수정
 
 - Dependabot 보안 경고에 대해 중앙 카탈로그 관리 Netty 4.1, Protobuf, Fabric8 및 Vert.x 4 종속성 재정의를 적용했습니다. (#389)
 - 플러그인 클래스 경로 Dependabot 경고를 지우기 위해 Gradle 플러그인 클래스 경로 MySQL 및 Protobuf 종속성을 중앙 카탈로그 라인에 강제 적용합니다. (#389)
@@ -114,7 +124,7 @@ preflight checklist는 [docs/release/0.5.0-release-preflight.md](docs/release/0.
 - Consul, DynamoDB Local, etcd 및 Kubernetes Lease에 대해 미리 보기 백엔드 릴리스 게이트를 명시적으로 만들었습니다. K3s 런타임 적용 범위는 Nightly 전체로 유지됩니다. (#376, PR #382)
 - 중복된 컨테이너 배선을 제거하기 위해 `bluetape4k-testcontainers`을 통해 DynamoDB Local 테스트 실행기를 공유했습니다. (#367, PR #370)
 
-### 결정된
+### 버그 수정
 
 - 바운드 Consul 블로킹 대기 및 구성된 요청 제한 시간 예산에 대한 정리 경로 획득. (#372, PR #379)
 - 바운드 etcd 정리는 구성된 제한 시간 예산을 기다립니다. (#373, PR #380)
@@ -148,7 +158,7 @@ preflight checklist는 [docs/release/0.5.0-release-preflight.md](docs/release/0.
 - `1.9.0`에 대한 `bluetape4k-exposed` 테스트 도우미 참조를 업데이트했습니다.
 - 공개 README 종속성 조각을 `0.2.0` 릴리스 좌표로 업데이트했습니다.
 
-### 결정된
+### 버그 수정
 
 - `runCatching`을 통해 삼키는 대신 `CancellationException`을 다시 발생시키기 위해 Exposed JDBC 취소 처리를 재작업했습니다. (#304)
 - Exposed JDBC, MongoDB 및 Lettuce 획득 루프에서 벽시계 대기 기한을 단조로운 시간 초과 예산으로 대체했습니다. (305호, 306호, 308호, 309호)
@@ -317,7 +327,7 @@ preflight checklist는 [docs/release/0.5.0-release-preflight.md](docs/release/0.
 - 공장 `create()` I/O 오류는 이제 구성된 오류 모드를 따릅니다. (PR #107)
 - 누락된 AOP 속성 바인딩에 `@ConfigurationProperties`이 추가되었습니다. (PR #93)
 
-### 결정된
+### 버그 수정
 
 - **코루틴 취소 안전성**: 취소 시 잠금 누출을 방지하기 위해 모든 코루틴 백엔드(Lettuce, Redisson, Hazelcast, MongoDB)의 `unlock`/`release`을 `withContext(NonCancellable)`로 래핑합니다. (PR #25, 리뷰 2026-05-01)
 - **`CancellationException` 다시 발생**: `withContext(NonCancellable)` 내부를 포함하여 모든 `catch(Exception)` 블록 앞에 `catch(CancellationException) { throw e }`이 추가되었습니다. (PR #45)
