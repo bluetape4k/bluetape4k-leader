@@ -33,7 +33,7 @@ configurations.named("testRuntimeClasspath") {
     // Fabric8 7.7.x uses the Vert.x 4 HTTP client API; keep K3s example tests isolated from repo-wide Vert.x 5.
     resolutionStrategy.eachDependency {
         when (requested.group) {
-            "io.netty" -> useVersion(fabric8NettyVersion)
+            "io.netty" -> if (!requested.name.startsWith("netty-tcnative")) useVersion(fabric8NettyVersion)
             "io.vertx" -> useVersion(fabric8VertxVersion)
         }
     }

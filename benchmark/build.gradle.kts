@@ -44,7 +44,7 @@ afterEvaluate {
     configurations.named("kubernetesBenchmarkRuntimeClasspath") {
         resolutionStrategy.eachDependency {
             when (requested.group) {
-                "io.netty" -> useVersion(fabric8NettyVersion)
+                "io.netty" -> if (!requested.name.startsWith("netty-tcnative")) useVersion(fabric8NettyVersion)
                 "io.vertx" -> useVersion(fabric8VertxVersion)
             }
         }
