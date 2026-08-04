@@ -167,13 +167,14 @@ subprojects {
 
     if (detektRequested) {
         configurations.named("detekt") {
+            val detektKotlinVersion = bt4kVersion("kotlin20")
             resolutionStrategy.force(
-                "org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.21",
-                "org.jetbrains.kotlin:kotlin-stdlib:2.0.21",
+                "org.jetbrains.kotlin:kotlin-compiler-embeddable:$detektKotlinVersion",
+                "org.jetbrains.kotlin:kotlin-stdlib:$detektKotlinVersion",
             )
             resolutionStrategy.eachDependency {
                 if (requested.group == "org.jetbrains.kotlin") {
-                    useVersion("2.0.21")
+                    useVersion(detektKotlinVersion)
                     because("detekt 1.23.8 is compiled against Kotlin 2.0.21")
                 }
             }

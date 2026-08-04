@@ -5,7 +5,7 @@ plugins {
     // bootJar is disabled below to keep the published artifact a plain jar.
     alias(bt4k.plugins.spring.boot4)
     // Freefair AspectJ post-compile-weaving (CTW-only — @EnableAspectJAutoProxy 미사용)
-    id("io.freefair.aspectj.post-compile-weaving") version "9.5.0"
+    alias(bt4k.plugins.aspectj.post.compile.weaving)
 }
 
 // org.springframework.boot.aot registers processAot / processTestAot tasks.

@@ -3,6 +3,9 @@ plugins {
     alias(libs.plugins.kotlinx.benchmark)
 }
 
+val fabric8NettyVersion = bt4k.versions.netty4.get()
+val fabric8VertxVersion = bt4k.versions.vertx4.get()
+
 sourceSets {
     create("benchmark")
     create("kubernetesBenchmark")
@@ -41,27 +44,27 @@ afterEvaluate {
     configurations.named("kubernetesBenchmarkRuntimeClasspath") {
         resolutionStrategy.eachDependency {
             when (requested.group) {
-                "io.netty" -> useVersion("4.1.133.Final")
-                "io.vertx" -> useVersion("4.5.27")
+                "io.netty" -> useVersion(fabric8NettyVersion)
+                "io.vertx" -> useVersion(fabric8VertxVersion)
             }
         }
         resolutionStrategy.force(
-            "io.netty:netty-all:4.1.133.Final",
-            "io.netty:netty-buffer:4.1.133.Final",
-            "io.netty:netty-codec:4.1.133.Final",
-            "io.netty:netty-codec-dns:4.1.133.Final",
-            "io.netty:netty-codec-http:4.1.133.Final",
-            "io.netty:netty-codec-http2:4.1.133.Final",
-            "io.netty:netty-codec-socks:4.1.133.Final",
-            "io.netty:netty-common:4.1.133.Final",
-            "io.netty:netty-handler:4.1.133.Final",
-            "io.netty:netty-handler-proxy:4.1.133.Final",
-            "io.netty:netty-resolver:4.1.133.Final",
-            "io.netty:netty-resolver-dns:4.1.133.Final",
-            "io.netty:netty-transport:4.1.133.Final",
-            "io.vertx:vertx-core:4.5.27",
-            "io.vertx:vertx-web-client:4.5.27",
-            "io.vertx:vertx-web-common:4.5.27",
+            "io.netty:netty-all:$fabric8NettyVersion",
+            "io.netty:netty-buffer:$fabric8NettyVersion",
+            "io.netty:netty-codec:$fabric8NettyVersion",
+            "io.netty:netty-codec-dns:$fabric8NettyVersion",
+            "io.netty:netty-codec-http:$fabric8NettyVersion",
+            "io.netty:netty-codec-http2:$fabric8NettyVersion",
+            "io.netty:netty-codec-socks:$fabric8NettyVersion",
+            "io.netty:netty-common:$fabric8NettyVersion",
+            "io.netty:netty-handler:$fabric8NettyVersion",
+            "io.netty:netty-handler-proxy:$fabric8NettyVersion",
+            "io.netty:netty-resolver:$fabric8NettyVersion",
+            "io.netty:netty-resolver-dns:$fabric8NettyVersion",
+            "io.netty:netty-transport:$fabric8NettyVersion",
+            "io.vertx:vertx-core:$fabric8VertxVersion",
+            "io.vertx:vertx-web-client:$fabric8VertxVersion",
+            "io.vertx:vertx-web-common:$fabric8VertxVersion",
         )
     }
 }

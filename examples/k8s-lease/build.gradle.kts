@@ -6,8 +6,8 @@ application {
     mainClass.set("io.bluetape4k.leader.examples.k8slease.K8sLeaseLeaderElectionExample")
 }
 
-val fabric8VertxVersion = "4.5.27"
-val fabric8NettyVersion = "4.1.133.Final"
+val fabric8VertxVersion = bt4k.versions.vertx4.get()
+val fabric8NettyVersion = bt4k.versions.netty4.get()
 
 configurations.named("testRuntimeClasspath") {
     // Fabric8 7.7.x uses the Vert.x 4 HTTP client API; keep K3s example tests isolated from repo-wide Vert.x 5.
