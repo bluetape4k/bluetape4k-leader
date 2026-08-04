@@ -14,7 +14,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.testcontainers)
 
-    runtimeOnly(libs.logback)
+    runtimeOnly(bt4k.logback)
 
     testImplementation(bt4k.bluetape4k.junit5)
     testImplementation(bt4k.bluetape4k.testcontainers)
@@ -22,5 +22,5 @@ dependencies {
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
 
-    testRuntimeOnly(libs.logback)
+    testRuntimeOnly(bt4k.logback)
 }

@@ -48,8 +48,8 @@ dependencies {
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
 
-    runtimeOnly(libs.logback)
-    testRuntimeOnly(libs.logback)
+    runtimeOnly(bt4k.logback)
+    testRuntimeOnly(bt4k.logback)
 }
 
 tasks.test {

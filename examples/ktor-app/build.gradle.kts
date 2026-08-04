@@ -40,7 +40,7 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     // Logging
-    runtimeOnly(libs.logback)
+    runtimeOnly(bt4k.logback)
 
     // Testcontainers (data layer test container singleton)
     implementation(bt4k.bluetape4k.testcontainers)

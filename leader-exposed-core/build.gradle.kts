@@ -21,7 +21,7 @@ dependencies {
     testImplementation(bt4k.hikaricp)
 
     // H2 (in-memory, 빠른 단위 테스트)
-    testImplementation(libs.h2.v2)
+    testImplementation(bt4k.h2.v2)
 
     // PostgreSQL (Testcontainers)
     testImplementation(bt4k.postgresql)

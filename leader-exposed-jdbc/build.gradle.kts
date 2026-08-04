@@ -27,7 +27,7 @@ dependencies {
     testImplementation(bt4k.bluetape4k.virtualthread.jdk21)
     testImplementation(bt4k.bluetape4k.exposed.jdbc.tests)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.h2.v2)
+    testImplementation(bt4k.h2.v2)
     testImplementation(bt4k.postgresql)
     testImplementation(bt4k.mysql.connector.j)
     testImplementation(libs.testcontainers)

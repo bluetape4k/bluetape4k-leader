@@ -4,7 +4,7 @@ configurations {
 
 dependencies {
     api(project(":bluetape4k-leader-core"))
-    api(libs.jetcd.core)
+    api(bt4k.jetcd.core)
 
     implementation(libs.kotlinx.coroutines.jdk8)
 

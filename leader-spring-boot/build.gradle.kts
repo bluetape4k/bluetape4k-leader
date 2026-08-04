@@ -84,8 +84,8 @@ dependencyManagement {
     }
     dependencies {
         // mongodb-driver-core 버전을 driver-sync/driver-kotlin-coroutine과 일치시킨다.
-        dependency("org.mongodb:mongodb-driver-core:${libs.versions.mongo.driver.get()}")
-        dependency("org.mongodb:mongodb-driver-reactivestreams:${libs.versions.mongo.driver.get()}")
+        dependency("org.mongodb:mongodb-driver-core:${bt4k.versions.managed.mongodb.driver.sync.h8beacb2ba830.get()}")
+        dependency("org.mongodb:mongodb-driver-reactivestreams:${bt4k.versions.managed.mongodb.driver.sync.h8beacb2ba830.get()}")
     }
 }
 
@@ -105,8 +105,8 @@ dependencies {
 
     compileOnly(libs.lettuce.core)
     compileOnly(bt4k.redisson)
-    compileOnly(libs.mongodb.driver.sync)
-    compileOnly(libs.mongodb.driver.kotlin.coroutine)
+    compileOnly(bt4k.mongodb.driver.sync)
+    compileOnly(bt4k.mongodb.driver.kotlin.coroutine)
     compileOnly(bt4k.hazelcast)
     compileOnly(libs.aws2.dynamodb)
 
@@ -114,8 +114,8 @@ dependencies {
     api(libs.spring.aop)
     api(libs.spring.expression)
     api(libs.spring.aspects)
-    api(libs.aspectjweaver)
-    api(libs.aspectjrt)
+    api(bt4k.aspectjweaver)
+    api(bt4k.aspectjrt)
     compileOnly(libs.spring.boot.actuator)
     compileOnly(libs.spring.boot.health)
     compileOnly(libs.spring.boot.configuration.processor)
@@ -128,7 +128,7 @@ dependencies {
     compileOnly(libs.kotlinx.coroutines.reactor)
 
     // Caffeine — LeaderBeanSelector factory cache
-    implementation(libs.caffeine)
+    implementation(bt4k.caffeine)
 
     // Logging
     implementation(bt4k.bluetape4k.logging)
@@ -141,7 +141,7 @@ dependencies {
     testImplementation("org.springframework:spring-webmvc")
     testImplementation("org.springframework:spring-webflux")
     testImplementation("jakarta.servlet:jakarta.servlet-api")
-    testImplementation(libs.springmockk)
+    testImplementation(bt4k.springmockk)
     testImplementation(bt4k.bluetape4k.virtualthread.jdk21)
     testImplementation(project(":bluetape4k-leader-consul"))
     testImplementation(project(":bluetape4k-leader-dynamodb"))
