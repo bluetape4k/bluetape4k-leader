@@ -3,6 +3,7 @@ package io.bluetape4k.leader.examples.warmer
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEmpty
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeGreaterThan
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldContainSame
 import io.bluetape4k.leader.LeaderElectionOptions
@@ -51,11 +52,15 @@ class CachePartitionWarmerTest: AbstractCachePartitionWarmerTest() {
     }
 
     @Test
-    fun `3 인스턴스 동시 - 각 파티션 정확히 1번만 warmed`() {
+    fun `3 인스턴스 동시 - 동일 파티션 워밍은 겹치지 않는다`() {
         val lockPrefix = randomPrefix()
         val instanceCount = 3
         val warmCounts = ConcurrentHashMap<String, AtomicInteger>()
+        val activeCounts = ConcurrentHashMap<String, AtomicInteger>()
+        val maxConcurrent = ConcurrentHashMap<String, AtomicInteger>()
         DEFAULT_PARTITIONS.forEach { warmCounts[it] = AtomicInteger(0) }
+        DEFAULT_PARTITIONS.forEach { activeCounts[it] = AtomicInteger(0) }
+        DEFAULT_PARTITIONS.forEach { maxConcurrent[it] = AtomicInteger(0) }
 
         val executor = Executors.newFixedThreadPool(instanceCount)
         val results = CopyOnWriteArrayList<WarmResult>()
@@ -73,9 +78,15 @@ class CachePartitionWarmerTest: AbstractCachePartitionWarmerTest() {
                             leaseTime = 5.seconds,
                         ),
                         warmFunction = { partitionId ->
-                            warmCounts.getValue(partitionId).incrementAndGet()
-                            // 다른 인스턴스가 동일 lock 획득 시도 중에 끝나지 않도록 보장
-                            Thread.sleep(150)
+                            val active = activeCounts.getValue(partitionId).incrementAndGet()
+                            maxConcurrent.getValue(partitionId).accumulateAndGet(active, ::maxOf)
+                            try {
+                                warmCounts.getValue(partitionId).incrementAndGet()
+                                // follower가 같은 partition lock을 기다리는 동안 leader를 유지한다.
+                                Thread.sleep(150)
+                            } finally {
+                                activeCounts.getValue(partitionId).decrementAndGet()
+                            }
                         },
                     )
                     results.add(warmer.warmAll())
@@ -86,18 +97,18 @@ class CachePartitionWarmerTest: AbstractCachePartitionWarmerTest() {
             executor.shutdown()
         }
 
-        // 각 partition 이 정확히 1번만 워밍됨
+        // waitTime 동안 follower가 순차 실행될 수 있지만, 같은 partition의 워밍은 겹치지 않는다.
         DEFAULT_PARTITIONS.forEach { partitionId ->
-            warmCounts.getValue(partitionId).get() shouldBeEqualTo 1
+            warmCounts.getValue(partitionId).get() shouldBeGreaterThan 0
+            maxConcurrent.getValue(partitionId).get() shouldBeEqualTo 1
         }
 
-        // 전체 warmed 합 = partition 수, skipped 합 = (instanceCount - 1) * partition 수
         val totalWarmed = results.sumOf { it.warmed.size }
         val totalSkipped = results.sumOf { it.skipped.size }
         val totalFailed = results.sumOf { it.failed.size }
 
-        totalWarmed shouldBeEqualTo DEFAULT_PARTITIONS.size
-        totalSkipped shouldBeEqualTo (instanceCount - 1) * DEFAULT_PARTITIONS.size
+        totalWarmed shouldBeEqualTo warmCounts.values.sumOf { it.get() }
+        totalWarmed + totalSkipped shouldBeEqualTo instanceCount * DEFAULT_PARTITIONS.size
         totalFailed shouldBeEqualTo 0
     }
 
