@@ -8,19 +8,7 @@
 
 ## [미공개]
 
-`0.5.0`은 아직 태그, GitHub Release 또는 Maven Central publication이 없는
-개발 중인 릴리스입니다. release-readiness PR [#648](https://github.com/bluetape4k/bluetape4k-leader/pull/648)은
-`develop`의 readiness merge commit `7268feff2020bc73e836015a517bf4d16e1bf457`에
-병합되었고, 해당 head의 post-merge CI와 수동 CodeQL 검증도 통과했습니다.
-release-readiness 이슈 [#637–#647](https://github.com/bluetape4k/bluetape4k-leader/milestone/0.5.0)와
-문서/KDoc localization Epic [#617](https://github.com/bluetape4k/bluetape4k-leader/issues/617)은
-모두 종료되었습니다. 후속 문서 정합성 PR [#650](https://github.com/bluetape4k/bluetape4k-leader/pull/650)은
-현재 `develop` head `3a0cd0e43c48b24775cbc1cb0d024e460301e2ee`에 병합되었고,
-연결 이슈 [#649](https://github.com/bluetape4k/bluetape4k-leader/issues/649)도 종료되었습니다.
-현재 안정적으로 게시된 버전은 `0.4.0`이며, 릴리스 preflight checklist는
-[docs/release/0.5.0-release-preflight.md](docs/release/0.5.0-release-preflight.md)에 고정되어 있습니다.
-
-## [0.5.0] — 미공개
+## [0.5.0] — 2026-08-05
 
 ### 추가됨
 
