@@ -2,14 +2,14 @@ configurations {
     testImplementation.get().extendsFrom(compileOnly.get(), runtimeOnly.get())
 }
 
-val fabric8VertxVersion = "4.5.27"
-val fabric8NettyVersion = "4.1.133.Final"
+val fabric8VertxVersion = bt4k.versions.vertx4.get()
+val fabric8NettyVersion = bt4k.versions.netty4.get()
 
 configurations.named("testRuntimeClasspath") {
     // Fabric8 7.7.x uses the Vert.x 4 HTTP client API; keep the K3s test runtime isolated from repo-wide Vert.x 5.
     resolutionStrategy.eachDependency {
         when (requested.group) {
-            "io.netty" -> useVersion(fabric8NettyVersion)
+            "io.netty" -> if (!requested.name.startsWith("netty-tcnative")) useVersion(fabric8NettyVersion)
             "io.vertx" -> useVersion(fabric8VertxVersion)
         }
     }

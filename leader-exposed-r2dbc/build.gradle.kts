@@ -18,12 +18,12 @@ dependencies {
     api(bt4k.bluetape4k.coroutines)
 
     // AtomicFU (non-suspend 상태 캐시 변수용)
-    api(libs.kotlinx.atomicfu)
+    api(bt4k.kotlinx.atomicfu)
 
     // R2DBC drivers (compileOnly — 런타임은 사용자가 선택)
-    compileOnly(libs.r2dbc.postgresql)
+    compileOnly(bt4k.r2dbc.postgresql)
     compileOnly(bt4k.r2dbc.h2)
-    compileOnly(libs.r2dbc.mysql)
+    compileOnly(bt4k.r2dbc.mysql)
 
     // Test
     testImplementation(bt4k.bluetape4k.junit5)
@@ -32,9 +32,9 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
 
     // R2DBC drivers (테스트 런타임)
-    testImplementation(libs.r2dbc.postgresql)
+    testImplementation(bt4k.r2dbc.postgresql)
     testImplementation(bt4k.r2dbc.h2)
-    testImplementation(libs.r2dbc.mysql)
+    testImplementation(bt4k.r2dbc.mysql)
 
     // Testcontainers (MySQLContainer/PostgreSQLContainer 는 JDBC로 readiness check)
     testImplementation(libs.testcontainers)

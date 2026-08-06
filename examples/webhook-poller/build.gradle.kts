@@ -9,7 +9,7 @@ application {
 dependencies {
     implementation(project(":bluetape4k-leader-mongodb"))
 
-    implementation(libs.mongodb.driver.kotlin.coroutine)
+    implementation(bt4k.mongodb.driver.kotlin.coroutine)
     implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(bt4k.bluetape4k.junit5)

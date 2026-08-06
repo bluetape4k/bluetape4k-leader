@@ -1,7 +1,10 @@
 plugins {
     alias(bt4k.plugins.kotlin.allopen)
-    alias(libs.plugins.kotlinx.benchmark)
+    alias(bt4k.plugins.kotlinx.benchmark)
 }
+
+val fabric8NettyVersion = bt4k.versions.netty4.get()
+val fabric8VertxVersion = bt4k.versions.vertx4.get()
 
 sourceSets {
     create("benchmark")
@@ -41,27 +44,27 @@ afterEvaluate {
     configurations.named("kubernetesBenchmarkRuntimeClasspath") {
         resolutionStrategy.eachDependency {
             when (requested.group) {
-                "io.netty" -> useVersion("4.1.133.Final")
-                "io.vertx" -> useVersion("4.5.27")
+                "io.netty" -> if (!requested.name.startsWith("netty-tcnative")) useVersion(fabric8NettyVersion)
+                "io.vertx" -> useVersion(fabric8VertxVersion)
             }
         }
         resolutionStrategy.force(
-            "io.netty:netty-all:4.1.133.Final",
-            "io.netty:netty-buffer:4.1.133.Final",
-            "io.netty:netty-codec:4.1.133.Final",
-            "io.netty:netty-codec-dns:4.1.133.Final",
-            "io.netty:netty-codec-http:4.1.133.Final",
-            "io.netty:netty-codec-http2:4.1.133.Final",
-            "io.netty:netty-codec-socks:4.1.133.Final",
-            "io.netty:netty-common:4.1.133.Final",
-            "io.netty:netty-handler:4.1.133.Final",
-            "io.netty:netty-handler-proxy:4.1.133.Final",
-            "io.netty:netty-resolver:4.1.133.Final",
-            "io.netty:netty-resolver-dns:4.1.133.Final",
-            "io.netty:netty-transport:4.1.133.Final",
-            "io.vertx:vertx-core:4.5.27",
-            "io.vertx:vertx-web-client:4.5.27",
-            "io.vertx:vertx-web-common:4.5.27",
+            "io.netty:netty-all:$fabric8NettyVersion",
+            "io.netty:netty-buffer:$fabric8NettyVersion",
+            "io.netty:netty-codec:$fabric8NettyVersion",
+            "io.netty:netty-codec-dns:$fabric8NettyVersion",
+            "io.netty:netty-codec-http:$fabric8NettyVersion",
+            "io.netty:netty-codec-http2:$fabric8NettyVersion",
+            "io.netty:netty-codec-socks:$fabric8NettyVersion",
+            "io.netty:netty-common:$fabric8NettyVersion",
+            "io.netty:netty-handler:$fabric8NettyVersion",
+            "io.netty:netty-handler-proxy:$fabric8NettyVersion",
+            "io.netty:netty-resolver:$fabric8NettyVersion",
+            "io.netty:netty-resolver-dns:$fabric8NettyVersion",
+            "io.netty:netty-transport:$fabric8NettyVersion",
+            "io.vertx:vertx-core:$fabric8VertxVersion",
+            "io.vertx:vertx-web-client:$fabric8VertxVersion",
+            "io.vertx:vertx-web-common:$fabric8VertxVersion",
         )
     }
 }
@@ -92,19 +95,19 @@ benchmark {
     targets {
         register("benchmark") {
             this as kotlinx.benchmark.gradle.JvmBenchmarkTarget
-            jmhVersion = libs.versions.jmh.get()
+            jmhVersion = bt4k.versions.managed.jmh.core.h350a653f63e5.get()
         }
         register("kubernetesBenchmark") {
             this as kotlinx.benchmark.gradle.JvmBenchmarkTarget
-            jmhVersion = libs.versions.jmh.get()
+            jmhVersion = bt4k.versions.managed.jmh.core.h350a653f63e5.get()
         }
     }
 }
 
 dependencies {
-    add("benchmarkImplementation", libs.kotlinx.benchmark.runtime)
-    add("benchmarkImplementation", libs.kotlinx.benchmark.runtime.jvm)
-    add("benchmarkImplementation", libs.jmh.core)
+    add("benchmarkImplementation", bt4k.kotlinx.benchmark.runtime)
+    add("benchmarkImplementation", bt4k.kotlinx.benchmark.runtime.jvm)
+    add("benchmarkImplementation", bt4k.jmh.core)
     add("benchmarkImplementation", platform(bt4k.spring.boot4.dependencies))
     add("benchmarkImplementation", platform(libs.kotlin.bom))
     add("benchmarkImplementation", platform(libs.kotlinx.coroutines.bom))
@@ -125,13 +128,13 @@ dependencies {
 
     add("benchmarkImplementation", bt4k.bluetape4k.testcontainers)
     add("benchmarkImplementation", bt4k.bluetape4k.virtualthread.jdk21)
-    add("benchmarkImplementation", libs.h2.v2)
+    add("benchmarkImplementation", bt4k.h2.v2)
     add("benchmarkImplementation", bt4k.postgresql)
     add("benchmarkImplementation", bt4k.mysql.connector.j)
     add("benchmarkImplementation", bt4k.r2dbc.h2)
-    add("benchmarkImplementation", libs.r2dbc.postgresql)
-    add("benchmarkImplementation", libs.r2dbc.mysql)
-    add("benchmarkImplementation", libs.mongodb.driver.kotlin.coroutine)
+    add("benchmarkImplementation", bt4k.r2dbc.postgresql)
+    add("benchmarkImplementation", bt4k.r2dbc.mysql)
+    add("benchmarkImplementation", bt4k.mongodb.driver.kotlin.coroutine)
     add("benchmarkImplementation", libs.testcontainers)
     add("benchmarkImplementation", libs.testcontainers.mongodb)
     add("benchmarkImplementation", libs.testcontainers.postgresql)
@@ -139,14 +142,14 @@ dependencies {
     add("benchmarkImplementation", libs.kotlinx.coroutines.core)
     add("benchmarkImplementation", libs.kotlinx.coroutines.reactor)
 
-    add("benchmarkRuntimeOnly", libs.logback)
+    add("benchmarkRuntimeOnly", bt4k.logback)
     add("benchmarkRuntimeOnly", libs.jcl.over.slf4j)
     add("benchmarkRuntimeOnly", libs.jul.to.slf4j)
     add("benchmarkRuntimeOnly", libs.log4j.over.slf4j)
 
-    add("kubernetesBenchmarkImplementation", libs.kotlinx.benchmark.runtime)
-    add("kubernetesBenchmarkImplementation", libs.kotlinx.benchmark.runtime.jvm)
-    add("kubernetesBenchmarkImplementation", libs.jmh.core)
+    add("kubernetesBenchmarkImplementation", bt4k.kotlinx.benchmark.runtime)
+    add("kubernetesBenchmarkImplementation", bt4k.kotlinx.benchmark.runtime.jvm)
+    add("kubernetesBenchmarkImplementation", bt4k.jmh.core)
 
     add("kubernetesBenchmarkImplementation", project(":bluetape4k-leader-core"))
     add("kubernetesBenchmarkImplementation", project(":bluetape4k-leader-k8s"))
@@ -154,7 +157,7 @@ dependencies {
     add("kubernetesBenchmarkImplementation", bt4k.bluetape4k.testcontainers)
     add("kubernetesBenchmarkImplementation", libs.kotlinx.coroutines.core)
 
-    add("kubernetesBenchmarkRuntimeOnly", libs.logback)
+    add("kubernetesBenchmarkRuntimeOnly", bt4k.logback)
     add("kubernetesBenchmarkRuntimeOnly", libs.jcl.over.slf4j)
     add("kubernetesBenchmarkRuntimeOnly", libs.jul.to.slf4j)
     add("kubernetesBenchmarkRuntimeOnly", libs.log4j.over.slf4j)

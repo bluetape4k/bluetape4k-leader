@@ -14,18 +14,18 @@ dependencies {
     implementation(bt4k.bluetape4k.lettuce)
     implementation(bt4k.bluetape4k.logging)
     implementation(bt4k.bluetape4k.testcontainers)
-    implementation(libs.bucket4j.jdk17.core)
-    implementation(libs.bucket4j.jdk17.lettuce)
+    implementation(bt4k.bucket4j.jdk17.core)
+    implementation(bt4k.bucket4j.jdk17.lettuce)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.lettuce.core)
     implementation(libs.testcontainers)
 
-    runtimeOnly(libs.logback)
+    runtimeOnly(bt4k.logback)
 
     testImplementation(bt4k.bluetape4k.junit5)
     testImplementation(bt4k.bluetape4k.testcontainers)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
 
-    testRuntimeOnly(libs.logback)
+    testRuntimeOnly(bt4k.logback)
 }

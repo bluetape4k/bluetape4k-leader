@@ -41,7 +41,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-web")
 
-    runtimeOnly(libs.logback)
+    runtimeOnly(bt4k.logback)
 
     testImplementation(bt4k.bluetape4k.junit5)
     testImplementation(libs.awaitility.kotlin)

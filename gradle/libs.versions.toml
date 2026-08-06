@@ -5,48 +5,27 @@
 bluetape4k = "1.11.1-SNAPSHOT"  # https://central.sonatype.com/artifact/io.github.bluetape4k/bluetape4k-bom
 bluetape4k-exposed = "1.12.0-SNAPSHOT"  # https://mvnrepository.com/artifact/io.github.bluetape4k.exposed/bluetape4k-exposed-bom
 
-kotlinx-atomicfu = "0.32.1"  # https://mvnrepository.com/artifact/org.jetbrains.kotlinx/atomicfu
 kotlinx-benchmark = "0.4.17"  # https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-benchmark-runtime
-jmh = "1.37"  # https://mvnrepository.com/artifact/org.openjdk.jmh/jmh-core
 
 # AOP / SpEL deps for leader-spring-boot-common (#41)
-caffeine = "3.2.4"  # https://mvnrepository.com/artifact/com.github.ben-manes.caffeine/caffeine
 aspectjweaver = "1.9.25.1"  # https://mvnrepository.com/artifact/org.aspectj/aspectjweaver
 
 bucket4j = "8.18.0"  # https://mvnrepository.com/artifact/com.bucket4j/bucket4j_jdk17-core
 
 
-mongo-driver = "5.7.0"  # https://mvnrepository.com/artifact/org.mongodb/mongodb-driver-sync
-
-curator = "5.9.0"  # https://mvnrepository.com/artifact/org.apache.curator/curator-recipes
-jetcd = "0.8.6"  # https://mvnrepository.com/artifact/io.etcd/jetcd-core
-
-micrometer = "1.16.5"  # https://mvnrepository.com/artifact/io.micrometer/micrometer-bom
 
 
-logback = "1.5.32"  # https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
 
-junit-jupiter = "6.0.3"  # https://mvnrepository.com/artifact/org.junit/junit-bom
-mockk = "1.14.9"  # https://mvnrepository.com/artifact/io.mockk/mockk
-springmockk = "5.0.1"  # https://mvnrepository.com/artifact/com.ninja-squad/springmockk
 
-r2dbc-postgresql = "1.1.1.RELEASE"  # https://mvnrepository.com/artifact/org.postgresql/r2dbc-postgresql
-r2dbc-mysql = "1.4.2"               # https://mvnrepository.com/artifact/io.asyncer/r2dbc-mysql
-h2-v2 = "2.4.240"               # https://mvnrepository.com/artifact/com.h2database/h2
+
+
 
 # Plugin versions
-detekt = "1.23.8"  # https://mvnrepository.com/artifact/io.gitlab.arturbosch.detekt/detekt-gradle-plugin
-test-logger = "4.0.0"  # https://mvnrepository.com/artifact/com.adarshr/gradle-test-logger-plugin
 
 [plugins]
-kotlinx-atomicfu = { id = "org.jetbrains.kotlinx.atomicfu", version.ref = "kotlinx-atomicfu" }
-kotlinx-benchmark = { id = "org.jetbrains.kotlinx.benchmark", version.ref = "kotlinx-benchmark" }
 
-detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
-test-logger = { id = "com.adarshr.test-logger", version.ref = "test-logger" }
 
 [libraries]
-jetbrains-annotations = { module = "org.jetbrains:annotations", version = "26.1.0" }  # https://mvnrepository.com/artifact/org.jetbrains/annotations
 
 # bluetape4k
 
@@ -67,25 +46,18 @@ kotlinx-coroutines-jdk8 = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-j
 kotlinx-coroutines-reactive = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-reactive" }
 kotlinx-coroutines-reactor = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-reactor" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test" }
-kotlinx-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "kotlinx-atomicfu" }
-kotlinx-benchmark-runtime = { module = "org.jetbrains.kotlinx:kotlinx-benchmark-runtime", version.ref = "kotlinx-benchmark" }
-kotlinx-benchmark-runtime-jvm = { module = "org.jetbrains.kotlinx:kotlinx-benchmark-runtime-jvm", version.ref = "kotlinx-benchmark" }
 
 # JMH (used through kotlinx-benchmark on JVM)
-jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
 
 # Logging
 jcl-over-slf4j = { module = "org.slf4j:jcl-over-slf4j" }
 jul-to-slf4j = { module = "org.slf4j:jul-to-slf4j" }
 log4j-over-slf4j = { module = "org.slf4j:log4j-over-slf4j" }
-logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
 # Redis — Lettuce
 lettuce-core = { module = "io.lettuce:lettuce-core" }
 
 # Bucket4j
-bucket4j-jdk17-core = { module = "com.bucket4j:bucket4j_jdk17-core", version.ref = "bucket4j" }
-bucket4j-jdk17-lettuce = { module = "com.bucket4j:bucket4j_jdk17-lettuce", version.ref = "bucket4j" }
 
 # Redis — Redisson
 
@@ -94,22 +66,17 @@ exposed-dao = { module = "org.jetbrains.exposed:exposed-dao" }
 exposed-kotlin-datetime = { module = "org.jetbrains.exposed:exposed-kotlin-datetime" }
 
 # MongoDB
-mongodb-driver-sync = { module = "org.mongodb:mongodb-driver-sync", version.ref = "mongo-driver" }
-mongodb-driver-kotlin-coroutine = { module = "org.mongodb:mongodb-driver-kotlin-coroutine", version.ref = "mongo-driver" }
 
 # Hazelcast
 
 # Apache Curator / ZooKeeper
-curator-recipes = { module = "org.apache.curator:curator-recipes", version.ref = "curator" }
 
 # etcd
-jetcd-core = { module = "io.etcd:jetcd-core", version.ref = "jetcd" }
 
 # AWS SDK v2
 aws2-dynamodb = { module = "software.amazon.awssdk:dynamodb" }
 
 # Micrometer
-micrometer-bom = { module = "io.micrometer:micrometer-bom", version.ref = "micrometer" }
 micrometer-core = { module = "io.micrometer:micrometer-core" }
 micrometer-observation = { module = "io.micrometer:micrometer-observation" }
 micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
@@ -127,24 +94,15 @@ spring-tx = { module = "org.springframework:spring-tx" }
 spring-aop = { module = "org.springframework:spring-aop" }
 spring-expression = { module = "org.springframework:spring-expression" }
 spring-aspects = { module = "org.springframework:spring-aspects" }
-aspectjweaver = { module = "org.aspectj:aspectjweaver", version.ref = "aspectjweaver" }
-aspectjrt = { module = "org.aspectj:aspectjrt", version.ref = "aspectjweaver" }
-caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
 
 # JDBC / Connection Pool
-h2-v2 = { module = "com.h2database:h2", version.ref = "h2-v2" }
 
 # R2DBC
-r2dbc-postgresql = { module = "org.postgresql:r2dbc-postgresql", version.ref = "r2dbc-postgresql" }
-r2dbc-mysql = { module = "io.asyncer:r2dbc-mysql", version.ref = "r2dbc-mysql" }
 
 # Test
-junit-bom = { module = "org.junit:junit-bom", version.ref = "junit-jupiter" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-engine = { module = "org.junit.platform:junit-platform-engine" }
 
-mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
-springmockk = { module = "com.ninja-squad:springmockk", version.ref = "springmockk" }
 awaitility-kotlin = { module = "org.awaitility:awaitility-kotlin" }
 
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom" }

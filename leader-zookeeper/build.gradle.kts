@@ -4,7 +4,7 @@ configurations {
 
 dependencies {
     api(project(":bluetape4k-leader-core"))
-    api(libs.curator.recipes)
+    api(bt4k.curator.recipes)
 
     testImplementation(testFixtures(project(":bluetape4k-leader-core")))
 
