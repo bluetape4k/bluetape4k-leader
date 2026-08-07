@@ -6,7 +6,7 @@ locale: "ko"
 kind: "benchmark"
 gradlePath: ":benchmark"
 sourceDir: "benchmark"
-releaseRef: "0.4.0"
+releaseRef: "0.5.0"
 artifact: null
 ---
 
@@ -24,7 +24,7 @@ artifact: null
 
 ## 의존성 좌표 {#coordinates}
 
-이 모듈은 배포하지 않습니다. `0.4.0` 태그를 checkout하고 저장소에서 `:benchmark`를 실행합니다.
+이 모듈은 배포하지 않습니다. `0.5.0` 태그를 checkout하고 저장소에서 `:benchmark`를 실행합니다.
 
 ## 핵심 개념 {#concepts}
 
@@ -68,7 +68,7 @@ throughput과 average-time 원본 JSON을 짧은 해석과 함께 보존합니�
 
 ## 테스트 {#testing}
 
-긴 실행 전에 benchmark source set을 컴파일하고 좁은 filter로 smoke run을 합니다. 그다음 throughput과 average-time 전체 모드를 순서대로 실행하세요. Harness가 안정판 0.4.0 API만 쓰는지도 확인합니다.
+긴 실행 전에 benchmark source set을 컴파일하고 좁은 filter로 smoke run을 합니다. 그다음 throughput과 average-time 전체 모드를 순서대로 실행하세요. Harness가 안정판 0.5.0 API만 쓰는지도 확인합니다.
 
 ## 학습 경로와 예제 {#workshops}
 

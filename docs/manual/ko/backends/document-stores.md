@@ -1,8 +1,8 @@
 ---
 title: "MongoDB와 DynamoDB"
 description: "원자적 document 갱신 또는 조건부 key-value 쓰기로 조정하고 TTL과 시계 의미를 따로 확인합니다."
-releaseRef: 0.4.0
-releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
+releaseRef: 0.5.0
+releaseCommit: 721a9a3808f67489d2bdb8177734325981c24977
 ---
 
 # MongoDB와 DynamoDB

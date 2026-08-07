@@ -1,13 +1,13 @@
 ---
 title: "Bluetape4k Leader manual"
-description: "A release-faithful guide to choosing, running, and operating distributed leader election with bluetape4k-leader 0.4.0."
-releaseRef: 0.4.0
-releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
+description: "A release-faithful guide to choosing, running, and operating distributed leader election with bluetape4k-leader 0.5.0."
+releaseRef: 0.5.0
+releaseCommit: 721a9a3808f67489d2bdb8177734325981c24977
 ---
 
 # Bluetape4k Leader manual
 
-A release-faithful guide to choosing, running, and operating distributed leader election with bluetape4k-leader 0.4.0.
+A release-faithful guide to choosing, running, and operating distributed leader election with bluetape4k-leader 0.5.0.
 
 ![Leader repository and learning map](../assets/overview/repository-learning-map.png)
 
@@ -44,7 +44,7 @@ The central contract is deliberate: ordinary contention is not an error. `runIfL
 
 ## Release boundary
 
-Every behavior and source link in this manual targets release `0.4.0` at commit `17ab7f872c1f96318c73d3580729cac20a67e017`. Examples are learning projects, not published artifacts. Application builds should normally import `io.github.bluetape4k:bluetape4k-dependencies` and omit versions from individual leader modules.
+Every behavior and source link in this manual targets release `0.5.0` at commit `721a9a3808f67489d2bdb8177734325981c24977`. Examples are learning projects, not published artifacts. Application builds should normally import `io.github.bluetape4k:bluetape4k-dependencies` and omit versions from individual leader modules.
 
 ## Release sources
 

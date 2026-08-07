@@ -1,8 +1,8 @@
 ---
 title: "실패와 취소"
 description: "일반 경쟁, 작업 실패, 백엔드 실패, 취소, 소유권 상실을 서로 다른 사건으로 다룹니다."
-releaseRef: 0.4.0
-releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
+releaseRef: 0.5.0
+releaseCommit: 721a9a3808f67489d2bdb8177734325981c24977
 ---
 
 # 실패와 취소

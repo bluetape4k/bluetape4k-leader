@@ -1,8 +1,8 @@
 ---
 title: "Result semantics"
 description: "Know whether an action ran, was skipped, or failed—even when the action can return null."
-releaseRef: 0.4.0
-releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
+releaseRef: 0.5.0
+releaseCommit: 721a9a3808f67489d2bdb8177734325981c24977
 ---
 
 # Result semantics

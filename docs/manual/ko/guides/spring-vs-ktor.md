@@ -1,8 +1,8 @@
 ---
 title: "Spring Boot와 Ktor 선택"
 description: "기능 개수가 아니라 호스트 프레임워크의 호출 방식과 수명 주기에 맞춰 연동 모듈을 고릅니다."
-releaseRef: 0.4.0
-releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
+releaseRef: 0.5.0
+releaseCommit: 721a9a3808f67489d2bdb8177734325981c24977
 ---
 
 # Spring Boot와 Ktor 선택
@@ -13,7 +13,7 @@ releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
 
 ## Spring Boot
 
-선출기 자동 구성과 `@LeaderElection`, `@LeaderGroupElection`을 이용한 선언형 보호가 필요하면 Spring 모듈을 사용합니다. 0.4.0은 프록시 방식이 아니라 AspectJ 컴파일 타임 위빙을 사용합니다. 동기, 코루틴, `Mono`, `Flux`, `Flow` 반환형을 지원하되 스트림에는 별도의 리스 규칙이 있습니다.
+선출기 자동 구성과 `@LeaderElection`, `@LeaderGroupElection`을 이용한 선언형 보호가 필요하면 Spring 모듈을 사용합니다. 0.5.0은 프록시 방식이 아니라 AspectJ 컴파일 타임 위빙을 사용합니다. 동기, 코루틴, `Mono`, `Flux`, `Flow` 반환형을 지원하되 스트림에는 별도의 리스 규칙이 있습니다.
 
 ## Ktor
 
