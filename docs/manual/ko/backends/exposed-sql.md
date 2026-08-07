@@ -1,8 +1,8 @@
 ---
 title: "Exposed SQL 백엔드"
 description: "블로킹 서비스에는 JDBC를, coroutine-native SQL에는 R2DBC를 사용하고 선출 transaction은 짧게 유지합니다."
-releaseRef: 0.4.0
-releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
+releaseRef: 0.5.0
+releaseCommit: 721a9a3808f67489d2bdb8177734325981c24977
 ---
 
 # Exposed SQL 백엔드

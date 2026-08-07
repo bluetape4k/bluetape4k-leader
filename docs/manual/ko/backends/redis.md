@@ -1,8 +1,8 @@
 ---
 title: "Redis 백엔드"
 description: "명령 수준 제어가 필요하면 Lettuce를, Redisson 생태계를 사용 중이면 Redisson을 선택하되 thread-bound 소유권을 주의합니다."
-releaseRef: 0.4.0
-releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
+releaseRef: 0.5.0
+releaseCommit: 721a9a3808f67489d2bdb8177734325981c24977
 ---
 
 # Redis 백엔드
@@ -19,7 +19,7 @@ Lettuce는 sync 명령과 coroutine 친화 경로를 제공하므로 애플리�
 
 ## Redisson
 
-Redisson은 `RLock`과 semaphore 계열 기능을 활용합니다. 일부 소유권은 획득한 thread에 묶이므로 다른 thread에서 연장하면 `WrongThread`가 됩니다. 0.4.0 elector는 명시적 lease를 넘기므로 벤치마크의 `autoExtend`는 Redisson native watchdog이 아니라 bluetape4k 공통 extender를 뜻합니다.
+Redisson은 `RLock`과 semaphore 계열 기능을 활용합니다. 일부 소유권은 획득한 thread에 묶이므로 다른 thread에서 연장하면 `WrongThread`가 됩니다. 0.5.0 elector는 명시적 lease를 넘기므로 벤치마크의 `autoExtend`는 Redisson native watchdog이 아니라 bluetape4k 공통 extender를 뜻합니다.
 
 ## 릴리스 소스
 

@@ -6,7 +6,7 @@ locale: "{{locale}}"
 kind: "{{kind}}"
 gradlePath: "{{gradlePath}}"
 sourceDir: "{{sourceDir}}"
-releaseRef: "0.4.0"
+releaseRef: "0.5.0"
 artifact: {{artifact}}
 ---
 

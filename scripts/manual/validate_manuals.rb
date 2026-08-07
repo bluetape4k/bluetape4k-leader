@@ -11,8 +11,8 @@ errors = ManualDocs::Validator.new(
   manifest_path: manifest_path,
   repository_root: Dir.pwd,
   expected_release: {
-    "ref" => ENV.fetch("MANUAL_RELEASE_REF", "0.4.0"),
-    "commit" => ENV.fetch("MANUAL_RELEASE_COMMIT", "17ab7f872c1f96318c73d3580729cac20a67e017"),
+    "ref" => ENV.fetch("MANUAL_RELEASE_REF", "0.5.0"),
+    "commit" => ENV.fetch("MANUAL_RELEASE_COMMIT", "721a9a3808f67489d2bdb8177734325981c24977"),
   },
 ).errors
 abort(errors.join("\n")) unless errors.empty?

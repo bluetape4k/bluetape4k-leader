@@ -6,13 +6,13 @@ locale: "ko"
 kind: "example"
 gradlePath: ":examples:k8s-operator"
 sourceDir: "examples/k8s-operator"
-releaseRef: "0.4.0"
+releaseRef: "0.5.0"
 artifact: null
 ---
 
 # Kubernetes 오퍼레이터 리더 선출 워크숍
 
-> 실행 가능한 안정판 워크숍 · Kubernetes Lease와 Spring scheduling · `0.4.0` 소스 기준
+> 실행 가능한 안정판 워크숍 · Kubernetes Lease와 Spring scheduling · `0.5.0` 소스 기준
 
 ## 제공하는 기능 {#problem}
 
@@ -61,7 +61,7 @@ dependencies {
 
 1. `OperatorController`에서 애플리케이션이 호출할 조정 경계를 확인합니다.
 2. `K8sOperatorApp`에서 클라이언트 생성, 후보 구성, 결과 출력 순서를 따라갑니다.
-3. `OperatorControllerTest`에서 0.4.0 안정판이 보장하는 소유권 전이를 확인합니다.
+3. `OperatorControllerTest`에서 0.5.0 안정판이 보장하는 소유권 전이를 확인합니다.
 4. 데모의 작업 본문을 작은 멱등 작업으로 바꾼 뒤 실제 업무에 적용합니다.
 
 반환값도 API 계약의 일부입니다. 실행, 건너뛰기, 실패, 부분 완료를 구분해서 로그와 메트릭에 남겨야 합니다.
@@ -131,31 +131,31 @@ Lease 네임스페이스와 이름, 파드 식별자, 스케줄러 지연 시간
 <!-- release-readme-diagrams:start -->
 ## 배포본 다이어그램 {#release-diagrams}
 
-아래 그림은 `0.4.0` 배포본의 README 자산을 해당 배포 커밋에서 직접 불러옵니다. 이후 SNAPSHOT이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 같은 배포 커밋의 SVG 원본이 열립니다.
+아래 그림은 `0.5.0` 배포본의 README 자산을 해당 배포 커밋에서 직접 불러옵니다. 이후 SNAPSHOT이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 같은 배포 커밋의 SVG 원본이 열립니다.
 
 ### k8s operator 아키텍처
 
-[![k8s operator 아키텍처](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-k8s-operator-architecture-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-k8s-operator-architecture-01.svg)
+[![k8s operator 아키텍처](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/examples-k8s-operator-architecture-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/examples-k8s-operator-architecture-01.svg)
 
-_배포본 README: [`examples/k8s-operator/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/k8s-operator/README.ko.md)_
+_배포본 README: [`examples/k8s-operator/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/examples/k8s-operator/README.ko.md)_
 
 ### K8s operator 처리 흐름
 
-[![K8s operator 처리 흐름](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-k8s-operator-flow-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-k8s-operator-flow-01.svg)
+[![K8s operator 처리 흐름](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/examples-k8s-operator-flow-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/examples-k8s-operator-flow-01.svg)
 
-_배포본 README: [`examples/k8s-operator/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/k8s-operator/README.ko.md)_
+_배포본 README: [`examples/k8s-operator/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/examples/k8s-operator/README.ko.md)_
 
 ### K8s Operator 실행 시나리오 다이어그램
 
-[![K8s Operator 실행 시나리오 다이어그램](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-k8s-operator-scenario-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-k8s-operator-scenario-01.svg)
+[![K8s Operator 실행 시나리오 다이어그램](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/examples-k8s-operator-scenario-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/examples-k8s-operator-scenario-01.svg)
 
-_배포본 README: [`examples/k8s-operator/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/k8s-operator/README.ko.md)_
+_배포본 README: [`examples/k8s-operator/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/examples/k8s-operator/README.ko.md)_
 
 ### k8s operator 실행 흐름
 
-[![k8s operator 실행 흐름](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-k8s-operator-sequence-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-k8s-operator-sequence-01.svg)
+[![k8s operator 실행 흐름](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/examples-k8s-operator-sequence-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/examples-k8s-operator-sequence-01.svg)
 
-_배포본 README: [`examples/k8s-operator/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/k8s-operator/README.ko.md)_
+_배포본 README: [`examples/k8s-operator/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/examples/k8s-operator/README.ko.md)_
 
 <!-- release-readme-diagrams:end -->
 

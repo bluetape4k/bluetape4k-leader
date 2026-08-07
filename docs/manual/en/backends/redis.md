@@ -1,8 +1,8 @@
 ---
 title: "Redis backends"
 description: "Choose Lettuce for command-level control or Redisson for its client ecosystem while respecting thread-bound ownership."
-releaseRef: 0.4.0
-releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
+releaseRef: 0.5.0
+releaseCommit: 721a9a3808f67489d2bdb8177734325981c24977
 ---
 
 # Redis backends
@@ -19,7 +19,7 @@ Lettuce exposes sync and coroutine-friendly command paths and is a good fit when
 
 ## Redisson
 
-Redisson integrates with `RLock`/semaphore-style facilities. Some ownership is tied to the acquiring thread; extending from another thread yields `WrongThread`. The 0.4.0 elector passes an explicit lease, so benchmarked `autoExtend` refers to bluetape4k's shared extender, not Redisson's native watchdog mode.
+Redisson integrates with `RLock`/semaphore-style facilities. Some ownership is tied to the acquiring thread; extending from another thread yields `WrongThread`. The 0.5.0 elector passes an explicit lease, so benchmarked `autoExtend` refers to bluetape4k's shared extender, not Redisson's native watchdog mode.
 
 ## Release sources
 

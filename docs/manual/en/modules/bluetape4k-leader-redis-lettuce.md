@@ -6,7 +6,7 @@ locale: "en"
 kind: "library"
 gradlePath: ":bluetape4k-leader-redis-lettuce"
 sourceDir: "leader-redis-lettuce"
-releaseRef: "0.4.0"
+releaseRef: "0.5.0"
 artifact: io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce
 ---
 
@@ -83,25 +83,25 @@ Redis availability and failover semantics are on the job path. A Redis token is 
 <!-- release-readme-diagrams:start -->
 ## Release diagrams {#release-diagrams}
 
-These diagrams are loaded directly from README assets published with the `0.4.0` release and pinned to its immutable commit. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG at the same release commit.
+These diagrams are loaded directly from README assets published with the `0.5.0` release and pinned to its immutable commit. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG at the same release commit.
 
 ### Lettuce Redis leader contract map
 
-[![Lettuce Redis leader contract map](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-redis-lettuce-class-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-redis-lettuce-class-01.svg)
+[![Lettuce Redis leader contract map](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/leader-redis-lettuce-class-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/leader-redis-lettuce-class-01.svg)
 
-_Release README: [`leader-redis-lettuce/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/README.md)_
+_Release README: [`leader-redis-lettuce/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/leader-redis-lettuce/README.md)_
 
 ### Lettuce slot-token acquire release and crash recovery flow
 
-[![Lettuce slot-token acquire release and crash recovery flow](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-redis-lettuce-sequence-02.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-redis-lettuce-sequence-02.svg)
+[![Lettuce slot-token acquire release and crash recovery flow](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/leader-redis-lettuce-sequence-02.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/leader-redis-lettuce-sequence-02.svg)
 
-_Release README: [`leader-redis-lettuce/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/README.md)_
+_Release README: [`leader-redis-lettuce/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/leader-redis-lettuce/README.md)_
 
 ### Lettuce minLeaseTime backend TTL delegation flow
 
-[![Lettuce minLeaseTime backend TTL delegation flow](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-redis-lettuce-sequence-03.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/leader-redis-lettuce-sequence-03.svg)
+[![Lettuce minLeaseTime backend TTL delegation flow](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/leader-redis-lettuce-sequence-03.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/leader-redis-lettuce-sequence-03.svg)
 
-_Release README: [`leader-redis-lettuce/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/leader-redis-lettuce/README.md)_
+_Release README: [`leader-redis-lettuce/README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/leader-redis-lettuce/README.md)_
 
 <!-- release-readme-diagrams:end -->
 

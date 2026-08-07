@@ -1,8 +1,8 @@
 ---
 title: "Spring Boot or Ktor"
 description: "Choose integration from the host framework's lifecycle and invocation model, not feature count."
-releaseRef: 0.4.0
-releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
+releaseRef: 0.5.0
+releaseCommit: 721a9a3808f67489d2bdb8177734325981c24977
 ---
 
 # Spring Boot or Ktor
@@ -13,7 +13,7 @@ Choose integration from the host framework's lifecycle and invocation model, not
 
 ## Spring Boot
 
-Use the Spring module when electors should be auto-configured and methods guarded declaratively with `@LeaderElection` or `@LeaderGroupElection`. Release 0.4.0 uses AspectJ compile-time weaving, not proxy-only interception. It supports synchronous, suspend, Mono, Flux, and Flow shapes with stream-specific lease rules.
+Use the Spring module when electors should be auto-configured and methods guarded declaratively with `@LeaderElection` or `@LeaderGroupElection`. Release 0.5.0 uses AspectJ compile-time weaving, not proxy-only interception. It supports synchronous, suspend, Mono, Flux, and Flow shapes with stream-specific lease rules.
 
 ## Ktor
 

@@ -1,8 +1,8 @@
 ---
 title: "Repository and learning map"
 description: "Understand which modules define contracts, implement storage, integrate frameworks, and demonstrate complete scenarios."
-releaseRef: 0.4.0
-releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
+releaseRef: 0.5.0
+releaseCommit: 721a9a3808f67489d2bdb8177734325981c24977
 ---
 
 # Repository and learning map
@@ -21,7 +21,7 @@ Read core before a backend so contention, cancellation, and lease semantics rema
 
 ## Stable and preview
 
-Release 0.4.0 marks core, Redis, Exposed, MongoDB, Hazelcast, ZooKeeper, framework integrations, and Micrometer as stable. DynamoDB, etcd, Consul, and Kubernetes are preview modules. Preview means the operational contract deserves extra integration tests and rollback planning, not that contention semantics change.
+Release 0.5.0 marks core, Redis, Exposed, MongoDB, Hazelcast, ZooKeeper, framework integrations, and Micrometer as stable. DynamoDB, etcd, Consul, and Kubernetes are preview modules. Preview means the operational contract deserves extra integration tests and rollback planning, not that contention semantics change.
 
 ## Release sources
 
@@ -38,30 +38,30 @@ Release 0.4.0 marks core, Redis, Exposed, MongoDB, Hazelcast, ZooKeeper, framewo
 <!-- release-readme-diagrams:start -->
 ## Release diagrams {#release-diagrams}
 
-These diagrams are loaded directly from README assets published with the `0.4.0` release and pinned to its immutable commit. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG at the same release commit.
+These diagrams are loaded directly from README assets published with the `0.5.0` release and pinned to its immutable commit. They describe this manual's released structure and runtime flows, not later Snapshot changes. Select a preview to open the SVG at the same release commit.
 
 ### Leader election runtime map
 
-[![Leader election runtime map](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/bluetape4k-leader-architecture-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/bluetape4k-leader-architecture-01.svg)
+[![Leader election runtime map](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/bluetape4k-leader-architecture-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/bluetape4k-leader-architecture-01.svg)
 
-_Release README: [`README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/README.md)_
+_Release README: [`README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/README.md)_
 
 ### How runIfLeader Works diagram
 
-[![How runIfLeader Works diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/bluetape4k-leader-sequence-02.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/bluetape4k-leader-sequence-02.svg)
+[![How runIfLeader Works diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/bluetape4k-leader-sequence-02.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/bluetape4k-leader-sequence-02.svg)
 
-_Release README: [`README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/README.md)_
+_Release README: [`README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/README.md)_
 
 ### Multi-leader group: slot-based semaphore diagram
 
-[![Multi-leader group: slot-based semaphore diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/bluetape4k-leader-sequence-03.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/bluetape4k-leader-sequence-03.svg)
+[![Multi-leader group: slot-based semaphore diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/bluetape4k-leader-sequence-03.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/bluetape4k-leader-sequence-03.svg)
 
-_Release README: [`README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/README.md)_
+_Release README: [`README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/README.md)_
 
 ### Bluetape4k Leader overview diagram
 
-[![Bluetape4k Leader overview diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/root-readme-overview-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/root-readme-overview-01.svg)
+[![Bluetape4k Leader overview diagram](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/root-readme-overview-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/root-readme-overview-01.svg)
 
-_Release README: [`README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/README.md)_
+_Release README: [`README.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/README.md)_
 
 <!-- release-readme-diagrams:end -->

@@ -1,13 +1,13 @@
 ---
 title: "Interpret benchmark results"
-description: "Use the 0.4.0 JMH data for controlled comparisons, not infrastructure purchasing decisions."
-releaseRef: 0.4.0
-releaseCommit: 17ab7f872c1f96318c73d3580729cac20a67e017
+description: "Use the 0.5.0 JMH data for controlled comparisons, not infrastructure purchasing decisions."
+releaseRef: 0.5.0
+releaseCommit: 721a9a3808f67489d2bdb8177734325981c24977
 ---
 
 # Interpret benchmark results
 
-Use the 0.4.0 JMH data for controlled comparisons, not infrastructure purchasing decisions.
+Use the 0.5.0 JMH data for controlled comparisons, not infrastructure purchasing decisions.
 
 ## What was measured
 

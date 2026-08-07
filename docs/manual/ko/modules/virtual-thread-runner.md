@@ -6,13 +6,13 @@ locale: "ko"
 kind: "example"
 gradlePath: ":examples:virtual-thread-runner"
 sourceDir: "examples/virtual-thread-runner"
-releaseRef: "0.4.0"
+releaseRef: "0.5.0"
 artifact: null
 ---
 
 # Virtual thread 리더 실행 워크숍
 
-> 실행 가능한 안정판 워크숍 · local 선출과 Java virtual thread · `0.4.0` 소스 기준
+> 실행 가능한 안정판 워크숍 · local 선출과 Java virtual thread · `0.5.0` 소스 기준
 
 ## 제공하는 기능 {#problem}
 
@@ -61,7 +61,7 @@ dependencies {
 
 1. `VirtualThreadLeaderRunner`에서 애플리케이션이 호출할 조정 경계를 확인합니다.
 2. `VirtualThreadRunnerDemo`에서 클라이언트 생성, 후보 구성, 결과 출력 순서를 따라갑니다.
-3. `VirtualThreadLeaderRunnerTest`에서 0.4.0 안정판이 보장하는 소유권 전이를 확인합니다.
+3. `VirtualThreadLeaderRunnerTest`에서 0.5.0 안정판이 보장하는 소유권 전이를 확인합니다.
 4. 데모의 작업 본문을 작은 멱등 작업으로 바꾼 뒤 실제 업무에 적용합니다.
 
 반환값도 API 계약의 일부입니다. 실행, 건너뛰기, 실패, 부분 완료를 구분해서 로그와 메트릭에 남겨야 합니다.
@@ -131,31 +131,31 @@ virtual thread는 blocking 비용을 낮추지만, blocking 호출을 자동으�
 <!-- release-readme-diagrams:start -->
 ## 배포본 다이어그램 {#release-diagrams}
 
-아래 그림은 `0.4.0` 배포본의 README 자산을 해당 배포 커밋에서 직접 불러옵니다. 이후 SNAPSHOT이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 같은 배포 커밋의 SVG 원본이 열립니다.
+아래 그림은 `0.5.0` 배포본의 README 자산을 해당 배포 커밋에서 직접 불러옵니다. 이후 SNAPSHOT이 아니라 이 매뉴얼 버전의 구조와 실행 흐름을 보여 줍니다. 미리보기를 누르면 같은 배포 커밋의 SVG 원본이 열립니다.
 
 ### Virtual Thread Runner 아키텍처
 
-[![Virtual Thread Runner 아키텍처](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-virtual-thread-runner-architecture-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-virtual-thread-runner-architecture-01.svg)
+[![Virtual Thread Runner 아키텍처](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/examples-virtual-thread-runner-architecture-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/examples-virtual-thread-runner-architecture-01.svg)
 
-_배포본 README: [`examples/virtual-thread-runner/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/virtual-thread-runner/README.ko.md)_
+_배포본 README: [`examples/virtual-thread-runner/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/examples/virtual-thread-runner/README.ko.md)_
 
 ### Virtual thread runner 처리 흐름
 
-[![Virtual thread runner 처리 흐름](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-virtual-thread-runner-flow-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-virtual-thread-runner-flow-01.svg)
+[![Virtual thread runner 처리 흐름](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/examples-virtual-thread-runner-flow-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/examples-virtual-thread-runner-flow-01.svg)
 
-_배포본 README: [`examples/virtual-thread-runner/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/virtual-thread-runner/README.ko.md)_
+_배포본 README: [`examples/virtual-thread-runner/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/examples/virtual-thread-runner/README.ko.md)_
 
 ### Virtual thread runner 실행 시나리오 다이어그램
 
-[![Virtual thread runner 실행 시나리오 다이어그램](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-virtual-thread-runner-scenario-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-virtual-thread-runner-scenario-01.svg)
+[![Virtual thread runner 실행 시나리오 다이어그램](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/examples-virtual-thread-runner-scenario-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/examples-virtual-thread-runner-scenario-01.svg)
 
-_배포본 README: [`examples/virtual-thread-runner/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/virtual-thread-runner/README.ko.md)_
+_배포본 README: [`examples/virtual-thread-runner/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/examples/virtual-thread-runner/README.ko.md)_
 
 ### Virtual Thread Runner 실행 흐름
 
-[![Virtual Thread Runner 실행 흐름](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-virtual-thread-runner-sequence-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/docs/images/readme-diagrams/examples-virtual-thread-runner-sequence-01.svg)
+[![Virtual Thread Runner 실행 흐름](https://raw.githubusercontent.com/bluetape4k/bluetape4k-leader/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/examples-virtual-thread-runner-sequence-01.png)](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/docs/images/readme-diagrams/examples-virtual-thread-runner-sequence-01.svg)
 
-_배포본 README: [`examples/virtual-thread-runner/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/17ab7f872c1f96318c73d3580729cac20a67e017/examples/virtual-thread-runner/README.ko.md)_
+_배포본 README: [`examples/virtual-thread-runner/README.ko.md`](https://github.com/bluetape4k/bluetape4k-leader/blob/721a9a3808f67489d2bdb8177734325981c24977/examples/virtual-thread-runner/README.ko.md)_
 
 <!-- release-readme-diagrams:end -->
 
