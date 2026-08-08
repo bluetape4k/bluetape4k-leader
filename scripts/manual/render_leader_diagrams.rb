@@ -21,8 +21,8 @@ end
 def defs
   markers = COLORS.slice(:cyan, :teal, :purple, :amber, :rose).map do |name, color|
     <<~SVG
-      <marker id="arrow-#{name}" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse">
-        <path d="M0 0 L14 7 L0 14 Z" fill="#{color}" stroke="#{color}"/>
+      <marker id="arrow-#{name}" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse" data-role="primary" data-tip-direction="positive-x">
+        <path d="M0 0 L14 7 L0 14 Z" fill="#{color}" stroke="#{color}" stroke-dasharray="none"/>
       </marker>
     SVG
   end.join

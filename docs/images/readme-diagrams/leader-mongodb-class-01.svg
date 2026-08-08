@@ -15,11 +15,11 @@
     .dash { stroke-dasharray: 7 5; }
   </style>
   <defs>
-    <marker id="implArrow" viewBox="0 0 18 16" markerWidth="18" markerHeight="16" refX="16" refY="8" orient="auto" markerUnits="userSpaceOnUse">
+    <marker id="implArrow" viewBox="0 0 18 16" markerWidth="18" markerHeight="16" refX="16" refY="8" orient="auto" markerUnits="userSpaceOnUse" data-role="uml-hollow" data-tip-direction="positive-x">
       <path d="M 1 1 L 16 8 L 1 15 Z" fill="#ffffff" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="none" style="stroke-dasharray:none"/>
     </marker>
-    <marker id="useArrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669" stroke="#059669" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
-    <marker id="dataArrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c3aed" stroke="#7c3aed" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="useArrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse" data-role="secondary" data-tip-direction="positive-x"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669" stroke="#059669" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker id="dataArrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse" data-role="secondary" data-tip-direction="positive-x"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c3aed" stroke="#7c3aed" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
   </defs>
 
   <rect width="1280" height="900" fill="#f8fafc"/>
