@@ -8,17 +8,17 @@
 
 ## 업데이트된 파일
 
-| File | Change |
+| 파일 | 변경 |
 |------|--------|
-| `strategy/CandidateScorer.kt` | Korean → English; added `## Behavior / Contract` and `## Example` |
-| `strategy/ElectionStrategy.kt` | Korean → English; added `## Behavior / Contract`, `## Built-in strategies`, updated custom-strategy example |
-| `strategy/scorers/IdleTimeScorer.kt` | Korean → English; added `## Behavior / Contract` and `## Example` |
-| `strategy/scorers/RecentSuccessScorer.kt` | Korean → English; renamed section headers |
-| `strategy/scorers/SuccessRateScorer.kt` | Korean → English |
-| `strategy/scorers/WeightedScorer.kt` | Korean → English; added `## Behavior / Contract` |
-| `strategy/strategies/FifoElectionStrategy.kt` | Korean → English; elimination reason strings also converted |
-| `strategy/strategies/RandomElectionStrategy.kt` | Korean → English; elimination reason strings converted |
-| `strategy/strategies/ScoredElectionStrategy.kt` | Korean → English; elimination reason strings converted |
+| `strategy/CandidateScorer.kt` | 한국어 → 영어; `## Behavior / Contract` 및 `## Example` 추가 |
+| `strategy/ElectionStrategy.kt` | 한국어 → 영어; `## Behavior / Contract`, `## Built-in strategies` 추가 및 사용자 정의 전략 예제 갱신 |
+| `strategy/scorers/IdleTimeScorer.kt` | 한국어 → 영어; `## Behavior / Contract` 및 `## Example` 추가 |
+| `strategy/scorers/RecentSuccessScorer.kt` | 한국어 → 영어; 섹션 제목 변경 |
+| `strategy/scorers/SuccessRateScorer.kt` | 한국어 → 영어 |
+| `strategy/scorers/WeightedScorer.kt` | 한국어 → 영어; `## Behavior / Contract` 추가 |
+| `strategy/strategies/FifoElectionStrategy.kt` | 한국어 → 영어; 탈락 사유 문자열도 변환 |
+| `strategy/strategies/RandomElectionStrategy.kt` | 한국어 → 영어; 탈락 사유 문자열 변환 |
+| `strategy/strategies/ScoredElectionStrategy.kt` | 한국어 → 영어; 탈락 사유 문자열 변환 |
 
 참고: `ListeningLeaderElectors.kt` 및 `TenantScopedLeaderElectors.kt`에는 이미 완전한 영어 KDoc가 있으므로 변경할 필요가 없습니다.
 
