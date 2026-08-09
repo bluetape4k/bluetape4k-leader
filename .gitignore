@@ -1,5 +1,6 @@
 # Git worktrees
 .worktrees/
+.bluetape/
 
 # Gradle
 .gradle/
