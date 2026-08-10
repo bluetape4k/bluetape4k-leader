@@ -92,12 +92,18 @@ data class LeaderGroupElectionOptions(
 필드는 마지막에 추가하여 기존 positional source 호출을 보존한다. 기본값 `false`는 기존 JVM
 clock 동작을 유지한다. `useDbTime=true`일 때만 Exposed JDBC/R2DBC ownership transaction이
 `SELECT CURRENT_TIMESTAMP`를 사용한다. 옵션 KDoc은 한국어로 갱신하고 single option과 같은
-의미를 명시한다. 기존 JVM 바이너리 호출자가 5개 인자 생성자를 직접 사용한 경우를 위해
-구현에서는 기존 5개 인자 JVM 생성자와 data-class `copy`/`copy$default` descriptor를
-보존하는 overload/bridge를 제공한다. 기존 copy 호출은 현재 인스턴스의 `useDbTime` 값을
-그대로 유지하고, 새 6개 인자 copy만 정책을 변경한다. `component6`와 getter는 additive
-API로 추가한다. `checkBinaryCompatibility`와 `javap` descriptor 확인에서 기존 public
-descriptor가 유지되지 않으면 구현을 중단하고 호환성 gap으로 DoD에 남긴다.
+의미를 명시한다. 구현 전 0.5.0 artifact와 기준 클래스의 `javap -p -s` descriptor inventory를
+고정한다. Kotlin `Duration` value-class mangling으로 기존 constructor는 private
+`(IJJLjava/lang/String;J)V`, 기존 data-class copy는 `copy-5t7Pxr8`와 그 `$default` descriptor로
+관찰되므로 “public 5개 인자 constructor”라는 가정은 하지 않는다. 새 data class의 6개 필드
+생성 메서드는 유지하되, old copy descriptor는 `@JvmName("copy-5t7Pxr8")` overload와
+`@JvmStatic @JvmName("copy-5t7Pxr8\$default")` companion bridge로 보존하고, old private
+constructor descriptor는 private secondary constructor로 보존한다. 기존 copy 호출은 현재
+인스턴스의 `useDbTime` 값을 그대로 유지하고, 새 6개 인자 copy만 정책을 변경한다.
+`component6`와 getter는 additive API로 추가한다. Java caller가 mangled copy를 직접 호출한다는
+검증은 요구하지 않고, Kotlin compile/reflection/`javap` 및 `checkBinaryCompatibility`로
+실제 descriptor와 visibility를 확인한다. descriptor가 보존되지 않으면 구현을 중단하고
+호환성 gap으로 DoD에 남긴다.
 `serialVersionUID`는 유지하고 기존 직렬화 payload에 없는 Boolean은 Java serialization의
 기본값 `false`로 읽히는지 확인한다. 옵션에는 SQL 문자열, lambda, token을 추가하지 않는다.
 
@@ -118,8 +124,11 @@ internal suspend fun R2dbcTransaction.currentTime(
 
 `useDbTime=true`이면 transaction 안에서 고정 SQL `SELECT CURRENT_TIMESTAMP`를 한 번 조회하고,
 false이면 `Instant.now(clock)`를 사용한다. 사용자 제공 SQL, dialect expression, 또는 DB 조회
-실패 시 JVM fallback은 허용하지 않는다. 각 ownership transaction의 DB-time SQL 예산은 최대
-1회이며, local-time 경로는 0회여야 한다. retry wait 자체는 transaction 밖에서 수행하여
+실패 시 JVM fallback은 허용하지 않는다. 각 ownership transaction의 DB-time SQL 예산은 정확히
+1회이며, local-time 경로는 0회여야 한다. test-only SQL recorder는 total SQL count와
+`CURRENT_TIMESTAMP` count를 분리해 acquire update/insert 양 branch, `isHeld`, `extend`,
+`activeCount`, min-release update는 transaction마다 time query 1회, delete release와
+local-time 경로는 0회라는 계약을 검증한다. retry wait 자체는 transaction 밖에서 수행하여
 connection pool을 잠근 채 대기하지 않는다. 기존 single lock은 기본 인자를 사용하고, group
 lock은 production에서 `Clock.systemUTC()`를 전달한다. JDBC/R2DBC의 `Timestamp`, `Instant`,
 `OffsetDateTime`, `ZonedDateTime`, `LocalDateTime` 변환은 기존 single lock의 지원 범위를
@@ -155,15 +164,26 @@ R2DBC의 동기 `activeCount()`가 local cache만 읽는 기존 계약은 이번
 deadline은 #669에서 별도로 수정한다. history event timestamp와 history row의 관측 필드는
 DB ownership clock 정책에 포함하지 않는다.
 
+min-lease release update는 DB current time을 transaction 안에서 한 번 읽고 `token AND
+lockedUntil > now` predicate를 함께 사용한다. 만료된 동일-token row를 stale holder가 되살릴 수
+없어야 하며, delete release에는 time query를 추가하지 않는다.
+
 ### 4.4 실패와 cancellation
 
 기존 계약을 유지한다. 정상 contention은 `false`/`null`로 반환하고, DB 오류 로깅과 cancellation
-재전파는 기존 경로를 보존한다. DB timestamp 조회 실패는 해당 transaction의 기존 예외 처리
-정책(try-lock의 contention/실패 반환, `isHeld`의 false, active-count의 기존 fallback)을
-따르되 JVM time으로 조용히 fallback하지 않는다. 따라서 DB-time 실패를 정상적인 ownership으로
-간주하지 않는다. R2DBC suspend 경로는 `CancellationException`을 broad catch에서 삼키지
-않으며, acquire/action 중 취소 시 기존 `NonCancellable` cleanup과 원래 취소 예외 재전파를
-검증한다. 복구 후 다음 transaction은 다시 DB-time 조회를 수행해야 한다.
+재전파는 기존 경로를 보존한다. `useDbTime=false`는 기존 local-time fallback/active-count
+계약을 유지하지만 `useDbTime=true`의 timestamp 조회 실패는 JVM time으로 조용히 fallback하지
+않는다. 특히 JDBC `activeCount`와 R2DBC `activeCountSuspend`는 실패 시 `maxLeaders`를
+반환하여 `availableSlots == 0`인 보수적 unavailable 상태를 만든다. R2DBC elector는
+lockName별 `ConcurrentHashMap` unavailable set을 원자적으로 유지하고, 성공한 DB refresh에서
+제거한다. cache-only `activeCount()`, `availableSlots`, `state`는 unavailable 동안 같은
+보수 값을 노출한다. `runIfLeader`는 stale cache로 조기 차단하지 않고 실제 `tryLock`을
+시도하며, DB-time 오류가 try-lock에서 `null`/skip으로 전파되어 새 ownership을 fail-closed한다.
+성공한 다음 transaction은 unavailable 상태를 해제하고 DB count를 다시 반영한다. DB-time 실패를
+정상적인 ownership으로 간주하지 않는다. R2DBC suspend 경로는 `CancellationException`을 broad
+catch에서 삼키지 않으며, lock 획득 직후 cleanup guard를 열어 `recordAcquired`/watchdog 초기화
+중 취소에도 `NonCancellable` unlock과 cache 복구가 실행되도록 한다. acquire/action 중 취소 시
+원래 취소 예외를 재전파하고, 복구 후 다음 transaction은 다시 DB-time 조회를 수행해야 한다.
 
 ## 5. 검증 설계
 
@@ -171,7 +191,9 @@ DB ownership clock 정책에 포함하지 않는다.
 
 - `LeaderGroupElectionOptionsTest`에서 기본 `useDbTime == false`와 custom `true`를 검증한다.
 - `copy`, equality, default, validation 기존 테스트가 새 필드와 함께 유지되는지 확인한다.
-- API/bytecode compatibility task로 기존 constructor descriptor와 default overload를 확인한다.
+- ABI spike에서 후보 bridge를 먼저 compiler/`javap`/Java caller로 확인하고, 기준 커밋의 frozen
+  serialized bytes 또는 이전 artifact를 fixture로 사용해 `ObjectStreamClass` UID와 기존
+  constructor/copy/`copy$default` descriptor를 검증한다.
 - 기존 직렬화 payload를 새 옵션으로 읽을 때 `useDbTime=false`가 되는지와 새 `true` 값이
   왕복되는지 확인한다.
 
@@ -186,10 +208,12 @@ DB ownership clock 정책에 포함하지 않는다.
   유효한 row를 조기 takeover하지 않고 token ownership을 되살리지 않음을 검증한다.
 - group elector option을 통해 `activeCount`와 `maxLeaders` 경로가 같은 정책을 받는지 확인한다.
 - 기존 blocking 및 async group 경로가 기본값에서 동일하게 동작하는지 확인한다.
-- SQL capture 또는 Exposed statement spy로 DB-time ownership transaction별 `CURRENT_TIMESTAMP`
-  호출이 최대 1회이고 local-time 경로는 0회인지 확인한다. bounded connection pool보다 많은
-  contender가 기다려도 wait가 transaction 밖에서 이루어져 pool 고갈/connection leak가 없는지
-  H2에서 빠른 회귀 테스트로 고정한다.
+- test-only SQL recorder로 total SQL과 time-query 수를 구분하여 acquire update/insert 양
+  branch, `isHeld`, `extend`, `activeCount`, min-release update는 정확히 1회, delete release와
+  local-time은 0회임을 확인한다. timestamp 조회를 한 번 실패한 뒤 다음 transaction에서 다시
+  1회 조회하는 recovery도 포함한다. bounded connection pool보다 많은 contender가 기다려도
+  wait가 transaction 밖에서 이루어져 pool 고갈/connection leak가 없는지 H2 fast suite로
+  고정한다.
 
 ### 5.3 R2DBC
 
@@ -202,15 +226,24 @@ enabled dialect에 대해 확장한다.
   tester 규칙으로 검증한다.
 - acquire/action 중 cancellation이 `CancellationException`을 재전파하고 row/token 정리,
   history 상태, active-count/cache 복구를 보장하는지 검증한다.
+- 명시적 bounded R2DBC pool보다 많은 contender, 짧은 deadline, connection 반환/leak assertion과
+  실제 driver timestamp 반환형 conversion을 별도 테스트한다. setup 중 취소, 다음 재획득,
+  실패 후 recovery를 포함한다.
 
 실제 TestDB/TestR2dbcDB에서 H2, PostgreSQL, MySQL provider가 비활성인 경우는 명령 출력과
 정확한 backend gap을 DoD에 기록하며, 구현을 성공으로 과장하지 않는다.
+
+`LEADER_TEST_DB`의 허용 값은 `H2`, `POSTGRESQL`/`POSTGRES`, `MYSQL_V8`/`MYSQL`로 고정하고,
+그 밖의 값은 JDBC/R2DBC test fixture에서 즉시 오류로 fail-closed한다. 미설정은 전체 matrix가
+아니라 “full run”으로 명시된 별도 실행으로 기록한다.
 
 검증 명령은 다음처럼 provider별로 고정하고 순차 실행한다. `LEADER_TEST_DB`가 provider를
 하나만 선택하는 경우 전체 matrix PASS로 기록하지 않는다.
 
 ```bash
-./gradlew :bluetape4k-leader-core:test --tests 'io.bluetape4k.leader.LeaderGroupElectionOptionsTest'
+./gradlew :bluetape4k-leader-core:test --tests 'io.bluetape4k.leader.LeaderGroupElectionOptionsTest' --tests 'io.bluetape4k.leader.LeaderGroupElectionOptionsCompatibilityTest'
+./gradlew :bluetape4k-leader-exposed-jdbc:test --tests '*CurrentTimeTest' --tests '*GroupLockTest'
+./gradlew :bluetape4k-leader-exposed-r2dbc:test --tests '*CurrentTimeTest' --tests '*GroupLockTest'
 LEADER_TEST_DB=h2 ./gradlew :bluetape4k-leader-exposed-jdbc:test --tests '*Group*Test'
 LEADER_TEST_DB=postgresql ./gradlew :bluetape4k-leader-exposed-jdbc:test --tests '*Group*Test'
 LEADER_TEST_DB=mysql ./gradlew :bluetape4k-leader-exposed-jdbc:test --tests '*Group*Test'
@@ -218,6 +251,9 @@ LEADER_TEST_DB=h2 ./gradlew :bluetape4k-leader-exposed-r2dbc:test --tests '*Grou
 LEADER_TEST_DB=postgresql ./gradlew :bluetape4k-leader-exposed-r2dbc:test --tests '*Group*Test'
 LEADER_TEST_DB=mysql ./gradlew :bluetape4k-leader-exposed-r2dbc:test --tests '*Group*Test'
 ./gradlew checkBinaryCompatibility
+./gradlew exportManualModuleInventory
+ruby scripts/manual/release_inventory.rb 0.5.0 721a9a3808f67489d2bdb8177734325981c24977 build/manual/module-inventory.json build/manual/release-module-inventory.json 35
+ruby scripts/manual/validate_release_manuals.rb 0.5.0 721a9a3808f67489d2bdb8177734325981c24977
 git diff --check
 ```
 
@@ -253,6 +289,13 @@ README는 manual의 간결한 진입점 계약을 유지하되, 다음 EN/KO 파
 `leader-exposed-r2dbc/README.ko.md`. root README의 기존 잘못된
 `io.bluetape4k.leader.core.LeaderGroupElectionOptions` import는 실제 package
 `io.bluetape4k.leader.LeaderGroupElectionOptions`로 함께 수정한다.
+
+문서 수용 검증은 release provenance matrix를 포함한다. pinned manual은 `0.5.0`/고정 SHA를
+그대로 유지하고 새 API 예제에는 `0.6.0+` 또는 develop 문맥을 표시한다. JDBC 예제는
+`Database.connect(dataSource)`와 `ExposedJdbcLeaderGroupElectionOptions` wrapper를 사용하고,
+R2DBC 예제는 `suspend fun`/`coroutineScope` 안에서 `ExposedR2dbcLeaderGroupElectionOptions`
+factory를 생성한다. 지원 범위 표는 JDBC blocking/async와 R2DBC suspend만 `useDbTime` 소비자로
+표시하고 core/Redis 등 비-Exposed backend에서는 활성화하지 말라는 오용 방지 문구를 포함한다.
 
 ## 6. 수용 기준 매핑
 
