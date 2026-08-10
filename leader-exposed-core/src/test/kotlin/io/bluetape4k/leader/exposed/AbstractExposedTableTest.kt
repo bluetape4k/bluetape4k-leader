@@ -31,7 +31,7 @@ abstract class AbstractExposedTableTest {
                 "H2" -> listOf(TestDB.H2)
                 "POSTGRESQL", "POSTGRES" -> listOf(TestDB.POSTGRESQL)
                 "MYSQL_V8", "MYSQL" -> listOf(TestDB.MYSQL_V8)
-                else -> listOf(TestDB.H2, TestDB.POSTGRESQL, TestDB.MYSQL_V8)
+                else -> error("지원하지 않는 LEADER_TEST_DB 값: $filter")
             }
         }
     }

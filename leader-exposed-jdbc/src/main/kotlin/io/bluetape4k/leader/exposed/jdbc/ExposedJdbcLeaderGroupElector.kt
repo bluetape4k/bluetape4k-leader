@@ -10,6 +10,7 @@ import io.bluetape4k.leader.exposed.jdbc.internal.ExposedJdbcBackendErrorClassif
 import io.bluetape4k.leader.exposed.jdbc.internal.ExposedJdbcSlotExtendDelegate
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcGroupLock
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializer
+import io.bluetape4k.leader.exposed.jdbc.lock.currentTime
 import io.bluetape4k.leader.exposed.jdbc.lock.validateExposedLockName
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.history.LeaderHistoryKey
@@ -83,7 +84,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
     override fun activeCount(lockName: String): Int =
         try {
             transaction(db) {
-                val now = Instant.now()
+                val now = currentTime(options.leaderGroupOptions.useDbTime)
                 LeaderGroupLockTable
                     .selectAll()
                     .where {
@@ -96,8 +97,9 @@ class ExposedJdbcLeaderGroupElector private constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            log.warn(e) { "activeCount DB 오류 (0 반환): lockName=$lockName" }
-            0
+            val fallback = if (options.leaderGroupOptions.useDbTime) maxLeaders else 0
+            log.warn(e) { "activeCount DB 오류 (${fallback} 반환): lockName=$lockName" }
+            fallback
         }
 
     /**
@@ -131,7 +133,14 @@ class ExposedJdbcLeaderGroupElector private constructor(
 
         for (i in 0 until maxLeaders) {
             val slot = (start + i) % maxLeaders
-            val lock = ExposedJdbcGroupLock(db, lockName, slot, options.retryStrategy, options.lockOwner)
+            val lock = ExposedJdbcGroupLock(
+                db,
+                lockName,
+                slot,
+                options.retryStrategy,
+                options.lockOwner,
+                options.leaderGroupOptions.useDbTime,
+            )
 
             when (lock.tryLock(perSlotWait, leaseTime)) {
                 true -> { /* 획득 성공 — 아래 로직 계속 */ }
@@ -241,7 +250,14 @@ class ExposedJdbcLeaderGroupElector private constructor(
             var acquired: Pair<ExposedJdbcGroupLock, Int>? = null
             for (i in 0 until maxLeaders) {
                 val slot = (start + i) % maxLeaders
-                val lock = ExposedJdbcGroupLock(db, lockName, slot, options.retryStrategy, options.lockOwner)
+                val lock = ExposedJdbcGroupLock(
+                    db,
+                    lockName,
+                    slot,
+                    options.retryStrategy,
+                    options.lockOwner,
+                    options.leaderGroupOptions.useDbTime,
+                )
                 when (lock.tryLock(perSlotWait, leaseTime)) {
                     true -> { acquired = lock to slot; break }
                     false -> continue

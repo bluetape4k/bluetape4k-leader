@@ -21,11 +21,11 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
-import java.sql.Timestamp
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
+import java.sql.Timestamp
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -108,7 +108,7 @@ internal class ExposedJdbcLock internal constructor(
         val tokenVal = this@ExposedJdbcLock.token
 
         return transaction(db) {
-            val now = currentTime()
+            val now = currentTime(useDbTime)
             val lockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
 
             // Step 1: 만료된 락 갱신 시도
@@ -163,7 +163,7 @@ internal class ExposedJdbcLock internal constructor(
     fun isHeldByCurrentInstance(): Boolean =
         try {
             transaction(db) {
-                val now = currentTime()
+                val now = currentTime(useDbTime)
                 !LeaderLockTable
                     .selectAll()
                     .where {
@@ -196,7 +196,7 @@ internal class ExposedJdbcLock internal constructor(
         try {
             val matched = transaction(db) {
                 if (remaining > Duration.ZERO) {
-                    val now = currentTime()
+                    val now = currentTime(useDbTime)
                     LeaderLockTable.update(
                         where = { (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal) }
                     ) {
@@ -230,7 +230,7 @@ internal class ExposedJdbcLock internal constructor(
         val tokenVal = this@ExposedJdbcLock.token
 
         return transaction(db) {
-            val now = currentTime()
+            val now = currentTime(useDbTime)
             val newLockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
             val updated = LeaderLockTable.update(
                 where = {
@@ -250,9 +250,13 @@ internal class ExposedJdbcLock internal constructor(
         }
     }
 
-    private fun JdbcTransaction.currentTime(): Instant =
-        if (useDbTime) dbCurrentTimestamp() else Instant.now()
 }
+
+// Keep the 0.4.x file-facade ABI while the shared current-time implementation lives in
+// ExposedJdbcCurrentTime.kt. These private declarations intentionally retain compiler-generated
+// accessors used by already-compiled callers.
+@Suppress("unused")
+private fun JdbcTransaction.currentTime(): Instant = dbCurrentTimestamp()
 
 private fun JdbcTransaction.dbCurrentTimestamp(): Instant =
     exec("SELECT CURRENT_TIMESTAMP") { resultSet ->

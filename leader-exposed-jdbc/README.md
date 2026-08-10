@@ -65,7 +65,10 @@ val future: CompletableFuture<Report?> = election.runAsyncIfLeader(
 
 ```kotlin
 val options = ExposedJdbcLeaderGroupElectionOptions(
-    leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3)
+    leaderGroupOptions = LeaderGroupElectionOptions(
+        maxLeaders = 3,
+        useDbTime = true, // 0.6.0+ develop: database server time for group ownership
+    )
 )
 val election = ExposedJdbcLeaderGroupElector(db, options)
 
@@ -74,6 +77,27 @@ val result = election.runIfLeader("parallel-batch") {
 }
 // Up to 3 nodes run concurrently; others return null
 ```
+
+### Database server time for Exposed groups (0.6.0+ develop)
+
+Set `LeaderGroupElectionOptions.useDbTime = true` when JDBC nodes may have
+different JVM clocks. Group acquire, ownership checks, lease extension,
+minimum-lease release, and `activeCount` then use one `SELECT CURRENT_TIMESTAMP`
+inside the relevant ownership transaction. A release that only deletes the row
+does not issue a time query. The default is `false` for compatibility.
+
+If database time cannot be read, group state is fail-closed (`maxLeaders`), and
+`runIfLeader` returns `null` instead of claiming a slot. This setting belongs on
+the Exposed JDBC/R2DBC group elector; it does not change local or Redis group
+semantics.
+
+The database connection must route all participants to the same authoritative
+clock source (including a failover/primary change). Database timestamp timezone
+and precision are provider-specific, so configure the session and schema
+consistently across nodes. DB-time adds one timestamp round trip to each
+ownership transaction; size the pool for that work, while retry waits remain
+outside the transaction. History recording is best-effort metadata and never
+overrides the lock result.
 
 ### Inspecting group state
 

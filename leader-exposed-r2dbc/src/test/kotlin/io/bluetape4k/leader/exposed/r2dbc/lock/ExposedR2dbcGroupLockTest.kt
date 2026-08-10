@@ -1,25 +1,38 @@
 package io.bluetape4k.leader.exposed.r2dbc.lock
 
 import io.bluetape4k.junit5.coroutines.runSuspendIO
+import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.exposed.r2dbc.AbstractExposedR2dbcLeaderTest
 import io.bluetape4k.leader.exposed.r2dbc.TestR2dbcDB
+import io.bluetape4k.leader.exposed.ExposedLeaderConstants.GROUP_LOCK_TABLE_NAME
+import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.r2dbc.selectAll
+import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
+import org.jetbrains.exposed.v1.r2dbc.update
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.Duration.Companion.milliseconds
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 
 class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
 
@@ -74,6 +87,101 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
+    fun `DB 시간 연산이 경합과 미소유 결과에서도 가용 상태를 회복한다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val holder = ExposedR2dbcGroupLock(
+            db,
+            lockName,
+            slot = 0,
+            retryStrategy = RetryStrategy.Jitter(),
+            useDbTime = true,
+        )
+        holder.tryLock(1.seconds, 30.seconds).shouldNotBeNull().shouldBeTrue()
+
+        val availabilitySignals = mutableListOf<Boolean>()
+        val contender = ExposedR2dbcGroupLock(
+            db,
+            lockName,
+            slot = 0,
+            retryStrategy = RetryStrategy.Fixed(fixedMs = 10L),
+            useDbTime = true,
+            onAvailabilityChanged = availabilitySignals::add,
+        )
+
+        contender.tryLock(100.milliseconds, 5.seconds).shouldNotBeNull().shouldBeFalse()
+        availabilitySignals.last() shouldBeEqualTo true
+
+        availabilitySignals.clear()
+        contender.isHeldByCurrentInstance().shouldBeFalse()
+        availabilitySignals shouldBeEqualTo listOf(true)
+
+        availabilitySignals.clear()
+        contender.extendDetailed(1.seconds) shouldBeEqualTo ExtendOutcome.NotHeld
+        availabilitySignals shouldBeEqualTo listOf(true)
+
+        availabilitySignals.clear()
+        contender.unlockAndReport() shouldBeEqualTo ExposedR2dbcUnlockOutcome.NOT_HELD
+        availabilitySignals shouldBeEqualTo listOf(true)
+
+        holder.unlock()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `DB 오류가 각 lock 연산에서 unavailable 신호를 발생시킨다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+
+        suspend fun dropSchema() {
+            suspendTransaction(db) { exec("DROP TABLE $GROUP_LOCK_TABLE_NAME") }
+            ExposedR2dbcSchemaInitializer.resetFor(db)
+        }
+
+        suspend fun restoreSchema() {
+            ExposedR2dbcSchemaInitializer.ensureSchema(db)
+            cleanTables(db)
+        }
+
+        suspend fun newLock(signals: MutableList<Boolean>): ExposedR2dbcGroupLock {
+            return ExposedR2dbcGroupLock(
+                db,
+                randomName(),
+                slot = 0,
+                retryStrategy = RetryStrategy.Jitter(),
+                useDbTime = true,
+                onAvailabilityChanged = signals::add,
+            )
+        }
+
+        val tryLockSignals = mutableListOf<Boolean>()
+        dropSchema()
+        newLock(tryLockSignals).tryLock(Duration.ZERO, 1.seconds).shouldBeNull()
+        tryLockSignals shouldBeEqualTo listOf(false)
+        restoreSchema()
+
+        val heldSignals = mutableListOf<Boolean>()
+        dropSchema()
+        newLock(heldSignals).isHeldByCurrentInstance().shouldBeFalse()
+        heldSignals shouldBeEqualTo listOf(false)
+        restoreSchema()
+
+        val unlockSignals = mutableListOf<Boolean>()
+        dropSchema()
+        newLock(unlockSignals).unlockAndReport() shouldBeEqualTo ExposedR2dbcUnlockOutcome.FAILED
+        unlockSignals shouldBeEqualTo listOf(false)
+        restoreSchema()
+
+        val extendSignals = mutableListOf<Boolean>()
+        dropSchema()
+        runCatching { newLock(extendSignals).extendDetailed(1.seconds) }.isFailure.shouldBeTrue()
+        extendSignals shouldBeEqualTo listOf(false)
+        restoreSchema()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
     fun `tryLock - leaseTime 만료 후 동일 슬롯을 다른 인스턴스가 takeover한다`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)
@@ -90,6 +198,73 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
 
         acquired.shouldNotBeNull().shouldBeTrue()
         newLock.unlock()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `tryLock - DB 시간 모드에서는 JVM clock skew가 슬롯 소유권을 깨뜨리지 않는다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val oldJvmClock = Clock.fixed(Instant.parse("2000-01-01T00:00:00Z"), ZoneOffset.UTC)
+        val futureJvmClock = Clock.fixed(Instant.parse("2100-01-01T00:00:00Z"), ZoneOffset.UTC)
+
+        val holder = ExposedR2dbcGroupLock(
+            db,
+            lockName,
+            slot = 0,
+            retryStrategy = RetryStrategy.Jitter(),
+            useDbTime = true,
+            clock = oldJvmClock,
+        )
+        holder.tryLock(1.seconds, 30.seconds).shouldNotBeNull().shouldBeTrue()
+
+        val contender = ExposedR2dbcGroupLock(
+            db,
+            lockName,
+            slot = 0,
+            retryStrategy = RetryStrategy.Fixed(fixedMs = 10L),
+            useDbTime = true,
+            clock = futureJvmClock,
+        )
+        contender.tryLock(100.milliseconds, 5.seconds).shouldNotBeNull().shouldBeFalse()
+
+        holder.unlock()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `unlock - 만료된 동일 token에는 minLeaseTime을 적용하지 않는다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val now = Instant.parse("2026-01-02T03:04:05Z")
+        val lock = ExposedR2dbcGroupLock(
+            db,
+            lockName,
+            slot = 0,
+            retryStrategy = RetryStrategy.Jitter(),
+            clock = Clock.fixed(now, ZoneOffset.UTC),
+        )
+        lock.tryLock(1.seconds, 30.seconds).shouldNotBeNull().shouldBeTrue()
+
+        val expiredUntil = now.minusSeconds(1)
+        suspendTransaction(db) {
+            LeaderGroupLockTable.update(
+                where = { (LeaderGroupLockTable.lockName eq lockName) and (LeaderGroupLockTable.slot eq 0) },
+            ) {
+                it[LeaderGroupLockTable.lockedUntil] = expiredUntil
+            }
+        }
+
+        lock.unlock(minLeaseTime = 1.minutes)
+
+        suspendTransaction(db) {
+            LeaderGroupLockTable
+                .selectAll()
+                .where { (LeaderGroupLockTable.lockName eq lockName) and (LeaderGroupLockTable.slot eq 0) }
+                .first()[LeaderGroupLockTable.lockedUntil]
+        }.shouldBeEqualTo(expiredUntil)
     }
 
     @ParameterizedTest

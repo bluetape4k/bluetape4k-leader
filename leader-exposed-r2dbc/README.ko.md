@@ -20,10 +20,10 @@
 
 | 클래스 | 인터페이스 | 설명 |
 |--------|-----------|------|
-| `ExposedR2dbcSuspendLeaderElector` | `SuspendLeaderElector` | `ExposedR2dbcLock` 기반 코루틴 단일 리더 |
-| `ExposedR2dbcSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | `ExposedR2dbcGroupLock` 기반 코루틴 복수 리더 |
-| `ExposedR2DbcSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `ExposedR2dbcSuspendLeaderElector` 생성 |
-| `ExposedR2DbcSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `ExposedR2dbcSuspendLeaderGroupElector` 생성 |
+| `ExposedR2DbcSuspendLeaderElector` | `SuspendLeaderElector` | `ExposedR2dbcLock` 기반 코루틴 단일 리더 |
+| `ExposedR2DbcSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | `ExposedR2dbcGroupLock` 기반 코루틴 복수 리더 |
+| `ExposedR2DbcSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | 팩토리: 호출마다 `ExposedR2DbcSuspendLeaderElector` 생성 |
+| `ExposedR2DbcSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | 팩토리: 호출마다 `ExposedR2DbcSuspendLeaderGroupElector` 생성 |
 
 ## 사용법
 
@@ -45,7 +45,7 @@ val db = R2dbcDatabase.connect("r2dbc:mysql://user:pass@localhost:3306/mydb")
 ### 코루틴 단일 리더
 
 ```kotlin
-val election = ExposedR2dbcSuspendLeaderElector(db)
+val election = ExposedR2DbcSuspendLeaderElector(db)
 
 val result = election.runIfLeader("daily-report") {
     delay(100)
@@ -58,11 +58,13 @@ val result = election.runIfLeader("daily-report") {
 
 ```kotlin
 val options = ExposedR2dbcLeaderGroupElectionOptions(
-    leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3)
+    leaderGroupOptions = LeaderGroupElectionOptions(
+        maxLeaders = 3,
+        useDbTime = true, // 0.6.0+ develop: 그룹 소유권에 DB server time 사용
+    )
 )
-val election = ExposedR2dbcSuspendLeaderGroupElector(db, options)
-
 coroutineScope {
+    val election = ExposedR2DbcSuspendLeaderGroupElector(db, options)
     val jobs = (1..10).map {
         async {
             election.runIfLeader("parallel-batch") {
@@ -74,6 +76,27 @@ coroutineScope {
     // 최대 3개 동시 실행, 나머지는 null 반환
 }
 ```
+
+### Exposed 그룹의 DB server time (0.6.0+ develop)
+
+coroutine 노드의 JVM clock가 서로 다를 수 있으면
+`LeaderGroupElectionOptions.useDbTime = true`를 설정합니다. 그룹 acquire,
+소유권 확인, lease 연장, 최소 lease release, `activeCountSuspend`가 관련
+ownership transaction 안에서 `SELECT CURRENT_TIMESTAMP` 한 번을 사용합니다.
+행만 삭제하는 release에는 time query를 추가하지 않으며 기본값은 `false`입니다.
+
+DB time을 읽을 수 없으면 해당 lock name을 unavailable로 표시하고 상태 조회는
+`maxLeaders`를 반환하며, `runIfLeader`는 슬롯을 주장하지 않고 `null`을 반환합니다.
+또한 history·handle·watchdog를 만드는 중 coroutine이 취소되어도 setup guard가
+슬롯을 반납합니다.
+
+failover connection을 포함한 모든 connection은 같은 권위 database clock 원천으로
+라우팅해야 합니다. timestamp timezone과 precision은 provider/session 계약이므로
+일관되게 설정합니다. DB-time은 ownership transaction마다 timestamp round trip을
+하나 추가하므로 R2DBC pool을 그 비용에 맞춰 구성하며 retry delay는 transaction
+밖에 둡니다. `activeCount()`는 cache snapshot이라 권위 있는 값이 아니므로 DB
+기반 count가 필요하면 suspend refresh 경로를 사용합니다. history는 best-effort
+metadata이며 ownership 결과를 바꾸지 않습니다.
 
 ### 확장 함수
 
@@ -101,7 +124,7 @@ val options = ExposedR2dbcLeaderElectionOptions(
     recordHistory = true,
     lockOwner = "worker-1",
 )
-val election = ExposedR2dbcSuspendLeaderElector(db, options)
+val election = ExposedR2DbcSuspendLeaderElector(db, options)
 ```
 
 ### SPI 팩토리 사용

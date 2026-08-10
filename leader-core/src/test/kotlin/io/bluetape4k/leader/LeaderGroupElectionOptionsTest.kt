@@ -21,6 +21,7 @@ class LeaderGroupElectionOptionsTest {
         options.waitTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultWaitTime
         options.leaseTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultLeaseTime
         options.minLeaseTime shouldBeEqualTo Duration.ZERO
+        options.useDbTime shouldBeEqualTo false
     }
 
     @Test
@@ -30,6 +31,7 @@ class LeaderGroupElectionOptionsTest {
         options.waitTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultWaitTime
         options.leaseTime shouldBeEqualTo LeaderGroupElectionOptions.DefaultLeaseTime
         options.minLeaseTime shouldBeEqualTo Duration.ZERO
+        options.useDbTime shouldBeEqualTo false
     }
 
     @Test
@@ -39,11 +41,13 @@ class LeaderGroupElectionOptionsTest {
             waitTime = 10.seconds,
             leaseTime = 120.seconds,
             minLeaseTime = 5.seconds,
+            useDbTime = true,
         )
         options.maxLeaders shouldBeEqualTo 4
         options.waitTime shouldBeEqualTo 10.seconds
         options.leaseTime shouldBeEqualTo 120.seconds
         options.minLeaseTime shouldBeEqualTo 5.seconds
+        options.useDbTime shouldBeEqualTo true
     }
 
     @Test
@@ -54,6 +58,7 @@ class LeaderGroupElectionOptionsTest {
         copied.maxLeaders shouldBeEqualTo 6
         copied.waitTime shouldBeEqualTo original.waitTime
         copied.leaseTime shouldBeEqualTo original.leaseTime
+        copied.useDbTime shouldBeEqualTo original.useDbTime
         original.maxLeaders shouldBeEqualTo 3  // 원본 불변
     }
 

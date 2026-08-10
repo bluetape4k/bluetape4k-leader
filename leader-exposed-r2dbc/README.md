@@ -20,10 +20,10 @@ Lock strategy: `UPDATE WHERE lockedUntil < NOW()` + `INSERT IGNORE` in a single 
 
 | Class | Interface | Description |
 |-------|-----------|-------------|
-| `ExposedR2dbcSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine single-leader via `ExposedR2dbcLock` |
-| `ExposedR2dbcSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader via `ExposedR2dbcGroupLock` |
-| `ExposedR2DbcSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `ExposedR2dbcSuspendLeaderElector` per call |
-| `ExposedR2DbcSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `ExposedR2dbcSuspendLeaderGroupElector` per call |
+| `ExposedR2DbcSuspendLeaderElector` | `SuspendLeaderElector` | Coroutine single-leader via `ExposedR2dbcLock` |
+| `ExposedR2DbcSuspendLeaderGroupElector` | `SuspendLeaderGroupElector` | Coroutine multi-leader via `ExposedR2dbcGroupLock` |
+| `ExposedR2DbcSuspendLeaderElectorFactory` | `SuspendLeaderElectorFactory` | Factory: creates `ExposedR2DbcSuspendLeaderElector` per call |
+| `ExposedR2DbcSuspendLeaderGroupElectorFactory` | `SuspendLeaderGroupElectorFactory` | Factory: creates `ExposedR2DbcSuspendLeaderGroupElector` per call |
 
 ## Usage
 
@@ -45,7 +45,7 @@ Schema is created automatically on the first call to `runIfLeader`.
 ### Coroutine single-leader
 
 ```kotlin
-val election = ExposedR2dbcSuspendLeaderElector(db)
+val election = ExposedR2DbcSuspendLeaderElector(db)
 
 val result = election.runIfLeader("daily-report") {
     delay(100)
@@ -58,11 +58,13 @@ val result = election.runIfLeader("daily-report") {
 
 ```kotlin
 val options = ExposedR2dbcLeaderGroupElectionOptions(
-    leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3)
+    leaderGroupOptions = LeaderGroupElectionOptions(
+        maxLeaders = 3,
+        useDbTime = true, // 0.6.0+ develop: database server time for group ownership
+    )
 )
-val election = ExposedR2dbcSuspendLeaderGroupElector(db, options)
-
 coroutineScope {
+    val election = ExposedR2DbcSuspendLeaderGroupElector(db, options)
     val jobs = (1..10).map {
         async {
             election.runIfLeader("parallel-batch") {
@@ -74,6 +76,27 @@ coroutineScope {
     // At most 3 run concurrently; others return null
 }
 ```
+
+### Database server time for Exposed groups (0.6.0+ develop)
+
+Set `LeaderGroupElectionOptions.useDbTime = true` when coroutine nodes may have
+different JVM clocks. Group acquire, ownership checks, lease extension,
+minimum-lease release, and `activeCountSuspend` then use one
+`SELECT CURRENT_TIMESTAMP` inside the relevant ownership transaction. A release
+that only deletes the row does not issue a time query. The default is `false`.
+
+If database time cannot be read, the affected lock name is marked unavailable,
+state queries report `maxLeaders`, and `runIfLeader` returns `null` rather than
+claiming a slot. The setup guard also releases a slot if coroutine cancellation
+happens while history, handle, or watchdog state is being created.
+
+Route every connection, including failover connections, to the same authoritative
+database clock source. Timestamp timezone and precision are provider/session
+contracts and must be configured consistently. DB-time adds one timestamp round
+trip per ownership transaction; size the R2DBC pool for that cost, while retry
+delays stay outside transactions. `activeCount()` is a cache snapshot and is not
+authoritative; use the suspend refresh path when a database-backed count is
+needed. History remains best-effort metadata and never changes ownership.
 
 ### Extension functions
 
@@ -101,7 +124,7 @@ val options = ExposedR2dbcLeaderElectionOptions(
     recordHistory = true,
     lockOwner = "worker-1",
 )
-val election = ExposedR2dbcSuspendLeaderElector(db, options)
+val election = ExposedR2DbcSuspendLeaderElector(db, options)
 ```
 
 ### Using SPI factories
