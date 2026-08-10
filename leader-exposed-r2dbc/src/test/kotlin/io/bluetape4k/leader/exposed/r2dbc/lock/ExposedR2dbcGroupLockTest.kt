@@ -123,7 +123,9 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
 
         availabilitySignals.clear()
         contender.unlockAndReport() shouldBeEqualTo ExposedR2dbcUnlockOutcome.NOT_HELD
-        availabilitySignals shouldBeEqualTo listOf(true)
+        // Delete-only unlock은 CURRENT_TIMESTAMP가 정상이라는 증거를 만들지 않으므로
+        // fail-closed DB-time admission 경로를 다시 열면 안 됩니다.
+        availabilitySignals shouldBeEqualTo emptyList()
 
         holder.unlock()
     }
@@ -157,9 +159,13 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
 
         val tryLockSignals = mutableListOf<Boolean>()
         dropSchema()
-        newLock(tryLockSignals).tryLock(Duration.ZERO, 1.seconds).shouldBeNull()
+        val failedTryLock = newLock(tryLockSignals)
+        failedTryLock.tryLock(Duration.ZERO, 1.seconds).shouldBeNull()
         tryLockSignals shouldBeEqualTo listOf(false)
         restoreSchema()
+        failedTryLock.unlockAndReport() shouldBeEqualTo ExposedR2dbcUnlockOutcome.NOT_HELD
+        // CURRENT_TIMESTAMP 없이 성공한 DELETE는 DB-time admission을 다시 열면 안 됩니다.
+        tryLockSignals shouldBeEqualTo listOf(false)
 
         val heldSignals = mutableListOf<Boolean>()
         dropSchema()
