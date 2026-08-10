@@ -21,6 +21,13 @@ Election rows hold owner and expiry metadata; acquisition and release are short 
 
 Choose JDBC when the service and transaction stack are blocking. Choose R2DBC when the call path is coroutine-native and avoiding blocking bridges matters. SQL latency is sensitive to network and container setup, so treat bundled H2 rows as local-layer baselines rather than distributed database evidence.
 
+## Release provenance
+
+This page is pinned to the `0.5.0` release and therefore intentionally does not
+describe APIs introduced after that release. Consult the current
+`leader-exposed-jdbc` and `leader-exposed-r2dbc` module READMEs on the
+development branch for post-release database-time options and behavior.
+
 ## Release sources
 
 - [`leader-exposed-core/README.md`](../../../../leader-exposed-core/README.md)

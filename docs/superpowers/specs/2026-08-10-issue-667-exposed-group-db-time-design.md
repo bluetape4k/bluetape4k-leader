@@ -250,7 +250,7 @@ LEADER_TEST_DB=mysql ./gradlew :bluetape4k-leader-exposed-jdbc:test --tests '*Gr
 LEADER_TEST_DB=h2 ./gradlew :bluetape4k-leader-exposed-r2dbc:test --tests '*Group*Test'
 LEADER_TEST_DB=postgresql ./gradlew :bluetape4k-leader-exposed-r2dbc:test --tests '*Group*Test'
 LEADER_TEST_DB=mysql ./gradlew :bluetape4k-leader-exposed-r2dbc:test --tests '*Group*Test'
-./gradlew checkBinaryCompatibility
+ABI_BASE_VERSION=0.5.0 ABI_CURRENT_VERSION=0.6.0 ./gradlew checkBinaryCompatibility
 ./gradlew exportManualModuleInventory
 ruby scripts/manual/release_inventory.rb 0.5.0 721a9a3808f67489d2bdb8177734325981c24977 build/manual/module-inventory.json build/manual/release-module-inventory.json 35
 ruby scripts/manual/validate_release_manuals.rb 0.5.0 721a9a3808f67489d2bdb8177734325981c24977

@@ -103,9 +103,13 @@ LeaderGroupElectionOptions(
     maxLeaders: Int = 2,                          // 최대 동시 리더 수
     waitTime: Duration = 5.seconds,
     leaseTime: Duration = 60.seconds,
-    minLeaseTime: Duration = Duration.ZERO
+    minLeaseTime: Duration = Duration.ZERO,
+    useDbTime: Boolean = false                    // Exposed JDBC/R2DBC 그룹 소유권에만 적용
 )
 ```
+
+`useDbTime`은 Exposed JDBC/R2DBC 그룹 elector가 사용합니다. 다른 backend는
+기존 clock 동작을 유지합니다.
 
 `minLeaseTime`은 lockAtLeastFor 대응 옵션입니다. 로컬 elector는 최소 보유 시간이 지날 때까지 락 또는 슬롯을 유지합니다. 지원되는 분산 backend는 release 시 남은 최소 lease를 storage TTL에 위임합니다.
 

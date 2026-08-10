@@ -2,17 +2,28 @@ package io.bluetape4k.leader.exposed.jdbc.lock
 
 import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.leader.exposed.jdbc.AbstractExposedJdbcLeaderTest
+import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
 import io.bluetape4k.logging.KLogging
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Test
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldBeFalse
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 
 class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
 
@@ -109,6 +120,73 @@ class ExposedJdbcGroupLockTest : AbstractExposedJdbcLeaderTest() {
         if (acquired) {
             newLock.unlock()
         }
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `tryLock - DB 시간 모드에서는 JVM clock skew가 슬롯 소유권을 깨뜨리지 않는다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val oldJvmClock = Clock.fixed(Instant.parse("2000-01-01T00:00:00Z"), ZoneOffset.UTC)
+        val futureJvmClock = Clock.fixed(Instant.parse("2100-01-01T00:00:00Z"), ZoneOffset.UTC)
+
+        val holder = ExposedJdbcGroupLock(
+            db,
+            lockName,
+            slot = 0,
+            retryStrategy = RetryStrategy.Jitter(),
+            useDbTime = true,
+            clock = oldJvmClock,
+        )
+        holder.tryLock(1.seconds, 30.seconds).shouldBeTrue()
+
+        val contender = ExposedJdbcGroupLock(
+            db,
+            lockName,
+            slot = 0,
+            retryStrategy = RetryStrategy.Fixed(fixedMs = 10L),
+            useDbTime = true,
+            clock = futureJvmClock,
+        )
+        contender.tryLock(100.milliseconds, 5.seconds).shouldBeFalse()
+
+        holder.unlock()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `unlock - 만료된 동일 token에는 minLeaseTime을 적용하지 않는다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val now = Instant.parse("2026-01-02T03:04:05Z")
+        val lock = ExposedJdbcGroupLock(
+            db,
+            lockName,
+            slot = 0,
+            retryStrategy = RetryStrategy.Jitter(),
+            clock = Clock.fixed(now, ZoneOffset.UTC),
+        )
+        lock.tryLock(1.seconds, 30.seconds).shouldBeTrue()
+
+        val expiredUntil = now.minusSeconds(1)
+        transaction(db) {
+            LeaderGroupLockTable.update(
+                where = { (LeaderGroupLockTable.lockName eq lockName) and (LeaderGroupLockTable.slot eq 0) },
+            ) {
+                it[LeaderGroupLockTable.lockedUntil] = expiredUntil
+            }
+        }
+
+        lock.unlock(minLeaseTime = 1.minutes)
+
+        transaction(db) {
+            LeaderGroupLockTable
+                .selectAll()
+                .where { (LeaderGroupLockTable.lockName eq lockName) and (LeaderGroupLockTable.slot eq 0) }
+                .single()[LeaderGroupLockTable.lockedUntil]
+        }.shouldBeEqualTo(expiredUntil)
     }
 
     @ParameterizedTest

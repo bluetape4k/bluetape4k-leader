@@ -138,15 +138,19 @@ Leader 안정판의 실제 버전은 버전별 매뉴얼에 근거로 남기며,
 ```kotlin
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElector
+import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElectionOptions
+import org.jetbrains.exposed.v1.jdbc.Database
 
 val dataSource = HikariDataSource(HikariConfig().apply {
     jdbcUrl = "jdbc:postgresql://localhost:5432/mydb"
     username = "user"
     password = "pass"
 })
+val db = Database.connect(dataSource)
 
-val election = ExposedJdbcLeaderElector(dataSource)
+val election = ExposedJdbcLeaderElector(db)
 
 val result = election.runIfLeader("daily-report-job") {
     generateReport()  // 리더로 선출된 노드에서만 실행
@@ -158,15 +162,51 @@ val result = election.runIfLeader("daily-report-job") {
 
 ```kotlin
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElector
-import io.bluetape4k.leader.core.LeaderGroupElectionOptions
 
-val options = LeaderGroupElectionOptions(maxLeaders = 3)
-val groupElection = ExposedJdbcLeaderGroupElector(dataSource, options)
+val options = ExposedJdbcLeaderGroupElectionOptions(
+    leaderGroupOptions = LeaderGroupElectionOptions(
+        maxLeaders = 3,
+        useDbTime = true, // 0.6.0+ develop: 그룹 소유권 판정에 DB server time 사용
+    ),
+)
+val groupElection = ExposedJdbcLeaderGroupElector(db, options)
 
 val result = groupElection.runIfLeader("parallel-batch") {
     processNextChunk()
 }
 ```
+
+`useDbTime`은 Exposed JDBC/R2DBC 그룹 옵션입니다. 각 소유권 transaction 안에서
+`SELECT CURRENT_TIMESTAMP`를 한 번 실행해 만료 경계를 DB server time으로
+판정하므로 JVM clock skew가 lease 경계를 바꾸지 않습니다. 기본값은 `false`이며,
+DB time을 사용할 수 없으면 그룹 상태를 보수적으로 보고하고
+`runIfLeader`는 소유권을 주장하지 않고 건너뜁니다.
+
+이 옵션은 `0.6.0+` develop 라인에서 제공됩니다. 버전 매뉴얼은 `0.5.0`
+release provenance에 계속 고정되어 있습니다.
+
+### Exposed R2DBC 그룹 (coroutine-native, 0.6.0+ develop)
+
+```kotlin
+import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderGroupElector
+import io.bluetape4k.leader.exposed.r2dbc.ExposedR2dbcLeaderGroupElectionOptions
+import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
+
+val db = R2dbcDatabase.connect("r2dbc:postgresql://user:pass@localhost:5432/mydb")
+suspend fun runChunk() = ExposedR2DbcSuspendLeaderGroupElector(
+    db,
+    ExposedR2dbcLeaderGroupElectionOptions(
+        leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3, useDbTime = true),
+    ),
+).runIfLeader("parallel-batch") {
+    processNextChunk()
+}
+```
+
+호출마다 생성하려면 suspend scope 안에서
+`ExposedR2DbcSuspendLeaderGroupElectorFactory`를 사용하고
+`factory.create(LeaderGroupElectionOptions(..., useDbTime = true))`를 호출합니다.
 
 ### 블로킹 방식 (단일 리더 — Redis)
 

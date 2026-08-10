@@ -27,7 +27,7 @@ import org.jetbrains.exposed.v1.r2dbc.update
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import java.time.Instant
+import java.time.Clock
 
 /**
  * `ExposedR2dbcGroupLock`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -38,6 +38,7 @@ import java.time.Instant
  * @property slot Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property retryStrategy Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property lockOwner Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property useDbTime Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
 internal enum class ExposedR2dbcUnlockOutcome {
     RELEASED,
@@ -45,18 +46,41 @@ internal enum class ExposedR2dbcUnlockOutcome {
     FAILED,
 }
 
+@Suppress("LongParameterList")
 internal class ExposedR2dbcGroupLock internal constructor(
     private val db: R2dbcDatabase,
     val lockName: String,
     val slot: Int,
     private val retryStrategy: RetryStrategy,
     private val lockOwner: String? = null,
+    private val useDbTime: Boolean = false,
+    private val clock: Clock = Clock.systemUTC(),
+    private val onAvailabilityChanged: (Boolean) -> Unit = {},
 ) {
+    /**
+     * 0.4.x에서 컴파일된 호출자의 생성자 디스크립터를 보존합니다.
+     */
+    internal constructor(
+        db: R2dbcDatabase,
+        lockName: String,
+        slot: Int,
+        retryStrategy: RetryStrategy,
+        lockOwner: String? = null,
+    ) : this(db, lockName, slot, retryStrategy, lockOwner, false, Clock.systemUTC())
+
     init {
         slot.requireZeroOrPositiveNumber("slot")
     }
 
     companion object: KLoggingChannel()
+
+    private fun markUnavailable() {
+        if (useDbTime) runCatching { onAvailabilityChanged(false) }
+    }
+
+    private fun markAvailable() {
+        if (useDbTime) runCatching { onAvailabilityChanged(true) }
+    }
 
     /**
      * `token` 값은 Exposed database backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
@@ -80,10 +104,14 @@ internal class ExposedR2dbcGroupLock internal constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
+                markUnavailable()
                 log.warn(e) { "DB 오류로 슬롯 순회 중단: lockName=$lockName, slot=$slot, attempt=$attempt" }
                 return null
             }
 
+            // A completed DB-time operation is a positive health signal even when the
+            // slot was occupied and acquisition returned false.
+            markAvailable()
             if (acquired) {
                 log.debug { "그룹 슬롯 락 획득 성공: lockName=$lockName, slot=$slot, token=${token.take(8)}" }
                 return true
@@ -107,7 +135,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
         val tokenVal = this@ExposedR2dbcGroupLock.token
 
         return suspendTransaction(db) {
-            val now = Instant.now()
+            val now = currentTime(useDbTime, clock)
             val lockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
 
             val updated = LeaderGroupLockTable.update(
@@ -174,12 +202,13 @@ internal class ExposedR2dbcGroupLock internal constructor(
     suspend fun isHeldByCurrentInstance(): Boolean =
         runR2dbcLockOperationPreservingCancellation(
             onFailure = { e ->
+                markUnavailable()
                 log.warn(e) { "isHeldByCurrentInstance DB 오류 (false 반환): lockName=$lockName, slot=$slot" }
                 false
             },
         ) {
-            suspendTransaction(db) {
-                val now = Instant.now()
+            val held = suspendTransaction(db) {
+                val now = currentTime(useDbTime, clock)
                 !LeaderGroupLockTable
                     .selectAll()
                     .where {
@@ -190,6 +219,8 @@ internal class ExposedR2dbcGroupLock internal constructor(
                     }
                     .empty()
             }
+            markAvailable()
+            held
         }
 
     /**
@@ -219,20 +250,23 @@ internal class ExposedR2dbcGroupLock internal constructor(
 
         return runR2dbcLockOperationPreservingCancellation(
             onFailure = { e ->
+                markUnavailable()
                 log.warn(e) { "그룹 슬롯 해제 중 DB 오류: lockName=$lockName, slot=$slot" }
                 ExposedR2dbcUnlockOutcome.FAILED
             },
         ) {
             val matched = suspendTransaction(db) {
                 if (remaining > Duration.ZERO) {
+                    val now = currentTime(useDbTime, clock)
                     LeaderGroupLockTable.update(
                         where = {
                             (LeaderGroupLockTable.lockName eq lockNameVal) and
                                 (LeaderGroupLockTable.slot eq slotVal) and
-                                (LeaderGroupLockTable.token eq tokenVal)
+                                (LeaderGroupLockTable.token eq tokenVal) and
+                                (LeaderGroupLockTable.lockedUntil greater now)
                         }
                     ) {
-                        it[LeaderGroupLockTable.lockedUntil] = Instant.now().plusMillis(remaining.inWholeMilliseconds)
+                        it[LeaderGroupLockTable.lockedUntil] = now.plusMillis(remaining.inWholeMilliseconds)
                     }
                 } else {
                     LeaderGroupLockTable.deleteWhere {
@@ -242,6 +276,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
                     }
                 }
             }
+            markAvailable()
             if (matched == 0) {
                 log.warn { "그룹 슬롯 해제 실패 — 토큰 불일치 또는 이미 만료됨: lockName=$lockName, slot=$slot" }
                 ExposedR2dbcUnlockOutcome.NOT_HELD
@@ -257,30 +292,40 @@ internal class ExposedR2dbcGroupLock internal constructor(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
+    @Suppress("TooGenericExceptionCaught")
     suspend fun extendDetailed(leaseTime: Duration): ExtendOutcome {
         val lockNameVal = this@ExposedR2dbcGroupLock.lockName
         val slotVal = this@ExposedR2dbcGroupLock.slot
         val tokenVal = this@ExposedR2dbcGroupLock.token
 
-        return suspendTransaction(db) {
-            val now = Instant.now()
-            val newLockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
-            val updated = LeaderGroupLockTable.update(
-                where = {
-                    (LeaderGroupLockTable.lockName eq lockNameVal) and
-                        (LeaderGroupLockTable.slot eq slotVal) and
-                        (LeaderGroupLockTable.token eq tokenVal) and
-                        (LeaderGroupLockTable.lockedUntil greater now)  // R6: expired row revival 차단
+        return try {
+            val outcome = suspendTransaction(db) {
+                val now = currentTime(useDbTime, clock)
+                val newLockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
+                val updated = LeaderGroupLockTable.update(
+                    where = {
+                        (LeaderGroupLockTable.lockName eq lockNameVal) and
+                            (LeaderGroupLockTable.slot eq slotVal) and
+                            (LeaderGroupLockTable.token eq tokenVal) and
+                            (LeaderGroupLockTable.lockedUntil greater now)  // R6: expired row revival 차단
+                    }
+                ) {
+                    it[LeaderGroupLockTable.lockedUntil] = newLockedUntil
                 }
-            ) {
-                it[LeaderGroupLockTable.lockedUntil] = newLockedUntil
+                if (updated > 0) {
+                    ExtendOutcome.Extended(newLockedUntil)
+                } else {
+                    log.debug { "Exposed R2DBC group extend 실패 (NotHeld): lockName=$lockName, slot=$slot" }
+                    ExtendOutcome.NotHeld
+                }
             }
-            if (updated > 0) {
-                ExtendOutcome.Extended(newLockedUntil)
-            } else {
-                log.debug { "Exposed R2DBC group extend 실패 (NotHeld): lockName=$lockName, slot=$slot" }
-                ExtendOutcome.NotHeld
-            }
+            markAvailable()
+            outcome
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            markUnavailable()
+            throw e
         }
     }
 }

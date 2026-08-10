@@ -7,7 +7,9 @@ import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcGroupLock
+import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcSchemaInitializer
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
+import io.bluetape4k.leader.exposed.ExposedLeaderConstants.GROUP_LOCK_TABLE_NAME
 import io.bluetape4k.leader.exposed.jdbc.history.ExposedLeaderHistorySink
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
@@ -40,12 +42,18 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
 
     companion object: KLogging()
 
-    private fun makeOptions(maxLeaders: Int = 3, waitSec: Long = 10, leaseSec: Long = 30) =
+    private fun makeOptions(
+        maxLeaders: Int = 3,
+        waitSec: Long = 10,
+        leaseSec: Long = 30,
+        useDbTime: Boolean = false,
+    ) =
         ExposedJdbcLeaderGroupElectionOptions(
             leaderGroupOptions = LeaderGroupElectionOptions(
                 maxLeaders = maxLeaders,
                 waitTime = waitSec.seconds,
                 leaseTime = leaseSec.seconds,
+                useDbTime = useDbTime,
             )
         )
 
@@ -124,11 +132,11 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
-    fun `runIfLeader - 동시 실행 중인 리더 수가 maxLeaders를 초과하지 않는다`(testDB: TestDB) {
+    fun `runIfLeader - DB server time 모드에서 동시 리더 수가 maxLeaders를 초과하지 않는다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
         val maxLeaders = 3
-        val options = makeOptions(maxLeaders = maxLeaders, waitSec = 15, leaseSec = 30)
+        val options = makeOptions(maxLeaders = maxLeaders, waitSec = 15, leaseSec = 30, useDbTime = true)
         val election = ExposedJdbcLeaderGroupElector(db, options)
         val lockName = randomName()
         val currentConcurrent = AtomicInteger(0)
@@ -239,6 +247,33 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         // Wait 2x lease duration to ensure the acquired slot is expired before counting.
         val waitForExpirationMs = leaseDuration.inWholeMilliseconds * 2
         Thread.sleep(waitForExpirationMs)
+
+        election.activeCount(lockName) shouldBeEqualTo 0
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `activeCount - DB 시간 조회 실패 시 fail-closed로 maxLeaders를 반환하고 복구한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val maxLeaders = 2
+        val options = ExposedJdbcLeaderGroupElectionOptions(
+            leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = maxLeaders, useDbTime = true),
+        )
+        val election = ExposedJdbcLeaderGroupElector(db, options)
+        val lockName = randomName()
+
+        try {
+            transaction(db) { exec("DROP TABLE $GROUP_LOCK_TABLE_NAME") }
+
+            election.activeCount(lockName) shouldBeEqualTo maxLeaders
+            election.availableSlots(lockName) shouldBeEqualTo 0
+            election.state(lockName).activeCount shouldBeEqualTo maxLeaders
+        } finally {
+            ExposedJdbcSchemaInitializer.resetFor(db)
+            ExposedJdbcSchemaInitializer.ensureSchema(db)
+            cleanTables(db)
+        }
 
         election.activeCount(lockName) shouldBeEqualTo 0
     }

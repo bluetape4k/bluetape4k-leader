@@ -139,15 +139,19 @@ The direct Leader release version is recorded by the versioned manual for proven
 ```kotlin
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderElector
+import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElectionOptions
+import org.jetbrains.exposed.v1.jdbc.Database
 
 val dataSource = HikariDataSource(HikariConfig().apply {
     jdbcUrl = "jdbc:postgresql://localhost:5432/mydb"
     username = "user"
     password = "pass"
 })
+val db = Database.connect(dataSource)
 
-val election = ExposedJdbcLeaderElector(dataSource)
+val election = ExposedJdbcLeaderElector(db)
 
 val result = election.runIfLeader("daily-report-job") {
     generateReport()
@@ -159,15 +163,51 @@ Multi-leader group (JDBC):
 
 ```kotlin
 import io.bluetape4k.leader.exposed.jdbc.ExposedJdbcLeaderGroupElector
-import io.bluetape4k.leader.core.LeaderGroupElectionOptions
 
-val options = LeaderGroupElectionOptions(maxLeaders = 3)
-val groupElection = ExposedJdbcLeaderGroupElector(dataSource, options)
+val options = ExposedJdbcLeaderGroupElectionOptions(
+    leaderGroupOptions = LeaderGroupElectionOptions(
+        maxLeaders = 3,
+        useDbTime = true, // 0.6.0+ develop: use database server time for group ownership
+    ),
+)
+val groupElection = ExposedJdbcLeaderGroupElector(db, options)
 
 val result = groupElection.runIfLeader("parallel-batch") {
     processNextChunk()
 }
 ```
+
+`useDbTime` is an Exposed JDBC/R2DBC group option. It evaluates ownership and
+active-slot expiry with one `SELECT CURRENT_TIMESTAMP` inside each ownership
+transaction, so JVM clock skew does not change the lease boundary. It defaults
+to `false`; when database time is unavailable, group state is reported
+conservatively and `runIfLeader` skips rather than claiming ownership.
+
+The option is available on the `0.6.0+` development line. The versioned manual
+pages remain pinned to the `0.5.0` release provenance.
+
+### Exposed R2DBC group (coroutine-native, 0.6.0+ develop)
+
+```kotlin
+import io.bluetape4k.leader.LeaderGroupElectionOptions
+import io.bluetape4k.leader.exposed.r2dbc.ExposedR2DbcSuspendLeaderGroupElector
+import io.bluetape4k.leader.exposed.r2dbc.ExposedR2dbcLeaderGroupElectionOptions
+import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
+
+val db = R2dbcDatabase.connect("r2dbc:postgresql://user:pass@localhost:5432/mydb")
+suspend fun runChunk() = ExposedR2DbcSuspendLeaderGroupElector(
+    db,
+    ExposedR2dbcLeaderGroupElectionOptions(
+        leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3, useDbTime = true),
+    ),
+).runIfLeader("parallel-batch") {
+    processNextChunk()
+}
+```
+
+For per-call construction inside a suspend scope, use
+`ExposedR2DbcSuspendLeaderGroupElectorFactory` with
+`factory.create(LeaderGroupElectionOptions(..., useDbTime = true))`.
 
 ### Blocking (single leader — Redis)
 

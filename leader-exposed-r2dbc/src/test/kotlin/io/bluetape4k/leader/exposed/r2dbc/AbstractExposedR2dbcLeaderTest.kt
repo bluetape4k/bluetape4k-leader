@@ -54,7 +54,7 @@ abstract class AbstractExposedR2dbcLeaderTest {
                 "H2"                -> listOf(TestR2dbcDB.H2)
                 "POSTGRESQL", "POSTGRES" -> listOf(TestR2dbcDB.POSTGRESQL)
                 "MYSQL_V8", "MYSQL" -> listOf(TestR2dbcDB.MYSQL_V8)
-                else                -> listOf(TestR2dbcDB.H2, TestR2dbcDB.POSTGRESQL, TestR2dbcDB.MYSQL_V8)
+                else                -> error("지원하지 않는 LEADER_TEST_DB 값: $filter")
             }
         }
 

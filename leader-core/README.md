@@ -105,9 +105,13 @@ LeaderGroupElectionOptions(
     maxLeaders: Int = 2,                          // max concurrent leaders
     waitTime: Duration = 5.seconds,
     leaseTime: Duration = 60.seconds,
-    minLeaseTime: Duration = Duration.ZERO
+    minLeaseTime: Duration = Duration.ZERO,
+    useDbTime: Boolean = false                    // Exposed JDBC/R2DBC group ownership only
 )
 ```
+
+`useDbTime` is consumed by the Exposed JDBC/R2DBC group electors. Other
+backends keep their existing clock behavior.
 
 `minLeaseTime` is the lockAtLeastFor equivalent. Local electors keep the lock or slot until the minimum hold time has elapsed. Supported distributed backends delegate the remaining minimum lease to their storage TTL on release.
 

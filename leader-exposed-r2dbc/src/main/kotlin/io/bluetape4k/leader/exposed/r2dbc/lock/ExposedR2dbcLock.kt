@@ -13,7 +13,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import org.jetbrains.exposed.v1.exceptions.UnsupportedByDialectException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.firstOrNull
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
@@ -29,6 +28,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.time.Instant
+import kotlinx.coroutines.flow.firstOrNull
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -101,7 +101,7 @@ internal class ExposedR2dbcLock internal constructor(
         val tokenVal = this@ExposedR2dbcLock.token
 
         return suspendTransaction(db) {
-            val now = currentTime()
+            val now = currentTime(useDbTime)
             val lockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
 
             // Step 1: 만료된 락 갱신 시도
@@ -168,7 +168,7 @@ internal class ExposedR2dbcLock internal constructor(
             },
         ) {
             suspendTransaction(db) {
-                val now = currentTime()
+                val now = currentTime(useDbTime)
                 !LeaderLockTable
                     .selectAll()
                     .where {
@@ -200,7 +200,7 @@ internal class ExposedR2dbcLock internal constructor(
         ) {
             val matched = suspendTransaction(db) {
                 if (remaining > Duration.ZERO) {
-                    val now = currentTime()
+                    val now = currentTime(useDbTime)
                     LeaderLockTable.update(
                         where = { (LeaderLockTable.lockName eq lockNameVal) and (LeaderLockTable.token eq tokenVal) }
                     ) {
@@ -230,7 +230,7 @@ internal class ExposedR2dbcLock internal constructor(
         val tokenVal = this@ExposedR2dbcLock.token
 
         return suspendTransaction(db) {
-            val now = currentTime()
+            val now = currentTime(useDbTime)
             val newLockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
             val updated = LeaderLockTable.update(
                 where = {
@@ -250,21 +250,13 @@ internal class ExposedR2dbcLock internal constructor(
         }
     }
 
-    private suspend fun R2dbcTransaction.currentTime(): Instant =
-        if (useDbTime) dbCurrentTimestamp() else Instant.now()
 }
 
-internal suspend fun <T> runR2dbcLockOperationPreservingCancellation(
-    onFailure: (Exception) -> T,
-    operation: suspend () -> T,
-): T =
-    try {
-        operation()
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        onFailure(e)
-    }
+// Keep the 0.4.x file-facade ABI while the shared current-time implementation lives in
+// ExposedR2dbcCurrentTime.kt. This private declaration intentionally retains compiler-generated
+// accessors used by already-compiled callers.
+@Suppress("unused")
+private suspend fun R2dbcTransaction.currentTime(): Instant = dbCurrentTimestamp()
 
 private suspend fun R2dbcTransaction.dbCurrentTimestamp(): Instant =
     exec("SELECT CURRENT_TIMESTAMP") { row -> row.get(0).toInstant() }
@@ -278,4 +270,16 @@ private fun Any?.toInstant(): Instant =
         is ZonedDateTime -> toInstant()
         is LocalDateTime -> toInstant(ZoneOffset.UTC)
         else -> error("Unsupported CURRENT_TIMESTAMP value: ${this?.javaClass?.name ?: "null"}")
+    }
+
+internal suspend fun <T> runR2dbcLockOperationPreservingCancellation(
+    onFailure: (Exception) -> T,
+    operation: suspend () -> T,
+): T =
+    try {
+        operation()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        onFailure(e)
     }

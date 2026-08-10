@@ -21,6 +21,13 @@ releaseCommit: 721a9a3808f67489d2bdb8177734325981c24977
 
 서비스와 transaction stack이 블로킹이면 JDBC를 사용합니다. 호출 경로가 coroutine-native이고 블로킹 bridge를 피해야 하면 R2DBC를 선택합니다. SQL 지연은 네트워크와 container 구성에 민감하므로 저장소의 H2 결과는 로컬 SQL layer baseline으로만 해석합니다.
 
+## 릴리스 provenance
+
+이 페이지는 `0.5.0` release에 고정되어 있으므로 해당 release 이후 추가된 API를
+의도적으로 설명하지 않습니다. release 이후의 DB time 옵션과 동작은 develop
+branch의 최신 `leader-exposed-jdbc` 및 `leader-exposed-r2dbc` 모듈 README를
+참조하세요.
+
 ## 릴리스 소스
 
 - [`leader-exposed-core/README.ko.md`](../../../../leader-exposed-core/README.ko.md)

@@ -11,6 +11,7 @@ import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcSuspendSlotExtend
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcGroupLock
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcSchemaInitializer
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcUnlockOutcome
+import io.bluetape4k.leader.exposed.r2dbc.lock.currentTime
 import io.bluetape4k.leader.exposed.r2dbc.lock.validateExposedR2dbcLockName
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
@@ -99,6 +100,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     )
 
     private val cachedActiveCounts = ConcurrentHashMap<String, CachedActiveCount>()
+    private val unavailableLockNames = ConcurrentHashMap.newKeySet<String>()
 
     /**
      * Local acquisitions and releases are serialized through the map entry.  The generation lets a
@@ -110,7 +112,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
             entry.value.incrementAndGet()
             entry.generation.incrementAndGet()
             entry
-        }!!
+        } ?: error("active-count cache update returned no entry: lockName=$lockName")
 
     private fun decrementCachedActiveCount(lockName: String, expected: CachedActiveCount) {
         cachedActiveCounts.computeIfPresent(lockName) { _, current ->
@@ -162,7 +164,8 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
-    override fun activeCount(lockName: String): Int = cachedActiveCounts[lockName]?.value?.get() ?: 0
+    override fun activeCount(lockName: String): Int =
+        if (lockName in unavailableLockNames) maxLeaders else cachedActiveCounts[lockName]?.value?.get() ?: 0
 
     /**
      * `availableSlots` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
@@ -184,12 +187,13 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
+    @Suppress("ReturnCount")
     suspend fun activeCountSuspend(lockName: String): Int {
         validateExposedR2dbcLockName(lockName)
         val snapshot = cacheSnapshot(lockName)
         val refreshedCount = try {
             suspendTransaction(db) {
-                val now = Instant.now()
+                val now = currentTime(options.leaderGroupOptions.useDbTime)
                 LeaderGroupLockTable
                     .selectAll()
                     .where {
@@ -202,9 +206,15 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            if (options.leaderGroupOptions.useDbTime) {
+                unavailableLockNames.add(lockName)
+                log.warn(e) { "activeCount DB 조회 오류 (fail-closed: $maxLeaders 반환): lockName=$lockName" }
+                return maxLeaders
+            }
             log.warn(e) { "activeCount DB 조회 오류 (기존 캐시 유지): lockName=$lockName" }
             return cachedActiveCounts[lockName]?.value?.get() ?: 0
         }
+        unavailableLockNames.remove(lockName)
         return applyActiveCountRefresh(lockName, snapshot, refreshedCount)
     }
 
@@ -213,6 +223,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
      *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     override suspend fun <T> runIfLeader(lockName: String, action: suspend () -> T): T? {
         validateExposedR2dbcLockName(lockName)
 
@@ -224,7 +235,21 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
 
         for (i in 0 until maxLeaders) {
             val slot = (start + i) % maxLeaders
-            val lock = ExposedR2dbcGroupLock(db, lockName, slot, options.retryStrategy, options.lockOwner)
+            val lock = ExposedR2dbcGroupLock(
+                db,
+                lockName,
+                slot,
+                options.retryStrategy,
+                options.lockOwner,
+                options.leaderGroupOptions.useDbTime,
+                onAvailabilityChanged = { available ->
+                    if (available) {
+                        unavailableLockNames.remove(lockName)
+                    } else {
+                        unavailableLockNames.add(lockName)
+                    }
+                },
+            )
 
             when (lock.tryLock(perSlotWait, leaseTime)) {
                 true -> { /* 획득 성공 — 아래 로직 계속 */ }
@@ -236,34 +261,38 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
             }
 
             log.debug { "그룹 슬롯을 획득하여 작업을 수행합니다. lockName=$lockName, slot=$slot" }
-            val cachedActiveCount = incrementCachedActiveCount(lockName)
-
-            val historyId = recordAcquired(lockName, lock.token, slot)
-            val startedAt = Instant.now()
             val acquiredAtNanos = System.nanoTime()
-
-            // T11 PR 6 (Issue #79) — per-slot ExtendDelegate / handle / watchdog 단일 reference 공유 (AC-15).
-            val delegate: SuspendExtendDelegate = ExposedR2dbcSuspendSlotExtendDelegate(lock)
-            val identity = LockIdentity(
-                lockName = lockName,
-                kind = LockIdentity.AnnotationKind.GROUP,
-                factoryBeanName = EXPOSED_R2DBC_SUSPEND_GROUP_FACTORY_BEAN_NAME,
-                groupParams = LockIdentity.GroupParams(maxLeaders),
-            )
-            val handle = LeaderLockHandle.real(
-                identity = identity,
-                token = lock.token,
-                acquiredAtNanos = acquiredAtNanos,
-                slotId = slot.toString(),
-                extendDelegate = delegate,
-            )
-            // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
-            val watchdog = LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
-
+            val startedAt = Instant.now()
+            var cachedActiveCount: CachedActiveCount? = null
+            var historyId: Long? = null
+            var watchdog: AutoCloseable? = null
             var actionSucceeded = false
             var actionFailed = false
 
             try {
+                // The cleanup guard starts immediately after acquisition so setup cancellation
+                // cannot leak the database row or the local active-count cache.
+                cachedActiveCount = incrementCachedActiveCount(lockName)
+                historyId = recordAcquired(lockName, lock.token, slot)
+
+                // T11 PR 6 (Issue #79) — per-slot ExtendDelegate / handle / watchdog 단일 reference 공유 (AC-15).
+                val delegate: SuspendExtendDelegate = ExposedR2dbcSuspendSlotExtendDelegate(lock)
+                val identity = LockIdentity(
+                    lockName = lockName,
+                    kind = LockIdentity.AnnotationKind.GROUP,
+                    factoryBeanName = EXPOSED_R2DBC_SUSPEND_GROUP_FACTORY_BEAN_NAME,
+                    groupParams = LockIdentity.GroupParams(maxLeaders),
+                )
+                val handle = LeaderLockHandle.real(
+                    identity = identity,
+                    token = lock.token,
+                    acquiredAtNanos = acquiredAtNanos,
+                    slotId = slot.toString(),
+                    extendDelegate = delegate,
+                )
+                // Group elector: autoExtend 옵션 부재 — caller 가 LockExtender 로 명시적 연장. watchdog disabled.
+                watchdog = LeaderLeaseAutoExtender.start(false, leaseTime, delegate, ERROR_CLASSIFIER)
+
                 val result = withContext(AopScopeAccess.createLockHandleElement(handle)) {
                     action()
                 }
@@ -277,26 +306,38 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
             } finally {
                 // NonCancellable: 코루틴 취소 시에도 watchdog close + 락 해제가 중단되지 않도록 보호
                 withContext(NonCancellable) {
-                    watchdog.close()
-                    when {
-                        actionSucceeded -> recordCompleted(historyId, lock.token, startedAt, slot)
-                        actionFailed -> recordFailed(historyId, lock.token, startedAt, slot)
-                    }
                     try {
-                        when (lock.unlockAndReport(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)) {
-                            ExposedR2dbcUnlockOutcome.RELEASED,
-                            ExposedR2dbcUnlockOutcome.NOT_HELD -> {
-                                decrementCachedActiveCount(lockName, cachedActiveCount)
-                                log.debug { "그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" }
-                            }
-
-                            ExposedR2dbcUnlockOutcome.FAILED ->
-                                log.warn { "DB 해제 실패로 그룹 슬롯 캐시를 유지합니다. lockName=$lockName, slot=$slot" }
+                        try {
+                            watchdog?.close()
+                        } catch (e: Exception) {
+                            log.warn(e) { "그룹 슬롯 watchdog 종료 실패. lockName=$lockName, slot=$slot" }
                         }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        log.warn(e) { "그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
+                        try {
+                            when {
+                                actionSucceeded -> recordCompleted(historyId, lock.token, startedAt, slot)
+                                actionFailed -> recordFailed(historyId, lock.token, startedAt, slot)
+                            }
+                        } catch (e: CancellationException) {
+                            // History is best-effort; cancellation must not bypass unlock.
+                            log.warn(e) { "그룹 슬롯 이력 종료 기록이 취소되었습니다. lockName=$lockName, slot=$slot" }
+                        }
+                    } finally {
+                        try {
+                            when (lock.unlockAndReport(options.leaderGroupOptions.minLeaseTime, acquiredAtNanos)) {
+                                ExposedR2dbcUnlockOutcome.RELEASED,
+                                ExposedR2dbcUnlockOutcome.NOT_HELD -> {
+                                    cachedActiveCount?.let { decrementCachedActiveCount(lockName, it) }
+                                    log.debug { "그룹 슬롯을 반납했습니다. lockName=$lockName, slot=$slot" }
+                                }
+
+                                ExposedR2dbcUnlockOutcome.FAILED ->
+                                    log.warn { "DB 해제 실패로 그룹 슬롯 캐시를 유지합니다. lockName=$lockName, slot=$slot" }
+                            }
+                        } catch (e: CancellationException) {
+                            log.warn(e) { "그룹 슬롯 해제가 취소되었습니다. lockName=$lockName, slot=$slot" }
+                        } catch (e: Exception) {
+                            log.warn(e) { "그룹 슬롯 해제 실패. lockName=$lockName, slot=$slot" }
+                        }
                     }
                 }
             }

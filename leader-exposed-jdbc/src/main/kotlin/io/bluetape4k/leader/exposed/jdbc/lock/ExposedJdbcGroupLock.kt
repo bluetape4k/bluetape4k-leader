@@ -24,7 +24,7 @@ import org.jetbrains.exposed.v1.jdbc.update
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import java.time.Instant
+import java.time.Clock
 
 /**
  * `ExposedJdbcGroupLock`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -35,14 +35,29 @@ import java.time.Instant
  * @property slot Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property retryStrategy Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property lockOwner Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
+ * @property useDbTime Exposed database backend 호출과 상태 계산에 사용하는 속성입니다.
  */
+@Suppress("LongParameterList")
 internal class ExposedJdbcGroupLock internal constructor(
     private val db: Database,
     val lockName: String,
     val slot: Int,
     private val retryStrategy: RetryStrategy,
     private val lockOwner: String? = null,
+    private val useDbTime: Boolean = false,
+    private val clock: Clock = Clock.systemUTC(),
 ) {
+    /**
+     * 0.4.x에서 컴파일된 호출자의 생성자 디스크립터를 보존합니다.
+     */
+    internal constructor(
+        db: Database,
+        lockName: String,
+        slot: Int,
+        retryStrategy: RetryStrategy,
+        lockOwner: String? = null,
+    ) : this(db, lockName, slot, retryStrategy, lockOwner, false, Clock.systemUTC())
+
     init {
         slot.requireZeroOrPositiveNumber("slot")
     }
@@ -107,7 +122,7 @@ internal class ExposedJdbcGroupLock internal constructor(
         val tokenVal = this@ExposedJdbcGroupLock.token
 
         return transaction(db) {
-            val now = Instant.now()
+            val now = currentTime(useDbTime, clock)
             val lockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
 
             val updated = LeaderGroupLockTable.update(
@@ -169,7 +184,7 @@ internal class ExposedJdbcGroupLock internal constructor(
             val slotVal = slot
             val tokenVal = token
             transaction(db) {
-                val now = Instant.now()
+                val now = currentTime(useDbTime, clock)
                 !LeaderGroupLockTable
                     .selectAll()
                     .where {
@@ -204,14 +219,16 @@ internal class ExposedJdbcGroupLock internal constructor(
         try {
             val matched = transaction(db) {
                 if (remaining > Duration.ZERO) {
+                    val now = currentTime(useDbTime, clock)
                     LeaderGroupLockTable.update(
                         where = {
                             (LeaderGroupLockTable.lockName eq lockNameVal) and
                                 (LeaderGroupLockTable.slot eq slotVal) and
-                                (LeaderGroupLockTable.token eq tokenVal)
+                                (LeaderGroupLockTable.token eq tokenVal) and
+                                (LeaderGroupLockTable.lockedUntil greater now)
                         }
                     ) {
-                        it[LeaderGroupLockTable.lockedUntil] = Instant.now().plusMillis(remaining.inWholeMilliseconds)
+                        it[LeaderGroupLockTable.lockedUntil] = now.plusMillis(remaining.inWholeMilliseconds)
                     }
                 } else {
                     LeaderGroupLockTable.deleteWhere {
@@ -244,7 +261,7 @@ internal class ExposedJdbcGroupLock internal constructor(
         val tokenVal = this@ExposedJdbcGroupLock.token
 
         return transaction(db) {
-            val now = Instant.now()
+            val now = currentTime(useDbTime, clock)
             val newLockedUntil = now.plusMillis(leaseTime.inWholeMilliseconds)
             val updated = LeaderGroupLockTable.update(
                 where = {

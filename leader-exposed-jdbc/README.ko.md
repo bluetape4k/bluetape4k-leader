@@ -65,7 +65,10 @@ val future: CompletableFuture<Report?> = election.runAsyncIfLeader(
 
 ```kotlin
 val options = ExposedJdbcLeaderGroupElectionOptions(
-    leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3)
+    leaderGroupOptions = LeaderGroupElectionOptions(
+        maxLeaders = 3,
+        useDbTime = true, // 0.6.0+ develop: 그룹 소유권에 DB server time 사용
+    )
 )
 val election = ExposedJdbcLeaderGroupElector(db, options)
 
@@ -74,6 +77,26 @@ val result = election.runIfLeader("parallel-batch") {
 }
 // 최대 3개 노드가 동시 실행; 나머지는 null 반환
 ```
+
+### Exposed 그룹의 DB server time (0.6.0+ develop)
+
+JVM clock가 서로 다를 수 있는 JDBC 노드에서는
+`LeaderGroupElectionOptions.useDbTime = true`를 설정합니다. 그룹 acquire,
+소유권 확인, lease 연장, 최소 lease release, `activeCount`가 관련 ownership
+transaction 안에서 `SELECT CURRENT_TIMESTAMP` 한 번을 사용합니다. 행만
+삭제하는 release에는 time query를 추가하지 않습니다. 호환성을 위해 기본값은
+`false`입니다.
+
+DB time을 읽을 수 없으면 그룹 상태는 fail-closed(`maxLeaders`)로 보고하고,
+`runIfLeader`는 슬롯을 주장하지 않고 `null`을 반환합니다. 이 설정은 Exposed
+JDBC/R2DBC 그룹 elector에만 적용되며 local 또는 Redis 그룹 동작은 바꾸지 않습니다.
+
+모든 참여 노드의 database connection은 failover/primary 전환을 포함해 같은
+권위 시계 원천으로 라우팅되어야 합니다. DB timestamp의 timezone과 precision은
+provider마다 다르므로 노드 간 session과 schema 설정을 일관되게 유지합니다.
+DB-time은 각 ownership transaction에 timestamp round trip을 하나 추가하므로
+그 비용을 고려해 pool을 구성하고, retry 대기는 transaction 밖에서 수행합니다.
+이력 기록은 best-effort metadata이며 lock 결과를 덮어쓰지 않습니다.
 
 ### 그룹 상태 조회
 
