@@ -255,7 +255,7 @@ internal class ExposedR2dbcGroupLock internal constructor(
                 ExposedR2dbcUnlockOutcome.FAILED
             },
         ) {
-            val matched = suspendTransaction(db) {
+            val (matched, timeVerified) = suspendTransaction(db) {
                 if (remaining > Duration.ZERO) {
                     val now = currentTime(useDbTime, clock)
                     LeaderGroupLockTable.update(
@@ -267,16 +267,16 @@ internal class ExposedR2dbcGroupLock internal constructor(
                         }
                     ) {
                         it[LeaderGroupLockTable.lockedUntil] = now.plusMillis(remaining.inWholeMilliseconds)
-                    }
+                    } to true
                 } else {
                     LeaderGroupLockTable.deleteWhere {
                         (LeaderGroupLockTable.lockName eq lockNameVal) and
                             (LeaderGroupLockTable.slot eq slotVal) and
                             (LeaderGroupLockTable.token eq tokenVal)
-                    }
+                    } to false
                 }
             }
-            markAvailable()
+            if (timeVerified) markAvailable()
             if (matched == 0) {
                 log.warn { "그룹 슬롯 해제 실패 — 토큰 불일치 또는 이미 만료됨: lockName=$lockName, slot=$slot" }
                 ExposedR2dbcUnlockOutcome.NOT_HELD
