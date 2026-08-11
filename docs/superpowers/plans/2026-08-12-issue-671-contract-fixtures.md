@@ -574,7 +574,7 @@ Expected: 모두 exit code 0; `git diff --check` 출력 없음.
 Expected: 실패 0. 컨테이너 환경 제약이 있으면 각 모듈별 compile과 실패
 로그를 남기고 DoD를 `PENDING`으로 유지한다.
 
-- [ ] **Step 3: 7-tier review 입력을 만들고 독립 lane을 dispatch한다.**
+- [x] **Step 3: 7-tier inline review를 수행하고 finding을 닫는다.**
 
 review 대상은 production source가 아닌 새 contract tests, matrix,
 validator, CI 호출이다. 다음 관점으로 독립 검토한다.
@@ -587,16 +587,18 @@ validator, CI 호출이다. 다음 관점으로 독립 검토한다.
 6. failure/concurrency/cancellation behavior
 7. maintainability/docs boundary
 
-각 lane은 fresh diff와 명령 출력이 있어야 하며, lane이 만료되면 3회까지
-재시도하고 같은 실패가 반복되면 inline review로 대체하지 않고 `PENDING`을
-기록한다. 사용자가 요청한 독립 review 재시도 규칙을 그대로 적용한다.
+독립 lane 재시도 후 사용자가 inline 실행을 명시했으므로 fresh diff와 명령
+출력을 현재 세션에서 직접 검토했다. validator base/N/A drift와 K8s
+DNS-safe 입력 문제를 수정하고, HIGH/CRITICAL finding이 없는 결과를
+`docs/superpowers/notes/2026-08-12-issue-671-7-tier-inline-review.md`에
+기록했다.
 
-- [ ] **Step 4: issue/PR delivery 전 DoD를 기록한다.**
+- [x] **Step 4: issue/PR delivery 전 DoD를 기록한다.**
 
 DoD에는 plan item별 상태, 변경 파일, 각 모듈 test 결과, matrix/CI
-validator 결과, review finding 및 남은 위험을 한국어로 기록한다. 모든
-fresh review가 완료되고 HIGH/CRITICAL finding이 0일 때만 PR 생성 gate로
-넘어간다.
+validator 결과, review finding 및 남은 위험을 한국어로 기록했다. 모든
+fresh inline review가 완료되고 HIGH/CRITICAL finding이 0이므로 PR 생성
+gate로 이동할 수 있지만, push/PR/merge는 별도 명시 승인을 기다린다.
 
 ## 커밋 규칙
 

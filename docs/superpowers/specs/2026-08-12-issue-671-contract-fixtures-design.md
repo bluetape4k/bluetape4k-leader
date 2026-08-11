@@ -3,7 +3,7 @@
 ## 결정 상태
 
 - 이슈: [#671](https://github.com/bluetape4k/bluetape4k-leader/issues/671)
-- 상태: 구현 완료, 7-tier inline review 및 delivery gate 대기
+- 상태: 구현 및 7-tier inline review 완료, delivery gate 대기
 - 작업 브랜치: `chore/issue-671-contract-fixtures`
 - 기준 커밋: `9799ea37789c40b843e9412fc5758bbba13a120d`
 - 범위: etcd, Consul, DynamoDB, Kubernetes Lease의 테스트 계약 채택
