@@ -5,9 +5,8 @@
       "backend": "etcd",
       "module": "bluetape4k-leader-etcd",
       "contract": "leader-id-sync-single",
-      "status": "supported",
-      "test": "leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdLeaderElectorLeaderIdContractTest.kt",
-      "base": "AbstractLeaderElectorLeaderIdContractTest"
+      "status": "na",
+      "reason": "EtcdLeaderElector는 blocking slot overload를 override하지 않아 leader-id를 전달하는 공통 fixture를 적용할 수 없다."
     },
     {
       "backend": "etcd",
@@ -21,25 +20,22 @@
       "backend": "etcd",
       "module": "bluetape4k-leader-etcd",
       "contract": "leader-id-async-single",
-      "status": "supported",
-      "test": "leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdAsyncLeaderElectorLeaderIdContractTest.kt",
-      "base": "AbstractAsyncLeaderElectorLeaderIdContractTest"
+      "status": "na",
+      "reason": "EtcdLeaderElector는 async lockName overload만 제공하고 slot async overload를 override하지 않는다."
     },
     {
       "backend": "etcd",
       "module": "bluetape4k-leader-etcd",
       "contract": "leader-id-async-group",
-      "status": "supported",
-      "test": "leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdAsyncLeaderGroupElectorLeaderIdContractTest.kt",
-      "base": "AbstractAsyncLeaderGroupElectorLeaderIdContractTest"
+      "status": "na",
+      "reason": "EtcdLeaderGroupElector는 async lockName overload만 제공하고 slot async overload를 override하지 않는다."
     },
     {
       "backend": "etcd",
       "module": "bluetape4k-leader-etcd",
       "contract": "leader-id-suspend-single",
-      "status": "supported",
-      "test": "leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdSuspendLeaderElectorLeaderIdContractTest.kt",
-      "base": "AbstractSuspendLeaderElectorLeaderIdContractTest"
+      "status": "na",
+      "reason": "EtcdSuspendLeaderElector는 suspend slot overload를 override하지 않아 leader-id를 전달하는 공통 fixture를 적용할 수 없다."
     },
     {
       "backend": "etcd",
@@ -84,7 +80,7 @@
     {
       "backend": "etcd",
       "module": "bluetape4k-leader-etcd",
-      "contract": "virtual-thread-single",
+      "contract": "virtual-thread-wrapper",
       "status": "supported",
       "test": "leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdVirtualThreadLeaderElectorContractTest.kt",
       "direct": true
@@ -92,10 +88,17 @@
     {
       "backend": "etcd",
       "module": "bluetape4k-leader-etcd",
-      "contract": "virtual-thread-group-overload",
+      "contract": "executor-overload-group",
       "status": "supported",
       "test": "leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdVirtualThreadLeaderElectorContractTest.kt",
       "direct": true
+    },
+    {
+      "backend": "etcd",
+      "module": "bluetape4k-leader-etcd",
+      "contract": "virtual-thread-slot",
+      "status": "na",
+      "reason": "EtcdVirtualThreadLeaderElector는 lockName wrapper만 제공하고 slot overload를 정의하지 않는다."
     },
     {
       "backend": "etcd",

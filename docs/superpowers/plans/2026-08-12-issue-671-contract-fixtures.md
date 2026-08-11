@@ -13,6 +13,10 @@ wrapper와 executor/slot/lease overload는 backend-local direct test로
 테스트 파일, abstract base, N/A 사유, CI task 연결을 확인하며 기존
 module test 및 K8s `k8sTest` fan-out은 그대로 사용한다.
 
+Kubernetes Lease의 DNS-1123 lock-name 제약과 공통 fixture의 랜덤 입력을
+맞추기 위해 `leader-core` testFixtures가 생성하는 Base58 lock suffix는
+소문자로 정규화한다. key prefix와 production API는 변경하지 않는다.
+
 **Tech Stack:** Kotlin, JUnit 5, `io.github.bluetape4k.assertions`,
 Kotlin coroutines, Testcontainers/K3s, Gradle, Python 3.12 CI validator.
 
@@ -25,13 +29,15 @@ Kotlin coroutines, Testcontainers/K3s, Gradle, Python 3.12 CI validator.
 | 계약 matrix | `scripts/ci/leader-contract-capabilities.json` | backend × contract × execution model의 supported/N/A 선언 |
 | matrix 검증 | `scripts/ci/validate_leader_contract_matrix.py` | 파일/base/reason/CI task의 정적 검증과 self-test |
 | CI 연결 | `.github/workflows/ci.yml` | 기존 `ci-contract` 단계에서 matrix validator 실행 |
-| etcd 계약 | `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/` | etcd의 10개 공통 fixture subclass와 virtual direct test |
+| etcd 계약 | `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/` | etcd의 지원되는 6개 공통 fixture subclass와 wrapper/overload direct test |
 | Consul 계약 | `leader-consul/src/test/kotlin/io/bluetape4k/leader/consul/contract/` | Consul의 10개 공통 fixture subclass와 executor direct test |
 | DynamoDB 계약 | `leader-dynamodb/src/test/kotlin/io/bluetape4k/leader/dynamodb/contract/` | DynamoDB의 10개 공통 fixture subclass와 두 virtual wrapper test |
 | K8s 계약 | `leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/` | K8s 수명주기 helper, 10개 공통 fixture subclass와 executor direct test |
 | 설계 근거 | `docs/superpowers/specs/2026-08-12-issue-671-contract-fixtures-design.md` | 승인된 범위와 N/A 경계 |
 
-각 backend의 공통 fixture 파일은 다음 10개 이름을 사용한다.
+Consul/DynamoDB/Kubernetes Lease의 공통 fixture 파일은 다음 10개 이름을
+사용한다. etcd는 blocking/suspend single 및 async leader-id slot overload가
+실제로 없으므로 해당 파일을 만들지 않고 matrix에 `N/A`를 기록한다.
 
 ```text
 <Backend>LeaderElectorLeaderIdContractTest.kt
@@ -61,9 +67,11 @@ direct test는 `EtcdVirtualThreadLeaderElectorContractTest.kt`,
 - Create: `scripts/ci/validate_leader_contract_matrix_test.py`
 - Modify: `.github/workflows/ci.yml:288-290`
 
-- [ ] **Step 1: 지원 조합과 N/A 조합을 JSON으로 선언한다.**
+- [x] **Step 1: 지원 조합과 N/A 조합을 JSON으로 선언한다.**
 
-각 backend에 대해 다음 10개 `supported` 행을 만든다. `test`는 이후
+Consul/DynamoDB/Kubernetes Lease에 대해 다음 10개 `supported` 행을 만든다.
+etcd는 blocking/suspend single과 async single/group 네 행을 `na`로 만든다.
+`test`는 이후
 실제 파일의 repository-relative 경로를 사용하고 `base`는 정확한 abstract
 fixture 클래스명을 사용한다.
 
@@ -71,10 +79,10 @@ fixture 클래스명을 사용한다.
 {
   "backend": "etcd",
   "module": "bluetape4k-leader-etcd",
-  "contract": "leader-id-sync-single",
+  "contract": "leader-id-sync-group",
   "status": "supported",
-  "test": "leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdLeaderElectorLeaderIdContractTest.kt",
-  "base": "AbstractLeaderElectorLeaderIdContractTest"
+  "test": "leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdLeaderGroupElectorLeaderIdContractTest.kt",
+  "base": "AbstractLeaderGroupElectorLeaderIdContractTest"
 }
 ```
 
@@ -106,7 +114,8 @@ direct 행은 `base` 없이 `direct: true`를 사용한다.
 }
 ```
 
-모든 backend에 다음 N/A 행을 추가한다. `reason`은 비어 있지 않은
+모든 backend에 async/virtual LockExtender N/A 행을 추가하고 etcd에는
+async leader-id N/A 두 행과 virtual slot N/A 행을 추가한다. `reason`은 비어 있지 않은
 한국어 문장으로 유지한다.
 
 ```json
@@ -120,12 +129,12 @@ direct 행은 `base` 없이 `direct: true`를 사용한다.
 ```
 
 전용 virtual-thread wrapper가 없는 Consul/K8s는 executor overload direct
-행을 supported로 기록한다. etcd는 single wrapper direct 행과 group
+행을 supported로 기록한다. etcd는 lockName wrapper direct 행과 group
 executor overload direct 행을 기록한다. DynamoDB는 single/group wrapper
 direct 행을 기록한다. 실제 source 확인 결과 public overload가 없으면
 행을 `na`로 바꾸고 API 근거를 `reason`에 남긴다.
 
-- [ ] **Step 2: validator의 static 규칙을 구현한다.**
+- [x] **Step 2: validator의 static 규칙을 구현한다.**
 
 `validate_leader_contract_matrix.py`는 표준 라이브러리만 사용하고 다음
 CLI를 제공한다.
@@ -144,8 +153,10 @@ python3 scripts/ci/validate_leader_contract_matrix.py --self-test
    행은 `direct == true`여야 한다.
 3. `status == "na"`이면 `reason.strip()`이 비어 있지 않아야 하며,
    존재하지 않는 `test`를 허용하지 않는다.
-4. 네 backend 각각에 leader-id sync single/group, suspend single/group와
-   네 LockExtender sync/suspend 행이 하나씩 있어야 한다.
+4. 네 backend 각각에 source가 지원하는 leader-id와 네 LockExtender
+   sync/suspend 행이 하나씩 있어야 한다. async leader-id는 실제 slot
+   overload가 있는 backend만 supported하고, etcd의 blocking/suspend single과
+   async single/group은 명시적 N/A여야 한다.
 5. `module`은 `settings.gradle.kts`에서 `:bluetape4k-<suffix>`로 실제
    포함되어야 한다.
 6. `ci.yml`에서 etcd/Consul/DynamoDB job이 각 module `:...:test`를,
@@ -162,7 +173,7 @@ reason. 테스트는 repository root를 temporary directory로 만들고 실제
 workflow 문자열을 최소 fixture로 제공해 외부 Docker/Gradle에 의존하지
 않는다.
 
-- [ ] **Step 3: CI contract 단계에 validator 호출을 추가한다.**
+- [x] **Step 3: CI contract 단계에 validator 호출을 추가한다.**
 
 `.github/workflows/ci.yml`의 기존 run block을 다음처럼 확장한다.
 
@@ -173,7 +184,7 @@ workflow 문자열을 최소 fixture로 제공해 외부 Docker/Gradle에 의존
           python3 scripts/ci/validate_leader_contract_matrix.py --self-test
 ```
 
-- [ ] **Step 4: validator unit test, self-test와 기존 CI validator를 실행한다.**
+- [x] **Step 4: validator unit test, self-test와 기존 CI validator를 실행한다.**
 
 Run:
 
@@ -189,7 +200,7 @@ concrete Kotlin 파일이 생성되지 않았으므로 이 단계에서는 `--st
 실행하지 않는다. 네 backend slice가 끝난 Task 6에서 matrix static을
 실행한다.
 
-- [ ] **Step 5: matrix/validator 변경을 독립 커밋한다.**
+- [x] **Step 5: matrix/validator 변경을 독립 커밋한다.**
 
 ```bash
 git add scripts/ci/leader-contract-capabilities.json \
@@ -204,11 +215,7 @@ CI validator 결과를 `Tested:`에 기록한다.
 
 **Files:**
 
-- Create: `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdLeaderElectorLeaderIdContractTest.kt`
 - Create: `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdLeaderGroupElectorLeaderIdContractTest.kt`
-- Create: `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdAsyncLeaderElectorLeaderIdContractTest.kt`
-- Create: `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdAsyncLeaderGroupElectorLeaderIdContractTest.kt`
-- Create: `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdSuspendLeaderElectorLeaderIdContractTest.kt`
 - Create: `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdSuspendLeaderGroupElectorLeaderIdContractTest.kt`
 - Create: `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdLockExtenderContractTest.kt`
 - Create: `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdGroupLockExtenderContractTest.kt`
@@ -217,62 +224,58 @@ CI validator 결과를 `Tested:`에 기록한다.
 - Create: `leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdVirtualThreadLeaderElectorContractTest.kt`
 - Modify: `scripts/ci/leader-contract-capabilities.json`
 
-- [ ] **Step 1: blocking/group/async leader-id subclasses를 추가한다.**
+- [x] **Step 1: 지원되는 group leader-id subclass를 추가한다.**
 
 각 class는 `@TestInstance(PER_CLASS)`를 사용하고 `AbstractEtcdLeaderTest`
-의 singleton client를 재사용한다. 단일 blocking subclass의 완전한
-패턴은 다음과 같다.
+의 singleton client를 재사용한다. etcd는 단일 blocking slot overload가
+없으므로 group subclass만 만든다.
 
 ```kotlin
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class EtcdLeaderElectorLeaderIdContractTest : AbstractLeaderElectorLeaderIdContractTest() {
-    companion object : KLogging() {
-        val etcd = AbstractEtcdLeaderTest.etcd
-    }
-
-    override fun createElector(options: LeaderElectionOptions): LeaderElector =
-        EtcdLeaderElector(
-            AbstractEtcdLeaderTest.newClient(),
-            EtcdLeaderElectionOptions(
-                leaderOptions = options,
-                keyPrefix = "contract-${Base58.randomString(8)}",
+class EtcdLeaderGroupElectorLeaderIdContractTest : AbstractLeaderGroupElectorLeaderIdContractTest() {
+    override fun createElector(options: LeaderGroupElectionOptions): LeaderGroupElector =
+        EtcdLeaderGroupElector(
+            EtcdContractSupport.client,
+            EtcdLeaderGroupElectionOptions(
+                leaderGroupOptions = options,
+                keyPrefix = EtcdContractSupport.keyPrefix(),
             ),
         )
 }
 ```
 
-각 test 파일은 `Base58.randomString(8)`으로 key prefix를 만든다. group/async
-subclass는 각각 `EtcdLeaderGroupElector`, `LeaderGroupElector`,
-`AsyncLeaderElector`, `AsyncLeaderGroupElector` 타입과
+각 test 파일은 `Base58.randomString(8)`으로 key prefix를 만든다. group
+subclass는 `EtcdLeaderGroupElector`, `LeaderGroupElector` 타입과
 `EtcdLeaderGroupElectionOptions(leaderGroupOptions = options, keyPrefix = ...)`
-를 사용한다. async subclass도 blocking elector를 반환해
-`LeaderElector : AsyncLeaderElector` 상속을 직접 검증한다.
+를 사용한다. etcd async leader-id는 slot overload가 실제로 없으므로
+concrete subclass를 만들지 않고, blocking/suspend single과 함께 matrix N/A
+행에서 API 근거를 남긴다.
 
-- [ ] **Step 2: suspend leader-id subclasses를 추가한다.**
+- [x] **Step 2: 지원되는 suspend group leader-id subclass를 추가한다.**
 
-단일 suspend subclass는 다음 exact shape를 사용한다.
+단일 suspend slot overload가 없으므로 suspend group subclass만 다음 형태로
+추가한다.
 
 ```kotlin
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class EtcdSuspendLeaderElectorLeaderIdContractTest : AbstractSuspendLeaderElectorLeaderIdContractTest() {
-    companion object : KLoggingChannel() {
-        val etcd = AbstractEtcdLeaderTest.etcd
-    }
-
-    override fun createElector(options: LeaderElectionOptions): SuspendLeaderElector =
-        EtcdSuspendLeaderElector(
-            AbstractEtcdLeaderTest.newClient(),
-            EtcdLeaderElectionOptions(leaderOptions = options, keyPrefix = "contract-${Base58.randomString(8)}"),
+class EtcdSuspendLeaderGroupElectorLeaderIdContractTest : AbstractSuspendLeaderGroupElectorLeaderIdContractTest() {
+    override fun createElector(options: LeaderGroupElectionOptions): SuspendLeaderGroupElector =
+        EtcdSuspendLeaderGroupElector(
+            EtcdContractSupport.client,
+            EtcdLeaderGroupElectionOptions(
+                leaderGroupOptions = options,
+                keyPrefix = EtcdContractSupport.keyPrefix(),
+            ),
         )
 }
 ```
 
 group suspend는 `EtcdSuspendLeaderGroupElector`와
-`EtcdLeaderGroupElectionOptions`를 사용한다. `KLoggingChannel` 및
-`SuspendLeaderElector` import는 기존 Mongo/Lettuce suspend contract
-패턴과 동일하게 유지한다.
+`EtcdLeaderGroupElectionOptions`를 사용한다. backend public constructor와
+`SuspendLeaderGroupElector` 타입만 사용하고 production source에는 손대지
+않는다.
 
-- [ ] **Step 3: 네 LockExtender subclass를 추가한다.**
+- [x] **Step 3: 네 LockExtender subclass를 추가한다.**
 
 단일 sync class는 아래처럼 `elector`를 property로 고정한다.
 
@@ -285,37 +288,37 @@ class EtcdLockExtenderContractTest : AbstractSyncLockExtenderContractTest() {
 
     override val elector: LeaderElector = EtcdLeaderElector(
         AbstractEtcdLeaderTest.newClient(),
-        EtcdLeaderElectionOptions(keyPrefix = "contract-${Base58.randomString(8)}"),
+        EtcdLeaderElectionOptions(keyPrefix = EtcdContractSupport.keyPrefix()),
     )
 }
 ```
 
 group/suspend/group-suspend는 각각 `maxLeaders = 2`인
-`EtcdLeaderGroupElectionOptions` 또는 `EtcdLeaderGroupElectionOptions`를
-주입하고 기존 네 abstract base를 상속한다. 새 테스트에서 `assertThrows`,
+`EtcdLeaderGroupElectionOptions`를 주입하고 기존 네 abstract base를
+상속한다. 새 테스트에서 `assertThrows`,
 `kotlin.test.assertFailsWith`, `invoking { } shouldThrow`를 사용하지 않는다.
 
-- [ ] **Step 4: etcd virtual wrapper와 slot 결과를 직접 검증한다.**
+- [x] **Step 4: etcd virtual wrapper와 group executor overload를 직접 검증한다.**
 
-`EtcdVirtualThreadLeaderElector`를 실제로 감싸고, core default bridge가
-아닌 wrapper의 `runAsyncIfLeaderResult(slot, action).join()`을 호출한다.
-테스트는 `LeaderRunResult.Elected`, 지정한 `leaderId`, 완료 후 동일
-lockName 재획득을 확인한다.
+`EtcdVirtualThreadLeaderElector`를 실제로 감싸고 wrapper의
+`runAsyncIfLeader(lockName, action).toCompletableFuture().join()`을 호출한다.
+테스트는 action 반환값과 완료 후 동일 lockName 재획득을 확인한다. wrapper에
+slot overload가 없다는 사실은 matrix N/A로 검증한다.
 
 ```kotlin
 val virtual = EtcdVirtualThreadLeaderElector(
     EtcdLeaderElector(client, EtcdLeaderElectionOptions(keyPrefix = prefix)),
 )
-val result = virtual.runAsyncIfLeaderResult(LeaderSlot(lockName, "etcd-vt")) { "ok" }.join()
-(result as LeaderRunResult.Elected).leaderId shouldBeEqualTo "etcd-vt"
-virtual.runAsyncIfLeader(lockName) { "reacquired" }.join() shouldBeEqualTo "reacquired"
+val result = virtual.runAsyncIfLeader(lockName) { "ok" }.toCompletableFuture().join()
+result shouldBeEqualTo "ok"
+virtual.runAsyncIfLeader(lockName) { "reacquired" }.toCompletableFuture().join() shouldBeEqualTo "reacquired"
 ```
 
 `LeaderElectorBridgeLog`의 dropped count도 0인지 확인하고, group executor
 overload가 source에서 지원되면 같은 slice의 direct test에 `VirtualThreadExecutor`
 명시 호출을 추가한다.
 
-- [ ] **Step 5: etcd slice를 모듈 테스트로 검증하고 matrix를 갱신한다.**
+- [x] **Step 5: etcd slice를 모듈 테스트로 검증하고 matrix를 갱신한다.**
 
 Run:
 
@@ -328,7 +331,7 @@ Expected: etcd module test 성공, matrix static 성공. 실패하면 contract
 fixture가 사용하는 key prefix/lease timeout을 backend 규칙에 맞게 조정하고
 production source는 변경하지 않는다.
 
-- [ ] **Step 6: etcd slice를 커밋한다.**
+- [x] **Step 6: etcd slice를 커밋한다.**
 
 ```bash
 git add leader-etcd/src/test scripts/ci/leader-contract-capabilities.json
@@ -352,7 +355,7 @@ git commit -m "test: etcd에 공통 leader contract fixture 적용"
 - Create: `leader-consul/src/test/kotlin/io/bluetape4k/leader/consul/contract/ConsulExecutorOverloadContractTest.kt`
 - Modify: `scripts/ci/leader-contract-capabilities.json`
 
-- [ ] **Step 1: Consul client/endpoint helper를 재사용하는 concrete subclasses를 추가한다.**
+- [x] **Step 1: Consul client/endpoint helper를 재사용하는 concrete subclasses를 추가한다.**
 
 각 class는 `ConsulServer.Launcher.consul`을 companion에 두고
 `ConsulEndpoint`를 `endpoint()` private helper로 만든다. 모든 option은
@@ -373,7 +376,7 @@ ConsulSuspendLeaderGroupElector(endpoint(), ConsulLeaderGroupElectionOptions(...
 `AsyncLeaderGroupElector`, `SuspendLeaderElector`,
 `SuspendLeaderGroupElector`로 명시한다.
 
-- [ ] **Step 2: Consul 네 LockExtender fixture를 추가한다.**
+- [x] **Step 2: Consul 네 LockExtender fixture를 추가한다.**
 
 `AbstractSyncLockExtenderContractTest`, `AbstractGroupLockExtenderContractTest`,
 `AbstractSuspendLockExtenderContractTest`,
@@ -381,14 +384,14 @@ ConsulSuspendLeaderGroupElector(endpoint(), ConsulLeaderGroupElectionOptions(...
 `LeaderGroupElectionOptions(maxLeaders = 2, leaseTime = 10.seconds)`를
 사용한다. `KLoggingChannel`은 suspend classes에서만 사용한다.
 
-- [ ] **Step 3: Consul executor overload를 직접 검증한다.**
+- [x] **Step 3: Consul executor overload를 직접 검증한다.**
 
 `ConsulLeaderElector.runAsyncIfLeaderResult(slot, VirtualThreadExecutor)`와
 `ConsulLeaderGroupElector.runAsyncIfLeaderResult(slot, VirtualThreadExecutor)`를
 직접 호출해 `Elected.leaderId`를 확인한다. action 완료 후 같은 lockName을
 동일 endpoint의 새 elector가 재획득하는 lease release assertion을 둔다.
 
-- [ ] **Step 4: Consul slice를 검증하고 커밋한다.**
+- [x] **Step 4: Consul slice를 검증하고 커밋한다.**
 
 ```bash
 ./gradlew :bluetape4k-leader-consul:test --no-daemon --console=plain
@@ -416,7 +419,7 @@ Expected: module test와 matrix static 모두 성공.
 - Create: `leader-dynamodb/src/test/kotlin/io/bluetape4k/leader/dynamodb/contract/DynamoDbVirtualThreadContractTest.kt`
 - Modify: `scripts/ci/leader-contract-capabilities.json`
 
-- [ ] **Step 1: DynamoDB sync/async subclasses를 shared table 기반으로 추가한다.**
+- [x] **Step 1: DynamoDB sync/async subclasses를 shared table 기반으로 추가한다.**
 
 `AbstractDynamoDbLeaderTest`의 `dynamoDb`, `tableName`을 사용하고 모든
 elector options에 unique `keyPrefix = keyPrefix()`를 지정한다. single
@@ -438,14 +441,14 @@ group은 `DynamoDbLeaderGroupElectionOptions(leaderGroupOptions = options,
 tableName = tableName, keyPrefix = keyPrefix())`를 사용한다. async fixture는
 blocking class의 `LeaderElector`/`LeaderGroupElector` 상속 API를 검증한다.
 
-- [ ] **Step 2: DynamoDB suspend/LockExtender subclasses를 추가한다.**
+- [x] **Step 2: DynamoDB suspend/LockExtender subclasses를 추가한다.**
 
 suspend classes는 `dynamoDbAsync`를 사용하고 `KLoggingChannel`을 둔다.
 LockExtender classes는 `DynamoDbLeaderElector`/`DynamoDbLeaderGroupElector`
 및 async 대응 suspend classes를 각각 property로 제공한다. group은
 `maxLeaders = 2`를 고정한다.
 
-- [ ] **Step 3: 두 DynamoDB virtual wrapper를 직접 검증한다.**
+- [x] **Step 3: 두 DynamoDB virtual wrapper를 직접 검증한다.**
 
 `DynamoDbVirtualThreadLeaderElector(DynamoDbLeaderElector(...))`와
 `DynamoDbVirtualThreadLeaderGroupElector(DynamoDbLeaderGroupElector(...))`
@@ -454,7 +457,7 @@ LockExtender classes는 `DynamoDbLeaderElector`/`DynamoDbLeaderGroupElector`
 `VirtualFuture.toCompletableFuture().join()`을 사용해 JUnit thread에서
 결과를 결정적으로 기다린다.
 
-- [ ] **Step 4: DynamoDB slice를 검증하고 커밋한다.**
+- [x] **Step 4: DynamoDB slice를 검증하고 커밋한다.**
 
 ```bash
 ./gradlew :bluetape4k-leader-dynamodb:test --no-daemon --console=plain
@@ -480,17 +483,15 @@ Expected: DynamoDB Local 기반 module test와 matrix static 모두 성공.
 - Create: `leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseSuspendLockExtenderContractTest.kt`
 - Create: `leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseSuspendGroupLockExtenderContractTest.kt`
 - Create: `leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseExecutorOverloadContractTest.kt`
-- Create: `leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseContractSupport.kt`
+- Create: `leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesContractSupport.kt`
 - Modify: `scripts/ci/leader-contract-capabilities.json`
 
-- [ ] **Step 1: K3s-tagged concrete subclasses를 추가한다.**
+- [x] **Step 1: K3s-tagged concrete subclasses를 추가한다.**
 
 각 class에 `@Tag("k8s")`와 `@TestInstance(PER_CLASS)`를 붙인다.
-`contract/KubernetesLeaseContractSupport.kt`를 하나 추가해
-`K3sServer.Launcher.k3s.kubernetesClient()`로 client를 만들고 `close()`로
-닫는 수명주기만 소유하게 한다. 각 concrete class는
-`private val support = KubernetesLeaseContractSupport()`를 만들고
-`@AfterAll fun closeClient() = support.close()`를 선언한다. 이 helper는
+`contract/KubernetesContractSupport.kt`를 하나 추가해
+`K3sServer.Launcher.k3s.kubernetesClient()`로 client를 만들고 concrete
+class가 `@AfterAll`에서 client를 닫는 수명주기만 소유하게 한다. 이 helper는
 fixture logic을 소유하지 않는다.
 
 single constructor는 다음 exact API를 사용한다.
@@ -510,7 +511,7 @@ group/suspend는 각각 `KubernetesLeaseGroupOptions`와 public
 `KubernetesLeaseSuspend*` constructor를 사용한다. group fixture의
 `maxLeaders = 2`를 유지한다.
 
-- [ ] **Step 2: K8s LockExtender 및 async subclasses를 추가한다.**
+- [x] **Step 2: K8s LockExtender 및 async subclasses를 추가한다.**
 
 sync/suspend LockExtender 네 classes는 K3s tag를 유지하고 fresh random
 lock name을 사용한다. async leader-id classes는 blocking elector의
@@ -519,14 +520,14 @@ test가 사용하는 1초보다 여유 있게 5초 이상으로 설정해 fixtur
 60초 extension 호출이 backend minimum lease validation을 건드리지 않게
 한다.
 
-- [ ] **Step 3: K8s executor/slot overload를 직접 검증한다.**
+- [x] **Step 3: K8s executor/slot overload를 직접 검증한다.**
 
 `KubernetesLeaseLeaderElector.runAsyncIfLeaderResult(slot,
 VirtualThreadExecutor)`와 `KubernetesLeaseLeaderGroupElector`의 동일
 overload를 직접 호출한다. `Elected.leaderId`와 action return value를
 확인하고, `k8sTest`에서만 실행되도록 class에 `@Tag("k8s")`를 둔다.
 
-- [ ] **Step 4: K8s test와 matrix를 검증하고 커밋한다.**
+- [x] **Step 4: K8s test와 matrix를 검증하고 커밋한다.**
 
 ```bash
 ./gradlew :bluetape4k-leader-k8s:test :bluetape4k-leader-k8s:k8sTest \
@@ -547,7 +548,7 @@ matrix 검증을 유지하고 runtime을 `PENDING`으로 기록한다.
 - Modify: `docs/superpowers/specs/2026-08-12-issue-671-contract-fixtures-design.md`
 - No production source changes expected
 
-- [ ] **Step 1: 전체 test-only 변경과 CI 연결을 점검한다.**
+- [x] **Step 1: 전체 test-only 변경과 CI 연결을 점검한다.**
 
 ```bash
 git diff --check
@@ -559,7 +560,7 @@ python3 scripts/ci/validate_ci_fanout.py --self-test
 
 Expected: 모두 exit code 0; `git diff --check` 출력 없음.
 
-- [ ] **Step 2: 네 모듈 compile/test를 순차 실행한다.**
+- [x] **Step 2: 네 모듈 compile/test를 순차 실행한다.**
 
 ```bash
 ./gradlew :bluetape4k-leader-etcd:test \

@@ -14,12 +14,17 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 MATRIX_PATH = ROOT / "scripts/ci/leader-contract-capabilities.json"
 WORKFLOW_PATH = ROOT / ".github/workflows/ci.yml"
+SETTINGS_PATH = ROOT / "settings.gradle.kts"
 BACKENDS = ("etcd", "consul", "dynamodb", "k8s")
-REQUIRED_BASES = {
+EXPECTED_MODULES = {
+    "etcd": "bluetape4k-leader-etcd",
+    "consul": "bluetape4k-leader-consul",
+    "dynamodb": "bluetape4k-leader-dynamodb",
+    "k8s": "bluetape4k-leader-k8s",
+}
+COMMON_REQUIRED_BASES = {
     "leader-id-sync-single": "AbstractLeaderElectorLeaderIdContractTest",
     "leader-id-sync-group": "AbstractLeaderGroupElectorLeaderIdContractTest",
-    "leader-id-async-single": "AbstractAsyncLeaderElectorLeaderIdContractTest",
-    "leader-id-async-group": "AbstractAsyncLeaderGroupElectorLeaderIdContractTest",
     "leader-id-suspend-single": "AbstractSuspendLeaderElectorLeaderIdContractTest",
     "leader-id-suspend-group": "AbstractSuspendLeaderGroupElectorLeaderIdContractTest",
     "lock-extender-sync-single": "AbstractSyncLockExtenderContractTest",
@@ -27,8 +32,36 @@ REQUIRED_BASES = {
     "lock-extender-suspend-single": "AbstractSuspendLockExtenderContractTest",
     "lock-extender-suspend-group": "AbstractSuspendGroupLockExtenderContractTest",
 }
+ASYNC_REQUIRED_BASES = {
+    "leader-id-async-single": "AbstractAsyncLeaderElectorLeaderIdContractTest",
+    "leader-id-async-group": "AbstractAsyncLeaderGroupElectorLeaderIdContractTest",
+}
+REQUIRED_BASES_BY_BACKEND = {
+    "etcd": {
+        contract: base
+        for contract, base in COMMON_REQUIRED_BASES.items()
+        if contract not in {"leader-id-sync-single", "leader-id-suspend-single"}
+    },
+    "consul": {**COMMON_REQUIRED_BASES, **ASYNC_REQUIRED_BASES},
+    "dynamodb": {**COMMON_REQUIRED_BASES, **ASYNC_REQUIRED_BASES},
+    "k8s": {**COMMON_REQUIRED_BASES, **ASYNC_REQUIRED_BASES},
+}
+LOCK_EXTENDER_NA = {"lock-extender-async", "lock-extender-virtual"}
+REQUIRED_NA_BY_BACKEND = {
+    "etcd": {
+        *LOCK_EXTENDER_NA,
+        "leader-id-sync-single",
+        "leader-id-async-single",
+        "leader-id-async-group",
+        "leader-id-suspend-single",
+        "virtual-thread-slot",
+    },
+    "consul": LOCK_EXTENDER_NA,
+    "dynamodb": LOCK_EXTENDER_NA,
+    "k8s": LOCK_EXTENDER_NA,
+}
 REQUIRED_DIRECT = {
-    "etcd": {"virtual-thread-single", "virtual-thread-group-overload"},
+    "etcd": {"virtual-thread-wrapper", "executor-overload-group"},
     "consul": {"executor-overload-single", "executor-overload-group"},
     "dynamodb": {"virtual-thread-single", "virtual-thread-group"},
     "k8s": {"executor-overload-single", "executor-overload-group"},
@@ -61,7 +94,16 @@ def validate_entries(matrix: dict[str, Any], root: Path) -> list[str]:
             errors.append(f"{prefix} missing required fields: {', '.join(missing)}")
             continue
 
-        key = (str(entry["backend"]), str(entry["contract"]))
+        backend = str(entry["backend"])
+        module = str(entry["module"])
+        if backend not in EXPECTED_MODULES:
+            errors.append(f"{prefix} unknown backend: {backend}")
+        elif module != EXPECTED_MODULES[backend]:
+            errors.append(
+                f"{prefix} module does not match backend {backend}: expected {EXPECTED_MODULES[backend]}"
+            )
+
+        key = (backend, str(entry["contract"]))
         if key in seen:
             errors.append(f"duplicate capability entry: {key[0]}/{key[1]}")
         seen.add(key)
@@ -75,6 +117,8 @@ def validate_entries(matrix: dict[str, Any], root: Path) -> list[str]:
             reason = entry.get("reason")
             if not isinstance(reason, str) or not reason.strip():
                 errors.append(f"{prefix} N/A reason is required")
+            if "test" in entry:
+                errors.append(f"{prefix} N/A entry must not reference a test file")
             continue
 
         test = entry.get("test")
@@ -106,7 +150,7 @@ def validate_entries(matrix: dict[str, Any], root: Path) -> list[str]:
 
 
 def validate_required_entries(matrix: dict[str, Any]) -> list[str]:
-    """Ensure every backend declares the common contract and direct paths."""
+    """Ensure every backend declares supported, N/A, and direct paths."""
 
     errors: list[str] = []
     entries = matrix.get("entries", [])
@@ -117,19 +161,42 @@ def validate_required_entries(matrix: dict[str, Any]) -> list[str]:
     }
 
     for backend in BACKENDS:
-        for contract, base in REQUIRED_BASES.items():
+        for contract, base in REQUIRED_BASES_BY_BACKEND[backend].items():
             entry = by_key.get((backend, contract))
             if entry is None:
                 errors.append(f"{backend} is missing required contract: {contract}")
             elif entry.get("status") != "supported":
                 errors.append(f"{backend}/{contract} must be supported with {base}")
+            elif entry.get("base") != base:
+                errors.append(f"{backend}/{contract} must declare base {base}")
         for contract in REQUIRED_DIRECT[backend]:
             entry = by_key.get((backend, contract))
             if entry is None:
                 errors.append(f"{backend} is missing direct contract: {contract}")
             elif entry.get("status") != "supported" or entry.get("direct") is not True:
                 errors.append(f"{backend}/{contract} must be supported direct=true")
+        for contract in REQUIRED_NA_BY_BACKEND[backend]:
+            entry = by_key.get((backend, contract))
+            if entry is None:
+                errors.append(f"{backend} is missing explicit N/A contract: {contract}")
+            elif entry.get("status") != "na" or not str(entry.get("reason", "")).strip():
+                errors.append(f"{backend}/{contract} must be N/A with a reason")
 
+    return errors
+
+
+def validate_modules(matrix: dict[str, Any], settings: str) -> list[str]:
+    """Confirm every matrix module is declared by the Gradle settings file."""
+
+    errors: list[str] = []
+    modules = {
+        entry.get("module")
+        for entry in matrix.get("entries", [])
+        if isinstance(entry, dict) and isinstance(entry.get("module"), str)
+    }
+    for module in sorted(modules):
+        if f'"{module}"' not in settings and f'":{module}"' not in settings:
+            errors.append(f"matrix module is not declared in settings.gradle.kts: {module}")
     return errors
 
 
@@ -168,6 +235,7 @@ def run_static() -> int:
     try:
         matrix = load_matrix()
         workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
+        settings = SETTINGS_PATH.read_text(encoding="utf-8")
     except ValueError as exc:
         print(f"Leader contract matrix FAILED: {exc}", file=sys.stderr)
         return 1
@@ -177,6 +245,7 @@ def run_static() -> int:
 
     errors = validate_entries(matrix, ROOT)
     errors.extend(validate_required_entries(matrix))
+    errors.extend(validate_modules(matrix, settings))
     errors.extend(validate_workflow(workflow))
     if errors:
         print("Leader contract matrix FAILED:", file=sys.stderr)

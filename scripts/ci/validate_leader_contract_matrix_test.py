@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from validate_leader_contract_matrix import validate_entries
+from validate_leader_contract_matrix import validate_entries, validate_modules, validate_required_entries
 
 
 class ValidateLeaderContractMatrixTest(unittest.TestCase):
@@ -81,6 +81,57 @@ class ValidateLeaderContractMatrixTest(unittest.TestCase):
             )
 
             self.assertIn("N/A reason is required", " ".join(errors))
+
+    def test_rejects_na_entry_with_test_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            errors = validate_entries(
+                {
+                    "entries": [
+                        {
+                            "backend": "etcd",
+                            "module": "bluetape4k-leader-etcd",
+                            "contract": "lock-extender-async",
+                            "status": "na",
+                            "test": "leader-etcd/src/test/Contract.kt",
+                            "reason": "core fixture is not defined",
+                        }
+                    ]
+                },
+                Path(directory),
+            )
+
+            self.assertIn("N/A entry must not reference a test file", " ".join(errors))
+
+    def test_rejects_module_missing_from_gradle_settings(self) -> None:
+        errors = validate_modules(
+            {"entries": [self.supported_entry()]},
+            'include("bluetape4k-leader-consul")',
+        )
+
+        self.assertEqual(
+            errors,
+            ["matrix module is not declared in settings.gradle.kts: bluetape4k-leader-etcd"],
+        )
+
+    def test_rejects_required_contract_with_wrong_abstract_base(self) -> None:
+        errors = validate_required_entries(
+            {
+                "entries": [
+                    {
+                        "backend": "etcd",
+                        "contract": "leader-id-sync-group",
+                        "status": "supported",
+                        "base": "AbstractLeaderElectorLeaderIdContractTest",
+                    }
+                ]
+            },
+        )
+
+        self.assertIn(
+            "etcd/leader-id-sync-group must declare base "
+            "AbstractLeaderGroupElectorLeaderIdContractTest",
+            errors,
+        )
 
 
 if __name__ == "__main__":

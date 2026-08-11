@@ -3,7 +3,7 @@
 ## 결정 상태
 
 - 이슈: [#671](https://github.com/bluetape4k/bluetape4k-leader/issues/671)
-- 상태: 구현 전 설계 승인 완료, spec 자체 검토 대기
+- 상태: 구현 완료, 7-tier inline review 및 delivery gate 대기
 - 작업 브랜치: `chore/issue-671-contract-fixtures`
 - 기준 커밋: `9799ea37789c40b843e9412fc5758bbba13a120d`
 - 범위: etcd, Consul, DynamoDB, Kubernetes Lease의 테스트 계약 채택
@@ -38,16 +38,25 @@ leader-id와 LockAssert/LockExtender 계약을 구체적인 backend 테스트로
 
 - `leader-core`에는 leader-id용 blocking/group/suspend/async abstract
   fixture와 sync/group/suspend LockExtender fixture가 이미 있다.
-- `LeaderElector`와 `LeaderGroupElector`는 async API를 상속하므로 blocking
-  concrete elector로 async leader-id fixture를 직접 실행할 수 있다.
+- `LeaderElector`와 `LeaderGroupElector`는 async API를 상속하지만, backend가
+  slot overload를 실제로 override하는 경우에만 async leader-id fixture를
+  적용한다. 현재 etcd는 lockName async overload만 구현하고 blocking/suspend
+  single elector도 slot overload를 override하지 않으므로 해당 leader-id
+  조합은 `N/A`로 기록한다.
 - virtual-thread API는 `VirtualFuture`를 사용하고 공통 abstract fixture가
   없으므로 각 backend의 실제 wrapper 또는 executor overload를 직접
   호출해야 한다.
 - 정상 contention은 예외가 아니라 skip/null/result여야 한다. 계약 테스트는
   이 core 규칙을 바꾸지 않는다.
 - Testcontainers/K3s 수명주기는 backend 기존 base test와 동일하게
-  유지한다. 계약 test가 container를 독자적으로 시작하거나 종료하지
-  않는다.
+  유지한다. DynamoDB 계약은 기존 DynamoDB Local launcher 위에 계약 전용
+  table/client를 만들고, K8s 계약은 K3s singleton 위에 class별 client를
+  만들고 `@AfterAll`에서 닫는다. 계약 test는 production client lifecycle을
+  변경하지 않는다.
+- Kubernetes Lease가 요구하는 DNS-1123 lock 이름과 모든 backend의
+  랜덤 lock 이름을 함께 만족하도록 `leader-core` test fixture의 Base58
+  lock suffix를 소문자로 정규화한다. 이는 test-only 입력 경계이며
+  production lock 이름 정책은 변경하지 않는다.
 
 ## 선택한 구조
 
@@ -77,8 +86,9 @@ backend의 public constructor/factory를 사용한다. protocol mock이나
 `leader-core` fixture를 억지로 확장하지 않고 backend-local 테스트에서
 다음을 직접 검증한다.
 
-- etcd: `EtcdVirtualThreadLeaderElector` wrapper의 단일 leader 및 slot
-  `runAsyncIfLeaderResult` 경로
+- etcd: `EtcdVirtualThreadLeaderElector` wrapper의 lockName 단일 leader
+  경로와 group executor overload. wrapper에는 slot overload가 없으므로
+  virtual slot leader-id는 `N/A`로 기록한다.
 - DynamoDB: `DynamoDbVirtualThreadLeaderElector`와
   `DynamoDbVirtualThreadLeaderGroupElector`의 slot 경로
 - Consul/Kubernetes: blocking elector가 제공하는
@@ -100,8 +110,8 @@ backend의 public constructor/factory를 사용한다. protocol mock이나
   "module": "bluetape4k-leader-etcd",
   "contract": "leader-id-sync",
   "status": "supported",
-  "test": "leader-etcd/src/test/.../EtcdLeaderElectorLeaderIdContractTest.kt",
-  "base": "AbstractLeaderElectorLeaderIdContractTest"
+  "test": "leader-etcd/src/test/.../EtcdLeaderGroupElectorLeaderIdContractTest.kt",
+  "base": "AbstractLeaderGroupElectorLeaderIdContractTest"
 }
 ```
 
@@ -120,6 +130,7 @@ LockExtender 조합은 해당 core fixture가 없고 lexical lock context를
   누락하지 않는다.
 - virtual/slot/lease direct test 행은 해당 test 파일과 backend 모듈을
   가리킨다.
+- matrix의 `module` 값은 `settings.gradle.kts`에 실제 등록되어야 한다.
 - `ci.yml`의 backend job이 해당 module `test`를 실행하며, K8s 행은
   `k8sTest`까지 포함한다.
 
@@ -128,24 +139,27 @@ backend job이나 README matrix는 만들지 않는다.
 
 ## Capability matrix 초안
 
-| backend | leader-id sync/async single | leader-id sync/async group | leader-id suspend single/group | LockExtender sync/group | LockExtender suspend/group | virtual/direct overload |
+| backend | leader-id sync single | leader-id async single/group | leader-id sync group | leader-id suspend single/group | LockExtender sync/suspend | virtual/direct overload |
 |---|---|---|---|---|---|---|
-| etcd | supported | supported | supported | supported | supported | wrapper + slot direct |
+| etcd | N/A (blocking slot override 없음) | N/A (slot async override 없음) | supported | suspend single N/A, group supported | supported | lockName wrapper + group executor direct |
 | Consul | supported | supported | supported | supported | supported | executor overload direct |
 | DynamoDB | supported | supported | supported | supported | supported | single/group wrapper direct |
 | Kubernetes Lease | supported | supported | supported | supported | supported | executor overload direct (`k8sTest`) |
 
 공통 LockExtender matrix의 async/virtual 열은 네 backend 모두 `N/A`로
-기록한다. 이는 backend 결함이 아니라 현행 core fixture의 계약 경계이며,
-별도 fixture 신설은 이번 이슈의 범위를 넘는다. 지원 여부가 source 확인과
-다르면 구현 단계에서 행을 먼저 수정하고, 그 변경을 review evidence에
-남긴다.
+기록한다. leader-id async는 Consul/DynamoDB/Kubernetes가 실제 slot
+overload를 제공할 때만 supported로 기록하고, etcd의 async single/group과
+blocking/suspend single leader-id는 실제 slot overload가 없어 `N/A`로
+남긴다. etcd virtual slot도 wrapper에 실제 overload가 없어 `N/A`다. 이는
+backend 결함을 숨기는 것이 아니라 source에 없는 조합을 계약으로 선언하지
+않는 경계이며, 별도 API 변경은 이번 이슈의 범위를 넘는다.
 
 ## Test/CI 실행 순서
 
 의존성이 적은 backend부터 다음 순서로 한 slice씩 완료한다.
 
-1. etcd: 네 leader-id 계열, 네 LockExtender 계열, virtual wrapper/slot
+1. etcd: 지원되는 group leader-id 두 계열, 네 LockExtender 계열, virtual
+   wrapper/group executor direct 경로
 2. Consul: 동일 계열과 executor overload
 3. DynamoDB: 동일 계열과 두 virtual wrapper
 4. Kubernetes: 동일 계열과 K3s direct overload
@@ -188,4 +202,3 @@ backend job이나 README matrix는 만들지 않는다.
 - `scripts/ci/validate_leader_contract_matrix.py`와 self-test
 - `.github/workflows/ci.yml`의 `ci-contract` 검증 호출
 - 이 spec에 연결된 한국어 PR/issue evidence
-
