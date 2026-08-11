@@ -52,6 +52,22 @@ class ExposedJdbcLockTest : AbstractExposedJdbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
+    fun `tryLock - zero와 negative wait는 한 번 시도한 뒤 경합을 건너뛴다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val holder = ExposedJdbcLock(db, lockName, RetryStrategy.Jitter())
+        holder.tryLock(1.seconds, 30.seconds).shouldBeTrue()
+
+        val contender = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 10L))
+        contender.tryLock(Duration.ZERO, 5.seconds).shouldBeFalse()
+        contender.tryLock((-1).milliseconds, 5.seconds).shouldBeFalse()
+
+        holder.unlock()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
     fun `tryLock - 재시도 대기 interrupt 를 재전파한다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
