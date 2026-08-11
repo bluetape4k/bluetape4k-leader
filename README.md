@@ -786,6 +786,19 @@ fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
 - JVM 25+
 - Kotlin 2.4+
 
+## Publication metadata validation
+
+Release, snapshot, and publishable-module upload tasks run this gate before
+uploading a Maven publication. To run it standalone, use:
+
+```bash
+./gradlew verifyPublishedPomLicenses
+```
+
+The gate regenerates all 17 publishable POMs and verifies the MIT license name,
+URL, and `repo` distribution. It also rejects any remaining Apache license
+metadata before publication.
+
 ## License
 
 MIT License — see [LICENSE](LICENSE).

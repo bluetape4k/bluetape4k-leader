@@ -786,6 +786,20 @@ fun myRecorder(): LeaderAopMetricsRecorder = MyCustomRecorder()
 - JVM 25+
 - Kotlin 2.4+
 
+## 게시 metadata 검증
+
+Release, snapshot, publishable module upload task는 Maven publication을
+업로드하기 전에 이 gate를 실행합니다. 단독으로 실행하려면 다음 명령을
+사용합니다.
+
+```bash
+./gradlew verifyPublishedPomLicenses
+```
+
+이 gate는 게시 대상 POM 17개를 다시 생성한 뒤 MIT license name, URL,
+`repo` distribution을 검증합니다. publication 전에 남아 있는 Apache license
+metadata도 거부합니다.
+
 ## 라이선스
 
 MIT License — [LICENSE](LICENSE) 참조.
