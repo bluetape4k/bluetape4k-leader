@@ -4,6 +4,7 @@ import io.bluetape4k.codec.Base58
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
+import io.bluetape4k.leader.exposed.jdbc.internal.MonotonicDeadline
 import io.bluetape4k.support.requireZeroOrPositiveNumber
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.logging.coroutines.KLoggingChannel

@@ -1,9 +1,9 @@
-package io.bluetape4k.leader.exposed.jdbc.lock
+package io.bluetape4k.leader.exposed.r2dbc.lock
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
-import io.bluetape4k.leader.exposed.jdbc.internal.MonotonicDeadline
+import io.bluetape4k.leader.exposed.r2dbc.internal.MonotonicDeadline
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -29,19 +29,7 @@ class MonotonicDeadlineTest {
     }
 
     @Test
-    fun `remainingMillisForSleep - sub millisecond budget keeps one millisecond sleep window`() {
-        var tickerNanos = 1_000_000L
-        val deadline = MonotonicDeadline.fromNow(1.milliseconds) { tickerNanos }
-
-        tickerNanos += 999_500L
-
-        deadline.remainingNanos() shouldBeEqualTo 500L
-        deadline.remainingMillisForSleep() shouldBeEqualTo 1L
-        deadline.hasTimeRemaining().shouldBeTrue()
-    }
-
-    @Test
-    fun `remainingMillisForSleep - arbitrary negative origin keeps the monotonic budget`() {
+    fun `remainingMillisForSleep - 임의의 음수 origin에서도 monotonic budget을 유지한다`() {
         var tickerNanos = -5_000_000_000L
         val deadline = MonotonicDeadline.fromNow(100.milliseconds) { tickerNanos }
 
@@ -54,23 +42,27 @@ class MonotonicDeadlineTest {
     }
 
     @Test
-    fun `fromNow - zero wait time is already expired`() {
-        val deadline = MonotonicDeadline.fromNow(0.milliseconds) { 42L }
+    fun `remainingMillisForSleep - sub millisecond budget은 마지막 1ms sleep 창을 보존한다`() {
+        var tickerNanos = 1_000_000L
+        val deadline = MonotonicDeadline.fromNow(1.milliseconds) { tickerNanos }
 
-        deadline.remainingMillisForSleep() shouldBeEqualTo 0L
-        deadline.hasTimeRemaining().shouldBeFalse()
+        tickerNanos += 999_500L
+
+        deadline.remainingNanos() shouldBeEqualTo 500L
+        deadline.remainingMillisForSleep() shouldBeEqualTo 1L
+        deadline.hasTimeRemaining().shouldBeTrue()
     }
 
     @Test
-    fun `fromNow - negative wait time is already expired`() {
-        val deadline = MonotonicDeadline.fromNow((-1).milliseconds) { 42L }
-
-        deadline.remainingMillisForSleep() shouldBeEqualTo 0L
-        deadline.hasTimeRemaining().shouldBeFalse()
+    fun `fromNow - zero와 negative wait time은 즉시 만료된다`() {
+        MonotonicDeadline.fromNow(0.milliseconds) { 42L }
+            .hasTimeRemaining().shouldBeFalse()
+        MonotonicDeadline.fromNow((-1).milliseconds) { 42L }
+            .hasTimeRemaining().shouldBeFalse()
     }
 
     @Test
-    fun `fromNow - ticker wrap boundary preserves the full wait budget`() {
+    fun `fromNow - ticker wrap 경계에서도 전체 wait budget을 보존한다`() {
         var tickerNanos = Long.MAX_VALUE - 10L
         val deadline = MonotonicDeadline.fromNow(100.milliseconds) { tickerNanos }
         val timeoutNanos = 100.milliseconds.inWholeNanoseconds

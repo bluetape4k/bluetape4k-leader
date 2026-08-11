@@ -55,6 +55,22 @@ class ExposedR2dbcLockTest: AbstractExposedR2dbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
+    fun `tryLock - zero와 negative wait는 한 번 시도한 뒤 경합을 건너뛴다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val holder = ExposedR2dbcLock(db, lockName, RetryStrategy.Jitter())
+        holder.tryLock(1.seconds, 30.seconds).shouldBeTrue()
+
+        val contender = ExposedR2dbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 10L))
+        contender.tryLock(Duration.ZERO, 5.seconds).shouldBeFalse()
+        contender.tryLock((-1).milliseconds, 5.seconds).shouldBeFalse()
+
+        holder.unlock()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
     fun `tryLock - leaseTime 만료 후 다른 인스턴스가 takeover에 성공한다`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)
