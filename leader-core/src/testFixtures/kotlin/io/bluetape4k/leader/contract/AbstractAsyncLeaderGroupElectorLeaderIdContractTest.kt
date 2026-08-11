@@ -40,7 +40,7 @@ abstract class AbstractAsyncLeaderGroupElectorLeaderIdContractTest {
     }
 
     private fun slot(leaderId: String = "node-a") =
-        LeaderSlot("lock-${Base58.randomString(8)}", leaderId)
+        LeaderSlot("lock-${Base58.randomString(8).lowercase()}", leaderId)
 
     @Test
     fun `runAsyncIfLeaderResult(slot) - Elected 반환 및 leaderId 전파`() {

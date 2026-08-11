@@ -44,7 +44,7 @@ abstract class AbstractSuspendLeaderGroupElectorLeaderIdContractTest {
     }
 
     private fun slot(leaderId: String = "node-a") =
-        LeaderSlot("lock-${Base58.randomString(8)}", leaderId)
+        LeaderSlot("lock-${Base58.randomString(8).lowercase()}", leaderId)
 
     @Test
     fun `runIfLeaderResultSuspend(slot) - Elected 반환 및 leaderId 전파`() = runSuspendIO {
@@ -79,7 +79,7 @@ abstract class AbstractSuspendLeaderGroupElectorLeaderIdContractTest {
 
     @Test
     fun `runIfLeaderResultSuspend - maxLeaders=2 에서 두 노드 모두 선출 가능`() = runSuspendIO {
-        val lockName = "lock-${Base58.randomString(8)}"
+        val lockName = "lock-${Base58.randomString(8).lowercase()}"
         val slot1 = LeaderSlot(lockName, "node-1")
         val slot2 = LeaderSlot(lockName, "node-2")
 
@@ -104,7 +104,7 @@ abstract class AbstractSuspendLeaderGroupElectorLeaderIdContractTest {
     @Test
     fun `runIfLeaderResultSuspend - 서로 다른 lockName 은 독립적으로 leaderId 추적`() = runSuspendIO {
         val s1 = slot("group-1")
-        val s2 = LeaderSlot("lock-${Base58.randomString(8)}", "group-2")
+        val s2 = LeaderSlot("lock-${Base58.randomString(8).lowercase()}", "group-2")
 
         val r1 = defaultElector.runIfLeaderResultSuspend(s1) { 1 }
         val r2 = defaultElector.runIfLeaderResultSuspend(s2) { 2 }

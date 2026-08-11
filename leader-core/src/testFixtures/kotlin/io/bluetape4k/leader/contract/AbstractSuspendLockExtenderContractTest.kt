@@ -57,7 +57,7 @@ abstract class AbstractSuspendLockExtenderContractTest {
     /** Each backend provides its own [SuspendLeaderElector] instance. */
     protected abstract val elector: SuspendLeaderElector
 
-    private fun randomLockName(): String = "ctr-su-${Base58.randomString(8)}"
+    private fun randomLockName(): String = "ctr-su-${Base58.randomString(8).lowercase()}"
 
     // ── assertLockedSuspend() ──────────────────────────────────────────────
 

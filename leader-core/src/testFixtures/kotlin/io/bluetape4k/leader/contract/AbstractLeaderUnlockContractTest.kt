@@ -58,7 +58,7 @@ abstract class AbstractLeaderUnlockContractTest {
      */
     protected abstract fun newElection(): LeaderElector
 
-    private fun randomLockName(): String = "unlock-${Base58.randomString(8)}"
+    private fun randomLockName(): String = "unlock-${Base58.randomString(8).lowercase()}"
 
     @Test
     fun `body normal return - lock must be released immediately and re-acquirable`() {
