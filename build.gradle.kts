@@ -3,6 +3,7 @@ import io.gitlab.arturbosch.detekt.DetektCreateBaselineTask
 import io.gitlab.arturbosch.detekt.report.ReportMergeTask
 import nmcp.NmcpAggregationExtension
 import nmcp.NmcpExtension
+import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.compile.JavaCompile
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -458,8 +459,9 @@ subprojects {
                     url.set("https://github.com/bluetape4k/bluetape4k-leader")
                     licenses {
                         license {
-                            name.set("The Apache License, Version 2.0")
-                            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                            name.set("MIT License")
+                            url.set("https://opensource.org/licenses/MIT")
+                            distribution.set("repo")
                         }
                     }
                     developers {
@@ -545,6 +547,74 @@ tasks.register<Exec>("checkBinaryCompatibility") {
     description = "Compare publishable JVM artifacts with the configured published baseline."
     dependsOn(binaryCompatibilityProjects.map { "${it.path}:jar" })
     commandLine("python3", rootProject.file("scripts/compatibility/check_binary_api.py").absolutePath)
+}
+
+val publishedProjects = subprojects.filterNot(Project::isNonPublishedProject)
+val verifyPublishedPomLicenses = tasks.register("verifyPublishedPomLicenses") {
+    group = "verification"
+    description = "Verifies MIT license metadata in every publishable Maven POM."
+    doLast {
+        val pomFiles = publishedProjects.flatMap { project ->
+            project.fileTree(project.layout.buildDirectory.dir("publications")) {
+                include("*/pom-default.xml")
+            }.files
+        }.sortedBy(File::getPath)
+        check(pomFiles.size == 17) {
+            "Expected 17 publishable POMs, found ${pomFiles.size}: ${pomFiles.joinToString()}"
+        }
+        check(rootProject.file("LICENSE").readText().startsWith("MIT License")) {
+            "LICENSE must start with MIT License"
+        }
+        listOf(rootProject.file("README.md"), rootProject.file("README.ko.md")).forEach { readme ->
+            val text = readme.readText()
+            check("MIT" in text && "LICENSE" in text) {
+                "README license reference is missing in $readme"
+            }
+        }
+        val licenseBlock = Regex("(?s)<licenses>.*?</licenses>")
+        pomFiles.forEach { pom ->
+            val text = pom.readText()
+            val blocks = licenseBlock.findAll(text).map(MatchResult::value).toList()
+            check(blocks.size == 1) { "Expected one license block in $pom, found ${blocks.size}" }
+            val block = blocks.single()
+            check("<name>MIT License</name>" in block) { "MIT license name missing in $pom" }
+            check("<url>https://opensource.org/licenses/MIT</url>" in block) {
+                "MIT license URL missing in $pom"
+            }
+            check("<distribution>repo</distribution>" in block) {
+                "MIT license distribution missing in $pom"
+            }
+            check("Apache-2.0" !in text && "Apache License" !in text) {
+                "Apache license metadata remains in $pom"
+            }
+        }
+        logger.lifecycle("Verified MIT license metadata in ${pomFiles.size} publishable POMs")
+    }
+}
+val publicationAggregationTaskNames = setOf(
+    "publishAggregationToCentralPortal",
+    "publishAggregationToCentralPortalSnapshots",
+    "publishAggregationToCentralSnapshots",
+)
+tasks.matching { task -> task.name in publicationAggregationTaskNames }.configureEach {
+    dependsOn(verifyPublishedPomLicenses)
+}
+subprojects.filterNot(Project::isNonPublishedProject).forEach { project ->
+    project.tasks.withType<PublishToMavenRepository>().configureEach {
+        dependsOn(verifyPublishedPomLicenses)
+    }
+}
+gradle.projectsEvaluated {
+    val publishedPomTasks = publishedProjects.flatMap { project ->
+        project.tasks.matching { task -> task.name.startsWith("generatePomFileFor") }.toList()
+    }
+    check(publishedPomTasks.size == 17) {
+        "Expected 17 publication POM tasks, found ${publishedPomTasks.size}"
+    }
+    if (isRequestedTask("verifyPublishedPomLicenses")) {
+        publishedPomTasks.forEach { task -> task.outputs.upToDateWhen { false } }
+    }
+    verifyPublishedPomLicenses.configure { dependsOn(publishedPomTasks) }
 }
 
 val manualModuleInventory = layout.buildDirectory.file("manual/module-inventory.json")
