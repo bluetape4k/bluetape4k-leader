@@ -798,7 +798,8 @@ Release, snapshot, publishable module upload task는 Maven publication을
 
 이 gate는 게시 대상 POM 17개를 다시 생성한 뒤 MIT license name, URL,
 `repo` distribution을 검증합니다. publication 전에 남아 있는 Apache license
-metadata도 거부합니다.
+metadata도 거부하며, 두 README locale의 MIT badge link와 `[LICENSE](LICENSE)`
+참조도 유지되어야 통과합니다.
 
 ## 라이선스
 
