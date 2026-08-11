@@ -89,6 +89,7 @@ jobs:
     timeout-minutes: 5
     needs: validate-wrapper
     outputs:
+      dependency-graph: ${{ steps.filter.outputs.dependency-graph }}
       leader-core: ${{ steps.filter.outputs.leader-core }}
       leader-redis: ${{ steps.filter.outputs.leader-redis }}
       leader-exposed: ${{ steps.filter.outputs.leader-exposed }}
@@ -126,6 +127,17 @@ jobs:
         id: filter
         with:
           filters: |
+            # Gradle graph roots are conservatively fanned out to every contract test.
+            dependency-graph:
+              - 'settings.gradle.kts'
+              - 'build.gradle.kts'
+              - 'buildSrc/**'
+              - 'gradle/**'
+              - 'gradle.properties'
+              - 'gradlew'
+              - 'gradlew.bat'
+              - 'bluetape4k-leader-bom/**'
+              - 'leader-core/**'
             leader-core:
               - 'leader-core/**'
             leader-redis:
@@ -155,7 +167,17 @@ jobs:
               - 'leader-core/**'
             leader-spring-boot:
               - 'leader-spring-boot/**'
+              - 'leader-redis-lettuce/**'
+              - 'leader-redis-redisson/**'
+              - 'leader-exposed-core/**'
+              - 'leader-exposed-jdbc/**'
+              - 'leader-exposed-r2dbc/**'
+              - 'leader-mongodb/**'
+              - 'leader-hazelcast/**'
+              - 'leader-etcd/**'
+              - 'leader-consul/**'
               - 'leader-dynamodb/**'
+              - 'leader-micrometer/**'
             leader-ktor:
               - 'leader-ktor/**'
               - 'leader-core/**'
@@ -248,6 +270,25 @@ jobs:
               - 'leader-zookeeper/**'
               - 'leader-dynamodb/**'
 
+  # ── 2-A. CI fan-out 계약 검증 ────────────────────────────────────────────
+  ci-contract:
+    name: Validate CI fan-out contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [changes]
+    if: always()
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Validate dependency fan-out and runtime gate
+        env:
+          CI_WORKFLOW_PATH: .github/workflows/ci.yml
+        run: |
+          python3 scripts/ci/validate_ci_fanout.py --static
+          python3 scripts/ci/validate_ci_fanout.py --self-test
+
   # ── 3. 전체 빌드 (테스트 제외) ───────────────────────────────────────────
   catalog-governance:
     name: Central Catalog Governance
@@ -319,7 +360,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['leader-ktor'] == 'true' || needs.changes.outputs['leader-exposed'] == 'true' || needs.changes.outputs['examples-ktor-app'] == 'true' || needs.changes.outputs['examples-migration-gate'] == 'true' || needs.changes.outputs['examples-tenant-aggregator'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-ktor'] == 'true' || needs.changes.outputs['leader-exposed'] == 'true' || needs.changes.outputs['examples-ktor-app'] == 'true' || needs.changes.outputs['examples-migration-gate'] == 'true' || needs.changes.outputs['examples-tenant-aggregator'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -354,7 +395,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['leader-core'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-core'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -405,7 +446,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['leader-micrometer'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-micrometer'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -450,7 +491,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['leader-redis'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-redis'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -503,7 +544,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['leader-redis'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-redis'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -556,7 +597,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes, snapshot-warmup]
-    if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -608,7 +649,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes, snapshot-warmup]
-    if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -662,7 +703,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes, snapshot-warmup]
-    if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -717,7 +758,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes, snapshot-warmup]
-    if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -763,7 +804,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes, snapshot-warmup]
-    if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -811,7 +852,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes, snapshot-warmup]
-    if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-exposed'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -859,7 +900,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes, snapshot-warmup]
-    if: ${{ needs.changes.outputs['examples-migration-gate'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-migration-gate'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -895,7 +936,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['examples-webhook-poller'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-webhook-poller'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -931,7 +972,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['examples-cache-warmer'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-cache-warmer'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -967,7 +1008,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes, snapshot-warmup]
-    if: ${{ needs.changes.outputs['examples-tenant-aggregator'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-tenant-aggregator'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1003,7 +1044,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['examples-batch-scheduler'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-batch-scheduler'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1039,7 +1080,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['examples-etcd-reconciler'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-etcd-reconciler'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1075,7 +1116,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['examples-consul-maintenance'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-consul-maintenance'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1111,7 +1152,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['examples-dynamodb-export'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-dynamodb-export'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1147,7 +1188,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['examples-zookeeper-scheduler'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-zookeeper-scheduler'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1183,7 +1224,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['examples-k8s-lease'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-k8s-lease'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1217,7 +1258,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['examples-k8s-operator'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-k8s-operator'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1251,7 +1292,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['examples-rate-limiter'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-rate-limiter'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1287,7 +1328,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['examples-strategic-election'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-strategic-election'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1321,7 +1362,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['examples-virtual-thread-runner'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-virtual-thread-runner'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1355,7 +1396,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['examples-redisson-watchdog'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-redisson-watchdog'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1391,7 +1432,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes, snapshot-warmup]
-    if: ${{ needs.changes.outputs['examples-ktor-app'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-ktor-app'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1427,7 +1468,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['examples-prometheus-dashboard'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['examples-prometheus-dashboard'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1463,7 +1504,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['leader-spring-boot'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-spring-boot'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1510,7 +1551,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes, snapshot-warmup]
-    if: ${{ needs.changes.outputs['leader-ktor'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-ktor'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1557,7 +1598,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['leader-mongodb'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-mongodb'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1604,7 +1645,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['leader-dynamodb'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-dynamodb'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1651,7 +1692,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['leader-etcd'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-etcd'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1698,7 +1739,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['leader-consul'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-consul'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1739,13 +1780,13 @@ jobs:
           path: '**/build/reports/kover/'
           retention-days: 7
 
-  # ── 0.2.2 preview gate: unit slice only; K3s runtime runs in Nightly full ─
+  # ── leader-k8s 테스트 (단위 + K3s runtime; Nightly는 전체 회귀 게이트) ──
   test-leader-k8s:
     name: Test / leader-k8s
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['leader-k8s'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-k8s'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1759,18 +1800,22 @@ jobs:
       - name: Test leader-k8s
         run: |
           for attempt in 1 2 3 4 5; do
-            ./gradlew :bluetape4k-leader-k8s:test --no-configuration-cache --no-daemon && break
+            ./gradlew :bluetape4k-leader-k8s:test :bluetape4k-leader-k8s:k8sTest --no-configuration-cache --no-daemon && break
             echo "Attempt $attempt failed"
             [ $attempt -lt 5 ] && sleep 30 || exit 1
           done
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+          DOCKER_HOST: "unix:///var/run/docker.sock"
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: test-results-leader-k8s
-          path: '**/build/test-results/test/*.xml'
+          path: |
+            **/build/test-results/test/*.xml
+            **/build/test-results/k8sTest/*.xml
           retention-days: 7
 
   # ── leader-hazelcast 테스트 (Testcontainers: Hazelcast) ──────────────────
@@ -1779,7 +1824,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['leader-hazelcast'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-hazelcast'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1826,7 +1871,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['leader-zookeeper'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['leader-zookeeper'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1873,7 +1918,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, changes]
-    if: ${{ needs.changes.outputs['benchmark'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs['benchmark'] == 'true' || needs.changes.outputs['dependency-graph'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5.6.0
@@ -1966,6 +2011,7 @@ jobs:
       - gitleaks
       - build
       - changes
+      - ci-contract
       - test-core
       - test-micrometer
       - test-redis-lettuce
@@ -2007,13 +2053,13 @@ jobs:
       - coverage-report
     if: always()
     steps:
-      - name: Check all jobs
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Validate required jobs and intended skips
         env:
-          RESULTS: ${{ join(needs.*.result, ',') }}
-        run: |
-          echo "Job results: $RESULTS"
-          if echo "$RESULTS" | grep -qE "failure|cancelled"; then
-            echo "CI failed"
-            exit 1
-          fi
-          echo "CI passed (skipped jobs treated as success)"
+          CI_NEEDS_JSON: ${{ toJSON(needs) }}
+          CI_EVENT_NAME: ${{ github.event_name }}
+          CI_WORKFLOW_PATH: .github/workflows/ci.yml
+        run: python3 scripts/ci/validate_ci_fanout.py --runtime
