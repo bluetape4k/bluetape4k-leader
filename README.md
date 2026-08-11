@@ -797,7 +797,8 @@ uploading a Maven publication. To run it standalone, use:
 
 The gate regenerates all 17 publishable POMs and verifies the MIT license name,
 URL, and `repo` distribution. It also rejects any remaining Apache license
-metadata before publication.
+metadata before publication, and requires both README locales to retain the MIT
+badge link and `[LICENSE](LICENSE)` reference.
 
 ## License
 

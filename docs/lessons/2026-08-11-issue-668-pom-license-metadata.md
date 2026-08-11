@@ -20,13 +20,14 @@ task가 업로드 전에 이 gate를 자동 실행하도록 연결해 수동 검
 
 현재 gate는 게시 대상 POM 17개를 확인하고 각 POM에 `MIT License`,
 `https://opensource.org/licenses/MIT`, `repo`를 요구합니다. `Apache-2.0` 또는
-`Apache License` 문자열이 남아 있으면 실패합니다.
+`Apache License` 문자열이 남아 있으면 실패합니다. 두 README의 MIT badge link,
+`MIT License` 식별자, `[LICENSE](LICENSE)` 링크도 정확히 일치해야 통과합니다.
 
 ## 검증
 
 - `./gradlew --no-daemon --console=plain --no-configuration-cache verifyPublishedPomLicenses`
 - 결과: 17개 POM MIT metadata 검증 통과
-- README EN/KO에 동일한 검증 명령과 gate 의미를 기록
+- README EN/KO에 동일한 검증 명령과 gate 의미를 기록하고 MIT badge 및 LICENSE 링크를 검증
 
 ## 향후 지침
 

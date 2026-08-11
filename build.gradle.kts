@@ -565,10 +565,24 @@ val verifyPublishedPomLicenses = tasks.register("verifyPublishedPomLicenses") {
         check(rootProject.file("LICENSE").readText().startsWith("MIT License")) {
             "LICENSE must start with MIT License"
         }
-        listOf(rootProject.file("README.md"), rootProject.file("README.ko.md")).forEach { readme ->
+        val readmeLicenseReferences = mapOf(
+            rootProject.file("README.md") to listOf(
+                "[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)",
+                "MIT License",
+                "[LICENSE](LICENSE)",
+            ),
+            rootProject.file("README.ko.md") to listOf(
+                "[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)",
+                "MIT License",
+                "[LICENSE](LICENSE)",
+            ),
+        )
+        readmeLicenseReferences.forEach { (readme, expectedReferences) ->
             val text = readme.readText()
-            check("MIT" in text && "LICENSE" in text) {
-                "README license reference is missing in $readme"
+            expectedReferences.forEach { expectedReference ->
+                check(expectedReference in text) {
+                    "README license reference '$expectedReference' is missing in $readme"
+                }
             }
         }
         val licenseBlock = Regex("(?s)<licenses>.*?</licenses>")
