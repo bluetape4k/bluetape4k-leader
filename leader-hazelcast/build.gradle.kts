@@ -11,7 +11,7 @@ dependencies {
     implementation(bt4k.bluetape4k.coroutines)
     testImplementation(bt4k.bluetape4k.junit5)
     testImplementation(bt4k.bluetape4k.testcontainers)
-    testImplementation(bt4k.bluetape4k.virtualthread.jdk21)
+    testImplementation(bt4k.bluetape4k.virtualthread.jdk25)
 
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.testcontainers)

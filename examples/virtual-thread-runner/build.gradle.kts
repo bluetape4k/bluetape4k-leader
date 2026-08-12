@@ -11,6 +11,7 @@ dependencies {
 
     implementation(bt4k.bluetape4k.logging)
 
+    runtimeOnly(bt4k.bluetape4k.virtualthread.jdk25)
     runtimeOnly(bt4k.logback)
 
     testImplementation(bt4k.bluetape4k.junit5)
