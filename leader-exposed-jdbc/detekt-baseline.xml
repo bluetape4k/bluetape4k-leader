@@ -2,41 +2,36 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>CyclomaticComplexMethod:ExposedJdbcLeaderGroupElector.kt$ExposedJdbcLeaderGroupElector$override fun &lt;T> runAsyncIfLeader( lockName: String, executor: Executor, action: () -> CompletableFuture&lt;T>, ): CompletableFuture&lt;T?></ID>
-    <ID>CyclomaticComplexMethod:ExposedJdbcLeaderGroupElector.kt$ExposedJdbcLeaderGroupElector$override fun &lt;T> runIfLeader(lockName: String, action: () -> T): T?</ID>
-    <ID>LongMethod:ExposedJdbcLeaderElector.kt$ExposedJdbcLeaderElector$override fun &lt;T> runAsyncIfLeader( lockName: String, executor: Executor, action: () -> CompletableFuture&lt;T>, ): CompletableFuture&lt;T?></ID>
-    <ID>LongMethod:ExposedJdbcLeaderElector.kt$ExposedJdbcLeaderElector$override fun &lt;T> runIfLeader(lockName: String, action: () -> T): T?</ID>
-    <ID>LongMethod:ExposedJdbcLeaderGroupElector.kt$ExposedJdbcLeaderGroupElector$override fun &lt;T> runAsyncIfLeader( lockName: String, executor: Executor, action: () -> CompletableFuture&lt;T>, ): CompletableFuture&lt;T?></ID>
-    <ID>LongMethod:ExposedJdbcLeaderGroupElector.kt$ExposedJdbcLeaderGroupElector$override fun &lt;T> runIfLeader(lockName: String, action: () -> T): T?</ID>
-    <ID>LongParameterList:ExposedLeaderHistorySink.kt$ExposedLeaderHistorySink$( key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long, status: LeaderHistoryStatus, errorType: String?, errorMessage: String?, )</ID>
-    <ID>LoopWithTooManyJumpStatements:ExposedJdbcLeaderGroupElector.kt$ExposedJdbcLeaderGroupElector$for</ID>
-    <ID>MagicNumber:ExposedJdbcGroupLock.kt$ExposedJdbcGroupLock$8</ID>
-    <ID>MagicNumber:ExposedJdbcLock.kt$ExposedJdbcLock$8</ID>
-    <ID>MagicNumber:ExposedJdbcSchemaInitializer.kt$ExposedJdbcSchemaInitializer$5</ID>
-    <ID>MaxLineLength:ExposedJdbcLeaderGroupElector.kt$ExposedJdbcLeaderGroupElector$actionSucceeded -> effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }</ID>
-    <ID>MaxLineLength:ExposedJdbcLeaderGroupElector.kt$ExposedJdbcLeaderGroupElector$capturedError != null -> effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, capturedError) }</ID>
-    <ID>MaxLineLength:ExposedJdbcLeaderGroupElector.kt$ExposedJdbcLeaderGroupElector$else -> effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, throwable) }</ID>
-    <ID>MaxLineLength:ExposedJdbcLeaderGroupElector.kt$ExposedJdbcLeaderGroupElector$hKey ?: record?.let { LeaderHistoryKey(lockName = lockName, token = lock.token, slotId = slot.toString()) }</ID>
-    <ID>MaxLineLength:ExposedJdbcLeaderGroupElector.kt$ExposedJdbcLeaderGroupElector$throwable == null -> effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }</ID>
-    <ID>MaxLineLength:ExposedJdbcSlotExtendDelegate.kt$ExposedJdbcSlotExtendDelegate$log.warn(e) { "Exposed JDBC group extendSuspend failed. lockName=${slotLock.lockName}, slot=${slotLock.slot}" }</ID>
-    <ID>NestedBlockDepth:ExposedJdbcLeaderGroupElector.kt$ExposedJdbcLeaderGroupElector$override fun &lt;T> runIfLeader(lockName: String, action: () -> T): T?</ID>
-    <ID>ReturnCount:ExposedJdbcGroupLock.kt$ExposedJdbcGroupLock$fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean?</ID>
-    <ID>ReturnCount:ExposedJdbcLeaderGroupElector.kt$ExposedJdbcLeaderGroupElector$override fun &lt;T> runIfLeader(lockName: String, action: () -> T): T?</ID>
-    <ID>ReturnCount:ExposedJdbcLock.kt$ExposedJdbcLock$fun tryLock(waitTime: Duration, leaseTime: Duration): Boolean</ID>
-    <ID>SerialVersionUIDInSerializableClass:ExposedJdbcLeaderElectionOptions.kt$ExposedJdbcLeaderElectionOptions : Serializable</ID>
-    <ID>SerialVersionUIDInSerializableClass:ExposedJdbcLeaderGroupElectionOptions.kt$ExposedJdbcLeaderGroupElectionOptions : Serializable</ID>
-    <ID>SpreadOperator:ExposedJdbcSchemaInitializer.kt$ExposedJdbcSchemaInitializer$(*ExposedLeaderSchema.allTables)</ID>
-    <ID>ThrowingExceptionFromFinally:ExposedJdbcLeaderGroupElector.kt$ExposedJdbcLeaderGroupElector$throw e</ID>
-    <ID>TooGenericExceptionCaught:ExposedJdbcGroupLock.kt$ExposedJdbcGroupLock$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:ExposedJdbcGroupLock.kt$ExposedJdbcGroupLock$e: Throwable</ID>
-    <ID>TooGenericExceptionCaught:ExposedJdbcLeaderElector.kt$ExposedJdbcLeaderElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:ExposedJdbcLeaderGroupElector.kt$ExposedJdbcLeaderGroupElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:ExposedJdbcLeaderGroupElector.kt$ExposedJdbcLeaderGroupElector$e: Throwable</ID>
-    <ID>TooGenericExceptionCaught:ExposedJdbcLeaderGroupElector.kt$ExposedJdbcLeaderGroupElector$ex: Exception</ID>
-    <ID>TooGenericExceptionCaught:ExposedJdbcLock.kt$ExposedJdbcLock$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:ExposedJdbcLock.kt$ExposedJdbcLock$e: Throwable</ID>
-    <ID>TooGenericExceptionCaught:ExposedJdbcLockExtendDelegate.kt$ExposedJdbcLockExtendDelegate$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:ExposedJdbcSchemaInitializer.kt$ExposedJdbcSchemaInitializer$e: Throwable</ID>
-    <ID>TooGenericExceptionCaught:ExposedJdbcSlotExtendDelegate.kt$ExposedJdbcSlotExtendDelegate$e: Exception</ID>
+    <ID>CyclomaticComplexMethod:ExposedJdbcLeaderGroupElector.kt:ExposedJdbcLeaderGroupElector$override fun &lt;T> runAsyncIfLeader: CompletableFuture&lt;T?></ID>
+    <ID>CyclomaticComplexMethod:ExposedJdbcLeaderGroupElector.kt:ExposedJdbcLeaderGroupElector$override fun &lt;T> runIfLeader: T?</ID>
+    <ID>LongMethod:ExposedJdbcLeaderElector.kt:ExposedJdbcLeaderElector$override fun &lt;T> runAsyncIfLeader: CompletableFuture&lt;T?></ID>
+    <ID>LongMethod:ExposedJdbcLeaderElector.kt:ExposedJdbcLeaderElector$override fun &lt;T> runIfLeader: T?</ID>
+    <ID>LongMethod:ExposedJdbcLeaderGroupElector.kt:ExposedJdbcLeaderGroupElector$override fun &lt;T> runAsyncIfLeader: CompletableFuture&lt;T?></ID>
+    <ID>LongMethod:ExposedJdbcLeaderGroupElector.kt:ExposedJdbcLeaderGroupElector$override fun &lt;T> runIfLeader: T?</ID>
+    <ID>LoopWithTooManyJumpStatements:ExposedJdbcLeaderGroupElector.kt:ExposedJdbcLeaderGroupElector$for</ID>
+    <ID>MagicNumber:ExposedJdbcGroupLock.kt:ExposedJdbcGroupLock$8</ID>
+    <ID>MagicNumber:ExposedJdbcLock.kt:ExposedJdbcLock$8</ID>
+    <ID>MagicNumber:ExposedJdbcSchemaInitializer.kt:ExposedJdbcSchemaInitializer$5</ID>
+    <ID>MaxLineLength:ExposedJdbcLeaderGroupElector.kt:ExposedJdbcLeaderGroupElector$actionSucceeded -> effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }</ID>
+    <ID>MaxLineLength:ExposedJdbcLeaderGroupElector.kt:ExposedJdbcLeaderGroupElector$capturedError != null -> effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, capturedError) }</ID>
+    <ID>MaxLineLength:ExposedJdbcLeaderGroupElector.kt:ExposedJdbcLeaderGroupElector$else -> effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, throwable) }</ID>
+    <ID>MaxLineLength:ExposedJdbcLeaderGroupElector.kt:ExposedJdbcLeaderGroupElector$hKey ?: record?.let { LeaderHistoryKey(lockName = lockName, token = lock.token, slotId = slot.toString()) }</ID>
+    <ID>MaxLineLength:ExposedJdbcLeaderGroupElector.kt:ExposedJdbcLeaderGroupElector$throwable == null -> effectiveKey?.let { historyRecorder?.recordCompleted(it, finishedAt, durationMs) }</ID>
+    <ID>MaxLineLength:ExposedJdbcSlotExtendDelegate.kt:ExposedJdbcSlotExtendDelegate$log.warn(e) { "Exposed JDBC group extendSuspend failed. lockName=${slotLock.lockName}, slot=${slotLock.slot}" }</ID>
+    <ID>ReturnCount:ExposedJdbcLeaderGroupElector.kt:ExposedJdbcLeaderGroupElector$override fun &lt;T> runIfLeader: T?</ID>
+    <ID>SerialVersionUIDInSerializableClass:ExposedJdbcLeaderElectionOptions.kt:ExposedJdbcLeaderElectionOptions : Serializable</ID>
+    <ID>SerialVersionUIDInSerializableClass:ExposedJdbcLeaderGroupElectionOptions.kt:ExposedJdbcLeaderGroupElectionOptions : Serializable</ID>
+    <ID>ThrowingExceptionFromFinally:ExposedJdbcLeaderGroupElector.kt:ExposedJdbcLeaderGroupElector$throw e</ID>
+    <ID>ThrowsCount:ExposedJdbcLeaderElector.kt:ExposedJdbcLeaderElector$override fun &lt;T> runIfLeader: T?</ID>
+    <ID>ThrowsCount:ExposedJdbcLeaderGroupElector.kt:ExposedJdbcLeaderGroupElector$override fun &lt;T> runIfLeader: T?</ID>
+    <ID>TooGenericExceptionCaught:ExposedJdbcGroupLock.kt:ExposedJdbcGroupLock$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ExposedJdbcLeaderElector.kt:ExposedJdbcLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ExposedJdbcLeaderGroupElector.kt:ExposedJdbcLeaderGroupElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ExposedJdbcLeaderGroupElector.kt:ExposedJdbcLeaderGroupElector$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ExposedJdbcLeaderGroupElector.kt:ExposedJdbcLeaderGroupElector$ex: Exception</ID>
+    <ID>TooGenericExceptionCaught:ExposedJdbcLock.kt:ExposedJdbcLock$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ExposedJdbcLockExtendDelegate.kt:ExposedJdbcLockExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ExposedJdbcSchemaInitializer.kt:ExposedJdbcSchemaInitializer$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ExposedJdbcSlotExtendDelegate.kt:ExposedJdbcSlotExtendDelegate$e: Exception</ID>
   </CurrentIssues>
 </SmellBaseline>

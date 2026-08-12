@@ -1,6 +1,6 @@
-import io.gitlab.arturbosch.detekt.Detekt
-import io.gitlab.arturbosch.detekt.DetektCreateBaselineTask
-import io.gitlab.arturbosch.detekt.report.ReportMergeTask
+import dev.detekt.gradle.Detekt
+import dev.detekt.gradle.DetektCreateBaselineTask
+import dev.detekt.gradle.report.ReportMergeTask
 import nmcp.NmcpAggregationExtension
 import nmcp.NmcpExtension
 import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
@@ -23,7 +23,7 @@ plugins {
     alias(bt4k.plugins.kotlinx.atomicfu)
     alias(bt4k.plugins.kotlinx.benchmark) apply false
 
-    alias(bt4k.plugins.detekt.legacy) apply false
+    alias(bt4k.plugins.detekt.dev) apply false
     alias(bt4k.plugins.dependency.management)
 
     alias(bt4k.plugins.dokka)
@@ -65,7 +65,7 @@ val reusableTestcontainersExamplePaths = setOf(
 )
 
 if (detektRequested) {
-    apply(plugin = "io.gitlab.arturbosch.detekt")
+    apply(plugin = "dev.detekt")
 }
 if (koverRequested) {
     apply(plugin = "org.jetbrains.kotlinx.kover")
@@ -161,7 +161,7 @@ subprojects {
         plugin<JavaLibraryPlugin>()
         plugin("org.jetbrains.kotlin.jvm")
         if (detektRequested) {
-            plugin("io.gitlab.arturbosch.detekt")
+            plugin("dev.detekt")
         }
         plugin("org.jetbrains.kotlinx.atomicfu")
         if (koverRequested) {
@@ -174,22 +174,6 @@ subprojects {
         plugin("io.spring.dependency-management")
         plugin("org.jetbrains.dokka")
         plugin("com.adarshr.test-logger")
-    }
-
-    if (detektRequested) {
-        configurations.named("detekt") {
-            val detektKotlinVersion = bt4kVersion("kotlin20")
-            resolutionStrategy.force(
-                "org.jetbrains.kotlin:kotlin-compiler-embeddable:$detektKotlinVersion",
-                "org.jetbrains.kotlin:kotlin-stdlib:$detektKotlinVersion",
-            )
-            resolutionStrategy.eachDependency {
-                if (requested.group == "org.jetbrains.kotlin") {
-                    useVersion(detektKotlinVersion)
-                    because("detekt 1.23.8 is compiled against Kotlin 2.0.21")
-                }
-            }
-        }
     }
 
     pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
@@ -294,13 +278,15 @@ subprojects {
                 }
             }
             val productionDetektSources = project.files(productionDetektSourceRoots)
+            extensions.configure<dev.detekt.gradle.extensions.DetektExtension>("detekt") {
+                baseline.set(project.layout.projectDirectory.file("detekt-baseline.xml"))
+                ignoreFailures = false
+            }
             named<Detekt>("detekt") {
                 setSource(productionDetektSources)
                 include("**/*.kt", "**/*.kts", "**/*.java")
-                project.layout.projectDirectory.file("detekt-baseline.xml").asFile
-                    .takeIf(File::isFile)
-                    ?.let(baseline::set)
-                ignoreFailures = false
+                baseline.set(project.layout.projectDirectory.file("detekt-baseline.xml"))
+                reports.checkstyle.required.set(true)
             }
             named<DetektCreateBaselineTask>("detektBaseline") {
                 setSource(productionDetektSources)
@@ -502,7 +488,7 @@ if (detektRequested) {
     val reportMerge = tasks.register<ReportMergeTask>("reportMerge") {
         val file = layout.buildDirectory.asFile.get().resolve("reports/detekt/merged.xml")
         output.set(file)
-        input.from(moduleDetektTasks.map { it.xmlReportFile })
+        input.from(moduleDetektTasks.map { it.reports.checkstyle.outputLocation })
         dependsOn(moduleDetektTasks)
     }
 

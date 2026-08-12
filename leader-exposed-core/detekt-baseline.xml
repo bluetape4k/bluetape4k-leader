@@ -2,13 +2,9 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>CyclomaticComplexMethod:MetadataJsonCodec.kt$MetadataJsonCodec$fun decode(json: String?): Map&lt;String, String></ID>
-    <ID>LoopWithTooManyJumpStatements:MetadataJsonCodec.kt$MetadataJsonCodec$while</ID>
-    <ID>MagicNumber:LeaderLockHistoryTable.kt$LeaderLockHistoryTable$255</ID>
-    <ID>MagicNumber:LeaderLockHistoryTable.kt$LeaderLockHistoryTable$32</ID>
-    <ID>MagicNumber:LeaderLockHistoryTable.kt$LeaderLockHistoryTable$512</ID>
-    <ID>MagicNumber:RetryStrategy.kt$RetryStrategy.Exponential$10</ID>
-    <ID>ReturnCount:MetadataJsonCodec.kt$MetadataJsonCodec$fun decode(json: String?): Map&lt;String, String></ID>
-    <ID>ReturnCount:MetadataJsonCodec.kt$MetadataJsonCodec$private fun readString(s: String, start: Int): Pair&lt;String, Int>?</ID>
+    <ID>CyclomaticComplexMethod:MetadataJsonCodec.kt:MetadataJsonCodec$fun decode: Map&lt;String, String></ID>
+    <ID>LoopWithTooManyJumpStatements:MetadataJsonCodec.kt:MetadataJsonCodec$while</ID>
+    <ID>ReturnCount:MetadataJsonCodec.kt:MetadataJsonCodec$fun decode: Map&lt;String, String></ID>
+    <ID>ReturnCount:MetadataJsonCodec.kt:MetadataJsonCodec$private fun readString: Pair&lt;String, Int>?</ID>
   </CurrentIssues>
 </SmellBaseline>
