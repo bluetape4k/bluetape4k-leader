@@ -127,7 +127,7 @@ dependencies {
     add("benchmarkImplementation", project(":bluetape4k-leader-micrometer"))
 
     add("benchmarkImplementation", bt4k.bluetape4k.testcontainers)
-    add("benchmarkImplementation", bt4k.bluetape4k.virtualthread.jdk21)
+    add("benchmarkImplementation", bt4k.bluetape4k.virtualthread.jdk25)
     add("benchmarkImplementation", bt4k.h2.v2)
     add("benchmarkImplementation", bt4k.postgresql)
     add("benchmarkImplementation", bt4k.mysql.connector.j)

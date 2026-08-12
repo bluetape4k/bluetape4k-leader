@@ -9,7 +9,7 @@ configurations {
 dependencies {
     api(bt4k.bluetape4k.core)
     api(bt4k.bluetape4k.idgenerators)
-    compileOnly(bt4k.bluetape4k.virtualthread.jdk21)
+    compileOnly(bt4k.bluetape4k.virtualthread.jdk25)
     testImplementation(bt4k.bluetape4k.junit5)
 
     implementation(bt4k.bluetape4k.coroutines)
