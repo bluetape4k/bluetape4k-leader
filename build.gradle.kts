@@ -94,6 +94,10 @@ val centralSnapshotsParallelism: Int = providers
 val projectGroup = providers.gradleProperty("projectGroup").get()
 val baseVersion = providers.gradleProperty("baseVersion").get()
 val snapshotVersion = providers.gradleProperty("snapshotVersion").get()
+val bluetape4kVirtualThreadJdk25Version = providers
+    .gradleProperty("bluetape4kVirtualThreadJdk25Version")
+    .orElse("1.13.0-SNAPSHOT")
+    .get()
 
 fun Project.isNonPublishedProject(): Boolean =
     path == ":examples" || path.startsWith(":examples:") || path == ":benchmark"
@@ -537,6 +541,29 @@ if (detektRequested) {
             dependsOn(detektProductionSourceGuard)
             dependsOn(moduleDetektTasks)
             finalizedBy(reportMerge)
+        }
+    }
+}
+
+subprojects {
+    configurations.configureEach {
+        exclude(
+            group = "io.github.bluetape4k",
+            module = "bluetape4k-virtualthread-jdk21",
+        )
+        resolutionStrategy.force(
+            "io.github.bluetape4k:bluetape4k-virtualthread-api:$bluetape4kVirtualThreadJdk25Version",
+            "io.github.bluetape4k:bluetape4k-virtualthread-jdk25:$bluetape4kVirtualThreadJdk25Version",
+        )
+        resolutionStrategy.eachDependency {
+            if (requested.group == "io.github.bluetape4k" &&
+                requested.name in setOf(
+                    "bluetape4k-virtualthread-api",
+                    "bluetape4k-virtualthread-jdk25",
+                )) {
+                useVersion(bluetape4kVirtualThreadJdk25Version)
+                because("JDK 25 runtime uses one matching virtual-thread API/provider snapshot")
+            }
         }
     }
 }

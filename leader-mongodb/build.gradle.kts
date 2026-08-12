@@ -8,7 +8,7 @@ dependencies {
     compileOnly(bt4k.mongodb.driver.kotlin.coroutine)
     compileOnly(libs.micrometer.core)
 
-    testImplementation(bt4k.bluetape4k.virtualthread.jdk21)
+    testImplementation(bt4k.bluetape4k.virtualthread.jdk25)
     testImplementation(bt4k.bluetape4k.junit5)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(bt4k.mongodb.driver.kotlin.coroutine)

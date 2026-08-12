@@ -142,7 +142,7 @@ dependencies {
     testImplementation("org.springframework:spring-webflux")
     testImplementation("jakarta.servlet:jakarta.servlet-api")
     testImplementation(bt4k.springmockk)
-    testImplementation(bt4k.bluetape4k.virtualthread.jdk21)
+    testImplementation(bt4k.bluetape4k.virtualthread.jdk25)
     testImplementation(project(":bluetape4k-leader-consul"))
     testImplementation(project(":bluetape4k-leader-dynamodb"))
     testImplementation(bt4k.bluetape4k.testcontainers)
