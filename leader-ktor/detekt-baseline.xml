@@ -2,11 +2,11 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>MagicNumber:LeaderElectionManagementRoute.kt$0x20</ID>
-    <ID>MagicNumber:LeaderElectionManagementRoute.kt$16</ID>
-    <ID>MagicNumber:LeaderElectionManagementRoute.kt$4</ID>
-    <ID>MatchingDeclarationName:LeaderElectionManagementRoute.kt$LeaderElectionManagementRegistry</ID>
-    <ID>MaxLineLength:LeaderElectionManagementRoute.kt$LeaderElectionManagementRegistry$*</ID>
-    <ID>TooGenericExceptionCaught:ApplicationExt.kt$e: Exception</ID>
+    <ID>MagicNumber:LeaderElectionManagementRoute.kt:0x20</ID>
+    <ID>MagicNumber:LeaderElectionManagementRoute.kt:16</ID>
+    <ID>MagicNumber:LeaderElectionManagementRoute.kt:4</ID>
+    <ID>MatchingDeclarationName:LeaderElectionManagementRoute.kt:LeaderElectionManagementRegistry</ID>
+    <ID>MaxLineLength:LeaderElectionManagementRoute.kt:LeaderElectionManagementRegistry$*</ID>
+    <ID>TooGenericExceptionCaught:ApplicationExt.kt:e: Exception</ID>
   </CurrentIssues>
 </SmellBaseline>

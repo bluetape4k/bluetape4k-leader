@@ -2,12 +2,12 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>MagicNumber:K8sLeaseLeaderElectionExample.kt$K8sLeaseLeaderElectionExample$30</ID>
-    <ID>MagicNumber:K8sLeaseLeaderElectionExample.kt$K8sLeaseLeaderElectionExample$63</ID>
-    <ID>MaxLineLength:K8sLeaseLeaderElectionExample.kt$K8sLeaseLeaderElectionExample$.</ID>
-    <ID>MaxLineLength:K8sLeaseLeaderElectionExample.kt$K8sLeaseLeaderElectionExample$LeaseAttempt(LeaseOutcome.CONFLICT, holderIdentity = lease(leaseName)?.spec?.holderIdentity, leaseName = leaseName)</ID>
-    <ID>ReturnCount:K8sLeaseLeaderElectionExample.kt$K8sLeaseLeaderElectionExample$fun release(leaseName: String, holderIdentity: String): Boolean</ID>
-    <ID>ReturnCount:K8sLeaseLeaderElectionExample.kt$K8sLeaseLeaderElectionExample$fun tryAcquire(leaseName: String, holderIdentity: String): LeaseAttempt</ID>
-    <ID>ReturnCount:K8sLeaseLeaderElectionExample.kt$K8sLeaseLeaderElectionExample$private fun canAcquire( lease: Lease, holderIdentity: String, now: ZonedDateTime, ): Boolean</ID>
+    <ID>MagicNumber:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$30</ID>
+    <ID>MagicNumber:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$63</ID>
+    <ID>MaxLineLength:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$.</ID>
+    <ID>MaxLineLength:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$LeaseAttempt(LeaseOutcome.CONFLICT, holderIdentity = lease(leaseName)?.spec?.holderIdentity, leaseName = leaseName)</ID>
+    <ID>ReturnCount:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$fun release: Boolean</ID>
+    <ID>ReturnCount:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$fun tryAcquire: LeaseAttempt</ID>
+    <ID>ReturnCount:K8sLeaseLeaderElectionExample.kt:K8sLeaseLeaderElectionExample$private fun canAcquire: Boolean</ID>
   </CurrentIssues>
 </SmellBaseline>

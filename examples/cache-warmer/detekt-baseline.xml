@@ -2,7 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>MagicNumber:CachePartitionWarmerDemo.kt$CachePartitionWarmerDemo$200</ID>
-    <ID>TooGenericExceptionCaught:CachePartitionWarmer.kt$CachePartitionWarmer$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:CachePartitionWarmer.kt:CachePartitionWarmer$e: Exception</ID>
   </CurrentIssues>
 </SmellBaseline>

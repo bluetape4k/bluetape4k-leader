@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - uses: gradle/actions/wrapper-validation@v6.2.0
+      - uses: gradle/actions/wrapper-validation@v6.3.0
 
   build:
     name: Build & Detekt
@@ -43,11 +43,11 @@ jobs:
     needs: validate-wrapper
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
       - name: Build (compile only)
@@ -83,11 +83,11 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
       - name: Warm smoke test SNAPSHOT dependencies
@@ -121,11 +121,11 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -167,11 +167,11 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -215,11 +215,11 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -261,11 +261,11 @@ jobs:
     needs: [build, snapshot-warmup]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -308,11 +308,11 @@ jobs:
     needs: [build, snapshot-warmup]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -357,11 +357,11 @@ jobs:
     needs: [build, snapshot-warmup]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -404,11 +404,11 @@ jobs:
     needs: [build, snapshot-warmup]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -451,11 +451,11 @@ jobs:
     needs: [build, snapshot-warmup]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -500,11 +500,11 @@ jobs:
     needs: [build, snapshot-warmup]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -547,11 +547,11 @@ jobs:
     needs: [build, snapshot-warmup]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -593,11 +593,11 @@ jobs:
     needs: [build, snapshot-warmup]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -641,11 +641,11 @@ jobs:
     needs: [build, snapshot-warmup]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -690,11 +690,11 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -738,11 +738,11 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -786,11 +786,11 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -832,11 +832,11 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -880,11 +880,11 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -928,11 +928,11 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -976,11 +976,11 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -1022,11 +1022,11 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -1068,11 +1068,11 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true
@@ -1116,11 +1116,11 @@ jobs:
     needs: [build, snapshot-warmup]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5.6.0
+      - uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - uses: gradle/actions/setup-gradle@v6.2.0
+      - uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: wrapper
           cache-read-only: true

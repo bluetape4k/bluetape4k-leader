@@ -1,6 +1,6 @@
-import io.gitlab.arturbosch.detekt.Detekt
-import io.gitlab.arturbosch.detekt.DetektCreateBaselineTask
-import io.gitlab.arturbosch.detekt.report.ReportMergeTask
+import dev.detekt.gradle.Detekt
+import dev.detekt.gradle.DetektCreateBaselineTask
+import dev.detekt.gradle.report.ReportMergeTask
 import nmcp.NmcpAggregationExtension
 import nmcp.NmcpExtension
 import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
@@ -23,7 +23,7 @@ plugins {
     alias(bt4k.plugins.kotlinx.atomicfu)
     alias(bt4k.plugins.kotlinx.benchmark) apply false
 
-    alias(bt4k.plugins.detekt.legacy) apply false
+    alias(bt4k.plugins.detekt.dev) apply false
     alias(bt4k.plugins.dependency.management)
 
     alias(bt4k.plugins.dokka)
@@ -65,7 +65,7 @@ val reusableTestcontainersExamplePaths = setOf(
 )
 
 if (detektRequested) {
-    apply(plugin = "io.gitlab.arturbosch.detekt")
+    apply(plugin = "dev.detekt")
 }
 if (koverRequested) {
     apply(plugin = "org.jetbrains.kotlinx.kover")
@@ -94,6 +94,10 @@ val centralSnapshotsParallelism: Int = providers
 val projectGroup = providers.gradleProperty("projectGroup").get()
 val baseVersion = providers.gradleProperty("baseVersion").get()
 val snapshotVersion = providers.gradleProperty("snapshotVersion").get()
+val bluetape4kVirtualThreadJdk25Version = providers
+    .gradleProperty("bluetape4kVirtualThreadJdk25Version")
+    .orElse("1.13.0-SNAPSHOT")
+    .get()
 
 fun Project.isNonPublishedProject(): Boolean =
     path == ":examples" || path.startsWith(":examples:") || path == ":benchmark"
@@ -157,7 +161,7 @@ subprojects {
         plugin<JavaLibraryPlugin>()
         plugin("org.jetbrains.kotlin.jvm")
         if (detektRequested) {
-            plugin("io.gitlab.arturbosch.detekt")
+            plugin("dev.detekt")
         }
         plugin("org.jetbrains.kotlinx.atomicfu")
         if (koverRequested) {
@@ -170,22 +174,6 @@ subprojects {
         plugin("io.spring.dependency-management")
         plugin("org.jetbrains.dokka")
         plugin("com.adarshr.test-logger")
-    }
-
-    if (detektRequested) {
-        configurations.named("detekt") {
-            val detektKotlinVersion = bt4kVersion("kotlin20")
-            resolutionStrategy.force(
-                "org.jetbrains.kotlin:kotlin-compiler-embeddable:$detektKotlinVersion",
-                "org.jetbrains.kotlin:kotlin-stdlib:$detektKotlinVersion",
-            )
-            resolutionStrategy.eachDependency {
-                if (requested.group == "org.jetbrains.kotlin") {
-                    useVersion(detektKotlinVersion)
-                    because("detekt 1.23.8 is compiled against Kotlin 2.0.21")
-                }
-            }
-        }
     }
 
     pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
@@ -212,8 +200,6 @@ subprojects {
                     "-Xjsr305=strict",
                     "-jvm-default=enable",
                     "-Xstring-concat=indy",
-                    "-Xcontext-parameters",
-                    "-Xannotation-default-target=param-property"
                 )
                 val experimentalAnnotations = listOf(
                     "kotlin.RequiresOptIn",
@@ -290,13 +276,15 @@ subprojects {
                 }
             }
             val productionDetektSources = project.files(productionDetektSourceRoots)
+            extensions.configure<dev.detekt.gradle.extensions.DetektExtension>("detekt") {
+                baseline.set(project.layout.projectDirectory.file("detekt-baseline.xml"))
+                ignoreFailures = false
+            }
             named<Detekt>("detekt") {
                 setSource(productionDetektSources)
                 include("**/*.kt", "**/*.kts", "**/*.java")
-                project.layout.projectDirectory.file("detekt-baseline.xml").asFile
-                    .takeIf(File::isFile)
-                    ?.let(baseline::set)
-                ignoreFailures = false
+                baseline.set(project.layout.projectDirectory.file("detekt-baseline.xml"))
+                reports.checkstyle.required.set(true)
             }
             named<DetektCreateBaselineTask>("detektBaseline") {
                 setSource(productionDetektSources)
@@ -498,7 +486,7 @@ if (detektRequested) {
     val reportMerge = tasks.register<ReportMergeTask>("reportMerge") {
         val file = layout.buildDirectory.asFile.get().resolve("reports/detekt/merged.xml")
         output.set(file)
-        input.from(moduleDetektTasks.map { it.xmlReportFile })
+        input.from(moduleDetektTasks.map { it.reports.checkstyle.outputLocation })
         dependsOn(moduleDetektTasks)
     }
 
@@ -537,6 +525,29 @@ if (detektRequested) {
             dependsOn(detektProductionSourceGuard)
             dependsOn(moduleDetektTasks)
             finalizedBy(reportMerge)
+        }
+    }
+}
+
+subprojects {
+    configurations.configureEach {
+        exclude(
+            group = "io.github.bluetape4k",
+            module = "bluetape4k-virtualthread-jdk21",
+        )
+        resolutionStrategy.force(
+            "io.github.bluetape4k:bluetape4k-virtualthread-api:$bluetape4kVirtualThreadJdk25Version",
+            "io.github.bluetape4k:bluetape4k-virtualthread-jdk25:$bluetape4kVirtualThreadJdk25Version",
+        )
+        resolutionStrategy.eachDependency {
+            if (requested.group == "io.github.bluetape4k" &&
+                requested.name in setOf(
+                    "bluetape4k-virtualthread-api",
+                    "bluetape4k-virtualthread-jdk25",
+                )) {
+                useVersion(bluetape4kVirtualThreadJdk25Version)
+                because("JDK 25 runtime uses one matching virtual-thread API/provider snapshot")
+            }
         }
     }
 }

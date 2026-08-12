@@ -43,7 +43,7 @@
     <text class="chip-detail" x="776.5" y="234" text-anchor="middle">coroutines</text>
     <rect class="chip" x="876" y="186" width="145" height="58" fill="#ffffff" stroke="#9fb9df"/>
     <text class="chip-label" x="948.5" y="213" text-anchor="middle">Virtual thread</text>
-    <text class="chip-detail" x="948.5" y="234" text-anchor="middle">JVM 21</text>
+    <text class="chip-detail" x="948.5" y="234" text-anchor="middle">JVM 25+</text>
     <rect class="chip" x="1048" y="186" width="145" height="58" fill="#ffffff" stroke="#9fb9df"/>
     <text class="chip-label" x="1120.5" y="213" text-anchor="middle">Group slots</text>
     <text class="chip-detail" x="1120.5" y="234" text-anchor="middle">N leaders</text>

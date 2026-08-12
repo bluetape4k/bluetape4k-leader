@@ -2,8 +2,7 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>LongMethod:WebhookPollerDemo.kt$WebhookPollerDemo$@JvmStatic fun main(args: Array&lt;String>)</ID>
-    <ID>MagicNumber:WebhookPollerDemo.kt$WebhookPollerDemo$30_000</ID>
-    <ID>TooGenericExceptionCaught:WebhookPoller.kt$WebhookPoller$e: Exception</ID>
+    <ID>LongMethod:WebhookPollerDemo.kt:WebhookPollerDemo$@JvmStatic fun main</ID>
+    <ID>TooGenericExceptionCaught:WebhookPoller.kt:WebhookPoller$e: Exception</ID>
   </CurrentIssues>
 </SmellBaseline>

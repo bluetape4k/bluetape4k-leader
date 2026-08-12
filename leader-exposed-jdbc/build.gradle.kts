@@ -24,7 +24,7 @@ dependencies {
 
     testImplementation(bt4k.bluetape4k.junit5)
     testImplementation(bt4k.bluetape4k.testcontainers)
-    testImplementation(bt4k.bluetape4k.virtualthread.jdk21)
+    testImplementation(bt4k.bluetape4k.virtualthread.jdk25)
     testImplementation(bt4k.bluetape4k.exposed.jdbc.tests)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(bt4k.h2.v2)

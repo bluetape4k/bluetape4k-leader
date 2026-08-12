@@ -2,7 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>MagicNumber:PrometheusDashboardApp.kt$LeaderScheduledJob$100</ID>
-    <ID>SpreadOperator:PrometheusDashboardApp.kt$PrometheusDashboardApp.Companion$(PrometheusDashboardApp::class.java, *args)</ID>
+    <ID>MagicNumber:PrometheusDashboardApp.kt:LeaderScheduledJob$100</ID>
   </CurrentIssues>
 </SmellBaseline>
