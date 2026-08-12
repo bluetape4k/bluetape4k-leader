@@ -2,7 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>MagicNumber:ZooKeeperSchedulerDemo.kt$ZooKeeperSchedulerDemo$10</ID>
-    <ID>MagicNumber:ZooKeeperSchedulerDemo.kt$ZooKeeperSchedulerDemo$8</ID>
+    <ID>MagicNumber:ZooKeeperSchedulerDemo.kt:ZooKeeperSchedulerDemo$10</ID>
   </CurrentIssues>
 </SmellBaseline>

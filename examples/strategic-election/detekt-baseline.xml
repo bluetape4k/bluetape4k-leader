@@ -2,17 +2,17 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>MagicNumber:StrategicElectionDemo.kt$ServiceReadinessScorer$0.40</ID>
-    <ID>MagicNumber:StrategicElectionDemo.kt$ServiceReadinessScorer$0.60</ID>
-    <ID>MagicNumber:StrategicElectionDemo.kt$ServiceReadinessScorer$100.0</ID>
-    <ID>MagicNumber:StrategicElectionDemo.kt$StrategicElectionDemo$0.15</ID>
-    <ID>MagicNumber:StrategicElectionDemo.kt$StrategicElectionDemo$0.35</ID>
-    <ID>MagicNumber:StrategicElectionDemo.kt$StrategicElectionDemo$0.50</ID>
-    <ID>MagicNumber:StrategicElectionDemo.kt$StrategicElectionDemo$120</ID>
-    <ID>MagicNumber:StrategicElectionDemo.kt$StrategicElectionDemo$15</ID>
-    <ID>MagicNumber:StrategicElectionDemo.kt$StrategicElectionDemo$240</ID>
-    <ID>MagicNumber:StrategicElectionDemo.kt$StrategicElectionDemo$60</ID>
-    <ID>MagicNumber:StrategicElectionDemo.kt$StrategicElectionDemo$80</ID>
-    <ID>MagicNumber:StrategicElectionDemo.kt$StrategicElectionDemo$90</ID>
+    <ID>MagicNumber:StrategicElectionDemo.kt:ServiceReadinessScorer$0.40</ID>
+    <ID>MagicNumber:StrategicElectionDemo.kt:ServiceReadinessScorer$0.60</ID>
+    <ID>MagicNumber:StrategicElectionDemo.kt:ServiceReadinessScorer$100.0</ID>
+    <ID>MagicNumber:StrategicElectionDemo.kt:StrategicElectionDemo$0.15</ID>
+    <ID>MagicNumber:StrategicElectionDemo.kt:StrategicElectionDemo$0.35</ID>
+    <ID>MagicNumber:StrategicElectionDemo.kt:StrategicElectionDemo$0.50</ID>
+    <ID>MagicNumber:StrategicElectionDemo.kt:StrategicElectionDemo$120</ID>
+    <ID>MagicNumber:StrategicElectionDemo.kt:StrategicElectionDemo$15</ID>
+    <ID>MagicNumber:StrategicElectionDemo.kt:StrategicElectionDemo$240</ID>
+    <ID>MagicNumber:StrategicElectionDemo.kt:StrategicElectionDemo$60</ID>
+    <ID>MagicNumber:StrategicElectionDemo.kt:StrategicElectionDemo$80</ID>
+    <ID>MagicNumber:StrategicElectionDemo.kt:StrategicElectionDemo$90</ID>
   </CurrentIssues>
 </SmellBaseline>

@@ -2,7 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>MagicNumber:RedissonWatchdogDemo.kt$RedissonWatchdogDemo$4</ID>
-    <ID>MagicNumber:RedissonWatchdogDemo.kt$RedissonWatchdogDemo$700</ID>
+    <ID>MagicNumber:RedissonWatchdogDemo.kt:RedissonWatchdogDemo$700</ID>
   </CurrentIssues>
 </SmellBaseline>

@@ -2,46 +2,39 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>LongMethod:LettuceLeaderElector.kt$LettuceLeaderElector$private fun &lt;T> runImpl(lockName: String, auditLeaderId: String?, action: () -> T): T?</ID>
-    <ID>LongMethod:LettuceSuspendLeaderElector.kt$LettuceSuspendLeaderElector$private suspend fun &lt;T> runImpl(lockName: String, auditLeaderId: String?, action: suspend () -> T): T?</ID>
-    <ID>LongParameterList:LettuceLeaderElector.kt$LettuceLeaderElector$( lock: LettuceLock, lockName: String, watchdog: AutoCloseable, acquiredAtNanos: Long, historyKey: LeaderHistoryKey?, error: Throwable?, value: T?, )</ID>
-    <ID>LongParameterList:LettuceLeaderGroupElector.kt$LettuceLeaderGroupElector$( slotGroup: LettuceSlotTokenGroup, lockName: String, token: String, startedAtNanos: Long, error: Throwable?, value: T?, )</ID>
-    <ID>MagicNumber:LettuceCandidateInfoCodec.kt$LettuceCandidateInfoCodec$3</ID>
-    <ID>MagicNumber:LettuceCandidateInfoCodec.kt$LettuceCandidateInfoCodec$6</ID>
-    <ID>MagicNumber:LettuceCandidateInfoCodec.kt$LettuceCandidateInfoCodec$7</ID>
-    <ID>MagicNumber:LettuceLock.kt$LettuceLock$22</ID>
-    <ID>MagicNumber:RedisScript.kt$RedisScript.Companion$0xff</ID>
-    <ID>MagicNumber:RedisScript.kt$RedisScript.Companion$16</ID>
-    <ID>MagicNumber:RedisScript.kt$RedisScript.Companion$4</ID>
-    <ID>MaxLineLength:LettuceLeaderGroupElector.kt$LettuceLeaderGroupElector$return</ID>
-    <ID>ReturnCount:LettuceStrategicLeaderElector.kt$LettuceStrategicLeaderElector$override fun &lt;T> runIfLeader( lockName: String, strategy: ElectionStrategy, options: LeaderElectionOptions, action: () -> T, ): T?</ID>
-    <ID>ReturnCount:LettuceStrategicSuspendLeaderElector.kt$LettuceStrategicSuspendLeaderElector$override suspend fun &lt;T> runIfLeader( lockName: String, strategy: ElectionStrategy, options: LeaderElectionOptions, action: suspend () -> T, ): T?</ID>
-    <ID>SpreadOperator:LettuceCandidateRegistry.kt$LettuceCandidateRegistry$(*keys.toTypedArray())</ID>
-    <ID>SpreadOperator:LettuceCandidateRegistry.kt$LettuceCandidateRegistry$(indexKey(lockName), *staleNodeIds.toTypedArray())</ID>
-    <ID>SpreadOperator:LettuceSuspendCandidateRegistry.kt$LettuceSuspendCandidateRegistry$(*keys.toTypedArray())</ID>
-    <ID>SpreadOperator:LettuceSuspendCandidateRegistry.kt$LettuceSuspendCandidateRegistry$(indexKey(lockName), *staleNodeIds.toTypedArray())</ID>
-    <ID>ThrowingExceptionFromFinally:LettuceSuspendLeaderElector.kt$LettuceSuspendLeaderElector$throw e</ID>
-    <ID>ThrowingExceptionFromFinally:LettuceSuspendLeaderGroupElector.kt$LettuceSuspendLeaderGroupElector$throw e</ID>
-    <ID>ThrowsCount:LettuceSuspendLeaderElector.kt$LettuceSuspendLeaderElector$private suspend fun &lt;T> runImpl(lockName: String, auditLeaderId: String?, action: suspend () -> T): T?</ID>
-    <ID>TooGenericExceptionCaught:LettuceLeaderElector.kt$LettuceLeaderElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:LettuceLeaderElector.kt$LettuceLeaderElector$e: Throwable</ID>
-    <ID>TooGenericExceptionCaught:LettuceLeaderGroupElector.kt$LettuceLeaderGroupElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:LettuceLeaderGroupElector.kt$LettuceLeaderGroupElector$e: Throwable</ID>
-    <ID>TooGenericExceptionCaught:LettuceLockExtendDelegate.kt$LettuceLockExtendDelegate$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:LettuceSlotExtendDelegate.kt$LettuceSlotExtendDelegate$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:LettuceStrategicLeaderElector.kt$LettuceStrategicLeaderElector$e: Throwable</ID>
-    <ID>TooGenericExceptionCaught:LettuceStrategicSuspendLeaderElector.kt$LettuceStrategicSuspendLeaderElector$e: Throwable</ID>
-    <ID>TooGenericExceptionCaught:LettuceStrategicSuspendLeaderElector.kt$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:LettuceSuspendLeaderElector.kt$LettuceSuspendLeaderElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:LettuceSuspendLeaderGroupElector.kt$LettuceSuspendLeaderGroupElector$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:LettuceSuspendLeaderGroupElector.kt$LettuceSuspendLeaderGroupElector$e: Throwable</ID>
-    <ID>TooGenericExceptionCaught:LettuceSuspendLockExtendDelegate.kt$LettuceSuspendLockExtendDelegate$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:LettuceSuspendSlotExtendDelegate.kt$LettuceSuspendSlotExtendDelegate$e: Exception</ID>
-    <ID>TooManyFunctions:LettuceLeaderElector.kt$LettuceLeaderElector : LeaderElector</ID>
-    <ID>TooManyFunctions:LettuceLeaderGroupElector.kt$LettuceLeaderGroupElector : LeaderGroupElector</ID>
-    <ID>TooManyFunctions:LettuceLock.kt$LettuceLock</ID>
-    <ID>TooManyFunctions:LettuceSlotTokenGroup.kt$LettuceSlotTokenGroup</ID>
-    <ID>UseCheckOrError:LettuceLock.kt$LettuceLock$throw IllegalStateException("현재 인스턴스가 락을 보유하지 않습니다: lockKey=$lockKey")</ID>
-    <ID>UseCheckOrError:LettuceSuspendLock.kt$LettuceSuspendLock$throw IllegalStateException("현재 인스턴스가 락을 보유하지 않습니다: lockKey=$lockKey")</ID>
+    <ID>LongMethod:LettuceLeaderElector.kt:LettuceLeaderElector$private fun &lt;T> runImpl: T?</ID>
+    <ID>LongMethod:LettuceSuspendLeaderElector.kt:LettuceSuspendLeaderElector$private suspend fun &lt;T> runImpl: T?</ID>
+    <ID>MagicNumber:LettuceCandidateInfoCodec.kt:LettuceCandidateInfoCodec$3</ID>
+    <ID>MagicNumber:LettuceCandidateInfoCodec.kt:LettuceCandidateInfoCodec$6</ID>
+    <ID>MagicNumber:LettuceCandidateInfoCodec.kt:LettuceCandidateInfoCodec$7</ID>
+    <ID>MagicNumber:RedisScript.kt:RedisScript.Companion$16</ID>
+    <ID>MagicNumber:RedisScript.kt:RedisScript.Companion$4</ID>
+    <ID>MaxLineLength:LettuceLeaderGroupElector.kt:LettuceLeaderGroupElector$return</ID>
+    <ID>ReturnCount:LettuceStrategicLeaderElector.kt:LettuceStrategicLeaderElector$override fun &lt;T> runIfLeader: T?</ID>
+    <ID>ReturnCount:LettuceStrategicSuspendLeaderElector.kt:LettuceStrategicSuspendLeaderElector$override suspend fun &lt;T> runIfLeader: T?</ID>
+    <ID>ThrowingExceptionFromFinally:LettuceSuspendLeaderElector.kt:LettuceSuspendLeaderElector$throw e</ID>
+    <ID>ThrowingExceptionFromFinally:LettuceSuspendLeaderGroupElector.kt:LettuceSuspendLeaderGroupElector$throw e</ID>
+    <ID>ThrowsCount:LettuceLeaderElector.kt:LettuceLeaderElector$override fun &lt;T> runIfLeaderResult: LeaderRunResult&lt;T></ID>
+    <ID>ThrowsCount:LettuceLeaderGroupElector.kt:LettuceLeaderGroupElector$override fun &lt;T> runIfLeaderResult: LeaderRunResult&lt;T></ID>
+    <ID>ThrowsCount:LettuceStrategicSuspendLeaderElector.kt:LettuceStrategicSuspendLeaderElector$override suspend fun &lt;T> runIfLeader: T?</ID>
+    <ID>ThrowsCount:LettuceSuspendLeaderElector.kt:LettuceSuspendLeaderElector$private suspend fun &lt;T> runImpl: T?</ID>
+    <ID>TooGenericExceptionCaught:LettuceLeaderElector.kt:LettuceLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:LettuceLeaderElector.kt:LettuceLeaderElector$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:LettuceLeaderGroupElector.kt:LettuceLeaderGroupElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:LettuceLeaderGroupElector.kt:LettuceLeaderGroupElector$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:LettuceLockExtendDelegate.kt:LettuceLockExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:LettuceSlotExtendDelegate.kt:LettuceSlotExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:LettuceStrategicLeaderElector.kt:LettuceStrategicLeaderElector$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:LettuceStrategicSuspendLeaderElector.kt:LettuceStrategicSuspendLeaderElector$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:LettuceStrategicSuspendLeaderElector.kt:e: Exception</ID>
+    <ID>TooGenericExceptionCaught:LettuceSuspendLeaderElector.kt:LettuceSuspendLeaderElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:LettuceSuspendLeaderGroupElector.kt:LettuceSuspendLeaderGroupElector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:LettuceSuspendLeaderGroupElector.kt:LettuceSuspendLeaderGroupElector$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:LettuceSuspendLockExtendDelegate.kt:LettuceSuspendLockExtendDelegate$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:LettuceSuspendSlotExtendDelegate.kt:LettuceSuspendSlotExtendDelegate$e: Exception</ID>
+    <ID>TooManyFunctions:LettuceLeaderElector.kt:LettuceLeaderElector : LeaderElector</ID>
+    <ID>TooManyFunctions:LettuceLeaderGroupElector.kt:LettuceLeaderGroupElector : LeaderGroupElector</ID>
+    <ID>TooManyFunctions:LettuceLock.kt:LettuceLock</ID>
+    <ID>TooManyFunctions:LettuceSlotTokenGroup.kt:LettuceSlotTokenGroup</ID>
   </CurrentIssues>
 </SmellBaseline>

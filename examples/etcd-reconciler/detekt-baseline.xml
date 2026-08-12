@@ -2,6 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>MagicNumber:EtcdReconcilerDemo.kt$EtcdReconcilerDemo$10</ID>
+    <ID>MagicNumber:EtcdReconcilerDemo.kt:EtcdReconcilerDemo$10</ID>
   </CurrentIssues>
 </SmellBaseline>

@@ -2,6 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>TooGenericExceptionCaught:TenantAggregator.kt$TenantAggregator$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:TenantAggregator.kt:TenantAggregator$e: Exception</ID>
   </CurrentIssues>
 </SmellBaseline>
