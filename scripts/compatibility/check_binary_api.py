@@ -2,9 +2,10 @@
 """Compare published JVM artifacts with the previous release.
 
 The release gate intentionally reports every japicmp incompatibility, then
-filters only compiler-generated Kotlin/AspectJ classes, bridge methods, and
-package-private implementation namespaces.  A new public incompatibility
-must therefore be classified in the migration notes or the command fails.
+filters only compiler-generated Kotlin/AspectJ classes, bridge methods, JVM
+class-file format changes, and explicitly retired Kotlin-internal facades. A
+new public incompatibility must therefore be classified in the migration
+notes or the command fails.
 """
 
 from __future__ import annotations
@@ -40,6 +41,13 @@ ARTIFACTS = (
 
 REPORT_START = re.compile(r"^(?:---!|\*\*!|\*\*\*!)")
 CLASS_NAME = re.compile(r"(?:PUBLIC|PROTECTED|PACKAGE|PRIVATE).*?\s([\w.$]+)\s(?:\(|\(|$)")
+CLASS_FILE_FORMAT_MARKER = "CLASS FILE FORMAT VERSION:"
+LEGACY_INTERNAL_JVM_FACADES = frozenset(
+    {
+        "io.bluetape4k.leader.exposed.jdbc.lock.MonotonicDeadline",
+        "io.bluetape4k.leader.exposed.jdbc.lock.MonotonicDeadline$Companion",
+    },
+)
 
 
 def env_path(name: str, default: Path) -> Path:
@@ -87,10 +95,17 @@ def block_class_name(block: str) -> str:
 
 def is_intentionally_ignored(block: str) -> str | None:
     name = block_class_name(block)
+    header = block.splitlines()[0]
+    has_class_file_format_change = any(
+        CLASS_FILE_FORMAT_MARKER in line for line in block.splitlines()
+    )
     incompatible_members = [
         line.lstrip() for line in block.splitlines()[1:]
         if line.lstrip().startswith(("---!", "***!"))
+        and CLASS_FILE_FORMAT_MARKER not in line
     ]
+    if "REMOVED CLASS:" in header and name in LEGACY_INTERNAL_JVM_FACADES:
+        return "legacy Kotlin-internal JVM facade"
     if incompatible_members and all("BRIDGE" in line for line in incompatible_members):
         return "JVM bridge method"
     if incompatible_members and all(
@@ -98,6 +113,8 @@ def is_intentionally_ignored(block: str) -> str | None:
         for line in incompatible_members
     ):
         return "compiler-generated synthetic accessor/bridge method"
+    if not incompatible_members and has_class_file_format_change:
+        return "JVM class-file format"
     if ".internal." in name:
         return "Kotlin-internal implementation package"
     if "$AjcClosure" in name or "$$inlined$" in name or "$executeActionAsync$" in name:

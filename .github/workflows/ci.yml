@@ -290,6 +290,7 @@ jobs:
           python3 scripts/ci/validate_ci_fanout.py --self-test
           python3 scripts/ci/validate_leader_contract_matrix.py --static
           python3 scripts/ci/validate_leader_contract_matrix.py --self-test
+          python3 scripts/compatibility/check_binary_api_test.py
 
   # ── 3. 전체 빌드 (테스트 제외) ───────────────────────────────────────────
   catalog-governance:
