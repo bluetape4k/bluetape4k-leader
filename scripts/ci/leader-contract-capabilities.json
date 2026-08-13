@@ -1,0 +1,448 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "backend": "etcd",
+      "module": "bluetape4k-leader-etcd",
+      "contract": "leader-id-sync-single",
+      "status": "na",
+      "reason": "EtcdLeaderElector는 blocking slot overload를 override하지 않아 leader-id를 전달하는 공통 fixture를 적용할 수 없다."
+    },
+    {
+      "backend": "etcd",
+      "module": "bluetape4k-leader-etcd",
+      "contract": "leader-id-sync-group",
+      "status": "supported",
+      "test": "leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdLeaderGroupElectorLeaderIdContractTest.kt",
+      "base": "AbstractLeaderGroupElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "etcd",
+      "module": "bluetape4k-leader-etcd",
+      "contract": "leader-id-async-single",
+      "status": "na",
+      "reason": "EtcdLeaderElector는 async lockName overload만 제공하고 slot async overload를 override하지 않는다."
+    },
+    {
+      "backend": "etcd",
+      "module": "bluetape4k-leader-etcd",
+      "contract": "leader-id-async-group",
+      "status": "na",
+      "reason": "EtcdLeaderGroupElector는 async lockName overload만 제공하고 slot async overload를 override하지 않는다."
+    },
+    {
+      "backend": "etcd",
+      "module": "bluetape4k-leader-etcd",
+      "contract": "leader-id-suspend-single",
+      "status": "na",
+      "reason": "EtcdSuspendLeaderElector는 suspend slot overload를 override하지 않아 leader-id를 전달하는 공통 fixture를 적용할 수 없다."
+    },
+    {
+      "backend": "etcd",
+      "module": "bluetape4k-leader-etcd",
+      "contract": "leader-id-suspend-group",
+      "status": "supported",
+      "test": "leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdSuspendLeaderGroupElectorLeaderIdContractTest.kt",
+      "base": "AbstractSuspendLeaderGroupElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "etcd",
+      "module": "bluetape4k-leader-etcd",
+      "contract": "lock-extender-sync-single",
+      "status": "supported",
+      "test": "leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdLockExtenderContractTest.kt",
+      "base": "AbstractSyncLockExtenderContractTest"
+    },
+    {
+      "backend": "etcd",
+      "module": "bluetape4k-leader-etcd",
+      "contract": "lock-extender-sync-group",
+      "status": "supported",
+      "test": "leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdGroupLockExtenderContractTest.kt",
+      "base": "AbstractGroupLockExtenderContractTest"
+    },
+    {
+      "backend": "etcd",
+      "module": "bluetape4k-leader-etcd",
+      "contract": "lock-extender-suspend-single",
+      "status": "supported",
+      "test": "leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdSuspendLockExtenderContractTest.kt",
+      "base": "AbstractSuspendLockExtenderContractTest"
+    },
+    {
+      "backend": "etcd",
+      "module": "bluetape4k-leader-etcd",
+      "contract": "lock-extender-suspend-group",
+      "status": "supported",
+      "test": "leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdSuspendGroupLockExtenderContractTest.kt",
+      "base": "AbstractSuspendGroupLockExtenderContractTest"
+    },
+    {
+      "backend": "etcd",
+      "module": "bluetape4k-leader-etcd",
+      "contract": "virtual-thread-wrapper",
+      "status": "supported",
+      "test": "leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdVirtualThreadLeaderElectorContractTest.kt",
+      "direct": true
+    },
+    {
+      "backend": "etcd",
+      "module": "bluetape4k-leader-etcd",
+      "contract": "executor-overload-group",
+      "status": "supported",
+      "test": "leader-etcd/src/test/kotlin/io/bluetape4k/leader/etcd/contract/EtcdVirtualThreadLeaderElectorContractTest.kt",
+      "direct": true
+    },
+    {
+      "backend": "etcd",
+      "module": "bluetape4k-leader-etcd",
+      "contract": "virtual-thread-slot",
+      "status": "na",
+      "reason": "EtcdVirtualThreadLeaderElector는 lockName wrapper만 제공하고 slot overload를 정의하지 않는다."
+    },
+    {
+      "backend": "etcd",
+      "module": "bluetape4k-leader-etcd",
+      "contract": "lock-extender-async",
+      "status": "na",
+      "reason": "leader-core에는 async/virtual-thread LockExtender 공통 fixture가 없고 lexical lock context 계약을 정의하지 않는다."
+    },
+    {
+      "backend": "etcd",
+      "module": "bluetape4k-leader-etcd",
+      "contract": "lock-extender-virtual",
+      "status": "na",
+      "reason": "leader-core에는 async/virtual-thread LockExtender 공통 fixture가 없고 lexical lock context 계약을 정의하지 않는다."
+    },
+    {
+      "backend": "consul",
+      "module": "bluetape4k-leader-consul",
+      "contract": "leader-id-sync-single",
+      "status": "supported",
+      "test": "leader-consul/src/test/kotlin/io/bluetape4k/leader/consul/contract/ConsulLeaderElectorLeaderIdContractTest.kt",
+      "base": "AbstractLeaderElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "consul",
+      "module": "bluetape4k-leader-consul",
+      "contract": "leader-id-sync-group",
+      "status": "supported",
+      "test": "leader-consul/src/test/kotlin/io/bluetape4k/leader/consul/contract/ConsulLeaderGroupElectorLeaderIdContractTest.kt",
+      "base": "AbstractLeaderGroupElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "consul",
+      "module": "bluetape4k-leader-consul",
+      "contract": "leader-id-async-single",
+      "status": "supported",
+      "test": "leader-consul/src/test/kotlin/io/bluetape4k/leader/consul/contract/ConsulAsyncLeaderElectorLeaderIdContractTest.kt",
+      "base": "AbstractAsyncLeaderElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "consul",
+      "module": "bluetape4k-leader-consul",
+      "contract": "leader-id-async-group",
+      "status": "supported",
+      "test": "leader-consul/src/test/kotlin/io/bluetape4k/leader/consul/contract/ConsulAsyncLeaderGroupElectorLeaderIdContractTest.kt",
+      "base": "AbstractAsyncLeaderGroupElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "consul",
+      "module": "bluetape4k-leader-consul",
+      "contract": "leader-id-suspend-single",
+      "status": "supported",
+      "test": "leader-consul/src/test/kotlin/io/bluetape4k/leader/consul/contract/ConsulSuspendLeaderElectorLeaderIdContractTest.kt",
+      "base": "AbstractSuspendLeaderElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "consul",
+      "module": "bluetape4k-leader-consul",
+      "contract": "leader-id-suspend-group",
+      "status": "supported",
+      "test": "leader-consul/src/test/kotlin/io/bluetape4k/leader/consul/contract/ConsulSuspendLeaderGroupElectorLeaderIdContractTest.kt",
+      "base": "AbstractSuspendLeaderGroupElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "consul",
+      "module": "bluetape4k-leader-consul",
+      "contract": "lock-extender-sync-single",
+      "status": "supported",
+      "test": "leader-consul/src/test/kotlin/io/bluetape4k/leader/consul/contract/ConsulLockExtenderContractTest.kt",
+      "base": "AbstractSyncLockExtenderContractTest"
+    },
+    {
+      "backend": "consul",
+      "module": "bluetape4k-leader-consul",
+      "contract": "lock-extender-sync-group",
+      "status": "supported",
+      "test": "leader-consul/src/test/kotlin/io/bluetape4k/leader/consul/contract/ConsulGroupLockExtenderContractTest.kt",
+      "base": "AbstractGroupLockExtenderContractTest"
+    },
+    {
+      "backend": "consul",
+      "module": "bluetape4k-leader-consul",
+      "contract": "lock-extender-suspend-single",
+      "status": "supported",
+      "test": "leader-consul/src/test/kotlin/io/bluetape4k/leader/consul/contract/ConsulSuspendLockExtenderContractTest.kt",
+      "base": "AbstractSuspendLockExtenderContractTest"
+    },
+    {
+      "backend": "consul",
+      "module": "bluetape4k-leader-consul",
+      "contract": "lock-extender-suspend-group",
+      "status": "supported",
+      "test": "leader-consul/src/test/kotlin/io/bluetape4k/leader/consul/contract/ConsulSuspendGroupLockExtenderContractTest.kt",
+      "base": "AbstractSuspendGroupLockExtenderContractTest"
+    },
+    {
+      "backend": "consul",
+      "module": "bluetape4k-leader-consul",
+      "contract": "executor-overload-single",
+      "status": "supported",
+      "test": "leader-consul/src/test/kotlin/io/bluetape4k/leader/consul/contract/ConsulExecutorOverloadContractTest.kt",
+      "direct": true
+    },
+    {
+      "backend": "consul",
+      "module": "bluetape4k-leader-consul",
+      "contract": "executor-overload-group",
+      "status": "supported",
+      "test": "leader-consul/src/test/kotlin/io/bluetape4k/leader/consul/contract/ConsulExecutorOverloadContractTest.kt",
+      "direct": true
+    },
+    {
+      "backend": "consul",
+      "module": "bluetape4k-leader-consul",
+      "contract": "lock-extender-async",
+      "status": "na",
+      "reason": "leader-core에는 async/virtual-thread LockExtender 공통 fixture가 없고 lexical lock context 계약을 정의하지 않는다."
+    },
+    {
+      "backend": "consul",
+      "module": "bluetape4k-leader-consul",
+      "contract": "lock-extender-virtual",
+      "status": "na",
+      "reason": "leader-core에는 async/virtual-thread LockExtender 공통 fixture가 없고 lexical lock context 계약을 정의하지 않는다."
+    },
+    {
+      "backend": "dynamodb",
+      "module": "bluetape4k-leader-dynamodb",
+      "contract": "leader-id-sync-single",
+      "status": "supported",
+      "test": "leader-dynamodb/src/test/kotlin/io/bluetape4k/leader/dynamodb/contract/DynamoDbLeaderElectorLeaderIdContractTest.kt",
+      "base": "AbstractLeaderElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "dynamodb",
+      "module": "bluetape4k-leader-dynamodb",
+      "contract": "leader-id-sync-group",
+      "status": "supported",
+      "test": "leader-dynamodb/src/test/kotlin/io/bluetape4k/leader/dynamodb/contract/DynamoDbLeaderGroupElectorLeaderIdContractTest.kt",
+      "base": "AbstractLeaderGroupElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "dynamodb",
+      "module": "bluetape4k-leader-dynamodb",
+      "contract": "leader-id-async-single",
+      "status": "supported",
+      "test": "leader-dynamodb/src/test/kotlin/io/bluetape4k/leader/dynamodb/contract/DynamoDbAsyncLeaderElectorLeaderIdContractTest.kt",
+      "base": "AbstractAsyncLeaderElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "dynamodb",
+      "module": "bluetape4k-leader-dynamodb",
+      "contract": "leader-id-async-group",
+      "status": "supported",
+      "test": "leader-dynamodb/src/test/kotlin/io/bluetape4k/leader/dynamodb/contract/DynamoDbAsyncLeaderGroupElectorLeaderIdContractTest.kt",
+      "base": "AbstractAsyncLeaderGroupElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "dynamodb",
+      "module": "bluetape4k-leader-dynamodb",
+      "contract": "leader-id-suspend-single",
+      "status": "supported",
+      "test": "leader-dynamodb/src/test/kotlin/io/bluetape4k/leader/dynamodb/contract/DynamoDbSuspendLeaderElectorLeaderIdContractTest.kt",
+      "base": "AbstractSuspendLeaderElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "dynamodb",
+      "module": "bluetape4k-leader-dynamodb",
+      "contract": "leader-id-suspend-group",
+      "status": "supported",
+      "test": "leader-dynamodb/src/test/kotlin/io/bluetape4k/leader/dynamodb/contract/DynamoDbSuspendLeaderGroupElectorLeaderIdContractTest.kt",
+      "base": "AbstractSuspendLeaderGroupElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "dynamodb",
+      "module": "bluetape4k-leader-dynamodb",
+      "contract": "lock-extender-sync-single",
+      "status": "supported",
+      "test": "leader-dynamodb/src/test/kotlin/io/bluetape4k/leader/dynamodb/contract/DynamoDbLockExtenderContractTest.kt",
+      "base": "AbstractSyncLockExtenderContractTest"
+    },
+    {
+      "backend": "dynamodb",
+      "module": "bluetape4k-leader-dynamodb",
+      "contract": "lock-extender-sync-group",
+      "status": "supported",
+      "test": "leader-dynamodb/src/test/kotlin/io/bluetape4k/leader/dynamodb/contract/DynamoDbGroupLockExtenderContractTest.kt",
+      "base": "AbstractGroupLockExtenderContractTest"
+    },
+    {
+      "backend": "dynamodb",
+      "module": "bluetape4k-leader-dynamodb",
+      "contract": "lock-extender-suspend-single",
+      "status": "supported",
+      "test": "leader-dynamodb/src/test/kotlin/io/bluetape4k/leader/dynamodb/contract/DynamoDbSuspendLockExtenderContractTest.kt",
+      "base": "AbstractSuspendLockExtenderContractTest"
+    },
+    {
+      "backend": "dynamodb",
+      "module": "bluetape4k-leader-dynamodb",
+      "contract": "lock-extender-suspend-group",
+      "status": "supported",
+      "test": "leader-dynamodb/src/test/kotlin/io/bluetape4k/leader/dynamodb/contract/DynamoDbSuspendGroupLockExtenderContractTest.kt",
+      "base": "AbstractSuspendGroupLockExtenderContractTest"
+    },
+    {
+      "backend": "dynamodb",
+      "module": "bluetape4k-leader-dynamodb",
+      "contract": "virtual-thread-single",
+      "status": "supported",
+      "test": "leader-dynamodb/src/test/kotlin/io/bluetape4k/leader/dynamodb/contract/DynamoDbVirtualThreadContractTest.kt",
+      "direct": true
+    },
+    {
+      "backend": "dynamodb",
+      "module": "bluetape4k-leader-dynamodb",
+      "contract": "virtual-thread-group",
+      "status": "supported",
+      "test": "leader-dynamodb/src/test/kotlin/io/bluetape4k/leader/dynamodb/contract/DynamoDbVirtualThreadContractTest.kt",
+      "direct": true
+    },
+    {
+      "backend": "dynamodb",
+      "module": "bluetape4k-leader-dynamodb",
+      "contract": "lock-extender-async",
+      "status": "na",
+      "reason": "leader-core에는 async/virtual-thread LockExtender 공통 fixture가 없고 lexical lock context 계약을 정의하지 않는다."
+    },
+    {
+      "backend": "dynamodb",
+      "module": "bluetape4k-leader-dynamodb",
+      "contract": "lock-extender-virtual",
+      "status": "na",
+      "reason": "leader-core에는 async/virtual-thread LockExtender 공통 fixture가 없고 lexical lock context 계약을 정의하지 않는다."
+    },
+    {
+      "backend": "k8s",
+      "module": "bluetape4k-leader-k8s",
+      "contract": "leader-id-sync-single",
+      "status": "supported",
+      "test": "leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseLeaderElectorLeaderIdContractTest.kt",
+      "base": "AbstractLeaderElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "k8s",
+      "module": "bluetape4k-leader-k8s",
+      "contract": "leader-id-sync-group",
+      "status": "supported",
+      "test": "leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseLeaderGroupElectorLeaderIdContractTest.kt",
+      "base": "AbstractLeaderGroupElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "k8s",
+      "module": "bluetape4k-leader-k8s",
+      "contract": "leader-id-async-single",
+      "status": "supported",
+      "test": "leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseAsyncLeaderElectorLeaderIdContractTest.kt",
+      "base": "AbstractAsyncLeaderElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "k8s",
+      "module": "bluetape4k-leader-k8s",
+      "contract": "leader-id-async-group",
+      "status": "supported",
+      "test": "leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseAsyncLeaderGroupElectorLeaderIdContractTest.kt",
+      "base": "AbstractAsyncLeaderGroupElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "k8s",
+      "module": "bluetape4k-leader-k8s",
+      "contract": "leader-id-suspend-single",
+      "status": "supported",
+      "test": "leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseSuspendLeaderElectorLeaderIdContractTest.kt",
+      "base": "AbstractSuspendLeaderElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "k8s",
+      "module": "bluetape4k-leader-k8s",
+      "contract": "leader-id-suspend-group",
+      "status": "supported",
+      "test": "leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseSuspendLeaderGroupElectorLeaderIdContractTest.kt",
+      "base": "AbstractSuspendLeaderGroupElectorLeaderIdContractTest"
+    },
+    {
+      "backend": "k8s",
+      "module": "bluetape4k-leader-k8s",
+      "contract": "lock-extender-sync-single",
+      "status": "supported",
+      "test": "leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseLockExtenderContractTest.kt",
+      "base": "AbstractSyncLockExtenderContractTest"
+    },
+    {
+      "backend": "k8s",
+      "module": "bluetape4k-leader-k8s",
+      "contract": "lock-extender-sync-group",
+      "status": "supported",
+      "test": "leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseGroupLockExtenderContractTest.kt",
+      "base": "AbstractGroupLockExtenderContractTest"
+    },
+    {
+      "backend": "k8s",
+      "module": "bluetape4k-leader-k8s",
+      "contract": "lock-extender-suspend-single",
+      "status": "supported",
+      "test": "leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseSuspendLockExtenderContractTest.kt",
+      "base": "AbstractSuspendLockExtenderContractTest"
+    },
+    {
+      "backend": "k8s",
+      "module": "bluetape4k-leader-k8s",
+      "contract": "lock-extender-suspend-group",
+      "status": "supported",
+      "test": "leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseSuspendGroupLockExtenderContractTest.kt",
+      "base": "AbstractSuspendGroupLockExtenderContractTest"
+    },
+    {
+      "backend": "k8s",
+      "module": "bluetape4k-leader-k8s",
+      "contract": "executor-overload-single",
+      "status": "supported",
+      "test": "leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseExecutorOverloadContractTest.kt",
+      "direct": true
+    },
+    {
+      "backend": "k8s",
+      "module": "bluetape4k-leader-k8s",
+      "contract": "executor-overload-group",
+      "status": "supported",
+      "test": "leader-k8s/src/test/kotlin/io/bluetape4k/leader/k8s/contract/KubernetesLeaseExecutorOverloadContractTest.kt",
+      "direct": true
+    },
+    {
+      "backend": "k8s",
+      "module": "bluetape4k-leader-k8s",
+      "contract": "lock-extender-async",
+      "status": "na",
+      "reason": "leader-core에는 async/virtual-thread LockExtender 공통 fixture가 없고 lexical lock context 계약을 정의하지 않는다."
+    },
+    {
+      "backend": "k8s",
+      "module": "bluetape4k-leader-k8s",
+      "contract": "lock-extender-virtual",
+      "status": "na",
+      "reason": "leader-core에는 async/virtual-thread LockExtender 공통 fixture가 없고 lexical lock context 계약을 정의하지 않는다."
+    }
+  ]
+}

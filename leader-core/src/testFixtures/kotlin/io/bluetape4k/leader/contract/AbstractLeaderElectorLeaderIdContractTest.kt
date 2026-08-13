@@ -39,7 +39,7 @@ abstract class AbstractLeaderElectorLeaderIdContractTest {
     }
 
     private fun slot(leaderId: String = "node-a") =
-        LeaderSlot("lock-${Base58.randomString(8)}", leaderId)
+        LeaderSlot("lock-${Base58.randomString(8).lowercase()}", leaderId)
 
     @Test
     fun `runIfLeaderResult(slot) - Elected 반환 및 leaderId 전파`() {
@@ -75,7 +75,7 @@ abstract class AbstractLeaderElectorLeaderIdContractTest {
     @Test
     fun `runIfLeaderResult - 서로 다른 lockName 은 독립적으로 leaderId 추적`() {
         val s1 = slot("leader-1")
-        val s2 = LeaderSlot("lock-${Base58.randomString(8)}", "leader-2")
+        val s2 = LeaderSlot("lock-${Base58.randomString(8).lowercase()}", "leader-2")
 
         val r1 = defaultElector.runIfLeaderResult(s1) { 1 }
         val r2 = defaultElector.runIfLeaderResult(s2) { 2 }

@@ -47,7 +47,7 @@ abstract class AbstractGroupLockExtenderContractTest {
     /** Each backend provides its own [LeaderGroupElector] instance. */
     protected abstract val elector: LeaderGroupElector
 
-    private fun randomLockName(): String = "ctr-g-${Base58.randomString(8)}"
+    private fun randomLockName(): String = "ctr-g-${Base58.randomString(8).lowercase()}"
 
     // ── assertLocked() ────────────────────────────────────────────────────
 

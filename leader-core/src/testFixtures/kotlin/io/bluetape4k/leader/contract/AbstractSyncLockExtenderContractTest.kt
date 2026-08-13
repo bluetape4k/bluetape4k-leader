@@ -54,7 +54,7 @@ abstract class AbstractSyncLockExtenderContractTest {
     /** Each backend provides its own [LeaderElector] instance. */
     protected abstract val elector: LeaderElector
 
-    private fun randomLockName(): String = "ctr-s-${Base58.randomString(8)}"
+    private fun randomLockName(): String = "ctr-s-${Base58.randomString(8).lowercase()}"
 
     // ── assertLocked() ────────────────────────────────────────────────────
 
