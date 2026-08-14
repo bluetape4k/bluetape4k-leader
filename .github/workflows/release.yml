@@ -150,13 +150,18 @@ jobs:
           set -euo pipefail
           BASE=$(grep -E '^baseVersion=' gradle.properties | cut -d= -f2)
           SNAP=$(grep -E '^snapshotVersion=' gradle.properties | cut -d= -f2 || echo "")
-          echo "tag=$VERSION baseVersion=$BASE snapshotVersion='$SNAP'"
+          VTHREAD=$(grep -E '^bluetape4kVirtualThreadJdk25Version=' gradle.properties | cut -d= -f2)
+          echo "tag=$VERSION baseVersion=$BASE snapshotVersion='$SNAP' bluetape4kVirtualThreadJdk25Version='$VTHREAD'"
           if [[ "$BASE" != "$VERSION" ]]; then
             echo "::error::gradle.properties baseVersion ($BASE) does not match tag ($VERSION)"
             exit 1
           fi
           if [[ -n "$SNAP" ]]; then
             echo "::error::snapshotVersion must be empty for release. Got: '$SNAP'"
+            exit 1
+          fi
+          if [[ -z "$VTHREAD" || "$VTHREAD" == *-SNAPSHOT ]]; then
+            echo "::error::bluetape4kVirtualThreadJdk25Version은 릴리스에서 non-snapshot immutable 좌표여야 한다. 현재값: '$VTHREAD'"
             exit 1
           fi
 
@@ -169,6 +174,20 @@ jobs:
         with:
           gradle-version: wrapper
           cache-read-only: true
+
+      - name: Verify immutable JDK25 virtual-thread resolution
+        shell: bash
+        run: |
+          set -euo pipefail
+          resolution_file="$RUNNER_TEMP/virtualthread-dependencies.txt"
+          python3 scripts/ci/validate_release_preflight_test.py
+          ./gradlew :bluetape4k-leader-core:dependencies \
+            --configuration compileClasspath \
+            --no-daemon --no-configuration-cache --no-build-cache --console=plain \
+            | tee "$resolution_file"
+          python3 scripts/ci/validate_release_preflight.py \
+            --properties gradle.properties \
+            --resolution "$resolution_file"
 
       - name: Verify published binary compatibility
         shell: bash
