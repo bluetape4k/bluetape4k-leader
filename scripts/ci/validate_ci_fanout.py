@@ -15,6 +15,9 @@ from typing import Any
 
 DEFAULT_WORKFLOW = Path(".github/workflows/ci.yml")
 TEST_JOB_PREFIX = "test-"
+MANUAL_CONTRACT_JOB_ID = "manual-contract"
+MANUAL_CONTRACT_OUTPUT = "manual-contract"
+GLOBAL_CONFIG_OUTPUT = "global-config"
 REQUIRED_ROOT_PATHS = {
     "settings.gradle.kts",
     "build.gradle.kts",
@@ -107,6 +110,27 @@ def section_paths(workflow: str, section: str) -> set[str]:
     return paths
 
 
+def event_paths_ignore(workflow: str, event: str) -> set[str]:
+    """Return paths ignored by a top-level push/pull_request event."""
+
+    lines = workflow.splitlines()
+    event_start = next(
+        (i for i, line in enumerate(lines) if line == f"  {event}:"),
+        None,
+    )
+    if event_start is None:
+        return set()
+    event_indent = len(lines[event_start]) - len(lines[event_start].lstrip())
+    event_end = len(lines)
+    for index in range(event_start + 1, len(lines)):
+        line = lines[index]
+        if line.strip() and len(line) - len(line.lstrip()) <= event_indent:
+            event_end = index
+            break
+    block = "\n".join(lines[event_start:event_end])
+    return section_paths(block, "paths-ignore")
+
+
 def static_errors(workflow: str) -> list[str]:
     errors: list[str] = []
     specs = job_specs(workflow)
@@ -123,6 +147,47 @@ def static_errors(workflow: str) -> list[str]:
     )
     if not output_line:
         errors.append("changes.outputs is missing dependency-graph")
+
+    required_contract_outputs = {MANUAL_CONTRACT_OUTPUT, GLOBAL_CONFIG_OUTPUT}
+    missing_contract_outputs = required_contract_outputs - declared_outputs
+    if missing_contract_outputs:
+        errors.append(
+            "changes.outputs is missing: " + ", ".join(sorted(missing_contract_outputs))
+        )
+
+    for event in ("push", "pull_request"):
+        ignored = event_paths_ignore(workflow, event)
+        if ignored & {"**.md", "docs/**", "README*", "CHANGELOG.md", "WIP.md"}:
+            errors.append(
+                f"{event}.paths-ignore suppresses manual-contract changes: "
+                + ", ".join(sorted(ignored & {"**.md", "docs/**", "README*", "CHANGELOG.md", "WIP.md"}))
+            )
+
+    manual_filter_paths = section_paths(workflow, MANUAL_CONTRACT_OUTPUT)
+    required_manual_paths = {"**.md", "docs/**", "scripts/manual/**"}
+    missing_manual_paths = required_manual_paths - manual_filter_paths
+    if missing_manual_paths:
+        errors.append(
+            "manual-contract filter is missing: " + ", ".join(sorted(missing_manual_paths))
+        )
+
+    global_filter_paths = section_paths(workflow, GLOBAL_CONFIG_OUTPUT)
+    required_global_paths = {
+        ".github/workflows/**",
+        "settings.gradle.kts",
+        "build.gradle.kts",
+        "buildSrc/**",
+        "gradle/**",
+        "gradle.properties",
+        "gradlew",
+        "gradlew.bat",
+        "bluetape4k-leader-bom/**",
+    }
+    missing_global_paths = required_global_paths - global_filter_paths
+    if missing_global_paths:
+        errors.append(
+            "global-config filter is missing: " + ", ".join(sorted(missing_global_paths))
+        )
 
     dependency_paths = section_paths(workflow, "dependency-graph")
     missing_root = REQUIRED_ROOT_PATHS - dependency_paths
@@ -164,6 +229,20 @@ def static_errors(workflow: str) -> list[str]:
     if contract is None or "validate_ci_fanout.py --static" not in contract.block:
         errors.append("ci-contract does not invoke the static validator")
 
+    manual_contract = specs.get(MANUAL_CONTRACT_JOB_ID)
+    if manual_contract is None:
+        errors.append("manual-contract job is missing")
+    else:
+        if "needs:" not in manual_contract.block or "changes" not in manual_contract.block:
+            errors.append("manual-contract does not depend on changes")
+        for output in (MANUAL_CONTRACT_OUTPUT, GLOBAL_CONFIG_OUTPUT):
+            if f"needs.changes.outputs['{output}']" not in manual_contract.condition:
+                errors.append(f"manual-contract condition does not reference {output}")
+        if "workflow_dispatch" not in manual_contract.condition:
+            errors.append("manual-contract condition does not include workflow_dispatch")
+        if "validate_manual_contract.py" not in manual_contract.block:
+            errors.append("manual-contract does not invoke the manual validator")
+
     status = specs.get("ci-status")
     if status is None:
         errors.append("ci-status job is missing")
@@ -176,6 +255,8 @@ def static_errors(workflow: str) -> list[str]:
             errors.append("ci-status still treats skipped jobs as success")
         if "- ci-contract" not in status.block:
             errors.append("ci-status does not depend on ci-contract")
+        if f"- {MANUAL_CONTRACT_JOB_ID}" not in status.block:
+            errors.append("ci-status does not depend on manual-contract")
 
     return errors
 
@@ -216,6 +297,29 @@ def runtime_errors(needs: dict[str, Any], event_name: str, specs: dict[str, JobS
             report.append(f"{spec.job_id}: N/A (intended skip)")
         else:
             report.append(f"{spec.job_id}: N/A condition false, result={result}")
+
+    manual_spec = specs.get(MANUAL_CONTRACT_JOB_ID)
+    if manual_spec is not None:
+        expected = event_name == "workflow_dispatch" or any(
+            str(outputs.get(key, "false")).lower() == "true"
+            for key in manual_spec.output_keys
+        )
+        payload = needs.get(MANUAL_CONTRACT_JOB_ID)
+        if payload is None:
+            errors.append(f"missing runtime result for {MANUAL_CONTRACT_JOB_ID}")
+        else:
+            result = payload.get("result")
+            if expected and result == "skipped":
+                errors.append(
+                    f"{MANUAL_CONTRACT_JOB_ID} was skipped although its impact filter is true"
+                )
+                report.append(f"{MANUAL_CONTRACT_JOB_ID}: REQUIRED but skipped")
+            elif expected:
+                report.append(f"{MANUAL_CONTRACT_JOB_ID}: REQUIRED ({result})")
+            elif result == "skipped":
+                report.append(f"{MANUAL_CONTRACT_JOB_ID}: N/A (intended skip)")
+            else:
+                report.append(f"{MANUAL_CONTRACT_JOB_ID}: N/A condition false, result={result}")
     return errors, report
 
 
@@ -282,6 +386,7 @@ def run_self_test() -> int:
         "changes": {"result": "success", "outputs": {"dependency-graph": "true"}},
         "build": {"result": "success"},
         "ci-contract": {"result": "success"},
+        MANUAL_CONTRACT_JOB_ID: {"result": "success"},
     }
     base.update({job_id: {"result": "success"} for job_id in test_ids})
     broken = dict(base)
@@ -290,9 +395,27 @@ def run_self_test() -> int:
     if not any("test-core" in error and "skipped" in error for error in errors):
         print("self-test did not catch an impacted skipped job", file=sys.stderr)
         return 1
+    manual_broken = dict(base)
+    manual_broken["changes"] = {
+        "result": "success",
+        "outputs": {"dependency-graph": "false", MANUAL_CONTRACT_OUTPUT: "true", GLOBAL_CONFIG_OUTPUT: "false"},
+    }
+    manual_broken[MANUAL_CONTRACT_JOB_ID] = {"result": "skipped"}
+    errors, _ = runtime_errors(manual_broken, "pull_request", specs)
+    if not any(MANUAL_CONTRACT_JOB_ID in error and "skipped" in error for error in errors):
+        print("self-test did not catch an impacted manual contract skip", file=sys.stderr)
+        return 1
     n_a = dict(base)
-    n_a["changes"] = {"result": "success", "outputs": {"dependency-graph": "false"}}
+    n_a["changes"] = {
+        "result": "success",
+        "outputs": {
+            "dependency-graph": "false",
+            MANUAL_CONTRACT_OUTPUT: "false",
+            GLOBAL_CONFIG_OUTPUT: "false",
+        },
+    }
     n_a.update({job_id: {"result": "skipped"} for job_id in test_ids})
+    n_a[MANUAL_CONTRACT_JOB_ID] = {"result": "skipped"}
     errors, _ = runtime_errors(n_a, "pull_request", specs)
     if errors:
         print("self-test rejected intended N/A skips: " + "; ".join(errors), file=sys.stderr)

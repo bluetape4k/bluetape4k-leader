@@ -11,28 +11,8 @@ on:
   workflow_dispatch:
   push:
     branches: [develop, main]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.gitignore'
-      - '.editorconfig'
-      - '.gitleaks.toml'
-      - 'CHANGELOG.md'
-      - 'WIP.md'
-      - 'LICENSE'
-      - '.claude/**'
   pull_request:
     branches: [develop, main]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.gitignore'
-      - '.editorconfig'
-      - '.gitleaks.toml'
-      - 'CHANGELOG.md'
-      - 'WIP.md'
-      - 'LICENSE'
-      - '.claude/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -89,6 +69,8 @@ jobs:
     timeout-minutes: 5
     needs: validate-wrapper
     outputs:
+      manual-contract: ${{ steps.filter.outputs.manual-contract }}
+      global-config: ${{ steps.filter.outputs.global-config }}
       dependency-graph: ${{ steps.filter.outputs.dependency-graph }}
       leader-core: ${{ steps.filter.outputs.leader-core }}
       leader-redis: ${{ steps.filter.outputs.leader-redis }}
@@ -127,6 +109,26 @@ jobs:
         id: filter
         with:
           filters: |
+            # Documentation/manual changes must run the release contract job.
+            manual-contract:
+              - '**.md'
+              - 'docs/**'
+              - 'scripts/manual/**'
+              - 'scripts/ci/**'
+              - 'README*'
+              - 'WIP.md'
+              - 'CHANGELOG.md'
+            # Build/workflow topology changes select representative/global checks.
+            global-config:
+              - '.github/workflows/**'
+              - 'settings.gradle.kts'
+              - 'build.gradle.kts'
+              - 'buildSrc/**'
+              - 'gradle/**'
+              - 'gradle.properties'
+              - 'gradlew'
+              - 'gradlew.bat'
+              - 'bluetape4k-leader-bom/**'
             # Gradle graph roots are conservatively fanned out to every contract test.
             dependency-graph:
               - 'settings.gradle.kts'
@@ -291,6 +293,35 @@ jobs:
           python3 scripts/ci/validate_leader_contract_matrix.py --static
           python3 scripts/ci/validate_leader_contract_matrix.py --self-test
           python3 scripts/compatibility/check_binary_api_test.py
+
+  # ── 2-B. 매뉴얼/릴리스 provenance 계약 검증 ─────────────────────────────
+  manual-contract:
+    name: Validate manual and release contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [changes]
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs['manual-contract'] == 'true' || needs.changes.outputs['global-config'] == 'true')
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v5.7.0
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      - uses: gradle/actions/setup-gradle@v6.3.0
+        with:
+          gradle-version: wrapper
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Validate manual, provenance, diagram, and changed-path contracts
+        env:
+          CI_WORKFLOW_PATH: .github/workflows/ci.yml
+          MANUAL_CONTRACT_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+          MANUAL_CONTRACT_HEAD_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 scripts/ci/validate_manual_contract.py
 
   # ── 3. 전체 빌드 (테스트 제외) ───────────────────────────────────────────
   catalog-governance:
@@ -2015,6 +2046,7 @@ jobs:
       - build
       - changes
       - ci-contract
+      - manual-contract
       - test-core
       - test-micrometer
       - test-redis-lettuce
