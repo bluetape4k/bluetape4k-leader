@@ -118,6 +118,14 @@ allprojects {
     configurations.all {
         resolutionStrategy.cacheChangingModulesFor(1, TimeUnit.DAYS)
     }
+    configurations.matching { it.name.startsWith("dokka") }.configureEach {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "org.jsoup" && requested.name == "jsoup") {
+                useVersion("1.23.1")
+                because("CVE-2026-71497: Dokka tooling must use the first patched jsoup release")
+            }
+        }
+    }
 }
 
 subprojects {
