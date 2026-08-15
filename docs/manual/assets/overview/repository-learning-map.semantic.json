@@ -1,0 +1,32 @@
+{
+  "kind": "architecture",
+  "source": {
+    "question": "How does the Leader manual guide a reader from the version boundary to a runnable workshop?",
+    "revision": "develop@4b99338a1079ccf5d792b930238cf2f56f8f1929",
+    "paths": [
+      "docs/manual/en/architecture/repository-map.md",
+      "docs/manual/en/guides/learning-path.md"
+    ]
+  },
+  "nodes": [
+    {"id": "dependencies", "label": "bluetape4k-dependencies", "source": "docs/manual/en/architecture/repository-map.md"},
+    {"id": "core", "label": "leader-core", "source": "docs/manual/en/architecture/repository-map.md"},
+    {"id": "models", "label": "Election models", "source": "docs/manual/en/guides/learning-path.md"},
+    {"id": "backends", "label": "Backend families", "source": "docs/manual/en/guides/backend-selection.md"},
+    {"id": "frameworks", "label": "Framework and ops", "source": "docs/manual/en/guides/spring-vs-ktor.md"},
+    {"id": "workshops", "label": "17 runnable workshops", "source": "docs/manual/en/guides/learning-path.md"}
+  ],
+  "edges": [
+    {"id": "dependencies-core", "from": "dependencies", "to": "core", "kind": "dependency", "source": "docs/manual/en/architecture/repository-map.md"},
+    {"id": "core-models", "from": "core", "to": "models", "kind": "model", "source": "docs/manual/en/guides/learning-path.md"},
+    {"id": "core-backends", "from": "core", "to": "backends", "kind": "backend", "source": "docs/manual/en/guides/backend-selection.md"},
+    {"id": "core-frameworks", "from": "core", "to": "frameworks", "kind": "integration", "source": "docs/manual/en/guides/spring-vs-ktor.md"},
+    {"id": "models-workshops", "from": "models", "to": "workshops", "kind": "workshop", "source": "docs/manual/en/guides/learning-path.md"},
+    {"id": "backends-workshops", "from": "backends", "to": "workshops", "kind": "workshop", "source": "docs/manual/en/guides/learning-path.md"},
+    {"id": "frameworks-workshops", "from": "frameworks", "to": "workshops", "kind": "workshop", "source": "docs/manual/en/guides/learning-path.md"}
+  ],
+  "behavior": {"branches": 3, "loops": 0},
+  "repairs": [
+    {"target": "core-framework", "reason": "increase terminal arrowhead clearance before the framework card", "touches": 1}
+  ]
+}

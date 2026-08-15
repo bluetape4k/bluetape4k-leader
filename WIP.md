@@ -1,22 +1,19 @@
 # WIP - bluetape4k-leader
 
-스냅샷: 2026-08-01 KST. `develop`의 현재 head는
-`3a0cd0e43c48b24775cbc1cb0d024e460301e2ee`이며, 문서 정합성 PR [#650](https://github.com/bluetape4k/bluetape4k-leader/pull/650)은
-병합되었고 연결 이슈 [#649](https://github.com/bluetape4k/bluetape4k-leader/issues/649)는 종료되었습니다.
-`0.5.0`은 아직 태그, GitHub Release 또는 Maven Central publication이 없는 개발
-라인입니다. 이 문서는 병합·게시 완료를 혼동하지 않고, 관찰된 검증 증거를 기준으로
-상태를 갱신합니다.
+스냅샷: 2026-08-15 KST. `develop`의 현재 head는
+`4b99338a1079ccf5d792b930238cf2f56f8f1929`이며, 선행 계약 train PR #663이
+병합되었습니다. `0.5.0`은 tag, GitHub Release, Maven Central publication이
+완료된 안정 릴리스입니다. 이 문서는 게시 후 현재 상태와 과거 `as-of`
+스냅샷을 분리하여 기록합니다.
 
 ## 현재 방향
 
-0.5.0 release-readiness, 문서/KDoc localization train 및 release-facing 문서 정합성
-작업(PR #650)은 완료되었습니다.
-다음 단계는 게시 승인 전 preflight 증거를 유지하고, 별도 release로 약속되지
-않은 Backlog 후보를 다음 마이너 라인에서 계획하는 것입니다. `0.5.0`을
-게시된 릴리스로 표시하려면 tag, Maven Central publication, GitHub Release가
-각각 별도의 승인과 증거를 가져야 합니다.
+0.5.0 release-readiness, 문서/KDoc localization train, release-facing 문서
+정합성 작업(PR #650), 게시 작업이 완료되었습니다. 현재 작업은 게시 기록을
+변경하지 않고, `0.5.0` provenance를 독자용 문서와 생성 자산에 반영하는
+후속 이슈 [#662](https://github.com/bluetape4k/bluetape4k-leader/issues/662)입니다.
 
-## 0.5.0 release-readiness 완료
+## 0.5.0 release-readiness 완료 (history)
 
 | 범위 | 현재 증거 |
 |---|---|
@@ -41,8 +38,8 @@ CodeQL workflow도 함께 검증되었습니다.
 
 ## 다음 마이너 라인 후보
 
-현재 `0.6.0` milestone은 생성되지 않았습니다. 다음 후보는 Backlog에 남아
-있으며, milestone 배정 전까지 committed release scope로 해석하지 않습니다.
+`0.6.0` milestone은 open 상태이며 현재 open issue는 32개입니다. 아래 목록은
+그 milestone에 배정된 다음 라인의 범위입니다.
 
 - Core/observability: [#463](https://github.com/bluetape4k/bluetape4k-leader/issues/463), [#533](https://github.com/bluetape4k/bluetape4k-leader/issues/533), [#535](https://github.com/bluetape4k/bluetape4k-leader/issues/535), [#559](https://github.com/bluetape4k/bluetape4k-leader/issues/559)
 - Ktor: [#539](https://github.com/bluetape4k/bluetape4k-leader/issues/539), [#540](https://github.com/bluetape4k/bluetape4k-leader/issues/540), [#541](https://github.com/bluetape4k/bluetape4k-leader/issues/541), [#542](https://github.com/bluetape4k/bluetape4k-leader/issues/542)
@@ -50,9 +47,20 @@ CodeQL workflow도 함께 검증되었습니다.
 
 ## Open PRs
 
-현재 공개된 open PR은 없습니다.
+이 스냅샷 작성 시점에 공개된 open PR은 없었습니다.
 
-## Release boundary
+## 현재 Release boundary
+
+- 최신 안정 버전은 `0.5.0`이며 release commit은
+  `721a9a3808f67489d2bdb8177734325981c24977`입니다.
+- [GitHub Release 0.5.0](https://github.com/bluetape4k/bluetape4k-leader/releases/tag/0.5.0)은
+  2026-08-06에 게시되었습니다.
+- [Maven Central BOM 0.5.0](https://central.sonatype.com/artifact/io.github.bluetape4k.leader/bluetape4k-leader-bom/0.5.0)
+  및 publishable module POM이 확인되었습니다.
+- 버전 매뉴얼 manifest는 `0.5.0`과 위 release commit에 고정되어 있습니다.
+- 다음 개발 범위는 open `0.6.0` milestone에서 관리합니다.
+
+## Historical release boundary (2026-08-01 KST as-of)
 
 - 최신 안정 버전은 `0.4.0`이며 release commit은 `17ab7f872c1f96318c73d3580729cac20a67e017`입니다.
 - `CHANGELOG.md`와 [release preflight](docs/release/0.5.0-release-preflight.md)는 `0.5.0`을 unpublished 상태로 유지합니다.

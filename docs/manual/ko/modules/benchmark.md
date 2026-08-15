@@ -16,7 +16,7 @@ artifact: null
 
 ## 제공하는 기능 {#problem}
 
-배포하지 않는 이 모듈은 하나의 `kotlinx-benchmark`/JMH harness로 선출 백엔드를 비교합니다. 0.4 매뉴얼은 2026-05-29 근거를 기준으로 삼습니다. Throughput은 높을수록, average time은 낮을수록 좋지만 같은 workload와 runtime target 안의 행만 비교해야 합니다.
+배포하지 않는 이 모듈은 하나의 `kotlinx-benchmark`/JMH harness로 선출 백엔드를 비교합니다. 0.5.0 매뉴얼은 2026-05-29 근거를 기준으로 삼습니다. Throughput은 높을수록, average time은 낮을수록 좋지만 같은 workload와 runtime target 안의 행만 비교해야 합니다.
 
 ## 사용하기 좋은 경우 {#when-to-use}
 
