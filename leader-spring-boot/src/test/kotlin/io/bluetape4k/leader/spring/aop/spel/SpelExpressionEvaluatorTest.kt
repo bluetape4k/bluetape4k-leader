@@ -107,10 +107,11 @@ class SpelExpressionEvaluatorTest {
     @Test
     fun `pre-parse 실패 - 메서드 FQN 포함 메시지`() {
         val sut = newEvaluator()
-        val ex = runCatching { sut.preParse("'process-#region", method("process")) }.exceptionOrNull()
-        check(ex != null) { "expected throw" }
-        check(ex.message.shouldNotBeNull().contains("SampleService")) { "message should include FQN: ${ex.message}" }
-        check(ex.message.shouldNotBeNull().contains("process")) { "message should include method name: ${ex.message}" }
+        val ex = assertFailsWith<IllegalStateException> {
+            sut.preParse("'process-#region", method("process"))
+        }
+        ex.message.shouldNotBeNull() shouldContain "SampleService"
+        ex.message.shouldNotBeNull() shouldContain "process"
     }
 
     @Test
@@ -202,9 +203,10 @@ class SpelExpressionEvaluatorTest {
     @Test
     fun `template - 잘못된 SpEL 구간 startup fail`() {
         val sut = newEvaluator()
-        val ex = runCatching { sut.preParse("prefix-#{'unclosed}", method("process")) }.exceptionOrNull()
-        check(ex != null) { "expected throw" }
-        check(ex.message.shouldNotBeNull().contains("SpEL template")) { "message should mention 'SpEL template': ${ex.message}" }
+        val ex = assertFailsWith<IllegalStateException> {
+            sut.preParse("prefix-#{'unclosed}", method("process"))
+        }
+        ex.message.shouldNotBeNull() shouldContain "SpEL template"
     }
 
     @Test

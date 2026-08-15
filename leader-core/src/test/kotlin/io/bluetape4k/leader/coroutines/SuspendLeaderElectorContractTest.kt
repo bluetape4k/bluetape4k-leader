@@ -7,6 +7,7 @@ import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import kotlinx.coroutines.delay
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
@@ -51,13 +52,12 @@ class SuspendLeaderElectorContractTest {
 
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() = runSuspendIO {
-        val result = runCatching {
+        val thrown = assertFailsWith<IllegalStateException> {
             election.runIfLeader(randomLockName()) {
                 throw IllegalStateException("계약 예외 테스트")
             }
         }
-        result.isFailure.shouldBeTrue()
-        (result.exceptionOrNull() is IllegalStateException).shouldBeTrue()
+        thrown.message shouldBeEqualTo "계약 예외 테스트"
     }
 
     @Test

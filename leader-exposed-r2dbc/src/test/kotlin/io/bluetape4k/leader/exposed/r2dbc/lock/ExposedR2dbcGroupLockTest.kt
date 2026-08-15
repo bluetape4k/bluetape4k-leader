@@ -4,6 +4,7 @@ import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.ExtendOutcome
 import io.bluetape4k.leader.exposed.r2dbc.AbstractExposedR2dbcLeaderTest
 import io.bluetape4k.leader.exposed.r2dbc.TestR2dbcDB
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.leader.exposed.ExposedLeaderConstants.GROUP_LOCK_TABLE_NAME
 import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
@@ -181,7 +182,7 @@ class ExposedR2dbcGroupLockTest: AbstractExposedR2dbcLeaderTest() {
 
         val extendSignals = mutableListOf<Boolean>()
         dropSchema()
-        runCatching { newLock(extendSignals).extendDetailed(1.seconds) }.isFailure.shouldBeTrue()
+        assertFailsWith<Exception> { newLock(extendSignals).extendDetailed(1.seconds) }
         extendSignals shouldBeEqualTo listOf(false)
         restoreSchema()
     }

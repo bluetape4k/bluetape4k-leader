@@ -139,11 +139,12 @@ class LocalStrategicSuspendLeaderElectorTest {
     fun `action 예외 시 failureCount 증가 및 예외 재전파`() = runTest {
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
 
-        runCatching {
+        val thrown = assertFailsWith<LeaderElectionException> {
             node1.runIfLeader(lockName, FifoElectionStrategy) {
                 throw LeaderElectionException("intentional error")
             }
-        }.isFailure.shouldBeTrue()
+        }
+        thrown.message shouldBeEqualTo "intentional error"
 
         val info = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
         info.failureCount shouldBeEqualTo 1L

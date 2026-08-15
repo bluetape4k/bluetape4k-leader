@@ -11,6 +11,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
@@ -55,10 +56,10 @@ class SuspendLeaderGroupElectorContractTest {
 
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() = runSuspendIO {
-        val result = runCatching {
+        val thrown = assertFailsWith<LeaderGroupElectionException> {
             election.runIfLeader(randomLockName()) { throw LeaderGroupElectionException("그룹 계약 예외") }
         }
-        result.isFailure.shouldBeTrue()
+        thrown.message shouldBeEqualTo "그룹 계약 예외"
     }
 
     @Test

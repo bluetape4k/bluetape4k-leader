@@ -70,10 +70,9 @@ class AbstractLocalLeaderElectorTest {
     fun `blank lockName 으로 호출 시 IllegalArgumentException 이 발생한다 (LocalVirtualThreadLeaderElector)`() {
         val election = LocalVirtualThreadLeaderElector()
 
-        val result = runCatching {
+        assertFailsWith<java.util.concurrent.ExecutionException> {
             election.runAsyncIfLeader("") { "should fail" }.await()
         }
-        result.isFailure.shouldBeTrue()
     }
 
     // ── 커스텀 옵션으로 생성 ──────────────────────────────────────────────
