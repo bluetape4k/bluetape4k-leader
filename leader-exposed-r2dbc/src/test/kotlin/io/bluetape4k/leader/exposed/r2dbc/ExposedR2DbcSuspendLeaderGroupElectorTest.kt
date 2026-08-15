@@ -34,6 +34,7 @@ import org.junit.jupiter.params.provider.MethodSource
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest() {
@@ -375,6 +376,53 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
 
     @ParameterizedTest
     @MethodSource("enableDialects")
+    fun `activeCountSuspend - 오래된 성공이 이후 DB 오류 marker를 지우지 않는다`(testDB: TestR2dbcDB) = runSuspendIO {
+        val db = setupDb(testDB)
+        cleanTables(db)
+        val maxLeaders = 2
+        val lockName = randomName()
+        val election = ExposedR2DbcSuspendLeaderGroupElector(
+            db,
+            ExposedR2dbcLeaderGroupElectionOptions(
+                leaderGroupOptions = LeaderGroupElectionOptions(
+                    maxLeaders = maxLeaders,
+                    waitTime = 100.milliseconds,
+                    leaseTime = 30.seconds,
+                    useDbTime = true,
+                ),
+                retryStrategy = RetryStrategy.Fixed(fixedMs = 10L),
+            ),
+        )
+        val interceptor = BlockActiveCountThenFailDbTime()
+        R2dbcTransaction.globalInterceptors += interceptor
+
+        val staleRefresh = async { election.activeCountSuspend(lockName) }
+        try {
+            // SQL 경계의 선후 관계를 검증해야 하므로 일반 coroutine stress helper 대신 interceptor barrier를 사용한다.
+            withTimeout(5.seconds) { interceptor.refreshBlocked.await() }
+            interceptor.failNextDbTimeRead()
+
+            election.runIfLeader(lockName) { "must-not-run" }.shouldBeNull()
+            election.activeCount(lockName) shouldBeEqualTo maxLeaders
+            election.availableSlots(lockName) shouldBeEqualTo 0
+
+            interceptor.releaseRefresh.complete(Unit)
+            staleRefresh.await() shouldBeEqualTo maxLeaders
+            election.activeCount(lockName) shouldBeEqualTo maxLeaders
+            election.availableSlots(lockName) shouldBeEqualTo 0
+
+            election.activeCountSuspend(lockName) shouldBeEqualTo 0
+            election.activeCount(lockName) shouldBeEqualTo 0
+            election.availableSlots(lockName) shouldBeEqualTo maxLeaders
+        } finally {
+            interceptor.releaseRefresh.complete(Unit)
+            staleRefresh.cancelAndJoin()
+            R2dbcTransaction.globalInterceptors.remove(interceptor)
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
     fun `복구 후 정상 경합 결과가 fail-closed 상태를 해제한다`(testDB: TestR2dbcDB) = runSuspendIO {
         val db = setupDb(testDB)
         cleanTables(db)
@@ -553,6 +601,35 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
             if (!cancelled && context.sql(transaction).contains(LOCK_HISTORY_TABLE_NAME, ignoreCase = true)) {
                 cancelled = true
                 throw CancellationException("cancel during group history setup")
+            }
+        }
+    }
+
+    private class BlockActiveCountThenFailDbTime : GlobalSuspendStatementInterceptor {
+        val refreshBlocked = CompletableDeferred<Unit>()
+        val releaseRefresh = CompletableDeferred<Unit>()
+        private val shouldBlockRefresh = AtomicBoolean(true)
+        private val shouldFailDbTime = AtomicBoolean(false)
+
+        fun failNextDbTimeRead() {
+            shouldFailDbTime.set(true)
+        }
+
+        override suspend fun beforeExecution(transaction: R2dbcTransaction, context: StatementContext) {
+            val sql = context.sql(transaction)
+            if (
+                sql.contains(GROUP_LOCK_TABLE_NAME, ignoreCase = true) &&
+                sql.contains("COUNT", ignoreCase = true) &&
+                shouldBlockRefresh.compareAndSet(true, false)
+            ) {
+                refreshBlocked.complete(Unit)
+                releaseRefresh.await()
+            }
+            if (
+                sql.contains("CURRENT_TIMESTAMP", ignoreCase = true) &&
+                shouldFailDbTime.compareAndSet(true, false)
+            ) {
+                error("synthetic DB-time failure")
             }
         }
     }
