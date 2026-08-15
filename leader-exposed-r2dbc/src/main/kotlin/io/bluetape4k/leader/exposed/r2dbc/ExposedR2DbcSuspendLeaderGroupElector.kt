@@ -100,7 +100,24 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     )
 
     private val cachedActiveCounts = ConcurrentHashMap<String, CachedActiveCount>()
-    private val unavailableLockNames = ConcurrentHashMap.newKeySet<String>()
+    private val availabilityEpoch = AtomicLong()
+    private val unavailableLockEpochs = ConcurrentHashMap<String, Long>()
+
+    private fun availabilitySnapshot(): Long = availabilityEpoch.get()
+
+    private fun markUnavailable(lockName: String) {
+        unavailableLockEpochs.compute(lockName) { _, current ->
+            maxOf(current ?: 0L, availabilityEpoch.incrementAndGet())
+        }
+    }
+
+    private fun markAvailable(lockName: String, startedAtEpoch: Long): Boolean {
+        var available = true
+        unavailableLockEpochs.compute(lockName) { _, failureEpoch ->
+            failureEpoch?.takeIf { it > startedAtEpoch }?.also { available = false }
+        }
+        return available
+    }
 
     /**
      * Local acquisitions and releases are serialized through the map entry.  The generation lets a
@@ -162,10 +179,13 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     /**
      * `activeCount` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
+     * DB time 조회 실패 후에는 해당 `lockName`에서 더 최신인 DB 성공이 확인될 때까지 `maxLeaders`를 반환합니다.
+     * 따라서 `availableSlots`와 `state`도 장애 구간에 사용 가능한 슬롯을 노출하지 않습니다.
+     *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     override fun activeCount(lockName: String): Int =
-        if (lockName in unavailableLockNames) maxLeaders else cachedActiveCounts[lockName]?.value?.get() ?: 0
+        if (unavailableLockEpochs.containsKey(lockName)) maxLeaders else cachedActiveCounts[lockName]?.value?.get() ?: 0
 
     /**
      * `availableSlots` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
@@ -185,12 +205,16 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
     /**
      * `activeCountSuspend` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.
      *
+     * DB time 모드의 오류는 JDBC `activeCount`와 동일하게 `maxLeaders`로 fail-closed 처리합니다.
+     * 조회 시작 이후 다른 작업에서 발생한 최신 DB 오류는 오래된 조회 성공으로 해제하지 않습니다.
+     *
      * API 이름과 `lock`, `lease`, `watchdog`, `slot`, `schema`, `history` 용어는 기존 계약과 동일하게 유지합니다.
      */
     @Suppress("ReturnCount")
     suspend fun activeCountSuspend(lockName: String): Int {
         validateExposedR2dbcLockName(lockName)
         val snapshot = cacheSnapshot(lockName)
+        val startedAtAvailabilityEpoch = availabilitySnapshot()
         val refreshedCount = try {
             suspendTransaction(db) {
                 val now = currentTime(options.leaderGroupOptions.useDbTime)
@@ -207,14 +231,14 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
             throw e
         } catch (e: Exception) {
             if (options.leaderGroupOptions.useDbTime) {
-                unavailableLockNames.add(lockName)
+                markUnavailable(lockName)
                 log.warn(e) { "activeCount DB 조회 오류 (fail-closed: $maxLeaders 반환): lockName=$lockName" }
                 return maxLeaders
             }
             log.warn(e) { "activeCount DB 조회 오류 (기존 캐시 유지): lockName=$lockName" }
             return cachedActiveCounts[lockName]?.value?.get() ?: 0
         }
-        unavailableLockNames.remove(lockName)
+        if (!markAvailable(lockName, startedAtAvailabilityEpoch)) return maxLeaders
         return applyActiveCountRefresh(lockName, snapshot, refreshedCount)
     }
 
@@ -235,6 +259,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
 
         for (i in 0 until maxLeaders) {
             val slot = (start + i) % maxLeaders
+            val startedAtAvailabilityEpoch = availabilitySnapshot()
             val lock = ExposedR2dbcGroupLock(
                 db,
                 lockName,
@@ -244,9 +269,9 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                 options.leaderGroupOptions.useDbTime,
                 onAvailabilityChanged = { available ->
                     if (available) {
-                        unavailableLockNames.remove(lockName)
+                        markAvailable(lockName, startedAtAvailabilityEpoch)
                     } else {
-                        unavailableLockNames.add(lockName)
+                        markUnavailable(lockName)
                     }
                 },
             )
