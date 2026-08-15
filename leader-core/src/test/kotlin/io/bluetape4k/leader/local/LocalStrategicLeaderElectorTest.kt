@@ -104,11 +104,12 @@ class LocalStrategicLeaderElectorTest {
     fun `runIfLeader - action 예외 시 failureCount 자동 증가 후 예외 재전파`() {
         node1.registerCandidate(lockName, CandidateInfo("node-1"))
 
-        runCatching {
+        val thrown = assertFailsWith<IllegalStateException> {
             node1.runIfLeader(lockName, FifoElectionStrategy) {
                 throw IllegalStateException("oops")
             }
-        }.isFailure.shouldBeTrue()
+        }
+        thrown.message shouldBeEqualTo "oops"
 
         val info = node1.listCandidates(lockName).first { it.nodeId == "node-1" }
         info.failureCount shouldBeEqualTo 1L

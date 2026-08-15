@@ -3,7 +3,6 @@ package io.bluetape4k.leader.spring.aop.util
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.assertions.shouldBeEqualTo
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertDoesNotThrow
 import io.bluetape4k.assertions.assertFailsWith
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -30,7 +29,7 @@ class LockNameValidatorTest {
         ],
     )
     fun `validate - 화이트리스트 charset 통과`(name: String) {
-        assertDoesNotThrow { validator.validate(name) }
+        validator.validate(name)
     }
 
     @ParameterizedTest
@@ -65,7 +64,7 @@ class LockNameValidatorTest {
     @Test
     fun `validate - 256자 정확히는 통과`() {
         val exactly256 = "a".repeat(256)
-        assertDoesNotThrow { validator.validate(exactly256) }
+        validator.validate(exactly256)
     }
 
     @Test

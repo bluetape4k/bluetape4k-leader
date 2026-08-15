@@ -7,13 +7,13 @@ import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
+import io.bluetape4k.assertions.assertFailsWith
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeNull
-import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -47,13 +47,12 @@ class LocalSuspendLeaderElectorTest {
 
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() = runSuspendIO {
-        val result = runCatching {
+        val thrown = assertFailsWith<LeaderElectionException> {
             election.runIfLeader(randomLockName()) {
                 throw LeaderElectionException("테스트 예외")
             }
         }
-        result.isFailure.shouldBeTrue()
-        (result.exceptionOrNull() is RuntimeException).shouldBeTrue()
+        thrown.message shouldBeEqualTo "테스트 예외"
     }
 
     @Test

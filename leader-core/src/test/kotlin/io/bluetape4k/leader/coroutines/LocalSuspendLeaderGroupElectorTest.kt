@@ -7,6 +7,7 @@ import io.bluetape4k.leader.LeaderGroupElectionException
 import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
+import io.bluetape4k.assertions.assertFailsWith
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -56,10 +57,10 @@ class LocalSuspendLeaderGroupElectorTest {
 
     @Test
     fun `runIfLeader - action 예외 발생 시 예외가 호출자에게 전파된다`() = runSuspendIO {
-        val result = runCatching {
+        val thrown = assertFailsWith<LeaderGroupElectionException> {
             election.runIfLeader(randomLockName()) { throw LeaderGroupElectionException("테스트 예외") }
         }
-        result.isFailure.shouldBeTrue()
+        thrown.message shouldBeEqualTo "테스트 예외"
     }
 
     @Test

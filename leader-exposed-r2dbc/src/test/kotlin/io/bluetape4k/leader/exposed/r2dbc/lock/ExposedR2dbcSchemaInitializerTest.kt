@@ -7,8 +7,8 @@ import io.bluetape4k.logging.coroutines.KLoggingChannel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.assertions.shouldNotContain
 import org.junit.jupiter.api.Test
@@ -117,19 +117,19 @@ class ExposedR2dbcSchemaInitializerTest: AbstractExposedR2dbcLeaderTest() {
             "test-lock-name"
         )
         validNames.forEach { name ->
-            runCatching { validateExposedR2dbcLockName(name) }.isSuccess.shouldBeTrue()
+            validateExposedR2dbcLockName(name)
         }
     }
 
     @Test
     fun `validateExposedR2dbcLockName - 빈 문자열은 예외가 발생한다`() {
-        runCatching { validateExposedR2dbcLockName("") }.isFailure.shouldBeTrue()
+        assertFailsWith<IllegalArgumentException> { validateExposedR2dbcLockName("") }
     }
 
     @Test
     fun `validateExposedR2dbcLockName - 255자 초과 lockName은 예외가 발생한다`() {
         val tooLong = "a".repeat(256)
-        runCatching { validateExposedR2dbcLockName(tooLong) }.isFailure.shouldBeTrue()
+        assertFailsWith<IllegalArgumentException> { validateExposedR2dbcLockName(tooLong) }
     }
 
     @Test
@@ -140,7 +140,7 @@ class ExposedR2dbcSchemaInitializerTest: AbstractExposedR2dbcLeaderTest() {
             "has!excl",
         )
         invalidNames.forEach { name ->
-            runCatching { validateExposedR2dbcLockName(name) }.isFailure.shouldBeTrue()
+            assertFailsWith<IllegalArgumentException> { validateExposedR2dbcLockName(name) }
         }
     }
 }

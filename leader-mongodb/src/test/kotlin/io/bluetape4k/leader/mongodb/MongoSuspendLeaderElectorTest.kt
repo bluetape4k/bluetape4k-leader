@@ -136,11 +136,11 @@ class MongoSuspendLeaderElectorTest: AbstractMongoLeaderTest() {
         val election = MongoSuspendLeaderElector(coroutineLockCollection)
         val lockName = randomName()
 
-        val result = runCatching {
+        val thrown = assertFailsWith<LeaderElectionException> {
             election.runIfLeader(lockName) { throw LeaderElectionException("테스트 예외") }
         }
 
-        result.isFailure.shouldBeTrue()
+        thrown.message shouldBeEqualTo "테스트 예외"
     }
 
     @Test

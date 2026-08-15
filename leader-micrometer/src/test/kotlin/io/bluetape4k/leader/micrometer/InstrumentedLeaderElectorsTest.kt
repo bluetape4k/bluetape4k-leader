@@ -6,6 +6,7 @@ import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
@@ -164,13 +165,12 @@ class InstrumentedLeaderElectorsTest {
     fun `LeaderElector - action 예외 전파 후 active 가 0 으로 복구`() {
         val election = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry, LeaderMetricTagOptions.Raw)
 
-        val result = runCatching {
+        assertFailsWith<IllegalStateException> {
             election.runIfLeader("failed-job") {
                 throw IllegalStateException("boom")
             }
         }
 
-        result.isFailure.shouldBeTrue()
         acquiredCount("failed-job") shouldBeEqualTo 1.0
         durationCount("failed-job") shouldBeGreaterOrEqualTo 1L
         activeValue("failed-job") shouldBeEqualTo 0.0

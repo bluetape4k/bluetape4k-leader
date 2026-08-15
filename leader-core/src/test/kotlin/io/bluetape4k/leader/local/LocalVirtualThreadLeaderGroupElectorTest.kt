@@ -57,12 +57,12 @@ class LocalVirtualThreadLeaderGroupElectorTest {
 
     @Test
     fun `runAsyncIfLeader - action 예외 발생 시 await 호출 시 예외가 전파된다`() {
-        val result = runCatching {
+        val thrown = assertFailsWith<java.util.concurrent.ExecutionException> {
             election.runAsyncIfLeader(randomLockName()) {
                 throw LeaderGroupElectionException("테스트 예외")
             }.await()
         }
-        result.isFailure.shouldBeTrue()
+        thrown.cause shouldBeInstanceOf LeaderGroupElectionException::class
     }
 
     @Test

@@ -141,13 +141,12 @@ class AsyncLeaderElectorContractTest {
     }
 
     @Test
-    fun `runAsyncIfLeader - isFailure 가 action 실패를 정확히 반영한다`() {
+    fun `runAsyncIfLeader - action 실패 시 CompletionException 을 전파한다`() {
         val election: AsyncLeaderElector = LocalAsyncLeaderElector()
-        val outcome = runCatching {
+        assertFailsWith<CompletionException> {
             election.runAsyncIfLeader(randomLockName()) {
                 CompletableFuture.failedFuture<Int>(IllegalArgumentException("invalid"))
             }.join()
         }
-        outcome.isFailure.shouldBeTrue()
     }
 }

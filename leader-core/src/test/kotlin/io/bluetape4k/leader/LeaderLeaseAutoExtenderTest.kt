@@ -105,11 +105,7 @@ class LeaderLeaseAutoExtenderTest {
     fun `start on shutdown scheduler returns NoopCloseable without throwing`() {
         LeaderLeaseAutoExtender.shutdown()
 
-        val result = runCatching {
-            LeaderLeaseAutoExtender.start(true, 90.milliseconds, countingDelegate(AtomicInteger()))
-        }
-
-        result.isSuccess.shouldBeTrue()
+        LeaderLeaseAutoExtender.start(true, 90.milliseconds, countingDelegate(AtomicInteger()))
         LeaderLeaseAutoExtender.isShutdown().shouldBeTrue()
     }
 
