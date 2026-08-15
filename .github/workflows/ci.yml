@@ -294,6 +294,8 @@ jobs:
           python3 scripts/ci/validate_leader_contract_matrix.py --self-test
           python3 scripts/ci/validate_test_assertion_contract.py
           python3 scripts/ci/validate_test_assertion_contract_test.py
+          python3 scripts/ci/validate_timing_contract.py
+          python3 scripts/ci/validate_timing_contract_test.py
           python3 scripts/compatibility/check_binary_api_test.py
 
   # ── 2-B. 매뉴얼/릴리스 provenance 계약 검증 ─────────────────────────────

@@ -154,17 +154,23 @@ class RedissonSuspendLeaderGroupElectorTest: AbstractRedissonLeaderTest() {
                 }
             }
 
-            // 모든 슬롯이 점유될 때까지 대기
-            while (startedCount.get() < maxLeaders) {
-                delay(5.milliseconds)
+            try {
+                // 모든 슬롯이 점유될 때까지 bounded await. timeout 시 assertion이 현재 count를 보존한다.
+                await
+                    .withAlias("Redisson group slots lock=$lockName")
+                    .atMost(5.seconds)
+                    .withPollInterval(50.milliseconds)
+                    .untilAsserted {
+                        startedCount.get() shouldBeEqualTo maxLeaders
+                    }
+
+                election.state(lockName).isFull.shouldBeTrue()
+                election.activeCount(lockName) shouldBeEqualTo maxLeaders
+                election.availableSlots(lockName) shouldBeEqualTo 0
+            } finally {
+                holdSignal.complete(Unit)
+                jobs.awaitAll()
             }
-
-            election.state(lockName).isFull.shouldBeTrue()
-            election.activeCount(lockName) shouldBeEqualTo maxLeaders
-            election.availableSlots(lockName) shouldBeEqualTo 0
-
-            holdSignal.complete(Unit)
-            jobs.awaitAll()
         }
 
         // 완료 후 초기 상태 복귀
