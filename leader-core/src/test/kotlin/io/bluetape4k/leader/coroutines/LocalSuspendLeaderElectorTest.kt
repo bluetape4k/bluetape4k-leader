@@ -8,19 +8,19 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.logging.coroutines.KLoggingChannel
 import io.bluetape4k.logging.debug
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeNull
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeNull
 import org.junit.jupiter.api.Test
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.random.Random
-import kotlin.time.Duration.Companion.milliseconds
 
 class LocalSuspendLeaderElectorTest {
 
@@ -145,22 +145,26 @@ class LocalSuspendLeaderElectorTest {
             LeaderElectionOptions(waitTime = 50.milliseconds)
         )
         val holderReady = Channel<Unit>(1)
-        val holderDone = Channel<Unit>(1)
+        val holderRelease = CompletableDeferred<Unit>()
         val lockName2 = randomLockName()
 
-        // 홀더: 락 획득 후 300ms 유지
+        // 홀더: short-wait 검증이 끝날 때까지 controllable gate에서 유지
         val holder = async {
             skipElection.runIfLeader(lockName2) {
                 holderReady.send(Unit)
-                delay(300.milliseconds)
+                holderRelease.await()
                 "holder"
             }
         }
 
         holderReady.receive() // 홀더가 락 획득할 때까지 대기
-        // 스키퍼: 짧은 waitTime(50ms) 으로 시도 → null 반환
-        val skipped = skipElection.runIfLeader(lockName2) { "should-skip" }
-        skipped.shouldBeNull()
+        try {
+            // 스키퍼: 짧은 waitTime(50ms) 으로 시도 → null 반환
+            val skipped = skipElection.runIfLeader(lockName2) { "should-skip" }
+            skipped.shouldBeNull()
+        } finally {
+            holderRelease.complete(Unit)
+        }
 
         holder.await()
     }

@@ -1,15 +1,20 @@
 package io.bluetape4k.leader
 
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.junit5.coroutines.runSuspendIO
 import io.bluetape4k.leader.internal.ExtendDelegate
-import kotlinx.coroutines.delay
+import org.awaitility.kotlin.atMost
+import org.awaitility.kotlin.await
+import org.awaitility.kotlin.untilAsserted
+import org.awaitility.kotlin.withAlias
+import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
-import java.util.concurrent.CountDownLatch
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
@@ -54,12 +59,18 @@ class LeaderLeaseAutoExtenderStressTest {
             LeaderLeaseAutoExtender.start(true, 3.seconds, it)
         }
 
-        delay(5.seconds)
-
-        watchdogs.forEach { it.close() }
-
-        val allCalled = delegates.all { it.extendCalls.get() >= 1 }
-        allCalled.shouldBeTrue()
+        try {
+            await
+                .withAlias("LeaderLeaseAutoExtender delegates called: n=$n")
+                .atMost(5.seconds)
+                .withPollInterval(50.milliseconds)
+                .untilAsserted {
+                    val missingDelegates = delegates.count { it.extendCalls.get() < 1 }
+                    missingDelegates shouldBeEqualTo 0
+                }
+        } finally {
+            watchdogs.forEach { it.close() }
+        }
     }
 
     @Test
@@ -68,7 +79,8 @@ class LeaderLeaseAutoExtenderStressTest {
         LeaderLeaseAutoExtender.shutdown()
         LeaderLeaseAutoExtender.restart()
 
-        val extendStartedLatch = CountDownLatch(3)
+        val extendStartedCount = AtomicInteger(0)
+        val releaseSlowExtends = CompletableFuture<Unit>()
 
         val delegates = List(3) {
             object : ExtendDelegate {
@@ -76,9 +88,16 @@ class LeaderLeaseAutoExtenderStressTest {
                 override val lastExtendDeadline: AtomicReference<Instant> get() = _lastExtendDeadline
 
                 override fun extend(lockAtMostFor: Duration): ExtendOutcome {
-                    extendStartedLatch.countDown()
-                    // Simulate a slow backend — blocks for 500ms per extend call
-                    Thread.sleep(500)
+                    extendStartedCount.incrementAndGet()
+                    try {
+                        // A controllable gate models a slow backend without wall-clock sleep.
+                        releaseSlowExtends.get(5, TimeUnit.SECONDS)
+                    } catch (e: TimeoutException) {
+                        throw IllegalStateException(
+                            "slow delegate gate timed out: started=${extendStartedCount.get()}/3",
+                            e,
+                        )
+                    }
                     return ExtendOutcome.Extended(Instant.now().plusMillis(lockAtMostFor.inWholeMilliseconds))
                 }
 
@@ -91,12 +110,18 @@ class LeaderLeaseAutoExtenderStressTest {
             LeaderLeaseAutoExtender.start(true, 300.milliseconds, it)
         }
 
-        // If async: all 3 start within one cadence window (~600ms). If serial: would take ~1500ms.
-        val allConcurrent = extendStartedLatch.await(600, TimeUnit.MILLISECONDS)
-
-        watchdogs.forEach { it.close() }
-
-        // Virtual-thread dispatch allows all 3 slow extends to start concurrently.
-        allConcurrent.shouldBeTrue()
+        try {
+            // Async dispatch must start all delegates while the first three calls are gated.
+            await
+                .withAlias("LeaderLeaseAutoExtender async delegates: started=${extendStartedCount.get()}/3")
+                .atMost(2.seconds)
+                .withPollInterval(25.milliseconds)
+                .untilAsserted {
+                    extendStartedCount.get() shouldBeEqualTo 3
+                }
+        } finally {
+            releaseSlowExtends.complete(Unit)
+            watchdogs.forEach { it.close() }
+        }
     }
 }
