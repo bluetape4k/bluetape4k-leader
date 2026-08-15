@@ -1,24 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040" role="img" aria-labelledby="title desc">
-  <title id="title">Learn Leader Election from the Boundary Inward</title><desc id="desc">Repository and learning map for the Leader 0.4 manual.</desc>
+  <title id="title">Learn Leader Election from the Boundary Inward</title><desc id="desc">Repository and learning map for the Leader 0.5.0 manual.</desc>
   <defs>
   <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1220"/><stop offset="0.58" stop-color="#152235"/><stop offset="1" stop-color="#213149"/></linearGradient>
   <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f2937"/><stop offset="1" stop-color="#101827"/></linearGradient>
   <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="9" stdDeviation="10" flood-color="#020617" flood-opacity="0.38"/></filter>
   <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#67e8f9" flood-opacity="0.2"/></filter>
-  <marker id="arrow-cyan" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse">
-  <path d="M0 0 L14 7 L0 14 Z" fill="#9ed8ff" stroke="#9ed8ff"/>
+  <marker id="arrow-cyan" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse" data-role="primary" data-tip-direction="positive-x">
+  <path d="M0 0 L14 7 L0 14 Z" fill="#9ed8ff" stroke="#9ed8ff" stroke-dasharray="none"/>
 </marker>
-<marker id="arrow-teal" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse">
-  <path d="M0 0 L14 7 L0 14 Z" fill="#5eead4" stroke="#5eead4"/>
+<marker id="arrow-teal" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse" data-role="primary" data-tip-direction="positive-x">
+  <path d="M0 0 L14 7 L0 14 Z" fill="#5eead4" stroke="#5eead4" stroke-dasharray="none"/>
 </marker>
-<marker id="arrow-purple" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse">
-  <path d="M0 0 L14 7 L0 14 Z" fill="#c4b5fd" stroke="#c4b5fd"/>
+<marker id="arrow-purple" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse" data-role="primary" data-tip-direction="positive-x">
+  <path d="M0 0 L14 7 L0 14 Z" fill="#c4b5fd" stroke="#c4b5fd" stroke-dasharray="none"/>
 </marker>
-<marker id="arrow-amber" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse">
-  <path d="M0 0 L14 7 L0 14 Z" fill="#f6c96b" stroke="#f6c96b"/>
+<marker id="arrow-amber" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse" data-role="primary" data-tip-direction="positive-x">
+  <path d="M0 0 L14 7 L0 14 Z" fill="#f6c96b" stroke="#f6c96b" stroke-dasharray="none"/>
 </marker>
-<marker id="arrow-rose" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse">
-  <path d="M0 0 L14 7 L0 14 Z" fill="#fda4af" stroke="#fda4af"/>
+<marker id="arrow-rose" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse" data-role="primary" data-tip-direction="positive-x">
+  <path d="M0 0 L14 7 L0 14 Z" fill="#fda4af" stroke="#fda4af" stroke-dasharray="none"/>
 </marker>
 
 </defs>
@@ -26,8 +26,8 @@
   <rect width="1600" height="1040" fill="url(#canvas)"/>
   <rect x="42" y="34" width="1516" height="972" rx="34" fill="url(#panel)" stroke="#536377" stroke-width="4" filter="url(#shadow)"/>
   <text text-anchor="middle" font-family="Architects Daughter, Comic Sans MS, cursive" font-size="48" font-weight="700" fill="#f8fafc"><tspan x="800" y="96">Learn Leader Election from the Boundary Inward</tspan></text>
-  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="500" fill="#b6c4d6"><tspan x="800" y="137">Leader 0.4 / 17 libraries / 17 workshops / 1 benchmark</tspan></text>
-  <g id="connectors" filter="url(#glow)"><path id="deps-core" d="M800 270 V325" fill="none" stroke="#c4b5fd" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-purple)"/><path id="core-model" d="M735 445 L735.0 457.5 Q735 470 722.5 470.0 L314 470 Q300 470 300 484 L300 525" fill="none" stroke="#9ed8ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-cyan)"/><path id="core-backend" d="M800 445 V525" fill="none" stroke="#5eead4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-teal)"/><path id="core-framework" d="M865 445 L865 486 Q865 500 879 500 L1287.5 500.0 Q1300 500 1300.0 512.5 L1300 525" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-amber)"/><path id="model-workshops" d="M300 675 L300 696 Q300 710 314 710 L556 710 Q570 710 570 724 L570 760" fill="none" stroke="#9ed8ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-cyan)"/><path id="backend-workshops" d="M800 675 V760" fill="none" stroke="#5eead4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-teal)"/><path id="framework-workshops" d="M1300 675 L1300 716 Q1300 730 1286 730 L1044 730 Q1030 730 1030 744 L1030 760" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-amber)"/></g>
+  <text text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="500" fill="#b6c4d6"><tspan x="800" y="137">Leader 0.5.0 / 17 libraries / 17 workshops / 1 benchmark</tspan></text>
+  <g id="connectors" filter="url(#glow)"><path id="deps-core" d="M800 270 V325" fill="none" stroke="#c4b5fd" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-purple)"/><path id="core-model" d="M735 445 L735.0 457.5 Q735 470 722.5 470.0 L314 470 Q300 470 300 484 L300 525" fill="none" stroke="#9ed8ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-cyan)"/><path id="core-backend" d="M800 445 V525" fill="none" stroke="#5eead4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-teal)"/><path id="core-framework" d="M865 445 L865 492 Q865 500 873 500 L1292 500 Q1300 500 1300 508 L1300 525" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-amber)"/><path id="model-workshops" d="M300 675 L300 696 Q300 710 314 710 L556 710 Q570 710 570 724 L570 760" fill="none" stroke="#9ed8ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-cyan)"/><path id="backend-workshops" d="M800 675 V760" fill="none" stroke="#5eead4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-teal)"/><path id="framework-workshops" d="M1300 675 L1300 716 Q1300 730 1286 730 L1044 730 Q1030 730 1030 744 L1030 760" fill="none" stroke="#f6c96b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-amber)"/></g>
 <g filter="url(#shadow)">
   <rect class="card" x="360" y="175" width="880" height="95" rx="22" fill="#172033" stroke="#c4b5fd" stroke-width="4"/>
   

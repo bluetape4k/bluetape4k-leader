@@ -16,7 +16,7 @@ artifact: null
 
 ## Problem {#problem}
 
-This non-published module compares election backends with one `kotlinx-benchmark`/JMH harness. The 0.4 manual anchors its comparison to the 2026-05-29 evidence: throughput is better when higher and average time is better when lower, but only rows from the same workload and runtime target are comparable.
+This non-published module compares election backends with one `kotlinx-benchmark`/JMH harness. The 0.5.0 manual anchors its comparison to the 2026-05-29 evidence: throughput is better when higher and average time is better when lower, but only rows from the same workload and runtime target are comparable.
 
 ## When to use it {#when-to-use}
 
@@ -81,4 +81,3 @@ The 2026-05-29 evidence represents one machine, short JMH windows, and container
 ## Sources {#sources}
 
 [Benchmark guide](../../../../benchmark/README.md) · [2026-05-29 throughput JSON](../../../../docs/benchmarks/2026-05-29-issue-405-rdb-backend-throughput.json) · [2026-05-29 average-time JSON](../../../../docs/benchmarks/2026-05-29-issue-405-rdb-backend-average-time.json) · [Harness](../../../../benchmark/src/benchmark/kotlin/io/bluetape4k/leader/benchmark/BackendLeaderElectorBenchmark.kt)
-

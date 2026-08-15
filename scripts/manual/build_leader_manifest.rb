@@ -5,6 +5,7 @@ require "yaml"
 
 INVENTORY = ARGV.fetch(0, "build/manual/release-module-inventory.json")
 OUTPUT = ARGV.fetch(1, "docs/manual/manifest.yaml")
+PROVENANCE = ARGV.fetch(2, OUTPUT)
 
 TITLES = {
   "benchmark" => ["Leader election benchmarks", "리더 선출 벤치마크"],
@@ -62,6 +63,13 @@ def group_for(id, kind)
 end
 
 rows = JSON.parse(File.read(INVENTORY))
+provenance = YAML.safe_load(File.read(PROVENANCE))
+unless provenance.is_a?(Hash) && provenance["releaseRef"].is_a?(String) && !provenance["releaseRef"].empty? &&
+       provenance["releaseCommit"].is_a?(String) && !provenance["releaseCommit"].empty?
+  abort("manual provenance must provide non-empty releaseRef and releaseCommit: #{PROVENANCE}")
+end
+release_ref = provenance.fetch("releaseRef")
+release_commit = provenance.fetch("releaseCommit")
 modules = rows.map do |row|
   id = manual_id(row)
   kind = row.fetch("kind")
@@ -111,8 +119,8 @@ overview_documents = %w[
 manifest = {
   "schemaVersion" => 2,
   "repository" => "bluetape4k/bluetape4k-leader",
-  "releaseRef" => "0.5.0",
-  "releaseCommit" => "721a9a3808f67489d2bdb8177734325981c24977",
+  "releaseRef" => release_ref,
+  "releaseCommit" => release_commit,
   "overview" => {
     "documents" => {
       "en" => overview_documents.map { |path| "en/#{path}" },

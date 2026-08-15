@@ -1,0 +1,30 @@
+{
+  "kind": "sequence",
+  "source": {
+    "question": "What ownership boundary does a successful election follow from contention to release?",
+    "revision": "develop@4b99338a1079ccf5d792b930238cf2f56f8f1929",
+    "paths": [
+      "docs/manual/en/guides/lease-lifecycle.md",
+      "docs/manual/en/guides/failure-and-cancellation.md"
+    ]
+  },
+  "nodes": [
+    {"id": "contend", "label": "Contend", "source": "docs/manual/en/guides/lease-lifecycle.md"},
+    {"id": "acquire", "label": "Acquire", "source": "docs/manual/en/guides/lease-lifecycle.md"},
+    {"id": "run", "label": "Run", "source": "docs/manual/en/guides/lease-lifecycle.md"},
+    {"id": "observe", "label": "Observe", "source": "docs/manual/en/guides/observability-and-operations.md"},
+    {"id": "extend", "label": "Extend", "source": "docs/manual/en/guides/lease-lifecycle.md"},
+    {"id": "release", "label": "Release", "source": "docs/manual/en/guides/lease-lifecycle.md"}
+  ],
+  "edges": [
+    {"id": "contend-acquire", "from": "contend", "to": "acquire", "kind": "flow", "source": "docs/manual/en/guides/lease-lifecycle.md"},
+    {"id": "acquire-run", "from": "acquire", "to": "run", "kind": "ownership", "source": "docs/manual/en/guides/lease-lifecycle.md"},
+    {"id": "run-observe", "from": "run", "to": "observe", "kind": "outcome", "source": "docs/manual/en/guides/observability-and-operations.md"},
+    {"id": "observe-extend", "from": "observe", "to": "extend", "kind": "renewal", "source": "docs/manual/en/guides/lease-lifecycle.md"},
+    {"id": "extend-release", "from": "extend", "to": "release", "kind": "cleanup", "source": "docs/manual/en/guides/lease-lifecycle.md"},
+    {"id": "release-contend", "from": "release", "to": "contend", "kind": "retry", "source": "docs/manual/en/guides/failure-and-cancellation.md"},
+    {"id": "run-release", "from": "run", "to": "release", "kind": "cancellation", "source": "docs/manual/en/guides/failure-and-cancellation.md"}
+  ],
+  "behavior": {"branches": 2, "loops": 1},
+  "repairs": []
+}

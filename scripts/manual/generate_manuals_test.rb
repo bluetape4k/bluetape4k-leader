@@ -32,7 +32,7 @@ class GenerateManualsTest < Minitest::Test
           assert_equal kind, metadata.fetch("kind")
           assert_equal ":#{kind}", metadata.fetch("gradlePath")
           assert_equal "modules/#{kind}", metadata.fetch("sourceDir")
-          assert_equal "0.4.0", metadata.fetch("releaseRef")
+          assert_equal "fixture-release", metadata.fetch("releaseRef")
           artifact.nil? ? assert_nil(metadata["artifact"]) : assert_equal(artifact, metadata["artifact"])
           assert_includes content, marker
           SECTIONS.each { |anchor| assert_equal 1, content.scan(/\{##{Regexp.escape(anchor)}\}/).length }
@@ -72,7 +72,7 @@ class GenerateManualsTest < Minitest::Test
       FileUtils.mkdir_p(template_root)
       FileUtils.cp_r(Dir[File.expand_path("../../docs/manual/templates/*.md", __dir__)], template_root)
       manifest = File.join(root, "docs/manual/manifest.yaml")
-      File.write(manifest, YAML.dump({ "modules" => %w[library example benchmark].map { |kind| entry(kind) } }))
+      File.write(manifest, YAML.dump({ "releaseRef" => "fixture-release", "modules" => %w[library example benchmark].map { |kind| entry(kind) } }))
 
       ManualDocs::ManualGenerator.new(repository_root: root, manifest_path: manifest).generate
 
@@ -172,7 +172,7 @@ class GenerateManualsTest < Minitest::Test
       File.write(File.join(template_root, "#{name}.md"), fixture_template("#{name}-template"))
     end
     manifest = File.join(root, "docs/manual/manifest.yaml")
-    File.write(manifest, YAML.dump({ "modules" => entries }))
+    File.write(manifest, YAML.dump({ "releaseRef" => "fixture-release", "modules" => entries }))
     ManualDocs::ManualGenerator.new(repository_root: root, manifest_path: manifest)
   end
 
@@ -199,7 +199,7 @@ class GenerateManualsTest < Minitest::Test
       kind: "{{kind}}"
       gradlePath: "{{gradlePath}}"
       sourceDir: "{{sourceDir}}"
-      releaseRef: "0.4.0"
+      releaseRef: "{{releaseRef}}"
       artifact: {{artifact}}
       ---
       {{heading_problem}} {#problem}

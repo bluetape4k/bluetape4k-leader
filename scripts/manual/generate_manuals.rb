@@ -60,6 +60,8 @@ module ManualDocs
 
     def generate
       manifest = YAML.safe_load(File.read(@manifest_path))
+      release_ref = manifest.fetch("releaseRef")
+      raise ArgumentError, "manual manifest releaseRef must be a non-empty string" unless release_ref.is_a?(String) && !release_ref.empty?
       created = []
       skipped = []
       manifest.fetch("modules").sort_by { |entry| entry.fetch("id") }.each do |entry|
@@ -72,7 +74,7 @@ module ManualDocs
             next
           end
           FileUtils.mkdir_p(File.dirname(output))
-          File.write(output, render(template, entry, locale))
+          File.write(output, render(template, entry, locale, release_ref))
           created << output
         end
       end
@@ -129,7 +131,7 @@ module ManualDocs
       expanded == root || expanded.start_with?(root + File::SEPARATOR)
     end
 
-    def render(template, entry, locale)
+    def render(template, entry, locale, release_ref)
       headings = HEADINGS.fetch(locale)
       remaining_sections = REQUIRED_SECTIONS.drop(1).map do |id|
         "## #{headings.fetch(id)} {##{id}}\n\n#{placeholder(locale)}\n"
@@ -142,6 +144,7 @@ module ManualDocs
         "kind" => entry.fetch("kind"),
         "gradlePath" => entry.fetch("gradlePath"),
         "sourceDir" => entry.fetch("sourceDir"),
+        "releaseRef" => release_ref,
         "artifact" => artifact.nil? ? "null" : artifact,
         "heading_problem" => "## #{headings.fetch('problem')}",
         "kind_intro" => kind_intro(entry.fetch("kind"), locale),

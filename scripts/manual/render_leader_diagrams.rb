@@ -3,11 +3,13 @@
 require "cgi"
 require "fileutils"
 require "open3"
+require "yaml"
 
 ROOT = File.expand_path("../..", __dir__)
 ASSETS = File.join(ROOT, "docs/manual/assets")
 W = 1600
 H = 1040
+MANIFEST = File.join(ROOT, "docs/manual/manifest.yaml")
 
 COLORS = {
   cyan: "#9ed8ff", teal: "#5eead4", purple: "#c4b5fd", amber: "#f6c96b",
@@ -16,6 +18,18 @@ COLORS = {
 
 def esc(value)
   CGI.escapeHTML(value.to_s)
+end
+
+def manual_provenance
+  @manual_provenance ||= begin
+    manifest = YAML.safe_load(File.read(MANIFEST))
+    abort("manual manifest must provide a mapping") unless manifest.is_a?(Hash)
+    release_ref = manifest.fetch("releaseRef")
+    release_commit = manifest.fetch("releaseCommit")
+    abort("manual manifest provenance must provide releaseRef and releaseCommit") unless
+      release_ref.is_a?(String) && !release_ref.empty? && release_commit.is_a?(String) && !release_commit.empty?
+    { "releaseRef" => release_ref, "releaseCommit" => release_commit }
+  end
 end
 
 def defs
@@ -105,7 +119,7 @@ def repository_learning_map
     edge("deps-core", "M800 270 V325", color: :purple),
     edge("core-model", rounded_path([[735, 445], [735, 470], [300, 470], [300, 525]]), color: :cyan),
     edge("core-backend", "M800 445 V525", color: :teal),
-    edge("core-framework", rounded_path([[865, 445], [865, 500], [1300, 500], [1300, 525]]), color: :amber),
+    edge("core-framework", rounded_path([[865, 445], [865, 500], [1300, 500], [1300, 525]], radius: 8), color: :amber),
     edge("model-workshops", rounded_path([[300, 675], [300, 710], [570, 710], [570, 760]]), color: :cyan),
     edge("backend-workshops", "M800 675 V760", color: :teal),
     edge("framework-workshops", rounded_path([[1300, 675], [1300, 730], [1030, 730], [1030, 760]]), color: :amber),
@@ -120,7 +134,8 @@ def repository_learning_map
     #{card(185, 760, 1230, 145, "17 runnable workshops", ["start with batch-scheduler, then choose a backend and execution model", "observe election results, contention, lease ownership, metrics, and recovery"], color: COLORS[:rose])}
     #{text_lines(800, 955, ["manual path: choose -> run -> observe -> diagnose -> operate"], size: 17, color: COLORS[:dim])}
   SVG
-  canvas("Learn Leader Election from the Boundary Inward", "Leader 0.4 / 17 libraries / 17 workshops / 1 benchmark", "Repository and learning map for the Leader 0.4 manual.", body)
+  release_ref = manual_provenance.fetch("releaseRef")
+  canvas("Learn Leader Election from the Boundary Inward", "Leader #{release_ref} / 17 libraries / 17 workshops / 1 benchmark", "Repository and learning map for the Leader #{release_ref} manual.", body)
 end
 
 def election_lifecycle
@@ -196,7 +211,7 @@ def backend_selection_map
       #{edge("semantics-ops", "M545 762 H590", color: :cyan)}
       #{edge("ops-proof", "M1010 762 H1055", color: :teal)}
     </g>
-    #{text_lines(800, 935, ["preview means the API exists in 0.4, but the operational contract is still intentionally narrower"], size: 17, color: COLORS[:dim])}
+    #{text_lines(800, 935, ["preview means the API exists in #{manual_provenance.fetch("releaseRef")}, but the operational contract is still intentionally narrower"], size: 17, color: COLORS[:dim])}
   SVG
   canvas("Pick the Backend You Can Operate", "selection is an ownership and recovery decision, not only a latency decision", "Backend selection map across Redis, SQL, document, control-plane, and cluster coordination families.", body)
 end
