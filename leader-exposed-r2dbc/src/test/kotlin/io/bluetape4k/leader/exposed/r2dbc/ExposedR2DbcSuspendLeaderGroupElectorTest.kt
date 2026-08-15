@@ -22,6 +22,7 @@ import org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction
 import org.jetbrains.exposed.v1.r2dbc.statements.GlobalSuspendStatementInterceptor
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeInRange
 import io.bluetape4k.assertions.shouldBeNull
@@ -58,6 +59,13 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
                 retryStrategy = RetryStrategy.Jitter(),
             ),
         )
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun ExposedR2DbcSuspendLeaderGroupElector.hasCachedActiveCount(lockName: String): Boolean {
+        val cacheField = javaClass.getDeclaredField("cachedActiveCounts")
+        cacheField.isAccessible = true
+        return (cacheField.get(this) as Map<String, *>).containsKey(lockName)
     }
 
     @ParameterizedTest
@@ -282,6 +290,56 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
         release.complete(Unit)
         holdJob.await()
     }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `동시 슬롯 해제 후 0이 된 active count cache를 같은 lockName으로 재생성한다`(testDB: TestR2dbcDB) =
+        runSuspendIO {
+            val db = setupDb(testDB)
+            cleanTables(db)
+            val lockName = randomName()
+            val maxLeaders = 2
+            val options = ExposedR2dbcLeaderGroupElectionOptions(
+                leaderGroupOptions = LeaderGroupElectionOptions(
+                    maxLeaders = maxLeaders,
+                    waitTime = 5.seconds,
+                    leaseTime = 30.seconds,
+                ),
+            )
+            val election = ExposedR2DbcSuspendLeaderGroupElector(db, options)
+            val acquiredCount = AtomicInteger(0)
+            val allAcquired = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+
+            // SuspendedJobTester는 실행 중인 두 슬롯의 cache 상태를 관찰할 수 없어 명시적 barrier를 사용한다.
+            val jobs = (1..maxLeaders).map {
+                async {
+                    election.runIfLeader(lockName) {
+                        if (acquiredCount.incrementAndGet() == maxLeaders) {
+                            allAcquired.complete(Unit)
+                        }
+                        release.await()
+                    }
+                }
+            }
+
+            withTimeout(10.seconds) { allAcquired.await() }
+            election.activeCount(lockName) shouldBeEqualTo maxLeaders
+            election.hasCachedActiveCount(lockName).shouldBeTrue()
+
+            release.complete(Unit)
+            withTimeout(10.seconds) { jobs.awaitAll() }
+            election.activeCount(lockName) shouldBeEqualTo 0
+            election.hasCachedActiveCount(lockName).shouldBeFalse()
+
+            election.runIfLeader(lockName) {
+                election.activeCount(lockName) shouldBeEqualTo 1
+                election.hasCachedActiveCount(lockName).shouldBeTrue()
+                "recreated"
+            } shouldBeEqualTo "recreated"
+            election.activeCount(lockName) shouldBeEqualTo 0
+            election.hasCachedActiveCount(lockName).shouldBeFalse()
+        }
 
     @ParameterizedTest
     @MethodSource("enableDialects")
