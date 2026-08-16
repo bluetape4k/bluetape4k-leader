@@ -203,6 +203,7 @@ class ExposedJdbcLeaderGroupElector private constructor(
                 actionSucceeded = true
                 return result
             } catch (e: CancellationException) {
+                capturedError = e
                 throw e
             } catch (e: Throwable) {
                 capturedError = e

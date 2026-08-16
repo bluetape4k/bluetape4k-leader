@@ -18,6 +18,7 @@ import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeLessOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldBeTrue
@@ -26,6 +27,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import io.bluetape4k.assertions.assertFailsWith
+import kotlinx.coroutines.CancellationException
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.time.Duration
@@ -300,6 +302,36 @@ class ExposedJdbcLeaderGroupElectionTest: AbstractExposedJdbcLeaderTest() {
         rows.size shouldBeEqualTo 1
         rows[0][LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.COMPLETED.name
         rows[0][LeaderLockHistoryTable.slot].shouldNotBeNull()
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `runIfLeader - action 취소 후 FAILED 이력을 기록하고 슬롯을 반환한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val options = ExposedJdbcLeaderGroupElectionOptions(
+            leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = 3),
+        )
+        val recorder = SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db))
+        val election = ExposedJdbcLeaderGroupElector(db, options, recorder)
+        val cancellation = CancellationException("cancel group action")
+
+        val thrown = assertFailsWith<CancellationException> {
+            election.runIfLeader(lockName) { throw cancellation }
+        }
+
+        thrown shouldBeEqualTo cancellation
+        val history = transaction(db) {
+            LeaderLockHistoryTable.selectAll()
+                .where { LeaderLockHistoryTable.lockName eq lockName }
+                .single()
+        }
+        history[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED.name
+        history[LeaderLockHistoryTable.finishedAt].shouldNotBeNull()
+        history[LeaderLockHistoryTable.durationMs].shouldNotBeNull() shouldBeGreaterOrEqualTo 0L
+        election.activeCount(lockName) shouldBeEqualTo 0
+        election.runIfLeader(lockName) { "group-recovered-after-cancel" } shouldBeEqualTo "group-recovered-after-cancel"
     }
 
     @ParameterizedTest
