@@ -4,6 +4,7 @@ import io.bluetape4k.leader.AopScopeAccess
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcBackendErrorClassifier
 import io.bluetape4k.leader.exposed.r2dbc.internal.ExposedR2dbcSuspendLockExtendDelegate
@@ -37,7 +38,8 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
     private val db: R2dbcDatabase,
     val options: ExposedR2dbcLeaderElectionOptions,
     private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
-) : SuspendLeaderElector {
+) : SuspendLeaderElector,
+    LeaderBackendDiagnosticsProvider by ExposedR2dbcLeaderBackendDiagnostics {
 
     companion object : KLoggingChannel() {
 

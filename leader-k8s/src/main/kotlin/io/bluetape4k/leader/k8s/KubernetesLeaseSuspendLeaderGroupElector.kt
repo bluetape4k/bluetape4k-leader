@@ -8,6 +8,7 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLockExtendDelegate
@@ -36,11 +37,14 @@ import kotlin.time.Duration.Companion.milliseconds
  * @property options Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property clock Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
  */
+// Suspend group elector는 상태 조회, lease lifecycle, diagnostics 계약을 함께 구현합니다.
+@Suppress("TooManyFunctions")
 class KubernetesLeaseSuspendLeaderGroupElector @JvmOverloads constructor(
     private val client: KubernetesClient,
     val options: KubernetesLeaseGroupOptions = KubernetesLeaseGroupOptions.Default,
     private val clock: Clock = Clock.systemUTC(),
-) : SuspendLeaderGroupElector {
+) : SuspendLeaderGroupElector,
+    LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics {
 
     companion object : KLoggingChannel() {
         internal const val K8S_SUSPEND_GROUP_FACTORY_BEAN_NAME = "kubernetes-lease-suspend-leader-group-elector"

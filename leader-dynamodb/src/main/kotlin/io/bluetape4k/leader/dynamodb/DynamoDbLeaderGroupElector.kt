@@ -9,6 +9,7 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbKeys
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbLockClient
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbLockExtendDelegate
@@ -33,7 +34,8 @@ import kotlin.random.Random
 class DynamoDbLeaderGroupElector(
     private val dynamoDb: DynamoDbClient,
     val options: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,
-) : LeaderGroupElector {
+) : LeaderGroupElector,
+    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
 
     companion object : KLogging() {
         internal const val DYNAMODB_GROUP_FACTORY_BEAN_NAME = "dynamodb-leader-group-elector"

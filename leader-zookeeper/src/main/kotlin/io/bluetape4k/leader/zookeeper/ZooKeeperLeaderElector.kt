@@ -7,6 +7,7 @@ import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperLockExtendDelegate
@@ -31,7 +32,8 @@ class ZooKeeperLeaderElector private constructor(
     private val client: CuratorFramework,
     private val basePath: String,
     private val options: LeaderElectionOptions,
-): LeaderElector {
+): LeaderElector,
+    LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client) {
 
     companion object: KLogging() {
         const val DEFAULT_BASE_PATH = "/leader-election"

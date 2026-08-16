@@ -6,6 +6,7 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.VirtualThreadLeaderGroupElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 
 /**
@@ -16,7 +17,8 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient
  */
 class DynamoDbVirtualThreadLeaderGroupElector(
     private val delegate: DynamoDbLeaderGroupElector,
-) : VirtualThreadLeaderGroupElector {
+) : VirtualThreadLeaderGroupElector,
+    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
 
     override val maxLeaders: Int get() = delegate.maxLeaders
 

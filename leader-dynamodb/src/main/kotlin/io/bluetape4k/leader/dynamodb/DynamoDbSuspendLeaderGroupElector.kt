@@ -7,6 +7,7 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbKeys
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbLockClient
@@ -32,7 +33,8 @@ import kotlin.time.Duration
 class DynamoDbSuspendLeaderGroupElector(
     private val dynamoDb: DynamoDbAsyncClient,
     val options: DynamoDbLeaderGroupElectionOptions = DynamoDbLeaderGroupElectionOptions.Default,
-) : SuspendLeaderGroupElector {
+) : SuspendLeaderGroupElector,
+    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
 
     companion object : KLoggingChannel()
 

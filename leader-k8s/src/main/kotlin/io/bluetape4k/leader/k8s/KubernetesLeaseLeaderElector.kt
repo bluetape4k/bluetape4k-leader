@@ -8,6 +8,7 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.k8s.internal.KubernetesBackendErrorClassifier
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
@@ -30,11 +31,14 @@ import java.util.concurrent.Executor
  * @property options Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property clock Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
  */
+// Single elector는 blocking/async, audit state, lease lifecycle, diagnostics 계약을 함께 구현합니다.
+@Suppress("TooManyFunctions")
 class KubernetesLeaseLeaderElector @JvmOverloads constructor(
     private val client: KubernetesClient,
     val options: KubernetesLeaseOptions = KubernetesLeaseOptions.Default,
     private val clock: Clock = Clock.systemUTC(),
-) : LeaderElector {
+) : LeaderElector,
+    LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics {
 
     companion object : KLogging() {
         internal const val K8S_FACTORY_BEAN_NAME = "kubernetes-lease-leader-elector"

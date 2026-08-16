@@ -10,6 +10,7 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.etcd.internal.EtcdAcquisitionDeadline
 import io.bluetape4k.leader.etcd.internal.EtcdBackendErrorClassifier
 import io.bluetape4k.leader.etcd.internal.EtcdLeaseHandle
@@ -42,10 +43,13 @@ import kotlin.time.Duration.Companion.milliseconds
  * @property lockClient etcd backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property options etcd backend 호출과 상태 계산에 사용하는 속성입니다.
  */
+// Group elector는 sync/async, 상태 조회, lease lifecycle, diagnostics 계약을 함께 구현합니다.
+@Suppress("TooManyFunctions")
 class EtcdLeaderGroupElector private constructor(
     private val lockClient: EtcdLockClient,
     val options: EtcdLeaderGroupElectionOptions,
-) : LeaderGroupElector {
+) : LeaderGroupElector,
+    LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics {
 
     private val cleanupTimeout = etcdCleanupTimeout(options.leaderGroupOptions.waitTime, options.retryDelay)
 

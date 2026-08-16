@@ -7,6 +7,7 @@ import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.hazelcast.internal.HazelcastBackendErrorClassifier
 import io.bluetape4k.leader.hazelcast.internal.HazelcastSuspendLockExtendDelegate
@@ -31,7 +32,8 @@ import kotlinx.coroutines.withContext
 class HazelcastSuspendLeaderElector private constructor(
     private val hazelcast: HazelcastInstance,
     private val options: LeaderElectionOptions,
-): SuspendLeaderElector {
+) : SuspendLeaderElector,
+    LeaderBackendDiagnosticsProvider by HazelcastLeaderBackendDiagnostics(hazelcast) {
 
     companion object: KLoggingChannel() {
         internal const val HAZELCAST_SUSPEND_FACTORY_BEAN_NAME = "hazelcast-suspend-leader-elector"

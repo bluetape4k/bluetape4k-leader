@@ -15,6 +15,7 @@ import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceLockExtendDelegate
 import io.bluetape4k.leader.lettuce.lock.LettuceLock
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -46,11 +47,13 @@ fun StatefulRedisConnection<String, String>.leaderElection(
  * @property options Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property historyRecorder Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
  */
+// Single elector는 sync/async, lease lifecycle, diagnostics 계약을 함께 구현합니다.
+@Suppress("TooManyFunctions")
 class LettuceLeaderElector @JvmOverloads constructor(
     private val connection: StatefulRedisConnection<String, String>,
     private val options: LeaderElectionOptions = LeaderElectionOptions.Default,
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,
-): LeaderElector {
+): LeaderElector, LeaderBackendDiagnosticsProvider by LettuceLeaderBackendDiagnostics(connection) {
 
     companion object: KLogging() {
         internal const val LETTUCE_FACTORY_BEAN_NAME = "lettuce-leader-elector"

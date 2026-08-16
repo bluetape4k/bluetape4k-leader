@@ -7,6 +7,7 @@ import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
@@ -36,7 +37,7 @@ class MongoLeaderElector private constructor(
     private val collection: MongoCollection<Document>,
     val options: MongoLeaderElectionOptions,
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,
-) : LeaderElector {
+) : LeaderElector, LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics {
 
     companion object : KLogging() {
         internal const val MONGO_FACTORY_BEAN_NAME = "mongo-leader-elector"

@@ -10,6 +10,7 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonSemaphoreExtendDelegate
@@ -39,10 +40,12 @@ import kotlin.time.Duration
  * @property redissonClient Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property options Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
  */
+// Group elector는 sync/async, 상태 조회, lease lifecycle, diagnostics 계약을 함께 구현합니다.
+@Suppress("TooManyFunctions")
 class RedissonLeaderGroupElector private constructor(
     private val redissonClient: RedissonClient,
     val options: LeaderGroupElectionOptions,
-): LeaderGroupElector {
+): LeaderGroupElector, LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient) {
     companion object: KLogging() {
         internal const val REDISSON_GROUP_FACTORY_BEAN_NAME = "redisson-leader-group-elector"
         internal val ERROR_CLASSIFIER = CompositeBackendErrorClassifier(RedissonBackendErrorClassifier)

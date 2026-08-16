@@ -10,6 +10,7 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLock
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseLockExtendDelegate
 import io.bluetape4k.leader.k8s.internal.KubernetesLeaseGroupAcquisitionDeadline
@@ -35,11 +36,14 @@ import kotlin.time.Duration.Companion.milliseconds
  * @property options Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property clock Kubernetes Lease backend 호출과 상태 계산에 사용하는 속성입니다.
  */
+// Group elector는 blocking/async, 상태 조회, lease lifecycle, diagnostics 계약을 함께 구현합니다.
+@Suppress("TooManyFunctions")
 class KubernetesLeaseLeaderGroupElector @JvmOverloads constructor(
     private val client: KubernetesClient,
     val options: KubernetesLeaseGroupOptions = KubernetesLeaseGroupOptions.Default,
     private val clock: Clock = Clock.systemUTC(),
-) : LeaderGroupElector {
+) : LeaderGroupElector,
+    LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics {
 
     companion object : KLogging() {
         internal const val K8S_GROUP_FACTORY_BEAN_NAME = "kubernetes-lease-leader-group-elector"

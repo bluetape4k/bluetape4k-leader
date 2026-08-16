@@ -5,6 +5,7 @@ import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.etcd.internal.EtcdAcquisitionDeadline
 import io.bluetape4k.leader.etcd.internal.EtcdBackendErrorClassifier
 import io.bluetape4k.leader.etcd.internal.EtcdLeaseHandle
@@ -39,7 +40,8 @@ import kotlin.time.Duration
 class EtcdSuspendLeaderElector private constructor(
     private val lockClient: EtcdLockClient,
     val options: EtcdLeaderElectionOptions,
-): SuspendLeaderElector {
+): SuspendLeaderElector,
+    LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics {
 
     companion object: KLoggingChannel() {
         internal const val ETCD_SUSPEND_FACTORY_BEAN_NAME = "etcd-suspend-leader-elector"
