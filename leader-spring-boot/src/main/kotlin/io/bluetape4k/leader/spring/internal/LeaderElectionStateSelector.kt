@@ -36,26 +36,34 @@ internal class LeaderElectionStateSelector(
     }
 
     fun selectedOrNull(): Selected? =
-        if (candidates().isEmpty()) null else selected()
+        selectedCandidateOrNull()?.toSelected()
 
     fun selected(): Selected {
-        val candidates = candidates()
-        check(candidates.isNotEmpty()) { "No LeaderElectionState bean is registered." }
+        val candidate = checkNotNull(selectedCandidateOrNull()) {
+            "No LeaderElectionState bean is registered."
+        }
+        return candidate.toSelected()
+    }
 
-        val candidate = stateProviderBean.takeIf(String::isNotBlank)?.let { explicitBeanName ->
+    private fun selectedCandidateOrNull(): Candidate? {
+        val candidates = candidates()
+        if (candidates.isEmpty()) return null
+
+        return stateProviderBean.takeIf(String::isNotBlank)?.let { explicitBeanName ->
             candidates.firstOrNull { it.beanName == explicitBeanName }
                 ?: throw IllegalStateException(
                     "Configured leader observability state provider '$explicitBeanName' is not an active " +
                             "LeaderElectionState bean. Candidates: ${candidates.joinToString { it.beanName }}"
                 )
         } ?: selectSingleBackend(candidates)
-
-        return Selected(
-            beanName = candidate.beanName,
-            backendName = candidate.backendName,
-            state = beanFactory.getBean(candidate.beanName, LeaderElectionState::class.java),
-        )
     }
+
+    private fun Candidate.toSelected(): Selected =
+        Selected(
+            beanName = beanName,
+            backendName = backendName,
+            state = beanFactory.getBean(beanName, LeaderElectionState::class.java),
+        )
 
     private fun selectSingleBackend(candidates: List<Candidate>): Candidate {
         val backends = candidates.map(Candidate::backendName).distinct()

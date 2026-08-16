@@ -89,6 +89,11 @@
       "name": "bluetape4k.leader.observability.tracing",
       "type": "io.bluetape4k.leader.spring.properties.LeaderTracingProperties",
       "description": "Micrometer Observation tracing options for leader election."
+    },
+    {
+      "name": "bluetape4k.leader.observability.backend-health",
+      "type": "io.bluetape4k.leader.spring.properties.LeaderBackendHealthProperties",
+      "description": "Opt-in connectivity health probe options for the selected leader backend."
     }
   ],
   "properties": [
@@ -467,9 +472,27 @@
       "defaultValue": false
     },
     {
+      "name": "bluetape4k.leader.observability.backend-health.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable the selected leader backend connectivity health indicator.",
+      "defaultValue": false
+    },
+    {
+      "name": "bluetape4k.leader.observability.backend-health.timeout",
+      "type": "java.time.Duration",
+      "description": "Positive finite timeout for one backend connectivity probe.",
+      "defaultValue": "PT0.5S"
+    },
+    {
       "name": "management.endpoint.leaderElection.enabled",
       "type": "java.lang.Boolean",
       "description": "Enable the custom leaderElection Actuator endpoint.",
+      "defaultValue": false
+    },
+    {
+      "name": "management.endpoint.leaderBackendDiagnostics.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable the static leaderBackendDiagnostics Actuator endpoint.",
       "defaultValue": false
     },
     {

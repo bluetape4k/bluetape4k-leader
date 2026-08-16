@@ -1,7 +1,9 @@
 package io.bluetape4k.leader.spring
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.leader.spring.properties.LeaderElectionProperties
+import io.bluetape4k.leader.spring.properties.LeaderBackendHealthProperties
 import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
 import io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode
 import io.bluetape4k.leader.spring.properties.LeaderRouteRejectionStatus
@@ -49,6 +51,8 @@ class LeaderPropertiesBindingTest {
                 "bluetape4k.leader.route-guard.elector-bean" to "ordersLeaderElector",
                 "bluetape4k.leader.route-guard.rejection-status" to "not-found",
                 "bluetape4k.leader.observability.state-provider-bean" to "ordersSuspendLeaderElector",
+                "bluetape4k.leader.observability.backend-health.enabled" to "true",
+                "bluetape4k.leader.observability.backend-health.timeout" to "275ms",
             ),
         )
         val props = Binder(source).bindAs<LeaderProperties>("bluetape4k.leader").get()
@@ -74,6 +78,8 @@ class LeaderPropertiesBindingTest {
         props.routeGuard.electorBean shouldBeEqualTo "ordersLeaderElector"
         props.routeGuard.rejectionStatus shouldBeEqualTo LeaderRouteRejectionStatus.NOT_FOUND
         props.observability.stateProviderBean shouldBeEqualTo "ordersSuspendLeaderElector"
+        props.observability.backendHealth.enabled.shouldBeTrue()
+        props.observability.backendHealth.timeout shouldBeEqualTo Duration.ofMillis(275)
     }
 
     @Test
@@ -100,6 +106,21 @@ class LeaderPropertiesBindingTest {
         props.routeGuard.electorBean shouldBeEqualTo ""
         props.routeGuard.rejectionStatus shouldBeEqualTo LeaderRouteRejectionStatus.SERVICE_UNAVAILABLE
         props.observability.stateProviderBean shouldBeEqualTo ""
+        props.observability.backendHealth.enabled.shouldBeFalse()
+        props.observability.backendHealth.timeout shouldBeEqualTo Duration.ofMillis(500)
+    }
+
+    @Test
+    fun `backend health timeout은 양수 유한 값만 허용`() {
+        listOf(
+            Duration.ZERO,
+            Duration.ofMillis(-1),
+            Duration.ofSeconds(Long.MAX_VALUE),
+        ).forEach { timeout ->
+            assertFailsWith<IllegalArgumentException> {
+                LeaderBackendHealthProperties(timeout = timeout)
+            }
+        }
     }
 
     @Test
