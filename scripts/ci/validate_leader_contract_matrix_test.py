@@ -10,10 +10,39 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from validate_leader_contract_matrix import validate_entries, validate_modules, validate_required_entries
+from validate_leader_contract_matrix import (
+    render_readme_capability_rows,
+    validate_entries,
+    validate_modules,
+    validate_readme_capabilities,
+    validate_required_entries,
+)
 
 
 class ValidateLeaderContractMatrixTest(unittest.TestCase):
+    def readme_capability(self, source: str) -> dict[str, object]:
+        return {
+            "backend": "Local",
+            "module": "bluetape4k-leader-core",
+            "single_blocking": "N",
+            "single_async": "B",
+            "single_suspend": "N",
+            "single_virtual": "B",
+            "group_blocking": "N",
+            "group_async": "B",
+            "group_suspend": "N",
+            "group_virtual": "B",
+            "auto_extend": "S",
+            "state": "S/G",
+            "audit": "S",
+            "sources": [
+                {
+                    "path": source,
+                    "tokens": ["class LocalLeaderElector", "options.autoExtend"],
+                }
+            ],
+        }
+
     def supported_entry(self, **overrides: str) -> dict[str, str]:
         entry = {
             "backend": "etcd",
@@ -132,6 +161,68 @@ class ValidateLeaderContractMatrixTest(unittest.TestCase):
             "AbstractLeaderGroupElectorLeaderIdContractTest",
             errors,
         )
+
+    def test_rejects_readme_capability_when_source_anchor_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = "leader-core/src/main/kotlin/LocalLeaderElector.kt"
+            source_file = root / source
+            source_file.parent.mkdir(parents=True)
+            source_file.write_text("class LocalLeaderElector", encoding="utf-8")
+            row = self.readme_capability(source)
+            rendered = render_readme_capability_rows([row])
+            readme = f"<!-- LEADER_CAPABILITY_MATRIX:START -->\n{rendered}\n<!-- LEADER_CAPABILITY_MATRIX:END -->"
+
+            errors = validate_readme_capabilities(
+                {"readme_capabilities": {"rows": [row]}},
+                root,
+                readme,
+                readme,
+                expected_backends={"Local"},
+            )
+
+            self.assertIn("source token is missing: options.autoExtend", errors)
+
+    def test_rejects_localized_readme_capability_matrix_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = "leader-core/src/main/kotlin/LocalLeaderElector.kt"
+            source_file = root / source
+            source_file.parent.mkdir(parents=True)
+            source_file.write_text(
+                "class LocalLeaderElector { val configured = options.autoExtend }",
+                encoding="utf-8",
+            )
+            row = self.readme_capability(source)
+            rendered = render_readme_capability_rows([row])
+            readme = f"<!-- LEADER_CAPABILITY_MATRIX:START -->\n{rendered}\n<!-- LEADER_CAPABILITY_MATRIX:END -->"
+            korean = readme.replace("| S/G | S |", "| G | — |")
+
+            errors = validate_readme_capabilities(
+                {"readme_capabilities": {"rows": [row]}},
+                root,
+                readme,
+                korean,
+                expected_backends={"Local"},
+            )
+
+            self.assertIn("README.ko.md capability rows differ from manifest", errors)
+
+    def test_rejects_non_object_readme_capability_without_crashing(self) -> None:
+        markers = (
+            "<!-- LEADER_CAPABILITY_MATRIX:START -->\n"
+            "<!-- LEADER_CAPABILITY_MATRIX:END -->"
+        )
+
+        errors = validate_readme_capabilities(
+            {"readme_capabilities": {"rows": ["invalid"]}},
+            Path("."),
+            markers,
+            markers,
+            expected_backends=set(),
+        )
+
+        self.assertIn("readme_capabilities.rows[0] fields do not match capability contract", errors)
 
 
 if __name__ == "__main__":

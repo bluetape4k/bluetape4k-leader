@@ -1,5 +1,373 @@
 {
   "version": 1,
+  "readme_capabilities": {
+    "rows": [
+      {
+        "backend": "Local",
+        "module": "bluetape4k-leader-core",
+        "single_blocking": "N",
+        "single_async": "B",
+        "single_suspend": "N",
+        "single_virtual": "B",
+        "group_blocking": "N",
+        "group_async": "B",
+        "group_suspend": "N",
+        "group_virtual": "B",
+        "auto_extend": "S",
+        "state": "S/G",
+        "audit": "S",
+        "sources": [
+          {
+            "path": "leader-core/src/main/kotlin/io/bluetape4k/leader/local/AbstractLocalLeaderElector.kt",
+            "tokens": ["supportsAuditLeaderState: Boolean = true", "LeaderLeaseAutoExtender.start(options.autoExtend"]
+          },
+          {
+            "path": "leader-core/src/main/kotlin/io/bluetape4k/leader/local/LocalAsyncLeaderElector.kt",
+            "tokens": ["class LocalAsyncLeaderElector", "CompletableFuture.supplyAsync"]
+          },
+          {
+            "path": "leader-core/src/main/kotlin/io/bluetape4k/leader/local/LocalAsyncLeaderGroupElector.kt",
+            "tokens": ["class LocalAsyncLeaderGroupElector", "CompletableFuture.supplyAsync"]
+          },
+          {
+            "path": "leader-core/src/main/kotlin/io/bluetape4k/leader/coroutines/LocalSuspendLeaderElector.kt",
+            "tokens": ["class LocalSuspendLeaderElector"]
+          },
+          {
+            "path": "leader-core/src/main/kotlin/io/bluetape4k/leader/local/LocalVirtualThreadLeaderGroupElector.kt",
+            "tokens": ["class LocalVirtualThreadLeaderGroupElector", "virtualFuture"]
+          }
+        ]
+      },
+      {
+        "backend": "Lettuce",
+        "module": "bluetape4k-leader-redis-lettuce",
+        "single_blocking": "N",
+        "single_async": "N",
+        "single_suspend": "N",
+        "single_virtual": "—",
+        "group_blocking": "N",
+        "group_async": "N",
+        "group_suspend": "N",
+        "group_virtual": "—",
+        "auto_extend": "S",
+        "state": "G",
+        "audit": "—",
+        "sources": [
+          {
+            "path": "leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceLeaderElector.kt",
+            "tokens": ["class LettuceLeaderElector", "runAsyncImpl", "LeaderLeaseAutoExtender.start(options.autoExtend"]
+          },
+          {
+            "path": "leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceLeaderGroupElector.kt",
+            "tokens": ["class LettuceLeaderGroupElector", "override fun state(", "runAsyncImpl"]
+          },
+          {
+            "path": "leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceSuspendLeaderElector.kt",
+            "tokens": ["class LettuceSuspendLeaderElector"]
+          }
+        ]
+      },
+      {
+        "backend": "Redisson",
+        "module": "bluetape4k-leader-redis-redisson",
+        "single_blocking": "N",
+        "single_async": "N",
+        "single_suspend": "N",
+        "single_virtual": "—",
+        "group_blocking": "N",
+        "group_async": "N",
+        "group_suspend": "N",
+        "group_virtual": "—",
+        "auto_extend": "S",
+        "state": "G",
+        "audit": "—",
+        "sources": [
+          {
+            "path": "leader-redis-redisson/src/main/kotlin/io/bluetape4k/leader/redisson/RedissonLeaderElector.kt",
+            "tokens": ["class RedissonLeaderElector", "runAsyncImpl", "options.autoExtend"]
+          },
+          {
+            "path": "leader-redis-redisson/src/main/kotlin/io/bluetape4k/leader/redisson/RedissonLeaderGroupElector.kt",
+            "tokens": ["class RedissonLeaderGroupElector", "override fun state(", "runAsyncImpl"]
+          },
+          {
+            "path": "leader-redis-redisson/src/main/kotlin/io/bluetape4k/leader/redisson/RedissonSuspendLeaderElector.kt",
+            "tokens": ["class RedissonSuspendLeaderElector"]
+          }
+        ]
+      },
+      {
+        "backend": "Exposed JDBC",
+        "module": "bluetape4k-leader-exposed-jdbc",
+        "single_blocking": "N",
+        "single_async": "B",
+        "single_suspend": "—",
+        "single_virtual": "B",
+        "group_blocking": "N",
+        "group_async": "B",
+        "group_suspend": "—",
+        "group_virtual": "—",
+        "auto_extend": "S",
+        "state": "G",
+        "audit": "—",
+        "sources": [
+          {
+            "path": "leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/ExposedJdbcLeaderElector.kt",
+            "tokens": ["class ExposedJdbcLeaderElector", "CompletableFuture", "options.leaderOptions.autoExtend"]
+          },
+          {
+            "path": "leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/ExposedJdbcLeaderGroupElector.kt",
+            "tokens": ["class ExposedJdbcLeaderGroupElector", "override fun state(", "CompletableFuture.supplyAsync"]
+          },
+          {
+            "path": "leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/ExposedJdbcVirtualThreadLeaderElector.kt",
+            "tokens": ["class ExposedJdbcVirtualThreadLeaderElector", "delegate.runIfLeader"]
+          }
+        ]
+      },
+      {
+        "backend": "Exposed R2DBC",
+        "module": "bluetape4k-leader-exposed-r2dbc",
+        "single_blocking": "—",
+        "single_async": "—",
+        "single_suspend": "N",
+        "single_virtual": "—",
+        "group_blocking": "—",
+        "group_async": "—",
+        "group_suspend": "N",
+        "group_virtual": "—",
+        "auto_extend": "S",
+        "state": "G",
+        "audit": "—",
+        "sources": [
+          {
+            "path": "leader-exposed-r2dbc/src/main/kotlin/io/bluetape4k/leader/exposed/r2dbc/ExposedR2DbcSuspendLeaderElector.kt",
+            "tokens": ["class ExposedR2DbcSuspendLeaderElector", "options.leaderOptions.autoExtend"]
+          },
+          {
+            "path": "leader-exposed-r2dbc/src/main/kotlin/io/bluetape4k/leader/exposed/r2dbc/ExposedR2DbcSuspendLeaderGroupElector.kt",
+            "tokens": ["class ExposedR2DbcSuspendLeaderGroupElector", "override fun state("]
+          }
+        ]
+      },
+      {
+        "backend": "MongoDB",
+        "module": "bluetape4k-leader-mongodb",
+        "single_blocking": "N",
+        "single_async": "N",
+        "single_suspend": "N",
+        "single_virtual": "—",
+        "group_blocking": "N",
+        "group_async": "N",
+        "group_suspend": "N",
+        "group_virtual": "—",
+        "auto_extend": "S",
+        "state": "G",
+        "audit": "—",
+        "sources": [
+          {
+            "path": "leader-mongodb/src/main/kotlin/io/bluetape4k/leader/mongodb/MongoLeaderElector.kt",
+            "tokens": ["class MongoLeaderElector", "tryLockAsync", "options.leaderOptions.autoExtend"]
+          },
+          {
+            "path": "leader-mongodb/src/main/kotlin/io/bluetape4k/leader/mongodb/MongoLeaderGroupElector.kt",
+            "tokens": ["class MongoLeaderGroupElector", "override fun state(", "acquireSlotAsync"]
+          },
+          {
+            "path": "leader-mongodb/src/main/kotlin/io/bluetape4k/leader/mongodb/MongoSuspendLeaderElector.kt",
+            "tokens": ["class MongoSuspendLeaderElector"]
+          }
+        ]
+      },
+      {
+        "backend": "Hazelcast",
+        "module": "bluetape4k-leader-hazelcast",
+        "single_blocking": "N",
+        "single_async": "B",
+        "single_suspend": "B",
+        "single_virtual": "—",
+        "group_blocking": "N",
+        "group_async": "B",
+        "group_suspend": "B",
+        "group_virtual": "—",
+        "auto_extend": "S",
+        "state": "G",
+        "audit": "—",
+        "sources": [
+          {
+            "path": "leader-hazelcast/src/main/kotlin/io/bluetape4k/leader/hazelcast/HazelcastLeaderElector.kt",
+            "tokens": ["class HazelcastLeaderElector", "CompletableFuture", "options.autoExtend"]
+          },
+          {
+            "path": "leader-hazelcast/src/main/kotlin/io/bluetape4k/leader/hazelcast/HazelcastLeaderGroupElector.kt",
+            "tokens": ["class HazelcastLeaderGroupElector", "override fun state(", "CompletableFuture.supplyAsync"]
+          },
+          {
+            "path": "leader-hazelcast/src/main/kotlin/io/bluetape4k/leader/hazelcast/HazelcastSuspendLeaderElector.kt",
+            "tokens": ["class HazelcastSuspendLeaderElector"]
+          },
+          {
+            "path": "leader-hazelcast/src/main/kotlin/io/bluetape4k/leader/hazelcast/lock/HazelcastSuspendLock.kt",
+            "tokens": ["withContext(Dispatchers.IO)"]
+          }
+        ]
+      },
+      {
+        "backend": "etcd",
+        "module": "bluetape4k-leader-etcd",
+        "single_blocking": "N",
+        "single_async": "B",
+        "single_suspend": "N",
+        "single_virtual": "B",
+        "group_blocking": "N",
+        "group_async": "B",
+        "group_suspend": "N",
+        "group_virtual": "—",
+        "auto_extend": "S",
+        "state": "G",
+        "audit": "—",
+        "sources": [
+          {
+            "path": "leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdLeaderElector.kt",
+            "tokens": ["class EtcdLeaderElector", "CompletableFuture.supplyAsync", "options.leaderOptions.autoExtend"]
+          },
+          {
+            "path": "leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdLeaderGroupElector.kt",
+            "tokens": ["class EtcdLeaderGroupElector", "override fun state(", "CompletableFuture.supplyAsync"]
+          },
+          {
+            "path": "leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdSuspendLeaderElector.kt",
+            "tokens": ["class EtcdSuspendLeaderElector", ".await()"]
+          },
+          {
+            "path": "leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdVirtualThreadLeaderElector.kt",
+            "tokens": ["class EtcdVirtualThreadLeaderElector", "delegate.runIfLeader"]
+          }
+        ]
+      },
+      {
+        "backend": "Consul",
+        "module": "bluetape4k-leader-consul",
+        "single_blocking": "N",
+        "single_async": "B",
+        "single_suspend": "N",
+        "single_virtual": "—",
+        "group_blocking": "N",
+        "group_async": "B",
+        "group_suspend": "N",
+        "group_virtual": "—",
+        "auto_extend": "S",
+        "state": "S/G",
+        "audit": "S",
+        "sources": [
+          {
+            "path": "leader-consul/src/main/kotlin/io/bluetape4k/leader/consul/ConsulLeaderElector.kt",
+            "tokens": ["class ConsulLeaderElector", "CompletableFuture.supplyAsync", "supportsAuditLeaderState: Boolean = true", "options.leaderOptions.autoExtend"]
+          },
+          {
+            "path": "leader-consul/src/main/kotlin/io/bluetape4k/leader/consul/ConsulLeaderGroupElector.kt",
+            "tokens": ["class ConsulLeaderGroupElector", "override fun state(", "CompletableFuture.supplyAsync"]
+          },
+          {
+            "path": "leader-consul/src/main/kotlin/io/bluetape4k/leader/consul/ConsulSuspendLeaderElector.kt",
+            "tokens": ["class ConsulSuspendLeaderElector", ".await()"]
+          }
+        ]
+      },
+      {
+        "backend": "DynamoDB",
+        "module": "bluetape4k-leader-dynamodb",
+        "single_blocking": "N",
+        "single_async": "B",
+        "single_suspend": "N",
+        "single_virtual": "B",
+        "group_blocking": "N",
+        "group_async": "B",
+        "group_suspend": "N",
+        "group_virtual": "B",
+        "auto_extend": "S",
+        "state": "S/G",
+        "audit": "S",
+        "sources": [
+          {
+            "path": "leader-dynamodb/src/main/kotlin/io/bluetape4k/leader/dynamodb/DynamoDbLeaderElector.kt",
+            "tokens": ["class DynamoDbLeaderElector", "CompletableFuture.supplyAsync", "supportsAuditLeaderState: Boolean = true", "options.leaderOptions.autoExtend"]
+          },
+          {
+            "path": "leader-dynamodb/src/main/kotlin/io/bluetape4k/leader/dynamodb/DynamoDbLeaderGroupElector.kt",
+            "tokens": ["class DynamoDbLeaderGroupElector", "override fun state(", "CompletableFuture.supplyAsync"]
+          },
+          {
+            "path": "leader-dynamodb/src/main/kotlin/io/bluetape4k/leader/dynamodb/DynamoDbSuspendLeaderElector.kt",
+            "tokens": ["class DynamoDbSuspendLeaderElector", "DynamoDbAsyncClient"]
+          },
+          {
+            "path": "leader-dynamodb/src/main/kotlin/io/bluetape4k/leader/dynamodb/DynamoDbVirtualThreadLeaderGroupElector.kt",
+            "tokens": ["class DynamoDbVirtualThreadLeaderGroupElector", "delegate.runIfLeader"]
+          }
+        ]
+      },
+      {
+        "backend": "Kubernetes",
+        "module": "bluetape4k-leader-k8s",
+        "single_blocking": "N",
+        "single_async": "B",
+        "single_suspend": "B",
+        "single_virtual": "—",
+        "group_blocking": "N",
+        "group_async": "B",
+        "group_suspend": "B",
+        "group_virtual": "—",
+        "auto_extend": "S",
+        "state": "S/G",
+        "audit": "S",
+        "sources": [
+          {
+            "path": "leader-k8s/src/main/kotlin/io/bluetape4k/leader/k8s/KubernetesLeaseLeaderElector.kt",
+            "tokens": ["class KubernetesLeaseLeaderElector", "supportsAuditLeaderState: Boolean = true", "options.leaderOptions.autoExtend"]
+          },
+          {
+            "path": "leader-k8s/src/main/kotlin/io/bluetape4k/leader/k8s/KubernetesLeaseLeaderGroupElector.kt",
+            "tokens": ["class KubernetesLeaseLeaderGroupElector", "override fun state(", "CompletableFuture.supplyAsync"]
+          },
+          {
+            "path": "leader-k8s/src/main/kotlin/io/bluetape4k/leader/k8s/KubernetesLeaseSuspendLeaderElector.kt",
+            "tokens": ["class KubernetesLeaseSuspendLeaderElector", "withContext(Dispatchers.IO)"]
+          }
+        ]
+      },
+      {
+        "backend": "ZooKeeper",
+        "module": "bluetape4k-leader-zookeeper",
+        "single_blocking": "N",
+        "single_async": "B",
+        "single_suspend": "B",
+        "single_virtual": "—",
+        "group_blocking": "N",
+        "group_async": "B",
+        "group_suspend": "B",
+        "group_virtual": "—",
+        "auto_extend": "—",
+        "state": "G",
+        "audit": "—",
+        "sources": [
+          {
+            "path": "leader-zookeeper/src/main/kotlin/io/bluetape4k/leader/zookeeper/ZooKeeperLeaderElector.kt",
+            "tokens": ["class ZooKeeperLeaderElector", "CompletableFuture.supplyAsync", "autoExtend=true 설정이 무시됩니다"]
+          },
+          {
+            "path": "leader-zookeeper/src/main/kotlin/io/bluetape4k/leader/zookeeper/ZooKeeperLeaderGroupElector.kt",
+            "tokens": ["class ZooKeeperLeaderGroupElector", "override fun state(", "CompletableFuture.supplyAsync"]
+          },
+          {
+            "path": "leader-zookeeper/src/main/kotlin/io/bluetape4k/leader/zookeeper/ZooKeeperSuspendLeaderElector.kt",
+            "tokens": ["class ZooKeeperSuspendLeaderElector", "runInterruptible(ownerDispatcher)"]
+          }
+        ]
+      }
+    ]
+  },
   "entries": [
     {
       "backend": "etcd",

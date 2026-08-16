@@ -13,7 +13,7 @@ Current stable version: `0.4.0`
 ![Bluetape4k leader election workbench](./docs/assets/leader-election-workbench.png)
 
 A standalone Kotlin/JVM library for **distributed leader election**.  
-Provides blocking, async, coroutine, and virtual-thread APIs backed by Redis, Exposed, MongoDB, DynamoDB, etcd, Kubernetes, Hazelcast, and ZooKeeper.
+Provides blocking, async, coroutine, and virtual-thread APIs backed by Redis, Exposed, MongoDB, DynamoDB, etcd, Consul, Kubernetes, Hazelcast, and ZooKeeper.
 Spring Boot 4 auto-configuration and Ktor 3.x integration are first-class.
 
 ---
@@ -84,6 +84,37 @@ Full tables, latency chart, run command, and caveats are in the
 | `leader-spring-boot` | Stable | Spring Boot 4 auto-configuration + AOP (AspectJ CTW, Freefair post-compile weaving) |
 | `leader-zookeeper` | Stable | ZooKeeper/Curator backend (`InterProcessMutex` / `InterProcessSemaphoreV2`) |
 | `leader-ktor` | Stable | Ktor 3.x integration — `LeaderElectionPlugin` + `leaderScheduled()` |
+
+## Backend capability matrix
+
+`N` is a backend-native execution path. `B` is a bridge that runs blocking work through an `Executor`, `Dispatchers.IO`, or a virtual-thread wrapper; it does not promise non-blocking backend I/O. `—` means that execution API is not provided. `S` and `G` mean single-leader and group-leader support, respectively.
+
+| Backend | Module | S-Block | S-Async | S-Suspend | S-Virtual | G-Block | G-Async | G-Suspend | G-Virtual | `autoExtend` | State | Audit ID |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+<!-- LEADER_CAPABILITY_MATRIX:START -->
+| Local | `bluetape4k-leader-core` | N | B | N | B | N | B | N | B | S | S/G | S |
+| Lettuce | `bluetape4k-leader-redis-lettuce` | N | N | N | — | N | N | N | — | S | G | — |
+| Redisson | `bluetape4k-leader-redis-redisson` | N | N | N | — | N | N | N | — | S | G | — |
+| Exposed JDBC | `bluetape4k-leader-exposed-jdbc` | N | B | — | B | N | B | — | — | S | G | — |
+| Exposed R2DBC | `bluetape4k-leader-exposed-r2dbc` | — | — | N | — | — | — | N | — | S | G | — |
+| MongoDB | `bluetape4k-leader-mongodb` | N | N | N | — | N | N | N | — | S | G | — |
+| Hazelcast | `bluetape4k-leader-hazelcast` | N | B | B | — | N | B | B | — | S | G | — |
+| etcd | `bluetape4k-leader-etcd` | N | B | N | B | N | B | N | — | S | G | — |
+| Consul | `bluetape4k-leader-consul` | N | B | N | — | N | B | N | — | S | S/G | S |
+| DynamoDB | `bluetape4k-leader-dynamodb` | N | B | N | B | N | B | N | B | S | S/G | S |
+| Kubernetes | `bluetape4k-leader-k8s` | N | B | B | — | N | B | B | — | S | S/G | S |
+| ZooKeeper | `bluetape4k-leader-zookeeper` | N | B | B | — | N | B | B | — | — | G | — |
+<!-- LEADER_CAPABILITY_MATRIX:END -->
+
+This matrix is validated against the current source tree. The versioned manual remains pinned to its release commit, so use it for stable-release behavior and this matrix for development-line capability selection.
+
+`State` lists backends that override the single (`S`) or group (`G`) state snapshot instead of returning the core empty single-state default. `Audit ID` means that single-leader state preserves the caller-facing `LeaderSlot.leaderId` (`supportsAuditLeaderState = true`).
+
+`autoExtend` is opt-in and single-leader only. Local, Redis, Exposed, MongoDB, Hazelcast, etcd, Consul, DynamoDB, and Kubernetes renew their own TTL, lease, or session through the shared extender contract. Redisson always acquires with an explicit `leaseTime`, then uses the shared extender when enabled. ZooKeeper locks are session-bound and have no TTL, so `autoExtend = true` is ignored with a warning. Group options do not expose `autoExtend`; use explicit `LockExtender` operations when a group slot must outlive its lease.
+
+`@LeaderGroupElection` supports scalar, suspend, and `Mono` results, but rejects `Flux` and Kotlin `Flow` because per-slot stream lease extension is undefined. For long-running or unbounded single-leader streams, use `@LeaderElection(autoExtend = true)`.
+
+For selection guidance, see [backend selection](docs/manual/en/guides/backend-selection.md), [execution model selection](docs/manual/en/guides/execution-model-selection.md), and [lease extension](docs/manual/en/core/lease-extension.md). The runnable paths are indexed in [Examples](#examples).
 
 ## Examples
 
@@ -260,7 +291,7 @@ val election = RedissonLeaderElector(client, options)
 
 `minLeaseTime` is the `lockAtLeastFor` equivalent. Local electors wait before releasing; supported distributed backends delegate the remaining minimum lease to storage TTL so callers can return immediately.
 
-`autoExtend` is opt-in for single-leader elections. Local, Lettuce, MongoDB, and Redisson keep the lease alive while the action is running; Redisson uses the shared bluetape4k `LeaderLeaseAutoExtender` path because the elector acquires locks with an explicit `leaseTime`. `@LeaderGroupElection` does not support auto-extension yet.
+`autoExtend` semantics vary by backend. Use the [backend capability matrix](#backend-capability-matrix) and [lease extension guide](docs/manual/en/core/lease-extension.md) as the source of truth. `@LeaderGroupElection` does not support auto-extension.
 
 ### State snapshots
 
