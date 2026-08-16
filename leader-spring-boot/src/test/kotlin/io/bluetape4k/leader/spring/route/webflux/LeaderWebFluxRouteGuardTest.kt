@@ -22,8 +22,8 @@ import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.server.WebFilterChain
 import org.springframework.web.server.WebHandler
-import reactor.core.publisher.BaseSubscriber
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CountDownLatch
@@ -140,26 +140,31 @@ class LeaderWebFluxRouteGuardTest {
     }
 
     @Test
-    fun `cancellation before evaluation never invokes authority or handler`() {
+    fun `cancellation before queued evaluation never invokes authority or handler`() {
         val evaluated = AtomicBoolean(false)
+        val scheduledEvaluation = AtomicReference<Runnable>()
+        val evaluationScheduler = Schedulers.fromExecutor { task -> scheduledEvaluation.set(task) }
         val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/guarded").build())
         val chain = WebFilterChain {
             invocations.incrementAndGet()
             Mono.empty()
         }
 
-        val subscriber = factory(LeaderRouteAuthority {
-            evaluated.set(true)
-            LeaderRouteDecision.Allowed
-        }).filter(slot).filter(exchange, chain).subscribeWith(object : BaseSubscriber<Void>() {
-            override fun hookOnSubscribe(subscription: org.reactivestreams.Subscription) {
-                cancel()
-            }
-        })
+        val subscriber = factory(
+            authority = LeaderRouteAuthority {
+                evaluated.set(true)
+                LeaderRouteDecision.Allowed
+            },
+            evaluationScheduler = evaluationScheduler,
+        ).filter(slot).filter(exchange, chain).subscribe()
+
+        subscriber.dispose()
+        scheduledEvaluation.get().run()
 
         subscriber.isDisposed.shouldBeTrue()
         evaluated.get() shouldBeEqualTo false
         invocations.get() shouldBeEqualTo 0
+        evaluationScheduler.dispose()
     }
 
     @Test
@@ -252,9 +257,11 @@ class LeaderWebFluxRouteGuardTest {
     private fun factory(
         authority: LeaderRouteAuthority,
         rejectionStatus: LeaderRouteRejectionStatus = LeaderRouteRejectionStatus.SERVICE_UNAVAILABLE,
+        evaluationScheduler: Scheduler = Schedulers.boundedElastic(),
     ): LeaderWebFluxRouteGuardFactory =
         LeaderWebFluxRouteGuardFactory(
             runtime = LeaderRouteAuthorityRuntime(authority),
             properties = LeaderRouteGuardProperties(rejectionStatus = rejectionStatus),
+            evaluationScheduler = evaluationScheduler,
         )
 }
