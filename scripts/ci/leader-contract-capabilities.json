@@ -5,6 +5,10 @@
       {
         "backend": "Local",
         "module": "bluetape4k-leader-core",
+        "runtime_diagnostics_source": {
+          "path": "leader-core/src/main/kotlin/io/bluetape4k/leader/diagnostics/LocalLeaderBackendDiagnostics.kt",
+          "backend_id": "local"
+        },
         "single_blocking": "N",
         "single_async": "B",
         "single_suspend": "N",
@@ -42,6 +46,10 @@
       {
         "backend": "Lettuce",
         "module": "bluetape4k-leader-redis-lettuce",
+        "runtime_diagnostics_source": {
+          "path": "leader-redis-lettuce/src/main/kotlin/io/bluetape4k/leader/lettuce/LettuceLeaderBackendDiagnostics.kt",
+          "backend_id": "redis-lettuce"
+        },
         "single_blocking": "N",
         "single_async": "N",
         "single_suspend": "N",
@@ -71,6 +79,10 @@
       {
         "backend": "Redisson",
         "module": "bluetape4k-leader-redis-redisson",
+        "runtime_diagnostics_source": {
+          "path": "leader-redis-redisson/src/main/kotlin/io/bluetape4k/leader/redisson/RedissonLeaderBackendDiagnostics.kt",
+          "backend_id": "redis-redisson"
+        },
         "single_blocking": "N",
         "single_async": "N",
         "single_suspend": "N",
@@ -100,6 +112,10 @@
       {
         "backend": "Exposed JDBC",
         "module": "bluetape4k-leader-exposed-jdbc",
+        "runtime_diagnostics_source": {
+          "path": "leader-exposed-jdbc/src/main/kotlin/io/bluetape4k/leader/exposed/jdbc/ExposedJdbcLeaderBackendDiagnostics.kt",
+          "backend_id": "exposed-jdbc"
+        },
         "single_blocking": "N",
         "single_async": "B",
         "single_suspend": "—",
@@ -129,6 +145,10 @@
       {
         "backend": "Exposed R2DBC",
         "module": "bluetape4k-leader-exposed-r2dbc",
+        "runtime_diagnostics_source": {
+          "path": "leader-exposed-r2dbc/src/main/kotlin/io/bluetape4k/leader/exposed/r2dbc/ExposedR2dbcLeaderBackendDiagnostics.kt",
+          "backend_id": "exposed-r2dbc"
+        },
         "single_blocking": "—",
         "single_async": "—",
         "single_suspend": "N",
@@ -154,6 +174,10 @@
       {
         "backend": "MongoDB",
         "module": "bluetape4k-leader-mongodb",
+        "runtime_diagnostics_source": {
+          "path": "leader-mongodb/src/main/kotlin/io/bluetape4k/leader/mongodb/MongoLeaderBackendDiagnostics.kt",
+          "backend_id": "mongodb"
+        },
         "single_blocking": "N",
         "single_async": "N",
         "single_suspend": "N",
@@ -183,6 +207,10 @@
       {
         "backend": "Hazelcast",
         "module": "bluetape4k-leader-hazelcast",
+        "runtime_diagnostics_source": {
+          "path": "leader-hazelcast/src/main/kotlin/io/bluetape4k/leader/hazelcast/HazelcastLeaderBackendDiagnostics.kt",
+          "backend_id": "hazelcast"
+        },
         "single_blocking": "N",
         "single_async": "B",
         "single_suspend": "B",
@@ -216,6 +244,10 @@
       {
         "backend": "etcd",
         "module": "bluetape4k-leader-etcd",
+        "runtime_diagnostics_source": {
+          "path": "leader-etcd/src/main/kotlin/io/bluetape4k/leader/etcd/EtcdLeaderBackendDiagnostics.kt",
+          "backend_id": "etcd"
+        },
         "single_blocking": "N",
         "single_async": "B",
         "single_suspend": "N",
@@ -249,6 +281,10 @@
       {
         "backend": "Consul",
         "module": "bluetape4k-leader-consul",
+        "runtime_diagnostics_source": {
+          "path": "leader-consul/src/main/kotlin/io/bluetape4k/leader/consul/ConsulLeaderBackendDiagnostics.kt",
+          "backend_id": "consul"
+        },
         "single_blocking": "N",
         "single_async": "B",
         "single_suspend": "N",
@@ -278,6 +314,10 @@
       {
         "backend": "DynamoDB",
         "module": "bluetape4k-leader-dynamodb",
+        "runtime_diagnostics_source": {
+          "path": "leader-dynamodb/src/main/kotlin/io/bluetape4k/leader/dynamodb/DynamoDbLeaderBackendDiagnostics.kt",
+          "backend_id": "dynamodb"
+        },
         "single_blocking": "N",
         "single_async": "B",
         "single_suspend": "N",
@@ -311,6 +351,10 @@
       {
         "backend": "Kubernetes",
         "module": "bluetape4k-leader-k8s",
+        "runtime_diagnostics_source": {
+          "path": "leader-k8s/src/main/kotlin/io/bluetape4k/leader/k8s/KubernetesLeaderBackendDiagnostics.kt",
+          "backend_id": "kubernetes"
+        },
         "single_blocking": "N",
         "single_async": "B",
         "single_suspend": "B",
@@ -340,6 +384,10 @@
       {
         "backend": "ZooKeeper",
         "module": "bluetape4k-leader-zookeeper",
+        "runtime_diagnostics_source": {
+          "path": "leader-zookeeper/src/main/kotlin/io/bluetape4k/leader/zookeeper/ZooKeeperLeaderBackendDiagnostics.kt",
+          "backend_id": "zookeeper"
+        },
         "single_blocking": "N",
         "single_async": "B",
         "single_suspend": "B",

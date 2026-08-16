@@ -458,7 +458,9 @@ For Java callers, `@JvmStatic` overloads accept both `kotlin.time.Duration` and 
 6. `LeaderMicrometerHealthAutoConfiguration` registers the Actuator health indicator when Actuator is present.
 7. `LeaderElectionObservabilityAutoConfiguration` registers the lock-name status registry and fallback event-publisher adapter.
 8. `LeaderElectionActuatorAutoConfiguration` registers the opt-in `/actuator/leaderElection` endpoint.
-9. `LeaderStartupDiagnosticsAutoConfiguration` records backend, management, and cardinality diagnostics after the runtime surface exists.
+9. `LeaderBackendDiagnosticsActuatorAutoConfiguration` registers the opt-in static `/actuator/leaderBackendDiagnostics` endpoint.
+10. `LeaderBackendHealthAutoConfiguration` registers the opt-in backend connectivity health indicator.
+11. `LeaderStartupDiagnosticsAutoConfiguration` records backend, management, and cardinality diagnostics after the runtime surface exists.
 
 ## Leader Election Actuator Endpoint
 
@@ -500,6 +502,40 @@ GET /actuator/leaderElection
 ```
 
 `lock-names` seeds the JVM-local status registry before the first runtime event. Listener-aware electors can also add names as they observe lifecycle events. The fallback `LeaderElectionEventPublisher` is publisher-only and never becomes a `LeaderElector` candidate, so existing elector injection remains stable.
+
+## Backend Diagnostics And Connectivity Health
+
+The static backend diagnostics endpoint is disabled by default. It reports the selected backend descriptor without performing network or database I/O, so its connectivity status is `NOT_CHECKED`.
+
+```yaml
+management:
+  endpoint:
+    leaderBackendDiagnostics:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,leaderElection,leaderBackendDiagnostics
+```
+
+```http
+GET /actuator/leaderBackendDiagnostics
+```
+
+Enable the separate connectivity health indicator only when an active backend probe is appropriate for your deployment:
+
+```yaml
+bluetape4k:
+  leader:
+    observability:
+      backend-health:
+        enabled: true
+        timeout: 500ms
+```
+
+`UP` and `DOWN` map directly to Spring health statuses. `UNKNOWN` and `NOT_CHECKED` map to Spring `UNKNOWN`. Both surfaces use the same elector selection as `bluetape4k.leader.observability.state-provider-bean`; when the selected elector does not expose a `LeaderBackendDiagnosticsProvider`, the typed endpoint and health indicator are not registered.
+
+Protect these Actuator surfaces with the same authentication and network policy as other management endpoints. A healthy backend only proves connectivity at the time of the probe; it does not prove that this process currently owns a leader lease.
 
 ## Migration Notes
 

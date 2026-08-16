@@ -458,7 +458,9 @@ Java caller 는 `@JvmStatic` overload — `kotlin.time.Duration` 과 `java.time.
 6. `LeaderMicrometerHealthAutoConfiguration`: Actuator가 있으면 health indicator 등록
 7. `LeaderElectionObservabilityAutoConfiguration`: lock-name 상태 registry와 fallback event-publisher adapter 등록
 8. `LeaderElectionActuatorAutoConfiguration`: opt-in `/actuator/leaderElection` endpoint 등록
-9. `LeaderStartupDiagnosticsAutoConfiguration`: runtime surface가 준비된 뒤 backend, management, cardinality diagnostics 기록
+9. `LeaderBackendDiagnosticsActuatorAutoConfiguration`: opt-in 정적 `/actuator/leaderBackendDiagnostics` endpoint 등록
+10. `LeaderBackendHealthAutoConfiguration`: opt-in backend 연결 상태 health indicator 등록
+11. `LeaderStartupDiagnosticsAutoConfiguration`: runtime surface가 준비된 뒤 backend, management, cardinality diagnostics 기록
 
 ## Leader Election Actuator Endpoint
 
@@ -500,6 +502,40 @@ GET /actuator/leaderElection
 ```
 
 `lock-names`는 첫 runtime event 전에 JVM-local status registry를 seed합니다. Listener-aware elector는 lifecycle event를 관찰하면서 lock 이름을 추가할 수도 있습니다. Fallback `LeaderElectionEventPublisher`는 publisher-only adapter라 `LeaderElector` 후보가 되지 않으므로 기존 elector 주입 경로가 유지됩니다.
+
+## Backend 진단과 연결 상태 Health
+
+정적 backend diagnostics endpoint는 기본 비활성입니다. 네트워크나 데이터베이스 I/O 없이 선택된 backend descriptor를 반환하므로 연결 상태는 `NOT_CHECKED`입니다.
+
+```yaml
+management:
+  endpoint:
+    leaderBackendDiagnostics:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,leaderElection,leaderBackendDiagnostics
+```
+
+```http
+GET /actuator/leaderBackendDiagnostics
+```
+
+배포 환경에서 실제 backend probe가 필요한 경우에만 별도의 연결 상태 health indicator를 활성화하세요:
+
+```yaml
+bluetape4k:
+  leader:
+    observability:
+      backend-health:
+        enabled: true
+        timeout: 500ms
+```
+
+`UP`과 `DOWN`은 같은 이름의 Spring health status로 매핑됩니다. `UNKNOWN`과 `NOT_CHECKED`는 Spring `UNKNOWN`으로 매핑됩니다. 두 surface는 `bluetape4k.leader.observability.state-provider-bean`과 같은 elector 선택 규칙을 사용합니다. 선택된 elector가 `LeaderBackendDiagnosticsProvider`를 노출하지 않으면 typed endpoint와 health indicator를 등록하지 않습니다.
+
+다른 management endpoint와 동일하게 인증과 network policy로 보호하세요. Backend가 정상이라는 결과는 probe 시점의 연결 가능성만 의미하며, 현재 프로세스가 leader lease를 보유한다는 증거가 아닙니다.
 
 ## 마이그레이션 노트
 

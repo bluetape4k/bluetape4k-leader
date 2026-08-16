@@ -83,6 +83,10 @@ leaderScheduled(
 | `leaderGroupElection` | `SuspendLeaderGroupElector?`  | 아니오 | 그룹/멀티 리더 백엔드 (선택)             |
 | `managementRouteEnabled` | `Boolean`                  | 아니오 | `GET /management/leaderElection` 활성화 |
 | `managementRoutePath` | `String`                      | 아니오 | Management route 경로                     |
+| `backendDiagnosticsRouteEnabled` | `Boolean`           | 아니오 | `GET /management/leaderElection/diagnostics` 활성화 |
+| `backendDiagnosticsRoutePath` | `String`                | 아니오 | Backend diagnostics route 경로             |
+| `backendConnectivityCheckEnabled` | `Boolean`          | 아니오 | 요청마다 active connectivity probe 한 번 실행 |
+| `backendConnectivityCheckTimeout` | `kotlin.time.Duration` | 아니오 | 양수이면서 유한한 probe 제한 시간, 기본값 `500ms` |
 
 `leaderScheduled` 파라미터:
 
@@ -127,6 +131,36 @@ GET /management/leaderElection
 ```
 
 `leaderScheduled()`는 플러그인이 설치되어 있을 때 자신의 lock 이름을 management registry에 기록합니다. 이 route는 JSON text를 직접 응답하므로, 이 endpoint만을 위해 Ktor content negotiation을 추가할 필요는 없습니다.
+
+## Backend Diagnostics Route
+
+Backend diagnostics route는 기본 비활성입니다. 선택된 backend descriptor를 노출하려면 명시적으로 활성화하세요:
+
+```kotlin
+install(LeaderElectionPlugin) {
+    leaderElection = redissonElector
+    backendDiagnosticsRouteEnabled = true
+}
+```
+
+```http
+GET /management/leaderElection/diagnostics
+```
+
+기본 응답은 backend I/O를 수행하지 않으며 연결 상태를 `NOT_CHECKED`로 반환합니다. 요청마다 실제 backend를 확인해도 되는 환경에서만 active check를 활성화하세요:
+
+```kotlin
+install(LeaderElectionPlugin) {
+    leaderElection = redissonElector
+    backendDiagnosticsRouteEnabled = true
+    backendConnectivityCheckEnabled = true
+    backendConnectivityCheckTimeout = 500.milliseconds
+}
+```
+
+Route는 설정된 제한 시간으로 `Dispatchers.IO`에서 `LeaderBackendDiagnosticsProvider.checkConnectivity()`를 한 번 호출합니다. 지원하지 않거나 판정할 수 없는 검사는 `UNKNOWN`을 반환합니다. Elector는 provider를 직접 노출하거나 `LeaderBackendDiagnosticsAware`를 통해 제공할 수 있습니다. Diagnostics가 활성화됐지만 provider를 찾지 못하면 플러그인 설치 단계에서 명확한 오류와 함께 실패합니다.
+
+신뢰된 management boundary 밖으로 노출하기 전에 route를 보호하세요. 연결 진단 결과는 현재 프로세스가 leader lease를 보유한다는 증거가 아닙니다.
 
 ## `leaderScheduled` 안의 LockAssert / LockExtender (Issue #79)
 

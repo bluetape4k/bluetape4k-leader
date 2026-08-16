@@ -87,6 +87,10 @@ leaderScheduled(
 | `leaderGroupElection` | `SuspendLeaderGroupElector?`  | No       | Group/multi-leader elector (optional)    |
 | `managementRouteEnabled` | `Boolean`                  | No       | Enables `GET /management/leaderElection` |
 | `managementRoutePath` | `String`                      | No       | Management route path                    |
+| `backendDiagnosticsRouteEnabled` | `Boolean`           | No       | Enables `GET /management/leaderElection/diagnostics` |
+| `backendDiagnosticsRoutePath` | `String`                | No       | Backend diagnostics route path           |
+| `backendConnectivityCheckEnabled` | `Boolean`          | No       | Runs one active connectivity probe per request |
+| `backendConnectivityCheckTimeout` | `kotlin.time.Duration` | No    | Positive, finite probe timeout; defaults to `500ms` |
 
 `leaderScheduled` parameters:
 
@@ -131,6 +135,36 @@ The route is installed on the main Ktor application port and routing pipeline. P
 ```
 
 `leaderScheduled()` records its lock name into the management registry when the plugin is installed. The route emits JSON text directly, so applications do not need to install Ktor content negotiation just for this endpoint.
+
+## Backend Diagnostics Route
+
+The backend diagnostics route is disabled by default. Enable it to expose the selected backend descriptor:
+
+```kotlin
+install(LeaderElectionPlugin) {
+    leaderElection = redissonElector
+    backendDiagnosticsRouteEnabled = true
+}
+```
+
+```http
+GET /management/leaderElection/diagnostics
+```
+
+The default response performs no backend I/O and reports connectivity as `NOT_CHECKED`. Enable the active check only when each request may probe the backend:
+
+```kotlin
+install(LeaderElectionPlugin) {
+    leaderElection = redissonElector
+    backendDiagnosticsRouteEnabled = true
+    backendConnectivityCheckEnabled = true
+    backendConnectivityCheckTimeout = 500.milliseconds
+}
+```
+
+The route calls `LeaderBackendDiagnosticsProvider.checkConnectivity()` once on `Dispatchers.IO` with the configured timeout. Unsupported or indeterminate checks return `UNKNOWN`. Electors may expose the provider directly or through `LeaderBackendDiagnosticsAware`; plugin installation fails with a clear error when diagnostics are enabled but no provider is available.
+
+Protect the route before exposing it outside a trusted management boundary. Connectivity diagnostics are not proof that this process currently owns a leader lease.
 
 ## LockAssert / LockExtender inside `leaderScheduled` (Issue #79)
 
