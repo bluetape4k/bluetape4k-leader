@@ -3,6 +3,7 @@ package io.bluetape4k.leader.exposed.jdbc
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import io.bluetape4k.concurrent.virtualthread.virtualFuture
 import io.bluetape4k.leader.VirtualThreadLeaderElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 
 /**
  * `ExposedJdbcVirtualThreadLeaderElector`는 Exposed database backend의 leader election, lock lease, ownership 확인을 담당합니다.
@@ -12,7 +13,8 @@ import io.bluetape4k.leader.VirtualThreadLeaderElector
  */
 class ExposedJdbcVirtualThreadLeaderElector(
     private val delegate: ExposedJdbcLeaderElector,
-) : VirtualThreadLeaderElector {
+) : VirtualThreadLeaderElector,
+    LeaderBackendDiagnosticsProvider by ExposedJdbcLeaderBackendDiagnostics {
 
     /**
      * `선언` 호출은 Exposed database backend leader election 계약의 일부 동작을 수행합니다.

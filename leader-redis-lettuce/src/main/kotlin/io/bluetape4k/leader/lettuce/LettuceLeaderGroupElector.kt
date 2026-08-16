@@ -14,6 +14,7 @@ import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceSlotExtendDelegate
 import io.bluetape4k.leader.lettuce.semaphore.LettuceSlotTokenGroup
 import io.bluetape4k.leader.remainingMinLeaseTime
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -44,10 +45,12 @@ fun StatefulRedisConnection<String, String>.leaderGroupElection(
  * @property connection Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property options Redis Lettuce backend 호출과 상태 계산에 사용하는 속성입니다.
  */
+// Group elector는 sync/async, 상태 조회, lease lifecycle, diagnostics 계약을 함께 구현합니다.
+@Suppress("TooManyFunctions")
 class LettuceLeaderGroupElector(
     private val connection: StatefulRedisConnection<String, String>,
     val options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-): LeaderGroupElector {
+): LeaderGroupElector, LeaderBackendDiagnosticsProvider by LettuceLeaderBackendDiagnostics(connection) {
 
     companion object: KLogging() {
         internal const val LETTUCE_GROUP_FACTORY_BEAN_NAME = "lettuce-leader-group-elector"

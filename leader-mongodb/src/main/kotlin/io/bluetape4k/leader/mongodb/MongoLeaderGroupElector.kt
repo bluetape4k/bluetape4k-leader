@@ -9,6 +9,7 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SafeLeaderHistoryRecorder
@@ -44,7 +45,7 @@ class MongoLeaderGroupElector private constructor(
      * `historyRecorder` 값은 MongoDB backend leader election 계약에서 사용하는 설정 또는 상태 항목입니다.
      */
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,
-) : LeaderGroupElector {
+) : LeaderGroupElector, LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics {
 
     companion object : KLogging() {
         internal const val MONGO_GROUP_FACTORY_BEAN_NAME = "mongo-leader-group-elector"

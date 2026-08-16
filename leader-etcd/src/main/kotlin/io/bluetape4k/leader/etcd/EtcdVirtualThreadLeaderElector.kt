@@ -3,6 +3,7 @@ package io.bluetape4k.leader.etcd
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
 import io.bluetape4k.concurrent.virtualthread.virtualFuture
 import io.bluetape4k.leader.VirtualThreadLeaderElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.etcd.jetcd.Client
 
 /**
@@ -13,7 +14,8 @@ import io.etcd.jetcd.Client
  */
 class EtcdVirtualThreadLeaderElector(
     private val delegate: EtcdLeaderElector,
-) : VirtualThreadLeaderElector {
+) : VirtualThreadLeaderElector,
+    LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics {
 
     override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?> =
         virtualFuture {

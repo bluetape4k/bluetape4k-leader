@@ -9,6 +9,7 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
 import io.bluetape4k.leader.redisson.internal.RedissonLockExtendDelegate
@@ -35,10 +36,12 @@ import java.util.concurrent.atomic.AtomicBoolean
  * @property redissonClient Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property options Redis Redisson backend 호출과 상태 계산에 사용하는 속성입니다.
  */
+// Single elector는 sync/async, lease lifecycle, diagnostics 계약을 함께 구현합니다.
+@Suppress("TooManyFunctions")
 class RedissonLeaderElector private constructor(
     private val redissonClient: RedissonClient,
     private val options: LeaderElectionOptions,
-): LeaderElector {
+): LeaderElector, LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient) {
 
     companion object: KLogging() {
         internal const val REDISSON_FACTORY_BEAN_NAME = "redisson-leader-elector"

@@ -9,6 +9,7 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.hazelcast.internal.HazelcastBackendErrorClassifier
 import io.bluetape4k.leader.hazelcast.internal.HazelcastSlotExtendDelegate
 import io.bluetape4k.leader.hazelcast.lock.HazelcastLock
@@ -30,7 +31,8 @@ import java.util.concurrent.Executor
 class HazelcastLeaderGroupElector private constructor(
     private val hazelcast: HazelcastInstance,
     options: LeaderGroupElectionOptions,
-): LeaderGroupElector {
+) : LeaderGroupElector,
+    LeaderBackendDiagnosticsProvider by HazelcastLeaderBackendDiagnostics(hazelcast) {
 
     companion object: KLogging() {
         const val LOCK_MAP_NAME = "bluetape4k:leader:group:locks"

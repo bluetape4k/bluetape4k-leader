@@ -19,6 +19,7 @@ import io.bluetape4k.leader.consul.internal.ConsulSuspendLockExtendDelegate
 import io.bluetape4k.leader.consul.internal.JavaHttpConsulLockClient
 import io.bluetape4k.leader.consul.internal.getWithinRequestTimeout
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -41,10 +42,13 @@ import kotlin.time.Duration.Companion.milliseconds
  * @property lockClient Consul backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property options Consul backend 호출과 상태 계산에 사용하는 속성입니다.
  */
+// Suspend group elector는 상태 조회, lease lifecycle, diagnostics 계약을 함께 구현합니다.
+@Suppress("TooManyFunctions")
 class ConsulSuspendLeaderGroupElector private constructor(
     private val lockClient: ConsulLockClient,
     val options: ConsulLeaderGroupElectionOptions,
-) : SuspendLeaderGroupElector {
+): SuspendLeaderGroupElector,
+    LeaderBackendDiagnosticsProvider by ConsulLeaderBackendDiagnostics {
 
     constructor(
         endpoint: ConsulEndpoint,

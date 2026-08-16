@@ -9,6 +9,7 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbBackendErrorClassifier
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbKeys
 import io.bluetape4k.leader.dynamodb.internal.DynamoDbLockClient
@@ -34,7 +35,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 class DynamoDbLeaderElector(
     private val dynamoDb: DynamoDbClient,
     val options: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
-) : LeaderElector {
+) : LeaderElector,
+    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
 
     companion object : KLogging() {
         internal const val DYNAMODB_FACTORY_BEAN_NAME = "dynamodb-leader-elector"

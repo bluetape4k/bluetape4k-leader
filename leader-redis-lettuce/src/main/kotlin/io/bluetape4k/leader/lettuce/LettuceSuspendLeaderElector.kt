@@ -16,6 +16,7 @@ import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.lettuce.internal.LettuceBackendErrorClassifier
 import io.bluetape4k.leader.lettuce.internal.LettuceSuspendLockExtendDelegate
 import io.bluetape4k.leader.lettuce.lock.LettuceSuspendLock
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -50,7 +51,7 @@ class LettuceSuspendLeaderElector(
     private val connection: StatefulRedisConnection<String, String>,
     val options: LeaderElectionOptions = LeaderElectionOptions.Default,
     private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
-): SuspendLeaderElector {
+): SuspendLeaderElector, LeaderBackendDiagnosticsProvider by LettuceLeaderBackendDiagnostics(connection) {
 
     companion object: KLogging() {
         internal const val LETTUCE_SUSPEND_FACTORY_BEAN_NAME = "lettuce-suspend-leader-elector"

@@ -9,6 +9,7 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.redisson.internal.RedissonBackendErrorClassifier
@@ -41,7 +42,7 @@ import kotlin.time.Duration
 class RedissonSuspendLeaderGroupElector private constructor(
     private val redissonClient: RedissonClient,
     val options: LeaderGroupElectionOptions,
-): SuspendLeaderGroupElector {
+): SuspendLeaderGroupElector, LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient) {
 
     companion object: KLoggingChannel() {
         internal const val REDISSON_SUSPEND_GROUP_FACTORY_BEAN_NAME = "redisson-suspend-leader-group-elector"

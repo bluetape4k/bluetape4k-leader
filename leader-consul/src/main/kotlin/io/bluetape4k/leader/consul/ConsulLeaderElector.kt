@@ -12,6 +12,7 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.consul.internal.ConsulLeaseHandle
 import io.bluetape4k.leader.consul.internal.ConsulLockClient
 import io.bluetape4k.leader.consul.internal.ConsulLockExtendDelegate
@@ -40,10 +41,13 @@ import kotlin.time.Duration.Companion.milliseconds
  * @property lockClient Consul backend 호출과 상태 계산에 사용하는 속성입니다.
  * @property options Consul backend 호출과 상태 계산에 사용하는 속성입니다.
  */
+// Single elector는 sync/async, audit state, lease lifecycle, diagnostics 계약을 함께 구현합니다.
+@Suppress("TooManyFunctions")
 class ConsulLeaderElector private constructor(
     private val lockClient: ConsulLockClient,
     val options: ConsulLeaderElectionOptions,
-) : LeaderElector {
+) : LeaderElector,
+    LeaderBackendDiagnosticsProvider by ConsulLeaderBackendDiagnostics {
 
     constructor(
         endpoint: ConsulEndpoint,

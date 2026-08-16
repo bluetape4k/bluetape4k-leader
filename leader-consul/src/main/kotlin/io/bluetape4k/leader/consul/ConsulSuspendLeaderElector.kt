@@ -18,6 +18,7 @@ import io.bluetape4k.leader.consul.internal.ConsulSuspendLockExtendDelegate
 import io.bluetape4k.leader.consul.internal.JavaHttpConsulLockClient
 import io.bluetape4k.leader.consul.internal.getWithinRequestTimeout
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.SuspendExtendDelegate
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -43,7 +44,8 @@ import kotlin.time.Duration.Companion.milliseconds
 class ConsulSuspendLeaderElector private constructor(
     private val lockClient: ConsulLockClient,
     val options: ConsulLeaderElectionOptions,
-) : SuspendLeaderElector {
+): SuspendLeaderElector,
+    LeaderBackendDiagnosticsProvider by ConsulLeaderBackendDiagnostics {
 
     constructor(
         endpoint: ConsulEndpoint,

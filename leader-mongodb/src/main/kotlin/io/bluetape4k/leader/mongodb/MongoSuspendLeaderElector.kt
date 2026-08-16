@@ -6,6 +6,7 @@ import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
@@ -37,7 +38,7 @@ class MongoSuspendLeaderElector private constructor(
     private val collection: MongoCollection<Document>,
     val options: MongoLeaderElectionOptions,
     private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
-) : SuspendLeaderElector {
+) : SuspendLeaderElector, LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics {
 
     companion object : KLoggingChannel() {
         internal const val MONGO_SUSPEND_FACTORY_BEAN_NAME = "mongo-suspend-leader-elector"

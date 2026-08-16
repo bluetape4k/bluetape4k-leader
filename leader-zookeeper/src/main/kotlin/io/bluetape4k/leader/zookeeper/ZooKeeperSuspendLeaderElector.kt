@@ -6,6 +6,7 @@ import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.internal.CompositeBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperBackendErrorClassifier
 import io.bluetape4k.leader.zookeeper.internal.ZooKeeperOwnedInterProcessMutex
@@ -37,7 +38,9 @@ class ZooKeeperSuspendLeaderElector private constructor(
     private val client: CuratorFramework,
     private val basePath: String,
     private val options: LeaderElectionOptions,
-): SuspendLeaderElector, AutoCloseable {
+): SuspendLeaderElector,
+    LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client),
+    AutoCloseable {
 
     private val ownerDispatchers = ZooKeeperOwnerDispatcherPool(
         size = OwnerDispatcherPoolSize,

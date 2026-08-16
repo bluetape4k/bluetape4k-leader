@@ -6,6 +6,7 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.exposed.jdbc.internal.ExposedJdbcBackendErrorClassifier
 import io.bluetape4k.leader.exposed.jdbc.internal.ExposedJdbcSlotExtendDelegate
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcGroupLock
@@ -47,7 +48,8 @@ class ExposedJdbcLeaderGroupElector private constructor(
     private val db: Database,
     val options: ExposedJdbcLeaderGroupElectionOptions,
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,
-) : LeaderGroupElector {
+) : LeaderGroupElector,
+    LeaderBackendDiagnosticsProvider by ExposedJdbcLeaderBackendDiagnostics {
 
     companion object : KLogging() {
 

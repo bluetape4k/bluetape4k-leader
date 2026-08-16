@@ -9,6 +9,7 @@ import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.coroutines.SuspendLeaderGroupElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.SuspendSafeLeaderHistoryRecorder
@@ -47,7 +48,7 @@ class MongoSuspendLeaderGroupElector private constructor(
     private val coroutineGroupCollection: CoroutineMongoCollection<Document>,
     val options: MongoLeaderGroupElectionOptions,
     private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
-) : SuspendLeaderGroupElector {
+) : SuspendLeaderGroupElector, LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics {
 
     init {
         check(groupCollection.namespace.fullName == coroutineGroupCollection.namespace.fullName) {

@@ -5,6 +5,7 @@ import io.bluetape4k.concurrent.virtualthread.virtualFuture
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.VirtualThreadLeaderElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 
 /**
@@ -15,7 +16,8 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient
  */
 class DynamoDbVirtualThreadLeaderElector(
     private val delegate: DynamoDbLeaderElector,
-) : VirtualThreadLeaderElector {
+) : VirtualThreadLeaderElector,
+    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
 
     override fun <T> runAsyncIfLeader(lockName: String, action: () -> T): VirtualFuture<T?> =
         virtualFuture {
