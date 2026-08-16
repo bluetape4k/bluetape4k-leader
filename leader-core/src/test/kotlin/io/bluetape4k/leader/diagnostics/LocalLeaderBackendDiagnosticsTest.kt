@@ -92,10 +92,9 @@ class LocalLeaderBackendDiagnosticsTest {
         )
 
         wrappers.forEach { wrapper ->
-            val provider = wrapper
-                .shouldBeInstanceOf<LeaderBackendDiagnosticsAware>()
-                .backendDiagnosticsProvider
-            provider?.backendDescriptor shouldBe LocalLeaderBackendDiagnostics.backendDescriptor
+            val provider = (wrapper as? LeaderBackendDiagnosticsAware)?.backendDiagnosticsProvider
+
+            provider.shouldNotBeNull().backendDescriptor shouldBe LocalLeaderBackendDiagnostics.backendDescriptor
         }
     }
 
