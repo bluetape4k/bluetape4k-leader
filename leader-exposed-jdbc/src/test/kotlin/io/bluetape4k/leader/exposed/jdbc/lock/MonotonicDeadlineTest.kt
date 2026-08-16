@@ -1,94 +1,92 @@
 package io.bluetape4k.leader.exposed.jdbc.lock
 
-import io.bluetape4k.assertions.shouldBeEqualTo
-import io.bluetape4k.assertions.shouldBeFalse
-import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.exposed.tests.TestDB
+import io.bluetape4k.leader.contract.AbstractMonotonicDeadlineContractTest
 import io.bluetape4k.leader.exposed.jdbc.internal.MonotonicDeadline
-import org.junit.jupiter.api.Test
-import kotlin.time.Duration.Companion.milliseconds
+import io.bluetape4k.leader.exposed.retry.RetryStrategy
+import io.bluetape4k.leader.exposed.tables.LeaderGroupLockTable
+import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.exposed.tables.LeaderLockTable
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.deleteAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import java.util.UUID
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
-class MonotonicDeadlineTest {
+class MonotonicDeadlineTest: AbstractMonotonicDeadlineContractTest() {
 
-    @Test
-    fun `remainingMillisForSleep - 단조 시간 경과량으로 남은 시간을 계산한다`() {
-        var tickerNanos = 1_000_000_000L
-        val deadline = MonotonicDeadline.fromNow(100.milliseconds) { tickerNanos }
-
-        deadline.remainingMillisForSleep() shouldBeEqualTo 100L
-        deadline.hasTimeRemaining().shouldBeTrue()
-
-        tickerNanos += 40.milliseconds.inWholeNanoseconds
-
-        deadline.remainingMillisForSleep() shouldBeEqualTo 60L
-        deadline.hasTimeRemaining().shouldBeTrue()
-
-        tickerNanos += 60.milliseconds.inWholeNanoseconds
-
-        deadline.remainingMillisForSleep() shouldBeEqualTo 0L
-        deadline.hasTimeRemaining().shouldBeFalse()
+    private val db: Database by lazy {
+        (TestDB.H2.db ?: TestDB.H2.connect()).also(ExposedJdbcSchemaInitializer::ensureSchema)
     }
 
-    @Test
-    fun `remainingMillisForSleep - sub millisecond budget keeps one millisecond sleep window`() {
-        var tickerNanos = 1_000_000L
-        val deadline = MonotonicDeadline.fromNow(1.milliseconds) { tickerNanos }
-
-        tickerNanos += 999_500L
-
-        deadline.remainingNanos() shouldBeEqualTo 500L
-        deadline.remainingMillisForSleep() shouldBeEqualTo 1L
-        deadline.hasTimeRemaining().shouldBeTrue()
+    override fun createDeadline(waitTime: Duration, ticker: () -> Long): DeadlineProbe {
+        val deadline = MonotonicDeadline.fromNow(waitTime, ticker)
+        return object: DeadlineProbe {
+            override fun remainingNanos(): Long = deadline.remainingNanos()
+            override fun remainingMillisForSleep(): Long = deadline.remainingMillisForSleep()
+            override fun hasTimeRemaining(): Boolean = deadline.hasTimeRemaining()
+        }
     }
 
-    @Test
-    fun `remainingMillisForSleep - arbitrary negative origin keeps the monotonic budget`() {
-        var tickerNanos = -5_000_000_000L
-        val deadline = MonotonicDeadline.fromNow(100.milliseconds) { tickerNanos }
-
-        deadline.remainingMillisForSleep() shouldBeEqualTo 100L
-
-        tickerNanos += 40.milliseconds.inWholeNanoseconds
-
-        deadline.remainingMillisForSleep() shouldBeEqualTo 60L
-        deadline.hasTimeRemaining().shouldBeTrue()
+    override fun observeWaitOutcome(case: WaitOutcomeCase): WaitOutcome {
+        cleanTables()
+        return when (case.target) {
+            LockTarget.SINGLE -> observeSingleWait(case)
+            LockTarget.GROUP  -> observeGroupWait(case)
+        }
     }
 
-    @Test
-    fun `fromNow - zero wait time is already expired`() {
-        val deadline = MonotonicDeadline.fromNow(0.milliseconds) { 42L }
+    private fun observeSingleWait(case: WaitOutcomeCase): WaitOutcome {
+        val lockName = randomLockName()
+        val holder = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 1L))
+        check(holder.tryLock(Duration.ZERO, 5.seconds))
+        val contender = ExposedJdbcLock(db, lockName, RetryStrategy.Fixed(fixedMs = 1L))
 
-        deadline.remainingMillisForSleep() shouldBeEqualTo 0L
-        deadline.hasTimeRemaining().shouldBeFalse()
+        return try {
+            observeContender(case) { contender.tryLock(case.waitTime, 5.seconds) }
+        } finally {
+            holder.unlock()
+        }
     }
 
-    @Test
-    fun `fromNow - negative wait time is already expired`() {
-        val deadline = MonotonicDeadline.fromNow((-1).milliseconds) { 42L }
+    private fun observeGroupWait(case: WaitOutcomeCase): WaitOutcome {
+        val lockName = randomLockName()
+        val holder = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 1L))
+        check(holder.tryLock(Duration.ZERO, 5.seconds) == true)
+        val contender = ExposedJdbcGroupLock(db, lockName, slot = 0, RetryStrategy.Fixed(fixedMs = 1L))
 
-        deadline.remainingMillisForSleep() shouldBeEqualTo 0L
-        deadline.hasTimeRemaining().shouldBeFalse()
+        return try {
+            observeContender(case) { contender.tryLock(case.waitTime, 5.seconds) == true }
+        } finally {
+            holder.unlock()
+        }
     }
 
-    @Test
-    fun `fromNow - ticker wrap boundary preserves the full wait budget`() {
-        var tickerNanos = Long.MAX_VALUE - 10L
-        val deadline = MonotonicDeadline.fromNow(100.milliseconds) { tickerNanos }
-        val timeoutNanos = 100.milliseconds.inWholeNanoseconds
-
-        deadline.remainingNanos() shouldBeEqualTo timeoutNanos
-        deadline.remainingMillisForSleep() shouldBeEqualTo 100L
-        deadline.hasTimeRemaining().shouldBeTrue()
-
-        tickerNanos += 10L
-        deadline.remainingNanos() shouldBeEqualTo timeoutNanos - 10L
-        deadline.hasTimeRemaining().shouldBeTrue()
-
-        tickerNanos += 1L
-        deadline.remainingNanos() shouldBeEqualTo timeoutNanos - 11L
-        deadline.hasTimeRemaining().shouldBeTrue()
-
-        tickerNanos += timeoutNanos - 11L
-        deadline.remainingNanos() shouldBeEqualTo 0L
-        deadline.hasTimeRemaining().shouldBeFalse()
+    private inline fun observeContender(
+        case: WaitOutcomeCase,
+        attempt: () -> Boolean,
+    ): WaitOutcome {
+        return try {
+            if (case.boundary == WaitBoundary.CANCELLATION) {
+                Thread.currentThread().interrupt()
+            }
+            check(!attempt()) { "경합 중인 lock을 획득했습니다: $case" }
+            WaitOutcome.SKIPPED
+        } catch (_: InterruptedException) {
+            WaitOutcome.CANCELLED
+        } finally {
+            Thread.interrupted()
+        }
     }
+
+    private fun cleanTables() {
+        transaction(db) {
+            LeaderLockHistoryTable.deleteAll()
+            LeaderLockTable.deleteAll()
+            LeaderGroupLockTable.deleteAll()
+        }
+    }
+
+    private fun randomLockName(): String = "deadline-${UUID.randomUUID()}"
 }
