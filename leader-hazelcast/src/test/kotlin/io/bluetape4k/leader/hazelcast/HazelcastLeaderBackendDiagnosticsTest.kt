@@ -41,14 +41,14 @@ class HazelcastLeaderBackendDiagnosticsTest {
     }
 
     @Test
-    fun `connectivity는 기존 lifecycle running 상태만 읽는다`() {
+    fun `lifecycle 상태는 backend 연결 성공으로 승격하지 않는다`() {
         val lifecycle = mockk<LifecycleService>()
         val hazelcast = mockk<HazelcastInstance>()
         every { hazelcast.lifecycleService } returns lifecycle
         every { lifecycle.isRunning } returnsMany listOf(true, false)
         val provider = HazelcastLeaderBackendDiagnostics(hazelcast)
 
-        provider.checkConnectivity(100.milliseconds).status shouldBeEqualTo LeaderBackendConnectivityStatus.UP
+        provider.checkConnectivity(100.milliseconds).status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
         provider.checkConnectivity(100.milliseconds).status shouldBeEqualTo LeaderBackendConnectivityStatus.DOWN
     }
 

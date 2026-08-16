@@ -25,7 +25,7 @@ class LettuceLeaderBackendDiagnostics(
         timeout.requirePositiveFiniteProbeTimeout()
         val checkedAt = Clock.systemUTC().instant()
         return if (connection.isOpen) {
-            LeaderBackendConnectivity.up(checkedAt)
+            LeaderBackendConnectivity.unknown(checkedAt)
         } else {
             LeaderBackendConnectivity.down(checkedAt)
         }

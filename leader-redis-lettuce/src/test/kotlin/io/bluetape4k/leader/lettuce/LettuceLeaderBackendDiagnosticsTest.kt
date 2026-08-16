@@ -36,13 +36,13 @@ class LettuceLeaderBackendDiagnosticsTest {
     }
 
     @Test
-    fun `Lettuce connectivity는 기존 connection open 상태만 확인한다`() {
+    fun `Lettuce lifecycle 상태는 backend 연결 성공으로 승격하지 않는다`() {
         val connection = mockk<StatefulRedisConnection<String, String>>()
         every { connection.isOpen } returns true
         val provider = LettuceLeaderBackendDiagnostics(connection)
 
-        val up = provider.checkConnectivity(100.milliseconds)
-        up.status shouldBeEqualTo LeaderBackendConnectivityStatus.UP
+        val unknown = provider.checkConnectivity(100.milliseconds)
+        unknown.status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
 
         every { connection.isOpen } returns false
         val down = provider.checkConnectivity(100.milliseconds)

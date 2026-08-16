@@ -3,6 +3,8 @@ package io.bluetape4k.leader.micrometer
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderGroupElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
@@ -28,7 +30,10 @@ class InstrumentedLeaderElector private constructor(
     registry: MeterRegistry,
     private val lockName: String? = null,
     private val tagSanitizer: LeaderMetricTagSanitizer,
-): LeaderElector by delegate {
+): LeaderElector by delegate, LeaderBackendDiagnosticsAware {
+
+    override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
+        get() = delegate.resolveBackendDiagnosticsProvider()
 
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
@@ -105,7 +110,10 @@ class InstrumentedLeaderGroupElector private constructor(
     registry: MeterRegistry,
     private val lockName: String? = null,
     private val tagSanitizer: LeaderMetricTagSanitizer,
-): LeaderGroupElector by delegate {
+): LeaderGroupElector by delegate, LeaderBackendDiagnosticsAware {
+
+    override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
+        get() = delegate.resolveBackendDiagnosticsProvider()
 
     private val metrics = InstrumentedLeaderMetrics(registry)
 
@@ -179,7 +187,10 @@ class InstrumentedSuspendLeaderElector private constructor(
     registry: MeterRegistry,
     private val lockName: String? = null,
     private val tagSanitizer: LeaderMetricTagSanitizer,
-): SuspendLeaderElector by delegate {
+): SuspendLeaderElector by delegate, LeaderBackendDiagnosticsAware {
+
+    override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
+        get() = delegate.resolveBackendDiagnosticsProvider()
 
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
@@ -223,6 +234,13 @@ class InstrumentedSuspendLeaderElector private constructor(
     private fun metricLockName(requestedLockName: String): String =
         tagSanitizer.sanitize(MicrometerNames.TAG_LOCK_NAME, lockName ?: requestedLockName)
 }
+
+private fun Any.resolveBackendDiagnosticsProvider(): LeaderBackendDiagnosticsProvider? =
+    when (this) {
+        is LeaderBackendDiagnosticsProvider -> this
+        is LeaderBackendDiagnosticsAware -> backendDiagnosticsProvider
+        else -> null
+    }
 
 private class InstrumentedLeaderMetrics(
     private val registry: MeterRegistry,
