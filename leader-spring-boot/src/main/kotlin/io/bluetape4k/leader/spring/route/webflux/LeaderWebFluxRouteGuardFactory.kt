@@ -7,6 +7,7 @@ import io.bluetape4k.leader.spring.route.LeaderRouteDecision
 import org.springframework.http.HttpStatusCode
 import org.springframework.web.server.WebFilter
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.util.concurrent.CancellationException
 
@@ -16,11 +17,18 @@ import java.util.concurrent.CancellationException
  * 실행 동작은 유지하고 annotation, auto-configuration, metric, sample intent를 한국어로 문서화합니다.
  * @property runtime Spring Boot integration 계약에서 사용하는 속성입니다.
  * @property properties Spring Boot integration 계약에서 사용하는 속성입니다.
+ * @property evaluationScheduler blocking authority 평가를 실행할 scheduler입니다.
  */
 class LeaderWebFluxRouteGuardFactory internal constructor(
     private val runtime: LeaderRouteAuthorityRuntime,
     private val properties: LeaderRouteGuardProperties,
+    private val evaluationScheduler: Scheduler,
 ) {
+
+    internal constructor(
+        runtime: LeaderRouteAuthorityRuntime,
+        properties: LeaderRouteGuardProperties,
+    ): this(runtime, properties, Schedulers.boundedElastic())
 
     /**
      * `filter` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
@@ -29,7 +37,7 @@ class LeaderWebFluxRouteGuardFactory internal constructor(
      */
     fun filter(slot: LeaderSlot): WebFilter = WebFilter { exchange, chain ->
         Mono.fromCallable { runtime.evaluate(slot) }
-            .subscribeOn(Schedulers.boundedElastic())
+            .subscribeOn(evaluationScheduler)
             .onErrorResume { failure ->
                 when (failure) {
                     is CancellationException -> Mono.error(failure)
