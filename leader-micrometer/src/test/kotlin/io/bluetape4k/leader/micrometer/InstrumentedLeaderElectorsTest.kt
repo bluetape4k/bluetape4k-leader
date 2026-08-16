@@ -70,7 +70,7 @@ class InstrumentedLeaderElectorsTest {
             SuspendLeaderElector by StubSuspendLeaderElector(elected = true),
             LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {}
 
-        val wrappers = listOf(
+        val wrappers: List<Any> = listOf(
             InstrumentedLeaderElector(leaderDelegate, registry),
             InstrumentedLeaderGroupElector(groupDelegate, registry),
             InstrumentedSuspendLeaderElector(suspendDelegate, registry),
@@ -83,7 +83,8 @@ class InstrumentedLeaderElectorsTest {
                     LocalLeaderBackendDiagnostics.backendDescriptor
         }
 
-        val wrapperWithoutProvider = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry)
+        val wrapperWithoutProvider: Any =
+            InstrumentedLeaderElector(StubLeaderElector(elected = true), registry)
         (wrapperWithoutProvider as? LeaderBackendDiagnosticsAware)
             ?.backendDiagnosticsProvider
             .shouldBeNull()
