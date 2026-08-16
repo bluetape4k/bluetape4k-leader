@@ -7,11 +7,16 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
 import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -51,6 +56,37 @@ class InstrumentedLeaderElectorsTest {
             StubSuspendLeaderElector(elected = true, supportsAuditLeaderState = true),
             registry,
         ).supportsAuditLeaderState.shouldBeTrue()
+    }
+
+    @Test
+    fun `instrumented decorators preserve nullable backend diagnostics provider`() {
+        val leaderDelegate = object :
+            LeaderElector by StubLeaderElector(elected = true),
+            LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {}
+        val groupDelegate = object :
+            LeaderGroupElector by StubLeaderGroupElector(elected = true),
+            LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {}
+        val suspendDelegate = object :
+            SuspendLeaderElector by StubSuspendLeaderElector(elected = true),
+            LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {}
+
+        val wrappers = listOf(
+            InstrumentedLeaderElector(leaderDelegate, registry),
+            InstrumentedLeaderGroupElector(groupDelegate, registry),
+            InstrumentedSuspendLeaderElector(suspendDelegate, registry),
+        )
+
+        wrappers.forEach { wrapper ->
+            val provider = (wrapper as? LeaderBackendDiagnosticsAware)?.backendDiagnosticsProvider
+
+            provider.shouldNotBeNull().backendDescriptor shouldBe
+                    LocalLeaderBackendDiagnostics.backendDescriptor
+        }
+
+        val wrapperWithoutProvider = InstrumentedLeaderElector(StubLeaderElector(elected = true), registry)
+        (wrapperWithoutProvider as? LeaderBackendDiagnosticsAware)
+            ?.backendDiagnosticsProvider
+            .shouldBeNull()
     }
 
     @Test

@@ -98,14 +98,14 @@ interface LeaderBackendDiagnosticsAware {
 | Backend | Connectivity 근거 |
 |---|---|
 | Local | process-local 구현이므로 `UP` |
-| Lettuce | 기존 connection의 open 상태 |
-| Redisson | 기존 client의 shutdown/shutting-down 상태 |
+| Lettuce | 닫힌 connection은 `DOWN`, 열린 lifecycle만 확인되면 `UNKNOWN` |
+| Redisson | 종료 중이거나 종료된 client는 `DOWN`, 실행 중 lifecycle만 확인되면 `UNKNOWN` |
 | Exposed JDBC/R2DBC | 안전한 bounded 수동 상태가 없어 `UNKNOWN` |
 | MongoDB | lock collection만으로 bounded ping을 보장할 수 없어 `UNKNOWN` |
 | DynamoDB | client 구성만으로 연결 성공을 증명할 수 없어 `UNKNOWN` |
 | etcd/Consul | lock-client 계약에 무해한 health method가 없어 `UNKNOWN` |
 | Kubernetes | 기존 client의 종료/적응 상태만 안전하게 확인하고 불명확하면 `UNKNOWN` |
-| Hazelcast | lifecycle service running 상태 |
+| Hazelcast | 중지된 lifecycle은 `DOWN`, running lifecycle만 확인되면 `UNKNOWN` |
 | ZooKeeper | Curator connection state |
 
 `UNKNOWN`은 provider 누락이 아니라 “안전한 probe로 연결 성공을 증명하지 않음”을 뜻한다.

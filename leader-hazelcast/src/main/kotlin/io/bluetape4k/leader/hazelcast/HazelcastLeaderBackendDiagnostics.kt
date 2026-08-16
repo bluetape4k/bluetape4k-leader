@@ -30,7 +30,7 @@ class HazelcastLeaderBackendDiagnostics(
             .fold(
                 onSuccess = { running ->
                     if (running) {
-                        LeaderBackendConnectivity.up(checkedAt)
+                        LeaderBackendConnectivity.unknown(checkedAt)
                     } else {
                         LeaderBackendConnectivity.down(checkedAt)
                     }

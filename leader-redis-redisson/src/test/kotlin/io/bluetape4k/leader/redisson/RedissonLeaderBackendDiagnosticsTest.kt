@@ -34,13 +34,13 @@ class RedissonLeaderBackendDiagnosticsTest {
     }
 
     @Test
-    fun `Redisson connectivity는 기존 client shutdown 상태만 확인한다`() {
+    fun `Redisson lifecycle 상태는 backend 연결 성공으로 승격하지 않는다`() {
         val client = mockk<RedissonClient>()
         every { client.isShutdown } returns false
         every { client.isShuttingDown } returns false
         val provider = RedissonLeaderBackendDiagnostics(client)
 
-        provider.checkConnectivity(100.milliseconds).status shouldBeEqualTo LeaderBackendConnectivityStatus.UP
+        provider.checkConnectivity(100.milliseconds).status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
 
         every { client.isShuttingDown } returns true
         provider.checkConnectivity(100.milliseconds).status shouldBeEqualTo LeaderBackendConnectivityStatus.DOWN

@@ -29,7 +29,7 @@ class RedissonLeaderBackendDiagnostics(
         return if (shutdown || shuttingDown) {
             LeaderBackendConnectivity.down(checkedAt)
         } else {
-            LeaderBackendConnectivity.up(checkedAt)
+            LeaderBackendConnectivity.unknown(checkedAt)
         }
     }
 
