@@ -112,6 +112,16 @@ JMH이며, 결과는 같은 장비에서 전/후 비교를 하기 위한 기준�
 
 `autoExtend`는 단일 리더에서만 opt-in으로 동작합니다. Local, Redis, Exposed, MongoDB, Hazelcast, etcd, Consul, DynamoDB, Kubernetes는 공통 extender 계약으로 각 백엔드의 TTL, lease, session을 갱신합니다. Redisson은 항상 명시적인 `leaseTime`으로 락을 획득하고, 활성화된 경우 공통 extender로 연장합니다. ZooKeeper 락은 TTL이 없는 session 기반이므로 `autoExtend = true`를 경고와 함께 무시합니다. 그룹 옵션은 `autoExtend`를 제공하지 않으므로 그룹 slot이 lease보다 오래 유지되어야 한다면 `LockExtender`를 명시적으로 사용하세요.
 
+<!-- LEADER_BACKEND_DIAGNOSTICS:START -->
+### Runtime backend diagnostics
+
+내장 elector는 `LeaderBackendDiagnosticsProvider`로 불변 capability descriptor를 제공합니다. 정적 diagnostics 조회는 backend I/O를 실행하지 않으며 connectivity를 `NOT_CHECKED`로 반환합니다. 실제 connectivity 검사는 별도의 opt-in 연산입니다. `UNKNOWN`은 제한 시간 안에 연결 상태를 확정하지 못했다는 뜻이며 backend가 정상이라는 의미가 아닙니다.
+
+Spring Boot의 정적 `leaderBackendDiagnostics` Actuator endpoint는 명시적으로 활성화하고 노출하기 전까지 비활성입니다. `bluetape4k.leader.observability.backend-health`의 backend health probe도 기본 비활성이며 기본 timeout은 `500ms`입니다. Ktor는 별도 `/management/leaderElection/diagnostics` route를 사용합니다. `backendDiagnosticsRouteEnabled`와 `backendConnectivityCheckEnabled`는 모두 기본값이 `false`이고 connectivity timeout 기본값도 `500ms`입니다.
+
+Diagnostics 응답에는 backend 종류, capability 제한, connectivity 상태, 검사 시각과 지연 시간이 포함될 수 있습니다. Spring Actuator와 Ktor management route를 인증과 network policy로 보호하세요. 애플리케이션별 정책 없이 diagnostics를 소유권 판단이나 readiness 근거로 사용하면 안 됩니다.
+<!-- LEADER_BACKEND_DIAGNOSTICS:END -->
+
 `@LeaderGroupElection`은 scalar, suspend, `Mono` 결과를 지원하지만 slot별 stream lease extension이 정의되지 않아 `Flux`와 Kotlin `Flow`를 거부합니다. 길거나 무한에 가까운 단일 리더 stream에는 `@LeaderElection(autoExtend = true)`를 사용하세요.
 
 선택 기준은 [백엔드 선택](docs/manual/ko/guides/backend-selection.md), [실행 모델 선택](docs/manual/ko/guides/execution-model-selection.md), [lease 연장](docs/manual/ko/core/lease-extension.md)을 참고하세요. 실행 경로는 [예제](#예제-examples)에서 확인할 수 있습니다.

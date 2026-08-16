@@ -41,7 +41,22 @@ class ValidateLeaderContractMatrixTest(unittest.TestCase):
                     "tokens": ["class LocalLeaderElector", "options.autoExtend"],
                 }
             ],
+            "runtime_diagnostics_source": {
+                "path": source,
+                "backend_id": "local",
+            },
         }
+
+    def readme(self, rendered: str) -> str:
+        return (
+            "<!-- LEADER_CAPABILITY_MATRIX:START -->\n"
+            f"{rendered}\n"
+            "<!-- LEADER_CAPABILITY_MATRIX:END -->\n"
+            "<!-- LEADER_BACKEND_DIAGNOSTICS:START -->\n"
+            "LeaderBackendDiagnosticsProvider NOT_CHECKED UNKNOWN 500ms "
+            "leaderBackendDiagnostics backendDiagnosticsRouteEnabled\n"
+            "<!-- LEADER_BACKEND_DIAGNOSTICS:END -->"
+        )
 
     def supported_entry(self, **overrides: str) -> dict[str, str]:
         entry = {
@@ -168,10 +183,13 @@ class ValidateLeaderContractMatrixTest(unittest.TestCase):
             source = "leader-core/src/main/kotlin/LocalLeaderElector.kt"
             source_file = root / source
             source_file.parent.mkdir(parents=True)
-            source_file.write_text("class LocalLeaderElector", encoding="utf-8")
+            source_file.write_text(
+                'class LocalLeaderElector { val backendId = "local" }',
+                encoding="utf-8",
+            )
             row = self.readme_capability(source)
             rendered = render_readme_capability_rows([row])
-            readme = f"<!-- LEADER_CAPABILITY_MATRIX:START -->\n{rendered}\n<!-- LEADER_CAPABILITY_MATRIX:END -->"
+            readme = self.readme(rendered)
 
             errors = validate_readme_capabilities(
                 {"readme_capabilities": {"rows": [row]}},
@@ -190,12 +208,12 @@ class ValidateLeaderContractMatrixTest(unittest.TestCase):
             source_file = root / source
             source_file.parent.mkdir(parents=True)
             source_file.write_text(
-                "class LocalLeaderElector { val configured = options.autoExtend }",
+                'class LocalLeaderElector { val backendId = "local"; val configured = options.autoExtend }',
                 encoding="utf-8",
             )
             row = self.readme_capability(source)
             rendered = render_readme_capability_rows([row])
-            readme = f"<!-- LEADER_CAPABILITY_MATRIX:START -->\n{rendered}\n<!-- LEADER_CAPABILITY_MATRIX:END -->"
+            readme = self.readme(rendered)
             korean = readme.replace("| S/G | S |", "| G | — |")
 
             errors = validate_readme_capabilities(
@@ -208,10 +226,62 @@ class ValidateLeaderContractMatrixTest(unittest.TestCase):
 
             self.assertIn("README.ko.md capability rows differ from manifest", errors)
 
+    def test_rejects_readme_capability_without_runtime_diagnostics_source(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = "leader-core/src/main/kotlin/LocalLeaderElector.kt"
+            source_file = root / source
+            source_file.parent.mkdir(parents=True)
+            source_file.write_text(
+                'class LocalLeaderElector { val backendId = "local"; val configured = options.autoExtend }',
+                encoding="utf-8",
+            )
+            row = self.readme_capability(source)
+            row.pop("runtime_diagnostics_source")
+            readme = self.readme(render_readme_capability_rows([row]))
+
+            errors = validate_readme_capabilities(
+                {"readme_capabilities": {"rows": [row]}},
+                root,
+                readme,
+                readme,
+                expected_backends={"Local"},
+            )
+
+            self.assertIn("runtime diagnostics source anchor is missing", " ".join(errors))
+
+    def test_rejects_localized_runtime_diagnostics_prose_marker_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = "leader-core/src/main/kotlin/LocalLeaderElector.kt"
+            source_file = root / source
+            source_file.parent.mkdir(parents=True)
+            source_file.write_text(
+                'class LocalLeaderElector { val backendId = "local"; val configured = options.autoExtend }',
+                encoding="utf-8",
+            )
+            row = self.readme_capability(source)
+            readme = self.readme(render_readme_capability_rows([row]))
+            korean = readme.replace("<!-- LEADER_BACKEND_DIAGNOSTICS:START -->\n", "")
+
+            errors = validate_readme_capabilities(
+                {"readme_capabilities": {"rows": [row]}},
+                root,
+                readme,
+                korean,
+                expected_backends={"Local"},
+            )
+
+            self.assertIn("README.ko.md runtime diagnostics prose markers are missing", errors)
+
     def test_rejects_non_object_readme_capability_without_crashing(self) -> None:
         markers = (
             "<!-- LEADER_CAPABILITY_MATRIX:START -->\n"
-            "<!-- LEADER_CAPABILITY_MATRIX:END -->"
+            "<!-- LEADER_CAPABILITY_MATRIX:END -->\n"
+            "<!-- LEADER_BACKEND_DIAGNOSTICS:START -->\n"
+            "LeaderBackendDiagnosticsProvider NOT_CHECKED UNKNOWN 500ms "
+            "leaderBackendDiagnostics backendDiagnosticsRouteEnabled\n"
+            "<!-- LEADER_BACKEND_DIAGNOSTICS:END -->"
         )
 
         errors = validate_readme_capabilities(

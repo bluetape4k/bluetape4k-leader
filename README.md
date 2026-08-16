@@ -112,6 +112,16 @@ This matrix is validated against the current source tree. The versioned manual r
 
 `autoExtend` is opt-in and single-leader only. Local, Redis, Exposed, MongoDB, Hazelcast, etcd, Consul, DynamoDB, and Kubernetes renew their own TTL, lease, or session through the shared extender contract. Redisson always acquires with an explicit `leaseTime`, then uses the shared extender when enabled. ZooKeeper locks are session-bound and have no TTL, so `autoExtend = true` is ignored with a warning. Group options do not expose `autoExtend`; use explicit `LockExtender` operations when a group slot must outlive its lease.
 
+<!-- LEADER_BACKEND_DIAGNOSTICS:START -->
+### Runtime backend diagnostics
+
+Built-in electors expose their immutable capability descriptor through `LeaderBackendDiagnosticsProvider`. A static diagnostics read performs no backend I/O and reports connectivity as `NOT_CHECKED`. Active connectivity checks are separate, opt-in operations; `UNKNOWN` means the bounded check could not determine connectivity, not that the backend is healthy.
+
+Spring Boot keeps the static `leaderBackendDiagnostics` Actuator endpoint disabled until it is explicitly enabled and exposed. Its backend health probe is also disabled by default under `bluetape4k.leader.observability.backend-health`; the default timeout is `500ms`. Ktor uses a separate `/management/leaderElection/diagnostics` route. `backendDiagnosticsRouteEnabled` and `backendConnectivityCheckEnabled` both default to `false`, and the connectivity timeout also defaults to `500ms`.
+
+Diagnostics can disclose backend type, capability limits, connectivity status, and check timing. Protect Spring Actuator and Ktor management routes with authentication and network policy, and do not treat diagnostics as an ownership decision or readiness proof without an application-specific policy.
+<!-- LEADER_BACKEND_DIAGNOSTICS:END -->
+
 `@LeaderGroupElection` supports scalar, suspend, and `Mono` results, but rejects `Flux` and Kotlin `Flow` because per-slot stream lease extension is undefined. For long-running or unbounded single-leader streams, use `@LeaderElection(autoExtend = true)`.
 
 For selection guidance, see [backend selection](docs/manual/en/guides/backend-selection.md), [execution model selection](docs/manual/en/guides/execution-model-selection.md), and [lease extension](docs/manual/en/core/lease-extension.md). The runnable paths are indexed in [Examples](#examples).

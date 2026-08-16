@@ -20,6 +20,16 @@ README_KO_PATH = ROOT / "README.ko.md"
 BACKENDS = ("etcd", "consul", "dynamodb", "k8s")
 README_CAPABILITY_START = "<!-- LEADER_CAPABILITY_MATRIX:START -->"
 README_CAPABILITY_END = "<!-- LEADER_CAPABILITY_MATRIX:END -->"
+README_DIAGNOSTICS_START = "<!-- LEADER_BACKEND_DIAGNOSTICS:START -->"
+README_DIAGNOSTICS_END = "<!-- LEADER_BACKEND_DIAGNOSTICS:END -->"
+README_DIAGNOSTICS_TOKENS = {
+    "LeaderBackendDiagnosticsProvider",
+    "NOT_CHECKED",
+    "UNKNOWN",
+    "500ms",
+    "leaderBackendDiagnostics",
+    "backendDiagnosticsRouteEnabled",
+}
 README_CAPABILITY_FIELDS = {
     "backend",
     "module",
@@ -35,6 +45,7 @@ README_CAPABILITY_FIELDS = {
     "state",
     "audit",
     "sources",
+    "runtime_diagnostics_source",
 }
 EXPECTED_README_BACKENDS = {
     "Local",
@@ -259,6 +270,49 @@ def _readme_capability_block(readme: str, label: str) -> tuple[str | None, list[
     return block.strip(), errors
 
 
+def _readme_diagnostics_block(readme: str, label: str) -> tuple[str | None, list[str]]:
+    if readme.count(README_DIAGNOSTICS_START) != 1 or readme.count(README_DIAGNOSTICS_END) != 1:
+        return None, [f"{label} runtime diagnostics prose markers are missing"]
+    _, _, remainder = readme.partition(README_DIAGNOSTICS_START)
+    block, _, _ = remainder.partition(README_DIAGNOSTICS_END)
+    if not block.strip():
+        return None, [f"{label} runtime diagnostics prose is empty"]
+    return block.strip(), []
+
+
+def _validate_runtime_diagnostics_source(
+    source: object,
+    prefix: str,
+    root: Path,
+) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(source, dict) or set(source) != {"path", "backend_id"}:
+        return [f"{prefix} runtime diagnostics source anchor is missing"]
+
+    path = source["path"]
+    backend_id = source["backend_id"]
+    if not isinstance(path, str) or not path or _path_error(path):
+        return [f"{prefix} runtime diagnostics source path must stay inside repository"]
+    if not isinstance(backend_id, str) or not backend_id:
+        return [f"{prefix} runtime diagnostics backend id must be a non-empty string"]
+
+    root_path = root.resolve()
+    source_path = (root / path).resolve()
+    try:
+        source_path.relative_to(root_path)
+    except ValueError:
+        return [f"{prefix} runtime diagnostics source path escapes repository: {path}"]
+    if not source_path.is_file():
+        return [f"{prefix} runtime diagnostics source file does not exist: {path}"]
+    try:
+        source_text = source_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        return [f"{prefix} runtime diagnostics source file cannot be read: {exc}"]
+    if f'backendId = "{backend_id}"' not in source_text:
+        errors.append(f"{prefix} runtime diagnostics backend id is missing: {backend_id}")
+    return errors
+
+
 def validate_readme_capabilities(
     matrix: dict[str, Any],
     root: Path,
@@ -284,7 +338,13 @@ def validate_readme_capabilities(
 
     for index, row in enumerate(rows):
         prefix = f"readme_capabilities.rows[{index}]"
-        if not isinstance(row, dict) or set(row) != README_CAPABILITY_FIELDS:
+        if not isinstance(row, dict):
+            errors.append(f"{prefix} fields do not match capability contract")
+            continue
+        if "runtime_diagnostics_source" not in row:
+            errors.append(f"{prefix} runtime diagnostics source anchor is missing")
+            continue
+        if set(row) != README_CAPABILITY_FIELDS:
             errors.append(f"{prefix} fields do not match capability contract")
             continue
         backend = row["backend"]
@@ -357,6 +417,14 @@ def validate_readme_capabilities(
                 if token not in source_text:
                     errors.append(f"source token is missing: {token}")
 
+        errors.extend(
+            _validate_runtime_diagnostics_source(
+                row["runtime_diagnostics_source"],
+                prefix,
+                root,
+            )
+        )
+
     if seen != expected_backends:
         missing = sorted(expected_backends - seen)
         extra = sorted(seen - expected_backends)
@@ -372,6 +440,12 @@ def validate_readme_capabilities(
         errors.extend(marker_errors)
         if actual_rows is not None and actual_rows != expected_rows:
             errors.append(f"{label} capability rows differ from manifest")
+        diagnostics, diagnostics_errors = _readme_diagnostics_block(contents, label)
+        errors.extend(diagnostics_errors)
+        if diagnostics is not None:
+            for token in sorted(README_DIAGNOSTICS_TOKENS):
+                if token not in diagnostics:
+                    errors.append(f"{label} runtime diagnostics prose is missing token: {token}")
     return errors
 
 
@@ -504,7 +578,10 @@ def run_self_test() -> int:
 
         capability_source = root / "leader-core/src/main/kotlin/Local.kt"
         capability_source.parent.mkdir(parents=True)
-        capability_source.write_text("class LocalLeaderElector { val enabled = options.autoExtend }", encoding="utf-8")
+        capability_source.write_text(
+            'class LocalLeaderElector { val enabled = options.autoExtend; val backendId = "local" }',
+            encoding="utf-8",
+        )
         capability_row = {
             "backend": "Local",
             "module": "bluetape4k-leader-core",
@@ -520,10 +597,16 @@ def run_self_test() -> int:
             "state": "S/G",
             "audit": "S",
             "sources": [{"path": "leader-core/src/main/kotlin/Local.kt", "tokens": ["options.autoExtend"]}],
+            "runtime_diagnostics_source": {
+                "path": "leader-core/src/main/kotlin/Local.kt",
+                "backend_id": "local",
+            },
         }
         capability_rows = render_readme_capability_rows([capability_row])
+        diagnostics_tokens = " ".join(sorted(README_DIAGNOSTICS_TOKENS))
         capability_readme = (
-            f"{README_CAPABILITY_START}\n{capability_rows}\n{README_CAPABILITY_END}"
+            f"{README_CAPABILITY_START}\n{capability_rows}\n{README_CAPABILITY_END}\n"
+            f"{README_DIAGNOSTICS_START}\n{diagnostics_tokens}\n{README_DIAGNOSTICS_END}"
         )
         capability_matrix = {"readme_capabilities": {"rows": [capability_row]}}
         if validate_readme_capabilities(
