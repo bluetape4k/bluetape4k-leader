@@ -5,6 +5,9 @@ import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.TenantLockNamespace
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.diagnostics.resolveLeaderBackendDiagnosticsProvider
 
 /**
  * `SuspendLeaderElector`는 coroutine suspend leader election 실행자입니다.
@@ -55,7 +58,10 @@ fun SuspendLeaderGroupElector.forTenant(namespace: TenantLockNamespace): Suspend
 internal class TenantScopedSuspendLeaderElector(
     private val delegate: SuspendLeaderElector,
     private val namespace: TenantLockNamespace,
-) : SuspendLeaderElector {
+) : SuspendLeaderElector, LeaderBackendDiagnosticsAware {
+
+    override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
+        get() = delegate.resolveLeaderBackendDiagnosticsProvider()
 
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
@@ -94,7 +100,10 @@ internal class TenantScopedSuspendLeaderElector(
 internal class TenantScopedSuspendLeaderGroupElector(
     private val delegate: SuspendLeaderGroupElector,
     private val namespace: TenantLockNamespace,
-) : SuspendLeaderGroupElector {
+) : SuspendLeaderGroupElector, LeaderBackendDiagnosticsAware {
+
+    override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
+        get() = delegate.resolveLeaderBackendDiagnosticsProvider()
 
     override val maxLeaders: Int get() = delegate.maxLeaders
 

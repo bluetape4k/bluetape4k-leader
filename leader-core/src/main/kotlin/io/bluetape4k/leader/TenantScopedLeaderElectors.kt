@@ -1,6 +1,9 @@
 package io.bluetape4k.leader
 
 import io.bluetape4k.concurrent.virtualthread.VirtualFuture
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.diagnostics.resolveLeaderBackendDiagnosticsProvider
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
@@ -93,7 +96,10 @@ fun VirtualThreadLeaderGroupElector.forTenant(namespace: TenantLockNamespace): V
 internal class TenantScopedLeaderElector(
     private val delegate: LeaderElector,
     private val namespace: TenantLockNamespace,
-) : LeaderElector {
+) : LeaderElector, LeaderBackendDiagnosticsAware {
+
+    override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
+        get() = delegate.resolveLeaderBackendDiagnosticsProvider()
 
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
@@ -147,7 +153,10 @@ internal class TenantScopedLeaderElector(
 internal class TenantScopedLeaderGroupElector(
     private val delegate: LeaderGroupElector,
     private val namespace: TenantLockNamespace,
-) : LeaderGroupElector {
+) : LeaderGroupElector, LeaderBackendDiagnosticsAware {
+
+    override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
+        get() = delegate.resolveLeaderBackendDiagnosticsProvider()
 
     override val maxLeaders: Int get() = delegate.maxLeaders
 
@@ -206,7 +215,10 @@ internal class TenantScopedLeaderGroupElector(
 internal class TenantScopedVirtualThreadLeaderElector(
     private val delegate: VirtualThreadLeaderElector,
     private val namespace: TenantLockNamespace,
-) : VirtualThreadLeaderElector {
+) : VirtualThreadLeaderElector, LeaderBackendDiagnosticsAware {
+
+    override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
+        get() = delegate.resolveLeaderBackendDiagnosticsProvider()
 
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
@@ -236,7 +248,10 @@ internal class TenantScopedVirtualThreadLeaderElector(
 internal class TenantScopedVirtualThreadLeaderGroupElector(
     private val delegate: VirtualThreadLeaderGroupElector,
     private val namespace: TenantLockNamespace,
-) : VirtualThreadLeaderGroupElector {
+) : VirtualThreadLeaderGroupElector, LeaderBackendDiagnosticsAware {
+
+    override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
+        get() = delegate.resolveLeaderBackendDiagnosticsProvider()
 
     override val maxLeaders: Int get() = delegate.maxLeaders
 

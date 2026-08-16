@@ -10,6 +10,9 @@ import io.bluetape4k.leader.LeaderGroupState
 import io.bluetape4k.leader.LeaderRunResult
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.diagnostics.resolveLeaderBackendDiagnosticsProvider
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -20,7 +23,13 @@ import kotlinx.coroutines.flow.Flow
  */
 class ListeningSuspendLeaderElector(
     private val delegate: SuspendLeaderElector,
-) : SuspendLeaderElector, LeaderElectionListenerRegistry, LeaderElectionEventPublisher {
+) : SuspendLeaderElector,
+    LeaderElectionListenerRegistry,
+    LeaderElectionEventPublisher,
+    LeaderBackendDiagnosticsAware {
+
+    override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
+        get() = delegate.resolveLeaderBackendDiagnosticsProvider()
 
     private val listeners = LeaderElectionListenerSupport()
     private val eventSubject = PublishSubject<LeaderElectionEvent>()
@@ -114,7 +123,13 @@ class ListeningSuspendLeaderElector(
  */
 class ListeningSuspendLeaderGroupElector(
     private val delegate: SuspendLeaderGroupElector,
-) : SuspendLeaderGroupElector, LeaderElectionListenerRegistry, LeaderElectionEventPublisher {
+) : SuspendLeaderGroupElector,
+    LeaderElectionListenerRegistry,
+    LeaderElectionEventPublisher,
+    LeaderBackendDiagnosticsAware {
+
+    override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
+        get() = delegate.resolveLeaderBackendDiagnosticsProvider()
 
     private val listeners = LeaderElectionListenerSupport()
     private val eventSubject = PublishSubject<LeaderElectionEvent>()

@@ -11,6 +11,8 @@ import io.bluetape4k.leader.LeaderLockHandle
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.parkRemainingMinLeaseTime
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.LockStateHolder
 import io.bluetape4k.support.requireNotBlank
@@ -29,7 +31,9 @@ import kotlin.time.Duration
  */
 abstract class AbstractLocalLeaderElector(
     protected val options: LeaderElectionOptions = LeaderElectionOptions.Default,
-) : LeaderElectionListenerRegistry, LeaderElectionState {
+) : LeaderElectionListenerRegistry,
+    LeaderElectionState,
+    LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
 
     companion object {
         /**
