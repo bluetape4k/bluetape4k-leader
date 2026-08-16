@@ -3,7 +3,7 @@
 ## 범위와 기준
 
 - 대상 분기: `feat/epic-obs-01-diagnostics`
-- 검토 기준 커밋: `49cb2e9fa63ef9f3d07541e15dd8be02ae31a960`
+- 검토 기준 커밋: `95ae9b88f490181d85cedbb79cfee0eca0d4244f`
 - 관련 이슈: #533
 - 상위 Epic: #699
 - 후속 범위: #559
@@ -45,6 +45,12 @@ provider.shouldNotBeNull().backendDescriptor shouldBe expectedDescriptor
 
 두 최종 리뷰는 `49cb2e9fa63ef9f3d07541e15dd8be02ae31a960`을 대상으로 다시 수행했다. 이전 차단 사항인 false-green health와 Micrometer capability 손실이 해소됐고, 보안·API·동시성 회귀는 발견되지 않았다.
 
+## Hosted CI 취소 테스트 복구
+
+Hosted CI run `31957429341`에서 `LeaderWebFluxRouteGuardTest`의 evaluation 시작 전 취소 테스트가 runner scheduling에 따라 세 번 연속 실패했다. 기존 테스트는 `subscribeOn(Schedulers.boundedElastic())`의 worker가 실행되기 전에 `BaseSubscriber`가 취소되기를 기대해 wall-clock race를 만들었다.
+
+`95ae9b88`에서 evaluation scheduler를 internal constructor로 주입할 수 있게 하고, 테스트가 scheduler queue를 직접 보관한 뒤 subscription을 취소하고 queued task를 실행하도록 변경했다. production 2-인자 constructor는 `Schedulers.boundedElastic()`에 위임해 동작과 기존 JVM descriptor를 보존했다. 독립 아키텍처 재검토는 `CLEAR`, stalled code-review lane 재시도 후 수행한 inline 7-tier 재검토는 `APPROVE`였으며 두 검토 모두 P0/P1/P2/P3가 0이었다.
+
 ## 새 검증
 
 | 명령 또는 검사 | 결과 |
@@ -52,6 +58,8 @@ provider.shouldNotBeNull().backendDescriptor shouldBe expectedDescriptor
 | `./gradlew test detekt --no-daemon --no-configuration-cache` | PASS, XML 345개, tests 3,283, failures 0, errors 0, skipped 0 |
 | `ABI_BASE_VERSION=0.5.0 ABI_CURRENT_VERSION=0.6.0 ./gradlew checkBinaryCompatibility --no-daemon --no-configuration-cache` | PASS, artifacts 16, ignored 4, unknown 0 |
 | Core와 Micrometer diagnostics targeted `cleanTest` + `--no-build-cache` | PASS, Core 5개와 Micrometer 17개 |
+| `LeaderWebFluxRouteGuardTest` targeted `--rerun-tasks` | PASS, deterministic queued cancellation 포함 |
+| `:bluetape4k-leader-spring-boot:test` | PASS, tests 446, failures 0 |
 | capability validator unit/self/static | PASS, unit 11개 |
 | README JVM 25·locale inventory 검사 | PASS |
 | `git diff --check` | PASS |

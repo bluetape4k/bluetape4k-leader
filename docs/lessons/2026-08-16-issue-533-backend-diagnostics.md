@@ -10,11 +10,14 @@
 - 수동 상태는 실패를 증명할 수 있어도 성공을 증명하지 못할 수 있다. 성공을 추측하는 대신 보수적인 상태를 반환하면 health가 false-green이 되지 않는다.
 - decorator는 선택적 capability를 보존해야 한다. `LeaderBackendDiagnosticsAware`의 nullable provider를 전달해 사용자 정의 elector가 지원하지 않는 기능을 광고하지 않게 했다.
 - 테스트도 capability의 부재를 표현해야 한다. `(wrapper as? LeaderBackendDiagnosticsAware)?.backendDiagnosticsProvider`로 읽고 provider가 있는 경우와 없는 경우를 각각 검증했다.
+- decorator의 구체 타입이 capability를 이미 구현한다고 알려 주는 테스트에서는 입력을 `Any`로 소거한 뒤 safe cast해야 runtime SPI 전달 계약을 실제로 검증할 수 있다.
 - capability manifest에 runtime source anchor를 연결했다. 문서 표와 실제 descriptor가 다른 방향으로 변경되면 validator가 즉시 drift를 탐지한다.
 
 ## 놓친 점과 복구
 
 초기 구현은 세 backend의 lifecycle-running 상태를 connectivity `UP`으로 해석했다. 또한 Micrometer wrapper가 진단 capability를 전달하지 않았다. 독립 아키텍처 검토와 메인 세션 통합 검토가 두 문제를 찾았고, `49cb2e9f`에서 상태 의미와 decorator 전달을 함께 복구했다.
+
+Hosted CI에서는 evaluation 시작 전 취소 테스트가 `boundedElastic` worker와 subscriber 취소의 실행 순서를 wall-clock에 맡겨 간헐적으로 실패했다. scheduler queue를 테스트가 직접 제어하도록 바꿔 취소 이후 queued evaluation을 실행해도 authority와 handler가 호출되지 않음을 결정적으로 검증했다. internal Kotlin constructor를 확장할 때도 기존 2-인자 JVM descriptor를 명시적으로 유지해 ABI 회귀를 막았다.
 
 ## 검증
 
@@ -22,9 +25,12 @@
 - ABI artifact 16개 검사, unknown 변경 0
 - Core diagnostics targeted test 5개 통과
 - Micrometer targeted test 17개 통과
+- WebFlux route guard targeted test와 Spring Boot 전체 446개 테스트 통과
 - capability validator unit 11개, self/static 검사 통과
 - README JVM 25와 locale inventory 검사 통과
 
 ## 향후 방어 조건
 
 active probe가 실제 네트워크 I/O를 시작한다면 `Duration` 인자를 받는 것만으로 timeout을 보장했다고 판단하지 않는다. 호출자 deadline, SDK timeout 전달, 응답 지연과 연결 단절 테스트를 함께 추가하고, probe가 lock 획득·연장·해제와 client 수명주기를 변경하지 않는지 다시 검증한다.
+
+Reactive cancellation-before-run 테스트는 즉시 취소의 우연한 scheduling 순서를 기대하지 않는다. scheduler queue나 virtual time을 제어해 실행 전 취소를 재현하고, production constructor를 변경할 때는 Kotlin source visibility와 별개로 기존 JVM descriptor를 ABI 검사로 확인한다.
