@@ -324,6 +324,7 @@ class ExposedR2DbcSuspendLeaderGroupElector private constructor(
                 actionSucceeded = true
                 return result
             } catch (e: CancellationException) {
+                actionFailed = true
                 throw e
             } catch (e: Throwable) {
                 actionFailed = true

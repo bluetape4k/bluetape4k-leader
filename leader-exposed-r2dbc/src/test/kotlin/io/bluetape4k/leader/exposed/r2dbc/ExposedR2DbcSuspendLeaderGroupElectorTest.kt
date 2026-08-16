@@ -6,6 +6,8 @@ import io.bluetape4k.leader.LeaderGroupElectionOptions
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcGroupLock
 import io.bluetape4k.leader.exposed.r2dbc.lock.ExposedR2dbcSchemaInitializer
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
+import io.bluetape4k.leader.exposed.tables.LeaderLockHistoryTable
+import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.exposed.ExposedLeaderConstants.GROUP_LOCK_TABLE_NAME
 import io.bluetape4k.leader.exposed.ExposedLeaderConstants.LOCK_HISTORY_TABLE_NAME
 import io.bluetape4k.logging.coroutines.KLoggingChannel
@@ -16,9 +18,11 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import org.jetbrains.exposed.v1.core.statements.StatementContext
 import org.jetbrains.exposed.v1.r2dbc.R2dbcTransaction
+import org.jetbrains.exposed.v1.r2dbc.selectAll
 import org.jetbrains.exposed.v1.r2dbc.statements.GlobalSuspendStatementInterceptor
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import io.bluetape4k.assertions.shouldBeEqualTo
@@ -29,6 +33,7 @@ import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeTrue
+import org.jetbrains.exposed.v1.core.eq
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.time.Duration
@@ -169,12 +174,26 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
         val db = setupDb(testDB)
         cleanTables(db)
         val lockName = randomName()
-        val election = makeGroupElection(testDB)
+        val options = ExposedR2dbcLeaderGroupElectionOptions(
+            leaderGroupOptions = LeaderGroupElectionOptions(maxLeaders = maxLeaders),
+            recordHistory = true,
+        )
+        val election = ExposedR2DbcSuspendLeaderGroupElector(db, options)
+        val cancellation = CancellationException("cancel group action")
 
-        assertFailsWith<CancellationException> {
-            election.runIfLeader(lockName) { throw CancellationException("cancel group action") }
+        val thrown = assertFailsWith<CancellationException> {
+            election.runIfLeader(lockName) { throw cancellation }
         }
 
+        thrown.message shouldBeEqualTo cancellation.message
+        val history = suspendTransaction(db) {
+            LeaderLockHistoryTable.selectAll()
+                .where { LeaderLockHistoryTable.lockName eq lockName }
+                .first()
+        }
+        history[LeaderLockHistoryTable.status] shouldBeEqualTo LeaderHistoryStatus.FAILED.name
+        history[LeaderLockHistoryTable.finishedAt].shouldNotBeNull()
+        history[LeaderLockHistoryTable.durationMs].shouldNotBeNull() shouldBeGreaterOrEqualTo 0L
         election.activeCount(lockName) shouldBeEqualTo 0
         election.runIfLeader(lockName) { "group-recovered-after-cancel" } shouldBeEqualTo "group-recovered-after-cancel"
     }
@@ -228,6 +247,12 @@ class ExposedR2DbcSuspendLeaderGroupElectorTest: AbstractExposedR2dbcLeaderTest(
         }
 
         election.activeCount(lockName) shouldBeEqualTo 0
+        val historyCount = suspendTransaction(db) {
+            LeaderLockHistoryTable.selectAll()
+                .where { LeaderLockHistoryTable.lockName eq lockName }
+                .count()
+        }
+        historyCount shouldBeEqualTo 0L
         election.runIfLeader(lockName) { "recovered-after-setup-cancel" } shouldBeEqualTo "recovered-after-setup-cancel"
     }
 
