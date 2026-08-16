@@ -12,7 +12,7 @@
 ![bluetape4k 리더 선출 작업대 일러스트](./docs/assets/leader-election-workbench.png)
 
 Kotlin/JVM 기반 **분산 리더 선출(Distributed Leader Election)** 독립 라이브러리입니다.  
-블로킹, 비동기, 코루틴, 가상 스레드 API를 지원하며 Redis, Exposed, MongoDB, DynamoDB, etcd, Kubernetes, Hazelcast, ZooKeeper 백엔드를 제공합니다.
+블로킹, 비동기, 코루틴, 가상 스레드 API를 지원하며 Redis, Exposed, MongoDB, DynamoDB, etcd, Consul, Kubernetes, Hazelcast, ZooKeeper 백엔드를 제공합니다.
 Spring Boot 4 자동 구성과 Ktor 3.x 통합을 1급으로 지원합니다.
 
 ---
@@ -84,6 +84,37 @@ JMH이며, 결과는 같은 장비에서 전/후 비교를 하기 위한 기준�
 | `leader-spring-boot` | 안정 | Spring Boot 4 자동 구성 + AOP (AspectJ CTW, Freefair 포스트 컴파일 위빙) |
 | `leader-zookeeper` | 안정 | ZooKeeper/Curator 백엔드 (`InterProcessMutex` / `InterProcessSemaphoreV2`) |
 | `leader-ktor` | 안정 | Ktor 3.x 통합 — `LeaderElectionPlugin` + `leaderScheduled()` |
+
+## 백엔드 capability matrix
+
+`N`은 백엔드 네이티브 실행 경로입니다. `B`는 블로킹 작업을 `Executor`, `Dispatchers.IO`, 가상 스레드 wrapper로 실행하는 bridge이며, 백엔드 I/O의 non-blocking 동작을 보장하지 않습니다. `—`는 해당 실행 API를 제공하지 않는다는 뜻입니다. `S`와 `G`는 각각 단일 리더와 그룹 리더 지원을 나타냅니다.
+
+| 백엔드 | 모듈 | S-Block | S-Async | S-Suspend | S-Virtual | G-Block | G-Async | G-Suspend | G-Virtual | `autoExtend` | State | Audit ID |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+<!-- LEADER_CAPABILITY_MATRIX:START -->
+| Local | `bluetape4k-leader-core` | N | B | N | B | N | B | N | B | S | S/G | S |
+| Lettuce | `bluetape4k-leader-redis-lettuce` | N | N | N | — | N | N | N | — | S | G | — |
+| Redisson | `bluetape4k-leader-redis-redisson` | N | N | N | — | N | N | N | — | S | G | — |
+| Exposed JDBC | `bluetape4k-leader-exposed-jdbc` | N | B | — | B | N | B | — | — | S | G | — |
+| Exposed R2DBC | `bluetape4k-leader-exposed-r2dbc` | — | — | N | — | — | — | N | — | S | G | — |
+| MongoDB | `bluetape4k-leader-mongodb` | N | N | N | — | N | N | N | — | S | G | — |
+| Hazelcast | `bluetape4k-leader-hazelcast` | N | B | B | — | N | B | B | — | S | G | — |
+| etcd | `bluetape4k-leader-etcd` | N | B | N | B | N | B | N | — | S | G | — |
+| Consul | `bluetape4k-leader-consul` | N | B | N | — | N | B | N | — | S | S/G | S |
+| DynamoDB | `bluetape4k-leader-dynamodb` | N | B | N | B | N | B | N | B | S | S/G | S |
+| Kubernetes | `bluetape4k-leader-k8s` | N | B | B | — | N | B | B | — | S | S/G | S |
+| ZooKeeper | `bluetape4k-leader-zookeeper` | N | B | B | — | N | B | B | — | — | G | — |
+<!-- LEADER_CAPABILITY_MATRIX:END -->
+
+이 matrix는 현재 source tree를 기준으로 검증합니다. 버전별 매뉴얼은 해당 release commit에 고정되어 있으므로 안정판 동작은 매뉴얼을, 개발 중인 capability 선택은 이 matrix를 기준으로 확인하세요.
+
+`State`는 core의 빈 단일 state 기본값 대신 단일(`S`) 또는 그룹(`G`) state snapshot을 실제로 제공하는 백엔드를 표시합니다. `Audit ID`는 단일 리더 state가 호출자 관점의 `LeaderSlot.leaderId`를 보존한다는 뜻입니다 (`supportsAuditLeaderState = true`).
+
+`autoExtend`는 단일 리더에서만 opt-in으로 동작합니다. Local, Redis, Exposed, MongoDB, Hazelcast, etcd, Consul, DynamoDB, Kubernetes는 공통 extender 계약으로 각 백엔드의 TTL, lease, session을 갱신합니다. Redisson은 항상 명시적인 `leaseTime`으로 락을 획득하고, 활성화된 경우 공통 extender로 연장합니다. ZooKeeper 락은 TTL이 없는 session 기반이므로 `autoExtend = true`를 경고와 함께 무시합니다. 그룹 옵션은 `autoExtend`를 제공하지 않으므로 그룹 slot이 lease보다 오래 유지되어야 한다면 `LockExtender`를 명시적으로 사용하세요.
+
+`@LeaderGroupElection`은 scalar, suspend, `Mono` 결과를 지원하지만 slot별 stream lease extension이 정의되지 않아 `Flux`와 Kotlin `Flow`를 거부합니다. 길거나 무한에 가까운 단일 리더 stream에는 `@LeaderElection(autoExtend = true)`를 사용하세요.
+
+선택 기준은 [백엔드 선택](docs/manual/ko/guides/backend-selection.md), [실행 모델 선택](docs/manual/ko/guides/execution-model-selection.md), [lease 연장](docs/manual/ko/core/lease-extension.md)을 참고하세요. 실행 경로는 [예제](#예제-examples)에서 확인할 수 있습니다.
 
 ## 예제 (Examples)
 
@@ -259,7 +290,7 @@ val election = RedissonLeaderElector(client, options)
 
 `minLeaseTime`은 ShedLock `lockAtLeastFor` 대응 옵션입니다. 로컬 elector는 release 전 대기하고, 지원되는 분산 backend는 남은 최소 lease를 storage TTL에 위임하므로 caller는 즉시 반환됩니다.
 
-`autoExtend`는 단일 리더 선출에서 opt-in으로 동작합니다. Local, Lettuce, MongoDB, Redisson은 action 실행 중 lease를 유지하며, Redisson은 명시적 `leaseTime`으로 락을 획득하므로 공통 bluetape4k `LeaderLeaseAutoExtender` 경로를 사용합니다. `@LeaderGroupElection`은 아직 auto-extension을 지원하지 않습니다.
+`autoExtend` 의미는 백엔드마다 다릅니다. [백엔드 capability matrix](#백엔드-capability-matrix)와 [lease 연장 가이드](docs/manual/ko/core/lease-extension.md)를 기준으로 확인하세요. `@LeaderGroupElection`은 auto-extension을 지원하지 않습니다.
 
 ### 상태 스냅샷
 
