@@ -244,7 +244,24 @@ interface LeaderBackendDiagnosticsProvider {
     }
 }
 
-private fun Duration.requirePositiveFiniteProbeTimeout() {
+/**
+ * Decorator가 delegate의 backend diagnostics provider를 선택적으로 전달하는 계약입니다.
+ *
+ * 사용자 정의 elector가 diagnostics를 제공하지 않으면 [backendDiagnosticsProvider]는 `null`입니다.
+ */
+interface LeaderBackendDiagnosticsAware {
+    /** Decorator가 보존한 backend diagnostics provider입니다. */
+    val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
+}
+
+internal fun Any.resolveLeaderBackendDiagnosticsProvider(): LeaderBackendDiagnosticsProvider? =
+    when (this) {
+        is LeaderBackendDiagnosticsProvider -> this
+        is LeaderBackendDiagnosticsAware -> backendDiagnosticsProvider
+        else -> null
+    }
+
+internal fun Duration.requirePositiveFiniteProbeTimeout() {
     require(isFinite() && this > Duration.ZERO) {
         "probe timeout must be positive and finite: $this"
     }

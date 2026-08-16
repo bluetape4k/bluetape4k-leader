@@ -19,6 +19,8 @@ import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.local.AbstractLocalLeaderGroupElector
 import io.bluetape4k.leader.local.LocalLeaderStateRegistry
 import io.bluetape4k.leader.remainingMinLeaseTime
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
@@ -41,7 +43,10 @@ import kotlin.coroutines.cancellation.CancellationException
  */
 class LocalSuspendLeaderGroupElector private constructor(
     private val options: LeaderGroupElectionOptions,
-): SuspendLeaderGroupElector, LeaderElectionListenerRegistry, LeaderElectionEventPublisher {
+) : SuspendLeaderGroupElector,
+    LeaderElectionListenerRegistry,
+    LeaderElectionEventPublisher,
+    LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
 
     companion object: KLogging() {
         /**

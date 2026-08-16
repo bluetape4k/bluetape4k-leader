@@ -1,5 +1,8 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.diagnostics.resolveLeaderBackendDiagnosticsProvider
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -18,7 +21,13 @@ private const val EVENT_BUFFER_CAPACITY = 64
  */
 class ListeningLeaderElector(
     private val delegate: LeaderElector,
-): LeaderElector, LeaderElectionListenerRegistry, LeaderElectionEventPublisher {
+) : LeaderElector,
+    LeaderElectionListenerRegistry,
+    LeaderElectionEventPublisher,
+    LeaderBackendDiagnosticsAware {
+
+    override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
+        get() = delegate.resolveLeaderBackendDiagnosticsProvider()
 
     private val listeners = LeaderElectionListenerSupport()
     private val eventSubject = MutableSharedFlow<LeaderElectionEvent>(
@@ -199,7 +208,13 @@ class ListeningLeaderElector(
  */
 class ListeningLeaderGroupElector(
     private val delegate: LeaderGroupElector,
-): LeaderGroupElector, LeaderElectionListenerRegistry, LeaderElectionEventPublisher {
+) : LeaderGroupElector,
+    LeaderElectionListenerRegistry,
+    LeaderElectionEventPublisher,
+    LeaderBackendDiagnosticsAware {
+
+    override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
+        get() = delegate.resolveLeaderBackendDiagnosticsProvider()
 
     private val listeners = LeaderElectionListenerSupport()
     private val eventSubject = MutableSharedFlow<LeaderElectionEvent>(

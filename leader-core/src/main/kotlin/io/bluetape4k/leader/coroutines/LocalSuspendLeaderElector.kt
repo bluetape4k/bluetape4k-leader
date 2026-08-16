@@ -19,6 +19,8 @@ import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.local.AbstractLocalLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderStateRegistry
 import io.bluetape4k.leader.remainingMinLeaseTime
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
 import io.bluetape4k.support.requireNotBlank
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -39,7 +41,10 @@ import kotlin.coroutines.cancellation.CancellationException
  */
 class LocalSuspendLeaderElector(
     private val options: LeaderElectionOptions = LeaderElectionOptions.Default,
-): SuspendLeaderElector, LeaderElectionListenerRegistry, LeaderElectionEventPublisher {
+) : SuspendLeaderElector,
+    LeaderElectionListenerRegistry,
+    LeaderElectionEventPublisher,
+    LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
 
     private val mutexes = ConcurrentHashMap<String, Mutex>()
     private val listeners = LeaderElectionListenerSupport()

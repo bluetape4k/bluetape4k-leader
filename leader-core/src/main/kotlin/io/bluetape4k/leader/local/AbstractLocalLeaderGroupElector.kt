@@ -15,6 +15,8 @@ import io.bluetape4k.leader.internal.CaptureScope
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.LockStateHolder
 import io.bluetape4k.leader.parkRemainingMinLeaseTime
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
+import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
 import io.bluetape4k.support.requireNotBlank
 import io.bluetape4k.support.requirePositiveNumber
 import java.time.Instant
@@ -31,7 +33,9 @@ import java.util.concurrent.atomic.AtomicReference
  */
 abstract class AbstractLocalLeaderGroupElector(
     protected val options: LeaderGroupElectionOptions = LeaderGroupElectionOptions.Default,
-): LeaderGroupElectionState, LeaderElectionListenerRegistry {
+) : LeaderGroupElectionState,
+    LeaderElectionListenerRegistry,
+    LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
 
     companion object {
         /**
