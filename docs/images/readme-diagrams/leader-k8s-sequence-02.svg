@@ -17,6 +17,7 @@
       .activation { fill: #f3ecdf; stroke: #8f784e; stroke-width: 1.5; }
       .call { fill: none; stroke: #3f7d9c; stroke-width: 3; marker-end: url(#arrowCall); stroke-linecap: round; stroke-linejoin: round; }
       .slot { fill: none; stroke: #a2743d; stroke-width: 3; marker-end: url(#arrowSlot); stroke-linecap: round; stroke-linejoin: round; }
+      .release { fill: none; stroke: #c46f2d; stroke-width: 3; marker-end: url(#arrowRelease); stroke-linecap: round; stroke-linejoin: round; }
       .state { fill: none; stroke: #6e8f4f; stroke-width: 3; marker-end: url(#arrowState); stroke-linecap: round; stroke-linejoin: round; }
       .return { fill: none; stroke: #9b7d54; stroke-width: 2.5; stroke-dasharray: 8 6; marker-end: url(#arrowReturn); stroke-linecap: round; stroke-linejoin: round; }
       .wait { fill: none; stroke: #8e6aa9; stroke-width: 3; marker-end: url(#arrowWait); stroke-linecap: round; stroke-linejoin: round; }
@@ -26,16 +27,19 @@
       .label { fill: #ffffff; stroke: #d7e0e4; stroke-width: 1.5; }
       .label.callLabel { stroke: #9cc2d1; }
       .label.slotLabel { stroke: #d0b078; }
+      .label.releaseLabel { stroke: #dca06f; }
       .label.stateLabel { stroke: #b6c9a4; }
       .label.returnLabel { stroke: #c8b38f; }
       .label.waitLabel { stroke: #c7abd8; }
       .label.skipLabel { stroke: #d9abab; }
       .branchOk { fill: #f8f1e6; stroke: #a2743d; stroke-width: 1.8; }
+      .branchRelease { fill: #fff3e8; stroke: #c46f2d; stroke-width: 1.8; }
       .branchWait { fill: #f7f0fb; stroke: #8e6aa9; stroke-width: 1.8; }
       .branchSkip { fill: #fff5f5; stroke: #b86868; stroke-width: 3; }
       .badge { stroke-width: 1.8; }
       .badge.callBadge { fill: #eaf4f8; stroke: #3f7d9c; }
       .badge.slotBadge { fill: #fff4df; stroke: #a2743d; }
+      .badge.releaseBadge { fill: #fff0e3; stroke: #c46f2d; }
       .badge.stateBadge { fill: #eef7f0; stroke: #6e8f4f; }
       .badge.returnBadge { fill: #fff7e8; stroke: #9b7d54; }
       .badge.waitBadge { fill: #f7f0fb; stroke: #8e6aa9; }
@@ -43,6 +47,7 @@
       .badgeText { font-family: "Comic Mono"; font-size: 12px; font-weight: 700; }
       .msg.callText, .badgeText.callText { fill: #2f6f8e; }
       .msg.slotText, .badgeText.slotText { fill: #855a29; }
+      .msg.releaseText, .badgeText.releaseText { fill: #a34f16; }
       .msg.stateText, .badgeText.stateText { fill: #55783f; }
       .msg.returnText, .badgeText.returnText { fill: #7f6038; }
       .msg.waitText, .badgeText.waitText { fill: #774f92; }
@@ -50,6 +55,7 @@
     </style>
     <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowCall" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto" data-role="sequence" data-tip-direction="positive-x"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#3f7d9c" stroke="#3f7d9c" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowSlot" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto" data-role="sequence" data-tip-direction="positive-x"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#a2743d" stroke="#a2743d" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
+    <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowRelease" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto" data-role="sequence" data-tip-direction="positive-x"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#c46f2d" stroke="#c46f2d" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowState" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto" data-role="sequence" data-tip-direction="positive-x"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6e8f4f" stroke="#6e8f4f" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowReturn" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto" data-role="sequence" data-tip-direction="positive-x"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#9b7d54" stroke="#9b7d54" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
     <marker viewBox="0 0 10 10" markerUnits="userSpaceOnUse" id="arrowWait" markerWidth="16" markerHeight="16" refX="9" refY="5" orient="auto" data-role="sequence" data-tip-direction="positive-x"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#8e6aa9" stroke="#8e6aa9" stroke-width="0" stroke-dasharray="none" style="stroke-dasharray:none!important"/></marker>
@@ -98,7 +104,7 @@
   <text x="118" y="784" class="note">extension path</text>
 
   <rect x="70" y="916" width="1478" height="142" rx="14" class="alt"/>
-  <rect x="96" y="934" width="170" height="30" rx="15" class="branchOk"/>
+  <rect x="96" y="934" width="170" height="30" rx="15" class="branchRelease"/>
   <text x="118" y="954" class="note">release path</text>
 
   <rect x="140" y="234" width="240" height="34" rx="17" class="label callLabel"/>
@@ -146,15 +152,15 @@
   <text x="674" y="814" class="msg waitText">renewTime + leaseDurationSeconds</text>
   <path d="M 650 850 L 930 850" class="wait"/>
 
-  <rect x="412" y="892" width="216" height="34" rx="17" class="label slotLabel"/>
-  <circle cx="436" cy="909" r="13" class="badge slotBadge"/><text x="436" y="914" text-anchor="middle" class="badgeText slotText">10</text>
-  <text x="460" y="914" class="msg slotText">release in finally</text>
-  <path d="M 390 950 L 650 950" class="slot"/>
+  <rect x="412" y="892" width="216" height="34" rx="17" class="label releaseLabel"/>
+  <circle cx="436" cy="909" r="13" class="badge releaseBadge"/><text x="436" y="914" text-anchor="middle" class="badgeText releaseText">10</text>
+  <text x="460" y="914" class="msg releaseText">release in finally</text>
+  <path d="M 390 950 L 650 950" class="release"/>
 
-  <rect x="578" y="958" width="424" height="34" rx="17" class="label slotLabel"/>
-  <circle cx="602" cy="975" r="13" class="badge slotBadge"/><text x="602" y="980" text-anchor="middle" class="badgeText slotText">11</text>
-  <text x="626" y="980" class="msg slotText">owner-conditional clear or keep minLeaseTime</text>
-  <path d="M 650 1016 L 930 1016" class="slot"/>
+  <rect x="578" y="958" width="424" height="34" rx="17" class="label releaseLabel"/>
+  <circle cx="602" cy="975" r="13" class="badge releaseBadge"/><text x="602" y="980" text-anchor="middle" class="badgeText releaseText">11</text>
+  <text x="626" y="980" class="msg releaseText">owner-conditional clear or keep minLeaseTime</text>
+  <path d="M 650 1016 L 930 1016" class="release"/>
 
   <rect x="98" y="1090" width="1404" height="44" rx="12" fill="#ffffff" stroke="#ccd7da" stroke-width="2"/>
   <text x="118" y="1118" class="note">Group election repeats the same sequence against &lt;lockName&gt;-slot-N Lease objects.</text>

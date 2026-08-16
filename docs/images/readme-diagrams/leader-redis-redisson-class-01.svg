@@ -173,10 +173,10 @@
   </g>
 
   <!-- Relationships -->
-  <path class="realize" d="M 158 332 L 158 286 L 158 276"/>
-  <path class="realize" d="M 306 332 L 306 292 L 306 284"/>
-  <path class="realize" d="M 546 332 L 546 292 L 546 284"/>
-  <path class="realize" d="M 701 332 L 701 292 L 701 284"/>
+  <path class="realize" data-connector="connector-leader-election" d="M 158 332 L 158 276"/>
+  <path class="realize" data-connector="connector-suspend-leader-election" d="M 306 332 L 306 284"/>
+  <path class="realize" data-connector="connector-leader-group-election" d="M 546 332 L 546 284"/>
+  <path class="realize" data-connector="connector-suspend-leader-group-election" d="M 701 332 L 701 284"/>
   <path class="use" d="M 158 448 L 158 486 L 232 486 L 232 520"/>
   <path class="use" d="M 306 448 L 306 486 L 232 486 L 232 520"/>
   <path class="use" d="M 232 614 L 232 648"/>

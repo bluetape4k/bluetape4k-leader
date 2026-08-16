@@ -137,7 +137,7 @@
   <rect x="760" y="704" width="312" height="34" rx="17" class="label waitLabel"/>
   <circle cx="784" cy="721" r="13" class="badge waitBadge"/><text x="784" y="726" text-anchor="middle" class="badgeText waitText">7</text>
   <text x="808" y="726" class="msg waitText">delay(period) before next tick</text>
-  <path d="M 830 762 L 830 762" class="wait"/>
+  <path d="M 830 750 L 872 750 Q 884 750 884 762 L 884 766 Q 884 778 872 778 L 830 778" class="wait"/>
 
   <rect x="831" y="792" width="248" height="34" rx="17" class="label skipLabel"/>
   <circle cx="855" cy="809" r="13" class="badge skipBadge"/><text x="855" y="814" text-anchor="middle" class="badgeText skipText">8</text>

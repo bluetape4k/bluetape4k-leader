@@ -103,17 +103,17 @@
   <path class="schema-line" d="M 620 212 L 620 560 L 620 580"/>
   <path class="schema-line" d="M 760 212 L 760 225.33 Q 760 232 766.67 232 L 982.33 232 Q 989 232 989 238.67 L 989 252"/>
 
-  <path class="audit-line" d="M 251 550 L 251 558 Q 251 570 263 570 L 454 570 L 454 580"/>
+  <path class="audit-line" data-connector="connector-lock-to-history" d="M 251 550 L 251 556 Q 251 568 263 568 L 442 568 Q 454 568 454 580"/>
   <rect class="label-bg" x="432" y="480" width="150" height="26" rx="13"/>
   <text class="note" x="507" y="497" text-anchor="middle">audit copy, no FK</text>
   <text class="note" x="448" y="430">1</text>
-  <text class="note" x="444" y="570">0..*</text>
+  <text class="note" x="430" y="558">0..*</text>
 
-  <path class="audit-line" d="M 989 550 L 989 558 Q 989 570 977 570 L 786 570 L 786 580"/>
+  <path class="audit-line" data-connector="connector-group-lock-to-history" d="M 989 550 L 989 556 Q 989 568 977 568 L 798 568 Q 786 568 786 580"/>
   <rect class="label-bg" x="658" y="480" width="150" height="26" rx="13"/>
   <text class="note" x="733" y="497" text-anchor="middle">slot audit, no FK</text>
   <text class="note" x="800" y="430">1</text>
-  <text class="note" x="786" y="570">0..*</text>
+  <text class="note" x="800" y="558">0..*</text>
 
   <g transform="translate(82 800)">
     <rect fill="#f8fafc" stroke="#dbe4f0" width="1076" height="42" rx="12"/>
