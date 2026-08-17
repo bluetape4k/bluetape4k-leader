@@ -8,9 +8,14 @@
 - 승인된 사양: `docs/superpowers/specs/2026-08-17-issue-559-lease-extension-observation-design.md`
 - 기준 head: `42f42ffa6df4d2906a4312fc9b7acb14d75439e9`
 - 작업 worktree: `.worktrees/epic-obs-02-extension-observation`
-- 계획 상태: 사용자 계획 승인 대기
+- 계획 상태: 사용자 계획 승인 완료; PR1 core contract 구현 완료
 
-이 계획은 승인된 사양을 테스트 우선으로 구현하기 위한 실행 순서와 stacked PR train 경계를 고정한다. 계획 승인 전에는 production code, README, PR, merge를 변경하지 않는다.
+이 계획은 승인된 사양을 테스트 우선으로 구현하기 위한 실행 순서와 stacked PR train 경계를 고정한다. 계획 승인 전에는 production code, README, PR, merge를 변경하지 않는다. 계획 승인 후에도 PR train은 각 slice의 검증과 exact-head gate를 순서대로 통과해야 한다.
+
+현재 실행 상태:
+
+- PR1 `feat/obs-02-core-contract`는 `develop` 기준 `c0c4076e1d2a68a1691526945304a2d34d963bd0`에 고정되었다.
+- PR2~PR4는 PR1 이후의 dependent slice이며 PR1의 merge와 새 base/head read-back 뒤에 시작한다.
 
 ## 목표와 불변 조건
 
@@ -216,7 +221,7 @@ git diff --check
 
 ## 계획 DoD
 
-- `[ ]` 계획 자체가 사용자 승인을 받았다.
-- `[ ]` 각 stacked PR의 base/head와 책임 파일이 승인되었다.
+- `[x]` 계획 자체가 사용자 승인을 받았다.
+- `[x]` 각 stacked PR의 base/head와 책임 파일이 승인되었다.
 - `[ ]` PR 1~4의 RED→GREEN, targeted validation, final CI, exact-head metadata, DoD body가 기록되었다.
 - `[ ]` merge/sync/cleanup은 별도 fresh approval 이후에만 수행한다.

@@ -8,9 +8,9 @@
 - 선행 train: OBS-01 / [#533](https://github.com/bluetape4k/bluetape4k-leader/issues/533), [PR #718](https://github.com/bluetape4k/bluetape4k-leader/pull/718) — `42f42ffa6df4d2906a4312fc9b7acb14d75439e9`에 병합됨
 - 후행 train: OBS-03 / [#535](https://github.com/bluetape4k/bluetape4k-leader/issues/535)
 - 기준 브랜치: `develop`
-- 작업 브랜치: `feat/epic-obs-02-extension-observation`
+- 작업 브랜치: `feat/obs-02-core-contract`
 - 작성일: 2026-08-17
-- 상태: 사양 승인 대기
+- 상태: 사양 승인 완료; PR1 core contract 구현 완료
 
 이 문서는 구현 전에 계약, 경계, 관측 의미를 고정하기 위한 Type-A 설계 사양이다. 이 문서의 승인 전에는 구현 계획 파일과 production code를 변경하지 않는다.
 

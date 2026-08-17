@@ -46,9 +46,9 @@
 - baseline 영향 모듈 테스트(사양 작성 전): `./gradlew :bluetape4k-leader-core:test :bluetape4k-leader-micrometer:test --no-daemon --no-configuration-cache --console=plain` — 77 tests, BUILD SUCCESSFUL
 - 최신 review lane은 사양-only read-only 범위로 Gradle을 재실행하지 않았다.
 
-## 구현 전 잔여 상태
+## PR1 이후 잔여 상태
 
 - 실제 README에는 #559 stale 문구 4건이 남아 있다. 이는 사양 결함이 아니라 구현 단계 acceptance의 의도된 `PENDING` 항목이다.
 - 계획 검토에서 지적된 경계를 반영해 `droppedCount()`를 누락된 observer delivery 수로 고정하고, Micrometer 구현 class/name/tag 위치, NOOP 조건, `AutoCloseable` destroy ownership, Java `Duration` wrapper, examples README까지의 stale scan 범위, shared registry의 process-global dedup/ref-count/lock 및 옵션 충돌 fail-fast를 implementation plan에 명시했다.
-- production code, README, commit, PR은 아직 변경하지 않았다. implementation plan은 사양 승인 후 작성되어 별도 승인 대기다.
-- 사용자 사양은 승인되었고, implementation plan은 별도 승인 대기다.
+- PR1 core contract production code, tests, Java fixture와 승인된 사양/계획 문서는 `c0c4076e1d2a68a1691526945304a2d34d963bd0`에 고정되었다. README와 후속 boundary/Micrometer/Spring/manual 변경은 다음 stacked PR에서 진행한다.
+- 사용자 사양과 implementation plan은 모두 승인되었다.
