@@ -29,6 +29,24 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
+private fun publishLeaderLeaseWatchdogEvent(
+    observing: Boolean,
+    execution: LeaderLeaseExtensionExecution,
+    outcome: ExtendOutcome,
+    elapsedNanos: Long,
+) {
+    if (!observing) return
+    LeaderLeaseExtensionObservers.publish(
+        LeaderLeaseExtensionEvent(
+            source = LeaderLeaseExtensionSource.WATCHDOG,
+            execution = execution,
+            outcome = outcome,
+            elapsedNanos = elapsedNanos,
+            context = null,
+        ),
+    )
+}
+
 /**
  * `LeaderLeaseAutoExtender` 선언은 leader election 계약에서 사용되는 object입니다.
  *
@@ -163,41 +181,48 @@ object LeaderLeaseAutoExtender : KLogging() {
                 return@doTick
             }
 
+            val observing = LeaderLeaseExtensionObservers.hasObservers()
+            val delegateStartedAtNanos = if (observing) System.nanoTime() else 0L
+            var delegateRejected = false
+            var delegateElapsedNanos = 0L
             val outcome = try {
-                delegate.extend(leaseTime)
-            } catch (ex: RejectedExecutionException) {
-                log.warn(ex) { "Watchdog tick rejected — scheduler shut down. delegateId=${delegate.hashCode()}" }
+                delegate.extend(leaseTime).also {
+                    delegateElapsedNanos = if (observing) {
+                        (System.nanoTime() - delegateStartedAtNanos).coerceAtLeast(0L)
+                    } else {
+                        0L
+                    }
+                }
+            } catch (ex: CancellationException) {
+                closed.set(true)
                 futureRef.get()?.cancel(false)
-                return@doTick
+                throw ex
+            } catch (ex: RejectedExecutionException) {
+                delegateElapsedNanos = if (observing) {
+                    (System.nanoTime() - delegateStartedAtNanos).coerceAtLeast(0L)
+                } else {
+                    0L
+                }
+                log.warn(ex) { "Watchdog delegate rejected extension. delegateId=${delegate.hashCode()}" }
+                delegateRejected = true
+                BackendError(ex)
             } catch (ex: Exception) {
+                delegateElapsedNanos = if (observing) {
+                    (System.nanoTime() - delegateStartedAtNanos).coerceAtLeast(0L)
+                } else {
+                    0L
+                }
                 log.warn(ex) { "leader.lease.auto-extend.failed" }
                 BackendError(ex)
             }
 
-            when (outcome) {
-                is Extended -> { /* 성공적으로 연장했으므로 계속 진행합니다. */ }
-                is NotHeld, is WrongThread -> {
-                    log.warn { "leader.lease.auto-extend.stopped reason=$outcome" }
-                    if (closed.compareAndSet(false, true)) {
-                        futureRef.get()?.cancel(false)
-                    }
-                }
-                is BackendError -> {
-                    val kind = errorClassifier.classify(outcome.cause)
-                        ?: BackendErrorKind.NON_TRANSIENT
-                    when (kind) {
-                        BackendErrorKind.TRANSIENT -> {
-                            log.warn(outcome.cause) { "leader.lease.auto-extend.transient-error — retrying. cause=${outcome.cause.message}" }
-                        }
-                        BackendErrorKind.NON_TRANSIENT, BackendErrorKind.FATAL -> {
-                            log.warn(outcome.cause) { "leader.lease.auto-extend.stopped reason=BACKEND_ERROR kind=$kind cause=${outcome.cause.message}" }
-                            if (closed.compareAndSet(false, true)) {
-                                futureRef.get()?.cancel(false)
-                            }
-                        }
-                    }
-                }
-            }
+            publishLeaderLeaseWatchdogEvent(
+                observing,
+                LeaderLeaseExtensionExecution.BLOCKING,
+                outcome,
+                delegateElapsedNanos,
+            )
+            handleOutcome(outcome, errorClassifier, closed, futureRef, forceStop = delegateRejected)
         }
 
         // async mode에서는 각 tick을 virtual thread로 dispatch해 느린 backend가 shared scheduler를 막지 않게 합니다.
@@ -289,20 +314,46 @@ object LeaderLeaseAutoExtender : KLogging() {
                 return
             }
 
+            val observing = LeaderLeaseExtensionObservers.hasObservers()
+            val delegateStartedAtNanos = if (observing) System.nanoTime() else 0L
+            var delegateRejected = false
+            var delegateElapsedNanos = 0L
             val outcome = try {
-                delegate.extendSuspend(leaseTime)
-            } catch (ex: RejectedExecutionException) {
-                log.warn(ex) { "Suspend watchdog tick rejected — scheduler shut down. delegateId=${delegate.hashCode()}" }
-                futureRef.get()?.cancel(false)
-                return
+                delegate.extendSuspend(leaseTime).also {
+                    delegateElapsedNanos = if (observing) {
+                        (System.nanoTime() - delegateStartedAtNanos).coerceAtLeast(0L)
+                    } else {
+                        0L
+                    }
+                }
             } catch (ex: CancellationException) {
                 throw ex
+            } catch (ex: RejectedExecutionException) {
+                delegateElapsedNanos = if (observing) {
+                    (System.nanoTime() - delegateStartedAtNanos).coerceAtLeast(0L)
+                } else {
+                    0L
+                }
+                log.warn(ex) { "Suspend watchdog delegate rejected extension. delegateId=${delegate.hashCode()}" }
+                delegateRejected = true
+                BackendError(ex)
             } catch (ex: Exception) {
+                delegateElapsedNanos = if (observing) {
+                    (System.nanoTime() - delegateStartedAtNanos).coerceAtLeast(0L)
+                } else {
+                    0L
+                }
                 log.warn(ex) { "leader.lease.auto-extend.suspend.failed" }
                 BackendError(ex)
             }
 
-            handleOutcome(outcome, errorClassifier, closed, futureRef)
+            publishLeaderLeaseWatchdogEvent(
+                observing,
+                LeaderLeaseExtensionExecution.SUSPEND,
+                outcome,
+                delegateElapsedNanos,
+            )
+            handleOutcome(outcome, errorClassifier, closed, futureRef, forceStop = delegateRejected)
         }
 
         val tickRunnable = Runnable {
@@ -386,7 +437,15 @@ object LeaderLeaseAutoExtender : KLogging() {
         errorClassifier: BackendErrorClassifier,
         closed: AtomicBoolean,
         futureRef: AtomicReference<ScheduledFuture<*>?>,
+        forceStop: Boolean = false,
     ) {
+        if (forceStop) {
+            log.warn { "leader.lease.auto-extend.stopped reason=DELEGATE_REJECTED" }
+            if (closed.compareAndSet(false, true)) {
+                futureRef.get()?.cancel(false)
+            }
+            return
+        }
         when (outcome) {
             is Extended -> { /* 성공적으로 연장했으므로 계속 진행합니다. */ }
             is NotHeld, is WrongThread -> {

@@ -142,6 +142,7 @@ object LeaderLeaseExtensionObservers {
 
     /** caller가 만든 terminal event를 bounded virtual-thread dispatcher에 제출합니다. */
     @JvmSynthetic
+    @Suppress("TooGenericExceptionCaught")
     internal fun publish(event: LeaderLeaseExtensionEvent) {
         val snapshot = registrations.toTypedArray()
         if (snapshot.isEmpty()) return
