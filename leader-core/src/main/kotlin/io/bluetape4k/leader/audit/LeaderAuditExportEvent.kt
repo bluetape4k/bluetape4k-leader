@@ -90,12 +90,13 @@ sealed interface LeaderAuditExportEvent {
                 record: LeaderLockHistoryRecord,
                 sanitizer: LeaderAuditValueSanitizer,
             ): History {
+                val exportNow = Instant.now()
                 val occurredAt = record.finishedAt ?: record.acquiredAt
                 return History(
                     occurredAt = occurredAt,
                     lockName = bounded(sanitizer, LeaderAuditField.LOCK_NAME, record.lockName, MAX_TEXT_FIELD_BYTES),
                     kind = record.kind,
-                    status = record.effectiveStatus(occurredAt),
+                    status = record.effectiveStatus(exportNow),
                     nodeId = record.nodeId?.let {
                         bounded(sanitizer, LeaderAuditField.NODE_ID, it, MAX_TEXT_FIELD_BYTES)
                     },
@@ -178,9 +179,17 @@ private fun bounded(
     field: LeaderAuditField,
     value: String,
     maxBytes: Int,
-): String = value
-    .let { sanitizer.sanitize(field, it) }
-    .truncateUtf8(maxBytes)
+): String {
+    val sanitized = if (sanitizer is LeaderAuditValueSanitizer.Raw &&
+        field !in LeaderAuditValueSanitizer.RAW_ALLOWED_FIELDS
+    ) {
+        // Raw는 KIND만 직접 허용하므로 event의 민감한 문자열은 안전한 기본 redaction으로 처리합니다.
+        LeaderAuditValueSanitizer.Default.sanitize(field, value)
+    } else {
+        sanitizer.sanitize(field, value)
+    }
+    return sanitized.truncateUtf8(maxBytes)
+}
 
 private fun sanitizeAttributes(
     source: Map<String, String>,

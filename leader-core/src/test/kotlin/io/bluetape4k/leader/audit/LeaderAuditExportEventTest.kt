@@ -55,6 +55,23 @@ class LeaderAuditExportEventTest {
     }
 
     @Test
+    fun `history status uses export time for unfinished expired records`() {
+        val expiredRecord = LeaderLockHistoryRecord(
+            lockName = "expired-lock",
+            token = secretSentinel,
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            acquiredAt = occurredAt,
+            lockedUntil = Instant.now().minusSeconds(1),
+            nodeId = null,
+        )
+
+        LeaderAuditExportEvent.History.from(
+            record = expiredRecord,
+            sanitizer = LeaderAuditValueSanitizer.Default,
+        ).status.shouldBeEqualTo(LeaderHistoryStatus.EXPIRED)
+    }
+
+    @Test
     fun `utf8 bounds and attribute aggregate limits are deterministic`() {
         val event = historyWithMultibyteAndOversizedAttributes()
 
@@ -154,6 +171,30 @@ class LeaderAuditExportEventTest {
                 raw.sanitize(field, secretSentinel)
             }
         }
+    }
+
+    @Test
+    fun `raw policy remains safe when used by event factories`() {
+        val raw = LeaderAuditValueSanitizer.Raw(
+            allowList = setOf(LeaderAuditField.KIND),
+            maxBytes = 16,
+        )
+
+        val history = LeaderAuditExportEvent.History.from(
+            record = recordWithSentinelInEveryField(),
+            sanitizer = raw,
+        )
+        val lifecycle = LeaderAuditExportEvent.Lifecycle.from(
+            event = LeaderElectionEvent.Elected("lock", leaderId = secretSentinel),
+            attributes = mapOf(secretSentinel to secretSentinel),
+            sanitizer = raw,
+        )
+
+        history.lockName.shouldBeEqualTo("redacted")
+        history.nodeId.shouldBeEqualTo("redacted")
+        lifecycle.lockName.shouldBeEqualTo("redacted")
+        lifecycle.leaderId.shouldBeEqualTo("redacted")
+        lifecycle.toString().contains(secretSentinel).shouldBeFalse()
     }
 
     @Test
