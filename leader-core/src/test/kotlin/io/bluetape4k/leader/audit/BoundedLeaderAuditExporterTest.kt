@@ -2,6 +2,7 @@ package io.bluetape4k.leader.audit
 
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.audit.internal.BoundedLeaderAuditExporter
 import io.bluetape4k.leader.history.LeaderHistoryStatus
@@ -133,6 +134,122 @@ class BoundedLeaderAuditExporterTest {
         cancelled.await(5, TimeUnit.SECONDS).shouldBeTrue()
         exporter.snapshot().cancellations.shouldBeEqualTo(1)
         exporter.snapshot().admitted.shouldBeEqualTo(0)
+    }
+
+    @Test
+    fun `hung delivery times out and retries up to the configured attempt limit`() {
+        val attempts = AtomicInteger()
+        val terminal = CountDownLatch(1)
+        val exporter = exporter(
+            delivery = LeaderAuditDelivery {
+                attempts.incrementAndGet()
+                CompletableFuture()
+            },
+            maxAttempts = 2,
+            attemptTimeout = Duration.ofMillis(10),
+            initialBackoff = Duration.ofNanos(1),
+            onObservation = { if (it == LeaderAuditExportObservation.TERMINAL_FAILURE) terminal.countDown() },
+            executor = Executor { it.run() },
+        )
+
+        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        terminal.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        attempts.get().shouldBeEqualTo(2)
+        exporter.snapshot().retries.shouldBeEqualTo(1)
+        exporter.snapshot().inFlight.shouldBeEqualTo(0)
+        exporter.snapshot().admitted.shouldBeEqualTo(0)
+        exporter.close()
+    }
+
+    @Test
+    fun `invalid options fail fast at every bounded boundary`() {
+        val executor = Executor { }
+        val scheduler = scheduler()
+
+        assertFailsWith<IllegalArgumentException> {
+            LeaderAuditExportOptions(
+                queueCapacity = 0,
+                maxInFlight = 1,
+                maxAttempts = 1,
+                attemptTimeout = Duration.ofSeconds(1),
+                initialBackoff = Duration.ofMillis(1),
+                maxBackoff = Duration.ofSeconds(1),
+                executor = executor,
+                scheduler = scheduler,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            LeaderAuditExportOptions(
+                queueCapacity = 1,
+                maxInFlight = 2,
+                maxAttempts = 1,
+                attemptTimeout = Duration.ofSeconds(1),
+                initialBackoff = Duration.ofMillis(1),
+                maxBackoff = Duration.ofSeconds(1),
+                executor = executor,
+                scheduler = scheduler,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            LeaderAuditExportOptions(
+                queueCapacity = 1,
+                maxInFlight = 1,
+                maxAttempts = 17,
+                attemptTimeout = Duration.ofSeconds(1),
+                initialBackoff = Duration.ofMillis(1),
+                maxBackoff = Duration.ofSeconds(1),
+                executor = executor,
+                scheduler = scheduler,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            LeaderAuditExportOptions(
+                queueCapacity = 1,
+                maxInFlight = 1,
+                maxAttempts = 1,
+                attemptTimeout = Duration.ZERO,
+                initialBackoff = Duration.ofMillis(1),
+                maxBackoff = Duration.ofSeconds(1),
+                executor = executor,
+                scheduler = scheduler,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            LeaderAuditExportOptions(
+                queueCapacity = 1,
+                maxInFlight = 1,
+                maxAttempts = 1,
+                attemptTimeout = Duration.ofSeconds(1),
+                initialBackoff = Duration.ZERO,
+                maxBackoff = Duration.ofSeconds(1),
+                executor = executor,
+                scheduler = scheduler,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            LeaderAuditExportOptions(
+                queueCapacity = 1,
+                maxInFlight = 1,
+                maxAttempts = 1,
+                attemptTimeout = Duration.ofSeconds(1),
+                initialBackoff = Duration.ofSeconds(2),
+                maxBackoff = Duration.ofSeconds(1),
+                executor = executor,
+                scheduler = scheduler,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            LeaderAuditExportOptions(
+                queueCapacity = 1,
+                maxInFlight = 1,
+                maxAttempts = 1,
+                attemptTimeout = Duration.ofMinutes(6),
+                initialBackoff = Duration.ofMillis(1),
+                maxBackoff = Duration.ofSeconds(1),
+                executor = executor,
+                scheduler = scheduler,
+            )
+        }
     }
 
     @Test
