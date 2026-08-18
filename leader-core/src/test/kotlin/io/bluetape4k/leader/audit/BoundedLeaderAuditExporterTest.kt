@@ -16,8 +16,11 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.CancellationException
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class BoundedLeaderAuditExporterTest {
@@ -157,6 +160,69 @@ class BoundedLeaderAuditExporterTest {
         attempts.get().shouldBeEqualTo(2)
         exporter.snapshot().retries.shouldBeEqualTo(1)
         exporter.snapshot().inFlight.shouldBeEqualTo(0)
+        exporter.snapshot().admitted.shouldBeEqualTo(0)
+        exporter.close()
+    }
+
+    @Test
+    fun `in flight saturation waits for release without recursive worker spin`() {
+        val started = CountDownLatch(2)
+        val futures = ConcurrentLinkedQueue<CompletableFuture<LeaderAuditDeliveryResult>>()
+        val exporter = exporter(
+            queueCapacity = 3,
+            maxInFlight = 1,
+            delivery = LeaderAuditDelivery {
+                CompletableFuture<LeaderAuditDeliveryResult>().also {
+                    futures += it
+                    started.countDown()
+                }
+            },
+            executor = Executor { it.run() },
+        )
+
+        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        futures.remove().complete(LeaderAuditDeliveryResult.SUCCESS)
+        started.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        exporter.snapshot().inFlight.shouldBeEqualTo(1)
+        futures.remove().complete(LeaderAuditDeliveryResult.SUCCESS)
+        exporter.close()
+        exporter.snapshot().admitted.shouldBeEqualTo(0)
+    }
+
+    @Test
+    fun `executor rejection releases all permits and later submissions recover`() {
+        val rejectFirst = AtomicBoolean(true)
+        val executor = Executor { command ->
+            if (rejectFirst.getAndSet(false)) throw RejectedExecutionException("first")
+            command.run()
+        }
+        val exporter = exporter(
+            queueCapacity = 2,
+            executor = executor,
+        )
+
+        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        exporter.snapshot().admitted.shouldBeEqualTo(0)
+        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        exporter.snapshot().admitted.shouldBeEqualTo(0)
+        exporter.snapshot().executorRejections.shouldBeEqualTo(1)
+        exporter.close()
+    }
+
+    @Test
+    fun `scheduler rejection is counted once and terminalizes the attempt`() {
+        val rejected = CountDownLatch(1)
+        val scheduler = scheduler().also { it.shutdownNow() }
+        val exporter = exporter(
+            scheduler = scheduler,
+            executor = Executor { it.run() },
+            onObservation = { if (it == LeaderAuditExportObservation.SCHEDULER_REJECTED) rejected.countDown() },
+        )
+
+        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        rejected.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        exporter.snapshot().schedulerRejections.shouldBeEqualTo(1)
         exporter.snapshot().admitted.shouldBeEqualTo(0)
         exporter.close()
     }

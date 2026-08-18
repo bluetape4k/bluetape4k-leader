@@ -19,6 +19,8 @@ import io.bluetape4k.leader.audit.LeaderAuditExportOptions
 import io.bluetape4k.leader.audit.LeaderAuditExportSnapshot
 import io.bluetape4k.leader.audit.LeaderAuditExporter
 import io.bluetape4k.leader.audit.LeaderAuditSubmitResult
+import io.bluetape4k.logging.KLogging
+import io.bluetape4k.logging.warn
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -75,6 +77,9 @@ internal class BoundedLeaderAuditExporter(
     private val observerDrops = AtomicLong()
     private val observerRegistrationDrops = AtomicLong()
     private val diagnosticsFatalErrors = AtomicLong()
+    private val schedulingLock = ReentrantLock()
+    private val schedulingComplete = schedulingLock.newCondition()
+    private var schedulingCalls: Int = 0
 
     override fun submit(event: LeaderAuditExportEvent): LeaderAuditSubmitResult {
         if (!admissionLock.tryLock()) {
@@ -163,6 +168,7 @@ internal class BoundedLeaderAuditExporter(
             admissionLock.unlock()
         }
 
+        awaitSchedulingQuiescence()
         active.toList().forEach(::cancelWork)
 
         diagnosticsLock.lock()
@@ -185,8 +191,12 @@ internal class BoundedLeaderAuditExporter(
     }
 
     private fun tryStartWorker() {
-        if (closed.get() && worker.isEmpty()) return
+        if (closed.get()) return
         if (!workerRunning.compareAndSet(false, true)) return
+        if (!beginScheduling()) {
+            workerRunning.set(false)
+            return
+        }
         try {
             options.executor.execute(::runWorker)
         } catch (e: RejectedExecutionException) {
@@ -196,10 +206,13 @@ internal class BoundedLeaderAuditExporter(
             workerRunning.set(false)
             terminalizeQueued(LeaderAuditExportObservation.EXECUTOR_REJECTED)
             throw e
+        } finally {
+            endScheduling()
         }
     }
 
     private fun runWorker() {
+        var waitingForInFlight = false
         try {
             while (true) {
                 val item = worker.poll() ?: break
@@ -212,13 +225,16 @@ internal class BoundedLeaderAuditExporter(
                 if (!reserveInFlight()) {
                     worker.offer(item)
                     queued.incrementAndGet()
+                    waitingForInFlight = true
                     break
                 }
                 startAttempt(item)
             }
         } finally {
             workerRunning.set(false)
-            if (worker.isNotEmpty() && !closed.get()) tryStartWorker()
+            if (shouldRestartWorker(waitingForInFlight)) {
+                tryStartWorker()
+            }
         }
     }
 
@@ -240,6 +256,11 @@ internal class BoundedLeaderAuditExporter(
         val attempt = Attempt(item.attempts + 1)
         item.attempts = attempt.number
         item.currentAttempt = attempt
+        if (!beginScheduling()) {
+            releaseAttempt(item, attempt)
+            finishWork(item, LeaderAuditExportObservation.CANCELLED)
+            return
+        }
         try {
             attempt.timeout = options.scheduler.schedule(
                 { timeout(item, attempt) },
@@ -248,9 +269,10 @@ internal class BoundedLeaderAuditExporter(
             )
         } catch (e: RejectedExecutionException) {
             releaseAttempt(item, attempt)
-            schedulerRejections.incrementAndGet()
             finishWork(item, LeaderAuditExportObservation.SCHEDULER_REJECTED)
             return
+        } finally {
+            endScheduling()
         }
 
         val future = try {
@@ -345,6 +367,13 @@ internal class BoundedLeaderAuditExporter(
         item.retryClaimed.set(false)
         scheduledRetries.incrementAndGet()
         val delay = saturatingBackoff(options.initialBackoffNanos, item.attempts)
+        if (!beginScheduling()) {
+            if (item.retryClaimed.compareAndSet(false, true)) {
+                scheduledRetries.decrementAndGet()
+                finishWork(item, LeaderAuditExportObservation.CANCELLED)
+            }
+            return
+        }
         try {
             item.retry = options.scheduler.schedule(
                 {
@@ -365,9 +394,10 @@ internal class BoundedLeaderAuditExporter(
         } catch (e: RejectedExecutionException) {
             if (item.retryClaimed.compareAndSet(false, true)) {
                 scheduledRetries.decrementAndGet()
-                schedulerRejections.incrementAndGet()
                 finishWork(item, LeaderAuditExportObservation.SCHEDULER_REJECTED)
             }
+        } finally {
+            endScheduling()
         }
     }
 
@@ -483,7 +513,7 @@ internal class BoundedLeaderAuditExporter(
             }
             diagnosticsQueued.decrementAndGet()
             val reserved = diagnosticsLock.withLockIfAvailable {
-                if (work.slot.active.get()) {
+                if (!diagnosticsClosed.get() && work.slot.active.get()) {
                     work.slot.running.incrementAndGet()
                     true
                 } else {
@@ -495,6 +525,9 @@ internal class BoundedLeaderAuditExporter(
                 work.slot.observer.onObservation(work.observation)
             } catch (e: Exception) {
                 // observer failures are isolated from admission and delivery.
+                BoundedLeaderAuditExporterLogger.log.warn {
+                    "Leader audit observer failed and was isolated"
+                }
             } catch (e: Error) {
                 diagnosticsFatalErrors.incrementAndGet()
                 diagnosticsLock.lock()
@@ -562,7 +595,47 @@ internal class BoundedLeaderAuditExporter(
         const val MAX_DIAGNOSTICS_CAPACITY: Int = 1024
         const val MAX_OBSERVERS: Int = 16
     }
+
+    private fun beginScheduling(): Boolean {
+        schedulingLock.lock()
+        return try {
+            if (closed.get()) {
+                false
+            } else {
+                schedulingCalls++
+                true
+            }
+        } finally {
+            schedulingLock.unlock()
+        }
+    }
+
+    private fun endScheduling() {
+        schedulingLock.lock()
+        try {
+            schedulingCalls--
+            if (schedulingCalls == 0) schedulingComplete.signalAll()
+        } finally {
+            schedulingLock.unlock()
+        }
+    }
+
+    private fun awaitSchedulingQuiescence() {
+        schedulingLock.lock()
+        try {
+            while (schedulingCalls > 0) schedulingComplete.awaitUninterruptibly()
+        } finally {
+            schedulingLock.unlock()
+        }
+    }
+
+    private fun shouldRestartWorker(waitingForInFlight: Boolean): Boolean {
+        if (worker.isEmpty() || closed.get()) return false
+        return !waitingForInFlight || inFlight.get() < options.maxInFlight
+    }
 }
+
+private object BoundedLeaderAuditExporterLogger : KLogging()
 
 private inline fun <T> ReentrantLock.withLockIfAvailable(block: () -> T): T {
     lock()
