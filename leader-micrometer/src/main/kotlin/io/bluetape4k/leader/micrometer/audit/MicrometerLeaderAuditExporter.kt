@@ -37,6 +37,10 @@ import java.util.concurrent.atomic.AtomicReference
  * meter는 registry에 남아 stable identity를 유지하지만 close 이후에는 delegate를
  * 참조하지 않습니다. v1 metric은 aggregate snapshot만 알 수 있으므로 `outcome` 외
  * `source`/`transport` 차원은 생성하지 않습니다.
+ * wrapper 수명 동안 caller는 fixed meter ID를 직접 제거하거나 재등록하지 않아야 합니다.
+ * manager는 acquire 또는 metric read에서 관찰한 identity crossing만 compromised로 잠그며,
+ * foreign meter를 제거하지 않습니다. compromised registry의 복구에는 새
+ * `MeterRegistry` identity가 필요합니다.
  */
 class MicrometerLeaderAuditExporter(
     delegate: LeaderAuditExporter,
