@@ -137,6 +137,12 @@ public `LeaderAuditExporter`는 다음 경계를 갖는다.
   cancellation 및 executor/scheduler rejection을 누적한 bounded diagnostics를
   반환한다. 스냅숏 값은 lock 이름·endpoint·error message를 포함하지 않는다.
 
+이 관찰 경계는 public `LeaderAuditExportObserver`와 immutable
+`LeaderAuditExportSnapshot`으로 고정한다. observer enum은 `ACCEPTED`,
+`DROPPED_QUEUE_FULL`, `DROPPED_CLOSED`, `RETRY`, `TERMINAL_FAILURE`, `CANCELLED`,
+`EXECUTOR_REJECTED`, `SCHEDULER_REJECTED`만 허용하며, snapshot에는 dynamic identifier가
+없다.
+
 dispatcher 옵션은 전체 admitted work(queued, in-flight, scheduled retry)를 제한하는
 queue capacity, 최대 동시 delivery, 최대 attempt 수, 양의 유한 `attemptTimeout`,
 initial backoff, 최대 backoff, retryable status/exception 분류, clock/scheduler와
