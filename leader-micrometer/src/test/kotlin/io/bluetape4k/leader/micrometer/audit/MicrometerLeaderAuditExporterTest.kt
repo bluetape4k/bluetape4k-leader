@@ -464,6 +464,7 @@ class MicrometerLeaderAuditExporterTest {
         (owned as FunctionCounter).count() shouldBeEqualTo 100.0
         val closeEntered = CountDownLatch(1)
         val closeRelease = CountDownLatch(1)
+        delegate.setSnapshot(snapshot(accepted = 110))
         delegate.blockClose(closeEntered, closeRelease)
         val closeFinished = CountDownLatch(1)
         Thread {
@@ -478,12 +479,12 @@ class MicrometerLeaderAuditExporterTest {
             MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME,
             "accepted",
         )
-        owned.count() shouldBeEqualTo 100.0
+        owned.count() shouldBeEqualTo 110.0
 
         delegate.setSnapshot(snapshot(accepted = 200))
         closeRelease.countDown()
         closeFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
-        owned.count() shouldBeEqualTo 100.0
+        owned.count() shouldBeEqualTo 110.0
     }
 
     @Test
