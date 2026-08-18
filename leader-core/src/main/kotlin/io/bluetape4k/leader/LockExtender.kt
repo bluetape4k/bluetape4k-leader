@@ -4,6 +4,7 @@ import io.bluetape4k.leader.coroutines.LockHandleElement
 import io.bluetape4k.leader.internal.LockStateHolder
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
+import kotlinx.coroutines.CancellationException
 import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 import kotlin.time.toKotlinDuration
@@ -75,7 +76,7 @@ object LockExtender : KLogging() {
     @JvmStatic
     fun extendActiveLockDetailed(lockAtMostFor: Duration): ExtendOutcome {
         val handle = LockStateHolder.peekSync()
-            ?: return outsideScope()
+            ?: return outsideScope(LeaderLeaseExtensionExecution.BLOCKING)
         return extendDetailedInternal(handle, lockAtMostFor)
     }
 
@@ -90,7 +91,7 @@ object LockExtender : KLogging() {
     @JvmStatic
     fun extendActiveLockDetailed(lockName: String, lockAtMostFor: Duration): ExtendOutcome {
         val handle = LockStateHolder.peekSyncMatching(lockName)
-            ?: return outsideScope()
+            ?: return outsideScope(LeaderLeaseExtensionExecution.BLOCKING)
         return extendDetailedInternal(handle, lockAtMostFor)
     }
 
@@ -128,7 +129,7 @@ object LockExtender : KLogging() {
      */
     suspend fun extendActiveLockDetailedSuspend(lockAtMostFor: Duration): ExtendOutcome {
         val handle = coroutineContext[LockHandleElement]?.handle
-            ?: return outsideScope()
+            ?: return outsideScope(LeaderLeaseExtensionExecution.SUSPEND)
         return extendDetailedSuspendInternal(handle, lockAtMostFor)
     }
 
@@ -142,45 +143,157 @@ object LockExtender : KLogging() {
      */
     suspend fun extendActiveLockDetailedSuspend(lockName: String, lockAtMostFor: Duration): ExtendOutcome {
         val handle = coroutineContext[LockHandleElement]?.handle
-        if (handle == null || handle.lockName != lockName) return outsideScope()
+        if (handle == null || handle.lockName != lockName) {
+            return outsideScope(LeaderLeaseExtensionExecution.SUSPEND)
+        }
         return extendDetailedSuspendInternal(handle, lockAtMostFor)
     }
 
     // --- internal helpers ---
 
+    @Suppress("TooGenericExceptionCaught")
     private fun extendDetailedInternal(handle: LeaderLockHandle, lockAtMostFor: Duration): ExtendOutcome {
+        val observing = LeaderLeaseExtensionObservers.hasObservers()
+        val context = if (observing) extensionContext(handle) else null
+
         if (handle is LeaderLockHandle.FailOpen) {
             log.warn { "LockExtender — current scope is fail-open sentinel (lockName=${handle.lockName})" }
-            return ExtendOutcome.NotHeld
+            val outcome = ExtendOutcome.NotHeld
+            publishUserEvent(
+                observing,
+                LeaderLeaseExtensionExecution.BLOCKING,
+                outcome,
+                context,
+                elapsedNanos = 0L,
+            )
+            return outcome
         }
         val real = handle as LeaderLockHandle.Real
         // backend extend 성공 후에만 갱신합니다. backend가 관측한 만료 시각을 사용해 watchdog skip이
         // 실제로 갱신된 lease보다 오래 유지되지 않게 합니다.
-        val outcome = real.extend(lockAtMostFor)
-        if (outcome is ExtendOutcome.Extended) {
-            real.extendDelegate.lastExtendDeadline.set(outcome.observedExpireAt)
+        val delegateStartedAtNanos = if (observing) System.nanoTime() else 0L
+        return try {
+            val outcome = real.extend(lockAtMostFor)
+            val delegateElapsedNanos = elapsedNanos(delegateStartedAtNanos, observing)
+            if (outcome is ExtendOutcome.Extended) {
+                real.extendDelegate.lastExtendDeadline.set(outcome.observedExpireAt)
+            }
+            publishUserEvent(
+                observing,
+                LeaderLeaseExtensionExecution.BLOCKING,
+                outcome,
+                context,
+                elapsedNanos = delegateElapsedNanos,
+            )
+            outcome
+        } catch (ex: CancellationException) {
+            throw ex
+        } catch (ex: Exception) {
+            publishUserEvent(
+                observing,
+                LeaderLeaseExtensionExecution.BLOCKING,
+                ExtendOutcome.BackendError(ex),
+                context,
+                elapsedNanos = elapsedNanos(delegateStartedAtNanos, observing),
+            )
+            throw ex
         }
-        return outcome
     }
 
-    private suspend fun extendDetailedSuspendInternal(handle: LeaderLockHandle, lockAtMostFor: Duration): ExtendOutcome {
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun extendDetailedSuspendInternal(
+        handle: LeaderLockHandle,
+        lockAtMostFor: Duration,
+    ): ExtendOutcome {
+        val observing = LeaderLeaseExtensionObservers.hasObservers()
+        val context = if (observing) extensionContext(handle) else null
+
         if (handle is LeaderLockHandle.FailOpen) {
             log.warn { "LockExtender — current scope is fail-open sentinel (lockName=${handle.lockName})" }
-            return ExtendOutcome.NotHeld
+            val outcome = ExtendOutcome.NotHeld
+            publishUserEvent(
+                observing,
+                LeaderLeaseExtensionExecution.SUSPEND,
+                outcome,
+                context,
+                elapsedNanos = 0L,
+            )
+            return outcome
         }
         val real = handle as LeaderLockHandle.Real
         // backend extend 성공 후에만 갱신합니다. backend가 관측한 만료 시각을 사용해 watchdog skip이
         // 실제로 갱신된 lease보다 오래 유지되지 않게 합니다.
-        val outcome = real.extendSuspend(lockAtMostFor)
-        if (outcome is ExtendOutcome.Extended) {
-            real.extendDelegate.lastExtendDeadline.set(outcome.observedExpireAt)
+        val delegateStartedAtNanos = if (observing) System.nanoTime() else 0L
+        return try {
+            val outcome = real.extendSuspend(lockAtMostFor)
+            val delegateElapsedNanos = elapsedNanos(delegateStartedAtNanos, observing)
+            if (outcome is ExtendOutcome.Extended) {
+                real.extendDelegate.lastExtendDeadline.set(outcome.observedExpireAt)
+            }
+            publishUserEvent(
+                observing,
+                LeaderLeaseExtensionExecution.SUSPEND,
+                outcome,
+                context,
+                elapsedNanos = delegateElapsedNanos,
+            )
+            outcome
+        } catch (ex: CancellationException) {
+            throw ex
+        } catch (ex: Exception) {
+            publishUserEvent(
+                observing,
+                LeaderLeaseExtensionExecution.SUSPEND,
+                ExtendOutcome.BackendError(ex),
+                context,
+                elapsedNanos = elapsedNanos(delegateStartedAtNanos, observing),
+            )
+            throw ex
         }
-        return outcome
     }
 
-    private fun outsideScope(): ExtendOutcome {
+    private fun elapsedNanos(startedAtNanos: Long, observing: Boolean): Long =
+        if (observing) (System.nanoTime() - startedAtNanos).coerceAtLeast(0L) else 0L
+
+    private fun outsideScope(execution: LeaderLeaseExtensionExecution): ExtendOutcome {
         log.warn { "LockExtender called outside an active @LeaderElection scope — returning NotHeld" }
-        return ExtendOutcome.NotHeld
+        val outcome = ExtendOutcome.NotHeld
+        if (LeaderLeaseExtensionObservers.hasObservers()) {
+            LeaderLeaseExtensionObservers.publish(
+                LeaderLeaseExtensionEvent(
+                    source = LeaderLeaseExtensionSource.USER,
+                    execution = execution,
+                    outcome = outcome,
+                    elapsedNanos = 0L,
+                    context = null,
+                ),
+            )
+        }
+        return outcome
+    }
+
+    private fun extensionContext(handle: LeaderLockHandle): LeaderLeaseExtensionContext = when (handle) {
+        is LeaderLockHandle.Real -> LeaderLeaseExtensionContext(handle.lockName, handle.auditLeaderId)
+        is LeaderLockHandle.FailOpen -> LeaderLeaseExtensionContext(handle.lockName, null)
+    }
+
+    private fun publishUserEvent(
+        observing: Boolean,
+        execution: LeaderLeaseExtensionExecution,
+        outcome: ExtendOutcome,
+        context: LeaderLeaseExtensionContext?,
+        elapsedNanos: Long,
+    ) {
+        if (!observing) return
+        LeaderLeaseExtensionObservers.publish(
+            LeaderLeaseExtensionEvent(
+                source = LeaderLeaseExtensionSource.USER,
+                execution = execution,
+                outcome = outcome,
+                elapsedNanos = elapsedNanos,
+                context = context,
+            ),
+        )
     }
 
     /**
