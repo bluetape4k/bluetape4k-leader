@@ -428,6 +428,65 @@ class MicrometerLeaderAuditExporterTest {
     }
 
     @Test
+    fun `ownership crossing before close preserves the trusted tombstone`() {
+        val registry = SimpleMeterRegistry()
+        val delegate = SnapshotExporter(snapshot(accepted = 100))
+        val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+        val owned = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
+            .meter()
+            .shouldNotBeNull()
+
+        (owned as FunctionCounter).count() shouldBeEqualTo 100.0
+        registry.remove(owned)
+        registry.counter(
+            MicrometerNames.AUDIT_EXPORT_ACCEPTED,
+            MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME,
+            "accepted",
+        )
+        owned.count() shouldBeEqualTo 100.0
+
+        delegate.setSnapshot(snapshot(accepted = 200))
+        exporter.close()
+        owned.count() shouldBeEqualTo 100.0
+    }
+
+    @Test
+    fun `ownership crossing during close preserves the closing tombstone`() {
+        val registry = SimpleMeterRegistry()
+        val delegate = SnapshotExporter(snapshot(accepted = 100))
+        val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+        val owned = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
+            .meter()
+            .shouldNotBeNull()
+
+        (owned as FunctionCounter).count() shouldBeEqualTo 100.0
+        val closeEntered = CountDownLatch(1)
+        val closeRelease = CountDownLatch(1)
+        delegate.blockClose(closeEntered, closeRelease)
+        val closeFinished = CountDownLatch(1)
+        Thread {
+            exporter.close()
+            closeFinished.countDown()
+        }.start()
+        closeEntered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+
+        registry.remove(owned)
+        registry.counter(
+            MicrometerNames.AUDIT_EXPORT_ACCEPTED,
+            MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME,
+            "accepted",
+        )
+        owned.count() shouldBeEqualTo 100.0
+
+        delegate.setSnapshot(snapshot(accepted = 200))
+        closeRelease.countDown()
+        closeFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        owned.count() shouldBeEqualTo 100.0
+    }
+
+    @Test
     fun `foreign meter replacement after close does not double count trusted values`() {
         val registry = SimpleMeterRegistry()
         val delegate = SnapshotExporter(snapshot(accepted = 100))

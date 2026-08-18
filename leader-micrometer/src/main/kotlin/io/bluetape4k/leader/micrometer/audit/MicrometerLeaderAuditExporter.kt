@@ -320,36 +320,42 @@ class MicrometerLeaderAuditExporter(
 
             synchronized(lock) {
                 try {
-                    val closeEntry = closingSnapshot
-                    val final = finalSnapshot
-                    val trustedCumulative = closeEntry
-                        ?.cumulativeValues()
-                        ?.takeIf { it.isNotLessThan(lastTrustedCumulative) }
-                        ?: lastTrustedCumulative
-                    val trustedGauge = closeEntry?.gaugeValues() ?: lastTrustedGauge
-                    if (closeEntry == null || !closeEntry.cumulativeValues().isNotLessThan(lastTrustedCumulative)) {
-                        markSourceDegraded()
-                    }
-                    if (final != null && final.cumulativeValues().isNotLessThan(trustedCumulative)) {
-                        offsets = offsets + final.cumulativeValues()
-                        detachedSnapshot = final.asDetached()
-                    } else {
-                        markSourceDegraded()
-                        offsets = offsets + trustedCumulative
-                        detachedSnapshot = DetachedSnapshot(trustedCumulative, trustedGauge).asTerminal()
+                    if (!compromised) {
+                        val closeEntry = closingSnapshot
+                        val final = finalSnapshot
+                        val trustedCumulative = closeEntry
+                            ?.cumulativeValues()
+                            ?.takeIf { it.isNotLessThan(lastTrustedCumulative) }
+                            ?: lastTrustedCumulative
+                        val trustedGauge = closeEntry?.gaugeValues() ?: lastTrustedGauge
+                        if (closeEntry == null ||
+                            !closeEntry.cumulativeValues().isNotLessThan(lastTrustedCumulative)
+                        ) {
+                            markSourceDegraded()
+                        }
+                        if (final != null && final.cumulativeValues().isNotLessThan(trustedCumulative)) {
+                            offsets = offsets + final.cumulativeValues()
+                            detachedSnapshot = final.asDetached()
+                        } else {
+                            markSourceDegraded()
+                            offsets = offsets + trustedCumulative
+                            detachedSnapshot = DetachedSnapshot(trustedCumulative, trustedGauge).asTerminal()
+                        }
                     }
                 } catch (failure: Throwable) {
-                    primary = appendFailure(primary, failure)
-                    markSourceDegraded()
-                    val fallback = closingSnapshot
-                        ?.cumulativeValues()
-                        ?.takeIf { it.isNotLessThan(lastTrustedCumulative) }
-                        ?: lastTrustedCumulative
-                    offsets = offsets + fallback
-                    detachedSnapshot = DetachedSnapshot(
-                        fallback,
-                        closingSnapshot?.gaugeValues() ?: lastTrustedGauge,
-                    ).asTerminal()
+                    if (!compromised) {
+                        primary = appendFailure(primary, failure)
+                        markSourceDegraded()
+                        val fallback = closingSnapshot
+                            ?.cumulativeValues()
+                            ?.takeIf { it.isNotLessThan(lastTrustedCumulative) }
+                            ?: lastTrustedCumulative
+                        offsets = offsets + fallback
+                        detachedSnapshot = DetachedSnapshot(
+                            fallback,
+                            closingSnapshot?.gaugeValues() ?: lastTrustedGauge,
+                        ).asTerminal()
+                    }
                 } finally {
                     activeDelegate = null
                     closingSnapshot = null
@@ -476,13 +482,24 @@ class MicrometerLeaderAuditExporter(
         private fun markOwnershipCompromised() {
             if (!compromised) {
                 compromised = true
+                val trustedCumulative = when (state) {
+                    ManagerState.OPEN -> offsets + lastTrustedCumulative
+                    ManagerState.CLOSING -> offsets + (
+                        closingSnapshot
+                            ?.cumulativeValues()
+                            ?.takeIf { it.isNotLessThan(lastTrustedCumulative) }
+                            ?: lastTrustedCumulative
+                        )
+                    ManagerState.DETACHED -> offsets
+                }
+                val trustedGauge = when (state) {
+                    ManagerState.OPEN -> lastTrustedGauge
+                    ManagerState.CLOSING -> closingSnapshot?.gaugeValues() ?: lastTrustedGauge
+                    ManagerState.DETACHED -> detachedSnapshot.gaugeValues()
+                }
                 detachedSnapshot = DetachedSnapshot(
-                    cumulative = if (state == ManagerState.DETACHED) offsets else offsets + lastTrustedCumulative,
-                    gauges = if (state == ManagerState.DETACHED) {
-                        detachedSnapshot.gaugeValues()
-                    } else {
-                        lastTrustedGauge
-                    },
+                    cumulative = trustedCumulative,
+                    gauges = trustedGauge,
                 ).asTerminal()
             }
             if (!ownershipWarningIssued) {
