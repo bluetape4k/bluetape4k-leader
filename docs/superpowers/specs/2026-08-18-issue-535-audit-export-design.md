@@ -322,9 +322,13 @@ delegate ownership을 확정하며, constructor 실패 시에는 delegate를 정
 `close()`는 delegate를 idempotently 닫은 뒤 `finally`에서 소유 meter마다 현재 registry
 lookup이 저장된 meter와 identity-equal인 경우에만 `registry.remove(id)`를 시도한다.
 lookup이 foreign/replaced meter이거나 removal이 실패해도 그 ID를 제거했다고 가장하지
-않으며, 나머지 ID 제거를 계속하고 fixed-ID residue를 internal lifecycle warning/counter로
-보고한다. 따라서 closed delegate의 strong-reference 제거는 성공적으로 제거된 meter에
-대해서만 보장된다. wrapper와 direct delegate 모두 close 후 `DROPPED_CLOSED`가 된다.
+않으며, 나머지 ID 제거를 계속한다. residue는 registry identity state가 exact meter claim을
+유지한 채 `leader.audit.export.meter-removal-failure` fixed warning key와 O(1)
+`residueCount`로 보고한다. 같은 `close()` 호출에서는 ID별 warning을 한 번만 내고
+idempotent close는 반복하지 않는다. 다음 wrapper constructor는 residue removal을 먼저
+재시도하며, 성공한 ID만 claim을 해제한다. 따라서 closed delegate의 strong-reference 제거는
+성공적으로 제거된 meter에 대해서만 보장되고, 복구 전에는 replacement가 stale source를
+재사용하지 못한다. wrapper와 direct delegate 모두 close 후 `DROPPED_CLOSED`가 된다.
 non-owning observation은 wrapper가 아니라 public `observe()` handle을 별도로 사용하며
 decorator는 내부 observer handle을 소유하지 않는다. snapshot counter 값은 reset하지
 않지만 close 후 성공적으로 제거된 meter는 registry에 존재하지 않는다. 같은 registry에
@@ -345,8 +349,12 @@ decorator는 내부 observer handle을 소유하지 않는다. snapshot counter 
   as `leader.audit.export.diagnostics.closed` (`0|1` gauge), mirroring the corresponding
   snapshot fields.
 
-metric tag는 `source`, `outcome`, `transport`처럼 유한한 값만 사용한다. raw
-lock name, leader ID, endpoint, error message는 metric tag가 되지 않는다.
+v1 aggregate metric은 snapshot에 차원별 값이 없고 decorator constructor에도 source/
+transport context가 없으므로 `outcome={accepted,queue_full,closed,retry,failure,cancelled,
+rejected}`만 유한 tag로 사용한다. `source`와 `transport` tag는 v1에서 생략하며, mixed
+source/transport를 허위로 복제·라벨링하지 않는다. per-dimension metric은 후속 이슈에서
+명시적 context 또는 bounded snapshot을 추가할 때만 도입한다. raw lock name, leader ID,
+endpoint, error message는 metric tag가 되지 않는다.
 기존 `HISTORY_SINK_FAILURES` semantics는 유지하며 새 exporter metric과 합산하지
 않는다.
 

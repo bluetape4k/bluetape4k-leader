@@ -692,10 +692,12 @@
   각각 발생시키고 metric 이름과 finite tag set을 검증한다. 스냅숏의 queue depth,
   in-flight, cancellation, executor/scheduler rejection와 observer-drop,
   observer-registration-drop, diagnostics-failure/closed gauge를 검증한다.
-  정확한 allow-list는 `source={history,lifecycle,direct}`,
-  `transport={core,http}`, `outcome={accepted,queue_full,closed,retry,failure,
-  cancelled,rejected}`로 고정한다. 고유 lockName, leaderId, endpoint, error message를
-  대량 제출해도 meter 수가 증가하지 않고 해당 값이 tag에 없는지 assertion한다.
+  정확한 v1 allow-list는 `outcome={accepted,queue_full,closed,retry,failure,cancelled,
+  rejected}`만 사용하며 `source`/`transport` tag는 생성하지 않는다. mixed source/transport
+  event fixture를 하나의 aggregate delegate로 제출해 합계가 중복·오표시되지 않고, 같은
+  registry의 두 wrapper는 duplicate ID로 fail-fast하는지 검증한다. 고유 lockName, leaderId,
+  endpoint, error message를 대량 제출해도 meter 수가 증가하지 않고 해당 값이 tag에 없는지
+  assertion한다.
   gauge 구현은 exporter `snapshot()`의 O(1) atomic counter를 읽고 queue를 순회하지
   않으며, snapshot object는 submit hot path에서 생성하지 않는다는 source/contract
   assertion을 추가한다. wrapper close twice에서 delegate close idempotence와
@@ -705,8 +707,10 @@
   foreign-registration crossing을 기록한다. manager가 설치 callback/lookup/registrar
   반환 identity를 모두 확인하고 foreign 또는 ambiguous ID를 소유하지 않는지 검증한다.
   wrapper `close()` 두 번 후 exact-owned meter만 제거되고 foreign/replaced meter는
-  건드리지 않으며 첫 removal 실패 뒤에도 나머지 ID를 시도하고 residue warning/counter를
-  남기는지 확인한다. 같은 registry에서 close 후 새 delegate wrapper를 만들면 새 snapshot
+  건드리지 않으며 첫 removal 실패 뒤에도 나머지 ID를 시도하고 fixed warning key
+  `leader.audit.export.meter-removal-failure`와 ID별 one-per-close `residueCount`를
+  남기는지 확인한다. residue claim을 유지한 상태에서 replacement constructor가 removal을
+  재시도하고 성공 후에만 새 wrapper를 허용하는 recovery 경로도 검증한다. 같은 registry에서 close 후 새 delegate wrapper를 만들면 새 snapshot
   source를 읽고, active duplicate wrapper는 기존 ID/source를 재사용하지 않고 fail-fast하며
   부분 등록도 정리하는지 검증한다. constructor 실패는 delegate를 정확히 한 번 close하고
   foreign meter를 보존하는지 assertion한다. 모든 reachability 주장은 `WeakReference`/GC에
@@ -722,8 +726,9 @@
 
 - [ ] **Step 3: Implement decorator and constants**
 
-  `MicrometerLeaderAuditExporter(delegate, registry)`는 항상 delegate를 소유하는
-  `LeaderAuditExporter` decorator로 구현한다. metric의 authoritative source는
+  `MicrometerLeaderAuditExporter(delegate, registry)`는 전체 meter 등록이 성공하면
+  delegate를 소유하는 `LeaderAuditExporter` decorator로 구현한다. construction failure는
+  delegate를 정확히 한 번 닫고 원래 예외를 보존한다. metric의 authoritative source는
   `delegate.snapshot()`의 O(1) atomic counter이며, `FunctionCounter`/`Gauge`가 registry
   polling 시 snapshot을 읽는다. 따라서 async diagnostics observer callback이 close 직후
   drop되어도 close-owned cancellation/rejection이 metric에서 사라지지 않는다.
@@ -737,10 +742,12 @@
   보존하며 partial exact-owned meter만 정리한다. 성공한 등록의 exact `Meter`/`Meter.Id`
   목록은 wrapper가 소유한다. `close()`는 delegate를 idempotently 닫은 뒤 `finally`에서
   현재 lookup이 exact identity인 ID만 `registry.remove(id)`를 시도하고, removal 실패나
-  foreign replacement에도 나머지 ID 제거를 계속한다. removal residue는 fixed-ID
-  lifecycle warning/counter로 보고하고 caller admission/election에는 registry 오류를
-  전파하지 않는다. 따라서 closed delegate strong-reference 제거는 성공적으로 제거된
-  meter에 대해서만 주장한다. non-owning observation은 wrapper가 아니라 public
+  foreign replacement에도 나머지 ID 제거를 계속한다. removal residue는 fixed warning key
+  `leader.audit.export.meter-removal-failure`, ID별 one-per-close warning, O(1)
+  `residueCount`로 보고하고 manager claim을 유지한다. 다음 constructor는 residue 제거를
+  먼저 재시도하며 성공 전에는 replacement를 fail-fast한다. caller admission/election에는
+  registry 오류를 전파하지 않는다. 따라서 closed delegate strong-reference 제거는
+  성공적으로 제거된 meter에 대해서만 주장한다. non-owning observation은 wrapper가 아니라 public
   `observe()` handle을 별도로 사용하며 decorator는 내부 observer handle을 등록하거나
   소유하지 않는다. delegate의 `snapshot()` descriptor와 값은 그대로 전달한다.
   metric names는 `leader.audit.export.accepted`, `leader.audit.export.dropped`,
@@ -758,8 +765,9 @@
   않는다. close 후에는 wrapper가 소유한 모든 meter가 registry에서 제거되어 stale source를
   노출하지 않는다. `diagnosticsClosed`는 open 동안 `diagnostics.closed` gauge의 `0|1` 값과
   일치한다.
-  `outcome`, `transport`, `source` tag 값은 위 enum allow-list만 사용하고 event field는
-  tag로 복사하지 않는다. 기존 `HISTORY_SINK_FAILURES` counter는 건드리지 않는다.
+  `outcome` tag만 위 enum allow-list로 사용하고 `source`/`transport` tag는 v1에서
+  생성하지 않으며 event field는 tag로 복사하지 않는다. 기존 `HISTORY_SINK_FAILURES`
+  counter는 건드리지 않는다.
 
 - [ ] **Step 4: Run Micrometer tests and verify GREEN**
 
@@ -787,7 +795,7 @@
   git add leader-micrometer/src/main leader-micrometer/src/test \
     leader-micrometer/README.md leader-micrometer/README.ko.md
   git diff --check
-  git commit -m $'OBS-03 Micrometer audit exporter metric을 추가한다\n\nConstraint: metric cardinality는 finite outcome/transport tag로 제한한다.\nRejected: lock별 metric tag | dynamic lock name으로 cardinality가 증가함\nConfidence: high\nScope-risk: moderate\nDirective: 기존 history sink metric semantics를 변경하지 않는다.\nTested: focused and existing Micrometer history tests, README diff check\nNot-tested: HTTP delivery는 AUD-03에서 검증한다.'
+  git commit -m $'OBS-03 Micrometer aggregate metric과 residue recovery를 추가한다\n\nConstraint: v1 snapshot은 aggregate counter만 제공하므로 outcome 외 source/transport 차원을 만들지 않는다.\nRejected: 계산할 수 없는 source/transport tag | mixed event를 중복·오표시함\nConfidence: high\nScope-risk: moderate\nDirective: meter removal residue는 fixed warning key와 retry 가능한 manager claim으로 추적한다.\nTested: focused and existing Micrometer history tests, README diff check\nNot-tested: HTTP delivery는 AUD-03에서 검증한다.'
   ```
 
 ## Task 6: JDK HTTP/webhook delivery와 bounded retry
