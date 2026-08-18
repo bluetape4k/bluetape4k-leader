@@ -423,7 +423,10 @@ class MicrometerLeaderAuditExporter(
                 ManagerState.OPEN -> offsets +
                     (active?.let(::readSnapshot)?.cumulativeValues() ?: lastTrustedCumulative)
                 ManagerState.CLOSING -> offsets +
-                    (closingSnapshot?.cumulativeValues() ?: lastTrustedCumulative)
+                    (closingSnapshot
+                        ?.cumulativeValues()
+                        ?.takeIf { it.isNotLessThan(lastTrustedCumulative) }
+                        ?: lastTrustedCumulative)
                 ManagerState.DETACHED -> offsets
             }
         }
