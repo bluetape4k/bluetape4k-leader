@@ -23,7 +23,6 @@ import io.micrometer.core.instrument.Meter
 import io.micrometer.core.instrument.MeterRegistry
 import java.lang.ref.ReferenceQueue
 import java.lang.ref.WeakReference
-import java.util.ArrayList
 import java.util.HashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -41,6 +40,7 @@ class MicrometerLeaderAuditExporter(
 ) : LeaderAuditExporter {
 
     private val registration: Registration
+    private val closed = AtomicBoolean(false)
 
     init {
         registration = try {
@@ -52,7 +52,7 @@ class MicrometerLeaderAuditExporter(
     }
 
     override fun submit(event: LeaderAuditExportEvent): LeaderAuditSubmitResult =
-        registration.delegate.submit(event)
+        if (closed.get()) LeaderAuditSubmitResult.DROPPED_CLOSED else registration.delegate.submit(event)
 
     override fun observe(observer: LeaderAuditExportObserver): AutoCloseable =
         registration.delegate.observe(observer)
@@ -60,7 +60,7 @@ class MicrometerLeaderAuditExporter(
     override fun snapshot(): LeaderAuditExportSnapshot = registration.delegate.snapshot()
 
     override fun close() {
-        registration.close()
+        if (closed.compareAndSet(false, true)) registration.close()
     }
 
     private fun closeAfterConstructionFailure(delegate: LeaderAuditExporter, failure: Throwable) {
@@ -123,7 +123,7 @@ class MicrometerLeaderAuditExporter(
         override fun hashCode(): Int = identityHash
 
         override fun equals(other: Any?): Boolean =
-            other is WeakIdentityKey && get() != null && get() === other.get()
+            this === other || (other is WeakIdentityKey && get() != null && get() === other.get())
     }
 
     private class RegistryManager {
@@ -334,7 +334,8 @@ class MicrometerLeaderAuditExporter(
         val retries: Long,
         val failures: Long,
         val cancellations: Long,
-        val rejections: Long,
+        val executorRejections: Long,
+        val schedulerRejections: Long,
         val observerDrops: Long,
         val observerRegistrationDrops: Long,
         val diagnosticsFailures: Long,
@@ -346,7 +347,8 @@ class MicrometerLeaderAuditExporter(
             retries + other.retries,
             failures + other.failures,
             cancellations + other.cancellations,
-            rejections + other.rejections,
+            executorRejections + other.executorRejections,
+            schedulerRejections + other.schedulerRejections,
             observerDrops + other.observerDrops,
             observerRegistrationDrops + other.observerRegistrationDrops,
             diagnosticsFailures + other.diagnosticsFailures,
@@ -359,7 +361,7 @@ class MicrometerLeaderAuditExporter(
             SnapshotField.RETRIES -> retries
             SnapshotField.FAILURES -> failures
             SnapshotField.CANCELLATIONS -> cancellations
-            SnapshotField.REJECTIONS -> rejections
+            SnapshotField.REJECTIONS -> executorRejections + schedulerRejections
             SnapshotField.OBSERVER_DROPS -> observerDrops
             SnapshotField.OBSERVER_REGISTRATION_DROPS -> observerRegistrationDrops
             SnapshotField.DIAGNOSTICS_FAILURES -> diagnosticsFailures
@@ -367,7 +369,7 @@ class MicrometerLeaderAuditExporter(
         }
 
         companion object {
-            val ZERO = CumulativeValues(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+            val ZERO = CumulativeValues(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         }
     }
 
@@ -488,7 +490,8 @@ private fun LeaderAuditExportSnapshot.cumulativeValues(): MicrometerLeaderAuditE
         retries = retries,
         failures = terminalFailures,
         cancellations = cancellations,
-        rejections = executorRejections + schedulerRejections,
+            executorRejections = executorRejections,
+            schedulerRejections = schedulerRejections,
         observerDrops = observerDrops,
         observerRegistrationDrops = observerRegistrationDrops,
         diagnosticsFailures = diagnosticsFatalErrors,
@@ -519,7 +522,8 @@ private fun MicrometerLeaderAuditExporter.CumulativeValues.isNotLessThan(
     retries >= other.retries,
     failures >= other.failures,
     cancellations >= other.cancellations,
-    rejections >= other.rejections,
+    executorRejections >= other.executorRejections,
+    schedulerRejections >= other.schedulerRejections,
     observerDrops >= other.observerDrops,
     observerRegistrationDrops >= other.observerRegistrationDrops,
     diagnosticsFailures >= other.diagnosticsFailures,
