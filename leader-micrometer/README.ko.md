@@ -278,6 +278,8 @@ meter ID입니다. Counter 값은 detached generation offset과 active delegate
 snapshot을 합산해 replacement 후에도 감소하지 않습니다. close 중 delegate
 snapshot이 감소하거나 실패하면 마지막으로 신뢰한 offset을 유지하고 source를
 degraded로 표시한 뒤 delegate reference를 분리하고 원래 예외를 전달합니다.
+degraded 경로는 `leader.audit.export.meter-source-degraded` fixed warning을 사용하며
+snapshot payload나 exception message를 로그에 남기지 않습니다.
 open generation에서 metric polling 중 `delegate.snapshot()`을 읽지 못하면
 decorator는 마지막으로 신뢰한 cumulative·gauge 값을 유지하고
 `diagnosticsClosed=0`을 보존하며 해당 generation에서 fixed warning을 최대 한 번만

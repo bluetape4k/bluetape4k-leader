@@ -279,6 +279,8 @@ detached generation offset with the active delegate snapshot. If a delegate
 snapshot regresses or fails during close, the decorator keeps the last trusted
 offset, marks the source degraded, and detaches the delegate before propagating
 the original exception.
+The degraded path uses the fixed `leader.audit.export.meter-source-degraded` warning
+and never logs snapshot payloads or exception messages.
 During an open generation, if a metric poll cannot read `delegate.snapshot()`, the
 decorator keeps the last trusted cumulative and gauge values, leaves
 `diagnosticsClosed=0`, and emits the fixed warning at most once for that generation.
