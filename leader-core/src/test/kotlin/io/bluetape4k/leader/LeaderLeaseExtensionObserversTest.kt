@@ -167,28 +167,34 @@ class LeaderLeaseExtensionObserversTest {
     }
 
     @Test
-    fun `accepted callback can finish after its registration closes`() {
-        val releaseCallback = CountDownLatch(1)
-        val deliveredAfterClose = CountDownLatch(1)
-        val closed = AtomicReference(false)
-        val observer = LeaderLeaseExtensionObserver {
-            releaseCallback.await(5, TimeUnit.SECONDS)
-            if (closed.get()) {
-                deliveredAfterClose.countDown()
+    fun `accepted callback runs after close while post-close publish is ignored`() {
+        withManualDispatcher { submitted ->
+            val closed = AtomicBoolean(false)
+            val callbacks = AtomicInteger(0)
+            val acceptedAfterClose = AtomicBoolean(false)
+            val observer = LeaderLeaseExtensionObserver {
+                callbacks.incrementAndGet()
+                acceptedAfterClose.set(closed.get())
             }
-        }
-        val registration = LeaderLeaseExtensionObservers.addObserver(observer)
+            val registration = LeaderLeaseExtensionObservers.addObserver(observer)
 
-        try {
-            LeaderLeaseExtensionObservers.publish(testEvent())
-            closed.set(true)
-            registration.close()
-            releaseCallback.countDown()
+            try {
+                LeaderLeaseExtensionObservers.publish(testEvent())
+                submitted.size shouldBeEqualTo 1
 
-            deliveredAfterClose.await(5, TimeUnit.SECONDS).shouldBeTrue()
-        } finally {
-            releaseCallback.countDown()
-            registration.close()
+                closed.set(true)
+                registration.close()
+                submitted.single().run()
+
+                acceptedAfterClose.get().shouldBeTrue()
+                callbacks.get() shouldBeEqualTo 1
+
+                LeaderLeaseExtensionObservers.publish(testEvent())
+                submitted.size shouldBeEqualTo 1
+                callbacks.get() shouldBeEqualTo 1
+            } finally {
+                registration.close()
+            }
         }
     }
 
