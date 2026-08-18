@@ -250,8 +250,13 @@ class BoundedLeaderAuditExporterTest {
         }
         submitReturned.await(5, TimeUnit.SECONDS).shouldBeTrue()
         deliveryStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        val closeReturned = CountDownLatch(1)
+        Thread.ofVirtual().start {
+            exporter.close()
+            closeReturned.countDown()
+        }
+        closeReturned.await(1, TimeUnit.SECONDS).shouldBeTrue()
         releaseDelivery.countDown()
-        exporter.close()
     }
 
     @Test

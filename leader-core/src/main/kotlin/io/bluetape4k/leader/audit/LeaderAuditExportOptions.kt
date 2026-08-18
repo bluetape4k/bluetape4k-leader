@@ -21,16 +21,10 @@ class LeaderAuditExportOptions(
     val scheduler: ScheduledExecutorService,
 ) {
 
-    private val validatedAttemptTimeoutNanos: Long =
-        attemptTimeout.toAuditPositiveNanos("attemptTimeout", MAX_ATTEMPT_TIMEOUT_NANOS)
-
-    private val validatedInitialBackoffNanos: Long =
-        initialBackoff.toAuditPositiveNanos("initialBackoff", MAX_BACKOFF_NANOS)
-
-    private val validatedMaxBackoffNanos: Long =
-        maxBackoff.toAuditPositiveNanos("maxBackoff", MAX_BACKOFF_NANOS)
-
     init {
+        attemptTimeout.toAuditPositiveNanos("attemptTimeout", MAX_ATTEMPT_TIMEOUT_NANOS)
+        val initialBackoffNanos = initialBackoff.toAuditPositiveNanos("initialBackoff", MAX_BACKOFF_NANOS)
+        val maxBackoffNanos = maxBackoff.toAuditPositiveNanos("maxBackoff", MAX_BACKOFF_NANOS)
         require(queueCapacity in 1..MAX_QUEUE_CAPACITY) {
             "queueCapacity must be in 1..$MAX_QUEUE_CAPACITY: $queueCapacity"
         }
@@ -40,7 +34,7 @@ class LeaderAuditExportOptions(
         require(maxAttempts in 1..MAX_ATTEMPTS) {
             "maxAttempts must be in 1..$MAX_ATTEMPTS: $maxAttempts"
         }
-        require(validatedInitialBackoffNanos <= validatedMaxBackoffNanos) {
+        require(initialBackoffNanos <= maxBackoffNanos) {
             "initialBackoff must be <= maxBackoff"
         }
     }

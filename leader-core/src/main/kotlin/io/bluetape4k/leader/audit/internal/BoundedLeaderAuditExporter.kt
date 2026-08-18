@@ -66,6 +66,7 @@ internal class BoundedLeaderAuditExporter(
     )
 
     private val admissionLock = ReentrantLock()
+    private val workerDispatchLock = ReentrantLock()
     private val diagnosticsLock = ReentrantLock()
     private val closed = AtomicBoolean(false)
     private val diagnosticsClosed = AtomicBoolean(false)
@@ -178,8 +179,13 @@ internal class BoundedLeaderAuditExporter(
             admissionLock.lock()
         }
         try {
-            if (closed.getAndSet(true)) return
-            drainQueued(LeaderAuditExportObservation.CANCELLED)
+            workerDispatchLock.lock()
+            try {
+                if (closed.getAndSet(true)) return
+                drainQueued(LeaderAuditExportObservation.CANCELLED)
+            } finally {
+                workerDispatchLock.unlock()
+            }
         } finally {
             admissionLock.unlock()
         }
@@ -223,6 +229,16 @@ internal class BoundedLeaderAuditExporter(
         Thread.ofVirtual()
             .name("bluetape4k-leader-audit-worker-dispatch")
             .start {
+                workerDispatchLock.lock()
+                val handoffAllowed = try {
+                    !closed.get()
+                } finally {
+                    workerDispatchLock.unlock()
+                }
+                if (!handoffAllowed) {
+                    workerRunning.set(false)
+                    return@start
+                }
                 try {
                     options.executor.execute(::runWorker)
                 } catch (e: RejectedExecutionException) {
@@ -485,15 +501,10 @@ internal class BoundedLeaderAuditExporter(
             item.retry = null
         }
         val attempt = item.currentAttempt
-        if (attempt != null) {
-            val future = attempt.future
-            if (!attempt.deliveryStarted.get() || future != null) {
-                if (attempt.done.compareAndSet(false, true)) {
-                    attempt.timeout?.cancel(false)
-                    future?.cancel(true)
-                    releaseAttempt(item, attempt)
-                }
-            }
+        if (attempt != null && attempt.done.compareAndSet(false, true)) {
+            attempt.timeout?.cancel(false)
+            attempt.future?.cancel(true)
+            releaseAttempt(item, attempt)
         }
         finishWork(item, LeaderAuditExportObservation.CANCELLED)
     }
