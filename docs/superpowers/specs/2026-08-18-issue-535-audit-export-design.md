@@ -177,7 +177,8 @@ registry에서 제거한다. close 전에 reservation된 callback만 crossing al
 close 반환 뒤 새 callback invocation은 시작하지 않지만 이미 reservation된 callback은
 현재 호출을 마칠 수 있다. 17번째 registration은 no-op handle을 반환하고
 `observerRegistrationDrops`를 1 증가시킨다. diagnostics queue 포화는 별도의
-`observerDrops`에만 합산한다.
+`observerDrops`에만 합산하며, queue offer가 실패하면 해당 slot의 `inFlight`와 queue
+permit을 즉시 되돌린다.
 diagnostics worker에서 observer `Error`가 발생하면 diagnostics gate를 CLOSED로
 전환하고 queued callback을 drop한 뒤 `diagnosticsFatalErrors`를 증가시키고
 `diagnosticsClosed=true`로 표시한 다음 원래 `Error`를 uncaught boundary로 재전파한다.

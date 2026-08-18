@@ -279,7 +279,12 @@
   `min(queueCapacity, 1024)`, named daemon worker termination, observer registration cap
   16, observer handle close linearization, queued callback drop와
   `observerDrops`/`observerRegistrationDrops` exact count, `diagnosticsFatalErrors`와
-  `diagnosticsClosed` 상태도 검증한다. observer handle close 테스트는 paused diagnostics
+  `diagnosticsClosed` 상태도 검증한다. diagnostics Error 테스트는 원래 `Error`의
+  uncaught capture, `diagnosticsFatalErrors=1`, `diagnosticsClosed=true`, worker 재시작
+  0과 이후 observe no-op을 함께 확인한다. reentrant close 테스트는 callback 내부 close가
+  자기 worker를 join하지 않고 반환하는 barrier를 사용한다. interrupt-ignoring observer
+  테스트는 callback을 외부 release까지 붙잡아 둔 뒤 release 전에 exporter close가
+  반환하는지 결정적으로 확인하고 teardown에서만 callback을 해제한다. observer handle close 테스트는 paused diagnostics
   worker에서 close barrier를 통과한 뒤 callback invocation reservation이 없으면 callback
   이 시작되지 않음을 확인하고, reservation이 먼저 선형화된 crossing callback만 close
   반환 뒤 마칠 수 있음을 별도 검증한다. `submit` source/benchmark guard는
@@ -452,6 +457,8 @@
   동일한 slot lock에서 invocation reservation을 시도하며, close 전에 reservation된
   callback만 crossing allowance로 호출된다. 17번째 registration은 no-op handle을
   반환하고 `observerRegistrationDrops`를 1 증가시킨다.
+  diagnostics queue offer가 실패하면 slot의 `inFlight`와 diagnostics permit을 즉시
+  되돌리고 `observerDrops`만 증가시킨다.
   diagnostics worker에서 observer `Error`가 발생하면 diagnostics gate를 CLOSED로
   전환하고 queued callback을 drop한 뒤 `diagnosticsFatalErrors`를 1 증가시키고
   `diagnosticsClosed=true`로 표시한 다음 원래 `Error`를 uncaught boundary로 재전파한다.
