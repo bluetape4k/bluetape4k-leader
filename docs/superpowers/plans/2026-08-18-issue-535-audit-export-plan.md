@@ -838,21 +838,30 @@
   고정 수치 fixture에서 이전 generation offset=100, close-entry counter=40, close 중 delta=3을
   사용해 OPEN=140, CLOSING=140, DETACHED=143, replacement 이후 `143 + newSnapshot`의
   비감소를 exact assertion한다. final snapshot이 close-entry보다 작은 음수 delta fixture는
-  `check`/diagnostic failure로 표면화되고 0으로 clamp되지 않으며, 그 경우에도 inner
-  `finally`가 provider를 clear해 DETACHED로 복구하는지 검증한다.
+  한 cumulative field만 음수이고 다른 field는 양수인 표를 사용한다. 모든 field delta를
+  immutable temporary value로 검증한 뒤 하나라도 음수면 어떤 양수 field도 적용하지 않고
+  close-entry base를 유지하는지, `sourceDegraded` 진단과 terminal gauge fallback을 기록하는지,
+  `close()`의 예외 identity와 primary/suppressed 순서를 보존하는지, inner `finally`가 provider를
+  clear해 DETACHED로 복구하는지를 함께 검증한다.
   동일 registry에 대한 두 constructor를 barrier에서 동시에 시작해 store manager가 하나만
   생성·게시되고, wrapper winner 하나와 loser delegate exact-once close만 남으며, loser 이후
   replacement acquire가 stable meter identity를 재사용하는지 검증한다.
   compromised manager는 동일 registry에서 수동 fixed-ID 제거 뒤에도 새 wrapper를 거부하고,
   새 `MeterRegistry` identity에서만 replacement acquire가 성공하는지 고정한다.
-  throwing delegate close fixture는 `CLOSING` 중 발생한 close-owned cancellation을 final
-  snapshot에 보존하고 `finally`에서 `DETACHED`로 복구하는지, close 예외가 primary로 유지되고
-  final snapshot/transition 예외가 suppressed되는지, 이후 replacement acquire가 성공하는지
-  검증한다.
-  final snapshot 자체가 예외를 던지는 fixture도 close-entry 기반 offset을 보존하고
-  provider를 clear한 뒤 `DETACHED`로 전환하는지 확인한다. 이 fallback에서는 cumulative
-  counter offset만 보존하고 `queue=0`, `inFlight=0`, `scheduledRetries=0`, `admitted=0`,
-  `diagnosticsClosed=true`, `closed=true`인 terminal gauge truth table을 exact assertion한다.
+  throwing delegate close fixture는 정상 final snapshot 경로에서 `CLOSING` 중 발생한
+  close-owned cancellation/rejection을 final snapshot에 보존하고 `finally`에서 `DETACHED`로
+  복구하는지 검증한다. close 성공/실패, final snapshot/invariant 실패, transition/diagnostic
+  실패를 각각 주입해 `delegate.close` → final snapshot/invariant → transition/diagnostic
+  순서에서 첫 예외 identity가 primary이고 이후 예외가 발생 순서대로 suppressed되는지,
+  예외가 있어도 provider null/DETACHED와 이후 replacement acquire 성공을 함께 확인한다.
+  final snapshot 자체가 예외를 던지는 fixture는 close-entry 이후 cancellation/rejection을
+  한 번 발생시킨 뒤 final snapshot을 실패시켜, 그 후속 delta를 metric에 추정해 더하지
+  않는지 결정적으로 확인한다. `sourceDegraded=true` 내부 상태와
+  `leader.audit.export.meter-source-degraded` fixed warning을 기록하고 close-entry 기반
+  counter offset만 보존하는지 확인한다. close-entry 이후 cancellation/rejection은 이
+  비정상 경로에서 보장하지 않으며, `queue=0`, `inFlight=0`, `scheduledRetries=0`,
+  `admitted=0`, `diagnosticsClosed=true`, `closed=true`인 terminal gauge truth table과
+  final snapshot 예외의 primary/suppressed 전파를 exact assertion한다.
   constructor 실패는 delegate를 정확히 한 번 close하고 primary exception을 보존하며,
   delegate close/partial-registration cleanup 예외는 primary에 suppressed로 붙이고,
   primary가 없을 때만 cleanup 예외를 던지는지 검증한다. manager-owned partial registration만
@@ -882,28 +891,35 @@
   delegate를 소유하는 `LeaderAuditExporter` decorator로 구현한다. construction failure는
   delegate를 정확히 한 번 닫고 원래 예외를 보존한다. metric의 authoritative source는
   manager가 보유한 active provider의 `delegate.snapshot()` O(1) atomic counter와 detached
-  offset이며, `FunctionCounter`/`Gauge`가 registry polling 시 manager state를 읽는다. 따라서
-  async diagnostics observer callback이 close 직후 drop되어도 close-owned
-  cancellation/rejection이 metric에서 사라지지 않는다.
+  offset이며, `FunctionCounter`/`Gauge`가 registry polling 시 manager state를 읽는다. 정상적인
+  final snapshot 경로에서는 async diagnostics observer callback이 close 직후 drop되어도
+  close-owned cancellation/rejection이 metric에서 사라지지 않는다. final snapshot 자체가
+  실패하는 비정상 delegate는 `sourceDegraded` 예외 경로로 분류하며 close-entry 이후
+  cancellation/rejection 정확성은 보장하지 않는다.
   내부 registry-identity manager가 fixed ID claim과 stable meter 집합을 관리한다. manager는
-  `ManagerState(generation, activeProvider, closingProvider, detachedSnapshot, offsets, lifecycle)` 하나를
+  `ManagerState(generation, activeProvider, closingProvider, detachedSnapshot, offsets, lifecycle,
+  sourceDegraded)` 하나를
   보유하고 모든 acquire/close/provider swap과 metric callback을 동일한 lock으로
   선형화한다. callback은 lock을 획득해 state를 한 번 읽고, `OPEN`의 active provider가
   있으면 그 안에서 snapshot을 읽은 뒤 offset을 합산하며 `CLOSING`에서는
   `closingOffsets = oldOffsets + closeEntrySnapshot` detached view만 읽는다. close는 같은
   lock에서 close-entry snapshot과 `closingProvider`를 보존하고 `closingOffsets`를 먼저
   게시한 뒤 active provider를 `CLOSING` state로 옮겨 delegate close를 실행한다. 성공/예외의
-  `finally`에서 같은 generation의 final snapshot에 대해 각 cumulative counter의
-  `final >= close-entry` invariant를 검증하고 `final - close-entry` delta만 정확히 한 번
-  `closingOffsets`에 반영한다. 음수 delta는 `check`/diagnostic failure로 드러내며 0으로
-  clamp하지 않는다. gauge는 final snapshot을 사용하고, final snapshot 실패 시에는 cumulative
-  counter만 close-entry 기반 view로 유지하며 `queue=0`, `inFlight=0`,
-  `scheduledRetries=0`, `admitted=0`, `diagnosticsClosed=true`, `closed=true`인 terminal
-  fallback gauge를 합성한 뒤 inner `finally`에서 provider를 clear하여 `DETACHED`로 전환한다.
-  따라서 close-owned cancellation/rejection은 보존되고 close-entry counter는
-  중복 집계되지 않는다. final/transition 예외는 close 예외가 있으면 suppressed로 붙이고,
-  없으면 primary로 던진다. 따라서 이전 close가 새 provider를 지울 수 없고, `CLOSING` 중
-  replacement acquire는 거부되며 manager가 영구 `CLOSING`에 남지 않는다.
+  `finally`에서 같은 generation의 final snapshot에 대해 모든 cumulative field의 delta를
+  immutable temporary value로 계산하고 모든 `final >= close-entry` invariant를 먼저 검증한다.
+  하나라도 음수면 어떤 양수 field도 적용하지 않고 close-entry `closingOffsets`를 유지하며
+  `sourceDegraded`와 diagnostic failure를 기록한다. 정상 final snapshot에서만
+  `final - close-entry` delta를 정확히 한 번 적용한다. gauge는 final snapshot을 사용하고,
+  final snapshot 자체가 실패하면 cumulative counter만 close-entry 기반 view로 유지하며
+  `sourceDegraded=true`, fixed warning `leader.audit.export.meter-source-degraded`, 그리고
+  `queue=0`, `inFlight=0`, `scheduledRetries=0`, `admitted=0`, `diagnosticsClosed=true`,
+  `closed=true`인 terminal fallback gauge를 합성한다. 이 비정상 경로에서는 close-entry 이후
+  cancellation/rejection 정확성을 보장하지 않는다. provider 제거와 terminal DETACHED
+  publication은 사용자 callback 없이 non-throwing inner `finally`에서 예외 aggregation보다
+  먼저 완료한다. 예외는 `delegate.close` → final snapshot/invariant → transition/diagnostic
+  발생 순서로 첫 예외를 primary로 유지하고 이후 예외를 발생 순서대로 suppressed로 붙인다.
+  따라서 이전 close가 새 provider를 지울 수 없고, `CLOSING` 중 replacement acquire는 거부되며
+  manager가 영구 `CLOSING`에 남지 않는다.
   provider만 delegate를 참조하고 state 전환 후 clear되므로 registry meter가 closed delegate를
   retain하지 않는다. wrapper가 delegate ownership을 취득한 뒤 caller가 delegate를 직접
   close하는 것은 지원하지 않으며, wrapper `close()`가 유일한 ownership lifecycle이다.
@@ -937,18 +953,23 @@
   close-entry snapshot과 `closingProvider`를 보존한다. 같은 lock에서
   `closingOffsets = oldOffsets + closeEntrySnapshot`을 먼저 게시해 CLOSING poll의
   counter가 감소하지 않게 한 뒤 delegate close를 실행한다. 성공/예외의 `finally`에서 같은
-  generation의 final snapshot에 대해 각 cumulative counter의 `final >= close-entry`
-  invariant를 검증하고 `final - close-entry` delta만 정확히 한 번 `closingOffsets`에
-  반영한다. 음수 delta는 `check`/diagnostic failure로 드러내며 0으로 clamp하지 않는다.
-  gauge는 final snapshot 값을 사용하고, final snapshot 실패 시에는 cumulative counter만
-  close-entry 기반 `closingOffsets`로 유지하며 `queue=0`, `inFlight=0`,
+  generation의 final snapshot에 대해 모든 cumulative field의 delta를 immutable temporary
+  value로 계산하고 모든 `final >= close-entry` invariant를 먼저 검증한다. 하나라도 음수면
+  어떤 양수 field도 적용하지 않고 close-entry 기반 `closingOffsets`를 유지하며
+  `sourceDegraded`와 diagnostic failure를 기록한다. 정상 final snapshot에서만
+  `final - close-entry` delta를 정확히 한 번 `closingOffsets`에 반영한다. gauge는 final
+  snapshot 값을 사용하고, final snapshot 자체가 실패하면 cumulative counter만 close-entry
+  기반 `closingOffsets`로 유지하며 `sourceDegraded=true`, fixed warning
+  `leader.audit.export.meter-source-degraded`, 그리고 `queue=0`, `inFlight=0`,
   `scheduledRetries=0`, `admitted=0`, `diagnosticsClosed=true`, `closed=true`인 terminal
-  fallback gauge를 합성한 inner `finally`에서 provider를 clear하여 `DETACHED` claim을
-  해제한다. 따라서 close-entry counter를 중복 집계하지 않으면서 close-owned
-  cancellation/rejection을 final snapshot에 포함한다. `snapshot()`은 delegate close 후에도
-  final counters를 O(1)로 읽을 수 있어야 한다. `registry.remove`를 호출하지 않으므로
-  lookup/remove TOCTOU와 removal residue가 없고, stable meter identity는 replacement에서
-  재사용된다.
+  fallback gauge를 합성한다. 이 비정상 경로에서는 close-entry 이후 cancellation/rejection
+  정확성을 보장하지 않는다. provider clear와 terminal `DETACHED` publication은 사용자
+  callback 없이 non-throwing inner `finally`에서 예외 aggregation보다 먼저 완료한다.
+  예외는 `delegate.close` → final snapshot/invariant → transition/diagnostic 발생 순서로
+  첫 예외를 primary로 유지하고 이후 예외를 발생 순서대로 suppressed로 붙인다.
+  `snapshot()`은 delegate close 후에도 마지막으로 신뢰한 counter를 O(1)로 읽을 수 있다.
+  `registry.remove`를 호출하지 않으므로 lookup/remove TOCTOU와 removal residue가 없고,
+  stable meter identity는 replacement에서 재사용된다.
   detached state의 counter는 offset을 포함해 monotonic하게 유지하고 queue/in-flight/
   diagnostics closed gauge는 active provider 또는 detached closed snapshot을 읽는다.
   non-owning observation은 wrapper가 아니라 public `observe()` handle을 별도로 사용하며
