@@ -308,16 +308,27 @@ crash 또는 close는 drain하지 않은 work를 잃을 수 있다. receiver는 
 source는 `delegate.snapshot()`의 O(1) atomic counter이며 `FunctionCounter`/`Gauge`가
 registry polling 시 snapshot을 읽는다. 따라서 async diagnostics observer callback이 close
 직후 drop되어도 close-owned cancellation/rejection이 metric에서 사라지지 않는다.
-decorator는 등록한 모든 `Meter.Id`를 소유한다. constructor는 registry lock 아래 고정된
-name/tag ID를 선점하고 이미 같은 ID가 있으면 부분 등록을 정리한 뒤 fail-fast하여 duplicate
-wrapper가 기존 delegate source를 재사용하지 못하게 한다. `close()`는 delegate를
-idempotently 닫은 뒤 `finally`에서 소유 meter를 `registry.remove(id)`로 제거한다. 따라서
-wrapper와 direct delegate 모두 close 후 `DROPPED_CLOSED`가 되고 registry가 closed
-delegate를 strong-reference하지 않는다. non-owning observation은 wrapper가 아니라
-public `observe()` handle을 별도로 사용하며 decorator는 내부 observer handle을 소유하지
-않는다. snapshot counter 값은 reset하지 않지만 close 후에는 해당 meter가 registry에
-존재하지 않는다. 같은 registry에 새 delegate wrapper를 만들면 새 snapshot source로
-새 meter가 등록된다.
+decorator는 registry identity별 내부 ownership manager가 claim하고 설치 identity를 검증한
+`Meter`만 소유한다. manager는 자체 lock과 claim token으로 wrapper 간 중복을 막고, 외부
+registry monitor에 의존하지 않는다. 고정 name/tag ID가 preflight에서 이미 존재하거나,
+등록 후 registrar가 반환한 meter·registry lookup·등록 callback의 identity가 일치하지
+않거나 foreign/ambiguous registration crossing이 관찰되면 constructor는 fail-fast한다.
+이 경우 foreign meter를 제거하지 않으며, 부분 등록 중 exact-owned meter만 정리한다.
+표준 Micrometer API가 설치 identity를 증명하지 못하는 registry는 지원하지 않는 것으로
+간주하고 ownership을 추정하지 않는다. 성공한 전체 등록이 끝난 뒤에만 wrapper가
+delegate ownership을 확정하며, constructor 실패 시에는 delegate를 정확히 한 번 닫고
+원래 실패를 보존한다.
+
+`close()`는 delegate를 idempotently 닫은 뒤 `finally`에서 소유 meter마다 현재 registry
+lookup이 저장된 meter와 identity-equal인 경우에만 `registry.remove(id)`를 시도한다.
+lookup이 foreign/replaced meter이거나 removal이 실패해도 그 ID를 제거했다고 가장하지
+않으며, 나머지 ID 제거를 계속하고 fixed-ID residue를 internal lifecycle warning/counter로
+보고한다. 따라서 closed delegate의 strong-reference 제거는 성공적으로 제거된 meter에
+대해서만 보장된다. wrapper와 direct delegate 모두 close 후 `DROPPED_CLOSED`가 된다.
+non-owning observation은 wrapper가 아니라 public `observe()` handle을 별도로 사용하며
+decorator는 내부 observer handle을 소유하지 않는다. snapshot counter 값은 reset하지
+않지만 close 후 성공적으로 제거된 meter는 registry에 존재하지 않는다. 같은 registry에
+새 delegate wrapper를 만들면 manager claim이 해제된 ID에 새 snapshot source를 등록한다.
 
 - accepted submissions
 - queue-full drops

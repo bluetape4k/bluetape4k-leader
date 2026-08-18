@@ -700,14 +700,18 @@
   않으며, snapshot object는 submit hot path에서 생성하지 않는다는 source/contract
   assertion을 추가한다. wrapper close twice에서 delegate close idempotence와
   snapshot-backed cancellation/rejection metric parity를 검증하고, wrapper close가
-  exporter close contract를 그대로 보존하는지 확인한다. `TrackingMeterRegistry`로
-  등록된 모든 `Meter.Id`와 function source를 기록해 wrapper `close()` 두 번 후 owned
-  meter가 모두 제거되고 registry가 closed delegate를 retain하지 않는지 검증한다. 같은
-  registry에서 close 후 새 delegate wrapper를 만들면 새 snapshot source를 읽고, active
-  duplicate wrapper는 기존 ID/source를 재사용하지 않고 fail-fast하며 부분 등록도
-  정리하는지 검증한다. close→replacement와 duplicate-registration 시나리오는
-  `WeakReference`에 의존하지 않고 registry의 등록/제거 기록과 새 snapshot 값을
-  결정적으로 확인한다.
+  exporter close contract를 그대로 보존하는지 확인한다. `TrackingMeterRegistry`와
+  internal registry-identity manager test seam으로 등록 claim, exact `Meter` identity,
+  foreign-registration crossing을 기록한다. manager가 설치 callback/lookup/registrar
+  반환 identity를 모두 확인하고 foreign 또는 ambiguous ID를 소유하지 않는지 검증한다.
+  wrapper `close()` 두 번 후 exact-owned meter만 제거되고 foreign/replaced meter는
+  건드리지 않으며 첫 removal 실패 뒤에도 나머지 ID를 시도하고 residue warning/counter를
+  남기는지 확인한다. 같은 registry에서 close 후 새 delegate wrapper를 만들면 새 snapshot
+  source를 읽고, active duplicate wrapper는 기존 ID/source를 재사용하지 않고 fail-fast하며
+  부분 등록도 정리하는지 검증한다. constructor 실패는 delegate를 정확히 한 번 close하고
+  foreign meter를 보존하는지 assertion한다. 모든 reachability 주장은 `WeakReference`/GC에
+  의존하지 않고 registry의 등록·제거·residue 기록과 새 snapshot 값으로 결정적으로
+  확인한다.
 
 - [ ] **Step 2: Run Micrometer test and verify RED**
 
@@ -723,16 +727,22 @@
   `delegate.snapshot()`의 O(1) atomic counter이며, `FunctionCounter`/`Gauge`가 registry
   polling 시 snapshot을 읽는다. 따라서 async diagnostics observer callback이 close 직후
   drop되어도 close-owned cancellation/rejection이 metric에서 사라지지 않는다.
-  constructor는 `synchronized(registry)` 안에서 고정된 name/tag 조합의 모든 `Meter.Id`를
-  먼저 preflight하고, 이미 존재하는 ID가 있으면 부분 등록을 제거한 뒤 fail-fast한다.
-  성공한 등록의 ID 목록은 wrapper가 소유한다. `close()`는 delegate를 idempotently 닫은
-  뒤 `finally`에서 소유 ID를 각각 `registry.remove(id)`로 정확히 한 번 제거하며,
-  registry 제거 예외가 caller admission/election으로 전파되지 않도록 격리한다. 따라서
-  wrapper와 direct delegate 모두 close 후 `DROPPED_CLOSED`를 반환하고 registry가 closed
-  delegate를 strong-reference하지 않는다. non-owning observation은 wrapper가 아니라 public
+  내부 registry-identity manager가 fixed ID claim과 설치 identity를 관리한다. manager는
+  claim token/lock으로 wrapper 간 중복을 막고, preflight에서 foreign ID를 확인하며,
+  registrar 반환 meter·registry lookup·등록 callback이 동일한 `Meter` identity인지 검증한다.
+  외부 registration crossing으로 identity가 foreign/ambiguous가 되면 fail-fast하고
+  unproven meter를 절대로 remove하지 않는다. 표준 registry가 설치 identity를 증명하지
+  못하면 unsupported registry로 거부한다. 모든 meter 등록이 성공한 뒤에만 delegate
+  ownership을 확정하고, constructor 실패 시 delegate를 정확히 한 번 닫고 원래 예외를
+  보존하며 partial exact-owned meter만 정리한다. 성공한 등록의 exact `Meter`/`Meter.Id`
+  목록은 wrapper가 소유한다. `close()`는 delegate를 idempotently 닫은 뒤 `finally`에서
+  현재 lookup이 exact identity인 ID만 `registry.remove(id)`를 시도하고, removal 실패나
+  foreign replacement에도 나머지 ID 제거를 계속한다. removal residue는 fixed-ID
+  lifecycle warning/counter로 보고하고 caller admission/election에는 registry 오류를
+  전파하지 않는다. 따라서 closed delegate strong-reference 제거는 성공적으로 제거된
+  meter에 대해서만 주장한다. non-owning observation은 wrapper가 아니라 public
   `observe()` handle을 별도로 사용하며 decorator는 내부 observer handle을 등록하거나
-  소유하지 않는다. delegate의 `snapshot()` descriptor와 값은 그대로 전달하며 metric
-  registry 오류가 admission/election에 전파되지 않는다.
+  소유하지 않는다. delegate의 `snapshot()` descriptor와 값은 그대로 전달한다.
   metric names는 `leader.audit.export.accepted`, `leader.audit.export.dropped`,
   `leader.audit.export.retries`, `leader.audit.export.failures`,
   `leader.audit.export.queue.depth`, `leader.audit.export.in.flight`,
@@ -761,9 +771,11 @@
     --tests 'io.bluetape4k.leader.micrometer.history.*'
   ```
 
-  close idempotence, owned `Meter.Id` removal, same-registry replacement의 fresh
-  snapshot source, duplicate wrapper fail-fast/partial cleanup, 그리고 direct delegate와
-  wrapper의 closed admission parity가 모두 PASS해야 한다.
+  close idempotence, exact-owned `Meter.Id` removal, foreign/replaced meter 보존, first
+  removal failure 뒤 나머지 시도와 residue report, same-registry replacement의 fresh
+  snapshot source, duplicate wrapper fail-fast/partial cleanup, constructor 실패 시
+  delegate close, 그리고 direct delegate와 wrapper의 closed admission parity가 모두
+  PASS해야 한다.
 
 - [ ] **Step 5: Update both README locales and commit AUD-02**
 
