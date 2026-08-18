@@ -11,6 +11,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import java.util.Collections;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 /** Java compile/run fixture for the Micrometer audit decorator ABI. */
 public final class MicrometerLeaderAuditExporterJavaContractTest {
@@ -34,7 +36,11 @@ public final class MicrometerLeaderAuditExporterJavaContractTest {
 
             @Override
             public LeaderAuditExportSnapshot snapshot() {
-                return null;
+                try {
+                    return MicrometerLeaderAuditExporterJavaContractTest.snapshot();
+                } catch (ReflectiveOperationException failure) {
+                    throw new IllegalStateException(failure);
+                }
             }
 
             @Override
@@ -53,10 +59,43 @@ public final class MicrometerLeaderAuditExporterJavaContractTest {
             })) {
                 // Java try-with-resources exercises the AutoCloseable observer handle.
             }
-            exporter.snapshot();
-            return true;
+            LeaderAuditExportSnapshot snapshot = exporter.snapshot();
+            return snapshot != null && snapshot.getQueued() == 0 && !snapshot.getClosed();
         } catch (RuntimeException failure) {
             return false;
         }
+    }
+
+    private static LeaderAuditExportSnapshot snapshot() throws ReflectiveOperationException {
+        Field companionField = LeaderAuditExportSnapshot.class.getDeclaredField("Companion");
+        companionField.setAccessible(true);
+        Object companion = companionField.get(null);
+        Method create = companion.getClass().getDeclaredMethod(
+            "create$io_github_bluetape4k_leader_bluetape4k_leader_core",
+            int.class,
+            int.class,
+            int.class,
+            int.class,
+            long.class,
+            long.class,
+            long.class,
+            long.class,
+            long.class,
+            long.class,
+            long.class,
+            long.class,
+            long.class,
+            long.class,
+            long.class,
+            boolean.class,
+            boolean.class
+        );
+        create.setAccessible(true);
+        return (LeaderAuditExportSnapshot) create.invoke(
+            companion,
+            0, 0, 0, 0,
+            0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L,
+            false, false
+        );
     }
 }
