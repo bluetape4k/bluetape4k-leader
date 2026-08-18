@@ -28,7 +28,7 @@ sealed interface LeaderAuditValueSanitizer {
      */
     data object Default : LeaderAuditValueSanitizer {
         override fun sanitize(field: LeaderAuditField, value: String): String =
-            if (field == LeaderAuditField.KIND) value else REDACTED
+            if (field == LeaderAuditField.KIND) value else AUDIT_REDACTED
     }
 
     /**
@@ -81,17 +81,9 @@ sealed interface LeaderAuditValueSanitizer {
             return value.truncateUtf8(maxBytes)
         }
 
-        /**
-         * Java/Kotlin 호출자가 원본 set mutation으로 정책을 변경하지 못하도록 복사본을 반환합니다.
-         */
-        val allowList: Set<LeaderAuditField>
-            get() = copiedAllowList
     }
 
     companion object {
-        /** 기본 redaction 결과입니다. */
-        const val REDACTED: String = "redacted"
-
         /** v1에서 raw export를 허용하는 field의 고정 목록입니다. */
         val RAW_ALLOWED_FIELDS: Set<LeaderAuditField> =
             Collections.unmodifiableSet(setOf(LeaderAuditField.KIND))
@@ -124,3 +116,4 @@ private fun sha256Hex(value: String): String {
 private const val NIBBLE_SHIFT = 4
 private const val NIBBLE_MASK = 0x0f
 private const val HEX_DIGITS = "0123456789abcdef"
+private const val AUDIT_REDACTED = "redacted"
