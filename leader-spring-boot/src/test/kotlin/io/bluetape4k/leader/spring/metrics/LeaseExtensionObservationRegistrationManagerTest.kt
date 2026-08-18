@@ -197,7 +197,10 @@ class LeaseExtensionObservationRegistrationManagerTest {
 
     @Test
     fun `acquire and close crossing keeps one live registration`() {
-        val registry = nonNoopRegistry()
+        val handler = CollectingObservationHandler()
+        val registry = ObservationRegistry.create().apply {
+            observationConfig().observationHandler(handler)
+        }
         val pool = Executors.newFixedThreadPool(2)
         var handle: AutoCloseable = LeaseExtensionObservationRegistrationManager.acquire(
             registry,
@@ -205,7 +208,7 @@ class LeaseExtensionObservationRegistrationManagerTest {
         )
 
         try {
-            repeat(32) {
+            repeat(32) { index ->
                 val barrier = CyclicBarrier(2)
                 val closeTask = pool.submit {
                     barrier.await(5, TimeUnit.SECONDS)
@@ -220,6 +223,10 @@ class LeaseExtensionObservationRegistrationManagerTest {
                 handle = acquireTask.get(5, TimeUnit.SECONDS)
                 LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 1
                 LeaseExtensionObservationRegistrationManager.referenceCount(registry) shouldBeEqualTo 1
+                LockExtender.extendActiveLockDetailed(1.seconds) shouldBeEqualTo ExtendOutcome.NotHeld
+                await.atMost(5.seconds.toJavaDuration()).untilAsserted {
+                    handler.stopped.size shouldBeEqualTo index + 1
+                }
             }
         } finally {
             handle.close()
@@ -227,6 +234,8 @@ class LeaseExtensionObservationRegistrationManagerTest {
         }
 
         LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 0
+        LockExtender.extendActiveLockDetailed(1.seconds) shouldBeEqualTo ExtendOutcome.NotHeld
+        handler.stopped.size shouldBeEqualTo 32
     }
 
     private class CollectingObservationHandler : ObservationHandler<Observation.Context> {

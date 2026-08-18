@@ -25,8 +25,8 @@ PR2가 `LeaderLeaseExtensionObserver` core hook을 제공한 뒤, PR3에서 `lea
 - RED: observer test가 구현 전 unresolved reference로 실패함을 확인했다.
 - `:bluetape4k-leader-micrometer:test --tests '*MicrometerObservationLeaderLeaseExtensionObserverTest'`: 5 tests PASS.
 - `:bluetape4k-leader-spring-boot:test --tests '*LeaseExtensionObservationRegistrationManagerTest' --tests '*LeaderObservationAutoConfigurationTest'`: 21 tests PASS.
-- 전체 `leader-micrometer:test`: 81 tests PASS.
-- 전체 `leader-spring-boot:test`: 454 tests PASS.
+- 전체 `leader-micrometer:test`: 82 tests PASS.
+- 전체 `leader-spring-boot:test`: 457 tests PASS.
 - 두 모듈 `detekt`: PASS.
 - 두 모듈 `check`: PASS.
 - `javap`로 public constructor와 private tag constant surface를 확인했다.

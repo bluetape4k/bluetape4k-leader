@@ -247,7 +247,7 @@ Spring Boot의 `ObservationRegistryPostProcessor`가 registry handler와 customi
 ### 7.2 micrometer contract
 
 - `ObservationRegistry.NOOP` 및 registry 미설정 환경에서 observer bean이 등록되지 않고 각 boundary의 `hasObservers()` guard가 event/타이밍 객체를 만들지 않는 zero-allocation fast path임을 검증한다. add/remove 동시 race는 허용된 snapshot semantics와 일치해야 한다.
-- public `MicrometerObservationLeaderLeaseExtensionObserver`의 exact constructor, observation name, private/internal tag constants, Spring `AutoCloseable` registration bean의 `destroyMethod="close"`, `ObservationRegistryNotNoopCondition` 동작을 ABI/auto-configuration fixture로 검증한다.
+- public `MicrometerObservationLeaderLeaseExtensionObserver`의 exact constructor, observation name, private/internal tag constants, Spring dynamic `AutoCloseable` registration singleton의 presence/absence와 coordinator `DisposableBean` destroy-close, candidate-only `ObservationRegistryNotNoopCondition` 동작을 ABI/auto-configuration fixture로 검증한다.
 - source/execution/outcome/result가 bounded low-cardinality로 기록되는지 검증한다.
 - 기본 옵션에서 raw lock name, audit leader ID, exception details가 기록되지 않는지 검증한다.
 - opt-in 옵션에서 identity/exception이 high-cardinality 또는 명시된 detail field로만 노출되는지 검증한다. 기본 observer가 `BackendError.cause`를 저장·직렬화하지 않는지도 검증한다.
