@@ -93,6 +93,27 @@
       event.attributes.entries.sumOf { (key, value) ->
           key.toByteArray(Charsets.UTF_8).size + value.toByteArray(Charsets.UTF_8).size
       }.let { (it <= LeaderAuditExportEvent.MAX_ATTRIBUTES_TOTAL_BYTES).shouldBeTrue() }
+
+      val oversizedText = "가".repeat(200)
+      val expectedText = "가".repeat(85) // 85 * 3 = 255 UTF-8 bytes, no partial code point
+      val bounded = historyWithTextFields(
+          lockName = oversizedText,
+          nodeId = oversizedText,
+          slotId = oversizedText,
+          sanitizer = LeaderAuditValueSanitizer.Truncate(
+              maxBytes = LeaderAuditExportEvent.MAX_TEXT_FIELD_BYTES,
+          ),
+      )
+      bounded.lockName.shouldBeEqualTo(expectedText)
+      bounded.nodeId.shouldBeEqualTo(expectedText)
+      bounded.slotId.shouldBeEqualTo(expectedText)
+      val boundedLifecycle = lifecycleWithLeaderId(
+          leaderId = oversizedText,
+          sanitizer = LeaderAuditValueSanitizer.Truncate(
+              maxBytes = LeaderAuditExportEvent.MAX_TEXT_FIELD_BYTES,
+          ),
+      )
+      boundedLifecycle.leaderId.shouldBeEqualTo(expectedText)
   }
 
   @Test
@@ -146,6 +167,32 @@
               raw.sanitize(field, SECRET_SENTINEL)
           }
       }
+  }
+
+  @Test
+  fun `raw constructor rejects invalid allow lists and byte limits`() {
+      assertFailsWith<IllegalArgumentException> {
+          LeaderAuditValueSanitizer.Raw(emptySet(), maxBytes = 16)
+      }
+      assertFailsWith<IllegalArgumentException> {
+          LeaderAuditValueSanitizer.Raw(setOf(LeaderAuditField.LOCK_NAME), maxBytes = 16)
+      }
+      assertFailsWith<IllegalArgumentException> {
+          LeaderAuditValueSanitizer.Raw(
+              setOf(LeaderAuditField.KIND, LeaderAuditField.LOCK_NAME),
+              maxBytes = 16,
+          )
+      }
+      assertFailsWith<IllegalArgumentException> {
+          LeaderAuditValueSanitizer.Raw(setOf(LeaderAuditField.KIND), maxBytes = 0)
+      }
+      assertFailsWith<IllegalArgumentException> {
+          LeaderAuditValueSanitizer.Raw(setOf(LeaderAuditField.KIND), maxBytes = -1)
+      }
+      val mutableAllowList = mutableSetOf(LeaderAuditField.KIND)
+      val copied = LeaderAuditValueSanitizer.Raw(mutableAllowList, maxBytes = 16)
+      mutableAllowList.clear()
+      copied.sanitize(LeaderAuditField.KIND, "ACQUIRED").shouldBeEqualTo("ACQUIRED")
   }
   ```
 
@@ -788,6 +835,15 @@
   replacement acquire crossing도 같은 barrier에서 확인해 detach 이전 provider가 replacement를
   지우지 않는지 고정한다. caller의 direct delegate close는 unsupported ownership violation으로
   문서화하고 fixture에서 허용 경로로 취급하지 않는다.
+  동일 registry에 대한 두 constructor를 barrier에서 동시에 시작해 store manager가 하나만
+  생성·게시되고, wrapper winner 하나와 loser delegate exact-once close만 남으며, loser 이후
+  replacement acquire가 stable meter identity를 재사용하는지 검증한다.
+  compromised manager는 동일 registry에서 수동 fixed-ID 제거 뒤에도 새 wrapper를 거부하고,
+  새 `MeterRegistry` identity에서만 replacement acquire가 성공하는지 고정한다.
+  throwing delegate close fixture는 `CLOSING` 중 발생한 close-owned cancellation을 final
+  snapshot에 보존하고 `finally`에서 `DETACHED`로 복구하는지, close 예외가 primary로 유지되고
+  final snapshot/transition 예외가 suppressed되는지, 이후 replacement acquire가 성공하는지
+  검증한다.
   constructor 실패는 delegate를 정확히 한 번 close하고 primary exception을 보존하며,
   delegate close/partial-registration cleanup 예외는 primary에 suppressed로 붙이고,
   primary가 없을 때만 cleanup 예외를 던지는지 검증한다. manager-owned partial registration만
@@ -821,13 +877,19 @@
   async diagnostics observer callback이 close 직후 drop되어도 close-owned
   cancellation/rejection이 metric에서 사라지지 않는다.
   내부 registry-identity manager가 fixed ID claim과 stable meter 집합을 관리한다. manager는
-  `ManagerState(generation, activeProvider, detachedSnapshot, offsets, lifecycle)` 하나를
+  `ManagerState(generation, activeProvider, closingProvider, detachedSnapshot, offsets, lifecycle)` 하나를
   보유하고 모든 acquire/close/provider swap과 metric callback을 동일한 lock으로
-  선형화한다. callback은 lock을 획득해 state를 한 번 읽고, active provider가 있으면 그
-  안에서 snapshot을 읽은 뒤 offset을 합산한다. close는 같은 lock에서 현재 snapshot을
-  offset과 detached state에 반영하고 provider를 제거한 `CLOSING` state를 먼저 게시한 뒤,
-  generation token이 일치할 때만 delegate close 완료를 `DETACHED`로 전환한다. 따라서
-  이전 close가 새 provider를 지울 수 없고, `CLOSING` 중 replacement acquire는 거부된다.
+  선형화한다. callback은 lock을 획득해 state를 한 번 읽고, `OPEN`의 active provider가
+  있으면 그 안에서 snapshot을 읽은 뒤 offset을 합산하며 `CLOSING`에서는 detached state만
+  읽는다. close는 같은 lock에서 close-entry snapshot과 `closingProvider`를 보존하고
+  active provider를 `CLOSING` state로 옮긴 뒤 delegate close를 실행한다. close 성공/예외의
+  `finally`에서 같은 generation의 `finalSnapshot - closeEntrySnapshot` delta만
+  `max(0, ...)`로 정확히 한 번 offset에 반영하고 provider를 clear하여 `DETACHED`로
+  전환한다. gauge는 final snapshot을 사용하므로 close-owned cancellation/rejection도
+  보존되고 close-entry counter는 중복 집계되지 않는다. final snapshot/transition 예외는
+  close 예외가 있으면 suppressed로 붙이고, 없으면 primary로 던진다. 따라서 이전 close가
+  새 provider를 지울 수 없고, `CLOSING` 중 replacement acquire는 거부되며 manager가
+  영구 `CLOSING`에 남지 않는다.
   provider만 delegate를 참조하고 state 전환 후 clear되므로 registry meter가 closed delegate를
   retain하지 않는다. wrapper가 delegate ownership을 취득한 뒤 caller가 delegate를 직접
   close하는 것은 지원하지 않으며, wrapper `close()`가 유일한 ownership lifecycle이다.
@@ -835,8 +897,10 @@
   ID 또는 설치 identity를 증명할 수 없는 registry를 fail-fast한다. 외부 registration
   crossing으로 identity가 foreign/ambiguous가 되면 fixed warning key
   `leader.audit.export.meter-ownership-conflict`를 ID별 한 번 기록하고 manager state를
-  compromised로 잠근다. manager는 foreign meter를 절대로 remove하지 않으며, 수동으로
-  fixed ID를 정리하거나 registry를 교체하기 전까지 새 wrapper를 허용하지 않는다.
+  compromised로 잠근다. manager는 foreign meter를 절대로 remove하지 않으며, fixed ID를
+  수동으로 정리해도 동일 registry의 새 wrapper를 영구 거부한다. 유일한 recovery는 새
+  `MeterRegistry` identity로 replacement를 생성하는 경로이며, 이 정책을 README/manual과
+  test에 고정한다.
   public KDoc에는 generic `MeterRegistry`가 외부 `remove`/동일 ID 재등록을 원자적으로
   관찰하지 못한다는 ownership 한계를 명시한다. caller는 wrapper 수명 동안 fixed ID를
   직접 변경하지 않아야 하며, manager가 acquire 또는 metric read에서 crossing을 관찰한
@@ -849,14 +913,21 @@
   partial registration은 state에 남아 다음 acquire에서 누락 ID만 이어서 등록하며
   foreign ID는 건드리지 않는다. active duplicate wrapper는 fail-fast한다.
   registry→manager lookup은 `WeakIdentityKey<MeterRegistry>`와 `ReferenceQueue`를 사용하는
-  internal `RegistryManagerStore`로 고정한다. `acquire`/retirement마다 queue를 drain하고,
+  internal `RegistryManagerStore`로 고정한다. store 전용 단일 lock이 queue drain, identity
+  lookup, manager create/publication을 한 임계구역에서 선형화하므로 동일 registry에는
+  manager가 정확히 하나만 게시된다. `acquire`/retirement마다 queue를 drain하고,
   manager와 weak meter identity token이 registry를 강하게 역참조하지 않는지 test seam으로
   확인한다. registry shutdown callback을 요구하지 않으며 weak-key retirement가 폐기된
   Spring/test registry의 manager entry를 회수하는 수명 정책이다.
-  `close()`는 generation token으로 한 번만 현재 provider를 `CLOSING`에서 detach하고
-  delegate를 idempotently 닫은 뒤 `DETACHED` claim을 해제한다. `registry.remove`를 호출하지
-  않으므로 lookup/remove TOCTOU와 removal residue가 없고, stable meter identity는
-  replacement에서 재사용된다.
+  `close()`는 generation token으로 한 번만 현재 provider를 `CLOSING`으로 옮기고
+  close-entry snapshot과 `closingProvider`를 보존한 뒤 delegate close를 실행한다.
+  성공/예외의 `finally`에서 같은 generation의 `finalSnapshot - closeEntrySnapshot` delta만
+  정확히 한 번 offset에 반영하고 provider를 clear하여 `DETACHED` claim을 해제한다.
+  cumulative counter delta는 `max(0, final - close-entry)`로 계산하고 gauge는 final
+  snapshot 값을 사용한다. 따라서 close-entry counter를 중복 집계하지 않으면서 close-owned cancellation/rejection을
+  final snapshot에 포함한다. `snapshot()`은 delegate close 후에도 final counters를 O(1)로
+  읽을 수 있어야 한다. `registry.remove`를 호출하지 않으므로 lookup/remove TOCTOU와
+  removal residue가 없고, stable meter identity는 replacement에서 재사용된다.
   detached state의 counter는 offset을 포함해 monotonic하게 유지하고 queue/in-flight/
   diagnostics closed gauge는 active provider 또는 detached closed snapshot을 읽는다.
   non-owning observation은 wrapper가 아니라 public `observe()` handle을 별도로 사용하며
@@ -1087,8 +1158,9 @@
   queue/in-flight/rejection diagnostics와 no raw/high-cardinality tag 규칙을 추가한다.
   stable registry meter는 close 후 source만 detach되고 replacement에서 identity를
   재사용한다는 점, duplicate/foreign fixed-ID 충돌 시
-  `leader.audit.export.meter-ownership-conflict` 경고와 registry 교체·수동 fixed-ID
-  정리 절차를 함께 문서화한다. top-level README
+  `leader.audit.export.meter-ownership-conflict` 경고와 compromised registry는 수동
+  fixed-ID 제거로 재무장할 수 없고 새 `MeterRegistry` identity로만 복구한다는 절차를
+  함께 문서화한다. top-level README
   capability matrix와 event stream 설명에는 HTTP/webhook adapter와 JSONL/OpenTelemetry
   후속 범위를 반영한다.
 
@@ -1134,6 +1206,16 @@
   scan_paths=()
   scan_tmp="$(mktemp)"
   trap 'rm -f "$scan_tmp"' EXIT
+  required_drafts=(
+    docs/manual/drafts/2026-08-18-audit-export.en.md
+    docs/manual/drafts/2026-08-18-audit-export.ko.md
+  )
+  for path in "${required_drafts[@]}"; do
+    [[ -f "$path" && -r "$path" ]] || {
+      echo "required draft missing or unreadable: $path" >&2
+      exit 2
+    }
+  done
   if [[ -d docs/manual/drafts ]]; then
     if ! find docs/manual/drafts -maxdepth 1 -type f -name '*.md' -print0 >"$scan_tmp"; then
       echo 'failed to enumerate docs/manual/drafts' >&2
@@ -1187,9 +1269,11 @@
   fi
   ```
 
-  scanner fixture는 존재하지 않는 draft directory를 `find` 대상으로 주어 enumeration
-  실패가 status 2로 반환되고, `scan_paths`가 빈 배열인 채 성공하지 않는지 확인한다. 각
-  draft path의 `-f -r` 검증 실패도 동일하게 fail-closed여야 한다.
+  scanner fixture는 required EN/KO draft 파일이 없거나 읽기 불가능하면 `find` 실행 전에
+  status 2로 fail-closed하고, 기존 draft directory가 있는 fixture에서 `PATH` 앞에 controlled
+  `find` stub을 두어 enumeration failure branch도 실제로 status 2를 반환하는지 확인한다.
+  존재하지 않는 directory 자체가 native `find`에서 어떤 status를 반환하는지는 가정하지
+  않는다. 각 draft path의 `-f -r` 검증 실패와 `scan_paths` 빈 배열도 성공으로 취급하지 않는다.
 
   gitleaks가 설치되어 있으면 추가로 repository root에서
   `gitleaks dir --no-banner --redact .`를 실행하되, 위의 명시적 파일 집합 scanner를

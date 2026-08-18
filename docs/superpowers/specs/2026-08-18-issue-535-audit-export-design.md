@@ -125,7 +125,9 @@ v1 bound 상수는 `MAX_ERROR_MESSAGE_BYTES=4096`, `MAX_ERROR_TYPE_BYTES=128`,
 `errorType`과 `errorMessage`는 각각 전용 bound를 사용한다. `LeaderAuditField` enum은
 `LOCK_NAME`, `KIND`, `NODE_ID`, `SLOT_ID`, `LEADER_ID`, `ERROR_TYPE`, `ERROR_MESSAGE`,
 `ATTRIBUTE_KEY`, `ATTRIBUTE_VALUE`만 제공한다. `RAW_ALLOWED_FIELDS`는 `KIND` 하나로
-고정하며 `Raw` 생성자는 이 집합 밖의 allow-list를 모두 거부한다.
+고정하며 `Raw` 생성자는 빈 allow-list, 이 집합 밖의 allow-list, `maxBytes <= 0`을 모두
+`IllegalArgumentException`으로 거부한다. 생성 시 allow-list를 방어적으로 복사하므로
+생성 뒤 원본 컬렉션 변경도 정책을 바꾸지 않는다.
 모든 byte bound는 UTF-8 기준이며 over-limit 문자열은 code point를 자르지 않는 최대
 prefix로 truncate하고 ellipsis를 추가하지 않는다. attribute는 sanitized key의 UTF-8
 byte와 원본 key의 UTF-8 byte를 순서대로 정렬한 뒤 key/value 개별 bound와 aggregate
@@ -327,19 +329,24 @@ detached offset이며 `FunctionCounter`/`Gauge`가 registry polling 시 manager 
 cancellation/rejection이 metric에서 사라지지 않는다.
 decorator는 registry identity별 내부 manager가 고정된 `Meter.Id` 집합을 한 번만 등록하고
 stable meter를 소유한다. manager는 자체 lock/claim token과 immutable manager state를
-사용한다. state는 `activeProvider`, detached snapshot, cumulative offset, lifecycle와
+사용한다. state는 `activeProvider`, `closingProvider`, detached snapshot, cumulative offset, lifecycle와
 `compromised` flag를 함께 보유하며, `FunctionCounter`/`Gauge` callback도 같은 lock으로
-state와 provider snapshot을 한 번에 읽는다. close와 acquire는 offset 반영·provider 전환을
-하나의 선형화 지점에서 수행하므로 poll이 `offset + 이전 provider`를 섞어 읽지 않는다.
+state와 provider snapshot을 한 번에 읽는다. `CLOSING` state는 metric callback에는 detached
+snapshot만 노출하고 final snapshot을 읽기 위한 `closingProvider`만 임시로 보유한다. close와
+acquire는 offset 반영·provider 전환을 하나의 선형화 지점에서 수행하므로 poll이
+`offset + 이전 provider`를 섞어 읽지 않는다.
 첫 acquire에서 foreign ID가 이미 존재하거나 등록 identity를 증명할 수 없으면 constructor는
 fail-fast한다. 외부 registration crossing으로 manager-owned identity가 바뀌거나 ambiguous가
 되면 `leader.audit.export.meter-ownership-conflict` fixed warning을 한 번 기록하고 state를
 compromised로 잠근다. manager는 foreign meter를 절대로 제거하지 않으며, compromised
-registry는 수동으로 fixed ID를 정리하거나 registry를 교체하기 전까지 새 wrapper를
-허용하지 않는다.
+registry identity에서 영구적으로 새 wrapper를 거부한다. 고장 난 registry에서 수동으로
+fixed ID를 제거해도 manager를 재무장하지 않으며, 유일한 복구 경로는 새 `MeterRegistry`
+identity로 wrapper를 생성하는 것이다. 이 경계는 operator 문서와 recovery test에 고정한다.
 
 manager 저장소는 registry를 강하게 보유하지 않는 weak identity key와 `ReferenceQueue`를
-사용한다. 매 acquire/retirement 때 queue를 drain해 stale manager를 결정적으로 제거하고,
+사용한다. store 전용 단일 lock이 queue drain, identity lookup, manager create/publication을
+한 임계구역에서 선형화하므로 동일 registry에는 manager가 정확히 하나만 게시된다. 매
+acquire/retirement 때 queue를 drain해 stale manager를 결정적으로 제거하고,
 manager와 weak meter identity token은 registry를 역참조하지 않는다. 따라서 Spring/test
 context가 폐기되면 registry identity와 manager가 함께 회수될 수 있으며, stable meter가
 registry에 남는 동안에는 manager state만 callback source로 유지한다. 외부 registry mutation은
@@ -358,8 +365,18 @@ delegate close/partial-registration cleanup 예외는 primary의 suppressed exce
 붙인다. primary 실패가 없을 때만 cleanup 예외를 primary로 던진다. 부분 등록은
 manager-owned stable meter와 claim state로 남겨 다음 acquire가 누락 ID만 이어서 등록할
 수 있으며 foreign ID는 건드리지 않는다. `close()`는 generation token으로 한 번만 현재
-provider를 `CLOSING`에서 detach하고 delegate를 idempotently 닫은 뒤 `DETACHED` claim을
-해제한다. 마지막 snapshot은 manager offset에 반영된다. `registry.remove`를
+provider를 `CLOSING`으로 바꾸고 `closingProvider`와 close-entry snapshot을 보존한 뒤
+delegate close를 실행한다. close가 성공하거나 예외를 던지는 모든 경로의 `finally`에서
+lock을 재획득해 같은 generation의 `closingProvider` final snapshot을 읽고
+`final - close-entry` delta만 정확히 한 번 cumulative offset에 반영한 뒤 provider를
+clear하여 `DETACHED` claim을 해제한다. 각 cumulative counter delta는
+`max(0, final - close-entry)`로 계산하고 gauge는 final snapshot 값을 사용한다. 따라서
+close-entry counter를 다시 더해 중복 집계하지 않으며 close 중 발생한
+cancellation/rejection도 final delta에 포함된다.
+final snapshot/transition 예외는 close 예외가 있으면 suppressed로 붙이고, 없으면
+primary로 던진다. 따라서 manager가 영구 `CLOSING`에 남지 않으며, replacement는
+`DETACHED` 이후에만 허용된다. `snapshot()`은 delegate close 후에도 final counters를 읽을
+수 있는 O(1) 계약을 유지한다. `registry.remove`를
 호출하지 않으므로 lookup/remove 사이 foreign replacement race와 removal residue가 없다.
 stable meter는 registry에 남지만 closed delegate를 strong-reference하지 않고 마지막
 snapshot/closed 상태를 읽는다. 같은 registry의 새 wrapper는 stable meter identity를
