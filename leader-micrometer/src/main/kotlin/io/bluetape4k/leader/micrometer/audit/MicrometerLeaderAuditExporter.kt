@@ -136,6 +136,8 @@ class MicrometerLeaderAuditExporter(
         private var state = ManagerState.DETACHED
         private var compromised = false
         private var sourceDegraded = false
+        private var lastTrustedCumulative = CumulativeValues.ZERO
+        private var lastTrustedGauge = GaugeValues(0, 0, false)
 
         fun isUnused(): Boolean = synchronized(lock) {
             activeDelegate == null && meters.isEmpty() && !compromised
@@ -153,6 +155,8 @@ class MicrometerLeaderAuditExporter(
                 activeDelegate = delegate
                 state = ManagerState.OPEN
                 sourceDegraded = false
+                lastTrustedCumulative = CumulativeValues.ZERO
+                lastTrustedGauge = GaugeValues(0, 0, false)
                 Registration(this, delegate)
             }
 
@@ -191,14 +195,13 @@ class MicrometerLeaderAuditExporter(
                         offsets = offsets + final.cumulativeValues()
                         detachedSnapshot = final.asDetached()
                     } else {
-                        sourceDegraded = true
+                        markSourceDegraded()
                         offsets = offsets + (closeEntry?.cumulativeValues() ?: CumulativeValues.ZERO)
                         detachedSnapshot = (closeEntry?.asDetached() ?: TerminalSnapshot).asTerminal()
-                        log.warn { SOURCE_DEGRADED_MESSAGE }
                     }
                 } catch (failure: Throwable) {
                     primary = appendFailure(primary, failure)
-                    sourceDegraded = true
+                    markSourceDegraded()
                     detachedSnapshot = (closingSnapshot?.asDetached() ?: TerminalSnapshot).asTerminal()
                 } finally {
                     activeDelegate = null
@@ -269,7 +272,7 @@ class MicrometerLeaderAuditExporter(
             val active = activeDelegate
             return when (state) {
                 ManagerState.OPEN -> offsets +
-                    (active?.let(::readSnapshot)?.cumulativeValues() ?: CumulativeValues.ZERO)
+                    (active?.let(::readSnapshot)?.cumulativeValues() ?: lastTrustedCumulative)
                 ManagerState.CLOSING -> offsets + (closingSnapshot?.cumulativeValues() ?: CumulativeValues.ZERO)
                 ManagerState.DETACHED -> offsets
             }
@@ -278,18 +281,31 @@ class MicrometerLeaderAuditExporter(
         private fun currentGauge(): GaugeValues {
             val active = activeDelegate
             return when (state) {
-                ManagerState.OPEN -> active?.let(::readSnapshot)?.gaugeValues() ?: TerminalSnapshot.gaugeValues()
+                ManagerState.OPEN -> active?.let(::readSnapshot)?.gaugeValues() ?: lastTrustedGauge
                 ManagerState.CLOSING -> closingSnapshot?.gaugeValues() ?: TerminalSnapshot.gaugeValues()
                 ManagerState.DETACHED -> detachedSnapshot.gaugeValues()
             }
         }
 
         private fun readSnapshot(delegate: LeaderAuditExporter): LeaderAuditExportSnapshot? = try {
-            delegate.snapshot()
+            delegate.snapshot().also { snapshot ->
+                lastTrustedCumulative = snapshot.cumulativeValues()
+                lastTrustedGauge = snapshot.gaugeValues()
+            }
         } catch (failure: Throwable) {
-            sourceDegraded = true
-            log.warn(failure) { SOURCE_DEGRADED_MESSAGE }
+            markSourceDegraded(failure)
             null
+        }
+
+        private fun markSourceDegraded(failure: Throwable? = null) {
+            if (!sourceDegraded) {
+                sourceDegraded = true
+                if (failure == null) {
+                    log.warn { SOURCE_DEGRADED_MESSAGE }
+                } else {
+                    log.warn(failure) { SOURCE_DEGRADED_MESSAGE }
+                }
+            }
         }
     }
 

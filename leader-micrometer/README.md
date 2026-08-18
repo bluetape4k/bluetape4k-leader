@@ -278,6 +278,9 @@ detached generation offset with the active delegate snapshot. If a delegate
 snapshot regresses or fails during close, the decorator keeps the last trusted
 offset, marks the source degraded, and detaches the delegate before propagating
 the original exception.
+During an open generation, if a metric poll cannot read `delegate.snapshot()`, the
+decorator keeps the last trusted cumulative and gauge values, leaves
+`diagnosticsClosed=0`, and emits the fixed warning at most once for that generation.
 
 This slice provides Micrometer metrics only. JSONL output and an OpenTelemetry
 SDK/bridge/exporter are separate follow-up scope; applications must add those

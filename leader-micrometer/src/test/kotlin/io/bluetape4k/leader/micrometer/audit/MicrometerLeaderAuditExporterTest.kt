@@ -187,6 +187,32 @@ class MicrometerLeaderAuditExporterTest {
     }
 
     @Test
+    fun `transient snapshot failure keeps the last trusted open values`() {
+        val registry = SimpleMeterRegistry()
+        val delegate = SnapshotExporter(snapshot(accepted = 7, queued = 2, inFlight = 1))
+        val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+        val accepted = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
+            .functionCounter()
+        val diagnosticsClosed = registry.find(MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_CLOSED)
+            .gauge()
+
+        accepted?.count() shouldBeEqualTo 7.0
+        diagnosticsClosed?.value() shouldBeEqualTo 0.0
+
+        delegate.failSnapshotsWith(IllegalStateException("transient snapshot failure"))
+
+        accepted?.count() shouldBeEqualTo 7.0
+        accepted?.count() shouldBeEqualTo 7.0
+        diagnosticsClosed?.value() shouldBeEqualTo 0.0
+        registry.get(MicrometerNames.AUDIT_EXPORT_QUEUE_DEPTH).gauge().value() shouldBeEqualTo 2.0
+        registry.get(MicrometerNames.AUDIT_EXPORT_IN_FLIGHT).gauge().value() shouldBeEqualTo 1.0
+
+        delegate.failSnapshotsWith(null)
+        exporter.close()
+    }
+
+    @Test
     fun `java fixture and public decorator descriptors remain stable`() {
         MicrometerLeaderAuditExporterJavaContractTest.exercise().shouldBeTrue()
         MicrometerLeaderAuditExporter::class.java.getConstructor(
@@ -256,6 +282,7 @@ class MicrometerLeaderAuditExporterTest {
         initialSnapshot: LeaderAuditExportSnapshot,
     ) : LeaderAuditExporter {
         private val current = AtomicReference(initialSnapshot)
+        private val snapshotFailure = AtomicReference<Throwable?>(null)
         private var closed = false
         var closeCount: Int = 0
             private set
@@ -265,7 +292,12 @@ class MicrometerLeaderAuditExporterTest {
 
         override fun observe(observer: LeaderAuditExportObserver): AutoCloseable = AutoCloseable { }
 
-        override fun snapshot(): LeaderAuditExportSnapshot = current.get()
+        override fun snapshot(): LeaderAuditExportSnapshot =
+            snapshotFailure.get()?.let { throw it } ?: current.get()
+
+        fun failSnapshotsWith(failure: Throwable?) {
+            snapshotFailure.set(failure)
+        }
 
         override fun close() {
             closeCount++
