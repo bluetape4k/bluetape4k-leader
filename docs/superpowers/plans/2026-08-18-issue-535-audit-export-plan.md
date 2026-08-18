@@ -840,7 +840,9 @@
   비감소를 exact assertion한다. final snapshot이 close-entry보다 작은 음수 delta fixture는
   한 cumulative field만 음수이고 다른 field는 양수인 표를 사용한다. 모든 field delta를
   immutable temporary value로 검증한 뒤 하나라도 음수면 어떤 양수 field도 적용하지 않고
-  close-entry base를 유지하는지, `sourceDegraded` 진단과 terminal gauge fallback을 기록하는지,
+  close-entry base를 유지하는지, 공통 `markSourceDegraded` 경로로
+  `sourceDegraded`와 `leader.audit.export.meter-source-degraded` fixed warning을 해당
+  generation에서 한 번 기록하는지, terminal gauge fallback을 기록하는지,
   `close()`의 예외 identity와 primary/suppressed 순서를 보존하는지, inner `finally`가 provider를
   clear해 DETACHED로 복구하는지를 함께 검증한다.
   동일 registry에 대한 두 constructor를 barrier에서 동시에 시작해 store manager가 하나만
@@ -865,8 +867,10 @@
   degraded DETACHED 뒤 동일 registry에서 stable meter claim을 재사용하는 replacement fixture는
   새 generation의 `sourceDegraded=false`, 이전 warning 재생 없음, 누적 offset·meter identity
   보존을 exact assertion한다. replacement generation에서 다시 final snapshot/invariant 실패를
-  주입하면 해당 generation에만 fixed warning이 한 번 기록되는지도 검증한다. compromised
-  registry는 generation reset 대상이 아니며 계속 거부되어야 한다.
+  주입하면 해당 generation에만 fixed warning이 한 번 기록되는지도 검증한다. 첫 generation의
+  negative delta warning count 1과 replacement generation 재실패 warning count 1이 manager
+  lifetime 누적 count 2가 되는지 확인한다. compromised registry는 generation reset 대상이
+  아니며 계속 거부되어야 한다.
   constructor 실패는 delegate를 정확히 한 번 close하고 primary exception을 보존하며,
   delegate close/partial-registration cleanup 예외는 primary에 suppressed로 붙이고,
   primary가 없을 때만 cleanup 예외를 던지는지 검증한다. manager-owned partial registration만
@@ -913,10 +917,12 @@
   `finally`에서 같은 generation의 final snapshot에 대해 모든 cumulative field의 delta를
   immutable temporary value로 계산하고 모든 `final >= close-entry` invariant를 먼저 검증한다.
   하나라도 음수면 어떤 양수 field도 적용하지 않고 close-entry `closingOffsets`를 유지하며
-  `sourceDegraded`와 diagnostic failure를 기록한다. 정상 final snapshot에서만
+  공통 `markSourceDegraded` 경로로 `sourceDegraded`와 fixed warning
+  `leader.audit.export.meter-source-degraded`를 해당 generation에서 한 번 기록한다. 정상 final snapshot에서만
   `final - close-entry` delta를 정확히 한 번 적용한다. gauge는 final snapshot을 사용하고,
   final snapshot 자체가 실패하면 cumulative counter만 close-entry 기반 view로 유지하며
-  `sourceDegraded=true`, fixed warning `leader.audit.export.meter-source-degraded`, 그리고
+  동일한 `markSourceDegraded` 경로로 `sourceDegraded=true`, fixed warning
+  `leader.audit.export.meter-source-degraded`, 그리고
   `queue=0`, `inFlight=0`, `scheduledRetries=0`, `admitted=0`, `diagnosticsClosed=true`,
   `closed=true`인 terminal fallback gauge를 합성한다. 이 비정상 경로에서는 close-entry 이후
   cancellation/rejection 정확성을 보장하지 않는다. provider 제거와 terminal DETACHED
@@ -966,11 +972,13 @@
   generation의 final snapshot에 대해 모든 cumulative field의 delta를 immutable temporary
   value로 계산하고 모든 `final >= close-entry` invariant를 먼저 검증한다. 하나라도 음수면
   어떤 양수 field도 적용하지 않고 close-entry 기반 `closingOffsets`를 유지하며
-  `sourceDegraded`와 diagnostic failure를 기록한다. 정상 final snapshot에서만
+  공통 `markSourceDegraded` 경로로 `sourceDegraded`와 fixed warning
+  `leader.audit.export.meter-source-degraded`를 해당 generation에서 한 번 기록한다. 정상 final snapshot에서만
   `final - close-entry` delta를 정확히 한 번 `closingOffsets`에 반영한다. gauge는 final
   snapshot 값을 사용하고, final snapshot 자체가 실패하면 cumulative counter만 close-entry
-  기반 `closingOffsets`로 유지하며 `sourceDegraded=true`, fixed warning
-  `leader.audit.export.meter-source-degraded`, 그리고 `queue=0`, `inFlight=0`,
+  기반 `closingOffsets`로 유지하며 동일한 `markSourceDegraded` 경로로
+  `sourceDegraded=true`, fixed warning `leader.audit.export.meter-source-degraded`, 그리고
+  `queue=0`, `inFlight=0`,
   `scheduledRetries=0`, `admitted=0`, `diagnosticsClosed=true`, `closed=true`인 terminal
   fallback gauge를 합성한다. 이 비정상 경로에서는 close-entry 이후 cancellation/rejection
   정확성을 보장하지 않는다. provider clear와 terminal `DETACHED` publication은 사용자

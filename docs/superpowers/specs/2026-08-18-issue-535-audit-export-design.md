@@ -379,8 +379,10 @@ metric이 감소하지 않는다. close가 성공하거나 예외를 던지는 �
 1. 같은 generation의 final snapshot을 읽고 모든 cumulative field의 delta를 immutable
    temporary value로 계산한다.
 2. 모든 field가 `final >= close-entry`인지 먼저 검증한다. 하나라도 음수면 어떤 field도
-   `closingOffsets`에 적용하지 않고 close-entry base를 유지하며 `sourceDegraded=true`와
-   진단을 기록한다. 양수 field만 부분 적용하는 것은 금지한다.
+   `closingOffsets`에 적용하지 않고 close-entry base를 유지하며 공통
+   `markSourceDegraded` 경로로 `sourceDegraded=true`와
+   `leader.audit.export.meter-source-degraded` fixed warning을 해당 generation에서 한 번
+   기록한다. 양수 field만 부분 적용하는 것은 금지한다.
 3. provider 제거와 terminal `DETACHED` publication을 non-throwing inner `finally`에서
    먼저 완료한다. 이 cleanup은 사용자 callback을 호출하지 않으며, 이후에만 예외를
    집계한다. 따라서 transition/diagnostic 예외가 cleanup을 건너뛰게 할 수 없다.
@@ -389,7 +391,8 @@ metric이 감소하지 않는다. close가 성공하거나 예외를 던지는 �
 경로에서는 close 중 발생한 cancellation/rejection이 final delta에 포함된다. 반대로 final
 snapshot 자체가 실패하면 cumulative counter는 close-entry 기반 `closingOffsets`만 보존하고
 `sourceDegraded=true`를 설정한다. 이 비정상 경로에서는 close-entry 이후 cancellation/rejection
-정확성을 보장하지 않으며 `leader.audit.export.meter-source-degraded` fixed warning을 한 번
+정확성을 보장하지 않으며 동일한 `markSourceDegraded` 경로로
+`leader.audit.export.meter-source-degraded` fixed warning을 해당 generation에서 한 번
 기록한다. terminal DETACHED fallback gauge는 `queue=0`, `inFlight=0`,
 `scheduledRetries=0`, `admitted=0`, `diagnosticsClosed=true`, `closed=true`로 합성한다.
 `snapshot()`은 마지막으로 신뢰한 close-entry counters를 O(1)로 읽으며, degraded 상태는
@@ -411,7 +414,8 @@ snapshot 실패로 DETACHED가 된 뒤 stable meter claim이 유효한 동일 re
 warning을 재생하지 않으며, 누적 offset과 stable meter identity만 이어받는다. 새 generation
 에서도 final snapshot/invariant 실패가 발생하면 그 generation에 한해 warning을 한 번
 기록한다. compromised registry identity는 이 reset 경로보다 우선하여 계속 거부된다.
-이 generation reset, warning 횟수, offset 보존은 결정적 replacement fixture로 고정한다.
+첫 generation의 negative delta와 replacement generation의 재실패는 각각 warning count 1을
+기록하고 manager lifetime 누적 count 2가 되는지 결정적 replacement fixture로 고정한다.
 wrapper와 owned delegate admission 모두 close 후 `DROPPED_CLOSED`가 된다.
 non-owning observation은 wrapper가 아니라 public `observe()` handle을 별도로 사용하며
 decorator는 내부 observer handle을 소유하지 않는다. stable meter는 close 후에도 manager의
