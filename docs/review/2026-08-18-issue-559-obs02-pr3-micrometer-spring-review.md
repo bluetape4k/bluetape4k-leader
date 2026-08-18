@@ -6,7 +6,7 @@
 - Epic/train: #699 / `OBS-02`
 - PR: PR3 예정, `feat/obs-02-micrometer-spring`
 - base: `develop` exact `22058ddefd16c058444b01142315fe3d63f274a1`
-- review head: `913b72d503cb555d51910181ca61896804f2c21b` (`Spring 등록 수명주기 callback 증거를 명시한다`)
+- review head (runtime source): `913b72d503cb555d51910181ca61896804f2c21b` (`Spring 등록 수명주기 callback 증거를 명시한다`); 이후 review artifact commit은 문서만 추가한다.
 - 선행: PR #722, #723은 `develop`에 병합됨
 - 검토 기준: 승인 spec/plan과 2026-08-18 lifecycle amendment, Type-A 7-tier 관점
 
@@ -58,4 +58,4 @@ P0 0건, P1 0건, P2 1건, P3 0건. 최종 verdict는 `WATCH`이며 PR 생성은
 
 ## 최종 판단
 
-`PENDING` — PR3는 exact head `913b72d503cb555d51910181ca61896804f2c21b`에서 merge-ready 후보이며, remote push·PR metadata/CI read-back·fresh exact-head merge approval은 아직 남아 있다. merge, develop sync, worktree cleanup은 fresh approval 이후 별도 단계로 수행한다.
+`PENDING` — PR3 runtime source는 exact head `913b72d503cb555d51910181ca61896804f2c21b`에서 검토됐고, 이후 branch tip에는 이 review artifact 문서만 추가됐다. remote push·PR metadata/CI read-back·fresh exact-head merge approval은 아직 남아 있다. merge, develop sync, worktree cleanup은 fresh approval 이후 별도 단계로 수행한다.
