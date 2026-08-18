@@ -14,11 +14,14 @@ import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
+import java.lang.ref.ReferenceQueue
+import java.lang.ref.WeakReference
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 
@@ -238,6 +241,25 @@ class LeaseExtensionObservationRegistrationManagerTest {
         handler.stopped.size shouldBeEqualTo 32
     }
 
+    @Test
+    fun `last close releases registry and handle strong references`() {
+        val references = acquireAndCloseWeakReferences()
+        val registryCollected = AtomicBoolean(false)
+        val handleCollected = AtomicBoolean(false)
+
+        await.atMost(5.seconds.toJavaDuration()).untilAsserted {
+            System.gc()
+            if (!registryCollected.get()) {
+                registryCollected.set(references.registryQueue.poll() === references.registryReference)
+            }
+            if (!handleCollected.get()) {
+                handleCollected.set(references.handleQueue.poll() === references.handleReference)
+            }
+            registryCollected.get().shouldBeTrue()
+            handleCollected.get().shouldBeTrue()
+        }
+    }
+
     private class CollectingObservationHandler : ObservationHandler<Observation.Context> {
         val stopped = CopyOnWriteArrayList<String>()
 
@@ -258,6 +280,33 @@ class LeaseExtensionObservationRegistrationManagerTest {
             register(LeaderObservationAutoConfiguration::class.java)
             refresh()
         }
+
+    private fun acquireAndCloseWeakReferences(): WeakReferences {
+        val registryQueue = ReferenceQueue<ObservationRegistry>()
+        val handleQueue = ReferenceQueue<AutoCloseable>()
+        val registry = ObservationRegistry.create()
+        val handle = LeaseExtensionObservationRegistrationManager.acquire(registry, LeaderObservationOptions())
+        val registryReference = WeakReference(registry, registryQueue)
+        val handleReference = WeakReference(handle, handleQueue)
+
+        handle.close()
+        LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 0
+        LeaseExtensionObservationRegistrationManager.referenceCount(registry) shouldBeEqualTo 0
+
+        return WeakReferences(
+            registryReference = registryReference,
+            registryQueue = registryQueue,
+            handleReference = handleReference,
+            handleQueue = handleQueue,
+        )
+    }
+
+    private data class WeakReferences(
+        val registryReference: WeakReference<ObservationRegistry>,
+        val registryQueue: ReferenceQueue<ObservationRegistry>,
+        val handleReference: WeakReference<AutoCloseable>,
+        val handleQueue: ReferenceQueue<AutoCloseable>,
+    )
 
     private object NonNoopObservationHandler : ObservationHandler<Observation.Context> {
         override fun supportsContext(context: Observation.Context): Boolean = true
