@@ -130,18 +130,39 @@ public `LeaderAuditExporter`는 다음 경계를 갖는다.
 - `close()`는 신규 admission을 차단하고 queued/retry 작업을 취소한다. close는
   네트워크 drain을 기다리지 않으며 idempotent다.
 - `observe(observer)`는 accepted/drop/retry/terminal-failure/cancel/rejection의 유한한 lifecycle
-  outcome만 전달한다. observer가 예외를 던져도 admission, permit, election 결과에는
-  영향을 주지 않으며, event 값·lock 이름·endpoint·error message는 observer payload에
-  포함하지 않는다.
-- `snapshot()`은 queue depth, in-flight 수, accepted/drop/retry/terminal failure,
-  cancellation 및 executor/scheduler rejection을 누적한 bounded diagnostics를
-  반환한다. 스냅숏 값은 lock 이름·endpoint·error message를 포함하지 않는다.
+  outcome을 exporter가 소유하는 bounded diagnostics queue와 전용 diagnostics worker를
+  통해 caller thread 밖에서 best-effort로 전달한다. `submit`은 diagnostics queue에
+  non-blocking offer만 수행하므로 observer callback과 diagnostics worker가 block되어도
+  admission thread를 block하지 않는다. diagnostics queue가 가득 차면 callback 없이
+  `observerDrops`만 증가한다. observer가 `Exception`을 던져도 admission, permit, election
+  결과에는 영향을 주지 않는다. observer `Error`는 callback task를 terminalize한 뒤
+  diagnostics worker의 uncaught boundary로 원래 인스턴스를 재전파한다. event 값·lock 이름·
+  endpoint·error message는 observer payload에 포함하지 않는다.
+- `snapshot()`은 queued, in-flight, scheduled-retry, total admitted 수와
+  accepted/drop/retry/terminal failure, cancellation, executor/scheduler rejection,
+  observer drop을 누적한 bounded diagnostics를 반환한다. 스냅숏 값은 lock 이름·endpoint·
+  error message를 포함하지 않는다. point-in-time 값은 concurrent update 중 fuzzy할 수
+  있고, quiescent 시 `queued + inFlight + scheduledRetries == admitted <= capacity`를
+  만족해야 한다.
 
 이 관찰 경계는 public `LeaderAuditExportObserver`와 immutable
-`LeaderAuditExportSnapshot`으로 고정한다. observer enum은 `ACCEPTED`,
+`LeaderAuditExportSnapshot`으로 고정한다. snapshot은 explicit 호출 시 O(1) atomic
+counter를 읽어 생성하며 submit hot path에서 snapshot 객체를 할당하지 않는다.
+Micrometer gauge도 registry poll 시 snapshot을 읽고 admission 중 queue를 순회하지 않는다.
+observer enum은 `ACCEPTED`,
 `DROPPED_QUEUE_FULL`, `DROPPED_CLOSED`, `RETRY`, `TERMINAL_FAILURE`, `CANCELLED`,
 `EXECUTOR_REJECTED`, `SCHEDULER_REJECTED`만 허용하며, snapshot에는 dynamic identifier가
-없다.
+없다. timeout이 소유한 future cancel은 `RETRY` 또는 마지막 attempt의
+`TERMINAL_FAILURE`만 만들고 `CANCELLED`를 중복 생성하지 않는다. close-owned cancel은
+`CANCELLED`만 만들며 retry/failure를 만들지 않는다.
+
+취소 원인별 관찰 순서는 다음 표로 고정한다.
+
+| 취소 주체 | future 결과 | 재시도 | 관찰 outcome | permit |
+|---|---|---|---|---|
+| timeout winner | `CancellationException(TIMEOUT)` | 남은 attempt가 있으면 `RETRY`, 마지막이면 `TERMINAL_FAILURE` | 위 outcome을 각 1회 | terminal에서 1회 반환 |
+| exporter close winner | `CancellationException(CLOSE)` | 없음 | `CANCELLED` 1회 | close에서 1회 반환 |
+| caller-owned delivery cancel | `CancellationException(CALLER)` | 없음 | `CANCELLED` 1회 | completion에서 1회 반환 |
 
 dispatcher 옵션은 전체 admitted work(queued, in-flight, scheduled retry)를 제한하는
 queue capacity, 최대 동시 delivery, 최대 attempt 수, 양의 유한 `attemptTimeout`,
@@ -179,15 +200,25 @@ dispatcher는 transport-neutral one-shot delivery 함수와 분리한다. HTTP a
   observer를 만들지 않는다.
 - HTTP adapter의 기본 response body handler는 `BodyHandlers.discarding()`이며 response
   body 보존 상한은 0 byte다. 따라서 oversized/chunked body를 메모리에 축적하지 않는다.
-  log에는 endpoint credential이나 body를 남기지 않는다.
-- target URI는 기본적으로 HTTPS만 허용하고, user-info/query/fragment와 control
-  character를 거부한다. HTTP loopback은 명시적 test-only allow-list에서만 허용한다.
+  이는 메모리 retention bound일 뿐 네트워크 ingress truncation 계약은 아니다. log에는
+  endpoint credential이나 body를 남기지 않는다.
+- target URI는 production에서 HTTPS만 허용하고, user-info/query/fragment와 control
+  character를 거부한다. loopback·link-local·RFC1918 private address는 거부하며,
+  HTTP loopback은 public option이 아니라 `internal` test-only allow-list에서만 허용한다.
+  resolver가 반환한 모든 주소에 대해 loopback/link-local/site-local/any-local을
+  검사하며, 따라서 public API에는 임의 scheme allow-list나 insecure-loopback flag가
+  없다. resolver는 `internal` test seam으로 주입해 이 검사를 DNS/network 없이
+  deterministic하게 검증한다.
   injected `HttpClient`는 `Redirect.NEVER`여야 하며, header map은 immutable
   allow-list로 복사하고 CR/LF·`Host`·`Content-Length`·`Connection` 등 forbidden header를
   거부한다. Authorization 같은 credential header는 전송할 수 있지만 로그·metric·event에는
   절대 복사하지 않는다.
 - HTTP adapter는 core에 JSON library를 추가하지 않는다. JSON payload가 필요한
   사용자는 encoder를 제공하며, JSONL/OpenTelemetry는 후속 adapter가 담당한다.
+- public `LeaderAuditHttpOptions(maxPayloadBytes)`는 1 MiB hard upper bound와
+  기본 64 KiB를 검증하고 scheme allow-list나 insecure-loopback flag를 노출하지 않는다.
+  `LeaderAuditHttpPayload.of`는 caller `ByteArray`를 복사하기 전에 1 MiB hard limit을
+  검사하며, adapter는 configured lower limit도 request 생성 전에 검사한다.
 
 ### 기존 계약 연결
 
@@ -214,7 +245,8 @@ crash 또는 close는 drain하지 않은 work를 잃을 수 있다. receiver는 
 
 ### Micrometer 관찰
 
-`MicrometerLeaderAuditExporter`는 core exporter를 decorator하고 다음 metric을
+`MicrometerLeaderAuditExporter`는 core exporter를 decorator하고
+`(delegate, registry, ownsDelegate:Boolean)` exact constructor로 다음 metric을
 제공한다.
 
 - accepted submissions
