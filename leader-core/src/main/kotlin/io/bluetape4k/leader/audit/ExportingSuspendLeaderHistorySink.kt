@@ -40,9 +40,10 @@ class ExportingSuspendLeaderHistorySink private constructor(
     ) : this(delegate, exporter, sanitizer, LeaderAuditPendingContextStore())
 
     override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
+        currentCoroutineContext().ensureActive()
         val key = delegate.recordAcquired(record)
+        currentCoroutineContext().ensureActive()
         if (key != null) {
-            currentCoroutineContext().ensureActive()
             contexts.put(key, record)
             submitSafely(LeaderAuditExportEvent.History.from(record, sanitizer))
         }
@@ -50,6 +51,7 @@ class ExportingSuspendLeaderHistorySink private constructor(
     }
 
     override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
+        currentCoroutineContext().ensureActive()
         delegate.recordCompleted(key, finishedAt, durationMs)
         currentCoroutineContext().ensureActive()
         submitSafely(
@@ -70,6 +72,7 @@ class ExportingSuspendLeaderHistorySink private constructor(
         errorType: String?,
         errorMessage: String?,
     ) {
+        currentCoroutineContext().ensureActive()
         delegate.recordFailed(key, finishedAt, durationMs, errorType, errorMessage)
         currentCoroutineContext().ensureActive()
         submitSafely(
@@ -85,8 +88,12 @@ class ExportingSuspendLeaderHistorySink private constructor(
         )
     }
 
-    override suspend fun deleteOlderThan(cutoff: Instant, limit: Int): Int =
-        delegate.deleteOlderThan(cutoff, limit)
+    override suspend fun deleteOlderThan(cutoff: Instant, limit: Int): Int {
+        currentCoroutineContext().ensureActive()
+        val deleted = delegate.deleteOlderThan(cutoff, limit)
+        currentCoroutineContext().ensureActive()
+        return deleted
+    }
 
     private fun historyEvent(
         key: LeaderHistoryKey,

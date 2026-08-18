@@ -9,6 +9,9 @@ import io.bluetape4k.leader.history.LeaderHistorySink
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -79,8 +82,72 @@ class ExportingLeaderHistorySinkTest {
             exporter = exporter,
         )
 
-        assertFailsWith<CancellationException> { sink.recordAcquired(record()) }
+        assertFailsWith<CancellationException> {
+            withContext(Job()) {
+                sink.recordAcquired(record())
+            }
+        }
         exporter.events.size shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `suspend delegate cancellation after null result is rethrown`() = runTest {
+        val sink = ExportingSuspendLeaderHistorySink(
+            delegate = object : io.bluetape4k.leader.history.SuspendLeaderHistorySink {
+                override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? {
+                    currentCoroutineContext()[Job]?.cancel()
+                    return null
+                }
+
+                override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
+
+                override suspend fun recordFailed(
+                    key: LeaderHistoryKey,
+                    finishedAt: Instant,
+                    durationMs: Long,
+                    errorType: String?,
+                    errorMessage: String?,
+                ) = Unit
+            },
+            exporter = RecordingExporter(),
+        )
+
+        assertFailsWith<CancellationException> {
+            withContext(Job()) {
+                sink.recordAcquired(record())
+            }
+        }
+    }
+
+    @Test
+    fun `suspend deleteOlderThan rechecks cancellation after delegate`() = runTest {
+        val sink = ExportingSuspendLeaderHistorySink(
+            delegate = object : io.bluetape4k.leader.history.SuspendLeaderHistorySink {
+                override suspend fun recordAcquired(record: LeaderLockHistoryRecord): LeaderHistoryKey? = null
+
+                override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) = Unit
+
+                override suspend fun recordFailed(
+                    key: LeaderHistoryKey,
+                    finishedAt: Instant,
+                    durationMs: Long,
+                    errorType: String?,
+                    errorMessage: String?,
+                ) = Unit
+
+                override suspend fun deleteOlderThan(cutoff: Instant, limit: Int): Int {
+                    currentCoroutineContext()[Job]?.cancel()
+                    return 1
+                }
+            },
+            exporter = RecordingExporter(),
+        )
+
+        assertFailsWith<CancellationException> {
+            withContext(Job()) {
+                sink.deleteOlderThan(FINISHED_AT, 1)
+            }
+        }
     }
 
     private class RecordingSink(private val key: LeaderHistoryKey) : LeaderHistorySink {

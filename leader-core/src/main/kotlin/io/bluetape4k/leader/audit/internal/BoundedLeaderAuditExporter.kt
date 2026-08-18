@@ -223,10 +223,6 @@ internal class BoundedLeaderAuditExporter(
         Thread.ofVirtual()
             .name("bluetape4k-leader-audit-worker-dispatch")
             .start {
-                if (!beginScheduling()) {
-                    workerRunning.set(false)
-                    return@start
-                }
                 try {
                     options.executor.execute(::runWorker)
                 } catch (e: RejectedExecutionException) {
@@ -236,8 +232,6 @@ internal class BoundedLeaderAuditExporter(
                     workerRunning.set(false)
                     terminalizeQueued(LeaderAuditExportObservation.EXECUTOR_REJECTED)
                     throw e
-                } finally {
-                    endScheduling()
                 }
             }
     }
@@ -324,7 +318,13 @@ internal class BoundedLeaderAuditExporter(
             return
         }
         attempt.future = future
-        if (attempt.done.get()) {
+        if (attempt.done.get() || closed.get()) {
+            if (attempt.done.compareAndSet(false, true)) {
+                attempt.timeout?.cancel(false)
+                future.cancel(true)
+                releaseAttempt(item, attempt)
+                finishWork(item, LeaderAuditExportObservation.CANCELLED)
+            }
             future.cancel(true)
             return
         }
@@ -367,6 +367,7 @@ internal class BoundedLeaderAuditExporter(
         admissionLock.lock()
         return try {
             if (!closed.get() && !attempt.done.get()) {
+                attempt.deliveryStarted.set(true)
                 true
             } else {
                 if (attempt.done.compareAndSet(false, true)) {
@@ -484,10 +485,15 @@ internal class BoundedLeaderAuditExporter(
             item.retry = null
         }
         val attempt = item.currentAttempt
-        if (attempt != null && attempt.done.compareAndSet(false, true)) {
-            attempt.timeout?.cancel(false)
-            attempt.future?.cancel(true)
-            releaseAttempt(item, attempt)
+        if (attempt != null) {
+            val future = attempt.future
+            if (!attempt.deliveryStarted.get() || future != null) {
+                if (attempt.done.compareAndSet(false, true)) {
+                    attempt.timeout?.cancel(false)
+                    future?.cancel(true)
+                    releaseAttempt(item, attempt)
+                }
+            }
         }
         finishWork(item, LeaderAuditExportObservation.CANCELLED)
     }
@@ -639,6 +645,7 @@ internal class BoundedLeaderAuditExporter(
 
     private class Attempt(val number: Int) {
         val done = AtomicBoolean(false)
+        val deliveryStarted = AtomicBoolean(false)
         @Volatile var future: CompletableFuture<LeaderAuditDeliveryResult>? = null
         @Volatile var timeout: ScheduledFuture<*>? = null
     }
