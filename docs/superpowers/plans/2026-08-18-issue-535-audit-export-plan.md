@@ -830,11 +830,16 @@
   stable meter identity를 재사용하면서 새 delegate snapshot source를 읽고 cumulative
   counter가 감소하지 않는지, active duplicate wrapper는 fail-fast하는지 확인한다.
   concurrent meter poll·old close·replacement acquire는 latch 기반으로 교차시켜, 모든
-  metric read가 manager 선형화 지점을 통과하고 counter가 감소하거나 `offset + old
+  metric read가 manager 선형화 지점을 통과하고 counter가 감소하지 않으며 `offset + old
   provider`를 중복 합산하지 않는지 반복 검증한다. wrapper가 소유한 delegate close 완료와
   replacement acquire crossing도 같은 barrier에서 확인해 detach 이전 provider가 replacement를
   지우지 않는지 고정한다. caller의 direct delegate close는 unsupported ownership violation으로
   문서화하고 fixture에서 허용 경로로 취급하지 않는다.
+  고정 수치 fixture에서 이전 generation offset=100, close-entry counter=40, close 중 delta=3을
+  사용해 OPEN=140, CLOSING=140, DETACHED=143, replacement 이후 `143 + newSnapshot`의
+  비감소를 exact assertion한다. final snapshot이 close-entry보다 작은 음수 delta fixture는
+  `check`/diagnostic failure로 표면화되고 0으로 clamp되지 않으며, 그 경우에도 inner
+  `finally`가 provider를 clear해 DETACHED로 복구하는지 검증한다.
   동일 registry에 대한 두 constructor를 barrier에서 동시에 시작해 store manager가 하나만
   생성·게시되고, wrapper winner 하나와 loser delegate exact-once close만 남으며, loser 이후
   replacement acquire가 stable meter identity를 재사용하는지 검증한다.
@@ -844,6 +849,8 @@
   snapshot에 보존하고 `finally`에서 `DETACHED`로 복구하는지, close 예외가 primary로 유지되고
   final snapshot/transition 예외가 suppressed되는지, 이후 replacement acquire가 성공하는지
   검증한다.
+  final snapshot 자체가 예외를 던지는 fixture도 close-entry 기반 offset/gauge를 보존하고
+  provider를 clear한 뒤 `DETACHED`로 전환하는지 확인한다.
   constructor 실패는 delegate를 정확히 한 번 close하고 primary exception을 보존하며,
   delegate close/partial-registration cleanup 예외는 primary에 suppressed로 붙이고,
   primary가 없을 때만 cleanup 예외를 던지는지 검증한다. manager-owned partial registration만
@@ -880,16 +887,19 @@
   `ManagerState(generation, activeProvider, closingProvider, detachedSnapshot, offsets, lifecycle)` 하나를
   보유하고 모든 acquire/close/provider swap과 metric callback을 동일한 lock으로
   선형화한다. callback은 lock을 획득해 state를 한 번 읽고, `OPEN`의 active provider가
-  있으면 그 안에서 snapshot을 읽은 뒤 offset을 합산하며 `CLOSING`에서는 detached state만
-  읽는다. close는 같은 lock에서 close-entry snapshot과 `closingProvider`를 보존하고
-  active provider를 `CLOSING` state로 옮긴 뒤 delegate close를 실행한다. close 성공/예외의
-  `finally`에서 같은 generation의 `finalSnapshot - closeEntrySnapshot` delta만
-  `max(0, ...)`로 정확히 한 번 offset에 반영하고 provider를 clear하여 `DETACHED`로
-  전환한다. gauge는 final snapshot을 사용하므로 close-owned cancellation/rejection도
-  보존되고 close-entry counter는 중복 집계되지 않는다. final snapshot/transition 예외는
-  close 예외가 있으면 suppressed로 붙이고, 없으면 primary로 던진다. 따라서 이전 close가
-  새 provider를 지울 수 없고, `CLOSING` 중 replacement acquire는 거부되며 manager가
-  영구 `CLOSING`에 남지 않는다.
+  있으면 그 안에서 snapshot을 읽은 뒤 offset을 합산하며 `CLOSING`에서는
+  `closingOffsets = oldOffsets + closeEntrySnapshot` detached view만 읽는다. close는 같은
+  lock에서 close-entry snapshot과 `closingProvider`를 보존하고 `closingOffsets`를 먼저
+  게시한 뒤 active provider를 `CLOSING` state로 옮겨 delegate close를 실행한다. 성공/예외의
+  `finally`에서 같은 generation의 final snapshot에 대해 각 cumulative counter의
+  `final >= close-entry` invariant를 검증하고 `final - close-entry` delta만 정확히 한 번
+  `closingOffsets`에 반영한다. 음수 delta는 `check`/diagnostic failure로 드러내며 0으로
+  clamp하지 않는다. gauge는 final snapshot을 사용하고, final snapshot 실패 시에는
+  close-entry 기반 view를 유지한 inner `finally`에서 provider를 clear하여 `DETACHED`로
+  전환한다. 따라서 close-owned cancellation/rejection은 보존되고 close-entry counter는
+  중복 집계되지 않는다. final/transition 예외는 close 예외가 있으면 suppressed로 붙이고,
+  없으면 primary로 던진다. 따라서 이전 close가 새 provider를 지울 수 없고, `CLOSING` 중
+  replacement acquire는 거부되며 manager가 영구 `CLOSING`에 남지 않는다.
   provider만 delegate를 참조하고 state 전환 후 clear되므로 registry meter가 closed delegate를
   retain하지 않는다. wrapper가 delegate ownership을 취득한 뒤 caller가 delegate를 직접
   close하는 것은 지원하지 않으며, wrapper `close()`가 유일한 ownership lifecycle이다.
@@ -920,14 +930,19 @@
   확인한다. registry shutdown callback을 요구하지 않으며 weak-key retirement가 폐기된
   Spring/test registry의 manager entry를 회수하는 수명 정책이다.
   `close()`는 generation token으로 한 번만 현재 provider를 `CLOSING`으로 옮기고
-  close-entry snapshot과 `closingProvider`를 보존한 뒤 delegate close를 실행한다.
-  성공/예외의 `finally`에서 같은 generation의 `finalSnapshot - closeEntrySnapshot` delta만
-  정확히 한 번 offset에 반영하고 provider를 clear하여 `DETACHED` claim을 해제한다.
-  cumulative counter delta는 `max(0, final - close-entry)`로 계산하고 gauge는 final
-  snapshot 값을 사용한다. 따라서 close-entry counter를 중복 집계하지 않으면서 close-owned cancellation/rejection을
-  final snapshot에 포함한다. `snapshot()`은 delegate close 후에도 final counters를 O(1)로
-  읽을 수 있어야 한다. `registry.remove`를 호출하지 않으므로 lookup/remove TOCTOU와
-  removal residue가 없고, stable meter identity는 replacement에서 재사용된다.
+  close-entry snapshot과 `closingProvider`를 보존한다. 같은 lock에서
+  `closingOffsets = oldOffsets + closeEntrySnapshot`을 먼저 게시해 CLOSING poll의
+  counter가 감소하지 않게 한 뒤 delegate close를 실행한다. 성공/예외의 `finally`에서 같은
+  generation의 final snapshot에 대해 각 cumulative counter의 `final >= close-entry`
+  invariant를 검증하고 `final - close-entry` delta만 정확히 한 번 `closingOffsets`에
+  반영한다. 음수 delta는 `check`/diagnostic failure로 드러내며 0으로 clamp하지 않는다.
+  gauge는 final snapshot 값을 사용하고, final snapshot 실패 시에는 close-entry 기반
+  `closingOffsets`/gauge를 유지한 inner `finally`에서 provider를 clear하여 `DETACHED`
+  claim을 해제한다. 따라서 close-entry counter를 중복 집계하지 않으면서 close-owned
+  cancellation/rejection을 final snapshot에 포함한다. `snapshot()`은 delegate close 후에도
+  final counters를 O(1)로 읽을 수 있어야 한다. `registry.remove`를 호출하지 않으므로
+  lookup/remove TOCTOU와 removal residue가 없고, stable meter identity는 replacement에서
+  재사용된다.
   detached state의 counter는 offset을 포함해 monotonic하게 유지하고 queue/in-flight/
   diagnostics closed gauge는 active provider 또는 detached closed snapshot을 읽는다.
   non-owning observation은 wrapper가 아니라 public `observe()` handle을 별도로 사용하며
