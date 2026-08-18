@@ -24,9 +24,11 @@ import io.micrometer.core.instrument.MeterRegistry
 import java.lang.ref.ReferenceQueue
 import java.lang.ref.WeakReference
 import java.util.HashMap
+import java.util.concurrent.CancellationException
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * core audit exporter를 Micrometer의 고정 low-cardinality meter 집합으로 장식합니다.
@@ -42,12 +44,22 @@ class MicrometerLeaderAuditExporter(
 ) : LeaderAuditExporter {
 
     private val registration: Registration
-    private val closed = AtomicBoolean(false)
-    private val lifecycleLock = ReentrantLock()
+    private val lifecycleState = AtomicReference(LifecycleState.OPEN)
+    private val admittedCalls = AtomicInteger(0)
+    private val submissionsDrained = AtomicReference<CountDownLatch?>(null)
+    private val closeCompleted = CountDownLatch(1)
+    private val closeFailure = AtomicReference<Throwable?>(null)
 
     init {
         registration = try {
-            RegistryManagerStore.acquire(registry, delegate)
+            val ownershipToken = Any()
+            DelegateOwnershipStore.claim(delegate, ownershipToken)
+            try {
+                RegistryManagerStore.acquire(registry, delegate, ownershipToken)
+            } catch (failure: Throwable) {
+                DelegateOwnershipStore.release(delegate, ownershipToken)
+                throw failure
+            }
         } catch (failure: Throwable) {
             if (failure !is DelegateAlreadyOwnedException) {
                 closeAfterConstructionFailure(delegate, failure)
@@ -56,18 +68,80 @@ class MicrometerLeaderAuditExporter(
         }
     }
 
-    override fun submit(event: LeaderAuditExportEvent): LeaderAuditSubmitResult = lifecycleLock.withLock {
-        if (closed.get()) LeaderAuditSubmitResult.DROPPED_CLOSED else registration.delegate.submit(event)
+    override fun submit(event: LeaderAuditExportEvent): LeaderAuditSubmitResult {
+        if (!admitLifecycleCall()) return LeaderAuditSubmitResult.DROPPED_CLOSED
+        return try {
+            registration.delegate.submit(event)
+        } finally {
+            releaseLifecycleCall()
+        }
     }
 
-    override fun observe(observer: LeaderAuditExportObserver): AutoCloseable = lifecycleLock.withLock {
-        if (closed.get()) AutoCloseable { } else registration.delegate.observe(observer)
+    override fun observe(observer: LeaderAuditExportObserver): AutoCloseable {
+        if (!admitLifecycleCall()) return AutoCloseable { }
+        return try {
+            registration.delegate.observe(observer)
+        } finally {
+            releaseLifecycleCall()
+        }
     }
 
     override fun snapshot(): LeaderAuditExportSnapshot = registration.delegate.snapshot()
 
-    override fun close() = lifecycleLock.withLock {
-        if (closed.compareAndSet(false, true)) registration.close()
+    override fun close() {
+        if (lifecycleState.compareAndSet(LifecycleState.OPEN, LifecycleState.CLOSING)) {
+            awaitAdmittedCalls()
+            try {
+                registration.close()
+            } catch (failure: Throwable) {
+                closeFailure.set(failure)
+                throw failure
+            } finally {
+                lifecycleState.set(LifecycleState.CLOSED)
+                closeCompleted.countDown()
+            }
+        } else {
+            awaitCloseCompletion()
+            closeFailure.get()?.let { throw it }
+        }
+    }
+
+    private fun admitLifecycleCall(): Boolean {
+        var admitted = lifecycleState.get() == LifecycleState.OPEN
+        if (admitted) {
+            admittedCalls.incrementAndGet()
+            admitted = lifecycleState.get() == LifecycleState.OPEN
+            if (!admitted) releaseLifecycleCall()
+        }
+        return admitted
+    }
+
+    private fun releaseLifecycleCall() {
+        if (admittedCalls.decrementAndGet() == 0) submissionsDrained.get()?.countDown()
+    }
+
+    private fun awaitAdmittedCalls() {
+        val drain = CountDownLatch(1)
+        submissionsDrained.set(drain)
+        if (admittedCalls.get() == 0) drain.countDown()
+        awaitUninterruptibly(drain)
+    }
+
+    private fun awaitCloseCompletion() {
+        awaitUninterruptibly(closeCompleted)
+    }
+
+    private fun awaitUninterruptibly(latch: CountDownLatch) {
+        var interrupted = false
+        while (true) {
+            try {
+                latch.await()
+                break
+            } catch (_: InterruptedException) {
+                interrupted = true
+            }
+        }
+        if (interrupted) Thread.currentThread().interrupt()
     }
 
     private fun closeAfterConstructionFailure(delegate: LeaderAuditExporter, failure: Throwable) {
@@ -81,12 +155,40 @@ class MicrometerLeaderAuditExporter(
     private class Registration(
         val manager: RegistryManager,
         val delegate: LeaderAuditExporter,
+        private val ownershipToken: Any,
     ) : AutoCloseable {
         private val closed = AtomicBoolean(false)
 
         override fun close() {
             if (closed.compareAndSet(false, true)) {
-                manager.close(delegate)
+                try {
+                    manager.close(delegate)
+                } finally {
+                    DelegateOwnershipStore.release(delegate, ownershipToken)
+                }
+            }
+        }
+    }
+
+    private object DelegateOwnershipStore {
+        private val lock = Any()
+        private val referenceQueue = ReferenceQueue<LeaderAuditExporter>()
+        private val owners = HashMap<WeakIdentityKey<LeaderAuditExporter>, Any>()
+
+        fun claim(delegate: LeaderAuditExporter, token: Any) = synchronized(lock) {
+            drainCollectedDelegates()
+            if (owners.keys.any { it.get() === delegate }) throw DelegateAlreadyOwnedException()
+            owners[WeakIdentityKey(delegate, referenceQueue)] = token
+        }
+
+        fun release(delegate: LeaderAuditExporter, token: Any) = synchronized(lock) {
+            owners.entries.removeIf { (key, owner) -> key.get() === delegate && owner === token }
+        }
+
+        private fun drainCollectedDelegates() {
+            while (true) {
+                val collected = referenceQueue.poll() as WeakIdentityKey<LeaderAuditExporter>? ?: return
+                owners.remove(collected)
             }
         }
     }
@@ -94,9 +196,9 @@ class MicrometerLeaderAuditExporter(
     private object RegistryManagerStore {
         private val lock = Any()
         private val referenceQueue = ReferenceQueue<MeterRegistry>()
-        private val managers = HashMap<WeakIdentityKey, RegistryManager>()
+        private val managers = HashMap<WeakIdentityKey<MeterRegistry>, RegistryManager>()
 
-        fun acquire(registry: MeterRegistry, delegate: LeaderAuditExporter): Registration =
+        fun acquire(registry: MeterRegistry, delegate: LeaderAuditExporter, ownershipToken: Any): Registration =
             synchronized(lock) {
                 drainCollectedRegistries()
                 val entry = managers.entries.firstOrNull { it.key.get() === registry }
@@ -104,7 +206,7 @@ class MicrometerLeaderAuditExporter(
                     managers[WeakIdentityKey(registry, referenceQueue)] = it
                 }
                 try {
-                    manager.acquire(registry, delegate)
+                    manager.acquire(registry, delegate, ownershipToken)
                 } catch (failure: Throwable) {
                     if (manager.isUnused()) {
                         managers.entries.removeIf { it.value === manager }
@@ -115,27 +217,33 @@ class MicrometerLeaderAuditExporter(
 
         private fun drainCollectedRegistries() {
             while (true) {
-                val collected = referenceQueue.poll() as WeakIdentityKey? ?: return
+                val collected = referenceQueue.poll() as WeakIdentityKey<MeterRegistry>? ?: return
                 managers.remove(collected)
             }
         }
     }
 
-    private class WeakIdentityKey(
-        referent: MeterRegistry,
-        queue: ReferenceQueue<MeterRegistry>,
-    ) : WeakReference<MeterRegistry>(referent, queue) {
+    private class WeakIdentityKey<T : Any>(
+        referent: T,
+        queue: ReferenceQueue<T>,
+    ) : WeakReference<T>(referent, queue) {
         private val identityHash = System.identityHashCode(referent)
 
         override fun hashCode(): Int = identityHash
 
-        override fun equals(other: Any?): Boolean =
-            this === other || (other is WeakIdentityKey && get() != null && get() === other.get())
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            val otherKey = other as? WeakIdentityKey<*> ?: return false
+            val referent = get() ?: return false
+            return referent === otherKey.get()
+        }
     }
 
     private class RegistryManager {
         private val lock = Any()
         private val meters = HashMap<MetricDescriptor, Meter>()
+        private var registryReference: WeakReference<MeterRegistry>? = null
+        private var metersReady = false
         private var activeDelegate: LeaderAuditExporter? = null
         private var offsets = CumulativeValues.ZERO
         private var detachedSnapshot = TerminalSnapshot
@@ -145,12 +253,13 @@ class MicrometerLeaderAuditExporter(
         private var sourceDegraded = false
         private var lastTrustedCumulative = CumulativeValues.ZERO
         private var lastTrustedGauge = GaugeValues(0, 0, false)
+        private var ownershipWarningIssued = false
 
         fun isUnused(): Boolean = synchronized(lock) {
-            activeDelegate == null && meters.isEmpty() && !compromised
+            activeDelegate == null && meters.isEmpty()
         }
 
-        fun acquire(registry: MeterRegistry, delegate: LeaderAuditExporter): Registration =
+        fun acquire(registry: MeterRegistry, delegate: LeaderAuditExporter, ownershipToken: Any): Registration =
             synchronized(lock) {
                 check(!compromised) {
                     OWNERSHIP_CONFLICT_MESSAGE
@@ -159,13 +268,15 @@ class MicrometerLeaderAuditExporter(
                     if (active === delegate) throw DelegateAlreadyOwnedException()
                     error("A MicrometerLeaderAuditExporter is already active for this MeterRegistry")
                 }
+                registryReference = registryReference ?: WeakReference(registry)
                 ensureMeters(registry)
+                metersReady = true
                 activeDelegate = delegate
                 state = ManagerState.OPEN
                 sourceDegraded = false
                 lastTrustedCumulative = CumulativeValues.ZERO
                 lastTrustedGauge = GaugeValues(0, 0, false)
-                Registration(this, delegate)
+                Registration(this, delegate, ownershipToken)
             }
 
         fun close(delegate: LeaderAuditExporter) {
@@ -199,18 +310,34 @@ class MicrometerLeaderAuditExporter(
                 try {
                     val closeEntry = closingSnapshot
                     val final = finalSnapshot
-                    if (final != null && closeEntry != null && final.isNotLessThan(closeEntry)) {
+                    val trustedCumulative = closeEntry
+                        ?.cumulativeValues()
+                        ?.takeIf { it.isNotLessThan(lastTrustedCumulative) }
+                        ?: lastTrustedCumulative
+                    val trustedGauge = closeEntry?.gaugeValues() ?: lastTrustedGauge
+                    if (closeEntry == null || !closeEntry.cumulativeValues().isNotLessThan(lastTrustedCumulative)) {
+                        markSourceDegraded()
+                    }
+                    if (final != null && final.cumulativeValues().isNotLessThan(trustedCumulative)) {
                         offsets = offsets + final.cumulativeValues()
                         detachedSnapshot = final.asDetached()
                     } else {
                         markSourceDegraded()
-                        offsets = offsets + (closeEntry?.cumulativeValues() ?: CumulativeValues.ZERO)
-                        detachedSnapshot = (closeEntry?.asDetached() ?: TerminalSnapshot).asTerminal()
+                        offsets = offsets + trustedCumulative
+                        detachedSnapshot = DetachedSnapshot(trustedCumulative, trustedGauge).asTerminal()
                     }
                 } catch (failure: Throwable) {
                     primary = appendFailure(primary, failure)
                     markSourceDegraded()
-                    detachedSnapshot = (closingSnapshot?.asDetached() ?: TerminalSnapshot).asTerminal()
+                    val fallback = closingSnapshot
+                        ?.cumulativeValues()
+                        ?.takeIf { it.isNotLessThan(lastTrustedCumulative) }
+                        ?: lastTrustedCumulative
+                    offsets = offsets + fallback
+                    detachedSnapshot = DetachedSnapshot(
+                        fallback,
+                        closingSnapshot?.gaugeValues() ?: lastTrustedGauge,
+                    ).asTerminal()
                 } finally {
                     activeDelegate = null
                     closingSnapshot = null
@@ -221,34 +348,52 @@ class MicrometerLeaderAuditExporter(
         }
 
         fun counter(descriptor: MetricDescriptor): Double = synchronized(lock) {
+            verifyMeterOwnership()
             currentCumulative().value(descriptor.field).toDouble()
         }
 
         fun gauge(field: SnapshotField): Double = synchronized(lock) {
+            verifyMeterOwnership()
             currentGauge().value(field)
         }
 
         private fun ensureMeters(registry: MeterRegistry) {
-            METRIC_DESCRIPTORS.forEach { descriptor ->
-                val existing = meters[descriptor]
-                if (existing != null) {
-                    val registered = findMeter(registry, descriptor)
-                    check(registered === existing) {
-                        compromised = true
-                        OWNERSHIP_CONFLICT_MESSAGE
+            val createdDescriptors = mutableListOf<MetricDescriptor>()
+            try {
+                METRIC_DESCRIPTORS.forEach { descriptor ->
+                    val existing = meters[descriptor]
+                    if (existing != null) {
+                        if (findMeter(registry, descriptor) !== existing) failOwnership()
+                        return@forEach
                     }
-                    return@forEach
+                    if (findMeter(registry, descriptor) != null) failOwnership()
+                    val created = registerMeter(registry, descriptor)
+                    if (findMeter(registry, descriptor) !== created) failOwnership()
+                    meters[descriptor] = created
+                    createdDescriptors += descriptor
                 }
-                check(findMeter(registry, descriptor) == null) {
-                    compromised = true
-                    OWNERSHIP_CONFLICT_MESSAGE
+            } catch (failure: Throwable) {
+                createdDescriptors.forEach { descriptor ->
+                    meters.remove(descriptor)?.let { meter -> registry.remove(meter) }
                 }
-                val created = registerMeter(registry, descriptor)
-                check(findMeter(registry, descriptor) === created) {
-                    compromised = true
-                    OWNERSHIP_CONFLICT_MESSAGE
+                throw failure
+            }
+        }
+
+        private fun failOwnership(): Nothing {
+            markOwnershipCompromised()
+            throw IllegalStateException(OWNERSHIP_CONFLICT_MESSAGE)
+        }
+
+        private fun verifyMeterOwnership() {
+            if (!metersReady || compromised) return
+            val registry = registryReference?.get() ?: return
+            if (METRIC_DESCRIPTORS.any { descriptor ->
+                    val expected = meters[descriptor] ?: return@any true
+                    findMeter(registry, descriptor) !== expected
                 }
-                meters[descriptor] = created
+            ) {
+                markOwnershipCompromised()
             }
         }
 
@@ -277,6 +422,7 @@ class MicrometerLeaderAuditExporter(
         }
 
         private fun currentCumulative(): CumulativeValues {
+            if (compromised) return detachedSnapshot.cumulativeValues()
             val active = activeDelegate
             return when (state) {
                 ManagerState.OPEN -> offsets +
@@ -288,6 +434,7 @@ class MicrometerLeaderAuditExporter(
         }
 
         private fun currentGauge(): GaugeValues {
+            if (compromised) return detachedSnapshot.gaugeValues()
             val active = activeDelegate
             return when (state) {
                 ManagerState.OPEN -> active?.let(::readSnapshot)?.gaugeValues() ?: lastTrustedGauge
@@ -298,9 +445,16 @@ class MicrometerLeaderAuditExporter(
 
         private fun readSnapshot(delegate: LeaderAuditExporter): LeaderAuditExportSnapshot? = try {
             delegate.snapshot().also { snapshot ->
-                lastTrustedCumulative = snapshot.cumulativeValues()
+                val cumulative = snapshot.cumulativeValues()
+                if (!cumulative.isNotLessThan(lastTrustedCumulative)) {
+                    markSourceDegraded()
+                    return null
+                }
+                lastTrustedCumulative = cumulative
                 lastTrustedGauge = snapshot.gaugeValues()
             }
+        } catch (failure: CancellationException) {
+            throw failure
         } catch (_: Exception) {
             markSourceDegraded()
             null
@@ -312,12 +466,32 @@ class MicrometerLeaderAuditExporter(
                 log.warn { SOURCE_DEGRADED_MESSAGE }
             }
         }
+
+        private fun markOwnershipCompromised() {
+            if (!compromised) {
+                compromised = true
+                detachedSnapshot = DetachedSnapshot(
+                    cumulative = offsets + lastTrustedCumulative,
+                    gauges = lastTrustedGauge,
+                ).asTerminal()
+            }
+            if (!ownershipWarningIssued) {
+                ownershipWarningIssued = true
+                log.warn { OWNERSHIP_CONFLICT_WARNING }
+            }
+        }
     }
 
     private enum class ManagerState {
         OPEN,
         CLOSING,
         DETACHED,
+    }
+
+    private enum class LifecycleState {
+        OPEN,
+        CLOSING,
+        CLOSED,
     }
 
     private class DelegateAlreadyOwnedException : IllegalStateException(
@@ -423,6 +597,7 @@ class MicrometerLeaderAuditExporter(
     private companion object : KLogging() {
         const val OWNERSHIP_CONFLICT_MESSAGE =
             "MeterRegistry already contains a foreign or compromised leader audit meter"
+        const val OWNERSHIP_CONFLICT_WARNING = "leader.audit.export.meter-ownership-conflict"
         const val SOURCE_DEGRADED_MESSAGE = "leader.audit.export.meter-source-degraded"
 
         val TerminalSnapshot = DetachedSnapshot(

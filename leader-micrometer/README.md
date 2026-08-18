@@ -282,6 +282,13 @@ the original exception.
 During an open generation, if a metric poll cannot read `delegate.snapshot()`, the
 decorator keeps the last trusted cumulative and gauge values, leaves
 `diagnosticsClosed=0`, and emits the fixed warning at most once for that generation.
+Every metric read also rechecks the identity of the 13 meters it owns. If another
+component removes or replaces one of those IDs, the manager freezes the last
+trusted detached values and emits the fixed `leader.audit.export.meter-ownership-conflict`
+warning once; it never reads or removes the foreign meter. A compromised manager
+is not reused, so recovery requires a fresh `MeterRegistry` after the conflicting
+registration is removed. The same delegate cannot be wrapped by two decorators,
+even when the registries differ; the failed wrapper leaves the active owner open.
 
 This slice provides Micrometer metrics only. JSONL output and an OpenTelemetry
 SDK/bridge/exporter are separate follow-up scope; applications must add those

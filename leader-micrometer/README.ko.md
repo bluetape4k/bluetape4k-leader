@@ -282,6 +282,13 @@ open generation에서 metric polling 중 `delegate.snapshot()`을 읽지 못하�
 decorator는 마지막으로 신뢰한 cumulative·gauge 값을 유지하고
 `diagnosticsClosed=0`을 보존하며 해당 generation에서 fixed warning을 최대 한 번만
 기록합니다.
+각 metric read는 decorator가 소유한 13개 meter의 identity도 다시 확인합니다. 다른
+컴포넌트가 고정 ID를 제거하거나 교체하면 manager는 마지막으로 신뢰한 detached 값을
+고정하고 `leader.audit.export.meter-ownership-conflict` warning을 한 번만 기록하며
+foreign meter를 읽거나 제거하지 않습니다. compromised manager는 재사용하지 않으므로
+충돌 등록을 제거한 뒤 새 `MeterRegistry`를 사용해야 복구할 수 있습니다. registry가
+달라도 동일 delegate를 두 decorator가 감쌀 수 없으며, 실패한 wrapper는 active owner를
+닫지 않습니다.
 
 이번 slice는 Micrometer 메트릭만 제공합니다. JSONL 출력과 OpenTelemetry
 SDK/bridge/exporter는 별도 후속 범위이며 애플리케이션이 해당 의존성과 transport를
