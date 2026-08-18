@@ -849,8 +849,10 @@
   snapshot에 보존하고 `finally`에서 `DETACHED`로 복구하는지, close 예외가 primary로 유지되고
   final snapshot/transition 예외가 suppressed되는지, 이후 replacement acquire가 성공하는지
   검증한다.
-  final snapshot 자체가 예외를 던지는 fixture도 close-entry 기반 offset/gauge를 보존하고
-  provider를 clear한 뒤 `DETACHED`로 전환하는지 확인한다.
+  final snapshot 자체가 예외를 던지는 fixture도 close-entry 기반 offset을 보존하고
+  provider를 clear한 뒤 `DETACHED`로 전환하는지 확인한다. 이 fallback에서는 cumulative
+  counter offset만 보존하고 `queue=0`, `inFlight=0`, `scheduledRetries=0`, `admitted=0`,
+  `diagnosticsClosed=true`, `closed=true`인 terminal gauge truth table을 exact assertion한다.
   constructor 실패는 delegate를 정확히 한 번 close하고 primary exception을 보존하며,
   delegate close/partial-registration cleanup 예외는 primary에 suppressed로 붙이고,
   primary가 없을 때만 cleanup 예외를 던지는지 검증한다. manager-owned partial registration만
@@ -894,9 +896,11 @@
   `finally`에서 같은 generation의 final snapshot에 대해 각 cumulative counter의
   `final >= close-entry` invariant를 검증하고 `final - close-entry` delta만 정확히 한 번
   `closingOffsets`에 반영한다. 음수 delta는 `check`/diagnostic failure로 드러내며 0으로
-  clamp하지 않는다. gauge는 final snapshot을 사용하고, final snapshot 실패 시에는
-  close-entry 기반 view를 유지한 inner `finally`에서 provider를 clear하여 `DETACHED`로
-  전환한다. 따라서 close-owned cancellation/rejection은 보존되고 close-entry counter는
+  clamp하지 않는다. gauge는 final snapshot을 사용하고, final snapshot 실패 시에는 cumulative
+  counter만 close-entry 기반 view로 유지하며 `queue=0`, `inFlight=0`,
+  `scheduledRetries=0`, `admitted=0`, `diagnosticsClosed=true`, `closed=true`인 terminal
+  fallback gauge를 합성한 뒤 inner `finally`에서 provider를 clear하여 `DETACHED`로 전환한다.
+  따라서 close-owned cancellation/rejection은 보존되고 close-entry counter는
   중복 집계되지 않는다. final/transition 예외는 close 예외가 있으면 suppressed로 붙이고,
   없으면 primary로 던진다. 따라서 이전 close가 새 provider를 지울 수 없고, `CLOSING` 중
   replacement acquire는 거부되며 manager가 영구 `CLOSING`에 남지 않는다.
@@ -936,9 +940,11 @@
   generation의 final snapshot에 대해 각 cumulative counter의 `final >= close-entry`
   invariant를 검증하고 `final - close-entry` delta만 정확히 한 번 `closingOffsets`에
   반영한다. 음수 delta는 `check`/diagnostic failure로 드러내며 0으로 clamp하지 않는다.
-  gauge는 final snapshot 값을 사용하고, final snapshot 실패 시에는 close-entry 기반
-  `closingOffsets`/gauge를 유지한 inner `finally`에서 provider를 clear하여 `DETACHED`
-  claim을 해제한다. 따라서 close-entry counter를 중복 집계하지 않으면서 close-owned
+  gauge는 final snapshot 값을 사용하고, final snapshot 실패 시에는 cumulative counter만
+  close-entry 기반 `closingOffsets`로 유지하며 `queue=0`, `inFlight=0`,
+  `scheduledRetries=0`, `admitted=0`, `diagnosticsClosed=true`, `closed=true`인 terminal
+  fallback gauge를 합성한 inner `finally`에서 provider를 clear하여 `DETACHED` claim을
+  해제한다. 따라서 close-entry counter를 중복 집계하지 않으면서 close-owned
   cancellation/rejection을 final snapshot에 포함한다. `snapshot()`은 delegate close 후에도
   final counters를 O(1)로 읽을 수 있어야 한다. `registry.remove`를 호출하지 않으므로
   lookup/remove TOCTOU와 removal residue가 없고, stable meter identity는 replacement에서

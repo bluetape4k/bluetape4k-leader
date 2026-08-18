@@ -374,9 +374,11 @@ metric이 감소하지 않는다. close가 성공하거나 예외를 던지는 �
 lock을 재획득해 같은 generation의 `closingProvider` final snapshot을 읽고 각 cumulative
 counter에 대해 `final >= close-entry` invariant를 검증한 뒤 `final - close-entry` delta만
 정확히 한 번 `closingOffsets`에 반영한다. 음수 delta는 `check`/진단 실패로 드러내며 0으로
-숨기지 않는다. gauge는 final snapshot 값을 사용하고, final snapshot이 실패해도 close-entry
-기반 `closingOffsets`와 gauge를 유지한 채 inner `finally`에서 provider를 clear하여
-`DETACHED`로 전환한다. 따라서 close-entry counter를 다시 더해 중복 집계하지 않으며 close
+숨기지 않는다. gauge는 final snapshot 값을 사용하고, final snapshot이 실패하면 cumulative
+counter는 close-entry 기반 `closingOffsets`를 유지하되 terminal DETACHED fallback gauge
+`queue=0`, `inFlight=0`, `scheduledRetries=0`, `admitted=0`, `diagnosticsClosed=true`,
+`closed=true`를 합성한 뒤 inner `finally`에서 provider를 clear하여 `DETACHED`로 전환한다.
+따라서 close-entry counter를 다시 더해 중복 집계하지 않으며 close
 중 발생한 cancellation/rejection도 final delta에 포함된다. close/final snapshot/transition
 예외는 close 예외가 있으면 suppressed로 붙이고, 없으면 primary로 던진다. 따라서 manager가
 영구 `CLOSING`에 남지 않으며, replacement는 `DETACHED` 이후에만 허용된다. `snapshot()`은
