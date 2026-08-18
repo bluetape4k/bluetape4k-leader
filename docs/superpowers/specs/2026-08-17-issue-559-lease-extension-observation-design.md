@@ -198,6 +198,10 @@ LeaderAopAutoConfiguration
 
 `ObservationRegistry`가 없거나 `registry.isNoop`이거나 observation property가 꺼져 있으면 lease-extension observer bean을 만들지 않는다. `ObservationRegistryNotNoopCondition`이 실제 registry의 `isNoop`를 판정한다. 정상 registry에서 `LeaderObservationAutoConfiguration.leaseExtensionObserverRegistration(...)`은 `@Bean(destroyMethod = "close")`로 context별 `AutoCloseable` registration handle 하나만 소유하며, observer 객체 자체는 Spring bean으로 노출하지 않는다. process-global `LeaseExtensionObservationRegistrationManager`는 registry identity별 core registration 하나와 ref-count를 하나의 lock으로 선형화한다. context destroy는 자기 handle만 닫고 마지막 handle에서만 core registration을 닫으며, process-local dispatcher의 수명은 Spring context와 독립적이다. 동일 registry의 parent/child·병렬 context에서도 callback은 event당 한 번만 Micrometer observer에 전달되고, 모든 context가 닫힌 뒤 manager가 registry/handle strong reference를 보존하지 않아야 한다. 동일 registry의 옵션이 다르면 auto-configuration은 `IllegalStateException`으로 fail-fast하며 observer를 추가 등록하지 않는다. 사용자가 직접 registry를 등록하면 Spring auto-configuration을 거치지 않고도 core facade에 observer를 등록할 수 있으며, 이 직접 등록은 Spring shared-registration manager의 dedup 범위에 포함되지 않는다.
 
+#### PR3 lifecycle amendment (2026-08-18)
+
+Spring Boot의 `ObservationRegistryPostProcessor`가 registry handler와 customizer를 적용하기 전에 `Condition` 또는 `BeanFactoryPostProcessor`가 registry instance를 조회하면 정상 registry가 NOOP으로 오판되거나 post-processing을 건너뛸 수 있다. 따라서 위 계약의 구현 shape를 다음처럼 보정한다. `ObservationRegistryNotNoopCondition`은 registry instance를 만들지 않고 현재 context와 parent의 bean definition 후보만 확인한다. 실제 `isNoop` 판정과 registration은 모든 singleton이 post-processing된 뒤 실행되는 infrastructure `SmartInitializingSingleton` coordinator가 맡는다. coordinator는 정상 registry에만 이름이 고정된 `AutoCloseable` handle singleton을 동적으로 추가하고 `DisposableBean` 수명주기에서 자기 handle을 닫는다. NOOP registry에는 handle singleton 자체를 추가하지 않는다. parent/child context 또는 여러 context가 같은 registry를 공유하면 `ObjectProvider`의 primary resolution으로 선택한 registry identity를 manager에 전달하고 context별 handle/ref-count를 유지한다. 이 amendment는 early-instantiation 방지, NOOP bean 부재, context destroy close를 동시에 만족시키며, 원래의 `@Bean(destroyMethod = "close")` 직접 반환 shape 대신 동일한 외부 lifecycle 결과를 보장한다.
+
 ## 5. failure mode와 완화책
 
 | failure mode | 잘못된 결과 | 완화책과 검증 |
@@ -243,7 +247,7 @@ LeaderAopAutoConfiguration
 ### 7.2 micrometer contract
 
 - `ObservationRegistry.NOOP` 및 registry 미설정 환경에서 observer bean이 등록되지 않고 각 boundary의 `hasObservers()` guard가 event/타이밍 객체를 만들지 않는 zero-allocation fast path임을 검증한다. add/remove 동시 race는 허용된 snapshot semantics와 일치해야 한다.
-- public `MicrometerObservationLeaderLeaseExtensionObserver`의 exact constructor, observation name, private/internal tag constants, Spring `AutoCloseable` registration bean의 `destroyMethod="close"`, `ObservationRegistryNotNoopCondition` 동작을 ABI/auto-configuration fixture로 검증한다.
+- public `MicrometerObservationLeaderLeaseExtensionObserver`의 exact constructor, observation name, private/internal tag constants, Spring dynamic `AutoCloseable` registration singleton의 presence/absence와 coordinator `DisposableBean` destroy-close, candidate-only `ObservationRegistryNotNoopCondition` 동작을 ABI/auto-configuration fixture로 검증한다.
 - source/execution/outcome/result가 bounded low-cardinality로 기록되는지 검증한다.
 - 기본 옵션에서 raw lock name, audit leader ID, exception details가 기록되지 않는지 검증한다.
 - opt-in 옵션에서 identity/exception이 high-cardinality 또는 명시된 detail field로만 노출되는지 검증한다. 기본 observer가 `BackendError.cause`를 저장·직렬화하지 않는지도 검증한다.

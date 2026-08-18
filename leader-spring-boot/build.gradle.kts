@@ -137,6 +137,7 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.spring.boot.test)
     testImplementation(libs.spring.boot.test.autoconfigure)
+    testImplementation("org.springframework.boot:spring-boot-micrometer-observation")
     testImplementation(libs.spring.test)
     testImplementation("org.springframework:spring-webmvc")
     testImplementation("org.springframework:spring-webflux")

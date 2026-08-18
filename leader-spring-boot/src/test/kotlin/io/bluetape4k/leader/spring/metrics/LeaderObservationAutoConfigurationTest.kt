@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.spring.metrics
 
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
@@ -13,14 +14,18 @@ import io.bluetape4k.leader.micrometer.MicrometerObservationLeaderElectionListen
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopFactoryAutoConfiguration
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import io.micrometer.observation.Observation
+import io.micrometer.observation.ObservationHandler
 import io.micrometer.observation.ObservationRegistry
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.getBeansOfType
 import org.springframework.boot.autoconfigure.AutoConfigurations
+import org.springframework.boot.micrometer.observation.autoconfigure.ObservationAutoConfiguration
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Primary
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LeaderObservationAutoConfigurationTest {
@@ -48,11 +53,63 @@ class LeaderObservationAutoConfigurationTest {
     }
 
     @Test
+    fun `정상 ObservationRegistry 는 context 소유 lease-extension registration handle 을 등록한다`() {
+        runner
+            .withUserConfiguration(ObservationRegistryConfig::class.java)
+            .run { ctx ->
+                ctx.containsBean("leaseExtensionObserverRegistration").shouldBeTrue()
+                ctx.getBean("leaseExtensionObserverRegistration")
+                    .shouldBeInstanceOf<AutoCloseable>()
+                LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 1
+            }
+
+        LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `NOOP ObservationRegistry 는 lease-extension registration bean 을 만들지 않는다`() {
+        runner
+            .withUserConfiguration(NoopObservationRegistryConfig::class.java)
+            .run { ctx ->
+                ctx.containsBean("leaseExtensionObserverRegistration").shouldBeFalse()
+                LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 0
+            }
+    }
+
+    @Test
     fun `ObservationRegistry 빈 없을 때 Observation recorder 와 listener 미등록`() {
         runner.run { ctx ->
             ctx.getBeansOfType<MicrometerObservationLeaderAopMetricsRecorder>().isEmpty().shouldBeTrue()
             ctx.getBeansOfType<MicrometerObservationLeaderElectionListener>().isEmpty().shouldBeTrue()
         }
+    }
+
+    @Test
+    fun `Boot ObservationRegistry post-processor 가 handler 를 적용한 뒤 registration 한다`() {
+        runner
+            .withConfiguration(AutoConfigurations.of(ObservationAutoConfiguration::class.java))
+            .withUserConfiguration(BootObservationHandlerConfig::class.java)
+            .run { ctx ->
+                ctx.getBean(ObservationRegistry::class.java).isNoop.shouldBeFalse()
+                ctx.containsBean("leaseExtensionObserverRegistration").shouldBeTrue()
+                LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 1
+            }
+
+        LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `primary ObservationRegistry 가 여러 registry 중 lease-extension registration 대상이 된다`() {
+        runner
+            .withUserConfiguration(MultipleObservationRegistryConfig::class.java)
+            .run { ctx ->
+                val primary = ctx.getBean(ObservationRegistry::class.java)
+                ctx.containsBean("leaseExtensionObserverRegistration").shouldBeTrue()
+                LeaseExtensionObservationRegistrationManager.referenceCount(primary) shouldBeEqualTo 1
+                LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 1
+            }
+
+        LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 0
     }
 
     @Test
@@ -171,7 +228,39 @@ class LeaderObservationAutoConfigurationTest {
     @Configuration(proxyBeanMethods = false)
     class ObservationRegistryConfig {
         @Bean
-        fun observationRegistry(): ObservationRegistry = ObservationRegistry.create()
+        fun observationRegistry(): ObservationRegistry = ObservationRegistry.create().apply {
+            observationConfig().observationHandler(NonNoopObservationHandler)
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class NoopObservationRegistryConfig {
+        @Bean
+        fun observationRegistry(): ObservationRegistry = ObservationRegistry.NOOP
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class BootObservationHandlerConfig {
+        @Bean
+        fun observationHandler(): ObservationHandler<Observation.Context> = NonNoopObservationHandler
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class MultipleObservationRegistryConfig {
+        @Bean
+        @Primary
+        fun primaryObservationRegistry(): ObservationRegistry = ObservationRegistry.create().apply {
+            observationConfig().observationHandler(NonNoopObservationHandler)
+        }
+
+        @Bean
+        fun secondaryObservationRegistry(): ObservationRegistry = ObservationRegistry.create().apply {
+            observationConfig().observationHandler(NonNoopObservationHandler)
+        }
+    }
+
+    private object NonNoopObservationHandler : ObservationHandler<Observation.Context> {
+        override fun supportsContext(context: Observation.Context): Boolean = true
     }
 
     @Configuration(proxyBeanMethods = false)
