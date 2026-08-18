@@ -128,16 +128,20 @@ public `LeaderAuditExporter`는 다음 경계를 갖는다.
 - `submit`은 delivery 오류를 throw하지 않는다. caller가 결과를 관찰할 수 있지만
   leader election의 반환값·예외에는 영향을 주지 않는다.
 - `close()`는 신규 admission을 차단하고 queued/retry 작업을 취소한다. close는
-  네트워크 drain을 기다리지 않으며 idempotent다.
+  네트워크 drain은 기다리지 않지만 diagnostics worker와 이미 실행 중인 observer
+  callback의 종료를 join한 뒤 반환하며 idempotent다. callback이 interrupt를 무시해도
+  close 이후 새 callback admission은 허용하지 않는다.
 - `observe(observer)`는 accepted/drop/retry/terminal-failure/cancel/rejection의 유한한 lifecycle
-  outcome을 exporter가 소유하는 bounded diagnostics queue와 전용 diagnostics worker를
-  통해 caller thread 밖에서 best-effort로 전달한다. `submit`은 diagnostics queue에
+  outcome을 exporter가 소유하는 diagnostics queue와 이름이 고정된 daemon virtual-thread
+  worker를 통해 caller thread 밖에서 best-effort로 전달한다. queue capacity는
+  `min(queueCapacity, 1024)`로 파생하고 atomic permit으로 제한한다. `submit`은 queue에
   non-blocking offer만 수행하므로 observer callback과 diagnostics worker가 block되어도
-  admission thread를 block하지 않는다. diagnostics queue가 가득 차면 callback 없이
-  `observerDrops`만 증가한다. observer가 `Exception`을 던져도 admission, permit, election
-  결과에는 영향을 주지 않는다. observer `Error`는 callback task를 terminalize한 뒤
-  diagnostics worker의 uncaught boundary로 원래 인스턴스를 재전파한다. event 값·lock 이름·
-  endpoint·error message는 observer payload에 포함하지 않는다.
+  admission thread를 block하지 않는다. queue가 가득 차면 callback 없이 `observerDrops`만
+  증가한다. exporter `close()`는 diagnostics gate를 닫고 queued callback을 drop한 뒤
+  worker를 interrupt/unpark하고 join하여 종료와 late callback 0을 확인한다. observer가
+  `Exception`을 던져도 admission, permit, election 결과에는 영향을 주지 않으며 observer
+  `Error`는 callback state를 terminalize한 뒤 worker uncaught boundary로 재전파한다.
+  event 값·lock 이름·endpoint·error message는 observer payload에 포함하지 않는다.
 - `snapshot()`은 queued, in-flight, scheduled-retry, total admitted 수와
   accepted/drop/retry/terminal failure, cancellation, executor/scheduler rejection,
   observer drop을 누적한 bounded diagnostics를 반환한다. 스냅숏 값은 lock 이름·endpoint·
@@ -155,6 +159,14 @@ observer enum은 `ACCEPTED`,
 없다. timeout이 소유한 future cancel은 `RETRY` 또는 마지막 attempt의
 `TERMINAL_FAILURE`만 만들고 `CANCELLED`를 중복 생성하지 않는다. close-owned cancel은
 `CANCELLED`만 만들며 retry/failure를 만들지 않는다.
+
+observer registration은 최대 16개로 제한한다. `observe()`가 반환하는 handle의
+`close()`는 registry에서 observer를 선형적으로 제거하고 반환 이후 해당 observer에
+대한 callback 시작을 허용하지 않는다. 이미 실행 중인 callback은 현재 호출만 마친다.
+17번째 registration은 no-op handle을 반환하고 `observerDrops`를 1 증가시킨다.
+diagnostics worker에서 observer `Error`가 발생하면 diagnostics gate를 CLOSED로
+전환하고 queued callback을 drop한 뒤 원래 `Error`를 uncaught boundary로 재전파하며,
+worker를 자동 재시작하지 않는다. 이후 `observe()`는 no-op handle을 반환한다.
 
 취소 원인별 관찰 순서는 다음 표로 고정한다.
 
@@ -184,8 +196,10 @@ shutdown하지 않는다. worker/retry schedule rejection은 accepted item을 �
 ### Delivery와 HTTP/webhook
 
 dispatcher는 transport-neutral one-shot delivery 함수와 분리한다. HTTP adapter는
-주입받은 `HttpClient`, target `URI`, headers, `LeaderAuditPayloadEncoder`를
-사용한다.
+주입받은 `HttpClient`, `LeaderAuditTrustedHttpsEndpoint`, headers,
+`LeaderAuditPayloadEncoder`를 사용한다. `LeaderAuditTrustedHttpsEndpoint.trusted(URI)`
+는 HTTPS·URI syntax만 검사하는 명시적 caller trust wrapper이며, private-network와
+DNS/SSRF 정책의 ownership을 caller에게 남긴다.
 
 - encoder는 이미 redacted event를 `ByteArray`로 변환하고 content type을 제공한다.
   payload에는 양의 유한 `maxPayloadBytes` 상한을 적용하며 초과 payload는 request를
@@ -202,13 +216,14 @@ dispatcher는 transport-neutral one-shot delivery 함수와 분리한다. HTTP a
   body 보존 상한은 0 byte다. 따라서 oversized/chunked body를 메모리에 축적하지 않는다.
   이는 메모리 retention bound일 뿐 네트워크 ingress truncation 계약은 아니다. log에는
   endpoint credential이나 body를 남기지 않는다.
-- target URI는 production에서 HTTPS만 허용하고, user-info/query/fragment와 control
-  character를 거부한다. loopback·link-local·RFC1918 private address는 거부하며,
-  HTTP loopback은 public option이 아니라 `internal` test-only allow-list에서만 허용한다.
-  resolver가 반환한 모든 주소에 대해 loopback/link-local/site-local/any-local을
-  검사하며, 따라서 public API에는 임의 scheme allow-list나 insecure-loopback flag가
-  없다. resolver는 `internal` test seam으로 주입해 이 검사를 DNS/network 없이
-  deterministic하게 검증한다.
+- production target은 `LeaderAuditTrustedHttpsEndpoint.trusted(uri)`로 명시적으로
+  감싼 HTTPS-only endpoint만 받고 user-info/query/fragment와 control character를
+  거부한다. 이 타입은 caller가 endpoint allow-list와 DNS/SSRF trust를 확인했다는
+  explicit ownership boundary이며 library는 hostname을 IP에 pin하거나 DNS rebinding을
+  막는다고 주장하지 않는다. private/link-local/ULA/CGNAT와 DNS rebinding은 v1 비목표이고
+  운영 문서는 static trusted endpoint 또는 별도 egress proxy를 사용하도록 한다. HTTP
+  loopback은 public option이 아니라 `internal` test-only allow-list에서만 허용하며,
+  public API에는 임의 scheme allow-list나 insecure-loopback flag가 없다.
   injected `HttpClient`는 `Redirect.NEVER`여야 하며, header map은 immutable
   allow-list로 복사하고 CR/LF·`Host`·`Content-Length`·`Connection` 등 forbidden header를
   거부한다. Authorization 같은 credential header는 전송할 수 있지만 로그·metric·event에는
@@ -245,9 +260,11 @@ crash 또는 close는 drain하지 않은 work를 잃을 수 있다. receiver는 
 
 ### Micrometer 관찰
 
-`MicrometerLeaderAuditExporter`는 core exporter를 decorator하고
-`(delegate, registry, ownsDelegate:Boolean)` exact constructor로 다음 metric을
-제공한다.
+`MicrometerLeaderAuditExporter`는 core exporter를 소유하는 decorator하고
+`(delegate, registry)` exact constructor로 다음 metric을 제공한다. decorator `close()`는
+observer handle을 해제한 뒤 delegate를 닫아 wrapper와 direct delegate 모두 close 후
+`DROPPED_CLOSED`가 되게 한다. non-owning observation은 wrapper가 아니라 public
+`observe()` handle을 별도로 사용한다.
 
 - accepted submissions
 - queue-full drops
@@ -255,6 +272,8 @@ crash 또는 close는 drain하지 않은 work를 잃을 수 있다. receiver는 
 - retry attempts
 - terminal delivery failures
 - queue depth, in-flight delivery, cancellation/rejection diagnostics
+- diagnostics queue saturation as `leader.audit.export.observer.dropped`; this cumulative
+  counter mirrors `snapshot().observerDrops` and is not reset by `close()`.
 
 metric tag는 `source`, `outcome`, `transport`처럼 유한한 값만 사용한다. raw
 lock name, leader ID, endpoint, error message는 metric tag가 되지 않는다.

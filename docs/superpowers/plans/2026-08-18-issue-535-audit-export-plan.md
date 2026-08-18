@@ -236,6 +236,15 @@
   fun `blocking observer never delays submit and diagnostic drop is counted`() { /* async observer */ }
 
   @Test
+  fun `diagnostics capacity is bounded and close stops queued observer callbacks`() { /* diagnostics lifecycle */ }
+
+  @Test
+  fun `observer handle close prevents queued callback start after return`() { /* handle */ }
+
+  @Test
+  fun `diagnostics Error closes diagnostics without restarting the worker`() { /* fatal diagnostics */ }
+
+  @Test
   fun `exceptional and cancelled delivery futures terminalize once without throwing to submitter`() { /* exception matrix */ }
 
   @Test
@@ -247,6 +256,11 @@
   @Test
   fun `worker exit and concurrent submit reschedule without lost wakeup`() { /* worker barrier */ }
 
+  @Test
+  fun `fixed contention has no submit wait and bounded admission outcomes`() {
+      // 32 contenders × 100 iterations, barrier before each batch, manual executor paused.
+  }
+
   ```
 
   각 테스트는 `ACCEPTED`, `DROPPED_QUEUE_FULL`, `DROPPED_CLOSED`, attempt count,
@@ -255,8 +269,14 @@
   queued/scheduled/in-flight cancel count, retry permit lifecycle, executor rejection과
   scheduler rejection 각각의 capacity recovery, observer exact count와 async dispatch,
   `inFlight <= maxInFlight`, worker-exit double-check/reschedule, caller-owned
-  executor/scheduler의 미종료를 함께 검증한다. `submit` source/benchmark guard는
+  executor/scheduler의 미종료를 함께 검증한다. diagnostics capacity
+  `min(queueCapacity, 1024)`, named daemon worker termination, observer registration cap
+  16, observer handle close linearization, queued callback drop와 `observerDrops` exact
+  count도 검증한다. `submit` source/benchmark guard는
   lock·blocking queue·capacity wait가 없고 contention 시 즉시 drop되는지 확인한다.
+  contention fixture는 32 contender, 100 iteration, barrier와 paused manual executor를
+  고정하고 각 submit 호출의 반환 latch, accepted/drop 합계, `snapshot()` permit bounds를
+  검증한다. wall-clock 성능 수치나 allocation threshold는 주장하지 않는다.
 
 - [ ] **Step 2: Run the focused test and verify RED**
 
@@ -363,17 +383,30 @@
   `AtomicBoolean`으로 terminalize한다. timeout은 future를 cancel하고 retryable
   failure로 분류하며, close가 먼저 이기면 observer/retry/failure를 만들지 않는다.
   `observe` callback은 submit thread에서 직접 실행하지 않는다. exporter가 소유하는
-  bounded diagnostics queue와 전용 diagnostics worker가 observation을 전달하며,
-  admission은 queue offer/CAS만 수행한다. diagnostics queue가 가득 차면
+  bounded diagnostics queue와 이름이 고정된 daemon virtual-thread worker가 observation을
+  전달한다. diagnostics capacity는 `min(queueCapacity, 1024)`로 파생해 별도 public
+  option 없이 항상 `1..1024`로 bounded하며, atomic permit과 `LockSupport.unpark`를
+  사용해 admission은 queue offer/CAS만 수행한다. diagnostics queue가 가득 차면
   `observerDrops`를 증가시키고 callback 없이 끝낸다. callback이 오래 걸려도
   admission worker와 선거 thread는 block하지 않는다. observer callback의 일반
   `Exception`만 격리하며 `Error`는 callback task를 terminalize한 뒤 전용 diagnostics
   worker의 uncaught boundary로 재전파한다. observer 또는 delivery가 `Error`를 던지면
-  상태/permit을 정확히 한 번 terminalize하고 같은 원래 `Error`를 재전파한다. executor 또는 scheduler rejection은 accepted item을
-  고착시키지 않고 rejection terminal/drop observation과 permit 반환으로 끝낸다.
-  worker는 `workerRunning.compareAndSet(false, true)`로 시작하고, empty 관찰 후
-  running flag를 clear하기 직전에 queue를 다시 확인한다. clear 이후 submit과 교차하면
-  submit이 double-check/reschedule을 수행하므로 lost wakeup이 없다. 별도 atomic
+  상태/permit을 정확히 한 번 terminalize하고 같은 원래 `Error`를 재전파한다. exporter
+  `close()`는 diagnostics closed gate를 먼저 세우고 queued diagnostics를 drop한 뒤
+  worker를 interrupt/unpark하고 join하여 worker 종료와 late callback 0을 확인한다.
+  close는 이미 실행 중인 callback을 마칠 때까지 join할 수 있으며, callback은 interrupt를
+  존중해야 한다. join이 끝난 뒤 diagnostics thread/task와 queued callback은 0이고,
+  callback이 interrupt를 무시해도 close는 callback admission을 다시 열지 않으며 해당
+  observer는 close 이후 새 callback을 받지 않는다. executor 또는 scheduler
+  rejection은 현재 worker가 보유한 queued batch 전체를 deterministic하게
+  `EXECUTOR_REJECTED` 또는 `SCHEDULER_REJECTED`로 terminalize하고 각 item의 permit을
+  정확히 한 번 반환한다. 어떤 accepted item도 고착되지 않으며, batch N개를 거부한
+  뒤 다음 `queueCapacity` submissions가 다시 모두 admission될 수 있어야 한다.
+  worker는 `workerRunning.compareAndSet(false, true)`로 시작한다. drain loop가 empty를
+  보면 먼저 `workerRunning.set(false)`를 publish한 다음 queue를 다시 확인하고,
+  non-empty면 `compareAndSet(false, true)`로 drain ownership을 재획득한다. submit도
+  enqueue 직후 동일한 `tryStartWorker()` CAS를 호출하므로 flag-clear와 enqueue가
+  어느 순서로 교차해도 lost wakeup이 없다. 별도 atomic
   in-flight reservation을 delivery 전에 획득하고 completion/timeout/close에서 정확히
   반환해 `inFlight <= maxInFlight`를 유지한다. close는 gate를 닫고 queue·retry·in-flight
   future를 취소한 뒤 scheduling critical section과 worker admission이 quiesce된 것을
@@ -381,6 +414,14 @@
   executor/scheduler에 새 execute/schedule을 호출하지 않는다. injected
   executor/scheduler는 exporter가 shutdown하지 않으며 ownership을 caller에게
   문서화한다.
+
+  observer registry는 최대 16개로 고정한다. `observe()` handle close는 registry에서
+  observer를 먼저 제거하고 반환하며, queued item은 callback 직전 active 상태를 다시
+  확인한다. 이미 실행 중인 callback만 현재 호출을 마친다. 17번째 registration은
+  no-op handle을 반환하고 `observerDrops`를 1 증가시킨다.
+  diagnostics worker에서 observer `Error`가 발생하면 diagnostics gate를 CLOSED로
+  전환하고 queued callback을 drop한 뒤 원래 `Error`를 uncaught boundary로 재전파하며,
+  worker를 자동 재시작하지 않는다. 이후 `observe()`는 no-op handle을 반환한다.
 
   `queued`, `inFlight`, `scheduledRetries`, `admitted`는 각각 `AtomicInteger`로
   유지하며 snapshot은 `queue.size` 또는 work-item 순회를 사용하지 않는 O(1) 읽기로
@@ -519,19 +560,22 @@
   | `LeaderAuditExportObserver` | `onObservation(LeaderAuditExportObservation): Unit` with finite enum only |
   | `LeaderAuditExportSnapshot` | immutable `queued`, `inFlight`, `scheduledRetries`, `admitted`, outcome counters, `observerDrops`, `closed`; no dynamic identifiers |
   | `LeaderAuditHttpPayload` | `of(String, byte[])`, `contentType`, `body(): byte[]`; constructor/body defensively copy |
-  | `HttpLeaderAuditExporter` | `(HttpClient, URI, Map<String,String>, LeaderAuditPayloadEncoder, LeaderAuditExportOptions, LeaderAuditHttpOptions)` plus `submit/observe/snapshot/close` |
+  | `LeaderAuditTrustedHttpsEndpoint` | `trusted(URI): LeaderAuditTrustedHttpsEndpoint`, `uri:URI`; caller-owned explicit trust boundary |
+  | `HttpLeaderAuditExporter` | `(HttpClient, LeaderAuditTrustedHttpsEndpoint, Map<String,String>, LeaderAuditPayloadEncoder, LeaderAuditExportOptions, LeaderAuditHttpOptions)` plus `submit/observe/snapshot/close` |
   | `LeaderAuditHttpOptions` | 1-argument constructor `(maxPayloadBytes:Int)`, `defaults(): LeaderAuditHttpOptions`, `maxPayloadBytes:Int`; production HTTPS-only, no public scheme/loopback bypass |
 
   Kotlin default arguments must not be the only construction path: the Java fixture
   constructs options and HTTP exporter explicitly, calls `submit`, and uses
   try-with-resources `close`. Duration units, caller ownership, `ACCEPTED != delivered`,
-  and redirect/header trust rules are part of the exact KDoc/ABI contract. Event types
+  explicit trusted endpoint construction, and redirect/header trust rules are part of the exact
+  KDoc/ABI contract. Event types
   are not `Serializable`; v1 wire/Java serialization compatibility is intentionally
   out of scope. The fixture also records nullable event properties (`nodeId`, `slotId`,
   `leaderId`, `leaseExpiry`, `errorType`, `errorMessage`) and rejects accidental platform
   types or synthetic overloads.
 
-  Java fixture는 core exporter와 HTTP exporter에서 `submit`, `observe`, `snapshot`,
+  Java fixture는 `LeaderAuditTrustedHttpsEndpoint.trusted(URI)`를 먼저 구성하고 core
+  exporter와 HTTP exporter에서 `submit`, `observe`, `snapshot`,
   `close`를 호출하고 decorator의 `snapshot()` delegation도 compile/run으로 고정한다.
   reflection으로 위 public constructor/method set과 JVM descriptor를 확인하고, event
   public field에 `token`이나 `LeaderLease`가 없는지 고정한다. `close()` idempotence와
@@ -581,15 +625,16 @@
 
   `SimpleMeterRegistry`에서 accepted, queue-full, closed, retry, terminal failure를
   각각 발생시키고 metric 이름과 finite tag set을 검증한다. 스냅숏의 queue depth,
-  in-flight, cancellation, executor/scheduler rejection gauge/counter도 검증한다.
+  in-flight, cancellation, executor/scheduler rejection와 observer-drop gauge/counter도
+  검증한다.
   정확한 allow-list는 `source={history,lifecycle,direct}`,
   `transport={core,http}`, `outcome={accepted,queue_full,closed,retry,failure,
   cancelled,rejected}`로 고정한다. 고유 lockName, leaderId, endpoint, error message를
   대량 제출해도 meter 수가 증가하지 않고 해당 값이 tag에 없는지 assertion한다.
   gauge 구현은 exporter `snapshot()`의 O(1) atomic counter를 읽고 queue를 순회하지
   않으며, snapshot object는 submit hot path에서 생성하지 않는다는 source/contract
-  assertion을 추가한다. `ownsDelegate=true/false` 각각에서 wrapper close twice,
-  observer detach, delegate close 여부와 snapshot delegation을 검증한다.
+  assertion을 추가한다. wrapper close twice에서 observer detach와 delegate close를
+  검증하고, wrapper close가 exporter close contract를 그대로 보존하는지 확인한다.
 
 - [ ] **Step 2: Run Micrometer test and verify RED**
 
@@ -600,10 +645,12 @@
 
 - [ ] **Step 3: Implement decorator and constants**
 
-  `MicrometerLeaderAuditExporter(delegate, registry, ownsDelegate)`는
-  `LeaderAuditExporter`를 그대로 구현하고 결과별 counter와 `snapshot()` gauge를
-  delegate에 위임한다. `ownsDelegate=true`일 때만 decorator close가 delegate를
-  닫고, `false`일 때는 observer handle만 해제한다. 생성 시 delegate에 bounded
+  `MicrometerLeaderAuditExporter(delegate, registry)`는 항상 delegate를 소유하는
+  `LeaderAuditExporter` decorator로 구현하고 결과별 counter와 `snapshot()` gauge를
+  delegate에 위임한다. decorator close는 observer handle을 먼저 idempotently 해제한
+  뒤 delegate를 닫아 wrapper와 direct delegate 모두 `DROPPED_CLOSED`를 반환하도록
+  한다. non-owning observation은 wrapper가 아니라 public `observe()` handle을
+  별도로 사용한다. 생성 시 delegate에 bounded
   `LeaderAuditExportObserver`를 등록해 retry, terminal failure, cancellation,
   rejection을 관찰하고 decorator close에서 observer handle을 idempotently 해제한다.
   delegate의 `snapshot()` descriptor와 값은 그대로 전달하며 metric registry 오류가
@@ -611,7 +658,10 @@
   metric names는 `leader.audit.export.accepted`, `leader.audit.export.dropped`,
   `leader.audit.export.retries`, `leader.audit.export.failures`,
   `leader.audit.export.queue.depth`, `leader.audit.export.in.flight`,
-  `leader.audit.export.cancelled`, `leader.audit.export.rejections`로 고정한다.
+  `leader.audit.export.cancelled`, `leader.audit.export.rejections`,
+  `leader.audit.export.observer.dropped`로 고정한다. `observerDrops`는 snapshot과
+  observer-dropped counter에서 같은 누적값을 보이며 exporter close 후 0으로 reset하지
+  않는다.
   `outcome`, `transport`, `source` tag 값은 위 enum allow-list만 사용하고 event field는
   tag로 복사하지 않는다. 기존 `HISTORY_SINK_FAILURES` counter는 건드리지 않는다.
 
@@ -644,6 +694,7 @@
 
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/http/LeaderAuditPayloadEncoder.kt`
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/http/LeaderAuditHttpOptions.kt`
+- Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/http/LeaderAuditTrustedHttpsEndpoint.kt`
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/http/HttpLeaderAuditDelivery.kt`
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/http/HttpLeaderAuditExporter.kt`
 - Test: `leader-core/src/test/kotlin/io/bluetape4k/leader/audit/http/HttpLeaderAuditDeliveryTest.kt`
@@ -664,9 +715,14 @@
   - oversized/chunked response는 `BodyHandlers.discarding()`으로 0 byte만 보존한다.
     이 계약은 메모리 retention bound이며 네트워크 ingress truncation을 약속하지
     않는다는 문서·negative test를 포함한다.
-  - production HTTPS-only, unsafe URI/user-info/query/fragment, loopback/link-local/
-    RFC1918 literal host, redirect, CRLF/unknown/forbidden header를 거부한다.
-    loopback HTTP는 public option이 아닌 `internal` test-only factory에서만 허용한다.
+  - production은 `LeaderAuditTrustedHttpsEndpoint.trusted(uri)`로 명시적으로 감싼
+    HTTPS-only target만 받고, unsafe URI/user-info/query/fragment/control character와
+    redirect/CRLF/unknown/forbidden header를 거부한다. private/link-local/ULA/CGNAT와
+    DNS rebinding 차단은 caller-owned trust boundary의 비목표임을 문서화하고, loopback
+    HTTP는 public option이 아닌 `internal` test-only factory에서만 허용한다.
+  - raw `URI`를 직접 받는 public constructor가 없고, unsafe URI는 trusted wrapper 생성에서
+    거부되며, private/ULA/CGNAT endpoint를 사용하려면 caller가 explicit trusted boundary를
+    선택해야 한다는 ABI/negative fixture를 고정한다.
   - encoder throw, exceptional/cancelled future, response body와 endpoint credential이
     log에 남지 않는 negative matrix를 검증한다.
   - exporter close가 in-flight future와 scheduled retry를 취소하고 late completion이
@@ -717,22 +773,34 @@
               LeaderAuditHttpOptions(64 * 1024)
       }
   }
+
+  class LeaderAuditTrustedHttpsEndpoint private constructor(
+      val uri: URI,
+  ) {
+      companion object {
+          @JvmStatic
+          fun trusted(uri: URI): LeaderAuditTrustedHttpsEndpoint {
+              require(uri.scheme.equals("https", ignoreCase = true))
+              require(uri.userInfo == null && uri.query == null && uri.fragment == null)
+              require(uri.host.isNotBlank())
+              require(uri.toString().none { it.code < 0x20 || it.code == 0x7f })
+              return LeaderAuditTrustedHttpsEndpoint(uri)
+          }
+      }
+  }
   ```
 
   `HARD_MAX_PAYLOAD_BYTES`는 1 MiB 상수로 고정하고 `of`는 caller ByteArray를 복사하기
   전에 그 상한을 검사한다. adapter는 다시 configured `maxPayloadBytes`를 검사해
   lower bound도 request 생성 전에 거부한다. `LeaderAuditHttpOptions`는
   `maxPayloadBytes` 기본 64 KiB, hard upper bound 1 MiB를
-  검증한다. production `HttpLeaderAuditExporter`는 HTTPS URI만 허용하며 public
-  options에 scheme allow-list나 insecure-loopback flag를 노출하지 않는다. loopback
-  HTTP는 `internal` test-only delivery factory에서만 허용하고 public Java/Kotlin ABI에
-  포함하지 않는다. production target은 user-info/query/fragment/control character와
-  loopback·link-local·RFC1918 literal address를 거부한다. private endpoint 예외는
-  이번 public API에 포함하지 않으며 후속 보안 검토 issue에서 별도 trusted boundary로
-  정의한다. production resolver는 URI host의 모든 `InetAddress` 결과에 대해
-  `isLoopbackAddress`, `isLinkLocalAddress`, `isSiteLocalAddress`, `isAnyLocalAddress`
-  를 검사하고 하나라도 해당하면 fail-fast한다. resolver는 `internal` seam으로 주입해
-  negative test가 DNS/network에 의존하지 않게 한다.
+  검증한다. production `HttpLeaderAuditExporter`는 위 `LeaderAuditTrustedHttpsEndpoint`
+  로 명시적으로 감싼 HTTPS target만 받는다. 이 타입은 caller가 allow-list와 DNS/SSRF
+  trust를 확인했다는 ownership boundary이며 library는 hostname을 IP에 pin하거나
+  DNS rebinding을 방지한다고 주장하지 않는다. 따라서 private/link-local/ULA/CGNAT와
+  DNS rebinding은 v1 비목표이고, 운영 문서는 static trusted endpoint 또는 별도 egress
+  proxy를 사용하도록 안내한다. loopback HTTP는 `internal` test-only delivery factory에서만
+  허용하고 public Java/Kotlin ABI에 포함하지 않는다.
   `HttpLeaderAuditDelivery`는
   `HttpRequest.newBuilder(uri).timeout(options.attemptTimeout).POST(...)`와
   `HttpClient.sendAsync(..., BodyHandlers.discarding())`를 사용한다. injected client의
@@ -745,7 +813,7 @@
   `Proxy-Authorization`, `X-Api-Key`, `Forwarded`와 모든 unknown header를 거부한다.
   encoder 예외는 delivery
   future의 terminal failure로 격리한다.
-  `HttpLeaderAuditExporter`는 Task 2 dispatcher에 delivery를 주입하고, URI·encoder·
+  `HttpLeaderAuditExporter`는 Task 2 dispatcher에 delivery를 주입하고, trusted endpoint·encoder·
   options·executor ownership 및 `exporter.close()` 후 외부 scheduler/executor를
   종료하는 순서를 KDoc로 명시한다. `snapshot()`은 delegate snapshot을 그대로
   반환한다. JSON serialization을 추가하지 않으며
@@ -805,7 +873,8 @@
   `releaseCommit`을 가리키므로 이번 train에서 해당 release manual을 수정하지 않는다.
   대신 draft EN/KO manual에 core 조립 순서
   (`sink → ExportingSink → SafeRecorder → backend`), `Listening*` lifecycle wrapper,
-  HTTP encoder/headers/receiver 예제, migration/limitations를 기록하고
+  `LeaderAuditTrustedHttpsEndpoint` construction, HTTP encoder/headers/receiver 예제,
+  caller-owned DNS/SSRF trust boundary와 migration/limitations를 기록하고
   “0.6.0 release manifest 전환 전에는 released claim이 아님”을 명시한다. 0.6
   release-authorized 후속 작업에서 draft를 pinned manual로 승격하고 manifest/
   release inventory를 함께 갱신한다. HTTP 예제의 `Authorization` 값은
@@ -826,9 +895,7 @@
   변경된 두 locale의 제목·API·metric·scope가 대응하고, draft는 0.5.0 release claim을
   과장하지 않는지 read-back한다. pinned manual의 release source validation은
   immutable commit에 대해 PASS해야 하며 draft token이 pinned 문서에 섞이지 않아야
-  한다. `rg -n 'Authorization: Bearer (sk-|ghp_|AKIA|eyJ)' docs/manual/drafts
-  README.md README.ko.md leader-core/README* leader-micrometer/README*`가 0건이고,
-  placeholder가 `${WEBHOOK_TOKEN}` 또는 `<REDACTED>`로만 존재하는지 확인한다.
+  한다. `rg -nP '(Authorization:\s*(Basic|Bearer)\s+(?!\$\{WEBHOOK_TOKEN\}|<REDACTED>)[A-Za-z0-9._~+/=-]{8,}|(glpat-|github_pat_|xox[baprs]-|npm_|AIza|sk-|ghp_|AKIA[0-9A-Z]{8,}))' docs/manual/drafts README.md README.ko.md leader-core/README* leader-micrometer/README*`가 0건이고, placeholder가 `${WEBHOOK_TOKEN}` 또는 `<REDACTED>`로만 존재하는지 확인한다. gitleaks가 설치되어 있으면 동일 대상에 `gitleaks dir --no-banner --redact`도 실행한다.
   diagram 변경은 없으므로
   `bluetape-diagram`은 N/A이며 evidence에 이유를 기록한다.
 
@@ -887,9 +954,9 @@
   Micrometer tags. Record every six independent lens command, exact head, files,
   P0/P1/P2/P3 result, repair or PASS evidence, CI/manual evidence, and final DoD in
   the required tracked review artifact. A benchmark framework is not added; the
-  performance claim is limited to source-verified CAS/non-blocking admission plus a
-  deterministic contention test with a documented threshold of no blocking wait and
-  bounded allocation per accepted item.
+  performance claim is limited to source-verified CAS/non-blocking admission plus the
+  fixed 32×100 contention fixture's submit-return latch and permit-bound evidence. No
+  allocation or wall-clock throughput threshold is claimed.
 
 - [ ] **Step 4: Run final acceptance matrix**
 
@@ -899,7 +966,7 @@
   | blocking/suspend/event bridge parity | bridge tests + cancellation test |
   | queue/drop/failure isolation | bounded exporter tests + fake delivery |
   | HTTP status/retry/backoff/close | loopback HTTP tests |
-  | HTTP timeout/URI/header/payload/response bounds | deterministic fake HTTP tests + loopback smoke |
+  | HTTP timeout/trusted-endpoint/header/payload/response bounds | deterministic fake HTTP tests + loopback smoke; DNS/SSRF non-goal documented |
   | Micrometer finite cardinality/diagnostics | `MicrometerLeaderAuditExporterTest` |
   | no dependency/module registration | `git diff`, `./gradlew projects` |
   | docs locale parity/release pin | README/draft manual validators and release read-back |
