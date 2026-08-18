@@ -141,9 +141,12 @@ public `LeaderAuditExporter`는 다음 경계를 갖는다.
   `min(queueCapacity, 1024)`로 파생하고 atomic permit으로 제한한다. `submit`은 queue에
   non-blocking offer만 수행하므로 observer callback과 diagnostics worker가 block되어도
   admission thread를 block하지 않는다. queue가 가득 차면 callback 없이 `observerDrops`만
-  증가한다. exporter `close()`는 diagnostics gate를 닫고 queued callback을 drop한 뒤
-  worker를 interrupt/unpark하고 diagnostics queue를 drain하여 더 이상의 callback admission
-  0을 확인한다. close는 이미 admission된 callback의 완료를 기다리지 않으므로
+  증가한다. queue poll, callback reservation, queue drop은 하나의 짧은
+  `diagnosticsAdmissionLock`에서 선형화하고, submit-side observation enqueue는 lock을
+  기다리지 않고 `tryLock` 실패 시 `observerDrops`를 증가시키고 drop한다. exporter `close()`는 같은 lock을 잡아
+  diagnostics gate를 닫고 queued callback을 drop한 뒤 worker를 interrupt/unpark하고
+  diagnostics queue를 drain하여 더 이상의 callback admission 0을 확인한다. close는 이미
+  admission된 callback의 완료를 기다리지 않으므로
   interrupt를 무시하는 observer 때문에 무기한 hang하지 않는다. 이미 admission된 callback은
   close 반환 뒤에도 현재 호출을 마칠 수 있지만 새 callback은 시작하지 않는다. observer가
   `Exception`을 던져도 admission, permit, election 결과에는 영향을 주지 않으며 observer
@@ -152,7 +155,9 @@ public `LeaderAuditExporter`는 다음 경계를 갖는다.
 - `snapshot()`은 queued, in-flight, scheduled-retry, total admitted 수와
   accepted/drop/retry/terminal failure, cancellation, executor/scheduler rejection,
   observer drop, registration drop, diagnostics fatal error와 diagnostics closed 상태도
-  누적/표시한 bounded diagnostics를 반환한다. 스냅숏 값은 lock 이름·endpoint·
+  누적/표시한 bounded diagnostics를 반환한다. `diagnosticsClosed`는 정상 `close()`와
+  observer `Error` 모두에서 diagnostics gate가 닫혔음을 뜻하고,
+  `diagnosticsFatalErrors`만 fatal 원인을 구분한다. 스냅숏 값은 lock 이름·endpoint·
   error message를 포함하지 않는다. point-in-time 값은 concurrent update 중 fuzzy할 수
   있고, quiescent 시 `queued + inFlight + scheduledRetries == admitted <= capacity`를
   만족해야 한다.
@@ -168,21 +173,35 @@ observer enum은 `ACCEPTED`,
 `TERMINAL_FAILURE`만 만들고 `CANCELLED`를 중복 생성하지 않는다. close-owned cancel은
 `CANCELLED`만 만들며 retry/failure를 만들지 않는다.
 
-observer registration은 최대 16개로 제한한다. 각 slot은 `active`와
-`inFlight`/invocation reservation을 하나의 lock 아래 관리한다. observation admission은
-slot lock을 잡고 `active=true`일 때만 queue permit과 `inFlight++`를 수행한다. worker는
-callback 직전 같은 slot lock에서 `active=true`를 확인하고 invocation을 reservation한 뒤
-lock을 놓고 호출한다. handle `close()`는 같은 lock에서 `active=false`를 선형화한 뒤
-registry에서 제거한다. close 전에 reservation된 callback만 crossing allowance로 남기므로
-close 반환 뒤 새 callback invocation은 시작하지 않지만 이미 reservation된 callback은
-현재 호출을 마칠 수 있다. 17번째 registration은 no-op handle을 반환하고
+observer registration은 최대 16개로 제한한다. `diagnosticsAdmissionLock`을 먼저 잡고
+각 slot의 `active`와 `inFlight`/invocation reservation을 slot lock에서 관리한다.
+observation admission은 gate가 열려 있고 slot `active=true`일 때만 queue permit과
+`inFlight++`를 수행한다. worker는 queue poll과 callback 직전 reservation을 같은 gate
+lock 아래 수행한다. handle `close()`도 gate lock을 먼저 잡아 slot `active=false`를
+선형화한 뒤 registry에서 제거한다. close 전에 reservation된 callback만 crossing
+allowance로 남기므로 close 반환 뒤 새 callback invocation은 시작하지 않지만 이미
+reservation된 callback은 현재 호출을 마칠 수 있다. 17번째 registration은 no-op handle을 반환하고
 `observerRegistrationDrops`를 1 증가시킨다. diagnostics queue 포화는 별도의
 `observerDrops`에만 합산하며, queue offer가 실패하면 해당 slot의 `inFlight`와 queue
-permit을 즉시 되돌린다.
+permit을 즉시 되돌린다. inactive slot item을 dequeue하거나 normal/fatal close에서
+queue를 drop할 때도 slot `inFlight`와 diagnostics permit을 같은 gate lock 아래
+정확히 한 번 반환한다.
 diagnostics worker에서 observer `Error`가 발생하면 diagnostics gate를 CLOSED로
 전환하고 queued callback을 drop한 뒤 `diagnosticsFatalErrors`를 증가시키고
 `diagnosticsClosed=true`로 표시한 다음 원래 `Error`를 uncaught boundary로 재전파한다.
-worker를 자동 재시작하지 않으며 이후 `observe()`는 no-op handle을 반환한다.
+normal `close()`도 diagnostics gate를 CLOSED로 전환해 `diagnosticsClosed=true`를
+표시하지만 fatal counter는 증가시키지 않는다. open 상태에서는 false이며 idempotent
+close 이후에도 true를 유지한다. worker를 자동 재시작하지 않으며 이후 `observe()`는
+no-op handle을 반환한다.
+
+diagnostics state truth table:
+
+| 상태 | `diagnosticsClosed` | `diagnosticsFatalErrors` |
+|---|---:|---:|
+| open | `false` | `0` 이상 누적값 |
+| 정상 close | `true` | close 전 값 유지 |
+| observer `Error` | `true` | 이전 값 + 1 |
+| idempotent close | 이전 값 유지 | 이전 값 유지 |
 
 취소 원인별 관찰 순서는 다음 표로 고정한다.
 
@@ -280,11 +299,13 @@ crash 또는 close는 drain하지 않은 work를 잃을 수 있다. receiver는 
 ### Micrometer 관찰
 
 `MicrometerLeaderAuditExporter`는 core exporter를 소유하는 decorator하고
-`(delegate, registry)` exact constructor로 다음 metric을 제공한다. decorator `close()`는
-observer handle을 유지한 채 delegate를 먼저 닫아 delegate close에서 발생한 `CANCELLED`
-관찰을 admission한 뒤, `finally`에서 observer handle을 해제한다. 따라서 wrapper와 direct
-delegate 모두 close 후 `DROPPED_CLOSED`가 되며 close observation도 metric에 반영된다.
-non-owning observation은 wrapper가 아니라 public `observe()` handle을 별도로 사용한다.
+`(delegate, registry)` exact constructor로 다음 metric을 제공한다. metric의 authoritative
+source는 `delegate.snapshot()`의 O(1) atomic counter이며 `FunctionCounter`/`Gauge`가
+registry polling 시 snapshot을 읽는다. 따라서 async diagnostics observer callback이 close
+직후 drop되어도 close-owned cancellation/rejection이 metric에서 사라지지 않는다.
+decorator `close()`는 delegate를 idempotently 닫아 wrapper와 direct delegate 모두 close 후
+`DROPPED_CLOSED`가 되게 한다. non-owning observation은 wrapper가 아니라 public
+`observe()` handle을 별도로 사용하며 decorator는 내부 observer handle을 소유하지 않는다.
 
 - accepted submissions
 - queue-full drops
@@ -292,7 +313,7 @@ non-owning observation은 wrapper가 아니라 public `observe()` handle을 별�
 - retry attempts
 - terminal delivery failures
 - queue depth, in-flight delivery, cancellation/rejection diagnostics
-- diagnostics queue saturation as `leader.audit.export.observer.dropped`; this cumulative
+- diagnostics admission saturation as `leader.audit.export.observer.dropped`; this cumulative
   counter mirrors `snapshot().observerDrops` and is not reset by `close()`.
 - observer registration cap rejections as `leader.audit.export.observer.registration.dropped`,
   mirroring `snapshot().observerRegistrationDrops`.
