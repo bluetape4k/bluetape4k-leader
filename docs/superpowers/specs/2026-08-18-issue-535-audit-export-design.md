@@ -118,6 +118,16 @@ allow-list로 표현한다. `HASH`와 `TRUNCATE`는 명시적 opt-in에서만 �
 leader identity, attribute, error message를 우회해 복원할 수 없다. event의
 `toString()`과 payload encoder 입력도 이 sanitized 값만 포함한다.
 
+v1 bound 상수는 `MAX_ERROR_MESSAGE_BYTES=4096`, `MAX_ERROR_TYPE_BYTES=128`,
+`MAX_TEXT_FIELD_BYTES=256`, `MAX_ATTRIBUTES=32`, `MAX_ATTRIBUTE_KEY_BYTES=128`,
+`MAX_ATTRIBUTE_VALUE_BYTES=512`, `MAX_ATTRIBUTES_TOTAL_BYTES=8192`로 고정한다.
+모든 byte bound는 UTF-8 기준이며 over-limit 문자열은 code point를 자르지 않는 최대
+prefix로 truncate하고 ellipsis를 추가하지 않는다. attribute는 sanitized key의 UTF-8
+byte 순으로 정렬한 뒤 key/value 개별 bound와 aggregate bound를 순서대로 적용하며,
+한도를 넘는 후속 entry는 drop한다. sanitize 후 key collision은 정렬상 먼저 온 entry만
+유지한다. `Raw(maxBytes)`는 양수 byte 값과 비민감 field allow-list를 생성 시 검증하고,
+허용되지 않은 field는 `IllegalArgumentException`으로 거부한다.
+
 ### Exporter와 admission
 
 public `LeaderAuditExporter`는 다음 경계를 갖는다.
@@ -305,34 +315,37 @@ crash 또는 close는 drain하지 않은 work를 잃을 수 있다. receiver는 
 
 `MicrometerLeaderAuditExporter`는 core exporter를 소유하는 decorator하고
 `(delegate, registry)` exact constructor로 다음 metric을 제공한다. metric의 authoritative
-source는 `delegate.snapshot()`의 O(1) atomic counter이며 `FunctionCounter`/`Gauge`가
-registry polling 시 snapshot을 읽는다. 따라서 async diagnostics observer callback이 close
-직후 drop되어도 close-owned cancellation/rejection이 metric에서 사라지지 않는다.
-decorator는 registry identity별 내부 ownership manager가 claim하고 설치 identity를 검증한
-`Meter`만 소유한다. manager는 자체 lock과 claim token으로 wrapper 간 중복을 막고, 외부
-registry monitor에 의존하지 않는다. 고정 name/tag ID가 preflight에서 이미 존재하거나,
-등록 후 registrar가 반환한 meter·registry lookup·등록 callback의 identity가 일치하지
-않거나 foreign/ambiguous registration crossing이 관찰되면 constructor는 fail-fast한다.
-이 경우 foreign meter를 제거하지 않으며, 부분 등록 중 exact-owned meter만 정리한다.
-표준 Micrometer API가 설치 identity를 증명하지 못하는 registry는 지원하지 않는 것으로
-간주하고 ownership을 추정하지 않는다. 성공한 전체 등록이 끝난 뒤에만 wrapper가
-delegate ownership을 확정하며, constructor 실패 시에는 delegate를 정확히 한 번 닫고
-원래 실패를 보존한다.
+source는 manager가 보유한 active provider의 `delegate.snapshot()` O(1) atomic counter와
+detached offset이며 `FunctionCounter`/`Gauge`가 registry polling 시 manager state를 읽는다.
+따라서 async diagnostics observer callback이 close 직후 drop되어도 close-owned
+cancellation/rejection이 metric에서 사라지지 않는다.
+decorator는 registry identity별 내부 manager가 고정된 `Meter.Id` 집합을 한 번만 등록하고
+stable meter를 소유한다. manager는 자체 lock/claim token과 `activeProvider` indirection을
+사용하며 `FunctionCounter`/`Gauge` callback은 manager state만 캡처하고 delegate를 직접
+참조하지 않는다. 첫 acquire에서 foreign ID가 이미 존재하거나 등록 identity를 증명할 수
+없으면 constructor는 fail-fast한다. 외부 registration crossing으로 manager-owned identity가
+바뀌거나 ambiguous가 되면 `leader.audit.export.meter-ownership-conflict` fixed warning을
+한 번 기록하고 state를 compromised로 잠근다. manager는 foreign meter를 절대로 제거하지
+않으며, compromised registry는 수동으로 fixed ID를 정리하거나 registry를 교체하기 전까지
+새 wrapper를 허용하지 않는다.
 
-`close()`는 delegate를 idempotently 닫은 뒤 `finally`에서 소유 meter마다 현재 registry
-lookup이 저장된 meter와 identity-equal인 경우에만 `registry.remove(id)`를 시도한다.
-lookup이 foreign/replaced meter이거나 removal이 실패해도 그 ID를 제거했다고 가장하지
-않으며, 나머지 ID 제거를 계속한다. residue는 registry identity state가 exact meter claim을
-유지한 채 `leader.audit.export.meter-removal-failure` fixed warning key와 O(1)
-`residueCount`로 보고한다. 같은 `close()` 호출에서는 ID별 warning을 한 번만 내고
-idempotent close는 반복하지 않는다. 다음 wrapper constructor는 residue removal을 먼저
-재시도하며, 성공한 ID만 claim을 해제한다. 따라서 closed delegate의 strong-reference 제거는
-성공적으로 제거된 meter에 대해서만 보장되고, 복구 전에는 replacement가 stale source를
-재사용하지 못한다. wrapper와 direct delegate 모두 close 후 `DROPPED_CLOSED`가 된다.
+전체 stable meter 등록이 성공한 뒤에만 wrapper가 delegate ownership을 확정한다.
+constructor 실패 시에는 delegate를 정확히 한 번 닫고 원래 primary 실패를 보존하며,
+delegate close/partial-registration cleanup 예외는 primary의 suppressed exception으로
+붙인다. primary 실패가 없을 때만 cleanup 예외를 primary로 던진다. 부분 등록은
+manager-owned stable meter와 claim state로 남겨 다음 acquire가 누락 ID만 이어서 등록할
+수 있으며 foreign ID는 건드리지 않는다. `close()`는 delegate를 idempotently 닫고 마지막
+snapshot을 manager offset에 반영한 뒤 `activeProvider`를 clear한다. `registry.remove`를
+호출하지 않으므로 lookup/remove 사이 foreign replacement race와 removal residue가 없다.
+stable meter는 registry에 남지만 closed delegate를 strong-reference하지 않고 마지막
+snapshot/closed 상태를 읽는다. 같은 registry의 새 wrapper는 stable meter identity를
+재사용하면서 새 provider를 연결한다. outcome counter는 manager offset을 누적해
+replacement에서도 감소하지 않으며 queue/in-flight/closed gauge는 현재 provider 또는
+detached closed state를 반영한다. wrapper와 direct delegate 모두 close 후
+`DROPPED_CLOSED`가 된다.
 non-owning observation은 wrapper가 아니라 public `observe()` handle을 별도로 사용하며
-decorator는 내부 observer handle을 소유하지 않는다. snapshot counter 값은 reset하지
-않지만 close 후 성공적으로 제거된 meter는 registry에 존재하지 않는다. 같은 registry에
-새 delegate wrapper를 만들면 manager claim이 해제된 ID에 새 snapshot source를 등록한다.
+decorator는 내부 observer handle을 소유하지 않는다. stable meter는 close 후에도 manager의
+detached snapshot/offset을 읽고 새 wrapper가 acquire되면 새 provider로 전환한다.
 
 - accepted submissions
 - queue-full drops
@@ -341,13 +354,30 @@ decorator는 내부 observer handle을 소유하지 않는다. snapshot counter 
 - terminal delivery failures
 - queue depth, in-flight delivery, cancellation/rejection diagnostics
 - diagnostics admission saturation as `leader.audit.export.observer.dropped`; this cumulative
-  counter mirrors `snapshot().observerDrops` while the wrapper is open and is unregistered
-  with the other meters on `close()`.
+  counter mirrors manager offset plus the active snapshot and remains readable after close
+  without retaining the closed delegate.
 - observer registration cap rejections as `leader.audit.export.observer.registration.dropped`,
-  mirroring `snapshot().observerRegistrationDrops` while open.
+  mirroring manager offset plus the active snapshot without a delegate reference after close.
 - diagnostics fatal errors as `leader.audit.export.diagnostics.failures` and the CLOSED state
   as `leader.audit.export.diagnostics.closed` (`0|1` gauge), mirroring the corresponding
   snapshot fields.
+
+v1 fixed meter ID 표는 다음과 같으며 총 13개 ID를 등록한다.
+
+| 이름 | 타입 | 정확한 tag | snapshot source |
+|---|---|---|---|
+| `leader.audit.export.accepted` | `FunctionCounter` | `outcome=accepted` | `accepted` |
+| `leader.audit.export.dropped` | `FunctionCounter` | `outcome=queue_full`, `outcome=closed` | `droppedQueueFull`, `droppedClosed` |
+| `leader.audit.export.retries` | `FunctionCounter` | `outcome=retry` | `retries` |
+| `leader.audit.export.failures` | `FunctionCounter` | `outcome=failure` | `terminalFailures` |
+| `leader.audit.export.queue.depth` | `Gauge` | 없음 | `queued` |
+| `leader.audit.export.in.flight` | `Gauge` | 없음 | `inFlight` |
+| `leader.audit.export.cancelled` | `FunctionCounter` | `outcome=cancelled` | `cancellations` |
+| `leader.audit.export.rejections` | `FunctionCounter` | `outcome=rejected` | `executorRejections + schedulerRejections` |
+| `leader.audit.export.observer.dropped` | `FunctionCounter` | 없음 | `observerDrops` |
+| `leader.audit.export.observer.registration.dropped` | `FunctionCounter` | 없음 | `observerRegistrationDrops` |
+| `leader.audit.export.diagnostics.failures` | `FunctionCounter` | 없음 | `diagnosticsFatalErrors` |
+| `leader.audit.export.diagnostics.closed` | `Gauge` | 없음 | `diagnosticsClosed` |
 
 v1 aggregate metric은 snapshot에 차원별 값이 없고 decorator constructor에도 source/
 transport context가 없으므로 `outcome={accepted,queue_full,closed,retry,failure,cancelled,

@@ -71,6 +71,25 @@
   }
 
   @Test
+  fun `utf8 bounds and attribute aggregate limits are deterministic`() {
+      val event = historyWithMultibyteAndOversizedAttributes()
+      ((event.errorMessage?.toByteArray(Charsets.UTF_8)?.size ?: 0)
+          <= LeaderAuditExportEvent.MAX_ERROR_MESSAGE_BYTES).shouldBeTrue()
+      ((event.errorType?.toByteArray(Charsets.UTF_8)?.size ?: 0)
+          <= LeaderAuditExportEvent.MAX_ERROR_TYPE_BYTES).shouldBeTrue()
+      (event.attributes.size <= LeaderAuditExportEvent.MAX_ATTRIBUTES).shouldBeTrue()
+      event.attributes.keys.all {
+          it.toByteArray(Charsets.UTF_8).size <= LeaderAuditExportEvent.MAX_ATTRIBUTE_KEY_BYTES
+      }.shouldBeTrue()
+      event.attributes.values.all {
+          it.toByteArray(Charsets.UTF_8).size <= LeaderAuditExportEvent.MAX_ATTRIBUTE_VALUE_BYTES
+      }.shouldBeTrue()
+      event.attributes.entries.sumOf { (key, value) ->
+          key.toByteArray(Charsets.UTF_8).size + value.toByteArray(Charsets.UTF_8).size
+      }.let { (it <= LeaderAuditExportEvent.MAX_ATTRIBUTES_TOTAL_BYTES).shouldBeTrue() }
+  }
+
+  @Test
   fun `event and attributes are immutable snapshots without public copy mutation`() {
       val source = mutableMapOf("key" to "value")
       val event = LeaderAuditExportEvent.Lifecycle.from(
@@ -88,15 +107,15 @@
   }
 
   @Test
-  fun `hash truncate and raw modes enforce field allow list and max length`() {
+  fun `hash truncate and raw modes enforce field allow list and max bytes`() {
       LeaderAuditValueSanitizer.Hash.sanitize(LeaderAuditField.LOCK_NAME, SECRET_SENTINEL)
           .shouldNotBeEqualTo(SECRET_SENTINEL)
-      LeaderAuditValueSanitizer.Truncate(maxLength = 8)
+      LeaderAuditValueSanitizer.Truncate(maxBytes = 8)
           .sanitize(LeaderAuditField.ERROR_TYPE, SECRET_SENTINEL)
-          .length.shouldBeEqualTo(8)
+          .toByteArray(Charsets.UTF_8).size.shouldBeEqualTo(8)
       val raw = LeaderAuditValueSanitizer.Raw(
           allowList = setOf(LeaderAuditField.KIND),
-          maxLength = 16,
+          maxBytes = 16,
       )
       raw.sanitize(LeaderAuditField.KIND, "ACQUIRED").shouldBeEqualTo("ACQUIRED")
       assertFailsWith<IllegalArgumentException> {
@@ -154,9 +173,14 @@
   }
   ```
 
+  `LeaderAuditExportEvent`와 sanitizer는 `MAX_ERROR_MESSAGE_BYTES=4096`,
+  `MAX_ERROR_TYPE_BYTES=128`, `MAX_TEXT_FIELD_BYTES=256`, `MAX_ATTRIBUTES=32`,
+  `MAX_ATTRIBUTE_KEY_BYTES=128`, `MAX_ATTRIBUTE_VALUE_BYTES=512`,
+  `MAX_ATTRIBUTES_TOTAL_BYTES=8192`를 public constant로 고정한다. UTF-8 code point
+  경계 truncate, attribute 정렬·collision·aggregate drop 정책은 spec과 동일해야 한다.
   `LeaderAuditValueSanitizer`는 임의 lambda가 아니라 `Default`, `Hash`, `Truncate`,
   `Raw` 정책으로 제한한다. `Raw`는 사전에 허용된 비민감 enum field subset과 양의
-  최대 길이를 생성 시 검증하고, 모든 정책은 공통 byte/key limits를 적용한다. event
+  `maxBytes`를 생성 시 검증하고, 모든 정책은 공통 byte/key limits를 적용한다. event
   `toString()`과 encoder fixture에는 secret sentinel이 없어야 한다. 모든 map은
   defensive copy 후 `Collections.unmodifiableMap(LinkedHashMap(...))` 또는 동등한
   실제 immutable runtime map으로 노출한다. Java fixture에서 `getAttributes().put`이
@@ -619,15 +643,23 @@
 
   | Type | Exact public surface |
   |---|---|
+  | `LeaderAuditExportEvent` | sealed event boundary plus `Companion` public UTF-8 `const val` bounds `MAX_ERROR_MESSAGE_BYTES=4096`, `MAX_ERROR_TYPE_BYTES=128`, `MAX_TEXT_FIELD_BYTES=256`, `MAX_ATTRIBUTES=32`, `MAX_ATTRIBUTE_KEY_BYTES=128`, `MAX_ATTRIBUTE_VALUE_BYTES=512`, `MAX_ATTRIBUTES_TOTAL_BYTES=8192`; Java reads the exact `LeaderAuditExportEvent.Companion` fields |
+  | `LeaderAuditExportEvent.History` | `from(LeaderLockHistoryRecord, LeaderAuditValueSanitizer): History`; private constructor; no `token`/`LeaderLease` field |
+  | `LeaderAuditExportEvent.Lifecycle` | `from(LeaderElectionEvent, Map<String,String>, LeaderAuditValueSanitizer): Lifecycle`; private constructor; no `LeaderLease` field |
+  | `LeaderAuditLifecycleOutcome` | enum values `ELECTED`, `REVOKED`, `SKIPPED` only |
+  | `LeaderAuditField` | enum values `LOCK_NAME`, `KIND`, `NODE_ID`, `LEADER_ID`, `ERROR_TYPE`, `ERROR_MESSAGE`, `ATTRIBUTE_KEY`, `ATTRIBUTE_VALUE` only |
+  | `LeaderAuditValueSanitizer` | `sanitize(LeaderAuditField, String): String`; `Default`/`Hash` objects, `Truncate(maxBytes:Int)`, `Raw(allowList:Set<LeaderAuditField>, maxBytes:Int)`; no arbitrary lambda factory |
   | `LeaderAuditExporter` | `submit(LeaderAuditExportEvent): LeaderAuditSubmitResult`, `observe(LeaderAuditExportObserver): AutoCloseable`, `snapshot(): LeaderAuditExportSnapshot`, `close(): Unit` |
   | `LeaderAuditExportOptions` | `queueCapacity:Int`, `maxInFlight:Int`, `maxAttempts:Int`, `attemptTimeout:java.time.Duration`, `initialBackoff:java.time.Duration`, `maxBackoff:java.time.Duration`, `executor:Executor`, `scheduler:ScheduledExecutorService`; Java-visible 8-argument constructor, no implicit shared executor |
   | `LeaderAuditDelivery` | `deliver(LeaderAuditExportEvent): CompletableFuture<LeaderAuditDeliveryResult>` |
   | `LeaderAuditExportObserver` | `onObservation(LeaderAuditExportObservation): Unit` with finite enum only |
-  | `LeaderAuditExportSnapshot` | immutable `queued`, `inFlight`, `scheduledRetries`, `admitted`, outcome counters, `observerDrops`, `observerRegistrationDrops`, `diagnosticsFatalErrors`, `diagnosticsClosed`, `closed`; no dynamic identifiers |
+  | `LeaderAuditExportSnapshot` | immutable `queued:Int`, `inFlight:Int`, `scheduledRetries:Int`, `admitted:Int`, `accepted:Long`, `droppedQueueFull:Long`, `droppedClosed:Long`, `retries:Long`, `terminalFailures:Long`, `cancellations:Long`, `executorRejections:Long`, `schedulerRejections:Long`, `observerDrops:Long`, `observerRegistrationDrops:Long`, `diagnosticsFatalErrors:Long`, `diagnosticsClosed:Boolean`, `closed:Boolean`; no dynamic identifiers |
   | `LeaderAuditHttpPayload` | `of(String, byte[])`, `contentType`, `body(): byte[]`; constructor/body defensively copy |
+  | `LeaderAuditPayloadEncoder` | `encode(LeaderAuditExportEvent): LeaderAuditHttpPayload` single abstract method |
   | `LeaderAuditTrustedHttpsEndpoint` | `trusted(URI): LeaderAuditTrustedHttpsEndpoint`, `uri:URI`; caller-owned explicit trust boundary |
   | `HttpLeaderAuditExporter` | `(HttpClient, LeaderAuditTrustedHttpsEndpoint, Map<String,String>, LeaderAuditPayloadEncoder, LeaderAuditExportOptions, LeaderAuditHttpOptions)` plus `submit/observe/snapshot/close` |
   | `LeaderAuditHttpOptions` | 1-argument constructor `(maxPayloadBytes:Int)`, `defaults(): LeaderAuditHttpOptions`, `maxPayloadBytes:Int`; production HTTPS-only, no public scheme/loopback bypass |
+  | `MicrometerLeaderAuditExporter` | `(LeaderAuditExporter, MeterRegistry)` plus `submit/observe/snapshot/close`; fixed 13-meter registry-scoped manager; foreign/unsupported registry fails fast |
 
   Kotlin default arguments must not be the only construction path: the Java fixture
   constructs options and HTTP exporter explicitly, calls `submit`, and uses
@@ -644,7 +676,13 @@
   `close`를 호출하고 decorator의 `snapshot()` delegation도 compile/run으로 고정한다.
   reflection으로 위 public constructor/method set과 JVM descriptor를 확인하고, event
   public field에 `token`이나 `LeaderLease`가 없는지 고정한다. `close()` idempotence와
-  `submit` return type을 JVM descriptor로 확인한다.
+  `submit` return type을 JVM descriptor로 확인한다. Micrometer Java fixture는
+  `(LeaderAuditExporter, MeterRegistry)` constructor와 delegated methods, fixed 13-meter
+  ID/type/tag set, duplicate/foreign/unsupported registry failure를 compile/run으로
+  고정한다. `@JvmSynthetic internal LeaderAuditExportSnapshot.Companion.create`는
+  유일하게 허용된 synthetic surface로 allow-list하고, 그 밖의 public synthetic overload는
+  거부한다. sanitizer enum/constructor와 event factory descriptor도 Java reflection 및
+  immutable-map fixture로 확인한다.
 
 - [ ] **Step 2: Run contract test and verify RED**
 
@@ -697,25 +735,31 @@
   event fixture를 하나의 aggregate delegate로 제출해 합계가 중복·오표시되지 않고, 같은
   registry의 두 wrapper는 duplicate ID로 fail-fast하는지 검증한다. 고유 lockName, leaderId,
   endpoint, error message를 대량 제출해도 meter 수가 증가하지 않고 해당 값이 tag에 없는지
-  assertion한다.
+  assertion한다. fixed ID 표는 spec의 13개 항목과 byte-for-byte로 맞추고, `accepted` 1개,
+  `dropped` 2개(`queue_full`, `closed`), `retries`/`failures`/`cancelled`/`rejections` 각
+  1개, queue/in-flight/diagnostics gauge 3개, observer/registration diagnostics 3개를
+  합쳐 총 13개 ID임을 assertion한다. 각 ID의 meter type, exact tag set, snapshot field도
+  reflection/registry read-back으로 고정한다.
   gauge 구현은 exporter `snapshot()`의 O(1) atomic counter를 읽고 queue를 순회하지
   않으며, snapshot object는 submit hot path에서 생성하지 않는다는 source/contract
   assertion을 추가한다. wrapper close twice에서 delegate close idempotence와
   snapshot-backed cancellation/rejection metric parity를 검증하고, wrapper close가
   exporter close contract를 그대로 보존하는지 확인한다. `TrackingMeterRegistry`와
-  internal registry-identity manager test seam으로 등록 claim, exact `Meter` identity,
-  foreign-registration crossing을 기록한다. manager가 설치 callback/lookup/registrar
-  반환 identity를 모두 확인하고 foreign 또는 ambiguous ID를 소유하지 않는지 검증한다.
-  wrapper `close()` 두 번 후 exact-owned meter만 제거되고 foreign/replaced meter는
-  건드리지 않으며 첫 removal 실패 뒤에도 나머지 ID를 시도하고 fixed warning key
-  `leader.audit.export.meter-removal-failure`와 ID별 one-per-close `residueCount`를
-  남기는지 확인한다. residue claim을 유지한 상태에서 replacement constructor가 removal을
-  재시도하고 성공 후에만 새 wrapper를 허용하는 recovery 경로도 검증한다. 같은 registry에서 close 후 새 delegate wrapper를 만들면 새 snapshot
-  source를 읽고, active duplicate wrapper는 기존 ID/source를 재사용하지 않고 fail-fast하며
-  부분 등록도 정리하는지 검증한다. constructor 실패는 delegate를 정확히 한 번 close하고
-  foreign meter를 보존하는지 assertion한다. 모든 reachability 주장은 `WeakReference`/GC에
-  의존하지 않고 registry의 등록·제거·residue 기록과 새 snapshot 값으로 결정적으로
-  확인한다.
+  internal registry-identity manager test seam으로 stable `Meter.Id` 집합, exact meter
+  identity, active provider/offset 전환, foreign-registration crossing을 기록한다.
+  fixed ID별 `name/type/tags/snapshot field` 표와 총 meter 수를 고정하고, 각 metric의
+  `outcome` tag 매핑과 무태그 gauge/diagnostics를 assertion한다. 외부 foreign registration
+  crossing은 manager가 ownership conflict warning을 한 번 기록하고 compromised state로
+  잠기며 foreign meter를 제거하지 않는지 검증한다. 동일 registry close→replacement는
+  stable meter identity를 재사용하면서 새 delegate snapshot source를 읽고 cumulative
+  counter가 감소하지 않는지, active duplicate wrapper는 fail-fast하는지 확인한다.
+  constructor 실패는 delegate를 정확히 한 번 close하고 primary exception을 보존하며,
+  delegate close/partial-registration cleanup 예외는 primary에 suppressed로 붙이고,
+  primary가 없을 때만 cleanup 예외를 던지는지 검증한다. manager-owned partial registration만
+  다음 acquire에서 이어서 완성하는지 확인한다.
+  manager source/offset이 closed delegate를 retain하지 않는다는 사실은 registry의
+  provider-detach 기록과 새 snapshot 값으로 결정적으로 확인하며 `WeakReference`/GC에
+  의존하지 않는다.
 
 - [ ] **Step 2: Run Micrometer test and verify RED**
 
@@ -729,27 +773,34 @@
   `MicrometerLeaderAuditExporter(delegate, registry)`는 전체 meter 등록이 성공하면
   delegate를 소유하는 `LeaderAuditExporter` decorator로 구현한다. construction failure는
   delegate를 정확히 한 번 닫고 원래 예외를 보존한다. metric의 authoritative source는
-  `delegate.snapshot()`의 O(1) atomic counter이며, `FunctionCounter`/`Gauge`가 registry
-  polling 시 snapshot을 읽는다. 따라서 async diagnostics observer callback이 close 직후
-  drop되어도 close-owned cancellation/rejection이 metric에서 사라지지 않는다.
-  내부 registry-identity manager가 fixed ID claim과 설치 identity를 관리한다. manager는
-  claim token/lock으로 wrapper 간 중복을 막고, preflight에서 foreign ID를 확인하며,
-  registrar 반환 meter·registry lookup·등록 callback이 동일한 `Meter` identity인지 검증한다.
-  외부 registration crossing으로 identity가 foreign/ambiguous가 되면 fail-fast하고
-  unproven meter를 절대로 remove하지 않는다. 표준 registry가 설치 identity를 증명하지
-  못하면 unsupported registry로 거부한다. 모든 meter 등록이 성공한 뒤에만 delegate
-  ownership을 확정하고, constructor 실패 시 delegate를 정확히 한 번 닫고 원래 예외를
-  보존하며 partial exact-owned meter만 정리한다. 성공한 등록의 exact `Meter`/`Meter.Id`
-  목록은 wrapper가 소유한다. `close()`는 delegate를 idempotently 닫은 뒤 `finally`에서
-  현재 lookup이 exact identity인 ID만 `registry.remove(id)`를 시도하고, removal 실패나
-  foreign replacement에도 나머지 ID 제거를 계속한다. removal residue는 fixed warning key
-  `leader.audit.export.meter-removal-failure`, ID별 one-per-close warning, O(1)
-  `residueCount`로 보고하고 manager claim을 유지한다. 다음 constructor는 residue 제거를
-  먼저 재시도하며 성공 전에는 replacement를 fail-fast한다. caller admission/election에는
-  registry 오류를 전파하지 않는다. 따라서 closed delegate strong-reference 제거는
-  성공적으로 제거된 meter에 대해서만 주장한다. non-owning observation은 wrapper가 아니라 public
-  `observe()` handle을 별도로 사용하며 decorator는 내부 observer handle을 등록하거나
-  소유하지 않는다. delegate의 `snapshot()` descriptor와 값은 그대로 전달한다.
+  manager가 보유한 active provider의 `delegate.snapshot()` O(1) atomic counter와 detached
+  offset이며, `FunctionCounter`/`Gauge`가 registry polling 시 manager state를 읽는다. 따라서
+  async diagnostics observer callback이 close 직후 drop되어도 close-owned
+  cancellation/rejection이 metric에서 사라지지 않는다.
+  내부 registry-identity manager가 fixed ID claim과 stable meter 집합을 관리한다. manager는
+  claim token/lock, `activeProvider`, detached `lastSnapshot`, cumulative counter offset을
+  보유하며 `FunctionCounter`/`Gauge` callback은 manager state만 캡처한다. provider만
+  delegate를 참조하고 close에서 clear되므로 registry meter가 closed delegate를 retain하지
+  않는다. 첫 acquire는 fixed `name/type/tags/snapshot field` 표를 preflight하고 foreign
+  ID 또는 설치 identity를 증명할 수 없는 registry를 fail-fast한다. 외부 registration
+  crossing으로 identity가 foreign/ambiguous가 되면 fixed warning key
+  `leader.audit.export.meter-ownership-conflict`를 ID별 한 번 기록하고 manager state를
+  compromised로 잠근다. manager는 foreign meter를 절대로 remove하지 않으며, 수동으로
+  fixed ID를 정리하거나 registry를 교체하기 전까지 새 wrapper를 허용하지 않는다.
+  전체 stable meter 등록이 성공한 뒤에만 delegate ownership을 확정하고, constructor
+  실패 시 delegate를 정확히 한 번 닫고 primary exception을 보존한다. close/partial cleanup
+  예외는 primary에 suppressed로 추가하며 primary가 없을 때만 cleanup 예외를 던진다.
+  manager-owned
+  partial registration은 state에 남아 다음 acquire에서 누락 ID만 이어서 등록하며
+  foreign ID는 건드리지 않는다. active duplicate wrapper는 fail-fast한다.
+  `close()`는 delegate를 idempotently 닫고 마지막 snapshot을 offset에 반영한 뒤
+  `activeProvider`를 clear한다. `registry.remove`를 호출하지 않으므로 lookup/remove
+  TOCTOU와 removal residue가 없고, stable meter identity는 replacement에서 재사용된다.
+  detached state의 counter는 offset을 포함해 monotonic하게 유지하고 queue/in-flight/
+  diagnostics closed gauge는 active provider 또는 detached closed snapshot을 읽는다.
+  non-owning observation은 wrapper가 아니라 public `observe()` handle을 별도로 사용하며
+  decorator는 내부 observer handle을 등록하거나 소유하지 않는다. delegate의 `snapshot()`
+  descriptor와 값은 그대로 전달한다.
   metric names는 `leader.audit.export.accepted`, `leader.audit.export.dropped`,
   `leader.audit.export.retries`, `leader.audit.export.failures`,
   `leader.audit.export.queue.depth`, `leader.audit.export.in.flight`,
@@ -759,12 +810,13 @@
   `leader.audit.export.diagnostics.failures`,
   `leader.audit.export.diagnostics.closed`로 고정한다. 각 cumulative counter는
   snapshot-backed `FunctionCounter`로 등록하고, queue/in-flight/diagnostics closed는
-  snapshot-backed `Gauge`로 등록한다. `observerDrops`,
-  `observerRegistrationDrops`, `diagnosticsFatalErrors`는 wrapper가 open인 동안 snapshot과
-  각 counter에서 같은 누적값을 보이며 exporter close가 delegate counter를 reset하지는
-  않는다. close 후에는 wrapper가 소유한 모든 meter가 registry에서 제거되어 stale source를
-  노출하지 않는다. `diagnosticsClosed`는 open 동안 `diagnostics.closed` gauge의 `0|1` 값과
-  일치한다.
+  snapshot-backed `Gauge`로 등록한다. `droppedQueueFull`, `droppedClosed`, `cancellations`,
+  `executorRejections`, `schedulerRejections`, `observerDrops`, `observerRegistrationDrops`,
+  `diagnosticsFatalErrors`는 manager offset과 active snapshot의
+  합으로 읽히며 close 후에도 stable meter에서 monotonic 값을 유지한다. `diagnosticsClosed`는
+  active provider가 없을 때 `1`, active provider가 open일 때 `0|1` gauge의 snapshot 값과
+  일치한다. stable meter는 registry에 남지만 delegate/provider strong-reference는
+  close에서 제거된다.
   `outcome` tag만 위 enum allow-list로 사용하고 `source`/`transport` tag는 v1에서
   생성하지 않으며 event field는 tag로 복사하지 않는다. 기존 `HISTORY_SINK_FAILURES`
   counter는 건드리지 않는다.
@@ -779,11 +831,12 @@
     --tests 'io.bluetape4k.leader.micrometer.history.*'
   ```
 
-  close idempotence, exact-owned `Meter.Id` removal, foreign/replaced meter 보존, first
-  removal failure 뒤 나머지 시도와 residue report, same-registry replacement의 fresh
-  snapshot source, duplicate wrapper fail-fast/partial cleanup, constructor 실패 시
-  delegate close, 그리고 direct delegate와 wrapper의 closed admission parity가 모두
-  PASS해야 한다.
+  stable fixed `Meter.Id`/type/tag/snapshot-field set, manager source detach와
+  close→replacement identity reuse, cumulative counter offset monotonicity, foreign
+  registration conflict warning/compromised recovery, duplicate wrapper fail-fast,
+  partial manager-owned registration continuation, constructor 실패 시 delegate close와
+  primary/suppressed exception policy, 그리고 direct delegate와 wrapper의 closed admission
+  parity가 모두 PASS해야 한다.
 
 - [ ] **Step 5: Update both README locales and commit AUD-02**
 
@@ -795,7 +848,7 @@
   git add leader-micrometer/src/main leader-micrometer/src/test \
     leader-micrometer/README.md leader-micrometer/README.ko.md
   git diff --check
-  git commit -m $'OBS-03 Micrometer aggregate metric과 residue recovery를 추가한다\n\nConstraint: v1 snapshot은 aggregate counter만 제공하므로 outcome 외 source/transport 차원을 만들지 않는다.\nRejected: 계산할 수 없는 source/transport tag | mixed event를 중복·오표시함\nConfidence: high\nScope-risk: moderate\nDirective: meter removal residue는 fixed warning key와 retry 가능한 manager claim으로 추적한다.\nTested: focused and existing Micrometer history tests, README diff check\nNot-tested: HTTP delivery는 AUD-03에서 검증한다.'
+  git commit -m $'OBS-03 Micrometer aggregate metric과 stable registry source를 추가한다\n\nConstraint: v1 snapshot은 aggregate counter만 제공하므로 outcome 외 source/transport 차원을 만들지 않는다.\nRejected: 계산할 수 없는 source/transport tag와 close 시 meter 제거 | mixed event 오표시와 foreign replacement race\nConfidence: high\nScope-risk: moderate\nDirective: registry-scoped manager가 stable meter와 active provider를 소유하고 close에서 delegate source를 detach한다.\nTested: focused and existing Micrometer history tests, README diff check\nNot-tested: HTTP delivery는 AUD-03에서 검증한다.'
   ```
 
 ## Task 6: JDK HTTP/webhook delivery와 bounded retry
@@ -968,8 +1021,12 @@
   default redaction, queue drop와 close semantics를 짧은 예제로 설명한다. exporter의
   `ACCEPTED != delivered`, duplicate/reordering/process-shutdown loss와 receiver
   idempotency, `exporter.close()` 후 caller-owned scheduler/executor 종료 순서를
-  함께 고정한다. Micrometer README에는 metric catalog, queue/in-flight/rejection
-  diagnostics와 no raw/high-cardinality tag 규칙을 추가한다. top-level README
+  함께 고정한다. Micrometer README에는 metric catalog, fixed 13-meter ID set,
+  queue/in-flight/rejection diagnostics와 no raw/high-cardinality tag 규칙을 추가한다.
+  stable registry meter는 close 후 source만 detach되고 replacement에서 identity를
+  재사용한다는 점, duplicate/foreign fixed-ID 충돌 시
+  `leader.audit.export.meter-ownership-conflict` 경고와 registry 교체·수동 fixed-ID
+  정리 절차를 함께 문서화한다. top-level README
   capability matrix와 event stream 설명에는 HTTP/webhook adapter와 JSONL/OpenTelemetry
   후속 범위를 반영한다.
 
@@ -1013,7 +1070,16 @@
   ```bash
   set -euo pipefail
   scan_paths=()
-  for path in docs/manual/drafts README.md README.ko.md leader-core/README.md \
+  if [[ -d docs/manual/drafts ]]; then
+    while IFS= read -r -d '' path; do
+      [[ -f "$path" && -r "$path" ]] || { echo "unreadable scan path: $path" >&2; exit 2; }
+      scan_paths+=("$path")
+    done < <(find docs/manual/drafts -maxdepth 1 -type f -name '*.md' -print0)
+  elif [[ -e docs/manual/drafts ]]; then
+    echo 'docs/manual/drafts exists but is not a directory' >&2
+    exit 2
+  fi
+  for path in README.md README.ko.md leader-core/README.md \
       leader-core/README.ko.md leader-micrometer/README.md leader-micrometer/README.ko.md; do
     if [[ -e "$path" ]]; then
       [[ -f "$path" && -r "$path" ]] || { echo "unreadable scan path: $path" >&2; exit 2; }
