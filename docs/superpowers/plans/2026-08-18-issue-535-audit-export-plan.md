@@ -6,7 +6,7 @@
 
 **Architecture:** core는 token을 제외한 immutable `LeaderAuditExportEvent`, redaction policy, non-blocking bounded admission, retryable one-shot delivery와 lifecycle을 소유한다. History sink와 `LeaderElectionEventPublisher`는 core exporter bridge를 사용하고, HTTP는 JDK `HttpClient.sendAsync`를 주입된 payload encoder와 결합한다. Micrometer는 exporter를 decorator하여 low-cardinality outcome metric만 추가한다.
 
-**Tech Stack:** Kotlin, JDK 25 `java.net.http.HttpClient`, `CompletableFuture`/`CompletionStage`, `ScheduledExecutorService`, kotlinx.coroutines Flow, Micrometer, JUnit 5, Bluetape assertions, MockK where existing patterns require it.
+**Tech Stack:** Kotlin, JDK 25 `java.net.http.HttpClient`, cancellation-capable `CompletableFuture`, `ScheduledExecutorService`, kotlinx.coroutines Flow, Micrometer, JUnit 5, Bluetape assertions, MockK where existing patterns require it.
 
 ---
 
@@ -59,11 +59,45 @@
   }
 
   @Test
-  fun `custom sanitizer can hash or truncate allow-listed values`() {
-      val sanitizer = LeaderAuditValueSanitizer { _, value -> value.take(8) }
+  fun `default policy removes sentinel from every sensitive event field and string form`() {
+      val event = LeaderAuditExportEvent.History.from(
+          record = recordWithSentinelInEveryField(),
+          sanitizer = LeaderAuditValueSanitizer.Default,
+      )
 
-      sanitizer.sanitize(LeaderAuditField.LOCK_NAME, "static-job")
-          .shouldBeEqualTo("static-j")
+      event.toString().contains(SECRET_SENTINEL).shouldBeFalse()
+      event.attributes.values.any { it.contains(SECRET_SENTINEL) }.shouldBeFalse()
+      event.errorMessage?.contains(SECRET_SENTINEL).shouldBeFalse()
+  }
+
+  @Test
+  fun `event and attributes are immutable snapshots without public copy mutation`() {
+      val source = mutableMapOf("key" to "value")
+      val event = LeaderAuditExportEvent.Lifecycle.from(
+          event = electedEvent(),
+          attributes = source,
+          sanitizer = LeaderAuditValueSanitizer.Default,
+      )
+      source["key"] = "changed"
+      event.attributes["key"].shouldBeEqualTo("value")
+      event::class.memberFunctions.none { it.name == "copy" }.shouldBeTrue()
+  }
+
+  @Test
+  fun `hash truncate and raw modes enforce field allow list and max length`() {
+      LeaderAuditValueSanitizer.Hash.sanitize(LeaderAuditField.LOCK_NAME, SECRET_SENTINEL)
+          .shouldNotBeEqualTo(SECRET_SENTINEL)
+      LeaderAuditValueSanitizer.Truncate(maxLength = 8)
+          .sanitize(LeaderAuditField.ERROR_TYPE, SECRET_SENTINEL)
+          .length.shouldBeEqualTo(8)
+      val raw = LeaderAuditValueSanitizer.Raw(
+          allowList = setOf(LeaderAuditField.KIND),
+          maxLength = 16,
+      )
+      raw.sanitize(LeaderAuditField.KIND, "ACQUIRED").shouldBeEqualTo("ACQUIRED")
+      assertFailsWith<IllegalArgumentException> {
+          raw.sanitize(LeaderAuditField.LOCK_NAME, SECRET_SENTINEL)
+      }
   }
   ```
 
@@ -80,19 +114,19 @@
 
 - [ ] **Step 3: Implement the minimum event contract**
 
-  `LeaderAuditExportEvent`는 `Serializable` sealed interface로 만들고 `History`와
+  `LeaderAuditExportEvent`는 sealed interface로 만들고 `History`와
   `Lifecycle` data class를 제공한다. token과 `LeaderLease` 객체는 field에 넣지
   않는다. `History.from(record, sanitizer)`는 기존 `sanitize(record)` 결과를
   사용하고 `Lifecycle.from(event, sanitizer)`는 `LeaderElectionEvent`의
   `lockName`, outcome, expiry만 매핑한다.
 
   ```kotlin
-  sealed interface LeaderAuditExportEvent : Serializable {
+  sealed interface LeaderAuditExportEvent {
       val occurredAt: Instant
       val lockName: String
       val attributes: Map<String, String>
 
-      data class History private constructor(
+      class History private constructor(
           override val occurredAt: Instant,
           override val lockName: String,
           val kind: LockIdentity.AnnotationKind?,
@@ -105,7 +139,7 @@
           override val attributes: Map<String, String>,
       ) : LeaderAuditExportEvent
 
-      data class Lifecycle private constructor(
+      class Lifecycle private constructor(
           override val occurredAt: Instant,
           override val lockName: String,
           val outcome: LeaderAuditLifecycleOutcome,
@@ -116,14 +150,16 @@
   }
   ```
 
-  `LeaderAuditValueSanitizer.Default`는 민감 field를 `redacted`로 바꾸고,
-  metadata/error는 기존 core byte/key limits를 재사용한다. 모든 map은 defensive
-  copy하고, public KDoc는 Korean technical register로 작성한다.
+  `LeaderAuditValueSanitizer`는 임의 lambda가 아니라 `Default`, `Hash`, `Truncate`,
+  `Raw` 정책으로 제한한다. `Raw`는 사전에 허용된 비민감 enum field subset과 양의
+  최대 길이를 생성 시 검증하고, 모든 정책은 공통 byte/key limits를 적용한다. event
+  `toString()`과 encoder fixture에는 secret sentinel이 없어야 한다. 모든 map은
+  defensive copy하고, public KDoc는 Korean technical register로 작성한다.
 
 - [ ] **Step 4: Run the focused test and verify GREEN**
 
   Run the same focused Gradle test. Expected: all event, token omission, limits,
-  and custom sanitizer cases PASS.
+  redaction-negative, and sanitizer policy cases PASS.
 
 - [ ] **Step 5: Commit AUD-01 model slice**
 
@@ -140,6 +176,7 @@
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/LeaderAuditExporter.kt`
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/LeaderAuditSubmitResult.kt`
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/LeaderAuditExportOptions.kt`
+- Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/LeaderAuditExportSnapshot.kt`
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/LeaderAuditDelivery.kt`
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/internal/BoundedLeaderAuditExporter.kt`
 - Create: `leader-core/src/test/kotlin/io/bluetape4k/leader/audit/BoundedLeaderAuditExporterTest.kt`
@@ -147,7 +184,9 @@
 - [ ] **Step 1: Write failing admission and retry tests**
 
   테스트는 injected executor/scheduler와 `CompletableFuture` delivery fake를
-  사용해 wall-clock sleep 없이 다음 계약을 고정한다.
+  사용해 wall-clock sleep 없이 다음 계약을 고정한다. manual scheduler와 manual
+  executor는 task admission, cancellation, rejection, worker 종료를 관찰할 수
+  있어야 하며 fixed `delay`/sleep은 사용하지 않는다.
 
   ```kotlin
   @Test
@@ -164,10 +203,37 @@
 
   @Test
   fun `late completion after close does not schedule another attempt`() { /* race */ }
+
+  @Test
+  fun `hung delivery times out, releases slot, retries, and terminalizes once`() { /* timeout */ }
+
+  @Test
+  fun `executor and scheduler rejection terminalize accepted work and release permit`() { /* reject */ }
+
+  @Test
+  fun `submit close crossing is linearized and caller executor is never shutdown`() { /* close race */ }
+
+  @Test
+  fun `owner closes exporter before scheduler and executor and owner-first shutdown is deterministic`() { /* ownership */ }
+
+  @Test
+  fun `invalid options and saturating backoff fail fast`() { /* boundary table */ }
+
+  @Test
+  fun `observer sees exact outcomes and observer failure is isolated`() { /* observer */ }
+
+  @Test
+  fun `exceptional and cancelled delivery futures terminalize once without throwing to submitter`() { /* exception matrix */ }
+
   ```
 
   각 테스트는 `ACCEPTED`, `DROPPED_QUEUE_FULL`, `DROPPED_CLOSED`, attempt count,
   delivery completion과 close state를 `shouldBeEqualTo`/`shouldBeTrue`로 검증한다.
+  timeout 승자와 late completion의 terminalization, queued/scheduled/in-flight
+  cancel count, retry permit lifecycle, executor/scheduler rejection 이후 다음
+  submission, observer exact count, caller-owned executor/scheduler의 미종료를 함께
+  검증한다. `submit` source/benchmark guard는 lock·blocking queue·capacity wait가
+  없고 contention 시 즉시 drop되는지 확인한다.
 
 - [ ] **Step 2: Run the focused test and verify RED**
 
@@ -180,36 +246,101 @@
 
 - [ ] **Step 3: Implement non-blocking bounded dispatcher**
 
-  다음 public boundary를 구현한다.
+  다음 public boundary를 구현한다. 모든 생성자·property·method의 JVM descriptor와
+  Java creation path는 Task 4 표에 먼저 고정한다.
 
   ```kotlin
   interface LeaderAuditExporter : AutoCloseable {
       fun submit(event: LeaderAuditExportEvent): LeaderAuditSubmitResult
+      fun observe(observer: LeaderAuditExportObserver): AutoCloseable
+      fun snapshot(): LeaderAuditExportSnapshot
       override fun close()
   }
 
   enum class LeaderAuditSubmitResult { ACCEPTED, DROPPED_QUEUE_FULL, DROPPED_CLOSED }
 
   fun interface LeaderAuditDelivery {
-      fun deliver(event: LeaderAuditExportEvent): CompletionStage<LeaderAuditDeliveryResult>
+      fun deliver(event: LeaderAuditExportEvent): CompletableFuture<LeaderAuditDeliveryResult>
   }
 
   enum class LeaderAuditDeliveryResult { SUCCESS, RETRYABLE_FAILURE, TERMINAL_FAILURE }
+
+  enum class LeaderAuditExportObservation {
+      ACCEPTED, DROPPED_QUEUE_FULL, DROPPED_CLOSED, RETRY, TERMINAL_FAILURE,
+      CANCELLED, EXECUTOR_REJECTED, SCHEDULER_REJECTED,
+  }
+
+  fun interface LeaderAuditExportObserver {
+      fun onObservation(observation: LeaderAuditExportObservation)
+  }
+
+  data class LeaderAuditExportSnapshot(
+      val queued: Int,
+      val inFlight: Int,
+      val accepted: Long,
+      val droppedQueueFull: Long,
+      val droppedClosed: Long,
+      val retries: Long,
+      val terminalFailures: Long,
+      val cancellations: Long,
+      val executorRejections: Long,
+      val schedulerRejections: Long,
+      val closed: Boolean,
+  )
+
+  class LeaderAuditExportOptions(
+      val queueCapacity: Int,
+      val maxInFlight: Int,
+      val maxAttempts: Int,
+      val attemptTimeout: java.time.Duration,
+      val initialBackoff: java.time.Duration,
+      val maxBackoff: java.time.Duration,
+      val executor: Executor,
+      val scheduler: ScheduledExecutorService,
+  )
   ```
 
-  `BoundedLeaderAuditExporter`는 `ArrayBlockingQueue.offer`만 사용해 submit을
-  non-blocking으로 만들고, `maxInFlight`, `maxAttempts`, `initialBackoff`,
-  `maxBackoff`, `Executor`, `ScheduledExecutorService`를 options에서 받는다.
-  queue worker는 delivery completion을 한 번만 terminalize하며, close는 admission
-  flag를 먼저 바꾸고 queued item·scheduled retry·in-flight future를 취소한다.
-  injected executor/scheduler는 exporter가 shutdown하지 않으며 ownership을
-  caller에게 문서화한다.
+  `BoundedLeaderAuditExporter`는 CAS permit counter와 `ConcurrentLinkedQueue`로
+  admission을 선형화한다. `queueCapacity`는 queued, in-flight, scheduled retry를
+  합친 전체 admitted work의 hard upper bound이고 `maxInFlight <= queueCapacity`다.
+  `submit`은 lock, `put`, capacity 대기를 하지 않으며 permit CAS 실패 시 즉시
+  `DROPPED_QUEUE_FULL`을 반환한다. `maxAttempts`, 양의 유한 `attemptTimeout`,
+  `initialBackoff`, `maxBackoff`, `Executor`, `ScheduledExecutorService`는
+  `LeaderAuditExportOptions`에서 받는다. retry는 같은 permit을 유지하고 success,
+  terminal failure, close/cancel에서 정확히 한 번 반환한다.
+
+  각 attempt는 `CompletableFuture`와 timeout task 중 먼저 완료한 쪽만
+  `AtomicBoolean`으로 terminalize한다. timeout은 future를 cancel하고 retryable
+  failure로 분류하며, close가 먼저 이기면 observer/retry/failure를 만들지 않는다.
+  `observe` callback은 스냅숏 후 `runCatching`으로 격리한다. executor 또는
+  scheduler rejection은 accepted item을 고착시키지 않고 rejection terminal/drop
+  observation과 permit 반환으로 끝낸다. worker는 queue가 비면 task를 종료하고,
+  close는 gate를 닫고 queue·retry·in-flight future를 취소한 뒤 worker가 CLOSED를
+  관찰하도록 깨운다. injected executor/scheduler는 exporter가 shutdown하지 않으며
+  ownership을 caller에게 문서화한다.
+
+  `LeaderAuditExportOptions`는 Java-visible 명시적 8-argument constructor만 제공하고
+  shared executor/scheduler default를 만들지 않는다. 기본값은 `queueCapacity=1024`,
+  `maxInFlight=8`, `maxAttempts=3`, `attemptTimeout=5s`, `initialBackoff=100ms`,
+  `maxBackoff=5s`이며 hard upper bound는 각각 `65536`, `queueCapacity`, `16`,
+  `5m`, `1m`, `1m`이다. `queueCapacity`와 `maxInFlight`는 1 이상,
+  `maxInFlight <= queueCapacity`, `maxAttempts`는 1 이상, 세 Duration은 positive
+  finite, `initialBackoff <= maxBackoff`여야 하며 nanosecond/millisecond conversion
+  overflow는 fail-fast한다. backoff는 saturating multiplication으로 `maxBackoff`를
+  넘지 않는다.
+
+  delivery가 동기적으로 예외를 던지거나 exceptional future를 반환하면
+  `RETRYABLE_FAILURE` 분류 규칙에 따라 한 번만 retry/terminalize하고 `submit` 호출자에게
+  던지지 않는다. `CancellationException`은 close/timeout이 소유한 취소일 때
+  `CANCELLED`로 끝내고 재시도하지 않으며, caller delivery가 자체적으로 취소한 경우는
+  명시된 retryable cancellation 정책으로 한 번만 처리한다. `Error`는 worker 경계를
+  넘지 않도록 terminal failure로 기록하되 fatal process policy는 변경하지 않는다.
 
 - [ ] **Step 4: Run dispatcher tests and verify GREEN**
 
-  동일 focused test를 실행해 queue, retry, close, late completion 경로가 모두
-  PASS인지 확인한다. flaky wall-clock delay가 발견되면 manual scheduler seam으로
-  수정하고 테스트를 다시 실행한다.
+  동일 focused test를 실행해 queue, retry, timeout, rejection, close, late
+  completion, observer 경로가 모두 PASS인지 확인한다. flaky wall-clock delay가
+  발견되면 manual scheduler/future seam으로 수정하고 테스트를 다시 실행한다.
 
 - [ ] **Step 5: Commit core dispatcher slice**
 
@@ -227,23 +358,33 @@
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/ExportingLeaderHistorySink.kt`
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/ExportingSuspendLeaderHistorySink.kt`
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/LeaderElectionEventExportSubscription.kt`
+- Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/internal/LeaderAuditPendingContextStore.kt`
 - Test: `leader-core/src/test/kotlin/io/bluetape4k/leader/audit/ExportingLeaderHistorySinkTest.kt`
 - Test: `leader-core/src/test/kotlin/io/bluetape4k/leader/audit/LeaderElectionEventExportSubscriptionTest.kt`
+- Test: `leader-core/src/test/kotlin/io/bluetape4k/leader/audit/LeaderAuditPendingContextStoreTest.kt`
 
 - [ ] **Step 1: Write failing bridge tests**
 
   blocking/suspend sink는 delegate result를 보존하고 exporter의 `DROPPED_*`를
   election result로 바꾸지 않는지 검증한다. publisher bridge는 Elected/Revoked/
   Skipped를 각각 한 번 submit하고 returned `AutoCloseable` 이후에는 submit하지
-  않는지 검증한다. suspend cancellation test는 `assertFailsWith<CancellationException>`
-  으로 sink cancellation이 재전파되는지 확인한다.
+  않는지 검증한다. direct submit과 blocking/suspend/lifecycle bridge 각각에서
+  accepted/drop/retry/terminal-failure observer가 보이는지 확인하고 observer가
+  예외를 던져도 delegate/election result가 바뀌지 않는지 검증한다. suspend
+  cancellation test는 `assertFailsWith<CancellationException>`으로 sink
+  cancellation이 재전파되는지 확인한다. paused callback과 close barrier를 사용해
+  close 반환 이후 submit이 0건이고, crossing event는 gate를 먼저 획득한 쪽만
+  처리되는지 결정적으로 검증한다. virtual-thread/`VirtualFuture` wrapper도
+  blocking/suspend와 동일한 admission, result, cancellation, close semantics를
+  갖는지 검증한다.
 
 - [ ] **Step 2: Run bridge tests and verify RED**
 
   ```bash
   ./gradlew :bluetape4k-leader-core:test --tests \
     'io.bluetape4k.leader.audit.ExportingLeaderHistorySinkTest' \
-    --tests 'io.bluetape4k.leader.audit.LeaderElectionEventExportSubscriptionTest'
+    --tests 'io.bluetape4k.leader.audit.LeaderElectionEventExportSubscriptionTest' \
+    --tests 'io.bluetape4k.leader.audit.LeaderAuditPendingContextStoreTest'
   ```
 
   Expected: `FAIL` because bridge classes do not exist.
@@ -252,19 +393,32 @@
 
   `ExportingLeaderHistorySink`는 delegate를 먼저 호출한다. `recordAcquired`가
   non-null key를 반환하면 `History(ACQUIRED)`를 submit하고, completed/failed는
-  key와 종료 인자를 사용해 event를 만든다. exporter submit 결과는 무시하지 않고
-  caller가 선택적으로 관찰할 수 있는 internal counter hook에 전달하되 sink
-  return value는 변경하지 않는다.
+  key와 종료 인자를 사용해 event를 만든다. acquisition record의 kind, nodeId,
+  acquiredAt, lockedUntil, slotId, metadata는 token 자체를 export하지 않는 bounded
+  `LeaderAuditPendingContextStore`에 key fingerprint와 함께 보관한다. context는
+  terminal completed/failed에서 exactly-once 제거하고, bounded capacity/TTL eviction,
+  missing-key, duplicate completion은 deterministic policy로 처리한다. context가
+  없으면 sanitized `context_missing` attribute와 effective status만 가진 최소 event를
+  만든다. `status` nullable record는 finishedAt 기준 `effectiveStatus()` 결과를
+  사용한다. exporter submit 결과는 sink return value와 분리되며, public
+  `LeaderAuditExportObserver`를 통해 caller가 accepted/drop/retry/terminal-failure를
+  관찰할 수 있다. observer 오류는 격리하고 sink return value는 변경하지 않는다.
 
   `ExportingSuspendLeaderHistorySink`는 같은 mapping을 suspend 함수에 적용하고
   sink 호출 전후의 `CancellationException`/`InterruptedException` 경계를 보존한다.
   `LeaderElectionEventExportSubscription`은 기존 `onEvent(scope, listener)`를
-  사용하고 scope cancellation과 explicit close를 모두 idempotent하게 처리한다.
+  사용하되 atomic gate와 lock으로 callback admission/close를 선형화한다. close가
+  gate를 닫고 이미 admitted callback이 끝난 뒤 job을 cancel하므로 scope
+  cancellation과 explicit close를 모두 idempotent하게 처리하고 close 반환 이후
+  새 submit을 만들지 않는다. 기존 `LeaderElectionEventPublisher`/`Listening*`
+  wrapper에만 연결하며 backend elector 자체의 recorder 경로를 자동 변경하지 않는다.
 
 - [ ] **Step 4: Run bridge tests and verify GREEN**
 
   동일 Gradle test를 실행하고, `runTest`에서 subscription cancellation·late event가
-  추가 submit을 만들지 않는지 확인한다.
+  추가 submit을 만들지 않는지, observer exact count와 close linearization이
+  결정적인지 확인한다. context store overflow/TTL/missing-key/duplicate completion과
+  blocking/suspend/virtual-thread wrapper parity도 함께 확인한다.
 
 - [ ] **Step 5: Commit bridge slice**
 
@@ -280,14 +434,36 @@
 **Files:**
 
 - Create: `leader-core/src/test/kotlin/io/bluetape4k/leader/audit/LeaderAuditExportBoundaryContractTest.kt`
+- Create: `leader-core/src/test/java/io/bluetape4k/leader/audit/LeaderAuditExportJavaContractTest.java`
 - Modify: audit public types의 KDoc files from Tasks 1–3
 
 - [ ] **Step 1: Write failing public boundary checks**
 
-  reflection으로 `LeaderAuditExporter`, `LeaderAuditExportEvent`, options와 result
-  enum의 public constructor/method set을 확인하고, event public field에 `token`이나
-  `LeaderLease`가 없는지 고정한다. `close()` idempotence와 `submit` return type을
-  JVM descriptor로 확인한다.
+  다음 exact public surface를 표와 reflection fixture로 먼저 고정한다.
+
+  | Type | Exact public surface |
+  |---|---|
+  | `LeaderAuditExporter` | `submit(LeaderAuditExportEvent): LeaderAuditSubmitResult`, `observe(LeaderAuditExportObserver): AutoCloseable`, `close(): Unit` |
+  | `LeaderAuditExportOptions` | `queueCapacity:Int`, `maxInFlight:Int`, `maxAttempts:Int`, `attemptTimeout:java.time.Duration`, `initialBackoff:java.time.Duration`, `maxBackoff:java.time.Duration`, `executor:Executor`, `scheduler:ScheduledExecutorService`; Java-visible 8-argument constructor, no implicit shared executor |
+  | `LeaderAuditDelivery` | `deliver(LeaderAuditExportEvent): CompletableFuture<LeaderAuditDeliveryResult>` |
+  | `LeaderAuditExportObserver` | `onObservation(LeaderAuditExportObservation): Unit` with finite enum only |
+  | `LeaderAuditExportSnapshot` | immutable counters/depths and `closed:Boolean`; no dynamic identifiers |
+  | `LeaderAuditHttpPayload` | `of(String, byte[])`, `contentType`, `body(): byte[]`; constructor/body defensively copy |
+  | `HttpLeaderAuditExporter` | `(HttpClient, URI, Map<String,String>, LeaderAuditPayloadEncoder, LeaderAuditExportOptions, LeaderAuditHttpOptions)` plus `submit/observe/close` |
+  | `LeaderAuditHttpOptions` | 3-argument constructor, `defaults(): LeaderAuditHttpOptions`, `maxPayloadBytes:Int`, `allowedSchemes:Set<String>`, `allowInsecureLoopback:Boolean`; immutable defensive copies |
+
+  Kotlin default arguments must not be the only construction path: the Java fixture
+  constructs options and HTTP exporter explicitly, calls `submit`, and uses
+  try-with-resources `close`. Duration units, caller ownership, `ACCEPTED != delivered`,
+  and redirect/header trust rules are part of the exact KDoc/ABI contract. Event types
+  are not `Serializable`; v1 wire/Java serialization compatibility is intentionally
+  out of scope. The fixture also records nullable event properties (`nodeId`, `slotId`,
+  `leaderId`, `leaseExpiry`, `errorType`, `errorMessage`) and rejects accidental platform
+  types or synthetic overloads.
+
+  reflection으로 위 public constructor/method set과 JVM descriptor를 확인하고, event
+  public field에 `token`이나 `LeaderLease`가 없는지 고정한다. `close()` idempotence와
+  `submit` return type을 JVM descriptor로 확인한다.
 
 - [ ] **Step 2: Run contract test and verify RED**
 
@@ -298,15 +474,17 @@
 
 - [ ] **Step 3: Align KDoc and ABI without widening the API**
 
-  public KDoc에는 caller-owned executor/scheduler, queue drop semantics, redaction
-  default, close ownership, JSONL/OpenTelemetry exclusion을 명시한다. 생성자에는
-  `@JvmOverloads`를 추가하지 않고, Kotlin default constructor가 필요한 경우
-  reflection fixture에 exact descriptor를 기록한다.
+  public KDoc에는 caller-owned executor/scheduler의 종료 순서(`exporter.close()` 후
+  scheduler/executor shutdown), queue drop semantics, `ACCEPTED != delivered`,
+  best-effort 중복/순서/프로세스 종료 손실, redaction default, close ownership,
+  JSONL/OpenTelemetry exclusion, URI/header trust boundary를 명시한다. 생성자에는
+  `@JvmOverloads`를 추가하지 않고 Java 8-argument construction path를 유지한다.
 
 - [ ] **Step 4: Run contract test and verify GREEN**
 
-  같은 명령과 `git diff --check`를 실행한다. ABI fixture는 새 public API의 이름,
-  descriptor, token 부재, close/submit semantics를 모두 PASS해야 한다.
+  같은 명령과 `git diff --check`를 실행하고 Kotlin/Java fixture를 함께 컴파일한다.
+  ABI fixture는 새 public API의 이름, descriptor, token 부재, close/submit semantics,
+  Java try-with-resources construction을 모두 PASS해야 한다.
 
 - [ ] **Step 5: Commit core contract evidence**
 
@@ -329,8 +507,12 @@
 - [ ] **Step 1: Write failing metric tests**
 
   `SimpleMeterRegistry`에서 accepted, queue-full, closed, retry, terminal failure를
-  각각 발생시키고 metric 이름과 finite tag set을 검증한다. `lockName`, `leaderId`,
-  endpoint, error message가 meter tag에 없는지도 assertion한다.
+  각각 발생시키고 metric 이름과 finite tag set을 검증한다. 스냅숏의 queue depth,
+  in-flight, cancellation, executor/scheduler rejection gauge/counter도 검증한다.
+  정확한 allow-list는 `source={history,lifecycle,direct}`,
+  `transport={core,http}`, `outcome={accepted,queue_full,closed,retry,failure,
+  cancelled,rejected}`로 고정한다. 고유 lockName, leaderId, endpoint, error message를
+  대량 제출해도 meter 수가 증가하지 않고 해당 값이 tag에 없는지 assertion한다.
 
 - [ ] **Step 2: Run Micrometer test and verify RED**
 
@@ -342,10 +524,16 @@
 - [ ] **Step 3: Implement decorator and constants**
 
   `MicrometerLeaderAuditExporter(delegate, registry)`는 `LeaderAuditExporter`를
-  그대로 반환하고 결과별 counter를 increment한다. metric names는
-  `leader.audit.export.accepted`, `leader.audit.export.dropped`,
-  `leader.audit.export.retries`, `leader.audit.export.failures`로 고정한다.
-  `outcome`, `transport` tag 값은 enum/string allow-list만 사용하고 event field는
+  그대로 반환하고 결과별 counter와 `snapshot()` gauge를 increment/update한다.
+  생성 시 delegate에 bounded `LeaderAuditExportObserver`를 등록해 retry, terminal
+  failure, cancellation, rejection을 관찰하고 decorator close에서 observer handle을
+  idempotently 해제한다. delegate가 observer callback을 격리하므로 metric registry
+  오류가 admission/election에 전파되지 않는다.
+  metric names는 `leader.audit.export.accepted`, `leader.audit.export.dropped`,
+  `leader.audit.export.retries`, `leader.audit.export.failures`,
+  `leader.audit.export.queue.depth`, `leader.audit.export.in.flight`,
+  `leader.audit.export.cancelled`, `leader.audit.export.rejections`로 고정한다.
+  `outcome`, `transport`, `source` tag 값은 위 enum allow-list만 사용하고 event field는
   tag로 복사하지 않는다. 기존 `HISTORY_SINK_FAILURES` counter는 건드리지 않는다.
 
 - [ ] **Step 4: Run Micrometer tests and verify GREEN**
@@ -376,6 +564,7 @@
 **Files:**
 
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/http/LeaderAuditPayloadEncoder.kt`
+- Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/http/LeaderAuditHttpOptions.kt`
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/http/HttpLeaderAuditDelivery.kt`
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/http/HttpLeaderAuditExporter.kt`
 - Test: `leader-core/src/test/kotlin/io/bluetape4k/leader/audit/http/HttpLeaderAuditDeliveryTest.kt`
@@ -383,13 +572,20 @@
 
 - [ ] **Step 1: Write failing HTTP contract tests**
 
-  JDK `HttpServer`를 loopback에 순차적으로 띄워 다음 응답을 검증한다.
+  classifier/retry/close는 stub `HttpClient`, manual future, manual scheduler로
+  deterministic하게 검증하고, JDK `HttpServer` loopback은 request integration smoke로
+  분리한다. fixed sleep 없이 모든 future/server/executor를 drain하고 반복 실행한다.
 
   - `202`/`204`를 success로 분류한다.
   - `429`, `503`, I/O disconnect는 최대 attempt까지 retry한다.
   - `400`, `401`, `403`, `404`는 retry하지 않는다.
-  - encoder가 만든 body와 allow-listed headers만 request에 전달한다.
-  - response body와 endpoint credential이 log에 남지 않는다.
+  - encoder가 만든 body는 `maxPayloadBytes`를 넘지 않고 immutable 스냅숏으로
+    전달되며 allow-listed headers만 request에 전달한다.
+  - oversized/chunked response는 `BodyHandlers.discarding()`으로 보존하지 않는다.
+  - HTTPS 기본값, unsafe URI/user-info/query/fragment, redirect, CRLF/forbidden header를
+    거부한다. loopback HTTP는 명시적 test-only allow-list에서만 허용한다.
+  - encoder throw, exceptional/cancelled future, response body와 endpoint credential이
+    log에 남지 않는 negative matrix를 검증한다.
   - exporter close가 in-flight future와 scheduled retry를 취소하고 late completion이
     새 retry를 만들지 않는다.
 
@@ -408,25 +604,58 @@
       fun encode(event: LeaderAuditExportEvent): LeaderAuditHttpPayload
   }
 
-  data class LeaderAuditHttpPayload(
+  class LeaderAuditHttpPayload private constructor(
       val contentType: String,
-      val body: ByteArray,
-  )
+      private val bytes: ByteArray,
+  ) {
+      fun body(): ByteArray = bytes.copyOf()
+
+      companion object {
+          @JvmStatic
+          fun of(contentType: String, body: ByteArray): LeaderAuditHttpPayload =
+              LeaderAuditHttpPayload(contentType, body.copyOf())
+      }
+  }
+
+  class LeaderAuditHttpOptions(
+      val maxPayloadBytes: Int,
+      val allowedSchemes: Set<String>,
+      val allowInsecureLoopback: Boolean,
+  ) {
+      companion object {
+          @JvmStatic
+          fun defaults(): LeaderAuditHttpOptions =
+              LeaderAuditHttpOptions(64 * 1024, setOf("https"), false)
+      }
+  }
   ```
 
-  `HttpLeaderAuditDelivery`는 `HttpRequest.newBuilder(uri).POST(...)`와
-  `HttpClient.sendAsync`를 사용한다. 2xx는 `SUCCESS`, 408/429/5xx와 I/O exception은
-  `RETRYABLE_FAILURE`, 나머지 4xx는 `TERMINAL_FAILURE`로 매핑한다. 요청 header는
-  constructor allow-list를 통해 복사하고 secret 값을 logger에 전달하지 않는다.
+  `LeaderAuditHttpOptions`는 `maxPayloadBytes` 기본 64 KiB, hard upper bound 1 MiB,
+  `allowedSchemes`의 기본 HTTPS, test-only loopback HTTP 허용 여부를 검증한다.
+  `HttpLeaderAuditDelivery`는
+  `HttpRequest.newBuilder(uri).timeout(options.attemptTimeout).POST(...)`와
+  `HttpClient.sendAsync(..., BodyHandlers.discarding())`를 사용한다. injected client의
+  `followRedirects()`가 `Redirect.NEVER`가 아니면 생성에 실패한다. 2xx는 `SUCCESS`,
+  408/429/5xx와 I/O/timeout exception은 `RETRYABLE_FAILURE`, 나머지 4xx는
+  `TERMINAL_FAILURE`로 매핑한다. 요청 header는 immutable constructor allow-list로
+  복사하고 CR/LF 및 `Host`, `Content-Length`, `Connection`, `Transfer-Encoding`을
+  거부하며 secret 값을 logger/metric에 전달하지 않는다. encoder 예외는 delivery
+  future의 terminal failure로 격리한다.
   `HttpLeaderAuditExporter`는 Task 2 dispatcher에 delivery를 주입하고, URI·encoder·
-  options·executor ownership을 KDoc로 명시한다. JSON serialization을 추가하지
-  않으며 JSONL/OpenTelemetry implementation도 만들지 않는다.
+  options·executor ownership 및 `exporter.close()` 후 외부 scheduler/executor를
+  종료하는 순서를 KDoc로 명시한다. JSON serialization을 추가하지 않으며
+  JSONL/OpenTelemetry implementation도 만들지 않는다.
+
+  최소 runnable caller 예제는 dependency-free text encoder, `Content-Type`와
+  allow-listed `Authorization` header, receiver의 duplicate/idempotency 및
+  `ACCEPTED != delivered` 주의를 함께 보여준다.
 
 - [ ] **Step 4: Run HTTP tests and verify GREEN**
 
-  focused HTTP suite를 실행하고 Testcontainers 없이 loopback server lifecycle이
-  매 테스트 종료 시 닫히는지 확인한다. 실패 시 response classification 또는
-  cancellation race를 먼저 수정하고 재실행한다.
+  focused HTTP suite와 deterministic fake suite를 실행하고 Testcontainers 없이
+  loopback server lifecycle이 매 테스트 종료 시 닫히는지 확인한다. 실패 시 response
+  classification, timeout, URI/header trust, payload immutability 또는 cancellation
+  race를 먼저 수정하고 재실행한다.
 
 - [ ] **Step 5: Commit AUD-03 transport slice**
 
@@ -447,16 +676,34 @@
 - Modify: `leader-micrometer/README.ko.md`
 - Modify: `README.md`
 - Modify: `README.ko.md`
-- Modify: `docs/manual/en/modules/bluetape4k-leader-micrometer.md`
-- Modify: `docs/manual/ko/modules/bluetape4k-leader-micrometer.md`
+- Create: `docs/manual/drafts/2026-08-18-audit-export.en.md`
+- Create: `docs/manual/drafts/2026-08-18-audit-export.ko.md`
 
 - [ ] **Step 1: Add matching Korean/English capability guidance**
 
   core README에는 `LeaderAuditExportEvent`, `LeaderAuditExporter`, bridge lifecycle,
-  default redaction, queue drop와 close semantics를 짧은 예제로 설명한다.
-  Micrometer README/manual에는 metric catalog와 no raw/high-cardinality tag 규칙을
-  추가한다. top-level README capability matrix와 event stream 설명에는 HTTP/webhook
-  adapter와 JSONL/OpenTelemetry 후속 범위를 반영한다.
+  default redaction, queue drop와 close semantics를 짧은 예제로 설명한다. exporter의
+  `ACCEPTED != delivered`, duplicate/reordering/process-shutdown loss와 receiver
+  idempotency, `exporter.close()` 후 caller-owned scheduler/executor 종료 순서를
+  함께 고정한다. Micrometer README에는 metric catalog, queue/in-flight/rejection
+  diagnostics와 no raw/high-cardinality tag 규칙을 추가한다. top-level README
+  capability matrix와 event stream 설명에는 HTTP/webhook adapter와 JSONL/OpenTelemetry
+  후속 범위를 반영한다.
+
+  운영 lifecycle 표는 `construct resources → create exporter → submit/observe →
+  exporter.close() → scheduler.shutdown()/executor.shutdown()` 순서를 제시하고,
+  owner가 먼저 외부 executor를 종료한 경우 rejection이 bounded terminal/drop으로
+  끝나며 caller 예외가 되지 않는다는 진단 절차를 포함한다. `ACCEPTED`는 delivered가
+  아니며 receiver idempotency, duplicate/reordering, crash/close loss를 명시한다.
+
+  release-pinned `docs/manual/manifest.yaml`는 현재 `0.5.0`/immutable
+  `releaseCommit`을 가리키므로 이번 train에서 해당 release manual을 수정하지 않는다.
+  대신 draft EN/KO manual에 core 조립 순서
+  (`sink → ExportingSink → SafeRecorder → backend`), `Listening*` lifecycle wrapper,
+  HTTP encoder/headers/receiver 예제, migration/limitations를 기록하고
+  “0.6.0 release manifest 전환 전에는 released claim이 아님”을 명시한다. 0.6
+  release-authorized 후속 작업에서 draft를 pinned manual로 승격하고 manifest/
+  release inventory를 함께 갱신한다.
 
 - [ ] **Step 2: Validate docs and locale parity**
 
@@ -464,19 +711,24 @@
   git diff --check
   ./gradlew exportManualModuleInventory
   ruby scripts/manual/validate_manuals.rb build/manual/module-inventory.json
+  ruby scripts/manual/validate_release_manuals.rb "$(ruby -e 'require "yaml"; m=YAML.load_file("docs/manual/manifest.yaml"); puts m["releaseRef"]' )" "$(ruby -e 'require "yaml"; m=YAML.load_file("docs/manual/manifest.yaml"); puts m["releaseCommit"]' )"
+  ruby scripts/manual/export_manifest.rb --check
+  ruby -I scripts/manual -e 'Dir["scripts/manual/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
   ```
 
-  변경된 두 locale의 제목·API·metric·scope가 대응하고, release-pinned manual의
-  현재 source claim을 과장하지 않는지 read-back한다. diagram 변경은 없으므로
-  `bluetape-diagram`은 N/A이며 evidence에 이유를 기록한다.
+  변경된 두 locale의 제목·API·metric·scope가 대응하고, draft는 0.5.0 release claim을
+  과장하지 않는지 read-back한다. pinned manual의 release source validation은
+  immutable commit에 대해 PASS해야 하며 draft token이 pinned 문서에 섞이지 않아야
+  한다. diagram 변경은 없으므로 `bluetape-diagram`은 N/A이며 evidence에 이유를
+  기록한다.
 
 - [ ] **Step 3: Commit documentation slice**
 
   ```bash
   git add README.md README.ko.md leader-core/README.md leader-core/README.ko.md \
     leader-micrometer/README.md leader-micrometer/README.ko.md \
-    docs/manual/en/modules/bluetape4k-leader-micrometer.md \
-    docs/manual/ko/modules/bluetape4k-leader-micrometer.md
+    docs/manual/drafts/2026-08-18-audit-export.en.md \
+    docs/manual/drafts/2026-08-18-audit-export.ko.md
   git commit -m $'OBS-03 audit exporter 사용 계약을 README와 manual에 반영한다\n\nConstraint: README는 concise entry point이고 manual은 release-facing source of truth다.\nRejected: 한 locale만 수정 | public API와 redaction guidance가 불일치함\nConfidence: high\nScope-risk: moderate\nDirective: JSONL/OpenTelemetry 후속 범위를 문서에서 명확히 유지한다.\nTested: locale parity, manual validator, diff check\nNot-tested: CI workflow는 변경하지 않는다.'
   ```
 
@@ -485,7 +737,11 @@
 **Files:**
 
 - Inspect all AUD-01~03 changed files and tests
-- Create only if required: `docs/review/2026-08-18-issue-535-audit-export-review.md`
+- Create: `docs/review/2026-08-18-issue-535-audit-export-review.md`
+
+  Review artifact must contain Korean summary, exact plan/spec HEAD, six lens identity
+  and verdict table, each finding's file/line and repair, focused validation outputs,
+  release-pinned manual evidence, rollback SHA table, and final `P0/P1/P2/P3` totals.
 
 - [ ] **Step 1: Run targeted module validation**
 
@@ -517,8 +773,13 @@
   Inspect the exact diff for blocking calls in `submit`/Flow callbacks, unbounded
   queue/retry, scheduler ownership leaks, virtual-thread monitor pinning, coroutine
   cancellation swallowing, duplicate late completion, response-body/secret logging,
-  and per-lock Micrometer tags. Record the command, files, and either PASS or a
-  repaired finding in the tracked review artifact.
+  URI/header trust, payload aliasing, executor/scheduler rejection, and per-lock
+  Micrometer tags. Record every six independent lens command, exact head, files,
+  P0/P1/P2/P3 result, repair or PASS evidence, CI/manual evidence, and final DoD in
+  the required tracked review artifact. A benchmark framework is not added; the
+  performance claim is limited to source-verified CAS/non-blocking admission plus a
+  deterministic contention test with a documented threshold of no blocking wait and
+  bounded allocation per accepted item.
 
 - [ ] **Step 4: Run final acceptance matrix**
 
@@ -528,9 +789,12 @@
   | blocking/suspend/event bridge parity | bridge tests + cancellation test |
   | queue/drop/failure isolation | bounded exporter tests + fake delivery |
   | HTTP status/retry/backoff/close | loopback HTTP tests |
-  | Micrometer finite cardinality | `MicrometerLeaderAuditExporterTest` |
+  | HTTP timeout/URI/header/payload/response bounds | deterministic fake HTTP tests + loopback smoke |
+  | Micrometer finite cardinality/diagnostics | `MicrometerLeaderAuditExporterTest` |
   | no dependency/module registration | `git diff`, `./gradlew projects` |
-  | docs locale parity | README/manual validator and read-back |
+  | docs locale parity/release pin | README/draft manual validators and release read-back |
+  | public Java/Kotlin ABI | reflection + Java compile fixture |
+  | backend bridge context/virtual-thread parity | bridge/context/virtual-thread tests |
 
   Every row must have fresh output before Step 8 is checked.
 
@@ -572,24 +836,47 @@
 | Spec requirement | Plan tasks |
 |---|---|
 | safe event/token omission/redaction | 1, 4, 8 |
-| bounded admission/close/retry | 2, 8 |
-| history and lifecycle bridges | 3, 8 |
-| Micrometer accepted/drop/retry/failure | 5, 8 |
-| HTTP status classification and webhook delivery | 6, 8 |
-| README/manual locale parity | 5, 7 |
+| immutable event/context/status mapping | 1, 3, 4, 8 |
+| bounded CAS admission/close/retry/timeout/rejection | 2, 8 |
+| history/lifecycle/virtual-thread bridges | 3, 8 |
+| Micrometer accepted/drop/retry/failure/diagnostics | 5, 8 |
+| HTTP status/timeout/trust/byte bounds and webhook delivery | 6, 8 |
+| README/draft manual locale parity and release pin | 5, 7, 8 |
 | no new dependency/module and ABI compatibility | 4, 8, 9 |
 | JSONL/OpenTelemetry excluded | 6, 7, 9 |
 | stacked PR exact base/head and fresh CI/review | 9 |
 
 ## Rollback and rerun points
 
-- Task 1–4 failure: revert the latest Lore commit on AUD-01; existing history/event
-  APIs remain unchanged because all new types are opt-in.
-- Task 5 failure: drop AUD-02 branch/commits and retain the green AUD-01 head; core
-  exporter behavior is independent of Micrometer.
-- Task 6 failure: drop AUD-03 transport commits and retain AUD-02; no HTTP request is
-  created by existing elector code without explicit opt-in.
+- Before any rollback, require a clean target worktree, record exact branch/PR head,
+  and verify the target commit is not merged. Never use `reset --hard` or delete a
+  branch as a first step. Use `git revert <known-good-parent>..<bad-head>` on the
+  isolated slice, then rerun dependent acceptance and `git diff --check`.
+- AUD-01 known-good SHA is the last green core event/dispatcher/bridge/ABI commit
+  recorded in the PR body; retain that SHA in the review artifact before AUD-02 starts.
+  AUD-01 failure reverts only its latest Lore commit and reruns core tests/ABI/context
+  fixtures; existing history/event APIs remain unchanged because all new types are opt-in.
+- AUD-02 known-good SHA is the green AUD-01 head plus the Micrometer decorator/docs
+  commit. Its failure retains the recorded AUD-01 SHA, reverts only AUD-02 commits,
+  and reruns core acceptance plus Micrometer baseline tests.
+- AUD-03 known-good SHA is the green AUD-02 head plus the HTTP transport commit. Its
+  failure retains the recorded AUD-02 SHA, reverts only AUD-03 commits, and reruns
+  core/Micrometer acceptance; no HTTP request is created by existing elector code
+  without explicit opt-in.
 - Task 7 validator or locale mismatch: repair docs only and rerun manual/read-back
   checks; do not rerun code tests unless a code claim changed.
 - Any P1 from performance/stability review: stop PR delivery, repair the affected
   task, rerun its focused test and all dependent validation rows.
+
+## Writer gate evidence
+
+- `SPW-01` 범위: Korean spec/plan이며 API·commands·URLs·numeric limits는 원문 token을
+  보존한다.
+- `SPW-02` 사실 보존: six-lens findings, release pin `0.5.0`/`721a9a...`, JSONL/
+  OpenTelemetry follow-up 경계를 변경하지 않았다.
+- `SPW-03` 자연스러움: `korean-naturalness-checklist.md` 기준으로 문장 주어·술어,
+  기술 register, `스냅숏`/`스케줄러` 용어를 점검한다.
+- `SPW-04` 범위 보존: draft manual은 release-pinned manual과 분리하고, 이번 train에
+  새 manual claim을 승격하지 않는다.
+- `SPW-05` read-back: `git diff --check`, placeholder scan, 문서 token/locale
+  parity와 exact spec/plan read-back 결과를 review artifact에 기록한다.

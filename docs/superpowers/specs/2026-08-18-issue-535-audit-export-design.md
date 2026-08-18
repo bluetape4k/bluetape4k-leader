@@ -110,9 +110,13 @@ issue의 framework-neutral core contract와 작은 train 범위를 넘어가므�
 event에는 backend token, `LeaderHistoryKey.token`, raw `LeaderLease` 객체를 넣지
 않는다. `lockName`, `nodeId`, `leaderId`, attribute key/value와 error message는
 event를 만들기 전에 core redaction policy를 적용한다. 기본 policy는 민감하거나
-무제한 cardinality가 될 수 있는 값을 `redacted`로 바꾸며, 명시적 opt-in에서만
-`HASH` 또는 길이 제한 `TRUNCATE`를 허용한다. `RAW`는 기본값이 아니며 allow-list와
-최대 길이 검증을 통과해야 한다.
+무제한 cardinality가 될 수 있는 값을 `redacted`로 바꾼다. 정책은 임의 함수를
+주입하는 형태가 아니라 `REDACT`, `HASH`, `TRUNCATE`, `RAW` 모드와 검증된 field
+allow-list로 표현한다. `HASH`와 `TRUNCATE`는 명시적 opt-in에서만 허용하고,
+`RAW`는 사전에 정해진 비민감 enum field에 대해서만 allow-list와 최대 길이 검증을
+통과할 때 사용할 수 있다. 따라서 임의 sanitizer 구현이 token, credential, lock 이름,
+leader identity, attribute, error message를 우회해 복원할 수 없다. event의
+`toString()`과 payload encoder 입력도 이 sanitized 값만 포함한다.
 
 ### Exporter와 admission
 
@@ -125,11 +129,30 @@ public `LeaderAuditExporter`는 다음 경계를 갖는다.
   leader election의 반환값·예외에는 영향을 주지 않는다.
 - `close()`는 신규 admission을 차단하고 queued/retry 작업을 취소한다. close는
   네트워크 drain을 기다리지 않으며 idempotent다.
+- `observe(observer)`는 accepted/drop/retry/terminal-failure/cancel/rejection의 유한한 lifecycle
+  outcome만 전달한다. observer가 예외를 던져도 admission, permit, election 결과에는
+  영향을 주지 않으며, event 값·lock 이름·endpoint·error message는 observer payload에
+  포함하지 않는다.
+- `snapshot()`은 queue depth, in-flight 수, accepted/drop/retry/terminal failure,
+  cancellation 및 executor/scheduler rejection을 누적한 bounded diagnostics를
+  반환한다. 스냅숏 값은 lock 이름·endpoint·error message를 포함하지 않는다.
 
-dispatcher 옵션은 queue capacity, 최대 동시 delivery, 최대 attempt 수, initial
-   backoff, 최대 backoff, retryable status/exception 분류, clock/scheduler와
-   executor 주입점으로 구성한다. 기본값은 유한한 queue와 retry 횟수이며 무한
-   retry·무한 queue를 허용하지 않는다.
+dispatcher 옵션은 전체 admitted work(queued, in-flight, scheduled retry)를 제한하는
+queue capacity, 최대 동시 delivery, 최대 attempt 수, 양의 유한 `attemptTimeout`,
+initial backoff, 최대 backoff, retryable status/exception 분류, clock/scheduler와
+executor 주입점으로 구성한다. queue admission은 CAS permit과 non-blocking queue로
+선형화하며, `submit`은 lock이나 capacity 대기를 수행하지 않는다. retry는 같은
+permit을 유지하고 terminal success/failure/drop/close에서 정확히 한 번 반환한다.
+기본값과 hard upper bound는 모두 유한하며, 0/음수·`initialBackoff > maxBackoff`·기간
+overflow를 fail-fast로 거부한다. executor/scheduler는 caller 소유이고 exporter가
+shutdown하지 않는다. worker/retry schedule rejection은 accepted item을 고착시키지
+않고 terminal/drop outcome과 permit 반환으로 끝내며, close는 worker가 다음 admission을
+만들지 않고 실행 중 drain이 종료될 때까지 상태를 CLOSED로 유지한다.
+
+기본 dispatcher 값은 `queueCapacity=1024`, `maxInFlight=8`, `maxAttempts=3`,
+`attemptTimeout=5s`, `initialBackoff=100ms`, `maxBackoff=5s`이며 hard upper bound는
+각각 `65536`, `queueCapacity`, `16`, `5m`, `1m`, `1m`이다. HTTP payload는 기본
+64 KiB, hard upper bound 1 MiB이고 response body는 0 byte로 discard한다.
 
 ### Delivery와 HTTP/webhook
 
@@ -138,12 +161,25 @@ dispatcher는 transport-neutral one-shot delivery 함수와 분리한다. HTTP a
 사용한다.
 
 - encoder는 이미 redacted event를 `ByteArray`로 변환하고 content type을 제공한다.
+  payload에는 양의 유한 `maxPayloadBytes` 상한을 적용하며 초과 payload는 request를
+  만들기 전에 terminal failure로 끝낸다.
 - request는 `POST`로 만들며 2xx만 성공으로 처리한다.
 - 408, 429, 5xx와 I/O 실패만 bounded retry 대상이다. 다른 4xx는 즉시 terminal
   failure다.
-- `sendAsync` completion은 dispatcher가 재시도·성공·실패로 분류한다.
-- response body는 제한된 크기까지만 읽고 log에는 endpoint credential이나 body를
-  남기지 않는다.
+- `sendAsync` completion은 dispatcher가 재시도·성공·실패로 분류한다. dispatcher의
+  `attemptTimeout`과 HTTP request timeout은 모두 양의 유한 값이며, timeout은 retryable
+  failure로 한 번만 terminalize한다. timeout 승자는 underlying future를 cancel하고,
+  completion 승자는 timeout task를 cancel한다. close가 먼저 이기면 retry/failure
+  observer를 만들지 않는다.
+- HTTP adapter의 기본 response body handler는 `BodyHandlers.discarding()`이며 response
+  body 보존 상한은 0 byte다. 따라서 oversized/chunked body를 메모리에 축적하지 않는다.
+  log에는 endpoint credential이나 body를 남기지 않는다.
+- target URI는 기본적으로 HTTPS만 허용하고, user-info/query/fragment와 control
+  character를 거부한다. HTTP loopback은 명시적 test-only allow-list에서만 허용한다.
+  injected `HttpClient`는 `Redirect.NEVER`여야 하며, header map은 immutable
+  allow-list로 복사하고 CR/LF·`Host`·`Content-Length`·`Connection` 등 forbidden header를
+  거부한다. Authorization 같은 credential header는 전송할 수 있지만 로그·metric·event에는
+  절대 복사하지 않는다.
 - HTTP adapter는 core에 JSON library를 추가하지 않는다. JSON payload가 필요한
   사용자는 encoder를 제공하며, JSONL/OpenTelemetry는 후속 adapter가 담당한다.
 
@@ -151,15 +187,24 @@ dispatcher는 transport-neutral one-shot delivery 함수와 분리한다. HTTP a
 
 - `ExportingLeaderHistorySink`는 기존 sink를 먼저 호출하고, 반환된 key/record로
   sanitized `History` event를 submit한다. exporter 결과가 `DROPPED_*`여도 기존
-  sink 결과를 변경하지 않는다.
+  sink 결과를 변경하지 않는다. non-blocking 보장은 exporter admission과 delivery
+  대기를 제외하는 의미이며, 기존 history sink/recorder의 동기 latency는 유지한다.
 - suspend variant는 같은 admission API를 사용하고 suspend sink 호출의
   `CancellationException` 전파를 유지한다. export submission 자체는 blocking하지
   않는다.
 - `LeaderElectionEventPublisher` bridge는 `events`를 구독해 `Lifecycle` event를
-  submit하고, 구독 close handle을 반환한다. callback 또는 exporter failure는
-  publisher contract 밖으로 전파하지 않는다.
+  submit하고, 구독 close handle을 반환한다. callback admission과 close는 atomic gate로
+  선형화하며 close가 gate를 닫은 뒤 이미 admitted callback이 끝날 때까지 기다린다.
+  따라서 close가 반환된 뒤에는 새 submit이 없고, close와 crossing한 event는 gate를
+  먼저 획득한 쪽의 결과만 갖는다. callback 또는 exporter failure는 publisher contract
+  밖으로 전파하지 않는다.
 - exporter lifecycle은 caller가 소유한다. Spring/Ktor가 자동으로 bean·scope를
   만들거나 닫는 동작은 후속 integration issue에서 정의한다.
+
+export delivery는 best-effort다. `ACCEPTED`는 queue admission만 뜻하며 delivered를
+보장하지 않는다. `maxInFlight > 1`이면 retry 중복·reordering이 가능하고, process
+crash 또는 close는 drain하지 않은 work를 잃을 수 있다. receiver는 event identity를
+사용해 idempotency를 제공해야 한다.
 
 ### Micrometer 관찰
 
@@ -171,6 +216,7 @@ dispatcher는 transport-neutral one-shot delivery 함수와 분리한다. HTTP a
 - closed drops
 - retry attempts
 - terminal delivery failures
+- queue depth, in-flight delivery, cancellation/rejection diagnostics
 
 metric tag는 `source`, `outcome`, `transport`처럼 유한한 값만 사용한다. raw
 lock name, leader ID, endpoint, error message는 metric tag가 되지 않는다.
@@ -188,7 +234,9 @@ lock name, leader ID, endpoint, error message는 metric tag가 되지 않는다.
 5. coroutine scope가 취소되면 bridge subscription은 닫히지만, history recorder가
    sink에서 받은 `CancellationException`을 삼키지 않는다.
 6. in-flight HTTP future와 scheduled retry는 close에서 취소하고, late completion은
-   counter를 두 번 올리거나 새 retry를 예약하지 않는다.
+   counter를 두 번 올리거나 새 retry를 예약하지 않는다. generic delivery도
+   cancellation-capable `CompletableFuture`를 반환하므로 close/timeout이 취소를
+   전파할 수 있다.
 7. exporter callback/encoder가 예외를 내도 기존 election result와 history sink
    result는 보존한다.
 
@@ -226,6 +274,10 @@ lock name, leader ID, endpoint, error message는 metric tag가 되지 않는다.
 - [ ] queue 포화·delivery 실패·retry 소진이 election outcome을 변경하지 않는다.
 - [ ] retryable/non-retryable HTTP 분류, 최대 attempt, backoff, close/cancel이
       deterministic test로 검증된다.
+- [ ] timeout, executor/scheduler rejection, submit-close crossing과 worker 종료가
+      deterministic test로 검증된다.
+- [ ] URI/header trust boundary와 payload/response byte bound가 negative test로
+      검증된다.
 - [ ] Micrometer metric은 accepted/drop/retry/failure를 관찰하고 raw/high-cardinality
       값을 tag로 만들지 않는다.
 - [ ] 새 dependency와 Spring/Ktor auto-config 없이 `leader-core` 및
@@ -243,4 +295,3 @@ lock name, leader ID, endpoint, error message는 metric tag가 되지 않는다.
 - export failure가 election을 중단하지 않는 fake delivery 증거가 있다.
 - PR CI와 독립 7-tier review에서 P0/P1이 0이다.
 - merge는 현재 exact head에 대한 fresh approval 전에는 실행하지 않는다.
-
