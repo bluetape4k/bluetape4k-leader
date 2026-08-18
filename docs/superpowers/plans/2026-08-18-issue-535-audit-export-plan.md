@@ -568,7 +568,13 @@
   in-flight reservation을 delivery 전에 획득하고 completion/timeout/close에서 정확히
   반환해 `inFlight <= maxInFlight`를 유지한다. close 이후 scheduling critical section과
   worker admission이 quiesce된 것을 확인하고 반환하며, network drain은 기다리지 않지만
-  close 반환 후 exporter가 executor/scheduler에 새 execute/schedule을 호출하지 않는다.
+  close 반환 후 exporter가 executor/scheduler에 새 execute/schedule handoff를 만들지
+  않는다. worker handoff는 `IDLE → CLAIMED → EXECUTING` 상태로 선형화하며,
+  `CLAIMED → EXECUTING`이 executor 호출의 선형화 지점이다. close는 `CLAIMED`를
+  `CLOSED`로 취소할 수 있고 이미 `EXECUTING`인 handoff는 caller-owned executor나
+  delivery를 기다리지 않고 close와 교차할 수 있다. 따라서 close 반환 이후 금지되는
+  것은 `CLOSED` 이후의 새 handoff이며, 이미 선형화된 `EXECUTING` 호출의 물리적
+  continuation을 close가 join하지 않는다는 의미를 고정한다.
   injected executor/scheduler는 exporter가 shutdown하지 않으며 ownership을 caller에게
   문서화한다.
 
