@@ -88,7 +88,7 @@ sealed interface LeaderAuditExportEvent {
              */
             fun from(
                 record: LeaderLockHistoryRecord,
-                sanitizer: LeaderAuditValueSanitizer = LeaderAuditValueSanitizer.Default,
+                sanitizer: LeaderAuditValueSanitizer,
             ): History {
                 val occurredAt = record.finishedAt ?: record.acquiredAt
                 return History(
@@ -146,8 +146,8 @@ sealed interface LeaderAuditExportEvent {
              */
             fun from(
                 event: LeaderElectionEvent,
-                attributes: Map<String, String> = emptyMap(),
-                sanitizer: LeaderAuditValueSanitizer = LeaderAuditValueSanitizer.Default,
+                attributes: Map<String, String>,
+                sanitizer: LeaderAuditValueSanitizer,
             ): Lifecycle {
                 val elected = event as? LeaderElectionEvent.Elected
                 return Lifecycle(
