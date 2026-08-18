@@ -358,25 +358,16 @@ class MicrometerLeaderAuditExporter(
         }
 
         private fun ensureMeters(registry: MeterRegistry) {
-            val createdDescriptors = mutableListOf<MetricDescriptor>()
-            try {
-                METRIC_DESCRIPTORS.forEach { descriptor ->
-                    val existing = meters[descriptor]
-                    if (existing != null) {
-                        if (findMeter(registry, descriptor) !== existing) failOwnership()
-                        return@forEach
-                    }
-                    if (findMeter(registry, descriptor) != null) failOwnership()
-                    val created = registerMeter(registry, descriptor)
-                    if (findMeter(registry, descriptor) !== created) failOwnership()
-                    meters[descriptor] = created
-                    createdDescriptors += descriptor
+            METRIC_DESCRIPTORS.forEach { descriptor ->
+                val existing = meters[descriptor]
+                if (existing != null) {
+                    if (findMeter(registry, descriptor) !== existing) failOwnership()
+                    return@forEach
                 }
-            } catch (failure: Throwable) {
-                createdDescriptors.forEach { descriptor ->
-                    meters.remove(descriptor)?.let { meter -> registry.remove(meter) }
-                }
-                throw failure
+                if (findMeter(registry, descriptor) != null) failOwnership()
+                val created = registerMeter(registry, descriptor)
+                if (findMeter(registry, descriptor) !== created) failOwnership()
+                meters[descriptor] = created
             }
         }
 
