@@ -405,8 +405,14 @@ stable meter는 registry에 남지만 closed delegate를 strong-reference하지 
 snapshot/closed 상태를 읽는다. 같은 registry의 새 wrapper는 stable meter identity를
 재사용하면서 새 provider를 연결한다. outcome counter는 manager offset을 누적해
 replacement에서도 감소하지 않으며 queue/in-flight/closed gauge는 현재 provider 또는
-detached closed state를 반영한다. wrapper와 owned delegate admission 모두 close 후
-`DROPPED_CLOSED`가 된다.
+detached closed state를 반영한다. `sourceDegraded`는 generation-scoped 상태다. final
+snapshot 실패로 DETACHED가 된 뒤 stable meter claim이 유효한 동일 registry replacement를
+성공적으로 acquire하면 새 generation은 `sourceDegraded=false`로 시작하고 이전 fixed
+warning을 재생하지 않으며, 누적 offset과 stable meter identity만 이어받는다. 새 generation
+에서도 final snapshot/invariant 실패가 발생하면 그 generation에 한해 warning을 한 번
+기록한다. compromised registry identity는 이 reset 경로보다 우선하여 계속 거부된다.
+이 generation reset, warning 횟수, offset 보존은 결정적 replacement fixture로 고정한다.
+wrapper와 owned delegate admission 모두 close 후 `DROPPED_CLOSED`가 된다.
 non-owning observation은 wrapper가 아니라 public `observe()` handle을 별도로 사용하며
 decorator는 내부 observer handle을 소유하지 않는다. stable meter는 close 후에도 manager의
 detached snapshot/offset을 읽고 새 wrapper가 acquire되면 새 provider로 전환한다.

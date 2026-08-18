@@ -862,6 +862,11 @@
   비정상 경로에서 보장하지 않으며, `queue=0`, `inFlight=0`, `scheduledRetries=0`,
   `admitted=0`, `diagnosticsClosed=true`, `closed=true`인 terminal gauge truth table과
   final snapshot 예외의 primary/suppressed 전파를 exact assertion한다.
+  degraded DETACHED 뒤 동일 registry에서 stable meter claim을 재사용하는 replacement fixture는
+  새 generation의 `sourceDegraded=false`, 이전 warning 재생 없음, 누적 offset·meter identity
+  보존을 exact assertion한다. replacement generation에서 다시 final snapshot/invariant 실패를
+  주입하면 해당 generation에만 fixed warning이 한 번 기록되는지도 검증한다. compromised
+  registry는 generation reset 대상이 아니며 계속 거부되어야 한다.
   constructor 실패는 delegate를 정확히 한 번 close하고 primary exception을 보존하며,
   delegate close/partial-registration cleanup 예외는 primary에 suppressed로 붙이고,
   primary가 없을 때만 cleanup 예외를 던지는지 검증한다. manager-owned partial registration만
@@ -920,6 +925,11 @@
   발생 순서로 첫 예외를 primary로 유지하고 이후 예외를 발생 순서대로 suppressed로 붙인다.
   따라서 이전 close가 새 provider를 지울 수 없고, `CLOSING` 중 replacement acquire는 거부되며
   manager가 영구 `CLOSING`에 남지 않는다.
+  `sourceDegraded`는 generation-scoped로 관리한다. final snapshot 실패 후 DETACHED가 된
+  동일 registry replacement가 성공하면 새 generation은 `sourceDegraded=false`로 시작하고
+  이전 fixed warning을 재생하지 않으며 누적 offset과 stable meter identity를 이어받는다.
+  새 generation의 실패는 그 generation에 한해 warning을 한 번 기록하고, compromised
+  registry는 이 reset 경로보다 우선하여 계속 거부한다.
   provider만 delegate를 참조하고 state 전환 후 clear되므로 registry meter가 closed delegate를
   retain하지 않는다. wrapper가 delegate ownership을 취득한 뒤 caller가 delegate를 직접
   close하는 것은 지원하지 않으며, wrapper `close()`가 유일한 ownership lifecycle이다.
@@ -970,6 +980,9 @@
   `snapshot()`은 delegate close 후에도 마지막으로 신뢰한 counter를 O(1)로 읽을 수 있다.
   `registry.remove`를 호출하지 않으므로 lookup/remove TOCTOU와 removal residue가 없고,
   stable meter identity는 replacement에서 재사용된다.
+  replacement acquire는 generation-scoped `sourceDegraded`를 false로 reset하되 cumulative
+  offset은 보존한다. 동일 registry에서 degraded generation의 warning을 재생하지 않고,
+  replacement generation이 다시 degraded가 될 때만 fixed warning을 한 번 기록한다.
   detached state의 counter는 offset을 포함해 monotonic하게 유지하고 queue/in-flight/
   diagnostics closed gauge는 active provider 또는 detached closed snapshot을 읽는다.
   non-owning observation은 wrapper가 아니라 public `observe()` handle을 별도로 사용하며
