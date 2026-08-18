@@ -27,7 +27,10 @@ class LeaseExtensionObservationRegistrationManagerTest {
 
     @Test
     fun `two Spring contexts sharing a registry keep one callback until the last context closes`() {
-        val registry = nonNoopRegistry()
+        val handler = CollectingObservationHandler()
+        val registry = ObservationRegistry.create().apply {
+            observationConfig().observationHandler(handler)
+        }
         val first = openContext(registry)
         val second = openContext(registry)
 
@@ -36,6 +39,17 @@ class LeaseExtensionObservationRegistrationManagerTest {
             LeaseExtensionObservationRegistrationManager.referenceCount(registry) shouldBeEqualTo 2
             first.containsBean("leaseExtensionObserverRegistration").shouldBeTrue()
             second.containsBean("leaseExtensionObserverRegistration").shouldBeTrue()
+
+            LockExtender.extendActiveLockDetailed(1.seconds) shouldBeEqualTo ExtendOutcome.NotHeld
+            await.atMost(5.seconds.toJavaDuration()).untilAsserted {
+                handler.stopped.size shouldBeEqualTo 1
+            }
+
+            first.close()
+            LockExtender.extendActiveLockDetailed(1.seconds) shouldBeEqualTo ExtendOutcome.NotHeld
+            await.atMost(5.seconds.toJavaDuration()).untilAsserted {
+                handler.stopped.size shouldBeEqualTo 2
+            }
         } finally {
             first.close()
             second.close()
@@ -174,9 +188,10 @@ class LeaseExtensionObservationRegistrationManagerTest {
             LeaseExtensionObservationRegistrationManager.registryCount() shouldBeEqualTo 0
             LeaseExtensionObservationRegistrationManager.referenceCount(registry) shouldBeEqualTo 0
         } finally {
-            handles.forEach(AutoCloseable::close)
             acquireTasks.filterNot { it.isDone }.forEach { it.cancel(true) }
             pool.shutdownNow()
+            pool.awaitTermination(5, TimeUnit.SECONDS).shouldBeTrue()
+            handles.forEach(AutoCloseable::close)
         }
     }
 
