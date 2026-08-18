@@ -127,10 +127,14 @@ public `LeaderAuditExporter`는 다음 경계를 갖는다.
 - 결과는 `ACCEPTED`, `DROPPED_QUEUE_FULL`, `DROPPED_CLOSED`로 구분한다.
 - `submit`은 delivery 오류를 throw하지 않는다. caller가 결과를 관찰할 수 있지만
   leader election의 반환값·예외에는 영향을 주지 않는다.
-- `close()`는 신규 admission을 차단하고 queued/retry 작업을 취소한다. close는
-  네트워크 drain은 기다리지 않지만 diagnostics worker와 이미 실행 중인 observer
-  callback의 종료를 join한 뒤 반환하며 idempotent다. callback이 interrupt를 무시해도
-  close 이후 새 callback admission은 허용하지 않는다.
+- `close()`는 먼저 exporter admission gate를 닫고 queued/retry/in-flight work를
+  close-owned cancellation으로 terminalize한다. 이때 발생한 `CANCELLED` observation은
+  diagnostics gate가 아직 열려 있을 때 admission한 뒤 diagnostics gate를 닫고 queued
+  diagnostics를 drop하며 worker를 interrupt/unpark한다. 네트워크 drain은 기다리지 않는다.
+  이미 admission된 observer callback은 완료 또는 abandon될 수 있지만 close는 callback
+  종료를 join하지 않으므로 interrupt를 무시하는 callback 때문에 무기한 hang하지 않는다.
+  close 이후 새 callback admission은 허용하지 않으며, close 전에 invocation reservation된
+  callback만 crossing allowance로 close 반환 뒤 현재 호출을 마칠 수 있다.
 - `observe(observer)`는 accepted/drop/retry/terminal-failure/cancel/rejection의 유한한 lifecycle
   outcome을 exporter가 소유하는 diagnostics queue와 이름이 고정된 daemon virtual-thread
   worker를 통해 caller thread 밖에서 best-effort로 전달한다. queue capacity는
@@ -138,13 +142,17 @@ public `LeaderAuditExporter`는 다음 경계를 갖는다.
   non-blocking offer만 수행하므로 observer callback과 diagnostics worker가 block되어도
   admission thread를 block하지 않는다. queue가 가득 차면 callback 없이 `observerDrops`만
   증가한다. exporter `close()`는 diagnostics gate를 닫고 queued callback을 drop한 뒤
-  worker를 interrupt/unpark하고 join하여 종료와 late callback 0을 확인한다. observer가
+  worker를 interrupt/unpark하고 diagnostics queue를 drain하여 더 이상의 callback admission
+  0을 확인한다. close는 이미 admission된 callback의 완료를 기다리지 않으므로
+  interrupt를 무시하는 observer 때문에 무기한 hang하지 않는다. 이미 admission된 callback은
+  close 반환 뒤에도 현재 호출을 마칠 수 있지만 새 callback은 시작하지 않는다. observer가
   `Exception`을 던져도 admission, permit, election 결과에는 영향을 주지 않으며 observer
   `Error`는 callback state를 terminalize한 뒤 worker uncaught boundary로 재전파한다.
   event 값·lock 이름·endpoint·error message는 observer payload에 포함하지 않는다.
 - `snapshot()`은 queued, in-flight, scheduled-retry, total admitted 수와
   accepted/drop/retry/terminal failure, cancellation, executor/scheduler rejection,
-  observer drop을 누적한 bounded diagnostics를 반환한다. 스냅숏 값은 lock 이름·endpoint·
+  observer drop, registration drop, diagnostics fatal error와 diagnostics closed 상태도
+  누적/표시한 bounded diagnostics를 반환한다. 스냅숏 값은 lock 이름·endpoint·
   error message를 포함하지 않는다. point-in-time 값은 concurrent update 중 fuzzy할 수
   있고, quiescent 시 `queued + inFlight + scheduledRetries == admitted <= capacity`를
   만족해야 한다.
@@ -160,13 +168,20 @@ observer enum은 `ACCEPTED`,
 `TERMINAL_FAILURE`만 만들고 `CANCELLED`를 중복 생성하지 않는다. close-owned cancel은
 `CANCELLED`만 만들며 retry/failure를 만들지 않는다.
 
-observer registration은 최대 16개로 제한한다. `observe()`가 반환하는 handle의
-`close()`는 registry에서 observer를 선형적으로 제거하고 반환 이후 해당 observer에
-대한 callback 시작을 허용하지 않는다. 이미 실행 중인 callback은 현재 호출만 마친다.
-17번째 registration은 no-op handle을 반환하고 `observerDrops`를 1 증가시킨다.
+observer registration은 최대 16개로 제한한다. 각 slot은 `active`와
+`inFlight`/invocation reservation을 하나의 lock 아래 관리한다. observation admission은
+slot lock을 잡고 `active=true`일 때만 queue permit과 `inFlight++`를 수행한다. worker는
+callback 직전 같은 slot lock에서 `active=true`를 확인하고 invocation을 reservation한 뒤
+lock을 놓고 호출한다. handle `close()`는 같은 lock에서 `active=false`를 선형화한 뒤
+registry에서 제거한다. close 전에 reservation된 callback만 crossing allowance로 남기므로
+close 반환 뒤 새 callback invocation은 시작하지 않지만 이미 reservation된 callback은
+현재 호출을 마칠 수 있다. 17번째 registration은 no-op handle을 반환하고
+`observerRegistrationDrops`를 1 증가시킨다. diagnostics queue 포화는 별도의
+`observerDrops`에만 합산한다.
 diagnostics worker에서 observer `Error`가 발생하면 diagnostics gate를 CLOSED로
-전환하고 queued callback을 drop한 뒤 원래 `Error`를 uncaught boundary로 재전파하며,
-worker를 자동 재시작하지 않는다. 이후 `observe()`는 no-op handle을 반환한다.
+전환하고 queued callback을 drop한 뒤 `diagnosticsFatalErrors`를 증가시키고
+`diagnosticsClosed=true`로 표시한 다음 원래 `Error`를 uncaught boundary로 재전파한다.
+worker를 자동 재시작하지 않으며 이후 `observe()`는 no-op handle을 반환한다.
 
 취소 원인별 관찰 순서는 다음 표로 고정한다.
 
@@ -184,9 +199,12 @@ executor 주입점으로 구성한다. queue admission은 CAS permit과 non-bloc
 permit을 유지하고 terminal success/failure/drop/close에서 정확히 한 번 반환한다.
 기본값과 hard upper bound는 모두 유한하며, 0/음수·`initialBackoff > maxBackoff`·기간
 overflow를 fail-fast로 거부한다. executor/scheduler는 caller 소유이고 exporter가
-shutdown하지 않는다. worker/retry schedule rejection은 accepted item을 고착시키지
-않고 terminal/drop outcome과 permit 반환으로 끝내며, close는 worker가 다음 admission을
-만들지 않고 실행 중 drain이 종료될 때까지 상태를 CLOSED로 유지한다.
+shutdown하지 않는다. worker-start executor rejection은 그 시점에 worker가 분리한
+queued batch만 `EXECUTOR_REJECTED`로 terminalize하고, retry scheduler rejection은
+거부된 retry item 하나만 `SCHEDULER_REJECTED`로 terminalize한다. 나머지 queued work는
+계속 처리하며 어떤 accepted item도 고착시키지 않고 terminal/drop outcome과 permit
+반환으로 끝낸다. close는 worker가 다음 admission을 만들지 않고 실행 중 drain이
+종료될 때까지 상태를 CLOSED로 유지한다.
 
 기본 dispatcher 값은 `queueCapacity=1024`, `maxInFlight=8`, `maxAttempts=3`,
 `attemptTimeout=5s`, `initialBackoff=100ms`, `maxBackoff=5s`이며 hard upper bound는
@@ -262,9 +280,10 @@ crash 또는 close는 drain하지 않은 work를 잃을 수 있다. receiver는 
 
 `MicrometerLeaderAuditExporter`는 core exporter를 소유하는 decorator하고
 `(delegate, registry)` exact constructor로 다음 metric을 제공한다. decorator `close()`는
-observer handle을 해제한 뒤 delegate를 닫아 wrapper와 direct delegate 모두 close 후
-`DROPPED_CLOSED`가 되게 한다. non-owning observation은 wrapper가 아니라 public
-`observe()` handle을 별도로 사용한다.
+observer handle을 유지한 채 delegate를 먼저 닫아 delegate close에서 발생한 `CANCELLED`
+관찰을 admission한 뒤, `finally`에서 observer handle을 해제한다. 따라서 wrapper와 direct
+delegate 모두 close 후 `DROPPED_CLOSED`가 되며 close observation도 metric에 반영된다.
+non-owning observation은 wrapper가 아니라 public `observe()` handle을 별도로 사용한다.
 
 - accepted submissions
 - queue-full drops
@@ -274,6 +293,11 @@ observer handle을 해제한 뒤 delegate를 닫아 wrapper와 direct delegate �
 - queue depth, in-flight delivery, cancellation/rejection diagnostics
 - diagnostics queue saturation as `leader.audit.export.observer.dropped`; this cumulative
   counter mirrors `snapshot().observerDrops` and is not reset by `close()`.
+- observer registration cap rejections as `leader.audit.export.observer.registration.dropped`,
+  mirroring `snapshot().observerRegistrationDrops`.
+- diagnostics fatal errors as `leader.audit.export.diagnostics.failures` and the CLOSED state
+  as `leader.audit.export.diagnostics.closed` (`0|1` gauge), mirroring the corresponding
+  snapshot fields.
 
 metric tag는 `source`, `outcome`, `transport`처럼 유한한 값만 사용한다. raw
 lock name, leader ID, endpoint, error message는 metric tag가 되지 않는다.

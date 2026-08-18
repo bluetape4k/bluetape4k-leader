@@ -218,7 +218,7 @@
   fun `worker executor rejection releases every permit and recovers capacity`() { /* executor reject */ }
 
   @Test
-  fun `retry scheduler rejection releases every permit and recovers capacity`() { /* scheduler reject */ }
+  fun `retry scheduler rejection terminalizes one retry and continues the other N minus 1 items`() { /* scheduler reject */ }
 
   @Test
   fun `submit close crossing is linearized and caller executor is never shutdown`() { /* close race */ }
@@ -243,6 +243,12 @@
 
   @Test
   fun `diagnostics Error closes diagnostics without restarting the worker`() { /* fatal diagnostics */ }
+
+  @Test
+  fun `reentrant close from diagnostics callback does not self-join`() { /* reentrant close */ }
+
+  @Test
+  fun `interrupt-ignoring observer cannot block exporter close`() { /* abandon */ }
 
   @Test
   fun `exceptional and cancelled delivery futures terminalize once without throwing to submitter`() { /* exception matrix */ }
@@ -271,8 +277,12 @@
   `inFlight <= maxInFlight`, worker-exit double-check/reschedule, caller-owned
   executor/scheduler의 미종료를 함께 검증한다. diagnostics capacity
   `min(queueCapacity, 1024)`, named daemon worker termination, observer registration cap
-  16, observer handle close linearization, queued callback drop와 `observerDrops` exact
-  count도 검증한다. `submit` source/benchmark guard는
+  16, observer handle close linearization, queued callback drop와
+  `observerDrops`/`observerRegistrationDrops` exact count, `diagnosticsFatalErrors`와
+  `diagnosticsClosed` 상태도 검증한다. observer handle close 테스트는 paused diagnostics
+  worker에서 close barrier를 통과한 뒤 callback invocation reservation이 없으면 callback
+  이 시작되지 않음을 확인하고, reservation이 먼저 선형화된 crossing callback만 close
+  반환 뒤 마칠 수 있음을 별도 검증한다. `submit` source/benchmark guard는
   lock·blocking queue·capacity wait가 없고 contention 시 즉시 drop되는지 확인한다.
   contention fixture는 32 contender, 100 iteration, barrier와 paused manual executor를
   고정하고 각 submit 호출의 반환 latch, accepted/drop 합계, `snapshot()` permit bounds를
@@ -331,6 +341,9 @@
       val executorRejections: Long,
       val schedulerRejections: Long,
       val observerDrops: Long,
+      val observerRegistrationDrops: Long,
+      val diagnosticsFatalErrors: Long,
+      val diagnosticsClosed: Boolean,
       val closed: Boolean,
   ) {
       companion object {
@@ -349,11 +362,15 @@
               executorRejections: Long,
               schedulerRejections: Long,
               observerDrops: Long,
+              observerRegistrationDrops: Long,
+              diagnosticsFatalErrors: Long,
+              diagnosticsClosed: Boolean,
               closed: Boolean,
           ): LeaderAuditExportSnapshot = LeaderAuditExportSnapshot(
               queued, inFlight, scheduledRetries, admitted, accepted, droppedQueueFull,
               droppedClosed, retries, terminalFailures, cancellations, executorRejections,
-              schedulerRejections, observerDrops, closed,
+              schedulerRejections, observerDrops, observerRegistrationDrops,
+              diagnosticsFatalErrors, diagnosticsClosed, closed,
           )
       }
   }
@@ -392,36 +409,53 @@
   `Exception`만 격리하며 `Error`는 callback task를 terminalize한 뒤 전용 diagnostics
   worker의 uncaught boundary로 재전파한다. observer 또는 delivery가 `Error`를 던지면
   상태/permit을 정확히 한 번 terminalize하고 같은 원래 `Error`를 재전파한다. exporter
-  `close()`는 diagnostics closed gate를 먼저 세우고 queued diagnostics를 drop한 뒤
-  worker를 interrupt/unpark하고 join하여 worker 종료와 late callback 0을 확인한다.
-  close는 이미 실행 중인 callback을 마칠 때까지 join할 수 있으며, callback은 interrupt를
-  존중해야 한다. join이 끝난 뒤 diagnostics thread/task와 queued callback은 0이고,
-  callback이 interrupt를 무시해도 close는 callback admission을 다시 열지 않으며 해당
-  observer는 close 이후 새 callback을 받지 않는다. executor 또는 scheduler
-  rejection은 현재 worker가 보유한 queued batch 전체를 deterministic하게
-  `EXECUTOR_REJECTED` 또는 `SCHEDULER_REJECTED`로 terminalize하고 각 item의 permit을
-  정확히 한 번 반환한다. 어떤 accepted item도 고착되지 않으며, batch N개를 거부한
-  뒤 다음 `queueCapacity` submissions가 다시 모두 admission될 수 있어야 한다.
+  `close()`는 먼저 exporter admission gate를 CLOSED로 선형화하고 queued/retry/in-flight
+  work를 close-owned cancellation으로 terminalize한다. 이 단계에서 발생한
+  `CANCELLED` observation은 diagnostics gate가 아직 열려 있는 동안 admission한다. 그
+  다음 diagnostics gate를 CLOSED로 바꾸고 queued diagnostics를 drop한 뒤 worker를
+  interrupt/unpark해 late callback admission 0을 확인한다. 이미 admission된 callback은
+  daemon worker에서 abandon/완료될 수 있다. close는 callback 종료를 join하지 않으므로
+  interrupt를 무시하는 observer 때문에 무기한 hang하지 않으며, close 반환 뒤 새 callback
+  admission은 없다. diagnostics worker thread에서 재진입한 `close()`는 자기 자신을
+  interrupt/join하지 않고 CLOSED gate만 선형화한 뒤 반환한다. 이미 admission된 callback은
+  close 반환 뒤에도 현재 호출을 마칠 수 있으며, 이는 close가 callback invocation을
+  기다리지 않는다는 명시적 lifecycle 정책이다.
+  observer slot의 `active` 확인과 callback invocation reservation(`inFlight--`/`running++`)
+  은 하나의 lock 아래 원자화한다. worker는 slot lock을 잡은 채 active 상태를 확인하고
+  invocation을 예약한 뒤에만 lock을 놓고 callback을 호출한다. handle close는 같은 lock에서
+  `active=false`를 선형화한 뒤 registry에서 제거한다. close보다 먼저 reservation된
+  callback만 crossing allowance로 실행될 수 있고, close 이후에는 새 reservation이
+  불가능하므로 handle close 반환 뒤 새 callback invocation이 시작되지 않는다.
+  executor-start rejection은 현재 worker가
+  보유한 detached queued batch 전체를 deterministic하게 `EXECUTOR_REJECTED`로
+  terminalize하고 각 item의 permit을 정확히 한 번 반환한다. retry scheduler rejection은
+  해당 retry item 하나만 `SCHEDULER_REJECTED`로 terminalize하며 queue의 N-1 work는
+  계속 처리한다. 어떤 accepted item도 고착되지 않으며, batch N개를 거부한 뒤 다음
+  `queueCapacity` submissions가 다시 모두 admission될 수 있어야 한다.
   worker는 `workerRunning.compareAndSet(false, true)`로 시작한다. drain loop가 empty를
   보면 먼저 `workerRunning.set(false)`를 publish한 다음 queue를 다시 확인하고,
   non-empty면 `compareAndSet(false, true)`로 drain ownership을 재획득한다. submit도
   enqueue 직후 동일한 `tryStartWorker()` CAS를 호출하므로 flag-clear와 enqueue가
   어느 순서로 교차해도 lost wakeup이 없다. 별도 atomic
   in-flight reservation을 delivery 전에 획득하고 completion/timeout/close에서 정확히
-  반환해 `inFlight <= maxInFlight`를 유지한다. close는 gate를 닫고 queue·retry·in-flight
-  future를 취소한 뒤 scheduling critical section과 worker admission이 quiesce된 것을
-  확인하고 반환한다. network drain은 기다리지 않지만 close 반환 후 exporter가
-  executor/scheduler에 새 execute/schedule을 호출하지 않는다. injected
+  반환해 `inFlight <= maxInFlight`를 유지한다. close는 admission gate를 먼저 닫고
+  queue·retry·in-flight future를 close-owned cancellation으로 terminalize하면서
+  `CANCELLED` observation을 diagnostics gate가 열린 상태에서 admission한다. 그 뒤
+  diagnostics gate를 닫고 queue를 drop한 다음 scheduling critical section과 worker
+  admission이 quiesce된 것을 확인하고 반환한다. network drain은 기다리지 않지만 close
+  반환 후 exporter가 executor/scheduler에 새 execute/schedule을 호출하지 않는다. injected
   executor/scheduler는 exporter가 shutdown하지 않으며 ownership을 caller에게
   문서화한다.
 
-  observer registry는 최대 16개로 고정한다. `observe()` handle close는 registry에서
-  observer를 먼저 제거하고 반환하며, queued item은 callback 직전 active 상태를 다시
-  확인한다. 이미 실행 중인 callback만 현재 호출을 마친다. 17번째 registration은
-  no-op handle을 반환하고 `observerDrops`를 1 증가시킨다.
+  observer registry는 최대 16개로 고정한다. `observe()` handle close는 slot lock 아래
+  `active=false`와 registry 제거를 선형화하고 반환한다. queued item은 callback 직전
+  동일한 slot lock에서 invocation reservation을 시도하며, close 전에 reservation된
+  callback만 crossing allowance로 호출된다. 17번째 registration은 no-op handle을
+  반환하고 `observerRegistrationDrops`를 1 증가시킨다.
   diagnostics worker에서 observer `Error`가 발생하면 diagnostics gate를 CLOSED로
-  전환하고 queued callback을 drop한 뒤 원래 `Error`를 uncaught boundary로 재전파하며,
-  worker를 자동 재시작하지 않는다. 이후 `observe()`는 no-op handle을 반환한다.
+  전환하고 queued callback을 drop한 뒤 `diagnosticsFatalErrors`를 1 증가시키고
+  `diagnosticsClosed=true`로 표시한 다음 원래 `Error`를 uncaught boundary로 재전파한다.
+  worker를 자동 재시작하지 않으며 이후 `observe()`는 no-op handle을 반환한다.
 
   `queued`, `inFlight`, `scheduledRetries`, `admitted`는 각각 `AtomicInteger`로
   유지하며 snapshot은 `queue.size` 또는 work-item 순회를 사용하지 않는 O(1) 읽기로
@@ -558,7 +592,7 @@
   | `LeaderAuditExportOptions` | `queueCapacity:Int`, `maxInFlight:Int`, `maxAttempts:Int`, `attemptTimeout:java.time.Duration`, `initialBackoff:java.time.Duration`, `maxBackoff:java.time.Duration`, `executor:Executor`, `scheduler:ScheduledExecutorService`; Java-visible 8-argument constructor, no implicit shared executor |
   | `LeaderAuditDelivery` | `deliver(LeaderAuditExportEvent): CompletableFuture<LeaderAuditDeliveryResult>` |
   | `LeaderAuditExportObserver` | `onObservation(LeaderAuditExportObservation): Unit` with finite enum only |
-  | `LeaderAuditExportSnapshot` | immutable `queued`, `inFlight`, `scheduledRetries`, `admitted`, outcome counters, `observerDrops`, `closed`; no dynamic identifiers |
+  | `LeaderAuditExportSnapshot` | immutable `queued`, `inFlight`, `scheduledRetries`, `admitted`, outcome counters, `observerDrops`, `observerRegistrationDrops`, `diagnosticsFatalErrors`, `diagnosticsClosed`, `closed`; no dynamic identifiers |
   | `LeaderAuditHttpPayload` | `of(String, byte[])`, `contentType`, `body(): byte[]`; constructor/body defensively copy |
   | `LeaderAuditTrustedHttpsEndpoint` | `trusted(URI): LeaderAuditTrustedHttpsEndpoint`, `uri:URI`; caller-owned explicit trust boundary |
   | `HttpLeaderAuditExporter` | `(HttpClient, LeaderAuditTrustedHttpsEndpoint, Map<String,String>, LeaderAuditPayloadEncoder, LeaderAuditExportOptions, LeaderAuditHttpOptions)` plus `submit/observe/snapshot/close` |
@@ -625,8 +659,8 @@
 
   `SimpleMeterRegistry`에서 accepted, queue-full, closed, retry, terminal failure를
   각각 발생시키고 metric 이름과 finite tag set을 검증한다. 스냅숏의 queue depth,
-  in-flight, cancellation, executor/scheduler rejection와 observer-drop gauge/counter도
-  검증한다.
+  in-flight, cancellation, executor/scheduler rejection와 observer-drop,
+  observer-registration-drop, diagnostics-failure/closed gauge를 검증한다.
   정확한 allow-list는 `source={history,lifecycle,direct}`,
   `transport={core,http}`, `outcome={accepted,queue_full,closed,retry,failure,
   cancelled,rejected}`로 고정한다. 고유 lockName, leaderId, endpoint, error message를
@@ -647,10 +681,11 @@
 
   `MicrometerLeaderAuditExporter(delegate, registry)`는 항상 delegate를 소유하는
   `LeaderAuditExporter` decorator로 구현하고 결과별 counter와 `snapshot()` gauge를
-  delegate에 위임한다. decorator close는 observer handle을 먼저 idempotently 해제한
-  뒤 delegate를 닫아 wrapper와 direct delegate 모두 `DROPPED_CLOSED`를 반환하도록
-  한다. non-owning observation은 wrapper가 아니라 public `observe()` handle을
-  별도로 사용한다. 생성 시 delegate에 bounded
+  delegate에 위임한다. decorator close는 observer handle을 유지한 채 delegate를 먼저
+  닫아 close-owned `CANCELLED` observation을 admission한 뒤 `finally`에서 observer
+  handle을 idempotently 해제한다. 따라서 wrapper와 direct delegate 모두
+  `DROPPED_CLOSED`를 반환하도록 한다. non-owning observation은 wrapper가 아니라 public
+  `observe()` handle을 별도로 사용한다. 생성 시 delegate에 bounded
   `LeaderAuditExportObserver`를 등록해 retry, terminal failure, cancellation,
   rejection을 관찰하고 decorator close에서 observer handle을 idempotently 해제한다.
   delegate의 `snapshot()` descriptor와 값은 그대로 전달하며 metric registry 오류가
@@ -659,9 +694,13 @@
   `leader.audit.export.retries`, `leader.audit.export.failures`,
   `leader.audit.export.queue.depth`, `leader.audit.export.in.flight`,
   `leader.audit.export.cancelled`, `leader.audit.export.rejections`,
-  `leader.audit.export.observer.dropped`로 고정한다. `observerDrops`는 snapshot과
-  observer-dropped counter에서 같은 누적값을 보이며 exporter close 후 0으로 reset하지
-  않는다.
+  `leader.audit.export.observer.dropped`,
+  `leader.audit.export.observer.registration.dropped`,
+  `leader.audit.export.diagnostics.failures`,
+  `leader.audit.export.diagnostics.closed`로 고정한다. `observerDrops`,
+  `observerRegistrationDrops`, `diagnosticsFatalErrors`는 snapshot과 각 counter에서 같은
+  누적값을 보이며 exporter close 후 0으로 reset하지 않는다. `diagnosticsClosed`는
+  `diagnostics.closed` gauge의 `0|1` 값과 일치한다.
   `outcome`, `transport`, `source` tag 값은 위 enum allow-list만 사용하고 event field는
   tag로 복사하지 않는다. 기존 `HISTORY_SINK_FAILURES` counter는 건드리지 않는다.
 
@@ -895,7 +934,29 @@
   변경된 두 locale의 제목·API·metric·scope가 대응하고, draft는 0.5.0 release claim을
   과장하지 않는지 read-back한다. pinned manual의 release source validation은
   immutable commit에 대해 PASS해야 하며 draft token이 pinned 문서에 섞이지 않아야
-  한다. `rg -nP '(Authorization:\s*(Basic|Bearer)\s+(?!\$\{WEBHOOK_TOKEN\}|<REDACTED>)[A-Za-z0-9._~+/=-]{8,}|(glpat-|github_pat_|xox[baprs]-|npm_|AIza|sk-|ghp_|AKIA[0-9A-Z]{8,}))' docs/manual/drafts README.md README.ko.md leader-core/README* leader-micrometer/README*`가 0건이고, placeholder가 `${WEBHOOK_TOKEN}` 또는 `<REDACTED>`로만 존재하는지 확인한다. gitleaks가 설치되어 있으면 동일 대상에 `gitleaks dir --no-banner --redact`도 실행한다.
+  한다. 다음 결정적 scanner는 존재하는 파일만 배열에 넣고, provider prefix 앞에
+  영숫자가 없는 경우에만 secret-like literal을 매칭한다. placeholder는 negative
+  fixture로 허용하고, known secret-like positive fixture는 반드시 매칭되는지 먼저
+  확인한다.
+
+  ```bash
+  scan_paths=()
+  for path in docs/manual/drafts README.md README.ko.md leader-core/README.md \
+      leader-core/README.ko.md leader-micrometer/README.md leader-micrometer/README.ko.md; do
+    [[ -f "$path" ]] && scan_paths+=("$path")
+  done
+  ((${#scan_paths[@]} > 0))
+  rg_bin="$(command -v rg)"
+  [[ -n "$rg_bin" ]]
+  secret_pattern='Authorization:[[:space:]]*(Basic|Bearer)[[:space:]]+(?![$][{]WEBHOOK_TOKEN[}]|<REDACTED>)[A-Za-z0-9._~+/=-]{8,}|(?<![A-Za-z0-9])(glpat-|github_pat_|xox[baprs]-|npm_|AIza|sk-|ghp_|AKIA[0-9A-Z]{8,})[A-Za-z0-9._-]{8,}'
+  printf '%s' 'Authorization: Bearer sk-live-positive-fixture' | "$rg_bin" -qP "$secret_pattern"
+  ! printf '%s' 'Authorization: Bearer ${WEBHOOK_TOKEN}' 'Authorization: Bearer <REDACTED>' | "$rg_bin" -qP "$secret_pattern"
+  ! "$rg_bin" -nP "$secret_pattern" "${scan_paths[@]}"
+  ```
+
+  gitleaks가 설치되어 있으면 추가로 repository root에서
+  `gitleaks dir --no-banner --redact .`를 실행하되, 위의 명시적 파일 집합 scanner를
+  source-of-truth로 유지한다.
   diagram 변경은 없으므로
   `bluetape-diagram`은 N/A이며 evidence에 이유를 기록한다.
 
