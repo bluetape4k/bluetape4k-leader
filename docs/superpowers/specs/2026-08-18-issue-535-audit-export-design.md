@@ -365,7 +365,7 @@ stable meter는 registry에 남지만 closed delegate를 strong-reference하지 
 snapshot/closed 상태를 읽는다. 같은 registry의 새 wrapper는 stable meter identity를
 재사용하면서 새 provider를 연결한다. outcome counter는 manager offset을 누적해
 replacement에서도 감소하지 않으며 queue/in-flight/closed gauge는 현재 provider 또는
-detached closed state를 반영한다. wrapper와 direct delegate 모두 close 후
+detached closed state를 반영한다. wrapper와 owned delegate admission 모두 close 후
 `DROPPED_CLOSED`가 된다.
 non-owning observation은 wrapper가 아니라 public `observe()` handle을 별도로 사용하며
 decorator는 내부 observer handle을 소유하지 않는다. stable meter는 close 후에도 manager의
