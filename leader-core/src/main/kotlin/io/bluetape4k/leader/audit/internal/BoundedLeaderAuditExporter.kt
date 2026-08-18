@@ -1,5 +1,6 @@
 @file:Suppress(
     "LoopWithTooManyJumpStatements",
+    "LargeClass",
     "MagicNumber",
     "ReturnCount",
     "SwallowedException",
@@ -67,6 +68,7 @@ internal class BoundedLeaderAuditExporter(
     private val closed = AtomicBoolean(false)
     private val diagnosticsClosed = AtomicBoolean(false)
     private val workerRunning = AtomicBoolean(false)
+    private val workerRestartRequested = AtomicBoolean(false)
     private val workerHandoffState = AtomicReference(WorkerHandoffState.IDLE)
     private val worker = ConcurrentLinkedQueue<WorkItem>()
     private val active = ConcurrentHashMap.newKeySet<WorkItem>()
@@ -223,12 +225,18 @@ internal class BoundedLeaderAuditExporter(
             .start {
                 if (!workerHandoffState.compareAndSet(WorkerHandoffState.IDLE, WorkerHandoffState.CLAIMED)) {
                     workerRunning.set(false)
+                    if (!closed.get()) workerRestartRequested.set(true)
+                    return@start
+                }
+                if (!workerHandoffState.compareAndSet(WorkerHandoffState.CLAIMED, WorkerHandoffState.EXECUTING)) {
+                    workerRunning.set(false)
                     return@start
                 }
                 try {
-                    // This CAS is the execute handoff linearization point. close() wins
-                    // with IDLE -> CLOSED, or observes CLAIMED and allows this crossing
-                    // without waiting for the caller-owned executor or delivery.
+                    // CLAIMED -> EXECUTING is the execute handoff linearization point.
+                    // close() can cancel a claimed-but-not-started dispatch, while an
+                    // executing handoff is allowed to cross close without waiting for the
+                    // caller-owned executor or delivery.
                     options.executor.execute(::runWorker)
                 } catch (e: RejectedExecutionException) {
                     workerRunning.set(false)
@@ -238,8 +246,10 @@ internal class BoundedLeaderAuditExporter(
                     terminalizeQueued(LeaderAuditExportObservation.EXECUTOR_REJECTED)
                     throw e
                 } finally {
-                    if (!closed.get()) {
-                        workerHandoffState.compareAndSet(WorkerHandoffState.CLAIMED, WorkerHandoffState.IDLE)
+                    if (!closed.get() &&
+                        workerHandoffState.compareAndSet(WorkerHandoffState.EXECUTING, WorkerHandoffState.IDLE)
+                    ) {
+                        if (workerRestartRequested.getAndSet(false)) tryStartWorker()
                     }
                 }
             }
@@ -256,6 +266,13 @@ internal class BoundedLeaderAuditExporter(
                 }
 
                 WorkerHandoffState.CLAIMED -> {
+                    if (workerHandoffState.compareAndSet(WorkerHandoffState.CLAIMED, WorkerHandoffState.CLOSED)) {
+                        closed.set(true)
+                        return true
+                    }
+                }
+
+                WorkerHandoffState.EXECUTING -> {
                     if (closed.compareAndSet(false, true)) return true
                     return false
                 }
@@ -677,6 +694,7 @@ internal class BoundedLeaderAuditExporter(
     private enum class WorkerHandoffState {
         IDLE,
         CLAIMED,
+        EXECUTING,
         CLOSED,
     }
 

@@ -242,6 +242,50 @@ class BoundedLeaderAuditExporterTest {
     }
 
     @Test
+    fun `worker handoff retries after inline executor exits with queued work`() {
+        val firstFuture = CompletableFuture<LeaderAuditDeliveryResult>()
+        val firstStarted = CountDownLatch(1)
+        val allowFirstReturn = CountDownLatch(1)
+        val workerExited = CountDownLatch(1)
+        val releaseExecutor = CountDownLatch(1)
+        val secondStarted = CountDownLatch(1)
+        val calls = AtomicInteger()
+        val executor = Executor { command ->
+            command.run()
+            workerExited.countDown()
+            releaseExecutor.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        }
+        val exporter = exporter(
+            queueCapacity = 2,
+            maxInFlight = 1,
+            delivery = LeaderAuditDelivery {
+                if (calls.incrementAndGet() == 1) {
+                    firstStarted.countDown()
+                    allowFirstReturn.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                    firstFuture
+                } else {
+                    secondStarted.countDown()
+                    CompletableFuture.completedFuture(LeaderAuditDeliveryResult.SUCCESS)
+                }
+            },
+            executor = executor,
+        )
+
+        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        firstStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        allowFirstReturn.countDown()
+        workerExited.await(5, TimeUnit.SECONDS).shouldBeTrue()
+
+        firstFuture.complete(LeaderAuditDeliveryResult.SUCCESS).shouldBeTrue()
+        releaseExecutor.countDown()
+        secondStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        awaitAdmissionReleased(exporter)
+        exporter.snapshot().admitted.shouldBeEqualTo(0)
+        exporter.close()
+    }
+
+    @Test
     fun `executor rejection releases all permits and later submissions recover`() {
         val rejectFirst = AtomicBoolean(true)
         val rejected = CountDownLatch(1)
