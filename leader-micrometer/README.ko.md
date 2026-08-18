@@ -236,6 +236,52 @@ election.runIfLeader("daily-report") {
 | `leader.history.sink.failures` | Counter | `sink` | cancellation/interruption 경로를 제외한 history sink 호출 실패 |
 | `leader.history.acquire.missing` | Counter | `sink` | 사용할 수 없거나 중복된 acquire record 때문에 `recordAcquired`가 `null`을 반환 |
 
+## Audit Export 메트릭
+
+bounded audit delivery 결과를 Micrometer로 export하려면 core
+`LeaderAuditExporter`를 감쌉니다.
+
+```kotlin
+val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+exporter.submit(event)
+// ACCEPTED는 admission만 의미하며 delivery 성공을 의미하지 않습니다.
+exporter.close() // delegate를 정확히 한 번 소유하고 닫습니다.
+```
+
+decorator는 고정 aggregate metric catalog 하나만 제공합니다. lock name,
+leader ID, endpoint, error message, `source`, `transport`를 tag로 복사하지
+않습니다. 유일한 tag는 아래의 제한된 `outcome` 값입니다. registry는 close 후
+replacement generation에서도 meter identity를 유지하므로 `MeterRegistry.remove`
+를 호출하거나 다른 컴포넌트에서 고정 ID를 등록하지 마세요. 동일 registry에서
+active wrapper를 중복 생성하거나 foreign fixed-ID가 발견되면 즉시 실패합니다.
+non-owning observation이 필요하면 같은 delegate를 두 번 wrapping하지 말고
+`delegate.observe(...)`로 observer를 등록하세요.
+
+| Meter | 타입 | Tag / outcome | Snapshot source |
+|---|---|---|---|
+| `leader.audit.export.accepted` | FunctionCounter | `outcome=accepted` | `accepted` |
+| `leader.audit.export.dropped` | FunctionCounter | `outcome=queue_full` 또는 `closed` | `droppedQueueFull`, `droppedClosed` |
+| `leader.audit.export.retries` | FunctionCounter | `outcome=retry` | `retries` |
+| `leader.audit.export.failures` | FunctionCounter | `outcome=failure` | `terminalFailures` |
+| `leader.audit.export.queue.depth` | Gauge | 없음 | `queued` |
+| `leader.audit.export.in.flight` | Gauge | 없음 | `inFlight` |
+| `leader.audit.export.cancelled` | FunctionCounter | `outcome=cancelled` | `cancellations` |
+| `leader.audit.export.rejections` | FunctionCounter | `outcome=rejected` | executor + scheduler rejection 합계 |
+| `leader.audit.export.observer.dropped` | FunctionCounter | 없음 | `observerDrops` |
+| `leader.audit.export.observer.registration.dropped` | FunctionCounter | 없음 | `observerRegistrationDrops` |
+| `leader.audit.export.diagnostics.failures` | FunctionCounter | 없음 | `diagnosticsFatalErrors` |
+| `leader.audit.export.diagnostics.closed` | Gauge | 없음 | `diagnosticsClosed` |
+
+dropped meter는 두 개의 outcome-tagged ID를 가지므로 고정 catalog는 총 13개
+meter ID입니다. Counter 값은 detached generation offset과 active delegate
+snapshot을 합산해 replacement 후에도 감소하지 않습니다. close 중 delegate
+snapshot이 감소하거나 실패하면 마지막으로 신뢰한 offset을 유지하고 source를
+degraded로 표시한 뒤 delegate reference를 분리하고 원래 예외를 전달합니다.
+
+이번 slice는 Micrometer 메트릭만 제공합니다. JSONL 출력과 OpenTelemetry
+SDK/bridge/exporter는 별도 후속 범위이며 애플리케이션이 해당 의존성과 transport를
+명시적으로 추가해야 합니다.
+
 Micrometer naming convention이 export backend에 맞춰 이름을 바꿉니다. Prometheus에서는 `leader_aop_attempts_total`, `leader_aop_execution_duration_seconds`, `shedlock_leader_acquired_total` 같은 이름으로 노출됩니다.
 
 ## Prometheus Export

@@ -236,6 +236,53 @@ election.runIfLeader("daily-report") {
 | `leader.history.sink.failures` | Counter | `sink` | History sink call failures, excluding cancellation and interruption paths |
 | `leader.history.acquire.missing` | Counter | `sink` | `recordAcquired` returned `null` for unavailable or duplicate acquisition records |
 
+## Audit Export Metrics
+
+Wrap a core `LeaderAuditExporter` when bounded audit delivery outcomes should be
+exported to Micrometer:
+
+```kotlin
+val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+exporter.submit(event)
+// ACCEPTED means admission only; it does not mean that delivery succeeded.
+exporter.close() // owns and closes delegate exactly once
+```
+
+The decorator publishes one fixed, aggregate metric catalog. It never copies lock
+names, leader IDs, endpoints, error messages, `source`, or `transport` into tags.
+The only tag is `outcome`, with the bounded values shown below. A registry keeps
+the meter identity across close-and-replacement generations; do not call
+`MeterRegistry.remove` or register the fixed IDs from another component. A
+duplicate active wrapper or a foreign fixed-ID registration fails fast. For a
+non-owning observation, register an observer with `delegate.observe(...)` rather
+than wrapping the same delegate twice.
+
+| Meter | Type | Tags / outcome | Snapshot source |
+|---|---|---|---|
+| `leader.audit.export.accepted` | FunctionCounter | `outcome=accepted` | `accepted` |
+| `leader.audit.export.dropped` | FunctionCounter | `outcome=queue_full` or `closed` | `droppedQueueFull`, `droppedClosed` |
+| `leader.audit.export.retries` | FunctionCounter | `outcome=retry` | `retries` |
+| `leader.audit.export.failures` | FunctionCounter | `outcome=failure` | `terminalFailures` |
+| `leader.audit.export.queue.depth` | Gauge | none | `queued` |
+| `leader.audit.export.in.flight` | Gauge | none | `inFlight` |
+| `leader.audit.export.cancelled` | FunctionCounter | `outcome=cancelled` | `cancellations` |
+| `leader.audit.export.rejections` | FunctionCounter | `outcome=rejected` | executor + scheduler rejections |
+| `leader.audit.export.observer.dropped` | FunctionCounter | none | `observerDrops` |
+| `leader.audit.export.observer.registration.dropped` | FunctionCounter | none | `observerRegistrationDrops` |
+| `leader.audit.export.diagnostics.failures` | FunctionCounter | none | `diagnosticsFatalErrors` |
+| `leader.audit.export.diagnostics.closed` | Gauge | none | `diagnosticsClosed` |
+
+The dropped meter has two outcome-tagged IDs, so the fixed catalog contains 13
+meter IDs. Counter values remain monotonic across replacement by combining the
+detached generation offset with the active delegate snapshot. If a delegate
+snapshot regresses or fails during close, the decorator keeps the last trusted
+offset, marks the source degraded, and detaches the delegate before propagating
+the original exception.
+
+This slice provides Micrometer metrics only. JSONL output and an OpenTelemetry
+SDK/bridge/exporter are separate follow-up scope; applications must add those
+dependencies and transports explicitly.
+
 Micrometer naming conventions convert names for the export backend. Prometheus exposes examples such as `leader_aop_attempts_total`, `leader_aop_execution_duration_seconds`, and `shedlock_leader_acquired_total`.
 
 ## Prometheus Export

@@ -84,6 +84,48 @@ const val OBSERVATION_TAG_EXECUTION_ELAPSED_MS: String = "execution.elapsed.ms"
  */
 internal object MicrometerNames {
 
+    // --- Audit exporter meters ---
+
+    /** bounded audit admission 성공 누적 counter입니다. */
+    const val AUDIT_EXPORT_ACCEPTED = "leader.audit.export.accepted"
+
+    /** bounded audit admission drop 누적 counter입니다. */
+    const val AUDIT_EXPORT_DROPPED = "leader.audit.export.dropped"
+
+    /** bounded audit retry 누적 counter입니다. */
+    const val AUDIT_EXPORT_RETRIES = "leader.audit.export.retries"
+
+    /** bounded audit terminal failure 누적 counter입니다. */
+    const val AUDIT_EXPORT_FAILURES = "leader.audit.export.failures"
+
+    /** bounded audit queue depth gauge입니다. */
+    const val AUDIT_EXPORT_QUEUE_DEPTH = "leader.audit.export.queue.depth"
+
+    /** bounded audit in-flight gauge입니다. */
+    const val AUDIT_EXPORT_IN_FLIGHT = "leader.audit.export.in.flight"
+
+    /** bounded audit cancellation 누적 counter입니다. */
+    const val AUDIT_EXPORT_CANCELLED = "leader.audit.export.cancelled"
+
+    /** bounded audit executor/scheduler rejection counter입니다. */
+    const val AUDIT_EXPORT_REJECTIONS = "leader.audit.export.rejections"
+
+    /** diagnostics observer drop 누적 counter입니다. */
+    const val AUDIT_EXPORT_OBSERVER_DROPPED = "leader.audit.export.observer.dropped"
+
+    /** diagnostics observer registration drop 누적 counter입니다. */
+    const val AUDIT_EXPORT_OBSERVER_REGISTRATION_DROPPED =
+        "leader.audit.export.observer.registration.dropped"
+
+    /** diagnostics worker fatal error 누적 counter입니다. */
+    const val AUDIT_EXPORT_DIAGNOSTICS_FAILURES = "leader.audit.export.diagnostics.failures"
+
+    /** diagnostics worker closed 상태 gauge입니다. */
+    const val AUDIT_EXPORT_DIAGNOSTICS_CLOSED = "leader.audit.export.diagnostics.closed"
+
+    /** audit metric의 bounded outcome tag key입니다. */
+    const val AUDIT_EXPORT_TAG_OUTCOME = "outcome"
+
     // --- Meter names ---
 
     /**

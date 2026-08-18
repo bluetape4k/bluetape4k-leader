@@ -1,0 +1,301 @@
+package io.bluetape4k.leader.micrometer.audit
+
+import io.bluetape4k.assertions.assertFailsWith
+import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.leader.audit.LeaderAuditExportEvent
+import io.bluetape4k.leader.audit.LeaderAuditExportObserver
+import io.bluetape4k.leader.audit.LeaderAuditExportSnapshot
+import io.bluetape4k.leader.audit.LeaderAuditExporter
+import io.bluetape4k.leader.audit.LeaderAuditSubmitResult
+import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.leader.LockIdentity
+import io.bluetape4k.leader.micrometer.MicrometerNames
+import io.bluetape4k.leader.micrometer.audit.MicrometerLeaderAuditExporterJavaContractTest
+import io.micrometer.core.instrument.FunctionCounter
+import io.micrometer.core.instrument.Gauge
+import io.micrometer.core.instrument.Meter
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import org.junit.jupiter.api.Test
+import java.lang.reflect.Method
+import java.lang.reflect.Modifier
+import java.time.Instant
+import java.util.concurrent.atomic.AtomicReference
+
+class MicrometerLeaderAuditExporterTest {
+
+    @Test
+    fun `fixed audit meter catalog exposes only bounded outcome tags`() {
+        val registry = SimpleMeterRegistry()
+        val delegate = SnapshotExporter(
+            snapshot(accepted = 2, droppedQueueFull = 3, droppedClosed = 4, diagnosticsClosed = true),
+        )
+        val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+
+        val expectedNames = setOf(
+            MicrometerNames.AUDIT_EXPORT_ACCEPTED,
+            MicrometerNames.AUDIT_EXPORT_DROPPED,
+            MicrometerNames.AUDIT_EXPORT_RETRIES,
+            MicrometerNames.AUDIT_EXPORT_FAILURES,
+            MicrometerNames.AUDIT_EXPORT_QUEUE_DEPTH,
+            MicrometerNames.AUDIT_EXPORT_IN_FLIGHT,
+            MicrometerNames.AUDIT_EXPORT_CANCELLED,
+            MicrometerNames.AUDIT_EXPORT_REJECTIONS,
+            MicrometerNames.AUDIT_EXPORT_OBSERVER_DROPPED,
+            MicrometerNames.AUDIT_EXPORT_OBSERVER_REGISTRATION_DROPPED,
+            MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_FAILURES,
+            MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_CLOSED,
+        )
+        val auditMeters = registry.meters.filter { it.id.name in expectedNames }
+        auditMeters.map { it.id.name }.toSet() shouldBeEqualTo expectedNames
+        auditMeters.size shouldBeEqualTo 13
+
+        val outcomeValues = auditMeters.flatMap { meter ->
+            meter.id.tags.filter { it.key == MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME }
+                .map { it.value }
+        }.toSet()
+        outcomeValues shouldBeEqualTo setOf("accepted", "queue_full", "closed", "retry", "failure", "cancelled", "rejected")
+        auditMeters.flatMap { it.id.tags }.none { tag ->
+            tag.key == "source" || tag.key == "transport" || tag.key == "lock.name" || tag.key == "endpoint"
+        }.shouldBeTrue()
+
+        registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
+            .functionCounter()
+            ?.count() shouldBeEqualTo 2.0
+        registry.find(MicrometerNames.AUDIT_EXPORT_DROPPED)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "queue_full")
+            .functionCounter()
+            ?.count() shouldBeEqualTo 3.0
+        registry.find(MicrometerNames.AUDIT_EXPORT_DROPPED)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "closed")
+            .functionCounter()
+            ?.count() shouldBeEqualTo 4.0
+        registry.find(MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_CLOSED)
+            .gauge()
+            ?.value() shouldBeEqualTo 1.0
+
+        exporter.close()
+    }
+
+    @Test
+    fun `decorator delegates public surface and close is idempotent`() {
+        val registry = SimpleMeterRegistry()
+        val delegate = SnapshotExporter(snapshot(accepted = 7))
+        val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+        val event = event()
+
+        exporter.snapshot() shouldBeEqualTo delegate.snapshot()
+        exporter.submit(event) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
+        exporter.observe(LeaderAuditExportObserver { })
+        exporter.close()
+        exporter.close()
+        delegate.closeCount shouldBeEqualTo 1
+        exporter.submit(event) shouldBeEqualTo LeaderAuditSubmitResult.DROPPED_CLOSED
+    }
+
+    @Test
+    fun `duplicate active decorator fails without closing the winner`() {
+        val registry = SimpleMeterRegistry()
+        val winnerDelegate = SnapshotExporter(snapshot())
+        val loserDelegate = SnapshotExporter(snapshot())
+        MicrometerLeaderAuditExporter(winnerDelegate, registry)
+
+        assertFailsWith<IllegalStateException> {
+            MicrometerLeaderAuditExporter(loserDelegate, registry)
+        }
+        winnerDelegate.closeCount shouldBeEqualTo 0
+        loserDelegate.closeCount shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `foreign fixed meter registration fails before ownership transfer`() {
+        val registry = SimpleMeterRegistry()
+        registry.counter(
+            MicrometerNames.AUDIT_EXPORT_ACCEPTED,
+            MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME,
+            "accepted",
+        )
+        val delegate = SnapshotExporter(snapshot())
+
+        assertFailsWith<IllegalStateException> {
+            MicrometerLeaderAuditExporter(delegate, registry)
+        }
+        delegate.closeCount shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `close then replacement keeps meter identity and cumulative offsets`() {
+        val registry = SimpleMeterRegistry()
+        val oldDelegate = SnapshotExporter(snapshot(accepted = 100))
+        val old = MicrometerLeaderAuditExporter(oldDelegate, registry)
+        val meterBefore = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
+            .meter()
+        meterBefore?.let { meter -> (meter as FunctionCounter).count() shouldBeEqualTo 100.0 }
+
+        old.close()
+        val replacementDelegate = SnapshotExporter(snapshot(accepted = 3))
+        val replacement = MicrometerLeaderAuditExporter(replacementDelegate, registry)
+        val meterAfter = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
+            .meter()
+        meterAfter shouldBeEqualTo meterBefore
+        (meterAfter as FunctionCounter).count() shouldBeEqualTo 103.0
+        replacement.close()
+    }
+
+    @Test
+    fun `source snapshot fields map to their fixed meter types`() {
+        val registry = SimpleMeterRegistry()
+        val delegate = SnapshotExporter(
+            snapshot(
+                retries = 5,
+                terminalFailures = 6,
+                cancellations = 7,
+                executorRejections = 8,
+                schedulerRejections = 9,
+                observerDrops = 10,
+                observerRegistrationDrops = 11,
+                diagnosticsFatalErrors = 12,
+                queued = 2,
+                inFlight = 3,
+            ),
+        )
+        val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+
+        registry.find(MicrometerNames.AUDIT_EXPORT_RETRIES)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "retry")
+            .meter()!!.let { it is FunctionCounter }.shouldBeTrue()
+        registry.find(MicrometerNames.AUDIT_EXPORT_FAILURES)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "failure")
+            .meter()!!.let { it is FunctionCounter }.shouldBeTrue()
+        registry.find(MicrometerNames.AUDIT_EXPORT_QUEUE_DEPTH).meter()!!.let { it is Gauge }.shouldBeTrue()
+        registry.find(MicrometerNames.AUDIT_EXPORT_IN_FLIGHT).meter()!!.let { it is Gauge }.shouldBeTrue()
+        registry.find(MicrometerNames.AUDIT_EXPORT_OBSERVER_DROPPED).meter()!!.let { it is FunctionCounter }.shouldBeTrue()
+        registry.find(MicrometerNames.AUDIT_EXPORT_OBSERVER_REGISTRATION_DROPPED).meter()!!
+            .let { it is FunctionCounter }.shouldBeTrue()
+        registry.find(MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_FAILURES).meter()!!
+            .let { it is FunctionCounter }.shouldBeTrue()
+        registry.get(MicrometerNames.AUDIT_EXPORT_QUEUE_DEPTH).gauge().value() shouldBeEqualTo 2.0
+        registry.get(MicrometerNames.AUDIT_EXPORT_IN_FLIGHT).gauge().value() shouldBeEqualTo 3.0
+        val rejectionCounter = registry.get(MicrometerNames.AUDIT_EXPORT_REJECTIONS)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "rejected")
+            .functionCounter()
+        rejectionCounter.count() shouldBeEqualTo 17.0
+        exporter.close()
+    }
+
+    @Test
+    fun `java fixture and public decorator descriptors remain stable`() {
+        MicrometerLeaderAuditExporterJavaContractTest.exercise().shouldBeTrue()
+        MicrometerLeaderAuditExporter::class.java.getConstructor(
+            LeaderAuditExporter::class.java,
+            io.micrometer.core.instrument.MeterRegistry::class.java,
+        )
+        MicrometerLeaderAuditExporter::class.java.declaredMethods
+            .filter { Modifier.isPublic(it.modifiers) && !it.isSynthetic }
+            .map { it.name }
+            .toSet() shouldBeEqualTo setOf("submit", "observe", "snapshot", "close")
+    }
+
+    private fun event(): LeaderAuditExportEvent.History = LeaderAuditExportEvent.History.from(
+        LeaderLockHistoryRecord(
+            lockName = "dynamic-lock",
+            token = "secret-token",
+            kind = LockIdentity.AnnotationKind.SINGLE,
+            acquiredAt = Instant.parse("2026-08-19T00:00:00Z"),
+            lockedUntil = Instant.parse("2026-08-19T00:01:00Z"),
+        ),
+        io.bluetape4k.leader.audit.LeaderAuditValueSanitizer.Default,
+    )
+
+    private fun snapshot(
+        queued: Int = 0,
+        inFlight: Int = 0,
+        scheduledRetries: Int = 0,
+        admitted: Int = 0,
+        accepted: Long = 0,
+        droppedQueueFull: Long = 0,
+        droppedClosed: Long = 0,
+        retries: Long = 0,
+        terminalFailures: Long = 0,
+        cancellations: Long = 0,
+        executorRejections: Long = 0,
+        schedulerRejections: Long = 0,
+        observerDrops: Long = 0,
+        observerRegistrationDrops: Long = 0,
+        diagnosticsFatalErrors: Long = 0,
+        diagnosticsClosed: Boolean = false,
+        closed: Boolean = false,
+    ): LeaderAuditExportSnapshot {
+        val companion = LeaderAuditExportSnapshot::class.java.getDeclaredField("Companion").get(null)
+        return createSnapshotMethod.invoke(
+            companion,
+            queued,
+            inFlight,
+            scheduledRetries,
+            admitted,
+            accepted,
+            droppedQueueFull,
+            droppedClosed,
+            retries,
+            terminalFailures,
+            cancellations,
+            executorRejections,
+            schedulerRejections,
+            observerDrops,
+            observerRegistrationDrops,
+            diagnosticsFatalErrors,
+            diagnosticsClosed,
+            closed,
+        ) as LeaderAuditExportSnapshot
+    }
+
+    private class SnapshotExporter(
+        initialSnapshot: LeaderAuditExportSnapshot,
+    ) : LeaderAuditExporter {
+        private val current = AtomicReference(initialSnapshot)
+        private var closed = false
+        var closeCount: Int = 0
+            private set
+
+        override fun submit(event: LeaderAuditExportEvent): LeaderAuditSubmitResult =
+            if (closed) LeaderAuditSubmitResult.DROPPED_CLOSED else LeaderAuditSubmitResult.ACCEPTED
+
+        override fun observe(observer: LeaderAuditExportObserver): AutoCloseable = AutoCloseable { }
+
+        override fun snapshot(): LeaderAuditExportSnapshot = current.get()
+
+        override fun close() {
+            closeCount++
+            closed = true
+        }
+    }
+
+    private companion object {
+        val createSnapshotMethod: Method = run {
+            val companion = LeaderAuditExportSnapshot::class.java.getDeclaredField("Companion").type
+            companion.getDeclaredMethod(
+                "create\$io_github_bluetape4k_leader_bluetape4k_leader_core",
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+                Long::class.javaPrimitiveType,
+                Long::class.javaPrimitiveType,
+                Long::class.javaPrimitiveType,
+                Long::class.javaPrimitiveType,
+                Long::class.javaPrimitiveType,
+                Long::class.javaPrimitiveType,
+                Long::class.javaPrimitiveType,
+                Long::class.javaPrimitiveType,
+                Long::class.javaPrimitiveType,
+                Long::class.javaPrimitiveType,
+                Long::class.javaPrimitiveType,
+                Boolean::class.javaPrimitiveType,
+                Boolean::class.javaPrimitiveType,
+            ).apply { isAccessible = true }
+        }
+    }
+}
