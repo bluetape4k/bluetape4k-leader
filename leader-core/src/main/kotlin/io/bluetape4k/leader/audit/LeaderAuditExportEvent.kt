@@ -58,25 +58,39 @@ sealed interface LeaderAuditExportEvent {
      * 생성자는 외부에서 직접 호출할 수 없으며 `from` factory가 token을 버리고
      * sanitizer를 적용하는 유일한 진입점입니다.
      */
-    class History private constructor(
-        override val occurredAt: Instant,
-        override val lockName: String,
+    class History private constructor(snapshot: Snapshot) : LeaderAuditExportEvent {
+
+        /** factory가 검증·정제한 값만 보관하는 opaque construction payload입니다. */
+        private class Snapshot(
+            val occurredAt: Instant,
+            val lockName: String,
+            val kind: LockIdentity.AnnotationKind,
+            val status: LeaderHistoryStatus,
+            val nodeId: String?,
+            val slotId: String?,
+            val durationMs: Long?,
+            val errorType: String?,
+            val errorMessage: String?,
+            val attributes: Map<String, String>,
+        )
+
+        override val occurredAt: Instant = snapshot.occurredAt
+        override val lockName: String = snapshot.lockName
         /** single/group election 분류입니다. */
-        val kind: LockIdentity.AnnotationKind,
+        val kind: LockIdentity.AnnotationKind = snapshot.kind
         /** history lifecycle 상태입니다. */
-        val status: LeaderHistoryStatus,
+        val status: LeaderHistoryStatus = snapshot.status
         /** sanitizer가 적용된 node identity입니다. */
-        val nodeId: String?,
+        val nodeId: String? = snapshot.nodeId
         /** sanitizer가 적용된 group slot identity입니다. */
-        val slotId: String?,
+        val slotId: String? = snapshot.slotId
         /** 사용자 작업 실행 시간입니다. */
-        val durationMs: Long?,
+        val durationMs: Long? = snapshot.durationMs
         /** sanitizer가 적용된 예외 type입니다. */
-        val errorType: String?,
+        val errorType: String? = snapshot.errorType
         /** sanitizer가 적용된 예외 message입니다. */
-        val errorMessage: String?,
-        override val attributes: Map<String, String>,
-    ) : LeaderAuditExportEvent {
+        val errorMessage: String? = snapshot.errorMessage
+        override val attributes: Map<String, String> = snapshot.attributes
 
         companion object {
             /**
@@ -93,24 +107,31 @@ sealed interface LeaderAuditExportEvent {
                 val exportNow = Instant.now()
                 val occurredAt = record.finishedAt ?: record.acquiredAt
                 return History(
-                    occurredAt = occurredAt,
-                    lockName = bounded(sanitizer, LeaderAuditField.LOCK_NAME, record.lockName, MAX_TEXT_FIELD_BYTES),
-                    kind = record.kind,
-                    status = record.effectiveStatus(exportNow),
-                    nodeId = record.nodeId?.let {
-                        bounded(sanitizer, LeaderAuditField.NODE_ID, it, MAX_TEXT_FIELD_BYTES)
-                    },
-                    slotId = record.slotId?.let {
-                        bounded(sanitizer, LeaderAuditField.SLOT_ID, it, MAX_TEXT_FIELD_BYTES)
-                    },
-                    durationMs = record.durationMs,
-                    errorType = record.errorType?.let {
-                        bounded(sanitizer, LeaderAuditField.ERROR_TYPE, it, MAX_ERROR_TYPE_BYTES)
-                    },
-                    errorMessage = record.errorMessage?.let {
-                        bounded(sanitizer, LeaderAuditField.ERROR_MESSAGE, it, MAX_ERROR_MESSAGE_BYTES)
-                    },
-                    attributes = sanitizeAttributes(record.metadata, sanitizer),
+                    Snapshot(
+                        occurredAt = occurredAt,
+                        lockName = bounded(
+                            sanitizer,
+                            LeaderAuditField.LOCK_NAME,
+                            record.lockName,
+                            MAX_TEXT_FIELD_BYTES,
+                        ),
+                        kind = record.kind,
+                        status = record.effectiveStatus(exportNow),
+                        nodeId = record.nodeId?.let {
+                            bounded(sanitizer, LeaderAuditField.NODE_ID, it, MAX_TEXT_FIELD_BYTES)
+                        },
+                        slotId = record.slotId?.let {
+                            bounded(sanitizer, LeaderAuditField.SLOT_ID, it, MAX_TEXT_FIELD_BYTES)
+                        },
+                        durationMs = record.durationMs,
+                        errorType = record.errorType?.let {
+                            bounded(sanitizer, LeaderAuditField.ERROR_TYPE, it, MAX_ERROR_TYPE_BYTES)
+                        },
+                        errorMessage = record.errorMessage?.let {
+                            bounded(sanitizer, LeaderAuditField.ERROR_MESSAGE, it, MAX_ERROR_MESSAGE_BYTES)
+                        },
+                        attributes = sanitizeAttributes(record.metadata, sanitizer),
+                    ),
                 )
             }
         }
@@ -124,17 +145,27 @@ sealed interface LeaderAuditExportEvent {
     /**
      * `LeaderElectionEvent`에서 생성한 bounded lifecycle event입니다.
      */
-    class Lifecycle private constructor(
-        override val occurredAt: Instant,
-        override val lockName: String,
+    class Lifecycle private constructor(snapshot: Snapshot) : LeaderAuditExportEvent {
+
+        /** factory가 검증·정제한 값만 보관하는 opaque construction payload입니다. */
+        private class Snapshot(
+            val occurredAt: Instant,
+            val lockName: String,
+            val outcome: LeaderAuditLifecycleOutcome,
+            val leaderId: String?,
+            val leaseExpiry: Instant?,
+            val attributes: Map<String, String>,
+        )
+
+        override val occurredAt: Instant = snapshot.occurredAt
+        override val lockName: String = snapshot.lockName
         /** lifecycle 결과입니다. */
-        val outcome: LeaderAuditLifecycleOutcome,
+        val outcome: LeaderAuditLifecycleOutcome = snapshot.outcome
         /** sanitizer가 적용된 leader identity입니다. */
-        val leaderId: String?,
+        val leaderId: String? = snapshot.leaderId
         /** leader lease 만료 시각입니다. */
-        val leaseExpiry: Instant?,
-        override val attributes: Map<String, String>,
-    ) : LeaderAuditExportEvent {
+        val leaseExpiry: Instant? = snapshot.leaseExpiry
+        override val attributes: Map<String, String> = snapshot.attributes
 
         companion object {
             /**
@@ -152,18 +183,25 @@ sealed interface LeaderAuditExportEvent {
             ): Lifecycle {
                 val elected = event as? LeaderElectionEvent.Elected
                 return Lifecycle(
-                    occurredAt = Instant.now(),
-                    lockName = bounded(sanitizer, LeaderAuditField.LOCK_NAME, event.lockName, MAX_TEXT_FIELD_BYTES),
-                    outcome = when (event) {
-                        is LeaderElectionEvent.Elected -> LeaderAuditLifecycleOutcome.ELECTED
-                        is LeaderElectionEvent.Revoked -> LeaderAuditLifecycleOutcome.REVOKED
-                        is LeaderElectionEvent.Skipped -> LeaderAuditLifecycleOutcome.SKIPPED
-                    },
-                    leaderId = elected?.leaderId?.let {
-                        bounded(sanitizer, LeaderAuditField.LEADER_ID, it, MAX_TEXT_FIELD_BYTES)
-                    },
-                    leaseExpiry = elected?.leaseExpiry,
-                    attributes = sanitizeAttributes(attributes, sanitizer),
+                    Snapshot(
+                        occurredAt = Instant.now(),
+                        lockName = bounded(
+                            sanitizer,
+                            LeaderAuditField.LOCK_NAME,
+                            event.lockName,
+                            MAX_TEXT_FIELD_BYTES,
+                        ),
+                        outcome = when (event) {
+                            is LeaderElectionEvent.Elected -> LeaderAuditLifecycleOutcome.ELECTED
+                            is LeaderElectionEvent.Revoked -> LeaderAuditLifecycleOutcome.REVOKED
+                            is LeaderElectionEvent.Skipped -> LeaderAuditLifecycleOutcome.SKIPPED
+                        },
+                        leaderId = elected?.leaderId?.let {
+                            bounded(sanitizer, LeaderAuditField.LEADER_ID, it, MAX_TEXT_FIELD_BYTES)
+                        },
+                        leaseExpiry = elected?.leaseExpiry,
+                        attributes = sanitizeAttributes(attributes, sanitizer),
+                    ),
                 )
             }
         }
