@@ -205,7 +205,7 @@ class MicrometerLeaderAuditExporterTest {
     @Test
     fun `foreign fixed meter registration fails before ownership transfer`() {
         val registry = SimpleMeterRegistry()
-        registry.counter(
+        val foreign = registry.counter(
             MicrometerNames.AUDIT_EXPORT_ACCEPTED,
             MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME,
             "accepted",
@@ -215,6 +215,51 @@ class MicrometerLeaderAuditExporterTest {
         assertFailsWith<IllegalStateException> {
             MicrometerLeaderAuditExporter(delegate, registry)
         }
+        delegate.closeCount shouldBeEqualTo 1
+
+        registry.remove(foreign)
+        val retryDelegate = SnapshotExporter(snapshot())
+        assertFailsWith<IllegalStateException> {
+            MicrometerLeaderAuditExporter(retryDelegate, registry)
+        }
+        retryDelegate.closeCount shouldBeEqualTo 1
+
+        val freshRegistry = SimpleMeterRegistry()
+        val recovered = MicrometerLeaderAuditExporter(SnapshotExporter(snapshot()), freshRegistry)
+        recovered.close()
+    }
+
+    @Test
+    fun `failed construction keeps delegate ownership through cleanup`() {
+        val failingRegistry = SimpleMeterRegistry()
+        failingRegistry.counter(
+            MicrometerNames.AUDIT_EXPORT_ACCEPTED,
+            MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME,
+            "accepted",
+        )
+        val secondRegistry = SimpleMeterRegistry()
+        val delegate = SnapshotExporter(snapshot())
+        val closeEntered = CountDownLatch(1)
+        val closeRelease = CountDownLatch(1)
+        delegate.blockClose(closeEntered, closeRelease)
+        val failure = AtomicReference<Throwable?>(null)
+        val construction = Thread {
+            try {
+                MicrometerLeaderAuditExporter(delegate, failingRegistry)
+            } catch (caught: Throwable) {
+                failure.set(caught)
+            }
+        }
+        construction.start()
+        closeEntered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+
+        assertFailsWith<IllegalStateException> {
+            MicrometerLeaderAuditExporter(delegate, secondRegistry)
+        }
+
+        closeRelease.countDown()
+        construction.join(1_000)
+        failure.get().shouldNotBeNull()
         delegate.closeCount shouldBeEqualTo 1
     }
 
@@ -380,6 +425,28 @@ class MicrometerLeaderAuditExporterTest {
 
         owned.count() shouldBeEqualTo 7.0
         exporter.close()
+    }
+
+    @Test
+    fun `foreign meter replacement after close does not double count trusted values`() {
+        val registry = SimpleMeterRegistry()
+        val delegate = SnapshotExporter(snapshot(accepted = 100))
+        val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+        val owned = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
+            .meter()
+            .shouldNotBeNull()
+        (owned as FunctionCounter).count() shouldBeEqualTo 100.0
+
+        exporter.close()
+        registry.remove(owned)
+        registry.counter(
+            MicrometerNames.AUDIT_EXPORT_ACCEPTED,
+            MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME,
+            "accepted",
+        )
+
+        owned.count() shouldBeEqualTo 100.0
     }
 
     @Test

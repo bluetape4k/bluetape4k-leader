@@ -276,8 +276,10 @@ non-owning observation이 필요하면 같은 delegate를 두 번 wrapping하지
 dropped meter는 두 개의 outcome-tagged ID를 가지므로 고정 catalog는 총 13개
 meter ID입니다. Counter 값은 detached generation offset과 active delegate
 snapshot을 합산해 replacement 후에도 감소하지 않습니다. close 중 delegate
-snapshot이 감소하거나 실패하면 마지막으로 신뢰한 offset을 유지하고 source를
-degraded로 표시한 뒤 delegate reference를 분리하고 원래 예외를 전달합니다.
+close 중 snapshot이 예외를 던지면 마지막으로 신뢰한 offset을 유지하고 source를
+degraded로 표시한 뒤 delegate reference를 분리하고 원래 예외를 전달합니다. snapshot이
+더 낮은 cumulative 값을 반환하는 경우에는 trusted baseline을 유지하고 degraded warning만
+기록한 뒤 정상 반환하며, 예외를 새로 만들지 않습니다.
 degraded 경로는 `leader.audit.export.meter-source-degraded` fixed warning을 사용하며
 snapshot payload나 exception message를 로그에 남기지 않습니다.
 open generation에서 metric polling 중 `delegate.snapshot()`을 읽지 못하면

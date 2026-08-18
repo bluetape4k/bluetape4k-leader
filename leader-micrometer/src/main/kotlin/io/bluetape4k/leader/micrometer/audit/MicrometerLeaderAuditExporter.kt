@@ -55,18 +55,26 @@ class MicrometerLeaderAuditExporter(
     private val closeFailure = AtomicReference<Throwable?>(null)
 
     init {
-        registration = try {
-            val ownershipToken = Any()
+        registration = acquireRegistration(registry, delegate)
+    }
+
+    private fun acquireRegistration(registry: MeterRegistry, delegate: LeaderAuditExporter): Registration {
+        val ownershipToken = Any()
+        try {
             DelegateOwnershipStore.claim(delegate, ownershipToken)
-            try {
-                RegistryManagerStore.acquire(registry, delegate, ownershipToken)
-            } catch (failure: Throwable) {
-                DelegateOwnershipStore.release(delegate, ownershipToken)
-                throw failure
-            }
         } catch (failure: Throwable) {
             if (failure !is DelegateAlreadyOwnedException) {
                 closeAfterConstructionFailure(delegate, failure)
+            }
+            throw failure
+        }
+        return try {
+            RegistryManagerStore.acquire(registry, delegate, ownershipToken)
+        } catch (failure: Throwable) {
+            try {
+                closeAfterConstructionFailure(delegate, failure)
+            } finally {
+                DelegateOwnershipStore.release(delegate, ownershipToken)
             }
             throw failure
         }
@@ -260,7 +268,7 @@ class MicrometerLeaderAuditExporter(
         private var ownershipWarningIssued = false
 
         fun isUnused(): Boolean = synchronized(lock) {
-            activeDelegate == null && meters.isEmpty()
+            activeDelegate == null && meters.isEmpty() && !compromised
         }
 
         fun acquire(registry: MeterRegistry, delegate: LeaderAuditExporter, ownershipToken: Any): Registration =
@@ -303,12 +311,12 @@ class MicrometerLeaderAuditExporter(
             } catch (failure: Throwable) {
                 primary = failure
             }
-            closeEntryFailure?.let { primary = appendFailure(primary, it) }
             try {
                 finalSnapshot = delegate.snapshot()
             } catch (failure: Throwable) {
                 primary = appendFailure(primary, failure)
             }
+            closeEntryFailure?.let { primary = appendFailure(primary, it) }
 
             synchronized(lock) {
                 try {
@@ -469,8 +477,12 @@ class MicrometerLeaderAuditExporter(
             if (!compromised) {
                 compromised = true
                 detachedSnapshot = DetachedSnapshot(
-                    cumulative = offsets + lastTrustedCumulative,
-                    gauges = lastTrustedGauge,
+                    cumulative = if (state == ManagerState.DETACHED) offsets else offsets + lastTrustedCumulative,
+                    gauges = if (state == ManagerState.DETACHED) {
+                        detachedSnapshot.gaugeValues()
+                    } else {
+                        lastTrustedGauge
+                    },
                 ).asTerminal()
             }
             if (!ownershipWarningIssued) {

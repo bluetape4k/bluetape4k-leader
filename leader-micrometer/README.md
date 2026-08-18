@@ -275,10 +275,11 @@ than wrapping the same delegate twice.
 
 The dropped meter has two outcome-tagged IDs, so the fixed catalog contains 13
 meter IDs. Counter values remain monotonic across replacement by combining the
-detached generation offset with the active delegate snapshot. If a delegate
-snapshot regresses or fails during close, the decorator keeps the last trusted
-offset, marks the source degraded, and detaches the delegate before propagating
-the original exception.
+detached generation offset with the active delegate snapshot. If a close-time
+snapshot throws, the decorator keeps the last trusted offset, marks the source
+degraded, detaches the delegate, and propagates the original exception. If a
+snapshot returns a lower cumulative value, it keeps the trusted baseline and
+returns normally with the degraded warning; no exception is fabricated.
 The degraded path uses the fixed `leader.audit.export.meter-source-degraded` warning
 and never logs snapshot payloads or exception messages.
 During an open generation, if a metric poll cannot read `delegate.snapshot()`, the
