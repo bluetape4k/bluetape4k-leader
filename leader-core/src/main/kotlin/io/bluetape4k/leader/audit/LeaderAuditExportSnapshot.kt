@@ -5,25 +5,45 @@ package io.bluetape4k.leader.audit
  *
  * snapshot은 동적 lock name, node id, endpoint, error message를 포함하지 않습니다.
  */
-class LeaderAuditExportSnapshot private constructor(
-    val queued: Int,
-    val inFlight: Int,
-    val scheduledRetries: Int,
-    val admitted: Int,
-    val accepted: Long,
-    val droppedQueueFull: Long,
-    val droppedClosed: Long,
-    val retries: Long,
-    val terminalFailures: Long,
-    val cancellations: Long,
-    val executorRejections: Long,
-    val schedulerRejections: Long,
-    val observerDrops: Long,
-    val observerRegistrationDrops: Long,
-    val diagnosticsFatalErrors: Long,
-    val diagnosticsClosed: Boolean,
-    val closed: Boolean,
-) {
+class LeaderAuditExportSnapshot private constructor(payload: Payload) {
+
+    val queued: Int = payload.queued
+    val inFlight: Int = payload.inFlight
+    val scheduledRetries: Int = payload.scheduledRetries
+    val admitted: Int = payload.admitted
+    val accepted: Long = payload.accepted
+    val droppedQueueFull: Long = payload.droppedQueueFull
+    val droppedClosed: Long = payload.droppedClosed
+    val retries: Long = payload.retries
+    val terminalFailures: Long = payload.terminalFailures
+    val cancellations: Long = payload.cancellations
+    val executorRejections: Long = payload.executorRejections
+    val schedulerRejections: Long = payload.schedulerRejections
+    val observerDrops: Long = payload.observerDrops
+    val observerRegistrationDrops: Long = payload.observerRegistrationDrops
+    val diagnosticsFatalErrors: Long = payload.diagnosticsFatalErrors
+    val diagnosticsClosed: Boolean = payload.diagnosticsClosed
+    val closed: Boolean = payload.closed
+
+    private class Payload(
+        val queued: Int,
+        val inFlight: Int,
+        val scheduledRetries: Int,
+        val admitted: Int,
+        val accepted: Long,
+        val droppedQueueFull: Long,
+        val droppedClosed: Long,
+        val retries: Long,
+        val terminalFailures: Long,
+        val cancellations: Long,
+        val executorRejections: Long,
+        val schedulerRejections: Long,
+        val observerDrops: Long,
+        val observerRegistrationDrops: Long,
+        val diagnosticsFatalErrors: Long,
+        val diagnosticsClosed: Boolean,
+        val closed: Boolean,
+    )
 
     companion object {
         /** 내부 counter state를 immutable public snapshot으로 만듭니다. */
@@ -47,6 +67,7 @@ class LeaderAuditExportSnapshot private constructor(
             diagnosticsClosed: Boolean,
             closed: Boolean,
         ): LeaderAuditExportSnapshot = LeaderAuditExportSnapshot(
+            Payload(
             queued = queued,
             inFlight = inFlight,
             scheduledRetries = scheduledRetries,
@@ -64,6 +85,7 @@ class LeaderAuditExportSnapshot private constructor(
             diagnosticsFatalErrors = diagnosticsFatalErrors,
             diagnosticsClosed = diagnosticsClosed,
             closed = closed,
+            ),
         )
     }
 }
