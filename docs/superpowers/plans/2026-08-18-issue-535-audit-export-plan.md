@@ -918,7 +918,10 @@
   immutable temporary value로 계산하고 모든 `final >= close-entry` invariant를 먼저 검증한다.
   하나라도 음수면 어떤 양수 field도 적용하지 않고 close-entry `closingOffsets`를 유지하며
   공통 `markSourceDegraded` 경로로 `sourceDegraded`와 fixed warning
-  `leader.audit.export.meter-source-degraded`를 해당 generation에서 한 번 기록한다. 정상 final snapshot에서만
+  `leader.audit.export.meter-source-degraded`를 해당 generation에서 한 번 기록하고 snapshot
+  throw와 동일한 terminal DETACHED fallback gauge `queue=0`, `inFlight=0`,
+  `scheduledRetries=0`, `admitted=0`, `diagnosticsClosed=true`, `closed=true`를 사용한다.
+  정상 final snapshot에서만
   `final - close-entry` delta를 정확히 한 번 적용한다. gauge는 final snapshot을 사용하고,
   final snapshot 자체가 실패하면 cumulative counter만 close-entry 기반 view로 유지하며
   동일한 `markSourceDegraded` 경로로 `sourceDegraded=true`, fixed warning
@@ -973,7 +976,10 @@
   value로 계산하고 모든 `final >= close-entry` invariant를 먼저 검증한다. 하나라도 음수면
   어떤 양수 field도 적용하지 않고 close-entry 기반 `closingOffsets`를 유지하며
   공통 `markSourceDegraded` 경로로 `sourceDegraded`와 fixed warning
-  `leader.audit.export.meter-source-degraded`를 해당 generation에서 한 번 기록한다. 정상 final snapshot에서만
+  `leader.audit.export.meter-source-degraded`를 해당 generation에서 한 번 기록하고 snapshot
+  throw와 동일한 terminal DETACHED fallback gauge `queue=0`, `inFlight=0`,
+  `scheduledRetries=0`, `admitted=0`, `diagnosticsClosed=true`, `closed=true`를 사용한다.
+  정상 final snapshot에서만
   `final - close-entry` delta를 정확히 한 번 `closingOffsets`에 반영한다. gauge는 final
   snapshot 값을 사용하고, final snapshot 자체가 실패하면 cumulative counter만 close-entry
   기반 `closingOffsets`로 유지하며 동일한 `markSourceDegraded` 경로로

@@ -382,7 +382,9 @@ metric이 감소하지 않는다. close가 성공하거나 예외를 던지는 �
    `closingOffsets`에 적용하지 않고 close-entry base를 유지하며 공통
    `markSourceDegraded` 경로로 `sourceDegraded=true`와
    `leader.audit.export.meter-source-degraded` fixed warning을 해당 generation에서 한 번
-   기록한다. 양수 field만 부분 적용하는 것은 금지한다.
+   기록하고 snapshot throw와 동일한 terminal DETACHED fallback gauge
+   `queue=0`, `inFlight=0`, `scheduledRetries=0`, `admitted=0`, `diagnosticsClosed=true`,
+   `closed=true`를 사용한다. 양수 field만 부분 적용하는 것은 금지한다.
 3. provider 제거와 terminal `DETACHED` publication을 non-throwing inner `finally`에서
    먼저 완료한다. 이 cleanup은 사용자 callback을 호출하지 않으며, 이후에만 예외를
    집계한다. 따라서 transition/diagnostic 예외가 cleanup을 건너뛰게 할 수 없다.
