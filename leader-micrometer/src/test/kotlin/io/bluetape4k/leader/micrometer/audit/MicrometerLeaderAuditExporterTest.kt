@@ -2,7 +2,9 @@ package io.bluetape4k.leader.micrometer.audit
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
+import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.audit.LeaderAuditExportEvent
 import io.bluetape4k.leader.audit.LeaderAuditExportObserver
 import io.bluetape4k.leader.audit.LeaderAuditExportSnapshot
@@ -20,6 +22,8 @@ import org.junit.jupiter.api.Test
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.time.Instant
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 class MicrometerLeaderAuditExporterTest {
@@ -95,17 +99,66 @@ class MicrometerLeaderAuditExporterTest {
     }
 
     @Test
+    fun `close waits for an admitted submit before closing the delegate`() {
+        val registry = SimpleMeterRegistry()
+        val delegate = SnapshotExporter(snapshot())
+        val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        delegate.blockSubmissions(entered, release)
+        val submitFinished = CountDownLatch(1)
+        val closeFinished = CountDownLatch(1)
+
+        val submitThread = Thread {
+            exporter.submit(event())
+            submitFinished.countDown()
+        }
+        val closeThread = Thread {
+            exporter.close()
+            closeFinished.countDown()
+        }
+        submitThread.start()
+        entered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeThread.start()
+        closeFinished.await(100, TimeUnit.MILLISECONDS).shouldBeFalse()
+
+        release.countDown()
+        submitFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        submitThread.join(1_000)
+        closeThread.join(1_000)
+        delegate.closeCount shouldBeEqualTo 1
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.DROPPED_CLOSED
+    }
+
+    @Test
     fun `duplicate active decorator fails without closing the winner`() {
         val registry = SimpleMeterRegistry()
         val winnerDelegate = SnapshotExporter(snapshot())
         val loserDelegate = SnapshotExporter(snapshot())
-        MicrometerLeaderAuditExporter(winnerDelegate, registry)
+        val winner = MicrometerLeaderAuditExporter(winnerDelegate, registry)
 
         assertFailsWith<IllegalStateException> {
             MicrometerLeaderAuditExporter(loserDelegate, registry)
         }
         winnerDelegate.closeCount shouldBeEqualTo 0
         loserDelegate.closeCount shouldBeEqualTo 1
+        winner.close()
+    }
+
+    @Test
+    fun `wrapping the same delegate twice does not close the active owner`() {
+        val registry = SimpleMeterRegistry()
+        val delegate = SnapshotExporter(snapshot())
+        val winner = MicrometerLeaderAuditExporter(delegate, registry)
+
+        assertFailsWith<IllegalStateException> {
+            MicrometerLeaderAuditExporter(delegate, registry)
+        }
+        delegate.closeCount shouldBeEqualTo 0
+
+        winner.close()
+        delegate.closeCount shouldBeEqualTo 1
     }
 
     @Test
@@ -166,17 +219,20 @@ class MicrometerLeaderAuditExporterTest {
 
         registry.find(MicrometerNames.AUDIT_EXPORT_RETRIES)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "retry")
-            .meter()!!.let { it is FunctionCounter }.shouldBeTrue()
+            .meter().shouldNotBeNull().let { it is FunctionCounter }.shouldBeTrue()
         registry.find(MicrometerNames.AUDIT_EXPORT_FAILURES)
             .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "failure")
-            .meter()!!.let { it is FunctionCounter }.shouldBeTrue()
-        registry.find(MicrometerNames.AUDIT_EXPORT_QUEUE_DEPTH).meter()!!.let { it is Gauge }.shouldBeTrue()
-        registry.find(MicrometerNames.AUDIT_EXPORT_IN_FLIGHT).meter()!!.let { it is Gauge }.shouldBeTrue()
-        registry.find(MicrometerNames.AUDIT_EXPORT_OBSERVER_DROPPED).meter()!!.let { it is FunctionCounter }.shouldBeTrue()
-        registry.find(MicrometerNames.AUDIT_EXPORT_OBSERVER_REGISTRATION_DROPPED).meter()!!
-            .let { it is FunctionCounter }.shouldBeTrue()
-        registry.find(MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_FAILURES).meter()!!
-            .let { it is FunctionCounter }.shouldBeTrue()
+            .meter().shouldNotBeNull().let { it is FunctionCounter }.shouldBeTrue()
+        registry.find(MicrometerNames.AUDIT_EXPORT_QUEUE_DEPTH).meter()
+            .shouldNotBeNull().let { it is Gauge }.shouldBeTrue()
+        registry.find(MicrometerNames.AUDIT_EXPORT_IN_FLIGHT).meter()
+            .shouldNotBeNull().let { it is Gauge }.shouldBeTrue()
+        registry.find(MicrometerNames.AUDIT_EXPORT_OBSERVER_DROPPED).meter()
+            .shouldNotBeNull().let { it is FunctionCounter }.shouldBeTrue()
+        registry.find(MicrometerNames.AUDIT_EXPORT_OBSERVER_REGISTRATION_DROPPED).meter()
+            .shouldNotBeNull().let { it is FunctionCounter }.shouldBeTrue()
+        registry.find(MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_FAILURES).meter()
+            .shouldNotBeNull().let { it is FunctionCounter }.shouldBeTrue()
         registry.get(MicrometerNames.AUDIT_EXPORT_QUEUE_DEPTH).gauge().value() shouldBeEqualTo 2.0
         registry.get(MicrometerNames.AUDIT_EXPORT_IN_FLIGHT).gauge().value() shouldBeEqualTo 3.0
         val rejectionCounter = registry.get(MicrometerNames.AUDIT_EXPORT_REJECTIONS)
@@ -202,11 +258,27 @@ class MicrometerLeaderAuditExporterTest {
 
         delegate.failSnapshotsWith(IllegalStateException("transient snapshot failure"))
 
-        accepted?.count() shouldBeEqualTo 7.0
-        accepted?.count() shouldBeEqualTo 7.0
+        repeat(2) { accepted?.count() shouldBeEqualTo 7.0 }
         diagnosticsClosed?.value() shouldBeEqualTo 0.0
         registry.get(MicrometerNames.AUDIT_EXPORT_QUEUE_DEPTH).gauge().value() shouldBeEqualTo 2.0
         registry.get(MicrometerNames.AUDIT_EXPORT_IN_FLIGHT).gauge().value() shouldBeEqualTo 1.0
+
+        delegate.failSnapshotsWith(null)
+        exporter.close()
+    }
+
+    @Test
+    fun `fatal snapshot error is rethrown from metric polling`() {
+        val registry = SimpleMeterRegistry()
+        val delegate = SnapshotExporter(snapshot(accepted = 7))
+        val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+        val accepted = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
+            .functionCounter()
+            .shouldNotBeNull()
+
+        delegate.failSnapshotsWith(AssertionError("secret-token"))
+        assertFailsWith<AssertionError> { accepted.count() }
 
         delegate.failSnapshotsWith(null)
         exporter.close()
@@ -283,12 +355,20 @@ class MicrometerLeaderAuditExporterTest {
     ) : LeaderAuditExporter {
         private val current = AtomicReference(initialSnapshot)
         private val snapshotFailure = AtomicReference<Throwable?>(null)
+        private var submitEntered: CountDownLatch? = null
+        private var submitRelease: CountDownLatch? = null
         private var closed = false
         var closeCount: Int = 0
             private set
 
         override fun submit(event: LeaderAuditExportEvent): LeaderAuditSubmitResult =
-            if (closed) LeaderAuditSubmitResult.DROPPED_CLOSED else LeaderAuditSubmitResult.ACCEPTED
+            if (closed) {
+                LeaderAuditSubmitResult.DROPPED_CLOSED
+            } else {
+                submitEntered?.countDown()
+                submitRelease?.await(5, TimeUnit.SECONDS)
+                LeaderAuditSubmitResult.ACCEPTED
+            }
 
         override fun observe(observer: LeaderAuditExportObserver): AutoCloseable = AutoCloseable { }
 
@@ -297,6 +377,11 @@ class MicrometerLeaderAuditExporterTest {
 
         fun failSnapshotsWith(failure: Throwable?) {
             snapshotFailure.set(failure)
+        }
+
+        fun blockSubmissions(entered: CountDownLatch, release: CountDownLatch) {
+            submitEntered = entered
+            submitRelease = release
         }
 
         override fun close() {

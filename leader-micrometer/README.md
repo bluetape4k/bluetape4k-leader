@@ -8,13 +8,14 @@ Micrometer instrumentation for bluetape4k leader election.
 
 ## Overview
 
-`leader-micrometer` provides five instrumentation paths:
+`leader-micrometer` provides six instrumentation paths:
 
 - `MicrometerLeaderAopMetricsRecorder` for Spring AOP annotations from `leader-spring-boot`
 - `MicrometerObservationLeaderAopMetricsRecorder` and `MicrometerObservationLeaderElectionListener` for Micrometer Observation tracing bridges
 - `InstrumentedLeaderElector`, `InstrumentedLeaderGroupElector`, and `InstrumentedSuspendLeaderElector` decorators for direct elector calls
 - `MicrometerLeaderElectionListener` for lifecycle callback counters from `LeaderElectionListenerRegistry`
 - `MicrometerSafeLeaderHistoryRecorder` and `MicrometerSuspendSafeLeaderHistoryRecorder` for history sink health counters
+- `MicrometerLeaderAuditExporter` for bounded audit export counters and gauges
 
 The module depends only on `leader-core`, Micrometer core, and Micrometer Observation. Metric export format is chosen by the application's Micrometer registry, such as Prometheus, Datadog, OTLP, or a composite registry. Observation export is chosen by the application-provided Micrometer tracing bridge and exporter.
 

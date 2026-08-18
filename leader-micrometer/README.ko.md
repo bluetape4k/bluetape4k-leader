@@ -8,13 +8,14 @@ bluetape4k leader election을 위한 Micrometer 계측 모듈입니다.
 
 ## 개요
 
-`leader-micrometer`는 다섯 가지 계측 경로를 제공합니다.
+`leader-micrometer`는 여섯 가지 계측 경로를 제공합니다.
 
 - `leader-spring-boot`의 어노테이션 AOP를 위한 `MicrometerLeaderAopMetricsRecorder`
 - Micrometer Observation tracing bridge를 위한 `MicrometerObservationLeaderAopMetricsRecorder`, `MicrometerObservationLeaderElectionListener`
 - elector를 직접 호출할 때 사용하는 `InstrumentedLeaderElector`, `InstrumentedLeaderGroupElector`, `InstrumentedSuspendLeaderElector` 데코레이터
 - `LeaderElectionListenerRegistry` 생명주기 callback을 counter로 기록하는 `MicrometerLeaderElectionListener`
 - history sink 상태 counter를 위한 `MicrometerSafeLeaderHistoryRecorder`, `MicrometerSuspendSafeLeaderHistoryRecorder`
+- bounded audit export counter와 gauge를 위한 `MicrometerLeaderAuditExporter`
 
 이 모듈은 `leader-core`, Micrometer core, Micrometer Observation에 의존합니다. Prometheus, Datadog, OTLP 같은 metric export 형식은 애플리케이션이 선택한 Micrometer registry가 결정합니다. Observation export는 애플리케이션이 추가한 Micrometer tracing bridge와 exporter가 결정합니다.
 

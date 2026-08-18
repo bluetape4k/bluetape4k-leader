@@ -25,6 +25,8 @@ import java.lang.ref.ReferenceQueue
 import java.lang.ref.WeakReference
 import java.util.HashMap
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * core audit exporter를 Micrometer의 고정 low-cardinality meter 집합으로 장식합니다.
@@ -41,25 +43,30 @@ class MicrometerLeaderAuditExporter(
 
     private val registration: Registration
     private val closed = AtomicBoolean(false)
+    private val lifecycleLock = ReentrantLock()
 
     init {
         registration = try {
             RegistryManagerStore.acquire(registry, delegate)
         } catch (failure: Throwable) {
-            closeAfterConstructionFailure(delegate, failure)
+            if (failure !is DelegateAlreadyOwnedException) {
+                closeAfterConstructionFailure(delegate, failure)
+            }
             throw failure
         }
     }
 
-    override fun submit(event: LeaderAuditExportEvent): LeaderAuditSubmitResult =
+    override fun submit(event: LeaderAuditExportEvent): LeaderAuditSubmitResult = lifecycleLock.withLock {
         if (closed.get()) LeaderAuditSubmitResult.DROPPED_CLOSED else registration.delegate.submit(event)
+    }
 
-    override fun observe(observer: LeaderAuditExportObserver): AutoCloseable =
-        registration.delegate.observe(observer)
+    override fun observe(observer: LeaderAuditExportObserver): AutoCloseable = lifecycleLock.withLock {
+        if (closed.get()) AutoCloseable { } else registration.delegate.observe(observer)
+    }
 
     override fun snapshot(): LeaderAuditExportSnapshot = registration.delegate.snapshot()
 
-    override fun close() {
+    override fun close() = lifecycleLock.withLock {
         if (closed.compareAndSet(false, true)) registration.close()
     }
 
@@ -148,8 +155,9 @@ class MicrometerLeaderAuditExporter(
                 check(!compromised) {
                     OWNERSHIP_CONFLICT_MESSAGE
                 }
-                check(activeDelegate == null) {
-                    "A MicrometerLeaderAuditExporter is already active for this MeterRegistry"
+                activeDelegate?.let { active ->
+                    if (active === delegate) throw DelegateAlreadyOwnedException()
+                    error("A MicrometerLeaderAuditExporter is already active for this MeterRegistry")
                 }
                 ensureMeters(registry)
                 activeDelegate = delegate
@@ -273,7 +281,8 @@ class MicrometerLeaderAuditExporter(
             return when (state) {
                 ManagerState.OPEN -> offsets +
                     (active?.let(::readSnapshot)?.cumulativeValues() ?: lastTrustedCumulative)
-                ManagerState.CLOSING -> offsets + (closingSnapshot?.cumulativeValues() ?: CumulativeValues.ZERO)
+                ManagerState.CLOSING -> offsets +
+                    (closingSnapshot?.cumulativeValues() ?: lastTrustedCumulative)
                 ManagerState.DETACHED -> offsets
             }
         }
@@ -282,7 +291,7 @@ class MicrometerLeaderAuditExporter(
             val active = activeDelegate
             return when (state) {
                 ManagerState.OPEN -> active?.let(::readSnapshot)?.gaugeValues() ?: lastTrustedGauge
-                ManagerState.CLOSING -> closingSnapshot?.gaugeValues() ?: TerminalSnapshot.gaugeValues()
+                ManagerState.CLOSING -> closingSnapshot?.gaugeValues() ?: lastTrustedGauge
                 ManagerState.DETACHED -> detachedSnapshot.gaugeValues()
             }
         }
@@ -292,19 +301,15 @@ class MicrometerLeaderAuditExporter(
                 lastTrustedCumulative = snapshot.cumulativeValues()
                 lastTrustedGauge = snapshot.gaugeValues()
             }
-        } catch (failure: Throwable) {
-            markSourceDegraded(failure)
+        } catch (_: Exception) {
+            markSourceDegraded()
             null
         }
 
-        private fun markSourceDegraded(failure: Throwable? = null) {
+        private fun markSourceDegraded() {
             if (!sourceDegraded) {
                 sourceDegraded = true
-                if (failure == null) {
-                    log.warn { SOURCE_DEGRADED_MESSAGE }
-                } else {
-                    log.warn(failure) { SOURCE_DEGRADED_MESSAGE }
-                }
+                log.warn { SOURCE_DEGRADED_MESSAGE }
             }
         }
     }
@@ -314,6 +319,10 @@ class MicrometerLeaderAuditExporter(
         CLOSING,
         DETACHED,
     }
+
+    private class DelegateAlreadyOwnedException : IllegalStateException(
+        "The delegate is already owned by an active MicrometerLeaderAuditExporter",
+    )
 
     private enum class MetricKind {
         COUNTER,
