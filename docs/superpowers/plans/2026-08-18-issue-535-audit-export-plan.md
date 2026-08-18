@@ -449,7 +449,11 @@
   callback을 호출한다. handle close도 같은 lock 순서로 `active=false`를 선형화한 뒤
   registry에서 제거한다. close보다 먼저 reservation된 callback만 crossing allowance로
   실행될 수 있고, close 이후에는 새 reservation이 불가능하므로 handle close 반환 뒤 새
-  callback invocation이 시작되지 않는다.
+  callback invocation이 시작되지 않는다. callback의 `finally` cleanup도 같은
+  `diagnosticsAdmissionLock → slot lock` 순서 또는 동등한 원자 경로에서
+  `running--`, slot `inFlight--`, diagnostics permit 반환을 정확히 한 번 수행한다.
+  callback 완료와 동시 admission이 교차해도 permit 누수·double release·capacity 고착이
+  발생하지 않는다.
   executor-start rejection은 현재 worker가
   보유한 detached queued batch 전체를 deterministic하게 `EXECUTOR_REJECTED`로
   terminalize하고 각 item의 permit을 정확히 한 번 반환한다. retry scheduler rejection은
