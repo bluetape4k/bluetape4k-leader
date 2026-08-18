@@ -9,6 +9,7 @@ import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
 import org.junit.jupiter.api.Test
+import java.lang.reflect.Modifier
 import java.time.Instant
 import kotlin.reflect.full.memberFunctions
 import kotlin.reflect.full.memberProperties
@@ -152,6 +153,28 @@ class LeaderAuditExportEventTest {
             (event.attributes as MutableMap<String, String>)["key"] = "mutated"
         }
         event::class.memberFunctions.none { it.name == "copy" }.shouldBeTrue()
+    }
+
+    @Test
+    fun `event construction bytecode does not expose raw field parameters`() {
+        val rawTypes = setOf(
+            String::class.java,
+            Instant::class.java,
+            Map::class.java,
+            Long::class.java,
+            LockIdentity.AnnotationKind::class.java,
+            LeaderHistoryStatus::class.java,
+            LeaderAuditLifecycleOutcome::class.java,
+        )
+        listOf(
+            LeaderAuditExportEvent.History::class.java,
+            LeaderAuditExportEvent.Lifecycle::class.java,
+        ).forEach { eventType ->
+            eventType.declaredConstructors
+                .filter { Modifier.isPublic(it.modifiers) && it.isSynthetic }
+                .all { constructor -> constructor.parameterTypes.none(rawTypes::contains) }
+                .shouldBeTrue()
+        }
     }
 
     @Test
