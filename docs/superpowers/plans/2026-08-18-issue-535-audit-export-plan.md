@@ -298,7 +298,11 @@
   `diagnosticsClosed=true`이고
   `diagnosticsFatalErrors`는 증가하지 않음을 고정하며, fatal/error/normal-close/idempotent
   close truth table과 Micrometer gauge parity도 함께 검증한다. `submit` source/benchmark guard는
-  lock·blocking queue·capacity wait가 없고 contention 시 즉시 drop되는지 확인한다.
+  blocking `lock()`/monitor, blocking queue, capacity wait가 없고 bounded non-blocking
+  `tryLock`은 허용되며 contention 시 즉시 drop되는지 확인한다. callback 완료 `finally`와
+  동시 observation admission을 교차시켜 `diagnosticsAdmissionLock → slot lock` 순서의
+  `running--`/slot `inFlight--`/diagnostics permit 반환이 exact-once이고 capacity가
+  전량 회복되는지도 검증한다.
   contention fixture는 32 contender, 100 iteration, barrier와 paused manual executor를
   고정하고 각 submit 호출의 반환 latch, accepted/drop 합계, `snapshot()` permit bounds를
   검증한다. wall-clock 성능 수치나 allocation threshold는 주장하지 않는다.
@@ -692,7 +696,14 @@
   않으며, snapshot object는 submit hot path에서 생성하지 않는다는 source/contract
   assertion을 추가한다. wrapper close twice에서 delegate close idempotence와
   snapshot-backed cancellation/rejection metric parity를 검증하고, wrapper close가
-  exporter close contract를 그대로 보존하는지 확인한다.
+  exporter close contract를 그대로 보존하는지 확인한다. `TrackingMeterRegistry`로
+  등록된 모든 `Meter.Id`와 function source를 기록해 wrapper `close()` 두 번 후 owned
+  meter가 모두 제거되고 registry가 closed delegate를 retain하지 않는지 검증한다. 같은
+  registry에서 close 후 새 delegate wrapper를 만들면 새 snapshot source를 읽고, active
+  duplicate wrapper는 기존 ID/source를 재사용하지 않고 fail-fast하며 부분 등록도
+  정리하는지 검증한다. close→replacement와 duplicate-registration 시나리오는
+  `WeakReference`에 의존하지 않고 registry의 등록/제거 기록과 새 snapshot 값을
+  결정적으로 확인한다.
 
 - [ ] **Step 2: Run Micrometer test and verify RED**
 
@@ -708,8 +719,13 @@
   `delegate.snapshot()`의 O(1) atomic counter이며, `FunctionCounter`/`Gauge`가 registry
   polling 시 snapshot을 읽는다. 따라서 async diagnostics observer callback이 close 직후
   drop되어도 close-owned cancellation/rejection이 metric에서 사라지지 않는다.
-  decorator close는 delegate를 idempotently 닫고 wrapper와 direct delegate 모두
-  `DROPPED_CLOSED`를 반환하도록 한다. non-owning observation은 wrapper가 아니라 public
+  constructor는 `synchronized(registry)` 안에서 고정된 name/tag 조합의 모든 `Meter.Id`를
+  먼저 preflight하고, 이미 존재하는 ID가 있으면 부분 등록을 제거한 뒤 fail-fast한다.
+  성공한 등록의 ID 목록은 wrapper가 소유한다. `close()`는 delegate를 idempotently 닫은
+  뒤 `finally`에서 소유 ID를 각각 `registry.remove(id)`로 정확히 한 번 제거하며,
+  registry 제거 예외가 caller admission/election으로 전파되지 않도록 격리한다. 따라서
+  wrapper와 direct delegate 모두 close 후 `DROPPED_CLOSED`를 반환하고 registry가 closed
+  delegate를 strong-reference하지 않는다. non-owning observation은 wrapper가 아니라 public
   `observe()` handle을 별도로 사용하며 decorator는 내부 observer handle을 등록하거나
   소유하지 않는다. delegate의 `snapshot()` descriptor와 값은 그대로 전달하며 metric
   registry 오류가 admission/election에 전파되지 않는다.
@@ -723,9 +739,11 @@
   `leader.audit.export.diagnostics.closed`로 고정한다. 각 cumulative counter는
   snapshot-backed `FunctionCounter`로 등록하고, queue/in-flight/diagnostics closed는
   snapshot-backed `Gauge`로 등록한다. `observerDrops`,
-  `observerRegistrationDrops`, `diagnosticsFatalErrors`는 snapshot과 각 counter에서 같은
-  누적값을 보이며 exporter close 후 0으로 reset하지 않는다. `diagnosticsClosed`는
-  `diagnostics.closed` gauge의 `0|1` 값과 일치한다.
+  `observerRegistrationDrops`, `diagnosticsFatalErrors`는 wrapper가 open인 동안 snapshot과
+  각 counter에서 같은 누적값을 보이며 exporter close가 delegate counter를 reset하지는
+  않는다. close 후에는 wrapper가 소유한 모든 meter가 registry에서 제거되어 stale source를
+  노출하지 않는다. `diagnosticsClosed`는 open 동안 `diagnostics.closed` gauge의 `0|1` 값과
+  일치한다.
   `outcome`, `transport`, `source` tag 값은 위 enum allow-list만 사용하고 event field는
   tag로 복사하지 않는다. 기존 `HISTORY_SINK_FAILURES` counter는 건드리지 않는다.
 
@@ -738,6 +756,10 @@
     --tests 'io.bluetape4k.leader.micrometer.audit.MicrometerLeaderAuditExporterTest' \
     --tests 'io.bluetape4k.leader.micrometer.history.*'
   ```
+
+  close idempotence, owned `Meter.Id` removal, same-registry replacement의 fresh
+  snapshot source, duplicate wrapper fail-fast/partial cleanup, 그리고 direct delegate와
+  wrapper의 closed admission parity가 모두 PASS해야 한다.
 
 - [ ] **Step 5: Update both README locales and commit AUD-02**
 

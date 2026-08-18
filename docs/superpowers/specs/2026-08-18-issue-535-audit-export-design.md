@@ -142,13 +142,18 @@ public `LeaderAuditExporter`는 다음 경계를 갖는다.
   non-blocking offer만 수행하므로 observer callback과 diagnostics worker가 block되어도
   admission thread를 block하지 않는다. queue가 가득 차면 callback 없이 `observerDrops`만
   증가한다. queue poll, callback reservation, queue drop은 하나의 짧은
-  `diagnosticsAdmissionLock`에서 선형화하고, submit-side observation enqueue는 lock을
-  기다리지 않고 `tryLock` 실패 시 `observerDrops`를 증가시키고 drop한다. exporter `close()`는 같은 lock을 잡아
+  `diagnosticsAdmissionLock`에서 선형화하고, submit-side observation enqueue는 blocking
+  `lock()`/monitor/queue wait를 사용하지 않으며 bounded non-blocking `tryLock` 실패 시
+  `observerDrops`를 증가시키고 drop한다. exporter `close()`는 같은 lock을 잡아
   diagnostics gate를 닫고 queued callback을 drop한 뒤 worker를 interrupt/unpark하고
   diagnostics queue를 drain하여 더 이상의 callback admission 0을 확인한다. close는 이미
   admission된 callback의 완료를 기다리지 않으므로
   interrupt를 무시하는 observer 때문에 무기한 hang하지 않는다. 이미 admission된 callback은
-  close 반환 뒤에도 현재 호출을 마칠 수 있지만 새 callback은 시작하지 않는다. observer가
+  close 반환 뒤에도 현재 호출을 마칠 수 있지만 새 callback은 시작하지 않는다. callback
+  완료 `finally`도 `diagnosticsAdmissionLock → slot lock` 순서 또는 동등한 원자 경로에서
+  `running--`, slot `inFlight--`, diagnostics permit 반환을 exact-once 수행한다. 따라서
+  callback 완료와 동시 observation admission이 교차해도 capacity leak이나 double-release가
+  없다. observer가
   `Exception`을 던져도 admission, permit, election 결과에는 영향을 주지 않으며 observer
   `Error`는 callback state를 terminalize한 뒤 worker uncaught boundary로 재전파한다.
   event 값·lock 이름·endpoint·error message는 observer payload에 포함하지 않는다.
@@ -303,9 +308,16 @@ crash 또는 close는 drain하지 않은 work를 잃을 수 있다. receiver는 
 source는 `delegate.snapshot()`의 O(1) atomic counter이며 `FunctionCounter`/`Gauge`가
 registry polling 시 snapshot을 읽는다. 따라서 async diagnostics observer callback이 close
 직후 drop되어도 close-owned cancellation/rejection이 metric에서 사라지지 않는다.
-decorator `close()`는 delegate를 idempotently 닫아 wrapper와 direct delegate 모두 close 후
-`DROPPED_CLOSED`가 되게 한다. non-owning observation은 wrapper가 아니라 public
-`observe()` handle을 별도로 사용하며 decorator는 내부 observer handle을 소유하지 않는다.
+decorator는 등록한 모든 `Meter.Id`를 소유한다. constructor는 registry lock 아래 고정된
+name/tag ID를 선점하고 이미 같은 ID가 있으면 부분 등록을 정리한 뒤 fail-fast하여 duplicate
+wrapper가 기존 delegate source를 재사용하지 못하게 한다. `close()`는 delegate를
+idempotently 닫은 뒤 `finally`에서 소유 meter를 `registry.remove(id)`로 제거한다. 따라서
+wrapper와 direct delegate 모두 close 후 `DROPPED_CLOSED`가 되고 registry가 closed
+delegate를 strong-reference하지 않는다. non-owning observation은 wrapper가 아니라
+public `observe()` handle을 별도로 사용하며 decorator는 내부 observer handle을 소유하지
+않는다. snapshot counter 값은 reset하지 않지만 close 후에는 해당 meter가 registry에
+존재하지 않는다. 같은 registry에 새 delegate wrapper를 만들면 새 snapshot source로
+새 meter가 등록된다.
 
 - accepted submissions
 - queue-full drops
@@ -314,9 +326,10 @@ decorator `close()`는 delegate를 idempotently 닫아 wrapper와 direct delegat
 - terminal delivery failures
 - queue depth, in-flight delivery, cancellation/rejection diagnostics
 - diagnostics admission saturation as `leader.audit.export.observer.dropped`; this cumulative
-  counter mirrors `snapshot().observerDrops` and is not reset by `close()`.
+  counter mirrors `snapshot().observerDrops` while the wrapper is open and is unregistered
+  with the other meters on `close()`.
 - observer registration cap rejections as `leader.audit.export.observer.registration.dropped`,
-  mirroring `snapshot().observerRegistrationDrops`.
+  mirroring `snapshot().observerRegistrationDrops` while open.
 - diagnostics fatal errors as `leader.audit.export.diagnostics.failures` and the CLOSED state
   as `leader.audit.export.diagnostics.closed` (`0|1` gauge), mirroring the corresponding
   snapshot fields.
