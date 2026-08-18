@@ -80,6 +80,10 @@
       )
       source["key"] = "changed"
       event.attributes["key"].shouldBeEqualTo("value")
+      assertFailsWith<UnsupportedOperationException> {
+          @Suppress("UNCHECKED_CAST")
+          (event.attributes as MutableMap<String, String>)["key"] = "mutated"
+      }
       event::class.memberFunctions.none { it.name == "copy" }.shouldBeTrue()
   }
 
@@ -154,7 +158,10 @@
   `Raw` 정책으로 제한한다. `Raw`는 사전에 허용된 비민감 enum field subset과 양의
   최대 길이를 생성 시 검증하고, 모든 정책은 공통 byte/key limits를 적용한다. event
   `toString()`과 encoder fixture에는 secret sentinel이 없어야 한다. 모든 map은
-  defensive copy하고, public KDoc는 Korean technical register로 작성한다.
+  defensive copy 후 `Collections.unmodifiableMap(LinkedHashMap(...))` 또는 동등한
+  실제 immutable runtime map으로 노출한다. Java fixture에서 `getAttributes().put`이
+  `UnsupportedOperationException`을 내고 원본 map mutation도 event에 반영되지 않는지
+  고정한다. public KDoc는 Korean technical register로 작성한다.
 
 - [ ] **Step 4: Run the focused test and verify GREEN**
 
