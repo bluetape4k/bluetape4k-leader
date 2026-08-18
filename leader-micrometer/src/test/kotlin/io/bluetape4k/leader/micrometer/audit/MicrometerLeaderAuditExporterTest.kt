@@ -264,6 +264,34 @@ class MicrometerLeaderAuditExporterTest {
     }
 
     @Test
+    fun `closing metric poll keeps the trusted baseline before close completes`() {
+        val registry = SimpleMeterRegistry()
+        val delegate = SnapshotExporter(snapshot(accepted = 100))
+        val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+        val accepted = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
+            .functionCounter()
+            .shouldNotBeNull()
+        accepted.count() shouldBeEqualTo 100.0
+
+        delegate.setSnapshot(snapshot(accepted = 40))
+        val closeEntered = CountDownLatch(1)
+        val closeRelease = CountDownLatch(1)
+        delegate.blockClose(closeEntered, closeRelease)
+        val closeFinished = CountDownLatch(1)
+        Thread {
+            exporter.close()
+            closeFinished.countDown()
+        }.start()
+        closeEntered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+
+        accepted.count() shouldBeEqualTo 100.0
+
+        closeRelease.countDown()
+        closeFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+    }
+
+    @Test
     fun `source snapshot fields map to their fixed meter types`() {
         val registry = SimpleMeterRegistry()
         val delegate = SnapshotExporter(
