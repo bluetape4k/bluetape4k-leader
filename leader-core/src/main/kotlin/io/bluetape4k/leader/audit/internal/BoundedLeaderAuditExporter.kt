@@ -19,9 +19,6 @@ import io.bluetape4k.leader.audit.LeaderAuditExportOptions
 import io.bluetape4k.leader.audit.LeaderAuditExportSnapshot
 import io.bluetape4k.leader.audit.LeaderAuditExporter
 import io.bluetape4k.leader.audit.LeaderAuditSubmitResult
-import io.bluetape4k.leader.audit.MAX_ATTEMPT_TIMEOUT_NANOS
-import io.bluetape4k.leader.audit.MAX_BACKOFF_NANOS
-import io.bluetape4k.leader.audit.toAuditPositiveNanos
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import java.time.Duration
@@ -52,25 +49,25 @@ internal class BoundedLeaderAuditExporter(
     private val options: LeaderAuditExportOptions,
 ) : LeaderAuditExporter {
 
-    private val attemptTimeoutNanos = options.attemptTimeout.toAuditPositiveNanos(
+    private val attemptTimeoutNanos = options.attemptTimeout.toBoundedPositiveNanos(
         "attemptTimeout",
-        MAX_ATTEMPT_TIMEOUT_NANOS,
+        MAX_ATTEMPT_TIMEOUT,
     )
-    private val initialBackoffNanos = options.initialBackoff.toAuditPositiveNanos(
+    private val initialBackoffNanos = options.initialBackoff.toBoundedPositiveNanos(
         "initialBackoff",
-        MAX_BACKOFF_NANOS,
+        MAX_BACKOFF,
     )
-    private val maxBackoffNanos = options.maxBackoff.toAuditPositiveNanos(
+    private val maxBackoffNanos = options.maxBackoff.toBoundedPositiveNanos(
         "maxBackoff",
-        MAX_BACKOFF_NANOS,
+        MAX_BACKOFF,
     )
 
     private val admissionLock = ReentrantLock()
-    private val workerDispatchLock = ReentrantLock()
     private val diagnosticsLock = ReentrantLock()
     private val closed = AtomicBoolean(false)
     private val diagnosticsClosed = AtomicBoolean(false)
     private val workerRunning = AtomicBoolean(false)
+    private val workerHandoffState = AtomicReference(WorkerHandoffState.IDLE)
     private val worker = ConcurrentLinkedQueue<WorkItem>()
     private val active = ConcurrentHashMap.newKeySet<WorkItem>()
     private val diagnostics = ConcurrentLinkedQueue<ObservationWork>()
@@ -179,13 +176,8 @@ internal class BoundedLeaderAuditExporter(
             admissionLock.lock()
         }
         try {
-            workerDispatchLock.lock()
-            try {
-                if (closed.getAndSet(true)) return
-                drainQueued(LeaderAuditExportObservation.CANCELLED)
-            } finally {
-                workerDispatchLock.unlock()
-            }
+            if (!claimCloseHandoff()) return
+            drainQueued(LeaderAuditExportObservation.CANCELLED)
         } finally {
             admissionLock.unlock()
         }
@@ -229,17 +221,14 @@ internal class BoundedLeaderAuditExporter(
         Thread.ofVirtual()
             .name("bluetape4k-leader-audit-worker-dispatch")
             .start {
-                workerDispatchLock.lock()
-                val handoffAllowed = try {
-                    !closed.get()
-                } finally {
-                    workerDispatchLock.unlock()
-                }
-                if (!handoffAllowed) {
+                if (!workerHandoffState.compareAndSet(WorkerHandoffState.IDLE, WorkerHandoffState.CLAIMED)) {
                     workerRunning.set(false)
                     return@start
                 }
                 try {
+                    // This CAS is the execute handoff linearization point. close() wins
+                    // with IDLE -> CLOSED, or observes CLAIMED and allows this crossing
+                    // without waiting for the caller-owned executor or delivery.
                     options.executor.execute(::runWorker)
                 } catch (e: RejectedExecutionException) {
                     workerRunning.set(false)
@@ -248,8 +237,32 @@ internal class BoundedLeaderAuditExporter(
                     workerRunning.set(false)
                     terminalizeQueued(LeaderAuditExportObservation.EXECUTOR_REJECTED)
                     throw e
+                } finally {
+                    if (!closed.get()) {
+                        workerHandoffState.compareAndSet(WorkerHandoffState.CLAIMED, WorkerHandoffState.IDLE)
+                    }
                 }
             }
+    }
+
+    private fun claimCloseHandoff(): Boolean {
+        while (true) {
+            when (workerHandoffState.get()) {
+                WorkerHandoffState.IDLE -> {
+                    if (workerHandoffState.compareAndSet(WorkerHandoffState.IDLE, WorkerHandoffState.CLOSED)) {
+                        closed.set(true)
+                        return true
+                    }
+                }
+
+                WorkerHandoffState.CLAIMED -> {
+                    if (closed.compareAndSet(false, true)) return true
+                    return false
+                }
+
+                WorkerHandoffState.CLOSED -> return false
+            }
+        }
     }
 
     private fun runWorker() {
@@ -323,7 +336,7 @@ internal class BoundedLeaderAuditExporter(
         val future = try {
             delivery.deliver(item.event)
         } catch (e: Throwable) {
-            attempt.done.set(true)
+            if (!attempt.done.compareAndSet(false, true)) return
             attempt.timeout?.cancel(false)
             releaseAttempt(item, attempt)
             if (e is Error) {
@@ -661,6 +674,12 @@ internal class BoundedLeaderAuditExporter(
         @Volatile var timeout: ScheduledFuture<*>? = null
     }
 
+    private enum class WorkerHandoffState {
+        IDLE,
+        CLAIMED,
+        CLOSED,
+    }
+
     private class ObserverSlot(val observer: LeaderAuditExportObserver) {
         val active = AtomicBoolean(true)
         val running = AtomicInteger()
@@ -678,6 +697,8 @@ internal class BoundedLeaderAuditExporter(
     private companion object {
         const val MAX_DIAGNOSTICS_CAPACITY: Int = 1024
         const val MAX_OBSERVERS: Int = 16
+        val MAX_ATTEMPT_TIMEOUT: Duration = Duration.ofMinutes(5)
+        val MAX_BACKOFF: Duration = Duration.ofMinutes(1)
     }
 
     private fun beginScheduling(): Boolean {
@@ -720,6 +741,19 @@ internal class BoundedLeaderAuditExporter(
 }
 
 private object BoundedLeaderAuditExporterLogger : KLogging()
+
+private fun Duration.toBoundedPositiveNanos(name: String, maximum: Duration): Long {
+    require(!isZero && !isNegative) { "$name must be positive: $this" }
+    val nanos = try {
+        toNanos()
+    } catch (e: ArithmeticException) {
+        throw IllegalArgumentException("$name does not fit in nanoseconds: $this", e)
+    }
+    require(nanos > 0) { "$name must be positive: $this" }
+    val maximumNanos = maximum.toNanos()
+    require(nanos <= maximumNanos) { "$name must be <= $maximum: $this" }
+    return nanos
+}
 
 private inline fun <T> ReentrantLock.withLockIfAvailable(block: () -> T): T {
     lock()

@@ -40,15 +40,15 @@ class LeaderAuditExportOptions(
     }
 
     companion object {
-        internal const val MAX_QUEUE_CAPACITY: Int = 65_536
-        internal const val MAX_ATTEMPTS: Int = 16
+        private const val MAX_QUEUE_CAPACITY: Int = 65_536
+        private const val MAX_ATTEMPTS: Int = 16
     }
 }
 
-internal val MAX_ATTEMPT_TIMEOUT_NANOS: Duration = Duration.ofMinutes(5)
-internal val MAX_BACKOFF_NANOS: Duration = Duration.ofMinutes(1)
+private val MAX_ATTEMPT_TIMEOUT_NANOS: Duration = Duration.ofMinutes(5)
+private val MAX_BACKOFF_NANOS: Duration = Duration.ofMinutes(1)
 
-internal fun Duration.toAuditPositiveNanos(name: String, maximum: Duration): Long {
+private fun Duration.toAuditPositiveNanos(name: String, maximum: Duration): Long {
     require(!isZero && !isNegative) { "$name must be positive: $this" }
     val nanos = try {
         toNanos()

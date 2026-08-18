@@ -78,6 +78,7 @@ class BoundedLeaderAuditExporterTest {
 
         exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
         delivered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        awaitAdmissionReleased(exporter)
         val snapshot = exporter.snapshot()
         snapshot.admitted.shouldBeEqualTo(0)
         snapshot.inFlight.shouldBeEqualTo(0)
@@ -123,6 +124,45 @@ class BoundedLeaderAuditExporterTest {
         exporter.snapshot().inFlight.shouldBeEqualTo(0)
         exporter.snapshot().admitted.shouldBeEqualTo(0)
         exporter.close()
+    }
+
+    @Test
+    fun `close winning before synchronous delivery failure releases permit exactly once`() {
+        val deliveryStarted = CountDownLatch(1)
+        val releaseDelivery = CountDownLatch(1)
+        val deliveryFailed = CountDownLatch(1)
+        val exporter = exporter(
+            delivery = LeaderAuditDelivery {
+                deliveryStarted.countDown()
+                releaseDelivery.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                deliveryFailed.countDown()
+                throw IllegalStateException("late-delivery-failure")
+            },
+            maxAttempts = 1,
+            executor = Executor { it.run() },
+        )
+
+        val submitReturned = CountDownLatch(1)
+        Thread.ofVirtual().start {
+            exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+            submitReturned.countDown()
+        }
+        submitReturned.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        deliveryStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+
+        val closeReturned = CountDownLatch(1)
+        Thread.ofVirtual().start {
+            exporter.close()
+            closeReturned.countDown()
+        }
+        closeReturned.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        releaseDelivery.countDown()
+        deliveryFailed.await(5, TimeUnit.SECONDS).shouldBeTrue()
+
+        val snapshot = exporter.snapshot()
+        snapshot.cancellations.shouldBeEqualTo(1)
+        snapshot.inFlight.shouldBeEqualTo(0)
+        snapshot.admitted.shouldBeEqualTo(0)
     }
 
     @Test
@@ -206,6 +246,7 @@ class BoundedLeaderAuditExporterTest {
         val rejectFirst = AtomicBoolean(true)
         val rejected = CountDownLatch(1)
         val recovered = CountDownLatch(1)
+        val deliveryFuture = CompletableFuture<LeaderAuditDeliveryResult>()
         val executor = Executor { command ->
             if (rejectFirst.getAndSet(false)) throw RejectedExecutionException("first")
             command.run()
@@ -214,7 +255,7 @@ class BoundedLeaderAuditExporterTest {
             queueCapacity = 2,
             delivery = LeaderAuditDelivery {
                 recovered.countDown()
-                CompletableFuture.completedFuture(LeaderAuditDeliveryResult.SUCCESS)
+                deliveryFuture
             },
             executor = executor,
             onObservation = { if (it == LeaderAuditExportObservation.EXECUTOR_REJECTED) rejected.countDown() },
@@ -225,6 +266,7 @@ class BoundedLeaderAuditExporterTest {
         exporter.snapshot().admitted.shouldBeEqualTo(0)
         exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
         recovered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        deliveryFuture.complete(LeaderAuditDeliveryResult.SUCCESS).shouldBeTrue()
         exporter.snapshot().admitted.shouldBeEqualTo(0)
         exporter.snapshot().executorRejections.shouldBeEqualTo(1)
         exporter.close()
@@ -468,4 +510,11 @@ class BoundedLeaderAuditExporterTest {
         ),
         sanitizer = LeaderAuditValueSanitizer.Default,
     )
+
+    private fun awaitAdmissionReleased(exporter: BoundedLeaderAuditExporter) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (exporter.snapshot().admitted != 0 && System.nanoTime() < deadline) {
+            Thread.onSpinWait()
+        }
+    }
 }
