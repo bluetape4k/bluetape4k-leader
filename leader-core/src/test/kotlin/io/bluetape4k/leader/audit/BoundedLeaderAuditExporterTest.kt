@@ -67,14 +67,17 @@ class BoundedLeaderAuditExporterTest {
 
     @Test
     fun `successful delivery releases admission permit`() {
+        val delivered = CountDownLatch(1)
         val exporter = exporter(
             delivery = LeaderAuditDelivery {
+                delivered.countDown()
                 CompletableFuture.completedFuture(LeaderAuditDeliveryResult.SUCCESS)
             },
             executor = Executor { it.run() },
         )
 
         exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        delivered.await(5, TimeUnit.SECONDS).shouldBeTrue()
         val snapshot = exporter.snapshot()
         snapshot.admitted.shouldBeEqualTo(0)
         snapshot.inFlight.shouldBeEqualTo(0)
@@ -125,14 +128,19 @@ class BoundedLeaderAuditExporterTest {
     @Test
     fun `close cancels an in flight future exactly once`() {
         val future = CompletableFuture<LeaderAuditDeliveryResult>()
+        val deliveryStarted = CountDownLatch(1)
         val cancelled = CountDownLatch(1)
         future.whenComplete { _, failure -> if (failure is CancellationException) cancelled.countDown() }
         val exporter = exporter(
-            delivery = LeaderAuditDelivery { future },
+            delivery = LeaderAuditDelivery {
+                deliveryStarted.countDown()
+                future
+            },
             executor = Executor { it.run() },
         )
 
         exporter.submit(event())
+        deliveryStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
         exporter.close()
         cancelled.await(5, TimeUnit.SECONDS).shouldBeTrue()
         exporter.snapshot().cancellations.shouldBeEqualTo(1)
@@ -166,7 +174,9 @@ class BoundedLeaderAuditExporterTest {
 
     @Test
     fun `in flight saturation waits for release without recursive worker spin`() {
-        val started = CountDownLatch(2)
+        val firstStarted = CountDownLatch(1)
+        val secondStarted = CountDownLatch(1)
+        val calls = AtomicInteger()
         val futures = ConcurrentLinkedQueue<CompletableFuture<LeaderAuditDeliveryResult>>()
         val exporter = exporter(
             queueCapacity = 3,
@@ -174,16 +184,17 @@ class BoundedLeaderAuditExporterTest {
             delivery = LeaderAuditDelivery {
                 CompletableFuture<LeaderAuditDeliveryResult>().also {
                     futures += it
-                    started.countDown()
+                    if (calls.incrementAndGet() == 1) firstStarted.countDown() else secondStarted.countDown()
                 }
             },
             executor = Executor { it.run() },
         )
 
         exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        firstStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
         exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
         futures.remove().complete(LeaderAuditDeliveryResult.SUCCESS)
-        started.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        secondStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
         exporter.snapshot().inFlight.shouldBeEqualTo(1)
         futures.remove().complete(LeaderAuditDeliveryResult.SUCCESS)
         exporter.close()
@@ -193,21 +204,83 @@ class BoundedLeaderAuditExporterTest {
     @Test
     fun `executor rejection releases all permits and later submissions recover`() {
         val rejectFirst = AtomicBoolean(true)
+        val rejected = CountDownLatch(1)
+        val recovered = CountDownLatch(1)
         val executor = Executor { command ->
             if (rejectFirst.getAndSet(false)) throw RejectedExecutionException("first")
             command.run()
         }
         val exporter = exporter(
             queueCapacity = 2,
+            delivery = LeaderAuditDelivery {
+                recovered.countDown()
+                CompletableFuture.completedFuture(LeaderAuditDeliveryResult.SUCCESS)
+            },
             executor = executor,
+            onObservation = { if (it == LeaderAuditExportObservation.EXECUTOR_REJECTED) rejected.countDown() },
         )
 
         exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        rejected.await(5, TimeUnit.SECONDS).shouldBeTrue()
         exporter.snapshot().admitted.shouldBeEqualTo(0)
         exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        recovered.await(5, TimeUnit.SECONDS).shouldBeTrue()
         exporter.snapshot().admitted.shouldBeEqualTo(0)
         exporter.snapshot().executorRejections.shouldBeEqualTo(1)
         exporter.close()
+    }
+
+    @Test
+    fun `direct executor cannot make submit wait for blocking delivery`() {
+        val deliveryStarted = CountDownLatch(1)
+        val releaseDelivery = CountDownLatch(1)
+        val submitReturned = CountDownLatch(1)
+        val exporter = exporter(
+            delivery = LeaderAuditDelivery {
+                deliveryStarted.countDown()
+                releaseDelivery.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                CompletableFuture.completedFuture(LeaderAuditDeliveryResult.SUCCESS)
+            },
+            executor = Executor { it.run() },
+        )
+
+        Thread.ofVirtual().start {
+            exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+            submitReturned.countDown()
+        }
+        submitReturned.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        deliveryStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        releaseDelivery.countDown()
+        exporter.close()
+    }
+
+    @Test
+    fun `exceptional delivery Error reaches uncaught boundary after cleanup`() {
+        val uncaught = CountDownLatch(1)
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { _, error ->
+            if (error is AssertionError) uncaught.countDown()
+        }
+        try {
+            val future = CompletableFuture<LeaderAuditDeliveryResult>()
+            val deliveryStarted = CountDownLatch(1)
+            val exporter = exporter(
+                delivery = LeaderAuditDelivery {
+                    deliveryStarted.countDown()
+                    future
+                },
+                executor = Executor { it.run() },
+                maxAttempts = 1,
+            )
+            exporter.submit(event())
+            deliveryStarted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            future.completeExceptionally(AssertionError("delivery-error"))
+            uncaught.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            exporter.snapshot().admitted.shouldBeEqualTo(0)
+            exporter.close()
+        } finally {
+            Thread.setDefaultUncaughtExceptionHandler(previous)
+        }
     }
 
     @Test

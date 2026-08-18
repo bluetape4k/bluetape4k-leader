@@ -19,6 +19,9 @@ import io.bluetape4k.leader.audit.LeaderAuditExportOptions
 import io.bluetape4k.leader.audit.LeaderAuditExportSnapshot
 import io.bluetape4k.leader.audit.LeaderAuditExporter
 import io.bluetape4k.leader.audit.LeaderAuditSubmitResult
+import io.bluetape4k.leader.audit.MAX_ATTEMPT_TIMEOUT_NANOS
+import io.bluetape4k.leader.audit.MAX_BACKOFF_NANOS
+import io.bluetape4k.leader.audit.toAuditPositiveNanos
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.warn
 import java.time.Duration
@@ -48,6 +51,19 @@ internal class BoundedLeaderAuditExporter(
     private val delivery: LeaderAuditDelivery,
     private val options: LeaderAuditExportOptions,
 ) : LeaderAuditExporter {
+
+    private val attemptTimeoutNanos = options.attemptTimeout.toAuditPositiveNanos(
+        "attemptTimeout",
+        MAX_ATTEMPT_TIMEOUT_NANOS,
+    )
+    private val initialBackoffNanos = options.initialBackoff.toAuditPositiveNanos(
+        "initialBackoff",
+        MAX_BACKOFF_NANOS,
+    )
+    private val maxBackoffNanos = options.maxBackoff.toAuditPositiveNanos(
+        "maxBackoff",
+        MAX_BACKOFF_NANOS,
+    )
 
     private val admissionLock = ReentrantLock()
     private val diagnosticsLock = ReentrantLock()
@@ -169,7 +185,15 @@ internal class BoundedLeaderAuditExporter(
         }
 
         awaitSchedulingQuiescence()
-        active.toList().forEach(::cancelWork)
+        // Serialize cancellation with the short attempt-start gate. This prevents a
+        // timeout/close crossing from admitting a delivery after the exporter has
+        // already published CLOSED.
+        admissionLock.lock()
+        try {
+            active.toList().forEach(::cancelWork)
+        } finally {
+            admissionLock.unlock()
+        }
 
         diagnosticsLock.lock()
         try {
@@ -193,22 +217,29 @@ internal class BoundedLeaderAuditExporter(
     private fun tryStartWorker() {
         if (closed.get()) return
         if (!workerRunning.compareAndSet(false, true)) return
-        if (!beginScheduling()) {
-            workerRunning.set(false)
-            return
-        }
-        try {
-            options.executor.execute(::runWorker)
-        } catch (e: RejectedExecutionException) {
-            workerRunning.set(false)
-            terminalizeQueued(LeaderAuditExportObservation.EXECUTOR_REJECTED)
-        } catch (e: Error) {
-            workerRunning.set(false)
-            terminalizeQueued(LeaderAuditExportObservation.EXECUTOR_REJECTED)
-            throw e
-        } finally {
-            endScheduling()
-        }
+        // An Executor is allowed to run inline. Invoke it from a dedicated virtual
+        // thread so submit() remains an admission-only, non-blocking boundary even
+        // with DirectExecutor/CallerRunsPolicy implementations.
+        Thread.ofVirtual()
+            .name("bluetape4k-leader-audit-worker-dispatch")
+            .start {
+                if (!beginScheduling()) {
+                    workerRunning.set(false)
+                    return@start
+                }
+                try {
+                    options.executor.execute(::runWorker)
+                } catch (e: RejectedExecutionException) {
+                    workerRunning.set(false)
+                    terminalizeQueued(LeaderAuditExportObservation.EXECUTOR_REJECTED)
+                } catch (e: Error) {
+                    workerRunning.set(false)
+                    terminalizeQueued(LeaderAuditExportObservation.EXECUTOR_REJECTED)
+                    throw e
+                } finally {
+                    endScheduling()
+                }
+            }
     }
 
     private fun runWorker() {
@@ -264,7 +295,7 @@ internal class BoundedLeaderAuditExporter(
         try {
             attempt.timeout = options.scheduler.schedule(
                 { timeout(item, attempt) },
-                options.attemptTimeoutNanos,
+                attemptTimeoutNanos,
                 TimeUnit.NANOSECONDS,
             )
         } catch (e: RejectedExecutionException) {
@@ -274,6 +305,10 @@ internal class BoundedLeaderAuditExporter(
         } finally {
             endScheduling()
         }
+
+        // Close and timeout may win while the attempt timeout is being installed.
+        // Re-check under the admission gate before invoking user delivery code.
+        if (!prepareAttemptDelivery(item, attempt)) return
 
         val future = try {
             delivery.deliver(item.event)
@@ -319,12 +354,30 @@ internal class BoundedLeaderAuditExporter(
         when {
             failure is Error -> {
                 finishWork(item, LeaderAuditExportObservation.TERMINAL_FAILURE)
-                throw failure
+                rethrowOnUncaughtBoundary(failure)
             }
             failure != null -> completeFailure(item, attempt, failure)
             result == LeaderAuditDeliveryResult.SUCCESS -> finishWork(item, null)
             result == LeaderAuditDeliveryResult.RETRYABLE_FAILURE -> retryOrFail(item)
             else -> finishWork(item, LeaderAuditExportObservation.TERMINAL_FAILURE)
+        }
+    }
+
+    private fun prepareAttemptDelivery(item: WorkItem, attempt: Attempt): Boolean {
+        admissionLock.lock()
+        return try {
+            if (!closed.get() && !attempt.done.get()) {
+                true
+            } else {
+                if (attempt.done.compareAndSet(false, true)) {
+                    attempt.timeout?.cancel(false)
+                    releaseAttempt(item, attempt)
+                    finishWork(item, LeaderAuditExportObservation.CANCELLED)
+                }
+                false
+            }
+        } finally {
+            admissionLock.unlock()
         }
     }
 
@@ -366,7 +419,7 @@ internal class BoundedLeaderAuditExporter(
         }
         item.retryClaimed.set(false)
         scheduledRetries.incrementAndGet()
-        val delay = saturatingBackoff(options.initialBackoffNanos, item.attempts)
+        val delay = saturatingBackoff(initialBackoffNanos, item.attempts)
         if (!beginScheduling()) {
             if (item.retryClaimed.compareAndSet(false, true)) {
                 scheduledRetries.decrementAndGet()
@@ -379,14 +432,21 @@ internal class BoundedLeaderAuditExporter(
                 {
                     if (!item.retryClaimed.compareAndSet(false, true)) return@schedule
                     scheduledRetries.decrementAndGet()
-                    item.retry = null
-                    if (closed.get()) {
-                        finishWork(item, LeaderAuditExportObservation.CANCELLED)
-                    } else {
-                        worker.offer(item)
-                        queued.incrementAndGet()
-                        tryStartWorker()
+                    var restart = false
+                    admissionLock.lock()
+                    try {
+                        item.retry = null
+                        if (closed.get() || item.terminalized.get()) {
+                            finishWork(item, LeaderAuditExportObservation.CANCELLED)
+                        } else {
+                            worker.offer(item)
+                            queued.incrementAndGet()
+                            restart = true
+                        }
+                    } finally {
+                        admissionLock.unlock()
                     }
+                    if (restart) tryStartWorker()
                 },
                 delay,
                 TimeUnit.NANOSECONDS,
@@ -404,10 +464,16 @@ internal class BoundedLeaderAuditExporter(
     private fun saturatingBackoff(initial: Long, attempt: Int): Long {
         var value = initial
         repeat((attempt - 1).coerceAtMost(62)) {
-            if (value >= options.maxBackoffNanos / 2) return options.maxBackoffNanos
+            if (value >= maxBackoffNanos / 2) return maxBackoffNanos
             value *= 2
         }
-        return min(value, options.maxBackoffNanos)
+        return min(value, maxBackoffNanos)
+    }
+
+    private fun rethrowOnUncaughtBoundary(error: Error) {
+        Thread.ofVirtual()
+            .name("bluetape4k-leader-audit-fatal")
+            .start { throw error }
     }
 
     private fun cancelWork(item: WorkItem) {

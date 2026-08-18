@@ -21,14 +21,14 @@ class LeaderAuditExportOptions(
     val scheduler: ScheduledExecutorService,
 ) {
 
-    /** 검증된 nanosecond timeout입니다. */
-    internal val attemptTimeoutNanos: Long = attemptTimeout.toPositiveNanos("attemptTimeout", MAX_ATTEMPT_TIMEOUT)
+    private val validatedAttemptTimeoutNanos: Long =
+        attemptTimeout.toAuditPositiveNanos("attemptTimeout", MAX_ATTEMPT_TIMEOUT_NANOS)
 
-    /** 검증된 nanosecond initial backoff입니다. */
-    internal val initialBackoffNanos: Long = initialBackoff.toPositiveNanos("initialBackoff", MAX_BACKOFF)
+    private val validatedInitialBackoffNanos: Long =
+        initialBackoff.toAuditPositiveNanos("initialBackoff", MAX_BACKOFF_NANOS)
 
-    /** 검증된 nanosecond maximum backoff입니다. */
-    internal val maxBackoffNanos: Long = maxBackoff.toPositiveNanos("maxBackoff", MAX_BACKOFF)
+    private val validatedMaxBackoffNanos: Long =
+        maxBackoff.toAuditPositiveNanos("maxBackoff", MAX_BACKOFF_NANOS)
 
     init {
         require(queueCapacity in 1..MAX_QUEUE_CAPACITY) {
@@ -40,7 +40,7 @@ class LeaderAuditExportOptions(
         require(maxAttempts in 1..MAX_ATTEMPTS) {
             "maxAttempts must be in 1..$MAX_ATTEMPTS: $maxAttempts"
         }
-        require(initialBackoffNanos <= maxBackoffNanos) {
+        require(validatedInitialBackoffNanos <= validatedMaxBackoffNanos) {
             "initialBackoff must be <= maxBackoff"
         }
     }
@@ -48,12 +48,13 @@ class LeaderAuditExportOptions(
     companion object {
         internal const val MAX_QUEUE_CAPACITY: Int = 65_536
         internal const val MAX_ATTEMPTS: Int = 16
-        private val MAX_ATTEMPT_TIMEOUT: Duration = Duration.ofMinutes(5)
-        private val MAX_BACKOFF: Duration = Duration.ofMinutes(1)
     }
 }
 
-private fun Duration.toPositiveNanos(name: String, maximum: Duration): Long {
+internal val MAX_ATTEMPT_TIMEOUT_NANOS: Duration = Duration.ofMinutes(5)
+internal val MAX_BACKOFF_NANOS: Duration = Duration.ofMinutes(1)
+
+internal fun Duration.toAuditPositiveNanos(name: String, maximum: Duration): Long {
     require(!isZero && !isNegative) { "$name must be positive: $this" }
     val nanos = try {
         toNanos()
