@@ -121,11 +121,17 @@ leader identity, attribute, error message를 우회해 복원할 수 없다. eve
 v1 bound 상수는 `MAX_ERROR_MESSAGE_BYTES=4096`, `MAX_ERROR_TYPE_BYTES=128`,
 `MAX_TEXT_FIELD_BYTES=256`, `MAX_ATTRIBUTES=32`, `MAX_ATTRIBUTE_KEY_BYTES=128`,
 `MAX_ATTRIBUTE_VALUE_BYTES=512`, `MAX_ATTRIBUTES_TOTAL_BYTES=8192`로 고정한다.
+`MAX_TEXT_FIELD_BYTES`는 `lockName`, `nodeId`, `slotId`, `leaderId`에 적용하고,
+`errorType`과 `errorMessage`는 각각 전용 bound를 사용한다. `LeaderAuditField` enum은
+`LOCK_NAME`, `KIND`, `NODE_ID`, `SLOT_ID`, `LEADER_ID`, `ERROR_TYPE`, `ERROR_MESSAGE`,
+`ATTRIBUTE_KEY`, `ATTRIBUTE_VALUE`만 제공한다. `RAW_ALLOWED_FIELDS`는 `KIND` 하나로
+고정하며 `Raw` 생성자는 이 집합 밖의 allow-list를 모두 거부한다.
 모든 byte bound는 UTF-8 기준이며 over-limit 문자열은 code point를 자르지 않는 최대
 prefix로 truncate하고 ellipsis를 추가하지 않는다. attribute는 sanitized key의 UTF-8
-byte 순으로 정렬한 뒤 key/value 개별 bound와 aggregate bound를 순서대로 적용하며,
-한도를 넘는 후속 entry는 drop한다. sanitize 후 key collision은 정렬상 먼저 온 entry만
-유지한다. `Raw(maxBytes)`는 양수 byte 값과 비민감 field allow-list를 생성 시 검증하고,
+byte와 원본 key의 UTF-8 byte를 순서대로 정렬한 뒤 key/value 개별 bound와 aggregate
+bound를 적용하며, 한도를 넘는 후속 entry는 drop한다. sanitize 후 key collision은 이
+secondary key 순서에서 먼저 온 entry만 유지하므로 입력 Map의 insertion order에 영향을
+받지 않는다. `Raw(maxBytes)`는 양수 byte 값과 비민감 field allow-list를 생성 시 검증하고,
 허용되지 않은 field는 `IllegalArgumentException`으로 거부한다.
 
 ### Exporter와 admission
@@ -320,22 +326,40 @@ detached offset이며 `FunctionCounter`/`Gauge`가 registry polling 시 manager 
 따라서 async diagnostics observer callback이 close 직후 drop되어도 close-owned
 cancellation/rejection이 metric에서 사라지지 않는다.
 decorator는 registry identity별 내부 manager가 고정된 `Meter.Id` 집합을 한 번만 등록하고
-stable meter를 소유한다. manager는 자체 lock/claim token과 `activeProvider` indirection을
-사용하며 `FunctionCounter`/`Gauge` callback은 manager state만 캡처하고 delegate를 직접
-참조하지 않는다. 첫 acquire에서 foreign ID가 이미 존재하거나 등록 identity를 증명할 수
-없으면 constructor는 fail-fast한다. 외부 registration crossing으로 manager-owned identity가
-바뀌거나 ambiguous가 되면 `leader.audit.export.meter-ownership-conflict` fixed warning을
-한 번 기록하고 state를 compromised로 잠근다. manager는 foreign meter를 절대로 제거하지
-않으며, compromised registry는 수동으로 fixed ID를 정리하거나 registry를 교체하기 전까지
-새 wrapper를 허용하지 않는다.
+stable meter를 소유한다. manager는 자체 lock/claim token과 immutable manager state를
+사용한다. state는 `activeProvider`, detached snapshot, cumulative offset, lifecycle와
+`compromised` flag를 함께 보유하며, `FunctionCounter`/`Gauge` callback도 같은 lock으로
+state와 provider snapshot을 한 번에 읽는다. close와 acquire는 offset 반영·provider 전환을
+하나의 선형화 지점에서 수행하므로 poll이 `offset + 이전 provider`를 섞어 읽지 않는다.
+첫 acquire에서 foreign ID가 이미 존재하거나 등록 identity를 증명할 수 없으면 constructor는
+fail-fast한다. 외부 registration crossing으로 manager-owned identity가 바뀌거나 ambiguous가
+되면 `leader.audit.export.meter-ownership-conflict` fixed warning을 한 번 기록하고 state를
+compromised로 잠근다. manager는 foreign meter를 절대로 제거하지 않으며, compromised
+registry는 수동으로 fixed ID를 정리하거나 registry를 교체하기 전까지 새 wrapper를
+허용하지 않는다.
+
+manager 저장소는 registry를 강하게 보유하지 않는 weak identity key와 `ReferenceQueue`를
+사용한다. 매 acquire/retirement 때 queue를 drain해 stale manager를 결정적으로 제거하고,
+manager와 weak meter identity token은 registry를 역참조하지 않는다. 따라서 Spring/test
+context가 폐기되면 registry identity와 manager가 함께 회수될 수 있으며, stable meter가
+registry에 남는 동안에는 manager state만 callback source로 유지한다. 외부 registry mutation은
+manager lock으로 막을 수 없으므로 supported ownership 경계 밖이다. 각 acquire와 metric read에서
+identity mismatch를 감지하면 conflict state로 전환하고 detached 값만 읽으며 foreign meter를
+삭제하거나 ownership을 추정하지 않는다.
+public KDoc는 generic `MeterRegistry`가 외부 `remove`/동일 ID 재등록을 원자적으로
+감시할 수 없다는 한계를 명시한다. caller는 wrapper 수명 동안 fixed ID를 직접 변경하지
+않아야 하며, 이 ownership 경계를 어긴 뒤의 외부 metric 값은 보장하지 않는다. manager가
+acquire 또는 metric read에서 crossing을 관찰한 경우에만 conflict warning과 detached 상태로
+전환하며, 관찰하지 못한 외부 mutation을 막는다고 주장하지 않는다.
 
 전체 stable meter 등록이 성공한 뒤에만 wrapper가 delegate ownership을 확정한다.
 constructor 실패 시에는 delegate를 정확히 한 번 닫고 원래 primary 실패를 보존하며,
 delegate close/partial-registration cleanup 예외는 primary의 suppressed exception으로
 붙인다. primary 실패가 없을 때만 cleanup 예외를 primary로 던진다. 부분 등록은
 manager-owned stable meter와 claim state로 남겨 다음 acquire가 누락 ID만 이어서 등록할
-수 있으며 foreign ID는 건드리지 않는다. `close()`는 delegate를 idempotently 닫고 마지막
-snapshot을 manager offset에 반영한 뒤 `activeProvider`를 clear한다. `registry.remove`를
+수 있으며 foreign ID는 건드리지 않는다. `close()`는 generation token으로 한 번만 현재
+provider를 `CLOSING`에서 detach하고 delegate를 idempotently 닫은 뒤 `DETACHED` claim을
+해제한다. 마지막 snapshot은 manager offset에 반영된다. `registry.remove`를
 호출하지 않으므로 lookup/remove 사이 foreign replacement race와 removal residue가 없다.
 stable meter는 registry에 남지만 closed delegate를 strong-reference하지 않고 마지막
 snapshot/closed 상태를 읽는다. 같은 registry의 새 wrapper는 stable meter identity를

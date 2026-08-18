@@ -77,6 +77,12 @@
           <= LeaderAuditExportEvent.MAX_ERROR_MESSAGE_BYTES).shouldBeTrue()
       ((event.errorType?.toByteArray(Charsets.UTF_8)?.size ?: 0)
           <= LeaderAuditExportEvent.MAX_ERROR_TYPE_BYTES).shouldBeTrue()
+      listOf(event.lockName, event.nodeId, event.slotId).filterNotNull().all {
+          it.toByteArray(Charsets.UTF_8).size <= LeaderAuditExportEvent.MAX_TEXT_FIELD_BYTES
+      }.shouldBeTrue()
+      val lifecycle = lifecycleWithAttributes(emptyMap(), LeaderAuditValueSanitizer.Default)
+      (lifecycle.leaderId?.toByteArray(Charsets.UTF_8)?.size ?: 0)
+          .let { (it <= LeaderAuditExportEvent.MAX_TEXT_FIELD_BYTES).shouldBeTrue() }
       (event.attributes.size <= LeaderAuditExportEvent.MAX_ATTRIBUTES).shouldBeTrue()
       event.attributes.keys.all {
           it.toByteArray(Charsets.UTF_8).size <= LeaderAuditExportEvent.MAX_ATTRIBUTE_KEY_BYTES
@@ -87,6 +93,23 @@
       event.attributes.entries.sumOf { (key, value) ->
           key.toByteArray(Charsets.UTF_8).size + value.toByteArray(Charsets.UTF_8).size
       }.let { (it <= LeaderAuditExportEvent.MAX_ATTRIBUTES_TOTAL_BYTES).shouldBeTrue() }
+  }
+
+  @Test
+  fun `utf8 truncation and sanitized collision order are deterministic`() {
+      val truncated = LeaderAuditValueSanitizer.Truncate(maxBytes = 7)
+          .sanitize(LeaderAuditField.ERROR_MESSAGE, "가가가x")
+      truncated.shouldBeEqualTo("가가")
+      truncated.contains("\uFFFD").shouldBeFalse()
+      truncated.contains("...").shouldBeFalse()
+
+      val first = linkedMapOf("a-two" to "y-value", "a-one" to "z-value")
+      val second = linkedMapOf("a-one" to "z-value", "a-two" to "y-value")
+      val sanitizer = LeaderAuditValueSanitizer.Truncate(maxBytes = 1)
+      val firstEvent = lifecycleWithAttributes(first, sanitizer)
+      val secondEvent = lifecycleWithAttributes(second, sanitizer)
+      firstEvent.attributes.shouldBeEqualTo(secondEvent.attributes)
+      firstEvent.attributes.values.single().shouldBeEqualTo("z")
   }
 
   @Test
@@ -118,8 +141,10 @@
           maxBytes = 16,
       )
       raw.sanitize(LeaderAuditField.KIND, "ACQUIRED").shouldBeEqualTo("ACQUIRED")
-      assertFailsWith<IllegalArgumentException> {
-          raw.sanitize(LeaderAuditField.LOCK_NAME, SECRET_SENTINEL)
+      LeaderAuditField.values().filter { it != LeaderAuditField.KIND }.forEach { field ->
+          assertFailsWith<IllegalArgumentException> {
+              raw.sanitize(field, SECRET_SENTINEL)
+          }
       }
   }
   ```
@@ -176,11 +201,15 @@
   `LeaderAuditExportEvent`와 sanitizer는 `MAX_ERROR_MESSAGE_BYTES=4096`,
   `MAX_ERROR_TYPE_BYTES=128`, `MAX_TEXT_FIELD_BYTES=256`, `MAX_ATTRIBUTES=32`,
   `MAX_ATTRIBUTE_KEY_BYTES=128`, `MAX_ATTRIBUTE_VALUE_BYTES=512`,
-  `MAX_ATTRIBUTES_TOTAL_BYTES=8192`를 public constant로 고정한다. UTF-8 code point
-  경계 truncate, attribute 정렬·collision·aggregate drop 정책은 spec과 동일해야 한다.
+  `MAX_ATTRIBUTES_TOTAL_BYTES=8192`를 public constant로 고정한다. `MAX_TEXT_FIELD_BYTES`는
+  `lockName`, `nodeId`, `slotId`, `leaderId`에 적용하고 `errorType`/`errorMessage`는 전용
+  bound를 사용한다. UTF-8 code point
+  경계 truncate, `lockName/nodeId/slotId/leaderId`의 text bound, attribute 정렬·collision·
+  aggregate drop 정책은 spec과 동일해야 한다.
   `LeaderAuditValueSanitizer`는 임의 lambda가 아니라 `Default`, `Hash`, `Truncate`,
-  `Raw` 정책으로 제한한다. `Raw`는 사전에 허용된 비민감 enum field subset과 양의
-  `maxBytes`를 생성 시 검증하고, 모든 정책은 공통 byte/key limits를 적용한다. event
+  `Raw` 정책으로 제한한다. `Raw`의 `RAW_ALLOWED_FIELDS`는 `KIND` 하나로 고정하고
+  `KIND` 이외 모든 enum field allow-list와 양의 `maxBytes`를 생성 시 거부하며, 모든
+  정책은 공통 byte/key limits를 적용한다. event
   `toString()`과 encoder fixture에는 secret sentinel이 없어야 한다. 모든 map은
   defensive copy 후 `Collections.unmodifiableMap(LinkedHashMap(...))` 또는 동등한
   실제 immutable runtime map으로 노출한다. Java fixture에서 `getAttributes().put`이
@@ -643,12 +672,12 @@
 
   | Type | Exact public surface |
   |---|---|
-  | `LeaderAuditExportEvent` | sealed event boundary plus `Companion` public UTF-8 `const val` bounds `MAX_ERROR_MESSAGE_BYTES=4096`, `MAX_ERROR_TYPE_BYTES=128`, `MAX_TEXT_FIELD_BYTES=256`, `MAX_ATTRIBUTES=32`, `MAX_ATTRIBUTE_KEY_BYTES=128`, `MAX_ATTRIBUTE_VALUE_BYTES=512`, `MAX_ATTRIBUTES_TOTAL_BYTES=8192`; Java reads the exact `LeaderAuditExportEvent.Companion` fields |
+  | `LeaderAuditExportEvent` | sealed event boundary plus outer-class public static final UTF-8 constants `MAX_ERROR_MESSAGE_BYTES=4096`, `MAX_ERROR_TYPE_BYTES=128`, `MAX_TEXT_FIELD_BYTES=256`, `MAX_ATTRIBUTES=32`, `MAX_ATTRIBUTE_KEY_BYTES=128`, `MAX_ATTRIBUTE_VALUE_BYTES=512`, `MAX_ATTRIBUTES_TOTAL_BYTES=8192`; Java reads exact `LeaderAuditExportEvent.MAX_*` fields |
   | `LeaderAuditExportEvent.History` | `from(LeaderLockHistoryRecord, LeaderAuditValueSanitizer): History`; private constructor; no `token`/`LeaderLease` field |
   | `LeaderAuditExportEvent.Lifecycle` | `from(LeaderElectionEvent, Map<String,String>, LeaderAuditValueSanitizer): Lifecycle`; private constructor; no `LeaderLease` field |
   | `LeaderAuditLifecycleOutcome` | enum values `ELECTED`, `REVOKED`, `SKIPPED` only |
-  | `LeaderAuditField` | enum values `LOCK_NAME`, `KIND`, `NODE_ID`, `LEADER_ID`, `ERROR_TYPE`, `ERROR_MESSAGE`, `ATTRIBUTE_KEY`, `ATTRIBUTE_VALUE` only |
-  | `LeaderAuditValueSanitizer` | `sanitize(LeaderAuditField, String): String`; `Default`/`Hash` objects, `Truncate(maxBytes:Int)`, `Raw(allowList:Set<LeaderAuditField>, maxBytes:Int)`; no arbitrary lambda factory |
+  | `LeaderAuditField` | enum values `LOCK_NAME`, `KIND`, `NODE_ID`, `SLOT_ID`, `LEADER_ID`, `ERROR_TYPE`, `ERROR_MESSAGE`, `ATTRIBUTE_KEY`, `ATTRIBUTE_VALUE` only |
+  | `LeaderAuditValueSanitizer` | `sanitize(LeaderAuditField, String): String`; `Default`/`Hash` objects, `Truncate(maxBytes:Int)`, `Raw(allowList:Set<LeaderAuditField>, maxBytes:Int)`; `RAW_ALLOWED_FIELDS={KIND}`; no arbitrary lambda factory |
   | `LeaderAuditExporter` | `submit(LeaderAuditExportEvent): LeaderAuditSubmitResult`, `observe(LeaderAuditExportObserver): AutoCloseable`, `snapshot(): LeaderAuditExportSnapshot`, `close(): Unit` |
   | `LeaderAuditExportOptions` | `queueCapacity:Int`, `maxInFlight:Int`, `maxAttempts:Int`, `attemptTimeout:java.time.Duration`, `initialBackoff:java.time.Duration`, `maxBackoff:java.time.Duration`, `executor:Executor`, `scheduler:ScheduledExecutorService`; Java-visible 8-argument constructor, no implicit shared executor |
   | `LeaderAuditDelivery` | `deliver(LeaderAuditExportEvent): CompletableFuture<LeaderAuditDeliveryResult>` |
@@ -676,13 +705,12 @@
   `close`를 호출하고 decorator의 `snapshot()` delegation도 compile/run으로 고정한다.
   reflection으로 위 public constructor/method set과 JVM descriptor를 확인하고, event
   public field에 `token`이나 `LeaderLease`가 없는지 고정한다. `close()` idempotence와
-  `submit` return type을 JVM descriptor로 확인한다. Micrometer Java fixture는
-  `(LeaderAuditExporter, MeterRegistry)` constructor와 delegated methods, fixed 13-meter
-  ID/type/tag set, duplicate/foreign/unsupported registry failure를 compile/run으로
-  고정한다. `@JvmSynthetic internal LeaderAuditExportSnapshot.Companion.create`는
-  유일하게 허용된 synthetic surface로 allow-list하고, 그 밖의 public synthetic overload는
-  거부한다. sanitizer enum/constructor와 event factory descriptor도 Java reflection 및
-  immutable-map fixture로 확인한다.
+  `submit` return type을 JVM descriptor로 확인한다. `@JvmSynthetic internal
+  LeaderAuditExportSnapshot.Companion.create`는 유일하게 허용된 synthetic surface로
+  allow-list하고, 그 밖의 public synthetic overload는 거부한다. sanitizer enum/constructor와
+  event factory descriptor도 Java reflection 및 immutable-map fixture로 확인한다. Micrometer는
+  core 모듈을 참조할 수 없으므로 constructor/registry ABI fixture는 Task 5의
+  `leader-micrometer` Java test에서 별도로 실행한다.
 
 - [ ] **Step 2: Run contract test and verify RED**
 
@@ -721,6 +749,7 @@
 - Modify: `leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/MicrometerNames.kt`
 - Create: `leader-micrometer/src/main/kotlin/io/bluetape4k/leader/micrometer/audit/MicrometerLeaderAuditExporter.kt`
 - Test: `leader-micrometer/src/test/kotlin/io/bluetape4k/leader/micrometer/audit/MicrometerLeaderAuditExporterTest.kt`
+- Test: `leader-micrometer/src/test/java/io/bluetape4k/leader/micrometer/audit/MicrometerLeaderAuditExporterJavaContractTest.java`
 - Modify: `leader-micrometer/README.md`
 - Modify: `leader-micrometer/README.ko.md`
 
@@ -753,13 +782,27 @@
   잠기며 foreign meter를 제거하지 않는지 검증한다. 동일 registry close→replacement는
   stable meter identity를 재사용하면서 새 delegate snapshot source를 읽고 cumulative
   counter가 감소하지 않는지, active duplicate wrapper는 fail-fast하는지 확인한다.
+  concurrent meter poll·old close·replacement acquire는 latch 기반으로 교차시켜, 모든
+  metric read가 manager 선형화 지점을 통과하고 counter가 감소하거나 `offset + old
+  provider`를 중복 합산하지 않는지 반복 검증한다. wrapper가 소유한 delegate close 완료와
+  replacement acquire crossing도 같은 barrier에서 확인해 detach 이전 provider가 replacement를
+  지우지 않는지 고정한다. caller의 direct delegate close는 unsupported ownership violation으로
+  문서화하고 fixture에서 허용 경로로 취급하지 않는다.
   constructor 실패는 delegate를 정확히 한 번 close하고 primary exception을 보존하며,
   delegate close/partial-registration cleanup 예외는 primary에 suppressed로 붙이고,
   primary가 없을 때만 cleanup 예외를 던지는지 검증한다. manager-owned partial registration만
   다음 acquire에서 이어서 완성하는지 확인한다.
   manager source/offset이 closed delegate를 retain하지 않는다는 사실은 registry의
   provider-detach 기록과 새 snapshot 값으로 결정적으로 확인하며 `WeakReference`/GC에
-  의존하지 않는다.
+  의존하지 않는다. `RegistryManagerStore`의 fake reference queue를 drain하는 lifecycle
+  fixture로 폐기된 registry entry가 제거되고 manager/value가 registry를 strong-reference하지
+  않는지 결정적으로 확인한다.
+
+  `MicrometerLeaderAuditExporterJavaContractTest`는 이 모듈에서 `(LeaderAuditExporter,
+  MeterRegistry)` constructor, delegated `submit/observe/snapshot/close` descriptors,
+  fixed ID/type/tag set, duplicate/foreign/unsupported registry failure와 Java close path를
+  compile/run으로 고정한다. core의 Java fixture가 Micrometer를 참조하지 않도록 이 검증은
+  반드시 `leader-micrometer` test source set에서 실행한다.
 
 - [ ] **Step 2: Run Micrometer test and verify RED**
 
@@ -778,24 +821,42 @@
   async diagnostics observer callback이 close 직후 drop되어도 close-owned
   cancellation/rejection이 metric에서 사라지지 않는다.
   내부 registry-identity manager가 fixed ID claim과 stable meter 집합을 관리한다. manager는
-  claim token/lock, `activeProvider`, detached `lastSnapshot`, cumulative counter offset을
-  보유하며 `FunctionCounter`/`Gauge` callback은 manager state만 캡처한다. provider만
-  delegate를 참조하고 close에서 clear되므로 registry meter가 closed delegate를 retain하지
-  않는다. 첫 acquire는 fixed `name/type/tags/snapshot field` 표를 preflight하고 foreign
+  `ManagerState(generation, activeProvider, detachedSnapshot, offsets, lifecycle)` 하나를
+  보유하고 모든 acquire/close/provider swap과 metric callback을 동일한 lock으로
+  선형화한다. callback은 lock을 획득해 state를 한 번 읽고, active provider가 있으면 그
+  안에서 snapshot을 읽은 뒤 offset을 합산한다. close는 같은 lock에서 현재 snapshot을
+  offset과 detached state에 반영하고 provider를 제거한 `CLOSING` state를 먼저 게시한 뒤,
+  generation token이 일치할 때만 delegate close 완료를 `DETACHED`로 전환한다. 따라서
+  이전 close가 새 provider를 지울 수 없고, `CLOSING` 중 replacement acquire는 거부된다.
+  provider만 delegate를 참조하고 state 전환 후 clear되므로 registry meter가 closed delegate를
+  retain하지 않는다. wrapper가 delegate ownership을 취득한 뒤 caller가 delegate를 직접
+  close하는 것은 지원하지 않으며, wrapper `close()`가 유일한 ownership lifecycle이다.
+  첫 acquire는 fixed `name/type/tags/snapshot field` 표를 preflight하고 foreign
   ID 또는 설치 identity를 증명할 수 없는 registry를 fail-fast한다. 외부 registration
   crossing으로 identity가 foreign/ambiguous가 되면 fixed warning key
   `leader.audit.export.meter-ownership-conflict`를 ID별 한 번 기록하고 manager state를
   compromised로 잠근다. manager는 foreign meter를 절대로 remove하지 않으며, 수동으로
   fixed ID를 정리하거나 registry를 교체하기 전까지 새 wrapper를 허용하지 않는다.
+  public KDoc에는 generic `MeterRegistry`가 외부 `remove`/동일 ID 재등록을 원자적으로
+  관찰하지 못한다는 ownership 한계를 명시한다. caller는 wrapper 수명 동안 fixed ID를
+  직접 변경하지 않아야 하며, manager가 acquire 또는 metric read에서 crossing을 관찰한
+  경우에만 conflict warning과 detached state로 전환한다. 관찰되지 않은 외부 mutation을
+  차단하거나 metric correctness를 보장한다고 주장하지 않는다.
   전체 stable meter 등록이 성공한 뒤에만 delegate ownership을 확정하고, constructor
   실패 시 delegate를 정확히 한 번 닫고 primary exception을 보존한다. close/partial cleanup
   예외는 primary에 suppressed로 추가하며 primary가 없을 때만 cleanup 예외를 던진다.
   manager-owned
   partial registration은 state에 남아 다음 acquire에서 누락 ID만 이어서 등록하며
   foreign ID는 건드리지 않는다. active duplicate wrapper는 fail-fast한다.
-  `close()`는 delegate를 idempotently 닫고 마지막 snapshot을 offset에 반영한 뒤
-  `activeProvider`를 clear한다. `registry.remove`를 호출하지 않으므로 lookup/remove
-  TOCTOU와 removal residue가 없고, stable meter identity는 replacement에서 재사용된다.
+  registry→manager lookup은 `WeakIdentityKey<MeterRegistry>`와 `ReferenceQueue`를 사용하는
+  internal `RegistryManagerStore`로 고정한다. `acquire`/retirement마다 queue를 drain하고,
+  manager와 weak meter identity token이 registry를 강하게 역참조하지 않는지 test seam으로
+  확인한다. registry shutdown callback을 요구하지 않으며 weak-key retirement가 폐기된
+  Spring/test registry의 manager entry를 회수하는 수명 정책이다.
+  `close()`는 generation token으로 한 번만 현재 provider를 `CLOSING`에서 detach하고
+  delegate를 idempotently 닫은 뒤 `DETACHED` claim을 해제한다. `registry.remove`를 호출하지
+  않으므로 lookup/remove TOCTOU와 removal residue가 없고, stable meter identity는
+  replacement에서 재사용된다.
   detached state의 counter는 offset을 포함해 monotonic하게 유지하고 queue/in-flight/
   diagnostics closed gauge는 active provider 또는 detached closed snapshot을 읽는다.
   non-owning observation은 wrapper가 아니라 public `observe()` handle을 별도로 사용하며
@@ -828,6 +889,7 @@
   ```bash
   ./gradlew :bluetape4k-leader-micrometer:test \
     --tests 'io.bluetape4k.leader.micrometer.audit.MicrometerLeaderAuditExporterTest' \
+    --tests 'io.bluetape4k.leader.micrometer.audit.MicrometerLeaderAuditExporterJavaContractTest' \
     --tests 'io.bluetape4k.leader.micrometer.history.*'
   ```
 
@@ -835,7 +897,7 @@
   close→replacement identity reuse, cumulative counter offset monotonicity, foreign
   registration conflict warning/compromised recovery, duplicate wrapper fail-fast,
   partial manager-owned registration continuation, constructor 실패 시 delegate close와
-  primary/suppressed exception policy, 그리고 direct delegate와 wrapper의 closed admission
+  primary/suppressed exception policy, 그리고 owned delegate와 wrapper의 closed admission
   parity가 모두 PASS해야 한다.
 
 - [ ] **Step 5: Update both README locales and commit AUD-02**
@@ -1070,11 +1132,17 @@
   ```bash
   set -euo pipefail
   scan_paths=()
+  scan_tmp="$(mktemp)"
+  trap 'rm -f "$scan_tmp"' EXIT
   if [[ -d docs/manual/drafts ]]; then
+    if ! find docs/manual/drafts -maxdepth 1 -type f -name '*.md' -print0 >"$scan_tmp"; then
+      echo 'failed to enumerate docs/manual/drafts' >&2
+      exit 2
+    fi
     while IFS= read -r -d '' path; do
       [[ -f "$path" && -r "$path" ]] || { echo "unreadable scan path: $path" >&2; exit 2; }
       scan_paths+=("$path")
-    done < <(find docs/manual/drafts -maxdepth 1 -type f -name '*.md' -print0)
+    done < "$scan_tmp"
   elif [[ -e docs/manual/drafts ]]; then
     echo 'docs/manual/drafts exists but is not a directory' >&2
     exit 2
@@ -1118,6 +1186,10 @@
     ((status == 2)) || { echo "invalid regex fixture returned status=$status" >&2; exit "$status"; }
   fi
   ```
+
+  scanner fixture는 존재하지 않는 draft directory를 `find` 대상으로 주어 enumeration
+  실패가 status 2로 반환되고, `scan_paths`가 빈 배열인 채 성공하지 않는지 확인한다. 각
+  draft path의 `-f -r` 검증 실패도 동일하게 fail-closed여야 한다.
 
   gitleaks가 설치되어 있으면 추가로 repository root에서
   `gitleaks dir --no-banner --redact .`를 실행하되, 위의 명시적 파일 집합 scanner를
