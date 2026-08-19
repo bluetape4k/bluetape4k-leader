@@ -138,6 +138,37 @@ class LeaderAuditExportEventTest {
     }
 
     @Test
+    fun `attribute candidate scan is bounded before sorting`() {
+        val attributes = buildMap {
+            repeat(LeaderAuditExportEvent.MAX_ATTRIBUTES) { index ->
+                put("z-$index", "value-$index")
+            }
+            repeat(16) { index ->
+                put("a-$index", "value-$index")
+            }
+        }
+
+        val event = lifecycleWithAttributes(attributes, LeaderAuditValueSanitizer.Truncate(maxBytes = 128))
+
+        event.attributes.keys.all { it.startsWith("z-") }.shouldBeTrue()
+    }
+
+    @Test
+    fun `oversized input bytes stop the attribute scan before sanitizer work`() {
+        val attributes = linkedMapOf(
+            "oversized" to "가".repeat(LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES),
+            "tail" to "tail",
+        )
+
+        val event = lifecycleWithAttributes(
+            attributes,
+            LeaderAuditValueSanitizer.Truncate(maxBytes = 128),
+        )
+
+        event.attributes.isEmpty().shouldBeTrue()
+    }
+
+    @Test
     fun `event and attributes are immutable snapshots without public copy mutation`() {
         val source = mutableMapOf("key" to "value")
         val event = LeaderAuditExportEvent.Lifecycle.from(

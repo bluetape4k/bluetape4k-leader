@@ -134,6 +134,12 @@
   }
 
   @Test
+  fun `attribute candidate scan is bounded before sorting`() { /* input cardinality guard */ }
+
+  @Test
+  fun `oversized input bytes stop the attribute scan before sanitizer work`() { /* UTF-8 budget guard */ }
+
+  @Test
   fun `event and attributes are immutable snapshots without public copy mutation`() {
       val source = mutableMapOf("key" to "value")
       val event = LeaderAuditExportEvent.Lifecycle.from(
@@ -248,7 +254,10 @@
   `LeaderAuditExportEvent`와 sanitizer는 `MAX_ERROR_MESSAGE_BYTES=4096`,
   `MAX_ERROR_TYPE_BYTES=128`, `MAX_TEXT_FIELD_BYTES=256`, `MAX_ATTRIBUTES=32`,
   `MAX_ATTRIBUTE_KEY_BYTES=128`, `MAX_ATTRIBUTE_VALUE_BYTES=512`,
-  `MAX_ATTRIBUTES_TOTAL_BYTES=8192`를 public constant로 고정한다. `MAX_TEXT_FIELD_BYTES`는
+  `MAX_ATTRIBUTES_TOTAL_BYTES=8192`, `MAX_INPUT_ATTRIBUTES=32`,
+  `MAX_INPUT_ATTRIBUTES_TOTAL_BYTES=8192`를 public constant로 고정한다. 입력 attribute는
+  insertion order로 cardinality와 UTF-8 누적 budget을 먼저 검사하고, 상한을 넘는 항목에서
+  bounded scan을 중단한 뒤 후보만 sanitizer·정렬한다. `MAX_TEXT_FIELD_BYTES`는
   `lockName`, `nodeId`, `slotId`, `leaderId`에 적용하고 `errorType`/`errorMessage`는 전용
   bound를 사용한다. UTF-8 code point
   경계 truncate, `lockName/nodeId/slotId/leaderId`의 text bound, attribute 정렬·collision·
@@ -725,7 +734,7 @@
 
   | Type | Exact public surface |
   |---|---|
-  | `LeaderAuditExportEvent` | sealed event boundary plus outer-class public static final UTF-8 constants `MAX_ERROR_MESSAGE_BYTES=4096`, `MAX_ERROR_TYPE_BYTES=128`, `MAX_TEXT_FIELD_BYTES=256`, `MAX_ATTRIBUTES=32`, `MAX_ATTRIBUTE_KEY_BYTES=128`, `MAX_ATTRIBUTE_VALUE_BYTES=512`, `MAX_ATTRIBUTES_TOTAL_BYTES=8192`; Java reads exact `LeaderAuditExportEvent.MAX_*` fields |
+  | `LeaderAuditExportEvent` | sealed event boundary plus outer-class public static final UTF-8 constants `MAX_ERROR_MESSAGE_BYTES=4096`, `MAX_ERROR_TYPE_BYTES=128`, `MAX_TEXT_FIELD_BYTES=256`, `MAX_ATTRIBUTES=32`, `MAX_ATTRIBUTE_KEY_BYTES=128`, `MAX_ATTRIBUTE_VALUE_BYTES=512`, `MAX_ATTRIBUTES_TOTAL_BYTES=8192`, `MAX_INPUT_ATTRIBUTES=32`, `MAX_INPUT_ATTRIBUTES_TOTAL_BYTES=8192`; Java reads exact `LeaderAuditExportEvent.MAX_*` fields |
   | `LeaderAuditExportEvent.History` | `from(LeaderLockHistoryRecord, LeaderAuditValueSanitizer): History`; private constructor; no `token`/`LeaderLease` field |
   | `LeaderAuditExportEvent.Lifecycle` | `from(LeaderElectionEvent, Map<String,String>, LeaderAuditValueSanitizer): Lifecycle`; private constructor; no `LeaderLease` field |
   | `LeaderAuditLifecycleOutcome` | enum values `ELECTED`, `REVOKED`, `SKIPPED` only |

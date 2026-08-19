@@ -50,6 +50,12 @@ sealed interface LeaderAuditExportEvent {
 
         /** attributes key/value 합계의 최대 UTF-8 byte 수입니다. */
         const val MAX_ATTRIBUTES_TOTAL_BYTES: Int = 8192
+
+        /** factory가 sanitizer에 전달할 수 있는 입력 attribute의 최대 항목 수입니다. */
+        const val MAX_INPUT_ATTRIBUTES: Int = MAX_ATTRIBUTES
+
+        /** factory가 sanitizer에 전달할 수 있는 입력 attribute의 최대 UTF-8 byte 수입니다. */
+        const val MAX_INPUT_ATTRIBUTES_TOTAL_BYTES: Int = MAX_ATTRIBUTES_TOTAL_BYTES
     }
 
     /**
@@ -233,7 +239,19 @@ private fun sanitizeAttributes(
     source: Map<String, String>,
     sanitizer: LeaderAuditValueSanitizer,
 ): Map<String, String> {
-    val candidates = source.entries
+    var inputBytes = 0
+    val candidates = source.entries.asSequence()
+        .take(LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES)
+        .takeWhile { entry ->
+            val entryBytes = entry.key.utf8SizeAtMost(LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES) +
+                entry.value.utf8SizeAtMost(LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES)
+            if (entryBytes > LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES - inputBytes) {
+                false
+            } else {
+                inputBytes += entryBytes
+                true
+            }
+        }
         .map { entry ->
             val sanitizedKey = bounded(
                 sanitizer,
@@ -249,10 +267,11 @@ private fun sanitizeAttributes(
             )
             Triple(entry.key, sanitizedKey, sanitizedValue)
         }
-        .sortedWith { left, right ->
-            compareUtf8(left.second, right.second).takeUnless { it == 0 }
-                ?: compareUtf8(left.first, right.first)
-        }
+        .toCollection(ArrayList(minOf(source.size, LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES)))
+    candidates.sortWith { left, right ->
+        compareUtf8(left.second, right.second).takeUnless { it == 0 }
+            ?: compareUtf8(left.first, right.first)
+    }
 
     val result = LinkedHashMap<String, String>()
     var totalBytes = 0
@@ -267,6 +286,24 @@ private fun sanitizeAttributes(
 }
 
 private fun String.utf8Size(): Int = toByteArray(Charsets.UTF_8).size
+
+private fun String.utf8SizeAtMost(limit: Int): Int {
+    var total = 0
+    var index = 0
+    while (index < length) {
+        val codePoint = codePointAt(index)
+        val byteCount = when {
+            codePoint <= 0x7f -> 1
+            codePoint <= 0x7ff -> 2
+            codePoint <= 0xffff -> 3
+            else -> 4
+        }
+        if (total > limit - byteCount) return limit + 1
+        total += byteCount
+        index += Character.charCount(codePoint)
+    }
+    return total
+}
 
 private fun compareUtf8(left: String, right: String): Int {
     val leftBytes = left.toByteArray(Charsets.UTF_8)
