@@ -8,13 +8,14 @@ bluetape4k leader election을 위한 Micrometer 계측 모듈입니다.
 
 ## 개요
 
-`leader-micrometer`는 다섯 가지 계측 경로를 제공합니다.
+`leader-micrometer`는 여섯 가지 계측 경로를 제공합니다.
 
 - `leader-spring-boot`의 어노테이션 AOP를 위한 `MicrometerLeaderAopMetricsRecorder`
 - Micrometer Observation tracing bridge를 위한 `MicrometerObservationLeaderAopMetricsRecorder`, `MicrometerObservationLeaderElectionListener`
 - elector를 직접 호출할 때 사용하는 `InstrumentedLeaderElector`, `InstrumentedLeaderGroupElector`, `InstrumentedSuspendLeaderElector` 데코레이터
 - `LeaderElectionListenerRegistry` 생명주기 callback을 counter로 기록하는 `MicrometerLeaderElectionListener`
 - history sink 상태 counter를 위한 `MicrometerSafeLeaderHistoryRecorder`, `MicrometerSuspendSafeLeaderHistoryRecorder`
+- bounded audit export counter와 gauge를 위한 `MicrometerLeaderAuditExporter`
 
 이 모듈은 `leader-core`, Micrometer core, Micrometer Observation에 의존합니다. Prometheus, Datadog, OTLP 같은 metric export 형식은 애플리케이션이 선택한 Micrometer registry가 결정합니다. Observation export는 애플리케이션이 추가한 Micrometer tracing bridge와 exporter가 결정합니다.
 
@@ -235,6 +236,67 @@ election.runIfLeader("daily-report") {
 |-------|------|------|------|
 | `leader.history.sink.failures` | Counter | `sink` | cancellation/interruption 경로를 제외한 history sink 호출 실패 |
 | `leader.history.acquire.missing` | Counter | `sink` | 사용할 수 없거나 중복된 acquire record 때문에 `recordAcquired`가 `null`을 반환 |
+
+## Audit Export 메트릭
+
+bounded audit delivery 결과를 Micrometer로 export하려면 core
+`LeaderAuditExporter`를 감쌉니다.
+
+```kotlin
+val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+exporter.submit(event)
+// ACCEPTED는 admission만 의미하며 delivery 성공을 의미하지 않습니다.
+exporter.close() // delegate를 정확히 한 번 소유하고 닫습니다.
+```
+
+decorator는 고정 aggregate metric catalog 하나만 제공합니다. lock name,
+leader ID, endpoint, error message, `source`, `transport`를 tag로 복사하지
+않습니다. 유일한 tag는 아래의 제한된 `outcome` 값입니다. registry는 close 후
+replacement generation에서도 meter identity를 유지하므로 `MeterRegistry.remove`
+를 호출하거나 다른 컴포넌트에서 고정 ID를 등록하지 마세요. 동일 registry에서
+active wrapper를 중복 생성하거나 foreign fixed-ID가 발견되면 즉시 실패합니다.
+non-owning observation이 필요하면 같은 delegate를 두 번 wrapping하지 말고
+`delegate.observe(...)`로 observer를 등록하세요.
+
+| Meter | 타입 | Tag / outcome | Snapshot source |
+|---|---|---|---|
+| `leader.audit.export.accepted` | FunctionCounter | `outcome=accepted` | `accepted` |
+| `leader.audit.export.dropped` | FunctionCounter | `outcome=queue_full` 또는 `closed` | `droppedQueueFull`, `droppedClosed` |
+| `leader.audit.export.retries` | FunctionCounter | `outcome=retry` | `retries` |
+| `leader.audit.export.failures` | FunctionCounter | `outcome=failure` | `terminalFailures` |
+| `leader.audit.export.queue.depth` | Gauge | 없음 | `queued` |
+| `leader.audit.export.in.flight` | Gauge | 없음 | `inFlight` |
+| `leader.audit.export.cancelled` | FunctionCounter | `outcome=cancelled` | `cancellations` |
+| `leader.audit.export.rejections` | FunctionCounter | `outcome=rejected` | executor + scheduler rejection 합계 |
+| `leader.audit.export.observer.dropped` | FunctionCounter | 없음 | `observerDrops` |
+| `leader.audit.export.observer.registration.dropped` | FunctionCounter | 없음 | `observerRegistrationDrops` |
+| `leader.audit.export.diagnostics.failures` | FunctionCounter | 없음 | `diagnosticsFatalErrors` |
+| `leader.audit.export.diagnostics.closed` | Gauge | 없음 | `diagnosticsClosed` |
+
+dropped meter는 두 개의 outcome-tagged ID를 가지므로 고정 catalog는 총 13개
+meter ID입니다. Counter 값은 detached generation offset과 active delegate
+snapshot을 합산해 replacement 후에도 감소하지 않습니다. close 중 delegate
+close 중 snapshot이 예외를 던지면 마지막으로 신뢰한 offset을 유지하고 source를
+degraded로 표시한 뒤 delegate reference를 분리하고 원래 예외를 전달합니다. snapshot이
+더 낮은 cumulative 값을 반환하는 경우에는 trusted baseline을 유지하고 degraded warning만
+기록한 뒤 정상 반환하며, 예외를 새로 만들지 않습니다.
+degraded 경로는 `leader.audit.export.meter-source-degraded` fixed warning을 사용하며
+snapshot payload나 exception message를 로그에 남기지 않습니다.
+open generation에서 metric polling 중 `delegate.snapshot()`을 읽지 못하면
+decorator는 마지막으로 신뢰한 cumulative·gauge 값을 유지하고
+`diagnosticsClosed=0`을 보존하며 해당 generation에서 fixed warning을 최대 한 번만
+기록합니다.
+각 metric read는 decorator가 소유한 13개 meter의 identity도 다시 확인합니다. 다른
+컴포넌트가 고정 ID를 제거하거나 교체하면 manager는 마지막으로 신뢰한 detached 값을
+고정하고 `leader.audit.export.meter-ownership-conflict` warning을 한 번만 기록하며
+foreign meter를 읽거나 제거하지 않습니다. compromised manager는 재사용하지 않으므로
+충돌 등록을 제거한 뒤 새 `MeterRegistry`를 사용해야 복구할 수 있습니다. registry가
+달라도 동일 delegate를 두 decorator가 감쌀 수 없으며, 실패한 wrapper는 active owner를
+닫지 않습니다.
+
+이번 slice는 Micrometer 메트릭만 제공합니다. JSONL 출력과 OpenTelemetry
+SDK/bridge/exporter는 별도 후속 범위이며 애플리케이션이 해당 의존성과 transport를
+명시적으로 추가해야 합니다.
 
 Micrometer naming convention이 export backend에 맞춰 이름을 바꿉니다. Prometheus에서는 `leader_aop_attempts_total`, `leader_aop_execution_duration_seconds`, `shedlock_leader_acquired_total` 같은 이름으로 노출됩니다.
 

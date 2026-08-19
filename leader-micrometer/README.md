@@ -8,13 +8,14 @@ Micrometer instrumentation for bluetape4k leader election.
 
 ## Overview
 
-`leader-micrometer` provides five instrumentation paths:
+`leader-micrometer` provides six instrumentation paths:
 
 - `MicrometerLeaderAopMetricsRecorder` for Spring AOP annotations from `leader-spring-boot`
 - `MicrometerObservationLeaderAopMetricsRecorder` and `MicrometerObservationLeaderElectionListener` for Micrometer Observation tracing bridges
 - `InstrumentedLeaderElector`, `InstrumentedLeaderGroupElector`, and `InstrumentedSuspendLeaderElector` decorators for direct elector calls
 - `MicrometerLeaderElectionListener` for lifecycle callback counters from `LeaderElectionListenerRegistry`
 - `MicrometerSafeLeaderHistoryRecorder` and `MicrometerSuspendSafeLeaderHistoryRecorder` for history sink health counters
+- `MicrometerLeaderAuditExporter` for bounded audit export counters and gauges
 
 The module depends only on `leader-core`, Micrometer core, and Micrometer Observation. Metric export format is chosen by the application's Micrometer registry, such as Prometheus, Datadog, OTLP, or a composite registry. Observation export is chosen by the application-provided Micrometer tracing bridge and exporter.
 
@@ -235,6 +236,66 @@ election.runIfLeader("daily-report") {
 |-------|------|------|-------------|
 | `leader.history.sink.failures` | Counter | `sink` | History sink call failures, excluding cancellation and interruption paths |
 | `leader.history.acquire.missing` | Counter | `sink` | `recordAcquired` returned `null` for unavailable or duplicate acquisition records |
+
+## Audit Export Metrics
+
+Wrap a core `LeaderAuditExporter` when bounded audit delivery outcomes should be
+exported to Micrometer:
+
+```kotlin
+val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+exporter.submit(event)
+// ACCEPTED means admission only; it does not mean that delivery succeeded.
+exporter.close() // owns and closes delegate exactly once
+```
+
+The decorator publishes one fixed, aggregate metric catalog. It never copies lock
+names, leader IDs, endpoints, error messages, `source`, or `transport` into tags.
+The only tag is `outcome`, with the bounded values shown below. A registry keeps
+the meter identity across close-and-replacement generations; do not call
+`MeterRegistry.remove` or register the fixed IDs from another component. A
+duplicate active wrapper or a foreign fixed-ID registration fails fast. For a
+non-owning observation, register an observer with `delegate.observe(...)` rather
+than wrapping the same delegate twice.
+
+| Meter | Type | Tags / outcome | Snapshot source |
+|---|---|---|---|
+| `leader.audit.export.accepted` | FunctionCounter | `outcome=accepted` | `accepted` |
+| `leader.audit.export.dropped` | FunctionCounter | `outcome=queue_full` or `closed` | `droppedQueueFull`, `droppedClosed` |
+| `leader.audit.export.retries` | FunctionCounter | `outcome=retry` | `retries` |
+| `leader.audit.export.failures` | FunctionCounter | `outcome=failure` | `terminalFailures` |
+| `leader.audit.export.queue.depth` | Gauge | none | `queued` |
+| `leader.audit.export.in.flight` | Gauge | none | `inFlight` |
+| `leader.audit.export.cancelled` | FunctionCounter | `outcome=cancelled` | `cancellations` |
+| `leader.audit.export.rejections` | FunctionCounter | `outcome=rejected` | executor + scheduler rejections |
+| `leader.audit.export.observer.dropped` | FunctionCounter | none | `observerDrops` |
+| `leader.audit.export.observer.registration.dropped` | FunctionCounter | none | `observerRegistrationDrops` |
+| `leader.audit.export.diagnostics.failures` | FunctionCounter | none | `diagnosticsFatalErrors` |
+| `leader.audit.export.diagnostics.closed` | Gauge | none | `diagnosticsClosed` |
+
+The dropped meter has two outcome-tagged IDs, so the fixed catalog contains 13
+meter IDs. Counter values remain monotonic across replacement by combining the
+detached generation offset with the active delegate snapshot. If a close-time
+snapshot throws, the decorator keeps the last trusted offset, marks the source
+degraded, detaches the delegate, and propagates the original exception. If a
+snapshot returns a lower cumulative value, it keeps the trusted baseline and
+returns normally with the degraded warning; no exception is fabricated.
+The degraded path uses the fixed `leader.audit.export.meter-source-degraded` warning
+and never logs snapshot payloads or exception messages.
+During an open generation, if a metric poll cannot read `delegate.snapshot()`, the
+decorator keeps the last trusted cumulative and gauge values, leaves
+`diagnosticsClosed=0`, and emits the fixed warning at most once for that generation.
+Every metric read also rechecks the identity of the 13 meters it owns. If another
+component removes or replaces one of those IDs, the manager freezes the last
+trusted detached values and emits the fixed `leader.audit.export.meter-ownership-conflict`
+warning once; it never reads or removes the foreign meter. A compromised manager
+is not reused, so recovery requires a fresh `MeterRegistry` after the conflicting
+registration is removed. The same delegate cannot be wrapped by two decorators,
+even when the registries differ; the failed wrapper leaves the active owner open.
+
+This slice provides Micrometer metrics only. JSONL output and an OpenTelemetry
+SDK/bridge/exporter are separate follow-up scope; applications must add those
+dependencies and transports explicitly.
 
 Micrometer naming conventions convert names for the export backend. Prometheus exposes examples such as `leader_aop_attempts_total`, `leader_aop_execution_duration_seconds`, and `shedlock_leader_acquired_total`.
 
