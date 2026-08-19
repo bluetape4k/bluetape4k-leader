@@ -23,6 +23,12 @@
 
 ## Task 1: 안전한 core audit event와 redaction policy
 
+`LeaderAuditField.KIND`는 `LockIdentity.AnnotationKind.SINGLE.name` 또는
+`LockIdentity.AnnotationKind.GROUP.name`만 허용한다. `Default`, `Hash`, `Truncate`,
+`Raw` 모든 sanitizer는 다른 문자열을 `IllegalArgumentException`으로 fail-fast하며,
+canonical 값은 기존 mode별 출력 정책을 그대로 적용한다. 이 검증은 Kotlin 호출과
+Java fixture에서 같은 public `sanitize` 경계로 확인한다.
+
 **Files:**
 
 - Create: `leader-core/src/main/kotlin/io/bluetape4k/leader/audit/LeaderAuditExportEvent.kt`
@@ -170,7 +176,10 @@
           allowList = setOf(LeaderAuditField.KIND),
           maxBytes = 16,
       )
-      raw.sanitize(LeaderAuditField.KIND, "ACQUIRED").shouldBeEqualTo("ACQUIRED")
+      raw.sanitize(LeaderAuditField.KIND, "SINGLE").shouldBeEqualTo("SINGLE")
+      assertFailsWith<IllegalArgumentException> {
+          raw.sanitize(LeaderAuditField.KIND, "ACQUIRED")
+      }
       LeaderAuditField.values().filter { it != LeaderAuditField.KIND }.forEach { field ->
           assertFailsWith<IllegalArgumentException> {
               raw.sanitize(field, SECRET_SENTINEL)
@@ -201,7 +210,7 @@
       val mutableAllowList = mutableSetOf(LeaderAuditField.KIND)
       val copied = LeaderAuditValueSanitizer.Raw(mutableAllowList, maxBytes = 16)
       mutableAllowList.clear()
-      copied.sanitize(LeaderAuditField.KIND, "ACQUIRED").shouldBeEqualTo("ACQUIRED")
+      copied.sanitize(LeaderAuditField.KIND, "GROUP").shouldBeEqualTo("GROUP")
   }
   ```
 

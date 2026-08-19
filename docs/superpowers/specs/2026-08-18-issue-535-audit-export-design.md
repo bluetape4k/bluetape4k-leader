@@ -133,7 +133,10 @@ UTF-8 budget을 넘는 항목을 만나면 scan을 중단한 뒤 이미 수집�
 `errorType`과 `errorMessage`는 각각 전용 bound를 사용한다. `LeaderAuditField` enum은
 `LOCK_NAME`, `KIND`, `NODE_ID`, `SLOT_ID`, `LEADER_ID`, `ERROR_TYPE`, `ERROR_MESSAGE`,
 `ATTRIBUTE_KEY`, `ATTRIBUTE_VALUE`만 제공한다. `RAW_ALLOWED_FIELDS`는 `KIND` 하나로
-고정하며 `Raw` 생성자는 빈 allow-list, 이 집합 밖의 allow-list, `maxBytes <= 0`을 모두
+고정하며 `KIND`의 외부 표현은 `LockIdentity.AnnotationKind.SINGLE.name` 또는
+`LockIdentity.AnnotationKind.GROUP.name`만 허용한다. 모든 sanitizer mode는 `KIND`에
+다른 문자열이 들어오면 `IllegalArgumentException`으로 fail-fast한다. `Raw` 생성자는
+빈 allow-list, 이 집합 밖의 allow-list, `maxBytes <= 0`을 모두
 `IllegalArgumentException`으로 거부한다. 생성 시 allow-list를 방어적으로 복사하므로
 생성 뒤 원본 컬렉션 변경도 정책을 바꾸지 않는다.
 모든 byte bound는 UTF-8 기준이며 over-limit 문자열은 code point를 자르지 않는 최대

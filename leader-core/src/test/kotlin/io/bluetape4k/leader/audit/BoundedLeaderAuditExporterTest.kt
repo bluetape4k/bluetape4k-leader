@@ -311,6 +311,7 @@ class BoundedLeaderAuditExporterTest {
         exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
         recovered.await(5, TimeUnit.SECONDS).shouldBeTrue()
         deliveryFuture.complete(LeaderAuditDeliveryResult.SUCCESS).shouldBeTrue()
+        awaitAdmissionReleased(exporter)
         exporter.snapshot().admitted.shouldBeEqualTo(0)
         exporter.snapshot().executorRejections.shouldBeEqualTo(1)
         exporter.close()

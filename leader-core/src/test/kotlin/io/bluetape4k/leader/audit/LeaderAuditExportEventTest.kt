@@ -241,12 +241,54 @@ class LeaderAuditExportEventTest {
             allowList = setOf(LeaderAuditField.KIND),
             maxBytes = 16,
         )
-        raw.sanitize(LeaderAuditField.KIND, "ACQUIRED").shouldBeEqualTo("ACQUIRED")
+        raw.sanitize(LeaderAuditField.KIND, "SINGLE").shouldBeEqualTo("SINGLE")
         LeaderAuditField.values().filter { it != LeaderAuditField.KIND }.forEach { field ->
             assertFailsWith<IllegalArgumentException> {
                 raw.sanitize(field, secretSentinel)
             }
         }
+    }
+
+    @Test
+    fun `kind sanitizer rejects arbitrary values and preserves valid classifications`() {
+        val sanitizers = listOf<LeaderAuditValueSanitizer>(
+            LeaderAuditValueSanitizer.Default,
+            LeaderAuditValueSanitizer.Hash,
+            LeaderAuditValueSanitizer.Truncate(maxBytes = 16),
+            LeaderAuditValueSanitizer.Raw(
+                allowList = setOf(LeaderAuditField.KIND),
+                maxBytes = 16,
+            ),
+        )
+
+        listOf(secretSentinel, "ACQUIRED", "single", "").forEach { invalidKind ->
+            sanitizers.forEach { sanitizer ->
+                assertFailsWith<IllegalArgumentException> {
+                    sanitizer.sanitize(LeaderAuditField.KIND, invalidKind)
+                }
+            }
+        }
+
+        LeaderAuditValueSanitizer.Default.sanitize(LeaderAuditField.KIND, "SINGLE")
+            .shouldBeEqualTo("SINGLE")
+        LeaderAuditValueSanitizer.Default.sanitize(LeaderAuditField.KIND, "GROUP")
+            .shouldBeEqualTo("GROUP")
+        LeaderAuditValueSanitizer.Hash.sanitize(LeaderAuditField.KIND, "SINGLE")
+            .shouldBeEqualTo("8316f8178707dee9ea8c0e44178b4993a37244112fd60a0be23dae005a3dca01")
+        LeaderAuditValueSanitizer.Hash.sanitize(LeaderAuditField.KIND, "GROUP")
+            .shouldBeEqualTo("19dcd0dd3a4354caf10d7df393630c700e650115f829d883c706b0ac0bddf6d8")
+        LeaderAuditValueSanitizer.Truncate(maxBytes = 16)
+            .sanitize(LeaderAuditField.KIND, "SINGLE")
+            .shouldBeEqualTo("SINGLE")
+        LeaderAuditValueSanitizer.Truncate(maxBytes = 16)
+            .sanitize(LeaderAuditField.KIND, "GROUP")
+            .shouldBeEqualTo("GROUP")
+        val raw = LeaderAuditValueSanitizer.Raw(
+            allowList = setOf(LeaderAuditField.KIND),
+            maxBytes = 16,
+        )
+        raw.sanitize(LeaderAuditField.KIND, "SINGLE").shouldBeEqualTo("SINGLE")
+        raw.sanitize(LeaderAuditField.KIND, "GROUP").shouldBeEqualTo("GROUP")
     }
 
     @Test
@@ -296,7 +338,7 @@ class LeaderAuditExportEventTest {
         val mutableAllowList = mutableSetOf(LeaderAuditField.KIND)
         val copied = LeaderAuditValueSanitizer.Raw(mutableAllowList, maxBytes = 16)
         mutableAllowList.clear()
-        copied.sanitize(LeaderAuditField.KIND, "ACQUIRED").shouldBeEqualTo("ACQUIRED")
+        copied.sanitize(LeaderAuditField.KIND, "GROUP").shouldBeEqualTo("GROUP")
     }
 
     private fun recordWithTokenAndOversizedMetadata(): LeaderLockHistoryRecord =
