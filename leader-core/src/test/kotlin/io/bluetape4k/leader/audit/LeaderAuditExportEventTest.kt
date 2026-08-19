@@ -150,6 +150,9 @@ class LeaderAuditExportEventTest {
 
         val event = lifecycleWithAttributes(attributes, LeaderAuditValueSanitizer.Truncate(maxBytes = 128))
 
+        event.attributes.size.shouldBeEqualTo(LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES)
+        event.attributes.containsKey("z-0").shouldBeTrue()
+        event.attributes.containsKey("a-0").shouldBeFalse()
         event.attributes.keys.all { it.startsWith("z-") }.shouldBeTrue()
     }
 

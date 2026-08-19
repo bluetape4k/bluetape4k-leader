@@ -256,8 +256,10 @@
   `MAX_ATTRIBUTE_KEY_BYTES=128`, `MAX_ATTRIBUTE_VALUE_BYTES=512`,
   `MAX_ATTRIBUTES_TOTAL_BYTES=8192`, `MAX_INPUT_ATTRIBUTES=32`,
   `MAX_INPUT_ATTRIBUTES_TOTAL_BYTES=8192`를 public constant로 고정한다. 입력 attribute는
-  insertion order로 cardinality와 UTF-8 누적 budget을 먼저 검사하고, 상한을 넘는 항목에서
-  bounded scan을 중단한 뒤 후보만 sanitizer·정렬한다. `MAX_TEXT_FIELD_BYTES`는
+  `Map` API는 유지하되 iteration order가 보장되지 않으므로 재현 가능한 cutoff가 필요한
+  caller는 `LinkedHashMap`/`linkedMapOf`를 전달한다. 전달된 map의 insertion order로
+  cardinality와 UTF-8 누적 budget을 먼저 검사하고, 상한을 넘는 항목에서 bounded scan을
+  중단한 뒤 후보만 sanitizer·정렬한다. `MAX_TEXT_FIELD_BYTES`는
   `lockName`, `nodeId`, `slotId`, `leaderId`에 적용하고 `errorType`/`errorMessage`는 전용
   bound를 사용한다. UTF-8 code point
   경계 truncate, `lockName/nodeId/slotId/leaderId`의 text bound, attribute 정렬·collision·
@@ -725,7 +727,7 @@
 **Files:**
 
 - Create: `leader-core/src/test/kotlin/io/bluetape4k/leader/audit/LeaderAuditExportBoundaryContractTest.kt`
-- Create: `leader-core/src/test/java/io/bluetape4k/leader/audit/LeaderAuditExportJavaContractTest.java`
+- Create: `leader-core/src/test/java/io/bluetape4k/leader/audit/LeaderAuditExportJavaContractFixture.java`
 - Modify: audit public types의 KDoc files from Tasks 1–3
 
 - [ ] **Step 1: Write failing public boundary checks**

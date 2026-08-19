@@ -104,7 +104,9 @@ sealed interface LeaderAuditExportEvent {
              *
              * metadata는 insertion order로 `MAX_INPUT_ATTRIBUTES`와
              * `MAX_INPUT_ATTRIBUTES_TOTAL_BYTES`까지만 scan하며, 남은 budget을 넘는 항목을
-             * 만나면 scan을 중단합니다. 따라서 전체 입력 map을 materialize하지 않습니다.
+             * 만나면 scan을 중단합니다. `Map` 자체는 iteration order를 보장하지 않으므로
+             * cutoff 선택을 재현해야 하면 `LinkedHashMap` 또는 `linkedMapOf`를 전달해야
+             * 합니다. 따라서 전체 입력 map을 materialize하지 않습니다.
              *
              * @param record 내부 history record입니다.
              * @param sanitizer 문자열 redaction 정책입니다.
@@ -184,10 +186,12 @@ sealed interface LeaderAuditExportEvent {
              * attributes는 insertion order로 `MAX_INPUT_ATTRIBUTES`와
              * `MAX_INPUT_ATTRIBUTES_TOTAL_BYTES`까지만 scan하며, 남은 budget을 넘는
              * 항목을 만나면 scan을 중단합니다. 따라서 전체 입력 map을 materialize하지
-             * 않습니다.
+             * 않습니다. `Map` 자체는 iteration order를 보장하지 않으므로 cutoff 선택을
+             * 재현해야 하면 `LinkedHashMap` 또는 `linkedMapOf`를 전달해야 합니다.
              *
              * @param event 내부 lifecycle event입니다.
-             * @param attributes 호출자가 제공한 context입니다.
+             * @param attributes 호출자가 제공한 context입니다. 재현 가능한 cutoff가 필요하면
+             * insertion-ordered map을 사용해야 합니다.
              * @param sanitizer 문자열 redaction 정책입니다.
              * @return immutable bounded lifecycle event입니다.
              */

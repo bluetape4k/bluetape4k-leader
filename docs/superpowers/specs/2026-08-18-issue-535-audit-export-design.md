@@ -122,8 +122,11 @@ v1 bound 상수는 `MAX_ERROR_MESSAGE_BYTES=4096`, `MAX_ERROR_TYPE_BYTES=128`,
 `MAX_TEXT_FIELD_BYTES=256`, `MAX_ATTRIBUTES=32`, `MAX_ATTRIBUTE_KEY_BYTES=128`,
 `MAX_ATTRIBUTE_VALUE_BYTES=512`, `MAX_ATTRIBUTES_TOTAL_BYTES=8192`로 고정한다.
 factory 입력도 `MAX_INPUT_ATTRIBUTES=32`, `MAX_INPUT_ATTRIBUTES_TOTAL_BYTES=8192`로
-고정한다. 입력 scan은 insertion order로 이 상한까지만 읽고, 남은 UTF-8 budget을 넘는
-항목을 만나면 scan을 중단한 뒤 이미 수집한 bounded 후보만 sanitizer와 정렬에 전달한다.
+고정한다. public `Map` API는 유지하되 `Map` 자체는 iteration order를 보장하지 않으므로,
+cutoff 선택을 재현해야 하는 caller는 `LinkedHashMap`/`linkedMapOf` 같은 insertion-ordered
+map을 전달해야 한다. 입력 scan은 전달된 `Map.entries` 순서로 이 상한까지만 읽고, 남은
+UTF-8 budget을 넘는 항목을 만나면 scan을 중단한 뒤 이미 수집한 bounded 후보만 sanitizer와
+정렬에 전달한다.
 따라서 임의 크기의 map을 먼저 복사하거나 전체 sanitizer/sort 비용을 발생시키지 않는다.
 입력 상한 초과는 예외가 아니라 best-effort bounded scan으로 처리한다.
 `MAX_TEXT_FIELD_BYTES`는 `lockName`, `nodeId`, `slotId`, `leaderId`에 적용하고,
