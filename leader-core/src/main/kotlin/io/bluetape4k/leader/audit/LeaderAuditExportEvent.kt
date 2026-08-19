@@ -280,7 +280,7 @@ private fun sanitizeAttributes(
             )
             Triple(entry.key, sanitizedKey, sanitizedValue)
         }
-        .toCollection(ArrayList(minOf(source.size, LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES)))
+        .toCollection(ArrayList(LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES))
     candidates.sortWith { left, right ->
         compareUtf8(left.second, right.second).takeUnless { it == 0 }
             ?: compareUtf8(left.first, right.first)

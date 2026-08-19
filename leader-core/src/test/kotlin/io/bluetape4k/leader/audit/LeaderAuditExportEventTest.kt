@@ -157,6 +157,25 @@ class LeaderAuditExportEventTest {
     }
 
     @Test
+    fun `bounded scan does not read source size before iteration`() {
+        val backing = linkedMapOf(
+            "z-0" to "value-0",
+            "z-1" to "value-1",
+        )
+        val attributes = object : Map<String, String> by backing {
+            override val size: Int
+                get() = error("bounded scan must not read source size")
+        }
+
+        val event = lifecycleWithAttributes(
+            attributes,
+            LeaderAuditValueSanitizer.Truncate(maxBytes = 128),
+        )
+
+        event.attributes.size.shouldBeEqualTo(backing.size)
+    }
+
+    @Test
     fun `oversized input bytes stop the attribute scan before sanitizer work`() {
         val attributes = linkedMapOf(
             "oversized" to "가".repeat(LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES),
