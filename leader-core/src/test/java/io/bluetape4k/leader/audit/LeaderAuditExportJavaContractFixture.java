@@ -82,6 +82,21 @@ public final class LeaderAuditExportJavaContractFixture {
         if (!"SINGLE".equals(single)) {
             return false;
         }
+        String hash = LeaderAuditValueSanitizer.Hash.INSTANCE.sanitize(LeaderAuditField.KIND, "SINGLE");
+        if (!"8316f8178707dee9ea8c0e44178b4993a37244112fd60a0be23dae005a3dca01".equals(hash)) {
+            return false;
+        }
+        String truncated = new LeaderAuditValueSanitizer.Truncate(16)
+            .sanitize(LeaderAuditField.KIND, "GROUP");
+        if (!"GROUP".equals(truncated)) {
+            return false;
+        }
+        String raw = new LeaderAuditValueSanitizer.Raw(
+            java.util.Set.of(LeaderAuditField.KIND), 16
+        ).sanitize(LeaderAuditField.KIND, "SINGLE");
+        if (!"SINGLE".equals(raw)) {
+            return false;
+        }
         try {
             LeaderAuditValueSanitizer.Default.INSTANCE.sanitize(LeaderAuditField.KIND, "ACQUIRED");
             return false;

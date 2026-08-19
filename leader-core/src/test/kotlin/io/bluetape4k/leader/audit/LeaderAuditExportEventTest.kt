@@ -269,15 +269,26 @@ class LeaderAuditExportEventTest {
             }
         }
 
-        sanitizers.forEach { sanitizer ->
-            listOf("SINGLE", "GROUP").forEach { validKind ->
-                sanitizer.sanitize(LeaderAuditField.KIND, validKind)
-            }
-        }
         LeaderAuditValueSanitizer.Default.sanitize(LeaderAuditField.KIND, "SINGLE")
             .shouldBeEqualTo("SINGLE")
         LeaderAuditValueSanitizer.Default.sanitize(LeaderAuditField.KIND, "GROUP")
             .shouldBeEqualTo("GROUP")
+        LeaderAuditValueSanitizer.Hash.sanitize(LeaderAuditField.KIND, "SINGLE")
+            .shouldBeEqualTo("8316f8178707dee9ea8c0e44178b4993a37244112fd60a0be23dae005a3dca01")
+        LeaderAuditValueSanitizer.Hash.sanitize(LeaderAuditField.KIND, "GROUP")
+            .shouldBeEqualTo("19dcd0dd3a4354caf10d7df393630c700e650115f829d883c706b0ac0bddf6d8")
+        LeaderAuditValueSanitizer.Truncate(maxBytes = 16)
+            .sanitize(LeaderAuditField.KIND, "SINGLE")
+            .shouldBeEqualTo("SINGLE")
+        LeaderAuditValueSanitizer.Truncate(maxBytes = 16)
+            .sanitize(LeaderAuditField.KIND, "GROUP")
+            .shouldBeEqualTo("GROUP")
+        val raw = LeaderAuditValueSanitizer.Raw(
+            allowList = setOf(LeaderAuditField.KIND),
+            maxBytes = 16,
+        )
+        raw.sanitize(LeaderAuditField.KIND, "SINGLE").shouldBeEqualTo("SINGLE")
+        raw.sanitize(LeaderAuditField.KIND, "GROUP").shouldBeEqualTo("GROUP")
     }
 
     @Test
