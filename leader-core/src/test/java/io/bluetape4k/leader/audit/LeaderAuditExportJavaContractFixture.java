@@ -19,6 +19,9 @@ public final class LeaderAuditExportJavaContractFixture {
                 LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES != 8192) {
                 return false;
             }
+            if (!exerciseKindSanitizer()) {
+                return false;
+            }
 
             Executor executor = Runnable::run;
             LeaderAuditExportOptions options = new LeaderAuditExportOptions(
@@ -71,6 +74,19 @@ public final class LeaderAuditExportJavaContractFixture {
             return false;
         } finally {
             scheduler.shutdownNow();
+        }
+    }
+
+    private static boolean exerciseKindSanitizer() {
+        String single = LeaderAuditValueSanitizer.Default.INSTANCE.sanitize(LeaderAuditField.KIND, "SINGLE");
+        if (!"SINGLE".equals(single)) {
+            return false;
+        }
+        try {
+            LeaderAuditValueSanitizer.Default.INSTANCE.sanitize(LeaderAuditField.KIND, "ACQUIRED");
+            return false;
+        } catch (IllegalArgumentException expected) {
+            return true;
         }
     }
 }
