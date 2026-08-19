@@ -137,6 +137,9 @@
   fun `attribute candidate scan is bounded before sorting`() { /* input cardinality guard */ }
 
   @Test
+  fun `bounded scan does not read source size before iteration`() { /* Map size guard */ }
+
+  @Test
   fun `oversized input bytes stop the attribute scan before sanitizer work`() { /* UTF-8 budget guard */ }
 
   @Test
