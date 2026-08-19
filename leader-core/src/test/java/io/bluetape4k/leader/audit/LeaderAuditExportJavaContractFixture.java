@@ -1,6 +1,12 @@
 package io.bluetape4k.leader.audit;
 
+import io.bluetape4k.leader.LeaderLease;
+import io.bluetape4k.leader.history.LeaderLockHistoryRecord;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Modifier;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -20,6 +26,9 @@ public final class LeaderAuditExportJavaContractFixture {
                 return false;
             }
             if (!exerciseKindSanitizer()) {
+                return false;
+            }
+            if (!exerciseFactoryOnlySnapshots()) {
                 return false;
             }
 
@@ -102,6 +111,39 @@ public final class LeaderAuditExportJavaContractFixture {
             return false;
         } catch (IllegalArgumentException expected) {
             return true;
+        }
+    }
+
+    private static boolean exerciseFactoryOnlySnapshots() {
+        try {
+            for (Class<?> eventType : new Class<?>[] {
+                LeaderAuditExportEvent.History.class,
+                LeaderAuditExportEvent.Lifecycle.class
+            }) {
+                Class<?> snapshotType = Class.forName(eventType.getName() + "$Snapshot");
+                Constructor<?>[] constructors = snapshotType.getDeclaredConstructors();
+                Constructor<?>[] nonSyntheticConstructors = java.util.Arrays.stream(constructors)
+                    .filter(constructor -> !constructor.isSynthetic())
+                    .toArray(Constructor<?>[]::new);
+                if (nonSyntheticConstructors.length != 1 ||
+                    !Modifier.isPrivate(nonSyntheticConstructors[0].getModifiers())) {
+                    return false;
+                }
+                for (Constructor<?> constructor : constructors) {
+                    if ((Modifier.isPublic(constructor.getModifiers()) || constructor.isSynthetic()) &&
+                        java.util.Arrays.stream(constructor.getParameterTypes()).anyMatch(
+                            parameterType -> parameterType == String.class ||
+                                parameterType == Instant.class ||
+                                parameterType == Map.class ||
+                                parameterType == LeaderLease.class ||
+                                parameterType == LeaderLockHistoryRecord.class)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        } catch (ReflectiveOperationException e) {
+            return false;
         }
     }
 }

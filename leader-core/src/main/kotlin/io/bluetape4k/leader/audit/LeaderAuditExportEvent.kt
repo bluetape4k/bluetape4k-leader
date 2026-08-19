@@ -66,19 +66,37 @@ sealed interface LeaderAuditExportEvent {
      */
     class History private constructor(snapshot: Snapshot) : LeaderAuditExportEvent {
 
-        /** factory가 검증·정제한 값만 보관하는 opaque construction payload입니다. */
-        private class Snapshot(
-            val occurredAt: Instant,
-            val lockName: String,
-            val kind: LockIdentity.AnnotationKind,
-            val status: LeaderHistoryStatus,
-            val nodeId: String?,
-            val slotId: String?,
-            val durationMs: Long?,
-            val errorType: String?,
-            val errorMessage: String?,
-            val attributes: Map<String, String>,
-        )
+        /** factory가 검증·정제한 값만 전달하는 opaque construction payload입니다. */
+        private interface SnapshotData {
+            val occurredAt: Instant
+            val lockName: String
+            val kind: LockIdentity.AnnotationKind
+            val status: LeaderHistoryStatus
+            val nodeId: String?
+            val slotId: String?
+            val durationMs: Long?
+            val errorType: String?
+            val errorMessage: String?
+            val attributes: Map<String, String>
+        }
+
+        /** raw field를 JVM constructor descriptor에 노출하지 않는 immutable snapshot입니다. */
+        private class Snapshot private constructor(data: SnapshotData) {
+            val occurredAt: Instant = data.occurredAt
+            val lockName: String = data.lockName
+            val kind: LockIdentity.AnnotationKind = data.kind
+            val status: LeaderHistoryStatus = data.status
+            val nodeId: String? = data.nodeId
+            val slotId: String? = data.slotId
+            val durationMs: Long? = data.durationMs
+            val errorType: String? = data.errorType
+            val errorMessage: String? = data.errorMessage
+            val attributes: Map<String, String> = data.attributes
+
+            companion object {
+                fun create(data: SnapshotData): Snapshot = Snapshot(data)
+            }
+        }
 
         override val occurredAt: Instant = snapshot.occurredAt
         override val lockName: String = snapshot.lockName
@@ -119,30 +137,33 @@ sealed interface LeaderAuditExportEvent {
                 val exportNow = Instant.now()
                 val occurredAt = record.finishedAt ?: record.acquiredAt
                 return History(
-                    Snapshot(
-                        occurredAt = occurredAt,
-                        lockName = bounded(
-                            sanitizer,
-                            LeaderAuditField.LOCK_NAME,
-                            record.lockName,
-                            MAX_TEXT_FIELD_BYTES,
-                        ),
-                        kind = record.kind,
-                        status = record.effectiveStatus(exportNow),
-                        nodeId = record.nodeId?.let {
-                            bounded(sanitizer, LeaderAuditField.NODE_ID, it, MAX_TEXT_FIELD_BYTES)
+                    Snapshot.create(
+                        object : SnapshotData {
+                            override val occurredAt: Instant = occurredAt
+                            override val lockName: String = bounded(
+                                sanitizer,
+                                LeaderAuditField.LOCK_NAME,
+                                record.lockName,
+                                MAX_TEXT_FIELD_BYTES,
+                            )
+                            override val kind: LockIdentity.AnnotationKind = record.kind
+                            override val status: LeaderHistoryStatus = record.effectiveStatus(exportNow)
+                            override val nodeId: String? = record.nodeId?.let {
+                                bounded(sanitizer, LeaderAuditField.NODE_ID, it, MAX_TEXT_FIELD_BYTES)
+                            }
+                            override val slotId: String? = record.slotId?.let {
+                                bounded(sanitizer, LeaderAuditField.SLOT_ID, it, MAX_TEXT_FIELD_BYTES)
+                            }
+                            override val durationMs: Long? = record.durationMs
+                            override val errorType: String? = record.errorType?.let {
+                                bounded(sanitizer, LeaderAuditField.ERROR_TYPE, it, MAX_ERROR_TYPE_BYTES)
+                            }
+                            override val errorMessage: String? = record.errorMessage?.let {
+                                bounded(sanitizer, LeaderAuditField.ERROR_MESSAGE, it, MAX_ERROR_MESSAGE_BYTES)
+                            }
+                            override val attributes: Map<String, String> =
+                                sanitizeAttributes(record.metadata, sanitizer)
                         },
-                        slotId = record.slotId?.let {
-                            bounded(sanitizer, LeaderAuditField.SLOT_ID, it, MAX_TEXT_FIELD_BYTES)
-                        },
-                        durationMs = record.durationMs,
-                        errorType = record.errorType?.let {
-                            bounded(sanitizer, LeaderAuditField.ERROR_TYPE, it, MAX_ERROR_TYPE_BYTES)
-                        },
-                        errorMessage = record.errorMessage?.let {
-                            bounded(sanitizer, LeaderAuditField.ERROR_MESSAGE, it, MAX_ERROR_MESSAGE_BYTES)
-                        },
-                        attributes = sanitizeAttributes(record.metadata, sanitizer),
                     ),
                 )
             }
@@ -159,15 +180,29 @@ sealed interface LeaderAuditExportEvent {
      */
     class Lifecycle private constructor(snapshot: Snapshot) : LeaderAuditExportEvent {
 
-        /** factory가 검증·정제한 값만 보관하는 opaque construction payload입니다. */
-        private class Snapshot(
-            val occurredAt: Instant,
-            val lockName: String,
-            val outcome: LeaderAuditLifecycleOutcome,
-            val leaderId: String?,
-            val leaseExpiry: Instant?,
-            val attributes: Map<String, String>,
-        )
+        /** factory가 검증·정제한 값만 전달하는 opaque construction payload입니다. */
+        private interface SnapshotData {
+            val occurredAt: Instant
+            val lockName: String
+            val outcome: LeaderAuditLifecycleOutcome
+            val leaderId: String?
+            val leaseExpiry: Instant?
+            val attributes: Map<String, String>
+        }
+
+        /** raw field를 JVM constructor descriptor에 노출하지 않는 immutable snapshot입니다. */
+        private class Snapshot private constructor(data: SnapshotData) {
+            val occurredAt: Instant = data.occurredAt
+            val lockName: String = data.lockName
+            val outcome: LeaderAuditLifecycleOutcome = data.outcome
+            val leaderId: String? = data.leaderId
+            val leaseExpiry: Instant? = data.leaseExpiry
+            val attributes: Map<String, String> = data.attributes
+
+            companion object {
+                fun create(data: SnapshotData): Snapshot = Snapshot(data)
+            }
+        }
 
         override val occurredAt: Instant = snapshot.occurredAt
         override val lockName: String = snapshot.lockName
@@ -202,24 +237,26 @@ sealed interface LeaderAuditExportEvent {
             ): Lifecycle {
                 val elected = event as? LeaderElectionEvent.Elected
                 return Lifecycle(
-                    Snapshot(
-                        occurredAt = Instant.now(),
-                        lockName = bounded(
-                            sanitizer,
-                            LeaderAuditField.LOCK_NAME,
-                            event.lockName,
-                            MAX_TEXT_FIELD_BYTES,
-                        ),
-                        outcome = when (event) {
-                            is LeaderElectionEvent.Elected -> LeaderAuditLifecycleOutcome.ELECTED
-                            is LeaderElectionEvent.Revoked -> LeaderAuditLifecycleOutcome.REVOKED
-                            is LeaderElectionEvent.Skipped -> LeaderAuditLifecycleOutcome.SKIPPED
+                    Snapshot.create(
+                        object : SnapshotData {
+                            override val occurredAt: Instant = Instant.now()
+                            override val lockName: String = bounded(
+                                sanitizer,
+                                LeaderAuditField.LOCK_NAME,
+                                event.lockName,
+                                MAX_TEXT_FIELD_BYTES,
+                            )
+                            override val outcome: LeaderAuditLifecycleOutcome = when (event) {
+                                is LeaderElectionEvent.Elected -> LeaderAuditLifecycleOutcome.ELECTED
+                                is LeaderElectionEvent.Revoked -> LeaderAuditLifecycleOutcome.REVOKED
+                                is LeaderElectionEvent.Skipped -> LeaderAuditLifecycleOutcome.SKIPPED
+                            }
+                            override val leaderId: String? = elected?.leaderId?.let {
+                                bounded(sanitizer, LeaderAuditField.LEADER_ID, it, MAX_TEXT_FIELD_BYTES)
+                            }
+                            override val leaseExpiry: Instant? = elected?.leaseExpiry
+                            override val attributes: Map<String, String> = sanitizeAttributes(attributes, sanitizer)
                         },
-                        leaderId = elected?.leaderId?.let {
-                            bounded(sanitizer, LeaderAuditField.LEADER_ID, it, MAX_TEXT_FIELD_BYTES)
-                        },
-                        leaseExpiry = elected?.leaseExpiry,
-                        attributes = sanitizeAttributes(attributes, sanitizer),
                     ),
                 )
             }
