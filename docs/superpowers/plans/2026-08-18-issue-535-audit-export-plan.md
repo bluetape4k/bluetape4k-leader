@@ -802,7 +802,7 @@
   ```bash
   git add leader-core/src/main/kotlin/io/bluetape4k/leader/audit \
     leader-core/src/test/kotlin/io/bluetape4k/leader/audit/LeaderAuditExportBoundaryContractTest.kt \
-    leader-core/src/test/java/io/bluetape4k/leader/audit/LeaderAuditExportJavaContractTest.java
+    leader-core/src/test/java/io/bluetape4k/leader/audit/LeaderAuditExportJavaContractFixture.java
   git commit -m $'OBS-03 core exporter public ABI와 KDoc를 고정한다\n\nConstraint: 기존 core public contract와 binary compatibility를 유지한다.\nRejected: 편의용 overload와 raw record exposure | JVM descriptor와 redaction 경계 확대\nConfidence: high\nScope-risk: moderate\nDirective: 후속 transport는 이 stable event boundary를 사용한다.\nTested: ABI boundary contract test and diff check\nNot-tested: Micrometer/HTTP integration은 후속 slice에서 검증한다.'
   ```
 
