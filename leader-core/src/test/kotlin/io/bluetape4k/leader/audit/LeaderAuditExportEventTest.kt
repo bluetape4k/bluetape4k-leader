@@ -138,6 +138,59 @@ class LeaderAuditExportEventTest {
     }
 
     @Test
+    fun `attribute candidate scan is bounded before sorting`() {
+        val attributes = buildMap {
+            repeat(LeaderAuditExportEvent.MAX_ATTRIBUTES) { index ->
+                put("z-$index", "value-$index")
+            }
+            repeat(16) { index ->
+                put("a-$index", "value-$index")
+            }
+        }
+
+        val event = lifecycleWithAttributes(attributes, LeaderAuditValueSanitizer.Truncate(maxBytes = 128))
+
+        event.attributes.size.shouldBeEqualTo(LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES)
+        event.attributes.containsKey("z-0").shouldBeTrue()
+        event.attributes.containsKey("a-0").shouldBeFalse()
+        event.attributes.keys.all { it.startsWith("z-") }.shouldBeTrue()
+    }
+
+    @Test
+    fun `bounded scan does not read source size before iteration`() {
+        val backing = linkedMapOf(
+            "z-0" to "value-0",
+            "z-1" to "value-1",
+        )
+        val attributes = object : Map<String, String> by backing {
+            override val size: Int
+                get() = error("bounded scan must not read source size")
+        }
+
+        val event = lifecycleWithAttributes(
+            attributes,
+            LeaderAuditValueSanitizer.Truncate(maxBytes = 128),
+        )
+
+        event.attributes.size.shouldBeEqualTo(backing.size)
+    }
+
+    @Test
+    fun `oversized input bytes stop the attribute scan before sanitizer work`() {
+        val attributes = linkedMapOf(
+            "oversized" to "가".repeat(LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES),
+            "tail" to "tail",
+        )
+
+        val event = lifecycleWithAttributes(
+            attributes,
+            LeaderAuditValueSanitizer.Truncate(maxBytes = 128),
+        )
+
+        event.attributes.isEmpty().shouldBeTrue()
+    }
+
+    @Test
     fun `event and attributes are immutable snapshots without public copy mutation`() {
         val source = mutableMapOf("key" to "value")
         val event = LeaderAuditExportEvent.Lifecycle.from(

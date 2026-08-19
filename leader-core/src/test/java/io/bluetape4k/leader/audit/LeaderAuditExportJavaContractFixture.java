@@ -15,6 +15,11 @@ public final class LeaderAuditExportJavaContractFixture {
     public static boolean exercise() {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         try {
+            if (LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES != 32 ||
+                LeaderAuditExportEvent.MAX_INPUT_ATTRIBUTES_TOTAL_BYTES != 8192) {
+                return false;
+            }
+
             Executor executor = Runnable::run;
             LeaderAuditExportOptions options = new LeaderAuditExportOptions(
                 8,

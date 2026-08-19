@@ -20,6 +20,8 @@ class LeaderAuditExportBoundaryContractTest {
         eventType.getField("MAX_ATTRIBUTE_KEY_BYTES").getInt(null) shouldBeEqualTo 128
         eventType.getField("MAX_ATTRIBUTE_VALUE_BYTES").getInt(null) shouldBeEqualTo 512
         eventType.getField("MAX_ATTRIBUTES_TOTAL_BYTES").getInt(null) shouldBeEqualTo 8192
+        eventType.getField("MAX_INPUT_ATTRIBUTES").getInt(null) shouldBeEqualTo 32
+        eventType.getField("MAX_INPUT_ATTRIBUTES_TOTAL_BYTES").getInt(null) shouldBeEqualTo 8192
 
         LeaderAuditExportEvent.History.Companion::class.java.getMethod(
             "from",

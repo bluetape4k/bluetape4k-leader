@@ -121,6 +121,14 @@ leader identity, attribute, error message를 우회해 복원할 수 없다. eve
 v1 bound 상수는 `MAX_ERROR_MESSAGE_BYTES=4096`, `MAX_ERROR_TYPE_BYTES=128`,
 `MAX_TEXT_FIELD_BYTES=256`, `MAX_ATTRIBUTES=32`, `MAX_ATTRIBUTE_KEY_BYTES=128`,
 `MAX_ATTRIBUTE_VALUE_BYTES=512`, `MAX_ATTRIBUTES_TOTAL_BYTES=8192`로 고정한다.
+factory 입력도 `MAX_INPUT_ATTRIBUTES=32`, `MAX_INPUT_ATTRIBUTES_TOTAL_BYTES=8192`로
+고정한다. public `Map` API는 유지하되 `Map` 자체는 iteration order를 보장하지 않으므로,
+cutoff 선택을 재현해야 하는 caller는 `LinkedHashMap`/`linkedMapOf` 같은 insertion-ordered
+map을 전달해야 한다. 입력 scan은 전달된 `Map.entries` 순서로 이 상한까지만 읽고, 남은
+UTF-8 budget을 넘는 항목을 만나면 scan을 중단한 뒤 이미 수집한 bounded 후보만 sanitizer와
+정렬에 전달한다.
+따라서 임의 크기의 map을 먼저 복사하거나 전체 sanitizer/sort 비용을 발생시키지 않는다.
+입력 상한 초과는 예외가 아니라 best-effort bounded scan으로 처리한다.
 `MAX_TEXT_FIELD_BYTES`는 `lockName`, `nodeId`, `slotId`, `leaderId`에 적용하고,
 `errorType`과 `errorMessage`는 각각 전용 bound를 사용한다. `LeaderAuditField` enum은
 `LOCK_NAME`, `KIND`, `NODE_ID`, `SLOT_ID`, `LEADER_ID`, `ERROR_TYPE`, `ERROR_MESSAGE`,
@@ -131,9 +139,10 @@ v1 bound 상수는 `MAX_ERROR_MESSAGE_BYTES=4096`, `MAX_ERROR_TYPE_BYTES=128`,
 모든 byte bound는 UTF-8 기준이며 over-limit 문자열은 code point를 자르지 않는 최대
 prefix로 truncate하고 ellipsis를 추가하지 않는다. attribute는 sanitized key의 UTF-8
 byte와 원본 key의 UTF-8 byte를 순서대로 정렬한 뒤 key/value 개별 bound와 aggregate
-bound를 적용하며, 한도를 넘는 후속 entry는 drop한다. sanitize 후 key collision은 이
-secondary key 순서에서 먼저 온 entry만 유지하므로 입력 Map의 insertion order에 영향을
-받지 않는다. `Raw(maxBytes)`는 양수 byte 값과 비민감 field allow-list를 생성 시 검증하고,
+bound를 적용하며, 한도를 넘는 후속 entry는 drop한다. 입력 scan 상한 안에서 sanitize 후
+key collision은 이 secondary key 순서에서 먼저 온 entry만 유지하고, 상한을 초과한
+후속 entry는 insertion order 기준으로 읽지 않는다. `Raw(maxBytes)`는 양수 byte 값과
+비민감 field allow-list를 생성 시 검증하고,
 허용되지 않은 field는 `IllegalArgumentException`으로 거부한다.
 
 ### Exporter와 admission
