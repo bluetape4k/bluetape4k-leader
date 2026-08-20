@@ -64,7 +64,7 @@ internal class BoundedLeaderAuditExporter(
     )
 
     private val admissionLock = ReentrantLock()
-    private val diagnosticsLock = ReentrantLock()
+    private val diagnosticsAdmissionLock = ReentrantLock()
     private val closed = AtomicBoolean(false)
     private val diagnosticsClosed = AtomicBoolean(false)
     private val workerRunning = AtomicBoolean(false)
@@ -137,7 +137,7 @@ internal class BoundedLeaderAuditExporter(
     }
 
     override fun observe(observer: LeaderAuditExportObserver): AutoCloseable {
-        diagnosticsLock.lock()
+        diagnosticsAdmissionLock.lock()
         try {
             if (diagnosticsClosed.get() || observerSlots.size >= MAX_OBSERVERS) {
                 observerRegistrationDrops.incrementAndGet()
@@ -147,7 +147,7 @@ internal class BoundedLeaderAuditExporter(
             observerSlots += slot
             return AutoCloseable { closeObserver(slot) }
         } finally {
-            diagnosticsLock.unlock()
+            diagnosticsAdmissionLock.unlock()
         }
     }
 
@@ -195,12 +195,12 @@ internal class BoundedLeaderAuditExporter(
             admissionLock.unlock()
         }
 
-        diagnosticsLock.lock()
+        diagnosticsAdmissionLock.lock()
         try {
             diagnosticsClosed.set(true)
-            drainDiagnostics()
+            drainDiagnosticsLocked()
         } finally {
-            diagnosticsLock.unlock()
+            diagnosticsAdmissionLock.unlock()
         }
         diagnosticsWorker.get()?.let(LockSupport::unpark)
         tryStartWorker()
@@ -579,7 +579,7 @@ internal class BoundedLeaderAuditExporter(
 
     private fun publish(observation: LeaderAuditExportObservation) {
         if (diagnosticsClosed.get()) return
-        if (!diagnosticsLock.tryLock()) {
+        if (!diagnosticsAdmissionLock.tryLock()) {
             observerDrops.incrementAndGet()
             return
         }
@@ -601,7 +601,7 @@ internal class BoundedLeaderAuditExporter(
                 }
             }
         } finally {
-            diagnosticsLock.unlock()
+            diagnosticsAdmissionLock.unlock()
         }
     }
 
@@ -618,22 +618,29 @@ internal class BoundedLeaderAuditExporter(
     }
 
     private fun runDiagnostics() {
-        while (!diagnosticsClosed.get() || diagnostics.isNotEmpty()) {
-            val work = diagnostics.poll()
+        while (true) {
+            var skipped = false
+            val work = diagnosticsAdmissionLock.withLock {
+                val item = diagnostics.poll()
+                if (item == null) {
+                    null
+                } else {
+                    diagnosticsQueued.decrementAndGet()
+                    if (diagnosticsClosed.get() || !item.slot.active.get()) {
+                        skipped = true
+                        null
+                    } else {
+                        item.slot.running.incrementAndGet()
+                        item
+                    }
+                }
+            }
             if (work == null) {
+                if (skipped) continue
+                if (diagnosticsClosed.get() && diagnostics.isEmpty()) break
                 LockSupport.park()
                 continue
             }
-            diagnosticsQueued.decrementAndGet()
-            val reserved = diagnosticsLock.withLockIfAvailable {
-                if (!diagnosticsClosed.get() && work.slot.active.get()) {
-                    work.slot.running.incrementAndGet()
-                    true
-                } else {
-                    false
-                }
-            }
-            if (!reserved) continue
             try {
                 work.slot.observer.onObservation(work.observation)
             } catch (e: Exception) {
@@ -643,22 +650,24 @@ internal class BoundedLeaderAuditExporter(
                 }
             } catch (e: Error) {
                 diagnosticsFatalErrors.incrementAndGet()
-                diagnosticsLock.lock()
+                diagnosticsAdmissionLock.lock()
                 try {
                     diagnosticsClosed.set(true)
-                    drainDiagnostics()
+                    drainDiagnosticsLocked()
                 } finally {
-                    diagnosticsLock.unlock()
+                    diagnosticsAdmissionLock.unlock()
                 }
                 throw e
             } finally {
-                work.slot.running.decrementAndGet()
+                diagnosticsAdmissionLock.withLock {
+                    work.slot.running.decrementAndGet()
+                }
             }
         }
     }
 
     private fun closeObserver(slot: ObserverSlot) {
-        diagnosticsLock.lock()
+        diagnosticsAdmissionLock.lock()
         try {
             if (!slot.active.getAndSet(false)) return
             observerSlots.remove(slot)
@@ -668,11 +677,11 @@ internal class BoundedLeaderAuditExporter(
                 true
             }
         } finally {
-            diagnosticsLock.unlock()
+            diagnosticsAdmissionLock.unlock()
         }
     }
 
-    private fun drainDiagnostics() {
+    private fun drainDiagnosticsLocked() {
         while (diagnostics.poll() != null) diagnosticsQueued.decrementAndGet()
     }
 
@@ -773,7 +782,7 @@ private fun Duration.toBoundedPositiveNanos(name: String, maximum: Duration): Lo
     return nanos
 }
 
-private inline fun <T> ReentrantLock.withLockIfAvailable(block: () -> T): T {
+private inline fun <T> ReentrantLock.withLock(block: () -> T): T {
     lock()
     return try {
         block()
