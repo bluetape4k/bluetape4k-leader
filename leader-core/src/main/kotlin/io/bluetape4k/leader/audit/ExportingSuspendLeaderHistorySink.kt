@@ -16,6 +16,7 @@ import java.time.Instant
 
 /**
  * suspend history sink의 delegate 결과와 cancellation을 보존하면서 audit event를 전달합니다.
+ * terminal delegate 실패·취소에서도 pending context를 `finally`에서 제거합니다.
  */
 class ExportingSuspendLeaderHistorySink private constructor(
     private val delegate: SuspendLeaderHistorySink,
@@ -51,18 +52,25 @@ class ExportingSuspendLeaderHistorySink private constructor(
     }
 
     override suspend fun recordCompleted(key: LeaderHistoryKey, finishedAt: Instant, durationMs: Long) {
-        currentCoroutineContext().ensureActive()
-        delegate.recordCompleted(key, finishedAt, durationMs)
-        currentCoroutineContext().ensureActive()
-        submitSafely(
-            historyEvent(
-                key,
-                contexts.remove(key),
-                finishedAt,
-                durationMs,
-                LeaderHistoryStatus.COMPLETED,
-            ),
-        )
+        var contextRemoved = false
+        try {
+            currentCoroutineContext().ensureActive()
+            delegate.recordCompleted(key, finishedAt, durationMs)
+            currentCoroutineContext().ensureActive()
+            val context = contexts.remove(key)
+            contextRemoved = true
+            submitSafely(
+                historyEvent(
+                    key,
+                    context,
+                    finishedAt,
+                    durationMs,
+                    LeaderHistoryStatus.COMPLETED,
+                ),
+            )
+        } finally {
+            if (!contextRemoved) contexts.remove(key)
+        }
     }
 
     override suspend fun recordFailed(
@@ -72,20 +80,27 @@ class ExportingSuspendLeaderHistorySink private constructor(
         errorType: String?,
         errorMessage: String?,
     ) {
-        currentCoroutineContext().ensureActive()
-        delegate.recordFailed(key, finishedAt, durationMs, errorType, errorMessage)
-        currentCoroutineContext().ensureActive()
-        submitSafely(
-            historyEvent(
-                key,
-                contexts.remove(key),
-                finishedAt,
-                durationMs,
-                LeaderHistoryStatus.FAILED,
-                errorType,
-                errorMessage,
-            ),
-        )
+        var contextRemoved = false
+        try {
+            currentCoroutineContext().ensureActive()
+            delegate.recordFailed(key, finishedAt, durationMs, errorType, errorMessage)
+            currentCoroutineContext().ensureActive()
+            val context = contexts.remove(key)
+            contextRemoved = true
+            submitSafely(
+                historyEvent(
+                    key,
+                    context,
+                    finishedAt,
+                    durationMs,
+                    LeaderHistoryStatus.FAILED,
+                    errorType,
+                    errorMessage,
+                ),
+            )
+        } finally {
+            if (!contextRemoved) contexts.remove(key)
+        }
     }
 
     override suspend fun deleteOlderThan(cutoff: Instant, limit: Int): Int {
