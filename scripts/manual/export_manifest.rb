@@ -27,7 +27,13 @@ module ManualDocs
       if manifest.is_a?(Hash) && manifest["modules"].is_a?(Array)
         manifest = manifest.merge("modules" => manifest["modules"].sort_by { |entry| entry.fetch("id") })
       end
-      JSON.pretty_generate(sort_keys(manifest)) + "\n"
+      compact_empty_containers(JSON.pretty_generate(sort_keys(manifest))) + "\n"
+    end
+
+    def compact_empty_containers(json)
+      json
+        .gsub(/\[\n(?:[ \t]*\n)*[ \t]*\]/, "[]")
+        .gsub(/\{\n(?:[ \t]*\n)*[ \t]*\}/, "{}")
     end
 
     def sort_keys(value)

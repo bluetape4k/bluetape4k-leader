@@ -1,5 +1,11 @@
 name: CI
 
+run-name: >-
+  ${{ inputs.run_title
+    || github.event.pull_request.title
+    || github.event.head_commit.message
+    || format('{0} · {1}', github.event_name, github.ref_name) }}
+
 permissions:
   contents: read
   actions: read
@@ -9,6 +15,11 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      run_title:
+        description: "수동 실행 제목 (비워두면 이벤트와 ref를 사용합니다)"
+        required: false
+        type: string
   push:
     branches: [develop, main]
   pull_request:

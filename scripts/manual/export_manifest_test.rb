@@ -27,4 +27,24 @@ class ExportManifestTest < Minitest::Test
       assert exporter.current?
     end
   end
+
+  def test_compacts_empty_containers_for_json_runtime_stability
+    Dir.mktmpdir("manifest-export-empty-containers") do |root|
+      source = File.join(root, "manifest.yaml")
+      output = File.join(root, "manifest.json")
+      File.write(source, <<~YAML)
+        metadata: {}
+        modules: []
+      YAML
+
+      exporter = ManualDocs::ManifestExporter.new(source_path: source, output_path: output)
+      exporter.write
+      rendered = File.read(output)
+
+      assert_includes rendered, "\"metadata\": {}"
+      assert_includes rendered, "\"modules\": []"
+      refute_match(/\[\n(?:[ \t]*\n)*[ \t]*\]/, rendered)
+      refute_match(/\{\n(?:[ \t]*\n)*[ \t]*\}/, rendered)
+    end
+  end
 end
