@@ -2,8 +2,8 @@
 # Gradle Version Catalog — migrated from buildSrc/src/main/kotlin/Libs.kt
 
 [versions]
-bluetape4k = "1.11.1-SNAPSHOT"  # https://central.sonatype.com/artifact/io.github.bluetape4k/bluetape4k-bom
-bluetape4k-exposed = "1.12.0-SNAPSHOT"  # https://mvnrepository.com/artifact/io.github.bluetape4k.exposed/bluetape4k-exposed-bom
+bluetape4k = "2.0.0-SNAPSHOT"  # https://central.sonatype.com/artifact/io.github.bluetape4k/bluetape4k-bom
+bluetape4k-exposed = "2.0.0-SNAPSHOT"  # https://mvnrepository.com/artifact/io.github.bluetape4k.exposed/bluetape4k-exposed-bom
 
 kotlinx-benchmark = "0.4.17"  # https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-benchmark-runtime
 
