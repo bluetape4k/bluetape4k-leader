@@ -17,13 +17,17 @@ import io.bluetape4k.leader.micrometer.audit.MicrometerLeaderAuditExporterJavaCo
 import io.micrometer.core.instrument.FunctionCounter
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.Meter
+import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.junit.jupiter.api.Test
+import java.lang.ref.WeakReference
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
+import java.util.ArrayDeque
+import java.util.IdentityHashMap
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -293,6 +297,123 @@ class MicrometerLeaderAuditExporterTest {
         registry.removeCalls shouldBeEqualTo 0
 
         recovered.close()
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `registry retirement drains a queued weak key without a manager registry strong reference`() {
+        val registry = SimpleMeterRegistry()
+        val exporter = MicrometerLeaderAuditExporter(SnapshotExporter(snapshot()), registry)
+        val store = registryManagerStore()
+        val managers = privateField(store, "managers").get(store) as MutableMap<Any, Any>
+        val key = managers.keys.single { (it as WeakReference<*>).get() === registry }
+        val manager = managers.getValue(key)
+        val registryReference = privateField(manager, "registryReference").get(manager) as WeakReference<*>
+
+        (registryReference.get() === registry).shouldBeTrue()
+        manager.javaClass.declaredFields.none { field ->
+            MeterRegistry::class.java.isAssignableFrom(field.type)
+        }.shouldBeTrue()
+        privateField(manager, "registryReference").type shouldBeEqualTo WeakReference::class.java
+        containsStrongReference(manager, registry).shouldBeFalse()
+
+        val weakKey = key as WeakReference<*>
+        weakKey.clear()
+        weakKey.enqueue()
+        managers.containsKey(key).shouldBeTrue()
+
+        val replacementRegistry = SimpleMeterRegistry()
+        val replacement = MicrometerLeaderAuditExporter(SnapshotExporter(snapshot()), replacementRegistry)
+
+        managers.containsKey(key).shouldBeFalse()
+        exporter.close()
+        replacement.close()
+    }
+
+    @Test
+    fun `close aggregates close entry delegate and final failures then permits replacement`() {
+        val registry = SimpleMeterRegistry()
+        val closeEntryFailure = IllegalStateException("close-entry failure")
+        val delegateCloseFailure = IllegalStateException("delegate close failure")
+        val finalSnapshotFailure = IllegalStateException("final snapshot failure")
+        val delegate = SnapshotExporter(snapshot())
+        delegate.scriptSnapshots(
+            { throw closeEntryFailure },
+            { throw finalSnapshotFailure },
+        )
+        delegate.failCloseWith(delegateCloseFailure)
+        val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+
+        val thrown = assertFailsWith<IllegalStateException> { exporter.close() }
+
+        thrown shouldBeEqualTo delegateCloseFailure
+        thrown.suppressed.toList() shouldBeEqualTo listOf(finalSnapshotFailure, closeEntryFailure)
+        delegate.closeCount shouldBeEqualTo 1
+        registry.find(MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_CLOSED)
+            .gauge()
+            ?.value() shouldBeEqualTo 1.0
+
+        val repeated = assertFailsWith<IllegalStateException> { exporter.close() }
+        repeated shouldBeEqualTo thrown
+        delegate.closeCount shouldBeEqualTo 1
+
+        val replacementDelegate = SnapshotExporter(snapshot(accepted = 3))
+        val replacement = MicrometerLeaderAuditExporter(replacementDelegate, registry)
+        registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
+            .functionCounter()
+            ?.count() shouldBeEqualTo 3.0
+        replacement.close()
+    }
+
+    @Test
+    fun `close failure matrix preserves primary suppressed order and detached replacement`() {
+        for (mask in 0 until 8) {
+            val registry = SimpleMeterRegistry()
+            val closeEntryFailure = if (mask and 1 != 0) {
+                IllegalStateException("close-entry-$mask")
+            } else {
+                null
+            }
+            val delegateCloseFailure = if (mask and 2 != 0) {
+                IllegalStateException("delegate-close-$mask")
+            } else {
+                null
+            }
+            val finalSnapshotFailure = if (mask and 4 != 0) {
+                IllegalStateException("final-snapshot-$mask")
+            } else {
+                null
+            }
+            val delegate = SnapshotExporter(snapshot())
+            delegate.scriptSnapshots(
+                closeEntryFailure?.let { failure -> { throw failure } } ?: { snapshot(accepted = 1) },
+                finalSnapshotFailure?.let { failure -> { throw failure } } ?: { snapshot(accepted = 2) },
+            )
+            delegate.failCloseWith(delegateCloseFailure)
+            val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+
+            val expectedPrimary = delegateCloseFailure ?: finalSnapshotFailure ?: closeEntryFailure
+            val expectedSuppressed = when {
+                delegateCloseFailure != null -> listOfNotNull(finalSnapshotFailure, closeEntryFailure)
+                finalSnapshotFailure != null -> listOfNotNull(closeEntryFailure)
+                else -> emptyList()
+            }
+            if (expectedPrimary == null) {
+                exporter.close()
+            } else {
+                val thrown = assertFailsWith<IllegalStateException> { exporter.close() }
+                thrown shouldBeEqualTo expectedPrimary
+                thrown.suppressed.toList() shouldBeEqualTo expectedSuppressed
+            }
+            delegate.closeCount shouldBeEqualTo 1
+            registry.find(MicrometerNames.AUDIT_EXPORT_DIAGNOSTICS_CLOSED)
+                .gauge()
+                ?.value() shouldBeEqualTo 1.0
+
+            val replacement = MicrometerLeaderAuditExporter(SnapshotExporter(snapshot(accepted = 3)), registry)
+            replacement.close()
+        }
     }
 
     @Test
@@ -661,6 +782,8 @@ class MicrometerLeaderAuditExporterTest {
     ) : LeaderAuditExporter {
         private val current = AtomicReference(initialSnapshot)
         private val snapshotFailure = AtomicReference<Throwable?>(null)
+        private var scriptedSnapshots: ArrayDeque<() -> LeaderAuditExportSnapshot>? = null
+        private var closeFailure: Throwable? = null
         private var submitEntered: CountDownLatch? = null
         private var submitRelease: CountDownLatch? = null
         private var closeEntered: CountDownLatch? = null
@@ -681,10 +804,20 @@ class MicrometerLeaderAuditExporterTest {
         override fun observe(observer: LeaderAuditExportObserver): AutoCloseable = AutoCloseable { }
 
         override fun snapshot(): LeaderAuditExportSnapshot =
-            snapshotFailure.get()?.let { throw it } ?: current.get()
+            scriptedSnapshots?.pollFirst()?.invoke()
+                ?: snapshotFailure.get()?.let { throw it }
+                ?: current.get()
 
         fun failSnapshotsWith(failure: Throwable?) {
             snapshotFailure.set(failure)
+        }
+
+        fun scriptSnapshots(vararg steps: () -> LeaderAuditExportSnapshot) {
+            scriptedSnapshots = ArrayDeque(steps.toList())
+        }
+
+        fun failCloseWith(failure: Throwable?) {
+            closeFailure = failure
         }
 
         fun setSnapshot(snapshot: LeaderAuditExportSnapshot) {
@@ -706,6 +839,7 @@ class MicrometerLeaderAuditExporterTest {
             closeRelease?.await(5, TimeUnit.SECONDS)
             closeCount++
             closed = true
+            closeFailure?.let { throw it }
         }
     }
 
@@ -751,6 +885,52 @@ class MicrometerLeaderAuditExporterTest {
     }
 
     private companion object {
+        fun registryManagerStore(): Any {
+            val storeClass = Class.forName(
+                "${MicrometerLeaderAuditExporter::class.java.name}\$RegistryManagerStore",
+            )
+            return storeClass.getDeclaredField("INSTANCE").apply { isAccessible = true }.get(null)
+        }
+
+        fun privateField(target: Any, name: String) = target.javaClass.getDeclaredField(name).apply {
+            isAccessible = true
+        }
+
+        @Suppress("CyclomaticComplexMethod", "NestedBlockDepth")
+        fun containsStrongReference(
+            root: Any?,
+            target: Any,
+            visited: IdentityHashMap<Any, Boolean> = IdentityHashMap(),
+        ): Boolean {
+            if (root === target) return true
+            if (root == null || root is java.lang.ref.Reference<*> || root is Class<*> ||
+                root is String || root is Number || root is Boolean || root is Char
+            ) {
+                return false
+            }
+            if (visited.put(root, true) != null) return false
+            when (root) {
+                is Map<*, *> -> return root.entries.any { entry ->
+                    containsStrongReference(entry.key, target, visited) ||
+                        containsStrongReference(entry.value, target, visited)
+                }
+                is Iterable<*> -> return root.any { containsStrongReference(it, target, visited) }
+                is Array<*> -> return root.any { containsStrongReference(it, target, visited) }
+            }
+            var type: Class<*>? = root.javaClass
+            while (type != null && type != Any::class.java && !type.name.startsWith("java.")) {
+                type.declaredFields
+                    .filterNot { Modifier.isStatic(it.modifiers) }
+                    .forEach { field ->
+                        if (field.trySetAccessible() && containsStrongReference(field.get(root), target, visited)) {
+                            return true
+                        }
+                    }
+                type = type.superclass
+            }
+            return false
+        }
+
         val createSnapshotMethod: Method = run {
             val companion = LeaderAuditExportSnapshot::class.java.getDeclaredField("Companion").type
             companion.getDeclaredMethod(
