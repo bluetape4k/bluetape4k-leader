@@ -38,6 +38,8 @@ import java.util.concurrent.atomic.AtomicReference
  * 참조하지 않습니다. v1 metric은 aggregate snapshot만 알 수 있으므로 `outcome` 외
  * `source`/`transport` 차원은 생성하지 않습니다.
  * wrapper 수명 동안 caller는 fixed meter ID를 직접 제거하거나 재등록하지 않아야 합니다.
+ * meter 등록이 부분적으로 실패하면 manager가 이미 등록한 소유 meter와 identity를
+ * 보존하고 다음 acquire에서 누락된 fixed ID만 보충하며 foreign meter는 제거하지 않습니다.
  * manager는 acquire 또는 metric read에서 관찰한 identity crossing만 compromised로 잠그며,
  * foreign meter를 제거하지 않습니다. compromised registry의 복구에는 새
  * `MeterRegistry` identity가 필요합니다.
@@ -742,19 +744,17 @@ private fun LeaderAuditExportSnapshot.isNotLessThan(other: LeaderAuditExportSnap
 
 private fun MicrometerLeaderAuditExporter.CumulativeValues.isNotLessThan(
     other: MicrometerLeaderAuditExporter.CumulativeValues,
-): Boolean = listOf(
-    accepted >= other.accepted,
-    droppedQueueFull >= other.droppedQueueFull,
-    droppedClosed >= other.droppedClosed,
-    retries >= other.retries,
-    failures >= other.failures,
-    cancellations >= other.cancellations,
-    executorRejections >= other.executorRejections,
-    schedulerRejections >= other.schedulerRejections,
-    observerDrops >= other.observerDrops,
-    observerRegistrationDrops >= other.observerRegistrationDrops,
-    diagnosticsFailures >= other.diagnosticsFailures,
-).all { it }
+): Boolean = accepted >= other.accepted &&
+    droppedQueueFull >= other.droppedQueueFull &&
+    droppedClosed >= other.droppedClosed &&
+    retries >= other.retries &&
+    failures >= other.failures &&
+    cancellations >= other.cancellations &&
+    executorRejections >= other.executorRejections &&
+    schedulerRejections >= other.schedulerRejections &&
+    observerDrops >= other.observerDrops &&
+    observerRegistrationDrops >= other.observerRegistrationDrops &&
+    diagnosticsFailures >= other.diagnosticsFailures
 
 private fun LeaderAuditExportSnapshot.asDetached(): MicrometerLeaderAuditExporter.DetachedSnapshot =
     MicrometerLeaderAuditExporter.DetachedSnapshot(

@@ -282,6 +282,11 @@ snapshot returns a lower cumulative value, it keeps the trusted baseline and
 returns normally with the degraded warning; no exception is fabricated.
 The degraded path uses the fixed `leader.audit.export.meter-source-degraded` warning
 and never logs snapshot payloads or exception messages.
+If registration fails after only part of the fixed catalog is installed, the manager
+keeps the owned meters and their identities; the next acquire registers only the
+missing IDs and never removes a foreign meter. The cumulative comparison used by
+each scrape is scalar and allocation-free, so the hot path does not build a
+temporary Boolean collection.
 During an open generation, if a metric poll cannot read `delegate.snapshot()`, the
 decorator keeps the last trusted cumulative and gauge values, leaves
 `diagnosticsClosed=0`, and emits the fixed warning at most once for that generation.
