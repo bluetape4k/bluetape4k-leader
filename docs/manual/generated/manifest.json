@@ -42,16 +42,12 @@
         "benchmark/README.ko.md"
       ],
       "status": "stable",
-      "testPaths": [
-
-      ],
+      "testPaths": [],
       "title": {
         "en": "Leader election benchmarks",
         "ko": "리더 선출 벤치마크"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-bom",
@@ -66,16 +62,12 @@
         "bluetape4k-leader-bom/build.gradle.kts"
       ],
       "status": "stable",
-      "testPaths": [
-
-      ],
+      "testPaths": [],
       "title": {
         "en": "Leader BOM",
         "ko": "Leader BOM"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-consul",
@@ -99,9 +91,7 @@
         "en": "Consul backend",
         "ko": "Consul 백엔드"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-core",
@@ -125,9 +115,7 @@
         "en": "Leader core library",
         "ko": "Leader 핵심 라이브러리"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-dynamodb",
@@ -151,9 +139,7 @@
         "en": "DynamoDB backend",
         "ko": "DynamoDB 백엔드"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-etcd",
@@ -177,9 +163,7 @@
         "en": "etcd backend",
         "ko": "etcd 백엔드"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-exposed-core",
@@ -203,9 +187,7 @@
         "en": "Exposed shared backend support",
         "ko": "Exposed 공통 백엔드 지원"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-exposed-jdbc",
@@ -229,9 +211,7 @@
         "en": "Exposed JDBC backend",
         "ko": "Exposed JDBC 백엔드"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-exposed-r2dbc",
@@ -255,9 +235,7 @@
         "en": "Exposed R2DBC backend",
         "ko": "Exposed R2DBC 백엔드"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-hazelcast",
@@ -281,9 +259,7 @@
         "en": "Hazelcast backend",
         "ko": "Hazelcast 백엔드"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-k8s",
@@ -307,9 +283,7 @@
         "en": "Kubernetes Lease backend",
         "ko": "Kubernetes Lease 백엔드"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-ktor",
@@ -333,9 +307,7 @@
         "en": "Ktor integration",
         "ko": "Ktor 연동"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-micrometer",
@@ -359,9 +331,7 @@
         "en": "Micrometer integration",
         "ko": "Micrometer 연동"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-mongodb",
@@ -385,9 +355,7 @@
         "en": "MongoDB backend",
         "ko": "MongoDB 백엔드"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-redis-lettuce",
@@ -411,9 +379,7 @@
         "en": "Redis Lettuce backend",
         "ko": "Redis Lettuce 백엔드"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-redis-redisson",
@@ -437,9 +403,7 @@
         "en": "Redis Redisson backend",
         "ko": "Redis Redisson 백엔드"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-spring-boot",
@@ -463,9 +427,7 @@
         "en": "Spring Boot integration",
         "ko": "Spring Boot 연동"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": "io.github.bluetape4k.leader:bluetape4k-leader-zookeeper",
@@ -489,9 +451,7 @@
         "en": "ZooKeeper backend",
         "ko": "ZooKeeper 백엔드"
       },
-      "workshops": [
-
-      ]
+      "workshops": []
     },
     {
       "artifact": null,
