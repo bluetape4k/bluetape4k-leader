@@ -282,6 +282,10 @@ degraded로 표시한 뒤 delegate reference를 분리하고 원래 예외를 �
 기록한 뒤 정상 반환하며, 예외를 새로 만들지 않습니다.
 degraded 경로는 `leader.audit.export.meter-source-degraded` fixed warning을 사용하며
 snapshot payload나 exception message를 로그에 남기지 않습니다.
+고정 catalog를 일부만 등록한 뒤 registration이 실패하면 manager는 이미 등록한 소유
+meter와 identity를 보존합니다. 다음 acquire에서는 누락된 ID만 등록하고 foreign meter는
+제거하지 않습니다. 각 scrape의 cumulative 비교는 scalar 연산으로 수행하므로 hot path에서
+임시 Boolean collection을 만들지 않습니다.
 open generation에서 metric polling 중 `delegate.snapshot()`을 읽지 못하면
 decorator는 마지막으로 신뢰한 cumulative·gauge 값을 유지하고
 `diagnosticsClosed=0`을 보존하며 해당 generation에서 fixed warning을 최대 한 번만

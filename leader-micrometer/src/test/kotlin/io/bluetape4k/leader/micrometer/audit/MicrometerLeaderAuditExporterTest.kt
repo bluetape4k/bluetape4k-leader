@@ -21,11 +21,14 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
+import java.nio.file.Files
+import java.nio.file.Path
 import java.time.Instant
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import java.util.function.ToDoubleFunction
 
 class MicrometerLeaderAuditExporterTest {
 
@@ -261,6 +264,50 @@ class MicrometerLeaderAuditExporterTest {
         construction.join(1_000)
         failure.get().shouldNotBeNull()
         delegate.closeCount shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `partial meter registration retries only missing catalog without duplicate or foreign removal`() {
+        val registry = FailingMeterRegistry(failOnSuccessfulAttempt = 5)
+        val failedDelegate = SnapshotExporter(snapshot())
+
+        assertFailsWith<IllegalStateException> {
+            MicrometerLeaderAuditExporter(failedDelegate, registry)
+        }
+        failedDelegate.closeCount shouldBeEqualTo 1
+        val acceptedMeterBefore = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
+            .meter()
+            .shouldNotBeNull()
+
+        registry.allowRegistration()
+        val recovered = MicrometerLeaderAuditExporter(SnapshotExporter(snapshot()), registry)
+        val acceptedMeterAfter = registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
+            .meter()
+            .shouldNotBeNull()
+
+        registry.meters.count { it.id.name.startsWith("leader.audit.export.") } shouldBeEqualTo 13
+        acceptedMeterAfter shouldBeEqualTo acceptedMeterBefore
+        registry.duplicateRegistrationIds shouldBeEqualTo 0
+        registry.removeCalls shouldBeEqualTo 0
+
+        recovered.close()
+    }
+
+    @Test
+    fun `cumulative monotonicity comparison does not allocate a boolean list`() {
+        val source = Files.readString(
+            Path.of(
+                "src/main/kotlin/" +
+                    "io/bluetape4k/leader/micrometer/audit/MicrometerLeaderAuditExporter.kt",
+            ),
+        )
+        val comparison = source
+            .substringAfter("private fun MicrometerLeaderAuditExporter.CumulativeValues.isNotLessThan")
+            .substringBefore("\n\nprivate fun LeaderAuditExportSnapshot.asDetached")
+
+        comparison.contains("listOf(").shouldBeFalse()
     }
 
     @Test
@@ -659,6 +706,47 @@ class MicrometerLeaderAuditExporterTest {
             closeRelease?.await(5, TimeUnit.SECONDS)
             closeCount++
             closed = true
+        }
+    }
+
+    private class FailingMeterRegistry(
+        private val failOnSuccessfulAttempt: Int,
+    ) : SimpleMeterRegistry() {
+        private var failRegistration = true
+        private val successfulIds = mutableSetOf<Meter.Id>()
+        var duplicateRegistrationIds: Int = 0
+            private set
+        var removeCalls: Int = 0
+            private set
+
+        override fun <T : Any> newFunctionCounter(
+            id: Meter.Id,
+            obj: T,
+            countFunction: ToDoubleFunction<T>,
+        ): FunctionCounter {
+            if (failRegistration && successfulIds.size + 1 == failOnSuccessfulAttempt) {
+                throw IllegalStateException("injected meter registration failure")
+            }
+            if (!successfulIds.add(id)) duplicateRegistrationIds++
+            return super.newFunctionCounter(id, obj, countFunction)
+        }
+
+        override fun <T : Any> newGauge(
+            id: Meter.Id,
+            obj: T?,
+            valueFunction: ToDoubleFunction<T>,
+        ): Gauge {
+            if (!successfulIds.add(id)) duplicateRegistrationIds++
+            return super.newGauge(id, obj, valueFunction)
+        }
+
+        override fun remove(meter: Meter): Meter? {
+            removeCalls++
+            return super.remove(meter)
+        }
+
+        fun allowRegistration() {
+            failRegistration = false
         }
     }
 
