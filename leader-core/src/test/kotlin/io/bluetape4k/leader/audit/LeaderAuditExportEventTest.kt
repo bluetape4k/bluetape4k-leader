@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.LeaderElectionEvent
+import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.history.LeaderHistoryStatus
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
@@ -226,6 +227,36 @@ class LeaderAuditExportEventTest {
             eventType.declaredConstructors
                 .filter { Modifier.isPublic(it.modifiers) && it.isSynthetic }
                 .all { constructor -> constructor.parameterTypes.none(rawTypes::contains) }
+                .shouldBeTrue()
+        }
+    }
+
+    @Test
+    fun `nested snapshot constructors are private factory-only payloads`() {
+        val forbiddenRawTypes = setOf(
+            String::class.java,
+            Instant::class.java,
+            Map::class.java,
+            LeaderLease::class.java,
+            LeaderLockHistoryRecord::class.java,
+        )
+        listOf(
+            LeaderAuditExportEvent.History::class.java,
+            LeaderAuditExportEvent.Lifecycle::class.java,
+        ).forEach { eventType ->
+            val snapshotType = eventType.declaredClasses.single { it.simpleName == "Snapshot" }
+            val constructors = snapshotType.declaredConstructors
+            val nonSyntheticConstructors = constructors.filterNot { it.isSynthetic }
+            nonSyntheticConstructors.size shouldBeEqualTo 1
+            Modifier.isPrivate(nonSyntheticConstructors.single().modifiers).shouldBeTrue()
+            constructors
+                .filter { !it.isSynthetic && !Modifier.isPrivate(it.modifiers) }
+                .isEmpty()
+                .shouldBeTrue()
+            constructors
+                .filter { Modifier.isPublic(it.modifiers) || it.isSynthetic }
+                .flatMap { it.parameterTypes.asList() }
+                .none { it in forbiddenRawTypes }
                 .shouldBeTrue()
         }
     }
