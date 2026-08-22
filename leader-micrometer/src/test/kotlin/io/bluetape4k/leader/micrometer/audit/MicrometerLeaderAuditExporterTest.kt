@@ -3,6 +3,7 @@ package io.bluetape4k.leader.micrometer.audit
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.leader.audit.LeaderAuditExportEvent
@@ -104,6 +105,185 @@ class MicrometerLeaderAuditExporterTest {
         exporter.close()
         delegate.closeCount shouldBeEqualTo 1
         exporter.submit(event) shouldBeEqualTo LeaderAuditSubmitResult.DROPPED_CLOSED
+    }
+
+    @Test
+    fun `close releases the delegate and publishes a terminal snapshot`() {
+        val registry = SimpleMeterRegistry()
+        val openSnapshot = snapshot(
+            queued = 3,
+            inFlight = 2,
+            scheduledRetries = 1,
+            admitted = 4,
+            accepted = 7,
+            droppedClosed = 5,
+        )
+        val terminalSnapshot = snapshot(accepted = 7, droppedClosed = 5, diagnosticsClosed = true, closed = true)
+        val delegate = SnapshotExporter(openSnapshot)
+        delegate.scriptSnapshots({ openSnapshot }, { terminalSnapshot })
+        val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+        val registration = privateField(exporter, "registration").get(exporter)
+        val delegateReference = privateField(registration, "delegateReference").get(registration) as AtomicReference<*>
+
+        (delegateReference.get() === delegate).shouldBeTrue()
+
+        exporter.close()
+
+        (delegateReference.get() == null).shouldBeTrue()
+        containsStrongReference(exporter, delegate).shouldBeFalse()
+        exporter.snapshot().apply {
+            queued shouldBeEqualTo 0
+            inFlight shouldBeEqualTo 0
+            scheduledRetries shouldBeEqualTo 0
+            admitted shouldBeEqualTo 0
+            accepted shouldBeEqualTo 7
+            droppedClosed shouldBeEqualTo 5
+            diagnosticsClosed.shouldBeTrue()
+            closed.shouldBeTrue()
+        }
+    }
+
+    @Test
+    fun `reentrant close from submit fails without deadlock and keeps the decorator open`() {
+        val registry = SimpleMeterRegistry()
+        val delegate = SnapshotExporter(snapshot())
+        lateinit var exporter: MicrometerLeaderAuditExporter
+        delegate.runOnSubmit { exporter.close() }
+        exporter = MicrometerLeaderAuditExporter(delegate, registry)
+        val failure = AtomicReference<Throwable?>(null)
+        val finished = CountDownLatch(1)
+        val submitThread = Thread {
+            try {
+                exporter.submit(event())
+            } catch (thrown: Throwable) {
+                failure.set(thrown)
+            } finally {
+                finished.countDown()
+            }
+        }.apply {
+            isDaemon = true
+        }
+
+        submitThread.start()
+
+        finished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        val thrown = failure.get().shouldNotBeNull()
+        thrown.shouldBeInstanceOf<IllegalStateException>()
+        thrown.message shouldBeEqualTo "close() cannot be called reentrantly from a delegate lifecycle callback"
+
+        delegate.runOnSubmit(null)
+        exporter.submit(event()) shouldBeEqualTo LeaderAuditSubmitResult.ACCEPTED
+        exporter.close()
+    }
+
+    @Test
+    fun `reentrant snapshot from delegate close fails without deadlock`() {
+        val registry = SimpleMeterRegistry()
+        val openSnapshot = snapshot(accepted = 7)
+        val terminalSnapshot = snapshot(accepted = 7, diagnosticsClosed = true, closed = true)
+        val delegate = SnapshotExporter(openSnapshot)
+        delegate.scriptSnapshots({ openSnapshot }, { terminalSnapshot })
+        lateinit var exporter: MicrometerLeaderAuditExporter
+        delegate.runOnClose { exporter.snapshot() }
+        exporter = MicrometerLeaderAuditExporter(delegate, registry)
+        val failure = AtomicReference<Throwable?>(null)
+        val finished = CountDownLatch(1)
+        val closeThread = Thread {
+            try {
+                exporter.close()
+            } catch (thrown: Throwable) {
+                failure.set(thrown)
+            } finally {
+                finished.countDown()
+            }
+        }.apply {
+            isDaemon = true
+        }
+
+        closeThread.start()
+
+        finished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        val thrown = failure.get().shouldNotBeNull()
+        thrown.shouldBeInstanceOf<IllegalStateException>()
+        thrown.message shouldBeEqualTo "snapshot() cannot be called reentrantly from a delegate close callback"
+        exporter.snapshot() shouldBeEqualTo terminalSnapshot
+    }
+
+    @Test
+    fun `close without a terminal snapshot exposes explicit closed semantics`() {
+        val registry = SimpleMeterRegistry()
+        val closeEntry = snapshot(queued = 2, inFlight = 1, accepted = 7)
+        val finalSnapshotFailure = IllegalStateException("final snapshot failure")
+        val delegate = SnapshotExporter(closeEntry)
+        delegate.scriptSnapshots({ closeEntry }, { throw finalSnapshotFailure })
+        val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+
+        val closeFailure = assertFailsWith<IllegalStateException> { exporter.close() }
+
+        closeFailure shouldBeEqualTo finalSnapshotFailure
+        val snapshotFailure = assertFailsWith<IllegalStateException> { exporter.snapshot() }
+        snapshotFailure.message shouldBeEqualTo "closed delegate snapshot is unavailable"
+        snapshotFailure.cause shouldBeEqualTo closeFailure
+    }
+
+    @Test
+    fun `regressive terminal snapshot is not exposed after close`() {
+        val registry = SimpleMeterRegistry()
+        val closeEntry = snapshot(accepted = 100)
+        val regressiveTerminal = snapshot(accepted = 40, diagnosticsClosed = true, closed = true)
+        val delegate = SnapshotExporter(closeEntry)
+        delegate.scriptSnapshots({ closeEntry }, { regressiveTerminal })
+        val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+
+        exporter.close()
+
+        registry.find(MicrometerNames.AUDIT_EXPORT_ACCEPTED)
+            .tag(MicrometerNames.AUDIT_EXPORT_TAG_OUTCOME, "accepted")
+            .functionCounter()
+            ?.count() shouldBeEqualTo 100.0
+        val snapshotFailure = assertFailsWith<IllegalStateException> { exporter.snapshot() }
+        snapshotFailure.message shouldBeEqualTo "closed delegate snapshot is unavailable"
+    }
+
+    @Test
+    fun `close waits for an admitted snapshot and publishes the terminal state`() {
+        val registry = SimpleMeterRegistry()
+        val openSnapshot = snapshot(accepted = 7)
+        val delegate = SnapshotExporter(openSnapshot)
+        val exporter = MicrometerLeaderAuditExporter(delegate, registry)
+        val snapshotEntered = CountDownLatch(1)
+        val snapshotRelease = CountDownLatch(1)
+        delegate.scriptSnapshots(
+            { openSnapshot },
+            { snapshot(accepted = 7, diagnosticsClosed = true, closed = true) },
+        )
+        delegate.blockNextSnapshot(snapshotEntered, snapshotRelease)
+        val snapshotFinished = CountDownLatch(1)
+        val closeFinished = CountDownLatch(1)
+        val snapshotThread = Thread {
+            exporter.snapshot()
+            snapshotFinished.countDown()
+        }
+        val closeThread = Thread {
+            exporter.close()
+            closeFinished.countDown()
+        }
+
+        snapshotThread.start()
+        snapshotEntered.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeThread.start()
+        try {
+            closeFinished.await(200, TimeUnit.MILLISECONDS).shouldBeFalse()
+            delegate.closeCount shouldBeEqualTo 0
+        } finally {
+            snapshotRelease.countDown()
+        }
+
+        snapshotFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        closeFinished.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        snapshotThread.join(1_000)
+        closeThread.join(1_000)
+        exporter.snapshot().closed.shouldBeTrue()
     }
 
     @Test
@@ -356,6 +536,9 @@ class MicrometerLeaderAuditExporterTest {
         val repeated = assertFailsWith<IllegalStateException> { exporter.close() }
         repeated shouldBeEqualTo thrown
         delegate.closeCount shouldBeEqualTo 1
+        val snapshotFailure = assertFailsWith<IllegalStateException> { exporter.snapshot() }
+        snapshotFailure.message shouldBeEqualTo "closed delegate snapshot is unavailable"
+        snapshotFailure.cause shouldBeEqualTo thrown
 
         val replacementDelegate = SnapshotExporter(snapshot(accepted = 3))
         val replacement = MicrometerLeaderAuditExporter(replacementDelegate, registry)
@@ -782,6 +965,9 @@ class MicrometerLeaderAuditExporterTest {
     ) : LeaderAuditExporter {
         private val current = AtomicReference(initialSnapshot)
         private val snapshotFailure = AtomicReference<Throwable?>(null)
+        private val nextSnapshot = AtomicReference<(() -> LeaderAuditExportSnapshot)?>(null)
+        private val submitAction = AtomicReference<(() -> Unit)?>(null)
+        private val closeAction = AtomicReference<(() -> Unit)?>(null)
         private var scriptedSnapshots: ArrayDeque<() -> LeaderAuditExportSnapshot>? = null
         private var closeFailure: Throwable? = null
         private var submitEntered: CountDownLatch? = null
@@ -798,13 +984,15 @@ class MicrometerLeaderAuditExporterTest {
             } else {
                 submitEntered?.countDown()
                 submitRelease?.await(5, TimeUnit.SECONDS)
+                submitAction.get()?.invoke()
                 LeaderAuditSubmitResult.ACCEPTED
             }
 
         override fun observe(observer: LeaderAuditExportObserver): AutoCloseable = AutoCloseable { }
 
         override fun snapshot(): LeaderAuditExportSnapshot =
-            scriptedSnapshots?.pollFirst()?.invoke()
+            nextSnapshot.getAndSet(null)?.invoke()
+                ?: scriptedSnapshots?.pollFirst()?.invoke()
                 ?: snapshotFailure.get()?.let { throw it }
                 ?: current.get()
 
@@ -824,6 +1012,22 @@ class MicrometerLeaderAuditExporterTest {
             current.set(snapshot)
         }
 
+        fun blockNextSnapshot(entered: CountDownLatch, release: CountDownLatch) {
+            nextSnapshot.set {
+                entered.countDown()
+                release.await(5, TimeUnit.SECONDS)
+                current.get()
+            }
+        }
+
+        fun runOnSubmit(action: (() -> Unit)?) {
+            submitAction.set(action)
+        }
+
+        fun runOnClose(action: (() -> Unit)?) {
+            closeAction.set(action)
+        }
+
         fun blockSubmissions(entered: CountDownLatch, release: CountDownLatch) {
             submitEntered = entered
             submitRelease = release
@@ -839,6 +1043,7 @@ class MicrometerLeaderAuditExporterTest {
             closeRelease?.await(5, TimeUnit.SECONDS)
             closeCount++
             closed = true
+            closeAction.get()?.invoke()
             closeFailure?.let { throw it }
         }
     }
