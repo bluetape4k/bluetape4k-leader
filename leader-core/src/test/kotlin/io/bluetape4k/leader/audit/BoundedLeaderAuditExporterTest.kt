@@ -318,6 +318,70 @@ class BoundedLeaderAuditExporterTest {
     }
 
     @Test
+    fun `executor rejection terminalizes a full queued batch and restores full capacity`() {
+        val queueCapacity = 4
+        val firstDispatchEntered = CountDownLatch(1)
+        val allowFirstDispatchToReject = CountDownLatch(1)
+        val recoveryDispatchEntered = CountDownLatch(1)
+        val allowRecoveryDispatch = CountDownLatch(1)
+        val recoveryWorkerCompleted = CountDownLatch(1)
+        val firstDispatch = AtomicBoolean(true)
+        val recoveryDispatches = AtomicInteger()
+        val recoveryDelivered = AtomicInteger()
+        val executor = Executor { command ->
+            if (firstDispatch.getAndSet(false)) {
+                firstDispatchEntered.countDown()
+                allowFirstDispatchToReject.await(5, TimeUnit.SECONDS).shouldBeTrue()
+                throw RejectedExecutionException("full-batch")
+            }
+            recoveryDispatches.incrementAndGet()
+            recoveryDispatchEntered.countDown()
+            allowRecoveryDispatch.await(5, TimeUnit.SECONDS).shouldBeTrue()
+            command.run()
+            recoveryWorkerCompleted.countDown()
+        }
+        val exporter = exporter(
+            queueCapacity = queueCapacity,
+            maxInFlight = queueCapacity,
+            delivery = LeaderAuditDelivery {
+                recoveryDelivered.incrementAndGet()
+                CompletableFuture.completedFuture(LeaderAuditDeliveryResult.SUCCESS)
+            },
+            executor = executor,
+            registerObserver = false,
+        )
+
+        repeat(queueCapacity) {
+            exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        }
+        firstDispatchEntered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        exporter.snapshot().queued.shouldBeEqualTo(queueCapacity)
+        exporter.snapshot().admitted.shouldBeEqualTo(queueCapacity)
+
+        allowFirstDispatchToReject.countDown()
+        awaitAdmissionReleased(exporter)
+        exporter.snapshot().executorRejections.shouldBeEqualTo(queueCapacity.toLong())
+        exporter.snapshot().queued.shouldBeEqualTo(0)
+        exporter.snapshot().inFlight.shouldBeEqualTo(0)
+        exporter.snapshot().admitted.shouldBeEqualTo(0)
+
+        repeat(queueCapacity) {
+            exporter.submit(event()).shouldBeEqualTo(LeaderAuditSubmitResult.ACCEPTED)
+        }
+        recoveryDispatchEntered.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        exporter.snapshot().queued.shouldBeEqualTo(queueCapacity)
+        exporter.snapshot().admitted.shouldBeEqualTo(queueCapacity)
+        allowRecoveryDispatch.countDown()
+        recoveryWorkerCompleted.await(5, TimeUnit.SECONDS).shouldBeTrue()
+        recoveryDelivered.get().shouldBeEqualTo(queueCapacity)
+        recoveryDispatches.get().shouldBeEqualTo(1)
+        exporter.snapshot().accepted.shouldBeEqualTo((queueCapacity * 2).toLong())
+        exporter.snapshot().admitted.shouldBeEqualTo(0)
+        exporter.snapshot().executorRejections.shouldBeEqualTo(queueCapacity.toLong())
+        exporter.close()
+    }
+
+    @Test
     fun `direct executor cannot make submit wait for blocking delivery`() {
         val deliveryStarted = CountDownLatch(1)
         val releaseDelivery = CountDownLatch(1)
@@ -523,6 +587,7 @@ class BoundedLeaderAuditExporterTest {
         executor: Executor = Executor { it.run() },
         scheduler: ScheduledExecutorService = scheduler(),
         onObservation: (LeaderAuditExportObservation) -> Unit = {},
+        registerObserver: Boolean = true,
     ): BoundedLeaderAuditExporter {
         val exporter = BoundedLeaderAuditExporter(
             delivery = delivery,
@@ -537,7 +602,7 @@ class BoundedLeaderAuditExporterTest {
                 scheduler = scheduler,
             ),
         )
-        exporter.observe(LeaderAuditExportObserver(onObservation))
+        if (registerObserver) exporter.observe(LeaderAuditExportObserver(onObservation))
         return exporter
     }
 
