@@ -211,7 +211,7 @@ class ExposedJdbcLeaderElector private constructor(
                             effectiveKey?.let { historyRecorder?.recordFailed(it, finishedAt, durationMs, e) }
                             runCatching { lock.unlock(options.leaderOptions.minLeaseTime, acquiredAtNanos) }
                                 .onFailure { ex -> log.warn(ex) { "락 해제 실패 (action 오류 경로). lockName=$lockName" } }
-                            return@thenComposeAsync CompletableFuture.completedFuture(null)
+                            return@thenComposeAsync CompletableFuture.failedFuture(e)
                         }
 
                     actionFuture.whenComplete { _, throwable ->

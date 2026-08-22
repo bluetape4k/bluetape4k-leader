@@ -6,6 +6,8 @@ import io.bluetape4k.exposed.tests.TestDB
 import io.bluetape4k.junit5.concurrency.MultithreadingTester
 import io.bluetape4k.leader.LeaderElectionException
 import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.LeaderRunResult
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.exposed.jdbc.history.ExposedLeaderHistorySink
 import io.bluetape4k.leader.exposed.jdbc.lock.ExposedJdbcLock
 import io.bluetape4k.leader.exposed.retry.RetryStrategy
@@ -18,6 +20,7 @@ import io.bluetape4k.logging.debug
 import kotlinx.coroutines.CancellationException
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeGreaterOrEqualTo
+import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeNull
 import io.bluetape4k.assertions.shouldNotBeNull
 import io.bluetape4k.assertions.shouldBeTrue
@@ -332,21 +335,51 @@ class ExposedJdbcLeaderElectionTest: AbstractExposedJdbcLeaderTest() {
 
     @ParameterizedTest
     @MethodSource("enableDialects")
-    fun `runAsyncIfLeader - action이 CF 반환 전 throw하면 null을 반환하고 락이 해제된다`(testDB: TestDB) {
+    fun `runAsyncIfLeader - action이 CF 반환 전 throw하면 예외를 전파하고 락이 해제된다`(testDB: TestDB) {
         val db = connectDb(testDB)
         cleanTables(db)
         val lockName = randomName()
-        val election = ExposedJdbcLeaderElector(db)
+        val recorder = SafeLeaderHistoryRecorder(ExposedLeaderHistorySink(db))
+        val election = ExposedJdbcLeaderElector(db, historyRecorder = recorder)
 
-        // Breaking change: sync action exception → null (not CompletionException) (issue #50)
-        val result = election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
-            throw IllegalStateException("action 동기 예외")
-        }.get(5, TimeUnit.SECONDS)
-        result.shouldBeNull()
+        val failure = assertFailsWith<CompletionException> {
+            election.runAsyncIfLeader<Int>(lockName, VirtualThreadExecutor) {
+                throw IllegalStateException("action 동기 예외")
+            }.join()
+        }
+        failure.cause shouldBeInstanceOf IllegalStateException::class
 
         // 락이 해제되어 다음 호출이 성공해야 함
         val next = election.runIfLeader(lockName) { "복구 성공" }
         next shouldBeEqualTo "복구 성공"
+
+        val failedCount = transaction(db) {
+            LeaderLockHistoryTable.selectAll()
+                .where {
+                    (LeaderLockHistoryTable.lockName eq lockName) and
+                            (LeaderLockHistoryTable.status eq LeaderHistoryStatus.FAILED.name)
+                }
+                .count()
+        }
+        failedCount shouldBeEqualTo 1L
+    }
+
+    @ParameterizedTest
+    @MethodSource("enableDialects")
+    fun `runAsyncIfLeaderResult - action 동기 throw를 ActionFailed로 분류하고 락을 해제한다`(testDB: TestDB) {
+        val db = connectDb(testDB)
+        cleanTables(db)
+        val lockName = randomName()
+        val election = ExposedJdbcLeaderElector(db)
+        val failure = IllegalStateException("action 동기 예외")
+
+        val result = election.runAsyncIfLeaderResult<Int>(LeaderSlot(lockName, "node-755"), VirtualThreadExecutor) {
+            throw failure
+        }.get(5, TimeUnit.SECONDS)
+
+        result shouldBeInstanceOf LeaderRunResult.ActionFailed::class
+        (result as LeaderRunResult.ActionFailed).cause shouldBeEqualTo failure
+        election.runIfLeader(lockName) { "복구 성공" } shouldBeEqualTo "복구 성공"
     }
 
     @ParameterizedTest
