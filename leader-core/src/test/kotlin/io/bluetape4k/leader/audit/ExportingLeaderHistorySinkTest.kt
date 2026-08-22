@@ -62,6 +62,30 @@ class ExportingLeaderHistorySinkTest {
     }
 
     @Test
+    fun `direct sink bounds oversized pending metadata before terminal export`() {
+        val exporter = RecordingExporter()
+        val key = LeaderHistoryKey(historyId = "history-oversized", lockName = "job", token = "secret")
+        val sink = ExportingLeaderHistorySink(
+            RecordingSink(key),
+            exporter,
+            LeaderAuditValueSanitizer.Truncate(maxBytes = 10_000),
+        )
+        val metadata = linkedMapOf<String, String>().apply {
+            repeat(LeaderLockHistoryRecord.MAX_METADATA_KEYS + 4) { index ->
+                put("entry-$index", "v".repeat(1000))
+            }
+        }
+
+        sink.recordAcquired(record(metadata = metadata)) shouldBeEqualTo key
+        sink.recordCompleted(key, FINISHED_AT, 42)
+
+        val acquired = exporter.events[0] as LeaderAuditExportEvent.History
+        val completed = exporter.events[1] as LeaderAuditExportEvent.History
+        (completed.attributes.size > acquired.attributes.size).shouldBeTrue()
+        completed.attributes["entry-0"]?.length shouldBeEqualTo LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH
+    }
+
+    @Test
     fun `suspend delegate cancellation is rethrown before export`() = runTest {
         val exporter = RecordingExporter()
         val sink = ExportingSuspendLeaderHistorySink(
@@ -210,7 +234,7 @@ class ExportingLeaderHistorySinkTest {
         }
     }
 
-    private fun record(): LeaderLockHistoryRecord = LeaderLockHistoryRecord(
+    private fun record(metadata: Map<String, String> = emptyMap()): LeaderLockHistoryRecord = LeaderLockHistoryRecord(
         lockName = "job",
         token = "secret",
         kind = LockIdentity.AnnotationKind.SINGLE,
@@ -218,6 +242,7 @@ class ExportingLeaderHistorySinkTest {
         lockedUntil = LOCKED_UNTIL,
         nodeId = "node-1",
         status = LeaderHistoryStatus.ACQUIRED,
+        metadata = metadata,
     )
 
     private companion object {

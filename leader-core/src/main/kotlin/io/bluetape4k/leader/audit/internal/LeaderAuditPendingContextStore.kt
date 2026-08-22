@@ -1,13 +1,19 @@
 package io.bluetape4k.leader.audit.internal
 
+import io.bluetape4k.leader.audit.LeaderAuditExportEvent
 import io.bluetape4k.leader.history.LeaderHistoryKey
 import io.bluetape4k.leader.history.LeaderLockHistoryRecord
+import io.bluetape4k.leader.history.sanitizeForLog
+import io.bluetape4k.support.truncateUtf8
 import java.security.MessageDigest
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.util.LinkedHashMap
+import java.util.PriorityQueue
 import java.util.concurrent.locks.ReentrantLock
+
+private const val MAX_METADATA_KEY_LENGTH = 64
 
 /**
  * acquisition과 terminal history 사이의 bounded context를 보관합니다.
@@ -42,7 +48,7 @@ internal class LeaderAuditPendingContextStore(
             lockedUntil = record.lockedUntil,
             nodeId = record.nodeId,
             slotId = record.slotId,
-            metadata = record.metadata.toMap(),
+            metadata = boundedMetadata(record),
         )
         lock.lock()
         try {
@@ -87,6 +93,60 @@ internal class LeaderAuditPendingContextStore(
     private fun evictExpired(now: Instant) {
         val cutoff = now.minus(ttl)
         entries.entries.removeIf { it.value.createdAt.isBefore(cutoff) }
+    }
+
+    /** 원본 metadata가 pending context의 수명 동안 과도하게 보관되지 않도록 정제합니다. */
+    private fun boundedMetadata(record: LeaderLockHistoryRecord): Map<String, String> {
+        val sanitized = sanitizePendingMetadata(record.metadata)
+        if (sanitized.isEmpty()) return emptyMap()
+
+        val bounded = LinkedHashMap<String, String>(LeaderLockHistoryRecord.MAX_METADATA_KEYS)
+        var totalBytes = 0
+        sanitized.entries
+            .sortedWith(compareBy<Map.Entry<String, String>> { it.key }.thenBy { it.value })
+            .take(LeaderLockHistoryRecord.MAX_METADATA_KEYS)
+            .forEach { (key, value) ->
+                if (bounded.size >= LeaderLockHistoryRecord.MAX_METADATA_KEYS ||
+                    totalBytes >= LeaderAuditExportEvent.MAX_ATTRIBUTES_TOTAL_BYTES
+                ) {
+                    return@forEach
+                }
+
+                val keyBytes = key.toByteArray(Charsets.UTF_8).size
+                val remainingValueBytes = LeaderAuditExportEvent.MAX_ATTRIBUTES_TOTAL_BYTES - totalBytes - keyBytes
+                if (remainingValueBytes < 0) return@forEach
+
+                val boundedValue = value.truncateUtf8(remainingValueBytes)
+                bounded[key] = boundedValue
+                totalBytes += keyBytes + boundedValue.toByteArray(Charsets.UTF_8).size
+            }
+        return bounded.toMap()
+    }
+
+    private fun sanitizePendingMetadata(metadata: Map<String, String>): Map<String, String> {
+        if (metadata.isEmpty()) return emptyMap()
+
+        val candidates = PriorityQueue(
+            LeaderLockHistoryRecord.MAX_METADATA_KEYS,
+            PENDING_METADATA_ORDER.reversed(),
+        )
+        metadata.entries.forEach { entry ->
+            val candidate = PendingMetadataCandidate(
+                key = entry.key.take(MAX_METADATA_KEY_LENGTH).sanitizeForLog(),
+                value = entry.value.take(LeaderLockHistoryRecord.MAX_METADATA_VALUE_LENGTH).sanitizeForLog(),
+            )
+            if (candidates.size < LeaderLockHistoryRecord.MAX_METADATA_KEYS) {
+                candidates.add(candidate)
+            } else if (PENDING_METADATA_ORDER.compare(candidate, candidates.peek()) < 0) {
+                candidates.poll()
+                candidates.add(candidate)
+            }
+        }
+
+        return candidates
+            .toList()
+            .sortedWith(PENDING_METADATA_ORDER)
+            .associate { it.key to it.value }
     }
 
     private fun fingerprint(key: LeaderHistoryKey): String {
@@ -135,3 +195,11 @@ internal class LeaderAuditPendingContextStore(
         val FIELD_SEPARATOR: ByteArray = byteArrayOf(0)
     }
 }
+
+private data class PendingMetadataCandidate(
+    val key: String,
+    val value: String,
+)
+
+private val PENDING_METADATA_ORDER: Comparator<PendingMetadataCandidate> =
+    compareBy<PendingMetadataCandidate> { it.key }.thenBy { it.value }
