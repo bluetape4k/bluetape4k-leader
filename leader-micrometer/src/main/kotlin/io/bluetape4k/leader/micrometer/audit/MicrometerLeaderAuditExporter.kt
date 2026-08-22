@@ -43,6 +43,10 @@ import java.util.concurrent.atomic.AtomicReference
  * manager는 acquire 또는 metric read에서 관찰한 identity crossing만 compromised로 잠그며,
  * foreign meter를 제거하지 않습니다. compromised registry의 복구에는 새
  * `MeterRegistry` identity가 필요합니다.
+ * close 이후 `snapshot()`은 delegate를 다시 호출하지 않고 delegate가 제공한 terminal
+ * snapshot만 반환합니다. terminal snapshot을 얻지 못하면 `IllegalStateException`을 던집니다.
+ * delegate lifecycle callback에서 같은 decorator의 `close()`를 재진입하거나 delegate
+ * close callback에서 `snapshot()`을 재진입하면 교착 대신 `IllegalStateException`을 던집니다.
  */
 class MicrometerLeaderAuditExporter(
     delegate: LeaderAuditExporter,
@@ -55,6 +59,8 @@ class MicrometerLeaderAuditExporter(
     private val submissionsDrained = AtomicReference<CountDownLatch?>(null)
     private val closeCompleted = CountDownLatch(1)
     private val closeFailure = AtomicReference<Throwable?>(null)
+    private val closingThread = AtomicReference<Thread?>(null)
+    private val lifecycleCallDepth = ThreadLocal.withInitial { 0 }
 
     init {
         registration = acquireRegistration(registry, delegate)
@@ -85,7 +91,7 @@ class MicrometerLeaderAuditExporter(
     override fun submit(event: LeaderAuditExportEvent): LeaderAuditSubmitResult {
         if (!admitLifecycleCall()) return LeaderAuditSubmitResult.DROPPED_CLOSED
         return try {
-            registration.delegate.submit(event)
+            registration.delegate().submit(event)
         } finally {
             releaseLifecycleCall()
         }
@@ -94,29 +100,56 @@ class MicrometerLeaderAuditExporter(
     override fun observe(observer: LeaderAuditExportObserver): AutoCloseable {
         if (!admitLifecycleCall()) return AutoCloseable { }
         return try {
-            registration.delegate.observe(observer)
+            registration.delegate().observe(observer)
         } finally {
             releaseLifecycleCall()
         }
     }
 
-    override fun snapshot(): LeaderAuditExportSnapshot = registration.delegate.snapshot()
+    override fun snapshot(): LeaderAuditExportSnapshot {
+        if (!admitLifecycleCall()) {
+            if (closingThread.get() === Thread.currentThread()) {
+                throw IllegalStateException(REENTRANT_SNAPSHOT_MESSAGE)
+            }
+            awaitCloseCompletion()
+            return registration.closedSnapshot(closeFailure.get())
+        }
+        return try {
+            registration.delegate().snapshot()
+        } finally {
+            releaseLifecycleCall()
+        }
+    }
 
     override fun close() {
-        if (lifecycleState.compareAndSet(LifecycleState.OPEN, LifecycleState.CLOSING)) {
-            awaitAdmittedCalls()
-            try {
-                registration.close()
-            } catch (failure: Throwable) {
-                closeFailure.set(failure)
-                throw failure
-            } finally {
-                lifecycleState.set(LifecycleState.CLOSED)
-                closeCompleted.countDown()
+        try {
+            val currentThread = Thread.currentThread()
+            rejectReentrantClose(currentThread)
+            if (lifecycleState.compareAndSet(LifecycleState.OPEN, LifecycleState.CLOSING)) {
+                closingThread.set(currentThread)
+                awaitAdmittedCalls()
+                try {
+                    registration.close()
+                } catch (failure: Throwable) {
+                    closeFailure.set(failure)
+                    throw failure
+                } finally {
+                    lifecycleState.set(LifecycleState.CLOSED)
+                    closeCompleted.countDown()
+                    closingThread.compareAndSet(currentThread, null)
+                }
+            } else {
+                awaitCloseCompletion()
+                closeFailure.get()?.let { throw it }
             }
-        } else {
-            awaitCloseCompletion()
-            closeFailure.get()?.let { throw it }
+        } finally {
+            if (lifecycleCallDepth.get() == 0) lifecycleCallDepth.remove()
+        }
+    }
+
+    private fun rejectReentrantClose(currentThread: Thread) {
+        if (lifecycleCallDepth.get() > 0 || closingThread.get() === currentThread) {
+            throw IllegalStateException(REENTRANT_CLOSE_MESSAGE)
         }
     }
 
@@ -125,12 +158,27 @@ class MicrometerLeaderAuditExporter(
         if (admitted) {
             admittedCalls.incrementAndGet()
             admitted = lifecycleState.get() == LifecycleState.OPEN
-            if (!admitted) releaseLifecycleCall()
+            if (admitted) {
+                lifecycleCallDepth.set(lifecycleCallDepth.get() + 1)
+            } else {
+                releaseAdmittedCall()
+            }
         }
         return admitted
     }
 
     private fun releaseLifecycleCall() {
+        val depth = lifecycleCallDepth.get()
+        check(depth > 0) { "lifecycle call depth must be positive" }
+        if (depth == 1) {
+            lifecycleCallDepth.remove()
+        } else {
+            lifecycleCallDepth.set(depth - 1)
+        }
+        releaseAdmittedCall()
+    }
+
+    private fun releaseAdmittedCall() {
         if (admittedCalls.decrementAndGet() == 0) submissionsDrained.get()?.countDown()
     }
 
@@ -168,17 +216,30 @@ class MicrometerLeaderAuditExporter(
 
     private class Registration(
         val manager: RegistryManager,
-        val delegate: LeaderAuditExporter,
+        delegate: LeaderAuditExporter,
         private val ownershipToken: Any,
     ) : AutoCloseable {
         private val closed = AtomicBoolean(false)
+        private val delegateReference = AtomicReference<LeaderAuditExporter?>(delegate)
+        private val detachedSnapshot = AtomicReference<LeaderAuditExportSnapshot?>(null)
+
+        fun delegate(): LeaderAuditExporter = checkNotNull(delegateReference.get()) {
+            "delegate is detached"
+        }
+
+        fun closedSnapshot(closeFailure: Throwable?): LeaderAuditExportSnapshot =
+            detachedSnapshot.get() ?: throw IllegalStateException(CLOSED_SNAPSHOT_UNAVAILABLE_MESSAGE, closeFailure)
 
         override fun close() {
             if (closed.compareAndSet(false, true)) {
+                val ownedDelegate = delegateReference.get() ?: return
                 try {
-                    manager.close(delegate)
+                    val result = manager.close(ownedDelegate)
+                    result.snapshot?.let(detachedSnapshot::set)
+                    result.failure?.let { throw it }
                 } finally {
-                    DelegateOwnershipStore.release(delegate, ownershipToken)
+                    delegateReference.compareAndSet(ownedDelegate, null)
+                    DelegateOwnershipStore.release(ownedDelegate, ownershipToken)
                 }
             }
         }
@@ -293,12 +354,15 @@ class MicrometerLeaderAuditExporter(
                 Registration(this, delegate, ownershipToken)
             }
 
-        fun close(delegate: LeaderAuditExporter) {
+        fun close(delegate: LeaderAuditExporter): CloseResult {
             var primary: Throwable? = null
             var finalSnapshot: LeaderAuditExportSnapshot? = null
             var closeEntryFailure: Throwable? = null
+            var registrationSnapshot: LeaderAuditExportSnapshot? = null
             synchronized(lock) {
-                if (activeDelegate !== delegate || state != ManagerState.OPEN) return
+                if (activeDelegate !== delegate || state != ManagerState.OPEN) {
+                    return CloseResult(null, null)
+                }
                 try {
                     closingSnapshot = delegate.snapshot()
                 } catch (failure: Throwable) {
@@ -325,19 +389,18 @@ class MicrometerLeaderAuditExporter(
                     if (!compromised) {
                         val closeEntry = closingSnapshot
                         val final = finalSnapshot
-                        val trustedCumulative = closeEntry
-                            ?.cumulativeValues()
-                            ?.takeIf { it.isNotLessThan(lastTrustedCumulative) }
-                            ?: lastTrustedCumulative
-                        val trustedGauge = closeEntry?.gaugeValues() ?: lastTrustedGauge
-                        if (closeEntry == null ||
-                            !closeEntry.cumulativeValues().isNotLessThan(lastTrustedCumulative)
-                        ) {
+                        val trustedCloseEntry = closeEntry?.takeIf {
+                            it.cumulativeValues().isNotLessThan(lastTrustedCumulative)
+                        }
+                        val trustedCumulative = trustedCloseEntry?.cumulativeValues() ?: lastTrustedCumulative
+                        val trustedGauge = trustedCloseEntry?.gaugeValues() ?: lastTrustedGauge
+                        if (trustedCloseEntry == null) {
                             markSourceDegraded()
                         }
                         if (final != null && final.cumulativeValues().isNotLessThan(trustedCumulative)) {
                             offsets = offsets + final.cumulativeValues()
                             detachedSnapshot = final.asDetached()
+                            registrationSnapshot = final.takeIf(LeaderAuditExportSnapshot::isTerminal)
                         } else {
                             markSourceDegraded()
                             offsets = offsets + trustedCumulative
@@ -364,7 +427,7 @@ class MicrometerLeaderAuditExporter(
                     state = ManagerState.DETACHED
                 }
             }
-            if (primary != null) throw primary
+            return CloseResult(registrationSnapshot, primary)
         }
 
         fun counter(descriptor: MetricDescriptor): Double = synchronized(lock) {
@@ -517,6 +580,11 @@ class MicrometerLeaderAuditExporter(
         DETACHED,
     }
 
+    private data class CloseResult(
+        val snapshot: LeaderAuditExportSnapshot?,
+        val failure: Throwable?,
+    )
+
     private enum class LifecycleState {
         OPEN,
         CLOSING,
@@ -628,6 +696,11 @@ class MicrometerLeaderAuditExporter(
             "MeterRegistry already contains a foreign or compromised leader audit meter"
         const val OWNERSHIP_CONFLICT_WARNING = "leader.audit.export.meter-ownership-conflict"
         const val SOURCE_DEGRADED_MESSAGE = "leader.audit.export.meter-source-degraded"
+        const val REENTRANT_CLOSE_MESSAGE =
+            "close() cannot be called reentrantly from a delegate lifecycle callback"
+        const val REENTRANT_SNAPSHOT_MESSAGE =
+            "snapshot() cannot be called reentrantly from a delegate close callback"
+        const val CLOSED_SNAPSHOT_UNAVAILABLE_MESSAGE = "closed delegate snapshot is unavailable"
 
         val TerminalSnapshot = DetachedSnapshot(
             cumulative = CumulativeValues.ZERO,
@@ -755,6 +828,14 @@ private fun MicrometerLeaderAuditExporter.CumulativeValues.isNotLessThan(
     observerDrops >= other.observerDrops &&
     observerRegistrationDrops >= other.observerRegistrationDrops &&
     diagnosticsFailures >= other.diagnosticsFailures
+
+private fun LeaderAuditExportSnapshot.isTerminal(): Boolean =
+    queued == 0 &&
+        inFlight == 0 &&
+        scheduledRetries == 0 &&
+        admitted == 0 &&
+        diagnosticsClosed &&
+        closed
 
 private fun LeaderAuditExportSnapshot.asDetached(): MicrometerLeaderAuditExporter.DetachedSnapshot =
     MicrometerLeaderAuditExporter.DetachedSnapshot(
