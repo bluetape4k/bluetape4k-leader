@@ -3,6 +3,7 @@ package io.bluetape4k.leader.spring.observability
 import io.bluetape4k.leader.LeaderElectionState
 import io.bluetape4k.leader.spring.internal.LeaderElectionStateSelector
 import io.bluetape4k.leader.spring.LeaderProperties
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanDefinition
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -36,7 +37,7 @@ class LeaderElectionReadinessHealthAutoConfiguration {
         beanFactory: ConfigurableListableBeanFactory,
         registry: LeaderElectionStatusRegistry,
         properties: LeaderProperties,
-        acquisitionFailureWindow: LeaderAcquisitionFailureWindow,
+        acquisitionFailureWindow: ObjectProvider<LeaderAcquisitionFailureWindow>,
     ): HealthIndicator {
         val selected = LeaderElectionStateSelector(
             beanFactory,
@@ -48,7 +49,7 @@ class LeaderElectionReadinessHealthAutoConfiguration {
             state = selected.state,
             registry = registry,
             leaseWarningThreshold = properties.observability.health.leaseWarningThreshold,
-            acquisitionFailureWindow = acquisitionFailureWindow,
+            acquisitionFailureWindow = acquisitionFailureWindow.getIfAvailable(),
         )
     }
 }
