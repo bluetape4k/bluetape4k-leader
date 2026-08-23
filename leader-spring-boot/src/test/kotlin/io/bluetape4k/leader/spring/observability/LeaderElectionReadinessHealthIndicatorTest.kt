@@ -20,6 +20,7 @@ import org.springframework.boot.health.contributor.Status
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
@@ -179,6 +180,19 @@ class LeaderElectionReadinessHealthIndicatorTest {
     }
 
     @Test
+    fun `clock failure in acquisition detail falls back without failing health`() {
+        val window = LeaderAcquisitionFailureWindow(Duration.ofMinutes(5), ThrowingClock(), capacity = 4)
+
+        val health = indicator(acquisitionFailureWindow = window).health()
+
+        health.status shouldBeEqualTo Status.UP
+        health.details["recentAcquisitionFailures"] shouldBeEqualTo 0
+        health.details["lastAcquisitionFailureAt"].shouldBeNull()
+        health.details["acquisitionFailureWindow"] shouldBeEqualTo "PT5M"
+        health.details["acquisitionFailureWindowCapacity"] shouldBeEqualTo 1024
+    }
+
+    @Test
     fun `negative warning threshold is rejected`() {
         assertFailsWith<IllegalArgumentException> {
             LeaderObservabilityHealthProperties(leaseWarningThreshold = Duration.ofSeconds(-1))
@@ -217,5 +231,13 @@ class LeaderElectionReadinessHealthIndicatorTest {
             executor: Executor,
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<T?> = action().thenApply { it }
+    }
+
+    private class ThrowingClock : Clock() {
+        override fun instant(): Instant = throw IllegalStateException("clock unavailable")
+
+        override fun getZone(): ZoneId = ZoneOffset.UTC
+
+        override fun withZone(zone: ZoneId): Clock = this
     }
 }
