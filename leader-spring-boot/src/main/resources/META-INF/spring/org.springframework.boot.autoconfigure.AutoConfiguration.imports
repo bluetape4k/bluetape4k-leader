@@ -4,6 +4,7 @@ io.bluetape4k.leader.spring.history.LeaderHistoryAutoConfiguration
 io.bluetape4k.leader.spring.LeaderElectionAutoConfiguration
 io.bluetape4k.leader.spring.backend.LocalLeaderConfiguration
 io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopFactoryAutoConfiguration
+io.bluetape4k.leader.spring.scheduling.LeaderScheduledPolicyAutoConfiguration
 io.bluetape4k.leader.spring.metrics.LeaderMicrometerAutoConfiguration
 io.bluetape4k.leader.spring.metrics.LeaderObservationAutoConfiguration
 io.bluetape4k.leader.spring.metrics.LeaderMicrometerHealthAutoConfiguration

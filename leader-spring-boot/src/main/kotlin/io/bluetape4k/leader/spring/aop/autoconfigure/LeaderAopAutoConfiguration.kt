@@ -10,6 +10,7 @@ import io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
 import io.bluetape4k.leader.spring.aop.validator.LeaderAnnotationValidatorBeanPostProcessor
+import io.bluetape4k.leader.spring.scheduling.LeaderScheduledPolicyRegistry
 import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanDefinition
@@ -74,12 +75,14 @@ class LeaderAopAutoConfiguration {
         spel: SpelExpressionEvaluator,
         lockNameValidator: LockNameValidator,
         recordersProvider: ObjectProvider<LeaderAopMetricsRecorder>,
+        scheduledPolicyRegistryProvider: ObjectProvider<LeaderScheduledPolicyRegistry>,
     ): LeaderElectionAspect = LeaderElectionAspect(
         beanSelector = beanSelector,
         props = props,
         spel = spel,
         lockNameValidator = lockNameValidator,
         recorders = recordersProvider.orderedStream().toList(),
+        scheduledPolicyRegistry = scheduledPolicyRegistryProvider.getIfAvailable(),
     )
 
     @Bean

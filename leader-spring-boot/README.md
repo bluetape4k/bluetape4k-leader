@@ -327,6 +327,49 @@ class SettlementJobs {
 
 `@LeaderScheduled` composes Spring `@Scheduled` with `@LeaderElection`; Spring still owns scheduling and scheduled-task observation, while the existing leader aspect owns lock acquisition and contention skips. Spring scheduling must be enabled, and the usual `@Scheduled` method-signature and exactly-one-trigger rules still apply. Separate `@Scheduled` and `@LeaderElection` annotations remain useful for custom composed annotations or when the two concerns should stay visually explicit.
 
+### YAML-only policy for existing scheduled methods
+
+When changing an existing scheduled method is not practical, enable the opt-in
+property policy and select the method by its exact Spring bean name and method
+name:
+
+```yaml
+bluetape4k:
+  leader:
+    scheduling:
+      enabled: true
+      policies:
+        - selector: "orderJob#reconcile"
+          name: "orders:reconcile"
+          wait-time: 0s
+          lease-time: 30s
+          min-lease-time: 5s
+          bean: "redisLeaderElectionFactory"
+          auto-extend: false
+          stream-bounded: false
+          failure-mode: SKIP
+```
+
+The default is `enabled: false`. Selectors are exact `beanName#methodName`
+values; wildcards, regular expressions, whitespace, and overloaded method
+names are rejected at startup. Use an explicit, stable Spring bean name and
+`bean` factory name when more than one backend is available. A blank or
+unmatched selector, invalid duration or SpEL expression, unresolved backend,
+or an invalid stream policy fails startup before the scheduled task can run.
+
+Precedence is explicit annotation (`@LeaderElection` or `@LeaderScheduled`),
+then the matching property policy, then no leader metadata. With no metadata,
+the existing `@Scheduled` method proceeds unchanged. `failure-mode: SKIP`
+preserves normal contention behavior: the scheduled body is not invoked and no
+contention exception is thrown. `Flux` and Kotlin `Flow` methods still require
+`auto-extend: true` or `stream-bounded: true`.
+
+Spring continues to own the scheduled task, trigger, subscription, context
+close, and task `Observation` lifecycle; the policy registry stores metadata
+only. Policies are startup-only: dynamic reload and wildcard matching are not
+supported. To roll back, set `bluetape4k.leader.scheduling.enabled=false`; the
+normal Spring scheduler path remains in place.
+
 ### Sequence: AOP-triggered `runIfLeader`
 
 ![Sequence: AOP-triggered runIfLeader diagram](../docs/images/readme-diagrams/leader-spring-boot-sequence-01.png)

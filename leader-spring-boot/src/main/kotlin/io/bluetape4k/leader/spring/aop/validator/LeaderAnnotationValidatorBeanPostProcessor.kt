@@ -3,7 +3,6 @@ package io.bluetape4k.leader.spring.aop.validator
 import io.bluetape4k.leader.annotation.LeaderElection
 import io.bluetape4k.leader.annotation.LeaderGroupElection
 import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
-import io.bluetape4k.leader.spring.aop.util.DurationParser
 import io.bluetape4k.leader.spring.aop.util.findMergedAnnotationOrNull
 import io.bluetape4k.leader.spring.aop.util.hasMergedAnnotation
 import io.bluetape4k.logging.KLogging
@@ -12,9 +11,8 @@ import io.bluetape4k.support.requireGe
 import org.aopalliance.intercept.MethodInterceptor
 import org.springframework.aop.support.AopUtils
 import org.springframework.beans.factory.config.BeanPostProcessor
-import org.springframework.core.annotation.AnnotatedElementUtils
 import java.lang.reflect.Method
-import java.lang.reflect.Modifier
+import java.time.Duration
 
 /**
  * `LeaderAnnotationValidatorBeanPostProcessor`는 Spring Boot integration의 leader election, route guard, metric, example workflow 계약을 설명합니다.
@@ -27,6 +25,8 @@ class LeaderAnnotationValidatorBeanPostProcessor(
     private val strict: Boolean,
     private val spel: SpelExpressionEvaluator,
 ) : BeanPostProcessor {
+
+    private val validation = LeaderMethodValidationSupport(spel)
 
     override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
         // [Step 3-P-Rel] reflection 자체 throw (ClassNotFound, NPE 등) 는 격리 — validation 결과는 그대로 전파
@@ -67,40 +67,39 @@ class LeaderAnnotationValidatorBeanPostProcessor(
     }
 
     private fun validateMethod(method: Method, beanName: String, targetClass: Class<*>) {
-        val violations = mutableListOf<String>()
-
-        if (Modifier.isFinal(method.modifiers)) violations += "final method (proxy 적용 불가)"
-        if (Modifier.isPrivate(method.modifiers)) violations += "private method (proxy 적용 불가)"
-
         val leaderAnn = method.findMergedAnnotationOrNull<LeaderElection>()
         val groupAnn = method.findMergedAnnotationOrNull<LeaderGroupElection>()
+        val violations = if (leaderAnn != null) {
+            validation.validateSingle(
+                method = method,
+                beanName = beanName,
+                targetClass = targetClass,
+                nameExpression = leaderAnn.name,
+                leaseTime = leaderAnn.leaseTime.takeIf(String::isNotBlank)?.let {
+                    io.bluetape4k.leader.spring.aop.util.DurationParser.parse(it)
+                } ?: Duration.ZERO,
+                minLeaseTime = Duration.ZERO,
+                autoExtend = leaderAnn.autoExtend,
+                streamBounded = leaderAnn.streamBounded,
+            ).toMutableList()
+        } else {
+            validation.validateMethodShape(method).toMutableList()
+        }
 
         val returnTypeName = method.returnType.name
-        if (isStreamReturn(returnTypeName)) {
-            if (leaderAnn != null && !leaderAnn.autoExtend && !leaderAnn.streamBounded) {
-                violations += "$returnTypeName 반환 타입은 autoExtend=true 또는 streamBounded=true 필요"
-            }
-            if (groupAnn != null) {
-                violations += "$returnTypeName 반환 타입 (LeaderGroupElection Flux/Flow 미지원)"
-            }
-        }
-        // [#79 R12] CompletableFuture / Future / ListenableFuture / Deferred 차단
-        //   aspect 가 sync 분기로 처리 → action 종료 (= release) 가 future 완료 전 발생 → split-brain 위험
-        if (isUnsupportedFutureReturn(method.returnType)) {
-            violations += "$returnTypeName 반환 타입 (Future / CompletableFuture / ListenableFuture / Deferred — v1 미지원, " +
-                "lock release 가 future 완료 전 발생 → split-brain 위험)"
+        if (groupAnn != null && LeaderMethodValidationSupport.isStreamReturn(returnTypeName)) {
+            violations += "$returnTypeName 반환 타입 (LeaderGroupElection Flux/Flow 미지원)"
         }
 
         // [#84] composed 어노테이션(@AliasFor) 지원 — findMergedAnnotation 으로 합성 어노테이션 속성 해석
-        leaderAnn?.let { validateMinLeaseTime(it.leaseTime, it.minLeaseTime, "leader") }
+        leaderAnn?.let { validation.validateMinLeaseTime(it.leaseTime, it.minLeaseTime, "leader") }
         groupAnn?.let {
             // maxLeaders <= 1 은 strict 무관 항상 fail
             it.maxLeaders.requireGe(2, "group.maxLeaders")
-            validateMinLeaseTime(it.leaseTime, it.minLeaseTime, "group")
+            validation.validateMinLeaseTime(it.leaseTime, it.minLeaseTime, "group")
         }
 
         // SpEL pre-parse — 실패 시 strict 무관 항상 fail (잘못된 표현식은 startup 즉시 노출)
-        leaderAnn?.let { spel.preParse(it.name, method) }
         groupAnn?.let { spel.preParse(it.name, method) }
 
         if (violations.isEmpty()) return
@@ -114,41 +113,6 @@ class LeaderAnnotationValidatorBeanPostProcessor(
             log.warn { msg }
         }
     }
-
-    private fun validateMinLeaseTime(leaseTimeText: String, minLeaseTimeText: String, prefix: String) {
-        val minLeaseTime = DurationParser.parseNonNegativeOrDefault(minLeaseTimeText, java.time.Duration.ZERO)
-        if (minLeaseTime == java.time.Duration.ZERO) return
-        if (leaseTimeText.isBlank()) return
-        val leaseTime = DurationParser.parse(leaseTimeText)
-        require(minLeaseTime.compareTo(leaseTime) <= 0) {
-            "$prefix.minLeaseTime must not exceed $prefix.leaseTime: minLeaseTime=$minLeaseTime, leaseTime=$leaseTime"
-        }
-    }
-
-    /**
-     * `isUnsupportedFutureReturn` 호출은 Spring Boot integration 계약의 일부 동작을 수행합니다.
-     *
-     * API 이름과 `annotation`, `auto-configuration`, `route guard`, `metric`, `example` 용어는 기존 계약과 동일하게 유지합니다.
-     */
-    private fun isUnsupportedFutureReturn(returnType: Class<*>): Boolean {
-        // java.util.concurrent.Future 와 그 sub-types (CompletableFuture 등)
-        if (java.util.concurrent.Future::class.java.isAssignableFrom(returnType)) return true
-        // kotlinx.coroutines.Deferred
-        if (returnType.name == "kotlinx.coroutines.Deferred") return true
-        // Guava ListenableFuture — optional dependency, Class.forName 으로 safe check
-        return runCatching {
-            val listenableFutureClass = Class.forName(
-                "com.google.common.util.concurrent.ListenableFuture",
-                false,
-                returnType.classLoader,
-            )
-            listenableFutureClass.isAssignableFrom(returnType)
-        }.getOrElse { false }
-    }
-
-    private fun isStreamReturn(returnTypeName: String): Boolean =
-        returnTypeName == "reactor.core.publisher.Flux" ||
-            returnTypeName == "kotlinx.coroutines.flow.Flow"
 
     companion object: KLogging()
 }

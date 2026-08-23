@@ -327,6 +327,48 @@ class SettlementJobs {
 
 `@LeaderScheduled`는 Spring `@Scheduled`와 `@LeaderElection`을 합성합니다. Spring이 scheduling과 scheduled-task observation을 계속 담당하고, 기존 leader aspect가 lock 획득과 경합 시 skip을 담당합니다. Spring scheduling을 활성화해야 하며, 일반 `@Scheduled`의 메서드 시그니처와 trigger 하나만 지정하는 규칙도 그대로 적용됩니다. 사용자 정의 합성 어노테이션이 필요하거나 두 관심사를 코드에서 분명히 나누고 싶다면 `@Scheduled`와 `@LeaderElection`을 따로 사용해도 됩니다.
 
+### 기존 scheduled method를 위한 YAML-only policy
+
+기존 scheduled method를 수정하기 어렵다면 opt-in property policy를 켜고,
+정확한 Spring bean name과 method name으로 대상을 선택합니다.
+
+```yaml
+bluetape4k:
+  leader:
+    scheduling:
+      enabled: true
+      policies:
+        - selector: "orderJob#reconcile"
+          name: "orders:reconcile"
+          wait-time: 0s
+          lease-time: 30s
+          min-lease-time: 5s
+          bean: "redisLeaderElectionFactory"
+          auto-extend: false
+          stream-bounded: false
+          failure-mode: SKIP
+```
+
+기본값은 `enabled: false`입니다. selector는 정확한
+`beanName#methodName`만 허용하며 wildcard, 정규식, 공백, overloaded method
+이름은 startup에서 거부합니다. 안정적인 Spring bean name을 명시하고,
+backend가 여러 개라면 `bean` factory name도 지정하세요. blank 또는 매칭되지
+않는 selector, 잘못된 duration이나 SpEL 표현식, 해석할 수 없는 backend,
+잘못된 stream policy는 scheduled task 실행 전에 startup을 실패시킵니다.
+
+우선순위는 명시적 annotation(`@LeaderElection` 또는 `@LeaderScheduled`),
+matching property policy, leader metadata 없음 순서입니다. metadata가 없으면
+기존 `@Scheduled` method가 변경 없이 실행됩니다. `failure-mode: SKIP`은 기존
+경합 동작을 유지하므로 scheduled body를 호출하지 않고 contention exception도
+던지지 않습니다. `Flux`와 Kotlin `Flow` method는 계속해서
+`auto-extend: true` 또는 `stream-bounded: true`가 필요합니다.
+
+scheduled task, trigger, subscription, context close, task `Observation`
+lifecycle은 계속 Spring이 소유하며 policy registry는 metadata만 보관합니다.
+policy는 startup 시점에만 읽습니다. dynamic reload와 wildcard matching은
+지원하지 않습니다. 롤백하려면 `bluetape4k.leader.scheduling.enabled=false`로
+설정하세요. 일반 Spring scheduler 경로는 그대로 유지됩니다.
+
 ### 시퀀스 — AOP가 트리거하는 `runIfLeader`
 
 ![Sequence: AOP-triggered runIfLeader diagram](../docs/images/readme-diagrams/leader-spring-boot-sequence-01.png)

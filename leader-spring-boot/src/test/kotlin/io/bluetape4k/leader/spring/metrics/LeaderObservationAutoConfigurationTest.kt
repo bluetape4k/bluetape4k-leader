@@ -13,6 +13,7 @@ import io.bluetape4k.leader.micrometer.MicrometerObservationLeaderAopMetricsReco
 import io.bluetape4k.leader.micrometer.MicrometerObservationLeaderElectionListener
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
 import io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopFactoryAutoConfiguration
+import io.bluetape4k.leader.spring.scheduling.LeaderScheduledPolicyAutoConfiguration
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationHandler
@@ -36,6 +37,7 @@ class LeaderObservationAutoConfigurationTest {
                 LeaderAopFactoryAutoConfiguration::class.java,
                 LeaderMicrometerAutoConfiguration::class.java,
                 LeaderObservationAutoConfiguration::class.java,
+                LeaderScheduledPolicyAutoConfiguration::class.java,
                 LeaderAopAutoConfiguration::class.java,
             )
         )
@@ -210,10 +212,15 @@ class LeaderObservationAutoConfigurationTest {
             .readText()
             .lines()
 
+        val factoryIndex = imports.indexOf(LeaderAopFactoryAutoConfiguration::class.qualifiedName)
         val metricsIndex = imports.indexOf(LeaderMicrometerAutoConfiguration::class.qualifiedName)
         val observationIndex = imports.indexOf(LeaderObservationAutoConfiguration::class.qualifiedName)
+        val schedulingPolicyIndex = imports.indexOf(LeaderScheduledPolicyAutoConfiguration::class.qualifiedName)
         val aopIndex = imports.indexOf(LeaderAopAutoConfiguration::class.qualifiedName)
 
+        (factoryIndex >= 0).shouldBeTrue()
+        (schedulingPolicyIndex > factoryIndex).shouldBeTrue()
+        (schedulingPolicyIndex < metricsIndex).shouldBeTrue()
         (metricsIndex >= 0).shouldBeTrue()
         (observationIndex > metricsIndex).shouldBeTrue()
         (aopIndex > observationIndex).shouldBeTrue()

@@ -24,6 +24,7 @@ import io.bluetape4k.leader.spring.aop.spel.SpelExpressionEvaluator
 import io.bluetape4k.leader.spring.aop.util.AnnotationLookup
 import io.bluetape4k.leader.spring.aop.util.DurationParser
 import io.bluetape4k.leader.spring.aop.util.LockNameValidator
+import io.bluetape4k.leader.spring.scheduling.LeaderScheduledPolicyRegistry
 import io.bluetape4k.logging.KLogging
 import io.bluetape4k.logging.debug
 import io.bluetape4k.logging.warn
@@ -40,6 +41,7 @@ import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.Around
 import org.aspectj.lang.annotation.Aspect
 import org.aspectj.lang.reflect.MethodSignature
+import org.springframework.beans.factory.DisposableBean
 import org.springframework.beans.factory.SmartInitializingSingleton
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -63,15 +65,26 @@ import kotlin.time.toKotlinDuration
  * @property recorders Spring Boot integration 계약에서 사용하는 속성입니다.
  */
 @Aspect
+@Suppress("LargeClass", "TooManyFunctions")
 class LeaderElectionAspect(
     private val beanSelector: LeaderBeanSelector,
     private val props: LeaderAopProperties,
     private val spel: SpelExpressionEvaluator,
     private val lockNameValidator: LockNameValidator,
     private val recorders: List<LeaderAopMetricsRecorder>,
-) : SmartInitializingSingleton {
+    private val scheduledPolicyRegistry: LeaderScheduledPolicyRegistry? = null,
+) : SmartInitializingSingleton, DisposableBean {
 
-    private val metadataCache = ConcurrentHashMap<Method, AdviceMetadata>()
+    /** JVM/source compatibility constructor retained for existing direct users and tests. */
+    constructor(
+        beanSelector: LeaderBeanSelector,
+        props: LeaderAopProperties,
+        spel: SpelExpressionEvaluator,
+        lockNameValidator: LockNameValidator,
+        recorders: List<LeaderAopMetricsRecorder>,
+    ) : this(beanSelector, props, spel, lockNameValidator, recorders, null)
+
+    private val metadataCache = ConcurrentHashMap<TargetMethodCacheKey, MetadataResolution>()
     private val factoryCache = ConcurrentHashMap<FactoryCacheKey, LeaderElector>()
     private val suspendElectorCache = ConcurrentHashMap<FactoryCacheKey, SuspendLeaderElector>()
     private val hasRecorders = recorders.isNotEmpty()
@@ -79,8 +92,10 @@ class LeaderElectionAspect(
     @Around(
         "execution(* *(..)) && (" +
             "@annotation(io.bluetape4k.leader.annotation.LeaderElection) || " +
-            "@annotation(io.bluetape4k.leader.spring.scheduling.LeaderScheduled))"
+            "@annotation(io.bluetape4k.leader.spring.scheduling.LeaderScheduled) || " +
+            "@annotation(org.springframework.scheduling.annotation.Scheduled))"
     )
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount", "ThrowsCount")
     fun aroundLeader(pjp: ProceedingJoinPoint): Any? {
         val method = (pjp.signature as MethodSignature).method
         val target = pjp.target
@@ -88,25 +103,41 @@ class LeaderElectionAspect(
 
         if (method.returnType.name == FLUX_RETURN_TYPE) {
             return Flux.defer<Any> {
-                val meta = metadataCache.computeIfAbsent(method) { resolveMetadata(it, target) }
-                @Suppress("UNCHECKED_CAST")
-                aroundLeaderFlux(pjp, meta) as Flux<Any>
+                when (val resolution = resolveMetadata(method, target)) {
+                    MetadataResolution.Bypass -> {
+                        @Suppress("UNCHECKED_CAST")
+                        pjp.proceed() as Flux<Any>
+                    }
+                    is MetadataResolution.Present -> aroundLeaderFlux(pjp, resolution.metadata) as Flux<Any>
+                }
             }
         }
 
         if (method.returnType.name == FLOW_RETURN_TYPE) {
-            return aroundLeaderFlow(pjp, method, target)
+            return when (val resolution = resolveMetadata(method, target)) {
+                MetadataResolution.Bypass -> {
+                    @Suppress("UNCHECKED_CAST")
+                    pjp.proceed() as Flow<Any?>
+                }
+                is MetadataResolution.Present -> aroundLeaderFlow(pjp, method, resolution.metadata)
+            }
         }
 
         if (method.returnType.name == MONO_RETURN_TYPE) {
             return Mono.defer<Any> {
-                val meta = metadataCache.computeIfAbsent(method) { resolveMetadata(it, target) }
-                @Suppress("UNCHECKED_CAST")
-                aroundLeaderMono(pjp, meta) as Mono<Any>
+                when (val resolution = resolveMetadata(method, target)) {
+                    MetadataResolution.Bypass -> {
+                        @Suppress("UNCHECKED_CAST")
+                        pjp.proceed() as Mono<Any>
+                    }
+                    is MetadataResolution.Present -> aroundLeaderMono(pjp, resolution.metadata) as Mono<Any>
+                }
             }
         }
 
-        val meta = metadataCache.computeIfAbsent(method) { resolveMetadata(it, target) }
+        val resolution = resolveMetadata(method, target)
+        if (resolution === MetadataResolution.Bypass) return pjp.proceed()
+        val meta = (resolution as MetadataResolution.Present).metadata
 
         if (meta.isSuspend) {
             return aroundLeaderSuspend(pjp, meta)
@@ -537,10 +568,9 @@ class LeaderElectionAspect(
     private fun aroundLeaderFlow(
         pjp: ProceedingJoinPoint,
         method: Method,
-        target: Any,
+        meta: AdviceMetadata,
     ): Flow<Any?> =
         channelFlow {
-            val meta = metadataCache.computeIfAbsent(method) { resolveMetadata(it, target) }
             if (!meta.isStreamAllowed()) {
                 throw streamConfigurationException(method, meta, "Flow")
             }
@@ -817,6 +847,12 @@ class LeaderElectionAspect(
 
     override fun afterSingletonsInstantiated() {}
 
+    override fun destroy() {
+        metadataCache.clear()
+        factoryCache.clear()
+        suspendElectorCache.clear()
+    }
+
     private fun resolveLockName(meta: AdviceMetadata, method: Method, args: Array<Any?>, target: Any): String {
         val rawName = if (meta.literalName != null) {
             meta.literalName
@@ -828,30 +864,79 @@ class LeaderElectionAspect(
         return prefixed
     }
 
-    private fun resolveMetadata(method: Method, target: Any): AdviceMetadata {
-        val ann = AnnotationLookup.findAnnotationWithTargetFallback<LeaderElection>(method, target)
-            ?: error("@LeaderElection not found on ${method.declaringClass.name}#${method.name}")
+    private fun resolveMetadata(method: Method, target: Any): MetadataResolution =
+        metadataCache.computeIfAbsent(TargetMethodCacheKey(target, method)) {
+            val ann = AnnotationLookup.findAnnotationWithTargetFallback<LeaderElection>(method, target)
+            if (ann != null) {
+                MetadataResolution.Present(
+                    buildMetadata(
+                        method = method,
+                        nameExpression = ann.name,
+                        waitTime = DurationParser.parseOrDefault(
+                            ann.waitTime,
+                            props.defaultWaitTime,
+                        ).toKotlinDuration(),
+                        leaseTime = DurationParser.parseOrDefault(
+                            ann.leaseTime,
+                            props.defaultLeaseTime,
+                        ).toKotlinDuration(),
+                        minLeaseTime = DurationParser.parseNonNegativeOrDefault(
+                            ann.minLeaseTime,
+                            java.time.Duration.ZERO,
+                        ).toKotlinDuration(),
+                        autoExtend = ann.autoExtend,
+                        streamBounded = ann.streamBounded,
+                        bean = ann.bean,
+                        failureMode = ann.failureMode,
+                    ),
+                )
+            } else {
+                val policy = scheduledPolicyRegistry?.lookup(method, target)
+                if (policy == null) {
+                    MetadataResolution.Bypass
+                } else {
+                    MetadataResolution.Present(
+                        buildMetadata(
+                            method = method,
+                            nameExpression = policy.name,
+                            waitTime = (policy.waitTime ?: props.defaultWaitTime).toKotlinDuration(),
+                            leaseTime = (policy.leaseTime ?: props.defaultLeaseTime).toKotlinDuration(),
+                            minLeaseTime = policy.minLeaseTime.toKotlinDuration(),
+                            autoExtend = policy.autoExtend,
+                            streamBounded = policy.streamBounded,
+                            bean = policy.bean,
+                            failureMode = policy.failureMode,
+                        ),
+                    )
+                }
+            }
+        }
 
-        val waitTime = DurationParser.parseOrDefault(ann.waitTime, props.defaultWaitTime).toKotlinDuration()
-        val leaseTime = DurationParser.parseOrDefault(ann.leaseTime, props.defaultLeaseTime).toKotlinDuration()
-        val minLeaseTime = DurationParser.parseNonNegativeOrDefault(
-            ann.minLeaseTime,
-            java.time.Duration.ZERO,
-        ).toKotlinDuration()
-
+    @Suppress("CyclomaticComplexMethod")
+    private fun buildMetadata(
+        method: Method,
+        nameExpression: String,
+        waitTime: kotlin.time.Duration,
+        leaseTime: kotlin.time.Duration,
+        minLeaseTime: kotlin.time.Duration,
+        autoExtend: Boolean,
+        streamBounded: Boolean,
+        bean: String,
+        failureMode: LeaderAspectFailureMode,
+    ): AdviceMetadata {
         val opts = LeaderElectionOptions(
             waitTime = waitTime,
             leaseTime = leaseTime,
             minLeaseTime = minLeaseTime,
-            autoExtend = ann.autoExtend,
+            autoExtend = autoExtend,
         )
-        val selected = beanSelector.selectElectionFactory(ann.bean, method)
-        val literal = if (LITERAL_PATTERN.matches(ann.name)) ann.name else null
+        val selected = beanSelector.selectElectionFactory(bean, method)
+        val literal = if (LITERAL_PATTERN.matches(nameExpression)) nameExpression else null
 
-        val effectiveFailureMode = if (ann.failureMode == LeaderAspectFailureMode.INHERIT) {
+        val effectiveFailureMode = if (failureMode == LeaderAspectFailureMode.INHERIT) {
             props.failureMode
         } else {
-            ann.failureMode
+            failureMode
         }
 
         val returnTypeName = method.returnType.name
@@ -866,14 +951,14 @@ class LeaderElectionAspect(
         }
 
         val (suspendElectorFactory, suspendElectorFactoryBeanName) = if (isSuspend || isMono || isFlux || isFlow) {
-            val suspendSelected = beanSelector.selectSuspendElectorFactory(ann.bean, method)
+            val suspendSelected = beanSelector.selectSuspendElectorFactory(bean, method)
             suspendSelected.bean to suspendSelected.beanName
         } else {
             null to ""
         }
 
         return AdviceMetadata(
-            nameExpression = ann.name,
+            nameExpression = nameExpression,
             literalName = literal,
             options = opts,
             factoryBeanName = selected.beanName,
@@ -885,12 +970,28 @@ class LeaderElectionAspect(
             isMono = isMono,
             isFlux = isFlux,
             isFlow = isFlow,
-            streamBounded = ann.streamBounded,
+            streamBounded = streamBounded,
             suspendElectorFactory = suspendElectorFactory,
             suspendElectorFactoryBeanName = suspendElectorFactoryBeanName,
             annotationKind = LockIdentity.AnnotationKind.SINGLE,
             groupParams = null,
         )
+    }
+
+    private sealed interface MetadataResolution {
+        data class Present(val metadata: AdviceMetadata) : MetadataResolution
+
+        data object Bypass : MetadataResolution
+    }
+
+    private class TargetMethodCacheKey(
+        private val target: Any,
+        private val method: Method,
+    ) {
+        override fun equals(other: Any?): Boolean =
+            other is TargetMethodCacheKey && target === other.target && method == other.method
+
+        override fun hashCode(): Int = 31 * System.identityHashCode(target) + method.hashCode()
     }
 
     private fun AdviceMetadata.isStreamAllowed(): Boolean =

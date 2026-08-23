@@ -46,6 +46,11 @@
       "description": "Leader AOP auto-configuration options."
     },
     {
+      "name": "bluetape4k.leader.scheduling",
+      "type": "io.bluetape4k.leader.spring.scheduling.LeaderScheduledPolicyProperties",
+      "description": "Opt-in property policies for existing Spring scheduled tasks."
+    },
+    {
       "name": "bluetape4k.leader.aop.spel",
       "type": "io.bluetape4k.leader.spring.aop.properties.LeaderAopProperties$Spel",
       "description": "Leader AOP SpEL security options."
@@ -108,6 +113,67 @@
       "type": "java.time.Duration",
       "description": "Maximum hold time for a single leader lease.",
       "defaultValue": "PT1M"
+    },
+    {
+      "name": "bluetape4k.leader.scheduling.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable exact-selector leader policies for existing Spring scheduled methods.",
+      "defaultValue": false
+    },
+    {
+      "name": "bluetape4k.leader.scheduling.policies",
+      "type": "java.util.List<io.bluetape4k.leader.spring.scheduling.LeaderScheduledPolicyProperties$Policy>",
+      "description": "Exact beanName#methodName leader policies. Wildcards and dynamic reload are not supported."
+    },
+    {
+      "name": "bluetape4k.leader.scheduling.policies[].selector",
+      "type": "java.lang.String",
+      "description": "Exact Spring beanName#methodName selector for one @Scheduled method."
+    },
+    {
+      "name": "bluetape4k.leader.scheduling.policies[].name",
+      "type": "java.lang.String",
+      "description": "Leader lock name or SpEL expression for the selected scheduled method."
+    },
+    {
+      "name": "bluetape4k.leader.scheduling.policies[].wait-time",
+      "type": "java.time.Duration",
+      "description": "Maximum wait time for the selected scheduled method; empty uses the AOP default."
+    },
+    {
+      "name": "bluetape4k.leader.scheduling.policies[].lease-time",
+      "type": "java.time.Duration",
+      "description": "Maximum lease time for the selected scheduled method; empty uses the AOP default."
+    },
+    {
+      "name": "bluetape4k.leader.scheduling.policies[].min-lease-time",
+      "type": "java.time.Duration",
+      "description": "Minimum lease time that must not exceed lease-time.",
+      "defaultValue": "PT0S"
+    },
+    {
+      "name": "bluetape4k.leader.scheduling.policies[].bean",
+      "type": "java.lang.String",
+      "description": "Optional explicit LeaderElectorFactory bean name; empty uses existing selection rules.",
+      "defaultValue": ""
+    },
+    {
+      "name": "bluetape4k.leader.scheduling.policies[].auto-extend",
+      "type": "java.lang.Boolean",
+      "description": "Enable stream lease auto-extension for the selected method.",
+      "defaultValue": false
+    },
+    {
+      "name": "bluetape4k.leader.scheduling.policies[].stream-bounded",
+      "type": "java.lang.Boolean",
+      "description": "Declare that a Flux or Flow completes within the lease window.",
+      "defaultValue": false
+    },
+    {
+      "name": "bluetape4k.leader.scheduling.policies[].failure-mode",
+      "type": "io.bluetape4k.leader.annotation.LeaderAspectFailureMode",
+      "description": "Failure mode for backend errors and lock contention.",
+      "defaultValue": "INHERIT"
     },
     {
       "name": "bluetape4k.leader.watchdog-threads",
