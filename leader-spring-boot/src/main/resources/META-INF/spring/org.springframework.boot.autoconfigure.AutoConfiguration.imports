@@ -7,6 +7,7 @@ io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopFactoryAutoConfiguration
 io.bluetape4k.leader.spring.metrics.LeaderMicrometerAutoConfiguration
 io.bluetape4k.leader.spring.metrics.LeaderObservationAutoConfiguration
 io.bluetape4k.leader.spring.metrics.LeaderMicrometerHealthAutoConfiguration
+io.bluetape4k.leader.spring.observability.LeaderAcquisitionFailureWindowAutoConfiguration
 io.bluetape4k.leader.spring.aop.autoconfigure.LeaderAopAutoConfiguration
 io.bluetape4k.leader.spring.observability.LeaderElectionObservabilityAutoConfiguration
 io.bluetape4k.leader.spring.observability.LeaderElectionActuatorAutoConfiguration

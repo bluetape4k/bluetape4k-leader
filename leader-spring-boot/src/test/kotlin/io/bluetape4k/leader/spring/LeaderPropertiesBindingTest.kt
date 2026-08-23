@@ -5,6 +5,7 @@ import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.leader.spring.properties.LeaderElectionProperties
 import io.bluetape4k.leader.spring.properties.LeaderBackendHealthProperties
 import io.bluetape4k.leader.spring.properties.LeaderGroupProperties
+import io.bluetape4k.leader.spring.properties.LeaderObservabilityHealthProperties
 import io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode
 import io.bluetape4k.leader.spring.properties.LeaderRouteRejectionStatus
 import org.junit.jupiter.api.Test
@@ -53,6 +54,7 @@ class LeaderPropertiesBindingTest {
                 "bluetape4k.leader.observability.state-provider-bean" to "ordersSuspendLeaderElector",
                 "bluetape4k.leader.observability.backend-health.enabled" to "true",
                 "bluetape4k.leader.observability.backend-health.timeout" to "275ms",
+                "bluetape4k.leader.observability.health.acquisition-failure-window" to "45s",
             ),
         )
         val props = Binder(source).bindAs<LeaderProperties>("bluetape4k.leader").get()
@@ -80,6 +82,7 @@ class LeaderPropertiesBindingTest {
         props.observability.stateProviderBean shouldBeEqualTo "ordersSuspendLeaderElector"
         props.observability.backendHealth.enabled.shouldBeTrue()
         props.observability.backendHealth.timeout shouldBeEqualTo Duration.ofMillis(275)
+        props.observability.health.acquisitionFailureWindow shouldBeEqualTo Duration.ofSeconds(45)
     }
 
     @Test
@@ -119,6 +122,22 @@ class LeaderPropertiesBindingTest {
         ).forEach { timeout ->
             assertFailsWith<IllegalArgumentException> {
                 LeaderBackendHealthProperties(timeout = timeout)
+            }
+        }
+    }
+
+    @Test
+    fun `acquisition failure window은 양수 유한 값만 허용하고 default를 제공`() {
+        val defaults = LeaderObservabilityHealthProperties()
+        defaults.acquisitionFailureWindow shouldBeEqualTo Duration.ofMinutes(5)
+
+        listOf(
+            Duration.ZERO,
+            Duration.ofMillis(-1),
+            Duration.ofSeconds(Long.MAX_VALUE),
+        ).forEach { window ->
+            assertFailsWith<IllegalArgumentException> {
+                LeaderObservabilityHealthProperties(acquisitionFailureWindow = window)
             }
         }
     }
