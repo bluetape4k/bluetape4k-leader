@@ -136,6 +136,8 @@ class LeaderElectionObservabilityAutoConfigurationTest {
                 response.backend shouldBeEqualTo "test"
                 response.stateProviderBean shouldBeEqualTo "testLeaderElector"
                 response.stateSupported.shouldBeTrue()
+                response.acquisitionFailures.count shouldBeEqualTo 0
+                response.acquisitionFailures.window shouldBeEqualTo java.time.Duration.ofMinutes(5)
             }
     }
 
