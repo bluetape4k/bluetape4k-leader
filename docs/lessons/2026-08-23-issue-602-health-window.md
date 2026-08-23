@@ -17,7 +17,7 @@
 
 ## 검증 루프
 
-RED 단계에서 새 recorder/property/readiness/endpoint 계약의 컴파일 실패를 먼저 확인하고, 각 단계 GREEN 후 AOT를 함께 실행했습니다. 최종적으로 focused set, AOP 회귀, 전체 `leader-spring-boot` 473 tests, detekt, README 언어 스위치, 한국어 용어 audit, manual tests를 모두 통과시켰습니다.
+RED 단계에서 새 recorder/property/readiness/endpoint 계약의 컴파일 실패를 먼저 확인하고, 각 단계 GREEN 후 AOT를 함께 실행했습니다. AOP backend 오류에서 throwing recorder가 healthy recorder와 원래 예외 결과를 방해하지 않는 fan-out 회귀도 추가했습니다. 최종적으로 focused set, AOP 회귀, 전체 `leader-spring-boot` 473 tests, detekt, README 언어 스위치, 한국어 용어 audit, manual tests를 모두 통과시켰습니다.
 
 ## 운영 해석
 

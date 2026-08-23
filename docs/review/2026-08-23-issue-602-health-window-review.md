@@ -32,6 +32,18 @@ P0/P1/P2/P3 발견 항목: 0.
 - `LeaderElectionStatusResponse`의 기존 1-인자·4-인자 생성자와 기존 copy 진입점을 유지하면서 새 aggregate field를 기본 empty view로 채웠습니다.
 - compile 후 `javap`로 위 legacy constructor/copy descriptor와 새 5-인자 response descriptor를 확인했습니다. 내부 window constructor는 source에서 `internal`로 제한했습니다.
 
+## DoD 증거 매트릭스
+
+| DoD | 상태 | 증거 |
+|---|---|---|
+| `S-01` 분류 | PASS | recorder test에서 `BACKEND_ERROR` 1건만 남고 `CONTENTION`·`FAIL_OPEN_FORCED`는 0건입니다. |
+| `S-02` 경계 | PASS | mutable `Clock` test가 `failureAt == now-window`를 포함하고 더 오래된 timestamp를 prune합니다. |
+| `S-03` bound | PASS | capacity eviction/overflow/reset test가 고정 capacity와 lower-bound flag를 확인하고, readiness/endpoint detail에는 이름·예외가 없습니다. |
+| `S-04` 동일 view | PASS | auto-configuration이 하나의 window bean을 readiness와 endpoint에 주입하며, focused readiness/endpoint test가 count·timestamp·window·capacity·overflow field를 검증합니다. |
+| `S-05` 기존 계약 | PASS | readiness status mapping, AOP failure-mode와 recorder fan-out, HTTP path, legacy constructor/copy `javap`가 GREEN입니다. |
+| `S-06` best-effort | PASS | recorder clock 실패, health detail fallback, throwing recorder 격리 회귀가 원래 health/election 결과를 보존합니다. |
+| `S-07` 문서 | PASS | EN/KO property·lower-bound·non-decision 설명, 용어 audit, README switch, manual tests가 통과했습니다. |
+
 ## 구현 편차와 잔여 위험
 
 - 계획의 auto-configuration 파일명 대신 실제 구현은 `LeaderAcquisitionFailureWindowAutoConfiguration.kt`를 사용합니다. 기능·import 순서·계약에는 영향이 없습니다.
