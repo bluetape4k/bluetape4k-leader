@@ -197,6 +197,45 @@ Custom authority는 실행 시간이 제한적이고 side effect가 없어야 �
 
 Built-in state 판단은 best-effort 기준 상태이며 HTTP request 전체에서 leadership이 유지된다는 원자적 보장이 아닙니다. 짧은 stale-state window를 허용할 수 있는 route에만 사용하세요. 작업 자체를 lease로 보호해야 한다면 `@LeaderElection` 또는 명시적인 lease-owned 실행 경로를 사용해야 합니다.
 
+### Leader Redirect (opt-in)
+
+Redirect는 별도의 opt-in 정책이며 기본값은 비활성화입니다. `LeaderRouteRedirectContext`에서 공개 URI로의 mapping은 애플리케이션이 소유합니다. 라이브러리는 `leaderId`, `nodeId`, backend 주소나 예외를 URL로 만들지 않습니다. 검증을 통과한 경우에만 `307 Temporary Redirect`와 `Location`을 기록하며, 나머지는 기존 빈 body rejection 응답을 유지합니다.
+
+```yaml
+bluetape4k:
+  leader:
+    route-guard:
+      enabled: true
+      authority-mode: STATE
+      redirect:
+        enabled: true
+        allowed-hosts: [leader.example]
+        trusted-proxy-addresses: [10.0.0.10]
+        lease-safety-window: 250ms
+```
+
+Resolver는 synchronous·immutable·bounded인 애플리케이션 소유 callback이어야 합니다. `/leader/orders` 같은 relative target은 resolver-only overload를 사용할 수 있습니다. Absolute target은 `allowed-hosts`의 정확한 lowercase HTTPS host와 forwarded-header 변환 전에 캡처한 raw request metadata가 모두 필요합니다.
+
+```kotlin
+val resolver = LeaderRouteRedirectResolver { context ->
+    context.leaderState?.leader?.auditLeaderId?.let(publicLeaderRoutes::lookup)?.uri
+}
+
+val metadataProvider = LeaderRouteRedirectRequestMetadataProvider<HttpServletRequest> { request ->
+    LeaderRouteRedirectRequestMetadata(
+        forwardedHeadersPresent = request.getAttribute("raw.forwarded.present") as Boolean?,
+        transportPeerAddress = request.getAttribute("raw.transport.peer") as String?,
+    )
+}
+
+registry.addInterceptor(guards.interceptor(ordersSlot, resolver, metadataProvider))
+    .addPathPatterns("/internal/orders/**")
+```
+
+`forwardedHeadersPresent = null`이면 relative target만 허용합니다. `true`이면 `trusted-proxy-addresses`의 numeric transport peer와 정확히 일치해야 하며, 라이브러리는 forwarded header를 파싱하거나 변환된 remote address를 신뢰 근거로 추론하지 않습니다. Relative path에는 network-path reference, fragment, control character, userinfo, backslash 형식을 사용할 수 없습니다. Absolute target은 HTTPS·묵시적 port 443·ASCII exact-host만 허용합니다. lease가 없거나 만료 임박 상태, authority unavailable, resolver 또는 metadata provider 예외, 안전하지 않은 URI는 election 상태를 바꾸지 않고 fail-closed 됩니다.
+
+WebFlux는 pre-transform server/`HttpHandler` 경계 또는 별도 trusted application boundary에서 raw metadata를 캡처한 뒤 같은 resolver overload로 전달하세요. 일반 `WebFilter` 순서만으로 pre-transform 원본을 보장할 수 없습니다. 해당 경계를 만들 수 없으면 resolver-only overload에 relative URI만 전달하고 request metadata는 생략하세요. 일부 path에만 guard를 적용할 때는 `PathPattern`을 request lambda 밖에서 한 번 생성하세요.
+
 ## Leader Readiness (0.5.0)
 
 opt-in `leaderElectionReadiness` contributor는 설정했거나 현재 JVM에서 관찰한 lock name만 검사합니다. 알려진 이름마다 read-only `LeaderElector.state(...)`를 한 번 호출하며 backend lock을 열거하거나 선출 상태를 변경하지 않습니다.

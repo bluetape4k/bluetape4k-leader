@@ -51,6 +51,10 @@ class LeaderPropertiesBindingTest {
                 "bluetape4k.leader.route-guard.authority-mode" to "custom",
                 "bluetape4k.leader.route-guard.elector-bean" to "ordersLeaderElector",
                 "bluetape4k.leader.route-guard.rejection-status" to "not-found",
+                "bluetape4k.leader.route-guard.redirect.enabled" to "true",
+                "bluetape4k.leader.route-guard.redirect.allowed-hosts[0]" to "leader.example",
+                "bluetape4k.leader.route-guard.redirect.trusted-proxy-addresses[0]" to "10.0.0.10",
+                "bluetape4k.leader.route-guard.redirect.lease-safety-window" to "250ms",
                 "bluetape4k.leader.observability.state-provider-bean" to "ordersSuspendLeaderElector",
                 "bluetape4k.leader.observability.backend-health.enabled" to "true",
                 "bluetape4k.leader.observability.backend-health.timeout" to "275ms",
@@ -79,6 +83,10 @@ class LeaderPropertiesBindingTest {
         props.routeGuard.authorityMode shouldBeEqualTo LeaderRouteAuthorityMode.CUSTOM
         props.routeGuard.electorBean shouldBeEqualTo "ordersLeaderElector"
         props.routeGuard.rejectionStatus shouldBeEqualTo LeaderRouteRejectionStatus.NOT_FOUND
+        props.routeGuard.redirect.enabled.shouldBeTrue()
+        props.routeGuard.redirect.allowedHosts shouldBeEqualTo listOf("leader.example")
+        props.routeGuard.redirect.trustedProxyAddresses shouldBeEqualTo listOf("10.0.0.10")
+        props.routeGuard.redirect.leaseSafetyWindow shouldBeEqualTo Duration.ofMillis(250)
         props.observability.stateProviderBean shouldBeEqualTo "ordersSuspendLeaderElector"
         props.observability.backendHealth.enabled.shouldBeTrue()
         props.observability.backendHealth.timeout shouldBeEqualTo Duration.ofMillis(275)
@@ -108,6 +116,10 @@ class LeaderPropertiesBindingTest {
         props.routeGuard.authorityMode shouldBeEqualTo LeaderRouteAuthorityMode.STATE
         props.routeGuard.electorBean shouldBeEqualTo ""
         props.routeGuard.rejectionStatus shouldBeEqualTo LeaderRouteRejectionStatus.SERVICE_UNAVAILABLE
+        props.routeGuard.redirect.enabled.shouldBeFalse()
+        props.routeGuard.redirect.allowedHosts shouldBeEqualTo emptyList()
+        props.routeGuard.redirect.trustedProxyAddresses shouldBeEqualTo emptyList()
+        props.routeGuard.redirect.leaseSafetyWindow shouldBeEqualTo Duration.ZERO
         props.observability.stateProviderBean shouldBeEqualTo ""
         props.observability.backendHealth.enabled.shouldBeFalse()
         props.observability.backendHealth.timeout shouldBeEqualTo Duration.ofMillis(500)

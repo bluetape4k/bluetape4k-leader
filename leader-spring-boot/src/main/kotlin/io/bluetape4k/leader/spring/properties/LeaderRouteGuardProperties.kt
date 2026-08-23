@@ -48,8 +48,76 @@ data class LeaderRouteGuardProperties(
     val authorityMode: LeaderRouteAuthorityMode = LeaderRouteAuthorityMode.STATE,
     val electorBean: String = "",
     val rejectionStatus: LeaderRouteRejectionStatus = LeaderRouteRejectionStatus.SERVICE_UNAVAILABLE,
+    val redirect: LeaderRouteRedirectProperties = LeaderRouteRedirectProperties(),
 ) : Serializable {
+    /** Preserves the four-argument constructor published before redirect policy support. */
+    constructor(
+        enabled: Boolean,
+        authorityMode: LeaderRouteAuthorityMode,
+        electorBean: String,
+        rejectionStatus: LeaderRouteRejectionStatus,
+    ) : this(enabled, authorityMode, electorBean, rejectionStatus, LeaderRouteRedirectProperties())
+
+    /** Preserves Kotlin's four-argument default-constructor descriptor. */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(
+        enabled: Boolean,
+        authorityMode: LeaderRouteAuthorityMode,
+        electorBean: String,
+        rejectionStatus: LeaderRouteRejectionStatus,
+        mask: Int,
+        marker: kotlin.jvm.internal.DefaultConstructorMarker?,
+    ) : this(
+        enabled = if (mask and 0x001 != 0) false else enabled,
+        authorityMode = if (mask and 0x002 != 0) LeaderRouteAuthorityMode.STATE else authorityMode,
+        electorBean = if (mask and 0x004 != 0) "" else electorBean,
+        rejectionStatus = if (mask and 0x008 != 0) LeaderRouteRejectionStatus.SERVICE_UNAVAILABLE else rejectionStatus,
+        redirect = LeaderRouteRedirectProperties(),
+    )
+
+    /** Preserves the four-argument data-class copy entry point. */
+    fun copy(
+        enabled: Boolean,
+        authorityMode: LeaderRouteAuthorityMode,
+        electorBean: String,
+        rejectionStatus: LeaderRouteRejectionStatus,
+    ): LeaderRouteGuardProperties = copy(
+        enabled = enabled,
+        authorityMode = authorityMode,
+        electorBean = electorBean,
+        rejectionStatus = rejectionStatus,
+        redirect = redirect,
+    )
+
     companion object {
         private const val serialVersionUID = 1L
+
+        /** Preserves Kotlin's four-argument `copy$default` descriptor. */
+        @JvmStatic
+        @Suppress("UNUSED_PARAMETER", "FunctionNaming")
+        fun `copy$default`(
+            self: LeaderRouteGuardProperties,
+            enabled: Boolean,
+            authorityMode: LeaderRouteAuthorityMode?,
+            electorBean: String?,
+            rejectionStatus: LeaderRouteRejectionStatus?,
+            mask: Int,
+            marker: Any?,
+        ): LeaderRouteGuardProperties = self.copy(
+            enabled = if (mask and 0x001 != 0) self.enabled else enabled,
+            authorityMode = if (mask and 0x002 != 0) self.authorityMode else requireNotNull(authorityMode),
+            electorBean = if (mask and 0x004 != 0) self.electorBean else requireNotNull(electorBean),
+            rejectionStatus = if (mask and 0x008 != 0) self.rejectionStatus else requireNotNull(rejectionStatus),
+            redirect = self.redirect,
+        )
+
     }
+
+    @Suppress("SENSELESS_COMPARISON")
+    private fun readResolve(): Any =
+        if (redirect == null) {
+            LeaderRouteGuardProperties(enabled, authorityMode, electorBean, rejectionStatus)
+        } else {
+            this
+        }
 }

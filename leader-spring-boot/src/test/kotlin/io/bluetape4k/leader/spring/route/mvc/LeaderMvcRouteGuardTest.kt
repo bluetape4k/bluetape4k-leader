@@ -5,11 +5,15 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.spring.properties.LeaderRouteGuardProperties
+import io.bluetape4k.leader.spring.properties.LeaderRouteRedirectProperties
 import io.bluetape4k.leader.spring.properties.LeaderRouteRejectionStatus
 import io.bluetape4k.leader.spring.route.LeaderRouteAuthority
 import io.bluetape4k.leader.spring.route.LeaderRouteAuthorityRuntime
 import io.bluetape4k.leader.spring.route.LeaderRouteDecision
 import io.bluetape4k.leader.spring.route.NullLeaderRouteAuthority
+import io.bluetape4k.leader.spring.route.LeaderRouteRedirectRequestMetadata
+import io.bluetape4k.leader.spring.route.LeaderRouteRedirectRequestMetadataProvider
+import io.bluetape4k.leader.spring.route.LeaderRouteRedirectResolver
 import io.mockk.mockk
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -20,6 +24,7 @@ import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
+import jakarta.servlet.http.HttpServletRequest
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -98,6 +103,103 @@ class LeaderMvcRouteGuardTest {
     }
 
     @Test
+    fun `resolver-only relative target returns temporary redirect without invoking handler`() {
+        factory(
+            LeaderRouteAuthority { LeaderRouteDecision.NotLeader },
+            redirect = LeaderRouteRedirectProperties(enabled = true),
+        ).interceptor(slot, LeaderRouteRedirectResolver { java.net.URI("/leader/orders") })
+            .let { interceptor ->
+                MockMvcBuilders
+                    .standaloneSetup(controller)
+                    .addInterceptors(interceptor)
+                    .build()
+                    .get("/guarded")
+                    .andExpect {
+                        status { isTemporaryRedirect() }
+                        header { string("Location", "/leader/orders") }
+                    }
+            }
+
+        invocations.get() shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `resolver-only absolute target is rejected without location`() {
+        factory(
+            LeaderRouteAuthority { LeaderRouteDecision.NotLeader },
+            redirect = LeaderRouteRedirectProperties(enabled = true, allowedHosts = listOf("leader.example")),
+        ).interceptor(slot, LeaderRouteRedirectResolver { java.net.URI("https://leader.example/orders") })
+            .let { interceptor ->
+                MockMvcBuilders
+                    .standaloneSetup(controller)
+                    .addInterceptors(interceptor)
+                    .build()
+                    .get("/guarded")
+                    .andExpect {
+                        status { isServiceUnavailable() }
+                        header { doesNotExist("Location") }
+                    }
+            }
+    }
+
+    @Test
+    fun `trusted raw metadata permits exact absolute target`() {
+        val metadataProvider = LeaderRouteRedirectRequestMetadataProvider<HttpServletRequest> {
+            LeaderRouteRedirectRequestMetadata(true, "10.0.0.10")
+        }
+        factory(
+            LeaderRouteAuthority { LeaderRouteDecision.NotLeader },
+            redirect = LeaderRouteRedirectProperties(
+                enabled = true,
+                allowedHosts = listOf("leader.example"),
+                trustedProxyAddresses = listOf("10.0.0.10"),
+            ),
+        ).interceptor(
+            slot,
+            LeaderRouteRedirectResolver { java.net.URI("https://leader.example/orders") },
+            metadataProvider,
+        ).let { interceptor ->
+            MockMvcBuilders
+                .standaloneSetup(controller)
+                .addInterceptors(interceptor)
+                .build()
+                .get("/guarded")
+                .andExpect {
+                    status { isTemporaryRedirect() }
+                    header { string("Location", "https://leader.example/orders") }
+                }
+        }
+    }
+
+    @Test
+    fun `redirect disabled never calls resolver or metadata provider`() {
+        val resolverCalls = AtomicInteger()
+        val providerCalls = AtomicInteger()
+        val interceptor = factory(LeaderRouteAuthority { LeaderRouteDecision.NotLeader })
+            .interceptor(
+                slot,
+                LeaderRouteRedirectResolver {
+                    resolverCalls.incrementAndGet()
+                    java.net.URI("/leader/orders")
+                },
+                LeaderRouteRedirectRequestMetadataProvider {
+                    providerCalls.incrementAndGet()
+                    LeaderRouteRedirectRequestMetadata(false, null)
+                },
+            )
+
+        MockMvcBuilders
+            .standaloneSetup(controller)
+            .addInterceptors(interceptor)
+            .build()
+            .get("/guarded")
+            .andExpect { status { isServiceUnavailable() } }
+
+        resolverCalls.get() shouldBeEqualTo 0
+        providerCalls.get() shouldBeEqualTo 0
+    }
+
+    @Test
     fun `null Java authority result fails closed with configured status`() {
         mockMvc(NullLeaderRouteAuthority(), LeaderRouteRejectionStatus.LOCKED)
             .get("/guarded")
@@ -107,6 +209,50 @@ class LeaderMvcRouteGuardTest {
             }
 
         invocations.get() shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `runtime metadata provider exception rejects without location`() {
+        val interceptor = factory(
+            LeaderRouteAuthority { LeaderRouteDecision.NotLeader },
+            redirect = LeaderRouteRedirectProperties(enabled = true),
+        ).interceptor(
+            slot,
+            LeaderRouteRedirectResolver { java.net.URI("/leader/orders") },
+            LeaderRouteRedirectRequestMetadataProvider { throw RuntimeException("metadata unavailable") },
+        )
+
+        MockMvcBuilders
+            .standaloneSetup(controller)
+            .addInterceptors(interceptor)
+            .build()
+            .get("/guarded")
+            .andExpect {
+                status { isServiceUnavailable() }
+                header { doesNotExist("Location") }
+            }
+    }
+
+    @Test
+    fun `checked metadata provider exception rejects without location`() {
+        val interceptor = factory(
+            LeaderRouteAuthority { LeaderRouteDecision.NotLeader },
+            redirect = LeaderRouteRedirectProperties(enabled = true),
+        ).interceptor(
+            slot,
+            LeaderRouteRedirectResolver { java.net.URI("/leader/orders") },
+            LeaderRouteRedirectRequestMetadataProvider { throw Exception("metadata unavailable") },
+        )
+
+        MockMvcBuilders
+            .standaloneSetup(controller)
+            .addInterceptors(interceptor)
+            .build()
+            .get("/guarded")
+            .andExpect {
+                status { isServiceUnavailable() }
+                header { doesNotExist("Location") }
+            }
     }
 
     @Test
@@ -143,10 +289,11 @@ class LeaderMvcRouteGuardTest {
     private fun factory(
         authority: LeaderRouteAuthority,
         rejectionStatus: LeaderRouteRejectionStatus = LeaderRouteRejectionStatus.SERVICE_UNAVAILABLE,
+        redirect: LeaderRouteRedirectProperties = LeaderRouteRedirectProperties(),
     ): LeaderMvcRouteGuardFactory =
         LeaderMvcRouteGuardFactory(
             runtime = LeaderRouteAuthorityRuntime(authority),
-            properties = LeaderRouteGuardProperties(rejectionStatus = rejectionStatus),
+            properties = LeaderRouteGuardProperties(rejectionStatus = rejectionStatus, redirect = redirect),
         )
 
     @RestController

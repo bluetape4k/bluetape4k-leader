@@ -57,6 +57,57 @@ class LeaderRouteGuardAutoConfigurationTest {
     }
 
     @Test
+    fun `redirect policy bean is conditional on explicit redirect opt in`() {
+        runner
+            .withUserConfiguration(SingleElector::class.java)
+            .withPropertyValues("bluetape4k.leader.route-guard.enabled=true")
+            .run { context ->
+                context.startupFailure shouldBeEqualTo null
+                context.getBeansOfType<LeaderRouteRedirectPolicy>().isEmpty().shouldBeTrue()
+            }
+
+        runner
+            .withUserConfiguration(SingleElector::class.java)
+            .withPropertyValues(
+                "bluetape4k.leader.route-guard.enabled=true",
+                "bluetape4k.leader.route-guard.redirect.enabled=true",
+                "bluetape4k.leader.route-guard.redirect.allowed-hosts[0]=leader.example",
+            )
+            .run { context ->
+                context.startupFailure shouldBeEqualTo null
+                context.getBeansOfType<LeaderRouteRedirectPolicy>().size shouldBeEqualTo 1
+            }
+    }
+
+    @Test
+    fun `outer route guard gate skips redirect semantic validation`() {
+        runner
+            .withUserConfiguration(SingleElector::class.java)
+            .withPropertyValues(
+                "bluetape4k.leader.route-guard.redirect.enabled=true",
+                "bluetape4k.leader.route-guard.redirect.allowed-hosts[0]=*.example",
+            )
+            .run { context ->
+                context.startupFailure shouldBeEqualTo null
+                context.getBeansOfType<LeaderRouteRedirectPolicy>().isEmpty().shouldBeTrue()
+            }
+    }
+
+    @Test
+    fun `invalid enabled redirect configuration fails at policy startup`() {
+        runner
+            .withUserConfiguration(SingleElector::class.java)
+            .withPropertyValues(
+                "bluetape4k.leader.route-guard.enabled=true",
+                "bluetape4k.leader.route-guard.redirect.enabled=true",
+                "bluetape4k.leader.route-guard.redirect.allowed-hosts[0]=*.example",
+            )
+            .run { context ->
+                context.startupFailure.shouldNotBeNull()
+            }
+    }
+
+    @Test
     fun `no web stack keeps authority but creates no adapter factory`() {
         runner
             .withClassLoader(FilteredClassLoader("org.springframework.web.servlet", "org.springframework.web.server"))

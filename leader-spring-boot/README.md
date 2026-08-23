@@ -106,7 +106,7 @@ Spring configuration properties use Spring Boot duration binding (`5s`, `60s`, `
 
 Route guards are opt-in and read-only. They decide whether the local application may serve selected Spring MVC or WebFlux routes; they never acquire, extend, or release a lease on the request path. The feature is inactive unless `bluetape4k.leader.route-guard.enabled=true`.
 
-The default `STATE` authority performs one `LeaderElector.state(slot.lockName)` lookup and allows the request only when the occupied snapshot's audit leader ID equals `slot.leaderId`. Create the leader ID once per live process incarnation, then reuse the same `LeaderSlot` for election and route guarding. Do not reuse a fixed node ID across restarts: a new process could otherwise match a stale lease owned by its predecessor.
+The default `STATE` authority performs one `LeaderElector.state(slot.lockName)` lookup and allows the request only when the occupied leader state’s audit leader ID equals `slot.leaderId`. Create the leader ID once per live process incarnation, then reuse the same `LeaderSlot` for election and route guarding. Do not reuse a fixed node ID across restarts: a new process could otherwise match a stale lease owned by its predecessor.
 
 ```kotlin
 @Bean
@@ -146,7 +146,7 @@ class OrdersMvcRoutes(
 }
 ```
 
-`STATE` starts only when the selected elector declares `supportsAuditLeaderState=true`. The built-in Local, Consul, DynamoDB, and Kubernetes Lease electors provide this audit-identity snapshot capability; their listening, tenant-scoped, and Micrometer decorators preserve it. Electors that inherit the empty `state()` fallback, including Lettuce and Redisson, fail startup with `LEADER_ROUTE_ELECTOR_STATE_UNSUPPORTED`; use explicit `CUSTOM` mode for those backends unless the application supplies another trustworthy ownership source.
+`STATE` starts only when the selected elector declares `supportsAuditLeaderState=true`. The built-in Local, Consul, DynamoDB, and Kubernetes Lease electors provide this audit-identity state capability; their listening, tenant-scoped, and Micrometer decorators preserve it. Electors that inherit the empty `state()` fallback, including Lettuce and Redisson, fail startup with `LEADER_ROUTE_ELECTOR_STATE_UNSUPPORTED`; use explicit `CUSTOM` mode for those backends unless the application supplies another trustworthy ownership source.
 
 For WebFlux, apply the generated filter only inside the application's route/path selection. A `WebFilter` bean is global, so do not register the returned filter as an unrestricted bean when only some routes are leader-gated:
 
@@ -195,7 +195,65 @@ fun controlPlaneAuthority(controlPlane: ControlPlane): LeaderRouteAuthority =
 
 Custom authorities must be bounded, side-effect-free, and must not acquire, extend, or release leases. Ordinary authority/state failures fail closed. The supported rejection statuses are `NOT_FOUND` (404), `CONFLICT` (409), `LOCKED` (423), and `SERVICE_UNAVAILABLE` (503, default). Rejections have an empty body and expose no leader identity, lock name, backend error, host, or `Location` header.
 
-The built-in state decision is a best-effort snapshot, not an atomic guarantee that leadership lasts for the whole HTTP request. Use it only where a short stale-state window is acceptable; use `@LeaderElection` or an explicit lease-owned execution path when the work itself must be protected by a lease.
+The built-in state decision is best-effort leader state, not an atomic guarantee that leadership lasts for the whole HTTP request. Use it only where a short stale-state window is acceptable; use `@LeaderElection` or an explicit lease-owned execution path when the work itself must be protected by a lease.
+
+### Redirect-to-leader (opt-in)
+
+Redirects are a separate, disabled-by-default policy. The application owns the
+mapping from a `LeaderRouteRedirectContext` to a public URI; the library never
+turns `leaderId`, `nodeId`, backend addresses, or backend errors into a URL.
+Only a validated `307 Temporary Redirect` is emitted, and all other cases keep
+the configured empty-body rejection response.
+
+```yaml
+bluetape4k:
+  leader:
+    route-guard:
+      enabled: true
+      authority-mode: STATE
+      redirect:
+        enabled: true
+        allowed-hosts: [leader.example]
+        trusted-proxy-addresses: [10.0.0.10]
+        lease-safety-window: 250ms
+```
+
+The resolver is synchronous, immutable, bounded, and application-owned. A
+relative target such as `/leader/orders` can use the resolver-only overload.
+Absolute targets require the exact lowercase HTTPS host in `allowed-hosts` and
+raw request metadata captured before forwarded-header transformation:
+
+```kotlin
+val resolver = LeaderRouteRedirectResolver { context ->
+    context.leaderState?.leader?.auditLeaderId?.let(publicLeaderRoutes::lookup)?.uri
+}
+
+val metadataProvider = LeaderRouteRedirectRequestMetadataProvider<HttpServletRequest> { request ->
+    LeaderRouteRedirectRequestMetadata(
+        forwardedHeadersPresent = request.getAttribute("raw.forwarded.present") as Boolean?,
+        transportPeerAddress = request.getAttribute("raw.transport.peer") as String?,
+    )
+}
+
+registry.addInterceptor(guards.interceptor(ordersSlot, resolver, metadataProvider))
+    .addPathPatterns("/internal/orders/**")
+```
+
+`forwardedHeadersPresent = null` permits only relative targets. `true` requires
+an exact numeric transport-peer match in `trusted-proxy-addresses`; the library
+does not parse forwarded headers or infer trust from a transformed remote
+address. Relative paths cannot be network-path references, fragments, controls,
+userinfo, or backslash forms. Absolute targets are HTTPS, implicit port 443,
+ASCII exact-host matches only. A missing/expired lease, unavailable authority,
+resolver or metadata-provider exception, or unsafe URI fails closed without
+changing election state.
+
+For WebFlux, capture raw metadata at the pre-transform server/`HttpHandler`
+boundary (or another trusted application boundary), then pass it through the
+same resolver overload. Ordinary `WebFilter` ordering is not a pre-transform
+guarantee. If that boundary cannot be established, use the resolver-only
+overload with a relative URI and omit request metadata. Parse `PathPattern` once
+outside the request lambda when applying a guard to selected paths.
 
 ## Leader Readiness (0.5.0)
 
