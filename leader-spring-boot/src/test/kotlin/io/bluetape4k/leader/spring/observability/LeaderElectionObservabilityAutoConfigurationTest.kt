@@ -36,6 +36,7 @@ class LeaderElectionObservabilityAutoConfigurationTest {
         .withConfiguration(
             AutoConfigurations.of(
                 LeaderElectionObservabilityAutoConfiguration::class.java,
+                LeaderAcquisitionFailureWindowAutoConfiguration::class.java,
                 LeaderElectionActuatorAutoConfiguration::class.java,
                 LeaderElectionReadinessHealthAutoConfiguration::class.java,
             )
@@ -53,6 +54,26 @@ class LeaderElectionObservabilityAutoConfigurationTest {
                 val registry = ctx.getBean<LeaderElectionStatusRegistry>()
 
                 registry.snapshot() shouldBeEqualTo listOf("batch-job", "migration-gate")
+            }
+    }
+
+    @Test
+    fun `acquisition failure window recorder is registered with configured window`() {
+        runner
+            .withPropertyValues(
+                "bluetape4k.leader.observability.health.acquisition-failure-window=45s",
+            )
+            .run { ctx ->
+                ctx.getBean<LeaderAcquisitionFailureWindow>().view().window shouldBeEqualTo java.time.Duration.ofSeconds(45)
+            }
+    }
+
+    @Test
+    fun `acquisition failure window recorder is absent when observability is disabled`() {
+        runner
+            .withPropertyValues("bluetape4k.leader.observability.enabled=false")
+            .run { ctx ->
+                ctx.getBeansOfType<LeaderAcquisitionFailureWindow>().isEmpty().shouldBeTrue()
             }
     }
 
@@ -115,6 +136,8 @@ class LeaderElectionObservabilityAutoConfigurationTest {
                 response.backend shouldBeEqualTo "test"
                 response.stateProviderBean shouldBeEqualTo "testLeaderElector"
                 response.stateSupported.shouldBeTrue()
+                response.acquisitionFailures.count shouldBeEqualTo 0
+                response.acquisitionFailures.window shouldBeEqualTo java.time.Duration.ofMinutes(5)
             }
     }
 

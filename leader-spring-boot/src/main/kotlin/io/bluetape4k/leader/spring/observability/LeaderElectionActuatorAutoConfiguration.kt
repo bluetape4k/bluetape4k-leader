@@ -3,6 +3,7 @@ package io.bluetape4k.leader.spring.observability
 import io.bluetape4k.leader.LeaderElectionState
 import io.bluetape4k.leader.spring.internal.LeaderElectionStateSelector
 import io.bluetape4k.leader.spring.LeaderProperties
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanDefinition
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -36,10 +37,11 @@ class LeaderElectionActuatorAutoConfiguration {
     @Bean("leaderElectionStatusEndpoint")
     @ConditionalOnMissingBean
     @Role(BeanDefinition.ROLE_APPLICATION)
-    fun leaderElectionStatusEndpoint(
+    internal fun leaderElectionStatusEndpoint(
         beanFactory: ConfigurableListableBeanFactory,
         properties: LeaderProperties,
         registry: LeaderElectionStatusRegistry,
+        acquisitionFailureWindow: ObjectProvider<LeaderAcquisitionFailureWindow>,
     ): LeaderElectionStatusEndpoint {
         val selected = LeaderElectionStateSelector(
             beanFactory,
@@ -50,6 +52,7 @@ class LeaderElectionActuatorAutoConfiguration {
             stateProviderBean = selected.beanName,
             state = selected.state,
             registry = registry,
+            acquisitionFailureWindow = acquisitionFailureWindow.getIfAvailable(),
         )
     }
 

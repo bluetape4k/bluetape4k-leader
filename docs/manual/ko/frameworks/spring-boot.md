@@ -29,6 +29,23 @@ elector를 자동 구성하고 AspectJ compile-time weaving으로 메서드 호�
 
 SpEL은 `"'prefix-' + #param"`처럼 유효한 식으로 작성합니다. 잘못된 식과 성립하지 않는 group 설정은 validation에서 실패합니다. 자동 구성은 elector, AOP factory, Micrometer, aspect 순으로 적용되어 계측과 실행 경계가 일치합니다.
 
+## Readiness와 최근 획득 실패
+
+opt-in `leaderElectionReadiness` contributor는 JVM-local lock-name registry만 조회합니다. backend 획득 실패를 bounded하게 관찰하려면 다음과 같이 window를 설정합니다.
+
+```yaml
+bluetape4k:
+  leader:
+    observability:
+      health:
+        enabled: true
+        acquisition-failure-window: 5m
+```
+
+기본 window는 `5m`이고 timestamp는 최대 `1024`개까지 보관합니다. AOP의 `BACKEND_ERROR` skip만 집계하며 `CONTENTION`과 `FAIL_OPEN_FORCED`는 의도적으로 제외합니다. readiness detail에는 `recentAcquisitionFailures`, `lastAcquisitionFailureAt`, `acquisitionFailureWindow`, `acquisitionFailureWindowCapacity`, `acquisitionFailureWindowOverflowed`가 표시됩니다. window가 overflow되면 count는 하한값이며, 보관된 실패가 모두 만료되면 `lastAcquisitionFailureAt`은 `null`이 됩니다.
+
+이 recorder는 best-effort aggregate입니다. 최근 실패만으로 contributor 상태(`UP`, `OUT_OF_SERVICE`, `DOWN`, `UNKNOWN`)가 바뀌지 않으며 detail에 lock name이나 exception message를 저장하지 않습니다. Actuator endpoint를 보호하고, health 평가마다 등록된 이름별로 backend 상태를 한 번 조회하므로 동적 lock-name 등록도 bounded하게 유지하세요.
+
 ## 릴리스 소스
 
 - [`leader-spring-boot/README.ko.md`](../../../../leader-spring-boot/README.ko.md)

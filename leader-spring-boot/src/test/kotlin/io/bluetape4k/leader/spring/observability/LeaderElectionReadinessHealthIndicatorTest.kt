@@ -3,9 +3,12 @@ package io.bluetape4k.leader.spring.observability
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeFalse
+import io.bluetape4k.assertions.shouldBeNull
+import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderLease
 import io.bluetape4k.leader.LeaderState
+import io.bluetape4k.leader.metrics.SkipReason
 import io.bluetape4k.leader.spring.properties.LeaderObservabilityHealthProperties
 import io.mockk.clearMocks
 import io.mockk.every
@@ -17,6 +20,7 @@ import org.springframework.boot.health.contributor.Status
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
@@ -49,7 +53,39 @@ class LeaderElectionReadinessHealthIndicatorTest {
             "expiringLeases" to 0,
             "expiringLockNames" to emptyList<String>(),
             "failedLockNames" to emptyList<String>(),
+            "recentAcquisitionFailures" to 0,
+            "lastAcquisitionFailureAt" to null,
+            "acquisitionFailureWindow" to "PT5M",
+            "acquisitionFailureWindowCapacity" to 1024,
+            "acquisitionFailureWindowOverflowed" to false,
         )
+    }
+
+    @Test
+    fun `backend acquisition failure is detail only and does not downgrade status`() {
+        val window = LeaderAcquisitionFailureWindow(Duration.ofMinutes(5), clock, capacity = 4)
+        window.onLockNotAcquired("redis-prod-01", LeaderElectionOptions(), SkipReason.BACKEND_ERROR)
+
+        val health = indicator(acquisitionFailureWindow = window).health()
+
+        health.status shouldBeEqualTo Status.UP
+        health.details["recentAcquisitionFailures"] shouldBeEqualTo 1
+        health.details["lastAcquisitionFailureAt"] shouldBeEqualTo now
+        health.details["acquisitionFailureWindow"] shouldBeEqualTo "PT5M"
+        health.details["acquisitionFailureWindowCapacity"] shouldBeEqualTo 4
+        health.details["acquisitionFailureWindowOverflowed"] shouldBeEqualTo false
+        health.details.toString().contains("redis-prod-01").shouldBeFalse()
+    }
+
+    @Test
+    fun `contention is absent from recent acquisition failure detail`() {
+        val window = LeaderAcquisitionFailureWindow(Duration.ofMinutes(5), clock, capacity = 4)
+        window.onLockNotAcquired("contention-job", LeaderElectionOptions(), SkipReason.CONTENTION)
+
+        val health = indicator(acquisitionFailureWindow = window).health()
+
+        health.details["recentAcquisitionFailures"] shouldBeEqualTo 0
+        health.details["lastAcquisitionFailureAt"].shouldBeNull()
     }
 
     @Test
@@ -118,19 +154,68 @@ class LeaderElectionReadinessHealthIndicatorTest {
     }
 
     @Test
+    fun `acquisition failure detail preserves existing non UP statuses`() {
+        val window = LeaderAcquisitionFailureWindow(Duration.ofMinutes(5), clock, capacity = 4)
+        window.onLockNotAcquired("backend-failure", LeaderElectionOptions(), SkipReason.BACKEND_ERROR)
+
+        every { elector.state("unavailable-job") } throws IllegalStateException("backend unavailable")
+        val down = indicator("unavailable-job", acquisitionFailureWindow = window).health()
+        down.status shouldBeEqualTo Status.DOWN
+        down.details["recentAcquisitionFailures"] shouldBeEqualTo 1
+
+        val unknown = LeaderElectionReadinessHealthIndicator(
+            leaderElector = DefaultStateLeaderElector(),
+            registry = LeaderElectionStatusRegistry(listOf("unsupported-job")),
+            leaseWarningThreshold = warningThreshold,
+            clock = clock,
+            acquisitionFailureWindow = window,
+        ).health()
+        unknown.status shouldBeEqualTo Status.UNKNOWN
+        unknown.details["recentAcquisitionFailures"] shouldBeEqualTo 1
+
+        every { elector.state("expiring-job") } returns occupied("expiring-job", now.plus(warningThreshold))
+        val outOfService = indicator("expiring-job", acquisitionFailureWindow = window).health()
+        outOfService.status shouldBeEqualTo Status.OUT_OF_SERVICE
+        outOfService.details["recentAcquisitionFailures"] shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `clock failure in acquisition detail falls back without failing health`() {
+        val window = LeaderAcquisitionFailureWindow(Duration.ofMinutes(5), ThrowingClock(), capacity = 4)
+
+        val health = indicator(acquisitionFailureWindow = window).health()
+
+        health.status shouldBeEqualTo Status.UP
+        health.details["recentAcquisitionFailures"] shouldBeEqualTo 0
+        health.details["lastAcquisitionFailureAt"].shouldBeNull()
+        health.details["acquisitionFailureWindow"] shouldBeEqualTo "PT5M"
+        health.details["acquisitionFailureWindowCapacity"] shouldBeEqualTo 1024
+    }
+
+    @Test
     fun `negative warning threshold is rejected`() {
         assertFailsWith<IllegalArgumentException> {
             LeaderObservabilityHealthProperties(leaseWarningThreshold = Duration.ofSeconds(-1))
         }
     }
 
-    private fun indicator(vararg lockNames: String): LeaderElectionReadinessHealthIndicator =
+    private fun indicator(
+        vararg lockNames: String,
+        acquisitionFailureWindow: LeaderAcquisitionFailureWindow? = null,
+    ): LeaderElectionReadinessHealthIndicator = acquisitionFailureWindow?.let { window ->
         LeaderElectionReadinessHealthIndicator(
             leaderElector = elector,
             registry = LeaderElectionStatusRegistry(lockNames.asList()),
             leaseWarningThreshold = warningThreshold,
             clock = clock,
+            acquisitionFailureWindow = window,
         )
+    } ?: LeaderElectionReadinessHealthIndicator(
+        leaderElector = elector,
+        registry = LeaderElectionStatusRegistry(lockNames.asList()),
+        leaseWarningThreshold = warningThreshold,
+        clock = clock,
+    )
 
     private fun occupied(lockName: String, leaseUntil: Instant): LeaderState =
         LeaderState.occupied(
@@ -146,5 +231,13 @@ class LeaderElectionReadinessHealthIndicatorTest {
             executor: Executor,
             action: () -> CompletableFuture<T>,
         ): CompletableFuture<T?> = action().thenApply { it }
+    }
+
+    private class ThrowingClock : Clock() {
+        override fun instant(): Instant = throw IllegalStateException("clock unavailable")
+
+        override fun getZone(): ZoneId = ZoneOffset.UTC
+
+        override fun withZone(zone: ZoneId): Clock = this
     }
 }

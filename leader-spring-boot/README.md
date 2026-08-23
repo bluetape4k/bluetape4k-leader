@@ -222,6 +222,22 @@ The contributor reports `UP` for successful reads without near-expiry leases, `O
 
 Each health evaluation performs one backend state read per lock name in the JVM-local registry, so its cost grows linearly with the registered lock count and backend latency. Enable it for a small, bounded set of stable lock names; leave it disabled for applications that generate unbounded dynamic names. Health details can include raw lock names, so protect Actuator access and configure `management.endpoint.health.show-details` according to your disclosure policy.
 
+### Recent acquisition failures
+
+The readiness contributor also exposes a best-effort aggregate of recent AOP acquisition failures. Configure the observation window with a positive finite duration; the default is `5m` and the retained window has a fixed capacity of `1024` timestamps:
+
+```yaml
+bluetape4k:
+  leader:
+    observability:
+      health:
+        acquisition-failure-window: 5m
+```
+
+Only `LeaderAopMetricsRecorder.onLockNotAcquired(..., SkipReason.BACKEND_ERROR)` enters this aggregate. Normal `CONTENTION` skips and `FAIL_OPEN_FORCED` skips are excluded. `recentAcquisitionFailures` is the number retained in the current window; when the fixed capacity is exceeded, `acquisitionFailureWindowOverflowed=true` marks the count as a lower bound. After the window expires, `lastAcquisitionFailureAt` becomes `null`. The detail contains no lock name or exception message.
+
+Recent failures alone never change readiness from `UP`, `OUT_OF_SERVICE`, `DOWN`, or `UNKNOWN`; the window is an observation aid, not a readiness decision. Keep the Actuator endpoint protected, and keep the dynamic lock-name registry small and bounded because the readiness contributor still performs one backend read per registered name.
+
 ## Startup Diagnostics
 
 `LeaderStartupDiagnosticsAutoConfiguration` runs after backend, observability, and Actuator auto-configuration. It records a startup report with the selected backend candidates, `LeaderElector` bean count, `leaderElection` endpoint enablement, web exposure state, and warnings for risky combinations.
@@ -258,6 +274,7 @@ Metrics and Observations are independent:
 | `bluetape4k.leader.aop.metrics.tags.leader-id.mode` | `REDACT` | Export policy for opt-in Observation `leader.id` values |
 | `bluetape4k.leader.aop.metrics.tags.backend-name.mode` | `RAW` | Export policy for bounded backend labels when custom or future meter paths emit `backend.name`; current built-in meters do not emit it |
 | `bluetape4k.leader.observability.enabled` | `true` | Parent switch for leader observability and tracing |
+| `bluetape4k.leader.observability.health.acquisition-failure-window` | `5m` | Bounded window for aggregate AOP backend acquisition failures |
 | `bluetape4k.leader.observability.tracing.enabled` | `true` | Observation recorder and listener |
 | `bluetape4k.leader.observability.tracing.include-lock-name` | `false` | Opt-in `lock.name` high-cardinality Observation data, sanitized by tag policy |
 | `bluetape4k.leader.observability.tracing.include-leader-id` | `false` | Opt-in `leader.id` high-cardinality Observation data when identified context exists, sanitized by tag policy |
@@ -454,13 +471,14 @@ For Java callers, `@JvmStatic` overloads accept both `kotlin.time.Duration` and 
 2. `LeaderAopFactoryAutoConfiguration` registers backend factories.
 3. `LeaderMicrometerAutoConfiguration` registers `MicrometerLeaderAopMetricsRecorder` when `MeterRegistry` exists.
 4. `LeaderObservationAutoConfiguration` registers Observation recorder/listener beans when `ObservationRegistry` exists.
-5. `LeaderAopAutoConfiguration` registers the Aspect, SpEL evaluator, lock-name validator, and annotation validator.
-6. `LeaderMicrometerHealthAutoConfiguration` registers the Actuator health indicator when Actuator is present.
-7. `LeaderElectionObservabilityAutoConfiguration` registers the lock-name status registry and fallback event-publisher adapter.
-8. `LeaderElectionActuatorAutoConfiguration` registers the opt-in `/actuator/leaderElection` endpoint.
-9. `LeaderBackendDiagnosticsActuatorAutoConfiguration` registers the opt-in static `/actuator/leaderBackendDiagnostics` endpoint.
-10. `LeaderBackendHealthAutoConfiguration` registers the opt-in backend connectivity health indicator.
-11. `LeaderStartupDiagnosticsAutoConfiguration` records backend, management, and cardinality diagnostics after the runtime surface exists.
+5. `LeaderAcquisitionFailureWindowAutoConfiguration` registers the bounded backend-failure recorder before AOP execution.
+6. `LeaderAopAutoConfiguration` registers the Aspect, SpEL evaluator, lock-name validator, and annotation validator.
+7. `LeaderMicrometerHealthAutoConfiguration` registers the Actuator health indicator when Actuator is present.
+8. `LeaderElectionObservabilityAutoConfiguration` registers the lock-name status registry and fallback event-publisher adapter.
+9. `LeaderElectionActuatorAutoConfiguration` registers the opt-in `/actuator/leaderElection` endpoint.
+10. `LeaderBackendDiagnosticsActuatorAutoConfiguration` registers the opt-in static `/actuator/leaderBackendDiagnostics` endpoint.
+11. `LeaderBackendHealthAutoConfiguration` registers the opt-in backend connectivity health indicator.
+12. `LeaderStartupDiagnosticsAutoConfiguration` records backend, management, and cardinality diagnostics after the runtime surface exists.
 
 ## Leader Election Actuator Endpoint
 
@@ -497,11 +515,20 @@ GET /actuator/leaderElection
       "leaderId": "node-1",
       "leaseExpiry": "2026-05-16T00:00:00Z"
     }
-  ]
+  ],
+  "acquisitionFailures": {
+    "count": 0,
+    "lastFailureAt": null,
+    "window": "PT5M",
+    "capacity": 1024,
+    "overflowed": false
+  }
 }
 ```
 
 `lock-names` seeds the JVM-local status registry before the first runtime event. Listener-aware electors can also add names as they observe lifecycle events. The fallback `LeaderElectionEventPublisher` is publisher-only and never becomes a `LeaderElector` candidate, so existing elector injection remains stable.
+
+`acquisitionFailures` is the same bounded aggregate used by readiness. It contains timestamps and counts only: it never exposes a lock name or backend exception message. The endpoint is read-only but may still reveal operational failure volume, so expose it only to trusted Actuator clients.
 
 ## Backend Diagnostics And Connectivity Health
 

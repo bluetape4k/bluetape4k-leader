@@ -215,9 +215,15 @@ class LeaderElectionAspectTest {
         val backendEx = RuntimeException("Connection to redis-prod-01.internal:6379 timeout")
         every { election.runIfLeaderResult(any<String>(), any<() -> Any?>()) } throws backendEx
 
-        val aspect = newAspect()
+        val throwingRecorder = mockk<LeaderAopMetricsRecorder>(relaxed = true)
+        every {
+            throwingRecorder.onLockNotAcquired(any(), any(), SkipReason.BACKEND_ERROR)
+        } throws RuntimeException("recorder failure")
+
+        val aspect = newAspect(listOf(throwingRecorder, recorder))
         val wrapped = assertFailsWith<LeaderElectionException> { aspect.aroundLeader(pjp) }
         wrapped.cause shouldBeEqualTo backendEx
+        verify { recorder.onLockNotAcquired("static-job", any(), SkipReason.BACKEND_ERROR) }
         // message 일반화 — host 정보 미포함
         wrapped.message.shouldNotBeNull().contains("redis-prod-01").shouldBeFalse()
 

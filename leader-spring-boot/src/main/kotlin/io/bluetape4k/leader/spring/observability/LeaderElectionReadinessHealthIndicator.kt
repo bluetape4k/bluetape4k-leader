@@ -17,12 +17,30 @@ import java.time.Duration
  * @property leaseWarningThreshold Spring Boot integration 계약에서 사용하는 속성입니다.
  * @property clock Spring Boot integration 계약에서 사용하는 속성입니다.
  */
-class LeaderElectionReadinessHealthIndicator(
+class LeaderElectionReadinessHealthIndicator private constructor(
     leaderElector: LeaderElectionState,
     private val registry: LeaderElectionStatusRegistry,
     private val leaseWarningThreshold: Duration,
-    private val clock: Clock = Clock.systemUTC(),
+    private val clock: Clock,
+    private val acquisitionFailureWindow: LeaderAcquisitionFailureWindow?,
+    @Suppress("UNUSED_PARAMETER")
+    constructorMarker: Any?,
 ) : AbstractHealthIndicator("Leader election readiness check failed") {
+
+    constructor(
+        leaderElector: LeaderElectionState,
+        registry: LeaderElectionStatusRegistry,
+        leaseWarningThreshold: Duration,
+        clock: Clock = Clock.systemUTC(),
+    ) : this(leaderElector, registry, leaseWarningThreshold, clock, null, null)
+
+    internal constructor(
+        leaderElector: LeaderElectionState,
+        registry: LeaderElectionStatusRegistry,
+        leaseWarningThreshold: Duration,
+        clock: Clock,
+        acquisitionFailureWindow: LeaderAcquisitionFailureWindow,
+    ) : this(leaderElector, registry, leaseWarningThreshold, clock, acquisitionFailureWindow, Unit)
 
     private val stateProvider: LeaderElectionState = leaderElector
     private val selectedBackend: String =
@@ -38,10 +56,11 @@ class LeaderElectionReadinessHealthIndicator(
 
     override fun doHealthCheck(builder: Health.Builder) {
         val lockNames = registry.snapshot()
+        val failureDetails = acquisitionFailureDetails()
         if (!stateProvider.supportsAuditLeaderState) {
             builder
                 .status(Status.UNKNOWN)
-                .withDetails(baseDetails(lockNames.size) + mapOf(DETAIL_STATE_SUPPORTED to false))
+                .withDetails(baseDetails(lockNames.size, failureDetails) + mapOf(DETAIL_STATE_SUPPORTED to false))
             return
         }
         val warningBoundary = clock.instant().plus(leaseWarningThreshold)
@@ -67,7 +86,7 @@ class LeaderElectionReadinessHealthIndicator(
         }
 
         builder.withDetails(
-            baseDetails(lockNames.size) + mapOf(
+            baseDetails(lockNames.size, failureDetails) + mapOf(
                 DETAIL_STATE_SUPPORTED to true,
                 DETAIL_OCCUPIED_LOCKS to occupiedLocks,
                 DETAIL_UNKNOWN_LEASE_EXPIRY to unknownLeaseExpiry,
@@ -84,7 +103,26 @@ class LeaderElectionReadinessHealthIndicator(
         }
     }
 
-    private fun baseDetails(knownLocks: Int): Map<String, Any> =
+    private fun acquisitionFailureDetails(): Map<String, Any?> = runCatching {
+        val view = acquisitionFailureWindow?.view() ?: LeaderAcquisitionFailureView.empty()
+        mapOf(
+            DETAIL_RECENT_ACQUISITION_FAILURES to view.count,
+            DETAIL_LAST_ACQUISITION_FAILURE_AT to view.lastFailureAt,
+            DETAIL_ACQUISITION_FAILURE_WINDOW to view.window.toString(),
+            DETAIL_ACQUISITION_FAILURE_WINDOW_CAPACITY to view.capacity,
+            DETAIL_ACQUISITION_FAILURE_WINDOW_OVERFLOWED to view.overflowed,
+        )
+    }.getOrElse {
+        mapOf(
+            DETAIL_RECENT_ACQUISITION_FAILURES to 0,
+            DETAIL_LAST_ACQUISITION_FAILURE_AT to null,
+            DETAIL_ACQUISITION_FAILURE_WINDOW to LeaderAcquisitionFailureWindow.DefaultWindow.toString(),
+            DETAIL_ACQUISITION_FAILURE_WINDOW_CAPACITY to LeaderAcquisitionFailureWindow.DefaultCapacity,
+            DETAIL_ACQUISITION_FAILURE_WINDOW_OVERFLOWED to false,
+        )
+    }
+
+    private fun baseDetails(knownLocks: Int, failureDetails: Map<String, Any?>): Map<String, Any?> =
         mapOf(
             DETAIL_BACKEND to selectedBackend,
             DETAIL_STATE_PROVIDER_BEAN to selectedStateProviderBean,
@@ -94,7 +132,7 @@ class LeaderElectionReadinessHealthIndicator(
             DETAIL_EXPIRING_LEASES to 0,
             DETAIL_EXPIRING_LOCK_NAMES to emptyList<String>(),
             DETAIL_FAILED_LOCK_NAMES to emptyList<String>(),
-        )
+        ) + failureDetails
 
     companion object {
         @JvmSynthetic
@@ -106,7 +144,16 @@ class LeaderElectionReadinessHealthIndicator(
             registry: LeaderElectionStatusRegistry,
             leaseWarningThreshold: Duration,
             clock: Clock = Clock.systemUTC(),
-        ): LeaderElectionReadinessHealthIndicator = LeaderElectionReadinessHealthIndicator(
+            acquisitionFailureWindow: LeaderAcquisitionFailureWindow? = null,
+        ): LeaderElectionReadinessHealthIndicator = acquisitionFailureWindow?.let { window ->
+            LeaderElectionReadinessHealthIndicator(
+                leaderElector = SelectedStateProvider(backendName, stateProviderBean, state),
+                registry = registry,
+                leaseWarningThreshold = leaseWarningThreshold,
+                clock = clock,
+                acquisitionFailureWindow = window,
+            )
+        } ?: LeaderElectionReadinessHealthIndicator(
             leaderElector = SelectedStateProvider(backendName, stateProviderBean, state),
             registry = registry,
             leaseWarningThreshold = leaseWarningThreshold,
@@ -122,6 +169,11 @@ class LeaderElectionReadinessHealthIndicator(
         private const val DETAIL_EXPIRING_LEASES = "expiringLeases"
         private const val DETAIL_EXPIRING_LOCK_NAMES = "expiringLockNames"
         private const val DETAIL_FAILED_LOCK_NAMES = "failedLockNames"
+        private const val DETAIL_RECENT_ACQUISITION_FAILURES = "recentAcquisitionFailures"
+        private const val DETAIL_LAST_ACQUISITION_FAILURE_AT = "lastAcquisitionFailureAt"
+        private const val DETAIL_ACQUISITION_FAILURE_WINDOW = "acquisitionFailureWindow"
+        private const val DETAIL_ACQUISITION_FAILURE_WINDOW_CAPACITY = "acquisitionFailureWindowCapacity"
+        private const val DETAIL_ACQUISITION_FAILURE_WINDOW_OVERFLOWED = "acquisitionFailureWindowOverflowed"
     }
 }
 

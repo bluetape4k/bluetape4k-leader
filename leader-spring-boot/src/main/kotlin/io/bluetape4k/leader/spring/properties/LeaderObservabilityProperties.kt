@@ -179,18 +179,65 @@ data class LeaderBackendHealthProperties(
  *
  * @property enabled Spring Boot integration 계약에서 `enabled` 값을 계산하거나 전달할 때 사용하는 속성입니다.
  * @property leaseWarningThreshold Spring Boot integration 계약에서 `leaseWarningThreshold` 값을 계산하거나 전달할 때 사용하는 속성입니다.
+ * @property acquisitionFailureWindow 최근 backend 획득 실패를 health에 반영하는 관찰 시간 범위입니다.
  */
 data class LeaderObservabilityHealthProperties(
     val enabled: Boolean = false,
     val leaseWarningThreshold: Duration = Duration.ofSeconds(10),
+    val acquisitionFailureWindow: Duration = Duration.ofMinutes(DefaultAcquisitionFailureWindowMinutes),
 ) : Serializable {
+    /** acquisition failure window 추가 전에 공개된 두 인자 생성자 바이너리 호환성을 유지합니다. */
+    constructor(
+        enabled: Boolean,
+        leaseWarningThreshold: Duration,
+    ) : this(
+        enabled = enabled,
+        leaseWarningThreshold = leaseWarningThreshold,
+        acquisitionFailureWindow = Duration.ofMinutes(DefaultAcquisitionFailureWindowMinutes),
+    )
+
+    /** acquisition failure window 추가 전에 공개된 두 인자 data class `copy` 진입점 호환성을 유지합니다. */
+    fun copy(
+        enabled: Boolean,
+        leaseWarningThreshold: Duration,
+    ): LeaderObservabilityHealthProperties = copy(
+        enabled = enabled,
+        leaseWarningThreshold = leaseWarningThreshold,
+        acquisitionFailureWindow = acquisitionFailureWindow,
+    )
+
     companion object {
+        private const val DefaultAcquisitionFailureWindowMinutes = 5L
+
+        /** Kotlin이 공개한 두 인자 `copy$default` descriptor의 바이너리 호환성을 유지합니다. */
+        @JvmStatic
+        @Suppress("UNUSED_PARAMETER", "FunctionNaming")
+        fun `copy$default`(
+            self: LeaderObservabilityHealthProperties,
+            enabled: Boolean,
+            leaseWarningThreshold: Duration?,
+            mask: Int,
+            marker: Any?,
+        ): LeaderObservabilityHealthProperties = self.copy(
+            enabled = if (mask and 0x001 != 0) self.enabled else enabled,
+            leaseWarningThreshold = if (mask and 0x002 != 0) {
+                self.leaseWarningThreshold
+            } else {
+                requireNotNull(leaseWarningThreshold)
+            },
+            acquisitionFailureWindow = self.acquisitionFailureWindow,
+        )
+
         private const val serialVersionUID = 1L
     }
 
     init {
         require(!leaseWarningThreshold.isNegative) {
             "observability.health.leaseWarningThreshold must not be negative: $leaseWarningThreshold"
+        }
+        val kotlinWindow = acquisitionFailureWindow.toKotlinDuration()
+        require(kotlinWindow.isFinite() && kotlinWindow.isPositive()) {
+            "observability.health.acquisitionFailureWindow must be positive and finite: $acquisitionFailureWindow"
         }
     }
 }
