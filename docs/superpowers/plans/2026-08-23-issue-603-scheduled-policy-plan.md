@@ -37,6 +37,8 @@
   - defaults와 YAML-style binding 계약을 검증한다.
 - `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyRegistryTest.kt`
   - exact selector, explicit annotation skip, duplicate/overload/unmatched validation과 target identity lookup을 검증한다.
+- `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyBeanPostProcessorTest.kt`
+  - policy BPP의 scheduled scan, explicit precedence, startup failure, ordering을 검증한다.
 - `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyAutoConfigurationTest.kt`
   - ApplicationContextRunner 조건, startup failure, auto-configuration ordering을 검증한다.
 - `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspectScheduledPolicyTest.kt`
@@ -75,9 +77,9 @@
 
 ## 구현 전 승인 게이트
 
-- [ ] 이 계획의 6개 관점 통합 검토가 `P0=0`, `P1=0`으로 수렴한다.
-- [ ] 사용자가 이 계획을 승인한다.
-- [ ] 계획 승인 후에만 다음 Lore 형식으로 spec과 plan을 함께 커밋한다.
+- [x] 이 계획의 6개 관점 통합 검토가 `P0=0`, `P1=0`으로 수렴한다.
+- [x] 사용자가 이 계획을 승인한다.
+- [x] 계획 승인 후에만 다음 Lore 형식으로 spec과 plan을 함께 커밋한다.
 
 ```text
 scheduled policy 구현 순서와 검증 경계를 고정한다
@@ -122,7 +124,7 @@ Expected: 두 문서가 같은 commit에 있고 `git status --short`에는 runti
 - Reference: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/properties/LeaderAopProperties.kt`
 - Reference: `leader-core/src/main/kotlin/io/bluetape4k/leader/annotation/LeaderAspectFailureMode.kt`
 
-- [ ] **Step 1: 기본값과 full binding을 먼저 테스트한다.**
+- [x] **Step 1: 기본값과 full binding을 먼저 테스트한다.**
 
 ```kotlin
 @Test
@@ -161,7 +163,7 @@ fun `empty source disables scheduling policy by default`() {
 }
 ```
 
-- [ ] **Step 2: invalid semantic values의 실패 기대를 고정한다.**
+- [x] **Step 2: invalid semantic values의 실패 기대를 고정한다.**
 
 `enabled=true`와 empty policy, blank selector, selector without exactly one `#`, blank name, `waitTime < 0`, `leaseTime <= 0`, `minLeaseTime > leaseTime`, overloaded selector, invalid SpEL, unresolved backend bean은 property binder가 아니라 registry/BPP startup validation에서 `IllegalStateException` 또는 기존 bean-selection 예외로 실패해야 한다. 이 테스트 단계에서는 binding 자체가 값을 보존하는지와 invalid duration 문자열이 binder에서 거부되는지만 확인한다.
 
@@ -181,7 +183,7 @@ fun `invalid duration text is rejected by Spring Binder`() {
 }
 ```
 
-- [ ] **Step 3: 현재 구현으로 실패를 확인한다.**
+- [x] **Step 3: 현재 구현으로 실패를 확인한다.**
 
 Run:
 
@@ -201,7 +203,7 @@ Expected: `FAIL` because `LeaderScheduledPolicyProperties` does not exist.
 - Test: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyPropertiesTest.kt`
 - Test: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/aop/validator/LeaderAnnotationValidatorBeanPostProcessorTest.kt`
 
-- [ ] **Step 1: public additive properties model을 작성한다.**
+- [x] **Step 1: public additive properties model을 작성한다.**
 
 ```kotlin
 @ConfigurationProperties(prefix = LeaderScheduledPolicyProperties.PREFIX)
@@ -230,7 +232,7 @@ data class LeaderScheduledPolicyProperties(
 
 `waitTime`와 `leaseTime`이 `null`이면 `LeaderAopProperties.defaultWaitTime/defaultLeaseTime`을 사용한다. `LeaderProperties`에는 scheduling field를 추가하지 않는다.
 
-- [ ] **Step 2: 공통 method validation을 기존 annotation BPP와 property BPP가 공유하도록 분리한다.**
+- [x] **Step 2: 공통 method validation을 기존 annotation BPP와 property BPP가 공유하도록 분리한다.**
 
 `LeaderMethodValidationSupport`는 다음 입력을 받아 기존 메시지 의미와 strict/warn 정책을 유지한다.
 
@@ -249,7 +251,7 @@ internal fun validateSingle(
 
 공유 support는 final/private, `Future`/`CompletableFuture`/`Deferred`, Flux/Flow의 `autoExtend || streamBounded`, min-lease 관계, `SpelExpressionEvaluator.preParse`를 담당한다. `LeaderGroupElection`의 `maxLeaders` 검증은 기존 validator에 남긴다. 기존 annotation 테스트의 strict failure와 warning 기대가 그대로 통과해야 한다.
 
-- [ ] **Step 3: property model 테스트를 green으로 만든다.**
+- [x] **Step 3: property model 테스트를 green으로 만든다.**
 
 Run:
 
@@ -268,7 +270,7 @@ Expected: targeted tests `BUILD SUCCESSFUL`.
 - Reference: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduled.kt`
 - Reference: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/LeaderBeanSelector.kt`
 
-- [ ] **Step 1: test fixture를 plain `@Scheduled`, explicit annotation, overload로 분리한다.**
+- [x] **Step 1: test fixture를 plain `@Scheduled`, explicit annotation, overload로 분리한다.**
 
 ```kotlin
 private class ScheduledFixture {
@@ -286,15 +288,15 @@ private class ScheduledFixture {
 }
 ```
 
-- [ ] **Step 2: registry success, explicit precedence, and target identity lookup를 테스트한다.**
+- [x] **Step 2: registry success, explicit precedence, and target identity lookup를 테스트한다.**
 
 Assert that `orderJob#reconcile` returns one policy binding, `explicit` is marked as observed but not registered as a property policy, and the same method signature on a second target instance does not reuse a first target's binding. The lookup must be O(1) map access after `freeze()` and must not scan annotations on each call.
 
-- [ ] **Step 3: duplicate, missing, non-scheduled, overload, and invalid policy tests를 추가한다.**
+- [x] **Step 3: duplicate, missing, non-scheduled, overload, and invalid policy tests를 추가한다.**
 
 Each case must fail during `afterSingletonsInstantiated()` with an error containing the selector and property field. `enabled=true` with no policy must fail before the context is considered usable. A selector targeting an explicit leader annotation counts as an observed valid method and uses annotation precedence.
 
-- [ ] **Step 4: 현재 구현으로 실패를 확인한다.**
+- [x] **Step 4: 현재 구현으로 실패를 확인한다.**
 
 Run:
 
@@ -313,7 +315,7 @@ Expected: `FAIL` because registry and BPP do not exist.
 - Modify: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/validator/LeaderAnnotationValidatorBeanPostProcessor.kt`
 - Test: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyRegistryTest.kt`
 
-- [ ] **Step 1: registry의 mutable-build/immutable-read 경계를 구현한다.**
+- [x] **Step 1: registry의 mutable-build/immutable-read 경계를 구현한다.**
 
 ```kotlin
 class LeaderScheduledPolicyRegistry(
@@ -328,7 +330,7 @@ class LeaderScheduledPolicyRegistry(
 
 The registry parses `beanName#methodName` exactly once, rejects blank/extra separators, duplicate selectors, and ambiguous overloads, then freezes a target-identity plus method-signature map. `lookup` accepts the woven method and target instance so two bean instances of the same class cannot share a wrong policy. After `freeze`, registration mutates nothing.
 
-- [ ] **Step 2: BPP가 user bean의 merged scheduled method만 수집하도록 구현한다.**
+- [x] **Step 2: BPP가 user bean의 merged scheduled method만 수집하도록 구현한다.**
 
 Use `AopUtils.getTargetClass(bean)` and `MethodIntrospector.selectMethods`/merged annotation lookup. Skip `BeanPostProcessor`, `MethodInterceptor`, `@Aspect`, and `org.springframework.*` infrastructure. For each `@Scheduled` method:
 
@@ -341,11 +343,11 @@ Use `AopUtils.getTargetClass(bean)` and `MethodIntrospector.selectMethods`/merge
 
 The BPP implements `SmartInitializingSingleton` and performs the configured-versus-observed selector comparison in `afterSingletonsInstantiated()`. It is `PriorityOrdered` so scanning precedes Spring's scheduled task finalization; failed context shutdown cancels any framework-owned registrations. It never creates a `ScheduledTask`, `TaskScheduler`, executor, trigger, subscription, or Observation callback.
 
-- [ ] **Step 3: backend and SpEL validation을 기존 component로 연결한다.**
+- [x] **Step 3: backend and SpEL validation을 기존 component로 연결한다.**
 
 Use `LeaderBeanSelector.selectElectionFactory(policy.bean, method)` and the suspend selector for suspend/Mono/Flux/Flow methods. Resolve blank `waitTime`/`leaseTime` from `LeaderAopProperties`; require wait `>= 0`, lease `> 0`, and min-lease `<= lease`. Call `LeaderMethodValidationSupport` with the policy name expression. Error messages include `beanName#methodName` and the failing property name, never resolved lock names, backend addresses, or credential-like values.
 
-- [ ] **Step 4: registry tests를 green으로 만든다.**
+- [x] **Step 4: registry tests를 green으로 만든다.**
 
 Run:
 
@@ -364,7 +366,7 @@ Expected: exact selector success and every invalid selector/policy failure test 
 - Modify: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/metadata/LeaderConfigurationMetadataTest.kt`
 - Reference: `leader-spring-boot/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
 
-- [ ] **Step 1: ApplicationContextRunner 조건을 고정한다.**
+- [x] **Step 1: ApplicationContextRunner 조건을 고정한다.**
 
 Use `AutoConfigurations.of(LeaderAopFactoryAutoConfiguration::class.java, LeaderScheduledPolicyAutoConfiguration::class.java, LeaderAopAutoConfiguration::class.java)` and a user configuration with `@EnableScheduling`, one explicit `LeaderElectorFactory`, and one plain `@Scheduled` bean. Test:
 
@@ -383,11 +385,11 @@ runner.withPropertyValues(
 }
 ```
 
-- [ ] **Step 2: empty policy, missing selector, duplicate selector, non-scheduled selector, and backend errors의 context failure를 고정한다.**
+- [x] **Step 2: empty policy, missing selector, duplicate selector, non-scheduled selector, and backend errors의 context failure를 고정한다.**
 
 Use `ctx.startupFailure.shouldNotBeNull()` and assert the failure message contains the exact selector/property. The disabled path must keep the normal `@Scheduled` bean and must not create the registry/BPP.
 
-- [ ] **Step 3: imports order와 metadata assertions를 먼저 추가한다.**
+- [x] **Step 3: imports order와 metadata assertions를 먼저 추가한다.**
 
 Assert `LeaderAopFactoryAutoConfiguration` index `<` `LeaderScheduledPolicyAutoConfiguration` index `<` `LeaderAopAutoConfiguration` index. Assert metadata contains:
 
@@ -396,7 +398,7 @@ bluetape4k.leader.scheduling.enabled = false
 bluetape4k.leader.scheduling.policies
 ```
 
-- [ ] **Step 4: 현재 구현으로 실패를 확인한다.**
+- [x] **Step 4: 현재 구현으로 실패를 확인한다.**
 
 Run:
 
@@ -418,7 +420,7 @@ Expected: `FAIL` because the auto-configuration, import entry, and metadata do n
 - Test: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/scheduling/LeaderScheduledPolicyAutoConfigurationTest.kt`
 - Test: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/metadata/LeaderConfigurationMetadataTest.kt`
 
-- [ ] **Step 1: conditional auto-configuration을 등록한다.**
+- [x] **Step 1: conditional auto-configuration을 등록한다.**
 
 ```kotlin
 @AutoConfiguration(
@@ -457,11 +459,11 @@ class LeaderScheduledPolicyAutoConfiguration {
 
 The registry/BPP beans exist only when scheduling is explicitly enabled. Existing `LeaderAopAutoConfiguration` receives `ObjectProvider<LeaderScheduledPolicyRegistry>` and passes `getIfAvailable()` to the aspect. Add a secondary five-argument `LeaderElectionAspect` constructor delegating to a sixth optional registry slot so existing direct construction remains source/JVM-compatible.
 
-- [ ] **Step 2: imports와 metadata를 함께 변경한다.**
+- [x] **Step 2: imports와 metadata를 함께 변경한다.**
 
 Insert the new import after `LeaderAopFactoryAutoConfiguration` and before `LeaderAopAutoConfiguration`. Add the group and property entries for `enabled`, `policies`, and each nested policy field with default `false`/empty values or descriptions matching the spec. Do not edit the pinned release manual.
 
-- [ ] **Step 3: auto-configuration tests를 green으로 만든다.**
+- [x] **Step 3: auto-configuration tests를 green으로 만든다.**
 
 Run:
 
@@ -480,7 +482,7 @@ Expected: disabled/enabled conditions, startup failures, import order, and metad
 - Reference: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspectTest.kt`
 - Reference: `leader-spring-boot/src/main/kotlin/io/bluetape4k/leader/spring/aop/internal/AdviceMetadata.kt`
 
-- [ ] **Step 1: fake registry와 plain scheduled fixture를 만든다.**
+- [x] **Step 1: fake registry와 plain scheduled fixture를 만든다.**
 
 ```kotlin
 private class ScheduledTarget {
@@ -495,19 +497,19 @@ private class ScheduledTarget {
 
 Configure the fake registry to return a policy only for `propertyJob`, and configure `LeaderBeanSelector` mocks for sync and suspend factory selection.
 
-- [ ] **Step 2: bypass and explicit precedence를 검증한다.**
+- [x] **Step 2: bypass and explicit precedence를 검증한다.**
 
 For a plain `@Scheduled` method with no policy, `aspect.aroundLeader(pjp)` must return `pjp.proceed()` and verify zero `LeaderBeanSelector`, factory, backend, and recorder calls. For `explicitJob`, the annotation name/bean/options must win even when the registry returns a conflicting policy.
 
-- [ ] **Step 3: policy metadata와 failure semantics를 검증한다.**
+- [x] **Step 3: policy metadata와 failure semantics를 검증한다.**
 
 Verify `name`, defaulted wait/lease, min-lease, `autoExtend`, `streamBounded`, selected bean, and `failureMode` reach the existing sync path. A mocked `LeaderRunResult.Skipped` returns `null` without invoking the body; backend errors follow `SKIP`, `RETHROW`, and `FAIL_OPEN_RUN` exactly as annotation tests do.
 
-- [ ] **Step 4: all return branches and cancellation를 검증한다.**
+- [x] **Step 4: all return branches and cancellation를 검증한다.**
 
 Add direct join-point cases for suspend, `Mono`, `Flux`, and `Flow`. Assert stream policies with neither `autoExtend` nor `streamBounded` fail before body execution, while allowed streams preserve existing release/cancellation behavior. Cancelled suspend/reactive calls rethrow `CancellationException` and do not convert it to backend failure.
 
-- [ ] **Step 5: 현재 구현으로 실패를 확인한다.**
+- [x] **Step 5: 현재 구현으로 실패를 확인한다.**
 
 Run:
 
@@ -526,11 +528,11 @@ Expected: `FAIL` because the pointcut and registry fallback do not exist.
 - Test: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspectScheduledPolicyTest.kt`
 - Regression tests: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/aop/LeaderElectionAspectTest.kt`, `LeaderElectionAspectStreamTest.kt`, `LeaderElectionAspectSuspendMonoTest.kt`
 
-- [ ] **Step 1: pointcut과 optional registry를 연결한다.**
+- [x] **Step 1: pointcut과 optional registry를 연결한다.**
 
 Extend the existing execution pointcut with `@annotation(org.springframework.scheduling.annotation.Scheduled)`. Keep the existing explicit leader annotation expressions. Add `scheduledPolicyRegistry: LeaderScheduledPolicyRegistry?` to the primary constructor and retain the existing five-argument secondary constructor.
 
-- [ ] **Step 2: absent/present metadata sentinel을 도입한다.**
+- [x] **Step 2: absent/present metadata sentinel을 도입한다.**
 
 Use a non-null cache value so `ConcurrentHashMap` can represent bypass without storing `null`:
 
@@ -552,11 +554,11 @@ Resolve explicit `@LeaderElection` first; if absent, call `scheduledPolicyRegist
 
 The cache is an instance-owned, non-static field whose lifetime is bounded by the managed aspect bean. Clear it from the aspect bean's destruction callback so target references cannot outlive the application context; do not introduce a global cache or cross-context registry.
 
-- [ ] **Step 3: share metadata construction for annotation and property sources.**
+- [x] **Step 3: share metadata construction for annotation and property sources.**
 
 Refactor the current `resolveMetadata` body into a private builder accepting name, wait/lease/min-lease, auto-extension, stream-bounded, bean, and failure-mode. The annotation adapter supplies annotation values; the property adapter supplies policy values and AOP defaults. Keep `AdviceMetadata` and all existing execution branches unchanged after construction.
 
-- [ ] **Step 4: run all aspect regressions.**
+- [x] **Step 4: run all aspect regressions.**
 
 ```bash
 ./gradlew :bluetape4k-leader-spring-boot:test \
@@ -573,19 +575,19 @@ Expected: existing annotation sync/reactive/coroutine/failure-mode tests and new
 - Modify: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/metrics/LeaderObservationAutoConfigurationTest.kt`
 - Reference: Spring 7.0.8 `ScheduledAnnotationBeanPostProcessor` and `ScheduledTaskRegistrar` source jar.
 
-- [ ] **Step 1: task cardinality fixture를 만든다.**
+- [x] **Step 1: task cardinality fixture를 만든다.**
 
 Use `@EnableScheduling` and a `@Scheduled(fixedDelay = 50, initialDelay = 60_000)` method so registration occurs without a long-running test trigger. Use a second short-delay fixture with `@Scheduled(fixedDelay = 25, initialDelay = 0)` and a `CountDownLatch` only for the bounded Observation assertion. Collect all `ScheduledTaskHolder.getScheduledTasks()` values before and after enabling one matching policy.
 
-- [ ] **Step 2: duplicate registration과 context close를 검증한다.**
+- [x] **Step 2: duplicate registration과 context close를 검증한다.**
 
 Assert the enabled-policy task count equals the disabled-policy task count, the scheduled method has exactly one `ScheduledTask`, and closing the context cancels the framework-owned task. Assert no policy registry method creates a `ScheduledTaskRegistrar`, scheduler, executor, reactive subscription, or background thread.
 
-- [ ] **Step 3: Observation path의 단일 등록을 검증한다.**
+- [x] **Step 3: Observation path의 단일 등록을 검증한다.**
 
 Use a non-noop `ObservationRegistry` and a recording `ObservationHandler`. Let one short fixed-delay invocation complete under a bounded timeout, then assert one scheduler observation per invocation and no duplicate observation caused by the leader policy. Close the context in `finally` and remove the handler before the next test.
 
-- [ ] **Step 4: stability evidence를 실행한다.**
+- [x] **Step 4: stability evidence를 실행한다.**
 
 ```bash
 ./gradlew :bluetape4k-leader-spring-boot:test \
@@ -603,7 +605,7 @@ Expected: task cardinality is unchanged, Observation is single-registered, and c
 - Modify: `leader-spring-boot/src/main/resources/META-INF/spring/additional-spring-configuration-metadata.json`
 - Test: `leader-spring-boot/src/test/kotlin/io/bluetape4k/leader/spring/metadata/LeaderConfigurationMetadataTest.kt`
 
-- [ ] **Step 1: English README에 YAML-only policy section을 추가한다.**
+- [x] **Step 1: English README에 YAML-only policy section을 추가한다.**
 
 Place it next to the existing `@LeaderScheduled` example. Include the exact example:
 
@@ -626,11 +628,11 @@ bluetape4k:
 
 Explain explicit annotation > property policy > no metadata, exact selector only, explicit bean-name recommendation, default disabled, fail-fast startup errors, `SKIP` contention semantics, stream constraints, and `enabled=false` rollback. State that Spring still owns scheduling/task Observation and dynamic reload/wildcards are unsupported.
 
-- [ ] **Step 2: Korean README를 같은 정보 구조로 자연스럽게 현지화한다.**
+- [x] **Step 2: Korean README를 같은 정보 구조로 자연스럽게 현지화한다.**
 
 Keep all configuration keys, class names, commands, URLs, and enum tokens unchanged. Use Korean technical register for the explanation and retain the locale pair's existing section rhythm.
 
-- [ ] **Step 3: metadata and docs validation을 실행한다.**
+- [x] **Step 3: metadata and docs validation을 실행한다.**
 
 ```bash
 node /Users/debop/.codex/skills/bluetape-writer/scripts/audit-korean-terms.mjs \
@@ -646,15 +648,15 @@ Expected: terminology audit reports `findings=0`; no whitespace errors; metadata
 - Review all changed Kotlin files and tests.
 - Add regression assertions only to the targeted test files above.
 
-- [ ] **Step 1: hot-path invariants를 확인한다.**
+- [x] **Step 1: hot-path invariants를 확인한다.**
 
 Verify with MockK counters that disabled/mismatched scheduled methods do not call `LeaderBeanSelector`, factory creation, backend acquisition, SpEL parsing, or recorder callbacks. Verify matching methods perform registry lookup and metadata construction once per target/method cache key, while each tick performs only the existing leader path.
 
-- [ ] **Step 2: lifecycle and concurrency invariants를 확인한다.**
+- [x] **Step 2: lifecycle and concurrency invariants를 확인한다.**
 
 Run repeated context open/close tests to detect mutable registry reuse, double `freeze`, task leaks, or duplicate Observation handlers. Exercise two target instances with different selectors and concurrent first invocations; both must resolve their own immutable policy and no policy map may mutate after startup.
 
-- [ ] **Step 3: code simplification pass를 수행한다.**
+- [x] **Step 3: code simplification pass를 수행한다.**
 
 Delete duplicate validation code, reuse `DurationParser`, `LeaderBeanSelector`, `SpelExpressionEvaluator`, and existing aspect branches, and avoid new dependencies or a second scheduler abstraction. Do not alter behavior outside Issue #603.
 
@@ -664,7 +666,7 @@ Delete duplicate validation code, reuse `DurationParser`, `LeaderBeanSelector`, 
 - All changed files in the feature worktree.
 - Optional review artifact: `docs/review/2026-08-23-issue-603-plan-review.md` only if the integrated plan review needs durable PR evidence.
 
-- [ ] **Step 1: run targeted tests and module checks.**
+- [x] **Step 1: run targeted tests and module checks.**
 
 ```bash
 ./gradlew :bluetape4k-leader-spring-boot:test \
@@ -678,7 +680,7 @@ Delete duplicate validation code, reuse `DurationParser`, `LeaderBeanSelector`, 
 
 Expected: all commands exit 0; no skipped required policy test is treated as coverage.
 
-- [ ] **Step 2: run source and documentation diagnostics.**
+- [x] **Step 2: run source and documentation diagnostics.**
 
 ```bash
 git diff --check
@@ -689,11 +691,11 @@ git status --short
 
 Expected: no diff errors, terminology findings, or unrelated tracked changes. Runtime `.bluetape` state remains ignored.
 
-- [ ] **Step 3: run final six-lens implementation review before PR.**
+- [x] **Step 3: run final six-lens implementation review before PR.**
 
 Review performance hot path, startup lifecycle, selector/config trust boundary, operator rollback and Observation evidence, API/ABI compatibility, and caller documentation. The integrated review must report `P0=0` and `P1=0`; any blocker returns to the affected TDD task and reruns its proof.
 
-- [ ] **Step 4: stop at merge-ready boundary.**
+- [x] **Step 4: stop at merge-ready boundary.**
 
 Before PR creation, record changed files, commit SHA, test output, AOT/Detekt status, docs audit, and known gaps. PR creation and merge remain separate gates; after CI and exact-head verification, request fresh merge approval instead of enabling auto-merge.
 
