@@ -13,6 +13,7 @@ import io.bluetape4k.leader.spring.LeaderTestApplication
 import io.bluetape4k.leader.spring.backend.LocalLeaderConfiguration
 import io.bluetape4k.leader.spring.route.LeaderRouteAuthorityRuntime
 import io.bluetape4k.leader.spring.route.LeaderRouteGuardAutoConfiguration
+import io.bluetape4k.leader.spring.route.LeaderRouteRedirectPolicy
 import io.bluetape4k.leader.spring.route.StateLeaderRouteAuthority
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
@@ -37,7 +38,11 @@ import org.springframework.context.ApplicationContext
  */
 @SpringBootTest(
     classes = [LeaderTestApplication::class],
-    properties = ["bluetape4k.leader.route-guard.enabled=true"],
+    properties = [
+        "bluetape4k.leader.route-guard.enabled=true",
+        "bluetape4k.leader.route-guard.redirect.enabled=true",
+        "bluetape4k.leader.route-guard.redirect.allowed-hosts[0]=leader.example",
+    ],
     webEnvironment = SpringBootTest.WebEnvironment.NONE,
 )
 @ImportAutoConfiguration(
@@ -60,6 +65,9 @@ class LocalLeaderAotTest {
     @Autowired
     private lateinit var routeAuthorityRuntime: LeaderRouteAuthorityRuntime
 
+    @Autowired
+    private lateinit var redirectPolicy: LeaderRouteRedirectPolicy
+
     @Test
     fun `ApplicationContext loads with local backend in AOT mode`() {
         context.shouldNotBeNull()
@@ -78,6 +86,12 @@ class LocalLeaderAotTest {
     @Test
     fun `state route authority runtime is created in AOT mode`() {
         routeAuthorityRuntime.authority.shouldBeInstanceOf<StateLeaderRouteAuthority>()
+    }
+
+    @Test
+    fun `redirect policy bean is created in AOT mode`() {
+        redirectPolicy.shouldNotBeNull()
+        context.getBeansOfType(LeaderRouteRedirectPolicy::class.java).size shouldBeEqualTo 1
     }
 
     @Test

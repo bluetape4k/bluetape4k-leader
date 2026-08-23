@@ -5,11 +5,15 @@ import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.spring.properties.LeaderRouteGuardProperties
+import io.bluetape4k.leader.spring.properties.LeaderRouteRedirectProperties
 import io.bluetape4k.leader.spring.properties.LeaderRouteRejectionStatus
 import io.bluetape4k.leader.spring.route.LeaderRouteAuthority
 import io.bluetape4k.leader.spring.route.LeaderRouteAuthorityRuntime
 import io.bluetape4k.leader.spring.route.LeaderRouteDecision
 import io.bluetape4k.leader.spring.route.NullLeaderRouteAuthority
+import io.bluetape4k.leader.spring.route.LeaderRouteRedirectRequestMetadata
+import io.bluetape4k.leader.spring.route.LeaderRouteRedirectRequestMetadataProvider
+import io.bluetape4k.leader.spring.route.LeaderRouteRedirectResolver
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.reactor.mono
 import org.junit.jupiter.api.BeforeEach
@@ -94,6 +98,79 @@ class LeaderWebFluxRouteGuardTest {
         }
 
         invocations.get() shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `resolver-only relative target returns temporary redirect without chain subscription`() {
+        client(
+            LeaderRouteAuthority { LeaderRouteDecision.NotLeader },
+            redirect = LeaderRouteRedirectProperties(enabled = true),
+            resolver = LeaderRouteRedirectResolver { java.net.URI("/leader/orders") },
+        ).get()
+            .uri("/guarded")
+            .exchange()
+            .expectStatus().isTemporaryRedirect
+            .expectHeader().valueEquals("Location", "/leader/orders")
+
+        invocations.get() shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `resolver-only absolute target is rejected without location`() {
+        client(
+            LeaderRouteAuthority { LeaderRouteDecision.NotLeader },
+            redirect = LeaderRouteRedirectProperties(enabled = true, allowedHosts = listOf("leader.example")),
+            resolver = LeaderRouteRedirectResolver { java.net.URI("https://leader.example/orders") },
+        ).get()
+            .uri("/guarded")
+            .exchange()
+            .expectStatus().isEqualTo(503)
+            .expectHeader().doesNotExist("Location")
+            .expectBody().isEmpty
+    }
+
+    @Test
+    fun `trusted raw metadata permits exact absolute target`() {
+        val metadataProvider = LeaderRouteRedirectRequestMetadataProvider<org.springframework.web.server.ServerWebExchange> {
+            LeaderRouteRedirectRequestMetadata(true, "10.0.0.10")
+        }
+        client(
+            LeaderRouteAuthority { LeaderRouteDecision.NotLeader },
+            redirect = LeaderRouteRedirectProperties(
+                enabled = true,
+                allowedHosts = listOf("leader.example"),
+                trustedProxyAddresses = listOf("10.0.0.10"),
+            ),
+            resolver = LeaderRouteRedirectResolver { java.net.URI("https://leader.example/orders") },
+            metadataProvider = metadataProvider,
+        ).get()
+            .uri("/guarded")
+            .exchange()
+            .expectStatus().isTemporaryRedirect
+            .expectHeader().valueEquals("Location", "https://leader.example/orders")
+    }
+
+    @Test
+    fun `redirect disabled never calls resolver or metadata provider`() {
+        val resolverCalls = AtomicInteger()
+        val providerCalls = AtomicInteger()
+        client(
+            LeaderRouteAuthority { LeaderRouteDecision.NotLeader },
+            resolver = LeaderRouteRedirectResolver {
+                resolverCalls.incrementAndGet()
+                java.net.URI("/leader/orders")
+            },
+            metadataProvider = LeaderRouteRedirectRequestMetadataProvider {
+                providerCalls.incrementAndGet()
+                LeaderRouteRedirectRequestMetadata(false, null)
+            },
+        ).get()
+            .uri("/guarded")
+            .exchange()
+            .expectStatus().isEqualTo(503)
+
+        resolverCalls.get() shouldBeEqualTo 0
+        providerCalls.get() shouldBeEqualTo 0
     }
 
     @Test
@@ -242,6 +319,9 @@ class LeaderWebFluxRouteGuardTest {
     private fun client(
         authority: LeaderRouteAuthority,
         rejectionStatus: LeaderRouteRejectionStatus = LeaderRouteRejectionStatus.SERVICE_UNAVAILABLE,
+        redirect: LeaderRouteRedirectProperties = LeaderRouteRedirectProperties(),
+        resolver: LeaderRouteRedirectResolver? = null,
+        metadataProvider: LeaderRouteRedirectRequestMetadataProvider<org.springframework.web.server.ServerWebExchange>? = null,
     ): WebTestClient {
         val handler = WebHandler { exchange ->
             invocations.incrementAndGet()
@@ -249,19 +329,26 @@ class LeaderWebFluxRouteGuardTest {
             val bytes = "served".toByteArray(StandardCharsets.UTF_8)
             exchange.response.writeWith(Mono.just(exchange.response.bufferFactory().wrap(bytes)))
         }
+        val routeFilter = when {
+            resolver != null && metadataProvider != null -> factory(authority, rejectionStatus, redirect)
+                .filter(slot, resolver, metadataProvider)
+            resolver != null -> factory(authority, rejectionStatus, redirect).filter(slot, resolver)
+            else -> factory(authority, rejectionStatus, redirect).filter(slot)
+        }
         return WebTestClient.bindToWebHandler(handler)
-            .webFilter(factory(authority, rejectionStatus).filter(slot))
+            .webFilter(routeFilter)
             .build()
     }
 
     private fun factory(
         authority: LeaderRouteAuthority,
         rejectionStatus: LeaderRouteRejectionStatus = LeaderRouteRejectionStatus.SERVICE_UNAVAILABLE,
+        redirect: LeaderRouteRedirectProperties = LeaderRouteRedirectProperties(),
         evaluationScheduler: Scheduler = Schedulers.boundedElastic(),
     ): LeaderWebFluxRouteGuardFactory =
         LeaderWebFluxRouteGuardFactory(
             runtime = LeaderRouteAuthorityRuntime(authority),
-            properties = LeaderRouteGuardProperties(rejectionStatus = rejectionStatus),
+            properties = LeaderRouteGuardProperties(rejectionStatus = rejectionStatus, redirect = redirect),
             evaluationScheduler = evaluationScheduler,
         )
 }

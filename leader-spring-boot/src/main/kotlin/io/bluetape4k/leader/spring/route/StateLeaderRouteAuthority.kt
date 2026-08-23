@@ -2,6 +2,7 @@ package io.bluetape4k.leader.spring.route
 
 import io.bluetape4k.leader.LeaderElector
 import io.bluetape4k.leader.LeaderSlot
+import java.time.Clock
 import java.util.concurrent.CancellationException
 
 /**
@@ -24,19 +25,27 @@ class StateLeaderRouteAuthority(
     }
 
     override fun evaluate(slot: LeaderSlot): LeaderRouteDecision =
+        evaluateSnapshot(slot, Clock.systemUTC()).decision
+
+    internal fun evaluateSnapshot(slot: LeaderSlot, clock: Clock): LeaderRouteEvaluation =
         try {
             val state = elector.state(slot.lockName)
-            if (state.isOccupied && state.leader?.auditLeaderId == slot.leaderId) {
-                LeaderRouteDecision.Allowed
-            } else {
-                LeaderRouteDecision.NotLeader
-            }
+            val evaluatedAt = clock.instant()
+            LeaderRouteEvaluation(
+                decision = if (state.isOccupied && state.leader?.auditLeaderId == slot.leaderId) {
+                    LeaderRouteDecision.Allowed
+                } else {
+                    LeaderRouteDecision.NotLeader
+                },
+                leaderState = state,
+                evaluatedAt = evaluatedAt,
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
             throw e
         } catch (_: Exception) {
-            LeaderRouteDecision.Unavailable
+            LeaderRouteEvaluation(LeaderRouteDecision.Unavailable, null, clock.instant())
         }
 }

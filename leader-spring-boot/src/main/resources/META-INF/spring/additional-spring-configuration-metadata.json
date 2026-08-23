@@ -21,6 +21,11 @@
       "description": "Opt-in MVC and WebFlux passive leader route-guard options."
     },
     {
+      "name": "bluetape4k.leader.route-guard.redirect",
+      "type": "io.bluetape4k.leader.spring.properties.LeaderRouteRedirectProperties",
+      "description": "Opt-in application-owned redirect-to-leader policy."
+    },
+    {
       "name": "bluetape4k.leader.mongo",
       "type": "io.bluetape4k.leader.spring.MongoCollectionProperties",
       "description": "MongoDB leader election collection options."
@@ -245,6 +250,30 @@
       "type": "io.bluetape4k.leader.spring.properties.LeaderRouteRejectionStatus",
       "description": "Safe empty-body HTTP status returned when route authorization fails closed.",
       "defaultValue": "SERVICE_UNAVAILABLE"
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.redirect.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable application-owned redirect resolution for non-leader requests.",
+      "defaultValue": false
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.redirect.allowed-hosts",
+      "type": "java.util.List<java.lang.String>",
+      "description": "Exact lowercase HTTPS hosts allowed for absolute redirect targets.",
+      "defaultValue": []
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.redirect.trusted-proxy-addresses",
+      "type": "java.util.List<java.lang.String>",
+      "description": "Numeric transport peer addresses trusted to supply forwarded request metadata.",
+      "defaultValue": []
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.redirect.lease-safety-window",
+      "type": "java.time.Duration",
+      "description": "Additional lease time required before invoking the redirect resolver.",
+      "defaultValue": "PT0S"
     },
     {
       "name": "bluetape4k.leader.mongo.single-collection",
