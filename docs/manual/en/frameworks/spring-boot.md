@@ -29,6 +29,23 @@ Release 0.5.0 uses Freefair post-compile AspectJ weaving. Do not add `@EnableAsp
 
 Use valid SpEL such as `"'prefix-' + #param"`. Invalid expressions and impossible group settings fail validation. Auto-configuration orders elector creation, AOP factories, Micrometer, then aspects so instrumentation sees the same execution boundary.
 
+## Readiness and recent acquisition failures
+
+The opt-in `leaderElectionReadiness` contributor reads only the JVM-local lock-name registry. Configure the bounded observation window for backend acquisition failures with:
+
+```yaml
+bluetape4k:
+  leader:
+    observability:
+      health:
+        enabled: true
+        acquisition-failure-window: 5m
+```
+
+The default window is `5m`, with a fixed retention capacity of `1024` timestamps. Only AOP `BACKEND_ERROR` skips are counted; `CONTENTION` and `FAIL_OPEN_FORCED` are intentionally excluded. Readiness details expose `recentAcquisitionFailures`, `lastAcquisitionFailureAt`, `acquisitionFailureWindow`, `acquisitionFailureWindowCapacity`, and `acquisitionFailureWindowOverflowed`. An overflowed window makes the count a lower bound. Once all retained failures expire, `lastAcquisitionFailureAt` is `null`.
+
+This recorder is best-effort and aggregate-only. Recent failures do not change the contributor status (`UP`, `OUT_OF_SERVICE`, `DOWN`, or `UNKNOWN`), and the detail never retains lock names or exception messages. Protect Actuator endpoints and keep dynamic lock-name registration bounded because each registered name still causes one backend state read per health evaluation.
+
 ## Release sources
 
 - [`leader-spring-boot/README.md`](../../../../leader-spring-boot/README.md)

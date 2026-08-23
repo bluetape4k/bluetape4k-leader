@@ -106,7 +106,7 @@ Spring 설정 속성은 Spring Boot duration binding을 사용하므로 `5s`, `6
 
 Route guard는 opt-in read-only 기능입니다. 선택한 Spring MVC 또는 WebFlux route를 현재 애플리케이션이 처리해도 되는지 판단할 뿐, request path에서 lease를 획득·연장·해제하지 않습니다. `bluetape4k.leader.route-guard.enabled=true`를 명시하지 않으면 어떤 guard bean도 활성화되지 않습니다.
 
-기본 `STATE` authority는 `LeaderElector.state(slot.lockName)`을 한 번 조회하고, 점유 중인 snapshot의 audit leader ID가 `slot.leaderId`와 같을 때만 request를 허용합니다. Leader ID는 실행 중인 프로세스 incarnation마다 한 번 생성하고, 해당 프로세스의 선출과 route guard에서 동일한 `LeaderSlot`을 재사용하세요. 재시작을 거쳐 고정 node ID를 재사용하면 새 프로세스가 이전 프로세스의 stale lease와 일치할 수 있습니다.
+기본 `STATE` authority는 `LeaderElector.state(slot.lockName)`을 한 번 조회하고, 점유 중인 기준 상태의 audit leader ID가 `slot.leaderId`와 같을 때만 request를 허용합니다. Leader ID는 실행 중인 프로세스 incarnation마다 한 번 생성하고, 해당 프로세스의 선출과 route guard에서 동일한 `LeaderSlot`을 재사용하세요. 재시작을 거쳐 고정 node ID를 재사용하면 새 프로세스가 이전 프로세스의 stale lease와 일치할 수 있습니다.
 
 ```kotlin
 @Bean
@@ -146,7 +146,7 @@ class OrdersMvcRoutes(
 }
 ```
 
-선택한 elector가 `supportsAuditLeaderState=true`를 선언해야 `STATE` mode가 시작됩니다. Built-in Local, Consul, DynamoDB, Kubernetes Lease elector는 audit identity snapshot을 지원하며 listening, tenant-scoped, Micrometer decorator도 이 capability를 보존합니다. Lettuce와 Redisson처럼 빈 `state()` fallback을 상속하는 elector는 `LEADER_ROUTE_ELECTOR_STATE_UNSUPPORTED`로 startup이 실패합니다. 그런 backend에서는 애플리케이션이 신뢰할 수 있는 다른 ownership source를 제공하는 명시적 `CUSTOM` mode를 사용하세요.
+선택한 elector가 `supportsAuditLeaderState=true`를 선언해야 `STATE` mode가 시작됩니다. Built-in Local, Consul, DynamoDB, Kubernetes Lease elector는 audit identity 기준 데이터를 지원하며 listening, tenant-scoped, Micrometer decorator도 이 capability를 보존합니다. Lettuce와 Redisson처럼 빈 `state()` fallback을 상속하는 elector는 `LEADER_ROUTE_ELECTOR_STATE_UNSUPPORTED`로 startup이 실패합니다. 그런 backend에서는 애플리케이션이 신뢰할 수 있는 다른 ownership source를 제공하는 명시적 `CUSTOM` mode를 사용하세요.
 
 WebFlux에서는 애플리케이션의 route/path 선택 안에서만 생성된 filter를 적용합니다. `WebFilter` bean은 전역으로 동작하므로 일부 route만 보호하려면 반환된 filter를 제한 없이 bean으로 등록하면 안 됩니다.
 
@@ -195,7 +195,7 @@ fun controlPlaneAuthority(controlPlane: ControlPlane): LeaderRouteAuthority =
 
 Custom authority는 실행 시간이 제한적이고 side effect가 없어야 하며 lease를 획득·연장·해제해서는 안 됩니다. 일반 authority/state 오류는 fail-closed로 처리합니다. 허용하는 rejection status는 `NOT_FOUND`(404), `CONFLICT`(409), `LOCKED`(423), `SERVICE_UNAVAILABLE`(503, 기본값)입니다. 거부 응답의 body는 비어 있으며 leader identity, lock name, backend 오류, host, `Location` header를 노출하지 않습니다.
 
-Built-in state 판단은 best-effort snapshot이며 HTTP request 전체에서 leadership이 유지된다는 원자적 보장이 아닙니다. 짧은 stale-state window를 허용할 수 있는 route에만 사용하세요. 작업 자체를 lease로 보호해야 한다면 `@LeaderElection` 또는 명시적인 lease-owned 실행 경로를 사용해야 합니다.
+Built-in state 판단은 best-effort 기준 상태이며 HTTP request 전체에서 leadership이 유지된다는 원자적 보장이 아닙니다. 짧은 stale-state window를 허용할 수 있는 route에만 사용하세요. 작업 자체를 lease로 보호해야 한다면 `@LeaderElection` 또는 명시적인 lease-owned 실행 경로를 사용해야 합니다.
 
 ## Leader Readiness (0.5.0)
 
@@ -221,6 +221,22 @@ management:
 상태 조회가 모두 성공하고 만료 임박 lease가 없으면 `UP`, 점유 중인 lease가 threshold 안에 만료되면 `OUT_OF_SERVICE`, 알려진 lock 상태 조회가 실패하면 `DOWN`입니다. 만료 시각을 알 수 없는 lease는 detail에 표시하지만 애플리케이션을 unready로 만들지는 않습니다. 이 결과는 JVM-local best-effort 진단 정보이며 소유권 판단에 사용하면 안 됩니다.
 
 health 평가마다 JVM-local registry의 lock 이름별로 backend 상태를 한 번씩 조회하므로 비용은 등록된 lock 수와 backend 지연 시간에 비례합니다. 작고 고정된 lock 집합에서만 활성화하고, 동적 이름이 무제한으로 늘어나는 애플리케이션에서는 비활성 상태를 유지하세요. health detail에는 원본 lock 이름이 포함될 수 있으므로 Actuator 접근을 보호하고 공개 정책에 맞게 `management.endpoint.health.show-details`를 설정해야 합니다.
+
+### 최근 획득 실패 관찰
+
+readiness contributor는 최근 AOP 획득 실패의 best-effort aggregate도 제공합니다. 관찰 window는 양의 유한 duration이어야 하며 기본값은 `5m`입니다. window에는 timestamp를 최대 `1024`개까지 보관합니다.
+
+```yaml
+bluetape4k:
+  leader:
+    observability:
+      health:
+        acquisition-failure-window: 5m
+```
+
+`LeaderAopMetricsRecorder.onLockNotAcquired(..., SkipReason.BACKEND_ERROR)`만 이 aggregate에 기록됩니다. 정상적인 `CONTENTION` skip과 `FAIL_OPEN_FORCED` skip은 제외합니다. `recentAcquisitionFailures`는 현재 window에 남아 있는 횟수이며, 고정 capacity를 넘으면 `acquisitionFailureWindowOverflowed=true`가 되어 count가 하한값임을 나타냅니다. window가 지나면 `lastAcquisitionFailureAt`은 `null`이 됩니다. detail에는 lock name이나 exception message를 보관하지 않습니다.
+
+최근 실패만으로 readiness는 `UP`, `OUT_OF_SERVICE`, `DOWN`, `UNKNOWN` 사이에서 바뀌지 않습니다. 이 window는 readiness 판단이 아니라 관찰을 위한 보조 신호입니다. Actuator endpoint를 보호하고, readiness contributor가 등록된 이름마다 backend를 한 번씩 조회한다는 점을 고려해 동적 lock-name registry도 작고 bounded하게 유지하세요.
 
 ## Startup Diagnostics
 
@@ -258,6 +274,7 @@ Metrics와 Observation은 별도 스위치를 가집니다.
 | `bluetape4k.leader.aop.metrics.tags.leader-id.mode` | `REDACT` | opt-in Observation `leader.id` 값 export 정책 |
 | `bluetape4k.leader.aop.metrics.tags.backend-name.mode` | `RAW` | custom 또는 future meter path가 `backend.name`을 emit할 때 cardinality가 제한된 backend label export 정책; 현재 built-in meter는 emit하지 않음 |
 | `bluetape4k.leader.observability.enabled` | `true` | leader observability와 tracing의 parent switch |
+| `bluetape4k.leader.observability.health.acquisition-failure-window` | `5m` | AOP backend 획득 실패 aggregate의 bounded window |
 | `bluetape4k.leader.observability.tracing.enabled` | `true` | Observation recorder/listener |
 | `bluetape4k.leader.observability.tracing.include-lock-name` | `false` | tag 정책을 거친 opt-in `lock.name` high-cardinality Observation data |
 | `bluetape4k.leader.observability.tracing.include-leader-id` | `false` | identified context가 있을 때 tag 정책을 거친 opt-in `leader.id` high-cardinality Observation data |
@@ -454,13 +471,14 @@ Java caller 는 `@JvmStatic` overload — `kotlin.time.Duration` 과 `java.time.
 2. `LeaderAopFactoryAutoConfiguration`: backend factory 등록
 3. `LeaderMicrometerAutoConfiguration`: `MeterRegistry`가 있으면 `MicrometerLeaderAopMetricsRecorder` 등록
 4. `LeaderObservationAutoConfiguration`: `ObservationRegistry`가 있으면 Observation recorder/listener 등록
-5. `LeaderAopAutoConfiguration`: Aspect, SpEL evaluator, lock-name validator, annotation validator 등록
-6. `LeaderMicrometerHealthAutoConfiguration`: Actuator가 있으면 health indicator 등록
-7. `LeaderElectionObservabilityAutoConfiguration`: lock-name 상태 registry와 fallback event-publisher adapter 등록
-8. `LeaderElectionActuatorAutoConfiguration`: opt-in `/actuator/leaderElection` endpoint 등록
-9. `LeaderBackendDiagnosticsActuatorAutoConfiguration`: opt-in 정적 `/actuator/leaderBackendDiagnostics` endpoint 등록
-10. `LeaderBackendHealthAutoConfiguration`: opt-in backend 연결 상태 health indicator 등록
-11. `LeaderStartupDiagnosticsAutoConfiguration`: runtime surface가 준비된 뒤 backend, management, cardinality diagnostics 기록
+5. `LeaderAcquisitionFailureWindowAutoConfiguration`: AOP 실행 전에 bounded backend-failure recorder 등록
+6. `LeaderAopAutoConfiguration`: Aspect, SpEL evaluator, lock-name validator, annotation validator 등록
+7. `LeaderMicrometerHealthAutoConfiguration`: Actuator가 있으면 health indicator 등록
+8. `LeaderElectionObservabilityAutoConfiguration`: lock-name 상태 registry와 fallback event-publisher adapter 등록
+9. `LeaderElectionActuatorAutoConfiguration`: opt-in `/actuator/leaderElection` endpoint 등록
+10. `LeaderBackendDiagnosticsActuatorAutoConfiguration`: opt-in 정적 `/actuator/leaderBackendDiagnostics` endpoint 등록
+11. `LeaderBackendHealthAutoConfiguration`: opt-in backend 연결 상태 health indicator 등록
+12. `LeaderStartupDiagnosticsAutoConfiguration`: runtime surface가 준비된 뒤 backend, management, cardinality diagnostics 기록
 
 ## Leader Election Actuator Endpoint
 
@@ -497,11 +515,20 @@ GET /actuator/leaderElection
       "leaderId": "node-1",
       "leaseExpiry": "2026-05-16T00:00:00Z"
     }
-  ]
+  ],
+  "acquisitionFailures": {
+    "count": 0,
+    "lastFailureAt": null,
+    "window": "PT5M",
+    "capacity": 1024,
+    "overflowed": false
+  }
 }
 ```
 
 `lock-names`는 첫 runtime event 전에 JVM-local status registry를 seed합니다. Listener-aware elector는 lifecycle event를 관찰하면서 lock 이름을 추가할 수도 있습니다. Fallback `LeaderElectionEventPublisher`는 publisher-only adapter라 `LeaderElector` 후보가 되지 않으므로 기존 elector 주입 경로가 유지됩니다.
+
+`acquisitionFailures`는 readiness와 동일한 bounded aggregate입니다. timestamp와 count만 포함하므로 lock name이나 backend exception message를 노출하지 않습니다. read-only endpoint이지만 운영 실패량을 보여 줄 수 있으므로 신뢰할 수 있는 Actuator client에만 노출하세요.
 
 ## Backend 진단과 연결 상태 Health
 
