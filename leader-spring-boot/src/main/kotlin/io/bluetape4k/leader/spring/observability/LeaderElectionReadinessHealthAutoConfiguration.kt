@@ -32,10 +32,11 @@ class LeaderElectionReadinessHealthAutoConfiguration {
     @Bean("leaderElectionReadiness")
     @ConditionalOnMissingBean(name = ["leaderElectionReadiness"])
     @Role(BeanDefinition.ROLE_APPLICATION)
-    fun leaderElectionReadiness(
+    internal fun leaderElectionReadiness(
         beanFactory: ConfigurableListableBeanFactory,
         registry: LeaderElectionStatusRegistry,
         properties: LeaderProperties,
+        acquisitionFailureWindow: LeaderAcquisitionFailureWindow,
     ): HealthIndicator {
         val selected = LeaderElectionStateSelector(
             beanFactory,
@@ -47,6 +48,7 @@ class LeaderElectionReadinessHealthAutoConfiguration {
             state = selected.state,
             registry = registry,
             leaseWarningThreshold = properties.observability.health.leaseWarningThreshold,
+            acquisitionFailureWindow = acquisitionFailureWindow,
         )
     }
 }

@@ -51,6 +51,11 @@ internal class LeaderAcquisitionFailureWindow(
     private val capacity: Int = LeaderAcquisitionFailureView.DefaultCapacity,
 ) : LeaderAopMetricsRecorder {
 
+    internal companion object {
+        val DefaultWindow: Duration = LeaderAcquisitionFailureView.DefaultWindow
+        const val DefaultCapacity: Int = LeaderAcquisitionFailureView.DefaultCapacity
+    }
+
     private val monitor = Any()
     private val failures = ArrayDeque<Instant>(capacity)
     private var overflowed = false
