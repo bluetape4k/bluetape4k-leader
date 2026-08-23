@@ -184,7 +184,7 @@ data class LeaderBackendHealthProperties(
 data class LeaderObservabilityHealthProperties(
     val enabled: Boolean = false,
     val leaseWarningThreshold: Duration = Duration.ofSeconds(10),
-    val acquisitionFailureWindow: Duration = Duration.ofMinutes(5),
+    val acquisitionFailureWindow: Duration = Duration.ofMinutes(DefaultAcquisitionFailureWindowMinutes),
 ) : Serializable {
     /** acquisition failure window 추가 전에 공개된 두 인자 생성자 바이너리 호환성을 유지합니다. */
     constructor(
@@ -193,7 +193,7 @@ data class LeaderObservabilityHealthProperties(
     ) : this(
         enabled = enabled,
         leaseWarningThreshold = leaseWarningThreshold,
-        acquisitionFailureWindow = Duration.ofMinutes(5),
+        acquisitionFailureWindow = Duration.ofMinutes(DefaultAcquisitionFailureWindowMinutes),
     )
 
     /** acquisition failure window 추가 전에 공개된 두 인자 data class `copy` 진입점 호환성을 유지합니다. */
@@ -207,6 +207,8 @@ data class LeaderObservabilityHealthProperties(
     )
 
     companion object {
+        private const val DefaultAcquisitionFailureWindowMinutes = 5L
+
         /** Kotlin이 공개한 두 인자 `copy$default` descriptor의 바이너리 호환성을 유지합니다. */
         @JvmStatic
         @Suppress("UNUSED_PARAMETER", "FunctionNaming")
@@ -218,7 +220,11 @@ data class LeaderObservabilityHealthProperties(
             marker: Any?,
         ): LeaderObservabilityHealthProperties = self.copy(
             enabled = if (mask and 0x001 != 0) self.enabled else enabled,
-            leaseWarningThreshold = if (mask and 0x002 != 0) self.leaseWarningThreshold else requireNotNull(leaseWarningThreshold),
+            leaseWarningThreshold = if (mask and 0x002 != 0) {
+                self.leaseWarningThreshold
+            } else {
+                requireNotNull(leaseWarningThreshold)
+            },
             acquisitionFailureWindow = self.acquisitionFailureWindow,
         )
 
