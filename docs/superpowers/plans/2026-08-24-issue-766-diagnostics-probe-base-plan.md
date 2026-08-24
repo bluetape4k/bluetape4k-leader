@@ -636,6 +636,7 @@ Run:
 
 ```bash
 CONSUMER_DIR=build/issue-766-kotlin-consumer
+rm -rf "$CONSUMER_DIR"
 trap 'rm -rf "$CONSUMER_DIR"' EXIT
 mkdir -p "$CONSUMER_DIR/classes"
 kotlinc -classpath leader-core/build/libs/bluetape4k-leader-core-1.0.0.jar -d "$CONSUMER_DIR/classes" "$CONSUMER_DIR/ProbeConsumer.kt"
@@ -658,8 +659,9 @@ printf '%s\n' "$JAVAP_OUTPUT" | rg -q '^  public static final .* INSTANCE;$'
 printf '%s\n' "$JAVAP_OUTPUT" | rg -q '^  public final .* check-[^ (]+\(long, java.time.Clock, kotlin.jvm.functions.Function1'
 ```
 
-The trap removes only this generated directory even when compilation or symbol
-verification fails, after the evidence file has been captured.
+The bounded pre-clean and trap target only this generated directory, so a prior
+failed run cannot supply stale source or classes and a later failure still
+cleans the fixture after the evidence file has been captured.
 
 - [ ] **Step 4: Verify diff and source scope.**
 
