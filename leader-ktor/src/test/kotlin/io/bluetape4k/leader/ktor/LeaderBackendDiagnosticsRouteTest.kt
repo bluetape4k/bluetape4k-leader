@@ -7,8 +7,11 @@ import io.bluetape4k.ktor.testing.shouldHaveStatus
 import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
+import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDescriptor
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnostics
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProbe
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
 import io.ktor.client.request.get
@@ -17,7 +20,9 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.install
 import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.time.Instant
+import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -82,6 +87,126 @@ class LeaderBackendDiagnosticsRouteTest {
             response.bodyAsText() shouldBeEqualTo LocalConnectivityJson
             elector.probeCalls.get() shouldBeEqualTo 1
             elector.lastTimeout shouldBeEqualTo 275.milliseconds
+        }
+    }
+
+    @Test
+    fun `기본 probe의 일반 Exception은 HTTP 200 UNKNOWN으로 정규화한다`() = runSuspendIO {
+        testApplication {
+            application {
+                install(LeaderElectionPlugin) {
+                    leaderElection = ProbeBackedDiagnosticsElector {
+                        throw IllegalStateException("backend endpoint and credential must not escape")
+                    }
+                    backendDiagnosticsRouteEnabled = true
+                    backendConnectivityCheckEnabled = true
+                }
+            }
+            startApplication()
+
+            val response = client.get(LeaderElectionPluginConfig.DefaultBackendDiagnosticsRoutePath)
+
+            response shouldHaveStatus HttpStatusCode.OK
+            response.bodyAsText().contains("\"status\":\"UNKNOWN\"") shouldBeEqualTo true
+        }
+    }
+
+    @Test
+    fun `기본 probe의 cancellation은 caller-owned HTTP 500으로 남긴다`() = runSuspendIO {
+        val cancellation = CancellationException("probe cancelled")
+
+        testApplication {
+            application {
+                install(LeaderElectionPlugin) {
+                    leaderElection = ProbeBackedDiagnosticsElector { throw cancellation }
+                    backendDiagnosticsRouteEnabled = true
+                    backendConnectivityCheckEnabled = true
+                }
+            }
+
+            startApplication()
+            val response = client.get(LeaderElectionPluginConfig.DefaultBackendDiagnosticsRoutePath)
+
+            response shouldHaveStatus HttpStatusCode.InternalServerError
+        }
+    }
+
+    @Test
+    fun `기본 probe의 치명적 Error는 caller-owned HTTP 500으로 남긴다`() = runSuspendIO {
+        val fatal = AssertionError("fatal backend probe")
+
+        testApplication {
+            application {
+                install(LeaderElectionPlugin) {
+                    leaderElection = ProbeBackedDiagnosticsElector { throw fatal }
+                    backendDiagnosticsRouteEnabled = true
+                    backendConnectivityCheckEnabled = true
+                }
+            }
+
+            startApplication()
+            val response = client.get(LeaderElectionPluginConfig.DefaultBackendDiagnosticsRoutePath)
+
+            response shouldHaveStatus HttpStatusCode.InternalServerError
+        }
+    }
+
+    @Test
+    fun `기본 probe의 NOT_CHECKED callback은 caller-owned HTTP 500으로 validation 실패한다`() = runSuspendIO {
+        testApplication {
+            application {
+                install(LeaderElectionPlugin) {
+                    leaderElection = ProbeBackedDiagnosticsElector {
+                        LeaderBackendConnectivityStatus.NOT_CHECKED
+                    }
+                    backendDiagnosticsRouteEnabled = true
+                    backendConnectivityCheckEnabled = true
+                }
+            }
+
+            startApplication()
+            val response = client.get(LeaderElectionPluginConfig.DefaultBackendDiagnosticsRoutePath)
+
+            response shouldHaveStatus HttpStatusCode.InternalServerError
+        }
+    }
+
+    @Test
+    fun `사용자 정의 checkConnectivity 예외는 Ktor caller-owned HTTP 500으로 남긴다`() = runSuspendIO {
+        val failure = IllegalStateException("custom provider failure")
+
+        testApplication {
+            application {
+                install(LeaderElectionPlugin) {
+                    leaderElection = ThrowingDiagnosticsElector(failure)
+                    backendDiagnosticsRouteEnabled = true
+                    backendConnectivityCheckEnabled = true
+                }
+            }
+
+            startApplication()
+            val response = client.get(LeaderElectionPluginConfig.DefaultBackendDiagnosticsRoutePath)
+
+            response shouldHaveStatus HttpStatusCode.InternalServerError
+        }
+    }
+
+    @Test
+    fun `사용자 정의 diagnostics가 반환한 NOT_CHECKED는 JSON으로 보존한다`() = runSuspendIO {
+        testApplication {
+            application {
+                install(LeaderElectionPlugin) {
+                    leaderElection = NotCheckedDiagnosticsElector()
+                    backendDiagnosticsRouteEnabled = true
+                    backendConnectivityCheckEnabled = true
+                }
+            }
+            startApplication()
+
+            val response = client.get(LeaderElectionPluginConfig.DefaultBackendDiagnosticsRoutePath)
+
+            response shouldHaveStatus HttpStatusCode.OK
+            response.bodyAsText().contains("\"status\":\"NOT_CHECKED\"") shouldBeEqualTo true
         }
     }
 
@@ -155,6 +280,38 @@ class LeaderBackendDiagnosticsRouteTest {
             lastTimeout = timeout
             return LeaderBackendConnectivity.up(CheckedAt, latencyMillis = 7L)
         }
+    }
+
+    private class ProbeBackedDiagnosticsElector(
+        private val probe: (Duration) -> LeaderBackendConnectivityStatus,
+    ) : SuspendLeaderElector by LocalSuspendLeaderElector(), LeaderBackendDiagnosticsProvider {
+
+        override val backendDescriptor: LeaderBackendDescriptor = LocalLeaderBackendDiagnostics.backendDescriptor
+
+        override fun checkConnectivity(timeout: Duration): LeaderBackendConnectivity =
+            LeaderBackendDiagnosticsProbe.check(
+                timeout = timeout,
+                clock = Clock.fixed(CheckedAt, java.time.ZoneOffset.UTC),
+                probe = probe,
+            )
+    }
+
+    private class ThrowingDiagnosticsElector(
+        private val failure: Throwable,
+    ) : SuspendLeaderElector by LocalSuspendLeaderElector(), LeaderBackendDiagnosticsProvider {
+
+        override val backendDescriptor: LeaderBackendDescriptor = LocalLeaderBackendDiagnostics.backendDescriptor
+
+        override fun checkConnectivity(timeout: Duration): LeaderBackendConnectivity = throw failure
+    }
+
+    private class NotCheckedDiagnosticsElector :
+        SuspendLeaderElector by LocalSuspendLeaderElector(), LeaderBackendDiagnosticsProvider {
+
+        override val backendDescriptor: LeaderBackendDescriptor = LocalLeaderBackendDiagnostics.backendDescriptor
+
+        override fun diagnostics(probe: Boolean, timeout: Duration): LeaderBackendDiagnostics =
+            LeaderBackendDiagnostics(backendDescriptor, LeaderBackendConnectivity.notChecked())
     }
 
     private class DiagnosticsAwareElector(
