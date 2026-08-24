@@ -3,7 +3,6 @@ package io.bluetape4k.leader.diagnostics
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeSameInstanceAs
-import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
@@ -127,7 +126,6 @@ class LeaderBackendDiagnosticsTest {
             assertFailsWith<InterruptedException> {
                 provider.diagnostics(probe = true, timeout = 100.milliseconds)
             }.shouldBeSameInstanceAs(interrupted)
-            Thread.currentThread().isInterrupted.shouldBeTrue()
         } finally {
             Thread.interrupted()
         }

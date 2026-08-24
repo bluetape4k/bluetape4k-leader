@@ -1,8 +1,8 @@
 package io.bluetape4k.leader.diagnostics
 
+import io.bluetape4k.support.requireGt
 import io.bluetape4k.support.requireNotBlank
 import java.io.Serializable
-import java.time.Clock
 import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -211,13 +211,14 @@ interface LeaderBackendDiagnosticsProvider {
     val backendDescriptor: LeaderBackendDescriptor
 
     /**
-     * 주어진 [timeout] 안에서 연결 상태를 확인합니다.
+     * provider-native budget으로 전달된 [timeout]을 사용해 bounded 연결 상태를 확인합니다.
      *
      * 안전한 bounded 검사를 제공하지 않는 구현은 `UNKNOWN`을 반환합니다.
      */
     fun checkConnectivity(timeout: Duration): LeaderBackendConnectivity {
-        timeout.requirePositiveFiniteProbeTimeout()
-        return LeaderBackendConnectivity.unknown(Clock.systemUTC().instant())
+        return LeaderBackendDiagnosticsProbe.check(timeout) {
+            LeaderBackendConnectivityStatus.UNKNOWN
+        }
     }
 
     /**
@@ -261,8 +262,8 @@ internal fun Any.resolveLeaderBackendDiagnosticsProvider(): LeaderBackendDiagnos
         else -> null
     }
 
-internal fun Duration.requirePositiveFiniteProbeTimeout() {
-    require(isFinite() && this > Duration.ZERO) {
-        "probe timeout must be positive and finite: $this"
-    }
+internal fun Duration.requirePositiveFiniteProbeTimeout(): Duration {
+    val validTimeout = requireGt(Duration.ZERO, "probe timeout")
+    require(validTimeout.isFinite()) { "probe timeout must be finite: $validTimeout" }
+    return validTimeout
 }
