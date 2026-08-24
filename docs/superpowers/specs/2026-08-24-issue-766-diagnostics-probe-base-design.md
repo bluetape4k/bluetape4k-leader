@@ -143,8 +143,8 @@ timeout은 callback 전에 거부된다. 다만 기존 override가 helper를 우
 | `leader-hazelcast` | 수동 `try/catch`와 검증을 helper로 이동하고 lifecycle 상태 의미 유지 |
 | `leader-zookeeper` | 수동 `try/catch`와 검증을 helper로 이동하고 Curator 연결 상태 의미 유지 |
 | 기타 정적 provider | 현재처럼 기본 `UNKNOWN` 경로를 상속하므로 source 변경 없음 |
-| `README.md`, `README.ko.md` 및 새 helper KDoc | bounded passive probe, `Exception`/`Error`, cancellation/interruption, `NOT_CHECKED` 경계를 문서화 |
-| `leader-spring-boot`, `leader-ktor`, `leader-micrometer` | endpoint, route, metric payload와 opt-in 정책은 변경하지 않음 |
+| `README.md`, `README.ko.md`, `leader-ktor/README*`, `leader-spring-boot/README*` 및 새 helper KDoc | bounded passive probe, `Exception`/`Error`, cancellation/interruption, `NOT_CHECKED`, adapter 경계를 문서화 |
+| `leader-spring-boot`, `leader-ktor`, `leader-micrometer` | endpoint·route·metric JSON shape와 opt-in 정책은 유지하되, 내장 provider migration으로 달라지는 예외·HTTP·health 경계를 검증하고 문서화 |
 
 provider별 상태 의미는 바꾸지 않는다.
 
@@ -160,6 +160,34 @@ provider별 상태 의미는 바꾸지 않는다.
 `InterruptedException`은 각각 재전파하며 `InterruptedException`의 flag를
 복원한다. `Error`는 기존 인스턴스로 재전파한다. helper를 우회하는 기존
 사용자 override의 예외 정책은 변경하지 않는다.
+
+### Adapter 경계와 custom override 호환성
+
+`checkConnectivity()`를 직접 override한 legacy custom provider는 helper를
+호출하지 않아도 된다. `diagnostics()`를 override한 provider도 금지하지 않으며,
+그 경우 이 이슈의 내장 helper contract가 결과를 재작성하지 않는다. 따라서
+custom provider의 반환값·예외 정책을 adapter가 소비하는 경계를 다음처럼
+명시한다.
+
+| 호출 표면 | 내장 helper provider | legacy custom provider |
+|---|---|---|
+| 직접 `diagnostics(probe = true)` | 일반 `Exception`은 `UNKNOWN`, cancellation/interruption/Error는 재전파, `NOT_CHECKED`는 `IllegalArgumentException` | provider가 반환·전파한 값과 예외를 그대로 노출 |
+| Ktor diagnostics route | 일반 `Exception`이 helper에서 정규화되면 HTTP 200 JSON의 `UNKNOWN`; cancellation/interruption/Error는 route의 application pipeline으로 재전파 | 일반 `Exception`·cancellation/interruption/Error는 route가 변환하지 않고 application pipeline 정책을 따름; 반환 `NOT_CHECKED`는 JSON에 그대로 표시 |
+| Spring health indicator | 일반 `Exception`이 helper에서 정규화되면 `UNKNOWN` detail을 반환하고 warning은 남기지 않음; helper가 재전파한 cancellation/interruption은 `UNKNOWN` + warning(중단 시 flag 복원), helper가 거부한 `NOT_CHECKED`는 `UNKNOWN` + warning, Error는 재전파 | indicator의 기존 catch 경계가 일반 `Exception`/cancellation/interruption을 `UNKNOWN` + warning으로 만들고(중단 시 flag 복원), Error는 재전파; 반환 `NOT_CHECKED`는 `UNKNOWN` detail이며 warning은 없음 |
+
+Ktor의 일반 예외 HTTP status는 library가 고정하지 않고 애플리케이션의
+`StatusPages`/pipeline 정책을 따른다. 위 표의 내장 provider `HTTP 200 + UNKNOWN`
+변화와 Spring의 detail·warning 변화는 provider migration의 의도된 계약이며,
+payload field shape는 유지한다. 직접 호출·Ktor·Spring에 대해 built-in/custom과
+일반 예외·cancellation·interruption·Error·`NOT_CHECKED` 조합을 회귀 테스트로
+고정한다. 이 표는 `diagnostics()` override를 새로 금지하지 않고 기존 source
+호환성을 보존하면서 호출자가 adapter별 결과를 추측하지 않도록 하는 경계다.
+
+Spring의 `UNKNOWN + warning`은 provider 호출이 예외로 끝난 경우에만 적용하고,
+helper가 반환한 `UNKNOWN` 또는 custom provider가 반환한 `NOT_CHECKED`에는
+allow-listed detail을 사용한다. Ktor의 built-in `NOT_CHECKED`는 helper가
+`IllegalArgumentException`으로 거부하므로 application pipeline으로 전파되고,
+custom provider가 반환한 `NOT_CHECKED`만 JSON에 표시된다.
 
 ## 6. 호환성과 위험 경계
 
@@ -181,9 +209,13 @@ provider별 상태 의미는 바꾸지 않는다.
 - 내장 provider의 callback은 호출 thread에서 동기 실행되며 helper는 공유
   mutable state를 만들지 않는다. 동시성 안전성은 주입된 `Clock`과 callback의
   책임이다.
-- 롤백은 helper 파일과 provider import/호출 변경을 되돌리면 된다. 기존
-  `checkConnectivity(Duration)` 공개 메서드는 유지되므로 사용자 provider의
-  source 호환성을 깨지 않는다.
+- 출시 전 rollback은 helper 파일과 provider import/호출 변경을 함께 revert할 수
+  있다. 출시 후에는 새 public helper ABI를 삭제하지 않고 유지한 채 provider
+  migration만 corrective release에서 되돌린다. 공개 API 삭제가 필요한 경우는
+  별도 major compatibility 결정으로 분리한다. `checkBinaryCompatibility`와
+  별도로 Kotlin consumer compile smoke, `jar tf`, `javap`로 helper signature와
+  artifact 포함을 확인한다. 기존 `checkConnectivity(Duration)` 공개 메서드는
+  유지되므로 사용자 provider의 source 호환성을 깨지 않는다.
 
 ## 7. 테스트와 검증 계획
 
@@ -201,6 +233,8 @@ provider별 상태 의미는 바꾸지 않는다.
 - callback의 `Error`는 동일 인스턴스로 재전파된다.
 - `NOT_CHECKED` 반환은 `IllegalArgumentException`으로 거부된다.
 - callback에 동일 timeout이 전달되고 clock은 한 번만 읽힌다.
+- clock read가 callback보다 먼저 일어나고 callback은 호출 thread에서 한 번만
+  실행되며, 여러 동시 호출 사이에 helper 공유 상태가 없음을 확인한다.
 - clock의 `instant()` 예외는 동일 인스턴스로 전파되고 callback은 호출되지
   않는다.
 - invalid timeout에서는 clock과 callback을 모두 호출하지 않는다.
@@ -226,6 +260,17 @@ interruption에 대해서는 의도적으로 재전파·interrupt 복원 동작�
 재사용한다. provider별 passive-probe contract fixture로 lock·lease·scan·
 client factory 호출이 없음을 확인한다.
 
+내장 provider와 legacy custom provider를 각각 사용해 direct call, Ktor route,
+Spring health의 결과표를 검증한다. Ktor는 built-in ordinary `Exception`의
+`200 + UNKNOWN` JSON과 custom exception의 application pipeline 위임을,
+Spring은 built-in ordinary `Exception`의 normalized detail/no-warning,
+built-in cancellation/interruption/invalid `NOT_CHECKED`의 `UNKNOWN + warning`,
+custom catch warning과 returned `NOT_CHECKED` detail/no-warning을 검증하며,
+Error/interrupt flag도
+포함한다. interruption 테스트는 시작 전 `Thread.interrupted()`로 상태를
+비우고, 전용 thread를 사용하면 `join(timeout)`과 종료 상태를 확인하며,
+현재 thread를 사용하면 `finally`에서 다시 flag를 제거한다.
+
 ### 정적·통합 검증
 
 - `:bluetape4k-leader-core:test`
@@ -234,16 +279,21 @@ client factory 호출이 없음을 확인한다.
 - `ABI_BASE_VERSION=0.5.0 ABI_CURRENT_VERSION=1.0.0 ./gradlew --no-daemon --console=plain --no-configuration-cache checkBinaryCompatibility`
 - `git diff --check`
 
-Spring Boot/Ktor route payload와 Micrometer metric 테스트는 source 변경이
-없는지 확인하는 범위로 남기며, 새 probe I/O를 추가하지 않는다.
+Spring Boot/Ktor route payload와 Micrometer metric field shape와 opt-in 정책은
+유지하되, 내장 provider exception normalization으로 달라지는 HTTP status,
+health detail·warning, custom override 위임을 adapter regression test로
+검증한다. 새 probe I/O를 추가하지 않는다.
 route/health 호출이 callback의 wall-clock timeout을 강제하지 않는다는 점과
 provider-native bounded 책임은 운영 문서와 KDoc에 명시한다. 현재
 `LeaderBackendDiagnosticsProvider`의 “주어진 timeout 안에서” 표현도
 “provider-native budget을 전달한다”는 의미로 정정한다. Ktor/Spring route와
 health는 custom provider가 반환한 상태·예외 정책을 그대로 소비할 수 있으므로
 helper 적용은 내장 provider 경계라는 점을 문서화한다. raw exception을
-응답에 넣지 않는 대신 로그·metric hook은 이번 범위에서 추가하지 않으며,
-관측성 보강은 별도 후속 과제로 기록한다.
+응답에 넣지 않는 대신 원인별 저카디널리티 로그·metric hook은 이번 범위에서
+추가하지 않는다. `UNKNOWN`은 readiness 통과나 backend 정상의 증거가 아니며,
+`DOWN`과 `NOT_CHECKED`를 readiness·경보로 해석하는 애플리케이션 정책도
+자동으로 정하지 않는다. 이 운영 계약과 원인 신호·runbook은 후속 Issue #774
+([diagnostics UNKNOWN 원인 신호와 readiness 정책 정립](https://github.com/bluetape4k/bluetape4k-leader/issues/774))에서 다룬다.
 
 ## 8. Acceptance criteria와 DoD
 
@@ -260,16 +310,22 @@ helper 적용은 내장 provider 경계라는 점을 문서화한다. raw except
 6. lock, lease, scan, client 생성, background executor 생성이 추가되지 않는다.
 7. helper가 wall-clock timeout을 강제한다고 주장하지 않으며, provider-native
    bounded 책임과 실제 deadline 후속 범위를 명시한다.
-8. 기존 diagnostics endpoint/route/metric JSON과 opt-in 기본값이 변하지 않는다.
-9. core/provider 테스트, detekt, ABI, diff check가 통과한다.
+8. 기존 diagnostics endpoint/route/metric JSON field shape와 opt-in 기본값이
+   변하지 않는다. 내장 provider 일반 예외의 Ktor `200 + UNKNOWN`, Spring
+   detail·warning 경계와 custom override의 application-owned 예외 정책은
+   명시된 adapter 표와 회귀 테스트를 따른다.
+9. core/provider/adapter 테스트, detekt, ABI, Kotlin consumer compile smoke,
+   `jar tf`/`javap`, diff check가 통과한다.
 
 ### DoD
 
 - [ ] 설계·계획·리뷰 artifact에 한국어 기술 문체와 source traceability를
   적용했다.
 - [ ] RED/GREEN 테스트가 helper contract와 provider 회귀를 증명한다.
-- [ ] 공개 API KDoc과 README 한국어/영어 diagnostics 문구가 현재 동작과
-  일치한다.
+- [ ] 공개 API KDoc과 root README 쌍 및 `leader-ktor`/`leader-spring-boot` README
+  EN/KO diagnostics 문구가 현재 동작과
+  일치한다. versioned `docs/manual` EN/KO 갱신은 manifest의 release pin을
+  변경하는 별도 1.0.0 release-train 작업으로 이 이슈에서 수행하지 않는다.
 - [ ] 독립 6-perspective 리뷰에서 P0/P1이 0건이다.
 - [ ] 검증 명령의 fresh 결과와 known gap을 기록했다.
 - [ ] PR 생성과 merge는 별도 exact target 승인 게이트로 남긴다.
@@ -279,7 +335,8 @@ helper 적용은 내장 provider 경계라는 점을 문서화한다. raw except
 - 실제 network connectivity probe나 backend command 추가
 - callback을 위한 wall-clock deadline enforcement, executor, thread hop 추가
 - raw exception의 새 log/metric/hook surface 추가
-- Spring Boot Actuator, Ktor route, Micrometer payload/metric 변경
+- Spring Boot Actuator, Ktor route, Micrometer payload/metric field shape 변경
+- versioned `docs/manual` EN/KO 갱신 또는 `manifest.yaml` release pin 변경
 - capability enum 또는 endpoint schema 변경
 - 추상 base class, 새 module, 새 dependency 도입
 - Issue #766과 직접 연결되지 않은 provider 기능 개선
@@ -293,8 +350,8 @@ helper 적용은 내장 provider 경계라는 점을 문서화한다. raw except
   source와 baseline 결과에 연결함
 - 공개 API와 내부 helper의 경계: 새 공개 object와 기존 interface 기본 경로를
   분리함
-- 독립 review 전 상태: 설계 승인 완료, spec 문서 검토 대기
-- SPW-01~SPW-05: 현재 read-back 기준 PASS. 최종 review 통합 후 SPW-04와
-  SPW-05를 다시 실행한다.
+- 독립 review 상태: 6-perspective 통합 review PASS(P0/P1/P2=0).
+- SPW-01~SPW-05: 보완 반영 후 read-back PASS; `git diff --check`와
+  `audit-korean-terms.mjs` findings 0건.
 - KO-01~KO-07: 기술 토큰·수치·URL을 보존했고, 번역투·추상적 효율성 주장·용어
   혼용을 제거했으며 `audit-korean-terms.mjs` 결과는 findings 0건이다.
