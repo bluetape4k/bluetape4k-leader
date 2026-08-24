@@ -17,6 +17,7 @@ io.bluetape4k.leader.spring.observability.LeaderElectionReadinessHealthAutoConfi
 io.bluetape4k.leader.spring.observability.LeaderBackendHealthAutoConfiguration
 io.bluetape4k.leader.spring.diagnostics.LeaderStartupDiagnosticsAutoConfiguration
 io.bluetape4k.leader.spring.route.LeaderRouteGuardAutoConfiguration
+io.bluetape4k.leader.spring.observability.LeaderRouteLeaseActuatorAutoConfiguration
 # LeaderHistoryRetentionAutoConfiguration must appear after LeaderAopAutoConfiguration
 # so that @LeaderElection AOP is active when retention job beans are created.
 io.bluetape4k.leader.spring.history.LeaderHistoryRetentionAutoConfiguration

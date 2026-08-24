@@ -33,7 +33,12 @@ class ZooKeeperLeaderElector private constructor(
     private val basePath: String,
     private val options: LeaderElectionOptions,
 ): LeaderElector,
-    LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client) {
+    LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client),
+    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+
+    override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options)
+    }
 
     companion object: KLogging() {
         const val DEFAULT_BASE_PATH = "/leader-election"

@@ -57,6 +57,39 @@ class LeaderRouteGuardAutoConfigurationTest {
     }
 
     @Test
+    fun `lease mode selects additive capability and creates both route adapters`() {
+        runner
+            .withUserConfiguration(SingleElector::class.java)
+            .withPropertyValues(
+                "bluetape4k.leader.route-guard.enabled=true",
+                "bluetape4k.leader.route-guard.authority-mode=LEASE",
+            )
+            .run { context ->
+                context.startupFailure shouldBeEqualTo null
+                context.getBean<LeaderRouteLeaseRuntime>().acquirer
+                    .shouldBeInstanceOf<io.bluetape4k.leader.LeaderLeaseAcquirer>()
+                context.getBeansOfType<LeaderMvcRouteGuardFactory>().size shouldBeEqualTo 1
+                context.getBeansOfType<LeaderWebFluxRouteGuardFactory>().size shouldBeEqualTo 1
+            }
+    }
+
+    @Test
+    fun `lease mode rejects redirect with a stable configuration code`() {
+        runner
+            .withUserConfiguration(SingleElector::class.java)
+            .withPropertyValues(
+                "bluetape4k.leader.route-guard.enabled=true",
+                "bluetape4k.leader.route-guard.authority-mode=LEASE",
+                "bluetape4k.leader.route-guard.redirect.enabled=true",
+                "bluetape4k.leader.route-guard.redirect.allowed-hosts[0]=leader.example",
+            )
+            .run { context ->
+                context.startupFailure.shouldNotBeNull().message.orEmpty() shouldContain
+                    LeaderRouteGuardConfigurationException.LEASE_REDIRECT_INCOMPATIBLE
+            }
+    }
+
+    @Test
     fun `redirect policy bean is conditional on explicit redirect opt in`() {
         runner
             .withUserConfiguration(SingleElector::class.java)

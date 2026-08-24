@@ -22,6 +22,7 @@ private const val EVENT_BUFFER_CAPACITY = 64
 class ListeningLeaderElector(
     private val delegate: LeaderElector,
 ) : LeaderElector,
+    LeaderLeaseAcquirerSupport,
     LeaderElectionListenerRegistry,
     LeaderElectionEventPublisher,
     LeaderBackendDiagnosticsAware {
@@ -39,6 +40,16 @@ class ListeningLeaderElector(
 
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
+
+    override val leaseCapabilityAvailable: Boolean
+        get() = (delegate as? LeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
+            ?: delegate is LeaderLeaseAcquirer
+
+    override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
+        requireNotNull(delegate as? LeaderLeaseAcquirer) {
+            "The listening elector delegate does not expose request-lease capability"
+        }
+    }
 
     override fun addListener(listener: LeaderElectionListener): AutoCloseable =
         listeners.addListener(listener)

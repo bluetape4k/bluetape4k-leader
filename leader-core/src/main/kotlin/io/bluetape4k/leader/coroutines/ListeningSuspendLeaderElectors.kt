@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.Flow
 class ListeningSuspendLeaderElector(
     private val delegate: SuspendLeaderElector,
 ) : SuspendLeaderElector,
+    SuspendLeaderLeaseAcquirerSupport,
     LeaderElectionListenerRegistry,
     LeaderElectionEventPublisher,
     LeaderBackendDiagnosticsAware {
@@ -38,6 +39,16 @@ class ListeningSuspendLeaderElector(
 
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
+
+    override val leaseCapabilityAvailable: Boolean
+        get() = (delegate as? SuspendLeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
+            ?: delegate is SuspendLeaderLeaseAcquirer
+
+    override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
+        requireNotNull(delegate as? SuspendLeaderLeaseAcquirer) {
+            "The listening suspend elector delegate does not expose request-lease capability"
+        }
+    }
 
     override fun addListener(listener: LeaderElectionListener): AutoCloseable =
         listeners.addListener(listener)

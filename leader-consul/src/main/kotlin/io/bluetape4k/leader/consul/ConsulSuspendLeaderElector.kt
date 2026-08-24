@@ -45,7 +45,12 @@ class ConsulSuspendLeaderElector private constructor(
     private val lockClient: ConsulLockClient,
     val options: ConsulLeaderElectionOptions,
 ): SuspendLeaderElector,
-    LeaderBackendDiagnosticsProvider by ConsulLeaderBackendDiagnostics {
+    LeaderBackendDiagnosticsProvider by ConsulLeaderBackendDiagnostics,
+    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+
+    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    }
 
     constructor(
         endpoint: ConsulEndpoint,

@@ -37,7 +37,13 @@ class MongoLeaderElector private constructor(
     private val collection: MongoCollection<Document>,
     val options: MongoLeaderElectionOptions,
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,
-) : LeaderElector, LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics {
+): LeaderElector,
+    LeaderBackendDiagnosticsProvider by MongoLeaderBackendDiagnostics,
+    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+
+    override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    }
 
     companion object : KLogging() {
         internal const val MONGO_FACTORY_BEAN_NAME = "mongo-leader-elector"

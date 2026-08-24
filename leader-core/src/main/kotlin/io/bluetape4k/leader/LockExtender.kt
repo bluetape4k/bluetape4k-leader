@@ -315,6 +315,10 @@ object LockExtender : KLogging() {
             log.warn { "LockExtender — extend failed: WrongThread (Redisson thread-bound lock called from wrong thread)" }
             false
         }
+        is ExtendOutcome.Rejected -> {
+            log.warn { "LockExtender — extend rejected by the bounded operation queue" }
+            false
+        }
         is ExtendOutcome.BackendError -> {
             log.warn(outcome.cause) {
                 "LockExtender — backend error during extend " +

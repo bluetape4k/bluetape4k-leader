@@ -37,8 +37,13 @@ class KubernetesLeaseLeaderElector @JvmOverloads constructor(
     private val client: KubernetesClient,
     val options: KubernetesLeaseOptions = KubernetesLeaseOptions.Default,
     private val clock: Clock = Clock.systemUTC(),
-) : LeaderElector,
-    LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics {
+): LeaderElector,
+    LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics,
+    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+
+    override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    }
 
     companion object : KLogging() {
         internal const val K8S_FACTORY_BEAN_NAME = "kubernetes-lease-leader-elector"

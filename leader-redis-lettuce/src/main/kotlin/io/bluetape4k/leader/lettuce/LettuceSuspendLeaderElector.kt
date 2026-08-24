@@ -51,7 +51,13 @@ class LettuceSuspendLeaderElector(
     private val connection: StatefulRedisConnection<String, String>,
     val options: LeaderElectionOptions = LeaderElectionOptions.Default,
     private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
-): SuspendLeaderElector, LeaderBackendDiagnosticsProvider by LettuceLeaderBackendDiagnostics(connection) {
+): SuspendLeaderElector,
+    LeaderBackendDiagnosticsProvider by LettuceLeaderBackendDiagnostics(connection),
+    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+
+    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options)
+    }
 
     companion object: KLogging() {
         internal const val LETTUCE_SUSPEND_FACTORY_BEAN_NAME = "lettuce-suspend-leader-elector"

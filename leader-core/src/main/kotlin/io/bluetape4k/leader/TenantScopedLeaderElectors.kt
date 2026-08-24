@@ -96,13 +96,33 @@ fun VirtualThreadLeaderGroupElector.forTenant(namespace: TenantLockNamespace): V
 internal class TenantScopedLeaderElector(
     private val delegate: LeaderElector,
     private val namespace: TenantLockNamespace,
-) : LeaderElector, LeaderBackendDiagnosticsAware {
+) : LeaderElector, LeaderLeaseAcquirerSupport, LeaderBackendDiagnosticsAware {
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
         get() = delegate.resolveLeaderBackendDiagnosticsProvider()
 
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
+
+    override val leaseCapabilityAvailable: Boolean
+        get() = (delegate as? LeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
+            ?: delegate is LeaderLeaseAcquirer
+
+    override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
+        val acquirer = requireNotNull(delegate as? LeaderLeaseAcquirer) {
+            "The tenant-scoped elector delegate does not expose request-lease capability"
+        }
+        object : LeaderLeaseAcquirer {
+            override val configuredOptions: LeaderElectionOptions
+                get() = acquirer.configuredOptions
+
+            override fun tryAcquire(lockName: String): LeaderLeaseHandle? =
+                acquirer.tryAcquire(namespace.lockName(lockName))
+
+            override fun tryAcquire(slot: LeaderSlot): LeaderLeaseHandle? =
+                acquirer.tryAcquire(slot.scoped())
+        }
+    }
 
     override fun state(lockName: String): LeaderState =
         delegate.state(namespace.lockName(lockName))

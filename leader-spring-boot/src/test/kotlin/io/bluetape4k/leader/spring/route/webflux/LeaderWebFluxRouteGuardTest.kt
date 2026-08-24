@@ -4,6 +4,9 @@ import io.bluetape4k.assertions.shouldBeEqualTo
 import io.bluetape4k.assertions.shouldBeInstanceOf
 import io.bluetape4k.assertions.shouldBeTrue
 import io.bluetape4k.leader.LeaderSlot
+import io.bluetape4k.leader.LeaderElectionOptions
+import io.bluetape4k.leader.local.LocalLeaderElector
+import io.bluetape4k.leader.coroutines.LocalSuspendLeaderElector
 import io.bluetape4k.leader.spring.properties.LeaderRouteGuardProperties
 import io.bluetape4k.leader.spring.properties.LeaderRouteRedirectProperties
 import io.bluetape4k.leader.spring.properties.LeaderRouteRejectionStatus
@@ -14,6 +17,9 @@ import io.bluetape4k.leader.spring.route.NullLeaderRouteAuthority
 import io.bluetape4k.leader.spring.route.LeaderRouteRedirectRequestMetadata
 import io.bluetape4k.leader.spring.route.LeaderRouteRedirectRequestMetadataProvider
 import io.bluetape4k.leader.spring.route.LeaderRouteRedirectResolver
+import io.bluetape4k.leader.spring.route.LeaderRouteLeaseRuntime
+import io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode
+import io.bluetape4k.junit5.coroutines.runSuspendIO
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.reactor.mono
 import org.junit.jupiter.api.BeforeEach
@@ -36,6 +42,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class LeaderWebFluxRouteGuardTest {
 
@@ -314,6 +322,147 @@ class LeaderWebFluxRouteGuardTest {
         subscription.dispose()
         coroutineCancelled.await(2, TimeUnit.SECONDS).shouldBeTrue()
         subscription.isDisposed.shouldBeTrue()
+    }
+
+    @Test
+    fun `lease filter holds one handle until reactive completion`() {
+        val elector = LocalLeaderElector(LeaderElectionOptions(nodeId = "node-a"))
+        val leaseRuntime = LeaderRouteLeaseRuntime(elector, null, LeaderRouteGuardProperties().lease)
+        val route = LeaderWebFluxRouteGuardFactory(
+            runtime = LeaderRouteAuthorityRuntime(LeaderRouteAuthority { LeaderRouteDecision.Allowed }),
+            properties = LeaderRouteGuardProperties(authorityMode = LeaderRouteAuthorityMode.LEASE),
+            leaseRuntime = leaseRuntime,
+        )
+        val completed = CountDownLatch(1)
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/guarded").build())
+        val chain = WebFilterChain {
+            completed.countDown()
+            Mono.empty<Void>()
+        }
+
+        route.filter(slot).filter(exchange, chain).block()
+        completed.await(1, TimeUnit.SECONDS).shouldBeTrue()
+        elector.tryAcquire(slot).shouldBeInstanceOf<io.bluetape4k.leader.LeaderLeaseHandle>().release()
+    }
+
+    @Test
+    fun `duplicate exchange subscriber releases its retained holder use`() {
+        val elector = LocalLeaderElector(
+            LeaderElectionOptions(waitTime = 10.milliseconds, leaseTime = 1.seconds, nodeId = "node-a"),
+        )
+        val leaseRuntime = LeaderRouteLeaseRuntime(elector, null, LeaderRouteGuardProperties().lease)
+        val route = LeaderWebFluxRouteGuardFactory(
+            runtime = LeaderRouteAuthorityRuntime(LeaderRouteAuthority { LeaderRouteDecision.Allowed }),
+            properties = LeaderRouteGuardProperties(authorityMode = LeaderRouteAuthorityMode.LEASE),
+            leaseRuntime = leaseRuntime,
+        )
+        val firstEntered = CountDownLatch(1)
+        val releaseFirst = CountDownLatch(1)
+        val calls = AtomicInteger()
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/guarded").build())
+        val chain = WebFilterChain {
+            if (calls.incrementAndGet() == 1) {
+                Mono.fromRunnable {
+                    firstEntered.countDown()
+                    releaseFirst.await(2, TimeUnit.SECONDS)
+                }
+            } else {
+                Mono.empty()
+            }
+        }
+        val filter = route.filter(slot)
+        val firstDone = CountDownLatch(1)
+        val first = filter.filter(exchange, chain).subscribe({}, {}, firstDone::countDown)
+        firstEntered.await(2, TimeUnit.SECONDS).shouldBeTrue()
+        val secondDone = CountDownLatch(1)
+        filter.filter(exchange, chain).subscribe({}, {}, secondDone::countDown)
+        secondDone.await(2, TimeUnit.SECONDS).shouldBeTrue()
+
+        releaseFirst.countDown()
+        firstDone.await(2, TimeUnit.SECONDS).shouldBeTrue()
+        first.dispose()
+        val deadline = System.nanoTime() + 1.seconds.inWholeNanoseconds
+        while (leaseRuntime.activeLeases != 0 && System.nanoTime() < deadline) {
+            Thread.sleep(5)
+        }
+        leaseRuntime.activeLeases shouldBeEqualTo 0
+        elector.tryAcquire(slot)?.release()
+        leaseRuntime.close()
+    }
+
+    @Test
+    fun `cancelling an in-flight lease handler releases the resource`() {
+        val elector = LocalLeaderElector(
+            LeaderElectionOptions(waitTime = 10.milliseconds, leaseTime = 1.seconds, nodeId = "node-a"),
+        )
+        val leaseRuntime = LeaderRouteLeaseRuntime(elector, null, LeaderRouteGuardProperties().lease)
+        val route = LeaderWebFluxRouteGuardFactory(
+            runtime = LeaderRouteAuthorityRuntime(LeaderRouteAuthority { LeaderRouteDecision.Allowed }),
+            properties = LeaderRouteGuardProperties(authorityMode = LeaderRouteAuthorityMode.LEASE),
+            leaseRuntime = leaseRuntime,
+        )
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/guarded").build())
+        val subscription = route.filter(slot).filter(exchange, WebFilterChain { Mono.never() }).subscribe()
+        val acquiredDeadline = System.nanoTime() + 1.seconds.inWholeNanoseconds
+        while (leaseRuntime.activeLeases == 0 && System.nanoTime() < acquiredDeadline) {
+            Thread.sleep(5)
+        }
+        leaseRuntime.activeLeases shouldBeEqualTo 1
+
+        subscription.dispose()
+        val releasedDeadline = System.nanoTime() + 1.seconds.inWholeNanoseconds
+        while (leaseRuntime.activeLeases != 0 && System.nanoTime() < releasedDeadline) {
+            Thread.sleep(5)
+        }
+        leaseRuntime.activeLeases shouldBeEqualTo 0
+        elector.tryAcquire(slot)?.release()
+        leaseRuntime.close()
+    }
+
+    @Test
+    fun `lease contention fails before subscribing reactive handler`() {
+        val elector = LocalLeaderElector(LeaderElectionOptions(nodeId = "node-a"))
+        val held = elector.tryAcquire(slot)
+        val leaseRuntime = LeaderRouteLeaseRuntime(elector, null, LeaderRouteGuardProperties().lease)
+        val route = LeaderWebFluxRouteGuardFactory(
+            runtime = LeaderRouteAuthorityRuntime(LeaderRouteAuthority { LeaderRouteDecision.Allowed }),
+            properties = LeaderRouteGuardProperties(authorityMode = LeaderRouteAuthorityMode.LEASE),
+            leaseRuntime = leaseRuntime,
+        )
+        val subscribed = AtomicBoolean(false)
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/guarded").build())
+        val chain = WebFilterChain {
+            subscribed.set(true)
+            Mono.empty()
+        }
+
+        route.filter(slot).filter(exchange, chain).block()
+        exchange.response.statusCode?.value() shouldBeEqualTo 503
+        subscribed.get() shouldBeEqualTo false
+        held?.release()
+    }
+
+    @Test
+    fun `suspend lease path shares runtime admission and releases on reactive completion`() {
+        val blockingElector = LocalLeaderElector(LeaderElectionOptions(nodeId = "blocking-node"))
+        val suspendElector = LocalSuspendLeaderElector(LeaderElectionOptions(nodeId = "suspend-node"))
+        val leaseRuntime = LeaderRouteLeaseRuntime(
+            acquirer = blockingElector,
+            suspendAcquirer = suspendElector,
+            properties = LeaderRouteGuardProperties(authorityMode = LeaderRouteAuthorityMode.LEASE).lease,
+        )
+        val route = LeaderWebFluxRouteGuardFactory(
+            runtime = LeaderRouteAuthorityRuntime(LeaderRouteAuthority { LeaderRouteDecision.Allowed }),
+            properties = LeaderRouteGuardProperties(authorityMode = LeaderRouteAuthorityMode.LEASE),
+            leaseRuntime = leaseRuntime,
+        )
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/guarded").build())
+        val chain = WebFilterChain { Mono.empty() }
+
+        route.filter(slot).filter(exchange, chain).block()
+
+        runSuspendIO { suspendElector.tryAcquire(slot)?.release() }
+        leaseRuntime.close()
     }
 
     private fun client(

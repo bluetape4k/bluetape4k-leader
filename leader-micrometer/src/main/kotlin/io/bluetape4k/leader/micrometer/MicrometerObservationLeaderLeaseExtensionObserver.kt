@@ -71,6 +71,7 @@ private data class LeaseExtensionObservationMapping(
 private fun ExtendOutcome.toObservationMapping(): LeaseExtensionObservationMapping =
     when (this) {
         is ExtendOutcome.Extended -> LeaseExtensionObservationMapping("extended", "success")
+        ExtendOutcome.Rejected -> LeaseExtensionObservationMapping("rejected", "skipped")
         ExtendOutcome.NotHeld -> LeaseExtensionObservationMapping("not_held", "skipped")
         ExtendOutcome.WrongThread -> LeaseExtensionObservationMapping("wrong_thread", "error")
         is ExtendOutcome.BackendError -> LeaseExtensionObservationMapping("backend_error", "error")

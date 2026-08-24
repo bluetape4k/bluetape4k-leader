@@ -56,7 +56,13 @@ suspend inline fun <T> RedissonClient.suspendRunIfLeader(
 class RedissonSuspendLeaderElector private constructor(
     private val redissonClient: RedissonClient,
     private val options: LeaderElectionOptions,
-): SuspendLeaderElector, LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient) {
+): SuspendLeaderElector,
+    LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient),
+    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+
+    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options)
+    }
 
     companion object: KLoggingChannel() {
         internal const val REDISSON_SUSPEND_FACTORY_BEAN_NAME = "redisson-suspend-leader-elector"

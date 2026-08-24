@@ -86,6 +86,20 @@ bluetape4k:
       authority-mode: STATE
       elector-bean: ""
       rejection-status: SERVICE_UNAVAILABLE
+      lease:
+        max-blocking-wait-time: 5s
+        max-concurrent-acquires: 256
+        max-concurrent-cleanups: 256
+        max-acquire-queue-depth: 1024
+        max-cleanup-queue-depth: 1024
+        max-mvc-blocking-acquires: 32
+        max-active-leases: 10000
+        max-residual-leases: 1024
+        max-watchdog-in-flight: 256
+        max-lease-lifetime: 10m
+        minimum-auto-extend-lease-time: 100ms
+        max-expected-extension-latency: 50ms
+        drain-timeout: 30s
     observability:
       enabled: true
       lock-names:
@@ -104,9 +118,34 @@ Spring 설정 속성은 Spring Boot duration binding을 사용하므로 `5s`, `6
 
 ## 리더 전용 Route (0.5.0)
 
-Route guard는 opt-in read-only 기능입니다. 선택한 Spring MVC 또는 WebFlux route를 현재 애플리케이션이 처리해도 되는지 판단할 뿐, request path에서 lease를 획득·연장·해제하지 않습니다. `bluetape4k.leader.route-guard.enabled=true`를 명시하지 않으면 어떤 guard bean도 활성화되지 않습니다.
+Route guard는 opt-in 기능입니다. `STATE`와 `CUSTOM`은 기존 passive mode로서 request path에서 lease를 획득하지 않고 선택한 Spring MVC 또는 WebFlux route의 처리 가능 여부만 판단합니다. `LEASE`는 명시적인 ownership mode로서 handler 전에 bounded handle을 획득하고 completion/cancellation까지 유지한 뒤 정확히 한 번 해제합니다. `bluetape4k.leader.route-guard.enabled=true`를 명시하지 않으면 어떤 guard bean도 활성화되지 않습니다.
 
 기본 `STATE` authority는 `LeaderElector.state(slot.lockName)`을 한 번 조회하고, 점유 중인 기준 상태의 audit leader ID가 `slot.leaderId`와 같을 때만 request를 허용합니다. Leader ID는 실행 중인 프로세스 incarnation마다 한 번 생성하고, 해당 프로세스의 선출과 route guard에서 동일한 `LeaderSlot`을 재사용하세요. 재시작을 거쳐 고정 node ID를 재사용하면 새 프로세스가 이전 프로세스의 stale lease와 일치할 수 있습니다.
+
+### 요청이 소유하는 lease route (opt-in)
+
+`LEASE`는 선택한 elector가 additive `LeaderLeaseAcquirer` capability를 제공해야 시작됩니다. 일반 contention과 bounded admission rejection은 설정한 빈 body rejection 응답으로 끝나며 handler를 구독하지 않습니다. `max-active-leases`와 `max-residual-leases`는 고정 상한이므로 기본값의 파생값 `effectiveActiveCapacity = min(10000, 1024) = 1024`이며 직접 bind할 수 없습니다. acquire/cleanup queue도 bounded이고 backend 오류는 sanitized 처리되므로 route에 lock name, fencing token, leader identity, backend URI, exception message가 노출되지 않습니다.
+
+```yaml
+bluetape4k:
+  leader:
+    route-guard:
+      enabled: true
+      authority-mode: LEASE
+      elector-bean: ordersLeaderElector
+      lease:
+        max-active-leases: 10000
+        max-residual-leases: 1024
+        max-blocking-wait-time: 250ms
+        max-lease-lifetime: 10m
+
+management:
+  endpoint:
+    leaderRouteLease:
+      enabled: true
+```
+
+`LEASE`는 `route-guard.redirect.enabled`와 함께 사용할 수 없습니다. capability 누락, queue 포화, cleanup timeout, context drain은 stable `LEADER_ROUTE_*` code와 bounded aggregate diagnostics로 fail-closed 됩니다. canary에서 admission rejection, residual count, drain timeout이 기준을 넘으면 `STATE`로 rollback하거나 mode를 비활성화하세요. force-unlock은 복구 절차가 아닙니다.
 
 ```kotlin
 @Bean

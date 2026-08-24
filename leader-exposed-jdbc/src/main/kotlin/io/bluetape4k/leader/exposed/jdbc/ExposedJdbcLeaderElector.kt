@@ -37,8 +37,13 @@ class ExposedJdbcLeaderElector private constructor(
     private val db: Database,
     val options: ExposedJdbcLeaderElectionOptions,
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,
-) : LeaderElector,
-    LeaderBackendDiagnosticsProvider by ExposedJdbcLeaderBackendDiagnostics {
+): LeaderElector,
+    LeaderBackendDiagnosticsProvider by ExposedJdbcLeaderBackendDiagnostics,
+    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+
+    override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    }
 
     companion object : KLogging() {
 

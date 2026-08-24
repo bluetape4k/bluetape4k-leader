@@ -18,6 +18,8 @@ import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.local.AbstractLocalLeaderElector
 import io.bluetape4k.leader.local.LocalLeaderStateRegistry
+import io.bluetape4k.leader.internal.LocalRequestLeaseStore
+import io.bluetape4k.leader.internal.LocalSuspendRequestLeaseHandle
 import io.bluetape4k.leader.remainingMinLeaseTime
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
@@ -42,6 +44,7 @@ import kotlin.coroutines.cancellation.CancellationException
 class LocalSuspendLeaderElector(
     private val options: LeaderElectionOptions = LeaderElectionOptions.Default,
 ) : SuspendLeaderElector,
+    SuspendLeaderLeaseAcquirer,
     LeaderElectionListenerRegistry,
     LeaderElectionEventPublisher,
     LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
@@ -50,6 +53,10 @@ class LocalSuspendLeaderElector(
     private val listeners = LeaderElectionListenerSupport()
     private val eventSubject = PublishSubject<LeaderElectionEvent>()
     private val states = LocalLeaderStateRegistry()
+    private val requestLeases = LocalRequestLeaseStore()
+
+    override val configuredOptions: LeaderElectionOptions
+        get() = options
 
     override val events: Flow<LeaderElectionEvent> = eventSubject
 
@@ -206,4 +213,12 @@ class LocalSuspendLeaderElector(
         states.singleState(lockName)
 
     override val supportsAuditLeaderState: Boolean = true
+
+    /** lock-name overload는 구성된 node identity를 캡처해 suspend lease를 획득합니다. */
+    override suspend fun tryAcquire(lockName: String): SuspendLeaderLeaseHandle? =
+        tryAcquire(LeaderSlot(lockName, options.nodeId))
+
+    /** caller slot identity를 보존해 suspend lease를 획득합니다. */
+    override suspend fun tryAcquire(slot: LeaderSlot): SuspendLeaderLeaseHandle? =
+        requestLeases.tryAcquireSuspend(slot, options.waitTime, options)
 }

@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import io.bluetape4k.support.requirePositiveNumber
 
 private fun publishLeaderLeaseWatchdogEvent(
     observing: Boolean,
@@ -90,7 +91,7 @@ object LeaderLeaseAutoExtender : KLogging() {
         watchdogThreads: Int = configuredThreadCount,
         asyncExtend: Boolean = asyncExtendEnabled,
     ) {
-        require(watchdogThreads >= 1) { "watchdogThreads must be >= 1, got $watchdogThreads" }
+        watchdogThreads.requirePositiveNumber("watchdogThreads")
         configuredThreadCount = watchdogThreads
         asyncExtendEnabled = asyncExtend
         // 실행 중인 scheduler에 thread count를 즉시 반영합니다.
@@ -168,6 +169,7 @@ object LeaderLeaseAutoExtender : KLogging() {
         // start() 호출 시점의 async mode를 캡처합니다. 이후 configure() 호출은 실행 중인 watchdog에 영향을 주지 않습니다.
         val capturedAsyncExtend = asyncExtendEnabled
         val extendInFlight = AtomicBoolean(false)
+        val admission = LeaderLeaseWatchdogAdmission.current()
 
         val doTick: () -> Unit = doTick@{
             if (closed.get()) {
@@ -185,6 +187,16 @@ object LeaderLeaseAutoExtender : KLogging() {
             val delegateStartedAtNanos = if (observing) System.nanoTime() else 0L
             var delegateRejected = false
             var delegateElapsedNanos = 0L
+            val watchdogReservation = admission?.invoke()
+            if (admission != null && watchdogReservation == null) {
+                publishLeaderLeaseWatchdogEvent(
+                    observing,
+                    LeaderLeaseExtensionExecution.BLOCKING,
+                    ExtendOutcome.Rejected,
+                    0L,
+                )
+                return@doTick
+            }
             val outcome = try {
                 delegate.extend(leaseTime).also {
                     delegateElapsedNanos = if (observing) {
@@ -214,6 +226,8 @@ object LeaderLeaseAutoExtender : KLogging() {
                 }
                 log.warn(ex) { "leader.lease.auto-extend.failed" }
                 BackendError(ex)
+            } finally {
+                watchdogReservation?.close()
             }
 
             publishLeaderLeaseWatchdogEvent(
@@ -296,6 +310,7 @@ object LeaderLeaseAutoExtender : KLogging() {
         val futureRef = AtomicReference<ScheduledFuture<*>?>(null)
         val extendInFlight = AtomicBoolean(false)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val admission = LeaderLeaseWatchdogAdmission.current()
 
         fun cancelScopeIfIdle() {
             if (closed.get() && !extendInFlight.get()) {
@@ -303,6 +318,7 @@ object LeaderLeaseAutoExtender : KLogging() {
             }
         }
 
+        @Suppress("LongMethod", "ReturnCount")
         suspend fun doSuspendTick() {
             if (closed.get()) {
                 futureRef.get()?.cancel(false)
@@ -318,6 +334,16 @@ object LeaderLeaseAutoExtender : KLogging() {
             val delegateStartedAtNanos = if (observing) System.nanoTime() else 0L
             var delegateRejected = false
             var delegateElapsedNanos = 0L
+            val watchdogReservation = admission?.invoke()
+            if (admission != null && watchdogReservation == null) {
+                publishLeaderLeaseWatchdogEvent(
+                    observing,
+                    LeaderLeaseExtensionExecution.SUSPEND,
+                    ExtendOutcome.Rejected,
+                    0L,
+                )
+                return
+            }
             val outcome = try {
                 delegate.extendSuspend(leaseTime).also {
                     delegateElapsedNanos = if (observing) {
@@ -345,6 +371,8 @@ object LeaderLeaseAutoExtender : KLogging() {
                 }
                 log.warn(ex) { "leader.lease.auto-extend.suspend.failed" }
                 BackendError(ex)
+            } finally {
+                watchdogReservation?.close()
             }
 
             publishLeaderLeaseWatchdogEvent(
@@ -448,6 +476,11 @@ object LeaderLeaseAutoExtender : KLogging() {
         }
         when (outcome) {
             is Extended -> { /* 성공적으로 연장했으므로 계속 진행합니다. */ }
+            is ExtendOutcome.Rejected -> {
+                // Bounded watchdog admission is a transient lane decision. Keep the
+                // watchdog alive so the next scheduled tick can retry ownership work.
+                log.warn { "leader.lease.auto-extend.retry reason=ADMISSION_REJECTED" }
+            }
             is NotHeld, is WrongThread -> {
                 log.warn { "leader.lease.auto-extend.stopped reason=$outcome" }
                 if (closed.compareAndSet(false, true)) {

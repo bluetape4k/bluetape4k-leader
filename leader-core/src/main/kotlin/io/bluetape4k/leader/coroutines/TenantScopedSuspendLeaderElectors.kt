@@ -58,13 +58,33 @@ fun SuspendLeaderGroupElector.forTenant(namespace: TenantLockNamespace): Suspend
 internal class TenantScopedSuspendLeaderElector(
     private val delegate: SuspendLeaderElector,
     private val namespace: TenantLockNamespace,
-) : SuspendLeaderElector, LeaderBackendDiagnosticsAware {
+) : SuspendLeaderElector, SuspendLeaderLeaseAcquirerSupport, LeaderBackendDiagnosticsAware {
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
         get() = delegate.resolveLeaderBackendDiagnosticsProvider()
 
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
+
+    override val leaseCapabilityAvailable: Boolean
+        get() = (delegate as? SuspendLeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
+            ?: delegate is SuspendLeaderLeaseAcquirer
+
+    override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
+        val acquirer = requireNotNull(delegate as? SuspendLeaderLeaseAcquirer) {
+            "The tenant-scoped suspend elector delegate does not expose request-lease capability"
+        }
+        object : SuspendLeaderLeaseAcquirer {
+            override val configuredOptions: io.bluetape4k.leader.LeaderElectionOptions
+                get() = acquirer.configuredOptions
+
+            override suspend fun tryAcquire(lockName: String): SuspendLeaderLeaseHandle? =
+                acquirer.tryAcquire(namespace.lockName(lockName))
+
+            override suspend fun tryAcquire(slot: LeaderSlot): SuspendLeaderLeaseHandle? =
+                acquirer.tryAcquire(slot.scoped())
+        }
+    }
 
     override fun state(lockName: String): LeaderState =
         delegate.state(namespace.lockName(lockName))

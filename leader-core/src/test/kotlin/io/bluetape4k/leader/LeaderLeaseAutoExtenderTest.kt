@@ -109,6 +109,20 @@ class LeaderLeaseAutoExtenderTest {
         LeaderLeaseAutoExtender.isShutdown().shouldBeTrue()
     }
 
+    @Test
+    fun `watchdog admission rejection skips backend extension`() = runSuspendIO {
+        val calls = AtomicInteger(0)
+        val watchdog = LeaderLeaseWatchdogAdmission.withProvider(
+            admission = { null },
+            block = { LeaderLeaseAutoExtender.start(true, 40.milliseconds, countingDelegate(calls)) },
+        )
+
+        delay(180.milliseconds)
+        watchdog.close()
+
+        calls.get() shouldBeEqualTo 0
+    }
+
     private fun scheduler(): ScheduledThreadPoolExecutor {
         val field = LeaderLeaseAutoExtender::class.java.getDeclaredField("scheduler").apply {
             isAccessible = true

@@ -6,8 +6,11 @@ import io.bluetape4k.leader.LeaderElectionListenerRegistry
 import io.bluetape4k.leader.LeaderElectionListenerSupport
 import io.bluetape4k.leader.LeaderElectionOptions
 import io.bluetape4k.leader.LeaderElectionState
+import io.bluetape4k.leader.LeaderLeaseAcquirer
+import io.bluetape4k.leader.LeaderLeaseHandle
 import io.bluetape4k.leader.LeaderLeaseAutoExtender
 import io.bluetape4k.leader.LeaderLockHandle
+import io.bluetape4k.leader.LeaderSlot
 import io.bluetape4k.leader.LeaderState
 import io.bluetape4k.leader.LockIdentity
 import io.bluetape4k.leader.parkRemainingMinLeaseTime
@@ -15,6 +18,7 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
 import io.bluetape4k.leader.internal.ExtendDelegate
 import io.bluetape4k.leader.internal.LockStateHolder
+import io.bluetape4k.leader.internal.LocalRequestLeaseStore
 import io.bluetape4k.support.requireNotBlank
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
@@ -33,6 +37,7 @@ abstract class AbstractLocalLeaderElector(
     protected val options: LeaderElectionOptions = LeaderElectionOptions.Default,
 ) : LeaderElectionListenerRegistry,
     LeaderElectionState,
+    LeaderLeaseAcquirer,
     LeaderBackendDiagnosticsProvider by LocalLeaderBackendDiagnostics {
 
     companion object {
@@ -45,6 +50,10 @@ abstract class AbstractLocalLeaderElector(
     private val locks = ConcurrentHashMap<String, ReentrantLock>()
     private val listeners = LeaderElectionListenerSupport()
     private val states = LocalLeaderStateRegistry()
+    private val requestLeases = LocalRequestLeaseStore()
+
+    override val configuredOptions: LeaderElectionOptions
+        get() = options
 
     override val supportsAuditLeaderState: Boolean = true
 
@@ -181,4 +190,12 @@ abstract class AbstractLocalLeaderElector(
 
     override fun state(lockName: String): LeaderState =
         states.singleState(lockName)
+
+    /** lock-name overload는 구성된 node identity를 캡처해 request lease를 획득합니다. */
+    override fun tryAcquire(lockName: String): LeaderLeaseHandle? =
+        tryAcquire(LeaderSlot(lockName, options.nodeId))
+
+    /** caller slot identity를 변경하지 않고 request lease를 획득합니다. */
+    override fun tryAcquire(slot: LeaderSlot): LeaderLeaseHandle? =
+        requestLeases.tryAcquire(slot, options.waitTime, options)
 }

@@ -30,8 +30,13 @@ import java.util.concurrent.Executor
 class HazelcastLeaderElector private constructor(
     private val hazelcast: HazelcastInstance,
     private val options: LeaderElectionOptions,
-) : LeaderElector,
-    LeaderBackendDiagnosticsProvider by HazelcastLeaderBackendDiagnostics(hazelcast) {
+): LeaderElector,
+    LeaderBackendDiagnosticsProvider by HazelcastLeaderBackendDiagnostics(hazelcast),
+    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+
+    override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options)
+    }
 
     companion object: KLogging() {
         const val LOCK_MAP_NAME = "bluetape4k:leader:locks"
