@@ -12,11 +12,14 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivity
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDescriptor
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnostics
+import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProbe
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.LocalLeaderBackendDiagnostics
 import io.bluetape4k.leader.spring.LeaderTestApplication
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
 import org.springframework.beans.factory.getBean
 import org.springframework.beans.factory.getBeansOfType
@@ -26,6 +29,8 @@ import org.springframework.boot.health.contributor.Status
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.FilteredClassLoader
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.boot.test.system.CapturedOutput
+import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -33,7 +38,9 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
@@ -41,6 +48,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
+@ExtendWith(OutputCaptureExtension::class)
 class LeaderBackendHealthIndicatorTest {
 
     @Test
@@ -133,6 +141,18 @@ class LeaderBackendHealthIndicatorTest {
     }
 
     @Test
+    fun `공통 probe의 일반 Exception은 warning 없이 UNKNOWN으로 정규화된다`(output: CapturedOutput) {
+        val health = LeaderBackendHealthIndicator(
+            ProbeBackedDiagnosticsElector { throw IllegalStateException(RAW_PROBE_MESSAGE) },
+            100.milliseconds,
+        ).health()
+
+        health.status shouldBeEqualTo Status.UNKNOWN
+        output.out.contains(WARNING_MESSAGE).shouldBeFalse()
+        output.out.contains(RAW_PROBE_MESSAGE).shouldBeFalse()
+    }
+
+    @Test
     fun `provider CancellationException도 UNKNOWN으로 정규화하고 원문을 노출하지 않는다`() {
         val health = LeaderBackendHealthIndicator(
             ThrowingDiagnosticsElector(CancellationException(RAW_PROBE_MESSAGE)),
@@ -142,6 +162,18 @@ class LeaderBackendHealthIndicatorTest {
         health.status shouldBeEqualTo Status.UNKNOWN
         health.details.keys.none { it in SENSITIVE_DETAIL_KEYS }.shouldBeTrue()
         health.details.values.none { it.toString().contains(RAW_PROBE_MESSAGE) }.shouldBeTrue()
+    }
+
+    @Test
+    fun `공통 probe의 CancellationException도 UNKNOWN warning으로 정규화된다`(output: CapturedOutput) {
+        val health = LeaderBackendHealthIndicator(
+            ProbeBackedDiagnosticsElector { throw CancellationException(RAW_PROBE_MESSAGE) },
+            100.milliseconds,
+        ).health()
+
+        health.status shouldBeEqualTo Status.UNKNOWN
+        output.out shouldContain WARNING_MESSAGE
+        output.out.contains(RAW_PROBE_MESSAGE).shouldBeFalse()
     }
 
     @Test
@@ -171,6 +203,43 @@ class LeaderBackendHealthIndicatorTest {
         }
 
         thrown shouldBeSameInstanceAs fatal
+    }
+
+    @Test
+    fun `공통 probe의 NOT_CHECKED callback은 UNKNOWN warning으로 정규화된다`(output: CapturedOutput) {
+        val health = LeaderBackendHealthIndicator(
+            ProbeBackedDiagnosticsElector { LeaderBackendConnectivityStatus.NOT_CHECKED },
+            100.milliseconds,
+        ).health()
+
+        health.status shouldBeEqualTo Status.UNKNOWN
+        output.out shouldContain WARNING_MESSAGE
+    }
+
+    @Test
+    fun `사용자 정의 diagnostics의 NOT_CHECKED 결과는 warning 없이 UNKNOWN이다`(output: CapturedOutput) {
+        val health = LeaderBackendHealthIndicator(
+            NotCheckedDiagnosticsElector(),
+            100.milliseconds,
+        ).health()
+
+        health.status shouldBeEqualTo Status.UNKNOWN
+        output.out.contains(WARNING_MESSAGE).shouldBeFalse()
+    }
+
+    @Test
+    fun `공통 probe의 Error는 동일 인스턴스로 재전파하고 warning을 남기지 않는다`(output: CapturedOutput) {
+        val fatal = AssertionError(RAW_PROBE_MESSAGE)
+
+        val thrown = assertFailsWith<AssertionError> {
+            LeaderBackendHealthIndicator(
+                ProbeBackedDiagnosticsElector { throw fatal },
+                100.milliseconds,
+            ).health()
+        }
+
+        thrown shouldBeSameInstanceAs fatal
+        output.out.contains(WARNING_MESSAGE).shouldBeFalse()
     }
 
     @Nested
@@ -279,6 +348,26 @@ class LeaderBackendHealthIndicatorTest {
         override fun checkConnectivity(timeout: Duration): LeaderBackendConnectivity = throw failure
     }
 
+    class ProbeBackedDiagnosticsElector(
+        private val probe: (Duration) -> LeaderBackendConnectivityStatus,
+    ) : PlainLeaderElector(), LeaderBackendDiagnosticsProvider {
+        override val backendDescriptor: LeaderBackendDescriptor = LocalLeaderBackendDiagnostics.backendDescriptor
+
+        override fun checkConnectivity(timeout: Duration): LeaderBackendConnectivity =
+            LeaderBackendDiagnosticsProbe.check(
+                timeout = timeout,
+                clock = Clock.fixed(Instant.EPOCH, ZoneOffset.UTC),
+                probe = probe,
+            )
+    }
+
+    class NotCheckedDiagnosticsElector : PlainLeaderElector(), LeaderBackendDiagnosticsProvider {
+        override val backendDescriptor: LeaderBackendDescriptor = LocalLeaderBackendDiagnostics.backendDescriptor
+
+        override fun diagnostics(probe: Boolean, timeout: Duration): LeaderBackendDiagnostics =
+            LeaderBackendDiagnostics(backendDescriptor, LeaderBackendConnectivity.notChecked())
+    }
+
     open class PlainLeaderElector : LeaderElector {
         override fun <T> runIfLeader(lockName: String, action: () -> T): T? = action()
 
@@ -292,6 +381,9 @@ class LeaderBackendHealthIndicatorTest {
     private companion object {
         const val RAW_PROBE_MESSAGE =
             "probe failed endpoint=https://redis-prod.example:6380 token=secret credential=credential cause=connection"
+
+        const val WARNING_MESSAGE =
+            "leader.spring.health backend probe failed; status=UNKNOWN"
 
         val SENSITIVE_DETAIL_KEYS = setOf(
             "error",
