@@ -205,6 +205,11 @@ provider별 상태 의미는 바꾸지 않는다.
   않는다.
 - invalid timeout에서는 clock과 callback을 모두 호출하지 않는다.
 
+`InterruptedException` 회귀 테스트는 전용 thread에서 실행하거나 테스트의
+`finally`에서 `Thread.interrupted()`로 flag를 확실히 제거해 JUnit worker의
+후속 테스트에 interrupt 상태를 남기지 않는다. provider별 interruption
+테스트도 같은 cleanup 규칙을 사용한다.
+
 기존 `LeaderBackendDiagnosticsTest`와 `LocalLeaderBackendDiagnosticsTest`는
 기본·Local 동작이 그대로 유지되는지 확인한다.
 
