@@ -1,8 +1,13 @@
 package io.bluetape4k.leader.micrometer
 
 import io.bluetape4k.leader.LeaderElector
+import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.leader.LeaderGroupElector
+import io.bluetape4k.leader.LeaderLeaseAcquirer
+import io.bluetape4k.leader.LeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.coroutines.SuspendLeaderElector
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer
+import io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.micrometer.core.instrument.Counter
@@ -30,13 +35,23 @@ class InstrumentedLeaderElector private constructor(
     registry: MeterRegistry,
     private val lockName: String? = null,
     private val tagSanitizer: LeaderMetricTagSanitizer,
-): LeaderElector by delegate, LeaderBackendDiagnosticsAware {
+): LeaderElector by delegate, LeaderLeaseAcquirerSupport, LeaderBackendDiagnosticsAware {
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
         get() = delegate.resolveBackendDiagnosticsProvider()
 
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
+
+    override val leaseCapabilityAvailable: Boolean
+        get() = (delegate as? LeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
+            ?: delegate is LeaderLeaseAcquirer
+
+    override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
+        (delegate as? LeaderLeaseAcquirer).requireNotNull {
+            "The instrumented elector delegate does not expose request-lease capability"
+        }
+    }
 
     private val metrics = InstrumentedLeaderMetrics(registry)
 
@@ -187,13 +202,23 @@ class InstrumentedSuspendLeaderElector private constructor(
     registry: MeterRegistry,
     private val lockName: String? = null,
     private val tagSanitizer: LeaderMetricTagSanitizer,
-): SuspendLeaderElector by delegate, LeaderBackendDiagnosticsAware {
+): SuspendLeaderElector by delegate, SuspendLeaderLeaseAcquirerSupport, LeaderBackendDiagnosticsAware {
 
     override val backendDiagnosticsProvider: LeaderBackendDiagnosticsProvider?
         get() = delegate.resolveBackendDiagnosticsProvider()
 
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
+
+    override val leaseCapabilityAvailable: Boolean
+        get() = (delegate as? SuspendLeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
+            ?: delegate is SuspendLeaderLeaseAcquirer
+
+    override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
+        (delegate as? SuspendLeaderLeaseAcquirer).requireNotNull {
+            "The instrumented suspend elector delegate does not expose request-lease capability"
+        }
+    }
 
     private val metrics = InstrumentedLeaderMetrics(registry)
 

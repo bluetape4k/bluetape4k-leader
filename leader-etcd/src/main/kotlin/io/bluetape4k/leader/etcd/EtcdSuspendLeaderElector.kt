@@ -41,7 +41,12 @@ class EtcdSuspendLeaderElector private constructor(
     private val lockClient: EtcdLockClient,
     val options: EtcdLeaderElectionOptions,
 ): SuspendLeaderElector,
-    LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics {
+    LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics,
+    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+
+    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    }
 
     companion object: KLoggingChannel() {
         internal const val ETCD_SUSPEND_FACTORY_BEAN_NAME = "etcd-suspend-leader-elector"

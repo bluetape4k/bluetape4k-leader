@@ -23,6 +23,13 @@ sealed interface ExtendOutcome : Serializable {
     }
 
     /**
+     * watchdog 또는 bounded operation queue가 포화되어 extension을 시작하지 못한 상태입니다.
+     */
+    data object Rejected : ExtendOutcome {
+        private const val serialVersionUID = 1L
+    }
+
+    /**
      * `NotHeld` 선언은 leader election 계약에서 사용되는 object입니다.
      *
      * API 이름과 `lock`, `lease`, `leader`, `slot`, `audit` 용어는 코드 계약과 동일하게 유지합니다.

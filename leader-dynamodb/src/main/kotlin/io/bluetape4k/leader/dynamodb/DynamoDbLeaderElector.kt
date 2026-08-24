@@ -35,8 +35,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 class DynamoDbLeaderElector(
     private val dynamoDb: DynamoDbClient,
     val options: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
-) : LeaderElector,
-    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
+): LeaderElector,
+    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics,
+    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+
+    override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    }
 
     companion object : KLogging() {
         internal const val DYNAMODB_FACTORY_BEAN_NAME = "dynamodb-leader-elector"

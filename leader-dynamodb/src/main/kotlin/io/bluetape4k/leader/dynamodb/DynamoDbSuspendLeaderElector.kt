@@ -33,7 +33,12 @@ class DynamoDbSuspendLeaderElector(
     private val dynamoDb: DynamoDbAsyncClient,
     val options: DynamoDbLeaderElectionOptions = DynamoDbLeaderElectionOptions.Default,
 ) : SuspendLeaderElector,
-    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics {
+    LeaderBackendDiagnosticsProvider by DynamoDbLeaderBackendDiagnostics,
+    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+
+    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    }
 
     companion object : KLoggingChannel()
 

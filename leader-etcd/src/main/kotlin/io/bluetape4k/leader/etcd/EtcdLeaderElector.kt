@@ -40,8 +40,13 @@ import kotlin.time.Duration
 class EtcdLeaderElector private constructor(
     private val lockClient: EtcdLockClient,
     val options: EtcdLeaderElectionOptions,
-) : LeaderElector,
-    LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics {
+): LeaderElector,
+    LeaderBackendDiagnosticsProvider by EtcdLeaderBackendDiagnostics,
+    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+
+    override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    }
 
     private val cleanupTimeout = etcdCleanupTimeout(options.leaderOptions.waitTime, options.retryDelay)
 

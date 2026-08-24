@@ -40,7 +40,12 @@ class ZooKeeperSuspendLeaderElector private constructor(
     private val options: LeaderElectionOptions,
 ): SuspendLeaderElector,
     LeaderBackendDiagnosticsProvider by ZooKeeperLeaderBackendDiagnostics(client),
-    AutoCloseable {
+    AutoCloseable,
+    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+
+    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options)
+    }
 
     private val ownerDispatchers = ZooKeeperOwnerDispatcherPool(
         size = OwnerDispatcherPoolSize,

@@ -86,6 +86,20 @@ bluetape4k:
       authority-mode: STATE
       elector-bean: ""
       rejection-status: SERVICE_UNAVAILABLE
+      lease:
+        max-blocking-wait-time: 5s
+        max-concurrent-acquires: 256
+        max-concurrent-cleanups: 256
+        max-acquire-queue-depth: 1024
+        max-cleanup-queue-depth: 1024
+        max-mvc-blocking-acquires: 32
+        max-active-leases: 10000
+        max-residual-leases: 1024
+        max-watchdog-in-flight: 256
+        max-lease-lifetime: 10m
+        minimum-auto-extend-lease-time: 100ms
+        max-expected-extension-latency: 50ms
+        drain-timeout: 30s
     observability:
       enabled: true
       lock-names:
@@ -104,9 +118,34 @@ Spring configuration properties use Spring Boot duration binding (`5s`, `60s`, `
 
 ## Leader-Gated Routes (0.5.0)
 
-Route guards are opt-in and read-only. They decide whether the local application may serve selected Spring MVC or WebFlux routes; they never acquire, extend, or release a lease on the request path. The feature is inactive unless `bluetape4k.leader.route-guard.enabled=true`.
+Route guards are opt-in. `STATE` and `CUSTOM` remain passive: they decide whether the local application may serve selected Spring MVC or WebFlux routes without acquiring a request lease. `LEASE` is the explicit ownership mode; it acquires one bounded handle before the handler, keeps it through completion/cancellation, and releases it exactly once. The feature is inactive unless `bluetape4k.leader.route-guard.enabled=true`.
 
 The default `STATE` authority performs one `LeaderElector.state(slot.lockName)` lookup and allows the request only when the occupied leader state’s audit leader ID equals `slot.leaderId`. Create the leader ID once per live process incarnation, then reuse the same `LeaderSlot` for election and route guarding. Do not reuse a fixed node ID across restarts: a new process could otherwise match a stale lease owned by its predecessor.
+
+### Request-owned lease routes (opt-in)
+
+`LEASE` requires the selected elector to expose the additive `LeaderLeaseAcquirer` capability. Normal contention and bounded admission rejection use the configured empty-body rejection response; the handler is not subscribed. `max-active-leases` and `max-residual-leases` are fixed limits, so the derived `effectiveActiveCapacity` is `min(10000, 1024) = 1024` with the defaults and cannot be bound directly. Acquire and cleanup queues are bounded and backend failures remain sanitized; no lock name, fencing token, leader identity, backend URI, or exception message is returned to the route.
+
+```yaml
+bluetape4k:
+  leader:
+    route-guard:
+      enabled: true
+      authority-mode: LEASE
+      elector-bean: ordersLeaderElector
+      lease:
+        max-active-leases: 10000
+        max-residual-leases: 1024
+        max-blocking-wait-time: 250ms
+        max-lease-lifetime: 10m
+
+management:
+  endpoint:
+    leaderRouteLease:
+      enabled: true
+```
+
+`LEASE` is incompatible with `route-guard.redirect.enabled`. A missing lease capability, queue saturation, cleanup timeout, or context drain is fail-closed with stable `LEADER_ROUTE_*` codes and a bounded diagnostic aggregate. Disable the mode or roll back to `STATE` when admission rejection, residual count, or drain timeout exceeds the application's canary threshold; force-unlock is not a recovery procedure.
 
 ```kotlin
 @Bean

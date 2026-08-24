@@ -53,7 +53,13 @@ class LettuceLeaderElector @JvmOverloads constructor(
     private val connection: StatefulRedisConnection<String, String>,
     private val options: LeaderElectionOptions = LeaderElectionOptions.Default,
     private val historyRecorder: SafeLeaderHistoryRecorder? = null,
-): LeaderElector, LeaderBackendDiagnosticsProvider by LettuceLeaderBackendDiagnostics(connection) {
+): LeaderElector,
+    LeaderBackendDiagnosticsProvider by LettuceLeaderBackendDiagnostics(connection),
+    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+
+    override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options)
+    }
 
     companion object: KLogging() {
         internal const val LETTUCE_FACTORY_BEAN_NAME = "lettuce-leader-elector"

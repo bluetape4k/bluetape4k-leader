@@ -41,7 +41,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 class RedissonLeaderElector private constructor(
     private val redissonClient: RedissonClient,
     private val options: LeaderElectionOptions,
-): LeaderElector, LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient) {
+): LeaderElector,
+    LeaderBackendDiagnosticsProvider by RedissonLeaderBackendDiagnostics(redissonClient),
+    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+
+    override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options)
+    }
 
     companion object: KLogging() {
         internal const val REDISSON_FACTORY_BEAN_NAME = "redisson-leader-elector"

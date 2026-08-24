@@ -35,7 +35,12 @@ class KubernetesLeaseSuspendLeaderElector @JvmOverloads constructor(
     val options: KubernetesLeaseOptions = KubernetesLeaseOptions.Default,
     private val clock: Clock = Clock.systemUTC(),
 ) : SuspendLeaderElector,
-    LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics {
+    LeaderBackendDiagnosticsProvider by KubernetesLeaderBackendDiagnostics,
+    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+
+    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    }
 
     companion object : KLoggingChannel() {
         internal const val K8S_SUSPEND_FACTORY_BEAN_NAME = "kubernetes-lease-suspend-leader-elector"

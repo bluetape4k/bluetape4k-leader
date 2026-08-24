@@ -1,6 +1,7 @@
 package io.bluetape4k.leader.coroutines
 
 import io.bluetape4k.coroutines.flow.extensions.subject.PublishSubject
+import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.leader.LeaderElectionEvent
 import io.bluetape4k.leader.LeaderElectionEventPublisher
 import io.bluetape4k.leader.LeaderElectionListener
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.Flow
 class ListeningSuspendLeaderElector(
     private val delegate: SuspendLeaderElector,
 ) : SuspendLeaderElector,
+    SuspendLeaderLeaseAcquirerSupport,
     LeaderElectionListenerRegistry,
     LeaderElectionEventPublisher,
     LeaderBackendDiagnosticsAware {
@@ -38,6 +40,16 @@ class ListeningSuspendLeaderElector(
 
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
+
+    override val leaseCapabilityAvailable: Boolean
+        get() = (delegate as? SuspendLeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
+            ?: delegate is SuspendLeaderLeaseAcquirer
+
+    override val suspendLeaseAcquirerDelegate: SuspendLeaderLeaseAcquirer by lazy {
+        (delegate as? SuspendLeaderLeaseAcquirer).requireNotNull {
+            "The listening suspend elector delegate does not expose request-lease capability"
+        }
+    }
 
     override fun addListener(listener: LeaderElectionListener): AutoCloseable =
         listeners.addListener(listener)

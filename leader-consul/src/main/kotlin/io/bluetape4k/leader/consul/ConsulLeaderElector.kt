@@ -46,8 +46,13 @@ import kotlin.time.Duration.Companion.milliseconds
 class ConsulLeaderElector private constructor(
     private val lockClient: ConsulLockClient,
     val options: ConsulLeaderElectionOptions,
-) : LeaderElector,
-    LeaderBackendDiagnosticsProvider by ConsulLeaderBackendDiagnostics {
+): LeaderElector,
+    LeaderBackendDiagnosticsProvider by ConsulLeaderBackendDiagnostics,
+    io.bluetape4k.leader.LeaderLeaseAcquirerSupport {
+
+    override val leaseAcquirerDelegate: io.bluetape4k.leader.LeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.LeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    }
 
     constructor(
         endpoint: ConsulEndpoint,

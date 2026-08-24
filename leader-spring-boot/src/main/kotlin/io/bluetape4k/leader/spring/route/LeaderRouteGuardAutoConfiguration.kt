@@ -6,6 +6,7 @@ import io.bluetape4k.leader.spring.LeaderProperties
 import io.bluetape4k.leader.spring.backend.LocalLeaderConfiguration
 import io.bluetape4k.leader.spring.route.mvc.LeaderMvcRouteGuardFactory
 import io.bluetape4k.leader.spring.route.webflux.LeaderWebFluxRouteGuardFactory
+import io.bluetape4k.leader.internal.ResidualLeaseRegistry
 import org.springframework.beans.factory.BeanNotOfRequiredTypeException
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.NoSuchBeanDefinitionException
@@ -14,10 +15,12 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
+import kotlin.time.toKotlinDuration
 
 /**
  * Spring Boot integration 계약을 설명하는 한국어 KDoc입니다.
@@ -32,6 +35,7 @@ import org.springframework.context.annotation.Import
 @Import(
     LeaderRouteGuardAutoConfiguration.StateModeConfiguration::class,
     LeaderRouteGuardAutoConfiguration.CustomModeConfiguration::class,
+    LeaderRouteGuardAutoConfiguration.LeaseModeConfiguration::class,
     LeaderRouteGuardAutoConfiguration.RedirectPolicyConfiguration::class,
     LeaderRouteGuardAutoConfiguration.MvcConfiguration::class,
     LeaderRouteGuardAutoConfiguration.WebFluxConfiguration::class,
@@ -114,6 +118,57 @@ class LeaderRouteGuardAutoConfiguration {
 
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnProperty(
+        prefix = "bluetape4k.leader.route-guard",
+        name = ["authority-mode"],
+        havingValue = "LEASE",
+    )
+    class LeaseModeConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(ResidualLeaseRegistry::class)
+        internal fun leaderRouteResidualLeaseRegistry(properties: LeaderProperties): ResidualLeaseRegistry =
+            ResidualLeaseRegistry(
+                maxResidualLeases = properties.routeGuard.lease.maxResidualLeases,
+                retention = properties.routeGuard.lease.drainTimeout.toKotlinDuration(),
+                maxLeaseLifetime = properties.routeGuard.lease.maxLeaseLifetime.toKotlinDuration(),
+            )
+
+        @Bean
+        internal fun leaderRouteLeaseRuntime(
+            beanFactory: ListableBeanFactory,
+            properties: LeaderProperties,
+            residualRegistry: ResidualLeaseRegistry,
+        ): LeaderRouteLeaseRuntime {
+            properties.routeGuard.lease.validateForLeaseMode()
+            if (properties.routeGuard.redirect.enabled) {
+                throw LeaderRouteGuardConfigurationException(
+                    LeaderRouteGuardConfigurationException.LEASE_REDIRECT_INCOMPATIBLE,
+                    "LEASE mode cannot be combined with route-guard.redirect.enabled",
+                )
+            }
+
+            val resolver = LeaseCapabilityResolver(beanFactory)
+            val acquirer = resolver.select(properties.routeGuard.electorBean)
+            val suspendAcquirer = resolver.selectSuspend(properties.routeGuard.electorBean)
+            val configuredOptionsBaseline = acquirer.configuredOptions.copy()
+            properties.routeGuard.lease.validateAgainst(configuredOptionsBaseline)
+            return LeaderRouteLeaseRuntime(
+                acquirer,
+                suspendAcquirer,
+                properties.routeGuard.lease,
+                configuredOptionsBaseline = configuredOptionsBaseline,
+                residualRegistry = residualRegistry,
+            )
+        }
+
+        /** LEASE mode does not expose a passive authority runtime. */
+        @Bean
+        internal fun leaderRouteAuthorityRuntime(): LeaderRouteAuthorityRuntime =
+            LeaderRouteAuthorityRuntime(LeaderRouteAuthority { LeaderRouteDecision.Allowed })
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnProperty(
         prefix = "bluetape4k.leader.route-guard.redirect",
         name = ["enabled"],
         havingValue = "true",
@@ -122,7 +177,17 @@ class LeaderRouteGuardAutoConfiguration {
 
         @Bean
         internal fun leaderRouteRedirectPolicy(properties: LeaderProperties): LeaderRouteRedirectPolicy =
-            LeaderRouteRedirectPolicy(properties.routeGuard.redirect)
+            if (
+                properties.routeGuard.authorityMode ==
+                    io.bluetape4k.leader.spring.properties.LeaderRouteAuthorityMode.LEASE
+            ) {
+                throw LeaderRouteGuardConfigurationException(
+                    LeaderRouteGuardConfigurationException.LEASE_REDIRECT_INCOMPATIBLE,
+                    "LEASE mode cannot be combined with route-guard.redirect.enabled",
+                )
+            } else {
+                LeaderRouteRedirectPolicy(properties.routeGuard.redirect)
+            }
     }
 
     @Configuration(proxyBeanMethods = false)
@@ -133,11 +198,18 @@ class LeaderRouteGuardAutoConfiguration {
 
         @Bean
         internal fun leaderMvcRouteGuardFactory(
-            runtime: LeaderRouteAuthorityRuntime,
+            runtime: ObjectProvider<LeaderRouteAuthorityRuntime>,
             properties: LeaderProperties,
             redirectPolicy: ObjectProvider<LeaderRouteRedirectPolicy>,
-        ): LeaderMvcRouteGuardFactory =
-            LeaderMvcRouteGuardFactory(runtime, properties.routeGuard, redirectPolicy.getIfAvailable())
+            leaseRuntime: ObjectProvider<LeaderRouteLeaseRuntime>,
+        ): LeaderMvcRouteGuardFactory = LeaderMvcRouteGuardFactory(
+            runtime = runtime.getIfAvailable {
+                LeaderRouteAuthorityRuntime(LeaderRouteAuthority { LeaderRouteDecision.Allowed })
+            },
+            properties = properties.routeGuard,
+            redirectPolicy = redirectPolicy.getIfAvailable(),
+            leaseRuntime = leaseRuntime.getIfAvailable(),
+        )
 
         /** Preserves the pre-redirect bean method descriptor for binary consumers. */
         internal fun leaderMvcRouteGuardFactory(
@@ -152,11 +224,18 @@ class LeaderRouteGuardAutoConfiguration {
 
         @Bean
         internal fun leaderWebFluxRouteGuardFactory(
-            runtime: LeaderRouteAuthorityRuntime,
+            runtime: ObjectProvider<LeaderRouteAuthorityRuntime>,
             properties: LeaderProperties,
             redirectPolicy: ObjectProvider<LeaderRouteRedirectPolicy>,
-        ): LeaderWebFluxRouteGuardFactory =
-            LeaderWebFluxRouteGuardFactory(runtime, properties.routeGuard, redirectPolicy.getIfAvailable())
+            leaseRuntime: ObjectProvider<LeaderRouteLeaseRuntime>,
+        ): LeaderWebFluxRouteGuardFactory = LeaderWebFluxRouteGuardFactory(
+            runtime = runtime.getIfAvailable {
+                LeaderRouteAuthorityRuntime(LeaderRouteAuthority { LeaderRouteDecision.Allowed })
+            },
+            properties = properties.routeGuard,
+            redirectPolicy = redirectPolicy.getIfAvailable(),
+            leaseRuntime = leaseRuntime.getIfAvailable(),
+        )
 
         /** Preserves the pre-redirect bean method descriptor for binary consumers. */
         internal fun leaderWebFluxRouteGuardFactory(
@@ -201,5 +280,6 @@ class LeaderRouteGuardAutoConfiguration {
                 )
             }
         }
+
     }
 }

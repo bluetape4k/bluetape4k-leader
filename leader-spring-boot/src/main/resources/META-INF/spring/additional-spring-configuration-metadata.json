@@ -26,6 +26,11 @@
       "description": "Opt-in application-owned redirect-to-leader policy."
     },
     {
+      "name": "bluetape4k.leader.route-guard.lease",
+      "type": "io.bluetape4k.leader.spring.properties.LeaderRouteLeaseProperties",
+      "description": "Bounded request-lease admission, lifetime, watchdog, and cleanup limits."
+    },
+    {
       "name": "bluetape4k.leader.mongo",
       "type": "io.bluetape4k.leader.spring.MongoCollectionProperties",
       "description": "MongoDB leader election collection options."
@@ -274,6 +279,84 @@
       "type": "java.time.Duration",
       "description": "Additional lease time required before invoking the redirect resolver.",
       "defaultValue": "PT0S"
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.lease.max-blocking-wait-time",
+      "type": "java.time.Duration",
+      "description": "Maximum bounded blocking wait for a request lease.",
+      "defaultValue": "PT5S"
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.lease.max-concurrent-acquires",
+      "type": "java.lang.Integer",
+      "description": "Maximum concurrent request lease acquisition attempts.",
+      "defaultValue": 256
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.lease.max-concurrent-cleanups",
+      "type": "java.lang.Integer",
+      "description": "Maximum concurrent request lease cleanup operations.",
+      "defaultValue": 256
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.lease.max-acquire-queue-depth",
+      "type": "java.lang.Integer",
+      "description": "Bounded request lease acquire queue depth.",
+      "defaultValue": 1024
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.lease.max-cleanup-queue-depth",
+      "type": "java.lang.Integer",
+      "description": "Bounded request lease cleanup queue depth.",
+      "defaultValue": 1024
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.lease.max-mvc-blocking-acquires",
+      "type": "java.lang.Integer",
+      "description": "Maximum MVC blocking waiters admitted before backend acquisition.",
+      "defaultValue": 32
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.lease.max-active-leases",
+      "type": "java.lang.Integer",
+      "description": "Maximum active request leases before admission rejection.",
+      "defaultValue": 10000
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.lease.max-residual-leases",
+      "type": "java.lang.Integer",
+      "description": "Maximum bounded residual cleanup reservations.",
+      "defaultValue": 1024
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.lease.max-watchdog-in-flight",
+      "type": "java.lang.Integer",
+      "description": "Maximum watchdog extensions in flight.",
+      "defaultValue": 256
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.lease.max-lease-lifetime",
+      "type": "java.time.Duration",
+      "description": "Absolute maximum lifetime used by route lease watchdog and cleanup bounds.",
+      "defaultValue": "PT10M"
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.lease.minimum-auto-extend-lease-time",
+      "type": "java.time.Duration",
+      "description": "Minimum lease duration reserved for automatic extension semantics.",
+      "defaultValue": "PT0.1S"
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.lease.max-expected-extension-latency",
+      "type": "java.time.Duration",
+      "description": "Expected upper bound for a watchdog extension call.",
+      "defaultValue": "PT0.05S"
+    },
+    {
+      "name": "bluetape4k.leader.route-guard.lease.drain-timeout",
+      "type": "java.time.Duration",
+      "description": "Bounded shutdown drain timeout for active request leases and cleanup.",
+      "defaultValue": "PT30S"
     },
     {
       "name": "bluetape4k.leader.mongo.single-collection",

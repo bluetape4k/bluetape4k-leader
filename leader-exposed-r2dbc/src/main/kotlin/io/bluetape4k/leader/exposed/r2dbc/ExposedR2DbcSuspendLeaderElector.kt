@@ -39,7 +39,12 @@ class ExposedR2DbcSuspendLeaderElector private constructor(
     val options: ExposedR2dbcLeaderElectionOptions,
     private val historyRecorder: SuspendSafeLeaderHistoryRecorder? = null,
 ) : SuspendLeaderElector,
-    LeaderBackendDiagnosticsProvider by ExposedR2dbcLeaderBackendDiagnostics {
+    LeaderBackendDiagnosticsProvider by ExposedR2dbcLeaderBackendDiagnostics,
+    io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirerSupport {
+
+    override val suspendLeaseAcquirerDelegate: io.bluetape4k.leader.coroutines.SuspendLeaderLeaseAcquirer by lazy {
+        io.bluetape4k.leader.internal.SuspendLeaderElectorLeaseAdapter({ this }, options.leaderOptions)
+    }
 
     companion object : KLoggingChannel() {
 

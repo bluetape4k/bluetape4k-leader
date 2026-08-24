@@ -1,5 +1,6 @@
 package io.bluetape4k.leader
 
+import io.bluetape4k.support.requireNotNull
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsAware
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
 import io.bluetape4k.leader.diagnostics.resolveLeaderBackendDiagnosticsProvider
@@ -22,6 +23,7 @@ private const val EVENT_BUFFER_CAPACITY = 64
 class ListeningLeaderElector(
     private val delegate: LeaderElector,
 ) : LeaderElector,
+    LeaderLeaseAcquirerSupport,
     LeaderElectionListenerRegistry,
     LeaderElectionEventPublisher,
     LeaderBackendDiagnosticsAware {
@@ -39,6 +41,16 @@ class ListeningLeaderElector(
 
     override val supportsAuditLeaderState: Boolean
         get() = delegate.supportsAuditLeaderState
+
+    override val leaseCapabilityAvailable: Boolean
+        get() = (delegate as? LeaderLeaseAcquirerSupport)?.leaseCapabilityAvailable
+            ?: delegate is LeaderLeaseAcquirer
+
+    override val leaseAcquirerDelegate: LeaderLeaseAcquirer by lazy {
+        (delegate as? LeaderLeaseAcquirer).requireNotNull {
+            "The listening elector delegate does not expose request-lease capability"
+        }
+    }
 
     override fun addListener(listener: LeaderElectionListener): AutoCloseable =
         listeners.addListener(listener)
