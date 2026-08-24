@@ -1,7 +1,9 @@
 package io.bluetape4k.leader.mongodb
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldContain
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
@@ -10,6 +12,7 @@ import io.bluetape4k.leader.diagnostics.LeaderBackendSupport
 import io.bluetape4k.leader.diagnostics.LeaderBackendTtlMode
 import io.bluetape4k.leader.diagnostics.LeaderExecutionModel
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 class MongoLeaderBackendDiagnosticsTest {
@@ -35,6 +38,24 @@ class MongoLeaderBackendDiagnosticsTest {
         MongoLeaderBackendDiagnostics
             .checkConnectivity(100.milliseconds)
             .status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
+    }
+
+    @Test
+    fun `MongoDB probe는 공통 helper의 positive finite timeout 계약을 적용한다`() {
+        val zero = assertFailsWith<IllegalArgumentException> {
+            MongoLeaderBackendDiagnostics.checkConnectivity(Duration.ZERO)
+        }
+        zero.message shouldContain "probe timeout[0s] must be greater than 0s."
+
+        val negative = assertFailsWith<IllegalArgumentException> {
+            MongoLeaderBackendDiagnostics.checkConnectivity((-1).milliseconds)
+        }
+        negative.message shouldContain "probe timeout[-1ms] must be greater than 0s."
+
+        val infinite = assertFailsWith<IllegalArgumentException> {
+            MongoLeaderBackendDiagnostics.checkConnectivity(Duration.INFINITE)
+        }
+        infinite.message shouldContain "probe timeout must be finite"
     }
 
     @Test

@@ -1,6 +1,5 @@
 package io.bluetape4k.leader.diagnostics
 
-import java.time.Clock
 import kotlin.time.Duration
 
 /** Process 내부 Local leader elector가 공유하는 backend diagnostics provider입니다. */
@@ -30,8 +29,9 @@ object LocalLeaderBackendDiagnostics : LeaderBackendDiagnosticsProvider {
 
     /** Local elector는 외부 연결 없이 항상 사용할 수 있습니다. */
     override fun checkConnectivity(timeout: Duration): LeaderBackendConnectivity {
-        timeout.requirePositiveFiniteProbeTimeout()
-        return LeaderBackendConnectivity.up(Clock.systemUTC().instant())
+        return LeaderBackendDiagnosticsProbe.check(timeout) {
+            LeaderBackendConnectivityStatus.UP
+        }
     }
 
 }
