@@ -26,17 +26,15 @@ class ZooKeeperLeaderBackendDiagnostics(
             "probe timeout must be positive and finite: $timeout"
         }
         val checkedAt = Clock.systemUTC().instant()
-        return runCatching { client.zookeeperClient.isConnected }
-            .fold(
-                onSuccess = { connected ->
-                    if (connected) {
-                        LeaderBackendConnectivity.up(checkedAt)
-                    } else {
-                        LeaderBackendConnectivity.down(checkedAt)
-                    }
-                },
-                onFailure = { LeaderBackendConnectivity.unknown(checkedAt) },
-            )
+        return try {
+            if (client.zookeeperClient.isConnected) {
+                LeaderBackendConnectivity.up(checkedAt)
+            } else {
+                LeaderBackendConnectivity.down(checkedAt)
+            }
+        } catch (_: Exception) {
+            LeaderBackendConnectivity.unknown(checkedAt)
+        }
     }
 
     private companion object {

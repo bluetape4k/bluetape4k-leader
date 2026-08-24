@@ -1,7 +1,9 @@
 package io.bluetape4k.leader.zookeeper
 
+import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBe
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeSameInstanceAs
 import io.bluetape4k.leader.diagnostics.LeaderBackendClockSource
 import io.bluetape4k.leader.diagnostics.LeaderBackendConnectivityStatus
 import io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProvider
@@ -44,6 +46,33 @@ class ZooKeeperLeaderBackendDiagnosticsTest {
 
         provider.checkConnectivity(100.milliseconds).status shouldBeEqualTo LeaderBackendConnectivityStatus.UP
         provider.checkConnectivity(100.milliseconds).status shouldBeEqualTo LeaderBackendConnectivityStatus.DOWN
+    }
+
+    @Test
+    fun `Curator Exception은 UNKNOWN으로 정규화한다`() {
+        val zookeeperClient = mockk<CuratorZookeeperClient>()
+        val client = mockk<CuratorFramework>()
+        every { client.zookeeperClient } returns zookeeperClient
+        every { zookeeperClient.isConnected } throws IllegalStateException("probe failed")
+
+        ZooKeeperLeaderBackendDiagnostics(client)
+            .checkConnectivity(100.milliseconds)
+            .status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
+    }
+
+    @Test
+    fun `Curator Error는 동일 인스턴스로 재전파한다`() {
+        val fatal = AssertionError("fatal ZooKeeper probe")
+        val zookeeperClient = mockk<CuratorZookeeperClient>()
+        val client = mockk<CuratorFramework>()
+        every { client.zookeeperClient } returns zookeeperClient
+        every { zookeeperClient.isConnected } throws fatal
+
+        val thrown = assertFailsWith<AssertionError> {
+            ZooKeeperLeaderBackendDiagnostics(client).checkConnectivity(100.milliseconds)
+        }
+
+        thrown shouldBeSameInstanceAs fatal
     }
 
     @Test

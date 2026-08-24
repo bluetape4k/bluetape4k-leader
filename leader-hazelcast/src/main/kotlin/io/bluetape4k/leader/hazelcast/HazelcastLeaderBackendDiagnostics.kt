@@ -26,17 +26,15 @@ class HazelcastLeaderBackendDiagnostics(
             "probe timeout must be positive and finite: $timeout"
         }
         val checkedAt = Clock.systemUTC().instant()
-        return runCatching { hazelcast.lifecycleService.isRunning }
-            .fold(
-                onSuccess = { running ->
-                    if (running) {
-                        LeaderBackendConnectivity.unknown(checkedAt)
-                    } else {
-                        LeaderBackendConnectivity.down(checkedAt)
-                    }
-                },
-                onFailure = { LeaderBackendConnectivity.unknown(checkedAt) },
-            )
+        return try {
+            if (hazelcast.lifecycleService.isRunning) {
+                LeaderBackendConnectivity.unknown(checkedAt)
+            } else {
+                LeaderBackendConnectivity.down(checkedAt)
+            }
+        } catch (_: Exception) {
+            LeaderBackendConnectivity.unknown(checkedAt)
+        }
     }
 
     private companion object {
