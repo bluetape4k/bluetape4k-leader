@@ -859,7 +859,9 @@ from an already published artifact.
 | Local, MongoDB, Lettuce, Redisson, Hazelcast, ZooKeeper migration | Task 3 |
 | No new I/O, lock, lease, scan, client, retry, executor, or deadline | Tasks 2–3 and 6 |
 | Built-in/custom direct/Ktor/Spring adapter contract | Task 4 |
+| Legacy `checkConnectivity`/`diagnostics` override behavior and source compatibility | Tasks 1–2 and 6 |
 | Root/module EN/KO README and public KDoc | Task 5 |
+| EN/KO fact matrix and custom payload sanitization ownership | Task 5 |
 | Versioned manual release-pin boundary and #774 ownership | Tasks 5 and 7 |
 | ABI, Kotlin consumer smoke, `jar tf`, `javap`, Detekt, tests | Task 6 |
 | Korean lesson, receipt, DoD, PR/merge gates | Tasks 7–8 |
@@ -870,3 +872,5 @@ assertions, value-class ABI inspection, same-thread behavior, zero-skipped XML
 verification, and receipt-head sequencing.
 Later code snippets use the same `LeaderBackendDiagnosticsProbe.check`
 signature and `LeaderBackendConnectivityStatus` mapping defined in Task 2.
+The rollback section keeps the helper ABI/core tests while restoring dependent
+provider, adapter, documentation, and release-note expectations together.
