@@ -523,7 +523,10 @@ positive finite provider-native budget and not a wall-clock deadline; built-in
 ordinary `Exception` maps to `UNKNOWN`; cancellation/interruption/`Error` retain
 their semantics; built-in `NOT_CHECKED` is passive-only; custom override is a
 source-compatible escape hatch; `UNKNOWN` is not readiness or ownership proof;
-raw exception/credential/endpoint values are not serialized. Link [Issue #774](https://github.com/bluetape4k/bluetape4k-leader/issues/774)
+the built-in helper and Spring allow-list do not serialize raw
+exception/credential/endpoint values. Custom provider descriptors and custom
+Ktor application-pipeline responses remain application-owned and must be
+sanitized by the caller. Link [Issue #774](https://github.com/bluetape4k/bluetape4k-leader/issues/774)
 for future cause signals and readiness/runbook policy.
 
 - [ ] **Step 2: Correct Ktor module documentation.**
