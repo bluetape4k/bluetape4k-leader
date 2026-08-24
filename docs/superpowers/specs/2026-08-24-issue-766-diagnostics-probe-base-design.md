@@ -231,7 +231,7 @@ client factory 호출이 없음을 확인한다.
 - `:bluetape4k-leader-core:test`
 - 변경 provider 모듈의 targeted test 및 module test
 - `detekt`
-- `ABI_BASE_VERSION=0.5.0 ABI_CURRENT_VERSION=0.6.0 ./gradlew --no-daemon --console=plain --no-configuration-cache checkBinaryCompatibility`
+- `ABI_BASE_VERSION=0.5.0 ABI_CURRENT_VERSION=1.0.0 ./gradlew --no-daemon --console=plain --no-configuration-cache checkBinaryCompatibility`
 - `git diff --check`
 
 Spring Boot/Ktor route payload와 Micrometer metric 테스트는 source 변경이
