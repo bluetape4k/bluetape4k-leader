@@ -2,9 +2,12 @@ package io.bluetape4k.leader.diagnostics
 
 import io.bluetape4k.assertions.assertFailsWith
 import io.bluetape4k.assertions.shouldBeEqualTo
+import io.bluetape4k.assertions.shouldBeSameInstanceAs
+import io.bluetape4k.assertions.shouldBeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import java.time.Instant
+import java.util.concurrent.CancellationException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -93,6 +96,77 @@ class LeaderBackendDiagnosticsTest {
         connectivity.status shouldBeEqualTo LeaderBackendConnectivityStatus.UNKNOWN
     }
 
+    @Test
+    fun `legacy checkConnectivity override는 diagnostics 선검증과 custom 예외 경계를 유지한다`() {
+        val provider = LegacyCheckConnectivityProvider()
+
+        assertFailsWith<IllegalArgumentException> {
+            provider.diagnostics(probe = true, timeout = Duration.ZERO)
+        }
+        provider.calls shouldBeEqualTo 0
+
+        provider.behavior = { LeaderBackendConnectivity.notChecked() }
+        provider.checkConnectivity(100.milliseconds) shouldBeEqualTo LeaderBackendConnectivity.notChecked()
+
+        val ordinary = IllegalStateException("legacy failure")
+        provider.behavior = { throw ordinary }
+        assertFailsWith<IllegalStateException> {
+            provider.diagnostics(probe = true, timeout = 100.milliseconds)
+        }.shouldBeSameInstanceAs(ordinary)
+
+        val cancellation = CancellationException("legacy cancellation")
+        provider.behavior = { throw cancellation }
+        assertFailsWith<CancellationException> {
+            provider.diagnostics(probe = true, timeout = 100.milliseconds)
+        }.shouldBeSameInstanceAs(cancellation)
+
+        Thread.interrupted()
+        val interrupted = InterruptedException("legacy interruption")
+        provider.behavior = { throw interrupted }
+        try {
+            assertFailsWith<InterruptedException> {
+                provider.diagnostics(probe = true, timeout = 100.milliseconds)
+            }.shouldBeSameInstanceAs(interrupted)
+            Thread.currentThread().isInterrupted.shouldBeTrue()
+        } finally {
+            Thread.interrupted()
+        }
+
+        val fatal = AssertionError("legacy fatal")
+        provider.behavior = { throw fatal }
+        assertFailsWith<AssertionError> {
+            provider.diagnostics(probe = true, timeout = 100.milliseconds)
+        }.shouldBeSameInstanceAs(fatal)
+    }
+
+    @Test
+    fun `legacy diagnostics override는 base prevalidation과 helper를 우회하는 계약을 유지한다`() {
+        val provider = LegacyDiagnosticsOverrideProvider()
+        val expected = LeaderBackendDiagnostics(descriptor, LeaderBackendConnectivity.notChecked())
+
+        provider.diagnostics(probe = true, timeout = Duration.ZERO) shouldBeEqualTo expected
+        provider.calls shouldBeEqualTo 1
+        provider.lastTimeout shouldBeEqualTo Duration.ZERO
+
+        val ordinary = IllegalStateException("custom diagnostics failure")
+        provider.behavior = { throw ordinary }
+        assertFailsWith<IllegalStateException> {
+            provider.diagnostics(probe = true, timeout = 100.milliseconds)
+        }.shouldBeSameInstanceAs(ordinary)
+
+        val cancellation = CancellationException("custom diagnostics cancellation")
+        provider.behavior = { throw cancellation }
+        assertFailsWith<CancellationException> {
+            provider.diagnostics(probe = true, timeout = 100.milliseconds)
+        }.shouldBeSameInstanceAs(cancellation)
+
+        val fatal = AssertionError("custom diagnostics fatal")
+        provider.behavior = { throw fatal }
+        assertFailsWith<AssertionError> {
+            provider.diagnostics(probe = true, timeout = 100.milliseconds)
+        }.shouldBeSameInstanceAs(fatal)
+    }
+
     private class RecordingProvider : LeaderBackendDiagnosticsProvider {
         override val backendDescriptor: LeaderBackendDescriptor = descriptor
         var calls: Int = 0
@@ -102,6 +176,35 @@ class LeaderBackendDiagnosticsTest {
             calls++
             lastTimeout = timeout
             return LeaderBackendConnectivity.up(checkedAt, 7L)
+        }
+    }
+
+    private class LegacyCheckConnectivityProvider : LeaderBackendDiagnosticsProvider {
+        override val backendDescriptor: LeaderBackendDescriptor = descriptor
+        var calls: Int = 0
+        var behavior: (Duration) -> LeaderBackendConnectivity = {
+            calls++
+            LeaderBackendConnectivity.notChecked()
+        }
+
+        override fun checkConnectivity(timeout: Duration): LeaderBackendConnectivity {
+            calls++
+            return behavior(timeout)
+        }
+    }
+
+    private class LegacyDiagnosticsOverrideProvider : LeaderBackendDiagnosticsProvider {
+        override val backendDescriptor: LeaderBackendDescriptor = descriptor
+        var calls: Int = 0
+        var lastTimeout: Duration? = null
+        var behavior: (Duration) -> LeaderBackendDiagnostics = { timeout ->
+            lastTimeout = timeout
+            LeaderBackendDiagnostics(descriptor, LeaderBackendConnectivity.notChecked())
+        }
+
+        override fun diagnostics(probe: Boolean, timeout: Duration): LeaderBackendDiagnostics {
+            calls++
+            return behavior(timeout)
         }
     }
 
