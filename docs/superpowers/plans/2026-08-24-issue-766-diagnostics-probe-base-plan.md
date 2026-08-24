@@ -180,20 +180,36 @@ class LeaderBackendDiagnosticsProbeTest {
 
     @Test
     fun `동시 호출은 helper 공유 상태 없이 각자의 timestamp와 결과를 만든다`() {
+        val sequence = java.util.concurrent.atomic.AtomicLong()
         val results = java.util.concurrent.ConcurrentLinkedQueue<LeaderBackendConnectivity>()
 
         io.bluetape4k.junit5.concurrency.MultithreadingTester()
             .workers(8)
             .rounds(4)
             .add {
-                results += LeaderBackendDiagnosticsProbe.check(100.milliseconds, clock) {
+                val index = sequence.getAndIncrement()
+                val expectedAt = checkedAt.plusMillis(index)
+                val expectedStatus = if (index % 2L == 0L) {
                     LeaderBackendConnectivityStatus.UP
+                } else {
+                    LeaderBackendConnectivityStatus.DOWN
                 }
+                val actual = LeaderBackendDiagnosticsProbe.check(
+                    (index + 1L).milliseconds,
+                    Clock.fixed(expectedAt, ZoneOffset.UTC),
+                ) { expectedStatus }
+
+                actual shouldBeEqualTo when (expectedStatus) {
+                    LeaderBackendConnectivityStatus.UP -> LeaderBackendConnectivity.up(expectedAt)
+                    LeaderBackendConnectivityStatus.DOWN -> LeaderBackendConnectivity.down(expectedAt)
+                    else -> error("unexpected test status: $expectedStatus")
+                }
+                results += actual
             }
             .run()
 
         results.size shouldBeEqualTo 32
-        results.forEach { it shouldBeEqualTo LeaderBackendConnectivity.up(checkedAt) }
+        results.toSet().size shouldBeEqualTo 32
     }
 
     @Test
@@ -435,14 +451,18 @@ Assert the following exact boundaries:
   `IllegalArgumentException` (again captured from `client.get`), without adding
   a `StatusPages` dependency or changing route defaults;
 - custom ordinary exception is delegated to the application pipeline rather
-  than translated by the route; the fixture may install its existing
-  `StatusPages` mapping to prove the custom response;
+  than translated by the route; with the repository's current test
+  dependencies, capture the no-plugin `client.get` failure and assert the same
+  instance through its cause chain, without adding `StatusPages`;
 - custom returned `NOT_CHECKED` is serialized as JSON `NOT_CHECKED`;
 - configured timeout is passed once; the existing `Dispatchers.IO` route boundary
   remains, while the helper itself creates no thread.
 
 Use `shouldHaveStatus`, `bodyAsText`, and existing exact JSON fixtures. Do not
 change route serialization or plugin defaults.
+For thrown-route cases, use a small test-only cause-chain matcher with an
+identity-based visited set and assert that the expected throwable appears at
+some wrapper depth; do not assume a single engine wrapper.
 
 - [ ] **Step 2: Add Spring built-in/custom health cases.**
 
@@ -544,6 +564,22 @@ Do not modify `docs/manual/manifest.yaml` or versioned `docs/manual` in Issue
 
 - [ ] **Step 1: Run all changed module tests and static checks.**
 
+Clear only the affected modules' generated test reports before the run so stale
+XML cannot be counted:
+
+```bash
+./gradlew \
+  :bluetape4k-leader-core:cleanTest \
+  :bluetape4k-leader-mongodb:cleanTest \
+  :bluetape4k-leader-redis-lettuce:cleanTest \
+  :bluetape4k-leader-redis-redisson:cleanTest \
+  :bluetape4k-leader-hazelcast:cleanTest \
+  :bluetape4k-leader-zookeeper:cleanTest \
+  :bluetape4k-leader-ktor:cleanTest \
+  :bluetape4k-leader-spring-boot:cleanTest \
+  --no-daemon --no-configuration-cache --max-workers=1 --console=plain
+```
+
 ```bash
 ./gradlew :bluetape4k-leader-core:test :bluetape4k-leader-mongodb:test :bluetape4k-leader-redis-lettuce:test :bluetape4k-leader-redis-redisson:test :bluetape4k-leader-hazelcast:test :bluetape4k-leader-zookeeper:test :bluetape4k-leader-ktor:test :bluetape4k-leader-spring-boot:test detekt --no-daemon --no-configuration-cache --max-workers=1 --console=plain
 ```
@@ -556,11 +592,20 @@ hosted artifact or full console evidence; a skipped task is not a passing test.
 Read the generated JUnit XML and fail the verification if any test was skipped:
 
 ```bash
+modules=(leader-core leader-mongodb leader-redis-lettuce leader-redis-redisson leader-hazelcast leader-zookeeper leader-ktor leader-spring-boot)
 skipped=0
-while IFS= read -r -d '' xml; do
-    count=$(rg -o 'skipped="[0-9]+"' "$xml" | awk -F'"' '{sum += $2} END {print sum + 0}')
-    skipped=$((skipped + count))
-done < <(find leader-*/build/test-results -type f -name 'TEST-*.xml' -print0)
+files=0
+for module in "${modules[@]}"; do
+    result_dir="$module/build/test-results/test"
+    module_files=$(find "$result_dir" -type f -name 'TEST-*.xml' 2>/dev/null | wc -l | tr -d ' ')
+    test "$module_files" -gt 0
+    files=$((files + module_files))
+    while IFS= read -r -d '' xml; do
+        count=$(rg -o 'skipped="[0-9]+"' "$xml" | awk -F'"' '{sum += $2} END {print sum + 0}')
+        skipped=$((skipped + count))
+    done < <(find "$result_dir" -type f -name 'TEST-*.xml' -print0)
+done
+test "$files" -gt 0
 test "$skipped" -eq 0
 ```
 
@@ -590,8 +635,10 @@ fun consumerProbe() = LeaderBackendDiagnosticsProbe.check(1.milliseconds) {
 Run:
 
 ```bash
-mkdir -p build/issue-766-kotlin-consumer/classes
-kotlinc -classpath leader-core/build/libs/bluetape4k-leader-core-1.0.0.jar -d build/issue-766-kotlin-consumer/classes build/issue-766-kotlin-consumer/ProbeConsumer.kt
+CONSUMER_DIR=build/issue-766-kotlin-consumer
+trap 'rm -rf "$CONSUMER_DIR"' EXIT
+mkdir -p "$CONSUMER_DIR/classes"
+kotlinc -classpath leader-core/build/libs/bluetape4k-leader-core-1.0.0.jar -d "$CONSUMER_DIR/classes" "$CONSUMER_DIR/ProbeConsumer.kt"
 jar tf leader-core/build/libs/bluetape4k-leader-core-1.0.0.jar | rg 'io/bluetape4k/leader/diagnostics/LeaderBackendDiagnosticsProbe'
 javap -classpath leader-core/build/libs/bluetape4k-leader-core-1.0.0.jar 'io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProbe'
 ```
@@ -604,12 +651,15 @@ unmangled `kotlin.time.Duration` JVM signature. Use the exact bounded symbol
 assertion below:
 
 ```bash
-javap -classpath leader-core/build/libs/bluetape4k-leader-core-1.0.0.jar \
+JAVAP_OUTPUT="$(javap -classpath leader-core/build/libs/bluetape4k-leader-core-1.0.0.jar \
   'io.bluetape4k.leader.diagnostics.LeaderBackendDiagnosticsProbe' |
-  rg 'INSTANCE|check-.*long'
+  tee build/issue-766-kotlin-consumer/ProbeConsumer.javap.txt)"
+printf '%s\n' "$JAVAP_OUTPUT" | rg -q '^  public static final .* INSTANCE;$'
+printf '%s\n' "$JAVAP_OUTPUT" | rg -q '^  public final .* check-[^ (]+\(long, java.time.Clock, kotlin.jvm.functions.Function1'
 ```
 
-Remove only `build/issue-766-kotlin-consumer` after capturing the evidence.
+The trap removes only this generated directory even when compilation or symbol
+verification fails, after the evidence file has been captured.
 
 - [ ] **Step 4: Verify diff and source scope.**
 
@@ -665,9 +715,9 @@ component):
 FLOW=/Users/debop/.codex/skills/bluetape-workflow/scripts/bluetape-flow.py
 RUN_ID=20260824T134721Z-fbca5142
 OWNER=/Users/debop/work/bluetape4k/bluetape4k-leader/.bluetape/handles/706788D3-CD7D-44E8-8CDC-C153B0880364-diagnostics-probe-base.owner
-STATE_ROOT=/Users/debop/work/bluetape4k/bluetape4k-leader/.bluetape/receipts
-EXPECTED_HEAD="$(python3 "$FLOW" receipt-diagnose --run-id "$RUN_ID" | jq -r '.last_trusted_checksum')"
-python3 "$FLOW" check-result \
+STATE_ROOT=/Users/debop/work/bluetape4k/bluetape4k-leader/.bluetape
+EXPECTED_HEAD="$(python3 "$FLOW" --state-root "$STATE_ROOT" receipt-diagnose --run-id "$RUN_ID" | jq -r '.last_trusted_checksum')"
+python3 "$FLOW" --state-root "$STATE_ROOT" check-result \
   --run-id "$RUN_ID" \
   --owner-file "$OWNER" \
   --expected-head "$EXPECTED_HEAD" \
